@@ -70,16 +70,21 @@ set(QL_EXTERNAL_SUBDIRECTORIES "" CACHE STRING "Optional list of external source
 # set -lpapi here
 set(QL_EXTRA_LINK_LIBRARIES "" CACHE STRING "Optional extra link libraries to add to QuantLib")
 
-# Require C++17 or higher
+# Require GCC 15.2.1 or higher
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "15.2.1")
+    message(FATAL_ERROR "QuantLib requires GCC 15.2.1 or higher; found ${CMAKE_CXX_COMPILER_VERSION}")
+endif()
+
+# Require C++23 or higher
 if (NOT DEFINED CMAKE_CXX_STANDARD)
-    set(CMAKE_CXX_STANDARD 17)
-elseif(CMAKE_CXX_STANDARD LESS 17)
-    message(FATAL_ERROR "Please specify CMAKE_CXX_STANDARD of 17 or higher")
+    set(CMAKE_CXX_STANDARD 23)
+elseif(CMAKE_CXX_STANDARD LESS 23)
+    message(FATAL_ERROR "Please specify CMAKE_CXX_STANDARD of 23 or higher")
 endif()
 if (NOT DEFINED CMAKE_CXX_STANDARD_REQUIRED)
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()
-# Avoid use of compiler language extensions, i.e. -std=c++17 not -std=gnu++17
+# Avoid use of compiler language extensions, i.e. -std=c++23 not -std=gnu++23
 if (NOT DEFINED CMAKE_CXX_EXTENSIONS)
     set(CMAKE_CXX_EXTENSIONS FALSE)
 endif()
@@ -149,12 +154,7 @@ if (NOT DEFINED Boost_USE_STATIC_RUNTIME)
 endif()
 
 if (NOT DEFINED QL_BOOST_VERSION)
-    # Boost 1.75.0 or greater required for compiling with C++20
-    if (CMAKE_CXX_STANDARD GREATER_EQUAL 20)
-        set(QL_BOOST_VERSION 1.75.0)
-    else()
-        set(QL_BOOST_VERSION 1.58.0)
-    endif()
+    set(QL_BOOST_VERSION 1.83.0)
 endif()
 
 if (CMAKE_CXX_COMPILER STREQUAL "icpx")

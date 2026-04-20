@@ -1,23 +1,23 @@
 
-# QL_CHECK_CPP17
+# QL_CHECK_CPP23
 # --------------------
-# Check whether C++17 features are supported by default.
-# If not (e.g., with Clang on Mac OS) add -std=c++17
-AC_DEFUN([QL_CHECK_CPP17],
-[AC_MSG_CHECKING([for C++17 support])
+# Check whether C++23 features are supported by default.
+# If not, add -std=c++23
+AC_DEFUN([QL_CHECK_CPP23],
+[AC_MSG_CHECKING([for C++23 support])
  AC_COMPILE_IFELSE(
     [AC_LANG_PROGRAM(
-        [[@%:@include <optional>
+        [[@%:@include <expected>
           void foo() {
-              auto x = std::optional<int>{42};
-              x.reset(); // avoids unused-variable warning
+              auto x = std::expected<int, int>{42};
+              (void)x; // avoids unused-variable warning
           }
           ]],
         [[]])],
     [AC_MSG_RESULT([yes])],
-    [AC_MSG_RESULT([no: adding -std=c++17 to CXXFLAGS])
-     AC_SUBST([CPP17_CXXFLAGS],["-std=c++17"])
-     AC_SUBST([CXXFLAGS],["-std=c++17 ${CXXFLAGS}"])
+    [AC_MSG_RESULT([no: adding -std=c++23 to CXXFLAGS])
+     AC_SUBST([CPP23_CXXFLAGS],["-std=c++23"])
+     AC_SUBST([CXXFLAGS],["-std=c++23 ${CXXFLAGS}"])
     ])
 ])
 
@@ -60,19 +60,19 @@ AC_DEFUN([QL_CHECK_BOOST_DEVEL],
 
 # QL_CHECK_BOOST_VERSION
 # ----------------------
-# Check whether the Boost installation is up to date
+# Check whether the Boost installation is 1.83 or higher
 AC_DEFUN([QL_CHECK_BOOST_VERSION],
-[AC_MSG_CHECKING([for Boost version >= 1.48])
+[AC_MSG_CHECKING([for Boost version >= 1.83])
  AC_REQUIRE([QL_CHECK_BOOST_DEVEL])
  AC_COMPILE_IFELSE(
     [AC_LANG_PROGRAM(
         [[@%:@include <boost/version.hpp>]],
-        [[@%:@if BOOST_VERSION < 104800
+        [[@%:@if BOOST_VERSION < 108300
           @%:@error too old
           @%:@endif]])],
     [AC_MSG_RESULT([yes])],
     [AC_MSG_RESULT([no])
-     AC_MSG_ERROR([outdated Boost installation])
+     AC_MSG_ERROR([QuantLib requires Boost 1.83 or higher])
     ])
 ])
 
