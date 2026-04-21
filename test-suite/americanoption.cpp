@@ -2258,8 +2258,11 @@ BOOST_AUTO_TEST_CASE(testBaroneAdesiWhaleyNegativeRates) {
 
     BOOST_TEST_MESSAGE("Testing Barone-Adesi-Whaley engine with negative rates...");
 
-    // Issue #1291: BAW crashes with a cryptic error when rates are negative.
-    // Verify that it now throws a clear error message instead.
+    // Issue #1291: BAW's 1987 derivation assumed non-negative rates. For r < 0
+    // the critical-price Newton iteration is unstable (seeds can go negative
+    // or non-finite). Instead of extending the math, we throw a clear error
+    // message that points users to BjerksundStenslandApproximationEngine,
+    // which handles negative rates natively.
 
     Date today = Date::todaysDate();
     DayCounter dc = Actual360();
@@ -2283,8 +2286,9 @@ BOOST_AUTO_TEST_CASE(testBaroneAdesiWhaleyNegativeRates) {
     option.setPricingEngine(
         ext::make_shared<BaroneAdesiWhaleyApproximationEngine>(stochProcess));
 
+    // BAW should reject with a message pointing users to Bjerksund-Stensland.
     BOOST_CHECK_EXCEPTION(option.NPV(), Error,
-                          ExpectedErrorMessage("negative interest rates"));
+                          ExpectedErrorMessage("BjerksundStensland"));
 
     // also verify with a call and positive dividends
     auto callPayoff = ext::make_shared<PlainVanillaPayoff>(Option::Call, 40.0);
@@ -2294,7 +2298,15 @@ BOOST_AUTO_TEST_CASE(testBaroneAdesiWhaleyNegativeRates) {
         ext::make_shared<BaroneAdesiWhaleyApproximationEngine>(stochProcess));
 
     BOOST_CHECK_EXCEPTION(callOption.NPV(), Error,
-                          ExpectedErrorMessage("negative interest rates"));
+                          ExpectedErrorMessage("BjerksundStensland"));
+
+    // Verify Bjerksund-Stensland actually works for the same negative-rate
+    // input, so the error message's guidance is actionable.
+    option.setPricingEngine(
+        ext::make_shared<BjerksundStenslandApproximationEngine>(stochProcess));
+    BOOST_CHECK_NO_THROW(option.NPV());
+    BOOST_CHECK_MESSAGE(option.NPV() >= 4.0,
+        "BS American put NPV " << option.NPV() << " below intrinsic 4.0");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

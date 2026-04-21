@@ -42,10 +42,17 @@ namespace QuantLib {
         DiscountFactor dividendDiscount,
         Real variance, Real tolerance) {
 
+        // The Barone-Adesi-Whaley (1987) approximation was derived assuming
+        // non-negative interest rates. For r < 0 the critical-price Newton
+        // iteration is numerically unstable: seed-value formulas can
+        // produce negative Si, Su, or non-finite quantities. Bjerksund-
+        // Stensland handles r < 0 natively; use that engine instead.
         QL_REQUIRE(riskFreeDiscount <= 1.0,
-                   "the Barone-Adesi-Whaley approximation is not applicable "
-                   "with negative interest rates "
-                   "(risk-free discount factor: " << riskFreeDiscount << ")");
+                   "Barone-Adesi-Whaley approximation is not defined for "
+                   "negative interest rates (risk-free discount factor "
+                   << riskFreeDiscount << " > 1). Use "
+                   "BjerksundStenslandApproximationEngine instead, which "
+                   "handles negative rates correctly.");
 
         // Calculation of seed value, Si
         Real n= 2.0*std::log(dividendDiscount/riskFreeDiscount)/(variance);
@@ -86,6 +93,8 @@ namespace QuantLib {
                  : 2.0/variance;
         Real temp = blackFormula(payoff->optionType(), payoff->strike(),
                 forwardSi, std::sqrt(variance))*riskFreeDiscount;
+        const Size maxIterations = 100;
+        Size iter = 0;
         switch (payoff->optionType()) {
           case Option::Call:
             Q = (-(n-1.0) + std::sqrt(((n-1.0)*(n-1.0)) + 4 * K)) / 2;
@@ -95,6 +104,10 @@ namespace QuantLib {
                 (1 - dividendDiscount *
                  cumNormalDist.derivative(d1) / std::sqrt(variance)) / Q;
             while (std::fabs(LHS - RHS)/payoff->strike() > tolerance) {
+                QL_REQUIRE(++iter <= maxIterations,
+                           "Barone-Adesi-Whaley critical-price iteration "
+                           "failed to converge after " << maxIterations
+                           << " steps");
                 Si = (payoff->strike() + RHS - bi * Si) / (1 - bi);
                 forwardSi = Si * dividendDiscount / riskFreeDiscount;
                 d1 = (std::log(forwardSi/payoff->strike())+0.5*variance)
@@ -117,6 +130,10 @@ namespace QuantLib {
                 - (1 + dividendDiscount * cumNormalDist.derivative(-d1)
                    / std::sqrt(variance)) / Q;
             while (std::fabs(LHS - RHS)/payoff->strike() > tolerance) {
+                QL_REQUIRE(++iter <= maxIterations,
+                           "Barone-Adesi-Whaley critical-price iteration "
+                           "failed to converge after " << maxIterations
+                           << " steps");
                 Si = (payoff->strike() - RHS + bi * Si) / (1 + bi);
                 forwardSi = Si * dividendDiscount / riskFreeDiscount;
                 d1 = (std::log(forwardSi/payoff->strike())+0.5*variance)
@@ -163,6 +180,16 @@ namespace QuantLib {
         Real forwardPrice = spot * dividendDiscount / riskFreeDiscount;
         BlackCalculator black(payoff, forwardPrice, std::sqrt(variance),
                               riskFreeDiscount);
+
+        // At near-zero variance the Newton seed-value formulas below are
+        // numerically unstable (n = 2 log(.)/var, h ~ sqrt(var)). In that
+        // limit American and European prices coincide up to the intrinsic-
+        // exercise adjustment, so short-circuit to European + immediate
+        // exercise floor and skip the iterative branch.
+        if (variance < QL_EPSILON) {
+            results_.value = std::max(black.value(), (*payoff)(spot));
+            return;
+        }
 
         if (dividendDiscount>=1.0 && payoff->optionType()==Option::Call) {
             // early exercise never optimal

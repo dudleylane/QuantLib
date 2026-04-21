@@ -555,7 +555,6 @@
     <ClInclude Include="ql\experimental\all.hpp" />
     <ClInclude Include="ql\experimental\asian\all.hpp" />
     <ClInclude Include="ql\experimental\asian\analytic_cont_geom_av_price_heston.hpp" />
-    <ClInclude Include="ql\experimental\asian\analytic_discr_geom_av_price_heston.hpp" />
     <ClInclude Include="ql\experimental\averageois\all.hpp" />
     <ClInclude Include="ql\experimental\averageois\arithmeticaverageois.hpp" />
     <ClInclude Include="ql\experimental\averageois\arithmeticoisratehelper.hpp" />
@@ -806,6 +805,7 @@
     <ClInclude Include="ql\indexes\all.hpp" />
     <ClInclude Include="ql\indexes\bmaindex.hpp" />
     <ClInclude Include="ql\indexes\equityindex.hpp" />
+    <ClInclude Include="ql\indexes\fallbackiborindex.hpp" />
     <ClInclude Include="ql\indexes\ibor\all.hpp" />
     <ClInclude Include="ql\indexes\ibor\aonia.hpp" />
     <ClInclude Include="ql\indexes\ibor\audlibor.hpp" />
@@ -1471,6 +1471,7 @@
     <ClInclude Include="ql\pricingengines\asian\all.hpp" />
     <ClInclude Include="ql\pricingengines\asian\analytic_cont_geom_av_price.hpp" />
     <ClInclude Include="ql\pricingengines\asian\analytic_discr_geom_av_price.hpp" />
+    <ClInclude Include="ql\pricingengines\asian\analytic_discr_geom_av_price_heston.hpp" />
     <ClInclude Include="ql\pricingengines\asian\analytic_discr_geom_av_strike.hpp" />
     <ClInclude Include="ql\pricingengines\asian\choiasianengine.hpp" />
     <ClInclude Include="ql\pricingengines\asian\continuousarithmeticasianlevyengine.hpp" />
@@ -1974,7 +1975,6 @@
     <ClCompile Include="ql\currencies\exchangeratemanager.cpp" />
     <ClCompile Include="ql\currencies\oceania.cpp" />
     <ClCompile Include="ql\experimental\asian\analytic_cont_geom_av_price_heston.cpp" />
-    <ClCompile Include="ql\experimental\asian\analytic_discr_geom_av_price_heston.cpp" />
     <ClCompile Include="ql\experimental\barrieroption\discretizeddoublebarrieroption.cpp" />
     <ClCompile Include="ql\experimental\barrieroption\mcdoublebarrierengine.cpp" />
     <ClCompile Include="ql\experimental\barrieroption\perturbativebarrieroptionengine.cpp" />
@@ -2133,6 +2133,7 @@
     <ClCompile Include="ql\experimental\volatility\volcube.cpp" />
     <ClCompile Include="ql\indexes\bmaindex.cpp" />
     <ClCompile Include="ql\indexes\equityindex.cpp" />
+    <ClCompile Include="ql\indexes\fallbackiborindex.cpp" />
     <ClCompile Include="ql\indexes\ibor\bibor.cpp" />
     <ClCompile Include="ql\indexes\ibor\cdi.cpp" />
     <ClCompile Include="ql\indexes\ibor\corra.cpp" />
@@ -2568,6 +2569,7 @@
     <ClCompile Include="ql\pricingengines\americanpayoffathit.cpp" />
     <ClCompile Include="ql\pricingengines\asian\analytic_cont_geom_av_price.cpp" />
     <ClCompile Include="ql\pricingengines\asian\analytic_discr_geom_av_price.cpp" />
+    <ClCompile Include="ql\pricingengines\asian\analytic_discr_geom_av_price_heston.cpp" />
     <ClCompile Include="ql\pricingengines\asian\analytic_discr_geom_av_strike.cpp" />
     <ClCompile Include="ql\pricingengines\asian\choiasianengine.cpp" />
     <ClCompile Include="ql\pricingengines\asian\continuousarithmeticasianlevyengine.cpp" />

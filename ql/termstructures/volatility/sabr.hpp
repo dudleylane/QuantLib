@@ -23,6 +23,18 @@
 
 /*! \file sabr.hpp
     \brief SABR functions
+
+    The functions in this header implement the classic Hagan et al. (2002)
+    SABR expansion. This formula is known to produce non-monotonic implied-
+    volatility smiles (i.e. butterfly arbitrage) at low strikes when the
+    volatility-of-volatility `nu` is high, `beta` is close to 1, or the
+    forward is close to zero. Use `sabrIsRiskyRegime()` below to detect
+    such parameter combinations before calling `sabrVolatility()`.
+
+    For a fully arbitrage-free alternative — Doust's (2012) no-arbitrage
+    SABR — see `<ql/experimental/volatility/noarbsabr.hpp>`, which solves
+    the SABR pricing PDE directly via finite differences plus a precomputed
+    absorption-probability table.
 */
 
 #ifndef quantlib_sabr_hpp
@@ -103,6 +115,24 @@ namespace QuantLib {
                                 Real beta,
                                 Real nu,
                                 Real rho);
+
+    //! Heuristic detector for the Hagan 2002 SABR unsafe regime.
+    /*! Returns true when the combination of parameters is likely to
+        produce a non-monotonic (arbitrage-violating) implied-volatility
+        smile under the Hagan 2002 expansion. The criterion is based on
+        Doust's (2012) absorption-probability threshold and is
+        intentionally conservative: `nu * expiryTime / max(alpha * forward^(beta-1), eps)`
+        above roughly 0.5 with `beta` close to 1 signals the unsafe
+        region. Callers that receive `true` should consider switching to
+        `<ql/experimental/volatility/noarbsabr.hpp>` for arbitrage-free
+        pricing. Cheap to call (plain algebra, no lookup tables).
+    */
+    bool sabrIsRiskyRegime(Real forward,
+                           Time expiryTime,
+                           Real alpha,
+                           Real beta,
+                           Real nu,
+                           Real rho);
 
     //! Initial guess for SABR calibration
     /*! See Fabien Le Floc’h and Gary Kennedy, "Explicit SABR Calibration through Simple Expansions",

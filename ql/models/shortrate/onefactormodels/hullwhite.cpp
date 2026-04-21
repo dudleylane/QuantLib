@@ -113,16 +113,26 @@ namespace QuantLib {
         if (_a < std::sqrt(QL_EPSILON)) {
             v = sigma()*B(bondStart, bondMaturity)* std::sqrt(maturity);
         } else {
-            Real c = exp(-2.0*_a*(bondStart-maturity))
-                - exp(-2.0*_a*bondStart)
-                -2.0*(exp(-_a*(bondStart+bondMaturity-2.0*maturity))
-                      - exp(-_a*(bondStart+bondMaturity)))
-                + exp(-2.0*_a*(bondMaturity-maturity))
-                - exp(-2.0*_a*bondMaturity);
-            // The above should always be positive, but due to
-            // numerical errors it can be a very small negative number.
-            // We floor it at 0 to avoid NaNs.
-            v = sigma()/(_a*sqrt(2.0*_a)) * sqrt(std::max(c, 0.0));
+            // Numerically stable form for the integrated bond-option
+            // variance in the Hull-White model (Brigo & Mercurio,
+            // "Interest Rate Models - Theory and Practice", 2nd ed., ch. 3).
+            //
+            // Letting u = exp(-a*bondStart), v = exp(-a*bondMaturity),
+            // w = exp(-a*maturity), the original expansion
+            //
+            //   c = u^2/w^2 - u^2 - 2*(u*v/w^2 - u*v) + v^2/w^2 - v^2
+            //
+            // is algebraically equivalent to
+            //
+            //   c = (u - v)^2 * expm1(2 * a * maturity)
+            //
+            // which is non-negative by construction (u > v since
+            // bondMaturity > bondStart, and expm1(x) >= 0 for x >= 0),
+            // so no flooring is needed and no catastrophic cancellation
+            // occurs in long-maturity / high-reversion regimes.
+            Real du = std::exp(-_a*bondStart) - std::exp(-_a*bondMaturity);
+            Real c = du*du * std::expm1(2.0*_a*maturity);
+            v = sigma()/(_a*std::sqrt(2.0*_a)) * std::sqrt(c);
         }
         Real f = termStructure()->discount(bondMaturity);
         Real k = termStructure()->discount(bondStart)*strike;

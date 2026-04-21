@@ -353,10 +353,19 @@ Real GsrProcessCore::flooredTime(const Size index,
 Real GsrProcessCore::time2(const Size index) const {
     if (index == 0)
         return 0.0;
-    if (index > times_.size())
-        return T_; // FIXME how to ensure that forward
-                   // measure time is geq all times
-                   // given
+    if (index > times_.size()) {
+        // Out-of-range index => we return the forward-measure horizon T_.
+        // For this to be mathematically sound, T_ must be >= every
+        // specified step time; otherwise the resulting expectation /
+        // variance is ill-defined. We enforce the invariant only when
+        // this branch is actually reached, so that parameter sets with
+        // extra future step dates remain usable for short-time queries.
+        QL_REQUIRE(times_.empty() || T_ >= times_.back(),
+                   "GSR forward-measure horizon T (" << T_ <<
+                   ") is less than the last step time (" << times_.back()
+                   << "); cannot evaluate beyond the time grid");
+        return T_;
+    }
     return times_[index - 1];
 }
 

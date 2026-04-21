@@ -20,9 +20,12 @@
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
 #include <ql/indexes/bmaindex.hpp>
+#include <ql/indexes/fallbackiborindex.hpp>
 #include <ql/indexes/ibor/custom.hpp>
 #include <ql/indexes/ibor/cdi.hpp>
 #include <ql/indexes/ibor/euribor.hpp>
+#include <ql/indexes/ibor/sofr.hpp>
+#include <ql/indexes/ibor/usdlibor.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/time/calendars/bespokecalendar.hpp>
 #include <ql/time/calendars/brazil.hpp>
@@ -219,6 +222,66 @@ BOOST_AUTO_TEST_CASE(testCdiIndex) {
     QL_ASSERT(std::fabs(0.05127 - forecast) < 1e-5, "discrepancy in fixing forecast computation\n");
     QL_ASSERT(std::fabs(approx - forecast) < 1e-6, "discrepancy in fixing forecast computation with approximation\n");
 }
+
+BOOST_AUTO_TEST_CASE(testFallbackIborIndex) {
+    BOOST_TEST_MESSAGE("Testing FallbackIborIndex pre- and post-cessation behavior...");
+
+    // Build a 3% flat curve for the legacy and a 2.5% flat curve for the RFR.
+    Date today(15, April, 2023);
+    Settings::instance().evaluationDate() = today;
+    DayCounter dc = Actual360();
+
+    auto legacyQuote = ext::make_shared<SimpleQuote>(0.03);
+    Handle<YieldTermStructure> legacyCurve(
+        ext::make_shared<FlatForward>(today, Handle<Quote>(legacyQuote), dc));
+    auto rfrQuote = ext::make_shared<SimpleQuote>(0.025);
+    Handle<YieldTermStructure> rfrCurve(
+        ext::make_shared<FlatForward>(today, Handle<Quote>(rfrQuote), dc));
+
+    auto usdLibor = ext::make_shared<USDLibor>(3 * Months, legacyCurve);
+    auto sofr = ext::make_shared<Sofr>(rfrCurve);
+    Date cessation(30, June, 2023);
+    Spread isdaSpread = 0.0026161; // indicative ISDA USD 3M → SOFR spread
+
+    auto fallback = ext::make_shared<FallbackIborIndex>(
+        usdLibor, sofr, cessation, isdaSpread);
+
+    // Pre-cessation: fallback must match the legacy USDLibor forecast exactly.
+    Date preCess(15, May, 2023);
+    Rate legacyRate = usdLibor->forecastFixing(preCess);
+    Rate fallbackPre = fallback->forecastFixing(preCess);
+    BOOST_CHECK_MESSAGE(std::fabs(legacyRate - fallbackPre) < 1e-12,
+        "Pre-cessation: fallback rate " << fallbackPre
+        << " does not match legacy " << legacyRate);
+
+    // Post-cessation: the fallback rate should equal the compounded SOFR
+    // over the 3M period plus the spread adjustment. For a flat 2.5% SOFR
+    // curve the compounded rate is approximately 2.5% (simply-compounded
+    // over 3M), so fallback ≈ 0.025 + 0.0026161 = 0.0276161.
+    Date postCess(15, August, 2023);
+    Rate fallbackPost = fallback->forecastFixing(postCess);
+    BOOST_CHECK_MESSAGE(fallbackPost > 0.025,
+        "Post-cessation fallback " << fallbackPost
+        << " should exceed the raw SOFR rate 0.025 after adding the spread");
+    BOOST_CHECK_MESSAGE(std::fabs(fallbackPost - (0.025 + isdaSpread)) < 5e-4,
+        "Post-cessation fallback " << fallbackPost
+        << " differs from expected " << (0.025 + isdaSpread)
+        << " by more than 5 bps");
+
+    // Inspectors.
+    BOOST_CHECK_EQUAL(fallback->cessationDate(), cessation);
+    BOOST_CHECK_CLOSE(fallback->spreadAdjustment(), isdaSpread, 1e-12);
+    BOOST_CHECK(fallback->legacyIndex());
+    BOOST_CHECK(fallback->rfrIndex());
+
+    // Missing-RFR-curve guard.
+    auto orphanSofr = ext::make_shared<Sofr>();
+    auto fallbackNoCurve = ext::make_shared<FallbackIborIndex>(
+        usdLibor, orphanSofr, cessation, isdaSpread);
+    BOOST_CHECK_EXCEPTION(fallbackNoCurve->forecastFixing(postCess), Error,
+        ExpectedErrorMessage("no forwarding term structure"));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

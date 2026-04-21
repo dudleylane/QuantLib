@@ -48,7 +48,6 @@ set(QL_SOURCES
     exchangerate.cpp
     exercise.cpp
     experimental/asian/analytic_cont_geom_av_price_heston.cpp
-    experimental/asian/analytic_discr_geom_av_price_heston.cpp
     experimental/barrieroption/mcdoublebarrierengine.cpp
     experimental/barrieroption/discretizeddoublebarrieroption.cpp
     experimental/barrieroption/perturbativebarrieroptionengine.cpp
@@ -224,6 +223,7 @@ set(QL_SOURCES
     indexes/ibor/sofr.cpp
     indexes/ibor/sonia.cpp
     indexes/ibor/zaronia.cpp
+    indexes/fallbackiborindex.cpp
     indexes/iborindex.cpp
     indexes/indexmanager.cpp
     indexes/inflationindex.cpp
@@ -648,6 +648,7 @@ set(QL_SOURCES
     pricingengines/americanpayoffathit.cpp
     pricingengines/asian/analytic_cont_geom_av_price.cpp
     pricingengines/asian/analytic_discr_geom_av_price.cpp
+    pricingengines/asian/analytic_discr_geom_av_price_heston.cpp
     pricingengines/asian/analytic_discr_geom_av_strike.cpp
     pricingengines/asian/choiasianengine.cpp
     pricingengines/asian/continuousarithmeticasianlevyengine.cpp
@@ -1017,7 +1018,6 @@ set(QL_HEADERS
     exchangerate.hpp
     exercise.hpp
     experimental/asian/analytic_cont_geom_av_price_heston.hpp
-    experimental/asian/analytic_discr_geom_av_price_heston.hpp
     experimental/averageois/arithmeticaverageois.hpp
     experimental/averageois/arithmeticoisratehelper.hpp
     experimental/averageois/makearithmeticaverageois.hpp
@@ -1288,6 +1288,7 @@ set(QL_HEADERS
     indexes/ibor/wibor.hpp
     indexes/ibor/zaronia.hpp
     indexes/ibor/zibor.hpp
+    indexes/fallbackiborindex.hpp
     indexes/iborindex.hpp
     indexes/indexmanager.hpp
     indexes/inflation/aucpi.hpp
@@ -1870,6 +1871,7 @@ set(QL_HEADERS
     pricingengines/americanpayoffathit.hpp
     pricingengines/asian/analytic_cont_geom_av_price.hpp
     pricingengines/asian/analytic_discr_geom_av_price.hpp
+    pricingengines/asian/analytic_discr_geom_av_price_heston.hpp
     pricingengines/asian/analytic_discr_geom_av_strike.hpp
     pricingengines/asian/choiasianengine.hpp    
     pricingengines/asian/continuousarithmeticasianlevyengine.hpp

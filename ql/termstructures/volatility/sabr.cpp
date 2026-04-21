@@ -399,4 +399,28 @@ namespace QuantLib {
 
     #endif
 
+    bool sabrIsRiskyRegime(Real forward,
+                           Time expiryTime,
+                           Real alpha,
+                           Real beta,
+                           Real nu,
+                           Real /*rho*/) {
+        // Heuristic based on Doust (2012) "No-arbitrage SABR": the absorption
+        // probability of the SABR process at 0 becomes non-negligible when
+        // the vol-of-vol is large relative to the local volatility scale
+        // alpha * F^(beta - 1). For beta close to 1 that scale approaches
+        // alpha, so nu * sqrt(T) / alpha is the governing ratio. A threshold
+        // of 0.5 is conservative; the exact 1e-10 absorption-probability
+        // contour in the NoArbSabr tables is tighter but more expensive.
+        if (forward <= 0.0 || alpha <= 0.0 || expiryTime <= 0.0)
+            return true; // degenerate inputs: treat as unsafe
+        const Real localVol = alpha * std::pow(forward,
+                                               std::max(beta - 1.0, -1.0));
+        const Real scaledNu = nu * std::sqrt(expiryTime)
+                              / std::max(localVol, QL_EPSILON);
+        const bool highVolOfVol = scaledNu > 0.5;
+        const bool highBeta = beta > 0.9;
+        return highVolOfVol && (highBeta || forward < 0.01);
+    }
+
 }

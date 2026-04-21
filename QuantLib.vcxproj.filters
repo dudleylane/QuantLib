@@ -588,6 +588,9 @@
     <ClInclude Include="ql\indexes\iborindex.hpp">
       <Filter>indexes</Filter>
     </ClInclude>
+    <ClInclude Include="ql\indexes\fallbackiborindex.hpp">
+      <Filter>indexes</Filter>
+    </ClInclude>
     <ClInclude Include="ql\indexes\indexmanager.hpp">
       <Filter>indexes</Filter>
     </ClInclude>
@@ -4380,8 +4383,8 @@
     <ClInclude Include="ql\experimental\asian\analytic_cont_geom_av_price_heston.hpp">
       <Filter>experimental\asian</Filter>
     </ClInclude>
-    <ClInclude Include="ql\experimental\asian\analytic_discr_geom_av_price_heston.hpp">
-      <Filter>experimental\asian</Filter>
+    <ClInclude Include="ql\pricingengines\asian\analytic_discr_geom_av_price_heston.hpp">
+      <Filter>pricingengines\asian</Filter>
     </ClInclude>
     <ClInclude Include="ql\experimental\termstructures\basisswapratehelpers.hpp">
       <Filter>experimental\termstructures</Filter>
@@ -4644,6 +4647,9 @@
       <Filter>cashflows</Filter>
     </ClCompile>
     <ClCompile Include="ql\indexes\bmaindex.cpp">
+      <Filter>indexes</Filter>
+    </ClCompile>
+    <ClCompile Include="ql\indexes\fallbackiborindex.cpp">
       <Filter>indexes</Filter>
     </ClCompile>
     <ClCompile Include="ql\indexes\iborindex.cpp">
@@ -7234,8 +7240,8 @@
     <ClCompile Include="ql\experimental\asian\analytic_cont_geom_av_price_heston.cpp">
       <Filter>experimental\asian</Filter>
     </ClCompile>
-    <ClCompile Include="ql\experimental\asian\analytic_discr_geom_av_price_heston.cpp">
-      <Filter>experimental\asian</Filter>
+    <ClCompile Include="ql\pricingengines\asian\analytic_discr_geom_av_price_heston.cpp">
+      <Filter>pricingengines\asian</Filter>
     </ClCompile>
     <ClCompile Include="ql\pricingengines\vanilla\fdblackscholesshoutengine.cpp">
       <Filter>pricingengines\vanilla</Filter>

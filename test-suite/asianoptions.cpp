@@ -26,7 +26,7 @@
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
 #include <ql/experimental/asian/analytic_cont_geom_av_price_heston.hpp>
-#include <ql/experimental/asian/analytic_discr_geom_av_price_heston.hpp>
+#include <ql/pricingengines/asian/analytic_discr_geom_av_price_heston.hpp>
 #include <ql/experimental/exoticoptions/continuousarithmeticasianvecerengine.hpp>
 #include <ql/instruments/asianoption.hpp>
 #include <ql/pricingengines/blackformula.hpp>

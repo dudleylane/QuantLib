@@ -23,7 +23,7 @@
 #define quantlib_mc_discrete_arithmetic_average_price_asian_heston_engine_hpp
 
 #include <ql/exercise.hpp>
-#include <ql/experimental/asian/analytic_discr_geom_av_price_heston.hpp>
+#include <ql/pricingengines/asian/analytic_discr_geom_av_price_heston.hpp>
 #include <ql/pricingengines/asian/mc_discr_geom_av_price_heston.hpp>
 #include <ql/pricingengines/asian/mcdiscreteasianenginebase.hpp>
 #include <ql/processes/hestonprocess.hpp>

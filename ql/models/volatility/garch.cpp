@@ -531,9 +531,11 @@ namespace QuantLib {
         Garch11CostFunction cost(r2);
         ext::shared_ptr<Problem> problem(
                                new Problem(cost, constraints, initGuess));
-        // TODO: check return value from minimize()
-        /* EndCriteria::Type ret = */
-        method.minimize(*problem, endCriteria);
+        EndCriteria::Type ret = method.minimize(*problem, endCriteria);
+        QL_REQUIRE(ret != EndCriteria::None &&
+                   ret != EndCriteria::Unknown,
+                   "GARCH(1,1) calibration failed to run "
+                   "(EndCriteria=" << ret << ")");
         const Array &optimum = problem->currentValue();
         alpha = optimum[1];
         beta = optimum[2];
