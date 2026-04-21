@@ -226,6 +226,9 @@
     <Filter Include="quotes">
       <UniqueIdentifier>{a709110c-73f5-4b2e-b44c-46a909a89b31}</UniqueIdentifier>
     </Filter>
+    <Filter Include="risk">
+      <UniqueIdentifier>{c1b2d3e4-f5a6-4789-b012-3c4d5e6f7890}</UniqueIdentifier>
+    </Filter>
     <Filter Include="time">
       <UniqueIdentifier>{36727168-b97c-4f82-aeb7-e397627499a6}</UniqueIdentifier>
     </Filter>
@@ -3779,6 +3782,12 @@
     <ClInclude Include="ql\exercise.hpp" />
     <ClInclude Include="ql\functional.hpp" />
     <ClInclude Include="ql\rebatedexercise.hpp" />
+    <ClInclude Include="ql\risk\all.hpp">
+      <Filter>risk</Filter>
+    </ClInclude>
+    <ClInclude Include="ql\risk\curvebucketer.hpp">
+      <Filter>risk</Filter>
+    </ClInclude>
     <ClInclude Include="ql\grid.hpp" />
     <ClInclude Include="ql\handle.hpp" />
     <ClInclude Include="ql\index.hpp" />
@@ -6767,6 +6776,9 @@
     <ClCompile Include="ql\exercise.cpp" />
     <ClCompile Include="ql\quote.cpp" />
     <ClCompile Include="ql\rebatedexercise.cpp" />
+    <ClCompile Include="ql\risk\curvebucketer.cpp">
+      <Filter>risk</Filter>
+    </ClCompile>
     <ClCompile Include="ql\index.cpp" />
     <ClCompile Include="ql\instrument.cpp" />
     <ClCompile Include="ql\interestrate.cpp" />

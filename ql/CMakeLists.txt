@@ -805,6 +805,7 @@ set(QL_SOURCES
     quotes/impliedstddevquote.cpp
     quotes/lastfixingquote.cpp
     rebatedexercise.cpp
+    risk/curvebucketer.cpp
     settings.cpp
     stochasticprocess.cpp
     termstructure.cpp
@@ -2050,6 +2051,7 @@ set(QL_HEADERS
     quotes/multicompositequote.hpp
     quotes/simplequote.hpp
     rebatedexercise.hpp
+    risk/curvebucketer.hpp
     settings.hpp
     shared_ptr.hpp
     stochasticprocess.hpp
@@ -2375,6 +2377,7 @@ set(QL_GENERATED_HEADERS
     ${PROJECT_BINARY_DIR}/ql/pricingengines/vanilla/all.hpp
     ${PROJECT_BINARY_DIR}/ql/processes/all.hpp
     ${PROJECT_BINARY_DIR}/ql/quotes/all.hpp
+    ${PROJECT_BINARY_DIR}/ql/risk/all.hpp
     ${PROJECT_BINARY_DIR}/ql/termstructures/all.hpp
     ${PROJECT_BINARY_DIR}/ql/termstructures/credit/all.hpp
     ${PROJECT_BINARY_DIR}/ql/termstructures/inflation/all.hpp

@@ -13,6 +13,7 @@ SUBDIRS = \
     pricingengines \
     processes \
     quotes \
+    risk \
     termstructures \
     time \
     utilities
@@ -124,6 +125,7 @@ libQuantLib_la_LIBADD = \
     pricingengines/libPricingEngines.la \
     processes/libProcesses.la \
     quotes/libQuotes.la \
+    risk/libRisk.la \
     termstructures/libTermStructures.la \
     time/libTime.la \
     utilities/libUtilities.la
