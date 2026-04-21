@@ -19,8 +19,8 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
-#include <ql/experimental/exoticoptions/pagodaoption.hpp>
-#include <ql/experimental/exoticoptions/mcpagodaengine.hpp>
+#include <ql/pricingengines/exotic/pagodaoption.hpp>
+#include <ql/pricingengines/exotic/mcpagodaengine.hpp>
 #include <ql/math/randomnumbers/rngtraits.hpp>
 #include <ql/time/daycounters/actual360.hpp>
 #include <ql/quotes/simplequote.hpp>

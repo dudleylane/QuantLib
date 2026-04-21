@@ -20,7 +20,7 @@
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
 #include <ql/termstructures/volatility/sabrsmilesection.hpp>
-#include <ql/experimental/volatility/noarbsabrsmilesection.hpp>
+#include <ql/termstructures/volatility/noarbsabrsmilesection.hpp>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;

@@ -14,6 +14,11 @@ this_include_HEADERS = \
     gaussian1dsmilesection.hpp \
     interpolatedsmilesection.hpp \
     kahalesmilesection.hpp \
+    noarbsabr.hpp \
+    noarbsabrinterpolatedsmilesection.hpp \
+    noarbsabrinterpolation.hpp \
+    noarbsabrsmilesection.hpp \
+    noarbsabrswaptionvolatilitycube.hpp \
     sabr.hpp \
     sabrinterpolatedsmilesection.hpp \
     sabrsmilesection.hpp \
@@ -33,6 +38,10 @@ cpp_files = \
     flatsmilesection.cpp \
     gaussian1dsmilesection.cpp \
     kahalesmilesection.cpp \
+    noarbsabr.cpp \
+    noarbsabrabsprobs.cpp \
+    noarbsabrinterpolatedsmilesection.cpp \
+    noarbsabrsmilesection.cpp \
     sabr.cpp \
     sabrinterpolatedsmilesection.cpp \
     sabrsmilesection.cpp \

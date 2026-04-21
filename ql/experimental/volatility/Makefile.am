@@ -11,11 +11,6 @@ this_include_HEADERS = \
     extendedblackvariancecurve.hpp \
     extendedblackvariancesurface.hpp \
     interestratevolsurface.hpp \
-    noarbsabr.hpp \
-    noarbsabrinterpolatedsmilesection.hpp \
-    noarbsabrinterpolation.hpp \
-    noarbsabrsmilesection.hpp \
-    noarbsabrswaptionvolatilitycube.hpp \
     sabrvolsurface.hpp \
     sabrvoltermstructure.hpp \
     sviinterpolatedsmilesection.hpp \
@@ -35,10 +30,6 @@ cpp_files = \
     extendedblackvariancecurve.cpp \
     extendedblackvariancesurface.cpp \
     interestratevolsurface.cpp \
-    noarbsabr.cpp \
-    noarbsabrabsprobs.cpp \
-    noarbsabrinterpolatedsmilesection.cpp \
-    noarbsabrsmilesection.cpp \
     sabrvolsurface.cpp \
     sviinterpolatedsmilesection.cpp \
     svismilesection.cpp \

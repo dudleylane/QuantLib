@@ -9,6 +9,11 @@
 #include <ql/termstructures/volatility/gaussian1dsmilesection.hpp>
 #include <ql/termstructures/volatility/interpolatedsmilesection.hpp>
 #include <ql/termstructures/volatility/kahalesmilesection.hpp>
+#include <ql/termstructures/volatility/noarbsabr.hpp>
+#include <ql/termstructures/volatility/noarbsabrinterpolatedsmilesection.hpp>
+#include <ql/termstructures/volatility/noarbsabrinterpolation.hpp>
+#include <ql/termstructures/volatility/noarbsabrsmilesection.hpp>
+#include <ql/termstructures/volatility/noarbsabrswaptionvolatilitycube.hpp>
 #include <ql/termstructures/volatility/sabr.hpp>
 #include <ql/termstructures/volatility/sabrinterpolatedsmilesection.hpp>
 #include <ql/termstructures/volatility/sabrsmilesection.hpp>

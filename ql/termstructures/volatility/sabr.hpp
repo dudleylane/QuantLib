@@ -32,7 +32,7 @@
     such parameter combinations before calling `sabrVolatility()`.
 
     For a fully arbitrage-free alternative — Doust's (2012) no-arbitrage
-    SABR — see `<ql/experimental/volatility/noarbsabr.hpp>`, which solves
+    SABR — see `<ql/termstructures/volatility/noarbsabr.hpp>`, which solves
     the SABR pricing PDE directly via finite differences plus a precomputed
     absorption-probability table.
 */
@@ -124,7 +124,7 @@ namespace QuantLib {
         intentionally conservative: `nu * expiryTime / max(alpha * forward^(beta-1), eps)`
         above roughly 0.5 with `beta` close to 1 signals the unsafe
         region. Callers that receive `true` should consider switching to
-        `<ql/experimental/volatility/noarbsabr.hpp>` for arbitrage-free
+        `<ql/termstructures/volatility/noarbsabr.hpp>` for arbitrage-free
         pricing. Cheap to call (plain algebra, no lookup tables).
     */
     bool sabrIsRiskyRegime(Real forward,

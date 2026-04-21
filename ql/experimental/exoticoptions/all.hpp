@@ -2,10 +2,4 @@
 /* Add the files to be included into Makefile.am instead. */
 
 #include <ql/experimental/exoticoptions/continuousarithmeticasianvecerengine.hpp>
-#include <ql/experimental/exoticoptions/everestoption.hpp>
-#include <ql/experimental/exoticoptions/himalayaoption.hpp>
-#include <ql/experimental/exoticoptions/mceverestengine.hpp>
-#include <ql/experimental/exoticoptions/mchimalayaengine.hpp>
-#include <ql/experimental/exoticoptions/mcpagodaengine.hpp>
-#include <ql/experimental/exoticoptions/pagodaoption.hpp>
 

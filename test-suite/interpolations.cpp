@@ -25,7 +25,7 @@
 #include "preconditions.hpp"
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
-#include <ql/experimental/volatility/noarbsabrinterpolation.hpp>
+#include <ql/termstructures/volatility/noarbsabrinterpolation.hpp>
 #include <ql/experimental/math/laplaceinterpolation.hpp>
 #include <ql/math/bspline.hpp>
 #include <ql/math/functional.hpp>

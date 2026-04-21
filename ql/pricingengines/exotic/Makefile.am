@@ -11,7 +11,13 @@ this_include_HEADERS = \
 	analyticholderextensibleoptionengine.hpp \
 	analyticsimplechooserengine.hpp \
 	analytictwoassetcorrelationengine.hpp \
-	analyticwriterextensibleoptionengine.hpp
+	analyticwriterextensibleoptionengine.hpp \
+	everestoption.hpp \
+	himalayaoption.hpp \
+	mceverestengine.hpp \
+	mchimalayaengine.hpp \
+	mcpagodaengine.hpp \
+	pagodaoption.hpp
 
 cpp_files = \
 	analyticamericanmargrabeengine.cpp \
@@ -21,7 +27,13 @@ cpp_files = \
 	analyticholderextensibleoptionengine.cpp \
 	analyticsimplechooserengine.cpp \
 	analytictwoassetcorrelationengine.cpp \
-	analyticwriterextensibleoptionengine.cpp
+	analyticwriterextensibleoptionengine.cpp \
+	everestoption.cpp \
+	himalayaoption.cpp \
+	mceverestengine.cpp \
+	mchimalayaengine.cpp \
+	mcpagodaengine.cpp \
+	pagodaoption.cpp
 
 if UNITY_BUILD
 

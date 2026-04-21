@@ -121,12 +121,6 @@ set(QL_SOURCES
     experimental/credit/riskyassetswapoption.cpp
     experimental/credit/syntheticcdo.cpp
     experimental/exoticoptions/continuousarithmeticasianvecerengine.cpp
-    experimental/exoticoptions/everestoption.cpp
-    experimental/exoticoptions/himalayaoption.cpp
-    experimental/exoticoptions/mceverestengine.cpp
-    experimental/exoticoptions/mchimalayaengine.cpp
-    experimental/exoticoptions/mcpagodaengine.cpp
-    experimental/exoticoptions/pagodaoption.cpp
     experimental/finitedifferences/dynprogvppintrinsicvalueengine.cpp
     experimental/finitedifferences/fdextoujumpvanillaengine.cpp
     experimental/finitedifferences/fdklugeextouspreadengine.cpp
@@ -196,10 +190,6 @@ set(QL_SOURCES
     experimental/volatility/extendedblackvariancecurve.cpp
     experimental/volatility/extendedblackvariancesurface.cpp
     experimental/volatility/interestratevolsurface.cpp
-    experimental/volatility/noarbsabr.cpp
-    experimental/volatility/noarbsabrabsprobs.cpp
-    experimental/volatility/noarbsabrinterpolatedsmilesection.cpp
-    experimental/volatility/noarbsabrsmilesection.cpp
     experimental/volatility/sabrvolsurface.cpp
     experimental/volatility/sviinterpolatedsmilesection.cpp
     experimental/volatility/svismilesection.cpp
@@ -716,6 +706,12 @@ set(QL_SOURCES
     pricingengines/exotic/analyticsimplechooserengine.cpp
     pricingengines/exotic/analytictwoassetcorrelationengine.cpp
     pricingengines/exotic/analyticwriterextensibleoptionengine.cpp
+    pricingengines/exotic/everestoption.cpp
+    pricingengines/exotic/himalayaoption.cpp
+    pricingengines/exotic/mceverestengine.cpp
+    pricingengines/exotic/mchimalayaengine.cpp
+    pricingengines/exotic/mcpagodaengine.cpp
+    pricingengines/exotic/pagodaoption.cpp
     pricingengines/forward/discountingfxforwardengine.cpp
     pricingengines/forward/mcforwardeuropeanbsengine.cpp
     pricingengines/forward/mcforwardeuropeanhestonengine.cpp
@@ -852,6 +848,10 @@ set(QL_SOURCES
     termstructures/volatility/inflation/cpivolatilitystructure.cpp
     termstructures/volatility/inflation/yoyinflationoptionletvolatilitystructure.cpp
     termstructures/volatility/kahalesmilesection.cpp
+    termstructures/volatility/noarbsabr.cpp
+    termstructures/volatility/noarbsabrabsprobs.cpp
+    termstructures/volatility/noarbsabrinterpolatedsmilesection.cpp
+    termstructures/volatility/noarbsabrsmilesection.cpp
     termstructures/volatility/optionlet/constantoptionletvol.cpp
     termstructures/volatility/optionlet/optionletstripper.cpp
     termstructures/volatility/optionlet/optionletstripper1.cpp
@@ -1117,13 +1117,7 @@ set(QL_HEADERS
     experimental/credit/spreadedhazardratecurve.hpp
     experimental/credit/syntheticcdo.hpp
     experimental/exoticoptions/continuousarithmeticasianvecerengine.hpp
-    experimental/exoticoptions/everestoption.hpp
-    experimental/exoticoptions/himalayaoption.hpp
     experimental/exoticoptions/kirkspreadoptionengine.hpp
-    experimental/exoticoptions/mceverestengine.hpp
-    experimental/exoticoptions/mchimalayaengine.hpp
-    experimental/exoticoptions/mcpagodaengine.hpp
-    experimental/exoticoptions/pagodaoption.hpp
     experimental/exoticoptions/spreadoption.hpp
     experimental/finitedifferences/dynprogvppintrinsicvalueengine.hpp
     experimental/finitedifferences/fdextoujumpvanillaengine.hpp
@@ -1225,11 +1219,6 @@ set(QL_HEADERS
     experimental/volatility/extendedblackvariancecurve.hpp
     experimental/volatility/extendedblackvariancesurface.hpp
     experimental/volatility/interestratevolsurface.hpp
-    experimental/volatility/noarbsabr.hpp
-    experimental/volatility/noarbsabrinterpolatedsmilesection.hpp
-    experimental/volatility/noarbsabrinterpolation.hpp
-    experimental/volatility/noarbsabrsmilesection.hpp
-    experimental/volatility/noarbsabrswaptionvolatilitycube.hpp
     experimental/volatility/sabrvolsurface.hpp
     experimental/volatility/sabrvoltermstructure.hpp
     experimental/volatility/sviinterpolatedsmilesection.hpp
@@ -1942,6 +1931,12 @@ set(QL_HEADERS
     pricingengines/exotic/analyticsimplechooserengine.hpp
     pricingengines/exotic/analytictwoassetcorrelationengine.hpp
     pricingengines/exotic/analyticwriterextensibleoptionengine.hpp
+    pricingengines/exotic/everestoption.hpp
+    pricingengines/exotic/himalayaoption.hpp
+    pricingengines/exotic/mceverestengine.hpp
+    pricingengines/exotic/mchimalayaengine.hpp
+    pricingengines/exotic/mcpagodaengine.hpp
+    pricingengines/exotic/pagodaoption.hpp
     pricingengines/forward/discountingfxforwardengine.hpp
     pricingengines/forward/forwardengine.hpp
     pricingengines/forward/forwardperformanceengine.hpp
@@ -2120,6 +2115,11 @@ set(QL_HEADERS
     termstructures/volatility/inflation/yoyinflationoptionletvolatilitystructure.hpp
     termstructures/volatility/interpolatedsmilesection.hpp
     termstructures/volatility/kahalesmilesection.hpp
+    termstructures/volatility/noarbsabr.hpp
+    termstructures/volatility/noarbsabrinterpolatedsmilesection.hpp
+    termstructures/volatility/noarbsabrinterpolation.hpp
+    termstructures/volatility/noarbsabrsmilesection.hpp
+    termstructures/volatility/noarbsabrswaptionvolatilitycube.hpp
     termstructures/volatility/optionlet/capletvariancecurve.hpp
     termstructures/volatility/optionlet/constantoptionletvol.hpp
     termstructures/volatility/optionlet/optionletstripper.hpp

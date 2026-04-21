@@ -9,4 +9,10 @@
 #include <ql/pricingengines/exotic/analyticsimplechooserengine.hpp>
 #include <ql/pricingengines/exotic/analytictwoassetcorrelationengine.hpp>
 #include <ql/pricingengines/exotic/analyticwriterextensibleoptionengine.hpp>
+#include <ql/pricingengines/exotic/everestoption.hpp>
+#include <ql/pricingengines/exotic/himalayaoption.hpp>
+#include <ql/pricingengines/exotic/mceverestengine.hpp>
+#include <ql/pricingengines/exotic/mchimalayaengine.hpp>
+#include <ql/pricingengines/exotic/mcpagodaengine.hpp>
+#include <ql/pricingengines/exotic/pagodaoption.hpp>
 

@@ -19,8 +19,8 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
-#include <ql/experimental/exoticoptions/himalayaoption.hpp>
-#include <ql/experimental/exoticoptions/mchimalayaengine.hpp>
+#include <ql/pricingengines/exotic/himalayaoption.hpp>
+#include <ql/pricingengines/exotic/mchimalayaengine.hpp>
 #include <ql/math/randomnumbers/rngtraits.hpp>
 #include <ql/time/daycounters/actual360.hpp>
 #include <ql/quotes/simplequote.hpp>

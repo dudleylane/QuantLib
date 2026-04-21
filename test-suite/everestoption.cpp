@@ -19,8 +19,8 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
-#include <ql/experimental/exoticoptions/everestoption.hpp>
-#include <ql/experimental/exoticoptions/mceverestengine.hpp>
+#include <ql/pricingengines/exotic/everestoption.hpp>
+#include <ql/pricingengines/exotic/mceverestengine.hpp>
 #include <ql/math/randomnumbers/rngtraits.hpp>
 #include <ql/time/daycounters/actual360.hpp>
 #include <ql/quotes/simplequote.hpp>

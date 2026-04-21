@@ -5,23 +5,11 @@ this_includedir=${includedir}/${subdir}
 this_include_HEADERS = \
     all.hpp \
     continuousarithmeticasianvecerengine.hpp \
-    everestoption.hpp \
-    himalayaoption.hpp \
     kirkspreadoptionengine.hpp \
-    mceverestengine.hpp \
-    mchimalayaengine.hpp \
-    mcpagodaengine.hpp \
-    pagodaoption.hpp \
     spreadoption.hpp
 
 cpp_files = \
-    continuousarithmeticasianvecerengine.cpp \
-    everestoption.cpp \
-    himalayaoption.cpp \
-    mceverestengine.cpp \
-    mchimalayaengine.cpp \
-    mcpagodaengine.cpp \
-    pagodaoption.cpp
+    continuousarithmeticasianvecerengine.cpp
 
 if UNITY_BUILD
 

@@ -3105,20 +3105,20 @@
     <ClInclude Include="ql\experimental\volatility\interestratevolsurface.hpp">
       <Filter>experimental\volatility</Filter>
     </ClInclude>
-    <ClInclude Include="ql\experimental\volatility\noarbsabr.hpp">
-      <Filter>experimental\volatility</Filter>
+    <ClInclude Include="ql\termstructures\volatility\noarbsabr.hpp">
+      <Filter>termstructures\volatility</Filter>
     </ClInclude>
-    <ClInclude Include="ql\experimental\volatility\noarbsabrinterpolatedsmilesection.hpp">
-      <Filter>experimental\volatility</Filter>
+    <ClInclude Include="ql\termstructures\volatility\noarbsabrinterpolatedsmilesection.hpp">
+      <Filter>termstructures\volatility</Filter>
     </ClInclude>
-    <ClInclude Include="ql\experimental\volatility\noarbsabrinterpolation.hpp">
-      <Filter>experimental\volatility</Filter>
+    <ClInclude Include="ql\termstructures\volatility\noarbsabrinterpolation.hpp">
+      <Filter>termstructures\volatility</Filter>
     </ClInclude>
-    <ClInclude Include="ql\experimental\volatility\noarbsabrsmilesection.hpp">
-      <Filter>experimental\volatility</Filter>
+    <ClInclude Include="ql\termstructures\volatility\noarbsabrsmilesection.hpp">
+      <Filter>termstructures\volatility</Filter>
     </ClInclude>
-    <ClInclude Include="ql\experimental\volatility\noarbsabrswaptionvolatilitycube.hpp">
-      <Filter>experimental\volatility</Filter>
+    <ClInclude Include="ql\termstructures\volatility\noarbsabrswaptionvolatilitycube.hpp">
+      <Filter>termstructures\volatility</Filter>
     </ClInclude>
     <ClInclude Include="ql\experimental\volatility\sabrvolsurface.hpp">
       <Filter>experimental\volatility</Filter>
@@ -3231,26 +3231,26 @@
     <ClInclude Include="ql\experimental\exoticoptions\continuousarithmeticasianvecerengine.hpp">
       <Filter>experimental\exoticoptions</Filter>
     </ClInclude>
-    <ClInclude Include="ql\experimental\exoticoptions\everestoption.hpp">
-      <Filter>experimental\exoticoptions</Filter>
+    <ClInclude Include="ql\pricingengines\exotic\everestoption.hpp">
+      <Filter>pricingengines\exotic</Filter>
     </ClInclude>
-    <ClInclude Include="ql\experimental\exoticoptions\himalayaoption.hpp">
-      <Filter>experimental\exoticoptions</Filter>
+    <ClInclude Include="ql\pricingengines\exotic\himalayaoption.hpp">
+      <Filter>pricingengines\exotic</Filter>
     </ClInclude>
     <ClInclude Include="ql\experimental\exoticoptions\kirkspreadoptionengine.hpp">
       <Filter>experimental\exoticoptions</Filter>
     </ClInclude>
-    <ClInclude Include="ql\experimental\exoticoptions\mceverestengine.hpp">
-      <Filter>experimental\exoticoptions</Filter>
+    <ClInclude Include="ql\pricingengines\exotic\mceverestengine.hpp">
+      <Filter>pricingengines\exotic</Filter>
     </ClInclude>
-    <ClInclude Include="ql\experimental\exoticoptions\mchimalayaengine.hpp">
-      <Filter>experimental\exoticoptions</Filter>
+    <ClInclude Include="ql\pricingengines\exotic\mchimalayaengine.hpp">
+      <Filter>pricingengines\exotic</Filter>
     </ClInclude>
-    <ClInclude Include="ql\experimental\exoticoptions\mcpagodaengine.hpp">
-      <Filter>experimental\exoticoptions</Filter>
+    <ClInclude Include="ql\pricingengines\exotic\mcpagodaengine.hpp">
+      <Filter>pricingengines\exotic</Filter>
     </ClInclude>
-    <ClInclude Include="ql\experimental\exoticoptions\pagodaoption.hpp">
-      <Filter>experimental\exoticoptions</Filter>
+    <ClInclude Include="ql\pricingengines\exotic\pagodaoption.hpp">
+      <Filter>pricingengines\exotic</Filter>
     </ClInclude>
     <ClInclude Include="ql\experimental\exoticoptions\spreadoption.hpp">
       <Filter>experimental\exoticoptions</Filter>
@@ -6350,17 +6350,17 @@
     <ClCompile Include="ql\experimental\volatility\interestratevolsurface.cpp">
       <Filter>experimental\volatility</Filter>
     </ClCompile>
-    <ClCompile Include="ql\experimental\volatility\noarbsabr.cpp">
-      <Filter>experimental\volatility</Filter>
+    <ClCompile Include="ql\termstructures\volatility\noarbsabr.cpp">
+      <Filter>termstructures\volatility</Filter>
     </ClCompile>
-    <ClCompile Include="ql\experimental\volatility\noarbsabrabsprobs.cpp">
-      <Filter>experimental\volatility</Filter>
+    <ClCompile Include="ql\termstructures\volatility\noarbsabrabsprobs.cpp">
+      <Filter>termstructures\volatility</Filter>
     </ClCompile>
-    <ClCompile Include="ql\experimental\volatility\noarbsabrinterpolatedsmilesection.cpp">
-      <Filter>experimental\volatility</Filter>
+    <ClCompile Include="ql\termstructures\volatility\noarbsabrinterpolatedsmilesection.cpp">
+      <Filter>termstructures\volatility</Filter>
     </ClCompile>
-    <ClCompile Include="ql\experimental\volatility\noarbsabrsmilesection.cpp">
-      <Filter>experimental\volatility</Filter>
+    <ClCompile Include="ql\termstructures\volatility\noarbsabrsmilesection.cpp">
+      <Filter>termstructures\volatility</Filter>
     </ClCompile>
     <ClCompile Include="ql\experimental\volatility\sabrvolsurface.cpp">
       <Filter>experimental\volatility</Filter>
@@ -6431,23 +6431,23 @@
     <ClCompile Include="ql\experimental\exoticoptions\continuousarithmeticasianvecerengine.cpp">
       <Filter>experimental\exoticoptions</Filter>
     </ClCompile>
-    <ClCompile Include="ql\experimental\exoticoptions\everestoption.cpp">
-      <Filter>experimental\exoticoptions</Filter>
+    <ClCompile Include="ql\pricingengines\exotic\everestoption.cpp">
+      <Filter>pricingengines\exotic</Filter>
     </ClCompile>
-    <ClCompile Include="ql\experimental\exoticoptions\himalayaoption.cpp">
-      <Filter>experimental\exoticoptions</Filter>
+    <ClCompile Include="ql\pricingengines\exotic\himalayaoption.cpp">
+      <Filter>pricingengines\exotic</Filter>
     </ClCompile>
-    <ClCompile Include="ql\experimental\exoticoptions\mceverestengine.cpp">
-      <Filter>experimental\exoticoptions</Filter>
+    <ClCompile Include="ql\pricingengines\exotic\mceverestengine.cpp">
+      <Filter>pricingengines\exotic</Filter>
     </ClCompile>
-    <ClCompile Include="ql\experimental\exoticoptions\mchimalayaengine.cpp">
-      <Filter>experimental\exoticoptions</Filter>
+    <ClCompile Include="ql\pricingengines\exotic\mchimalayaengine.cpp">
+      <Filter>pricingengines\exotic</Filter>
     </ClCompile>
-    <ClCompile Include="ql\experimental\exoticoptions\mcpagodaengine.cpp">
-      <Filter>experimental\exoticoptions</Filter>
+    <ClCompile Include="ql\pricingengines\exotic\mcpagodaengine.cpp">
+      <Filter>pricingengines\exotic</Filter>
     </ClCompile>
-    <ClCompile Include="ql\experimental\exoticoptions\pagodaoption.cpp">
-      <Filter>experimental\exoticoptions</Filter>
+    <ClCompile Include="ql\pricingengines\exotic\pagodaoption.cpp">
+      <Filter>pricingengines\exotic</Filter>
     </ClCompile>
     <ClCompile Include="ql\experimental\credit\basecorrelationstructure.cpp">
       <Filter>experimental\credit</Filter>
