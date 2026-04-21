@@ -6,6 +6,7 @@ SUBDIRS = \
     indexes \
     instruments \
     legacy \
+    marketdata \
     math \
     methods \
     models \
@@ -118,6 +119,7 @@ libQuantLib_la_LIBADD = \
     indexes/libIndexes.la \
     instruments/libInstruments.la \
     legacy/libLegacy.la \
+    marketdata/libMarketData.la \
     math/libMath.la \
     methods/libMethods.la \
     models/libModels.la \

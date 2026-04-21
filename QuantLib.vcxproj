@@ -971,6 +971,8 @@
     <ClInclude Include="ql\legacy\libormarketmodels\lmlinexpcorrmodel.hpp" />
     <ClInclude Include="ql\legacy\libormarketmodels\lmlinexpvolmodel.hpp" />
     <ClInclude Include="ql\legacy\libormarketmodels\lmvolmodel.hpp" />
+    <ClInclude Include="ql\marketdata\all.hpp" />
+    <ClInclude Include="ql\marketdata\csvquoteloader.hpp" />
     <ClInclude Include="ql\math\aad.hpp" />
     <ClInclude Include="ql\math\abcdmathfunction.hpp" />
     <ClInclude Include="ql\math\all.hpp" />
@@ -2262,6 +2264,7 @@
     <ClCompile Include="ql\legacy\libormarketmodels\lmlinexpcorrmodel.cpp" />
     <ClCompile Include="ql\legacy\libormarketmodels\lmlinexpvolmodel.cpp" />
     <ClCompile Include="ql\legacy\libormarketmodels\lmvolmodel.cpp" />
+    <ClCompile Include="ql\marketdata\csvquoteloader.cpp" />
     <ClCompile Include="ql\math\abcdmathfunction.cpp" />
     <ClCompile Include="ql\math\bernsteinpolynomial.cpp" />
     <ClCompile Include="ql\math\beta.cpp" />

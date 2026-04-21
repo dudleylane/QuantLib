@@ -229,6 +229,9 @@
     <Filter Include="quotes">
       <UniqueIdentifier>{a709110c-73f5-4b2e-b44c-46a909a89b31}</UniqueIdentifier>
     </Filter>
+    <Filter Include="marketdata">
+      <UniqueIdentifier>{e3f4a5b6-c7d8-4123-a012-3c4d5e6f7892}</UniqueIdentifier>
+    </Filter>
     <Filter Include="risk">
       <UniqueIdentifier>{c1b2d3e4-f5a6-4789-b012-3c4d5e6f7890}</UniqueIdentifier>
     </Filter>
@@ -1004,6 +1007,12 @@
     </ClInclude>
     <ClInclude Include="ql\math\aad.hpp">
       <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="ql\marketdata\all.hpp">
+      <Filter>marketdata</Filter>
+    </ClInclude>
+    <ClInclude Include="ql\marketdata\csvquoteloader.hpp">
+      <Filter>marketdata</Filter>
     </ClInclude>
     <ClInclude Include="ql\math\abcdmathfunction.hpp">
       <Filter>math</Filter>
@@ -4972,6 +4981,9 @@
     </ClCompile>
     <ClCompile Include="ql\instruments\bonds\zerocouponbond.cpp">
       <Filter>instruments\bonds</Filter>
+    </ClCompile>
+    <ClCompile Include="ql\marketdata\csvquoteloader.cpp">
+      <Filter>marketdata</Filter>
     </ClCompile>
     <ClCompile Include="ql\math\abcdmathfunction.cpp">
       <Filter>math</Filter>

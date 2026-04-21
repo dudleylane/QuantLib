@@ -73,6 +73,16 @@ refuse to configure on an older toolchain.
 
 CI is not wired on this fork; all verification is local.
 
+### Language bindings
+
+Python / R / Java / .NET bindings for this fork live in the sibling
+repository **[dudleylane/QuantLib-SWIG](https://github.com/dudleylane/QuantLib-SWIG)**,
+which is itself a fork of upstream `lballabio/QuantLib-SWIG`. It
+needs manual updates for the fork-specific additions (FallbackIborIndex,
+CurveBucketer, XvaCalculator, AutocallableNote, the promoted no-arb
+SABR namespace, the promoted Heston Asian control variate). Bindings
+for entirely new classes are tracked as follow-ups there, not here.
+
 ## Build, test, run
 
 See `CLAUDE.md` in the repo root for the canonical build recipe (CMake

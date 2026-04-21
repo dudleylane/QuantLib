@@ -325,6 +325,7 @@ set(QL_SOURCES
     legacy/libormarketmodels/lmlinexpcorrmodel.cpp
     legacy/libormarketmodels/lmlinexpvolmodel.cpp
     legacy/libormarketmodels/lmvolmodel.cpp
+    marketdata/csvquoteloader.cpp
     math/abcdmathfunction.cpp
     math/bernsteinpolynomial.cpp
     math/beta.cpp
@@ -1404,6 +1405,7 @@ set(QL_HEADERS
     legacy/libormarketmodels/lmlinexpcorrmodel.hpp
     legacy/libormarketmodels/lmlinexpvolmodel.hpp
     legacy/libormarketmodels/lmvolmodel.hpp
+    marketdata/csvquoteloader.hpp
     math/aad.hpp
     math/abcdmathfunction.hpp
     math/array.hpp
@@ -2321,6 +2323,7 @@ set(QL_GENERATED_HEADERS
     ${PROJECT_BINARY_DIR}/ql/instruments/bonds/all.hpp
     ${PROJECT_BINARY_DIR}/ql/legacy/all.hpp
     ${PROJECT_BINARY_DIR}/ql/legacy/libormarketmodels/all.hpp
+    ${PROJECT_BINARY_DIR}/ql/marketdata/all.hpp
     ${PROJECT_BINARY_DIR}/ql/math/all.hpp
     ${PROJECT_BINARY_DIR}/ql/math/copulas/all.hpp
     ${PROJECT_BINARY_DIR}/ql/math/distributions/all.hpp

@@ -45,6 +45,7 @@ QL_TEST_SRCS = \
 	covariance.cpp \
 	creditdefaultswap.cpp \
 	crosscurrencyratehelpers.cpp \
+	csvquoteloader.cpp \
 	curvebucketer.cpp \
 	currency.cpp \
 	curvestates.cpp \
