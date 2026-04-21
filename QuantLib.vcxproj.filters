@@ -181,6 +181,9 @@
     <Filter Include="pricingengines\asian">
       <UniqueIdentifier>{7d2cb293-d738-4289-ba74-fd7445bf6749}</UniqueIdentifier>
     </Filter>
+    <Filter Include="pricingengines\autocallable">
+      <UniqueIdentifier>{d2e3f4a5-b6c7-4012-9012-3c4d5e6f7891}</UniqueIdentifier>
+    </Filter>
     <Filter Include="pricingengines\barrier">
       <UniqueIdentifier>{23b3f559-6e47-4fbe-846d-4dc9002560f3}</UniqueIdentifier>
     </Filter>
@@ -778,6 +781,9 @@
       <Filter>instruments</Filter>
     </ClInclude>
     <ClInclude Include="ql\instruments\asianoption.hpp">
+      <Filter>instruments</Filter>
+    </ClInclude>
+    <ClInclude Include="ql\instruments\autocallablenote.hpp">
       <Filter>instruments</Filter>
     </ClInclude>
     <ClInclude Include="ql\instruments\assetswap.hpp">
@@ -4422,6 +4428,12 @@
     <ClInclude Include="ql\pricingengines\asian\turnbullwakemanasianengine.hpp">
       <Filter>pricingengines\asian</Filter>
     </ClInclude>
+    <ClInclude Include="ql\pricingengines\autocallable\all.hpp">
+      <Filter>pricingengines\autocallable</Filter>
+    </ClInclude>
+    <ClInclude Include="ql\pricingengines\autocallable\mcautocallablenoteengine.hpp">
+      <Filter>pricingengines\autocallable</Filter>
+    </ClInclude>
     <ClInclude Include="ql\math\integrals\tanhsinhintegral.hpp">
       <Filter>math\integrals</Filter>
     </ClInclude>
@@ -4746,6 +4758,9 @@
       <Filter>indexes\swap</Filter>
     </ClCompile>
     <ClCompile Include="ql\instruments\asianoption.cpp">
+      <Filter>instruments</Filter>
+    </ClCompile>
+    <ClCompile Include="ql\instruments\autocallablenote.cpp">
       <Filter>instruments</Filter>
     </ClCompile>
     <ClCompile Include="ql\instruments\assetswap.cpp">

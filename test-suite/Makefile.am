@@ -6,6 +6,7 @@ QL_TEST_SRCS = \
 	array.cpp \
 	asianoptions.cpp \
 	assetswap.cpp \
+	autocallablenote.cpp \
 	autocovariances.cpp \
 	barrieroption.cpp \
 	binaryoption.cpp \

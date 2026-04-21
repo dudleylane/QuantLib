@@ -5,6 +5,7 @@ set(QL_TEST_SOURCES
     array.cpp
     asianoptions.cpp
     assetswap.cpp
+    autocallablenote.cpp
     autocovariances.cpp
 	bacheliercalculator.cpp
     barrieroption.cpp

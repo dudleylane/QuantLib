@@ -868,6 +868,7 @@
     <ClInclude Include="ql\instruments\all.hpp" />
     <ClInclude Include="ql\instruments\asianoption.hpp" />
     <ClInclude Include="ql\instruments\assetswap.hpp" />
+    <ClInclude Include="ql\instruments\autocallablenote.hpp" />
     <ClInclude Include="ql\instruments\averagetype.hpp" />
     <ClInclude Include="ql\instruments\barrieroption.hpp" />
     <ClInclude Include="ql\instruments\barriertype.hpp" />
@@ -1478,6 +1479,8 @@
     <ClInclude Include="ql\pricingengines\asian\mc_discr_geom_av_price_heston.hpp" />
     <ClInclude Include="ql\pricingengines\asian\mcdiscreteasianenginebase.hpp" />
     <ClInclude Include="ql\pricingengines\asian\turnbullwakemanasianengine.hpp" />
+    <ClInclude Include="ql\pricingengines\autocallable\all.hpp" />
+    <ClInclude Include="ql\pricingengines\autocallable\mcautocallablenoteengine.hpp" />
     <ClInclude Include="ql\pricingengines\bacheliercalculator.hpp" />
     <ClInclude Include="ql\pricingengines\barrier\all.hpp" />
     <ClInclude Include="ql\pricingengines\barrier\analyticbarrierengine.hpp" />
@@ -2161,6 +2164,7 @@
     <ClCompile Include="ql\indexes\swap\usdliborswap.cpp" />
     <ClCompile Include="ql\indexes\swapindex.cpp" />
     <ClCompile Include="ql\instruments\asianoption.cpp" />
+    <ClCompile Include="ql\instruments\autocallablenote.cpp" />
     <ClCompile Include="ql\instruments\assetswap.cpp" />
     <ClCompile Include="ql\instruments\averagetype.cpp" />
     <ClCompile Include="ql\instruments\barrieroption.cpp" />

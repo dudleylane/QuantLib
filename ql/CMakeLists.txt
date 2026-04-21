@@ -229,6 +229,7 @@ set(QL_SOURCES
     instrument.cpp
     instruments/asianoption.cpp
     instruments/assetswap.cpp
+    instruments/autocallablenote.cpp
     instruments/averagetype.cpp
     instruments/barrieroption.cpp
     instruments/barriertype.cpp
@@ -1301,6 +1302,7 @@ set(QL_HEADERS
     instrument.hpp
     instruments/asianoption.hpp
     instruments/assetswap.hpp
+    instruments/autocallablenote.hpp
     instruments/averagetype.hpp
     instruments/barrieroption.hpp
     instruments/barriertype.hpp
@@ -1873,6 +1875,7 @@ set(QL_HEADERS
     pricingengines/asian/mc_discr_geom_av_price_heston.hpp
     pricingengines/asian/mcdiscreteasianenginebase.hpp
     pricingengines/asian/turnbullwakemanasianengine.hpp
+    pricingengines/autocallable/mcautocallablenoteengine.hpp
     pricingengines/barrier/analyticbarrierengine.hpp
     pricingengines/barrier/analyticbinarybarrierengine.hpp
     pricingengines/barrier/analyticdoublebarrierbinaryengine.hpp
@@ -2376,6 +2379,7 @@ set(QL_GENERATED_HEADERS
     ${PROJECT_BINARY_DIR}/ql/pricingengines/swaption/all.hpp
     ${PROJECT_BINARY_DIR}/ql/pricingengines/vanilla/all.hpp
     ${PROJECT_BINARY_DIR}/ql/processes/all.hpp
+    ${PROJECT_BINARY_DIR}/ql/pricingengines/autocallable/all.hpp
     ${PROJECT_BINARY_DIR}/ql/quotes/all.hpp
     ${PROJECT_BINARY_DIR}/ql/risk/all.hpp
     ${PROJECT_BINARY_DIR}/ql/termstructures/all.hpp
