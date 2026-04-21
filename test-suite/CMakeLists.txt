@@ -1,4 +1,5 @@
 set(QL_TEST_SOURCES
+    aad.cpp
     americanoption.cpp
     amortizingbond.cpp
     andreasenhugevolatilityinterpl.cpp
@@ -177,6 +178,7 @@ set(QL_TEST_SOURCES
     volatilitymodels.cpp
     vpp.cpp
     xoshiro256starstar.cpp
+    xvacalculator.cpp
     zabr.cpp
     zerocouponswap.cpp
     zigguratgaussian.cpp

@@ -807,6 +807,7 @@ set(QL_SOURCES
     quotes/lastfixingquote.cpp
     rebatedexercise.cpp
     risk/curvebucketer.cpp
+    risk/xvacalculator.cpp
     settings.cpp
     stochasticprocess.cpp
     termstructure.cpp
@@ -1403,6 +1404,7 @@ set(QL_HEADERS
     legacy/libormarketmodels/lmlinexpcorrmodel.hpp
     legacy/libormarketmodels/lmlinexpvolmodel.hpp
     legacy/libormarketmodels/lmvolmodel.hpp
+    math/aad.hpp
     math/abcdmathfunction.hpp
     math/array.hpp
     math/autocovariance.hpp
@@ -2055,6 +2057,7 @@ set(QL_HEADERS
     quotes/simplequote.hpp
     rebatedexercise.hpp
     risk/curvebucketer.hpp
+    risk/xvacalculator.hpp
     settings.hpp
     shared_ptr.hpp
     stochasticprocess.hpp

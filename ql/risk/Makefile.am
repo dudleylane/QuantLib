@@ -4,10 +4,12 @@ AM_CPPFLAGS = -I${top_builddir} -I${top_srcdir}
 this_includedir=${includedir}/${subdir}
 this_include_HEADERS = \
     all.hpp \
-    curvebucketer.hpp
+    curvebucketer.hpp \
+    xvacalculator.hpp
 
 cpp_files = \
-    curvebucketer.cpp
+    curvebucketer.cpp \
+    xvacalculator.cpp
 
 if UNITY_BUILD
 

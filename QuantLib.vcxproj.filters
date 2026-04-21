@@ -1002,6 +1002,9 @@
     <ClInclude Include="ql\math\all.hpp">
       <Filter>math</Filter>
     </ClInclude>
+    <ClInclude Include="ql\math\aad.hpp">
+      <Filter>math</Filter>
+    </ClInclude>
     <ClInclude Include="ql\math\abcdmathfunction.hpp">
       <Filter>math</Filter>
     </ClInclude>
@@ -3792,6 +3795,9 @@
       <Filter>risk</Filter>
     </ClInclude>
     <ClInclude Include="ql\risk\curvebucketer.hpp">
+      <Filter>risk</Filter>
+    </ClInclude>
+    <ClInclude Include="ql\risk\xvacalculator.hpp">
       <Filter>risk</Filter>
     </ClInclude>
     <ClInclude Include="ql\grid.hpp" />
@@ -6792,6 +6798,9 @@
     <ClCompile Include="ql\quote.cpp" />
     <ClCompile Include="ql\rebatedexercise.cpp" />
     <ClCompile Include="ql\risk\curvebucketer.cpp">
+      <Filter>risk</Filter>
+    </ClCompile>
+    <ClCompile Include="ql\risk\xvacalculator.cpp">
       <Filter>risk</Filter>
     </ClCompile>
     <ClCompile Include="ql\index.cpp" />

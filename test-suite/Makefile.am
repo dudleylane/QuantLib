@@ -1,5 +1,6 @@
 
 QL_TEST_SRCS = \
+	aad.cpp \
 	americanoption.cpp \
 	amortizingbond.cpp \
 	andreasenhugevolatilityinterpl.cpp \
@@ -178,6 +179,7 @@ QL_TEST_SRCS = \
 	volatilitymodels.cpp \
 	vpp.cpp \
 	xoshiro256starstar.cpp \
+	xvacalculator.cpp \
 	zabr.cpp \
 	zerocouponswap.cpp \
 	zigguratgaussian.cpp

@@ -971,6 +971,7 @@
     <ClInclude Include="ql\legacy\libormarketmodels\lmlinexpcorrmodel.hpp" />
     <ClInclude Include="ql\legacy\libormarketmodels\lmlinexpvolmodel.hpp" />
     <ClInclude Include="ql\legacy\libormarketmodels\lmvolmodel.hpp" />
+    <ClInclude Include="ql\math\aad.hpp" />
     <ClInclude Include="ql\math\abcdmathfunction.hpp" />
     <ClInclude Include="ql\math\all.hpp" />
     <ClInclude Include="ql\math\array.hpp" />
@@ -1925,6 +1926,7 @@
     <ClInclude Include="ql\rebatedexercise.hpp" />
     <ClInclude Include="ql\risk\all.hpp" />
     <ClInclude Include="ql\risk\curvebucketer.hpp" />
+    <ClInclude Include="ql\risk\xvacalculator.hpp" />
     <ClInclude Include="ql\settings.hpp" />
     <ClInclude Include="ql\shared_ptr.hpp" />
     <ClInclude Include="ql\stochasticprocess.hpp" />
@@ -2893,6 +2895,7 @@
     <ClCompile Include="ql\quote.cpp" />
     <ClCompile Include="ql\rebatedexercise.cpp" />
     <ClCompile Include="ql\risk\curvebucketer.cpp" />
+    <ClCompile Include="ql\risk\xvacalculator.cpp" />
     <ClCompile Include="ql\settings.cpp" />
     <ClCompile Include="ql\stochasticprocess.cpp" />
     <ClCompile Include="ql\termstructure.cpp" />
