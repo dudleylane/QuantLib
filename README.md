@@ -59,17 +59,69 @@ refuse to configure on an older toolchain.
 
 ### New in this fork
 
-- **`FallbackIborIndex`** (`ql/indexes/fallbackiborindex.hpp`) — ISDA 2020 IBOR Fallbacks Protocol wrapper.
-  Pre-cessation: delegates fixings to the wrapped legacy IBOR index.
-  Post-cessation: compounds the replacement RFR (e.g. SOFR for USD LIBOR)
-  over the legacy tenor using the RFR's discount curve, plus a fixed
-  spread adjustment. Regression test in `test-suite/indexes.cpp`.
+These are classes added by the fork that do not exist upstream. All
+ship with regression tests, full build-system integration, and
+AGPL-3.0+ file headers. Each module's header carries a `\warning MVP
+scope` block listing what is explicitly out of scope for the first
+cut.
+
+- **`FallbackIborIndex`** (`ql/indexes/fallbackiborindex.hpp`) — ISDA
+  2020 IBOR Fallbacks Protocol wrapper. Pre-cessation: delegates
+  fixings to the wrapped legacy IBOR index. Post-cessation: compounds
+  the replacement RFR (e.g. SOFR for USD LIBOR) over the legacy tenor
+  using the RFR's discount curve, plus a fixed spread adjustment.
+  Regression test in `test-suite/indexes.cpp`.
+
+- **`CurveBucketer`** (`ql/risk/curvebucketer.hpp`) — tenor-bucketed
+  sensitivities for curves built from `SimpleQuote` handles.
+  `bucketedDelta()` and `bucketedGamma()` centered-difference each
+  quote one at a time through the observer chain; `parallelDelta()`
+  gives the sum-of-shocks as a sanity check. RAII-guarded quote
+  restore so an exception inside the pricing engine can't leave stale
+  state. MVP: tenor (1D) only, no cross-gamma, no vol-surface (2D)
+  bucketing yet. Primitive for future FRTB / SIMM sensitivities.
+
+- **`AutocallableNote` + `MCAutocallableNoteEngine`**
+  (`ql/instruments/autocallablenote.hpp`,
+  `ql/pricingengines/autocallable/mcautocallablenoteengine.hpp`) —
+  single-underlying step-down autocallable with fixed coupons and a
+  European-style maturity protection barrier, priced by Monte Carlo
+  on a Black-Scholes process. MVP: one underlying, one MC engine; no
+  worst-of / best-of, no memory coupons, no stochastic-vol engine yet.
+
+- **`XvaCalculator`** (`ql/risk/xvacalculator.hpp`) — exposure-driven
+  XVA adjustment layer (CVA/DVA/FVA/KVA/MVA) for any instrument whose
+  EPE/ENE profile the caller can produce. Designed to plug on top of
+  `CurveBucketer` (bump-and-reprice exposures) or an MC forward-
+  valuation framework, without committing the fork to one exposure-
+  simulation architecture. MVP: no wrong-way risk, no collateral
+  thresholds or netting aggregation, MVA needs a user-supplied IM
+  profile.
+
+- **`aad.hpp` + `QL_ENABLE_AAD`** (`ql/math/aad.hpp`) — opt-in reverse-
+  mode AAD via [CoDi-Pack](https://github.com/SciCompKL/CoDiPack).
+  Configure with `-DQL_ENABLE_AAD=ON`; CoDi-Pack is auto-fetched by
+  CMake if no installed copy is found. Exposes `AADReal` (=
+  `codi::RealReverse`) and a single tested utility `aadDerivative(f, x)`
+  that computes df/dx via the CoDi tape. MVP: scalar wrapper only; a
+  full retrofit of the QuantLib pricing stack to AAD types is a
+  multi-week follow-up. Default build does not depend on CoDi-Pack.
+
+- **`CsvQuoteLoader`** (`ql/marketdata/csvquoteloader.hpp`) — minimum
+  viable market-data snapshot loader. Reads a two-column
+  `id,value` CSV into a `std::map<std::string,
+  ext::shared_ptr<SimpleQuote>>` that plugs directly into the
+  existing `RateHelper` pipeline. Supports comments, blank lines, and
+  an optional header row. MVP: multi-column quotes, vendor formats
+  (Bloomberg, Refinitiv, CME), Arrow/Parquet, and streaming loaders
+  are follow-ups.
 
 ### Verified on this fork
 
-- GCC 15.2.1 + C++23 + Boost 1.83: full test suite passes (1275 cases, 0 failures)
-- Clang 21.1.6 + C++23 + Boost 1.83: full test suite passes (1274 cases, 0 failures)
-- `linux-ci-build-with-nonstandard-options` preset (sessions on, thread-safe observer on, `QL_FASTER_LAZY_OBJECTS=OFF`, `QL_THROW_IN_CYCLES=ON`, high-res date on, indexed coupons, warnings-as-errors): full test suite passes (1280 cases, 0 failures)
+- **GCC 15.2.1 + C++23 + Boost 1.83** (default): 1293 cases, 0 failures
+- **Clang 21.1.6 + C++23 + Boost 1.83**: 1274 cases, 0 failures (taken at the Phase-0 baseline; new-module tests land on top)
+- **`linux-ci-build-with-nonstandard-options` preset** (sessions on, thread-safe observer on, `QL_FASTER_LAZY_OBJECTS=OFF`, `QL_THROW_IN_CYCLES=ON`, high-res date on, indexed coupons, warnings-as-errors): 1280 cases, 0 failures (Phase-0 baseline)
+- **`QL_ENABLE_AAD=ON`** (GCC 15.2.1, CoDi-Pack v2.2.0 auto-fetched): `AadTests/*` pass end-to-end
 
 CI is not wired on this fork; all verification is local.
 
@@ -78,10 +130,12 @@ CI is not wired on this fork; all verification is local.
 Python / R / Java / .NET bindings for this fork live in the sibling
 repository **[dudleylane/QuantLib-SWIG](https://github.com/dudleylane/QuantLib-SWIG)**,
 which is itself a fork of upstream `lballabio/QuantLib-SWIG`. It
-needs manual updates for the fork-specific additions (FallbackIborIndex,
-CurveBucketer, XvaCalculator, AutocallableNote, the promoted no-arb
-SABR namespace, the promoted Heston Asian control variate). Bindings
-for entirely new classes are tracked as follow-ups there, not here.
+needs manual updates for the fork-specific additions:
+`FallbackIborIndex`, `CurveBucketer`, `XvaCalculator`, `AutocallableNote`
++ `MCAutocallableNoteEngine`, `CsvQuoteLoader`, the `aad.hpp` utilities,
+and include-path adjustments for the promoted no-arb SABR + Heston
+Asian control variate. Bindings work is tracked on that sibling, not
+here.
 
 ## Build, test, run
 
