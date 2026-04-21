@@ -1,9 +1,11 @@
 # Changes in this fork vs. upstream lballabio/QuantLib
 
 This file tracks changes introduced by the `dudleylane/QuantLib` fork
-that are **not** in upstream. It complements `News.md` (upstream
-release notes, preserved verbatim) and the per-commit messages. Entries
-are grouped by category and, within a category, most recent first.
+that are **not** in upstream. It replaces the upstream `News.md`
+release-notes file (removed on this fork — it described upstream's
+1.42.1 release, not fork activity) and complements the per-commit
+messages. Entries are grouped by category and, within a category, most
+recent first.
 
 Divergence point: all commits from `51d4bb377` onwards have different
 SHAs on this fork due to the 2014 binary-blob history rewrite. Merging

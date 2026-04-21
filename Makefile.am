@@ -19,8 +19,9 @@ EXTRA_DIST = \
 	ChangeLog.txt \
 	CMakeLists.txt \
 	Contributors.txt \
+	FORK_CHANGES.md \
+	LICENSE \
 	LICENSE.TXT \
-	News.md \
 	QuantLib.natvis \
 	QuantLib.props \
 	QuantLib.spec \
