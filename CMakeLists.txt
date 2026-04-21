@@ -42,6 +42,7 @@ set(QL_INSTALL_CMAKEDIR "lib/cmake/${PACKAGE_NAME}" CACHE STRING
 option(QL_BUILD_EXAMPLES "Build examples" ON)
 option(QL_BUILD_TEST_SUITE "Build test suite" ON)
 option(QL_BUILD_FUZZ_TEST_SUITE "Build fuzz test suite" OFF) 
+option(QL_ENABLE_AAD "Enable reverse-mode AAD via CoDi-Pack" OFF)
 option(QL_ENABLE_OPENMP "Detect and use OpenMP" OFF)
 option(QL_ENABLE_PARALLEL_UNIT_TEST_RUNNER "Enable the parallel unit test runner" OFF)
 option(QL_ENABLE_SESSIONS "Singletons return different instances for different sessions" OFF)
@@ -171,6 +172,25 @@ add_compile_definitions(BOOST_ALL_NO_LIB)
 
 if (QL_ENABLE_OPENMP)
     find_package(OpenMP REQUIRED)
+endif()
+
+# Reverse-mode AAD via CoDi-Pack (header-only).
+# Look for an installed copy first; otherwise fetch a pinned version
+# from upstream at configure time.
+if (QL_ENABLE_AAD)
+    find_path(CODIPACK_INCLUDE_DIR codi.hpp)
+    if (NOT CODIPACK_INCLUDE_DIR)
+        include(FetchContent)
+        FetchContent_Declare(codipack
+            GIT_REPOSITORY https://github.com/SciCompKL/CoDiPack.git
+            GIT_TAG        v2.2.0)
+        FetchContent_MakeAvailable(codipack)
+        set(CODIPACK_INCLUDE_DIR "${codipack_SOURCE_DIR}/include"
+            CACHE PATH "CoDi-Pack include directory" FORCE)
+    endif()
+    message(STATUS "QL_ENABLE_AAD: using CoDi-Pack from ${CODIPACK_INCLUDE_DIR}")
+    add_compile_definitions(QL_ENABLE_AAD)
+    include_directories(SYSTEM ${CODIPACK_INCLUDE_DIR})
 endif()
 
 # Prefer pthread flag as per https://cmake.org/cmake/help/latest/module/FindThreads.html
