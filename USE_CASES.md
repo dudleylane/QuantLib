@@ -35,6 +35,26 @@ code against existing curves, processes, and engines.
 **Effort estimate to productive use:** hours to days for model
 prototyping, not months.
 
+**Completion roadmap** *(optional — close the comprehensive-model-menu gap)*:
+
+| Missing canonical model | Status | Effort |
+|---|---|---|
+| Double Heston (Christoffersen et al. 2009) | Absent | 2 weeks |
+| Kou jump-diffusion | Absent (Merton is present) | 1-2 weeks |
+| CGMY / tempered-stable (Carr-Geman-Madan-Yor 2002) | Absent | 2-3 weeks |
+| NIG (Normal Inverse Gaussian, Barndorff-Nielsen) | Absent | 1-2 weeks |
+| SSVI / eSSVI (Gatheral-Jacquier 2014) | Absent (only basic SVI exists in experimental) | 2 weeks |
+| Shifted SABR as a standalone class | Currently only `unsafeShiftedSabrVolatility` free fn | 1 week |
+| Rough Heston / rough volatility (Jaisson-Rosenbaum, El Euch-Rosenbaum) | Absent | 1-2 months |
+| Ho-Lee as a named class | Mathematically trivial but absent | 3 days |
+| LGM named class | GSR is mathematically LGM, just not branded | 1 week (rename + docs) |
+| Cheyette | 2-factor HW variant | 2-3 weeks |
+| Quadratic Gaussian (BG / Pelsser / Pietersz) | Absent | 2-3 weeks |
+
+Aggregate: **3-4 engineer-months** to close the menu. Not required
+for the use case to be production-ready — quant research rarely
+needs the full menu.
+
 **Key entry points:** `ql/models/`, `ql/processes/`, `ql/math/`,
 `ql/termstructures/volatility/`.
 
@@ -68,6 +88,26 @@ trading system.
 **Effort estimate to productive use:** a week to a month to wire the
 pricing layer into an existing booking system; hours for one-off
 valuations.
+
+**Completion roadmap** *(optional — fill the modern structured-products catalogue)*:
+
+| Missing product | Status | Effort |
+|---|---|---|
+| Autocallable: worst-of / best-of (multi-underlying) | Absent; MVP is single-underlying only | 3-4 weeks |
+| Autocallable: memory / snowball coupons | Absent | 2 weeks |
+| Autocallable: Heston / SLV engine | Absent; MVP is BS-only | 3-4 weeks |
+| Autocallable: knock-in during life (continuous monitoring) | Absent | 2-3 weeks |
+| TARF (Target Accrual Redemption Forward) — FX / IR flavours | Absent | 3-4 weeks each |
+| PRDC (Power Reverse Dual Currency) | Absent | 4-6 weeks |
+| Accumulator | Absent | 2-3 weeks |
+| Reverse convertibles | Absent (close cousin of short autocallable put) | 1-2 weeks |
+| CLN (Credit-Linked Notes) | Absent | 2-3 weeks |
+| CDX / iTraxx index options | Absent | 1-2 months |
+| Rainbow barriers (multi-asset) | Absent | 2-3 weeks |
+
+Aggregate: **6-9 engineer-months** for a full modern structured-
+products catalogue. Not required; use case is already production-
+ready for the common 80%.
 
 **Key entry points:** `ql/instruments/`, `ql/pricingengines/`.
 
@@ -109,6 +149,24 @@ the 3–6 cited in the prior assessment, because `CurveBucketer` and
 remaining time is almost entirely exposure-simulation plus collateral
 / netting architecture.
 
+**Completion roadmap** *(required to reach production)*:
+
+| Missing primitive | Status | Effort |
+|---|---|---|
+| Exposure-simulation framework (`PortfolioExposureSimulator` walking a netting set through time on a stochastic-rate + stochastic-vol scenario lattice; EPE/ENE per bucket) | Absent | 1-2 months |
+| Collateral / CSA modelling (`CsaAgreement`: threshold, MTA, independent amount, frequency, eligible collateral; feeds exposure sim) | Absent | 3-4 weeks |
+| Wrong-way risk (correlation between counterparty default intensity and exposure; Hull-White dependence or copula) | Absent | 2-3 weeks |
+| Netting aggregation (`NettingSet`: multiple trades, same counterparty, same CSA) | Absent | 2 weeks |
+| 2D vol-surface bucketer (`VolSurfaceBucketer`: maturity × strike, matching `CurveBucketer` pattern) | Absent | 1-2 weeks |
+| Cross-gamma + higher-order Greeks (vomma, zomma, vanna for non-European) | Partial: European has them; exotics via bump-and-reprice | 2-3 weeks |
+| Scenario generation (scenario DSL, curve/surface application, aggregation) | Absent | 3-4 weeks |
+| VaR / Expected Shortfall (historical sim, MC VaR, parametric VaR, 10-day scaling) | Absent | 3-4 weeks |
+| Portfolio-level consolidated pricing (common numeraire, cross-trade consistency) | Absent | 2-3 weeks |
+
+**Parallelism:** ~4-6 months of serial work; compresses to **2-4
+months with two engineers working in parallel** on independent
+sub-components.
+
 **Key entry points:** `ql/risk/CurveBucketer`, `ql/risk/XvaCalculator`,
 `ql/pricingengines/swap/cvaswapengine.hpp`.
 
@@ -142,15 +200,67 @@ remaining time is almost entirely exposure-simulation plus collateral
 - **SA-CCR:** PFE add-on formulae, supervisory duration, hedging-set
   aggregation, cross-asset aggregation.
 
-**Effort estimate to full regulatory coverage:** **4–8 engineer-months**
-for FRTB-SA + SIMM + SA-CCR built on top of `CurveBucketer` and the
-aggregation pattern that `FrtbSaGirrDelta` establishes. FRTB-IMA is
-its own multi-month project on top of that.
+**Effort estimate (revised):** earlier versions of this file cited
+4-8 engineer-months for "FRTB-SA + SIMM + SA-CCR." That was
+optimistic. Honest breakdown below: **12-20 engineer-months for all
+four regulatory frameworks at production quality.** FRTB-SA + SIMM +
+SA-CCR without FRTB-IMA is **9-14 months** — still the closest thing
+to the prior estimate's scope, but substantially larger than "4-8
+months."
+
+**Completion roadmap — FRTB-SA (Standardised Approach, BCBS d457):**
+
+| Component | Status | Effort |
+|---|---|---|
+| GIRR delta | ✅ `FrtbSaGirrDelta` shipped | Done |
+| GIRR vega | Absent | 3-4 weeks |
+| GIRR curvature | Absent | 2-3 weeks |
+| CSR non-securitisations (Rating × Sector × Seniority × Currency buckets) | Absent | 1-2 months |
+| CSR securitisations (CTP + non-CTP) | Absent | 1 month |
+| Equity (13-bucket scheme) | Absent | 3-4 weeks |
+| Commodity (11-bucket scheme) | Absent | 3-4 weeks |
+| FX (per-currency buckets) | Absent | 2-3 weeks |
+| Cross-bucket γ_bc aggregation framework (shared across risk classes) | Absent | 2-3 weeks |
+| Default Risk Charge (jump-to-default, non-sec + sec) | Absent | 1-2 months |
+| **Aggregate FRTB-SA** | | **6-10 months** |
+
+**Completion roadmap — FRTB-IMA (Internal Models):**
+
+| Component | Status | Effort |
+|---|---|---|
+| Expected Shortfall at 97.5% | Absent | 3-4 weeks |
+| 10-day + longer liquidity-horizon scaling | Absent | 2-3 weeks |
+| Non-Modellable Risk Factors (NMRF) SES | Absent | 1-2 months |
+| P&L attribution test (per-desk) | Absent | 3-4 weeks |
+| Backtesting framework | Absent | 2-3 weeks |
+| **Aggregate FRTB-IMA** | | **3-6 months** |
+
+**Completion roadmap — SIMM v2.6 (ISDA IM Model):**
+
+| Component | Status | Effort |
+|---|---|---|
+| IR risk class + correlation matrix | Absent | 3-4 weeks |
+| FX risk class | Absent | 2 weeks |
+| Credit Qualifying + Non-Qualifying | Absent | 4-5 weeks |
+| Equity risk class | Absent | 2-3 weeks |
+| Commodity risk class | Absent | 2-3 weeks |
+| ISDA parameter-file loader + quarterly update cadence | Absent | 2 weeks |
+| **Aggregate SIMM** | | **2-3 months** |
+
+**Completion roadmap — SA-CCR (Basel Counterparty Credit Risk):**
+
+| Component | Status | Effort |
+|---|---|---|
+| Replacement cost + PFE multiplier | Absent | 1-2 weeks |
+| IR add-on + supervisory duration | Absent | 2-3 weeks |
+| FX / Credit / Equity / Commodity add-ons | Absent | 3-4 weeks |
+| Hedging-set + asset-class aggregation | Absent | 2-3 weeks |
+| **Aggregate SA-CCR** | | **1-2 months** |
 
 **Not what this fork is for:** a bank running Basel III capital
 reporting end-to-end today. Use a dedicated vendor library (Numerix,
-BlackRock Solutions, RiskMetrics) or build from scratch on top of
-QuantLib's primitives.
+BlackRock Solutions, RiskMetrics) or commit to the 12-20-month build
+on top of QuantLib's primitives.
 
 **Key entry points:** `ql/risk/FrtbSaGirrDelta`, `ql/risk/CurveBucketer`.
 
@@ -203,6 +313,22 @@ QuantLib's primitives.
 **Effort estimate:** weeks to months of performance engineering per
 hot-loop use case.
 
+**Completion roadmap** *(if you truly want QuantLib intraday-capable,
+not HFT)*:
+
+| Intervention | Status | Effort |
+|---|---|---|
+| Object pools / arena allocators for `ext::shared_ptr` churn (hot repriced-per-quote loops) | Absent | 2-3 weeks |
+| Engine + process reuse patterns + benchmark suite identifying redundant copies | Absent | 2-4 weeks |
+| Hand-written fast-path pricer for top-N option types (SIMD where applicable); run alongside QuantLib, not replacing it | Absent | 2-3 months |
+| Lock-free observer graph in thread-safe mode (replace `recursive_mutex` with atomics + flags) | Absent; **high risk of destabilisation** | 1-2 months |
+
+**Aggregate:** **3-6 engineer-months** to make QuantLib intraday-
+capable. Even then, not sub-microsecond. Honest recommendation: keep
+QuantLib for calibration / overnight / risk; write the runtime-
+critical hot path separately against a hand-tuned Black or Heston
+FFT pricer.
+
 **Key entry points:** the profiling tools, not specific QuantLib
 headers.
 
@@ -210,13 +336,13 @@ headers.
 
 ## Summary matrix
 
-| Use case | Verdict | Rough effort to production |
-|---|---|---|
-| Quant model prototyping | Production-ready | Hours – days |
-| Vanilla / common-exotic pricing | Production-ready | Week – month (wiring) |
-| Desk-level risk + XVA | Partial foundations | 2–4 engineer-months |
-| Bank-wide regulatory capital | MVP (GIRR delta only) | 4–8+ engineer-months |
-| HFT / low-latency | Not a target | Build a separate fast path |
+| Use case | Verdict | Rough effort to production | Optional "fully complete" effort |
+|---|---|---|---|
+| Quant model prototyping | Production-ready | Hours – days | 3-4 months to close canonical-model-menu gap |
+| Vanilla / common-exotic pricing | Production-ready | Week – month (wiring) | 6-9 months for full structured-products catalogue |
+| Desk-level risk + XVA | Partial foundations | 2-4 engineer-months parallel / 4-6 serial | Same — this is already the "complete" number |
+| Bank-wide regulatory capital | FRTB-SA GIRR delta MVP | FRTB-SA + SIMM + SA-CCR: 9-14 months | All four frameworks (+FRTB-IMA): 12-20 months |
+| HFT / low-latency | Not a target | Build a separate fast path | 3-6 months of performance engineering to make QuantLib intraday-capable |
 
 ## Updating this file
 
