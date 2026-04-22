@@ -31,6 +31,16 @@ Software. License is BSD-3-Clause (unchanged in this fork).
 Upstream documentation: <https://www.quantlib.org/docs.shtml>.
 Upstream release history: <https://www.quantlib.org/reference/history.html>.
 
+## Is this fork right for you?
+
+See **[USE_CASES.md](./USE_CASES.md)** for honest per-use-case verdicts
+and effort-to-production estimates: quant-model prototyping, vanilla
+/ common-exotic pricing, desk-level risk + XVA, bank-wide regulatory
+capital, and HFT / low-latency. The summary one-liner:
+production-ready for model prototyping and vanilla pricing; partial
+foundations for risk/XVA (expect 2–4 engineer-months on top); MVP for
+FRTB-SA GIRR; not a target for HFT.
+
 ## What's different in this fork
 
 ### Toolchain floor (raised vs. upstream)

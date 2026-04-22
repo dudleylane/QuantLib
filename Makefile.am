@@ -29,6 +29,7 @@ EXTRA_DIST = \
 	QuantLib.vcxproj \
 	QuantLib.vcxproj.filters \
 	README.md \
+	USE_CASES.md \
 	autogen.sh
 
 .PHONY: examples check-examples
