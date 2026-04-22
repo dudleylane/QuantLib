@@ -621,9 +621,9 @@
     <ClInclude Include="ql\experimental\credit\basecorrelationstructure.hpp" />
     <ClInclude Include="ql\experimental\credit\basket.hpp" />
     <ClInclude Include="ql\experimental\credit\binomiallossmodel.hpp" />
-    <ClInclude Include="ql\experimental\credit\blackcdsoptionengine.hpp" />
+    <ClInclude Include="ql\pricingengines\credit\blackcdsoptionengine.hpp" />
     <ClInclude Include="ql\experimental\credit\cdo.hpp" />
-    <ClInclude Include="ql\experimental\credit\cdsoption.hpp" />
+    <ClInclude Include="ql\instruments\cdsoption.hpp" />
     <ClInclude Include="ql\experimental\credit\constantlosslatentmodel.hpp" />
     <ClInclude Include="ql\experimental\credit\correlationstructure.hpp" />
     <ClInclude Include="ql\experimental\credit\defaultevent.hpp" />
@@ -973,6 +973,7 @@
     <ClInclude Include="ql\legacy\libormarketmodels\lmvolmodel.hpp" />
     <ClInclude Include="ql\marketdata\all.hpp" />
     <ClInclude Include="ql\marketdata\csvquoteloader.hpp" />
+    <ClInclude Include="ql\marketdata\jsonquoteloader.hpp" />
     <ClInclude Include="ql\math\aad.hpp" />
     <ClInclude Include="ql\math\abcdmathfunction.hpp" />
     <ClInclude Include="ql\math\all.hpp" />
@@ -1518,6 +1519,7 @@
     <ClInclude Include="ql\pricingengines\blackcalculator.hpp" />
     <ClInclude Include="ql\pricingengines\blackdeltacalculator.hpp" />
     <ClInclude Include="ql\pricingengines\blackformula.hpp" />
+    <ClInclude Include="ql\pricingengines\blackformulatemplate.hpp" />
     <ClInclude Include="ql\pricingengines\blackscholescalculator.hpp" />
     <ClInclude Include="ql\pricingengines\bond\all.hpp" />
     <ClInclude Include="ql\pricingengines\bond\binomialconvertibleengine.hpp" />
@@ -1928,6 +1930,7 @@
     <ClInclude Include="ql\rebatedexercise.hpp" />
     <ClInclude Include="ql\risk\all.hpp" />
     <ClInclude Include="ql\risk\curvebucketer.hpp" />
+    <ClInclude Include="ql\risk\frtbsagirr.hpp" />
     <ClInclude Include="ql\risk\xvacalculator.hpp" />
     <ClInclude Include="ql\settings.hpp" />
     <ClInclude Include="ql\shared_ptr.hpp" />
@@ -2031,9 +2034,9 @@
     <ClCompile Include="ql\experimental\coupons\swapspreadindex.cpp" />
     <ClCompile Include="ql\experimental\credit\basecorrelationstructure.cpp" />
     <ClCompile Include="ql\experimental\credit\basket.cpp" />
-    <ClCompile Include="ql\experimental\credit\blackcdsoptionengine.cpp" />
+    <ClCompile Include="ql\pricingengines\credit\blackcdsoptionengine.cpp" />
     <ClCompile Include="ql\experimental\credit\cdo.cpp" />
-    <ClCompile Include="ql\experimental\credit\cdsoption.cpp" />
+    <ClCompile Include="ql\instruments\cdsoption.cpp" />
     <ClCompile Include="ql\experimental\credit\correlationstructure.cpp" />
     <ClCompile Include="ql\experimental\credit\defaultevent.cpp" />
     <ClCompile Include="ql\experimental\credit\defaultprobabilitykey.cpp" />
@@ -2265,6 +2268,7 @@
     <ClCompile Include="ql\legacy\libormarketmodels\lmlinexpvolmodel.cpp" />
     <ClCompile Include="ql\legacy\libormarketmodels\lmvolmodel.cpp" />
     <ClCompile Include="ql\marketdata\csvquoteloader.cpp" />
+    <ClCompile Include="ql\marketdata\jsonquoteloader.cpp" />
     <ClCompile Include="ql\math\abcdmathfunction.cpp" />
     <ClCompile Include="ql\math\bernsteinpolynomial.cpp" />
     <ClCompile Include="ql\math\beta.cpp" />
@@ -2898,6 +2902,7 @@
     <ClCompile Include="ql\quote.cpp" />
     <ClCompile Include="ql\rebatedexercise.cpp" />
     <ClCompile Include="ql\risk\curvebucketer.cpp" />
+    <ClCompile Include="ql\risk\frtbsagirr.cpp" />
     <ClCompile Include="ql\risk\xvacalculator.cpp" />
     <ClCompile Include="ql\settings.cpp" />
     <ClCompile Include="ql\stochasticprocess.cpp" />

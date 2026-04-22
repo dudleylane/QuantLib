@@ -8,9 +8,7 @@ this_include_HEADERS = \
     basecorrelationstructure.hpp \
     basket.hpp \
     binomiallossmodel.hpp \
-    blackcdsoptionengine.hpp \
     cdo.hpp \
-    cdsoption.hpp \
     constantlosslatentmodel.hpp \
     correlationstructure.hpp \
     defaultevent.hpp \
@@ -52,9 +50,7 @@ this_include_HEADERS = \
 cpp_files = \
     basecorrelationstructure.cpp \
     basket.cpp \
-    blackcdsoptionengine.cpp \
     cdo.cpp \
-    cdsoption.cpp \
     correlationstructure.cpp \
     defaultevent.cpp \
     defaultprobabilitykey.cpp \

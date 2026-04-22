@@ -25,7 +25,7 @@
 #ifndef quantlib_black_cds_option_engine_hpp
 #define quantlib_black_cds_option_engine_hpp
 
-#include <ql/experimental/credit/cdsoption.hpp>
+#include <ql/instruments/cdsoption.hpp>
 
 namespace QuantLib {
 

@@ -1014,6 +1014,9 @@
     <ClInclude Include="ql\marketdata\csvquoteloader.hpp">
       <Filter>marketdata</Filter>
     </ClInclude>
+    <ClInclude Include="ql\marketdata\jsonquoteloader.hpp">
+      <Filter>marketdata</Filter>
+    </ClInclude>
     <ClInclude Include="ql\math\abcdmathfunction.hpp">
       <Filter>math</Filter>
     </ClInclude>
@@ -2457,6 +2460,9 @@
     <ClInclude Include="ql\pricingengines\blackformula.hpp">
       <Filter>pricingengines</Filter>
     </ClInclude>
+    <ClInclude Include="ql\pricingengines\blackformulatemplate.hpp">
+      <Filter>pricingengines</Filter>
+    </ClInclude>
     <ClInclude Include="ql\pricingengines\blackscholescalculator.hpp">
       <Filter>pricingengines</Filter>
     </ClInclude>
@@ -3288,8 +3294,8 @@
     <ClInclude Include="ql\experimental\credit\basket.hpp">
       <Filter>experimental\credit</Filter>
     </ClInclude>
-    <ClInclude Include="ql\experimental\credit\blackcdsoptionengine.hpp">
-      <Filter>experimental\credit</Filter>
+    <ClInclude Include="ql\pricingengines\credit\blackcdsoptionengine.hpp">
+      <Filter>pricingengines\credit</Filter>
     </ClInclude>
     <ClInclude Include="ql\experimental\credit\binomiallossmodel.hpp">
       <Filter>experimental\credit</Filter>
@@ -3297,8 +3303,8 @@
     <ClInclude Include="ql\experimental\credit\cdo.hpp">
       <Filter>experimental\credit</Filter>
     </ClInclude>
-    <ClInclude Include="ql\experimental\credit\cdsoption.hpp">
-      <Filter>experimental\credit</Filter>
+    <ClInclude Include="ql\instruments\cdsoption.hpp">
+      <Filter>instruments</Filter>
     </ClInclude>
     <ClInclude Include="ql\experimental\credit\constantlosslatentmodel.hpp">
       <Filter>experimental\credit</Filter>
@@ -3804,6 +3810,9 @@
       <Filter>risk</Filter>
     </ClInclude>
     <ClInclude Include="ql\risk\curvebucketer.hpp">
+      <Filter>risk</Filter>
+    </ClInclude>
+    <ClInclude Include="ql\risk\frtbsagirr.hpp">
       <Filter>risk</Filter>
     </ClInclude>
     <ClInclude Include="ql\risk\xvacalculator.hpp">
@@ -4983,6 +4992,9 @@
       <Filter>instruments\bonds</Filter>
     </ClCompile>
     <ClCompile Include="ql\marketdata\csvquoteloader.cpp">
+      <Filter>marketdata</Filter>
+    </ClCompile>
+    <ClCompile Include="ql\marketdata\jsonquoteloader.cpp">
       <Filter>marketdata</Filter>
     </ClCompile>
     <ClCompile Include="ql\math\abcdmathfunction.cpp">
@@ -6497,14 +6509,14 @@
     <ClCompile Include="ql\experimental\credit\basket.cpp">
       <Filter>experimental\credit</Filter>
     </ClCompile>
-    <ClCompile Include="ql\experimental\credit\blackcdsoptionengine.cpp">
-      <Filter>experimental\credit</Filter>
+    <ClCompile Include="ql\pricingengines\credit\blackcdsoptionengine.cpp">
+      <Filter>pricingengines\credit</Filter>
     </ClCompile>
     <ClCompile Include="ql\experimental\credit\cdo.cpp">
       <Filter>experimental\credit</Filter>
     </ClCompile>
-    <ClCompile Include="ql\experimental\credit\cdsoption.cpp">
-      <Filter>experimental\credit</Filter>
+    <ClCompile Include="ql\instruments\cdsoption.cpp">
+      <Filter>instruments</Filter>
     </ClCompile>
     <ClCompile Include="ql\experimental\credit\correlationstructure.cpp">
       <Filter>experimental\credit</Filter>
@@ -6810,6 +6822,9 @@
     <ClCompile Include="ql\quote.cpp" />
     <ClCompile Include="ql\rebatedexercise.cpp" />
     <ClCompile Include="ql\risk\curvebucketer.cpp">
+      <Filter>risk</Filter>
+    </ClCompile>
+    <ClCompile Include="ql\risk\frtbsagirr.cpp">
       <Filter>risk</Filter>
     </ClCompile>
     <ClCompile Include="ql\risk\xvacalculator.cpp">

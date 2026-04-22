@@ -95,9 +95,7 @@ set(QL_SOURCES
     experimental/coupons/swapspreadindex.cpp
     experimental/credit/basecorrelationstructure.cpp
     experimental/credit/basket.cpp
-    experimental/credit/blackcdsoptionengine.cpp
     experimental/credit/cdo.cpp
-    experimental/credit/cdsoption.cpp
     experimental/credit/correlationstructure.cpp
     experimental/credit/defaultevent.cpp
     experimental/credit/defaultprobabilitykey.cpp
@@ -255,6 +253,7 @@ set(QL_SOURCES
     instruments/compoundoption.cpp
     instruments/cpicapfloor.cpp
     instruments/cpiswap.cpp
+    instruments/cdsoption.cpp
     instruments/creditdefaultswap.cpp
     instruments/doublebarrieroption.cpp
     instruments/doublebarriertype.cpp
@@ -326,6 +325,7 @@ set(QL_SOURCES
     legacy/libormarketmodels/lmlinexpvolmodel.cpp
     legacy/libormarketmodels/lmvolmodel.cpp
     marketdata/csvquoteloader.cpp
+    marketdata/jsonquoteloader.cpp
     math/abcdmathfunction.cpp
     math/bernsteinpolynomial.cpp
     math/beta.cpp
@@ -697,6 +697,7 @@ set(QL_SOURCES
     pricingengines/cliquet/analyticcliquetengine.cpp
     pricingengines/cliquet/analyticperformanceengine.cpp
     pricingengines/cliquet/mcperformanceengine.cpp
+    pricingengines/credit/blackcdsoptionengine.cpp
     pricingengines/credit/integralcdsengine.cpp
     pricingengines/credit/isdacdsengine.cpp
     pricingengines/credit/midpointcdsengine.cpp
@@ -808,6 +809,7 @@ set(QL_SOURCES
     quotes/lastfixingquote.cpp
     rebatedexercise.cpp
     risk/curvebucketer.cpp
+    risk/frtbsagirr.cpp
     risk/xvacalculator.cpp
     settings.cpp
     stochasticprocess.cpp
@@ -1080,9 +1082,7 @@ set(QL_HEADERS
     experimental/credit/basecorrelationstructure.hpp
     experimental/credit/basket.hpp
     experimental/credit/binomiallossmodel.hpp
-    experimental/credit/blackcdsoptionengine.hpp
     experimental/credit/cdo.hpp
-    experimental/credit/cdsoption.hpp
     experimental/credit/constantlosslatentmodel.hpp
     experimental/credit/correlationstructure.hpp
     experimental/credit/defaultevent.hpp
@@ -1331,6 +1331,7 @@ set(QL_HEADERS
     instruments/compoundoption.hpp
     instruments/cpicapfloor.hpp
     instruments/cpiswap.hpp
+    instruments/cdsoption.hpp
     instruments/creditdefaultswap.hpp
     instruments/dividendschedule.hpp
     instruments/doublebarrieroption.hpp
@@ -1406,6 +1407,7 @@ set(QL_HEADERS
     legacy/libormarketmodels/lmlinexpvolmodel.hpp
     legacy/libormarketmodels/lmvolmodel.hpp
     marketdata/csvquoteloader.hpp
+    marketdata/jsonquoteloader.hpp
     math/aad.hpp
     math/abcdmathfunction.hpp
     math/array.hpp
@@ -1912,6 +1914,7 @@ set(QL_HEADERS
     pricingengines/blackdeltacalculator.hpp
     pricingengines/bacheliercalculator.hpp
     pricingengines/blackformula.hpp
+    pricingengines/blackformulatemplate.hpp
     pricingengines/blackscholescalculator.hpp
     pricingengines/bond/binomialconvertibleengine.hpp
     pricingengines/bond/bondfunctions.hpp
@@ -1928,6 +1931,7 @@ set(QL_HEADERS
     pricingengines/cliquet/analyticcliquetengine.hpp
     pricingengines/cliquet/analyticperformanceengine.hpp
     pricingengines/cliquet/mcperformanceengine.hpp
+    pricingengines/credit/blackcdsoptionengine.hpp
     pricingengines/credit/integralcdsengine.hpp
     pricingengines/credit/isdacdsengine.hpp
     pricingengines/credit/midpointcdsengine.hpp
@@ -2059,6 +2063,7 @@ set(QL_HEADERS
     quotes/simplequote.hpp
     rebatedexercise.hpp
     risk/curvebucketer.hpp
+    risk/frtbsagirr.hpp
     risk/xvacalculator.hpp
     settings.hpp
     shared_ptr.hpp
@@ -2453,6 +2458,10 @@ target_include_directories(ql_library SYSTEM PUBLIC
 
 target_link_libraries(ql_library PUBLIC
     ${OpenMP_CXX_LIBRARIES})
+
+if (QL_ENABLE_JSON_MARKETDATA)
+    target_link_libraries(ql_library PUBLIC nlohmann_json::nlohmann_json)
+endif()
 
 install(TARGETS ql_library EXPORT QuantLibTargets
     ARCHIVE DESTINATION ${QL_INSTALL_LIBDIR}

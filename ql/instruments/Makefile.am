@@ -24,6 +24,7 @@ this_include_HEADERS = \
     compoundoption.hpp \
     cpicapfloor.hpp \
     cpiswap.hpp \
+    cdsoption.hpp \
     creditdefaultswap.hpp \
     dividendschedule.hpp \
     doublebarrieroption.hpp \
@@ -101,6 +102,7 @@ cpp_files = \
     compoundoption.cpp \
     cpicapfloor.cpp \
     cpiswap.cpp \
+    cdsoption.cpp \
     creditdefaultswap.cpp \
     doublebarrieroption.cpp \
     doublebarriertype.cpp \

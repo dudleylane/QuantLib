@@ -18,8 +18,8 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/experimental/credit/cdsoption.hpp>
-#include <ql/experimental/credit/blackcdsoptionengine.hpp>
+#include <ql/instruments/cdsoption.hpp>
+#include <ql/pricingengines/credit/blackcdsoptionengine.hpp>
 #include <ql/exercise.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/instruments/payoffs.hpp>

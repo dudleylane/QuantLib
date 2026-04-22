@@ -19,7 +19,7 @@
 */
 
 #include <ql/exercise.hpp>
-#include <ql/experimental/credit/blackcdsoptionengine.hpp>
+#include <ql/pricingengines/credit/blackcdsoptionengine.hpp>
 #include <ql/pricingengines/blackformula.hpp>
 #include <ql/quote.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>

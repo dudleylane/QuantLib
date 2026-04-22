@@ -19,8 +19,8 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
-#include <ql/experimental/credit/cdsoption.hpp>
-#include <ql/experimental/credit/blackcdsoptionengine.hpp>
+#include <ql/instruments/cdsoption.hpp>
+#include <ql/pricingengines/credit/blackcdsoptionengine.hpp>
 #include <ql/instruments/creditdefaultswap.hpp>
 #include <ql/pricingengines/credit/midpointcdsengine.hpp>
 #include <ql/termstructures/credit/flathazardrate.hpp>
