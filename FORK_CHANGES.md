@@ -30,6 +30,12 @@ carry AGPL-3.0+ file-level copyright notices.
   via `FetchContent` (or picks up a locally-installed `codi.hpp`), sets
   `QL_ENABLE_AAD` as a compile definition, and activates the reverse-
   mode AAD utilities in `ql/math/aad.hpp`. Default builds unchanged.
+- **`QL_ENABLE_JSON_MARKETDATA`** (default `ON`) — when `ON`, looks for
+  an installed `nlohmann_json` and falls back to `FetchContent` on
+  nlohmann/json v3.11.3 otherwise. Sets `QL_ENABLE_JSON_MARKETDATA` as
+  a compile definition and links `nlohmann_json::nlohmann_json` into
+  `ql_library`. When `OFF`, `ql/marketdata/jsonquoteloader.hpp` still
+  compiles but the constructor throws.
 
 ## New top-level subdirectories
 
@@ -49,6 +55,9 @@ carry AGPL-3.0+ file-level copyright notices.
 | `XvaCalculator` | `ql/risk/xvacalculator.hpp` | Exposure-driven CVA / DVA / FVA / KVA / MVA integrator. Caller supplies the EPE / ENE grid. | MVP |
 | `AADReal`, `aadDerivative` | `ql/math/aad.hpp` | Opt-in reverse-mode AAD scalar wrapper over CoDi-Pack, gated on `QL_ENABLE_AAD`. Stub-throws when off. | Scaffolding |
 | `CsvQuoteLoader` | `ql/marketdata/csvquoteloader.hpp` | Minimum-viable CSV quote-snapshot loader: `(id, value)` rows → `std::map<string, shared_ptr<SimpleQuote>>`. | MVP |
+| `JsonQuoteLoader` | `ql/marketdata/jsonquoteloader.hpp` | JSON companion to `CsvQuoteLoader`. Two auto-detected schemas. nlohmann/json via the `QL_ENABLE_JSON_MARKETDATA` flag (default ON). | MVP |
+| `blackFormulaT<T>` | `ql/pricingengines/blackformulatemplate.hpp` | Scalar-templated Black-1976 formula. Matches `blackFormula()` at `T=Real`; propagates derivatives through CoDi tape at `T=AADReal`. First engine-level AAD primitive in the fork. | Proof-of-concept |
+| `FrtbSaGirrDelta` | `ql/risk/frtbsagirr.hpp` | BCBS d457 FRTB-SA General Interest Rate Risk delta bucket charge. Composes with `CurveBucketer` output. Single bucket, delta only; vega/curvature/other risk classes are follow-ups. | MVP |
 
 ## Promotions out of `ql/experimental/`
 
@@ -57,6 +66,7 @@ carry AGPL-3.0+ file-level copyright notices.
 | No-arbitrage SABR (Doust 2012) — 9 files incl. a 7.9 MB absorption-probability table | `ql/experimental/volatility/noarbsabr*` | `ql/termstructures/volatility/noarbsabr*` |
 | Himalaya / Everest / Pagoda instruments + MC engines (12 files) | `ql/experimental/exoticoptions/` | `ql/pricingengines/exotic/` |
 | Discrete geometric-average Asian under Heston (analytic, control-variate for the public MC Asian engine) | `ql/experimental/asian/analytic_discr_geom_av_price_heston.{hpp,cpp}` | `ql/pricingengines/asian/analytic_discr_geom_av_price_heston.{hpp,cpp}` |
+| CDS option + Black CDS-option engine (4 files) | `ql/experimental/credit/{cdsoption,blackcdsoptionengine}.{hpp,cpp}` | `ql/instruments/cdsoption.{hpp,cpp}` + `ql/pricingengines/credit/blackcdsoptionengine.{hpp,cpp}` |
 
 ## Correctness fixes
 
@@ -88,27 +98,40 @@ accompany them on the same commit.
 ## Sibling repositories
 
 - **[dudleylane/QuantLib-SWIG](https://github.com/dudleylane/QuantLib-SWIG)** —
-  fork of upstream SWIG bindings. Created but not yet updated for the
-  fork's additions. Any language-binding work lands there, not here.
+  fork of upstream SWIG bindings. `SWIG/dudleylane_fork.i` now ships
+  full Python bindings for `CsvQuoteLoader` and TODO scaffolds for the
+  other fork-specific classes. Remaining language-binding work lands
+  there, not here.
 
 ## Explicit follow-up list
 
-Not done in this series of commits, tracked here for next pass:
+Items with **partially addressed** status this round are noted
+inline; the remaining bullets are still-pending work.
 
-- Credit-derivatives extensions (promoting ~45 files from
-  `ql/experimental/credit/` — CDOs, CDS options, nth-to-default).
-- Engine-level AAD retrofit: template-parameterising `Real` across all
-  pricing engines so AAD types propagate through the call graph.
-- Regulatory calculators (FRTB SA, SIMM, SA-CCR) built on top of
-  `CurveBucketer` output.
+- Credit-derivatives extensions: **partially addressed** — CDS option
+  promoted. Remaining ~43 files (CDO, nth-to-default, copulas,
+  loss-distribution models, basket CDS, `syntheticcdo`, credit-risk+)
+  continue to live in `ql/experimental/credit/`.
+- Engine-level AAD retrofit: **partially addressed** — `blackFormulaT`
+  demonstrates the template-parameterise-Real pattern on one
+  primitive. Retrofit of `BlackCalculator`, `AnalyticEuropeanEngine`,
+  process / curve hierarchy, and instruments still pending.
+- Regulatory calculators: **partially addressed** — `FrtbSaGirrDelta`
+  ships the aggregation math for the GIRR delta bucket charge.
+  Vega / curvature, other FRTB risk classes (CSR non-sec / sec /
+  corr, equity, commodity, FX), cross-bucket γ_bc aggregation, SIMM,
+  and SA-CCR are pending.
 - XVA follow-ups: wrong-way risk, collateral thresholds / MTAs,
   netting-set aggregation, stochastic exposure-simulation framework.
 - Autocallable extensions: worst-of / best-of, memory / snowball
   coupons, Heston / SLV engine variants, knock-in barriers observed
   during life, issuer-callable variants.
-- Market-data loaders: vendor formats (Bloomberg BVAL, Refinitiv),
-  Arrow / Parquet, streaming updates.
-- SWIG interface-file updates in the sibling fork for every class
-  listed in the "New classes" table above.
+- Market-data loaders: **partially addressed** — JSON via nlohmann
+  shipped alongside CSV. Arrow / Parquet, streaming (Kafka / ZeroMQ /
+  WebSocket), and vendor formats (Bloomberg BVAL, Refinitiv, CME FIX,
+  ICE) are pending.
+- SWIG interface-file updates: **partially addressed** — SWIG fork
+  ships full bindings for `CsvQuoteLoader` and TODO scaffolds for
+  all other fork-specific classes. Remaining work is mechanical.
 - CI wiring (GitHub Actions matrix across GCC / Clang / C++23 /
   nonstandard-options).

@@ -112,13 +112,40 @@ cut.
   `id,value` CSV into a `std::map<std::string,
   ext::shared_ptr<SimpleQuote>>` that plugs directly into the
   existing `RateHelper` pipeline. Supports comments, blank lines, and
-  an optional header row. MVP: multi-column quotes, vendor formats
-  (Bloomberg, Refinitiv, CME), Arrow/Parquet, and streaming loaders
-  are follow-ups.
+  an optional header row.
+
+- **`JsonQuoteLoader`** (`ql/marketdata/jsonquoteloader.hpp`) — JSON
+  companion to `CsvQuoteLoader`. Auto-detects two schemas: a flat
+  `{"id": value, …}` object and a `{"quotes": [{"id": …, "value": …}]}`
+  array. Gated on CMake option **`QL_ENABLE_JSON_MARKETDATA`**
+  (default `ON`) which either picks up an installed nlohmann/json or
+  pulls v3.11.3 via `FetchContent`. When the flag is off, the header
+  still compiles and the loader throws a clear message pointing at
+  the flag. Follow-ups: Arrow/Parquet, multi-column quotes (bid/ask/
+  mid + timestamps), streaming loaders, vendor formats.
+
+- **`blackFormulaT<T>`** (`ql/pricingengines/blackformulatemplate.hpp`)
+  — engine-level AAD proof-of-concept. A scalar-templated Black-1976
+  call/put formula that instantiates with `T=Real` to match the
+  existing `blackFormula()` at machine precision, or with
+  `T=AADReal` to propagate derivatives through the CoDi-Pack tape.
+  First file in the fork demonstrating the template-parameterise-Real
+  pattern; generalising to BlackCalculator, `AnalyticEuropeanEngine`,
+  and the process/curve hierarchy is an explicit follow-up.
+
+- **`FrtbSaGirrDelta`** (`ql/risk/frtbsagirr.hpp`) — first regulatory
+  calculator, sitting on top of `CurveBucketer`. Computes the BCBS
+  d457 FRTB-SA General-Interest-Rate-Risk delta bucket charge
+  `K_b = sqrt(sum_i WS_i² + 2·sum_{i<j} ρ_{ij}·WS_i·WS_j)` with the
+  standard intra-bucket correlation `max(exp(−θ|dT|/min(T_i,T_j)),
+  φ_floor)`. Risk weights, θ, and φ_floor are caller-supplied so
+  users can match their jurisdiction's current BCBS / CRR / PRA
+  guidance. Single bucket, delta only; vega / curvature / other risk
+  classes / cross-bucket aggregation are follow-ups.
 
 ### Verified on this fork
 
-- **GCC 15.2.1 + C++23 + Boost 1.83** (default): 1293 cases, 0 failures
+- **GCC 15.2.1 + C++23 + Boost 1.83** (default): 1304 cases, 0 failures
 - **Clang 21.1.6 + C++23 + Boost 1.83**: 1274 cases, 0 failures (taken at the Phase-0 baseline; new-module tests land on top)
 - **`linux-ci-build-with-nonstandard-options` preset** (sessions on, thread-safe observer on, `QL_FASTER_LAZY_OBJECTS=OFF`, `QL_THROW_IN_CYCLES=ON`, high-res date on, indexed coupons, warnings-as-errors): 1280 cases, 0 failures (Phase-0 baseline)
 - **`QL_ENABLE_AAD=ON`** (GCC 15.2.1, CoDi-Pack v2.2.0 auto-fetched): `AadTests/*` pass end-to-end
@@ -129,13 +156,15 @@ CI is not wired on this fork; all verification is local.
 
 Python / R / Java / .NET bindings for this fork live in the sibling
 repository **[dudleylane/QuantLib-SWIG](https://github.com/dudleylane/QuantLib-SWIG)**,
-which is itself a fork of upstream `lballabio/QuantLib-SWIG`. It
-needs manual updates for the fork-specific additions:
-`FallbackIborIndex`, `CurveBucketer`, `XvaCalculator`, `AutocallableNote`
-+ `MCAutocallableNoteEngine`, `CsvQuoteLoader`, the `aad.hpp` utilities,
-and include-path adjustments for the promoted no-arb SABR + Heston
-Asian control variate. Bindings work is tracked on that sibling, not
-here.
+which is itself a fork of upstream `lballabio/QuantLib-SWIG`. A
+`SWIG/dudleylane_fork.i` scaffold is already committed there with
+full Python bindings for `CsvQuoteLoader` and TODO markers for the
+remaining fork-specific classes: `FallbackIborIndex`, `CurveBucketer`,
+`XvaCalculator`, `AutocallableNote` + `MCAutocallableNoteEngine`,
+`FrtbSaGirrDelta`, `JsonQuoteLoader`, `blackFormulaT`, and the
+`aad.hpp` helpers (plus include-path adjustments for the promoted
+no-arb SABR + Heston Asian control variate + CDS option). Bindings
+work continues on that sibling, not here.
 
 ## Build, test, run
 
