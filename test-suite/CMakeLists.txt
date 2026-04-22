@@ -19,6 +19,7 @@ set(QL_TEST_SOURCES
     blackdeltacalculator.cpp
 	blackcalculator.cpp
     blackformula.cpp
+    blackformulatemplate.cpp
     blackvolsurfacedelta.cpp
     bondforward.cpp
     bonds.cpp
@@ -67,6 +68,7 @@ set(QL_TEST_SOURCES
     extensibleoptions.cpp
     fastfouriertransform.cpp
     fdcev.cpp
+    frtbsagirr.cpp
     fdheston.cpp
     fdcir.cpp
     fdmlinearop.cpp
@@ -98,6 +100,7 @@ set(QL_TEST_SOURCES
     interestrates.cpp
     interpolatedsmilesection.cpp
     interpolations.cpp
+    jsonquoteloader.cpp
     jumpdiffusion.cpp
     lazyobject.cpp
     libormarketmodel.cpp

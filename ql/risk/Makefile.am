@@ -5,10 +5,12 @@ this_includedir=${includedir}/${subdir}
 this_include_HEADERS = \
     all.hpp \
     curvebucketer.hpp \
+    frtbsagirr.hpp \
     xvacalculator.hpp
 
 cpp_files = \
     curvebucketer.cpp \
+    frtbsagirr.cpp \
     xvacalculator.cpp
 
 if UNITY_BUILD

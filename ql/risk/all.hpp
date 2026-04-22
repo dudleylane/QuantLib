@@ -2,5 +2,6 @@
 /* Add the files to be included into Makefile.am instead. */
 
 #include <ql/risk/curvebucketer.hpp>
+#include <ql/risk/frtbsagirr.hpp>
 #include <ql/risk/xvacalculator.hpp>
 

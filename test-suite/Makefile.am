@@ -20,6 +20,7 @@ QL_TEST_SRCS = \
 	blackcalculator.cpp \
 	blackdeltacalculator.cpp \
 	blackformula.cpp \
+	blackformulatemplate.cpp \
 	blackvolsurfacedelta.cpp \
 	bondforward.cpp \
 	bonds.cpp \
@@ -71,6 +72,7 @@ QL_TEST_SRCS = \
 	fdcir.cpp \
 	fdmlinearop.cpp \
 	fdcev.cpp \
+	frtbsagirr.cpp \
 	fdsabr.cpp \
 	fittedbonddiscountcurve.cpp \
 	floatfloatswap.cpp \
@@ -99,6 +101,7 @@ QL_TEST_SRCS = \
 	interestrates.cpp \
 	interpolatedsmilesection.cpp \
 	interpolations.cpp \
+	jsonquoteloader.cpp \
 	jumpdiffusion.cpp \
 	lazyobject.cpp \
 	libormarketmodel.cpp \

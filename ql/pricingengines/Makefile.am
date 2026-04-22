@@ -13,6 +13,7 @@ this_include_HEADERS = \
     blackdeltacalculator.hpp \
     bacheliercalculator.hpp \
     blackformula.hpp \
+    blackformulatemplate.hpp \
     blackscholescalculator.hpp \
     genericmodelengine.hpp \
     greeks.hpp \
