@@ -4,10 +4,12 @@ AM_CPPFLAGS = -I${top_builddir} -I${top_srcdir}
 this_includedir=${includedir}/${subdir}
 this_include_HEADERS = \
     all.hpp \
-    csvquoteloader.hpp
+    csvquoteloader.hpp \
+    jsonquoteloader.hpp
 
 cpp_files = \
-    csvquoteloader.cpp
+    csvquoteloader.cpp \
+    jsonquoteloader.cpp
 
 if UNITY_BUILD
 

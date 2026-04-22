@@ -2,4 +2,5 @@
 /* Add the files to be included into Makefile.am instead. */
 
 #include <ql/marketdata/csvquoteloader.hpp>
+#include <ql/marketdata/jsonquoteloader.hpp>
 

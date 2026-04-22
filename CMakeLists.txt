@@ -43,6 +43,7 @@ option(QL_BUILD_EXAMPLES "Build examples" ON)
 option(QL_BUILD_TEST_SUITE "Build test suite" ON)
 option(QL_BUILD_FUZZ_TEST_SUITE "Build fuzz test suite" OFF) 
 option(QL_ENABLE_AAD "Enable reverse-mode AAD via CoDi-Pack" OFF)
+option(QL_ENABLE_JSON_MARKETDATA "Enable JSON market-data loaders via nlohmann/json" ON)
 option(QL_ENABLE_OPENMP "Detect and use OpenMP" OFF)
 option(QL_ENABLE_PARALLEL_UNIT_TEST_RUNNER "Enable the parallel unit test runner" OFF)
 option(QL_ENABLE_SESSIONS "Singletons return different instances for different sessions" OFF)
@@ -172,6 +173,22 @@ add_compile_definitions(BOOST_ALL_NO_LIB)
 
 if (QL_ENABLE_OPENMP)
     find_package(OpenMP REQUIRED)
+endif()
+
+# JSON market-data loaders via nlohmann/json (single-header).
+# Default ON because the library is ~1 MB and has no runtime deps.
+if (QL_ENABLE_JSON_MARKETDATA)
+    find_package(nlohmann_json QUIET)
+    if (NOT nlohmann_json_FOUND)
+        include(FetchContent)
+        FetchContent_Declare(nlohmann_json
+            GIT_REPOSITORY https://github.com/nlohmann/json.git
+            GIT_TAG        v3.11.3)
+        # Skip building the library's own test suite
+        set(JSON_BuildTests OFF CACHE INTERNAL "")
+        FetchContent_MakeAvailable(nlohmann_json)
+    endif()
+    add_compile_definitions(QL_ENABLE_JSON_MARKETDATA)
 endif()
 
 # Reverse-mode AAD via CoDi-Pack (header-only).
