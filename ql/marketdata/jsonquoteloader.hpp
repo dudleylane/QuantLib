@@ -65,15 +65,19 @@ namespace QuantLib {
         //  entries, duplicate ids, or file-open failure.
         explicit JsonQuoteLoader(const std::string& filepath);
 
-        //! Access by id; throws if unknown.
+        //! Access a quote by id; throws if the id is not present.
         const ext::shared_ptr<SimpleQuote>&
         operator[](const std::string& id) const;
 
+        //! Test whether an id is present in the loaded snapshot.
         bool has(const std::string& id) const;
 
+        //! Immutable view of the full id -> SimpleQuote map. Iterate
+        //! / filter as needed — the underlying map owns the quotes.
         const std::map<std::string, ext::shared_ptr<SimpleQuote> >&
         quotes() const { return quotes_; }
 
+        //! Number of quotes loaded from the file.
         Size size() const { return quotes_.size(); }
 
       private:

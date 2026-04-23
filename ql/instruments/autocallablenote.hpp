@@ -93,16 +93,34 @@ namespace QuantLib {
 
     class AutocallableNote::arguments : public PricingEngine::arguments {
       public:
+        //! Principal / face value of the note.
         Real notional = 0.0;
+        //! Reference spot S_0 at inception; barriers are expressed as
+        //! multiples of this value.
         Real initialSpot = 0.0;
+        //! Observation dates at which autocall is checked, in strictly
+        //! increasing order.
         std::vector<Date> observationDates;
+        //! Autocall barriers, one per observation date. Redemption is
+        //! triggered if `spot(t_i) >= autocallBarriers[i] * initialSpot`.
         std::vector<Real> autocallBarriers;
+        //! Fixed coupon rate applied per elapsed observation period on
+        //! autocall or at maturity when above the protection barrier.
         Rate couponRate = 0.0;
+        //! Maturity protection barrier, as a multiple of `initialSpot`.
+        //! If `spot(T) / initialSpot >= protectionBarrier` the note
+        //! pays `notional * (1 + couponRate * N)`; otherwise the
+        //! holder participates one-for-one in the downside ratio.
         Real protectionBarrier = 0.0;
+        //! Final maturity; must be >= the last observation date.
         Date maturityDate;
         void validate() const override;
     };
 
+    //! Pricing results for an AutocallableNote.
+    /*! Uses the default `Instrument::results` surface. Engines are
+        expected to set `results_.value` plus any additional
+        per-engine diagnostics via `additionalResults`. */
     class AutocallableNote::results : public Instrument::results {};
 
     class AutocallableNote::engine

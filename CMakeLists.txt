@@ -183,7 +183,7 @@ if (QL_ENABLE_JSON_MARKETDATA)
         include(FetchContent)
         FetchContent_Declare(nlohmann_json
             GIT_REPOSITORY https://github.com/nlohmann/json.git
-            GIT_TAG        v3.11.3)
+            GIT_TAG        v3.12.0)
         # Skip building the library's own test suite
         set(JSON_BuildTests OFF CACHE INTERNAL "")
         FetchContent_MakeAvailable(nlohmann_json)
@@ -200,7 +200,7 @@ if (QL_ENABLE_AAD)
         include(FetchContent)
         FetchContent_Declare(codipack
             GIT_REPOSITORY https://github.com/SciCompKL/CoDiPack.git
-            GIT_TAG        v2.2.0)
+            GIT_TAG        v3.1.0)
         FetchContent_MakeAvailable(codipack)
         set(CODIPACK_INCLUDE_DIR "${codipack_SOURCE_DIR}/include"
             CACHE PATH "CoDi-Pack include directory" FORCE)

@@ -98,6 +98,10 @@ namespace QuantLib {
         }
 
         //! Correlation matrix element rho_{ij}.
+        /*! \param i  tenor index; must be less than `size()`.
+            \param j  tenor index; must be less than `size()`.
+            Returns 1.0 on the diagonal; otherwise the d457 formula
+            `max(exp(-theta * |T_i - T_j| / min(T_i, T_j)), phiFloor)`. */
         Real correlation(Size i, Size j) const;
 
         Size size() const { return tenors_.size(); }

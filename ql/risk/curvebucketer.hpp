@@ -68,20 +68,31 @@ namespace QuantLib {
                       Real bump = 1.0e-4);
 
         //! Bucketed delta: one entry per quote.
-        /*! Returns (NPV(q_i + bump) - NPV(q_i - bump)) / (2 * bump).
-            The instrument is unchanged after the call (quotes restored). */
+        /*! \param instrument  the instrument to shock; its pricing
+                engine must be attached to the same curve the input
+                quotes feed.
+            \return vector of centered-difference deltas, one per
+                input quote: `(NPV(q_i + bump) - NPV(q_i - bump)) /
+                (2 * bump)`.
+            Quote state is restored on return (even on exception). */
         std::vector<Real> bucketedDelta(const Instrument& instrument) const;
 
-        //! Bucketed gamma (diagonal): one entry per quote.
-        /*! Returns (NPV(q_i + bump) - 2 NPV(q_i) + NPV(q_i - bump)) / bump^2.
+        //! Bucketed gamma (diagonal only): one entry per quote.
+        /*! \param instrument  see `bucketedDelta` above.
+            \return vector of diagonal gammas, one per input quote:
+                `(NPV(q_i + bump) - 2·NPV(q_i) + NPV(q_i - bump)) /
+                bump^2`.
             Cross-gamma (off-diagonal) is not covered by this MVP; it
             would require O(n^2) repricings and a 2D output. */
         std::vector<Real> bucketedGamma(const Instrument& instrument) const;
 
-        //! Parallel-shift delta: sum of the bucket vector.
-        /*! Equivalent to one shock applied uniformly to every input
-            quote. Offered as a sanity check: for a flat yield curve and
-            a bond, this should agree with modified-duration-times-DV01. */
+        //! Parallel-shift delta: every input quote shocked in lock-step.
+        /*! \param instrument  see `bucketedDelta` above.
+            \return `(NPV(all quotes + bump) - NPV(all quotes - bump))
+                / (2 * bump)`.
+            For a locally linear instrument this equals `sum(bucketed\
+            Delta)`; offered as a sanity check for bucketing
+            consistency. */
         Real parallelDelta(const Instrument& instrument) const;
 
         //! Number of buckets (== number of input quotes).
