@@ -21,7 +21,8 @@ EXAMPLES = \
     MultidimIntegral/MultidimIntegral \
     MulticurveBootstrapping/MulticurveBootstrapping \
     Replication/Replication \
-    Repo/Repo
+    Repo/Repo \
+    XvaSnapshot/XvaSnapshot
 
 
 if AUTO_SKIP_EXAMPLES
@@ -106,6 +107,9 @@ Replication_Replication_LDADD = $(LDADDS)
 
 Repo_Repo_SOURCES = Repo/Repo.cpp
 Repo_Repo_LDADD = $(LDADDS)
+
+XvaSnapshot_XvaSnapshot_SOURCES = XvaSnapshot/XvaSnapshot.cpp
+XvaSnapshot_XvaSnapshot_LDADD = $(LDADDS)
 
 EXTRA_DIST = CMakeLists.txt README.txt
 

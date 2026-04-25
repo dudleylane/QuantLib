@@ -1,0 +1,22 @@
+/*
+ Copyright (C) 2026 dudleylane
+
+ This file is new in the dudleylane fork of QuantLib and is licensed
+ under the GNU Affero General Public License v3.0 or later (AGPL-3.0+).
+ See the LICENSE file in the repository root for the full license text.
+*/
+
+/*! \defgroup riskanalysis Risk and XVA primitives
+
+    Tenor-bucketed sensitivities, exposure-driven XVA, and regulatory-
+    capital building blocks introduced in the dudleylane fork. These
+    are composable utilities rather than full production pipelines;
+    each item's class documentation lists what's in scope for its MVP.
+*/
+
+/*! \defgroup marketdata Market-data snapshot loaders
+
+    CSV / JSON loaders for a name->value quote snapshot suitable for
+    driving `Handle<Quote>` / `RateHelper` pipelines. Introduced in
+    the dudleylane fork.
+*/
