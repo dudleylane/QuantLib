@@ -109,6 +109,53 @@ accompany them on the same commit.
 | A9 (2026-04-24) | `ql/indexes/fallbackiborindex.cpp` | Removed dead-code null-fallback ternaries via a `checkLegacy` helper; added ctor assertion that the legacy and RFR indices share a day counter (otherwise the post-cessation tau/discount pairing is inconsistent). |
 | A10 (2026-04-25) | `test-suite/curvebucketer.cpp` | `testBucketedDeltaSign` was over-specified (required ≥2 strictly-positive buckets for a 5Y swap with a 10Y curve quote, which doesn't hold under `QL_USE_INDEXED_COUPON=ON` because the 10Y quote never feeds the 5Y swap's cashflow dates). Relaxed to the financial invariant: every bucket non-negative, at least one positive, sum positive. Surfaced by the `linux-ci-build-with-nonstandard-options` preset. |
 
+## C++23 feature audit (2026-04-25)
+
+Surveyed `ql/` (excluding `ql/legacy/`, `ql/experimental/`) for C++23
+language and library feature adoption opportunities. Findings:
+
+**Adopted** (commit `36aee6a3b`):
+- `[[nodiscard]]` on 9 zero-discard-site getters in `Instrument`,
+  `Quote`, and `Handle`. `NPV()`, `Quote::value()`, and
+  `Solver1D::solve()` deliberately omitted — each has legitimate
+  side-effecting discard call sites (lazy-calc forcing in lazyobject
+  tests, validity-check exceptions, bootstrap lambda mutations).
+- C++23 multidimensional `operator[](Size, Size)` on `Matrix`, gated
+  on `__cpp_multidimensional_subscript >= 202110L`. Existing
+  `operator()(i, j)` retained.
+
+**Empty surface — verified by grep, no fix needed**:
+- `std::to_underlying`: 0 enum-class casts of the form
+  `static_cast<integral>(EnumName::Member)` exist in `ql/` proper.
+  Earlier audit hits were arithmetic-difference casts.
+- `std::unreachable()`: 0 sites with `assert(false)`,
+  `// unreachable`, or `QL_FAIL("unreachable"…)`. The codebase uses
+  `QL_FAIL` for control-flow termination; no marker pattern to
+  replace.
+- Deducing-this CRTP simplification: only 2 CRTP base classes
+  (`Solver1D`, `Tree`); `this->impl()` cast removal would be purely
+  cosmetic and would touch numerical machinery unnecessarily.
+
+**Architectural mismatch — design decisions, not adoption**:
+- `std::expected<T, E>` would replace QuantLib's exception-based
+  error model (`QL_FAIL`/`QL_REQUIRE`); mixing creates two error
+  idioms.
+- `std::generator` (coroutines) interacts unanalysed with
+  `Singleton<Settings>` and the thread-safe-observer machinery.
+- `std::mdspan` has no surface — `Matrix`/`Array` already wrap
+  storage; no raw-pointer-stride APIs in the codebase.
+- Bulk loop migration (`views::enumerate`/`zip`) over the 177
+  indexed loops in `ql/cashflows/` carries subtle parallel-array
+  correctness risk in numerical hot paths; framework rejects sweeps
+  in this category.
+
+**Profiling-gated** (no decision without data):
+- `std::flat_map` for `Instrument::additionalResults_` (currently
+  `std::map<std::string, ext::any>`).
+- `std::move_only_function` selectively replacing some of the 146
+  `std::function`/`ext::function` slots.
+- `[[assume]]` on FD/integration kernel preconditions.
+
 ## New infrastructure from audit (2026-04-24)
 
 - `ql/pricingengines/autocallable/mcautocallablenoteengine.hpp` now exposes a
