@@ -85,11 +85,11 @@ namespace QuantLib {
         : link_(new Link(std::move(p), registerAsObserver)) {}
         //@}
         //! dereferencing
-        const ext::shared_ptr<T>& currentLink() const;
+        [[nodiscard]] const ext::shared_ptr<T>& currentLink() const;
         const ext::shared_ptr<T>& operator->() const;
         const ext::shared_ptr<T>& operator*() const;
         //! checks if the contained shared pointer points to anything
-        bool empty() const;
+        [[nodiscard]] bool empty() const;
         //! allows registration as observable
         operator ext::shared_ptr<Observable>() const;
         //! equality test

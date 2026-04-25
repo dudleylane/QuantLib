@@ -130,6 +130,13 @@ namespace QuantLib {
         Array diagonal() const;
         const Real& operator()(Size i, Size j) const;
         Real& operator()(Size i, Size j);
+        #if defined(__cpp_multidimensional_subscript) && __cpp_multidimensional_subscript >= 202110L
+        // C++23 multidimensional subscript: lets clients write m[i, j].
+        // Equivalent to operator()(i, j); kept as a thin overload so the
+        // older operator() form remains available unchanged.
+        const Real& operator[](Size i, Size j) const;
+        Real& operator[](Size i, Size j);
+        #endif
         //@}
 
         //! \name Inspectors
@@ -505,6 +512,16 @@ namespace QuantLib {
     inline Real& Matrix::operator()(Size i, Size j) {
         return data_[i*columns()+j];
     }
+
+    #if defined(__cpp_multidimensional_subscript) && __cpp_multidimensional_subscript >= 202110L
+    inline const Real& Matrix::operator[](Size i, Size j) const {
+        return data_[i*columns()+j];
+    }
+
+    inline Real& Matrix::operator[](Size i, Size j) {
+        return data_[i*columns()+j];
+    }
+    #endif
 
     inline Size Matrix::rows() const {
         return rows_;

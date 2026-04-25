@@ -49,20 +49,22 @@ namespace QuantLib {
         //@{
 
         //! returns the net present value of the instrument.
+        // Intentionally not [[nodiscard]]: NPV() is also called for its
+        // side effect of forcing lazy calculation in observability tests.
         Real NPV() const;
         //! returns the error estimate on the NPV when available.
-        Real errorEstimate() const;
+        [[nodiscard]] Real errorEstimate() const;
         //! returns the date the net present value refers to.
-        const Date& valuationDate() const;
+        [[nodiscard]] const Date& valuationDate() const;
 
-        const ext::shared_ptr<PricingEngine>& pricingEngine() const;
+        [[nodiscard]] const ext::shared_ptr<PricingEngine>& pricingEngine() const;
         //! returns any additional result returned by the pricing engine.
-        template <typename T> T result(const std::string& tag) const;
+        template <typename T> [[nodiscard]] T result(const std::string& tag) const;
         //! returns all additional result returned by the pricing engine.
-        const std::map<std::string, ext::any>& additionalResults() const;
+        [[nodiscard]] const std::map<std::string, ext::any>& additionalResults() const;
 
         //! returns whether the instrument might have value greater than zero.
-        virtual bool isExpired() const = 0;
+        [[nodiscard]] virtual bool isExpired() const = 0;
         //@}
         //! \name Modifiers
         //@{

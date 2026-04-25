@@ -39,9 +39,11 @@ namespace QuantLib {
       public:
         ~Quote() override = default;
         //! returns the current value
+        // Intentionally not [[nodiscard]]: discarded calls are used in
+        // production paths to trigger validity-check exceptions.
         virtual Real value() const = 0;
         //! returns true if the Quote holds a valid value
-        virtual bool isValid() const = 0;
+        [[nodiscard]] virtual bool isValid() const = 0;
     };
 
 
