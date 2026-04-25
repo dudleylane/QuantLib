@@ -1,8 +1,11 @@
 
 # QL_CHECK_CPP23
 # --------------------
-# Check whether C++23 features are supported by default.
-# If not, add -std=c++23
+# Check whether C++23 features are supported by default.  If not, retry
+# with -std=c++23 added; if that still fails, abort configure.  This fork
+# requires C++23 (GCC >= 15.2.1 floor stated in CLAUDE.md); silently
+# tolerating an older standard via flag prepend (which last -std= wins
+# over) hid a CI/floor divergence in the past.
 AC_DEFUN([QL_CHECK_CPP23],
 [AC_MSG_CHECKING([for C++23 support])
  AC_COMPILE_IFELSE(
@@ -15,9 +18,24 @@ AC_DEFUN([QL_CHECK_CPP23],
           ]],
         [[]])],
     [AC_MSG_RESULT([yes])],
-    [AC_MSG_RESULT([no: adding -std=c++23 to CXXFLAGS])
-     AC_SUBST([CPP23_CXXFLAGS],["-std=c++23"])
-     AC_SUBST([CXXFLAGS],["-std=c++23 ${CXXFLAGS}"])
+    [ql_saved_CXXFLAGS=$CXXFLAGS
+     CXXFLAGS="-std=c++23 ${CXXFLAGS}"
+     AC_COMPILE_IFELSE(
+        [AC_LANG_PROGRAM(
+            [[@%:@include <expected>
+              void foo() {
+                  auto x = std::expected<int, int>{42};
+                  (void)x;
+              }
+              ]],
+            [[]])],
+        [AC_MSG_RESULT([yes (with -std=c++23)])
+         AC_SUBST([CPP23_CXXFLAGS],["-std=c++23"])
+         AC_SUBST([CXXFLAGS],["-std=c++23 ${ql_saved_CXXFLAGS}"])],
+        [CXXFLAGS=$ql_saved_CXXFLAGS
+         AC_MSG_RESULT([no])
+         AC_MSG_ERROR([this fork requires a C++23 toolchain (GCC >= 15.2.1 or equivalent Clang).  <expected> is not available with the current compiler.])
+        ])
     ])
 ])
 

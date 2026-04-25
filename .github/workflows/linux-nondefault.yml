@@ -11,101 +11,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: "gcc 8.3 (Boost 1.72)"
-            shortname: gcc8
-            tag: cosmic
-            cc: gcc
-            cxx: g++
-          - name: "gcc 9.3 (Boost 1.78)"
-            shortname: gcc9
-            tag: focal
-            cc: gcc
-            cxx: g++
-          - name: "gcc 10.3 (Boost 1.79)"
-            shortname: gcc10
-            tag: hirsute
-            cc: gcc
-            cxx: g++
-          - name: "gcc 11.4 (Boost 1.82)"
-            shortname: gcc11
-            tag: jammy
-            cc: gcc
-            cxx: g++
-          - name: "gcc 12.3 (Boost 1.86)"
-            shortname: gcc12
-            tag: lunar
-            cc: gcc
-            cxx: g++
-          - name: "gcc 13.3 (Boost 1.89)"
-            shortname: gcc13
-            tag: noble
-            cc: gcc
-            cxx: g++
-          - name: "gcc 14.x"
-            shortname: gcc14
-            tag: plucky
-            cc: gcc
-            cxx: g++
+          # Fork floor is GCC >= 15.2.1 / C++23 (CLAUDE.md).  Sub-floor
+          # GCC and Clang entries were dropped along with the c++17 /
+          # c++20 modes when acinclude.m4 was hardened — those configs
+          # would have failed configure with the new floor check.
           - name: "gcc 15.x"
             shortname: gcc15
             tag: questing
             cc: gcc
             cxx: g++
-          - name: "Clang 7 (Boost 1.72)"
-            shortname: clang7
-            tag: cosmic
-            cc: clang
-            cxx: clang++
-          - name: "Clang 8 (Boost 1.72)"
-            shortname: clang8
-            tag: disco
-            cc: clang
-            cxx: clang++
-          - name: "Clang 9 (Boost 1.74)"
-            shortname: clang9
-            tag: eoan
-            cc: clang
-            cxx: clang++
-          - name: "Clang 10 (Boost 1.78)"
-            shortname: clang10
-            tag: focal
-            cc: clang
-            cxx: clang++
-          - name: "Clang 11 (Boost 1.78)"
-            shortname: clang11
-            tag: groovy
-            cc: clang
-            cxx: clang++
-          - name: "Clang 12 (Boost 1.79)"
-            shortname: clang12
-            tag: hirsute
-            cc: clang
-            cxx: clang++
-          - name: "Clang 13 (Boost 1.79)"
-            shortname: clang13
-            tag: impish
-            cc: clang
-            cxx: clang++
-          - name: "Clang 14 (Boost 1.82)"
-            shortname: clang14
-            tag: jammy
-            cc: clang
-            cxx: clang++
-          - name: "Clang 15 (Boost 1.86)"
-            shortname: clang15
-            tag: lunar
-            cc: clang
-            cxx: clang++
-          - name: "Clang 16 (Boost 1.86)"
-            shortname: clang16
-            tag: mantic
-            cc: clang
-            cxx: clang++
-          - name: "Clang 18 (Boost 1.89)"
-            shortname: clang18
-            tag: noble
-            cc: clang
-            cxx: clang++
           - name: "Clang 19 (Boost 1.89)"
             shortname: clang19
             tag: oracular
@@ -121,18 +35,6 @@ jobs:
             tag: resolute
             cc: clang
             cxx: clang++
-          - name: "C++17 mode"
-            shortname: c++17
-            tag: rolling
-            cc: gcc
-            cxx: g++
-            cxxflags: "-std=c++17"
-          - name: "C++20 mode"
-            shortname: c++20
-            tag: rolling
-            cc: gcc
-            cxx: g++
-            cxxflags: "-std=c++20"
           - name: "C++23 mode"
             shortname: c++23
             tag: rolling

@@ -7,13 +7,9 @@ on:
 jobs:
   headers:
     runs-on: ubuntu-latest
+    container: ghcr.io/lballabio/quantlib-devenv:rolling
     steps:
     - uses: actions/checkout@v6
-    - name: Setup
-      run: |
-        sudo rm /etc/apt/sources.list.d/microsoft-prod.list
-        sudo apt update
-        sudo apt install -y libboost-dev ccache
     - name: Cache
       uses: hendrikmuhs/ccache-action@v1.2
       with:

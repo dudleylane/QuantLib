@@ -23,6 +23,20 @@ carry AGPL-3.0+ file-level copyright notices.
 - **GCC ≥ 15.2.1**, **C++ ≥ 23**, **Boost ≥ 1.83.0** enforced in
   `CMakeLists.txt` and `acinclude.m4`. Upstream still compiles on GCC
   9 / C++17 / Boost 1.58.
+- The autotools floor check in `acinclude.m4` was hardened: the prior
+  `QL_CHECK_CPP23` macro silently prepended `-std=c++23` to `CXXFLAGS`
+  but lost to user-supplied `-std=c++17` via GCC's "last `-std=` wins"
+  rule, allowing C++17/C++20 CI modes to silently slip below the
+  stated floor. It now retries once with `-std=c++23` and aborts
+  configure if `<expected>` still doesn't compile.
+- CI matrices (`linux.yml`, `linux-nondefault.yml`) were trimmed to
+  drop sub-floor compilers (GCC 8–14, Clang 7–18) and the
+  `c++17`/`c++20` mode rows; remaining coverage is GCC 15.x, Clang 19+,
+  and explicit `c++23`/`c++26` modes plus the existing non-default
+  configuration tests.
+- `tools/check_header.py` was bumped from `-std=c++17` to `-std=c++23`,
+  and `headers.yml` now runs in the `quantlib-devenv:rolling`
+  container (Ubuntu's `ubuntu-latest` g++ is GCC 13, below the floor).
 
 ## New build-time options
 

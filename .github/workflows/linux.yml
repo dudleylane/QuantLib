@@ -11,43 +11,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: "gcc 9.3 (Boost 1.78)"
-            shortname: gcc9
-            tag: focal
-            cc: gcc
-            cxx: g++
-          - name: "gcc 11.4 (Boost 1.82)"
-            shortname: gcc11
-            tag: jammy
-            cc: gcc
-            cxx: g++
-          - name: "gcc 13.3 (Boost 1.89)"
-            shortname: gcc13
-            tag: noble
-            cc: gcc
-            cxx: g++
-            tests: true
+          # Fork floor is GCC >= 15.2.1 / C++23 (CLAUDE.md).  Sub-floor
+          # GCC/Clang and explicit c++17/c++20 modes were dropped when
+          # acinclude.m4 was hardened to fail configure on non-C++23
+          # toolchains; keeping them here would have surfaced as configure
+          # errors on every push.
           - name: "gcc 15.x"
             shortname: gcc15
             tag: questing
             cc: gcc
             cxx: g++
-            tests: true
-          - name: "Clang 10 (Boost 1.78)"
-            shortname: clang10
-            tag: focal
-            cc: clang
-            cxx: clang++
-          - name: "Clang 14 (Boost 1.82)"
-            shortname: clang14
-            tag: jammy
-            cc: clang
-            cxx: clang++
-          - name: "Clang 18 (Boost 1.89)"
-            shortname: clang18
-            tag: noble
-            cc: clang
-            cxx: clang++
             tests: true
           - name: "Clang 21"
             shortname: clang21
@@ -55,18 +28,6 @@ jobs:
             cc: clang
             cxx: clang++
             tests: true
-          - name: "C++17 mode"
-            shortname: c++17
-            tag: rolling
-            cc: gcc
-            cxx: g++
-            cxxflags: "-std=c++17"
-          - name: "C++20 mode"
-            shortname: c++20
-            tag: rolling
-            cc: gcc
-            cxx: g++
-            cxxflags: "-std=c++20"
           - name: "C++23 mode"
             shortname: c++23
             tag: rolling
