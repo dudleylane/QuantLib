@@ -42,7 +42,10 @@ jobs:
             # { os: windows-2022,   cc: cl,       cxx: cl },
             # { os: windows-2025,   cc: cl,       cxx: cl }
           ]
-        cxx-standard: [ 17, 20, 23 ]
+        # Fork floor is C++23 (CLAUDE.md); 17/20 modes were dropped
+        # when acinclude.m4 was hardened to AC_MSG_ERROR on non-C++23
+        # toolchains.  Add 26 once it's worth running.
+        cxx-standard: [ 23 ]
         cmake-build-type: [ release ]
 
     runs-on: ${{ matrix.settings.os }}
