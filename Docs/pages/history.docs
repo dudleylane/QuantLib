@@ -17,7 +17,17 @@
 
 /*! \page history Version history
 
-    The list of releases is available from GitHub at
+    The list of upstream releases is available from GitHub at
     <https://github.com/lballabio/QuantLib/releases>.
+
+    \note On the
+    <a href="https://github.com/dudleylane/QuantLib">dudleylane fork</a>,
+    fork-specific changes (new classes, promotions out of
+    <code>ql/experimental/</code>, correctness fixes, the C++23 /
+    GCC ≥ 15.2.1 toolchain floor, the AGPL-3.0+ aggregate license)
+    are tracked in <code>FORK_CHANGES.md</code> at the repo root.
+    Commit SHAs diverge from upstream from <code>51d4bb377</code>
+    onwards due to a 2014 binary-blob history rewrite, so syncing
+    upstream releases requires rebase-across-divergence.
 
 */

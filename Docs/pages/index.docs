@@ -21,6 +21,16 @@
     %QuantLib (https://www.quantlib.org/) is a C++ library for
     financial quantitative analysts and developers.
 
+    \note You are reading the documentation for the
+    <a href="https://github.com/dudleylane/QuantLib">dudleylane fork</a>
+    of %QuantLib.  The fork's <em>combined work</em> and any files
+    newly introduced in the fork are distributed under the
+    <strong>GNU Affero General Public License v3.0 or later
+    (AGPL-3.0+)</strong>; upstream files retained in the fork keep
+    their original BSD-3-Clause file-level headers.  See
+    <code>README.md</code> and the \ref license section for the full
+    rules and practical implications.
+
     %QuantLib is Non-Copylefted Free Software released under the modified BSD
     License. It is also OSI Certified Open Source Software. OSI Certified is a
     certification mark of the Open Source Initiative.

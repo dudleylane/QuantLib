@@ -1,6 +1,28 @@
 
 # Contributing to QuantLib
 
+> **This is the `dudleylane/QuantLib` fork.**  Choose your destination
+> before you start:
+>
+> - **Fixes or features for the fork** (anything in `FORK_CHANGES.md`,
+>   the dual-license arrangement, the C++23 / GCC ≥ 15.2.1 toolchain,
+>   or the new modules under `ql/risk/`, `ql/marketdata/`,
+>   `ql/pricingengines/autocallable/`) — open a PR or issue at
+>   <https://github.com/dudleylane/QuantLib>.  Please read `CLAUDE.md`
+>   first for the Decision-Making Policy and pre-commit checklist.
+> - **Fixes for upstream QuantLib** (the original BSD-licensed library)
+>   — open against <https://github.com/lballabio/QuantLib> using the
+>   instructions below; the fix will be brought across the divergence
+>   point separately.
+> - **License note** — new files added to this fork are AGPL-3.0+;
+>   upstream files retain their BSD-3-Clause headers.  See
+>   `README.md`'s License section for the dual-license rules before
+>   adding new files.
+
+---
+
+## Upstream contribution flow
+
 Thanks for considering a contribution!  We're looking forward to it.
 
 The preferred way to contribute is through a pull request on GitHub.

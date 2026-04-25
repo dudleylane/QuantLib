@@ -126,3 +126,15 @@ Repo
 
 Fixed-coupon bond repo valuation example.
 
+
+XvaSnapshot (dudleylane fork)
+-----------------------------
+
+End-to-end smoke test for the fork-introduced market-data, risk, and
+XVA primitives.  Loads a name->value quote snapshot via CsvQuoteLoader,
+builds a flat-forward curve, prices a FixedRateBond, runs CurveBucketer
+over the bond's curve quotes for tenor-bucketed delta, and feeds an
+XvaCalculator-driven CVA on a synthetic exposure profile.  Demonstrates
+ql/marketdata/, ql/risk/curvebucketer.hpp, and ql/risk/xvacalculator.hpp
+in one ~130-line program.  New in this fork; see FORK_CHANGES.md.
+
