@@ -149,12 +149,40 @@ language and library feature adoption opportunities. Findings:
   correctness risk in numerical hot paths; framework rejects sweeps
   in this category.
 
-**Profiling-gated** (no decision without data):
-- `std::flat_map` for `Instrument::additionalResults_` (currently
-  `std::map<std::string, ext::any>`).
-- `std::move_only_function` selectively replacing some of the 146
-  `std::function`/`ext::function` slots.
-- `[[assume]]` on FD/integration kernel preconditions.
+**Profiling-resolved** (data captured 2026-04-25 from `perf record -F
+999 -g` over `AmericanOptionTests`, ~6k samples; static counts from
+`grep` over `ql/`):
+- `std::flat_map` for `Instrument::additionalResults_` — **rejected
+  on the data**. `additionalResults_.find()` has exactly one caller
+  (`Instrument::result<T>` at `instrument.hpp:198`), populated 86
+  insertion sites add ~5-10 keys per pricing, and zero samples for
+  `_Rb_tree_find` / `std::map::find` showed up at ≥0.5% in the
+  perf profile. The map is cold per pricing.
+- `std::move_only_function` replacement of `std::function` slots —
+  **the data confirms `std::function` IS in hot paths but the C++23
+  feature does not address the observed cost**. `_Function_handler::
+  _M_invoke` for `QdFpAmericanEngine` lambdas totals ~3.8% self-time
+  and `GaussLobattoIntegral` taking `std::function<double(double)>`
+  is 1.23%. But `move_only_function` has the same indirect-call cost
+  as `std::function` (both type-erase); the only win is storage size
+  / move-only support. To actually reduce the observed cost the
+  fix is to template-parameterise these callables, which is a
+  different change.
+- `[[assume]]` on FD / integration kernel preconditions —
+  **deferred**. Hot kernels exist (`LagrangeInterpolationImpl::value`
+  9.39%, `TripleBandLinearOp::solve_splitting` 5.33%,
+  `CumulativeNormalDistribution::operator()` 4.31%, `ErrorFunction::
+  operator()` 5.48%), but `[[assume]]` typically buys 1–5% on the
+  affected function with carefully-placed predicates. Expected
+  overall gain <1% per attempt; a per-kernel before/after benchmark
+  is needed before any annotation lands.
+
+Bonus finding from the same profile: `TermStructure::checkRange`
+accounts for **8.55%** of self-time on the FD path — a bounds-check
+function eating nearly a tenth of the workload. Not a Tier 3 item
+(separate from the C++23 audit) but worth tracking; likely called
+once per `discount(t, extrapolate)` and could be inlined or
+short-circuited under `extrapolate=false`.
 
 ## New infrastructure from audit (2026-04-24)
 
