@@ -46,6 +46,7 @@
 #include <ql/indexes/all.hpp>
 #include <ql/instruments/all.hpp>
 #include <ql/legacy/all.hpp>
+#include <ql/marketdata/all.hpp>
 #include <ql/math/all.hpp>
 #include <ql/methods/all.hpp>
 #include <ql/models/all.hpp>
@@ -53,6 +54,7 @@
 #include <ql/pricingengines/all.hpp>
 #include <ql/processes/all.hpp>
 #include <ql/quotes/all.hpp>
+#include <ql/risk/all.hpp>
 #include <ql/termstructures/all.hpp>
 #include <ql/time/all.hpp>
 #include <ql/utilities/all.hpp>

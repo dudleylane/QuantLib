@@ -280,6 +280,18 @@ BOOST_AUTO_TEST_CASE(testFallbackIborIndex) {
         usdLibor, orphanSofr, cessation, isdaSpread);
     BOOST_CHECK_EXCEPTION(fallbackNoCurve->forecastFixing(postCess), Error,
         ExpectedErrorMessage("no forwarding term structure"));
+
+    // Published pre-cessation fixings: fixing() on a *past* date with
+    // a recorded fixing must return the published value, not a
+    // re-forecast. IborIndex::fixing(d) consults the fixing history
+    // when d <= today (as IndexManager-stored fixings). This pins the
+    // contract: FallbackIborIndex inherits the IborIndex behavior and
+    // must not silently re-forecast historically-fixed dates.
+    Date histFixing = usdLibor->fixingCalendar().adjust(today - 5);
+    Rate publishedRate = 0.03125;
+    usdLibor->addFixing(histFixing, publishedRate, /*forceOverwrite*/ true);
+    BOOST_CHECK_CLOSE(usdLibor->fixing(histFixing), publishedRate, 1e-12);
+    IndexManager::instance().clearHistories();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

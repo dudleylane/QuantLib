@@ -21,28 +21,35 @@
 
 namespace QuantLib {
 
+    namespace {
+        // Check the legacy index is non-null and return it, so the
+        // member-initializer list can dereference it without needing
+        // fallback ternaries for every IborIndex base-class argument.
+        const ext::shared_ptr<IborIndex>& checkLegacy(
+            const ext::shared_ptr<IborIndex>& legacy) {
+            QL_REQUIRE(legacy,
+                       "FallbackIborIndex requires a non-null legacy IBOR index");
+            return legacy;
+        }
+    }
+
     FallbackIborIndex::FallbackIborIndex(
         const ext::shared_ptr<IborIndex>& legacyIndex,
         const ext::shared_ptr<OvernightIndex>& rfrIndex,
         const Date& cessationDate,
         Spread spreadAdjustment)
-    : IborIndex(legacyIndex ? legacyIndex->familyName() + "-Fallback"
-                            : std::string("UnknownIborIndex-Fallback"),
-                legacyIndex ? legacyIndex->tenor() : 3 * Months,
-                legacyIndex ? legacyIndex->fixingDays() : 2,
-                legacyIndex ? legacyIndex->currency() : Currency(),
-                legacyIndex ? legacyIndex->fixingCalendar() : Calendar(),
-                legacyIndex ? legacyIndex->businessDayConvention()
-                            : ModifiedFollowing,
-                legacyIndex ? legacyIndex->endOfMonth() : false,
-                legacyIndex ? legacyIndex->dayCounter() : DayCounter(),
-                legacyIndex ? legacyIndex->forwardingTermStructure()
-                            : Handle<YieldTermStructure>()),
+    : IborIndex(checkLegacy(legacyIndex)->familyName() + "-Fallback",
+                legacyIndex->tenor(),
+                legacyIndex->fixingDays(),
+                legacyIndex->currency(),
+                legacyIndex->fixingCalendar(),
+                legacyIndex->businessDayConvention(),
+                legacyIndex->endOfMonth(),
+                legacyIndex->dayCounter(),
+                legacyIndex->forwardingTermStructure()),
       legacyIndex_(legacyIndex), rfrIndex_(rfrIndex),
       cessationDate_(cessationDate), spreadAdjustment_(spreadAdjustment) {
 
-        QL_REQUIRE(legacyIndex_,
-                   "FallbackIborIndex requires a non-null legacy IBOR index");
         QL_REQUIRE(rfrIndex_,
                    "FallbackIborIndex requires a non-null replacement RFR index");
         QL_REQUIRE(legacyIndex_->currency() == rfrIndex_->currency(),
@@ -50,6 +57,20 @@ namespace QuantLib {
                    << legacyIndex_->currency().code()
                    << ") must match RFR currency ("
                    << rfrIndex_->currency().code() << ")");
+        // Day-counter consistency: compoundedRfrRate() takes dfs from the
+        // RFR curve but scales tau by dayCounter() (inherited from the
+        // legacy index). If they differ, the period-yield implied by
+        // the RFR discount factors is misread. Most real pairs coincide
+        // (SOFR/USD-LIBOR Act/360; SONIA/GBP-LIBOR Act/365; €STR/EURIBOR
+        // Act/360; SARON/CHF-LIBOR Act/360); enforce strictly.
+        QL_REQUIRE(legacyIndex_->dayCounter() == rfrIndex_->dayCounter(),
+                   "FallbackIborIndex: legacy day counter ("
+                   << legacyIndex_->dayCounter().name()
+                   << ") differs from RFR day counter ("
+                   << rfrIndex_->dayCounter().name()
+                   << "). Coerce the RFR index's day counter to match "
+                   "or the post-cessation tau/discount pairing is "
+                   "inconsistent.");
         registerWith(legacyIndex_);
         registerWith(rfrIndex_);
     }
@@ -99,7 +120,11 @@ namespace QuantLib {
         const Handle<YieldTermStructure>& forwarding) const {
         // The forwarding handle is relevant only to the legacy index
         // (pre-cessation). Clone the legacy with the new handle and keep
-        // the same RFR + cessation + spread.
+        // the same RFR pointer, cessation date, and spread: the RFR's
+        // own forwarding handle is independent of the legacy's, and
+        // the cessation/spread are fixed protocol parameters. Callers
+        // who want an independent RFR handle can clone the RFR
+        // separately before constructing a new FallbackIborIndex.
         return ext::make_shared<FallbackIborIndex>(
             legacyIndex_->clone(forwarding),
             rfrIndex_,

@@ -68,6 +68,7 @@
 namespace QuantLib {
 
     //! FRTB-SA GIRR delta bucket charge calculator (single currency).
+    /*! \ingroup riskanalysis */
     class FrtbSaGirrDelta {
       public:
         /*! \param tenors      strictly-positive vertex tenors in years,

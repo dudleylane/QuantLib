@@ -64,7 +64,11 @@ namespace QuantLib {
     }
 
     bool AutocallableNote::isExpired() const {
-        return maturityDate_ < Settings::instance().evaluationDate();
+        // On the maturity date itself the payoff is already determined
+        // (coupon + either principal or ratio*notional); nothing to
+        // recompute the next day. Use <= so isExpired() reports true on
+        // the maturity date, matching bond-style expiry semantics.
+        return maturityDate_ <= Settings::instance().evaluationDate();
     }
 
     void AutocallableNote::setupArguments(
@@ -88,8 +92,19 @@ namespace QuantLib {
                    "empty observation-date vector");
         QL_REQUIRE(observationDates.size() == autocallBarriers.size(),
                    "observation dates / autocall barriers size mismatch");
+        for (Size i = 0; i < autocallBarriers.size(); ++i)
+            QL_REQUIRE(autocallBarriers[i] > 0.0,
+                       "autocall barrier #" << i << " must be positive");
+        for (Size i = 1; i < observationDates.size(); ++i)
+            QL_REQUIRE(observationDates[i] > observationDates[i-1],
+                       "observation dates must be strictly increasing "
+                       "(violation at index " << i << ")");
         QL_REQUIRE(protectionBarrier > 0.0,
                    "non-positive protection barrier");
+        QL_REQUIRE(couponRate >= 0.0,
+                   "negative coupon rate");
+        QL_REQUIRE(maturityDate >= observationDates.back(),
+                   "maturity must be on or after the last observation date");
     }
 
 }

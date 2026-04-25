@@ -115,6 +115,54 @@ BOOST_AUTO_TEST_CASE(testMalformedInputsAreRejected) {
     std::remove(p4.c_str());
 }
 
+BOOST_AUTO_TEST_CASE(testUtf8BomStripped) {
+    BOOST_TEST_MESSAGE("CsvQuoteLoader: leading UTF-8 BOM (0xEF 0xBB 0xBF) "
+                       "is stripped, first id is not corrupted...");
+
+    // Files exported from Excel on Windows have a leading UTF-8 BOM.
+    std::string bom = "\xEF\xBB\xBF";
+    std::string path = writeTempCsv(bom + "USD3M,0.05\nEUR3M,0.03\n");
+    CsvQuoteLoader loader(path);
+    BOOST_CHECK(loader.has("USD3M"));
+    BOOST_CHECK(!loader.has("\xEF\xBB\xBFUSD3M"));
+    BOOST_CHECK_SMALL(std::fabs(loader["USD3M"]->value() - 0.05), 1e-15);
+    std::remove(path.c_str());
+}
+
+BOOST_AUTO_TEST_CASE(testNonFiniteValueRejected) {
+    BOOST_TEST_MESSAGE("CsvQuoteLoader: Inf/NaN values are rejected with "
+                       "a clear error naming the id...");
+
+    std::string p1 = writeTempCsv("USD3M,inf\n");
+    auto c1 = [&]{ CsvQuoteLoader l(p1); (void)l; };
+    BOOST_CHECK_EXCEPTION(c1(), Error, ExpectedErrorMessage("not finite"));
+    std::remove(p1.c_str());
+
+    std::string p2 = writeTempCsv("EUR3M,NaN\n");
+    auto c2 = [&]{ CsvQuoteLoader l(p2); (void)l; };
+    BOOST_CHECK_EXCEPTION(c2(), Error, ExpectedErrorMessage("not finite"));
+    std::remove(p2.c_str());
+}
+
+BOOST_AUTO_TEST_CASE(testLocaleIndependentParse) {
+    BOOST_TEST_MESSAGE("CsvQuoteLoader: '.' is always the decimal "
+                       "separator regardless of LC_NUMERIC...");
+
+    // from_chars ignores the locale; stod would fail here under
+    // LC_NUMERIC=de_DE.UTF-8 for "0.05".
+    std::string path = writeTempCsv("USD3M,0.12345\n");
+    CsvQuoteLoader loader(path);
+    BOOST_CHECK_SMALL(std::fabs(loader["USD3M"]->value() - 0.12345), 1e-15);
+
+    // Comma-as-decimal must NOT be accepted.
+    std::string bad = writeTempCsv("EUR3M,0,12345\n");
+    auto call = [&]{ CsvQuoteLoader l(bad); (void)l; };
+    BOOST_CHECK_EXCEPTION(call(), Error,
+        ExpectedErrorMessage("trailing non-numeric"));
+    std::remove(path.c_str());
+    std::remove(bad.c_str());
+}
+
 BOOST_AUTO_TEST_CASE(testMissingIdThrowsOnAccess) {
     BOOST_TEST_MESSAGE("CsvQuoteLoader: operator[] throws on unknown id...");
 

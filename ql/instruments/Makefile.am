@@ -8,6 +8,7 @@ this_include_HEADERS = \
     all.hpp \
     asianoption.hpp \
     assetswap.hpp \
+    autocallablenote.hpp \
     averagetype.hpp \
     barrieroption.hpp \
     barriertype.hpp \
@@ -87,6 +88,7 @@ this_include_HEADERS = \
 cpp_files = \
     asianoption.cpp \
     assetswap.cpp \
+    autocallablenote.cpp \
     averagetype.cpp \
     barrieroption.cpp \
     barriertype.cpp \

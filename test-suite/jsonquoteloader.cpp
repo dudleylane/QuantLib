@@ -87,6 +87,52 @@ BOOST_AUTO_TEST_CASE(testMalformedJsonRejected) {
     std::remove(p3.c_str());
 }
 
+BOOST_AUTO_TEST_CASE(testAmbiguousSchemaRejected) {
+    BOOST_TEST_MESSAGE("JsonQuoteLoader: a document mixing 'quotes' "
+                       "array with top-level id:value siblings is "
+                       "rejected (not silently partial)...");
+
+    std::string p = writeTemp(R"({
+        "quotes": [{"id": "USD3M", "value": 0.05}],
+        "EUR3M": 0.03
+    })");
+    auto open = [&]{ JsonQuoteLoader l(p); (void)l; };
+    BOOST_CHECK_EXCEPTION(open(), Error,
+        ExpectedErrorMessage("ambiguous schema"));
+    std::remove(p.c_str());
+}
+
+BOOST_AUTO_TEST_CASE(testEmptyIdRejected) {
+    BOOST_TEST_MESSAGE("JsonQuoteLoader: empty id in either schema is "
+                       "rejected...");
+
+    // Schema B with empty id
+    std::string pB = writeTemp(R"({"quotes": [{"id": "", "value": 0.05}]})");
+    auto openB = [&]{ JsonQuoteLoader l(pB); (void)l; };
+    BOOST_CHECK_EXCEPTION(openB(), Error, ExpectedErrorMessage("empty"));
+    std::remove(pB.c_str());
+
+    // Schema A with empty key
+    std::string pA = writeTemp(R"({"": 0.05})");
+    auto openA = [&]{ JsonQuoteLoader l(pA); (void)l; };
+    BOOST_CHECK_EXCEPTION(openA(), Error, ExpectedErrorMessage("empty"));
+    std::remove(pA.c_str());
+}
+
+BOOST_AUTO_TEST_CASE(testNonFiniteValueRejected) {
+    BOOST_TEST_MESSAGE("JsonQuoteLoader: non-finite numbers rejected...");
+
+    // nlohmann/json accepts non-standard literals like this only with
+    // tolerant parsing; Inf/NaN round-trip through its number type on
+    // some configurations. The isfinite guard catches them regardless.
+    std::string p = writeTemp(R"({"quotes": [{"id": "X", "value": 1e400}]})");
+    auto open = [&]{ JsonQuoteLoader l(p); (void)l; };
+    // 1e400 overflows to inf; isfinite fires. If the parser rejects
+    // before we get there, the error still thrown — accept either.
+    BOOST_CHECK_THROW(open(), Error);
+    std::remove(p.c_str());
+}
+
 BOOST_AUTO_TEST_CASE(testEmptyObjectRejected) {
     std::string p = writeTemp("{}");
     auto open = [&]{ JsonQuoteLoader l(p); (void)l; };

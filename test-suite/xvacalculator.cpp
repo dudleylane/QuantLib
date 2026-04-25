@@ -128,6 +128,67 @@ BOOST_AUTO_TEST_CASE(testMvaZeroWithoutInitialMargin) {
     BOOST_CHECK(withIm.mva() > 0.0);
 }
 
+BOOST_AUTO_TEST_CASE(testTrapezoidalOnLinearlyRisingEpe) {
+    BOOST_TEST_MESSAGE("CVA under linearly rising EPE matches the "
+                       "trapezoidal-rule hand-computed reference...");
+
+    // Use a single-year grid with known df and pd, linear EPE profile.
+    // Closed-form trapezoidal: CVA = (1-R) * sum_i 0.5*(e_{i-1}+e_i) * dPD_i * df(t_i).
+    Date today{1, January, 2026};
+    Settings::instance().evaluationDate() = today;
+    DayCounter dc = Actual365Fixed();
+    std::vector<Date> dates{today,
+                             today + Period(1, Years),
+                             today + Period(2, Years)};
+    std::vector<Real> epe{0.0, 100.0, 200.0};
+    std::vector<Real> ene(dates.size(), 0.0);
+
+    Rate haz = 0.02, r = 0.0;
+    auto pd = Handle<DefaultProbabilityTermStructure>(
+        ext::make_shared<FlatHazardRate>(today, haz, dc));
+    auto ownPd = Handle<DefaultProbabilityTermStructure>(
+        ext::make_shared<FlatHazardRate>(today, 0.0, dc));
+    auto disc = Handle<YieldTermStructure>(
+        ext::make_shared<FlatForward>(today, r, dc));
+
+    const Real recovery = 0.4;
+    XvaCalculator x(dates, epe, ene, pd, ownPd, recovery, 0.0,
+                    0.0, 0.0, 0.0, disc);
+
+    // Hand-computed reference.
+    Real hazRate = haz;
+    Time t1 = dc.yearFraction(today, dates[1]);
+    Time t2 = dc.yearFraction(today, dates[2]);
+    Real pd1 = 1.0 - std::exp(-hazRate * t1);
+    Real pd2 = 1.0 - std::exp(-hazRate * t2);
+    Real df1 = 1.0, df2 = 1.0;  // r=0
+    Real lgd = 1.0 - recovery;
+    Real ref =
+        lgd * (0.5 * (epe[0] + epe[1]) * (pd1 - 0.0) * df1
+             + 0.5 * (epe[1] + epe[2]) * (pd2 - pd1) * df2);
+
+    Real cva = x.cva();
+    BOOST_CHECK_MESSAGE(std::fabs(cva - ref) < 1e-10,
+        "CVA with linear EPE: got " << cva << ", expected " << ref);
+}
+
+BOOST_AUTO_TEST_CASE(testMvaWithInitialMarginGrid) {
+    BOOST_TEST_MESSAGE("MVA with a non-empty IM profile is positive and "
+                       "scales linearly with the IM level...");
+
+    Fixture f;
+    std::vector<Real> im1(f.dates.size(), 100.0);
+    std::vector<Real> im2(f.dates.size(), 200.0);
+    const Spread ms = 0.01;
+    XvaCalculator a(f.dates, f.epe, f.ene, f.cptyPd, f.ownPd,
+                    0.4, 0.4, 0.0, 0.0, ms, f.discount, im1);
+    XvaCalculator b(f.dates, f.epe, f.ene, f.cptyPd, f.ownPd,
+                    0.4, 0.4, 0.0, 0.0, ms, f.discount, im2);
+    BOOST_CHECK(a.mva() > 0.0);
+    // MVA is linear in IM (trapezoid is bilinear in inputs).
+    BOOST_CHECK_SMALL(std::fabs(b.mva() / a.mva() - 2.0), 1e-12);
+}
+
 BOOST_AUTO_TEST_CASE(testConstructorRejectsInvalidInputs) {
     Fixture f;
     auto badRecovery = [&]{

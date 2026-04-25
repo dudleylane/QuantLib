@@ -41,6 +41,7 @@
 namespace QuantLib {
 
     //! Tenor-bucketed delta/gamma for an instrument priced off a curve.
+    /*! \ingroup riskanalysis */
     /*! The caller supplies the `SimpleQuote` objects that seed the curve
         (deposit/future/swap quotes, vol quotes, etc.). CurveBucketer
         centered-differences each quote, one at a time, repricing the

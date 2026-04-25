@@ -81,6 +81,11 @@ namespace QuantLib {
     }
 
     Real XvaCalculator::cva() const {
+        // Trapezoidal quadrature of LGD * integral(EPE(t) * dPD(t) * D(t))
+        // over the exposure grid. For constant EPE this matches every
+        // other convention; for monotone-rising or peak-and-fall profiles
+        // the trapezoid is second-order accurate where left-endpoint is
+        // first-order and biased low.
         const Real lgd = 1.0 - counterpartyRecovery_;
         Real total = 0.0;
         Probability p_prev = counterpartyPd_->defaultProbability(
@@ -90,7 +95,8 @@ namespace QuantLib {
                 exposureDates_[i]);
             Real dPD = p_now - p_prev;
             DiscountFactor df = discountCurve_->discount(exposureDates_[i]);
-            total += epe_[i-1] * dPD * df;
+            Real epeAvg = 0.5 * (epe_[i-1] + epe_[i]);
+            total += epeAvg * dPD * df;
             p_prev = p_now;
         }
         return lgd * total;
@@ -106,13 +112,15 @@ namespace QuantLib {
                 exposureDates_[i]);
             Real dPD = p_now - p_prev;
             DiscountFactor df = discountCurve_->discount(exposureDates_[i]);
-            total += ene_[i-1] * dPD * df;
+            Real eneAvg = 0.5 * (ene_[i-1] + ene_[i]);
+            total += eneAvg * dPD * df;
             p_prev = p_now;
         }
         return lgd * total;
     }
 
     namespace {
+        // Trapezoidal quadrature of integral(exposure(t) * spread * D(t)) dt.
         Real spreadIntegral(const std::vector<Date>& dates,
                             const std::vector<Real>& exposures,
                             Spread spread,
@@ -121,7 +129,8 @@ namespace QuantLib {
             for (Size i = 1; i < dates.size(); ++i) {
                 Time tau = df->dayCounter().yearFraction(
                     dates[i-1], dates[i]);
-                total += exposures[i-1] * spread * tau *
+                Real expAvg = 0.5 * (exposures[i-1] + exposures[i]);
+                total += expAvg * spread * tau *
                          df->discount(dates[i]);
             }
             return total;

@@ -85,7 +85,7 @@ BOOST_AUTO_TEST_CASE(testAutocallTriggersAtFirstObservationWithLowBarrier) {
         couponRate, protection, f.obs.back());
     note->setPricingEngine(
         ext::make_shared<MCAutocallableNoteEngine<>>(
-            f.process, /*samples*/ 5000, /*seed*/ 42));
+            f.process, /*samples*/ Size(5000), /*seed*/ BigNatural(42)));
 
     // First observation at t=1: guaranteed autocall; PV should be
     //   notional * (1 + couponRate) * df(1Y) = 102 * exp(-0.03) = 98.984...
@@ -111,7 +111,7 @@ BOOST_AUTO_TEST_CASE(testHighBarrierApproachesEuropeanMaturityPayoff) {
         couponRate, protection, f.obs.back());
     note->setPricingEngine(
         ext::make_shared<MCAutocallableNoteEngine<>>(
-            f.process, /*samples*/ 20000, /*seed*/ 7));
+            f.process, /*samples*/ Size(20000), /*seed*/ BigNatural(7)));
 
     Real maxUpside = notional * (1.0 + couponRate * 4.0)
                      * std::exp(-0.01 * 4.0);
@@ -191,6 +191,74 @@ BOOST_AUTO_TEST_CASE(testConstructorRejectsInvalidInputs) {
         (void)n;
     };
     BOOST_CHECK_THROW(bad3(), Error);
+}
+
+BOOST_AUTO_TEST_CASE(testAdaptiveConvergenceHitsTolerance) {
+    BOOST_TEST_MESSAGE("MCAutocallableNoteEngine in adaptive mode adds "
+                       "paths until stderr <= tolerance (or throws on "
+                       "maxSamples)...");
+
+    Fixture f(/*vol*/ 0.25, /*r*/ 0.03, /*q*/ 0.0);
+
+    std::vector<Real> barriers{1.10, 1.00, 0.95, 0.90};
+    auto note = ext::make_shared<AutocallableNote>(
+        100.0, f.initialSpot, f.obs, barriers,
+        /*coupon*/ 0.05, /*protect*/ 0.7, f.obs.back());
+
+    // Tight tolerance + enough maxSamples: must converge.
+    auto engine = ext::make_shared<MCAutocallableNoteEngine<>>(
+        f.process, /*tolerance*/ 0.5,
+        /*maxSamples*/ Size(200000),
+        /*minSamples*/ Size(1024),
+        /*seed*/ BigNatural(42));
+    note->setPricingEngine(engine);
+    Real npv = note->NPV();
+    Real err = note->errorEstimate();
+    BOOST_CHECK(npv > 0.0);
+    BOOST_CHECK_MESSAGE(err <= 0.5,
+        "Adaptive engine did not converge: stderr=" << err);
+}
+
+BOOST_AUTO_TEST_CASE(testAdaptiveThrowsOnMaxSamples) {
+    BOOST_TEST_MESSAGE("MCAutocallableNoteEngine throws if maxSamples is "
+                       "hit before stderr tolerance is reached...");
+
+    Fixture f(/*vol*/ 0.40);   // high vol -> slower convergence
+
+    std::vector<Real> barriers{1.10, 1.00, 0.95, 0.90};
+    auto note = ext::make_shared<AutocallableNote>(
+        100.0, f.initialSpot, f.obs, barriers, 0.05, 0.7, f.obs.back());
+
+    // Impossibly tight tolerance vs budget.
+    auto engine = ext::make_shared<MCAutocallableNoteEngine<>>(
+        f.process, /*tolerance*/ 0.001,
+        /*maxSamples*/ Size(2048),
+        /*minSamples*/ Size(1024),
+        /*seed*/ BigNatural(7));
+    note->setPricingEngine(engine);
+    BOOST_CHECK_EXCEPTION([&]{ note->NPV(); }(), Error,
+        ExpectedErrorMessage("hit maxSamples"));
+}
+
+BOOST_AUTO_TEST_CASE(testIsExpiredBoundary) {
+    BOOST_TEST_MESSAGE("AutocallableNote::isExpired() is true on the "
+                       "maturity date itself and false the day before...");
+
+    Date today{20, April, 2026};
+    std::vector<Date> obs{today + Period(1, Years),
+                          today + Period(2, Years)};
+    Date maturity = obs.back();
+    AutocallableNote note(100.0, 100.0, obs, {0.9, 0.9},
+                          0.02, 0.7, maturity);
+
+    Settings::instance().evaluationDate() = maturity - 1;
+    BOOST_CHECK(!note.isExpired());
+
+    Settings::instance().evaluationDate() = maturity;
+    BOOST_CHECK(note.isExpired());
+
+    Settings::instance().evaluationDate() = maturity + 1;
+    BOOST_CHECK(note.isExpired());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

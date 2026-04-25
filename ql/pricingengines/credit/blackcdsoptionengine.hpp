@@ -32,6 +32,8 @@ namespace QuantLib {
     //! Black-formula CDS-option engine
     /*! \warning The engine assumes that the exercise date equals the
                  start date of the passed CDS.
+
+        \ingroup engines
     */
     class BlackCdsOptionEngine : public CdsOption::engine {
       public:

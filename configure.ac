@@ -378,6 +378,44 @@ else
    AC_SUBST([BOOST_INTERPROCESS_LIB],[""])
 fi
 
+AC_MSG_CHECKING([whether to enable reverse-mode AAD via CoDi-Pack])
+AC_ARG_ENABLE([aad],
+              AS_HELP_STRING([--enable-aad],
+                             [If enabled, pull in CoDi-Pack's codi.hpp
+                              and activate the reverse-mode AAD utilities
+                              in ql/math/aad.hpp. CoDi-Pack must already
+                              be installed on the include path (autotools
+                              does not FetchContent); the CMake build can
+                              fetch it automatically. Disabled by default.]),
+              [ql_enable_aad=$enableval],
+              [ql_enable_aad=no])
+if test "$ql_enable_aad" = "yes" ; then
+   AC_CHECK_HEADER([codi.hpp], [],
+                   [AC_MSG_ERROR([--enable-aad requires codi.hpp on the include path.])])
+   AC_DEFINE([QL_ENABLE_AAD],[1],
+             [Define this if you want to enable reverse-mode AAD via CoDi-Pack.])
+fi
+AC_MSG_RESULT([$ql_enable_aad])
+
+AC_MSG_CHECKING([whether to enable nlohmann/json market-data loaders])
+AC_ARG_ENABLE([json-marketdata],
+              AS_HELP_STRING([--enable-json-marketdata],
+                             [If enabled, activate the JsonQuoteLoader in
+                              ql/marketdata/jsonquoteloader.hpp.
+                              nlohmann/json must be installed on the include
+                              path (autotools does not FetchContent); the
+                              CMake build can fetch it automatically.
+                              Enabled by default.]),
+              [ql_enable_json_marketdata=$enableval],
+              [ql_enable_json_marketdata=yes])
+if test "$ql_enable_json_marketdata" = "yes" ; then
+   AC_CHECK_HEADER([nlohmann/json.hpp], [],
+                   [AC_MSG_ERROR([--enable-json-marketdata requires nlohmann/json.hpp on the include path. Re-run with --disable-json-marketdata to build a stub that throws at runtime.])])
+   AC_DEFINE([QL_ENABLE_JSON_MARKETDATA],[1],
+             [Define this if you want to enable the JSON market-data loader.])
+fi
+AC_MSG_RESULT([$ql_enable_json_marketdata])
+
 AC_MSG_CHECKING([whether to install examples])
 AC_ARG_ENABLE([examples],
               AS_HELP_STRING([--enable-examples],

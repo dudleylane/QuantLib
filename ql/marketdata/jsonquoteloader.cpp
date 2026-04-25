@@ -14,6 +14,7 @@
 
 #include <ql/marketdata/jsonquoteloader.hpp>
 #include <ql/errors.hpp>
+#include <cmath>
 #include <fstream>
 
 #ifdef QL_ENABLE_JSON_MARKETDATA
@@ -37,11 +38,26 @@ namespace QuantLib {
                     << ": " << e.what());
         }
 
-        // Schema detection: array form has {"quotes": [...]}, flat
-        // form is a top-level object of id -> value pairs.
-        if (doc.is_object() && doc.contains("quotes")
-                && doc["quotes"].is_array()) {
-            // Schema B.
+        // Schema detection: Schema B has {"quotes": [...]}; Schema A
+        // is a top-level object of id -> value pairs.
+        QL_REQUIRE(doc.is_object(),
+                   "JsonQuoteLoader: top-level JSON must be an object in "
+                   << filepath);
+
+        const bool hasQuotesArray = doc.contains("quotes")
+            && doc["quotes"].is_array();
+
+        if (hasQuotesArray) {
+            // Schema B must not be mixed with Schema-A-style siblings;
+            // a hybrid document is ambiguous and almost certainly a
+            // construction error.
+            for (auto it = doc.begin(); it != doc.end(); ++it) {
+                QL_REQUIRE(it.key() == "quotes",
+                           "JsonQuoteLoader: ambiguous schema in "
+                           << filepath << ": 'quotes' array is present "
+                           "alongside top-level key '" << it.key()
+                           << "'. Supply one or the other, not both.");
+            }
             for (const auto& entry : doc["quotes"]) {
                 QL_REQUIRE(entry.is_object(),
                            "JsonQuoteLoader: 'quotes' array must contain objects");
@@ -55,29 +71,36 @@ namespace QuantLib {
                            "JsonQuoteLoader: 'value' must be a number for id '"
                            << idNode.get<std::string>() << "'");
                 std::string id = idNode.get<std::string>();
+                QL_REQUIRE(!id.empty(),
+                           "JsonQuoteLoader: empty 'id' in " << filepath);
                 Real value = valNode.get<Real>();
+                QL_REQUIRE(std::isfinite(value),
+                           "JsonQuoteLoader: value for id '" << id
+                           << "' is not finite (got " << value << ") in "
+                           << filepath);
                 auto res = quotes_.emplace(
                     id, ext::make_shared<SimpleQuote>(value));
                 QL_REQUIRE(res.second,
                            "JsonQuoteLoader: duplicate id '" << id << "'");
             }
-        } else if (doc.is_object()) {
+        } else {
             // Schema A.
             for (auto it = doc.begin(); it != doc.end(); ++it) {
+                QL_REQUIRE(!it.key().empty(),
+                           "JsonQuoteLoader: empty key in " << filepath);
                 QL_REQUIRE(it.value().is_number(),
                            "JsonQuoteLoader: value for id '" << it.key()
                            << "' is not a number");
                 Real value = it.value().get<Real>();
+                QL_REQUIRE(std::isfinite(value),
+                           "JsonQuoteLoader: value for id '" << it.key()
+                           << "' is not finite (got " << value << ") in "
+                           << filepath);
                 quotes_.emplace(
                     it.key(), ext::make_shared<SimpleQuote>(value));
-                // Top-level object can't contain duplicate keys by
-                // JSON spec, so no explicit duplicate check is needed
-                // here — the parser already rejects or dedup's them
-                // per the nlohmann/json convention.
+                // Top-level object duplicate keys are handled by
+                // nlohmann/json at parse time per its convention.
             }
-        } else {
-            QL_FAIL("JsonQuoteLoader: top-level JSON must be an object; "
-                    "got a different type in " << filepath);
         }
 
         QL_REQUIRE(!quotes_.empty(),

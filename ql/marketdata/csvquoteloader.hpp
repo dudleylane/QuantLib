@@ -50,6 +50,7 @@
 namespace QuantLib {
 
     //! CSV-backed market quote snapshot.
+    /*! \ingroup marketdata */
     class CsvQuoteLoader {
       public:
         //! Construct from a path to a CSV file.

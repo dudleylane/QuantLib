@@ -45,21 +45,21 @@
 namespace QuantLib {
 
     //! Exposure-driven XVA adjustments (CVA/DVA/FVA/KVA/MVA).
+    /*! \ingroup riskanalysis */
     /*! All adjustments are returned as positive numbers from the
         bank's perspective: CVA is the cost of counterparty default
         (subtracted from trade PV), DVA is the bank's own-default
         benefit, FVA/KVA/MVA are funding/capital/margin-funding costs.
 
-        Discretization: the exposure grid is interpreted as piecewise-
-        constant on each segment [t_i, t_{i+1}]. Default probability
-        increments over each segment are taken from the supplied
-        default curves directly. The integrals are summed:
+        Discretization: trapezoidal quadrature on the exposure grid.
+        Each segment [t_i, t_{i+1}] uses the average exposure of its
+        endpoints:
 
-          CVA = (1 - R_cpty) * sum_i EPE[i] * (P_cpty(t_{i+1}) - P_cpty(t_i)) * df(t_{i+1})
-          DVA = (1 - R_own) * sum_i ENE[i] * (P_own(t_{i+1}) - P_own(t_i)) * df(t_{i+1})
-          FVA = sum_i EPE[i] * fundingSpread * tau_i * df(t_{i+1})
-          KVA = sum_i EPE[i] * capitalSpread * tau_i * df(t_{i+1})
-          MVA = sum_i IM[i]  * marginSpread * tau_i * df(t_{i+1})
+          CVA = (1 - R_cpty) * sum_i 0.5*(EPE[i-1]+EPE[i]) * (P_cpty(t_i) - P_cpty(t_{i-1})) * df(t_i)
+          DVA = (1 - R_own)  * sum_i 0.5*(ENE[i-1]+ENE[i]) * (P_own(t_i)  - P_own(t_{i-1}))  * df(t_i)
+          FVA = sum_i 0.5*(EPE[i-1]+EPE[i]) * fundingSpread * tau_i * df(t_i)
+          KVA = sum_i 0.5*(EPE[i-1]+EPE[i]) * capitalSpread * tau_i * df(t_i)
+          MVA = sum_i 0.5*(IM[i-1]+IM[i])   * marginSpread  * tau_i * df(t_i)
 
         where tau_i is the year fraction of the segment under the
         discount curve's day counter, P_cpty/P_own are the cumulative

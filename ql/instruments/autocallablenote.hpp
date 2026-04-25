@@ -46,6 +46,7 @@
 namespace QuantLib {
 
     //! Single-underlying step-down autocallable note.
+    /*! \ingroup instruments */
     class AutocallableNote : public Instrument {
       public:
         class arguments;

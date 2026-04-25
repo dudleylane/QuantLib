@@ -49,18 +49,25 @@
 namespace QuantLib {
 
     //! Reverse-mode AAD scalar type (alias for CoDi's RealReverse).
+    /*! \ingroup math */
     using AADReal = codi::RealReverse;
 
     //! Compute f'(x) via reverse-mode AAD tape.
     /*! `F` must be callable with a single `AADReal` argument and return
         an `AADReal`. The tape is set active, the input registered,
         `f(x)` evaluated, the output registered, the tape deactivated
-        and evaluated, and the input's gradient read back. The tape is
+        and evaluated, the input's gradient read back, and the tape
         reset before return so consecutive calls remain independent.
 
-        Not thread-safe (CoDi's default tape is thread_local on recent
-        versions, but this utility does not attempt to lock across
-        user-provided functor bodies).
+        Threading: CoDi-Pack's default tape is `thread_local`, so it
+        is safe to call `aadDerivative` concurrently from different
+        threads — each thread gets its own tape. It is **not** safe to
+        share an `AADReal` value across threads, nor to hold a
+        reference to `AADReal::getTape()` and dereference it from a
+        different thread. No attempt is made to lock user-provided
+        functor bodies: callers writing multi-threaded functors must
+        handle their own synchronization of any shared state other
+        than the tape.
     */
     template <class F>
     Real aadDerivative(F&& f, Real x) {

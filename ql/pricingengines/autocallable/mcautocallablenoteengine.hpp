@@ -25,11 +25,13 @@
 #include <ql/math/randomnumbers/rngtraits.hpp>
 #include <ql/math/statistics/statistics.hpp>
 #include <ql/timegrid.hpp>
+#include <algorithm>
 #include <utility>
 
 namespace QuantLib {
 
     //! Plain Monte-Carlo engine for an AutocallableNote on a BS process.
+    /*! \ingroup engines */
     /*! Single-underlying, one path through the observation schedule per
         draw. Payoff per path:
           - First observation index i* where S(t_i) >= B_i * S_0:
@@ -40,6 +42,17 @@ namespace QuantLib {
                       PV = notional * (1 + coupon * N) * df(T)
                   else:
                       PV = notional * (S(T) / S_0) * df(T)
+
+        \note Barrier monitoring is **discrete** — the autocall condition
+        is evaluated only at the supplied `observationDates`. Paths are
+        generated on a `TimeGrid` built from those dates exactly, so no
+        Brownian-bridge bias correction is applied (and none is needed
+        under discrete monitoring). Continuous / knock-in-during-life
+        monitoring is a documented follow-up.
+
+        \note Coupons accrue in full per completed observation period
+        only; no intra-period accrual on early redemption in this MVP.
+
         Discount factors are taken from the process's risk-free curve.
         No variance reduction; antithetic / control variates can be
         layered on as follow-ups.
@@ -47,15 +60,55 @@ namespace QuantLib {
     template <class RNG = PseudoRandom, class S = Statistics>
     class MCAutocallableNoteEngine : public AutocallableNote::engine {
       public:
+        //! Fixed-sample constructor. Runs exactly `requiredSamples` paths.
         MCAutocallableNoteEngine(
             ext::shared_ptr<GeneralizedBlackScholesProcess> process,
             Size requiredSamples,
             BigNatural seed = 0)
         : process_(std::move(process)),
-          requiredSamples_(requiredSamples), seed_(seed) {
+          requiredSamples_(requiredSamples),
+          requiredTolerance_(0.0),
+          maxSamples_(0),
+          seed_(seed) {
             QL_REQUIRE(process_, "MCAutocallableNoteEngine: null process");
             QL_REQUIRE(requiredSamples_ > 0,
                        "MCAutocallableNoteEngine: samples must be positive");
+            registerWith(process_);
+        }
+
+        //! Adaptive-convergence constructor: runs in batches until the
+        //! standard error of the running mean drops below
+        //! `requiredTolerance`, or `maxSamples` is hit. `minSamples`
+        //! lets the caller ensure enough paths for the stderr estimate
+        //! to be trustworthy (the default 1024 is the same as
+        //! McSimulation::value()).
+        /*! \note This is a scoped MVP — a full refactor to inherit
+            from `McSimulation<SingleVariate, RNG, S>` is the
+            canonical QuantLib pattern (and picks up antithetic /
+            control-variate support for free). That refactor is a
+            tracked follow-up; this adaptive loop is a standalone
+            slice that delivers `requiredTolerance` without the
+            cross-engine scaffolding. */
+        MCAutocallableNoteEngine(
+            ext::shared_ptr<GeneralizedBlackScholesProcess> process,
+            Real requiredTolerance,
+            Size maxSamples,
+            Size minSamples = 1024,
+            BigNatural seed = 0)
+        : process_(std::move(process)),
+          requiredSamples_(0),
+          requiredTolerance_(requiredTolerance),
+          maxSamples_(maxSamples),
+          minSamples_(minSamples),
+          seed_(seed) {
+            QL_REQUIRE(process_, "MCAutocallableNoteEngine: null process");
+            QL_REQUIRE(requiredTolerance_ > 0.0,
+                       "MCAutocallableNoteEngine: requiredTolerance must be "
+                       "positive (got " << requiredTolerance_ << ")");
+            QL_REQUIRE(maxSamples_ >= minSamples_,
+                       "MCAutocallableNoteEngine: maxSamples ("
+                       << maxSamples_ << ") must be >= minSamples ("
+                       << minSamples_ << ")");
             registerWith(process_);
         }
 
@@ -97,16 +150,38 @@ namespace QuantLib {
             generator_type pathGen(process_, grid, rsg, /*brownianBridge=*/false);
 
             S stats;
-            for (Size n = 0; n < requiredSamples_; ++n) {
+
+            auto drawOne = [&]() {
                 const auto& sample = pathGen.next();
                 const Path& path = sample.value;
-                Real pv = pricePath(path, obsTimes, obsDfs, maturityDf, args);
-                stats.add(pv);
+                stats.add(
+                    pricePath(path, obsTimes, obsDfs, maturityDf, args));
+            };
+
+            if (requiredTolerance_ <= 0.0) {
+                // Fixed-sample mode.
+                for (Size n = 0; n < requiredSamples_; ++n) drawOne();
+            } else {
+                // Adaptive mode: prime with minSamples, then batch
+                // until stderr <= tolerance or we hit maxSamples.
+                for (Size n = 0; n < minSamples_; ++n) drawOne();
+                const Size batchSize = 1024;
+                while (stats.errorEstimate() > requiredTolerance_) {
+                    QL_REQUIRE(stats.samples() < maxSamples_,
+                               "MCAutocallableNoteEngine: hit maxSamples ("
+                               << maxSamples_ << ") without reaching stderr "
+                               "tolerance " << requiredTolerance_
+                               << "; current stderr = "
+                               << stats.errorEstimate());
+                    Size remaining = maxSamples_ - stats.samples();
+                    Size thisBatch = std::min(batchSize, remaining);
+                    for (Size n = 0; n < thisBatch; ++n) drawOne();
+                }
             }
             results.value = stats.mean();
             results.errorEstimate = stats.errorEstimate();
             results.additionalResults["samples"] =
-                static_cast<Real>(requiredSamples_);
+                static_cast<Real>(stats.samples());
         }
 
       private:
@@ -144,6 +219,9 @@ namespace QuantLib {
 
         ext::shared_ptr<GeneralizedBlackScholesProcess> process_;
         Size requiredSamples_;
+        Real requiredTolerance_;
+        Size maxSamples_;
+        Size minSamples_ = 1024;
         BigNatural seed_;
     };
 

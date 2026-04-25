@@ -3,6 +3,7 @@
 
 #include <ql/instruments/asianoption.hpp>
 #include <ql/instruments/assetswap.hpp>
+#include <ql/instruments/autocallablenote.hpp>
 #include <ql/instruments/averagetype.hpp>
 #include <ql/instruments/barrieroption.hpp>
 #include <ql/instruments/barriertype.hpp>

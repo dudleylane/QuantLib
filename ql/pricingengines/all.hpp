@@ -7,6 +7,7 @@
 #include <ql/pricingengines/blackdeltacalculator.hpp>
 #include <ql/pricingengines/bacheliercalculator.hpp>
 #include <ql/pricingengines/blackformula.hpp>
+#include <ql/pricingengines/blackformulatemplate.hpp>
 #include <ql/pricingengines/blackscholescalculator.hpp>
 #include <ql/pricingengines/genericmodelengine.hpp>
 #include <ql/pricingengines/greeks.hpp>
@@ -15,6 +16,7 @@
 #include <ql/pricingengines/mcsimulation.hpp>
 
 #include <ql/pricingengines/asian/all.hpp>
+#include <ql/pricingengines/autocallable/all.hpp>
 #include <ql/pricingengines/barrier/all.hpp>
 #include <ql/pricingengines/basket/all.hpp>
 #include <ql/pricingengines/bond/all.hpp>

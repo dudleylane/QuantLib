@@ -58,6 +58,7 @@
 namespace QuantLib {
 
     //! JSON-backed market quote snapshot.
+    /*! \ingroup marketdata */
     class JsonQuoteLoader {
       public:
         //! Construct from a path to a JSON file. See class doc for the

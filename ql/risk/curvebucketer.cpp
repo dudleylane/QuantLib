@@ -29,15 +29,18 @@ namespace QuantLib {
         // what the pricing engine does under shock.
         class ScopedQuoteRestore {
           public:
-            ScopedQuoteRestore(const ext::shared_ptr<SimpleQuote>& q)
-            : quote_(q), original_(q->value()) {}
+            ScopedQuoteRestore(ext::shared_ptr<SimpleQuote> q)
+            : quote_(std::move(q)), original_(quote_->value()) {}
             ~ScopedQuoteRestore() { quote_->setValue(original_); }
             Real original() const { return original_; }
             // Non-copyable, non-movable
             ScopedQuoteRestore(const ScopedQuoteRestore&) = delete;
             ScopedQuoteRestore& operator=(const ScopedQuoteRestore&) = delete;
           private:
-            const ext::shared_ptr<SimpleQuote>& quote_;
+            // Held by value so the guard is safe to store or pass around:
+            // a reference here was fragile against future refactors that
+            // capture the guard outside the loop-iteration scope.
+            ext::shared_ptr<SimpleQuote> quote_;
             Real original_;
         };
     }

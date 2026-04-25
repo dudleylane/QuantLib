@@ -47,61 +47,100 @@
 #include <ql/errors.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
 #include <cmath>
+#include <type_traits>
 
 namespace QuantLib {
 
     //! Black-1976 lognormal call / put price, scalar-templated.
+    /*! \ingroup engines */
     /*! For `T = Real`, returns the same value as
-        `blackFormula(optionType, strike, forward, stddev) * discount`
-        from `ql/pricingengines/blackformula.hpp`. For `T = AADReal`,
-        the returned value is differentiable via the active CoDi tape.
+        `blackFormula(optionType, strike, forward, stddev, discount, displacement)`
+        from `ql/pricingengines/blackformula.hpp` (same cumulative-normal
+        approximation; same displaced-lognormal handling; same `stddev==0`
+        short-circuit). For `T = AADReal`, the returned value is
+        differentiable via the active CoDi tape. The AAD branch uses
+        `std::erf` (CoDi provides an overload) rather than
+        `CumulativeNormalDistribution`, which is not tape-aware; the
+        Real branch uses `CumulativeNormalDistribution` to match
+        `blackFormula()` bit-for-bit.
 
         Inputs:
-          optionType : Option::Call or Option::Put
-          strike     : strike price (kept as Real; not differentiable
-                       in this MVP — extending the template to
-                       differentiate w.r.t. K is a follow-up)
-          forward    : forward of the underlying (T)
-          stddev     : sigma * sqrt(T) (T)
-          discount   : discount factor for the payoff date (T,
-                       defaulted to 1.0)
+          optionType   : Option::Call or Option::Put
+          strike       : strike price (kept as Real; not differentiable
+                         in this MVP — extending the template to
+                         differentiate w.r.t. K is a follow-up)
+          forward      : forward of the underlying (T)
+          stddev       : sigma * sqrt(T) (T)
+          discount     : discount factor for the payoff date (T,
+                         defaulted to 1.0)
+          displacement : displaced-lognormal shift (Real, defaulted to 0).
+                         Non-zero enables negative-rate / shifted-SABR
+                         pricing. Matches upstream semantics:
+                         `f' = f + s`, `k' = k + s`.
 
-        Preconditions:
-          stddev > 0
+        Preconditions (enforced):
+          stddev >= 0 (stddev == 0 short-circuits to discount * intrinsic)
+          strike + displacement >= 0
+          forward + displacement > 0 (when stddev > 0)
 
-        Pricing convention matches `blackFormula(...)` exactly.
+        Pricing convention matches `blackFormula(...)` exactly for
+        `T = Real`.
     */
     template <class T>
     T blackFormulaT(Option::Type optionType,
                     Real strike,
                     T forward,
                     T stddev,
-                    T discount = T(1.0)) {
-        QL_REQUIRE(strike > 0.0,
-                   "blackFormulaT: strike must be positive, got " << strike);
-        // stddev is templated; use cmath ADL to allow CoDi overloads.
-        using std::log;
-        using std::sqrt;
-        // The "isfinite" check is intentionally only a Real check here
-        // (CoDi defines its own; a fully generic isfinite would require
-        // a small trait shim — out of scope for the MVP).
+                    T discount = T(1.0),
+                    Real displacement = 0.0) {
+        QL_REQUIRE(strike + displacement >= 0.0,
+                   "blackFormulaT: strike + displacement must be non-negative "
+                   "(strike=" << strike << ", displacement=" << displacement << ")");
 
-        T forward_over_strike = forward / strike;
-        T d1 = log(forward_over_strike) / stddev + 0.5 * stddev;
+        // stddev == 0: return discount * intrinsic. Displacements cancel in
+        // the intrinsic (f+s) - (k+s) = f-k, so we use the undisplaced diff.
+        if (stddev == T(0.0)) {
+            if (optionType == Option::Call) {
+                T diff = forward - strike;
+                return discount * ((diff > T(0.0)) ? diff : T(0.0));
+            } else {
+                T diff = strike - forward;
+                return discount * ((diff > T(0.0)) ? diff : T(0.0));
+            }
+        }
+        QL_REQUIRE(stddev > T(0.0),
+                   "blackFormulaT: stddev must be non-negative");
+
+        T forward_adj = forward + displacement;
+        T strike_adj = strike + displacement;
+        QL_REQUIRE(forward_adj > T(0.0),
+                   "blackFormulaT: forward + displacement must be positive "
+                   "(forward=" << forward << ", displacement=" << displacement << ")");
+
+        using std::log;
+        T d1 = log(forward_adj / strike_adj) / stddev + 0.5 * stddev;
         T d2 = d1 - stddev;
 
-        // Cumulative normal: use the existing CumulativeNormalDistribution
-        // for Real path; for the AAD path, expand 0.5*(1 + erf(x/sqrt(2)))
-        // directly so std::erf's CoDi overload is exercised.
-        using std::erf;
-        const Real invSqrt2 = 0.7071067811865475;
-        T N1 = 0.5 * (1.0 + erf(d1 * invSqrt2));
-        T N2 = 0.5 * (1.0 + erf(d2 * invSqrt2));
+        T N1, N2;
+        if constexpr (std::is_same_v<T, Real>) {
+            // Real path: match blackFormula()'s CumulativeNormalDistribution
+            // approximation bit-for-bit.
+            CumulativeNormalDistribution N;
+            N1 = N(d1);
+            N2 = N(d2);
+        } else {
+            // AAD path: inline 0.5*(1 + erf(x/sqrt(2))) so std::erf's CoDi
+            // overload propagates derivatives through the tape.
+            using std::erf;
+            const Real invSqrt2 = 0.7071067811865475;
+            N1 = 0.5 * (1.0 + erf(d1 * invSqrt2));
+            N2 = 0.5 * (1.0 + erf(d2 * invSqrt2));
+        }
 
         if (optionType == Option::Call)
-            return discount * (forward * N1 - strike * N2);
+            return discount * (forward_adj * N1 - strike_adj * N2);
         else
-            return discount * (strike * (1.0 - N2) - forward * (1.0 - N1));
+            return discount * (strike_adj * (T(1.0) - N2) - forward_adj * (T(1.0) - N1));
     }
 
 }

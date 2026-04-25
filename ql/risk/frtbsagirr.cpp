@@ -74,10 +74,12 @@ namespace QuantLib {
                 cross += correlation(i, j) * ws_[i] * ws_[j];
             }
         }
-        // Floor at zero defensively: the correlation matrix is not
-        // guaranteed PSD for all parameter regimes, and a negative
-        // argument under the sqrt would be a sign of inconsistent
-        // inputs rather than a valid capital charge.
+        // Defensive check: the (theta, phiFloor, tenors) correlation
+        // matrix is not guaranteed positive-semidefinite across all
+        // regimes. A negative aggregated inner value is almost always
+        // inconsistent inputs (ill-posed correlation), not a valid
+        // capital charge — reject with a pointed message rather than
+        // silently clamp, so the caller learns of the misconfiguration.
         Real inner = sumSq + 2.0 * cross;
         QL_REQUIRE(inner >= 0.0,
                    "FrtbSaGirrDelta: aggregated inner value " << inner

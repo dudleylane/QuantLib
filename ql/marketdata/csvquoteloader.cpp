@@ -14,6 +14,8 @@
 
 #include <ql/marketdata/csvquoteloader.hpp>
 #include <ql/errors.hpp>
+#include <charconv>
+#include <cmath>
 #include <fstream>
 #include <sstream>
 
@@ -28,6 +30,15 @@ namespace QuantLib {
             auto last = s.find_last_not_of(ws);
             s = s.substr(first, last - first + 1);
         }
+
+        // UTF-8 BOM (EF BB BF) appears at the start of files exported
+        // from Excel / Windows tools. std::getline does not strip it.
+        bool startsWithUtf8Bom(const std::string& s) {
+            return s.size() >= 3
+                && static_cast<unsigned char>(s[0]) == 0xEF
+                && static_cast<unsigned char>(s[1]) == 0xBB
+                && static_cast<unsigned char>(s[2]) == 0xBF;
+        }
     }
 
     CsvQuoteLoader::CsvQuoteLoader(const std::string& filepath) {
@@ -38,8 +49,15 @@ namespace QuantLib {
         std::string line;
         Size lineNo = 0;
         bool sawFirstData = false;
+        bool firstLine = true;
         while (std::getline(in, line)) {
             ++lineNo;
+
+            // Strip UTF-8 BOM if present on the first physical line.
+            if (firstLine) {
+                if (startsWithUtf8Bom(line)) line.erase(0, 3);
+                firstLine = false;
+            }
 
             std::string trimmed = line;
             trim(trimmed);
@@ -69,20 +87,28 @@ namespace QuantLib {
                        "CsvQuoteLoader: " << filepath << ":" << lineNo
                        << " empty value field for id '" << id << "'");
 
+            // std::from_chars is locale-free (unlike std::stod, which
+            // respects LC_NUMERIC and silently parses "0,05" wrong in
+            // de_DE). C++17; available on the fork's GCC 15 floor.
             Real value = 0.0;
-            try {
-                size_t pos = 0;
-                value = std::stod(valueStr, &pos);
-                // Anything after the number must be trailing whitespace.
-                std::string rest = valueStr.substr(pos);
-                trim(rest);
-                QL_REQUIRE(rest.empty(),
-                           "trailing non-numeric characters '" << rest << "'");
-            } catch (const std::exception& e) {
-                QL_FAIL("CsvQuoteLoader: " << filepath << ":" << lineNo
-                        << " could not parse '" << valueStr
-                        << "' as a number: " << e.what());
-            }
+            const char* begin = valueStr.data();
+            const char* end = begin + valueStr.size();
+            auto [ptr, ec] = std::from_chars(begin, end, value);
+            QL_REQUIRE(ec == std::errc(),
+                       "CsvQuoteLoader: " << filepath << ":" << lineNo
+                       << " could not parse '" << valueStr
+                       << "' as a number for id '" << id << "'");
+            // Anything after the number must be trailing whitespace.
+            std::string rest(ptr, end);
+            trim(rest);
+            QL_REQUIRE(rest.empty(),
+                       "CsvQuoteLoader: " << filepath << ":" << lineNo
+                       << " trailing non-numeric characters '" << rest
+                       << "' after value for id '" << id << "'");
+            QL_REQUIRE(std::isfinite(value),
+                       "CsvQuoteLoader: " << filepath << ":" << lineNo
+                       << " value for id '" << id << "' is not finite (got "
+                       << value << ")");
 
             auto result = quotes_.emplace(
                 id, ext::make_shared<SimpleQuote>(value));
