@@ -52,24 +52,8 @@ namespace QuantLib {
         notifyObservers();
     }
 
-    void TermStructure::checkRange(const Date& d,
-                                   bool extrapolate) const {
-        QL_REQUIRE(d >= referenceDate(),
-                   "date (" << d << ") before reference date (" <<
-                   referenceDate() << ")");
-        QL_REQUIRE(extrapolate || allowsExtrapolation() || d <= maxDate(),
-                   "date (" << d << ") is past max curve date ("
-                            << maxDate() << ")");
-    }
-
-    void TermStructure::checkRange(Time t,
-                                   bool extrapolate) const {
-        QL_REQUIRE(t >= 0.0,
-                   "negative time (" << t << ") given");
-        QL_REQUIRE(extrapolate || allowsExtrapolation()
-                   || t <= maxTime() || close_enough(t, maxTime()),
-                   "time (" << t << ") is past max curve time ("
-                            << maxTime() << ")");
-    }
+    // checkRange definitions moved to termstructure.hpp as inline
+    // (issue #1, fix paths 2 and 3): hot on the FD path, was 5.96%
+    // self-time after the maxTime() cache landed.
 
 }

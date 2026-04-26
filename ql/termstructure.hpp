@@ -28,6 +28,7 @@
 #include <ql/time/daycounter.hpp>
 #include <ql/settings.hpp>
 #include <ql/handle.hpp>
+#include <ql/math/comparison.hpp>
 #include <ql/math/interpolations/extrapolation.hpp>
 #include <ql/utilities/null.hpp>
 
@@ -128,6 +129,29 @@ namespace QuantLib {
             maxTimeUpdated_ = true;
         }
         return maxTime_;
+    }
+
+    inline void TermStructure::checkRange(const Date& d,
+                                          bool extrapolate) const {
+        QL_REQUIRE(d >= referenceDate(),
+                   "date (" << d << ") before reference date (" <<
+                   referenceDate() << ")");
+        if (extrapolate || allowsExtrapolation())
+            return;
+        QL_REQUIRE(d <= maxDate(),
+                   "date (" << d << ") is past max curve date ("
+                            << maxDate() << ")");
+    }
+
+    inline void TermStructure::checkRange(Time t,
+                                          bool extrapolate) const {
+        QL_REQUIRE(t >= 0.0,
+                   "negative time (" << t << ") given");
+        if (extrapolate || allowsExtrapolation())
+            return;
+        QL_REQUIRE(t <= maxTime() || close_enough(t, maxTime()),
+                   "time (" << t << ") is past max curve time ("
+                            << maxTime() << ")");
     }
 
     inline Calendar TermStructure::calendar() const {
