@@ -431,6 +431,22 @@ namespace QuantLib {
         return y;
     }
 
+    inline Date::Date(Day d, Month m, Year y) {
+        QL_REQUIRE(y > 1900 && y < 2200,
+                   "year " << y << " out of bound. It must be in [1901,2199]");
+        QL_REQUIRE(Integer(m) > 0 && Integer(m) < 13,
+                   "month " << Integer(m)
+                   << " outside January-December range [1,12]");
+
+        bool leap = isLeap(y);
+        Day len = monthLength(m, leap), offset = monthOffset(m, leap);
+        QL_REQUIRE(d <= len && d > 0,
+                   "day outside month (" << Integer(m) << ") day-range "
+                   << "[1," << len << "]");
+
+        serialNumber_ = d + offset + yearOffset(y);
+    }
+
     inline Weekday Date::weekday() const {
         Integer w = serialNumber_ % 7;
         return Weekday(w == 0 ? 7 : w);
