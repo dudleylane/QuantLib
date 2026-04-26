@@ -34,6 +34,7 @@
 #include <ql/time/period.hpp>
 #include <ql/time/weekday.hpp>
 #include <ql/utilities/null.hpp>
+#include <ql/errors.hpp>
 
 #ifdef QL_HIGH_RESOLUTION_DATE
 #include <boost/date_time/posix_time/ptime.hpp>
@@ -388,6 +389,48 @@ namespace QuantLib {
     }
 
 #ifndef QL_HIGH_RESOLUTION_DATE
+    namespace detail {
+        // Static lookup tables defined in date.cpp.  Exposed here so
+        // the small accessor functions below can inline cross-TU.
+        // Issue #2: these accessors plus year()/month() were ~52% of
+        // self-time on inflation pricing because the out-of-line
+        // implementations went through the PLT on every call from
+        // within libQuantLib.so.
+        extern const bool YearIsLeapTable[301];
+        extern const Date::serial_type YearOffsetTable[301];
+        extern const Integer MonthLengthTable[12];
+        extern const Integer MonthLeapLengthTable[12];
+        extern const Integer MonthOffsetTable[13];
+        extern const Integer MonthLeapOffsetTable[13];
+    }
+
+    inline bool Date::isLeap(Year y) {
+        QL_REQUIRE(y >= 1900 && y <= 2200, "year outside valid range");
+        return detail::YearIsLeapTable[y - 1900];
+    }
+
+    inline Integer Date::monthLength(Month m, bool leapYear) {
+        return leapYear ? detail::MonthLeapLengthTable[m - 1]
+                        : detail::MonthLengthTable[m - 1];
+    }
+
+    inline Integer Date::monthOffset(Month m, bool leapYear) {
+        return leapYear ? detail::MonthLeapOffsetTable[m - 1]
+                        : detail::MonthOffsetTable[m - 1];
+    }
+
+    inline Date::serial_type Date::yearOffset(Year y) {
+        return detail::YearOffsetTable[y - 1900];
+    }
+
+    inline Year Date::year() const {
+        Year y = (serialNumber_ / 365) + 1900;
+        // yearOffset(y) is December 31st of the preceding year.
+        if (serialNumber_ <= yearOffset(y))
+            --y;
+        return y;
+    }
+
     inline Weekday Date::weekday() const {
         Integer w = serialNumber_ % 7;
         return Weekday(w == 0 ? 7 : w);

@@ -90,13 +90,7 @@ namespace QuantLib {
         return Month(m);
     }
 
-    Year Date::year() const {
-        Year y = (serialNumber_ / 365)+1900;
-        // yearOffset(y) is December 31st of the preceding year
-        if (serialNumber_ <= yearOffset(y))
-            --y;
-        return y;
-    }
+    // Date::year() moved to date.hpp as inline (issue #2).
 
     Date& Date::operator+=(Date::serial_type days) {
         Date::serial_type serial = serialNumber_ + days;
@@ -184,8 +178,13 @@ namespace QuantLib {
         }
     }
 
-    bool Date::isLeap(Year y) {
-        static const bool YearIsLeap[] = {
+    // Date::isLeap, Date::monthLength, Date::monthOffset, and
+    // Date::yearOffset moved to date.hpp as inline (issue #2).
+    // The static lookup tables they used are now defined once at
+    // namespace scope below, declared `extern` in the header so the
+    // inlined accessors share the same data.
+    namespace detail {
+        const bool YearIsLeapTable[301] = {
             // 1900 is leap in agreement with Excel's bug
             // 1900 is out of valid date range anyway
             // 1900-1909
@@ -251,39 +250,28 @@ namespace QuantLib {
             // 2200
             false
         };
-        QL_REQUIRE(y>=1900 && y<=2200, "year outside valid range");
-        return YearIsLeap[y-1900];
-    }
 
-
-    Integer Date::monthLength(Month m, bool leapYear) {
-        static const Integer MonthLength[] = {
+        const Integer MonthLengthTable[12] = {
             31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
         };
-        static const Integer MonthLeapLength[] = {
+        const Integer MonthLeapLengthTable[12] = {
             31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
         };
-        return (leapYear? MonthLeapLength[m-1] : MonthLength[m-1]);
-    }
 
-    Integer Date::monthOffset(Month m, bool leapYear) {
-        static const Integer MonthOffset[] = {
+        const Integer MonthOffsetTable[13] = {
               0,  31,  59,  90, 120, 151,   // Jan - Jun
             181, 212, 243, 273, 304, 334,   // Jun - Dec
             365     // used in dayOfMonth to bracket day
         };
-        static const Integer MonthLeapOffset[] = {
+        const Integer MonthLeapOffsetTable[13] = {
               0,  31,  60,  91, 121, 152,   // Jan - Jun
             182, 213, 244, 274, 305, 335,   // Jun - Dec
             366     // used in dayOfMonth to bracket day
         };
-        return (leapYear? MonthLeapOffset[m-1] : MonthOffset[m-1]);
-    }
 
-    Date::serial_type Date::yearOffset(Year y) {
         // the list of all December 31st in the preceding year
-        // e.g. for 1901 yearOffset[1] is 366, that is, December 31 1900
-        static const Date::serial_type YearOffset[] = {
+        // e.g. for 1901 YearOffsetTable[1] is 366, that is, December 31 1900
+        const Date::serial_type YearOffsetTable[301] = {
             // 1900-1909
                 0,  366,  731, 1096, 1461, 1827, 2192, 2557, 2922, 3288,
             // 1910-1919
@@ -347,7 +335,6 @@ namespace QuantLib {
             // 2200
             109574
         };
-        return YearOffset[y-1900];
     }
 
 #else
