@@ -108,6 +108,12 @@ namespace QuantLib {
         mutable Date referenceDate_;
         Natural settlementDays_;
         DayCounter dayCounter_;
+        // Cached result of timeFromReference(maxDate()).  Refreshed
+        // lazily by maxTime() and invalidated by update().  See issue
+        // #1: was 8.55% of self-time on the FD path because every
+        // bounds-check went through virtual yearFraction(refDate, maxDate).
+        mutable Time maxTime_ = 0.0;
+        mutable bool maxTimeUpdated_ = false;
     };
 
     // inline definitions
@@ -117,7 +123,11 @@ namespace QuantLib {
     }
 
     inline Time TermStructure::maxTime() const {
-        return timeFromReference(maxDate());
+        if (!maxTimeUpdated_) {
+            maxTime_ = timeFromReference(maxDate());
+            maxTimeUpdated_ = true;
+        }
+        return maxTime_;
     }
 
     inline Calendar TermStructure::calendar() const {

@@ -48,6 +48,7 @@ namespace QuantLib {
     void TermStructure::update() {
         if (moving_)
             updated_ = false;
+        maxTimeUpdated_ = false;
         notifyObservers();
     }
 
