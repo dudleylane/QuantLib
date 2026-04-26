@@ -88,23 +88,10 @@ namespace QuantLib {
     }
 
 
-    void InflationTermStructure::checkRange(const Date& d,
-                                            bool extrapolate) const {
-        QL_REQUIRE(d >= baseDate(),
-                   "date (" << d << ") is before base date (" << baseDate() << ")");
-        QL_REQUIRE(extrapolate || allowsExtrapolation() || d <= maxDate(),
-                   "date (" << d << ") is past max curve date ("
-                   << maxDate() << ")");
-    }
-
-    void InflationTermStructure::checkRange(Time t,
-                                            bool extrapolate) const {
-        QL_REQUIRE(t >= timeFromReference(baseDate()),
-                   "time (" << t << ") is before base date");
-        QL_REQUIRE(extrapolate || allowsExtrapolation() || t <= maxTime(),
-                   "time (" << t << ") is past max curve time ("
-                   << maxTime() << ")");
-    }
+    // checkRange definitions moved to inflationtermstructure.hpp as
+    // inline (issue #1, fix paths 2 and 3 — same treatment as
+    // TermStructure in commit 33e4bdac2).  maxTime() caching (fix 1)
+    // is inherited from TermStructure; no override needed here.
 
 
     ZeroInflationTermStructure::ZeroInflationTermStructure(

@@ -275,6 +275,35 @@ namespace QuantLib {
         return static_cast<bool>(seasonality_);
     }
 
+    // checkRange overloads inlined for the same reason as TermStructure
+    // (issue #1 fix paths 2 + 3): out-of-line in .cpp added cross-TU
+    // function-call overhead on every discount/zeroRate query, and the
+    // extrapolate=true case still ran the second QL_REQUIRE's predicate
+    // even though its outcome was foreordained.  maxTime() caching is
+    // inherited from TermStructure (no override needed in this class).
+
+    inline void InflationTermStructure::checkRange(const Date& d,
+                                                   bool extrapolate) const {
+        QL_REQUIRE(d >= baseDate(),
+                   "date (" << d << ") is before base date (" << baseDate() << ")");
+        if (extrapolate || allowsExtrapolation())
+            return;
+        QL_REQUIRE(d <= maxDate(),
+                   "date (" << d << ") is past max curve date ("
+                            << maxDate() << ")");
+    }
+
+    inline void InflationTermStructure::checkRange(Time t,
+                                                   bool extrapolate) const {
+        QL_REQUIRE(t >= timeFromReference(baseDate()),
+                   "time (" << t << ") is before base date");
+        if (extrapolate || allowsExtrapolation())
+            return;
+        QL_REQUIRE(t <= maxTime(),
+                   "time (" << t << ") is past max curve time ("
+                            << maxTime() << ")");
+    }
+
 }
 
 #endif
