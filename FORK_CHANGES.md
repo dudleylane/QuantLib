@@ -182,7 +182,77 @@ accounts for **8.55%** of self-time on the FD path — a bounds-check
 function eating nearly a tenth of the workload. Not a Tier 3 item
 (separate from the C++23 audit) but worth tracking; likely called
 once per `discount(t, extrapolate)` and could be inlined or
-short-circuited under `extrapolate=false`.
+short-circuited under `extrapolate=false`.  *Followed up in
+[issue #1](https://github.com/dudleylane/QuantLib/issues/1) on
+2026-04-26 — see "Performance optimizations" below.*
+
+## Performance optimizations (2026-04-26)
+
+Two follow-up issues opened against the C++23-audit profiling data
+above, each closed after a measured improvement.  Wall-clock
+proxies use `perf record -F 999` sample counts at fixed sampling
+rate.
+
+### Issue [#1](https://github.com/dudleylane/QuantLib/issues/1) — `TermStructure::checkRange` (FD path)
+
+Self-time on the `AmericanOptionTests` FD path went from **8.55%** to
+**3.18%** (~14.7% workload wall-clock improvement).  Three commits,
+each scoped to one fix path so the contribution of each is
+independently measurable:
+
+| commit | fix | what changed | next %  |
+|---|---|---|---|
+| `106bc7498` | cache `maxTime()` on `TermStructure` | added `mutable Time maxTime_;` and `mutable bool maxTimeUpdated_ = false;` to `ql/termstructure.hpp`; invalidated unconditionally in `TermStructure::update()` (broader than `updated_` which only invalidates for `moving_` curves, because `maxDate()` is virtual and can change for non-moving curves too) | 5.96% |
+| `33e4bdac2` | inline both `checkRange` overloads + extrapolate fast-path | moved `checkRange(Date,bool)` and `checkRange(Time,bool)` from `ql/termstructure.cpp` to the header as `inline`; added explicit early `return` after the first `QL_REQUIRE` when `extrapolate=true \|\| allowsExtrapolation()`, skipping the second `QL_REQUIRE`'s `maxTime()` lookup that all FD schemes (`extrapolate=true`) were paying for nothing | 3.18% |
+| `2fb438e6c` | apply the same inline + fast-path treatment to `InflationTermStructure::checkRange` | same idea, `ql/termstructures/inflationtermstructure.{hpp,cpp}`.  No separate baseline measurement for inflation — `maxTime()` cache is inherited from the `TermStructure` base | n/a (cold path; pre-emptive symmetry) |
+
+Subclasses overriding `TermStructure::update()` *must* call
+`TermStructure::update()` for the cache invalidation to fire;
+existing subclasses that bypass the base (e.g. some smile sections
+that call `notifyObservers()` directly) were already violating the
+observer contract and are not regressed.  Verified under
+`linux-ci-build-with-nonstandard-options` (sessions on, thread-safe
+observer on, `QL_THROW_IN_CYCLES=ON`, `QL_FASTER_LAZY_OBJECTS=OFF`).
+
+### Issue [#2](https://github.com/dudleylane/QuantLib/issues/2) — `Date::year/month/yearOffset/isLeap` (inflation pricing)
+
+Surfaced as a side-finding while profiling inflation curves to
+decide whether to apply issue #1's fixes to
+`InflationTermStructure::checkRange` (which turned out to be at 0.35%
+— cold).  The actual hotspot was `Date` arithmetic at **~52%**
+combined of self-time on the inflation suites, dominated by
+out-of-line PLT roundtrips on the small lookup accessors.
+
+| commit | fix | what changed | wall-clock vs baseline |
+|---|---|---|---|
+| `1dcfd3f05` | inline lookup helpers | moved `Date::isLeap`, `Date::monthLength`, `Date::monthOffset`, `Date::yearOffset`, and `Date::year` to `ql/time/date.hpp` as `inline` (inside `#ifndef QL_HIGH_RESOLUTION_DATE`).  Hoisted the static lookup tables (`YearIsLeap`, `MonthLength`, etc.) to `QuantLib::detail::*Table` `extern const` arrays defined exactly once in `date.cpp`.  Added `#include <ql/errors.hpp>` to `date.hpp` since the inlined `Date::isLeap` uses `QL_REQUIRE`. | **32% faster** |
+| `9e0de600e` | inline `Date::Date(Day, Month, Year)` ctor | moved the 12-line constructor body from `date.cpp` to `date.hpp` inside the same `#ifndef QL_HIGH_RESOLUTION_DATE` block; calls to the now-inline helpers flatten and `QL_REQUIRE` message-formatting can be DCE'd at sites with provably-valid inputs | **38% faster** |
+| `6f2a023e4` | cache `(year, month, day)` decomposition on `Date` | added three private `mutable` members: `cachedYear_` (sentinel `0` = invalid; valid range is 1900–2200), `cachedMonth_` (`uint8_t`), `cachedDay_` (`uint8_t`).  Lazy: `Date(serial_type)` leaves cache invalid; only on first `year()/month()/dayOfMonth()` does `computeYMD()` populate it.  `Date(d, m, y)` populates eagerly (free since values are in registers from the existing checks).  All six mutators (`operator++/--`, `operator+=/-=` × `serial_type`/`Period`) invalidate via `cachedYear_ = 0`.  `sizeof(Date)` doubles 8 → 16 bytes. | **40% faster** |
+
+Compounding all three commits: `1129 → 675` perf samples on the
+inflation suites at fixed 999 Hz = **~40% wall-clock improvement**.
+`Date::month()` is gone from the visible hot list entirely after fix
+path 3 (cached path inlines to a single load).  `Date::Date(...)`
+shows higher % post-fix-3 than mid-stream because of inlining
+accounting (the cache-population work is now visible in the ctor's
+self-time instead of distributed across previously-out-of-line
+helpers); absolute work is similar.
+
+Caveats:
+- `Date` is now **not thread-safe** (it never was, but the cache
+  makes the data race more visible).  Concurrent `year()` / `month()`
+  on the same `Date` race on the cache; both threads write the same
+  value, so the result is correct on x86_64 but is technically UB
+  under the C++ memory model.  Matches the existing pattern of
+  `mutable bool` on `TermStructure` — `Date` doesn't claim
+  thread-safety as a value type.
+- `sizeof(Date)` doubling makes `std::vector<Date>` schedules 2×
+  larger.  Negligible in practice (schedules of hundreds of dates
+  fit easily in L1 either way) but worth noting for any code that
+  cares about wire format / serialisation.
+- The high-resolution date branch (`QL_HIGH_RESOLUTION_DATE=ON`)
+  was deliberately left untouched; its `Date` implementation is
+  separate.  Verified under the strict preset.
 
 ## New infrastructure from audit (2026-04-24)
 
