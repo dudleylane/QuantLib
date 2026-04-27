@@ -256,6 +256,16 @@ namespace QuantLib {
         boost::posix_time::ptime dateTime_;
 #else
         Date::serial_type serialNumber_;
+        // Lazy (year, month, day) cache populated by computeYMD() and
+        // invalidated by every mutator.  Sentinel: cachedYear_ == 0
+        // means cache invalid (valid years are 1900..2200).  Issue #2
+        // fix path 3: read-heavy Dates avoid recomputing the
+        // decomposition on every year()/month()/dayOfMonth() call.
+        mutable Year cachedYear_ = 0;
+        mutable std::uint8_t cachedMonth_ = 0;
+        mutable std::uint8_t cachedDay_ = 0;
+        void computeYMD() const noexcept;
+
         static Date advance(const Date& d, Integer units, TimeUnit);
         static Integer monthLength(Month m, bool leapYear);
         static Integer monthOffset(Month m, bool leapYear);
@@ -423,12 +433,34 @@ namespace QuantLib {
         return detail::YearOffsetTable[y - 1900];
     }
 
-    inline Year Date::year() const {
+    inline void Date::computeYMD() const noexcept {
         Year y = (serialNumber_ / 365) + 1900;
         // yearOffset(y) is December 31st of the preceding year.
         if (serialNumber_ <= yearOffset(y))
             --y;
-        return y;
+        Day dOfYear = serialNumber_ - yearOffset(y);
+        Integer m = dOfYear / 30 + 1;
+        bool leap = isLeap(y);
+        while (dOfYear <= monthOffset(Month(m), leap))
+            --m;
+        while (dOfYear > monthOffset(Month(m + 1), leap))
+            ++m;
+        cachedDay_ = static_cast<std::uint8_t>(
+            dOfYear - monthOffset(Month(m), leap));
+        cachedMonth_ = static_cast<std::uint8_t>(m);
+        cachedYear_ = y;  // last so the sentinel transition is atomic-ish
+    }
+
+    inline Year Date::year() const {
+        if (cachedYear_ == 0)
+            computeYMD();
+        return cachedYear_;
+    }
+
+    inline Month Date::month() const {
+        if (cachedYear_ == 0)
+            computeYMD();
+        return static_cast<Month>(cachedMonth_);
     }
 
     inline Date::Date(Day d, Month m, Year y) {
@@ -445,6 +477,9 @@ namespace QuantLib {
                    << "[1," << len << "]");
 
         serialNumber_ = d + offset + yearOffset(y);
+        cachedDay_ = static_cast<std::uint8_t>(d);
+        cachedMonth_ = static_cast<std::uint8_t>(m);
+        cachedYear_ = y;  // populating the cache is essentially free here.
     }
 
     inline Weekday Date::weekday() const {
@@ -453,7 +488,9 @@ namespace QuantLib {
     }
 
     inline Day Date::dayOfMonth() const {
-        return dayOfYear() - monthOffset(month(),isLeap(year()));
+        if (cachedYear_ == 0)
+            computeYMD();
+        return static_cast<Day>(cachedDay_);
     }
 
     inline Day Date::dayOfYear() const {
