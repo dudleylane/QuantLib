@@ -11,13 +11,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Install clang-format
+      - name: Install clang-format 22 from apt.llvm.org
         run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+          codename=$(lsb_release -cs)
+          echo "deb http://apt.llvm.org/${codename}/ llvm-toolchain-${codename}-22 main" | sudo tee /etc/apt/sources.list.d/llvm.list
           sudo apt-get update
-          sudo apt-get install -y clang-format
-          clang-format --version
+          sudo apt-get install -y clang-format-22
+          clang-format-22 --version
       - name: Check formatting
         run: |
           mapfile -d '' files < <(find ql test-suite Examples fuzz-test-suite \
               -type f \( -name '*.hpp' -o -name '*.cpp' \) -print0)
-          clang-format --dry-run -Werror "${files[@]}"
+          clang-format-22 --dry-run -Werror "${files[@]}"

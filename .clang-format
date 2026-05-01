@@ -5,6 +5,8 @@ Standard:        Latest
 
 # Project style: BSD/Allman braces, 120-column limit, 4-space indent.
 # Enforced in CI via the format.yml workflow (clang-format --dry-run -Werror).
+# Pinned to clang-format 22.x; LLVM-style defaults shift across major
+# versions, so use that version locally to avoid spurious diffs.
 
 
 # General appearance:
