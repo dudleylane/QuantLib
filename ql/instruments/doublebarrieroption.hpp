@@ -24,11 +24,12 @@
 #ifndef quantlib_double_barrier_option_hpp
 #define quantlib_double_barrier_option_hpp
 
-#include <ql/instruments/oneassetoption.hpp>
 #include <ql/instruments/doublebarriertype.hpp>
+#include <ql/instruments/oneassetoption.hpp>
 #include <ql/instruments/payoffs.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class GeneralizedBlackScholesProcess;
 
@@ -37,27 +38,28 @@ namespace QuantLib {
 
         \ingroup instruments
     */
-    class DoubleBarrierOption : public OneAssetOption {
+    class DoubleBarrierOption : public OneAssetOption
+    {
       public:
         class arguments;
         class engine;
         DoubleBarrierOption(DoubleBarrier::Type barrierType,
-                      Real barrier_lo,
-                      Real barrier_hi,
-                      Real rebate,
-                      const ext::shared_ptr<StrikedTypePayoff>& payoff,
-                      const ext::shared_ptr<Exercise>& exercise);
+                            Real barrier_lo,
+                            Real barrier_hi,
+                            Real rebate,
+                            const ext::shared_ptr<StrikedTypePayoff>& payoff,
+                            const ext::shared_ptr<Exercise>& exercise);
         void setupArguments(PricingEngine::arguments*) const override;
         /*! \warning see VanillaOption for notes on implied-volatility
                      calculation.
         */
-        Volatility impliedVolatility(
-             Real price,
-             const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
-             Real accuracy = 1.0e-4,
-             Size maxEvaluations = 100,
-             Volatility minVol = 1.0e-7,
-             Volatility maxVol = 4.0) const;
+        Volatility impliedVolatility(Real price,
+                                     const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
+                                     Real accuracy = 1.0e-4,
+                                     Size maxEvaluations = 100,
+                                     Volatility minVol = 1.0e-7,
+                                     Volatility maxVol = 4.0) const;
+
       protected:
         // arguments
         DoubleBarrier::Type barrierType_;
@@ -67,7 +69,8 @@ namespace QuantLib {
     };
 
     //! %Arguments for double barrier option calculation
-    class DoubleBarrierOption::arguments : public OneAssetOption::arguments {
+    class DoubleBarrierOption::arguments : public OneAssetOption::arguments
+    {
       public:
         arguments();
         DoubleBarrier::Type barrierType;
@@ -79,8 +82,8 @@ namespace QuantLib {
 
     //! %Double-Barrier-option %engine base class
     class DoubleBarrierOption::engine
-        : public GenericEngine<DoubleBarrierOption::arguments,
-                               DoubleBarrierOption::results> {
+    : public GenericEngine<DoubleBarrierOption::arguments, DoubleBarrierOption::results>
+    {
       protected:
         bool triggered(Real underlying) const;
     };

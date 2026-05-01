@@ -5,4 +5,3 @@
 #include <ql/experimental/catbonds/catrisk.hpp>
 #include <ql/experimental/catbonds/montecarlocatbondengine.hpp>
 #include <ql/experimental/catbonds/riskynotional.hpp>
-

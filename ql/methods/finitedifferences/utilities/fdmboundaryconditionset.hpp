@@ -19,15 +19,16 @@
 
 
 /*! \file fdmboundaryconditionset.hpp
-*/
+ */
 
 #ifndef quantlib_fdm_boundary_condition_set_hpp
 #define quantlib_fdm_boundary_condition_set_hpp
 
-#include <ql/methods/finitedifferences/operatortraits.hpp>
 #include <ql/methods/finitedifferences/operators/fdmlinearop.hpp>
+#include <ql/methods/finitedifferences/operatortraits.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     typedef OperatorTraits<FdmLinearOp>::bc_set FdmBoundaryConditionSet;
 

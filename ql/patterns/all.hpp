@@ -6,4 +6,3 @@
 #include <ql/patterns/observable.hpp>
 #include <ql/patterns/singleton.hpp>
 #include <ql/patterns/visitor.hpp>
-

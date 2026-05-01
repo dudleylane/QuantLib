@@ -19,39 +19,40 @@
 
 #include <ql/experimental/credit/recoveryratequote.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    const Real RecoveryRateQuote::IsdaConvRecoveries[] =  {
-        0.65,// SECDOM
-        0.4, // SNRFOR
-        0.2, // SUBLT2
-        0.2, // JRSUBUT2
-        0.15 // PREFT1
+    const Real RecoveryRateQuote::IsdaConvRecoveries[] = {
+        0.65, // SECDOM
+        0.4,  // SNRFOR
+        0.2,  // SUBLT2
+        0.2,  // JRSUBUT2
+        0.15  // PREFT1
     };
 
-    std::map<Seniority, Real> makeIsdaConvMap() {
-        return RecoveryRateQuote::makeIsdaMap(
-            RecoveryRateQuote::IsdaConvRecoveries);
+    std::map<Seniority, Real> makeIsdaConvMap()
+    {
+        return RecoveryRateQuote::makeIsdaMap(RecoveryRateQuote::IsdaConvRecoveries);
     }
 
-    RecoveryRateQuote::RecoveryRateQuote(Real value,
-                                         Seniority seniority)
-        : seniority_(seniority), recoveryRate_(value) {
-            QL_REQUIRE(value == Null<Real>() ||
-                (value >= 0. && value <= 1.),
-                "Recovery value must be a fractional unit.");
+    RecoveryRateQuote::RecoveryRateQuote(Real value, Seniority seniority) : seniority_(seniority), recoveryRate_(value)
+    {
+        QL_REQUIRE(value == Null<Real>() || (value >= 0. && value <= 1.), "Recovery value must be a fractional unit.");
     }
 
-    Real RecoveryRateQuote::setValue(Real value) {
-        Real diff = value-recoveryRate_;
-        if (diff != 0.0) {
+    Real RecoveryRateQuote::setValue(Real value)
+    {
+        Real diff = value - recoveryRate_;
+        if (diff != 0.0)
+        {
             recoveryRate_ = value;
             notifyObservers();
         }
         return diff;
     }
 
-    void RecoveryRateQuote::reset() {
+    void RecoveryRateQuote::reset()
+    {
         setValue(Null<Real>());
         seniority_ = NoSeniority;
     }

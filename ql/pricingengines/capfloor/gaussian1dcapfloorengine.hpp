@@ -29,27 +29,27 @@
 #include <ql/pricingengines/genericmodelengine.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Gaussian1d cap/floor engine
     /*! \ingroup capfloorengines
-    */
+     */
 
-    class Gaussian1dCapFloorEngine
-        : public GenericModelEngine<Gaussian1dModel, CapFloor::arguments,
-                                    CapFloor::results> {
+    class Gaussian1dCapFloorEngine : public GenericModelEngine<Gaussian1dModel, CapFloor::arguments, CapFloor::results>
+    {
       public:
-        Gaussian1dCapFloorEngine(
-            const ext::shared_ptr<Gaussian1dModel>& model,
-            const int integrationPoints = 64,
-            const Real stddevs = 7.0,
-            const bool extrapolatePayoff = true,
-            const bool flatPayoffExtrapolation = false,
-            Handle<YieldTermStructure> discountCurve = Handle<YieldTermStructure>())
+        Gaussian1dCapFloorEngine(const ext::shared_ptr<Gaussian1dModel>& model,
+                                 const int integrationPoints = 64,
+                                 const Real stddevs = 7.0,
+                                 const bool extrapolatePayoff = true,
+                                 const bool flatPayoffExtrapolation = false,
+                                 Handle<YieldTermStructure> discountCurve = Handle<YieldTermStructure>())
         : GenericModelEngine<Gaussian1dModel, CapFloor::arguments, CapFloor::results>(model),
-          integrationPoints_(integrationPoints), stddevs_(stddevs),
-          extrapolatePayoff_(extrapolatePayoff), flatPayoffExtrapolation_(flatPayoffExtrapolation),
-          discountCurve_(std::move(discountCurve)) {}
+          integrationPoints_(integrationPoints), stddevs_(stddevs), extrapolatePayoff_(extrapolatePayoff),
+          flatPayoffExtrapolation_(flatPayoffExtrapolation), discountCurve_(std::move(discountCurve))
+        {
+        }
         void calculate() const override;
 
       private:
@@ -61,4 +61,3 @@ namespace QuantLib {
 }
 
 #endif
-

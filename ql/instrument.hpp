@@ -25,15 +25,16 @@
 #ifndef quantlib_instrument_hpp
 #define quantlib_instrument_hpp
 
+#include <ql/any.hpp>
 #include <ql/patterns/lazyobject.hpp>
 #include <ql/pricingengine.hpp>
-#include <ql/utilities/null.hpp>
 #include <ql/time/date.hpp>
-#include <ql/any.hpp>
+#include <ql/utilities/null.hpp>
 #include <map>
 #include <string>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Abstract instrument class
     /*! This class is purely abstract and defines the interface of concrete
@@ -41,7 +42,8 @@ namespace QuantLib {
 
         \test observability of class instances is checked.
     */
-    class Instrument : public LazyObject {
+    class Instrument : public LazyObject
+    {
       public:
         class results;
         Instrument();
@@ -59,7 +61,8 @@ namespace QuantLib {
 
         [[nodiscard]] const ext::shared_ptr<PricingEngine>& pricingEngine() const;
         //! returns any additional result returned by the pricing engine.
-        template <typename T> [[nodiscard]] T result(const std::string& tag) const;
+        template <typename T>
+        [[nodiscard]] T result(const std::string& tag) const;
         //! returns all additional result returned by the pricing engine.
         [[nodiscard]] const std::map<std::string, ext::any>& additionalResults() const;
 
@@ -85,6 +88,7 @@ namespace QuantLib {
             it. This is mandatory in case a pricing engine is used.
         */
         virtual void fetchResults(const PricingEngine::results*) const;
+
       protected:
         //! \name Calculations
         //@{
@@ -113,9 +117,11 @@ namespace QuantLib {
         ext::shared_ptr<PricingEngine> engine_;
     };
 
-    class Instrument::results : public virtual PricingEngine::results {
+    class Instrument::results : public virtual PricingEngine::results
+    {
       public:
-        void reset() override {
+        void reset() override
+        {
             value = errorEstimate = Null<Real>();
             valuationDate = Date();
             additionalResults.clear();
@@ -129,24 +135,31 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline void Instrument::calculate() const {
-        if (!calculated_) {
-            if (isExpired()) {
+    inline void Instrument::calculate() const
+    {
+        if (!calculated_)
+        {
+            if (isExpired())
+            {
                 setupExpired();
                 calculated_ = true;
-            } else {
+            }
+            else
+            {
                 LazyObject::calculate();
             }
         }
     }
 
-    inline void Instrument::setupExpired() const {
+    inline void Instrument::setupExpired() const
+    {
         NPV_ = errorEstimate_ = 0.0;
         valuationDate_ = Date();
         additionalResults_.clear();
     }
 
-    inline void Instrument::performCalculations() const {
+    inline void Instrument::performCalculations() const
+    {
         QL_REQUIRE(engine_, "null pricing engine");
         engine_->reset();
         setupArguments(engine_->getArguments());
@@ -155,8 +168,8 @@ namespace QuantLib {
         fetchResults(engine_->getResults());
     }
 
-    inline void Instrument::fetchResults(
-                                      const PricingEngine::results* r) const {
+    inline void Instrument::fetchResults(const PricingEngine::results* r) const
+    {
         const auto* results = dynamic_cast<const Instrument::results*>(r);
         QL_ENSURE(results != nullptr, "no results returned from pricing engine");
 
@@ -167,42 +180,43 @@ namespace QuantLib {
         additionalResults_ = results->additionalResults;
     }
 
-    inline Real Instrument::NPV() const {
+    inline Real Instrument::NPV() const
+    {
         calculate();
         QL_REQUIRE(NPV_ != Null<Real>(), "NPV not provided");
         return NPV_;
     }
 
-    inline Real Instrument::errorEstimate() const {
+    inline Real Instrument::errorEstimate() const
+    {
         calculate();
-        QL_REQUIRE(errorEstimate_ != Null<Real>(),
-                   "error estimate not provided");
+        QL_REQUIRE(errorEstimate_ != Null<Real>(), "error estimate not provided");
         return errorEstimate_;
     }
 
-    inline const Date& Instrument::valuationDate() const {
+    inline const Date& Instrument::valuationDate() const
+    {
         calculate();
-        QL_REQUIRE(valuationDate_ != Date(),
-                   "valuation date not provided");
+        QL_REQUIRE(valuationDate_ != Date(), "valuation date not provided");
         return valuationDate_;
     }
 
-    inline const ext::shared_ptr<PricingEngine>& Instrument::pricingEngine() const {
+    inline const ext::shared_ptr<PricingEngine>& Instrument::pricingEngine() const
+    {
         return engine_;
     }
 
     template <class T>
-    inline T Instrument::result(const std::string& tag) const {
+    inline T Instrument::result(const std::string& tag) const
+    {
         calculate();
-        auto value =
-            additionalResults_.find(tag);
-        QL_REQUIRE(value != additionalResults_.end(),
-                   tag << " not provided");
+        auto value = additionalResults_.find(tag);
+        QL_REQUIRE(value != additionalResults_.end(), tag << " not provided");
         return ext::any_cast<T>(value->second);
     }
 
-    inline const std::map<std::string, ext::any>&
-    Instrument::additionalResults() const {
+    inline const std::map<std::string, ext::any>& Instrument::additionalResults() const
+    {
         calculate();
         return additionalResults_;
     }

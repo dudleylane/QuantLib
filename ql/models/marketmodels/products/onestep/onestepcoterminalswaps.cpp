@@ -22,7 +22,8 @@
 #include <ql/models/marketmodels/utilities.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     OneStepCoterminalSwaps::OneStepCoterminalSwaps(const std::vector<Time>& rateTimes,
                                                    std::vector<Real> fixedAccruals,
@@ -30,41 +31,39 @@ namespace QuantLib {
                                                    const std::vector<Time>& paymentTimes,
                                                    Real fixedRate)
     : MultiProductOneStep(rateTimes), fixedAccruals_(std::move(fixedAccruals)),
-      floatingAccruals_(std::move(floatingAccruals)), paymentTimes_(paymentTimes),
-      fixedRate_(fixedRate) {
+      floatingAccruals_(std::move(floatingAccruals)), paymentTimes_(paymentTimes), fixedRate_(fixedRate)
+    {
         checkIncreasingTimes(paymentTimes);
 
-        lastIndex_ = rateTimes.size()-1;
+        lastIndex_ = rateTimes.size() - 1;
     }
 
-    bool OneStepCoterminalSwaps::nextTimeStep(
-            const CurveState& currentState,
-            std::vector<Size>& numberCashFlowsThisStep,
-            std::vector<std::vector<MarketModelMultiProduct::CashFlow> >&
-                                                               genCashFlows) {
-        std::fill(numberCashFlowsThisStep.begin(),
-                  numberCashFlowsThisStep.end(),0);
+    bool OneStepCoterminalSwaps::nextTimeStep(const CurveState& currentState,
+                                              std::vector<Size>& numberCashFlowsThisStep,
+                                              std::vector<std::vector<MarketModelMultiProduct::CashFlow>>& genCashFlows)
+    {
+        std::fill(numberCashFlowsThisStep.begin(), numberCashFlowsThisStep.end(), 0);
 
-        for (Size indexOfTime=0;indexOfTime<lastIndex_;indexOfTime++) {
+        for (Size indexOfTime = 0; indexOfTime < lastIndex_; indexOfTime++)
+        {
             Rate liborRate = currentState.forwardRate(indexOfTime);
 
-            for (Size i=0;i<=indexOfTime;i++) {
-                genCashFlows[i][(indexOfTime-i)*2].timeIndex = indexOfTime;
-                genCashFlows[i][(indexOfTime-i)*2].amount =
-                    -fixedRate_*fixedAccruals_[indexOfTime];
+            for (Size i = 0; i <= indexOfTime; i++)
+            {
+                genCashFlows[i][(indexOfTime - i) * 2].timeIndex = indexOfTime;
+                genCashFlows[i][(indexOfTime - i) * 2].amount = -fixedRate_ * fixedAccruals_[indexOfTime];
 
-                genCashFlows[i][(indexOfTime-i)*2+1].timeIndex = indexOfTime;
-                genCashFlows[i][(indexOfTime-i)*2+1].amount =
-                    liborRate*floatingAccruals_[indexOfTime];
+                genCashFlows[i][(indexOfTime - i) * 2 + 1].timeIndex = indexOfTime;
+                genCashFlows[i][(indexOfTime - i) * 2 + 1].amount = liborRate * floatingAccruals_[indexOfTime];
 
                 numberCashFlowsThisStep[i] += 2;
             }
         }
-        return true ;
+        return true;
     }
 
-    std::unique_ptr<MarketModelMultiProduct>
-    OneStepCoterminalSwaps::clone() const {
+    std::unique_ptr<MarketModelMultiProduct> OneStepCoterminalSwaps::clone() const
+    {
         return std::unique_ptr<MarketModelMultiProduct>(new OneStepCoterminalSwaps(*this));
     }
 

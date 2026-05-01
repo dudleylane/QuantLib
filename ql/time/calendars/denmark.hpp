@@ -26,7 +26,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Danish calendar
     /*! Holidays:
@@ -48,18 +49,21 @@ namespace QuantLib {
         <li>New Year's Eve, December 31st</li>
         </ul>
 
-        See: https://www.nasdaqomxnordic.com/tradinghours, 
+        See: https://www.nasdaqomxnordic.com/tradinghours,
         and: https://www.nationalbanken.dk/da/Kontakt/aabningstider/Sider/default.aspx
 
         \ingroup calendars
     */
-    class Denmark : public Calendar {
+    class Denmark : public Calendar
+    {
       private:
-        class Impl final : public Calendar::WesternImpl {
+        class Impl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "Denmark"; }
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
         Denmark();
     };

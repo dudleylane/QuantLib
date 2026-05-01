@@ -26,14 +26,16 @@
 #include <ql/time/calendars/nullcalendar.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     BachelierCapFloorEngine::BachelierCapFloorEngine(Handle<YieldTermStructure> discountCurve,
                                                      Volatility v,
                                                      const DayCounter& dc)
     : discountCurve_(std::move(discountCurve)),
       vol_(ext::shared_ptr<OptionletVolatilityStructure>(
-          new ConstantOptionletVolatility(0, NullCalendar(), Following, v, dc))) {
+          new ConstantOptionletVolatility(0, NullCalendar(), Following, v, dc)))
+    {
         registerWith(discountCurve_);
     }
 
@@ -42,24 +44,26 @@ namespace QuantLib {
                                                      const DayCounter& dc)
     : discountCurve_(std::move(discountCurve)),
       vol_(ext::shared_ptr<OptionletVolatilityStructure>(
-          new ConstantOptionletVolatility(0, NullCalendar(), Following, v, dc))) {
+          new ConstantOptionletVolatility(0, NullCalendar(), Following, v, dc)))
+    {
         registerWith(discountCurve_);
         registerWith(vol_);
     }
 
-    BachelierCapFloorEngine::BachelierCapFloorEngine(
-        Handle<YieldTermStructure> discountCurve, Handle<OptionletVolatilityStructure> volatility)
-    : discountCurve_(std::move(discountCurve)), vol_(std::move(volatility)) {
-        QL_REQUIRE(vol_->volatilityType() == Normal,
-                   "BachelierCapFloorEngine should only be used for vol "
-                   "surfaces stripped with normal model. Options were stripped "
-                   "with model "
-                       << vol_->volatilityType());
+    BachelierCapFloorEngine::BachelierCapFloorEngine(Handle<YieldTermStructure> discountCurve,
+                                                     Handle<OptionletVolatilityStructure> volatility)
+    : discountCurve_(std::move(discountCurve)), vol_(std::move(volatility))
+    {
+        QL_REQUIRE(vol_->volatilityType() == Normal, "BachelierCapFloorEngine should only be used for vol "
+                                                     "surfaces stripped with normal model. Options were stripped "
+                                                     "with model "
+                                                         << vol_->volatilityType());
         registerWith(discountCurve_);
         registerWith(vol_);
     }
 
-    void BachelierCapFloorEngine::calculate() const {
+    void BachelierCapFloorEngine::calculate() const
+    {
         Real value = 0.0;
         Real vega = 0.0;
         Size optionlets = arguments_.startDates.size();
@@ -72,17 +76,17 @@ namespace QuantLib {
         Date today = vol_->referenceDate();
         Date settlement = discountCurve_->referenceDate();
 
-        for (Size i=0; i<optionlets; ++i) {
+        for (Size i = 0; i < optionlets; ++i)
+        {
             Date paymentDate = arguments_.endDates[i];
             // handling of settlementDate, npvDate and includeSettlementFlows
             // should be implemented.
             // For the time being just discard expired caplets
-            if (paymentDate > settlement) {
+            if (paymentDate > settlement)
+            {
                 DiscountFactor d = discountCurve_->discount(paymentDate);
                 discountFactors[i] = d;
-                Real accrualFactor = arguments_.nominals[i] *
-                                   arguments_.gearings[i] *
-                                   arguments_.accrualTimes[i];
+                Real accrualFactor = arguments_.nominals[i] * arguments_.gearings[i] * arguments_.accrualTimes[i];
                 Real discountedAccrual = d * accrualFactor;
 
                 Rate forward = arguments_.forwards[i];
@@ -92,40 +96,43 @@ namespace QuantLib {
                 if (fixingDate > today)
                     sqrtTime = std::sqrt(vol_->timeFromReference(fixingDate));
 
-                if (type == CapFloor::Cap || type == CapFloor::Collar) {
+                if (type == CapFloor::Cap || type == CapFloor::Collar)
+                {
                     Rate strike = arguments_.capRates[i];
-                    if (sqrtTime>0.0) {
-                        stdDevs[i] = std::sqrt(vol_->blackVariance(fixingDate,
-                                                                   strike));
-                        vegas[i] = bachelierBlackFormulaStdDevDerivative(strike,
-                            forward, stdDevs[i], discountedAccrual) * sqrtTime;
-                        deltas[i] = bachelierBlackFormulaAssetItmProbability(Option::Call,
-                            strike, forward, stdDevs[i]);
+                    if (sqrtTime > 0.0)
+                    {
+                        stdDevs[i] = std::sqrt(vol_->blackVariance(fixingDate, strike));
+                        vegas[i] =
+                            bachelierBlackFormulaStdDevDerivative(strike, forward, stdDevs[i], discountedAccrual) *
+                            sqrtTime;
+                        deltas[i] = bachelierBlackFormulaAssetItmProbability(Option::Call, strike, forward, stdDevs[i]);
                     }
                     // include caplets with past fixing date
-                    values[i] = bachelierBlackFormula(Option::Call,
-                        strike, forward, stdDevs[i], discountedAccrual);
+                    values[i] = bachelierBlackFormula(Option::Call, strike, forward, stdDevs[i], discountedAccrual);
                 }
-                if (type == CapFloor::Floor || type == CapFloor::Collar) {
+                if (type == CapFloor::Floor || type == CapFloor::Collar)
+                {
                     Rate strike = arguments_.floorRates[i];
                     Real floorletVega = 0.0;
                     Real floorletDelta = 0.0;
-                    if (sqrtTime>0.0) {
-                        stdDevs[i] = std::sqrt(vol_->blackVariance(fixingDate,
-                                                                   strike));
-                        floorletVega = bachelierBlackFormulaStdDevDerivative(strike,
-                            forward, stdDevs[i], discountedAccrual) * sqrtTime;
+                    if (sqrtTime > 0.0)
+                    {
+                        stdDevs[i] = std::sqrt(vol_->blackVariance(fixingDate, strike));
+                        floorletVega =
+                            bachelierBlackFormulaStdDevDerivative(strike, forward, stdDevs[i], discountedAccrual) *
+                            sqrtTime;
                         floorletDelta = Integer(Option::Put) * bachelierBlackFormulaAssetItmProbability(
-                                                        Option::Put, strike, forward, 
-                                                        stdDevs[i]);
+                                                                   Option::Put, strike, forward, stdDevs[i]);
                     }
-                    Real floorlet = bachelierBlackFormula(Option::Put,
-                        strike, forward, stdDevs[i], discountedAccrual);
-                    if (type == CapFloor::Floor) {
+                    Real floorlet = bachelierBlackFormula(Option::Put, strike, forward, stdDevs[i], discountedAccrual);
+                    if (type == CapFloor::Floor)
+                    {
                         values[i] = floorlet;
                         vegas[i] = floorletVega;
                         deltas[i] = floorletDelta;
-                    } else {
+                    }
+                    else
+                    {
                         // a collar is long a cap and short a floor
                         values[i] -= floorlet;
                         vegas[i] -= floorletVega;

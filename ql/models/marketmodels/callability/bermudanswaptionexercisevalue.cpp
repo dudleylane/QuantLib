@@ -23,63 +23,68 @@
 #include <ql/payoff.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    BermudanSwaptionExerciseValue::BermudanSwaptionExerciseValue(
-        const std::vector<Time>& rateTimes, std::vector<ext::shared_ptr<Payoff> > payoffs)
+    BermudanSwaptionExerciseValue::BermudanSwaptionExerciseValue(const std::vector<Time>& rateTimes,
+                                                                 std::vector<ext::shared_ptr<Payoff>> payoffs)
     : numberOfExercises_(rateTimes.empty() ? 0 : rateTimes.size() - 1), rateTimes_(rateTimes),
-      payoffs_(std::move(payoffs)) {
+      payoffs_(std::move(payoffs))
+    {
 
         checkIncreasingTimes(rateTimes);
-        QL_REQUIRE(numberOfExercises_>0,
-                   "Rate times must contain at least two values");
+        QL_REQUIRE(numberOfExercises_ > 0, "Rate times must contain at least two values");
         std::vector<Time> evolveTimes(rateTimes_);
         evolveTimes.pop_back();
-        evolution_ = EvolutionDescription(rateTimes_,evolveTimes);
+        evolution_ = EvolutionDescription(rateTimes_, evolveTimes);
     }
 
-    Size BermudanSwaptionExerciseValue::numberOfExercises() const {
+    Size BermudanSwaptionExerciseValue::numberOfExercises() const
+    {
         return numberOfExercises_;
     }
 
-    const EvolutionDescription&
-    BermudanSwaptionExerciseValue::evolution() const {
+    const EvolutionDescription& BermudanSwaptionExerciseValue::evolution() const
+    {
         return evolution_;
     }
 
-    std::vector<Time>
-    BermudanSwaptionExerciseValue::possibleCashFlowTimes() const {
+    std::vector<Time> BermudanSwaptionExerciseValue::possibleCashFlowTimes() const
+    {
         return rateTimes_;
     }
 
-    void BermudanSwaptionExerciseValue::reset() {
-        currentIndex_=0;
+    void BermudanSwaptionExerciseValue::reset()
+    {
+        currentIndex_ = 0;
     }
 
-    void BermudanSwaptionExerciseValue::nextStep(const CurveState& state) {
+    void BermudanSwaptionExerciseValue::nextStep(const CurveState& state)
+    {
         const Payoff& p = (*payoffs_[currentIndex_]);
-        Real value = state.coterminalSwapAnnuity(currentIndex_, currentIndex_) *
-            p(state.coterminalSwapRate(currentIndex_));
+        Real value =
+            state.coterminalSwapAnnuity(currentIndex_, currentIndex_) * p(state.coterminalSwapRate(currentIndex_));
 
-     //   value /= state.discountRatios()[currentIndex_];
-        value =  std::max(value, 0.0);
+        //   value /= state.discountRatios()[currentIndex_];
+        value = std::max(value, 0.0);
         cf_.timeIndex = currentIndex_;
         cf_.amount = value;
         ++currentIndex_;
     }
 
 
-    std::valarray<bool> BermudanSwaptionExerciseValue::isExerciseTime() const {
-        return std::valarray<bool>(true,numberOfExercises_);
+    std::valarray<bool> BermudanSwaptionExerciseValue::isExerciseTime() const
+    {
+        return std::valarray<bool>(true, numberOfExercises_);
     }
 
-    MarketModelMultiProduct::CashFlow
-    BermudanSwaptionExerciseValue::value(const CurveState& ) const {
-         return cf_;
+    MarketModelMultiProduct::CashFlow BermudanSwaptionExerciseValue::value(const CurveState&) const
+    {
+        return cf_;
     }
 
-    std::unique_ptr<MarketModelExerciseValue>
-    BermudanSwaptionExerciseValue::clone() const {
+    std::unique_ptr<MarketModelExerciseValue> BermudanSwaptionExerciseValue::clone() const
+    {
         return std::unique_ptr<MarketModelExerciseValue>(new BermudanSwaptionExerciseValue(*this));
     }
 

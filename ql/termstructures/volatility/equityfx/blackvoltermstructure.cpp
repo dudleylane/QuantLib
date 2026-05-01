@@ -19,31 +19,35 @@
 
 #include <ql/termstructures/volatility/equityfx/blackvoltermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    BlackVolTermStructure::BlackVolTermStructure(BusinessDayConvention bdc,
-                                                 const DayCounter& dc)
-    : VolatilityTermStructure(bdc, dc) {}
+    BlackVolTermStructure::BlackVolTermStructure(BusinessDayConvention bdc, const DayCounter& dc)
+    : VolatilityTermStructure(bdc, dc)
+    {
+    }
 
     BlackVolTermStructure::BlackVolTermStructure(const Date& refDate,
                                                  const Calendar& cal,
                                                  BusinessDayConvention bdc,
                                                  const DayCounter& dc)
-    : VolatilityTermStructure(refDate, cal, bdc, dc) {}
+    : VolatilityTermStructure(refDate, cal, bdc, dc)
+    {
+    }
 
     BlackVolTermStructure::BlackVolTermStructure(Natural settlDays,
                                                  const Calendar& cal,
                                                  BusinessDayConvention bdc,
                                                  const DayCounter& dc)
-    : VolatilityTermStructure(settlDays, cal, bdc, dc) {}
+    : VolatilityTermStructure(settlDays, cal, bdc, dc)
+    {
+    }
 
-    Volatility BlackVolTermStructure::blackForwardVol(const Date& date1,
-                                                      const Date& date2,
-                                                      Real strike,
-                                                      bool extrapolate) const {
+    Volatility
+    BlackVolTermStructure::blackForwardVol(const Date& date1, const Date& date2, Real strike, bool extrapolate) const
+    {
         // (redundant) date-based checks
-        QL_REQUIRE(date1 <= date2,
-                   date1 << " later than " << date2);
+        QL_REQUIRE(date1 <= date2, date1 << " later than " << date2);
         checkRange(date2, extrapolate);
 
         // using the time implementation
@@ -52,44 +56,44 @@ namespace QuantLib {
         return blackForwardVol(time1, time2, strike, extrapolate);
     }
 
-    Volatility BlackVolTermStructure::blackForwardVol(Time time1,
-                                                      Time time2,
-                                                      Real strike,
-                                                      bool extrapolate) const {
-        QL_REQUIRE(time1 <= time2,
-                   time1 << " later than " << time2);
+    Volatility BlackVolTermStructure::blackForwardVol(Time time1, Time time2, Real strike, bool extrapolate) const
+    {
+        QL_REQUIRE(time1 <= time2, time1 << " later than " << time2);
         checkRange(time2, extrapolate);
         checkStrike(strike, extrapolate);
-        if (time2==time1) {
-            if (time1==0.0) {
+        if (time2 == time1)
+        {
+            if (time1 == 0.0)
+            {
                 Time epsilon = 1.0e-5;
                 Real var = blackVarianceImpl(epsilon, strike);
-                return std::sqrt(var/epsilon);
-            } else {
-                Time epsilon = std::min<Time>(1.0e-5, time1);
-                Real var1 = blackVarianceImpl(time1-epsilon, strike);
-                Real var2 = blackVarianceImpl(time1+epsilon, strike);
-                QL_ENSURE(var2>=var1,
-                          "variances must be non-decreasing");
-                return std::sqrt((var2-var1)/(2*epsilon));
+                return std::sqrt(var / epsilon);
             }
-        } else {
+            else
+            {
+                Time epsilon = std::min<Time>(1.0e-5, time1);
+                Real var1 = blackVarianceImpl(time1 - epsilon, strike);
+                Real var2 = blackVarianceImpl(time1 + epsilon, strike);
+                QL_ENSURE(var2 >= var1, "variances must be non-decreasing");
+                return std::sqrt((var2 - var1) / (2 * epsilon));
+            }
+        }
+        else
+        {
             Real var1 = blackVarianceImpl(time1, strike);
             Real var2 = blackVarianceImpl(time2, strike);
-            QL_ENSURE(var2 >= var1,
-                      "variances must be non-decreasing");
-            return std::sqrt((var2-var1)/(time2-time1));
+            QL_ENSURE(var2 >= var1, "variances must be non-decreasing");
+            return std::sqrt((var2 - var1) / (time2 - time1));
         }
     }
 
     Real BlackVolTermStructure::blackForwardVariance(const Date& date1,
                                                      const Date& date2,
                                                      Real strike,
-                                                     bool extrapolate)
-                                                                      const {
+                                                     bool extrapolate) const
+    {
         // (redundant) date-based checks
-        QL_REQUIRE(date1 <= date2,
-                   date1 << " later than " << date2);
+        QL_REQUIRE(date1 <= date2, date1 << " later than " << date2);
         checkRange(date2, extrapolate);
 
         // using the time implementation
@@ -98,57 +102,57 @@ namespace QuantLib {
         return blackForwardVariance(time1, time2, strike, extrapolate);
     }
 
-    Real BlackVolTermStructure::blackForwardVariance(Time time1,
-                                                     Time time2,
-                                                     Real strike,
-                                                     bool extrapolate) const {
-        QL_REQUIRE(time1 <= time2,
-                   time1 << " later than " << time2);
+    Real BlackVolTermStructure::blackForwardVariance(Time time1, Time time2, Real strike, bool extrapolate) const
+    {
+        QL_REQUIRE(time1 <= time2, time1 << " later than " << time2);
         checkRange(time2, extrapolate);
         checkStrike(strike, extrapolate);
         Real v1 = blackVarianceImpl(time1, strike);
         Real v2 = blackVarianceImpl(time2, strike);
-        QL_ENSURE(v2 >= v1,
-                  "variances must be non-decreasing");
-        return v2-v1;
+        QL_ENSURE(v2 >= v1, "variances must be non-decreasing");
+        return v2 - v1;
     }
 
-    BlackVolatilityTermStructure::BlackVolatilityTermStructure(
-                                                    BusinessDayConvention bdc,
-                                                    const DayCounter& dc)
-    : BlackVolTermStructure(bdc, dc) {}
+    BlackVolatilityTermStructure::BlackVolatilityTermStructure(BusinessDayConvention bdc, const DayCounter& dc)
+    : BlackVolTermStructure(bdc, dc)
+    {
+    }
 
-    BlackVolatilityTermStructure::BlackVolatilityTermStructure(
-                                                    const Date& refDate,
-                                                    const Calendar& cal,
-                                                    BusinessDayConvention bdc,
-                                                    const DayCounter& dc)
-    : BlackVolTermStructure(refDate, cal, bdc, dc) {}
+    BlackVolatilityTermStructure::BlackVolatilityTermStructure(const Date& refDate,
+                                                               const Calendar& cal,
+                                                               BusinessDayConvention bdc,
+                                                               const DayCounter& dc)
+    : BlackVolTermStructure(refDate, cal, bdc, dc)
+    {
+    }
 
-    BlackVolatilityTermStructure::BlackVolatilityTermStructure(
-                                                    Natural settlementDays,
-                                                    const Calendar& cal,
-                                                    BusinessDayConvention bdc,
-                                                    const DayCounter& dc)
-    : BlackVolTermStructure(settlementDays, cal, bdc, dc) {}
+    BlackVolatilityTermStructure::BlackVolatilityTermStructure(Natural settlementDays,
+                                                               const Calendar& cal,
+                                                               BusinessDayConvention bdc,
+                                                               const DayCounter& dc)
+    : BlackVolTermStructure(settlementDays, cal, bdc, dc)
+    {
+    }
 
-    BlackVarianceTermStructure::BlackVarianceTermStructure(
-                                                    BusinessDayConvention bdc,
-                                                    const DayCounter& dc)
-    : BlackVolTermStructure(bdc, dc) {}
+    BlackVarianceTermStructure::BlackVarianceTermStructure(BusinessDayConvention bdc, const DayCounter& dc)
+    : BlackVolTermStructure(bdc, dc)
+    {
+    }
 
-    BlackVarianceTermStructure::BlackVarianceTermStructure(
-                                                    const Date& refDate,
-                                                    const Calendar& cal,
-                                                    BusinessDayConvention bdc,
-                                                    const DayCounter& dc)
-    : BlackVolTermStructure(refDate, cal, bdc, dc) {}
+    BlackVarianceTermStructure::BlackVarianceTermStructure(const Date& refDate,
+                                                           const Calendar& cal,
+                                                           BusinessDayConvention bdc,
+                                                           const DayCounter& dc)
+    : BlackVolTermStructure(refDate, cal, bdc, dc)
+    {
+    }
 
-    BlackVarianceTermStructure::BlackVarianceTermStructure(
-                                                    Natural settlementDays,
-                                                    const Calendar& cal,
-                                                    BusinessDayConvention bdc,
-                                                    const DayCounter& dc)
-    : BlackVolTermStructure(settlementDays, cal, bdc, dc) {}
+    BlackVarianceTermStructure::BlackVarianceTermStructure(Natural settlementDays,
+                                                           const Calendar& cal,
+                                                           BusinessDayConvention bdc,
+                                                           const DayCounter& dc)
+    : BlackVolTermStructure(settlementDays, cal, bdc, dc)
+    {
+    }
 
 }

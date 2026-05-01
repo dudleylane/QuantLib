@@ -22,42 +22,49 @@
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
 
-    AndreasenHugeLocalVolAdapter::AndreasenHugeLocalVolAdapter(
-        ext::shared_ptr<AndreasenHugeVolatilityInterpl> localVol)
-    : localVol_(std::move(localVol)) {}
+    AndreasenHugeLocalVolAdapter::AndreasenHugeLocalVolAdapter(ext::shared_ptr<AndreasenHugeVolatilityInterpl> localVol)
+    : localVol_(std::move(localVol))
+    {
+    }
 
-    Date AndreasenHugeLocalVolAdapter::maxDate() const {
+    Date AndreasenHugeLocalVolAdapter::maxDate() const
+    {
         return localVol_->maxDate();
     }
 
-    Real AndreasenHugeLocalVolAdapter::minStrike() const {
+    Real AndreasenHugeLocalVolAdapter::minStrike() const
+    {
         return 0.0;
     }
 
-    Real AndreasenHugeLocalVolAdapter::maxStrike() const {
+    Real AndreasenHugeLocalVolAdapter::maxStrike() const
+    {
         return QL_MAX_REAL;
     }
 
-    Volatility
-    AndreasenHugeLocalVolAdapter::localVolImpl(Time t, Real strike) const {
-        return localVol_->localVol(t,
-            std::min(localVol_->maxStrike(),
-                std::max(localVol_->minStrike(), strike)));
+    Volatility AndreasenHugeLocalVolAdapter::localVolImpl(Time t, Real strike) const
+    {
+        return localVol_->localVol(t, std::min(localVol_->maxStrike(), std::max(localVol_->minStrike(), strike)));
     }
 
-    Calendar AndreasenHugeLocalVolAdapter::calendar() const {
+    Calendar AndreasenHugeLocalVolAdapter::calendar() const
+    {
         return localVol_->riskFreeRate()->calendar();
     }
-    DayCounter AndreasenHugeLocalVolAdapter::dayCounter() const {
+    DayCounter AndreasenHugeLocalVolAdapter::dayCounter() const
+    {
         return localVol_->riskFreeRate()->dayCounter();
     }
-    const Date& AndreasenHugeLocalVolAdapter::referenceDate() const {
+    const Date& AndreasenHugeLocalVolAdapter::referenceDate() const
+    {
         return localVol_->riskFreeRate()->referenceDate();
     }
-    Natural AndreasenHugeLocalVolAdapter::settlementDays() const {
+    Natural AndreasenHugeLocalVolAdapter::settlementDays() const
+    {
         return localVol_->riskFreeRate()->settlementDays();
     }
 }

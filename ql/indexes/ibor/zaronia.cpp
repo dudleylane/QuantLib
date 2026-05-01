@@ -17,14 +17,17 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/currencies/africa.hpp>
 #include <ql/indexes/ibor/zaronia.hpp>
 #include <ql/time/calendars/southafrica.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
-#include <ql/currencies/africa.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     Zaronia::Zaronia(const Handle<YieldTermStructure>& h)
-    : OvernightIndex("ZARONIA", 0, ZARCurrency(), SouthAfrica(), Actual365Fixed(), h) {}
+    : OvernightIndex("ZARONIA", 0, ZARCurrency(), SouthAfrica(), Actual365Fixed(), h)
+    {
+    }
 
 }

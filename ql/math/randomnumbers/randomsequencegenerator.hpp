@@ -24,11 +24,12 @@
 #ifndef quantlib_random_sequence_generator_h
 #define quantlib_random_sequence_generator_h
 
-#include <ql/methods/montecarlo/sample.hpp>
 #include <ql/errors.hpp>
+#include <ql/methods/montecarlo/sample.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Random sequence generator based on a pseudo-random number generator
     /*! Random sequence generator based on a pseudo-random number
@@ -46,44 +47,46 @@ namespace QuantLib {
 
         \warning do not use with low-discrepancy sequence generator.
     */
-    template<class RNG>
-    class RandomSequenceGenerator {
+    template <class RNG>
+    class RandomSequenceGenerator
+    {
       public:
-        typedef Sample<std::vector<Real> > sample_type;
-        RandomSequenceGenerator(Size dimensionality,
-                                const RNG& rng)
-        : dimensionality_(dimensionality), rng_(rng),
-          sequence_(std::vector<Real> (dimensionality), 1.0),
-          int32Sequence_(dimensionality) {
-          QL_REQUIRE(dimensionality>0, 
-                     "dimensionality must be greater than 0");
+        typedef Sample<std::vector<Real>> sample_type;
+        RandomSequenceGenerator(Size dimensionality, const RNG& rng)
+        : dimensionality_(dimensionality), rng_(rng), sequence_(std::vector<Real>(dimensionality), 1.0),
+          int32Sequence_(dimensionality)
+        {
+            QL_REQUIRE(dimensionality > 0, "dimensionality must be greater than 0");
         }
 
-        explicit RandomSequenceGenerator(Size dimensionality,
-                                         BigNatural seed = 0)
-        : dimensionality_(dimensionality), rng_(seed),
-          sequence_(std::vector<Real> (dimensionality), 1.0),
-          int32Sequence_(dimensionality) {}
+        explicit RandomSequenceGenerator(Size dimensionality, BigNatural seed = 0)
+        : dimensionality_(dimensionality), rng_(seed), sequence_(std::vector<Real>(dimensionality), 1.0),
+          int32Sequence_(dimensionality)
+        {
+        }
 
-        const sample_type& nextSequence() const {
+        const sample_type& nextSequence() const
+        {
             sequence_.weight = 1.0;
-            for (Size i=0; i<dimensionality_; i++) {
+            for (Size i = 0; i < dimensionality_; i++)
+            {
                 typename RNG::sample_type x(rng_.next());
                 sequence_.value[i] = x.value;
-                sequence_.weight  *= x.weight;
+                sequence_.weight *= x.weight;
             }
             return sequence_;
         }
-        std::vector<BigNatural> nextInt32Sequence() const {
-            for (Size i=0; i<dimensionality_; i++) {
+        std::vector<BigNatural> nextInt32Sequence() const
+        {
+            for (Size i = 0; i < dimensionality_; i++)
+            {
                 int32Sequence_[i] = rng_.nextInt32();
             }
             return int32Sequence_;
         }
-        const sample_type& lastSequence() const {
-            return sequence_;
-        }
-        Size dimension() const {return dimensionality_;}
+        const sample_type& lastSequence() const { return sequence_; }
+        Size dimension() const { return dimensionality_; }
+
       private:
         Size dimensionality_;
         RNG rng_;

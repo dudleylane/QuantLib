@@ -28,7 +28,8 @@
 #include <ql/instruments/fxforward.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Discounting engine for FX Forward
     /*! This engine discounts the two legs of an FX forward using their
@@ -53,7 +54,8 @@ namespace QuantLib {
 
         \ingroup forwardengines
     */
-    class DiscountingFxForwardEngine : public FxForward::engine {
+    class DiscountingFxForwardEngine : public FxForward::engine
+    {
       public:
         /*! \param sourceCurrencyDiscountCurve  Discount curve for source currency
             \param targetCurrencyDiscountCurve  Discount curve for target currency
@@ -68,12 +70,8 @@ namespace QuantLib {
 
         //! \name Inspectors
         //@{
-        const Handle<YieldTermStructure>& sourceCurrencyDiscountCurve() const {
-            return sourceCurrencyDiscountCurve_;
-        }
-        const Handle<YieldTermStructure>& targetCurrencyDiscountCurve() const {
-            return targetCurrencyDiscountCurve_;
-        }
+        const Handle<YieldTermStructure>& sourceCurrencyDiscountCurve() const { return sourceCurrencyDiscountCurve_; }
+        const Handle<YieldTermStructure>& targetCurrencyDiscountCurve() const { return targetCurrencyDiscountCurve_; }
         const Handle<Quote>& spotFx() const { return spotFx_; }
         //@}
 

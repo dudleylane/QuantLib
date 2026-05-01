@@ -23,7 +23,8 @@
 #include <ql/processes/blackscholesprocess.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     Fdm2dBlackScholesSolver::Fdm2dBlackScholesSolver(Handle<GeneralizedBlackScholesProcess> p1,
                                                      Handle<GeneralizedBlackScholesProcess> p2,
@@ -32,38 +33,36 @@ namespace QuantLib {
                                                      const FdmSchemeDesc& schemeDesc,
                                                      bool localVol,
                                                      Real illegalLocalVolOverwrite)
-    : p1_(std::move(p1)), p2_(std::move(p2)), correlation_(correlation),
-      solverDesc_(std::move(solverDesc)), schemeDesc_(schemeDesc), localVol_(localVol),
-      illegalLocalVolOverwrite_(illegalLocalVolOverwrite) {
+    : p1_(std::move(p1)), p2_(std::move(p2)), correlation_(correlation), solverDesc_(std::move(solverDesc)),
+      schemeDesc_(schemeDesc), localVol_(localVol), illegalLocalVolOverwrite_(illegalLocalVolOverwrite)
+    {
 
         registerWith(p1_);
         registerWith(p2_);
     }
 
 
-    void Fdm2dBlackScholesSolver::performCalculations() const {
-        
-        ext::shared_ptr<Fdm2dBlackScholesOp> op(
-			ext::make_shared<Fdm2dBlackScholesOp>(solverDesc_.mesher,
-                                        p1_.currentLink(), 
-                                        p2_.currentLink(), 
-                                        correlation_,
-                                        solverDesc_.maturity,
-                                        localVol_,
-                                        illegalLocalVolOverwrite_));
+    void Fdm2dBlackScholesSolver::performCalculations() const
+    {
+
+        ext::shared_ptr<Fdm2dBlackScholesOp> op(ext::make_shared<Fdm2dBlackScholesOp>(
+            solverDesc_.mesher, p1_.currentLink(), p2_.currentLink(), correlation_, solverDesc_.maturity, localVol_,
+            illegalLocalVolOverwrite_));
 
         solver_ = ext::make_shared<Fdm2DimSolver>(solverDesc_, schemeDesc_, op);
     }
 
-    Real Fdm2dBlackScholesSolver::valueAt(Real u, Real v) const {
+    Real Fdm2dBlackScholesSolver::valueAt(Real u, Real v) const
+    {
         calculate();
         const Real x = std::log(u);
         const Real y = std::log(v);
 
         return solver_->interpolateAt(x, y);
     }
-    
-    Real Fdm2dBlackScholesSolver::thetaAt(Real u, Real v) const {
+
+    Real Fdm2dBlackScholesSolver::thetaAt(Real u, Real v) const
+    {
         calculate();
         const Real x = std::log(u);
         const Real y = std::log(v);
@@ -71,50 +70,53 @@ namespace QuantLib {
     }
 
 
-    Real Fdm2dBlackScholesSolver::deltaXat(Real u, Real v) const {
+    Real Fdm2dBlackScholesSolver::deltaXat(Real u, Real v) const
+    {
         calculate();
 
         const Real x = std::log(u);
         const Real y = std::log(v);
 
-        return solver_->derivativeX(x, y)/u;
+        return solver_->derivativeX(x, y) / u;
     }
 
-    Real Fdm2dBlackScholesSolver::deltaYat(Real u, Real v) const {
+    Real Fdm2dBlackScholesSolver::deltaYat(Real u, Real v) const
+    {
         calculate();
 
         const Real x = std::log(u);
         const Real y = std::log(v);
 
-        return solver_->derivativeY(x, y)/v;
+        return solver_->derivativeY(x, y) / v;
     }
 
-    Real Fdm2dBlackScholesSolver::gammaXat(Real u, Real v) const {
+    Real Fdm2dBlackScholesSolver::gammaXat(Real u, Real v) const
+    {
         calculate();
-        
+
         const Real x = std::log(u);
         const Real y = std::log(v);
-        
-        return (solver_->derivativeXX(x, y)
-                -solver_->derivativeX(x, y))/(u*u);
+
+        return (solver_->derivativeXX(x, y) - solver_->derivativeX(x, y)) / (u * u);
     }
 
-    Real Fdm2dBlackScholesSolver::gammaYat(Real u, Real v) const {
+    Real Fdm2dBlackScholesSolver::gammaYat(Real u, Real v) const
+    {
         calculate();
-        
+
         const Real x = std::log(u);
         const Real y = std::log(v);
-        
-        return (solver_->derivativeYY(x, y)
-                -solver_->derivativeY(x, y))/(v*v);
+
+        return (solver_->derivativeYY(x, y) - solver_->derivativeY(x, y)) / (v * v);
     }
 
-    Real Fdm2dBlackScholesSolver::gammaXYat(Real u, Real v) const {
+    Real Fdm2dBlackScholesSolver::gammaXYat(Real u, Real v) const
+    {
         calculate();
 
         const Real x = std::log(u);
         const Real y = std::log(v);
 
-        return solver_->derivativeXY(x, y)/(u*v);
+        return solver_->derivativeXY(x, y) / (u * v);
     }
 }

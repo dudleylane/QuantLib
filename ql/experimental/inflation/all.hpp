@@ -9,7 +9,6 @@
 #include <ql/experimental/inflation/piecewiseyoyoptionletvolatility.hpp>
 #include <ql/experimental/inflation/polynomial2Dspline.hpp>
 #include <ql/experimental/inflation/yoycapfloortermpricesurface.hpp>
+#include <ql/experimental/inflation/yoyinflationoptionletvolatilitystructure2.hpp>
 #include <ql/experimental/inflation/yoyoptionlethelpers.hpp>
 #include <ql/experimental/inflation/yoyoptionletstripper.hpp>
-#include <ql/experimental/inflation/yoyinflationoptionletvolatilitystructure2.hpp>
-

@@ -18,22 +18,24 @@
 */
 
 /*! \file fdmhullwhitesolver.hpp
-*/
+ */
 
 #ifndef quantlib_fdm_hull_white_solver_hpp
 #define quantlib_fdm_hull_white_solver_hpp
 
 #include <ql/handle.hpp>
-#include <ql/patterns/lazyobject.hpp>
-#include <ql/methods/finitedifferences/solvers/fdmsolverdesc.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
+#include <ql/methods/finitedifferences/solvers/fdmsolverdesc.hpp>
+#include <ql/patterns/lazyobject.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class HullWhite;
     class Fdm1DimSolver;
 
-    class FdmHullWhiteSolver : public LazyObject {
+    class FdmHullWhiteSolver : public LazyObject
+    {
       public:
         FdmHullWhiteSolver(Handle<HullWhite> model,
                            FdmSolverDesc solverDesc,

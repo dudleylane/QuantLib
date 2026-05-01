@@ -25,25 +25,26 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #ifndef quantlib_jibar_hpp
 #define quantlib_jibar_hpp
 
+#include <ql/currencies/africa.hpp>
 #include <ql/indexes/iborindex.hpp>
 #include <ql/time/calendars/southafrica.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
-#include <ql/currencies/africa.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %JIBAR rate
     /*! Johannesburg Interbank Agreed Rate
 
         \todo check settlement days and day-count convention.
     */
-    class Jibar : public IborIndex {
+    class Jibar : public IborIndex
+    {
       public:
-        Jibar(const Period& tenor,
-              const Handle<YieldTermStructure>& h = {})
-        : IborIndex("Jibar", tenor, 0, ZARCurrency(),
-                SouthAfrica(), ModifiedFollowing, false,
-                Actual365Fixed(), h) {}
+        Jibar(const Period& tenor, const Handle<YieldTermStructure>& h = {})
+        : IborIndex("Jibar", tenor, 0, ZARCurrency(), SouthAfrica(), ModifiedFollowing, false, Actual365Fixed(), h)
+        {
+        }
     };
 
 }

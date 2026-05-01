@@ -23,35 +23,42 @@ namespace QuantLib
 {
     NotionalPath::NotionalPath()
     {
-        Rate previous = 1.0;//full notional at the beginning
+        Rate previous = 1.0; // full notional at the beginning
         notionalRate_.emplace_back(Date(), previous);
     }
 
     Rate NotionalPath::notionalRate(const Date& date) const
     {
         Size i = 0;
-        for (; i<notionalRate_.size() && notionalRate_[i].first<=date; ++i)  //TODO do we take notional after reductions or before?
-        {}
-        return notionalRate_[i-1].second;
+        for (; i < notionalRate_.size() && notionalRate_[i].first <= date;
+             ++i) // TODO do we take notional after reductions or before?
+        {
+        }
+        return notionalRate_[i - 1].second;
     }
 
-    void NotionalPath::reset() {
+    void NotionalPath::reset()
+    {
         notionalRate_.resize(1);
     }
 
-    void NotionalPath::addReduction(const Date &date, Rate newRate) {
+    void NotionalPath::addReduction(const Date& date, Rate newRate)
+    {
         notionalRate_.emplace_back(date, newRate);
     }
 
-    Real NotionalPath::loss() {
-        return 1.0-notionalRate_.rbegin()->second;
+    Real NotionalPath::loss()
+    {
+        return 1.0 - notionalRate_.rbegin()->second;
     }
 
-    void DigitalNotionalRisk::updatePath(const std::vector<std::pair<Date, Real> >  &events, 
-                                         NotionalPath &path) const {
+    void DigitalNotionalRisk::updatePath(const std::vector<std::pair<Date, Real>>& events, NotionalPath& path) const
+    {
         path.reset();
-        for (const auto& event : events) {
-            if (event.second >= threshold_) {
+        for (const auto& event : events)
+        {
+            if (event.second >= threshold_)
+            {
                 path.addReduction(paymentOffset_->paymentDate(event.first), Rate(0.0));
             }
         }

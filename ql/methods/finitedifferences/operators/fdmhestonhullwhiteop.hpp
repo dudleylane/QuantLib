@@ -26,19 +26,21 @@
 #ifndef quantlib_fdm_heston_hull_white_op_hpp
 #define quantlib_fdm_heston_hull_white_op_hpp
 
+#include <ql/methods/finitedifferences/operators/fdmhullwhiteop.hpp>
+#include <ql/methods/finitedifferences/operators/fdmlinearopcomposite.hpp>
+#include <ql/methods/finitedifferences/operators/firstderivativeop.hpp>
+#include <ql/methods/finitedifferences/operators/ninepointlinearop.hpp>
+#include <ql/methods/finitedifferences/operators/triplebandlinearop.hpp>
 #include <ql/processes/hestonprocess.hpp>
 #include <ql/processes/hullwhiteprocess.hpp>
-#include <ql/methods/finitedifferences/operators/fdmhullwhiteop.hpp>
-#include <ql/methods/finitedifferences/operators/firstderivativeop.hpp>
-#include <ql/methods/finitedifferences/operators/triplebandlinearop.hpp>
-#include <ql/methods/finitedifferences/operators/ninepointlinearop.hpp>
-#include <ql/methods/finitedifferences/operators/fdmlinearopcomposite.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class HullWhite;
 
-    class FdmHestonHullWhiteEquityPart {
+    class FdmHestonHullWhiteEquityPart
+    {
       public:
         FdmHestonHullWhiteEquityPart(const ext::shared_ptr<FdmMesher>& mesher,
                                      ext::shared_ptr<HullWhite> hwModel,
@@ -50,7 +52,7 @@ namespace QuantLib {
       protected:
         const Array x_;
         Array varianceValues_, volatilityValues_;
-        const FirstDerivativeOp  dxMap_;
+        const FirstDerivativeOp dxMap_;
         const TripleBandLinearOp dxxMap_;
         TripleBandLinearOp mapT_;
 
@@ -59,13 +61,13 @@ namespace QuantLib {
         const ext::shared_ptr<YieldTermStructure> qTS_;
     };
 
-    class FdmHestonHullWhiteOp : public FdmLinearOpComposite {
+    class FdmHestonHullWhiteOp : public FdmLinearOpComposite
+    {
       public:
-        FdmHestonHullWhiteOp(
-            const ext::shared_ptr<FdmMesher>& mesher,
-            const ext::shared_ptr<HestonProcess>& hestonProcess,
-            const ext::shared_ptr<HullWhiteProcess>& hwProcess,
-            Real equityShortRateCorrelation);
+        FdmHestonHullWhiteOp(const ext::shared_ptr<FdmMesher>& mesher,
+                             const ext::shared_ptr<HestonProcess>& hestonProcess,
+                             const ext::shared_ptr<HullWhiteProcess>& hwProcess,
+                             Real equityShortRateCorrelation);
 
         Size size() const override;
         void setTime(Time t1, Time t2) override;

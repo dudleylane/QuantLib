@@ -14,4 +14,3 @@
 #include <ql/experimental/volatility/sviinterpolation.hpp>
 #include <ql/experimental/volatility/svismilesection.hpp>
 #include <ql/experimental/volatility/volcube.hpp>
-

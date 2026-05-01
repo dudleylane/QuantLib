@@ -23,25 +23,36 @@
 #include <ql/cashflows/digitaliborcoupon.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    DigitalIborCoupon::DigitalIborCoupon(
-                      const ext::shared_ptr<IborCoupon>& underlying,
-                      Rate callStrike,
-                      Position::Type callPosition,
-                      bool isCallATMIncluded,
-                      Rate callDigitalPayoff,
-                      Rate putStrike,
-                      Position::Type putPosition,
-                      bool isPutATMIncluded,
-                      Rate putDigitalPayoff,
-                      const ext::shared_ptr<DigitalReplication>& replication,
-                      bool nakedOption)
-    : DigitalCoupon(underlying, callStrike, callPosition, isCallATMIncluded,
-                    callDigitalPayoff, putStrike, putPosition,
-                    isPutATMIncluded, putDigitalPayoff, replication, nakedOption) {}
+    DigitalIborCoupon::DigitalIborCoupon(const ext::shared_ptr<IborCoupon>& underlying,
+                                         Rate callStrike,
+                                         Position::Type callPosition,
+                                         bool isCallATMIncluded,
+                                         Rate callDigitalPayoff,
+                                         Rate putStrike,
+                                         Position::Type putPosition,
+                                         bool isPutATMIncluded,
+                                         Rate putDigitalPayoff,
+                                         const ext::shared_ptr<DigitalReplication>& replication,
+                                         bool nakedOption)
+    : DigitalCoupon(underlying,
+                    callStrike,
+                    callPosition,
+                    isCallATMIncluded,
+                    callDigitalPayoff,
+                    putStrike,
+                    putPosition,
+                    isPutATMIncluded,
+                    putDigitalPayoff,
+                    replication,
+                    nakedOption)
+    {
+    }
 
-    void DigitalIborCoupon::accept(AcyclicVisitor& v) {
+    void DigitalIborCoupon::accept(AcyclicVisitor& v)
+    {
         typedef DigitalCoupon super;
         auto* v1 = dynamic_cast<Visitor<DigitalIborCoupon>*>(&v);
         if (v1 != nullptr)
@@ -52,154 +63,166 @@ namespace QuantLib {
 
 
     DigitalIborLeg::DigitalIborLeg(Schedule schedule, ext::shared_ptr<IborIndex> index)
-    : schedule_(std::move(schedule)), index_(std::move(index)) {}
+    : schedule_(std::move(schedule)), index_(std::move(index))
+    {
+    }
 
-    DigitalIborLeg& DigitalIborLeg::withNotionals(Real notional) {
-        notionals_ = std::vector<Real>(1,notional);
+    DigitalIborLeg& DigitalIborLeg::withNotionals(Real notional)
+    {
+        notionals_ = std::vector<Real>(1, notional);
         return *this;
     }
 
-    DigitalIborLeg& DigitalIborLeg::withNotionals(
-                                         const std::vector<Real>& notionals) {
+    DigitalIborLeg& DigitalIborLeg::withNotionals(const std::vector<Real>& notionals)
+    {
         notionals_ = notionals;
         return *this;
     }
 
-    DigitalIborLeg& DigitalIborLeg::withPaymentDayCounter(
-                                               const DayCounter& dayCounter) {
+    DigitalIborLeg& DigitalIborLeg::withPaymentDayCounter(const DayCounter& dayCounter)
+    {
         paymentDayCounter_ = dayCounter;
         return *this;
     }
 
-    DigitalIborLeg& DigitalIborLeg::withPaymentAdjustment(
-                                           BusinessDayConvention convention) {
+    DigitalIborLeg& DigitalIborLeg::withPaymentAdjustment(BusinessDayConvention convention)
+    {
         paymentAdjustment_ = convention;
         return *this;
     }
 
-    DigitalIborLeg& DigitalIborLeg::withFixingDays(Natural fixingDays) {
-        fixingDays_ = std::vector<Natural>(1,fixingDays);
+    DigitalIborLeg& DigitalIborLeg::withFixingDays(Natural fixingDays)
+    {
+        fixingDays_ = std::vector<Natural>(1, fixingDays);
         return *this;
     }
 
-    DigitalIborLeg& DigitalIborLeg::withFixingDays(
-                                     const std::vector<Natural>& fixingDays) {
+    DigitalIborLeg& DigitalIborLeg::withFixingDays(const std::vector<Natural>& fixingDays)
+    {
         fixingDays_ = fixingDays;
         return *this;
     }
 
-    DigitalIborLeg& DigitalIborLeg::withGearings(Real gearing) {
-        gearings_ = std::vector<Real>(1,gearing);
+    DigitalIborLeg& DigitalIborLeg::withGearings(Real gearing)
+    {
+        gearings_ = std::vector<Real>(1, gearing);
         return *this;
     }
 
-    DigitalIborLeg& DigitalIborLeg::withGearings(
-                                          const std::vector<Real>& gearings) {
+    DigitalIborLeg& DigitalIborLeg::withGearings(const std::vector<Real>& gearings)
+    {
         gearings_ = gearings;
         return *this;
     }
 
-    DigitalIborLeg& DigitalIborLeg::withSpreads(Spread spread) {
-        spreads_ = std::vector<Spread>(1,spread);
+    DigitalIborLeg& DigitalIborLeg::withSpreads(Spread spread)
+    {
+        spreads_ = std::vector<Spread>(1, spread);
         return *this;
     }
 
-    DigitalIborLeg& DigitalIborLeg::withSpreads(
-                                         const std::vector<Spread>& spreads) {
+    DigitalIborLeg& DigitalIborLeg::withSpreads(const std::vector<Spread>& spreads)
+    {
         spreads_ = spreads;
         return *this;
     }
 
-    DigitalIborLeg& DigitalIborLeg::inArrears(bool flag) {
+    DigitalIborLeg& DigitalIborLeg::inArrears(bool flag)
+    {
         inArrears_ = flag;
         return *this;
     }
 
-    DigitalIborLeg& DigitalIborLeg::withCallStrikes(Rate strike) {
-        callStrikes_ = std::vector<Rate>(1,strike);
+    DigitalIborLeg& DigitalIborLeg::withCallStrikes(Rate strike)
+    {
+        callStrikes_ = std::vector<Rate>(1, strike);
         return *this;
     }
 
-    DigitalIborLeg& DigitalIborLeg::withCallStrikes(
-                                           const std::vector<Rate>& strikes) {
+    DigitalIborLeg& DigitalIborLeg::withCallStrikes(const std::vector<Rate>& strikes)
+    {
         callStrikes_ = strikes;
         return *this;
     }
 
-    DigitalIborLeg& DigitalIborLeg::withLongCallOption(Position::Type type) {
+    DigitalIborLeg& DigitalIborLeg::withLongCallOption(Position::Type type)
+    {
         longCallOption_ = type;
         return *this;
     }
 
-    DigitalIborLeg& DigitalIborLeg::withCallATM(bool flag) {
+    DigitalIborLeg& DigitalIborLeg::withCallATM(bool flag)
+    {
         callATM_ = flag;
         return *this;
     }
 
-    DigitalIborLeg& DigitalIborLeg::withCallPayoffs(Rate payoff) {
-        callPayoffs_ = std::vector<Rate>(1,payoff);
+    DigitalIborLeg& DigitalIborLeg::withCallPayoffs(Rate payoff)
+    {
+        callPayoffs_ = std::vector<Rate>(1, payoff);
         return *this;
     }
 
-    DigitalIborLeg& DigitalIborLeg::withCallPayoffs(
-                                           const std::vector<Rate>& payoffs) {
+    DigitalIborLeg& DigitalIborLeg::withCallPayoffs(const std::vector<Rate>& payoffs)
+    {
         callPayoffs_ = payoffs;
         return *this;
     }
 
-    DigitalIborLeg& DigitalIborLeg::withPutStrikes(Rate strike) {
-        putStrikes_ = std::vector<Rate>(1,strike);
+    DigitalIborLeg& DigitalIborLeg::withPutStrikes(Rate strike)
+    {
+        putStrikes_ = std::vector<Rate>(1, strike);
         return *this;
     }
 
-    DigitalIborLeg& DigitalIborLeg::withPutStrikes(
-                                           const std::vector<Rate>& strikes) {
+    DigitalIborLeg& DigitalIborLeg::withPutStrikes(const std::vector<Rate>& strikes)
+    {
         putStrikes_ = strikes;
         return *this;
     }
 
-    DigitalIborLeg& DigitalIborLeg::withLongPutOption(Position::Type type) {
+    DigitalIborLeg& DigitalIborLeg::withLongPutOption(Position::Type type)
+    {
         longPutOption_ = type;
         return *this;
     }
 
-    DigitalIborLeg& DigitalIborLeg::withPutATM(bool flag) {
+    DigitalIborLeg& DigitalIborLeg::withPutATM(bool flag)
+    {
         putATM_ = flag;
         return *this;
     }
 
-    DigitalIborLeg& DigitalIborLeg::withPutPayoffs(Rate payoff) {
-        putPayoffs_ = std::vector<Rate>(1,payoff);
+    DigitalIborLeg& DigitalIborLeg::withPutPayoffs(Rate payoff)
+    {
+        putPayoffs_ = std::vector<Rate>(1, payoff);
         return *this;
     }
 
-    DigitalIborLeg& DigitalIborLeg::withPutPayoffs(
-                                           const std::vector<Rate>& payoffs) {
+    DigitalIborLeg& DigitalIborLeg::withPutPayoffs(const std::vector<Rate>& payoffs)
+    {
         putPayoffs_ = payoffs;
         return *this;
     }
 
-    DigitalIborLeg& DigitalIborLeg::withReplication(
-                   const ext::shared_ptr<DigitalReplication>& replication) {
+    DigitalIborLeg& DigitalIborLeg::withReplication(const ext::shared_ptr<DigitalReplication>& replication)
+    {
         replication_ = replication;
         return *this;
     }
 
-    DigitalIborLeg& DigitalIborLeg::withNakedOption(bool nakedOption) {
+    DigitalIborLeg& DigitalIborLeg::withNakedOption(bool nakedOption)
+    {
         nakedOption_ = nakedOption;
         return *this;
     }
 
-    DigitalIborLeg::operator Leg() const {
+    DigitalIborLeg::operator Leg() const
+    {
         return FloatingDigitalLeg<IborIndex, IborCoupon, DigitalIborCoupon>(
-                            schedule_, notionals_, index_, paymentDayCounter_,
-                            paymentAdjustment_, fixingDays_,
-                            gearings_, spreads_, inArrears_,
-                            callStrikes_, longCallOption_,
-                            callATM_, callPayoffs_,
-                            putStrikes_, longPutOption_,
-                            putATM_, putPayoffs_,
-                            replication_, nakedOption_);
+            schedule_, notionals_, index_, paymentDayCounter_, paymentAdjustment_, fixingDays_, gearings_, spreads_,
+            inArrears_, callStrikes_, longCallOption_, callATM_, callPayoffs_, putStrikes_, longPutOption_, putATM_,
+            putPayoffs_, replication_, nakedOption_);
     }
 
 }

@@ -19,44 +19,51 @@
 
 #include <ql/experimental/commodities/commoditypricinghelpers.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    void CommodityPricingHelper::createPricingPeriods(
-                          Date startDate, Date endDate,
-                          const Quantity& quantity,
-                          EnergyCommodity::DeliverySchedule deliverySchedule,
-                          EnergyCommodity::QuantityPeriodicity qtyPeriodicity,
-                          const PaymentTerm& paymentTerm,
-                          PricingPeriods& pricingPeriods) {
-        if (deliverySchedule == EnergyCommodity::Monthly) {
+    void CommodityPricingHelper::createPricingPeriods(Date startDate,
+                                                      Date endDate,
+                                                      const Quantity& quantity,
+                                                      EnergyCommodity::DeliverySchedule deliverySchedule,
+                                                      EnergyCommodity::QuantityPeriodicity qtyPeriodicity,
+                                                      const PaymentTerm& paymentTerm,
+                                                      PricingPeriods& pricingPeriods)
+    {
+        if (deliverySchedule == EnergyCommodity::Monthly)
+        {
             Quantity periodQuantity;
-            if (qtyPeriodicity == EnergyCommodity::PerMonth) {
+            if (qtyPeriodicity == EnergyCommodity::PerMonth)
+            {
                 periodQuantity = quantity;
-            } else {
+            }
+            else
+            {
                 QL_FAIL("Invalid period quantity/pricing period combination.");
             }
 
-            for (Date periodStartDate=startDate; periodStartDate<endDate; ) {
+            for (Date periodStartDate = startDate; periodStartDate < endDate;)
+            {
                 Date periodEndDate = (periodStartDate + (1 * Months)) - 1;
                 Date paymentDate = paymentTerm.getPaymentDate(periodEndDate);
-                pricingPeriods.push_back(ext::make_shared<PricingPeriod>(
-                             periodStartDate, periodEndDate,
-                                               paymentDate, periodQuantity));
+                pricingPeriods.push_back(
+                    ext::make_shared<PricingPeriod>(periodStartDate, periodEndDate, paymentDate, periodQuantity));
                 periodStartDate = periodEndDate + 1;
             }
-        } else if (deliverySchedule == EnergyCommodity::Daily) {
+        }
+        else if (deliverySchedule == EnergyCommodity::Daily)
+        {
             QL_REQUIRE(qtyPeriodicity == EnergyCommodity::PerDay,
                        "Invalid period quantity/pricing period combination.");
 
-            for (Date periodStartDate=startDate; periodStartDate<endDate; ) {
+            for (Date periodStartDate = startDate; periodStartDate < endDate;)
+            {
                 Date periodEndDate = (periodStartDate + (1 * Months)) - 1;
 
-                Quantity periodQuantity =
-                    quantity * (periodEndDate - periodStartDate);
+                Quantity periodQuantity = quantity * (periodEndDate - periodStartDate);
                 Date paymentDate = paymentTerm.getPaymentDate(periodEndDate);
-                pricingPeriods.push_back(ext::make_shared<PricingPeriod>(
-                             periodStartDate, periodEndDate,
-                                               paymentDate, periodQuantity));
+                pricingPeriods.push_back(
+                    ext::make_shared<PricingPeriod>(periodStartDate, periodEndDate, paymentDate, periodQuantity));
                 periodStartDate = periodEndDate + 1;
             }
         }

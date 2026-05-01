@@ -20,35 +20,41 @@
 #include <ql/experimental/volatility/blackvolsurface.hpp>
 #include <ql/termstructures/volatility/smilesection.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    BlackVolSurface::BlackVolSurface(BusinessDayConvention bdc,
-                                     const DayCounter& dc)
-    : BlackAtmVolCurve(bdc, dc) {}
+    BlackVolSurface::BlackVolSurface(BusinessDayConvention bdc, const DayCounter& dc) : BlackAtmVolCurve(bdc, dc) {}
 
     BlackVolSurface::BlackVolSurface(const Date& refDate,
                                      const Calendar& cal,
                                      BusinessDayConvention bdc,
                                      const DayCounter& dc)
-    : BlackAtmVolCurve(refDate, cal, bdc, dc) {}
+    : BlackAtmVolCurve(refDate, cal, bdc, dc)
+    {
+    }
 
     BlackVolSurface::BlackVolSurface(Natural settlDays,
                                      const Calendar& cal,
                                      BusinessDayConvention bdc,
                                      const DayCounter& dc)
-    : BlackAtmVolCurve(settlDays, cal, bdc, dc) {}
+    : BlackAtmVolCurve(settlDays, cal, bdc, dc)
+    {
+    }
 
-    Real BlackVolSurface::atmVarianceImpl(Time t) const {
+    Real BlackVolSurface::atmVarianceImpl(Time t) const
+    {
         const ext::shared_ptr<SmileSection>& s = smileSectionImpl(t);
         return s->variance(s->atmLevel());
     }
 
-    Volatility BlackVolSurface::atmVolImpl(Time t) const {
+    Volatility BlackVolSurface::atmVolImpl(Time t) const
+    {
         const ext::shared_ptr<SmileSection>& s = smileSectionImpl(t);
         return s->volatility(s->atmLevel());
     }
 
-    void BlackVolSurface::accept(AcyclicVisitor& v) {
+    void BlackVolSurface::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<BlackVolSurface>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);

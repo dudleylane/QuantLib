@@ -27,7 +27,8 @@
 #include <ql/instruments/multiassetoption.hpp>
 #include <ql/instruments/payoffs.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Two-asset correlation %option
     /*! This option pays a payoff based on the value at exercise of
@@ -37,14 +38,12 @@ namespace QuantLib {
 
         \ingroup instruments
     */
-    class TwoAssetCorrelationOption : public MultiAssetOption {
+    class TwoAssetCorrelationOption : public MultiAssetOption
+    {
       public:
         class arguments;
         class engine;
-        TwoAssetCorrelationOption(Option::Type type,
-                                  Real strike1,
-                                  Real strike2,
-                                  const ext::shared_ptr<Exercise>&);
+        TwoAssetCorrelationOption(Option::Type type, Real strike1, Real strike2, const ext::shared_ptr<Exercise>&);
         void setupArguments(PricingEngine::arguments*) const override;
 
       protected:
@@ -52,11 +51,12 @@ namespace QuantLib {
     };
 
     //! %Arguments for two-asset correlation %option
-    class TwoAssetCorrelationOption::arguments
-        : public MultiAssetOption::arguments {
+    class TwoAssetCorrelationOption::arguments : public MultiAssetOption::arguments
+    {
       public:
         arguments() : X2(Null<Real>()) {}
-        void validate() const override {
+        void validate() const override
+        {
             MultiAssetOption::arguments::validate();
             QL_REQUIRE(X2 != Null<Real>(), "no X2 given");
         }
@@ -65,8 +65,9 @@ namespace QuantLib {
 
     //! Base class for two-asset correlation %option engines
     class TwoAssetCorrelationOption::engine
-        : public GenericEngine<TwoAssetCorrelationOption::arguments,
-                               TwoAssetCorrelationOption::results> {};
+    : public GenericEngine<TwoAssetCorrelationOption::arguments, TwoAssetCorrelationOption::results>
+    {
+    };
 
 }
 

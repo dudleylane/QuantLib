@@ -26,12 +26,13 @@
 #ifndef quantlib_yield_term_structure_hpp
 #define quantlib_yield_term_structure_hpp
 
-#include <ql/termstructure.hpp>
 #include <ql/interestrate.hpp>
 #include <ql/quote.hpp>
+#include <ql/termstructure.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class MultiCurveBootstrapContributor;
 
@@ -43,7 +44,8 @@ namespace QuantLib {
 
         \test observability against evaluation date changes is checked.
     */
-    class YieldTermStructure : public TermStructure {
+    class YieldTermStructure : public TermStructure
+    {
       public:
         /*! \name Constructors
             See the TermStructure documentation for issues regarding
@@ -54,12 +56,12 @@ namespace QuantLib {
         YieldTermStructure(const Date& referenceDate,
                            const Calendar& cal = Calendar(),
                            const DayCounter& dc = DayCounter(),
-                           std::vector<Handle<Quote> > jumps = {},
+                           std::vector<Handle<Quote>> jumps = {},
                            const std::vector<Date>& jumpDates = {});
         YieldTermStructure(Natural settlementDays,
                            const Calendar& cal,
                            const DayCounter& dc = DayCounter(),
-                           std::vector<Handle<Quote> > jumps = {},
+                           std::vector<Handle<Quote>> jumps = {},
                            const std::vector<Date>& jumpDates = {});
         //@}
 
@@ -70,13 +72,11 @@ namespace QuantLib {
             as a fraction of year from the reference date.
         */
         //@{
-        DiscountFactor discount(const Date& d,
-                                bool extrapolate = false) const;
+        DiscountFactor discount(const Date& d, bool extrapolate = false) const;
         /*! The same day-counting rule used by the term structure
             should be used for calculating the passed time t.
         */
-        DiscountFactor discount(Time t,
-                                bool extrapolate = false) const;
+        DiscountFactor discount(Time t, bool extrapolate = false) const;
         //@}
 
         /*! \name Zero-yield rates
@@ -99,10 +99,7 @@ namespace QuantLib {
             used by the term structure. The same rule should be used
             for calculating the passed time t.
         */
-        InterestRate zeroRate(Time t,
-                              Compounding comp,
-                              Frequency freq = Annual,
-                              bool extrapolate = false) const;
+        InterestRate zeroRate(Time t, Compounding comp, Frequency freq = Annual, bool extrapolate = false) const;
         //@}
 
         /*! \name Forward rates
@@ -139,11 +136,8 @@ namespace QuantLib {
             used by the term structure. The same rule should be used
             for calculating the passed times t1 and t2.
         */
-        InterestRate forwardRate(Time t1,
-                                 Time t2,
-                                 Compounding comp,
-                                 Frequency freq = Annual,
-                                 bool extrapolate = false) const;
+        InterestRate
+        forwardRate(Time t1, Time t2, Compounding comp, Frequency freq = Annual, bool extrapolate = false) const;
         //@}
 
         //! \name Jump inspectors
@@ -173,7 +167,7 @@ namespace QuantLib {
         // methods
         void setJumps(const Date& referenceDate);
         // data members
-        std::vector<Handle<Quote> > jumps_;
+        std::vector<Handle<Quote>> jumps_;
         std::vector<Date> jumpDates_;
         std::vector<Time> jumpTimes_;
         Size nJumps_ = 0;
@@ -182,27 +176,28 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline
-    DiscountFactor YieldTermStructure::discount(const Date& d,
-                                                bool extrapolate) const {
+    inline DiscountFactor YieldTermStructure::discount(const Date& d, bool extrapolate) const
+    {
         return discount(timeFromReference(d), extrapolate);
     }
 
-    inline
-    InterestRate YieldTermStructure::forwardRate(const Date& d,
-                                                 const Period& p,
-                                                 const DayCounter& dayCounter,
-                                                 Compounding comp,
-                                                 Frequency freq,
-                                                 bool extrapolate) const {
-        return forwardRate(d, d+p, dayCounter, comp, freq, extrapolate);
+    inline InterestRate YieldTermStructure::forwardRate(const Date& d,
+                                                        const Period& p,
+                                                        const DayCounter& dayCounter,
+                                                        Compounding comp,
+                                                        Frequency freq,
+                                                        bool extrapolate) const
+    {
+        return forwardRate(d, d + p, dayCounter, comp, freq, extrapolate);
     }
 
-    inline const std::vector<Date>& YieldTermStructure::jumpDates() const {
+    inline const std::vector<Date>& YieldTermStructure::jumpDates() const
+    {
         return this->jumpDates_;
     }
 
-    inline const std::vector<Time>& YieldTermStructure::jumpTimes() const {
+    inline const std::vector<Time>& YieldTermStructure::jumpTimes() const
+    {
         return this->jumpTimes_;
     }
 

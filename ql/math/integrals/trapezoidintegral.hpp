@@ -25,11 +25,12 @@
 #ifndef quantlib_trapezoid_integral_hpp
 #define quantlib_trapezoid_integral_hpp
 
+#include <ql/errors.hpp>
 #include <ql/math/integrals/integral.hpp>
 #include <ql/utilities/null.hpp>
-#include <ql/errors.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Integral of a one-dimensional function
     /*! Given a target accuracy \f$ \epsilon \f$, the integral of
@@ -49,27 +50,28 @@ namespace QuantLib {
               against known good values.
     */
     template <class IntegrationPolicy>
-    class TrapezoidIntegral : public Integrator {
+    class TrapezoidIntegral : public Integrator
+    {
       public:
-        TrapezoidIntegral(Real accuracy,
-                          Size maxIterations)
-        : Integrator(accuracy, maxIterations){}
+        TrapezoidIntegral(Real accuracy, Size maxIterations) : Integrator(accuracy, maxIterations) {}
 
       protected:
-        Real integrate(const std::function<Real(Real)>& f, Real a, Real b) const override {
+        Real integrate(const std::function<Real(Real)>& f, Real a, Real b) const override
+        {
 
             // start from the coarsest trapezoid...
             Size N = 1;
-            Real I = (f(a)+f(b))*(b-a)/2.0, newI;
+            Real I = (f(a) + f(b)) * (b - a) / 2.0, newI;
             increaseNumberOfEvaluations(2);
             // ...and refine it
             Size i = 1;
-            do {
-                newI = IntegrationPolicy::integrate(f,a,b,I,N);
-                increaseNumberOfEvaluations(N*(IntegrationPolicy::nbEvalutions()-1));
+            do
+            {
+                newI = IntegrationPolicy::integrate(f, a, b, I, N);
+                increaseNumberOfEvaluations(N * (IntegrationPolicy::nbEvalutions() - 1));
                 N *= IntegrationPolicy::nbEvalutions();
                 // good enough? Also, don't run away immediately
-                if (std::fabs(I-newI) <= absoluteAccuracy() && i > 5)
+                if (std::fabs(I - newI) <= absoluteAccuracy() && i > 5)
                     // ok, exit
                     return newI;
                 // oh well. Another step.
@@ -81,39 +83,33 @@ namespace QuantLib {
     };
 
     // Integration policies
-    struct Default {
-        static Real integrate(const std::function<Real (Real)>& f, 
-                                     Real a, 
-                                     Real b, 
-                                     Real I, 
-                                     Size N)
+    struct Default
+    {
+        static Real integrate(const std::function<Real(Real)>& f, Real a, Real b, Real I, Size N)
         {
             Real sum = 0.0;
-            Real dx = (b-a)/N;
-            Real x = a + dx/2.0;
-            for (Size i=0; i<N; x += dx, ++i)
+            Real dx = (b - a) / N;
+            Real x = a + dx / 2.0;
+            for (Size i = 0; i < N; x += dx, ++i)
                 sum += f(x);
-            return (I + dx*sum)/2.0;
+            return (I + dx * sum) / 2.0;
         }
-        static Size nbEvalutions(){ return 2;}
+        static Size nbEvalutions() { return 2; }
     };
 
-    struct MidPoint {
-        static Real integrate(const std::function<Real (Real)>& f,
-                                     Real a, 
-                                     Real b, 
-                                     Real I, 
-                                     Size N)
+    struct MidPoint
+    {
+        static Real integrate(const std::function<Real(Real)>& f, Real a, Real b, Real I, Size N)
         {
             Real sum = 0.0;
-            Real dx = (b-a)/N;
-            Real x = a + dx/6.0;
-            Real D = 2.0*dx/3.0;
-            for (Size i=0; i<N; x += dx, ++i)
-                sum += f(x) + f(x+D);
-            return (I + dx*sum)/3.0;
+            Real dx = (b - a) / N;
+            Real x = a + dx / 6.0;
+            Real D = 2.0 * dx / 3.0;
+            for (Size i = 0; i < N; x += dx, ++i)
+                sum += f(x) + f(x + D);
+            return (I + dx * sum) / 3.0;
         }
-        static Size nbEvalutions(){ return 3;}
+        static Size nbEvalutions() { return 3; }
     };
 
 }

@@ -30,27 +30,23 @@
 #include <utility>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
     class FdmLinearOpLayout;
     class FdmLinearOpIterator;
 
-    class FdmMesher {
+    class FdmMesher
+    {
       public:
-        explicit FdmMesher(ext::shared_ptr<FdmLinearOpLayout> layout)
-        : layout_(std::move(layout)) {}
+        explicit FdmMesher(ext::shared_ptr<FdmLinearOpLayout> layout) : layout_(std::move(layout)) {}
         virtual ~FdmMesher() = default;
 
-        virtual Real dplus(const FdmLinearOpIterator& iter,
-                           Size direction)  const = 0;
-        virtual Real dminus(const FdmLinearOpIterator& iter,
-                            Size direction) const = 0;
-        virtual Real location(const FdmLinearOpIterator& iter ,
-                              Size direction) const = 0;
+        virtual Real dplus(const FdmLinearOpIterator& iter, Size direction) const = 0;
+        virtual Real dminus(const FdmLinearOpIterator& iter, Size direction) const = 0;
+        virtual Real location(const FdmLinearOpIterator& iter, Size direction) const = 0;
         virtual Array locations(Size direction) const = 0;
 
-        const ext::shared_ptr<FdmLinearOpLayout>& layout() const {
-            return layout_;
-        }
+        const ext::shared_ptr<FdmLinearOpLayout>& layout() const { return layout_; }
 
       protected:
         const ext::shared_ptr<FdmLinearOpLayout> layout_;

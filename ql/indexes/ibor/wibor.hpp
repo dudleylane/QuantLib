@@ -24,29 +24,38 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #ifndef quantlib_wibor_hpp
 #define quantlib_wibor_hpp
 
+#include <ql/currencies/europe.hpp>
 #include <ql/indexes/iborindex.hpp>
 #include <ql/time/calendars/poland.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
-#include <ql/currencies/europe.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-	//! %WIBOR rate
-	/*! Warsaw Interbank Offered Rate fixed by ACI.
+    //! %WIBOR rate
+    /*! Warsaw Interbank Offered Rate fixed by ACI.
 
-	Conventions are taken from
-	http://www.acipolska.pl/images/stories/Rules_for_Fixing_WIBID_and_WIBOR_Reference_Rates_EN.pdf
+    Conventions are taken from
+    http://www.acipolska.pl/images/stories/Rules_for_Fixing_WIBID_and_WIBOR_Reference_Rates_EN.pdf
 
-	\warning Roll convention and EoM not yet checked.
-	*/
-	class Wibor : public IborIndex {
-	public:
-		Wibor(const Period& tenor,
-              const Handle<YieldTermStructure>& h = {})
-			: IborIndex("WIBOR", tenor, (tenor == 1 * Days ? 0 : 2), PLNCurrency(),
-				Poland(Poland::Settlement), ModifiedFollowing, false,
-				Actual365Fixed(), h) {}
-	};
+    \warning Roll convention and EoM not yet checked.
+    */
+    class Wibor : public IborIndex
+    {
+      public:
+        Wibor(const Period& tenor, const Handle<YieldTermStructure>& h = {})
+        : IborIndex("WIBOR",
+                    tenor,
+                    (tenor == 1 * Days ? 0 : 2),
+                    PLNCurrency(),
+                    Poland(Poland::Settlement),
+                    ModifiedFollowing,
+                    false,
+                    Actual365Fixed(),
+                    h)
+        {
+        }
+    };
 
 }
 

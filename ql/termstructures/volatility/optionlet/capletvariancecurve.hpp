@@ -25,18 +25,20 @@
 #ifndef quantlib_caplet_variance_curve_hpp
 #define quantlib_caplet_variance_curve_hpp
 
-#include <ql/termstructures/volatility/optionlet/optionletvolatilitystructure.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvariancecurve.hpp>
 #include <ql/termstructures/volatility/flatsmilesection.hpp>
+#include <ql/termstructures/volatility/optionlet/optionletvolatilitystructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class CapletVarianceCurve : public OptionletVolatilityStructure {
+    class CapletVarianceCurve : public OptionletVolatilityStructure
+    {
       public:
-        CapletVarianceCurve(const Date &referenceDate,
-                            const std::vector< Date > &dates,
-                            const std::vector< Volatility > &capletVolCurve,
-                            const DayCounter &dayCounter,
+        CapletVarianceCurve(const Date& referenceDate,
+                            const std::vector<Date>& dates,
+                            const std::vector<Volatility>& capletVolCurve,
+                            const DayCounter& dayCounter,
                             VolatilityType type = ShiftedLognormal,
                             Real displacement = 0.0);
         //! \name TermStructure interface
@@ -59,47 +61,56 @@ namespace QuantLib {
         Real displacement_;
     };
 
-    inline CapletVarianceCurve::CapletVarianceCurve(
-        const Date &referenceDate, const std::vector< Date > &dates,
-        const std::vector< Volatility > &capletVolCurve,
-        const DayCounter &dayCounter, VolatilityType type, Real displacement)
-        : OptionletVolatilityStructure(referenceDate, Calendar(), Following),
-          blackCurve_(referenceDate, dates, capletVolCurve, dayCounter, false),
-          type_(type), displacement_(displacement) {}
+    inline CapletVarianceCurve::CapletVarianceCurve(const Date& referenceDate,
+                                                    const std::vector<Date>& dates,
+                                                    const std::vector<Volatility>& capletVolCurve,
+                                                    const DayCounter& dayCounter,
+                                                    VolatilityType type,
+                                                    Real displacement)
+    : OptionletVolatilityStructure(referenceDate, Calendar(), Following),
+      blackCurve_(referenceDate, dates, capletVolCurve, dayCounter, false), type_(type), displacement_(displacement)
+    {
+    }
 
-    inline DayCounter CapletVarianceCurve::dayCounter() const {
+    inline DayCounter CapletVarianceCurve::dayCounter() const
+    {
         return blackCurve_.dayCounter();
     }
 
-    inline Date CapletVarianceCurve::maxDate() const {
+    inline Date CapletVarianceCurve::maxDate() const
+    {
         return blackCurve_.maxDate();
     }
 
-    inline Real CapletVarianceCurve::minStrike() const {
+    inline Real CapletVarianceCurve::minStrike() const
+    {
         return blackCurve_.minStrike();
     }
 
-    inline Real CapletVarianceCurve::maxStrike() const {
+    inline Real CapletVarianceCurve::maxStrike() const
+    {
         return blackCurve_.maxStrike();
     }
 
-    inline ext::shared_ptr<SmileSection>
-    CapletVarianceCurve::smileSectionImpl(Time t) const {
+    inline ext::shared_ptr<SmileSection> CapletVarianceCurve::smileSectionImpl(Time t) const
+    {
         // dummy strike
         Volatility atmVol = blackCurve_.blackVol(t, 0.05, true);
         return ext::make_shared<FlatSmileSection>(t, atmVol, dayCounter());
     }
 
-    inline
-    Volatility CapletVarianceCurve::volatilityImpl(Time t, Rate r) const {
+    inline Volatility CapletVarianceCurve::volatilityImpl(Time t, Rate r) const
+    {
         return blackCurve_.blackVol(t, r, true);
     }
 
-    inline VolatilityType CapletVarianceCurve::volatilityType() const {
+    inline VolatilityType CapletVarianceCurve::volatilityType() const
+    {
         return type_;
     }
 
-    inline Real CapletVarianceCurve::displacement() const {
+    inline Real CapletVarianceCurve::displacement() const
+    {
         return displacement_;
     }
 }

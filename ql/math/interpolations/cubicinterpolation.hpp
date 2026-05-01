@@ -29,24 +29,26 @@
 #ifndef quantlib_cubic_interpolation_hpp
 #define quantlib_cubic_interpolation_hpp
 
-#include <algorithm>
-#include <ql/math/matrix.hpp>
 #include <ql/math/interpolation.hpp>
+#include <ql/math/matrix.hpp>
 #include <ql/methods/finitedifferences/tridiagonaloperator.hpp>
+#include <algorithm>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace detail {
+    namespace detail
+    {
 
-        class CubicInterpolationBaseImpl : public Interpolation::Impl {
+        class CubicInterpolationBaseImpl : public Interpolation::Impl
+        {
           public:
-            CubicInterpolationBaseImpl(Size n,
-                                       Real leftConditionValue,
-                                       Real rightConditionValue)
-            : primitiveConst_(n-1), a_(n-1), b_(n-1), c_(n-1),
-              monotonicityAdjustments_(n),
-              leftValue_(leftConditionValue), rightValue_(rightConditionValue) {}
+            CubicInterpolationBaseImpl(Size n, Real leftConditionValue, Real rightConditionValue)
+            : primitiveConst_(n - 1), a_(n - 1), b_(n - 1), c_(n - 1), monotonicityAdjustments_(n),
+              leftValue_(leftConditionValue), rightValue_(rightConditionValue)
+            {
+            }
 
             // P[i](x) = y[i] +
             //           a[i]*(x-x[i]) +
@@ -57,7 +59,8 @@ namespace QuantLib {
             Real leftValue_, rightValue_;
         };
 
-        template <class I1, class I2> class CubicInterpolationImpl;
+        template <class I1, class I2>
+        class CubicInterpolationImpl;
 
     }
 
@@ -106,9 +109,11 @@ namespace QuantLib {
         \warning See the Interpolation class for information about the
                  required lifetime of the underlying data.
     */
-    class CubicInterpolation : public Interpolation {
+    class CubicInterpolation : public Interpolation
+    {
       public:
-        enum DerivativeApprox {
+        enum DerivativeApprox
+        {
             /*! Spline approximation (non-local, non-monotonic, linear[?]).
                 Different boundary conditions can be used on the left and right
                 boundaries: see BoundaryCondition.
@@ -134,12 +139,13 @@ namespace QuantLib {
             Akima,
 
             //! Kruger approximation (local, monotonic, non-linear)
-            Kruger, 
+            Kruger,
 
             //! Weighted harmonic mean approximation (local, monotonic, non-linear)
             Harmonic,
         };
-        enum BoundaryCondition {
+        enum BoundaryCondition
+        {
             //! Make second(-last) point an inactive knot
             NotAKnot,
 
@@ -167,34 +173,23 @@ namespace QuantLib {
                            CubicInterpolation::BoundaryCondition leftCond,
                            Real leftConditionValue,
                            CubicInterpolation::BoundaryCondition rightCond,
-                           Real rightConditionValue) {
-            impl_ = ext::shared_ptr<Interpolation::Impl>(new
-                detail::CubicInterpolationImpl<I1,I2>(xBegin, xEnd, yBegin,
-                                                      da,
-                                                      monotonic,
-                                                      leftCond,
-                                                      leftConditionValue,
-                                                      rightCond,
-                                                      rightConditionValue));
+                           Real rightConditionValue)
+        {
+            impl_ = ext::shared_ptr<Interpolation::Impl>(new detail::CubicInterpolationImpl<I1, I2>(
+                xBegin, xEnd, yBegin, da, monotonic, leftCond, leftConditionValue, rightCond, rightConditionValue));
             impl_->update();
         }
-        const std::vector<Real>& primitiveConstants() const {
-            return baseImpl().primitiveConst_;
-        }
+        const std::vector<Real>& primitiveConstants() const { return baseImpl().primitiveConst_; }
         const std::vector<Real>& aCoefficients() const { return baseImpl().a_; }
         const std::vector<Real>& bCoefficients() const { return baseImpl().b_; }
         const std::vector<Real>& cCoefficients() const { return baseImpl().c_; }
-        const std::vector<bool>& monotonicityAdjustments() const {
-            return baseImpl().monotonicityAdjustments_;
-        }
-        void updateLeftConditionValue(Real value) {
-            baseImpl().leftValue_ = value;
-        }
-        void updateRightConditionValue(Real value) {
-            baseImpl().rightValue_ = value;
-        }
+        const std::vector<bool>& monotonicityAdjustments() const { return baseImpl().monotonicityAdjustments_; }
+        void updateLeftConditionValue(Real value) { baseImpl().leftValue_ = value; }
+        void updateRightConditionValue(Real value) { baseImpl().rightValue_ = value; }
+
       private:
-        detail::CubicInterpolationBaseImpl& baseImpl() const {
+        detail::CubicInterpolationBaseImpl& baseImpl() const
+        {
             // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
             return *static_cast<detail::CubicInterpolationBaseImpl*>(impl_.get());
         }
@@ -203,163 +198,141 @@ namespace QuantLib {
 
     // convenience classes
 
-    class CubicNaturalSpline : public CubicInterpolation {
+    class CubicNaturalSpline : public CubicInterpolation
+    {
       public:
         /*! \pre the \f$ x \f$ values must be sorted. */
         template <class I1, class I2>
-        CubicNaturalSpline(const I1& xBegin,
-                           const I1& xEnd,
-                           const I2& yBegin)
-        : CubicInterpolation(xBegin, xEnd, yBegin,
-                             Spline, false,
-                             SecondDerivative, 0.0,
-                             SecondDerivative, 0.0) {}
+        CubicNaturalSpline(const I1& xBegin, const I1& xEnd, const I2& yBegin)
+        : CubicInterpolation(xBegin, xEnd, yBegin, Spline, false, SecondDerivative, 0.0, SecondDerivative, 0.0)
+        {
+        }
     };
 
-    class MonotonicCubicNaturalSpline : public CubicInterpolation {
+    class MonotonicCubicNaturalSpline : public CubicInterpolation
+    {
       public:
         /*! \pre the \f$ x \f$ values must be sorted. */
         template <class I1, class I2>
-        MonotonicCubicNaturalSpline(const I1& xBegin,
-                                    const I1& xEnd,
-                                    const I2& yBegin)
-        : CubicInterpolation(xBegin, xEnd, yBegin,
-                             Spline, true,
-                             SecondDerivative, 0.0,
-                             SecondDerivative, 0.0) {}
+        MonotonicCubicNaturalSpline(const I1& xBegin, const I1& xEnd, const I2& yBegin)
+        : CubicInterpolation(xBegin, xEnd, yBegin, Spline, true, SecondDerivative, 0.0, SecondDerivative, 0.0)
+        {
+        }
     };
 
-    class CubicSplineOvershootingMinimization1 : public CubicInterpolation {
+    class CubicSplineOvershootingMinimization1 : public CubicInterpolation
+    {
       public:
         /*! \pre the \f$ x \f$ values must be sorted. */
         template <class I1, class I2>
-        CubicSplineOvershootingMinimization1 (const I1& xBegin,
-                                           const I1& xEnd,
-                                           const I2& yBegin)
-        : CubicInterpolation(xBegin, xEnd, yBegin,
-                             SplineOM1, false,
-                             SecondDerivative, 0.0,
-                             SecondDerivative, 0.0) {}
+        CubicSplineOvershootingMinimization1(const I1& xBegin, const I1& xEnd, const I2& yBegin)
+        : CubicInterpolation(xBegin, xEnd, yBegin, SplineOM1, false, SecondDerivative, 0.0, SecondDerivative, 0.0)
+        {
+        }
     };
 
-    class CubicSplineOvershootingMinimization2 : public CubicInterpolation {
+    class CubicSplineOvershootingMinimization2 : public CubicInterpolation
+    {
       public:
         /*! \pre the \f$ x \f$ values must be sorted. */
         template <class I1, class I2>
-        CubicSplineOvershootingMinimization2 (const I1& xBegin,
-                                           const I1& xEnd,
-                                           const I2& yBegin)
-        : CubicInterpolation(xBegin, xEnd, yBegin,
-                             SplineOM2, false,
-                             SecondDerivative, 0.0,
-                             SecondDerivative, 0.0) {}
+        CubicSplineOvershootingMinimization2(const I1& xBegin, const I1& xEnd, const I2& yBegin)
+        : CubicInterpolation(xBegin, xEnd, yBegin, SplineOM2, false, SecondDerivative, 0.0, SecondDerivative, 0.0)
+        {
+        }
     };
 
-    class AkimaCubicInterpolation : public CubicInterpolation {
+    class AkimaCubicInterpolation : public CubicInterpolation
+    {
       public:
         /*! \pre the \f$ x \f$ values must be sorted. */
         template <class I1, class I2>
-        AkimaCubicInterpolation(const I1& xBegin,
-                                const I1& xEnd,
-                                const I2& yBegin)
-        : CubicInterpolation(xBegin, xEnd, yBegin,
-                             Akima, false,
-                             SecondDerivative, 0.0,
-                             SecondDerivative, 0.0) {}
+        AkimaCubicInterpolation(const I1& xBegin, const I1& xEnd, const I2& yBegin)
+        : CubicInterpolation(xBegin, xEnd, yBegin, Akima, false, SecondDerivative, 0.0, SecondDerivative, 0.0)
+        {
+        }
     };
 
-    class KrugerCubic : public CubicInterpolation {
+    class KrugerCubic : public CubicInterpolation
+    {
       public:
         /*! \pre the \f$ x \f$ values must be sorted. */
         template <class I1, class I2>
-        KrugerCubic(const I1& xBegin,
-                    const I1& xEnd,
-                    const I2& yBegin)
-        : CubicInterpolation(xBegin, xEnd, yBegin,
-                             Kruger, false,
-                             SecondDerivative, 0.0,
-                             SecondDerivative, 0.0) {}
+        KrugerCubic(const I1& xBegin, const I1& xEnd, const I2& yBegin)
+        : CubicInterpolation(xBegin, xEnd, yBegin, Kruger, false, SecondDerivative, 0.0, SecondDerivative, 0.0)
+        {
+        }
     };
 
-    class HarmonicCubic : public CubicInterpolation {
+    class HarmonicCubic : public CubicInterpolation
+    {
       public:
         /*! \pre the \f$ x \f$ values must be sorted. */
         template <class I1, class I2>
-        HarmonicCubic(const I1& xBegin,
-                      const I1& xEnd,
-                      const I2& yBegin)
-        : CubicInterpolation(xBegin, xEnd, yBegin,
-                             Harmonic, false,
-                             SecondDerivative, 0.0,
-                             SecondDerivative, 0.0) {}
+        HarmonicCubic(const I1& xBegin, const I1& xEnd, const I2& yBegin)
+        : CubicInterpolation(xBegin, xEnd, yBegin, Harmonic, false, SecondDerivative, 0.0, SecondDerivative, 0.0)
+        {
+        }
     };
 
-    class FritschButlandCubic : public CubicInterpolation {
+    class FritschButlandCubic : public CubicInterpolation
+    {
       public:
         /*! \pre the \f$ x \f$ values must be sorted. */
         template <class I1, class I2>
-        FritschButlandCubic(const I1& xBegin,
-                            const I1& xEnd,
-                            const I2& yBegin)
-        : CubicInterpolation(xBegin, xEnd, yBegin,
-                             FritschButland, true,
-                             SecondDerivative, 0.0,
-                             SecondDerivative, 0.0) {}
+        FritschButlandCubic(const I1& xBegin, const I1& xEnd, const I2& yBegin)
+        : CubicInterpolation(xBegin, xEnd, yBegin, FritschButland, true, SecondDerivative, 0.0, SecondDerivative, 0.0)
+        {
+        }
     };
 
-    class Parabolic : public CubicInterpolation {
+    class Parabolic : public CubicInterpolation
+    {
       public:
         /*! \pre the \f$ x \f$ values must be sorted. */
         template <class I1, class I2>
-        Parabolic(const I1& xBegin,
-                  const I1& xEnd,
-                  const I2& yBegin)
-        : CubicInterpolation(xBegin, xEnd, yBegin,
-                             CubicInterpolation::Parabolic, false,
-                             SecondDerivative, 0.0,
-                             SecondDerivative, 0.0) {}
+        Parabolic(const I1& xBegin, const I1& xEnd, const I2& yBegin)
+        : CubicInterpolation(
+              xBegin, xEnd, yBegin, CubicInterpolation::Parabolic, false, SecondDerivative, 0.0, SecondDerivative, 0.0)
+        {
+        }
     };
 
-    class MonotonicParabolic : public CubicInterpolation {
+    class MonotonicParabolic : public CubicInterpolation
+    {
       public:
         /*! \pre the \f$ x \f$ values must be sorted. */
         template <class I1, class I2>
-        MonotonicParabolic(const I1& xBegin,
-                           const I1& xEnd,
-                           const I2& yBegin)
-        : CubicInterpolation(xBegin, xEnd, yBegin,
-                             Parabolic, true,
-                             SecondDerivative, 0.0,
-                             SecondDerivative, 0.0) {}
+        MonotonicParabolic(const I1& xBegin, const I1& xEnd, const I2& yBegin)
+        : CubicInterpolation(xBegin, xEnd, yBegin, Parabolic, true, SecondDerivative, 0.0, SecondDerivative, 0.0)
+        {
+        }
     };
 
     //! %Cubic interpolation factory and traits
     /*! \ingroup interpolations */
-    class Cubic {
+    class Cubic
+    {
       public:
-        Cubic(CubicInterpolation::DerivativeApprox da
-                  = CubicInterpolation::Kruger,
+        Cubic(CubicInterpolation::DerivativeApprox da = CubicInterpolation::Kruger,
               bool monotonic = false,
-              CubicInterpolation::BoundaryCondition leftCondition
-                  = CubicInterpolation::SecondDerivative,
+              CubicInterpolation::BoundaryCondition leftCondition = CubicInterpolation::SecondDerivative,
               Real leftConditionValue = 0.0,
-              CubicInterpolation::BoundaryCondition rightCondition
-                  = CubicInterpolation::SecondDerivative,
+              CubicInterpolation::BoundaryCondition rightCondition = CubicInterpolation::SecondDerivative,
               Real rightConditionValue = 0.0)
-        : da_(da), monotonic_(monotonic),
-          leftType_(leftCondition), rightType_(rightCondition),
-          leftValue_(leftConditionValue), rightValue_(rightConditionValue) {}
+        : da_(da), monotonic_(monotonic), leftType_(leftCondition), rightType_(rightCondition),
+          leftValue_(leftConditionValue), rightValue_(rightConditionValue)
+        {
+        }
         template <class I1, class I2>
-        Interpolation interpolate(const I1& xBegin,
-                                  const I1& xEnd,
-                                  const I2& yBegin) const {
-            return CubicInterpolation(xBegin, xEnd, yBegin,
-                                      da_, monotonic_,
-                                      leftType_, leftValue_,
-                                      rightType_, rightValue_);
+        Interpolation interpolate(const I1& xBegin, const I1& xEnd, const I2& yBegin) const
+        {
+            return CubicInterpolation(xBegin, xEnd, yBegin, da_, monotonic_, leftType_, leftValue_, rightType_,
+                                      rightValue_);
         }
         static const bool global = true;
         static const Size requiredPoints = 2;
+
       private:
         CubicInterpolation::DerivativeApprox da_;
         bool monotonic_;
@@ -368,11 +341,12 @@ namespace QuantLib {
     };
 
 
-    namespace detail {
+    namespace detail
+    {
 
         template <class I1, class I2>
-        class CubicInterpolationImpl final
-            : public Interpolation::templateImpl<I1, I2, CubicInterpolationBaseImpl> {
+        class CubicInterpolationImpl final : public Interpolation::templateImpl<I1, I2, CubicInterpolationBaseImpl>
+        {
           public:
             CubicInterpolationImpl(const I1& xBegin,
                                    const I1& xEnd,
@@ -384,289 +358,334 @@ namespace QuantLib {
                                    CubicInterpolation::BoundaryCondition rightCondition,
                                    Real rightConditionValue)
             : Interpolation::templateImpl<I1, I2, CubicInterpolationBaseImpl>(
-                xBegin, xEnd, yBegin, Cubic::requiredPoints,
-                xEnd-xBegin, leftConditionValue, rightConditionValue),
-              n_(xEnd-xBegin),
-              da_(da),
-              monotonic_(monotonic),
-              leftType_(leftCondition), rightType_(rightCondition),
-              tmp_(n_), dx_(n_-1), S_(n_-1), L_(n_) {
-                if (leftType_ == CubicInterpolation::Lagrange
-                    || rightType_ == CubicInterpolation::Lagrange) {
-                    QL_REQUIRE((xEnd-xBegin) >= 4,
-                               "Lagrange boundary condition requires at least "
-                               "4 points (" << (xEnd-xBegin) << " are given)"); 
+                  xBegin, xEnd, yBegin, Cubic::requiredPoints, xEnd - xBegin, leftConditionValue, rightConditionValue),
+              n_(xEnd - xBegin), da_(da), monotonic_(monotonic), leftType_(leftCondition), rightType_(rightCondition),
+              tmp_(n_), dx_(n_ - 1), S_(n_ - 1), L_(n_)
+            {
+                if (leftType_ == CubicInterpolation::Lagrange || rightType_ == CubicInterpolation::Lagrange)
+                {
+                    QL_REQUIRE((xEnd - xBegin) >= 4, "Lagrange boundary condition requires at least "
+                                                     "4 points ("
+                                                         << (xEnd - xBegin) << " are given)");
                 }
             }
 
-            void update() override {
+            void update() override
+            {
 
-                for (Size i=0; i<n_-1; ++i) {
-                    dx_[i] = this->xBegin_[i+1] - this->xBegin_[i];
-                    S_[i] = (this->yBegin_[i+1] - this->yBegin_[i])/dx_[i];
+                for (Size i = 0; i < n_ - 1; ++i)
+                {
+                    dx_[i] = this->xBegin_[i + 1] - this->xBegin_[i];
+                    S_[i] = (this->yBegin_[i + 1] - this->yBegin_[i]) / dx_[i];
                 }
 
                 // first derivative approximation
-                if (da_==CubicInterpolation::Spline) {
-                    for (Size i=1; i<n_-1; ++i) {
-                        L_.setMidRow(i, dx_[i], 2.0*(dx_[i]+dx_[i-1]), dx_[i-1]);
-                        tmp_[i] = 3.0*(dx_[i]*S_[i-1] + dx_[i-1]*S_[i]);
+                if (da_ == CubicInterpolation::Spline)
+                {
+                    for (Size i = 1; i < n_ - 1; ++i)
+                    {
+                        L_.setMidRow(i, dx_[i], 2.0 * (dx_[i] + dx_[i - 1]), dx_[i - 1]);
+                        tmp_[i] = 3.0 * (dx_[i] * S_[i - 1] + dx_[i - 1] * S_[i]);
                     }
 
                     // left boundary condition
-                    switch (leftType_) {
-                      case CubicInterpolation::NotAKnot:
-                        // ignoring end condition value
-                        L_.setFirstRow(dx_[1]*(dx_[1]+dx_[0]),
-                                      (dx_[0]+dx_[1])*(dx_[0]+dx_[1]));
-                        tmp_[0] = S_[0]*dx_[1]*(2.0*dx_[1]+3.0*dx_[0]) +
-                                 S_[1]*dx_[0]*dx_[0];
-                        break;
-                      case CubicInterpolation::FirstDerivative:
-                        L_.setFirstRow(1.0, 0.0);
-                        tmp_[0] = this->leftValue_;
-                        break;
-                      case CubicInterpolation::SecondDerivative:
-                        L_.setFirstRow(2.0, 1.0);
-                        tmp_[0] = 3.0*S_[0] - this->leftValue_*dx_[0]/2.0;
-                        break;
-                      case CubicInterpolation::Periodic:
-                        QL_FAIL("this end condition is not implemented yet");
-                      case CubicInterpolation::Lagrange:
-                        L_.setFirstRow(1.0, 0.0);
-                        tmp_[0] = cubicInterpolatingPolynomialDerivative(
-                                            this->xBegin_[0],this->xBegin_[1],
-                                            this->xBegin_[2],this->xBegin_[3],
-                                            this->yBegin_[0],this->yBegin_[1],
-                                            this->yBegin_[2],this->yBegin_[3],
-                                            this->xBegin_[0]);
-                        break;
-                      default:
-                        QL_FAIL("unknown end condition");
+                    switch (leftType_)
+                    {
+                        case CubicInterpolation::NotAKnot:
+                            // ignoring end condition value
+                            L_.setFirstRow(dx_[1] * (dx_[1] + dx_[0]), (dx_[0] + dx_[1]) * (dx_[0] + dx_[1]));
+                            tmp_[0] = S_[0] * dx_[1] * (2.0 * dx_[1] + 3.0 * dx_[0]) + S_[1] * dx_[0] * dx_[0];
+                            break;
+                        case CubicInterpolation::FirstDerivative:
+                            L_.setFirstRow(1.0, 0.0);
+                            tmp_[0] = this->leftValue_;
+                            break;
+                        case CubicInterpolation::SecondDerivative:
+                            L_.setFirstRow(2.0, 1.0);
+                            tmp_[0] = 3.0 * S_[0] - this->leftValue_ * dx_[0] / 2.0;
+                            break;
+                        case CubicInterpolation::Periodic:
+                            QL_FAIL("this end condition is not implemented yet");
+                        case CubicInterpolation::Lagrange:
+                            L_.setFirstRow(1.0, 0.0);
+                            tmp_[0] = cubicInterpolatingPolynomialDerivative(
+                                this->xBegin_[0], this->xBegin_[1], this->xBegin_[2], this->xBegin_[3],
+                                this->yBegin_[0], this->yBegin_[1], this->yBegin_[2], this->yBegin_[3],
+                                this->xBegin_[0]);
+                            break;
+                        default:
+                            QL_FAIL("unknown end condition");
                     }
 
                     // right boundary condition
-                    switch (rightType_) {
-                      case CubicInterpolation::NotAKnot:
-                        // ignoring end condition value
-                        L_.setLastRow(-(dx_[n_-2]+dx_[n_-3])*(dx_[n_-2]+dx_[n_-3]),
-                                     -dx_[n_-3]*(dx_[n_-3]+dx_[n_-2]));
-                        tmp_[n_-1] = -S_[n_-3]*dx_[n_-2]*dx_[n_-2] -
-                                     S_[n_-2]*dx_[n_-3]*(3.0*dx_[n_-2]+2.0*dx_[n_-3]);
-                        break;
-                      case CubicInterpolation::FirstDerivative:
-                        L_.setLastRow(0.0, 1.0);
-                        tmp_[n_-1] = this->rightValue_;
-                        break;
-                      case CubicInterpolation::SecondDerivative:
-                        L_.setLastRow(1.0, 2.0);
-                        tmp_[n_-1] = 3.0*S_[n_-2] + this->rightValue_*dx_[n_-2]/2.0;
-                        break;
-                      case CubicInterpolation::Periodic:
-                        QL_FAIL("this end condition is not implemented yet");
-                      case CubicInterpolation::Lagrange:
-                        L_.setLastRow(0.0,1.0);
-                        tmp_[n_-1] = cubicInterpolatingPolynomialDerivative(
-                                      this->xBegin_[n_-4],this->xBegin_[n_-3],
-                                      this->xBegin_[n_-2],this->xBegin_[n_-1],
-                                      this->yBegin_[n_-4],this->yBegin_[n_-3],
-                                      this->yBegin_[n_-2],this->yBegin_[n_-1],
-                                      this->xBegin_[n_-1]);
-                        break;
-                      default:
-                        QL_FAIL("unknown end condition");
+                    switch (rightType_)
+                    {
+                        case CubicInterpolation::NotAKnot:
+                            // ignoring end condition value
+                            L_.setLastRow(-(dx_[n_ - 2] + dx_[n_ - 3]) * (dx_[n_ - 2] + dx_[n_ - 3]),
+                                          -dx_[n_ - 3] * (dx_[n_ - 3] + dx_[n_ - 2]));
+                            tmp_[n_ - 1] = -S_[n_ - 3] * dx_[n_ - 2] * dx_[n_ - 2] -
+                                           S_[n_ - 2] * dx_[n_ - 3] * (3.0 * dx_[n_ - 2] + 2.0 * dx_[n_ - 3]);
+                            break;
+                        case CubicInterpolation::FirstDerivative:
+                            L_.setLastRow(0.0, 1.0);
+                            tmp_[n_ - 1] = this->rightValue_;
+                            break;
+                        case CubicInterpolation::SecondDerivative:
+                            L_.setLastRow(1.0, 2.0);
+                            tmp_[n_ - 1] = 3.0 * S_[n_ - 2] + this->rightValue_ * dx_[n_ - 2] / 2.0;
+                            break;
+                        case CubicInterpolation::Periodic:
+                            QL_FAIL("this end condition is not implemented yet");
+                        case CubicInterpolation::Lagrange:
+                            L_.setLastRow(0.0, 1.0);
+                            tmp_[n_ - 1] = cubicInterpolatingPolynomialDerivative(
+                                this->xBegin_[n_ - 4], this->xBegin_[n_ - 3], this->xBegin_[n_ - 2],
+                                this->xBegin_[n_ - 1], this->yBegin_[n_ - 4], this->yBegin_[n_ - 3],
+                                this->yBegin_[n_ - 2], this->yBegin_[n_ - 1], this->xBegin_[n_ - 1]);
+                            break;
+                        default:
+                            QL_FAIL("unknown end condition");
                     }
 
                     // solve the system
                     L_.solveFor(tmp_, tmp_);
-                } else if (da_==CubicInterpolation::SplineOM1) {
-                    Matrix T_(n_-2, n_, 0.0);
-                    for (Size i=0; i<n_-2; ++i) {
-                        T_[i][i]=dx_[i]/6.0;
-                        T_[i][i+1]=(dx_[i+1]+dx_[i])/3.0;
-                        T_[i][i+2]=dx_[i+1]/6.0;
+                }
+                else if (da_ == CubicInterpolation::SplineOM1)
+                {
+                    Matrix T_(n_ - 2, n_, 0.0);
+                    for (Size i = 0; i < n_ - 2; ++i)
+                    {
+                        T_[i][i] = dx_[i] / 6.0;
+                        T_[i][i + 1] = (dx_[i + 1] + dx_[i]) / 3.0;
+                        T_[i][i + 2] = dx_[i + 1] / 6.0;
                     }
-                    Matrix S_(n_-2, n_, 0.0);
-                    for (Size i=0; i<n_-2; ++i) {
-                        S_[i][i]=1.0/dx_[i];
-                        S_[i][i+1]=-(1.0/dx_[i+1]+1.0/dx_[i]);
-                        S_[i][i+2]=1.0/dx_[i+1];
-                    }
-                    Matrix Up_(n_, 2, 0.0);
-                    Up_[0][0]=1;
-                    Up_[n_-1][1]=1;
-                    Matrix Us_(n_, n_-2, 0.0);
-                    for (Size i=0; i<n_-2; ++i)
-                        Us_[i+1][i]=1;
-                    Matrix Z_ = Us_*inverse(T_*Us_);
-                    Matrix I_(n_, n_, 0.0);
-                    for (Size i=0; i<n_; ++i)
-                        I_[i][i]=1;
-                    Matrix V_ = (I_-Z_*T_)*Up_;
-                    Matrix W_ = Z_*S_;
-                    Matrix Q_(n_, n_, 0.0);
-                    Q_[0][0]=1.0/(n_-1)*dx_[0]*dx_[0]*dx_[0];
-                    Q_[0][1]=7.0/8*1.0/(n_-1)*dx_[0]*dx_[0]*dx_[0];
-                    for (Size i=1; i<n_-1; ++i) {
-                        Q_[i][i-1]=7.0/8*1.0/(n_-1)*dx_[i-1]*dx_[i-1]*dx_[i-1];
-                        Q_[i][i]=1.0/(n_-1)*dx_[i]*dx_[i]*dx_[i]+1.0/(n_-1)*dx_[i-1]*dx_[i-1]*dx_[i-1];
-                        Q_[i][i+1]=7.0/8*1.0/(n_-1)*dx_[i]*dx_[i]*dx_[i];
-                    }
-                    Q_[n_-1][n_-2]=7.0/8*1.0/(n_-1)*dx_[n_-2]*dx_[n_-2]*dx_[n_-2];
-                    Q_[n_-1][n_-1]=1.0/(n_-1)*dx_[n_-2]*dx_[n_-2]*dx_[n_-2];
-                    Matrix J_ = (I_-V_*inverse(transpose(V_)*Q_*V_)*transpose(V_)*Q_)*W_;
-                    Array Y_(n_);
-                    for (Size i=0; i<n_; ++i)
-                        Y_[i]=this->yBegin_[i];
-                    Array D_ = J_*Y_;
-                    for (Size i=0; i<n_-1; ++i)
-                        tmp_[i]=(Y_[i+1]-Y_[i])/dx_[i]-(2.0*D_[i]+D_[i+1])*dx_[i]/6.0;
-                    tmp_[n_-1]=tmp_[n_-2]+D_[n_-2]*dx_[n_-2]+(D_[n_-1]-D_[n_-2])*dx_[n_-2]/2.0;
-
-                } else if (da_==CubicInterpolation::SplineOM2) {
-                    Matrix T_(n_-2, n_, 0.0);
-                    for (Size i=0; i<n_-2; ++i) {
-                        T_[i][i]=dx_[i]/6.0;
-                        T_[i][i+1]=(dx_[i]+dx_[i+1])/3.0;
-                        T_[i][i+2]=dx_[i+1]/6.0;
-                    }
-                    Matrix S_(n_-2, n_, 0.0);
-                    for (Size i=0; i<n_-2; ++i) {
-                        S_[i][i]=1.0/dx_[i];
-                        S_[i][i+1]=-(1.0/dx_[i+1]+1.0/dx_[i]);
-                        S_[i][i+2]=1.0/dx_[i+1];
+                    Matrix S_(n_ - 2, n_, 0.0);
+                    for (Size i = 0; i < n_ - 2; ++i)
+                    {
+                        S_[i][i] = 1.0 / dx_[i];
+                        S_[i][i + 1] = -(1.0 / dx_[i + 1] + 1.0 / dx_[i]);
+                        S_[i][i + 2] = 1.0 / dx_[i + 1];
                     }
                     Matrix Up_(n_, 2, 0.0);
-                    Up_[0][0]=1;
-                    Up_[n_-1][1]=1;
-                    Matrix Us_(n_, n_-2, 0.0);
-                    for (Size i=0; i<n_-2; ++i)
-                        Us_[i+1][i]=1;
-                    Matrix Z_ = Us_*inverse(T_*Us_);
+                    Up_[0][0] = 1;
+                    Up_[n_ - 1][1] = 1;
+                    Matrix Us_(n_, n_ - 2, 0.0);
+                    for (Size i = 0; i < n_ - 2; ++i)
+                        Us_[i + 1][i] = 1;
+                    Matrix Z_ = Us_ * inverse(T_ * Us_);
                     Matrix I_(n_, n_, 0.0);
-                    for (Size i=0; i<n_; ++i)
-                        I_[i][i]=1;
-                    Matrix V_ = (I_-Z_*T_)*Up_;
-                    Matrix W_ = Z_*S_;
+                    for (Size i = 0; i < n_; ++i)
+                        I_[i][i] = 1;
+                    Matrix V_ = (I_ - Z_ * T_) * Up_;
+                    Matrix W_ = Z_ * S_;
                     Matrix Q_(n_, n_, 0.0);
-                    Q_[0][0]=1.0/(n_-1)*dx_[0];
-                    Q_[0][1]=1.0/2*1.0/(n_-1)*dx_[0];
-                    for (Size i=1; i<n_-1; ++i) {
-                        Q_[i][i-1]=1.0/2*1.0/(n_-1)*dx_[i-1];
-                        Q_[i][i]=1.0/(n_-1)*dx_[i]+1.0/(n_-1)*dx_[i-1];
-                        Q_[i][i+1]=1.0/2*1.0/(n_-1)*dx_[i];
+                    Q_[0][0] = 1.0 / (n_ - 1) * dx_[0] * dx_[0] * dx_[0];
+                    Q_[0][1] = 7.0 / 8 * 1.0 / (n_ - 1) * dx_[0] * dx_[0] * dx_[0];
+                    for (Size i = 1; i < n_ - 1; ++i)
+                    {
+                        Q_[i][i - 1] = 7.0 / 8 * 1.0 / (n_ - 1) * dx_[i - 1] * dx_[i - 1] * dx_[i - 1];
+                        Q_[i][i] = 1.0 / (n_ - 1) * dx_[i] * dx_[i] * dx_[i] +
+                                   1.0 / (n_ - 1) * dx_[i - 1] * dx_[i - 1] * dx_[i - 1];
+                        Q_[i][i + 1] = 7.0 / 8 * 1.0 / (n_ - 1) * dx_[i] * dx_[i] * dx_[i];
                     }
-                    Q_[n_-1][n_-2]=1.0/2*1.0/(n_-1)*dx_[n_-2];
-                    Q_[n_-1][n_-1]=1.0/(n_-1)*dx_[n_-2];
-                    Matrix J_ = (I_-V_*inverse(transpose(V_)*Q_*V_)*transpose(V_)*Q_)*W_;
+                    Q_[n_ - 1][n_ - 2] = 7.0 / 8 * 1.0 / (n_ - 1) * dx_[n_ - 2] * dx_[n_ - 2] * dx_[n_ - 2];
+                    Q_[n_ - 1][n_ - 1] = 1.0 / (n_ - 1) * dx_[n_ - 2] * dx_[n_ - 2] * dx_[n_ - 2];
+                    Matrix J_ = (I_ - V_ * inverse(transpose(V_) * Q_ * V_) * transpose(V_) * Q_) * W_;
                     Array Y_(n_);
-                    for (Size i=0; i<n_; ++i)
-                        Y_[i]=this->yBegin_[i];
-                    Array D_ = J_*Y_;
-                    for (Size i=0; i<n_-1; ++i)
-                        tmp_[i]=(Y_[i+1]-Y_[i])/dx_[i]-(2.0*D_[i]+D_[i+1])*dx_[i]/6.0;
-                    tmp_[n_-1]=tmp_[n_-2]+D_[n_-2]*dx_[n_-2]+(D_[n_-1]-D_[n_-2])*dx_[n_-2]/2.0;
-                } else { // local schemes
-                    if (n_==2)
+                    for (Size i = 0; i < n_; ++i)
+                        Y_[i] = this->yBegin_[i];
+                    Array D_ = J_ * Y_;
+                    for (Size i = 0; i < n_ - 1; ++i)
+                        tmp_[i] = (Y_[i + 1] - Y_[i]) / dx_[i] - (2.0 * D_[i] + D_[i + 1]) * dx_[i] / 6.0;
+                    tmp_[n_ - 1] =
+                        tmp_[n_ - 2] + D_[n_ - 2] * dx_[n_ - 2] + (D_[n_ - 1] - D_[n_ - 2]) * dx_[n_ - 2] / 2.0;
+                }
+                else if (da_ == CubicInterpolation::SplineOM2)
+                {
+                    Matrix T_(n_ - 2, n_, 0.0);
+                    for (Size i = 0; i < n_ - 2; ++i)
+                    {
+                        T_[i][i] = dx_[i] / 6.0;
+                        T_[i][i + 1] = (dx_[i] + dx_[i + 1]) / 3.0;
+                        T_[i][i + 2] = dx_[i + 1] / 6.0;
+                    }
+                    Matrix S_(n_ - 2, n_, 0.0);
+                    for (Size i = 0; i < n_ - 2; ++i)
+                    {
+                        S_[i][i] = 1.0 / dx_[i];
+                        S_[i][i + 1] = -(1.0 / dx_[i + 1] + 1.0 / dx_[i]);
+                        S_[i][i + 2] = 1.0 / dx_[i + 1];
+                    }
+                    Matrix Up_(n_, 2, 0.0);
+                    Up_[0][0] = 1;
+                    Up_[n_ - 1][1] = 1;
+                    Matrix Us_(n_, n_ - 2, 0.0);
+                    for (Size i = 0; i < n_ - 2; ++i)
+                        Us_[i + 1][i] = 1;
+                    Matrix Z_ = Us_ * inverse(T_ * Us_);
+                    Matrix I_(n_, n_, 0.0);
+                    for (Size i = 0; i < n_; ++i)
+                        I_[i][i] = 1;
+                    Matrix V_ = (I_ - Z_ * T_) * Up_;
+                    Matrix W_ = Z_ * S_;
+                    Matrix Q_(n_, n_, 0.0);
+                    Q_[0][0] = 1.0 / (n_ - 1) * dx_[0];
+                    Q_[0][1] = 1.0 / 2 * 1.0 / (n_ - 1) * dx_[0];
+                    for (Size i = 1; i < n_ - 1; ++i)
+                    {
+                        Q_[i][i - 1] = 1.0 / 2 * 1.0 / (n_ - 1) * dx_[i - 1];
+                        Q_[i][i] = 1.0 / (n_ - 1) * dx_[i] + 1.0 / (n_ - 1) * dx_[i - 1];
+                        Q_[i][i + 1] = 1.0 / 2 * 1.0 / (n_ - 1) * dx_[i];
+                    }
+                    Q_[n_ - 1][n_ - 2] = 1.0 / 2 * 1.0 / (n_ - 1) * dx_[n_ - 2];
+                    Q_[n_ - 1][n_ - 1] = 1.0 / (n_ - 1) * dx_[n_ - 2];
+                    Matrix J_ = (I_ - V_ * inverse(transpose(V_) * Q_ * V_) * transpose(V_) * Q_) * W_;
+                    Array Y_(n_);
+                    for (Size i = 0; i < n_; ++i)
+                        Y_[i] = this->yBegin_[i];
+                    Array D_ = J_ * Y_;
+                    for (Size i = 0; i < n_ - 1; ++i)
+                        tmp_[i] = (Y_[i + 1] - Y_[i]) / dx_[i] - (2.0 * D_[i] + D_[i + 1]) * dx_[i] / 6.0;
+                    tmp_[n_ - 1] =
+                        tmp_[n_ - 2] + D_[n_ - 2] * dx_[n_ - 2] + (D_[n_ - 1] - D_[n_ - 2]) * dx_[n_ - 2] / 2.0;
+                }
+                else
+                { // local schemes
+                    if (n_ == 2)
                         tmp_[0] = tmp_[1] = S_[0];
-                    else {
-                        switch (da_) {
+                    else
+                    {
+                        switch (da_)
+                        {
                             case CubicInterpolation::FourthOrder:
                                 QL_FAIL("FourthOrder not implemented yet");
                                 break;
                             case CubicInterpolation::Parabolic:
                                 // intermediate points
-                                for (Size i=1; i<n_-1; ++i)
-                                    tmp_[i] = (dx_[i-1]*S_[i]+dx_[i]*S_[i-1])/(dx_[i]+dx_[i-1]);
+                                for (Size i = 1; i < n_ - 1; ++i)
+                                    tmp_[i] = (dx_[i - 1] * S_[i] + dx_[i] * S_[i - 1]) / (dx_[i] + dx_[i - 1]);
                                 // end points
-                                tmp_[0]    = ((2.0*dx_[   0]+dx_[   1])*S_[   0] - dx_[   0]*S_[   1]) / (dx_[   0]+dx_[   1]);
-                                tmp_[n_-1] = ((2.0*dx_[n_-2]+dx_[n_-3])*S_[n_-2] - dx_[n_-2]*S_[n_-3]) / (dx_[n_-2]+dx_[n_-3]);
+                                tmp_[0] = ((2.0 * dx_[0] + dx_[1]) * S_[0] - dx_[0] * S_[1]) / (dx_[0] + dx_[1]);
+                                tmp_[n_ - 1] =
+                                    ((2.0 * dx_[n_ - 2] + dx_[n_ - 3]) * S_[n_ - 2] - dx_[n_ - 2] * S_[n_ - 3]) /
+                                    (dx_[n_ - 2] + dx_[n_ - 3]);
                                 break;
                             case CubicInterpolation::FritschButland:
                                 // intermediate points
-                                for (Size i=1; i<n_-1; ++i) {
-                                    Real Smin = std::min(S_[i-1], S_[i]);
-                                    Real Smax = std::max(S_[i-1], S_[i]);
-                                    if(Smax+2.0*Smin == 0){
-                                        if (Smin*Smax < 0)
+                                for (Size i = 1; i < n_ - 1; ++i)
+                                {
+                                    Real Smin = std::min(S_[i - 1], S_[i]);
+                                    Real Smax = std::max(S_[i - 1], S_[i]);
+                                    if (Smax + 2.0 * Smin == 0)
+                                    {
+                                        if (Smin * Smax < 0)
                                             tmp_[i] = QL_MIN_REAL;
-                                        else if (Smin*Smax == 0)
+                                        else if (Smin * Smax == 0)
                                             tmp_[i] = 0;
                                         else
                                             tmp_[i] = QL_MAX_REAL;
                                     }
                                     else
-                                        tmp_[i] = 3.0*Smin*Smax/(Smax+2.0*Smin);
+                                        tmp_[i] = 3.0 * Smin * Smax / (Smax + 2.0 * Smin);
                                 }
                                 // end points
-                                tmp_[0]    = ((2.0*dx_[   0]+dx_[   1])*S_[   0] - dx_[   0]*S_[   1]) / (dx_[   0]+dx_[   1]);
-                                tmp_[n_-1] = ((2.0*dx_[n_-2]+dx_[n_-3])*S_[n_-2] - dx_[n_-2]*S_[n_-3]) / (dx_[n_-2]+dx_[n_-3]);
+                                tmp_[0] = ((2.0 * dx_[0] + dx_[1]) * S_[0] - dx_[0] * S_[1]) / (dx_[0] + dx_[1]);
+                                tmp_[n_ - 1] =
+                                    ((2.0 * dx_[n_ - 2] + dx_[n_ - 3]) * S_[n_ - 2] - dx_[n_ - 2] * S_[n_ - 3]) /
+                                    (dx_[n_ - 2] + dx_[n_ - 3]);
                                 break;
                             case CubicInterpolation::Akima:
-                                tmp_[0] = (std::abs(S_[1]-S_[0])*2*S_[0]*S_[1]+std::abs(2*S_[0]*S_[1]-4*S_[0]*S_[0]*S_[1])*S_[0])/(std::abs(S_[1]-S_[0])+std::abs(2*S_[0]*S_[1]-4*S_[0]*S_[0]*S_[1]));
-                                tmp_[1] = (std::abs(S_[2]-S_[1])*S_[0]+std::abs(S_[0]-2*S_[0]*S_[1])*S_[1])/(std::abs(S_[2]-S_[1])+std::abs(S_[0]-2*S_[0]*S_[1]));
-                                for (Size i=2; i<n_-2; ++i) {
-                                    if ((S_[i-2]==S_[i-1]) && (S_[i]!=S_[i+1]))
-                                        tmp_[i] = S_[i-1];
-                                    else if ((S_[i-2]!=S_[i-1]) && (S_[i]==S_[i+1]))
+                                tmp_[0] =
+                                    (std::abs(S_[1] - S_[0]) * 2 * S_[0] * S_[1] +
+                                     std::abs(2 * S_[0] * S_[1] - 4 * S_[0] * S_[0] * S_[1]) * S_[0]) /
+                                    (std::abs(S_[1] - S_[0]) + std::abs(2 * S_[0] * S_[1] - 4 * S_[0] * S_[0] * S_[1]));
+                                tmp_[1] =
+                                    (std::abs(S_[2] - S_[1]) * S_[0] + std::abs(S_[0] - 2 * S_[0] * S_[1]) * S_[1]) /
+                                    (std::abs(S_[2] - S_[1]) + std::abs(S_[0] - 2 * S_[0] * S_[1]));
+                                for (Size i = 2; i < n_ - 2; ++i)
+                                {
+                                    if ((S_[i - 2] == S_[i - 1]) && (S_[i] != S_[i + 1]))
+                                        tmp_[i] = S_[i - 1];
+                                    else if ((S_[i - 2] != S_[i - 1]) && (S_[i] == S_[i + 1]))
                                         tmp_[i] = S_[i];
-                                    else if (S_[i]==S_[i-1])
+                                    else if (S_[i] == S_[i - 1])
                                         tmp_[i] = S_[i];
-                                    else if ((S_[i-2]==S_[i-1]) && (S_[i-1]!=S_[i]) && (S_[i]==S_[i+1]))
-                                        tmp_[i] = (S_[i-1]+S_[i])/2.0;
+                                    else if ((S_[i - 2] == S_[i - 1]) && (S_[i - 1] != S_[i]) && (S_[i] == S_[i + 1]))
+                                        tmp_[i] = (S_[i - 1] + S_[i]) / 2.0;
                                     else
-                                        tmp_[i] = (std::abs(S_[i+1]-S_[i])*S_[i-1]+std::abs(S_[i-1]-S_[i-2])*S_[i])/(std::abs(S_[i+1]-S_[i])+std::abs(S_[i-1]-S_[i-2]));
-                                 }
-                                 tmp_[n_-2] = (std::abs(2*S_[n_-2]*S_[n_-3]-S_[n_-2])*S_[n_-3]+std::abs(S_[n_-3]-S_[n_-4])*S_[n_-2])/(std::abs(2*S_[n_-2]*S_[n_-3]-S_[n_-2])+std::abs(S_[n_-3]-S_[n_-4]));
-                                 tmp_[n_-1] = (std::abs(4*S_[n_-2]*S_[n_-2]*S_[n_-3]-2*S_[n_-2]*S_[n_-3])*S_[n_-2]+std::abs(S_[n_-2]-S_[n_-3])*2*S_[n_-2]*S_[n_-3])/(std::abs(4*S_[n_-2]*S_[n_-2]*S_[n_-3]-2*S_[n_-2]*S_[n_-3])+std::abs(S_[n_-2]-S_[n_-3]));
-                                 break;
+                                        tmp_[i] = (std::abs(S_[i + 1] - S_[i]) * S_[i - 1] +
+                                                   std::abs(S_[i - 1] - S_[i - 2]) * S_[i]) /
+                                                  (std::abs(S_[i + 1] - S_[i]) + std::abs(S_[i - 1] - S_[i - 2]));
+                                }
+                                tmp_[n_ - 2] = (std::abs(2 * S_[n_ - 2] * S_[n_ - 3] - S_[n_ - 2]) * S_[n_ - 3] +
+                                                std::abs(S_[n_ - 3] - S_[n_ - 4]) * S_[n_ - 2]) /
+                                               (std::abs(2 * S_[n_ - 2] * S_[n_ - 3] - S_[n_ - 2]) +
+                                                std::abs(S_[n_ - 3] - S_[n_ - 4]));
+                                tmp_[n_ - 1] =
+                                    (std::abs(4 * S_[n_ - 2] * S_[n_ - 2] * S_[n_ - 3] - 2 * S_[n_ - 2] * S_[n_ - 3]) *
+                                         S_[n_ - 2] +
+                                     std::abs(S_[n_ - 2] - S_[n_ - 3]) * 2 * S_[n_ - 2] * S_[n_ - 3]) /
+                                    (std::abs(4 * S_[n_ - 2] * S_[n_ - 2] * S_[n_ - 3] - 2 * S_[n_ - 2] * S_[n_ - 3]) +
+                                     std::abs(S_[n_ - 2] - S_[n_ - 3]));
+                                break;
                             case CubicInterpolation::Kruger:
                                 // intermediate points
-                                for (Size i=1; i<n_-1; ++i) {
-                                    if (S_[i-1]*S_[i]<0.0)
+                                for (Size i = 1; i < n_ - 1; ++i)
+                                {
+                                    if (S_[i - 1] * S_[i] < 0.0)
                                         // slope changes sign at point
                                         tmp_[i] = 0.0;
                                     else
                                         // slope will be between the slopes of the adjacent
                                         // straight lines and should approach zero if the
                                         // slope of either line approaches zero
-                                        tmp_[i] = 2.0/(1.0/S_[i-1]+1.0/S_[i]);
+                                        tmp_[i] = 2.0 / (1.0 / S_[i - 1] + 1.0 / S_[i]);
                                 }
                                 // end points
-                                tmp_[0] = (3.0*S_[0]-tmp_[1])/2.0;
-                                tmp_[n_-1] = (3.0*S_[n_-2]-tmp_[n_-2])/2.0;
+                                tmp_[0] = (3.0 * S_[0] - tmp_[1]) / 2.0;
+                                tmp_[n_ - 1] = (3.0 * S_[n_ - 2] - tmp_[n_ - 2]) / 2.0;
                                 break;
                             case CubicInterpolation::Harmonic:
                                 // intermediate points
-                                for (Size i=1; i<n_-1; ++i) {
-                                    Real w1 = 2*dx_[i]+dx_[i-1];
-                                    Real w2 = dx_[i]+2*dx_[i-1];
-                                    if (S_[i-1]*S_[i]<=0.0)
+                                for (Size i = 1; i < n_ - 1; ++i)
+                                {
+                                    Real w1 = 2 * dx_[i] + dx_[i - 1];
+                                    Real w2 = dx_[i] + 2 * dx_[i - 1];
+                                    if (S_[i - 1] * S_[i] <= 0.0)
                                         // slope changes sign at point
                                         tmp_[i] = 0.0;
                                     else
                                         // weighted harmonic mean of S_[i] and S_[i-1] if they
                                         // have the same sign; otherwise 0
-                                        tmp_[i] = (w1+w2)/(w1/S_[i-1]+w2/S_[i]);
+                                        tmp_[i] = (w1 + w2) / (w1 / S_[i - 1] + w2 / S_[i]);
                                 }
                                 // end points [0]
-                                tmp_[0] = ((2 * dx_[0] + dx_[1])*S_[0] - dx_[0] * S_[1]) / (dx_[1] + dx_[0]);
-                                if (tmp_[0]*S_[0]<0.0) {
+                                tmp_[0] = ((2 * dx_[0] + dx_[1]) * S_[0] - dx_[0] * S_[1]) / (dx_[1] + dx_[0]);
+                                if (tmp_[0] * S_[0] < 0.0)
+                                {
                                     tmp_[0] = 0;
                                 }
-                                else if (S_[0]*S_[1]<0) {
-                                    if (std::fabs(tmp_[0])>std::fabs(3*S_[0])) {
-                                            tmp_[0] = 3*S_[0];
+                                else if (S_[0] * S_[1] < 0)
+                                {
+                                    if (std::fabs(tmp_[0]) > std::fabs(3 * S_[0]))
+                                    {
+                                        tmp_[0] = 3 * S_[0];
                                     }
                                 }
                                 // end points [n-1]
-                                tmp_[n_-1] = ((2*dx_[n_-2]+dx_[n_-3])*S_[n_-2]-dx_[n_-2]*S_[n_-3])/(dx_[n_-3]+dx_[n_-2]);
-                                if (tmp_[n_-1]*S_[n_-2]<0.0) {
-                                    tmp_[n_-1] = 0;
+                                tmp_[n_ - 1] =
+                                    ((2 * dx_[n_ - 2] + dx_[n_ - 3]) * S_[n_ - 2] - dx_[n_ - 2] * S_[n_ - 3]) /
+                                    (dx_[n_ - 3] + dx_[n_ - 2]);
+                                if (tmp_[n_ - 1] * S_[n_ - 2] < 0.0)
+                                {
+                                    tmp_[n_ - 1] = 0;
                                 }
-                                else if (S_[n_-2]*S_[n_-3]<0) {
-                                    if (std::fabs(tmp_[n_-1])>std::fabs(3*S_[n_-2])) {
-                                        tmp_[n_-1] = 3*S_[n_-2];
+                                else if (S_[n_ - 2] * S_[n_ - 3] < 0)
+                                {
+                                    if (std::fabs(tmp_[n_ - 1]) > std::fabs(3 * S_[n_ - 2]))
+                                    {
+                                        tmp_[n_ - 1] = 3 * S_[n_ - 2];
                                     }
                                 }
                                 break;
@@ -677,73 +696,86 @@ namespace QuantLib {
                 }
 
                 auto& monotonicityAdjustments = this->monotonicityAdjustments_;
-                std::fill(monotonicityAdjustments.begin(),
-                          monotonicityAdjustments.end(), false);
+                std::fill(monotonicityAdjustments.begin(), monotonicityAdjustments.end(), false);
                 // Hyman monotonicity constrained filter
-                if (monotonic_) {
+                if (monotonic_)
+                {
                     Real correction;
                     Real pm, pu, pd, M;
-                    for (Size i=0; i<n_; ++i) {
-                        if (i==0) {
-                            if (tmp_[i]*S_[0]>0.0) {
-                                correction = tmp_[i]/std::fabs(tmp_[i]) *
-                                    std::min<Real>(std::fabs(tmp_[i]),
-                                                   std::fabs(3.0*S_[0]));
-                            } else {
+                    for (Size i = 0; i < n_; ++i)
+                    {
+                        if (i == 0)
+                        {
+                            if (tmp_[i] * S_[0] > 0.0)
+                            {
+                                correction = tmp_[i] / std::fabs(tmp_[i]) *
+                                             std::min<Real>(std::fabs(tmp_[i]), std::fabs(3.0 * S_[0]));
+                            }
+                            else
+                            {
                                 correction = 0.0;
                             }
-                            if (correction!=tmp_[i]) {
+                            if (correction != tmp_[i])
+                            {
                                 tmp_[i] = correction;
                                 monotonicityAdjustments[i] = true;
                             }
-                        } else if (i==n_-1) {
-                            if (tmp_[i]*S_[n_-2]>0.0) {
-                                correction = tmp_[i]/std::fabs(tmp_[i]) *
-                                    std::min<Real>(std::fabs(tmp_[i]),
-                                                   std::fabs(3.0*S_[n_-2]));
-                            } else {
+                        }
+                        else if (i == n_ - 1)
+                        {
+                            if (tmp_[i] * S_[n_ - 2] > 0.0)
+                            {
+                                correction = tmp_[i] / std::fabs(tmp_[i]) *
+                                             std::min<Real>(std::fabs(tmp_[i]), std::fabs(3.0 * S_[n_ - 2]));
+                            }
+                            else
+                            {
                                 correction = 0.0;
                             }
-                            if (correction!=tmp_[i]) {
+                            if (correction != tmp_[i])
+                            {
                                 tmp_[i] = correction;
                                 monotonicityAdjustments[i] = true;
                             }
-                        } else {
-                            pm=(S_[i-1]*dx_[i]+S_[i]*dx_[i-1])/
-                                (dx_[i-1]+dx_[i]);
-                            M = 3.0 * std::min({
-                                    std::fabs(S_[i-1]),
-                                    std::fabs(S_[i]),
-                                    std::fabs(pm)
-                                });
-                            if (i>1) {
-                                if ((S_[i-1]-S_[i-2])*(S_[i]-S_[i-1])>0.0) {
-                                    pd=(S_[i-1]*(2.0*dx_[i-1]+dx_[i-2])
-                                        -S_[i-2]*dx_[i-1])/
-                                        (dx_[i-2]+dx_[i-1]);
-                                    if (pm*pd>0.0 && pm*(S_[i-1]-S_[i-2])>0.0) {
-                                        M = std::max<Real>(M, 1.5*std::min(
-                                                std::fabs(pm),std::fabs(pd)));
+                        }
+                        else
+                        {
+                            pm = (S_[i - 1] * dx_[i] + S_[i] * dx_[i - 1]) / (dx_[i - 1] + dx_[i]);
+                            M = 3.0 * std::min({std::fabs(S_[i - 1]), std::fabs(S_[i]), std::fabs(pm)});
+                            if (i > 1)
+                            {
+                                if ((S_[i - 1] - S_[i - 2]) * (S_[i] - S_[i - 1]) > 0.0)
+                                {
+                                    pd = (S_[i - 1] * (2.0 * dx_[i - 1] + dx_[i - 2]) - S_[i - 2] * dx_[i - 1]) /
+                                         (dx_[i - 2] + dx_[i - 1]);
+                                    if (pm * pd > 0.0 && pm * (S_[i - 1] - S_[i - 2]) > 0.0)
+                                    {
+                                        M = std::max<Real>(M, 1.5 * std::min(std::fabs(pm), std::fabs(pd)));
                                     }
                                 }
                             }
-                            if (i<n_-2) {
-                                if ((S_[i]-S_[i-1])*(S_[i+1]-S_[i])>0.0) {
-                                    pu=(S_[i]*(2.0*dx_[i]+dx_[i+1])-S_[i+1]*dx_[i])/
-                                        (dx_[i]+dx_[i+1]);
-                                    if (pm*pu>0.0 && -pm*(S_[i]-S_[i-1])>0.0) {
-                                        M = std::max<Real>(M, 1.5*std::min(
-                                                std::fabs(pm),std::fabs(pu)));
+                            if (i < n_ - 2)
+                            {
+                                if ((S_[i] - S_[i - 1]) * (S_[i + 1] - S_[i]) > 0.0)
+                                {
+                                    pu = (S_[i] * (2.0 * dx_[i] + dx_[i + 1]) - S_[i + 1] * dx_[i]) /
+                                         (dx_[i] + dx_[i + 1]);
+                                    if (pm * pu > 0.0 && -pm * (S_[i] - S_[i - 1]) > 0.0)
+                                    {
+                                        M = std::max<Real>(M, 1.5 * std::min(std::fabs(pm), std::fabs(pu)));
                                     }
                                 }
                             }
-                            if (tmp_[i]*pm>0.0) {
-                                correction = tmp_[i]/std::fabs(tmp_[i]) *
-                                    std::min(std::fabs(tmp_[i]), M);
-                            } else {
+                            if (tmp_[i] * pm > 0.0)
+                            {
+                                correction = tmp_[i] / std::fabs(tmp_[i]) * std::min(std::fabs(tmp_[i]), M);
+                            }
+                            else
+                            {
                                 correction = 0.0;
                             }
-                            if (correction!=tmp_[i]) {
+                            if (correction != tmp_[i])
+                            {
                                 tmp_[i] = correction;
                                 monotonicityAdjustments[i] = true;
                             }
@@ -753,43 +785,50 @@ namespace QuantLib {
 
 
                 // cubic coefficients
-                for (Size i=0; i<n_-1; ++i) {
+                for (Size i = 0; i < n_ - 1; ++i)
+                {
                     this->a_[i] = tmp_[i];
-                    this->b_[i] = (3.0*S_[i] - tmp_[i+1] - 2.0*tmp_[i])/dx_[i];
-                    this->c_[i] = (tmp_[i+1] + tmp_[i] - 2.0*S_[i])/(dx_[i]*dx_[i]);
+                    this->b_[i] = (3.0 * S_[i] - tmp_[i + 1] - 2.0 * tmp_[i]) / dx_[i];
+                    this->c_[i] = (tmp_[i + 1] + tmp_[i] - 2.0 * S_[i]) / (dx_[i] * dx_[i]);
                 }
 
                 auto& primitiveConst = this->primitiveConst_;
                 primitiveConst[0] = 0.0;
-                for (Size i=1; i<n_-1; ++i) {
-                    primitiveConst[i] = primitiveConst[i-1]
-                        + dx_[i-1] *
-                        (this->yBegin_[i-1] + dx_[i-1] *
-                         (this->a_[i-1]/2.0 + dx_[i-1] *
-                          (this->b_[i-1]/3.0 + dx_[i-1] * this->c_[i-1]/4.0)));
+                for (Size i = 1; i < n_ - 1; ++i)
+                {
+                    primitiveConst[i] =
+                        primitiveConst[i - 1] +
+                        dx_[i - 1] *
+                            (this->yBegin_[i - 1] +
+                             dx_[i - 1] * (this->a_[i - 1] / 2.0 +
+                                           dx_[i - 1] * (this->b_[i - 1] / 3.0 + dx_[i - 1] * this->c_[i - 1] / 4.0)));
                 }
             }
-            Real value(Real x) const override {
+            Real value(Real x) const override
+            {
                 Size j = this->locate(x);
-                Real dx_ = x-this->xBegin_[j];
-                return this->yBegin_[j] + dx_*(this->a_[j] + dx_*(this->b_[j] + dx_*this->c_[j]));
+                Real dx_ = x - this->xBegin_[j];
+                return this->yBegin_[j] + dx_ * (this->a_[j] + dx_ * (this->b_[j] + dx_ * this->c_[j]));
             }
-            Real primitive(Real x) const override {
+            Real primitive(Real x) const override
+            {
                 Size j = this->locate(x);
-                Real dx_ = x-this->xBegin_[j];
-                return this->primitiveConst_[j]
-                    + dx_*(this->yBegin_[j] + dx_*(this->a_[j]/2.0
-                    + dx_*(this->b_[j]/3.0 + dx_*this->c_[j]/4.0)));
+                Real dx_ = x - this->xBegin_[j];
+                return this->primitiveConst_[j] +
+                       dx_ * (this->yBegin_[j] +
+                              dx_ * (this->a_[j] / 2.0 + dx_ * (this->b_[j] / 3.0 + dx_ * this->c_[j] / 4.0)));
             }
-            Real derivative(Real x) const override {
+            Real derivative(Real x) const override
+            {
                 Size j = this->locate(x);
-                Real dx_ = x-this->xBegin_[j];
-                return this->a_[j] + (2.0*this->b_[j] + 3.0*this->c_[j]*dx_)*dx_;
+                Real dx_ = x - this->xBegin_[j];
+                return this->a_[j] + (2.0 * this->b_[j] + 3.0 * this->c_[j] * dx_) * dx_;
             }
-            Real secondDerivative(Real x) const override {
+            Real secondDerivative(Real x) const override
+            {
                 Size j = this->locate(x);
-                Real dx_ = x-this->xBegin_[j];
-                return 2.0*this->b_[j] + 6.0*this->c_[j]*dx_;
+                Real dx_ = x - this->xBegin_[j];
+                return 2.0 * this->b_[j] + 6.0 * this->c_[j] * dx_;
             }
 
           private:
@@ -802,14 +841,15 @@ namespace QuantLib {
             mutable TridiagonalOperator L_;
 
             Real cubicInterpolatingPolynomialDerivative(
-                               Real a, Real b, Real c, Real d,
-                               Real u, Real v, Real w, Real z, Real x) const {
-                return (-((((a-c)*(b-c)*(c-x)*z-(a-d)*(b-d)*(d-x)*w)*(a-x+b-x)
-                           +((a-c)*(b-c)*z-(a-d)*(b-d)*w)*(a-x)*(b-x))*(a-b)+
-                          ((a-c)*(a-d)*v-(b-c)*(b-d)*u)*(c-d)*(c-x)*(d-x)
-                          +((a-c)*(a-d)*(a-x)*v-(b-c)*(b-d)*(b-x)*u)
-                          *(c-x+d-x)*(c-d)))/
-                    ((a-b)*(a-c)*(a-d)*(b-c)*(b-d)*(c-d));
+                Real a, Real b, Real c, Real d, Real u, Real v, Real w, Real z, Real x) const
+            {
+                return (-((((a - c) * (b - c) * (c - x) * z - (a - d) * (b - d) * (d - x) * w) * (a - x + b - x) +
+                           ((a - c) * (b - c) * z - (a - d) * (b - d) * w) * (a - x) * (b - x)) *
+                              (a - b) +
+                          ((a - c) * (a - d) * v - (b - c) * (b - d) * u) * (c - d) * (c - x) * (d - x) +
+                          ((a - c) * (a - d) * (a - x) * v - (b - c) * (b - d) * (b - x) * u) * (c - x + d - x) *
+                              (c - d))) /
+                       ((a - b) * (a - c) * (a - d) * (b - c) * (b - d) * (c - d));
             }
         };
 

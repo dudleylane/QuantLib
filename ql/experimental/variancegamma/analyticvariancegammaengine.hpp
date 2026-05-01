@@ -24,10 +24,11 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #ifndef quantlib_variance_gamma_engine_hpp
 #define quantlib_variance_gamma_engine_hpp
 
-#include <ql/instruments/vanillaoption.hpp>
 #include <ql/experimental/variancegamma/variancegammaprocess.hpp>
+#include <ql/instruments/vanillaoption.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Variance Gamma Pricing engine for European vanilla options using integral approach
     /*! \ingroup vanillaengines
@@ -35,19 +36,18 @@ namespace QuantLib {
         \test the correctness of the returned values is tested by
         checking it against known good results.
     */
-    class VarianceGammaEngine : public VanillaOption::engine {
-    public:
-      explicit VarianceGammaEngine(ext::shared_ptr<VarianceGammaProcess>,
-                                   Real absoluteError = 1e-5);
-      void calculate() const override;
+    class VarianceGammaEngine : public VanillaOption::engine
+    {
+      public:
+        explicit VarianceGammaEngine(ext::shared_ptr<VarianceGammaProcess>, Real absoluteError = 1e-5);
+        void calculate() const override;
 
-    private:
-      ext::shared_ptr<VarianceGammaProcess> process_;
-      Real absErr_;
+      private:
+        ext::shared_ptr<VarianceGammaProcess> process_;
+        Real absErr_;
     };
 
 }
 
 
 #endif
-

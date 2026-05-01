@@ -29,7 +29,8 @@
 #include <ql/time/date.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! day counter class
     /*! This class provides methods for determining the length of a time
@@ -41,18 +42,17 @@ namespace QuantLib {
 
         \ingroup datetime
     */
-    class DayCounter {
+    class DayCounter
+    {
       protected:
         //! abstract base class for day counter implementations
-        class Impl {
+        class Impl
+        {
           public:
             virtual ~Impl() = default;
             virtual std::string name() const = 0;
             //! to be overloaded by more complex day counters
-            virtual Date::serial_type dayCount(const Date& d1,
-                                               const Date& d2) const {
-                return (d2-d1);
-            }
+            virtual Date::serial_type dayCount(const Date& d1, const Date& d2) const { return (d2 - d1); }
             virtual Time yearFraction(const Date& d1,
                                       const Date& d2,
                                       const Date& refPeriodStart,
@@ -81,10 +81,10 @@ namespace QuantLib {
         */
         std::string name() const;
         //! Returns the number of days between two dates.
-        Date::serial_type dayCount(const Date&,
-                                   const Date&) const;
+        Date::serial_type dayCount(const Date&, const Date&) const;
         //! Returns the period between two dates as a fraction of year.
-        Time yearFraction(const Date&, const Date&,
+        Time yearFraction(const Date&,
+                          const Date&,
                           const Date& refPeriodStart = Date(),
                           const Date& refPeriodEnd = Date()) const;
         //@}
@@ -96,52 +96,54 @@ namespace QuantLib {
         derived class.
         \relates DayCounter
     */
-    bool operator==(const DayCounter&,
-                    const DayCounter&);
+    bool operator==(const DayCounter&, const DayCounter&);
 
     /*! \relates DayCounter */
-    bool operator!=(const DayCounter&,
-                    const DayCounter&);
+    bool operator!=(const DayCounter&, const DayCounter&);
 
     /*! \relates DayCounter */
-    std::ostream& operator<<(std::ostream&,
-                             const DayCounter&);
+    std::ostream& operator<<(std::ostream&, const DayCounter&);
 
 
     // inline definitions
 
-    inline bool DayCounter::empty() const {
+    inline bool DayCounter::empty() const
+    {
         return !impl_;
     }
 
-    inline std::string DayCounter::name() const {
+    inline std::string DayCounter::name() const
+    {
         QL_REQUIRE(impl_, "no day counter implementation provided");
         return impl_->name();
     }
 
-    inline Date::serial_type DayCounter::dayCount(const Date& d1,
-                                                  const Date& d2) const {
+    inline Date::serial_type DayCounter::dayCount(const Date& d1, const Date& d2) const
+    {
         QL_REQUIRE(impl_, "no day counter implementation provided");
-        return impl_->dayCount(d1,d2);
+        return impl_->dayCount(d1, d2);
     }
 
-    inline Time DayCounter::yearFraction(const Date& d1, const Date& d2,
-        const Date& refPeriodStart, const Date& refPeriodEnd) const {
-            QL_REQUIRE(impl_, "no day counter implementation provided");
-            return impl_->yearFraction(d1,d2,refPeriodStart,refPeriodEnd);
+    inline Time
+    DayCounter::yearFraction(const Date& d1, const Date& d2, const Date& refPeriodStart, const Date& refPeriodEnd) const
+    {
+        QL_REQUIRE(impl_, "no day counter implementation provided");
+        return impl_->yearFraction(d1, d2, refPeriodStart, refPeriodEnd);
     }
 
 
-    inline bool operator==(const DayCounter& d1, const DayCounter& d2) {
-        return (d1.empty() && d2.empty())
-            || (!d1.empty() && !d2.empty() && d1.name() == d2.name());
+    inline bool operator==(const DayCounter& d1, const DayCounter& d2)
+    {
+        return (d1.empty() && d2.empty()) || (!d1.empty() && !d2.empty() && d1.name() == d2.name());
     }
 
-    inline bool operator!=(const DayCounter& d1, const DayCounter& d2) {
+    inline bool operator!=(const DayCounter& d1, const DayCounter& d2)
+    {
         return !(d1 == d2);
     }
 
-    inline std::ostream& operator<<(std::ostream& out, const DayCounter &d) {
+    inline std::ostream& operator<<(std::ostream& out, const DayCounter& d)
+    {
         return out << d.name();
     }
 

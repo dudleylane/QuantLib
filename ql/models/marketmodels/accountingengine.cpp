@@ -25,67 +25,63 @@
 #include <algorithm>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     AccountingEngine::AccountingEngine(ext::shared_ptr<MarketModelEvolver> evolver,
                                        const Clone<MarketModelMultiProduct>& product,
                                        Real initialNumeraireValue)
-    : evolver_(std::move(evolver)), product_(product),
-      initialNumeraireValue_(initialNumeraireValue), numberProducts_(product->numberOfProducts()),
-      numerairesHeld_(product->numberOfProducts()),
-      numberCashFlowsThisStep_(product->numberOfProducts()),
-      cashFlowsGenerated_(product->numberOfProducts()) {
-        for (Size i=0; i<numberProducts_; ++i)
-            cashFlowsGenerated_[i].resize(
-                       product_->maxNumberOfCashFlowsPerProductPerStep());
+    : evolver_(std::move(evolver)), product_(product), initialNumeraireValue_(initialNumeraireValue),
+      numberProducts_(product->numberOfProducts()), numerairesHeld_(product->numberOfProducts()),
+      numberCashFlowsThisStep_(product->numberOfProducts()), cashFlowsGenerated_(product->numberOfProducts())
+    {
+        for (Size i = 0; i < numberProducts_; ++i)
+            cashFlowsGenerated_[i].resize(product_->maxNumberOfCashFlowsPerProductPerStep());
 
-        const std::vector<Time>& cashFlowTimes =
-            product_->possibleCashFlowTimes();
+        const std::vector<Time>& cashFlowTimes = product_->possibleCashFlowTimes();
         const std::vector<Rate>& rateTimes = product_->evolution().rateTimes();
         discounters_.reserve(cashFlowTimes.size());
         for (Real cashFlowTime : cashFlowTimes)
             discounters_.emplace_back(cashFlowTime, rateTimes);
     }
 
-    Real AccountingEngine::singlePathValues(std::vector<Real>& values) {
+    Real AccountingEngine::singlePathValues(std::vector<Real>& values)
+    {
         std::fill(numerairesHeld_.begin(), numerairesHeld_.end(), 0.0);
         Real weight = evolver_->startNewPath();
         product_->reset();
         Real principalInNumerairePortfolio = 1.0;
 
         bool done = false;
-        do {
+        do
+        {
             Size thisStep = evolver_->currentStep();
             weight *= evolver_->advanceStep();
-            done = product_->nextTimeStep(evolver_->currentState(),
-                                          numberCashFlowsThisStep_,
-                                          cashFlowsGenerated_);
-            Size numeraire =
-                evolver_->numeraires()[thisStep];
+            done = product_->nextTimeStep(evolver_->currentState(), numberCashFlowsThisStep_, cashFlowsGenerated_);
+            Size numeraire = evolver_->numeraires()[thisStep];
 
             // for each product...
-            for (Size i=0; i<numberProducts_; ++i) {
+            for (Size i = 0; i < numberProducts_; ++i)
+            {
                 // ...and each cash flow...
-                const std::vector<MarketModelMultiProduct::CashFlow>& cashflows =
-                    cashFlowsGenerated_[i];
-                for (Size j=0; j<numberCashFlowsThisStep_[i]; ++j) {
+                const std::vector<MarketModelMultiProduct::CashFlow>& cashflows = cashFlowsGenerated_[i];
+                for (Size j = 0; j < numberCashFlowsThisStep_[i]; ++j)
+                {
                     // ...convert the cash flow to numeraires.
                     // This is done by calculating the number of
                     // numeraire bonds corresponding to such cash flow...
-                    const MarketModelDiscounter& discounter =
-                        discounters_[cashflows[j].timeIndex];
+                    const MarketModelDiscounter& discounter = discounters_[cashflows[j].timeIndex];
 
-                    Real bonds = cashflows[j].amount *
-                        discounter.numeraireBonds(evolver_->currentState(),
-                                                  numeraire);
+                    Real bonds = cashflows[j].amount * discounter.numeraireBonds(evolver_->currentState(), numeraire);
 
                     // ...and adding the newly bought bonds to the number
                     // of numeraires held.
-                    numerairesHeld_[i] += bonds/principalInNumerairePortfolio;
+                    numerairesHeld_[i] += bonds / principalInNumerairePortfolio;
                 }
             }
 
-            if (!done) {
+            if (!done)
+            {
 
                 // The numeraire might change between steps. This implies
                 // that we might have to convert the numeraire bonds for
@@ -94,28 +90,26 @@ namespace QuantLib {
                 // the principal of the numeraire and updating the number
                 // of bonds in the numeraire portfolio accordingly.
 
-                Size nextNumeraire = evolver_->numeraires()[thisStep+1];
+                Size nextNumeraire = evolver_->numeraires()[thisStep + 1];
 
-                principalInNumerairePortfolio *=
-                    evolver_->currentState().discountRatio(numeraire,
-                                                           nextNumeraire);
+                principalInNumerairePortfolio *= evolver_->currentState().discountRatio(numeraire, nextNumeraire);
             }
 
         } while (!done);
 
-        for (Size i=0; i<numerairesHeld_.size(); ++i)
+        for (Size i = 0; i < numerairesHeld_.size(); ++i)
             values[i] = numerairesHeld_[i] * initialNumeraireValue_;
 
         return weight;
     }
 
-    void AccountingEngine::multiplePathValues(SequenceStatisticsInc& stats,
-                                              Size numberOfPaths)
+    void AccountingEngine::multiplePathValues(SequenceStatisticsInc& stats, Size numberOfPaths)
     {
         std::vector<Real> values(product_->numberOfProducts());
-        for (Size i=0; i<numberOfPaths; ++i) {
+        for (Size i = 0; i < numberOfPaths; ++i)
+        {
             Real weight = singlePathValues(values);
-            stats.add(values,weight);
+            stats.add(values, weight);
         }
     }
 

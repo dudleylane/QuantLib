@@ -29,7 +29,8 @@
 #include <ql/methods/finitedifferences/utilities/riskneutraldensitycalculator.hpp>
 #include <ql/shared_ptr.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
     class HestonProcess;
 
     //! Risk neutral terminal probability density for the Heston model
@@ -42,18 +43,19 @@ namespace QuantLib {
         http://arxiv.org/pdf/cond-mat/0203046.pdf
      */
 
-    class HestonRNDCalculator : public RiskNeutralDensityCalculator {
-    public:
-      explicit HestonRNDCalculator(ext::shared_ptr<HestonProcess> hestonProcess,
-                                   Real integrationEps = 1e-6,
-                                   Size maxIntegrationIterations = 10000UL);
+    class HestonRNDCalculator : public RiskNeutralDensityCalculator
+    {
+      public:
+        explicit HestonRNDCalculator(ext::shared_ptr<HestonProcess> hestonProcess,
+                                     Real integrationEps = 1e-6,
+                                     Size maxIntegrationIterations = 10000UL);
 
-      // x=ln(S)
-      Real pdf(Real x, Time t) const override;
-      Real cdf(Real x, Time t) const override;
-      Real invcdf(Real q, Time t) const override;
+        // x=ln(S)
+        Real pdf(Real x, Time t) const override;
+        Real cdf(Real x, Time t) const override;
+        Real invcdf(Real q, Time t) const override;
 
-    private:
+      private:
         Real x_t(Real x, Time t) const;
 
         const ext::shared_ptr<HestonProcess> hestonProcess_;

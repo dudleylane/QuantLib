@@ -24,21 +24,23 @@
 #include <ql/models/marketmodels/products/multiproductmultistep.hpp>
 #include <ql/shared_ptr.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class StrikedTypePayoff;
 
     /*!
     Price a swaption associated to a contiguous subset of rates. Useful only for
-    testing purposes. Steps through all rate times up to start of swap. 
+    testing purposes. Steps through all rate times up to start of swap.
     */
 
-    class MultiStepSwaption : public MultiProductMultiStep {
+    class MultiStepSwaption : public MultiProductMultiStep
+    {
       public:
         MultiStepSwaption(const std::vector<Time>& rateTimes,
-                                     Size startIndex,
-                                     Size endIndex,
-                                     ext::shared_ptr<StrikedTypePayoff> &);
+                          Size startIndex,
+                          Size endIndex,
+                          ext::shared_ptr<StrikedTypePayoff>&);
         //! \name MarketModelMultiProduct interface
         //@{
         std::vector<Time> possibleCashFlowTimes() const override;
@@ -47,12 +49,11 @@ namespace QuantLib {
         void reset() override;
         bool nextTimeStep(const CurveState& currentState,
                           std::vector<Size>& numberCashFlowsThisStep,
-                          std::vector<std::vector<CashFlow> >& cashFlowsGenerated) override;
+                          std::vector<std::vector<CashFlow>>& cashFlowsGenerated) override;
         std::unique_ptr<MarketModelMultiProduct> clone() const override;
-         //@}
+        //@}
 
       private:
-    
         Size startIndex_;
         Size endIndex_;
         ext::shared_ptr<StrikedTypePayoff> payoff_;
@@ -63,24 +64,24 @@ namespace QuantLib {
 
     // Inline definitions
 
-    inline std::vector<Time>
-    MultiStepSwaption::possibleCashFlowTimes() const 
+    inline std::vector<Time> MultiStepSwaption::possibleCashFlowTimes() const
     {
         return paymentTimes_;
     }
 
-    inline Size MultiStepSwaption::numberOfProducts() const {
+    inline Size MultiStepSwaption::numberOfProducts() const
+    {
         return 1UL;
     }
 
-    inline Size
-    MultiStepSwaption::maxNumberOfCashFlowsPerProductPerStep() const {
+    inline Size MultiStepSwaption::maxNumberOfCashFlowsPerProductPerStep() const
+    {
         return 1;
     }
 
     inline void MultiStepSwaption::reset()
     {
-       currentIndex_=0;
+        currentIndex_ = 0;
     }
 
 }

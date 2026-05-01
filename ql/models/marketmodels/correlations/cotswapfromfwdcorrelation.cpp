@@ -20,58 +20,56 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/math/matrixutilities/getcovariance.hpp>
 #include <ql/models/marketmodels/correlations/cotswapfromfwdcorrelation.hpp>
 #include <ql/models/marketmodels/curvestate.hpp>
 #include <ql/models/marketmodels/swapforwardmappings.hpp>
-#include <ql/math/matrixutilities/getcovariance.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    CotSwapFromFwdCorrelation::CotSwapFromFwdCorrelation(
-            const ext::shared_ptr<PiecewiseConstantCorrelation>& fwdCorr,
-            const CurveState& curveState,
-            Spread displacement)
-    : fwdCorr_(fwdCorr),
-      numberOfRates_(fwdCorr->numberOfRates()),
-      swapCorrMatrices_(fwdCorr->correlations().size())
+    CotSwapFromFwdCorrelation::CotSwapFromFwdCorrelation(const ext::shared_ptr<PiecewiseConstantCorrelation>& fwdCorr,
+                                                         const CurveState& curveState,
+                                                         Spread displacement)
+    : fwdCorr_(fwdCorr), numberOfRates_(fwdCorr->numberOfRates()), swapCorrMatrices_(fwdCorr->correlations().size())
     {
-        QL_REQUIRE(numberOfRates_==curveState.numberOfRates(),
-                   "mismatch between number of rates in fwdCorr (" <<
-                   numberOfRates_ << ") and curveState (" <<
-                   curveState.numberOfRates() << ")");
+        QL_REQUIRE(numberOfRates_ == curveState.numberOfRates(), "mismatch between number of rates in fwdCorr ("
+                                                                     << numberOfRates_ << ") and curveState ("
+                                                                     << curveState.numberOfRates() << ")");
 
-        Matrix zed = SwapForwardMappings::coterminalSwapZedMatrix(
-                                                curveState, displacement);
+        Matrix zed = SwapForwardMappings::coterminalSwapZedMatrix(curveState, displacement);
         Matrix zedT = transpose(zed);
         const std::vector<Matrix>& fwdCorrMatrices = fwdCorr->correlations();
-        for (Size k = 0; k<fwdCorrMatrices.size(); ++k) {
-            swapCorrMatrices_[k] = CovarianceDecomposition(
-                zed * fwdCorrMatrices[k] * zedT).correlationMatrix();
+        for (Size k = 0; k < fwdCorrMatrices.size(); ++k)
+        {
+            swapCorrMatrices_[k] = CovarianceDecomposition(zed * fwdCorrMatrices[k] * zedT).correlationMatrix();
             // zero expired rates' correlation coefficients
             const std::vector<Time>& rateTimes = curveState.rateTimes();
             const std::vector<Time>& corrTimes = fwdCorr_->times();
-            for (Size i=0; i<numberOfRates_; ++i)
-                for (Size j=0; j<=i; ++j)
-                    if (corrTimes[k]>rateTimes[j])
-                        swapCorrMatrices_[k][i][j] =
-                            swapCorrMatrices_[k][j][i] = 0.0;
+            for (Size i = 0; i < numberOfRates_; ++i)
+                for (Size j = 0; j <= i; ++j)
+                    if (corrTimes[k] > rateTimes[j])
+                        swapCorrMatrices_[k][i][j] = swapCorrMatrices_[k][j][i] = 0.0;
         }
     }
 
-    const std::vector<Time>& CotSwapFromFwdCorrelation::times() const {
+    const std::vector<Time>& CotSwapFromFwdCorrelation::times() const
+    {
         return fwdCorr_->times();
     }
 
-    const std::vector<Time>& CotSwapFromFwdCorrelation::rateTimes() const {
+    const std::vector<Time>& CotSwapFromFwdCorrelation::rateTimes() const
+    {
         return fwdCorr_->rateTimes();
     }
 
-    Size CotSwapFromFwdCorrelation::numberOfRates() const {
+    Size CotSwapFromFwdCorrelation::numberOfRates() const
+    {
         return numberOfRates_;
     }
 
-    const std::vector<Matrix>&
-    CotSwapFromFwdCorrelation::correlations() const {
+    const std::vector<Matrix>& CotSwapFromFwdCorrelation::correlations() const
+    {
         return swapCorrMatrices_;
     }
 

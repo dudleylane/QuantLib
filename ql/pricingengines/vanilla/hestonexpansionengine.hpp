@@ -24,11 +24,12 @@
 #ifndef quantlib_heston_expansion_engine_hpp
 #define quantlib_heston_expansion_engine_hpp
 
-#include <ql/pricingengines/genericmodelengine.hpp>
-#include <ql/models/equity/hestonmodel.hpp>
 #include <ql/instruments/vanillaoption.hpp>
+#include <ql/models/equity/hestonmodel.hpp>
+#include <ql/pricingengines/genericmodelengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Heston-model engine for European options based on analytic expansions
     /*! References:
@@ -44,14 +45,17 @@ namespace QuantLib {
         \ingroup vanillaengines
     */
     class HestonExpansionEngine
-        : public GenericModelEngine<HestonModel,
-                                    VanillaOption::arguments,
-                                    VanillaOption::results> {
+    : public GenericModelEngine<HestonModel, VanillaOption::arguments, VanillaOption::results>
+    {
       public:
-        enum HestonExpansionFormula { LPP2, LPP3, Forde };
+        enum HestonExpansionFormula
+        {
+            LPP2,
+            LPP3,
+            Forde
+        };
 
-        HestonExpansionEngine(const ext::shared_ptr<HestonModel>& model,
-                              HestonExpansionFormula formula);
+        HestonExpansionEngine(const ext::shared_ptr<HestonModel>& model, HestonExpansionFormula formula);
 
         void calculate() const override;
 
@@ -65,7 +69,8 @@ namespace QuantLib {
         strike to impliedVolatility(strike, forward) would be
         performed.
     */
-    class HestonExpansion {
+    class HestonExpansion
+    {
       public:
         virtual ~HestonExpansion() = default;
         virtual Real impliedVolatility(Real strike, Real forward) const = 0;
@@ -77,7 +82,8 @@ namespace QuantLib {
         available in the Mathematica notebook from the authors at
         http://explicitsolutions.wordpress.com/
     */
-    class LPP2HestonExpansion : public HestonExpansion {
+    class LPP2HestonExpansion : public HestonExpansion
+    {
       public:
         LPP2HestonExpansion(Real kappa, Real theta, Real sigma, Real v0, Real rho, Real term);
         Real impliedVolatility(Real strike, Real forward) const override;
@@ -85,12 +91,9 @@ namespace QuantLib {
       private:
         Real coeffs[3];
         Real ekt, e2kt, e3kt, e4kt;
-        Real z0(Real t, Real kappa, Real theta,
-                Real delta, Real y, Real rho) const;
-        Real z1(Real t, Real kappa, Real theta,
-                Real delta, Real y, Real rho) const;
-        Real z2(Real t, Real kappa, Real theta,
-                Real delta, Real y, Real rho) const;
+        Real z0(Real t, Real kappa, Real theta, Real delta, Real y, Real rho) const;
+        Real z1(Real t, Real kappa, Real theta, Real delta, Real y, Real rho) const;
+        Real z2(Real t, Real kappa, Real theta, Real delta, Real y, Real rho) const;
     };
 
     /*! Lorig Pagliarani Pascucci expansion of order-3 for the Heston model.
@@ -99,7 +102,8 @@ namespace QuantLib {
         available in the Mathematica notebook from the authors at
         http://explicitsolutions.wordpress.com/
     */
-    class LPP3HestonExpansion : public HestonExpansion{
+    class LPP3HestonExpansion : public HestonExpansion
+    {
       public:
         LPP3HestonExpansion(Real kappa, Real theta, Real sigma, Real v0, Real rho, Real term);
         Real impliedVolatility(Real strike, Real forward) const override;
@@ -107,14 +111,10 @@ namespace QuantLib {
       private:
         Real coeffs[4];
         Real ekt, e2kt, e3kt, e4kt;
-        Real z0(Real t, Real kappa, Real theta,
-                Real delta, Real y, Real rho) const;
-        Real z1(Real t, Real kappa, Real theta,
-                Real delta, Real y, Real rho) const;
-        Real z2(Real t, Real kappa, Real theta,
-                Real delta, Real y, Real rho) const;
-        Real z3(Real t, Real kappa, Real theta,
-                Real delta, Real y, Real rho) const;
+        Real z0(Real t, Real kappa, Real theta, Real delta, Real y, Real rho) const;
+        Real z1(Real t, Real kappa, Real theta, Real delta, Real y, Real rho) const;
+        Real z2(Real t, Real kappa, Real theta, Real delta, Real y, Real rho) const;
+        Real z3(Real t, Real kappa, Real theta, Real delta, Real y, Real rho) const;
     };
 
     /*! Small-time expansion from
@@ -122,7 +122,8 @@ namespace QuantLib {
         under the Heston model" M Forde, A Jacquier, R Lee - SIAM
         Journal on Financial Mathematics, 2012 - SIAM
     */
-    class FordeHestonExpansion : public HestonExpansion {
+    class FordeHestonExpansion : public HestonExpansion
+    {
       public:
         FordeHestonExpansion(Real kappa, Real theta, Real sigma, Real v0, Real rho, Real term);
         Real impliedVolatility(Real strike, Real forward) const override;

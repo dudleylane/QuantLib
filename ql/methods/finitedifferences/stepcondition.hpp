@@ -24,15 +24,17 @@
 #ifndef quantlib_step_condition_hpp
 #define quantlib_step_condition_hpp
 
-#include <ql/math/array.hpp>
 #include <ql/instruments/payoffs.hpp>
+#include <ql/math/array.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! condition to be applied at every time step
     /*! \ingroup findiff */
     template <class array_type>
-    class StepCondition {
+    class StepCondition
+    {
       public:
         virtual ~StepCondition() = default;
         virtual void applyTo(array_type& a, Time t) const = 0;
@@ -42,7 +44,8 @@ namespace QuantLib {
     //! %null step condition
     /*! \ingroup findiff */
     template <class array_type>
-    class NullCondition : public StepCondition<array_type> {
+    class NullCondition : public StepCondition<array_type>
+    {
       public:
         void applyTo(array_type&, Time) const override {}
     };

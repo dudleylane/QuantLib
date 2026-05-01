@@ -24,27 +24,33 @@
 #ifndef quantlib_fdm_vpp_step_condition_factory_hpp
 #define quantlib_fdm_vpp_step_condition_factory_hpp
 
+#include <ql/experimental/finitedifferences/fdmvppstepcondition.hpp>
+#include <ql/experimental/finitedifferences/vanillavppoption.hpp>
 #include <ql/math/array.hpp>
 #include <ql/methods/finitedifferences/stepcondition.hpp>
-#include <ql/experimental/finitedifferences/vanillavppoption.hpp>
-#include <ql/experimental/finitedifferences/fdmvppstepcondition.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
     class Fdm1dMesher;
 
-    class FdmVPPStepConditionFactory {
+    class FdmVPPStepConditionFactory
+    {
       public:
         explicit FdmVPPStepConditionFactory(VanillaVPPOption::arguments args);
 
         ext::shared_ptr<Fdm1dMesher> stateMesher() const;
-        ext::shared_ptr<FdmVPPStepCondition> build(
-            const FdmVPPStepConditionMesher& mesh,
-            Real fuelCostAddon,
-            const ext::shared_ptr<FdmInnerValueCalculator>& fuel,
-            const ext::shared_ptr<FdmInnerValueCalculator>& spark) const;
+        ext::shared_ptr<FdmVPPStepCondition> build(const FdmVPPStepConditionMesher& mesh,
+                                                   Real fuelCostAddon,
+                                                   const ext::shared_ptr<FdmInnerValueCalculator>& fuel,
+                                                   const ext::shared_ptr<FdmInnerValueCalculator>& spark) const;
 
       private:
-        enum Type { Vanilla, StartLimit, RunningHourLimit } type_;
+        enum Type
+        {
+            Vanilla,
+            StartLimit,
+            RunningHourLimit
+        } type_;
 
         const VanillaVPPOption::arguments args_;
     };

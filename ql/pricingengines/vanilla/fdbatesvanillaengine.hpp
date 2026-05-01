@@ -24,33 +24,33 @@
 #ifndef quantlib_fd_bates_vanilla_engine_hpp
 #define quantlib_fd_bates_vanilla_engine_hpp
 
-#include <ql/models/equity/batesmodel.hpp>
 #include <ql/instruments/vanillaoption.hpp>
-#include <ql/pricingengines/genericmodelengine.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
+#include <ql/models/equity/batesmodel.hpp>
+#include <ql/pricingengines/genericmodelengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Partial integro finite-differences Bates vanilla option engine
     /*! \ingroup vanillaengines */
-    class FdBatesVanillaEngine
-        : public GenericModelEngine<BatesModel,
-                                    VanillaOption::arguments,
-                                    VanillaOption::results> {
+    class FdBatesVanillaEngine : public GenericModelEngine<BatesModel, VanillaOption::arguments, VanillaOption::results>
+    {
       public:
-        explicit
-        FdBatesVanillaEngine(
-            const ext::shared_ptr<BatesModel>& model,
-            Size tGrid = 100, Size xGrid = 100, 
-            Size vGrid = 50, Size dampingSteps = 0,
-            const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Hundsdorfer());
+        explicit FdBatesVanillaEngine(const ext::shared_ptr<BatesModel>& model,
+                                      Size tGrid = 100,
+                                      Size xGrid = 100,
+                                      Size vGrid = 50,
+                                      Size dampingSteps = 0,
+                                      const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Hundsdorfer());
 
-        FdBatesVanillaEngine(
-            const ext::shared_ptr<BatesModel>& model,
-            DividendSchedule dividends,
-            Size tGrid = 100, Size xGrid = 100, 
-            Size vGrid = 50, Size dampingSteps = 0,
-            const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Hundsdorfer());
+        FdBatesVanillaEngine(const ext::shared_ptr<BatesModel>& model,
+                             DividendSchedule dividends,
+                             Size tGrid = 100,
+                             Size xGrid = 100,
+                             Size vGrid = 50,
+                             Size dampingSteps = 0,
+                             const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Hundsdorfer());
 
         void calculate() const override;
 

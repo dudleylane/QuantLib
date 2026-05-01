@@ -24,15 +24,17 @@
 #ifndef quantlib_fdm_bermudan_step_condition_hpp
 #define quantlib_fdm_bermudan_step_condition_hpp
 
-#include <ql/time/daycounter.hpp>
-#include <ql/methods/finitedifferences/stepcondition.hpp>
 #include <ql/methods/finitedifferences/meshers/fdmmesher.hpp>
+#include <ql/methods/finitedifferences/stepcondition.hpp>
+#include <ql/time/daycounter.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class FdmInnerValueCalculator;
 
-    class FdmBermudanStepCondition : public StepCondition<Array> {
+    class FdmBermudanStepCondition : public StepCondition<Array>
+    {
       public:
         FdmBermudanStepCondition(const std::vector<Date>& exerciseDates,
                                  const Date& referenceDate,

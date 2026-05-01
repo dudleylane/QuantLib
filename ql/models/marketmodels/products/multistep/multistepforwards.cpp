@@ -22,37 +22,35 @@
 #include <ql/models/marketmodels/utilities.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     MultiStepForwards::MultiStepForwards(const std::vector<Time>& rateTimes,
                                          std::vector<Real> accruals,
                                          const std::vector<Time>& paymentTimes,
                                          std::vector<Rate> strikes)
     : MultiProductMultiStep(rateTimes), accruals_(std::move(accruals)), paymentTimes_(paymentTimes),
-      strikes_(std::move(strikes)) {
+      strikes_(std::move(strikes))
+    {
         checkIncreasingTimes(paymentTimes);
     }
 
-    bool MultiStepForwards::nextTimeStep(
-            const CurveState& currentState,
-            std::vector<Size>& numberCashFlowsThisStep,
-            std::vector<std::vector<MarketModelMultiProduct::CashFlow> >&
-                                                               genCashFlows) {
+    bool MultiStepForwards::nextTimeStep(const CurveState& currentState,
+                                         std::vector<Size>& numberCashFlowsThisStep,
+                                         std::vector<std::vector<MarketModelMultiProduct::CashFlow>>& genCashFlows)
+    {
         Rate liborRate = currentState.forwardRate(currentIndex_);
         genCashFlows[currentIndex_][0].timeIndex = currentIndex_;
-        genCashFlows[currentIndex_][0].amount =
-            (liborRate-strikes_[currentIndex_])*accruals_[currentIndex_];
-        std::fill(numberCashFlowsThisStep.begin(),
-                  numberCashFlowsThisStep.end(),0);
+        genCashFlows[currentIndex_][0].amount = (liborRate - strikes_[currentIndex_]) * accruals_[currentIndex_];
+        std::fill(numberCashFlowsThisStep.begin(), numberCashFlowsThisStep.end(), 0);
         numberCashFlowsThisStep[currentIndex_] = 1;
         ++currentIndex_;
         return (currentIndex_ == strikes_.size());
     }
 
-    std::unique_ptr<MarketModelMultiProduct>
-    MultiStepForwards::clone() const {
+    std::unique_ptr<MarketModelMultiProduct> MultiStepForwards::clone() const
+    {
         return std::unique_ptr<MarketModelMultiProduct>(new MultiStepForwards(*this));
     }
 
 }
-

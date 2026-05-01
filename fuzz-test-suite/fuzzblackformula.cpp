@@ -20,7 +20,8 @@
 
 using namespace QuantLib;
 
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
+{
     FuzzedDataProvider fdp(data, size);
 
     // Generate constrained parameters that satisfy preconditions:
@@ -37,86 +38,109 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     // Choose which function group to exercise (use remaining entropy)
     int funcGroup = fdp.ConsumeIntegralInRange<int>(0, 5);
 
-    try {
-        switch (funcGroup) {
-        case 0: {
-            // Black formula and its derivatives
-            Real price = blackFormula(type, strike, forward, stdDev, discount, displacement);
-            (void)price;
-            (void)blackFormulaForwardDerivative(type, strike, forward, stdDev, discount, displacement);
-            (void)blackFormulaCashItmProbability(type, strike, forward, stdDev, displacement);
-            (void)blackFormulaAssetItmProbability(type, strike, forward, stdDev, displacement);
-            (void)blackFormulaStdDevDerivative(strike, forward, stdDev, discount, displacement);
-            (void)blackFormulaVolDerivative(strike, forward, stdDev, expiry, discount, displacement);
-            if (stdDev > 0.01) {
-                (void)blackFormulaStdDevSecondDerivative(strike, forward, stdDev, discount, displacement);
+    try
+    {
+        switch (funcGroup)
+        {
+            case 0:
+            {
+                // Black formula and its derivatives
+                Real price = blackFormula(type, strike, forward, stdDev, discount, displacement);
+                (void)price;
+                (void)blackFormulaForwardDerivative(type, strike, forward, stdDev, discount, displacement);
+                (void)blackFormulaCashItmProbability(type, strike, forward, stdDev, displacement);
+                (void)blackFormulaAssetItmProbability(type, strike, forward, stdDev, displacement);
+                (void)blackFormulaStdDevDerivative(strike, forward, stdDev, discount, displacement);
+                (void)blackFormulaVolDerivative(strike, forward, stdDev, expiry, discount, displacement);
+                if (stdDev > 0.01)
+                {
+                    (void)blackFormulaStdDevSecondDerivative(strike, forward, stdDev, discount, displacement);
+                }
+                break;
             }
-            break;
-        }
-        case 1: {
-            // Implied stddev approximations (Corrado-Miller)
-            Real price = blackFormula(type, strike, forward, stdDev, discount, displacement);
-            if (price > 0.0) {
-                (void)blackFormulaImpliedStdDevApproximation(type, strike, forward, price, discount, displacement);
+            case 1:
+            {
+                // Implied stddev approximations (Corrado-Miller)
+                Real price = blackFormula(type, strike, forward, stdDev, discount, displacement);
+                if (price > 0.0)
+                {
+                    (void)blackFormulaImpliedStdDevApproximation(type, strike, forward, price, discount, displacement);
+                }
+                break;
             }
-            break;
-        }
-        case 2: {
-            // Implied stddev approximation (Radoicic-Stefanica)
-            Real price = blackFormula(type, strike, forward, stdDev, discount, displacement);
-            if (price > 0.0) {
-                (void)blackFormulaImpliedStdDevApproximationRS(type, strike, forward, price, discount, displacement);
+            case 2:
+            {
+                // Implied stddev approximation (Radoicic-Stefanica)
+                Real price = blackFormula(type, strike, forward, stdDev, discount, displacement);
+                if (price > 0.0)
+                {
+                    (void)blackFormulaImpliedStdDevApproximationRS(type, strike, forward, price, discount,
+                                                                   displacement);
+                }
+                break;
             }
-            break;
-        }
-        case 3: {
-            // Implied stddev (Newton-safe solver)
-            Real price = blackFormula(type, strike, forward, stdDev, discount, displacement);
-            if (price > 0.0 && stdDev > 0.01) {
-                (void)blackFormulaImpliedStdDev(type, strike, forward, price, discount, displacement);
+            case 3:
+            {
+                // Implied stddev (Newton-safe solver)
+                Real price = blackFormula(type, strike, forward, stdDev, discount, displacement);
+                if (price > 0.0 && stdDev > 0.01)
+                {
+                    (void)blackFormulaImpliedStdDev(type, strike, forward, price, discount, displacement);
+                }
+                break;
             }
-            break;
-        }
-        case 4: {
-            // Chambers approximation
-            Real price = blackFormula(type, strike, forward, stdDev, discount, displacement);
-            Real atmStdDev = fdp.ConsumeFloatingPointInRange<Real>(0.01, 5.0);
-            Real atmPrice = blackFormula(type, forward, forward, atmStdDev, discount, 0.0);
-            if (price > 0.0 && atmPrice > 0.0) {
-                (void)blackFormulaImpliedStdDevChambers(type, strike, forward, price, atmPrice, discount, displacement);
+            case 4:
+            {
+                // Chambers approximation
+                Real price = blackFormula(type, strike, forward, stdDev, discount, displacement);
+                Real atmStdDev = fdp.ConsumeFloatingPointInRange<Real>(0.01, 5.0);
+                Real atmPrice = blackFormula(type, forward, forward, atmStdDev, discount, 0.0);
+                if (price > 0.0 && atmPrice > 0.0)
+                {
+                    (void)blackFormulaImpliedStdDevChambers(type, strike, forward, price, atmPrice, discount,
+                                                            displacement);
+                }
+                break;
             }
-            break;
-        }
-        case 5: {
-            // Bachelier (normal) model formulas
-            Real bachelierStdDev = fdp.ConsumeFloatingPointInRange<Real>(0.0, 500.0);
-            (void)bachelierBlackFormula(type, strike, forward, bachelierStdDev, discount);
-            (void)bachelierBlackFormulaForwardDerivative(type, strike, forward, bachelierStdDev, discount);
-            (void)bachelierBlackFormulaStdDevDerivative(strike, forward, bachelierStdDev, discount);
-            (void)bachelierBlackFormulaAssetItmProbability(type, strike, forward, bachelierStdDev);
+            case 5:
+            {
+                // Bachelier (normal) model formulas
+                Real bachelierStdDev = fdp.ConsumeFloatingPointInRange<Real>(0.0, 500.0);
+                (void)bachelierBlackFormula(type, strike, forward, bachelierStdDev, discount);
+                (void)bachelierBlackFormulaForwardDerivative(type, strike, forward, bachelierStdDev, discount);
+                (void)bachelierBlackFormulaStdDevDerivative(strike, forward, bachelierStdDev, discount);
+                (void)bachelierBlackFormulaAssetItmProbability(type, strike, forward, bachelierStdDev);
 
-            // Bachelier implied vol (Choi and Jaeckel)
-            Real bachelierPrice = bachelierBlackFormula(type, strike, forward, bachelierStdDev, discount);
-            if (bachelierPrice > 0.0 && expiry > 0.0) {
-                (void)bachelierBlackFormulaImpliedVolChoi(type, strike, forward, expiry, bachelierPrice, discount);
-                (void)bachelierBlackFormulaImpliedVol(type, strike, forward, expiry, bachelierPrice, discount);
+                // Bachelier implied vol (Choi and Jaeckel)
+                Real bachelierPrice = bachelierBlackFormula(type, strike, forward, bachelierStdDev, discount);
+                if (bachelierPrice > 0.0 && expiry > 0.0)
+                {
+                    (void)bachelierBlackFormulaImpliedVolChoi(type, strike, forward, expiry, bachelierPrice, discount);
+                    (void)bachelierBlackFormulaImpliedVol(type, strike, forward, expiry, bachelierPrice, discount);
+                }
+                break;
             }
-            break;
         }
-        }
-    } catch (const std::exception&) {
+    }
+    catch (const std::exception&)
+    {
     }
 
     // Also exercise Li-RS implied stddev when we have enough entropy
-    if (fdp.remaining_bytes() >= 8) {
-        try {
+    if (fdp.remaining_bytes() >= 8)
+    {
+        try
+        {
             Real price = blackFormula(type, strike, forward, stdDev, discount, displacement);
-            if (price > 0.0 && stdDev > 0.01) {
+            if (price > 0.0 && stdDev > 0.01)
+            {
                 Real omega = fdp.ConsumeFloatingPointInRange<Real>(0.5, 1.5);
-                (void)blackFormulaImpliedStdDevLiRS(type, strike, forward, price, discount, displacement,
-                                                    Null<Real>(), omega);
+                (void)blackFormulaImpliedStdDevLiRS(type, strike, forward, price, discount, displacement, Null<Real>(),
+                                                    omega);
             }
-        } catch (const std::exception&) {
+        }
+        catch (const std::exception&)
+        {
         }
     }
 

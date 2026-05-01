@@ -27,30 +27,31 @@
 #define quantlib_binomial_tree_hpp
 
 
-#include <ql/methods/lattices/tree.hpp>
 #include <ql/instruments/dividendschedule.hpp>
+#include <ql/methods/lattices/tree.hpp>
 #include <ql/stochasticprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Binomial tree base class
     /*! \ingroup lattices */
     template <class T>
-    class BinomialTree : public Tree<T> {
+    class BinomialTree : public Tree<T>
+    {
       public:
-        enum Branches { branches = 2 };
-        BinomialTree(const ext::shared_ptr<StochasticProcess1D>& process,
-                     Time end,
-                     Size steps)
-        : Tree<T>(steps+1), x0_(process->x0()), dt_(end/steps) {
+        enum Branches
+        {
+            branches = 2
+        };
+        BinomialTree(const ext::shared_ptr<StochasticProcess1D>& process, Time end, Size steps)
+        : Tree<T>(steps + 1), x0_(process->x0()), dt_(end / steps)
+        {
             driftPerStep_ = process->drift(0.0, x0_) * dt_;
         }
-        Size size(Size i) const {
-            return i+1;
-        }
-        Size descendant(Size, Size index, Size branch) const {
-            return index + branch;
-        }
+        Size size(Size i) const { return i + 1; }
+        Size descendant(Size, Size index, Size branch) const { return index + branch; }
+
       protected:
         Real x0_, driftPerStep_;
         Time dt_;
@@ -60,19 +61,21 @@ namespace QuantLib {
     //! Base class for equal probabilities binomial tree
     /*! \ingroup lattices */
     template <class T>
-    class EqualProbabilitiesBinomialTree : public BinomialTree<T> {
+    class EqualProbabilitiesBinomialTree : public BinomialTree<T>
+    {
       public:
-        EqualProbabilitiesBinomialTree(
-                        const ext::shared_ptr<StochasticProcess1D>& process,
-                        Time end,
-                        Size steps)
-        : BinomialTree<T>(process, end, steps) {}
-        Real underlying(Size i, Size index) const {
-            BigInteger j = 2*BigInteger(index) - BigInteger(i);
+        EqualProbabilitiesBinomialTree(const ext::shared_ptr<StochasticProcess1D>& process, Time end, Size steps)
+        : BinomialTree<T>(process, end, steps)
+        {
+        }
+        Real underlying(Size i, Size index) const
+        {
+            BigInteger j = 2 * BigInteger(index) - BigInteger(i);
             // exploiting the forward value tree centering
-            return this->x0_*std::exp(i*this->driftPerStep_ + j*this->up_);
+            return this->x0_ * std::exp(i * this->driftPerStep_ + j * this->up_);
         }
         Real probability(Size, Size, Size) const { return 0.5; }
+
       protected:
         Real up_;
     };
@@ -81,21 +84,21 @@ namespace QuantLib {
     //! Base class for equal jumps binomial tree
     /*! \ingroup lattices */
     template <class T>
-    class EqualJumpsBinomialTree : public BinomialTree<T> {
+    class EqualJumpsBinomialTree : public BinomialTree<T>
+    {
       public:
-        EqualJumpsBinomialTree(
-                        const ext::shared_ptr<StochasticProcess1D>& process,
-                        Time end,
-                        Size steps)
-        : BinomialTree<T>(process, end, steps) {}
-        Real underlying(Size i, Size index) const {
-            BigInteger j = 2*BigInteger(index) - BigInteger(i);
+        EqualJumpsBinomialTree(const ext::shared_ptr<StochasticProcess1D>& process, Time end, Size steps)
+        : BinomialTree<T>(process, end, steps)
+        {
+        }
+        Real underlying(Size i, Size index) const
+        {
+            BigInteger j = 2 * BigInteger(index) - BigInteger(i);
             // exploiting equal jump and the x0_ tree centering
-            return this->x0_*std::exp(j*this->dx_);
+            return this->x0_ * std::exp(j * this->dx_);
         }
-        Real probability(Size, Size, Size branch) const {
-            return (branch == 1 ? pu_ : pd_);
-        }
+        Real probability(Size, Size, Size branch) const { return (branch == 1 ? pu_ : pd_); }
+
       protected:
         Real dx_, pu_, pd_;
     };
@@ -103,103 +106,83 @@ namespace QuantLib {
 
     //! Jarrow-Rudd (multiplicative) equal probabilities binomial tree
     /*! \ingroup lattices */
-    class JarrowRudd : public EqualProbabilitiesBinomialTree<JarrowRudd> {
+    class JarrowRudd : public EqualProbabilitiesBinomialTree<JarrowRudd>
+    {
       public:
-        JarrowRudd(const ext::shared_ptr<StochasticProcess1D>&,
-                   Time end,
-                   Size steps,
-                   Real strike);
+        JarrowRudd(const ext::shared_ptr<StochasticProcess1D>&, Time end, Size steps, Real strike);
     };
 
 
     //! Cox-Ross-Rubinstein (multiplicative) equal jumps binomial tree
     /*! \ingroup lattices */
-    class CoxRossRubinstein
-        : public EqualJumpsBinomialTree<CoxRossRubinstein> {
+    class CoxRossRubinstein : public EqualJumpsBinomialTree<CoxRossRubinstein>
+    {
       public:
-        CoxRossRubinstein(const ext::shared_ptr<StochasticProcess1D>&,
-                          Time end,
-                          Size steps,
-                          Real strike);
+        CoxRossRubinstein(const ext::shared_ptr<StochasticProcess1D>&, Time end, Size steps, Real strike);
     };
 
 
     //! Additive equal probabilities binomial tree
     /*! \ingroup lattices */
-    class AdditiveEQPBinomialTree
-        : public EqualProbabilitiesBinomialTree<AdditiveEQPBinomialTree> {
+    class AdditiveEQPBinomialTree : public EqualProbabilitiesBinomialTree<AdditiveEQPBinomialTree>
+    {
       public:
-        AdditiveEQPBinomialTree(
-                        const ext::shared_ptr<StochasticProcess1D>&,
-                        Time end,
-                        Size steps,
-                        Real strike);
+        AdditiveEQPBinomialTree(const ext::shared_ptr<StochasticProcess1D>&, Time end, Size steps, Real strike);
     };
 
 
     //! %Trigeorgis (additive equal jumps) binomial tree
     /*! \ingroup lattices */
-    class Trigeorgis : public EqualJumpsBinomialTree<Trigeorgis> {
+    class Trigeorgis : public EqualJumpsBinomialTree<Trigeorgis>
+    {
       public:
-        Trigeorgis(const ext::shared_ptr<StochasticProcess1D>&,
-                   Time end,
-                   Size steps,
-                   Real strike);
+        Trigeorgis(const ext::shared_ptr<StochasticProcess1D>&, Time end, Size steps, Real strike);
     };
 
 
     //! %Tian tree: third moment matching, multiplicative approach
     /*! \ingroup lattices */
-    class Tian : public BinomialTree<Tian> {
+    class Tian : public BinomialTree<Tian>
+    {
       public:
-        Tian(const ext::shared_ptr<StochasticProcess1D>&,
-             Time end,
-             Size steps,
-             Real strike);
-        Real underlying(Size i, Size index) const {
-            return x0_ * std::pow(down_, Real(BigInteger(i)-BigInteger(index)))
-                       * std::pow(up_, Real(index));
+        Tian(const ext::shared_ptr<StochasticProcess1D>&, Time end, Size steps, Real strike);
+        Real underlying(Size i, Size index) const
+        {
+            return x0_ * std::pow(down_, Real(BigInteger(i) - BigInteger(index))) * std::pow(up_, Real(index));
         };
-        Real probability(Size, Size, Size branch) const {
-            return (branch == 1 ? pu_ : pd_);
-        }
+        Real probability(Size, Size, Size branch) const { return (branch == 1 ? pu_ : pd_); }
+
       protected:
         Real up_, down_, pu_, pd_;
     };
 
     //! Leisen & Reimer tree: multiplicative approach
     /*! \ingroup lattices */
-    class LeisenReimer : public BinomialTree<LeisenReimer> {
+    class LeisenReimer : public BinomialTree<LeisenReimer>
+    {
       public:
-        LeisenReimer(const ext::shared_ptr<StochasticProcess1D>&,
-                     Time end,
-                     Size steps,
-                     Real strike);
-        Real underlying(Size i, Size index) const {
-            return x0_ * std::pow(down_, Real(BigInteger(i)-BigInteger(index)))
-                       * std::pow(up_, Real(index));
+        LeisenReimer(const ext::shared_ptr<StochasticProcess1D>&, Time end, Size steps, Real strike);
+        Real underlying(Size i, Size index) const
+        {
+            return x0_ * std::pow(down_, Real(BigInteger(i) - BigInteger(index))) * std::pow(up_, Real(index));
         }
-        Real probability(Size, Size, Size branch) const {
-            return (branch == 1 ? pu_ : pd_);
-        }
+        Real probability(Size, Size, Size branch) const { return (branch == 1 ? pu_ : pd_); }
+
       protected:
         Real up_, down_, pu_, pd_;
     };
 
 
-     class Joshi4 : public BinomialTree<Joshi4> {
+    class Joshi4 : public BinomialTree<Joshi4>
+    {
       public:
-        Joshi4(const ext::shared_ptr<StochasticProcess1D>&,
-               Time end,
-               Size steps,
-               Real strike);
-        Real underlying(Size i, Size index) const {
-            return x0_ * std::pow(down_, Real(BigInteger(i)-BigInteger(index)))
-                       * std::pow(up_, Real(index));
+        Joshi4(const ext::shared_ptr<StochasticProcess1D>&, Time end, Size steps, Real strike);
+        Real underlying(Size i, Size index) const
+        {
+            return x0_ * std::pow(down_, Real(BigInteger(i) - BigInteger(index))) * std::pow(up_, Real(index));
         }
-        Real probability(Size, Size, Size branch) const {
-            return (branch == 1 ? pu_ : pd_);
-        }
+        Real probability(Size, Size, Size branch) const { return (branch == 1 ? pu_ : pd_); }
+
       protected:
         Real computeUpProb(Real k, Real dj) const;
         Real up_, down_, pu_, pd_;

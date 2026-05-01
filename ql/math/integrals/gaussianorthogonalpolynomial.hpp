@@ -26,7 +26,8 @@
 
 #include <ql/types.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! orthogonal polynomial for Gaussian quadratures
     /*! References:
@@ -47,20 +48,22 @@ namespace QuantLib {
         \mu_0 = \int{w(x)dx}
         \f]
     */
-    class GaussianOrthogonalPolynomial {
+    class GaussianOrthogonalPolynomial
+    {
       public:
         virtual ~GaussianOrthogonalPolynomial() = default;
-        virtual Real mu_0()        const = 0;
+        virtual Real mu_0() const = 0;
         virtual Real alpha(Size i) const = 0;
-        virtual Real beta(Size i)  const = 0;
-        virtual Real w(Real x)     const = 0;
+        virtual Real beta(Size i) const = 0;
+        virtual Real w(Real x) const = 0;
 
         Real value(Size i, Real x) const;
         Real weightedValue(Size i, Real x) const;
     };
 
     //! Gauss-Laguerre polynomial
-    class GaussLaguerrePolynomial : public GaussianOrthogonalPolynomial {
+    class GaussLaguerrePolynomial : public GaussianOrthogonalPolynomial
+    {
       public:
         explicit GaussLaguerrePolynomial(Real s = 0.0);
 
@@ -74,7 +77,8 @@ namespace QuantLib {
     };
 
     //! Gauss-Hermite polynomial
-    class GaussHermitePolynomial : public GaussianOrthogonalPolynomial {
+    class GaussHermitePolynomial : public GaussianOrthogonalPolynomial
+    {
       public:
         explicit GaussHermitePolynomial(Real mu = 0.0);
 
@@ -88,7 +92,8 @@ namespace QuantLib {
     };
 
     //! Gauss-Jacobi polynomial
-    class GaussJacobiPolynomial : public GaussianOrthogonalPolynomial {
+    class GaussJacobiPolynomial : public GaussianOrthogonalPolynomial
+    {
       public:
         explicit GaussJacobiPolynomial(Real alpha, Real beta);
 
@@ -103,31 +108,36 @@ namespace QuantLib {
     };
 
     //! Gauss-Legendre polynomial
-    class GaussLegendrePolynomial : public GaussJacobiPolynomial {
+    class GaussLegendrePolynomial : public GaussJacobiPolynomial
+    {
       public:
         GaussLegendrePolynomial();
     };
 
     //! Gauss-Chebyshev polynomial
-    class GaussChebyshevPolynomial : public GaussJacobiPolynomial {
+    class GaussChebyshevPolynomial : public GaussJacobiPolynomial
+    {
       public:
         GaussChebyshevPolynomial();
     };
 
     //! Gauss-Chebyshev polynomial (second kind)
-    class GaussChebyshev2ndPolynomial : public GaussJacobiPolynomial {
+    class GaussChebyshev2ndPolynomial : public GaussJacobiPolynomial
+    {
       public:
         GaussChebyshev2ndPolynomial();
     };
 
     //! Gauss-Gegenbauer polynomial
-    class GaussGegenbauerPolynomial : public GaussJacobiPolynomial {
+    class GaussGegenbauerPolynomial : public GaussJacobiPolynomial
+    {
       public:
         explicit GaussGegenbauerPolynomial(Real lambda);
     };
 
     //! Gauss hyperbolic polynomial
-    class GaussHyperbolicPolynomial : public GaussianOrthogonalPolynomial {
+    class GaussHyperbolicPolynomial : public GaussianOrthogonalPolynomial
+    {
       public:
         Real mu_0() const override;
         Real alpha(Size i) const override;

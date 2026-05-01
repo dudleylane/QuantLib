@@ -18,26 +18,24 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/math/copulas/huslerreisscopula.hpp>
 #include <ql/errors.hpp>
+#include <ql/math/copulas/huslerreisscopula.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    HuslerReissCopula::HuslerReissCopula(Real theta)
-    : theta_(theta)
+    HuslerReissCopula::HuslerReissCopula(Real theta) : theta_(theta)
     {
-        QL_REQUIRE(theta >= 0.0,
-                   "theta (" << theta << ") must be greater or equal to 0");
+        QL_REQUIRE(theta >= 0.0, "theta (" << theta << ") must be greater or equal to 0");
     }
 
     Real HuslerReissCopula::operator()(Real x, Real y) const
     {
-        QL_REQUIRE(x >= 0.0 && x <=1.0 ,
-                   "1st argument (" << x << ") must be in [0,1]");
-        QL_REQUIRE(y >= 0.0 && y <=1.0 ,
-                   "2nd argument (" << y << ") must be in [0,1]");
+        QL_REQUIRE(x >= 0.0 && x <= 1.0, "1st argument (" << x << ") must be in [0,1]");
+        QL_REQUIRE(y >= 0.0 && y <= 1.0, "2nd argument (" << y << ") must be in [0,1]");
         using namespace std;
-        return pow(x,cumNormal_(1.0/theta_+0.5*theta_*log(-log(x)/-log(y))))*pow(y,cumNormal_(1.0/theta_+0.5*theta_*log(-log(y)/-log(x))));
+        return pow(x, cumNormal_(1.0 / theta_ + 0.5 * theta_ * log(-log(x) / -log(y)))) *
+               pow(y, cumNormal_(1.0 / theta_ + 0.5 * theta_ * log(-log(y) / -log(x))));
     }
 
 }

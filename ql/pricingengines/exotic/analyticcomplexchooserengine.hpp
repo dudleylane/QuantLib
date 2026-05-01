@@ -25,15 +25,16 @@
 #define quantlib_analytic_complex_chooser_engine_hpp
 
 #include <ql/instruments/complexchooseroption.hpp>
-#include <ql/processes/blackscholesprocess.hpp>
 #include <ql/pricingengines/blackscholescalculator.hpp>
+#include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class AnalyticComplexChooserEngine : public ComplexChooserOption::engine {
+    class AnalyticComplexChooserEngine : public ComplexChooserOption::engine
+    {
       public:
-        explicit AnalyticComplexChooserEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess> process);
+        explicit AnalyticComplexChooserEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process);
         void calculate() const override;
 
       private:
@@ -51,8 +52,7 @@ namespace QuantLib {
         Rate riskFreeRate(Time t) const;
         DiscountFactor riskFreeDiscount(Time t) const;
 
-        BlackScholesCalculator bsCalculator(Real spot,
-                                            Option::Type optionType) const;
+        BlackScholesCalculator bsCalculator(Real spot, Option::Type optionType) const;
         Real criticalValue() const;
     };
 

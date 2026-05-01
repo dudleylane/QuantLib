@@ -22,41 +22,41 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
-#include <ql/models/marketmodels/models/capletcoterminalalphacalibration.hpp>
+#include <ql/legacy/libormarketmodels/lmextlinexpvolmodel.hpp>
+#include <ql/legacy/libormarketmodels/lmlinexpcorrmodel.hpp>
+#include <ql/math/integrals/segmentintegral.hpp>
+#include <ql/math/optimization/simplex.hpp>
+#include <ql/math/statistics/convergencestatistics.hpp>
+#include <ql/math/statistics/sequencestatistics.hpp>
+#include <ql/methods/montecarlo/genericlsregression.hpp>
+#include <ql/models/marketmodels/accountingengine.hpp>
+#include <ql/models/marketmodels/browniangenerators/mtbrowniangenerator.hpp>
+#include <ql/models/marketmodels/browniangenerators/sobolbrowniangenerator.hpp>
 #include <ql/models/marketmodels/correlations/cotswapfromfwdcorrelation.hpp>
+#include <ql/models/marketmodels/correlations/expcorrelations.hpp>
 #include <ql/models/marketmodels/correlations/timehomogeneousforwardcorrelation.hpp>
-#include <ql/models/marketmodels/models/piecewiseconstantabcdvariance.hpp>
+#include <ql/models/marketmodels/curvestates/coterminalswapcurvestate.hpp>
+#include <ql/models/marketmodels/evolvers/lognormalcotswapratepc.hpp>
+#include <ql/models/marketmodels/evolvers/lognormalfwdratepc.hpp>
+#include <ql/models/marketmodels/models/abcdvol.hpp>
+#include <ql/models/marketmodels/models/capletcoterminalalphacalibration.hpp>
 #include <ql/models/marketmodels/models/capletcoterminalswaptioncalibration.hpp>
 #include <ql/models/marketmodels/models/cotswaptofwdadapter.hpp>
+#include <ql/models/marketmodels/models/flatvol.hpp>
+#include <ql/models/marketmodels/models/piecewiseconstantabcdvariance.hpp>
 #include <ql/models/marketmodels/models/pseudorootfacade.hpp>
+#include <ql/models/marketmodels/products/multiproductcomposite.hpp>
 #include <ql/models/marketmodels/products/multistep/multistepcoterminalswaps.hpp>
 #include <ql/models/marketmodels/products/multistep/multistepcoterminalswaptions.hpp>
 #include <ql/models/marketmodels/products/multistep/multistepswap.hpp>
-#include <ql/models/marketmodels/products/multiproductcomposite.hpp>
-#include <ql/models/marketmodels/accountingengine.hpp>
-#include <ql/models/marketmodels/utilities.hpp>
-#include <ql/models/marketmodels/evolvers/lognormalcotswapratepc.hpp>
-#include <ql/models/marketmodels/evolvers/lognormalfwdratepc.hpp>
-#include <ql/models/marketmodels/correlations/expcorrelations.hpp>
-#include <ql/models/marketmodels/models/flatvol.hpp>
-#include <ql/models/marketmodels/models/abcdvol.hpp>
-#include <ql/models/marketmodels/browniangenerators/mtbrowniangenerator.hpp>
-#include <ql/models/marketmodels/browniangenerators/sobolbrowniangenerator.hpp>
 #include <ql/models/marketmodels/swapforwardmappings.hpp>
-#include <ql/models/marketmodels/curvestates/coterminalswapcurvestate.hpp>
-#include <ql/methods/montecarlo/genericlsregression.hpp>
-#include <ql/legacy/libormarketmodels/lmlinexpcorrmodel.hpp>
-#include <ql/legacy/libormarketmodels/lmextlinexpvolmodel.hpp>
-#include <ql/time/schedule.hpp>
+#include <ql/models/marketmodels/utilities.hpp>
+#include <ql/pricingengines/blackcalculator.hpp>
+#include <ql/pricingengines/blackformula.hpp>
 #include <ql/time/calendars/nullcalendar.hpp>
 #include <ql/time/daycounters/simpledaycounter.hpp>
-#include <ql/pricingengines/blackformula.hpp>
-#include <ql/pricingengines/blackcalculator.hpp>
+#include <ql/time/schedule.hpp>
 #include <ql/utilities/dataformatters.hpp>
-#include <ql/math/integrals/segmentintegral.hpp>
-#include <ql/math/statistics/convergencestatistics.hpp>
-#include <ql/math/optimization/simplex.hpp>
-#include <ql/math/statistics/sequencestatistics.hpp>
 #include <sstream>
 
 using namespace QuantLib;
@@ -86,22 +86,23 @@ unsigned long seed_;
 Size paths_, trainingPaths_;
 bool printReport_ = false;
 
-void setup() {
+void setup()
+{
 
     // Times
     calendar_ = NullCalendar();
     todaysDate_ = Settings::instance().evaluationDate();
-    //startDate = todaysDate + 5*Years;
-    endDate_ = todaysDate_ + 66*Months;
-    Schedule dates(todaysDate_, endDate_, Period(Semiannual),
-                   calendar_, Following, Following, DateGeneration::Backward, false);
-    rateTimes_ = std::vector<Time>(dates.size()-1);
-    accruals_ = std::vector<Real>(rateTimes_.size()-1);
+    // startDate = todaysDate + 5*Years;
+    endDate_ = todaysDate_ + 66 * Months;
+    Schedule dates(todaysDate_, endDate_, Period(Semiannual), calendar_, Following, Following, DateGeneration::Backward,
+                   false);
+    rateTimes_ = std::vector<Time>(dates.size() - 1);
+    accruals_ = std::vector<Real>(rateTimes_.size() - 1);
     dayCounter_ = SimpleDayCounter();
-    for (Size i=1; i<dates.size(); ++i)
-        rateTimes_[i-1] = dayCounter_.yearFraction(todaysDate_, dates[i]);
-    for (Size i=1; i<rateTimes_.size(); ++i)
-        accruals_[i-1] = rateTimes_[i] - rateTimes_[i-1];
+    for (Size i = 1; i < dates.size(); ++i)
+        rateTimes_[i - 1] = dayCounter_.yearFraction(todaysDate_, dates[i]);
+    for (Size i = 1; i < rateTimes_.size(); ++i)
+        accruals_[i - 1] = rateTimes_[i] - rateTimes_[i - 1];
 
     // Rates & displacement
     todaysForwards_ = std::vector<Rate>(accruals_.size());
@@ -110,8 +111,9 @@ void setup() {
     alphaMax_ = 1.0;
     alphaMin_ = -1.0;
     displacement_ = 0.0;
-    for (Size i=0; i<todaysForwards_.size(); ++i) {
-        todaysForwards_[i] = 0.03 + 0.0025*i;
+    for (Size i = 0; i < todaysForwards_.size(); ++i)
+    {
+        todaysForwards_[i] = 0.03 + 0.0025 * i;
         //    todaysForwards_[i] = 0.03;
     }
     LMMCurveState curveState_lmm(rateTimes_);
@@ -121,67 +123,57 @@ void setup() {
     // Discounts
     todaysDiscounts_ = std::vector<DiscountFactor>(rateTimes_.size());
     todaysDiscounts_[0] = 0.95;
-    for (Size i=1; i<rateTimes_.size(); ++i)
-        todaysDiscounts_[i] = todaysDiscounts_[i-1] /
-            (1.0+todaysForwards_[i-1]*accruals_[i-1]);
+    for (Size i = 1; i < rateTimes_.size(); ++i)
+        todaysDiscounts_[i] = todaysDiscounts_[i - 1] / (1.0 + todaysForwards_[i - 1] * accruals_[i - 1]);
 
     //// Swaption Volatilities
-    //Volatility mktSwaptionVols[] = {
-    //                        0.15541283,
-    //                        0.18719678,
-    //                        0.20890740,
-    //                        0.22318179,
-    //                        0.23212717,
-    //                        0.23731450,
-    //                        0.23988649,
-    //                        0.24066384,
-    //                        0.24023111,
-    //                        0.23900189,
-    //                        0.23726699,
-    //                        0.23522952,
-    //                        0.23303022,
-    //                        0.23076564,
-    //                        0.22850101,
-    //                        0.22627951,
-    //                        0.22412881,
-    //                        0.22206569,
-    //                        0.22009939
-    //};
+    // Volatility mktSwaptionVols[] = {
+    //                         0.15541283,
+    //                         0.18719678,
+    //                         0.20890740,
+    //                         0.22318179,
+    //                         0.23212717,
+    //                         0.23731450,
+    //                         0.23988649,
+    //                         0.24066384,
+    //                         0.24023111,
+    //                         0.23900189,
+    //                         0.23726699,
+    //                         0.23522952,
+    //                         0.23303022,
+    //                         0.23076564,
+    //                         0.22850101,
+    //                         0.22627951,
+    //                         0.22412881,
+    //                         0.22206569,
+    //                         0.22009939
+    // };
 
-    //a = -0.0597;
-    //b =  0.1677;
-    //c =  0.5403;
-    //d =  0.1710;
+    // a = -0.0597;
+    // b =  0.1677;
+    // c =  0.5403;
+    // d =  0.1710;
 
     a_ = 0.0;
     b_ = 0.17;
     c_ = 1.0;
     d_ = 0.10;
 
-    Volatility mktCapletVols[] = {
-        0.1640,
-        0.1740,
-        0.1840,
-        0.1940,
-        0.1840,
-        0.1740,
-        0.1640,
-        0.1540,
-        0.1440,
-        0.1340376439125532
-    };
+    Volatility mktCapletVols[] = {0.1640, 0.1740, 0.1840, 0.1940, 0.1840,
+                                  0.1740, 0.1640, 0.1540, 0.1440, 0.1340376439125532};
 
-    //swaptionDisplacedVols = std::vector<Volatility>(todaysSwaps.size());
-    //swaptionVols = std::vector<Volatility>(todaysSwaps.size());
-    //capletDisplacedVols = std::vector<Volatility>(todaysSwaps.size());
+    // swaptionDisplacedVols = std::vector<Volatility>(todaysSwaps.size());
+    // swaptionVols = std::vector<Volatility>(todaysSwaps.size());
+    // capletDisplacedVols = std::vector<Volatility>(todaysSwaps.size());
     capletVols_.resize(todaysSwaps_.size());
-    for (Size i=0; i<todaysSwaps_.size(); i++) {
+    for (Size i = 0; i < todaysSwaps_.size(); i++)
+    {
         //    swaptionDisplacedVols[i] = todaysSwaps[i]*mktSwaptionVols[i]/
         //                              (todaysSwaps[i]+displacement);
         //    swaptionVols[i]= mktSwaptionVols[i];
         //    capletDisplacedVols[i] = todaysForwards[i]*mktCapletVols[i]/
         //                            (todaysForwards[i]+displacement);
-        capletVols_[i]= mktCapletVols[i];
+        capletVols_[i] = mktCapletVols[i];
     }
 
     // Cap/Floor Correlation
@@ -196,23 +188,36 @@ void setup() {
     paths_ = 127;
     trainingPaths_ = 31;
 #else
-    paths_ = 32767; //262144-1; //; // 2^15-1
+    paths_ = 32767;        // 262144-1; //; // 2^15-1
     trainingPaths_ = 8191; // 2^13-1
 #endif
 }
 
-enum MarketModelType { ExponentialCorrelationFlatVolatility,
-                       ExponentialCorrelationAbcdVolatility/*,
-                                                             CalibratedMM*/
+enum MarketModelType
+{
+    ExponentialCorrelationFlatVolatility,
+    ExponentialCorrelationAbcdVolatility /*,
+                                           CalibratedMM*/
 };
 
-enum MeasureType { ProductSuggested, Terminal,
-                   MoneyMarket, MoneyMarketPlus };
+enum MeasureType
+{
+    ProductSuggested,
+    Terminal,
+    MoneyMarket,
+    MoneyMarketPlus
+};
 
-enum EvolverType { Ipc, Pc , NormalPc};
+enum EvolverType
+{
+    Ipc,
+    Pc,
+    NormalPc
+};
 
 
-BOOST_AUTO_TEST_CASE(testFunction) {
+BOOST_AUTO_TEST_CASE(testFunction)
+{
 
     BOOST_TEST_MESSAGE("Testing alpha caplet calibration "
                        "in a lognormal coterminal swap market model...");
@@ -224,55 +229,44 @@ BOOST_AUTO_TEST_CASE(testFunction) {
     EvolutionDescription evolution(rateTimes_);
     // Size numberOfSteps = evolution.numberOfSteps();
 
-    ext::shared_ptr<PiecewiseConstantCorrelation> fwdCorr(new
-        ExponentialForwardCorrelation(rateTimes_,
-                                      longTermCorrelation_,
-                                      beta_));
+    ext::shared_ptr<PiecewiseConstantCorrelation> fwdCorr(
+        new ExponentialForwardCorrelation(rateTimes_, longTermCorrelation_, beta_));
 
     ext::shared_ptr<LMMCurveState> cs(new LMMCurveState(rateTimes_));
     cs->setOnForwardRates(todaysForwards_);
 
-    ext::shared_ptr<PiecewiseConstantCorrelation> corr(new
-        CotSwapFromFwdCorrelation(fwdCorr, *cs, displacement_));
+    ext::shared_ptr<PiecewiseConstantCorrelation> corr(new CotSwapFromFwdCorrelation(fwdCorr, *cs, displacement_));
 
-    std::vector<ext::shared_ptr<PiecewiseConstantVariance> >
-                                    swapVariances(numberOfRates);
-    for (Size i=0; i<numberOfRates; ++i) {
-        swapVariances[i] = ext::shared_ptr<PiecewiseConstantVariance>(new
-            PiecewiseConstantAbcdVariance(a_, b_, c_, d_,
-                                          i, rateTimes_));
+    std::vector<ext::shared_ptr<PiecewiseConstantVariance>> swapVariances(numberOfRates);
+    for (Size i = 0; i < numberOfRates; ++i)
+    {
+        swapVariances[i] = ext::shared_ptr<PiecewiseConstantVariance>(
+            new PiecewiseConstantAbcdVariance(a_, b_, c_, d_, i, rateTimes_));
     }
 
     // create calibrator
     std::vector<Real> alphaInitial(numberOfRates, alpha_);
-    std::vector<Real> alphaMax(numberOfRates,  1.0);
+    std::vector<Real> alphaMax(numberOfRates, 1.0);
     std::vector<Real> alphaMin(numberOfRates, -1.0);
     bool maximizeHomogeneity = false; //?
-    if (printReport_) {
-        BOOST_TEST_MESSAGE("caplet market vols: " << std::fixed <<
-                           std::setprecision(4) << io::sequence(capletVols_));
+    if (printReport_)
+    {
+        BOOST_TEST_MESSAGE("caplet market vols: " << std::fixed << std::setprecision(4) << io::sequence(capletVols_));
         BOOST_TEST_MESSAGE("alphaMin:           " << alphaMin_);
         BOOST_TEST_MESSAGE("alphaInitial:       " << alpha_);
         BOOST_TEST_MESSAGE("alphaMax:           " << alphaMax_);
         BOOST_TEST_MESSAGE("maximizeHomogeneity:" << maximizeHomogeneity);
     }
-    CTSMMCapletAlphaFormCalibration calibrator(evolution,
-                                               corr,
-                                               swapVariances,
-                                               capletVols_,
-                                               cs,
-                                               displacement_,
-                                               alphaInitial,
-                                               alphaMax,
-                                               alphaMin,
-                                               maximizeHomogeneity);
+    CTSMMCapletAlphaFormCalibration calibrator(evolution, corr, swapVariances, capletVols_, cs, displacement_,
+                                               alphaInitial, alphaMax, alphaMin, maximizeHomogeneity);
     // calibrate
     Natural maxIterations = 10;
     Real capletTolerance = 1e-4; // i.e. 1 bp
     Natural innerMaxIterations = 100;
     Real innerTolerance = 1e-8;
 
-    if (printReport_) {
+    if (printReport_)
+    {
         BOOST_TEST_MESSAGE("numberOfFactors:    " << numberOfFactors_);
         BOOST_TEST_MESSAGE("maxIterations:      " << maxIterations);
         BOOST_TEST_MESSAGE("capletTolerance:    " << io::rate(capletTolerance));
@@ -280,30 +274,26 @@ BOOST_AUTO_TEST_CASE(testFunction) {
         BOOST_TEST_MESSAGE("innerTolerance:     " << io::rate(innerTolerance));
     }
 
-    bool result = calibrator.calibrate(numberOfFactors_,
-                                       maxIterations,
-                                       capletTolerance,
-                                       innerMaxIterations,
-                                       innerTolerance);
+    bool result =
+        calibrator.calibrate(numberOfFactors_, maxIterations, capletTolerance, innerMaxIterations, innerTolerance);
     if (!result)
         BOOST_ERROR("calibration failed");
 
     const std::vector<Matrix>& swapPseudoRoots = calibrator.swapPseudoRoots();
-    ext::shared_ptr<MarketModel> smm(new
-        PseudoRootFacade(swapPseudoRoots,
-                         rateTimes_,
-                         cs->coterminalSwapRates(),
-                         std::vector<Spread>(numberOfRates, displacement_)));
+    ext::shared_ptr<MarketModel> smm(new PseudoRootFacade(swapPseudoRoots, rateTimes_, cs->coterminalSwapRates(),
+                                                          std::vector<Spread>(numberOfRates, displacement_)));
     CotSwapToFwdAdapter flmm(smm);
-    Matrix capletTotCovariance = flmm.totalCovariance(numberOfRates-1);
+    Matrix capletTotCovariance = flmm.totalCovariance(numberOfRates - 1);
 
     std::vector<Volatility> capletVols(numberOfRates);
-    for (Size i=0; i<numberOfRates; ++i) {
-        capletVols[i] = std::sqrt(capletTotCovariance[i][i]/rateTimes_[i]);
+    for (Size i = 0; i < numberOfRates; ++i)
+    {
+        capletVols[i] = std::sqrt(capletTotCovariance[i][i] / rateTimes_[i]);
     }
-    if (printReport_) {
-        BOOST_TEST_MESSAGE("caplet smm implied vols: " << std::fixed <<
-                           std::setprecision(4) << io::sequence(capletVols));
+    if (printReport_)
+    {
+        BOOST_TEST_MESSAGE("caplet smm implied vols: " << std::fixed << std::setprecision(4)
+                                                       << io::sequence(capletVols));
         BOOST_TEST_MESSAGE("failures: " << calibrator.failures());
         BOOST_TEST_MESSAGE("deformationSize: " << calibrator.deformationSize());
         BOOST_TEST_MESSAGE("capletRmsError: " << calibrator.capletRmsError());
@@ -315,29 +305,32 @@ BOOST_AUTO_TEST_CASE(testFunction) {
     // check perfect swaption fit
     Real error, swapTolerance = 1e-14;
     Matrix swapTerminalCovariance(numberOfRates, numberOfRates, 0.0);
-    for (Size i=0; i<numberOfRates; ++i) {
+    for (Size i = 0; i < numberOfRates; ++i)
+    {
         Volatility expSwaptionVol = swapVariances[i]->totalVolatility(i);
         swapTerminalCovariance += swapPseudoRoots[i] * transpose(swapPseudoRoots[i]);
-        Volatility swaptionVol = std::sqrt(swapTerminalCovariance[i][i]/rateTimes_[i]);
-        error = std::fabs(swaptionVol-expSwaptionVol);
-        if (error>swapTolerance)
-            BOOST_ERROR("failed to reproduce " << io::ordinal(i+1) << " swaption vol:"
-                        "\n expected:  " << io::rate(expSwaptionVol) <<
-                        "\n realized:  " << io::rate(swaptionVol) <<
-                        "\n error:     " << error <<
-                        "\n tolerance: " << swapTolerance);
+        Volatility swaptionVol = std::sqrt(swapTerminalCovariance[i][i] / rateTimes_[i]);
+        error = std::fabs(swaptionVol - expSwaptionVol);
+        if (error > swapTolerance)
+            BOOST_ERROR("failed to reproduce " << io::ordinal(i + 1)
+                                               << " swaption vol:"
+                                                  "\n expected:  "
+                                               << io::rate(expSwaptionVol) << "\n realized:  " << io::rate(swaptionVol)
+                                               << "\n error:     " << error << "\n tolerance: " << swapTolerance);
     }
 
     // check caplet fit
-    for (Size i=0; i<numberOfRates; ++i) {
-        error = std::fabs(capletVols[i]-capletVols_[i]);
-        if (error>capletTolerance)
-            BOOST_ERROR("failed to reproduce " << io::ordinal(i+1) << " caplet vol:"
-                        "\n expected:         " << io::rate(capletVols_[i]) <<
-                        "\n realized:         " << io::rate(capletVols[i]) <<
-                        "\n percentage error: " << error/capletVols_[i] <<
-                        "\n error:            " << error <<
-                        "\n tolerance:        " << capletTolerance);
+    for (Size i = 0; i < numberOfRates; ++i)
+    {
+        error = std::fabs(capletVols[i] - capletVols_[i]);
+        if (error > capletTolerance)
+            BOOST_ERROR("failed to reproduce "
+                        << io::ordinal(i + 1)
+                        << " caplet vol:"
+                           "\n expected:         "
+                        << io::rate(capletVols_[i]) << "\n realized:         " << io::rate(capletVols[i])
+                        << "\n percentage error: " << error / capletVols_[i] << "\n error:            " << error
+                        << "\n tolerance:        " << capletTolerance);
     }
 }
 

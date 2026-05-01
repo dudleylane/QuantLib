@@ -21,64 +21,70 @@
 #include <ql/models/marketmodels/curvestate.hpp>
 #include <ql/models/marketmodels/utilities.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    SwapBasisSystem::SwapBasisSystem(const std::vector<Time>& rateTimes,
-                                     const std::vector<Time>& exerciseTimes)
-    : rateTimes_(rateTimes), exerciseTimes_(exerciseTimes),
-      rateIndex_(exerciseTimes.size()),
-      evolution_(rateTimes, exerciseTimes) {
+    SwapBasisSystem::SwapBasisSystem(const std::vector<Time>& rateTimes, const std::vector<Time>& exerciseTimes)
+    : rateTimes_(rateTimes), exerciseTimes_(exerciseTimes), rateIndex_(exerciseTimes.size()),
+      evolution_(rateTimes, exerciseTimes)
+    {
         Size j = 0;
-        for (Size i=0; i<exerciseTimes.size(); ++i) {
+        for (Size i = 0; i < exerciseTimes.size(); ++i)
+        {
             while (j < rateTimes.size() && rateTimes[j] < exerciseTimes[i])
                 ++j;
             rateIndex_[i] = j;
         }
     }
 
-    Size SwapBasisSystem::numberOfExercises() const {
+    Size SwapBasisSystem::numberOfExercises() const
+    {
         return exerciseTimes_.size();
     }
 
-    std::vector<Size> SwapBasisSystem::numberOfFunctions() const {
+    std::vector<Size> SwapBasisSystem::numberOfFunctions() const
+    {
         std::vector<Size> sizes(exerciseTimes_.size(), 3);
-        if (rateIndex_[exerciseTimes_.size()-1] == rateTimes_.size()-2)
+        if (rateIndex_[exerciseTimes_.size() - 1] == rateTimes_.size() - 2)
             sizes.back() = 2;
         return sizes;
     }
 
-    const EvolutionDescription& SwapBasisSystem::evolution() const {
+    const EvolutionDescription& SwapBasisSystem::evolution() const
+    {
         return evolution_;
     }
 
-    void SwapBasisSystem::nextStep(const CurveState&) {
+    void SwapBasisSystem::nextStep(const CurveState&)
+    {
         ++currentIndex_;
     }
 
-    void SwapBasisSystem::reset() {
+    void SwapBasisSystem::reset()
+    {
         currentIndex_ = 0;
     }
 
-    std::valarray<bool> SwapBasisSystem::isExerciseTime() const {
+    std::valarray<bool> SwapBasisSystem::isExerciseTime() const
+    {
         return std::valarray<bool>(true, exerciseTimes_.size());
     }
 
-    void SwapBasisSystem::values(const CurveState& currentState,
-                                 std::vector<Real>& results) const {
-        Size rateIndex = rateIndex_[currentIndex_-1];
+    void SwapBasisSystem::values(const CurveState& currentState, std::vector<Real>& results) const
+    {
+        Size rateIndex = rateIndex_[currentIndex_ - 1];
 
         results.reserve(3);
         results.resize(2);
         results[0] = 1.0;
         results[1] = currentState.forwardRate(rateIndex);
-        if (rateIndex < rateTimes_.size()-2)
-            results.push_back(currentState.coterminalSwapRate(rateIndex+1));
+        if (rateIndex < rateTimes_.size() - 2)
+            results.push_back(currentState.coterminalSwapRate(rateIndex + 1));
     }
 
-    std::unique_ptr<MarketModelBasisSystem>
-    SwapBasisSystem::clone() const {
+    std::unique_ptr<MarketModelBasisSystem> SwapBasisSystem::clone() const
+    {
         return std::unique_ptr<MarketModelBasisSystem>(new SwapBasisSystem(*this));
     }
 
 }
-

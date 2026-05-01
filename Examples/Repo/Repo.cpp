@@ -30,31 +30,33 @@
 
 #include <ql/qldefines.hpp>
 #if !defined(BOOST_ALL_NO_LIB) && defined(BOOST_MSVC)
-#  include <ql/auto_link.hpp>
+#    include <ql/auto_link.hpp>
 #endif
 #include <ql/instruments/bondforward.hpp>
 #include <ql/instruments/bonds/fixedratebond.hpp>
 #include <ql/pricingengines/bond/discountingbondengine.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
-#include <ql/time/schedule.hpp>
 #include <ql/time/calendars/nullcalendar.hpp>
 #include <ql/time/daycounters/actual360.hpp>
 #include <ql/time/daycounters/thirty360.hpp>
-
-#include <iostream>
+#include <ql/time/schedule.hpp>
 #include <iomanip>
+#include <iostream>
 
 using namespace std;
 using namespace QuantLib;
 
-int main(int, char* []) {
+int main(int, char*[])
+{
 
-    try {
+    try
+    {
 
         std::cout << std::endl;
 
-        Date repoSettlementDate(14,February,2000);;
-        Date repoDeliveryDate(15,August,2000);
+        Date repoSettlementDate(14, February, 2000);
+        ;
+        Date repoDeliveryDate(15, August, 2000);
         Rate repoRate = 0.05;
         DayCounter repoDayCountConvention = Actual360();
         Integer repoSettlementDays = 0;
@@ -62,9 +64,9 @@ int main(int, char* []) {
         Frequency repoCompoundFreq = Annual;
 
         // assume a ten year bond- this is irrelevant
-        Date bondIssueDate(15,September,1995);
-        Date bondDatedDate(15,September,1995);
-        Date bondMaturityDate(15,September,2005);
+        Date bondIssueDate(15, September, 1995);
+        Date bondDatedDate(15, September, 1995);
+        Date bondMaturityDate(15, September, 2005);
         Real bondCoupon = 0.08;
         Frequency bondCouponFrequency = Semiannual;
         // unknown what calendar fincad is using
@@ -83,9 +85,7 @@ int main(int, char* []) {
         RelinkableHandle<YieldTermStructure> bondCurve;
         bondCurve.linkTo(ext::make_shared<FlatForward>(repoSettlementDate,
                                                        .01, // dummy rate
-                                                       bondDayCountConvention,
-                                                       Compounded,
-                                                       bondCouponFrequency));
+                                                       bondDayCountConvention, Compounded, bondCouponFrequency));
 
         /*
         auto bond = ext::make_shared<FixedRateBond>(faceAmount,
@@ -103,113 +103,68 @@ int main(int, char* []) {
                                          bondCurve);
         */
 
-        Schedule bondSchedule(bondDatedDate, bondMaturityDate,
-                              Period(bondCouponFrequency),
-                              bondCalendar,bondBusinessDayConvention,
-                              bondBusinessDayConvention,
-                              DateGeneration::Backward,false);
-        auto bond = ext::make_shared<FixedRateBond>(bondSettlementDays,
-                                         faceAmount,
-                                         bondSchedule,
-                                         std::vector<Rate>(1,bondCoupon),
-                                         bondDayCountConvention,
-                                         bondBusinessDayConvention,
-                                         bondRedemption,
-                                         bondIssueDate);
+        Schedule bondSchedule(bondDatedDate, bondMaturityDate, Period(bondCouponFrequency), bondCalendar,
+                              bondBusinessDayConvention, bondBusinessDayConvention, DateGeneration::Backward, false);
+        auto bond = ext::make_shared<FixedRateBond>(bondSettlementDays, faceAmount, bondSchedule,
+                                                    std::vector<Rate>(1, bondCoupon), bondDayCountConvention,
+                                                    bondBusinessDayConvention, bondRedemption, bondIssueDate);
         bond->setPricingEngine(ext::make_shared<DiscountingBondEngine>(bondCurve));
 
-        bondCurve.linkTo(ext::make_shared<FlatForward>(repoSettlementDate,
-                                   bond->yield(bondCleanPrice,
-                                               bondDayCountConvention,
-                                               Compounded,
-                                               bondCouponFrequency),
-                                   bondDayCountConvention,
-                                   Compounded,
-                                   bondCouponFrequency));
+        bondCurve.linkTo(ext::make_shared<FlatForward>(
+            repoSettlementDate, bond->yield(bondCleanPrice, bondDayCountConvention, Compounded, bondCouponFrequency),
+            bondDayCountConvention, Compounded, bondCouponFrequency));
 
         Position::Type fwdType = Position::Long;
         double dummyStrike = 91.5745;
 
         RelinkableHandle<YieldTermStructure> repoCurve;
-        repoCurve.linkTo(ext::make_shared<FlatForward>(repoSettlementDate,
-                                                       repoRate,
-                                                       repoDayCountConvention,
-                                                       repoCompounding,
-                                                       repoCompoundFreq));
+        repoCurve.linkTo(ext::make_shared<FlatForward>(repoSettlementDate, repoRate, repoDayCountConvention,
+                                                       repoCompounding, repoCompoundFreq));
 
 
-        BondForward bondFwd(repoSettlementDate, repoDeliveryDate, fwdType, dummyStrike,
-                            repoSettlementDays, repoDayCountConvention, bondCalendar,
-                            bondBusinessDayConvention, bond, repoCurve, repoCurve);
+        BondForward bondFwd(repoSettlementDate, repoDeliveryDate, fwdType, dummyStrike, repoSettlementDays,
+                            repoDayCountConvention, bondCalendar, bondBusinessDayConvention, bond, repoCurve,
+                            repoCurve);
 
 
-        cout << "Underlying bond clean price: "
-             << bond->cleanPrice()
+        cout << "Underlying bond clean price: " << bond->cleanPrice() << endl;
+        cout << "Underlying bond dirty price: " << bond->dirtyPrice() << endl;
+        cout << "Underlying bond accrued at settlement: " << bond->accruedAmount(repoSettlementDate) << endl;
+        cout << "Underlying bond accrued at delivery:   " << bond->accruedAmount(repoDeliveryDate) << endl;
+        cout << "Underlying bond spot income: " << bondFwd.spotIncome(repoCurve) << endl;
+        cout << "Underlying bond fwd income:  " << bondFwd.spotIncome(repoCurve) / repoCurve->discount(repoDeliveryDate)
              << endl;
-        cout << "Underlying bond dirty price: "
-             << bond->dirtyPrice()
-             << endl;
-        cout << "Underlying bond accrued at settlement: "
-             << bond->accruedAmount(repoSettlementDate)
-             << endl;
-        cout << "Underlying bond accrued at delivery:   "
-             << bond->accruedAmount(repoDeliveryDate)
-             << endl;
-        cout << "Underlying bond spot income: "
-             << bondFwd.spotIncome(repoCurve)
-             << endl;
-        cout << "Underlying bond fwd income:  "
-             << bondFwd.spotIncome(repoCurve)/
-                repoCurve->discount(repoDeliveryDate)
-             << endl;
-        cout << "Repo strike: "
-             << dummyStrike
-             << endl;
-        cout << "Repo NPV:    "
-             << bondFwd.NPV()
-             << endl;
-        cout << "Repo clean forward price: "
-             << bondFwd.cleanForwardPrice()
-             << endl;
-        cout << "Repo dirty forward price: "
-             << bondFwd.forwardPrice()
-             << endl;
+        cout << "Repo strike: " << dummyStrike << endl;
+        cout << "Repo NPV:    " << bondFwd.NPV() << endl;
+        cout << "Repo clean forward price: " << bondFwd.cleanForwardPrice() << endl;
+        cout << "Repo dirty forward price: " << bondFwd.forwardPrice() << endl;
         cout << "Repo implied yield: "
-             << bondFwd.impliedYield(bond->dirtyPrice(),
-                                     dummyStrike,
-                                     repoSettlementDate,
-                                     repoCompounding,
+             << bondFwd.impliedYield(bond->dirtyPrice(), dummyStrike, repoSettlementDate, repoCompounding,
                                      repoDayCountConvention)
              << endl;
         cout << "Market repo rate:   "
-             << repoCurve->zeroRate(repoDeliveryDate,
-                                    repoDayCountConvention,
-                                    repoCompounding,
-                                    repoCompoundFreq)
-             << endl
+             << repoCurve->zeroRate(repoDeliveryDate, repoDayCountConvention, repoCompounding, repoCompoundFreq) << endl
              << endl;
 
         cout << "Compare with example given at \n"
-             << "http://www.fincad.com/support/developerFunc/mathref/BFWD.htm"
-             <<  endl;
-        cout << "Clean forward price = 88.2408"
-             <<  endl
-             <<  endl;
+             << "http://www.fincad.com/support/developerFunc/mathref/BFWD.htm" << endl;
+        cout << "Clean forward price = 88.2408" << endl << endl;
         cout << "In that example, it is unknown what bond calendar they are\n"
              << "using, as well as settlement Days. For that reason, I have\n"
              << "made the simplest possible assumptions here: NullCalendar\n"
-             << "and 0 settlement days."
-             << endl;
+             << "and 0 settlement days." << endl;
 
 
         return 0;
-
-    } catch (exception& e) {
+    }
+    catch (exception& e)
+    {
         cerr << e.what() << endl;
         return 1;
-    } catch (...) {
+    }
+    catch (...)
+    {
         cerr << "unknown error" << endl;
         return 1;
     }
 }
-

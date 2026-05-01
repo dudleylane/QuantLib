@@ -27,7 +27,8 @@
 #include <ql/math/randomnumbers/mt19937uniformrng.hpp>
 #include <ql/math/randomnumbers/randomsequencegenerator.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Ziggurat random-number generator
     /*! This generator returns standard normal variates using the
@@ -49,7 +50,8 @@ namespace QuantLib {
         put through Marsaglia's Diehard battery of tests and didn't
         exibit any abnormal behavior.
     */
-    class ZigguratRng {
+    class ZigguratRng
+    {
       public:
         typedef Sample<Real> sample_type;
         explicit ZigguratRng(unsigned long seed = 0);
@@ -61,17 +63,18 @@ namespace QuantLib {
     };
 
     // RNG traits for Ziggurat generator
-    struct Ziggurat {
+    struct Ziggurat
+    {
         // typedefs
         typedef ZigguratRng rng_type;
         typedef RandomSequenceGenerator<rng_type> rsg_type;
         // more traits
-        enum { allowsErrorEstimate = 1 };
+        enum
+        {
+            allowsErrorEstimate = 1
+        };
         // factory
-        static rsg_type make_sequence_generator(Size dimension,
-                                                BigNatural seed) {
-            return rsg_type(dimension, seed);
-        }
+        static rsg_type make_sequence_generator(Size dimension, BigNatural seed) { return rsg_type(dimension, seed); }
     };
 
 }

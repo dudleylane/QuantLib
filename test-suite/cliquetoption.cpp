@@ -39,22 +39,22 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 BOOST_AUTO_TEST_SUITE(CliquetOptionTests)
 
 #undef REPORT_FAILURE
-#define REPORT_FAILURE(greekName, payoff, exercise, s, q, r, today, v, \
-                       expected, calculated, error, tolerance) \
-    BOOST_ERROR(payoff->optionType() << " option:\n" \
-               << "    spot value:       " << s << "\n" \
-               << "    moneyness:        " << payoff->strike() << "\n" \
-               << "    dividend yield:   " << io::rate(q) << "\n" \
-               << "    risk-free rate:   " << io::rate(r) << "\n" \
-               << "    reference date:   " << today << "\n" \
-               << "    maturity:         " << exercise->lastDate() << "\n" \
-               << "    volatility:       " << io::volatility(v) << "\n\n" \
-               << "    expected   " << greekName << ": " << expected << "\n" \
-               << "    calculated " << greekName << ": " << calculated << "\n"\
-               << "    error:            " << error << "\n" \
-               << "    tolerance:        " << tolerance);
+#define REPORT_FAILURE(greekName, payoff, exercise, s, q, r, today, v, expected, calculated, error, tolerance) \
+    BOOST_ERROR(payoff->optionType() << " option:\n"                                                           \
+                                     << "    spot value:       " << s << "\n"                                  \
+                                     << "    moneyness:        " << payoff->strike() << "\n"                   \
+                                     << "    dividend yield:   " << io::rate(q) << "\n"                        \
+                                     << "    risk-free rate:   " << io::rate(r) << "\n"                        \
+                                     << "    reference date:   " << today << "\n"                              \
+                                     << "    maturity:         " << exercise->lastDate() << "\n"               \
+                                     << "    volatility:       " << io::volatility(v) << "\n\n"                \
+                                     << "    expected   " << greekName << ": " << expected << "\n"             \
+                                     << "    calculated " << greekName << ": " << calculated << "\n"           \
+                                     << "    error:            " << error << "\n"                              \
+                                     << "    tolerance:        " << tolerance);
 
-BOOST_AUTO_TEST_CASE(testValues) {
+BOOST_AUTO_TEST_CASE(testValues)
+{
 
     BOOST_TEST_MESSAGE("Testing Cliquet option values...");
 
@@ -70,10 +70,8 @@ BOOST_AUTO_TEST_CASE(testValues) {
     ext::shared_ptr<BlackVolTermStructure> volTS = flatVol(today, vol, dc);
 
     ext::shared_ptr<BlackScholesMertonProcess> process(
-         new BlackScholesMertonProcess(Handle<Quote>(spot),
-                                       Handle<YieldTermStructure>(qTS),
-                                       Handle<YieldTermStructure>(rTS),
-                                       Handle<BlackVolTermStructure>(volTS)));
+        new BlackScholesMertonProcess(Handle<Quote>(spot), Handle<YieldTermStructure>(qTS),
+                                      Handle<YieldTermStructure>(rTS), Handle<BlackVolTermStructure>(volTS)));
     ext::shared_ptr<PricingEngine> engine(new AnalyticCliquetEngine(process));
 
     std::vector<Date> reset;
@@ -82,46 +80,44 @@ BOOST_AUTO_TEST_CASE(testValues) {
     Option::Type type = Option::Call;
     Real moneyness = 1.1;
 
-    ext::shared_ptr<PercentageStrikePayoff> payoff(
-                                 new PercentageStrikePayoff(type, moneyness));
-    ext::shared_ptr<EuropeanExercise> exercise(
-                                              new EuropeanExercise(maturity));
+    ext::shared_ptr<PercentageStrikePayoff> payoff(new PercentageStrikePayoff(type, moneyness));
+    ext::shared_ptr<EuropeanExercise> exercise(new EuropeanExercise(maturity));
 
     CliquetOption option(payoff, exercise, reset);
     option.setPricingEngine(engine);
 
     Real calculated = option.NPV();
     Real expected = 4.4064; // Haug, p.37
-    Real error = std::fabs(calculated-expected);
+    Real error = std::fabs(calculated - expected);
     Real tolerance = 1e-4;
-    if (error > tolerance) {
-        REPORT_FAILURE("value", payoff, exercise, spot->value(),
-                       qRate->value(), rRate->value(), today,
-                       vol->value(), expected, calculated,
-                       error, tolerance);
+    if (error > tolerance)
+    {
+        REPORT_FAILURE("value", payoff, exercise, spot->value(), qRate->value(), rRate->value(), today, vol->value(),
+                       expected, calculated, error, tolerance);
     }
 }
 
 
 template <class T>
-void testOptionGreeks() {
+void testOptionGreeks()
+{
 
-    std::map<std::string,Real> calculated, expected, tolerance;
-    tolerance["delta"]  = 1.0e-5;
-    tolerance["gamma"]  = 1.0e-5;
-    tolerance["theta"]  = 1.0e-5;
-    tolerance["rho"]    = 1.0e-5;
+    std::map<std::string, Real> calculated, expected, tolerance;
+    tolerance["delta"] = 1.0e-5;
+    tolerance["gamma"] = 1.0e-5;
+    tolerance["theta"] = 1.0e-5;
+    tolerance["rho"] = 1.0e-5;
     tolerance["divRho"] = 1.0e-5;
-    tolerance["vega"]   = 1.0e-5;
+    tolerance["vega"] = 1.0e-5;
 
-    Option::Type types[] = { Option::Call, Option::Put };
-    Real moneyness[] = { 0.9, 1.0, 1.1 };
-    Real underlyings[] = { 100.0 };
-    Rate qRates[] = { 0.04, 0.05, 0.06 };
-    Rate rRates[] = { 0.01, 0.05, 0.15 };
-    Integer lengths[] = { 1, 2 };
-    Frequency frequencies[] = { Semiannual, Quarterly };
-    Volatility vols[] = { 0.11, 0.50, 1.20 };
+    Option::Type types[] = {Option::Call, Option::Put};
+    Real moneyness[] = {0.9, 1.0, 1.1};
+    Real underlyings[] = {100.0};
+    Rate qRates[] = {0.04, 0.05, 0.06};
+    Rate rRates[] = {0.01, 0.05, 0.15};
+    Integer lengths[] = {1, 2};
+    Frequency frequencies[] = {Semiannual, Quarterly};
+    Volatility vols[] = {0.11, 0.50, 1.20};
 
     DayCounter dc = Actual360();
     Date today = Date::todaysDate();
@@ -136,23 +132,23 @@ void testOptionGreeks() {
     Handle<BlackVolTermStructure> volTS(flatVol(vol, dc));
 
     ext::shared_ptr<BlackScholesMertonProcess> process(
-                            new BlackScholesMertonProcess(Handle<Quote>(spot),
-                                                          qTS, rTS, volTS));
+        new BlackScholesMertonProcess(Handle<Quote>(spot), qTS, rTS, volTS));
 
-    for (auto& type : types) {
-        for (Real moneynes : moneyness) {
-            for (int length : lengths) {
-                for (auto& frequencie : frequencies) {
+    for (auto& type : types)
+    {
+        for (Real moneynes : moneyness)
+        {
+            for (int length : lengths)
+            {
+                for (auto& frequencie : frequencies)
+                {
 
-                    ext::shared_ptr<EuropeanExercise> maturity(
-                            new EuropeanExercise(today + length * Years));
+                    ext::shared_ptr<EuropeanExercise> maturity(new EuropeanExercise(today + length * Years));
 
-                    ext::shared_ptr<PercentageStrikePayoff> payoff(
-                            new PercentageStrikePayoff(type, moneynes));
+                    ext::shared_ptr<PercentageStrikePayoff> payoff(new PercentageStrikePayoff(type, moneynes));
 
                     std::vector<Date> reset;
-                    for (Date d = today + Period(frequencie); d < maturity->lastDate();
-                         d += Period(frequencie))
+                    for (Date d = today + Period(frequencie); d < maturity->lastDate(); d += Period(frequencie))
                         reset.push_back(d);
 
                     ext::shared_ptr<PricingEngine> engine(new T(process));
@@ -160,10 +156,14 @@ void testOptionGreeks() {
                     CliquetOption option(payoff, maturity, reset);
                     option.setPricingEngine(engine);
 
-                    for (Real u : underlyings) {
-                        for (Real m : qRates) {
-                            for (Real n : rRates) {
-                                for (Real v : vols) {
+                    for (Real u : underlyings)
+                    {
+                        for (Real m : qRates)
+                        {
+                            for (Real n : rRates)
+                            {
+                                for (Real v : vols)
+                                {
 
                                     Rate q = m, r = n;
                                     spot->setValue(u);
@@ -179,7 +179,8 @@ void testOptionGreeks() {
                                     calculated["divRho"] = option.dividendRho();
                                     calculated["vega"] = option.vega();
 
-                                    if (value > spot->value() * 1.0e-5) {
+                                    if (value > spot->value() * 1.0e-5)
+                                    {
                                         // perturb spot and get delta and gamma
                                         Real du = u * 1.0e-4;
                                         spot->setValue(u + du);
@@ -227,17 +228,16 @@ void testOptionGreeks() {
 
                                         // compare
                                         std::map<std::string, Real>::iterator it;
-                                        for (it = calculated.begin(); it != calculated.end();
-                                             ++it) {
+                                        for (it = calculated.begin(); it != calculated.end(); ++it)
+                                        {
                                             std::string greek = it->first;
-                                            Real expct = expected[greek],
-                                                calcl = calculated[greek],
-                                                tol = tolerance[greek];
+                                            Real expct = expected[greek], calcl = calculated[greek],
+                                                 tol = tolerance[greek];
                                             Real error = relativeError(expct, calcl, u);
-                                            if (error > tol) {
-                                                REPORT_FAILURE(greek, payoff, maturity, u, q, r,
-                                                               today, v, expct, calcl, error,
-                                                               tol);
+                                            if (error > tol)
+                                            {
+                                                REPORT_FAILURE(greek, payoff, maturity, u, q, r, today, v, expct, calcl,
+                                                               error, tol);
                                             }
                                         }
                                     }
@@ -252,28 +252,30 @@ void testOptionGreeks() {
 }
 
 
-BOOST_AUTO_TEST_CASE(testGreeks) {
+BOOST_AUTO_TEST_CASE(testGreeks)
+{
     BOOST_TEST_MESSAGE("Testing Cliquet option greeks...");
     testOptionGreeks<AnalyticCliquetEngine>();
 }
 
-BOOST_AUTO_TEST_CASE(testPerformanceGreeks) {
+BOOST_AUTO_TEST_CASE(testPerformanceGreeks)
+{
     BOOST_TEST_MESSAGE("Testing performance option greeks...");
     testOptionGreeks<AnalyticPerformanceEngine>();
 }
 
-BOOST_AUTO_TEST_CASE(testMcPerformance) {
-    BOOST_TEST_MESSAGE(
-        "Testing Monte Carlo performance engine against analytic results...");
+BOOST_AUTO_TEST_CASE(testMcPerformance)
+{
+    BOOST_TEST_MESSAGE("Testing Monte Carlo performance engine against analytic results...");
 
-    Option::Type types[] = { Option::Call, Option::Put };
-    Real moneyness[] = { 0.9, 1.1 };
-    Real underlyings[] = { 100.0 };
-    Rate qRates[] = { 0.04, 0.06 };
-    Rate rRates[] = { 0.01, 0.10 };
-    Integer lengths[] = { 2, 4 };
-    Frequency frequencies[] = { Semiannual, Quarterly };
-    Volatility vols[] = { 0.10, 0.90 };
+    Option::Type types[] = {Option::Call, Option::Put};
+    Real moneyness[] = {0.9, 1.1};
+    Real underlyings[] = {100.0};
+    Rate qRates[] = {0.04, 0.06};
+    Rate rRates[] = {0.01, 0.10};
+    Integer lengths[] = {2, 4};
+    Frequency frequencies[] = {Semiannual, Quarterly};
+    Volatility vols[] = {0.10, 0.90};
 
     DayCounter dc = Actual360();
     Date today = Date::todaysDate();
@@ -288,20 +290,21 @@ BOOST_AUTO_TEST_CASE(testMcPerformance) {
     Handle<BlackVolTermStructure> volTS(flatVol(vol, dc));
 
     ext::shared_ptr<BlackScholesMertonProcess> process(
-                            new BlackScholesMertonProcess(Handle<Quote>(spot),
-                                                          qTS, rTS, volTS));
+        new BlackScholesMertonProcess(Handle<Quote>(spot), qTS, rTS, volTS));
 
-    for (auto& type : types) {
-        for (Real moneynes : moneyness) {
-            for (int length : lengths) {
-                for (auto& frequencie : frequencies) {
+    for (auto& type : types)
+    {
+        for (Real moneynes : moneyness)
+        {
+            for (int length : lengths)
+            {
+                for (auto& frequencie : frequencies)
+                {
 
                     auto tenor = Period(frequencie);
-                    ext::shared_ptr<EuropeanExercise> maturity(
-                        new EuropeanExercise(today + length * tenor));
+                    ext::shared_ptr<EuropeanExercise> maturity(new EuropeanExercise(today + length * tenor));
 
-                    ext::shared_ptr<PercentageStrikePayoff> payoff(
-                        new PercentageStrikePayoff(type, moneynes));
+                    ext::shared_ptr<PercentageStrikePayoff> payoff(new PercentageStrikePayoff(type, moneynes));
 
                     std::vector<Date> reset;
                     for (Date d = today + tenor; d < maturity->lastDate(); d += tenor)
@@ -309,19 +312,21 @@ BOOST_AUTO_TEST_CASE(testMcPerformance) {
 
                     CliquetOption option(payoff, maturity, reset);
 
-                    ext::shared_ptr<PricingEngine> refEngine(
-                        new AnalyticPerformanceEngine(process));
+                    ext::shared_ptr<PricingEngine> refEngine(new AnalyticPerformanceEngine(process));
 
-                    ext::shared_ptr<PricingEngine> mcEngine =
-                        MakeMCPerformanceEngine<PseudoRandom>(process)
-                            .withBrownianBridge()
-                            .withAbsoluteTolerance(5.0e-3)
-                            .withSeed(42);
+                    ext::shared_ptr<PricingEngine> mcEngine = MakeMCPerformanceEngine<PseudoRandom>(process)
+                                                                  .withBrownianBridge()
+                                                                  .withAbsoluteTolerance(5.0e-3)
+                                                                  .withSeed(42);
 
-                    for (Real u : underlyings) {
-                        for (Real m : qRates) {
-                            for (Real n : rRates) {
-                                for (Real v : vols) {
+                    for (Real u : underlyings)
+                    {
+                        for (Real m : qRates)
+                        {
+                            for (Real n : rRates)
+                            {
+                                for (Real v : vols)
+                                {
 
                                     Rate q = m, r = n;
                                     spot->setValue(u);
@@ -337,9 +342,10 @@ BOOST_AUTO_TEST_CASE(testMcPerformance) {
 
                                     Real error = std::fabs(refValue - value);
                                     Real tolerance = 1.5e-2;
-                                    if (error > tolerance) {
-                                        REPORT_FAILURE("value", payoff, maturity, u, q, r, today, v,
-                                                       refValue, value, error, tolerance);
+                                    if (error > tolerance)
+                                    {
+                                        REPORT_FAILURE("value", payoff, maturity, u, q, r, today, v, refValue, value,
+                                                       error, tolerance);
                                     }
                                 }
                             }

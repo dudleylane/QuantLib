@@ -27,14 +27,17 @@
 #include <ql/currencies/europe.hpp>
 #include <ql/indexes/inflationindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! UK HICP index
-    class UKHICP : public ZeroInflationIndex {
+    class UKHICP : public ZeroInflationIndex
+    {
       public:
         explicit UKHICP(const Handle<ZeroInflationTermStructure>& ts = {})
-        : ZeroInflationIndex(
-              "HICP", UKRegion(), false, Monthly, Period(1, Months), GBPCurrency(), ts) {}
+        : ZeroInflationIndex("HICP", UKRegion(), false, Monthly, Period(1, Months), GBPCurrency(), ts)
+        {
+        }
     };
 }
 

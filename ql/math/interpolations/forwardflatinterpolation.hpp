@@ -27,10 +27,13 @@
 #include <ql/math/interpolation.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace detail {
-        template<class I1, class I2> class ForwardFlatInterpolationImpl;
+    namespace detail
+    {
+        template <class I1, class I2>
+        class ForwardFlatInterpolationImpl;
     }
 
     //! Forward-flat interpolation between discrete points
@@ -38,61 +41,67 @@ namespace QuantLib {
         \warning See the Interpolation class for information about the
                  required lifetime of the underlying data.
     */
-    class ForwardFlatInterpolation : public Interpolation {
+    class ForwardFlatInterpolation : public Interpolation
+    {
       public:
         /*! \pre the \f$ x \f$ values must be sorted. */
         template <class I1, class I2>
-        ForwardFlatInterpolation(const I1& xBegin, const I1& xEnd,
-                                 const I2& yBegin) {
-            impl_ = ext::shared_ptr<Interpolation::Impl>(new
-                detail::ForwardFlatInterpolationImpl<I1,I2>(xBegin, xEnd,
-                                                            yBegin));
+        ForwardFlatInterpolation(const I1& xBegin, const I1& xEnd, const I2& yBegin)
+        {
+            impl_ = ext::shared_ptr<Interpolation::Impl>(
+                new detail::ForwardFlatInterpolationImpl<I1, I2>(xBegin, xEnd, yBegin));
             impl_->update();
         }
     };
 
     //! Forward-flat interpolation factory and traits
     /*! \ingroup interpolations */
-    class ForwardFlat {
+    class ForwardFlat
+    {
       public:
         template <class I1, class I2>
-        Interpolation interpolate(const I1& xBegin, const I1& xEnd,
-                                  const I2& yBegin) const {
+        Interpolation interpolate(const I1& xBegin, const I1& xEnd, const I2& yBegin) const
+        {
             return ForwardFlatInterpolation(xBegin, xEnd, yBegin);
         }
         static const bool global = false;
         static const Size requiredPoints = 2;
     };
 
-    namespace detail {
+    namespace detail
+    {
 
         template <class I1, class I2>
-        class ForwardFlatInterpolationImpl final
-            : public Interpolation::templateImpl<I1,I2> {
+        class ForwardFlatInterpolationImpl final : public Interpolation::templateImpl<I1, I2>
+        {
           public:
-            ForwardFlatInterpolationImpl(const I1& xBegin, const I1& xEnd,
-                                         const I2& yBegin)
-            : Interpolation::templateImpl<I1,I2>(xBegin, xEnd, yBegin,
-                                                 ForwardFlat::requiredPoints),
-              primitive_(xEnd-xBegin), n_(xEnd-xBegin) {}
-            void update() override {
+            ForwardFlatInterpolationImpl(const I1& xBegin, const I1& xEnd, const I2& yBegin)
+            : Interpolation::templateImpl<I1, I2>(xBegin, xEnd, yBegin, ForwardFlat::requiredPoints),
+              primitive_(xEnd - xBegin), n_(xEnd - xBegin)
+            {
+            }
+            void update() override
+            {
                 primitive_[0] = 0.0;
-                for (Size i=1; i<n_; i++) {
-                    Real dx = this->xBegin_[i]-this->xBegin_[i-1];
-                    primitive_[i] = primitive_[i-1] + dx*this->yBegin_[i-1];
+                for (Size i = 1; i < n_; i++)
+                {
+                    Real dx = this->xBegin_[i] - this->xBegin_[i - 1];
+                    primitive_[i] = primitive_[i - 1] + dx * this->yBegin_[i - 1];
                 }
             }
-            Real value(Real x) const override {
-                if (x >= this->xBegin_[n_-1])
-                    return this->yBegin_[n_-1];
+            Real value(Real x) const override
+            {
+                if (x >= this->xBegin_[n_ - 1])
+                    return this->yBegin_[n_ - 1];
 
                 Size i = this->locate(x);
                 return this->yBegin_[i];
             }
-            Real primitive(Real x) const override {
+            Real primitive(Real x) const override
+            {
                 Size i = this->locate(x);
-                Real dx = x-this->xBegin_[i];
-                return primitive_[i] + dx*this->yBegin_[i];
+                Real dx = x - this->xBegin_[i];
+                return primitive_[i] + dx * this->yBegin_[i];
             }
             Real derivative(Real) const override { return 0.0; }
             Real secondDerivative(Real) const override { return 0.0; }

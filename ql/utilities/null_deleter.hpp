@@ -26,10 +26,15 @@
 
 #include <ql/qldefines.hpp>
 
-namespace QuantLib {
-struct null_deleter {
-    template <typename T> void operator()(T *) const noexcept {}
-};
+namespace QuantLib
+{
+    struct null_deleter
+    {
+        template <typename T>
+        void operator()(T*) const noexcept
+        {
+        }
+    };
 }
 
 #endif

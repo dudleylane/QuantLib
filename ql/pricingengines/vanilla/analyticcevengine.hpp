@@ -28,7 +28,8 @@
 #include <ql/instruments/vanillaoption.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! constant elasticity of variance process (absorbing boundary at f=0)
     /*! \f[
@@ -42,15 +43,16 @@ namespace QuantLib {
         https://www.fincad.com/sites/default/files/wysiwyg/Resources-Wiki/cev-process-working-paper.pdf
     */
 
-    class CEVCalculator {
+    class CEVCalculator
+    {
       public:
         CEVCalculator(Real f0, Real alpha, Real beta);
 
         Real value(Option::Type optionType, Real strike, Time t) const;
 
-        Real f0()    const { return f0_; }
+        Real f0() const { return f0_; }
         Real alpha() const { return alpha_; }
-        Real beta()  const { return beta_; }
+        Real beta() const { return beta_; }
 
       private:
         Real X(Real f) const;
@@ -59,7 +61,8 @@ namespace QuantLib {
     };
 
 
-    class AnalyticCEVEngine : public VanillaOption::engine {
+    class AnalyticCEVEngine : public VanillaOption::engine
+    {
       public:
         AnalyticCEVEngine(Real f0, Real alpha, Real beta, Handle<YieldTermStructure> discountCurve);
 

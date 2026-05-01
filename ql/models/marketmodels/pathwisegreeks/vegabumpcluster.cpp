@@ -23,27 +23,18 @@
 #include <utility>
 #include <valarray>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
 
-
-    VegaBumpCluster::VegaBumpCluster(Size factorBegin,
-        Size factorEnd,
-        Size rateBegin,
-        Size rateEnd,
-        Size stepBegin,
-        Size stepEnd)
-        :
-    factorBegin_(factorBegin),
-        factorEnd_(factorEnd),
-        rateBegin_(rateBegin),
-        rateEnd_(rateEnd),
-        stepBegin_(stepBegin),
-        stepEnd_(stepEnd)
+    VegaBumpCluster::VegaBumpCluster(
+        Size factorBegin, Size factorEnd, Size rateBegin, Size rateEnd, Size stepBegin, Size stepEnd)
+    : factorBegin_(factorBegin), factorEnd_(factorEnd), rateBegin_(rateBegin), rateEnd_(rateEnd), stepBegin_(stepBegin),
+      stepEnd_(stepEnd)
     {
-        QL_REQUIRE(factorBegin_<factorEnd_, "must have factorBegin_ < factorEnd_ in VegaBumpCluster ");
-        QL_REQUIRE(rateBegin_<rateEnd_, "must have rateBegin_ < rateEnd_ in VegaBumpCluster ");
-        QL_REQUIRE(stepBegin_<stepEnd_, "must have stepBegin_ < stepEnd_ in VegaBumpCluster ");
+        QL_REQUIRE(factorBegin_ < factorEnd_, "must have factorBegin_ < factorEnd_ in VegaBumpCluster ");
+        QL_REQUIRE(rateBegin_ < rateEnd_, "must have rateBegin_ < rateEnd_ in VegaBumpCluster ");
+        QL_REQUIRE(stepBegin_ < stepEnd_, "must have stepBegin_ < stepEnd_ in VegaBumpCluster ");
     }
 
     bool VegaBumpCluster::doesIntersect(const VegaBumpCluster& comparee) const
@@ -68,8 +59,6 @@ namespace QuantLib {
             return false;
 
         return true;
-
-
     }
 
 
@@ -84,53 +73,47 @@ namespace QuantLib {
         if (factorEnd_ > volStructure->numberOfFactors())
             return false;
 
-        Size firstAliveRate = volStructure->evolution().firstAliveRate()[stepEnd_-1];
+        Size firstAliveRate = volStructure->evolution().firstAliveRate()[stepEnd_ - 1];
 
         return rateBegin_ >= firstAliveRate; // if the rate has reset after the beginning of the last step of the bump
     }
 
 
-
-    VegaBumpCollection::VegaBumpCollection(const ext::shared_ptr<MarketModel>& volStructure,
-                           bool factorwiseBumping)
-                            : associatedVolStructure_(volStructure)
+    VegaBumpCollection::VegaBumpCollection(const ext::shared_ptr<MarketModel>& volStructure, bool factorwiseBumping)
+    : associatedVolStructure_(volStructure)
     {
         Size steps = volStructure->numberOfSteps();
         Size rates = volStructure->numberOfRates();
         Size factors = volStructure->numberOfFactors();
 
-        for (Size s=0; s < steps; ++s)
-            for (Size r=volStructure->evolution().firstAliveRate()[s]; r < rates; ++r)
+        for (Size s = 0; s < steps; ++s)
+            for (Size r = volStructure->evolution().firstAliveRate()[s]; r < rates; ++r)
             {
                 if (factorwiseBumping)
                 {
-                    for (Size f=0; f < factors; ++f)
+                    for (Size f = 0; f < factors; ++f)
                     {
-                        VegaBumpCluster thisCluster(f,f+1,r,r+1,s,s+1);
+                        VegaBumpCluster thisCluster(f, f + 1, r, r + 1, s, s + 1);
                         allBumps_.push_back(thisCluster);
-
                     }
                 }
                 else
                 {
-                     VegaBumpCluster thisCluster(0,factors,r,r+1,s,s+1);
-                     allBumps_.push_back(thisCluster);
-
+                    VegaBumpCluster thisCluster(0, factors, r, r + 1, s, s + 1);
+                    allBumps_.push_back(thisCluster);
                 }
             }
 
-        checked_=true;
-        full_=true;
-        nonOverlapped_=true;
-
-
+        checked_ = true;
+        full_ = true;
+        nonOverlapped_ = true;
     }
 
 
     VegaBumpCollection::VegaBumpCollection(std::vector<VegaBumpCluster> allBumps,
                                            ext::shared_ptr<MarketModel> volStructure)
-    : allBumps_(std::move(allBumps)), associatedVolStructure_(std::move(volStructure)),
-      checked_(false) {
+    : allBumps_(std::move(allBumps)), associatedVolStructure_(std::move(volStructure)), checked_(false)
+    {
         for (auto& allBump : allBumps_)
             QL_REQUIRE(allBump.isCompatible(associatedVolStructure_),
                        "incompatible bumps passed to VegaBumpCollection");
@@ -146,38 +129,39 @@ namespace QuantLib {
     {
         if (checked_)
             return full_;
-        std::vector<std::vector<std::valarray<bool> > > v;
+        std::vector<std::vector<std::valarray<bool>>> v;
 
         Size factors = associatedVolStructure_->numberOfFactors();
 
-        std::valarray<bool> model(false,factors);
-    //    std::fill(model.begin(), model.end(), false);
+        std::valarray<bool> model(false, factors);
+        //    std::fill(model.begin(), model.end(), false);
 
-        std::vector<std::valarray<bool> > modelTwo;
+        std::vector<std::valarray<bool>> modelTwo;
         modelTwo.reserve(associatedVolStructure_->numberOfRates());
-        for (Size i=0; i < associatedVolStructure_->numberOfRates(); ++i)
+        for (Size i = 0; i < associatedVolStructure_->numberOfRates(); ++i)
             modelTwo.push_back(model);
 
         v.reserve(associatedVolStructure_->numberOfSteps());
-        for (Size j=0; j < associatedVolStructure_->numberOfSteps(); ++j)
+        for (Size j = 0; j < associatedVolStructure_->numberOfSteps(); ++j)
             v.push_back(modelTwo);
 
-        for (const auto& allBump : allBumps_) {
+        for (const auto& allBump : allBumps_)
+        {
             for (Size f = allBump.factorBegin(); f < allBump.factorEnd(); ++f)
                 for (Size r = allBump.rateBegin(); r < allBump.rateEnd(); ++r)
                     for (Size s = allBump.stepBegin(); s < allBump.stepEnd(); ++s)
                         v[s][r][f] = true;
         }
 
-        Size numberFailures =0;
-        for (Size s =0; s < associatedVolStructure_->numberOfSteps(); ++s)
-            for (Size f=0; f < associatedVolStructure_->numberOfFactors(); ++f)
-                for (Size r=associatedVolStructure_->evolution().firstAliveRate()[s]; r <  associatedVolStructure_->numberOfRates(); ++r)
+        Size numberFailures = 0;
+        for (Size s = 0; s < associatedVolStructure_->numberOfSteps(); ++s)
+            for (Size f = 0; f < associatedVolStructure_->numberOfFactors(); ++f)
+                for (Size r = associatedVolStructure_->evolution().firstAliveRate()[s];
+                     r < associatedVolStructure_->numberOfRates(); ++r)
                     if (!v[s][r][f])
                         ++numberFailures;
 
-        return numberFailures>0;
-
+        return numberFailures > 0;
     }
 
     bool VegaBumpCollection::isNonOverlapping() const // i.e. is every alive pseudo-root element bumped at most once
@@ -186,37 +170,38 @@ namespace QuantLib {
         if (checked_)
             return nonOverlapped_;
 
-        std::vector<std::vector<std::valarray<bool> > > v;
+        std::vector<std::vector<std::valarray<bool>>> v;
 
         Size factors = associatedVolStructure_->numberOfFactors();
 
 
-        std::valarray<bool> model(false,factors);
-        //std::fill(model.begin(), model.end(), false);
+        std::valarray<bool> model(false, factors);
+        // std::fill(model.begin(), model.end(), false);
 
-        std::vector<std::valarray<bool> > modelTwo;
+        std::vector<std::valarray<bool>> modelTwo;
         modelTwo.reserve(associatedVolStructure_->numberOfRates());
-        for (Size i=0; i < associatedVolStructure_->numberOfRates(); ++i)
+        for (Size i = 0; i < associatedVolStructure_->numberOfRates(); ++i)
             modelTwo.push_back(model);
 
         v.reserve(associatedVolStructure_->numberOfSteps());
-        for (Size j=0; j < associatedVolStructure_->numberOfSteps(); ++j)
+        for (Size j = 0; j < associatedVolStructure_->numberOfSteps(); ++j)
             v.push_back(modelTwo);
 
-        Size numberFailures=0;
+        Size numberFailures = 0;
 
-        for (const auto& allBump : allBumps_) {
+        for (const auto& allBump : allBumps_)
+        {
             for (Size f = allBump.factorBegin(); f < allBump.factorEnd(); ++f)
                 for (Size r = allBump.rateBegin(); r < allBump.rateEnd(); ++r)
-                    for (Size s = allBump.stepBegin(); s < allBump.stepEnd(); ++s) {
+                    for (Size s = allBump.stepBegin(); s < allBump.stepEnd(); ++s)
+                    {
                         if (v[s][r][f])
                             ++numberFailures;
                         v[s][r][f] = true;
                     }
         }
 
-        return numberFailures>0;
-
+        return numberFailures > 0;
     }
 
     bool VegaBumpCollection::isSensible() const // i.e. is every alive pseudo-root element bumped precisely once

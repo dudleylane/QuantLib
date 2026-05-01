@@ -18,25 +18,26 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/pricingengines/bond/riskybondengine.hpp>
 #include <ql/cashflows/cashflows.hpp>
 #include <ql/cashflows/coupon.hpp>
+#include <ql/pricingengines/bond/riskybondengine.hpp>
 #include <utility>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     RiskyBondEngine::RiskyBondEngine(Handle<DefaultProbabilityTermStructure> defaultTS,
                                      Real recoveryRate,
                                      Handle<YieldTermStructure> yieldTS)
-    : defaultTS_(std::move(defaultTS)), 
-      recoveryRate_(recoveryRate), 
-      yieldTS_(std::move(yieldTS)) {
+    : defaultTS_(std::move(defaultTS)), recoveryRate_(recoveryRate), yieldTS_(std::move(yieldTS))
+    {
         registerWith(defaultTS_);
         registerWith(yieldTS_);
     }
 
-    void RiskyBondEngine::calculate() const {
+    void RiskyBondEngine::calculate() const
+    {
         Date npvDate = yieldTS()->referenceDate();
         Date settlementDate = arguments_.settlementDate;
         Date startDate = CashFlows::startDate(arguments_.cashflows);
@@ -44,9 +45,11 @@ namespace QuantLib {
 
         Real NPV = 0.0;
         Real settlementValue = 0.0;
-        for (auto& cf : arguments_.cashflows) {
+        for (auto& cf : arguments_.cashflows)
+        {
             Date d2 = cf->date();
-            if (d2 > npvDate) {
+            if (d2 > npvDate)
+            {
 
                 Real weightedCouponAmount = cf->amount() * defaultTS()->survivalProbability(d2);
                 NPV += weightedCouponAmount * yieldTS()->discount(d2);
@@ -54,11 +57,12 @@ namespace QuantLib {
                     settlementValue += weightedCouponAmount * yieldTS()->discount(d2);
 
                 auto coupon = ext::dynamic_pointer_cast<Coupon>(cf);
-                if (coupon != nullptr) {
+                if (coupon != nullptr)
+                {
                     Date defaultDate = d1 + (d2 - d1) / 2;
-                    Real weightedRecovery = coupon->nominal() * recoveryRate() *
-                                    (defaultTS()->survivalProbability(d1) -
-                                     defaultTS()->survivalProbability(d2)); 
+                    Real weightedRecovery =
+                        coupon->nominal() * recoveryRate() *
+                        (defaultTS()->survivalProbability(d1) - defaultTS()->survivalProbability(d2));
                     NPV += weightedRecovery * yieldTS()->discount(defaultDate);
                     if (d2 > settlementDate)
                         settlementValue += weightedRecovery * yieldTS()->discount(defaultDate);

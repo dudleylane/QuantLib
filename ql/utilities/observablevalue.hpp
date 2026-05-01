@@ -26,7 +26,8 @@
 
 #include <ql/patterns/observable.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %observable and assignable proxy to concrete value
     /*! Observers can be registered with instances of this class so
@@ -39,7 +40,8 @@ namespace QuantLib {
               code should modify the value via re-assignment instead.
     */
     template <class T>
-    class ObservableValue { // NOLINT(cppcoreguidelines-special-member-functions)
+    class ObservableValue
+    { // NOLINT(cppcoreguidelines-special-member-functions)
       public:
         ObservableValue();
         ObservableValue(T&&);
@@ -57,6 +59,7 @@ namespace QuantLib {
         operator ext::shared_ptr<Observable>() const;
         //! explicit inspector
         const T& value() const;
+
       private:
         T value_;
         ext::shared_ptr<Observable> observable_;
@@ -66,55 +69,64 @@ namespace QuantLib {
     // template definition
 
     template <class T>
-    ObservableValue<T>::ObservableValue()
-    : value_(), observable_(new Observable) {}
+    ObservableValue<T>::ObservableValue() : value_(), observable_(new Observable)
+    {
+    }
 
     template <class T>
-    ObservableValue<T>::ObservableValue(T&& t)
-    : value_(std::move(t)), observable_(new Observable) {}
+    ObservableValue<T>::ObservableValue(T&& t) : value_(std::move(t)), observable_(new Observable)
+    {
+    }
 
     template <class T>
-    ObservableValue<T>::ObservableValue(const T& t)
-    : value_(t), observable_(new Observable) {}
+    ObservableValue<T>::ObservableValue(const T& t) : value_(t), observable_(new Observable)
+    {
+    }
 
     template <class T>
-    ObservableValue<T>::ObservableValue(const ObservableValue<T>& t)
-    : value_(t.value_), observable_(new Observable) {}
+    ObservableValue<T>::ObservableValue(const ObservableValue<T>& t) : value_(t.value_), observable_(new Observable)
+    {
+    }
 
     template <class T>
-    ObservableValue<T>& ObservableValue<T>::operator=(T&& t) {
+    ObservableValue<T>& ObservableValue<T>::operator=(T&& t)
+    {
         value_ = std::move(t);
         observable_->notifyObservers();
         return *this;
     }
 
     template <class T>
-    ObservableValue<T>& ObservableValue<T>::operator=(const T& t) {
+    ObservableValue<T>& ObservableValue<T>::operator=(const T& t)
+    {
         value_ = t;
         observable_->notifyObservers();
         return *this;
     }
 
     template <class T>
-    ObservableValue<T>&
-    ObservableValue<T>::operator=(const ObservableValue<T>& t) { // NOLINT(bugprone-unhandled-self-assignment)
+    ObservableValue<T>& ObservableValue<T>::operator=(const ObservableValue<T>& t)
+    { // NOLINT(bugprone-unhandled-self-assignment)
         value_ = t.value_;
         observable_->notifyObservers();
         return *this;
     }
 
     template <class T>
-    ObservableValue<T>::operator T() const {
+    ObservableValue<T>::operator T() const
+    {
         return value_;
     }
 
     template <class T>
-    ObservableValue<T>::operator ext::shared_ptr<Observable>() const {
+    ObservableValue<T>::operator ext::shared_ptr<Observable>() const
+    {
         return observable_;
     }
 
     template <class T>
-    const T& ObservableValue<T>::value() const {
+    const T& ObservableValue<T>::value() const
+    {
         return value_;
     }
 

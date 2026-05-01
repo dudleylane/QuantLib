@@ -21,16 +21,17 @@
 #ifndef quantlib_multistep_exercise_adapter_hpp
 #define quantlib_multistep_exercise_adapter_hpp
 
-#include <ql/models/marketmodels/products/multiproductmultistep.hpp>
 #include <ql/models/marketmodels/callability/exercisevalue.hpp>
+#include <ql/models/marketmodels/products/multiproductmultistep.hpp>
 #include <ql/utilities/clone.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class ExerciseAdapter : public MultiProductMultiStep {
+    class ExerciseAdapter : public MultiProductMultiStep
+    {
       public:
-        ExerciseAdapter(const Clone<MarketModelExerciseValue>& exercise,
-                        Size numberOfProducts = 1);
+        ExerciseAdapter(const Clone<MarketModelExerciseValue>& exercise, Size numberOfProducts = 1);
         //! \name MarketModelMultiProduct interface
         //@{
         std::vector<Time> possibleCashFlowTimes() const override;
@@ -38,9 +39,7 @@ namespace QuantLib {
         const EvolutionDescription& evolution() const override;
         Size maxNumberOfCashFlowsPerProductPerStep() const override;
         void reset() override;
-        bool nextTimeStep(const CurveState&,
-                          std::vector<Size>&,
-                          std::vector<std::vector<CashFlow> >&) override;
+        bool nextTimeStep(const CurveState&, std::vector<Size>&, std::vector<std::vector<CashFlow>>&) override;
         std::unique_ptr<MarketModelMultiProduct> clone() const override;
         //@}
         //! \name inspectors
@@ -56,31 +55,34 @@ namespace QuantLib {
 
     // inline definition
 
-    inline std::vector<Time>
-    ExerciseAdapter::possibleCashFlowTimes() const {
+    inline std::vector<Time> ExerciseAdapter::possibleCashFlowTimes() const
+    {
         return exercise_->possibleCashFlowTimes();
     }
 
-    inline Size ExerciseAdapter::numberOfProducts() const {
+    inline Size ExerciseAdapter::numberOfProducts() const
+    {
         return numberOfProducts_;
     }
 
-    inline const EvolutionDescription& ExerciseAdapter::evolution() const {
+    inline const EvolutionDescription& ExerciseAdapter::evolution() const
+    {
         return exercise_->evolution();
     }
 
-    inline Size
-    ExerciseAdapter::maxNumberOfCashFlowsPerProductPerStep() const {
+    inline Size ExerciseAdapter::maxNumberOfCashFlowsPerProductPerStep() const
+    {
         return 1;
     }
 
-    inline void ExerciseAdapter::reset() {
+    inline void ExerciseAdapter::reset()
+    {
         exercise_->reset();
         currentIndex_ = 0;
     }
 
-    inline const MarketModelExerciseValue&
-    ExerciseAdapter::exerciseValue() const {
+    inline const MarketModelExerciseValue& ExerciseAdapter::exerciseValue() const
+    {
         return *exercise_;
     }
 

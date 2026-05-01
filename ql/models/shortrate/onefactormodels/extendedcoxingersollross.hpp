@@ -28,7 +28,8 @@
 #include <ql/models/shortrate/onefactormodels/coxingersollross.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Extended Cox-Ingersoll-Ross model class.
     /*! This class implements the extended Cox-Ingersoll-Ross model
@@ -44,25 +45,21 @@ namespace QuantLib {
 
         \ingroup shortrate
     */
-    class ExtendedCoxIngersollRoss : public CoxIngersollRoss,
-                                     public TermStructureConsistentModel {
+    class ExtendedCoxIngersollRoss : public CoxIngersollRoss, public TermStructureConsistentModel
+    {
       public:
-        ExtendedCoxIngersollRoss(
-                              const Handle<YieldTermStructure>& termStructure,
-                              Real theta = 0.1,
-                              Real k = 0.1,
-                              Real sigma = 0.1,
-                              Real x0 = 0.05,
-                              bool withFellerConstraint = true);
+        ExtendedCoxIngersollRoss(const Handle<YieldTermStructure>& termStructure,
+                                 Real theta = 0.1,
+                                 Real k = 0.1,
+                                 Real sigma = 0.1,
+                                 Real x0 = 0.05,
+                                 bool withFellerConstraint = true);
 
         ext::shared_ptr<Lattice> tree(const TimeGrid& grid) const override;
 
         ext::shared_ptr<ShortRateDynamics> dynamics() const override;
 
-        Real discountBondOption(Option::Type type,
-                                Real strike,
-                                Time maturity,
-                                Time bondMaturity) const override;
+        Real discountBondOption(Option::Type type, Real strike, Time maturity, Time bondMaturity) const override;
 
       protected:
         void generateArguments() override;
@@ -87,11 +84,13 @@ namespace QuantLib {
             dy(t)=k(\theta-y(t))dt+\sigma \sqrt{y(t)}dW(t)
         \f]
     */
-    class ExtendedCoxIngersollRoss::Dynamics
-        : public CoxIngersollRoss::Dynamics {
+    class ExtendedCoxIngersollRoss::Dynamics : public CoxIngersollRoss::Dynamics
+    {
       public:
         Dynamics(Parameter phi, Real theta, Real k, Real sigma, Real x0)
-        : CoxIngersollRoss::Dynamics(theta, k, sigma, x0), phi_(std::move(phi)) {}
+        : CoxIngersollRoss::Dynamics(theta, k, sigma, x0), phi_(std::move(phi))
+        {
+        }
 
         Real variable(Time t, Rate r) const override { return r - phi_(t); }
         Real shortRate(Time t, Real y) const override { return y + phi_(t); }
@@ -110,24 +109,25 @@ namespace QuantLib {
         where \f$ f(t) \f$ is the instantaneous forward rate at \f$ t \f$
         and \f$ h = \sqrt{k^2 + 2\sigma^2} \f$.
     */
-    class ExtendedCoxIngersollRoss::FittingParameter
-        : public TermStructureFittingParameter {
+    class ExtendedCoxIngersollRoss::FittingParameter : public TermStructureFittingParameter
+    {
       private:
-        class Impl final : public Parameter::Impl {
+        class Impl final : public Parameter::Impl
+        {
           public:
             Impl(Handle<YieldTermStructure> termStructure, Real theta, Real k, Real sigma, Real x0)
-            : termStructure_(std::move(termStructure)), theta_(theta), k_(k), sigma_(sigma),
-              x0_(x0) {}
+            : termStructure_(std::move(termStructure)), theta_(theta), k_(k), sigma_(sigma), x0_(x0)
+            {
+            }
 
-            Real value(const Array&, Time t) const override {
-                Rate forwardRate =
-                    termStructure_->forwardRate(t, t, Continuous, NoFrequency);
-                Real h = std::sqrt(k_*k_ + 2.0*sigma_*sigma_);
-                Real expth = std::exp(t*h);
-                Real temp = 2.0*h + (k_+h)*(expth-1.0);
-                Real phi = forwardRate -
-                    2.0*k_*theta_*(expth - 1.0)/temp -
-                    x0_*4.0*h*h*expth/(temp*temp);
+            Real value(const Array&, Time t) const override
+            {
+                Rate forwardRate = termStructure_->forwardRate(t, t, Continuous, NoFrequency);
+                Real h = std::sqrt(k_ * k_ + 2.0 * sigma_ * sigma_);
+                Real expth = std::exp(t * h);
+                Real temp = 2.0 * h + (k_ + h) * (expth - 1.0);
+                Real phi =
+                    forwardRate - 2.0 * k_ * theta_ * (expth - 1.0) / temp - x0_ * 4.0 * h * h * expth / (temp * temp);
                 return phi;
             }
 
@@ -135,23 +135,24 @@ namespace QuantLib {
             Handle<YieldTermStructure> termStructure_;
             Real theta_, k_, sigma_, x0_;
         };
+
       public:
-        FittingParameter(const Handle<YieldTermStructure>& termStructure,
-                         Real theta, Real k, Real sigma, Real x0)
-        : TermStructureFittingParameter(ext::shared_ptr<Parameter::Impl>(
-                 new FittingParameter::Impl(
-                                     termStructure, theta, k, sigma, x0))) {}
+        FittingParameter(const Handle<YieldTermStructure>& termStructure, Real theta, Real k, Real sigma, Real x0)
+        : TermStructureFittingParameter(
+              ext::shared_ptr<Parameter::Impl>(new FittingParameter::Impl(termStructure, theta, k, sigma, x0)))
+        {
+        }
     };
 
     // inline definitions
 
-    inline ext::shared_ptr<OneFactorModel::ShortRateDynamics>
-    ExtendedCoxIngersollRoss::dynamics() const {
-        return ext::shared_ptr<ShortRateDynamics>(
-                            new Dynamics(phi_, theta(), k() , sigma(), x0()));
+    inline ext::shared_ptr<OneFactorModel::ShortRateDynamics> ExtendedCoxIngersollRoss::dynamics() const
+    {
+        return ext::shared_ptr<ShortRateDynamics>(new Dynamics(phi_, theta(), k(), sigma(), x0()));
     }
 
-    inline void ExtendedCoxIngersollRoss::generateArguments() {
+    inline void ExtendedCoxIngersollRoss::generateArguments()
+    {
         phi_ = FittingParameter(termStructure(), theta(), k(), sigma(), x0());
     }
 

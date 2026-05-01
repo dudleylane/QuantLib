@@ -27,10 +27,11 @@
 #ifndef quantlib_default_term_structure_hpp
 #define quantlib_default_term_structure_hpp
 
-#include <ql/termstructure.hpp>
 #include <ql/quote.hpp>
+#include <ql/termstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Default probability term structure
     /*! This abstract class defines the interface of concrete
@@ -38,29 +39,27 @@ namespace QuantLib {
 
         \ingroup defaultprobabilitytermstructures
     */
-    class DefaultProbabilityTermStructure : public TermStructure {
+    class DefaultProbabilityTermStructure : public TermStructure
+    {
       public:
         /*! \name Constructors
             See the TermStructure documentation for issues regarding
             constructors.
         */
         //@{
-        DefaultProbabilityTermStructure(
-            const DayCounter& dc = DayCounter(),
-            std::vector<Handle<Quote> > jumps = {},
-            const std::vector<Date>& jumpDates = {});
-        DefaultProbabilityTermStructure(
-            const Date& referenceDate,
-            const Calendar& cal = Calendar(),
-            const DayCounter& dc = DayCounter(),
-            std::vector<Handle<Quote> > jumps = {},
-            const std::vector<Date>& jumpDates = {});
-        DefaultProbabilityTermStructure(
-            Natural settlementDays,
-            const Calendar& cal,
-            const DayCounter& dc = DayCounter(),
-            std::vector<Handle<Quote> > jumps = {},
-            const std::vector<Date>& jumpDates = {});
+        DefaultProbabilityTermStructure(const DayCounter& dc = DayCounter(),
+                                        std::vector<Handle<Quote>> jumps = {},
+                                        const std::vector<Date>& jumpDates = {});
+        DefaultProbabilityTermStructure(const Date& referenceDate,
+                                        const Calendar& cal = Calendar(),
+                                        const DayCounter& dc = DayCounter(),
+                                        std::vector<Handle<Quote>> jumps = {},
+                                        const std::vector<Date>& jumpDates = {});
+        DefaultProbabilityTermStructure(Natural settlementDays,
+                                        const Calendar& cal,
+                                        const DayCounter& dc = DayCounter(),
+                                        std::vector<Handle<Quote>> jumps = {},
+                                        const std::vector<Date>& jumpDates = {});
         //@}
 
         /*! \name Survival probabilities
@@ -70,13 +69,11 @@ namespace QuantLib {
             is calculated as a fraction of year from the reference date.
         */
         //@{
-        Probability survivalProbability(const Date& d,
-                                        bool extrapolate = false) const;
+        Probability survivalProbability(const Date& d, bool extrapolate = false) const;
         /*! The same day-counting rule used by the term structure
             should be used for calculating the passed time t.
         */
-        Probability survivalProbability(Time t,
-                                        bool extrapolate = false) const;
+        Probability survivalProbability(Time t, bool extrapolate = false) const;
         //@}
 
         /*! \name Default probabilities
@@ -86,21 +83,15 @@ namespace QuantLib {
             is calculated as a fraction of year from the reference date.
         */
         //@{
-        Probability defaultProbability(const Date& d,
-                                       bool extrapolate = false) const;
+        Probability defaultProbability(const Date& d, bool extrapolate = false) const;
         /*! The same day-counting rule used by the term structure
             should be used for calculating the passed time t.
         */
-        Probability defaultProbability(Time t,
-                                       bool extrapolate = false) const;
+        Probability defaultProbability(Time t, bool extrapolate = false) const;
         //! probability of default between two given dates
-        Probability defaultProbability(const Date&,
-                                       const Date&,
-                                       bool extrapolate = false) const;
+        Probability defaultProbability(const Date&, const Date&, bool extrapolate = false) const;
         //! probability of default between two given times
-        Probability defaultProbability(Time,
-                                       Time,
-                                       bool extrapo = false) const;
+        Probability defaultProbability(Time, Time, bool extrapo = false) const;
         //@}
 
         /*! \name Default densities
@@ -110,10 +101,8 @@ namespace QuantLib {
             from the reference date.
         */
         //@{
-        Real defaultDensity(const Date& d,
-                            bool extrapolate = false) const;
-        Real defaultDensity(Time t,
-                            bool extrapolate = false) const;
+        Real defaultDensity(const Date& d, bool extrapolate = false) const;
+        Real defaultDensity(Time t, bool extrapolate = false) const;
         //@}
 
         /*! \name Hazard rates
@@ -121,16 +110,14 @@ namespace QuantLib {
             These methods returns the hazard rate at a given date or time.
             In the latter case, the time is calculated as a fraction of year
             from the reference date.
-            
+
             Hazard rates are defined with annual frequency and continuous
             compounding.
         */
 
         //@{
-        Rate hazardRate(const Date& d,
-                        bool extrapolate = false) const;
-        Rate hazardRate(Time t,
-                        bool extrapolate = false) const;
+        Rate hazardRate(const Date& d, bool extrapolate = false) const;
+        Rate hazardRate(Time t, bool extrapolate = false) const;
         //@}
 
         //! \name Jump inspectors
@@ -165,7 +152,7 @@ namespace QuantLib {
         // methods
         void setJumps();
         // data members
-        std::vector<Handle<Quote> > jumps_;
+        std::vector<Handle<Quote>> jumps_;
         std::vector<Date> jumpDates_;
         std::vector<Time> jumpTimes_;
         Size nJumps_;
@@ -174,73 +161,61 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline
-    Probability DefaultProbabilityTermStructure::survivalProbability(
-                                                     const Date& d,
-                                                     bool extrapolate) const {
+    inline Probability DefaultProbabilityTermStructure::survivalProbability(const Date& d, bool extrapolate) const
+    {
         return survivalProbability(timeFromReference(d), extrapolate);
     }
 
-    inline
-    Probability DefaultProbabilityTermStructure::defaultProbability(
-                                                     const Date& d,
-                                                     bool extrapolate) const {
+    inline Probability DefaultProbabilityTermStructure::defaultProbability(const Date& d, bool extrapolate) const
+    {
         return 1.0 - survivalProbability(d, extrapolate);
     }
 
-    inline
-    Probability DefaultProbabilityTermStructure::defaultProbability(
-                                                     Time t,
-                                                     bool extrapolate) const {
+    inline Probability DefaultProbabilityTermStructure::defaultProbability(Time t, bool extrapolate) const
+    {
         return 1.0 - survivalProbability(t, extrapolate);
     }
 
-    inline
-    Real DefaultProbabilityTermStructure::defaultDensity(
-                                                     const Date& d,
-                                                     bool extrapolate) const {
+    inline Real DefaultProbabilityTermStructure::defaultDensity(const Date& d, bool extrapolate) const
+    {
         return defaultDensity(timeFromReference(d), extrapolate);
     }
 
-    inline
-    Real DefaultProbabilityTermStructure::defaultDensity(
-                                                     Time t,
-                                                     bool extrapolate) const {
+    inline Real DefaultProbabilityTermStructure::defaultDensity(Time t, bool extrapolate) const
+    {
         checkRange(t, extrapolate);
         return defaultDensityImpl(t);
     }
 
-    inline
-    Rate DefaultProbabilityTermStructure::hazardRate(const Date& d,
-                                                     bool extrapolate) const {
+    inline Rate DefaultProbabilityTermStructure::hazardRate(const Date& d, bool extrapolate) const
+    {
         return hazardRate(timeFromReference(d), extrapolate);
     }
 
-   inline
-    Rate DefaultProbabilityTermStructure::hazardRateImpl(Time t) const {
+    inline Rate DefaultProbabilityTermStructure::hazardRateImpl(Time t) const
+    {
         Probability S = survivalProbability(t, true);
-        return S == 0.0 ? Rate(0.0) : defaultDensity(t, true)/S;
+        return S == 0.0 ? Rate(0.0) : defaultDensity(t, true) / S;
     }
 
-    inline Rate DefaultProbabilityTermStructure::hazardRate(Time t,
-                                                            bool extrapolate) const {
+    inline Rate DefaultProbabilityTermStructure::hazardRate(Time t, bool extrapolate) const
+    {
         checkRange(t, extrapolate);
         return hazardRateImpl(t);
     }
 
-    inline
-    const std::vector<Date>&
-    DefaultProbabilityTermStructure::jumpDates() const {
+    inline const std::vector<Date>& DefaultProbabilityTermStructure::jumpDates() const
+    {
         return this->jumpDates_;
     }
 
-    inline
-    const std::vector<Time>&
-    DefaultProbabilityTermStructure::jumpTimes() const {
+    inline const std::vector<Time>& DefaultProbabilityTermStructure::jumpTimes() const
+    {
         return this->jumpTimes_;
     }
 
-    inline void DefaultProbabilityTermStructure::update() {
+    inline void DefaultProbabilityTermStructure::update()
+    {
         TermStructure::update();
         if (referenceDate() != latestReference_)
             setJumps();

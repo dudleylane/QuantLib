@@ -24,13 +24,12 @@ synthetic rates which are interleaved
 */
 
 #ifndef volatility_interpolation_specifier_hpp
-#define  volatility_interpolation_specifier_hpp
-
+#define volatility_interpolation_specifier_hpp
 
 
 #include <ql/models/marketmodels/models/piecewiseconstantvariance.hpp>
-#include <ql/types.hpp>
 #include <ql/shared_ptr.hpp>
+#include <ql/types.hpp>
 #include <vector>
 
 
@@ -41,17 +40,17 @@ namespace QuantLib
       public:
         VolatilityInterpolationSpecifier() = default;
         virtual ~VolatilityInterpolationSpecifier() = default;
-        virtual void setScalingFactors(const std::vector<Real>& scales)=0;
-        virtual void setLastCapletVol(Real vol)=0;
+        virtual void setScalingFactors(const std::vector<Real>& scales) = 0;
+        virtual void setLastCapletVol(Real vol) = 0;
 
 
-        virtual const std::vector<ext::shared_ptr<PiecewiseConstantVariance> >& interpolatedVariances() const=0;
-        virtual const std::vector<ext::shared_ptr<PiecewiseConstantVariance> >& originalVariances() const=0;
+        virtual const std::vector<ext::shared_ptr<PiecewiseConstantVariance>>& interpolatedVariances() const = 0;
+        virtual const std::vector<ext::shared_ptr<PiecewiseConstantVariance>>& originalVariances() const = 0;
 
-        virtual Size getPeriod() const=0;
-        virtual Size getOffset() const=0;
-        virtual Size getNoBigRates() const=0;
-        virtual Size getNoSmallRates() const=0;
+        virtual Size getPeriod() const = 0;
+        virtual Size getOffset() const = 0;
+        virtual Size getNoBigRates() const = 0;
+        virtual Size getNoSmallRates() const = 0;
     };
 }
 

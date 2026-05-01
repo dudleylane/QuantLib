@@ -19,15 +19,13 @@
 
 #include <ql/experimental/math/multidimintegrator.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    MultidimIntegral::MultidimIntegral(
-            const std::vector<ext::shared_ptr<Integrator> >& integrators)
-    : integrators_(integrators), 
-      integrationLevelEntries_(maxDimensions_),
-      varBuffer_(integrators.size(), 0.) {
-        QL_REQUIRE(integrators.size() <= maxDimensions_, 
-            "Too many dimensions in integration.");
+    MultidimIntegral::MultidimIntegral(const std::vector<ext::shared_ptr<Integrator>>& integrators)
+    : integrators_(integrators), integrationLevelEntries_(maxDimensions_), varBuffer_(integrators.size(), 0.)
+    {
+        QL_REQUIRE(integrators.size() <= maxDimensions_, "Too many dimensions in integration.");
         spawnFcts<maxDimensions_>();
     }
 

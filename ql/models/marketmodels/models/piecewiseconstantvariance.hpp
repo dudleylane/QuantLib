@@ -25,12 +25,14 @@
 #include <ql/types.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class EvolutionDescription;
     class Matrix;
 
-    class PiecewiseConstantVariance {
+    class PiecewiseConstantVariance
+    {
       public:
         virtual ~PiecewiseConstantVariance() = default;
         virtual const std::vector<Real>& variances() const = 0;
@@ -38,8 +40,8 @@ namespace QuantLib {
         virtual const std::vector<Time>& rateTimes() const = 0;
         Real variance(Size i) const;
         Volatility volatility(Size i) const;
-        //const std::vector<Real>& totalVariances() const;
-        //const std::vector<Volatility>& totalVolatilities() const;
+        // const std::vector<Real>& totalVariances() const;
+        // const std::vector<Volatility>& totalVolatilities() const;
         Real totalVariance(Size i) const;
         Volatility totalVolatility(Size i) const;
     };

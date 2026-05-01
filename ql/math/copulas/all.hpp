@@ -14,4 +14,3 @@
 #include <ql/math/copulas/maxcopula.hpp>
 #include <ql/math/copulas/mincopula.hpp>
 #include <ql/math/copulas/plackettcopula.hpp>
-

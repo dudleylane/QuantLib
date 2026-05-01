@@ -26,7 +26,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Weekends-only calendar
     /*! This calendar has no bank holidays except for weekends
@@ -35,13 +36,16 @@ namespace QuantLib {
 
         \ingroup calendars
     */
-    class WeekendsOnly : public Calendar {
+    class WeekendsOnly : public Calendar
+    {
       private:
-        class Impl final : public Calendar::WesternImpl {
+        class Impl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "weekends only"; }
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
         WeekendsOnly();
     };

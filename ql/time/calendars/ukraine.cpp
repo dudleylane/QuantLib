@@ -19,15 +19,18 @@
 
 #include <ql/time/calendars/ukraine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Ukraine::Ukraine(Market) {
+    Ukraine::Ukraine(Market)
+    {
         // all calendar instances share the same implementation instance
         static ext::shared_ptr<Calendar::Impl> impl(new Ukraine::UseImpl);
         impl_ = impl;
     }
 
-    bool Ukraine::UseImpl::isBusinessDay(const Date& date) const {
+    bool Ukraine::UseImpl::isBusinessDay(const Date& date) const
+    {
         Weekday w = date.weekday();
         Day d = date.dayOfMonth(), dd = date.dayOfYear();
         Month m = date.month();
@@ -35,18 +38,15 @@ namespace QuantLib {
         Day em = easterMonday(y);
         if (isWeekend(w)
             // New Year's Day (possibly moved to Monday)
-            || ((d == 1 || ((d == 2 || d == 3) && w == Monday))
-                && m == January)
+            || ((d == 1 || ((d == 2 || d == 3) && w == Monday)) && m == January)
             // Orthodox Christmas
-            || ((d == 7 || ((d == 8 || d == 9) && w == Monday))
-                && m == January)
+            || ((d == 7 || ((d == 8 || d == 9) && w == Monday)) && m == January)
             // Women's Day
-            || ((d == 8 || ((d == 9 || d == 10) && w == Monday))
-                && m == March)
+            || ((d == 8 || ((d == 9 || d == 10) && w == Monday)) && m == March)
             // Orthodox Easter Monday
             || (dd == em)
             // Holy Trinity Day
-            || (dd == em+49)
+            || (dd == em + 49)
             // Workers' Solidarity Days
             || ((d == 1 || d == 2 || (d == 3 && w == Monday)) && m == May)
             // Victory Day
@@ -62,4 +62,3 @@ namespace QuantLib {
     }
 
 }
-

@@ -25,45 +25,47 @@
 #ifndef quantlib_clayton_copula_rng_hpp
 #define quantlib_clayton_copula_rng_hpp
 
-#include <ql/methods/montecarlo/sample.hpp>
 #include <ql/errors.hpp>
+#include <ql/methods/montecarlo/sample.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Clayton copula random-number generator
     template <class RNG>
-    class ClaytonCopulaRng {
+    class ClaytonCopulaRng
+    {
       public:
-        typedef Sample<std::vector<Real> > sample_type;
+        typedef Sample<std::vector<Real>> sample_type;
         typedef RNG urng_type;
-        explicit ClaytonCopulaRng(const RNG& uniformGenerator,Real theta);
+        explicit ClaytonCopulaRng(const RNG& uniformGenerator, Real theta);
         sample_type next() const;
+
       private:
         Real theta_;
         RNG uniformGenerator_;
     };
 
     template <class RNG>
-    ClaytonCopulaRng<RNG>::ClaytonCopulaRng(const RNG& ug, Real th)
-    : uniformGenerator_(ug), theta_(th) {
-        QL_REQUIRE(th >= -1.0,
-                   "theta (" << th << ") must be greater or equal to -1");
-        QL_REQUIRE(th != 0.0,
-                   "theta (" << th << ") must be different from 0");
+    ClaytonCopulaRng<RNG>::ClaytonCopulaRng(const RNG& ug, Real th) : uniformGenerator_(ug), theta_(th)
+    {
+        QL_REQUIRE(th >= -1.0, "theta (" << th << ") must be greater or equal to -1");
+        QL_REQUIRE(th != 0.0, "theta (" << th << ") must be different from 0");
     }
 
     template <class RNG>
-    inline typename ClaytonCopulaRng<RNG>::sample_type
-    ClaytonCopulaRng<RNG>::next() const {
+    inline typename ClaytonCopulaRng<RNG>::sample_type ClaytonCopulaRng<RNG>::next() const
+    {
         typename RNG::sample_type v1 = uniformGenerator_.next();
         typename RNG::sample_type v2 = uniformGenerator_.next();
         Real u1 = v1.value;
-        Real u2 = std::pow(std::pow(v1.value,-theta_)*(std::pow(v2.value,-theta_/(theta_+1.0))-1.0)+1.0,-1.0/theta_);
+        Real u2 = std::pow(std::pow(v1.value, -theta_) * (std::pow(v2.value, -theta_ / (theta_ + 1.0)) - 1.0) + 1.0,
+                           -1.0 / theta_);
         std::vector<Real> u;
         u.push_back(u1);
         u.push_back(u2);
-        return sample_type(u,v1.weight*v2.weight);
+        return sample_type(u, v1.weight * v2.weight);
     }
 
 }

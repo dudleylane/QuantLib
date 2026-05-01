@@ -24,27 +24,27 @@
 #ifndef quantlib_btp_hpp
 #define quantlib_btp_hpp
 
+#include <ql/indexes/ibor/euribor.hpp>
 #include <ql/instruments/bonds/fixedratebond.hpp>
 #include <ql/instruments/bonds/floatingratebond.hpp>
-#include <ql/indexes/ibor/euribor.hpp>
 #include <ql/instruments/vanillaswap.hpp>
-
 #include <numeric>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! Italian CCTEU (Certificato di credito del tesoro)
         Euribor6M indexed floating rate bond
-    
+
         \ingroup instruments
 
     */
-    class CCTEU : public FloatingRateBond {
+    class CCTEU : public FloatingRateBond
+    {
       public:
         CCTEU(const Date& maturityDate,
               Spread spread,
-              const Handle<YieldTermStructure>& fwdCurve =
-                                    Handle<YieldTermStructure>(),
+              const Handle<YieldTermStructure>& fwdCurve = Handle<YieldTermStructure>(),
               const Date& startDate = Date(),
               const Date& issueDate = Date());
         //! \name Bond interface
@@ -59,12 +59,10 @@ namespace QuantLib {
     /*! \ingroup instruments
 
     */
-    class BTP : public FixedRateBond {
+    class BTP : public FixedRateBond
+    {
       public:
-        BTP(const Date& maturityDate,
-            Rate fixedRate,
-            const Date& startDate = Date(),
-            const Date& issueDate = Date());
+        BTP(const Date& maturityDate, Rate fixedRate, const Date& startDate = Date(), const Date& issueDate = Date());
         /*! constructor needed for legacy non-par redemption BTPs.
             As of today the only remaining one is IT123456789012
             that will redeem 99.999 on xx-may-2037 */
@@ -83,41 +81,40 @@ namespace QuantLib {
         /*! The default BTP conventions are used: Actual/Actual (ISMA),
             Compounded, Annual.
             The default bond settlement is used if no date is given. */
-        Rate yield(Real cleanPrice,
-                   Date settlementDate = Date(),
-                   Real accuracy = 1.0e-8,
-                   Size maxEvaluations = 100) const;
+        Rate
+        yield(Real cleanPrice, Date settlementDate = Date(), Real accuracy = 1.0e-8, Size maxEvaluations = 100) const;
     };
 
-    class RendistatoBasket : public Observer,
-                             public Observable {
+    class RendistatoBasket : public Observer, public Observable
+    {
       public:
-        RendistatoBasket(const std::vector<ext::shared_ptr<BTP> >& btps,
+        RendistatoBasket(const std::vector<ext::shared_ptr<BTP>>& btps,
                          const std::vector<Real>& outstandings,
-                         std::vector<Handle<Quote> > cleanPriceQuotes);
+                         std::vector<Handle<Quote>> cleanPriceQuotes);
         //! \name Inspectors
         //@{
-        Size size() const { return n_;}
-        const std::vector<ext::shared_ptr<BTP> >& btps() const;
-        const std::vector<Handle<Quote> >& cleanPriceQuotes() const;
-        const std::vector<Real>& outstandings() const { return outstandings_;}
-        const std::vector<Real>& weights() const { return weights_;}
-        Real outstanding() const { return outstanding_;}
+        Size size() const { return n_; }
+        const std::vector<ext::shared_ptr<BTP>>& btps() const;
+        const std::vector<Handle<Quote>>& cleanPriceQuotes() const;
+        const std::vector<Real>& outstandings() const { return outstandings_; }
+        const std::vector<Real>& weights() const { return weights_; }
+        Real outstanding() const { return outstanding_; }
         //@}
         //! \name Observer interface
         //@{
         void update() override { notifyObservers(); }
         //@}
       private:
-        std::vector<ext::shared_ptr<BTP> > btps_;
+        std::vector<ext::shared_ptr<BTP>> btps_;
         std::vector<Real> outstandings_;
-        std::vector<Handle<Quote> > quotes_;
+        std::vector<Handle<Quote>> quotes_;
         Real outstanding_;
         Size n_;
         std::vector<Real> weights_;
     };
 
-    class RendistatoCalculator : public LazyObject {
+    class RendistatoCalculator : public LazyObject
+    {
       public:
         RendistatoCalculator(ext::shared_ptr<RendistatoBasket> basket,
                              ext::shared_ptr<Euribor> euriborIndex,
@@ -160,14 +157,15 @@ namespace QuantLib {
         mutable Size equivalentSwapIndex_;
 
         Size nSwaps_ = 15;
-        mutable std::vector<ext::shared_ptr<VanillaSwap> > swaps_;
+        mutable std::vector<ext::shared_ptr<VanillaSwap>> swaps_;
         std::vector<Time> swapLengths_;
         mutable std::vector<Time> swapBondDurations_;
         mutable std::vector<Rate> swapBondYields_, swapRates_;
     };
 
     //! RendistatoCalculator equivalent swap lenth Quote adapter
-    class RendistatoEquivalentSwapLengthQuote : public Quote {
+    class RendistatoEquivalentSwapLengthQuote : public Quote
+    {
       public:
         RendistatoEquivalentSwapLengthQuote(ext::shared_ptr<RendistatoCalculator> r);
         Real value() const override;
@@ -178,7 +176,8 @@ namespace QuantLib {
     };
 
     //! RendistatoCalculator equivalent swap spread Quote adapter
-    class RendistatoEquivalentSwapSpreadQuote : public Quote {
+    class RendistatoEquivalentSwapSpreadQuote : public Quote
+    {
       public:
         RendistatoEquivalentSwapSpreadQuote(ext::shared_ptr<RendistatoCalculator> r);
         Real value() const override;
@@ -190,101 +189,116 @@ namespace QuantLib {
 
     // inline
 
-    inline Real CCTEU::accruedAmount(Date d) const {
+    inline Real CCTEU::accruedAmount(Date d) const
+    {
         Real result = FloatingRateBond::accruedAmount(d);
         return ClosestRounding(5)(result);
     }
 
-    inline Real BTP::accruedAmount(Date d) const {
+    inline Real BTP::accruedAmount(Date d) const
+    {
         Real result = FixedRateBond::accruedAmount(d);
         return ClosestRounding(5)(result);
     }
 
-    inline const std::vector<ext::shared_ptr<BTP> >&
-    RendistatoBasket::btps() const {
+    inline const std::vector<ext::shared_ptr<BTP>>& RendistatoBasket::btps() const
+    {
         return btps_;
     }
 
-    inline const std::vector<Handle<Quote> >&
-    RendistatoBasket::cleanPriceQuotes() const {
+    inline const std::vector<Handle<Quote>>& RendistatoBasket::cleanPriceQuotes() const
+    {
         return quotes_;
     }
 
-    inline Rate RendistatoCalculator::yield() const {
-        return std::inner_product(basket_->weights().begin(),
-                                  basket_->weights().end(),
-                                  yields().begin(), Real(0.0));
+    inline Rate RendistatoCalculator::yield() const
+    {
+        return std::inner_product(basket_->weights().begin(), basket_->weights().end(), yields().begin(), Real(0.0));
     }
 
-    inline Time RendistatoCalculator::duration() const {
+    inline Time RendistatoCalculator::duration() const
+    {
         calculate();
         return duration_;
     }
 
-    inline const std::vector<Rate>& RendistatoCalculator::yields() const {
+    inline const std::vector<Rate>& RendistatoCalculator::yields() const
+    {
         calculate();
         return yields_;
     }
 
-    inline const std::vector<Time>& RendistatoCalculator::durations() const {
+    inline const std::vector<Time>& RendistatoCalculator::durations() const
+    {
         calculate();
         return durations_;
     }
 
-    inline const std::vector<Time>& RendistatoCalculator::swapLengths() const {
+    inline const std::vector<Time>& RendistatoCalculator::swapLengths() const
+    {
         return swapLengths_;
     }
 
-    inline const std::vector<Rate>& RendistatoCalculator::swapRates() const {
+    inline const std::vector<Rate>& RendistatoCalculator::swapRates() const
+    {
         calculate();
         return swapRates_;
     }
 
-    inline const std::vector<Rate>& RendistatoCalculator::swapYields() const {
+    inline const std::vector<Rate>& RendistatoCalculator::swapYields() const
+    {
         calculate();
         return swapBondYields_;
     }
 
-    inline const std::vector<Time>& RendistatoCalculator::swapDurations() const {
+    inline const std::vector<Time>& RendistatoCalculator::swapDurations() const
+    {
         calculate();
         return swapBondDurations_;
     }
 
-    inline ext::shared_ptr<VanillaSwap>
-    RendistatoCalculator::equivalentSwap() const {
+    inline ext::shared_ptr<VanillaSwap> RendistatoCalculator::equivalentSwap() const
+    {
         calculate();
         return swaps_[equivalentSwapIndex_];
     }
 
-    inline Rate RendistatoCalculator::equivalentSwapRate() const {
+    inline Rate RendistatoCalculator::equivalentSwapRate() const
+    {
         calculate();
         return swapRates_[equivalentSwapIndex_];
     }
 
-    inline Rate RendistatoCalculator::equivalentSwapYield() const {
+    inline Rate RendistatoCalculator::equivalentSwapYield() const
+    {
         calculate();
         return swapBondYields_[equivalentSwapIndex_];
     }
 
-    inline Time RendistatoCalculator::equivalentSwapDuration() const {
+    inline Time RendistatoCalculator::equivalentSwapDuration() const
+    {
         calculate();
         return swapBondDurations_[equivalentSwapIndex_];
     }
 
-    inline Time RendistatoCalculator::equivalentSwapLength() const {
+    inline Time RendistatoCalculator::equivalentSwapLength() const
+    {
         calculate();
         return swapLengths_[equivalentSwapIndex_];
     }
 
-    inline Spread RendistatoCalculator::equivalentSwapSpread() const {
+    inline Spread RendistatoCalculator::equivalentSwapSpread() const
+    {
         return yield() - equivalentSwapRate();
     }
 
-    inline Real RendistatoEquivalentSwapLengthQuote::value() const {
+    inline Real RendistatoEquivalentSwapLengthQuote::value() const
+    {
         return r_->equivalentSwapLength();
     }
 
-    inline Real RendistatoEquivalentSwapSpreadQuote::value() const {
+    inline Real RendistatoEquivalentSwapSpreadQuote::value() const
+    {
         return r_->equivalentSwapSpread();
     }
 

@@ -30,7 +30,8 @@
 #include <vector>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Faure low-discrepancy sequence generator
     /*! It is based on existing Fortran and C algorithms to calculate pascal
@@ -43,25 +44,27 @@ namespace QuantLib {
         \test the correctness of the returned values is tested by
               reproducing known good values.
     */
-    class FaureRsg {
+    class FaureRsg
+    {
       public:
-        typedef Sample<std::vector<Real> > sample_type;
+        typedef Sample<std::vector<Real>> sample_type;
         FaureRsg(Size dimensionality);
-        const std::vector<long int>& nextIntSequence() const {
+        const std::vector<long int>& nextIntSequence() const
+        {
             generateNextIntSequence();
             return integerSequence_;
         }
-        const std::vector<long int>& lastIntSequence() const {
-            return integerSequence_;
-        }
-        const sample_type& nextSequence() const {
+        const std::vector<long int>& lastIntSequence() const { return integerSequence_; }
+        const sample_type& nextSequence() const
+        {
             generateNextIntSequence();
-            for (Size i=0; i<dimensionality_; i++)
-                sequence_.value[i] = integerSequence_[i]/normalizationFactor_;
+            for (Size i = 0; i < dimensionality_; i++)
+                sequence_.value[i] = integerSequence_[i] / normalizationFactor_;
             return sequence_;
         }
         const sample_type& lastSequence() const { return sequence_; }
         Size dimension() const { return dimensionality_; }
+
       private:
         void generateNextIntSequence() const;
         Size dimensionality_;
@@ -69,16 +72,14 @@ namespace QuantLib {
         mutable sample_type sequence_;
         mutable std::vector<long int> integerSequence_;
         mutable std::vector<long int> bary_;
-        mutable std::vector<std::vector<long int> > gray_;
+        mutable std::vector<std::vector<long int>> gray_;
         Size base_, mbit_;
-        std::vector<std::vector<long int> > powBase_;
+        std::vector<std::vector<long int>> powBase_;
         std::vector<long int> addOne_;
-        std::vector<std::vector<std::vector<long int> > > pascal3D;
+        std::vector<std::vector<std::vector<long int>>> pascal3D;
         double normalizationFactor_;
     };
 
 }
 
 #endif
-
-

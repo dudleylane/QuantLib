@@ -21,40 +21,43 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/instruments/makevanillaswap.hpp>
-#include <ql/pricingengines/swap/discountingswapengine.hpp>
-#include <ql/time/daycounters/thirty360.hpp>
-#include <ql/time/daycounters/actual360.hpp>
-#include <ql/time/daycounters/actual365fixed.hpp>
-#include <ql/indexes/iborindex.hpp>
-#include <ql/time/schedule.hpp>
 #include <ql/currencies/america.hpp>
 #include <ql/currencies/asia.hpp>
 #include <ql/currencies/europe.hpp>
 #include <ql/currencies/oceania.hpp>
-#include <ql/utilities/null.hpp>
+#include <ql/indexes/iborindex.hpp>
+#include <ql/instruments/makevanillaswap.hpp>
 #include <ql/optional.hpp>
+#include <ql/pricingengines/swap/discountingswapengine.hpp>
+#include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
+#include <ql/time/daycounters/thirty360.hpp>
+#include <ql/time/schedule.hpp>
+#include <ql/utilities/null.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     MakeVanillaSwap::MakeVanillaSwap(const Period& swapTenor,
                                      const ext::shared_ptr<IborIndex>& index,
                                      Rate fixedRate,
                                      const Period& forwardStart)
     : swapTenor_(swapTenor), iborIndex_(index), fixedRate_(fixedRate), forwardStart_(forwardStart),
-      fixedCalendar_(index->fixingCalendar()), floatCalendar_(index->fixingCalendar()),
-      floatTenor_(index->tenor()),
-      floatConvention_(index->businessDayConvention()),
-      floatTerminationDateConvention_(index->businessDayConvention()),
+      fixedCalendar_(index->fixingCalendar()), floatCalendar_(index->fixingCalendar()), floatTenor_(index->tenor()),
+      floatConvention_(index->businessDayConvention()), floatTerminationDateConvention_(index->businessDayConvention()),
 
-      floatDayCount_(index->dayCounter()) {}
+      floatDayCount_(index->dayCounter())
+    {
+    }
 
-    MakeVanillaSwap::operator VanillaSwap() const {
+    MakeVanillaSwap::operator VanillaSwap() const
+    {
         ext::shared_ptr<VanillaSwap> swap = *this;
         return *swap;
     }
 
-    MakeVanillaSwap::operator ext::shared_ptr<VanillaSwap>() const {
+    MakeVanillaSwap::operator ext::shared_ptr<VanillaSwap>() const
+    {
 
         QL_REQUIRE(effectiveDate_ == Date() || settlementDays_ == Null<Natural>(),
                    "cannot set both an explicit effective date and settlement days; "
@@ -63,7 +66,8 @@ namespace QuantLib {
         Date startDate;
         if (effectiveDate_ != Date())
             startDate = effectiveDate_;
-        else {
+        else
+        {
             Date refDate = Settings::instance().evaluationDate();
             // if the evaluation date is not a business day
             // then move to the next business day
@@ -75,23 +79,21 @@ namespace QuantLib {
                 spotDate = iborIndex_->valueDate(refDate);
             else
                 spotDate = floatCalendar_.advance(refDate, settlementDays_ * Days);
-            startDate = spotDate+forwardStart_;
-            if (forwardStart_.length()<0)
-                startDate = floatCalendar_.adjust(startDate,
-                                                  Preceding);
-            else if (forwardStart_.length()>0)
-                startDate = floatCalendar_.adjust(startDate,
-                                                  Following);
-            // no explicit date adjustment needed for forwardStart_.length()==0 (already handled by spotDate arithmetic above)
+            startDate = spotDate + forwardStart_;
+            if (forwardStart_.length() < 0)
+                startDate = floatCalendar_.adjust(startDate, Preceding);
+            else if (forwardStart_.length() > 0)
+                startDate = floatCalendar_.adjust(startDate, Following);
+            // no explicit date adjustment needed for forwardStart_.length()==0 (already handled by spotDate arithmetic
+            // above)
         }
 
         Date endDate = terminationDate_;
-        if (endDate == Date()) {
+        if (endDate == Date())
+        {
             endDate = startDate + swapTenor_;
-            bool maturityEndOfMonth =
-                maturityEndOfMonth_ ? *maturityEndOfMonth_ : floatEndOfMonth_;
-            if (maturityEndOfMonth && allowsEndOfMonth(swapTenor_) &&
-                floatCalendar_.isEndOfMonth(startDate))
+            bool maturityEndOfMonth = maturityEndOfMonth_ ? *maturityEndOfMonth_ : floatEndOfMonth_;
+            if (maturityEndOfMonth && allowsEndOfMonth(swapTenor_) && floatCalendar_.isEndOfMonth(startDate))
                 endDate = floatCalendar_.endOfMonth(endDate);
         }
 
@@ -99,57 +101,47 @@ namespace QuantLib {
         Period fixedTenor;
         if (fixedTenor_ != Period())
             fixedTenor = fixedTenor_;
-        else {
+        else
+        {
             // When swapTenor_ was cleared by withTerminationDate(),
             // use the actual swap length for currency-dependent inference.
             Period tenor = swapTenor_;
-            if (tenor == Period() && endDate > startDate) {
+            if (tenor == Period() && endDate > startDate)
+            {
                 // approximate months = days * 12/365, rounded (182 = 365/2)
                 Integer months = (12 * (endDate - startDate) + 182) / 365;
                 tenor = months * Months;
             }
-            if ((curr == EURCurrency()) ||
-                (curr == USDCurrency()) ||
-                (curr == CHFCurrency()) ||
-                (curr == SEKCurrency()) ||
-                (curr == GBPCurrency() && tenor <= 1 * Years))
+            if ((curr == EURCurrency()) || (curr == USDCurrency()) || (curr == CHFCurrency()) ||
+                (curr == SEKCurrency()) || (curr == GBPCurrency() && tenor <= 1 * Years))
                 fixedTenor = Period(1, Years);
-            else if ((curr == GBPCurrency() && tenor > 1 * Years) ||
-                (curr == JPYCurrency()) ||
-                (curr == AUDCurrency() && tenor >= 4 * Years))
+            else if ((curr == GBPCurrency() && tenor > 1 * Years) || (curr == JPYCurrency()) ||
+                     (curr == AUDCurrency() && tenor >= 4 * Years))
                 fixedTenor = Period(6, Months);
-            else if ((curr == HKDCurrency() ||
-                     (curr == AUDCurrency() && tenor < 4 * Years)))
+            else if ((curr == HKDCurrency() || (curr == AUDCurrency() && tenor < 4 * Years)))
                 fixedTenor = Period(3, Months);
             else
                 QL_FAIL("unknown fixed leg default tenor for " << curr);
         }
 
-        Schedule fixedSchedule(startDate, endDate,
-                               fixedTenor, fixedCalendar_,
-                               fixedConvention_,
-                               fixedTerminationDateConvention_,
-                               fixedRule_, fixedEndOfMonth_,
-                               fixedFirstDate_, fixedNextToLastDate_);
+        Schedule fixedSchedule(startDate, endDate, fixedTenor, fixedCalendar_, fixedConvention_,
+                               fixedTerminationDateConvention_, fixedRule_, fixedEndOfMonth_, fixedFirstDate_,
+                               fixedNextToLastDate_);
 
-        Schedule floatSchedule(startDate, endDate,
-                               floatTenor_, floatCalendar_,
-                               floatConvention_,
-                               floatTerminationDateConvention_,
-                               floatRule_, floatEndOfMonth_,
-                               floatFirstDate_, floatNextToLastDate_);
+        Schedule floatSchedule(startDate, endDate, floatTenor_, floatCalendar_, floatConvention_,
+                               floatTerminationDateConvention_, floatRule_, floatEndOfMonth_, floatFirstDate_,
+                               floatNextToLastDate_);
 
         DayCounter fixedDayCount;
         if (fixedDayCount_ != DayCounter())
             fixedDayCount = fixedDayCount_;
-        else {
+        else
+        {
             if (curr == USDCurrency())
                 fixedDayCount = Actual360();
-            else if (curr == EURCurrency() || curr == CHFCurrency() ||
-                     curr == SEKCurrency())
+            else if (curr == EURCurrency() || curr == CHFCurrency() || curr == SEKCurrency())
                 fixedDayCount = Thirty360(Thirty360::BondBasis);
-            else if (curr == GBPCurrency() || curr == JPYCurrency() ||
-                     curr == AUDCurrency() || curr == HKDCurrency() ||
+            else if (curr == GBPCurrency() || curr == JPYCurrency() || curr == AUDCurrency() || curr == HKDCurrency() ||
                      curr == THBCurrency())
                 fixedDayCount = Actual365Fixed();
             else
@@ -157,220 +149,235 @@ namespace QuantLib {
         }
 
         Rate usedFixedRate = fixedRate_;
-        if (fixedRate_ == Null<Rate>()) {
+        if (fixedRate_ == Null<Rate>())
+        {
             VanillaSwap temp(type_, 100.00, fixedSchedule,
                              0.0, // fixed rate
-                             fixedDayCount, floatSchedule, iborIndex_, floatSpread_, floatDayCount_,
-                             paymentConvention_, useIndexedCoupons_);
-            if (engine_ == nullptr) {
-                Handle<YieldTermStructure> disc =
-                                        iborIndex_->forwardingTermStructure();
-                QL_REQUIRE(!disc.empty(),
-                           "null term structure set to this instance of " <<
-                           iborIndex_->name());
+                             fixedDayCount, floatSchedule, iborIndex_, floatSpread_, floatDayCount_, paymentConvention_,
+                             useIndexedCoupons_);
+            if (engine_ == nullptr)
+            {
+                Handle<YieldTermStructure> disc = iborIndex_->forwardingTermStructure();
+                QL_REQUIRE(!disc.empty(), "null term structure set to this instance of " << iborIndex_->name());
                 bool includeSettlementDateFlows = false;
-                ext::shared_ptr<PricingEngine> engine(new
-                    DiscountingSwapEngine(disc, includeSettlementDateFlows));
+                ext::shared_ptr<PricingEngine> engine(new DiscountingSwapEngine(disc, includeSettlementDateFlows));
                 temp.setPricingEngine(engine);
-            } else
+            }
+            else
                 temp.setPricingEngine(engine_);
 
             usedFixedRate = temp.fairRate();
         }
 
-        ext::shared_ptr<VanillaSwap> swap(new VanillaSwap(
-            type_, nominal_, fixedSchedule, usedFixedRate, fixedDayCount, floatSchedule, iborIndex_,
-            floatSpread_, floatDayCount_, paymentConvention_, useIndexedCoupons_));
+        ext::shared_ptr<VanillaSwap> swap(new VanillaSwap(type_, nominal_, fixedSchedule, usedFixedRate, fixedDayCount,
+                                                          floatSchedule, iborIndex_, floatSpread_, floatDayCount_,
+                                                          paymentConvention_, useIndexedCoupons_));
 
-        if (engine_ == nullptr) {
-            Handle<YieldTermStructure> disc =
-                                    iborIndex_->forwardingTermStructure();
+        if (engine_ == nullptr)
+        {
+            Handle<YieldTermStructure> disc = iborIndex_->forwardingTermStructure();
             bool includeSettlementDateFlows = false;
-            ext::shared_ptr<PricingEngine> engine(new
-                DiscountingSwapEngine(disc, includeSettlementDateFlows));
+            ext::shared_ptr<PricingEngine> engine(new DiscountingSwapEngine(disc, includeSettlementDateFlows));
             swap->setPricingEngine(engine);
-        } else
+        }
+        else
             swap->setPricingEngine(engine_);
 
         return swap;
     }
 
-    MakeVanillaSwap& MakeVanillaSwap::receiveFixed(bool flag) {
-        type_ = flag ? Swap::Receiver : Swap::Payer ;
+    MakeVanillaSwap& MakeVanillaSwap::receiveFixed(bool flag)
+    {
+        type_ = flag ? Swap::Receiver : Swap::Payer;
         return *this;
     }
 
-    MakeVanillaSwap& MakeVanillaSwap::withType(Swap::Type type) {
+    MakeVanillaSwap& MakeVanillaSwap::withType(Swap::Type type)
+    {
         type_ = type;
         return *this;
     }
 
-    MakeVanillaSwap& MakeVanillaSwap::withNominal(Real n) {
+    MakeVanillaSwap& MakeVanillaSwap::withNominal(Real n)
+    {
         nominal_ = n;
         return *this;
     }
 
-    MakeVanillaSwap& MakeVanillaSwap::withSettlementDays(Natural settlementDays) {
+    MakeVanillaSwap& MakeVanillaSwap::withSettlementDays(Natural settlementDays)
+    {
         settlementDays_ = settlementDays;
         return *this;
     }
 
-    MakeVanillaSwap&
-    MakeVanillaSwap::withEffectiveDate(const Date& effectiveDate) {
+    MakeVanillaSwap& MakeVanillaSwap::withEffectiveDate(const Date& effectiveDate)
+    {
         effectiveDate_ = effectiveDate;
         return *this;
     }
 
-    MakeVanillaSwap&
-    MakeVanillaSwap::withTerminationDate(const Date& terminationDate) {
+    MakeVanillaSwap& MakeVanillaSwap::withTerminationDate(const Date& terminationDate)
+    {
         terminationDate_ = terminationDate;
         if (terminationDate != Date())
             swapTenor_ = Period();
         return *this;
     }
 
-    MakeVanillaSwap& MakeVanillaSwap::withRule(DateGeneration::Rule r) {
+    MakeVanillaSwap& MakeVanillaSwap::withRule(DateGeneration::Rule r)
+    {
         fixedRule_ = r;
         floatRule_ = r;
         return *this;
     }
 
-    MakeVanillaSwap& MakeVanillaSwap::withPaymentConvention(BusinessDayConvention bdc) {
+    MakeVanillaSwap& MakeVanillaSwap::withPaymentConvention(BusinessDayConvention bdc)
+    {
         paymentConvention_ = bdc;
         return *this;
     }
 
-    MakeVanillaSwap& MakeVanillaSwap::withDiscountingTermStructure(
-                                        const Handle<YieldTermStructure>& d) {
+    MakeVanillaSwap& MakeVanillaSwap::withDiscountingTermStructure(const Handle<YieldTermStructure>& d)
+    {
         bool includeSettlementDateFlows = false;
-        engine_ = ext::shared_ptr<PricingEngine>(new
-            DiscountingSwapEngine(d, includeSettlementDateFlows));
+        engine_ = ext::shared_ptr<PricingEngine>(new DiscountingSwapEngine(d, includeSettlementDateFlows));
         return *this;
     }
 
-    MakeVanillaSwap& MakeVanillaSwap::withPricingEngine(
-                             const ext::shared_ptr<PricingEngine>& engine) {
+    MakeVanillaSwap& MakeVanillaSwap::withPricingEngine(const ext::shared_ptr<PricingEngine>& engine)
+    {
         engine_ = engine;
         return *this;
     }
 
-    MakeVanillaSwap& MakeVanillaSwap::withFixedLegTenor(const Period& t) {
+    MakeVanillaSwap& MakeVanillaSwap::withFixedLegTenor(const Period& t)
+    {
         fixedTenor_ = t;
         return *this;
     }
 
-    MakeVanillaSwap&
-    MakeVanillaSwap::withFixedLegCalendar(const Calendar& cal) {
+    MakeVanillaSwap& MakeVanillaSwap::withFixedLegCalendar(const Calendar& cal)
+    {
         fixedCalendar_ = cal;
         return *this;
     }
 
-    MakeVanillaSwap&
-    MakeVanillaSwap::withFixedLegConvention(BusinessDayConvention bdc) {
+    MakeVanillaSwap& MakeVanillaSwap::withFixedLegConvention(BusinessDayConvention bdc)
+    {
         fixedConvention_ = bdc;
         return *this;
     }
 
-    MakeVanillaSwap&
-    MakeVanillaSwap::withFixedLegTerminationDateConvention(BusinessDayConvention bdc) {
+    MakeVanillaSwap& MakeVanillaSwap::withFixedLegTerminationDateConvention(BusinessDayConvention bdc)
+    {
         fixedTerminationDateConvention_ = bdc;
         return *this;
     }
 
-    MakeVanillaSwap& MakeVanillaSwap::withFixedLegRule(DateGeneration::Rule r) {
+    MakeVanillaSwap& MakeVanillaSwap::withFixedLegRule(DateGeneration::Rule r)
+    {
         fixedRule_ = r;
         return *this;
     }
 
-    MakeVanillaSwap& MakeVanillaSwap::withFixedLegEndOfMonth(bool flag) {
+    MakeVanillaSwap& MakeVanillaSwap::withFixedLegEndOfMonth(bool flag)
+    {
         fixedEndOfMonth_ = flag;
         return *this;
     }
 
-    MakeVanillaSwap& MakeVanillaSwap::withFixedLegFirstDate(const Date& d) {
+    MakeVanillaSwap& MakeVanillaSwap::withFixedLegFirstDate(const Date& d)
+    {
         fixedFirstDate_ = d;
         return *this;
     }
 
-    MakeVanillaSwap&
-    MakeVanillaSwap::withFixedLegNextToLastDate(const Date& d) {
+    MakeVanillaSwap& MakeVanillaSwap::withFixedLegNextToLastDate(const Date& d)
+    {
         fixedNextToLastDate_ = d;
         return *this;
     }
 
-    MakeVanillaSwap&
-    MakeVanillaSwap::withFixedLegDayCount(const DayCounter& dc) {
+    MakeVanillaSwap& MakeVanillaSwap::withFixedLegDayCount(const DayCounter& dc)
+    {
         fixedDayCount_ = dc;
         return *this;
     }
 
-    MakeVanillaSwap& MakeVanillaSwap::withFloatingLegTenor(const Period& t) {
+    MakeVanillaSwap& MakeVanillaSwap::withFloatingLegTenor(const Period& t)
+    {
         floatTenor_ = t;
         return *this;
     }
 
-    MakeVanillaSwap&
-    MakeVanillaSwap::withFloatingLegCalendar(const Calendar& cal) {
+    MakeVanillaSwap& MakeVanillaSwap::withFloatingLegCalendar(const Calendar& cal)
+    {
         floatCalendar_ = cal;
         return *this;
     }
 
-    MakeVanillaSwap&
-    MakeVanillaSwap::withFloatingLegConvention(BusinessDayConvention bdc) {
+    MakeVanillaSwap& MakeVanillaSwap::withFloatingLegConvention(BusinessDayConvention bdc)
+    {
         floatConvention_ = bdc;
         return *this;
     }
 
-    MakeVanillaSwap&
-    MakeVanillaSwap::withFloatingLegTerminationDateConvention(BusinessDayConvention bdc) {
+    MakeVanillaSwap& MakeVanillaSwap::withFloatingLegTerminationDateConvention(BusinessDayConvention bdc)
+    {
         floatTerminationDateConvention_ = bdc;
         return *this;
     }
 
-    MakeVanillaSwap& MakeVanillaSwap::withFloatingLegRule(DateGeneration::Rule r) {
+    MakeVanillaSwap& MakeVanillaSwap::withFloatingLegRule(DateGeneration::Rule r)
+    {
         floatRule_ = r;
         return *this;
     }
 
-    MakeVanillaSwap& MakeVanillaSwap::withFloatingLegEndOfMonth(bool flag) {
+    MakeVanillaSwap& MakeVanillaSwap::withFloatingLegEndOfMonth(bool flag)
+    {
         floatEndOfMonth_ = flag;
         return *this;
     }
 
-    MakeVanillaSwap& MakeVanillaSwap::withMaturityEndOfMonth(bool flag) {
+    MakeVanillaSwap& MakeVanillaSwap::withMaturityEndOfMonth(bool flag)
+    {
         maturityEndOfMonth_ = flag;
         return *this;
     }
 
-    MakeVanillaSwap&
-    MakeVanillaSwap::withFloatingLegFirstDate(const Date& d) {
+    MakeVanillaSwap& MakeVanillaSwap::withFloatingLegFirstDate(const Date& d)
+    {
         floatFirstDate_ = d;
         return *this;
     }
 
-    MakeVanillaSwap&
-    MakeVanillaSwap::withFloatingLegNextToLastDate(const Date& d) {
+    MakeVanillaSwap& MakeVanillaSwap::withFloatingLegNextToLastDate(const Date& d)
+    {
         floatNextToLastDate_ = d;
         return *this;
     }
 
-    MakeVanillaSwap&
-    MakeVanillaSwap::withFloatingLegDayCount(const DayCounter& dc) {
+    MakeVanillaSwap& MakeVanillaSwap::withFloatingLegDayCount(const DayCounter& dc)
+    {
         floatDayCount_ = dc;
         return *this;
     }
 
-    MakeVanillaSwap& MakeVanillaSwap::withFloatingLegSpread(Spread sp) {
+    MakeVanillaSwap& MakeVanillaSwap::withFloatingLegSpread(Spread sp)
+    {
         floatSpread_ = sp;
         return *this;
     }
 
-    MakeVanillaSwap& MakeVanillaSwap::withIndexedCoupons(const ext::optional<bool>& b) {
+    MakeVanillaSwap& MakeVanillaSwap::withIndexedCoupons(const ext::optional<bool>& b)
+    {
         useIndexedCoupons_ = b;
         return *this;
     }
 
-    MakeVanillaSwap& MakeVanillaSwap::withAtParCoupons(bool b) {
+    MakeVanillaSwap& MakeVanillaSwap::withAtParCoupons(bool b)
+    {
         useIndexedCoupons_ = !b;
         return *this;
     }

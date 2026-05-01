@@ -19,71 +19,70 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/math/matrixutilities/pseudosqrt.hpp>
 #include <ql/models/marketmodels/correlations/timehomogeneousforwardcorrelation.hpp>
 #include <ql/models/marketmodels/utilities.hpp>
-#include <ql/math/matrixutilities/pseudosqrt.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    TimeHomogeneousForwardCorrelation::TimeHomogeneousForwardCorrelation(
-                        const Matrix& fwdCorrelation,
-                        const std::vector<Time>& rateTimes)
-    : numberOfRates_(rateTimes.empty() ? 0 : rateTimes.size()-1),
-      fwdCorrelation_(fwdCorrelation),
-      rateTimes_(rateTimes),
-      times_(numberOfRates_) {
+    TimeHomogeneousForwardCorrelation::TimeHomogeneousForwardCorrelation(const Matrix& fwdCorrelation,
+                                                                         const std::vector<Time>& rateTimes)
+    : numberOfRates_(rateTimes.empty() ? 0 : rateTimes.size() - 1), fwdCorrelation_(fwdCorrelation),
+      rateTimes_(rateTimes), times_(numberOfRates_)
+    {
 
         checkIncreasingTimes(rateTimes);
-        QL_REQUIRE(numberOfRates_>=1,
-                   "Rate times must contain at least two values");
-        QL_REQUIRE(numberOfRates_==fwdCorrelation.rows(),
-                   "mismatch between number of rates (" << numberOfRates_ <<
-                   ") and fwdCorrelation rows (" << fwdCorrelation.rows() << ")");
-        QL_REQUIRE(numberOfRates_==fwdCorrelation.columns(),
-                   "mismatch between number of rates (" << numberOfRates_ <<
-                   ") and fwdCorrelation columns (" << fwdCorrelation.columns() << ")");
+        QL_REQUIRE(numberOfRates_ >= 1, "Rate times must contain at least two values");
+        QL_REQUIRE(numberOfRates_ == fwdCorrelation.rows(), "mismatch between number of rates ("
+                                                                << numberOfRates_ << ") and fwdCorrelation rows ("
+                                                                << fwdCorrelation.rows() << ")");
+        QL_REQUIRE(numberOfRates_ == fwdCorrelation.columns(), "mismatch between number of rates ("
+                                                                   << numberOfRates_ << ") and fwdCorrelation columns ("
+                                                                   << fwdCorrelation.columns() << ")");
 
-        std::copy(rateTimes.begin(), rateTimes.end()-1, times_.begin());
+        std::copy(rateTimes.begin(), rateTimes.end() - 1, times_.begin());
         correlations_ = evolvedMatrices(fwdCorrelation_);
     }
 
-    std::vector<Matrix> TimeHomogeneousForwardCorrelation::evolvedMatrices(
-                                    const Matrix& fwdCorrelation) {
+    std::vector<Matrix> TimeHomogeneousForwardCorrelation::evolvedMatrices(const Matrix& fwdCorrelation)
+    {
         Size numberOfRates = fwdCorrelation.rows();
-        std::vector<Matrix> correlations(numberOfRates, Matrix(numberOfRates,
-                                                               numberOfRates,
-                                                               0.0));
-        for (Size k=0; k<correlations.size(); ++k) {
+        std::vector<Matrix> correlations(numberOfRates, Matrix(numberOfRates, numberOfRates, 0.0));
+        for (Size k = 0; k < correlations.size(); ++k)
+        {
             // proper diagonal values
-            for (Size i=k; i<numberOfRates; ++i)
+            for (Size i = k; i < numberOfRates; ++i)
                 correlations[k][i][i] = 1.0;
             // copy only time homogeneous values
-            for (Size i=k; i<numberOfRates; ++i) {
-                for (Size j=k; j<i; ++j) {
-                    correlations[k][i][j] = correlations[k][j][i] =
-                        fwdCorrelation[i-k][j-k];
+            for (Size i = k; i < numberOfRates; ++i)
+            {
+                for (Size j = k; j < i; ++j)
+                {
+                    correlations[k][i][j] = correlations[k][j][i] = fwdCorrelation[i - k][j - k];
                 }
             }
         }
         return correlations;
     }
 
-    const std::vector<Time>&
-    TimeHomogeneousForwardCorrelation::times() const {
+    const std::vector<Time>& TimeHomogeneousForwardCorrelation::times() const
+    {
         return times_;
     }
 
-    const std::vector<Time>&
-    TimeHomogeneousForwardCorrelation::rateTimes() const {
+    const std::vector<Time>& TimeHomogeneousForwardCorrelation::rateTimes() const
+    {
         return rateTimes_;
     }
 
-    const std::vector<Matrix>&
-    TimeHomogeneousForwardCorrelation::correlations() const {
+    const std::vector<Matrix>& TimeHomogeneousForwardCorrelation::correlations() const
+    {
         return correlations_;
     }
 
-    Size TimeHomogeneousForwardCorrelation::numberOfRates() const {
+    Size TimeHomogeneousForwardCorrelation::numberOfRates() const
+    {
         return numberOfRates_;
     }
 

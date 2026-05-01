@@ -19,25 +19,26 @@
 
 
 /*! \file fdmwienerop.hpp
-*/
+ */
 
 #ifndef quantlib_fdm_wiener_op_hpp
 #define quantlib_fdm_wiener_op_hpp
 
 #include <ql/methods/finitedifferences/operators/fdmlinearopcomposite.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class FdmMesher;
     class YieldTermStructure;
     class TripleBandLinearOp;
 
-    class FdmWienerOp : public FdmLinearOpComposite {
+    class FdmWienerOp : public FdmLinearOpComposite
+    {
       public:
-        FdmWienerOp(
-            const ext::shared_ptr<FdmMesher>& mesher,
-            ext::shared_ptr<YieldTermStructure> rTS,
-            const Array& lambdas);
+        FdmWienerOp(const ext::shared_ptr<FdmMesher>& mesher,
+                    ext::shared_ptr<YieldTermStructure> rTS,
+                    const Array& lambdas);
 
         Size size() const override;
         void setTime(Time t1, Time t2) override;
@@ -53,7 +54,7 @@ namespace QuantLib {
 
       private:
         const ext::shared_ptr<YieldTermStructure> rTS_;
-        std::vector<ext::shared_ptr<TripleBandLinearOp> > ops_;
+        std::vector<ext::shared_ptr<TripleBandLinearOp>> ops_;
         Rate r_ = 0.0;
     };
 }

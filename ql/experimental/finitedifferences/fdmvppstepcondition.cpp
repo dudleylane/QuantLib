@@ -18,7 +18,7 @@
 */
 
 /*! \file fdmvppstepcondition.cpp
-*/
+ */
 
 #include <ql/experimental/finitedifferences/fdmvppstepcondition.hpp>
 #include <ql/math/array.hpp>
@@ -28,85 +28,98 @@
 #include <ql/methods/finitedifferences/utilities/fdminnervaluecalculator.hpp>
 #include <utility>
 
-namespace QuantLib {
-    FdmVPPStepCondition::FdmVPPStepCondition(
-        const FdmVPPStepConditionParams& params,
-        Size nStates,
-        const FdmVPPStepConditionMesher& mesh,
-        ext::shared_ptr<FdmInnerValueCalculator> gasPrice,
-        ext::shared_ptr<FdmInnerValueCalculator> sparkSpreadPrice)
+namespace QuantLib
+{
+    FdmVPPStepCondition::FdmVPPStepCondition(const FdmVPPStepConditionParams& params,
+                                             Size nStates,
+                                             const FdmVPPStepConditionMesher& mesh,
+                                             ext::shared_ptr<FdmInnerValueCalculator> gasPrice,
+                                             ext::shared_ptr<FdmInnerValueCalculator> sparkSpreadPrice)
     : heatRate_(params.heatRate), pMin_(params.pMin), pMax_(params.pMax), tMinUp_(params.tMinUp),
-      tMinDown_(params.tMinDown), startUpFuel_(params.startUpFuel),
-      startUpFixCost_(params.startUpFixCost), fuelCostAddon_(params.fuelCostAddon),
-      stateDirection_(mesh.stateDirection), nStates_(nStates), mesher_(mesh.mesher),
-      gasPrice_(std::move(gasPrice)), sparkSpreadPrice_(std::move(sparkSpreadPrice)),
-      stateEvolveFcts_(nStates_) {
+      tMinDown_(params.tMinDown), startUpFuel_(params.startUpFuel), startUpFixCost_(params.startUpFixCost),
+      fuelCostAddon_(params.fuelCostAddon), stateDirection_(mesh.stateDirection), nStates_(nStates),
+      mesher_(mesh.mesher), gasPrice_(std::move(gasPrice)), sparkSpreadPrice_(std::move(sparkSpreadPrice)),
+      stateEvolveFcts_(nStates_)
+    {
 
-        QL_REQUIRE(nStates_ == mesher_->layout()->dim()[stateDirection_],
-                   "mesher does not fit to vpp arguments");
+        QL_REQUIRE(nStates_ == mesher_->layout()->dim()[stateDirection_], "mesher does not fit to vpp arguments");
 
-        for (Size i=0; i < nStates_; ++i) {
-            const Size j = i % (2*tMinUp_ + tMinDown_);
+        for (Size i = 0; i < nStates_; ++i)
+        {
+            const Size j = i % (2 * tMinUp_ + tMinDown_);
 
-            if (j < tMinUp_) {
-                stateEvolveFcts_[i] = [&](Real x){ return evolveAtPMin(x); };
+            if (j < tMinUp_)
+            {
+                stateEvolveFcts_[i] = [&](Real x) { return evolveAtPMin(x); };
             }
-            else if (j < 2*tMinUp_){
+            else if (j < 2 * tMinUp_)
+            {
                 stateEvolveFcts_[i] = [&](Real x) { return evolveAtPMax(x); };
             }
         }
     }
 
 
-    Size FdmVPPStepCondition::nStates() const {
+    Size FdmVPPStepCondition::nStates() const
+    {
         return nStates_;
     }
 
 
-    void FdmVPPStepCondition::applyTo(Array& a, Time t) const {
+    void FdmVPPStepCondition::applyTo(Array& a, Time t) const
+    {
         const Size nStates = mesher_->layout()->dim()[stateDirection_];
 
-        for (const auto& iter : *mesher_->layout()) {
+        for (const auto& iter : *mesher_->layout())
+        {
             a[iter.index()] += evolve(iter, t);
         }
 
-        for (const auto& iter : *mesher_->layout()) {
-            if (iter.coordinates()[stateDirection_] == 0U) {
+        for (const auto& iter : *mesher_->layout())
+        {
+            if (iter.coordinates()[stateDirection_] == 0U)
+            {
 
                 Array x(nStates);
-                for (Size i=0; i < nStates; ++i) {
+                for (Size i = 0; i < nStates; ++i)
+                {
                     x[i] = a[mesher_->layout()->neighbourhood(iter, stateDirection_, i)];
                 }
 
                 const Real gasPrice = gasPrice_->innerValue(iter, t);
                 x = changeState(gasPrice, x, t);
-                for (Size i=0; i < nStates; ++i) {
+                for (Size i = 0; i < nStates; ++i)
+                {
                     a[mesher_->layout()->neighbourhood(iter, stateDirection_, i)] = x[i];
                 }
             }
         }
     }
 
-    Real FdmVPPStepCondition::evolve(
-        const FdmLinearOpIterator& iter, Time t) const {
+    Real FdmVPPStepCondition::evolve(const FdmLinearOpIterator& iter, Time t) const
+    {
 
         const Size state = iter.coordinates()[stateDirection_];
 
-        if (!(stateEvolveFcts_[state])) {
+        if (!(stateEvolveFcts_[state]))
+        {
             return 0.0;
         }
-        else {
+        else
+        {
             const Real sparkSpread = sparkSpreadPrice_->innerValue(iter, t);
             return stateEvolveFcts_[state](sparkSpread);
         }
     }
 
 
-    Real FdmVPPStepCondition::evolveAtPMin(Real sparkSpread) const {
-        return pMin_*(sparkSpread - heatRate_*fuelCostAddon_);
+    Real FdmVPPStepCondition::evolveAtPMin(Real sparkSpread) const
+    {
+        return pMin_ * (sparkSpread - heatRate_ * fuelCostAddon_);
     }
 
-    Real FdmVPPStepCondition::evolveAtPMax(Real sparkSpread) const {
-        return pMax_*(sparkSpread - heatRate_*fuelCostAddon_);
+    Real FdmVPPStepCondition::evolveAtPMax(Real sparkSpread) const
+    {
+        return pMax_ * (sparkSpread - heatRate_ * fuelCostAddon_);
     }
 }

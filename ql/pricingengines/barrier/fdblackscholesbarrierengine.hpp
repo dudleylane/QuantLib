@@ -26,11 +26,12 @@
 #ifndef quantlib_fd_black_scholes_barrier_engine_hpp
 #define quantlib_fd_black_scholes_barrier_engine_hpp
 
-#include <ql/processes/blackscholesprocess.hpp>
-#include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
 #include <ql/instruments/barrieroption.hpp>
+#include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
+#include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Finite-differences Black/Scholes barrier-option engine
     /*! \ingroup barrierengines
@@ -39,26 +40,25 @@ namespace QuantLib {
               reproducing results available in web/literature
               and comparison with Black pricing.
     */
-    class FdBlackScholesBarrierEngine : public BarrierOption::engine {
+    class FdBlackScholesBarrierEngine : public BarrierOption::engine
+    {
       public:
-        explicit FdBlackScholesBarrierEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess> process,
-            Size tGrid = 100,
-            Size xGrid = 100,
-            Size dampingSteps = 0,
-            const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas(),
-            bool localVol = false,
-            Real illegalLocalVolOverwrite = -Null<Real>());
+        explicit FdBlackScholesBarrierEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process,
+                                             Size tGrid = 100,
+                                             Size xGrid = 100,
+                                             Size dampingSteps = 0,
+                                             const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas(),
+                                             bool localVol = false,
+                                             Real illegalLocalVolOverwrite = -Null<Real>());
 
-        explicit FdBlackScholesBarrierEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess> process,
-            DividendSchedule dividends,
-            Size tGrid = 100,
-            Size xGrid = 100,
-            Size dampingSteps = 0,
-            const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas(),
-            bool localVol = false,
-            Real illegalLocalVolOverwrite = -Null<Real>());
+        explicit FdBlackScholesBarrierEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process,
+                                             DividendSchedule dividends,
+                                             Size tGrid = 100,
+                                             Size xGrid = 100,
+                                             Size dampingSteps = 0,
+                                             const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas(),
+                                             bool localVol = false,
+                                             Real illegalLocalVolOverwrite = -Null<Real>());
 
         void calculate() const override;
 

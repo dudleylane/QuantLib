@@ -26,48 +26,50 @@
 #include <ql/pricingengines/vanilla/mcamericanengine.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     AmericanPathPricer::AmericanPathPricer(ext::shared_ptr<Payoff> payoff,
                                            Size polynomialOrder,
                                            LsmBasisSystem::PolynomialType polynomialType)
-    : payoff_(std::move(payoff)),
-      v_(LsmBasisSystem::pathBasisSystem(polynomialOrder, polynomialType)) {
+    : payoff_(std::move(payoff)), v_(LsmBasisSystem::pathBasisSystem(polynomialOrder, polynomialType))
+    {
 
-        QL_REQUIRE(   polynomialType == LsmBasisSystem::Monomial
-                   || polynomialType == LsmBasisSystem::Laguerre
-                   || polynomialType == LsmBasisSystem::Hermite
-                   || polynomialType == LsmBasisSystem::Hyperbolic
-                   || polynomialType == LsmBasisSystem::Chebyshev2nd,
+        QL_REQUIRE(polynomialType == LsmBasisSystem::Monomial || polynomialType == LsmBasisSystem::Laguerre ||
+                       polynomialType == LsmBasisSystem::Hermite || polynomialType == LsmBasisSystem::Hyperbolic ||
+                       polynomialType == LsmBasisSystem::Chebyshev2nd,
                    "insufficient polynomial type");
 
         // the payoff gives an additional value
-        v_.emplace_back([&](Real state){ return this->payoff(state); });
+        v_.emplace_back([&](Real state) { return this->payoff(state); });
 
-        const ext::shared_ptr<StrikedTypePayoff> strikePayoff
-            = ext::dynamic_pointer_cast<StrikedTypePayoff>(payoff_);
+        const ext::shared_ptr<StrikedTypePayoff> strikePayoff = ext::dynamic_pointer_cast<StrikedTypePayoff>(payoff_);
 
-        if (strikePayoff != nullptr) {
-            scalingValue_/=strikePayoff->strike();
+        if (strikePayoff != nullptr)
+        {
+            scalingValue_ /= strikePayoff->strike();
         }
     }
 
-    Real AmericanPathPricer::payoff(Real state) const {
-        return (*payoff_)(state/scalingValue_);
+    Real AmericanPathPricer::payoff(Real state) const
+    {
+        return (*payoff_)(state / scalingValue_);
     }
 
-    Real AmericanPathPricer::operator()(const Path& path, Size t) const {
+    Real AmericanPathPricer::operator()(const Path& path, Size t) const
+    {
         return payoff(state(path, t));
     }
 
-    Real AmericanPathPricer::state(const Path& path, Size t) const {
+    Real AmericanPathPricer::state(const Path& path, Size t) const
+    {
         // scale values of the underlying
         // to increase numerical stability
-        return path[t]*scalingValue_;
+        return path[t] * scalingValue_;
     }
 
-    std::vector<std::function<Real(Real)> >
-    AmericanPathPricer::basisSystem() const {
+    std::vector<std::function<Real(Real)>> AmericanPathPricer::basisSystem() const
+    {
         return v_;
     }
 

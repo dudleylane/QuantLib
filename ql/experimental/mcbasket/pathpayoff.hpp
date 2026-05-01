@@ -24,16 +24,18 @@
 #ifndef quantlib_path_payoff_hpp
 #define quantlib_path_payoff_hpp
 
+#include <ql/handle.hpp>
 #include <ql/math/matrix.hpp>
 #include <ql/patterns/visitor.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
-#include <ql/handle.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Abstract base class for path-dependent option payoffs
-    class PathPayoff {
+    class PathPayoff
+    {
       public:
         virtual ~PathPayoff() = default;
         //! \name Payoff interface
@@ -47,7 +49,7 @@ namespace QuantLib {
 
 
         /*
-          This function returns all the payoff and early termination payments 
+          This function returns all the payoff and early termination payments
           for a single path. If the option is cancelled at time i, all payments
           on and before i are taken into account + the value of exercises[i].
           i.e.: cancellation at i does not cancel payments[i]!
@@ -58,11 +60,11 @@ namespace QuantLib {
           in that case, exercises[] will not be accessed.
          */
 
-        virtual void value(const Matrix       & path, 
-                           const std::vector<Handle<YieldTermStructure> > & forwardTermStructures,
-                           Array              & payments, 
-                           Array              & exercises, 
-                           std::vector<Array> & states) const = 0;
+        virtual void value(const Matrix& path,
+                           const std::vector<Handle<YieldTermStructure>>& forwardTermStructures,
+                           Array& payments,
+                           Array& exercises,
+                           std::vector<Array>& states) const = 0;
 
         /*
           Dimension of the basis functions.
@@ -81,7 +83,8 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline void PathPayoff::accept(AcyclicVisitor& v) {
+    inline void PathPayoff::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<PathPayoff>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);

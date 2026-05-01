@@ -19,17 +19,19 @@
 
 #include <ql/time/calendars/weekendsonly.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    WeekendsOnly::WeekendsOnly() {
+    WeekendsOnly::WeekendsOnly()
+    {
         // all calendar instances share the same implementation instance
         static ext::shared_ptr<Calendar::Impl> impl(new WeekendsOnly::Impl);
         impl_ = impl;
     }
 
-    bool WeekendsOnly::Impl::isBusinessDay(const Date& date) const {
+    bool WeekendsOnly::Impl::isBusinessDay(const Date& date) const
+    {
         return !isWeekend(date.weekday());
     }
 
 }
-

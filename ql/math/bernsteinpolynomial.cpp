@@ -17,21 +17,19 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/errors.hpp>
 #include <ql/math/bernsteinpolynomial.hpp>
 #include <ql/math/factorial.hpp>
-#include <ql/errors.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Real BernsteinPolynomial::get(Natural i,
-                                  Natural n,
-                                  Real x) {
+    Real BernsteinPolynomial::get(Natural i, Natural n, Real x)
+    {
 
-        Real coeff = Factorial::get(n) /
-            (Factorial::get(n-i) * Factorial::get(i));
+        Real coeff = Factorial::get(n) / (Factorial::get(n - i) * Factorial::get(i));
 
-        return coeff * std::pow(x,int(i)) * std::pow(1.0-x, int(n-i));
+        return coeff * std::pow(x, int(i)) * std::pow(1.0 - x, int(n - i));
     }
 
 }
-

@@ -22,45 +22,52 @@
 #include <ql/methods/finitedifferences/schemes/hundsdorferscheme.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     HundsdorferScheme::HundsdorferScheme(Real theta,
                                          Real mu,
                                          ext::shared_ptr<FdmLinearOpComposite> map,
                                          const bc_set& bcSet)
-    : dt_(Null<Real>()), theta_(theta), mu_(mu), map_(std::move(map)), bcSet_(bcSet) {}
+    : dt_(Null<Real>()), theta_(theta), mu_(mu), map_(std::move(map)), bcSet_(bcSet)
+    {
+    }
 
-    void HundsdorferScheme::step(array_type& a, Time t) {
-        QL_REQUIRE(t-dt_ > -1e-8, "a step towards negative time given");
+    void HundsdorferScheme::step(array_type& a, Time t)
+    {
+        QL_REQUIRE(t - dt_ > -1e-8, "a step towards negative time given");
 
-        map_->setTime(std::max(0.0, t-dt_), t);
-        bcSet_.setTime(std::max(0.0, t-dt_));
+        map_->setTime(std::max(0.0, t - dt_), t);
+        bcSet_.setTime(std::max(0.0, t - dt_));
 
         bcSet_.applyBeforeApplying(*map_);
-        Array y = a + dt_*map_->apply(a);
+        Array y = a + dt_ * map_->apply(a);
         bcSet_.applyAfterApplying(y);
 
         Array y0 = y;
 
-        for (Size i=0; i < map_->size(); ++i) {
-            Array rhs = y - theta_*dt_*map_->apply_direction(i, a);
-            y = map_->solve_splitting(i, rhs, -theta_*dt_);
+        for (Size i = 0; i < map_->size(); ++i)
+        {
+            Array rhs = y - theta_ * dt_ * map_->apply_direction(i, a);
+            y = map_->solve_splitting(i, rhs, -theta_ * dt_);
         }
 
         bcSet_.applyBeforeApplying(*map_);
-        Array yt = y0 + mu_*dt_*map_->apply(y-a);
+        Array yt = y0 + mu_ * dt_ * map_->apply(y - a);
         bcSet_.applyAfterApplying(yt);
 
-        for (Size i=0; i < map_->size(); ++i) {
-            Array rhs = yt - theta_*dt_*map_->apply_direction(i, y);
-            yt = map_->solve_splitting(i, rhs, -theta_*dt_);
+        for (Size i = 0; i < map_->size(); ++i)
+        {
+            Array rhs = yt - theta_ * dt_ * map_->apply_direction(i, y);
+            yt = map_->solve_splitting(i, rhs, -theta_ * dt_);
         }
         bcSet_.applyAfterSolving(yt);
 
         a = yt;
     }
 
-    void HundsdorferScheme::setStep(Time dt) {
-        dt_=dt;
+    void HundsdorferScheme::setStep(Time dt)
+    {
+        dt_ = dt;
     }
 }

@@ -26,7 +26,8 @@
 
 #include <ql/instruments/forward.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class IborIndex;
 
@@ -63,19 +64,19 @@ namespace QuantLib {
 
         \ingroup instruments
     */
-    class ForwardRateAgreement: public Instrument {
+    class ForwardRateAgreement : public Instrument
+    {
       public:
         /*! When using this constructor, the forward rate will be
             forecast by the passed index.  This corresponds to
             useIndexedCoupon=true in the FraRateHelper class.
         */
-        ForwardRateAgreement(
-            const ext::shared_ptr<IborIndex>& index,
-            const Date& valueDate,
-            Position::Type type,
-            Rate strikeForwardRate,
-            Real notionalAmount,
-            Handle<YieldTermStructure> discountCurve = {});
+        ForwardRateAgreement(const ext::shared_ptr<IborIndex>& index,
+                             const Date& valueDate,
+                             Position::Type type,
+                             Rate strikeForwardRate,
+                             Real notionalAmount,
+                             Handle<YieldTermStructure> discountCurve = {});
 
         /*! When using this constructor, a par-rate approximation will
             be used, i.e., the forward rate will be forecast from
@@ -83,14 +84,13 @@ namespace QuantLib {
             contained in the index.  This corresponds to
             useIndexedCoupon=false in the FraRateHelper class.
         */
-        ForwardRateAgreement(
-            const ext::shared_ptr<IborIndex>& index,
-            const Date& valueDate,
-            const Date& maturityDate,
-            Position::Type type,
-            Rate strikeForwardRate,
-            Real notionalAmount,
-            Handle<YieldTermStructure> discountCurve = {});
+        ForwardRateAgreement(const ext::shared_ptr<IborIndex>& index,
+                             const Date& valueDate,
+                             const Date& maturityDate,
+                             Position::Type type,
+                             Rate strikeForwardRate,
+                             Real notionalAmount,
+                             Handle<YieldTermStructure> discountCurve = {});
 
         //! \name Calculations
         //@{
@@ -139,15 +139,23 @@ namespace QuantLib {
         mutable Real amount_;
     };
 
-    inline const Calendar& ForwardRateAgreement::calendar() const { return calendar_; }
+    inline const Calendar& ForwardRateAgreement::calendar() const
+    {
+        return calendar_;
+    }
 
-    inline BusinessDayConvention ForwardRateAgreement::businessDayConvention() const {
+    inline BusinessDayConvention ForwardRateAgreement::businessDayConvention() const
+    {
         return businessDayConvention_;
     }
 
-    inline const DayCounter& ForwardRateAgreement::dayCounter() const { return dayCounter_; }
+    inline const DayCounter& ForwardRateAgreement::dayCounter() const
+    {
+        return dayCounter_;
+    }
 
-    inline Handle<YieldTermStructure> ForwardRateAgreement::discountCurve() const {
+    inline Handle<YieldTermStructure> ForwardRateAgreement::discountCurve() const
+    {
         return discountCurve_;
     }
 

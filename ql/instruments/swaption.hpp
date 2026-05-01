@@ -29,33 +29,37 @@
 #ifndef quantlib_instruments_swaption_hpp
 #define quantlib_instruments_swaption_hpp
 
-#include <ql/option.hpp>
 #include <ql/instruments/fixedvsfloatingswap.hpp>
 #include <ql/instruments/vanillaswap.hpp>
-#include <ql/termstructures/yieldtermstructure.hpp>
+#include <ql/option.hpp>
 #include <ql/termstructures/volatility/volatilitytype.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %settlement information
-    struct Settlement {
-        enum Type { Physical, Cash };
-        enum Method {
+    struct Settlement
+    {
+        enum Type
+        {
+            Physical,
+            Cash
+        };
+        enum Method
+        {
             PhysicalOTC,
             PhysicalCleared,
             CollateralizedCashPrice,
             ParYieldCurve
         };
         //! check consistency of settlement type and method
-        static void checkTypeAndMethodConsistency(Settlement::Type,
-                                                  Settlement::Method);
+        static void checkTypeAndMethodConsistency(Settlement::Type, Settlement::Method);
     };
 
-    std::ostream& operator<<(std::ostream& out,
-                             Settlement::Type type);
+    std::ostream& operator<<(std::ostream& out, Settlement::Type type);
 
-    std::ostream& operator<<(std::ostream& out,
-                             Settlement::Method method);
+    std::ostream& operator<<(std::ostream& out, Settlement::Method method);
 
     //! %Swaption class
     /*! \ingroup instruments
@@ -86,9 +90,14 @@ namespace QuantLib {
 
         \todo add greeks and explicit exercise lag
     */
-    class Swaption : public Option {
+    class Swaption : public Option
+    {
       public:
-        enum PriceType { Spot, Forward };
+        enum PriceType
+        {
+            Spot,
+            Forward
+        };
         class arguments;
         class engine;
         Swaption(ext::shared_ptr<FixedVsFloatingSwap> swap,
@@ -107,30 +116,26 @@ namespace QuantLib {
         //! \name Inspectors
         //@{
         Settlement::Type settlementType() const { return settlementType_; }
-        Settlement::Method settlementMethod() const {
-            return settlementMethod_;
-        }
+        Settlement::Method settlementMethod() const { return settlementMethod_; }
         Swap::Type type() const { return swap_->type(); }
-        const ext::shared_ptr<FixedVsFloatingSwap>& underlying() const {
-            return swap_;
-        }
+        const ext::shared_ptr<FixedVsFloatingSwap>& underlying() const { return swap_; }
         //@}
         //! implied volatility
-        Volatility impliedVolatility(
-                              Real price,
-                              const Handle<YieldTermStructure>& discountCurve,
-                              Volatility guess,
-                              Real accuracy = 1.0e-4,
-                              Natural maxEvaluations = 100,
-                              Volatility minVol = 1.0e-7,
-                              Volatility maxVol = 4.0,
-                              VolatilityType type = ShiftedLognormal,
-                              Real displacement = 0.0,
-                              PriceType priceType = Spot) const;
+        Volatility impliedVolatility(Real price,
+                                     const Handle<YieldTermStructure>& discountCurve,
+                                     Volatility guess,
+                                     Real accuracy = 1.0e-4,
+                                     Natural maxEvaluations = 100,
+                                     Volatility minVol = 1.0e-7,
+                                     Volatility maxVol = 4.0,
+                                     VolatilityType type = ShiftedLognormal,
+                                     Real displacement = 0.0,
+                                     PriceType priceType = Spot) const;
+
       private:
         // arguments
         ext::shared_ptr<FixedVsFloatingSwap> swap_;
-        //Handle<YieldTermStructure> termStructure_;
+        // Handle<YieldTermStructure> termStructure_;
         Settlement::Type settlementType_;
         Settlement::Method settlementMethod_;
         // until we remove underlyingSwap();
@@ -138,8 +143,8 @@ namespace QuantLib {
     };
 
     //! %Arguments for swaption calculation
-    class Swaption::arguments : public FixedVsFloatingSwap::arguments,
-                                public Option::arguments {
+    class Swaption::arguments : public FixedVsFloatingSwap::arguments, public Option::arguments
+    {
       public:
         arguments() = default;
         ext::shared_ptr<FixedVsFloatingSwap> swap;
@@ -149,8 +154,9 @@ namespace QuantLib {
     };
 
     //! base class for swaption engines
-    class Swaption::engine
-        : public GenericEngine<Swaption::arguments, Swaption::results> {};
+    class Swaption::engine : public GenericEngine<Swaption::arguments, Swaption::results>
+    {
+    };
 
 }
 

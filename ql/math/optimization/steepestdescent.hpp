@@ -27,18 +27,22 @@
 
 #include <ql/math/optimization/linesearchbasedmethod.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Multi-dimensional steepest-descent class
     /*! User has to provide line-search method and optimization end criteria
 
         search direction \f$ = - f'(x) \f$
     */
-    class SteepestDescent : public LineSearchBasedMethod {
+    class SteepestDescent : public LineSearchBasedMethod
+    {
       public:
-        SteepestDescent(const ext::shared_ptr<LineSearch>& lineSearch =
-                                            ext::shared_ptr<LineSearch>())
-        : LineSearchBasedMethod(lineSearch) {}
+        SteepestDescent(const ext::shared_ptr<LineSearch>& lineSearch = ext::shared_ptr<LineSearch>())
+        : LineSearchBasedMethod(lineSearch)
+        {
+        }
+
       private:
         //! \name LineSearchBasedMethod interface
         //@{

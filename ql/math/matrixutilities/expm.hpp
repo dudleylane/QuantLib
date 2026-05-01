@@ -26,7 +26,8 @@
 
 #include <ql/math/matrix.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! matrix exponential based on the ordinary differential equations method
 
@@ -38,7 +39,7 @@ namespace QuantLib {
     */
 
     //! returns the matrix exponential exp(t*M)
-    Matrix Expm(const Matrix& M, Real t=1.0, Real tol=QL_EPSILON);
+    Matrix Expm(const Matrix& M, Real t = 1.0, Real tol = QL_EPSILON);
 }
 
 #endif

@@ -17,25 +17,28 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/experimental/catbonds/catbond.hpp>
-#include <ql/settings.hpp>
-#include <ql/experimental/credit/loss.hpp>
-#include <ql/time/daycounters/actualactual.hpp>
 #include <ql/cashflows/cashflowvectors.hpp>
-#include <ql/cashflows/iborcoupon.hpp>
 #include <ql/cashflows/couponpricer.hpp>
+#include <ql/cashflows/iborcoupon.hpp>
 #include <ql/cashflows/simplecashflow.hpp>
+#include <ql/experimental/catbonds/catbond.hpp>
+#include <ql/experimental/credit/loss.hpp>
+#include <ql/settings.hpp>
+#include <ql/time/daycounters/actualactual.hpp>
 
 using namespace std;
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    void CatBond::arguments::validate() const {
+    void CatBond::arguments::validate() const
+    {
         Bond::arguments::validate();
         QL_REQUIRE(notionalRisk, "null notionalRisk");
     }
 
-    void CatBond::setupArguments(PricingEngine::arguments* args) const {
+    void CatBond::setupArguments(PricingEngine::arguments* args) const
+    {
 
         auto* arguments = dynamic_cast<CatBond::arguments*>(args);
         QL_REQUIRE(arguments != nullptr, "wrong arguments type");
@@ -46,7 +49,8 @@ namespace QuantLib {
         arguments->startDate = issueDate();
     }
 
-    void CatBond::fetchResults(const PricingEngine::results* r) const {
+    void CatBond::fetchResults(const PricingEngine::results* r) const
+    {
         Bond::fetchResults(r);
 
         const auto* results = dynamic_cast<const CatBond::results*>(r);
@@ -72,20 +76,21 @@ namespace QuantLib {
                                      bool inArrears,
                                      Real redemption,
                                      const Date& issueDate)
-    : CatBond(settlementDays, schedule.calendar(), issueDate, notionalRisk) {
+    : CatBond(settlementDays, schedule.calendar(), issueDate, notionalRisk)
+    {
 
         maturityDate_ = schedule.endDate();
 
         cashflows_ = IborLeg(std::move(schedule), iborIndex)
-            .withNotionals(faceAmount)
-            .withPaymentDayCounter(paymentDayCounter)
-            .withPaymentAdjustment(paymentConvention)
-            .withFixingDays(fixingDays)
-            .withGearings(gearings)
-            .withSpreads(spreads)
-            .withCaps(caps)
-            .withFloors(floors)
-            .inArrears(inArrears);
+                         .withNotionals(faceAmount)
+                         .withPaymentDayCounter(paymentDayCounter)
+                         .withPaymentAdjustment(paymentConvention)
+                         .withFixingDays(fixingDays)
+                         .withGearings(gearings)
+                         .withSpreads(spreads)
+                         .withCaps(caps)
+                         .withFloors(floors)
+                         .inArrears(inArrears);
 
         addRedemptionsToCashflows(std::vector<Real>(1, redemption));
 
@@ -117,45 +122,44 @@ namespace QuantLib {
                                      const Date& stubDate,
                                      DateGeneration::Rule rule,
                                      bool endOfMonth)
-    : CatBond(settlementDays, calendar, issueDate, notionalRisk) {
+    : CatBond(settlementDays, calendar, issueDate, notionalRisk)
+    {
 
         maturityDate_ = maturityDate;
 
         Date firstDate, nextToLastDate;
-        switch (rule) {
-          case DateGeneration::Backward:
-            firstDate = Date();
-            nextToLastDate = stubDate;
-            break;
-          case DateGeneration::Forward:
-            firstDate = stubDate;
-            nextToLastDate = Date();
-            break;
-          case DateGeneration::Zero:
-          case DateGeneration::ThirdWednesday:
-          case DateGeneration::Twentieth:
-          case DateGeneration::TwentiethIMM:
-            QL_FAIL("stub date (" << stubDate << ") not allowed with " <<
-                    rule << " DateGeneration::Rule");
-          default:
-            QL_FAIL("unknown DateGeneration::Rule (" << Integer(rule) << ")");
+        switch (rule)
+        {
+            case DateGeneration::Backward:
+                firstDate = Date();
+                nextToLastDate = stubDate;
+                break;
+            case DateGeneration::Forward:
+                firstDate = stubDate;
+                nextToLastDate = Date();
+                break;
+            case DateGeneration::Zero:
+            case DateGeneration::ThirdWednesday:
+            case DateGeneration::Twentieth:
+            case DateGeneration::TwentiethIMM:
+                QL_FAIL("stub date (" << stubDate << ") not allowed with " << rule << " DateGeneration::Rule");
+            default:
+                QL_FAIL("unknown DateGeneration::Rule (" << Integer(rule) << ")");
         }
 
-        Schedule schedule(startDate, maturityDate_, Period(couponFrequency),
-                          calendar_, accrualConvention, accrualConvention,
-                          rule, endOfMonth,
-                          firstDate, nextToLastDate);
+        Schedule schedule(startDate, maturityDate_, Period(couponFrequency), calendar_, accrualConvention,
+                          accrualConvention, rule, endOfMonth, firstDate, nextToLastDate);
 
         cashflows_ = IborLeg(schedule, iborIndex)
-            .withNotionals(faceAmount)
-            .withPaymentDayCounter(accrualDayCounter)
-            .withPaymentAdjustment(paymentConvention)
-            .withFixingDays(fixingDays)
-            .withGearings(gearings)
-            .withSpreads(spreads)
-            .withCaps(caps)
-            .withFloors(floors)
-            .inArrears(inArrears);
+                         .withNotionals(faceAmount)
+                         .withPaymentDayCounter(accrualDayCounter)
+                         .withPaymentAdjustment(paymentConvention)
+                         .withFixingDays(fixingDays)
+                         .withGearings(gearings)
+                         .withSpreads(spreads)
+                         .withCaps(caps)
+                         .withFloors(floors)
+                         .inArrears(inArrears);
 
         addRedemptionsToCashflows(std::vector<Real>(1, redemption));
 

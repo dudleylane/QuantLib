@@ -32,30 +32,31 @@
 
 #include <ql/qldefines.hpp>
 #if !defined(BOOST_ALL_NO_LIB) && defined(BOOST_MSVC)
-#  include <ql/auto_link.hpp>
+#    include <ql/auto_link.hpp>
 #endif
-#include <ql/termstructures/yield/piecewiseyieldcurve.hpp>
-#include <ql/termstructures/yieldtermstructure.hpp>
-#include <ql/termstructures/yield/ratehelpers.hpp>
-#include <ql/termstructures/yield/oisratehelper.hpp>
-#include <ql/pricingengines/swap/discountingswapengine.hpp>
 #include <ql/indexes/ibor/eonia.hpp>
 #include <ql/indexes/ibor/euribor.hpp>
-#include <ql/time/imm.hpp>
+#include <ql/math/interpolations/loginterpolation.hpp>
+#include <ql/pricingengines/swap/discountingswapengine.hpp>
+#include <ql/termstructures/yield/oisratehelper.hpp>
+#include <ql/termstructures/yield/piecewiseyieldcurve.hpp>
+#include <ql/termstructures/yield/ratehelpers.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
-#include <ql/time/daycounters/thirty360.hpp>
 #include <ql/time/daycounters/actualactual.hpp>
-#include <ql/math/interpolations/loginterpolation.hpp>
-
-#include <iostream>
+#include <ql/time/daycounters/thirty360.hpp>
+#include <ql/time/imm.hpp>
 #include <iomanip>
+#include <iostream>
 
 using namespace QuantLib;
 
-int main(int, char* []) {
+int main(int, char*[])
+{
 
-    try {
+    try
+    {
 
         std::cout << std::endl;
 
@@ -75,11 +76,9 @@ int main(int, char* []) {
         settlementDate = calendar.adjust(settlementDate);
 
 
-        std::cout << "Today: " << todaysDate.weekday()
-                  << ", " << todaysDate << std::endl;
+        std::cout << "Today: " << todaysDate.weekday() << ", " << todaysDate << std::endl;
 
-        std::cout << "Settlement date: " << settlementDate.weekday()
-                  << ", " << settlementDate << std::endl;
+        std::cout << "Settlement date: " << settlementDate.weekday() << ", " << settlementDate << std::endl;
 
         /*********************
         **   EONIA CURVE    **
@@ -101,23 +100,19 @@ int main(int, char* []) {
 
         // deposits
 
-        std::map<Natural, ext::shared_ptr<Quote>> depoQuotes = {
-            // settlement days, quote
-            {0, ext::make_shared<SimpleQuote>(0.0004)},
-            {1, ext::make_shared<SimpleQuote>(0.0004)},
-            {2, ext::make_shared<SimpleQuote>(0.0004)}
-        };
+        std::map<Natural, ext::shared_ptr<Quote>> depoQuotes = {// settlement days, quote
+                                                                {0, ext::make_shared<SimpleQuote>(0.0004)},
+                                                                {1, ext::make_shared<SimpleQuote>(0.0004)},
+                                                                {2, ext::make_shared<SimpleQuote>(0.0004)}};
 
         DayCounter depositDayCounter = Actual360();
 
-        for (const auto& q : depoQuotes) {
+        for (const auto& q : depoQuotes)
+        {
             auto settlementDays = q.first;
             auto quote = q.second;
-            auto helper = ext::make_shared<DepositRateHelper>(
-                Handle<Quote>(quote),
-                1 * Days, settlementDays,
-                calendar, Following,
-                false, depositDayCounter);
+            auto helper = ext::make_shared<DepositRateHelper>(Handle<Quote>(quote), 1 * Days, settlementDays, calendar,
+                                                              Following, false, depositDayCounter);
             eoniaInstruments.push_back(helper);
         }
 
@@ -127,71 +122,68 @@ int main(int, char* []) {
             {1 * Weeks, ext::make_shared<SimpleQuote>(0.00070)},
             {2 * Weeks, ext::make_shared<SimpleQuote>(0.00069)},
             {3 * Weeks, ext::make_shared<SimpleQuote>(0.00078)},
-            {1 * Months, ext::make_shared<SimpleQuote>(0.00074)}
-        };
+            {1 * Months, ext::make_shared<SimpleQuote>(0.00074)}};
 
-        for (const auto& q : shortOisQuotes) {
+        for (const auto& q : shortOisQuotes)
+        {
             auto tenor = q.first;
             auto quote = q.second;
-            auto helper = ext::make_shared<OISRateHelper>(
-                2, tenor, Handle<Quote>(quote), eonia);
+            auto helper = ext::make_shared<OISRateHelper>(2, tenor, Handle<Quote>(quote), eonia);
             eoniaInstruments.push_back(helper);
         }
 
         // Dated OIS
 
         std::map<std::pair<Date, Date>, ext::shared_ptr<Quote>> datedOisQuotes = {
-            {{Date(16, January, 2013), Date(13, February, 2013)}, ext::make_shared<SimpleQuote>( 0.000460)},
-            {{Date(13, February, 2013), Date(13, March, 2013)}, ext::make_shared<SimpleQuote>( 0.000160)},
+            {{Date(16, January, 2013), Date(13, February, 2013)}, ext::make_shared<SimpleQuote>(0.000460)},
+            {{Date(13, February, 2013), Date(13, March, 2013)}, ext::make_shared<SimpleQuote>(0.000160)},
             {{Date(13, March, 2013), Date(10, April, 2013)}, ext::make_shared<SimpleQuote>(-0.000070)},
             {{Date(10, April, 2013), Date(8, May, 2013)}, ext::make_shared<SimpleQuote>(-0.000130)},
             {{Date(8, May, 2013), Date(12, June, 2013)}, ext::make_shared<SimpleQuote>(-0.000140)},
         };
 
-        for (const auto& q : datedOisQuotes) {
+        for (const auto& q : datedOisQuotes)
+        {
             auto startDate = q.first.first;
             auto endDate = q.first.second;
             auto quote = q.second;
-            auto helper = ext::make_shared<OISRateHelper>(
-                startDate, endDate, Handle<Quote>(quote), eonia);
+            auto helper = ext::make_shared<OISRateHelper>(startDate, endDate, Handle<Quote>(quote), eonia);
             eoniaInstruments.push_back(helper);
         }
 
         // long-term OIS
 
-        std::map<Period, ext::shared_ptr<Quote>> longOisQuotes = {
-            {15 * Months, ext::make_shared<SimpleQuote>(0.00002)},
-            {18 * Months, ext::make_shared<SimpleQuote>(0.00008)},
-            {21 * Months, ext::make_shared<SimpleQuote>(0.00021)},
-            {2 * Years, ext::make_shared<SimpleQuote>(0.00036)},
-            {3 * Years, ext::make_shared<SimpleQuote>(0.00127)},
-            {4 * Years, ext::make_shared<SimpleQuote>(0.00274)},
-            {5 * Years, ext::make_shared<SimpleQuote>(0.00456)},
-            {6 * Years, ext::make_shared<SimpleQuote>(0.00647)},
-            {7 * Years, ext::make_shared<SimpleQuote>(0.00827)},
-            {8 * Years, ext::make_shared<SimpleQuote>(0.00996)},
-            {9 * Years, ext::make_shared<SimpleQuote>(0.01147)},
-            {10 * Years, ext::make_shared<SimpleQuote>(0.0128)},
-            {11 * Years, ext::make_shared<SimpleQuote>(0.01404)},
-            {12 * Years, ext::make_shared<SimpleQuote>(0.01516)},
-            {15 * Years, ext::make_shared<SimpleQuote>(0.01764)},
-            {20 * Years, ext::make_shared<SimpleQuote>(0.01939)},
-            {25 * Years, ext::make_shared<SimpleQuote>(0.02003)},
-            {30 * Years, ext::make_shared<SimpleQuote>(0.02038)}
-        };
+        std::map<Period, ext::shared_ptr<Quote>> longOisQuotes = {{15 * Months, ext::make_shared<SimpleQuote>(0.00002)},
+                                                                  {18 * Months, ext::make_shared<SimpleQuote>(0.00008)},
+                                                                  {21 * Months, ext::make_shared<SimpleQuote>(0.00021)},
+                                                                  {2 * Years, ext::make_shared<SimpleQuote>(0.00036)},
+                                                                  {3 * Years, ext::make_shared<SimpleQuote>(0.00127)},
+                                                                  {4 * Years, ext::make_shared<SimpleQuote>(0.00274)},
+                                                                  {5 * Years, ext::make_shared<SimpleQuote>(0.00456)},
+                                                                  {6 * Years, ext::make_shared<SimpleQuote>(0.00647)},
+                                                                  {7 * Years, ext::make_shared<SimpleQuote>(0.00827)},
+                                                                  {8 * Years, ext::make_shared<SimpleQuote>(0.00996)},
+                                                                  {9 * Years, ext::make_shared<SimpleQuote>(0.01147)},
+                                                                  {10 * Years, ext::make_shared<SimpleQuote>(0.0128)},
+                                                                  {11 * Years, ext::make_shared<SimpleQuote>(0.01404)},
+                                                                  {12 * Years, ext::make_shared<SimpleQuote>(0.01516)},
+                                                                  {15 * Years, ext::make_shared<SimpleQuote>(0.01764)},
+                                                                  {20 * Years, ext::make_shared<SimpleQuote>(0.01939)},
+                                                                  {25 * Years, ext::make_shared<SimpleQuote>(0.02003)},
+                                                                  {30 * Years, ext::make_shared<SimpleQuote>(0.02038)}};
 
-        for (const auto& q : longOisQuotes) {
+        for (const auto& q : longOisQuotes)
+        {
             auto tenor = q.first;
             auto quote = q.second;
-            auto helper = ext::make_shared<OISRateHelper>(
-                2, tenor, Handle<Quote>(quote), eonia);
+            auto helper = ext::make_shared<OISRateHelper>(2, tenor, Handle<Quote>(quote), eonia);
             eoniaInstruments.push_back(helper);
         }
 
         // curve
 
         auto eoniaTermStructure = ext::make_shared<PiecewiseYieldCurve<Discount, MonotonicLogCubic>>(
-                todaysDate, eoniaInstruments, termStructureDayCounter);
+            todaysDate, eoniaInstruments, termStructureDayCounter);
 
         eoniaTermStructure->enableExtrapolation();
 
@@ -212,81 +204,63 @@ int main(int, char* []) {
 
         auto d6MRate = ext::make_shared<SimpleQuote>(0.00312);
 
-        auto d6M = ext::make_shared<DepositRateHelper>(
-            Handle<Quote>(d6MRate),
-            6 * Months, 3,
-            calendar, Following,
-            false, depositDayCounter);
+        auto d6M = ext::make_shared<DepositRateHelper>(Handle<Quote>(d6MRate), 6 * Months, 3, calendar, Following,
+                                                       false, depositDayCounter);
 
         euribor6MInstruments.push_back(d6M);
 
         // FRAs
 
         std::map<Natural, ext::shared_ptr<Quote>> fraQuotes = {
-            {1, ext::make_shared<SimpleQuote>(0.002930)},
-            {2, ext::make_shared<SimpleQuote>(0.002720)},
-            {3, ext::make_shared<SimpleQuote>(0.002600)},
-            {4, ext::make_shared<SimpleQuote>(0.002560)},
-            {5, ext::make_shared<SimpleQuote>(0.002520)},
-            {6, ext::make_shared<SimpleQuote>(0.002480)},
-            {7, ext::make_shared<SimpleQuote>(0.002540)},
-            {8, ext::make_shared<SimpleQuote>(0.002610)},
-            {9, ext::make_shared<SimpleQuote>(0.002670)},
-            {10, ext::make_shared<SimpleQuote>(0.002790)},
-            {11, ext::make_shared<SimpleQuote>(0.002910)},
-            {12, ext::make_shared<SimpleQuote>(0.003030)},
-            {13, ext::make_shared<SimpleQuote>(0.003180)},
-            {14, ext::make_shared<SimpleQuote>(0.003350)},
-            {15, ext::make_shared<SimpleQuote>(0.003520)},
-            {16, ext::make_shared<SimpleQuote>(0.003710)},
-            {17, ext::make_shared<SimpleQuote>(0.003890)},
-            {18, ext::make_shared<SimpleQuote>(0.004090)}
-        };
+            {1, ext::make_shared<SimpleQuote>(0.002930)},  {2, ext::make_shared<SimpleQuote>(0.002720)},
+            {3, ext::make_shared<SimpleQuote>(0.002600)},  {4, ext::make_shared<SimpleQuote>(0.002560)},
+            {5, ext::make_shared<SimpleQuote>(0.002520)},  {6, ext::make_shared<SimpleQuote>(0.002480)},
+            {7, ext::make_shared<SimpleQuote>(0.002540)},  {8, ext::make_shared<SimpleQuote>(0.002610)},
+            {9, ext::make_shared<SimpleQuote>(0.002670)},  {10, ext::make_shared<SimpleQuote>(0.002790)},
+            {11, ext::make_shared<SimpleQuote>(0.002910)}, {12, ext::make_shared<SimpleQuote>(0.003030)},
+            {13, ext::make_shared<SimpleQuote>(0.003180)}, {14, ext::make_shared<SimpleQuote>(0.003350)},
+            {15, ext::make_shared<SimpleQuote>(0.003520)}, {16, ext::make_shared<SimpleQuote>(0.003710)},
+            {17, ext::make_shared<SimpleQuote>(0.003890)}, {18, ext::make_shared<SimpleQuote>(0.004090)}};
 
-        for (const auto& q : fraQuotes) {
+        for (const auto& q : fraQuotes)
+        {
             auto monthsToStart = q.first;
             auto quote = q.second;
-            auto helper = ext::make_shared<FraRateHelper>(
-                Handle<Quote>(quote),
-                monthsToStart, euribor6M);
+            auto helper = ext::make_shared<FraRateHelper>(Handle<Quote>(quote), monthsToStart, euribor6M);
             euribor6MInstruments.push_back(helper);
         }
 
         // swaps
 
-        std::map<Period, ext::shared_ptr<Quote>> swapQuotes = {
-            {3 * Years, ext::make_shared<SimpleQuote>(0.004240)},
-            {4 * Years, ext::make_shared<SimpleQuote>(0.005760)},
-            {5 * Years, ext::make_shared<SimpleQuote>(0.007620)},
-            {6 * Years, ext::make_shared<SimpleQuote>(0.009540)},
-            {7 * Years, ext::make_shared<SimpleQuote>(0.011350)},
-            {8 * Years, ext::make_shared<SimpleQuote>(0.013030)},
-            {9 * Years, ext::make_shared<SimpleQuote>(0.014520)},
-            {10 * Years, ext::make_shared<SimpleQuote>(0.015840)},
-            {12 * Years, ext::make_shared<SimpleQuote>(0.018090)},
-            {15 * Years, ext::make_shared<SimpleQuote>(0.020370)},
-            {20 * Years, ext::make_shared<SimpleQuote>(0.021870)},
-            {25 * Years, ext::make_shared<SimpleQuote>(0.022340)},
-            {30 * Years, ext::make_shared<SimpleQuote>(0.022560)},
-            {35 * Years, ext::make_shared<SimpleQuote>(0.022950)},
-            {40 * Years, ext::make_shared<SimpleQuote>(0.023480)},
-            {50 * Years, ext::make_shared<SimpleQuote>(0.024210)},
-            {60 * Years, ext::make_shared<SimpleQuote>(0.024630)}
-        };
+        std::map<Period, ext::shared_ptr<Quote>> swapQuotes = {{3 * Years, ext::make_shared<SimpleQuote>(0.004240)},
+                                                               {4 * Years, ext::make_shared<SimpleQuote>(0.005760)},
+                                                               {5 * Years, ext::make_shared<SimpleQuote>(0.007620)},
+                                                               {6 * Years, ext::make_shared<SimpleQuote>(0.009540)},
+                                                               {7 * Years, ext::make_shared<SimpleQuote>(0.011350)},
+                                                               {8 * Years, ext::make_shared<SimpleQuote>(0.013030)},
+                                                               {9 * Years, ext::make_shared<SimpleQuote>(0.014520)},
+                                                               {10 * Years, ext::make_shared<SimpleQuote>(0.015840)},
+                                                               {12 * Years, ext::make_shared<SimpleQuote>(0.018090)},
+                                                               {15 * Years, ext::make_shared<SimpleQuote>(0.020370)},
+                                                               {20 * Years, ext::make_shared<SimpleQuote>(0.021870)},
+                                                               {25 * Years, ext::make_shared<SimpleQuote>(0.022340)},
+                                                               {30 * Years, ext::make_shared<SimpleQuote>(0.022560)},
+                                                               {35 * Years, ext::make_shared<SimpleQuote>(0.022950)},
+                                                               {40 * Years, ext::make_shared<SimpleQuote>(0.023480)},
+                                                               {50 * Years, ext::make_shared<SimpleQuote>(0.024210)},
+                                                               {60 * Years, ext::make_shared<SimpleQuote>(0.024630)}};
 
         Frequency swFixedLegFrequency = Annual;
         BusinessDayConvention swFixedLegConvention = Unadjusted;
         DayCounter swFixedLegDayCounter = Thirty360(Thirty360::European);
 
-        for (const auto& q : swapQuotes) {
+        for (const auto& q : swapQuotes)
+        {
             auto tenor = q.first;
             auto quote = q.second;
             auto helper = ext::make_shared<SwapRateHelper>(
-                Handle<Quote>(quote), tenor,
-                calendar, swFixedLegFrequency,
-                swFixedLegConvention, swFixedLegDayCounter,
-                euribor6M,
-                Handle<Quote>(), 0 * Days,
+                Handle<Quote>(quote), tenor, calendar, swFixedLegFrequency, swFixedLegConvention, swFixedLegDayCounter,
+                euribor6M, Handle<Quote>(), 0 * Days,
                 discountingTermStructure); // the Eonia curve is used for discounting
             euribor6MInstruments.push_back(helper);
         }
@@ -296,9 +270,8 @@ int main(int, char* []) {
         // the bootstrap algorithm, it's possible to pass other parameters.
         double tolerance = 1.0e-15;
         auto euribor6MTermStructure = ext::make_shared<PiecewiseYieldCurve<Discount, MonotonicLogCubic>>(
-                settlementDate, euribor6MInstruments,
-                termStructureDayCounter,
-                PiecewiseYieldCurve<Discount, MonotonicLogCubic>::bootstrap_type(tolerance));
+            settlementDate, euribor6MInstruments, termStructureDayCounter,
+            PiecewiseYieldCurve<Discount, MonotonicLogCubic>::bootstrap_type(tolerance));
 
         // This curve will be used for forward-rate forecasting
 
@@ -306,8 +279,8 @@ int main(int, char* []) {
         forecastingTermStructure.linkTo(euribor6MTermStructure);
 
         /*********************
-        * SWAPS TO BE PRICED *
-        **********************/
+         * SWAPS TO BE PRICED *
+         **********************/
 
         // constant nominal 1,000,000 Euro
         Real nominal = 1000000.0;
@@ -327,43 +300,27 @@ int main(int, char* []) {
         Integer lengthInYears = 5;
         Swap::Type swapType = Swap::Payer;
 
-        Date maturity = settlementDate + lengthInYears*Years;
-        Schedule fixedSchedule(settlementDate, maturity,
-                               Period(fixedLegFrequency),
-                               calendar, fixedLegConvention,
-                               fixedLegConvention,
-                               DateGeneration::Forward, false);
-        Schedule floatSchedule(settlementDate, maturity,
-                               Period(floatingLegFrequency),
-                               calendar, floatingLegConvention,
-                               floatingLegConvention,
-                               DateGeneration::Forward, false);
-        VanillaSwap spot5YearSwap(swapType, nominal,
-            fixedSchedule, fixedRate, fixedLegDayCounter,
-            floatSchedule, euriborIndex, spread,
-            floatingLegDayCounter);
+        Date maturity = settlementDate + lengthInYears * Years;
+        Schedule fixedSchedule(settlementDate, maturity, Period(fixedLegFrequency), calendar, fixedLegConvention,
+                               fixedLegConvention, DateGeneration::Forward, false);
+        Schedule floatSchedule(settlementDate, maturity, Period(floatingLegFrequency), calendar, floatingLegConvention,
+                               floatingLegConvention, DateGeneration::Forward, false);
+        VanillaSwap spot5YearSwap(swapType, nominal, fixedSchedule, fixedRate, fixedLegDayCounter, floatSchedule,
+                                  euriborIndex, spread, floatingLegDayCounter);
 
         Date fwdStart = calendar.advance(settlementDate, 1, Years);
-        Date fwdMaturity = fwdStart + lengthInYears*Years;
-        Schedule fwdFixedSchedule(fwdStart, fwdMaturity,
-                                  Period(fixedLegFrequency),
-                                  calendar, fixedLegConvention,
-                                  fixedLegConvention,
-                                  DateGeneration::Forward, false);
-        Schedule fwdFloatSchedule(fwdStart, fwdMaturity,
-                                  Period(floatingLegFrequency),
-                                  calendar, floatingLegConvention,
-                                  floatingLegConvention,
-                                  DateGeneration::Forward, false);
-        VanillaSwap oneYearForward5YearSwap(swapType, nominal,
-            fwdFixedSchedule, fixedRate, fixedLegDayCounter,
-            fwdFloatSchedule, euriborIndex, spread,
-            floatingLegDayCounter);
+        Date fwdMaturity = fwdStart + lengthInYears * Years;
+        Schedule fwdFixedSchedule(fwdStart, fwdMaturity, Period(fixedLegFrequency), calendar, fixedLegConvention,
+                                  fixedLegConvention, DateGeneration::Forward, false);
+        Schedule fwdFloatSchedule(fwdStart, fwdMaturity, Period(floatingLegFrequency), calendar, floatingLegConvention,
+                                  floatingLegConvention, DateGeneration::Forward, false);
+        VanillaSwap oneYearForward5YearSwap(swapType, nominal, fwdFixedSchedule, fixedRate, fixedLegDayCounter,
+                                            fwdFloatSchedule, euriborIndex, spread, floatingLegDayCounter);
 
 
         /***************
-        * SWAP PRICING *
-        ****************/
+         * SWAP PRICING *
+         ****************/
 
         // utilities for formatting the report
 
@@ -390,8 +347,7 @@ int main(int, char* []) {
         auto s5yRate = swapQuotes[5 * Years];
 
         std::cout << dblrule << std::endl;
-        std::cout << " With 5-year market swap-rate = "
-                  << std::setprecision(2) << io::rate(s5yRate->value())
+        std::cout << " With 5-year market swap-rate = " << std::setprecision(2) << io::rate(s5yRate->value())
                   << std::endl;
         std::cout << rule << std::endl;
 
@@ -411,22 +367,17 @@ int main(int, char* []) {
         fairSpread = spot5YearSwap.fairSpread();
         fairRate = spot5YearSwap.fairRate();
 
-        std::cout << std::setw(headers[0].size())
-                  << case1 << separator;
-        std::cout << std::setw(headers[1].size())
-                  << std::fixed << std::setprecision(2) << NPV << separator;
-        std::cout << std::setw(headers[2].size())
-                  << io::rate(fairSpread) << separator;
-        std::cout << std::setw(headers[3].size())
-                  << io::rate(fairRate);
+        std::cout << std::setw(headers[0].size()) << case1 << separator;
+        std::cout << std::setw(headers[1].size()) << std::fixed << std::setprecision(2) << NPV << separator;
+        std::cout << std::setw(headers[2].size()) << io::rate(fairSpread) << separator;
+        std::cout << std::setw(headers[3].size()) << io::rate(fairRate);
         std::cout << std::endl;
 
         std::cout << rule << std::endl;
 
         // let's check that the 5 years swap has been correctly re-priced
-        QL_REQUIRE(std::fabs(fairRate-s5yRate->value())<1e-8,
-                   "5-years swap mispriced by "
-                   << io::rate(std::fabs(fairRate-s5yRate->value())));
+        QL_REQUIRE(std::fabs(fairRate - s5yRate->value()) < 1e-8,
+                   "5-years swap mispriced by " << io::rate(std::fabs(fairRate - s5yRate->value())));
 
         // now let's price the 1Y forward 5Y swap
 
@@ -434,14 +385,10 @@ int main(int, char* []) {
         fairSpread = oneYearForward5YearSwap.fairSpread();
         fairRate = oneYearForward5YearSwap.fairRate();
 
-        std::cout << std::setw(headers[0].size())
-                  << case2 << separator;
-        std::cout << std::setw(headers[1].size())
-                  << std::fixed << std::setprecision(2) << NPV << separator;
-        std::cout << std::setw(headers[2].size())
-                  << io::rate(fairSpread) << separator;
-        std::cout << std::setw(headers[3].size())
-                  << io::rate(fairRate);
+        std::cout << std::setw(headers[0].size()) << case2 << separator;
+        std::cout << std::setw(headers[1].size()) << std::fixed << std::setprecision(2) << NPV << separator;
+        std::cout << std::setw(headers[2].size()) << io::rate(fairSpread) << separator;
+        std::cout << std::setw(headers[3].size()) << io::rate(fairRate);
         std::cout << std::endl;
 
         // now let's say that the 5-years swap rate goes up to 0.90%.
@@ -457,8 +404,7 @@ int main(int, char* []) {
         fiveYearsRate->setValue(0.0090);
 
         std::cout << dblrule << std::endl;
-        std::cout << " With 5-year market swap-rate = "
-                  << io::rate(s5yRate->value()) << std::endl;
+        std::cout << " With 5-year market swap-rate = " << io::rate(s5yRate->value()) << std::endl;
         std::cout << rule << std::endl;
 
         std::cout << header << std::endl;
@@ -470,18 +416,13 @@ int main(int, char* []) {
         fairSpread = spot5YearSwap.fairSpread();
         fairRate = spot5YearSwap.fairRate();
 
-        std::cout << std::setw(headers[0].size())
-                  << case1 << separator;
-        std::cout << std::setw(headers[1].size())
-                  << std::fixed << std::setprecision(2) << NPV << separator;
-        std::cout << std::setw(headers[2].size())
-                  << io::rate(fairSpread) << separator;
-        std::cout << std::setw(headers[3].size())
-                  << io::rate(fairRate);
+        std::cout << std::setw(headers[0].size()) << case1 << separator;
+        std::cout << std::setw(headers[1].size()) << std::fixed << std::setprecision(2) << NPV << separator;
+        std::cout << std::setw(headers[2].size()) << io::rate(fairSpread) << separator;
+        std::cout << std::setw(headers[3].size()) << io::rate(fairRate);
         std::cout << std::endl;
 
-        QL_REQUIRE(std::fabs(fairRate-s5yRate->value())<1e-8,
-                   "5-years swap mispriced!");
+        QL_REQUIRE(std::fabs(fairRate - s5yRate->value()) < 1e-8, "5-years swap mispriced!");
 
         std::cout << rule << std::endl;
 
@@ -492,24 +433,23 @@ int main(int, char* []) {
         fairSpread = oneYearForward5YearSwap.fairSpread();
         fairRate = oneYearForward5YearSwap.fairRate();
 
-        std::cout << std::setw(headers[0].size())
-                  << case2 << separator;
-        std::cout << std::setw(headers[1].size())
-                  << std::fixed << std::setprecision(2) << NPV << separator;
-        std::cout << std::setw(headers[2].size())
-                  << io::rate(fairSpread) << separator;
-        std::cout << std::setw(headers[3].size())
-                  << io::rate(fairRate);
+        std::cout << std::setw(headers[0].size()) << case2 << separator;
+        std::cout << std::setw(headers[1].size()) << std::fixed << std::setprecision(2) << NPV << separator;
+        std::cout << std::setw(headers[2].size()) << io::rate(fairSpread) << separator;
+        std::cout << std::setw(headers[3].size()) << io::rate(fairRate);
         std::cout << std::endl;
 
         std::cout << dblrule << std::endl;
 
         return 0;
-
-    } catch (std::exception& e) {
+    }
+    catch (std::exception& e)
+    {
         std::cerr << e.what() << std::endl;
         return 1;
-    } catch (...) {
+    }
+    catch (...)
+    {
         std::cerr << "unknown error" << std::endl;
         return 1;
     }

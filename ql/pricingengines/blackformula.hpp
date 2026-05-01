@@ -37,18 +37,15 @@
 #include <ql/instruments/payoffs.hpp>
 #include <ql/option.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! Black 1976 formula
         \warning instead of volatility it uses standard deviation,
                  i.e. volatility*sqrt(timeToMaturity)
     */
-    Real blackFormula(Option::Type optionType,
-                      Real strike,
-                      Real forward,
-                      Real stdDev,
-                      Real discount = 1.0,
-                      Real displacement = 0.0);
+    Real blackFormula(
+        Option::Type optionType, Real strike, Real forward, Real stdDev, Real discount = 1.0, Real displacement = 0.0);
 
     /*! Black 1976 formula
         \warning instead of volatility it uses standard deviation,
@@ -64,12 +61,8 @@ namespace QuantLib {
         \warning instead of volatility it uses standard deviation,
                  i.e. volatility*sqrt(timeToMaturity)
     */
-    Real blackFormulaForwardDerivative(Option::Type optionType,
-                                       Real strike,
-                                       Real forward,
-                                       Real stdDev,
-                                       Real discount = 1.0,
-                                       Real displacement = 0.0);
+    Real blackFormulaForwardDerivative(
+        Option::Type optionType, Real strike, Real forward, Real stdDev, Real discount = 1.0, Real displacement = 0.0);
 
     /*! Black 1976 model forward derivative
         \warning instead of volatility it uses standard deviation,
@@ -269,18 +262,14 @@ namespace QuantLib {
                  If T is the time to maturity Black vega would be
                  blackStdDevDerivative(strike, forward, stdDev)*sqrt(T)
     */
-    Real blackFormulaStdDevDerivative(
-        Real strike, Real forward, Real stdDev, Real discount = 1.0, Real displacement = 0.0);
+    Real
+    blackFormulaStdDevDerivative(Real strike, Real forward, Real stdDev, Real discount = 1.0, Real displacement = 0.0);
 
     /*! Black 1976 formula for  derivative with respect to implied vol, this
         is basically the vega, but if you want 1% change multiply by 1%
    */
-    Real blackFormulaVolDerivative(Real strike,
-                                   Real forward,
-                                   Real stdDev,
-                                   Real expiry,
-                                   Real discount = 1.0,
-                                   Real displacement = 0.0);
+    Real blackFormulaVolDerivative(
+        Real strike, Real forward, Real stdDev, Real expiry, Real discount = 1.0, Real displacement = 0.0);
 
 
     /*! Black 1976 formula for standard deviation derivative
@@ -301,8 +290,7 @@ namespace QuantLib {
                  volatility*sqrt(timeToMaturity), and it returns the
                  derivative with respect to the standard deviation.
     */
-    Real blackFormulaStdDevSecondDerivative(
-        Rate strike, Rate forward, Real stdDev, Real discount, Real displacement);
+    Real blackFormulaStdDevSecondDerivative(Rate strike, Rate forward, Real stdDev, Real discount, Real displacement);
 
     /*! Black 1976 formula for second derivative by standard deviation
         \warning instead of volatility it uses standard deviation, i.e.
@@ -322,8 +310,7 @@ namespace QuantLib {
                  percentage volatility. Standard deviation is
                  absoluteVolatility*sqrt(timeToMaturity)
     */
-    Real bachelierBlackFormula(
-        Option::Type optionType, Real strike, Real forward, Real stdDev, Real discount = 1.0);
+    Real bachelierBlackFormula(Option::Type optionType, Real strike, Real forward, Real stdDev, Real discount = 1.0);
 
     /*! Black style formula when forward is normal rather than
         log-normal. This is essentially the model of Bachelier.
@@ -352,11 +339,10 @@ namespace QuantLib {
                  percentage volatility. Standard deviation is
                  absoluteVolatility*sqrt(timeToMaturity)
     */
-    Real bachelierBlackFormulaForwardDerivative(
-        const ext::shared_ptr<PlainVanillaPayoff>& payoff,
-        Real forward,
-        Real stdDev,
-        Real discount = 1.0);
+    Real bachelierBlackFormulaForwardDerivative(const ext::shared_ptr<PlainVanillaPayoff>& payoff,
+                                                Real forward,
+                                                Real stdDev,
+                                                Real discount = 1.0);
 
     /*! Approximated Bachelier implied volatility
 
@@ -365,24 +351,16 @@ namespace QuantLib {
         Implied Volatility Under Arithmetic Brownian Motion”,
         Applied Math. Finance, 16(3), pp. 261-268.
     */
-    Real bachelierBlackFormulaImpliedVolChoi(Option::Type optionType,
-                                             Real strike,
-                                             Real forward,
-                                             Real tte,
-                                             Real bachelierPrice,
-                                             Real discount = 1.0);
+    Real bachelierBlackFormulaImpliedVolChoi(
+        Option::Type optionType, Real strike, Real forward, Real tte, Real bachelierPrice, Real discount = 1.0);
 
     /*! Exact Bachelier implied volatility
 
         It is calculated using the analytic implied volatility formula
         of Jaeckel (2017), "Implied Normal Volatility"
     */
-    Real bachelierBlackFormulaImpliedVol(Option::Type optionType,
-                                         Real strike,
-                                         Real forward,
-                                         Real tte,
-                                         Real bachelierPrice,
-                                         Real discount = 1.0);
+    Real bachelierBlackFormulaImpliedVol(
+        Option::Type optionType, Real strike, Real forward, Real tte, Real bachelierPrice, Real discount = 1.0);
 
     /*! Bachelier formula for standard deviation derivative
         \warning instead of volatility it uses standard deviation, i.e.
@@ -392,10 +370,7 @@ namespace QuantLib {
                  blackStdDevDerivative(strike, forward, stdDev)*sqrt(T)
     */
 
-    Real bachelierBlackFormulaStdDevDerivative(Real strike,
-                                               Real forward,
-                                               Real stdDev,
-                                               Real discount = 1.0);
+    Real bachelierBlackFormulaStdDevDerivative(Real strike, Real forward, Real stdDev, Real discount = 1.0);
 
     Real bachelierBlackFormulaStdDevDerivative(const ext::shared_ptr<PlainVanillaPayoff>& payoff,
                                                Real forward,
@@ -406,10 +381,7 @@ namespace QuantLib {
         measure, i.e. N(d).
         It is a risk-neutral probability, not the real world one.
     */
-    Real bachelierBlackFormulaAssetItmProbability(Option::Type optionType,
-                                                  Real strike,
-                                                  Real forward,
-                                                  Real stdDev);
+    Real bachelierBlackFormulaAssetItmProbability(Option::Type optionType, Real strike, Real forward, Real stdDev);
 
     /*! Bachelier formula for of being in the money in the asset martingale
         measure, i.e. N(d).

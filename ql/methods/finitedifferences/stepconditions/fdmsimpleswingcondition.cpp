@@ -2,7 +2,7 @@
 
 /*
  Copyright (C) 2010, 2014 Klaus Spanderen
- 
+
  This file is part of QuantLib, a free-software/open-source library
  for financial quantitative analysts and developers - http://quantlib.org/
 
@@ -21,46 +21,48 @@
 #include <ql/methods/finitedifferences/stepconditions/fdmsimpleswingcondition.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    FdmSimpleSwingCondition::FdmSimpleSwingCondition(
-        std::vector<Time> exerciseTimes,
-        ext::shared_ptr<FdmMesher> mesher,
-        ext::shared_ptr<FdmInnerValueCalculator> calculator,
-        Size swingDirection,
-        Size minExercises)
-    : exerciseTimes_(std::move(exerciseTimes)), mesher_(std::move(mesher)),
-      calculator_(std::move(calculator)), minExercises_(minExercises),
-      swingDirection_(swingDirection) {}
+    FdmSimpleSwingCondition::FdmSimpleSwingCondition(std::vector<Time> exerciseTimes,
+                                                     ext::shared_ptr<FdmMesher> mesher,
+                                                     ext::shared_ptr<FdmInnerValueCalculator> calculator,
+                                                     Size swingDirection,
+                                                     Size minExercises)
+    : exerciseTimes_(std::move(exerciseTimes)), mesher_(std::move(mesher)), calculator_(std::move(calculator)),
+      minExercises_(minExercises), swingDirection_(swingDirection)
+    {
+    }
 
-    void FdmSimpleSwingCondition::applyTo(Array& a, Time t) const {
+    void FdmSimpleSwingCondition::applyTo(Array& a, Time t) const
+    {
 
-        const auto iter
-            = std::find(exerciseTimes_.begin(), exerciseTimes_.end(), t);
-        const Size maxExerciseValue=mesher_->layout()->dim()[swingDirection_]-1;
+        const auto iter = std::find(exerciseTimes_.begin(), exerciseTimes_.end(), t);
+        const Size maxExerciseValue = mesher_->layout()->dim()[swingDirection_] - 1;
 
-        if (iter != exerciseTimes_.end()) {
-            Array retVal= a;
+        if (iter != exerciseTimes_.end())
+        {
+            Array retVal = a;
 
             const Size d = std::distance(iter, exerciseTimes_.end());
 
-            QL_REQUIRE(mesher_->layout()->size() == a.size(),
-                       "inconsistent array dimensions");
+            QL_REQUIRE(mesher_->layout()->size() == a.size(), "inconsistent array dimensions");
 
-            for (const auto& iter : *mesher_->layout()) {
-                
+            for (const auto& iter : *mesher_->layout())
+            {
+
                 const std::vector<Size>& coor = iter.coordinates();
-                
+
                 const Size exercisesUsed = coor[swingDirection_];
-                
-                if (exercisesUsed < maxExerciseValue) {
+
+                if (exercisesUsed < maxExerciseValue)
+                {
                     const Real cashflow = calculator_->innerValue(iter, t);
                     const Real currentValue = a[iter.index()];
-                    const Real valuePlusOneExercise
-                         = a[mesher_->layout()->neighbourhood(iter, swingDirection_, 1)];
-                    
-                    if (   currentValue < valuePlusOneExercise + cashflow
-                        || exercisesUsed + d <=  minExercises_) {
+                    const Real valuePlusOneExercise = a[mesher_->layout()->neighbourhood(iter, swingDirection_, 1)];
+
+                    if (currentValue < valuePlusOneExercise + cashflow || exercisesUsed + d <= minExercises_)
+                    {
                         retVal[iter.index()] = valuePlusOneExercise + cashflow;
                     }
                 }

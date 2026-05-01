@@ -25,12 +25,13 @@
 #ifndef quantlib_cpicoupon_hpp
 #define quantlib_cpicoupon_hpp
 
-#include <ql/cashflows/inflationcoupon.hpp>
 #include <ql/cashflows/indexedcashflow.hpp>
+#include <ql/cashflows/inflationcoupon.hpp>
 #include <ql/indexes/inflationindex.hpp>
 #include <ql/time/schedule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
 
     class CPICouponPricer;
@@ -52,7 +53,8 @@ namespace QuantLib {
               to the natural ZCIIS lag that was used to create the
               forward inflation curve.
     */
-    class CPICoupon : public InflationCoupon {
+    class CPICoupon : public InflationCoupon
+    {
       public:
         //! \name Constructors
         //@{
@@ -161,7 +163,8 @@ namespace QuantLib {
 
     //! Cash flow paying the performance of a CPI (zero inflation) index
     /*! It is NOT a coupon, i.e. no accruals. */
-    class CPICashFlow : public IndexedCashFlow {
+    class CPICashFlow : public IndexedCashFlow
+    {
       public:
         CPICashFlow(Real notional,
                     const ext::shared_ptr<ZeroInflationIndex>& index,
@@ -182,9 +185,7 @@ namespace QuantLib {
         Date observationDate() const { return observationDate_; }
         Period observationLag() const { return observationLag_; }
         //! do you want linear/constant/as-index interpolation of future data?
-        virtual CPI::InterpolationType interpolation() const {
-            return interpolation_;
-        }
+        virtual CPI::InterpolationType interpolation() const { return interpolation_; }
         virtual Frequency frequency() const { return frequency_; }
 
         ext::shared_ptr<ZeroInflationIndex> cpiIndex() const;
@@ -206,7 +207,8 @@ namespace QuantLib {
         If the fixed rate is zero you get a FixedRateCoupon, otherwise
         you get a ZeroInflationCoupon.
     */
-    class CPILeg {
+    class CPILeg
+    {
       public:
         CPILeg(Schedule schedule,
                ext::shared_ptr<ZeroInflationIndex> index,
@@ -225,10 +227,7 @@ namespace QuantLib {
         CPILeg& withCaps(const std::vector<Rate>& caps);
         CPILeg& withFloors(Rate floor);
         CPILeg& withFloors(const std::vector<Rate>& floors);
-        CPILeg& withExCouponPeriod(const Period&,
-                                         const Calendar&,
-                                         BusinessDayConvention,
-                                         bool endOfMonth = false);
+        CPILeg& withExCouponPeriod(const Period&, const Calendar&, BusinessDayConvention, bool endOfMonth = false);
         CPILeg& withBaseDate(const Date& baseDate);
 
         operator Leg() const;
@@ -256,36 +255,44 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline Real CPICoupon::fixedRate() const {
+    inline Real CPICoupon::fixedRate() const
+    {
         return fixedRate_;
     }
 
-    inline Rate CPICoupon::adjustedIndexGrowth() const {
-        return rate()/fixedRate();
+    inline Rate CPICoupon::adjustedIndexGrowth() const
+    {
+        return rate() / fixedRate();
     }
 
-    inline Rate CPICoupon::indexFixing() const {
+    inline Rate CPICoupon::indexFixing() const
+    {
         return CPI::laggedFixing(cpiIndex(), accrualEndDate(), observationLag(), observationInterpolation());
     }
 
-    inline Rate CPICoupon::baseCPI() const {
+    inline Rate CPICoupon::baseCPI() const
+    {
         return baseCPI_;
     }
 
-    inline Date CPICoupon::baseDate() const {
+    inline Date CPICoupon::baseDate() const
+    {
         return baseDate_;
     }
 
-    inline CPI::InterpolationType CPICoupon::observationInterpolation() const {
+    inline CPI::InterpolationType CPICoupon::observationInterpolation() const
+    {
         return observationInterpolation_;
     }
 
-    inline ext::shared_ptr<ZeroInflationIndex> CPICoupon::cpiIndex() const {
+    inline ext::shared_ptr<ZeroInflationIndex> CPICoupon::cpiIndex() const
+    {
         return ext::dynamic_pointer_cast<ZeroInflationIndex>(index());
     }
 
 
-    inline ext::shared_ptr<ZeroInflationIndex> CPICashFlow::cpiIndex() const {
+    inline ext::shared_ptr<ZeroInflationIndex> CPICashFlow::cpiIndex() const
+    {
         return ext::dynamic_pointer_cast<ZeroInflationIndex>(index());
     }
 

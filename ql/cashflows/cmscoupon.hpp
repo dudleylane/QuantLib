@@ -27,7 +27,8 @@
 #include <ql/cashflows/floatingratecoupon.hpp>
 #include <ql/time/schedule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class SwapIndex;
 
@@ -36,7 +37,8 @@ namespace QuantLib {
                  i.e., the start and end date passed upon construction
                  should be already rolled to a business day.
     */
-    class CmsCoupon : public FloatingRateCoupon {
+    class CmsCoupon : public FloatingRateCoupon
+    {
       public:
         CmsCoupon(const Date& paymentDate,
                   Real nominal,
@@ -54,9 +56,7 @@ namespace QuantLib {
                   BusinessDayConvention fixingConvention = Preceding);
         //! \name Inspectors
         //@{
-        const ext::shared_ptr<SwapIndex>& swapIndex() const {
-            return swapIndex_;
-        }
+        const ext::shared_ptr<SwapIndex>& swapIndex() const { return swapIndex_; }
         //@}
         //! \name Visitability
         //@{
@@ -68,7 +68,8 @@ namespace QuantLib {
 
 
     //! helper class building a sequence of capped/floored cms-rate coupons
-    class CmsLeg {
+    class CmsLeg
+    {
       public:
         CmsLeg(Schedule schedule, ext::shared_ptr<SwapIndex> swapIndex);
         CmsLeg& withNotionals(Real notional);
@@ -88,11 +89,9 @@ namespace QuantLib {
         CmsLeg& inArrears(bool flag = true);
         CmsLeg& withZeroPayments(bool flag = true);
         CmsLeg& withFixingConvention(BusinessDayConvention);
-        CmsLeg& withExCouponPeriod(const Period&,
-                                   const Calendar&,
-                                   BusinessDayConvention,
-                                   bool endOfMonth);
+        CmsLeg& withExCouponPeriod(const Period&, const Calendar&, BusinessDayConvention, bool endOfMonth);
         operator Leg() const;
+
       private:
         Schedule schedule_;
         ext::shared_ptr<SwapIndex> swapIndex_;

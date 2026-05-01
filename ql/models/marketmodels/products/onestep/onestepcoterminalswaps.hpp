@@ -23,9 +23,11 @@
 
 #include <ql/models/marketmodels/products/multiproductonestep.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class OneStepCoterminalSwaps : public MultiProductOneStep {
+    class OneStepCoterminalSwaps : public MultiProductOneStep
+    {
       public:
         OneStepCoterminalSwaps(const std::vector<Time>& rateTimes,
                                std::vector<Real> fixedAccruals,
@@ -40,7 +42,7 @@ namespace QuantLib {
         void reset() override;
         bool nextTimeStep(const CurveState& currentState,
                           std::vector<Size>& numberCashFlowsThisStep,
-                          std::vector<std::vector<CashFlow> >& cashFlowsGenerated) override;
+                          std::vector<std::vector<CashFlow>>& cashFlowsGenerated) override;
         std::unique_ptr<MarketModelMultiProduct> clone() const override;
         //@}
       private:
@@ -52,22 +54,24 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline std::vector<Time>
-    OneStepCoterminalSwaps::possibleCashFlowTimes() const {
+    inline std::vector<Time> OneStepCoterminalSwaps::possibleCashFlowTimes() const
+    {
         return paymentTimes_;
     }
 
-    inline Size OneStepCoterminalSwaps::numberOfProducts() const {
+    inline Size OneStepCoterminalSwaps::numberOfProducts() const
+    {
         return lastIndex_;
     }
 
-    inline Size
-    OneStepCoterminalSwaps::maxNumberOfCashFlowsPerProductPerStep() const {
-        return 2*lastIndex_;
+    inline Size OneStepCoterminalSwaps::maxNumberOfCashFlowsPerProductPerStep() const
+    {
+        return 2 * lastIndex_;
     }
 
-    inline void OneStepCoterminalSwaps::reset() {
-       // nothing to do
+    inline void OneStepCoterminalSwaps::reset()
+    {
+        // nothing to do
     }
 
 }

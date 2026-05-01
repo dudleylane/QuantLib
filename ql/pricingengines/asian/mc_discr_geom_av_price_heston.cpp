@@ -2,7 +2,7 @@
 
 /*
  Copyright (C) 2020 Jack Gillett
- 
+
  This file is part of QuantLib, a free-software/open-source library
  for financial quantitative analysts and developers - http://quantlib.org/
 
@@ -20,7 +20,8 @@
 #include <ql/pricingengines/asian/mc_discr_geom_av_price_heston.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     GeometricAPOHestonPathPricer::GeometricAPOHestonPathPricer(Option::Type type,
                                                                Real strike,
@@ -29,15 +30,16 @@ namespace QuantLib {
                                                                Real runningProduct,
                                                                Size pastFixings)
     : payoff_(type, strike), discount_(discount), fixingIndices_(std::move(fixingIndices)),
-      runningProduct_(runningProduct), pastFixings_(pastFixings) {
-        QL_REQUIRE(strike>=0.0,
-            "strike less than zero not allowed");
+      runningProduct_(runningProduct), pastFixings_(pastFixings)
+    {
+        QL_REQUIRE(strike >= 0.0, "strike less than zero not allowed");
     }
 
-    Real GeometricAPOHestonPathPricer::operator()(const MultiPath& multiPath) const  {
+    Real GeometricAPOHestonPathPricer::operator()(const MultiPath& multiPath) const
+    {
         const Path& path = multiPath[0];
         const Size n = multiPath.pathSize();
-        QL_REQUIRE(n>0, "the path cannot be empty");
+        QL_REQUIRE(n > 0, "the path cannot be empty");
 
         Real averagePrice = 1.0;
         Real product = runningProduct_;
@@ -45,17 +47,21 @@ namespace QuantLib {
 
         // care must be taken not to overflow product
         constexpr double maxValue = QL_MAX_REAL;
-        for (unsigned long fixingIndice : fixingIndices_) {
+        for (unsigned long fixingIndice : fixingIndices_)
+        {
             Real price = path[fixingIndice];
-            if (product < maxValue/price) {
+            if (product < maxValue / price)
+            {
                 product *= price;
-            } else {
-                averagePrice *= std::pow(product, 1.0/fixings);
+            }
+            else
+            {
+                averagePrice *= std::pow(product, 1.0 / fixings);
                 product = price;
             }
         }
 
-        averagePrice *= std::pow(product, 1.0/fixings);
+        averagePrice *= std::pow(product, 1.0 / fixings);
         return discount_ * payoff_(averagePrice);
     }
 

@@ -26,7 +26,8 @@
 
 #include <ql/cashflows/yoyinflationcoupon.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Capped or floored inflation coupon.
     /*! Essentially a copy of the nominal version but taking a
@@ -63,13 +64,13 @@ namespace QuantLib {
         R = (a L + b) + |a| \min(\frac{C - b}{|a|} - \xi L, 0)
         \f]
      */
-    class CappedFlooredYoYInflationCoupon : public YoYInflationCoupon {
+    class CappedFlooredYoYInflationCoupon : public YoYInflationCoupon
+    {
       public:
         // we may watch an underlying coupon ...
-        CappedFlooredYoYInflationCoupon(
-                const ext::shared_ptr<YoYInflationCoupon>& underlying,
-                Rate cap = Null<Rate>(),
-                Rate floor = Null<Rate>());
+        CappedFlooredYoYInflationCoupon(const ext::shared_ptr<YoYInflationCoupon>& underlying,
+                                        Rate cap = Null<Rate>(),
+                                        Rate floor = Null<Rate>());
 
         // ... or not
         CappedFlooredYoYInflationCoupon(const Date& paymentDate,
@@ -87,11 +88,21 @@ namespace QuantLib {
                                         const Rate floor = Null<Rate>(),
                                         const Date& refPeriodStart = Date(),
                                         const Date& refPeriodEnd = Date())
-        : YoYInflationCoupon(paymentDate, nominal, startDate, endDate,
-                             fixingDays, index, observationLag, interpolation,
-                             dayCounter, gearing, spread,
-                             refPeriodStart, refPeriodEnd),
-          isFloored_(false), isCapped_(false) {
+        : YoYInflationCoupon(paymentDate,
+                             nominal,
+                             startDate,
+                             endDate,
+                             fixingDays,
+                             index,
+                             observationLag,
+                             interpolation,
+                             dayCounter,
+                             gearing,
+                             spread,
+                             refPeriodStart,
+                             refPeriodEnd),
+          isFloored_(false), isCapped_(false)
+        {
             setCommon(cap, floor);
         }
 
@@ -133,6 +144,7 @@ namespace QuantLib {
         ext::shared_ptr<YoYInflationCoupon> underlying_;
         bool isFloored_, isCapped_;
         Rate cap_, floor_;
+
       private:
         void setCommon(Rate cap, Rate floor);
     };
@@ -140,4 +152,3 @@ namespace QuantLib {
 }
 
 #endif
-

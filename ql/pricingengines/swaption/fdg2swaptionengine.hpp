@@ -25,20 +25,23 @@
 #define quantlib_fd_g2_swaption_engine_hpp
 
 #include <ql/instruments/swaption.hpp>
-#include <ql/pricingengines/genericmodelengine.hpp>
-#include <ql/models/shortrate/twofactormodels/g2.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
+#include <ql/models/shortrate/twofactormodels/g2.hpp>
+#include <ql/pricingengines/genericmodelengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class FdG2SwaptionEngine
-        : public GenericModelEngine<G2,Swaption::arguments,Swaption::results> {
+    class FdG2SwaptionEngine : public GenericModelEngine<G2, Swaption::arguments, Swaption::results>
+    {
       public:
-        explicit FdG2SwaptionEngine(
-            const ext::shared_ptr<G2>& model,
-            Size tGrid = 100, Size xGrid = 50, Size yGrid = 50,
-            Size dampingSteps = 0, Real invEps = 1e-5,
-            const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Hundsdorfer());
+        explicit FdG2SwaptionEngine(const ext::shared_ptr<G2>& model,
+                                    Size tGrid = 100,
+                                    Size xGrid = 50,
+                                    Size yGrid = 50,
+                                    Size dampingSteps = 0,
+                                    Real invEps = 1e-5,
+                                    const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Hundsdorfer());
 
         void calculate() const override;
 

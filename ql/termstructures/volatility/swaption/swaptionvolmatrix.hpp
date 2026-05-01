@@ -27,12 +27,13 @@
 #ifndef quantlib_swaption_volatility_matrix_hpp
 #define quantlib_swaption_volatility_matrix_hpp
 
-#include <ql/termstructures/volatility/swaption/swaptionvoldiscrete.hpp>
 #include <ql/math/interpolations/interpolation2d.hpp>
 #include <ql/math/matrix.hpp>
+#include <ql/termstructures/volatility/swaption/swaptionvoldiscrete.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Quote;
 
@@ -48,31 +49,30 @@ namespace QuantLib {
         - <tt>M[i][j]</tt> contains the volatility corresponding
           to the <tt>i</tt>-th option and <tt>j</tt>-th tenor.
     */
-    class SwaptionVolatilityMatrix : public SwaptionVolatilityDiscrete {
+    class SwaptionVolatilityMatrix : public SwaptionVolatilityDiscrete
+    {
       public:
         //! floating reference date, floating market data
-        SwaptionVolatilityMatrix(
-            const Calendar& calendar,
-            BusinessDayConvention bdc,
-            const std::vector<Period>& optionTenors,
-            const std::vector<Period>& swapTenors,
-            const std::vector<std::vector<Handle<Quote> > >& vols,
-            const DayCounter& dayCounter,
-            bool flatExtrapolation = false,
-            VolatilityType type = ShiftedLognormal,
-            const std::vector<std::vector<Real> >& shifts = std::vector<std::vector<Real> >());
+        SwaptionVolatilityMatrix(const Calendar& calendar,
+                                 BusinessDayConvention bdc,
+                                 const std::vector<Period>& optionTenors,
+                                 const std::vector<Period>& swapTenors,
+                                 const std::vector<std::vector<Handle<Quote>>>& vols,
+                                 const DayCounter& dayCounter,
+                                 bool flatExtrapolation = false,
+                                 VolatilityType type = ShiftedLognormal,
+                                 const std::vector<std::vector<Real>>& shifts = std::vector<std::vector<Real>>());
         //! fixed reference date, floating market data
-        SwaptionVolatilityMatrix(
-            const Date& referenceDate,
-            const Calendar& calendar,
-            BusinessDayConvention bdc,
-            const std::vector<Period>& optionTenors,
-            const std::vector<Period>& swapTenors,
-            const std::vector<std::vector<Handle<Quote> > >& vols,
-            const DayCounter& dayCounter,
-            bool flatExtrapolation = false,
-            VolatilityType type = ShiftedLognormal,
-            const std::vector<std::vector<Real> >& shifts = std::vector<std::vector<Real> >());
+        SwaptionVolatilityMatrix(const Date& referenceDate,
+                                 const Calendar& calendar,
+                                 BusinessDayConvention bdc,
+                                 const std::vector<Period>& optionTenors,
+                                 const std::vector<Period>& swapTenors,
+                                 const std::vector<std::vector<Handle<Quote>>>& vols,
+                                 const DayCounter& dayCounter,
+                                 bool flatExtrapolation = false,
+                                 VolatilityType type = ShiftedLognormal,
+                                 const std::vector<std::vector<Real>>& shifts = std::vector<std::vector<Real>>());
         //! floating reference date, fixed market data
         SwaptionVolatilityMatrix(const Calendar& calendar,
                                  BusinessDayConvention bdc,
@@ -134,16 +134,14 @@ namespace QuantLib {
         //! \name Other inspectors
         //@{
         //! returns the lower indexes of surrounding volatility matrix corners
-        std::pair<Size,Size> locate(const Date& optionDate,
-                                    const Period& swapTenor) const {
-            return locate(timeFromReference(optionDate),
-                          swapLength(swapTenor));
+        std::pair<Size, Size> locate(const Date& optionDate, const Period& swapTenor) const
+        {
+            return locate(timeFromReference(optionDate), swapLength(swapTenor));
         }
         //! returns the lower indexes of surrounding volatility matrix corners
-        std::pair<Size,Size> locate(Time optionTime,
-                                    Time swapLength) const {
-            return std::make_pair(interpolation_.locateY(optionTime),
-                                  interpolation_.locateX(swapLength));
+        std::pair<Size, Size> locate(Time optionTime, Time swapLength) const
+        {
+            return std::make_pair(interpolation_.locateY(optionTime), interpolation_.locateX(swapLength));
         }
         //@}
         VolatilityType volatilityType() const override;
@@ -151,20 +149,17 @@ namespace QuantLib {
       protected:
         // defining the following method would break CMS test suite
         // to be further investigated
-        //ext::shared_ptr<SmileSection> smileSectionImpl(const Date&,
+        // ext::shared_ptr<SmileSection> smileSectionImpl(const Date&,
         //                                                 const Period&) const;
         ext::shared_ptr<SmileSection> smileSectionImpl(Time, Time) const override;
         Volatility volatilityImpl(Time optionTime, Time swapLength, Rate strike) const override;
         Real shiftImpl(Time optionTime, Time swapLength) const override;
 
       private:
-        void checkInputs(Size volRows,
-                         Size volsColumns,
-                         Size shiftRows,
-                         Size shiftsColumns) const;
+        void checkInputs(Size volRows, Size volsColumns, Size shiftRows, Size shiftsColumns) const;
         void registerWithMarketData();
-        std::vector<std::vector<Handle<Quote> > > volHandles_;
-        std::vector<std::vector<Real> > shiftValues_;
+        std::vector<std::vector<Handle<Quote>>> volHandles_;
+        std::vector<std::vector<Real>> shiftValues_;
         mutable Matrix volatilities_, shifts_;
         Interpolation2D interpolation_, interpolationShifts_;
         VolatilityType volatilityType_;
@@ -172,35 +167,39 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline Date SwaptionVolatilityMatrix::maxDate() const {
+    inline Date SwaptionVolatilityMatrix::maxDate() const
+    {
         return optionDates_.back();
     }
 
-    inline Rate SwaptionVolatilityMatrix::minStrike() const {
+    inline Rate SwaptionVolatilityMatrix::minStrike() const
+    {
         return -QL_MAX_REAL;
     }
 
-    inline Rate SwaptionVolatilityMatrix::maxStrike() const {
+    inline Rate SwaptionVolatilityMatrix::maxStrike() const
+    {
         return QL_MAX_REAL;
     }
 
-    inline const Period& SwaptionVolatilityMatrix::maxSwapTenor() const {
+    inline const Period& SwaptionVolatilityMatrix::maxSwapTenor() const
+    {
         return swapTenors_.back();
     }
 
-    inline Volatility SwaptionVolatilityMatrix::volatilityImpl(Time optionTime,
-                                                               Time swapLength,
-                                                               Rate) const {
+    inline Volatility SwaptionVolatilityMatrix::volatilityImpl(Time optionTime, Time swapLength, Rate) const
+    {
         calculate();
         return interpolation_(swapLength, optionTime, true);
     }
 
-    inline VolatilityType SwaptionVolatilityMatrix::volatilityType() const {
+    inline VolatilityType SwaptionVolatilityMatrix::volatilityType() const
+    {
         return volatilityType_;
     }
 
-    inline Real SwaptionVolatilityMatrix::shiftImpl(Time optionTime,
-                                                    Time swapLength) const {
+    inline Real SwaptionVolatilityMatrix::shiftImpl(Time optionTime, Time swapLength) const
+    {
         calculate();
         Real tmp = interpolationShifts_(swapLength, optionTime, true);
         return tmp;

@@ -26,28 +26,30 @@
 #ifndef ql_inflation_bootstrap_traits_hpp
 #define ql_inflation_bootstrap_traits_hpp
 
-#include <ql/termstructures/inflation/interpolatedzeroinflationcurve.hpp>
-#include <ql/termstructures/inflation/interpolatedyoyinflationcurve.hpp>
 #include <ql/termstructures/bootstraphelper.hpp>
+#include <ql/termstructures/inflation/interpolatedyoyinflationcurve.hpp>
+#include <ql/termstructures/inflation/interpolatedzeroinflationcurve.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace detail {
+    namespace detail
+    {
         constexpr double avgInflation = 0.02;
         constexpr double maxInflation = 0.5;
     }
 
     //! Bootstrap traits to use for PiecewiseZeroInflationCurve
-    class ZeroInflationTraits {
+    class ZeroInflationTraits
+    {
       public:
         typedef BootstrapHelper<ZeroInflationTermStructure> helper;
 
         // start of curve data
-        static Date initialDate(const ZeroInflationTermStructure* t) {
-            return t->baseDate();
-        }
+        static Date initialDate(const ZeroInflationTermStructure* t) { return t->baseDate(); }
         // value at reference date
-        static Rate initialValue(const ZeroInflationTermStructure*) {
+        static Rate initialValue(const ZeroInflationTermStructure*)
+        {
             // this will be overwritten during bootstrap
             return detail::avgInflation;
         }
@@ -72,9 +74,10 @@ namespace QuantLib {
                                   bool validData,
                                   Size) // firstAliveHelper
         {
-            if (validData) {
+            if (validData)
+            {
                 Rate r = *(std::min_element(c->data().begin(), c->data().end()));
-                return r<0.0 ? Real(r*2.0) : r/2.0;
+                return r < 0.0 ? Real(r * 2.0) : r / 2.0;
             }
             return -detail::maxInflation;
         }
@@ -84,9 +87,10 @@ namespace QuantLib {
                                   bool validData,
                                   Size) // firstAliveHelper
         {
-            if (validData) {
+            if (validData)
+            {
                 Rate r = *(std::max_element(c->data().begin(), c->data().end()));
-                return r<0.0 ? Real(r/2.0) : r*2.0;
+                return r < 0.0 ? Real(r / 2.0) : r * 2.0;
             }
             // no constraints.
             // We choose as max a value very unlikely to be exceeded.
@@ -94,20 +98,21 @@ namespace QuantLib {
         }
 
         // update with new guess
-        static void updateGuess(std::vector<Rate>& data,
-                                Rate level,
-                                Size i) {
+        static void updateGuess(std::vector<Rate>& data, Rate level, Size i)
+        {
             data[i] = level;
-            if (i==1)
+            if (i == 1)
                 data[0] = level; // the first point is updated as well
         }
         // transformation to add constraints to an unconstrained optimization
         template <class C>
-        static Real transformDirect(Real x, Size, const C*) {
+        static Real transformDirect(Real x, Size, const C*)
+        {
             return x;
         }
         template <class C>
-        static Real transformInverse(Real x, Size, const C*) {
+        static Real transformInverse(Real x, Size, const C*)
+        {
             return x;
         }
         // upper bound for convergence loop
@@ -115,20 +120,17 @@ namespace QuantLib {
     };
 
     //! Bootstrap traits to use for PiecewiseYoYInflationCurve
-    class YoYInflationTraits {
+    class YoYInflationTraits
+    {
       public:
         // helper class
         typedef BootstrapHelper<YoYInflationTermStructure> helper;
 
         // start of curve data
-        static Date initialDate(const YoYInflationTermStructure* t) {
-            return t->baseDate();
-        }
+        static Date initialDate(const YoYInflationTermStructure* t) { return t->baseDate(); }
 
         // value at reference date
-        static Rate initialValue(const YoYInflationTermStructure* t) {
-            return t->baseRate();
-        }
+        static Rate initialValue(const YoYInflationTermStructure* t) { return t->baseRate(); }
 
         // guesses
         template <class C>
@@ -150,9 +152,10 @@ namespace QuantLib {
                                   bool validData,
                                   Size) // firstAliveHelper
         {
-            if (validData) {
+            if (validData)
+            {
                 Rate r = *(std::min_element(c->data().begin(), c->data().end()));
-                return r<0.0 ? Real(r*2.0) : r/2.0;
+                return r < 0.0 ? Real(r * 2.0) : r / 2.0;
             }
             return -detail::maxInflation;
         }
@@ -162,9 +165,10 @@ namespace QuantLib {
                                   bool validData,
                                   Size) // firstAliveHelper
         {
-            if (validData) {
+            if (validData)
+            {
                 Rate r = *(std::max_element(c->data().begin(), c->data().end()));
-                return r<0.0 ? Real(r/2.0) : r*2.0;
+                return r < 0.0 ? Real(r / 2.0) : r * 2.0;
             }
             // no constraints.
             // We choose as max a value very unlikely to be exceeded.
@@ -172,18 +176,16 @@ namespace QuantLib {
         }
 
         // update with new guess
-        static void updateGuess(std::vector<Rate>& data,
-                                Rate level,
-                                Size i) {
-            data[i] = level;
-        }
+        static void updateGuess(std::vector<Rate>& data, Rate level, Size i) { data[i] = level; }
         // transformation to add constraints to an unconstrained optimization
         template <class C>
-        static Real transformDirect(Real x, Size, const C*) {
+        static Real transformDirect(Real x, Size, const C*)
+        {
             return x;
         }
         template <class C>
-        static Real transformInverse(Real x, Size, const C*) {
+        static Real transformInverse(Real x, Size, const C*)
+        {
             return x;
         }
         // upper bound for convergence loop

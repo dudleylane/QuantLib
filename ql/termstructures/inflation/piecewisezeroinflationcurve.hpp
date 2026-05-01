@@ -32,62 +32,51 @@
 #include <functional>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Piecewise zero-inflation term structure
     template <class Interpolator,
               template <class> class Bootstrap = IterativeBootstrap,
               class Traits = ZeroInflationTraits>
-    class PiecewiseZeroInflationCurve
-        : public InterpolatedZeroInflationCurve<Interpolator>,
-          public LazyObject {
+    class PiecewiseZeroInflationCurve : public InterpolatedZeroInflationCurve<Interpolator>, public LazyObject
+    {
       private:
         typedef InterpolatedZeroInflationCurve<Interpolator> base_curve;
-        typedef PiecewiseZeroInflationCurve<Interpolator,Bootstrap,Traits>
-                                                                   this_curve;
+        typedef PiecewiseZeroInflationCurve<Interpolator, Bootstrap, Traits> this_curve;
         typedef std::function<Date()> BaseDateFunc;
+
       public:
         typedef Traits traits_type;
         typedef Interpolator interpolator_type;
 
         //! \name Constructors
         //@{
-        PiecewiseZeroInflationCurve(
-            const Date& referenceDate,
-            Date baseDate,
-            Frequency frequency,
-            const DayCounter& dayCounter,
-            std::vector<ext::shared_ptr<typename Traits::helper> > instruments,
-            const ext::shared_ptr<Seasonality>& seasonality = {},
-            Real accuracy = 1.0e-14,
-            const Interpolator& i = Interpolator())
-        : base_curve(referenceDate,
-                     baseDate,
-                     frequency,
-                     dayCounter,
-                     seasonality,
-                     i),
-          instruments_(std::move(instruments)), accuracy_(accuracy) {
+        PiecewiseZeroInflationCurve(const Date& referenceDate,
+                                    Date baseDate,
+                                    Frequency frequency,
+                                    const DayCounter& dayCounter,
+                                    std::vector<ext::shared_ptr<typename Traits::helper>> instruments,
+                                    const ext::shared_ptr<Seasonality>& seasonality = {},
+                                    Real accuracy = 1.0e-14,
+                                    const Interpolator& i = Interpolator())
+        : base_curve(referenceDate, baseDate, frequency, dayCounter, seasonality, i),
+          instruments_(std::move(instruments)), accuracy_(accuracy)
+        {
             bootstrap_.setup(this);
         }
 
-        PiecewiseZeroInflationCurve(
-            const Date& referenceDate,
-            BaseDateFunc baseDateFunc,
-            Frequency frequency,
-            const DayCounter& dayCounter,
-            std::vector<ext::shared_ptr<typename Traits::helper> > instruments,
-            const ext::shared_ptr<Seasonality>& seasonality = {},
-            Real accuracy = 1.0e-14,
-            const Interpolator& i = Interpolator())
-        : base_curve(referenceDate,
-                     Date(),
-                     frequency,
-                     dayCounter,
-                     seasonality,
-                     i),
-          instruments_(std::move(instruments)), accuracy_(accuracy),
-          baseDateFunc_(std::move(baseDateFunc)) {
+        PiecewiseZeroInflationCurve(const Date& referenceDate,
+                                    BaseDateFunc baseDateFunc,
+                                    Frequency frequency,
+                                    const DayCounter& dayCounter,
+                                    std::vector<ext::shared_ptr<typename Traits::helper>> instruments,
+                                    const ext::shared_ptr<Seasonality>& seasonality = {},
+                                    Real accuracy = 1.0e-14,
+                                    const Interpolator& i = Interpolator())
+        : base_curve(referenceDate, Date(), frequency, dayCounter, seasonality, i),
+          instruments_(std::move(instruments)), accuracy_(accuracy), baseDateFunc_(std::move(baseDateFunc))
+        {
             bootstrap_.setup(this);
         }
         //@}
@@ -102,7 +91,7 @@ namespace QuantLib {
         const std::vector<Time>& times() const;
         const std::vector<Date>& dates() const;
         const std::vector<Real>& data() const;
-        std::vector<std::pair<Date, Real> > nodes() const;
+        std::vector<std::pair<Date, Real>> nodes() const;
         //@}
         //! \name Observer interface
         //@{
@@ -113,7 +102,7 @@ namespace QuantLib {
         void performCalculations() const override;
         Rate zeroRateImpl(Time t) const override;
         // data members
-        std::vector<ext::shared_ptr<typename Traits::helper> > instruments_;
+        std::vector<ext::shared_ptr<typename Traits::helper>> instruments_;
         Real accuracy_;
         BaseDateFunc baseDateFunc_;
 
@@ -125,58 +114,66 @@ namespace QuantLib {
     // inline and template definitions
 
     template <class I, template <class> class B, class T>
-    inline Date PiecewiseZeroInflationCurve<I,B,T>::baseDate() const {
+    inline Date PiecewiseZeroInflationCurve<I, B, T>::baseDate() const
+    {
         if (baseDateFunc_)
             this->calculate();
         return base_curve::baseDate();
     }
 
     template <class I, template <class> class B, class T>
-    inline Date PiecewiseZeroInflationCurve<I,B,T>::maxDate() const {
+    inline Date PiecewiseZeroInflationCurve<I, B, T>::maxDate() const
+    {
         this->calculate();
         return base_curve::maxDate();
     }
 
     template <class I, template <class> class B, class T>
-    const std::vector<Time>& PiecewiseZeroInflationCurve<I,B,T>::times() const {
+    const std::vector<Time>& PiecewiseZeroInflationCurve<I, B, T>::times() const
+    {
         calculate();
         return base_curve::times();
     }
 
     template <class I, template <class> class B, class T>
-    const std::vector<Date>& PiecewiseZeroInflationCurve<I,B,T>::dates() const {
+    const std::vector<Date>& PiecewiseZeroInflationCurve<I, B, T>::dates() const
+    {
         calculate();
         return base_curve::dates();
     }
 
     template <class I, template <class> class B, class T>
-    const std::vector<Real>& PiecewiseZeroInflationCurve<I,B,T>::data() const {
+    const std::vector<Real>& PiecewiseZeroInflationCurve<I, B, T>::data() const
+    {
         calculate();
         return base_curve::rates();
     }
 
     template <class I, template <class> class B, class T>
-    std::vector<std::pair<Date, Real> >
-    PiecewiseZeroInflationCurve<I,B,T>::nodes() const {
+    std::vector<std::pair<Date, Real>> PiecewiseZeroInflationCurve<I, B, T>::nodes() const
+    {
         calculate();
         return base_curve::nodes();
     }
 
     template <class I, template <class> class B, class T>
-    void PiecewiseZeroInflationCurve<I,B,T>::performCalculations() const {
+    void PiecewiseZeroInflationCurve<I, B, T>::performCalculations() const
+    {
         if (baseDateFunc_)
             const_cast<this_curve*>(this)->baseDate_ = baseDateFunc_();
         bootstrap_.calculate();
     }
 
     template <class I, template <class> class B, class T>
-    Rate PiecewiseZeroInflationCurve<I,B,T>::zeroRateImpl(Time t) const {
+    Rate PiecewiseZeroInflationCurve<I, B, T>::zeroRateImpl(Time t) const
+    {
         calculate();
         return base_curve::zeroRateImpl(t);
     }
 
-    template <class I, template<class> class B, class T>
-    void PiecewiseZeroInflationCurve<I,B,T>::update() {
+    template <class I, template <class> class B, class T>
+    void PiecewiseZeroInflationCurve<I, B, T>::update()
+    {
         base_curve::update();
         LazyObject::update();
     }

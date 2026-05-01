@@ -25,11 +25,12 @@
 #ifndef quantlib_make_swaption_hpp
 #define quantlib_make_swaption_hpp
 
-#include <ql/time/businessdayconvention.hpp>
 #include <ql/instruments/swaption.hpp>
 #include <ql/optional.hpp>
+#include <ql/time/businessdayconvention.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class SwapIndex;
     class Swap;
@@ -42,18 +43,15 @@ namespace QuantLib {
     /*! This class provides a more comfortable way
         to instantiate standard market swaption.
     */
-    class MakeSwaption {
+    class MakeSwaption
+    {
       public:
-        MakeSwaption(ext::shared_ptr<SwapIndex> swapIndex,
-                     const Period& optionTenor,
-                     Rate strike = Null<Rate>());
+        MakeSwaption(ext::shared_ptr<SwapIndex> swapIndex, const Period& optionTenor, Rate strike = Null<Rate>());
 
-        MakeSwaption(ext::shared_ptr<SwapIndex> swapIndex,
-                     const Date& fixingDate,
-                     Rate strike = Null<Rate>());
+        MakeSwaption(ext::shared_ptr<SwapIndex> swapIndex, const Date& fixingDate, Rate strike = Null<Rate>());
 
         operator Swaption() const;
-        operator ext::shared_ptr<Swaption>() const ;
+        operator ext::shared_ptr<Swaption>() const;
 
         MakeSwaption& withNominal(Real n);
         MakeSwaption& withSettlementType(Settlement::Type delivery);
@@ -65,8 +63,8 @@ namespace QuantLib {
         MakeSwaption& withIndexedCoupons(const ext::optional<bool>& b = true);
         MakeSwaption& withAtParCoupons(bool b = true);
 
-        MakeSwaption& withPricingEngine(
-                              const ext::shared_ptr<PricingEngine>& engine);
+        MakeSwaption& withPricingEngine(const ext::shared_ptr<PricingEngine>& engine);
+
       private:
         ext::shared_ptr<SwapIndex> swapIndex_;
         Settlement::Type delivery_;

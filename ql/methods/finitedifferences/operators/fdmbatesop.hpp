@@ -28,19 +28,20 @@
 #include <ql/methods/finitedifferences/operators/fdmhestonop.hpp>
 #include <ql/methods/finitedifferences/utilities/fdmboundaryconditionset.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class LinearInterpolation;
     class BatesProcess;
-    
-    class FdmBatesOp : public FdmLinearOpComposite {
+
+    class FdmBatesOp : public FdmLinearOpComposite
+    {
       public:
         FdmBatesOp(const ext::shared_ptr<FdmMesher>& mesher,
                    const ext::shared_ptr<BatesProcess>& batesProcess,
                    FdmBoundaryConditionSet bcSet,
                    Size integroIntegrationOrder,
-                   const ext::shared_ptr<FdmQuantoHelper>& quantoHelper =
-                       ext::shared_ptr<FdmQuantoHelper>());
+                   const ext::shared_ptr<FdmQuantoHelper>& quantoHelper = ext::shared_ptr<FdmQuantoHelper>());
 
         Size size() const override;
         void setTime(Time t1, Time t2) override;
@@ -55,64 +56,70 @@ namespace QuantLib {
         std::vector<SparseMatrix> toMatrixDecomp() const override;
 
       private:
-        class IntegroIntegrand {
+        class IntegroIntegrand
+        {
           public:
             IntegroIntegrand(const ext::shared_ptr<LinearInterpolation>& i,
                              const FdmBoundaryConditionSet& bcSet,
-                             Real x, Real delta, Real nu);
+                             Real x,
+                             Real delta,
+                             Real nu);
             Real operator()(Real y) const;
-            
+
           private:
             const Real x_, delta_, nu_;
             const FdmBoundaryConditionSet& bcSet_;
             const ext::shared_ptr<LinearInterpolation>& interpl_;
         };
-          
-        Array integro(const Array& r) const;  
-        
+
+        Array integro(const Array& r) const;
+
         Array x_, weights_;
-        
+
         const Real lambda_, delta_, nu_, m_;
         GaussHermiteIntegration gaussHermiteIntegration_;
-        
+
         const ext::shared_ptr<FdmMesher> mesher_;
         const FdmBoundaryConditionSet bcSet_;
         const ext::shared_ptr<FdmHestonOp> hestonOp_;
     };
 
     // inline
-    inline Size FdmBatesOp::size() const {
+    inline Size FdmBatesOp::size() const
+    {
         return hestonOp_->size();
     }
-    
-    inline void FdmBatesOp::setTime(Time t1, Time t2) {
+
+    inline void FdmBatesOp::setTime(Time t1, Time t2)
+    {
         hestonOp_->setTime(t1, t2);
     }
-    
-    inline Array FdmBatesOp::apply(const Array& r) const {
+
+    inline Array FdmBatesOp::apply(const Array& r) const
+    {
         return hestonOp_->apply(r) + integro(r);
     }
-    
-    inline Array FdmBatesOp::apply_mixed(const Array& r) const {
+
+    inline Array FdmBatesOp::apply_mixed(const Array& r) const
+    {
         return hestonOp_->apply_mixed(r) + integro(r);
     }
 
-    inline Array FdmBatesOp::apply_direction(Size direction,
-                                             const Array& r) const {
+    inline Array FdmBatesOp::apply_direction(Size direction, const Array& r) const
+    {
         return hestonOp_->apply_direction(direction, r);
     }
 
-    inline Array FdmBatesOp::solve_splitting(Size direction,
-                                             const Array& r,
-                                             Real s) const{
+    inline Array FdmBatesOp::solve_splitting(Size direction, const Array& r, Real s) const
+    {
         return hestonOp_->solve_splitting(direction, r, s);
     }
- 
-    inline Array FdmBatesOp::preconditioner(const Array& r,
-                                            Real s) const {
+
+    inline Array FdmBatesOp::preconditioner(const Array& r, Real s) const
+    {
         return hestonOp_->preconditioner(r, s);
     }
-    
+
 }
 
 #endif

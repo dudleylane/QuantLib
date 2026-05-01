@@ -32,7 +32,8 @@
 #include <ql/termstructures/volatility/swaption/swaptionvolstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! One factor Markov Functional model class. Some documentation is
         available here
@@ -96,26 +97,30 @@ namespace QuantLib {
       checkpoints are only used for the debug model output in this setup.
     */
 
-    class MarkovFunctional : public Gaussian1dModel, public CalibratedModel {
+    class MarkovFunctional : public Gaussian1dModel, public CalibratedModel
+    {
 
       public:
-
-        class CustomSmileSection : public SmileSection {
-        public:
-          virtual Real inverseDigitalCall(Real price, Real discount = 1.0) const = 0;
+        class CustomSmileSection : public SmileSection
+        {
+          public:
+            virtual Real inverseDigitalCall(Real price, Real discount = 1.0) const = 0;
         };
 
-        class CustomSmileFactory {
-        public:
-          virtual ~CustomSmileFactory() = default;
-          virtual ext::shared_ptr<CustomSmileSection>
-          smileSection(const ext::shared_ptr<SmileSection>& source, Real atm) const = 0;
+        class CustomSmileFactory
+        {
+          public:
+            virtual ~CustomSmileFactory() = default;
+            virtual ext::shared_ptr<CustomSmileSection> smileSection(const ext::shared_ptr<SmileSection>& source,
+                                                                     Real atm) const = 0;
         };
 
-        struct ModelSettings {
+        struct ModelSettings
+        {
 
             // NoPayoffExtrapolation overrides ExtrapolatePayoffFlat
-            enum Adjustments {
+            enum Adjustments
+            {
                 AdjustNone = 0,
                 AdjustDigitals = 1 << 0,
                 AdjustYts = 1 << 1,
@@ -131,118 +136,118 @@ namespace QuantLib {
 
             ModelSettings() : adjustments_(KahaleSmile | SmileExponentialExtrapolation) {}
 
-            ModelSettings(Size yGridPoints,
-                          Real yStdDevs,
-                          Size gaussHermitePoints,
-                          Real digitalGap,
-                          Real marketRateAccuracy,
-                          Real lowerRateBound,
-                          Real upperRateBound,
-                          int adjustments,
-                          std::vector<Real> smileMoneyCheckpoints = std::vector<Real>(),
-                          ext::shared_ptr<CustomSmileFactory> customSmileFactory =
-                              ext::shared_ptr<CustomSmileFactory>())
-            : yGridPoints_(yGridPoints), yStdDevs_(yStdDevs),
-              gaussHermitePoints_(gaussHermitePoints), digitalGap_(digitalGap),
-              marketRateAccuracy_(marketRateAccuracy), lowerRateBound_(lowerRateBound),
+            ModelSettings(
+                Size yGridPoints,
+                Real yStdDevs,
+                Size gaussHermitePoints,
+                Real digitalGap,
+                Real marketRateAccuracy,
+                Real lowerRateBound,
+                Real upperRateBound,
+                int adjustments,
+                std::vector<Real> smileMoneyCheckpoints = std::vector<Real>(),
+                ext::shared_ptr<CustomSmileFactory> customSmileFactory = ext::shared_ptr<CustomSmileFactory>())
+            : yGridPoints_(yGridPoints), yStdDevs_(yStdDevs), gaussHermitePoints_(gaussHermitePoints),
+              digitalGap_(digitalGap), marketRateAccuracy_(marketRateAccuracy), lowerRateBound_(lowerRateBound),
               upperRateBound_(upperRateBound), adjustments_(adjustments),
               smileMoneynessCheckpoints_(std::move(smileMoneyCheckpoints)),
-              customSmileFactory_(std::move(customSmileFactory)) {}
+              customSmileFactory_(std::move(customSmileFactory))
+            {
+            }
 
-            void validate() {
+            void validate()
+            {
 
                 if ((adjustments_ & KahaleInterpolation) != 0)
                     addAdjustment(KahaleSmile);
 
-                if ((adjustments_ & KahaleSmile) != 0 &&
-                    (adjustments_ & SmileDeleteArbitragePoints) != 0) {
+                if ((adjustments_ & KahaleSmile) != 0 && (adjustments_ & SmileDeleteArbitragePoints) != 0)
+                {
                     addAdjustment(KahaleInterpolation);
                 }
 
-                QL_REQUIRE((adjustments_ & SabrSmile) == 0 ||
-                           (adjustments_ & KahaleSmile) == 0 ||
-                           (adjustments_ & CustomSmile) == 0
-                           ,
+                QL_REQUIRE((adjustments_ & SabrSmile) == 0 || (adjustments_ & KahaleSmile) == 0 ||
+                               (adjustments_ & CustomSmile) == 0,
                            "Only one of KahaleSmile, SabrSmile and CustomSmile"
                            "can be specified at the same time");
-                QL_REQUIRE(yGridPoints_ > 0, "At least one grid point ("
-                                                 << yGridPoints_
-                                                 << ") for the state process "
-                                                    "discretization must be "
-                                                    "given");
-                QL_REQUIRE(yStdDevs_ > 0.0,
-                           "Multiple of standard deviations covered by state "
-                           "process discretization ("
-                               << yStdDevs_ << ") must be positive");
-                QL_REQUIRE(gaussHermitePoints_ > 0,
-                           "Number of gauss hermite integration points ("
-                               << gaussHermitePoints_ << ") must be positive");
-                QL_REQUIRE(digitalGap_ > 0.0, "Digital gap ("
-                                                  << digitalGap_
-                                                  << ") must be positive");
+                QL_REQUIRE(yGridPoints_ > 0, "At least one grid point (" << yGridPoints_
+                                                                         << ") for the state process "
+                                                                            "discretization must be "
+                                                                            "given");
+                QL_REQUIRE(yStdDevs_ > 0.0, "Multiple of standard deviations covered by state "
+                                            "process discretization ("
+                                                << yStdDevs_ << ") must be positive");
+                QL_REQUIRE(gaussHermitePoints_ > 0, "Number of gauss hermite integration points ("
+                                                        << gaussHermitePoints_ << ") must be positive");
+                QL_REQUIRE(digitalGap_ > 0.0, "Digital gap (" << digitalGap_ << ") must be positive");
                 QL_REQUIRE(marketRateAccuracy_ > 0.0,
-                           "Market rate accuracy (" << marketRateAccuracy_
-                                                    << ") must be positive");
-                QL_REQUIRE(
-                    (adjustments_ & KahaleSmile) == 0 || lowerRateBound_ == 0.0,
-                    "If Kahale extrapolation is used, the lower rate bound ("
-                        << lowerRateBound_ << ") must be zero.");
-                QL_REQUIRE(
-                    lowerRateBound_ < upperRateBound_,
-                    "Lower rate bound ("
-                        << lowerRateBound_
-                        << ") must be strictly less than upper rate bound ("
-                        << upperRateBound_ << ")");
-                QL_REQUIRE(((adjustments_ & CustomSmile) == 0) ||
-                           customSmileFactory_,
-                           "missing CustomSmileFactoy");
+                           "Market rate accuracy (" << marketRateAccuracy_ << ") must be positive");
+                QL_REQUIRE((adjustments_ & KahaleSmile) == 0 || lowerRateBound_ == 0.0,
+                           "If Kahale extrapolation is used, the lower rate bound (" << lowerRateBound_
+                                                                                     << ") must be zero.");
+                QL_REQUIRE(lowerRateBound_ < upperRateBound_,
+                           "Lower rate bound (" << lowerRateBound_ << ") must be strictly less than upper rate bound ("
+                                                << upperRateBound_ << ")");
+                QL_REQUIRE(((adjustments_ & CustomSmile) == 0) || customSmileFactory_, "missing CustomSmileFactoy");
             }
 
-            ModelSettings &withYGridPoints(Size n) {
+            ModelSettings& withYGridPoints(Size n)
+            {
                 yGridPoints_ = n;
                 return *this;
             }
-            ModelSettings &withYStdDevs(Real s) {
+            ModelSettings& withYStdDevs(Real s)
+            {
                 yStdDevs_ = s;
                 return *this;
             }
-            ModelSettings &withGaussHermitePoints(Size n) {
+            ModelSettings& withGaussHermitePoints(Size n)
+            {
                 gaussHermitePoints_ = n;
                 return *this;
             }
-            ModelSettings &withDigitalGap(Real d) {
+            ModelSettings& withDigitalGap(Real d)
+            {
                 digitalGap_ = d;
                 return *this;
             }
-            ModelSettings &withMarketRateAccuracy(Real a) {
+            ModelSettings& withMarketRateAccuracy(Real a)
+            {
                 marketRateAccuracy_ = a;
                 return *this;
             }
-            ModelSettings &withUpperRateBound(Real u) {
+            ModelSettings& withUpperRateBound(Real u)
+            {
                 upperRateBound_ = u;
                 return *this;
             }
-            ModelSettings &withLowerRateBound(Real l) {
+            ModelSettings& withLowerRateBound(Real l)
+            {
                 lowerRateBound_ = l;
                 return *this;
             }
-            ModelSettings &withAdjustments(int a) {
+            ModelSettings& withAdjustments(int a)
+            {
                 adjustments_ = a;
                 return *this;
             }
-            ModelSettings &addAdjustment(int a) {
+            ModelSettings& addAdjustment(int a)
+            {
                 adjustments_ |= a;
                 return *this;
             }
-            ModelSettings &removeAdjustment(int a) {
+            ModelSettings& removeAdjustment(int a)
+            {
                 adjustments_ &= ~a;
                 return *this;
             }
-            ModelSettings &withSmileMoneynessCheckpoints(const std::vector<Real>& m) {
+            ModelSettings& withSmileMoneynessCheckpoints(const std::vector<Real>& m)
+            {
                 smileMoneynessCheckpoints_ = m;
                 return *this;
             }
-            ModelSettings &withCustomSmileFactory(const ext::shared_ptr<CustomSmileFactory>& f) {
+            ModelSettings& withCustomSmileFactory(const ext::shared_ptr<CustomSmileFactory>& f)
+            {
                 customSmileFactory_ = f;
                 return *this;
             }
@@ -257,7 +262,8 @@ namespace QuantLib {
             ext::shared_ptr<CustomSmileFactory> customSmileFactory_;
         };
 
-        struct CalibrationPoint {
+        struct CalibrationPoint
+        {
             bool isCaplet_;
             Period tenor_;
             std::vector<Date> paymentDates_;
@@ -270,16 +276,17 @@ namespace QuantLib {
             Real maxRateDigital_ = Null<Real>();
         };
 
-// utility macro to write messages to the model outputs
+        // utility macro to write messages to the model outputs
 
-#define QL_MFMESSAGE(o, message)                                               \
-    {                                                                          \
-        std::ostringstream os;                                                 \
-        os << message;                                                         \
-        o.messages_.push_back(os.str());                                       \
+#define QL_MFMESSAGE(o, message)         \
+    {                                    \
+        std::ostringstream os;           \
+        os << message;                   \
+        o.messages_.push_back(os.str()); \
     }
 
-        struct ModelOutputs {
+        struct ModelOutputs
+        {
             bool dirty_;
             ModelSettings settings_;
             std::vector<Date> expiries_;
@@ -289,14 +296,14 @@ namespace QuantLib {
             std::vector<Real> adjustmentFactors_;
             std::vector<Real> digitalsAdjustmentFactors_;
             std::vector<std::string> messages_;
-            std::vector<std::vector<Real> > smileStrikes_;
-            std::vector<std::vector<Real> > marketRawCallPremium_;
-            std::vector<std::vector<Real> > marketRawPutPremium_;
-            std::vector<std::vector<Real> > marketCallPremium_;
-            std::vector<std::vector<Real> > marketPutPremium_;
-            std::vector<std::vector<Real> > modelCallPremium_;
-            std::vector<std::vector<Real> > modelPutPremium_;
-            std::vector<std::vector<Real> > marketVega_;
+            std::vector<std::vector<Real>> smileStrikes_;
+            std::vector<std::vector<Real>> marketRawCallPremium_;
+            std::vector<std::vector<Real>> marketRawPutPremium_;
+            std::vector<std::vector<Real>> marketCallPremium_;
+            std::vector<std::vector<Real>> marketPutPremium_;
+            std::vector<std::vector<Real>> modelCallPremium_;
+            std::vector<std::vector<Real>> modelPutPremium_;
+            std::vector<std::vector<Real>> marketVega_;
             std::vector<Real> marketZerorate_;
             std::vector<Real> modelZerorate_;
         };
@@ -322,51 +329,69 @@ namespace QuantLib {
                          ext::shared_ptr<IborIndex> iborIndex,
                          MarkovFunctional::ModelSettings modelSettings = ModelSettings());
 
-        const ModelSettings &modelSettings() const { return modelSettings_; }
-        const ModelOutputs &modelOutputs() const;
+        const ModelSettings& modelSettings() const
+        {
+            return modelSettings_;
+        }
+        const ModelOutputs& modelOutputs() const;
 
-        const Date &numeraireDate() const { return numeraireDate_; }
-        const Time &numeraireTime() const { return numeraireTime_; }
-
-        const Array &volatility() const { return sigma_.params(); }
-
-        void calibrate(const std::vector<ext::shared_ptr<CalibrationHelper> >& helpers,
-                       OptimizationMethod& method,
-                       const EndCriteria& endCriteria,
-                       const Constraint& constraint = Constraint(),
-                       const std::vector<Real>& weights = std::vector<Real>(),
-                       const std::vector<bool>& fixParameters = std::vector<bool>()) override {
-
-            CalibratedModel::calibrate(helpers, method, endCriteria, constraint, weights,
-                                       fixParameters.empty() ? FixedFirstVolatility() :
-                                                               fixParameters);
+        const Date& numeraireDate() const
+        {
+            return numeraireDate_;
+        }
+        const Time& numeraireTime() const
+        {
+            return numeraireTime_;
         }
 
-        void calibrate(const std::vector<ext::shared_ptr<BlackCalibrationHelper> >& helpers,
+        const Array& volatility() const
+        {
+            return sigma_.params();
+        }
+
+        void calibrate(const std::vector<ext::shared_ptr<CalibrationHelper>>& helpers,
                        OptimizationMethod& method,
                        const EndCriteria& endCriteria,
                        const Constraint& constraint = Constraint(),
                        const std::vector<Real>& weights = std::vector<Real>(),
-                       const std::vector<bool>& fixParameters = std::vector<bool>()) {
+                       const std::vector<bool>& fixParameters = std::vector<bool>()) override
+        {
 
-            std::vector<ext::shared_ptr<CalibrationHelper> > tmp(helpers.size());
-            for (Size i=0; i<helpers.size(); ++i)
+            CalibratedModel::calibrate(helpers, method, endCriteria, constraint, weights,
+                                       fixParameters.empty() ? FixedFirstVolatility() : fixParameters);
+        }
+
+        void calibrate(const std::vector<ext::shared_ptr<BlackCalibrationHelper>>& helpers,
+                       OptimizationMethod& method,
+                       const EndCriteria& endCriteria,
+                       const Constraint& constraint = Constraint(),
+                       const std::vector<Real>& weights = std::vector<Real>(),
+                       const std::vector<bool>& fixParameters = std::vector<bool>())
+        {
+
+            std::vector<ext::shared_ptr<CalibrationHelper>> tmp(helpers.size());
+            for (Size i = 0; i < helpers.size(); ++i)
                 tmp[i] = ext::static_pointer_cast<CalibrationHelper>(helpers[i]);
 
             calibrate(tmp, method, endCriteria, constraint, weights, fixParameters);
         }
 
-        void update() override { LazyObject::update(); }
+        void update() override
+        {
+            LazyObject::update();
+        }
 
         // returns the indices of the af region from the last smile update
-        std::vector<std::pair<Size, Size> > arbitrageIndices() const {
+        std::vector<std::pair<Size, Size>> arbitrageIndices() const
+        {
             calculate();
             return arbitrageIndices_;
         }
 
         // forces the indices of the af region (useful for sensitivity calculation)
         // if an empty vector is given, the dynamic calculation is used again
-        void forceArbitrageIndices(const std::vector<std::pair<Size,Size> >& indices) {
+        void forceArbitrageIndices(const std::vector<std::pair<Size, Size>>& indices)
+        {
             forcedArbitrageIndices_ = indices;
             this->update();
         }
@@ -374,33 +399,34 @@ namespace QuantLib {
       protected:
         Real numeraireImpl(Time t, Real y, const Handle<YieldTermStructure>& yts) const override;
 
-        Real
-        zerobondImpl(Time T, Time t, Real y, const Handle<YieldTermStructure>& yts) const override;
+        Real zerobondImpl(Time T, Time t, Real y, const Handle<YieldTermStructure>& yts) const override;
 
-        void generateArguments() override {
+        void generateArguments() override
+        {
             ext::static_pointer_cast<MfStateProcess>(stateProcess_)->setVols(sigma_.params());
-            if(isCalculated())
+            if (isCalculated())
                 updateNumeraireTabulation();
             else
                 calculate();
             notifyObservers();
         }
 
-        void performCalculations() const override {
+        void performCalculations() const override
+        {
             Gaussian1dModel::performCalculations();
             updateTimes();
             updateSmiles();
             updateNumeraireTabulation();
         }
 
-        std::vector<bool> FixedFirstVolatility() const {
+        std::vector<bool> FixedFirstVolatility() const
+        {
             std::vector<bool> c(volatilities_.size(), false);
             c[0] = true;
             return c;
         }
 
       private:
-
         void initialize();
         void updateTimes() const;
         void updateTimes1() const;
@@ -409,19 +435,16 @@ namespace QuantLib {
         void updateSmiles() const;
         void updateNumeraireTabulation() const;
 
-        void makeSwaptionCalibrationPoint(const Date &expiry,
-                                          const Period &tenor);
-        void makeCapletCalibrationPoint(const Date &expiry);
+        void makeSwaptionCalibrationPoint(const Date& expiry, const Period& tenor);
+        void makeCapletCalibrationPoint(const Date& expiry);
 
         Real marketSwapRate(const Date& expiry,
                             const CalibrationPoint& p,
                             Real digitalPrice,
                             Real guess = 0.03,
                             Real shift = 0.0) const;
-        Real marketDigitalPrice(const Date& expiry,
-                                const CalibrationPoint& p,
-                                const Option::Type& type,
-                                Real strike) const;
+        Real
+        marketDigitalPrice(const Date& expiry, const CalibrationPoint& p, const Option::Type& type, Real strike) const;
 
         Array deflatedZerobondArray(Time T, Time t, const Array& y) const;
         Array numeraireArray(Time t, const Array& y) const;
@@ -435,63 +458,62 @@ namespace QuantLib {
         // calibration there is on direct way to use the usual pricing engines
         // for this purpose
 
-        Real forwardRateInternal(
-            const Date& fixing,
-            const Date& referenceDate = Date(),
-            Real y = 0.0,
-            bool zeroFixingDays = false,
-            ext::shared_ptr<IborIndex> iborIdx = ext::shared_ptr<IborIndex>()) const;
+        Real forwardRateInternal(const Date& fixing,
+                                 const Date& referenceDate = Date(),
+                                 Real y = 0.0,
+                                 bool zeroFixingDays = false,
+                                 ext::shared_ptr<IborIndex> iborIdx = ext::shared_ptr<IborIndex>()) const;
 
-        Real
-        swapRateInternal(const Date& fixing,
-                         const Period& tenor,
-                         const Date& referenceDate = Date(),
-                         Real y = 0.0,
-                         bool zeroFixingDays = false,
-                         ext::shared_ptr<SwapIndex> swapIdx = ext::shared_ptr<SwapIndex>()) const;
+        Real swapRateInternal(const Date& fixing,
+                              const Period& tenor,
+                              const Date& referenceDate = Date(),
+                              Real y = 0.0,
+                              bool zeroFixingDays = false,
+                              ext::shared_ptr<SwapIndex> swapIdx = ext::shared_ptr<SwapIndex>()) const;
 
-        Real swapAnnuityInternal(
-            const Date& fixing,
-            const Period& tenor,
-            const Date& referenceDate = Date(),
-            Real y = 0.0,
-            bool zeroFixingDays = false,
-            ext::shared_ptr<SwapIndex> swapIdx = ext::shared_ptr<SwapIndex>()) const;
+        Real swapAnnuityInternal(const Date& fixing,
+                                 const Period& tenor,
+                                 const Date& referenceDate = Date(),
+                                 Real y = 0.0,
+                                 bool zeroFixingDays = false,
+                                 ext::shared_ptr<SwapIndex> swapIdx = ext::shared_ptr<SwapIndex>()) const;
 
-        Real capletPriceInternal(
-            const Option::Type& type,
-            const Date& expiry,
-            Rate strike,
-            const Date& referenceDate = Date(),
-            Real y = 0.0,
-            bool zeroFixingDays = false,
-            ext::shared_ptr<IborIndex> iborIdx = ext::shared_ptr<IborIndex>()) const;
+        Real capletPriceInternal(const Option::Type& type,
+                                 const Date& expiry,
+                                 Rate strike,
+                                 const Date& referenceDate = Date(),
+                                 Real y = 0.0,
+                                 bool zeroFixingDays = false,
+                                 ext::shared_ptr<IborIndex> iborIdx = ext::shared_ptr<IborIndex>()) const;
 
-        Real swaptionPriceInternal(
-            const Option::Type& type,
-            const Date& expiry,
-            const Period& tenor,
-            Rate strike,
-            const Date& referenceDate = Date(),
-            Real y = 0.0,
-            bool zeroFixingDays = false,
-            const ext::shared_ptr<SwapIndex>& swapIdx = ext::shared_ptr<SwapIndex>()) const;
+        Real swaptionPriceInternal(const Option::Type& type,
+                                   const Date& expiry,
+                                   const Period& tenor,
+                                   Rate strike,
+                                   const Date& referenceDate = Date(),
+                                   Real y = 0.0,
+                                   bool zeroFixingDays = false,
+                                   const ext::shared_ptr<SwapIndex>& swapIdx = ext::shared_ptr<SwapIndex>()) const;
 
-        class ZeroHelper {
+        class ZeroHelper
+        {
           public:
-            ZeroHelper(const MarkovFunctional *model, const Date &expiry,
-                       const CalibrationPoint &p, const Real marketPrice)
-                : model_(model), marketPrice_(marketPrice), expiry_(expiry),
-                  p_(p) {}
-            Real operator()(Real strike) const {
-                Real modelPrice = model_->marketDigitalPrice(
-                    expiry_, p_, Option::Call, strike);
+            ZeroHelper(const MarkovFunctional* model,
+                       const Date& expiry,
+                       const CalibrationPoint& p,
+                       const Real marketPrice)
+            : model_(model), marketPrice_(marketPrice), expiry_(expiry), p_(p)
+            {
+            }
+            Real operator()(Real strike) const
+            {
+                Real modelPrice = model_->marketDigitalPrice(expiry_, p_, Option::Call, strike);
                 return modelPrice - marketPrice_;
             };
-            const MarkovFunctional *model_;
+            const MarkovFunctional* model_;
             const Real marketPrice_;
-            const Date &expiry_;
-            const CalibrationPoint &p_;
+            const Date& expiry_;
+            const CalibrationPoint& p_;
         };
 
         ModelSettings modelSettings_;
@@ -502,15 +524,15 @@ namespace QuantLib {
         ext::shared_ptr<Matrix> discreteNumeraire_;
         // vector of interpolated numeraires in y direction for all calibration
         // times
-        std::vector<ext::shared_ptr<Interpolation> > numeraire_;
+        std::vector<ext::shared_ptr<Interpolation>> numeraire_;
 
         Parameter reversion_;
-        Parameter &sigma_;
+        Parameter& sigma_;
 
         std::vector<Date> volstepdates_;
         mutable std::vector<Time> volsteptimes_;
         mutable Array volsteptimesArray_; // FIXME this is redundant (just a copy of
-                                  // volsteptimes_)
+                                          // volsteptimes_)
         std::vector<Real> volatilities_;
 
         Date numeraireDate_;
@@ -531,12 +553,11 @@ namespace QuantLib {
         Array normalIntegralX_;
         Array normalIntegralW_;
 
-        mutable std::vector<std::pair<Size,Size> > arbitrageIndices_;
-        std::vector<std::pair<Size,Size> > forcedArbitrageIndices_;
+        mutable std::vector<std::pair<Size, Size>> arbitrageIndices_;
+        std::vector<std::pair<Size, Size>> forcedArbitrageIndices_;
     };
 
-    std::ostream &operator<<(std::ostream &out,
-                             const MarkovFunctional::ModelOutputs &m);
+    std::ostream& operator<<(std::ostream& out, const MarkovFunctional::ModelOutputs& m);
 }
 
 #endif

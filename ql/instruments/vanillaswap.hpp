@@ -27,11 +27,12 @@
 #define quantlib_vanilla_swap_hpp
 
 #include <ql/instruments/fixedvsfloatingswap.hpp>
+#include <ql/optional.hpp>
 #include <ql/time/daycounter.hpp>
 #include <ql/time/schedule.hpp>
-#include <ql/optional.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class IborIndex;
 
@@ -62,7 +63,8 @@ namespace QuantLib {
         - the correctness of the returned value is tested by checking
           it against a known good value.
     */
-    class VanillaSwap : public FixedVsFloatingSwap {
+    class VanillaSwap : public FixedVsFloatingSwap
+    {
       public:
         VanillaSwap(Type type,
                     Real nominal,

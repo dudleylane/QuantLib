@@ -42,49 +42,45 @@
 #include <ql/version.hpp>
 
 #ifdef QL_ENABLE_PARALLEL_UNIT_TEST_RUNNER
-#if BOOST_VERSION >= 108800
-#include <boost/process/v1/system.hpp>
-#include <boost/process/v1/args.hpp>
+#    if BOOST_VERSION >= 108800
+#        include <boost/process/v1/args.hpp>
+#        include <boost/process/v1/system.hpp>
 namespace bp = boost::process::v1;
-#else
-#include <boost/process.hpp>
+#    else
+#        include <boost/process.hpp>
 namespace bp = boost::process;
-#endif
-#include <boost/interprocess/ipc/message_queue.hpp>
+#    endif
+#    include <boost/interprocess/ipc/message_queue.hpp>
 #endif
 
 #define BOOST_TEST_NO_MAIN
 #define BOOST_TEST_ALTERNATIVE_INIT_API
-#include <boost/test/included/unit_test.hpp>
-
 #include <boost/algorithm/string.hpp>
 #include <boost/numeric/conversion/cast.hpp>
-#include <boost/test/unit_test_suite.hpp>
 #include <boost/test/framework.hpp>
-
+#include <boost/test/included/unit_test.hpp>
+#include <boost/test/unit_test_suite.hpp>
+#include <chrono>
 #include <iomanip>
 #include <iostream>
+#include <string>
+#include <thread>
 #include <utility>
 #include <vector>
-#include <string>
-#include <chrono>
-#include <thread>
-
 
 
 /* Use BOOST_MSVC instead of _MSC_VER since some other vendors (Metrowerks,
    for example) also #define _MSC_VER
 */
 #if !defined(BOOST_ALL_NO_LIB) && defined(BOOST_MSVC)
-#  include <ql/auto_link.hpp>
+#    include <ql/auto_link.hpp>
 #endif
 
 #include "utilities.hpp"
 
 
-
-
-namespace {
+namespace
+{
 
     /**
      * A class representing an individual benchmark.  Each benchmark is one of the QuantLib
@@ -115,79 +111,88 @@ namespace {
      */
     class Benchmark
     {
-        public:
-            template<class CALLABLE>
-                Benchmark(
-                        std::string name,               // the test name, as known by boost::unit_test::test_unit
-                        CALLABLE &&body,                // the "body" of the test we want to run
-                        double cost                     // how expensive (runtime) this test is relative to others
-                        )
-                : name_(std::move(name)),  cost_(cost),  testBody_(std::forward<CALLABLE>(body)) {}
+      public:
+        template <class CALLABLE>
+        Benchmark(std::string name, // the test name, as known by boost::unit_test::test_unit
+                  CALLABLE&& body,  // the "body" of the test we want to run
+                  double cost       // how expensive (runtime) this test is relative to others
+                  )
+        : name_(std::move(name)), cost_(cost), testBody_(std::forward<CALLABLE>(body))
+        {
+        }
 
-            Benchmark(const Benchmark& copy) = default;
-            Benchmark(Benchmark&& move) = default;
-            Benchmark& operator=(const Benchmark &other) = default;
-            Benchmark& operator=(Benchmark &&other) = default;
-            ~Benchmark() = default;
+        Benchmark(const Benchmark& copy) = default;
+        Benchmark(Benchmark&& move) = default;
+        Benchmark& operator=(const Benchmark& other) = default;
+        Benchmark& operator=(Benchmark&& other) = default;
+        ~Benchmark() = default;
 
-            double getCost() const          { return cost_; }
-            std::string getName() const     { return name_; }
-            bool foundTestUnit() const      { return test_ != nullptr; }
-            // Total runtime across multiple runs is manually accumulated into the class
-            double& getTotalRuntime()       { return totalRuntime_; }
-            const double& getTotalRuntime() const { return totalRuntime_; }
-            void setTestUnit(const boost::unit_test::test_unit * unit) { test_ = unit; }
+        double getCost() const { return cost_; }
+        std::string getName() const { return name_; }
+        bool foundTestUnit() const { return test_ != nullptr; }
+        // Total runtime across multiple runs is manually accumulated into the class
+        double& getTotalRuntime() { return totalRuntime_; }
+        const double& getTotalRuntime() const { return totalRuntime_; }
+        void setTestUnit(const boost::unit_test::test_unit* unit) { test_ = unit; }
 
 
-            // Run the underlying QuantLib test exactly once using the Boost test framework
-            // This will check all results and will flag any errors that are found.  It is much
-            // slower than running just the test body outside of the Boost framework
-            double runValidation() const
+        // Run the underlying QuantLib test exactly once using the Boost test framework
+        // This will check all results and will flag any errors that are found.  It is much
+        // slower than running just the test body outside of the Boost framework
+        double runValidation() const
+        {
+            double time = -1.0;
+            try
             {
-                double time = -1.0;
-                try {
-                    auto startTime = std::chrono::steady_clock::now();
-                    boost::unit_test::framework::run(test_, false);
-                    auto stopTime = std::chrono::steady_clock::now();
-                    time = std::chrono::duration_cast<std::chrono::microseconds>(stopTime - startTime).count() * 1e-6;
-                }
-                catch(const std::exception &e) {
-                    std::cerr << "error: caught exception in benchmark " << getName() << "\n"
-                        << "message: " << e.what() << "\n" << std::endl;
-                }
-                catch(...) {
-                    std::cerr << "error: caught unknown exception in benchmark " << getName() << std::endl;
-                }
-                return time;
+                auto startTime = std::chrono::steady_clock::now();
+                boost::unit_test::framework::run(test_, false);
+                auto stopTime = std::chrono::steady_clock::now();
+                time = std::chrono::duration_cast<std::chrono::microseconds>(stopTime - startTime).count() * 1e-6;
             }
-
-            // Directly run the body of the underlying QuantLib test (multiple times) without using the Boost
-            // test framework. This eliminates all the boost overhead, but also disables all results checking.
-            double runBenchmark() const
+            catch (const std::exception& e)
             {
-                double time = -1.0;
-                try {
-                    auto startTime = std::chrono::steady_clock::now();
-                    testBody_();
-                    auto stopTime = std::chrono::steady_clock::now();
-                    time = std::chrono::duration_cast<std::chrono::microseconds>(stopTime - startTime).count() * 1e-6;
-                }
-                catch(const std::exception &e) {
-                    std::cerr << "Error: caught exception in benchmark " << getName() << "\n"
-                        << "Message: " << e.what() << "\n" << std::endl;
-                }
-                catch(...) {
-                    std::cerr << "Error: caught unknown exception in benchmark " << getName() << std::endl;
-                }
-                return time;
+                std::cerr << "error: caught exception in benchmark " << getName() << "\n"
+                          << "message: " << e.what() << "\n"
+                          << std::endl;
             }
+            catch (...)
+            {
+                std::cerr << "error: caught unknown exception in benchmark " << getName() << std::endl;
+            }
+            return time;
+        }
 
-        private:
-            std::string name_;
-            const boost::unit_test::test_unit * test_ = nullptr;
-            double cost_;
-            double totalRuntime_ = 0;
-            std::function<void(void)> testBody_;
+        // Directly run the body of the underlying QuantLib test (multiple times) without using the Boost
+        // test framework. This eliminates all the boost overhead, but also disables all results checking.
+        double runBenchmark() const
+        {
+            double time = -1.0;
+            try
+            {
+                auto startTime = std::chrono::steady_clock::now();
+                testBody_();
+                auto stopTime = std::chrono::steady_clock::now();
+                time = std::chrono::duration_cast<std::chrono::microseconds>(stopTime - startTime).count() * 1e-6;
+            }
+            catch (const std::exception& e)
+            {
+                std::cerr << "Error: caught exception in benchmark " << getName() << "\n"
+                          << "Message: " << e.what() << "\n"
+                          << std::endl;
+            }
+            catch (...)
+            {
+                std::cerr << "Error: caught unknown exception in benchmark " << getName() << std::endl;
+            }
+            return time;
+        }
+
+      private:
+        std::string name_;
+        const boost::unit_test::test_unit* test_ = nullptr;
+        double cost_;
+        double totalRuntime_ = 0;
+        std::function<void(void)> testBody_;
     };
 
 
@@ -200,28 +205,24 @@ namespace {
      */
     struct BenchmarkResult : public boost::unit_test::test_observer
     {
-        public:
-            BenchmarkResult()  {
-                boost::unit_test::framework::register_observer(*this);
-            }
-            ~BenchmarkResult() override {
-                boost::unit_test::framework::deregister_observer(*this);
-            }
-            BenchmarkResult(const BenchmarkResult&) = delete;
-            BenchmarkResult(BenchmarkResult&&) = delete;
-            BenchmarkResult& operator=(const BenchmarkResult &) = delete;
-            BenchmarkResult& operator=(BenchmarkResult &&) = delete;
+      public:
+        BenchmarkResult() { boost::unit_test::framework::register_observer(*this); }
+        ~BenchmarkResult() override { boost::unit_test::framework::deregister_observer(*this); }
+        BenchmarkResult(const BenchmarkResult&) = delete;
+        BenchmarkResult(BenchmarkResult&&) = delete;
+        BenchmarkResult& operator=(const BenchmarkResult&) = delete;
+        BenchmarkResult& operator=(BenchmarkResult&&) = delete;
 
 
-            void assertion_result( boost::unit_test::assertion_result  ar ) override
-            {
-                passed_ = passed_ && (ar == boost::unit_test::AR_PASSED);
-            }
-            bool pass() const { return passed_; }
-            void reset() { passed_ = true; }
+        void assertion_result(boost::unit_test::assertion_result ar) override
+        {
+            passed_ = passed_ && (ar == boost::unit_test::AR_PASSED);
+        }
+        bool pass() const { return passed_; }
+        void reset() { passed_ = true; }
 
-        private:
-            bool passed_ = true;
+      private:
+        bool passed_ = true;
     };
 
 
@@ -231,58 +232,61 @@ namespace {
      * */
     class TestUnitFinder : public boost::unit_test::test_tree_visitor
     {
-        private:
-            TestUnitFinder(std::vector<Benchmark> & bm) : bm_(bm) {}
+      private:
+        TestUnitFinder(std::vector<Benchmark>& bm) : bm_(bm) {}
 
-            // Utility method needed for initialising the Boost test framework
-            static bool init_unit_test_suite() { return true; }
+        // Utility method needed for initialising the Boost test framework
+        static bool init_unit_test_suite() { return true; }
 
-        public:
-            bool visit(const boost::unit_test::test_unit & tu) override
+      public:
+        bool visit(const boost::unit_test::test_unit& tu) override
+        {
+            const std::string& thisTest = tu.full_name();
+            // Try find this in the bm array.  We know every test name sill start with
+            //   "QuantLibTests/"  which contains 14 characters
+            for (auto& b : bm_)
             {
-                const std::string& thisTest = tu.full_name();
-                // Try find this in the bm array.  We know every test name sill start with
-                //   "QuantLibTests/"  which contains 14 characters
-                for(auto &b : bm_ ) {
-                    if( thisTest.find( b.getName(), 14) != std::string::npos ) {
-                        // We have a match
-                        b.setTestUnit( &tu );
-                    }
-                }
-                // Continue visiting
-                return true;
-            }
-
-
-            // Find the corresponding Boost test_unit for each Benchmark
-            // If we can't find a test_unit, throw an exception
-            static void findAllTests(char** argv, std::vector<Benchmark> &bm)
-            {
-                boost::unit_test::framework::init(TestUnitFinder::init_unit_test_suite, 1, argv);
-                boost::unit_test_framework::framework::finalize_setup_phase();
-
-                TestUnitFinder tuf(bm);
-                boost::unit_test::traverse_test_tree(boost::unit_test_framework::framework::master_test_suite(), tuf, true);
-
-                // Now check that we've found all test units
-                for(const auto &b : bm)  {
-                    if( !b.foundTestUnit() ) {
-                        std::string msg = "Unable to find the Boost test unit for Benchmark '";
-                        msg += b.getName();
-                        msg += "'";
-                        throw std::runtime_error(msg);
-                    }
+                if (thisTest.find(b.getName(), 14) != std::string::npos)
+                {
+                    // We have a match
+                    b.setTestUnit(&tu);
                 }
             }
+            // Continue visiting
+            return true;
+        }
 
-        private:
-            std::vector<Benchmark> & bm_;
+
+        // Find the corresponding Boost test_unit for each Benchmark
+        // If we can't find a test_unit, throw an exception
+        static void findAllTests(char** argv, std::vector<Benchmark>& bm)
+        {
+            boost::unit_test::framework::init(TestUnitFinder::init_unit_test_suite, 1, argv);
+            boost::unit_test_framework::framework::finalize_setup_phase();
+
+            TestUnitFinder tuf(bm);
+            boost::unit_test::traverse_test_tree(boost::unit_test_framework::framework::master_test_suite(), tuf, true);
+
+            // Now check that we've found all test units
+            for (const auto& b : bm)
+            {
+                if (!b.foundTestUnit())
+                {
+                    std::string msg = "Unable to find the Boost test unit for Benchmark '";
+                    msg += b.getName();
+                    msg += "'";
+                    throw std::runtime_error(msg);
+                }
+            }
+        }
+
+      private:
+        std::vector<Benchmark>& bm_;
     };
 
 
     // The container holding all the benchmarks we will run
     std::vector<Benchmark> bm;
-
 
 
     /**
@@ -292,25 +296,32 @@ namespace {
     {
         // Verbosity level and a logging macro to help debugging
         static int verbose;
-#define LOG_MESSAGE(...)  if(BenchmarkSupport::verbose >= 3) { std::cout << __VA_ARGS__ << std::endl; }
+#define LOG_MESSAGE(...)                       \
+    if (BenchmarkSupport::verbose >= 3)        \
+    {                                          \
+        std::cout << __VA_ARGS__ << std::endl; \
+    }
 
 
         // The set of pre-defined benchmark sizes that we support
-        static const std::vector< std::pair<std::string, unsigned int> > bmSizes;
+        static const std::vector<std::pair<std::string, unsigned int>> bmSizes;
 
         // Turn a command line '--size=<value>' string into a benchmark size
-        static unsigned int parseBmSize(const std::string &size)
+        static unsigned int parseBmSize(const std::string& size)
         {
-            for(const auto & p : bmSizes) {
-                if(p.first == size)
+            for (const auto& p : bmSizes)
+            {
+                if (p.first == size)
                     return p.second;
             }
             // OK - it's not a preset size, let's see if it's parsable as an integer
-            try {
+            try
+            {
                 unsigned int sz = std::stoul(size);
                 return sz;
             }
-            catch(const std::exception &e) {
+            catch (const std::exception& e)
+            {
                 // Unable to convert to integer.  Abort
                 std::cerr << "Error: INVALID BENCHMARK RUN\n";
                 std::cerr << "Invalid custom benchmark size specified, unable to convert to an integer\n";
@@ -322,8 +333,9 @@ namespace {
         // Turn a benchmark size into a string for printing
         static std::string bmSizeAsString(unsigned int size)
         {
-            for(const auto& p : bmSizes) {
-                if(p.second == size)
+            for (const auto& p : bmSizes)
+            {
+                if (p.second == size)
                     return p.first;
             }
             // Not a preset size
@@ -331,14 +343,14 @@ namespace {
         }
 
 
-        static void printGreeting(const std::string &size, unsigned nProc)
+        static void printGreeting(const std::string& size, unsigned nProc)
         {
             std::cout << std::endl;
-            std::cout << std::string(84,'-') << "\n";
-            std::cout << "Benchmark Suite QuantLib "  QL_VERSION << "\n";
+            std::cout << std::string(84, '-') << "\n";
+            std::cout << "Benchmark Suite QuantLib " QL_VERSION << "\n";
             std::cout << "\n";
             std::cout << "Benchmark size='" << size << "' on " << nProc << " processes\n";
-            std::cout << std::string(84,'-') << "\n";
+            std::cout << std::string(84, '-') << "\n";
             std::cout << std::endl;
         }
 
@@ -346,25 +358,25 @@ namespace {
         static void terminateBenchmark()
         {
             std::cerr << "\033[0m\nError: INVALID BENCHMARK RUN.\n"
-                <<  "One or more tests failed, please see the log for details" << std::endl ;
+                      << "One or more tests failed, please see the log for details" << std::endl;
             // Tear down the master process, which kills all child threads/processes
             exit(1);
         }
 
 
-        static void printResults(
-                unsigned nSize,                         // the size of the benchmark
-                double masterLifetime,                  // lifetime of the master process
-                std::vector<double> workerLifetimes     // lifetimes of all the worker processes
-                )
+        static void printResults(unsigned nSize,                     // the size of the benchmark
+                                 double masterLifetime,              // lifetime of the master process
+                                 std::vector<double> workerLifetimes // lifetimes of all the worker processes
+        )
         {
-            std::cout     << "\033[0m\n";
-            std::cout     << "Benchmark Size        = " << BenchmarkSupport::bmSizeAsString(nSize) << std::endl;
-            std::cout     << "Number of processes   = " << workerLifetimes.size() << std::endl;
-            std::cout     << "System Throughput     = " << (double(nSize) * bm.size() ) / masterLifetime << " tasks/s" << std::endl;
-            std::cout     << "Benchmark Runtime     = " << masterLifetime<< "s" << std::endl;
+            std::cout << "\033[0m\n";
+            std::cout << "Benchmark Size        = " << BenchmarkSupport::bmSizeAsString(nSize) << std::endl;
+            std::cout << "Number of processes   = " << workerLifetimes.size() << std::endl;
+            std::cout << "System Throughput     = " << (double(nSize) * bm.size()) / masterLifetime << " tasks/s"
+                      << std::endl;
+            std::cout << "Benchmark Runtime     = " << masterLifetime << "s" << std::endl;
 
-            if(verbose >=1 )
+            if (verbose >= 1)
             {
                 const size_t nProc = workerLifetimes.size();
                 std::cout << "Num. Worker Processes = " << nProc << std::endl;
@@ -378,35 +390,42 @@ namespace {
                 const double thresh = 0.1;
                 int tail = (int)std::ceil(thresh * nProc);
                 double tailGeomean = 1.0;
-                for(int i=0; i<tail; i++) {
+                for (int i = 0; i < tail; i++)
+                {
                     tailGeomean *= workerLifetimes[i];
                 }
-                tailGeomean = std::pow(tailGeomean, 1.0/tail);
+                tailGeomean = std::pow(tailGeomean, 1.0 / tail);
                 const double tailEffect = tailGeomean / masterLifetime;
 
                 std::cout << "Tail Effect Ratio     = " << tailEffect << std::endl;
-                std::cout << "                      =  Geomean( Shortest " << tail << " worker lifetimes )" << std::endl;
-                std::cout << "                      --------------------------------------------------------" << std::endl;
+                std::cout << "                      =  Geomean( Shortest " << tail << " worker lifetimes )"
+                          << std::endl;
+                std::cout << "                      --------------------------------------------------------"
+                          << std::endl;
                 std::cout << "                                    Lifetime( Master process )" << std::endl;
                 std::cout << std::endl;
             }
 
-            std::cout << std::string(84,'-') << std::endl;
+            std::cout << std::string(84, '-') << std::endl;
 
-            if(verbose >= 2) {
+            if (verbose >= 2)
+            {
                 std::cout << "                       Total Runtime spent in each test " << std::endl;
-                std::cout << std::string(84,'-') << std::endl;
+                std::cout << std::string(84, '-') << std::endl;
 
                 // Compute max test name length
                 size_t len = 0;
-                for (const auto & b : bm) { len = std::max(len, b.getName().length() ); }
-
-                for (const auto& b: bm) {
-                    std::cout << b.getName()
-                        << std::string(len+2 - b.getName().length(),' ')
-                        << ": " << b.getTotalRuntime()  << "s" << std::endl;
+                for (const auto& b : bm)
+                {
+                    len = std::max(len, b.getName().length());
                 }
-                std::cout << std::string(84,'-') << std::endl;
+
+                for (const auto& b : bm)
+                {
+                    std::cout << b.getName() << std::string(len + 2 - b.getName().length(), ' ') << ": "
+                              << b.getTotalRuntime() << "s" << std::endl;
+                }
+                std::cout << std::string(84, '-') << std::endl;
             }
             std::cout << std::endl;
         }
@@ -414,67 +433,75 @@ namespace {
 
 #ifdef QL_ENABLE_PARALLEL_UNIT_TEST_RUNNER
         // The entry point for the std::thread's that will be the workers
-        static int worker(const char * exe, const std::vector<std::string>& args) {
-            return bp::system(exe, bp::args=args);
+        static int worker(const char* exe, const std::vector<std::string>& args)
+        {
+            return bp::system(exe, bp::args = args);
         }
 #endif
 
         // A helper class to push benchmark objects into the benchmark container
         // before main() starts.  Every time the constructor is called, a test is added.
-        struct AddBenchmark {
-            template<class CALLABLE>
-                AddBenchmark(std::vector<Benchmark> &bm, CALLABLE && test_body, const char* name, double cost) {
-                    bm.push_back( Benchmark(name, std::forward<CALLABLE>(test_body), cost) );
-                }
+        struct AddBenchmark
+        {
+            template <class CALLABLE>
+            AddBenchmark(std::vector<Benchmark>& bm, CALLABLE&& test_body, const char* name, double cost)
+            {
+                bm.push_back(Benchmark(name, std::forward<CALLABLE>(test_body), cost));
+            }
         };
     };
     int BenchmarkSupport::verbose = 0;
-    const std::vector< std::pair<std::string, unsigned int> > BenchmarkSupport::bmSizes = {
-            {"XXS",  60},
-            {"XS",   120},
-            {"S",    240},
-            {"M",    480},
-            {"L",    960}
-        };
+    const std::vector<std::pair<std::string, unsigned int>> BenchmarkSupport::bmSizes = {
+        {"XXS", 60}, {"XS", 120}, {"S", 240}, {"M", 480}, {"L", 960}};
 
 
     // The messages sent from workers to master across boost IPC queues
     struct IPCResultMsg
     {
-        unsigned bmId;              // the benchcmark that was run
-        unsigned threadId;          // the ID of the worker who ran it
-        double time;                // the runtime
+        unsigned bmId;     // the benchcmark that was run
+        unsigned threadId; // the ID of the worker who ran it
+        double time;       // the runtime
     };
 
     // The messages sent from master to workers across boost IPC queues
     struct IPCInstructionMsg
     {
-        unsigned j = 0;               // the benchmark to run
-        bool validate = false;        // whether to run in validation mode or not
+        unsigned j = 0;        // the benchmark to run
+        bool validate = false; // whether to run in validation mode or not
     };
 
 
-
-}  // END anonymous namespace
+} // END anonymous namespace
 
 
 // These are pulled from boost/unit_test/unit_test_suite.hpp.  We declare the
 // bodies of the tests so that we can run them more efficiently.
-#define QL_BENCHMARK_DECLARE(test_fixture, test_name, num_iters, cost)   \
-    namespace QuantLibTests {                                        \
-        namespace test_fixture {                                         \
-            struct test_name : public BOOST_AUTO_TEST_CASE_FIXTURE {     \
-                void test_method();                                      \
-            };                                                           \
-        }}                                                               \
-        \
-        namespace {             \
-            /* Declare unique global variable and push benchmark into bm */ \
-            BenchmarkSupport::AddBenchmark test_fixture##_##test_name( \
-                    bm, \
-                    [] { QuantLibTests::test_fixture::test_name thetest; for(int i=0; i<num_iters; i++) thetest.test_method(); }, \
-#test_fixture "/" #test_name, cost);                                             \
-        }
+#define QL_BENCHMARK_DECLARE(test_fixture, test_name, num_iters, cost)  \
+    namespace QuantLibTests                                             \
+    {                                                                   \
+        namespace test_fixture                                          \
+        {                                                               \
+            struct test_name : public BOOST_AUTO_TEST_CASE_FIXTURE      \
+            {                                                           \
+                void test_method();                                     \
+            };                                                          \
+        }                                                               \
+    }                                                                   \
+                                                                        \
+    namespace                                                           \
+    {                                                                   \
+        /* Declare unique global variable and push benchmark into bm */ \
+        BenchmarkSupport::AddBenchmark test_fixture##_##test_name(      \
+            bm,                                                         \
+            []                                                          \
+            {                                                           \
+                QuantLibTests::test_fixture::test_name thetest;         \
+                for (int i = 0; i < num_iters; i++)                     \
+                    thetest.test_method();                              \
+            },                                                          \
+            #test_fixture "/" #test_name,                               \
+            cost);                                                      \
+    }
 
 
 // Set of all tests we will run.  The integer is the number of times the test is run, and
@@ -580,9 +607,7 @@ QL_BENCHMARK_DECLARE(RoundingTests, testDown, 100000, 0.1);
 QL_BENCHMARK_DECLARE(RoundingTests, testClosest, 100000, 0.1);
 
 
-
-
-int main(int argc, char* argv[] )  // NOLINT(bugprone-exception-escape)
+int main(int argc, char* argv[]) // NOLINT(bugprone-exception-escape)
 {
     const std::string clientModeStr = "--client_mode=true";
     bool clientMode = false;
@@ -602,51 +627,66 @@ int main(int argc, char* argv[] )  // NOLINT(bugprone-exception-escape)
     unsigned threadId = 0;
 
 
-
-
     ////  Argument handling  //////////////////////////
-    for (int i=1; i<argc; ++i) {
+    for (int i = 1; i < argc; ++i)
+    {
         std::string arg = argv[i];
         std::vector<std::string> tok;
         boost::split(tok, arg, boost::is_any_of("="));
 
-        if (tok[0] == "--nProc") {
+        if (tok[0] == "--nProc")
+        {
             QL_REQUIRE(tok.size() == 2, "Must provide a number of worker processes");
-            try {
+            try
+            {
                 nProc = boost::numeric_cast<unsigned>(std::stoul(tok[1]));
-            } catch(const std::exception &e) {
+            }
+            catch (const std::exception& e)
+            {
                 std::cerr << "Invalid argument to 'nProc', not a positive integer" << std::endl;
                 std::cerr << "Exception generated: " << e.what() << "\n";
                 exit(1);
             }
         }
-        else if (tok[0] == "--threadId") {
+        else if (tok[0] == "--threadId")
+        {
             QL_REQUIRE(tok.size() == 2, "Must provide a threadId");
-            try {
+            try
+            {
                 threadId = boost::numeric_cast<unsigned>(std::stoul(tok[1]));
-            } catch(const std::exception &e) {
-                std::cerr << "Invalid argument to 'threadId', not a positive integer. This is an internal error, please contact the developers" << std::endl;
+            }
+            catch (const std::exception& e)
+            {
+                std::cerr << "Invalid argument to 'threadId', not a positive integer. This is an internal error, "
+                             "please contact the developers"
+                          << std::endl;
                 std::cerr << "Exception generated: " << e.what() << "\n";
                 exit(1);
             }
         }
-        else if (tok[0] == "--verbose") {
+        else if (tok[0] == "--verbose")
+        {
             QL_REQUIRE(tok.size() == 2, "Must provide a value for verbose");
-            try {
+            try
+            {
                 BenchmarkSupport::verbose = boost::numeric_cast<unsigned>(std::stoul(tok[1]));
-            } catch(const std::exception &e) {
+            }
+            catch (const std::exception& e)
+            {
                 std::cerr << "Invalid argument to 'verbose', not a positive integer" << std::endl;
                 std::cerr << "Exception generated: " << e.what() << "\n";
                 exit(1);
             }
-            QL_REQUIRE(BenchmarkSupport::verbose>=0 && BenchmarkSupport::verbose <= 3, "Value for verbose must be 0, 1, 2 or 3");
+            QL_REQUIRE(BenchmarkSupport::verbose >= 0 && BenchmarkSupport::verbose <= 3,
+                       "Value for verbose must be 0, 1, 2 or 3");
         }
-        else if (tok[0] == "--size") {
-            QL_REQUIRE(tok.size() == 2,
-                    "benchmark size is not given");
+        else if (tok[0] == "--size")
+        {
+            QL_REQUIRE(tok.size() == 2, "benchmark size is not given");
             size = tok[1];
         }
-        else if (arg == "-h" || arg == "--help" || arg == "-?") {
+        else if (arg == "-h" || arg == "--help" || arg == "-?")
+        {
             std::cout
                 << "\n'quantlib-benchmark' is QuantLib " QL_VERSION " CPU performance benchmark\n"
                 << "\n"
@@ -668,28 +708,29 @@ int main(int argc, char* argv[] )  // NOLINT(bugprone-exception-escape)
                 << "\n"
 #endif
                 << "--size=<";
-            for(const auto &p : BenchmarkSupport::bmSizes) {
+            for (const auto& p : BenchmarkSupport::bmSizes)
+            {
                 std::cout << p.first << "|";
             }
-            std::cout  << "NN> \n"
-                << "                   \t the size of the benchmark (how many times each \n"
-                << "                   \t task is run), where 'NN' can be any positive integer.\n"
-                << "                   \t Default vaue is size=" << defaultSize << "\n"
-                << "\n"
-                << "--verbose=<0|1|2|3>\t controls verbosity of output, default value is verbose=" << BenchmarkSupport::verbose << "\n"
-                << "\n"
-                << "-?, --help         \t display this help and exit"
-                << std::endl;
+            std::cout << "NN> \n"
+                      << "                   \t the size of the benchmark (how many times each \n"
+                      << "                   \t task is run), where 'NN' can be any positive integer.\n"
+                      << "                   \t Default vaue is size=" << defaultSize << "\n"
+                      << "\n"
+                      << "--verbose=<0|1|2|3>\t controls verbosity of output, default value is verbose="
+                      << BenchmarkSupport::verbose << "\n"
+                      << "\n"
+                      << "-?, --help         \t display this help and exit" << std::endl;
             return 0;
         }
-        else if (arg == clientModeStr)  {
+        else if (arg == clientModeStr)
+        {
             clientMode = true;
         }
-        else {
-            std::cout << "quantlib-benchmark: unrecognized option '" << arg << "'."
-                << std::endl
-                << "Try 'quantlib-benchmark --help' for more information."
-                << std::endl;
+        else
+        {
+            std::cout << "quantlib-benchmark: unrecognized option '" << arg << "'." << std::endl
+                      << "Try 'quantlib-benchmark --help' for more information." << std::endl;
             return 0;
         }
     }
@@ -699,97 +740,101 @@ int main(int argc, char* argv[] )  // NOLINT(bugprone-exception-escape)
 
     ////////  Finished argument processing, start benchmark code   //////////////////////////////////////////////
 
-    try {
+    try
+    {
 
         // Ensure we find the Boost test_unit for each benchmark
         TestUnitFinder::findAllTests(argv, bm);
 
         // To alleviate tail effects, we sort the bechmarks so that the most expensive ones are first.
         // These will be the first to be dispatched to the OS scheduler
-        std::sort(bm.begin(), bm.end(),
-                [](const auto& a, const auto& b) { return a.getCost() > b.getCost(); });
+        std::sort(bm.begin(), bm.end(), [](const auto& a, const auto& b) { return a.getCost() > b.getCost(); });
 
 
         BenchmarkResult bmResult;
-        if( !clientMode)
+        if (!clientMode)
             BenchmarkSupport::printGreeting(size, nProc);
 
 
-
         // Sequential benchmark, useful for debugging
-        if (nProc == 1 && !clientMode) {
+        if (nProc == 1 && !clientMode)
+        {
 
             // First we run the validation to ensure that the
             // benchmark binary is computing the correct results
-            for(auto & j : bm) {
+            for (auto& j : bm)
+            {
                 bmResult.reset();
                 j.runValidation();
-                if( !bmResult.pass() ) {
+                if (!bmResult.pass())
+                {
                     BenchmarkSupport::terminateBenchmark();
                 }
-             }
+            }
 
             // Now run the benchmark proper
             auto startTime = std::chrono::steady_clock::now();
-            for (unsigned i=0; i < nSize; ++i) {
-                for(unsigned int j=0; j<bm.size(); j++) {
+            for (unsigned i = 0; i < nSize; ++i)
+            {
+                for (unsigned int j = 0; j < bm.size(); j++)
+                {
                     double time = bm[j].runBenchmark();
                     bm[j].getTotalRuntime() += time;
                     LOG_MESSAGE("MASTER  :  completed benchmarkId=" << j << ", time=" << time);
                 }
             }
             auto stopTime = std::chrono::steady_clock::now();
-            double masterLifetime = std::chrono::duration_cast<std::chrono::microseconds>(stopTime - startTime).count() * 1e-6;
+            double masterLifetime =
+                std::chrono::duration_cast<std::chrono::microseconds>(stopTime - startTime).count() * 1e-6;
             workerLifetimes.push_back(masterLifetime);
             BenchmarkSupport::printResults(nSize, masterLifetime, workerLifetimes);
         }
-        else {
+        else
+        {
 
 #if defined(QL_ENABLE_PARALLEL_UNIT_TEST_RUNNER)
 
             using namespace boost::interprocess;
 
             message_queue::size_type recvd_size;
-            unsigned int priority=0;
-            const unsigned int terminateId=-1;
+            unsigned int priority = 0;
+            const unsigned int terminateId = -1;
             const unsigned int startTimerId = terminateId - 1;
             const char* const testUnitIdQueueName = "test_unit_queue";
             const char* const testResultQueueName = "test_result_queue";
 
-            if (!clientMode) {
+            if (!clientMode)
+            {
 
                 // Boost IPC message queue setup
                 message_queue::remove(testUnitIdQueueName);
                 message_queue::remove(testResultQueueName);
-                struct queue_remove {
-                    explicit queue_remove(const char* name) : name_(name) { }
+                struct queue_remove
+                {
+                    explicit queue_remove(const char* name) : name_(name) {}
                     ~queue_remove() { message_queue::remove(name_); }
 
-                    private:
+                  private:
                     const char* const name_;
-                } remover1(testUnitIdQueueName),remover2(testResultQueueName);
+                } remover1(testUnitIdQueueName), remover2(testResultQueueName);
 
-                message_queue mq(
-                        open_or_create, testUnitIdQueueName,
-                        nSize*bm.size()+nProc, sizeof(IPCInstructionMsg)
-                        );
-                message_queue rq(
-                        open_or_create, testResultQueueName,
-                        std::max(16u, nProc),
-                        sizeof(IPCResultMsg)
-                        );
+                message_queue mq(open_or_create, testUnitIdQueueName, nSize * bm.size() + nProc,
+                                 sizeof(IPCInstructionMsg));
+                message_queue rq(open_or_create, testResultQueueName, std::max(16u, nProc), sizeof(IPCResultMsg));
 
 
-                // Create the thread group and start each worker process, giving it a unique threadId (useful for debugging)
+                // Create the thread group and start each worker process, giving it a unique threadId (useful for
+                // debugging)
                 std::vector<std::thread> threadGroup;
                 {
                     std::string thread("--threadId="), verb("--verbose=");
                     verb += std::to_string(BenchmarkSupport::verbose);
                     std::vector<std::string> workerArgs = {clientModeStr, thread, verb};
-                    for (unsigned i = 0; i < nProc; ++i) {
-                        LOG_MESSAGE("MASTER    : creating worker threadId=" << i+1);
-                        workerArgs[1] = thread + std::to_string(i+1);
-                        threadGroup.emplace_back([&,workerArgs]() { BenchmarkSupport::worker(argv[0], workerArgs); });
+                    for (unsigned i = 0; i < nProc; ++i)
+                    {
+                        LOG_MESSAGE("MASTER    : creating worker threadId=" << i + 1);
+                        workerArgs[1] = thread + std::to_string(i + 1);
+                        threadGroup.emplace_back([&, workerArgs]() { BenchmarkSupport::worker(argv[0], workerArgs); });
                     }
                 }
 
@@ -798,18 +843,22 @@ int main(int argc, char* argv[] )  // NOLINT(bugprone-exception-escape)
 
                 // Do a full validation run first to ensure the benchmark binary is computing
                 // the correct values
-                for (unsigned j=0; j < bm.size(); ++j) {
+                for (unsigned j = 0; j < bm.size(); ++j)
+                {
                     msg = {j, true};
                     // Will be non-blocking send since send buffer is big enough
                     LOG_MESSAGE("MASTER    : sending benchmarkId=" << msg.j << " with validation=" << msg.validate);
                     mq.send(&msg, sizeof(IPCInstructionMsg), 0);
                 }
                 // Receive all results from workers
-                for (unsigned i=0; i < bm.size(); ++i) {
+                for (unsigned i = 0; i < bm.size(); ++i)
+                {
                     rq.receive(&r, sizeof(IPCResultMsg), recvd_size, priority);
                     LOG_MESSAGE("MASTER     : received result : threadId=" << r.threadId << ", benchmarkId=" << r.bmId
-                            << ", time=" << r.time << " : " << bm.size()-1-i << " results pending");
-                    if(r.time < 0) {
+                                                                           << ", time=" << r.time << " : "
+                                                                           << bm.size() - 1 - i << " results pending");
+                    if (r.time < 0)
+                    {
                         // A benchmark test has failed
                         BenchmarkSupport::terminateBenchmark();
                     }
@@ -818,15 +867,18 @@ int main(int argc, char* argv[] )  // NOLINT(bugprone-exception-escape)
                 // Start timer for the benchmark
                 auto startTime = std::chrono::steady_clock::now();
                 // Tell all workers to start their timers
-                for(unsigned j=0; j<nProc; j++) {
+                for (unsigned j = 0; j < nProc; j++)
+                {
                     msg = {startTimerId, false};
                     LOG_MESSAGE("MASTER    : sending worker=" << j << " command to restart timer");
                     mq.send(&msg, sizeof(IPCInstructionMsg), 0);
                 }
                 // Now do the benchmark run proper
-                for (unsigned j=0; j < bm.size(); ++j) {
+                for (unsigned j = 0; j < bm.size(); ++j)
+                {
                     // Enqueue nSize copies of each task to even out load balance
-                    for (unsigned i=0; i < nSize; ++i) {
+                    for (unsigned i = 0; i < nSize; ++i)
+                    {
                         msg = {j, false};
                         // Will be non-blocking send since send buffer is big enough
                         LOG_MESSAGE("MASTER    : sending benchmarkId=" << msg.j << " with validation=" << msg.validate);
@@ -834,11 +886,14 @@ int main(int argc, char* argv[] )  // NOLINT(bugprone-exception-escape)
                     }
                 }
                 // Receive all results from workers
-                for (unsigned i=0; i < nSize*bm.size(); ++i) {
+                for (unsigned i = 0; i < nSize * bm.size(); ++i)
+                {
                     rq.receive(&r, sizeof(IPCResultMsg), recvd_size, priority);
-                    LOG_MESSAGE("MASTER     : received result : threadId=" << r.threadId << ", benchmarkId=" << r.bmId
-                            << ", time=" << r.time << " : " << nSize*bm.size()-1-i << " results pending");
-                    if(r.time < 0) {
+                    LOG_MESSAGE("MASTER     : received result : threadId="
+                                << r.threadId << ", benchmarkId=" << r.bmId << ", time=" << r.time << " : "
+                                << nSize * bm.size() - 1 - i << " results pending");
+                    if (r.time < 0)
+                    {
                         // A benchmark test has failed - should be impossible here
                         BenchmarkSupport::terminateBenchmark();
                     }
@@ -847,31 +902,35 @@ int main(int argc, char* argv[] )  // NOLINT(bugprone-exception-escape)
 
 
                 // Send terminate signal to all workers
-                for (unsigned i=0; i < nProc; ++i) {
+                for (unsigned i = 0; i < nProc; ++i)
+                {
                     LOG_MESSAGE("MASTER    : sending TERMINATE signal");
                     msg = {terminateId, false};
                     mq.send(&msg, sizeof(IPCInstructionMsg), 0);
                 }
                 // Receive worker lifetimes
-                for (unsigned i=0; i < nProc; ++i) {
+                for (unsigned i = 0; i < nProc; ++i)
+                {
                     rq.receive(&r, sizeof(IPCResultMsg), recvd_size, priority);
-                    LOG_MESSAGE("MASTER    : received worker lifetime : threadId=" << r.threadId << ", time=" << r.time << " : " << nProc-1-i << " lifetimes pending");
+                    LOG_MESSAGE("MASTER    : received worker lifetime : threadId="
+                                << r.threadId << ", time=" << r.time << " : " << nProc - 1 - i << " lifetimes pending");
                     workerLifetimes.push_back(r.time);
                 }
 
 
                 // Synchronize with and exit all threads
-                for (auto& thread: threadGroup) {
+                for (auto& thread : threadGroup)
+                {
                     thread.join();
                 }
 
                 auto stopTime = std::chrono::steady_clock::now();
-                double masterLifetime = std::chrono::duration_cast<std::chrono::microseconds>(stopTime - startTime).count() * 1e-6;
+                double masterLifetime =
+                    std::chrono::duration_cast<std::chrono::microseconds>(stopTime - startTime).count() * 1e-6;
                 BenchmarkSupport::printResults(nSize, masterLifetime, workerLifetimes);
-
-
             }
-            else {
+            else
+            {
                 // We are a worker process - open Boost IPC queues
                 message_queue mq(open_only, testUnitIdQueueName);
                 message_queue rq(open_only, testResultQueueName);
@@ -880,41 +939,51 @@ int main(int argc, char* argv[] )  // NOLINT(bugprone-exception-escape)
                 // in order to monitor tail effects
                 std::chrono::time_point<std::chrono::steady_clock> startTime, stopTime;
 
-                for(;;) {
+                for (;;)
+                {
                     IPCInstructionMsg id;
                     mq.receive(&id, sizeof(IPCInstructionMsg), recvd_size, priority);
 
-                    if(id.j == startTimerId) {
+                    if (id.j == startTimerId)
+                    {
                         // The benchmark run proper is starting - start the timer for this worker.
                         // If this worker has nothing to do, we still want a non-zero lifetime
                         startTime = std::chrono::steady_clock::now();
                         stopTime = std::chrono::steady_clock::now();
                     }
-                    else if(id.j == terminateId) {
+                    else if (id.j == terminateId)
+                    {
                         // Worker process being told to terminate.  Report our lifetime.
                         // Lifetime is how long it took until we completed our final task
-                        double workerLifetime = std::chrono::duration_cast<std::chrono::microseconds>(stopTime - startTime).count() * 1e-6;
-                        IPCResultMsg r {terminateId, threadId, workerLifetime};
-                        LOG_MESSAGE("WORKER-" << std::setw(3) << threadId << ": received TERMINATE signal, sending lifetime=" << r.time);
+                        double workerLifetime =
+                            std::chrono::duration_cast<std::chrono::microseconds>(stopTime - startTime).count() * 1e-6;
+                        IPCResultMsg r{terminateId, threadId, workerLifetime};
+                        LOG_MESSAGE("WORKER-" << std::setw(3) << threadId
+                                              << ": received TERMINATE signal, sending lifetime=" << r.time);
                         rq.send(&r, sizeof(IPCResultMsg), 0);
                         break;
                     }
-                    else {
-                        LOG_MESSAGE("WORKER-" << std::setw(3) << threadId << ": received benchmarkId=" << id.j << ", validation=" << id.validate << ".  Starting execution ...");
+                    else
+                    {
+                        LOG_MESSAGE("WORKER-" << std::setw(3) << threadId << ": received benchmarkId=" << id.j
+                                              << ", validation=" << id.validate << ".  Starting execution ...");
                         double time;
-                        if( id.validate ) {
+                        if (id.validate)
+                        {
                             bmResult.reset();
                             time = bm[id.j].runValidation();
                             time = (bmResult.pass() ? time : -1.0);
                         }
-                        else {
+                        else
+                        {
                             time = bm[id.j].runBenchmark();
                         }
-                        IPCResultMsg r {id.j, threadId, time};
+                        IPCResultMsg r{id.j, threadId, time};
                         // We record the timestamp after each task is complete
                         // We use this to define worker lifetime
                         stopTime = std::chrono::steady_clock::now();
-                        LOG_MESSAGE("WORKER-" << std::setw(3) << threadId << ": sending result benchmarkId=" << id.j << ", time=" << r.time);
+                        LOG_MESSAGE("WORKER-" << std::setw(3) << threadId << ": sending result benchmarkId=" << id.j
+                                              << ", time=" << r.time);
                         rq.send(&r, sizeof(IPCResultMsg), 0);
                     }
                 }
@@ -923,12 +992,14 @@ int main(int argc, char* argv[] )  // NOLINT(bugprone-exception-escape)
 
 #else
             std::cout << "Please compile QuantLib with option 'QL_ENABLE_PARALLEL_UNIT_TEST_RUNNER'"
-                " to run the benchmarks in parallel" << std::endl;
+                         " to run the benchmarks in parallel"
+                      << std::endl;
 #endif
         }
-
-    } catch(const std::exception &e) {
-        if( !clientMode )
+    }
+    catch (const std::exception& e)
+    {
+        if (!clientMode)
             std::cerr << "MASTER process caught an exception:\n" << e.what() << std::endl;
         else
             std::cerr << "WORKER-" << std::setw(3) << threadId << " caught an exception:\n" << e.what() << std::endl;

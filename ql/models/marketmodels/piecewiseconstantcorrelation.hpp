@@ -24,12 +24,14 @@
 #include <ql/math/matrix.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Matrix;
 
     // corrTimes must include all rateTimes but the last
-    class PiecewiseConstantCorrelation {
+    class PiecewiseConstantCorrelation
+    {
       public:
         virtual ~PiecewiseConstantCorrelation() = default;
         virtual const std::vector<Time>& times() const = 0;
@@ -39,13 +41,11 @@ namespace QuantLib {
         virtual Size numberOfRates() const = 0;
     };
 
-    inline const Matrix&
-    PiecewiseConstantCorrelation::correlation(Size i) const {
+    inline const Matrix& PiecewiseConstantCorrelation::correlation(Size i) const
+    {
         const std::vector<Matrix>& results = correlations();
-        QL_REQUIRE(i<results.size(),
-                   "index (" << i <<
-                   ") must be less than correlations vector size (" <<
-                   results.size() << ")");
+        QL_REQUIRE(i < results.size(),
+                   "index (" << i << ") must be less than correlations vector size (" << results.size() << ")");
         return results[i];
     }
 

@@ -24,30 +24,36 @@
 #ifndef quantlib_discounting_perpetual_futures_engine_hpp
 #define quantlib_discounting_perpetual_futures_engine_hpp
 
-#include <ql/instruments/perpetualfutures.hpp>
-#include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/handle.hpp>
-#include <ql/optional.hpp>
+#include <ql/instruments/perpetualfutures.hpp>
 #include <ql/math/interpolation.hpp>
+#include <ql/optional.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Discounting engine for perpetual futures
     /*! This engine discounts perpetual futures cashflows
         to the reference date.
     */
-    class DiscountingPerpetualFuturesEngine : public PerpetualFutures::engine {
+    class DiscountingPerpetualFuturesEngine : public PerpetualFutures::engine
+    {
       public:
-        enum InterpolationType { PiecewiseConstant, Linear, CubicSpline };
-        DiscountingPerpetualFuturesEngine(
-            const Handle<YieldTermStructure>& domesticDiscountCurve,
-            const Handle<YieldTermStructure>& foreignDiscountCurve,
-            const Handle<Quote>& assetSpot,
-            const std::vector<Time>& fundingTimes,
-            const std::vector<Rate>& fundingRates,
-            const std::vector<Spread>& interestRateDiffs,
-            InterpolationType fundingInterpType = PiecewiseConstant,
-            Real maxT = 60.);
+        enum InterpolationType
+        {
+            PiecewiseConstant,
+            Linear,
+            CubicSpline
+        };
+        DiscountingPerpetualFuturesEngine(const Handle<YieldTermStructure>& domesticDiscountCurve,
+                                          const Handle<YieldTermStructure>& foreignDiscountCurve,
+                                          const Handle<Quote>& assetSpot,
+                                          const std::vector<Time>& fundingTimes,
+                                          const std::vector<Rate>& fundingRates,
+                                          const std::vector<Spread>& interestRateDiffs,
+                                          InterpolationType fundingInterpType = PiecewiseConstant,
+                                          Real maxT = 60.);
         void calculate() const override;
         Handle<YieldTermStructure> domesticDiscountCurve() const { return domesticDiscountCurve_; }
         Handle<YieldTermStructure> foreignDiscountCurve() const { return foreignDiscountCurve_; }

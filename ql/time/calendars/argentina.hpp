@@ -26,7 +26,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Argentinian calendars
     /*! Holidays for the Buenos Aires stock exchange
@@ -52,15 +53,20 @@ namespace QuantLib {
 
         \ingroup calendars
     */
-    class Argentina : public Calendar {
+    class Argentina : public Calendar
+    {
       private:
-        class MervalImpl final : public Calendar::WesternImpl {
+        class MervalImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "Buenos Aires stock exchange"; }
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
-        enum Market { Merval   //!< Buenos Aires stock exchange calendar
+        enum Market
+        {
+            Merval //!< Buenos Aires stock exchange calendar
         };
         Argentina(Market m = Merval);
     };

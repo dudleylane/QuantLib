@@ -27,50 +27,50 @@
 
 #include <ql/indexes/inflationindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Generic geographical/economic region
-    class GenericRegion : public Region {
+    class GenericRegion : public Region
+    {
       public:
-        GenericRegion() {
-            static ext::shared_ptr<Data> GENERICdata(
-                                               new Data("Generic","GENERIC"));
+        GenericRegion()
+        {
+            static ext::shared_ptr<Data> GENERICdata(new Data("Generic", "GENERIC"));
             data_ = GENERICdata;
         }
     };
 
 
     //! Generic CPI index
-    class GenericCPI : public ZeroInflationIndex {
+    class GenericCPI : public ZeroInflationIndex
+    {
       public:
-        GenericCPI(
-            Frequency frequency,
-            bool revised,
-            const Period& lag,
-            const Currency& ccy,
-            const Handle<ZeroInflationTermStructure>& ts = {})
-        : ZeroInflationIndex("CPI", GenericRegion(), revised, frequency, lag, ccy, ts) {}
+        GenericCPI(Frequency frequency,
+                   bool revised,
+                   const Period& lag,
+                   const Currency& ccy,
+                   const Handle<ZeroInflationTermStructure>& ts = {})
+        : ZeroInflationIndex("CPI", GenericRegion(), revised, frequency, lag, ccy, ts)
+        {
+        }
     };
 
 
     //! Quoted year-on-year Generic CPI (i.e. not a ratio)
-    class YYGenericCPI : public YoYInflationIndex {
+    class YYGenericCPI : public YoYInflationIndex
+    {
       public:
         YYGenericCPI(Frequency frequency,
                      bool revised,
-                     const Period &lag,
-                     const Currency &ccy,
+                     const Period& lag,
+                     const Currency& ccy,
                      const Handle<YoYInflationTermStructure>& ts = {})
-        : YoYInflationIndex("YY_CPI",
-                            GenericRegion(),
-                            revised,
-                            frequency,
-                            lag,
-                            ccy,
-                            ts) {}
+        : YoYInflationIndex("YY_CPI", GenericRegion(), revised, frequency, lag, ccy, ts)
+        {
+        }
     };
 
 }
 
 #endif
-

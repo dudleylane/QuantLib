@@ -26,25 +26,26 @@
 #ifndef quantlib_fdm_black_scholes_op_hpp
 #define quantlib_fdm_black_scholes_op_hpp
 
-#include <ql/payoff.hpp>
-#include <ql/processes/blackscholesprocess.hpp>
-#include <ql/methods/finitedifferences/utilities/fdmquantohelper.hpp>
+#include <ql/methods/finitedifferences/operators/fdmlinearopcomposite.hpp>
 #include <ql/methods/finitedifferences/operators/firstderivativeop.hpp>
 #include <ql/methods/finitedifferences/operators/triplebandlinearop.hpp>
-#include <ql/methods/finitedifferences/operators/fdmlinearopcomposite.hpp>
+#include <ql/methods/finitedifferences/utilities/fdmquantohelper.hpp>
+#include <ql/payoff.hpp>
+#include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class FdmBlackScholesOp : public FdmLinearOpComposite {
+    class FdmBlackScholesOp : public FdmLinearOpComposite
+    {
       public:
-        FdmBlackScholesOp(
-            const ext::shared_ptr<FdmMesher>& mesher,
-            const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
-            Real strike,
-            bool localVol = false,
-            Real illegalLocalVolOverwrite = -Null<Real>(),
-            Size direction = 0,
-            ext::shared_ptr<FdmQuantoHelper> quantoHelper = ext::shared_ptr<FdmQuantoHelper>());
+        FdmBlackScholesOp(const ext::shared_ptr<FdmMesher>& mesher,
+                          const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
+                          Real strike,
+                          bool localVol = false,
+                          Real illegalLocalVolOverwrite = -Null<Real>(),
+                          Size direction = 0,
+                          ext::shared_ptr<FdmQuantoHelper> quantoHelper = ext::shared_ptr<FdmQuantoHelper>());
 
         Size size() const override;
         void setTime(Time t1, Time t2) override;
@@ -63,7 +64,7 @@ namespace QuantLib {
         const ext::shared_ptr<BlackVolTermStructure> volTS_;
         const ext::shared_ptr<LocalVolTermStructure> localVol_;
         const Array x_;
-        const FirstDerivativeOp  dxMap_;
+        const FirstDerivativeOp dxMap_;
         const TripleBandLinearOp dxxMap_;
         TripleBandLinearOp mapT_;
         const Real strike_;

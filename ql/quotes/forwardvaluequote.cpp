@@ -21,25 +21,29 @@
 #include <ql/quotes/forwardvaluequote.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     ForwardValueQuote::ForwardValueQuote(ext::shared_ptr<Index> index, const Date& fixingDate)
-    : index_(std::move(index)), fixingDate_(fixingDate) {
+    : index_(std::move(index)), fixingDate_(fixingDate)
+    {
         registerWith(index_);
     }
 
-    Real ForwardValueQuote::value() const {
+    Real ForwardValueQuote::value() const
+    {
         return index_->fixing(fixingDate_);
     }
 
-    bool ForwardValueQuote::isValid() const {
+    bool ForwardValueQuote::isValid() const
+    {
         // not sure this is the best approach...
         return true;
     }
 
-    void ForwardValueQuote::update() {
+    void ForwardValueQuote::update()
+    {
         notifyObservers();
     }
 
 }
-

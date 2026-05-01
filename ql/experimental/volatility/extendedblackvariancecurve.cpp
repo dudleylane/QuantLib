@@ -21,30 +21,29 @@
 #include <ql/math/interpolations/linearinterpolation.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     ExtendedBlackVarianceCurve::ExtendedBlackVarianceCurve(const Date& referenceDate,
                                                            const std::vector<Date>& dates,
-                                                           std::vector<Handle<Quote> > volatilities,
+                                                           std::vector<Handle<Quote>> volatilities,
                                                            DayCounter dayCounter,
                                                            bool forceMonotoneVariance)
-    : BlackVarianceTermStructure(referenceDate), dayCounter_(std::move(dayCounter)),
-      maxDate_(dates.back()), volatilities_(std::move(volatilities)),
-      forceMonotoneVariance_(forceMonotoneVariance) {
-        QL_REQUIRE(dates.size() == volatilities_.size(),
-                   "size mismatch between dates and volatilities");
+    : BlackVarianceTermStructure(referenceDate), dayCounter_(std::move(dayCounter)), maxDate_(dates.back()),
+      volatilities_(std::move(volatilities)), forceMonotoneVariance_(forceMonotoneVariance)
+    {
+        QL_REQUIRE(dates.size() == volatilities_.size(), "size mismatch between dates and volatilities");
 
-        QL_REQUIRE(dates[0] > referenceDate,
-                   "cannot have dates_[0] <= referenceDate");
+        QL_REQUIRE(dates[0] > referenceDate, "cannot have dates_[0] <= referenceDate");
 
-        variances_ = std::vector<Real>(dates.size()+1);
-        times_ = std::vector<Time>(dates.size()+1);
+        variances_ = std::vector<Real>(dates.size() + 1);
+        times_ = std::vector<Time>(dates.size() + 1);
 
         times_[0] = 0.0;
-        for (Size j=1; j<=dates.size(); ++j) {
-            times_[j] = timeFromReference(dates[j-1]);
-            QL_REQUIRE(times_[j]>times_[j-1],
-                       "dates must be sorted unique!");
+        for (Size j = 1; j <= dates.size(); ++j)
+        {
+            times_[j] = timeFromReference(dates[j - 1]);
+            QL_REQUIRE(times_[j] > times_[j - 1], "dates must be sorted unique!");
         }
 
         setVariances();
@@ -54,30 +53,35 @@ namespace QuantLib {
             registerWith(volatilitie);
     }
 
-    void ExtendedBlackVarianceCurve::setVariances() {
+    void ExtendedBlackVarianceCurve::setVariances()
+    {
         variances_[0] = 0.0;
-        for (Size j=1; j<=volatilities_.size(); j++) {
-            Volatility sigma = volatilities_[j-1]->value();
+        for (Size j = 1; j <= volatilities_.size(); j++)
+        {
+            Volatility sigma = volatilities_[j - 1]->value();
             variances_[j] = times_[j] * sigma * sigma;
-            QL_REQUIRE(variances_[j]>=variances_[j-1]
-                       || !forceMonotoneVariance_,
+            QL_REQUIRE(variances_[j] >= variances_[j - 1] || !forceMonotoneVariance_,
                        "variance must be non-decreasing");
         }
     }
 
-    void ExtendedBlackVarianceCurve::update() {
+    void ExtendedBlackVarianceCurve::update()
+    {
         setVariances();
         varianceCurve_.update();
         notifyObservers();
     }
 
-    Real ExtendedBlackVarianceCurve::blackVarianceImpl(Time t, Real) const {
-        if (t<=times_.back()) {
+    Real ExtendedBlackVarianceCurve::blackVarianceImpl(Time t, Real) const
+    {
+        if (t <= times_.back())
+        {
             return varianceCurve_(t, true);
-        } else {
-            return varianceCurve_(times_.back(), true)*t/times_.back();
+        }
+        else
+        {
+            return varianceCurve_(times_.back(), true) * t / times_.back();
         }
     }
 
 }
-

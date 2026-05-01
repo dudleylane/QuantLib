@@ -24,7 +24,8 @@
 
 #include <ql/models/marketmodels/curvestate.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Curve state for coterminal-swap market models
     /*! This class stores the state of the yield curve associated to the
@@ -36,26 +37,26 @@ namespace QuantLib {
         Many products will not need expired rates and others will only require
         the first rate.
     */
-    class CoterminalSwapCurveState : public CurveState {
-    /* There will n+1 rate times expressing payment and reset times
-        of coterminal swap rates.
+    class CoterminalSwapCurveState : public CurveState
+    {
+        /* There will n+1 rate times expressing payment and reset times
+            of coterminal swap rates.
 
-                |-----|-----|-----|-----|-----|      (size = 6)
-                0     1     2     3     4     5      index (i)      (i = 0, ..., 5)
-                t0    t1    t2    t3    t4    t5     rateTimes      (i = 0, ..., 5; dim = 6)
-                tau0  tau1  tau2  tau3  tau4         rateTaus       (i = 0, ..., 4; dim = 5)
-                f0    f1    f2    f3    f4           forwardRates   (i = 0, ..., 4; dim = 5)
-                d0    d1    d2    d3    d4    d5     discountBonds  (i = 0, ..., 5; dim = 6)
-                d0/d0 d1/d0 d2/d0 d3/d0 d4/d0 d5/d0  discountRatios (i = 0, ..., 5; dim = 6)
-                sr0   sr1   sr2   sr3   sr4          cotSwapsRates  (i = 0, ..., 4; dim = 5)
-                a0    a1    a2    a3    a4           cotAnnuities   (i = 0, ..., 4; dim = 5)
-    */
+                    |-----|-----|-----|-----|-----|      (size = 6)
+                    0     1     2     3     4     5      index (i)      (i = 0, ..., 5)
+                    t0    t1    t2    t3    t4    t5     rateTimes      (i = 0, ..., 5; dim = 6)
+                    tau0  tau1  tau2  tau3  tau4         rateTaus       (i = 0, ..., 4; dim = 5)
+                    f0    f1    f2    f3    f4           forwardRates   (i = 0, ..., 4; dim = 5)
+                    d0    d1    d2    d3    d4    d5     discountBonds  (i = 0, ..., 5; dim = 6)
+                    d0/d0 d1/d0 d2/d0 d3/d0 d4/d0 d5/d0  discountRatios (i = 0, ..., 5; dim = 6)
+                    sr0   sr1   sr2   sr3   sr4          cotSwapsRates  (i = 0, ..., 4; dim = 5)
+                    a0    a1    a2    a3    a4           cotAnnuities   (i = 0, ..., 4; dim = 5)
+        */
       public:
         explicit CoterminalSwapCurveState(const std::vector<Time>& rateTimes);
         //! \name Modifiers
         //@{
-        void setOnCoterminalSwapRates(const std::vector<Rate>& swapRates,
-                                      Size firstValidIndex = 0);
+        void setOnCoterminalSwapRates(const std::vector<Rate>& swapRates, Size firstValidIndex = 0);
         //@}
 
         //! \name Inspectors
@@ -71,6 +72,7 @@ namespace QuantLib {
         const std::vector<Rate>& cmSwapRates(Size spanningForwards) const override;
         //@}
         std::unique_ptr<CurveState> clone() const override;
+
       private:
         Size first_;
         std::vector<DiscountFactor> discRatios_;

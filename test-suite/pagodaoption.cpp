@@ -19,11 +19,11 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
-#include <ql/pricingengines/exotic/pagodaoption.hpp>
-#include <ql/pricingengines/exotic/mcpagodaengine.hpp>
 #include <ql/math/randomnumbers/rngtraits.hpp>
-#include <ql/time/daycounters/actual360.hpp>
+#include <ql/pricingengines/exotic/mcpagodaengine.hpp>
+#include <ql/pricingengines/exotic/pagodaoption.hpp>
 #include <ql/quotes/simplequote.hpp>
+#include <ql/time/daycounters/actual360.hpp>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -32,7 +32,8 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(PagodaOptionTests)
 
-BOOST_AUTO_TEST_CASE(testCached) {
+BOOST_AUTO_TEST_CASE(testCached)
+{
 
     BOOST_TEST_MESSAGE("Testing pagoda option against cached values...");
 
@@ -40,8 +41,8 @@ BOOST_AUTO_TEST_CASE(testCached) {
 
     DayCounter dc = Actual360();
     std::vector<Date> fixingDates;
-    for (Size i=1; i<=4; ++i)
-        fixingDates.push_back(today+i*90);
+    for (Size i = 1; i <= 4; ++i)
+        fixingDates.push_back(today + i * 90);
 
     Real roof = 0.20;
     Real fraction = 0.62;
@@ -50,83 +51,68 @@ BOOST_AUTO_TEST_CASE(testCached) {
 
     Handle<YieldTermStructure> riskFreeRate(flatRate(today, 0.05, dc));
 
-    std::vector<ext::shared_ptr<StochasticProcess1D> > processes(4);
+    std::vector<ext::shared_ptr<StochasticProcess1D>> processes(4);
     processes[0] = ext::shared_ptr<StochasticProcess1D>(
-        new BlackScholesMertonProcess(
-              Handle<Quote>(ext::shared_ptr<Quote>(new SimpleQuote(0.15))),
-              Handle<YieldTermStructure>(flatRate(today, 0.01, dc)),
-              riskFreeRate,
-              Handle<BlackVolTermStructure>(flatVol(today, 0.30, dc))));
+        new BlackScholesMertonProcess(Handle<Quote>(ext::shared_ptr<Quote>(new SimpleQuote(0.15))),
+                                      Handle<YieldTermStructure>(flatRate(today, 0.01, dc)), riskFreeRate,
+                                      Handle<BlackVolTermStructure>(flatVol(today, 0.30, dc))));
     processes[1] = ext::shared_ptr<StochasticProcess1D>(
-        new BlackScholesMertonProcess(
-              Handle<Quote>(ext::shared_ptr<Quote>(new SimpleQuote(0.20))),
-              Handle<YieldTermStructure>(flatRate(today, 0.05, dc)),
-              riskFreeRate,
-              Handle<BlackVolTermStructure>(flatVol(today, 0.35, dc))));
+        new BlackScholesMertonProcess(Handle<Quote>(ext::shared_ptr<Quote>(new SimpleQuote(0.20))),
+                                      Handle<YieldTermStructure>(flatRate(today, 0.05, dc)), riskFreeRate,
+                                      Handle<BlackVolTermStructure>(flatVol(today, 0.35, dc))));
     processes[2] = ext::shared_ptr<StochasticProcess1D>(
-        new BlackScholesMertonProcess(
-              Handle<Quote>(ext::shared_ptr<Quote>(new SimpleQuote(0.35))),
-              Handle<YieldTermStructure>(flatRate(today, 0.04, dc)),
-              riskFreeRate,
-              Handle<BlackVolTermStructure>(flatVol(today, 0.25, dc))));
+        new BlackScholesMertonProcess(Handle<Quote>(ext::shared_ptr<Quote>(new SimpleQuote(0.35))),
+                                      Handle<YieldTermStructure>(flatRate(today, 0.04, dc)), riskFreeRate,
+                                      Handle<BlackVolTermStructure>(flatVol(today, 0.25, dc))));
     processes[3] = ext::shared_ptr<StochasticProcess1D>(
-        new BlackScholesMertonProcess(
-              Handle<Quote>(ext::shared_ptr<Quote>(new SimpleQuote(0.30))),
-              Handle<YieldTermStructure>(flatRate(today, 0.03, dc)),
-              riskFreeRate,
-              Handle<BlackVolTermStructure>(flatVol(today, 0.20, dc))));
+        new BlackScholesMertonProcess(Handle<Quote>(ext::shared_ptr<Quote>(new SimpleQuote(0.30))),
+                                      Handle<YieldTermStructure>(flatRate(today, 0.03, dc)), riskFreeRate,
+                                      Handle<BlackVolTermStructure>(flatVol(today, 0.20, dc))));
 
-    Matrix correlation(4,4);
+    Matrix correlation(4, 4);
     correlation[0][0] = 1.00;
-                    correlation[0][1] = 0.50;
-                                    correlation[0][2] = 0.30;
-                                                    correlation[0][3] = 0.10;
+    correlation[0][1] = 0.50;
+    correlation[0][2] = 0.30;
+    correlation[0][3] = 0.10;
     correlation[1][0] = 0.50;
-                    correlation[1][1] = 1.00;
-                                    correlation[1][2] = 0.20;
-                                                    correlation[1][3] = 0.40;
+    correlation[1][1] = 1.00;
+    correlation[1][2] = 0.20;
+    correlation[1][3] = 0.40;
     correlation[2][0] = 0.30;
-                    correlation[2][1] = 0.20;
-                                    correlation[2][2] = 1.00;
-                                                    correlation[2][3] = 0.60;
+    correlation[2][1] = 0.20;
+    correlation[2][2] = 1.00;
+    correlation[2][3] = 0.60;
     correlation[3][0] = 0.10;
-                    correlation[3][1] = 0.40;
-                                    correlation[3][2] = 0.60;
-                                                    correlation[3][3] = 1.00;
+    correlation[3][1] = 0.40;
+    correlation[3][2] = 0.60;
+    correlation[3][3] = 1.00;
 
     BigNatural seed = 86421;
     Size fixedSamples = 1023;
 
-    ext::shared_ptr<StochasticProcessArray> process(
-                          new StochasticProcessArray(processes, correlation));
+    ext::shared_ptr<StochasticProcessArray> process(new StochasticProcessArray(processes, correlation));
 
-    option.setPricingEngine(MakeMCPagodaEngine<PseudoRandom>(process)
-                            .withSamples(fixedSamples)
-                            .withSeed(seed));
+    option.setPricingEngine(MakeMCPagodaEngine<PseudoRandom>(process).withSamples(fixedSamples).withSeed(seed));
 
     Real value = option.NPV();
     Real storedValue = 0.01221094;
     Real tolerance = 1.0e-8;
 
-    if (std::fabs(value-storedValue) > tolerance)
-        BOOST_FAIL(std::setprecision(9)
-                   << "    calculated value: " << value << "\n"
-                   << "    expected:         " << storedValue);
+    if (std::fabs(value - storedValue) > tolerance)
+        BOOST_FAIL(std::setprecision(9) << "    calculated value: " << value << "\n"
+                                        << "    expected:         " << storedValue);
 
     Real minimumTol = 1.0e-2;
     tolerance = option.errorEstimate();
-    tolerance = std::min<Real>(tolerance/2.0, minimumTol*value);
+    tolerance = std::min<Real>(tolerance / 2.0, minimumTol * value);
 
-    option.setPricingEngine(MakeMCPagodaEngine<PseudoRandom>(process)
-                            .withAbsoluteTolerance(tolerance)
-                            .withSeed(seed));
+    option.setPricingEngine(MakeMCPagodaEngine<PseudoRandom>(process).withAbsoluteTolerance(tolerance).withSeed(seed));
 
     option.NPV();
     Real accuracy = option.errorEstimate();
     if (accuracy > tolerance)
-        BOOST_FAIL(std::setprecision(10)
-                   << "    reached accuracy: " << accuracy << "\n"
-                   << "    expected:         " << tolerance);
+        BOOST_FAIL(std::setprecision(10) << "    reached accuracy: " << accuracy << "\n"
+                                         << "    expected:         " << tolerance);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

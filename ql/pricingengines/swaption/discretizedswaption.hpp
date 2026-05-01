@@ -29,26 +29,25 @@
 #include <ql/discretizedasset.hpp>
 #include <ql/instruments/swaption.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class DiscretizedSwaption : public DiscretizedOption {
+    class DiscretizedSwaption : public DiscretizedOption
+    {
       public:
-        DiscretizedSwaption(const Swaption::arguments&,
-                            const Date& referenceDate,
-                            const DayCounter& dayCounter);
+        DiscretizedSwaption(const Swaption::arguments&, const Date& referenceDate, const DayCounter& dayCounter);
         void reset(Size size) override;
 
       private:
         Swaption::arguments arguments_;
         Time lastPayment_;
 
-        static void prepareSwaptionWithSnappedDates(
-            const Swaption::arguments& args,
-            const Date& referenceDate,
-            const DayCounter& dayCounter,
-            PricingEngine::arguments& snappedArgs,
-            std::vector<CouponAdjustment>& fixedCouponAdjustments,
-            std::vector<CouponAdjustment>& floatingCouponAdjustments);
+        static void prepareSwaptionWithSnappedDates(const Swaption::arguments& args,
+                                                    const Date& referenceDate,
+                                                    const DayCounter& dayCounter,
+                                                    PricingEngine::arguments& snappedArgs,
+                                                    std::vector<CouponAdjustment>& fixedCouponAdjustments,
+                                                    std::vector<CouponAdjustment>& floatingCouponAdjustments);
     };
 
 }

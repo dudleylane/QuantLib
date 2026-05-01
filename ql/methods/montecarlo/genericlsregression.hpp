@@ -23,7 +23,8 @@
 
 #include <ql/methods/montecarlo/nodedata.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! returns the biased estimate obtained while regressing
     /* TODO document:
@@ -35,12 +36,10 @@ namespace QuantLib {
 
        basisCoefficients.size() = n
     */
-    Real genericLongstaffSchwartzRegression(
-        std::vector<std::vector<NodeData> >& simulationData,
-        std::vector<std::vector<Real> >& basisCoefficients);
+    Real genericLongstaffSchwartzRegression(std::vector<std::vector<NodeData>>& simulationData,
+                                            std::vector<std::vector<Real>>& basisCoefficients);
 
 }
 
 
 #endif
-

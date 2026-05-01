@@ -26,19 +26,15 @@
 
 #include <ql/math/distributions/gammadistribution.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    inline Real betaFunction(Real z, Real w) {
-    return std::exp(GammaFunction().logValue(z) +
-                    GammaFunction().logValue(w) -
-                    GammaFunction().logValue(z+w));
+    inline Real betaFunction(Real z, Real w)
+    {
+        return std::exp(GammaFunction().logValue(z) + GammaFunction().logValue(w) - GammaFunction().logValue(z + w));
     }
 
-    Real betaContinuedFraction(Real a,
-                               Real b,
-                               Real x,
-                               Real accuracy = 1e-16,
-                               Integer maxIteration = 100);
+    Real betaContinuedFraction(Real a, Real b, Real x, Real accuracy = 1e-16, Integer maxIteration = 100);
 
     //! Incomplete Beta function
     /*! Incomplete Beta function
@@ -47,11 +43,7 @@ namespace QuantLib {
         "Numerical Recipes in C", 2nd edition,
         Press, Teukolsky, Vetterling, Flannery, chapter 6
     */
-    Real incompleteBetaFunction(Real a,
-                                Real b,
-                                Real x,
-                                Real accuracy = 1e-16,
-                                Integer maxIteration = 100);
+    Real incompleteBetaFunction(Real a, Real b, Real x, Real accuracy = 1e-16, Integer maxIteration = 100);
 
 }
 

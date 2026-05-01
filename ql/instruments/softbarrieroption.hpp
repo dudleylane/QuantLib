@@ -24,21 +24,23 @@
 #ifndef quantlib_soft_barrier_option_hpp
 #define quantlib_soft_barrier_option_hpp
 
+#include <ql/instruments/barriertype.hpp>
 #include <ql/instruments/oneassetoption.hpp>
 #include <ql/instruments/payoffs.hpp>
-#include <ql/instruments/barriertype.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class GeneralizedBlackScholesProcess;
 
     //! Soft barrier option on a single asset
-    /*! A soft barrier option gets knocked in/out proportionally over the barrier range instead of being knocked in/out in full at a hard barrier.
-        It is currently only available with European payoff stylet
+    /*! A soft barrier option gets knocked in/out proportionally over the barrier range instead of being knocked in/out
+       in full at a hard barrier. It is currently only available with European payoff stylet
 
         \ingroup instruments
     */
-    class SoftBarrierOption : public OneAssetOption {
+    class SoftBarrierOption : public OneAssetOption
+    {
       public:
         class arguments;
         class engine;
@@ -52,12 +54,12 @@ namespace QuantLib {
         void setupArguments(PricingEngine::arguments*) const override;
 
         Volatility impliedVolatility(
-             Real price,
-             const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
-             Real accuracy = 1.0e-4,
-             Size maxEvaluations = 100,
-             Volatility minVol = 1e-6, // 0 vol values can make the soft barrier formula produce NaN results
-             Volatility maxVol = 4.0) const;
+            Real price,
+            const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
+            Real accuracy = 1.0e-4,
+            Size maxEvaluations = 100,
+            Volatility minVol = 1e-6, // 0 vol values can make the soft barrier formula produce NaN results
+            Volatility maxVol = 4.0) const;
 
       private:
         Barrier::Type barrierType_;
@@ -66,7 +68,8 @@ namespace QuantLib {
     };
 
     // Arguments for soft barrier option calc
-    class SoftBarrierOption::arguments : public OneAssetOption::arguments {
+    class SoftBarrierOption::arguments : public OneAssetOption::arguments
+    {
       public:
         arguments();
         Barrier::Type barrierType;
@@ -75,9 +78,9 @@ namespace QuantLib {
     };
 
     // Base class for soft barrier option engines
-    class SoftBarrierOption::engine
-        : public GenericEngine<SoftBarrierOption::arguments,
-                               SoftBarrierOption::results> {};
+    class SoftBarrierOption::engine : public GenericEngine<SoftBarrierOption::arguments, SoftBarrierOption::results>
+    {
+    };
 
 }
 

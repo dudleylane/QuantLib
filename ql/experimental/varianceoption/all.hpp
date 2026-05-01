@@ -3,4 +3,3 @@
 
 #include <ql/experimental/varianceoption/integralhestonvarianceoptionengine.hpp>
 #include <ql/experimental/varianceoption/varianceoption.hpp>
-

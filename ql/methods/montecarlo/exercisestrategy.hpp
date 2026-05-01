@@ -22,13 +22,15 @@
 #define quantlib_exercise_strategy_hpp
 
 #include <ql/types.hpp>
-#include <vector>
 #include <memory>
+#include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     template <class State>
-    class ExerciseStrategy {
+    class ExerciseStrategy
+    {
       public:
         virtual ~ExerciseStrategy() = default;
         virtual std::vector<Time> exerciseTimes() const = 0;
@@ -36,7 +38,7 @@ namespace QuantLib {
         virtual void reset() = 0;
         virtual bool exercise(const State& currentState) const = 0;
         virtual void nextStep(const State& currentState) = 0;
-        virtual std::unique_ptr<ExerciseStrategy<State> > clone() const = 0;
+        virtual std::unique_ptr<ExerciseStrategy<State>> clone() const = 0;
     };
 
 }

@@ -25,32 +25,35 @@
 
 #ifndef QL_PATCH_SOLARIS
 
-#include <ql/experimental/credit/syntheticcdo.hpp>
+#    include <ql/experimental/credit/syntheticcdo.hpp>
 #    include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class YieldTermStructure;
 
     //! CDO base engine taking schedule steps
 
-    /* The engine obtains the cdo reference basket from its arguments and it 
-    is expecting it to have a default model assigned. 
+    /* The engine obtains the cdo reference basket from its arguments and it
+    is expecting it to have a default model assigned.
     */
-    /* FIX ME: ASSUMES basket->expectedTrancheLoss(endDate) includes past 
-    realized losses (between cdo inception and calculation time) .... what if 
+    /* FIX ME: ASSUMES basket->expectedTrancheLoss(endDate) includes past
+    realized losses (between cdo inception and calculation time) .... what if
     basket inception is not the same as CDO's ?????
 
     \todo non tested under realized defaults. JTD metrics might be invalid
     */
-    class MidPointCDOEngine : public SyntheticCDO::engine {
-    public:
-      explicit MidPointCDOEngine(Handle<YieldTermStructure> discountCurve)
-      : discountCurve_(std::move(discountCurve)) {}
-      void calculate() const override;
+    class MidPointCDOEngine : public SyntheticCDO::engine
+    {
+      public:
+        explicit MidPointCDOEngine(Handle<YieldTermStructure> discountCurve) : discountCurve_(std::move(discountCurve))
+        {
+        }
+        void calculate() const override;
 
-    protected:
-      Handle<YieldTermStructure> discountCurve_;
+      protected:
+        Handle<YieldTermStructure> discountCurve_;
     };
 
 }

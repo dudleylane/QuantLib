@@ -24,17 +24,18 @@
 #ifndef quantlib_black_variance_surface_delta_hpp
 #define quantlib_black_variance_surface_delta_hpp
 
-#include <ql/quotes/deltavolquote.hpp>
 #include <ql/math/interpolation.hpp>
 #include <ql/math/matrix.hpp>
+#include <ql/quotes/deltavolquote.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvariancecurve.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvoltermstructure.hpp>
+#include <ql/termstructures/volatility/smilesection.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/time/calendar.hpp>
 #include <ql/time/daycounter.hpp>
-#include <ql/termstructures/volatility/smilesection.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! \brief Black volatility surface parameterized by market deltas
 
@@ -50,11 +51,18 @@ namespace QuantLib {
         - Building FX/equity volatility surfaces from market delta quotes.
         - Creating per-expiry SmileSections for pricing and risk calculations.
     */
-    class BlackVolatilitySurfaceDelta : public BlackVolatilityTermStructure {
-    public:
+    class BlackVolatilitySurfaceDelta : public BlackVolatilityTermStructure
+    {
+      public:
         //! Supported interpolation methods for the smile sections
-        enum class SmileInterpolationMethod { Linear, NaturalCubic, FinancialCubic, CubicSpline };
-        
+        enum class SmileInterpolationMethod
+        {
+            Linear,
+            NaturalCubic,
+            FinancialCubic,
+            CubicSpline
+        };
+
         //! \name Constructors
         //@{
         /*! \brief Construct a delta-parametrized Black vol surface
@@ -83,23 +91,28 @@ namespace QuantLib {
             \param longTermAtmType          long-term ATM convention (used beyond switchTenor)
             \param longTermAtmDeltaType     optional override for long-term ATM delta-type
         */
-        BlackVolatilitySurfaceDelta(Date referenceDate, const std::vector<Date>& dates, const std::vector<Real>& putDeltas,
-                                    const std::vector<Real>& callDeltas, bool hasAtm, const Matrix& blackVolMatrix,
-                                    const DayCounter& dayCounter, const Calendar& cal, const Handle<Quote>& spot,
-                                    const Handle<YieldTermStructure>& domesticTS,
-                                    const Handle<YieldTermStructure>& foreignTS,
-                                    DeltaVolQuote::DeltaType deltaType = DeltaVolQuote::DeltaType::Spot,
-                                    DeltaVolQuote::AtmType atmType = DeltaVolQuote::AtmType::AtmDeltaNeutral,
-                                    ext::optional<DeltaVolQuote::DeltaType> atmDeltaType = ext::nullopt,
-                                    SmileInterpolationMethod interpolationMethod =
-                                        SmileInterpolationMethod::Linear,
-                                    bool flatStrikeExtrapolation = false,
-                                    BlackVolTimeExtrapolation::Type timeExtrapolationType =
-                                        BlackVolTimeExtrapolation::FlatVolatility,
-                                    const Period& switchTenor = 0 * Days,
-                                    DeltaVolQuote::DeltaType longTermDeltaType = DeltaVolQuote::DeltaType::Fwd,
-                                    DeltaVolQuote::AtmType longTermAtmType = DeltaVolQuote::AtmType::AtmDeltaNeutral,
-                                    ext::optional<DeltaVolQuote::DeltaType> longTermAtmDeltaType = ext::nullopt);
+        BlackVolatilitySurfaceDelta(
+            Date referenceDate,
+            const std::vector<Date>& dates,
+            const std::vector<Real>& putDeltas,
+            const std::vector<Real>& callDeltas,
+            bool hasAtm,
+            const Matrix& blackVolMatrix,
+            const DayCounter& dayCounter,
+            const Calendar& cal,
+            const Handle<Quote>& spot,
+            const Handle<YieldTermStructure>& domesticTS,
+            const Handle<YieldTermStructure>& foreignTS,
+            DeltaVolQuote::DeltaType deltaType = DeltaVolQuote::DeltaType::Spot,
+            DeltaVolQuote::AtmType atmType = DeltaVolQuote::AtmType::AtmDeltaNeutral,
+            ext::optional<DeltaVolQuote::DeltaType> atmDeltaType = ext::nullopt,
+            SmileInterpolationMethod interpolationMethod = SmileInterpolationMethod::Linear,
+            bool flatStrikeExtrapolation = false,
+            BlackVolTimeExtrapolation::Type timeExtrapolationType = BlackVolTimeExtrapolation::FlatVolatility,
+            const Period& switchTenor = 0 * Days,
+            DeltaVolQuote::DeltaType longTermDeltaType = DeltaVolQuote::DeltaType::Fwd,
+            DeltaVolQuote::AtmType longTermAtmType = DeltaVolQuote::AtmType::AtmDeltaNeutral,
+            ext::optional<DeltaVolQuote::DeltaType> longTermAtmDeltaType = ext::nullopt);
         //@}
 
         //! \name TermStructure interface
@@ -158,17 +171,17 @@ namespace QuantLib {
         */
         ext::shared_ptr<SmileSection> blackVolSmile(const Date& d) const;
 
-    protected:
+      protected:
         Volatility blackVolImpl(Time t, Real strike) const override;
 
-    private:
+      private:
         std::vector<Date> dates_;
         std::vector<Time> times_;
 
         std::vector<Real> putDeltas_;
         std::vector<Real> callDeltas_;
         bool hasAtm_;
-        std::vector<ext::shared_ptr<BlackVarianceCurve> > interpolators_;
+        std::vector<ext::shared_ptr<BlackVarianceCurve>> interpolators_;
 
         Handle<Quote> spot_;
         Handle<YieldTermStructure> domesticTS_;
@@ -194,7 +207,8 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline void BlackVolatilitySurfaceDelta::accept(AcyclicVisitor& v) {
+    inline void BlackVolatilitySurfaceDelta::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<BlackVolatilitySurfaceDelta>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);

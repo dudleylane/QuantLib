@@ -28,10 +28,12 @@
 #include <ql/currencies/america.hpp>
 #include <ql/indexes/inflationindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! US CPI index
-    class USCPI : public ZeroInflationIndex {
+    class USCPI : public ZeroInflationIndex
+    {
       public:
         explicit USCPI(const Handle<ZeroInflationTermStructure>& ts = {})
         : ZeroInflationIndex("CPI",
@@ -40,21 +42,20 @@ namespace QuantLib {
                              Monthly,
                              Period(1, Months), // availability
                              USDCurrency(),
-                             ts) {}
+                             ts)
+        {
+        }
     };
 
 
     //! Quoted year-on-year US CPI (i.e. not a ratio of US CPI)
-    class YYUSCPI : public YoYInflationIndex {
+    class YYUSCPI : public YoYInflationIndex
+    {
       public:
         explicit YYUSCPI(const Handle<YoYInflationTermStructure>& ts = {})
-        : YoYInflationIndex("YY_CPI",
-                            USRegion(),
-                            false,
-                            Monthly,
-                            Period(1, Months),
-                            USDCurrency(),
-                            ts) {}
+        : YoYInflationIndex("YY_CPI", USRegion(), false, Monthly, Period(1, Months), USDCurrency(), ts)
+        {
+        }
     };
 
 }

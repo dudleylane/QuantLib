@@ -27,7 +27,8 @@
 #include <ql/instruments/basketoption.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Pricing engine for basket option on multiple underlyings
     /*! This class implements the pricing formula from
@@ -51,23 +52,21 @@ namespace QuantLib {
         \test the correctness of the returned value is tested by
               reproducing results available in literature.
     */
-    class DengLiZhouBasketEngine : public BasketOption::engine {
+    class DengLiZhouBasketEngine : public BasketOption::engine
+    {
       public:
-        DengLiZhouBasketEngine(
-            std::vector<ext::shared_ptr<GeneralizedBlackScholesProcess> > processes,
-            Matrix rho);
+        DengLiZhouBasketEngine(std::vector<ext::shared_ptr<GeneralizedBlackScholesProcess>> processes, Matrix rho);
 
         void calculate() const override;
 
       private:
         static Real calculate_vanilla_call(
-            const Array& s, DiscountFactor dr, const Array& dq,
-            const Array& v, const Matrix& rho, Time T);
+            const Array& s, DiscountFactor dr, const Array& dq, const Array& v, const Matrix& rho, Time T);
 
         static Real I(Real u, Real tF2, const Matrix& D, const Matrix& DF, Size i);
 
         const Size n_;
-        const std::vector<ext::shared_ptr<GeneralizedBlackScholesProcess> > processes_;
+        const std::vector<ext::shared_ptr<GeneralizedBlackScholesProcess>> processes_;
         const Matrix rho_;
     };
 }

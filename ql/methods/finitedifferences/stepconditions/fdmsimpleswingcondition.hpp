@@ -24,13 +24,15 @@
 #ifndef quantlib_fdm_simple_swing_condition_hpp
 #define quantlib_fdm_simple_swing_condition_hpp
 
-#include <ql/methods/finitedifferences/stepcondition.hpp>
 #include <ql/methods/finitedifferences/meshers/fdmmesher.hpp>
+#include <ql/methods/finitedifferences/stepcondition.hpp>
 #include <ql/methods/finitedifferences/utilities/fdminnervaluecalculator.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class FdmSimpleSwingCondition : public StepCondition<Array> {
+    class FdmSimpleSwingCondition : public StepCondition<Array>
+    {
       public:
         FdmSimpleSwingCondition(std::vector<Time> exerciseTimes,
                                 ext::shared_ptr<FdmMesher> mesher,

@@ -28,7 +28,8 @@
 #include <ql/time/calendars/nullcalendar.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     BlackCapFloorEngine::BlackCapFloorEngine(Handle<YieldTermStructure> discountCurve,
                                              Volatility v,
@@ -37,7 +38,8 @@ namespace QuantLib {
     : discountCurve_(std::move(discountCurve)),
       vol_(ext::shared_ptr<OptionletVolatilityStructure>(
           new ConstantOptionletVolatility(0, NullCalendar(), Following, v, dc))),
-      displacement_(displacement) {
+      displacement_(displacement)
+    {
         registerWith(discountCurve_);
     }
 
@@ -48,7 +50,8 @@ namespace QuantLib {
     : discountCurve_(std::move(discountCurve)),
       vol_(ext::shared_ptr<OptionletVolatilityStructure>(
           new ConstantOptionletVolatility(0, NullCalendar(), Following, v, dc))),
-      displacement_(displacement) {
+      displacement_(displacement)
+    {
         registerWith(discountCurve_);
         registerWith(vol_);
     }
@@ -56,25 +59,27 @@ namespace QuantLib {
     BlackCapFloorEngine::BlackCapFloorEngine(Handle<YieldTermStructure> discountCurve,
                                              Handle<OptionletVolatilityStructure> volatility,
                                              Real displacement)
-    : discountCurve_(std::move(discountCurve)), vol_(std::move(volatility)) {
-        QL_REQUIRE(
-            vol_->volatilityType() == ShiftedLognormal,
-            "BlackCapFloorEngine should only be used for vol surfaces stripped "
-            "with shifted log normal model. Options were stripped with model "
-                << vol_->volatilityType());
-        if (displacement != Null< Real >()) {
+    : discountCurve_(std::move(discountCurve)), vol_(std::move(volatility))
+    {
+        QL_REQUIRE(vol_->volatilityType() == ShiftedLognormal,
+                   "BlackCapFloorEngine should only be used for vol surfaces stripped "
+                   "with shifted log normal model. Options were stripped with model "
+                       << vol_->volatilityType());
+        if (displacement != Null<Real>())
+        {
             displacement_ = displacement;
-            QL_REQUIRE(vol_->displacement() == displacement_,
-                       "Displacement used for stripping and provided for "
-                       "pricing differ. Model displacement was : "
-                           << vol_->displacement());
-        } else
+            QL_REQUIRE(vol_->displacement() == displacement_, "Displacement used for stripping and provided for "
+                                                              "pricing differ. Model displacement was : "
+                                                                  << vol_->displacement());
+        }
+        else
             displacement_ = vol_->displacement();
         registerWith(discountCurve_);
         registerWith(vol_);
     }
 
-    void BlackCapFloorEngine::calculate() const {
+    void BlackCapFloorEngine::calculate() const
+    {
         Real value = 0.0;
         Real vega = 0.0;
         Size optionlets = arguments_.startDates.size();
@@ -87,17 +92,17 @@ namespace QuantLib {
         Date today = vol_->referenceDate();
         Date settlement = discountCurve_->referenceDate();
 
-        for (Size i=0; i<optionlets; ++i) {
+        for (Size i = 0; i < optionlets; ++i)
+        {
             Date paymentDate = arguments_.endDates[i];
             // handling of settlementDate, npvDate and includeSettlementFlows
             // should be implemented.
             // For the time being just discard expired caplets
-            if (paymentDate > settlement) {
+            if (paymentDate > settlement)
+            {
                 DiscountFactor d = discountCurve_->discount(paymentDate);
                 discountFactors[i] = d;
-                Real accrualFactor = arguments_.nominals[i] *
-                                   arguments_.gearings[i] *
-                                   arguments_.accrualTimes[i];
+                Real accrualFactor = arguments_.nominals[i] * arguments_.gearings[i] * arguments_.accrualTimes[i];
                 Real discountedAccrual = d * accrualFactor;
                 Rate forward = arguments_.forwards[i];
 
@@ -106,47 +111,51 @@ namespace QuantLib {
                 if (fixingDate > today)
                     sqrtTime = std::sqrt(vol_->timeFromReference(fixingDate));
 
-                if (type == CapFloor::Cap || type == CapFloor::Collar) {
+                if (type == CapFloor::Cap || type == CapFloor::Collar)
+                {
                     Rate strike = arguments_.capRates[i];
-                    if (sqrtTime>0.0) {
-                        stdDevs[i] = std::sqrt(vol_->blackVariance(fixingDate,
-                                                                   strike));
-                        vegas[i] = blackFormulaStdDevDerivative(strike,
-                            forward, stdDevs[i], discountedAccrual, displacement_) 
-                            * sqrtTime;
-                        deltas[i] = blackFormulaAssetItmProbability(Option::Call,
-                            strike, forward, stdDevs[i], displacement_);
+                    if (sqrtTime > 0.0)
+                    {
+                        stdDevs[i] = std::sqrt(vol_->blackVariance(fixingDate, strike));
+                        vegas[i] = blackFormulaStdDevDerivative(strike, forward, stdDevs[i], discountedAccrual,
+                                                                displacement_) *
+                                   sqrtTime;
+                        deltas[i] =
+                            blackFormulaAssetItmProbability(Option::Call, strike, forward, stdDevs[i], displacement_);
                     }
                     // include caplets with past fixing date
-                    values[i] = blackFormula(Option::Call,
-                        strike, forward, stdDevs[i], discountedAccrual, 
-                        displacement_);
+                    values[i] =
+                        blackFormula(Option::Call, strike, forward, stdDevs[i], discountedAccrual, displacement_);
                 }
-                if (type == CapFloor::Floor || type == CapFloor::Collar) {
+                if (type == CapFloor::Floor || type == CapFloor::Collar)
+                {
                     Rate strike = arguments_.floorRates[i];
                     Real floorletVega = 0.0;
                     Real floorletDelta = 0.0;
-                    if (sqrtTime>0.0) {
-                        stdDevs[i] = std::sqrt(vol_->blackVariance(fixingDate,
-                                                                   strike));
-                        floorletVega = blackFormulaStdDevDerivative(strike,
-                            forward, stdDevs[i], discountedAccrual, displacement_) 
-                            * sqrtTime;
-                        floorletDelta = Integer(Option::Put) * blackFormulaAssetItmProbability(
-                                                        Option::Put, strike, forward, 
-                                                        stdDevs[i], displacement_);
+                    if (sqrtTime > 0.0)
+                    {
+                        stdDevs[i] = std::sqrt(vol_->blackVariance(fixingDate, strike));
+                        floorletVega = blackFormulaStdDevDerivative(strike, forward, stdDevs[i], discountedAccrual,
+                                                                    displacement_) *
+                                       sqrtTime;
+                        floorletDelta =
+                            Integer(Option::Put) *
+                            blackFormulaAssetItmProbability(Option::Put, strike, forward, stdDevs[i], displacement_);
                     }
-                    Real floorlet = blackFormula(Option::Put,
-                        strike, forward, stdDevs[i], discountedAccrual, displacement_);
-                    if (type == CapFloor::Floor) {
+                    Real floorlet =
+                        blackFormula(Option::Put, strike, forward, stdDevs[i], discountedAccrual, displacement_);
+                    if (type == CapFloor::Floor)
+                    {
                         values[i] = floorlet;
                         vegas[i] = floorletVega;
                         deltas[i] = floorletDelta;
-                    } else {
+                    }
+                    else
+                    {
                         // a collar is long a cap and short a floor
                         values[i] -= floorlet;
                         vegas[i] -= floorletVega;
-                        deltas[i] -= floorletDelta; 
+                        deltas[i] -= floorletDelta;
                     }
                 }
                 value += values[i];

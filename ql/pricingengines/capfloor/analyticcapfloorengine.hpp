@@ -25,24 +25,22 @@
 #define quantlib_pricers_analytical_cap_floor_hpp
 
 #include <ql/instruments/capfloor.hpp>
-#include <ql/pricingengines/genericmodelengine.hpp>
 #include <ql/models/model.hpp>
+#include <ql/pricingengines/genericmodelengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Analytic engine for cap/floor
     /*! \ingroup capfloorengines */
-    class AnalyticCapFloorEngine
-        : public GenericModelEngine<AffineModel,
-                                    CapFloor::arguments,
-                                    CapFloor::results > {
+    class AnalyticCapFloorEngine : public GenericModelEngine<AffineModel, CapFloor::arguments, CapFloor::results>
+    {
       public:
         /*! \note the term structure is only needed when the short-rate
                   model cannot provide one itself.
         */
-        AnalyticCapFloorEngine(
-            const ext::shared_ptr<AffineModel>& model,
-            Handle<YieldTermStructure> termStructure = Handle<YieldTermStructure>());
+        AnalyticCapFloorEngine(const ext::shared_ptr<AffineModel>& model,
+                               Handle<YieldTermStructure> termStructure = Handle<YieldTermStructure>());
         void calculate() const override;
 
       private:

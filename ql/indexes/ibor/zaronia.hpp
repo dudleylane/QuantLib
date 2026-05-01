@@ -26,10 +26,12 @@
 
 #include <ql/indexes/iborindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Zaronia (South African Rand Overnight Index Average) rate fixed by the South African Reserve Bank.
-    class Zaronia : public OvernightIndex {
+    class Zaronia : public OvernightIndex
+    {
       public:
         explicit Zaronia(const Handle<YieldTermStructure>& h = {});
     };

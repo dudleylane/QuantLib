@@ -26,7 +26,8 @@
 
 #include <ql/types.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! A basic rounding class that supports truncating up to 16 decimal places
         (input precision range in [0,16]) and depends on a precision of rounding number.
@@ -36,7 +37,8 @@ namespace QuantLib {
         \test the correctness of the returned values is tested by
               checking them against known good results.
     */
-    class Rounding {
+    class Rounding
+    {
       public:
         //! rounding methods
         /*! The rounding methods follow the OMG specification available
@@ -45,7 +47,8 @@ namespace QuantLib {
             \warning the names of the Floor and Ceiling methods might
                      be misleading. Check the provided reference.
         */
-        enum Type {
+        enum Type
+        {
             None,    /*!< do not round: return the number unmodified */
             Up,      /*!< the first decimal place past the precision will be
                           rounded up. This differs from the OMG rule which
@@ -72,10 +75,10 @@ namespace QuantLib {
             any rounding.
         */
         Rounding() = default;
-        explicit Rounding(Integer precision,
-                          Type type = Closest,
-                          Integer digit = 5)
-        : precision_(precision), type_(type), digit_(digit) {}
+        explicit Rounding(Integer precision, Type type = Closest, Integer digit = 5)
+        : precision_(precision), type_(type), digit_(digit)
+        {
+        }
         //! perform rounding
         Decimal operator()(Decimal value) const;
         //! \name Inspectors
@@ -83,6 +86,7 @@ namespace QuantLib {
         Integer precision() const { return precision_; }
         Type type() const { return type_; }
         Integer roundingDigit() const { return digit_; }
+
       private:
         Integer precision_;
         Type type_ = None;
@@ -91,43 +95,38 @@ namespace QuantLib {
 
 
     //! Up-rounding.
-    class UpRounding : public Rounding {
+    class UpRounding : public Rounding
+    {
       public:
-        explicit UpRounding(Integer precision,
-                            Integer digit = 5)
-        : Rounding(precision,Up,digit) {}
+        explicit UpRounding(Integer precision, Integer digit = 5) : Rounding(precision, Up, digit) {}
     };
 
     //! Down-rounding.
-    class DownRounding : public Rounding {
+    class DownRounding : public Rounding
+    {
       public:
-        explicit DownRounding(Integer precision,
-                              Integer digit = 5)
-        : Rounding(precision,Down,digit) {}
+        explicit DownRounding(Integer precision, Integer digit = 5) : Rounding(precision, Down, digit) {}
     };
 
     //! Closest rounding.
-    class ClosestRounding : public Rounding {
+    class ClosestRounding : public Rounding
+    {
       public:
-        explicit ClosestRounding(Integer precision,
-                                 Integer digit = 5)
-        : Rounding(precision,Closest,digit) {}
+        explicit ClosestRounding(Integer precision, Integer digit = 5) : Rounding(precision, Closest, digit) {}
     };
 
     //! Ceiling truncation.
-    class CeilingTruncation : public Rounding {
+    class CeilingTruncation : public Rounding
+    {
       public:
-        explicit CeilingTruncation(Integer precision,
-                                   Integer digit = 5)
-        : Rounding(precision,Ceiling,digit) {}
+        explicit CeilingTruncation(Integer precision, Integer digit = 5) : Rounding(precision, Ceiling, digit) {}
     };
 
     //! %Floor truncation.
-    class FloorTruncation : public Rounding {
+    class FloorTruncation : public Rounding
+    {
       public:
-        explicit FloorTruncation(Integer precision,
-                                 Integer digit = 5)
-        : Rounding(precision,Floor,digit) {}
+        explicit FloorTruncation(Integer precision, Integer digit = 5) : Rounding(precision, Floor, digit) {}
     };
 
 }

@@ -24,19 +24,19 @@
 #ifndef quantlib_path_multiasset_option_hpp
 #define quantlib_path_multiasset_option_hpp
 
-#include <ql/instrument.hpp>
-#include <ql/stochasticprocess.hpp>
-#include <ql/math/matrix.hpp>
 #include <ql/experimental/mcbasket/pathpayoff.hpp>
+#include <ql/instrument.hpp>
+#include <ql/math/matrix.hpp>
+#include <ql/stochasticprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Base class for path-dependent options on multiple assets
-    class PathMultiAssetOption : public Instrument {
+    class PathMultiAssetOption : public Instrument
+    {
       public:
-        explicit PathMultiAssetOption(
-                        const ext::shared_ptr<PricingEngine>& engine
-                                        = ext::shared_ptr<PricingEngine>());
+        explicit PathMultiAssetOption(const ext::shared_ptr<PricingEngine>& engine = ext::shared_ptr<PricingEngine>());
 
         //! \name Instrument interface
         //@{
@@ -48,33 +48,35 @@ namespace QuantLib {
 
         void setupArguments(PricingEngine::arguments*) const override;
 
-        virtual ext::shared_ptr<PathPayoff> pathPayoff()  const = 0;
-        virtual std::vector<Date>             fixingDates() const = 0;
+        virtual ext::shared_ptr<PathPayoff> pathPayoff() const = 0;
+        virtual std::vector<Date> fixingDates() const = 0;
 
       protected:
         void setupExpired() const override;
     };
 
     //! %Arguments for multi-asset option calculation
-    class PathMultiAssetOption::arguments
-        : public virtual PricingEngine::arguments {
+    class PathMultiAssetOption::arguments : public virtual PricingEngine::arguments
+    {
       public:
         arguments() = default;
         void validate() const override;
 
-        ext::shared_ptr<PathPayoff>        payoff;
-        std::vector<Date>                    fixingDates;
+        ext::shared_ptr<PathPayoff> payoff;
+        std::vector<Date> fixingDates;
     };
 
     //! %Results from multi-asset option calculation
-    class PathMultiAssetOption::results : public Instrument::results {
+    class PathMultiAssetOption::results : public Instrument::results
+    {
       public:
         void reset() override { Instrument::results::reset(); }
     };
 
     class PathMultiAssetOption::engine
-        : public GenericEngine<PathMultiAssetOption::arguments,
-                               PathMultiAssetOption::results> {};
+    : public GenericEngine<PathMultiAssetOption::arguments, PathMultiAssetOption::results>
+    {
+    };
 
 }
 

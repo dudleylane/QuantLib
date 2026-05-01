@@ -17,41 +17,44 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/event.hpp>
 #include <ql/experimental/mcbasket/pathmultiassetoption.hpp>
+#include <ql/math/solvers1d/brent.hpp>
 #include <ql/processes/stochasticprocessarray.hpp>
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
-#include <ql/math/solvers1d/brent.hpp>
-#include <ql/event.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    PathMultiAssetOption::PathMultiAssetOption(
-                            const ext::shared_ptr<PricingEngine>& engine) {
+    PathMultiAssetOption::PathMultiAssetOption(const ext::shared_ptr<PricingEngine>& engine)
+    {
         if (engine != nullptr)
             setPricingEngine(engine);
     }
 
-    bool PathMultiAssetOption::isExpired() const {
+    bool PathMultiAssetOption::isExpired() const
+    {
         return detail::simple_event(fixingDates().back()).hasOccurred();
     }
 
-    void PathMultiAssetOption::setupExpired() const {
+    void PathMultiAssetOption::setupExpired() const
+    {
         NPV_ = 0.0;
     }
 
-    void PathMultiAssetOption::setupArguments(PricingEngine::arguments* args)
-                                                                       const {
+    void PathMultiAssetOption::setupArguments(PricingEngine::arguments* args) const
+    {
         auto* arguments = dynamic_cast<PathMultiAssetOption::arguments*>(args);
 
         QL_REQUIRE(arguments != nullptr, "wrong argument type");
 
-        arguments->payoff            = pathPayoff();
-        arguments->fixingDates       = fixingDates();
+        arguments->payoff = pathPayoff();
+        arguments->fixingDates = fixingDates();
     }
 
-    void PathMultiAssetOption::arguments::validate() const {
-        QL_REQUIRE(payoff,                 "no payoff given");
+    void PathMultiAssetOption::arguments::validate() const
+    {
+        QL_REQUIRE(payoff, "no payoff given");
         QL_REQUIRE(!fixingDates.empty(), "no dates given");
     }
 }
-

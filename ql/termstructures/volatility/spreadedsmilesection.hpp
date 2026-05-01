@@ -24,14 +24,16 @@
 #ifndef quantlib_spreaded_smile_section_hpp
 #define quantlib_spreaded_smile_section_hpp
 
-#include <ql/termstructures/volatility/smilesection.hpp>
 #include <ql/handle.hpp>
+#include <ql/termstructures/volatility/smilesection.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Quote;
 
-    class SpreadedSmileSection : public SmileSection {
+    class SpreadedSmileSection : public SmileSection
+    {
       public:
         SpreadedSmileSection(ext::shared_ptr<SmileSection>, Handle<Quote> spread);
         //! \name SmileSection interface
@@ -58,39 +60,48 @@ namespace QuantLib {
         const Handle<Quote> spread_;
     };
 
-    inline Real SpreadedSmileSection::minStrike() const {
+    inline Real SpreadedSmileSection::minStrike() const
+    {
         return underlyingSection_->minStrike();
     }
 
-    inline Real SpreadedSmileSection::maxStrike() const {
+    inline Real SpreadedSmileSection::maxStrike() const
+    {
         return underlyingSection_->maxStrike();
     }
 
-    inline Real SpreadedSmileSection::atmLevel() const {
+    inline Real SpreadedSmileSection::atmLevel() const
+    {
         return underlyingSection_->atmLevel();
     }
 
-    inline const Date& SpreadedSmileSection::exerciseDate() const {
+    inline const Date& SpreadedSmileSection::exerciseDate() const
+    {
         return underlyingSection_->exerciseDate();
     }
 
-    inline Time SpreadedSmileSection::exerciseTime() const {
+    inline Time SpreadedSmileSection::exerciseTime() const
+    {
         return underlyingSection_->exerciseTime();
     }
 
-    inline const DayCounter& SpreadedSmileSection::dayCounter() const {
+    inline const DayCounter& SpreadedSmileSection::dayCounter() const
+    {
         return underlyingSection_->dayCounter();
     }
 
-    inline const Date& SpreadedSmileSection::referenceDate() const {
+    inline const Date& SpreadedSmileSection::referenceDate() const
+    {
         return underlyingSection_->referenceDate();
     }
 
-    inline VolatilityType SpreadedSmileSection::volatilityType() const {
+    inline VolatilityType SpreadedSmileSection::volatilityType() const
+    {
         return underlyingSection_->volatilityType();
     }
 
-    inline Rate SpreadedSmileSection::shift() const {
+    inline Rate SpreadedSmileSection::shift() const
+    {
         return underlyingSection_->shift();
     }
 }

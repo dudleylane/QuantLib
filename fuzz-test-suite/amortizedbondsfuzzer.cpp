@@ -30,15 +30,18 @@
 
 using namespace QuantLib;
 
-std::vector<Real> fuzzedRates(FuzzedDataProvider& fdp, const size_t length) {
+std::vector<Real> fuzzedRates(FuzzedDataProvider& fdp, const size_t length)
+{
     std::vector<Real> result;
-    for (size_t i = 0; i < length; i++) {
+    for (size_t i = 0; i < length; i++)
+    {
         result.push_back(fdp.ConsumeProbability<Real>());
     }
     return result;
 }
 
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size) {
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size)
+{
     FuzzedDataProvider fdp(Data, Size);
     // Ensure settings are reset each iteration of the fuzzing loop.
     // NOTE: this class manages the settings singleton using default
@@ -53,18 +56,19 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size) {
     auto rates = fuzzedRates(fdp, length);
     Frequency freq = Monthly;
 
-    for (size_t i = 0; i < length; ++i) {
+    for (size_t i = 0; i < length; ++i)
+    {
 
         auto schedule = sinkingSchedule(refDate, Period(30, Years), freq, NullCalendar());
         auto notionals = sinkingNotionals(Period(30, Years), freq, rates[i], 100.0);
 
-        AmortizingFixedRateBond myBond(0, notionals, schedule, {rates[i]},
-                                       ActualActual(ActualActual::ISMA));
+        AmortizingFixedRateBond myBond(0, notionals, schedule, {rates[i]}, ActualActual(ActualActual::ISMA));
 
         Leg cashflows = myBond.cashflows();
 
         Real lastTotalAmount = 0.0;
-        for (size_t k = 0; k < cashflows.size() / 2; ++k) {
+        for (size_t k = 0; k < cashflows.size() / 2; ++k)
+        {
             Real coupon = cashflows[2 * k]->amount();
             Real principal = cashflows[2 * k + 1]->amount();
             Real totalAmount = coupon + principal;

@@ -19,33 +19,36 @@
 
 #include <ql/termstructures/volatility/atmadjustedsmilesection.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     AtmAdjustedSmileSection::AtmAdjustedSmileSection(const ext::shared_ptr<SmileSection>& source,
                                                      const Real atm,
                                                      const bool recenterSmile)
-    : SmileSection(*source), source_(source) {
+    : SmileSection(*source), source_(source)
+    {
 
         f_ = atm;
         if (f_ == Null<Real>())
             f_ = source_->atmLevel();
-        if (recenterSmile && f_ != Null<Real>() &&
-            source_->atmLevel() != Null<Real>())
+        if (recenterSmile && f_ != Null<Real>() && source_->atmLevel() != Null<Real>())
             adjustment_ = source_->atmLevel() - f_;
         else
             adjustment_ = 0.0;
-
     }
 
-    Real AtmAdjustedSmileSection::adjustedStrike(Real strike) const {
+    Real AtmAdjustedSmileSection::adjustedStrike(Real strike) const
+    {
         return strike + adjustment_;
     }
 
-    Real AtmAdjustedSmileSection::varianceImpl(Rate strike) const {
+    Real AtmAdjustedSmileSection::varianceImpl(Rate strike) const
+    {
         return source_->variance(adjustedStrike(strike));
     }
 
-    Real AtmAdjustedSmileSection::volatilityImpl(Rate strike) const {
+    Real AtmAdjustedSmileSection::volatilityImpl(Rate strike) const
+    {
         return source_->volatility(adjustedStrike(strike));
     }
 

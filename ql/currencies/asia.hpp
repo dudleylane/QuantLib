@@ -31,11 +31,12 @@
 #include <ql/currency.hpp>
 
 #if defined(QL_PATCH_MSVC)
-#pragma warning(push)
-#pragma warning(disable:4819)
+#    pragma warning(push)
+#    pragma warning(disable : 4819)
 #endif
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Bangladesh taka
     /*! The ISO three-letter code is BDT; the numeric code is 50.
@@ -43,7 +44,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class BDTCurrency : public Currency {
+    class BDTCurrency : public Currency
+    {
       public:
         BDTCurrency();
     };
@@ -54,7 +56,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class CNYCurrency : public Currency {
+    class CNYCurrency : public Currency
+    {
       public:
         CNYCurrency();
     };
@@ -65,7 +68,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class HKDCurrency : public Currency {
+    class HKDCurrency : public Currency
+    {
       public:
         HKDCurrency();
     };
@@ -76,7 +80,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class IDRCurrency : public Currency {
+    class IDRCurrency : public Currency
+    {
       public:
         IDRCurrency();
     };
@@ -87,7 +92,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class ILSCurrency : public Currency {
+    class ILSCurrency : public Currency
+    {
       public:
         ILSCurrency();
     };
@@ -98,7 +104,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class INRCurrency : public Currency {
+    class INRCurrency : public Currency
+    {
       public:
         INRCurrency();
     };
@@ -109,7 +116,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class IQDCurrency : public Currency {
+    class IQDCurrency : public Currency
+    {
       public:
         IQDCurrency();
     };
@@ -120,7 +128,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class IRRCurrency : public Currency {
+    class IRRCurrency : public Currency
+    {
       public:
         IRRCurrency();
     };
@@ -131,7 +140,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class JPYCurrency : public Currency {
+    class JPYCurrency : public Currency
+    {
       public:
         JPYCurrency();
     };
@@ -142,7 +152,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class KRWCurrency : public Currency {
+    class KRWCurrency : public Currency
+    {
       public:
         KRWCurrency();
     };
@@ -153,14 +164,16 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class KWDCurrency : public Currency {
+    class KWDCurrency : public Currency
+    {
       public:
         KWDCurrency();
     };
- 
-    class KZTCurrency : public Currency {
+
+    class KZTCurrency : public Currency
+    {
       public:
-       KZTCurrency();
+        KZTCurrency();
     };
 
     //! Malaysian Ringgit
@@ -169,7 +182,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class MYRCurrency : public Currency {
+    class MYRCurrency : public Currency
+    {
       public:
         MYRCurrency();
     };
@@ -180,7 +194,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class NPRCurrency : public Currency {
+    class NPRCurrency : public Currency
+    {
       public:
         NPRCurrency();
     };
@@ -191,7 +206,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class PKRCurrency : public Currency {
+    class PKRCurrency : public Currency
+    {
       public:
         PKRCurrency();
     };
@@ -202,7 +218,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class SARCurrency : public Currency {
+    class SARCurrency : public Currency
+    {
       public:
         SARCurrency();
     };
@@ -213,7 +230,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class SGDCurrency : public Currency {
+    class SGDCurrency : public Currency
+    {
       public:
         SGDCurrency();
     };
@@ -224,7 +242,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class THBCurrency : public Currency {
+    class THBCurrency : public Currency
+    {
       public:
         THBCurrency();
     };
@@ -235,7 +254,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class TWDCurrency : public Currency {
+    class TWDCurrency : public Currency
+    {
       public:
         TWDCurrency();
     };
@@ -246,7 +266,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class VNDCurrency : public Currency {
+    class VNDCurrency : public Currency
+    {
       public:
         VNDCurrency();
     };
@@ -256,7 +277,8 @@ namespace QuantLib {
      It is divided into 100 diram.
      \ingroup currencies
     */
-    class QARCurrency : public Currency {
+    class QARCurrency : public Currency
+    {
       public:
         QARCurrency();
     };
@@ -266,7 +288,8 @@ namespace QuantLib {
      It is divided into 1000 fils.
      \ingroup currencies
     */
-    class BHDCurrency : public Currency {
+    class BHDCurrency : public Currency
+    {
       public:
         BHDCurrency();
     };
@@ -276,7 +299,8 @@ namespace QuantLib {
      It is divided into 1000 baisa.
      \ingroup currencies
      */
-    class OMRCurrency : public Currency {
+    class OMRCurrency : public Currency
+    {
       public:
         OMRCurrency();
     };
@@ -286,7 +310,8 @@ namespace QuantLib {
      It is divided into 100 qirshes.
      \ingroup currencies
      */
-    class JODCurrency : public Currency {
+    class JODCurrency : public Currency
+    {
       public:
         JODCurrency();
     };
@@ -296,7 +321,8 @@ namespace QuantLib {
      It is divided into 100 fils.
      \ingroup currencies
      */
-    class AEDCurrency : public Currency {
+    class AEDCurrency : public Currency
+    {
       public:
         AEDCurrency();
     };
@@ -306,7 +332,8 @@ namespace QuantLib {
      It is divided into 100 centavo.
      \ingroup currencies
      */
-    class PHPCurrency : public Currency {
+    class PHPCurrency : public Currency
+    {
       public:
         PHPCurrency();
     };
@@ -316,7 +343,8 @@ namespace QuantLib {
      It is divided in 100 fen.
      \ingroup currencies
     */
-    class CNHCurrency : public Currency {
+    class CNHCurrency : public Currency
+    {
       public:
         CNHCurrency();
     };
@@ -326,7 +354,8 @@ namespace QuantLib {
      It is divided into 100 cents.
      \ingroup currencies
     */
-    class LKRCurrency : public Currency {
+    class LKRCurrency : public Currency
+    {
       public:
         LKRCurrency();
     };
@@ -334,7 +363,7 @@ namespace QuantLib {
 }
 
 #if defined(QL_PATCH_MSVC)
-#pragma warning(pop)
+#    pragma warning(pop)
 #endif
 
 #endif

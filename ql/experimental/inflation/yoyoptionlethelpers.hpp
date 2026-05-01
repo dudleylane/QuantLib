@@ -29,11 +29,12 @@
 #include <ql/pricingengines/inflation/inflationcapfloorengines.hpp>
 #include <ql/termstructures/bootstraphelper.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Year-on-year inflation-volatility bootstrap helper.
-    class YoYOptionletHelper
-        : public BootstrapHelper<YoYOptionletVolatilitySurface> {
+    class YoYOptionletHelper : public BootstrapHelper<YoYOptionletVolatilitySurface>
+    {
       public:
         YoYOptionletHelper(const Handle<Quote>& price,
                            Real notional, // get the price level right, e.g., bps = 10,000
@@ -58,7 +59,7 @@ namespace QuantLib {
         Natural fixingDays_;
         ext::shared_ptr<YoYInflationIndex> index_;
         Rate strike_;
-        Size n_;  // how many payments
+        Size n_; // how many payments
         DayCounter yoyDayCounter_;
         Calendar calendar_;
         ext::shared_ptr<YoYInflationCapFloorEngine> pricer_;
@@ -69,4 +70,3 @@ namespace QuantLib {
 }
 
 #endif
-

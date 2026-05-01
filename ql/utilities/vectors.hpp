@@ -27,22 +27,27 @@
 #include <ql/types.hpp>
 #include <vector>
 
-namespace QuantLib::detail {
+namespace QuantLib::detail
+{
 
-        template <class T, class U>
-        T get(const std::vector<T>& v,
-              Size i,
-              U defaultValue) {
-            if (v.empty()) {
-                return static_cast<T>(defaultValue);
-            } else if (i < v.size()) {
-                return v[i];
-            } else {
-                return v.back();
-            }
+    template <class T, class U>
+    T get(const std::vector<T>& v, Size i, U defaultValue)
+    {
+        if (v.empty())
+        {
+            return static_cast<T>(defaultValue);
         }
-
+        else if (i < v.size())
+        {
+            return v[i];
+        }
+        else
+        {
+            return v.back();
+        }
     }
+
+}
 
 
 #endif

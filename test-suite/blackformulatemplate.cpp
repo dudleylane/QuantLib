@@ -14,9 +14,9 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
-#include <ql/pricingengines/blackformulatemplate.hpp>
-#include <ql/pricingengines/blackformula.hpp>
 #include <ql/math/aad.hpp>
+#include <ql/pricingengines/blackformula.hpp>
+#include <ql/pricingengines/blackformulatemplate.hpp>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -25,7 +25,8 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(BlackFormulaTemplateTests)
 
-BOOST_AUTO_TEST_CASE(testRealInstantiationMatchesBlackFormula) {
+BOOST_AUTO_TEST_CASE(testRealInstantiationMatchesBlackFormula)
+{
     BOOST_TEST_MESSAGE("blackFormulaT<Real> matches blackFormula() to "
                        "machine precision...");
 
@@ -35,16 +36,17 @@ BOOST_AUTO_TEST_CASE(testRealInstantiationMatchesBlackFormula) {
     const DiscountFactor df = std::exp(-0.03 * 0.5);
 
     Real callT = blackFormulaT<Real>(Option::Call, strike, forward, stddev, df);
-    Real putT  = blackFormulaT<Real>(Option::Put,  strike, forward, stddev, df);
+    Real putT = blackFormulaT<Real>(Option::Put, strike, forward, stddev, df);
 
     Real callRef = blackFormula(Option::Call, strike, forward, stddev) * df;
-    Real putRef  = blackFormula(Option::Put,  strike, forward, stddev) * df;
+    Real putRef = blackFormula(Option::Put, strike, forward, stddev) * df;
 
     BOOST_CHECK_SMALL(std::fabs(callT - callRef), 1.0e-12);
-    BOOST_CHECK_SMALL(std::fabs(putT  - putRef),  1.0e-12);
+    BOOST_CHECK_SMALL(std::fabs(putT - putRef), 1.0e-12);
 }
 
-BOOST_AUTO_TEST_CASE(testPutCallParity) {
+BOOST_AUTO_TEST_CASE(testPutCallParity)
+{
     BOOST_TEST_MESSAGE("blackFormulaT respects put-call parity for "
                        "any (forward, strike) ...");
 
@@ -54,14 +56,15 @@ BOOST_AUTO_TEST_CASE(testPutCallParity) {
     const DiscountFactor df = 0.98;
 
     Real call = blackFormulaT<Real>(Option::Call, strike, forward, stddev, df);
-    Real put  = blackFormulaT<Real>(Option::Put,  strike, forward, stddev, df);
+    Real put = blackFormulaT<Real>(Option::Put, strike, forward, stddev, df);
     // Parity: Call - Put = df * (F - K)
     Real lhs = call - put;
     Real rhs = df * (forward - strike);
     BOOST_CHECK_SMALL(std::fabs(lhs - rhs), 1.0e-12);
 }
 
-BOOST_AUTO_TEST_CASE(testDisplacementMatchesBlackFormula) {
+BOOST_AUTO_TEST_CASE(testDisplacementMatchesBlackFormula)
+{
     BOOST_TEST_MESSAGE("blackFormulaT<Real> with non-zero displacement "
                        "matches blackFormula() for shifted-lognormal inputs...");
 
@@ -73,21 +76,18 @@ BOOST_AUTO_TEST_CASE(testDisplacementMatchesBlackFormula) {
     const DiscountFactor df = 0.99;
     const Real displacement = 0.02;
 
-    Real callT = blackFormulaT<Real>(Option::Call, strike, forward, stddev,
-                                      df, displacement);
-    Real putT  = blackFormulaT<Real>(Option::Put,  strike, forward, stddev,
-                                      df, displacement);
+    Real callT = blackFormulaT<Real>(Option::Call, strike, forward, stddev, df, displacement);
+    Real putT = blackFormulaT<Real>(Option::Put, strike, forward, stddev, df, displacement);
 
-    Real callRef = blackFormula(Option::Call, strike, forward, stddev, df,
-                                 displacement);
-    Real putRef  = blackFormula(Option::Put,  strike, forward, stddev, df,
-                                 displacement);
+    Real callRef = blackFormula(Option::Call, strike, forward, stddev, df, displacement);
+    Real putRef = blackFormula(Option::Put, strike, forward, stddev, df, displacement);
 
     BOOST_CHECK_SMALL(std::fabs(callT - callRef), 1.0e-12);
-    BOOST_CHECK_SMALL(std::fabs(putT  - putRef),  1.0e-12);
+    BOOST_CHECK_SMALL(std::fabs(putT - putRef), 1.0e-12);
 }
 
-BOOST_AUTO_TEST_CASE(testZeroStddevShortCircuits) {
+BOOST_AUTO_TEST_CASE(testZeroStddevShortCircuits)
+{
     BOOST_TEST_MESSAGE("blackFormulaT<Real> with stddev=0 returns "
                        "discount * intrinsic (matches blackFormula)...");
 
@@ -116,7 +116,8 @@ BOOST_AUTO_TEST_CASE(testZeroStddevShortCircuits) {
     BOOST_CHECK_SMALL(std::fabs(callItm - callRef), 1.0e-14);
 }
 
-BOOST_AUTO_TEST_CASE(testPutCallParityWithDisplacement) {
+BOOST_AUTO_TEST_CASE(testPutCallParityWithDisplacement)
+{
     BOOST_TEST_MESSAGE("blackFormulaT put-call parity under a "
                        "non-zero displacement...");
 
@@ -126,34 +127,30 @@ BOOST_AUTO_TEST_CASE(testPutCallParityWithDisplacement) {
     const DiscountFactor df = 0.995;
     const Real displacement = 0.01;
 
-    Real call = blackFormulaT<Real>(Option::Call, strike, forward, stddev,
-                                     df, displacement);
-    Real put  = blackFormulaT<Real>(Option::Put,  strike, forward, stddev,
-                                     df, displacement);
+    Real call = blackFormulaT<Real>(Option::Call, strike, forward, stddev, df, displacement);
+    Real put = blackFormulaT<Real>(Option::Put, strike, forward, stddev, df, displacement);
     // Parity is unchanged by displacement: Call - Put = df * (F - K)
     Real lhs = call - put;
     Real rhs = df * (forward - strike);
     BOOST_CHECK_SMALL(std::fabs(lhs - rhs), 1.0e-12);
 }
 
-BOOST_AUTO_TEST_CASE(testInvalidInputsRejected) {
+BOOST_AUTO_TEST_CASE(testInvalidInputsRejected)
+{
     BOOST_TEST_MESSAGE("blackFormulaT rejects strike+displacement<0 and "
                        "forward+displacement<=0 with clear errors...");
 
     // strike + displacement < 0
-    BOOST_CHECK_THROW(
-        blackFormulaT<Real>(Option::Call, -0.05, 0.01, 0.1, 1.0, 0.01),
-        QuantLib::Error);
+    BOOST_CHECK_THROW(blackFormulaT<Real>(Option::Call, -0.05, 0.01, 0.1, 1.0, 0.01), QuantLib::Error);
 
     // forward + displacement <= 0
-    BOOST_CHECK_THROW(
-        blackFormulaT<Real>(Option::Call, 0.01, -0.05, 0.1, 1.0, 0.01),
-        QuantLib::Error);
+    BOOST_CHECK_THROW(blackFormulaT<Real>(Option::Call, 0.01, -0.05, 0.1, 1.0, 0.01), QuantLib::Error);
 }
 
 #ifdef QL_ENABLE_AAD
 
-BOOST_AUTO_TEST_CASE(testAadDeltaMatchesAnalyticDelta) {
+BOOST_AUTO_TEST_CASE(testAadDeltaMatchesAnalyticDelta)
+{
     BOOST_TEST_MESSAGE("blackFormulaT<AADReal> with reverse-mode AAD "
                        "produces dPrice/dForward = df * N(d1)...");
 
@@ -163,12 +160,13 @@ BOOST_AUTO_TEST_CASE(testAadDeltaMatchesAnalyticDelta) {
     const DiscountFactor df = std::exp(-0.03 * 0.5);
 
     // Differentiate the Black formula w.r.t. the forward.
-    auto pricer = [&](AADReal F) {
+    auto pricer = [&](AADReal F)
+    {
         // strike, stddev, df held as constants (deduce the
         // appropriate AADReal types where the templated function
         // requires them).
         AADReal sd = stddev;
-        AADReal d  = df;
+        AADReal d = df;
         return blackFormulaT<AADReal>(Option::Call, strike, F, sd, d);
     };
     Real aadDelta = aadDerivative(pricer, forward);

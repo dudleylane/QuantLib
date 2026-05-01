@@ -27,7 +27,8 @@
 #include <ql/instruments/margrabeoption.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Analytic engine for European Margrabe option
     /*! This class implements formulae from
@@ -38,7 +39,8 @@ namespace QuantLib {
         \test the correctness of the returned value is tested by
               reproducing results available in literature.
     */
-    class AnalyticEuropeanMargrabeEngine : public MargrabeOption::engine {
+    class AnalyticEuropeanMargrabeEngine : public MargrabeOption::engine
+    {
       public:
         AnalyticEuropeanMargrabeEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process1,
                                        ext::shared_ptr<GeneralizedBlackScholesProcess> process2,

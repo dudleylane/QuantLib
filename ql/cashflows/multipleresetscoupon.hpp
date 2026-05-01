@@ -31,7 +31,8 @@
 #include <ql/time/schedule.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class IborIndex;
 
@@ -39,7 +40,8 @@ namespace QuantLib {
     /*! %Coupon paying a rate calculated by compounding or averaging
         multiple fixings during its accrual period.
     */
-    class MultipleResetsCoupon : public FloatingRateCoupon {
+    class MultipleResetsCoupon : public FloatingRateCoupon
+    {
       public:
         /*! \param resetSchedule the schedule for the multiple resets. The first and last
                                  dates are also the start and end dates of the coupon.
@@ -94,7 +96,8 @@ namespace QuantLib {
     };
 
 
-    class MultipleResetsPricer: public FloatingRateCouponPricer {
+    class MultipleResetsPricer : public FloatingRateCouponPricer
+    {
       public:
         Rate swapletPrice() const override;
         Real capletPrice(Rate effectiveCap) const override;
@@ -108,19 +111,22 @@ namespace QuantLib {
         std::vector<Real> subPeriodFixings_;
     };
 
-    class AveragingMultipleResetsPricer: public MultipleResetsPricer {
+    class AveragingMultipleResetsPricer : public MultipleResetsPricer
+    {
       public:
         Real swapletRate() const override;
     };
 
-    class CompoundingMultipleResetsPricer: public MultipleResetsPricer {
+    class CompoundingMultipleResetsPricer : public MultipleResetsPricer
+    {
       public:
         Real swapletRate() const override;
     };
 
 
     //! helper class building a sequence of multiple-reset coupons
-    class MultipleResetsLeg {
+    class MultipleResetsLeg
+    {
       public:
         /*! \param fullResetSchedule the full schedule specifying reset periods for all coupons.
             \param index             the index whose fixings will be used; it should have the
@@ -128,9 +134,7 @@ namespace QuantLib {
             \param resetsPerCoupon   the number of resets for each coupon; the number of periods
                                      in the schedule should be divided exactly by this number.
         */
-        MultipleResetsLeg(Schedule fullResetSchedule,
-                          ext::shared_ptr<IborIndex> index,
-                          Size resetsPerCoupon);
+        MultipleResetsLeg(Schedule fullResetSchedule, ext::shared_ptr<IborIndex> index, Size resetsPerCoupon);
         MultipleResetsLeg& withNotionals(Real notional);
         MultipleResetsLeg& withNotionals(const std::vector<Real>& notionals);
         MultipleResetsLeg& withPaymentDayCounter(const DayCounter&);
@@ -145,10 +149,8 @@ namespace QuantLib {
         MultipleResetsLeg& withCouponSpreads(const std::vector<Spread>& spreads);
         MultipleResetsLeg& withRateSpreads(Spread spread);
         MultipleResetsLeg& withRateSpreads(const std::vector<Spread>& spreads);
-        MultipleResetsLeg& withExCouponPeriod(const Period&,
-                                              const Calendar&,
-                                              BusinessDayConvention,
-                                              bool endOfMonth = false);
+        MultipleResetsLeg&
+        withExCouponPeriod(const Period&, const Calendar&, BusinessDayConvention, bool endOfMonth = false);
         MultipleResetsLeg& withAveragingMethod(RateAveraging::Type averagingMethod);
         operator Leg() const;
 

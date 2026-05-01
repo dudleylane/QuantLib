@@ -26,11 +26,21 @@
 
 #include <ql/math/matrix.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! algorithm used for matricial pseudo square root
-    struct SalvagingAlgorithm {
-        enum Type { None, Spectral, Hypersphere, LowerDiagonal, Higham, Principal };
+    struct SalvagingAlgorithm
+    {
+        enum Type
+        {
+            None,
+            Spectral,
+            Hypersphere,
+            LowerDiagonal,
+            Higham,
+            Principal
+        };
     };
 
     //! Returns the pseudo square root of a real symmetric matrix
@@ -61,8 +71,7 @@ namespace QuantLib {
         - the correctness of the results is tested by checking
           returned values against numerical calculations.
     */
-    Matrix pseudoSqrt(const Matrix&,
-                      SalvagingAlgorithm::Type = SalvagingAlgorithm::None);
+    Matrix pseudoSqrt(const Matrix&, SalvagingAlgorithm::Type = SalvagingAlgorithm::None);
 
     //! Returns the rank-reduced pseudo square root of a real symmetric matrix
     /*! The result matrix has rank<=maxRank. If maxRank>=size, then the
@@ -77,10 +86,7 @@ namespace QuantLib {
 
         \relates Matrix
     */
-    Matrix rankReducedSqrt(const Matrix&,
-                           Size maxRank,
-                           Real componentRetainedPercentage,
-                           SalvagingAlgorithm::Type);
+    Matrix rankReducedSqrt(const Matrix&, Size maxRank, Real componentRetainedPercentage, SalvagingAlgorithm::Type);
 }
 
 

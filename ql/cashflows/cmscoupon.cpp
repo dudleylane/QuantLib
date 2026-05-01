@@ -24,7 +24,8 @@
 #include <ql/indexes/swapindex.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     CmsCoupon::CmsCoupon(const Date& paymentDate,
                          Real nominal,
@@ -40,14 +41,26 @@ namespace QuantLib {
                          bool isInArrears,
                          const Date& exCouponDate,
                          BusinessDayConvention fixingConvention)
-    : FloatingRateCoupon(paymentDate, nominal, startDate, endDate,
-                         fixingDays, swapIndex, gearing, spread,
-                         refPeriodStart, refPeriodEnd,
-                         dayCounter, isInArrears, exCouponDate,
+    : FloatingRateCoupon(paymentDate,
+                         nominal,
+                         startDate,
+                         endDate,
+                         fixingDays,
+                         swapIndex,
+                         gearing,
+                         spread,
+                         refPeriodStart,
+                         refPeriodEnd,
+                         dayCounter,
+                         isInArrears,
+                         exCouponDate,
                          fixingConvention),
-      swapIndex_(swapIndex) {}
+      swapIndex_(swapIndex)
+    {
+    }
 
-    void CmsCoupon::accept(AcyclicVisitor& v) {
+    void CmsCoupon::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<CmsCoupon>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);
@@ -57,100 +70,118 @@ namespace QuantLib {
 
 
     CmsLeg::CmsLeg(Schedule schedule, ext::shared_ptr<SwapIndex> swapIndex)
-    : schedule_(std::move(schedule)), swapIndex_(std::move(swapIndex)) {
+    : schedule_(std::move(schedule)), swapIndex_(std::move(swapIndex))
+    {
         QL_REQUIRE(swapIndex_, "no index provided");
     }
 
-    CmsLeg& CmsLeg::withNotionals(Real notional) {
+    CmsLeg& CmsLeg::withNotionals(Real notional)
+    {
         notionals_ = std::vector<Real>(1, notional);
         return *this;
     }
 
-    CmsLeg& CmsLeg::withNotionals(const std::vector<Real>& notionals) {
+    CmsLeg& CmsLeg::withNotionals(const std::vector<Real>& notionals)
+    {
         notionals_ = notionals;
         return *this;
     }
 
-    CmsLeg& CmsLeg::withPaymentDayCounter(const DayCounter& dayCounter) {
+    CmsLeg& CmsLeg::withPaymentDayCounter(const DayCounter& dayCounter)
+    {
         paymentDayCounter_ = dayCounter;
         return *this;
     }
 
-    CmsLeg& CmsLeg::withPaymentAdjustment(BusinessDayConvention convention) {
+    CmsLeg& CmsLeg::withPaymentAdjustment(BusinessDayConvention convention)
+    {
         paymentAdjustment_ = convention;
         return *this;
     }
 
-    CmsLeg& CmsLeg::withFixingDays(Natural fixingDays) {
+    CmsLeg& CmsLeg::withFixingDays(Natural fixingDays)
+    {
         fixingDays_ = std::vector<Natural>(1, fixingDays);
         return *this;
     }
 
-    CmsLeg& CmsLeg::withFixingDays(const std::vector<Natural>& fixingDays) {
+    CmsLeg& CmsLeg::withFixingDays(const std::vector<Natural>& fixingDays)
+    {
         fixingDays_ = fixingDays;
         return *this;
     }
 
-    CmsLeg& CmsLeg::withGearings(Real gearing) {
+    CmsLeg& CmsLeg::withGearings(Real gearing)
+    {
         gearings_ = std::vector<Real>(1, gearing);
         return *this;
     }
 
-    CmsLeg& CmsLeg::withGearings(const std::vector<Real>& gearings) {
+    CmsLeg& CmsLeg::withGearings(const std::vector<Real>& gearings)
+    {
         gearings_ = gearings;
         return *this;
     }
 
-    CmsLeg& CmsLeg::withSpreads(Spread spread) {
+    CmsLeg& CmsLeg::withSpreads(Spread spread)
+    {
         spreads_ = std::vector<Spread>(1, spread);
         return *this;
     }
 
-    CmsLeg& CmsLeg::withSpreads(const std::vector<Spread>& spreads) {
+    CmsLeg& CmsLeg::withSpreads(const std::vector<Spread>& spreads)
+    {
         spreads_ = spreads;
         return *this;
     }
 
-    CmsLeg& CmsLeg::withCaps(Rate cap) {
+    CmsLeg& CmsLeg::withCaps(Rate cap)
+    {
         caps_ = std::vector<Rate>(1, cap);
         return *this;
     }
 
-    CmsLeg& CmsLeg::withCaps(const std::vector<Rate>& caps) {
+    CmsLeg& CmsLeg::withCaps(const std::vector<Rate>& caps)
+    {
         caps_ = caps;
         return *this;
     }
 
-    CmsLeg& CmsLeg::withFloors(Rate floor) {
+    CmsLeg& CmsLeg::withFloors(Rate floor)
+    {
         floors_ = std::vector<Rate>(1, floor);
         return *this;
     }
 
-    CmsLeg& CmsLeg::withFloors(const std::vector<Rate>& floors) {
+    CmsLeg& CmsLeg::withFloors(const std::vector<Rate>& floors)
+    {
         floors_ = floors;
         return *this;
     }
 
-    CmsLeg& CmsLeg::inArrears(bool flag) {
+    CmsLeg& CmsLeg::inArrears(bool flag)
+    {
         inArrears_ = flag;
         return *this;
     }
 
-    CmsLeg& CmsLeg::withZeroPayments(bool flag) {
+    CmsLeg& CmsLeg::withZeroPayments(bool flag)
+    {
         zeroPayments_ = flag;
         return *this;
     }
 
-    CmsLeg& CmsLeg::withFixingConvention(BusinessDayConvention convention) {
+    CmsLeg& CmsLeg::withFixingConvention(BusinessDayConvention convention)
+    {
         fixingConvention_ = convention;
         return *this;
     }
 
-    CmsLeg& CmsLeg::withExCouponPeriod(
-                                const Period& period,
-                                const Calendar& cal,
-                                BusinessDayConvention convention,
-                                bool endOfMonth) {
+    CmsLeg& CmsLeg::withExCouponPeriod(const Period& period,
+                                       const Calendar& cal,
+                                       BusinessDayConvention convention,
+                                       bool endOfMonth)
+    {
         exCouponPeriod_ = period;
         exCouponCalendar_ = cal;
         exCouponAdjustment_ = convention;
@@ -158,15 +189,12 @@ namespace QuantLib {
         return *this;
     }
 
-    CmsLeg::operator Leg() const {
+    CmsLeg::operator Leg() const
+    {
         return FloatingLeg<SwapIndex, CmsCoupon, CappedFlooredCmsCoupon>(
-                         schedule_, notionals_, swapIndex_, paymentDayCounter_,
-                         paymentAdjustment_, fixingDays_, gearings_, spreads_,
-                         caps_, floors_, inArrears_, zeroPayments_,
-                         0, Calendar(),
-                         exCouponPeriod_, exCouponCalendar_,
-                         exCouponAdjustment_, exCouponEndOfMonth_,
-                         fixingConvention_);
-   }
+            schedule_, notionals_, swapIndex_, paymentDayCounter_, paymentAdjustment_, fixingDays_, gearings_, spreads_,
+            caps_, floors_, inArrears_, zeroPayments_, 0, Calendar(), exCouponPeriod_, exCouponCalendar_,
+            exCouponAdjustment_, exCouponEndOfMonth_, fixingConvention_);
+    }
 
 }

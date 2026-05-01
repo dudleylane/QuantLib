@@ -19,7 +19,7 @@
 
 
 /*! \file fdmtimedepdirichletboundary.cpp
-*/
+ */
 
 #include <ql/methods/finitedifferences/meshers/fdmmesher.hpp>
 #include <ql/methods/finitedifferences/operators/fdmlinearop.hpp>
@@ -28,45 +28,56 @@
 #include <algorithm>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    FdmTimeDepDirichletBoundary::FdmTimeDepDirichletBoundary(
-        const ext::shared_ptr<FdmMesher>& mesher,
-        std::function<Real(Real)> valueOnBoundary,
-        Size direction,
-        Side side)
+    FdmTimeDepDirichletBoundary::FdmTimeDepDirichletBoundary(const ext::shared_ptr<FdmMesher>& mesher,
+                                                             std::function<Real(Real)> valueOnBoundary,
+                                                             Size direction,
+                                                             Side side)
     : indices_(FdmIndicesOnBoundary(mesher->layout(), direction, side).getIndices()),
-      valueOnBoundary_(std::move(valueOnBoundary)), values_(indices_.size()) {}
+      valueOnBoundary_(std::move(valueOnBoundary)), values_(indices_.size())
+    {
+    }
 
-    FdmTimeDepDirichletBoundary::FdmTimeDepDirichletBoundary(
-        const ext::shared_ptr<FdmMesher>& mesher,
-        std::function<Array(Real)> valuesOnBoundary,
-        Size direction,
-        Side side)
+    FdmTimeDepDirichletBoundary::FdmTimeDepDirichletBoundary(const ext::shared_ptr<FdmMesher>& mesher,
+                                                             std::function<Array(Real)> valuesOnBoundary,
+                                                             Size direction,
+                                                             Side side)
     : indices_(FdmIndicesOnBoundary(mesher->layout(), direction, side).getIndices()),
-      valuesOnBoundary_(std::move(valuesOnBoundary)), values_(indices_.size()) {}
+      valuesOnBoundary_(std::move(valuesOnBoundary)), values_(indices_.size())
+    {
+    }
 
-    void FdmTimeDepDirichletBoundary::setTime(Time t) {
-        if (valueOnBoundary_) {
+    void FdmTimeDepDirichletBoundary::setTime(Time t)
+    {
+        if (valueOnBoundary_)
+        {
             std::fill(values_.begin(), values_.end(), valueOnBoundary_(t));
-        } else if (valuesOnBoundary_) {
+        }
+        else if (valuesOnBoundary_)
+        {
             values_ = valuesOnBoundary_(t);
-        } else {
+        }
+        else
+        {
             QL_FAIL("no boundary values defined");
         }
     }
 
-    void FdmTimeDepDirichletBoundary::applyAfterApplying(array_type& a) const {
-        QL_REQUIRE(indices_.size() == values_.size(),
-                   "values on boundary size (" << values_.size()
-                   << ") does not match hypersurface size ("
-                   << indices_.size() << ")");
-        for (auto iter = indices_.begin(); iter != indices_.end(); ++iter) {
+    void FdmTimeDepDirichletBoundary::applyAfterApplying(array_type& a) const
+    {
+        QL_REQUIRE(indices_.size() == values_.size(), "values on boundary size ("
+                                                          << values_.size() << ") does not match hypersurface size ("
+                                                          << indices_.size() << ")");
+        for (auto iter = indices_.begin(); iter != indices_.end(); ++iter)
+        {
             a[*iter] = values_[iter - indices_.begin()];
         }
     }
 
-    void FdmTimeDepDirichletBoundary::applyAfterSolving(array_type& a) const {
+    void FdmTimeDepDirichletBoundary::applyAfterSolving(array_type& a) const
+    {
         this->applyAfterApplying(a);
     }
 }

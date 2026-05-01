@@ -17,21 +17,22 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/pricingengines/exotic/himalayaoption.hpp>
-#include <ql/instruments/payoffs.hpp>
 #include <ql/exercise.hpp>
+#include <ql/instruments/payoffs.hpp>
+#include <ql/pricingengines/exotic/himalayaoption.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    HimalayaOption::HimalayaOption(const std::vector<Date>& fixingDates,
-                                   Real strike)
-    : MultiAssetOption(ext::shared_ptr<Payoff>(
-                                new PlainVanillaPayoff(Option::Call, strike)),
-                       ext::shared_ptr<Exercise>(
-                                   new EuropeanExercise(fixingDates.back()))),
-      fixingDates_(fixingDates) {}
+    HimalayaOption::HimalayaOption(const std::vector<Date>& fixingDates, Real strike)
+    : MultiAssetOption(ext::shared_ptr<Payoff>(new PlainVanillaPayoff(Option::Call, strike)),
+                       ext::shared_ptr<Exercise>(new EuropeanExercise(fixingDates.back()))),
+      fixingDates_(fixingDates)
+    {
+    }
 
-    void HimalayaOption::setupArguments(PricingEngine::arguments* args) const {
+    void HimalayaOption::setupArguments(PricingEngine::arguments* args) const
+    {
         MultiAssetOption::setupArguments(args);
 
         auto* arguments = dynamic_cast<HimalayaOption::arguments*>(args);
@@ -40,10 +41,10 @@ namespace QuantLib {
         arguments->fixingDates = fixingDates_;
     }
 
-    void HimalayaOption::arguments::validate() const {
+    void HimalayaOption::arguments::validate() const
+    {
         MultiAssetOption::arguments::validate();
         QL_REQUIRE(!fixingDates.empty(), "no fixing dates given");
     }
 
 }
-

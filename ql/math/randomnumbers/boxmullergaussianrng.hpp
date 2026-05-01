@@ -27,7 +27,8 @@
 
 #include <ql/methods/montecarlo/sample.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Gaussian random number generator
     /*! It uses the well-known Box-Muller transformation to return a
@@ -41,48 +42,55 @@ namespace QuantLib {
         \endcode
     */
     template <class RNG>
-    class BoxMullerGaussianRng {
+    class BoxMullerGaussianRng
+    {
       public:
         typedef Sample<Real> sample_type;
         typedef RNG urng_type;
         explicit BoxMullerGaussianRng(const RNG& uniformGenerator);
         //! returns a sample from a Gaussian distribution
         sample_type next() const;
+
       private:
         RNG uniformGenerator_;
         mutable bool returnFirst_ = true;
-        mutable Real firstValue_,secondValue_;
-        mutable Real firstWeight_,secondWeight_;
+        mutable Real firstValue_, secondValue_;
+        mutable Real firstWeight_, secondWeight_;
         mutable Real weight_ = 0.0;
     };
 
     template <class RNG>
-    BoxMullerGaussianRng<RNG>::BoxMullerGaussianRng(const RNG& uniformGenerator)
-    : uniformGenerator_(uniformGenerator) {}
+    BoxMullerGaussianRng<RNG>::BoxMullerGaussianRng(const RNG& uniformGenerator) : uniformGenerator_(uniformGenerator)
+    {
+    }
 
     template <class RNG>
-    inline typename BoxMullerGaussianRng<RNG>::sample_type
-    BoxMullerGaussianRng<RNG>::next() const {
-        if (returnFirst_) {
-            Real x1,x2,r,ratio;
-            do {
+    inline typename BoxMullerGaussianRng<RNG>::sample_type BoxMullerGaussianRng<RNG>::next() const
+    {
+        if (returnFirst_)
+        {
+            Real x1, x2, r, ratio;
+            do
+            {
                 typename RNG::sample_type s1 = uniformGenerator_.next();
-                x1 = s1.value*2.0-1.0;
+                x1 = s1.value * 2.0 - 1.0;
                 firstWeight_ = s1.weight;
                 typename RNG::sample_type s2 = uniformGenerator_.next();
-                x2 = s2.value*2.0-1.0;
+                x2 = s2.value * 2.0 - 1.0;
                 secondWeight_ = s2.weight;
-                r = x1*x1+x2*x2;
-            } while (r>=1.0 || r==0.0);
+                r = x1 * x1 + x2 * x2;
+            } while (r >= 1.0 || r == 0.0);
 
-            ratio = std::sqrt(-2.0*std::log(r)/r);
-            firstValue_ = x1*ratio;
-            secondValue_ = x2*ratio;
-            weight_ = firstWeight_*secondWeight_;
+            ratio = std::sqrt(-2.0 * std::log(r) / r);
+            firstValue_ = x1 * ratio;
+            secondValue_ = x2 * ratio;
+            weight_ = firstWeight_ * secondWeight_;
 
             returnFirst_ = false;
             return {firstValue_, weight_};
-        } else {
+        }
+        else
+        {
             returnFirst_ = true;
             return {secondValue_, weight_};
         }

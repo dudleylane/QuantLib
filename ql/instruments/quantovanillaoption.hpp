@@ -28,14 +28,17 @@
 #include <ql/instruments/oneassetoption.hpp>
 #include <ql/instruments/payoffs.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Results from quanto option calculation
-    template<class ResultsType>
-    class QuantoOptionResults : public ResultsType {
+    template <class ResultsType>
+    class QuantoOptionResults : public ResultsType
+    {
       public:
-        QuantoOptionResults() { reset() ;}
-        void reset() override {
+        QuantoOptionResults() { reset(); }
+        void reset() override
+        {
             ResultsType::reset();
             qvega = qrho = qlambda = Null<Real>();
         }
@@ -46,13 +49,13 @@ namespace QuantLib {
 
     //! quanto version of a vanilla option
     /*! \ingroup instruments */
-    class QuantoVanillaOption : public OneAssetOption {
+    class QuantoVanillaOption : public OneAssetOption
+    {
       public:
         typedef OneAssetOption::arguments arguments;
         typedef QuantoOptionResults<OneAssetOption::results> results;
         typedef GenericEngine<arguments, results> engine;
-        QuantoVanillaOption(const ext::shared_ptr<StrikedTypePayoff>&,
-                            const ext::shared_ptr<Exercise>&);
+        QuantoVanillaOption(const ext::shared_ptr<StrikedTypePayoff>&, const ext::shared_ptr<Exercise>&);
         //! \name greeks
         //@{
         Real qvega() const;

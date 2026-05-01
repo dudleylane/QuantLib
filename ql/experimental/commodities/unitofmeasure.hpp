@@ -24,19 +24,27 @@
 #ifndef quantlib_unit_of_measure_hpp
 #define quantlib_unit_of_measure_hpp
 
-#include <ql/types.hpp>
 #include <ql/math/rounding.hpp>
 #include <ql/shared_ptr.hpp>
-#include <string>
-#include <map>
+#include <ql/types.hpp>
 #include <iosfwd>
+#include <map>
+#include <string>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Unit of measure specification
-    class UnitOfMeasure {
+    class UnitOfMeasure
+    {
       public:
-        enum Type { Mass, Volume, Energy, Quantity };
+        enum Type
+        {
+            Mass,
+            Volume,
+            Energy,
+            Quantity
+        };
         //! default constructor
         /*! Instances built via this constructor have undefined
             behavior. Such instances can only act as placeholders
@@ -44,9 +52,7 @@ namespace QuantLib {
             used.
         */
         UnitOfMeasure() = default;
-        UnitOfMeasure(const std::string& name,
-                      const std::string& code,
-                      Type unitType);
+        UnitOfMeasure(const std::string& name, const std::string& code, Type unitType);
         //! \name Inspectors
         //@{
         //! name, e.g, "Barrels"
@@ -68,12 +74,13 @@ namespace QuantLib {
       protected:
         struct Data;
         ext::shared_ptr<Data> data_;
+
       private:
-        static std::map<std::string, ext::shared_ptr<UnitOfMeasure::Data> >
-        unitsOfMeasure_;
+        static std::map<std::string, ext::shared_ptr<UnitOfMeasure::Data>> unitsOfMeasure_;
     };
 
-    struct UnitOfMeasure::Data {
+    struct UnitOfMeasure::Data
+    {
         std::string name, code;
         UnitOfMeasure::Type unitType;
         UnitOfMeasure triangulationUnitOfMeasure;
@@ -88,58 +95,63 @@ namespace QuantLib {
 
 
     /*! \relates UnitOfMeasure */
-    bool operator==(const UnitOfMeasure&,
-                    const UnitOfMeasure&);
+    bool operator==(const UnitOfMeasure&, const UnitOfMeasure&);
 
     /*! \relates UnitOfMeasure */
-    bool operator!=(const UnitOfMeasure&,
-                    const UnitOfMeasure&);
+    bool operator!=(const UnitOfMeasure&, const UnitOfMeasure&);
 
     /*! \relates UnitOfMeasure */
-    std::ostream& operator<<(std::ostream&,
-                             const UnitOfMeasure&);
+    std::ostream& operator<<(std::ostream&, const UnitOfMeasure&);
 
 
     // inline definitions
 
-    inline const std::string& UnitOfMeasure::name() const {
+    inline const std::string& UnitOfMeasure::name() const
+    {
         return data_->name;
     }
 
-    inline const std::string& UnitOfMeasure::code() const {
+    inline const std::string& UnitOfMeasure::code() const
+    {
         return data_->code;
     }
 
-    inline UnitOfMeasure::Type UnitOfMeasure::unitType() const {
+    inline UnitOfMeasure::Type UnitOfMeasure::unitType() const
+    {
         return data_->unitType;
     }
 
-    inline const Rounding& UnitOfMeasure::rounding() const {
+    inline const Rounding& UnitOfMeasure::rounding() const
+    {
         return data_->rounding;
     }
 
-    inline bool UnitOfMeasure::empty() const {
+    inline bool UnitOfMeasure::empty() const
+    {
         return !data_;
     }
 
-    inline const UnitOfMeasure&
-    UnitOfMeasure::triangulationUnitOfMeasure() const {
+    inline const UnitOfMeasure& UnitOfMeasure::triangulationUnitOfMeasure() const
+    {
         return data_->triangulationUnitOfMeasure;
     }
 
-    inline bool operator==(const UnitOfMeasure& c1, const UnitOfMeasure& c2) {
+    inline bool operator==(const UnitOfMeasure& c1, const UnitOfMeasure& c2)
+    {
         return c1.code() == c2.code();
     }
 
-    inline bool operator!=(const UnitOfMeasure& c1, const UnitOfMeasure& c2) {
+    inline bool operator!=(const UnitOfMeasure& c1, const UnitOfMeasure& c2)
+    {
         return !(c1 == c2);
     }
 
-    class LotUnitOfMeasure : public UnitOfMeasure {
+    class LotUnitOfMeasure : public UnitOfMeasure
+    {
       public:
-        LotUnitOfMeasure() {
-            static ext::shared_ptr<Data> data(
-                new Data("Lot", "Lot", UnitOfMeasure::Quantity));
+        LotUnitOfMeasure()
+        {
+            static ext::shared_ptr<Data> data(new Data("Lot", "Lot", UnitOfMeasure::Quantity));
             data_ = data;
         }
     };

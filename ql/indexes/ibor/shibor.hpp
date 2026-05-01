@@ -26,16 +26,15 @@
 
 #include <ql/indexes/iborindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class Shibor : public IborIndex {
+    class Shibor : public IborIndex
+    {
       public:
-        Shibor(
-            const Period& tenor,
-            const Handle<YieldTermStructure>& h = {});
+        Shibor(const Period& tenor, const Handle<YieldTermStructure>& h = {});
 
-        ext::shared_ptr<IborIndex>
-        clone(const Handle<YieldTermStructure>& forwarding) const override;
+        ext::shared_ptr<IborIndex> clone(const Handle<YieldTermStructure>& forwarding) const override;
     };
 
 }

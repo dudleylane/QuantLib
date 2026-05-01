@@ -28,7 +28,8 @@
 #include <ql/time/schedule.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     CapHelper::CapHelper(const Period& length,
                          const Handle<Quote>& volatility,
@@ -40,47 +41,46 @@ namespace QuantLib {
                          BlackCalibrationHelper::CalibrationErrorType errorType,
                          const VolatilityType type,
                          const Real shift)
-    : BlackCalibrationHelper(volatility, errorType, type, shift), length_(length),
-      index_(std::move(index)), termStructure_(std::move(termStructure)),
-      fixedLegFrequency_(fixedLegFrequency), fixedLegDayCounter_(std::move(fixedLegDayCounter)),
-      includeFirstSwaplet_(includeFirstSwaplet) {
+    : BlackCalibrationHelper(volatility, errorType, type, shift), length_(length), index_(std::move(index)),
+      termStructure_(std::move(termStructure)), fixedLegFrequency_(fixedLegFrequency),
+      fixedLegDayCounter_(std::move(fixedLegDayCounter)), includeFirstSwaplet_(includeFirstSwaplet)
+    {
         registerWith(index_);
         registerWith(termStructure_);
     }
 
-    void CapHelper::addTimesTo(std::list<Time>& times) const {
+    void CapHelper::addTimesTo(std::list<Time>& times) const
+    {
         calculate();
         CapFloor::arguments args;
         cap_->setupArguments(&args);
         std::vector<Time> capTimes =
-            DiscretizedCapFloor(args,
-                                termStructure_->referenceDate(),
-                                termStructure_->dayCounter()).mandatoryTimes();
-        times.insert(times.end(),
-                     capTimes.begin(), capTimes.end());
+            DiscretizedCapFloor(args, termStructure_->referenceDate(), termStructure_->dayCounter()).mandatoryTimes();
+        times.insert(times.end(), capTimes.begin(), capTimes.end());
     }
 
-    Real CapHelper::modelValue() const {
+    Real CapHelper::modelValue() const
+    {
         calculate();
         cap_->setPricingEngine(engine_);
         return cap_->NPV();
     }
 
-    Real CapHelper::blackPrice(Volatility sigma) const {
+    Real CapHelper::blackPrice(Volatility sigma) const
+    {
         calculate();
         Handle<Quote> vol(ext::shared_ptr<Quote>(new SimpleQuote(sigma)));
         ext::shared_ptr<PricingEngine> engine;
-        switch(volatilityType_) {
-          case ShiftedLognormal:
-            engine = ext::make_shared<BlackCapFloorEngine>(
-                termStructure_, vol, Actual365Fixed(), shift_);
-            break;
-          case Normal:
-            engine = ext::make_shared<BachelierCapFloorEngine>(
-                termStructure_, vol, Actual365Fixed());
-            break;
-          default:
-            QL_FAIL("unknown volatility type: " << volatilityType_);
+        switch (volatilityType_)
+        {
+            case ShiftedLognormal:
+                engine = ext::make_shared<BlackCapFloorEngine>(termStructure_, vol, Actual365Fixed(), shift_);
+                break;
+            case Normal:
+                engine = ext::make_shared<BachelierCapFloorEngine>(termStructure_, vol, Actual365Fixed());
+                break;
+            default:
+                QL_FAIL("unknown volatility type: " << volatilityType_);
         }
         cap_->setPricingEngine(engine);
         Real value = cap_->NPV();
@@ -88,59 +88,49 @@ namespace QuantLib {
         return value;
     }
 
-    void CapHelper::performCalculations() const {
+    void CapHelper::performCalculations() const
+    {
 
         Period indexTenor = index_->tenor();
         Rate fixedRate = 0.04; // dummy value
         Date startDate, maturity;
-        if (includeFirstSwaplet_) {
+        if (includeFirstSwaplet_)
+        {
             startDate = termStructure_->referenceDate();
             maturity = termStructure_->referenceDate() + length_;
-        } else {
+        }
+        else
+        {
             startDate = termStructure_->referenceDate() + indexTenor;
             maturity = termStructure_->referenceDate() + length_;
         }
-        ext::shared_ptr<IborIndex> dummyIndex(new
-            IborIndex("dummy",
-                      indexTenor,
-                      index_->fixingDays(),
-                      index_->currency(),
-                      index_->fixingCalendar(),
-                      index_->businessDayConvention(),
-                      index_->endOfMonth(),
-                      termStructure_->dayCounter(),
-                      termStructure_));
+        ext::shared_ptr<IborIndex> dummyIndex(new IborIndex(
+            "dummy", indexTenor, index_->fixingDays(), index_->currency(), index_->fixingCalendar(),
+            index_->businessDayConvention(), index_->endOfMonth(), termStructure_->dayCounter(), termStructure_));
 
-        std::vector<Real> nominals(1,1.0);
+        std::vector<Real> nominals(1, 1.0);
 
-        Schedule floatSchedule(startDate, maturity,
-                               index_->tenor(), index_->fixingCalendar(),
-                               index_->businessDayConvention(),
-                               index_->businessDayConvention(),
+        Schedule floatSchedule(startDate, maturity, index_->tenor(), index_->fixingCalendar(),
+                               index_->businessDayConvention(), index_->businessDayConvention(),
                                DateGeneration::Forward, false);
         Leg floatingLeg = IborLeg(floatSchedule, index_)
-            .withNotionals(nominals)
-            .withPaymentAdjustment(index_->businessDayConvention())
-            .withFixingDays(0);
+                              .withNotionals(nominals)
+                              .withPaymentAdjustment(index_->businessDayConvention())
+                              .withFixingDays(0);
 
-        Schedule fixedSchedule(startDate, maturity, Period(fixedLegFrequency_),
-                               index_->fixingCalendar(),
-                               Unadjusted, Unadjusted,
-                               DateGeneration::Forward, false);
+        Schedule fixedSchedule(startDate, maturity, Period(fixedLegFrequency_), index_->fixingCalendar(), Unadjusted,
+                               Unadjusted, DateGeneration::Forward, false);
         Leg fixedLeg = FixedRateLeg(fixedSchedule)
-            .withNotionals(nominals)
-            .withCouponRates(fixedRate, fixedLegDayCounter_)
-            .withPaymentAdjustment(index_->businessDayConvention());
+                           .withNotionals(nominals)
+                           .withCouponRates(fixedRate, fixedLegDayCounter_)
+                           .withPaymentAdjustment(index_->businessDayConvention());
 
         Swap swap(floatingLeg, fixedLeg);
-        swap.setPricingEngine(ext::shared_ptr<PricingEngine>(
-                            new DiscountingSwapEngine(termStructure_, false)));
-        Rate fairRate = fixedRate - swap.NPV()/(swap.legBPS(1)/1.0e-4);
-        cap_ = ext::make_shared<Cap>(floatingLeg,
-                                              std::vector<Rate>(1, fairRate));
+        swap.setPricingEngine(ext::shared_ptr<PricingEngine>(new DiscountingSwapEngine(termStructure_, false)));
+        Rate fairRate = fixedRate - swap.NPV() / (swap.legBPS(1) / 1.0e-4);
+        cap_ = ext::make_shared<Cap>(floatingLeg, std::vector<Rate>(1, fairRate));
 
         BlackCalibrationHelper::performCalculations();
-
     }
 
 

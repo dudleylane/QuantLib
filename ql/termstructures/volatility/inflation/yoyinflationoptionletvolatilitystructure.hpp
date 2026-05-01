@@ -24,13 +24,14 @@
 #ifndef quantlib_yoy_optionlet_volatility_structures_hpp
 #define quantlib_yoy_optionlet_volatility_structures_hpp
 
-#include <ql/termstructures/voltermstructure.hpp>
-#include <ql/termstructures/volatility/volatilitytype.hpp>
 #include <ql/math/interpolation.hpp>
-#include <ql/time/calendars/target.hpp>
 #include <ql/quote.hpp>
+#include <ql/termstructures/volatility/volatilitytype.hpp>
+#include <ql/termstructures/voltermstructure.hpp>
+#include <ql/time/calendars/target.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! Abstract interface ... no data, only results.
 
@@ -38,8 +39,9 @@ namespace QuantLib {
         totalVariance.  Also deal with lagged observations of an index
         with a (usually different) availability lag.
     */
-    class YoYOptionletVolatilitySurface : public VolatilityTermStructure {
-    public:
+    class YoYOptionletVolatilitySurface : public VolatilityTermStructure
+    {
+      public:
         //! \name Constructor
         //! calculate the reference date based on the global evaluation date
         YoYOptionletVolatilitySurface(Natural settlementDays,
@@ -63,12 +65,12 @@ namespace QuantLib {
         //! we do NOT provide a time version.
         Volatility volatility(const Date& maturityDate,
                               Rate strike,
-                              const Period &obsLag = Period(-1,Days),
+                              const Period& obsLag = Period(-1, Days),
                               bool extrapolate = false) const;
         //! returns the volatility for a given option tenor and strike rate
         Volatility volatility(const Period& optionTenor,
                               Rate strike,
-                              const Period &obsLag = Period(-1,Days),
+                              const Period& obsLag = Period(-1, Days),
                               bool extrapolate = false) const;
         /*! Returns the volatility for a given time and strike rate. No adjustments
           due to lags and interpolation are applied to the input time. */
@@ -92,12 +94,12 @@ namespace QuantLib {
          */
         virtual Volatility totalVariance(const Date& exerciseDate,
                                          Rate strike,
-                                         const Period &obsLag = Period(-1,Days),
+                                         const Period& obsLag = Period(-1, Days),
                                          bool extrapolate = false) const;
         //! returns the total integrated variance for a given option tenor and strike rate
         virtual Volatility totalVariance(const Period& optionTenor,
                                          Rate strike,
-                                         const Period &obsLag = Period(-1,Days),
+                                         const Period& obsLag = Period(-1, Days),
                                          bool extrapolate = false) const;
 
         //! The TS observes with a lag that is usually different from the
@@ -108,8 +110,7 @@ namespace QuantLib {
         virtual bool indexIsInterpolated() const { return indexIsInterpolated_; }
         virtual Date baseDate() const;
         //! base date will be in the past because of observation lag
-        virtual Time timeFromBase(const Date &date,
-                                  const Period& obsLag = Period(-1,Days)) const;
+        virtual Time timeFromBase(const Date& date, const Period& obsLag = Period(-1, Days)) const;
         //@}
 
         //! \name Limits
@@ -121,21 +122,20 @@ namespace QuantLib {
         //@}
 
         // acts as zero time value for boostrapping
-        virtual Volatility baseLevel() const {
-            QL_REQUIRE(baseLevel_ != Null<Volatility>(),
-                       "Base volatility, for baseDate(), not set.");
+        virtual Volatility baseLevel() const
+        {
+            QL_REQUIRE(baseLevel_ != Null<Volatility>(), "Base volatility, for baseDate(), not set.");
             return baseLevel_;
         }
 
-    protected:
-        virtual void checkRange(const Date &, Rate strike, bool extrapolate) const;
+      protected:
+        virtual void checkRange(const Date&, Rate strike, bool extrapolate) const;
         virtual void checkRange(Time, Rate strike, bool extrapolate) const;
 
         //! Implements the actual volatility surface calculation in
         //! derived classes e.g. bilinear interpolation.  N.B. does
         //! not derive the surface.
-        virtual Volatility volatilityImpl(Time length,
-                                          Rate strike) const = 0;
+        virtual Volatility volatilityImpl(Time length, Rate strike) const = 0;
 
         // acts as zero time value for boostrapping
         virtual void setBaseLevel(Volatility v) { baseLevel_ = v; }
@@ -151,9 +151,9 @@ namespace QuantLib {
 
 
     //! Constant surface, no K or T dependence.
-    class ConstantYoYOptionletVolatility
-    : public YoYOptionletVolatilitySurface {
-    public:
+    class ConstantYoYOptionletVolatility : public YoYOptionletVolatilitySurface
+    {
+      public:
         //! \name Constructors
         //@{
         //! calculate the reference date based on the global evaluation date
@@ -165,7 +165,7 @@ namespace QuantLib {
                                        const Period& observationLag,
                                        Frequency frequency,
                                        bool indexIsInterpolated,
-                                       Rate minStrike = -1.0,   // -100%
+                                       Rate minStrike = -1.0,  // -100%
                                        Rate maxStrike = 100.0, // +10,000%
                                        VolatilityType volType = ShiftedLognormal,
                                        Real displacement = 0.0);
@@ -193,17 +193,15 @@ namespace QuantLib {
         //! the maximum strike for which the term structure can return vols
         Real maxStrike() const override { return maxStrike_; }
         //@}
-    protected:
+      protected:
         //! implements the actual volatility calculation in derived classes
-      Volatility volatilityImpl(Time length, Rate strike) const override;
+        Volatility volatilityImpl(Time length, Rate strike) const override;
 
-      Handle<Quote> volatility_;
-      Rate minStrike_, maxStrike_;
+        Handle<Quote> volatility_;
+        Rate minStrike_, maxStrike_;
     };
-
 
 
 } // namespace QuantLib
 
 #endif
-

@@ -27,7 +27,8 @@
 #include <ql/utilities/null.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Histogram class
     /*! This class computes the histogram of a given data set.  The
@@ -35,31 +36,39 @@ namespace QuantLib {
         algorithm for determining these quantities in computing the
         histogram.
     */
-    class Histogram {
+    class Histogram
+    {
       public:
-        enum Algorithm { None, Sturges, FD, Scott };
+        enum Algorithm
+        {
+            None,
+            Sturges,
+            FD,
+            Scott
+        };
 
         //! \name constructors
         //@{
         Histogram() : algorithm_(Algorithm(-1)) {}
 
         template <class T>
-        Histogram(T data_begin, T data_end, Size breaks)
-        : data_(data_begin, data_end), bins_(breaks + 1) {
+        Histogram(T data_begin, T data_end, Size breaks) : data_(data_begin, data_end), bins_(breaks + 1)
+        {
             calculate();
         }
 
         template <class T>
         Histogram(T data_begin, T data_end, Algorithm algorithm)
-        : data_(data_begin,data_end), bins_(Null<Size>()),
-          algorithm_(algorithm) {
+        : data_(data_begin, data_end), bins_(Null<Size>()), algorithm_(algorithm)
+        {
             calculate();
         }
 
         template <class T, class U>
         Histogram(T data_begin, T data_end, U breaks_begin, U breaks_end)
-        : data_(data_begin, data_end), bins_(Null<Size>()), breaks_(breaks_begin, breaks_end) {
-            bins_ = breaks_.size()+1;
+        : data_(data_begin, data_end), bins_(Null<Size>()), breaks_(breaks_begin, breaks_end)
+        {
+            bins_ = breaks_.size() + 1;
             calculate();
         }
         //@}

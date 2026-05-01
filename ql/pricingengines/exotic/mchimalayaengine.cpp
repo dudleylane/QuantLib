@@ -17,35 +17,41 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/pricingengines/exotic/mchimalayaengine.hpp>
 #include <ql/payoff.hpp>
+#include <ql/pricingengines/exotic/mchimalayaengine.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    HimalayaMultiPathPricer::HimalayaMultiPathPricer(ext::shared_ptr<Payoff> payoff,
-                                                     DiscountFactor discount)
-    : payoff_(std::move(payoff)), discount_(discount) {}
+    HimalayaMultiPathPricer::HimalayaMultiPathPricer(ext::shared_ptr<Payoff> payoff, DiscountFactor discount)
+    : payoff_(std::move(payoff)), discount_(discount)
+    {
+    }
 
-    Real HimalayaMultiPathPricer::operator()(const MultiPath& multiPath)
-                                                                      const {
+    Real HimalayaMultiPathPricer::operator()(const MultiPath& multiPath) const
+    {
         Size numAssets = multiPath.assetNumber();
         Size numNodes = multiPath.pathSize();
         QL_REQUIRE(numAssets > 0, "no asset given");
 
         std::vector<bool> remainingAssets(numAssets, true);
         Real averagePrice = 0.0;
-        Size fixings = numNodes-1;
-        for (Size i = 1; i < numNodes; i++) {
+        Size fixings = numNodes - 1;
+        for (Size i = 1; i < numNodes; i++)
+        {
             Real bestPrice = 0.0;
             Real bestYield = QL_MIN_REAL;
             // dummy assignement to avoid compiler warning
             Size removeAsset = 0;
-            for (Size j = 0; j < numAssets; j++) {
-                if (remainingAssets[j]) {
+            for (Size j = 0; j < numAssets; j++)
+            {
+                if (remainingAssets[j])
+                {
                     Real price = multiPath[j][i];
-                    Real yield = price/multiPath[j].front();
-                    if (yield >= bestYield) {
+                    Real yield = price / multiPath[j].front();
+                    if (yield >= bestYield)
+                    {
                         bestPrice = price;
                         bestYield = yield;
                         removeAsset = j;
@@ -62,4 +68,3 @@ namespace QuantLib {
     }
 
 }
-

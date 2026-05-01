@@ -32,11 +32,12 @@
 #include <ql/time/schedule.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class CatBond : public Bond
     {
-    public:
+      public:
         class arguments;
         class results;
         class engine;
@@ -45,7 +46,9 @@ namespace QuantLib {
                 const Calendar& calendar,
                 const Date& issueDate,
                 ext::shared_ptr<NotionalRisk> notionalRisk)
-        : Bond(settlementDays, calendar, issueDate), notionalRisk_(std::move(notionalRisk)) {}
+        : Bond(settlementDays, calendar, issueDate), notionalRisk_(std::move(notionalRisk))
+        {
+        }
         ~CatBond() override = default;
 
         void setupArguments(PricingEngine::arguments*) const override;
@@ -63,7 +66,8 @@ namespace QuantLib {
         mutable Real expectedLoss_;
     };
 
-    class CatBond::arguments : public Bond::arguments {
+    class CatBond::arguments : public Bond::arguments
+    {
       public:
         Date startDate;
         ext::shared_ptr<NotionalRisk> notionalRisk;
@@ -71,7 +75,8 @@ namespace QuantLib {
     };
 
     //! results for a cat bond calculation
-    class CatBond::results : public Bond::results {
+    class CatBond::results : public Bond::results
+    {
       public:
         Real lossProbability;
         Real exhaustionProbability;
@@ -79,9 +84,9 @@ namespace QuantLib {
     };
 
     //! base class for cat bond engine
-    class CatBond::engine
-        : public GenericEngine<CatBond::arguments,
-                               CatBond::results> {};
+    class CatBond::engine : public GenericEngine<CatBond::arguments, CatBond::results>
+    {
+    };
 
 
     //! floating-rate cat bond (possibly capped and/or floored)
@@ -90,7 +95,8 @@ namespace QuantLib {
         \test calculations are tested by checking results against
               cached values.
     */
-    class FloatingCatBond : public CatBond {
+    class FloatingCatBond : public CatBond
+    {
       public:
         FloatingCatBond(Natural settlementDays,
                         Real faceAmount,

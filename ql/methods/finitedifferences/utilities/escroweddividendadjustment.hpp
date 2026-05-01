@@ -18,26 +18,27 @@
 */
 
 /*! \file escroweddividendadjustment.hpp
-*/
+ */
 
 #ifndef quantlib_escrowed_dividend_adjustment_hpp
 #define quantlib_escrowed_dividend_adjustment_hpp
 
 #include <ql/handle.hpp>
-#include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/instruments/dividendschedule.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class EscrowedDividendAdjustment {
+    class EscrowedDividendAdjustment
+    {
       public:
-        EscrowedDividendAdjustment(
-            DividendSchedule dividendSchedule,
-            Handle<YieldTermStructure> rTS,
-            Handle<YieldTermStructure> qTS,
-            std::function<Real(Date)> toTime,
-            Time maturity);
+        EscrowedDividendAdjustment(DividendSchedule dividendSchedule,
+                                   Handle<YieldTermStructure> rTS,
+                                   Handle<YieldTermStructure> qTS,
+                                   std::function<Real(Date)> toTime,
+                                   Time maturity);
 
         Real dividendAdjustment(Time t) const;
 

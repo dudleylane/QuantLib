@@ -24,10 +24,11 @@
 #ifndef quantlib_holder_extensible_option_hpp
 #define quantlib_holder_extensible_option_hpp
 
-#include <ql/instruments/payoffs.hpp>
 #include <ql/instruments/oneassetoption.hpp>
+#include <ql/instruments/payoffs.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Holder-extensible %option
     /*! This option can be exercised on maturity date, or it can be
@@ -37,17 +38,17 @@ namespace QuantLib {
 
         \ingroup instruments
     */
-    class HolderExtensibleOption : public OneAssetOption {
+    class HolderExtensibleOption : public OneAssetOption
+    {
       public:
         class arguments;
         class engine;
-        HolderExtensibleOption(
-                       Option::Type type,
-                       Real premium,
-                       Date secondExpiryDate,
-                       Real secondStrike,
-                       const ext::shared_ptr<StrikedTypePayoff>& payoff,
-                       const ext::shared_ptr<Exercise>& exercise);
+        HolderExtensibleOption(Option::Type type,
+                               Real premium,
+                               Date secondExpiryDate,
+                               Real secondStrike,
+                               const ext::shared_ptr<StrikedTypePayoff>& payoff,
+                               const ext::shared_ptr<Exercise>& exercise);
         void setupArguments(PricingEngine::arguments*) const override;
 
       protected:
@@ -57,7 +58,8 @@ namespace QuantLib {
     };
 
     //! %Arguments for holder-extensible option
-    class HolderExtensibleOption::arguments : public OneAssetOption::arguments {
+    class HolderExtensibleOption::arguments : public OneAssetOption::arguments
+    {
       public:
         Real premium;
         Date secondExpiryDate;
@@ -68,8 +70,9 @@ namespace QuantLib {
 
     //! Base class for holder-extensible option engine
     class HolderExtensibleOption::engine
-        : public GenericEngine<HolderExtensibleOption::arguments,
-                               HolderExtensibleOption::results> {};
+    : public GenericEngine<HolderExtensibleOption::arguments, HolderExtensibleOption::results>
+    {
+    };
 
 }
 

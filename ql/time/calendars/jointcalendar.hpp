@@ -27,19 +27,22 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! rules for joining calendars
-    enum JointCalendarRule { JoinHolidays,    /*!< A date is a holiday
-                                                   for the joint calendar
-                                                   if it is a holiday
-                                                   for any of the given
-                                                   calendars */
-                             JoinBusinessDays /*!< A date is a business day
-                                                   for the joint calendar
-                                                   if it is a business day
-                                                   for any of the given
-                                                   calendars */
+    enum JointCalendarRule
+    {
+        JoinHolidays,    /*!< A date is a holiday
+                              for the joint calendar
+                              if it is a holiday
+                              for any of the given
+                              calendars */
+        JoinBusinessDays /*!< A date is a business day
+                              for the joint calendar
+                              if it is a business day
+                              for any of the given
+                              calendars */
     };
 
     //! Joint calendar
@@ -52,17 +55,15 @@ namespace QuantLib {
         \test the correctness of the returned results is tested by
               reproducing the calculations.
     */
-    class JointCalendar : public Calendar {
+    class JointCalendar : public Calendar
+    {
       private:
-        class Impl final : public Calendar::Impl {
+        class Impl final : public Calendar::Impl
+        {
           public:
-            Impl(const Calendar&, const Calendar&,
-                 JointCalendarRule);
-            Impl(const Calendar&, const Calendar&,
-                 const Calendar&, JointCalendarRule);
-            Impl(const Calendar&, const Calendar&,
-                 const Calendar&, const Calendar&,
-                 JointCalendarRule);
+            Impl(const Calendar&, const Calendar&, JointCalendarRule);
+            Impl(const Calendar&, const Calendar&, const Calendar&, JointCalendarRule);
+            Impl(const Calendar&, const Calendar&, const Calendar&, const Calendar&, JointCalendarRule);
             Impl(std::vector<Calendar>, JointCalendarRule);
             std::string name() const override;
             bool isWeekend(Weekday) const override;
@@ -72,21 +73,16 @@ namespace QuantLib {
             JointCalendarRule rule_;
             std::vector<Calendar> calendars_;
         };
+
       public:
-        JointCalendar(const Calendar&, const Calendar&,
-                      JointCalendarRule = JoinHolidays);
-        JointCalendar(const Calendar&, const Calendar&,
-                      const Calendar&,
-                      JointCalendarRule = JoinHolidays);
-        JointCalendar(const Calendar&, const Calendar&,
-                      const Calendar&, const Calendar&,
-                      JointCalendarRule = JoinHolidays);
-        explicit JointCalendar(const std::vector<Calendar>&,
-                               JointCalendarRule = JoinHolidays);
+        JointCalendar(const Calendar&, const Calendar&, JointCalendarRule = JoinHolidays);
+        JointCalendar(const Calendar&, const Calendar&, const Calendar&, JointCalendarRule = JoinHolidays);
+        JointCalendar(
+            const Calendar&, const Calendar&, const Calendar&, const Calendar&, JointCalendarRule = JoinHolidays);
+        explicit JointCalendar(const std::vector<Calendar>&, JointCalendarRule = JoinHolidays);
     };
 
 }
-
 
 
 #endif

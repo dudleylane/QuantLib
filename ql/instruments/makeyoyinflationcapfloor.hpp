@@ -29,13 +29,15 @@
 #include <ql/instruments/inflationcapfloor.hpp>
 #include <ql/instruments/makevanillaswap.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! helper class
     /*! This class provides a more comfortable way to instantiate
         standard yoy inflation cap and floor.
      */
-    class MakeYoYInflationCapFloor {
+    class MakeYoYInflationCapFloor
+    {
       public:
         MakeYoYInflationCapFloor(YoYInflationCapFloor::Type capFloorType,
                                  ext::shared_ptr<YoYInflationIndex> index,
@@ -50,17 +52,15 @@ namespace QuantLib {
         MakeYoYInflationCapFloor& withPaymentDayCounter(const DayCounter&);
         MakeYoYInflationCapFloor& withPaymentAdjustment(BusinessDayConvention);
         MakeYoYInflationCapFloor& withFixingDays(Natural fixingDays);
-        MakeYoYInflationCapFloor& withPricingEngine(
-                const ext::shared_ptr<PricingEngine>& engine);
+        MakeYoYInflationCapFloor& withPricingEngine(const ext::shared_ptr<PricingEngine>& engine);
         //! only get last coupon
         MakeYoYInflationCapFloor& asOptionlet(bool b = true);
         MakeYoYInflationCapFloor& withStrike(Rate strike);
-        MakeYoYInflationCapFloor& withAtmStrike(
-                      const Handle<YieldTermStructure>& nominalTermStructure);
+        MakeYoYInflationCapFloor& withAtmStrike(const Handle<YieldTermStructure>& nominalTermStructure);
         MakeYoYInflationCapFloor& withForwardStart(Period forwardStart);
 
         operator YoYInflationCapFloor() const;
-        operator ext::shared_ptr<YoYInflationCapFloor>() const ;
+        operator ext::shared_ptr<YoYInflationCapFloor>() const;
 
       private:
         YoYInflationCapFloor::Type capFloorType_;

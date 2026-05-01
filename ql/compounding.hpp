@@ -26,18 +26,23 @@
 
 #include <ql/errors.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Interest rate coumpounding rule
-    enum Compounding { Simple = 0,          //!< \f$ 1+rt \f$
-                       Compounded = 1,      //!< \f$ (1+r)^t \f$
-                       Continuous = 2,      //!< \f$ e^{rt} \f$
-                       SimpleThenCompounded, //!< Simple up to the first period then Compounded
-                       CompoundedThenSimple //!< Compounded up to the first period then Simple
+    enum Compounding
+    {
+        Simple = 0,           //!< \f$ 1+rt \f$
+        Compounded = 1,       //!< \f$ (1+r)^t \f$
+        Continuous = 2,       //!< \f$ e^{rt} \f$
+        SimpleThenCompounded, //!< Simple up to the first period then Compounded
+        CompoundedThenSimple  //!< Compounded up to the first period then Simple
     };
 
-    inline std::ostream& operator<<(std::ostream& out, const Compounding& compounding) {
-        switch (compounding) {
+    inline std::ostream& operator<<(std::ostream& out, const Compounding& compounding)
+    {
+        switch (compounding)
+        {
             case Compounding::Simple:
                 return out << "Simple";
             case Compounding::Compounded:

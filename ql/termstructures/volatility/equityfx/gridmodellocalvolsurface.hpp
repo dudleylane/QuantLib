@@ -27,23 +27,20 @@
 #include <ql/models/model.hpp>
 #include <ql/termstructures/volatility/equityfx/fixedlocalvolsurface.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class GridModelLocalVolSurface
-         : public LocalVolTermStructure,
-           public CalibratedModel {
+    class GridModelLocalVolSurface : public LocalVolTermStructure, public CalibratedModel
+    {
       public:
         typedef FixedLocalVolSurface::Extrapolation Extrapolation;
 
-        GridModelLocalVolSurface(
-            const Date& referenceDate,
-            const std::vector<Date>& dates,
-            const std::vector<ext::shared_ptr<std::vector<Real> > >& strikes,
-            const DayCounter& dayCounter,
-            Extrapolation lowerExtrapolation
-                = FixedLocalVolSurface::ConstantExtrapolation,
-            Extrapolation upperExtrapolation
-                = FixedLocalVolSurface::ConstantExtrapolation);
+        GridModelLocalVolSurface(const Date& referenceDate,
+                                 const std::vector<Date>& dates,
+                                 const std::vector<ext::shared_ptr<std::vector<Real>>>& strikes,
+                                 const DayCounter& dayCounter,
+                                 Extrapolation lowerExtrapolation = FixedLocalVolSurface::ConstantExtrapolation,
+                                 Extrapolation upperExtrapolation = FixedLocalVolSurface::ConstantExtrapolation);
 
         void update() override;
 
@@ -58,7 +55,7 @@ namespace QuantLib {
 
         const Date referenceDate_;
         std::vector<Time> times_;
-        const std::vector<ext::shared_ptr<std::vector<Real> > > strikes_;
+        const std::vector<ext::shared_ptr<std::vector<Real>>> strikes_;
         const DayCounter dayCounter_;
         Extrapolation lowerExtrapolation_, upperExtrapolation_;
 

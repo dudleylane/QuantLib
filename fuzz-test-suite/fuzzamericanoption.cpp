@@ -21,7 +21,6 @@
 
 #include <ql/any.hpp>
 #include <ql/exercise.hpp>
-#include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
 #include <ql/instruments/vanillaoption.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/math/functional.hpp>
@@ -37,10 +36,11 @@
 #include <ql/pricingengines/vanilla/juquadraticengine.hpp>
 #include <ql/pricingengines/vanilla/qdfpamericanengine.hpp>
 #include <ql/pricingengines/vanilla/qdplusamericanengine.hpp>
+#include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
+#include <ql/time/calendars/nullcalendar.hpp>
 #include <ql/time/daycounters/actual360.hpp>
 #include <ql/time/daycounters/thirty360.hpp>
-#include <ql/time/calendars/nullcalendar.hpp>
 #include <ql/utilities/dataformatters.hpp>
 #include <fuzzer/FuzzedDataProvider.h>
 #include <limits>
@@ -49,9 +49,11 @@
 
 using namespace QuantLib;
 
-namespace {
+namespace
+{
 
-    struct AmericanOptionData {
+    struct AmericanOptionData
+    {
         Option::Type type;
         Real strike;
         Real s;       // spot
@@ -63,7 +65,8 @@ namespace {
 
 }
 
-AmericanOptionData fuzzedAmericanOptionData(FuzzedDataProvider& fdp) {
+AmericanOptionData fuzzedAmericanOptionData(FuzzedDataProvider& fdp)
+{
     return AmericanOptionData{
         .type = fdp.PickValueInArray({Option::Type::Put, Option::Type::Call}),
         .strike = fdp.ConsumeFloatingPoint<Real>(),
@@ -75,7 +78,8 @@ AmericanOptionData fuzzedAmericanOptionData(FuzzedDataProvider& fdp) {
     };
 }
 
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
+{
     FuzzedDataProvider fdp(data, size);
     // Ensure that settings are reset between each fuzzing iteration.
     SavedSettings saved_settings;
@@ -84,7 +88,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     auto length = fdp.ConsumeIntegralInRange<size_t>(0, kMaxValues);
     std::vector<AmericanOptionData> values;
     values.reserve(length);
-    for (size_t i = 0; i < length; i++) {
+    for (size_t i = 0; i < length; i++)
+    {
         values.push_back(fuzzedAmericanOptionData(fdp));
     }
 
@@ -99,20 +104,20 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     ext::shared_ptr<YieldTermStructure> rTS =
         ext::shared_ptr<YieldTermStructure>(new FlatForward(today, Handle<Quote>(rRate), dc));
     ext::shared_ptr<SimpleQuote> vol(new SimpleQuote(0.0));
-    ext::shared_ptr<BlackVolTermStructure> volTS = ext::shared_ptr<BlackVolTermStructure>(
-        new BlackConstantVol(today, NullCalendar(), Handle<Quote>(vol), dc));
+    ext::shared_ptr<BlackVolTermStructure> volTS =
+        ext::shared_ptr<BlackVolTermStructure>(new BlackConstantVol(today, NullCalendar(), Handle<Quote>(vol), dc));
 
-    ext::shared_ptr<BlackScholesMertonProcess> stochProcess(new BlackScholesMertonProcess(
-            Handle<Quote>(spot), Handle<YieldTermStructure>(qTS), Handle<YieldTermStructure>(rTS),
-            Handle<BlackVolTermStructure>(volTS)));
+    ext::shared_ptr<BlackScholesMertonProcess> stochProcess(
+        new BlackScholesMertonProcess(Handle<Quote>(spot), Handle<YieldTermStructure>(qTS),
+                                      Handle<YieldTermStructure>(rTS), Handle<BlackVolTermStructure>(volTS)));
 
-    ext::shared_ptr<PricingEngine> engine(
-        new BaroneAdesiWhaleyApproximationEngine(stochProcess));
+    ext::shared_ptr<PricingEngine> engine(new BaroneAdesiWhaleyApproximationEngine(stochProcess));
 
-    for (auto& value : values) {
+    for (auto& value : values)
+    {
 
         ext::shared_ptr<StrikedTypePayoff> payoff(new PlainVanillaPayoff(value.type, value.strike));
-        Date exDate = today + Integer(std::lround(365*value.t));
+        Date exDate = today + Integer(std::lround(365 * value.t));
         ext::shared_ptr<Exercise> exercise(new AmericanExercise(today, exDate));
 
         spot->setValue(value.s);
@@ -124,7 +129,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         option.setPricingEngine(engine);
 
         (void)option.NPV();
-
     }
 
     return 0;

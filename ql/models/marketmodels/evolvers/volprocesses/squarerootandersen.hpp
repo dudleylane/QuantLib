@@ -22,66 +22,64 @@
 
 #include <ql/models/marketmodels/evolvers/marketmodelvolprocess.hpp>
 
-namespace QuantLib 
+namespace QuantLib
 {
 
-  
+
     /*!
-   Displaced diffusion LMM with uncorrelated vol process. Called "Shifted BGM" with Heston vol by Brace in "Engineering BGM."
-   Vol process is an external input.
-    
+   Displaced diffusion LMM with uncorrelated vol process. Called "Shifted BGM" with Heston vol by Brace in "Engineering
+   BGM." Vol process is an external input.
+
     */
-    class SquareRootAndersen  : public MarketModelVolProcess
+    class SquareRootAndersen : public MarketModelVolProcess
     {
       public:
-          SquareRootAndersen(Real meanLevel,
-                             Real reversionSpeed,
-                             Real volVar,
-                             Real v0,
-                             const std::vector<Real>& evolutionTimes,
-                             Size numberSubSteps_,
-                             Real w1,
-                             Real w2,
-                             Real cutPoint = 1.5);
+        SquareRootAndersen(Real meanLevel,
+                           Real reversionSpeed,
+                           Real volVar,
+                           Real v0,
+                           const std::vector<Real>& evolutionTimes,
+                           Size numberSubSteps_,
+                           Real w1,
+                           Real w2,
+                           Real cutPoint = 1.5);
 
-          Size variatesPerStep() override;
-          Size numberSteps() override;
+        Size variatesPerStep() override;
+        Size numberSteps() override;
 
-          void nextPath() override;
-          Real nextstep(const std::vector<Real>& variates) override;
-          Real stepSd() const override;
+        void nextPath() override;
+        Real nextstep(const std::vector<Real>& variates) override;
+        Real stepSd() const override;
 
-          const std::vector<Real>& stateVariables() const override;
-          Size numberStateVariables() const override;
+        const std::vector<Real>& stateVariables() const override;
+        Size numberStateVariables() const override;
 
-        private:
+      private:
+        void DoOneSubStep(Real& v, Real variate, Size j);
 
-          void DoOneSubStep(Real& v, Real variate, Size j);
+        Real theta_; // mean level
 
-          Real theta_; // mean level
+        Real k_;       // reversion speed
+        Real epsilon_; // volvar
 
-          Real k_; // reversion speed
-          Real epsilon_; // volvar
-
-          Real v0_; // initial value of instantaneous variance
-          Size numberSubSteps_; // sub steps per evolution time 
+        Real v0_;             // initial value of instantaneous variance
+        Size numberSubSteps_; // sub steps per evolution time
 
 
-          std::vector<Real> dt_; // time step lengths
-          std::vector<Real> eMinuskDt_; // exp( - k * dt) 
+        std::vector<Real> dt_;        // time step lengths
+        std::vector<Real> eMinuskDt_; // exp( - k * dt)
 
-          Real w1_; // weights to use for computing variance across step
-          Real w2_; 
-          Real PsiC_; // cut-off between two types of evolution
+        Real w1_; // weights to use for computing variance across step
+        Real w2_;
+        Real PsiC_; // cut-off between two types of evolution
 
-          //! evolving values
-          Real v_;
-          Size currentStep_;
-          Size subStep_;
-          std::vector<Real> vPath_;
+        //! evolving values
+        Real v_;
+        Size currentStep_;
+        Size subStep_;
+        std::vector<Real> vPath_;
 
-          mutable std::vector<Real> state_;
- 
+        mutable std::vector<Real> state_;
     };
 
 }

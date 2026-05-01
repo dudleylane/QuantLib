@@ -24,14 +24,16 @@
 #ifndef quantlib_energy_basis_swap_hpp
 #define quantlib_energy_basis_swap_hpp
 
-#include <ql/experimental/commodities/energyswap.hpp>
 #include <ql/experimental/commodities/commodityindex.hpp>
+#include <ql/experimental/commodities/energyswap.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Energy basis swap
-    class EnergyBasisSwap : public EnergySwap {
+    class EnergyBasisSwap : public EnergySwap
+    {
       public:
         EnergyBasisSwap(const Calendar& calendar,
                         ext::shared_ptr<CommodityIndex> spreadIndex,
@@ -48,12 +50,8 @@ namespace QuantLib {
                         Handle<YieldTermStructure> receiveLegTermStructure,
                         Handle<YieldTermStructure> discountTermStructure);
 
-        const ext::shared_ptr<CommodityIndex>& payIndex() const {
-            return payIndex_;
-        }
-        const ext::shared_ptr<CommodityIndex>& receiveIndex() const {
-            return receiveIndex_;
-        }
+        const ext::shared_ptr<CommodityIndex>& payIndex() const { return payIndex_; }
+        const ext::shared_ptr<CommodityIndex>& receiveIndex() const { return receiveIndex_; }
         const CommodityUnitCost& basis() const { return basis_; }
 
       protected:

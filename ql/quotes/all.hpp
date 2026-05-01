@@ -12,4 +12,3 @@
 #include <ql/quotes/lastfixingquote.hpp>
 #include <ql/quotes/multicompositequote.hpp>
 #include <ql/quotes/simplequote.hpp>
-

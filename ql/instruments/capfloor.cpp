@@ -32,11 +32,14 @@
 #include <ql/utilities/dataformatters.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
+    namespace
+    {
 
-        class ImpliedCapVolHelper {
+        class ImpliedCapVolHelper
+        {
           public:
             ImpliedCapVolHelper(const CapFloor&,
                                 Handle<YieldTermStructure> discountCurve,
@@ -45,6 +48,7 @@ namespace QuantLib {
                                 VolatilityType type);
             Real operator()(Volatility x) const;
             Real derivative(Volatility x) const;
+
           private:
             ext::shared_ptr<PricingEngine> engine_;
             Handle<YieldTermStructure> discountCurve_;
@@ -58,82 +62,84 @@ namespace QuantLib {
                                                  Real targetValue,
                                                  Real displacement,
                                                  VolatilityType type)
-        : discountCurve_(std::move(discountCurve)), targetValue_(targetValue),
-          vol_(ext::make_shared<SimpleQuote>(-1.0)) {
+        : discountCurve_(std::move(discountCurve)), targetValue_(targetValue), vol_(ext::make_shared<SimpleQuote>(-1.0))
+        {
 
             // vol_ is set an implausible value, so that calculation is forced
             // at first ImpliedCapVolHelper::operator()(Volatility x) call
             Handle<Quote> h(vol_);
 
-            switch (type) {
-            case ShiftedLognormal:
-                engine_ = ext::shared_ptr<PricingEngine>(new
-                    BlackCapFloorEngine(discountCurve_, h, Actual365Fixed(),
-                                                                displacement));
-                break;
-            case Normal:
-                engine_ = ext::shared_ptr<PricingEngine>(new
-                    BachelierCapFloorEngine(discountCurve_, h, 
-                                                            Actual365Fixed()));
-                break;
-            default:
-                QL_FAIL("unknown VolatilityType (" << type << ")");
-                break;
+            switch (type)
+            {
+                case ShiftedLognormal:
+                    engine_ = ext::shared_ptr<PricingEngine>(
+                        new BlackCapFloorEngine(discountCurve_, h, Actual365Fixed(), displacement));
+                    break;
+                case Normal:
+                    engine_ = ext::shared_ptr<PricingEngine>(
+                        new BachelierCapFloorEngine(discountCurve_, h, Actual365Fixed()));
+                    break;
+                default:
+                    QL_FAIL("unknown VolatilityType (" << type << ")");
+                    break;
             }
 
             cap.setupArguments(engine_->getArguments());
 
-            results_ =
-                dynamic_cast<const Instrument::results*>(engine_->getResults());
+            results_ = dynamic_cast<const Instrument::results*>(engine_->getResults());
         }
 
-        Real ImpliedCapVolHelper::operator()(Volatility x) const {
-            if (x!=vol_->value()) {
+        Real ImpliedCapVolHelper::operator()(Volatility x) const
+        {
+            if (x != vol_->value())
+            {
                 vol_->setValue(x);
                 engine_->calculate();
             }
-            return results_->value-targetValue_;
+            return results_->value - targetValue_;
         }
 
-        Real ImpliedCapVolHelper::derivative(Volatility x) const {
-            if (x!=vol_->value()) {
+        Real ImpliedCapVolHelper::derivative(Volatility x) const
+        {
+            if (x != vol_->value())
+            {
                 vol_->setValue(x);
                 engine_->calculate();
             }
             auto vega_ = results_->additionalResults.find("vega");
-            QL_REQUIRE(vega_ != results_->additionalResults.end(),
-                       "vega not provided");
+            QL_REQUIRE(vega_ != results_->additionalResults.end(), "vega not provided");
             return ext::any_cast<Real>(vega_->second);
         }
     }
 
-    std::ostream& operator<<(std::ostream& out,
-                             CapFloor::Type t) {
-        switch (t) {
-          case CapFloor::Cap:
-            return out << "Cap";
-          case CapFloor::Floor:
-            return out << "Floor";
-          case CapFloor::Collar:
-            return out << "Collar";
-          default:
-            QL_FAIL("unknown CapFloor::Type (" << Integer(t) << ")");
+    std::ostream& operator<<(std::ostream& out, CapFloor::Type t)
+    {
+        switch (t)
+        {
+            case CapFloor::Cap:
+                return out << "Cap";
+            case CapFloor::Floor:
+                return out << "Floor";
+            case CapFloor::Collar:
+                return out << "Collar";
+            default:
+                QL_FAIL("unknown CapFloor::Type (" << Integer(t) << ")");
         }
     }
 
-    CapFloor::CapFloor(CapFloor::Type type,
-                       Leg floatingLeg,
-                       std::vector<Rate> capRates,
-                       std::vector<Rate> floorRates)
+    CapFloor::CapFloor(CapFloor::Type type, Leg floatingLeg, std::vector<Rate> capRates, std::vector<Rate> floorRates)
     : type_(type), floatingLeg_(std::move(floatingLeg)), capRates_(std::move(capRates)),
-      floorRates_(std::move(floorRates)) {
-        if (type_ == Cap || type_ == Collar) {
+      floorRates_(std::move(floorRates))
+    {
+        if (type_ == Cap || type_ == Collar)
+        {
             QL_REQUIRE(!capRates_.empty(), "no cap rates given");
             capRates_.reserve(floatingLeg_.size());
             while (capRates_.size() < floatingLeg_.size())
                 capRates_.push_back(capRates_.back());
         }
-        if (type_ == Floor || type_ == Collar) {
+        if (type_ == Floor || type_ == Collar)
+        {
             QL_REQUIRE(!floorRates_.empty(), "no floor rates given");
             floorRates_.reserve(floatingLeg_.size());
             while (floorRates_.size() < floatingLeg_.size())
@@ -147,19 +153,24 @@ namespace QuantLib {
     }
 
     CapFloor::CapFloor(CapFloor::Type type, Leg floatingLeg, const std::vector<Rate>& strikes)
-    : type_(type), floatingLeg_(std::move(floatingLeg)) {
+    : type_(type), floatingLeg_(std::move(floatingLeg))
+    {
         QL_REQUIRE(!strikes.empty(), "no strikes given");
-        if (type_ == Cap) {
+        if (type_ == Cap)
+        {
             capRates_ = strikes;
             capRates_.reserve(floatingLeg_.size());
             while (capRates_.size() < floatingLeg_.size())
                 capRates_.push_back(capRates_.back());
-        } else if (type_ == Floor) {
+        }
+        else if (type_ == Floor)
+        {
             floorRates_ = strikes;
             floorRates_.reserve(floatingLeg_.size());
             while (floorRates_.size() < floatingLeg_.size())
                 floorRates_.push_back(floorRates_.back());
-        } else
+        }
+        else
             QL_FAIL("only Cap/Floor types allowed in this constructor");
 
         Leg::const_iterator i;
@@ -169,33 +180,35 @@ namespace QuantLib {
         registerWith(Settings::instance().evaluationDate());
     }
 
-    bool CapFloor::isExpired() const {
-        for (Size i=floatingLeg_.size(); i>0; --i)
-            if (!floatingLeg_[i-1]->hasOccurred())
+    bool CapFloor::isExpired() const
+    {
+        for (Size i = floatingLeg_.size(); i > 0; --i)
+            if (!floatingLeg_[i - 1]->hasOccurred())
                 return false;
         return true;
     }
 
-    Date CapFloor::startDate() const {
+    Date CapFloor::startDate() const
+    {
         return CashFlows::startDate(floatingLeg_);
     }
 
-    Date CapFloor::maturityDate() const {
+    Date CapFloor::maturityDate() const
+    {
         return CashFlows::maturityDate(floatingLeg_);
     }
 
-    ext::shared_ptr<FloatingRateCoupon>
-    CapFloor::lastFloatingRateCoupon() const {
+    ext::shared_ptr<FloatingRateCoupon> CapFloor::lastFloatingRateCoupon() const
+    {
         ext::shared_ptr<CashFlow> lastCF(floatingLeg_.back());
-        ext::shared_ptr<FloatingRateCoupon> lastFloatingCoupon =
-            ext::dynamic_pointer_cast<FloatingRateCoupon>(lastCF);
+        ext::shared_ptr<FloatingRateCoupon> lastFloatingCoupon = ext::dynamic_pointer_cast<FloatingRateCoupon>(lastCF);
         return lastFloatingCoupon;
     }
 
-    ext::shared_ptr<CapFloor> CapFloor::optionlet(const Size i) const {
-        QL_REQUIRE(i < floatingLeg().size(),
-                   io::ordinal(i+1) << " optionlet does not exist, only " <<
-                   floatingLeg().size());
+    ext::shared_ptr<CapFloor> CapFloor::optionlet(const Size i) const
+    {
+        QL_REQUIRE(i < floatingLeg().size(), io::ordinal(i + 1)
+                                                 << " optionlet does not exist, only " << floatingLeg().size());
         Leg cf(1, floatingLeg()[i]);
 
         std::vector<Rate> cap, floor;
@@ -207,7 +220,8 @@ namespace QuantLib {
         return ext::make_shared<CapFloor>(type(), cf, cap, floor);
     }
 
-    void CapFloor::setupArguments(PricingEngine::arguments* args) const {
+    void CapFloor::setupArguments(PricingEngine::arguments* args) const
+    {
         auto* arguments = dynamic_cast<CapFloor::arguments*>(args);
         QL_REQUIRE(arguments != nullptr, "wrong argument type");
 
@@ -229,10 +243,9 @@ namespace QuantLib {
 
         Date today = Settings::instance().evaluationDate();
 
-        for (Size i=0; i<n; ++i) {
-            ext::shared_ptr<FloatingRateCoupon> coupon =
-                ext::dynamic_pointer_cast<FloatingRateCoupon>(
-                                                             floatingLeg_[i]);
+        for (Size i = 0; i < n; ++i)
+        {
+            ext::shared_ptr<FloatingRateCoupon> coupon = ext::dynamic_pointer_cast<FloatingRateCoupon>(floatingLeg_[i]);
             QL_REQUIRE(coupon, "non-FloatingRateCoupon given");
             arguments->startDates[i] = coupon->accrualStartDate();
             arguments->fixingDates[i] = coupon->fixingDate();
@@ -242,9 +255,12 @@ namespace QuantLib {
             arguments->accrualTimes[i] = coupon->accrualPeriod();
 
             // this is passed explicitly for precision...
-            if (arguments->endDates[i] >= today) { // ...but only if needed
+            if (arguments->endDates[i] >= today)
+            { // ...but only if needed
                 arguments->forwards[i] = coupon->adjustedFixing();
-            } else {
+            }
+            else
+            {
                 arguments->forwards[i] = Null<Rate>();
             }
 
@@ -255,12 +271,12 @@ namespace QuantLib {
             arguments->spreads[i] = spread;
 
             if (type_ == Cap || type_ == Collar)
-                arguments->capRates[i] = (capRates_[i]-spread)/gearing;
+                arguments->capRates[i] = (capRates_[i] - spread) / gearing;
             else
                 arguments->capRates[i] = Null<Rate>();
 
             if (type_ == Floor || type_ == Collar)
-                arguments->floorRates[i] = (floorRates_[i]-spread)/gearing;
+                arguments->floorRates[i] = (floorRates_[i] - spread) / gearing;
             else
                 arguments->floorRates[i] = Null<Rate>();
 
@@ -268,56 +284,48 @@ namespace QuantLib {
         }
     }
 
-    void CapFloor::deepUpdate() {
-        for (auto& i : floatingLeg_) {
+    void CapFloor::deepUpdate()
+    {
+        for (auto& i : floatingLeg_)
+        {
             i->deepUpdate();
         }
         update();
     }
 
-    void CapFloor::arguments::validate() const {
+    void CapFloor::arguments::validate() const
+    {
         QL_REQUIRE(endDates.size() == startDates.size(),
-                   "number of start dates (" << startDates.size()
-                   << ") different from that of end dates ("
-                   << endDates.size() << ")");
+                   "number of start dates (" << startDates.size() << ") different from that of end dates ("
+                                             << endDates.size() << ")");
         QL_REQUIRE(accrualTimes.size() == startDates.size(),
-                   "number of start dates (" << startDates.size()
-                   << ") different from that of accrual times ("
-                   << accrualTimes.size() << ")");
-        QL_REQUIRE(type == CapFloor::Floor ||
-                   capRates.size() == startDates.size(),
-                   "number of start dates (" << startDates.size()
-                   << ") different from that of cap rates ("
-                   << capRates.size() << ")");
-        QL_REQUIRE(type == CapFloor::Cap ||
-                   floorRates.size() == startDates.size(),
-                   "number of start dates (" << startDates.size()
-                   << ") different from that of floor rates ("
-                   << floorRates.size() << ")");
+                   "number of start dates (" << startDates.size() << ") different from that of accrual times ("
+                                             << accrualTimes.size() << ")");
+        QL_REQUIRE(type == CapFloor::Floor || capRates.size() == startDates.size(),
+                   "number of start dates (" << startDates.size() << ") different from that of cap rates ("
+                                             << capRates.size() << ")");
+        QL_REQUIRE(type == CapFloor::Cap || floorRates.size() == startDates.size(),
+                   "number of start dates (" << startDates.size() << ") different from that of floor rates ("
+                                             << floorRates.size() << ")");
         QL_REQUIRE(gearings.size() == startDates.size(),
-                   "number of start dates (" << startDates.size()
-                   << ") different from that of gearings ("
-                   << gearings.size() << ")");
-        QL_REQUIRE(spreads.size() == startDates.size(),
-                   "number of start dates (" << startDates.size()
-                   << ") different from that of spreads ("
-                   << spreads.size() << ")");
+                   "number of start dates (" << startDates.size() << ") different from that of gearings ("
+                                             << gearings.size() << ")");
+        QL_REQUIRE(spreads.size() == startDates.size(), "number of start dates ("
+                                                            << startDates.size() << ") different from that of spreads ("
+                                                            << spreads.size() << ")");
         QL_REQUIRE(nominals.size() == startDates.size(),
-                   "number of start dates (" << startDates.size()
-                   << ") different from that of nominals ("
-                   << nominals.size() << ")");
+                   "number of start dates (" << startDates.size() << ") different from that of nominals ("
+                                             << nominals.size() << ")");
         QL_REQUIRE(forwards.size() == startDates.size(),
-                   "number of start dates (" << startDates.size()
-                   << ") different from that of forwards ("
-                   << forwards.size() << ")");
+                   "number of start dates (" << startDates.size() << ") different from that of forwards ("
+                                             << forwards.size() << ")");
     }
 
-    Rate CapFloor::atmRate(const YieldTermStructure& discountCurve) const {
+    Rate CapFloor::atmRate(const YieldTermStructure& discountCurve) const
+    {
         bool includeSettlementDateFlows = false;
         Date settlementDate = discountCurve.referenceDate();
-        return CashFlows::atmRate(floatingLeg_, discountCurve,
-                                  includeSettlementDateFlows,
-                                  settlementDate);
+        return CashFlows::atmRate(floatingLeg_, discountCurve, includeSettlementDateFlows, settlementDate);
     }
 
     Volatility CapFloor::impliedVolatility(Real targetValue,
@@ -328,12 +336,13 @@ namespace QuantLib {
                                            Volatility minVol,
                                            Volatility maxVol,
                                            VolatilityType type,
-                                           Real displacement) const {
-        //calculate();
+                                           Real displacement) const
+    {
+        // calculate();
         QL_REQUIRE(!isExpired(), "instrument expired");
 
         ImpliedCapVolHelper f(*this, d, targetValue, displacement, type);
-        //Brent solver;
+        // Brent solver;
         NewtonSafe solver;
         solver.setMaxEvaluations(maxEvaluations);
         return solver.solve(f, accuracy, guess, minVol, maxVol);

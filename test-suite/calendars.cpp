@@ -29,6 +29,7 @@
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
 #include <ql/errors.hpp>
+#include <ql/indexes/ibor/sofr.hpp>
 #include <ql/time/calendar.hpp>
 #include <ql/time/calendars/bespokecalendar.hpp>
 #include <ql/time/calendars/brazil.hpp>
@@ -46,7 +47,6 @@
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/calendars/unitedkingdom.hpp>
 #include <ql/time/calendars/unitedstates.hpp>
-#include <ql/indexes/ibor/sofr.hpp>
 #include <fstream>
 
 using namespace QuantLib;
@@ -56,21 +56,25 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(CalendarTests)
 
-void checkHolidays(const std::vector<Date>& calculated, const std::vector<Date>& expected) {
+void checkHolidays(const std::vector<Date>& calculated, const std::vector<Date>& expected)
+{
     std::set<Date> calc(calculated.begin(), calculated.end());
     std::set<Date> exp(expected.begin(), expected.end());
 
-    for (Date d : calculated) {
+    for (Date d : calculated)
+    {
         if (exp.find(d) == exp.end())
             BOOST_ERROR(d << " calculated but not expected");
     }
-    for (Date d : expected) {
+    for (Date d : expected)
+    {
         if (calc.find(d) == calc.end())
             BOOST_ERROR(d << " expected but not calculated");
     }
 }
 
-BOOST_AUTO_TEST_CASE(testModifiedCalendars) {
+BOOST_AUTO_TEST_CASE(testModifiedCalendars)
+{
 
     BOOST_TEST_MESSAGE("Testing calendar modification...");
 
@@ -93,14 +97,10 @@ BOOST_AUTO_TEST_CASE(testModifiedCalendars) {
     std::set<Date> addedHolidays(c1.addedHolidays());
     std::set<Date> removedHolidays(c1.removedHolidays());
 
-    QL_REQUIRE(addedHolidays.find(d1) == addedHolidays.end(),
-               "did not expect to find date in addedHolidays");
-    QL_REQUIRE(addedHolidays.find(d2) != addedHolidays.end(),
-               "expected to find date in addedHolidays");
-    QL_REQUIRE(removedHolidays.find(d1) != removedHolidays.end(),
-               "expected to find date in removedHolidays");
-    QL_REQUIRE(removedHolidays.find(d2) == removedHolidays.end(),
-               "did not expect to find date in removedHolidays");
+    QL_REQUIRE(addedHolidays.find(d1) == addedHolidays.end(), "did not expect to find date in addedHolidays");
+    QL_REQUIRE(addedHolidays.find(d2) != addedHolidays.end(), "expected to find date in addedHolidays");
+    QL_REQUIRE(removedHolidays.find(d1) != removedHolidays.end(), "expected to find date in removedHolidays");
+    QL_REQUIRE(removedHolidays.find(d2) == removedHolidays.end(), "did not expect to find date in removedHolidays");
 
     if (c1.isHoliday(d1))
         BOOST_FAIL(d1 << " still a holiday for original TARGET instance");
@@ -130,12 +130,12 @@ BOOST_AUTO_TEST_CASE(testModifiedCalendars) {
         BOOST_FAIL(d2 << " still a holiday");
 }
 
-BOOST_AUTO_TEST_CASE(testJointCalendars) {
+BOOST_AUTO_TEST_CASE(testJointCalendars)
+{
 
     BOOST_TEST_MESSAGE("Testing joint calendars...");
 
-    Calendar c1 = TARGET(), c2 = UnitedKingdom(), c3 = UnitedStates(UnitedStates::NYSE),
-             c4 = Japan(), c5 = Germany();
+    Calendar c1 = TARGET(), c2 = UnitedKingdom(), c3 = UnitedStates(UnitedStates::NYSE), c4 = Japan(), c5 = Germany();
 
     std::vector<Calendar> calendar_vect;
     calendar_vect.reserve(5);
@@ -145,21 +145,19 @@ BOOST_AUTO_TEST_CASE(testJointCalendars) {
     calendar_vect.push_back(c4);
     calendar_vect.push_back(c5);
 
-    Calendar c12h = JointCalendar(c1, c2, JoinHolidays),
-             c12b = JointCalendar(c1, c2, JoinBusinessDays),
-             c123h = JointCalendar(c1, c2, c3, JoinHolidays),
-             c123b = JointCalendar(c1, c2, c3, JoinBusinessDays),
+    Calendar c12h = JointCalendar(c1, c2, JoinHolidays), c12b = JointCalendar(c1, c2, JoinBusinessDays),
+             c123h = JointCalendar(c1, c2, c3, JoinHolidays), c123b = JointCalendar(c1, c2, c3, JoinBusinessDays),
              c1234h = JointCalendar(c1, c2, c3, c4, JoinHolidays),
-             c1234b = JointCalendar(c1, c2, c3, c4, JoinBusinessDays),
-             cvh = JointCalendar(calendar_vect, JoinHolidays);
+             c1234b = JointCalendar(c1, c2, c3, c4, JoinBusinessDays), cvh = JointCalendar(calendar_vect, JoinHolidays);
 
     // test one year, starting today
     Date firstDate = Date::todaysDate(), endDate = firstDate + 1 * Years;
 
-    for (Date d = firstDate; d < endDate; d++) {
+    for (Date d = firstDate; d < endDate; d++)
+    {
 
-        bool b1 = c1.isBusinessDay(d), b2 = c2.isBusinessDay(d), b3 = c3.isBusinessDay(d),
-             b4 = c4.isBusinessDay(d), b5 = c5.isBusinessDay(d);
+        bool b1 = c1.isBusinessDay(d), b2 = c2.isBusinessDay(d), b3 = c3.isBusinessDay(d), b4 = c4.isBusinessDay(d),
+             b5 = c5.isBusinessDay(d);
 
         if ((b1 && b2) != c12h.isBusinessDay(d))
             BOOST_FAIL("At date " << d << ":\n"
@@ -205,7 +203,8 @@ BOOST_AUTO_TEST_CASE(testJointCalendars) {
     }
 }
 
-BOOST_AUTO_TEST_CASE(testUSSettlement) {
+BOOST_AUTO_TEST_CASE(testUSSettlement)
+{
     BOOST_TEST_MESSAGE("Testing US settlement holiday list...");
 
     std::vector<Date> expectedHol;
@@ -232,9 +231,7 @@ BOOST_AUTO_TEST_CASE(testUSSettlement) {
     expectedHol.emplace_back(26, December, 2005);
 
     Calendar c = UnitedStates(UnitedStates::Settlement);
-    checkHolidays(
-        c.holidayList(Date(1, January, 2004), Date(31, December, 2005)),
-        expectedHol);
+    checkHolidays(c.holidayList(Date(1, January, 2004), Date(31, December, 2005)), expectedHol);
 
     // before Uniform Monday Holiday Act
     expectedHol = std::vector<Date>();
@@ -247,12 +244,11 @@ BOOST_AUTO_TEST_CASE(testUSSettlement) {
     expectedHol.emplace_back(23, November, 1961);
     expectedHol.emplace_back(25, December, 1961);
 
-    checkHolidays(
-        c.holidayList(Date(1, January, 1961), Date(31, December, 1961)),
-        expectedHol);
+    checkHolidays(c.holidayList(Date(1, January, 1961), Date(31, December, 1961)), expectedHol);
 }
 
-BOOST_AUTO_TEST_CASE(testUSGovernmentBondMarket) {
+BOOST_AUTO_TEST_CASE(testUSGovernmentBondMarket)
+{
     BOOST_TEST_MESSAGE("Testing US government bond market holiday list...");
 
     std::vector<Date> expectedHol;
@@ -270,12 +266,11 @@ BOOST_AUTO_TEST_CASE(testUSGovernmentBondMarket) {
     expectedHol.emplace_back(24, December, 2004);
 
     Calendar c = UnitedStates(UnitedStates::GovernmentBond);
-    checkHolidays(
-        c.holidayList(Date(1, January, 2004), Date(31, December, 2004)),
-        expectedHol);
+    checkHolidays(c.holidayList(Date(1, January, 2004), Date(31, December, 2004)), expectedHol);
 }
 
-BOOST_AUTO_TEST_CASE(testUSNewYorkStockExchange) {
+BOOST_AUTO_TEST_CASE(testUSNewYorkStockExchange)
+{
     BOOST_TEST_MESSAGE("Testing New York Stock Exchange holiday list...");
 
     std::vector<Date> expectedHol;
@@ -310,9 +305,7 @@ BOOST_AUTO_TEST_CASE(testUSNewYorkStockExchange) {
     expectedHol.emplace_back(25, December, 2006);
 
     Calendar c = UnitedStates(UnitedStates::NYSE);
-    checkHolidays(
-        c.holidayList(Date(1, January, 2004), Date(31, December, 2006)),
-        expectedHol);
+    checkHolidays(c.holidayList(Date(1, January, 2004), Date(31, December, 2006)), expectedHol);
 
     std::vector<Date> histClose;
     histClose.emplace_back(30, October, 2012);   // Hurricane Sandy
@@ -357,26 +350,28 @@ BOOST_AUTO_TEST_CASE(testUSNewYorkStockExchange) {
     histClose.emplace_back(7, Nov, 1972);
     histClose.emplace_back(5, Nov, 1968);
     histClose.emplace_back(3, Nov, 1964);
-    for (auto i : histClose) {
+    for (auto i : histClose)
+    {
         if (!c.isHoliday(i))
             BOOST_FAIL(i << " should be holiday (historical close)");
     }
 }
 
-BOOST_AUTO_TEST_CASE(testSOFR) {
+BOOST_AUTO_TEST_CASE(testSOFR)
+{
     BOOST_TEST_MESSAGE("Testing holidays for SOFR...");
 
     // Good Friday
     for (const Date goodFriday :
-         {Date(14, April, 2017), Date(30, March, 2018), Date(19, April, 2019),
-          Date(10, April, 2020), Date(2, April, 2021), Date(15, April, 2022), Date(7, April, 2023),
-          Date(29, March, 2024), Date(18, April, 2025), Date(3, April, 2026), Date(26, March, 2027),
-          Date(14, April, 2028), Date(30, March, 2029), Date(19, April, 2030),
-          Date(11, April, 2031)})
+         {Date(14, April, 2017), Date(30, March, 2018), Date(19, April, 2019), Date(10, April, 2020),
+          Date(2, April, 2021), Date(15, April, 2022), Date(7, April, 2023), Date(29, March, 2024),
+          Date(18, April, 2025), Date(3, April, 2026), Date(26, March, 2027), Date(14, April, 2028),
+          Date(30, March, 2029), Date(19, April, 2030), Date(11, April, 2031)})
         BOOST_TEST(UnitedStates(UnitedStates::SOFR).isHoliday(goodFriday));
 }
 
-BOOST_AUTO_TEST_CASE(testUSFederalReserveJuneteenth) {
+BOOST_AUTO_TEST_CASE(testUSFederalReserveJuneteenth)
+{
     BOOST_TEST_MESSAGE("Testing holiday occurrence of Juneteenth for US Federal Reserve calendar...");
 
     auto fedCalendar = UnitedStates(UnitedStates::FederalReserve);
@@ -396,7 +391,8 @@ BOOST_AUTO_TEST_CASE(testUSFederalReserveJuneteenth) {
     // Saturday: expectedHol.emplace_back(19, June, 2032);
     // Sunday, moved to Monday 20th: expectedHol.emplace_back(19, June, 2033);
     expectedHol.emplace_back(20, June, 2033);
-    for (Date holiday : expectedHol) {
+    for (Date holiday : expectedHol)
+    {
         if (!fedCalendar.isHoliday(holiday))
             BOOST_ERROR(holiday << " should be a holiday for " << fedCalendar.name());
     }
@@ -406,7 +402,8 @@ BOOST_AUTO_TEST_CASE(testUSFederalReserveJuneteenth) {
         BOOST_ERROR(notMovedToFriday << " should not be a holiday for " << fedCalendar.name());
 }
 
-BOOST_AUTO_TEST_CASE(testTARGET) {
+BOOST_AUTO_TEST_CASE(testTARGET)
+{
     BOOST_TEST_MESSAGE("Testing TARGET holiday list...");
 
     std::vector<Date> expectedHol;
@@ -456,12 +453,11 @@ BOOST_AUTO_TEST_CASE(testTARGET) {
     expectedHol.emplace_back(26, December, 2006);
 
     Calendar c = TARGET();
-    checkHolidays(
-        c.holidayList(Date(1, January, 1999), Date(31, December, 2006)),
-        expectedHol);
+    checkHolidays(c.holidayList(Date(1, January, 1999), Date(31, December, 2006)), expectedHol);
 }
 
-BOOST_AUTO_TEST_CASE(testGermanyFrankfurt) {
+BOOST_AUTO_TEST_CASE(testGermanyFrankfurt)
+{
     BOOST_TEST_MESSAGE("Testing Frankfurt Stock Exchange holiday list...");
 
     std::vector<Date> expectedHol;
@@ -480,12 +476,11 @@ BOOST_AUTO_TEST_CASE(testGermanyFrankfurt) {
     expectedHol.emplace_back(24, December, 2004);
 
     Calendar c = Germany(Germany::FrankfurtStockExchange);
-    checkHolidays(
-        c.holidayList(Date(1, January, 2003), Date(31, December, 2004)),
-        expectedHol);
+    checkHolidays(c.holidayList(Date(1, January, 2003), Date(31, December, 2004)), expectedHol);
 }
 
-BOOST_AUTO_TEST_CASE(testGermanyEurex) {
+BOOST_AUTO_TEST_CASE(testGermanyEurex)
+{
     BOOST_TEST_MESSAGE("Testing Eurex holiday list...");
 
     std::vector<Date> expectedHol;
@@ -506,12 +501,11 @@ BOOST_AUTO_TEST_CASE(testGermanyEurex) {
     expectedHol.emplace_back(31, December, 2004);
 
     Calendar c = Germany(Germany::Eurex);
-    checkHolidays(
-        c.holidayList(Date(1, January, 2003), Date(31, December, 2004)),
-        expectedHol);
+    checkHolidays(c.holidayList(Date(1, January, 2003), Date(31, December, 2004)), expectedHol);
 }
 
-BOOST_AUTO_TEST_CASE(testGermanyXetra) {
+BOOST_AUTO_TEST_CASE(testGermanyXetra)
+{
     BOOST_TEST_MESSAGE("Testing Xetra holiday list...");
 
     std::vector<Date> expectedHol;
@@ -530,12 +524,11 @@ BOOST_AUTO_TEST_CASE(testGermanyXetra) {
     expectedHol.emplace_back(24, December, 2004);
 
     Calendar c = Germany(Germany::Xetra);
-    checkHolidays(
-        c.holidayList(Date(1, January, 2003), Date(31, December, 2004)),
-        expectedHol);
+    checkHolidays(c.holidayList(Date(1, January, 2003), Date(31, December, 2004)), expectedHol);
 }
 
-BOOST_AUTO_TEST_CASE(testUKSettlement) {
+BOOST_AUTO_TEST_CASE(testUKSettlement)
+{
     BOOST_TEST_MESSAGE("Testing UK settlement holiday list...");
 
     std::vector<Date> expectedHol;
@@ -577,12 +570,11 @@ BOOST_AUTO_TEST_CASE(testUKSettlement) {
     expectedHol.emplace_back(26, December, 2007);
 
     Calendar c = UnitedKingdom(UnitedKingdom::Settlement);
-    checkHolidays(
-        c.holidayList(Date(1, January, 2004), Date(31, December, 2007)),
-        expectedHol);
+    checkHolidays(c.holidayList(Date(1, January, 2004), Date(31, December, 2007)), expectedHol);
 }
 
-BOOST_AUTO_TEST_CASE(testUKExchange) {
+BOOST_AUTO_TEST_CASE(testUKExchange)
+{
     BOOST_TEST_MESSAGE("Testing London Stock Exchange holiday list...");
 
     std::vector<Date> expectedHol;
@@ -624,12 +616,11 @@ BOOST_AUTO_TEST_CASE(testUKExchange) {
     expectedHol.emplace_back(26, December, 2007);
 
     Calendar c = UnitedKingdom(UnitedKingdom::Exchange);
-    checkHolidays(
-        c.holidayList(Date(1, January, 2004), Date(31, December, 2007)),
-        expectedHol);
+    checkHolidays(c.holidayList(Date(1, January, 2004), Date(31, December, 2007)), expectedHol);
 }
 
-BOOST_AUTO_TEST_CASE(testUKMetals) {
+BOOST_AUTO_TEST_CASE(testUKMetals)
+{
     BOOST_TEST_MESSAGE("Testing London Metals Exchange holiday list...");
 
     std::vector<Date> expectedHol;
@@ -671,12 +662,11 @@ BOOST_AUTO_TEST_CASE(testUKMetals) {
     expectedHol.emplace_back(26, December, 2007);
 
     Calendar c = UnitedKingdom(UnitedKingdom::Metals);
-    checkHolidays(
-        c.holidayList(Date(1, January, 2004), Date(31, December, 2007)),
-        expectedHol);
+    checkHolidays(c.holidayList(Date(1, January, 2004), Date(31, December, 2007)), expectedHol);
 }
 
-BOOST_AUTO_TEST_CASE(testItalyExchange) {
+BOOST_AUTO_TEST_CASE(testItalyExchange)
+{
     BOOST_TEST_MESSAGE("Testing Milan Stock Exchange holiday list...");
 
     std::vector<Date> expectedHol;
@@ -708,12 +698,11 @@ BOOST_AUTO_TEST_CASE(testItalyExchange) {
     expectedHol.emplace_back(31, December, 2004);
 
     Calendar c = Italy(Italy::Exchange);
-    checkHolidays(
-        c.holidayList(Date(1, January, 2002), Date(31, December, 2004)),
-        expectedHol);
+    checkHolidays(c.holidayList(Date(1, January, 2002), Date(31, December, 2004)), expectedHol);
 }
 
-BOOST_AUTO_TEST_CASE(testRussia) {
+BOOST_AUTO_TEST_CASE(testRussia)
+{
     BOOST_TEST_MESSAGE("Testing Russia holiday list...");
 
     std::vector<Date> expectedHol;
@@ -1298,12 +1287,11 @@ BOOST_AUTO_TEST_CASE(testRussia) {
     expectedHol.emplace_back(31, December, 2016);
 
     Calendar c = Russia(Russia::MOEX);
-    checkHolidays(
-        c.holidayList(Date(1, January, 2012), Date(31, December, 2016), true),
-        expectedHol);
+    checkHolidays(c.holidayList(Date(1, January, 2012), Date(31, December, 2016), true), expectedHol);
 }
 
-BOOST_AUTO_TEST_CASE(testBrazil) {
+BOOST_AUTO_TEST_CASE(testBrazil)
+{
     BOOST_TEST_MESSAGE("Testing Brazil holiday list...");
 
     std::vector<Date> expectedHol;
@@ -1335,12 +1323,11 @@ BOOST_AUTO_TEST_CASE(testBrazil) {
     expectedHol.emplace_back(25, December, 2006);
 
     Calendar c = Brazil();
-    checkHolidays(
-        c.holidayList(Date(1, January, 2005), Date(31, December, 2006)),
-        expectedHol);
+    checkHolidays(c.holidayList(Date(1, January, 2005), Date(31, December, 2006)), expectedHol);
 }
 
-BOOST_AUTO_TEST_CASE(testDenmark) {
+BOOST_AUTO_TEST_CASE(testDenmark)
+{
 
     BOOST_TEST_MESSAGE("Testing Denmark holiday list...");
 
@@ -1388,12 +1375,11 @@ BOOST_AUTO_TEST_CASE(testDenmark) {
     // Saturday: expectedHol.emplace_back(31, December, 2022);
 
     Calendar c = Denmark();
-    checkHolidays(
-        c.holidayList(Date(1, January, 2020), Date(31, December, 2022)),
-        expectedHol);
+    checkHolidays(c.holidayList(Date(1, January, 2020), Date(31, December, 2022)), expectedHol);
 }
 
-BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement) {
+BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
+{
     BOOST_TEST_MESSAGE("Testing South-Korean settlement holiday list...");
 
     std::vector<Date> expectedHol;
@@ -2108,12 +2094,11 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement) {
     expectedHol.emplace_back(26, December, 2050);
 
     Calendar c = SouthKorea(SouthKorea::Settlement);
-    checkHolidays(
-        c.holidayList(Date(1, January, 2004), Date(31, December, 2050)),
-        expectedHol);
+    checkHolidays(c.holidayList(Date(1, January, 2004), Date(31, December, 2050)), expectedHol);
 }
 
-BOOST_AUTO_TEST_CASE(testKoreaStockExchange) {
+BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
+{
     BOOST_TEST_MESSAGE("Testing Korea Stock Exchange holiday list...");
 
     std::vector<Date> expectedHol;
@@ -2379,7 +2364,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange) {
     expectedHol.emplace_back(20, September, 2021);
     expectedHol.emplace_back(21, September, 2021);
     expectedHol.emplace_back(22, September, 2021);
-    expectedHol.emplace_back( 4, October, 2021);
+    expectedHol.emplace_back(4, October, 2021);
     expectedHol.emplace_back(11, October, 2021);
     expectedHol.emplace_back(31, December, 2021);
     expectedHol.emplace_back(31, January, 2022);
@@ -2877,12 +2862,11 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange) {
     expectedHol.emplace_back(30, December, 2050);
 
     Calendar c = SouthKorea(SouthKorea::KRX);
-    checkHolidays(
-        c.holidayList(Date(1, January, 2004), Date(31, December, 2050)),
-        expectedHol);
+    checkHolidays(c.holidayList(Date(1, January, 2004), Date(31, December, 2050)), expectedHol);
 }
 
-BOOST_AUTO_TEST_CASE(testChinaSSE) {
+BOOST_AUTO_TEST_CASE(testChinaSSE)
+{
     BOOST_TEST_MESSAGE("Testing China Shanghai Stock Exchange holiday list...");
 
     std::vector<Date> expectedHol;
@@ -3145,12 +3129,11 @@ BOOST_AUTO_TEST_CASE(testChinaSSE) {
     expectedHol.emplace_back(7, Oct, 2026);
 
     Calendar c = China(China::SSE);
-    checkHolidays(
-        c.holidayList(Date(1, January, 2014), Date(31, December, 2026)),
-        expectedHol);
+    checkHolidays(c.holidayList(Date(1, January, 2014), Date(31, December, 2026)), expectedHol);
 }
 
-BOOST_AUTO_TEST_CASE(testChinaIB) {
+BOOST_AUTO_TEST_CASE(testChinaIB)
+{
     BOOST_TEST_MESSAGE("Testing China Inter Bank working weekends list...");
 
     std::vector<Date> expectedWorkingWeekEnds;
@@ -3267,24 +3250,25 @@ BOOST_AUTO_TEST_CASE(testChinaIB) {
 
     Size k = 0;
 
-    while (start <= end) {
-        if (c.isBusinessDay(start) && c.isWeekend(start.weekday())) {
+    while (start <= end)
+    {
+        if (c.isBusinessDay(start) && c.isWeekend(start.weekday()))
+        {
             if (expectedWorkingWeekEnds[k] != start)
-                BOOST_FAIL("expected working weekend was "
-                           << expectedWorkingWeekEnds[k] << " while calculated working weekend is "
-                           << start);
+                BOOST_FAIL("expected working weekend was " << expectedWorkingWeekEnds[k]
+                                                           << " while calculated working weekend is " << start);
             ++k;
         }
         ++start;
     }
 
     if (k != (expectedWorkingWeekEnds.size()))
-        BOOST_FAIL("there were " << expectedWorkingWeekEnds.size()
-                                 << " expected working weekends, while there are " << k
-                                 << " calculated working weekends");
+        BOOST_FAIL("there were " << expectedWorkingWeekEnds.size() << " expected working weekends, while there are "
+                                 << k << " calculated working weekends");
 }
 
-BOOST_AUTO_TEST_CASE(testMexicoInaugurationDay) {
+BOOST_AUTO_TEST_CASE(testMexicoInaugurationDay)
+{
     BOOST_TEST_MESSAGE("Testing Mexican Inauguration Day holiday...");
 
     // The first five Inauguration Days 2024 and later
@@ -3309,27 +3293,32 @@ BOOST_AUTO_TEST_CASE(testMexicoInaugurationDay) {
     expectedWorkingDays.emplace_back(1, Oct, 2035);
 
     Calendar mexico = Mexico();
-    for (auto holiday : expectedHol) {
-        if (!mexico.isHoliday(holiday)) {
+    for (auto holiday : expectedHol)
+    {
+        if (!mexico.isHoliday(holiday))
+        {
             BOOST_FAIL("Expected to have an Inauguration Day holiday in the Mexican calendar for date " << holiday);
         }
     }
-    for (auto workingDay : expectedWorkingDays) {
-        if (!mexico.isBusinessDay(workingDay)) {
-            BOOST_FAIL("Did not expect to have a holiday in the Mexican calendar for date "
-                       << workingDay);
+    for (auto workingDay : expectedWorkingDays)
+    {
+        if (!mexico.isBusinessDay(workingDay))
+        {
+            BOOST_FAIL("Did not expect to have a holiday in the Mexican calendar for date " << workingDay);
         }
     }
 }
 
 
-BOOST_AUTO_TEST_CASE(testNewZealand) {
+BOOST_AUTO_TEST_CASE(testNewZealand)
+{
     BOOST_TEST_MESSAGE("Testing a few holiday rules for New Zealand...");
 
     auto auckland = NewZealand(NewZealand::Auckland);
     auto wellington = NewZealand(NewZealand::Wellington);
 
-    for (const auto& calendar: { auckland, wellington }) {
+    for (const auto& calendar : {auckland, wellington})
+    {
         // mid-week New Year's day
         BOOST_TEST(calendar.isHoliday({1, January, 2025}));
         BOOST_TEST(calendar.isHoliday({2, January, 2025}));
@@ -3403,127 +3392,57 @@ BOOST_AUTO_TEST_CASE(testNewZealand) {
 }
 
 
-BOOST_AUTO_TEST_CASE(testTASECalendar) {
+BOOST_AUTO_TEST_CASE(testTASECalendar)
+{
     BOOST_TEST_MESSAGE("Testing TASE calendar...");
 
     std::vector<Date> expected2013 = {
-        {24, February, 2013},
-        {25, March, 2013},
-        {26, March, 2013},
-        {31, March, 2013},
-        {1, April, 2013},
-        {15, April, 2013},
-        {16, April, 2013},
-        {14, May, 2013},
-        {15, May, 2013},
-        {16, July, 2013},
-        {4, September, 2013},
-        {5, September, 2013},
-        {18, September, 2013},
-        {19, September, 2013},
-        {25, September, 2013},
-        {26, September, 2013},
+        {24, February, 2013},  {25, March, 2013},     {26, March, 2013},     {31, March, 2013},
+        {1, April, 2013},      {15, April, 2013},     {16, April, 2013},     {14, May, 2013},
+        {15, May, 2013},       {16, July, 2013},      {4, September, 2013},  {5, September, 2013},
+        {18, September, 2013}, {19, September, 2013}, {25, September, 2013}, {26, September, 2013},
     };
 
     auto c = Israel();
-    checkHolidays(
-        c.holidayList(Date(1, January, 2013), Date(31, December, 2013)),
-        expected2013);
+    checkHolidays(c.holidayList(Date(1, January, 2013), Date(31, December, 2013)), expected2013);
 
     std::vector<Date> expected2025 = {
-        {13, April, 2025},
-        {30, April, 2025},
-        {1, May, 2025},
-        {2, June, 2025},
-        {3, August, 2025},
-        {23, September, 2025},
-        {24, September, 2025},
-        {1, October, 2025},
-        {2, October, 2025},
-        {6, October, 2025},
-        {7, October, 2025},
-        {13, October, 2025},
-        {14, October, 2025},
+        {13, April, 2025},     {30, April, 2025},     {1, May, 2025},      {2, June, 2025},    {3, August, 2025},
+        {23, September, 2025}, {24, September, 2025}, {1, October, 2025},  {2, October, 2025}, {6, October, 2025},
+        {7, October, 2025},    {13, October, 2025},   {14, October, 2025},
     };
 
-    checkHolidays(
-        c.holidayList(Date(1, January, 2025), Date(31, December, 2025)),
-        expected2025);
+    checkHolidays(c.holidayList(Date(1, January, 2025), Date(31, December, 2025)), expected2025);
 }
 
-BOOST_AUTO_TEST_CASE(testSHIRCalendar) {
+BOOST_AUTO_TEST_CASE(testSHIRCalendar)
+{
     BOOST_TEST_MESSAGE("Testing SHIR calendar...");
 
     std::vector<Date> expected = {
-        Date(5, May, 2022),
-        Date(3, June, 2022),
-        Date(26, September, 2022),
-        Date(27, September, 2022),
-        Date(4, October, 2022),
-        Date(5, October, 2022),
-        Date(10, October, 2022),
-        Date(17, October, 2022),
-        Date(1, November, 2022),
-        Date(26, December, 2022),
-        Date(2, January, 2023),
-        Date(7, March, 2023),
-        Date(8, March, 2023),
-        Date(5, April, 2023),
-        Date(6, April, 2023),
-        Date(7, April, 2023),
-        Date(10, April, 2023),
-        Date(12, April, 2023),
-        Date(26, April, 2023),
-        Date(26, May, 2023),
-        Date(29, May, 2023),
-        Date(27, July, 2023),
-        Date(15, September, 2023),
-        Date(25, September, 2023),
-        Date(25, December, 2023),
-        Date(26, December, 2023),
-        Date(1, January, 2024),
-        Date(27, February, 2024),
-        Date(25, March, 2024),
-        Date(29, March, 2024),
-        Date(22, April, 2024),
-        Date(23, April, 2024),
-        Date(29, April, 2024),
-        Date(14, May, 2024),
-        Date(27, May, 2024),
-        Date(12, June, 2024),
-        Date(13, August, 2024),
-        Date(2, October, 2024),
-        Date(3, October, 2024),
-        Date(4, October, 2024),
-        Date(11, October, 2024),
-        Date(17, October, 2024),
-        Date(24, October, 2024),
-        Date(25, December, 2024),
-        Date(26, December, 2024),
-        Date(1, January, 2025),
-        Date(14, March, 2025),
-        Date(18, April, 2025),
-        Date(1, May, 2025),
-        Date(26, May, 2025),
-        Date(2, June, 2025),
-        Date(22, September, 2025),
-        Date(23, September, 2025),
-        Date(24, September, 2025),
-        Date(1, October, 2025),
-        Date(2, October, 2025),
-        Date(7, October, 2025),
-        Date(14, October, 2025),
-        Date(25, December, 2025),
-        Date(26, December, 2025),
+        Date(5, May, 2022),        Date(3, June, 2022),       Date(26, September, 2022), Date(27, September, 2022),
+        Date(4, October, 2022),    Date(5, October, 2022),    Date(10, October, 2022),   Date(17, October, 2022),
+        Date(1, November, 2022),   Date(26, December, 2022),  Date(2, January, 2023),    Date(7, March, 2023),
+        Date(8, March, 2023),      Date(5, April, 2023),      Date(6, April, 2023),      Date(7, April, 2023),
+        Date(10, April, 2023),     Date(12, April, 2023),     Date(26, April, 2023),     Date(26, May, 2023),
+        Date(29, May, 2023),       Date(27, July, 2023),      Date(15, September, 2023), Date(25, September, 2023),
+        Date(25, December, 2023),  Date(26, December, 2023),  Date(1, January, 2024),    Date(27, February, 2024),
+        Date(25, March, 2024),     Date(29, March, 2024),     Date(22, April, 2024),     Date(23, April, 2024),
+        Date(29, April, 2024),     Date(14, May, 2024),       Date(27, May, 2024),       Date(12, June, 2024),
+        Date(13, August, 2024),    Date(2, October, 2024),    Date(3, October, 2024),    Date(4, October, 2024),
+        Date(11, October, 2024),   Date(17, October, 2024),   Date(24, October, 2024),   Date(25, December, 2024),
+        Date(26, December, 2024),  Date(1, January, 2025),    Date(14, March, 2025),     Date(18, April, 2025),
+        Date(1, May, 2025),        Date(26, May, 2025),       Date(2, June, 2025),       Date(22, September, 2025),
+        Date(23, September, 2025), Date(24, September, 2025), Date(1, October, 2025),    Date(2, October, 2025),
+        Date(7, October, 2025),    Date(14, October, 2025),   Date(25, December, 2025),  Date(26, December, 2025),
     };
 
     auto c = Israel(Israel::SHIR);
-    checkHolidays(
-        c.holidayList(Date(5, May, 2022), Date(31, December, 2025)),
-        expected);
+    checkHolidays(c.holidayList(Date(5, May, 2022), Date(31, December, 2025)), expected);
 }
 
-BOOST_AUTO_TEST_CASE(testStartOfMonth) {
+BOOST_AUTO_TEST_CASE(testStartOfMonth)
+{
     BOOST_TEST_MESSAGE("Testing start-of-month calculation...");
 
     Calendar c = TARGET(); // any calendar would be OK
@@ -3531,25 +3450,25 @@ BOOST_AUTO_TEST_CASE(testStartOfMonth) {
     Date som, counter = Date::minDate() + 2 * Months;
     Date last = Date::maxDate();
 
-    while (counter < last) {
+    while (counter < last)
+    {
         som = c.startOfMonth(counter);
         // check that som is som
         if (!c.isStartOfMonth(som))
-            BOOST_FAIL("\n  " << som.weekday() << " " << som << " is not the first business day in "
-                              << som.month() << " " << som.year() << " according to " << c.name());
+            BOOST_FAIL("\n  " << som.weekday() << " " << som << " is not the first business day in " << som.month()
+                              << " " << som.year() << " according to " << c.name());
         // check that som is in the same month as counter
         if (som.month() != counter.month())
             BOOST_FAIL("\n  " << som << " is not in the same month as " << counter);
         // Check that previous business day is in a different month
         if (c.advance(som, -1, Days, Unadjusted).month() == som.month())
-            BOOST_FAIL("\n  " << c.advance(som, -1, Days, Unadjusted)
-                              << " is in the same month as "
-                              << som);
+            BOOST_FAIL("\n  " << c.advance(som, -1, Days, Unadjusted) << " is in the same month as " << som);
         counter = counter + 1;
     }
 }
 
-BOOST_AUTO_TEST_CASE(testEndOfMonth) {
+BOOST_AUTO_TEST_CASE(testEndOfMonth)
+{
     BOOST_TEST_MESSAGE("Testing end-of-month calculation...");
 
     Calendar c = TARGET(); // any calendar would be OK
@@ -3557,25 +3476,25 @@ BOOST_AUTO_TEST_CASE(testEndOfMonth) {
     Date eom, counter = Date::minDate();
     Date last = Date::maxDate() - 2 * Months;
 
-    while (counter <= last) {
+    while (counter <= last)
+    {
         eom = c.endOfMonth(counter);
         // check that eom is eom
         if (!c.isEndOfMonth(eom))
-            BOOST_FAIL("\n  " << eom.weekday() << " " << eom << " is not the last business day in "
-                              << eom.month() << " " << eom.year() << " according to " << c.name());
+            BOOST_FAIL("\n  " << eom.weekday() << " " << eom << " is not the last business day in " << eom.month()
+                              << " " << eom.year() << " according to " << c.name());
         // check that eom is in the same month as counter
         if (eom.month() != counter.month())
             BOOST_FAIL("\n  " << eom << " is not in the same month as " << counter);
         // Check that next business day is in a different month
         if (c.advance(eom, 1, Days, Unadjusted).month() == eom.month())
-            BOOST_FAIL("\n  " << c.advance(eom, 1, Days, Unadjusted) 
-                              << " is in the same month as "
-                              << eom);
+            BOOST_FAIL("\n  " << c.advance(eom, 1, Days, Unadjusted) << " is in the same month as " << eom);
         counter = counter + 1;
     }
 }
 
-BOOST_AUTO_TEST_CASE(testBusinessDaysBetween) {
+BOOST_AUTO_TEST_CASE(testBusinessDaysBetween)
+{
 
     BOOST_TEST_MESSAGE("Testing calculation of business days between dates...");
 
@@ -3601,23 +3520,21 @@ BOOST_AUTO_TEST_CASE(testBusinessDaysBetween) {
     Date::serial_type expected[] = {1, 321, 152, 251, 252, 10, 48, 42, -38, 38, 51, 0, 1, 2, 0};
 
     // exclude from, include to
-    Date::serial_type expected_include_to[] = {1,   321, 152, 251, 252, 10, 48, 42,
-                                               -38, 38,  51,  0,   1,   1,  0};
+    Date::serial_type expected_include_to[] = {1, 321, 152, 251, 252, 10, 48, 42, -38, 38, 51, 0, 1, 1, 0};
 
     // include both from and to
-    Date::serial_type expected_include_all[] = {2,   322, 153, 252, 253, 11, 49, 43,
-                                                -39, 39,  52,  1,   2,   2,  0};
+    Date::serial_type expected_include_all[] = {2, 322, 153, 252, 253, 11, 49, 43, -39, 39, 52, 1, 2, 2, 0};
 
     // exclude both from and to
-    Date::serial_type expected_exclude_all[] = {0,   320, 151, 250, 251, 9, 47, 41,
-                                                -37, 37,  50,  0,   0,   1, 0};
+    Date::serial_type expected_exclude_all[] = {0, 320, 151, 250, 251, 9, 47, 41, -37, 37, 50, 0, 0, 1, 0};
 
     Calendar calendar = Brazil();
 
-    for (Size i = 1; i < testDates.size(); i++) {
-        Integer calculated =
-            calendar.businessDaysBetween(testDates[i - 1], testDates[i], true, false);
-        if (calculated != expected[i - 1]) {
+    for (Size i = 1; i < testDates.size(); i++)
+    {
+        Integer calculated = calendar.businessDaysBetween(testDates[i - 1], testDates[i], true, false);
+        if (calculated != expected[i - 1])
+        {
             BOOST_ERROR("from " << testDates[i - 1] << " included"
                                 << " to " << testDates[i] << " excluded:\n"
                                 << "    calculated: " << calculated << "\n"
@@ -3625,7 +3542,8 @@ BOOST_AUTO_TEST_CASE(testBusinessDaysBetween) {
         }
 
         calculated = calendar.businessDaysBetween(testDates[i - 1], testDates[i], false, true);
-        if (calculated != expected_include_to[i - 1]) {
+        if (calculated != expected_include_to[i - 1])
+        {
             BOOST_ERROR("from " << testDates[i - 1] << " excluded"
                                 << " to " << testDates[i] << " included:\n"
                                 << "    calculated: " << calculated << "\n"
@@ -3633,7 +3551,8 @@ BOOST_AUTO_TEST_CASE(testBusinessDaysBetween) {
         }
 
         calculated = calendar.businessDaysBetween(testDates[i - 1], testDates[i], true, true);
-        if (calculated != expected_include_all[i - 1]) {
+        if (calculated != expected_include_all[i - 1])
+        {
             BOOST_ERROR("from " << testDates[i - 1] << " included"
                                 << " to " << testDates[i] << " included:\n"
                                 << "    calculated: " << calculated << "\n"
@@ -3641,7 +3560,8 @@ BOOST_AUTO_TEST_CASE(testBusinessDaysBetween) {
         }
 
         calculated = calendar.businessDaysBetween(testDates[i - 1], testDates[i], false, false);
-        if (calculated != expected_exclude_all[i - 1]) {
+        if (calculated != expected_exclude_all[i - 1])
+        {
             BOOST_ERROR("from " << testDates[i - 1] << " excluded"
                                 << " to " << testDates[i] << " excluded:\n"
                                 << "    calculated: " << calculated << "\n"
@@ -3650,7 +3570,8 @@ BOOST_AUTO_TEST_CASE(testBusinessDaysBetween) {
     }
 }
 
-BOOST_AUTO_TEST_CASE(testBespokeCalendars) {
+BOOST_AUTO_TEST_CASE(testBespokeCalendars)
+{
 
     BOOST_TEST_MESSAGE("Testing bespoke calendars...");
 
@@ -3764,7 +3685,8 @@ BOOST_AUTO_TEST_CASE(testBespokeCalendars) {
 }
 
 #ifdef QL_HIGH_RESOLUTION_DATE
-BOOST_AUTO_TEST_CASE(testIntradayAddHolidays) {
+BOOST_AUTO_TEST_CASE(testIntradayAddHolidays)
+{
 
     BOOST_TEST_MESSAGE("Testing addHolidays with enable-intraday...");
 
@@ -3854,7 +3776,8 @@ BOOST_AUTO_TEST_CASE(testIntradayAddHolidays) {
 }
 #endif
 
-BOOST_AUTO_TEST_CASE(testDayLists) {
+BOOST_AUTO_TEST_CASE(testDayLists)
+{
 
     BOOST_TEST_MESSAGE("Testing holidayList and businessDaysList...");
     Calendar germany = Germany();
@@ -3873,17 +3796,25 @@ BOOST_AUTO_TEST_CASE(testDayLists) {
     std::vector<Date> businessDays = germany.businessDayList(firstDate, endDate);
 
     auto it_holidays = holidays.begin(), it_businessDays = businessDays.begin();
-    for (Date d = firstDate; d <= endDate; d++) {
-        if (it_holidays != holidays.end() && it_businessDays != businessDays.end() &&
-            d == *it_holidays && d == *it_businessDays) {
+    for (Date d = firstDate; d <= endDate; d++)
+    {
+        if (it_holidays != holidays.end() && it_businessDays != businessDays.end() && d == *it_holidays &&
+            d == *it_businessDays)
+        {
             BOOST_FAIL("Date " << d << "is both holiday and business day.");
             ++it_holidays;
             ++it_businessDays;
-        } else if (it_holidays != holidays.end() && d == *it_holidays) {
+        }
+        else if (it_holidays != holidays.end() && d == *it_holidays)
+        {
             ++it_holidays;
-        } else if (it_businessDays != businessDays.end() && d == *it_businessDays) {
+        }
+        else if (it_businessDays != businessDays.end() && d == *it_businessDays)
+        {
             ++it_businessDays;
-        } else {
+        }
+        else
+        {
             BOOST_FAIL("Date " << d << "is neither holiday nor business day.");
         }
     }

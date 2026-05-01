@@ -25,13 +25,14 @@
 #ifndef quantlib_general_statistics_hpp
 #define quantlib_general_statistics_hpp
 
-#include <ql/utilities/null.hpp>
 #include <ql/errors.hpp>
-#include <vector>
+#include <ql/utilities/null.hpp>
 #include <algorithm>
 #include <utility>
+#include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Statistics tool
     /*! This class accumulates a set of data and returns their
@@ -43,7 +44,8 @@ namespace QuantLib {
         IncrementalStatistics. The downside is that it stores all
         samples, thus increasing the memory requirements.
     */
-    class GeneralStatistics {
+    class GeneralStatistics
+    {
       public:
         typedef Real value_type;
         GeneralStatistics();
@@ -53,7 +55,7 @@ namespace QuantLib {
         Size samples() const;
 
         //! collected data
-        const std::vector<std::pair<Real,Real> >& data() const;
+        const std::vector<std::pair<Real, Real>>& data() const;
 
         //! sum of data weights
         Real weightSum() const;
@@ -113,23 +115,25 @@ namespace QuantLib {
             the number of observations in the given range.
         */
         template <class Func, class Predicate>
-        std::pair<Real,Size> expectationValue(const Func& f,
-                                              const Predicate& inRange) const {
+        std::pair<Real, Size> expectationValue(const Func& f, const Predicate& inRange) const
+        {
             Real num = 0.0, den = 0.0;
             Size N = 0;
-            std::vector<std::pair<Real,Real> >::const_iterator i;
-            for (i=samples_.begin(); i!=samples_.end(); ++i) {
+            std::vector<std::pair<Real, Real>>::const_iterator i;
+            for (i = samples_.begin(); i != samples_.end(); ++i)
+            {
                 Real x = i->first, w = i->second;
-                if (inRange(x)) {
-                    num += f(x)*w;
+                if (inRange(x))
+                {
+                    num += f(x) * w;
                     den += w;
                     N += 1;
                 }
             }
             if (N == 0)
-                return std::make_pair<Real,Size>(Null<Real>(),0);
+                return std::make_pair<Real, Size>(Null<Real>(), 0);
             else
-                return std::make_pair(num/den,N);
+                return std::make_pair(num / den, N);
         }
 
         /*! Expectation value of a function \f$ f \f$ over the whole
@@ -137,10 +141,11 @@ namespace QuantLib {
             a range function always returning <tt>true</tt>.
         */
         template <class Func>
-        std::pair<Real,Size> expectationValue(const Func& f) const {
+        std::pair<Real, Size> expectationValue(const Func& f) const
+        {
             return expectationValue(f, [](Real x) { return true; });
         }
-        
+
         /*! \f$ y \f$-th percentile, defined as the value \f$ \bar{x} \f$
             such that
             \f[ y = \frac{\sum_{x_i < \bar{x}} w_i}{
@@ -166,15 +171,16 @@ namespace QuantLib {
         void add(Real value, Real weight = 1.0);
         //! adds a sequence of data to the set, with default weight
         template <class DataIterator>
-        void addSequence(DataIterator begin, DataIterator end) {
-            for (;begin!=end;++begin)
+        void addSequence(DataIterator begin, DataIterator end)
+        {
+            for (; begin != end; ++begin)
                 add(*begin);
         }
         //! adds a sequence of data to the set, each with its weight
         template <class DataIterator, class WeightIterator>
-        void addSequence(DataIterator begin, DataIterator end,
-                         WeightIterator wbegin) {
-            for (;begin!=end;++begin,++wbegin)
+        void addSequence(DataIterator begin, DataIterator end, WeightIterator wbegin)
+        {
+            for (; begin != end; ++begin, ++wbegin)
                 add(*begin, *wbegin);
         }
 
@@ -188,64 +194,73 @@ namespace QuantLib {
         void sort() const;
         //@}
       private:
-        mutable std::vector<std::pair<Real,Real> > samples_;
+        mutable std::vector<std::pair<Real, Real>> samples_;
         mutable bool sorted_;
     };
 
 
     // inline definitions
 
-    inline GeneralStatistics::GeneralStatistics() {
+    inline GeneralStatistics::GeneralStatistics()
+    {
         reset();
     }
 
-    inline Size GeneralStatistics::samples() const {
+    inline Size GeneralStatistics::samples() const
+    {
         return samples_.size();
     }
 
-    inline const std::vector<std::pair<Real,Real> >&
-    GeneralStatistics::data() const {
+    inline const std::vector<std::pair<Real, Real>>& GeneralStatistics::data() const
+    {
         return samples_;
     }
 
-    inline Real GeneralStatistics::standardDeviation() const {
+    inline Real GeneralStatistics::standardDeviation() const
+    {
         return std::sqrt(variance());
     }
 
-    inline Real GeneralStatistics::errorEstimate() const {
-        return std::sqrt(variance()/samples());
+    inline Real GeneralStatistics::errorEstimate() const
+    {
+        return std::sqrt(variance() / samples());
     }
 
-    inline Real GeneralStatistics::min() const {
+    inline Real GeneralStatistics::min() const
+    {
         QL_REQUIRE(samples() > 0, "empty sample set");
-        return std::min_element(samples_.begin(),
-                                samples_.end())->first;
+        return std::min_element(samples_.begin(), samples_.end())->first;
     }
 
-    inline Real GeneralStatistics::max() const {
+    inline Real GeneralStatistics::max() const
+    {
         QL_REQUIRE(samples() > 0, "empty sample set");
-        return std::max_element(samples_.begin(),
-                                samples_.end())->first;
+        return std::max_element(samples_.begin(), samples_.end())->first;
     }
 
     /*! \pre weights must be positive or null */
-    inline void GeneralStatistics::add(Real value, Real weight) {
-        QL_REQUIRE(weight>=0.0, "negative weight not allowed");
+    inline void GeneralStatistics::add(Real value, Real weight)
+    {
+        QL_REQUIRE(weight >= 0.0, "negative weight not allowed");
         samples_.emplace_back(value, weight);
         sorted_ = false;
     }
 
-    inline void GeneralStatistics::reset() {
-        samples_ = std::vector<std::pair<Real,Real> >();
+    inline void GeneralStatistics::reset()
+    {
+        samples_ = std::vector<std::pair<Real, Real>>();
         sorted_ = true;
     }
 
-    inline void GeneralStatistics::reserve(Size n) const {
+    inline void GeneralStatistics::reserve(Size n) const
+    {
         samples_.reserve(n);
     }
 
-    inline void GeneralStatistics::sort() const {
-        if (!sorted_) {
+    inline void GeneralStatistics::sort() const
+    {
+        if (!sorted_)
+        {
             std::sort(samples_.begin(), samples_.end());
             sorted_ = true;
         }

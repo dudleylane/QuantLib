@@ -29,14 +29,16 @@
 #include <ql/instruments/vanillaoption.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Pricing engine for European vanilla options using integral approach
     /*! \todo define tolerance for calculate()
 
         \ingroup vanillaengines
     */
-    class IntegralEngine : public VanillaOption::engine {
+    class IntegralEngine : public VanillaOption::engine
+    {
       public:
         IntegralEngine(ext::shared_ptr<GeneralizedBlackScholesProcess>);
         void calculate() const override;

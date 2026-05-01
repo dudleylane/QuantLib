@@ -20,9 +20,11 @@
 #include <ql/math/randomnumbers/seedgenerator.hpp>
 #include <ql/math/randomnumbers/xoshiro256starstaruniformrng.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
+    namespace
+    {
 
         // NOTE: The following copyright notice applies to the
         // original C implementation https://prng.di.unimi.it/splitmix64.c
@@ -36,10 +38,12 @@ namespace QuantLib {
 
             See <http://creativecommons.org/publicdomain/zero/1.0/>.
         */
-        class SplitMix64 {
+        class SplitMix64
+        {
           public:
             explicit SplitMix64(std::uint64_t x) : x_(x) {}
-            std::uint64_t next() const {
+            std::uint64_t next() const
+            {
                 auto z = (x_ += 0x9e3779b97f4a7c15);
                 z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9;
                 z = (z ^ (z >> 27)) * 0x94d049bb133111eb;
@@ -51,7 +55,8 @@ namespace QuantLib {
         };
     }
 
-    Xoshiro256StarStarUniformRng::Xoshiro256StarStarUniformRng(std::uint64_t seed) {
+    Xoshiro256StarStarUniformRng::Xoshiro256StarStarUniformRng(std::uint64_t seed)
+    {
         SplitMix64 splitMix64(seed != 0 ? seed : SeedGenerator::instance().get());
         s0_ = splitMix64.next();
         s1_ = splitMix64.next();
@@ -63,6 +68,8 @@ namespace QuantLib {
                                                                std::uint64_t s1,
                                                                std::uint64_t s2,
                                                                std::uint64_t s3)
-    : s0_(s0), s1_(s1), s2_(s2), s3_(s3) {}
+    : s0_(s0), s1_(s1), s2_(s2), s3_(s3)
+    {
+    }
 
 }

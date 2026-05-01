@@ -26,29 +26,30 @@
 
 #include <ql/instruments/bond.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Schedule;
     class SwapIndex;
 
     //! amortizing CMS-rate bond
-    class AmortizingCmsRateBond : public Bond {
+    class AmortizingCmsRateBond : public Bond
+    {
       public:
-        AmortizingCmsRateBond(
-                    Natural settlementDays,
-                    const std::vector<Real>& notionals,
-                    Schedule schedule,
-                    const ext::shared_ptr<SwapIndex>& index,
-                    const DayCounter& paymentDayCounter,
-                    BusinessDayConvention paymentConvention = Following,
-                    Natural fixingDays = Null<Natural>(),
-                    const std::vector<Real>& gearings = { 1.0 },
-                    const std::vector<Spread>& spreads = { 0.0 },
-                    const std::vector<Rate>& caps = {},
-                    const std::vector<Rate>& floors = {},
-                    bool inArrears = false,
-                    const Date& issueDate = Date(),
-                    const std::vector<Real>& redemptions = { 100.0 });
+        AmortizingCmsRateBond(Natural settlementDays,
+                              const std::vector<Real>& notionals,
+                              Schedule schedule,
+                              const ext::shared_ptr<SwapIndex>& index,
+                              const DayCounter& paymentDayCounter,
+                              BusinessDayConvention paymentConvention = Following,
+                              Natural fixingDays = Null<Natural>(),
+                              const std::vector<Real>& gearings = {1.0},
+                              const std::vector<Spread>& spreads = {0.0},
+                              const std::vector<Rate>& caps = {},
+                              const std::vector<Rate>& floors = {},
+                              bool inArrears = false,
+                              const Date& issueDate = Date(),
+                              const std::vector<Real>& redemptions = {100.0});
     };
 
 }

@@ -27,9 +27,11 @@
 
 #include <ql/termstructures/volatility/equityfx/localvolsurface.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class NoExceptLocalVolSurface : public LocalVolSurface {
+    class NoExceptLocalVolSurface : public LocalVolSurface
+    {
       public:
         NoExceptLocalVolSurface(const Handle<BlackVolTermStructure>& blackTS,
                                 const Handle<YieldTermStructure>& riskFreeTS,
@@ -37,7 +39,9 @@ namespace QuantLib {
                                 const Handle<Quote>& underlying,
                                 Real illegalLocalVolOverwrite)
         : LocalVolSurface(blackTS, riskFreeTS, dividendTS, underlying),
-          illegalLocalVolOverwrite_(illegalLocalVolOverwrite) { }
+          illegalLocalVolOverwrite_(illegalLocalVolOverwrite)
+        {
+        }
 
         NoExceptLocalVolSurface(const Handle<BlackVolTermStructure>& blackTS,
                                 const Handle<YieldTermStructure>& riskFreeTS,
@@ -45,14 +49,20 @@ namespace QuantLib {
                                 Real underlying,
                                 Real illegalLocalVolOverwrite)
         : LocalVolSurface(blackTS, riskFreeTS, dividendTS, underlying),
-          illegalLocalVolOverwrite_(illegalLocalVolOverwrite) { }
+          illegalLocalVolOverwrite_(illegalLocalVolOverwrite)
+        {
+        }
 
       protected:
-        Volatility localVolImpl(Time t, Real s) const override {
+        Volatility localVolImpl(Time t, Real s) const override
+        {
             Volatility vol;
-            try {
+            try
+            {
                 vol = LocalVolSurface::localVolImpl(t, s);
-            } catch (Error&) {
+            }
+            catch (Error&)
+            {
                 vol = illegalLocalVolOverwrite_;
             }
 

@@ -30,33 +30,37 @@
 #include <ql/payoff.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class FdmExpExtOUInnerValueCalculator : public FdmInnerValueCalculator {
+    class FdmExpExtOUInnerValueCalculator : public FdmInnerValueCalculator
+    {
       public:
-        typedef std::vector<std::pair<Time, Real> > Shape;
+        typedef std::vector<std::pair<Time, Real>> Shape;
 
         FdmExpExtOUInnerValueCalculator(ext::shared_ptr<Payoff> payoff,
                                         ext::shared_ptr<FdmMesher> mesher,
                                         ext::shared_ptr<Shape> shape = ext::shared_ptr<Shape>(),
                                         Size direction = 0)
-        : direction_(direction), payoff_(std::move(payoff)), mesher_(std::move(mesher)),
-          shape_(std::move(shape)) {}
+        : direction_(direction), payoff_(std::move(payoff)), mesher_(std::move(mesher)), shape_(std::move(shape))
+        {
+        }
 
-        Real innerValue(const FdmLinearOpIterator& iter, Time t) override {
+        Real innerValue(const FdmLinearOpIterator& iter, Time t) override
+        {
             const Real u = mesher_->location(iter, direction_);
 
             Real f = 0;
-            if (shape_ != nullptr) {
+            if (shape_ != nullptr)
+            {
                 f = std::lower_bound(shape_->begin(), shape_->end(),
-                   std::pair<Time, Real>(t-std::sqrt(QL_EPSILON), 0.0))->second;
+                                     std::pair<Time, Real>(t - std::sqrt(QL_EPSILON), 0.0))
+                        ->second;
             }
 
             return (*payoff_)(std::exp(f + u));
         }
-        Real avgInnerValue(const FdmLinearOpIterator& iter, Time t) override {
-            return innerValue(iter, t);
-        }
+        Real avgInnerValue(const FdmLinearOpIterator& iter, Time t) override { return innerValue(iter, t); }
 
       private:
         const Size direction_;

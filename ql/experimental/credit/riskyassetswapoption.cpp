@@ -22,21 +22,25 @@
 #include <ql/math/distributions/normaldistribution.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     RiskyAssetSwapOption::RiskyAssetSwapOption(ext::shared_ptr<RiskyAssetSwap> asw,
                                                const Date& expiry,
                                                Rate marketSpread,
                                                Volatility spreadVolatility)
-    : asw_(std::move(asw)), expiry_(expiry), marketSpread_(marketSpread),
-      spreadVolatility_(spreadVolatility) {}
+    : asw_(std::move(asw)), expiry_(expiry), marketSpread_(marketSpread), spreadVolatility_(spreadVolatility)
+    {
+    }
 
-    bool RiskyAssetSwapOption::isExpired() const {
+    bool RiskyAssetSwapOption::isExpired() const
+    {
         return detail::simple_event(expiry_).hasOccurred();
     }
 
 
-    void RiskyAssetSwapOption::performCalculations() const {
+    void RiskyAssetSwapOption::performCalculations() const
+    {
         Real w;
         if (asw_->fixedPayer()) // strike receiver = asw call = spread put
             w = -1.0;
@@ -49,8 +53,7 @@ namespace QuantLib {
         Real d = (asw_->spread() - marketSpread_) / stdDev;
         Real A0 = asw_->nominal() * asw_->floatAnnuity();
 
-        NPV_ = A0 * stdDev * (w*d * CumulativeNormalDistribution()(w*d)
-                              + NormalDistribution()(d));
+        NPV_ = A0 * stdDev * (w * d * CumulativeNormalDistribution()(w * d) + NormalDistribution()(d));
     }
 
 }

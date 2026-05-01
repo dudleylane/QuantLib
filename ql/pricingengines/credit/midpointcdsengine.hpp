@@ -29,9 +29,11 @@
 #include <ql/instruments/creditdefaultswap.hpp>
 #include <ql/optional.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class MidPointCdsEngine : public CreditDefaultSwap::engine {
+    class MidPointCdsEngine : public CreditDefaultSwap::engine
+    {
       public:
         MidPointCdsEngine(Handle<DefaultProbabilityTermStructure>,
                           Real recoveryRate,

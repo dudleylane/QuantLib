@@ -25,10 +25,11 @@
 #ifndef quantlib_black_atm_vol_curve_hpp
 #define quantlib_black_atm_vol_curve_hpp
 
-#include <ql/termstructures/voltermstructure.hpp>
 #include <ql/patterns/visitor.hpp>
+#include <ql/termstructures/voltermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Black at-the-money (no-smile) volatility curve
     /*! This abstract class defines the interface of concrete
@@ -37,7 +38,8 @@ namespace QuantLib {
 
         Volatilities are assumed to be expressed on an annual basis.
     */
-    class BlackAtmVolCurve : public VolatilityTermStructure {
+    class BlackAtmVolCurve : public VolatilityTermStructure
+    {
       public:
         /*! \name Constructors
             See the TermStructure documentation for issues regarding
@@ -49,8 +51,7 @@ namespace QuantLib {
                      constructor must manage their own reference date
                      by overriding the referenceDate() method.
         */
-        BlackAtmVolCurve(BusinessDayConvention bdc = Following,
-                         const DayCounter& dc = DayCounter());
+        BlackAtmVolCurve(BusinessDayConvention bdc = Following, const DayCounter& dc = DayCounter());
         //! initialize with a fixed reference date
         BlackAtmVolCurve(const Date& referenceDate,
                          const Calendar& cal = Calendar(),
@@ -66,23 +67,17 @@ namespace QuantLib {
         //! \name Black at-the-money spot volatility
         //@{
         //! spot at-the-money volatility
-        Volatility atmVol(const Period& optionTenor,
-                          bool extrapolate = false) const;
+        Volatility atmVol(const Period& optionTenor, bool extrapolate = false) const;
         //! spot at-the-money volatility
-        Volatility atmVol(const Date& maturity,
-                          bool extrapolate = false) const;
+        Volatility atmVol(const Date& maturity, bool extrapolate = false) const;
         //! spot at-the-money volatility
-        Volatility atmVol(Time maturity,
-                          bool extrapolate = false) const;
+        Volatility atmVol(Time maturity, bool extrapolate = false) const;
         //! spot at-the-money variance
-        Real atmVariance(const Period& optionTenor,
-                         bool extrapolate = false) const;
+        Real atmVariance(const Period& optionTenor, bool extrapolate = false) const;
         //! spot at-the-money variance
-        Real atmVariance(const Date& maturity,
-                         bool extrapolate = false) const;
+        Real atmVariance(const Date& maturity, bool extrapolate = false) const;
         //! spot at-the-money variance
-        Real atmVariance(Time maturity,
-                         bool extrapolate = false) const;
+        Real atmVariance(Time maturity, bool extrapolate = false) const;
         //@}
         //! \name Visitability
         //@{

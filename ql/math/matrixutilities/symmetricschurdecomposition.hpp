@@ -27,7 +27,8 @@
 
 #include <ql/math/matrix.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! symmetric threshold Jacobi algorithm.
     /*! Given a real symmetric matrix S, the Schur decomposition
@@ -47,36 +48,35 @@ namespace QuantLib {
         \test the correctness of the returned values is tested by
               checking their properties.
     */
-    class SymmetricSchurDecomposition {
+    class SymmetricSchurDecomposition
+    {
       public:
         /*! \pre s must be symmetric */
-        SymmetricSchurDecomposition(const Matrix &s);
+        SymmetricSchurDecomposition(const Matrix& s);
         const Array& eigenvalues() const { return diagonal_; }
         const Matrix& eigenvectors() const { return eigenVectors_; }
+
       private:
         Array diagonal_;
         Matrix eigenVectors_;
-        void jacobiRotate_(Matrix & m, Real rot, Real dil,
-                           Size j1, Size k1, Size j2, Size k2) const;
+        void jacobiRotate_(Matrix& m, Real rot, Real dil, Size j1, Size k1, Size j2, Size k2) const;
     };
 
 
     // inline definitions
 
     //! This routines implements the Jacobi, a.k.a. Givens, rotation
-    inline void SymmetricSchurDecomposition::jacobiRotate_(
-                                      Matrix &m, Real rot, Real dil, Size j1,
-                                      Size k1, Size j2, Size k2) const {
+    inline void
+    SymmetricSchurDecomposition::jacobiRotate_(Matrix& m, Real rot, Real dil, Size j1, Size k1, Size j2, Size k2) const
+    {
         Real x1, x2;
         x1 = m[j1][k1];
         x2 = m[j2][k2];
-        m[j1][k1] = x1 - dil*(x2 + x1*rot);
-        m[j2][k2] = x2 + dil*(x1 - x2*rot);
+        m[j1][k1] = x1 - dil * (x2 + x1 * rot);
+        m[j2][k2] = x2 + dil * (x1 - x2 * rot);
     }
 
 }
 
 
 #endif
-
-

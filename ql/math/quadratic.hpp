@@ -24,8 +24,8 @@
 #ifndef quantlib_quadratic_hpp
 #define quantlib_quadratic_hpp
 
-#include <ql/types.hpp>
 #include <ql/errors.hpp>
+#include <ql/types.hpp>
 
 namespace QuantLib
 {
@@ -39,9 +39,9 @@ namespace QuantLib
         Real discriminant() const;
         // return false if roots not real, and give turning point instead
         bool roots(Real& x, Real& y) const;
+
       private:
         Real a_, b_, c_;
-
     };
 }
 

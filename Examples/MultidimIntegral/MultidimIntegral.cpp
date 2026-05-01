@@ -19,22 +19,24 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 
 #include <ql/qldefines.hpp>
 #if !defined(BOOST_ALL_NO_LIB) && defined(BOOST_MSVC)
-#  include <ql/auto_link.hpp>
+#    include <ql/auto_link.hpp>
 #endif
 #include <ql/experimental/math/multidimintegrator.hpp>
 #include <ql/experimental/math/multidimquadrature.hpp>
 #include <ql/math/integrals/trapezoidintegral.hpp>
 #include <ql/patterns/singleton.hpp>
 #include <functional>
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 
 using namespace QuantLib;
 using namespace std;
 
 // Correct value is: (e^{-.25} \sqrt{\pi})^{dimension}
-struct integrand {
-    Real operator()(const std::vector<Real>& arg) const {
+struct integrand
+{
+    Real operator()(const std::vector<Real>& arg) const
+    {
         Real sum = 1.;
         for (Real i : arg)
             sum *= std::exp(-i * i) * std::cos(i);
@@ -42,59 +44,63 @@ struct integrand {
     }
 };
 
-int main() {
+int main()
+{
 
-  try {
+    try
+    {
 
-    std::cout << std::endl;
+        std::cout << std::endl;
 
-    /* 
-    Integrates the function above over several dimensions, the size of the 
-    vector argument is the dimension one.
-    Both algorithms are not really on the same stand since the quadrature 
-    will be incorrect to use if the integrand is not appropriately behaved. Over 
-    dimension 3 you might need to modify the points in the integral to retain a 
-    sensible computing time.
-    */
-    Size dimension = 3;
-    Real exactSol = std::pow(std::exp(-.25) * 
-        std::sqrt(M_PI), static_cast<Real>(dimension));
+        /*
+        Integrates the function above over several dimensions, the size of the
+        vector argument is the dimension one.
+        Both algorithms are not really on the same stand since the quadrature
+        will be incorrect to use if the integrand is not appropriately behaved. Over
+        dimension 3 you might need to modify the points in the integral to retain a
+        sensible computing time.
+        */
+        Size dimension = 3;
+        Real exactSol = std::pow(std::exp(-.25) * std::sqrt(M_PI), static_cast<Real>(dimension));
 
-    std::function<Real(const std::vector<Real>& arg)> f = integrand();
+        std::function<Real(const std::vector<Real>& arg)> f = integrand();
 
-    #ifndef QL_PATCH_SOLARIS
-    GaussianQuadMultidimIntegrator intg(dimension, 15);
+#ifndef QL_PATCH_SOLARIS
+        GaussianQuadMultidimIntegrator intg(dimension, 15);
 
-    Real valueQuad = intg(f);
-    #endif
+        Real valueQuad = intg(f);
+#endif
 
-    std::vector<ext::shared_ptr<Integrator>> integrals;
-    integrals.reserve(dimension);
-    for(Size i=0; i<dimension; i++)
-        integrals.push_back(
-        ext::make_shared<TrapezoidIntegral<Default>>(1.e-4, 20));
-    std::vector<Real> a_limits(integrals.size(), -4.);
-    std::vector<Real> b_limits(integrals.size(), 4.);
-    MultidimIntegral testIntg(integrals);
+        std::vector<ext::shared_ptr<Integrator>> integrals;
+        integrals.reserve(dimension);
+        for (Size i = 0; i < dimension; i++)
+            integrals.push_back(ext::make_shared<TrapezoidIntegral<Default>>(1.e-4, 20));
+        std::vector<Real> a_limits(integrals.size(), -4.);
+        std::vector<Real> b_limits(integrals.size(), 4.);
+        MultidimIntegral testIntg(integrals);
 
-    Real valueGrid = testIntg(f, a_limits, b_limits);
+        Real valueGrid = testIntg(f, a_limits, b_limits);
 
-    cout << fixed << setprecision(4);
-    cout << endl << "-------------- " << endl
-         << "Exact: " << exactSol << endl
-        #ifndef QL_PATCH_SOLARIS
-         << "Quad: " << valueQuad << endl
-        #endif
-         << "Grid: " << valueGrid << endl
-         << endl;
+        cout << fixed << setprecision(4);
+        cout << endl
+             << "-------------- " << endl
+             << "Exact: " << exactSol << endl
+#ifndef QL_PATCH_SOLARIS
+             << "Quad: " << valueQuad << endl
+#endif
+             << "Grid: " << valueGrid << endl
+             << endl;
 
-    return 0;
-
-  } catch (std::exception& e) {
-      std::cerr << e.what() << std::endl;
-      return 1;
-  } catch (...) {
-      std::cerr << "unknown error" << std::endl;
-      return 1;
-  }
+        return 0;
+    }
+    catch (std::exception& e)
+    {
+        std::cerr << e.what() << std::endl;
+        return 1;
+    }
+    catch (...)
+    {
+        std::cerr << "unknown error" << std::endl;
+        return 1;
+    }
 }

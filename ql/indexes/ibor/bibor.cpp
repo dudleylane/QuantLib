@@ -17,54 +17,63 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/currencies/asia.hpp>
 #include <ql/indexes/ibor/bibor.hpp>
 #include <ql/time/calendars/thailand.hpp>
 #include <ql/time/daycounters/actual360.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
-#include <ql/currencies/asia.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
+    namespace
+    {
 
-        BusinessDayConvention BiborConvention(const Period& p) {
-            switch (p.units()) {
-              case Days:
-              case Weeks:
-                return Following;
-              case Months:
-              case Years:
-                return ModifiedFollowing;
-              default:
-                QL_FAIL("invalid time units");
+        BusinessDayConvention BiborConvention(const Period& p)
+        {
+            switch (p.units())
+            {
+                case Days:
+                case Weeks:
+                    return Following;
+                case Months:
+                case Years:
+                    return ModifiedFollowing;
+                default:
+                    QL_FAIL("invalid time units");
             }
         }
 
-        bool BiborEOM(const Period& p) {
-            switch (p.units()) {
-              case Days:
-              case Weeks:
-                return false;
-              case Months:
-              case Years:
-                return true;
-              default:
-                QL_FAIL("invalid time units");
+        bool BiborEOM(const Period& p)
+        {
+            switch (p.units())
+            {
+                case Days:
+                case Weeks:
+                    return false;
+                case Months:
+                case Years:
+                    return true;
+                default:
+                    QL_FAIL("invalid time units");
             }
         }
 
     }
 
-    Bibor::Bibor(const Period& tenor,
-                     const Handle<YieldTermStructure>& h)
-    : IborIndex("Bibor", tenor,
+    Bibor::Bibor(const Period& tenor, const Handle<YieldTermStructure>& h)
+    : IborIndex("Bibor",
+                tenor,
                 2, // settlement days
-                THBCurrency(), Thailand(),
-                BiborConvention(tenor), BiborEOM(tenor),
-                Actual365Fixed(), h) {
-        QL_REQUIRE(this->tenor().units()!=Days,
-                   "for daily tenors (" << this->tenor() <<
-                   ") dedicated DailyTenor constructor must be used");
+                THBCurrency(),
+                Thailand(),
+                BiborConvention(tenor),
+                BiborEOM(tenor),
+                Actual365Fixed(),
+                h)
+    {
+        QL_REQUIRE(this->tenor().units() != Days,
+                   "for daily tenors (" << this->tenor() << ") dedicated DailyTenor constructor must be used");
     }
 
 }

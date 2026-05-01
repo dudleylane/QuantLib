@@ -26,7 +26,8 @@
 
 #include <ql/math/solver1d.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Secant 1-D solver
     /*! \test the correctness of the returned values is tested by
@@ -34,11 +35,12 @@ namespace QuantLib {
 
         \ingroup solvers
     */
-    class Secant : public Solver1D<Secant> {
+    class Secant : public Solver1D<Secant>
+    {
       public:
         template <class F>
-        Real solveImpl(const F& f,
-                       Real xAccuracy) const {
+        Real solveImpl(const F& f, Real xAccuracy) const
+        {
 
             /* The implementation of the algorithm was inspired by
                Press, Teukolsky, Vetterling, and Flannery,
@@ -50,19 +52,23 @@ namespace QuantLib {
 
             // Pick the bound with the smaller function value
             // as the most recent guess
-            if (std::fabs(fxMin_) < std::fabs(fxMax_)) {
+            if (std::fabs(fxMin_) < std::fabs(fxMax_))
+            {
                 root_ = xMin_;
                 froot = fxMin_;
                 xl = xMax_;
                 fl = fxMax_;
-            } else {
+            }
+            else
+            {
                 root_ = xMax_;
                 froot = fxMax_;
                 xl = xMin_;
                 fl = fxMin_;
             }
-            while (evaluationNumber_<=maxEvaluations_) {
-                dx = (xl-root_)*froot/(froot-fl);
+            while (evaluationNumber_ <= maxEvaluations_)
+            {
+                dx = (xl - root_) * froot / (froot - fl);
                 xl = root_;
                 fl = froot;
                 root_ += dx;
@@ -71,8 +77,7 @@ namespace QuantLib {
                 if (std::fabs(dx) < xAccuracy || (close(froot, 0.0)))
                     return root_;
             }
-            QL_FAIL("maximum number of function evaluations ("
-                    << maxEvaluations_ << ") exceeded");
+            QL_FAIL("maximum number of function evaluations (" << maxEvaluations_ << ") exceeded");
         }
     };
 

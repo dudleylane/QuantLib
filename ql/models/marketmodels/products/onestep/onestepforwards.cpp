@@ -22,38 +22,37 @@
 #include <ql/models/marketmodels/utilities.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     OneStepForwards::OneStepForwards(const std::vector<Time>& rateTimes,
                                      std::vector<Real> accruals,
                                      const std::vector<Time>& paymentTimes,
                                      std::vector<Rate> strikes)
     : MultiProductOneStep(rateTimes), accruals_(std::move(accruals)), paymentTimes_(paymentTimes),
-      strikes_(std::move(strikes)) {
+      strikes_(std::move(strikes))
+    {
         checkIncreasingTimes(paymentTimes);
     }
 
-    bool OneStepForwards::nextTimeStep(
-            const CurveState& currentState,
-            std::vector<Size>& numberCashFlowsThisStep,
-            std::vector<std::vector<MarketModelMultiProduct::CashFlow> >&
-                                                               genCashFlows) {
-        for (Size i=0; i<strikes_.size(); ++i) {
+    bool OneStepForwards::nextTimeStep(const CurveState& currentState,
+                                       std::vector<Size>& numberCashFlowsThisStep,
+                                       std::vector<std::vector<MarketModelMultiProduct::CashFlow>>& genCashFlows)
+    {
+        for (Size i = 0; i < strikes_.size(); ++i)
+        {
             Rate liborRate = currentState.forwardRate(i);
             genCashFlows[i][0].timeIndex = i;
-            genCashFlows[i][0].amount =
-                (liborRate-strikes_[i])*accruals_[i];
+            genCashFlows[i][0].amount = (liborRate - strikes_[i]) * accruals_[i];
         }
 
-        std::fill(numberCashFlowsThisStep.begin(),
-                  numberCashFlowsThisStep.end(), 1);
+        std::fill(numberCashFlowsThisStep.begin(), numberCashFlowsThisStep.end(), 1);
         return true;
     }
 
-    std::unique_ptr<MarketModelMultiProduct>
-    OneStepForwards::clone() const {
+    std::unique_ptr<MarketModelMultiProduct> OneStepForwards::clone() const
+    {
         return std::unique_ptr<MarketModelMultiProduct>(new OneStepForwards(*this));
     }
 
 }
-

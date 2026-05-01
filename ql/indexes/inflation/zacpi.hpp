@@ -28,29 +28,28 @@
 #include <ql/currencies/africa.hpp>
 #include <ql/indexes/inflationindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! South African Consumer Price Inflation Index
-    class ZACPI : public ZeroInflationIndex {
+    class ZACPI : public ZeroInflationIndex
+    {
       public:
         explicit ZACPI(const Handle<ZeroInflationTermStructure>& ts = {})
-        : ZeroInflationIndex(
-              "CPI", ZARegion(), false, Monthly, Period(1, Months), ZARCurrency(), ts) {}
+        : ZeroInflationIndex("CPI", ZARegion(), false, Monthly, Period(1, Months), ZARCurrency(), ts)
+        {
+        }
     };
 
 
     //! Quoted year-on-year South African CPI (i.e. not a ratio of ZA CPI)
-    class YYZACPI : public YoYInflationIndex {
+    class YYZACPI : public YoYInflationIndex
+    {
       public:
-        explicit YYZACPI(
-            const Handle<YoYInflationTermStructure>& ts = {})
-        : YoYInflationIndex("YY_CPI",
-                            ZARegion(),
-                            false,
-                            Monthly,
-                            Period(1, Months),
-                            ZARCurrency(),
-                            ts) {}
+        explicit YYZACPI(const Handle<YoYInflationTermStructure>& ts = {})
+        : YoYInflationIndex("YY_CPI", ZARegion(), false, Monthly, Period(1, Months), ZARCurrency(), ts)
+        {
+        }
     };
 
 }

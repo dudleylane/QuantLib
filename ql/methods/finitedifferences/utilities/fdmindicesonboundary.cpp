@@ -23,33 +23,32 @@
 #include <ql/methods/finitedifferences/operators/fdmlinearoplayout.hpp>
 #include <ql/methods/finitedifferences/utilities/fdmindicesonboundary.hpp>
 
-namespace QuantLib {
-    FdmIndicesOnBoundary::FdmIndicesOnBoundary(
-        const ext::shared_ptr<FdmLinearOpLayout>& layout,
-        Size direction, FdmDirichletBoundary::Side side) {
+namespace QuantLib
+{
+    FdmIndicesOnBoundary::FdmIndicesOnBoundary(const ext::shared_ptr<FdmLinearOpLayout>& layout,
+                                               Size direction,
+                                               FdmDirichletBoundary::Side side)
+    {
 
         std::vector<Size> newDim(layout->dim());
         newDim[direction] = 1;
-        const Size hyperSize
-            = std::accumulate(newDim.begin(), newDim.end(), Size(1), std::multiplies<>());
+        const Size hyperSize = std::accumulate(newDim.begin(), newDim.end(), Size(1), std::multiplies<>());
         indices_.resize(hyperSize);
 
-        Size i=0;
-        for (const auto& iter : *layout) {
-            if (   (   side == FdmDirichletBoundary::Lower
-                    && iter.coordinates()[direction] == 0)
-                || (   side == FdmDirichletBoundary::Upper
-                    && iter.coordinates()[direction]
-                                            == layout->dim()[direction]-1)) {
+        Size i = 0;
+        for (const auto& iter : *layout)
+        {
+            if ((side == FdmDirichletBoundary::Lower && iter.coordinates()[direction] == 0) ||
+                (side == FdmDirichletBoundary::Upper && iter.coordinates()[direction] == layout->dim()[direction] - 1))
+            {
                 QL_REQUIRE(hyperSize > i, "index missmatch");
                 indices_[i++] = iter.index();
             }
         }
-
-
     }
 
-    const std::vector<Size>& FdmIndicesOnBoundary::getIndices() const {
+    const std::vector<Size>& FdmIndicesOnBoundary::getIndices() const
+    {
         return indices_;
     }
 }

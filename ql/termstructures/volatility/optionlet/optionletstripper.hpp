@@ -26,19 +26,21 @@
 #ifndef quantlib_optionletstripper_hpp
 #define quantlib_optionletstripper_hpp
 
-#include <ql/termstructures/volatility/optionlet/strippedoptionletbase.hpp>
 #include <ql/termstructures/volatility/capfloor/capfloortermvolsurface.hpp>
+#include <ql/termstructures/volatility/optionlet/strippedoptionletbase.hpp>
 #include <ql/termstructures/volatility/volatilitytype.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class IborIndex;
 
     /*! StrippedOptionletBase specialization. It's up to derived
         classes to implement LazyObject::performCalculations
     */
-    class OptionletStripper : public StrippedOptionletBase {
+    class OptionletStripper : public StrippedOptionletBase
+    {
       public:
         //! \name StrippedOptionletBase interface
         //@{
@@ -79,8 +81,8 @@ namespace QuantLib {
         Size nStrikes_;
         Size nOptionletTenors_;
 
-        mutable std::vector<std::vector<Rate> > optionletStrikes_;
-        mutable std::vector<std::vector<Volatility> > optionletVolatilities_;
+        mutable std::vector<std::vector<Rate>> optionletStrikes_;
+        mutable std::vector<std::vector<Volatility>> optionletVolatilities_;
 
         mutable std::vector<Time> optionletTimes_;
         mutable std::vector<Date> optionletDates_;

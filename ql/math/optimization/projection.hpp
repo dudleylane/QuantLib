@@ -28,24 +28,25 @@
 
 #include <ql/math/array.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class Projection {
+    class Projection
+    {
       public:
-        Projection(const Array& parameterValues,
-                   std::vector<bool> fixParameters = std::vector<bool>());
+        Projection(const Array& parameterValues, std::vector<bool> fixParameters = std::vector<bool>());
 
         //! returns the subset of free parameters corresponding
         // to set of parameters
-        virtual Array project(const Array &parameters) const;
+        virtual Array project(const Array& parameters) const;
 
         //! returns whole set of parameters corresponding to the set
         // of projected parameters
-        virtual Array include(const Array &projectedParameters) const;
+        virtual Array include(const Array& projectedParameters) const;
         virtual ~Projection() = default;
 
       protected:
-        void mapFreeParameters(const Array &parameterValues) const;
+        void mapFreeParameters(const Array& parameterValues) const;
         Size numberOfFreeParameters_ = 0;
         const Array fixedParameters_;
         mutable Array actualParameters_;

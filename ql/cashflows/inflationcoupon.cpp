@@ -23,7 +23,8 @@
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     InflationCoupon::InflationCoupon(const Date& paymentDate,
                                      Real nominal,
@@ -44,14 +45,16 @@ namespace QuantLib {
              refPeriodEnd,
              exCouponDate), // ref period is before lag
       index_(std::move(index)), observationLag_(observationLag), dayCounter_(std::move(dayCounter)),
-      fixingDays_(fixingDays) {
+      fixingDays_(fixingDays)
+    {
         registerWith(index_);
         registerWith(Settings::instance().evaluationDate());
     }
 
 
-    void InflationCoupon::setPricer(const ext::shared_ptr<InflationCouponPricer>& pricer) {
-        QL_REQUIRE(checkPricerImpl(pricer),"pricer given is wrong type");
+    void InflationCoupon::setPricer(const ext::shared_ptr<InflationCouponPricer>& pricer)
+    {
+        QL_REQUIRE(checkPricerImpl(pricer), "pricer given is wrong type");
         if (pricer_ != nullptr)
             unregisterWith(pricer_);
         pricer_ = pricer;
@@ -61,12 +64,14 @@ namespace QuantLib {
     }
 
 
-    Rate InflationCoupon::rate() const {
+    Rate InflationCoupon::rate() const
+    {
         calculate();
         return rate_;
     }
 
-    void InflationCoupon::performCalculations() const {
+    void InflationCoupon::performCalculations() const
+    {
         QL_REQUIRE(pricer_, "pricer not set");
         // we know it is the correct type because checkPricerImpl checks on setting
         // in general pricer_ will be a derived class, as will *this on calling
@@ -75,29 +80,36 @@ namespace QuantLib {
     }
 
 
-    Real InflationCoupon::accruedAmount(const Date& d) const {
-        if (d <= accrualStartDate_ || d > paymentDate_) {
+    Real InflationCoupon::accruedAmount(const Date& d) const
+    {
+        if (d <= accrualStartDate_ || d > paymentDate_)
+        {
             return 0.0;
-        } else {
+        }
+        else
+        {
             return nominal() * rate() * accruedPeriod(d);
         }
     }
 
 
-    Date InflationCoupon::fixingDate() const {
+    Date InflationCoupon::fixingDate() const
+    {
 
         // fixing calendar is usually the null calendar for inflation indices
-        return index_->fixingCalendar().advance(refPeriodEnd_-observationLag_,
-                        -static_cast<Integer>(fixingDays_), Days, ModifiedPreceding);
+        return index_->fixingCalendar().advance(refPeriodEnd_ - observationLag_, -static_cast<Integer>(fixingDays_),
+                                                Days, ModifiedPreceding);
     }
 
 
-    Real InflationCoupon::price(const Handle<YieldTermStructure>& discountingCurve) const {
+    Real InflationCoupon::price(const Handle<YieldTermStructure>& discountingCurve) const
+    {
         return amount() * discountingCurve->discount(date());
     }
 
 
-    Rate InflationCoupon::indexFixing() const {
+    Rate InflationCoupon::indexFixing() const
+    {
         return index_->fixing(fixingDate());
     }
 

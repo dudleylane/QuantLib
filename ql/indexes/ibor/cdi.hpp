@@ -1,6 +1,6 @@
 /*
  Copyright (C) 2025 Sotirios Papathanasopoulos
- 
+
  This file is part of QuantLib, a free-software/open-source library
  for financial quantitative analysts and developers - http://quantlib.org/
  QuantLib is free software: you can redistribute it and/or modify it
@@ -21,19 +21,22 @@
 #include <ql/time/calendars/brazil.hpp>
 #include <ql/time/daycounters/business252.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! BRL-CDI Index: relevant for https://en.wikipedia.org/wiki/Brazilian_Swap
 
-    class Cdi : public OvernightIndex {
+    class Cdi : public OvernightIndex
+    {
       public:
         explicit Cdi(const Handle<YieldTermStructure>& h = {})
-        : OvernightIndex("CDI", 0, BRLCurrency(), Brazil(Brazil::Settlement), Business252(), h) {}
+        : OvernightIndex("CDI", 0, BRLCurrency(), Brazil(Brazil::Settlement), Business252(), h)
+        {
+        }
 
         Rate forecastFixing(const Date& fixingDate) const override;
-
     };
 
-} 
+}
 
 #endif

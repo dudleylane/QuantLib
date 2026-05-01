@@ -13,4 +13,3 @@
 #include <ql/termstructures/volatility/swaption/swaptionvolmatrix.hpp>
 #include <ql/termstructures/volatility/swaption/swaptionvolstructure.hpp>
 #include <ql/termstructures/volatility/swaption/zabrswaptionvolatilitycube.hpp>
-

@@ -35,7 +35,8 @@
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Pricing engine for digital options using Monte Carlo simulation
     /*! Uses the Brownian Bridge correction for the barrier found in
@@ -57,28 +58,24 @@ namespace QuantLib {
               cash-or-nothing at-hit digital payoff is tested by
               reproducing known good results.
     */
-    template<class RNG = PseudoRandom, class S = Statistics>
-    class MCDigitalEngine : public MCVanillaEngine<SingleVariate,RNG,S> {
+    template <class RNG = PseudoRandom, class S = Statistics>
+    class MCDigitalEngine : public MCVanillaEngine<SingleVariate, RNG, S>
+    {
       public:
-        typedef
-        typename MCVanillaEngine<SingleVariate,RNG,S>::path_generator_type
-            path_generator_type;
-        typedef
-        typename MCVanillaEngine<SingleVariate,RNG,S>::path_pricer_type
-            path_pricer_type;
-        typedef typename MCVanillaEngine<SingleVariate,RNG,S>::stats_type
-            stats_type;
+        typedef typename MCVanillaEngine<SingleVariate, RNG, S>::path_generator_type path_generator_type;
+        typedef typename MCVanillaEngine<SingleVariate, RNG, S>::path_pricer_type path_pricer_type;
+        typedef typename MCVanillaEngine<SingleVariate, RNG, S>::stats_type stats_type;
         // constructor
-        MCDigitalEngine(
-                    const ext::shared_ptr<GeneralizedBlackScholesProcess>&,
-                    Size timeSteps,
-                    Size timeStepsPerYear,
-                    bool brownianBridge,
-                    bool antitheticVariate,
-                    Size requiredSamples,
-                    Real requiredTolerance,
-                    Size maxSamples,
-                    BigNatural seed);
+        MCDigitalEngine(const ext::shared_ptr<GeneralizedBlackScholesProcess>&,
+                        Size timeSteps,
+                        Size timeStepsPerYear,
+                        bool brownianBridge,
+                        bool antitheticVariate,
+                        Size requiredSamples,
+                        Real requiredTolerance,
+                        Size maxSamples,
+                        BigNatural seed);
+
       protected:
         // McSimulation implementation
         ext::shared_ptr<path_pricer_type> pathPricer() const override;
@@ -86,7 +83,8 @@ namespace QuantLib {
 
     //! Monte Carlo digital engine factory
     template <class RNG = PseudoRandom, class S = Statistics>
-    class MakeMCDigitalEngine {
+    class MakeMCDigitalEngine
+    {
       public:
         MakeMCDigitalEngine(ext::shared_ptr<GeneralizedBlackScholesProcess>);
         // named parameters
@@ -100,6 +98,7 @@ namespace QuantLib {
         MakeMCDigitalEngine& withAntitheticVariate(bool b = true);
         // conversion to pricing engine
         operator ext::shared_ptr<PricingEngine>() const;
+
       private:
         ext::shared_ptr<GeneralizedBlackScholesProcess> process_;
         bool antithetic_ = false;
@@ -109,7 +108,8 @@ namespace QuantLib {
         BigNatural seed_ = 0;
     };
 
-    class DigitalPathPricer : public PathPricer<Path> {
+    class DigitalPathPricer : public PathPricer<Path>
+    {
       public:
         DigitalPathPricer(ext::shared_ptr<CashOrNothingPayoff> payoff,
                           ext::shared_ptr<AmericanExercise> exercise,
@@ -127,151 +127,130 @@ namespace QuantLib {
     };
 
 
-
     // template definitions
 
-    template<class RNG, class S>
-    MCDigitalEngine<RNG,S>::MCDigitalEngine(
-             const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
-             Size timeSteps,
-             Size timeStepsPerYear,
-             bool brownianBridge,
-             bool antitheticVariate,
-             Size requiredSamples,
-             Real requiredTolerance,
-             Size maxSamples,
-             BigNatural seed)
-    : MCVanillaEngine<SingleVariate,RNG,S>(process,
-                                           timeSteps,
-                                           timeStepsPerYear,
-                                           brownianBridge,
-                                           antitheticVariate,
-                                           false,
-                                           requiredSamples,
-                                           requiredTolerance,
-                                           maxSamples,
-                                           seed) {}
+    template <class RNG, class S>
+    MCDigitalEngine<RNG, S>::MCDigitalEngine(const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
+                                             Size timeSteps,
+                                             Size timeStepsPerYear,
+                                             bool brownianBridge,
+                                             bool antitheticVariate,
+                                             Size requiredSamples,
+                                             Real requiredTolerance,
+                                             Size maxSamples,
+                                             BigNatural seed)
+    : MCVanillaEngine<SingleVariate, RNG, S>(process,
+                                             timeSteps,
+                                             timeStepsPerYear,
+                                             brownianBridge,
+                                             antitheticVariate,
+                                             false,
+                                             requiredSamples,
+                                             requiredTolerance,
+                                             maxSamples,
+                                             seed)
+    {
+    }
 
     template <class RNG, class S>
-    inline
-    ext::shared_ptr<typename MCDigitalEngine<RNG,S>::path_pricer_type>
-    MCDigitalEngine<RNG,S>::pathPricer() const {
+    inline ext::shared_ptr<typename MCDigitalEngine<RNG, S>::path_pricer_type>
+    MCDigitalEngine<RNG, S>::pathPricer() const
+    {
 
         ext::shared_ptr<CashOrNothingPayoff> payoff =
-            ext::dynamic_pointer_cast<CashOrNothingPayoff>(
-                this->arguments_.payoff);
+            ext::dynamic_pointer_cast<CashOrNothingPayoff>(this->arguments_.payoff);
         QL_REQUIRE(payoff, "wrong payoff given");
 
         ext::shared_ptr<AmericanExercise> exercise =
-            ext::dynamic_pointer_cast<AmericanExercise>(
-                this->arguments_.exercise);
+            ext::dynamic_pointer_cast<AmericanExercise>(this->arguments_.exercise);
         QL_REQUIRE(exercise, "wrong exercise given");
 
         ext::shared_ptr<GeneralizedBlackScholesProcess> process =
-            ext::dynamic_pointer_cast<GeneralizedBlackScholesProcess>(
-                                                              this->process_);
+            ext::dynamic_pointer_cast<GeneralizedBlackScholesProcess>(this->process_);
         QL_REQUIRE(process, "Black-Scholes process required");
 
         TimeGrid grid = this->timeGrid();
-        PseudoRandom::ursg_type sequenceGen(grid.size()-1,
-                                            PseudoRandom::urng_type(76));
+        PseudoRandom::ursg_type sequenceGen(grid.size() - 1, PseudoRandom::urng_type(76));
 
-        return ext::shared_ptr<
-                        typename MCDigitalEngine<RNG,S>::path_pricer_type>(
-          new DigitalPathPricer(payoff,
-                                exercise,
-                                process->riskFreeRate(),
-                                process,
-                                sequenceGen));
+        return ext::shared_ptr<typename MCDigitalEngine<RNG, S>::path_pricer_type>(
+            new DigitalPathPricer(payoff, exercise, process->riskFreeRate(), process, sequenceGen));
     }
 
 
     template <class RNG, class S>
-    inline MakeMCDigitalEngine<RNG, S>::MakeMCDigitalEngine(
-        ext::shared_ptr<GeneralizedBlackScholesProcess> process)
-    : process_(std::move(process)), steps_(Null<Size>()), stepsPerYear_(Null<Size>()),
-      samples_(Null<Size>()), maxSamples_(Null<Size>()), tolerance_(Null<Real>()) {}
+    inline MakeMCDigitalEngine<RNG, S>::MakeMCDigitalEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process)
+    : process_(std::move(process)), steps_(Null<Size>()), stepsPerYear_(Null<Size>()), samples_(Null<Size>()),
+      maxSamples_(Null<Size>()), tolerance_(Null<Real>())
+    {
+    }
 
     template <class RNG, class S>
-    inline MakeMCDigitalEngine<RNG,S>&
-    MakeMCDigitalEngine<RNG,S>::withSteps(Size steps) {
+    inline MakeMCDigitalEngine<RNG, S>& MakeMCDigitalEngine<RNG, S>::withSteps(Size steps)
+    {
         steps_ = steps;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCDigitalEngine<RNG,S>&
-    MakeMCDigitalEngine<RNG,S>::withStepsPerYear(Size steps) {
+    inline MakeMCDigitalEngine<RNG, S>& MakeMCDigitalEngine<RNG, S>::withStepsPerYear(Size steps)
+    {
         stepsPerYear_ = steps;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCDigitalEngine<RNG,S>&
-    MakeMCDigitalEngine<RNG,S>::withSamples(Size samples) {
-        QL_REQUIRE(tolerance_ == Null<Real>(),
-                   "tolerance already set");
+    inline MakeMCDigitalEngine<RNG, S>& MakeMCDigitalEngine<RNG, S>::withSamples(Size samples)
+    {
+        QL_REQUIRE(tolerance_ == Null<Real>(), "tolerance already set");
         samples_ = samples;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCDigitalEngine<RNG,S>&
-    MakeMCDigitalEngine<RNG,S>::withAbsoluteTolerance(Real tolerance) {
-        QL_REQUIRE(samples_ == Null<Size>(),
-                   "number of samples already set");
-        QL_REQUIRE(RNG::allowsErrorEstimate,
-                   "chosen random generator policy "
-                   "does not allow an error estimate");
+    inline MakeMCDigitalEngine<RNG, S>& MakeMCDigitalEngine<RNG, S>::withAbsoluteTolerance(Real tolerance)
+    {
+        QL_REQUIRE(samples_ == Null<Size>(), "number of samples already set");
+        QL_REQUIRE(RNG::allowsErrorEstimate, "chosen random generator policy "
+                                             "does not allow an error estimate");
         tolerance_ = tolerance;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCDigitalEngine<RNG,S>&
-    MakeMCDigitalEngine<RNG,S>::withMaxSamples(Size samples) {
+    inline MakeMCDigitalEngine<RNG, S>& MakeMCDigitalEngine<RNG, S>::withMaxSamples(Size samples)
+    {
         maxSamples_ = samples;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCDigitalEngine<RNG,S>&
-    MakeMCDigitalEngine<RNG,S>::withSeed(BigNatural seed) {
+    inline MakeMCDigitalEngine<RNG, S>& MakeMCDigitalEngine<RNG, S>::withSeed(BigNatural seed)
+    {
         seed_ = seed;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCDigitalEngine<RNG,S>&
-    MakeMCDigitalEngine<RNG,S>::withBrownianBridge(bool brownianBridge) {
+    inline MakeMCDigitalEngine<RNG, S>& MakeMCDigitalEngine<RNG, S>::withBrownianBridge(bool brownianBridge)
+    {
         brownianBridge_ = brownianBridge;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCDigitalEngine<RNG,S>&
-    MakeMCDigitalEngine<RNG,S>::withAntitheticVariate(bool b) {
+    inline MakeMCDigitalEngine<RNG, S>& MakeMCDigitalEngine<RNG, S>::withAntitheticVariate(bool b)
+    {
         antithetic_ = b;
         return *this;
     }
 
     template <class RNG, class S>
-    inline
-    MakeMCDigitalEngine<RNG,S>::operator ext::shared_ptr<PricingEngine>()
-                                                                      const {
-        QL_REQUIRE(steps_ != Null<Size>() || stepsPerYear_ != Null<Size>(),
-                   "number of steps not given");
-        QL_REQUIRE(steps_ == Null<Size>() || stepsPerYear_ == Null<Size>(),
-                   "number of steps overspecified");
-        return ext::shared_ptr<PricingEngine>(new
-            MCDigitalEngine<RNG,S>(process_,
-                                   steps_,
-                                   stepsPerYear_,
-                                   brownianBridge_,
-                                   antithetic_,
-                                   samples_, tolerance_,
-                                   maxSamples_,
-                                   seed_));
+    inline MakeMCDigitalEngine<RNG, S>::operator ext::shared_ptr<PricingEngine>() const
+    {
+        QL_REQUIRE(steps_ != Null<Size>() || stepsPerYear_ != Null<Size>(), "number of steps not given");
+        QL_REQUIRE(steps_ == Null<Size>() || stepsPerYear_ == Null<Size>(), "number of steps overspecified");
+        return ext::shared_ptr<PricingEngine>(new MCDigitalEngine<RNG, S>(
+            process_, steps_, stepsPerYear_, brownianBridge_, antithetic_, samples_, tolerance_, maxSamples_, seed_));
     }
 
 }

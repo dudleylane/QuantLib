@@ -26,7 +26,8 @@
 
 #include <ql/types.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! class of Bernstein polynomials
     /*! see definition:
@@ -42,13 +43,13 @@ namespace QuantLib {
         x^i (1-x)^{n-i}
         \f]
     */
-    class BernsteinPolynomial {
+    class BernsteinPolynomial
+    {
       public:
-        static Real get(Natural i, Natural n, Real x) ;
+        static Real get(Natural i, Natural n, Real x);
     };
 
 }
 
 
 #endif
-

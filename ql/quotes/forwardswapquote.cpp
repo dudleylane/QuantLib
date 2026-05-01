@@ -21,12 +21,14 @@
 #include <ql/settings.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     ForwardSwapQuote::ForwardSwapQuote(ext::shared_ptr<SwapIndex> swapIndex,
                                        Handle<Quote> spread,
                                        const Period& fwdStart)
-    : swapIndex_(std::move(swapIndex)), spread_(std::move(spread)), fwdStart_(fwdStart) {
+    : swapIndex_(std::move(swapIndex)), spread_(std::move(spread)), fwdStart_(fwdStart)
+    {
         registerWith(swapIndex_);
         registerWith(spread_);
         registerWith(Settings::instance().evaluationDate());
@@ -34,66 +36,73 @@ namespace QuantLib {
         initializeDates();
     }
 
-    void ForwardSwapQuote::initializeDates() {
-        valueDate_ = swapIndex_->fixingCalendar().advance(
-                                                evaluationDate_,
-                                                swapIndex_->fixingDays()*Days,
-                                                Following);
-        startDate_ = swapIndex_->fixingCalendar().advance(valueDate_,
-                                                          fwdStart_,
-                                                          Following);
+    void ForwardSwapQuote::initializeDates()
+    {
+        valueDate_ = swapIndex_->fixingCalendar().advance(evaluationDate_, swapIndex_->fixingDays() * Days, Following);
+        startDate_ = swapIndex_->fixingCalendar().advance(valueDate_, fwdStart_, Following);
         fixingDate_ = swapIndex_->fixingDate(startDate_);
         swap_ = swapIndex_->underlyingSwap(fixingDate_);
     }
 
-    void ForwardSwapQuote::update() {
-        if (evaluationDate_ != Settings::instance().evaluationDate()) {
+    void ForwardSwapQuote::update()
+    {
+        if (evaluationDate_ != Settings::instance().evaluationDate())
+        {
             evaluationDate_ = Settings::instance().evaluationDate();
             initializeDates();
         }
         LazyObject::update();
     }
 
-    const Date& ForwardSwapQuote::valueDate() const {
+    const Date& ForwardSwapQuote::valueDate() const
+    {
         calculate();
         return valueDate_;
     }
 
-    const Date& ForwardSwapQuote::startDate() const {
+    const Date& ForwardSwapQuote::startDate() const
+    {
         calculate();
         return startDate_;
     }
 
-    const Date& ForwardSwapQuote::fixingDate() const {
+    const Date& ForwardSwapQuote::fixingDate() const
+    {
         calculate();
         return fixingDate_;
     }
 
-    Real ForwardSwapQuote::value() const {
+    Real ForwardSwapQuote::value() const
+    {
         calculate();
         return result_;
     }
 
-    bool ForwardSwapQuote::isValid() const {
+    bool ForwardSwapQuote::isValid() const
+    {
         bool swapIndexIsValid = true;
-        try {
+        try
+        {
             swap_->recalculate();
-        } catch (...) {
+        }
+        catch (...)
+        {
             swapIndexIsValid = false;
         }
         bool spreadIsValid = spread_.empty() ? true : spread_->isValid();
         return swapIndexIsValid && spreadIsValid;
     }
 
-    void ForwardSwapQuote::performCalculations() const {
+    void ForwardSwapQuote::performCalculations() const
+    {
         // we didn't register as observers - force calculation
         swap_->recalculate();
         // weak implementation... to be improved
         static const Spread basisPoint = 1.0e-4;
         Real floatingLegNPV = swap_->floatingLegNPV();
         Spread spread = spread_.empty() ? 0.0 : spread_->value();
-        Real spreadNPV = swap_->floatingLegBPS()/basisPoint*spread;
-        Real totNPV = - (floatingLegNPV+spreadNPV);
-        result_ = totNPV/(swap_->fixedLegBPS()/basisPoint);
+        Real spreadNPV = swap_->floatingLegBPS() / basisPoint * spread;
+        Real totNPV = -(floatingLegNPV + spreadNPV);
+        result_ = totNPV / (swap_->fixedLegBPS() / basisPoint);
     }
 }

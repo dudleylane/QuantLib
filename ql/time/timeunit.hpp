@@ -30,24 +30,26 @@
 #include <ql/qldefines.hpp>
 #include <iosfwd>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Units used to describe time periods
     /*! \ingroup datetime */
-    enum TimeUnit { Days,
-                    Weeks,
-                    Months,
-                    Years,
-                    Hours,
-                    Minutes,
-                    Seconds,
-                    Milliseconds,
-					Microseconds
+    enum TimeUnit
+    {
+        Days,
+        Weeks,
+        Months,
+        Years,
+        Hours,
+        Minutes,
+        Seconds,
+        Milliseconds,
+        Microseconds
     };
 
     /*! \relates TimeUnit */
-    std::ostream& operator<<(std::ostream&,
-                             const TimeUnit&);
+    std::ostream& operator<<(std::ostream&, const TimeUnit&);
 
 }
 

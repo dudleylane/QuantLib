@@ -25,40 +25,41 @@
 #define quantlib_implied_volatility_hpp
 
 #include <ql/instrument.hpp>
-#include <ql/quotes/simplequote.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
+#include <ql/quotes/simplequote.hpp>
 
-namespace QuantLib::detail {
+namespace QuantLib::detail
+{
 
-        //! helper class for one-asset implied-volatility calculation
-        /*! The passed engine must be linked to the passed quote (see,
-             e.g., VanillaOption to see how this can be achieved.)
+    //! helper class for one-asset implied-volatility calculation
+    /*! The passed engine must be linked to the passed quote (see,
+         e.g., VanillaOption to see how this can be achieved.)
 
-             \note this function is meant for developers of option
-                   classes so that they can implement an
-                   impliedVolatility() method.
+         \note this function is meant for developers of option
+               classes so that they can implement an
+               impliedVolatility() method.
+    */
+    class ImpliedVolatilityHelper
+    {
+      public:
+        static Volatility calculate(const Instrument& instrument,
+                                    const PricingEngine& engine,
+                                    SimpleQuote& volQuote,
+                                    Real targetValue,
+                                    Real accuracy,
+                                    Natural maxEvaluations,
+                                    Volatility minVol,
+                                    Volatility maxVol);
+        // utilities
+
+        /*! The returned process is equal to the passed one, except
+            for the volatility which is flat and whose value is driven
+            by the passed quote.
         */
-        class ImpliedVolatilityHelper {
-          public:
-            static Volatility calculate(const Instrument& instrument,
-                                        const PricingEngine& engine,
-                                        SimpleQuote& volQuote,
-                                        Real targetValue,
-                                        Real accuracy,
-                                        Natural maxEvaluations,
-                                        Volatility minVol,
-                                        Volatility maxVol);
-            // utilities
+        static ext::shared_ptr<GeneralizedBlackScholesProcess>
+        clone(const ext::shared_ptr<GeneralizedBlackScholesProcess>&, const ext::shared_ptr<SimpleQuote>&);
+    };
 
-            /*! The returned process is equal to the passed one, except
-                for the volatility which is flat and whose value is driven
-                by the passed quote.
-            */
-            static ext::shared_ptr<GeneralizedBlackScholesProcess> clone(
-                     const ext::shared_ptr<GeneralizedBlackScholesProcess>&,
-                     const ext::shared_ptr<SimpleQuote>&);
-        };
-
-    }
+}
 
 #endif

@@ -19,15 +19,18 @@
 
 #include <ql/time/calendars/switzerland.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Switzerland::Switzerland() {
+    Switzerland::Switzerland()
+    {
         // all calendar instances share the same implementation instance
         static ext::shared_ptr<Calendar::Impl> impl(new Switzerland::Impl);
         impl_ = impl;
     }
 
-    bool Switzerland::Impl::isBusinessDay(const Date& date) const {
+    bool Switzerland::Impl::isBusinessDay(const Date& date) const
+    {
         Weekday w = date.weekday();
         Day d = date.dayOfMonth(), dd = date.dayOfYear();
         Month m = date.month();
@@ -35,21 +38,21 @@ namespace QuantLib {
         Day em = easterMonday(y);
         if (isWeekend(w)
             // New Year's Day
-            || (d == 1  && m == January)
+            || (d == 1 && m == January)
             // Berchtoldstag
-            || (d == 2  && m == January)
+            || (d == 2 && m == January)
             // Good Friday
-            || (dd == em-3)
+            || (dd == em - 3)
             // Easter Monday
             || (dd == em)
             // Ascension Day
-            || (dd == em+38)
+            || (dd == em + 38)
             // Whit Monday
-            || (dd == em+49)
+            || (dd == em + 49)
             // Labour Day
-            || (d == 1  && m == May)
+            || (d == 1 && m == May)
             // National Day
-            || (d == 1  && m == August)
+            || (d == 1 && m == August)
             // Christmas
             || (d == 25 && m == December)
             // St. Stephen's Day
@@ -59,4 +62,3 @@ namespace QuantLib {
     }
 
 }
-

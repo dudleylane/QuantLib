@@ -25,33 +25,33 @@
 #define quantlib_early_exercise_path_pricer_hpp
 
 #include <ql/math/array.hpp>
-#include <ql/methods/montecarlo/path.hpp>
 #include <ql/methods/montecarlo/multipath.hpp>
+#include <ql/methods/montecarlo/path.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     template <class PathType>
-    class EarlyExerciseTraits {
+    class EarlyExerciseTraits
+    {
         // dummy definition, will not work
     };
 
     template <>
-    class EarlyExerciseTraits<Path> {
+    class EarlyExerciseTraits<Path>
+    {
       public:
         typedef Real StateType;
-        static Size pathLength(const Path& path) {
-            return path.length();
-        }
+        static Size pathLength(const Path& path) { return path.length(); }
     };
 
     template <>
-    class EarlyExerciseTraits<MultiPath> {
+    class EarlyExerciseTraits<MultiPath>
+    {
       public:
         typedef Array StateType;
-        static Size pathLength(const MultiPath& path) {
-            return path.pathSize();
-        }
+        static Size pathLength(const MultiPath& path) { return path.pathSize(); }
     };
 
     //! base class for early exercise path pricers
@@ -59,20 +59,17 @@ namespace QuantLib {
 
         \ingroup mcarlo
     */
-    template<class PathType,
-             class TimeType=Size, class ValueType=Real>
-    class EarlyExercisePathPricer {
+    template <class PathType, class TimeType = Size, class ValueType = Real>
+    class EarlyExercisePathPricer
+    {
       public:
         typedef typename EarlyExerciseTraits<PathType>::StateType StateType;
 
         virtual ~EarlyExercisePathPricer() = default;
-        virtual ValueType operator()(const PathType& path,
-                                     TimeType t) const = 0;
+        virtual ValueType operator()(const PathType& path, TimeType t) const = 0;
 
-        virtual StateType
-            state(const PathType& path, TimeType t) const = 0;
-        virtual std::vector<std::function<ValueType(StateType)> >
-            basisSystem() const = 0;
+        virtual StateType state(const PathType& path, TimeType t) const = 0;
+        virtual std::vector<std::function<ValueType(StateType)>> basisSystem() const = 0;
     };
 }
 

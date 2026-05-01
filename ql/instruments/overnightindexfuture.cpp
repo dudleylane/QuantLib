@@ -18,28 +18,30 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/instruments/overnightindexfuture.hpp>
-#include <ql/indexes/indexmanager.hpp>
 #include <ql/event.hpp>
+#include <ql/indexes/indexmanager.hpp>
+#include <ql/instruments/overnightindexfuture.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     OvernightIndexFuture::OvernightIndexFuture(ext::shared_ptr<OvernightIndex> overnightIndex,
                                                const Date& valueDate,
                                                const Date& maturityDate,
                                                Handle<Quote> convexityAdjustment,
                                                RateAveraging::Type averagingMethod)
-    : overnightIndex_(std::move(overnightIndex)), valueDate_(valueDate),
-      maturityDate_(maturityDate), convexityAdjustment_(std::move(convexityAdjustment)),
-      averagingMethod_(averagingMethod) {
+    : overnightIndex_(std::move(overnightIndex)), valueDate_(valueDate), maturityDate_(maturityDate),
+      convexityAdjustment_(std::move(convexityAdjustment)), averagingMethod_(averagingMethod)
+    {
         QL_REQUIRE(overnightIndex_, "null overnight index");
         registerWith(overnightIndex_);
         registerWith(convexityAdjustment_);
         registerWith(Settings::instance().evaluationDate());
     }
 
-    Real OvernightIndexFuture::averagedRate() const {
+    Real OvernightIndexFuture::averagedRate() const
+    {
         Date today = Settings::instance().evaluationDate();
         Calendar calendar = overnightIndex_->fixingCalendar();
         DayCounter dayCounter = overnightIndex_->dayCounter();
@@ -50,17 +52,23 @@ namespace QuantLib {
         Date fixingDate = calendar.adjust(d1, Preceding);
         const auto& history = overnightIndex_->timeSeries();
         Real fwd;
-        while (d1 < maturityDate_) {
+        while (d1 < maturityDate_)
+        {
             Date d2 = calendar.advance(d1, 1, Days);
-            if (fixingDate < today) {
+            if (fixingDate < today)
+            {
                 fwd = history[fixingDate];
                 QL_REQUIRE(fwd != Null<Real>(),
                            "missing rate on " << fixingDate << " for index " << overnightIndex_->name());
-            } else if (fixingDate == today) {
+            }
+            else if (fixingDate == today)
+            {
                 fwd = history[fixingDate];
                 if (fwd == Null<Real>())
                     fwd = forwardCurve->forwardRate(fixingDate, d2, dayCounter, Simple).rate();
-            } else {
+            }
+            else
+            {
                 fwd = forwardCurve->forwardRate(fixingDate, d2, dayCounter, Simple).rate();
             }
             // The rate is accrued starting from d1 even when the fixing date is earlier.
@@ -72,14 +80,16 @@ namespace QuantLib {
         return avg / dayCounter.yearFraction(valueDate_, maturityDate_);
     }
 
-    Real OvernightIndexFuture::compoundedRate() const {
+    Real OvernightIndexFuture::compoundedRate() const
+    {
         Date today = Settings::instance().evaluationDate();
         Calendar calendar = overnightIndex_->fixingCalendar();
         DayCounter dayCounter = overnightIndex_->dayCounter();
         Handle<YieldTermStructure> forwardCurve = overnightIndex_->forwardingTermStructure();
         Real prod = 1;
         Date forwardDiscountStart = valueDate_;
-        if (today > valueDate_) {
+        if (today > valueDate_)
+        {
             // can't value on a weekend inside reference period because we
             // won't know the reset rate until start of next business day.
             // user can supply an estimate if they really want to do this
@@ -91,7 +101,8 @@ namespace QuantLib {
             Date d1 = valueDate_;
             // d1 could be a holiday
             Date fixingDate = calendar.adjust(d1, Preceding);
-            while (d1 < today) {
+            while (d1 < today)
+            {
                 Real r = history[fixingDate];
                 QL_REQUIRE(r != Null<Real>(),
                            "missing rate on " << fixingDate << " for index " << overnightIndex_->name());
@@ -103,9 +114,11 @@ namespace QuantLib {
                 fixingDate = d1 = d2;
             }
             // here d1 == today, and we might have today's fixing already
-            if (today < maturityDate_) {
+            if (today < maturityDate_)
+            {
                 Real r = history[today];
-                if (r != Null<Real>()) {
+                if (r != Null<Real>())
+                {
                     Date tomorrow = calendar.advance(today, 1, Days);
                     prod *= 1 + r * dayCounter.yearFraction(today, tomorrow);
                     forwardDiscountStart = tomorrow;
@@ -120,26 +133,31 @@ namespace QuantLib {
         return (prod - 1) / dayCounter.yearFraction(valueDate_, maturityDate_);
     }
 
-    Real OvernightIndexFuture::rate() const {
-        switch (averagingMethod_) {
-          case RateAveraging::Simple:
-            return averagedRate();
-          case RateAveraging::Compound:
-            return compoundedRate();
-          default:
-              QL_FAIL("unknown compounding convention (" << Integer(averagingMethod_) << ")");
+    Real OvernightIndexFuture::rate() const
+    {
+        switch (averagingMethod_)
+        {
+            case RateAveraging::Simple:
+                return averagedRate();
+            case RateAveraging::Compound:
+                return compoundedRate();
+            default:
+                QL_FAIL("unknown compounding convention (" << Integer(averagingMethod_) << ")");
         }
     }
 
-    bool OvernightIndexFuture::isExpired() const {
+    bool OvernightIndexFuture::isExpired() const
+    {
         return detail::simple_event(maturityDate_).hasOccurred();
     }
 
-    Real OvernightIndexFuture::convexityAdjustment() const {
+    Real OvernightIndexFuture::convexityAdjustment() const
+    {
         return convexityAdjustment_.empty() ? 0.0 : convexityAdjustment_->value();
     }
 
-    void OvernightIndexFuture::performCalculations() const {
+    void OvernightIndexFuture::performCalculations() const
+    {
         Rate R = convexityAdjustment() + rate();
         NPV_ = 100.0 * (1.0 - R);
     }

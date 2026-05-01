@@ -28,18 +28,21 @@
 #include <ql/math/interpolation.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! See S.A. Sarra: Chebyshev Interpolation: An Interactive Tour. */
-    class ChebyshevInterpolation: public Interpolation {
+    class ChebyshevInterpolation : public Interpolation
+    {
       public:
-        enum PointsType {FirstKind, SecondKind};
+        enum PointsType
+        {
+            FirstKind,
+            SecondKind
+        };
 
-        explicit ChebyshevInterpolation(
-            const Array& y, PointsType pointsType = SecondKind);
-        ChebyshevInterpolation(
-            Size n, const std::function<Real(Real)>& f,
-            PointsType pointsType = SecondKind);
+        explicit ChebyshevInterpolation(const Array& y, PointsType pointsType = SecondKind);
+        ChebyshevInterpolation(Size n, const std::function<Real(Real)>& f, PointsType pointsType = SecondKind);
 
         explicit ChebyshevInterpolation(const ChebyshevInterpolation&) = delete;
         explicit ChebyshevInterpolation(ChebyshevInterpolation&&) = delete;

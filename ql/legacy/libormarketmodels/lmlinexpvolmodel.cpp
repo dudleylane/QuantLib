@@ -19,13 +19,13 @@
 
 #include <ql/legacy/libormarketmodels/lmlinexpvolmodel.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     LmLinearExponentialVolatilityModel::LmLinearExponentialVolatilityModel(
-                                         const std::vector<Time>& fixingTimes,
-                                         Real a, Real b, Real c, Real d)
-    : LmVolatilityModel(fixingTimes.size(), 4),
-      fixingTimes_(fixingTimes) {
+        const std::vector<Time>& fixingTimes, Real a, Real b, Real c, Real d)
+    : LmVolatilityModel(fixingTimes.size(), 4), fixingTimes_(fixingTimes)
+    {
         arguments_[0] = ConstantParameter(a, PositiveConstraint());
         arguments_[1] = ConstantParameter(b, PositiveConstraint());
         arguments_[2] = ConstantParameter(c, PositiveConstraint());
@@ -33,8 +33,8 @@ namespace QuantLib {
     }
 
 
-    Array LmLinearExponentialVolatilityModel::volatility(
-                                                 Time t, const Array&) const {
+    Array LmLinearExponentialVolatilityModel::volatility(Time t, const Array&) const
+    {
         const Real a = arguments_[0](0.0);
         const Real b = arguments_[1](0.0);
         const Real c = arguments_[2](0.0);
@@ -42,18 +42,20 @@ namespace QuantLib {
 
         Array tmp(size_, 0.0);
 
-        for (Size i=0; i<size_; ++i) {
+        for (Size i = 0; i < size_; ++i)
+        {
             const Time T = fixingTimes_[i];
-            if (T>t) {
-                tmp[i] = (a*(T-t)+d)*std::exp(-b*(T-t)) + c;
+            if (T > t)
+            {
+                tmp[i] = (a * (T - t) + d) * std::exp(-b * (T - t)) + c;
             }
         }
 
         return tmp;
     }
 
-    Volatility LmLinearExponentialVolatilityModel::volatility(
-                                         Size i, Time t, const Array&) const {
+    Volatility LmLinearExponentialVolatilityModel::volatility(Size i, Time t, const Array&) const
+    {
         const Real a = arguments_[0](0.0);
         const Real b = arguments_[1](0.0);
         const Real c = arguments_[2](0.0);
@@ -61,11 +63,11 @@ namespace QuantLib {
 
         const Time T = fixingTimes_[i];
 
-        return (T>t) ? (a*(T-t)+d)*std::exp(-b*(T-t)) + c : Real(0.0);
+        return (T > t) ? (a * (T - t) + d) * std::exp(-b * (T - t)) + c : Real(0.0);
     }
 
-    Real LmLinearExponentialVolatilityModel::integratedVariance(
-                                 Size i, Size j, Time u, const Array&) const {
+    Real LmLinearExponentialVolatilityModel::integratedVariance(Size i, Size j, Time u, const Array&) const
+    {
         const Real a = arguments_[0](0.0);
         const Real b = arguments_[1](0.0);
         const Real c = arguments_[2](0.0);
@@ -74,23 +76,22 @@ namespace QuantLib {
         const Time T = fixingTimes_[i];
         const Time S = fixingTimes_[j];
 
-        const Real k1=std::exp(b*u);
-        const Real k2=std::exp(b*S);
-        const Real k3=std::exp(b*T);
+        const Real k1 = std::exp(b * u);
+        const Real k2 = std::exp(b * S);
+        const Real k3 = std::exp(b * T);
 
-        return (a*a*(-1 - 2*b*b*S*T - b*(S + T)
-                     + k1*k1*(1 + b*(S + T - 2*u) + 2*b*b*(S - u)*(T - u)))
-                + 2*b*b*(2*c*d*(k2 + k3)*(k1 - 1)
-                         +d*d*(k1*k1 - 1)+2*b*c*c*k2*k3*u)
-                + 2*a*b*(d*(-1 - b*(S + T) + k1*k1*(1 + b*(S + T - 2*u)))
-                         -2*c*(k3*(1 + b*S) + k2*(1 + b*T)
-                               - k1*k3*(1 + b*(S - u))
-                               - k1*k2*(1 + b*(T - u)))
-                         )
-                ) / (4*b*b*b*k2*k3);
+        return (a * a *
+                    (-1 - 2 * b * b * S * T - b * (S + T) +
+                     k1 * k1 * (1 + b * (S + T - 2 * u) + 2 * b * b * (S - u) * (T - u))) +
+                2 * b * b * (2 * c * d * (k2 + k3) * (k1 - 1) + d * d * (k1 * k1 - 1) + 2 * b * c * c * k2 * k3 * u) +
+                2 * a * b *
+                    (d * (-1 - b * (S + T) + k1 * k1 * (1 + b * (S + T - 2 * u))) -
+                     2 * c *
+                         (k3 * (1 + b * S) + k2 * (1 + b * T) - k1 * k3 * (1 + b * (S - u)) -
+                          k1 * k2 * (1 + b * (T - u))))) /
+               (4 * b * b * b * k2 * k3);
     }
 
     void LmLinearExponentialVolatilityModel::generateArguments() {}
 
 }
-

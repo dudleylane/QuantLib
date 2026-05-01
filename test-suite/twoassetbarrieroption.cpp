@@ -21,9 +21,9 @@
 #include "utilities.hpp"
 #include <ql/instruments/twoassetbarrieroption.hpp>
 #include <ql/pricingengines/barrier/analytictwoassetbarrierengine.hpp>
+#include <ql/quotes/simplequote.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
-#include <ql/quotes/simplequote.hpp>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -32,7 +32,8 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(TwoAssetBarrierOptionTests)
 
-struct OptionData {
+struct OptionData
+{
     Barrier::Type barrierType;
     Option::Type type;
     Real barrier;
@@ -44,12 +45,13 @@ struct OptionData {
     Rate q2;
     Volatility v2;
     Real correlation;
-    Rate r;        // risk-free rate
-    Real result;   // result
+    Rate r;      // risk-free rate
+    Real result; // result
 };
 
 
-BOOST_AUTO_TEST_CASE(testHaugValues) {
+BOOST_AUTO_TEST_CASE(testHaugValues)
+{
 
     BOOST_TEST_MESSAGE("Testing two-asset barrier options against Haug's values...");
 
@@ -57,15 +59,10 @@ BOOST_AUTO_TEST_CASE(testHaugValues) {
         /* The data below are from
           "Option pricing formulas", E.G. Haug, McGraw-Hill 1998
         */
-        { Barrier::DownOut, Option::Call, 95, 90,
-          100.0, 0.0, 0.2, 100.0, 0.0, 0.2, 0.5, 0.08, 6.6592 },
-        { Barrier::UpOut, Option::Call, 105, 90,
-          100.0, 0.0, 0.2, 100.0, 0.0, 0.2, -0.5, 0.08, 4.6670 },
-        { Barrier::DownOut, Option::Put, 95, 90,
-          100.0, 0.0, 0.2, 100.0, 0.0, 0.2, -0.5, 0.08, 0.6184 },
-        { Barrier::UpOut, Option::Put, 105, 100,
-          100.0, 0.0, 0.2, 100.0, 0.0, 0.2, 0.0, 0.08, 0.8246 }
-    };
+        {Barrier::DownOut, Option::Call, 95, 90, 100.0, 0.0, 0.2, 100.0, 0.0, 0.2, 0.5, 0.08, 6.6592},
+        {Barrier::UpOut, Option::Call, 105, 90, 100.0, 0.0, 0.2, 100.0, 0.0, 0.2, -0.5, 0.08, 4.6670},
+        {Barrier::DownOut, Option::Put, 95, 90, 100.0, 0.0, 0.2, 100.0, 0.0, 0.2, -0.5, 0.08, 0.6184},
+        {Barrier::UpOut, Option::Put, 105, 100, 100.0, 0.0, 0.2, 100.0, 0.0, 0.2, 0.0, 0.08, 0.8246}};
 
     DayCounter dc = Actual360();
     Calendar calendar = TARGET();
@@ -83,10 +80,8 @@ BOOST_AUTO_TEST_CASE(testHaugValues) {
     ext::shared_ptr<BlackVolTermStructure> volTS1 = flatVol(today, vol1, dc);
 
     ext::shared_ptr<BlackScholesMertonProcess> process1(
-        new BlackScholesMertonProcess(Handle<Quote>(s1),
-                                      Handle<YieldTermStructure>(qTS1),
-                                      Handle<YieldTermStructure>(rTS),
-                                      Handle<BlackVolTermStructure>(volTS1)));
+        new BlackScholesMertonProcess(Handle<Quote>(s1), Handle<YieldTermStructure>(qTS1),
+                                      Handle<YieldTermStructure>(rTS), Handle<BlackVolTermStructure>(volTS1)));
 
     ext::shared_ptr<SimpleQuote> s2(new SimpleQuote);
     ext::shared_ptr<SimpleQuote> q2(new SimpleQuote);
@@ -95,18 +90,15 @@ BOOST_AUTO_TEST_CASE(testHaugValues) {
     ext::shared_ptr<BlackVolTermStructure> volTS2 = flatVol(today, vol2, dc);
 
     ext::shared_ptr<BlackScholesMertonProcess> process2(
-        new BlackScholesMertonProcess(Handle<Quote>(s2),
-                                      Handle<YieldTermStructure>(qTS2),
-                                      Handle<YieldTermStructure>(rTS),
-                                      Handle<BlackVolTermStructure>(volTS2)));
+        new BlackScholesMertonProcess(Handle<Quote>(s2), Handle<YieldTermStructure>(qTS2),
+                                      Handle<YieldTermStructure>(rTS), Handle<BlackVolTermStructure>(volTS2)));
 
     ext::shared_ptr<SimpleQuote> rho(new SimpleQuote);
 
-    ext::shared_ptr<PricingEngine> engine(
-                       new AnalyticTwoAssetBarrierEngine(process1, process2,
-                                                         Handle<Quote>(rho)));
+    ext::shared_ptr<PricingEngine> engine(new AnalyticTwoAssetBarrierEngine(process1, process2, Handle<Quote>(rho)));
 
-    for (auto& value : values) {
+    for (auto& value : values)
+    {
 
         s1->setValue(value.s1);
         q1->setValue(value.q1);
@@ -127,14 +119,13 @@ BOOST_AUTO_TEST_CASE(testHaugValues) {
 
         Real calculated = barrierOption.NPV();
         Real expected = value.result;
-        Real error = std::fabs(calculated-expected);
+        Real error = std::fabs(calculated - expected);
         Real tolerance = 4.0e-3;
-        if (error > tolerance) {
+        if (error > tolerance)
+        {
             BOOST_ERROR("failed to reproduce expected price"
-                        << "\n    expected:   " << expected
-                        << "\n    calculated: " << calculated
-                        << "\n    tolerance:  " << tolerance
-                        << "\n    error:      " << error);
+                        << "\n    expected:   " << expected << "\n    calculated: " << calculated
+                        << "\n    tolerance:  " << tolerance << "\n    error:      " << error);
         }
     }
 }

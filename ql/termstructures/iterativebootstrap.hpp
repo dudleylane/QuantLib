@@ -27,55 +27,62 @@
 #ifndef quantlib_iterative_bootstrap_hpp
 #define quantlib_iterative_bootstrap_hpp
 
-#include <ql/termstructures/bootstraphelper.hpp>
 #include <ql/math/interpolations/linearinterpolation.hpp>
-#include <ql/math/solvers1d/finitedifferencenewtonsafe.hpp>
 #include <ql/math/solvers1d/brent.hpp>
+#include <ql/math/solvers1d/finitedifferencenewtonsafe.hpp>
+#include <ql/termstructures/bootstraphelper.hpp>
 #include <ql/utilities/dataformatters.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-namespace detail {
+    namespace detail
+    {
 
-    /*! If \c dontThrow is \c true in IterativeBootstrap and on a given pillar the bootstrap fails when
-        searching for a helper root between \c xMin and \c xMax, we use this function to return the value that
-        gives the minimum absolute helper error in the interval between \c xMin and \c xMax inclusive.
-    */
-    template <class Fn>
-    Real dontThrowFallback(const Fn& error, Real xMin, Real xMax, Size steps) {
+        /*! If \c dontThrow is \c true in IterativeBootstrap and on a given pillar the bootstrap fails when
+            searching for a helper root between \c xMin and \c xMax, we use this function to return the value that
+            gives the minimum absolute helper error in the interval between \c xMin and \c xMax inclusive.
+        */
+        template <class Fn>
+        Real dontThrowFallback(const Fn& error, Real xMin, Real xMax, Size steps)
+        {
 
-        QL_REQUIRE(xMin < xMax, "Expected xMin to be less than xMax");
+            QL_REQUIRE(xMin < xMax, "Expected xMin to be less than xMax");
 
-        // Set the initial value of the result to xMin and store the absolute bootstrap error at xMin
-        Real result = xMin;
-        Real absError = std::abs(error(xMin));
-        Real minError = absError;
+            // Set the initial value of the result to xMin and store the absolute bootstrap error at xMin
+            Real result = xMin;
+            Real absError = std::abs(error(xMin));
+            Real minError = absError;
 
-        // Step out to xMax
-        Real stepSize = (xMax - xMin) / steps;
-        for (Size i = 0; i < steps; i++) {
+            // Step out to xMax
+            Real stepSize = (xMax - xMin) / steps;
+            for (Size i = 0; i < steps; i++)
+            {
 
-            // Get absolute bootstrap error at updated x value
-            xMin += stepSize;
-            absError = std::abs(error(xMin));
+                // Get absolute bootstrap error at updated x value
+                xMin += stepSize;
+                absError = std::abs(error(xMin));
 
-            // If this absolute bootstrap error is less than the minimum, update result and minError
-            if (absError < minError) {
-                result = xMin;
-                minError = absError;
+                // If this absolute bootstrap error is less than the minimum, update result and minError
+                if (absError < minError)
+                {
+                    result = xMin;
+                    minError = absError;
+                }
             }
+
+            return result;
         }
 
-        return result;
     }
-
-}
 
     //! Universal piecewise-term-structure boostrapper.
     template <class Curve>
-    class IterativeBootstrap {
+    class IterativeBootstrap
+    {
         typedef typename Curve::traits_type Traits;
         typedef typename Curve::interpolator_type Interpolator;
+
       public:
         /*! Constructor
             \param accuracy       Accuracy for the bootstrap stopping criterion. If it is set to
@@ -101,6 +108,7 @@ namespace detail {
                            Size maxEvaluations = MAX_FUNCTION_EVALUATIONS);
         void setup(Curve* ts);
         void calculate() const;
+
       private:
         void initialize() const;
         Real accuracy_;
@@ -131,9 +139,10 @@ namespace detail {
                                                   bool dontThrow,
                                                   Size dontThrowSteps,
                                                   Size maxEvaluations)
-    : accuracy_(accuracy), minValue_(minValue), maxValue_(maxValue), maxAttempts_(maxAttempts),
-      maxFactor_(maxFactor), minFactor_(minFactor), dontThrow_(dontThrow),
-      dontThrowSteps_(dontThrowSteps), ts_(nullptr), loopRequired_(Interpolator::global) {
+    : accuracy_(accuracy), minValue_(minValue), maxValue_(maxValue), maxAttempts_(maxAttempts), maxFactor_(maxFactor),
+      minFactor_(minFactor), dontThrow_(dontThrow), dontThrowSteps_(dontThrowSteps), ts_(nullptr),
+      loopRequired_(Interpolator::global)
+    {
         QL_REQUIRE(maxFactor_ >= 1.0, "Expected that maxFactor would be at least 1.0 but got " << maxFactor_);
         QL_REQUIRE(minFactor_ >= 1.0, "Expected that minFactor would be at least 1.0 but got " << minFactor_);
         firstSolver_.setMaxEvaluations(maxEvaluations);
@@ -141,11 +150,12 @@ namespace detail {
     }
 
     template <class Curve>
-    void IterativeBootstrap<Curve>::setup(Curve* ts) {
+    void IterativeBootstrap<Curve>::setup(Curve* ts)
+    {
         ts_ = ts;
         n_ = ts_->instruments_.size();
         QL_REQUIRE(n_ > 0, "no bootstrap helpers given");
-        for (Size j=0; j<n_; ++j)
+        for (Size j = 0; j < n_; ++j)
             ts_->registerWithObservables(ts_->instruments_[j]);
 
         // do not initialize yet: instruments could be invalid here
@@ -153,52 +163,50 @@ namespace detail {
     }
 
     template <class Curve>
-    void IterativeBootstrap<Curve>::initialize() const {
+    void IterativeBootstrap<Curve>::initialize() const
+    {
         // ensure helpers are sorted
-        std::sort(ts_->instruments_.begin(), ts_->instruments_.end(),
-                  detail::BootstrapHelperSorter());
+        std::sort(ts_->instruments_.begin(), ts_->instruments_.end(), detail::BootstrapHelperSorter());
         // skip expired helpers
         Date firstDate = Traits::initialDate(ts_);
-        QL_REQUIRE(ts_->instruments_[n_-1]->pillarDate()>firstDate,
-                   "all instruments expired");
+        QL_REQUIRE(ts_->instruments_[n_ - 1]->pillarDate() > firstDate, "all instruments expired");
         firstAliveHelper_ = 0;
         while (ts_->instruments_[firstAliveHelper_]->pillarDate() <= firstDate)
             ++firstAliveHelper_;
-        alive_ = n_-firstAliveHelper_;
-        Size nodes = alive_+1;
+        alive_ = n_ - firstAliveHelper_;
+        Size nodes = alive_ + 1;
         QL_REQUIRE(nodes >= Interpolator::requiredPoints,
-                   "not enough alive instruments: " << alive_ <<
-                   " provided, " << Interpolator::requiredPoints-1 <<
-                   " required");
+                   "not enough alive instruments: " << alive_ << " provided, " << Interpolator::requiredPoints - 1
+                                                    << " required");
 
         // calculate dates and times
         std::vector<Date>& dates = ts_->dates_;
         std::vector<Time>& times = ts_->times_;
-        dates.resize(alive_+1);
-        times.resize(alive_+1);
+        dates.resize(alive_ + 1);
+        times.resize(alive_ + 1);
         dates[0] = firstDate;
         times[0] = ts_->timeFromReference(dates[0]);
 
         Date maxDate = firstDate;
         // pillar counter: i
         // helper counter: j
-        for (Size i=1, j=firstAliveHelper_; j<n_; ++i, ++j) {
+        for (Size i = 1, j = firstAliveHelper_; j < n_; ++i, ++j)
+        {
             const auto& helper = ts_->instruments_[j];
             dates[i] = helper->pillarDate();
             times[i] = ts_->timeFromReference(dates[i]);
             // check for duplicated pillars
-            QL_REQUIRE(dates[i-1]!=dates[i],
-                       "more than one instrument with pillar " << dates[i]);
+            QL_REQUIRE(dates[i - 1] != dates[i], "more than one instrument with pillar " << dates[i]);
 
             Date latestRelevantDate = helper->latestRelevantDate();
             // check that the helper is really extending the curve, i.e. that
             // pillar-sorted helpers are also sorted by latestRelevantDate
-            QL_REQUIRE(latestRelevantDate > maxDate,
-                       io::ordinal(j+1) << " instrument (pillar: " <<
-                       dates[i] << ") has latestRelevantDate (" <<
-                       latestRelevantDate << ") before or equal to "
-                       "previous instrument's latestRelevantDate (" <<
-                       maxDate << ")");
+            QL_REQUIRE(latestRelevantDate > maxDate, io::ordinal(j + 1)
+                                                         << " instrument (pillar: " << dates[i]
+                                                         << ") has latestRelevantDate (" << latestRelevantDate
+                                                         << ") before or equal to "
+                                                            "previous instrument's latestRelevantDate ("
+                                                         << maxDate << ")");
             maxDate = std::max(dates[i], latestRelevantDate);
 
             // when a pillar date is before the last relevant date the
@@ -209,18 +217,20 @@ namespace detail {
         ts_->maxDate_ = maxDate;
 
         // set initial guess only if the current curve cannot be used as guess
-        if (!validCurve_ || ts_->data_.size()!=alive_+1) {
+        if (!validCurve_ || ts_->data_.size() != alive_ + 1)
+        {
             // ts_->data_[0] is the only relevant item,
             // but reasonable numbers might be needed for the whole data vector
             // because, e.g., of interpolation's early checks
-            ts_->data_ = std::vector<Real>(alive_+1, Traits::initialValue(ts_));
+            ts_->data_ = std::vector<Real>(alive_ + 1, Traits::initialValue(ts_));
             validCurve_ = false;
         }
         initialized_ = true;
     }
 
     template <class Curve>
-    void IterativeBootstrap<Curve>::calculate() const {
+    void IterativeBootstrap<Curve>::calculate() const
+    {
 
         // we might have to call initialize even if the curve is initialized
         // and not moving, just because helpers might be date relative and change
@@ -231,13 +241,13 @@ namespace detail {
             initialize();
 
         // setup helpers
-        for (Size j=firstAliveHelper_; j<n_; ++j) {
+        for (Size j = firstAliveHelper_; j < n_; ++j)
+        {
             const auto& helper = ts_->instruments_[j];
             // check for valid quote
             QL_REQUIRE(helper->quote()->isValid(),
-                       io::ordinal(j + 1) << " instrument (maturity: " <<
-                       helper->maturityDate() << ", pillar: " <<
-                       helper->pillarDate() << ") has an invalid quote");
+                       io::ordinal(j + 1) << " instrument (maturity: " << helper->maturityDate()
+                                          << ", pillar: " << helper->pillarDate() << ") has an invalid quote");
             // don't try this at home!
             // This call creates helpers, and removes "const".
             // There is a significant interaction with observability.
@@ -248,36 +258,41 @@ namespace detail {
         const std::vector<Real>& data = ts_->data_;
         Real accuracy = accuracy_ != Null<Real>() ? accuracy_ : ts_->accuracy_;
 
-        Size maxIterations = Traits::maxIterations()-1;
+        Size maxIterations = Traits::maxIterations() - 1;
 
         // there might be a valid curve state to use as guess
         bool validData = validCurve_;
         std::vector<Real> previousData;
 
-        for (Size iteration=0; ; ++iteration) {
+        for (Size iteration = 0;; ++iteration)
+        {
             if (loopRequired_ && validData)
                 previousData = ts_->data_;
 
             // Store min value and max value at each pillar so that we can expand search if necessary.
-            std::vector<Real> minValues(alive_+1, Null<Real>());
-            std::vector<Real> maxValues(alive_+1, Null<Real>());
-            std::vector<Size> attempts(alive_+1, 1);
+            std::vector<Real> minValues(alive_ + 1, Null<Real>());
+            std::vector<Real> maxValues(alive_ + 1, Null<Real>());
+            std::vector<Size> attempts(alive_ + 1, 1);
 
-            for (Size i=1, j=firstAliveHelper_; j<n_; ++i, ++j) { // pillar loop
+            for (Size i = 1, j = firstAliveHelper_; j < n_; ++i, ++j)
+            { // pillar loop
 
                 // shorter aliases for readability and to avoid duplication
                 Real& min = minValues[i];
                 Real& max = maxValues[i];
 
                 // bracket root and calculate guess
-                if (min == Null<Real>()) {
+                if (min == Null<Real>())
+                {
                     // First attempt; we take min and max either from
                     // explicit constructor parameter or from traits
                     min = (minValue_ != Null<Real>() ? minValue_ :
-                           Traits::minValueAfter(i, ts_, validData, firstAliveHelper_));
+                                                       Traits::minValueAfter(i, ts_, validData, firstAliveHelper_));
                     max = (maxValue_ != Null<Real>() ? maxValue_ :
-                           Traits::maxValueAfter(i, ts_, validData, firstAliveHelper_));
-                } else {
+                                                       Traits::maxValueAfter(i, ts_, validData, firstAliveHelper_));
+                }
+                else
+                {
                     // Extending a previous attempt.  A negative min
                     // is enlarged; a positive one is shrunk towards 0.
                     min = (min < 0.0 ? Real(min * minFactor_) : Real(min / minFactor_));
@@ -293,36 +308,44 @@ namespace detail {
                     guess = min + (max - min) / 5.0;
 
                 // extend interpolation if needed
-                if (!validData) {
-                    try { // extend interpolation a point at a time
-                          // including the pillar to be boostrapped
-                        ts_->interpolation_ = ts_->interpolator_.interpolate(
-                            times.begin(), times.begin()+i+1, data.begin());
-                    } catch (...) {
+                if (!validData)
+                {
+                    try
+                    { // extend interpolation a point at a time
+                      // including the pillar to be boostrapped
+                        ts_->interpolation_ =
+                            ts_->interpolator_.interpolate(times.begin(), times.begin() + i + 1, data.begin());
+                    }
+                    catch (...)
+                    {
                         if (!Interpolator::global)
                             throw; // no chance to fix it in a later iteration
 
                         // otherwise use Linear while the target
                         // interpolation is not usable yet
-                        ts_->interpolation_ = Linear().interpolate(
-                            times.begin(), times.begin()+i+1, data.begin());
+                        ts_->interpolation_ = Linear().interpolate(times.begin(), times.begin() + i + 1, data.begin());
                     }
                     ts_->interpolation_.update();
                 }
 
                 const auto& helper = ts_->instruments_[j];
-                auto error = [&](Rate guess) {
+                auto error = [&](Rate guess)
+                {
                     Traits::updateGuess(ts_->data_, guess, i);
                     ts_->interpolation_.update();
                     return helper->quoteError();
                 };
-                try {
+                try
+                {
                     if (validData)
                         solver_.solve(error, accuracy, guess, min, max);
                     else
                         firstSolver_.solve(error, accuracy, guess, min, max);
-                } catch (std::exception &e) {
-                    if (validCurve_) {
+                }
+                catch (std::exception& e)
+                {
+                    if (validCurve_)
+                    {
                         // the previous curve state might have been a
                         // bad guess, so we retry without using it.
                         // This would be tricky to do here (we're
@@ -336,51 +359,61 @@ namespace detail {
 
                     // If we have more attempts left on this iteration, try again. Note that the max and min
                     // bounds will be widened on the retry.
-                    if (attempts[i] < maxAttempts_) {
+                    if (attempts[i] < maxAttempts_)
+                    {
                         attempts[i]++;
                         i--;
                         j--;
                         continue;
                     }
 
-                    if (dontThrow_) {
+                    if (dontThrow_)
+                    {
                         // Use the fallback value
                         ts_->data_[i] = detail::dontThrowFallback(error, min, max, dontThrowSteps_);
 
                         // Remember to update the interpolation. If we don't and we are on the last "i", we will still
                         // have the last attempted value in the solver being used in ts_->interpolation_.
                         ts_->interpolation_.update();
-                    } else {
-                        QL_FAIL(io::ordinal(iteration + 1) << " iteration: failed "
-                                "at " << io::ordinal(i) << " alive instrument, "
-                                "pillar " << helper->pillarDate() <<
-                                ", maturity " << helper->maturityDate() <<
-                                ", reference date " << ts_->dates_[0] <<
-                                ": " << e.what());
+                    }
+                    else
+                    {
+                        QL_FAIL(io::ordinal(iteration + 1)
+                                << " iteration: failed "
+                                   "at "
+                                << io::ordinal(i)
+                                << " alive instrument, "
+                                   "pillar "
+                                << helper->pillarDate() << ", maturity " << helper->maturityDate()
+                                << ", reference date " << ts_->dates_[0] << ": " << e.what());
                     }
                 }
             }
 
             if (!loopRequired_)
-                 break;
+                break;
 
             // exit condition
             Real change = 0;
-            if (validData) {
-                for (Size i=1; i<=alive_; ++i)
-                    change = std::max(change, std::fabs(data[i]-previousData[i]));
-                if (change<=accuracy)  // convergence reached
+            if (validData)
+            {
+                for (Size i = 1; i <= alive_; ++i)
+                    change = std::max(change, std::fabs(data[i] - previousData[i]));
+                if (change <= accuracy) // convergence reached
                     break;
             }
 
             // If we hit the max number of iterations and dontThrow is true, just use what we have
-            if (iteration == maxIterations) {
-                if (dontThrow_) {
+            if (iteration == maxIterations)
+            {
+                if (dontThrow_)
+                {
                     break;
-                } else {
-                    QL_FAIL("convergence not reached after " << iteration <<
-                            " iterations; last improvement " << change <<
-                            ", required accuracy " << accuracy);
+                }
+                else
+                {
+                    QL_FAIL("convergence not reached after " << iteration << " iterations; last improvement " << change
+                                                             << ", required accuracy " << accuracy);
                 }
             }
 

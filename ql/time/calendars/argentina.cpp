@@ -19,16 +19,18 @@
 
 #include <ql/time/calendars/argentina.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Argentina::Argentina(Market) {
+    Argentina::Argentina(Market)
+    {
         // all calendar instances share the same implementation instance
-        static ext::shared_ptr<Calendar::Impl> impl(
-                                                   new Argentina::MervalImpl);
+        static ext::shared_ptr<Calendar::Impl> impl(new Argentina::MervalImpl);
         impl_ = impl;
     }
 
-    bool Argentina::MervalImpl::isBusinessDay(const Date& date) const {
+    bool Argentina::MervalImpl::isBusinessDay(const Date& date) const
+    {
         Weekday w = date.weekday();
         Day d = date.dayOfMonth(), dd = date.dayOfYear();
         Month m = date.month();
@@ -38,9 +40,9 @@ namespace QuantLib {
             // New Year's Day
             || (d == 1 && m == January)
             // Holy Thursday
-            || (dd == em-4)
+            || (dd == em - 4)
             // Good Friday
-            || (dd == em-3)
+            || (dd == em - 3)
             // Labour Day
             || (d == 1 && m == May)
             // May Revolution
@@ -52,8 +54,7 @@ namespace QuantLib {
             // Death of General José de San Martín
             || (d >= 15 && d <= 21 && w == Monday && m == August)
             // Columbus Day
-            || ((d == 10 || d == 11 || d == 12 || d == 15 || d == 16)
-                && w == Monday && m == October)
+            || ((d == 10 || d == 11 || d == 12 || d == 15 || d == 16) && w == Monday && m == October)
             // Immaculate Conception
             || (d == 8 && m == December)
             // Christmas Eve
@@ -65,4 +66,3 @@ namespace QuantLib {
     }
 
 }
-

@@ -28,7 +28,8 @@
 #include <ql/instruments/vanillaoption.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Bjerksund and Stensland pricing engine for American options (1993)
     /*! \ingroup vanillaengines
@@ -36,17 +37,15 @@ namespace QuantLib {
         \test the correctness of the returned value is tested by
               reproducing results available in literature.
     */
-    class BjerksundStenslandApproximationEngine
-        : public VanillaOption::engine {
+    class BjerksundStenslandApproximationEngine : public VanillaOption::engine
+    {
       public:
         BjerksundStenslandApproximationEngine(ext::shared_ptr<GeneralizedBlackScholesProcess>);
         void calculate() const override;
 
       private:
-        OneAssetOption::results americanCallApproximation(
-            Real S, Real X, Real rfD, Real dD, Real variance) const;
-        OneAssetOption::results europeanCallResults(
-            Real S, Real X, Real rfD, Real dD, Real variance) const;
+        OneAssetOption::results americanCallApproximation(Real S, Real X, Real rfD, Real dD, Real variance) const;
+        OneAssetOption::results europeanCallResults(Real S, Real X, Real rfD, Real dD, Real variance) const;
         OneAssetOption::results immediateExercise(Real S, Real X) const;
 
 

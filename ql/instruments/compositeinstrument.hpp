@@ -28,7 +28,8 @@
 #include <list>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Composite instrument
     /*! This instrument is an aggregate of other instruments. Its NPV
@@ -41,17 +42,17 @@ namespace QuantLib {
 
         \ingroup instruments
     */
-    class CompositeInstrument : public Instrument {
+    class CompositeInstrument : public Instrument
+    {
         typedef std::pair<ext::shared_ptr<Instrument>, Real> component;
         typedef std::list<component>::iterator iterator;
         typedef std::list<component>::const_iterator const_iterator;
+
       public:
         //! adds an instrument to the composite
-        void add(const ext::shared_ptr<Instrument>& instrument,
-                 Real multiplier = 1.0);
+        void add(const ext::shared_ptr<Instrument>& instrument, Real multiplier = 1.0);
         //! shorts an instrument from the composite
-        void subtract(const ext::shared_ptr<Instrument>& instrument,
-                      Real multiplier = 1.0);
+        void subtract(const ext::shared_ptr<Instrument>& instrument, Real multiplier = 1.0);
         //! \name Observer interface
         //@{
         void deepUpdate() override;

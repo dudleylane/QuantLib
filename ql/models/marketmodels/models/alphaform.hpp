@@ -22,13 +22,15 @@
 
 #include <ql/types.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class AlphaForm {
+    class AlphaForm
+    {
       public:
         virtual ~AlphaForm() = default;
-        virtual Real operator()(Integer i) const=0;
-        virtual void setAlpha(Real alpha)=0;
+        virtual Real operator()(Integer i) const = 0;
+        virtual void setAlpha(Real alpha) = 0;
     };
 
 }

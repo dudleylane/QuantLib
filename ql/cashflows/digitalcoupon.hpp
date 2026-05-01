@@ -25,13 +25,14 @@
 #ifndef quantlib_digital_coupon_hpp
 #define quantlib_digital_coupon_hpp
 
-#include <ql/cashflows/floatingratecoupon.hpp>
 #include <ql/cashflows/couponpricer.hpp>
+#include <ql/cashflows/floatingratecoupon.hpp>
 #include <ql/cashflows/replication.hpp>
 #include <ql/position.hpp>
 #include <ql/utilities/null.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Digital-payoff coupon
     /*! Implementation of a floating-rate coupon with digital call/put option.
@@ -76,7 +77,8 @@ namespace QuantLib {
         - the correctness of the returned value is tested by the relationship
           between prices in case of different replication types.
     */
-    class DigitalCoupon : public FloatingRateCoupon {
+    class DigitalCoupon : public FloatingRateCoupon
+    {
       public:
         //! \name Constructors
         //@{
@@ -115,10 +117,10 @@ namespace QuantLib {
         Rate callDigitalPayoff() const;
         Rate putDigitalPayoff() const;
         bool hasPut() const { return hasPutStrike_; }
-        bool hasCall() const {return hasCallStrike_; }
-        bool hasCollar() const {return (hasCallStrike_ && hasPutStrike_); }
-        bool isLongPut() const { return (putCsi_==1.); }
-        bool isLongCall() const { return (callCsi_==1.); }
+        bool hasCall() const { return hasCallStrike_; }
+        bool hasCollar() const { return (hasCallStrike_ && hasPutStrike_); }
+        bool isLongPut() const { return (putCsi_ == 1.); }
+        bool isLongCall() const { return (callCsi_ == 1.); }
         ext::shared_ptr<FloatingRateCoupon> underlying() const { return underlying_; }
         /*! Returns the call option rate
            (multiplied by: nominal*accrualperiod*discount is the NPV of the option)
@@ -133,7 +135,8 @@ namespace QuantLib {
         //@{
         void accept(AcyclicVisitor&) override;
 
-        void setPricer(const ext::shared_ptr<FloatingRateCouponPricer>& pricer) override {
+        void setPricer(const ext::shared_ptr<FloatingRateCouponPricer>& pricer) override
+        {
             if (pricer_ != nullptr)
                 unregisterWith(pricer_);
             pricer_ = pricer;
@@ -143,7 +146,7 @@ namespace QuantLib {
             underlying_->setPricer(pricer);
         }
 
-        protected:
+      protected:
         //! \name Data members
         //@{
         //!
@@ -183,7 +186,6 @@ namespace QuantLib {
       private:
         Rate callPayoff() const;
         Rate putPayoff() const;
-
     };
 
 }

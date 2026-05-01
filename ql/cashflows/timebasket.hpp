@@ -27,19 +27,21 @@
 
 #include <ql/time/date.hpp>
 #include <ql/utilities/null.hpp>
-#include <vector>
 #include <map>
+#include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Distribution over a number of dates
-    class TimeBasket : private std::map<Date,Real> {
+    class TimeBasket : private std::map<Date, Real>
+    {
         // this is needed for Visual C++ 6
-        typedef std::map<Date,Real> super;
+        typedef std::map<Date, Real> super;
+
       public:
         TimeBasket() = default;
-        TimeBasket(const std::vector<Date>& dates,
-                   const std::vector<Real>& values);
+        TimeBasket(const std::vector<Date>& dates, const std::vector<Real>& values);
         //! \name Map interface
         //@{
         //! returns the number of entries
@@ -73,19 +75,22 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline bool TimeBasket::hasDate(const Date& d) const {
+    inline bool TimeBasket::hasDate(const Date& d) const
+    {
         auto i = find(d);
         return i != end();
     }
 
-    inline TimeBasket& TimeBasket::operator+=(const TimeBasket& other) {
+    inline TimeBasket& TimeBasket::operator+=(const TimeBasket& other)
+    {
         super& self = *this;
         for (auto j : other)
             self[j.first] += j.second;
         return *this;
     }
 
-    inline TimeBasket& TimeBasket::operator-=(const TimeBasket& other) {
+    inline TimeBasket& TimeBasket::operator-=(const TimeBasket& other)
+    {
         super& self = *this;
         for (auto j : other)
             self[j.first] -= j.second;

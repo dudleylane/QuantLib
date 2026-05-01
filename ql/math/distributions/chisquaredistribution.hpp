@@ -28,42 +28,49 @@
 #include <ql/types.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class CumulativeChiSquareDistribution {
+    class CumulativeChiSquareDistribution
+    {
       public:
         explicit CumulativeChiSquareDistribution(Real df) : df_(df) {}
         Real operator()(Real x) const;
+
       private:
         Real df_;
     };
 
-    class NonCentralCumulativeChiSquareDistribution {
+    class NonCentralCumulativeChiSquareDistribution
+    {
       public:
-        NonCentralCumulativeChiSquareDistribution(Real df, Real ncp)
-        : df_(df), ncp_(ncp) {}
+        NonCentralCumulativeChiSquareDistribution(Real df, Real ncp) : df_(df), ncp_(ncp) {}
         Real operator()(Real x) const;
+
       private:
         Real df_, ncp_;
     };
 
-    class NonCentralCumulativeChiSquareSankaranApprox {
+    class NonCentralCumulativeChiSquareSankaranApprox
+    {
       public:
-        NonCentralCumulativeChiSquareSankaranApprox(Real df, Real ncp)
-        : df_(df), ncp_(ncp) {}
+        NonCentralCumulativeChiSquareSankaranApprox(Real df, Real ncp) : df_(df), ncp_(ncp) {}
         Real operator()(Real x) const;
+
       private:
         Real df_, ncp_;
     };
 
-    class InverseNonCentralCumulativeChiSquareDistribution {
+    class InverseNonCentralCumulativeChiSquareDistribution
+    {
       public:
-        InverseNonCentralCumulativeChiSquareDistribution(Real df, Real ncp,
-                                               Size maxEvaluations=10,
-                                               Real accuracy = 1e-8);
+        InverseNonCentralCumulativeChiSquareDistribution(Real df,
+                                                         Real ncp,
+                                                         Size maxEvaluations = 10,
+                                                         Real accuracy = 1e-8);
         Real operator()(Real x) const;
 
-    private:
+      private:
         NonCentralCumulativeChiSquareDistribution nonCentralDist_;
         const Real guess_;
         const Size maxEvaluations_;

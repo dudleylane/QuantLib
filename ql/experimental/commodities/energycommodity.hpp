@@ -27,14 +27,16 @@
 #include <ql/experimental/commodities/commodity.hpp>
 #include <ql/experimental/commodities/commoditytype.hpp>
 #include <ql/experimental/commodities/commodityunitcost.hpp>
-#include <ql/experimental/commodities/unitofmeasure.hpp>
 #include <ql/experimental/commodities/quantity.hpp>
-#include <ql/time/date.hpp>
+#include <ql/experimental/commodities/unitofmeasure.hpp>
 #include <ql/money.hpp>
+#include <ql/time/date.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    struct EnergyDailyPosition {
+    struct EnergyDailyPosition
+    {
         Date date;
         Real quantityAmount;
         Real payLegPrice = 0;
@@ -43,51 +45,55 @@ namespace QuantLib {
         bool unrealized = false;
 
         EnergyDailyPosition() = default;
-        EnergyDailyPosition(const Date& date,
-                            Real payLegPrice,
-                            Real receiveLegPrice,
-                            bool unrealized);
+        EnergyDailyPosition(const Date& date, Real payLegPrice, Real receiveLegPrice, bool unrealized);
     };
 
     typedef std::map<Date, EnergyDailyPosition> EnergyDailyPositions;
 
-    #ifndef __DOXYGEN__
-    std::ostream& operator<<(std::ostream& out,
-                             const EnergyDailyPositions& dailyPositions);
-    #endif
-
+#ifndef __DOXYGEN__
+    std::ostream& operator<<(std::ostream& out, const EnergyDailyPositions& dailyPositions);
+#endif
 
 
     //! Energy commodity class
     /*! \ingroup instruments */
-    class EnergyCommodity : public Commodity {
+    class EnergyCommodity : public Commodity
+    {
       public:
         class arguments;
         class results;
         class engine;
 
-        enum DeliverySchedule { Constant,
-                                Window,
-                                Hourly,
-                                Daily,
-                                Weekly,
-                                Monthly,
-                                Quarterly,
-                                Yearly };
-        enum QuantityPeriodicity { Absolute,
-                                   PerHour,
-                                   PerDay,
-                                   PerWeek,
-                                   PerMonth,
-                                   PerQuarter,
-                                   PerYear };
-        enum PaymentSchedule { WindowSettlement,
-                               MonthlySettlement,
-                               QuarterlySettlement,
-                               YearlySettlement };
+        enum DeliverySchedule
+        {
+            Constant,
+            Window,
+            Hourly,
+            Daily,
+            Weekly,
+            Monthly,
+            Quarterly,
+            Yearly
+        };
+        enum QuantityPeriodicity
+        {
+            Absolute,
+            PerHour,
+            PerDay,
+            PerWeek,
+            PerMonth,
+            PerQuarter,
+            PerYear
+        };
+        enum PaymentSchedule
+        {
+            WindowSettlement,
+            MonthlySettlement,
+            QuarterlySettlement,
+            YearlySettlement
+        };
 
-        EnergyCommodity(CommodityType commodityType,
-                        const ext::shared_ptr<SecondaryCosts>& secondaryCosts);
+        EnergyCommodity(CommodityType commodityType, const ext::shared_ptr<SecondaryCosts>& secondaryCosts);
 
         virtual Quantity quantity() const = 0;
         const CommodityType& commodityType() const;
@@ -99,10 +105,9 @@ namespace QuantLib {
         static Real calculateFxConversionFactor(const Currency& fromCurrency,
                                                 const Currency& toCurrency,
                                                 const Date& evaluationDate);
-        static Real calculateUomConversionFactor(
-                                       const CommodityType& commodityType,
-                                       const UnitOfMeasure& fromUnitOfMeasure,
-                                       const UnitOfMeasure& toUnitOfMeasure);
+        static Real calculateUomConversionFactor(const CommodityType& commodityType,
+                                                 const UnitOfMeasure& fromUnitOfMeasure,
+                                                 const UnitOfMeasure& toUnitOfMeasure);
         Real calculateUnitCost(const CommodityType& commodityType,
                                const CommodityUnitCost& unitCost,
                                const Date& evaluationDate) const;
@@ -114,14 +119,16 @@ namespace QuantLib {
     };
 
 
-    class EnergyCommodity::arguments : public virtual PricingEngine::arguments {
+    class EnergyCommodity::arguments : public virtual PricingEngine::arguments
+    {
       public:
         Currency currency;
         UnitOfMeasure unitOfMeasure;
         void validate() const override {}
     };
 
-    class EnergyCommodity::results : public Instrument::results {
+    class EnergyCommodity::results : public Instrument::results
+    {
       public:
         Real NPV;
         Currency currency;
@@ -129,9 +136,9 @@ namespace QuantLib {
         void reset() override { Instrument::results::reset(); }
     };
 
-    class EnergyCommodity::engine
-        : public GenericEngine<EnergyCommodity::arguments,
-                               EnergyCommodity::results> {};
+    class EnergyCommodity::engine : public GenericEngine<EnergyCommodity::arguments, EnergyCommodity::results>
+    {
+    };
 
 }
 

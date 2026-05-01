@@ -26,15 +26,14 @@
 
 #include <ql/stochasticprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Euler end-point discretization for stochastic processes
     /*! \ingroup processes */
-    class EndEulerDiscretization
-        : public StochasticProcess::discretization,
-          public StochasticProcess1D::discretization {
+    class EndEulerDiscretization : public StochasticProcess::discretization, public StochasticProcess1D::discretization
+    {
       public:
-
         /*! Returns an approximation of the drift defined as
             \f$ \mu(t_0 + \Delta t, \mathbf{x}_0) \Delta t \f$.
         */
@@ -67,4 +66,3 @@ namespace QuantLib {
 
 
 #endif
-

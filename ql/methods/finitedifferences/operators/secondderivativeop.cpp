@@ -23,30 +23,33 @@
 #include <ql/methods/finitedifferences/operators/fdmlinearoplayout.hpp>
 #include <ql/methods/finitedifferences/operators/secondderivativeop.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    SecondDerivativeOp::SecondDerivativeOp(
-        Size direction,
-        const ext::shared_ptr<FdmMesher>& mesher)
-    : TripleBandLinearOp(direction, mesher) {
+    SecondDerivativeOp::SecondDerivativeOp(Size direction, const ext::shared_ptr<FdmMesher>& mesher)
+    : TripleBandLinearOp(direction, mesher)
+    {
 
-        for (const auto& iter : *mesher->layout()) {
+        for (const auto& iter : *mesher->layout())
+        {
             const Size i = iter.index();
             const Real hm = mesher->dminus(iter, direction_);
             const Real hp = mesher->dplus(iter, direction_);
 
-            const Real zetam1 = hm*(hm+hp);
-            const Real zeta0  = hm*hp;
-            const Real zetap1 = hp*(hm+hp);
+            const Real zetam1 = hm * (hm + hp);
+            const Real zeta0 = hm * hp;
+            const Real zetap1 = hp * (hm + hp);
 
             const Size co = iter.coordinates()[direction_];
-            if (co == 0 || co == mesher->layout()->dim()[direction]-1) {
+            if (co == 0 || co == mesher->layout()->dim()[direction] - 1)
+            {
                 lower_[i] = diag_[i] = upper_[i] = 0.0;
             }
-            else {
-                lower_[i] =  2.0/zetam1;
-                diag_[i]  = -2.0/zeta0;
-                upper_[i] =  2.0/zetap1;
+            else
+            {
+                lower_[i] = 2.0 / zetam1;
+                diag_[i] = -2.0 / zeta0;
+                upper_[i] = 2.0 / zetap1;
             }
         }
     }

@@ -24,14 +24,15 @@
 #ifndef quantlib_cdo_hpp
 #define quantlib_cdo_hpp
 
-#include <ql/instrument.hpp>
-#include <ql/termstructures/yieldtermstructure.hpp>
-#include <ql/termstructures/defaulttermstructure.hpp>
 #include <ql/experimental/credit/lossdistribution.hpp>
 #include <ql/experimental/credit/onefactorcopula.hpp>
+#include <ql/instrument.hpp>
+#include <ql/termstructures/defaulttermstructure.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/time/schedule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! collateralized debt obligation
     /*! The instrument prices a mezzanine CDO tranche with loss given
@@ -95,7 +96,8 @@ namespace QuantLib {
 
         \todo Investigate and fix cases \f$ E_{i+1} < E_i. \f$
     */
-    class CDO : public Instrument {
+    class CDO : public Instrument
+    {
       public:
         /*! \param attachment  fraction of the LGD where protection starts
             \param detachment  fraction of the LGD where protection ends
@@ -121,7 +123,7 @@ namespace QuantLib {
         CDO(Real attachment,
             Real detachment,
             std::vector<Real> nominals,
-            const std::vector<Handle<DefaultProbabilityTermStructure> >& basket,
+            const std::vector<Handle<DefaultProbabilityTermStructure>>& basket,
             Handle<OneFactorCopula> copula,
             bool protectionSeller,
             Schedule premiumSchedule,
@@ -142,19 +144,19 @@ namespace QuantLib {
 
         bool isExpired() const override;
         Rate fairPremium() const;
-        Rate premiumValue () const;
-        Rate protectionValue () const;
-        Size error () const;
+        Rate premiumValue() const;
+        Rate protectionValue() const;
+        Size error() const;
 
       private:
         void setupExpired() const override;
         void performCalculations() const override;
-        Real expectedTrancheLoss (Date d) const;
+        Real expectedTrancheLoss(Date d) const;
 
         Real attachment_;
         Real detachment_;
         std::vector<Real> nominals_;
-        std::vector<Handle<DefaultProbabilityTermStructure> > basket_;
+        std::vector<Handle<DefaultProbabilityTermStructure>> basket_;
         Handle<OneFactorCopula> copula_;
         bool protectionSeller_;
 
@@ -169,10 +171,10 @@ namespace QuantLib {
 
         std::vector<Real> lgds_;
 
-        Real nominal_;  // total basket volume (sum of nominals_)
-        Real lgd_;      // maximum loss given default (sum of lgds_)
-        Real xMax_;     // tranche detachment point (tranche_ * nominal_)
-        Real xMin_;     // tranche attachment point (tranche_ * nominal_)
+        Real nominal_; // total basket volume (sum of nominals_)
+        Real lgd_;     // maximum loss given default (sum of lgds_)
+        Real xMax_;    // tranche detachment point (tranche_ * nominal_)
+        Real xMin_;    // tranche attachment point (tranche_ * nominal_)
 
         mutable Size error_;
 

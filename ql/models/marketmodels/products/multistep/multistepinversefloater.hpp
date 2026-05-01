@@ -22,14 +22,16 @@
 
 #include <ql/models/marketmodels/products/multiproductmultistep.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*
     Tested in MarketModels::testInverseFloater()
 
     */
 
-    class MultiStepInverseFloater : public MultiProductMultiStep {
+    class MultiStepInverseFloater : public MultiProductMultiStep
+    {
       public:
         MultiStepInverseFloater(const std::vector<Time>& rateTimes,
                                 std::vector<Real> fixedAccruals,
@@ -47,13 +49,13 @@ namespace QuantLib {
         void reset() override;
         bool nextTimeStep(const CurveState& currentState,
                           std::vector<Size>& numberCashFlowsThisStep,
-                          std::vector<std::vector<CashFlow> >& cashFlowsGenerated) override;
+                          std::vector<std::vector<CashFlow>>& cashFlowsGenerated) override;
         std::unique_ptr<MarketModelMultiProduct> clone() const override;
         //@}
       private:
-        std::vector<Real> fixedAccruals_, floatingAccruals_,fixedStrikes_, fixedMultipliers_, floatingSpreads_;
+        std::vector<Real> fixedAccruals_, floatingAccruals_, fixedStrikes_, fixedMultipliers_, floatingSpreads_;
         std::vector<Time> paymentTimes_;
-    
+
         Real multiplier_;
         Size lastIndex_;
         // things that vary in a path
@@ -63,22 +65,24 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline std::vector<Time>
-    MultiStepInverseFloater::possibleCashFlowTimes() const {
+    inline std::vector<Time> MultiStepInverseFloater::possibleCashFlowTimes() const
+    {
         return paymentTimes_;
     }
 
-    inline Size MultiStepInverseFloater::numberOfProducts() const {
+    inline Size MultiStepInverseFloater::numberOfProducts() const
+    {
         return 1;
     }
 
-    inline Size
-    MultiStepInverseFloater::maxNumberOfCashFlowsPerProductPerStep() const {
+    inline Size MultiStepInverseFloater::maxNumberOfCashFlowsPerProductPerStep() const
+    {
         return 1;
     }
 
-    inline void MultiStepInverseFloater::reset() {
-       currentIndex_=0;
+    inline void MultiStepInverseFloater::reset()
+    {
+        currentIndex_ = 0;
     }
 
 }

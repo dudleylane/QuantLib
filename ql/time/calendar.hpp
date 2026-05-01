@@ -29,14 +29,15 @@
 #define quantlib_calendar_hpp
 
 #include <ql/errors.hpp>
-#include <ql/time/date.hpp>
-#include <ql/time/businessdayconvention.hpp>
 #include <ql/shared_ptr.hpp>
+#include <ql/time/businessdayconvention.hpp>
+#include <ql/time/date.hpp>
 #include <set>
-#include <vector>
 #include <string>
+#include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Period;
 
@@ -58,10 +59,12 @@ namespace QuantLib {
               by inspecting the calendar before and after their
               invocation.
     */
-    class Calendar {
+    class Calendar
+    {
       protected:
         //! abstract base class for calendar implementations
-        class Impl {
+        class Impl
+        {
           public:
             virtual ~Impl() = default;
             virtual std::string name() const = 0;
@@ -70,6 +73,7 @@ namespace QuantLib {
             std::set<Date> addedHolidays, removedHolidays;
         };
         ext::shared_ptr<Impl> impl_;
+
       public:
         /*! The default constructor returns a calendar with a null
             implementation, which is therefore unusable except as a
@@ -92,7 +96,7 @@ namespace QuantLib {
 
         /*! Returns the set of added holidays for the given calendar */
         const std::set<Date>& addedHolidays() const;
-        
+
         /*! Returns the set of removed holidays for the given calendar */
         const std::set<Date>& removedHolidays() const;
 
@@ -127,18 +131,14 @@ namespace QuantLib {
         void removeHoliday(const Date&);
 
         /*! Returns the holidays between two dates. */
-        std::vector<Date> holidayList(const Date& from,
-                                      const Date& to,
-                                      bool includeWeekEnds = false) const;
+        std::vector<Date> holidayList(const Date& from, const Date& to, bool includeWeekEnds = false) const;
         /*! Returns the business days between two dates. */
-        std::vector<Date> businessDayList(const Date& from,
-                                          const Date& to) const;
+        std::vector<Date> businessDayList(const Date& from, const Date& to) const;
 
         /*! Adjusts a non-business day to the appropriate near business day
             with respect to the given convention.
         */
-        Date adjust(const Date&,
-                    BusinessDayConvention convention = Following) const;
+        Date adjust(const Date&, BusinessDayConvention convention = Following) const;
         /*! Advances the given date of the given number of business days and
             returns the result.
             \note The input date is not modified.
@@ -159,10 +159,8 @@ namespace QuantLib {
         /*! Calculates the number of business days between two given
             dates and returns the result.
         */
-        Date::serial_type businessDaysBetween(const Date& from,
-                                              const Date& to,
-                                              bool includeFirst = true,
-                                              bool includeLast = false) const;
+        Date::serial_type
+        businessDaysBetween(const Date& from, const Date& to, bool includeFirst = true, bool includeLast = false) const;
         //@}
 
       protected:
@@ -171,7 +169,8 @@ namespace QuantLib {
             Monday for a given year, as well as specifying Saturdays
             and Sundays as weekend days.
         */
-        class WesternImpl : public Impl {
+        class WesternImpl : public Impl
+        {
           public:
             bool isWeekend(Weekday) const override;
             //! expressed relative to first day of year
@@ -182,7 +181,8 @@ namespace QuantLib {
             Easter Monday for a given year, as well as specifying
             Saturdays and Sundays as weekend days.
         */
-        class OrthodoxImpl : public Impl {
+        class OrthodoxImpl : public Impl
+        {
           public:
             bool isWeekend(Weekday) const override;
             //! expressed relative to first day of year
@@ -205,28 +205,33 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline bool Calendar::empty() const {
+    inline bool Calendar::empty() const
+    {
         return !impl_;
     }
 
-    inline std::string Calendar::name() const {
+    inline std::string Calendar::name() const
+    {
         QL_REQUIRE(impl_, "no calendar implementation provided");
         return impl_->name();
     }
 
-    inline const std::set<Date>& Calendar::addedHolidays() const {
+    inline const std::set<Date>& Calendar::addedHolidays() const
+    {
         QL_REQUIRE(impl_, "no calendar implementation provided");
 
         return impl_->addedHolidays;
     }
 
-    inline const std::set<Date>& Calendar::removedHolidays() const {
+    inline const std::set<Date>& Calendar::removedHolidays() const
+    {
         QL_REQUIRE(impl_, "no calendar implementation provided");
 
         return impl_->removedHolidays;
     }
 
-    inline bool Calendar::isBusinessDay(const Date& d) const {
+    inline bool Calendar::isBusinessDay(const Date& d) const
+    {
         QL_REQUIRE(impl_, "no calendar implementation provided");
 
 #ifdef QL_HIGH_RESOLUTION_DATE
@@ -235,52 +240,58 @@ namespace QuantLib {
         const Date& _d = d;
 #endif
 
-        if (!impl_->addedHolidays.empty() &&
-            impl_->addedHolidays.find(_d) != impl_->addedHolidays.end())
+        if (!impl_->addedHolidays.empty() && impl_->addedHolidays.find(_d) != impl_->addedHolidays.end())
             return false;
 
-        if (!impl_->removedHolidays.empty() &&
-            impl_->removedHolidays.find(_d) != impl_->removedHolidays.end())
+        if (!impl_->removedHolidays.empty() && impl_->removedHolidays.find(_d) != impl_->removedHolidays.end())
             return true;
 
         return impl_->isBusinessDay(_d);
     }
 
-    inline bool Calendar::isStartOfMonth(const Date& d) const {
+    inline bool Calendar::isStartOfMonth(const Date& d) const
+    {
         return d <= startOfMonth(d);
     }
 
-    inline Date Calendar::startOfMonth(const Date& d) const {
+    inline Date Calendar::startOfMonth(const Date& d) const
+    {
         return adjust(Date::startOfMonth(d), Following);
     }
 
-    inline bool Calendar::isEndOfMonth(const Date& d) const {
+    inline bool Calendar::isEndOfMonth(const Date& d) const
+    {
         return d >= endOfMonth(d);
     }
 
-    inline Date Calendar::endOfMonth(const Date& d) const {
+    inline Date Calendar::endOfMonth(const Date& d) const
+    {
         return adjust(Date::endOfMonth(d), Preceding);
     }
 
-    inline bool Calendar::isHoliday(const Date& d) const {
+    inline bool Calendar::isHoliday(const Date& d) const
+    {
         return !isBusinessDay(d);
     }
 
-    inline bool Calendar::isWeekend(Weekday w) const {
+    inline bool Calendar::isWeekend(Weekday w) const
+    {
         QL_REQUIRE(impl_, "no calendar implementation provided");
         return impl_->isWeekend(w);
     }
 
-    inline bool operator==(const Calendar& c1, const Calendar& c2) {
-        return (c1.empty() && c2.empty())
-            || (!c1.empty() && !c2.empty() && c1.name() == c2.name());
+    inline bool operator==(const Calendar& c1, const Calendar& c2)
+    {
+        return (c1.empty() && c2.empty()) || (!c1.empty() && !c2.empty() && c1.name() == c2.name());
     }
 
-    inline bool operator!=(const Calendar& c1, const Calendar& c2) {
+    inline bool operator!=(const Calendar& c1, const Calendar& c2)
+    {
         return !(c1 == c2);
     }
 
-    inline std::ostream& operator<<(std::ostream& out, const Calendar &c) {
+    inline std::ostream& operator<<(std::ostream& out, const Calendar& c)
+    {
         return out << c.name();
     }
 

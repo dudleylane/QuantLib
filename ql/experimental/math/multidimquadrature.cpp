@@ -21,16 +21,12 @@
 
 #ifndef QL_PATCH_SOLARIS
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    GaussianQuadMultidimIntegrator::GaussianQuadMultidimIntegrator(
-        Size dimension, Size quadOrder, Real mu) 
-        : integral_(quadOrder, mu),
-          integralV_(quadOrder, mu),
-          integrationEntries_(maxDimensions_),
-          integrationEntriesVR_(maxDimensions_),
-          dimension_(dimension),
-          varBuffer_(dimension_, 0.)
+    GaussianQuadMultidimIntegrator::GaussianQuadMultidimIntegrator(Size dimension, Size quadOrder, Real mu)
+    : integral_(quadOrder, mu), integralV_(quadOrder, mu), integrationEntries_(maxDimensions_),
+      integrationEntriesVR_(maxDimensions_), dimension_(dimension), varBuffer_(dimension_, 0.)
     {
         spawnFcts<maxDimensions_>();
     }

@@ -40,40 +40,31 @@
 #ifndef quantlib_sabr_hpp
 #define quantlib_sabr_hpp
 
-#include <ql/types.hpp>
 #include <ql/termstructures/volatility/volatilitytype.hpp>
+#include <ql/types.hpp>
 #include <array>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Real unsafeSabrLogNormalVolatility(Rate strike,
-                              Rate forward,
-                              Time expiryTime,
-                              Real alpha,
-                              Real beta,
-                              Real nu,
-                              Real rho);
+    Real
+    unsafeSabrLogNormalVolatility(Rate strike, Rate forward, Time expiryTime, Real alpha, Real beta, Real nu, Real rho);
 
     Real unsafeShiftedSabrVolatility(Rate strike,
-                              Rate forward,
-                              Time expiryTime,
-                              Real alpha,
-                              Real beta,
-                              Real nu,
-                              Real rho,
-                              Real shift,
-                              VolatilityType volatilityType = VolatilityType::ShiftedLognormal);
+                                     Rate forward,
+                                     Time expiryTime,
+                                     Real alpha,
+                                     Real beta,
+                                     Real nu,
+                                     Real rho,
+                                     Real shift,
+                                     VolatilityType volatilityType = VolatilityType::ShiftedLognormal);
 
     /* Normal SABR implemented according to
        https://www2.deloitte.com/content/dam/Deloitte/global/Documents/Financial-Services/be-aers-fsi-sabr-sensitivities.pdf
     */
-    Real unsafeSabrNormalVolatility(Rate strike,
-                                    Rate forward,
-                                    Time expiryTime,
-                                    Real alpha,
-                                    Real beta,
-                                    Real nu,
-                                    Real rho);
+    Real
+    unsafeSabrNormalVolatility(Rate strike, Rate forward, Time expiryTime, Real alpha, Real beta, Real nu, Real rho);
 
     Real unsafeSabrVolatility(Rate strike,
                               Rate forward,
@@ -94,27 +85,19 @@ namespace QuantLib {
                         VolatilityType volatilityType = VolatilityType::ShiftedLognormal);
 
     Real shiftedSabrVolatility(Rate strike,
-                                 Rate forward,
-                                 Time expiryTime,
-                                 Real alpha,
-                                 Real beta,
-                                 Real nu,
-                                 Real rho,
-                                 Real shift,
-                                 VolatilityType volatilityType = VolatilityType::ShiftedLognormal);
+                               Rate forward,
+                               Time expiryTime,
+                               Real alpha,
+                               Real beta,
+                               Real nu,
+                               Real rho,
+                               Real shift,
+                               VolatilityType volatilityType = VolatilityType::ShiftedLognormal);
 
-    Real sabrFlochKennedyVolatility(Rate strike,
-                                    Rate forward,
-                                    Time expiryTime,
-                                    Real alpha,
-                                    Real beta,
-                                    Real nu,
-                                    Real rho);
+    Real
+    sabrFlochKennedyVolatility(Rate strike, Rate forward, Time expiryTime, Real alpha, Real beta, Real nu, Real rho);
 
-    void validateSabrParameters(Real alpha,
-                                Real beta,
-                                Real nu,
-                                Real rho);
+    void validateSabrParameters(Real alpha, Real beta, Real nu, Real rho);
 
     //! Heuristic detector for the Hagan 2002 SABR unsafe regime.
     /*! Returns true when the combination of parameters is likely to
@@ -127,12 +110,7 @@ namespace QuantLib {
         `<ql/termstructures/volatility/noarbsabr.hpp>` for arbitrage-free
         pricing. Cheap to call (plain algebra, no lookup tables).
     */
-    bool sabrIsRiskyRegime(Real forward,
-                           Time expiryTime,
-                           Real alpha,
-                           Real beta,
-                           Real nu,
-                           Real rho);
+    bool sabrIsRiskyRegime(Real forward, Time expiryTime, Real alpha, Real beta, Real nu, Real rho);
 
     //! Initial guess for SABR calibration
     /*! See Fabien Le Floc’h and Gary Kennedy, "Explicit SABR Calibration through Simple Expansions",
@@ -149,9 +127,12 @@ namespace QuantLib {
         \warning This functionality requires Boost 1.78 or later.  When compiled with an earlier
                  version, calling this function will raise a run-time exception.
     */
-    std::array<Real, 4> sabrGuess(Real k_m, Volatility vol_m,
-                                  Real k_0, Volatility vol_0,
-                                  Real k_p, Volatility vol_p,
+    std::array<Real, 4> sabrGuess(Real k_m,
+                                  Volatility vol_m,
+                                  Real k_0,
+                                  Volatility vol_0,
+                                  Real k_p,
+                                  Volatility vol_p,
                                   Rate forward,
                                   Time expiryTime,
                                   Real beta,

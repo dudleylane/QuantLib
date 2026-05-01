@@ -29,12 +29,14 @@
 #include <ql/timegrid.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class DiscretizedAsset;
 
     //! %Lattice (tree, finite-differences) base class
-    class Lattice {
+    class Lattice
+    {
       public:
         explicit Lattice(TimeGrid timeGrid) : t_(std::move(timeGrid)) {}
         virtual ~Lattice() = default;
@@ -55,14 +57,12 @@ namespace QuantLib {
         */
 
         //! initialize an asset at the given time.
-        virtual void initialize(DiscretizedAsset&,
-                                Time time) const = 0;
+        virtual void initialize(DiscretizedAsset&, Time time) const = 0;
 
         /*! Roll back an asset until the given time, performing any
             needed adjustment.
         */
-        virtual void rollback(DiscretizedAsset&,
-                              Time to) const = 0;
+        virtual void rollback(DiscretizedAsset&, Time to) const = 0;
 
         /*! Roll back an asset until the given time, but do not perform
             the final adjustment.
@@ -81,8 +81,7 @@ namespace QuantLib {
                      asset->preAdjustValues();
                      \endcode
         */
-        virtual void partialRollback(DiscretizedAsset&,
-                                     Time to) const = 0;
+        virtual void partialRollback(DiscretizedAsset&, Time to) const = 0;
 
         //! computes the present value of an asset.
         virtual Real presentValue(DiscretizedAsset&) const = 0;
@@ -91,6 +90,7 @@ namespace QuantLib {
 
         // this is a smell, but we need it. We'll rethink it later.
         virtual Array grid(Time) const = 0;
+
       protected:
         TimeGrid t_;
     };

@@ -19,15 +19,18 @@
 
 #include <ql/time/calendars/hungary.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Hungary::Hungary() {
+    Hungary::Hungary()
+    {
         // all calendar instances share the same implementation instance
         static ext::shared_ptr<Calendar::Impl> impl(new Hungary::Impl);
         impl_ = impl;
     }
 
-    bool Hungary::Impl::isBusinessDay(const Date& date) const {
+    bool Hungary::Impl::isBusinessDay(const Date& date) const
+    {
         Weekday w = date.weekday();
         Day d = date.dayOfMonth(), dd = date.dayOfYear();
         Month m = date.month();
@@ -39,19 +42,19 @@ namespace QuantLib {
             // Easter Monday
             || (dd == em)
             // Whit Monday
-            || (dd == em+49)
+            || (dd == em + 49)
             // New Year's Day
-            || (d == 1  && m == January)
+            || (d == 1 && m == January)
             // National Day
-            || (d == 15  && m == March)
+            || (d == 15 && m == March)
             // Labour Day
-            || (d == 1  && m == May)
+            || (d == 1 && m == May)
             // Constitution Day
-            || (d == 20  && m == August)
+            || (d == 20 && m == August)
             // Republic Day
-            || (d == 23  && m == October)
+            || (d == 23 && m == October)
             // All Saints Day
-            || (d == 1  && m == November)
+            || (d == 1 && m == November)
             // Christmas
             || (d == 25 && m == December)
             // 2nd Day of Christmas
@@ -61,4 +64,3 @@ namespace QuantLib {
     }
 
 }
-

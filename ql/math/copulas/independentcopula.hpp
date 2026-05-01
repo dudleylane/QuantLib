@@ -27,14 +27,16 @@
 #include <ql/types.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! independent copula
-    class IndependentCopula {
+    class IndependentCopula
+    {
       public:
         Real operator()(Real x, Real y) const;
     };
-    
+
 }
 
 #endif

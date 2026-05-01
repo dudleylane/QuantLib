@@ -19,23 +19,29 @@
 
 #include <ql/time/daycounters/thirty365.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Date::serial_type Thirty365::Impl::dayCount(const Date& d1,
-                                                const Date& d2) const {
+    Date::serial_type Thirty365::Impl::dayCount(const Date& d1, const Date& d2) const
+    {
         Day dd1 = d1.dayOfMonth(), dd2 = d2.dayOfMonth();
         Integer mm1 = d1.month(), mm2 = d2.month();
         Year yy1 = d1.year(), yy2 = d2.year();
 
         // date adjustment rules as in ISO 20022
         // see https://www.iso20022.org/15022/uhb/mt565-16-field-22f.htm
-        if (dd1 == 31) { dd1 = 30; }
-        if (dd2 == 31) { dd2 = 30; }
+        if (dd1 == 31)
+        {
+            dd1 = 30;
+        }
+        if (dd2 == 31)
+        {
+            dd2 = 30;
+        }
 
-        return 360*(yy2-yy1) + 30*(mm2-mm1) + (dd2-dd1);
+        return 360 * (yy2 - yy1) + 30 * (mm2 - mm1) + (dd2 - dd1);
     }
 
-    Thirty365::Thirty365()
-    : DayCounter(ext::shared_ptr<DayCounter::Impl>(new Thirty365::Impl)) {}
+    Thirty365::Thirty365() : DayCounter(ext::shared_ptr<DayCounter::Impl>(new Thirty365::Impl)) {}
 
 }

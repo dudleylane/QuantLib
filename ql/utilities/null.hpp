@@ -27,28 +27,35 @@
 #define quantlib_null_hpp
 
 #include <ql/types.hpp>
-#include <type_traits>
 #include <limits>
+#include <type_traits>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    #ifdef QL_NULL_AS_FUNCTIONS
+#ifdef QL_NULL_AS_FUNCTIONS
 
     //! template function providing a null value for a given type.
     template <typename T>
-    constexpr T Null() {
-        if constexpr (std::is_floating_point_v<T>) {
+    constexpr T Null()
+    {
+        if constexpr (std::is_floating_point_v<T>)
+        {
             // a specific, unlikely value that should fit into any Real
             return (std::numeric_limits<float>::max)();
-        } else if constexpr (std::is_integral_v<T>) {
+        }
+        else if constexpr (std::is_integral_v<T>)
+        {
             // this should fit into any Integer
             return (std::numeric_limits<int>::max)();
-        } else {
+        }
+        else
+        {
             return T();
         }
     }
 
-    #else
+#else
 
     //! template class providing a null value for a given type.
     template <class Type>
@@ -56,23 +63,30 @@ namespace QuantLib {
 
     // default implementation for built-in types
     template <typename T>
-    class Null {
+    class Null
+    {
       public:
         constexpr Null() = default;
-        constexpr operator T() const {
-            if constexpr (std::is_floating_point_v<T>) {
+        constexpr operator T() const
+        {
+            if constexpr (std::is_floating_point_v<T>)
+            {
                 // a specific, unlikely value that should fit into any Real
                 return (std::numeric_limits<float>::max)();
-            } else if constexpr (std::is_integral_v<T>) {
+            }
+            else if constexpr (std::is_integral_v<T>)
+            {
                 // this should fit into any Integer
                 return (std::numeric_limits<int>::max)();
-            } else {
+            }
+            else
+            {
                 return T();
             }
         }
     };
 
-    #endif
+#endif
 
 }
 

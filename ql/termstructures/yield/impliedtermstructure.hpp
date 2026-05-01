@@ -29,7 +29,8 @@
 #include <ql/utilities/null.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Implied term structure at a given date in the future
     /*! The given date will be the implied reference date.
@@ -46,7 +47,8 @@ namespace QuantLib {
         - observability against changes in the underlying term
           structure is checked.
     */
-    class ImpliedTermStructure : public YieldTermStructure {
+    class ImpliedTermStructure : public YieldTermStructure
+    {
       public:
         ImpliedTermStructure(Handle<YieldTermStructure>, const Date& referenceDate);
         //! \name YieldTermStructure interface
@@ -72,31 +74,36 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline ImpliedTermStructure::ImpliedTermStructure(Handle<YieldTermStructure> h,
-                                                      const Date& referenceDate)
-    : YieldTermStructure(referenceDate), originalCurve_(std::move(h)) {
+    inline ImpliedTermStructure::ImpliedTermStructure(Handle<YieldTermStructure> h, const Date& referenceDate)
+    : YieldTermStructure(referenceDate), originalCurve_(std::move(h))
+    {
         if (!originalCurve_.empty())
             enableExtrapolation(originalCurve_->allowsExtrapolation());
         registerWith(originalCurve_);
     }
 
-    inline DayCounter ImpliedTermStructure::dayCounter() const {
+    inline DayCounter ImpliedTermStructure::dayCounter() const
+    {
         return originalCurve_->dayCounter();
     }
 
-    inline Calendar ImpliedTermStructure::calendar() const {
+    inline Calendar ImpliedTermStructure::calendar() const
+    {
         return originalCurve_->calendar();
     }
 
-    inline Natural ImpliedTermStructure::settlementDays() const {
+    inline Natural ImpliedTermStructure::settlementDays() const
+    {
         return originalCurve_->settlementDays();
     }
 
-    inline Date ImpliedTermStructure::maxDate() const {
+    inline Date ImpliedTermStructure::maxDate() const
+    {
         return originalCurve_->maxDate();
     }
 
-    inline void ImpliedTermStructure::update() {
+    inline void ImpliedTermStructure::update()
+    {
         refDf_ = Null<DiscountFactor>();
         refTime_ = Null<Time>();
         if (!originalCurve_.empty())
@@ -104,11 +111,13 @@ namespace QuantLib {
         YieldTermStructure::update();
     }
 
-    inline DiscountFactor ImpliedTermStructure::discountImpl(Time t) const {
+    inline DiscountFactor ImpliedTermStructure::discountImpl(Time t) const
+    {
         /* t is relative to the current reference date
            and needs to be converted to the time relative
            to the reference date of the original curve */
-        if (refDf_ == Null<DiscountFactor>()) {
+        if (refDf_ == Null<DiscountFactor>())
+        {
             const Date ref = referenceDate();
             refTime_ = dayCounter().yearFraction(originalCurve_->referenceDate(), ref);
             refDf_ = originalCurve_->discount(ref, true);

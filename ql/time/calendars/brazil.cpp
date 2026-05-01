@@ -18,31 +18,33 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/time/calendars/brazil.hpp>
 #include <ql/errors.hpp>
+#include <ql/time/calendars/brazil.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Brazil::Brazil(Brazil::Market market) {
+    Brazil::Brazil(Brazil::Market market)
+    {
         // all calendar instances on the same market share the same
         // implementation instance
-        static ext::shared_ptr<Calendar::Impl> settlementImpl(
-                                                  new Brazil::SettlementImpl);
-        static ext::shared_ptr<Calendar::Impl> exchangeImpl(
-                                                    new Brazil::ExchangeImpl);
-        switch (market) {
-          case Settlement:
-            impl_ = settlementImpl;
-            break;
-          case Exchange:
-            impl_ = exchangeImpl;
-            break;
-          default:
-            QL_FAIL("unknown market");
+        static ext::shared_ptr<Calendar::Impl> settlementImpl(new Brazil::SettlementImpl);
+        static ext::shared_ptr<Calendar::Impl> exchangeImpl(new Brazil::ExchangeImpl);
+        switch (market)
+        {
+            case Settlement:
+                impl_ = settlementImpl;
+                break;
+            case Exchange:
+                impl_ = exchangeImpl;
+                break;
+            default:
+                QL_FAIL("unknown market");
         }
     }
 
-    bool Brazil::SettlementImpl::isBusinessDay(const Date& date) const {
+    bool Brazil::SettlementImpl::isBusinessDay(const Date& date) const
+    {
         Weekday w = date.weekday();
         Day d = date.dayOfMonth();
         Month m = date.month();
@@ -70,17 +72,17 @@ namespace QuantLib {
             // Christmas
             || (d == 25 && m == December)
             // Passion of Christ
-            || (dd == em-3)
+            || (dd == em - 3)
             // Carnival
-            || (dd == em-49 || dd == em-48)
+            || (dd == em - 49 || dd == em - 48)
             // Corpus Christi
-            || (dd == em+59)
-            )
+            || (dd == em + 59))
             return false; // NOLINT(readability-simplify-boolean-expr)
         return true;
     }
 
-    bool Brazil::ExchangeImpl::isBusinessDay(const Date& date) const {
+    bool Brazil::ExchangeImpl::isBusinessDay(const Date& date) const
+    {
         Weekday w = date.weekday();
         Day d = date.dayOfMonth();
         Month m = date.month();
@@ -114,17 +116,15 @@ namespace QuantLib {
             // Christmas
             || (d == 25 && m == December)
             // Passion of Christ
-            || (dd == em-3)
+            || (dd == em - 3)
             // Carnival
-            || (dd == em-49 || dd == em-48)
+            || (dd == em - 49 || dd == em - 48)
             // Corpus Christi
-            || (dd == em+59)
+            || (dd == em + 59)
             // last business day of the year
-            || (m == December && (d == 31 || (d >= 29 && w == Friday)))
-            )
+            || (m == December && (d == 31 || (d >= 29 && w == Friday))))
             return false; // NOLINT(readability-simplify-boolean-expr)
         return true;
     }
 
 }
-

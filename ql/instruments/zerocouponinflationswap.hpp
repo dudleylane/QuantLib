@@ -32,7 +32,8 @@
 #include <ql/time/daycounter.hpp>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
     //! Zero-coupon inflation-indexed swap
     /*! Quoted as a fixed rate \f$ K \f$.  At start:
         \f[
@@ -65,7 +66,8 @@ namespace QuantLib {
         \note we do not need Schedules on the legs because they use
               one or two dates only per leg.
     */
-    class ZeroCouponInflationSwap : public Swap {
+    class ZeroCouponInflationSwap : public Swap
+    {
       public:
         class arguments;
         class engine;
@@ -93,24 +95,16 @@ namespace QuantLib {
         Date startDate() const override { return startDate_; }
         Date maturityDate() const override { return maturityDate_; }
         Calendar fixedCalendar() const { return fixCalendar_; }
-        BusinessDayConvention fixedConvention() const {
-            return fixConvention_;
-        }
+        BusinessDayConvention fixedConvention() const { return fixConvention_; }
         DayCounter dayCounter() const { return dayCounter_; }
         //! \f$ K \f$ in the above formula.
         Rate fixedRate() const { return fixedRate_; }
-        ext::shared_ptr<ZeroInflationIndex> inflationIndex() const {
-            return infIndex_;
-        }
+        ext::shared_ptr<ZeroInflationIndex> inflationIndex() const { return infIndex_; }
         Period observationLag() const { return observationLag_; }
-        CPI::InterpolationType observationInterpolation() const {
-            return observationInterpolation_;
-        }
+        CPI::InterpolationType observationInterpolation() const { return observationInterpolation_; }
         bool adjustObservationDates() const { return adjustInfObsDates_; }
         Calendar inflationCalendar() const { return infCalendar_; }
-        BusinessDayConvention inflationConvention() const {
-            return infConvention_;
-        }
+        BusinessDayConvention inflationConvention() const { return infConvention_; }
         //! just one cashflow (that is not a coupon) in each leg
         const Leg& fixedLeg() const;
         //! just one cashflow (that is not a coupon) in each leg
@@ -143,15 +137,17 @@ namespace QuantLib {
     };
 
 
-    class ZeroCouponInflationSwap::arguments : public Swap::arguments {
+    class ZeroCouponInflationSwap::arguments : public Swap::arguments
+    {
       public:
         Rate fixedRate;
     };
 
 
     class ZeroCouponInflationSwap::engine
-    : public GenericEngine<ZeroCouponInflationSwap::arguments,
-                           ZeroCouponInflationSwap::results> {};
+    : public GenericEngine<ZeroCouponInflationSwap::arguments, ZeroCouponInflationSwap::results>
+    {
+    };
 
 }
 

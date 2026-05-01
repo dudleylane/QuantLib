@@ -26,15 +26,21 @@
 #ifndef quantlib_implicit_euler_scheme_hpp
 #define quantlib_implicit_euler_scheme_hpp
 
-#include <ql/methods/finitedifferences/operatortraits.hpp>
 #include <ql/methods/finitedifferences/operators/fdmlinearopcomposite.hpp>
+#include <ql/methods/finitedifferences/operatortraits.hpp>
 #include <ql/methods/finitedifferences/schemes/boundaryconditionschemehelper.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class ImplicitEulerScheme {
+    class ImplicitEulerScheme
+    {
       public:
-        enum SolverType { BiCGstab, GMRES };
+        enum SolverType
+        {
+            BiCGstab,
+            GMRES
+        };
 
         // typedefs
         typedef OperatorTraits<FdmLinearOp> traits;
@@ -53,12 +59,13 @@ namespace QuantLib {
         void setStep(Time dt);
 
         Size numberOfIterations() const;
+
       protected:
         friend class CrankNicolsonScheme;
         void step(array_type& a, Time t, Real theta);
 
         Array apply(const Array& r, Real theta) const;
-          
+
         Time dt_;
         ext::shared_ptr<Size> iterations_;
 

@@ -19,52 +19,54 @@
 
 #include <ql/experimental/barrieroption/quantodoublebarrieroption.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    QuantoDoubleBarrierOption::QuantoDoubleBarrierOption(
-                        DoubleBarrier::Type barrierType,
-                        Real barrier_lo,
-                        Real barrier_hi,
-                        Real rebate,
-                        const ext::shared_ptr<StrikedTypePayoff>& payoff,
-                        const ext::shared_ptr<Exercise>& exercise)
-    : DoubleBarrierOption(barrierType, barrier_lo, barrier_hi, rebate, payoff, exercise) {}
+    QuantoDoubleBarrierOption::QuantoDoubleBarrierOption(DoubleBarrier::Type barrierType,
+                                                         Real barrier_lo,
+                                                         Real barrier_hi,
+                                                         Real rebate,
+                                                         const ext::shared_ptr<StrikedTypePayoff>& payoff,
+                                                         const ext::shared_ptr<Exercise>& exercise)
+    : DoubleBarrierOption(barrierType, barrier_lo, barrier_hi, rebate, payoff, exercise)
+    {
+    }
 
-    Real QuantoDoubleBarrierOption::qvega() const {
+    Real QuantoDoubleBarrierOption::qvega() const
+    {
         calculate();
-        QL_REQUIRE(qvega_ != Null<Real>(),
-                   "exchange rate vega calculation failed");
+        QL_REQUIRE(qvega_ != Null<Real>(), "exchange rate vega calculation failed");
         return qvega_;
     }
 
-    Real QuantoDoubleBarrierOption::qrho() const {
+    Real QuantoDoubleBarrierOption::qrho() const
+    {
         calculate();
-        QL_REQUIRE(qrho_ != Null<Real>(),
-                   "foreign interest rate rho calculation failed");
+        QL_REQUIRE(qrho_ != Null<Real>(), "foreign interest rate rho calculation failed");
         return qrho_;
     }
 
-    Real QuantoDoubleBarrierOption::qlambda() const {
+    Real QuantoDoubleBarrierOption::qlambda() const
+    {
         calculate();
-        QL_REQUIRE(qlambda_ != Null<Real>(),
-                   "quanto correlation sensitivity calculation failed");
+        QL_REQUIRE(qlambda_ != Null<Real>(), "quanto correlation sensitivity calculation failed");
         return qlambda_;
     }
 
-    void QuantoDoubleBarrierOption::setupExpired() const {
+    void QuantoDoubleBarrierOption::setupExpired() const
+    {
         DoubleBarrierOption::setupExpired();
         qvega_ = qrho_ = qlambda_ = 0.0;
     }
 
-    void QuantoDoubleBarrierOption::fetchResults(
-                                      const PricingEngine::results* r) const {
+    void QuantoDoubleBarrierOption::fetchResults(const PricingEngine::results* r) const
+    {
         DoubleBarrierOption::fetchResults(r);
         const auto* quantoResults = dynamic_cast<const QuantoDoubleBarrierOption::results*>(r);
         QL_ENSURE(quantoResults != nullptr, "no quanto results returned from pricing engine");
-        qrho_    = quantoResults->qrho;
-        qvega_   = quantoResults->qvega;
+        qrho_ = quantoResults->qrho;
+        qvega_ = quantoResults->qvega;
         qlambda_ = quantoResults->qlambda;
     }
 
 }
-

@@ -23,9 +23,11 @@
 #include <ql/math/optimization/problem.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Real LeastSquareFunction::value(const Array & x) const {
+    Real LeastSquareFunction::value(const Array& x) const
+    {
         // size of target and function to fit vectors
         Array target(lsp_.size()), fct2fit(lsp_.size());
         // compute its values
@@ -36,32 +38,19 @@ namespace QuantLib {
         return DotProduct(diff, diff);
     }
 
-    Array LeastSquareFunction::values(const Array& x) const {
+    Array LeastSquareFunction::values(const Array& x) const
+    {
         // size of target and function to fit vectors
         Array target(lsp_.size()), fct2fit(lsp_.size());
         // compute its values
         lsp_.targetAndValue(x, target, fct2fit);
         // do the difference
         Array diff = target - fct2fit;
-        return diff*diff;
+        return diff * diff;
     }
 
-    void LeastSquareFunction::gradient(Array& grad_f,
-                                       const Array& x) const {
-        // size of target and function to fit vectors
-        Array target (lsp_.size ()), fct2fit (lsp_.size ());
-        // size of gradient matrix
-        Matrix grad_fct2fit (lsp_.size (), x.size ());
-        // compute its values
-        lsp_.targetValueAndGradient(x, grad_fct2fit, target, fct2fit);
-        // do the difference
-        Array diff = target - fct2fit;
-        // compute derivative
-        grad_f = -2.0*(transpose(grad_fct2fit)*diff);
-    }
-
-    Real LeastSquareFunction::valueAndGradient(Array& grad_f,
-                                               const Array& x) const {
+    void LeastSquareFunction::gradient(Array& grad_f, const Array& x) const
+    {
         // size of target and function to fit vectors
         Array target(lsp_.size()), fct2fit(lsp_.size());
         // size of gradient matrix
@@ -71,26 +60,41 @@ namespace QuantLib {
         // do the difference
         Array diff = target - fct2fit;
         // compute derivative
-        grad_f = -2.0*(transpose(grad_fct2fit)*diff);
+        grad_f = -2.0 * (transpose(grad_fct2fit) * diff);
+    }
+
+    Real LeastSquareFunction::valueAndGradient(Array& grad_f, const Array& x) const
+    {
+        // size of target and function to fit vectors
+        Array target(lsp_.size()), fct2fit(lsp_.size());
+        // size of gradient matrix
+        Matrix grad_fct2fit(lsp_.size(), x.size());
+        // compute its values
+        lsp_.targetValueAndGradient(x, grad_fct2fit, target, fct2fit);
+        // do the difference
+        Array diff = target - fct2fit;
+        // compute derivative
+        grad_f = -2.0 * (transpose(grad_fct2fit) * diff);
         // and compute the scalar product (square of the norm)
         return DotProduct(diff, diff);
     }
 
-    NonLinearLeastSquare::NonLinearLeastSquare(Constraint& c,
-                                               Real accuracy,
-                                               Size maxiter)
-    : exitFlag_(-1), accuracy_ (accuracy), maxIterations_ (maxiter),
-      om_ (ext::shared_ptr<OptimizationMethod>(new ConjugateGradient())),
-      c_(c)
-    {}
+    NonLinearLeastSquare::NonLinearLeastSquare(Constraint& c, Real accuracy, Size maxiter)
+    : exitFlag_(-1), accuracy_(accuracy), maxIterations_(maxiter),
+      om_(ext::shared_ptr<OptimizationMethod>(new ConjugateGradient())), c_(c)
+    {
+    }
 
     NonLinearLeastSquare::NonLinearLeastSquare(Constraint& c,
                                                Real accuracy,
                                                Size maxiter,
                                                ext::shared_ptr<OptimizationMethod> om)
-    : exitFlag_(-1), accuracy_(accuracy), maxIterations_(maxiter), om_(std::move(om)), c_(c) {}
+    : exitFlag_(-1), accuracy_(accuracy), maxIterations_(maxiter), om_(std::move(om)), c_(c)
+    {
+    }
 
-    Array& NonLinearLeastSquare::perform(LeastSquareProblem& lsProblem) {
+    Array& NonLinearLeastSquare::perform(LeastSquareProblem& lsProblem)
+    {
         Real eps = accuracy_;
 
         // wrap the least square problem in an optimization function
@@ -100,9 +104,8 @@ namespace QuantLib {
         Problem P(lsf, c_, initialValue_);
 
         // minimize
-        EndCriteria ec(maxIterations_,
-            std::min(static_cast<Size>(maxIterations_/2), static_cast<Size>(100)),
-            eps, eps, eps);
+        EndCriteria ec(maxIterations_, std::min(static_cast<Size>(maxIterations_ / 2), static_cast<Size>(100)), eps,
+                       eps, eps);
         exitFlag_ = om_->minimize(P, ec);
 
         // summarize results of minimization

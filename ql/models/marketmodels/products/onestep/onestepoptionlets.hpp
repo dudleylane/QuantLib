@@ -25,16 +25,18 @@
 #include <ql/models/marketmodels/products/multiproductonestep.hpp>
 #include <ql/shared_ptr.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Payoff;
 
-    class OneStepOptionlets : public MultiProductOneStep {
+    class OneStepOptionlets : public MultiProductOneStep
+    {
       public:
         OneStepOptionlets(const std::vector<Time>& rateTimes,
                           std::vector<Real> accruals,
                           const std::vector<Time>& paymentTimes,
-                          std::vector<ext::shared_ptr<Payoff> >);
+                          std::vector<ext::shared_ptr<Payoff>>);
         //! \name MarketModelMultiProduct interface
         //@{
         std::vector<Time> possibleCashFlowTimes() const override;
@@ -43,32 +45,34 @@ namespace QuantLib {
         void reset() override;
         bool nextTimeStep(const CurveState& currentState,
                           std::vector<Size>& numberCashFlowsThisStep,
-                          std::vector<std::vector<CashFlow> >& cashFlowsGenerated) override;
+                          std::vector<std::vector<CashFlow>>& cashFlowsGenerated) override;
         std::unique_ptr<MarketModelMultiProduct> clone() const override;
         //@}
       private:
         std::vector<Real> accruals_;
         std::vector<Time> paymentTimes_;
-        std::vector<ext::shared_ptr<Payoff> > payoffs_;
+        std::vector<ext::shared_ptr<Payoff>> payoffs_;
     };
 
     // inline definitions
 
-    inline std::vector<Time>
-    OneStepOptionlets::possibleCashFlowTimes() const {
-      return paymentTimes_;
+    inline std::vector<Time> OneStepOptionlets::possibleCashFlowTimes() const
+    {
+        return paymentTimes_;
     }
 
-    inline Size OneStepOptionlets::numberOfProducts() const {
+    inline Size OneStepOptionlets::numberOfProducts() const
+    {
         return payoffs_.size();
     }
 
-    inline Size
-    OneStepOptionlets::maxNumberOfCashFlowsPerProductPerStep() const {
+    inline Size OneStepOptionlets::maxNumberOfCashFlowsPerProductPerStep() const
+    {
         return 1;
     }
 
-    inline void OneStepOptionlets::reset() {
+    inline void OneStepOptionlets::reset()
+    {
         // nothing to do
     }
 

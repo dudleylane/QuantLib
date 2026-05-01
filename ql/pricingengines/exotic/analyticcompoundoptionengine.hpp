@@ -25,10 +25,11 @@
 #define quantlib_analytic_compound_option_engine_hpp
 
 #include <ql/instruments/compoundoption.hpp>
-#include <ql/processes/blackscholesprocess.hpp>
 #include <ql/math/distributions/bivariatenormaldistribution.hpp>
+#include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Pricing engine for compound options using analytical formulae
     /*! The formulas are taken from "Foreign Exchange Risk",
@@ -39,10 +40,10 @@ namespace QuantLib {
         \test the correctness of the returned value is tested by
               reproducing results available in literature.
     */
-    class AnalyticCompoundOptionEngine : public CompoundOption::engine {
+    class AnalyticCompoundOptionEngine : public CompoundOption::engine
+    {
       public:
-        explicit AnalyticCompoundOptionEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess> process);
+        explicit AnalyticCompoundOptionEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process);
         void calculate() const override;
 
       private:

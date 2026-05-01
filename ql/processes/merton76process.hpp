@@ -29,21 +29,23 @@
 #include <ql/processes/blackscholesprocess.hpp>
 #include <ql/processes/eulerdiscretization.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Merton-76 jump-diffusion process
     /*! \ingroup processes */
-    class Merton76Process : public StochasticProcess1D {
+    class Merton76Process : public StochasticProcess1D
+    {
       public:
-        Merton76Process(const Handle<Quote>& stateVariable,
-                        const Handle<YieldTermStructure>& dividendTS,
-                        const Handle<YieldTermStructure>& riskFreeTS,
-                        const Handle<BlackVolTermStructure>& blackVolTS,
-                        Handle<Quote> jumpInt,
-                        Handle<Quote> logJMean,
-                        Handle<Quote> logJVol,
-                        const ext::shared_ptr<discretization>& d =
-                            ext::shared_ptr<discretization>(new EulerDiscretization));
+        Merton76Process(
+            const Handle<Quote>& stateVariable,
+            const Handle<YieldTermStructure>& dividendTS,
+            const Handle<YieldTermStructure>& riskFreeTS,
+            const Handle<BlackVolTermStructure>& blackVolTS,
+            Handle<Quote> jumpInt,
+            Handle<Quote> logJMean,
+            Handle<Quote> logJVol,
+            const ext::shared_ptr<discretization>& d = ext::shared_ptr<discretization>(new EulerDiscretization));
         //! \name StochasticProcess1D interface
         //@{
         Real x0() const override;

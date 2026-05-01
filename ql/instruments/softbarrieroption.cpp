@@ -18,23 +18,24 @@
 */
 
 #include <ql/exercise.hpp>
-#include <ql/instruments/softbarrieroption.hpp>
 #include <ql/instruments/impliedvolatility.hpp>
+#include <ql/instruments/softbarrieroption.hpp>
 #include <ql/pricingengines/barrier/analyticsoftbarrierengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    SoftBarrierOption::SoftBarrierOption(
-        Barrier::Type barrierType,
-        Real barrier_lo,
-        Real barrier_hi,
-        const ext::shared_ptr<StrikedTypePayoff>& payoff,
-        const ext::shared_ptr<Exercise>& exercise)
-    : OneAssetOption(payoff, exercise),
-      barrierType_(barrierType), barrier_lo_(barrier_lo),
-      barrier_hi_(barrier_hi) {}
+    SoftBarrierOption::SoftBarrierOption(Barrier::Type barrierType,
+                                         Real barrier_lo,
+                                         Real barrier_hi,
+                                         const ext::shared_ptr<StrikedTypePayoff>& payoff,
+                                         const ext::shared_ptr<Exercise>& exercise)
+    : OneAssetOption(payoff, exercise), barrierType_(barrierType), barrier_lo_(barrier_lo), barrier_hi_(barrier_hi)
+    {
+    }
 
-    void SoftBarrierOption::setupArguments(PricingEngine::arguments* args) const {
+    void SoftBarrierOption::setupArguments(PricingEngine::arguments* args) const
+    {
         OneAssetOption::setupArguments(args);
 
         auto* moreArgs = dynamic_cast<SoftBarrierOption::arguments*>(args);
@@ -44,13 +45,13 @@ namespace QuantLib {
         moreArgs->barrier_hi = barrier_hi_;
     }
 
-    Volatility SoftBarrierOption::impliedVolatility(      
-             Real targetValue,
-             const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
-             Real accuracy,
-             Size maxEvaluations,
-             Volatility minVol,
-             Volatility maxVol) const {
+    Volatility SoftBarrierOption::impliedVolatility(Real targetValue,
+                                                    const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
+                                                    Real accuracy,
+                                                    Size maxEvaluations,
+                                                    Volatility minVol,
+                                                    Volatility maxVol) const
+    {
 
         QL_REQUIRE(!isExpired(), "option expired");
 
@@ -60,28 +61,25 @@ namespace QuantLib {
             detail::ImpliedVolatilityHelper::clone(process, volQuote);
 
         std::unique_ptr<PricingEngine> engine;
-        switch (exercise_->type()) {
+        switch (exercise_->type())
+        {
             case Exercise::European:
-              engine = std::make_unique<AnalyticSoftBarrierEngine>(newProcess);
-              break;
-          case Exercise::American:
-          case Exercise::Bermudan:
-            QL_FAIL("engine not available for non-European soft barrier option");
-          default:
-            QL_FAIL("unknown exercise type");
+                engine = std::make_unique<AnalyticSoftBarrierEngine>(newProcess);
+                break;
+            case Exercise::American:
+            case Exercise::Bermudan:
+                QL_FAIL("engine not available for non-European soft barrier option");
+            default:
+                QL_FAIL("unknown exercise type");
         }
 
-        return detail::ImpliedVolatilityHelper::calculate(*this,
-                                                          *engine,
-                                                          *volQuote,
-                                                          targetValue,
-                                                          accuracy,
-                                                          maxEvaluations,
-                                                          minVol, maxVol);
+        return detail::ImpliedVolatilityHelper::calculate(*this, *engine, *volQuote, targetValue, accuracy,
+                                                          maxEvaluations, minVol, maxVol);
     }
 
     SoftBarrierOption::arguments::arguments()
-    : barrierType(Barrier::Type(-1)),
-      barrier_lo(Null<Real>()), barrier_hi(Null<Real>()) {}
+    : barrierType(Barrier::Type(-1)), barrier_lo(Null<Real>()), barrier_hi(Null<Real>())
+    {
+    }
 
 }

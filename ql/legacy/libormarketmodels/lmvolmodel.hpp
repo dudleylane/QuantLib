@@ -27,18 +27,20 @@
 #include <ql/models/parameter.hpp>
 #include <ql/utilities/null.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! caplet volatility model
-    class LmVolatilityModel {
+    class LmVolatilityModel
+    {
       public:
         LmVolatilityModel(Size size, Size nArguments);
         virtual ~LmVolatilityModel() = default;
 
         Size size() const;
 
-        std::vector<Parameter> & params();
-        void setParams(const std::vector<Parameter> & arguments);
+        std::vector<Parameter>& params();
+        void setParams(const std::vector<Parameter>& arguments);
 
         virtual Array volatility(Time t, const Array& x = {}) const = 0;
         virtual Volatility volatility(Size i, Time t, const Array& x = {}) const;
@@ -56,4 +58,3 @@ namespace QuantLib {
 
 
 #endif
-

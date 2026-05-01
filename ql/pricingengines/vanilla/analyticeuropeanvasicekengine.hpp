@@ -21,11 +21,12 @@
 #define quantlib_analytic_black_vasicek_engine_hpp
 
 #include <ql/instruments/vanillaoption.hpp>
-#include <ql/processes/blackscholesprocess.hpp>
-#include <ql/models/shortrate/onefactormodels/vasicek.hpp>
 #include <ql/math/integrals/integral.hpp>
+#include <ql/models/shortrate/onefactormodels/vasicek.hpp>
+#include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /**
      *
@@ -35,7 +36,8 @@ namespace QuantLib {
      * http://hsrm-mathematik.de/WS201516/master/option-pricing/Black-Scholes-Vasicek-Model.pdf
      */
 
-    class AnalyticBlackVasicekEngine : public VanillaOption::engine {
+    class AnalyticBlackVasicekEngine : public VanillaOption::engine
+    {
       public:
         AnalyticBlackVasicekEngine(ext::shared_ptr<GeneralizedBlackScholesProcess>,
                                    ext::shared_ptr<Vasicek>,

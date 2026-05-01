@@ -28,14 +28,15 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Turkish calendar
     /*! Holidays for the Istanbul Stock Exchange:
         (data from
          <https://borsaistanbul.com/en/sayfa/3631/official-holidays>
-		 and
-		 <https://feiertagskalender.ch/index.php?geo=3539&hl=en>):
+                 and
+                 <https://feiertagskalender.ch/index.php?geo=3539&hl=en>):
         <ul>
         <li>Saturdays</li>
         <li>Sundays</li>
@@ -51,14 +52,17 @@ namespace QuantLib {
 
         \ingroup calendars
     */
-    class Turkey : public Calendar {
+    class Turkey : public Calendar
+    {
       private:
-        class Impl final : public Calendar::Impl {
+        class Impl final : public Calendar::Impl
+        {
           public:
             std::string name() const override { return "Turkey"; }
             bool isWeekend(Weekday) const override;
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
         Turkey();
     };

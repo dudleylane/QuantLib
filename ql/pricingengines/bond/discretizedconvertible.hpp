@@ -29,9 +29,11 @@
 #include <ql/instruments/bonds/convertiblebonds.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class DiscretizedConvertible : public DiscretizedAsset {
+    class DiscretizedConvertible : public DiscretizedAsset
+    {
       public:
         DiscretizedConvertible(ConvertibleBond::arguments,
                                ext::shared_ptr<GeneralizedBlackScholesProcess> process,
@@ -41,9 +43,7 @@ namespace QuantLib {
 
         void reset(Size size) override;
 
-        const Array& conversionProbability() const {
-            return conversionProbability_;
-        }
+        const Array& conversionProbability() const { return conversionProbability_; }
         Array& conversionProbability() { return conversionProbability_; }
 
         const Array& spreadAdjustedRate() const { return spreadAdjustedRate_; }
@@ -52,14 +52,12 @@ namespace QuantLib {
         const Array& dividendValues() const { return dividendValues_; }
         Array& dividendValues() { return dividendValues_; }
 
-        std::vector<Time> mandatoryTimes() const override {
+        std::vector<Time> mandatoryTimes() const override
+        {
             std::vector<Time> result;
-            std::copy(stoppingTimes_.begin(), stoppingTimes_.end(),
-                      std::back_inserter(result));
-            std::copy(callabilityTimes_.begin(), callabilityTimes_.end(),
-                      std::back_inserter(result));
-            std::copy(couponTimes_.begin(), couponTimes_.end(),
-                      std::back_inserter(result));
+            std::copy(stoppingTimes_.begin(), stoppingTimes_.end(), std::back_inserter(result));
+            std::copy(callabilityTimes_.begin(), callabilityTimes_.end(), std::back_inserter(result));
+            std::copy(couponTimes_.begin(), couponTimes_.end(), std::back_inserter(result));
             return result;
         }
 
@@ -81,11 +79,10 @@ namespace QuantLib {
         std::vector<Time> dividendTimes_;
         Handle<Quote> creditSpread_;
         DividendSchedule dividends_;
-        std::vector<Date> dividendDates_; 
+        std::vector<Date> dividendDates_;
     };
 
 }
 
 
 #endif
-

@@ -27,28 +27,30 @@
 #include <ql/volatilitymodel.hpp>
 #include <map>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Local-estimator volatility model
     /*! Volatilities are assumed to be expressed on an annual basis.
-    */
-    class SimpleLocalEstimator :
-        public LocalVolatilityEstimator<Real> {
-    private:
+     */
+    class SimpleLocalEstimator : public LocalVolatilityEstimator<Real>
+    {
+      private:
         Real yearFraction_;
+
       public:
-        SimpleLocalEstimator(Real y) :
-        yearFraction_(y) {}
-        TimeSeries<Volatility> calculate(const TimeSeries<Real>& quoteSeries) override {
+        SimpleLocalEstimator(Real y) : yearFraction_(y) {}
+        TimeSeries<Volatility> calculate(const TimeSeries<Real>& quoteSeries) override
+        {
             TimeSeries<Volatility> retval;
             TimeSeries<Real>::const_iterator prev, next, cur, start;
             start = quoteSeries.begin();
             ++start;
-            for (cur = start; cur != quoteSeries.end(); ++cur) {
-                prev = cur; --prev;
-                retval[cur->first] =
-                    std::fabs(std::log(cur->second/prev->second))/
-                    std::sqrt(yearFraction_);
+            for (cur = start; cur != quoteSeries.end(); ++cur)
+            {
+                prev = cur;
+                --prev;
+                retval[cur->first] = std::fabs(std::log(cur->second / prev->second)) / std::sqrt(yearFraction_);
             }
             return retval;
         }

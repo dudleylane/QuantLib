@@ -28,7 +28,8 @@
 
 #include <ql/termstructures/yield/zeroyieldstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Forward-rate term structure
     /*! This abstract class acts as an adapter to YieldTermStructure allowing
@@ -47,27 +48,25 @@ namespace QuantLib {
         \deprecated Use ZeroYieldStructure instead.
                     Deprecated in version 1.42.
     */
-    class [[deprecated("Use ZeroYieldStructure instead")]] ForwardRateStructure : public ZeroYieldStructure {
+    class [[deprecated("Use ZeroYieldStructure instead")]] ForwardRateStructure : public ZeroYieldStructure
+    {
       public:
         /*! \name Constructors
             See the TermStructure documentation for issues regarding
             constructors.
         */
         //@{
-        explicit ForwardRateStructure(
-            const DayCounter& dayCounter = DayCounter());
-        explicit ForwardRateStructure(
-            const Date& referenceDate,
-            const Calendar& cal = Calendar(),
-            const DayCounter& dayCounter = DayCounter(),
-            const std::vector<Handle<Quote> >& jumps = {},
-            const std::vector<Date>& jumpDates = {});
-        ForwardRateStructure(
-            Natural settlementDays,
-            const Calendar& cal,
-            const DayCounter& dayCounter = DayCounter(),
-            const std::vector<Handle<Quote> >& jumps = {},
-            const std::vector<Date>& jumpDates = {});
+        explicit ForwardRateStructure(const DayCounter& dayCounter = DayCounter());
+        explicit ForwardRateStructure(const Date& referenceDate,
+                                      const Calendar& cal = Calendar(),
+                                      const DayCounter& dayCounter = DayCounter(),
+                                      const std::vector<Handle<Quote>>& jumps = {},
+                                      const std::vector<Date>& jumpDates = {});
+        ForwardRateStructure(Natural settlementDays,
+                             const Calendar& cal,
+                             const DayCounter& dayCounter = DayCounter(),
+                             const std::vector<Handle<Quote>>& jumps = {},
+                             const std::vector<Date>& jumpDates = {});
         //@}
       protected:
         /*! \name Calculations

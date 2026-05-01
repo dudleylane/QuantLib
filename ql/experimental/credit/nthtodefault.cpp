@@ -17,90 +17,89 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/experimental/credit/nthtodefault.hpp>
-#include <ql/experimental/credit/lossdistribution.hpp>
-#include <ql/instruments/claim.hpp>
 #include <ql/cashflows/fixedratecoupon.hpp>
-#include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/event.hpp>
 #include <ql/experimental/credit/basket.hpp>
+#include <ql/experimental/credit/lossdistribution.hpp>
+#include <ql/experimental/credit/nthtodefault.hpp>
+#include <ql/instruments/claim.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
 
-    NthToDefault::NthToDefault(
-        const ext::shared_ptr<Basket>& basket,
-        Size n,
-        Protection::Side side,
-        Schedule premiumSchedule,
-        Rate upfrontRate,
-        Rate premiumRate,
-        const DayCounter& dayCounter,
-        Real nominal,
-        bool settlePremiumAccrual
-        )
-    : basket_(basket), n_(n),
-      side_(side), nominal_(nominal),
-      premiumSchedule_(std::move(premiumSchedule)), premiumRate_(premiumRate),
-      upfrontRate_(upfrontRate),
-      dayCounter_(dayCounter), settlePremiumAccrual_(settlePremiumAccrual)
+    NthToDefault::NthToDefault(const ext::shared_ptr<Basket>& basket,
+                               Size n,
+                               Protection::Side side,
+                               Schedule premiumSchedule,
+                               Rate upfrontRate,
+                               Rate premiumRate,
+                               const DayCounter& dayCounter,
+                               Real nominal,
+                               bool settlePremiumAccrual)
+    : basket_(basket), n_(n), side_(side), nominal_(nominal), premiumSchedule_(std::move(premiumSchedule)),
+      premiumRate_(premiumRate), upfrontRate_(upfrontRate), dayCounter_(dayCounter),
+      settlePremiumAccrual_(settlePremiumAccrual)
     {
-        QL_REQUIRE(n_ <= basket_->size(),
-                   "NTD order provided is larger than the basket size.");
+        QL_REQUIRE(n_ <= basket_->size(), "NTD order provided is larger than the basket size.");
 
         // Basket inception must lie before contract protection start.
         QL_REQUIRE(basket->refDate() <= premiumSchedule_.startDate(),
-            //using the start date of the schedule might be wrong, think of the CDS rule
-            "Basket did not exist before contract start.");
+                   // using the start date of the schedule might be wrong, think of the CDS rule
+                   "Basket did not exist before contract start.");
 
         premiumLeg_ = FixedRateLeg(premiumSchedule_)
-            .withNotionals(nominal)
-            .withCouponRates(premiumRate, dayCounter)
-            .withPaymentAdjustment(Unadjusted);
+                          .withNotionals(nominal)
+                          .withCouponRates(premiumRate, dayCounter)
+                          .withPaymentAdjustment(Unadjusted);
 
         registerWith(basket_);
     }
 
 
-// SOME OF THESE ARE INLINES---------------------------------
-    Size NthToDefault::basketSize() const { return basket_->size(); }
+    // SOME OF THESE ARE INLINES---------------------------------
+    Size NthToDefault::basketSize() const
+    {
+        return basket_->size();
+    }
 
-    bool NthToDefault::isExpired() const {
+    bool NthToDefault::isExpired() const
+    {
         return detail::simple_event(premiumLeg_.back()->date()).hasOccurred();
     }
 
-    Rate NthToDefault::fairPremium() const {
+    Rate NthToDefault::fairPremium() const
+    {
         calculate();
-        QL_REQUIRE(fairPremium_ != Null<Rate>(),
-                   "fair premium not available");
+        QL_REQUIRE(fairPremium_ != Null<Rate>(), "fair premium not available");
         return fairPremium_;
     }
 
-    Real NthToDefault::premiumLegNPV() const {
+    Real NthToDefault::premiumLegNPV() const
+    {
         calculate();
-        QL_REQUIRE(premiumValue_ != Null<Rate>(),
-                   "premium leg not available");
-        QL_REQUIRE(upfrontPremiumValue_ != Null<Rate>(),
-                   "upfront value not available");
+        QL_REQUIRE(premiumValue_ != Null<Rate>(), "premium leg not available");
+        QL_REQUIRE(upfrontPremiumValue_ != Null<Rate>(), "upfront value not available");
         return premiumValue_ + upfrontPremiumValue_;
     }
 
-    Real NthToDefault::protectionLegNPV() const {
+    Real NthToDefault::protectionLegNPV() const
+    {
         calculate();
-        QL_REQUIRE(protectionValue_ != Null<Rate>(),
-                   "protection leg not available");
+        QL_REQUIRE(protectionValue_ != Null<Rate>(), "protection leg not available");
         return protectionValue_;
     }
 
-    Real NthToDefault::errorEstimate() const {
+    Real NthToDefault::errorEstimate() const
+    {
         calculate();
-        QL_REQUIRE(errorEstimate_ != Null<Rate>(),
-                   "error estimate not available");
+        QL_REQUIRE(errorEstimate_ != Null<Rate>(), "error estimate not available");
         return errorEstimate_;
-
     }
 
-    void NthToDefault::setupExpired() const {
+    void NthToDefault::setupExpired() const
+    {
         Instrument::setupExpired();
 
         premiumValue_ = 0.0;
@@ -110,7 +109,8 @@ namespace QuantLib {
         errorEstimate_ = 0.0;
     }
 
-    void NthToDefault::setupArguments(PricingEngine::arguments* args) const {
+    void NthToDefault::setupArguments(PricingEngine::arguments* args) const
+    {
         auto* arguments = dynamic_cast<NthToDefault::arguments*>(args);
         QL_REQUIRE(arguments != nullptr, "wrong argument type");
         arguments->basket = basket_;
@@ -123,7 +123,8 @@ namespace QuantLib {
         arguments->upfrontRate = upfrontRate_;
     }
 
-    void NthToDefault::fetchResults(const PricingEngine::results* r) const {
+    void NthToDefault::fetchResults(const PricingEngine::results* r) const
+    {
         Instrument::fetchResults(r);
 
         const auto* results = dynamic_cast<const NthToDefault::results*>(r);
@@ -136,7 +137,8 @@ namespace QuantLib {
         errorEstimate_ = results->errorEstimate;
     }
 
-    void NthToDefault::results::reset() {
+    void NthToDefault::results::reset()
+    {
         Instrument::results::reset();
         premiumValue = Null<Real>();
         protectionValue = Null<Real>();
@@ -146,7 +148,8 @@ namespace QuantLib {
         additionalResults.clear();
     }
 
-    void NthToDefault::arguments::validate() const {
+    void NthToDefault::arguments::validate() const
+    {
         QL_REQUIRE(basket && !basket->names().empty(), "no basket given");
         QL_REQUIRE(side != Protection::Side(-1), "side not set");
         QL_REQUIRE(premiumRate != Null<Real>(), "no premium rate given");

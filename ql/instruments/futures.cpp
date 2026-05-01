@@ -18,22 +18,25 @@ Copyright (C) 2015 Maddalena Zanzi
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/errors.hpp>
 #include <ql/instruments/futures.hpp>
 #include <ql/types.hpp>
-#include <ql/errors.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    std::ostream& operator<<(std::ostream& out, Futures::Type f) {
-        switch (f) {
-          case Futures::IMM:
-            return out << "IMM";
-          case Futures::ASX:
-            return out << "ASX";
-          case Futures::Custom:
-            return out << "Custom";
-          default:
-            return out << "Unknown(" << Integer(f) << ')';
+    std::ostream& operator<<(std::ostream& out, Futures::Type f)
+    {
+        switch (f)
+        {
+            case Futures::IMM:
+                return out << "IMM";
+            case Futures::ASX:
+                return out << "ASX";
+            case Futures::Custom:
+                return out << "Custom";
+            default:
+                return out << "Unknown(" << Integer(f) << ')';
         }
     }
 

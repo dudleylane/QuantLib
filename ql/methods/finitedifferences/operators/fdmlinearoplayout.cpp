@@ -21,67 +21,74 @@
 
 #include <ql/methods/finitedifferences/operators/fdmlinearoplayout.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Size FdmLinearOpLayout::neighbourhood(const FdmLinearOpIterator& iterator,
-                                          Size i, Integer offset) const {
-        Size myIndex = iterator.index()
-            - iterator.coordinates()[i]*spacing_[i];
+    Size FdmLinearOpLayout::neighbourhood(const FdmLinearOpIterator& iterator, Size i, Integer offset) const
+    {
+        Size myIndex = iterator.index() - iterator.coordinates()[i] * spacing_[i];
 
-        Integer coorOffset = Integer(iterator.coordinates()[i])+offset;
-        if (coorOffset < 0) {
-            coorOffset=-coorOffset;
+        Integer coorOffset = Integer(iterator.coordinates()[i]) + offset;
+        if (coorOffset < 0)
+        {
+            coorOffset = -coorOffset;
         }
-        else if (Size(coorOffset) >= dim_[i]) {
-            coorOffset = 2*(dim_[i]-1) - coorOffset;
+        else if (Size(coorOffset) >= dim_[i])
+        {
+            coorOffset = 2 * (dim_[i] - 1) - coorOffset;
         }
-        return myIndex + coorOffset*spacing_[i];
+        return myIndex + coorOffset * spacing_[i];
     }
 
-    Size FdmLinearOpLayout::neighbourhood(const FdmLinearOpIterator& iterator,
-                                          Size i1, Integer offset1,
-                                          Size i2, Integer offset2) const {
+    Size FdmLinearOpLayout::neighbourhood(
+        const FdmLinearOpIterator& iterator, Size i1, Integer offset1, Size i2, Integer offset2) const
+    {
 
-        Size myIndex = iterator.index()
-            - iterator.coordinates()[i1]*spacing_[i1]
-            - iterator.coordinates()[i2]*spacing_[i2];
+        Size myIndex =
+            iterator.index() - iterator.coordinates()[i1] * spacing_[i1] - iterator.coordinates()[i2] * spacing_[i2];
 
-        Integer coorOffset1 = Integer(iterator.coordinates()[i1])+offset1;
-        if (coorOffset1 < 0) {
-            coorOffset1=-coorOffset1;
+        Integer coorOffset1 = Integer(iterator.coordinates()[i1]) + offset1;
+        if (coorOffset1 < 0)
+        {
+            coorOffset1 = -coorOffset1;
         }
-        else if (Size(coorOffset1) >= dim_[i1]) {
-            coorOffset1 = 2*(dim_[i1]-1) - coorOffset1;
-        }
-
-        Integer coorOffset2 = Integer(iterator.coordinates()[i2])+offset2;
-        if (coorOffset2 < 0) {
-            coorOffset2=-coorOffset2;
-        }
-        else if (Size(coorOffset2) >= dim_[i2]) {
-            coorOffset2 = 2*(dim_[i2]-1) - coorOffset2;
+        else if (Size(coorOffset1) >= dim_[i1])
+        {
+            coorOffset1 = 2 * (dim_[i1] - 1) - coorOffset1;
         }
 
-        return myIndex + coorOffset1*spacing_[i1]+coorOffset2*spacing_[i2];
+        Integer coorOffset2 = Integer(iterator.coordinates()[i2]) + offset2;
+        if (coorOffset2 < 0)
+        {
+            coorOffset2 = -coorOffset2;
+        }
+        else if (Size(coorOffset2) >= dim_[i2])
+        {
+            coorOffset2 = 2 * (dim_[i2] - 1) - coorOffset2;
+        }
+
+        return myIndex + coorOffset1 * spacing_[i1] + coorOffset2 * spacing_[i2];
     }
 
     // smart but sometimes too slow
-    FdmLinearOpIterator FdmLinearOpLayout::iter_neighbourhood(
-        const FdmLinearOpIterator& iterator, Size i, Integer offset) const {
+    FdmLinearOpIterator
+    FdmLinearOpLayout::iter_neighbourhood(const FdmLinearOpIterator& iterator, Size i, Integer offset) const
+    {
 
         std::vector<Size> coordinates = iterator.coordinates();
 
-        Integer coorOffset = Integer(coordinates[i])+offset;
-        if (coorOffset < 0) {
-            coorOffset=-coorOffset;
+        Integer coorOffset = Integer(coordinates[i]) + offset;
+        if (coorOffset < 0)
+        {
+            coorOffset = -coorOffset;
         }
-        else if (Size(coorOffset) >= dim_[i]) {
-            coorOffset = 2*(dim_[i]-1) - coorOffset;
+        else if (Size(coorOffset) >= dim_[i])
+        {
+            coorOffset = 2 * (dim_[i] - 1) - coorOffset;
         }
         coordinates[i] = Size(coorOffset);
 
-        return FdmLinearOpIterator(dim_, coordinates,
-                                   index(coordinates));
+        return FdmLinearOpIterator(dim_, coordinates, index(coordinates));
     }
 
 }

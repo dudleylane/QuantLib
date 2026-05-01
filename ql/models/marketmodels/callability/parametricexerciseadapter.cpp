@@ -22,49 +22,55 @@
 #include <ql/models/marketmodels/evolutiondescription.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    ParametricExerciseAdapter::ParametricExerciseAdapter(
-        const MarketModelParametricExercise& exercise, std::vector<std::vector<Real> > parameters)
-    : exercise_(exercise), parameters_(std::move(parameters)),
-      isExerciseTime_(exercise.isExerciseTime()), numberOfVariables_(exercise.numberOfVariables()) {
-        std::vector<Time> evolutionTimes =
-            exercise_->evolution().evolutionTimes();
-        for (Size i=0; i<evolutionTimes.size(); ++i) {
+    ParametricExerciseAdapter::ParametricExerciseAdapter(const MarketModelParametricExercise& exercise,
+                                                         std::vector<std::vector<Real>> parameters)
+    : exercise_(exercise), parameters_(std::move(parameters)), isExerciseTime_(exercise.isExerciseTime()),
+      numberOfVariables_(exercise.numberOfVariables())
+    {
+        std::vector<Time> evolutionTimes = exercise_->evolution().evolutionTimes();
+        for (Size i = 0; i < evolutionTimes.size(); ++i)
+        {
             if (isExerciseTime_[i])
                 exerciseTimes_.push_back(evolutionTimes[i]);
         }
     }
 
-    std::vector<Time> ParametricExerciseAdapter::exerciseTimes() const {
+    std::vector<Time> ParametricExerciseAdapter::exerciseTimes() const
+    {
         return exerciseTimes_;
     }
 
-    std::vector<Time> ParametricExerciseAdapter::relevantTimes() const {
+    std::vector<Time> ParametricExerciseAdapter::relevantTimes() const
+    {
         return exercise_->evolution().evolutionTimes();
     }
 
-    void ParametricExerciseAdapter::reset() {
+    void ParametricExerciseAdapter::reset()
+    {
         exercise_->reset();
         currentStep_ = currentExercise_ = 0;
     }
 
-    void ParametricExerciseAdapter::nextStep(const CurveState& currentState) {
+    void ParametricExerciseAdapter::nextStep(const CurveState& currentState)
+    {
         exercise_->nextStep(currentState);
         if (isExerciseTime_[currentStep_])
             ++currentExercise_;
         ++currentStep_;
     }
 
-    bool ParametricExerciseAdapter::exercise(const CurveState& currentState) const {
-        variables_.resize(numberOfVariables_[currentExercise_-1]);
+    bool ParametricExerciseAdapter::exercise(const CurveState& currentState) const
+    {
+        variables_.resize(numberOfVariables_[currentExercise_ - 1]);
         exercise_->values(currentState, variables_);
-        return exercise_->exercise(currentExercise_-1,
-                                   parameters_[currentExercise_-1],
-                                   variables_);
+        return exercise_->exercise(currentExercise_ - 1, parameters_[currentExercise_ - 1], variables_);
     }
 
-    std::unique_ptr<ExerciseStrategy<CurveState>> ParametricExerciseAdapter::clone() const {
+    std::unique_ptr<ExerciseStrategy<CurveState>> ParametricExerciseAdapter::clone() const
+    {
         return std::unique_ptr<ExerciseStrategy<CurveState>>(new ParametricExerciseAdapter(*this));
     }
 

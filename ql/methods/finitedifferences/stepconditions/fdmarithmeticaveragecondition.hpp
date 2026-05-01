@@ -24,12 +24,14 @@
 #ifndef quantlib_fdm_arithmetic_average_condition_hpp
 #define quantlib_fdm_arithmetic_average_condition_hpp
 
-#include <ql/methods/finitedifferences/stepcondition.hpp>
 #include <ql/methods/finitedifferences/meshers/fdmmesher.hpp>
+#include <ql/methods/finitedifferences/stepcondition.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class FdmArithmeticAverageCondition : public StepCondition<Array> {
+    class FdmArithmeticAverageCondition : public StepCondition<Array>
+    {
       public:
         FdmArithmeticAverageCondition(std::vector<Time> averageTimes,
                                       Real,

@@ -4,4 +4,3 @@
 #include <ql/risk/curvebucketer.hpp>
 #include <ql/risk/frtbsagirr.hpp>
 #include <ql/risk/xvacalculator.hpp>
-

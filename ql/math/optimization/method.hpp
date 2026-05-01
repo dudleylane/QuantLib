@@ -28,18 +28,19 @@
 
 #include <ql/math/optimization/endcriteria.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Problem;
-    
+
     //! Abstract class for constrained optimization method
-    class OptimizationMethod {
+    class OptimizationMethod
+    {
       public:
         virtual ~OptimizationMethod() = default;
 
         //! minimize the optimization problem P
-        virtual EndCriteria::Type minimize(Problem& P,
-                                           const EndCriteria& endCriteria) = 0;
+        virtual EndCriteria::Type minimize(Problem& P, const EndCriteria& endCriteria) = 0;
     };
 
 }

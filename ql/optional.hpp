@@ -27,23 +27,24 @@
 #include <ql/qldefines.hpp>
 
 #if defined(QL_USE_STD_OPTIONAL)
-#include <optional>
+#    include <optional>
 #else
 // Deprecated in version 1.39
-#pragma message("Warning: using boost::optional is deprecated.  Enable std::optional instead.")
-#include <boost/optional.hpp>
+#    pragma message("Warning: using boost::optional is deprecated.  Enable std::optional instead.")
+#    include <boost/optional.hpp>
 #endif
 
-namespace QuantLib::ext {
+namespace QuantLib::ext
+{
 
-        #if defined(QL_USE_STD_OPTIONAL)
-        using std::optional;                    // NOLINT(misc-unused-using-decls)
-        inline constexpr const std::nullopt_t& nullopt = std::nullopt;
-        #else
-        using boost::optional;                  // NOLINT(misc-unused-using-decls)
-        inline constexpr const boost::none_t& nullopt = boost::none;
-        #endif
+#if defined(QL_USE_STD_OPTIONAL)
+    using std::optional; // NOLINT(misc-unused-using-decls)
+    inline constexpr const std::nullopt_t& nullopt = std::nullopt;
+#else
+    using boost::optional; // NOLINT(misc-unused-using-decls)
+    inline constexpr const boost::none_t& nullopt = boost::none;
+#endif
 
-    }
+}
 
 #endif

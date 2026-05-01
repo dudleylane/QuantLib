@@ -18,43 +18,44 @@
 */
 
 /*! \file tanhsinhintegral.hpp
-*/
+ */
 
 #ifndef quantlib_tanh_sinh_integral_hpp
 #define quantlib_tanh_sinh_integral_hpp
 
+#include <ql/math/integrals/integral.hpp>
 #include <ql/types.hpp>
 #include <ql/utilities/null.hpp>
-#include <ql/math/integrals/integral.hpp>
 
 #if BOOST_VERSION >= 106900
-#define QL_BOOST_HAS_TANH_SINH
+#    define QL_BOOST_HAS_TANH_SINH
 
-#include <boost/math/quadrature/tanh_sinh.hpp>
-#include <limits>
+#    include <boost/math/quadrature/tanh_sinh.hpp>
+#    include <limits>
 
-namespace QuantLib {
+namespace QuantLib
+{
     /*! The tanh-sinh quadrature routine provided by boost is a rapidly convergent
         numerical integration scheme for holomorphic integrands. The tolerance
         is used against the error estimate for the L1 norm of the integral.
     */
-    class TanhSinhIntegral : public Integrator {
+    class TanhSinhIntegral : public Integrator
+    {
       public:
-        TanhSinhIntegral(
-            Real relTolerance = std::sqrt(std::numeric_limits<Real>::epsilon()),
-            Size maxRefinements = 15,
-            Real minComplement = std::numeric_limits<Real>::min() * 4
-            )
-      : Integrator(QL_MAX_REAL, Null<Size>()),
-        relTolerance_(relTolerance),
-        tanh_sinh_(maxRefinements, minComplement) {}
+        TanhSinhIntegral(Real relTolerance = std::sqrt(std::numeric_limits<Real>::epsilon()),
+                         Size maxRefinements = 15,
+                         Real minComplement = std::numeric_limits<Real>::min() * 4)
+        : Integrator(QL_MAX_REAL, Null<Size>()), relTolerance_(relTolerance), tanh_sinh_(maxRefinements, minComplement)
+        {
+        }
 
       protected:
-        Real integrate(const std::function<Real(Real)>& f, Real a, Real b)
-        const override {
+        Real integrate(const std::function<Real(Real)>& f, Real a, Real b) const override
+        {
             Real error;
             Real value = tanh_sinh_.integrate(
-                [this, f](Real x)-> Real {
+                [this, f](Real x) -> Real
+                {
                     increaseNumberOfEvaluations(1);
                     return f(x);
                 },
@@ -72,17 +73,21 @@ namespace QuantLib {
 
 #else
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class TanhSinhIntegral : public Integrator {
+    class TanhSinhIntegral : public Integrator
+    {
       public:
         TanhSinhIntegral(Real relTolerance = 0, Size maxRefinements = 0, Real minComplement = 0)
-        : Integrator(Null<Real>(), Null<Size>()) {
+        : Integrator(Null<Real>(), Null<Size>())
+        {
             QL_FAIL("boost version 1.69 or higher is required in order to use TanhSinhIntegral");
         }
 
       protected:
-        Real integrate(const std::function<Real(Real)>& f, Real a, Real b) const override {
+        Real integrate(const std::function<Real(Real)>& f, Real a, Real b) const override
+        {
             QL_FAIL("boost version 1.69 or higher is required in order to use TanhSinhIntegral");
         }
     };

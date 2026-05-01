@@ -17,40 +17,38 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/models/marketmodels/discounter.hpp>
 #include <ql/models/marketmodels/curvestate.hpp>
+#include <ql/models/marketmodels/discounter.hpp>
 #include <ql/models/marketmodels/utilities.hpp>
 #include <algorithm>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    MarketModelDiscounter::MarketModelDiscounter(
-                                        Time paymentTime,
-                                        const std::vector<Time>& rateTimes) {
+    MarketModelDiscounter::MarketModelDiscounter(Time paymentTime, const std::vector<Time>& rateTimes)
+    {
         checkIncreasingTimes(rateTimes);
-        before_ = std::lower_bound(rateTimes.begin(), rateTimes.end(),
-                                   paymentTime) - rateTimes.begin();
+        before_ = std::lower_bound(rateTimes.begin(), rateTimes.end(), paymentTime) - rateTimes.begin();
 
         // handle the case where the payment is in the last
         // period or after the last period
-        if (before_ > rateTimes.size()-2)
-            before_ =  rateTimes.size()-2;
+        if (before_ > rateTimes.size() - 2)
+            before_ = rateTimes.size() - 2;
 
-        beforeWeight_=1.0-(paymentTime-rateTimes[before_])/
-            (rateTimes[before_+1]-rateTimes[before_]);
+        beforeWeight_ = 1.0 - (paymentTime - rateTimes[before_]) / (rateTimes[before_ + 1] - rateTimes[before_]);
     }
 
-    Real MarketModelDiscounter::numeraireBonds(const CurveState& curveState,
-                                               Size numeraire) const {
-        Real preDF = curveState.discountRatio(before_,numeraire);
-        if (beforeWeight_==1.0)
+    Real MarketModelDiscounter::numeraireBonds(const CurveState& curveState, Size numeraire) const
+    {
+        Real preDF = curveState.discountRatio(before_, numeraire);
+        if (beforeWeight_ == 1.0)
             return preDF;
 
-        Real postDF = curveState.discountRatio(before_+1,numeraire);
-        if (beforeWeight_==0.0)
+        Real postDF = curveState.discountRatio(before_ + 1, numeraire);
+        if (beforeWeight_ == 0.0)
             return postDF;
 
-        return std::pow(preDF,beforeWeight_)*std::pow(postDF,1.-beforeWeight_);
+        return std::pow(preDF, beforeWeight_) * std::pow(postDF, 1. - beforeWeight_);
     }
 
 }

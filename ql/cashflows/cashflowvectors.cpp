@@ -22,34 +22,34 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/cashflows/capflooredcoupon.hpp>
 #include <ql/cashflows/cashflowvectors.hpp>
 #include <ql/cashflows/fixedratecoupon.hpp>
-#include <ql/cashflows/capflooredcoupon.hpp>
 #include <ql/cashflows/rangeaccrual.hpp>
 #include <ql/indexes/iborindex.hpp>
 #include <ql/time/schedule.hpp>
 
-namespace QuantLib::detail {
+namespace QuantLib::detail
+{
 
-        Rate effectiveFixedRate(const std::vector<Spread>& spreads,
-                                const std::vector<Rate>& caps,
-                                const std::vector<Rate>& floors,
-                                Size i) {
-            Rate result = get(spreads, i, 0.0);
-            Rate floor = get(floors, i, Null<Rate>());
-            if (floor!=Null<Rate>())
-                result = std::max(floor, result);
-            Rate cap = get(caps, i, Null<Rate>());
-            if (cap!=Null<Rate>())
-                result = std::min(cap, result);
-            return result;
-        }
-
-        bool noOption(const std::vector<Rate>& caps,
-                      const std::vector<Rate>& floors,
-                      Size i) {
-            return (get(caps,   i, Null<Rate>()) == Null<Rate>()) &&
-                   (get(floors, i, Null<Rate>()) == Null<Rate>());
-        }
-
+    Rate effectiveFixedRate(const std::vector<Spread>& spreads,
+                            const std::vector<Rate>& caps,
+                            const std::vector<Rate>& floors,
+                            Size i)
+    {
+        Rate result = get(spreads, i, 0.0);
+        Rate floor = get(floors, i, Null<Rate>());
+        if (floor != Null<Rate>())
+            result = std::max(floor, result);
+        Rate cap = get(caps, i, Null<Rate>());
+        if (cap != Null<Rate>())
+            result = std::min(cap, result);
+        return result;
     }
+
+    bool noOption(const std::vector<Rate>& caps, const std::vector<Rate>& floors, Size i)
+    {
+        return (get(caps, i, Null<Rate>()) == Null<Rate>()) && (get(floors, i, Null<Rate>()) == Null<Rate>());
+    }
+
+}

@@ -28,7 +28,8 @@
 #include <ql/instruments/vanillaoption.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Analytic pricing engine for American vanilla options with digital payoff
     /*! \ingroup vanillaengines
@@ -52,13 +53,13 @@ namespace QuantLib {
           cash-or-nothing at-hit digital payoff is tested by
           reproducing numerical derivatives.
     */
-    class AnalyticDigitalAmericanEngine : public VanillaOption::engine {
+    class AnalyticDigitalAmericanEngine : public VanillaOption::engine
+    {
       public:
         AnalyticDigitalAmericanEngine(ext::shared_ptr<GeneralizedBlackScholesProcess>);
         void calculate() const override;
-        virtual bool knock_in() const {
-           return true;
-        }
+        virtual bool knock_in() const { return true; }
+
       private:
         ext::shared_ptr<GeneralizedBlackScholesProcess> process_;
     };
@@ -85,13 +86,13 @@ namespace QuantLib {
           cash-or-nothing at-hit digital payoff is tested by
           reproducing numerical derivatives.
     */
-    class AnalyticDigitalAmericanKOEngine : 
-                              public AnalyticDigitalAmericanEngine {
+    class AnalyticDigitalAmericanKOEngine : public AnalyticDigitalAmericanEngine
+    {
       public:
-        AnalyticDigitalAmericanKOEngine(
-                    const ext::shared_ptr<GeneralizedBlackScholesProcess> 
-                                 &engine):
-        AnalyticDigitalAmericanEngine(engine) {}
+        AnalyticDigitalAmericanKOEngine(const ext::shared_ptr<GeneralizedBlackScholesProcess>& engine)
+        : AnalyticDigitalAmericanEngine(engine)
+        {
+        }
         bool knock_in() const override { return false; }
     };
 

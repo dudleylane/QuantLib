@@ -25,17 +25,18 @@
 #ifndef quantlib_simple_cash_flow_hpp
 #define quantlib_simple_cash_flow_hpp
 
-#include <ql/patterns/visitor.hpp>
 #include <ql/cashflow.hpp>
+#include <ql/patterns/visitor.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Predetermined cash flow
     /*! This cash flow pays a predetermined amount at a given date. */
-    class SimpleCashFlow : public CashFlow {
+    class SimpleCashFlow : public CashFlow
+    {
       public:
-        SimpleCashFlow(Real amount,
-                       const Date& date);
+        SimpleCashFlow(Real amount, const Date& date);
         //! \name Event interface
         //@{
         Date date() const override { return date_; }
@@ -58,11 +59,10 @@ namespace QuantLib {
     /*! This class specializes SimpleCashFlow so that visitors
         can perform more detailed cash-flow analysis.
     */
-    class Redemption : public SimpleCashFlow {
+    class Redemption : public SimpleCashFlow
+    {
       public:
-        Redemption(Real amount,
-                   const Date& date)
-        : SimpleCashFlow(amount, date) {}
+        Redemption(Real amount, const Date& date) : SimpleCashFlow(amount, date) {}
         //! \name Visitability
         //@{
         void accept(AcyclicVisitor&) override;
@@ -73,11 +73,10 @@ namespace QuantLib {
     /*! This class specializes SimpleCashFlow so that visitors
         can perform more detailed cash-flow analysis.
     */
-    class AmortizingPayment : public SimpleCashFlow {
+    class AmortizingPayment : public SimpleCashFlow
+    {
       public:
-        AmortizingPayment(Real amount,
-                          const Date& date)
-        : SimpleCashFlow(amount, date) {}
+        AmortizingPayment(Real amount, const Date& date) : SimpleCashFlow(amount, date) {}
         //! \name Visitability
         //@{
         void accept(AcyclicVisitor&) override;
@@ -87,7 +86,8 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline void SimpleCashFlow::accept(AcyclicVisitor& v) {
+    inline void SimpleCashFlow::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<SimpleCashFlow>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);
@@ -95,7 +95,8 @@ namespace QuantLib {
             CashFlow::accept(v);
     }
 
-    inline void Redemption::accept(AcyclicVisitor& v) {
+    inline void Redemption::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<Redemption>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);
@@ -103,7 +104,8 @@ namespace QuantLib {
             SimpleCashFlow::accept(v);
     }
 
-    inline void AmortizingPayment::accept(AcyclicVisitor& v) {
+    inline void AmortizingPayment::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<AmortizingPayment>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);

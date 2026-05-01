@@ -27,7 +27,8 @@
 
 #include <ql/time/daycounter.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! 30/360 day count convention
     /*! The 30/360 day count can be calculated according to a
@@ -73,9 +74,11 @@ namespace QuantLib {
 
         \ingroup daycounters
     */
-    class Thirty360 : public DayCounter {
+    class Thirty360 : public DayCounter
+    {
       public:
-        enum Convention {
+        enum Convention
+        {
             USA,
             BondBasis,
             European,
@@ -86,53 +89,63 @@ namespace QuantLib {
             ISDA,
             NASD
         };
+
       private:
-        class Thirty360_Impl : public DayCounter::Impl {
+        class Thirty360_Impl : public DayCounter::Impl
+        {
           public:
-            Time yearFraction(const Date& d1, const Date& d2,
-                              const Date&, const Date&) const override {
-                return dayCount(d1,d2)/360.0;
+            Time yearFraction(const Date& d1, const Date& d2, const Date&, const Date&) const override
+            {
+                return dayCount(d1, d2) / 360.0;
             }
         };
-        class US_Impl final : public Thirty360_Impl {
+        class US_Impl final : public Thirty360_Impl
+        {
           public:
             std::string name() const override { return std::string("30/360 (US)"); }
             Date::serial_type dayCount(const Date& d1, const Date& d2) const override;
         };
-        class ISMA_Impl final : public Thirty360_Impl {
+        class ISMA_Impl final : public Thirty360_Impl
+        {
           public:
             std::string name() const override { return std::string("30/360 (Bond Basis)"); }
             Date::serial_type dayCount(const Date& d1, const Date& d2) const override;
         };
-        class EU_Impl final : public Thirty360_Impl {
+        class EU_Impl final : public Thirty360_Impl
+        {
           public:
             std::string name() const override { return std::string("30E/360 (Eurobond Basis)"); }
             Date::serial_type dayCount(const Date& d1, const Date& d2) const override;
         };
-        class IT_Impl final : public Thirty360_Impl {
+        class IT_Impl final : public Thirty360_Impl
+        {
           public:
             std::string name() const override { return std::string("30/360 (Italian)"); }
             Date::serial_type dayCount(const Date& d1, const Date& d2) const override;
         };
-        class ISDA_Impl final : public Thirty360_Impl {
+        class ISDA_Impl final : public Thirty360_Impl
+        {
           public:
-            explicit ISDA_Impl(const Date& terminationDate)
-            : terminationDate_(terminationDate) {}
+            explicit ISDA_Impl(const Date& terminationDate) : terminationDate_(terminationDate) {}
             std::string name() const override { return std::string("30E/360 (ISDA)"); }
             Date::serial_type dayCount(const Date& d1, const Date& d2) const override;
+
           private:
             Date terminationDate_;
         };
-        class NASD_Impl final : public Thirty360_Impl {
+        class NASD_Impl final : public Thirty360_Impl
+        {
           public:
             std::string name() const override { return std::string("30/360 (NASD)"); }
             Date::serial_type dayCount(const Date& d1, const Date& d2) const override;
         };
-        static ext::shared_ptr<DayCounter::Impl>
-        implementation(Convention c, const Date& terminationDate);
+        static ext::shared_ptr<DayCounter::Impl> implementation(Convention c, const Date& terminationDate);
+
       public:
         explicit Thirty360(Convention c, const Date& terminationDate = Date())
-        : DayCounter(implementation(c, terminationDate)) {}
+        : DayCounter(implementation(c, terminationDate))
+        {
+        }
     };
 
 }

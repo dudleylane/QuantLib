@@ -25,12 +25,13 @@
 #ifndef quantlib_swaption_calibration_helper_hpp
 #define quantlib_swaption_calibration_helper_hpp
 
-#include <ql/models/calibrationhelper.hpp>
-#include <ql/instruments/swaption.hpp>
-#include <ql/termstructures/volatility/volatilitytype.hpp>
 #include <ql/cashflows/rateaveraging.hpp>
+#include <ql/instruments/swaption.hpp>
+#include <ql/models/calibrationhelper.hpp>
+#include <ql/termstructures/volatility/volatilitytype.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! calibration helper for interest-rate swaptions
     /*! \warning passing an overnight index to the constructor will
@@ -39,7 +40,8 @@ namespace QuantLib {
                  This is at best a decent proxy, at worst simply wrong.
                  Use with caution.
     */
-    class SwaptionHelper : public BlackCalibrationHelper {
+    class SwaptionHelper : public BlackCalibrationHelper
+    {
       public:
         SwaptionHelper(const Period& maturity,
                        const Period& length,
@@ -93,18 +95,21 @@ namespace QuantLib {
         Real modelValue() const override;
         Real blackPrice(Volatility volatility) const override;
 
-        const ext::shared_ptr<FixedVsFloatingSwap>& underlying() const {
+        const ext::shared_ptr<FixedVsFloatingSwap>& underlying() const
+        {
             calculate();
             return swap_;
         }
-        ext::shared_ptr<Swaption> swaption() const { calculate(); return swaption_; }
+        ext::shared_ptr<Swaption> swaption() const
+        {
+            calculate();
+            return swaption_;
+        }
 
       private:
         void performCalculations() const override;
-        ext::shared_ptr<FixedVsFloatingSwap> makeSwap(Schedule fixedSchedule,
-                                                      Schedule floatSchedule,
-                                                      Rate exerciseRate,
-                                                      Swap::Type type) const;
+        ext::shared_ptr<FixedVsFloatingSwap>
+        makeSwap(Schedule fixedSchedule, Schedule floatSchedule, Rate exerciseRate, Swap::Type type) const;
         mutable Date exerciseDate_, endDate_;
         const Period maturity_, length_, fixedLegTenor_;
         const ext::shared_ptr<IborIndex> index_;

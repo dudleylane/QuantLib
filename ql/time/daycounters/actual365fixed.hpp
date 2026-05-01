@@ -28,7 +28,8 @@
 
 #include <ql/time/daycounter.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Actual/365 (Fixed) day count convention
     /*! "Actual/365 (Fixed)" day count convention, also know as
@@ -42,32 +43,38 @@ namespace QuantLib {
 
         \ingroup daycounters
     */
-    class Actual365Fixed : public DayCounter {
+    class Actual365Fixed : public DayCounter
+    {
       public:
-        enum Convention { Standard, Canadian, NoLeap };
-        explicit Actual365Fixed(Convention c = Actual365Fixed::Standard)
-        : DayCounter(implementation(c)) {}
+        enum Convention
+        {
+            Standard,
+            Canadian,
+            NoLeap
+        };
+        explicit Actual365Fixed(Convention c = Actual365Fixed::Standard) : DayCounter(implementation(c)) {}
 
       private:
-        class Impl final : public DayCounter::Impl {
+        class Impl final : public DayCounter::Impl
+        {
           public:
             std::string name() const override { return std::string("Actual/365 (Fixed)"); }
-            Time
-            yearFraction(const Date& d1, const Date& d2, const Date&, const Date&) const override {
-                return daysBetween(d1,d2)/365.0;
+            Time yearFraction(const Date& d1, const Date& d2, const Date&, const Date&) const override
+            {
+                return daysBetween(d1, d2) / 365.0;
             }
         };
-        class CA_Impl final : public DayCounter::Impl {
+        class CA_Impl final : public DayCounter::Impl
+        {
           public:
-            std::string name() const override {
-                return std::string("Actual/365 (Fixed) Canadian Bond");
-            }
+            std::string name() const override { return std::string("Actual/365 (Fixed) Canadian Bond"); }
             Time yearFraction(const Date& d1,
                               const Date& d2,
                               const Date& refPeriodStart,
                               const Date& refPeriodEnd) const override;
         };
-        class NL_Impl final : public DayCounter::Impl {
+        class NL_Impl final : public DayCounter::Impl
+        {
           public:
             std::string name() const override { return std::string("Actual/365 (No Leap)"); }
             Date::serial_type dayCount(const Date& d1, const Date& d2) const override;

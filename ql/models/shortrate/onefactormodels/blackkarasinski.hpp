@@ -28,7 +28,8 @@
 #include <ql/processes/ornsteinuhlenbeckprocess.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Standard Black-Karasinski model class.
     /*! This class implements the standard Black-Karasinski model defined by
@@ -39,11 +40,10 @@ namespace QuantLib {
 
         \ingroup shortrate
     */
-    class BlackKarasinski : public OneFactorModel,
-                            public TermStructureConsistentModel {
+    class BlackKarasinski : public OneFactorModel, public TermStructureConsistentModel
+    {
       public:
-        BlackKarasinski(const Handle<YieldTermStructure>& termStructure,
-                        Real a = 0.1, Real sigma = 0.1);
+        BlackKarasinski(const Handle<YieldTermStructure>& termStructure, Real a = 0.1, Real sigma = 0.1);
 
         ext::shared_ptr<ShortRateDynamics> dynamics() const override;
 
@@ -71,13 +71,14 @@ namespace QuantLib {
          used for term-structure fitting and \f$ x_t \f$ is the state
          variable following an Ornstein-Uhlenbeck process.
     */
-    class BlackKarasinski::Dynamics
-        : public BlackKarasinski::ShortRateDynamics {
+    class BlackKarasinski::Dynamics : public BlackKarasinski::ShortRateDynamics
+    {
       public:
         Dynamics(Parameter fitting, Real alpha, Real sigma)
-        : ShortRateDynamics(
-              ext::shared_ptr<StochasticProcess1D>(new OrnsteinUhlenbeckProcess(alpha, sigma))),
-          fitting_(std::move(fitting)) {}
+        : ShortRateDynamics(ext::shared_ptr<StochasticProcess1D>(new OrnsteinUhlenbeckProcess(alpha, sigma))),
+          fitting_(std::move(fitting))
+        {
+        }
 
         Real variable(Time t, Rate r) const override { return std::log(r) - fitting_(t); }
 
@@ -90,4 +91,3 @@ namespace QuantLib {
 }
 
 #endif
-

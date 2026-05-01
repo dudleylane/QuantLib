@@ -17,11 +17,12 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/models/marketmodels/products/pathwise/pathwiseproductswaption.hpp>
 #include <ql/models/marketmodels/curvestate.hpp>
+#include <ql/models/marketmodels/products/pathwise/pathwiseproductswaption.hpp>
 #include <ql/models/marketmodels/utilities.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
 
     bool MarketModelPathwiseCoterminalSwaptionsDeflated::alreadyDeflated() const
@@ -29,76 +30,71 @@ namespace QuantLib {
         return false;
     }
 
-    MarketModelPathwiseCoterminalSwaptionsDeflated::MarketModelPathwiseCoterminalSwaptionsDeflated(const std::vector<Time>& rateTimes,
-                        const std::vector<Rate>& strikes)
-    : rateTimes_(rateTimes), 
-      strikes_(strikes) ,
-      numberRates_(rateTimes.size()-1)
+    MarketModelPathwiseCoterminalSwaptionsDeflated::MarketModelPathwiseCoterminalSwaptionsDeflated(
+        const std::vector<Time>& rateTimes, const std::vector<Rate>& strikes)
+    : rateTimes_(rateTimes), strikes_(strikes), numberRates_(rateTimes.size() - 1)
     {
         checkIncreasingTimes(rateTimes);
         std::vector<Time> evolTimes(rateTimes_);
         evolTimes.pop_back();
 
-        QL_REQUIRE(evolTimes.size()==numberRates_,
-                   "rateTimes.size()<> numberOfRates+1");
+        QL_REQUIRE(evolTimes.size() == numberRates_, "rateTimes.size()<> numberOfRates+1");
 
-        QL_REQUIRE(strikes.size()==numberRates_,
-                   "strikes.size()<> numberOfRates");
+        QL_REQUIRE(strikes.size() == numberRates_, "strikes.size()<> numberOfRates");
 
 
-        evolution_ = EvolutionDescription(rateTimes,evolTimes);
-
+        evolution_ = EvolutionDescription(rateTimes, evolTimes);
     }
 
     bool MarketModelPathwiseCoterminalSwaptionsDeflated::nextTimeStep(
-            const CurveState& currentState,
-            std::vector<Size>& numberCashFlowsThisStep,
-            std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow> >& cashFlowsGenerated) 
+        const CurveState& currentState,
+        std::vector<Size>& numberCashFlowsThisStep,
+        std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow>>& cashFlowsGenerated)
     {
         Rate swapRate = currentState.coterminalSwapRate(currentIndex_);
         cashFlowsGenerated[currentIndex_][0].timeIndex = currentIndex_;
 
-        Real annuity = currentState.coterminalSwapAnnuity(currentIndex_,currentIndex_);
-        cashFlowsGenerated[currentIndex_][0].amount[0] =
-            (swapRate-strikes_[currentIndex_])*annuity;
-        
-        std::fill(numberCashFlowsThisStep.begin(),
-                  numberCashFlowsThisStep.end(),0);
+        Real annuity = currentState.coterminalSwapAnnuity(currentIndex_, currentIndex_);
+        cashFlowsGenerated[currentIndex_][0].amount[0] = (swapRate - strikes_[currentIndex_]) * annuity;
 
-        if (  cashFlowsGenerated[currentIndex_][0].amount[0]  >0)
+        std::fill(numberCashFlowsThisStep.begin(), numberCashFlowsThisStep.end(), 0);
+
+        if (cashFlowsGenerated[currentIndex_][0].amount[0] > 0)
         {
             numberCashFlowsThisStep[currentIndex_] = 1;
-            for (Size i=1; i <= numberRates_; ++i)
-                cashFlowsGenerated[currentIndex_][0].amount[i] =0;
-            
-            for (Size k=currentIndex_; k < numberRates_; ++k)
+            for (Size i = 1; i <= numberRates_; ++i)
+                cashFlowsGenerated[currentIndex_][0].amount[i] = 0;
+
+            for (Size k = currentIndex_; k < numberRates_; ++k)
             {
-              cashFlowsGenerated[currentIndex_][0].amount[k+1]  = (rateTimes_[k+1]-rateTimes_[k])*currentState.discountRatio(k+1,currentIndex_); 
+                cashFlowsGenerated[currentIndex_][0].amount[k + 1] =
+                    (rateTimes_[k + 1] - rateTimes_[k]) * currentState.discountRatio(k + 1, currentIndex_);
 
-              Real multiplier = - (rateTimes_[k+1]-rateTimes_[k])*currentState.discountRatio(k+1,k);
+                Real multiplier = -(rateTimes_[k + 1] - rateTimes_[k]) * currentState.discountRatio(k + 1, k);
 
-              for (Size l=k; l < numberRates_; ++l)
-                 cashFlowsGenerated[currentIndex_][0].amount[k+1]  +=(currentState.forwardRate(l)-strikes_[currentIndex_])*(rateTimes_[l+1]-rateTimes_[l])
-                                                                    * multiplier*currentState.discountRatio(l+1,currentIndex_);
+                for (Size l = k; l < numberRates_; ++l)
+                    cashFlowsGenerated[currentIndex_][0].amount[k + 1] +=
+                        (currentState.forwardRate(l) - strikes_[currentIndex_]) * (rateTimes_[l + 1] - rateTimes_[l]) *
+                        multiplier * currentState.discountRatio(l + 1, currentIndex_);
             }
         }
         ++currentIndex_;
         return (currentIndex_ == strikes_.size());
     }
 
-    std::unique_ptr<MarketModelPathwiseMultiProduct>
-    MarketModelPathwiseCoterminalSwaptionsDeflated::clone() const 
+    std::unique_ptr<MarketModelPathwiseMultiProduct> MarketModelPathwiseCoterminalSwaptionsDeflated::clone() const
     {
-        return std::unique_ptr<MarketModelPathwiseMultiProduct>(new MarketModelPathwiseCoterminalSwaptionsDeflated(*this));
+        return std::unique_ptr<MarketModelPathwiseMultiProduct>(
+            new MarketModelPathwiseCoterminalSwaptionsDeflated(*this));
     }
 
     std::vector<Size> MarketModelPathwiseCoterminalSwaptionsDeflated::suggestedNumeraires() const
     {
-            std::vector<Size> numeraires(numberRates_);
-            for (Size i=0; i < numberRates_; ++i)
-                numeraires[i] = i;
+        std::vector<Size> numeraires(numberRates_);
+        for (Size i = 0; i < numberRates_; ++i)
+            numeraires[i] = i;
 
-            return numeraires;
+        return numeraires;
     }
 
     const EvolutionDescription& MarketModelPathwiseCoterminalSwaptionsDeflated::evolution() const
@@ -113,22 +109,21 @@ namespace QuantLib {
 
     Size MarketModelPathwiseCoterminalSwaptionsDeflated::numberOfProducts() const
     {
-           return numberRates_;
+        return numberRates_;
     }
-    
+
     Size MarketModelPathwiseCoterminalSwaptionsDeflated::maxNumberOfCashFlowsPerProductPerStep() const
     {
         return 1;
-
     }
-    
+
     void MarketModelPathwiseCoterminalSwaptionsDeflated::reset()
     {
-        currentIndex_=0;
+        currentIndex_ = 0;
     }
 
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
     bool MarketModelPathwiseCoterminalSwaptionsNumericalDeflated::alreadyDeflated() const
@@ -136,71 +131,63 @@ namespace QuantLib {
         return false;
     }
 
-    MarketModelPathwiseCoterminalSwaptionsNumericalDeflated::MarketModelPathwiseCoterminalSwaptionsNumericalDeflated(const std::vector<Time>& rateTimes,
-                                                                const std::vector<Rate>& strikes, 
-                                                                Real bumpSize)
-    : rateTimes_(rateTimes), 
-      strikes_(strikes) ,
-      numberRates_(rateTimes.size()-1), bumpSize_(bumpSize), up_(rateTimes), down_(rateTimes), forwards_(numberRates_)
+    MarketModelPathwiseCoterminalSwaptionsNumericalDeflated::MarketModelPathwiseCoterminalSwaptionsNumericalDeflated(
+        const std::vector<Time>& rateTimes, const std::vector<Rate>& strikes, Real bumpSize)
+    : rateTimes_(rateTimes), strikes_(strikes), numberRates_(rateTimes.size() - 1), bumpSize_(bumpSize), up_(rateTimes),
+      down_(rateTimes), forwards_(numberRates_)
     {
         checkIncreasingTimes(rateTimes);
         std::vector<Time> evolTimes(rateTimes_);
         evolTimes.pop_back();
 
-        QL_REQUIRE(evolTimes.size()==numberRates_,
-                   "rateTimes.size()<> numberOfRates+1");
+        QL_REQUIRE(evolTimes.size() == numberRates_, "rateTimes.size()<> numberOfRates+1");
 
-        QL_REQUIRE(strikes.size()==numberRates_,
-                   "strikes.size()<> numberOfRates");
+        QL_REQUIRE(strikes.size() == numberRates_, "strikes.size()<> numberOfRates");
 
 
-        evolution_ = EvolutionDescription(rateTimes,evolTimes);
-
+        evolution_ = EvolutionDescription(rateTimes, evolTimes);
     }
 
     bool MarketModelPathwiseCoterminalSwaptionsNumericalDeflated::nextTimeStep(
-            const CurveState& currentState,
-            std::vector<Size>& numberCashFlowsThisStep,
-            std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow> >& cashFlowsGenerated) 
+        const CurveState& currentState,
+        std::vector<Size>& numberCashFlowsThisStep,
+        std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow>>& cashFlowsGenerated)
     {
         Rate swapRate = currentState.coterminalSwapRate(currentIndex_);
         cashFlowsGenerated[currentIndex_][0].timeIndex = currentIndex_;
 
-        Real annuity = currentState.coterminalSwapAnnuity(currentIndex_,currentIndex_);
-        cashFlowsGenerated[currentIndex_][0].amount[0] =
-            (swapRate-strikes_[currentIndex_])*annuity;
-        
-        std::fill(numberCashFlowsThisStep.begin(),
-                  numberCashFlowsThisStep.end(),0);
+        Real annuity = currentState.coterminalSwapAnnuity(currentIndex_, currentIndex_);
+        cashFlowsGenerated[currentIndex_][0].amount[0] = (swapRate - strikes_[currentIndex_]) * annuity;
 
-        if (  cashFlowsGenerated[currentIndex_][0].amount[0]  >0)
+        std::fill(numberCashFlowsThisStep.begin(), numberCashFlowsThisStep.end(), 0);
+
+        if (cashFlowsGenerated[currentIndex_][0].amount[0] > 0)
         {
             numberCashFlowsThisStep[currentIndex_] = 1;
-            for (Size i=1; i <= numberRates_; ++i)
-                cashFlowsGenerated[currentIndex_][0].amount[i] =0;
-            
-            for (Size k=currentIndex_; k < numberRates_; ++k)
+            for (Size i = 1; i <= numberRates_; ++i)
+                cashFlowsGenerated[currentIndex_][0].amount[i] = 0;
+
+            for (Size k = currentIndex_; k < numberRates_; ++k)
             {
                 forwards_ = currentState.forwardRates();
                 forwards_[k] += bumpSize_;
                 up_.setOnForwardRates(forwards_);
-    
+
                 forwards_[k] -= bumpSize_;
                 forwards_[k] -= bumpSize_;
                 down_.setOnForwardRates(forwards_);
 
                 Real upSR = up_.coterminalSwapRate(currentIndex_);
-                Real upAnnuity = up_.coterminalSwapAnnuity(currentIndex_,currentIndex_);
-                Real upValue = (upSR -  strikes_[currentIndex_])*  upAnnuity;
+                Real upAnnuity = up_.coterminalSwapAnnuity(currentIndex_, currentIndex_);
+                Real upValue = (upSR - strikes_[currentIndex_]) * upAnnuity;
 
                 Real downSR = down_.coterminalSwapRate(currentIndex_);
-                Real downAnnuity = down_.coterminalSwapAnnuity(currentIndex_,currentIndex_);
-                Real downValue = (downSR -  strikes_[currentIndex_])*  downAnnuity;
+                Real downAnnuity = down_.coterminalSwapAnnuity(currentIndex_, currentIndex_);
+                Real downValue = (downSR - strikes_[currentIndex_]) * downAnnuity;
 
-                Real deriv = (upValue - downValue)/(2.0*bumpSize_);
+                Real deriv = (upValue - downValue) / (2.0 * bumpSize_);
 
-                cashFlowsGenerated[currentIndex_][0].amount[k+1]  = deriv; 
-            
+                cashFlowsGenerated[currentIndex_][0].amount[k + 1] = deriv;
             }
         }
         ++currentIndex_;
@@ -208,19 +195,19 @@ namespace QuantLib {
     }
 
     std::unique_ptr<MarketModelPathwiseMultiProduct>
-    MarketModelPathwiseCoterminalSwaptionsNumericalDeflated::clone() const 
+    MarketModelPathwiseCoterminalSwaptionsNumericalDeflated::clone() const
     {
         return std::unique_ptr<MarketModelPathwiseMultiProduct>(
-          new MarketModelPathwiseCoterminalSwaptionsNumericalDeflated(*this));
+            new MarketModelPathwiseCoterminalSwaptionsNumericalDeflated(*this));
     }
 
     std::vector<Size> MarketModelPathwiseCoterminalSwaptionsNumericalDeflated::suggestedNumeraires() const
     {
-            std::vector<Size> numeraires(numberRates_);
-            for (Size i=0; i < numberRates_; ++i)
-                numeraires[i] = i;
+        std::vector<Size> numeraires(numberRates_);
+        for (Size i = 0; i < numberRates_; ++i)
+            numeraires[i] = i;
 
-            return numeraires;
+        return numeraires;
     }
 
     const EvolutionDescription& MarketModelPathwiseCoterminalSwaptionsNumericalDeflated::evolution() const
@@ -235,20 +222,18 @@ namespace QuantLib {
 
     Size MarketModelPathwiseCoterminalSwaptionsNumericalDeflated::numberOfProducts() const
     {
-           return numberRates_;
+        return numberRates_;
     }
-    
+
     Size MarketModelPathwiseCoterminalSwaptionsNumericalDeflated::maxNumberOfCashFlowsPerProductPerStep() const
     {
         return 1;
-
     }
-    
+
     void MarketModelPathwiseCoterminalSwaptionsNumericalDeflated::reset()
     {
-        currentIndex_=0;
+        currentIndex_ = 0;
     }
 
 
 }
-

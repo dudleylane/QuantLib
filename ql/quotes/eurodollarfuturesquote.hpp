@@ -25,15 +25,16 @@
 #ifndef quantlib_eurodollar_futures_quote_hpp
 #define quantlib_eurodollar_futures_quote_hpp
 
-#include <ql/quote.hpp>
 #include <ql/handle.hpp>
 #include <ql/patterns/lazyobject.hpp>
+#include <ql/quote.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %quote for the Eurodollar-future implied standard deviation
-    class EurodollarFuturesImpliedStdDevQuote : public Quote,
-                                                public LazyObject {
+    class EurodollarFuturesImpliedStdDevQuote : public Quote, public LazyObject
+    {
       public:
         EurodollarFuturesImpliedStdDevQuote(Handle<Quote> forward,
                                             Handle<Quote> callPrice,

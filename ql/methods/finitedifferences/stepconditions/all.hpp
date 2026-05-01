@@ -8,4 +8,3 @@
 #include <ql/methods/finitedifferences/stepconditions/fdmsimpleswingcondition.hpp>
 #include <ql/methods/finitedifferences/stepconditions/fdmsnapshotcondition.hpp>
 #include <ql/methods/finitedifferences/stepconditions/fdmstepconditioncomposite.hpp>
-

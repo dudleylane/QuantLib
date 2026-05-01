@@ -24,10 +24,11 @@
 #ifndef quantlib_piecewise_time_dependent_heston_model_hpp
 #define quantlib_piecewise_time_dependent_heston_model_hpp
 
-#include <ql/timegrid.hpp>
 #include <ql/models/model.hpp>
+#include <ql/timegrid.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Piecewise time dependent Heston model
     /*! References:
@@ -36,12 +37,13 @@ namespace QuantLib {
         with Stochastic Volatility with Applications to Bond and
         Currency Options.  The review of Financial Studies, Volume 6,
         Issue 2, 327-343.
-        
-        A. Elices, Models with time-dependent parameters using 
+
+        A. Elices, Models with time-dependent parameters using
         transform methods: application to Heston’s model,
         http://arxiv.org/pdf/0708.2020
     */
-    class PiecewiseTimeDependentHestonModel : public CalibratedModel {
+    class PiecewiseTimeDependentHestonModel : public CalibratedModel
+    {
       public:
         PiecewiseTimeDependentHestonModel(const Handle<YieldTermStructure>& riskFreeRate,
                                           const Handle<YieldTermStructure>& dividendYield,
@@ -60,17 +62,17 @@ namespace QuantLib {
         // volatility of the volatility
         Real sigma(Time t) const { return arguments_[2](t); }
         // correlation
-        Real rho(Time t)   const { return arguments_[3](t); }
+        Real rho(Time t) const { return arguments_[3](t); }
         // spot variance
-        Real v0()          const { return arguments_[4](0.0); }
+        Real v0() const { return arguments_[4](0.0); }
         // spot
-        Real s0()          const { return s0_->value(); }
+        Real s0() const { return s0_->value(); }
 
-        
+
         const TimeGrid& timeGrid() const;
         const Handle<YieldTermStructure>& dividendYield() const;
         const Handle<YieldTermStructure>& riskFreeRate() const;
-        
+
       protected:
         const Handle<Quote> s0_;
         const Handle<YieldTermStructure> riskFreeRate_;
@@ -81,4 +83,3 @@ namespace QuantLib {
 
 
 #endif
-

@@ -27,7 +27,8 @@
 
 #include <ql/pricingengines/forward/forwardengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Forward performance engine for vanilla options
     /*! \ingroup forwardengines
@@ -39,11 +40,10 @@ namespace QuantLib {
           reproducing numerical derivatives.
     */
     template <class Engine>
-    class ForwardPerformanceVanillaEngine
-        : public ForwardVanillaEngine<Engine> {
+    class ForwardPerformanceVanillaEngine : public ForwardVanillaEngine<Engine>
+    {
       public:
-        ForwardPerformanceVanillaEngine(
-                    const ext::shared_ptr<GeneralizedBlackScholesProcess>&);
+        ForwardPerformanceVanillaEngine(const ext::shared_ptr<GeneralizedBlackScholesProcess>&);
         void calculate() const override;
 
       protected:
@@ -56,24 +56,25 @@ namespace QuantLib {
     template <class Engine>
     ForwardPerformanceVanillaEngine<Engine>::ForwardPerformanceVanillaEngine(
         const ext::shared_ptr<GeneralizedBlackScholesProcess>& process)
-    : ForwardVanillaEngine<Engine>(process) {}
+    : ForwardVanillaEngine<Engine>(process)
+    {
+    }
 
     template <class Engine>
-    void ForwardPerformanceVanillaEngine<Engine>::calculate() const {
+    void ForwardPerformanceVanillaEngine<Engine>::calculate() const
+    {
         this->setup();
         this->originalEngine_->calculate();
         getOriginalResults();
     }
 
     template <class Engine>
-    void ForwardPerformanceVanillaEngine<Engine>::getOriginalResults() const {
+    void ForwardPerformanceVanillaEngine<Engine>::getOriginalResults() const
+    {
 
         DayCounter rfdc = this->process_->riskFreeRate()->dayCounter();
-        Time resetTime = rfdc.yearFraction(
-            this->process_->riskFreeRate()->referenceDate(),
-            this->arguments_.resetDate);
-        DiscountFactor discR = this->process_->riskFreeRate()->discount(
-                                                  this->arguments_.resetDate);
+        Time resetTime = rfdc.yearFraction(this->process_->riskFreeRate()->referenceDate(), this->arguments_.resetDate);
+        DiscountFactor discR = this->process_->riskFreeRate()->discount(this->arguments_.resetDate);
         // it's a performance option
         discR /= this->process_->stateVariable()->value();
 
@@ -81,12 +82,11 @@ namespace QuantLib {
         this->results_.value = discR * temp;
         this->results_.delta = 0.0;
         this->results_.gamma = 0.0;
-        this->results_.theta = this->process_->riskFreeRate()->
-            zeroRate(this->arguments_.resetDate, rfdc, Continuous, NoFrequency)
-            * this->results_.value;
+        this->results_.theta =
+            this->process_->riskFreeRate()->zeroRate(this->arguments_.resetDate, rfdc, Continuous, NoFrequency) *
+            this->results_.value;
         this->results_.vega = discR * this->originalResults_->vega;
-        this->results_.rho = - resetTime * this->results_.value +
-            discR * this->originalResults_->rho;
+        this->results_.rho = -resetTime * this->results_.value + discR * this->originalResults_->rho;
         this->results_.dividendRho = discR * this->originalResults_->dividendRho;
     }
 

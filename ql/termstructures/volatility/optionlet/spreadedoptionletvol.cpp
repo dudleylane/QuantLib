@@ -23,34 +23,32 @@
 #include <ql/termstructures/volatility/spreadedsmilesection.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    SpreadedOptionletVolatility::SpreadedOptionletVolatility(
-        const Handle<OptionletVolatilityStructure>& baseVol, Handle<Quote> spread)
-    : baseVol_(baseVol), spread_(std::move(spread)) {
+    SpreadedOptionletVolatility::SpreadedOptionletVolatility(const Handle<OptionletVolatilityStructure>& baseVol,
+                                                             Handle<Quote> spread)
+    : baseVol_(baseVol), spread_(std::move(spread))
+    {
         enableExtrapolation(baseVol->allowsExtrapolation());
         registerWith(baseVol_);
         registerWith(spread_);
     }
 
-    ext::shared_ptr<SmileSection>
-    SpreadedOptionletVolatility::smileSectionImpl(const Date& d) const {
-        ext::shared_ptr<SmileSection> baseSmile =
-            baseVol_->smileSection(d, true);
-        return ext::shared_ptr<SmileSection>(new
-            SpreadedSmileSection(baseSmile, spread_));
+    ext::shared_ptr<SmileSection> SpreadedOptionletVolatility::smileSectionImpl(const Date& d) const
+    {
+        ext::shared_ptr<SmileSection> baseSmile = baseVol_->smileSection(d, true);
+        return ext::shared_ptr<SmileSection>(new SpreadedSmileSection(baseSmile, spread_));
     }
 
-    ext::shared_ptr<SmileSection>
-    SpreadedOptionletVolatility::smileSectionImpl(Time optionTime) const {
-        ext::shared_ptr<SmileSection> baseSmile =
-            baseVol_->smileSection(optionTime, true);
-        return ext::shared_ptr<SmileSection>(new
-            SpreadedSmileSection(baseSmile, spread_));
+    ext::shared_ptr<SmileSection> SpreadedOptionletVolatility::smileSectionImpl(Time optionTime) const
+    {
+        ext::shared_ptr<SmileSection> baseSmile = baseVol_->smileSection(optionTime, true);
+        return ext::shared_ptr<SmileSection>(new SpreadedSmileSection(baseSmile, spread_));
     }
 
-    Volatility SpreadedOptionletVolatility::volatilityImpl(Time t,
-                                                           Rate s) const {
+    Volatility SpreadedOptionletVolatility::volatilityImpl(Time t, Rate s) const
+    {
         return baseVol_->volatility(t, s, true) + spread_->value();
     }
 

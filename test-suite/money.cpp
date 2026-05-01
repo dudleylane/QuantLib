@@ -19,11 +19,11 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
-#include <ql/money.hpp>
-#include <ql/currencies/europe.hpp>
 #include <ql/currencies/america.hpp>
+#include <ql/currencies/europe.hpp>
 #include <ql/currencies/exchangeratemanager.hpp>
 #include <ql/math/comparison.hpp>
+#include <ql/money.hpp>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -32,9 +32,9 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(MoneyTests)
 
-bool IsSameCurrencyAndValuesAreClose(const Money& lhs, const Money& rhs) {
-    return (lhs.currency() == rhs.currency())
-        && std::abs(lhs.value() - rhs.value()) < 0.01;
+bool IsSameCurrencyAndValuesAreClose(const Money& lhs, const Money& rhs)
+{
+    return (lhs.currency() == rhs.currency()) && std::abs(lhs.value() - rhs.value()) < 0.01;
 }
 
 const Currency EUR = EURCurrency();
@@ -44,7 +44,8 @@ const ExchangeRate eur_usd = ExchangeRate(EUR, USD, 1.2042);
 const ExchangeRate eur_gbp = ExchangeRate(EUR, GBP, 0.6612);
 
 
-BOOST_AUTO_TEST_CASE(testNone) {
+BOOST_AUTO_TEST_CASE(testNone)
+{
 
     BOOST_TEST_MESSAGE("Testing money arithmetic without conversions...");
 
@@ -54,21 +55,20 @@ BOOST_AUTO_TEST_CASE(testNone) {
 
     Money::Settings::instance().conversionType() = Money::NoConversion;
 
-    const Money calculated = m1*3.0 + 2.5*m2 - m3/5.0 + m1 * (m2 / m3);
-    const Decimal x = m1.value() * 3.0
-        + 2.5 * m2.value()
-        - m3.value() / 5.0
-        + m1.value() * (m2.value() / m3.value());
+    const Money calculated = m1 * 3.0 + 2.5 * m2 - m3 / 5.0 + m1 * (m2 / m3);
+    const Decimal x = m1.value() * 3.0 + 2.5 * m2.value() - m3.value() / 5.0 + m1.value() * (m2.value() / m3.value());
     const Money expected(x, EUR);
 
-    if (!IsSameCurrencyAndValuesAreClose(calculated, expected)) {
+    if (!IsSameCurrencyAndValuesAreClose(calculated, expected))
+    {
         BOOST_FAIL("Wrong result: \n"
                    << "    expected:   " << expected << "\n"
                    << "    calculated: " << calculated);
     }
 }
 
-BOOST_AUTO_TEST_CASE(testBaseCurrency) {
+BOOST_AUTO_TEST_CASE(testBaseCurrency)
+{
 
     BOOST_TEST_MESSAGE("Testing money arithmetic with conversion to base currency...");
 
@@ -85,25 +85,25 @@ BOOST_AUTO_TEST_CASE(testBaseCurrency) {
     Money::Settings::instance().conversionType() = Money::BaseCurrencyConversion;
     Money::Settings::instance().baseCurrency() = EUR;
 
-    const Money calculated = gbp*3.0 + 2.5*eur - usd/5.0 + gbp * (eur/usd);
+    const Money calculated = gbp * 3.0 + 2.5 * eur - usd / 5.0 + gbp * (eur / usd);
 
-    const Decimal x = GBP_to_EUR(gbp.value()) * 3.0
-        + 2.5 * eur.value()
-        - USD_to_EUR(usd.value()) / 5.0
-        + GBP_to_EUR(gbp.value()) * eur.value() / USD_to_EUR(usd.value());
+    const Decimal x = GBP_to_EUR(gbp.value()) * 3.0 + 2.5 * eur.value() - USD_to_EUR(usd.value()) / 5.0 +
+                      GBP_to_EUR(gbp.value()) * eur.value() / USD_to_EUR(usd.value());
     const Money expected(x, EUR);
 
     ExchangeRateManager::instance().clear();
     Money::Settings::instance().conversionType() = Money::NoConversion;
 
-    if (!IsSameCurrencyAndValuesAreClose(calculated, expected)) {
+    if (!IsSameCurrencyAndValuesAreClose(calculated, expected))
+    {
         BOOST_FAIL("Wrong result: \n"
                    << "    expected:   " << expected << "\n"
                    << "    calculated: " << calculated);
     }
 }
 
-BOOST_AUTO_TEST_CASE(testAutomated) {
+BOOST_AUTO_TEST_CASE(testAutomated)
+{
 
     BOOST_TEST_MESSAGE("Testing money arithmetic with automated conversion...");
 
@@ -117,34 +117,35 @@ BOOST_AUTO_TEST_CASE(testAutomated) {
     const auto EUR_to_GBP = [eur_gbp = eur_gbp.rate()](const Real eur) -> Real { return eur * eur_gbp; };
     const auto USD_to_EUR = [eur_usd = eur_usd.rate()](const Real usd) -> Real { return usd / eur_usd; };
     const auto USD_to_GBP = [eur_gbp = eur_gbp.rate(), eur_usd = eur_usd.rate()](const Real usd) -> Real
-        { return usd * eur_gbp / eur_usd; };
+    { return usd * eur_gbp / eur_usd; };
 
     Money::Settings::instance().conversionType() = Money::AutomatedConversion;
 
-    const Money calculated = (gbp*3.0 + 2.5*eur) - usd/5.0 + gbp * (eur/usd);
+    const Money calculated = (gbp * 3.0 + 2.5 * eur) - usd / 5.0 + gbp * (eur / usd);
 
-    const Decimal x = gbp.value() * 3.0
-        + 2.5 * EUR_to_GBP(eur.value())
-        - USD_to_GBP(usd.value()) / 5.0
-        + gbp.value() * eur.value() / USD_to_EUR(usd.value());
+    const Decimal x = gbp.value() * 3.0 + 2.5 * EUR_to_GBP(eur.value()) - USD_to_GBP(usd.value()) / 5.0 +
+                      gbp.value() * eur.value() / USD_to_EUR(usd.value());
 
     const Money expected(x, GBP);
 
     ExchangeRateManager::instance().clear();
     Money::Settings::instance().conversionType() = Money::NoConversion;
 
-    if (!IsSameCurrencyAndValuesAreClose(calculated, expected)) {
+    if (!IsSameCurrencyAndValuesAreClose(calculated, expected))
+    {
         BOOST_FAIL("Wrong result: \n"
                    << "    expected:   " << expected << "\n"
                    << "    calculated: " << calculated);
     }
 }
 
-BOOST_AUTO_TEST_CASE(testComparisons) {
+BOOST_AUTO_TEST_CASE(testComparisons)
+{
 
     BOOST_TEST_MESSAGE("Testing money comparisons...");
 
-    for (const auto conversionType : {Money::AutomatedConversion, Money::NoConversion, Money::BaseCurrencyConversion}) {
+    for (const auto conversionType : {Money::AutomatedConversion, Money::NoConversion, Money::BaseCurrencyConversion})
+    {
         ExchangeRateManager::instance().add(eur_usd);
         ExchangeRateManager::instance().add(eur_gbp);
         Money::Settings::instance().conversionType() = conversionType;
@@ -185,18 +186,20 @@ BOOST_AUTO_TEST_CASE(testComparisons) {
 
         // close
         BOOST_CHECK(close(Money(1, EUR), Money(1, EUR)));
-        BOOST_CHECK(close(Money(1+1e-15, EUR), Money(1, EUR)));
-        if (conversionType != Money::NoConversion){
+        BOOST_CHECK(close(Money(1 + 1e-15, EUR), Money(1, EUR)));
+        if (conversionType != Money::NoConversion)
+        {
             BOOST_CHECK(close(Money(1, EUR), Money(eur_usd.rate(), USD)));
-            BOOST_CHECK(close(Money(1+1e-15, EUR), Money(eur_usd.rate(), USD)));
+            BOOST_CHECK(close(Money(1 + 1e-15, EUR), Money(eur_usd.rate(), USD)));
         }
 
         // close enough
         BOOST_CHECK(close_enough(Money(1, EUR), Money(1, EUR)));
-        BOOST_CHECK(close_enough(Money(1+1e-15, EUR), Money(1, EUR)));
-        if (conversionType != Money::NoConversion){
+        BOOST_CHECK(close_enough(Money(1 + 1e-15, EUR), Money(1, EUR)));
+        if (conversionType != Money::NoConversion)
+        {
             BOOST_CHECK(close_enough(Money(1, EUR), Money(eur_usd.rate(), USD)));
-            BOOST_CHECK(close_enough(Money(1+1e-15, EUR), Money(eur_usd.rate(), USD)));
+            BOOST_CHECK(close_enough(Money(1 + 1e-15, EUR), Money(eur_usd.rate(), USD)));
         }
 
         ExchangeRateManager::instance().clear();

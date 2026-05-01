@@ -29,9 +29,11 @@
 #include <ql/math/array.hpp>
 #include <ql/math/matrixutilities/sparsematrix.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class FdmLinearOp {
+    class FdmLinearOp
+    {
       public:
         typedef Array array_type;
         virtual ~FdmLinearOp() = default;

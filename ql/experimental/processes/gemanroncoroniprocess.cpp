@@ -2,7 +2,7 @@
 
 /*
  Copyright (C) 2011 Klaus Spanderen
- 
+
  This file is part of QuantLib, a free-software/open-source library
  for financial quantitative analysts and developers - http://quantlib.org/
 
@@ -21,94 +21,103 @@
     \brief Geman-Roncoroni process
 */
 
+#include <ql/experimental/processes/gemanroncoroniprocess.hpp>
 #include <ql/math/functional.hpp>
 #include <ql/processes/eulerdiscretization.hpp>
-#include <ql/experimental/processes/gemanroncoroniprocess.hpp>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    GemanRoncoroniProcess::GemanRoncoroniProcess(
-                                      Real x0, 
-                                      Real alpha, Real beta, 
-                                      Real gamma, Real delta, 
-                                      Real eps, Real zeta, Real d, 
-                                      Real k,  Real tau,
-                                      Real sig2, Real a, Real b,
-                                      Real theta1, Real theta2, Real theta3,
-                                      Real psi)
-    : StochasticProcess1D(ext::shared_ptr<discretization>(
-                                                    new EulerDiscretization)),
-      x0_(x0),
-      alpha_(alpha), beta_(beta),
-      gamma_(gamma), delta_(delta),
-      eps_(eps), zeta_(zeta), d_(d), 
-      k_(k), tau_(tau),
-      sig2_(sig2), a_(a), b_(b),
-      theta1_(theta1), theta2_(theta2), theta3_(theta3),
-      psi_(psi) {  
+    GemanRoncoroniProcess::GemanRoncoroniProcess(Real x0,
+                                                 Real alpha,
+                                                 Real beta,
+                                                 Real gamma,
+                                                 Real delta,
+                                                 Real eps,
+                                                 Real zeta,
+                                                 Real d,
+                                                 Real k,
+                                                 Real tau,
+                                                 Real sig2,
+                                                 Real a,
+                                                 Real b,
+                                                 Real theta1,
+                                                 Real theta2,
+                                                 Real theta3,
+                                                 Real psi)
+    : StochasticProcess1D(ext::shared_ptr<discretization>(new EulerDiscretization)), x0_(x0), alpha_(alpha),
+      beta_(beta), gamma_(gamma), delta_(delta), eps_(eps), zeta_(zeta), d_(d), k_(k), tau_(tau), sig2_(sig2), a_(a),
+      b_(b), theta1_(theta1), theta2_(theta2), theta3_(theta3), psi_(psi)
+    {
     }
 
-    Real GemanRoncoroniProcess::x0() const {
+    Real GemanRoncoroniProcess::x0() const
+    {
         return x0_;
     }
 
-    Real GemanRoncoroniProcess::drift(Time t, Real x) const {
-        const Real mu = alpha_ + beta_*t + gamma_*std::cos(eps_+2*M_PI*t)
-                                         + delta_*std::cos(zeta_+4*M_PI*t);
-        const Real muPrime = beta_ - gamma_*2*M_PI*std::sin(eps_+2*M_PI*t)
-                                   - delta_*4*M_PI*std::sin(zeta_+4*M_PI*t);
+    Real GemanRoncoroniProcess::drift(Time t, Real x) const
+    {
+        const Real mu =
+            alpha_ + beta_ * t + gamma_ * std::cos(eps_ + 2 * M_PI * t) + delta_ * std::cos(zeta_ + 4 * M_PI * t);
+        const Real muPrime = beta_ - gamma_ * 2 * M_PI * std::sin(eps_ + 2 * M_PI * t) -
+                             delta_ * 4 * M_PI * std::sin(zeta_ + 4 * M_PI * t);
 
-        return muPrime + theta1_*(mu-x);
-    }
-    
-    Real GemanRoncoroniProcess::diffusion(Time t, Real /*x*/) const {
-        return std::sqrt(sig2_ + a_*squared(std::cos(M_PI*t+b_)));
+        return muPrime + theta1_ * (mu - x);
     }
 
-    Real GemanRoncoroniProcess::stdDeviation(Time t0, Real /*x0*/, Time dt) const {
-        const Volatility sig2t = sig2_+a_*squared(std::cos(M_PI*t0+b_));
-        
-        return std::sqrt(sig2t/(2*theta1_)*(1.0-std::exp(-2*theta1_*dt)));
+    Real GemanRoncoroniProcess::diffusion(Time t, Real /*x*/) const
+    {
+        return std::sqrt(sig2_ + a_ * squared(std::cos(M_PI * t + b_)));
     }
 
-    Real GemanRoncoroniProcess::evolve(Time t0, Real x0, 
-                                       Time dt, Real dw) const {
-        // random number generator for the jump part 
-        if (!urng_) {
+    Real GemanRoncoroniProcess::stdDeviation(Time t0, Real /*x0*/, Time dt) const
+    {
+        const Volatility sig2t = sig2_ + a_ * squared(std::cos(M_PI * t0 + b_));
+
+        return std::sqrt(sig2t / (2 * theta1_) * (1.0 - std::exp(-2 * theta1_ * dt)));
+    }
+
+    Real GemanRoncoroniProcess::evolve(Time t0, Real x0, Time dt, Real dw) const
+    {
+        // random number generator for the jump part
+        if (!urng_)
+        {
             typedef PseudoRandom::urng_type urng_type;
             urng_ = ext::make_shared<urng_type>((unsigned long)(1234UL * dw + 56789UL));
         }
-        Array du(3); 
-        du[0] = urng_->next().value; 
+        Array du(3);
+        du[0] = urng_->next().value;
         du[1] = urng_->next().value;
 
         return evolve(t0, x0, dt, dw, du);
     }
 
-    Real GemanRoncoroniProcess::evolve(Time t0, Real x0, Time dt,
-                                       Real dw, const Array& du) const {
+    Real GemanRoncoroniProcess::evolve(Time t0, Real x0, Time dt, Real dw, const Array& du) const
+    {
         Real retVal;
-        const Time t = t0 + 0.5*dt;
-        const Real mu = alpha_ + beta_*t + gamma_*std::cos(eps_ +2*M_PI*t)
-                                         + delta_*std::cos(zeta_+4*M_PI*t);
-        
-        const Real j = -1.0/theta3_
-                        *std::log(1.0+du[1]*(std::exp(-theta3_*psi_)-1.0));
+        const Time t = t0 + 0.5 * dt;
+        const Real mu =
+            alpha_ + beta_ * t + gamma_ * std::cos(eps_ + 2 * M_PI * t) + delta_ * std::cos(zeta_ + 4 * M_PI * t);
 
-        if (x0 <= mu+d_) {
+        const Real j = -1.0 / theta3_ * std::log(1.0 + du[1] * (std::exp(-theta3_ * psi_) - 1.0));
+
+        if (x0 <= mu + d_)
+        {
             retVal = StochasticProcess1D::evolve(t, x0, dt, dw);
-            
-            const Real jumpIntensity
-                = theta2_*(2.0/(1+std::fabs(std::sin(M_PI*(t-tau_)/k_)))-1);            
-            const Time interarrival = -1.0/jumpIntensity*std::log(du[0]);
 
-            if (interarrival < dt) {
+            const Real jumpIntensity = theta2_ * (2.0 / (1 + std::fabs(std::sin(M_PI * (t - tau_) / k_))) - 1);
+            const Time interarrival = -1.0 / jumpIntensity * std::log(du[0]);
+
+            if (interarrival < dt)
+            {
                 retVal += j;
             }
         }
-        else {
-            retVal = x0-j;
+        else
+        {
+            retVal = x0 - j;
         }
 
         return retVal;

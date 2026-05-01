@@ -18,10 +18,10 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
-#include <ql/instruments/zerocouponswap.hpp>
 #include <ql/cashflows/multipleresetscoupon.hpp>
-#include <ql/pricingengines/swap/discountingswapengine.hpp>
 #include <ql/indexes/ibor/euribor.hpp>
+#include <ql/instruments/zerocouponswap.hpp>
+#include <ql/pricingengines/swap/discountingswapengine.hpp>
 #include <ql/time/calendars/target.hpp>
 
 using namespace QuantLib;
@@ -31,7 +31,8 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(ZeroCouponSwapTests)
 
-struct CommonVars {
+struct CommonVars
+{
 
     Date today, settlement;
     Calendar calendar;
@@ -46,7 +47,8 @@ struct CommonVars {
 
     // utilities
 
-    CommonVars() {
+    CommonVars()
+    {
         settlementDays = 2;
         paymentDelay = 1;
         calendar = TARGET();
@@ -63,61 +65,49 @@ struct CommonVars {
         settlement = calendar.advance(today, settlementDays, Days);
 
         euriborHandle.linkTo(flatRate(settlement, 0.007, dayCount));
-        discountEngine =
-            ext::shared_ptr<PricingEngine>(new DiscountingSwapEngine(euriborHandle));
+        discountEngine = ext::shared_ptr<PricingEngine>(new DiscountingSwapEngine(euriborHandle));
     }
 
-    ext::shared_ptr<CashFlow> createMultipleResetsCoupon(const Date& start, const Date& end) const {
+    ext::shared_ptr<CashFlow> createMultipleResetsCoupon(const Date& start, const Date& end) const
+    {
         Date paymentDate = calendar.advance(end, paymentDelay * Days, businessConvention);
-        Schedule schedule = MakeSchedule()
-            .from(start).to(end)
-            .withTenor(euribor->tenor())
-            .withCalendar(euribor->fixingCalendar());
-        auto cpn = ext::make_shared<MultipleResetsCoupon>(
-                paymentDate, baseNominal, schedule, settlementDays, euribor);
+        Schedule schedule =
+            MakeSchedule().from(start).to(end).withTenor(euribor->tenor()).withCalendar(euribor->fixingCalendar());
+        auto cpn = ext::make_shared<MultipleResetsCoupon>(paymentDate, baseNominal, schedule, settlementDays, euribor);
         cpn->setPricer(ext::make_shared<CompoundingMultipleResetsPricer>());
         return cpn;
     }
 
-    ext::shared_ptr<ZeroCouponSwap> createZCSwap(Swap::Type type,
-                                                 const Date& start,
-                                                 const Date& end,
-                                                 Real baseNominal,
-                                                 Real finalPayment) {
-        auto swap = ext::make_shared<ZeroCouponSwap>(type, baseNominal, start, end, finalPayment, 
-                                                     euribor, calendar, businessConvention,
-                                                     paymentDelay);
+    ext::shared_ptr<ZeroCouponSwap>
+    createZCSwap(Swap::Type type, const Date& start, const Date& end, Real baseNominal, Real finalPayment)
+    {
+        auto swap = ext::make_shared<ZeroCouponSwap>(type, baseNominal, start, end, finalPayment, euribor, calendar,
+                                                     businessConvention, paymentDelay);
         swap->setPricingEngine(discountEngine);
         return swap;
     }
 
-    ext::shared_ptr<ZeroCouponSwap> createZCSwap(Swap::Type type,
-                                                 const Date& start,
-                                                 const Date& end,
-                                                 Real finalPayment) {
+    ext::shared_ptr<ZeroCouponSwap> createZCSwap(Swap::Type type, const Date& start, const Date& end, Real finalPayment)
+    {
         return createZCSwap(type, start, end, baseNominal, finalPayment);
     }
 
-    ext::shared_ptr<ZeroCouponSwap> createZCSwap(Swap::Type type,
-                                                 const Date& start,
-                                                 const Date& end) {
+    ext::shared_ptr<ZeroCouponSwap> createZCSwap(Swap::Type type, const Date& start, const Date& end)
+    {
         return createZCSwap(type, start, end, finalPayment);
     }
 
-    ext::shared_ptr<ZeroCouponSwap> createZCSwap(const Date& start, 
-                                                 const Date& end, 
-                                                 Rate fixedRate) {
-        auto swap = ext::make_shared<ZeroCouponSwap>(Swap::Receiver, baseNominal, 
-                                                     start, end, fixedRate, dayCount, euribor,
-                                                     calendar, businessConvention, paymentDelay);
+    ext::shared_ptr<ZeroCouponSwap> createZCSwap(const Date& start, const Date& end, Rate fixedRate)
+    {
+        auto swap = ext::make_shared<ZeroCouponSwap>(Swap::Receiver, baseNominal, start, end, fixedRate, dayCount,
+                                                     euribor, calendar, businessConvention, paymentDelay);
         swap->setPricingEngine(discountEngine);
         return swap;
     }
 };
 
-void checkReplicationOfZeroCouponSwapNPV(const Date& start,
-                                         const Date& end,
-                                         Swap::Type type = Swap::Receiver) {
+void checkReplicationOfZeroCouponSwapNPV(const Date& start, const Date& end, Swap::Type type = Swap::Receiver)
+{
     CommonVars vars;
     const Real tolerance = 1.0e-8;
 
@@ -127,10 +117,8 @@ void checkReplicationOfZeroCouponSwapNPV(const Date& start,
     Real actualFixedLegNPV = zcSwap->fixedLegNPV();
     Real actualFloatLegNPV = zcSwap->floatingLegNPV();
 
-    Date paymentDate =
-        vars.calendar.advance(end, vars.paymentDelay * Days, vars.businessConvention);
-    Real discountAtPayment =
-        paymentDate < vars.settlement ? 0.0 : vars.euriborHandle->discount(paymentDate);
+    Date paymentDate = vars.calendar.advance(end, vars.paymentDelay * Days, vars.businessConvention);
+    Real discountAtPayment = paymentDate < vars.settlement ? 0.0 : vars.euriborHandle->discount(paymentDate);
     Real expectedFixedLegNPV = -type * discountAtPayment * vars.finalPayment;
 
     auto subPeriodCpn = vars.createMultipleResetsCoupon(start, end);
@@ -154,9 +142,8 @@ void checkReplicationOfZeroCouponSwapNPV(const Date& start,
                     << "    type:    " << type << "\n");
 }
 
-void checkFairFixedPayment(const Date& start,
-                           const Date& end,
-                           Swap::Type type) {
+void checkFairFixedPayment(const Date& start, const Date& end, Swap::Type type)
+{
     CommonVars vars;
     const Real tolerance = 1.0e-8;
 
@@ -175,7 +162,8 @@ void checkFairFixedPayment(const Date& start,
                     << "    type:    " << type << "\n");
 }
 
-void checkFairFixedRate(const Date& start, const Date& end, Swap::Type type) {
+void checkFairFixedRate(const Date& start, const Date& end, Swap::Type type)
+{
     CommonVars vars;
     const Real tolerance = 1.0e-8;
 
@@ -195,44 +183,43 @@ void checkFairFixedRate(const Date& start, const Date& end, Swap::Type type) {
 }
 
 
-BOOST_AUTO_TEST_CASE(testInstrumentValuation) {
+BOOST_AUTO_TEST_CASE(testInstrumentValuation)
+{
     BOOST_TEST_MESSAGE("Testing zero coupon swap valuation...");
-    
+
     // Ongoing instrument
-    checkReplicationOfZeroCouponSwapNPV(Date(12, February, 2021), Date(12, February, 2041),
-                                        Swap::Receiver);
+    checkReplicationOfZeroCouponSwapNPV(Date(12, February, 2021), Date(12, February, 2041), Swap::Receiver);
     // Forward starting instrument
-    checkReplicationOfZeroCouponSwapNPV(Date(15, April, 2021), Date(12, February, 2041), 
-                                        Swap::Payer);
+    checkReplicationOfZeroCouponSwapNPV(Date(15, April, 2021), Date(12, February, 2041), Swap::Payer);
 
     // Expired instrument
     checkReplicationOfZeroCouponSwapNPV(Date(12, February, 2000), Date(12, February, 2020));
 }
 
-BOOST_AUTO_TEST_CASE(testFairFixedPayment) {
+BOOST_AUTO_TEST_CASE(testFairFixedPayment)
+{
     BOOST_TEST_MESSAGE("Testing fair fixed payment...");
-    
+
     // Ongoing instrument
-    checkFairFixedPayment(Date(12, February, 2021), Date(12, February, 2041),
-                          Swap::Receiver);
+    checkFairFixedPayment(Date(12, February, 2021), Date(12, February, 2041), Swap::Receiver);
 
     // Spot starting instrument
-    checkFairFixedPayment(Date(17, March, 2021), Date(12, February, 2041), 
-                          Swap::Payer);
+    checkFairFixedPayment(Date(17, March, 2021), Date(12, February, 2041), Swap::Payer);
 }
 
-BOOST_AUTO_TEST_CASE(testFairFixedRate) {
+BOOST_AUTO_TEST_CASE(testFairFixedRate)
+{
     BOOST_TEST_MESSAGE("Testing fair fixed rate...");
 
     // Ongoing instrument
-    checkFairFixedRate(Date(12, February, 2021), Date(12, February, 2041),
-                       Swap::Receiver);
+    checkFairFixedRate(Date(12, February, 2021), Date(12, February, 2041), Swap::Receiver);
 
     // Spot starting instrument
     checkFairFixedRate(Date(17, March, 2021), Date(12, February, 2041), Swap::Payer);
 }
 
-BOOST_AUTO_TEST_CASE(testFixedPaymentFromRate) {
+BOOST_AUTO_TEST_CASE(testFixedPaymentFromRate)
+{
     BOOST_TEST_MESSAGE("Testing fixed payment calculation from rate...");
 
     CommonVars vars;
@@ -256,7 +243,8 @@ BOOST_AUTO_TEST_CASE(testFixedPaymentFromRate) {
                     << "    end:    " << end << "\n");
 }
 
-BOOST_AUTO_TEST_CASE(testArgumentsValidation) {
+BOOST_AUTO_TEST_CASE(testArgumentsValidation)
+{
     BOOST_TEST_MESSAGE("Testing arguments validation...");
 
     CommonVars vars;
@@ -265,14 +253,14 @@ BOOST_AUTO_TEST_CASE(testArgumentsValidation) {
     Date end(12, February, 2041);
 
     // Negative base nominal
-    BOOST_CHECK_THROW(vars.createZCSwap(Swap::Payer, start, end, -1.0e6, 1.0e6),
-                      Error);
+    BOOST_CHECK_THROW(vars.createZCSwap(Swap::Payer, start, end, -1.0e6, 1.0e6), Error);
 
     // Start date after end date
     BOOST_CHECK_THROW(vars.createZCSwap(end, start, 0.01), Error);
 }
 
-BOOST_AUTO_TEST_CASE(testExpectedCashFlowsInLegs) {
+BOOST_AUTO_TEST_CASE(testExpectedCashFlowsInLegs)
+{
     BOOST_TEST_MESSAGE("Testing expected cash flows in legs...");
 
     CommonVars vars;
@@ -285,8 +273,7 @@ BOOST_AUTO_TEST_CASE(testExpectedCashFlowsInLegs) {
     auto fixedCashFlow = zcSwap->fixedLeg()[0];
     auto floatingCashFlow = zcSwap->floatingLeg()[0];
 
-    Date paymentDate =
-        vars.calendar.advance(end, vars.paymentDelay * Days, vars.businessConvention);
+    Date paymentDate = vars.calendar.advance(end, vars.paymentDelay * Days, vars.businessConvention);
     auto subPeriodCpn = vars.createMultipleResetsCoupon(start, end);
 
     if ((std::fabs(fixedCashFlow->amount() - zcSwap->fixedPayment()) > tolerance) ||

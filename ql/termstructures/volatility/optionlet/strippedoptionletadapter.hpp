@@ -26,72 +26,73 @@
 #ifndef quantlib_stripped_optionlet_adapter_h
 #define quantlib_stripped_optionlet_adapter_h
 
-#include <ql/termstructures/volatility/optionlet/strippedoptionletbase.hpp>
-#include <ql/termstructures/volatility/optionlet/optionletstripper.hpp>
-#include <ql/termstructures/volatility/optionlet/optionletvolatilitystructure.hpp>
 #include <ql/math/interpolation.hpp>
 #include <ql/math/interpolations/sabrinterpolation.hpp>
+#include <ql/termstructures/volatility/optionlet/optionletstripper.hpp>
+#include <ql/termstructures/volatility/optionlet/optionletvolatilitystructure.hpp>
+#include <ql/termstructures/volatility/optionlet/strippedoptionletbase.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! Adapter class for turning a StrippedOptionletBase object into an
         OptionletVolatilityStructure.
     */
-    class StrippedOptionletAdapter : public OptionletVolatilityStructure,
-                                     public LazyObject {
+    class StrippedOptionletAdapter : public OptionletVolatilityStructure, public LazyObject
+    {
       public:
-          StrippedOptionletAdapter(
-                              const ext::shared_ptr<StrippedOptionletBase>&);
+        StrippedOptionletAdapter(const ext::shared_ptr<StrippedOptionletBase>&);
 
         //! \name TermStructure interface
         //@{
-          Date maxDate() const override;
-          //@}
-          //! \name VolatilityTermStructure interface
-          //@{
-          Rate minStrike() const override;
-          Rate maxStrike() const override;
-          //@}
-          //! \name LazyObject interface
-          //@{
-          void update() override;
-          void performCalculations() const override;
-          ext::shared_ptr<OptionletStripper> optionletStripper() const;
-          //@}
-          //! \name Observer interface
-          //@{
-          void deepUpdate() override;
-          //@}
+        Date maxDate() const override;
+        //@}
+        //! \name VolatilityTermStructure interface
+        //@{
+        Rate minStrike() const override;
+        Rate maxStrike() const override;
+        //@}
+        //! \name LazyObject interface
+        //@{
+        void update() override;
+        void performCalculations() const override;
+        ext::shared_ptr<OptionletStripper> optionletStripper() const;
+        //@}
+        //! \name Observer interface
+        //@{
+        void deepUpdate() override;
+        //@}
 
-          VolatilityType volatilityType() const override;
-          Real displacement() const override;
+        VolatilityType volatilityType() const override;
+        Real displacement() const override;
 
-        protected:
-          //! \name OptionletVolatilityStructure interface
-          //@{
-          ext::shared_ptr<SmileSection> smileSectionImpl(Time optionTime) const override;
-          Volatility volatilityImpl(Time length, Rate strike) const override;
-          //@}
-        private:
-          const ext::shared_ptr<StrippedOptionletBase> optionletStripper_;
-          Size nInterpolations_;
-          mutable std::vector<ext::shared_ptr<Interpolation> > strikeInterpolations_;
+      protected:
+        //! \name OptionletVolatilityStructure interface
+        //@{
+        ext::shared_ptr<SmileSection> smileSectionImpl(Time optionTime) const override;
+        Volatility volatilityImpl(Time length, Rate strike) const override;
+        //@}
+      private:
+        const ext::shared_ptr<StrippedOptionletBase> optionletStripper_;
+        Size nInterpolations_;
+        mutable std::vector<ext::shared_ptr<Interpolation>> strikeInterpolations_;
     };
 
-    inline void StrippedOptionletAdapter::update() {
+    inline void StrippedOptionletAdapter::update()
+    {
         TermStructure::update();
         LazyObject::update();
     }
 
-    inline void StrippedOptionletAdapter::deepUpdate() {
+    inline void StrippedOptionletAdapter::deepUpdate()
+    {
         optionletStripper_->update();
         update();
     }
 
-    inline ext::shared_ptr< OptionletStripper >
-    StrippedOptionletAdapter::optionletStripper() const {
-        return ext::dynamic_pointer_cast< OptionletStripper >(
-            optionletStripper_);
+    inline ext::shared_ptr<OptionletStripper> StrippedOptionletAdapter::optionletStripper() const
+    {
+        return ext::dynamic_pointer_cast<OptionletStripper>(optionletStripper_);
     }
 }
 

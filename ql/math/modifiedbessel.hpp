@@ -27,7 +27,8 @@
 #include <ql/types.hpp>
 #include <complex>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*  Compute modified Bessel functions I_nv(x) and K_nv(x)
 
@@ -42,15 +43,9 @@ namespace QuantLib {
     Real modifiedBesselFunction_i_exponentiallyWeighted(Real nu, Real x);
     Real modifiedBesselFunction_k_exponentiallyWeighted(Real nu, Real x);
 
-    std::complex<Real> modifiedBesselFunction_i(Real nu,
-                                                const std::complex<Real>& z);
-    std::complex<Real> modifiedBesselFunction_k(Real nu,
-                                                const std::complex<Real>& z);
-    std::complex<Real>
-    modifiedBesselFunction_i_exponentiallyWeighted(Real nu,
-                                                   const std::complex<Real> &z);
-    std::complex<Real>
-    modifiedBesselFunction_k_exponentiallyWeighted(Real nu,
-                                                  const std::complex<Real> &z);
+    std::complex<Real> modifiedBesselFunction_i(Real nu, const std::complex<Real>& z);
+    std::complex<Real> modifiedBesselFunction_k(Real nu, const std::complex<Real>& z);
+    std::complex<Real> modifiedBesselFunction_i_exponentiallyWeighted(Real nu, const std::complex<Real>& z);
+    std::complex<Real> modifiedBesselFunction_k_exponentiallyWeighted(Real nu, const std::complex<Real>& z);
 }
 #endif

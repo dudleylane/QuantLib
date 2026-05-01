@@ -20,22 +20,23 @@
 #include <ql/pricingengines/greeks.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Real blackScholesTheta(
-                   const ext::shared_ptr<GeneralizedBlackScholesProcess>& p,
-                   Real value, Real delta, Real gamma) {
+    Real blackScholesTheta(const ext::shared_ptr<GeneralizedBlackScholesProcess>& p, Real value, Real delta, Real gamma)
+    {
 
         Real u = p->stateVariable()->value();
         Rate r = p->riskFreeRate()->zeroRate(0.0, Continuous);
         Rate q = p->dividendYield()->zeroRate(0.0, Continuous);
         Volatility v = p->localVolatility()->localVol(0.0, u);
 
-        return r*value -(r-q)*u*delta - 0.5*v*v*u*u*gamma;
+        return r * value - (r - q) * u * delta - 0.5 * v * v * u * u * gamma;
     }
 
-    Real defaultThetaPerDay(Real theta) {
-        return theta/365.0;
+    Real defaultThetaPerDay(Real theta)
+    {
+        return theta / 365.0;
     }
 
 }

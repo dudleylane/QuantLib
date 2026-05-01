@@ -24,17 +24,18 @@
 #ifndef quantlib_forward_hpp
 #define quantlib_forward_hpp
 
+#include <ql/handle.hpp>
 #include <ql/instrument.hpp>
+#include <ql/interestrate.hpp>
+#include <ql/payoff.hpp>
 #include <ql/position.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/time/calendar.hpp>
 #include <ql/time/daycounter.hpp>
-#include <ql/interestrate.hpp>
 #include <ql/types.hpp>
-#include <ql/handle.hpp>
-#include <ql/payoff.hpp>
-#include <ql/termstructures/yieldtermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Abstract base forward class
     /*! Derived classes must implement the virtual functions
@@ -63,7 +64,8 @@ namespace QuantLib {
 
         \ingroup instruments
     */
-    class Forward : public Instrument {
+    class Forward : public Instrument
+    {
       public:
         //! \name Inspectors
         //@{
@@ -82,8 +84,7 @@ namespace QuantLib {
         //! returns spot value/price of an underlying financial instrument
         virtual Real spotValue() const = 0;
         //! NPV of income/dividends/storage-costs etc. of underlying instrument
-        virtual Real spotIncome(const Handle<YieldTermStructure>&
-                                               incomeDiscountCurve) const = 0;
+        virtual Real spotIncome(const Handle<YieldTermStructure>& incomeDiscountCurve) const = 0;
 
         //! \name Calculations
         //@{
@@ -142,11 +143,12 @@ namespace QuantLib {
 
 
     //! Class for forward type payoffs
-    class ForwardTypePayoff : public Payoff {
+    class ForwardTypePayoff : public Payoff
+    {
       public:
-        ForwardTypePayoff(Position::Type type, Real strike)
-        : type_(type),strike_(strike) {
-            QL_REQUIRE(strike >= 0.0,"negative strike given");
+        ForwardTypePayoff(Position::Type type, Real strike) : type_(type), strike_(strike)
+        {
+            QL_REQUIRE(strike >= 0.0, "negative strike given");
         }
         Position::Type forwardType() const { return type_; };
         Real strike() const { return strike_; };
@@ -162,44 +164,51 @@ namespace QuantLib {
     };
 
 
-
     // inline definitions
 
-    inline const Calendar& Forward::calendar() const {
+    inline const Calendar& Forward::calendar() const
+    {
         return calendar_;
     }
 
-    inline BusinessDayConvention Forward::businessDayConvention() const {
+    inline BusinessDayConvention Forward::businessDayConvention() const
+    {
         return businessDayConvention_;
     }
 
-    inline const DayCounter& Forward::dayCounter() const {
+    inline const DayCounter& Forward::dayCounter() const
+    {
         return dayCounter_;
     }
 
-    inline Handle<YieldTermStructure> Forward::discountCurve() const {
+    inline Handle<YieldTermStructure> Forward::discountCurve() const
+    {
         return discountCurve_;
     }
 
-    inline Handle<YieldTermStructure> Forward::incomeDiscountCurve() const {
+    inline Handle<YieldTermStructure> Forward::incomeDiscountCurve() const
+    {
         return incomeDiscountCurve_;
     }
 
 
-    inline std::string ForwardTypePayoff::description() const {
+    inline std::string ForwardTypePayoff::description() const
+    {
         std::ostringstream result;
         result << name() << ", " << strike() << " strike";
         return result.str();
     }
 
-    inline Real ForwardTypePayoff::operator()(Real price) const {
-        switch (type_) {
-          case Position::Long:
-            return (price-strike_);
-          case Position::Short:
-            return (strike_-price);
-          default:
-            QL_FAIL("unknown/illegal position type");
+    inline Real ForwardTypePayoff::operator()(Real price) const
+    {
+        switch (type_)
+        {
+            case Position::Long:
+                return (price - strike_);
+            case Position::Short:
+                return (strike_ - price);
+            default:
+                QL_FAIL("unknown/illegal position type");
         }
     }
 
@@ -207,4 +216,3 @@ namespace QuantLib {
 
 
 #endif
-

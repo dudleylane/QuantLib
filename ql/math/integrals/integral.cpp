@@ -17,65 +17,71 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/math/integrals/integral.hpp>
 #include <ql/errors.hpp>
+#include <ql/math/integrals/integral.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Integrator::Integrator(Real absoluteAccuracy,
-                          Size maxEvaluations)
-    : absoluteAccuracy_(absoluteAccuracy),
-      maxEvaluations_(maxEvaluations) {
-        QL_REQUIRE(absoluteAccuracy > QL_EPSILON,
-                   std::scientific << "required tolerance (" <<
-                   absoluteAccuracy << ") not allowed. It must be > " <<
-                   QL_EPSILON);
+    Integrator::Integrator(Real absoluteAccuracy, Size maxEvaluations)
+    : absoluteAccuracy_(absoluteAccuracy), maxEvaluations_(maxEvaluations)
+    {
+        QL_REQUIRE(absoluteAccuracy > QL_EPSILON, std::scientific << "required tolerance (" << absoluteAccuracy
+                                                                  << ") not allowed. It must be > " << QL_EPSILON);
     }
 
-    void Integrator::setAbsoluteAccuracy(Real accuracy) {
-        absoluteAccuracy_= accuracy;
+    void Integrator::setAbsoluteAccuracy(Real accuracy)
+    {
+        absoluteAccuracy_ = accuracy;
     }
 
-    void Integrator::setMaxEvaluations(Size maxEvaluations) {
+    void Integrator::setMaxEvaluations(Size maxEvaluations)
+    {
         maxEvaluations_ = maxEvaluations;
     }
 
-    Real Integrator::absoluteAccuracy() const {
+    Real Integrator::absoluteAccuracy() const
+    {
         return absoluteAccuracy_;
     }
 
-    Size Integrator::maxEvaluations() const {
+    Size Integrator::maxEvaluations() const
+    {
         return maxEvaluations_;
     }
 
-    Real Integrator::absoluteError() const {
+    Real Integrator::absoluteError() const
+    {
         return absoluteError_;
     }
 
-    void Integrator::setAbsoluteError(Real error) const {
+    void Integrator::setAbsoluteError(Real error) const
+    {
         absoluteError_ = error;
     }
 
-    Size Integrator::numberOfEvaluations() const {
+    Size Integrator::numberOfEvaluations() const
+    {
         return evaluations_;
     }
 
-    void Integrator::setNumberOfEvaluations(Size evaluations) const {
+    void Integrator::setNumberOfEvaluations(Size evaluations) const
+    {
         evaluations_ = evaluations;
     }
 
-    void Integrator::increaseNumberOfEvaluations(Size increase) const {
+    void Integrator::increaseNumberOfEvaluations(Size increase) const
+    {
         evaluations_ += increase;
     }
 
-    bool Integrator::integrationSuccess() const {
-        return evaluations_ <= maxEvaluations_
-            && absoluteError_ <= absoluteAccuracy_;
+    bool Integrator::integrationSuccess() const
+    {
+        return evaluations_ <= maxEvaluations_ && absoluteError_ <= absoluteAccuracy_;
     }
 
-    Real Integrator::operator()(const std::function<Real (Real)>& f,
-                                Real a,
-                                Real b) const {
+    Real Integrator::operator()(const std::function<Real(Real)>& f, Real a, Real b) const
+    {
         evaluations_ = 0;
         if (a == b)
             return 0.0;

@@ -27,82 +27,108 @@
 #include <ql/utilities/null_deleter.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     QL_DEPRECATED_DISABLE_WARNING
 
-    ZeroCouponInflationSwapHelper::ZeroCouponInflationSwapHelper(
-        const Handle<Quote>& quote,
-        const Period& swapObsLag,
-        const Date& maturity,
-        Calendar calendar,
-        BusinessDayConvention paymentConvention,
-        const DayCounter& dayCounter,
-        const ext::shared_ptr<ZeroInflationIndex>& zii,
-        CPI::InterpolationType observationInterpolation,
-        Pillar::Choice pillar,
-        Date customPillarDate)
+    ZeroCouponInflationSwapHelper::ZeroCouponInflationSwapHelper(const Handle<Quote>& quote,
+                                                                 const Period& swapObsLag,
+                                                                 const Date& maturity,
+                                                                 Calendar calendar,
+                                                                 BusinessDayConvention paymentConvention,
+                                                                 const DayCounter& dayCounter,
+                                                                 const ext::shared_ptr<ZeroInflationIndex>& zii,
+                                                                 CPI::InterpolationType observationInterpolation,
+                                                                 Pillar::Choice pillar,
+                                                                 Date customPillarDate)
     : ZeroCouponInflationSwapHelper(
-        quote, swapObsLag, Date(), maturity, std::move(calendar), paymentConvention,
-        dayCounter, zii, observationInterpolation,
-        Handle<YieldTermStructure>(ext::make_shared<FlatForward>(0, NullCalendar(), 0.0, dayCounter)),
-        pillar, customPillarDate) {}
+          quote,
+          swapObsLag,
+          Date(),
+          maturity,
+          std::move(calendar),
+          paymentConvention,
+          dayCounter,
+          zii,
+          observationInterpolation,
+          Handle<YieldTermStructure>(ext::make_shared<FlatForward>(0, NullCalendar(), 0.0, dayCounter)),
+          pillar,
+          customPillarDate)
+    {
+    }
 
-    ZeroCouponInflationSwapHelper::ZeroCouponInflationSwapHelper(
-        const Handle<Quote>& quote,
-        const Period& swapObsLag,
-        const Date& startDate,
-        const Date& endDate,
-        Calendar calendar,
-        BusinessDayConvention paymentConvention,
-        const DayCounter& dayCounter,
-        const ext::shared_ptr<ZeroInflationIndex>& zii,
-        CPI::InterpolationType observationInterpolation,
-        Pillar::Choice pillar,
-        Date customPillarDate)
+    ZeroCouponInflationSwapHelper::ZeroCouponInflationSwapHelper(const Handle<Quote>& quote,
+                                                                 const Period& swapObsLag,
+                                                                 const Date& startDate,
+                                                                 const Date& endDate,
+                                                                 Calendar calendar,
+                                                                 BusinessDayConvention paymentConvention,
+                                                                 const DayCounter& dayCounter,
+                                                                 const ext::shared_ptr<ZeroInflationIndex>& zii,
+                                                                 CPI::InterpolationType observationInterpolation,
+                                                                 Pillar::Choice pillar,
+                                                                 Date customPillarDate)
     : ZeroCouponInflationSwapHelper(
-        quote, swapObsLag, startDate, endDate, std::move(calendar), paymentConvention,
-        dayCounter, zii, observationInterpolation,
-        // any nominal term structure will give the same result;
-        // when calculating the fair rate, the equal discount factors
-        // for the payments on the two legs will cancel out.
-        Handle<YieldTermStructure>(ext::make_shared<FlatForward>(0, NullCalendar(), 0.0, dayCounter)),
-        pillar, customPillarDate) {}
+          quote,
+          swapObsLag,
+          startDate,
+          endDate,
+          std::move(calendar),
+          paymentConvention,
+          dayCounter,
+          zii,
+          observationInterpolation,
+          // any nominal term structure will give the same result;
+          // when calculating the fair rate, the equal discount factors
+          // for the payments on the two legs will cancel out.
+          Handle<YieldTermStructure>(ext::make_shared<FlatForward>(0, NullCalendar(), 0.0, dayCounter)),
+          pillar,
+          customPillarDate)
+    {
+    }
 
-    ZeroCouponInflationSwapHelper::ZeroCouponInflationSwapHelper(
-        const Handle<Quote>& quote,
-        const Period& swapObsLag,
-        const Date& maturity,
-        Calendar calendar,
-        BusinessDayConvention paymentConvention,
-        DayCounter dayCounter,
-        const ext::shared_ptr<ZeroInflationIndex>& zii,
-        CPI::InterpolationType observationInterpolation,
-        Handle<YieldTermStructure> nominalTermStructure)
-    : ZeroCouponInflationSwapHelper(
-        quote, swapObsLag, Date(), maturity, std::move(calendar), paymentConvention,
-        std::move(dayCounter), zii, observationInterpolation, std::move(nominalTermStructure),
-        Pillar::LastRelevantDate, Date()) {}
+    ZeroCouponInflationSwapHelper::ZeroCouponInflationSwapHelper(const Handle<Quote>& quote,
+                                                                 const Period& swapObsLag,
+                                                                 const Date& maturity,
+                                                                 Calendar calendar,
+                                                                 BusinessDayConvention paymentConvention,
+                                                                 DayCounter dayCounter,
+                                                                 const ext::shared_ptr<ZeroInflationIndex>& zii,
+                                                                 CPI::InterpolationType observationInterpolation,
+                                                                 Handle<YieldTermStructure> nominalTermStructure)
+    : ZeroCouponInflationSwapHelper(quote,
+                                    swapObsLag,
+                                    Date(),
+                                    maturity,
+                                    std::move(calendar),
+                                    paymentConvention,
+                                    std::move(dayCounter),
+                                    zii,
+                                    observationInterpolation,
+                                    std::move(nominalTermStructure),
+                                    Pillar::LastRelevantDate,
+                                    Date())
+    {
+    }
 
-    ZeroCouponInflationSwapHelper::ZeroCouponInflationSwapHelper(
-        const Handle<Quote>& quote,
-        const Period& swapObsLag,
-        const Date& startDate,
-        const Date& endDate,
-        Calendar calendar,
-        BusinessDayConvention paymentConvention,
-        DayCounter dayCounter,
-        const ext::shared_ptr<ZeroInflationIndex>& zii,
-        CPI::InterpolationType observationInterpolation,
-        Handle<YieldTermStructure> nominalTermStructure,
-        Pillar::Choice pillar,
-        Date customPillarDate)
-    : RelativeDateBootstrapHelper<ZeroInflationTermStructure>(quote, startDate == Date()),
-      swapObsLag_(swapObsLag), startDate_(startDate), maturity_(endDate),
-      calendar_(std::move(calendar)), paymentConvention_(paymentConvention),
-      dayCounter_(std::move(dayCounter)), observationInterpolation_(observationInterpolation),
-      pillarChoice_(pillar),
-      nominalTermStructure_(std::move(nominalTermStructure)) {
+    ZeroCouponInflationSwapHelper::ZeroCouponInflationSwapHelper(const Handle<Quote>& quote,
+                                                                 const Period& swapObsLag,
+                                                                 const Date& startDate,
+                                                                 const Date& endDate,
+                                                                 Calendar calendar,
+                                                                 BusinessDayConvention paymentConvention,
+                                                                 DayCounter dayCounter,
+                                                                 const ext::shared_ptr<ZeroInflationIndex>& zii,
+                                                                 CPI::InterpolationType observationInterpolation,
+                                                                 Handle<YieldTermStructure> nominalTermStructure,
+                                                                 Pillar::Choice pillar,
+                                                                 Date customPillarDate)
+    : RelativeDateBootstrapHelper<ZeroInflationTermStructure>(quote, startDate == Date()), swapObsLag_(swapObsLag),
+      startDate_(startDate), maturity_(endDate), calendar_(std::move(calendar)), paymentConvention_(paymentConvention),
+      dayCounter_(std::move(dayCounter)), observationInterpolation_(observationInterpolation), pillarChoice_(pillar),
+      nominalTermStructure_(std::move(nominalTermStructure))
+    {
         zii_ = zii->clone(termStructureHandle_);
         // We want to be notified of changes of fixings, but we don't
         // want notifications from termStructureHandle_ (they would
@@ -111,47 +137,53 @@ namespace QuantLib {
 
         auto fixingPeriod = inflationPeriod(maturity_ - swapObsLag_, zii_->frequency());
 
-        if (detail::CPI::isInterpolated(observationInterpolation_)) {
+        if (detail::CPI::isInterpolated(observationInterpolation_))
+        {
             earliestDate_ = fixingPeriod.first;
             latestDate_ = fixingPeriod.second + 1;
 
-            switch (pillarChoice_) {
-              case Pillar::MaturityDate:
-                pillarDate_ = latestDate_;
-                break;
-              case Pillar::LastRelevantDate:
-                // Assign the pillar to the node with the dominant
-                // interpolation weight.  We use startDate_ (the swap
-                // effective date) rather than maturity_ so that all
-                // helpers sharing the same effective date make the same
-                // LEFT/RIGHT decision.  Using maturity_ would cause
-                // collisions when consecutive helpers mature in months
-                // of different length (e.g. February vs March) and the
-                // day-of-month is near the mid-month threshold.
-                {
-                    Date weightDate = startDate_ != Date() ? startDate_ : maturity_;
-                    auto weightPeriod = inflationPeriod(weightDate, zii_->frequency());
-                    Real dp = (weightPeriod.second + 1) - weightPeriod.first;
-                    Real dt = weightDate - weightPeriod.first;
-                    if (dt / dp <= 0.5)
-                        pillarDate_ = fixingPeriod.first;
-                }
-                break;
-              case Pillar::CustomDate:
-                pillarDate_ = customPillarDate;
-                QL_REQUIRE(pillarDate_ >= earliestDate_,
-                           "pillar date (" << pillarDate_ << ") must be later "
-                           "than or equal to the instrument's earliest date ("
-                           << earliestDate_ << ")");
-                QL_REQUIRE(pillarDate_ <= latestDate_,
-                           "pillar date (" << pillarDate_ << ") must be before "
-                           "or equal to the instrument's latest relevant date ("
-                           << latestDate_ << ")");
-                break;
-              default:
-                QL_FAIL("unknown Pillar::Choice(" << Integer(pillarChoice_) << ")");
+            switch (pillarChoice_)
+            {
+                case Pillar::MaturityDate:
+                    pillarDate_ = latestDate_;
+                    break;
+                case Pillar::LastRelevantDate:
+                    // Assign the pillar to the node with the dominant
+                    // interpolation weight.  We use startDate_ (the swap
+                    // effective date) rather than maturity_ so that all
+                    // helpers sharing the same effective date make the same
+                    // LEFT/RIGHT decision.  Using maturity_ would cause
+                    // collisions when consecutive helpers mature in months
+                    // of different length (e.g. February vs March) and the
+                    // day-of-month is near the mid-month threshold.
+                    {
+                        Date weightDate = startDate_ != Date() ? startDate_ : maturity_;
+                        auto weightPeriod = inflationPeriod(weightDate, zii_->frequency());
+                        Real dp = (weightPeriod.second + 1) - weightPeriod.first;
+                        Real dt = weightDate - weightPeriod.first;
+                        if (dt / dp <= 0.5)
+                            pillarDate_ = fixingPeriod.first;
+                    }
+                    break;
+                case Pillar::CustomDate:
+                    pillarDate_ = customPillarDate;
+                    QL_REQUIRE(pillarDate_ >= earliestDate_, "pillar date ("
+                                                                 << pillarDate_
+                                                                 << ") must be later "
+                                                                    "than or equal to the instrument's earliest date ("
+                                                                 << earliestDate_ << ")");
+                    QL_REQUIRE(pillarDate_ <= latestDate_, "pillar date ("
+                                                               << pillarDate_
+                                                               << ") must be before "
+                                                                  "or equal to the instrument's latest relevant date ("
+                                                               << latestDate_ << ")");
+                    break;
+                default:
+                    QL_FAIL("unknown Pillar::Choice(" << Integer(pillarChoice_) << ")");
             }
-        } else {
+        }
+        else
+        {
             // Not interpolated: only the left node matters, so
             // earliestDate_ == latestDate_ and pillarChoice_ is
             // irrelevant (there is only one possible pillar).
@@ -162,7 +194,8 @@ namespace QuantLib {
         // check that the observation lag of the swap
         // is compatible with the availability lag of the index AND
         // it's interpolation (assuming the start day is spot)
-        if (detail::CPI::isInterpolated(observationInterpolation_)) {
+        if (detail::CPI::isInterpolated(observationInterpolation_))
+        {
             Period pShift(zii_->frequency());
             QL_REQUIRE(swapObsLag_ - pShift >= zii_->availabilityLag(),
                        "inconsistency between swap observation lag "
@@ -178,23 +211,24 @@ namespace QuantLib {
     QL_DEPRECATED_ENABLE_WARNING
 
 
-    Real ZeroCouponInflationSwapHelper::impliedQuote() const {
+    Real ZeroCouponInflationSwapHelper::impliedQuote() const
+    {
         zciis_->deepUpdate();
         return zciis_->fairRate();
     }
 
-    void ZeroCouponInflationSwapHelper::initializeDates() {
+    void ZeroCouponInflationSwapHelper::initializeDates()
+    {
         zciis_ = ext::make_shared<ZeroCouponInflationSwap>(
-            Swap::Payer, 1.0, updateDates_ ? evaluationDate_ : startDate_, maturity_, calendar_,
-            paymentConvention_, dayCounter_, 0.0, zii_, swapObsLag_,
-            observationInterpolation_);
+            Swap::Payer, 1.0, updateDates_ ? evaluationDate_ : startDate_, maturity_, calendar_, paymentConvention_,
+            dayCounter_, 0.0, zii_, swapObsLag_, observationInterpolation_);
         // The instrument takes a standard discounting swap engine.
         // The inflation-related work is done by the coupons.
-        zciis_->setPricingEngine(
-            ext::make_shared<DiscountingSwapEngine>(nominalTermStructure_));
+        zciis_->setPricingEngine(ext::make_shared<DiscountingSwapEngine>(nominalTermStructure_));
     }
 
-    void ZeroCouponInflationSwapHelper::setTermStructure(ZeroInflationTermStructure* z) {
+    void ZeroCouponInflationSwapHelper::setTermStructure(ZeroInflationTermStructure* z)
+    {
         // do not set the relinkable handle as an observer -
         // force recalculation when needed
         bool observer = false;
@@ -206,42 +240,49 @@ namespace QuantLib {
     }
 
 
-    YearOnYearInflationSwapHelper::YearOnYearInflationSwapHelper(
-        const Handle<Quote>& quote,
-        const Period& swapObsLag,
-        const Date& maturity,
-        Calendar calendar,
-        BusinessDayConvention paymentConvention,
-        DayCounter dayCounter,
-        const ext::shared_ptr<YoYInflationIndex>& yii,
-        CPI::InterpolationType interpolation,
-        Handle<YieldTermStructure> nominalTermStructure,
-        Pillar::Choice pillar,
-        Date customPillarDate)
-    : YearOnYearInflationSwapHelper(
-        quote, swapObsLag, Date(), maturity, std::move(calendar), paymentConvention,
-        std::move(dayCounter), yii, interpolation, std::move(nominalTermStructure),
-        pillar, customPillarDate) {}
+    YearOnYearInflationSwapHelper::YearOnYearInflationSwapHelper(const Handle<Quote>& quote,
+                                                                 const Period& swapObsLag,
+                                                                 const Date& maturity,
+                                                                 Calendar calendar,
+                                                                 BusinessDayConvention paymentConvention,
+                                                                 DayCounter dayCounter,
+                                                                 const ext::shared_ptr<YoYInflationIndex>& yii,
+                                                                 CPI::InterpolationType interpolation,
+                                                                 Handle<YieldTermStructure> nominalTermStructure,
+                                                                 Pillar::Choice pillar,
+                                                                 Date customPillarDate)
+    : YearOnYearInflationSwapHelper(quote,
+                                    swapObsLag,
+                                    Date(),
+                                    maturity,
+                                    std::move(calendar),
+                                    paymentConvention,
+                                    std::move(dayCounter),
+                                    yii,
+                                    interpolation,
+                                    std::move(nominalTermStructure),
+                                    pillar,
+                                    customPillarDate)
+    {
+    }
 
-    YearOnYearInflationSwapHelper::YearOnYearInflationSwapHelper(
-        const Handle<Quote>& quote,
-        const Period& swapObsLag,
-        const Date& startDate,
-        const Date& endDate,
-        Calendar calendar,
-        BusinessDayConvention paymentConvention,
-        DayCounter dayCounter,
-        const ext::shared_ptr<YoYInflationIndex>& yii,
-        CPI::InterpolationType interpolation,
-        Handle<YieldTermStructure> nominalTermStructure,
-        Pillar::Choice pillar,
-        Date customPillarDate)
-    : RelativeDateBootstrapHelper<YoYInflationTermStructure>(quote, startDate == Date()),
-      swapObsLag_(swapObsLag), startDate_(startDate), maturity_(endDate),
-      calendar_(std::move(calendar)), paymentConvention_(paymentConvention),
-      dayCounter_(std::move(dayCounter)), interpolation_(interpolation),
-      pillarChoice_(pillar),
-      nominalTermStructure_(std::move(nominalTermStructure)) {
+    YearOnYearInflationSwapHelper::YearOnYearInflationSwapHelper(const Handle<Quote>& quote,
+                                                                 const Period& swapObsLag,
+                                                                 const Date& startDate,
+                                                                 const Date& endDate,
+                                                                 Calendar calendar,
+                                                                 BusinessDayConvention paymentConvention,
+                                                                 DayCounter dayCounter,
+                                                                 const ext::shared_ptr<YoYInflationIndex>& yii,
+                                                                 CPI::InterpolationType interpolation,
+                                                                 Handle<YieldTermStructure> nominalTermStructure,
+                                                                 Pillar::Choice pillar,
+                                                                 Date customPillarDate)
+    : RelativeDateBootstrapHelper<YoYInflationTermStructure>(quote, startDate == Date()), swapObsLag_(swapObsLag),
+      startDate_(startDate), maturity_(endDate), calendar_(std::move(calendar)), paymentConvention_(paymentConvention),
+      dayCounter_(std::move(dayCounter)), interpolation_(interpolation), pillarChoice_(pillar),
+      nominalTermStructure_(std::move(nominalTermStructure))
+    {
         yii_ = yii->clone(termStructureHandle_);
         // We want to be notified of changes of fixings, but we don't
         // want notifications from termStructureHandle_ (they would
@@ -250,15 +291,17 @@ namespace QuantLib {
 
         auto fixingPeriod = inflationPeriod(maturity_ - swapObsLag_, yii_->frequency());
 
-        if (detail::CPI::isInterpolated(interpolation_, yii_)) {
+        if (detail::CPI::isInterpolated(interpolation_, yii_))
+        {
             earliestDate_ = fixingPeriod.first;
             latestDate_ = fixingPeriod.second + 1;
 
-            switch (pillarChoice_) {
-              case Pillar::MaturityDate:
-                pillarDate_ = latestDate_;
-                break;
-              case Pillar::LastRelevantDate:
+            switch (pillarChoice_)
+            {
+                case Pillar::MaturityDate:
+                    pillarDate_ = latestDate_;
+                    break;
+                case Pillar::LastRelevantDate:
                 {
                     Date weightDate = startDate_ != Date() ? startDate_ : maturity_;
                     auto weightPeriod = inflationPeriod(weightDate, yii_->frequency());
@@ -268,21 +311,25 @@ namespace QuantLib {
                         pillarDate_ = fixingPeriod.first;
                 }
                 break;
-              case Pillar::CustomDate:
-                pillarDate_ = customPillarDate;
-                QL_REQUIRE(pillarDate_ >= earliestDate_,
-                           "pillar date (" << pillarDate_ << ") must be later "
-                           "than or equal to the instrument's earliest date ("
-                           << earliestDate_ << ")");
-                QL_REQUIRE(pillarDate_ <= latestDate_,
-                           "pillar date (" << pillarDate_ << ") must be before "
-                           "or equal to the instrument's latest relevant date ("
-                           << latestDate_ << ")");
-                break;
-              default:
-                QL_FAIL("unknown Pillar::Choice(" << Integer(pillarChoice_) << ")");
+                case Pillar::CustomDate:
+                    pillarDate_ = customPillarDate;
+                    QL_REQUIRE(pillarDate_ >= earliestDate_, "pillar date ("
+                                                                 << pillarDate_
+                                                                 << ") must be later "
+                                                                    "than or equal to the instrument's earliest date ("
+                                                                 << earliestDate_ << ")");
+                    QL_REQUIRE(pillarDate_ <= latestDate_, "pillar date ("
+                                                               << pillarDate_
+                                                               << ") must be before "
+                                                                  "or equal to the instrument's latest relevant date ("
+                                                               << latestDate_ << ")");
+                    break;
+                default:
+                    QL_FAIL("unknown Pillar::Choice(" << Integer(pillarChoice_) << ")");
             }
-        } else {
+        }
+        else
+        {
             // Not interpolated: only the left node matters, so
             // earliestDate_ == latestDate_ and pillarChoice_ is
             // irrelevant (there is only one possible pillar).
@@ -293,12 +340,13 @@ namespace QuantLib {
         // check that the observation lag of the swap
         // is compatible with the availability lag of the index AND
         // its interpolation (assuming the start day is spot)
-        if (detail::CPI::isInterpolated(interpolation_, yii_)) {
+        if (detail::CPI::isInterpolated(interpolation_, yii_))
+        {
             Period pShift(yii_->frequency());
             QL_REQUIRE(swapObsLag_ - pShift >= yii_->availabilityLag(),
                        "inconsistency between swap observation lag "
-                       << swapObsLag_ << ", index period " << pShift << " and index availability "
-                       << yii_->availabilityLag() << ": need (obsLag-index period) >= availLag");
+                           << swapObsLag_ << ", index period " << pShift << " and index availability "
+                           << yii_->availabilityLag() << ": need (obsLag-index period) >= availLag");
         }
 
         registerWith(yii_);
@@ -306,12 +354,14 @@ namespace QuantLib {
         YearOnYearInflationSwapHelper::initializeDates();
     }
 
-    Real YearOnYearInflationSwapHelper::impliedQuote() const {
+    Real YearOnYearInflationSwapHelper::impliedQuote() const
+    {
         yyiis_->deepUpdate();
         return yyiis_->fairRate();
     }
 
-    void YearOnYearInflationSwapHelper::initializeDates() {
+    void YearOnYearInflationSwapHelper::initializeDates()
+    {
         // always works because tenor is always 1 year so
         // no problem with different days-in-month
         Schedule fixedSchedule = MakeSchedule()
@@ -323,18 +373,17 @@ namespace QuantLib {
                                      .backwards();
         const Schedule& yoySchedule = fixedSchedule;
 
-        yyiis_ = ext::make_shared<YearOnYearInflationSwap>(
-            Swap::Payer, 1.0, fixedSchedule, 0.0, dayCounter_,
-            yoySchedule, yii_, swapObsLag_, interpolation_,
-            0.0, dayCounter_, calendar_, paymentConvention_);
+        yyiis_ = ext::make_shared<YearOnYearInflationSwap>(Swap::Payer, 1.0, fixedSchedule, 0.0, dayCounter_,
+                                                           yoySchedule, yii_, swapObsLag_, interpolation_, 0.0,
+                                                           dayCounter_, calendar_, paymentConvention_);
 
         // The instrument takes a standard discounting swap engine.
         // The inflation-related work is done by the coupons.
-        yyiis_->setPricingEngine(
-            ext::make_shared<DiscountingSwapEngine>(nominalTermStructure_));
+        yyiis_->setPricingEngine(ext::make_shared<DiscountingSwapEngine>(nominalTermStructure_));
     }
 
-    void YearOnYearInflationSwapHelper::setTermStructure(YoYInflationTermStructure* y) {
+    void YearOnYearInflationSwapHelper::setTermStructure(YoYInflationTermStructure* y)
+    {
         // do not set the relinkable handle as an observer -
         // force recalculation when needed
         bool observer = false;

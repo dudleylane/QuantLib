@@ -26,23 +26,26 @@
 #ifndef quantlib_fdm_uniform_1d_mesher_hpp
 #define quantlib_fdm_uniform_1d_mesher_hpp
 
-#include <ql/methods/finitedifferences/meshers/fdm1dmesher.hpp>
 #include <ql/errors.hpp>
+#include <ql/methods/finitedifferences/meshers/fdm1dmesher.hpp>
 #include <ql/utilities/null.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class Uniform1dMesher : public Fdm1dMesher {
+    class Uniform1dMesher : public Fdm1dMesher
+    {
       public:
-        Uniform1dMesher(Real start, Real end, Size size)
-        : Fdm1dMesher(size) {
+        Uniform1dMesher(Real start, Real end, Size size) : Fdm1dMesher(size)
+        {
             QL_REQUIRE(end > start, "end must be larger than start");
 
-            const Real dx = (end-start)/(size-1);
+            const Real dx = (end - start) / (size - 1);
 
-            for (Size i=0; i < size-1; ++i) {
-                locations_[i] = start + i*dx;
-                dplus_[i] = dminus_[i+1] = dx;
+            for (Size i = 0; i < size - 1; ++i)
+            {
+                locations_[i] = start + i * dx;
+                dplus_[i] = dminus_[i + 1] = dx;
             }
 
             locations_.back() = end;

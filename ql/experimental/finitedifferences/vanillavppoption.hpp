@@ -26,17 +26,22 @@
 
 #include <ql/instruments/multiassetoption.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
     class BasketPayoff;
     class SwingExercise;
 
-    class VanillaVPPOption : public MultiAssetOption {
+    class VanillaVPPOption : public MultiAssetOption
+    {
       public:
         class arguments;
         VanillaVPPOption(Real heatRate,
-                         Real pMin, Real pMax,
-                         Size tMinUp, Size tMinDown,
-                         Real startUpFuel, Real startUpFixCost,
+                         Real pMin,
+                         Real pMax,
+                         Size tMinUp,
+                         Size tMinDown,
+                         Real startUpFuel,
+                         Real startUpFixCost,
                          const ext::shared_ptr<SwingExercise>& exercise,
                          Size nStarts = Null<Size>(),
                          Size nRunningHours = Null<Size>());
@@ -52,8 +57,8 @@ namespace QuantLib {
         const Size nStarts_, nRunningHours_;
     };
 
-    class VanillaVPPOption::arguments
-        : public virtual MultiAssetOption::arguments {
+    class VanillaVPPOption::arguments : public virtual MultiAssetOption::arguments
+    {
       public:
         arguments() = default;
         void validate() const override;

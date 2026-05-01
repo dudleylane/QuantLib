@@ -32,11 +32,14 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #include <ql/time/date.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class TenorSwaptionVTS : public SwaptionVolatilityStructure {
+    class TenorSwaptionVTS : public SwaptionVolatilityStructure
+    {
       protected:
-        class TenorSwaptionSmileSection : public SmileSection {
+        class TenorSwaptionSmileSection : public SmileSection
+        {
           protected:
             ext::shared_ptr<SmileSection> baseSmileSection_;
             Real swapRateBase_;
@@ -49,17 +52,11 @@ namespace QuantLib {
 
           public:
             // constructor includes actual transformation details
-            TenorSwaptionSmileSection(const TenorSwaptionVTS& volTS,
-                                      Time optionTime,
-                                      Time swapLength);
+            TenorSwaptionSmileSection(const TenorSwaptionVTS& volTS, Time optionTime, Time swapLength);
 
             // further SmileSection interface methods
-            Real minStrike() const override {
-                return baseSmileSection_->minStrike() + swapRateTarg_ - swapRateBase_;
-            }
-            Real maxStrike() const override {
-                return baseSmileSection_->maxStrike() + swapRateTarg_ - swapRateBase_;
-            }
+            Real minStrike() const override { return baseSmileSection_->minStrike() + swapRateTarg_ - swapRateBase_; }
+            Real maxStrike() const override { return baseSmileSection_->maxStrike() + swapRateTarg_ - swapRateBase_; }
             Real atmLevel() const override { return swapRateFinl_; }
         };
 
@@ -83,14 +80,13 @@ namespace QuantLib {
                          const Period& targFixedFreq,
                          DayCounter baseFixedDC,
                          DayCounter targFixedDC)
-        : SwaptionVolatilityStructure(baseVTS->referenceDate(),
-                                      baseVTS->calendar(),
-                                      baseVTS->businessDayConvention(),
-                                      baseVTS->dayCounter()),
-          baseVTS_(baseVTS), discountCurve_(std::move(discountCurve)),
-          baseIndex_(std::move(baseIndex)), targIndex_(std::move(targIndex)),
-          baseFixedFreq_(baseFixedFreq), targFixedFreq_(targFixedFreq),
-          baseFixedDC_(std::move(baseFixedDC)), targFixedDC_(std::move(targFixedDC)) {}
+        : SwaptionVolatilityStructure(
+              baseVTS->referenceDate(), baseVTS->calendar(), baseVTS->businessDayConvention(), baseVTS->dayCounter()),
+          baseVTS_(baseVTS), discountCurve_(std::move(discountCurve)), baseIndex_(std::move(baseIndex)),
+          targIndex_(std::move(targIndex)), baseFixedFreq_(baseFixedFreq), targFixedFreq_(targFixedFreq),
+          baseFixedDC_(std::move(baseFixedDC)), targFixedDC_(std::move(targFixedDC))
+        {
+        }
 
         // Termstructure interface
 
@@ -110,13 +106,13 @@ namespace QuantLib {
         //! the largest length for which the term structure can return vols
         const Period& maxSwapTenor() const override { return baseVTS_->maxSwapTenor(); }
 
-        ext::shared_ptr<SmileSection> smileSectionImpl(Time optionTime,
-                                                       Time swapLength) const override {
-            return ext::shared_ptr<SmileSection>(
-                new TenorSwaptionSmileSection(*this, optionTime, swapLength));
+        ext::shared_ptr<SmileSection> smileSectionImpl(Time optionTime, Time swapLength) const override
+        {
+            return ext::shared_ptr<SmileSection>(new TenorSwaptionSmileSection(*this, optionTime, swapLength));
         }
 
-        Volatility volatilityImpl(Time optionTime, Time swapLength, Rate strike) const override {
+        Volatility volatilityImpl(Time optionTime, Time swapLength, Rate strike) const override
+        {
             return smileSectionImpl(optionTime, swapLength)->volatility(strike, Normal, 0.0);
         }
 

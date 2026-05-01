@@ -35,11 +35,14 @@
 #include <ql/time/date.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    struct Pillar {
+    struct Pillar
+    {
         //! Alternatives ways of determining the pillar date
-        enum Choice {
+        enum Choice
+        {
             MaturityDate,     //! instruments maturity date
             LastRelevantDate, //! last date relevant for instrument pricing
             CustomDate        //! custom choice
@@ -59,7 +62,8 @@ namespace QuantLib {
         in the available bootstrap helpers.
     */
     template <class TS>
-    class BootstrapHelper : public Observer, public Observable {
+    class BootstrapHelper : public Observer, public Observable
+    {
       public:
         explicit BootstrapHelper(const std::variant<Spread, Handle<Quote>>& quote);
         ~BootstrapHelper() override = default;
@@ -101,7 +105,7 @@ namespace QuantLib {
 
         //! latest date
         /*! equal to pillarDate()
-        */
+         */
         virtual Date latestDate() const;
         //@}
         //! \name Observer interface
@@ -124,16 +128,17 @@ namespace QuantLib {
         the global evaluation date changes
     */
     template <class TS>
-    class RelativeDateBootstrapHelper : public BootstrapHelper<TS> {
+    class RelativeDateBootstrapHelper : public BootstrapHelper<TS>
+    {
       public:
-        explicit RelativeDateBootstrapHelper(
-            const std::variant<Spread, Handle<Quote>>& quote,
-            bool updateDates = true);
+        explicit RelativeDateBootstrapHelper(const std::variant<Spread, Handle<Quote>>& quote, bool updateDates = true);
 
         //! \name Observer interface
         //@{
-        void update() override {
-            if (updateDates_ && evaluationDate_ != Settings::instance().evaluationDate()) {
+        void update() override
+        {
+            if (updateDates_ && evaluationDate_ != Settings::instance().evaluationDate())
+            {
                 evaluationDate_ = Settings::instance().evaluationDate();
                 initializeDates();
             }
@@ -150,57 +155,66 @@ namespace QuantLib {
 
     template <class TS>
     BootstrapHelper<TS>::BootstrapHelper(const std::variant<Spread, Handle<Quote>>& quote)
-    : quote_(handleFromVariant(quote)), termStructure_(nullptr) {
+    : quote_(handleFromVariant(quote)), termStructure_(nullptr)
+    {
         registerWith(quote_);
     }
 
     template <class TS>
-    void BootstrapHelper<TS>::setTermStructure(TS* t) {
+    void BootstrapHelper<TS>::setTermStructure(TS* t)
+    {
         QL_REQUIRE(t != nullptr, "null term structure given");
         termStructure_ = t;
     }
 
     template <class TS>
-    Date BootstrapHelper<TS>::earliestDate() const {
+    Date BootstrapHelper<TS>::earliestDate() const
+    {
         return earliestDate_;
     }
 
     template <class TS>
-    Date BootstrapHelper<TS>::maturityDate() const {
+    Date BootstrapHelper<TS>::maturityDate() const
+    {
         if (maturityDate_ == Date())
             return latestRelevantDate();
         return maturityDate_;
     }
 
     template <class TS>
-    Date BootstrapHelper<TS>::latestRelevantDate() const {
+    Date BootstrapHelper<TS>::latestRelevantDate() const
+    {
         if (latestRelevantDate_ == Date())
             return latestDate();
         return latestRelevantDate_;
     }
 
     template <class TS>
-    Date BootstrapHelper<TS>::pillarDate() const {
-        if (pillarDate_==Date())
+    Date BootstrapHelper<TS>::pillarDate() const
+    {
+        if (pillarDate_ == Date())
             return latestDate();
         return pillarDate_;
     }
 
     template <class TS>
-    Date BootstrapHelper<TS>::latestDate() const {
+    Date BootstrapHelper<TS>::latestDate() const
+    {
         if (latestDate_ == Date())
             return pillarDate_;
         return latestDate_;
     }
 
     template <class TS>
-    void BootstrapHelper<TS>::update() {
+    void BootstrapHelper<TS>::update()
+    {
         notifyObservers();
     }
 
     template <class TS>
-    void BootstrapHelper<TS>::accept(AcyclicVisitor& v) {
-        auto* v1 = dynamic_cast<Visitor<BootstrapHelper<TS> >*>(&v);
+    void BootstrapHelper<TS>::accept(AcyclicVisitor& v)
+    {
+        auto* v1 = dynamic_cast<Visitor<BootstrapHelper<TS>>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);
         else
@@ -209,38 +223,42 @@ namespace QuantLib {
 
 
     template <class TS>
-    RelativeDateBootstrapHelper<TS>::RelativeDateBootstrapHelper(
-        const std::variant<Spread, Handle<Quote>>& quote, bool updateDates)
-    : BootstrapHelper<TS>(quote), updateDates_(updateDates) {
-        if (updateDates) {
+    RelativeDateBootstrapHelper<TS>::RelativeDateBootstrapHelper(const std::variant<Spread, Handle<Quote>>& quote,
+                                                                 bool updateDates)
+    : BootstrapHelper<TS>(quote), updateDates_(updateDates)
+    {
+        if (updateDates)
+        {
             this->registerWith(Settings::instance().evaluationDate());
             evaluationDate_ = Settings::instance().evaluationDate();
         }
     }
 
 
-    inline std::ostream& operator<<(std::ostream& out,
-                                    Pillar::Choice t) {
-        switch (t) {
-        case Pillar::MaturityDate:
-            return out << "MaturityPillarDate";
-        case Pillar::LastRelevantDate:
-            return out << "LastRelevantPillarDate";
-        case Pillar::CustomDate:
-            return out << "CustomPillarDate";
-        default:
-            QL_FAIL("unknown Pillar::Choice(" << Integer(t) << ")");
+    inline std::ostream& operator<<(std::ostream& out, Pillar::Choice t)
+    {
+        switch (t)
+        {
+            case Pillar::MaturityDate:
+                return out << "MaturityPillarDate";
+            case Pillar::LastRelevantDate:
+                return out << "LastRelevantPillarDate";
+            case Pillar::CustomDate:
+                return out << "CustomPillarDate";
+            default:
+                QL_FAIL("unknown Pillar::Choice(" << Integer(t) << ")");
         }
     }
 
-    namespace detail {
+    namespace detail
+    {
 
-        class BootstrapHelperSorter {
+        class BootstrapHelperSorter
+        {
           public:
             template <class Helper>
-            bool operator()(
-                    const ext::shared_ptr<Helper>& h1,
-                    const ext::shared_ptr<Helper>& h2) const {
+            bool operator()(const ext::shared_ptr<Helper>& h1, const ext::shared_ptr<Helper>& h2) const
+            {
                 return (h1->pillarDate() < h2->pillarDate());
             }
         };

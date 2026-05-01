@@ -20,48 +20,50 @@
 
 #include <ql/instruments/quantovanillaoption.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    QuantoVanillaOption::QuantoVanillaOption(
-                   const ext::shared_ptr<StrikedTypePayoff>& payoff,
-                   const ext::shared_ptr<Exercise>& exercise)
-    : OneAssetOption(payoff, exercise) {}
+    QuantoVanillaOption::QuantoVanillaOption(const ext::shared_ptr<StrikedTypePayoff>& payoff,
+                                             const ext::shared_ptr<Exercise>& exercise)
+    : OneAssetOption(payoff, exercise)
+    {
+    }
 
-    Real QuantoVanillaOption::qvega() const {
+    Real QuantoVanillaOption::qvega() const
+    {
         calculate();
-        QL_REQUIRE(qvega_ != Null<Real>(),
-                   "exchange rate vega calculation failed");
+        QL_REQUIRE(qvega_ != Null<Real>(), "exchange rate vega calculation failed");
         return qvega_;
     }
 
-    Real QuantoVanillaOption::qrho() const {
+    Real QuantoVanillaOption::qrho() const
+    {
         calculate();
-        QL_REQUIRE(qrho_ != Null<Real>(),
-                   "foreign interest rate rho calculation failed");
+        QL_REQUIRE(qrho_ != Null<Real>(), "foreign interest rate rho calculation failed");
         return qrho_;
     }
 
-    Real QuantoVanillaOption::qlambda() const {
+    Real QuantoVanillaOption::qlambda() const
+    {
         calculate();
-        QL_REQUIRE(qlambda_ != Null<Real>(),
-                   "quanto correlation sensitivity calculation failed");
+        QL_REQUIRE(qlambda_ != Null<Real>(), "quanto correlation sensitivity calculation failed");
         return qlambda_;
     }
 
-    void QuantoVanillaOption::setupExpired() const {
+    void QuantoVanillaOption::setupExpired() const
+    {
         OneAssetOption::setupExpired();
         qvega_ = qrho_ = qlambda_ = 0.0;
     }
 
-    void QuantoVanillaOption::fetchResults(
-                                      const PricingEngine::results* r) const {
+    void QuantoVanillaOption::fetchResults(const PricingEngine::results* r) const
+    {
         OneAssetOption::fetchResults(r);
         const auto* quantoResults = dynamic_cast<const QuantoVanillaOption::results*>(r);
         QL_ENSURE(quantoResults != nullptr, "no quanto results returned from pricing engine");
-        qrho_    = quantoResults->qrho;
-        qvega_   = quantoResults->qvega;
+        qrho_ = quantoResults->qrho;
+        qvega_ = quantoResults->qvega;
         qlambda_ = quantoResults->qlambda;
     }
 
 }
-

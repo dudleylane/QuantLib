@@ -26,11 +26,12 @@
 #define quantlib_isda_cds_engine_hpp
 
 #include <ql/instruments/creditdefaultswap.hpp>
-#include <ql/termstructures/yieldtermstructure.hpp>
-#include <ql/termstructures/defaulttermstructure.hpp>
 #include <ql/optional.hpp>
+#include <ql/termstructures/defaulttermstructure.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! References:
 
@@ -46,7 +47,8 @@ namespace QuantLib {
 
     */
 
-    class IsdaCdsEngine : public CreditDefaultSwap::engine {
+    class IsdaCdsEngine : public CreditDefaultSwap::engine
+    {
 
       public:
         /*! According to [1] the settings for the flags
@@ -63,21 +65,24 @@ namespace QuantLib {
             is solved and how exactly.
         */
 
-        enum NumericalFix {
+        enum NumericalFix
+        {
             None,  // as in [1] footnote 26 (i.e. 10^{-50} is added to
                    // denominators $f_i+h_i$$)
             Taylor // as in [2] i.e. for $f_i+h_i < 10^{-4}$ a Taylor expansion
                    // is used to avoid zero denominators
         };
 
-        enum AccrualBias {
+        enum AccrualBias
+        {
             HalfDayBias, // as in [1] formula (50), second (error) term is
                          // included
-            NoBias // as in [1], but second term in formula (50) is not included
+            NoBias       // as in [1], but second term in formula (50) is not included
         };
 
-        enum ForwardsInCouponPeriod {
-            Flat, // as in [1], formula (52), second (error) term is included
+        enum ForwardsInCouponPeriod
+        {
+            Flat,     // as in [1], formula (52), second (error) term is included
             Piecewise // as in [1], but second term in formula (52) is not
                       // included
         };

@@ -26,16 +26,18 @@
 #define quantlib_makecds_hpp
 
 #include <ql/instruments/creditdefaultswap.hpp>
-#include <ql/time/daycounters/actual360.hpp>
 #include <ql/optional.hpp>
+#include <ql/time/daycounters/actual360.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! helper class
     /*! This class provides a more comfortable way
         to instantiate standard cds.
     */
-    class MakeCreditDefaultSwap {
+    class MakeCreditDefaultSwap
+    {
       public:
         MakeCreditDefaultSwap(const Period& tenor, Rate runningSpread);
         MakeCreditDefaultSwap(const Date& termDate, Rate runningSpread);

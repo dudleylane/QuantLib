@@ -25,14 +25,15 @@
 #ifndef quantlib_forward_value_quote_hpp
 #define quantlib_forward_value_quote_hpp
 
-#include <ql/quote.hpp>
 #include <ql/index.hpp>
+#include <ql/quote.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %quote for the forward value of an index
-    class ForwardValueQuote : public Quote,
-                              public Observer {
+    class ForwardValueQuote : public Quote, public Observer
+    {
       public:
         ForwardValueQuote(ext::shared_ptr<Index> index, const Date& fixingDate);
         //! \name Quote interface

@@ -28,12 +28,13 @@
 
 #include <ql/methods/finitedifferences/operators/triplebandlinearop.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class SecondDerivativeOp : public TripleBandLinearOp {
-    public:
-        SecondDerivativeOp(Size direction,
-            const ext::shared_ptr<FdmMesher>& mesher);
+    class SecondDerivativeOp : public TripleBandLinearOp
+    {
+      public:
+        SecondDerivativeOp(Size direction, const ext::shared_ptr<FdmMesher>& mesher);
     };
 }
 

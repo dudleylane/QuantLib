@@ -18,13 +18,12 @@
 */
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
-#include <ql/termstructures/volatility/interpolatedsmilesection.hpp>
 #include <ql/math/interpolations/linearinterpolation.hpp>
 #include <ql/quotes/simplequote.hpp>
+#include <ql/termstructures/volatility/interpolatedsmilesection.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
-
-#include <vector>
 #include <cmath>
+#include <vector>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -34,28 +33,25 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 BOOST_AUTO_TEST_SUITE(InterpolatedSmileSectionTests)
 
 // Helper for linear interpolation/extrapolation between two points
-static Real linearInterp(Real x, Real x1, Real y1, Real x2, Real y2) {
+static Real linearInterp(Real x, Real x1, Real y1, Real x2, Real y2)
+{
     if (x2 == x1)
         return y1;
-    return y1 + (y2 - y1) * ( (x - x1) / (x2 - x1) );
+    return y1 + (y2 - y1) * ((x - x1) / (x2 - x1));
 }
 
-BOOST_AUTO_TEST_CASE(testInterpolationAndVariance) {
+BOOST_AUTO_TEST_CASE(testInterpolationAndVariance)
+{
     BOOST_TEST_MESSAGE("Testing basic behavior of linearly interpolated smile section...");
     // basic scenario: sorted strikes, constructor taking stdDevs (total std devs)
     Time expiry = 0.25; // 3 months
     Real sqrtT = std::sqrt(expiry);
     std::vector<Rate> strikes{90.0, 100.0, 110};
     // total std deviations (i.e., sigma * sqrt(T))
-    std::vector<Real> stdDevs{
-     0.20 * sqrtT,
-     0.15 * sqrtT,
-     0.18 * sqrtT};
+    std::vector<Real> stdDevs{0.20 * sqrtT, 0.15 * sqrtT, 0.18 * sqrtT};
     Real atmLevel = 95.0;
 
-    auto section = ext::make_shared<InterpolatedSmileSection<Linear>>(
-        expiry, strikes, stdDevs, atmLevel
-    );
+    auto section = ext::make_shared<InterpolatedSmileSection<Linear>>(expiry, strikes, stdDevs, atmLevel);
 
     // pick an interior strike 95 between 90 and 100
     Real strike = 95.0;
@@ -72,21 +68,17 @@ BOOST_AUTO_TEST_CASE(testInterpolationAndVariance) {
     QL_CHECK_CLOSE(section->varianceImpl(strike), expectedVar, tol);
 }
 
-BOOST_AUTO_TEST_CASE(testExtrapolationWhenAllowed) {
+BOOST_AUTO_TEST_CASE(testExtrapolationWhenAllowed)
+{
     BOOST_TEST_MESSAGE("Testing extrapolation behavior of linearly interpolated smile section...");
     // test extrapolation behavior when flatStrikeExtrapolation=false
     Time expiry = 0.25;
     Real sqrtT = std::sqrt(expiry);
     std::vector<Rate> strikes{90.0, 100.0, 110};
-    std::vector<Real> stdDevs{
-     0.20 * sqrtT,
-     0.15 * sqrtT,
-     0.18 * sqrtT};
+    std::vector<Real> stdDevs{0.20 * sqrtT, 0.15 * sqrtT, 0.18 * sqrtT};
     Real atmLevel = 95.0;
 
-    auto section = ext::make_shared<InterpolatedSmileSection<Linear>>(
-        expiry, strikes, stdDevs, atmLevel
-    );
+    auto section = ext::make_shared<InterpolatedSmileSection<Linear>>(expiry, strikes, stdDevs, atmLevel);
 
     // compute expected extrapolated vol at strike 80 (below min strike 90)
     Real v90 = stdDevs[0] / sqrtT;
@@ -106,7 +98,8 @@ BOOST_AUTO_TEST_CASE(testExtrapolationWhenAllowed) {
     QL_CHECK_CLOSE(section->volatilityImpl(strikeHigh), expectedHigh, tol);
 }
 
-BOOST_AUTO_TEST_CASE(testHandlesUpdatePropagates) {
+BOOST_AUTO_TEST_CASE(testHandlesUpdatePropagates)
+{
     BOOST_TEST_MESSAGE("Testing that linearly interpolated smile section observes its quotes...");
     // construct via Quote handles and verify changing the underlying quote updates the section
     Time expiry = 0.25;
@@ -125,9 +118,7 @@ BOOST_AUTO_TEST_CASE(testHandlesUpdatePropagates) {
     ext::shared_ptr<SimpleQuote> atm(new SimpleQuote(95.0));
     Handle<Quote> atmHandle(atm);
 
-    auto section = ext::make_shared<InterpolatedSmileSection<Linear>>(
-        expiry, strikes, stdDevHandles, atmHandle
-    );
+    auto section = ext::make_shared<InterpolatedSmileSection<Linear>>(expiry, strikes, stdDevHandles, atmHandle);
 
     // current vol at 95
     Real v90 = q1->value() / sqrtT;
@@ -146,7 +137,8 @@ BOOST_AUTO_TEST_CASE(testHandlesUpdatePropagates) {
     QL_CHECK_CLOSE(section->volatilityImpl(95.0), expectedAfter, tol);
 }
 
-BOOST_AUTO_TEST_CASE(testFlatStrikeExtrapolation) {
+BOOST_AUTO_TEST_CASE(testFlatStrikeExtrapolation)
+{
     BOOST_TEST_MESSAGE("Testing flat strike extrapolation in interpolated smile section...");
     // construct via Quote handles and verify changing the underlying quote updates the section
     Time expiry = 0.25;
@@ -166,9 +158,7 @@ BOOST_AUTO_TEST_CASE(testFlatStrikeExtrapolation) {
     Handle<Quote> atmHandle(atm);
 
     auto section = ext::make_shared<InterpolatedSmileSection<Linear>>(
-        expiry, strikes, stdDevHandles, atmHandle,
-        Linear(), Actual365Fixed(), ShiftedLognormal, 0.0, true
-    );
+        expiry, strikes, stdDevHandles, atmHandle, Linear(), Actual365Fixed(), ShiftedLognormal, 0.0, true);
 
     // Check with strike lower than minStrike()
     Real v90 = q0->value() / sqrtT;
@@ -183,31 +173,26 @@ BOOST_AUTO_TEST_CASE(testFlatStrikeExtrapolation) {
 
     QL_CHECK_CLOSE(section->volatilityImpl(strikeHigh), v110, tol);
 
-    //Change minStrike vol quote and check if out-of-bounds vol is the same
+    // Change minStrike vol quote and check if out-of-bounds vol is the same
     q0->setValue(0.21 * sqrtT);
     Real v90_after = q0->value() / sqrtT;
     QL_CHECK_CLOSE(section->volatilityImpl(strikeLow), v90_after, tol);
 }
 
-BOOST_AUTO_TEST_CASE(testErrorThrowingWhenNonSortedStrikes) {
+BOOST_AUTO_TEST_CASE(testErrorThrowingWhenNonSortedStrikes)
+{
     BOOST_TEST_MESSAGE("Testing that creation of interpolated smile section with non-sorted strikes throws...");
     // basic scenario: sorted strikes, constructor taking stdDevs (total std devs)
     Time expiry = 0.25; // 3 months
     Real sqrtT = std::sqrt(expiry);
     std::vector<Rate> strikes{90.0, 110.0, 100};
     // total std deviations (i.e., sigma * sqrt(T))
-    std::vector<Real> stdDevs{
-     0.20 * sqrtT,
-     0.15 * sqrtT,
-     0.18 * sqrtT};
+    std::vector<Real> stdDevs{0.20 * sqrtT, 0.15 * sqrtT, 0.18 * sqrtT};
     Real atmLevel = 95.0;
 
-    BOOST_CHECK_THROW(
-        auto section = ext::make_shared<InterpolatedSmileSection<Linear>>(
-            expiry, strikes, stdDevs, atmLevel
-        ),
-        QuantLib::Error
-    );
+    BOOST_CHECK_THROW(auto section =
+                          ext::make_shared<InterpolatedSmileSection<Linear>>(expiry, strikes, stdDevs, atmLevel),
+                      QuantLib::Error);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

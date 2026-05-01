@@ -24,7 +24,8 @@
 #include <ql/processes/blackscholesprocess.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! \ingroup forwardengines
         \test
@@ -33,38 +34,33 @@ namespace QuantLib {
           of moneynesses
     */
     template <class RNG = PseudoRandom, class S = Statistics>
-    class MCForwardEuropeanBSEngine
-        : public MCForwardVanillaEngine<SingleVariate,RNG,S> {
+    class MCForwardEuropeanBSEngine : public MCForwardVanillaEngine<SingleVariate, RNG, S>
+    {
       public:
-        typedef
-        typename MCForwardVanillaEngine<SingleVariate,RNG,S>::path_generator_type
-            path_generator_type;
-        typedef
-        typename MCForwardVanillaEngine<SingleVariate,RNG,S>::path_pricer_type
-            path_pricer_type;
-        typedef typename MCForwardVanillaEngine<SingleVariate,RNG,S>::stats_type
-            stats_type;
+        typedef typename MCForwardVanillaEngine<SingleVariate, RNG, S>::path_generator_type path_generator_type;
+        typedef typename MCForwardVanillaEngine<SingleVariate, RNG, S>::path_pricer_type path_pricer_type;
+        typedef typename MCForwardVanillaEngine<SingleVariate, RNG, S>::stats_type stats_type;
         // constructor
-        MCForwardEuropeanBSEngine(
-             const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
-             Size timeSteps,
-             Size timeStepsPerYear,
-             bool brownianBridge,
-             bool antitheticVariate,
-             Size requiredSamples,
-             Real requiredTolerance,
-             Size maxSamples,
-             BigNatural seed);
+        MCForwardEuropeanBSEngine(const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
+                                  Size timeSteps,
+                                  Size timeStepsPerYear,
+                                  bool brownianBridge,
+                                  bool antitheticVariate,
+                                  Size requiredSamples,
+                                  Real requiredTolerance,
+                                  Size maxSamples,
+                                  BigNatural seed);
+
       protected:
         ext::shared_ptr<path_pricer_type> pathPricer() const override;
     };
 
 
     template <class RNG = PseudoRandom, class S = Statistics>
-    class MakeMCForwardEuropeanBSEngine {
+    class MakeMCForwardEuropeanBSEngine
+    {
       public:
-        explicit MakeMCForwardEuropeanBSEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess> process);
+        explicit MakeMCForwardEuropeanBSEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process);
         // named parameters
         MakeMCForwardEuropeanBSEngine& withSteps(Size steps);
         MakeMCForwardEuropeanBSEngine& withStepsPerYear(Size steps);
@@ -76,6 +72,7 @@ namespace QuantLib {
         MakeMCForwardEuropeanBSEngine& withAntitheticVariate(bool b = true);
         // conversion to pricing engine
         operator ext::shared_ptr<PricingEngine>() const;
+
       private:
         ext::shared_ptr<GeneralizedBlackScholesProcess> process_;
         bool antithetic_ = false;
@@ -86,12 +83,10 @@ namespace QuantLib {
     };
 
 
-    class ForwardEuropeanBSPathPricer : public PathPricer<Path> {
+    class ForwardEuropeanBSPathPricer : public PathPricer<Path>
+    {
       public:
-        ForwardEuropeanBSPathPricer(Option::Type type,
-                                   Real moneyness,
-                                   Size resetIndex,
-                                   DiscountFactor discount);
+        ForwardEuropeanBSPathPricer(Option::Type type, Real moneyness, Size resetIndex, DiscountFactor discount);
         Real operator()(const Path& path) const override;
 
       private:
@@ -105,32 +100,33 @@ namespace QuantLib {
     // inline definitions
 
     template <class RNG, class S>
-    inline
-    MCForwardEuropeanBSEngine<RNG,S>::MCForwardEuropeanBSEngine(
-             const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
-             Size timeSteps,
-             Size timeStepsPerYear,
-             bool brownianBridge,
-             bool antitheticVariate,
-             Size requiredSamples,
-             Real requiredTolerance,
-             Size maxSamples,
-             BigNatural seed)
-    : MCForwardVanillaEngine<SingleVariate,RNG,S>(process,
-                                                  timeSteps,
-                                                  timeStepsPerYear,
-                                                  brownianBridge,
-                                                  antitheticVariate,
-                                                  requiredSamples,
-                                                  requiredTolerance,
-                                                  maxSamples,
-                                                  seed) {}
+    inline MCForwardEuropeanBSEngine<RNG, S>::MCForwardEuropeanBSEngine(
+        const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
+        Size timeSteps,
+        Size timeStepsPerYear,
+        bool brownianBridge,
+        bool antitheticVariate,
+        Size requiredSamples,
+        Real requiredTolerance,
+        Size maxSamples,
+        BigNatural seed)
+    : MCForwardVanillaEngine<SingleVariate, RNG, S>(process,
+                                                    timeSteps,
+                                                    timeStepsPerYear,
+                                                    brownianBridge,
+                                                    antitheticVariate,
+                                                    requiredSamples,
+                                                    requiredTolerance,
+                                                    maxSamples,
+                                                    seed)
+    {
+    }
 
 
     template <class RNG, class S>
-    inline
-    ext::shared_ptr<typename MCForwardEuropeanBSEngine<RNG,S>::path_pricer_type>
-        MCForwardEuropeanBSEngine<RNG,S>::pathPricer() const {
+    inline ext::shared_ptr<typename MCForwardEuropeanBSEngine<RNG, S>::path_pricer_type>
+    MCForwardEuropeanBSEngine<RNG, S>::pathPricer() const
+    {
 
         TimeGrid timeGrid = this->timeGrid();
 
@@ -138,118 +134,100 @@ namespace QuantLib {
         Size resetIndex = timeGrid.closestIndex(resetTime);
 
         ext::shared_ptr<PlainVanillaPayoff> payoff =
-            ext::dynamic_pointer_cast<PlainVanillaPayoff>(
-                this->arguments_.payoff);
+            ext::dynamic_pointer_cast<PlainVanillaPayoff>(this->arguments_.payoff);
         QL_REQUIRE(payoff, "non-plain payoff given");
 
         ext::shared_ptr<EuropeanExercise> exercise =
-            ext::dynamic_pointer_cast<EuropeanExercise>(
-                this->arguments_.exercise);
+            ext::dynamic_pointer_cast<EuropeanExercise>(this->arguments_.exercise);
         QL_REQUIRE(exercise, "wrong exercise given");
 
         ext::shared_ptr<GeneralizedBlackScholesProcess> process =
-            ext::dynamic_pointer_cast<GeneralizedBlackScholesProcess>(
-                this->process_);
+            ext::dynamic_pointer_cast<GeneralizedBlackScholesProcess>(this->process_);
         QL_REQUIRE(process, "Black-Scholes process required");
 
-        return ext::shared_ptr<typename
-            MCForwardEuropeanBSEngine<RNG,S>::path_pricer_type>(
-                new ForwardEuropeanBSPathPricer(
-                                        payoff->optionType(),
-                                        this->arguments_.moneyness,
-                                        resetIndex,
-                                        process->riskFreeRate()->discount(
-                                                   timeGrid.back())));
+        return ext::shared_ptr<typename MCForwardEuropeanBSEngine<RNG, S>::path_pricer_type>(
+            new ForwardEuropeanBSPathPricer(payoff->optionType(), this->arguments_.moneyness, resetIndex,
+                                            process->riskFreeRate()->discount(timeGrid.back())));
     }
 
 
     template <class RNG, class S>
     inline MakeMCForwardEuropeanBSEngine<RNG, S>::MakeMCForwardEuropeanBSEngine(
         ext::shared_ptr<GeneralizedBlackScholesProcess> process)
-    : process_(std::move(process)), steps_(Null<Size>()), stepsPerYear_(Null<Size>()),
-      samples_(Null<Size>()), maxSamples_(Null<Size>()), tolerance_(Null<Real>()) {}
+    : process_(std::move(process)), steps_(Null<Size>()), stepsPerYear_(Null<Size>()), samples_(Null<Size>()),
+      maxSamples_(Null<Size>()), tolerance_(Null<Real>())
+    {
+    }
 
     template <class RNG, class S>
-    inline MakeMCForwardEuropeanBSEngine<RNG,S>&
-    MakeMCForwardEuropeanBSEngine<RNG,S>::withSteps(Size steps) {
+    inline MakeMCForwardEuropeanBSEngine<RNG, S>& MakeMCForwardEuropeanBSEngine<RNG, S>::withSteps(Size steps)
+    {
         steps_ = steps;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCForwardEuropeanBSEngine<RNG,S>&
-    MakeMCForwardEuropeanBSEngine<RNG,S>::withStepsPerYear(Size steps) {
+    inline MakeMCForwardEuropeanBSEngine<RNG, S>& MakeMCForwardEuropeanBSEngine<RNG, S>::withStepsPerYear(Size steps)
+    {
         stepsPerYear_ = steps;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCForwardEuropeanBSEngine<RNG,S>&
-    MakeMCForwardEuropeanBSEngine<RNG,S>::withSamples(Size samples) {
-        QL_REQUIRE(tolerance_ == Null<Real>(),
-                   "tolerance already set");
+    inline MakeMCForwardEuropeanBSEngine<RNG, S>& MakeMCForwardEuropeanBSEngine<RNG, S>::withSamples(Size samples)
+    {
+        QL_REQUIRE(tolerance_ == Null<Real>(), "tolerance already set");
         samples_ = samples;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCForwardEuropeanBSEngine<RNG,S>&
-    MakeMCForwardEuropeanBSEngine<RNG,S>::withAbsoluteTolerance(
-                                                             Real tolerance) {
-        QL_REQUIRE(samples_ == Null<Size>(),
-                   "number of samples already set");
-        QL_REQUIRE(RNG::allowsErrorEstimate,
-                   "chosen random generator policy "
-                   "does not allow an error estimate");
+    inline MakeMCForwardEuropeanBSEngine<RNG, S>&
+    MakeMCForwardEuropeanBSEngine<RNG, S>::withAbsoluteTolerance(Real tolerance)
+    {
+        QL_REQUIRE(samples_ == Null<Size>(), "number of samples already set");
+        QL_REQUIRE(RNG::allowsErrorEstimate, "chosen random generator policy "
+                                             "does not allow an error estimate");
         tolerance_ = tolerance;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCForwardEuropeanBSEngine<RNG,S>&
-    MakeMCForwardEuropeanBSEngine<RNG,S>::withMaxSamples(Size samples) {
+    inline MakeMCForwardEuropeanBSEngine<RNG, S>& MakeMCForwardEuropeanBSEngine<RNG, S>::withMaxSamples(Size samples)
+    {
         maxSamples_ = samples;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCForwardEuropeanBSEngine<RNG,S>&
-    MakeMCForwardEuropeanBSEngine<RNG,S>::withSeed(BigNatural seed) {
+    inline MakeMCForwardEuropeanBSEngine<RNG, S>& MakeMCForwardEuropeanBSEngine<RNG, S>::withSeed(BigNatural seed)
+    {
         seed_ = seed;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCForwardEuropeanBSEngine<RNG,S>&
-    MakeMCForwardEuropeanBSEngine<RNG,S>::withBrownianBridge(bool b) {
+    inline MakeMCForwardEuropeanBSEngine<RNG, S>& MakeMCForwardEuropeanBSEngine<RNG, S>::withBrownianBridge(bool b)
+    {
         brownianBridge_ = b;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCForwardEuropeanBSEngine<RNG,S>&
-    MakeMCForwardEuropeanBSEngine<RNG,S>::withAntitheticVariate(bool b) {
+    inline MakeMCForwardEuropeanBSEngine<RNG, S>& MakeMCForwardEuropeanBSEngine<RNG, S>::withAntitheticVariate(bool b)
+    {
         antithetic_ = b;
         return *this;
     }
 
     template <class RNG, class S>
-    inline
-    MakeMCForwardEuropeanBSEngine<RNG,S>::operator ext::shared_ptr<PricingEngine>()
-                                                                      const {
-        QL_REQUIRE(steps_ != Null<Size>() || stepsPerYear_ != Null<Size>(),
-                   "number of steps not given");
+    inline MakeMCForwardEuropeanBSEngine<RNG, S>::operator ext::shared_ptr<PricingEngine>() const
+    {
+        QL_REQUIRE(steps_ != Null<Size>() || stepsPerYear_ != Null<Size>(), "number of steps not given");
         QL_REQUIRE(steps_ == Null<Size>() || stepsPerYear_ == Null<Size>(),
                    "number of steps overspecified - set EITHER steps OR stepsPerYear");
-        return ext::shared_ptr<PricingEngine>(new
-            MCForwardEuropeanBSEngine<RNG,S>(process_,
-                                             steps_,
-                                             stepsPerYear_,
-                                             brownianBridge_,
-                                             antithetic_,
-                                             samples_, tolerance_,
-                                             maxSamples_,
-                                             seed_));
+        return ext::shared_ptr<PricingEngine>(new MCForwardEuropeanBSEngine<RNG, S>(
+            process_, steps_, stepsPerYear_, brownianBridge_, antithetic_, samples_, tolerance_, maxSamples_, seed_));
     }
 
 }

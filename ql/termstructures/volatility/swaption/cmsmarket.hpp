@@ -30,7 +30,8 @@
 #include <ql/math/matrix.hpp>
 #include <ql/quote.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class CmsCouponPricer;
     class Swap;
@@ -39,24 +40,24 @@ namespace QuantLib {
     class YieldTermStructure;
 
     //! set of CMS quotes
-    class CmsMarket: public LazyObject{
+    class CmsMarket : public LazyObject
+    {
       public:
         CmsMarket(std::vector<Period> swapLengths,
-                  std::vector<ext::shared_ptr<SwapIndex> > swapIndexes,
+                  std::vector<ext::shared_ptr<SwapIndex>> swapIndexes,
                   ext::shared_ptr<IborIndex> iborIndex,
-                  const std::vector<std::vector<Handle<Quote> > >& bidAskSpreads,
-                  const std::vector<ext::shared_ptr<CmsCouponPricer> >& pricers,
+                  const std::vector<std::vector<Handle<Quote>>>& bidAskSpreads,
+                  const std::vector<ext::shared_ptr<CmsCouponPricer>>& pricers,
                   Handle<YieldTermStructure> discountingTS);
         //! \name LazyObject interface
         //@{
         void update() override { LazyObject::update(); }
         //@}
         // called during calibration procedure
-        void reprice(const Handle<SwaptionVolatilityStructure>& volStructure,
-                     Real meanReversion);
+        void reprice(const Handle<SwaptionVolatilityStructure>& volStructure, Real meanReversion);
         // inspectors ...
-        const std::vector<Period>& swapTenors() const { return swapTenors_;}
-        const std::vector<Period>& swapLengths() const { return swapLengths_;}
+        const std::vector<Period>& swapTenors() const { return swapTenors_; }
+        const std::vector<Period>& swapLengths() const { return swapLengths_; }
         const Matrix& impliedCmsSpreads() { return mdlSpreads_; }
         const Matrix& spreadErrors() { return errSpreads_; }
         Matrix browse() const;
@@ -75,10 +76,10 @@ namespace QuantLib {
         Array weightedMeans(const Matrix& var, const Matrix& weights) const;
 
         std::vector<Period> swapLengths_;
-        std::vector<ext::shared_ptr<SwapIndex> > swapIndexes_;
+        std::vector<ext::shared_ptr<SwapIndex>> swapIndexes_;
         ext::shared_ptr<IborIndex> iborIndex_;
-        std::vector<std::vector<Handle<Quote> > > bidAskSpreads_;
-        std::vector<ext::shared_ptr<CmsCouponPricer> > pricers_;
+        std::vector<std::vector<Handle<Quote>>> bidAskSpreads_;
+        std::vector<ext::shared_ptr<CmsCouponPricer>> pricers_;
         Handle<YieldTermStructure> discTS_;
 
         Size nExercise_;
@@ -107,10 +108,9 @@ namespace QuantLib {
         // Differences between mdlFwdCmsLegNPV_ and mktFwdCmsLegNPV_
         mutable Matrix errFwdCmsLegNPV_;
 
-        std::vector<std::vector<ext::shared_ptr<Swap> > > spotSwaps_;
-        std::vector<std::vector<ext::shared_ptr<Swap> > > fwdSwaps_;
-
-     };
+        std::vector<std::vector<ext::shared_ptr<Swap>>> spotSwaps_;
+        std::vector<std::vector<ext::shared_ptr<Swap>>> fwdSwaps_;
+    };
 
 }
 

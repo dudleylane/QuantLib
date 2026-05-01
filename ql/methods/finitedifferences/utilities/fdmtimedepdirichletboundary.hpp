@@ -29,12 +29,14 @@
 #include <ql/methods/finitedifferences/operators/fdmlinearop.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class FdmMesher;
     class FdmLinearOpLayout;
 
-    class FdmTimeDepDirichletBoundary : public BoundaryCondition<FdmLinearOp> {
+    class FdmTimeDepDirichletBoundary : public BoundaryCondition<FdmLinearOp>
+    {
       public:
         // types and enumerations
         typedef FdmLinearOp operator_type;
@@ -59,7 +61,7 @@ namespace QuantLib {
 
       private:
         const std::vector<Size> indices_;
-        const std::function<Real (Real)> valueOnBoundary_;
+        const std::function<Real(Real)> valueOnBoundary_;
         const std::function<Array(Real)> valuesOnBoundary_;
 
         Array values_;

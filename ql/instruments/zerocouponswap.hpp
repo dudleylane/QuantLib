@@ -28,7 +28,8 @@
 #include <ql/time/calendar.hpp>
 #include <ql/time/daycounter.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
     class IborIndex;
 
     //! Zero-coupon interest rate swap
@@ -68,7 +69,8 @@ namespace QuantLib {
               payment date is subject to adjustment.
     */
 
-    class ZeroCouponSwap : public Swap {
+    class ZeroCouponSwap : public Swap
+    {
       public:
         ZeroCouponSwap(Type type,
                        Real baseNominal,

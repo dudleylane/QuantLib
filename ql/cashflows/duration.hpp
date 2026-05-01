@@ -29,16 +29,22 @@
 #include <ql/qldefines.hpp>
 #include <iosfwd>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %duration type
-    struct Duration {
-        enum Type { Simple, Macaulay, Modified };
+    struct Duration
+    {
+        enum Type
+        {
+            Simple,
+            Macaulay,
+            Modified
+        };
     };
 
     /*! \relates BusinessDayConvention */
-    std::ostream& operator<<(std::ostream&,
-                             Duration::Type);
+    std::ostream& operator<<(std::ostream&, Duration::Type);
 
 }
 

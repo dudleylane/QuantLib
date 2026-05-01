@@ -5,7 +5,8 @@
 
 #include <ql/indexes/iborindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! LIBOR-like index that allows specifying custom calendars for value
         and maturity dates calculations:
@@ -25,15 +26,16 @@ namespace QuantLib {
         * fixingCalendar = JoinHolidays(UK, TARGET), valueCalendar =
         maturityCalendar = TARGET for EUR.
     */
-    class CustomIborIndex : public IborIndex {
+    class CustomIborIndex : public IborIndex
+    {
       public:
         CustomIborIndex(const std::string& familyName,
                         const Period& tenor,
                         Natural settlementDays,
                         const Currency& currency,
                         const Calendar& fixingCalendar,
-                        Calendar  valueCalendar,
-                        Calendar  maturityCalendar,
+                        Calendar valueCalendar,
+                        Calendar maturityCalendar,
                         BusinessDayConvention convention,
                         bool endOfMonth,
                         const DayCounter& dayCounter,

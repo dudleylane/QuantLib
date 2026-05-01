@@ -30,22 +30,20 @@
 #include <ql/methods/finitedifferences/operators/fdmlinearopiterator.hpp>
 #include <memory>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class UniformGridMesher : public FdmMesher {
+    class UniformGridMesher : public FdmMesher
+    {
       public:
-        UniformGridMesher(
-            const ext::shared_ptr<FdmLinearOpLayout> & index,
-            const std::vector<std::pair<Real, Real> > & boundaries);
+        UniformGridMesher(const ext::shared_ptr<FdmLinearOpLayout>& index,
+                          const std::vector<std::pair<Real, Real>>& boundaries);
 
-        Real dplus(const FdmLinearOpIterator&, Size direction) const override {
-            return dx_[direction];
-        }
-        Real dminus(const FdmLinearOpIterator&, Size direction) const override {
-            return dx_[direction];
-        }
+        Real dplus(const FdmLinearOpIterator&, Size direction) const override { return dx_[direction]; }
+        Real dminus(const FdmLinearOpIterator&, Size direction) const override { return dx_[direction]; }
 
-        Real location(const FdmLinearOpIterator& iter, Size direction) const override {
+        Real location(const FdmLinearOpIterator& iter, Size direction) const override
+        {
             return locations_[direction][iter.coordinates()[direction]];
         }
 
@@ -53,7 +51,7 @@ namespace QuantLib {
 
       private:
         std::unique_ptr<Real[]> dx_;
-        std::vector<std::vector<Real> > locations_;
+        std::vector<std::vector<Real>> locations_;
     };
 }
 

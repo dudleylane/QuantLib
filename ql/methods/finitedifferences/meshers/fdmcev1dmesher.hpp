@@ -24,21 +24,23 @@
 #ifndef quantlib_fdm_cev_1d_mesher_hpp
 #define quantlib_fdm_cev_1d_mesher_hpp
 
-#include <ql/utilities/null.hpp>
 #include <ql/methods/finitedifferences/meshers/fdm1dmesher.hpp>
+#include <ql/utilities/null.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class FdmCEV1dMesher : public Fdm1dMesher {
+    class FdmCEV1dMesher : public Fdm1dMesher
+    {
       public:
-        FdmCEV1dMesher(
-            Size size,
-            Real f0, Real alpha, Real beta,
-            Time maturity,
-            Real eps = 0.0001,
-            Real scaleFactor = 1.5,
-            const std::pair<Real, Real>& cPoint
-                = (std::pair<Real, Real>(Null<Real>(), Null<Real>())));
+        FdmCEV1dMesher(Size size,
+                       Real f0,
+                       Real alpha,
+                       Real beta,
+                       Time maturity,
+                       Real eps = 0.0001,
+                       Real scaleFactor = 1.5,
+                       const std::pair<Real, Real>& cPoint = (std::pair<Real, Real>(Null<Real>(), Null<Real>())));
     };
 }
 

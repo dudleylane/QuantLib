@@ -11,4 +11,3 @@
 #include <ql/termstructures/volatility/optionlet/strippedoptionlet.hpp>
 #include <ql/termstructures/volatility/optionlet/strippedoptionletadapter.hpp>
 #include <ql/termstructures/volatility/optionlet/strippedoptionletbase.hpp>
-

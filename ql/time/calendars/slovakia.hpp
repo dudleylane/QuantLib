@@ -26,7 +26,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Slovak calendars
     /*! Holidays for the Bratislava stock exchange
@@ -53,15 +54,20 @@ namespace QuantLib {
 
         \ingroup calendars
     */
-    class Slovakia : public Calendar {
+    class Slovakia : public Calendar
+    {
       private:
-        class BsseImpl final : public Calendar::WesternImpl {
+        class BsseImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "Bratislava stock exchange"; }
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
-        enum Market { BSSE    //!< Bratislava stock exchange
+        enum Market
+        {
+            BSSE //!< Bratislava stock exchange
         };
         Slovakia(Market m = BSSE);
     };

@@ -22,7 +22,8 @@
 #define quantlib_experimental_zabr_hpp
 
 // Deprecated in version 1.42
-#pragma message("Warning: this file will disappear in a future release; include <ql/termstructures/volatility/zabr.hpp> instead.")
+#pragma message( \
+    "Warning: this file will disappear in a future release; include <ql/termstructures/volatility/zabr.hpp> instead.")
 
 #include <ql/termstructures/volatility/zabr.hpp>
 

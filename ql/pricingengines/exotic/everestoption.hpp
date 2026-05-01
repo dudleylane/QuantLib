@@ -26,28 +26,29 @@
 
 #include <ql/instruments/multiassetoption.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class EverestOption : public MultiAssetOption {
+    class EverestOption : public MultiAssetOption
+    {
       public:
         class engine;
         class arguments;
         class results;
-        EverestOption(Real notional,
-                      Rate guarantee,
-                      const ext::shared_ptr<Exercise>&);
+        EverestOption(Real notional, Rate guarantee, const ext::shared_ptr<Exercise>&);
         Rate yield() const;
 
         void setupArguments(PricingEngine::arguments*) const override;
         void fetchResults(const PricingEngine::results*) const override;
 
-      private :
+      private:
         Real notional_;
         Rate guarantee_;
         mutable Rate yield_;
     };
 
-    class EverestOption::arguments : public MultiAssetOption::arguments {
+    class EverestOption::arguments : public MultiAssetOption::arguments
+    {
       public:
         arguments();
         void validate() const override;
@@ -56,16 +57,17 @@ namespace QuantLib {
         Rate guarantee;
     };
 
-    class EverestOption::results : public MultiAssetOption::results {
+    class EverestOption::results : public MultiAssetOption::results
+    {
       public:
         void reset() override;
 
         Rate yield;
     };
 
-    class EverestOption::engine
-        : public GenericEngine<EverestOption::arguments,
-                               EverestOption::results> {};
+    class EverestOption::engine : public GenericEngine<EverestOption::arguments, EverestOption::results>
+    {
+    };
 
 }
 

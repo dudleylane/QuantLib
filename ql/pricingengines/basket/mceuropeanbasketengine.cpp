@@ -22,27 +22,28 @@
 #include <ql/pricingengines/basket/mceuropeanbasketengine.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    EuropeanMultiPathPricer::EuropeanMultiPathPricer(ext::shared_ptr<BasketPayoff> payoff,
-                                                     DiscountFactor discount)
-    : payoff_(std::move(payoff)), discount_(discount) {}
+    EuropeanMultiPathPricer::EuropeanMultiPathPricer(ext::shared_ptr<BasketPayoff> payoff, DiscountFactor discount)
+    : payoff_(std::move(payoff)), discount_(discount)
+    {
+    }
 
-    Real EuropeanMultiPathPricer::operator()(const MultiPath& multiPath)
-                                                                      const {
+    Real EuropeanMultiPathPricer::operator()(const MultiPath& multiPath) const
+    {
         Size n = multiPath.pathSize();
-        QL_REQUIRE(n>0, "the path cannot be empty");
+        QL_REQUIRE(n > 0, "the path cannot be empty");
 
         Size numAssets = multiPath.assetNumber();
-        QL_REQUIRE(numAssets>0, "there must be some paths");
+        QL_REQUIRE(numAssets > 0, "there must be some paths");
 
         Size j;
         // calculate the final price of each asset
         Array finalPrice(numAssets, 0.0);
         for (j = 0; j < numAssets; j++)
             finalPrice[j] = multiPath[j].back();
-        return (*payoff_)(finalPrice) * discount_;
+        return (*payoff_)(finalPrice)*discount_;
     }
 
 }
-

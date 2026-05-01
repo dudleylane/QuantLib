@@ -25,18 +25,22 @@
 #ifndef quantlib_fixed_local_vol_surface_hpp
 #define quantlib_fixed_local_vol_surface_hpp
 
-#include <ql/math/matrix.hpp>
 #include <ql/math/interpolation.hpp>
 #include <ql/math/interpolations/linearinterpolation.hpp>
-
+#include <ql/math/matrix.hpp>
 #include <ql/termstructures/volatility/equityfx/localvoltermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class FixedLocalVolSurface : public LocalVolTermStructure {
+    class FixedLocalVolSurface : public LocalVolTermStructure
+    {
       public:
-        enum Extrapolation { ConstantExtrapolation,
-                             InterpolatorDefaultExtrapolation };
+        enum Extrapolation
+        {
+            ConstantExtrapolation,
+            InterpolatorDefaultExtrapolation
+        };
         FixedLocalVolSurface(const Date& referenceDate,
                              const std::vector<Date>& dates,
                              const std::vector<Real>& strikes,
@@ -55,7 +59,7 @@ namespace QuantLib {
 
         FixedLocalVolSurface(const Date& referenceDate,
                              const std::vector<Time>& times,
-                             const std::vector<ext::shared_ptr<std::vector<Real> > >& strikes,
+                             const std::vector<ext::shared_ptr<std::vector<Real>>>& strikes,
                              ext::shared_ptr<Matrix> localVolMatrix,
                              const DayCounter& dayCounter,
                              Extrapolation lowerExtrapolation = ConstantExtrapolation,
@@ -68,11 +72,12 @@ namespace QuantLib {
         Real maxStrike() const override;
 
         template <class Interpolator>
-        void setInterpolation(const Interpolator& i = Interpolator()) {
-            for (Size j=0; j < times_.size(); ++j) {
-                localVolInterpol_[j] = i.interpolate(
-                    strikes_[j]->begin(), strikes_[j]->end(),
-                    localVolMatrix_->column_begin(j));
+        void setInterpolation(const Interpolator& i = Interpolator())
+        {
+            for (Size j = 0; j < times_.size(); ++j)
+            {
+                localVolInterpol_[j] =
+                    i.interpolate(strikes_[j]->begin(), strikes_[j]->end(), localVolMatrix_->column_begin(j));
             }
             notifyObservers();
         }
@@ -83,7 +88,7 @@ namespace QuantLib {
         const Date maxDate_;
         std::vector<Time> times_;
         const ext::shared_ptr<Matrix> localVolMatrix_;
-        const std::vector<ext::shared_ptr<std::vector<Real> > > strikes_;
+        const std::vector<ext::shared_ptr<std::vector<Real>>> strikes_;
 
         std::vector<Interpolation> localVolInterpol_;
         Extrapolation lowerExtrapolation_, upperExtrapolation_;

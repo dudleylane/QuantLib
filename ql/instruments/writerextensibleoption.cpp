@@ -21,17 +21,19 @@
 #include <ql/instruments/writerextensibleoption.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    WriterExtensibleOption::WriterExtensibleOption(
-        const ext::shared_ptr<PlainVanillaPayoff>& payoff1,
-        const ext::shared_ptr<Exercise>& exercise1,
-        const ext::shared_ptr<PlainVanillaPayoff>& payoff2,
-        ext::shared_ptr<Exercise> exercise2)
-    : OneAssetOption(payoff1, exercise1), payoff2_(payoff2), exercise2_(std::move(exercise2)) {}
+    WriterExtensibleOption::WriterExtensibleOption(const ext::shared_ptr<PlainVanillaPayoff>& payoff1,
+                                                   const ext::shared_ptr<Exercise>& exercise1,
+                                                   const ext::shared_ptr<PlainVanillaPayoff>& payoff2,
+                                                   ext::shared_ptr<Exercise> exercise2)
+    : OneAssetOption(payoff1, exercise1), payoff2_(payoff2), exercise2_(std::move(exercise2))
+    {
+    }
 
-    void WriterExtensibleOption::setupArguments(
-                                       PricingEngine::arguments* args) const {
+    void WriterExtensibleOption::setupArguments(PricingEngine::arguments* args) const
+    {
         OneAssetOption::setupArguments(args);
 
         auto* otherArguments = dynamic_cast<WriterExtensibleOption::arguments*>(args);
@@ -41,16 +43,17 @@ namespace QuantLib {
         otherArguments->exercise2 = exercise2_;
     }
 
-    bool WriterExtensibleOption::isExpired() const {
+    bool WriterExtensibleOption::isExpired() const
+    {
         return detail::simple_event(exercise2_->lastDate()).hasOccurred();
     }
 
-    void WriterExtensibleOption::arguments::validate() const {
+    void WriterExtensibleOption::arguments::validate() const
+    {
         OneAssetOption::arguments::validate();
         QL_REQUIRE(payoff2, "no second payoff given");
         QL_REQUIRE(exercise2, "no second exercise given");
-        QL_REQUIRE(exercise2->lastDate() > exercise->lastDate(),
-                   "second exercise date is not later than the first");
+        QL_REQUIRE(exercise2->lastDate() > exercise->lastDate(), "second exercise date is not later than the first");
     }
 
 }

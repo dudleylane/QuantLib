@@ -78,11 +78,12 @@
 #define quantlib_zabr_swaption_volatility_cube_hpp
 
 #include <ql/math/comparison.hpp>
-#include <ql/termstructures/volatility/swaption/sabrswaptionvolatilitycube.hpp>
 #include <ql/math/interpolations/zabrinterpolation.hpp>
+#include <ql/termstructures/volatility/swaption/sabrswaptionvolatilitycube.hpp>
 #include <ql/termstructures/volatility/zabrsmilesection.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! ZABR model specification for XabrSwaptionVolatilityCube
     /*! \tparam Kernel The ZABR pricing kernel to use. Available options:
@@ -96,7 +97,8 @@ namespace QuantLib {
               the standard SABR model behavior.
     */
     template <typename Kernel = ZabrShortMaturityLognormal>
-    struct SwaptionVolCubeZabrModel {
+    struct SwaptionVolCubeZabrModel
+    {
         typedef ZabrInterpolation<Kernel> Interpolation;
         typedef ZabrSmileSection<Kernel> SmileSection;
     };
@@ -106,53 +108,61 @@ namespace QuantLib {
         and ZABR-specific interpolation/smile section construction.
     */
     template <typename Kernel>
-    struct XabrModelTraits<SwaptionVolCubeZabrModel<Kernel>> {
+    struct XabrModelTraits<SwaptionVolCubeZabrModel<Kernel>>
+    {
         using Model = SwaptionVolCubeZabrModel<Kernel>;
         static constexpr Size nParams = 5;
 
         //! Create ZABR interpolation from parameter vectors
         template <class I1, class I2>
-        static ext::shared_ptr<typename Model::Interpolation> createInterpolation(
-            const I1& xBegin, const I1& xEnd, const I2& yBegin,
-            Time t, const Real& forward,
-            const std::vector<Real>& params,
-            const std::vector<bool>& paramIsFixed,
-            bool vegaWeighted,
-            const ext::shared_ptr<EndCriteria>& endCriteria,
-            const ext::shared_ptr<OptimizationMethod>& optMethod,
-            Real errorAccept, bool useMaxError, Size maxGuesses,
-            Real /* shift */, VolatilityType /* volatilityType */) {
-            QL_REQUIRE(params.size() >= nParams,
-                       "ZABR model requires " << nParams << " parameters, "
-                       "but " << params.size() << " provided");
-            QL_REQUIRE(paramIsFixed.size() >= nParams,
-                       "ZABR model requires " << nParams << " fixed flags, "
-                       "but " << paramIsFixed.size() << " provided");
+        static ext::shared_ptr<typename Model::Interpolation>
+        createInterpolation(const I1& xBegin,
+                            const I1& xEnd,
+                            const I2& yBegin,
+                            Time t,
+                            const Real& forward,
+                            const std::vector<Real>& params,
+                            const std::vector<bool>& paramIsFixed,
+                            bool vegaWeighted,
+                            const ext::shared_ptr<EndCriteria>& endCriteria,
+                            const ext::shared_ptr<OptimizationMethod>& optMethod,
+                            Real errorAccept,
+                            bool useMaxError,
+                            Size maxGuesses,
+                            Real /* shift */,
+                            VolatilityType /* volatilityType */)
+        {
+            QL_REQUIRE(params.size() >= nParams, "ZABR model requires " << nParams
+                                                                        << " parameters, "
+                                                                           "but "
+                                                                        << params.size() << " provided");
+            QL_REQUIRE(paramIsFixed.size() >= nParams, "ZABR model requires " << nParams
+                                                                              << " fixed flags, "
+                                                                                 "but "
+                                                                              << paramIsFixed.size() << " provided");
             return ext::make_shared<typename Model::Interpolation>(
-                xBegin, xEnd, yBegin, t, forward,
-                params[0], params[1], params[2], params[3], params[4],
-                paramIsFixed[0], paramIsFixed[1], paramIsFixed[2],
-                paramIsFixed[3], paramIsFixed[4],
-                vegaWeighted, endCriteria, optMethod,
-                errorAccept, useMaxError, maxGuesses);
+                xBegin, xEnd, yBegin, t, forward, params[0], params[1], params[2], params[3], params[4],
+                paramIsFixed[0], paramIsFixed[1], paramIsFixed[2], paramIsFixed[3], paramIsFixed[4], vegaWeighted,
+                endCriteria, optMethod, errorAccept, useMaxError, maxGuesses);
         }
 
         //! Extract gamma parameter from calibrated ZABR interpolation
-        static Real extractGamma(
-            const ext::shared_ptr<typename Model::Interpolation>& interp) {
+        static Real extractGamma(const ext::shared_ptr<typename Model::Interpolation>& interp)
+        {
             return interp->gamma();
         }
 
         //! Create ZABR smile section from calibrated parameters
-        static ext::shared_ptr<typename Model::SmileSection> createSmileSection(
-            Time optionTime, Real forward,
-            const std::vector<Real>& params,
-            Real shift, VolatilityType /* volatilityType */) {
-            QL_REQUIRE(close(shift, 0.0),
-                       "ZABR model does not support shifted volatilities; "
-                       "shift = " << shift << " was provided");
-            return ext::make_shared<typename Model::SmileSection>(
-                optionTime, forward, params);
+        static ext::shared_ptr<typename Model::SmileSection> createSmileSection(Time optionTime,
+                                                                                Real forward,
+                                                                                const std::vector<Real>& params,
+                                                                                Real shift,
+                                                                                VolatilityType /* volatilityType */)
+        {
+            QL_REQUIRE(close(shift, 0.0), "ZABR model does not support shifted volatilities; "
+                                          "shift = "
+                                              << shift << " was provided");
+            return ext::make_shared<typename Model::SmileSection>(optionTime, forward, params);
         }
     };
 
@@ -164,7 +174,7 @@ namespace QuantLib {
         \see XabrModelTraits for customization points
         \see XabrSwaptionVolatilityCube for the generic template
     */
-    typedef XabrSwaptionVolatilityCube<SwaptionVolCubeZabrModel<> > ZabrSwaptionVolatilityCube;
+    typedef XabrSwaptionVolatilityCube<SwaptionVolCubeZabrModel<>> ZabrSwaptionVolatilityCube;
 
 }
 

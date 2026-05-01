@@ -24,11 +24,12 @@
 #ifndef quantlib_fdm_sabr_op_hpp
 #define quantlib_fdm_sabr_op_hpp
 
+#include <ql/methods/finitedifferences/operators/fdmlinearopcomposite.hpp>
 #include <ql/methods/finitedifferences/operators/ninepointlinearop.hpp>
 #include <ql/methods/finitedifferences/operators/triplebandlinearop.hpp>
-#include <ql/methods/finitedifferences/operators/fdmlinearopcomposite.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! SABR model with absorbing boundary at f=0
     /*! \f[
@@ -42,7 +43,8 @@ namespace QuantLib {
     class FdmMesher;
     class YieldTermStructure;
 
-    class FdmSabrOp : public FdmLinearOpComposite {
+    class FdmSabrOp : public FdmLinearOpComposite
+    {
       public:
         FdmSabrOp(const ext::shared_ptr<FdmMesher>& mesher,
                   ext::shared_ptr<YieldTermStructure> rTS,

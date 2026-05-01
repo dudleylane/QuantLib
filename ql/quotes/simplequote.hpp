@@ -27,10 +27,12 @@
 
 #include <ql/quote.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! market element returning a stored value
-    class SimpleQuote : public Quote {
+    class SimpleQuote : public Quote
+    {
       public:
         SimpleQuote(Real value = Null<Real>());
         //! \name Quote interface
@@ -53,32 +55,37 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline RelinkableHandle<Quote> makeQuoteHandle(Real value) {
+    inline RelinkableHandle<Quote> makeQuoteHandle(Real value)
+    {
         return RelinkableHandle<Quote>(ext::make_shared<SimpleQuote>(value));
     }
 
-    inline SimpleQuote::SimpleQuote(Real value)
-    : value_(value) {}
+    inline SimpleQuote::SimpleQuote(Real value) : value_(value) {}
 
-    inline Real SimpleQuote::value() const {
+    inline Real SimpleQuote::value() const
+    {
         QL_ENSURE(isValid(), "invalid SimpleQuote");
         return value_;
     }
 
-    inline bool SimpleQuote::isValid() const {
-        return value_!=Null<Real>();
+    inline bool SimpleQuote::isValid() const
+    {
+        return value_ != Null<Real>();
     }
 
-    inline Real SimpleQuote::setValue(Real value) {
-        Real diff = value-value_;
-        if (diff != 0.0) {
+    inline Real SimpleQuote::setValue(Real value)
+    {
+        Real diff = value - value_;
+        if (diff != 0.0)
+        {
             value_ = value;
             notifyObservers();
         }
         return diff;
     }
 
-    inline void SimpleQuote::reset() {
+    inline void SimpleQuote::reset()
+    {
         setValue(Null<Real>());
     }
 

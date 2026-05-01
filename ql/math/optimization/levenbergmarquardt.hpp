@@ -27,7 +27,8 @@
 
 #include <ql/math/optimization/problem.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Levenberg-Marquardt optimization method
     /*! This implementation is based on MINPACK
@@ -46,14 +47,14 @@ namespace QuantLib {
 
         \ingroup optimizers
     */
-    class LevenbergMarquardt : public OptimizationMethod {
+    class LevenbergMarquardt : public OptimizationMethod
+    {
       public:
         LevenbergMarquardt(Real epsfcn = 1.0e-8,
                            Real xtol = 1.0e-8,
                            Real gtol = 1.0e-8,
                            bool useCostFunctionsJacobian = false);
-        EndCriteria::Type minimize(Problem& P,
-                                   const EndCriteria& endCriteria) override;
+        EndCriteria::Type minimize(Problem& P, const EndCriteria& endCriteria) override;
 
       private:
         void fcn(int m, int n, Real* x, Real* fvec);

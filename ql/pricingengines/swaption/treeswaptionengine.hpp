@@ -28,7 +28,8 @@
 #include <ql/instruments/swaption.hpp>
 #include <ql/pricingengines/latticeshortratemodelengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Numerical lattice engine for swaptions
     /*! \ingroup swaptionengines
@@ -41,9 +42,8 @@ namespace QuantLib {
 
         \test calculations are checked against cached results
     */
-    class TreeSwaptionEngine
-    : public LatticeShortRateModelEngine<Swaption::arguments,
-                                         Swaption::results> {
+    class TreeSwaptionEngine : public LatticeShortRateModelEngine<Swaption::arguments, Swaption::results>
+    {
       public:
         /*! \name Constructors
             \note the term structure is only needed when the short-rate

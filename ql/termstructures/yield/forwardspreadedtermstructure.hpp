@@ -29,7 +29,8 @@
 #include <ql/termstructures/yield/zeroyieldstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Term structure with added spread on the instantaneous forward rate
     /*! \note This term structure will remain linked to the original
@@ -44,7 +45,8 @@ namespace QuantLib {
         - observability against changes in the underlying term
           structure and in the added spread is checked.
     */
-    class ForwardSpreadedTermStructure : public ZeroYieldStructure {
+    class ForwardSpreadedTermStructure : public ZeroYieldStructure
+    {
       public:
         ForwardSpreadedTermStructure(Handle<YieldTermStructure>, Handle<Quote> spread);
         //! \name TermStructure interface
@@ -72,42 +74,53 @@ namespace QuantLib {
 
     inline ForwardSpreadedTermStructure::ForwardSpreadedTermStructure(Handle<YieldTermStructure> h,
                                                                       Handle<Quote> spread)
-    : originalCurve_(std::move(h)), spread_(std::move(spread)) {
+    : originalCurve_(std::move(h)), spread_(std::move(spread))
+    {
         if (!originalCurve_.empty())
             enableExtrapolation(originalCurve_->allowsExtrapolation());
         registerWith(originalCurve_);
         registerWith(spread_);
     }
 
-    inline DayCounter ForwardSpreadedTermStructure::dayCounter() const {
+    inline DayCounter ForwardSpreadedTermStructure::dayCounter() const
+    {
         return originalCurve_->dayCounter();
     }
 
-    inline Calendar ForwardSpreadedTermStructure::calendar() const {
+    inline Calendar ForwardSpreadedTermStructure::calendar() const
+    {
         return originalCurve_->calendar();
     }
 
-    inline Natural ForwardSpreadedTermStructure::settlementDays() const {
+    inline Natural ForwardSpreadedTermStructure::settlementDays() const
+    {
         return originalCurve_->settlementDays();
     }
 
-    inline const Date& ForwardSpreadedTermStructure::referenceDate() const {
+    inline const Date& ForwardSpreadedTermStructure::referenceDate() const
+    {
         return originalCurve_->referenceDate();
     }
 
-    inline Date ForwardSpreadedTermStructure::maxDate() const {
+    inline Date ForwardSpreadedTermStructure::maxDate() const
+    {
         return originalCurve_->maxDate();
     }
 
-    inline Time ForwardSpreadedTermStructure::maxTime() const {
+    inline Time ForwardSpreadedTermStructure::maxTime() const
+    {
         return originalCurve_->maxTime();
     }
 
-    inline void ForwardSpreadedTermStructure::update() {
-        if (!originalCurve_.empty()) {
+    inline void ForwardSpreadedTermStructure::update()
+    {
+        if (!originalCurve_.empty())
+        {
             YieldTermStructure::update();
             enableExtrapolation(originalCurve_->allowsExtrapolation());
-        } else {
+        }
+        else
+        {
             /* The implementation inherited from YieldTermStructure
                asks for our reference date, which we don't have since
                the original curve is still not set. Therefore, we skip
@@ -117,9 +130,9 @@ namespace QuantLib {
         }
     }
 
-    inline Rate ForwardSpreadedTermStructure::zeroYieldImpl(Time t) const {
-        return originalCurve_->zeroRate(t, Continuous, NoFrequency, true)
-            + spread_->value();
+    inline Rate ForwardSpreadedTermStructure::zeroYieldImpl(Time t) const
+    {
+        return originalCurve_->zeroRate(t, Continuous, NoFrequency, true) + spread_->value();
     }
 
 }

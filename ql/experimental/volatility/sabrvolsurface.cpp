@@ -25,16 +25,18 @@
 #include <ql/utilities/dataformatters.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     SabrVolSurface::SabrVolSurface(const ext::shared_ptr<InterestRateIndex>& index,
                                    Handle<BlackAtmVolCurve> atmCurve,
                                    const std::vector<Period>& optionTenors,
                                    std::vector<Spread> atmRateSpreads,
-                                   std::vector<std::vector<Handle<Quote> > > volSpreads)
+                                   std::vector<std::vector<Handle<Quote>>> volSpreads)
     : InterestRateVolSurface(index), atmCurve_(std::move(atmCurve)), optionTenors_(optionTenors),
-      optionTimes_(optionTenors.size()), optionDates_(optionTenors.size()),
-      atmRateSpreads_(std::move(atmRateSpreads)), volSpreads_(std::move(volSpreads)) {
+      optionTimes_(optionTenors.size()), optionDates_(optionTenors.size()), atmRateSpreads_(std::move(atmRateSpreads)),
+      volSpreads_(std::move(volSpreads))
+    {
 
         checkInputs();
 
@@ -49,7 +51,8 @@ namespace QuantLib {
 
         sabrGuesses_.resize(optionTenors_.size());
 
-        for (Size i=0; i<optionTenors_.size(); ++i) {
+        for (Size i = 0; i < optionTenors_.size(); ++i)
+        {
 
             optionDates_[i] = optionDateFromTenor(optionTenors_[i]);
             optionTimes_[i] = timeFromReference(optionDates_[i]);
@@ -63,62 +66,67 @@ namespace QuantLib {
         registerWithMarketData();
     }
 
-    std::array<Real, 4> SabrVolSurface::sabrGuesses(const Date& d) const {
+    std::array<Real, 4> SabrVolSurface::sabrGuesses(const Date& d) const
+    {
 
         // the guesses for sabr parameters are assumed to be piecewise constant
-        if (d<=optionDates_[0]) return sabrGuesses_[0];
-        Size i=0;
-        while (i<optionDates_.size()-1 && d<optionDates_[i])
+        if (d <= optionDates_[0])
+            return sabrGuesses_[0];
+        Size i = 0;
+        while (i < optionDates_.size() - 1 && d < optionDates_[i])
             ++i;
         return sabrGuesses_[i];
     }
 
-    void SabrVolSurface::updateSabrGuesses(const Date& d, std::array<Real, 4> newGuesses) const {
+    void SabrVolSurface::updateSabrGuesses(const Date& d, std::array<Real, 4> newGuesses) const
+    {
 
-        Size i=0;
-        while (i<optionDates_.size() && d<=optionDates_[i])
+        Size i = 0;
+        while (i < optionDates_.size() && d <= optionDates_[i])
             ++i;
         sabrGuesses_[i][0] = newGuesses[0];
         sabrGuesses_[i][1] = newGuesses[1];
         sabrGuesses_[i][2] = newGuesses[2];
         sabrGuesses_[i][3] = newGuesses[3];
-
     }
 
-    std::vector<Volatility> SabrVolSurface::volatilitySpreads(const Date& d) const {
+    std::vector<Volatility> SabrVolSurface::volatilitySpreads(const Date& d) const
+    {
 
         Size nOptionsTimes = optionTimes_.size();
         Size nAtmRateSpreads = atmRateSpreads_.size();
         std::vector<Volatility> interpolatedVols(nAtmRateSpreads);
 
         std::vector<Volatility> vols(nOptionsTimes); // the volspread at a given strike
-        for (Size i=0; i<nAtmRateSpreads; ++i) {
-            for (Size j=0; j<nOptionsTimes; ++j) {
+        for (Size i = 0; i < nAtmRateSpreads; ++i)
+        {
+            for (Size j = 0; j < nOptionsTimes; ++j)
+            {
                 vols[j] = (**volSpreads_[j][i]).value();
             }
-            LinearInterpolation interpolator(optionTimes_.begin(), optionTimes_.end(),
-                                             vols.begin());
-            interpolatedVols[i] = interpolator(timeFromReference(d),true);
+            LinearInterpolation interpolator(optionTimes_.begin(), optionTimes_.end(), vols.begin());
+            interpolatedVols[i] = interpolator(timeFromReference(d), true);
         }
         return interpolatedVols;
     }
 
 
-    void SabrVolSurface::update() {
+    void SabrVolSurface::update()
+    {
         TermStructure::update();
-        for (Size i=0; i<optionTenors_.size(); ++i) {
+        for (Size i = 0; i < optionTenors_.size(); ++i)
+        {
             optionDates_[i] = optionDateFromTenor(optionTenors_[i]);
             optionTimes_[i] = timeFromReference(optionDates_[i]);
         }
         notifyObservers();
-
     }
 
-    ext::shared_ptr<SmileSection>
-    SabrVolSurface::smileSectionImpl(Time t) const {
+    ext::shared_ptr<SmileSection> SabrVolSurface::smileSectionImpl(Time t) const
+    {
 
         auto n = BigInteger(t * 365.0);
-        Date d = referenceDate()+n*Days;
+        Date d = referenceDate() + n * Days;
         // interpolating on ref smile sections
         std::vector<Volatility> volSpreads = volatilitySpreads(d);
 
@@ -141,35 +149,38 @@ namespace QuantLib {
         // update guess
 
         return tmp;
-
     }
 
-    void SabrVolSurface::registerWithMarketData() {
+    void SabrVolSurface::registerWithMarketData()
+    {
 
-        for (Size i=0; i<optionTenors_.size(); ++i) {
-            for (Size j=0; j<atmRateSpreads_.size(); ++j) {
+        for (Size i = 0; i < optionTenors_.size(); ++i)
+        {
+            for (Size j = 0; j < atmRateSpreads_.size(); ++j)
+            {
                 registerWith(volSpreads_[i][j]);
             }
         }
     }
 
-    void SabrVolSurface::checkInputs() const {
+    void SabrVolSurface::checkInputs() const
+    {
 
         Size nStrikes = atmRateSpreads_.size();
-        QL_REQUIRE(nStrikes>1, "too few strikes (" << nStrikes << ")");
-        for (Size i=1; i<nStrikes; ++i)
-            QL_REQUIRE(atmRateSpreads_[i-1]<atmRateSpreads_[i],
-                       "non increasing strike spreads: " <<
-                       io::ordinal(i) << " is " << atmRateSpreads_[i-1] << ", " <<
-                       io::ordinal(i+1) << " is " << atmRateSpreads_[i]);
-        for (Size i=0; i<volSpreads_.size(); i++)
-            QL_REQUIRE(atmRateSpreads_.size()==volSpreads_[i].size(),
-                       "mismatch between number of strikes (" << atmRateSpreads_.size() <<
-                       ") and number of columns (" << volSpreads_[i].size() <<
-                       ") in the " << io::ordinal(i+1) << " row");
+        QL_REQUIRE(nStrikes > 1, "too few strikes (" << nStrikes << ")");
+        for (Size i = 1; i < nStrikes; ++i)
+            QL_REQUIRE(atmRateSpreads_[i - 1] < atmRateSpreads_[i],
+                       "non increasing strike spreads: " << io::ordinal(i) << " is " << atmRateSpreads_[i - 1] << ", "
+                                                         << io::ordinal(i + 1) << " is " << atmRateSpreads_[i]);
+        for (Size i = 0; i < volSpreads_.size(); i++)
+            QL_REQUIRE(atmRateSpreads_.size() == volSpreads_[i].size(),
+                       "mismatch between number of strikes (" << atmRateSpreads_.size() << ") and number of columns ("
+                                                              << volSpreads_[i].size() << ") in the "
+                                                              << io::ordinal(i + 1) << " row");
     }
 
-    void SabrVolSurface::accept(AcyclicVisitor& v) {
+    void SabrVolSurface::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<SabrVolSurface>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);

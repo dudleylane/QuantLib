@@ -26,7 +26,8 @@
 
 #include <ql/indexes/iborindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %KOFR index.
     /*! Korea Overnight Financing Repo Rate (KOFR) published by Korea Securities Depository (KSD)
@@ -34,11 +35,12 @@ namespace QuantLib {
     (1) https://www.bok.or.kr/eng/main/contents.do?menuNo=400399 (Overview)
     (2) https://www.kofr.kr/main.jsp (Detailed information)
     */
-   class Kofr : public OvernightIndex {
+    class Kofr : public OvernightIndex
+    {
       public:
         explicit Kofr(const Handle<YieldTermStructure>& h = {});
     };
-    
+
 }
 
 #endif

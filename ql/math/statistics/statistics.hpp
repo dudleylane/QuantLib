@@ -26,7 +26,8 @@
 
 #include <ql/math/statistics/riskstatistics.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! default statistics tool
     /*! \test the correctness of the returned values is tested by

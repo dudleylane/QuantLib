@@ -19,36 +19,37 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/methods/finitedifferences/operators/fdmlinearoplayout.hpp>
 #include <ql/methods/finitedifferences/meshers/uniformgridmesher.hpp>
+#include <ql/methods/finitedifferences/operators/fdmlinearoplayout.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    UniformGridMesher::UniformGridMesher(
-        const ext::shared_ptr<FdmLinearOpLayout> & layout,
-        const std::vector<std::pair<Real, Real> > & boundaries)
-    : FdmMesher (layout),
-      dx_       (new Real[layout->dim().size()]),
-      locations_(layout->dim().size()) {
+    UniformGridMesher::UniformGridMesher(const ext::shared_ptr<FdmLinearOpLayout>& layout,
+                                         const std::vector<std::pair<Real, Real>>& boundaries)
+    : FdmMesher(layout), dx_(new Real[layout->dim().size()]), locations_(layout->dim().size())
+    {
 
-        QL_REQUIRE(boundaries.size() == layout->dim().size(),
-                   "inconsistent boundaries given");
+        QL_REQUIRE(boundaries.size() == layout->dim().size(), "inconsistent boundaries given");
 
-        for (Size i=0; i < layout->dim().size(); ++i) {
-            dx_[i] = (boundaries[i].second - boundaries[i].first)
-                / (layout->dim()[i]-1);
+        for (Size i = 0; i < layout->dim().size(); ++i)
+        {
+            dx_[i] = (boundaries[i].second - boundaries[i].first) / (layout->dim()[i] - 1);
 
             locations_[i] = std::vector<Real>(layout->dim()[i]);
-            for (Size j=0; j < layout->dim()[i]; ++j) {
-                locations_[i][j] = boundaries[i].first + j*dx_[i];
+            for (Size j = 0; j < layout->dim()[i]; ++j)
+            {
+                locations_[i][j] = boundaries[i].first + j * dx_[i];
             }
         }
     }
 
-    Array UniformGridMesher::locations(Size d) const {
+    Array UniformGridMesher::locations(Size d) const
+    {
         Array retVal(layout_->size());
 
-        for (const auto& iter : *layout_) {
+        for (const auto& iter : *layout_)
+        {
             retVal[iter.index()] = locations_[d][iter.coordinates()[d]];
         }
 

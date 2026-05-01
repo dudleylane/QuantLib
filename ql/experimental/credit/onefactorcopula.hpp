@@ -29,7 +29,8 @@
 #include <ql/quote.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Abstract base class for one-factor copula models
     /*! Reference: John Hull and Alan White, The Perfect Copula, June 2006
@@ -99,17 +100,13 @@ namespace QuantLib {
 
         \todo Improve on simple Euler integration
     */
-    class OneFactorCopula : public LazyObject {
+    class OneFactorCopula : public LazyObject
+    {
       public:
-        OneFactorCopula(Handle<Quote> correlation,
-                        Real maximum = 5.0,
-                        Size integrationSteps = 50,
-                        Real minimum = -5.0)
-        : correlation_(std::move(correlation)), max_(maximum), steps_(integrationSteps),
-          min_(minimum) {
-            QL_REQUIRE(correlation_->value() >= -1
-                       && correlation_->value() <= 1,
-                       "correlation out of range [-1, +1]");
+        OneFactorCopula(Handle<Quote> correlation, Real maximum = 5.0, Size integrationSteps = 50, Real minimum = -5.0)
+        : correlation_(std::move(correlation)), max_(maximum), steps_(integrationSteps), min_(minimum)
+        {
+            QL_REQUIRE(correlation_->value() >= -1 && correlation_->value() <= 1, "correlation out of range [-1, +1]");
             registerWith(correlation_);
         }
 
@@ -146,8 +143,7 @@ namespace QuantLib {
             \hat p(m) = F_Z \left( \frac{F_Y^{-1}(p)-a\,m}{\sqrt{1-a^2}}\right)
             \f]
         */
-        Real conditionalProbability(Real prob,
-                                    Real m) const;
+        Real conditionalProbability(Real prob, Real m) const;
 
         //! Vector of conditional probabilities
         /*! \f[
@@ -155,8 +151,7 @@ namespace QuantLib {
             \right)
             \f]
         */
-        std::vector<Real> conditionalProbability(const std::vector<Real>& prob,
-                                                 Real m) const;
+        std::vector<Real> conditionalProbability(const std::vector<Real>& prob, Real m) const;
 
         /*! Integral over the density \f$ \rho(m) \f$ of M and the conditional
             probability related to p:
@@ -166,13 +161,14 @@ namespace QuantLib {
             F_Z \left( \frac{F_Y^{-1}(p)-a\,m}{\sqrt{1-a^2}}\right)
             \f]
         */
-        Real integral(Real p) const {
-            QL_REQUIRE(p >= 0 && p <= 1, "probability p=" << p
-                       << " out of range [0,1]");
+        Real integral(Real p) const
+        {
+            QL_REQUIRE(p >= 0 && p <= 1, "probability p=" << p << " out of range [0,1]");
             calculate();
 
             Real avg = 0;
-            for (Size k = 0; k < steps(); k++) {
+            for (Size k = 0; k < steps(); k++)
+            {
                 Real pp = conditionalProbability(p, m(k));
                 avg += pp * densitydm(k);
             }
@@ -191,13 +187,14 @@ namespace QuantLib {
             \f]
         */
         template <class F>
-        Real integral(const F& f, std::vector<Real>& probabilities) const {
+        Real integral(const F& f, std::vector<Real>& probabilities) const
+        {
             calculate();
 
             Real avg = 0.0;
-            for (Size i = 0; i < steps_; i++) {
-                std::vector<Real> conditional
-                    = conditionalProbability(probabilities, m(i));
+            for (Size i = 0; i < steps_; i++)
+            {
+                std::vector<Real> conditional = conditionalProbability(probabilities, m(i));
                 Real prob = f(conditional);
                 avg += prob * densitydm(i);
             }
@@ -215,15 +212,15 @@ namespace QuantLib {
             \f]
         */
         template <class F>
-        Distribution integral(const F& f,
-                              const std::vector<Real>& nominals,
-                              const std::vector<Real>& probabilities) const {
+        Distribution
+        integral(const F& f, const std::vector<Real>& nominals, const std::vector<Real>& probabilities) const
+        {
             calculate();
 
             Distribution dist(f.buckets(), 0.0, f.maximum());
-            for (Size i = 0; i < steps(); i++) {
-                std::vector<Real> conditional
-                    = conditionalProbability(probabilities, m(i));
+            for (Size i = 0; i < steps(); i++)
+            {
+                std::vector<Real> conditional = conditionalProbability(probabilities, m(i));
                 Distribution d = f(nominals, conditional);
                 for (Size j = 0; j < dist.size(); j++)
                     dist.addDensity(j, d.density(j) * densitydm(i));
@@ -248,8 +245,8 @@ namespace QuantLib {
         mutable std::vector<Real> y_;
         mutable std::vector<Real> cumulativeY_;
 
-        //private:
-        // utilities for simple Euler integrations over the density of M
+        // private:
+        //  utilities for simple Euler integrations over the density of M
         Size steps() const;
 
         // i not used yet, might allow varying grid size
@@ -260,25 +257,30 @@ namespace QuantLib {
         Real densitydm(Size i) const;
     };
 
-    inline Real OneFactorCopula::correlation() const {
+    inline Real OneFactorCopula::correlation() const
+    {
         calculate();
         return correlation_->value();
     }
 
-    inline Size OneFactorCopula::steps() const {
+    inline Size OneFactorCopula::steps() const
+    {
         return steps_;
     }
 
-    inline Real OneFactorCopula::dm(Size) const {
-        return (max_ - min_)/ steps_;
+    inline Real OneFactorCopula::dm(Size) const
+    {
+        return (max_ - min_) / steps_;
     }
 
-    inline Real OneFactorCopula::m(Size i) const {
+    inline Real OneFactorCopula::m(Size i) const
+    {
         QL_REQUIRE(i < steps_, "index out of range");
         return min_ + dm(i) * i + dm(i) / 2;
     }
 
-    inline Real OneFactorCopula::densitydm(Size i) const {
+    inline Real OneFactorCopula::densitydm(Size i) const
+    {
         QL_REQUIRE(i < steps_, "index out of range");
         return density(m(i)) * dm(i);
     }

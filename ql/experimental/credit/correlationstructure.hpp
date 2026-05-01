@@ -22,23 +22,25 @@
 
 #include <ql/termstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    // pretty much like the volatility TS, here the correlation range is 
+    // pretty much like the volatility TS, here the correlation range is
     // obviously known in advance and theres no reference to a strike.
 
-    /*! Abstract interface, derived correlations TS might have elements with 
+    /*! Abstract interface, derived correlations TS might have elements with
     arbitrary dimensions.\par
-    In principle there might be several extrapolation dimensions, at this 
-    level we do not know how many or the nature of those dimensions (time, 
-    strike...) 
-    Equally we ignore at this level if the correlation is a number, 
+    In principle there might be several extrapolation dimensions, at this
+    level we do not know how many or the nature of those dimensions (time,
+    strike...)
+    Equally we ignore at this level if the correlation is a number,
     matrix. Rather than including an arbitrary size matrix this data
     structure is deferred in the hierarchy to enable potential optimizations
     on the data nature.
     */
-    class CorrelationTermStructure : public TermStructure {
-    public:
+    class CorrelationTermStructure : public TermStructure
+    {
+      public:
         /*! \name Constructors
             See the TermStructure documentation for issues regarding
             constructors.
@@ -49,9 +51,7 @@ namespace QuantLib {
                      constructor must manage their own reference date
                      by overriding the referenceDate() method.
         */
-        CorrelationTermStructure(const Calendar& cal,
-                                 BusinessDayConvention bdc,
-                                 const DayCounter& dc = DayCounter());
+        CorrelationTermStructure(const Calendar& cal, BusinessDayConvention bdc, const DayCounter& dc = DayCounter());
         //! initialize with a fixed reference date
         CorrelationTermStructure(const Date& referenceDate,
                                  const Calendar& cal,
@@ -68,22 +68,21 @@ namespace QuantLib {
         Date dateFromTenor(const Period&) const;
         //! The size of the squared correlation.
         virtual Size correlationSize() const = 0;
-    private:
+
+      private:
         BusinessDayConvention bdc_;
     };
 
     // inline definitions
-    inline BusinessDayConvention
-    CorrelationTermStructure::businessDayConvention() const {
+    inline BusinessDayConvention CorrelationTermStructure::businessDayConvention() const
+    {
         return bdc_;
     }
 
-    inline Date
-    CorrelationTermStructure::dateFromTenor(const Period& p) const {
+    inline Date CorrelationTermStructure::dateFromTenor(const Period& p) const
+    {
         // swaption style, still holds here.
-        return calendar().advance(referenceDate(),
-                                  p,
-                                  businessDayConvention());
+        return calendar().advance(referenceDate(), p, businessDayConvention());
     }
 }
 

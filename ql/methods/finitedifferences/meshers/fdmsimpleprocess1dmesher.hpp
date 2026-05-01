@@ -25,20 +25,23 @@
 #define quantlib_fdm_simple_process_1d_mesher_hpp
 
 #include <ql/methods/finitedifferences/meshers/fdm1dmesher.hpp>
-#include <ql/utilities/null.hpp>
 #include <ql/shared_ptr.hpp>
+#include <ql/utilities/null.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class StochasticProcess1D;
 
-    class FdmSimpleProcess1dMesher : public Fdm1dMesher {
+    class FdmSimpleProcess1dMesher : public Fdm1dMesher
+    {
       public:
-          FdmSimpleProcess1dMesher(
-            Size size,
-            const ext::shared_ptr<StochasticProcess1D>& process,
-            Time maturity, Size tAvgSteps = 10, Real epsilon = 0.0001,
-            Real mandatoryPoint = Null<Real>());
+        FdmSimpleProcess1dMesher(Size size,
+                                 const ext::shared_ptr<StochasticProcess1D>& process,
+                                 Time maturity,
+                                 Size tAvgSteps = 10,
+                                 Real epsilon = 0.0001,
+                                 Real mandatoryPoint = Null<Real>());
     };
 
 }

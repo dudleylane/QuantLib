@@ -22,18 +22,19 @@
 #include <ql/errors.hpp>
 #include <algorithm>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    TimeBasket::TimeBasket(const std::vector<Date>& dates,
-                           const std::vector<Real>& values) {
-        QL_REQUIRE(dates.size() == values.size(),
-                   "number of dates differs from number of values");
+    TimeBasket::TimeBasket(const std::vector<Date>& dates, const std::vector<Real>& values)
+    {
+        QL_REQUIRE(dates.size() == values.size(), "number of dates differs from number of values");
         super& self = *this;
         for (Size i = 0; i < dates.size(); i++)
             self[dates[i]] = values[i];
     }
 
-    TimeBasket TimeBasket::rebin(const std::vector<Date>& buckets) const {
+    TimeBasket TimeBasket::rebin(const std::vector<Date>& buckets) const
+    {
         QL_REQUIRE(!buckets.empty(), "empty bucket structure");
 
         std::vector<Date> sbuckets = buckets;
@@ -44,13 +45,13 @@ namespace QuantLib {
         for (auto& sbucket : sbuckets)
             result[sbucket] = 0.0;
 
-        for (auto j : *this) {
+        for (auto j : *this)
+        {
             Date date = j.first;
             Real value = j.second;
             Date pDate = Date(), nDate = Date();
 
-            auto bi =
-                std::lower_bound(sbuckets.begin(), sbuckets.end(), date);
+            auto bi = std::lower_bound(sbuckets.begin(), sbuckets.end(), date);
 
             if (bi == sbuckets.end())
                 pDate = sbuckets.back();
@@ -58,20 +59,22 @@ namespace QuantLib {
                 pDate = *bi;
 
             if (bi != sbuckets.begin() && bi != sbuckets.end())
-                nDate = *(bi-1);
+                nDate = *(bi - 1);
 
-            if (pDate == date || nDate == Date()) {
+            if (pDate == date || nDate == Date())
+            {
                 result[pDate] += value;
-            } else {
-                Real pDays = Real(pDate-date);
-                Real nDays = Real(date-nDate);
-                Real tDays = Real(pDate-nDate);
-                result[pDate] += value*(nDays/tDays);
-                result[nDate] += value*(pDays/tDays);
+            }
+            else
+            {
+                Real pDays = Real(pDate - date);
+                Real nDays = Real(date - nDate);
+                Real tDays = Real(pDate - nDate);
+                result[pDate] += value * (nDays / tDays);
+                result[nDate] += value * (pDays / tDays);
             }
         }
         return result;
     }
 
 }
-

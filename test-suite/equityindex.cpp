@@ -20,8 +20,8 @@
 #include "utilities.hpp"
 #include <ql/currencies/europe.hpp>
 #include <ql/indexes/equityindex.hpp>
-#include <ql/time/calendars/target.hpp>
 #include <ql/quotes/simplequote.hpp>
+#include <ql/time/calendars/target.hpp>
 #include <string>
 
 using namespace QuantLib;
@@ -31,7 +31,8 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(EquityIndexTests)
 
-struct CommonVars {
+struct CommonVars
+{
 
     Date today;
     Calendar calendar;
@@ -45,15 +46,16 @@ struct CommonVars {
 
     // utilities
 
-    CommonVars(bool addTodaysFixing = true) {
+    CommonVars(bool addTodaysFixing = true)
+    {
         calendar = TARGET();
         dayCount = Actual365Fixed();
 
-        equityIndex = ext::make_shared<EquityIndex>("eqIndex", calendar, EURCurrency(), interestHandle,
-                                                    dividendHandle, spotHandle);
+        equityIndex = ext::make_shared<EquityIndex>("eqIndex", calendar, EURCurrency(), interestHandle, dividendHandle,
+                                                    spotHandle);
 
         today = calendar.adjust(Date(27, January, 2023));
-            
+
         if (addTodaysFixing)
             equityIndex->addFixing(today, 8690.0);
 
@@ -61,14 +63,15 @@ struct CommonVars {
 
         interestHandle.linkTo(flatRate(0.03, dayCount));
         dividendHandle.linkTo(flatRate(0.01, dayCount));
-            
+
         spot = ext::make_shared<SimpleQuote>(8700.0);
         spotHandle.linkTo(spot);
     }
 };
 
 
-BOOST_AUTO_TEST_CASE(testTodaysFixing) {
+BOOST_AUTO_TEST_CASE(testTodaysFixing)
+{
     BOOST_TEST_MESSAGE("Testing today's fixing...");
 
     CommonVars vars;
@@ -91,7 +94,8 @@ BOOST_AUTO_TEST_CASE(testTodaysFixing) {
                     << "    expected forecast:    " << spot << "\n");
 }
 
-BOOST_AUTO_TEST_CASE(testTodaysFixingWithSpotAsProxy) {
+BOOST_AUTO_TEST_CASE(testTodaysFixingWithSpotAsProxy)
+{
     BOOST_TEST_MESSAGE("Testing today's fixing with spot as proxy...");
 
     CommonVars vars(false);
@@ -106,17 +110,17 @@ BOOST_AUTO_TEST_CASE(testTodaysFixingWithSpotAsProxy) {
                     << "    expected fixing:    " << spot << "\n");
 }
 
-BOOST_AUTO_TEST_CASE(testFixingForecast) {
+BOOST_AUTO_TEST_CASE(testFixingForecast)
+{
     BOOST_TEST_MESSAGE("Testing fixing forecast...");
 
     CommonVars vars;
     const Real tolerance = 1.0e-8;
 
     Date forecastedDate(20, May, 2030);
-    
+
     Real forecast = vars.equityIndex->fixing(forecastedDate);
-    Real expectedForecast = vars.spotHandle->value() *
-                            vars.dividendHandle->discount(forecastedDate) /
+    Real expectedForecast = vars.spotHandle->value() * vars.dividendHandle->discount(forecastedDate) /
                             vars.interestHandle->discount(forecastedDate);
 
     if ((std::fabs(forecast - expectedForecast) > tolerance))
@@ -125,7 +129,8 @@ BOOST_AUTO_TEST_CASE(testFixingForecast) {
                     << "    expected forecast:    " << expectedForecast << "\n");
 }
 
-BOOST_AUTO_TEST_CASE(testFixingForecastWithoutDividend) {
+BOOST_AUTO_TEST_CASE(testFixingForecastWithoutDividend)
+{
     BOOST_TEST_MESSAGE("Testing fixing forecast without dividend...");
 
     CommonVars vars;
@@ -133,12 +138,10 @@ BOOST_AUTO_TEST_CASE(testFixingForecastWithoutDividend) {
 
     Date forecastedDate(20, May, 2030);
 
-    auto equityIndexExDiv =
-        vars.equityIndex->clone(vars.interestHandle, Handle<YieldTermStructure>(), vars.spotHandle);
+    auto equityIndexExDiv = vars.equityIndex->clone(vars.interestHandle, Handle<YieldTermStructure>(), vars.spotHandle);
 
     Real forecast = equityIndexExDiv->fixing(forecastedDate);
-    Real expectedForecast =
-        vars.spotHandle->value() / vars.interestHandle->discount(forecastedDate);
+    Real expectedForecast = vars.spotHandle->value() / vars.interestHandle->discount(forecastedDate);
 
     if ((std::fabs(forecast - expectedForecast) > tolerance))
         BOOST_ERROR("could not replicate index forecast without dividend\n"
@@ -146,7 +149,8 @@ BOOST_AUTO_TEST_CASE(testFixingForecastWithoutDividend) {
                     << "    expected forecast:    " << expectedForecast << "\n");
 }
 
-BOOST_AUTO_TEST_CASE(testFixingForecastWithoutSpot) {
+BOOST_AUTO_TEST_CASE(testFixingForecastWithoutSpot)
+{
     BOOST_TEST_MESSAGE("Testing fixing forecast without spot handle...");
 
     CommonVars vars;
@@ -154,12 +158,10 @@ BOOST_AUTO_TEST_CASE(testFixingForecastWithoutSpot) {
 
     Date forecastedDate(20, May, 2030);
 
-    auto equityIndexExSpot =
-        vars.equityIndex->clone(vars.interestHandle, vars.dividendHandle, Handle<Quote>());
+    auto equityIndexExSpot = vars.equityIndex->clone(vars.interestHandle, vars.dividendHandle, Handle<Quote>());
 
     Real forecast = equityIndexExSpot->fixing(forecastedDate);
-    Real expectedForecast = equityIndexExSpot->pastFixing(vars.today) *
-                            vars.dividendHandle->discount(forecastedDate) /
+    Real expectedForecast = equityIndexExSpot->pastFixing(vars.today) * vars.dividendHandle->discount(forecastedDate) /
                             vars.interestHandle->discount(forecastedDate);
 
     if ((std::fabs(forecast - expectedForecast) > tolerance))
@@ -168,23 +170,22 @@ BOOST_AUTO_TEST_CASE(testFixingForecastWithoutSpot) {
                     << "    expected forecast:    " << expectedForecast << "\n");
 }
 
-BOOST_AUTO_TEST_CASE(testFixingForecastWithoutSpotAndHistoricalFixing) {
+BOOST_AUTO_TEST_CASE(testFixingForecastWithoutSpotAndHistoricalFixing)
+{
     BOOST_TEST_MESSAGE("Testing fixing forecast without spot handle and historical fixing...");
 
     CommonVars vars(false);
 
     Date forecastedDate(20, May, 2030);
 
-    auto equityIndexExSpot =
-        vars.equityIndex->clone(vars.interestHandle, vars.dividendHandle, Handle<Quote>());
+    auto equityIndexExSpot = vars.equityIndex->clone(vars.interestHandle, vars.dividendHandle, Handle<Quote>());
 
-    BOOST_CHECK_EXCEPTION(
-        equityIndexExSpot->fixing(forecastedDate), Error,
-        ExpectedErrorMessage(
-            "Cannot forecast equity index, missing both spot and historical index"));
+    BOOST_CHECK_EXCEPTION(equityIndexExSpot->fixing(forecastedDate), Error,
+                          ExpectedErrorMessage("Cannot forecast equity index, missing both spot and historical index"));
 }
 
-BOOST_AUTO_TEST_CASE(testSpotChange) {
+BOOST_AUTO_TEST_CASE(testSpotChange)
+{
     BOOST_TEST_MESSAGE("Testing spot change...");
 
     CommonVars vars;
@@ -206,27 +207,28 @@ BOOST_AUTO_TEST_CASE(testSpotChange) {
                     << "    expected spot:    " << vars.spot->value() << "\n");
 }
 
-BOOST_AUTO_TEST_CASE(testErrorWhenInvalidFixingDate) {
+BOOST_AUTO_TEST_CASE(testErrorWhenInvalidFixingDate)
+{
     BOOST_TEST_MESSAGE("Testing error when invalid fixing date is used...");
 
     CommonVars vars;
 
-    BOOST_CHECK_EXCEPTION(
-        vars.equityIndex->fixing(Date(1, January, 2023)), Error,
-        ExpectedErrorMessage("Fixing date January 1st, 2023 is not valid"));
+    BOOST_CHECK_EXCEPTION(vars.equityIndex->fixing(Date(1, January, 2023)), Error,
+                          ExpectedErrorMessage("Fixing date January 1st, 2023 is not valid"));
 }
 
-BOOST_AUTO_TEST_CASE(testErrorWhenFixingMissing) {
+BOOST_AUTO_TEST_CASE(testErrorWhenFixingMissing)
+{
     BOOST_TEST_MESSAGE("Testing error when required fixing is missing...");
 
     CommonVars vars;
 
-    BOOST_CHECK_EXCEPTION(
-        vars.equityIndex->fixing(Date(2, January, 2023)), Error,
-        ExpectedErrorMessage("Missing eqIndex fixing for January 2nd, 2023"));
+    BOOST_CHECK_EXCEPTION(vars.equityIndex->fixing(Date(2, January, 2023)), Error,
+                          ExpectedErrorMessage("Missing eqIndex fixing for January 2nd, 2023"));
 }
 
-BOOST_AUTO_TEST_CASE(testErrorWhenInterestHandleMissing) {
+BOOST_AUTO_TEST_CASE(testErrorWhenInterestHandleMissing)
+{
     BOOST_TEST_MESSAGE("Testing error when interest handle is missing...");
 
     CommonVars vars;
@@ -234,15 +236,14 @@ BOOST_AUTO_TEST_CASE(testErrorWhenInterestHandleMissing) {
     Date forecastedDate(20, May, 2030);
 
     auto equityIndexExDiv =
-        vars.equityIndex->clone(
-            Handle<YieldTermStructure>(), Handle<YieldTermStructure>(), Handle<Quote>());
+        vars.equityIndex->clone(Handle<YieldTermStructure>(), Handle<YieldTermStructure>(), Handle<Quote>());
 
     BOOST_CHECK_EXCEPTION(equityIndexExDiv->fixing(forecastedDate), Error,
-                          ExpectedErrorMessage(
-                              "null interest rate term structure set to this instance of eqIndex"));
+                          ExpectedErrorMessage("null interest rate term structure set to this instance of eqIndex"));
 }
 
-BOOST_AUTO_TEST_CASE(testFixingObservability) {
+BOOST_AUTO_TEST_CASE(testFixingObservability)
+{
     BOOST_TEST_MESSAGE("Testing observability of index fixings...");
 
     CommonVars vars;
@@ -254,15 +255,15 @@ BOOST_AUTO_TEST_CASE(testFixingObservability) {
     flag.registerWith(i1);
     flag.lower();
 
-    ext::shared_ptr<Index> i2 =
-        ext::make_shared<EquityIndex>("observableEquityIndex", vars.calendar, EURCurrency());
+    ext::shared_ptr<Index> i2 = ext::make_shared<EquityIndex>("observableEquityIndex", vars.calendar, EURCurrency());
 
     i2->addFixing(vars.today, 100.0);
     if (!flag.isUp())
         BOOST_FAIL("Observer was not notified of added equity index fixing");
 }
 
-BOOST_AUTO_TEST_CASE(testNoErrorIfTodayIsNotBusinessDay) {
+BOOST_AUTO_TEST_CASE(testNoErrorIfTodayIsNotBusinessDay)
+{
     BOOST_TEST_MESSAGE("Testing that no error is thrown if today is not a business day...");
 
     CommonVars vars;
@@ -272,8 +273,7 @@ BOOST_AUTO_TEST_CASE(testNoErrorIfTodayIsNotBusinessDay) {
 
     Settings::instance().evaluationDate() = today;
 
-    auto equityIndex =
-        vars.equityIndex->clone(vars.interestHandle, vars.dividendHandle, Handle<Quote>());
+    auto equityIndex = vars.equityIndex->clone(vars.interestHandle, vars.dividendHandle, Handle<Quote>());
 
     BOOST_REQUIRE_NO_THROW(vars.equityIndex->fixing(forecastedDate));
 }

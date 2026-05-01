@@ -27,78 +27,86 @@
 #ifndef quantlib_piecewise_integral_hpp
 #define quantlib_piecewise_integral_hpp
 
-#include <ql/math/integrals/integral.hpp>
 #include <ql/math/comparison.hpp>
+#include <ql/math/integrals/integral.hpp>
 #include <ql/shared_ptr.hpp>
 #include <algorithm>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-class PiecewiseIntegral : public Integrator {
-  public:
-    PiecewiseIntegral(ext::shared_ptr<Integrator> integrator,
-                      std::vector<Real> criticalPoints,
-                      bool avoidCriticalPoints = true);
+    class PiecewiseIntegral : public Integrator
+    {
+      public:
+        PiecewiseIntegral(ext::shared_ptr<Integrator> integrator,
+                          std::vector<Real> criticalPoints,
+                          bool avoidCriticalPoints = true);
 
-  protected:
-    Real integrate(const std::function<Real(Real)>& f, Real a, Real b) const override;
+      protected:
+        Real integrate(const std::function<Real(Real)>& f, Real a, Real b) const override;
 
-  private:
-    Real integrate_h(const std::function<Real(Real)> &f, Real a,
-                     Real b) const;
-    const ext::shared_ptr<Integrator> integrator_;
-    std::vector<Real> criticalPoints_;
-    const Real eps_;
-};
+      private:
+        Real integrate_h(const std::function<Real(Real)>& f, Real a, Real b) const;
+        const ext::shared_ptr<Integrator> integrator_;
+        std::vector<Real> criticalPoints_;
+        const Real eps_;
+    };
 
-// inline
+    // inline
 
-inline Real PiecewiseIntegral::integrate_h(const std::function<Real(Real)> &f,
-                                           Real a, Real b) const {
+    inline Real PiecewiseIntegral::integrate_h(const std::function<Real(Real)>& f, Real a, Real b) const
+    {
 
-    if (!close_enough(a, b))
-        return (*integrator_)(f, a, b);
-    else
-        return 0.0;
-}
+        if (!close_enough(a, b))
+            return (*integrator_)(f, a, b);
+        else
+            return 0.0;
+    }
 
-inline Real PiecewiseIntegral::integrate(const std::function<Real(Real)> &f,
-                                         Real a, Real b) const {
+    inline Real PiecewiseIntegral::integrate(const std::function<Real(Real)>& f, Real a, Real b) const
+    {
 
-    auto a0 = std::lower_bound(criticalPoints_.begin(), criticalPoints_.end(), a);
+        auto a0 = std::lower_bound(criticalPoints_.begin(), criticalPoints_.end(), a);
 
-    auto b0 = std::lower_bound(criticalPoints_.begin(), criticalPoints_.end(), b);
+        auto b0 = std::lower_bound(criticalPoints_.begin(), criticalPoints_.end(), b);
 
-    if (a0 == criticalPoints_.end()) {
-        Real tmp = 1.0;
-        if (!criticalPoints_.empty()) {
-            if (close_enough(a, criticalPoints_.back())) {
-                tmp = eps_;
+        if (a0 == criticalPoints_.end())
+        {
+            Real tmp = 1.0;
+            if (!criticalPoints_.empty())
+            {
+                if (close_enough(a, criticalPoints_.back()))
+                {
+                    tmp = eps_;
+                }
+            }
+            return integrate_h(f, a * tmp, b);
+        }
+
+        Real res = 0.0;
+
+        if (!close_enough(a, *a0))
+        {
+            res += integrate_h(f, a, std::min(*a0 / eps_, b));
+        }
+
+        if (b0 == criticalPoints_.end())
+        {
+            --b0;
+            if (!close_enough(*b0, b))
+            {
+                res += integrate_h(f, (*b0) * eps_, b);
             }
         }
-        return integrate_h(f, a * tmp, b);
-    }
 
-    Real res = 0.0;
-
-    if (!close_enough(a, *a0)) {
-        res += integrate_h(f, a, std::min(*a0 / eps_, b));
-    }
-
-    if (b0 == criticalPoints_.end()) {
-        --b0;
-        if (!close_enough(*b0, b)) {
-            res += integrate_h(f, (*b0) * eps_, b);
+        for (auto x = a0; x < b0; ++x)
+        {
+            res += integrate_h(f, (*x) * eps_, std::min(*(x + 1) / eps_, b));
         }
-    }
 
-    for (auto x = a0; x < b0; ++x) {
-        res += integrate_h(f, (*x) * eps_, std::min(*(x + 1) / eps_, b));
+        return res;
     }
-
-    return res;
-}
 
 } // namespace QuantLib
 

@@ -33,16 +33,16 @@
    including <boost/config.hpp> which somehow includes
    <math.h> under VC++10
 */
-#define _USE_MATH_DEFINES
+#    define _USE_MATH_DEFINES
 #endif
 
 #include <boost/config.hpp>
 #include <boost/version.hpp>
 #if BOOST_VERSION < 104800
-    #error using an old version of Boost, please update.
+#    error using an old version of Boost, please update.
 #endif
 #if !defined(BOOST_ENABLE_ASSERT_HANDLER)
-    #define BOOST_ENABLE_ASSERT_HANDLER
+#    define BOOST_ENABLE_ASSERT_HANDLER
 #endif
 
 /* This allows one to include a given file at this point by
@@ -72,7 +72,7 @@
 #endif
 
 #ifndef QL_REAL
-#   define QL_REAL double
+#    define QL_REAL double
 #endif
 
 
@@ -85,42 +85,42 @@
 */
 
 #if (defined(_DEBUG) || defined(DEBUG))
-    #define QL_DEBUG
+#    define QL_DEBUG
 #endif
 
-#if   defined(HAVE_CONFIG_H)    // Dynamically created by configure
-   #include <ql/config.hpp>
+#if defined(HAVE_CONFIG_H) // Dynamically created by configure
+#    include <ql/config.hpp>
 /* Use BOOST_MSVC instead of _MSC_VER since some other vendors (Metrowerks,
    for example) also #define _MSC_VER
 */
-#elif defined(BOOST_MSVC)       // Microsoft Visual C++
-   #include <ql/config.msvc.hpp>
-#elif defined(__MINGW32__)      // Minimalistic GNU for Windows
-   #include <ql/config.mingw.hpp>
-#elif defined(__SUNPRO_CC)      // Sun Studio
-   #include <ql/config.sun.hpp>
-#else                           // We hope that the compiler follows ANSI
-   #include <ql/config.ansi.hpp>
+#elif defined(BOOST_MSVC) // Microsoft Visual C++
+#    include <ql/config.msvc.hpp>
+#elif defined(__MINGW32__) // Minimalistic GNU for Windows
+#    include <ql/config.mingw.hpp>
+#elif defined(__SUNPRO_CC) // Sun Studio
+#    include <ql/config.sun.hpp>
+#else // We hope that the compiler follows ANSI
+#    include <ql/config.ansi.hpp>
 #endif
 
 
 // extra debug checks
 #ifdef QL_DEBUG
-    #ifndef QL_EXTRA_SAFETY_CHECKS
-        #define QL_EXTRA_SAFETY_CHECKS
-    #endif
+#    ifndef QL_EXTRA_SAFETY_CHECKS
+#        define QL_EXTRA_SAFETY_CHECKS
+#    endif
 #endif
 
 #ifdef QL_ENABLE_THREAD_SAFE_OBSERVER_PATTERN
-    #if BOOST_VERSION < 105800
-        #error Boost version 1.58 or higher is required for the thread-safe observer pattern
-    #endif
+#    if BOOST_VERSION < 105800
+#        error Boost version 1.58 or higher is required for the thread-safe observer pattern
+#    endif
 #endif
 
 #ifdef QL_ENABLE_PARALLEL_UNIT_TEST_RUNNER
-    #if BOOST_VERSION < 105900
-        #error Boost version 1.59 or higher is required for the parallel unit test runner
-    #endif
+#    if BOOST_VERSION < 105900
+#        error Boost version 1.59 or higher is required for the parallel unit test runner
+#    endif
 #endif
 
 // ensure that needed math constants are defined
@@ -129,14 +129,25 @@
 
 // import global functions into std namespace
 #if defined(BOOST_NO_STDC_NAMESPACE)
-    #include <cmath>
-    namespace std {
-        using ::sqrt; using ::abs; using ::fabs;
-        using ::exp; using ::log; using ::pow;
-        using ::sin; using ::cos; using ::asin; using ::acos;
-        using ::sinh; using ::cosh;
-        using ::floor; using ::fmod; using ::modf;
-    }
+#    include <cmath>
+namespace std
+{
+    using ::sqrt;
+    using ::abs;
+    using ::fabs;
+    using ::exp;
+    using ::log;
+    using ::pow;
+    using ::sin;
+    using ::cos;
+    using ::asin;
+    using ::acos;
+    using ::sinh;
+    using ::cosh;
+    using ::floor;
+    using ::fmod;
+    using ::modf;
+}
 #endif
 
 
@@ -171,12 +182,12 @@
 */
 #include <limits>
 // limits used as such
-#define QL_MIN_INTEGER         ((std::numeric_limits<QL_INTEGER>::min)())
-#define QL_MAX_INTEGER         ((std::numeric_limits<QL_INTEGER>::max)())
-#define QL_MIN_REAL           -((std::numeric_limits<QL_REAL>::max)())
-#define QL_MAX_REAL            ((std::numeric_limits<QL_REAL>::max)())
-#define QL_MIN_POSITIVE_REAL   ((std::numeric_limits<QL_REAL>::min)())
-#define QL_EPSILON             ((std::numeric_limits<QL_REAL>::epsilon)())
+#define QL_MIN_INTEGER ((std::numeric_limits<QL_INTEGER>::min)())
+#define QL_MAX_INTEGER ((std::numeric_limits<QL_INTEGER>::max)())
+#define QL_MIN_REAL -((std::numeric_limits<QL_REAL>::max)())
+#define QL_MAX_REAL ((std::numeric_limits<QL_REAL>::max)())
+#define QL_MIN_POSITIVE_REAL ((std::numeric_limits<QL_REAL>::min)())
+#define QL_EPSILON ((std::numeric_limits<QL_REAL>::epsilon)())
 /*! @} */
 
 /*! @}  */

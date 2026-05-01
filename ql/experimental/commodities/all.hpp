@@ -23,4 +23,3 @@
 #include <ql/experimental/commodities/unitofmeasure.hpp>
 #include <ql/experimental/commodities/unitofmeasureconversion.hpp>
 #include <ql/experimental/commodities/unitofmeasureconversionmanager.hpp>
-

@@ -32,7 +32,8 @@
 #include <utility>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     CPICapFloor::CPICapFloor(Option::Type type,
                              Real nominal,
@@ -44,54 +45,62 @@ namespace QuantLib {
                              Calendar payCalendar,
                              BusinessDayConvention payConvention,
                              Rate strike,
-                             ext::shared_ptr<ZeroInflationIndex>  index,
+                             ext::shared_ptr<ZeroInflationIndex> index,
                              const Period& observationLag,
                              CPI::InterpolationType observationInterpolation)
     : type_(type), nominal_(nominal), startDate_(startDate), baseCPI_(baseCPI), maturity_(maturity),
-      fixCalendar_(std::move(fixCalendar)), fixConvention_(fixConvention),
-      payCalendar_(std::move(payCalendar)), payConvention_(payConvention), strike_(strike),
-      index_(std::move(index)), observationLag_(observationLag),
-      observationInterpolation_(observationInterpolation) {
+      fixCalendar_(std::move(fixCalendar)), fixConvention_(fixConvention), payCalendar_(std::move(payCalendar)),
+      payConvention_(payConvention), strike_(strike), index_(std::move(index)), observationLag_(observationLag),
+      observationInterpolation_(observationInterpolation)
+    {
         QL_REQUIRE(index_, "no inflation index passed");
         QL_REQUIRE(fixCalendar_ != Calendar(), "no fixing calendar passed");
         QL_REQUIRE(payCalendar_ != Calendar(), "no payment calendar passed");
 
-        if (!detail::CPI::isInterpolated(observationInterpolation_)) {
+        if (!detail::CPI::isInterpolated(observationInterpolation_))
+        {
             QL_REQUIRE(observationLag_ >= index_->availabilityLag(),
                        "CPIcapfloor's observationLag must be at least availabilityLag of inflation index: "
-                       <<"when the observation is effectively flat"
-                       << observationLag_ << " vs " << index_->availabilityLag());
-        } else {
+                           << "when the observation is effectively flat" << observationLag_ << " vs "
+                           << index_->availabilityLag());
+        }
+        else
+        {
             QL_REQUIRE(observationLag_ > index_->availabilityLag(),
                        "CPIcapfloor's observationLag must be greater than availabilityLag of inflation index: "
-                       <<"when the observation is effectively linear"
-                       << observationLag_ << " vs " << index_->availabilityLag());
+                           << "when the observation is effectively linear" << observationLag_ << " vs "
+                           << index_->availabilityLag());
         }
     }
 
 
     // when you fix - but remember that there is an observation interpolation factor as well
-    Date CPICapFloor::fixingDate() const {
+    Date CPICapFloor::fixingDate() const
+    {
         return fixCalendar_.adjust(maturity_ - observationLag_, fixConvention_);
     }
 
 
-    Date CPICapFloor::payDate() const {
+    Date CPICapFloor::payDate() const
+    {
         return payCalendar_.adjust(maturity_, payConvention_);
     }
 
 
-    bool CPICapFloor::isExpired() const {
+    bool CPICapFloor::isExpired() const
+    {
         return (Settings::instance().evaluationDate() > maturity_);
     }
 
 
-    void CPICapFloor::arguments::validate() const {
+    void CPICapFloor::arguments::validate() const
+    {
         // nothing yet
     }
 
 
-    void CPICapFloor::setupArguments(PricingEngine::arguments* args) const {
+    void CPICapFloor::setupArguments(PricingEngine::arguments* args) const
+    {
 
         // correct PricingEngine?
         auto* arguments = dynamic_cast<CPICapFloor::arguments*>(args);

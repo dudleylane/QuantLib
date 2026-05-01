@@ -20,7 +20,8 @@
 #include <sstream>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     SwapSpreadIndex::SwapSpreadIndex(const std::string& familyName,
                                      const ext::shared_ptr<SwapIndex>& swapIndex1,
@@ -33,53 +34,43 @@ namespace QuantLib {
                         swapIndex1->currency(),
                         swapIndex1->fixingCalendar(),
                         swapIndex1->dayCounter()),
-      swapIndex1_(swapIndex1), swapIndex2_(std::move(swapIndex2)), gearing1_(gearing1),
-      gearing2_(gearing2) {
+      swapIndex1_(swapIndex1), swapIndex2_(std::move(swapIndex2)), gearing1_(gearing1), gearing2_(gearing2)
+    {
 
         registerWith(swapIndex1_);
         registerWith(swapIndex2_);
 
         std::ostringstream name;
-        name << std::setprecision(4) << std::fixed << swapIndex1_->name() << "("
-             << gearing1 << ") + " << swapIndex2_->name() << "(" << gearing2
-             << ")";
+        name << std::setprecision(4) << std::fixed << swapIndex1_->name() << "(" << gearing1 << ") + "
+             << swapIndex2_->name() << "(" << gearing2 << ")";
         name_ = name.str();
 
         QL_REQUIRE(swapIndex1_->fixingDays() == swapIndex2_->fixingDays(),
-                   "index1 fixing days ("
-                       << swapIndex1_->fixingDays() << ")"
-                       << "must be equal to index2 fixing days ("
-                       << swapIndex2_->fixingDays() << ")");
+                   "index1 fixing days (" << swapIndex1_->fixingDays() << ")"
+                                          << "must be equal to index2 fixing days (" << swapIndex2_->fixingDays()
+                                          << ")");
 
-        QL_REQUIRE(swapIndex1_->fixingCalendar() ==
-                       swapIndex2_->fixingCalendar(),
-                   "index1 fixingCalendar ("
-                       << swapIndex1_->fixingCalendar() << ")"
-                       << "must be equal to index2 fixingCalendar ("
-                       << swapIndex2_->fixingCalendar() << ")");
+        QL_REQUIRE(swapIndex1_->fixingCalendar() == swapIndex2_->fixingCalendar(),
+                   "index1 fixingCalendar (" << swapIndex1_->fixingCalendar() << ")"
+                                             << "must be equal to index2 fixingCalendar ("
+                                             << swapIndex2_->fixingCalendar() << ")");
 
         QL_REQUIRE(swapIndex1_->currency() == swapIndex2_->currency(),
                    "index1 currency (" << swapIndex1_->currency() << ")"
-                                       << "must be equal to index2 currency ("
-                                       << swapIndex2_->currency() << ")");
+                                       << "must be equal to index2 currency (" << swapIndex2_->currency() << ")");
 
         QL_REQUIRE(swapIndex1_->dayCounter() == swapIndex2_->dayCounter(),
-                   "index1 dayCounter ("
-                       << swapIndex1_->dayCounter() << ")"
-                       << "must be equal to index2 dayCounter ("
-                       << swapIndex2_->dayCounter() << ")");
+                   "index1 dayCounter (" << swapIndex1_->dayCounter() << ")"
+                                         << "must be equal to index2 dayCounter (" << swapIndex2_->dayCounter() << ")");
 
         QL_REQUIRE(swapIndex1_->fixedLegTenor() == swapIndex2_->fixedLegTenor(),
-                   "index1 fixedLegTenor ("
-                       << swapIndex1_->fixedLegTenor() << ")"
-                       << "must be equal to index2 fixedLegTenor ("
-                       << swapIndex2_->fixedLegTenor());
+                   "index1 fixedLegTenor (" << swapIndex1_->fixedLegTenor() << ")"
+                                            << "must be equal to index2 fixedLegTenor ("
+                                            << swapIndex2_->fixedLegTenor());
 
-        QL_REQUIRE(swapIndex1_->fixedLegConvention() ==
-                       swapIndex2_->fixedLegConvention(),
-                   "index1 fixedLegConvention ("
-                       << swapIndex1_->fixedLegConvention() << ")"
-                       << "must be equal to index2 fixedLegConvention ("
-                       << swapIndex2_->fixedLegConvention());
+        QL_REQUIRE(swapIndex1_->fixedLegConvention() == swapIndex2_->fixedLegConvention(),
+                   "index1 fixedLegConvention (" << swapIndex1_->fixedLegConvention() << ")"
+                                                 << "must be equal to index2 fixedLegConvention ("
+                                                 << swapIndex2_->fixedLegConvention());
     }
 }

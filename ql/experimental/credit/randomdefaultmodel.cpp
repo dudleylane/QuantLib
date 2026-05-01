@@ -25,20 +25,24 @@
 
 using namespace std;
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
+    namespace
+    {
 
         // Utility for the numerical solver
-        class Root {
+        class Root
+        {
           public:
-            Root(Handle<DefaultProbabilityTermStructure> dts, Real pd)
-            : dts_(std::move(dts)), pd_(pd) {}
-            Real operator()(Real t) const {
-                QL_REQUIRE(t >= 0.0, "GaussianRandomDefaultModel: internal error, t < 0 ("
-                                         << t << ") during root searching.");
+            Root(Handle<DefaultProbabilityTermStructure> dts, Real pd) : dts_(std::move(dts)), pd_(pd) {}
+            Real operator()(Real t) const
+            {
+                QL_REQUIRE(t >= 0.0,
+                           "GaussianRandomDefaultModel: internal error, t < 0 (" << t << ") during root searching.");
                 return dts_->defaultProbability(t, true) - pd_;
             }
+
           private:
             const Handle<DefaultProbabilityTermStructure> dts_;
             Real pd_;
@@ -46,51 +50,55 @@ namespace QuantLib {
 
     }
 
-    GaussianRandomDefaultModel::GaussianRandomDefaultModel(
-        const ext::shared_ptr<Pool>& pool,
-        const std::vector<DefaultProbKey>& defaultKeys,
-        const Handle<OneFactorCopula>& copula,
-        Real accuracy,
-        long seed)
+    GaussianRandomDefaultModel::GaussianRandomDefaultModel(const ext::shared_ptr<Pool>& pool,
+                                                           const std::vector<DefaultProbKey>& defaultKeys,
+                                                           const Handle<OneFactorCopula>& copula,
+                                                           Real accuracy,
+                                                           long seed)
     : RandomDefaultModel(pool, defaultKeys), copula_(copula), accuracy_(accuracy), seed_(seed),
-      rsg_(PseudoRandom::make_sequence_generator(pool->size() + 1, seed)) {
+      rsg_(PseudoRandom::make_sequence_generator(pool->size() + 1, seed))
+    {
         registerWith(copula);
     }
 
-    void GaussianRandomDefaultModel::reset() {
+    void GaussianRandomDefaultModel::reset()
+    {
         Size dim = pool_->size() + 1;
         rsg_ = PseudoRandom::make_sequence_generator(dim, seed_);
     }
 
-    void GaussianRandomDefaultModel::nextSequence(Real tmax) {
+    void GaussianRandomDefaultModel::nextSequence(Real tmax)
+    {
         const std::vector<Real>& values = rsg_.nextSequence().value;
         Real a = sqrt(copula_->correlation());
-        for (Size j = 0; j < pool_->size(); j++) {
+        for (Size j = 0; j < pool_->size(); j++)
+        {
             const string name = pool_->names()[j];
-            const Handle<DefaultProbabilityTermStructure>&
-                dts = pool_->get(name).defaultProbability(defaultKeys_[j]);
+            const Handle<DefaultProbabilityTermStructure>& dts = pool_->get(name).defaultProbability(defaultKeys_[j]);
 
-            Real y = a * values[0] + sqrt(1-a*a) * values[j+1];
+            Real y = a * values[0] + sqrt(1 - a * a) * values[j + 1];
             Real p = CumulativeNormalDistribution()(y);
 
             if (dts->defaultProbability(tmax) < p)
                 pool_->setTime(name, tmax + 1);
-            else {
+            else
+            {
                 // we know there is a zero of f(t) = dts->defaultProbability(t) - p in [0, tmax]
-                try {
+                try
+                {
                     // try bracketing the root and find it with Brent
                     Brent brent;
                     brent.setLowerBound(0.0);
                     brent.setUpperBound(tmax);
                     pool_->setTime(name, brent.solve(Root(dts, p), accuracy_, tmax / 2.0, 1.0));
-                } catch (...) {
+                }
+                catch (...)
+                {
                     // if Brent fails, use Bisection, this is guaranteed to find the root
-                    pool_->setTime(
-                        name, Bisection().solve(Root(dts, p), accuracy_, tmax / 2.0, 0.0, tmax));
+                    pool_->setTime(name, Bisection().solve(Root(dts, p), accuracy_, tmax / 2.0, 0.0, tmax));
                 }
             }
         }
     }
 
 }
-

@@ -21,98 +21,106 @@
 #include <ql/math/optimization/levenbergmarquardt.hpp>
 #include <ql/termstructures/globalbootstrap.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-MultiCurveBootstrap::MultiCurveBootstrap(Real accuracy) {
-    optimizer_ = ext::make_shared<LevenbergMarquardt>(accuracy, accuracy, accuracy);
-    endCriteria_ = ext::make_shared<EndCriteria>(1000, 10, accuracy, accuracy, accuracy);
-}
-
-MultiCurveBootstrap::MultiCurveBootstrap(ext::shared_ptr<OptimizationMethod> optimizer,
-                                         ext::shared_ptr<EndCriteria> endCriteria)
-: optimizer_(std::move(optimizer)), endCriteria_(std::move(endCriteria)) {
-    constexpr auto accuracy = 1E-10;
-    if (optimizer_ == nullptr)
+    MultiCurveBootstrap::MultiCurveBootstrap(Real accuracy)
+    {
         optimizer_ = ext::make_shared<LevenbergMarquardt>(accuracy, accuracy, accuracy);
-    if (endCriteria_ == nullptr)
         endCriteria_ = ext::make_shared<EndCriteria>(1000, 10, accuracy, accuracy, accuracy);
-}
-
-void MultiCurveBootstrap::add(const MultiCurveBootstrapContributor* c) {
-    contributors_.push_back(c);
-    c->setParentBootstrapper(shared_from_this());
-}
-
-void MultiCurveBootstrap::addObserver(Observer* o) {
-    observers_.push_back(o);
-}
-
-void MultiCurveBootstrap::runMultiCurveBootstrap() {
-
-    std::vector<Size> guessSizes;
-    std::vector<Real> globalGuess;
-
-    for (auto const& c : contributors_) {
-        Array guess = c->setupCostFunction();
-        globalGuess.insert(globalGuess.end(), guess.begin(), guess.end());
-        guessSizes.push_back(guess.size());
     }
 
-    auto fn = [this, &guessSizes](const Array& x) {
-        // call the contributors' cost functions' set part
+    MultiCurveBootstrap::MultiCurveBootstrap(ext::shared_ptr<OptimizationMethod> optimizer,
+                                             ext::shared_ptr<EndCriteria> endCriteria)
+    : optimizer_(std::move(optimizer)), endCriteria_(std::move(endCriteria))
+    {
+        constexpr auto accuracy = 1E-10;
+        if (optimizer_ == nullptr)
+            optimizer_ = ext::make_shared<LevenbergMarquardt>(accuracy, accuracy, accuracy);
+        if (endCriteria_ == nullptr)
+            endCriteria_ = ext::make_shared<EndCriteria>(1000, 10, accuracy, accuracy, accuracy);
+    }
 
-        std::size_t offset = 0;
-        for (std::size_t c = 0; c < contributors_.size(); ++c) {
-            Array tmp(guessSizes[c]);
-            std::copy(std::next(x.begin(), offset), std::next(x.begin(), offset + guessSizes[c]),
-                      tmp.begin());
-            offset += guessSizes[c];
-            contributors_[c]->setCostFunctionArgument(tmp);
+    void MultiCurveBootstrap::add(const MultiCurveBootstrapContributor* c)
+    {
+        contributors_.push_back(c);
+        c->setParentBootstrapper(shared_from_this());
+    }
+
+    void MultiCurveBootstrap::addObserver(Observer* o)
+    {
+        observers_.push_back(o);
+    }
+
+    void MultiCurveBootstrap::runMultiCurveBootstrap()
+    {
+
+        std::vector<Size> guessSizes;
+        std::vector<Real> globalGuess;
+
+        for (auto const& c : contributors_)
+        {
+            Array guess = c->setupCostFunction();
+            globalGuess.insert(globalGuess.end(), guess.begin(), guess.end());
+            guessSizes.push_back(guess.size());
         }
 
-        // update observers
-        for(auto *o: observers_)
-            o->update();
+        auto fn = [this, &guessSizes](const Array& x)
+        {
+            // call the contributors' cost functions' set part
 
-        // collect the contributors' result
+            std::size_t offset = 0;
+            for (std::size_t c = 0; c < contributors_.size(); ++c)
+            {
+                Array tmp(guessSizes[c]);
+                std::copy(std::next(x.begin(), offset), std::next(x.begin(), offset + guessSizes[c]), tmp.begin());
+                offset += guessSizes[c];
+                contributors_[c]->setCostFunctionArgument(tmp);
+            }
 
-        std::vector<Array> results;
-        results.reserve(contributors_.size());
-        for (auto& contributor : contributors_) {
-            results.push_back(contributor->evaluateCostFunction());
-        }
+            // update observers
+            for (auto* o : observers_)
+                o->update();
 
-        // concatenate the contributors' values and return the concatenation as the result
+            // collect the contributors' result
 
-        std::size_t resultSize =
-            std::accumulate(results.begin(), results.end(), (std::size_t)0,
-                            [](std::size_t len, const Array& a) { return len + a.size(); });
+            std::vector<Array> results;
+            results.reserve(contributors_.size());
+            for (auto& contributor : contributors_)
+            {
+                results.push_back(contributor->evaluateCostFunction());
+            }
 
-        Array result(resultSize);
+            // concatenate the contributors' values and return the concatenation as the result
 
-        offset = 0;
-        for (auto const& r : results) {
-            std::copy(r.begin(), r.end(), std::next(result.begin(), offset));
-            offset += r.size();
-        }
+            std::size_t resultSize = std::accumulate(results.begin(), results.end(), (std::size_t)0,
+                                                     [](std::size_t len, const Array& a) { return len + a.size(); });
 
-        return result;
-    };
+            Array result(resultSize);
 
-    SimpleCostFunction<decltype(fn)> costFunction(fn);
-    NoConstraint noConstraint;
-    Problem problem(costFunction, noConstraint, Array(globalGuess.begin(), globalGuess.end()));
-    EndCriteria::Type endType = optimizer_->minimize(problem, *endCriteria_);
+            offset = 0;
+            for (auto const& r : results)
+            {
+                std::copy(r.begin(), r.end(), std::next(result.begin(), offset));
+                offset += r.size();
+            }
 
-    QL_REQUIRE(
-        EndCriteria::succeeded(endType),
-        "global bootstrap failed to minimize to required accuracy (during multi curve bootstrap): "
-            << endType);
+            return result;
+        };
 
-    // set all contributors to valid
+        SimpleCostFunction<decltype(fn)> costFunction(fn);
+        NoConstraint noConstraint;
+        Problem problem(costFunction, noConstraint, Array(globalGuess.begin(), globalGuess.end()));
+        EndCriteria::Type endType = optimizer_->minimize(problem, *endCriteria_);
 
-    for (auto const& c : contributors_)
-        c->setToValid();
-}
+        QL_REQUIRE(
+            EndCriteria::succeeded(endType),
+            "global bootstrap failed to minimize to required accuracy (during multi curve bootstrap): " << endType);
+
+        // set all contributors to valid
+
+        for (auto const& c : contributors_)
+            c->setToValid();
+    }
 
 } // namespace QuantLib

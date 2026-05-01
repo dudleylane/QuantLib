@@ -31,7 +31,8 @@
 #include <ql/time/schedule.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     // accrual adjustment is already in the schedules, as are calendars
     CPISwap::CPISwap(Type type,
@@ -54,41 +55,44 @@ namespace QuantLib {
                      ext::shared_ptr<ZeroInflationIndex> fixedIndex,
                      CPI::InterpolationType observationInterpolation,
                      Real inflationNominal)
-    : Swap(2), type_(type), nominal_(nominal), subtractInflationNominal_(subtractInflationNominal),
-      spread_(spread), floatDayCount_(std::move(floatDayCount)),
-      floatSchedule_(std::move(floatSchedule)), floatPaymentRoll_(floatPaymentRoll),
-      fixingDays_(fixingDays), floatIndex_(std::move(floatIndex)), fixedRate_(fixedRate),
-      baseCPI_(baseCPI), fixedDayCount_(std::move(fixedDayCount)),
-      fixedSchedule_(std::move(fixedSchedule)), fixedPaymentRoll_(fixedPaymentRoll),
-      fixedIndex_(std::move(fixedIndex)), observationLag_(observationLag),
-      observationInterpolation_(observationInterpolation) {
+    : Swap(2), type_(type), nominal_(nominal), subtractInflationNominal_(subtractInflationNominal), spread_(spread),
+      floatDayCount_(std::move(floatDayCount)), floatSchedule_(std::move(floatSchedule)),
+      floatPaymentRoll_(floatPaymentRoll), fixingDays_(fixingDays), floatIndex_(std::move(floatIndex)),
+      fixedRate_(fixedRate), baseCPI_(baseCPI), fixedDayCount_(std::move(fixedDayCount)),
+      fixedSchedule_(std::move(fixedSchedule)), fixedPaymentRoll_(fixedPaymentRoll), fixedIndex_(std::move(fixedIndex)),
+      observationLag_(observationLag), observationInterpolation_(observationInterpolation)
+    {
         QL_REQUIRE(!floatSchedule_.empty(), "empty float schedule");
         QL_REQUIRE(!fixedSchedule_.empty(), "empty fixed schedule");
         // \todo if roll!=unadjusted then need calendars ...
 
-        if (inflationNominal==Null<Real>()) inflationNominal_ = nominal_;
-        else inflationNominal_ = inflationNominal;
+        if (inflationNominal == Null<Real>())
+            inflationNominal_ = nominal_;
+        else
+            inflationNominal_ = inflationNominal;
 
         Leg floatingLeg;
-        if (floatSchedule_.size() > 1) {
+        if (floatSchedule_.size() > 1)
+        {
             floatingLeg = IborLeg(floatSchedule_, floatIndex_)
-            .withNotionals(nominal_)
-            .withSpreads(spread_)
-            .withPaymentDayCounter(floatDayCount_)
-            .withPaymentAdjustment(floatPaymentRoll_)
-            .withFixingDays(fixingDays_);
+                              .withNotionals(nominal_)
+                              .withSpreads(spread_)
+                              .withPaymentDayCounter(floatDayCount_)
+                              .withPaymentAdjustment(floatPaymentRoll_)
+                              .withFixingDays(fixingDays_);
         }
 
-        if (floatSchedule_.size()==1 ||
-            !subtractInflationNominal_ ||
-            (subtractInflationNominal && std::fabs(nominal_-inflationNominal_)>0.00001)
-            )
+        if (floatSchedule_.size() == 1 || !subtractInflationNominal_ ||
+            (subtractInflationNominal && std::fabs(nominal_ - inflationNominal_) > 0.00001))
         {
             Date payNotional;
-            if (floatSchedule_.size()==1) { // no coupons
+            if (floatSchedule_.size() == 1)
+            { // no coupons
                 payNotional = floatSchedule_[0];
                 payNotional = floatSchedule_.calendar().adjust(payNotional, floatPaymentRoll_);
-            } else { // use the pay date of the last coupon
+            }
+            else
+            { // use the pay date of the last coupon
                 payNotional = floatingLeg.back()->date();
             }
 
@@ -98,32 +102,36 @@ namespace QuantLib {
         }
 
         // a CPIleg know about zero legs and inclusion of base inflation notional
-        Leg cpiLeg = CPILeg(fixedSchedule_, fixedIndex_,
-                            baseCPI_, observationLag_)
-        .withNotionals(inflationNominal_)
-        .withFixedRates(fixedRate_)
-        .withPaymentDayCounter(fixedDayCount_)
-        .withPaymentAdjustment(fixedPaymentRoll_)
-        .withObservationInterpolation(observationInterpolation_)
-        .withSubtractInflationNominal(subtractInflationNominal_);
+        Leg cpiLeg = CPILeg(fixedSchedule_, fixedIndex_, baseCPI_, observationLag_)
+                         .withNotionals(inflationNominal_)
+                         .withFixedRates(fixedRate_)
+                         .withPaymentDayCounter(fixedDayCount_)
+                         .withPaymentAdjustment(fixedPaymentRoll_)
+                         .withObservationInterpolation(observationInterpolation_)
+                         .withSubtractInflationNominal(subtractInflationNominal_);
 
 
         Leg::const_iterator i;
-        for (i = cpiLeg.begin(); i < cpiLeg.end(); ++i) {
+        for (i = cpiLeg.begin(); i < cpiLeg.end(); ++i)
+        {
             registerWith(*i);
         }
 
-        for (i = floatingLeg.begin(); i < floatingLeg.end(); ++i) {
+        for (i = floatingLeg.begin(); i < floatingLeg.end(); ++i)
+        {
             registerWith(*i);
         }
 
         legs_[0] = cpiLeg;
         legs_[1] = floatingLeg;
 
-        if (type_==Payer) {
+        if (type_ == Payer)
+        {
             payer_[0] = 1.0;
             payer_[1] = -1.0;
-        } else {
+        }
+        else
+        {
             payer_[0] = -1.0;
             payer_[1] = 1.0;
         }
@@ -131,7 +139,8 @@ namespace QuantLib {
 
 
     //! for simple case sufficient to copy base class
-    void CPISwap::setupArguments(PricingEngine::arguments* args) const {
+    void CPISwap::setupArguments(PricingEngine::arguments* args) const
+    {
 
         Swap::setupArguments(args);
 
@@ -142,39 +151,45 @@ namespace QuantLib {
     }
 
 
-    Rate CPISwap::fairRate() const {
+    Rate CPISwap::fairRate() const
+    {
         calculate();
         QL_REQUIRE(fairRate_ != Null<Rate>(), "result not available");
         return fairRate_;
     }
 
-    Spread CPISwap::fairSpread() const {
+    Spread CPISwap::fairSpread() const
+    {
         calculate();
         QL_REQUIRE(fairSpread_ != Null<Spread>(), "result not available");
         return fairSpread_;
     }
 
 
-    Real CPISwap::fixedLegNPV() const {//FIXME
+    Real CPISwap::fixedLegNPV() const
+    { // FIXME
         calculate();
         QL_REQUIRE(legNPV_[0] != Null<Real>(), "result not available");
         return legNPV_[0];
     }
 
-    Real CPISwap::floatLegNPV() const {//FIXME
+    Real CPISwap::floatLegNPV() const
+    { // FIXME
         calculate();
         QL_REQUIRE(legNPV_[1] != Null<Real>(), "result not available");
         return legNPV_[1];
     }
 
-    void CPISwap::setupExpired() const {
+    void CPISwap::setupExpired() const
+    {
         Swap::setupExpired();
         legBPS_[0] = legBPS_[1] = 0.0;
         fairRate_ = Null<Rate>();
         fairSpread_ = Null<Spread>();
     }
 
-    void CPISwap::fetchResults(const PricingEngine::results* r) const {
+    void CPISwap::fetchResults(const PricingEngine::results* r) const
+    {
         static const Spread basisPoint = 1.0e-4;
 
         // copy from VanillaSwap
@@ -184,36 +199,41 @@ namespace QuantLib {
         Swap::fetchResults(r);
 
         const auto* results = dynamic_cast<const CPISwap::results*>(r);
-        if (results != nullptr) { // might be a swap engine, so no error is thrown
+        if (results != nullptr)
+        { // might be a swap engine, so no error is thrown
             fairRate_ = results->fairRate;
             fairSpread_ = results->fairSpread;
-        } else {
+        }
+        else
+        {
             fairRate_ = Null<Rate>();
             fairSpread_ = Null<Spread>();
         }
 
-        if (fairRate_ == Null<Rate>()) {
+        if (fairRate_ == Null<Rate>())
+        {
             // calculate it from other results
             if (legBPS_[0] != Null<Real>())
-                fairRate_ = fixedRate_ - NPV_/(legBPS_[0]/basisPoint);
+                fairRate_ = fixedRate_ - NPV_ / (legBPS_[0] / basisPoint);
         }
-        if (fairSpread_ == Null<Spread>()) {
+        if (fairSpread_ == Null<Spread>())
+        {
             // ditto
             if (legBPS_[1] != Null<Real>())
-                fairSpread_ = spread_ - NPV_/(legBPS_[1]/basisPoint);
+                fairSpread_ = spread_ - NPV_ / (legBPS_[1] / basisPoint);
         }
-
     }
 
-    void CPISwap::arguments::validate() const {
+    void CPISwap::arguments::validate() const
+    {
         Swap::arguments::validate();
     }
 
-    void CPISwap::results::reset() {
+    void CPISwap::results::reset()
+    {
         Swap::results::reset();
         fairRate = Null<Rate>();
         fairSpread = Null<Spread>();
     }
 
 }
-

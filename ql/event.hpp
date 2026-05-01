@@ -25,11 +25,12 @@
 #ifndef quantlib_event_hpp
 #define quantlib_event_hpp
 
-#include <ql/time/date.hpp>
-#include <ql/patterns/observable.hpp>
 #include <ql/optional.hpp>
+#include <ql/patterns/observable.hpp>
+#include <ql/time/date.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class AcyclicVisitor;
 
@@ -37,7 +38,8 @@ namespace QuantLib {
     /*! This class acts as a base class for the actual
         event implementations.
     */
-    class Event : public virtual Observable {
+    class Event : public virtual Observable
+    {
       public:
         ~Event() override = default;
         //! \name Event interface
@@ -50,9 +52,7 @@ namespace QuantLib {
             date is the same as the refDate, i.e. this method returns false if
             the event date is the same as the refDate.
         */
-        virtual bool hasOccurred(
-                    const Date& refDate = Date(),
-                    ext::optional<bool> includeRefDate = ext::nullopt) const;
+        virtual bool hasOccurred(const Date& refDate = Date(), ext::optional<bool> includeRefDate = ext::nullopt) const;
         //@}
 
         //! \name Visitability
@@ -62,11 +62,13 @@ namespace QuantLib {
     };
 
 
-    namespace detail {
+    namespace detail
+    {
 
         // used to create an Event instance.
         // to be replaced with specific events as soon as we find out which.
-        class simple_event : public Event {
+        class simple_event : public Event
+        {
           public:
             explicit simple_event(const Date& date) : date_(date) {}
             Date date() const override { return date_; }

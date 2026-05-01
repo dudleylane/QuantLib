@@ -32,7 +32,8 @@
 #include <ql/processes/stochasticprocessarray.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Pricing engine for European basket options using Monte Carlo simulation
     /*! \ingroup basketengines
@@ -41,15 +42,12 @@ namespace QuantLib {
               reproducing results available in literature.
     */
     template <class RNG = PseudoRandom, class S = Statistics>
-    class MCEuropeanBasketEngine  : public BasketOption::engine,
-                                    public McSimulation<MultiVariate,RNG,S> {
+    class MCEuropeanBasketEngine : public BasketOption::engine, public McSimulation<MultiVariate, RNG, S>
+    {
       public:
-        typedef typename McSimulation<MultiVariate,RNG,S>::path_generator_type
-            path_generator_type;
-        typedef typename McSimulation<MultiVariate,RNG,S>::path_pricer_type
-            path_pricer_type;
-        typedef typename McSimulation<MultiVariate,RNG,S>::stats_type
-            stats_type;
+        typedef typename McSimulation<MultiVariate, RNG, S>::path_generator_type path_generator_type;
+        typedef typename McSimulation<MultiVariate, RNG, S>::path_pricer_type path_pricer_type;
+        typedef typename McSimulation<MultiVariate, RNG, S>::stats_type stats_type;
         // constructor
         MCEuropeanBasketEngine(ext::shared_ptr<StochasticProcessArray>,
                                Size timeSteps,
@@ -60,29 +58,26 @@ namespace QuantLib {
                                Real requiredTolerance,
                                Size maxSamples,
                                BigNatural seed);
-        void calculate() const override {
-            McSimulation<MultiVariate,RNG,S>::calculate(requiredTolerance_,
-                                                        requiredSamples_,
-                                                        maxSamples_);
+        void calculate() const override
+        {
+            McSimulation<MultiVariate, RNG, S>::calculate(requiredTolerance_, requiredSamples_, maxSamples_);
             results_.value = this->mcModel_->sampleAccumulator().mean();
             if constexpr (RNG::allowsErrorEstimate)
-                results_.errorEstimate =
-                    this->mcModel_->sampleAccumulator().errorEstimate();
+                results_.errorEstimate = this->mcModel_->sampleAccumulator().errorEstimate();
         }
 
       protected:
         // McSimulation implementation
         TimeGrid timeGrid() const override;
-        ext::shared_ptr<path_generator_type> pathGenerator() const override {
+        ext::shared_ptr<path_generator_type> pathGenerator() const override
+        {
             Size numAssets = processes_->size();
 
             TimeGrid grid = timeGrid();
-            typename RNG::rsg_type gen =
-                RNG::make_sequence_generator(numAssets*(grid.size()-1),seed_);
+            typename RNG::rsg_type gen = RNG::make_sequence_generator(numAssets * (grid.size() - 1), seed_);
 
             return ext::shared_ptr<path_generator_type>(
-                         new path_generator_type(processes_,
-                                                 grid, gen, brownianBridge_));
+                new path_generator_type(processes_, grid, gen, brownianBridge_));
         }
         ext::shared_ptr<path_pricer_type> pathPricer() const override;
         // data members
@@ -98,7 +93,8 @@ namespace QuantLib {
 
     //! Monte Carlo basket-option engine factory
     template <class RNG = PseudoRandom, class S = Statistics>
-    class MakeMCEuropeanBasketEngine {
+    class MakeMCEuropeanBasketEngine
+    {
       public:
         MakeMCEuropeanBasketEngine(ext::shared_ptr<StochasticProcessArray>);
         // named parameters
@@ -112,6 +108,7 @@ namespace QuantLib {
         MakeMCEuropeanBasketEngine& withSeed(BigNatural seed);
         // conversion to pricing engine
         operator ext::shared_ptr<PricingEngine>() const;
+
       private:
         ext::shared_ptr<StochasticProcessArray> process_;
         bool brownianBridge_ = false, antithetic_ = false;
@@ -121,7 +118,8 @@ namespace QuantLib {
     };
 
 
-    class EuropeanMultiPathPricer : public PathPricer<MultiPath> {
+    class EuropeanMultiPathPricer : public PathPricer<MultiPath>
+    {
       public:
         EuropeanMultiPathPricer(ext::shared_ptr<BasketPayoff> payoff, DiscountFactor discount);
         Real operator()(const MultiPath& multiPath) const override;
@@ -135,158 +133,140 @@ namespace QuantLib {
     // template definitions
 
     template <class RNG, class S>
-    inline MCEuropeanBasketEngine<RNG, S>::MCEuropeanBasketEngine(
-        ext::shared_ptr<StochasticProcessArray> processes,
-        Size timeSteps,
-        Size timeStepsPerYear,
-        bool brownianBridge,
-        bool antitheticVariate,
-        Size requiredSamples,
-        Real requiredTolerance,
-        Size maxSamples,
-        BigNatural seed)
-    : McSimulation<MultiVariate, RNG, S>(antitheticVariate, false),
-      processes_(std::move(processes)), timeSteps_(timeSteps), timeStepsPerYear_(timeStepsPerYear),
-      requiredSamples_(requiredSamples), maxSamples_(maxSamples),
-      requiredTolerance_(requiredTolerance), brownianBridge_(brownianBridge), seed_(seed) {
-        QL_REQUIRE(timeSteps != Null<Size>() ||
-                   timeStepsPerYear != Null<Size>(),
-                   "no time steps provided");
-        QL_REQUIRE(timeSteps == Null<Size>() ||
-                   timeStepsPerYear == Null<Size>(),
+    inline MCEuropeanBasketEngine<RNG, S>::MCEuropeanBasketEngine(ext::shared_ptr<StochasticProcessArray> processes,
+                                                                  Size timeSteps,
+                                                                  Size timeStepsPerYear,
+                                                                  bool brownianBridge,
+                                                                  bool antitheticVariate,
+                                                                  Size requiredSamples,
+                                                                  Real requiredTolerance,
+                                                                  Size maxSamples,
+                                                                  BigNatural seed)
+    : McSimulation<MultiVariate, RNG, S>(antitheticVariate, false), processes_(std::move(processes)),
+      timeSteps_(timeSteps), timeStepsPerYear_(timeStepsPerYear), requiredSamples_(requiredSamples),
+      maxSamples_(maxSamples), requiredTolerance_(requiredTolerance), brownianBridge_(brownianBridge), seed_(seed)
+    {
+        QL_REQUIRE(timeSteps != Null<Size>() || timeStepsPerYear != Null<Size>(), "no time steps provided");
+        QL_REQUIRE(timeSteps == Null<Size>() || timeStepsPerYear == Null<Size>(),
                    "both time steps and time steps per year were provided");
-        QL_REQUIRE(timeSteps != 0,
-                   "timeSteps must be positive, " << timeSteps <<
-                   " not allowed");
-        QL_REQUIRE(timeStepsPerYear != 0,
-                   "timeStepsPerYear must be positive, " << timeStepsPerYear <<
-                   " not allowed");
+        QL_REQUIRE(timeSteps != 0, "timeSteps must be positive, " << timeSteps << " not allowed");
+        QL_REQUIRE(timeStepsPerYear != 0, "timeStepsPerYear must be positive, " << timeStepsPerYear << " not allowed");
         registerWith(processes_);
     }
 
     template <class RNG, class S>
-    inline TimeGrid MCEuropeanBasketEngine<RNG,S>::timeGrid() const {
+    inline TimeGrid MCEuropeanBasketEngine<RNG, S>::timeGrid() const
+    {
 
-        Time residualTime = processes_->time(
-                                       this->arguments_.exercise->lastDate());
-        if (timeSteps_ != Null<Size>()) {
+        Time residualTime = processes_->time(this->arguments_.exercise->lastDate());
+        if (timeSteps_ != Null<Size>())
+        {
             return TimeGrid(residualTime, timeSteps_);
-        } else if (timeStepsPerYear_ != Null<Size>()) {
-            Size steps = static_cast<Size>(timeStepsPerYear_*residualTime);
+        }
+        else if (timeStepsPerYear_ != Null<Size>())
+        {
+            Size steps = static_cast<Size>(timeStepsPerYear_ * residualTime);
             return TimeGrid(residualTime, std::max<Size>(steps, 1));
-        } else {
+        }
+        else
+        {
             QL_FAIL("time steps not specified");
         }
     }
 
     template <class RNG, class S>
-    inline
-    ext::shared_ptr<typename MCEuropeanBasketEngine<RNG,S>::path_pricer_type>
-    MCEuropeanBasketEngine<RNG,S>::pathPricer() const {
+    inline ext::shared_ptr<typename MCEuropeanBasketEngine<RNG, S>::path_pricer_type>
+    MCEuropeanBasketEngine<RNG, S>::pathPricer() const
+    {
 
-        ext::shared_ptr<BasketPayoff> payoff =
-            ext::dynamic_pointer_cast<BasketPayoff>(arguments_.payoff);
+        ext::shared_ptr<BasketPayoff> payoff = ext::dynamic_pointer_cast<BasketPayoff>(arguments_.payoff);
         QL_REQUIRE(payoff, "non-basket payoff given");
 
         ext::shared_ptr<GeneralizedBlackScholesProcess> process =
-            ext::dynamic_pointer_cast<GeneralizedBlackScholesProcess>(
-                                                      processes_->process(0));
+            ext::dynamic_pointer_cast<GeneralizedBlackScholesProcess>(processes_->process(0));
         QL_REQUIRE(process, "Black-Scholes process required");
 
-        return ext::shared_ptr<
-                    typename MCEuropeanBasketEngine<RNG,S>::path_pricer_type>(
-            new EuropeanMultiPathPricer(payoff,
-                                        process->riskFreeRate()->discount(
-                                           arguments_.exercise->lastDate())));
+        return ext::shared_ptr<typename MCEuropeanBasketEngine<RNG, S>::path_pricer_type>(
+            new EuropeanMultiPathPricer(payoff, process->riskFreeRate()->discount(arguments_.exercise->lastDate())));
     }
 
 
     template <class RNG, class S>
     inline MakeMCEuropeanBasketEngine<RNG, S>::MakeMCEuropeanBasketEngine(
         ext::shared_ptr<StochasticProcessArray> process)
-    : process_(std::move(process)), steps_(Null<Size>()), stepsPerYear_(Null<Size>()),
-      samples_(Null<Size>()), maxSamples_(Null<Size>()), tolerance_(Null<Real>()) {}
+    : process_(std::move(process)), steps_(Null<Size>()), stepsPerYear_(Null<Size>()), samples_(Null<Size>()),
+      maxSamples_(Null<Size>()), tolerance_(Null<Real>())
+    {
+    }
 
     template <class RNG, class S>
-    inline MakeMCEuropeanBasketEngine<RNG,S>&
-    MakeMCEuropeanBasketEngine<RNG,S>::withSteps(Size steps) {
+    inline MakeMCEuropeanBasketEngine<RNG, S>& MakeMCEuropeanBasketEngine<RNG, S>::withSteps(Size steps)
+    {
         steps_ = steps;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCEuropeanBasketEngine<RNG,S>&
-    MakeMCEuropeanBasketEngine<RNG,S>::withStepsPerYear(Size steps) {
+    inline MakeMCEuropeanBasketEngine<RNG, S>& MakeMCEuropeanBasketEngine<RNG, S>::withStepsPerYear(Size steps)
+    {
         stepsPerYear_ = steps;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCEuropeanBasketEngine<RNG,S>&
-    MakeMCEuropeanBasketEngine<RNG,S>::withBrownianBridge(bool brownianBridge) {
+    inline MakeMCEuropeanBasketEngine<RNG, S>&
+    MakeMCEuropeanBasketEngine<RNG, S>::withBrownianBridge(bool brownianBridge)
+    {
         brownianBridge_ = brownianBridge;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCEuropeanBasketEngine<RNG,S>&
-    MakeMCEuropeanBasketEngine<RNG,S>::withAntitheticVariate(bool b) {
+    inline MakeMCEuropeanBasketEngine<RNG, S>& MakeMCEuropeanBasketEngine<RNG, S>::withAntitheticVariate(bool b)
+    {
         antithetic_ = b;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCEuropeanBasketEngine<RNG,S>&
-    MakeMCEuropeanBasketEngine<RNG,S>::withSamples(Size samples) {
-        QL_REQUIRE(tolerance_ == Null<Real>(),
-                   "tolerance already set");
+    inline MakeMCEuropeanBasketEngine<RNG, S>& MakeMCEuropeanBasketEngine<RNG, S>::withSamples(Size samples)
+    {
+        QL_REQUIRE(tolerance_ == Null<Real>(), "tolerance already set");
         samples_ = samples;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCEuropeanBasketEngine<RNG,S>&
-    MakeMCEuropeanBasketEngine<RNG,S>::withAbsoluteTolerance(Real tolerance) {
-        QL_REQUIRE(samples_ == Null<Size>(),
-                   "number of samples already set");
-        QL_REQUIRE(RNG::allowsErrorEstimate,
-                   "chosen random generator policy "
-                   "does not allow an error estimate");
+    inline MakeMCEuropeanBasketEngine<RNG, S>& MakeMCEuropeanBasketEngine<RNG, S>::withAbsoluteTolerance(Real tolerance)
+    {
+        QL_REQUIRE(samples_ == Null<Size>(), "number of samples already set");
+        QL_REQUIRE(RNG::allowsErrorEstimate, "chosen random generator policy "
+                                             "does not allow an error estimate");
         tolerance_ = tolerance;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCEuropeanBasketEngine<RNG,S>&
-    MakeMCEuropeanBasketEngine<RNG,S>::withMaxSamples(Size samples) {
+    inline MakeMCEuropeanBasketEngine<RNG, S>& MakeMCEuropeanBasketEngine<RNG, S>::withMaxSamples(Size samples)
+    {
         maxSamples_ = samples;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCEuropeanBasketEngine<RNG,S>&
-    MakeMCEuropeanBasketEngine<RNG,S>::withSeed(BigNatural seed) {
+    inline MakeMCEuropeanBasketEngine<RNG, S>& MakeMCEuropeanBasketEngine<RNG, S>::withSeed(BigNatural seed)
+    {
         seed_ = seed;
         return *this;
     }
 
     template <class RNG, class S>
-    inline
-    MakeMCEuropeanBasketEngine<RNG,S>::operator
-    ext::shared_ptr<PricingEngine>() const {
-        QL_REQUIRE(steps_ != Null<Size>() || stepsPerYear_ != Null<Size>(),
-                   "number of steps not given");
-        QL_REQUIRE(steps_ == Null<Size>() || stepsPerYear_ == Null<Size>(),
-                   "number of steps overspecified");
-        return ext::shared_ptr<PricingEngine>(new
-            MCEuropeanBasketEngine<RNG,S>(process_,
-                                          steps_,
-                                          stepsPerYear_,
-                                          brownianBridge_,
-                                          antithetic_,
-                                          samples_, tolerance_,
-                                          maxSamples_,
-                                          seed_));
+    inline MakeMCEuropeanBasketEngine<RNG, S>::operator ext::shared_ptr<PricingEngine>() const
+    {
+        QL_REQUIRE(steps_ != Null<Size>() || stepsPerYear_ != Null<Size>(), "number of steps not given");
+        QL_REQUIRE(steps_ == Null<Size>() || stepsPerYear_ == Null<Size>(), "number of steps overspecified");
+        return ext::shared_ptr<PricingEngine>(new MCEuropeanBasketEngine<RNG, S>(
+            process_, steps_, stepsPerYear_, brownianBridge_, antithetic_, samples_, tolerance_, maxSamples_, seed_));
     }
 
 }

@@ -24,17 +24,19 @@
 #ifndef quantlib_writer_extensible_option_hpp
 #define quantlib_writer_extensible_option_hpp
 
+#include <ql/exercise.hpp>
 #include <ql/instruments/oneassetoption.hpp>
 #include <ql/instruments/payoffs.hpp>
-#include <ql/exercise.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Writer-extensible option
     /*! If out of the money at the original exercise date, this option
         is extended until a later exercise date with an amended strike.
     */
-    class WriterExtensibleOption : public OneAssetOption {
+    class WriterExtensibleOption : public OneAssetOption
+    {
       public:
         class arguments;
         class engine;
@@ -55,8 +57,8 @@ namespace QuantLib {
     };
 
     //! Additional arguments for writer-extensible options
-    class WriterExtensibleOption::arguments
-        : public OneAssetOption::arguments {
+    class WriterExtensibleOption::arguments : public OneAssetOption::arguments
+    {
       public:
         void validate() const override;
         ext::shared_ptr<Payoff> payoff2;
@@ -64,9 +66,10 @@ namespace QuantLib {
     };
 
     //! Base engine for writer-extensible options
-    class WriterExtensibleOption::engine :
-        public GenericEngine<WriterExtensibleOption::arguments,
-                             WriterExtensibleOption::results> {};
+    class WriterExtensibleOption::engine
+    : public GenericEngine<WriterExtensibleOption::arguments, WriterExtensibleOption::results>
+    {
+    };
 
 }
 

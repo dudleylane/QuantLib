@@ -27,25 +27,31 @@
 #ifndef quantlib_lsm_basis_system_hpp
 #define quantlib_lsm_basis_system_hpp
 
-#include <ql/qldefines.hpp>
 #include <ql/math/array.hpp>
+#include <ql/qldefines.hpp>
 #include <functional>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class LsmBasisSystem {
+    class LsmBasisSystem
+    {
       public:
-        enum PolynomialType {
-            Monomial, Laguerre, Hermite, Hyperbolic,
-            Legendre, Chebyshev, Chebyshev2nd
+        enum PolynomialType
+        {
+            Monomial,
+            Laguerre,
+            Hermite,
+            Hyperbolic,
+            Legendre,
+            Chebyshev,
+            Chebyshev2nd
         };
 
-        static std::vector<std::function<Real(Real)> >
-        pathBasisSystem(Size order, PolynomialType type);
+        static std::vector<std::function<Real(Real)>> pathBasisSystem(Size order, PolynomialType type);
 
-        static std::vector<std::function<Real(Array)> >
-        multiPathBasisSystem(Size dim, Size order, PolynomialType type);
+        static std::vector<std::function<Real(Array)>> multiPathBasisSystem(Size dim, Size order, PolynomialType type);
     };
 
 

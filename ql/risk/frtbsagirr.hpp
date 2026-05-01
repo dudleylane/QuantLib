@@ -65,11 +65,13 @@
 #include <ql/types.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! FRTB-SA GIRR delta bucket charge calculator (single currency).
     /*! \ingroup riskanalysis */
-    class FrtbSaGirrDelta {
+    class FrtbSaGirrDelta
+    {
       public:
         /*! \param tenors      strictly-positive vertex tenors in years,
                                 one per sensitivity.
@@ -94,9 +96,7 @@ namespace QuantLib {
         Real bucketCharge() const;
 
         //! Weighted-sensitivity vector WS_i = w_i * s_i.
-        const std::vector<Real>& weightedSensitivities() const {
-            return ws_;
-        }
+        const std::vector<Real>& weightedSensitivities() const { return ws_; }
 
         //! Correlation matrix element rho_{ij}.
         /*! \param i  tenor index; must be less than `size()`.
@@ -109,7 +109,7 @@ namespace QuantLib {
 
       private:
         std::vector<Real> tenors_;
-        std::vector<Real> ws_;  // precomputed w_i * s_i
+        std::vector<Real> ws_; // precomputed w_i * s_i
         Real theta_;
         Real phiFloor_;
     };

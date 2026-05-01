@@ -29,10 +29,12 @@
 #include <ql/currencies/europe.hpp>
 #include <ql/indexes/inflationindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! EU HICP index
-    class EUHICP : public ZeroInflationIndex {
+    class EUHICP : public ZeroInflationIndex
+    {
       public:
         explicit EUHICP(const Handle<ZeroInflationTermStructure>& ts = {})
         : ZeroInflationIndex("HICP",
@@ -41,11 +43,14 @@ namespace QuantLib {
                              Monthly,
                              Period(1, Months), // availability
                              EURCurrency(),
-                             ts) {}
+                             ts)
+        {
+        }
     };
 
     //! EU HICPXT index
-    class EUHICPXT : public ZeroInflationIndex {
+    class EUHICPXT : public ZeroInflationIndex
+    {
       public:
         explicit EUHICPXT(const Handle<ZeroInflationTermStructure>& ts = {})
         : ZeroInflationIndex("HICPXT",
@@ -54,34 +59,30 @@ namespace QuantLib {
                              Monthly,
                              Period(1, Months), // availability
                              EURCurrency(),
-                             ts) {}
+                             ts)
+        {
+        }
     };
 
 
     //! Quoted year-on-year EU HICP (i.e. not a ratio of EU HICP)
-    class YYEUHICP : public YoYInflationIndex {
+    class YYEUHICP : public YoYInflationIndex
+    {
       public:
         explicit YYEUHICP(const Handle<YoYInflationTermStructure>& ts = {})
-        : YoYInflationIndex("YY_HICP",
-                            EURegion(),
-                            false,
-                            Monthly,
-                            Period(1, Months),
-                            EURCurrency(),
-                            ts) {}
+        : YoYInflationIndex("YY_HICP", EURegion(), false, Monthly, Period(1, Months), EURCurrency(), ts)
+        {
+        }
     };
 
     //! Quoted year-on-year EU HICPXT
-    class YYEUHICPXT : public YoYInflationIndex {
+    class YYEUHICPXT : public YoYInflationIndex
+    {
       public:
         explicit YYEUHICPXT(const Handle<YoYInflationTermStructure>& ts = {})
-        : YoYInflationIndex("YY_HICPXT",
-                            EURegion(),
-                            false,
-                            Monthly,
-                            Period(1, Months),
-                            EURCurrency(),
-                            ts) {}
+        : YoYInflationIndex("YY_HICPXT", EURegion(), false, Monthly, Period(1, Months), EURCurrency(), ts)
+        {
+        }
     };
 
 }

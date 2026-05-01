@@ -35,33 +35,34 @@
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class FdmSimple3dExtOUJumpSolver : public LazyObject {
+    class FdmSimple3dExtOUJumpSolver : public LazyObject
+    {
       public:
         FdmSimple3dExtOUJumpSolver(const Handle<ExtOUWithJumpsProcess>& process,
                                    ext::shared_ptr<YieldTermStructure> rTS,
                                    FdmSolverDesc solverDesc,
                                    const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Hundsdorfer())
-        : process_(process), rTS_(std::move(rTS)), solverDesc_(std::move(solverDesc)),
-          schemeDesc_(schemeDesc) {
+        : process_(process), rTS_(std::move(rTS)), solverDesc_(std::move(solverDesc)), schemeDesc_(schemeDesc)
+        {
             registerWith(process);
         }
 
-        Real valueAt(Real x, Real y, Real z) const {
+        Real valueAt(Real x, Real y, Real z) const
+        {
             calculate();
             return solver_->interpolateAt(x, y, z);
         }
 
       protected:
-        void performCalculations() const override {
-            ext::shared_ptr<FdmLinearOpComposite>op(
-                new FdmExtOUJumpOp(solverDesc_.mesher,
-                                   process_.currentLink(),
-                                   rTS_, solverDesc_.bcSet, 32));
+        void performCalculations() const override
+        {
+            ext::shared_ptr<FdmLinearOpComposite> op(
+                new FdmExtOUJumpOp(solverDesc_.mesher, process_.currentLink(), rTS_, solverDesc_.bcSet, 32));
 
-            solver_ = ext::make_shared<Fdm3DimSolver>(
-                          solverDesc_, schemeDesc_, op);
+            solver_ = ext::make_shared<Fdm3DimSolver>(solverDesc_, schemeDesc_, op);
         }
 
       private:

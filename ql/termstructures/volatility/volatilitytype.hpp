@@ -27,19 +27,25 @@
 #include <ql/types.hpp>
 #include <ostream>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    enum VolatilityType { ShiftedLognormal, Normal };
+    enum VolatilityType
+    {
+        ShiftedLognormal,
+        Normal
+    };
 
-    inline std::ostream& operator<<(std::ostream& out,
-                                    const VolatilityType& t) {
-        switch(t) {
-          case Normal:
-            return out << "Normal";
-          case ShiftedLognormal:
-            return out << "ShiftedLognormal";
-          default:
-            return out << "Unknown volatility type (" << Integer(t) << ")";
+    inline std::ostream& operator<<(std::ostream& out, const VolatilityType& t)
+    {
+        switch (t)
+        {
+            case Normal:
+                return out << "Normal";
+            case ShiftedLognormal:
+                return out << "ShiftedLognormal";
+            default:
+                return out << "Unknown volatility type (" << Integer(t) << ")";
         }
     }
 

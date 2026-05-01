@@ -25,12 +25,13 @@
 #ifndef quantlib_chf_libor_hpp
 #define quantlib_chf_libor_hpp
 
+#include <ql/currencies/europe.hpp>
 #include <ql/indexes/ibor/libor.hpp>
 #include <ql/time/calendars/switzerland.hpp>
 #include <ql/time/daycounters/actual360.hpp>
-#include <ql/currencies/europe.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %CHF %LIBOR rate
     /*! Swiss Franc LIBOR fixed by ICE.
@@ -40,26 +41,23 @@ namespace QuantLib {
         \warning This is the rate fixed in London by BBA. Use ZIBOR if
                  you're interested in the Zurich fixing.
     */
-    class CHFLibor : public Libor {
+    class CHFLibor : public Libor
+    {
       public:
-        CHFLibor(const Period& tenor,
-                 const Handle<YieldTermStructure>& h = {})
-        : Libor("CHFLibor", tenor,
-                2,
-                CHFCurrency(),
-                Switzerland(),
-                Actual360(), h) {}
+        CHFLibor(const Period& tenor, const Handle<YieldTermStructure>& h = {})
+        : Libor("CHFLibor", tenor, 2, CHFCurrency(), Switzerland(), Actual360(), h)
+        {
+        }
     };
 
     //! base class for the one day deposit BBA %CHF %LIBOR indexes
-    class DailyTenorCHFLibor : public DailyTenorLibor {
+    class DailyTenorCHFLibor : public DailyTenorLibor
+    {
       public:
-        DailyTenorCHFLibor(Natural settlementDays,
-                           const Handle<YieldTermStructure>& h = {})
-        : DailyTenorLibor("CHFLibor", settlementDays,
-                          CHFCurrency(),
-                          Switzerland(),
-                          Actual360(), h) {}
+        DailyTenorCHFLibor(Natural settlementDays, const Handle<YieldTermStructure>& h = {})
+        : DailyTenorLibor("CHFLibor", settlementDays, CHFCurrency(), Switzerland(), Actual360(), h)
+        {
+        }
     };
 
 }

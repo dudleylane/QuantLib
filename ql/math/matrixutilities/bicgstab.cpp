@@ -26,18 +26,20 @@
 #include <ql/math/matrixutilities/bicgstab.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    BiCGstab::BiCGstab(BiCGstab::MatrixMult A,
-                       Size maxIter,
-                       Real relTol,
-                       BiCGstab::MatrixMult preConditioner)
-    : A_(std::move(A)), M_(std::move(preConditioner)), maxIter_(maxIter), relTol_(relTol) {}
+    BiCGstab::BiCGstab(BiCGstab::MatrixMult A, Size maxIter, Real relTol, BiCGstab::MatrixMult preConditioner)
+    : A_(std::move(A)), M_(std::move(preConditioner)), maxIter_(maxIter), relTol_(relTol)
+    {
+    }
 
-    BiCGStabResult BiCGstab::solve(const Array& b, const Array& x0) const {
+    BiCGStabResult BiCGstab::solve(const Array& b, const Array& x0) const
+    {
         Real bnorm2 = Norm2(b);
-        if (bnorm2 == 0.0) {
-            BiCGStabResult result = { 0, 0.0, b};
+        if (bnorm2 == 0.0)
+        {
+            BiCGStabResult result = {0, 0.0, b};
             return result;
         }
 
@@ -47,47 +49,52 @@ namespace QuantLib {
         Array rTld = r;
         Array p, pTld, v, s, sTld, t;
         Real omega = 1.0;
-        Real rho, rhoTld=1.0;
+        Real rho, rhoTld = 1.0;
         Real alpha = 0.0, beta;
-        Real error = Norm2(r)/bnorm2;
+        Real error = Norm2(r) / bnorm2;
 
         Size i;
-        for (i=0; i < maxIter_ && error >= relTol_; ++i) {
-           rho = DotProduct(rTld, r);
-           if  (rho == 0.0 || omega == 0.0)
-               break;
+        for (i = 0; i < maxIter_ && error >= relTol_; ++i)
+        {
+            rho = DotProduct(rTld, r);
+            if (rho == 0.0 || omega == 0.0)
+                break;
 
-           if (i != 0U) {
-               beta = (rho / rhoTld) * (alpha / omega);
-               p = r + beta * (p - omega * v);
-           } else {
-               p = r;
-           }
+            if (i != 0U)
+            {
+                beta = (rho / rhoTld) * (alpha / omega);
+                p = r + beta * (p - omega * v);
+            }
+            else
+            {
+                p = r;
+            }
 
-           pTld = (!M_ ? p : M_(p));
-           v     = A_(pTld);
+            pTld = (!M_ ? p : M_(p));
+            v = A_(pTld);
 
-           alpha = rho/DotProduct(rTld, v);
-           s     = r-alpha*v;
-           if (Norm2(s) < relTol_*bnorm2) {
-              x += alpha*pTld;
-              error = Norm2(s)/bnorm2;
-              break;
-           }
+            alpha = rho / DotProduct(rTld, v);
+            s = r - alpha * v;
+            if (Norm2(s) < relTol_ * bnorm2)
+            {
+                x += alpha * pTld;
+                error = Norm2(s) / bnorm2;
+                break;
+            }
 
-           sTld = (!M_ ? s : M_(s));
-           t = A_(sTld);
-           omega = DotProduct(t,s)/DotProduct(t,t);
-           x += alpha*pTld + omega*sTld;
-           r = s - omega*t;
-           error = Norm2(r)/bnorm2;
-           rhoTld = rho;
+            sTld = (!M_ ? s : M_(s));
+            t = A_(sTld);
+            omega = DotProduct(t, s) / DotProduct(t, t);
+            x += alpha * pTld + omega * sTld;
+            r = s - omega * t;
+            error = Norm2(r) / bnorm2;
+            rhoTld = rho;
         }
 
         QL_REQUIRE(i < maxIter_, "max number of iterations exceeded");
         QL_REQUIRE(error < relTol_, "could not converge");
 
-        BiCGStabResult result = { i, error, x};
+        BiCGStabResult result = {i, error, x};
         return result;
     }
 

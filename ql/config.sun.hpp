@@ -28,17 +28,27 @@
  *******************************************/
 
 #ifndef QL_PATCH_SOLARIS
-#define QL_PATCH_SOLARIS
+#    define QL_PATCH_SOLARIS
 #endif
 
 // to be compatible with gcc and VC++, make math functions
 // available in the global namespace as well.
 #include <cmath>
-using std::sqrt; using std::abs; using std::fabs;
-using std::exp; using std::log; using std::pow;
-using std::sin; using std::cos; using std::asin; using std::acos;
-using std::sinh; using std::cosh;
-using std::floor; using std::fmod; using std::modf;
+using std::sqrt;
+using std::abs;
+using std::fabs;
+using std::exp;
+using std::log;
+using std::pow;
+using std::sin;
+using std::cos;
+using std::asin;
+using std::acos;
+using std::sinh;
+using std::cosh;
+using std::floor;
+using std::fmod;
+using std::modf;
 
 
 #endif

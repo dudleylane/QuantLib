@@ -28,19 +28,22 @@
 
 #include <ql/methods/finitedifferences/utilities/fdmdirichletboundary.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class FdmLinearOpLayout;
 
-    class FdmIndicesOnBoundary {
+    class FdmIndicesOnBoundary
+    {
       public:
         FdmIndicesOnBoundary(const ext::shared_ptr<FdmLinearOpLayout>& l,
-                              Size direction, FdmDirichletBoundary::Side side);
+                             Size direction,
+                             FdmDirichletBoundary::Side side);
 
         const std::vector<Size>& getIndices() const;
+
       private:
         std::vector<Size> indices_;
     };
 }
 #endif
-

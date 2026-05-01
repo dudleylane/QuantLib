@@ -27,12 +27,14 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Thailand calendars
     /*! Holidays for the Thailand exchange
-        Holidays observed by financial institutions (not to be confused with bank holidays in the United Kingdom) are regulated by the Bank of Thailand.
-        If a holiday fall on a weekend the government will announce a replacement day (usually the following Monday).
+        Holidays observed by financial institutions (not to be confused with bank holidays in the United Kingdom) are
+       regulated by the Bank of Thailand. If a holiday fall on a weekend the government will announce a replacement day
+       (usually the following Monday).
 
         Sometimes the government add one or two extra holidays in a year.
 
@@ -66,13 +68,16 @@ namespace QuantLib {
 
         \ingroup calendars
     */
-    class Thailand : public Calendar {
+    class Thailand : public Calendar
+    {
       private:
-        class SetImpl final : public Calendar::WesternImpl {
+        class SetImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "Thailand stock exchange"; }
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
         Thailand();
     };

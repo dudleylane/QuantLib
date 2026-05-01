@@ -27,23 +27,28 @@
 #include <ql/math/interpolations/interpolation2d.hpp>
 #include <utility>
 
-namespace QuantLib {
-    
+namespace QuantLib
+{
+
     /*! \ingroup interpolations
         \warning See the Interpolation class for information about the
                  required lifetime of the underlying data.
     */
-    class FlatExtrapolator2D : public Interpolation2D {
+    class FlatExtrapolator2D : public Interpolation2D
+    {
       public:
-        FlatExtrapolator2D(const ext::shared_ptr<Interpolation2D>& decoratedInterpolation) {
-            impl_ = ext::shared_ptr<Interpolation2D::Impl>(
-                  new FlatExtrapolator2DImpl(decoratedInterpolation));
+        FlatExtrapolator2D(const ext::shared_ptr<Interpolation2D>& decoratedInterpolation)
+        {
+            impl_ = ext::shared_ptr<Interpolation2D::Impl>(new FlatExtrapolator2DImpl(decoratedInterpolation));
         }
+
       protected:
-       class FlatExtrapolator2DImpl: public Interpolation2D::Impl{
+        class FlatExtrapolator2DImpl : public Interpolation2D::Impl
+        {
           public:
             FlatExtrapolator2DImpl(ext::shared_ptr<Interpolation2D> decoratedInterpolation)
-            : decoratedInterp_(std::move(decoratedInterpolation)) {
+            : decoratedInterp_(std::move(decoratedInterpolation))
+            {
                 FlatExtrapolator2DImpl::calculate();
             }
             Real xMin() const override { return decoratedInterp_->xMin(); }
@@ -55,36 +60,34 @@ namespace QuantLib {
             std::vector<Real> yValues() const override { return decoratedInterp_->yValues(); }
             Size locateY(Real y) const override { return decoratedInterp_->locateY(y); }
             const Matrix& zData() const override { return decoratedInterp_->zData(); }
-            bool isInRange(Real x, Real y) const override {
-                return decoratedInterp_->isInRange(x,y);
-            }
-            void calculate() override {
-                decoratedInterp_->update();
-            }
-            Real value(Real x, Real y) const override {
+            bool isInRange(Real x, Real y) const override { return decoratedInterp_->isInRange(x, y); }
+            void calculate() override { decoratedInterp_->update(); }
+            Real value(Real x, Real y) const override
+            {
                 x = bindX(x);
                 y = bindY(y);
-                return (*decoratedInterp_)(x,y);
+                return (*decoratedInterp_)(x, y);
             }
 
           private:
             ext::shared_ptr<Interpolation2D> decoratedInterp_;
 
-            Real bindX(Real x) const {
-                if(x < xMin())
+            Real bindX(Real x) const
+            {
+                if (x < xMin())
                     return xMin();
-                if (x > xMax()) 
+                if (x > xMax())
                     return xMax();
                 return x;
             }
-            Real bindY(Real y) const {
-                if(y < yMin())
+            Real bindY(Real y) const
+            {
+                if (y < yMin())
                     return yMin();
-                if (y > yMax()) 
+                if (y > yMax())
                     return yMax();
                 return y;
             }
-
         };
     };
 

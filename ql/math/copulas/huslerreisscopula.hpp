@@ -28,13 +28,16 @@
 #include <ql/math/distributions/normaldistribution.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Husler-Reiss copula
-    class HuslerReissCopula {
+    class HuslerReissCopula
+    {
       public:
         HuslerReissCopula(Real theta_);
         Real operator()(Real x, Real y) const;
+
       private:
         Real theta_;
         CumulativeNormalDistribution cumNormal_;

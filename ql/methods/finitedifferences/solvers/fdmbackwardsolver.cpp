@@ -20,8 +20,9 @@
 */
 
 /*! \file fdmbackwardsolver.cpp
-*/
+ */
 
+#include <ql/mathconstants.hpp>
 #include <ql/methods/finitedifferences/finitedifferencemodel.hpp>
 #include <ql/methods/finitedifferences/schemes/craigsneydscheme.hpp>
 #include <ql/methods/finitedifferences/schemes/cranknicolsonscheme.hpp>
@@ -34,167 +35,164 @@
 #include <ql/methods/finitedifferences/schemes/trbdf2scheme.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
 #include <ql/methods/finitedifferences/stepconditions/fdmstepconditioncomposite.hpp>
-#include <ql/mathconstants.hpp>
 #include <utility>
 
 
-namespace QuantLib {
-    
-    FdmSchemeDesc::FdmSchemeDesc(FdmSchemeType aType, Real aTheta, Real aMu)
-    : type(aType), theta(aTheta), mu(aMu) { }
+namespace QuantLib
+{
 
-    FdmSchemeDesc FdmSchemeDesc::Douglas() { return {FdmSchemeDesc::DouglasType, 0.5, 0.0}; }
+    FdmSchemeDesc::FdmSchemeDesc(FdmSchemeType aType, Real aTheta, Real aMu) : type(aType), theta(aTheta), mu(aMu) {}
 
-    FdmSchemeDesc FdmSchemeDesc::CrankNicolson() {
+    FdmSchemeDesc FdmSchemeDesc::Douglas()
+    {
+        return {FdmSchemeDesc::DouglasType, 0.5, 0.0};
+    }
+
+    FdmSchemeDesc FdmSchemeDesc::CrankNicolson()
+    {
         return {FdmSchemeDesc::CrankNicolsonType, 0.5, 0.0};
     }
 
-    FdmSchemeDesc FdmSchemeDesc::CraigSneyd() { return {FdmSchemeDesc::CraigSneydType, 0.5, 0.5}; }
+    FdmSchemeDesc FdmSchemeDesc::CraigSneyd()
+    {
+        return {FdmSchemeDesc::CraigSneydType, 0.5, 0.5};
+    }
 
-    FdmSchemeDesc FdmSchemeDesc::ModifiedCraigSneyd() {
+    FdmSchemeDesc FdmSchemeDesc::ModifiedCraigSneyd()
+    {
         return {FdmSchemeDesc::ModifiedCraigSneydType, 1.0 / 3.0, 1.0 / 3.0};
     }
-    
-    FdmSchemeDesc FdmSchemeDesc::Hundsdorfer() {
+
+    FdmSchemeDesc FdmSchemeDesc::Hundsdorfer()
+    {
         return {FdmSchemeDesc::HundsdorferType, 0.5 + std::sqrt(3.0) / 6, 0.5};
     }
-    
-    FdmSchemeDesc FdmSchemeDesc::ModifiedHundsdorfer() {
+
+    FdmSchemeDesc FdmSchemeDesc::ModifiedHundsdorfer()
+    {
         return {FdmSchemeDesc::HundsdorferType, 1.0 - std::sqrt(2.0) / 2, 0.5};
     }
-    
-    FdmSchemeDesc FdmSchemeDesc::ExplicitEuler() {
+
+    FdmSchemeDesc FdmSchemeDesc::ExplicitEuler()
+    {
         return {FdmSchemeDesc::ExplicitEulerType, 0.0, 0.0};
     }
 
-    FdmSchemeDesc FdmSchemeDesc::ImplicitEuler() {
+    FdmSchemeDesc FdmSchemeDesc::ImplicitEuler()
+    {
         return {FdmSchemeDesc::ImplicitEulerType, 0.0, 0.0};
     }
 
-    FdmSchemeDesc FdmSchemeDesc::MethodOfLines(Real eps, Real relInitStepSize) {
+    FdmSchemeDesc FdmSchemeDesc::MethodOfLines(Real eps, Real relInitStepSize)
+    {
         return {FdmSchemeDesc::MethodOfLinesType, eps, relInitStepSize};
     }
 
-    FdmSchemeDesc FdmSchemeDesc::TrBDF2() { return {FdmSchemeDesc::TrBDF2Type, 2 - M_SQRT2, 1e-8}; }
+    FdmSchemeDesc FdmSchemeDesc::TrBDF2()
+    {
+        return {FdmSchemeDesc::TrBDF2Type, 2 - M_SQRT2, 1e-8};
+    }
 
-    FdmBackwardSolver::FdmBackwardSolver(
-        ext::shared_ptr<FdmLinearOpComposite> map,
-        FdmBoundaryConditionSet bcSet,
-        const ext::shared_ptr<FdmStepConditionComposite>& condition,
-        const FdmSchemeDesc& schemeDesc)
+    FdmBackwardSolver::FdmBackwardSolver(ext::shared_ptr<FdmLinearOpComposite> map,
+                                         FdmBoundaryConditionSet bcSet,
+                                         const ext::shared_ptr<FdmStepConditionComposite>& condition,
+                                         const FdmSchemeDesc& schemeDesc)
     : map_(std::move(map)), bcSet_(std::move(bcSet)),
-      condition_((condition) != nullptr ?
-                     condition :
-                     ext::make_shared<FdmStepConditionComposite>(
-                         std::list<std::vector<Time> >(), FdmStepConditionComposite::Conditions())),
-      schemeDesc_(schemeDesc) {}
+      condition_((condition) != nullptr ? condition :
+                                          ext::make_shared<FdmStepConditionComposite>(
+                                              std::list<std::vector<Time>>(), FdmStepConditionComposite::Conditions())),
+      schemeDesc_(schemeDesc)
+    {
+    }
 
-    void FdmBackwardSolver::rollback(FdmBackwardSolver::array_type& rhs, 
-                                     Time from, Time to,
-                                     Size steps, Size dampingSteps) {
+    void
+    FdmBackwardSolver::rollback(FdmBackwardSolver::array_type& rhs, Time from, Time to, Size steps, Size dampingSteps)
+    {
 
         const Time deltaT = from - to;
         const Size allSteps = steps + dampingSteps;
-        const Time dampingTo = from - (deltaT*dampingSteps)/allSteps;
+        const Time dampingTo = from - (deltaT * dampingSteps) / allSteps;
 
-        if ((dampingSteps != 0U) && schemeDesc_.type != FdmSchemeDesc::ImplicitEulerType) {
-            ImplicitEulerScheme implicitEvolver(map_, bcSet_);    
-            FiniteDifferenceModel<ImplicitEulerScheme> 
-                    dampingModel(implicitEvolver, condition_->stoppingTimes());
-            dampingModel.rollback(rhs, from, dampingTo, 
-                                  dampingSteps, *condition_);
+        if ((dampingSteps != 0U) && schemeDesc_.type != FdmSchemeDesc::ImplicitEulerType)
+        {
+            ImplicitEulerScheme implicitEvolver(map_, bcSet_);
+            FiniteDifferenceModel<ImplicitEulerScheme> dampingModel(implicitEvolver, condition_->stoppingTimes());
+            dampingModel.rollback(rhs, from, dampingTo, dampingSteps, *condition_);
         }
 
-        switch (schemeDesc_.type) {
-          case FdmSchemeDesc::HundsdorferType:
+        switch (schemeDesc_.type)
+        {
+            case FdmSchemeDesc::HundsdorferType:
             {
-                HundsdorferScheme hsEvolver(schemeDesc_.theta, schemeDesc_.mu, 
-                                            map_, bcSet_);
-                FiniteDifferenceModel<HundsdorferScheme> 
-                               hsModel(hsEvolver, condition_->stoppingTimes());
+                HundsdorferScheme hsEvolver(schemeDesc_.theta, schemeDesc_.mu, map_, bcSet_);
+                FiniteDifferenceModel<HundsdorferScheme> hsModel(hsEvolver, condition_->stoppingTimes());
                 hsModel.rollback(rhs, dampingTo, to, steps, *condition_);
             }
             break;
-          case FdmSchemeDesc::DouglasType:
+            case FdmSchemeDesc::DouglasType:
             {
                 DouglasScheme dsEvolver(schemeDesc_.theta, map_, bcSet_);
-                FiniteDifferenceModel<DouglasScheme> 
-                               dsModel(dsEvolver, condition_->stoppingTimes());
+                FiniteDifferenceModel<DouglasScheme> dsModel(dsEvolver, condition_->stoppingTimes());
                 dsModel.rollback(rhs, dampingTo, to, steps, *condition_);
             }
             break;
-          case FdmSchemeDesc::CrankNicolsonType:
+            case FdmSchemeDesc::CrankNicolsonType:
             {
-              CrankNicolsonScheme cnEvolver(schemeDesc_.theta, map_, bcSet_);
-              FiniteDifferenceModel<CrankNicolsonScheme>
-                             cnModel(cnEvolver, condition_->stoppingTimes());
-              cnModel.rollback(rhs, dampingTo, to, steps, *condition_);
-
+                CrankNicolsonScheme cnEvolver(schemeDesc_.theta, map_, bcSet_);
+                FiniteDifferenceModel<CrankNicolsonScheme> cnModel(cnEvolver, condition_->stoppingTimes());
+                cnModel.rollback(rhs, dampingTo, to, steps, *condition_);
             }
             break;
-          case FdmSchemeDesc::CraigSneydType:
+            case FdmSchemeDesc::CraigSneydType:
             {
-                CraigSneydScheme csEvolver(schemeDesc_.theta, schemeDesc_.mu, 
-                                           map_, bcSet_);
-                FiniteDifferenceModel<CraigSneydScheme> 
-                               csModel(csEvolver, condition_->stoppingTimes());
+                CraigSneydScheme csEvolver(schemeDesc_.theta, schemeDesc_.mu, map_, bcSet_);
+                FiniteDifferenceModel<CraigSneydScheme> csModel(csEvolver, condition_->stoppingTimes());
                 csModel.rollback(rhs, dampingTo, to, steps, *condition_);
             }
             break;
-          case FdmSchemeDesc::ModifiedCraigSneydType:
+            case FdmSchemeDesc::ModifiedCraigSneydType:
             {
-                ModifiedCraigSneydScheme csEvolver(schemeDesc_.theta, 
-                                                   schemeDesc_.mu,
-                                                   map_, bcSet_);
-                FiniteDifferenceModel<ModifiedCraigSneydScheme> 
-                              mcsModel(csEvolver, condition_->stoppingTimes());
+                ModifiedCraigSneydScheme csEvolver(schemeDesc_.theta, schemeDesc_.mu, map_, bcSet_);
+                FiniteDifferenceModel<ModifiedCraigSneydScheme> mcsModel(csEvolver, condition_->stoppingTimes());
                 mcsModel.rollback(rhs, dampingTo, to, steps, *condition_);
             }
             break;
-          case FdmSchemeDesc::ImplicitEulerType:
+            case FdmSchemeDesc::ImplicitEulerType:
             {
                 ImplicitEulerScheme implicitEvolver(map_, bcSet_);
-                FiniteDifferenceModel<ImplicitEulerScheme> 
-                   implicitModel(implicitEvolver, condition_->stoppingTimes());
+                FiniteDifferenceModel<ImplicitEulerScheme> implicitModel(implicitEvolver, condition_->stoppingTimes());
                 implicitModel.rollback(rhs, from, to, allSteps, *condition_);
             }
             break;
-          case FdmSchemeDesc::ExplicitEulerType:
+            case FdmSchemeDesc::ExplicitEulerType:
             {
                 ExplicitEulerScheme explicitEvolver(map_, bcSet_);
-                FiniteDifferenceModel<ExplicitEulerScheme> 
-                   explicitModel(explicitEvolver, condition_->stoppingTimes());
+                FiniteDifferenceModel<ExplicitEulerScheme> explicitModel(explicitEvolver, condition_->stoppingTimes());
                 explicitModel.rollback(rhs, dampingTo, to, steps, *condition_);
             }
             break;
-          case FdmSchemeDesc::MethodOfLinesType:
+            case FdmSchemeDesc::MethodOfLinesType:
             {
-                MethodOfLinesScheme methodOfLines(
-                    schemeDesc_.theta, schemeDesc_.mu, map_, bcSet_);
-                FiniteDifferenceModel<MethodOfLinesScheme>
-                   molModel(methodOfLines, condition_->stoppingTimes());
+                MethodOfLinesScheme methodOfLines(schemeDesc_.theta, schemeDesc_.mu, map_, bcSet_);
+                FiniteDifferenceModel<MethodOfLinesScheme> molModel(methodOfLines, condition_->stoppingTimes());
                 molModel.rollback(rhs, dampingTo, to, steps, *condition_);
             }
             break;
-          case FdmSchemeDesc::TrBDF2Type:
+            case FdmSchemeDesc::TrBDF2Type:
             {
-                const FdmSchemeDesc trDesc
-                    = FdmSchemeDesc::CraigSneyd();
+                const FdmSchemeDesc trDesc = FdmSchemeDesc::CraigSneyd();
 
                 const ext::shared_ptr<CraigSneydScheme> hsEvolver(
-                    ext::make_shared<CraigSneydScheme>(
-                        trDesc.theta, trDesc.mu, map_, bcSet_));
+                    ext::make_shared<CraigSneydScheme>(trDesc.theta, trDesc.mu, map_, bcSet_));
 
-                TrBDF2Scheme<CraigSneydScheme> trBDF2(
-                    schemeDesc_.theta, map_, hsEvolver, bcSet_,schemeDesc_.mu);
+                TrBDF2Scheme<CraigSneydScheme> trBDF2(schemeDesc_.theta, map_, hsEvolver, bcSet_, schemeDesc_.mu);
 
-                FiniteDifferenceModel<TrBDF2Scheme<CraigSneydScheme> >
-                   trBDF2Model(trBDF2, condition_->stoppingTimes());
+                FiniteDifferenceModel<TrBDF2Scheme<CraigSneydScheme>> trBDF2Model(trBDF2, condition_->stoppingTimes());
                 trBDF2Model.rollback(rhs, dampingTo, to, steps, *condition_);
             }
             break;
-          default:
-            QL_FAIL("Unknown scheme type");
+            default:
+                QL_FAIL("Unknown scheme type");
         }
     }
 }

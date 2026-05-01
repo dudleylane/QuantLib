@@ -27,7 +27,8 @@
 
 #include <ql/methods/montecarlo/sample.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Gaussian random number generator
     /*! It uses the well-known fact that the sum of 12 uniform deviate
@@ -41,28 +42,32 @@ namespace QuantLib {
         \endcode
     */
     template <class RNG>
-    class CLGaussianRng {
+    class CLGaussianRng
+    {
       public:
         typedef Sample<Real> sample_type;
         typedef RNG urng_type;
         explicit CLGaussianRng(const RNG& uniformGenerator);
         //! returns a sample from a Gaussian distribution
         sample_type next() const;
+
       private:
         RNG uniformGenerator_;
     };
 
     template <class RNG>
-    CLGaussianRng<RNG>::CLGaussianRng(const RNG& uniformGenerator)
-    : uniformGenerator_(uniformGenerator) {}
+    CLGaussianRng<RNG>::CLGaussianRng(const RNG& uniformGenerator) : uniformGenerator_(uniformGenerator)
+    {
+    }
 
     template <class RNG>
-    inline typename CLGaussianRng<RNG>::sample_type
-    CLGaussianRng<RNG>::next() const {
+    inline typename CLGaussianRng<RNG>::sample_type CLGaussianRng<RNG>::next() const
+    {
         Real gaussPoint = -6.0, gaussWeight = 1.0;
-        for (Integer i=1;i<=12;i++) {
+        for (Integer i = 1; i <= 12; i++)
+        {
             typename RNG::sample_type sample = uniformGenerator_.next();
-            gaussPoint  += sample.value;
+            gaussPoint += sample.value;
             gaussWeight *= sample.weight;
         }
         return {gaussPoint, gaussWeight};

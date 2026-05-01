@@ -24,14 +24,16 @@
 #ifndef quantlib_energy_future_hpp
 #define quantlib_energy_future_hpp
 
-#include <ql/experimental/commodities/energycommodity.hpp>
 #include <ql/experimental/commodities/commodityindex.hpp>
+#include <ql/experimental/commodities/energycommodity.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Energy future
     /*! \ingroup instruments */
-    class EnergyFuture : public EnergyCommodity {
+    class EnergyFuture : public EnergyCommodity
+    {
       public:
         EnergyFuture(Integer buySell,
                      Quantity quantity,
@@ -40,7 +42,7 @@ namespace QuantLib {
                      const CommodityType& commodityType,
                      const ext::shared_ptr<SecondaryCosts>& secondaryCosts);
         bool isExpired() const override;
-        //Integer buySell{} const { return buySell_; }
+        // Integer buySell{} const { return buySell_; }
         Quantity quantity() const override { return quantity_; }
         const CommodityUnitCost& tradePrice() const { return tradePrice_; }
         ext::shared_ptr<CommodityIndex> index() const { return index_; }

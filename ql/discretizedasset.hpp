@@ -30,14 +30,14 @@
 #include <ql/numericalmethod.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Discretized asset class used by numerical methods
-    class DiscretizedAsset {
+    class DiscretizedAsset
+    {
       public:
-        DiscretizedAsset()
-        : latestPreAdjustment_(QL_MAX_REAL),
-          latestPostAdjustment_(QL_MAX_REAL) {}
+        DiscretizedAsset() : latestPreAdjustment_(QL_MAX_REAL), latestPostAdjustment_(QL_MAX_REAL) {}
         virtual ~DiscretizedAsset() = default;
 
         //! \name inspectors
@@ -48,9 +48,7 @@ namespace QuantLib {
         const Array& values() const { return values_; }
         Array& values() { return values_; }
 
-        const ext::shared_ptr<Lattice>& method() const {
-            return method_;
-        }
+        const ext::shared_ptr<Lattice>& method() const { return method_; }
         //@}
 
         /*! \name High-level interface
@@ -63,8 +61,7 @@ namespace QuantLib {
 
             @{
         */
-        void initialize(const ext::shared_ptr<Lattice>&,
-                        Time t);
+        void initialize(const ext::shared_ptr<Lattice>&, Time t);
         void rollback(Time to);
         void partialRollback(Time to);
         Real presentValue();
@@ -110,7 +107,8 @@ namespace QuantLib {
         void postAdjustValues();
 
         /*! This method performs both pre- and post-adjustment */
-        void adjustValues() {
+        void adjustValues()
+        {
             preAdjustValues();
             postAdjustValues();
         }
@@ -125,7 +123,11 @@ namespace QuantLib {
         //@}
       protected:
         /*! Indicates if a coupon should be adjusted in preAdjustValues() or postAdjustValues(). */
-        enum class CouponAdjustment { pre, post };
+        enum class CouponAdjustment
+        {
+            pre,
+            post
+        };
 
         /*! This method checks whether the asset was rolled at the
             given time. */
@@ -138,13 +140,15 @@ namespace QuantLib {
         Time time_;
         Time latestPreAdjustment_, latestPostAdjustment_;
         Array values_;
+
       private:
         ext::shared_ptr<Lattice> method_;
     };
 
 
     //! Useful discretized discount bond asset
-    class DiscretizedDiscountBond : public DiscretizedAsset {
+    class DiscretizedDiscountBond : public DiscretizedAsset
+    {
       public:
         DiscretizedDiscountBond() = default;
         void reset(Size size) override { values_ = Array(size, 1.0); }
@@ -157,13 +161,15 @@ namespace QuantLib {
                  creating and initializing themselves an instance of
                  the underlying.
     */
-    class DiscretizedOption : public DiscretizedAsset {
+    class DiscretizedOption : public DiscretizedAsset
+    {
       public:
         DiscretizedOption(ext::shared_ptr<DiscretizedAsset> underlying,
                           Exercise::Type exerciseType,
                           std::vector<Time> exerciseTimes)
-        : underlying_(std::move(underlying)), exerciseType_(exerciseType),
-          exerciseTimes_(std::move(exerciseTimes)) {}
+        : underlying_(std::move(underlying)), exerciseType_(exerciseType), exerciseTimes_(std::move(exerciseTimes))
+        {
+        }
         void reset(Size size) override;
         std::vector<Time> mandatoryTimes() const override;
 
@@ -176,68 +182,75 @@ namespace QuantLib {
     };
 
 
-
     // inline definitions
 
-    inline void DiscretizedAsset::initialize(
-                             const ext::shared_ptr<Lattice>& method,
-                             Time t) {
+    inline void DiscretizedAsset::initialize(const ext::shared_ptr<Lattice>& method, Time t)
+    {
         method_ = method;
         method_->initialize(*this, t);
     }
 
-    inline void DiscretizedAsset::rollback(Time to) {
+    inline void DiscretizedAsset::rollback(Time to)
+    {
         method_->rollback(*this, to);
     }
 
-    inline void DiscretizedAsset::partialRollback(Time to) {
+    inline void DiscretizedAsset::partialRollback(Time to)
+    {
         method_->partialRollback(*this, to);
     }
 
-    inline Real DiscretizedAsset::presentValue() {
+    inline Real DiscretizedAsset::presentValue()
+    {
         return method_->presentValue(*this);
     }
 
-    inline void DiscretizedAsset::preAdjustValues() {
-        if (!close_enough(time(),latestPreAdjustment_)) {
+    inline void DiscretizedAsset::preAdjustValues()
+    {
+        if (!close_enough(time(), latestPreAdjustment_))
+        {
             preAdjustValuesImpl();
             latestPreAdjustment_ = time();
         }
     }
 
-    inline void DiscretizedAsset::postAdjustValues() {
-        if (!close_enough(time(),latestPostAdjustment_)) {
+    inline void DiscretizedAsset::postAdjustValues()
+    {
+        if (!close_enough(time(), latestPostAdjustment_))
+        {
             postAdjustValuesImpl();
             latestPostAdjustment_ = time();
         }
     }
 
-    inline bool DiscretizedAsset::isOnTime(Time t) const {
+    inline bool DiscretizedAsset::isOnTime(Time t) const
+    {
         const TimeGrid& grid = method()->timeGrid();
-        return close_enough(grid[grid.index(t)],time());
+        return close_enough(grid[grid.index(t)], time());
     }
 
 
-    inline void DiscretizedOption::reset(Size size) {
-        QL_REQUIRE(method() == underlying_->method(),
-                   "option and underlying were initialized on "
-                   "different methods");
+    inline void DiscretizedOption::reset(Size size)
+    {
+        QL_REQUIRE(method() == underlying_->method(), "option and underlying were initialized on "
+                                                      "different methods");
         values_ = Array(size, 0.0);
         adjustValues();
     }
 
-    inline std::vector<Time> DiscretizedOption::mandatoryTimes() const {
+    inline std::vector<Time> DiscretizedOption::mandatoryTimes() const
+    {
         std::vector<Time> times = underlying_->mandatoryTimes();
         // discard negative times...
-        auto i = std::find_if(exerciseTimes_.begin(), exerciseTimes_.end(),
-                              [](Time t){ return t >= 0.0; });
+        auto i = std::find_if(exerciseTimes_.begin(), exerciseTimes_.end(), [](Time t) { return t >= 0.0; });
         // and add the positive ones
         times.insert(times.end(), i, exerciseTimes_.end());
         return times;
     }
 
-    inline void DiscretizedOption::applyExerciseCondition() {
-        for (Size i=0; i<values_.size(); i++)
+    inline void DiscretizedOption::applyExerciseCondition()
+    {
+        for (Size i = 0; i < values_.size(); i++)
             values_[i] = std::max(underlying_->values()[i], values_[i]);
     }
 

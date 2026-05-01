@@ -4,4 +4,3 @@
 #include <ql/experimental/swaptions/haganirregularswaptionengine.hpp>
 #include <ql/experimental/swaptions/irregularswap.hpp>
 #include <ql/experimental/swaptions/irregularswaption.hpp>
-

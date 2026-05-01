@@ -26,14 +26,17 @@
 
 #include <ql/qldefines.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! rate averaging method
     /*! It allows to configure how interest is accrued in multi-fixing
         coupons or futures.
     */
-    struct RateAveraging {
-        enum Type {
+    struct RateAveraging
+    {
+        enum Type
+        {
             Simple,  /*!< Under the simple convention the amount of
                           interest is calculated by applying the
                           sub-rate to the principal, and the payment

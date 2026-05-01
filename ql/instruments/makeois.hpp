@@ -27,24 +27,26 @@
 #define quantlib_makeois_hpp
 
 #include <ql/instruments/overnightindexedswap.hpp>
-#include <ql/time/dategenerationrule.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
+#include <ql/time/dategenerationrule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! helper class
     /*! This class provides a more comfortable way
         to instantiate overnight indexed swaps.
     */
-    class MakeOIS {
+    class MakeOIS
+    {
       public:
         MakeOIS(const Period& swapTenor,
                 const ext::shared_ptr<OvernightIndex>& overnightIndex,
                 Rate fixedRate = Null<Rate>(),
-                const Period& fwdStart = 0*Days);
+                const Period& fwdStart = 0 * Days);
 
         operator OvernightIndexedSwap() const;
-        operator ext::shared_ptr<OvernightIndexedSwap>() const ;
+        operator ext::shared_ptr<OvernightIndexedSwap>() const;
 
         MakeOIS& receiveFixed(bool flag = true);
         MakeOIS& withType(Swap::Type type);
@@ -82,10 +84,9 @@ namespace QuantLib {
 
         MakeOIS& withOvernightLegSpread(Spread sp);
 
-        MakeOIS& withDiscountingTermStructure(
-                  const Handle<YieldTermStructure>& discountingTermStructure);
+        MakeOIS& withDiscountingTermStructure(const Handle<YieldTermStructure>& discountingTermStructure);
 
-        MakeOIS &withTelescopicValueDates(bool telescopicValueDates);
+        MakeOIS& withTelescopicValueDates(bool telescopicValueDates);
 
         MakeOIS& withAveragingMethod(RateAveraging::Type averagingMethod);
 
@@ -93,8 +94,8 @@ namespace QuantLib {
         MakeOIS& withLockoutDays(Natural lockoutDays);
         MakeOIS& withObservationShift(bool applyObservationShift = true);
 
-        MakeOIS& withPricingEngine(
-                              const ext::shared_ptr<PricingEngine>& engine);
+        MakeOIS& withPricingEngine(const ext::shared_ptr<PricingEngine>& engine);
+
       private:
         Period swapTenor_;
         ext::shared_ptr<OvernightIndex> overnightIndex_;
@@ -111,8 +112,7 @@ namespace QuantLib {
         BusinessDayConvention paymentAdjustment_ = Following;
         Integer paymentLag_ = 0;
 
-        BusinessDayConvention fixedConvention_ = ModifiedFollowing,
-                              fixedTerminationDateConvention_ = ModifiedFollowing,
+        BusinessDayConvention fixedConvention_ = ModifiedFollowing, fixedTerminationDateConvention_ = ModifiedFollowing,
                               overnightConvention_ = ModifiedFollowing,
                               overnightTerminationDateConvention_ = ModifiedFollowing;
         DateGeneration::Rule fixedRule_ = DateGeneration::Backward;

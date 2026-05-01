@@ -18,25 +18,27 @@
 */
 
 /*! \file fdmescrowedloginnervaluecalculator.cpp
-*/
+ */
 
 #include <ql/instruments/payoffs.hpp>
 #include <ql/methods/finitedifferences/meshers/fdmmesher.hpp>
 #include <ql/methods/finitedifferences/utilities/fdmescrowedloginnervaluecalculator.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     FdmEscrowedLogInnerValueCalculator::FdmEscrowedLogInnerValueCalculator(
         ext::shared_ptr<EscrowedDividendAdjustment> escrowedDividendAdj,
         ext::shared_ptr<Payoff> payoff,
         ext::shared_ptr<FdmMesher> mesher,
         Size direction)
-    : escrowedDividendAdj_(std::move(escrowedDividendAdj)),
-      payoff_(std::move(payoff)), mesher_(std::move(mesher)),
-      direction_(direction) {}
+    : escrowedDividendAdj_(std::move(escrowedDividendAdj)), payoff_(std::move(payoff)), mesher_(std::move(mesher)),
+      direction_(direction)
+    {
+    }
 
-    Real FdmEscrowedLogInnerValueCalculator::innerValue(
-        const FdmLinearOpIterator& iter, Time t) {
+    Real FdmEscrowedLogInnerValueCalculator::innerValue(const FdmLinearOpIterator& iter, Time t)
+    {
 
         const Real s_t = std::exp(mesher_->location(iter, direction_));
         const Real spot = s_t - escrowedDividendAdj_->dividendAdjustment(t);
@@ -44,8 +46,8 @@ namespace QuantLib {
         return (*payoff_)(spot);
     }
 
-    Real FdmEscrowedLogInnerValueCalculator::avgInnerValue(
-        const FdmLinearOpIterator& iter, Time t) {
+    Real FdmEscrowedLogInnerValueCalculator::avgInnerValue(const FdmLinearOpIterator& iter, Time t)
+    {
         return innerValue(iter, t);
     }
 }

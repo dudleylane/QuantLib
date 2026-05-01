@@ -27,11 +27,12 @@
 
 #include <ql/methods/finitedifferences/utilities/riskneutraldensitycalculator.hpp>
 
-namespace QuantLib {
-    class SquareRootProcessRNDCalculator : public RiskNeutralDensityCalculator {
+namespace QuantLib
+{
+    class SquareRootProcessRNDCalculator : public RiskNeutralDensityCalculator
+    {
       public:
-        SquareRootProcessRNDCalculator(
-            Real v0, Real kappa, Real theta, Real sigma);
+        SquareRootProcessRNDCalculator(Real v0, Real kappa, Real theta, Real sigma);
 
         Real pdf(Real v, Time t) const override;
         Real cdf(Real v, Time t) const override;

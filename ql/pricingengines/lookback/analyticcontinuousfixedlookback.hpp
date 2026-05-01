@@ -26,10 +26,11 @@
 #define quantlib_analytic_continuous_fixed_lookback_engine_hpp
 
 #include <ql/instruments/lookbackoption.hpp>
-#include <ql/processes/blackscholesprocess.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
+#include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Pricing engine for European continuous fixed-strike lookback
     /*! Formula from "Option Pricing Formulas",
@@ -39,11 +40,10 @@ namespace QuantLib {
 
         \test returned values are verified against results from literature
     */
-    class AnalyticContinuousFixedLookbackEngine
-        : public ContinuousFixedLookbackOption::engine {
+    class AnalyticContinuousFixedLookbackEngine : public ContinuousFixedLookbackOption::engine
+    {
       public:
-        AnalyticContinuousFixedLookbackEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess> process);
+        AnalyticContinuousFixedLookbackEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process);
         void calculate() const override;
 
       private:

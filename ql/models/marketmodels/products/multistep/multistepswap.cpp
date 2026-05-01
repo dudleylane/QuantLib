@@ -22,7 +22,8 @@
 #include <ql/models/marketmodels/utilities.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     MultiStepSwap::MultiStepSwap(const std::vector<Time>& rateTimes,
                                  std::vector<Real> fixedAccruals,
@@ -31,26 +32,23 @@ namespace QuantLib {
                                  Real fixedRate,
                                  bool payer)
     : MultiProductMultiStep(rateTimes), fixedAccruals_(std::move(fixedAccruals)),
-      floatingAccruals_(std::move(floatingAccruals)), paymentTimes_(paymentTimes),
-      fixedRate_(fixedRate), multiplier_(payer ? 1.0 : -1.0), lastIndex_(rateTimes.size() - 1) {
+      floatingAccruals_(std::move(floatingAccruals)), paymentTimes_(paymentTimes), fixedRate_(fixedRate),
+      multiplier_(payer ? 1.0 : -1.0), lastIndex_(rateTimes.size() - 1)
+    {
         checkIncreasingTimes(paymentTimes);
     }
 
-    bool MultiStepSwap::nextTimeStep(
-            const CurveState& currentState,
-            std::vector<Size>& numberCashFlowsThisStep,
-            std::vector<std::vector<MarketModelMultiProduct::CashFlow> >&
-                                                                 genCashFlows)
+    bool MultiStepSwap::nextTimeStep(const CurveState& currentState,
+                                     std::vector<Size>& numberCashFlowsThisStep,
+                                     std::vector<std::vector<MarketModelMultiProduct::CashFlow>>& genCashFlows)
     {
         Rate liborRate = currentState.forwardRate(currentIndex_);
 
         genCashFlows[0][0].timeIndex = currentIndex_;
-        genCashFlows[0][0].amount =
-            -multiplier_*fixedRate_*fixedAccruals_[currentIndex_];
+        genCashFlows[0][0].amount = -multiplier_ * fixedRate_ * fixedAccruals_[currentIndex_];
 
         genCashFlows[0][1].timeIndex = currentIndex_;
-        genCashFlows[0][1].amount =
-            multiplier_*liborRate*floatingAccruals_[currentIndex_];
+        genCashFlows[0][1].amount = multiplier_ * liborRate * floatingAccruals_[currentIndex_];
 
         numberCashFlowsThisStep[0] = 2;
 
@@ -59,10 +57,9 @@ namespace QuantLib {
         return (currentIndex_ == lastIndex_);
     }
 
-    std::unique_ptr<MarketModelMultiProduct>
-    MultiStepSwap::clone() const {
+    std::unique_ptr<MarketModelMultiProduct> MultiStepSwap::clone() const
+    {
         return std::unique_ptr<MarketModelMultiProduct>(new MultiStepSwap(*this));
     }
 
 }
-

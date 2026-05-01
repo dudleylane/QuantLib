@@ -22,9 +22,11 @@
 
 #include <ql/models/marketmodels/products/multiproductmultistep.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class MultiStepRatchet : public MultiProductMultiStep {
+    class MultiStepRatchet : public MultiProductMultiStep
+    {
       public:
         MultiStepRatchet(const std::vector<Time>& rateTimes,
                          std::vector<Real> accruals,
@@ -43,7 +45,7 @@ namespace QuantLib {
         void reset() override;
         bool nextTimeStep(const CurveState& currentState,
                           std::vector<Size>& numberCashFlowsThisStep,
-                          std::vector<std::vector<CashFlow> >& cashFlowsGenerated) override;
+                          std::vector<std::vector<CashFlow>>& cashFlowsGenerated) override;
         std::unique_ptr<MarketModelMultiProduct> clone() const override;
         //@}
       private:
@@ -62,24 +64,25 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline std::vector<Time>
-    MultiStepRatchet::possibleCashFlowTimes() const {
+    inline std::vector<Time> MultiStepRatchet::possibleCashFlowTimes() const
+    {
         return paymentTimes_;
     }
 
-    inline Size MultiStepRatchet::numberOfProducts() const {
-        return 1;
-    }
-
-    inline Size
-    MultiStepRatchet::maxNumberOfCashFlowsPerProductPerStep() const {
-        return 1;
-    }
-
-    inline void MultiStepRatchet::reset() 
+    inline Size MultiStepRatchet::numberOfProducts() const
     {
-       currentIndex_=0;
-       floor_ = initialFloor_;
+        return 1;
+    }
+
+    inline Size MultiStepRatchet::maxNumberOfCashFlowsPerProductPerStep() const
+    {
+        return 1;
+    }
+
+    inline void MultiStepRatchet::reset()
+    {
+        currentIndex_ = 0;
+        floor_ = initialFloor_;
     }
 
 }

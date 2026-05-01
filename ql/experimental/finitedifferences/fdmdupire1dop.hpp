@@ -26,34 +26,35 @@
 #define quantlib_fdm_dupire1d_op_hpp
 
 #include <ql/methods/finitedifferences/meshers/fdmmesher.hpp>
+#include <ql/methods/finitedifferences/operators/fdmlinearopcomposite.hpp>
 #include <ql/methods/finitedifferences/operators/fdmlinearoplayout.hpp>
 #include <ql/methods/finitedifferences/operators/triplebandlinearop.hpp>
-#include <ql/methods/finitedifferences/operators/fdmlinearopcomposite.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-class FdmDupire1dOp : public FdmLinearOpComposite {
-  public:
-    FdmDupire1dOp(const ext::shared_ptr<FdmMesher> &mesher,
-                  const Array &localVolatility);
+    class FdmDupire1dOp : public FdmLinearOpComposite
+    {
+      public:
+        FdmDupire1dOp(const ext::shared_ptr<FdmMesher>& mesher, const Array& localVolatility);
 
-    Size size() const override;
-    void setTime(Time t1, Time t2) override;
+        Size size() const override;
+        void setTime(Time t1, Time t2) override;
 
-    Array apply(const Array& r) const override;
-    Array apply_mixed(const Array& r) const override;
+        Array apply(const Array& r) const override;
+        Array apply_mixed(const Array& r) const override;
 
-    Array apply_direction(Size direction, const Array& r) const override;
-    Array solve_splitting(Size direction, const Array& r, Real s) const override;
-    Array preconditioner(const Array& r, Real s) const override;
+        Array apply_direction(Size direction, const Array& r) const override;
+        Array solve_splitting(Size direction, const Array& r, Real s) const override;
+        Array preconditioner(const Array& r, Real s) const override;
 
-    std::vector<SparseMatrix> toMatrixDecomp() const override;
+        std::vector<SparseMatrix> toMatrixDecomp() const override;
 
-  private:
-    const ext::shared_ptr<FdmMesher> mesher_;
-    const Array localVolatility_;
-    TripleBandLinearOp mapT_;
-};
+      private:
+        const ext::shared_ptr<FdmMesher> mesher_;
+        const Array localVolatility_;
+        TripleBandLinearOp mapT_;
+    };
 }
 
 #endif

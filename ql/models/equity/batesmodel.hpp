@@ -24,10 +24,11 @@
 #ifndef quantlib_bates_model_hpp
 #define quantlib_bates_model_hpp
 
-#include <ql/processes/batesprocess.hpp>
 #include <ql/models/equity/hestonmodel.hpp>
+#include <ql/processes/batesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Bates stochastic-volatility model
     /*! extended versions of Heston model for the stochastic
@@ -40,12 +41,13 @@ namespace QuantLib {
 
         \test calibration is tested against known values.
     */
-    class BatesModel : public HestonModel {
+    class BatesModel : public HestonModel
+    {
       public:
-        explicit BatesModel(const ext::shared_ptr<BatesProcess> & process);
+        explicit BatesModel(const ext::shared_ptr<BatesProcess>& process);
 
-        Real nu()     const { return arguments_[5](0.0); }
-        Real delta()  const { return arguments_[6](0.0); }
+        Real nu() const { return arguments_[5](0.0); }
+        Real delta() const { return arguments_[6](0.0); }
         Real lambda() const { return arguments_[7](0.0); }
 
       protected:
@@ -53,36 +55,44 @@ namespace QuantLib {
     };
 
 
-    class BatesDetJumpModel : public BatesModel {
+    class BatesDetJumpModel : public BatesModel
+    {
       public:
-        explicit BatesDetJumpModel(
-            const ext::shared_ptr<BatesProcess> & process,
-            Real kappaLambda = 1.0, Real thetaLambda = 0.1);
+        explicit BatesDetJumpModel(const ext::shared_ptr<BatesProcess>& process,
+                                   Real kappaLambda = 1.0,
+                                   Real thetaLambda = 0.1);
 
         Real kappaLambda() const { return arguments_[8](0.0); }
         Real thetaLambda() const { return arguments_[9](0.0); }
     };
 
 
-    class BatesDoubleExpModel : public HestonModel {
+    class BatesDoubleExpModel : public HestonModel
+    {
       public:
-        explicit BatesDoubleExpModel(
-            const ext::shared_ptr<HestonProcess> & process,
-            Real lambda = 0.1, Real nuUp = 0.1, Real nuDown = 0.1, Real p = 0.5);
+        explicit BatesDoubleExpModel(const ext::shared_ptr<HestonProcess>& process,
+                                     Real lambda = 0.1,
+                                     Real nuUp = 0.1,
+                                     Real nuDown = 0.1,
+                                     Real p = 0.5);
 
-        Real p()      const { return arguments_[5](0.0); }
+        Real p() const { return arguments_[5](0.0); }
         Real nuDown() const { return arguments_[6](0.0); }
-        Real nuUp()   const { return arguments_[7](0.0); }
+        Real nuUp() const { return arguments_[7](0.0); }
         Real lambda() const { return arguments_[8](0.0); }
     };
 
 
-    class BatesDoubleExpDetJumpModel : public BatesDoubleExpModel {
+    class BatesDoubleExpDetJumpModel : public BatesDoubleExpModel
+    {
       public:
-        explicit BatesDoubleExpDetJumpModel(
-            const ext::shared_ptr<HestonProcess> & process,
-            Real lambda = 0.1, Real nuUp = 0.1,   Real nuDown = 0.1,
-            Real p = 0.5, Real kappaLambda = 1.0, Real thetaLambda = 0.1);
+        explicit BatesDoubleExpDetJumpModel(const ext::shared_ptr<HestonProcess>& process,
+                                            Real lambda = 0.1,
+                                            Real nuUp = 0.1,
+                                            Real nuDown = 0.1,
+                                            Real p = 0.5,
+                                            Real kappaLambda = 1.0,
+                                            Real thetaLambda = 0.1);
 
         Real kappaLambda() const { return arguments_[9](0.0); }
         Real thetaLambda() const { return arguments_[10](0.0); }
@@ -92,4 +102,3 @@ namespace QuantLib {
 
 
 #endif
-

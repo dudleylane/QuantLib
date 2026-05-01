@@ -22,14 +22,15 @@
 #define quantlib_polynomial_math_function_hpp
 
 #include <ql/math/matrix.hpp>
-
 #include <vector>
 
-namespace QuantLib {
-    
+namespace QuantLib
+{
+
     //! %Cubic functional form
     /*! \f[ f(t) = \sum_{i=0}^n{c_i t^i} \f] */
-    class PolynomialFunction {
+    class PolynomialFunction
+    {
 
       public:
         PolynomialFunction(const std::vector<Real>& coeff);
@@ -47,8 +48,7 @@ namespace QuantLib {
 
         /*! definite integral of the function between t1 and t2
             \f[ \int_{t1}^{t2} f(t)dt \f] */
-        Real definiteIntegral(Time t1,
-                              Time t2) const;
+        Real definiteIntegral(Time t1, Time t2) const;
 
         /*! Inspectors */
         Size order() const { return order_; }
@@ -58,21 +58,18 @@ namespace QuantLib {
 
         /*! coefficients of a PolynomialFunction defined as definite
             integral on a rolling window of length tau, with tau = t2-t */
-        std::vector<Real> definiteIntegralCoefficients(Time t,
-                                                       Time t2) const;
+        std::vector<Real> definiteIntegralCoefficients(Time t, Time t2) const;
 
         /*! coefficients of a PolynomialFunction defined as definite
             derivative on a rolling window of length tau, with tau = t2-t */
-        std::vector<Real> definiteDerivativeCoefficients(Time t,
-                                                         Time t2) const;
+        std::vector<Real> definiteDerivativeCoefficients(Time t, Time t2) const;
 
       private:
         Size order_;
         std::vector<Real> c_, derC_, prC_;
         Real K_;
         mutable Matrix eqs_;
-        void initializeEqs_(Time t,
-                            Time t2) const;
+        void initializeEqs_(Time t, Time t2) const;
     };
 
 }

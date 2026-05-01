@@ -21,38 +21,41 @@
 
 #include <ql/termstructures/yield/forwardstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    ForwardRateStructure::ForwardRateStructure(const DayCounter& dc)
-    : ZeroYieldStructure(dc) {}
+    ForwardRateStructure::ForwardRateStructure(const DayCounter& dc) : ZeroYieldStructure(dc) {}
 
-    ForwardRateStructure::ForwardRateStructure(
-                                    const Date& refDate,
-                                    const Calendar& cal,
-                                    const DayCounter& dc,
-                                    const std::vector<Handle<Quote> >& jumps,
-                                    const std::vector<Date>& jumpDates)
-    : ZeroYieldStructure(refDate, cal, dc, jumps, jumpDates) {}
+    ForwardRateStructure::ForwardRateStructure(const Date& refDate,
+                                               const Calendar& cal,
+                                               const DayCounter& dc,
+                                               const std::vector<Handle<Quote>>& jumps,
+                                               const std::vector<Date>& jumpDates)
+    : ZeroYieldStructure(refDate, cal, dc, jumps, jumpDates)
+    {
+    }
 
-    ForwardRateStructure::ForwardRateStructure(
-                                    Natural settlDays,
-                                    const Calendar& cal,
-                                    const DayCounter& dc,
-                                    const std::vector<Handle<Quote> >& jumps,
-                                    const std::vector<Date>& jumpDates)
-    : ZeroYieldStructure(settlDays, cal, dc, jumps, jumpDates) {}
+    ForwardRateStructure::ForwardRateStructure(Natural settlDays,
+                                               const Calendar& cal,
+                                               const DayCounter& dc,
+                                               const std::vector<Handle<Quote>>& jumps,
+                                               const std::vector<Date>& jumpDates)
+    : ZeroYieldStructure(settlDays, cal, dc, jumps, jumpDates)
+    {
+    }
 
-    Rate ForwardRateStructure::zeroYieldImpl(Time t) const {
+    Rate ForwardRateStructure::zeroYieldImpl(Time t) const
+    {
         if (t == 0.0)
             return forwardImpl(0.0);
         // implement smarter integration if plan to use the following code
-        Rate sum = 0.5*forwardImpl(0.0);
+        Rate sum = 0.5 * forwardImpl(0.0);
         Size N = 1000;
-        Time dt = t/N;
-        for (Time i=dt; i<t; i+=dt)
+        Time dt = t / N;
+        for (Time i = dt; i < t; i += dt)
             sum += forwardImpl(i);
-        sum += 0.5*forwardImpl(t);
-        return Rate(sum*dt/t);
+        sum += 0.5 * forwardImpl(t);
+        return Rate(sum * dt / t);
     }
 
 }

@@ -27,17 +27,17 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Botswana calendar
     /*! Holidays:
-    From the Botswana <a href="http://www.ilo.org/dyn/travail/docs/1766/Public%20Holidays%20Act.pdf">Public Holidays Act</a>    
-    The days named in the Schedule shall be public holidays within Botswana:
-    Provided that
-    <ul>
-    <li>when any of the said days fall on a Sunday the following Monday shall be observed as a public holiday;</li>
-    <li>if 2nd January, 1st October or Boxing Day falls on a Monday, the following Tuesday shall be observed as a public holiday;</li>
-    <li>when Botswana Day referred to in the Schedule falls on a Saturday, the next following Monday shall be observed as a public holiday.</li>
+    From the Botswana <a href="http://www.ilo.org/dyn/travail/docs/1766/Public%20Holidays%20Act.pdf">Public Holidays
+    Act</a> The days named in the Schedule shall be public holidays within Botswana: Provided that <ul> <li>when any of
+    the said days fall on a Sunday the following Monday shall be observed as a public holiday;</li> <li>if 2nd January,
+    1st October or Boxing Day falls on a Monday, the following Tuesday shall be observed as a public holiday;</li>
+    <li>when Botswana Day referred to in the Schedule falls on a Saturday, the next following Monday shall be observed
+    as a public holiday.</li>
     </ul>
     <ul>
     <li>Saturdays</li>
@@ -57,14 +57,17 @@ namespace QuantLib {
 
     \ingroup calendars
     */
-    class Botswana : public Calendar {
-    private:
-        class Impl final : public Calendar::WesternImpl {
-        public:
-          std::string name() const override { return "Botswana"; }
-          bool isBusinessDay(const Date&) const override;
+    class Botswana : public Calendar
+    {
+      private:
+        class Impl final : public Calendar::WesternImpl
+        {
+          public:
+            std::string name() const override { return "Botswana"; }
+            bool isBusinessDay(const Date&) const override;
         };
-    public:
+
+      public:
         Botswana();
     };
 

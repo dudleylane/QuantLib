@@ -19,9 +19,11 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 
 #include <ql/models/marketmodels/products/multiproductcomposite.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Size MultiProductComposite::numberOfProducts() const {
+    Size MultiProductComposite::numberOfProducts() const
+    {
         Size result = 0;
         for (const auto& component : components_)
             result += component.product->numberOfProducts();
@@ -29,7 +31,8 @@ namespace QuantLib {
     }
 
 
-    Size MultiProductComposite::maxNumberOfCashFlowsPerProductPerStep() const {
+    Size MultiProductComposite::maxNumberOfCashFlowsPerProductPerStep() const
+    {
         Size result = 0;
         for (const auto& component : components_)
             result = std::max(result, component.product->maxNumberOfCashFlowsPerProductPerStep());
@@ -37,29 +40,30 @@ namespace QuantLib {
     }
 
 
-    bool MultiProductComposite::nextTimeStep(
-                     const CurveState& currentState,
-                     std::vector<Size>& numberCashFlowsThisStep,
-                     std::vector<std::vector<CashFlow> >& cashFlowsGenerated) {
+    bool MultiProductComposite::nextTimeStep(const CurveState& currentState,
+                                             std::vector<Size>& numberCashFlowsThisStep,
+                                             std::vector<std::vector<CashFlow>>& cashFlowsGenerated)
+    {
         QL_REQUIRE(finalized_, "composite not finalized");
         bool done = true;
         Size n = 0, offset = 0;
         // for each sub-product...
-        for (auto i = components_.begin(); i != components_.end(); ++i, ++n) {
-            if (isInSubset_[n][currentIndex_] && !i->done) {
+        for (auto i = components_.begin(); i != components_.end(); ++i, ++n)
+        {
+            if (isInSubset_[n][currentIndex_] && !i->done)
+            {
                 // ...make it evolve...
-                bool thisDone = i->product->nextTimeStep(currentState,
-                                                         i->numberOfCashflows,
-                                                         i->cashflows);
+                bool thisDone = i->product->nextTimeStep(currentState, i->numberOfCashflows, i->cashflows);
                 // ...and copy the results. Time indices need to be remapped
                 // so that they point into all cash-flow times. Amounts need
                 // to be adjusted by the corresponding multiplier.
-                for (Size j=0; j<i->product->numberOfProducts(); ++j) {
-                    numberCashFlowsThisStep[j+offset] =
-                        i->numberOfCashflows[j];
-                    for (Size k=0; k<i->numberOfCashflows[j]; ++k) {
+                for (Size j = 0; j < i->product->numberOfProducts(); ++j)
+                {
+                    numberCashFlowsThisStep[j + offset] = i->numberOfCashflows[j];
+                    for (Size k = 0; k < i->numberOfCashflows[j]; ++k)
+                    {
                         CashFlow& from = i->cashflows[j][k];
-                        CashFlow& to = cashFlowsGenerated[j+offset][k];
+                        CashFlow& to = cashFlowsGenerated[j + offset][k];
                         to.timeIndex = i->timeIndices[from.timeIndex];
                         to.amount = from.amount * i->multiplier;
                     }
@@ -68,8 +72,8 @@ namespace QuantLib {
                 done = done && thisDone;
             }
             else
-                for (Size j=0; j<i->product->numberOfProducts(); ++j)
-                    numberCashFlowsThisStep[j+offset] =0;
+                for (Size j = 0; j < i->product->numberOfProducts(); ++j)
+                    numberCashFlowsThisStep[j + offset] = 0;
 
             // the offset is updated whether or not the product was evolved
             offset += i->product->numberOfProducts();
@@ -78,8 +82,8 @@ namespace QuantLib {
         return done;
     }
 
-    std::unique_ptr<MarketModelMultiProduct>
-    MultiProductComposite::clone() const {
+    std::unique_ptr<MarketModelMultiProduct> MultiProductComposite::clone() const
+    {
         return std::unique_ptr<MarketModelMultiProduct>(new MultiProductComposite(*this));
     }
 

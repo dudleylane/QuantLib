@@ -26,24 +26,30 @@
 
 #include <ql/types.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-class Loss {
-    public:
+    class Loss
+    {
+      public:
         Loss(Real t = 0.0, Real a = 0.0) : time(t), amount(a) {};
         Real time, amount;
     };
 
-    inline bool operator<(const Loss& l1, const Loss& l2) {
+    inline bool operator<(const Loss& l1, const Loss& l2)
+    {
         return (l1.time < l2.time);
     }
-    inline bool operator>(const Loss& l1, const Loss& l2) {
+    inline bool operator>(const Loss& l1, const Loss& l2)
+    {
         return (l1.time > l2.time);
     }
-    inline bool operator==(const Loss& l1, const Loss& l2) {
+    inline bool operator==(const Loss& l1, const Loss& l2)
+    {
         return (l1.time == l2.time);
     }
-    inline bool operator!=(const Loss& l1, const Loss& l2) {
+    inline bool operator!=(const Loss& l1, const Loss& l2)
+    {
         return (l1.time != l2.time);
     }
 

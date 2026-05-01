@@ -36,14 +36,15 @@
 #include <ql/termstructures/volatility/swaption/swaptionvolstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class FloatingRateCoupon;
     class IborCoupon;
 
     //! generic pricer for floating-rate coupons
-    class FloatingRateCouponPricer: public virtual Observer,
-                                    public virtual Observable {
+    class FloatingRateCouponPricer : public virtual Observer, public virtual Observable
+    {
       public:
         ~FloatingRateCouponPricer() override = default;
         //! \name required interface
@@ -63,20 +64,17 @@ namespace QuantLib {
     };
 
     //! base pricer for capped/floored Ibor coupons
-    class IborCouponPricer : public FloatingRateCouponPricer {
+    class IborCouponPricer : public FloatingRateCouponPricer
+    {
       public:
-        explicit IborCouponPricer(
-            Handle<OptionletVolatilityStructure> v = Handle<OptionletVolatilityStructure>(),
-            ext::optional<bool> useIndexedCoupon = ext::nullopt);
+        explicit IborCouponPricer(Handle<OptionletVolatilityStructure> v = Handle<OptionletVolatilityStructure>(),
+                                  ext::optional<bool> useIndexedCoupon = ext::nullopt);
 
         bool useIndexedCoupon() const { return useIndexedCoupon_; }
 
-        Handle<OptionletVolatilityStructure> capletVolatility() const {
-            return capletVol_;
-        }
-        void setCapletVolatility(
-                            const Handle<OptionletVolatilityStructure>& v =
-                                    Handle<OptionletVolatilityStructure>()) {
+        Handle<OptionletVolatilityStructure> capletVolatility() const { return capletVol_; }
+        void setCapletVolatility(const Handle<OptionletVolatilityStructure>& v = Handle<OptionletVolatilityStructure>())
+        {
             unregisterWith(capletVol_);
             capletVol_ = v;
             registerWith(capletVol_);
@@ -87,7 +85,6 @@ namespace QuantLib {
         void initializeCachedData(const IborCoupon& coupon) const;
 
       protected:
-
         const IborCoupon* coupon_;
 
         ext::shared_ptr<IborIndex> index_;
@@ -108,16 +105,21 @@ namespace QuantLib {
         Black76             Hull, Options, Futures and other
                             derivatives, 4th ed., page 550
         BivariateLognormal  http://ssrn.com/abstract=2170721 */
-    class BlackIborCouponPricer : public IborCouponPricer {
+    class BlackIborCouponPricer : public IborCouponPricer
+    {
       public:
-        enum TimingAdjustment { Black76, BivariateLognormal };
-        BlackIborCouponPricer(
-            const Handle<OptionletVolatilityStructure>& v = Handle<OptionletVolatilityStructure>(),
-            const TimingAdjustment timingAdjustment = Black76,
-            Handle<Quote> correlation = Handle<Quote>(ext::shared_ptr<Quote>(new SimpleQuote(1.0))),
-            const ext::optional<bool> useIndexedCoupon = ext::nullopt)
+        enum TimingAdjustment
+        {
+            Black76,
+            BivariateLognormal
+        };
+        BlackIborCouponPricer(const Handle<OptionletVolatilityStructure>& v = Handle<OptionletVolatilityStructure>(),
+                              const TimingAdjustment timingAdjustment = Black76,
+                              Handle<Quote> correlation = Handle<Quote>(ext::shared_ptr<Quote>(new SimpleQuote(1.0))),
+                              const ext::optional<bool> useIndexedCoupon = ext::nullopt)
         : IborCouponPricer(v, useIndexedCoupon), timingAdjustment_(timingAdjustment),
-          correlation_(std::move(correlation)) {
+          correlation_(std::move(correlation))
+        {
             { // this additional scope seems required to avoid a misleading-indentation warning
                 QL_REQUIRE(timingAdjustment_ == Black76 || timingAdjustment_ == BivariateLognormal,
                            "unknown timing adjustment (code " << timingAdjustment_ << ")");
@@ -146,93 +148,91 @@ namespace QuantLib {
     };
 
     //! base pricer for vanilla CMS coupons
-    class CmsCouponPricer : public FloatingRateCouponPricer {
+    class CmsCouponPricer : public FloatingRateCouponPricer
+    {
       public:
-        explicit CmsCouponPricer(
-            Handle<SwaptionVolatilityStructure> v = Handle<SwaptionVolatilityStructure>())
-        : swaptionVol_(std::move(v)) {
+        explicit CmsCouponPricer(Handle<SwaptionVolatilityStructure> v = Handle<SwaptionVolatilityStructure>())
+        : swaptionVol_(std::move(v))
+        {
             registerWith(swaptionVol_);
         }
 
-        Handle<SwaptionVolatilityStructure> swaptionVolatility() const{
-            return swaptionVol_;
-        }
-        void setSwaptionVolatility(
-                            const Handle<SwaptionVolatilityStructure>& v=
-                                    Handle<SwaptionVolatilityStructure>()) {
+        Handle<SwaptionVolatilityStructure> swaptionVolatility() const { return swaptionVol_; }
+        void setSwaptionVolatility(const Handle<SwaptionVolatilityStructure>& v = Handle<SwaptionVolatilityStructure>())
+        {
             unregisterWith(swaptionVol_);
             swaptionVol_ = v;
             registerWith(swaptionVol_);
             update();
         }
+
       private:
         Handle<SwaptionVolatilityStructure> swaptionVol_;
     };
 
     /*! (CMS) coupon pricer that has a mean reversion parameter which can be
       used to calibrate to cms market quotes */
-    class MeanRevertingPricer {
-    public:
+    class MeanRevertingPricer
+    {
+      public:
         virtual Real meanReversion() const = 0;
         virtual void setMeanReversion(const Handle<Quote>&) = 0;
         virtual ~MeanRevertingPricer() = default;
     };
 
-    void setCouponPricer(const Leg& leg,
-                         const ext::shared_ptr<FloatingRateCouponPricer>&);
+    void setCouponPricer(const Leg& leg, const ext::shared_ptr<FloatingRateCouponPricer>&);
 
-    void setCouponPricers(
-            const Leg& leg,
-            const std::vector<ext::shared_ptr<FloatingRateCouponPricer> >&);
+    void setCouponPricers(const Leg& leg, const std::vector<ext::shared_ptr<FloatingRateCouponPricer>>&);
 
     /*! set the first matching pricer (if any) to each coupon of the leg */
-    void setCouponPricers(
-            const Leg& leg,
-            const ext::shared_ptr<FloatingRateCouponPricer>&,
-            const ext::shared_ptr<FloatingRateCouponPricer>&);
+    void setCouponPricers(const Leg& leg,
+                          const ext::shared_ptr<FloatingRateCouponPricer>&,
+                          const ext::shared_ptr<FloatingRateCouponPricer>&);
 
-    void setCouponPricers(
-            const Leg& leg,
-            const ext::shared_ptr<FloatingRateCouponPricer>&,
-            const ext::shared_ptr<FloatingRateCouponPricer>&,
-            const ext::shared_ptr<FloatingRateCouponPricer>&);
+    void setCouponPricers(const Leg& leg,
+                          const ext::shared_ptr<FloatingRateCouponPricer>&,
+                          const ext::shared_ptr<FloatingRateCouponPricer>&,
+                          const ext::shared_ptr<FloatingRateCouponPricer>&);
 
-    void setCouponPricers(
-            const Leg& leg,
-            const ext::shared_ptr<FloatingRateCouponPricer>&,
-            const ext::shared_ptr<FloatingRateCouponPricer>&,
-            const ext::shared_ptr<FloatingRateCouponPricer>&,
-            const ext::shared_ptr<FloatingRateCouponPricer>&);
+    void setCouponPricers(const Leg& leg,
+                          const ext::shared_ptr<FloatingRateCouponPricer>&,
+                          const ext::shared_ptr<FloatingRateCouponPricer>&,
+                          const ext::shared_ptr<FloatingRateCouponPricer>&,
+                          const ext::shared_ptr<FloatingRateCouponPricer>&);
 
     // inline
 
-    inline Real BlackIborCouponPricer::swapletPrice() const {
+    inline Real BlackIborCouponPricer::swapletPrice() const
+    {
         // past or future fixing is managed in InterestRateIndex::fixing()
         QL_REQUIRE(discount_ != Null<Rate>(), "no forecast curve provided");
         return swapletRate() * accrualPeriod_ * discount_;
     }
 
-    inline Rate BlackIborCouponPricer::swapletRate() const {
+    inline Rate BlackIborCouponPricer::swapletRate() const
+    {
         return gearing_ * adjustedFixing() + spread_;
     }
 
-    inline Real BlackIborCouponPricer::capletPrice(Rate effectiveCap) const {
+    inline Real BlackIborCouponPricer::capletPrice(Rate effectiveCap) const
+    {
         QL_REQUIRE(discount_ != Null<Rate>(), "no forecast curve provided");
         return capletRate(effectiveCap) * accrualPeriod_ * discount_;
     }
 
-    inline Rate BlackIborCouponPricer::capletRate(Rate effectiveCap) const {
+    inline Rate BlackIborCouponPricer::capletRate(Rate effectiveCap) const
+    {
         return gearing_ * optionletRate(Option::Call, effectiveCap);
     }
 
-    inline
-    Real BlackIborCouponPricer::floorletPrice(Rate effectiveFloor) const {
+    inline Real BlackIborCouponPricer::floorletPrice(Rate effectiveFloor) const
+    {
         QL_REQUIRE(discount_ != Null<Rate>(), "no forecast curve provided");
         return floorletRate(effectiveFloor) * accrualPeriod_ * discount_;
     }
 
-    inline
-    Rate BlackIborCouponPricer::floorletRate(Rate effectiveFloor) const {
+    inline Rate BlackIborCouponPricer::floorletRate(Rate effectiveFloor) const
+    {
         return gearing_ * optionletRate(Option::Put, effectiveFloor);
     }
 

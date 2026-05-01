@@ -29,11 +29,12 @@
 #define quantlib_fixed_rate_bond_hpp
 
 #include <ql/instruments/bond.hpp>
+#include <ql/interestrate.hpp>
 #include <ql/time/dategenerationrule.hpp>
 #include <ql/time/daycounter.hpp>
-#include <ql/interestrate.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Schedule;
 
@@ -43,7 +44,8 @@ namespace QuantLib {
         \test calculations are tested by checking results against
               cached values.
     */
-    class FixedRateBond : public Bond {
+    class FixedRateBond : public Bond
+    {
       public:
         //! simple annual compounding coupon rates
         FixedRateBond(Natural settlementDays,
@@ -64,6 +66,7 @@ namespace QuantLib {
         Frequency frequency() const { return frequency_; }
         const DayCounter& dayCounter() const { return dayCounter_; }
         const DayCounter& firstPeriodDayCounter() const { return firstPeriodDayCounter_; }
+
       protected:
         Frequency frequency_;
         DayCounter dayCounter_;

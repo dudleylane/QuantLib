@@ -26,10 +26,10 @@
 
 #include <ql/time/daycounter.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Date yearFractionToDate(
-        const DayCounter& dayCounter, const Date& referenceDate, Time t);
+    Date yearFractionToDate(const DayCounter& dayCounter, const Date& referenceDate, Time t);
 
 }
 

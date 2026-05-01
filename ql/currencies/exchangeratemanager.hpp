@@ -32,16 +32,20 @@
 #include <map>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! exchange-rate repository
     /*! \test lookup of direct, triangulated, and derived exchange
               rates is tested.
     */
-    class ExchangeRateManager : public Singleton<ExchangeRateManager> {
+    class ExchangeRateManager : public Singleton<ExchangeRateManager>
+    {
         friend class Singleton<ExchangeRateManager>;
+
       private:
         ExchangeRateManager();
+
       public:
         //! Add an exchange rate.
         /*! The given rate is valid between the given dates.
@@ -50,9 +54,7 @@ namespace QuantLib {
                   and with overlapping date ranges, the latest one
                   added takes precedence during lookup.
         */
-        void add(const ExchangeRate&,
-                 const Date& startDate = Date::minDate(),
-                 const Date& endDate = Date::maxDate());
+        void add(const ExchangeRate&, const Date& startDate = Date::minDate(), const Date& endDate = Date::maxDate());
         /*! Lookup the exchange rate between two currencies at a given
             date.  If the given type is Direct, only direct exchange
             rates will be returned if available; if Derived, direct
@@ -65,35 +67,33 @@ namespace QuantLib {
         ExchangeRate lookup(const Currency& source,
                             const Currency& target,
                             Date date = Date(),
-                            ExchangeRate::Type type =
-                                                 ExchangeRate::Derived) const;
+                            ExchangeRate::Type type = ExchangeRate::Derived) const;
         //! remove the added exchange rates
         void clear();
 
-        struct Entry {
+        struct Entry
+        {
             Entry() = default;
             Entry(ExchangeRate rate, const Date& start, const Date& end)
-            : rate(std::move(rate)), startDate(start), endDate(end) {}
+            : rate(std::move(rate)), startDate(start), endDate(end)
+            {
+            }
             ExchangeRate rate;
             Date startDate, endDate;
         };
+
       private:
         typedef BigInteger Key;
-        mutable std::map<Key, std::list<Entry> > data_;
+        mutable std::map<Key, std::list<Entry>> data_;
         Key hash(const Currency&, const Currency&) const;
         bool hashes(Key, const Currency&) const;
         void addKnownRates();
-        ExchangeRate directLookup(const Currency& source,
-                                  const Currency& target,
-                                  const Date& date) const;
+        ExchangeRate directLookup(const Currency& source, const Currency& target, const Date& date) const;
         ExchangeRate smartLookup(const Currency& source,
                                  const Currency& target,
                                  const Date& date,
-                                 std::list<Integer> forbiddenCodes
-                                        = std::list<Integer>()) const;
-        const ExchangeRate* fetch(const Currency& source,
-                                  const Currency& target,
-                                  const Date& date) const;
+                                 std::list<Integer> forbiddenCodes = std::list<Integer>()) const;
+        const ExchangeRate* fetch(const Currency& source, const Currency& target, const Date& date) const;
     };
 
 }

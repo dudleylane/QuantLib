@@ -24,24 +24,26 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #ifndef quantlib_aonia_hpp
 #define quantlib_aonia_hpp
 
+#include <ql/currencies/oceania.hpp>
 #include <ql/indexes/iborindex.hpp>
 #include <ql/time/calendars/australia.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
-#include <ql/currencies/oceania.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Aonia index
     /*! Aonia (Australia Overnight Index Average) rate fixed by the RBA.
 
     See <http://www.isda.org/publications/pdf/Supplement-13-to-2000DefinitionsAnnex.pdf>.
     */
-    class Aonia : public OvernightIndex {
+    class Aonia : public OvernightIndex
+    {
       public:
         explicit Aonia(const Handle<YieldTermStructure>& h = {})
-        : OvernightIndex("Aonia", 0, AUDCurrency(),
-                         Australia(),
-                         Actual365Fixed(), h) {}
+        : OvernightIndex("Aonia", 0, AUDCurrency(), Australia(), Actual365Fixed(), h)
+        {
+        }
     };
 
 }

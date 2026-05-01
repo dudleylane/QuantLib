@@ -29,9 +29,11 @@
 #include <map>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class CommodityCashFlow : public CashFlow {
+    class CommodityCashFlow : public CashFlow
+    {
       public:
         CommodityCashFlow(const Date& date,
                           Money discountedAmount,
@@ -44,9 +46,10 @@ namespace QuantLib {
         : date_(date), discountedAmount_(std::move(discountedAmount)),
           undiscountedAmount_(std::move(undiscountedAmount)),
           discountedPaymentAmount_(std::move(discountedPaymentAmount)),
-          undiscountedPaymentAmount_(std::move(undiscountedPaymentAmount)),
-          discountFactor_(discountFactor), paymentDiscountFactor_(paymentDiscountFactor),
-          finalized_(finalized) {}
+          undiscountedPaymentAmount_(std::move(undiscountedPaymentAmount)), discountFactor_(discountFactor),
+          paymentDiscountFactor_(paymentDiscountFactor), finalized_(finalized)
+        {
+        }
         //! \name Event interface
         //@{
         Date date() const override { return date_; }
@@ -55,18 +58,12 @@ namespace QuantLib {
         //@{
         Real amount() const override { return discountedAmount_.value(); }
         //@}
-        const Currency& currency() const {
-            return discountedAmount_.currency();
-        }
+        const Currency& currency() const { return discountedAmount_.currency(); }
 
         const Money& discountedAmount() const { return discountedAmount_; }
         const Money& undiscountedAmount() const { return undiscountedAmount_; }
-        const Money& discountedPaymentAmount() const {
-            return discountedPaymentAmount_;
-        }
-        const Money& undiscountedPaymentAmount() const {
-            return undiscountedPaymentAmount_;
-        }
+        const Money& discountedPaymentAmount() const { return discountedPaymentAmount_; }
+        const Money& undiscountedPaymentAmount() const { return undiscountedPaymentAmount_; }
         Real discountFactor() const { return discountFactor_; }
         Real paymentDiscountFactor() const { return paymentDiscountFactor_; }
         bool finalized() const { return finalized_; }
@@ -77,19 +74,16 @@ namespace QuantLib {
         //@}
       private:
         Date date_;
-        Money discountedAmount_, undiscountedAmount_,
-              discountedPaymentAmount_, undiscountedPaymentAmount_;
+        Money discountedAmount_, undiscountedAmount_, discountedPaymentAmount_, undiscountedPaymentAmount_;
         Real discountFactor_, paymentDiscountFactor_;
         bool finalized_;
     };
 
-    typedef std::map<Date, ext::shared_ptr<CommodityCashFlow> >
-                                                           CommodityCashFlows;
+    typedef std::map<Date, ext::shared_ptr<CommodityCashFlow>> CommodityCashFlows;
 
-    #ifndef __DOXYGEN__
-    std::ostream& operator<<(std::ostream& out,
-                             const CommodityCashFlows& cashFlows);
-    #endif
+#ifndef __DOXYGEN__
+    std::ostream& operator<<(std::ostream& out, const CommodityCashFlows& cashFlows);
+#endif
 
 }
 

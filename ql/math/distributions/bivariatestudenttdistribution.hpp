@@ -28,7 +28,8 @@
 #include <ql/types.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Cumulative Student t-distribution
     /*! Implemented following the formulas from Dunnett, C.W. and
@@ -36,14 +37,15 @@ namespace QuantLib {
         t-distribution with tables for certain special
         cases. Biometrika 41, 153–169.
     */
-    class BivariateCumulativeStudentDistribution {
+    class BivariateCumulativeStudentDistribution
+    {
       public:
         /*! \param n    degrees of freedom
             \param rho  correlation
         */
-        BivariateCumulativeStudentDistribution(Natural n,
-                                               Real rho);
+        BivariateCumulativeStudentDistribution(Natural n, Real rho);
         Real operator()(Real x, Real y) const;
+
       private:
         Natural n_;
         Real rho_;

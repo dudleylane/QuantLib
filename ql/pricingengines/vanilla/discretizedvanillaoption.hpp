@@ -26,12 +26,14 @@
 #define quantlib_discretized_vanilla_option_h
 
 #include <ql/discretizedasset.hpp>
-#include <ql/methods/lattices/bsmlattice.hpp>
 #include <ql/instruments/vanillaoption.hpp>
+#include <ql/methods/lattices/bsmlattice.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class DiscretizedVanillaOption : public DiscretizedAsset {
+    class DiscretizedVanillaOption : public DiscretizedAsset
+    {
       public:
         DiscretizedVanillaOption(const VanillaOption::arguments&,
                                  const StochasticProcess& process,
@@ -51,9 +53,6 @@ namespace QuantLib {
     };
 
 }
-
-
-
 
 
 #endif

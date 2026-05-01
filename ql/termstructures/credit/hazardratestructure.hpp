@@ -30,7 +30,8 @@
 
 #include <ql/termstructures/defaulttermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Hazard-rate term structure
     /*! This abstract class acts as an adapter to
@@ -45,29 +46,27 @@ namespace QuantLib {
 
         \ingroup defaultprobabilitytermstructures
     */
-    class HazardRateStructure : public DefaultProbabilityTermStructure {
+    class HazardRateStructure : public DefaultProbabilityTermStructure
+    {
       public:
         /*! \name Constructors
             See the TermStructure documentation for issues regarding
             constructors.
         */
         //@{
-        HazardRateStructure(
-            const DayCounter& dayCounter = DayCounter(),
-            const std::vector<Handle<Quote> >& jumps = {},
-            const std::vector<Date>& jumpDates = {});
-        HazardRateStructure(
-            const Date& referenceDate,
-            const Calendar& cal = Calendar(),
-            const DayCounter& dayCounter = DayCounter(),
-            const std::vector<Handle<Quote> >& jumps = {},
-            const std::vector<Date>& jumpDates = {});
-        HazardRateStructure(
-            Natural settlementDays,
-            const Calendar& cal,
-            const DayCounter& dayCounter = DayCounter(),
-            const std::vector<Handle<Quote> >& jumps = {},
-            const std::vector<Date>& jumpDates = {});
+        HazardRateStructure(const DayCounter& dayCounter = DayCounter(),
+                            const std::vector<Handle<Quote>>& jumps = {},
+                            const std::vector<Date>& jumpDates = {});
+        HazardRateStructure(const Date& referenceDate,
+                            const Calendar& cal = Calendar(),
+                            const DayCounter& dayCounter = DayCounter(),
+                            const std::vector<Handle<Quote>>& jumps = {},
+                            const std::vector<Date>& jumpDates = {});
+        HazardRateStructure(Natural settlementDays,
+                            const Calendar& cal,
+                            const DayCounter& dayCounter = DayCounter(),
+                            const std::vector<Handle<Quote>>& jumps = {},
+                            const std::vector<Date>& jumpDates = {});
         //@}
       protected:
         /*! \name Calculations
@@ -103,8 +102,9 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline Real HazardRateStructure::defaultDensityImpl(Time t) const {
-        return hazardRateImpl(t)*survivalProbabilityImpl(t);
+    inline Real HazardRateStructure::defaultDensityImpl(Time t) const
+    {
+        return hazardRateImpl(t) * survivalProbabilityImpl(t);
     }
 
 }

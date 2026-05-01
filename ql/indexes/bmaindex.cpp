@@ -17,16 +17,19 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/indexes/bmaindex.hpp>
 #include <ql/currencies/america.hpp>
+#include <ql/indexes/bmaindex.hpp>
 #include <ql/time/calendars/unitedstates.hpp>
 #include <ql/time/daycounters/actualactual.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
+    namespace
+    {
 
-        Date previousWednesday(const Date& date) {
+        Date previousWednesday(const Date& date)
+        {
             Weekday w = date.weekday();
             if (w >= 4) // roll back w-4 days
                 return date - (w - 4) * Days;
@@ -34,8 +37,9 @@ namespace QuantLib {
                 return date + (4 - w - 7) * Days;
         }
 
-        Date nextWednesday(const Date& date) {
-            return previousWednesday(date+7);
+        Date nextWednesday(const Date& date)
+        {
+            return previousWednesday(date + 7);
         }
 
     }
@@ -47,16 +51,19 @@ namespace QuantLib {
                         USDCurrency(),
                         UnitedStates(UnitedStates::GovernmentBond),
                         ActualActual(ActualActual::ISDA)),
-      termStructure_(std::move(h)) {
+      termStructure_(std::move(h))
+    {
         registerWith(termStructure_);
     }
 
-    bool BMAIndex::isValidFixingDate(const Date& date) const {
+    bool BMAIndex::isValidFixingDate(const Date& date) const
+    {
         Calendar cal = fixingCalendar();
         // either the fixing date is last Wednesday, or all days
         // between last Wednesday included and the fixing date are
         // holidays
-        for (Date d = previousWednesday(date); d<date; ++d) {
+        for (Date d = previousWednesday(date); d < date; ++d)
+        {
             if (cal.isBusinessDay(d))
                 return false;
         }
@@ -64,34 +71,36 @@ namespace QuantLib {
         return cal.isBusinessDay(date);
     }
 
-    Handle<YieldTermStructure> BMAIndex::forwardingTermStructure() const {
+    Handle<YieldTermStructure> BMAIndex::forwardingTermStructure() const
+    {
         return termStructure_;
     }
 
-    Date BMAIndex::maturityDate(const Date& valueDate) const {
+    Date BMAIndex::maturityDate(const Date& valueDate) const
+    {
         Calendar cal = fixingCalendar();
         Date fixingDate = cal.advance(valueDate, -1, Days);
-        Date nextWednesday = previousWednesday(fixingDate+7);
+        Date nextWednesday = previousWednesday(fixingDate + 7);
         return cal.advance(nextWednesday, 1, Days);
     }
 
-    Schedule BMAIndex::fixingSchedule(const Date& start, const Date& end) {
-        return MakeSchedule().from(previousWednesday(start))
-                             .to(nextWednesday(end))
-                             .withFrequency(Weekly)
-                             .withCalendar(fixingCalendar())
-                             .withConvention(Following)
-                             .forwards();
+    Schedule BMAIndex::fixingSchedule(const Date& start, const Date& end)
+    {
+        return MakeSchedule()
+            .from(previousWednesday(start))
+            .to(nextWednesday(end))
+            .withFrequency(Weekly)
+            .withCalendar(fixingCalendar())
+            .withConvention(Following)
+            .forwards();
     }
 
-    Rate BMAIndex::forecastFixing(const Date& fixingDate) const {
-        QL_REQUIRE(!termStructure_.empty(),
-                   "null term structure set to this instance of " << name());
+    Rate BMAIndex::forecastFixing(const Date& fixingDate) const
+    {
+        QL_REQUIRE(!termStructure_.empty(), "null term structure set to this instance of " << name());
         Date start = fixingCalendar().advance(fixingDate, 1, Days);
         Date end = maturityDate(start);
-        return termStructure_->forwardRate(start, end,
-                                           dayCounter_,
-                                           Simple);
+        return termStructure_->forwardRate(start, end, dayCounter_, Simple);
     }
 
 }

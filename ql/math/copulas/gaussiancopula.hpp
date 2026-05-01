@@ -27,19 +27,22 @@
 #include <ql/math/distributions/bivariatenormaldistribution.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Gaussian copula
-    class GaussianCopula {
+    class GaussianCopula
+    {
       public:
         GaussianCopula(Real rho);
         Real operator()(Real x, Real y) const;
+
       private:
         Real rho_;
-        BivariateCumulativeNormalDistributionWe04DP bivariate_normal_cdf_;     
+        BivariateCumulativeNormalDistributionWe04DP bivariate_normal_cdf_;
         InverseCumulativeNormal invCumNormal_;
     };
-    
+
 }
 
 #endif

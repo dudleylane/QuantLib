@@ -24,33 +24,34 @@
 #ifndef quantlib_date_interval_hpp
 #define quantlib_date_interval_hpp
 
-#include <ql/time/date.hpp>
 #include <ql/errors.hpp>
+#include <ql/time/date.hpp>
 #include <algorithm>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Date interval described by a number of a given time unit
     /*! \ingroup datetime */
-    class DateInterval {
+    class DateInterval
+    {
         friend std::ostream& operator<<(std::ostream&, const DateInterval&);
 
       private:
         Date startDate_;
         Date endDate_;
+
       public:
         DateInterval() = default;
-        DateInterval(const Date& startDate, const Date& endDate)
-        : startDate_(startDate), endDate_(endDate) {
-            QL_REQUIRE(endDate_ >= startDate_,
-                       "end date must be >= start date");
+        DateInterval(const Date& startDate, const Date& endDate) : startDate_(startDate), endDate_(endDate)
+        {
+            QL_REQUIRE(endDate_ >= startDate_, "end date must be >= start date");
         }
         const Date& startDate() const { return startDate_; }
         const Date& endDate() const { return endDate_; }
 
-        bool isDateBetween(Date date,
-                           bool includeFirst = true,
-                           bool includeLast = true) const {
+        bool isDateBetween(Date date, bool includeFirst = true, bool includeLast = true) const
+        {
             if (includeFirst && !(date >= startDate_))
                 return false;
             else if (!(date > startDate_))
@@ -62,20 +63,20 @@ namespace QuantLib {
             return true;
         }
 
-        DateInterval intersection(const DateInterval& di) const {
+        DateInterval intersection(const DateInterval& di) const
+        {
             if ((startDate_ < di.startDate_ && endDate_ < di.startDate_) ||
                 (startDate_ > di.endDate_ && endDate_ > di.endDate_))
                 return {};
             return {std::max(startDate_, di.startDate_), std::min(endDate_, di.endDate_)};
         }
 
-        bool operator==(const DateInterval& rhs) const {
+        bool operator==(const DateInterval& rhs) const
+        {
             return startDate_ == rhs.startDate_ && endDate_ == rhs.endDate_;
         }
 
-        bool operator!=(const DateInterval& rhs) const {
-            return !(*this == rhs);
-        }
+        bool operator!=(const DateInterval& rhs) const { return !(*this == rhs); }
     };
 
 }

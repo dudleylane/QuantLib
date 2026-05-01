@@ -24,7 +24,8 @@
 
 #include <ql/models/marketmodels/curvestate.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Curve state for %Libor market models
     /*! This class stores the state of the yield curve associated to the
@@ -36,26 +37,25 @@ namespace QuantLib {
         Many products will not need expired rates and others will only require
         the first rate.
     */
-    class LMMCurveState : public CurveState {
-    /* There will n+1 rate times expressing payment and reset times
-        of forward rates.
+    class LMMCurveState : public CurveState
+    {
+        /* There will n+1 rate times expressing payment and reset times
+            of forward rates.
 
-                |-----|-----|-----|-----|-----|      (size = 6)
-                t0    t1    t2    t3    t4    t5     rateTimes
-                f0    f1    f2    f3    f4           forwardRates
-                d0    d1    d2    d3    d4    d5     discountBonds
-                d0/d0 d1/d0 d2/d0 d3/d0 d4/d0 d5/d0  discountRatios
-                sr0   sr1   sr2   sr3   sr4          cotSwaps
-    */
+                    |-----|-----|-----|-----|-----|      (size = 6)
+                    t0    t1    t2    t3    t4    t5     rateTimes
+                    f0    f1    f2    f3    f4           forwardRates
+                    d0    d1    d2    d3    d4    d5     discountBonds
+                    d0/d0 d1/d0 d2/d0 d3/d0 d4/d0 d5/d0  discountRatios
+                    sr0   sr1   sr2   sr3   sr4          cotSwaps
+        */
       public:
         explicit LMMCurveState(const std::vector<Time>& rateTimes);
         //! \name Modifiers
         //@{
-        void setOnForwardRates(const std::vector<Rate>& fwdRates,
-                               Size firstValidIndex = 0);
+        void setOnForwardRates(const std::vector<Rate>& fwdRates, Size firstValidIndex = 0);
 
-        void setOnDiscountRatios(const std::vector<DiscountFactor>& discRatios,
-                                 Size firstValidIndex = 0);
+        void setOnDiscountRatios(const std::vector<DiscountFactor>& discRatios, Size firstValidIndex = 0);
         //@}
 
         //! \name Inspectors

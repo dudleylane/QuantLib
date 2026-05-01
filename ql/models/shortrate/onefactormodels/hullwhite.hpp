@@ -29,7 +29,8 @@
 #include <ql/models/shortrate/onefactormodels/vasicek.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Single-factor Hull-White (extended %Vasicek) model class.
     /*! This class implements the standard single-factor Hull-White model
@@ -46,25 +47,19 @@ namespace QuantLib {
 
         \ingroup shortrate
     */
-    class HullWhite : public Vasicek, public TermStructureConsistentModel {
+    class HullWhite : public Vasicek, public TermStructureConsistentModel
+    {
       public:
-        HullWhite(const Handle<YieldTermStructure>& termStructure,
-                  Real a = 0.1, Real sigma = 0.01);
+        HullWhite(const Handle<YieldTermStructure>& termStructure, Real a = 0.1, Real sigma = 0.01);
 
         ext::shared_ptr<Lattice> tree(const TimeGrid& grid) const override;
 
         ext::shared_ptr<ShortRateDynamics> dynamics() const override;
 
-        Real discountBondOption(Option::Type type,
-                                Real strike,
-                                Time maturity,
-                                Time bondMaturity) const override;
+        Real discountBondOption(Option::Type type, Real strike, Time maturity, Time bondMaturity) const override;
 
-        Real discountBondOption(Option::Type type,
-                                Real strike,
-                                Time maturity,
-                                Time bondStart,
-                                Time bondMaturity) const override;
+        Real discountBondOption(
+            Option::Type type, Real strike, Time maturity, Time bondStart, Time bondMaturity) const override;
 
         /*! Futures convexity bias (i.e., the difference between
             futures implied rate and forward rate) calculated as in
@@ -74,15 +69,13 @@ namespace QuantLib {
             \note t and T should be expressed in yearfraction using
                   deposit day counter, F_quoted is futures' market price.
         */
-        static Rate convexityBias(Real futurePrice,
-                                  Time t,
-                                  Time T,
-                                  Real sigma,
-                                  Real a);
+        static Rate convexityBias(Real futurePrice, Time t, Time T, Real sigma, Real a);
 
-        static std::vector<bool> FixedReversion() {
+        static std::vector<bool> FixedReversion()
+        {
             std::vector<bool> c(2);
-            c[0] = true; c[1] = false;
+            c[0] = true;
+            c[1] = false;
             return c;
         }
 
@@ -107,12 +100,14 @@ namespace QuantLib {
         parameter used for term-structure fitting and \f$ x_t \f$ is the
         state variable following an Ornstein-Uhlenbeck process.
     */
-    class HullWhite::Dynamics : public OneFactorModel::ShortRateDynamics {
+    class HullWhite::Dynamics : public OneFactorModel::ShortRateDynamics
+    {
       public:
         Dynamics(Parameter fitting, Real a, Real sigma)
-        : ShortRateDynamics(
-              ext::shared_ptr<StochasticProcess1D>(new OrnsteinUhlenbeckProcess(a, sigma))),
-          fitting_(std::move(fitting)) {}
+        : ShortRateDynamics(ext::shared_ptr<StochasticProcess1D>(new OrnsteinUhlenbeckProcess(a, sigma))),
+          fitting_(std::move(fitting))
+        {
+        }
 
         Real variable(Time t, Rate r) const override { return r - fitting_(t); }
         Real shortRate(Time t, Real x) const override { return x + fitting_(t); }
@@ -128,45 +123,47 @@ namespace QuantLib {
         \f]
         where \f$ f(t) \f$ is the instantaneous forward rate at \f$ t \f$.
     */
-    class HullWhite::FittingParameter
-        : public TermStructureFittingParameter {
+    class HullWhite::FittingParameter : public TermStructureFittingParameter
+    {
       private:
-        class Impl final : public Parameter::Impl {
+        class Impl final : public Parameter::Impl
+        {
           public:
             Impl(Handle<YieldTermStructure> termStructure, Real a, Real sigma)
-            : termStructure_(std::move(termStructure)), a_(a), sigma_(sigma) {}
+            : termStructure_(std::move(termStructure)), a_(a), sigma_(sigma)
+            {
+            }
 
-            Real value(const Array&, Time t) const override {
-                Rate forwardRate =
-                    termStructure_->forwardRate(t, t, Continuous, NoFrequency);
-                Real temp = a_ < std::sqrt(QL_EPSILON) ?
-                            Real(sigma_*t) :
-                            Real(sigma_*(1.0 - std::exp(-a_*t))/a_);
-                return (forwardRate + 0.5*temp*temp);
+            Real value(const Array&, Time t) const override
+            {
+                Rate forwardRate = termStructure_->forwardRate(t, t, Continuous, NoFrequency);
+                Real temp =
+                    a_ < std::sqrt(QL_EPSILON) ? Real(sigma_ * t) : Real(sigma_ * (1.0 - std::exp(-a_ * t)) / a_);
+                return (forwardRate + 0.5 * temp * temp);
             }
 
           private:
             Handle<YieldTermStructure> termStructure_;
             Real a_, sigma_;
         };
+
       public:
-        FittingParameter(const Handle<YieldTermStructure>& termStructure,
-                         Real a, Real sigma)
-        : TermStructureFittingParameter(ext::shared_ptr<Parameter::Impl>(
-                      new FittingParameter::Impl(termStructure, a, sigma))) {}
+        FittingParameter(const Handle<YieldTermStructure>& termStructure, Real a, Real sigma)
+        : TermStructureFittingParameter(
+              ext::shared_ptr<Parameter::Impl>(new FittingParameter::Impl(termStructure, a, sigma)))
+        {
+        }
     };
 
 
     // inline definitions
 
-    inline ext::shared_ptr<OneFactorModel::ShortRateDynamics>
-    HullWhite::dynamics() const {
-        return ext::shared_ptr<ShortRateDynamics>(
-                                            new Dynamics(phi_, a(), sigma()));
+    inline ext::shared_ptr<OneFactorModel::ShortRateDynamics> HullWhite::dynamics() const
+    {
+        return ext::shared_ptr<ShortRateDynamics>(new Dynamics(phi_, a(), sigma()));
     }
 
 }
 
 
 #endif
-

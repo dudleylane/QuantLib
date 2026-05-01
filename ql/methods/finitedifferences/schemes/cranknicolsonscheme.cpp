@@ -17,40 +17,41 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/methods/finitedifferences/schemes/expliciteulerscheme.hpp>
 #include <ql/methods/finitedifferences/schemes/cranknicolsonscheme.hpp>
+#include <ql/methods/finitedifferences/schemes/expliciteulerscheme.hpp>
 
-namespace QuantLib {
-    CrankNicolsonScheme::CrankNicolsonScheme(
-        Real theta,
-        const ext::shared_ptr<FdmLinearOpComposite> & map,
-        const bc_set& bcSet,
-        Real relTol,
-        ImplicitEulerScheme::SolverType solverType)
-    : dt_(Null<Real>()),
-      theta_(theta),
-      explicit_(ext::make_shared<ExplicitEulerScheme>(map, bcSet)),
-      implicit_(ext::make_shared<ImplicitEulerScheme>(
-          map, bcSet, relTol, solverType)) {
+namespace QuantLib
+{
+    CrankNicolsonScheme::CrankNicolsonScheme(Real theta,
+                                             const ext::shared_ptr<FdmLinearOpComposite>& map,
+                                             const bc_set& bcSet,
+                                             Real relTol,
+                                             ImplicitEulerScheme::SolverType solverType)
+    : dt_(Null<Real>()), theta_(theta), explicit_(ext::make_shared<ExplicitEulerScheme>(map, bcSet)),
+      implicit_(ext::make_shared<ImplicitEulerScheme>(map, bcSet, relTol, solverType))
+    {
     }
 
-    void CrankNicolsonScheme::step(array_type& a, Time t) {
-        QL_REQUIRE(t-dt_ > -1e-8, "a step towards negative time given");
+    void CrankNicolsonScheme::step(array_type& a, Time t)
+    {
+        QL_REQUIRE(t - dt_ > -1e-8, "a step towards negative time given");
 
         if (theta_ != 1.0)
-            explicit_->step(a, t, 1.0-theta_);
+            explicit_->step(a, t, 1.0 - theta_);
 
         if (theta_ != 0.0)
             implicit_->step(a, t, theta_);
     }
 
-    void CrankNicolsonScheme::setStep(Time dt) {
+    void CrankNicolsonScheme::setStep(Time dt)
+    {
         dt_ = dt;
         explicit_->setStep(dt_);
         implicit_->setStep(dt_);
     }
 
-    Size CrankNicolsonScheme::numberOfIterations() const {
+    Size CrankNicolsonScheme::numberOfIterations() const
+    {
         return implicit_->numberOfIterations();
     }
 }

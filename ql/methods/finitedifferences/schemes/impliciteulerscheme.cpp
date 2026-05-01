@@ -25,50 +25,57 @@
 #include <functional>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     ImplicitEulerScheme::ImplicitEulerScheme(ext::shared_ptr<FdmLinearOpComposite> map,
                                              const bc_set& bcSet,
                                              Real relTol,
                                              SolverType solverType)
-    : dt_(Null<Real>()), iterations_(ext::make_shared<Size>(0U)), relTol_(relTol),
-      map_(std::move(map)), bcSet_(bcSet), solverType_(solverType) {}
-
-    Array ImplicitEulerScheme::apply(const Array& r, Real theta) const {
-        return r - (theta*dt_)*map_->apply(r);
+    : dt_(Null<Real>()), iterations_(ext::make_shared<Size>(0U)), relTol_(relTol), map_(std::move(map)), bcSet_(bcSet),
+      solverType_(solverType)
+    {
     }
 
-    void ImplicitEulerScheme::step(array_type& a, Time t) {
+    Array ImplicitEulerScheme::apply(const Array& r, Real theta) const
+    {
+        return r - (theta * dt_) * map_->apply(r);
+    }
+
+    void ImplicitEulerScheme::step(array_type& a, Time t)
+    {
         step(a, t, 1.0);
     }
 
-    void ImplicitEulerScheme::step(array_type& a, Time t, Real theta) {
-        QL_REQUIRE(t-dt_ > -1e-8, "a step towards negative time given");
-        map_->setTime(std::max(0.0, t-dt_), t);
-        bcSet_.setTime(std::max(0.0, t-dt_));
+    void ImplicitEulerScheme::step(array_type& a, Time t, Real theta)
+    {
+        QL_REQUIRE(t - dt_ > -1e-8, "a step towards negative time given");
+        map_->setTime(std::max(0.0, t - dt_), t);
+        bcSet_.setTime(std::max(0.0, t - dt_));
 
         bcSet_.applyBeforeSolving(*map_, a);
 
-        if (map_->size() == 1) {
-            a = map_->solve_splitting(0, a, -theta*dt_);
+        if (map_->size() == 1)
+        {
+            a = map_->solve_splitting(0, a, -theta * dt_);
         }
-        else {
-            auto preconditioner = [&](const Array& _a){ return map_->preconditioner(_a, -theta*dt_); };
-            auto applyF = [&](const Array& _a){ return apply(_a, theta); };
+        else
+        {
+            auto preconditioner = [&](const Array& _a) { return map_->preconditioner(_a, -theta * dt_); };
+            auto applyF = [&](const Array& _a) { return apply(_a, theta); };
 
-            if (solverType_ == BiCGstab) {
+            if (solverType_ == BiCGstab)
+            {
                 const BiCGStabResult result =
-                    QuantLib::BiCGstab(applyF, std::max(Size(10), a.size()),
-                        relTol_, preconditioner).solve(a, a);
+                    QuantLib::BiCGstab(applyF, std::max(Size(10), a.size()), relTol_, preconditioner).solve(a, a);
 
                 (*iterations_) += result.iterations;
                 a = result.x;
             }
-            else if (solverType_ == GMRES) {
+            else if (solverType_ == GMRES)
+            {
                 const GMRESResult result =
-                    QuantLib::GMRES(applyF, std::max(Size(10), a.size() / 10U), relTol_,
-                                    preconditioner)
-                        .solve(a, a);
+                    QuantLib::GMRES(applyF, std::max(Size(10), a.size() / 10U), relTol_, preconditioner).solve(a, a);
 
                 (*iterations_) += result.errors.size();
                 a = result.x;
@@ -79,11 +86,13 @@ namespace QuantLib {
         bcSet_.applyAfterSolving(a);
     }
 
-    void ImplicitEulerScheme::setStep(Time dt) {
-        dt_=dt;
+    void ImplicitEulerScheme::setStep(Time dt)
+    {
+        dt_ = dt;
     }
 
-    Size ImplicitEulerScheme::numberOfIterations() const {
+    Size ImplicitEulerScheme::numberOfIterations() const
+    {
         return *iterations_;
     }
 }

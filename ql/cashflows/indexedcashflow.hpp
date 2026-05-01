@@ -25,11 +25,12 @@
 #ifndef quantlib_indexed_cash_flow_hpp
 #define quantlib_indexed_cash_flow_hpp
 
-#include <ql/patterns/visitor.hpp>
 #include <ql/cashflow.hpp>
 #include <ql/index.hpp>
+#include <ql/patterns/visitor.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Cash flow dependent on an index ratio.
 
@@ -42,7 +43,8 @@ namespace QuantLib {
         growthOnly = false means i(T)/i(0), which is a bond-type setting.
         growthOnly = true means i(T)/i(0) - 1, which is a swap-type setting.
     */
-    class IndexedCashFlow : public CashFlow {
+    class IndexedCashFlow : public CashFlow
+    {
       public:
         IndexedCashFlow(Real notional,
                         ext::shared_ptr<Index> index,
@@ -75,6 +77,7 @@ namespace QuantLib {
         //@}
       protected:
         mutable Real amount_;
+
       private:
         Real notional_;
         ext::shared_ptr<Index> index_;
@@ -85,7 +88,8 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline void IndexedCashFlow::accept(AcyclicVisitor& v) {
+    inline void IndexedCashFlow::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<IndexedCashFlow>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);

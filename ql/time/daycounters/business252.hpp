@@ -30,25 +30,31 @@
 #include <ql/time/daycounter.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Business/252 day count convention
     /*! \ingroup daycounters */
-    class Business252 : public DayCounter {
+    class Business252 : public DayCounter
+    {
       private:
-        class Impl final : public DayCounter::Impl {
+        class Impl final : public DayCounter::Impl
+        {
           private:
             Calendar calendar_;
+
           public:
             std::string name() const override;
             Date::serial_type dayCount(const Date& d1, const Date& d2) const override;
-            Time
-            yearFraction(const Date& d1, const Date& d2, const Date&, const Date&) const override;
+            Time yearFraction(const Date& d1, const Date& d2, const Date&, const Date&) const override;
             explicit Impl(Calendar c) : calendar_(std::move(c)) {}
         };
+
       public:
         Business252(const Calendar& c = Brazil())
-        : DayCounter(ext::shared_ptr<DayCounter::Impl>(new Business252::Impl(c))) {}
+        : DayCounter(ext::shared_ptr<DayCounter::Impl>(new Business252::Impl(c)))
+        {
+        }
     };
 
 }

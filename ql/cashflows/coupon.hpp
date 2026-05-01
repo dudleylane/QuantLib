@@ -27,7 +27,8 @@
 
 #include <ql/cashflow.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class DayCounter;
 
@@ -36,7 +37,8 @@ namespace QuantLib {
         still abstract and provides derived classes with methods for
         accrual period calculations.
     */
-    class Coupon : public CashFlow {
+    class Coupon : public CashFlow
+    {
       public:
         /*! \warning the coupon does not adjust the payment date which
                      must already be a business day.
@@ -89,7 +91,7 @@ namespace QuantLib {
       protected:
         Date paymentDate_;
         Real nominal_;
-        Date accrualStartDate_,accrualEndDate_, refPeriodStart_,refPeriodEnd_;
+        Date accrualStartDate_, accrualEndDate_, refPeriodStart_, refPeriodEnd_;
         Date exCouponDate_;
         mutable Real accrualPeriod_;
     };
@@ -97,23 +99,28 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline Real Coupon::nominal() const {
+    inline Real Coupon::nominal() const
+    {
         return nominal_;
     }
 
-    inline const Date& Coupon::accrualStartDate() const {
+    inline const Date& Coupon::accrualStartDate() const
+    {
         return accrualStartDate_;
     }
 
-    inline const Date& Coupon::accrualEndDate() const {
+    inline const Date& Coupon::accrualEndDate() const
+    {
         return accrualEndDate_;
     }
 
-    inline const Date& Coupon::referencePeriodStart() const {
+    inline const Date& Coupon::referencePeriodStart() const
+    {
         return refPeriodStart_;
     }
 
-    inline const Date& Coupon::referencePeriodEnd() const {
+    inline const Date& Coupon::referencePeriodEnd() const
+    {
         return refPeriodEnd_;
     }
 

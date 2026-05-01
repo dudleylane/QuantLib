@@ -19,23 +19,23 @@
 */
 
 #include <ql/cashflows/cashflows.hpp>
-#include <ql/pricingengines/bond/discountingbondengine.hpp>
 #include <ql/optional.hpp>
+#include <ql/pricingengines/bond/discountingbondengine.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    DiscountingBondEngine::DiscountingBondEngine(
-        Handle<YieldTermStructure> discountCurve,
-        const ext::optional<bool>& includeSettlementDateFlows)
-    : discountCurve_(std::move(discountCurve)),
-      includeSettlementDateFlows_(includeSettlementDateFlows) {
+    DiscountingBondEngine::DiscountingBondEngine(Handle<YieldTermStructure> discountCurve,
+                                                 const ext::optional<bool>& includeSettlementDateFlows)
+    : discountCurve_(std::move(discountCurve)), includeSettlementDateFlows_(includeSettlementDateFlows)
+    {
         registerWith(discountCurve_);
     }
 
-    void DiscountingBondEngine::calculate() const {
-        QL_REQUIRE(!discountCurve_.empty(),
-                   "discounting term structure handle is empty");
+    void DiscountingBondEngine::calculate() const
+    {
+        QL_REQUIRE(!discountCurve_.empty(), "discounting term structure handle is empty");
 
         results_.valuationDate = (*discountCurve_)->referenceDate();
 
@@ -43,26 +43,21 @@ namespace QuantLib {
                                        *includeSettlementDateFlows_ :
                                        Settings::instance().includeReferenceDateEvents();
 
-        results_.value = CashFlows::npv(arguments_.cashflows,
-                                        **discountCurve_,
-                                        includeRefDateFlows,
-                                        results_.valuationDate,
-                                        results_.valuationDate);
+        results_.value = CashFlows::npv(arguments_.cashflows, **discountCurve_, includeRefDateFlows,
+                                        results_.valuationDate, results_.valuationDate);
 
         // a bond's cashflow on settlement date is never taken into
         // account, so we might have to play it safe and recalculate
-        if (!includeRefDateFlows
-                     && results_.valuationDate == arguments_.settlementDate) {
+        if (!includeRefDateFlows && results_.valuationDate == arguments_.settlementDate)
+        {
             // same parameters as above, we can avoid another call
             results_.settlementValue = results_.value;
-        } else {
+        }
+        else
+        {
             // no such luck
-            results_.settlementValue =
-                CashFlows::npv(arguments_.cashflows,
-                               **discountCurve_,
-                               false,
-                               arguments_.settlementDate,
-                               arguments_.settlementDate);
+            results_.settlementValue = CashFlows::npv(arguments_.cashflows, **discountCurve_, false,
+                                                      arguments_.settlementDate, arguments_.settlementDate);
         }
     }
 

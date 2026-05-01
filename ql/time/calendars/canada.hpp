@@ -27,7 +27,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Canadian calendar
     /*! Banking holidays
@@ -70,21 +71,27 @@ namespace QuantLib {
 
         \ingroup calendars
     */
-    class Canada : public Calendar {
+    class Canada : public Calendar
+    {
       private:
-        class SettlementImpl final : public Calendar::WesternImpl {
+        class SettlementImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "Canada"; }
             bool isBusinessDay(const Date&) const override;
         };
-        class TsxImpl final : public Calendar::WesternImpl {
+        class TsxImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "TSX"; }
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
-        enum Market { Settlement,       //!< generic settlement calendar
-                      TSX               //!< Toronto stock exchange calendar
+        enum Market
+        {
+            Settlement, //!< generic settlement calendar
+            TSX         //!< Toronto stock exchange calendar
         };
         Canada(Market market = Settlement);
     };

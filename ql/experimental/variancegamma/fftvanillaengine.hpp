@@ -28,7 +28,8 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #include <ql/processes/blackscholesprocess.hpp>
 #include <complex>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! FFT Pricing engine vanilla options under a Black Scholes process
     /*! \ingroup vanillaengines
@@ -36,19 +37,20 @@ namespace QuantLib {
         \test the correctness of the returned values is tested by
         comparison with Black Scholes pricing.
     */
-    class FFTVanillaEngine : public FFTEngine {
-    public:
-        explicit FFTVanillaEngine(
-            const ext::shared_ptr<GeneralizedBlackScholesProcess>&process,
-            Real logStrikeSpacing = 0.001);
+    class FFTVanillaEngine : public FFTEngine
+    {
+      public:
+        explicit FFTVanillaEngine(const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
+                                  Real logStrikeSpacing = 0.001);
         std::unique_ptr<FFTEngine> clone() const override;
-    protected:
+
+      protected:
         void precalculateExpiry(Date d) override;
         std::complex<Real> complexFourierTransform(std::complex<Real> u) const override;
         Real discountFactor(Date d) const override;
         Real dividendYield(Date d) const override;
 
-    private:
+      private:
         DiscountFactor dividendDiscount_;
         DiscountFactor riskFreeDiscount_;
         Time t_;
@@ -59,4 +61,3 @@ namespace QuantLib {
 
 
 #endif
-

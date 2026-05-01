@@ -18,38 +18,36 @@
 */
 
 #include <ql/exercise.hpp>
-#include <ql/pricingengines/asian/continuousarithmeticasianlevyengine.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
+#include <ql/pricingengines/asian/continuousarithmeticasianlevyengine.hpp>
 #include <ql/pricingengines/blackcalculator.hpp>
 #include <utility>
 
 using namespace std;
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     ContinuousArithmeticAsianLevyEngine::ContinuousArithmeticAsianLevyEngine(
-        ext::shared_ptr<GeneralizedBlackScholesProcess> process,
-        Handle<Quote> currentAverage)
-    : process_(std::move(process)), currentAverage_(std::move(currentAverage)) {
+        ext::shared_ptr<GeneralizedBlackScholesProcess> process, Handle<Quote> currentAverage)
+    : process_(std::move(process)), currentAverage_(std::move(currentAverage))
+    {
         registerWith(process_);
         registerWith(currentAverage_);
     }
 
     ContinuousArithmeticAsianLevyEngine::ContinuousArithmeticAsianLevyEngine(
-        ext::shared_ptr<GeneralizedBlackScholesProcess> process,
-        Handle<Quote> currentAverage,
-        Date startDate)
-    : process_(std::move(process)), currentAverage_(std::move(currentAverage)),
-      startDate_(startDate) {
+        ext::shared_ptr<GeneralizedBlackScholesProcess> process, Handle<Quote> currentAverage, Date startDate)
+    : process_(std::move(process)), currentAverage_(std::move(currentAverage)), startDate_(startDate)
+    {
         registerWith(process_);
         registerWith(currentAverage_);
     }
 
-    void ContinuousArithmeticAsianLevyEngine::calculate() const {
-        QL_REQUIRE(arguments_.averageType == Average::Arithmetic,
-                   "not an Arithmetic average option");
-        QL_REQUIRE(arguments_.exercise->type() == Exercise::European,
-                   "not an European Option");
+    void ContinuousArithmeticAsianLevyEngine::calculate() const
+    {
+        QL_REQUIRE(arguments_.averageType == Average::Arithmetic, "not an Arithmetic average option");
+        QL_REQUIRE(arguments_.exercise->type() == Exercise::European, "not an European Option");
 
         // Prefer start date from option if available, otherwise use constructor parameter.
         // At least one must be specified.
@@ -58,68 +56,63 @@ namespace QuantLib {
         QL_REQUIRE(startDate <= process_->riskFreeRate()->referenceDate(),
                    "start date must be earlier than or equal to reference date");
 
-        DayCounter rfdc  = process_->riskFreeRate()->dayCounter();
+        DayCounter rfdc = process_->riskFreeRate()->dayCounter();
         DayCounter divdc = process_->dividendYield()->dayCounter();
         DayCounter voldc = process_->blackVolatility()->dayCounter();
         Real spot = process_->stateVariable()->value();
 
         // payoff
-        ext::shared_ptr<StrikedTypePayoff> payoff =
-            ext::dynamic_pointer_cast<StrikedTypePayoff>(arguments_.payoff);
+        ext::shared_ptr<StrikedTypePayoff> payoff = ext::dynamic_pointer_cast<StrikedTypePayoff>(arguments_.payoff);
         QL_REQUIRE(payoff, "non-plain payoff given");
 
         // original time to maturity
         Date maturity = arguments_.exercise->lastDate();
-        Time T = rfdc.yearFraction(startDate,
-                                   arguments_.exercise->lastDate());
+        Time T = rfdc.yearFraction(startDate, arguments_.exercise->lastDate());
         // remaining time to maturity
-        Time T2 = rfdc.yearFraction(process_->riskFreeRate()->referenceDate(),
-                                    arguments_.exercise->lastDate());
+        Time T2 = rfdc.yearFraction(process_->riskFreeRate()->referenceDate(), arguments_.exercise->lastDate());
 
         Real strike = payoff->strike();
 
-        Volatility volatility =
-            process_->blackVolatility()->blackVol(maturity, strike);
+        Volatility volatility = process_->blackVolatility()->blackVol(maturity, strike);
 
         CumulativeNormalDistribution N;
 
-        Rate riskFreeRate = process_->riskFreeRate()->
-            zeroRate(maturity, rfdc, Continuous, NoFrequency);
-        Rate dividendYield = process_->dividendYield()->
-            zeroRate(maturity, divdc, Continuous, NoFrequency);
+        Rate riskFreeRate = process_->riskFreeRate()->zeroRate(maturity, rfdc, Continuous, NoFrequency);
+        Rate dividendYield = process_->dividendYield()->zeroRate(maturity, divdc, Continuous, NoFrequency);
         Real b = riskFreeRate - dividendYield;
 
-        Real Se = (std::fabs(b) > 1000*QL_EPSILON) 
-            ? Real((spot/(T*b))*(exp((b-riskFreeRate)*T2)-exp(-riskFreeRate*T2)))
-            : Real(spot*T2/T * std::exp(-riskFreeRate*T2));
+        Real Se = (std::fabs(b) > 1000 * QL_EPSILON) ?
+                      Real((spot / (T * b)) * (exp((b - riskFreeRate) * T2) - exp(-riskFreeRate * T2))) :
+                      Real(spot * T2 / T * std::exp(-riskFreeRate * T2));
 
         Real X;
-        if (T2 < T) {
+        if (T2 < T)
+        {
             QL_REQUIRE(!currentAverage_.empty() && currentAverage_->isValid(),
                        "current average required for seasoned option");
-            X = strike - ((T-T2)/T)*currentAverage_->value();
-        } else {
+            X = strike - ((T - T2) / T) * currentAverage_->value();
+        }
+        else
+        {
             X = strike;
         }
 
-        Real m = (std::fabs(b) > 1000*QL_EPSILON) ? ((exp(b*T2)-1)/b) : T2;
+        Real m = (std::fabs(b) > 1000 * QL_EPSILON) ? ((exp(b * T2) - 1) / b) : T2;
 
-        Real M = (2*spot*spot/(b+volatility*volatility)) *
-            (((exp((2*b+volatility*volatility)*T2)-1)
-              / (2*b+volatility*volatility))-m);
+        Real M = (2 * spot * spot / (b + volatility * volatility)) *
+                 (((exp((2 * b + volatility * volatility) * T2) - 1) / (2 * b + volatility * volatility)) - m);
 
-        Real D = M/(T*T);
+        Real D = M / (T * T);
 
-        Real V = log(D)-2*(riskFreeRate*T2+log(Se));
+        Real V = log(D) - 2 * (riskFreeRate * T2 + log(Se));
 
-        Real d1 = (1/sqrt(V))*((log(D)/2)-log(X));
-        Real d2 = d1-sqrt(V);
+        Real d1 = (1 / sqrt(V)) * ((log(D) / 2) - log(X));
+        Real d2 = d1 - sqrt(V);
 
-        if(payoff->optionType()==Option::Call)
-            results_.value = Se*N(d1) - X*exp(-riskFreeRate*T2)*N(d2);
+        if (payoff->optionType() == Option::Call)
+            results_.value = Se * N(d1) - X * exp(-riskFreeRate * T2) * N(d2);
         else
-            results_.value = Se*N(d1) - X*exp(-riskFreeRate*T2)*N(d2)
-                             - Se + X*exp(-riskFreeRate*T2);
+            results_.value = Se * N(d1) - X * exp(-riskFreeRate * T2) * N(d2) - Se + X * exp(-riskFreeRate * T2);
     }
 
 }

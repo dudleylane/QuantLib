@@ -28,17 +28,20 @@
 #include <map>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class PaymentTerm {
+    class PaymentTerm
+    {
       public:
-        enum EventType { TradeDate, PricingDate };
+        enum EventType
+        {
+            TradeDate,
+            PricingDate
+        };
 
         PaymentTerm() = default;
-        PaymentTerm(const std::string& name,
-                    EventType eventType,
-                    Integer offsetDays,
-                    const Calendar& calendar);
+        PaymentTerm(const std::string& name, EventType eventType, Integer offsetDays, const Calendar& calendar);
         //! \name Inspectors
         //@{
         //! name, e.g, "Pricing end + 5 days"
@@ -50,11 +53,13 @@ namespace QuantLib {
         bool empty() const;
         //@}
         Date getPaymentDate(const Date& date) const;
+
       protected:
         struct Data;
         ext::shared_ptr<Data> data_;
 
-        struct Data {
+        struct Data
+        {
             std::string name;
             EventType eventType;
             Integer offsetDays;
@@ -63,58 +68,64 @@ namespace QuantLib {
             Data(std::string name, EventType eventType, Integer offsetDays, Calendar calendar);
         };
 
-        static std::map<std::string, ext::shared_ptr<Data> > paymentTerms_;
+        static std::map<std::string, ext::shared_ptr<Data>> paymentTerms_;
     };
 
     /*! \relates PaymentTerm */
-    bool operator==(const PaymentTerm&,
-                    const PaymentTerm&);
+    bool operator==(const PaymentTerm&, const PaymentTerm&);
 
     /*! \relates PaymentTerm */
-    bool operator!=(const PaymentTerm&,
-                    const PaymentTerm&);
+    bool operator!=(const PaymentTerm&, const PaymentTerm&);
 
     /*! \relates PaymentTerm */
-    std::ostream& operator<<(std::ostream&,
-                             const PaymentTerm&);
+    std::ostream& operator<<(std::ostream&, const PaymentTerm&);
 
 
     inline PaymentTerm::Data::Data(std::string name,
                                    PaymentTerm::EventType eventType,
                                    Integer offsetDays,
                                    Calendar calendar)
-    : name(std::move(name)), eventType(eventType), offsetDays(offsetDays),
-      calendar(std::move(calendar)) {}
+    : name(std::move(name)), eventType(eventType), offsetDays(offsetDays), calendar(std::move(calendar))
+    {
+    }
 
-    inline const std::string& PaymentTerm::name() const {
+    inline const std::string& PaymentTerm::name() const
+    {
         return data_->name;
     }
 
-    inline PaymentTerm::EventType PaymentTerm::eventType() const {
+    inline PaymentTerm::EventType PaymentTerm::eventType() const
+    {
         return data_->eventType;
     }
 
-    inline Integer PaymentTerm::offsetDays() const {
+    inline Integer PaymentTerm::offsetDays() const
+    {
         return data_->offsetDays;
     }
- 
-    inline const Calendar& PaymentTerm::calendar() const {
+
+    inline const Calendar& PaymentTerm::calendar() const
+    {
         return data_->calendar;
     }
 
-    inline Date PaymentTerm::getPaymentDate(const Date& date) const {
+    inline Date PaymentTerm::getPaymentDate(const Date& date) const
+    {
         return data_->calendar.adjust(date + data_->offsetDays);
     }
 
-    inline bool PaymentTerm::empty() const {
+    inline bool PaymentTerm::empty() const
+    {
         return !data_;
     }
 
-    inline bool operator==(const PaymentTerm& c1, const PaymentTerm& c2) {
+    inline bool operator==(const PaymentTerm& c1, const PaymentTerm& c2)
+    {
         return c1.name() == c2.name();
     }
 
-    inline bool operator!=(const PaymentTerm& c1, const PaymentTerm& c2) {
+    inline bool operator!=(const PaymentTerm& c1, const PaymentTerm& c2)
+    {
         return !(c1 == c2);
     }
 

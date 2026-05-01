@@ -26,38 +26,35 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 
 #include <ql/math/matrix.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class CurveState;
     class LMMCurveState;
 
-    namespace ForwardForwardMappings 
-        {
-            /*! Returns the dg[i]/df[j] jacobian between
-            forward rates with tenor multipler and forward rates with tenor 1*/
-            Matrix ForwardForwardJacobian(const CurveState& cs, 
-                                          Size multiplier,
-                                          Size offset);
+    namespace ForwardForwardMappings
+    {
+        /*! Returns the dg[i]/df[j] jacobian between
+        forward rates with tenor multipler and forward rates with tenor 1*/
+        Matrix ForwardForwardJacobian(const CurveState& cs, Size multiplier, Size offset);
 
-            /*! Returns the Y matrix to switch base          
-            forward rates with tenor multipler and forward rates with tenor 1*/
+        /*! Returns the Y matrix to switch base
+        forward rates with tenor multipler and forward rates with tenor 1*/
 
-            Matrix YMatrix(const CurveState& cs,
-                           const std::vector<Spread>& shortDisplacements,
-                           const std::vector<Spread>& longDisplacements,
-                           Size Multiplier,
-                           Size offset);
+        Matrix YMatrix(const CurveState& cs,
+                       const std::vector<Spread>& shortDisplacements,
+                       const std::vector<Spread>& longDisplacements,
+                       Size Multiplier,
+                       Size offset);
 
-            /*! 
-            replaces curve state with curve state based on periodic subset of times
+        /*!
+        replaces curve state with curve state based on periodic subset of times
 
-            */
-            LMMCurveState RestrictCurveState(const CurveState& cs,
-                                             Size multiplier,
-                                             Size offSet);
-
-        }
+        */
+        LMMCurveState RestrictCurveState(const CurveState& cs, Size multiplier, Size offSet);
 
     }
+
+}
 
 #endif

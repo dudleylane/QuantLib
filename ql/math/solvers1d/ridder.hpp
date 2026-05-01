@@ -26,7 +26,8 @@
 
 #include <ql/math/solver1d.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Ridder 1-D solver
     /*! \test the correctness of the returned values is tested by
@@ -34,11 +35,12 @@ namespace QuantLib {
 
         \ingroup solvers
     */
-    class Ridder : public Solver1D<Ridder> {
+    class Ridder : public Solver1D<Ridder>
+    {
       public:
         template <class F>
-        Real solveImpl(const F& f,
-                       Real xAcc) const {
+        Real solveImpl(const F& f, Real xAcc) const
+        {
 
             /* The implementation of the algorithm was inspired by
                Press, Teukolsky, Vetterling, and Flannery,
@@ -51,26 +53,28 @@ namespace QuantLib {
             // test on Black-Scholes implied volatility show that
             // Ridder solver algorithm actually provides an
             // accuracy 100 times below promised
-            Real xAccuracy = xAcc/100.0;
+            Real xAccuracy = xAcc / 100.0;
 
             // Any highly unlikely value, to simplify logic below
             root_ = QL_MIN_REAL;
 
-            while (evaluationNumber_<=maxEvaluations_) {
-                xMid = 0.5*(xMin_+xMax_);
+            while (evaluationNumber_ <= maxEvaluations_)
+            {
+                xMid = 0.5 * (xMin_ + xMax_);
                 // First of two function evaluations per iteraton
                 fxMid = f(xMid);
                 ++evaluationNumber_;
-                s = std::sqrt(fxMid*fxMid-fxMin_*fxMax_);
-                if (close(s, 0.0)) {
+                s = std::sqrt(fxMid * fxMid - fxMin_ * fxMax_);
+                if (close(s, 0.0))
+                {
                     f(root_);
                     ++evaluationNumber_;
                     return root_;
                 }
                 // Updating formula
-                nextRoot = xMid + (xMid - xMin_) *
-                    ((fxMin_ >= fxMax_ ? 1.0 : -1.0) * fxMid / s);
-                if (std::fabs(nextRoot-root_) <= xAccuracy) {
+                nextRoot = xMid + (xMid - xMin_) * ((fxMin_ >= fxMax_ ? 1.0 : -1.0) * fxMid / s);
+                if (std::fabs(nextRoot - root_) <= xAccuracy)
+                {
                     f(root_);
                     ++evaluationNumber_;
                     return root_;
@@ -84,35 +88,41 @@ namespace QuantLib {
                     return root_;
 
                 // Bookkeeping to keep the root bracketed on next iteration
-                if (sign(fxMid,froot) != fxMid) {
+                if (sign(fxMid, froot) != fxMid)
+                {
                     xMin_ = xMid;
                     fxMin_ = fxMid;
                     xMax_ = root_;
                     fxMax_ = froot;
-                } else if (sign(fxMin_,froot) != fxMin_) {
+                }
+                else if (sign(fxMin_, froot) != fxMin_)
+                {
                     xMax_ = root_;
                     fxMax_ = froot;
-                } else if (sign(fxMax_,froot) != fxMax_) {
+                }
+                else if (sign(fxMax_, froot) != fxMax_)
+                {
                     xMin_ = root_;
                     fxMin_ = froot;
-                } else {
+                }
+                else
+                {
                     QL_FAIL("never get here.");
                 }
 
-                if (std::fabs(xMax_-xMin_) <= xAccuracy) {
+                if (std::fabs(xMax_ - xMin_) <= xAccuracy)
+                {
                     f(root_);
                     ++evaluationNumber_;
                     return root_;
                 }
             }
 
-            QL_FAIL("maximum number of function evaluations ("
-                    << maxEvaluations_ << ") exceeded");
+            QL_FAIL("maximum number of function evaluations (" << maxEvaluations_ << ") exceeded");
         }
+
       private:
-        Real sign(Real a, Real b) const {
-            return b >= 0.0 ? std::fabs(a) : Real(-std::fabs(a));
-        }
+        Real sign(Real a, Real b) const { return b >= 0.0 ? std::fabs(a) : Real(-std::fabs(a)); }
     };
 
 }

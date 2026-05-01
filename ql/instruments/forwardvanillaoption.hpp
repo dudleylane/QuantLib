@@ -25,16 +25,18 @@
 #ifndef quantlib_forward_vanilla_option_hpp
 #define quantlib_forward_vanilla_option_hpp
 
+#include <ql/exercise.hpp>
 #include <ql/instruments/oneassetoption.hpp>
 #include <ql/instruments/payoffs.hpp>
-#include <ql/exercise.hpp>
 #include <ql/settings.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Arguments for forward (strike-resetting) option calculation
     template <class ArgumentsType>
-    class ForwardOptionArguments : public ArgumentsType {
+    class ForwardOptionArguments : public ArgumentsType
+    {
       public:
         ForwardOptionArguments() : moneyness(Null<Real>()) {}
         void validate() const override;
@@ -44,7 +46,8 @@ namespace QuantLib {
 
     //! %Forward version of a vanilla option
     /*! \ingroup instruments */
-    class ForwardVanillaOption : public OneAssetOption {
+    class ForwardVanillaOption : public OneAssetOption
+    {
       public:
         typedef ForwardOptionArguments<OneAssetOption::arguments> arguments;
         typedef OneAssetOption::results results;
@@ -65,17 +68,16 @@ namespace QuantLib {
     // template definitions
 
     template <class ArgumentsType>
-    inline void ForwardOptionArguments<ArgumentsType>::validate() const {
+    inline void ForwardOptionArguments<ArgumentsType>::validate() const
+    {
         ArgumentsType::validate();
 
         QL_REQUIRE(moneyness != Null<Real>(), "null moneyness given");
         QL_REQUIRE(moneyness > 0.0, "negative or zero moneyness given");
 
         QL_REQUIRE(resetDate != Date(), "null reset date given");
-        QL_REQUIRE(resetDate >= Settings::instance().evaluationDate(),
-                   "reset date in the past");
-        QL_REQUIRE(this->exercise->lastDate() > resetDate,
-                   "reset date later or equal to maturity");
+        QL_REQUIRE(resetDate >= Settings::instance().evaluationDate(), "reset date in the past");
+        QL_REQUIRE(this->exercise->lastDate() > resetDate, "reset date later or equal to maturity");
     }
 
 
@@ -83,4 +85,3 @@ namespace QuantLib {
 
 
 #endif
-

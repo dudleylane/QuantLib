@@ -30,7 +30,8 @@
 #include <ql/pricingengines/barrier/fdhestonrebateengine.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     QL_DEPRECATED_DISABLE_WARNING
 
@@ -42,11 +43,11 @@ namespace QuantLib {
                                                const FdmSchemeDesc& schemeDesc,
                                                ext::shared_ptr<LocalVolTermStructure> leverageFct,
                                                const Real mixingFactor)
-    : GenericModelEngine<HestonModel,
-                         BarrierOption::arguments,
-                         BarrierOption::results>(model),
-      tGrid_(tGrid), xGrid_(xGrid), vGrid_(vGrid), dampingSteps_(dampingSteps),
-      schemeDesc_(schemeDesc), leverageFct_(std::move(leverageFct)), mixingFactor_(mixingFactor) {}
+    : GenericModelEngine<HestonModel, BarrierOption::arguments, BarrierOption::results>(model), tGrid_(tGrid),
+      xGrid_(xGrid), vGrid_(vGrid), dampingSteps_(dampingSteps), schemeDesc_(schemeDesc),
+      leverageFct_(std::move(leverageFct)), mixingFactor_(mixingFactor)
+    {
+    }
 
     FdHestonRebateEngine::FdHestonRebateEngine(const ext::shared_ptr<HestonModel>& model,
                                                DividendSchedule dividends,
@@ -57,16 +58,16 @@ namespace QuantLib {
                                                const FdmSchemeDesc& schemeDesc,
                                                ext::shared_ptr<LocalVolTermStructure> leverageFct,
                                                const Real mixingFactor)
-    : GenericModelEngine<HestonModel,
-                         BarrierOption::arguments,
-                         BarrierOption::results>(model),
-      dividends_(std::move(dividends)),
-      tGrid_(tGrid), xGrid_(xGrid), vGrid_(vGrid), dampingSteps_(dampingSteps),
-      schemeDesc_(schemeDesc), leverageFct_(std::move(leverageFct)), mixingFactor_(mixingFactor) {}
+    : GenericModelEngine<HestonModel, BarrierOption::arguments, BarrierOption::results>(model),
+      dividends_(std::move(dividends)), tGrid_(tGrid), xGrid_(xGrid), vGrid_(vGrid), dampingSteps_(dampingSteps),
+      schemeDesc_(schemeDesc), leverageFct_(std::move(leverageFct)), mixingFactor_(mixingFactor)
+    {
+    }
 
     QL_DEPRECATED_ENABLE_WARNING
 
-    void FdHestonRebateEngine::calculate() const {
+    void FdHestonRebateEngine::calculate() const
+    {
 
         // 1. Mesher
         const ext::shared_ptr<HestonProcess>& process = model_->process();
@@ -74,82 +75,67 @@ namespace QuantLib {
 
         // 1.1 The variance mesher
         const Size tGridMin = 5;
-        const Size tGridAvgSteps = std::max(tGridMin, tGrid_/50);
+        const Size tGridAvgSteps = std::max(tGridMin, tGrid_ / 50);
 
-        const ext::shared_ptr<FdmHestonLocalVolatilityVarianceMesher> vMesher
-            = ext::make_shared<FdmHestonLocalVolatilityVarianceMesher>(
-                  vGrid_, process, leverageFct_, maturity, tGridAvgSteps, 0.0001, mixingFactor_);
+        const ext::shared_ptr<FdmHestonLocalVolatilityVarianceMesher> vMesher =
+            ext::make_shared<FdmHestonLocalVolatilityVarianceMesher>(vGrid_, process, leverageFct_, maturity,
+                                                                     tGridAvgSteps, 0.0001, mixingFactor_);
 
         // 1.2 The equity mesher
         const ext::shared_ptr<StrikedTypePayoff> payoff =
             ext::dynamic_pointer_cast<StrikedTypePayoff>(arguments_.payoff);
 
-        Real xMin=Null<Real>();
-        Real xMax=Null<Real>();
-        if (   arguments_.barrierType == Barrier::DownIn
-            || arguments_.barrierType == Barrier::DownOut) {
+        Real xMin = Null<Real>();
+        Real xMax = Null<Real>();
+        if (arguments_.barrierType == Barrier::DownIn || arguments_.barrierType == Barrier::DownOut)
+        {
             xMin = std::log(arguments_.barrier);
         }
-        if (   arguments_.barrierType == Barrier::UpIn
-            || arguments_.barrierType == Barrier::UpOut) {
+        if (arguments_.barrierType == Barrier::UpIn || arguments_.barrierType == Barrier::UpOut)
+        {
             xMax = std::log(arguments_.barrier);
         }
 
-        const ext::shared_ptr<Fdm1dMesher> equityMesher(
-            new FdmBlackScholesMesher(
-                xGrid_,
-                FdmBlackScholesMesher::processHelper(
-                    process->s0(), process->dividendYield(),
-                    process->riskFreeRate(), vMesher->volaEstimate()),
-                maturity, payoff->strike(),
-                xMin, xMax, 0.0001, 1.5,
-                std::make_pair(Null<Real>(), Null<Real>()),
-                dividends_));
+        const ext::shared_ptr<Fdm1dMesher> equityMesher(new FdmBlackScholesMesher(
+            xGrid_,
+            FdmBlackScholesMesher::processHelper(process->s0(), process->dividendYield(), process->riskFreeRate(),
+                                                 vMesher->volaEstimate()),
+            maturity, payoff->strike(), xMin, xMax, 0.0001, 1.5, std::make_pair(Null<Real>(), Null<Real>()),
+            dividends_));
 
-        const ext::shared_ptr<FdmMesher> mesher (
-            new FdmMesherComposite(equityMesher, vMesher));
+        const ext::shared_ptr<FdmMesher> mesher(new FdmMesherComposite(equityMesher, vMesher));
 
         // 2. Calculator
         const ext::shared_ptr<StrikedTypePayoff> rebatePayoff(
-                new CashOrNothingPayoff(Option::Call, 0.0, arguments_.rebate));
-        const ext::shared_ptr<FdmInnerValueCalculator> calculator(
-                                new FdmLogInnerValue(rebatePayoff, mesher, 0));
+            new CashOrNothingPayoff(Option::Call, 0.0, arguments_.rebate));
+        const ext::shared_ptr<FdmInnerValueCalculator> calculator(new FdmLogInnerValue(rebatePayoff, mesher, 0));
 
         // 3. Step conditions
-        QL_REQUIRE(arguments_.exercise->type() == Exercise::European,
-                   "only european style option are supported");
+        QL_REQUIRE(arguments_.exercise->type() == Exercise::European, "only european style option are supported");
 
-        const ext::shared_ptr<FdmStepConditionComposite> conditions = 
-             FdmStepConditionComposite::vanillaComposite(
-                                 dividends_, arguments_.exercise, 
-                                 mesher, calculator, 
-                                 process->riskFreeRate()->referenceDate(),
-                                 process->riskFreeRate()->dayCounter());
+        const ext::shared_ptr<FdmStepConditionComposite> conditions = FdmStepConditionComposite::vanillaComposite(
+            dividends_, arguments_.exercise, mesher, calculator, process->riskFreeRate()->referenceDate(),
+            process->riskFreeRate()->dayCounter());
 
         // 4. Boundary conditions
         FdmBoundaryConditionSet boundaries;
-        if (   arguments_.barrierType == Barrier::DownIn
-            || arguments_.barrierType == Barrier::DownOut) {
+        if (arguments_.barrierType == Barrier::DownIn || arguments_.barrierType == Barrier::DownOut)
+        {
             boundaries.push_back(FdmBoundaryConditionSet::value_type(
-                new FdmDirichletBoundary(mesher, arguments_.rebate, 0,
-                                         FdmDirichletBoundary::Lower)));
-
+                new FdmDirichletBoundary(mesher, arguments_.rebate, 0, FdmDirichletBoundary::Lower)));
         }
-        if (   arguments_.barrierType == Barrier::UpIn
-            || arguments_.barrierType == Barrier::UpOut) {
+        if (arguments_.barrierType == Barrier::UpIn || arguments_.barrierType == Barrier::UpOut)
+        {
             boundaries.push_back(FdmBoundaryConditionSet::value_type(
-                new FdmDirichletBoundary(mesher, arguments_.rebate, 0,
-                                         FdmDirichletBoundary::Upper)));
+                new FdmDirichletBoundary(mesher, arguments_.rebate, 0, FdmDirichletBoundary::Upper)));
         }
 
         // 5. Solver
-        FdmSolverDesc solverDesc = { mesher, boundaries, conditions,
-                                     calculator, maturity,
-                                     tGrid_, dampingSteps_ };
+        FdmSolverDesc solverDesc = {mesher, boundaries, conditions, calculator, maturity, tGrid_, dampingSteps_};
 
-        ext::shared_ptr<FdmHestonSolver> solver(new FdmHestonSolver(
-                    Handle<HestonProcess>(process), solverDesc, schemeDesc_,
-                    Handle<FdmQuantoHelper>(), leverageFct_, mixingFactor_));
+        ext::shared_ptr<FdmHestonSolver> solver(new FdmHestonSolver(Handle<HestonProcess>(process), solverDesc,
+                                                                    schemeDesc_, Handle<FdmQuantoHelper>(),
+                                                                    leverageFct_, mixingFactor_));
 
         const Real spot = process->s0()->value();
         results_.value = solver->valueAt(spot, process->v0());

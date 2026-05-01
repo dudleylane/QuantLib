@@ -47,11 +47,13 @@
 #include <map>
 #include <string>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! CSV-backed market quote snapshot.
     /*! \ingroup marketdata */
-    class CsvQuoteLoader {
+    class CsvQuoteLoader
+    {
       public:
         //! Construct from a path to a CSV file.
         /*! The file is read once at construction. Lines whose first
@@ -64,21 +66,19 @@ namespace QuantLib {
 
         //! Access a quote by its instrument id.
         /*! Throws if the id is not present in the snapshot. */
-        const ext::shared_ptr<SimpleQuote>&
-        operator[](const std::string& id) const;
+        const ext::shared_ptr<SimpleQuote>& operator[](const std::string& id) const;
 
         //! Test whether an id is present.
         bool has(const std::string& id) const;
 
         //! Full quote map. The caller can iterate / filter as needed.
-        const std::map<std::string, ext::shared_ptr<SimpleQuote> >&
-        quotes() const { return quotes_; }
+        const std::map<std::string, ext::shared_ptr<SimpleQuote>>& quotes() const { return quotes_; }
 
         //! Number of quotes loaded.
         Size size() const { return quotes_.size(); }
 
       private:
-        std::map<std::string, ext::shared_ptr<SimpleQuote> > quotes_;
+        std::map<std::string, ext::shared_ptr<SimpleQuote>> quotes_;
     };
 
 }

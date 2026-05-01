@@ -29,7 +29,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! South Korean calendars
     /*! Public holidays:
@@ -74,22 +75,28 @@ namespace QuantLib {
 
         \ingroup calendars
     */
-    class SouthKorea : public Calendar {
+    class SouthKorea : public Calendar
+    {
       private:
-        class SettlementImpl : public Calendar::Impl {
+        class SettlementImpl : public Calendar::Impl
+        {
           public:
             std::string name() const override { return "South-Korean settlement"; }
             bool isWeekend(Weekday) const override;
             bool isBusinessDay(const Date&) const override;
         };
-        class KrxImpl final : public SettlementImpl {
+        class KrxImpl final : public SettlementImpl
+        {
           public:
             std::string name() const override { return "South-Korea exchange"; }
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
-        enum Market { Settlement,  //!< Public holidays
-                      KRX          //!< Korea exchange
+        enum Market
+        {
+            Settlement, //!< Public holidays
+            KRX         //!< Korea exchange
         };
         SouthKorea(Market m = KRX);
     };

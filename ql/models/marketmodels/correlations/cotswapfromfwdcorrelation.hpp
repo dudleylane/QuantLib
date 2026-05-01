@@ -24,16 +24,17 @@
 #include <ql/models/marketmodels/piecewiseconstantcorrelation.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class CurveState;
 
-    class CotSwapFromFwdCorrelation : public PiecewiseConstantCorrelation {
+    class CotSwapFromFwdCorrelation : public PiecewiseConstantCorrelation
+    {
       public:
-        CotSwapFromFwdCorrelation(
-            const ext::shared_ptr<PiecewiseConstantCorrelation>& fwdCorr,
-            const CurveState& curveState,
-            Spread displacement);
+        CotSwapFromFwdCorrelation(const ext::shared_ptr<PiecewiseConstantCorrelation>& fwdCorr,
+                                  const CurveState& curveState,
+                                  Spread displacement);
         const std::vector<Time>& times() const override;
         const std::vector<Time>& rateTimes() const override;
         const std::vector<Matrix>& correlations() const override;

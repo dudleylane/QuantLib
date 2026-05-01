@@ -27,7 +27,8 @@
 
 #include <ql/math/matrix.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! \relates Matrix */
     Matrix CholeskyDecomposition(const Matrix& m, bool flexible = false);

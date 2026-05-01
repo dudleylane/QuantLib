@@ -27,8 +27,10 @@
 
 #include <ql/types.hpp>
 
-namespace QuantLib {
-    class RiskNeutralDensityCalculator {
+namespace QuantLib
+{
+    class RiskNeutralDensityCalculator
+    {
       public:
         virtual Real pdf(Real x, Time t) const = 0;
         virtual Real cdf(Real x, Time t) const = 0;
@@ -37,13 +39,17 @@ namespace QuantLib {
         virtual ~RiskNeutralDensityCalculator() = default;
 
       protected:
-        class InvCDFHelper {
+        class InvCDFHelper
+        {
           public:
             InvCDFHelper(const RiskNeutralDensityCalculator* calculator,
-                         Real guess, Real accuracy, Size maxEvaluations,
-                         Real stepSize=0.01);
+                         Real guess,
+                         Real accuracy,
+                         Size maxEvaluations,
+                         Real stepSize = 0.01);
 
             Real inverseCDF(Real p, Time t) const;
+
           private:
             const RiskNeutralDensityCalculator* const calculator_;
             const Real guess_;

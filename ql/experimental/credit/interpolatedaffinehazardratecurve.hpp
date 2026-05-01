@@ -20,21 +20,22 @@
 #ifndef quantlib_interpolated_affine_hazard_rate_curve_hpp
 #define quantlib_interpolated_affine_hazard_rate_curve_hpp
 
-#include <ql/stochasticprocess.hpp>
 #include <ql/experimental/credit/onefactoraffinesurvival.hpp>
+#include <ql/stochasticprocess.hpp>
+#include <ql/termstructures/bootstraphelper.hpp>
 #include <ql/termstructures/credit/probabilitytraits.hpp>
 #include <ql/termstructures/interpolatedcurve.hpp>
-#include <ql/termstructures/bootstraphelper.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    /*! DefaultProbabilityTermStructure based on interpolation of a 
-    deterministic hazard rate component plus a stochastic one factor 
+    /*! DefaultProbabilityTermStructure based on interpolation of a
+    deterministic hazard rate component plus a stochastic one factor
     rate.
     */
     /*
-    The hazard rate structure here refers to the deterministic term 
+    The hazard rate structure here refers to the deterministic term
     structure added on top of the affine model intensity. It is typically
     employed to match the current market implied probabilities. The total
     probabilities keep their meaning and are those of the affine model. An
@@ -58,19 +59,18 @@ namespace QuantLib {
     */
     /*! \ingroup defaultprobabilitytermstructures */
     template <class Interpolator>
-    class InterpolatedAffineHazardRateCurve
-        : public OneFactorAffineSurvivalStructure,
-          protected InterpolatedCurve<Interpolator> {
+    class InterpolatedAffineHazardRateCurve : public OneFactorAffineSurvivalStructure,
+                                              protected InterpolatedCurve<Interpolator>
+    {
       public:
-        InterpolatedAffineHazardRateCurve(
-            const std::vector<Date>& dates,
-            const std::vector<Rate>& hazardRates,
-            const DayCounter& dayCounter,
-            const ext::shared_ptr<OneFactorAffineModel>& model,
-            const Calendar& cal = Calendar(),
-            const std::vector<Handle<Quote> >& jumps = std::vector<Handle<Quote> >(),
-            const std::vector<Date>& jumpDates = std::vector<Date>(),
-            const Interpolator& interpolator = Interpolator());
+        InterpolatedAffineHazardRateCurve(const std::vector<Date>& dates,
+                                          const std::vector<Rate>& hazardRates,
+                                          const DayCounter& dayCounter,
+                                          const ext::shared_ptr<OneFactorAffineModel>& model,
+                                          const Calendar& cal = Calendar(),
+                                          const std::vector<Handle<Quote>>& jumps = std::vector<Handle<Quote>>(),
+                                          const std::vector<Date>& jumpDates = std::vector<Date>(),
+                                          const Interpolator& interpolator = Interpolator());
         InterpolatedAffineHazardRateCurve(const std::vector<Date>& dates,
                                           const std::vector<Rate>& hazardRates,
                                           const DayCounter& dayCounter,
@@ -92,30 +92,27 @@ namespace QuantLib {
         const std::vector<Date>& dates() const;
         const std::vector<Real>& data() const;
         const std::vector<Rate>& hazardRates() const;
-        std::vector<std::pair<Date, Real> > nodes() const;
+        std::vector<std::pair<Date, Real>> nodes() const;
         //@}
       protected:
-        InterpolatedAffineHazardRateCurve(
-            const DayCounter&,
-            const ext::shared_ptr<OneFactorAffineModel>& model,
-            const std::vector<Handle<Quote> >& jumps = std::vector<Handle<Quote> >(),
-            const std::vector<Date>& jumpDates = std::vector<Date>(),
-            const Interpolator& interpolator = Interpolator());
-        InterpolatedAffineHazardRateCurve(
-            const Date& referenceDate,
-            const DayCounter&,
-            const ext::shared_ptr<OneFactorAffineModel>& model,
-            const std::vector<Handle<Quote> >& jumps = std::vector<Handle<Quote> >(),
-            const std::vector<Date>& jumpDates = std::vector<Date>(),
-            const Interpolator& interpolator = Interpolator());
-        InterpolatedAffineHazardRateCurve(
-            Natural settlementDays,
-            const Calendar&,
-            const DayCounter&,
-            const ext::shared_ptr<OneFactorAffineModel>& model,
-            const std::vector<Handle<Quote> >& jumps = std::vector<Handle<Quote> >(),
-            const std::vector<Date>& jumpDates = std::vector<Date>(),
-            const Interpolator& interpolator = Interpolator());
+        InterpolatedAffineHazardRateCurve(const DayCounter&,
+                                          const ext::shared_ptr<OneFactorAffineModel>& model,
+                                          const std::vector<Handle<Quote>>& jumps = std::vector<Handle<Quote>>(),
+                                          const std::vector<Date>& jumpDates = std::vector<Date>(),
+                                          const Interpolator& interpolator = Interpolator());
+        InterpolatedAffineHazardRateCurve(const Date& referenceDate,
+                                          const DayCounter&,
+                                          const ext::shared_ptr<OneFactorAffineModel>& model,
+                                          const std::vector<Handle<Quote>>& jumps = std::vector<Handle<Quote>>(),
+                                          const std::vector<Date>& jumpDates = std::vector<Date>(),
+                                          const Interpolator& interpolator = Interpolator());
+        InterpolatedAffineHazardRateCurve(Natural settlementDays,
+                                          const Calendar&,
+                                          const DayCounter&,
+                                          const ext::shared_ptr<OneFactorAffineModel>& model,
+                                          const std::vector<Handle<Quote>>& jumps = std::vector<Handle<Quote>>(),
+                                          const std::vector<Date>& jumpDates = std::vector<Date>(),
+                                          const Interpolator& interpolator = Interpolator());
         //! \name DefaultProbabilityTermStructure implementation
         //@{
         //! Returns the deterministic hazard rate component.
@@ -124,24 +121,25 @@ namespace QuantLib {
 
       public:
         using DefaultProbabilityTermStructure::hazardRate;
-    protected:
+
+      protected:
         /*! Probability of default conditional to the realization of a given
         value of the stochastic part of the hazard rate at a prior time (and
         thus to survival at that time).
         \f$ P_{surv}(\tau>tTarget|F_{tFwd}) \f$
         */
-      Probability
-      conditionalSurvivalProbabilityImpl(Time tFwd, Time tTarget, Real yVal) const override;
-      //@}
+        Probability conditionalSurvivalProbabilityImpl(Time tFwd, Time tTarget, Real yVal) const override;
+        //@}
 
-      mutable std::vector<Date> dates_;
+        mutable std::vector<Date> dates_;
 
-    private:
-      void initialize();
+      private:
+        void initialize();
     };
 
 
-    namespace detail {
+    namespace detail
+    {
         // hazard rate compensation TS for affine models
         const Real minHazardRateComp = -1.0;
     }
@@ -149,23 +147,21 @@ namespace QuantLib {
     /*! Piecewise (deterministic) plus affine (stochastic) terms composed
         hazard rate
     */
-    struct AffineHazardRate {
+    struct AffineHazardRate
+    {
         // interpolated curve type
         template <class Interpolator>
-        struct curve {
+        struct curve
+        {
             typedef InterpolatedAffineHazardRateCurve<Interpolator> type;
         };
         // helper class
         typedef BootstrapHelper<DefaultProbabilityTermStructure> helper;
 
         // start of curve data
-        static Date initialDate(const DefaultProbabilityTermStructure* c) {
-            return c->referenceDate();
-        }
+        static Date initialDate(const DefaultProbabilityTermStructure* c) { return c->referenceDate(); }
         // dummy value at reference date
-        static Real initialValue(const DefaultProbabilityTermStructure*) {
-            return detail::avgHazardRate;
-        }
+        static Real initialValue(const DefaultProbabilityTermStructure*) { return detail::avgHazardRate; }
 
         // guesses
         template <class C>
@@ -177,9 +173,9 @@ namespace QuantLib {
             if (validData) // previous iteration value
                 return c->data()[i];
 
-            if (i==1) // first pillar
+            if (i == 1) // first pillar
                 return 0.0001;
-               // return detail::avgHazardRate;
+            // return detail::avgHazardRate;
 
             // extrapolate
             Date d = c->dates()[i];
@@ -198,13 +194,13 @@ namespace QuantLib {
                                   bool validData,
                                   Size) // firstAliveHelper
         {
-            if (validData) {
-                Real r = *(std::min_element(c->data().begin(),
-                                            c->data().end()));
-                return r/2.0;
+            if (validData)
+            {
+                Real r = *(std::min_element(c->data().begin(), c->data().end()));
+                return r / 2.0;
             }
             return detail::minHazardRateComp;
-            ///return QL_EPSILON;
+            /// return QL_EPSILON;
         }
         template <class C>
         static Real maxValueAfter(Size i,
@@ -212,21 +208,20 @@ namespace QuantLib {
                                   bool validData,
                                   Size) // firstAliveHelper
         {
-            if (validData) {
-                Real r = *(std::max_element(c->data().begin(),
-                                            c->data().end()));
-                return r*2.0;
+            if (validData)
+            {
+                Real r = *(std::max_element(c->data().begin(), c->data().end()));
+                return r * 2.0;
             }
             // no constraints.
             // We choose as max a value very unlikely to be exceeded.
             return detail::maxHazardRate;
         }
         // update with new guess
-        static void updateGuess(std::vector<Real>& data,
-                                Real rate,
-                                Size i) {
+        static void updateGuess(std::vector<Real>& data, Real rate, Size i)
+        {
             data[i] = rate;
-            if (i==1)
+            if (i == 1)
                 data[0] = rate; // first point is updated as well
         }
         // upper bound for convergence loop
@@ -237,49 +232,51 @@ namespace QuantLib {
     // inline definitions
 
     template <class T>
-    inline Date InterpolatedAffineHazardRateCurve<T>::maxDate() const {
+    inline Date InterpolatedAffineHazardRateCurve<T>::maxDate() const
+    {
         return dates_.back();
     }
 
     template <class T>
-    inline const std::vector<Time>&
-    InterpolatedAffineHazardRateCurve<T>::times() const {
+    inline const std::vector<Time>& InterpolatedAffineHazardRateCurve<T>::times() const
+    {
         return this->times_;
     }
 
     template <class T>
-    inline const std::vector<Date>&
-    InterpolatedAffineHazardRateCurve<T>::dates() const {
+    inline const std::vector<Date>& InterpolatedAffineHazardRateCurve<T>::dates() const
+    {
         return dates_;
     }
 
     template <class T>
-    inline const std::vector<Real>&
-    InterpolatedAffineHazardRateCurve<T>::data() const {
+    inline const std::vector<Real>& InterpolatedAffineHazardRateCurve<T>::data() const
+    {
         return this->data_;
     }
 
     template <class T>
-    inline const std::vector<Rate>&
-    InterpolatedAffineHazardRateCurve<T>::hazardRates() const {
+    inline const std::vector<Rate>& InterpolatedAffineHazardRateCurve<T>::hazardRates() const
+    {
         return this->data_;
     }
 
     template <class T>
-    inline std::vector<std::pair<Date, Real> >
-    InterpolatedAffineHazardRateCurve<T>::nodes() const {
-        std::vector<std::pair<Date, Real> > results(dates_.size());
-        for (Size i=0; i<dates_.size(); ++i)
+    inline std::vector<std::pair<Date, Real>> InterpolatedAffineHazardRateCurve<T>::nodes() const
+    {
+        std::vector<std::pair<Date, Real>> results(dates_.size());
+        for (Size i = 0; i < dates_.size(); ++i)
             results[i] = std::make_pair(dates_[i], this->data_[i]);
         return results;
     }
 
-    #ifndef __DOXYGEN__
+#ifndef __DOXYGEN__
 
     // template definitions
 
     template <class T>
-    Real InterpolatedAffineHazardRateCurve<T>::hazardRateImpl(Time t) const {
+    Real InterpolatedAffineHazardRateCurve<T>::hazardRateImpl(Time t) const
+    {
         if (t <= this->times_.back())
             return this->interpolation_(t, true);
 
@@ -289,9 +286,7 @@ namespace QuantLib {
 
     // notice it is rewritten and no call is made to hazardRateImpl
     template <class T>
-    Probability
-    InterpolatedAffineHazardRateCurve<T>::survivalProbabilityImpl(
-        Time t) const 
+    Probability InterpolatedAffineHazardRateCurve<T>::survivalProbabilityImpl(Time t) const
     {
         // the way x0 is defined:
         Real initValHR = std::pow(model_->dynamics()->process()->x0(), 2);
@@ -300,78 +295,83 @@ namespace QuantLib {
             return model_->discountBond(0., t, initValHR);
 
         Real integral;
-        if (t <= this->times_.back()) {
+        if (t <= this->times_.back())
+        {
             integral = this->interpolation_.primitive(t, true);
-        } else {
+        }
+        else
+        {
             // flat hazard rate extrapolation
-            integral = 
-                this->interpolation_.primitive(this->times_.back(), true)
-                     + this->data_.back()*(t - this->times_.back());
+            integral = this->interpolation_.primitive(this->times_.back(), true) +
+                       this->data_.back() * (t - this->times_.back());
         }
         return std::exp(-integral) * model_->discountBond(0., t, initValHR);
     }
 
     template <class T>
     Probability
-    InterpolatedAffineHazardRateCurve<T>::conditionalSurvivalProbabilityImpl(
-        Time tFwd, Time tTarget, Real yVal) const 
+    InterpolatedAffineHazardRateCurve<T>::conditionalSurvivalProbabilityImpl(Time tFwd, Time tTarget, Real yVal) const
     {
         QL_REQUIRE(tFwd <= tTarget, "Probability time in the past.");
-        // Still leaves the possibility of sending tFwd=0 and an yVal different
-        //   to the initial conditions. In an abstract sense thats all right as
-        //   long as it is seen as a zero probability scenario.
-        #if defined(QL_EXTRA_SAFETY_CHECKS)
-            QL_REQUIRE(tFwd > 0. || yVal == 
-                model_->dynamics()->process()->x0(), 
-                "Initial value different to process'.");
-        #endif
-        if (tFwd == 0.) return survivalProbabilityImpl(tTarget);
+// Still leaves the possibility of sending tFwd=0 and an yVal different
+//   to the initial conditions. In an abstract sense thats all right as
+//   long as it is seen as a zero probability scenario.
+#    if defined(QL_EXTRA_SAFETY_CHECKS)
+        QL_REQUIRE(tFwd > 0. || yVal == model_->dynamics()->process()->x0(), "Initial value different to process'.");
+#    endif
+        if (tFwd == 0.)
+            return survivalProbabilityImpl(tTarget);
         if (tFwd - tTarget == 0.0)
             return 1.;
 
         Real integralTFwd, integralTP;
-        if (tFwd <= this->times_.back()) {
+        if (tFwd <= this->times_.back())
+        {
             integralTFwd = this->interpolation_.primitive(tFwd, true);
-        } else {
-            // flat hazard rate extrapolation
-            integralTFwd = 
-                this->interpolation_.primitive(this->times_.back(), true)
-                     + this->data_.back()*(tFwd - this->times_.back());
         }
-        if (tTarget <= this->times_.back()) {
-            integralTP = this->interpolation_.primitive(tTarget, true);
-        } else {
+        else
+        {
             // flat hazard rate extrapolation
-            integralTP = 
-                this->interpolation_.primitive(this->times_.back(), true)
-                     + this->data_.back()*(tTarget - this->times_.back());
+            integralTFwd = this->interpolation_.primitive(this->times_.back(), true) +
+                           this->data_.back() * (tFwd - this->times_.back());
+        }
+        if (tTarget <= this->times_.back())
+        {
+            integralTP = this->interpolation_.primitive(tTarget, true);
+        }
+        else
+        {
+            // flat hazard rate extrapolation
+            integralTP = this->interpolation_.primitive(this->times_.back(), true) +
+                         this->data_.back() * (tTarget - this->times_.back());
         }
 
-        return std::exp(-(integralTP-integralTFwd)) * 
-            model_->discountBond(tFwd, tTarget, yVal );
+        return std::exp(-(integralTP - integralTFwd)) * model_->discountBond(tFwd, tTarget, yVal);
     }
 
     template <class T>
     InterpolatedAffineHazardRateCurve<T>::InterpolatedAffineHazardRateCurve(
         const DayCounter& dayCounter,
         const ext::shared_ptr<OneFactorAffineModel>& model,
-        const std::vector<Handle<Quote> >& jumps,
+        const std::vector<Handle<Quote>>& jumps,
         const std::vector<Date>& jumpDates,
         const T& interpolator)
-    : OneFactorAffineSurvivalStructure(model, dayCounter, jumps, jumpDates), InterpolatedCurve<T>(
-                                                                                 interpolator) {}
+    : OneFactorAffineSurvivalStructure(model, dayCounter, jumps, jumpDates), InterpolatedCurve<T>(interpolator)
+    {
+    }
 
     template <class T>
     InterpolatedAffineHazardRateCurve<T>::InterpolatedAffineHazardRateCurve(
         const Date& referenceDate,
         const DayCounter& dayCounter,
         const ext::shared_ptr<OneFactorAffineModel>& model,
-        const std::vector<Handle<Quote> >& jumps,
+        const std::vector<Handle<Quote>>& jumps,
         const std::vector<Date>& jumpDates,
         const T& interpolator)
-    : OneFactorAffineSurvivalStructure(
-          model, referenceDate, Calendar(), dayCounter, jumps, jumpDates),
-      InterpolatedCurve<T>(interpolator) {}
+    : OneFactorAffineSurvivalStructure(model, referenceDate, Calendar(), dayCounter, jumps, jumpDates),
+      InterpolatedCurve<T>(interpolator)
+    {
+    }
 
     template <class T>
     InterpolatedAffineHazardRateCurve<T>::InterpolatedAffineHazardRateCurve(
@@ -379,12 +379,13 @@ namespace QuantLib {
         const Calendar& calendar,
         const DayCounter& dayCounter,
         const ext::shared_ptr<OneFactorAffineModel>& model,
-        const std::vector<Handle<Quote> >& jumps,
+        const std::vector<Handle<Quote>>& jumps,
         const std::vector<Date>& jumpDates,
         const T& interpolator)
-    : OneFactorAffineSurvivalStructure(
-          model, settlementDays, calendar, dayCounter, jumps, jumpDates),
-      InterpolatedCurve<T>(interpolator) {}
+    : OneFactorAffineSurvivalStructure(model, settlementDays, calendar, dayCounter, jumps, jumpDates),
+      InterpolatedCurve<T>(interpolator)
+    {
+    }
 
     template <class T>
     InterpolatedAffineHazardRateCurve<T>::InterpolatedAffineHazardRateCurve(
@@ -393,11 +394,12 @@ namespace QuantLib {
         const DayCounter& dayCounter,
         const ext::shared_ptr<OneFactorAffineModel>& model,
         const Calendar& calendar,
-        const std::vector<Handle<Quote> >& jumps,
+        const std::vector<Handle<Quote>>& jumps,
         const std::vector<Date>& jumpDates,
         const T& interpolator)
     : OneFactorAffineSurvivalStructure(model, dates.at(0), calendar, dayCounter, jumps, jumpDates),
-      InterpolatedCurve<T>(std::vector<Time>(), hazardRates, interpolator), dates_(dates) {
+      InterpolatedCurve<T>(std::vector<Time>(), hazardRates, interpolator), dates_(dates)
+    {
         initialize();
     }
 
@@ -410,7 +412,8 @@ namespace QuantLib {
         const Calendar& calendar,
         const T& interpolator)
     : OneFactorAffineSurvivalStructure(model, dates.at(0), calendar, dayCounter),
-      InterpolatedCurve<T>(std::vector<Time>(), hazardRates, interpolator), dates_(dates) {
+      InterpolatedCurve<T>(std::vector<Time>(), hazardRates, interpolator), dates_(dates)
+    {
         initialize();
     }
 
@@ -422,24 +425,23 @@ namespace QuantLib {
         const ext::shared_ptr<OneFactorAffineModel>& model,
         const T& interpolator)
     : OneFactorAffineSurvivalStructure(model, dates.at(0), Calendar(), dayCounter),
-      InterpolatedCurve<T>(std::vector<Time>(), hazardRates, interpolator), dates_(dates) {
+      InterpolatedCurve<T>(std::vector<Time>(), hazardRates, interpolator), dates_(dates)
+    {
         initialize();
     }
 
     template <class T>
     void InterpolatedAffineHazardRateCurve<T>::initialize()
     {
-        QL_REQUIRE(dates_.size() >= T::requiredPoints,
-                   "not enough input dates given");
-        QL_REQUIRE(this->data_.size() == dates_.size(),
-                   "dates/data count mismatch");
+        QL_REQUIRE(dates_.size() >= T::requiredPoints, "not enough input dates given");
+        QL_REQUIRE(this->data_.size() == dates_.size(), "dates/data count mismatch");
 
         this->setupTimes(dates_, dates_[0], dayCounter());
         this->setupInterpolation();
         this->interpolation_.update();
     }
 
-    #endif
+#endif
 
 }
 

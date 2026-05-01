@@ -26,14 +26,15 @@
 #ifndef quantlib_fd_heston_barrier_engine_hpp
 #define quantlib_fd_heston_barrier_engine_hpp
 
+#include <ql/instruments/barrieroption.hpp>
+#include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
+#include <ql/methods/finitedifferences/solvers/fdmhestonsolver.hpp>
 #include <ql/models/equity/hestonmodel.hpp>
 #include <ql/pricingengines/genericmodelengine.hpp>
-#include <ql/methods/finitedifferences/solvers/fdmhestonsolver.hpp>
-#include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
 #include <ql/termstructures/volatility/equityfx/localvoltermstructure.hpp>
-#include <ql/instruments/barrieroption.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Finite-differences Heston barrier-option engine
     /*! \ingroup barrierengines
@@ -43,30 +44,27 @@ namespace QuantLib {
               and comparison with Black pricing.
     */
     class FdHestonBarrierEngine
-        : public GenericModelEngine<HestonModel,
-                                    BarrierOption::arguments,
-                                    BarrierOption::results> {
+    : public GenericModelEngine<HestonModel, BarrierOption::arguments, BarrierOption::results>
+    {
       public:
-        explicit FdHestonBarrierEngine(
-            const ext::shared_ptr<HestonModel>& model,
-            Size tGrid = 100,
-            Size xGrid = 100,
-            Size vGrid = 50,
-            Size dampingSteps = 0,
-            const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Hundsdorfer(),
-            ext::shared_ptr<LocalVolTermStructure> leverageFct = {},
-            Real mixingFactor = 1.0);
+        explicit FdHestonBarrierEngine(const ext::shared_ptr<HestonModel>& model,
+                                       Size tGrid = 100,
+                                       Size xGrid = 100,
+                                       Size vGrid = 50,
+                                       Size dampingSteps = 0,
+                                       const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Hundsdorfer(),
+                                       ext::shared_ptr<LocalVolTermStructure> leverageFct = {},
+                                       Real mixingFactor = 1.0);
 
-        explicit FdHestonBarrierEngine(
-            const ext::shared_ptr<HestonModel>& model,
-            DividendSchedule dividends,
-            Size tGrid = 100,
-            Size xGrid = 100,
-            Size vGrid = 50,
-            Size dampingSteps = 0,
-            const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Hundsdorfer(),
-            ext::shared_ptr<LocalVolTermStructure> leverageFct = {},
-            Real mixingFactor = 1.0);
+        explicit FdHestonBarrierEngine(const ext::shared_ptr<HestonModel>& model,
+                                       DividendSchedule dividends,
+                                       Size tGrid = 100,
+                                       Size xGrid = 100,
+                                       Size vGrid = 50,
+                                       Size dampingSteps = 0,
+                                       const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Hundsdorfer(),
+                                       ext::shared_ptr<LocalVolTermStructure> leverageFct = {},
+                                       Real mixingFactor = 1.0);
 
         void calculate() const override;
 

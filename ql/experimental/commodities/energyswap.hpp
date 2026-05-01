@@ -24,14 +24,16 @@
 #ifndef quantlib_energy_swap_hpp
 #define quantlib_energy_swap_hpp
 
+#include <ql/experimental/commodities/commoditycashflow.hpp>
 #include <ql/experimental/commodities/energycommodity.hpp>
 #include <ql/experimental/commodities/pricingperiod.hpp>
-#include <ql/experimental/commodities/commoditycashflow.hpp>
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class EnergySwap : public EnergyCommodity {
+    class EnergySwap : public EnergyCommodity
+    {
       public:
         EnergySwap(Calendar calendar,
                    Currency payCurrency,
@@ -45,12 +47,8 @@ namespace QuantLib {
         const Currency& payCurrency() const { return payCurrency_; }
         const Currency& receiveCurrency() const { return receiveCurrency_; }
         const PricingPeriods& pricingPeriods() const { return pricingPeriods_; }
-        const EnergyDailyPositions& dailyPositions() const {
-            return dailyPositions_;
-        }
-        const CommodityCashFlows& paymentCashFlows() const {
-            return paymentCashFlows_;
-        }
+        const EnergyDailyPositions& dailyPositions() const { return dailyPositions_; }
+        const CommodityCashFlows& paymentCashFlows() const { return paymentCashFlows_; }
 
         const CommodityType& commodityType() const;
         Quantity quantity() const override;

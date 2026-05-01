@@ -20,18 +20,21 @@
 #include <ql/experimental/mcbasket/mcpathbasketengine.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     EuropeanPathMultiPathPricer::EuropeanPathMultiPathPricer(
         ext::shared_ptr<PathPayoff>& payoff,
         std::vector<Size> timePositions,
-        std::vector<Handle<YieldTermStructure> > forwardTermStructures,
+        std::vector<Handle<YieldTermStructure>> forwardTermStructures,
         Array discounts)
     : payoff_(payoff), timePositions_(std::move(timePositions)),
-      forwardTermStructures_(std::move(forwardTermStructures)), discounts_(std::move(discounts)) {}
+      forwardTermStructures_(std::move(forwardTermStructures)), discounts_(std::move(discounts))
+    {
+    }
 
-    Real EuropeanPathMultiPathPricer::operator()(const MultiPath& multiPath)
-                                                                       const {
+    Real EuropeanPathMultiPathPricer::operator()(const MultiPath& multiPath) const
+    {
 
         Size n = multiPath.pathSize();
         QL_REQUIRE(n > 0, "the path cannot be empty");
@@ -43,7 +46,8 @@ namespace QuantLib {
 
         Matrix path(numberOfAssets, numberOfTimes, Null<Real>());
 
-        for (Size i = 0; i < numberOfTimes; ++i) {
+        for (Size i = 0; i < numberOfTimes; ++i)
+        {
             const Size pos = timePositions_[i];
             for (Size j = 0; j < numberOfAssets; ++j)
                 path[j][i] = multiPath[j][pos];
@@ -65,4 +69,3 @@ namespace QuantLib {
     }
 
 }
-

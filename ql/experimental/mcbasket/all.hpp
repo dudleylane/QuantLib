@@ -8,4 +8,3 @@
 #include <ql/experimental/mcbasket/mcpathbasketengine.hpp>
 #include <ql/experimental/mcbasket/pathmultiassetoption.hpp>
 #include <ql/experimental/mcbasket/pathpayoff.hpp>
-

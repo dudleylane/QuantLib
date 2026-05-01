@@ -29,7 +29,8 @@
 #include <ql/time/date.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class EuropeanExercise;
 
@@ -45,7 +46,8 @@ namespace QuantLib {
 
         \ingroup instruments
     */
-    class CliquetOption : public OneAssetOption {
+    class CliquetOption : public OneAssetOption
+    {
       public:
         class arguments;
         class engine;
@@ -60,14 +62,14 @@ namespace QuantLib {
 
     //! %Arguments for cliquet option calculation
     // should inherit from a strikeless version of VanillaOption::arguments
-    class CliquetOption::arguments : public OneAssetOption::arguments {
+    class CliquetOption::arguments : public OneAssetOption::arguments
+    {
       public:
-        arguments() : accruedCoupon(Null<Real>()),
-                      lastFixing(Null<Real>()),
-                      localCap(Null<Real>()),
-                      localFloor(Null<Real>()),
-                      globalCap(Null<Real>()),
-                      globalFloor(Null<Real>()) {}
+        arguments()
+        : accruedCoupon(Null<Real>()), lastFixing(Null<Real>()), localCap(Null<Real>()), localFloor(Null<Real>()),
+          globalCap(Null<Real>()), globalFloor(Null<Real>())
+        {
+        }
         void validate() const override;
         Real accruedCoupon, lastFixing;
         Real localCap, localFloor, globalCap, globalFloor;
@@ -75,9 +77,9 @@ namespace QuantLib {
     };
 
     //! Cliquet %engine base class
-    class CliquetOption::engine
-        : public GenericEngine<CliquetOption::arguments,
-                               CliquetOption::results> {};
+    class CliquetOption::engine : public GenericEngine<CliquetOption::arguments, CliquetOption::results>
+    {
+    };
 
 }
 

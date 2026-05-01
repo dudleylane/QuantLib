@@ -24,54 +24,56 @@
 #ifndef quantlib_gaussian1dsmilesection_hpp
 #define quantlib_gaussian1dsmilesection_hpp
 
-#include <ql/termstructures/volatility/smilesection.hpp>
-#include <ql/indexes/swapindex.hpp>
 #include <ql/indexes/iborindex.hpp>
+#include <ql/indexes/swapindex.hpp>
 #include <ql/models/shortrate/onefactormodels/gaussian1dmodel.hpp>
-#include <ql/pricingengines/swaption/gaussian1dswaptionengine.hpp>
 #include <ql/pricingengines/capfloor/gaussian1dcapfloorengine.hpp>
+#include <ql/pricingengines/swaption/gaussian1dswaptionengine.hpp>
+#include <ql/termstructures/volatility/smilesection.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-/*! smile section based on a gaussian 1d model instance
-    if curves are attached to the swap or ibor index, these are used to adjust
-    the model's yield term structure, if not the model's yield term structure
-    is used directly */
+    /*! smile section based on a gaussian 1d model instance
+        if curves are attached to the swap or ibor index, these are used to adjust
+        the model's yield term structure, if not the model's yield term structure
+        is used directly */
 
-class Gaussian1dSmileSection : public SmileSection {
-  public:
-    Gaussian1dSmileSection(const Date& fixingDate,
-                           ext::shared_ptr<SwapIndex> swapIndex,
-                           const ext::shared_ptr<Gaussian1dModel>& model,
-                           const DayCounter& dc,
-                           const ext::shared_ptr<Gaussian1dSwaptionEngine>& swaptionEngine =
-                               ext::shared_ptr<Gaussian1dSwaptionEngine>());
-    Gaussian1dSmileSection(const Date& fixingDate,
-                           ext::shared_ptr<IborIndex> swapIndex,
-                           const ext::shared_ptr<Gaussian1dModel>& model,
-                           const DayCounter& dc,
-                           const ext::shared_ptr<Gaussian1dCapFloorEngine>& capEngine =
-                               ext::shared_ptr<Gaussian1dCapFloorEngine>());
+    class Gaussian1dSmileSection : public SmileSection
+    {
+      public:
+        Gaussian1dSmileSection(const Date& fixingDate,
+                               ext::shared_ptr<SwapIndex> swapIndex,
+                               const ext::shared_ptr<Gaussian1dModel>& model,
+                               const DayCounter& dc,
+                               const ext::shared_ptr<Gaussian1dSwaptionEngine>& swaptionEngine =
+                                   ext::shared_ptr<Gaussian1dSwaptionEngine>());
+        Gaussian1dSmileSection(
+            const Date& fixingDate,
+            ext::shared_ptr<IborIndex> swapIndex,
+            const ext::shared_ptr<Gaussian1dModel>& model,
+            const DayCounter& dc,
+            const ext::shared_ptr<Gaussian1dCapFloorEngine>& capEngine = ext::shared_ptr<Gaussian1dCapFloorEngine>());
 
-    // the minimum strike is zero only because we are
-    // returning a lognormal section
-    Real minStrike() const override { return 0.0; }
-    Real maxStrike() const override { return QL_MAX_REAL; }
+        // the minimum strike is zero only because we are
+        // returning a lognormal section
+        Real minStrike() const override { return 0.0; }
+        Real maxStrike() const override { return QL_MAX_REAL; }
 
-    Real atmLevel() const override;
-    Real optionPrice(Rate strike, Option::Type = Option::Call, Real discount = 1.0) const override;
+        Real atmLevel() const override;
+        Real optionPrice(Rate strike, Option::Type = Option::Call, Real discount = 1.0) const override;
 
-  protected:
-    Real volatilityImpl(Rate strike) const override;
+      protected:
+        Real volatilityImpl(Rate strike) const override;
 
-  private:
-    Real atm_, annuity_;
-    Date fixingDate_;
-    ext::shared_ptr<SwapIndex> swapIndex_;
-    ext::shared_ptr<IborIndex> iborIndex_;
-    ext::shared_ptr<Gaussian1dModel> model_;
-    ext::shared_ptr<PricingEngine> engine_;
-};
+      private:
+        Real atm_, annuity_;
+        Date fixingDate_;
+        ext::shared_ptr<SwapIndex> swapIndex_;
+        ext::shared_ptr<IborIndex> iborIndex_;
+        ext::shared_ptr<Gaussian1dModel> model_;
+        ext::shared_ptr<PricingEngine> engine_;
+    };
 }
 
 #endif

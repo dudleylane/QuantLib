@@ -28,26 +28,29 @@
 #define quantlib_data_parsers_hpp
 
 #include <ql/time/date.hpp>
-#include <vector>
 #include <string>
+#include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class PeriodParser {
+    class PeriodParser
+    {
       public:
         static Period parse(const std::string& str);
+
       private:
         static Period parseOnePeriod(const std::string& str);
     };
 
-    class DateParser {
+    class DateParser
+    {
       public:
         //! Parses a string in a used-defined format.
         /*! This method uses the parsing functions from
             Boost.Date_Time and supports the same formats.
         */
-        static Date parseFormatted(const std::string& str,
-                                   const std::string& fmt);
+        static Date parseFormatted(const std::string& str, const std::string& fmt);
         static Date parseISO(const std::string& str);
     };
 

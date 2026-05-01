@@ -25,39 +25,37 @@
 #ifndef quantlib_least_square_hpp
 #define quantlib_least_square_hpp
 
-#include <ql/math/optimization/problem.hpp>
-#include <ql/math/optimization/conjugategradient.hpp>
 #include <ql/math/matrix.hpp>
+#include <ql/math/optimization/conjugategradient.hpp>
+#include <ql/math/optimization/problem.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Constraint;
     class OptimizationMethod;
 
     //! Base class for least square problem
-    class LeastSquareProblem {
+    class LeastSquareProblem
+    {
       public:
         virtual ~LeastSquareProblem() = default;
         //! size of the problem ie size of target vector
         virtual Size size() = 0;
         //! compute the target vector and the values of the function to fit
-        virtual void targetAndValue(const Array& x,
-                                    Array& target,
-                                    Array& fct2fit) = 0;
+        virtual void targetAndValue(const Array& x, Array& target, Array& fct2fit) = 0;
         /*! compute the target vector, the values of the function to fit
             and the matrix of derivatives
         */
-        virtual void targetValueAndGradient(const Array& x,
-                                            Matrix& grad_fct2fit,
-                                            Array& target,
-                                            Array& fct2fit) = 0;
+        virtual void targetValueAndGradient(const Array& x, Matrix& grad_fct2fit, Array& target, Array& fct2fit) = 0;
     };
 
     //! Cost function for least-square problems
     /*! Implements a cost function using the interface provided by
         the LeastSquareProblem class.
     */
-    class LeastSquareFunction : public CostFunction {
+    class LeastSquareFunction : public CostFunction
+    {
       public:
         //! Default constructor
         LeastSquareFunction(LeastSquareProblem& lsp) : lsp_(lsp) {}
@@ -74,7 +72,7 @@ namespace QuantLib {
 
       protected:
         //! least square problem
-        LeastSquareProblem &lsp_;
+        LeastSquareProblem& lsp_;
     };
 
     //! Non-linear least-square method.
@@ -94,26 +92,20 @@ namespace QuantLib {
         \f$ r \f$ is defined by
         \f[ grad r(x) = f'(x)^t.f(x) \f]
     */
-    class NonLinearLeastSquare {
+    class NonLinearLeastSquare
+    {
       public:
         //! Default constructor
-        NonLinearLeastSquare(Constraint& c,
-                             Real accuracy = 1e-4,
-                             Size maxiter = 100);
+        NonLinearLeastSquare(Constraint& c, Real accuracy = 1e-4, Size maxiter = 100);
         //! Default constructor
-        NonLinearLeastSquare(Constraint& c,
-                             Real accuracy,
-                             Size maxiter,
-                             ext::shared_ptr<OptimizationMethod> om);
+        NonLinearLeastSquare(Constraint& c, Real accuracy, Size maxiter, ext::shared_ptr<OptimizationMethod> om);
         //! Destructor
         ~NonLinearLeastSquare() = default;
 
         //! Solve least square problem using numerix solver
         Array& perform(LeastSquareProblem& lsProblem);
 
-        void setInitialValue(const Array& initialValue) {
-            initialValue_ = initialValue;
-        }
+        void setInitialValue(const Array& initialValue) { initialValue_ = initialValue; }
 
         //! return the results
         Array& results() { return results_; }
@@ -143,9 +135,8 @@ namespace QuantLib {
         Size maxIterations_, nbIterations_;
         //! Optimization method
         ext::shared_ptr<OptimizationMethod> om_;
-        //constraint
+        // constraint
         Constraint& c_;
-
     };
 
 }

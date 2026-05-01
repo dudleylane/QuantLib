@@ -29,21 +29,20 @@
 #include <ql/patterns/singleton.hpp>
 #include <list>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! repository of conversion factors between units of measure
     /*! \test lookup of direct unit of measure conversion is tested. */
-    class UnitOfMeasureConversionManager
-        : public Singleton<UnitOfMeasureConversionManager> {
+    class UnitOfMeasureConversionManager : public Singleton<UnitOfMeasureConversionManager>
+    {
         friend class Singleton<UnitOfMeasureConversionManager>;
 
       public:
-        UnitOfMeasureConversion lookup(
-            const CommodityType& commodityType,
-            const UnitOfMeasure&,
-            const UnitOfMeasure&,
-            UnitOfMeasureConversion::Type type =
-                                    UnitOfMeasureConversion::Derived) const;
+        UnitOfMeasureConversion lookup(const CommodityType& commodityType,
+                                       const UnitOfMeasure&,
+                                       const UnitOfMeasure&,
+                                       UnitOfMeasureConversion::Type type = UnitOfMeasureConversion::Derived) const;
         void add(const UnitOfMeasureConversion&);
         void clear();
 
@@ -57,8 +56,7 @@ namespace QuantLib {
         UnitOfMeasureConversion smartLookup(const CommodityType& commodityType,
                                             const UnitOfMeasure& source,
                                             const UnitOfMeasure& target,
-                                            std::list<std::string> forbidden =
-                                                std::list<std::string>()) const;
+                                            std::list<std::string> forbidden = std::list<std::string>()) const;
     };
 
 }

@@ -24,21 +24,23 @@
 #ifndef quantlib_square_root_clv_model_hpp
 #define quantlib_square_root_clv_model_hpp
 
-#include <ql/time/date.hpp>
-#include <ql/patterns/lazyobject.hpp>
+#include <ql/experimental/math/gaussiannoncentralchisquaredpolynomial.hpp>
 #include <ql/math/interpolations/lagrangeinterpolation.hpp>
 #include <ql/math/matrix.hpp>
-#include <ql/experimental/math/gaussiannoncentralchisquaredpolynomial.hpp>
+#include <ql/patterns/lazyobject.hpp>
+#include <ql/time/date.hpp>
 #include <functional>
 #include <map>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class GBSMRNDCalculator;
     class SquareRootProcess;
     class GeneralizedBlackScholesProcess;
 
-    class SquareRootCLVModel : public LazyObject {
+    class SquareRootCLVModel : public LazyObject
+    {
       public:
         SquareRootCLVModel(const ext::shared_ptr<GeneralizedBlackScholesProcess>& bsProcess,
                            ext::shared_ptr<SquareRootProcess> sqrtProcess,
@@ -66,7 +68,8 @@ namespace QuantLib {
         void performCalculations() const override;
 
       private:
-        class MappingFunction {
+        class MappingFunction
+        {
           public:
             explicit MappingFunction(const SquareRootCLVModel& model);
 
@@ -74,8 +77,7 @@ namespace QuantLib {
 
           private:
             const ext::shared_ptr<Matrix> s_, x_;
-            typedef std::map<Time, ext::shared_ptr<LagrangeInterpolation> >
-                interpl_type;
+            typedef std::map<Time, ext::shared_ptr<LagrangeInterpolation>> interpl_type;
 
             interpl_type interpl;
         };

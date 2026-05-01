@@ -25,7 +25,8 @@
 #include <ql/termstructures/yield/zerospreadedtermstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     CallableBond::CallableBond(Natural settlementDays,
                                const Date& maturityDate,
@@ -34,49 +35,49 @@ namespace QuantLib {
                                Real faceAmount,
                                const Date& issueDate,
                                CallabilitySchedule putCallSchedule)
-    : Bond(settlementDays, calendar, issueDate),
-      paymentDayCounter_(std::move(paymentDayCounter)),
-      putCallSchedule_(std::move(putCallSchedule)), faceAmount_(faceAmount) {
+    : Bond(settlementDays, calendar, issueDate), paymentDayCounter_(std::move(paymentDayCounter)),
+      putCallSchedule_(std::move(putCallSchedule)), faceAmount_(faceAmount)
+    {
 
         maturityDate_ = maturityDate;
 
-        if (!putCallSchedule_.empty()) {
+        if (!putCallSchedule_.empty())
+        {
             Date finalOptionDate = Date::minDate();
-            for (auto& i : putCallSchedule_) {
+            for (auto& i : putCallSchedule_)
+            {
                 finalOptionDate = std::max(finalOptionDate, i->date());
             }
-            QL_REQUIRE(finalOptionDate <= maturityDate_ ,
-                       "Bond cannot mature before last call/put date");
+            QL_REQUIRE(finalOptionDate <= maturityDate_, "Bond cannot mature before last call/put date");
         }
 
         // derived classes must set cashflows_ and frequency_
     }
 
 
-    void CallableBond::arguments::validate() const {
+    void CallableBond::arguments::validate() const
+    {
 
-        QL_REQUIRE(Bond::arguments::settlementDate != Date(),
-                   "null settlement date");
+        QL_REQUIRE(Bond::arguments::settlementDate != Date(), "null settlement date");
 
         QL_REQUIRE(redemption != Null<Real>(), "null redemption");
-        QL_REQUIRE(redemption >= 0.0,
-                   "positive redemption required: "
-                   << redemption << " not allowed");
+        QL_REQUIRE(redemption >= 0.0, "positive redemption required: " << redemption << " not allowed");
 
         QL_REQUIRE(callabilityDates.size() == callabilityPrices.size(),
                    "different number of callability dates and prices");
-        QL_REQUIRE(couponDates.size() == couponAmounts.size(),
-                   "different number of coupon dates and amounts");
+        QL_REQUIRE(couponDates.size() == couponAmounts.size(), "different number of coupon dates and amounts");
     }
 
 
-    class CallableBond::ImpliedVolHelper {
+    class CallableBond::ImpliedVolHelper
+    {
       public:
         ImpliedVolHelper(const CallableBond& bond,
                          const Handle<YieldTermStructure>& discountCurve,
                          Real targetValue,
                          bool matchNPV);
         Real operator()(Volatility x) const;
+
       private:
         ext::shared_ptr<PricingEngine> engine_;
         Real targetValue_;
@@ -85,23 +86,22 @@ namespace QuantLib {
         const CallableBond::results* results_;
     };
 
-    CallableBond::ImpliedVolHelper::ImpliedVolHelper(
-                              const CallableBond& bond,
-                              const Handle<YieldTermStructure>& discountCurve,
-                              Real targetValue,
-                              bool matchNPV)
-    : targetValue_(targetValue), matchNPV_(matchNPV) {
+    CallableBond::ImpliedVolHelper::ImpliedVolHelper(const CallableBond& bond,
+                                                     const Handle<YieldTermStructure>& discountCurve,
+                                                     Real targetValue,
+                                                     bool matchNPV)
+    : targetValue_(targetValue), matchNPV_(matchNPV)
+    {
 
         vol_ = ext::make_shared<SimpleQuote>(0.0);
-        engine_ = ext::make_shared<BlackCallableFixedRateBondEngine>(Handle<Quote>(vol_),
-                                                                     discountCurve);
+        engine_ = ext::make_shared<BlackCallableFixedRateBondEngine>(Handle<Quote>(vol_), discountCurve);
 
         bond.setupArguments(engine_->getArguments());
-        results_ =
-            dynamic_cast<const CallableBond::results*>(engine_->getResults());
+        results_ = dynamic_cast<const CallableBond::results*>(engine_->getResults());
     }
 
-    Real CallableBond::ImpliedVolHelper::operator()(Volatility x) const {
+    Real CallableBond::ImpliedVolHelper::operator()(Volatility x) const
+    {
         vol_->setValue(x);
         engine_->calculate(); // get the Black NPV based on vol x
         Real value = matchNPV_ ? results_->value : results_->settlementValue;
@@ -109,25 +109,26 @@ namespace QuantLib {
     }
 
 
-    Volatility CallableBond::impliedVolatility(
-                              const Bond::Price& targetPrice,
-                              const Handle<YieldTermStructure>& discountCurve,
-                              Real accuracy,
-                              Size maxEvaluations,
-                              Volatility minVol,
-                              Volatility maxVol) const {
+    Volatility CallableBond::impliedVolatility(const Bond::Price& targetPrice,
+                                               const Handle<YieldTermStructure>& discountCurve,
+                                               Real accuracy,
+                                               Size maxEvaluations,
+                                               Volatility minVol,
+                                               Volatility maxVol) const
+    {
         QL_REQUIRE(!isExpired(), "instrument expired");
 
         Real dirtyTargetPrice;
-        switch (targetPrice.type()) {
-          case Bond::Price::Dirty:
-            dirtyTargetPrice = targetPrice.amount();
-            break;
-          case Bond::Price::Clean:
-            dirtyTargetPrice = targetPrice.amount() + accruedAmount();
-            break;
-          default:
-            QL_FAIL("unknown price type");
+        switch (targetPrice.type())
+        {
+            case Bond::Price::Dirty:
+                dirtyTargetPrice = targetPrice.amount();
+                break;
+            case Bond::Price::Clean:
+                dirtyTargetPrice = targetPrice.amount() + accruedAmount();
+                break;
+            default:
+                QL_FAIL("unknown price type");
         }
 
         Real targetValue = dirtyTargetPrice * faceAmount_ / 100.0;
@@ -139,129 +140,99 @@ namespace QuantLib {
     }
 
 
-    namespace {
-
-    template<class T>
-    class RestoreVal { // NOLINT(cppcoreguidelines-special-member-functions)
-        T orig_;
-        T &ref_;
-    public:
-        explicit RestoreVal(T &ref):
-            orig_(ref),
-            ref_(ref)  { }
-        ~RestoreVal()
-        {
-            ref_=orig_;
-        }
-    };
-
-    class OASHelper {
-    public:
-        OASHelper(const std::function<Real(Real)>& npvhelper,
-                  Real targetValue):
-            npvhelper_(npvhelper),
-            targetValue_(targetValue)
-        {
-        }
-
-        Real operator()(Spread x) const
-        {
-            return targetValue_ - npvhelper_(x);
-        }
-    private:
-        const std::function<Real(Real)>& npvhelper_;
-        Real targetValue_;
-    };
-
-
-    /* Convert a continuous spread to a conventional spread to a
-       reference yield curve
-    */
-    Real continuousToConv(Real oas,
-                          const Bond &b,
-                          const Handle<YieldTermStructure>& yts,
-                          const DayCounter& dayCounter,
-                          Compounding compounding,
-                          Frequency frequency)
+    namespace
     {
-        Real zz=yts->zeroRate(b.maturityDate(),
-                              dayCounter,
-                              Continuous,
-                              NoFrequency);
-        InterestRate baseRate(zz,
-                              dayCounter,
-                              Continuous,
-                              NoFrequency);
-        InterestRate spreadedRate(oas+zz,
-                                  dayCounter,
-                                  Continuous,
-                                  NoFrequency);
-        Real br=baseRate.equivalentRate(dayCounter,
-                                        compounding,
-                                        frequency,
-                                        yts->referenceDate(),
-                                        b.maturityDate()).rate();
-        Real sr=spreadedRate.equivalentRate(dayCounter,
-                                            compounding,
-                                            frequency,
-                                            yts->referenceDate(),
-                                            b.maturityDate()).rate();
-        // Return the spread
-        return sr-br;
+
+        template <class T>
+        class RestoreVal
+        { // NOLINT(cppcoreguidelines-special-member-functions)
+            T orig_;
+            T& ref_;
+
+          public:
+            explicit RestoreVal(T& ref) : orig_(ref), ref_(ref) {}
+            ~RestoreVal() { ref_ = orig_; }
+        };
+
+        class OASHelper
+        {
+          public:
+            OASHelper(const std::function<Real(Real)>& npvhelper, Real targetValue)
+            : npvhelper_(npvhelper), targetValue_(targetValue)
+            {
+            }
+
+            Real operator()(Spread x) const { return targetValue_ - npvhelper_(x); }
+
+          private:
+            const std::function<Real(Real)>& npvhelper_;
+            Real targetValue_;
+        };
+
+
+        /* Convert a continuous spread to a conventional spread to a
+           reference yield curve
+        */
+        Real continuousToConv(Real oas,
+                              const Bond& b,
+                              const Handle<YieldTermStructure>& yts,
+                              const DayCounter& dayCounter,
+                              Compounding compounding,
+                              Frequency frequency)
+        {
+            Real zz = yts->zeroRate(b.maturityDate(), dayCounter, Continuous, NoFrequency);
+            InterestRate baseRate(zz, dayCounter, Continuous, NoFrequency);
+            InterestRate spreadedRate(oas + zz, dayCounter, Continuous, NoFrequency);
+            Real br =
+                baseRate.equivalentRate(dayCounter, compounding, frequency, yts->referenceDate(), b.maturityDate())
+                    .rate();
+            Real sr =
+                spreadedRate.equivalentRate(dayCounter, compounding, frequency, yts->referenceDate(), b.maturityDate())
+                    .rate();
+            // Return the spread
+            return sr - br;
+        }
+
+        /* Convert a conventional spread to a reference yield curve to a
+           continuous spread
+        */
+        Real convToContinuous(Real oas,
+                              const Bond& b,
+                              const Handle<YieldTermStructure>& yts,
+                              const DayCounter& dayCounter,
+                              Compounding compounding,
+                              Frequency frequency)
+        {
+            Real zz = yts->zeroRate(b.maturityDate(), dayCounter, compounding, frequency);
+            InterestRate baseRate(zz, dayCounter, compounding, frequency);
+
+            InterestRate spreadedRate(oas + zz, dayCounter, compounding, frequency);
+            Real br =
+                baseRate.equivalentRate(dayCounter, Continuous, NoFrequency, yts->referenceDate(), b.maturityDate())
+                    .rate();
+            Real sr =
+                spreadedRate.equivalentRate(dayCounter, Continuous, NoFrequency, yts->referenceDate(), b.maturityDate())
+                    .rate();
+            // Return the spread
+            return sr - br;
+        }
+
     }
 
-    /* Convert a conventional spread to a reference yield curve to a
-       continuous spread
-    */
-    Real convToContinuous(Real oas,
-                          const Bond &b,
-                          const Handle<YieldTermStructure>& yts,
-                          const DayCounter& dayCounter,
-                          Compounding compounding,
-                          Frequency frequency)
+
+    class CallableBond::NPVSpreadHelper
     {
-        Real zz=yts->zeroRate(b.maturityDate(),
-                              dayCounter,
-                              compounding,
-                              frequency);
-        InterestRate baseRate(zz,
-                              dayCounter,
-                              compounding,
-                              frequency);
-
-        InterestRate spreadedRate(oas+zz,
-                                  dayCounter,
-                                  compounding,
-                                  frequency);
-        Real br=baseRate.equivalentRate(dayCounter,
-                                        Continuous,
-                                        NoFrequency,
-                                        yts->referenceDate(),
-                                        b.maturityDate()).rate();
-        Real sr=spreadedRate.equivalentRate(dayCounter,
-                                            Continuous,
-                                            NoFrequency,
-                                            yts->referenceDate(),
-                                            b.maturityDate()).rate();
-        // Return the spread
-        return sr-br;
-    }
-
-    }
-
-
-    class CallableBond::NPVSpreadHelper {
       public:
         explicit NPVSpreadHelper(CallableBond& bond);
         Real operator()(Spread x) const;
+
       private:
         CallableBond& bond_;
         const Instrument::results* results_;
     };
 
-    CallableBond::NPVSpreadHelper::NPVSpreadHelper(CallableBond& bond):
-        bond_(bond),
-        results_(dynamic_cast<const Instrument::results*>(bond.engine_->getResults()))
+    CallableBond::NPVSpreadHelper::NPVSpreadHelper(CallableBond& bond)
+    : bond_(bond), results_(dynamic_cast<const Instrument::results*>(bond.engine_->getResults()))
     {
         bond.setupArguments(bond.engine_->getArguments());
     }
@@ -271,7 +242,7 @@ namespace QuantLib {
         auto* args = dynamic_cast<CallableBond::arguments*>(bond_.engine_->getArguments());
         // Pops the original value when function finishes
         RestoreVal<Spread> restorer(args->spread);
-        args->spread=x;
+        args->spread = x;
         bond_.engine_->calculate();
         return results_->value;
     }
@@ -299,16 +270,10 @@ namespace QuantLib {
         solver.setMaxEvaluations(maxIterations);
 
         Real step = 0.001;
-        Spread oas=solver.solve(obj, accuracy, guess, step);
+        Spread oas = solver.solve(obj, accuracy, guess, step);
 
-        return continuousToConv(oas,
-                                *this,
-                                engineTS,
-                                dayCounter,
-                                compounding,
-                                frequency);
+        return continuousToConv(oas, *this, engineTS, dayCounter, compounding, frequency);
     }
-
 
 
     Real CallableBond::cleanPriceOAS(Real oas,
@@ -321,12 +286,7 @@ namespace QuantLib {
         if (settlement == Date())
             settlement = settlementDate();
 
-        oas=convToContinuous(oas,
-                             *this,
-                             engineTS,
-                             dayCounter,
-                             compounding,
-                             frequency);
+        oas = convToContinuous(oas, *this, engineTS, dayCounter, compounding, frequency);
 
         std::function<Real(Real)> f = NPVSpreadHelper(*this);
 
@@ -342,29 +302,17 @@ namespace QuantLib {
                                          Frequency frequency,
                                          Real bump)
     {
-        Real P = cleanPriceOAS(oas,
-                               engineTS,
-                               dayCounter,
-                               compounding,
-                               frequency);
+        Real P = cleanPriceOAS(oas, engineTS, dayCounter, compounding, frequency);
 
-        Real Ppp = cleanPriceOAS(oas+bump,
-                                 engineTS,
-                                 dayCounter,
-                                 compounding,
-                                 frequency);
-        Real Pmm = cleanPriceOAS(oas-bump,
-                                 engineTS,
-                                 dayCounter,
-                                 compounding,
-                                 frequency);
+        Real Ppp = cleanPriceOAS(oas + bump, engineTS, dayCounter, compounding, frequency);
+        Real Pmm = cleanPriceOAS(oas - bump, engineTS, dayCounter, compounding, frequency);
 
-        if ( P == 0.0 )
+        if (P == 0.0)
             return 0;
         else
-            {
-                return (Pmm-Ppp)/(2*P*bump);
-            }
+        {
+            return (Pmm - Ppp) / (2 * P * bump);
+        }
     }
 
     Real CallableBond::effectiveConvexity(Real oas,
@@ -374,34 +322,22 @@ namespace QuantLib {
                                           Frequency frequency,
                                           Real bump)
     {
-        Real P = cleanPriceOAS(oas,
-                               engineTS,
-                               dayCounter,
-                               compounding,
-                               frequency);
+        Real P = cleanPriceOAS(oas, engineTS, dayCounter, compounding, frequency);
 
-        Real Ppp = cleanPriceOAS(oas+bump,
-                                 engineTS,
-                                 dayCounter,
-                                 compounding,
-                                 frequency);
-        Real Pmm = cleanPriceOAS(oas-bump,
-                                 engineTS,
-                                 dayCounter,
-                                 compounding,
-                                 frequency);
+        Real Ppp = cleanPriceOAS(oas + bump, engineTS, dayCounter, compounding, frequency);
+        Real Pmm = cleanPriceOAS(oas - bump, engineTS, dayCounter, compounding, frequency);
 
-        if ( P == 0.0 )
+        if (P == 0.0)
             return 0;
         else
-            {
-                return (Ppp + Pmm - 2*P) / ( std::pow(bump,2) * P);
-            }
-
+        {
+            return (Ppp + Pmm - 2 * P) / (std::pow(bump, 2) * P);
+        }
     }
 
 
-    void CallableBond::setupArguments(PricingEngine::arguments* args) const {
+    void CallableBond::setupArguments(PricingEngine::arguments* args) const
+    {
 
         Bond::setupArguments(args);
 
@@ -418,13 +354,14 @@ namespace QuantLib {
         const Leg& cfs = cashflows();
 
         arguments->couponDates.clear();
-        arguments->couponDates.reserve(cfs.size()-1);
+        arguments->couponDates.reserve(cfs.size() - 1);
         arguments->couponAmounts.clear();
-        arguments->couponAmounts.reserve(cfs.size()-1);
+        arguments->couponAmounts.reserve(cfs.size() - 1);
 
-        for (Size i=0; i<cfs.size()-1; i++) {
-            if (!cfs[i]->hasOccurred(settlement, false)
-                && !cfs[i]->tradingExCoupon(settlement)) {
+        for (Size i = 0; i < cfs.size() - 1; i++)
+        {
+            if (!cfs[i]->hasOccurred(settlement, false) && !cfs[i]->tradingExCoupon(settlement))
+            {
                 arguments->couponDates.push_back(cfs[i]->date());
                 arguments->couponAmounts.push_back(cfs[i]->amount());
             }
@@ -439,12 +376,15 @@ namespace QuantLib {
         arguments->frequency = frequency_;
 
         arguments->putCallSchedule = putCallSchedule_;
-        for (const auto& i : putCallSchedule_) {
-            if (!i->hasOccurred(settlement, false)) {
+        for (const auto& i : putCallSchedule_)
+        {
+            if (!i->hasOccurred(settlement, false))
+            {
                 arguments->callabilityDates.push_back(i->date());
                 arguments->callabilityPrices.push_back(i->price().amount());
 
-                if (i->price().type() == Bond::Price::Clean) {
+                if (i->price().type() == Bond::Price::Clean)
+                {
                     /* Convert clean call price to dirty using accrued interest
                        at the call date. We ignore ex-coupon conventions here
                        because the call is an issuer action governed by the
@@ -455,10 +395,13 @@ namespace QuantLib {
                        settlement date (see GitHub issue #2236). */
                     Date callDate = i->date();
                     Real callAccrued = 0.0;
-                    for (const auto& cf : cashflows_) {
-                        if (!cf->hasOccurred(callDate, false)) {
+                    for (const auto& cf : cashflows_)
+                    {
+                        if (!cf->hasOccurred(callDate, false))
+                        {
                             auto coupon = ext::dynamic_pointer_cast<Coupon>(cf);
-                            if (coupon != nullptr) {
+                            if (coupon != nullptr)
+                            {
                                 Real acc = coupon->accruedAmount(callDate);
                                 if (coupon->tradingExCoupon(callDate))
                                     acc = coupon->amount() + acc;
@@ -476,56 +419,55 @@ namespace QuantLib {
     }
 
 
-    CallableFixedRateBond::CallableFixedRateBond(
-                              Natural settlementDays,
-                              Real faceAmount,
-                              Schedule schedule,
-                              const std::vector<Rate>& coupons,
-                              const DayCounter& accrualDayCounter,
-                              BusinessDayConvention paymentConvention,
-                              Real redemption,
-                              const Date& issueDate,
-                              const CallabilitySchedule& putCallSchedule,
-                              const Period& exCouponPeriod,
-                              const Calendar& exCouponCalendar,
-                              BusinessDayConvention exCouponConvention,
-                              bool exCouponEndOfMonth)
-    : CallableBond(settlementDays, schedule.dates().back(), schedule.calendar(),
-                   accrualDayCounter, faceAmount, issueDate, putCallSchedule) {
+    CallableFixedRateBond::CallableFixedRateBond(Natural settlementDays,
+                                                 Real faceAmount,
+                                                 Schedule schedule,
+                                                 const std::vector<Rate>& coupons,
+                                                 const DayCounter& accrualDayCounter,
+                                                 BusinessDayConvention paymentConvention,
+                                                 Real redemption,
+                                                 const Date& issueDate,
+                                                 const CallabilitySchedule& putCallSchedule,
+                                                 const Period& exCouponPeriod,
+                                                 const Calendar& exCouponCalendar,
+                                                 BusinessDayConvention exCouponConvention,
+                                                 bool exCouponEndOfMonth)
+    : CallableBond(settlementDays,
+                   schedule.dates().back(),
+                   schedule.calendar(),
+                   accrualDayCounter,
+                   faceAmount,
+                   issueDate,
+                   putCallSchedule)
+    {
 
         frequency_ = schedule.hasTenor() ? schedule.tenor().frequency() : NoFrequency;
 
-        cashflows_ =
-            FixedRateLeg(std::move(schedule))
-            .withNotionals(faceAmount)
-            .withCouponRates(coupons, accrualDayCounter)
-            .withPaymentAdjustment(paymentConvention)
-            .withExCouponPeriod(exCouponPeriod,
-                                exCouponCalendar,
-                                exCouponConvention,
-                                exCouponEndOfMonth);
+        cashflows_ = FixedRateLeg(std::move(schedule))
+                         .withNotionals(faceAmount)
+                         .withCouponRates(coupons, accrualDayCounter)
+                         .withPaymentAdjustment(paymentConvention)
+                         .withExCouponPeriod(exCouponPeriod, exCouponCalendar, exCouponConvention, exCouponEndOfMonth);
 
         addRedemptionsToCashflows({redemption});
     }
 
 
-    CallableZeroCouponBond::CallableZeroCouponBond(
-                              Natural settlementDays,
-                              Real faceAmount,
-                              const Calendar& calendar,
-                              const Date& maturityDate,
-                              const DayCounter& dayCounter,
-                              BusinessDayConvention paymentConvention,
-                              Real redemption,
-                              const Date& issueDate,
-                              const CallabilitySchedule& putCallSchedule)
-    : CallableBond(settlementDays, maturityDate, calendar,
-                   dayCounter, faceAmount, issueDate, putCallSchedule) {
+    CallableZeroCouponBond::CallableZeroCouponBond(Natural settlementDays,
+                                                   Real faceAmount,
+                                                   const Calendar& calendar,
+                                                   const Date& maturityDate,
+                                                   const DayCounter& dayCounter,
+                                                   BusinessDayConvention paymentConvention,
+                                                   Real redemption,
+                                                   const Date& issueDate,
+                                                   const CallabilitySchedule& putCallSchedule)
+    : CallableBond(settlementDays, maturityDate, calendar, dayCounter, faceAmount, issueDate, putCallSchedule)
+    {
 
         frequency_ = Once;
 
-        Date redemptionDate = calendar_.adjust(maturityDate_,
-                                               paymentConvention);
+        Date redemptionDate = calendar_.adjust(maturityDate_, paymentConvention);
         setSingleRedemption(faceAmount, redemption, redemptionDate);
     }
 

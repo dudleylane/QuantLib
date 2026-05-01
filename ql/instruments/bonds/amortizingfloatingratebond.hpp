@@ -26,13 +26,15 @@
 
 #include <ql/instruments/bond.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Schedule;
     class IborIndex;
 
     //! amortizing floating-rate bond (possibly capped and/or floored)
-    class AmortizingFloatingRateBond : public Bond {
+    class AmortizingFloatingRateBond : public Bond
+    {
       public:
         AmortizingFloatingRateBond(Natural settlementDays,
                                    const std::vector<Real>& notional,
@@ -41,8 +43,8 @@ namespace QuantLib {
                                    const DayCounter& accrualDayCounter,
                                    BusinessDayConvention paymentConvention = Following,
                                    Natural fixingDays = Null<Natural>(),
-                                   const std::vector<Real>& gearings = { 1.0 },
-                                   const std::vector<Spread>& spreads = { 0.0 },
+                                   const std::vector<Real>& gearings = {1.0},
+                                   const std::vector<Spread>& spreads = {0.0},
                                    const std::vector<Rate>& caps = {},
                                    const std::vector<Rate>& floors = {},
                                    bool inArrears = false,
@@ -51,7 +53,7 @@ namespace QuantLib {
                                    const Calendar& exCouponCalendar = Calendar(),
                                    BusinessDayConvention exCouponConvention = Unadjusted,
                                    bool exCouponEndOfMonth = false,
-                                   const std::vector<Real>& redemptions = { 100.0 },
+                                   const std::vector<Real>& redemptions = {100.0},
                                    Integer paymentLag = 0);
     };
 

@@ -28,36 +28,36 @@
 #ifndef ql_probability_traits_hpp
 #define ql_probability_traits_hpp
 
-#include <ql/termstructures/credit/interpolatedsurvivalprobabilitycurve.hpp>
-#include <ql/termstructures/credit/interpolatedhazardratecurve.hpp>
-#include <ql/termstructures/credit/interpolateddefaultdensitycurve.hpp>
 #include <ql/termstructures/bootstraphelper.hpp>
+#include <ql/termstructures/credit/interpolateddefaultdensitycurve.hpp>
+#include <ql/termstructures/credit/interpolatedhazardratecurve.hpp>
+#include <ql/termstructures/credit/interpolatedsurvivalprobabilitycurve.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace detail {
+    namespace detail
+    {
         const Real avgHazardRate = 0.01;
         const Real maxHazardRate = 1.0;
     }
 
     //! Survival-Probability-curve traits
-    struct SurvivalProbability {
+    struct SurvivalProbability
+    {
         // interpolated curve type
         template <class Interpolator>
-        struct curve {
+        struct curve
+        {
             typedef InterpolatedSurvivalProbabilityCurve<Interpolator> type;
         };
         // helper class
         typedef BootstrapHelper<DefaultProbabilityTermStructure> helper;
 
         // start of curve data
-        static Date initialDate(const DefaultProbabilityTermStructure* c) {
-            return c->referenceDate();
-        }
+        static Date initialDate(const DefaultProbabilityTermStructure* c) { return c->referenceDate(); }
         // value at reference date
-        static Real initialValue(const DefaultProbabilityTermStructure*) {
-            return 1.0;
-        }
+        static Real initialValue(const DefaultProbabilityTermStructure*) { return 1.0; }
 
         // guesses
         template <class C>
@@ -69,12 +69,12 @@ namespace QuantLib {
             if (validData) // previous iteration value
                 return c->data()[i];
 
-            if (i==1) // first pillar
-                return 1.0/(1.0+detail::avgHazardRate*0.25);
+            if (i == 1) // first pillar
+                return 1.0 / (1.0 + detail::avgHazardRate * 0.25);
 
             // extrapolate
             Date d = c->dates()[i];
-            return c->survivalProbability(d,true);
+            return c->survivalProbability(d, true);
         }
         // constraints
         template <class C>
@@ -83,11 +83,12 @@ namespace QuantLib {
                                   bool validData,
                                   Size) // firstAliveHelper
         {
-            if (validData) {
-                return c->data().back()/2.0;
+            if (validData)
+            {
+                return c->data().back() / 2.0;
             }
-            Time dt = c->times()[i] - c->times()[i-1];
-            return c->data()[i-1] * std::exp(- detail::maxHazardRate * dt);
+            Time dt = c->times()[i] - c->times()[i - 1];
+            return c->data()[i - 1] * std::exp(-detail::maxHazardRate * dt);
         }
         template <class C>
         static Real maxValueAfter(Size i,
@@ -96,39 +97,32 @@ namespace QuantLib {
                                   Size) // firstAliveHelper
         {
             // survival probability cannot increase
-            return c->data()[i-1];
+            return c->data()[i - 1];
         }
 
         // root-finding update
-        static void updateGuess(std::vector<Real>& data,
-                                Probability p,
-                                Size i) {
-            data[i] = p;
-        }
+        static void updateGuess(std::vector<Real>& data, Probability p, Size i) { data[i] = p; }
         // upper bound for convergence loop
         static Size maxIterations() { return 50; }
     };
 
 
-
     //! Hazard-rate-curve traits
-    struct HazardRate {
+    struct HazardRate
+    {
         // interpolated curve type
         template <class Interpolator>
-        struct curve {
+        struct curve
+        {
             typedef InterpolatedHazardRateCurve<Interpolator> type;
         };
         // helper class
         typedef BootstrapHelper<DefaultProbabilityTermStructure> helper;
 
         // start of curve data
-        static Date initialDate(const DefaultProbabilityTermStructure* c) {
-            return c->referenceDate();
-        }
+        static Date initialDate(const DefaultProbabilityTermStructure* c) { return c->referenceDate(); }
         // dummy value at reference date
-        static Real initialValue(const DefaultProbabilityTermStructure*) {
-            return detail::avgHazardRate;
-        }
+        static Real initialValue(const DefaultProbabilityTermStructure*) { return detail::avgHazardRate; }
 
         // guesses
         template <class C>
@@ -140,7 +134,7 @@ namespace QuantLib {
             if (validData) // previous iteration value
                 return c->data()[i];
 
-            if (i==1) // first pillar
+            if (i == 1) // first pillar
                 return detail::avgHazardRate;
 
             // extrapolate
@@ -155,9 +149,10 @@ namespace QuantLib {
                                   bool validData,
                                   Size) // firstAliveHelper
         {
-            if (validData) {
+            if (validData)
+            {
                 Real r = *(std::min_element(c->data().begin(), c->data().end()));
-                return r/2.0;
+                return r / 2.0;
             }
             return QL_EPSILON;
         }
@@ -167,20 +162,20 @@ namespace QuantLib {
                                   bool validData,
                                   Size) // firstAliveHelper
         {
-            if (validData) {
+            if (validData)
+            {
                 Real r = *(std::max_element(c->data().begin(), c->data().end()));
-                return r*2.0;
+                return r * 2.0;
             }
             // no constraints.
             // We choose as max a value very unlikely to be exceeded.
             return detail::maxHazardRate;
         }
         // update with new guess
-        static void updateGuess(std::vector<Real>& data,
-                                Real rate,
-                                Size i) {
+        static void updateGuess(std::vector<Real>& data, Real rate, Size i)
+        {
             data[i] = rate;
-            if (i==1)
+            if (i == 1)
                 data[0] = rate; // first point is updated as well
         }
         // upper bound for convergence loop
@@ -189,22 +184,20 @@ namespace QuantLib {
 
 
     //! Default-density-curve traits
-    struct DefaultDensity {
+    struct DefaultDensity
+    {
         // interpolated curve type
         template <class Interpolator>
-        struct curve {
+        struct curve
+        {
             typedef InterpolatedDefaultDensityCurve<Interpolator> type;
         };
         // helper class
         typedef BootstrapHelper<DefaultProbabilityTermStructure> helper;
         // start of curve data
-        static Date initialDate(const DefaultProbabilityTermStructure* c) {
-            return c->referenceDate();
-        }
+        static Date initialDate(const DefaultProbabilityTermStructure* c) { return c->referenceDate(); }
         // value at reference date
-        static Real initialValue(const DefaultProbabilityTermStructure*) {
-            return detail::avgHazardRate;
-        }
+        static Real initialValue(const DefaultProbabilityTermStructure*) { return detail::avgHazardRate; }
 
         // guesses
         template <class C>
@@ -216,7 +209,7 @@ namespace QuantLib {
             if (validData) // previous iteration value
                 return c->data()[i];
 
-            if (i==1) // first pillar
+            if (i == 1) // first pillar
                 return detail::avgHazardRate;
 
             // extrapolate
@@ -231,9 +224,10 @@ namespace QuantLib {
                                   bool validData,
                                   Size) // firstAliveHelper
         {
-            if (validData) {
+            if (validData)
+            {
                 Real r = *(std::min_element(c->data().begin(), c->data().end()));
-                return r/2.0;
+                return r / 2.0;
             }
             return QL_EPSILON;
         }
@@ -243,9 +237,10 @@ namespace QuantLib {
                                   bool validData,
                                   Size) // firstAliveHelper
         {
-            if (validData) {
+            if (validData)
+            {
                 Real r = *(std::max_element(c->data().begin(), c->data().end()));
-                return r*2.0;
+                return r * 2.0;
             }
             // no constraints.
             // We choose as max a value very unlikely to be exceeded.
@@ -253,11 +248,10 @@ namespace QuantLib {
         }
 
         // update with new guess
-        static void updateGuess(std::vector<Real>& data,
-                                Real density,
-                                Size i) {
+        static void updateGuess(std::vector<Real>& data, Real density, Size i)
+        {
             data[i] = density;
-            if (i==1)
+            if (i == 1)
                 data[0] = density; // first point is updated as well
         }
         // upper bound for convergence loop

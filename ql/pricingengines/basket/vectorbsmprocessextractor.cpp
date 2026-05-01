@@ -18,79 +18,66 @@
 */
 
 /*! \file vectorbsmprocessextractor.cpp
-*/
-#include <ql/math/functional.hpp>
+ */
 #include <ql/math/comparison.hpp>
-
+#include <ql/math/functional.hpp>
 #include <ql/pricingengines/basket/vectorbsmprocessextractor.hpp>
 
-namespace QuantLib::detail {
+namespace QuantLib::detail
+{
 
-        VectorBsmProcessExtractor::VectorBsmProcessExtractor(
-            std::vector<ext::shared_ptr<GeneralizedBlackScholesProcess> > p)
-          : processes_(std::move(p)) {
-        }
+    VectorBsmProcessExtractor::VectorBsmProcessExtractor(std::vector<ext::shared_ptr<GeneralizedBlackScholesProcess>> p)
+    : processes_(std::move(p))
+    {
+    }
 
-        Array VectorBsmProcessExtractor::extractProcesses(
-            const std::function<Real(
-                const ext::shared_ptr<GeneralizedBlackScholesProcess>&)>& f) const {
+    Array VectorBsmProcessExtractor::extractProcesses(
+        const std::function<Real(const ext::shared_ptr<GeneralizedBlackScholesProcess>&)>& f) const
+    {
 
-            Array x(processes_.size());
-            std::transform(processes_.begin(), processes_.end(), x.begin(), f);
+        Array x(processes_.size());
+        std::transform(processes_.begin(), processes_.end(), x.begin(), f);
 
-            return x;
-        }
+        return x;
+    }
 
-        DiscountFactor VectorBsmProcessExtractor::getInterestRateDf(
-            const Date& maturityDate) const {
-            const Array dr = extractProcesses(
-                [maturityDate](const auto& p) -> DiscountFactor {
-                    return p->riskFreeRate()->discount(maturityDate);
-                }
-            );
+    DiscountFactor VectorBsmProcessExtractor::getInterestRateDf(const Date& maturityDate) const
+    {
+        const Array dr = extractProcesses([maturityDate](const auto& p) -> DiscountFactor
+                                          { return p->riskFreeRate()->discount(maturityDate); });
 
-            QL_REQUIRE(
-                std::equal(
-                    dr.begin()+1, dr.end(), dr.begin(),
-                    [](Real a, Real b) -> bool { return close_enough(a, b);}
-                ),
-                "interest rates need to be the same for all underlyings"
-            );
+        QL_REQUIRE(
+            std::equal(dr.begin() + 1, dr.end(), dr.begin(), [](Real a, Real b) -> bool { return close_enough(a, b); }),
+            "interest rates need to be the same for all underlyings");
 
-            return dr[0];
-        }
+        return dr[0];
+    }
 
-        Array VectorBsmProcessExtractor::getSpot() const {
-            return extractProcesses([](const auto& p) -> Real { return p->x0(); });
-        }
+    Array VectorBsmProcessExtractor::getSpot() const
+    {
+        return extractProcesses([](const auto& p) -> Real { return p->x0(); });
+    }
 
-        Array VectorBsmProcessExtractor::getDividendYieldDf(
-            const Date& maturityDate) const {
-            return extractProcesses(
-                [maturityDate](const auto& p) -> DiscountFactor {
-                    return p->dividendYield()->discount(maturityDate);
-                }
-            );
-        }
+    Array VectorBsmProcessExtractor::getDividendYieldDf(const Date& maturityDate) const
+    {
+        return extractProcesses([maturityDate](const auto& p) -> DiscountFactor
+                                { return p->dividendYield()->discount(maturityDate); });
+    }
 
-        Array VectorBsmProcessExtractor::getBlackVariance(
-            const Date& maturityDate) const {
-            return extractProcesses(
-                [maturityDate](const auto& p) -> Volatility {
-                    return p->blackVolatility()->blackVariance(maturityDate, p->x0());
-                }
-            );
-        }
+    Array VectorBsmProcessExtractor::getBlackVariance(const Date& maturityDate) const
+    {
+        return extractProcesses([maturityDate](const auto& p) -> Volatility
+                                { return p->blackVolatility()->blackVariance(maturityDate, p->x0()); });
+    }
 
-        Array VectorBsmProcessExtractor::getBlackStdDev(
-            const Date& maturityDate) const {
-            return extractProcesses(
-                [maturityDate](const auto& p) -> Volatility {
-                    const Time maturity = p->blackVolatility()->timeFromReference(maturityDate);
-                    return p->blackVolatility()->blackVol(maturityDate, p->x0())*std::sqrt(maturity);
-                }
-            );
-        }
+    Array VectorBsmProcessExtractor::getBlackStdDev(const Date& maturityDate) const
+    {
+        return extractProcesses(
+            [maturityDate](const auto& p) -> Volatility
+            {
+                const Time maturity = p->blackVolatility()->timeFromReference(maturityDate);
+                return p->blackVolatility()->blackVol(maturityDate, p->x0()) * std::sqrt(maturity);
+            });
+    }
 
 }
-

@@ -24,7 +24,8 @@
 #include <ql/types.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class MarketModelEvolver;
     class MarketModelMultiProduct;
@@ -38,7 +39,7 @@ namespace QuantLib {
                          MarketModelExerciseValue& rebate,
                          MarketModelExerciseValue& control,
                          Size numberOfPaths,
-                         std::vector<std::vector<NodeData> >& collectedData);
+                         std::vector<std::vector<NodeData>>& collectedData);
 
 }
 

@@ -26,18 +26,18 @@
 
 #include <ql/instruments/vanillaoption.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! European option on a single asset
     /*! \ingroup instruments */
-    class EuropeanOption : public VanillaOption {
+    class EuropeanOption : public VanillaOption
+    {
       public:
-        EuropeanOption(const ext::shared_ptr<StrikedTypePayoff>&,
-                       const ext::shared_ptr<Exercise>&);
+        EuropeanOption(const ext::shared_ptr<StrikedTypePayoff>&, const ext::shared_ptr<Exercise>&);
     };
 
 }
 
 
 #endif
-

@@ -27,7 +27,8 @@
 #include <ql/methods/montecarlo/sample.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Uniform random number generator
     /*! Random number generator of L'Ecuyer with added Bays-Durham
@@ -37,7 +38,8 @@ namespace QuantLib {
         Edition, Cambridge University Press (available at
         http://www.nr.com/)
     */
-    class LecuyerUniformRng {
+    class LecuyerUniformRng
+    {
       public:
         typedef Sample<Real> sample_type;
         /*! if the given seed is 0, a random seed will be chosen
@@ -46,6 +48,7 @@ namespace QuantLib {
         /*! returns a sample with weight 1.0 containing a random number
              uniformly chosen from (0.0,1.0) */
         sample_type next() const;
+
       private:
         mutable long temp1, temp2;
         mutable long y;

@@ -23,28 +23,29 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 
 #include <ql/math/randomnumbers/latticersg.hpp>
 #include <utility>
-namespace QuantLib {
+namespace QuantLib
+{
 
     LatticeRsg::LatticeRsg(Size dimensionality, std::vector<Real> z, Size N)
-    : dimensionality_(dimensionality), N_(N), z_(std::move(z)),
-      sequence_(std::vector<Real>(dimensionality), 1.0) {}
+    : dimensionality_(dimensionality), N_(N), z_(std::move(z)), sequence_(std::vector<Real>(dimensionality), 1.0)
+    {
+    }
     /*! skip to the n-th sample in the low-discrepancy sequence */
     void LatticeRsg::skipTo(unsigned long n)
     {
-        i_+=n;
+        i_ += n;
     }
 
     const LatticeRsg::sample_type& LatticeRsg::nextSequence()
     {
-        for (Size j=0; j < dimensionality_; ++j)
+        for (Size j = 0; j < dimensionality_; ++j)
         {
-            Real theta = i_*z_[j]/N_;
-            sequence_.value[j]= std::fmod(theta,1.0);
+            Real theta = i_ * z_[j] / N_;
+            sequence_.value[j] = std::fmod(theta, 1.0);
         }
         ++i_;
 
         return sequence_;
-    
     }
 
 }

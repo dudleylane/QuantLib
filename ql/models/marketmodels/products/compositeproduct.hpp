@@ -20,12 +20,13 @@
 #ifndef quantlib_market_model_composite_product_hpp
 #define quantlib_market_model_composite_product_hpp
 
-#include <ql/models/marketmodels/multiproduct.hpp>
 #include <ql/models/marketmodels/evolutiondescription.hpp>
+#include <ql/models/marketmodels/multiproduct.hpp>
 #include <ql/utilities/clone.hpp>
 #include <valarray>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Composition of two or more market-model products
     /*! Instances of this class build a market-model product by
@@ -33,7 +34,8 @@ namespace QuantLib {
 
         \pre All subproducts must have the same rate times.
     */
-    class MarketModelComposite : public MarketModelMultiProduct {
+    class MarketModelComposite : public MarketModelMultiProduct
+    {
       public:
         MarketModelComposite() = default;
         //! \name MarketModelMultiProduct interface
@@ -45,10 +47,8 @@ namespace QuantLib {
         //@}
         //! \name Composite facilities
         //@{
-        void add(const Clone<MarketModelMultiProduct>&,
-                 Real multiplier = 1.0);
-        void subtract(const Clone<MarketModelMultiProduct>&,
-                      Real multiplier = 1.0);
+        void add(const Clone<MarketModelMultiProduct>&, Real multiplier = 1.0);
+        void subtract(const Clone<MarketModelMultiProduct>&, Real multiplier = 1.0);
         void finalize();
         Size size() const;
         const MarketModelMultiProduct& item(Size i) const;
@@ -57,11 +57,12 @@ namespace QuantLib {
         //@}
       protected:
         // subproducts
-        struct SubProduct {
+        struct SubProduct
+        {
             Clone<MarketModelMultiProduct> product;
             Real multiplier;
             std::vector<Size> numberOfCashflows;
-            std::vector<std::vector<CashFlow> > cashflows;
+            std::vector<std::vector<CashFlow>> cashflows;
             std::vector<Size> timeIndices;
             bool done;
         };
@@ -76,8 +77,8 @@ namespace QuantLib {
         bool finalized_ = false;
         Size currentIndex_;
         std::vector<Time> cashflowTimes_;
-        std::vector<std::vector<Time> > allEvolutionTimes_;
-        std::vector<std::valarray<bool> > isInSubset_;
+        std::vector<std::vector<Time>> allEvolutionTimes_;
+        std::vector<std::valarray<bool>> isInSubset_;
     };
 
 }

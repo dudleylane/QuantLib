@@ -22,10 +22,11 @@
 #include <ql/math/interpolations/cubicinterpolation.hpp>
 #include <ql/math/interpolations/linearinterpolation.hpp>
 #include <ql/pricingengines/futures/discountingperpetualfuturesengine.hpp>
-#include <ql/time/daycounters/yearfractiontodate.hpp>
 #include <ql/settings.hpp>
+#include <ql/time/daycounters/yearfractiontodate.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     DiscountingPerpetualFuturesEngine::DiscountingPerpetualFuturesEngine(
         const Handle<YieldTermStructure>& domesticDiscountCurve,
@@ -36,10 +37,10 @@ namespace QuantLib {
         const std::vector<Spread>& interestRateDiffs,
         const DiscountingPerpetualFuturesEngine::InterpolationType fundingInterpType,
         const Real maxT)
-    : domesticDiscountCurve_(domesticDiscountCurve),
-      foreignDiscountCurve_(foreignDiscountCurve), assetSpot_(assetSpot),
-      fundingTimes_(fundingTimes), fundingRates_(fundingRates),
-      interestRateDiffs_(interestRateDiffs), fundingInterpType_(fundingInterpType), maxT_(maxT) {
+    : domesticDiscountCurve_(domesticDiscountCurve), foreignDiscountCurve_(foreignDiscountCurve), assetSpot_(assetSpot),
+      fundingTimes_(fundingTimes), fundingRates_(fundingRates), interestRateDiffs_(interestRateDiffs),
+      fundingInterpType_(fundingInterpType), maxT_(maxT)
+    {
         registerWith(domesticDiscountCurve_);
         registerWith(foreignDiscountCurve_);
         registerWith(assetSpot_);
@@ -52,34 +53,32 @@ namespace QuantLib {
                    "fundingTimes and interestRateDiffs must have the same size.");
     }
 
-    void DiscountingPerpetualFuturesEngine::calculate() const {
-        QL_REQUIRE(!domesticDiscountCurve_.empty(),
-                   "domestic discounting term structure handle is empty");
-        QL_REQUIRE(!foreignDiscountCurve_.empty(),
-                   "foreign discounting term structure handle is empty");
+    void DiscountingPerpetualFuturesEngine::calculate() const
+    {
+        QL_REQUIRE(!domesticDiscountCurve_.empty(), "domestic discounting term structure handle is empty");
+        QL_REQUIRE(!foreignDiscountCurve_.empty(), "foreign discounting term structure handle is empty");
         QL_REQUIRE(!assetSpot_.empty(), "asset spot handle is empty");
 
         results_.value = 0.0;
         results_.errorEstimate = Null<Real>();
 
-        QL_REQUIRE(
-            arguments_.payoffType == PerpetualFutures::Linear ||
-                arguments_.payoffType == PerpetualFutures::Inverse,
-            "Only Linear and Inverse payoffs are supported in DiscountingPerpetualFuturesEngine");
+        QL_REQUIRE(arguments_.payoffType == PerpetualFutures::Linear ||
+                       arguments_.payoffType == PerpetualFutures::Inverse,
+                   "Only Linear and Inverse payoffs are supported in DiscountingPerpetualFuturesEngine");
 
         // Linear payoff <--> Inverse payoff:
         // 1. exchange domestic and foreign curves
         // 2. future price: f <--> 1/f
-        auto effDomCurve = arguments_.payoffType == PerpetualFutures::Linear ?
-                               domesticDiscountCurve_ : foreignDiscountCurve_;
-        auto effForCurve = arguments_.payoffType == PerpetualFutures::Linear ?
-                               foreignDiscountCurve_ : domesticDiscountCurve_;
+        auto effDomCurve =
+            arguments_.payoffType == PerpetualFutures::Linear ? domesticDiscountCurve_ : foreignDiscountCurve_;
+        auto effForCurve =
+            arguments_.payoffType == PerpetualFutures::Linear ? foreignDiscountCurve_ : domesticDiscountCurve_;
 
         Period fundingFreq = arguments_.fundingFrequency;
         Date refDate = Settings::instance().evaluationDate();
         DayCounter dc = arguments_.dc;
         Calendar cal = arguments_.cal;
-        
+
         Interpolation fundingRateInterp =
             DiscountingPerpetualFuturesEngine::selectInterpolation(fundingTimes_, fundingRates_);
         fundingRateInterp.enableExtrapolation();
@@ -87,21 +86,23 @@ namespace QuantLib {
                    "fundingRate at max time is negative. Because the last funding rate is "
                    "flatly extrapolated, integral diverges.");
         Interpolation interestRateDiffInterp =
-            DiscountingPerpetualFuturesEngine::selectInterpolation(fundingTimes_,
-                                                                   interestRateDiffs_);
+            DiscountingPerpetualFuturesEngine::selectInterpolation(fundingTimes_, interestRateDiffs_);
         interestRateDiffInterp.enableExtrapolation();
 
         Real factor = 0.;
-        if (fundingFreq.length() > 0) { 
+        if (fundingFreq.length() > 0)
+        {
             // discrete-time case
             std::vector<Real> timeGrid;
             Real tGrid = 0.;
-            while (tGrid < maxT_) {
+            while (tGrid < maxT_)
+            {
                 timeGrid.push_back(tGrid);
                 Real tUnit = 0.;
                 Date date = yearFractionToDate(dc, refDate, tGrid);
-                Real daysInYear = dc.dayCount(Date(1, January, date.year()), Date(1, January, date.year()+1));
-                switch (fundingFreq.units()) { 
+                Real daysInYear = dc.dayCount(Date(1, January, date.year()), Date(1, January, date.year() + 1));
+                switch (fundingFreq.units())
+                {
                     case Years:
                         tGrid += fundingFreq.length();
                         break;
@@ -139,20 +140,23 @@ namespace QuantLib {
             }
             std::vector<Rate> fundingRateGrid(timeGrid.size());
             std::vector<Spread> interestRateDiffGrid(timeGrid.size());
-            for (Size i = 0; i < timeGrid.size(); ++i) {
+            for (Size i = 0; i < timeGrid.size(); ++i)
+            {
                 Real time = timeGrid[i];
                 fundingRateGrid[i] = fundingRateInterp(time);
                 interestRateDiffGrid[i] = interestRateDiffInterp(time);
             }
-            
-            if (arguments_.fundingType == PerpetualFutures::FundingWithCurrentSpot) {
+
+            if (arguments_.fundingType == PerpetualFutures::FundingWithCurrentSpot)
+            {
                 Real ratio = 1.;
                 Size i;
-                for (i = 0; i < timeGrid.size() - 1; ++i) {
+                for (i = 0; i < timeGrid.size() - 1; ++i)
+                {
                     Real time = timeGrid[i];
                     Real nextTime = timeGrid[i + 1];
-                    ratio = effForCurve->discount(nextTime) / effForCurve->discount(time)
-                          / effDomCurve->discount(nextTime) * effDomCurve->discount(time);
+                    ratio = effForCurve->discount(nextTime) / effForCurve->discount(time) /
+                            effDomCurve->discount(nextTime) * effDomCurve->discount(time);
                     fundingRateGrid[i] *= ratio;
                     interestRateDiffGrid[i] *= ratio;
                 }
@@ -160,19 +164,22 @@ namespace QuantLib {
                 fundingRateGrid[i] *= ratio;
                 interestRateDiffGrid[i] *= ratio;
             }
-            auto productIRDiff = [timeGrid, fundingRateGrid](Size i) {
+            auto productIRDiff = [timeGrid, fundingRateGrid](Size i)
+            {
                 Real ret = 1.;
-                for (Size j = 0; j <= i; ++j) {
+                for (Size j = 0; j <= i; ++j)
+                {
                     ret /= 1. + fundingRateGrid[j];
                 }
                 return ret;
             };
             Real sum = 0.;
             std::vector<Real> df_dom, df_for;
-            for (Size i = 0; i < timeGrid.size() - 1; ++i) {
+            for (Size i = 0; i < timeGrid.size() - 1; ++i)
+            {
                 Real time = timeGrid[i];
-                sum += productIRDiff(i) * (fundingRateGrid[i] - interestRateDiffGrid[i])
-                       * effForCurve->discount(time) / effDomCurve->discount(time);
+                sum += productIRDiff(i) * (fundingRateGrid[i] - interestRateDiffGrid[i]) * effForCurve->discount(time) /
+                       effDomCurve->discount(time);
                 df_dom.push_back(effDomCurve->discount(time));
                 df_for.push_back(effForCurve->discount(time));
             }
@@ -182,38 +189,40 @@ namespace QuantLib {
             Real fundingRateGridLast = fundingRateGrid[iLast];
             Real interestRateDiffGridLast = interestRateDiffGrid[iLast];
 
-            Real domRateLast =
-                effDomCurve->forwardRate(timeLast, timeLast, Continuous, NoFrequency).rate();
-            Real forRateLast =
-                effForCurve->forwardRate(timeLast, timeLast, Continuous, NoFrequency).rate();
+            Real domRateLast = effDomCurve->forwardRate(timeLast, timeLast, Continuous, NoFrequency).rate();
+            Real forRateLast = effForCurve->forwardRate(timeLast, timeLast, Continuous, NoFrequency).rate();
 
             // for t > maxT_, assume flat extrapolation on all rates
-            Real lastTerm = productIRDiffLast
-                             * (fundingRateGridLast - interestRateDiffGridLast)
-                             * effForCurve->discount(timeLast) / effDomCurve->discount(timeLast);
+            Real lastTerm = productIRDiffLast * (fundingRateGridLast - interestRateDiffGridLast) *
+                            effForCurve->discount(timeLast) / effDomCurve->discount(timeLast);
             Real timeStep = (timeGrid.back() - timeGrid.front()) / (timeGrid.size() - 1);
-            Real ratio =
-                1. / (1. + fundingRateGridLast) * exp(-timeStep * (forRateLast - domRateLast));
+            Real ratio = 1. / (1. + fundingRateGridLast) * exp(-timeStep * (forRateLast - domRateLast));
             sum += lastTerm / (1. - ratio);
             factor = sum;
-
-        } else {
+        }
+        else
+        {
             // continuous-time case
             TrapezoidIntegral<Default> integrator(1.e-6, 30);
             Real fundingRateXMax = fundingRateInterp.xMax();
-            auto expIRDiff = [&fundingRateInterp, &integrator, fundingRateXMax](Real s) -> Real {
-                if (s < fundingRateXMax) {
+            auto expIRDiff = [&fundingRateInterp, &integrator, fundingRateXMax](Real s) -> Real
+            {
+                if (s < fundingRateXMax)
+                {
                     return exp(-integrator(fundingRateInterp, 0., s));
-                } else {
+                }
+                else
+                {
                     return exp(-integrator(fundingRateInterp, 0., fundingRateXMax) -
                                fundingRateInterp(fundingRateXMax) * (s - fundingRateXMax));
                 }
             };
 
-            auto timeIntegrand = [fundingRateInterp, interestRateDiffInterp, integrator, expIRDiff,
-                                  effDomCurve, effForCurve](Real s) -> Real {
-                return (fundingRateInterp(s) - interestRateDiffInterp(s)) * expIRDiff(s)
-                       * effForCurve->discount(s) / effDomCurve->discount(s);
+            auto timeIntegrand = [fundingRateInterp, interestRateDiffInterp, integrator, expIRDiff, effDomCurve,
+                                  effForCurve](Real s) -> Real
+            {
+                return (fundingRateInterp(s) - interestRateDiffInterp(s)) * expIRDiff(s) * effForCurve->discount(s) /
+                       effDomCurve->discount(s);
             };
             factor = integrator(timeIntegrand, 0., maxT_);
 
@@ -221,33 +230,34 @@ namespace QuantLib {
             Real fundingRateLast = fundingRateInterp(maxT_);
             Real interestRateDiffLast = interestRateDiffInterp(maxT_);
             Real expIRDiff_last = expIRDiff(maxT_);
-            Real domRateLast =
-                effDomCurve->forwardRate(maxT_, maxT_, Continuous, NoFrequency).rate();
-            Real forRateLast =
-                effForCurve->forwardRate(maxT_, maxT_, Continuous, NoFrequency).rate();
+            Real domRateLast = effDomCurve->forwardRate(maxT_, maxT_, Continuous, NoFrequency).rate();
+            Real forRateLast = effForCurve->forwardRate(maxT_, maxT_, Continuous, NoFrequency).rate();
             Real ratio = fundingRateLast + forRateLast - domRateLast;
-            factor += (fundingRateLast - interestRateDiffLast) * expIRDiff_last *
-                      effForCurve->discount(maxT_) / effDomCurve->discount(maxT_) / ratio;
+            factor += (fundingRateLast - interestRateDiffLast) * expIRDiff_last * effForCurve->discount(maxT_) /
+                      effDomCurve->discount(maxT_) / ratio;
         }
 
-        if (arguments_.payoffType == PerpetualFutures::Linear) {
+        if (arguments_.payoffType == PerpetualFutures::Linear)
+        {
             results_.value = assetSpot_->value() * factor;
-        } else {
+        }
+        else
+        {
             results_.value = assetSpot_->value() / factor;
         }
     }
 
-    Interpolation
-    DiscountingPerpetualFuturesEngine::selectInterpolation(const std::vector<Time>& times,
-                                                           const std::vector<Real>& values) const {
+    Interpolation DiscountingPerpetualFuturesEngine::selectInterpolation(const std::vector<Time>& times,
+                                                                         const std::vector<Real>& values) const
+    {
         Interpolation interpolator;
-        switch (fundingInterpType_) {
+        switch (fundingInterpType_)
+        {
             case Linear:
                 interpolator = LinearInterpolation(times.begin(), times.end(), values.begin());
                 break;
             case PiecewiseConstant:
-                interpolator =
-                    BackwardFlatInterpolation(times.begin(), times.end(), values.begin());
+                interpolator = BackwardFlatInterpolation(times.begin(), times.end(), values.begin());
                 break;
             case CubicSpline:
                 interpolator = CubicNaturalSpline(times.begin(), times.end(), values.begin());

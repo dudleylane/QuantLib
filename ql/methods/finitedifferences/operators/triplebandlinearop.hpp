@@ -30,14 +30,15 @@
 #include <ql/methods/finitedifferences/operators/fdmlinearop.hpp>
 #include <memory>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class FdmMesher;
-    
-    class TripleBandLinearOp : public FdmLinearOp {
+
+    class TripleBandLinearOp : public FdmLinearOp
+    {
       public:
-        TripleBandLinearOp(Size direction,
-                           const ext::shared_ptr<FdmMesher>& mesher);
+        TripleBandLinearOp(Size direction, const ext::shared_ptr<FdmMesher>& mesher);
 
         TripleBandLinearOp(const TripleBandLinearOp& m);
         TripleBandLinearOp(TripleBandLinearOp&& m) noexcept;
@@ -56,8 +57,7 @@ namespace QuantLib {
         TripleBandLinearOp add(const Array& u) const;
 
         // some very basic linear algebra routines
-        void axpyb(const Array& a, const TripleBandLinearOp& x,
-                   const TripleBandLinearOp& y, const Array& b);
+        void axpyb(const Array& a, const TripleBandLinearOp& x, const TripleBandLinearOp& y, const Array& b);
 
         void swap(TripleBandLinearOp& m) noexcept;
 
@@ -75,17 +75,20 @@ namespace QuantLib {
     };
 
 
-    inline TripleBandLinearOp::TripleBandLinearOp(TripleBandLinearOp&& m) noexcept {
+    inline TripleBandLinearOp::TripleBandLinearOp(TripleBandLinearOp&& m) noexcept
+    {
         swap(m);
     }
 
-    inline TripleBandLinearOp& TripleBandLinearOp::operator=(const TripleBandLinearOp& m) {
+    inline TripleBandLinearOp& TripleBandLinearOp::operator=(const TripleBandLinearOp& m)
+    {
         TripleBandLinearOp tmp(m);
         swap(tmp);
         return *this;
     }
 
-    inline TripleBandLinearOp& TripleBandLinearOp::operator=(TripleBandLinearOp&& m) noexcept {
+    inline TripleBandLinearOp& TripleBandLinearOp::operator=(TripleBandLinearOp&& m) noexcept
+    {
         swap(m);
         return *this;
     }

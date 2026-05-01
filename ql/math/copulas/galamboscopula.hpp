@@ -28,13 +28,16 @@
 #include <ql/types.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Galambos copula
-    class GalambosCopula {
+    class GalambosCopula
+    {
       public:
         GalambosCopula(Real theta);
         Real operator()(Real x, Real y) const;
+
       private:
         Real theta_;
     };

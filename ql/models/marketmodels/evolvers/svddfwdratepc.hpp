@@ -20,12 +20,13 @@
 #ifndef quantlib_svdd_forward_rate_pc_evolver_hpp
 #define quantlib_svdd_forward_rate_pc_evolver_hpp
 
-#include <ql/models/marketmodels/evolver.hpp>
 #include <ql/models/marketmodels/curvestates/lmmcurvestate.hpp>
 #include <ql/models/marketmodels/driftcomputation/lmmdriftcalculator.hpp>
+#include <ql/models/marketmodels/evolver.hpp>
 #include <valarray>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class MarketModel;
     class BrownianGenerator;
@@ -33,57 +34,56 @@ namespace QuantLib {
     class MarketModelVolProcess;
 
     /*!
-   Displaced diffusion LMM with uncorrelated vol process. Called "Shifted BGM" with Heston vol by Brac in "Engineering BGM."
-   Vol process is an external input.
-    
+   Displaced diffusion LMM with uncorrelated vol process. Called "Shifted BGM" with Heston vol by Brac in "Engineering
+   BGM." Vol process is an external input.
+
     */
-    class SVDDFwdRatePc : public MarketModelEvolver 
+    class SVDDFwdRatePc : public MarketModelEvolver
     {
       public:
-    
-          SVDDFwdRatePc(const ext::shared_ptr<MarketModel>&,
-                           const BrownianGeneratorFactory&,
-                           const ext::shared_ptr<MarketModelVolProcess>& volProcess,
-                           Size firstVolatilityFactor, 
-                           Size volatilityFactorStep,
-                           const std::vector<Size>& numeraires,
-                           Size initialStep = 0);
+        SVDDFwdRatePc(const ext::shared_ptr<MarketModel>&,
+                      const BrownianGeneratorFactory&,
+                      const ext::shared_ptr<MarketModelVolProcess>& volProcess,
+                      Size firstVolatilityFactor,
+                      Size volatilityFactorStep,
+                      const std::vector<Size>& numeraires,
+                      Size initialStep = 0);
         //! \name MarketModel interface
         //@{
-          const std::vector<Size>& numeraires() const override;
-          Real startNewPath() override;
-          Real advanceStep() override;
-          Size currentStep() const override;
-          const CurveState& currentState() const override;
-          void setInitialState(const CurveState&) override;
-          //@}
-        private:
-          void setForwards(const std::vector<Real>& forwards);
-          // inputs
-          ext::shared_ptr<MarketModel> marketModel_;
-          ext::shared_ptr<BrownianGenerator> generator_;
-          ext::shared_ptr<MarketModelVolProcess> volProcess_;
+        const std::vector<Size>& numeraires() const override;
+        Real startNewPath() override;
+        Real advanceStep() override;
+        Size currentStep() const override;
+        const CurveState& currentState() const override;
+        void setInitialState(const CurveState&) override;
+        //@}
+      private:
+        void setForwards(const std::vector<Real>& forwards);
+        // inputs
+        ext::shared_ptr<MarketModel> marketModel_;
+        ext::shared_ptr<BrownianGenerator> generator_;
+        ext::shared_ptr<MarketModelVolProcess> volProcess_;
 
-          Size firstVolatilityFactor_;
-          Size volFactorsPerStep_;
+        Size firstVolatilityFactor_;
+        Size volFactorsPerStep_;
 
-          std::vector<Size> numeraires_;
-          Size initialStep_;
+        std::vector<Size> numeraires_;
+        Size initialStep_;
 
 
-          // fixed variables
-          std::vector<std::vector<Real> > fixedDrifts_;
-          std::valarray<bool> isVolVariate_;
-          // working variables
-          Size numberOfRates_, numberOfFactors_;
-          LMMCurveState curveState_;
-          Size currentStep_;
-          std::vector<Rate> forwards_, displacements_, logForwards_, initialLogForwards_;
-          std::vector<Real> drifts1_, drifts2_, initialDrifts_;
-          std::vector<Real> allBrownians_, brownians_, volBrownians_, correlatedBrownians_;
-          std::vector<Size> alive_;
-          // helper classes
-          std::vector<LMMDriftCalculator> calculators_;
+        // fixed variables
+        std::vector<std::vector<Real>> fixedDrifts_;
+        std::valarray<bool> isVolVariate_;
+        // working variables
+        Size numberOfRates_, numberOfFactors_;
+        LMMCurveState curveState_;
+        Size currentStep_;
+        std::vector<Rate> forwards_, displacements_, logForwards_, initialLogForwards_;
+        std::vector<Real> drifts1_, drifts2_, initialDrifts_;
+        std::vector<Real> allBrownians_, brownians_, volBrownians_, correlatedBrownians_;
+        std::vector<Size> alive_;
+        // helper classes
+        std::vector<LMMDriftCalculator> calculators_;
     };
 
 }

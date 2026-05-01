@@ -19,30 +19,31 @@
 
 #include <ql/pricingengines/exotic/mcpagodaengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    PagodaMultiPathPricer::PagodaMultiPathPricer(Real roof, Real fraction,
-                                                 DiscountFactor discount)
-    : discount_(discount), roof_(roof), fraction_(fraction) {}
+    PagodaMultiPathPricer::PagodaMultiPathPricer(Real roof, Real fraction, DiscountFactor discount)
+    : discount_(discount), roof_(roof), fraction_(fraction)
+    {
+    }
 
-    Real PagodaMultiPathPricer::operator()(const MultiPath& multiPath) const {
+    Real PagodaMultiPathPricer::operator()(const MultiPath& multiPath) const
+    {
 
         Size numAssets = multiPath.assetNumber();
         Size numSteps = multiPath.pathSize();
 
         Real averagePerformance = 0.0;
-        for (Size i = 1; i < numSteps; i++) {
-            for (Size j = 0; j < numAssets; j++) {
-                averagePerformance +=
-                    multiPath[j].front() *
-                    (multiPath[j][i]/multiPath[j][i-1] - 1.0);
+        for (Size i = 1; i < numSteps; i++)
+        {
+            for (Size j = 0; j < numAssets; j++)
+            {
+                averagePerformance += multiPath[j].front() * (multiPath[j][i] / multiPath[j][i - 1] - 1.0);
             }
         }
         averagePerformance /= numAssets;
 
-        return discount_ * fraction_
-            * std::max<Real>(0.0, std::min(roof_, averagePerformance));
+        return discount_ * fraction_ * std::max<Real>(0.0, std::min(roof_, averagePerformance));
     }
 
 }
-

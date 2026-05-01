@@ -30,25 +30,27 @@
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
-        class FdmOUInnerValue : public FdmInnerValueCalculator {
+    namespace
+    {
+        class FdmOUInnerValue : public FdmInnerValueCalculator
+        {
           public:
-            FdmOUInnerValue(ext::shared_ptr<Payoff> payoff,
-                            ext::shared_ptr<FdmMesher> mesher,
-                            Size direction)
-            : payoff_(std::move(payoff)), mesher_(std::move(mesher)), direction_(direction) {}
+            FdmOUInnerValue(ext::shared_ptr<Payoff> payoff, ext::shared_ptr<FdmMesher> mesher, Size direction)
+            : payoff_(std::move(payoff)), mesher_(std::move(mesher)), direction_(direction)
+            {
+            }
 
 
-            Real innerValue(const FdmLinearOpIterator& iter, Time) override {
+            Real innerValue(const FdmLinearOpIterator& iter, Time) override
+            {
                 const Real s = mesher_->location(iter, direction_);
                 return (*payoff_)(s);
             }
 
-            Real avgInnerValue(const FdmLinearOpIterator& iter, Time t) override {
-                return innerValue(iter, t);
-            }
+            Real avgInnerValue(const FdmLinearOpIterator& iter, Time t) override { return innerValue(iter, t); }
 
           private:
             const ext::shared_ptr<Payoff> payoff_;
@@ -65,8 +67,9 @@ namespace QuantLib {
         Size dampingSteps,
         Real epsilon,
         const FdmSchemeDesc& schemeDesc)
-    : process_(std::move(process)), rTS_(rTS), tGrid_(tGrid), xGrid_(xGrid),
-      dampingSteps_(dampingSteps), epsilon_(epsilon), schemeDesc_(schemeDesc) {
+    : process_(std::move(process)), rTS_(rTS), tGrid_(tGrid), xGrid_(xGrid), dampingSteps_(dampingSteps),
+      epsilon_(epsilon), schemeDesc_(schemeDesc)
+    {
         registerWith(process_);
         registerWith(rTS);
     }
@@ -80,14 +83,15 @@ namespace QuantLib {
         Size dampingSteps,
         Real epsilon,
         const FdmSchemeDesc& schemeDesc)
-    : process_(std::move(process)), rTS_(rTS),
-      dividends_(std::move(dividends)), tGrid_(tGrid), xGrid_(xGrid),
-      dampingSteps_(dampingSteps), epsilon_(epsilon), schemeDesc_(schemeDesc) {
+    : process_(std::move(process)), rTS_(rTS), dividends_(std::move(dividends)), tGrid_(tGrid), xGrid_(xGrid),
+      dampingSteps_(dampingSteps), epsilon_(epsilon), schemeDesc_(schemeDesc)
+    {
         registerWith(process_);
         registerWith(rTS);
     }
 
-    void FdOrnsteinUhlenbeckVanillaEngine::calculate() const {
+    void FdOrnsteinUhlenbeckVanillaEngine::calculate() const
+    {
 
         // 1. Mesher
         const ext::shared_ptr<StrikedTypePayoff> payoff =
@@ -96,39 +100,29 @@ namespace QuantLib {
         const DayCounter dc = rTS_->dayCounter();
         const Date referenceDate = rTS_->referenceDate();
 
-        const Time maturity = dc.yearFraction(
-            referenceDate, arguments_.exercise->lastDate());
+        const Time maturity = dc.yearFraction(referenceDate, arguments_.exercise->lastDate());
 
         const ext::shared_ptr<Fdm1dMesher> equityMesher(
-            new FdmSimpleProcess1dMesher(
-                xGrid_, process_, maturity, 1, epsilon_));
+            new FdmSimpleProcess1dMesher(xGrid_, process_, maturity, 1, epsilon_));
 
-        const ext::shared_ptr<FdmMesher> mesher (
-            new FdmMesherComposite(equityMesher));
+        const ext::shared_ptr<FdmMesher> mesher(new FdmMesherComposite(equityMesher));
 
         // 2. Calculator
-        const ext::shared_ptr<FdmInnerValueCalculator> calculator(
-            new FdmOUInnerValue(payoff, mesher, 0));
+        const ext::shared_ptr<FdmInnerValueCalculator> calculator(new FdmOUInnerValue(payoff, mesher, 0));
 
         // 3. Step conditions
-        const ext::shared_ptr<FdmStepConditionComposite> conditions =
-            FdmStepConditionComposite::vanillaComposite(
-                                    dividends_, arguments_.exercise,
-                                    mesher, calculator,
-                                    referenceDate, dc);
+        const ext::shared_ptr<FdmStepConditionComposite> conditions = FdmStepConditionComposite::vanillaComposite(
+            dividends_, arguments_.exercise, mesher, calculator, referenceDate, dc);
 
         // 4. Boundary conditions
         const FdmBoundaryConditionSet boundaries;
 
         // 5. Solver
-        FdmSolverDesc solverDesc = { mesher, boundaries, conditions, calculator,
-                                     maturity, tGrid_, dampingSteps_ };
+        FdmSolverDesc solverDesc = {mesher, boundaries, conditions, calculator, maturity, tGrid_, dampingSteps_};
 
-        const ext::shared_ptr<FdmOrnsteinUhlenbeckOp> op(
-            new FdmOrnsteinUhlenbeckOp(mesher, process_, rTS_, 0));
+        const ext::shared_ptr<FdmOrnsteinUhlenbeckOp> op(new FdmOrnsteinUhlenbeckOp(mesher, process_, rTS_, 0));
 
-        const ext::shared_ptr<Fdm1DimSolver> solver(
-                new Fdm1DimSolver(solverDesc, schemeDesc_, op));
+        const ext::shared_ptr<Fdm1DimSolver> solver(new Fdm1DimSolver(solverDesc, schemeDesc_, op));
 
         const Real spot = process_->x0();
 

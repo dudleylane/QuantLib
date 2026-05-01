@@ -27,22 +27,21 @@
 
 #include <ql/instruments/payoffs.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Bachelier calculator class
-    class BachelierCalculator {
+    class BachelierCalculator
+    {
       private:
         class Calculator;
+
       public:
         BachelierCalculator(const ext::shared_ptr<StrikedTypePayoff>& payoff,
-                           Real forward,
-                           Real stdDev,
-                           Real discount = 1.0);
-        BachelierCalculator(Option::Type optionType,
-                           Real strike,
-                           Real forward,
-                           Real stdDev,
-                           Real discount = 1.0);
+                            Real forward,
+                            Real stdDev,
+                            Real discount = 1.0);
+        BachelierCalculator(Option::Type optionType, Real strike, Real forward, Real stdDev, Real discount = 1.0);
         ~BachelierCalculator() = default;
 
         Real value() const;
@@ -67,12 +66,10 @@ namespace QuantLib {
         Real gamma(Real spot) const;
 
         /*! Sensitivity to time to maturity. */
-        Real theta(Real spot,
-                          Time maturity) const;
+        Real theta(Real spot, Time maturity) const;
         /*! Sensitivity to time to maturity per day,
             assuming 365 day per year. */
-        Real thetaPerDay(Real spot,
-                                Time maturity) const;
+        Real thetaPerDay(Real spot, Time maturity) const;
 
         /*! Sensitivity to volatility. */
         Real vega(Time maturity) const;
@@ -109,54 +106,64 @@ namespace QuantLib {
 
         Real alpha() const;
         Real beta() const;
-        
+
       protected:
         void initialize(const ext::shared_ptr<StrikedTypePayoff>& p);
-        
+
         //! Member variables
         Real strike_, forward_, stdDev_, discount_, variance_;
-        Real d_;  // Single d parameter for Bachelier model
-        Real alpha_, beta_, DalphaDd_, DbetaDd_;  // Simplified derivative names
-        Real n_d_, cum_d_;  // Single normal distribution values
+        Real d_;                                 // Single d parameter for Bachelier model
+        Real alpha_, beta_, DalphaDd_, DbetaDd_; // Simplified derivative names
+        Real n_d_, cum_d_;                       // Single normal distribution values
         Real x_, DxDs_, DxDstrike_;
     };
 
     // inline
-    inline Real BachelierCalculator::thetaPerDay(Real spot,
-                                               Time maturity) const {
-        return theta(spot, maturity)/365.0;
+    inline Real BachelierCalculator::thetaPerDay(Real spot, Time maturity) const
+    {
+        return theta(spot, maturity) / 365.0;
     }
 
-    inline Real BachelierCalculator::itmCashProbability() const {
+    inline Real BachelierCalculator::itmCashProbability() const
+    {
         // For Bachelier model:
         // Call ITM probability: P(F > K) = N(d) where d = (F-K)/σ
         // Put ITM probability:  P(F < K) = N(-d) = 1 - N(d) where d = (F-K)/σ
-        
-        if (alpha_ >= 0) { // Call option (alpha_ = N(d) >= 0)
-            return cum_d_;  // N(d)
-        } else { // Put option (alpha_ = N(d) - 1 < 0)
-            return 1.0 - cum_d_;  // N(-d) = 1 - N(d)
+
+        if (alpha_ >= 0)
+        {                  // Call option (alpha_ = N(d) >= 0)
+            return cum_d_; // N(d)
+        }
+        else
+        {                        // Put option (alpha_ = N(d) - 1 < 0)
+            return 1.0 - cum_d_; // N(-d) = 1 - N(d)
         }
     }
 
-    inline Real BachelierCalculator::itmAssetProbability() const {
+    inline Real BachelierCalculator::itmAssetProbability() const
+    {
         // In Bachelier model, asset probability is the same as cash probability
         // since there's no drift adjustment like in Black-Scholes
-        // Call ITM probability: P(F > K) = N(d) where d = (F-K)/σ  
+        // Call ITM probability: P(F > K) = N(d) where d = (F-K)/σ
         // Put ITM probability:  P(F < K) = N(-d) = 1 - N(d) where d = (F-K)/σ
-        
-        if (alpha_ >= 0) { // Call option
-            return cum_d_;  // N(d)
-        } else { // Put option
-            return 1.0 - cum_d_;  // N(-d) = 1 - N(d)
+
+        if (alpha_ >= 0)
+        {                  // Call option
+            return cum_d_; // N(d)
+        }
+        else
+        {                        // Put option
+            return 1.0 - cum_d_; // N(-d) = 1 - N(d)
         }
     }
 
-    inline Real BachelierCalculator::alpha() const {
+    inline Real BachelierCalculator::alpha() const
+    {
         return alpha_;
     }
 
-    inline Real BachelierCalculator::beta() const {
+    inline Real BachelierCalculator::beta() const
+    {
         return beta_;
     }
 

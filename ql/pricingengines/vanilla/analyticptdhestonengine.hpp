@@ -25,11 +25,12 @@
 #define quantlib_analytic_piecewise_time_dependent_heston_engine_hpp
 
 #include <ql/instruments/vanillaoption.hpp>
-#include <ql/pricingengines/vanilla/analytichestonengine.hpp>
 #include <ql/models/equity/piecewisetimedependenthestonmodel.hpp>
+#include <ql/pricingengines/vanilla/analytichestonengine.hpp>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! analytic piecewise constant time dependent Heston-model engine
 
@@ -43,18 +44,21 @@ namespace QuantLib {
         J. Gatheral, The Volatility Surface: A Practitioner's Guide,
         Wiley Finance
 
-        A. Elices, Models with time-dependent parameters using 
+        A. Elices, Models with time-dependent parameters using
         transform methods: application to Heston’s model,
         http://arxiv.org/pdf/0708.2020
 
         \ingroup vanillaengines
     */
     class AnalyticPTDHestonEngine
-        : public GenericModelEngine<PiecewiseTimeDependentHestonModel,
-                                    VanillaOption::arguments,
-                                    VanillaOption::results> {
+    : public GenericModelEngine<PiecewiseTimeDependentHestonModel, VanillaOption::arguments, VanillaOption::results>
+    {
       public:
-        enum ComplexLogFormula { Gatheral, AndersenPiterbarg };
+        enum ComplexLogFormula
+        {
+            Gatheral,
+            AndersenPiterbarg
+        };
         typedef AnalyticHestonEngine::Integration Integration;
 
         // Simple to use constructor: Using adaptive
@@ -62,22 +66,20 @@ namespace QuantLib {
         // Be aware: using a too large number for maxEvaluations might result
         // in a stack overflow as the Lobatto integration is a recursive
         // algorithm.
-        AnalyticPTDHestonEngine(
-            const ext::shared_ptr<PiecewiseTimeDependentHestonModel>& model,
-            Real relTolerance, Size maxEvaluations);
+        AnalyticPTDHestonEngine(const ext::shared_ptr<PiecewiseTimeDependentHestonModel>& model,
+                                Real relTolerance,
+                                Size maxEvaluations);
 
         // Constructor using Laguerre integration
         // and Gatheral's version of complex log.
-        explicit AnalyticPTDHestonEngine(
-            const ext::shared_ptr<PiecewiseTimeDependentHestonModel>& model,
-            Size integrationOrder = 144);
+        explicit AnalyticPTDHestonEngine(const ext::shared_ptr<PiecewiseTimeDependentHestonModel>& model,
+                                         Size integrationOrder = 144);
 
         // Constructor giving full control over Fourier integration algorithm
-        AnalyticPTDHestonEngine(
-            const ext::shared_ptr<PiecewiseTimeDependentHestonModel>& model,
-            ComplexLogFormula cpxLog,
-            const Integration& itg,
-            Real andersenPiterbargEpsilon = 1e-8);
+        AnalyticPTDHestonEngine(const ext::shared_ptr<PiecewiseTimeDependentHestonModel>& model,
+                                ComplexLogFormula cpxLog,
+                                const Integration& itg,
+                                Real andersenPiterbargEpsilon = 1e-8);
 
 
         void calculate() const override;
@@ -90,7 +92,7 @@ namespace QuantLib {
       private:
         class Fj_Helper;
         class AP_Helper;
-        
+
         mutable Size evaluations_;
         const ComplexLogFormula cpxLog_;
         const ext::shared_ptr<Integration> integration_;

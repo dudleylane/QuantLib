@@ -29,13 +29,17 @@
 #include <ql/time/calendars/denmark.hpp>
 #include <ql/time/daycounters/actual360.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Destr (Denmark Short-Term Rate) index.
-    class Destr : public OvernightIndex {
+    class Destr : public OvernightIndex
+    {
       public:
         explicit Destr(const Handle<YieldTermStructure>& h = {})
-        : OvernightIndex("DESTR", 0, DKKCurrency(), Denmark(), Actual360(), h) {}
+        : OvernightIndex("DESTR", 0, DKKCurrency(), Denmark(), Actual360(), h)
+        {
+        }
     };
 
 }

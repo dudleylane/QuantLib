@@ -29,18 +29,20 @@
 #include <ql/currency.hpp>
 
 #if defined(QL_PATCH_MSVC)
-#pragma warning(push)
-#pragma warning(disable:4819)
+#    pragma warning(push)
+#    pragma warning(disable : 4819)
 #endif
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Bitcoin
     /*! https://bitcoin.org/
 
         \ingroup currencies
     */
-    class BTCCurrency : public Currency {
+    class BTCCurrency : public Currency
+    {
       public:
         BTCCurrency();
     };
@@ -50,7 +52,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class ETHCurrency : public Currency {
+    class ETHCurrency : public Currency
+    {
       public:
         ETHCurrency();
     };
@@ -60,7 +63,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class ETCCurrency : public Currency {
+    class ETCCurrency : public Currency
+    {
       public:
         ETCCurrency();
     };
@@ -70,7 +74,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class BCHCurrency : public Currency {
+    class BCHCurrency : public Currency
+    {
       public:
         BCHCurrency();
     };
@@ -80,7 +85,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class XRPCurrency : public Currency {
+    class XRPCurrency : public Currency
+    {
       public:
         XRPCurrency();
     };
@@ -90,7 +96,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class LTCCurrency : public Currency {
+    class LTCCurrency : public Currency
+    {
       public:
         LTCCurrency();
     };
@@ -100,7 +107,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class DASHCurrency : public Currency {
+    class DASHCurrency : public Currency
+    {
       public:
         DASHCurrency();
     };
@@ -110,14 +118,15 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class ZECCurrency : public Currency {
+    class ZECCurrency : public Currency
+    {
       public:
         ZECCurrency();
     };
 }
 
 #if defined(QL_PATCH_MSVC)
-#pragma warning(pop)
+#    pragma warning(pop)
 #endif
 
 #endif

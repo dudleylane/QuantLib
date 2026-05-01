@@ -24,44 +24,44 @@
 #include <ql/models/marketmodels/products/multiproductmultistep.hpp>
 #include <ql/shared_ptr.hpp>
 #include <vector>
-namespace QuantLib {
+namespace QuantLib
+{
 
     class StrikedTypePayoff;
 
-    class MultiStepPeriodCapletSwaptions : public MultiProductMultiStep 
+    class MultiStepPeriodCapletSwaptions : public MultiProductMultiStep
     {
       public:
-        MultiStepPeriodCapletSwaptions(
-            const std::vector<Time>& rateTimes,
-            const std::vector<Time>& forwardOptionPaymentTimes,
-            const std::vector<Time>& swaptionPaymentTimes,
-            std::vector<ext::shared_ptr<StrikedTypePayoff> > forwardPayOffs,
-            std::vector<ext::shared_ptr<StrikedTypePayoff> > swapPayOffs,
-            Size period,
-            Size offset);
+        MultiStepPeriodCapletSwaptions(const std::vector<Time>& rateTimes,
+                                       const std::vector<Time>& forwardOptionPaymentTimes,
+                                       const std::vector<Time>& swaptionPaymentTimes,
+                                       std::vector<ext::shared_ptr<StrikedTypePayoff>> forwardPayOffs,
+                                       std::vector<ext::shared_ptr<StrikedTypePayoff>> swapPayOffs,
+                                       Size period,
+                                       Size offset);
         //! \name MarketModelMultiProduct interface
         //@{
-          std::vector<Time> possibleCashFlowTimes() const override;
-          Size numberOfProducts() const override;
-          Size maxNumberOfCashFlowsPerProductPerStep() const override;
-          void reset() override;
-          bool nextTimeStep(const CurveState& currentState,
-                            std::vector<Size>& numberCashFlowsThisStep,
-                            std::vector<std::vector<CashFlow> >& cashFlowsGenerated) override;
-          std::unique_ptr<MarketModelMultiProduct> clone() const override;
-         //@}
+        std::vector<Time> possibleCashFlowTimes() const override;
+        Size numberOfProducts() const override;
+        Size maxNumberOfCashFlowsPerProductPerStep() const override;
+        void reset() override;
+        bool nextTimeStep(const CurveState& currentState,
+                          std::vector<Size>& numberCashFlowsThisStep,
+                          std::vector<std::vector<CashFlow>>& cashFlowsGenerated) override;
+        std::unique_ptr<MarketModelMultiProduct> clone() const override;
+        //@}
 
       private:
         std::vector<Time> paymentTimes_;
         std::vector<Time> forwardOptionPaymentTimes_;
         std::vector<Time> swaptionPaymentTimes_;
-        std::vector<ext::shared_ptr<StrikedTypePayoff> > forwardPayOffs_;
-        std::vector<ext::shared_ptr<StrikedTypePayoff> > swapPayOffs_;
+        std::vector<ext::shared_ptr<StrikedTypePayoff>> forwardPayOffs_;
+        std::vector<ext::shared_ptr<StrikedTypePayoff>> swapPayOffs_;
         Size lastIndex_;
         Size period_;
         Size offset_;
         Size numberFRAs_;
-        Size  numberBigFRAs_; 
+        Size numberBigFRAs_;
 
         // things that vary in a path
         Size currentIndex_;
@@ -70,23 +70,25 @@ namespace QuantLib {
 
     // Inline definitions
 
-    inline std::vector<Time>
-    MultiStepPeriodCapletSwaptions::possibleCashFlowTimes() const {
+    inline std::vector<Time> MultiStepPeriodCapletSwaptions::possibleCashFlowTimes() const
+    {
         return paymentTimes_;
     }
 
-    inline Size MultiStepPeriodCapletSwaptions::numberOfProducts() const {
-        return numberBigFRAs_*2;
+    inline Size MultiStepPeriodCapletSwaptions::numberOfProducts() const
+    {
+        return numberBigFRAs_ * 2;
     }
 
-    inline Size
-    MultiStepPeriodCapletSwaptions::maxNumberOfCashFlowsPerProductPerStep() const {
+    inline Size MultiStepPeriodCapletSwaptions::maxNumberOfCashFlowsPerProductPerStep() const
+    {
         return 1;
     }
 
-    inline void MultiStepPeriodCapletSwaptions::reset() {
-       currentIndex_=0;
-       productIndex_=0;
+    inline void MultiStepPeriodCapletSwaptions::reset()
+    {
+        currentIndex_ = 0;
+        productIndex_ = 0;
     }
 
 }

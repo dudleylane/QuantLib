@@ -27,18 +27,18 @@
 #include <ql/methods/finitedifferences/meshers/fdmmeshercomposite.hpp>
 #include <functional>
 
-namespace QuantLib {
-    class FdmMesherIntegral {
+namespace QuantLib
+{
+    class FdmMesherIntegral
+    {
       public:
-        FdmMesherIntegral(
-            const ext::shared_ptr<FdmMesherComposite>& mesher,
-            const std::function<Real(const Array&, const Array&)>&
-                integrator1d);
+        FdmMesherIntegral(const ext::shared_ptr<FdmMesherComposite>& mesher,
+                          const std::function<Real(const Array&, const Array&)>& integrator1d);
 
         Real integrate(const Array& f) const;
 
       private:
-        const std::vector<ext::shared_ptr<Fdm1dMesher> > meshers_;
+        const std::vector<ext::shared_ptr<Fdm1dMesher>> meshers_;
         const std::function<Real(const Array&, const Array&)>& integrator1d_;
     };
 }

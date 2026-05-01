@@ -24,26 +24,30 @@
 #ifndef quantlib_mixed_interpolation_hpp
 #define quantlib_mixed_interpolation_hpp
 
-#include <ql/math/interpolations/linearinterpolation.hpp>
 #include <ql/math/interpolations/cubicinterpolation.hpp>
+#include <ql/math/interpolations/linearinterpolation.hpp>
 #include <ql/utilities/dataformatters.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace detail {
+    namespace detail
+    {
         template <class I1, class I2, class SwitchFn>
         class MixedInterpolationImpl;
     }
 
-    struct MixedInterpolation {
-        enum Behavior {
-            ShareRanges,  /*!< Define both interpolations over the
-                               whole range defined by the passed
-                               iterators. This is the default
-                               behavior. */
-            SplitRanges   /*!< Define the first interpolation over the
-                               first part of the range, and the second
-                               interpolation over the second part. */
+    struct MixedInterpolation
+    {
+        enum Behavior
+        {
+            ShareRanges, /*!< Define both interpolations over the
+                              whole range defined by the passed
+                              iterators. This is the default
+                              behavior. */
+            SplitRanges  /*!< Define the first interpolation over the
+                              first part of the range, and the second
+                              interpolation over the second part. */
         };
     };
 
@@ -56,70 +60,69 @@ namespace QuantLib {
         \warning See the Interpolation class for information about the
                  required lifetime of the underlying data.
     */
-    class MixedLinearCubicInterpolation : public Interpolation {
+    class MixedLinearCubicInterpolation : public Interpolation
+    {
       public:
         /*! \pre the \f$ x \f$ values must be sorted. */
         template <class I1, class I2>
-        MixedLinearCubicInterpolation(const I1& xBegin, const I1& xEnd,
-                                      const I2& yBegin, Size n,
+        MixedLinearCubicInterpolation(const I1& xBegin,
+                                      const I1& xEnd,
+                                      const I2& yBegin,
+                                      Size n,
                                       MixedInterpolation::Behavior behavior,
                                       CubicInterpolation::DerivativeApprox da,
                                       bool monotonic,
                                       CubicInterpolation::BoundaryCondition leftC,
                                       Real leftConditionValue,
                                       CubicInterpolation::BoundaryCondition rightC,
-                                      Real rightConditionValue) {
-            bool matchDerivatives = leftC == CubicInterpolation::FirstDerivative &&
-                                    leftConditionValue == Null<Real>();
+                                      Real rightConditionValue)
+        {
+            bool matchDerivatives = leftC == CubicInterpolation::FirstDerivative && leftConditionValue == Null<Real>();
             QL_REQUIRE(!matchDerivatives || behavior == MixedInterpolation::SplitRanges,
                        "matching derivatives is only supported with SplitRanges");
 
-            auto switchFn = [=](Interpolation& left, Interpolation& right, Real x) {
-                if (!matchDerivatives) return;
+            auto switchFn = [=](Interpolation& left, Interpolation& right, Real x)
+            {
+                if (!matchDerivatives)
+                    return;
                 // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
                 auto& cubicImpl = static_cast<detail::CubicInterpolationBaseImpl&>(*right.impl_);
                 cubicImpl.leftValue_ = left.derivative(x);
             };
             impl_ = ext::make_shared<detail::MixedInterpolationImpl<I1, I2, decltype(switchFn)>>(
-                xBegin, xEnd, yBegin, n, behavior,
-                Linear(),
-                Cubic(da, monotonic,
-                      leftC, leftConditionValue,
-                      rightC, rightConditionValue),
-                std::move(switchFn));
+                xBegin, xEnd, yBegin, n, behavior, Linear(),
+                Cubic(da, monotonic, leftC, leftConditionValue, rightC, rightConditionValue), std::move(switchFn));
             impl_->update();
         }
     };
 
     //! mixed linear/cubic interpolation factory and traits
     /*! \ingroup interpolations */
-    class MixedLinearCubic {
+    class MixedLinearCubic
+    {
       public:
         MixedLinearCubic(Size n,
                          MixedInterpolation::Behavior behavior,
                          CubicInterpolation::DerivativeApprox da,
                          bool monotonic = true,
-                         CubicInterpolation::BoundaryCondition leftCondition
-                             = CubicInterpolation::SecondDerivative,
+                         CubicInterpolation::BoundaryCondition leftCondition = CubicInterpolation::SecondDerivative,
                          Real leftConditionValue = 0.0,
-                         CubicInterpolation::BoundaryCondition rightCondition
-                             = CubicInterpolation::SecondDerivative,
+                         CubicInterpolation::BoundaryCondition rightCondition = CubicInterpolation::SecondDerivative,
                          Real rightConditionValue = 0.0)
-        : n_(n), behavior_(behavior), da_(da), monotonic_(monotonic),
-          leftType_(leftCondition), rightType_(rightCondition),
-          leftValue_(leftConditionValue), rightValue_(rightConditionValue) {}
+        : n_(n), behavior_(behavior), da_(da), monotonic_(monotonic), leftType_(leftCondition),
+          rightType_(rightCondition), leftValue_(leftConditionValue), rightValue_(rightConditionValue)
+        {
+        }
         template <class I1, class I2>
-        Interpolation interpolate(const I1& xBegin, const I1& xEnd,
-                                  const I2& yBegin) const {
-            return MixedLinearCubicInterpolation(xBegin, xEnd,
-                                                 yBegin, n_, behavior_,
-                                                 da_, monotonic_,
-                                                 leftType_, leftValue_,
-                                                 rightType_, rightValue_);
+        Interpolation interpolate(const I1& xBegin, const I1& xEnd, const I2& yBegin) const
+        {
+            return MixedLinearCubicInterpolation(xBegin, xEnd, yBegin, n_, behavior_, da_, monotonic_, leftType_,
+                                                 leftValue_, rightType_, rightValue_);
         }
         // fix below
         static const bool global = true;
         static const Size requiredPoints = 3;
+
       private:
         Size n_;
         MixedInterpolation::Behavior behavior_;
@@ -131,108 +134,178 @@ namespace QuantLib {
 
     // convenience classes
 
-    class MixedLinearCubicNaturalSpline : public MixedLinearCubicInterpolation {
+    class MixedLinearCubicNaturalSpline : public MixedLinearCubicInterpolation
+    {
       public:
         /*! \pre the \f$ x \f$ values must be sorted. */
         template <class I1, class I2>
-        MixedLinearCubicNaturalSpline(const I1& xBegin, const I1& xEnd,
-                                      const I2& yBegin, Size n,
-                                      MixedInterpolation::Behavior behavior
-                                            = MixedInterpolation::ShareRanges)
-        : MixedLinearCubicInterpolation(xBegin, xEnd, yBegin, n, behavior,
-                                        CubicInterpolation::Spline, false,
-                                        CubicInterpolation::SecondDerivative, 0.0,
-                                        CubicInterpolation::SecondDerivative, 0.0) {}
+        MixedLinearCubicNaturalSpline(const I1& xBegin,
+                                      const I1& xEnd,
+                                      const I2& yBegin,
+                                      Size n,
+                                      MixedInterpolation::Behavior behavior = MixedInterpolation::ShareRanges)
+        : MixedLinearCubicInterpolation(xBegin,
+                                        xEnd,
+                                        yBegin,
+                                        n,
+                                        behavior,
+                                        CubicInterpolation::Spline,
+                                        false,
+                                        CubicInterpolation::SecondDerivative,
+                                        0.0,
+                                        CubicInterpolation::SecondDerivative,
+                                        0.0)
+        {
+        }
     };
 
-    class MixedLinearMonotonicCubicNaturalSpline : public MixedLinearCubicInterpolation {
+    class MixedLinearMonotonicCubicNaturalSpline : public MixedLinearCubicInterpolation
+    {
       public:
         /*! \pre the \f$ x \f$ values must be sorted. */
         template <class I1, class I2>
-        MixedLinearMonotonicCubicNaturalSpline(const I1& xBegin, const I1& xEnd,
-                                               const I2& yBegin, Size n,
-                                               MixedInterpolation::Behavior behavior
-                                                   = MixedInterpolation::ShareRanges)
-        : MixedLinearCubicInterpolation(xBegin, xEnd, yBegin, n, behavior,
-                                        CubicInterpolation::Spline, true,
-                                        CubicInterpolation::SecondDerivative, 0.0,
-                                        CubicInterpolation::SecondDerivative, 0.0) {}
+        MixedLinearMonotonicCubicNaturalSpline(const I1& xBegin,
+                                               const I1& xEnd,
+                                               const I2& yBegin,
+                                               Size n,
+                                               MixedInterpolation::Behavior behavior = MixedInterpolation::ShareRanges)
+        : MixedLinearCubicInterpolation(xBegin,
+                                        xEnd,
+                                        yBegin,
+                                        n,
+                                        behavior,
+                                        CubicInterpolation::Spline,
+                                        true,
+                                        CubicInterpolation::SecondDerivative,
+                                        0.0,
+                                        CubicInterpolation::SecondDerivative,
+                                        0.0)
+        {
+        }
     };
 
-    class MixedLinearKrugerCubic : public MixedLinearCubicInterpolation {
+    class MixedLinearKrugerCubic : public MixedLinearCubicInterpolation
+    {
       public:
         /*! \pre the \f$ x \f$ values must be sorted. */
         template <class I1, class I2>
-        MixedLinearKrugerCubic(const I1& xBegin, const I1& xEnd,
-                               const I2& yBegin, Size n,
-                               MixedInterpolation::Behavior behavior
-                                            = MixedInterpolation::ShareRanges)
-        : MixedLinearCubicInterpolation(xBegin, xEnd, yBegin, n, behavior,
-                                        CubicInterpolation::Kruger, false,
-                                        CubicInterpolation::SecondDerivative, 0.0,
-                                        CubicInterpolation::SecondDerivative, 0.0) {}
+        MixedLinearKrugerCubic(const I1& xBegin,
+                               const I1& xEnd,
+                               const I2& yBegin,
+                               Size n,
+                               MixedInterpolation::Behavior behavior = MixedInterpolation::ShareRanges)
+        : MixedLinearCubicInterpolation(xBegin,
+                                        xEnd,
+                                        yBegin,
+                                        n,
+                                        behavior,
+                                        CubicInterpolation::Kruger,
+                                        false,
+                                        CubicInterpolation::SecondDerivative,
+                                        0.0,
+                                        CubicInterpolation::SecondDerivative,
+                                        0.0)
+        {
+        }
     };
 
-    class MixedLinearFritschButlandCubic : public MixedLinearCubicInterpolation {
+    class MixedLinearFritschButlandCubic : public MixedLinearCubicInterpolation
+    {
       public:
         /*! \pre the \f$ x \f$ values must be sorted. */
         template <class I1, class I2>
-        MixedLinearFritschButlandCubic(const I1& xBegin, const I1& xEnd,
-                                       const I2& yBegin, Size n,
-                                       MixedInterpolation::Behavior behavior
-                                            = MixedInterpolation::ShareRanges)
-        : MixedLinearCubicInterpolation(xBegin, xEnd, yBegin, n, behavior,
-                                        CubicInterpolation::FritschButland, false,
-                                        CubicInterpolation::SecondDerivative, 0.0,
-                                        CubicInterpolation::SecondDerivative, 0.0) {}
+        MixedLinearFritschButlandCubic(const I1& xBegin,
+                                       const I1& xEnd,
+                                       const I2& yBegin,
+                                       Size n,
+                                       MixedInterpolation::Behavior behavior = MixedInterpolation::ShareRanges)
+        : MixedLinearCubicInterpolation(xBegin,
+                                        xEnd,
+                                        yBegin,
+                                        n,
+                                        behavior,
+                                        CubicInterpolation::FritschButland,
+                                        false,
+                                        CubicInterpolation::SecondDerivative,
+                                        0.0,
+                                        CubicInterpolation::SecondDerivative,
+                                        0.0)
+        {
+        }
     };
 
-    class MixedLinearParabolic : public MixedLinearCubicInterpolation {
+    class MixedLinearParabolic : public MixedLinearCubicInterpolation
+    {
       public:
         /*! \pre the \f$ x \f$ values must be sorted. */
         template <class I1, class I2>
-        MixedLinearParabolic(const I1& xBegin, const I1& xEnd,
-                             const I2& yBegin, Size n,
-                             MixedInterpolation::Behavior behavior
-                                            = MixedInterpolation::ShareRanges)
-        : MixedLinearCubicInterpolation(xBegin, xEnd, yBegin, n, behavior,
-                                        CubicInterpolation::Parabolic, false,
-                                        CubicInterpolation::SecondDerivative, 0.0,
-                                        CubicInterpolation::SecondDerivative, 0.0) {}
+        MixedLinearParabolic(const I1& xBegin,
+                             const I1& xEnd,
+                             const I2& yBegin,
+                             Size n,
+                             MixedInterpolation::Behavior behavior = MixedInterpolation::ShareRanges)
+        : MixedLinearCubicInterpolation(xBegin,
+                                        xEnd,
+                                        yBegin,
+                                        n,
+                                        behavior,
+                                        CubicInterpolation::Parabolic,
+                                        false,
+                                        CubicInterpolation::SecondDerivative,
+                                        0.0,
+                                        CubicInterpolation::SecondDerivative,
+                                        0.0)
+        {
+        }
     };
 
-    class MixedLinearMonotonicParabolic : public MixedLinearCubicInterpolation {
+    class MixedLinearMonotonicParabolic : public MixedLinearCubicInterpolation
+    {
       public:
         /*! \pre the \f$ x \f$ values must be sorted. */
         template <class I1, class I2>
-        MixedLinearMonotonicParabolic(const I1& xBegin, const I1& xEnd,
-                                      const I2& yBegin, Size n,
-                                      MixedInterpolation::Behavior behavior
-                                            = MixedInterpolation::ShareRanges)
-        : MixedLinearCubicInterpolation(xBegin, xEnd, yBegin, n, behavior,
-                                        CubicInterpolation::Parabolic, true,
-                                        CubicInterpolation::SecondDerivative, 0.0,
-                                        CubicInterpolation::SecondDerivative, 0.0) {}
+        MixedLinearMonotonicParabolic(const I1& xBegin,
+                                      const I1& xEnd,
+                                      const I2& yBegin,
+                                      Size n,
+                                      MixedInterpolation::Behavior behavior = MixedInterpolation::ShareRanges)
+        : MixedLinearCubicInterpolation(xBegin,
+                                        xEnd,
+                                        yBegin,
+                                        n,
+                                        behavior,
+                                        CubicInterpolation::Parabolic,
+                                        true,
+                                        CubicInterpolation::SecondDerivative,
+                                        0.0,
+                                        CubicInterpolation::SecondDerivative,
+                                        0.0)
+        {
+        }
     };
 
-    namespace detail {
+    namespace detail
+    {
 
         template <class I1, class I2, class SwitchFn>
-        class MixedInterpolationImpl final
-            : public Interpolation::templateImpl<I1, I2> {
+        class MixedInterpolationImpl final : public Interpolation::templateImpl<I1, I2>
+        {
           public:
             template <class Interpolator1, class Interpolator2>
-            MixedInterpolationImpl(const I1& xBegin, const I1& xEnd,
-                                   const I2& yBegin, Size n,
+            MixedInterpolationImpl(const I1& xBegin,
+                                   const I1& xEnd,
+                                   const I2& yBegin,
+                                   Size n,
                                    MixedInterpolation::Behavior behavior,
                                    const Interpolator1& factory1,
                                    const Interpolator2& factory2,
                                    SwitchFn switchFn)
-            : Interpolation::templateImpl<I1, I2>(xBegin, xEnd, yBegin, 1),
-              switchFn_(std::move(switchFn)) {
+            : Interpolation::templateImpl<I1, I2>(xBegin, xEnd, yBegin, 1), switchFn_(std::move(switchFn))
+            {
                 Size maxN = static_cast<Size>(xEnd - xBegin);
                 // SplitRanges needs xBegin2_+1 to be valid
-                if (behavior == MixedInterpolation::SplitRanges) {
+                if (behavior == MixedInterpolation::SplitRanges)
+                {
                     --maxN;
                 }
                 // This only checks that we pass valid iterators into interpolate()
@@ -242,55 +315,53 @@ namespace QuantLib {
 
                 xBegin2_ = this->xBegin_ + n;
 
-                switch (behavior) {
-                  case MixedInterpolation::ShareRanges:
-                    interpolation1_ = factory1.interpolate(this->xBegin_,
-                                                           this->xEnd_,
-                                                           this->yBegin_);
-                    interpolation2_ = factory2.interpolate(this->xBegin_,
-                                                           this->xEnd_,
-                                                           this->yBegin_);
-                    break;
-                  case MixedInterpolation::SplitRanges:
-                    interpolation1_ = factory1.interpolate(this->xBegin_,
-                                                           this->xBegin2_ + 1,
-                                                           this->yBegin_);
-                    interpolation2_ = factory2.interpolate(this->xBegin2_,
-                                                           this->xEnd_,
-                                                           this->yBegin_ + n);
-                    break;
-                  default:
-                    QL_FAIL("unknown mixed-interpolation behavior: " << behavior);
+                switch (behavior)
+                {
+                    case MixedInterpolation::ShareRanges:
+                        interpolation1_ = factory1.interpolate(this->xBegin_, this->xEnd_, this->yBegin_);
+                        interpolation2_ = factory2.interpolate(this->xBegin_, this->xEnd_, this->yBegin_);
+                        break;
+                    case MixedInterpolation::SplitRanges:
+                        interpolation1_ = factory1.interpolate(this->xBegin_, this->xBegin2_ + 1, this->yBegin_);
+                        interpolation2_ = factory2.interpolate(this->xBegin2_, this->xEnd_, this->yBegin_ + n);
+                        break;
+                    default:
+                        QL_FAIL("unknown mixed-interpolation behavior: " << behavior);
                 }
             }
 
-            void update() override {
+            void update() override
+            {
                 interpolation1_.update();
                 switchFn_(interpolation1_, interpolation2_, *xBegin2_);
                 interpolation2_.update();
             }
-            Real value(Real x) const override {
-                if (x<*xBegin2_)
+            Real value(Real x) const override
+            {
+                if (x < *xBegin2_)
                     return interpolation1_(x, true);
                 return interpolation2_(x, true);
             }
-            Real primitive(Real x) const override {
-                if (x<*xBegin2_)
+            Real primitive(Real x) const override
+            {
+                if (x < *xBegin2_)
                     return interpolation1_.primitive(x, true);
-                return interpolation2_.primitive(x, true) -
-                    interpolation2_.primitive(*xBegin2_, true) +
-                    interpolation1_.primitive(*xBegin2_, true);
+                return interpolation2_.primitive(x, true) - interpolation2_.primitive(*xBegin2_, true) +
+                       interpolation1_.primitive(*xBegin2_, true);
             }
-            Real derivative(Real x) const override {
-                if (x<*xBegin2_)
+            Real derivative(Real x) const override
+            {
+                if (x < *xBegin2_)
                     return interpolation1_.derivative(x, true);
                 return interpolation2_.derivative(x, true);
             }
-            Real secondDerivative(Real x) const override {
-                if (x<*xBegin2_)
+            Real secondDerivative(Real x) const override
+            {
+                if (x < *xBegin2_)
                     return interpolation1_.secondDerivative(x, true);
                 return interpolation2_.secondDerivative(x, true);
             }
+
           private:
             I1 xBegin2_;
             Interpolation interpolation1_, interpolation2_;

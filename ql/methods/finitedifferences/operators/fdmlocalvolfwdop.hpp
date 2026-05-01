@@ -26,14 +26,16 @@
 #ifndef quantlib_fdm_local_vol_fwd_op_hpp
 #define quantlib_fdm_local_vol_fwd_op_hpp
 
-#include <ql/processes/blackscholesprocess.hpp>
+#include <ql/methods/finitedifferences/operators/fdmlinearopcomposite.hpp>
 #include <ql/methods/finitedifferences/operators/firstderivativeop.hpp>
 #include <ql/methods/finitedifferences/operators/triplebandlinearop.hpp>
-#include <ql/methods/finitedifferences/operators/fdmlinearopcomposite.hpp>
+#include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class FdmLocalVolFwdOp : public FdmLinearOpComposite {
+    class FdmLocalVolFwdOp : public FdmLinearOpComposite
+    {
       public:
         FdmLocalVolFwdOp(const ext::shared_ptr<FdmMesher>& mesher,
                          const ext::shared_ptr<Quote>& spot,
@@ -58,7 +60,7 @@ namespace QuantLib {
         const ext::shared_ptr<YieldTermStructure> rTS_, qTS_;
         const ext::shared_ptr<LocalVolTermStructure> localVol_;
         const Array x_;
-        const FirstDerivativeOp  dxMap_;
+        const FirstDerivativeOp dxMap_;
         const TripleBandLinearOp dxxMap_;
         TripleBandLinearOp mapT_;
         const Size direction_;

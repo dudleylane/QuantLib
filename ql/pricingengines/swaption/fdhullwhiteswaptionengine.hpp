@@ -25,21 +25,22 @@
 #define quantlib_fd_hull_white_swaption_engine_hpp
 
 #include <ql/instruments/swaption.hpp>
-#include <ql/pricingengines/genericmodelengine.hpp>
-#include <ql/models/shortrate/onefactormodels/hullwhite.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
+#include <ql/models/shortrate/onefactormodels/hullwhite.hpp>
+#include <ql/pricingengines/genericmodelengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class FdHullWhiteSwaptionEngine
-        : public GenericModelEngine<HullWhite, 
-                                    Swaption::arguments, Swaption::results> {
+    class FdHullWhiteSwaptionEngine : public GenericModelEngine<HullWhite, Swaption::arguments, Swaption::results>
+    {
       public:
-        explicit FdHullWhiteSwaptionEngine(
-            const ext::shared_ptr<HullWhite>& model,
-            Size tGrid = 100, Size xGrid = 100,
-            Size dampingSteps = 0, Real invEps = 1e-5,
-            const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas());
+        explicit FdHullWhiteSwaptionEngine(const ext::shared_ptr<HullWhite>& model,
+                                           Size tGrid = 100,
+                                           Size xGrid = 100,
+                                           Size dampingSteps = 0,
+                                           Real invEps = 1e-5,
+                                           const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas());
 
         void calculate() const override;
 
@@ -51,4 +52,3 @@ namespace QuantLib {
 }
 
 #endif
-

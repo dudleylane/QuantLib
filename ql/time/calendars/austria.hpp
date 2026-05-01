@@ -27,7 +27,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Austrian calendars
     /*! Public holidays:
@@ -50,9 +51,8 @@ namespace QuantLib {
         <li>St. Stephen, December 26th</li>
         </ul>
 
-        Holidays for the stock exchange (data from https://www.wienerborse.at/en/trading/trading-information/trading-calendar/):
-        <ul>
-        <li>Saturdays</li>
+        Holidays for the stock exchange (data from
+       https://www.wienerborse.at/en/trading/trading-information/trading-calendar/): <ul> <li>Saturdays</li>
         <li>Sundays</li>
         <li>New Year's Day, January 1st</li>
         <li>Good Friday</li>
@@ -69,22 +69,28 @@ namespace QuantLib {
 
         \ingroup calendars
     */
-    class Austria : public Calendar {
+    class Austria : public Calendar
+    {
       private:
-        class SettlementImpl final : public Calendar::WesternImpl {
+        class SettlementImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "Austrian settlement"; }
             bool isBusinessDay(const Date&) const override;
         };
-        class ExchangeImpl final : public Calendar::WesternImpl {
+        class ExchangeImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "Vienna stock exchange"; }
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
         //! Austrian calendars
-        enum Market { Settlement,     //!< generic settlement calendar
-                      Exchange        //!< Vienna stock-exchange calendar
+        enum Market
+        {
+            Settlement, //!< generic settlement calendar
+            Exchange    //!< Vienna stock-exchange calendar
         };
         explicit Austria(Market market = Settlement);
     };

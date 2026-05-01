@@ -23,57 +23,66 @@
 #include <ql/termstructures/credit/defaultdensitystructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
+    namespace
+    {
 
         template <class F>
-        struct t_remapper {
+        struct t_remapper
+        {
             F f;
             Time T;
             t_remapper(F f, Time T) : f(std::move(f)), T(T) {}
             // This remaps [-1,1] to [0,T]. No differential included.
-            Real operator()(Real x) const {
-                const Real arg = (x+1.0)*T/2.0;
+            Real operator()(Real x) const
+            {
+                const Real arg = (x + 1.0) * T / 2.0;
                 return f(arg);
             }
         };
 
         template <class F>
-        t_remapper<F> remap_t(const F& f, Time T) {
-            return t_remapper<F>(f,T);
+        t_remapper<F> remap_t(const F& f, Time T)
+        {
+            return t_remapper<F>(f, T);
         }
 
     }
 
-    DefaultDensityStructure::DefaultDensityStructure(
-                                    const DayCounter& dc,
-                                    const std::vector<Handle<Quote> >& jumps,
-                                    const std::vector<Date>& jumpDates)
-    : DefaultProbabilityTermStructure(dc, jumps, jumpDates) {}
+    DefaultDensityStructure::DefaultDensityStructure(const DayCounter& dc,
+                                                     const std::vector<Handle<Quote>>& jumps,
+                                                     const std::vector<Date>& jumpDates)
+    : DefaultProbabilityTermStructure(dc, jumps, jumpDates)
+    {
+    }
 
-    DefaultDensityStructure::DefaultDensityStructure(
-                                    const Date& refDate,
-                                    const Calendar& cal,
-                                    const DayCounter& dc,
-                                    const std::vector<Handle<Quote> >& jumps,
-                                    const std::vector<Date>& jumpDates)
-    : DefaultProbabilityTermStructure(refDate, cal, dc, jumps, jumpDates) {}
+    DefaultDensityStructure::DefaultDensityStructure(const Date& refDate,
+                                                     const Calendar& cal,
+                                                     const DayCounter& dc,
+                                                     const std::vector<Handle<Quote>>& jumps,
+                                                     const std::vector<Date>& jumpDates)
+    : DefaultProbabilityTermStructure(refDate, cal, dc, jumps, jumpDates)
+    {
+    }
 
-    DefaultDensityStructure::DefaultDensityStructure(
-                                    Natural settlDays,
-                                    const Calendar& cal,
-                                    const DayCounter& dc,
-                                    const std::vector<Handle<Quote> >& jumps,
-                                    const std::vector<Date>& jumpDates)
-    : DefaultProbabilityTermStructure(settlDays, cal, dc, jumps, jumpDates) {}
+    DefaultDensityStructure::DefaultDensityStructure(Natural settlDays,
+                                                     const Calendar& cal,
+                                                     const DayCounter& dc,
+                                                     const std::vector<Handle<Quote>>& jumps,
+                                                     const std::vector<Date>& jumpDates)
+    : DefaultProbabilityTermStructure(settlDays, cal, dc, jumps, jumpDates)
+    {
+    }
 
-    Probability DefaultDensityStructure::survivalProbabilityImpl(Time t) const {
+    Probability DefaultDensityStructure::survivalProbabilityImpl(Time t) const
+    {
         static GaussChebyshevIntegration integral(48);
         // the Gauss-Chebyshev quadratures integrate over [-1,1],
         // hence the remapping (and the Jacobian term t/2)
-        Probability P = 1.0 - integral(remap_t([&](Time tau){ return defaultDensityImpl(tau); }, t)) * t / 2.0;
-        //QL_ENSURE(P >= 0.0, "negative survival probability");
+        Probability P = 1.0 - integral(remap_t([&](Time tau) { return defaultDensityImpl(tau); }, t)) * t / 2.0;
+        // QL_ENSURE(P >= 0.0, "negative survival probability");
         return std::max<Real>(P, 0.0);
     }
 

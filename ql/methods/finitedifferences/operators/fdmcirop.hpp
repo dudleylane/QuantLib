@@ -35,20 +35,21 @@
 #include <ql/processes/hestonprocess.hpp>
 #include <ql/termstructures/volatility/equityfx/localvoltermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class FdmCIREquityPart {
+    class FdmCIREquityPart
+    {
       public:
-        FdmCIREquityPart(
-            const ext::shared_ptr<FdmMesher>& mesher,
-            const ext::shared_ptr<GeneralizedBlackScholesProcess> & bsProcess,
-            Real strike);
+        FdmCIREquityPart(const ext::shared_ptr<FdmMesher>& mesher,
+                         const ext::shared_ptr<GeneralizedBlackScholesProcess>& bsProcess,
+                         Real strike);
 
         void setTime(Time t1, Time t2);
         const TripleBandLinearOp& getMap() const;
 
       protected:
-        const FirstDerivativeOp  dxMap_;
+        const FirstDerivativeOp dxMap_;
         const TripleBandLinearOp dxxMap_;
         TripleBandLinearOp mapT_;
 
@@ -58,11 +59,10 @@ namespace QuantLib {
         const ext::shared_ptr<BlackVolTermStructure> sigma1_;
     };
 
-    class FdmCIRRatesPart {
+    class FdmCIRRatesPart
+    {
       public:
-        FdmCIRRatesPart(
-            const ext::shared_ptr<FdmMesher>& mesher,
-            Real sigma, Real kappa, Real theta);
+        FdmCIRRatesPart(const ext::shared_ptr<FdmMesher>& mesher, Real sigma, Real kappa, Real theta);
 
         void setTime(Time t1, Time t2);
         const TripleBandLinearOp& getMap() const;
@@ -73,7 +73,8 @@ namespace QuantLib {
         const ext::shared_ptr<FdmMesher> mesher_;
     };
 
-    class FdmCIRMixedPart {
+    class FdmCIRMixedPart
+    {
       public:
         FdmCIRMixedPart(const ext::shared_ptr<FdmMesher>& mesher,
                         const ext::shared_ptr<CoxIngersollRossProcess>& cirProcess,
@@ -93,7 +94,8 @@ namespace QuantLib {
     };
 
 
-    class FdmCIROp : public FdmLinearOpComposite {
+    class FdmCIROp : public FdmLinearOpComposite
+    {
       public:
         FdmCIROp(const ext::shared_ptr<FdmMesher>& mesher,
                  const ext::shared_ptr<CoxIngersollRossProcess>& cirProcess,

@@ -26,7 +26,7 @@
 
 // first things first
 #if (_MSC_VER < 1910)
-#  error "versions of Visual C++ prior to VC++ 2017 are no longer supported"
+#    error "versions of Visual C++ prior to VC++ 2017 are no longer supported"
 #endif
 
 /*******************************************
@@ -36,13 +36,13 @@
 
 // force undefining min and max macros
 #ifndef NOMINMAX
-#  define NOMINMAX
+#    define NOMINMAX
 #endif
 #ifdef min
-#  undef min
+#    undef min
 #endif
 #ifdef max
-#  undef max
+#    undef max
 #endif
 
 // conditionally work around compiler glitches
@@ -53,7 +53,7 @@
 // bit under x64 Windows). We disable this warning until a better
 // solution is suggested.
 #ifdef _M_X64
-#pragma warning(disable : 4267)
+#    pragma warning(disable : 4267)
 #endif
 
 
@@ -63,7 +63,7 @@
 
 
 #ifndef _CPPRTTI
-#   error Enable Run-Time Type Info (Property Pages | C/C++ | Language)
+#    error Enable Run-Time Type Info (Property Pages | C/C++ | Language)
 #endif
 
 #endif

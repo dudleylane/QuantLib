@@ -21,7 +21,10 @@
 #include <ql/indexes/ibor/corra.hpp>
 #include <ql/time/calendars/canada.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
     Corra::Corra(const Handle<YieldTermStructure>& h)
-    : OvernightIndex("CORRA", 0, CADCurrency(), Canada(), Actual365Fixed(), h) {}
+    : OvernightIndex("CORRA", 0, CADCurrency(), Canada(), Actual365Fixed(), h)
+    {
+    }
 }

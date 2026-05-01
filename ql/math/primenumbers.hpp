@@ -37,15 +37,18 @@
 #include <ql/types.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Prime numbers calculator
     /*! Taken from "Monte Carlo Methods in Finance", by Peter Jäckel
      */
-    class PrimeNumbers {
+    class PrimeNumbers
+    {
       public:
         //! Get and store one after another.
         static BigNatural get(Size absoluteIndex);
+
       private:
         PrimeNumbers() = default;
         static BigNatural nextPrimeNumber();

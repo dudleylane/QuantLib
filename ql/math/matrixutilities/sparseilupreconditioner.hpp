@@ -27,13 +27,15 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #include <ql/math/array.hpp>
 #include <ql/math/matrixutilities/sparsematrix.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! References:
         Saad, Yousef. 1996, Iterative methods for sparse linear systems,
         http://www-users.cs.umn.edu/~saad/books.html
     */
-    class SparseILUPreconditioner  {
+    class SparseILUPreconditioner
+    {
       public:
         explicit SparseILUPreconditioner(const SparseMatrix& A, Integer lfil = 1);
 

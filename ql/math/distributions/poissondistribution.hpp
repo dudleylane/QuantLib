@@ -28,7 +28,8 @@
 #include <ql/math/factorial.hpp>
 #include <ql/math/incompletegamma.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Poisson distribution function
     /*! Given an integer \f$ k \f$, it returns its probability
@@ -37,11 +38,13 @@ namespace QuantLib {
         \test the correctness of the returned value is tested by
               checking it against known good results.
     */
-    class PoissonDistribution {
+    class PoissonDistribution
+    {
       public:
         PoissonDistribution(Real mu);
         // function
         Real operator()(BigNatural k) const;
+
       private:
         Real mu_, logMu_;
     };
@@ -58,12 +61,12 @@ namespace QuantLib {
         \test the correctness of the returned value is tested by
               checking it against known good results.
     */
-    class CumulativePoissonDistribution {
+    class CumulativePoissonDistribution
+    {
       public:
         CumulativePoissonDistribution(Real mu) : mu_(mu) {}
-        Real operator()(BigNatural k) const {
-            return 1.0 - incompleteGammaFunction(k+1, mu_);
-        }
+        Real operator()(BigNatural k) const { return 1.0 - incompleteGammaFunction(k + 1, mu_); }
+
       private:
         Real mu_;
     };
@@ -73,64 +76,70 @@ namespace QuantLib {
     /*! \test the correctness of the returned value is tested by
               checking it against known good results.
     */
-    class InverseCumulativePoisson {
+    class InverseCumulativePoisson
+    {
       public:
         InverseCumulativePoisson(Real lambda = 1.0);
         Real operator()(Real x) const;
+
       private:
         Real lambda_;
         Real calcSummand(BigNatural index) const;
     };
 
 
-
     // inline definitions
 
-    inline PoissonDistribution::PoissonDistribution(Real mu)
-    : mu_(mu) {
+    inline PoissonDistribution::PoissonDistribution(Real mu) : mu_(mu)
+    {
 
-        QL_REQUIRE(mu_>=0.0,
-                   "mu must be non negative (" << mu_ << " not allowed)");
+        QL_REQUIRE(mu_ >= 0.0, "mu must be non negative (" << mu_ << " not allowed)");
 
-        if (mu_!=0.0) logMu_ = std::log(mu_);
+        if (mu_ != 0.0)
+            logMu_ = std::log(mu_);
     }
 
-    inline Real PoissonDistribution::operator()(BigNatural k) const {
-        if (mu_==0.0) {
-            if (k==0) return 1.0;
-            else      return 0.0;
+    inline Real PoissonDistribution::operator()(BigNatural k) const
+    {
+        if (mu_ == 0.0)
+        {
+            if (k == 0)
+                return 1.0;
+            else
+                return 0.0;
         }
         Real logFactorial = Factorial::ln(k);
-        return std::exp(k*std::log(mu_) - logFactorial - mu_);
+        return std::exp(k * std::log(mu_) - logFactorial - mu_);
     }
 
 
-    inline InverseCumulativePoisson::InverseCumulativePoisson(Real lambda)
-    : lambda_(lambda) {
+    inline InverseCumulativePoisson::InverseCumulativePoisson(Real lambda) : lambda_(lambda)
+    {
         QL_REQUIRE(lambda_ > 0.0, "lambda must be positive");
     }
 
-    inline Real InverseCumulativePoisson::operator()(Real x) const {
-        QL_REQUIRE(x >= 0.0 && x <= 1.0,
-                   "Inverse cumulative Poisson distribution is "
-                   "only defined on the interval [0,1]");
+    inline Real InverseCumulativePoisson::operator()(Real x) const
+    {
+        QL_REQUIRE(x >= 0.0 && x <= 1.0, "Inverse cumulative Poisson distribution is "
+                                         "only defined on the interval [0,1]");
 
         if (x == 1.0)
             return QL_MAX_REAL;
 
         Real sum = 0.0;
         BigNatural index = 0;
-        while (x > sum) {
+        while (x > sum)
+        {
             sum += calcSummand(index);
             index++;
         }
 
-        return Real(index-1);
+        return Real(index - 1);
     }
 
-    inline Real InverseCumulativePoisson::calcSummand(BigNatural index) const {
-        return std::exp(-lambda_) * std::pow(lambda_, Integer(index)) /
-            Factorial::get(index);
+    inline Real InverseCumulativePoisson::calcSummand(BigNatural index) const
+    {
+        return std::exp(-lambda_) * std::pow(lambda_, Integer(index)) / Factorial::get(index);
     }
 
 }

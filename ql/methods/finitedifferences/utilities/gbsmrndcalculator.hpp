@@ -28,19 +28,21 @@
 #include <ql/methods/finitedifferences/utilities/riskneutraldensitycalculator.hpp>
 #include <ql/shared_ptr.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
     class GeneralizedBlackScholesProcess;
 
-    class GBSMRNDCalculator : public RiskNeutralDensityCalculator {
-    public:
-      explicit GBSMRNDCalculator(ext::shared_ptr<GeneralizedBlackScholesProcess> process);
+    class GBSMRNDCalculator : public RiskNeutralDensityCalculator
+    {
+      public:
+        explicit GBSMRNDCalculator(ext::shared_ptr<GeneralizedBlackScholesProcess> process);
 
-      Real pdf(Real s, Time t) const override;
-      Real cdf(Real s, Time t) const override;
-      Real invcdf(Real q, Time t) const override;
+        Real pdf(Real s, Time t) const override;
+        Real cdf(Real s, Time t) const override;
+        Real invcdf(Real q, Time t) const override;
 
-    private:
-      const ext::shared_ptr<GeneralizedBlackScholesProcess> process_;
+      private:
+        const ext::shared_ptr<GeneralizedBlackScholesProcess> process_;
     };
 }
 

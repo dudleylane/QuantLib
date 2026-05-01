@@ -26,25 +26,22 @@
 
 #include <ql/legacy/libormarketmodels/lmvolmodel.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! caplet const volatility model
-    class LmConstWrapperVolatilityModel : public LmVolatilityModel {
+    class LmConstWrapperVolatilityModel : public LmVolatilityModel
+    {
       public:
-        explicit LmConstWrapperVolatilityModel(
-            const ext::shared_ptr<LmVolatilityModel> & volaModel)
-        : LmVolatilityModel(volaModel->size(), 0),
-          volaModel_(volaModel) {
+        explicit LmConstWrapperVolatilityModel(const ext::shared_ptr<LmVolatilityModel>& volaModel)
+        : LmVolatilityModel(volaModel->size(), 0), volaModel_(volaModel)
+        {
         }
 
-        Array volatility(Time t, const Array& x = {}) const override {
-            return volaModel_->volatility(t, x);
-        }
-        Volatility volatility(
-            Size i, Time t, const Array& x = {}) {
-            return volaModel_->volatility(i, t, x);
-        }
-        Real integratedVariance(Size i, Size j, Time u, const Array& x = {}) const override {
+        Array volatility(Time t, const Array& x = {}) const override { return volaModel_->volatility(t, x); }
+        Volatility volatility(Size i, Time t, const Array& x = {}) { return volaModel_->volatility(i, t, x); }
+        Real integratedVariance(Size i, Size j, Time u, const Array& x = {}) const override
+        {
             return volaModel_->integratedVariance(i, j, u, x);
         }
 
@@ -60,5 +57,3 @@ namespace QuantLib {
 
 
 #endif
-
-

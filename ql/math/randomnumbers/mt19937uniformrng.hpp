@@ -28,7 +28,8 @@
 #include <ql/methods/montecarlo/sample.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Uniform random number generator
     /*! Mersenne Twister random number generator of period 2**19937-1
@@ -38,7 +39,8 @@ namespace QuantLib {
         \test the correctness of the returned values is tested by
               checking them against known good results.
     */
-    class MersenneTwisterUniformRng {
+    class MersenneTwisterUniformRng
+    {
       private:
         static const Size N = 624; // state size
         static const Size M = 397; // shift size
@@ -47,18 +49,16 @@ namespace QuantLib {
         /*! if the given seed is 0, a random seed will be chosen
             based on clock() */
         explicit MersenneTwisterUniformRng(unsigned long seed = 0);
-        explicit MersenneTwisterUniformRng(
-                                     const std::vector<unsigned long>& seeds);
+        explicit MersenneTwisterUniformRng(const std::vector<unsigned long>& seeds);
         /*! returns a sample with weight 1.0 containing a random number
             in the (0.0, 1.0) interval  */
         sample_type next() const { return {nextReal(), 1.0}; }
         //! return a random number in the (0.0, 1.0)-interval
-        Real nextReal() const {
-            return (Real(nextInt32()) + 0.5)/4294967296.0;
-        }
+        Real nextReal() const { return (Real(nextInt32()) + 0.5) / 4294967296.0; }
         //! return a random integer in the [0,0xffffffff]-interval
-        unsigned long nextInt32() const  {
-            if (mti==N)
+        unsigned long nextInt32() const
+        {
+            if (mti == N)
                 twist(); /* generate N words at a time */
 
             unsigned long y = mt[mti++];
@@ -70,6 +70,7 @@ namespace QuantLib {
             y ^= (y >> 18);
             return y;
         }
+
       private:
         void seedInitialization(unsigned long seed);
         void twist() const;

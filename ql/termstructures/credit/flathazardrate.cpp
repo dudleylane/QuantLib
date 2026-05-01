@@ -22,36 +22,37 @@
 #include <ql/termstructures/credit/flathazardrate.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    FlatHazardRate::FlatHazardRate(const Date& referenceDate,
-                                   Handle<Quote> hazardRate,
-                                   const DayCounter& dayCounter)
-    : HazardRateStructure(referenceDate, Calendar(), dayCounter),
-      hazardRate_(std::move(hazardRate)) {
+    FlatHazardRate::FlatHazardRate(const Date& referenceDate, Handle<Quote> hazardRate, const DayCounter& dayCounter)
+    : HazardRateStructure(referenceDate, Calendar(), dayCounter), hazardRate_(std::move(hazardRate))
+    {
         registerWith(hazardRate_);
     }
 
-    FlatHazardRate::FlatHazardRate(const Date& referenceDate,
-                                   Rate hazardRate,
-                                   const DayCounter& dayCounter)
+    FlatHazardRate::FlatHazardRate(const Date& referenceDate, Rate hazardRate, const DayCounter& dayCounter)
     : HazardRateStructure(referenceDate, Calendar(), dayCounter),
-      hazardRate_(ext::shared_ptr<Quote>(new SimpleQuote(hazardRate))) {}
-
-    FlatHazardRate::FlatHazardRate(Natural settlementDays,
-                                   const Calendar& calendar,
-                                   Handle<Quote> hazardRate,
-                                   const DayCounter& dayCounter)
-    : HazardRateStructure(settlementDays, calendar, dayCounter),
-      hazardRate_(std::move(hazardRate)) {
-        registerWith(hazardRate_);
+      hazardRate_(ext::shared_ptr<Quote>(new SimpleQuote(hazardRate)))
+    {
     }
 
     FlatHazardRate::FlatHazardRate(Natural settlementDays,
                                    const Calendar& calendar,
+                                   Handle<Quote> hazardRate,
+                                   const DayCounter& dayCounter)
+    : HazardRateStructure(settlementDays, calendar, dayCounter), hazardRate_(std::move(hazardRate))
+    {
+        registerWith(hazardRate_);
+    }
+
+    FlatHazardRate::FlatHazardRate(Natural settlementDays,
+                                   const Calendar& calendar,
                                    Rate hazardRate,
                                    const DayCounter& dayCounter)
     : HazardRateStructure(settlementDays, calendar, dayCounter),
-      hazardRate_(ext::shared_ptr<Quote>(new SimpleQuote(hazardRate))) {}
+      hazardRate_(ext::shared_ptr<Quote>(new SimpleQuote(hazardRate)))
+    {
+    }
 
 }

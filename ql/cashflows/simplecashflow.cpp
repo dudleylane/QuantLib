@@ -20,15 +20,14 @@
 
 #include <ql/cashflows/simplecashflow.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    SimpleCashFlow::SimpleCashFlow(Real amount,
-                                   const Date& date)
-    : amount_(amount), date_(date)
+    SimpleCashFlow::SimpleCashFlow(Real amount, const Date& date) : amount_(amount), date_(date)
     {
-        QL_REQUIRE(date_!=Date(), "null date SimpleCashFlow");
+        QL_REQUIRE(date_ != Date(), "null date SimpleCashFlow");
 
-        QL_REQUIRE(amount_!=Null<Real>(), "null amount SimpleCashFlow");
+        QL_REQUIRE(amount_ != Null<Real>(), "null amount SimpleCashFlow");
     }
 
 }

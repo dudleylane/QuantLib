@@ -25,16 +25,16 @@
 #include <ql/models/marketmodels/pathwisemultiproduct.hpp>
 #include <ql/utilities/clone.hpp>
 
-namespace QuantLib 
+namespace QuantLib
 {
-/*! MultiStepPathwiseWrapper
-    Pathwise products do everything that ordinary products do and more. This lets
-    you treat a pathwise product as an ordinary product. So you only have to write the 
-    product once. 
+    /*! MultiStepPathwiseWrapper
+        Pathwise products do everything that ordinary products do and more. This lets
+        you treat a pathwise product as an ordinary product. So you only have to write the
+        product once.
 
-    Tested in MarketModels::testInverseFloater()
+        Tested in MarketModels::testInverseFloater()
 
-*/
+    */
 
     class MultiProductPathwiseWrapper : public MarketModelMultiProduct
     {
@@ -46,16 +46,15 @@ namespace QuantLib
         void reset() override;
         bool nextTimeStep(const CurveState& currentState,
                           std::vector<Size>& numberCashFlowsThisStep,
-                          std::vector<std::vector<CashFlow> >& cashFlowsGenerated) override;
+                          std::vector<std::vector<CashFlow>>& cashFlowsGenerated) override;
         std::unique_ptr<MarketModelMultiProduct> clone() const override;
         std::vector<Size> suggestedNumeraires() const override;
         const EvolutionDescription& evolution() const override;
 
       private:
-          Clone<MarketModelPathwiseMultiProduct> innerProduct_;
-          std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow> > cashFlowsGenerated_;
-          Size numberOfProducts_;
-     
+        Clone<MarketModelPathwiseMultiProduct> innerProduct_;
+        std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow>> cashFlowsGenerated_;
+        Size numberOfProducts_;
     };
 
 

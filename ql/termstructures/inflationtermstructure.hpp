@@ -24,16 +24,18 @@
 #ifndef quantlib_inflation_termstructure_hpp
 #define quantlib_inflation_termstructure_hpp
 
-#include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/termstructures/inflation/seasonality.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class InflationIndex;
 
     //! Interface for inflation term structures.
     /*! \ingroup inflationtermstructures */
-    class InflationTermStructure : public TermStructure {
+    class InflationTermStructure : public TermStructure
+    {
       public:
         //! \name Constructors
         //@{
@@ -84,7 +86,8 @@ namespace QuantLib {
                         Deprecated in version 1.39.
         */
         [[deprecated("Do not use; inflation curves always have an explicit base date now.")]]
-        bool hasExplicitBaseDate() const {
+        bool hasExplicitBaseDate() const
+        {
             return true;
         }
         //@}
@@ -97,10 +100,8 @@ namespace QuantLib {
         //@}
 
       protected:
-        void checkRange(const Date&,
-                        bool extrapolate) const;
-        void checkRange(Time t,
-                        bool extrapolate) const;
+        void checkRange(const Date&, bool extrapolate) const;
+        void checkRange(Time t, bool extrapolate) const;
 
         ext::shared_ptr<Seasonality> seasonality_;
 
@@ -118,7 +119,8 @@ namespace QuantLib {
     };
 
     //! Interface for zero inflation term structures.
-    class ZeroInflationTermStructure : public InflationTermStructure {
+    class ZeroInflationTermStructure : public InflationTermStructure
+    {
       public:
         //! \name Constructors
         //@{
@@ -157,7 +159,8 @@ namespace QuantLib {
                         Deprecated in version 1.41.
         */
         [[deprecated("Use the overload without a lag instead")]]
-        Rate zeroRate(const Date& d, const Period& instObsLag,
+        Rate zeroRate(const Date& d,
+                      const Period& instObsLag,
                       bool forceLinearInterpolation = false,
                       bool extrapolate = false) const;
 
@@ -168,8 +171,7 @@ namespace QuantLib {
                      call it, You'll have to manage lag, seasonality
                      etc. yourself.
         */
-        Rate zeroRate(Time t,
-                      bool extrapolate = false) const;
+        Rate zeroRate(Time t, bool extrapolate = false) const;
         //@}
       protected:
         //! to be defined in derived classes
@@ -178,7 +180,8 @@ namespace QuantLib {
 
 
     //! Base class for year-on-year inflation term structures.
-    class YoYInflationTermStructure : public InflationTermStructure {
+    class YoYInflationTermStructure : public InflationTermStructure
+    {
       public:
         //! \name Constructors
         //@{
@@ -217,7 +220,8 @@ namespace QuantLib {
                         Deprecated in version 1.41.
         */
         [[deprecated("Use the overload without a lag instead")]]
-        Rate yoyRate(const Date& d, const Period& instObsLag,
+        Rate yoyRate(const Date& d,
+                     const Period& instObsLag,
                      bool forceLinearInterpolation = false,
                      bool extrapolate = false) const;
 
@@ -228,8 +232,7 @@ namespace QuantLib {
                      call it, You'll have to manage lag, seasonality
                      etc. yourself.
         */
-        Rate yoyRate(Time t,
-                     bool extrapolate = false) const;
+        Rate yoyRate(Time t, bool extrapolate = false) const;
         //@}
 
       protected:
@@ -239,39 +242,40 @@ namespace QuantLib {
 
 
     //! utility function giving the inflation period for a given date
-    std::pair<Date,Date> inflationPeriod(const Date&,
-                                         Frequency);
+    std::pair<Date, Date> inflationPeriod(const Date&, Frequency);
 
     //! utility function giving the time between two dates depending on
     //! index frequency and interpolation, and a day counter
-    Time inflationYearFraction(Frequency ,
-                               bool indexIsInterpolated,
-                               const DayCounter&,
-                               const Date&, const Date&);
+    Time inflationYearFraction(Frequency, bool indexIsInterpolated, const DayCounter&, const Date&, const Date&);
 
 
     // inline
 
-    inline Period InflationTermStructure::observationLag() const {
+    inline Period InflationTermStructure::observationLag() const
+    {
         QL_DEPRECATED_DISABLE_WARNING
         return observationLag_;
         QL_DEPRECATED_ENABLE_WARNING
     }
 
-    inline Frequency InflationTermStructure::frequency() const {
+    inline Frequency InflationTermStructure::frequency() const
+    {
         return frequency_;
     }
 
-    inline Rate InflationTermStructure::baseRate() const {
+    inline Rate InflationTermStructure::baseRate() const
+    {
         QL_REQUIRE(baseRate_ != Null<Real>(), "base rate not available");
         return baseRate_;
     }
 
-    inline ext::shared_ptr<Seasonality> InflationTermStructure::seasonality() const {
+    inline ext::shared_ptr<Seasonality> InflationTermStructure::seasonality() const
+    {
         return seasonality_;
     }
 
-    inline bool InflationTermStructure::hasSeasonality() const {
+    inline bool InflationTermStructure::hasSeasonality() const
+    {
         return static_cast<bool>(seasonality_);
     }
 
@@ -282,26 +286,20 @@ namespace QuantLib {
     // even though its outcome was foreordained.  maxTime() caching is
     // inherited from TermStructure (no override needed in this class).
 
-    inline void InflationTermStructure::checkRange(const Date& d,
-                                                   bool extrapolate) const {
-        QL_REQUIRE(d >= baseDate(),
-                   "date (" << d << ") is before base date (" << baseDate() << ")");
+    inline void InflationTermStructure::checkRange(const Date& d, bool extrapolate) const
+    {
+        QL_REQUIRE(d >= baseDate(), "date (" << d << ") is before base date (" << baseDate() << ")");
         if (extrapolate || allowsExtrapolation())
             return;
-        QL_REQUIRE(d <= maxDate(),
-                   "date (" << d << ") is past max curve date ("
-                            << maxDate() << ")");
+        QL_REQUIRE(d <= maxDate(), "date (" << d << ") is past max curve date (" << maxDate() << ")");
     }
 
-    inline void InflationTermStructure::checkRange(Time t,
-                                                   bool extrapolate) const {
-        QL_REQUIRE(t >= timeFromReference(baseDate()),
-                   "time (" << t << ") is before base date");
+    inline void InflationTermStructure::checkRange(Time t, bool extrapolate) const
+    {
+        QL_REQUIRE(t >= timeFromReference(baseDate()), "time (" << t << ") is before base date");
         if (extrapolate || allowsExtrapolation())
             return;
-        QL_REQUIRE(t <= maxTime(),
-                   "time (" << t << ") is past max curve time ("
-                            << maxTime() << ")");
+        QL_REQUIRE(t <= maxTime(), "time (" << t << ") is past max curve time (" << maxTime() << ")");
     }
 
 }

@@ -21,63 +21,76 @@
 #include <ql/experimental/shortrate/generalizedornsteinuhlenbeckprocess.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    GeneralizedOrnsteinUhlenbeckProcess::GeneralizedOrnsteinUhlenbeckProcess(
-        std::function<Real(Time)> speed, std::function<Real(Time)> vol, Real x0, Real level)
-    : x0_(x0), level_(level), speed_(std::move(speed)), volatility_(std::move(vol)) {
+    GeneralizedOrnsteinUhlenbeckProcess::GeneralizedOrnsteinUhlenbeckProcess(std::function<Real(Time)> speed,
+                                                                             std::function<Real(Time)> vol,
+                                                                             Real x0,
+                                                                             Real level)
+    : x0_(x0), level_(level), speed_(std::move(speed)), volatility_(std::move(vol))
+    {
 
         QL_REQUIRE(x0 >= 0.0, "negative initial data given");
         QL_REQUIRE(level >= 0.0, "negative level given");
     }
 
-    Real GeneralizedOrnsteinUhlenbeckProcess::x0() const {
+    Real GeneralizedOrnsteinUhlenbeckProcess::x0() const
+    {
         return x0_;
     }
 
-    Real GeneralizedOrnsteinUhlenbeckProcess::drift(Time t, Real x) const {
-        return speed_(t) * (level_ - x);;
+    Real GeneralizedOrnsteinUhlenbeckProcess::drift(Time t, Real x) const
+    {
+        return speed_(t) * (level_ - x);
+        ;
     }
 
-    Real GeneralizedOrnsteinUhlenbeckProcess::diffusion(Time t, Real) const {
+    Real GeneralizedOrnsteinUhlenbeckProcess::diffusion(Time t, Real) const
+    {
         return volatility_(t);
     }
 
-    Real GeneralizedOrnsteinUhlenbeckProcess::expectation(
-                                             Time t, Real x0, Time dt) const {
-        return level_ + (x0 - level_) * std::exp(-speed_(t)*dt);
+    Real GeneralizedOrnsteinUhlenbeckProcess::expectation(Time t, Real x0, Time dt) const
+    {
+        return level_ + (x0 - level_) * std::exp(-speed_(t) * dt);
     }
 
-    Real GeneralizedOrnsteinUhlenbeckProcess::stdDeviation(
-                                             Time t, Real x0, Time dt) const {
-        return std::sqrt(variance(t,x0,dt));
+    Real GeneralizedOrnsteinUhlenbeckProcess::stdDeviation(Time t, Real x0, Time dt) const
+    {
+        return std::sqrt(variance(t, x0, dt));
     }
 
-    Real GeneralizedOrnsteinUhlenbeckProcess::variance(
-                                              Time t, Real, Time dt) const {
+    Real GeneralizedOrnsteinUhlenbeckProcess::variance(Time t, Real, Time dt) const
+    {
         Real speed = speed_(t);
         Volatility vol = volatility_(t);
 
-        if (speed < std::sqrt(QL_EPSILON)) {
+        if (speed < std::sqrt(QL_EPSILON))
+        {
             // algebraic limit for small speed
-            return vol*vol*dt;
-        } else {
-            return 0.5*vol*vol/speed*(1.0 - std::exp(-2.0*speed*dt));
+            return vol * vol * dt;
+        }
+        else
+        {
+            return 0.5 * vol * vol / speed * (1.0 - std::exp(-2.0 * speed * dt));
         }
     }
 
 
-    Real GeneralizedOrnsteinUhlenbeckProcess::speed(Time t) const {
+    Real GeneralizedOrnsteinUhlenbeckProcess::speed(Time t) const
+    {
         return speed_(t);
     }
 
-    Real GeneralizedOrnsteinUhlenbeckProcess::volatility(Time t) const {
+    Real GeneralizedOrnsteinUhlenbeckProcess::volatility(Time t) const
+    {
         return volatility_(t);
     }
 
-    Real GeneralizedOrnsteinUhlenbeckProcess::level() const {
+    Real GeneralizedOrnsteinUhlenbeckProcess::level() const
+    {
         return level_;
     }
 
 }
-

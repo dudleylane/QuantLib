@@ -2,7 +2,7 @@
 
 /*
  Copyright (C) 2020 Jack Gillett
- 
+
  This file is part of QuantLib, a free-software/open-source library
  for financial quantitative analysts and developers - http://quantlib.org/
 
@@ -24,16 +24,17 @@
 #ifndef quantlib_analytic_heston_forward_european_engine_hpp
 #define quantlib_analytic_heston_forward_european_engine_hpp
 
+#include <ql/exercise.hpp>
 #include <ql/instruments/forwardvanillaoption.hpp>
+#include <ql/math/integrals/gaussianquadratures.hpp>
+#include <ql/math/modifiedbessel.hpp>
+#include <ql/models/equity/hestonmodel.hpp>
 #include <ql/pricingengines/vanilla/analytichestonengine.hpp>
 #include <ql/processes/hestonprocess.hpp>
-#include <ql/models/equity/hestonmodel.hpp>
-#include <ql/math/modifiedbessel.hpp>
-#include <ql/math/integrals/gaussianquadratures.hpp>
-#include <ql/exercise.hpp>
 #include <ql/quotes/simplequote.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Analytic Heston engine incl. stochastic interest rates
     /*! This class is pricing a european option under the following process
@@ -48,8 +49,8 @@ namespace QuantLib {
 
         References:
 
-        Implements the analytical solution for forward-starting 
-        strike-reset options descriped in "On the Pricing of Forward 
+        Implements the analytical solution for forward-starting
+        strike-reset options descriped in "On the Pricing of Forward
         Starting Options under Stochastic Volatility", S. Kruse (2003)
 
         \ingroup forwardengines
@@ -61,8 +62,9 @@ namespace QuantLib {
           to the Heston analytic vanilla pricer for various options
     */
 
-    class AnalyticHestonForwardEuropeanEngine : public GenericEngine<ForwardOptionArguments<VanillaOption::arguments>,
-                                                       VanillaOption::results> {
+    class AnalyticHestonForwardEuropeanEngine
+    : public GenericEngine<ForwardOptionArguments<VanillaOption::arguments>, VanillaOption::results>
+    {
       public:
         explicit AnalyticHestonForwardEuropeanEngine(ext::shared_ptr<HestonProcess> process,
                                                      Size integrationOrder = 144);
@@ -70,13 +72,10 @@ namespace QuantLib {
         void calculate() const override;
 
         // The evolution probability function from t0 to tReset
-        Real propagator(Time resetTime,
-                        Real varReset) const;
+        Real propagator(Time resetTime, Real varReset) const;
 
         // Forward characteristic function for given (t, vt, St)
-        ext::shared_ptr<AnalyticHestonEngine> forwardChF(
-                                            Handle<Quote>& spotReset,
-                                            Real varReset) const;
+        ext::shared_ptr<AnalyticHestonEngine> forwardChF(Handle<Quote>& spotReset, Real varReset) const;
 
       private:
         // Parameters for the internal chF generators
@@ -99,20 +98,12 @@ namespace QuantLib {
 
         // Integrate over characteristic function to generate P1, P2 (fall back on this
         // when reset time is very close, to avoid numerical issues with tReset=0s)
-        std::pair<Real, Real> calculateP1P2(Time t,
-                                            Handle<Quote>& St,
-                                            Real K,
-                                            Real ratio,
-                                            Real phiRightLimit = 100) const;
+        std::pair<Real, Real>
+        calculateP1P2(Time t, Handle<Quote>& St, Real K, Real ratio, Real phiRightLimit = 100) const;
 
         // Integrate P1, P2 over te propagator function to calculate forward-start price
-        std::pair<Real, Real> calculateP1P2Hat(Time tenor,
-                                               Time resetTime,
-                                               Real K,
-                                               Real ratio,
-                                               Real phiRightLimit = 100,
-                                               Real nuRightLimit = 2.0) const;
-
+        std::pair<Real, Real> calculateP1P2Hat(
+            Time tenor, Time resetTime, Real K, Real ratio, Real phiRightLimit = 100, Real nuRightLimit = 2.0) const;
     };
 }
 

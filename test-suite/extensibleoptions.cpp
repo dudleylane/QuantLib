@@ -24,9 +24,9 @@
 #include <ql/pricingengines/exotic/analyticholderextensibleoptionengine.hpp>
 #include <ql/pricingengines/exotic/analyticwriterextensibleoptionengine.hpp>
 #include <ql/quotes/simplequote.hpp>
-#include <ql/utilities/dataformatters.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <ql/utilities/dataformatters.hpp>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -35,9 +35,9 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(ExtensibleOptionsTests)
 
-BOOST_AUTO_TEST_CASE(testAnalyticHolderExtensibleOptionEngine) {
-    BOOST_TEST_MESSAGE(
-        "Testing analytic engine for holder-extensible option...");
+BOOST_AUTO_TEST_CASE(testAnalyticHolderExtensibleOptionEngine)
+{
+    BOOST_TEST_MESSAGE("Testing analytic engine for holder-extensible option...");
 
     Option::Type type = Option::Call;
     Real strike1 = 100.0;
@@ -53,14 +53,10 @@ BOOST_AUTO_TEST_CASE(testAnalyticHolderExtensibleOptionEngine) {
     ext::shared_ptr<SimpleQuote> rRate = ext::make_shared<SimpleQuote>(0.08);
     ext::shared_ptr<SimpleQuote> vol = ext::make_shared<SimpleQuote>(0.25);
 
-    ext::shared_ptr<StrikedTypePayoff> payoff =
-        ext::make_shared<PlainVanillaPayoff>(type, strike1);
-    ext::shared_ptr<Exercise> exercise =
-        ext::make_shared<EuropeanExercise>(exDate1);
+    ext::shared_ptr<StrikedTypePayoff> payoff = ext::make_shared<PlainVanillaPayoff>(type, strike1);
+    ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(exDate1);
 
-    HolderExtensibleOption option(type, premium,
-                                  exDate2, strike2,
-                                  payoff, exercise);
+    HolderExtensibleOption option(type, premium, exDate2, strike2, payoff, exercise);
 
     Handle<Quote> underlying(spot);
     Handle<YieldTermStructure> dividendTS(flatRate(today, qRate, dc));
@@ -68,26 +64,22 @@ BOOST_AUTO_TEST_CASE(testAnalyticHolderExtensibleOptionEngine) {
     Handle<BlackVolTermStructure> blackVolTS(flatVol(today, vol, dc));
 
     const ext::shared_ptr<BlackScholesMertonProcess> process =
-        ext::make_shared<BlackScholesMertonProcess>(underlying,
-                                                      dividendTS,
-                                                      riskFreeTS,
-                                                      blackVolTS);
+        ext::make_shared<BlackScholesMertonProcess>(underlying, dividendTS, riskFreeTS, blackVolTS);
 
-    option.setPricingEngine(
-           ext::make_shared<AnalyticHolderExtensibleOptionEngine>(process));
+    option.setPricingEngine(ext::make_shared<AnalyticHolderExtensibleOptionEngine>(process));
 
     Real calculated = option.NPV();
     Real expected = 9.4233;
-    Real error = std::fabs(calculated-expected);
+    Real error = std::fabs(calculated - expected);
     Real tolerance = 1e-4;
     if (error > tolerance)
-        BOOST_ERROR("Failed to reproduce holder-extensible option value"
-                    << "\n    expected:   " << expected
-                    << "\n    calculated: " << calculated
-                    << "\n    error:      " << error);
+        BOOST_ERROR("Failed to reproduce holder-extensible option value" << "\n    expected:   " << expected
+                                                                         << "\n    calculated: " << calculated
+                                                                         << "\n    error:      " << error);
 }
 
-BOOST_AUTO_TEST_CASE(testAnalyticWriterExtensibleOptionEngine) {
+BOOST_AUTO_TEST_CASE(testAnalyticWriterExtensibleOptionEngine)
+{
     BOOST_TEST_MESSAGE("Testing analytic engine for writer-extensible option...");
 
     // What we need for the option (tests):
@@ -101,54 +93,41 @@ BOOST_AUTO_TEST_CASE(testAnalyticWriterExtensibleOptionEngine) {
 
     ext::shared_ptr<SimpleQuote> spot = ext::make_shared<SimpleQuote>(80.0);
     ext::shared_ptr<SimpleQuote> qRate = ext::make_shared<SimpleQuote>(0.0);
-    ext::shared_ptr<YieldTermStructure> dividendTS =
-        flatRate(today, qRate, dc);
+    ext::shared_ptr<YieldTermStructure> dividendTS = flatRate(today, qRate, dc);
     ext::shared_ptr<SimpleQuote> rRate = ext::make_shared<SimpleQuote>(0.10);
-    ext::shared_ptr<YieldTermStructure> riskFreeTS =
-        flatRate(today, rRate, dc);
+    ext::shared_ptr<YieldTermStructure> riskFreeTS = flatRate(today, rRate, dc);
     ext::shared_ptr<SimpleQuote> vol = ext::make_shared<SimpleQuote>(0.30);
-    ext::shared_ptr<BlackVolTermStructure> blackVolTS =
-        flatVol(today, vol, dc);
+    ext::shared_ptr<BlackVolTermStructure> blackVolTS = flatVol(today, vol, dc);
 
     // B&S process (needed for the engine):
-    const ext::shared_ptr<GeneralizedBlackScholesProcess> process =
-        ext::make_shared<GeneralizedBlackScholesProcess>(
-                    Handle<Quote>(spot),
-                    Handle<YieldTermStructure>(dividendTS),
-                    Handle<YieldTermStructure>(riskFreeTS),
-                    Handle<BlackVolTermStructure>(blackVolTS));
+    const ext::shared_ptr<GeneralizedBlackScholesProcess> process = ext::make_shared<GeneralizedBlackScholesProcess>(
+        Handle<Quote>(spot), Handle<YieldTermStructure>(dividendTS), Handle<YieldTermStructure>(riskFreeTS),
+        Handle<BlackVolTermStructure>(blackVolTS));
 
     // The engine:
-    ext::shared_ptr<PricingEngine> engine =
-        ext::make_shared<AnalyticWriterExtensibleOptionEngine>(process);
+    ext::shared_ptr<PricingEngine> engine = ext::make_shared<AnalyticWriterExtensibleOptionEngine>(process);
 
     // Create the arguments:
-    ext::shared_ptr<PlainVanillaPayoff> payoff1 =
-        ext::make_shared<PlainVanillaPayoff>(type, strike1);
-    ext::shared_ptr<Exercise> exercise1 =
-        ext::make_shared<EuropeanExercise>(exDate1);
-    ext::shared_ptr<PlainVanillaPayoff> payoff2 =
-        ext::make_shared<PlainVanillaPayoff>(type, strike2);
-    ext::shared_ptr<Exercise> exercise2 =
-        ext::make_shared<EuropeanExercise>(exDate2);
+    ext::shared_ptr<PlainVanillaPayoff> payoff1 = ext::make_shared<PlainVanillaPayoff>(type, strike1);
+    ext::shared_ptr<Exercise> exercise1 = ext::make_shared<EuropeanExercise>(exDate1);
+    ext::shared_ptr<PlainVanillaPayoff> payoff2 = ext::make_shared<PlainVanillaPayoff>(type, strike2);
+    ext::shared_ptr<Exercise> exercise2 = ext::make_shared<EuropeanExercise>(exDate2);
 
     // Create the option by calling the constructor:
-    WriterExtensibleOption option(payoff1, exercise1,
-                                  payoff2, exercise2);
+    WriterExtensibleOption option(payoff1, exercise1, payoff2, exercise2);
 
-    //Set the engine of our option:
+    // Set the engine of our option:
     option.setPricingEngine(engine);
 
-    //Compare the calculated NPV value to the theoretical value:
+    // Compare the calculated NPV value to the theoretical value:
     Real calculated = option.NPV();
     Real expected = 6.8238;
-    Real error = std::fabs(calculated-expected);
+    Real error = std::fabs(calculated - expected);
     Real tolerance = 1e-4;
     if (error > tolerance)
-        BOOST_ERROR("Failed to reproduce writer-extensible option value"
-                    << "\n    expected:   " << expected
-                    << "\n    calculated: " << calculated
-                    << "\n    error:      " << error);
+        BOOST_ERROR("Failed to reproduce writer-extensible option value" << "\n    expected:   " << expected
+                                                                         << "\n    calculated: " << calculated
+                                                                         << "\n    error:      " << error);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

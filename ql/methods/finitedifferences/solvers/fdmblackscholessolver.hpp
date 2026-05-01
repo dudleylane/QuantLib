@@ -20,24 +20,26 @@
 */
 
 /*! \file fdmblackscholessolver.hpp
-*/
+ */
 
 #ifndef quantlib_fdm_black_scholes_solver_hpp
 #define quantlib_fdm_black_scholes_solver_hpp
 
 #include <ql/handle.hpp>
-#include <ql/patterns/lazyobject.hpp>
-#include <ql/methods/finitedifferences/solvers/fdmsolverdesc.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
+#include <ql/methods/finitedifferences/solvers/fdmsolverdesc.hpp>
 #include <ql/methods/finitedifferences/utilities/fdmquantohelper.hpp>
+#include <ql/patterns/lazyobject.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Fdm1DimSolver;
     class FdmSnapshotCondition;
     class GeneralizedBlackScholesProcess;
 
-    class FdmBlackScholesSolver : public LazyObject {
+    class FdmBlackScholesSolver : public LazyObject
+    {
       public:
         FdmBlackScholesSolver(Handle<GeneralizedBlackScholesProcess> process,
                               Real strike,

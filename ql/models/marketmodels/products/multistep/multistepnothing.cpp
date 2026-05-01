@@ -19,26 +19,26 @@
 
 #include <ql/models/marketmodels/products/multistep/multistepnothing.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    MultiStepNothing::MultiStepNothing(const EvolutionDescription& evolution,
-                                       Size numberOfProducts,
-                                       Size doneIndex)
-    : MultiProductMultiStep(evolution.rateTimes()),
-      numberOfProducts_(numberOfProducts), doneIndex_(doneIndex) {}
+    MultiStepNothing::MultiStepNothing(const EvolutionDescription& evolution, Size numberOfProducts, Size doneIndex)
+    : MultiProductMultiStep(evolution.rateTimes()), numberOfProducts_(numberOfProducts), doneIndex_(doneIndex)
+    {
+    }
 
-    bool MultiStepNothing::nextTimeStep(
-        const CurveState&,
-        std::vector<Size>& numberCashFlowsThisStep,
-        std::vector<std::vector<MarketModelMultiProduct::CashFlow> >&) {
-        for (auto & i : numberCashFlowsThisStep)
+    bool MultiStepNothing::nextTimeStep(const CurveState&,
+                                        std::vector<Size>& numberCashFlowsThisStep,
+                                        std::vector<std::vector<MarketModelMultiProduct::CashFlow>>&)
+    {
+        for (auto& i : numberCashFlowsThisStep)
             i = 0;
         ++currentIndex_;
         return (currentIndex_ >= doneIndex_);
     }
 
-    std::unique_ptr<MarketModelMultiProduct>
-    MultiStepNothing::clone() const {
+    std::unique_ptr<MarketModelMultiProduct> MultiStepNothing::clone() const
+    {
         return std::unique_ptr<MarketModelMultiProduct>(new MultiStepNothing(*this));
     }
 

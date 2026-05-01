@@ -25,34 +25,31 @@
 #define quantlib_cpicouponpricer_hpp
 
 #include <ql/cashflow.hpp>
-#include <ql/option.hpp>
-#include <ql/cashflows/inflationcouponpricer.hpp>
 #include <ql/cashflows/cpicoupon.hpp>
+#include <ql/cashflows/inflationcouponpricer.hpp>
+#include <ql/option.hpp>
 #include <ql/termstructures/volatility/inflation/cpivolatilitystructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! base pricer for capped/floored CPI coupons N.B. vol-dependent parts are a TODO
     /*! \note this pricer can already do swaplets but to get
               volatility-dependent coupons you need to implement the descendents.
     */
-    class CPICouponPricer : public InflationCouponPricer {
+    class CPICouponPricer : public InflationCouponPricer
+    {
       public:
         explicit CPICouponPricer(Handle<YieldTermStructure> nominalTermStructure = Handle<YieldTermStructure>());
 
         explicit CPICouponPricer(Handle<CPIVolatilitySurface> capletVol,
                                  Handle<YieldTermStructure> nominalTermStructure = Handle<YieldTermStructure>());
 
-        virtual Handle<CPIVolatilitySurface> capletVolatility() const{
-            return capletVol_;
-        }
+        virtual Handle<CPIVolatilitySurface> capletVolatility() const { return capletVol_; }
 
-        virtual Handle<YieldTermStructure> nominalTermStructure() const{
-            return nominalTermStructure_;
-        }
+        virtual Handle<YieldTermStructure> nominalTermStructure() const { return nominalTermStructure_; }
 
-        virtual void setCapletVolatility(
-            const Handle<CPIVolatilitySurface>& capletVol);
+        virtual void setCapletVolatility(const Handle<CPIVolatilitySurface>& capletVol);
 
 
         //! \name InflationCouponPricer interface
@@ -69,11 +66,9 @@ namespace QuantLib {
         virtual Rate accruedRate(Date settlementDate) const;
 
       protected:
-        virtual Real optionletPrice(Option::Type optionType,
-                                    Real effStrike) const;
+        virtual Real optionletPrice(Option::Type optionType, Real effStrike) const;
 
-        virtual Real optionletRate(Option::Type optionType,
-                                   Real effStrike) const;
+        virtual Real optionletRate(Option::Type optionType, Real effStrike) const;
 
         /*! Derived classes usually only need to implement this.
 
@@ -81,8 +76,7 @@ namespace QuantLib {
             returns the rate of the optionlet (so not discounted and
             not accrued).
         */
-        virtual Real optionletPriceImp(Option::Type, Real strike,
-                                       Real forward, Real stdDev) const;
+        virtual Real optionletPriceImp(Option::Type, Real strike, Real forward, Real stdDev) const;
 
         // data
         Handle<CPIVolatilitySurface> capletVol_;
@@ -91,7 +85,7 @@ namespace QuantLib {
         Real gearing_;
         Real discount_;
     };
-    
+
 }
 
 #endif

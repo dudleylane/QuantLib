@@ -24,9 +24,11 @@
 #include <ql/models/marketmodels/callability/nodedataprovider.hpp>
 #include <memory>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class MarketModelBasisSystem : public MarketModelNodeDataProvider {
+    class MarketModelBasisSystem : public MarketModelNodeDataProvider
+    {
       public:
         // possibly different for each exercise
         virtual std::vector<Size> numberOfFunctions() const = 0;

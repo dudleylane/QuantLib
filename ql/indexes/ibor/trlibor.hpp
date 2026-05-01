@@ -24,12 +24,13 @@
 #ifndef quantlib_try_libor_hpp
 #define quantlib_try_libor_hpp
 
+#include <ql/currencies/europe.hpp>
 #include <ql/indexes/iborindex.hpp>
 #include <ql/time/calendars/turkey.hpp>
 #include <ql/time/daycounters/actual360.hpp>
-#include <ql/currencies/europe.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %TRY %LIBOR rate
     /*! TRY LIBOR fixed by TBA.
@@ -38,17 +39,16 @@ namespace QuantLib {
 
         \todo check end-of-month adjustment.
     */
-    class TRLibor : public IborIndex {
+    class TRLibor : public IborIndex
+    {
       public:
-        TRLibor(const Period& tenor,
-                const Handle<YieldTermStructure>& h = {})
-        : IborIndex("TRLibor", tenor, 0, TRYCurrency(),
-                    Turkey(), ModifiedFollowing, false,
-                    Actual360(), h) {}
+        TRLibor(const Period& tenor, const Handle<YieldTermStructure>& h = {})
+        : IborIndex("TRLibor", tenor, 0, TRYCurrency(), Turkey(), ModifiedFollowing, false, Actual360(), h)
+        {
+        }
     };
 
 }
 
 
 #endif
-

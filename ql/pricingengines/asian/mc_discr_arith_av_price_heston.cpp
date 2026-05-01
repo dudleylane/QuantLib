@@ -18,7 +18,8 @@
 #include <ql/pricingengines/asian/mc_discr_arith_av_price_heston.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     ArithmeticAPOHestonPathPricer::ArithmeticAPOHestonPathPricer(Option::Type type,
                                                                  Real strike,
@@ -26,25 +27,27 @@ namespace QuantLib {
                                                                  std::vector<Size> fixingIndices,
                                                                  Real runningSum,
                                                                  Size pastFixings)
-    : payoff_(type, strike), discount_(discount), fixingIndices_(std::move(fixingIndices)),
-      runningSum_(runningSum), pastFixings_(pastFixings) {
-        QL_REQUIRE(strike>=0.0,
-            "strike less than zero not allowed");
+    : payoff_(type, strike), discount_(discount), fixingIndices_(std::move(fixingIndices)), runningSum_(runningSum),
+      pastFixings_(pastFixings)
+    {
+        QL_REQUIRE(strike >= 0.0, "strike less than zero not allowed");
     }
 
-    Real ArithmeticAPOHestonPathPricer::operator()(const MultiPath& multiPath) const  {
+    Real ArithmeticAPOHestonPathPricer::operator()(const MultiPath& multiPath) const
+    {
         const Path& path = multiPath[0];
         const Size n = multiPath.pathSize();
-        QL_REQUIRE(n>0, "the path cannot be empty");
+        QL_REQUIRE(n > 0, "the path cannot be empty");
 
         Real sum = runningSum_;
         Size fixings = pastFixings_ + fixingIndices_.size();
 
-        for (unsigned long fixingIndice : fixingIndices_) {
+        for (unsigned long fixingIndice : fixingIndices_)
+        {
             sum += path[fixingIndice];
         }
 
-        Real averagePrice = sum/fixings;
+        Real averagePrice = sum / fixings;
         return discount_ * payoff_(averagePrice);
     }
 

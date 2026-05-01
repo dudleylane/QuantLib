@@ -26,11 +26,12 @@
 #ifndef quantlib_cpicapfloorengines_hpp
 #define quantlib_cpicapfloorengines_hpp
 
-#include <ql/pricingengines/genericmodelengine.hpp>
 #include <ql/instruments/cpicapfloor.hpp>
+#include <ql/pricingengines/genericmodelengine.hpp>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class CPICapFloorTermPriceSurface;
 
@@ -38,17 +39,18 @@ namespace QuantLib {
     /*! This engine only adds timing functionality (e.g. different lag)
         w.r.t. an existing interpolated price surface.
     */
-    class InterpolatingCPICapFloorEngine : public CPICapFloor::engine {
-        public:
-          explicit InterpolatingCPICapFloorEngine(Handle<CPICapFloorTermPriceSurface>);
+    class InterpolatingCPICapFloorEngine : public CPICapFloor::engine
+    {
+      public:
+        explicit InterpolatingCPICapFloorEngine(Handle<CPICapFloorTermPriceSurface>);
 
-          void calculate() const override;
-          virtual std::string name() const { return "InterpolatingCPICapFloorEngine"; }
+        void calculate() const override;
+        virtual std::string name() const { return "InterpolatingCPICapFloorEngine"; }
 
-          ~InterpolatingCPICapFloorEngine() override = default;
+        ~InterpolatingCPICapFloorEngine() override = default;
 
-        protected:
-          Handle<CPICapFloorTermPriceSurface> priceSurf_;
+      protected:
+        Handle<CPICapFloorTermPriceSurface> priceSurf_;
     };
 
 }

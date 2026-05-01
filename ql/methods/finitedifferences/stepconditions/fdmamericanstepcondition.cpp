@@ -23,26 +23,28 @@
 #include <ql/methods/finitedifferences/stepconditions/fdmamericanstepcondition.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    FdmAmericanStepCondition::FdmAmericanStepCondition(
-        ext::shared_ptr<FdmMesher> mesher,
-        ext::shared_ptr<FdmInnerValueCalculator> calculator,
-        Time exerciseStart)
-    : mesher_(std::move(mesher)),
-      calculator_(std::move(calculator)),
-      exerciseStart_(exerciseStart) {}
+    FdmAmericanStepCondition::FdmAmericanStepCondition(ext::shared_ptr<FdmMesher> mesher,
+                                                       ext::shared_ptr<FdmInnerValueCalculator> calculator,
+                                                       Time exerciseStart)
+    : mesher_(std::move(mesher)), calculator_(std::move(calculator)), exerciseStart_(exerciseStart)
+    {
+    }
 
-    void FdmAmericanStepCondition::applyTo(Array& a, Time t) const {
+    void FdmAmericanStepCondition::applyTo(Array& a, Time t) const
+    {
         if (t < exerciseStart_)
             return;
 
-        QL_REQUIRE(mesher_->layout()->size() == a.size(),
-                   "inconsistent array dimensions");
+        QL_REQUIRE(mesher_->layout()->size() == a.size(), "inconsistent array dimensions");
 
-        for (const auto& iter : *mesher_->layout()) {
+        for (const auto& iter : *mesher_->layout())
+        {
             const Real innerValue = calculator_->innerValue(iter, t);
-            if (innerValue > a[iter.index()]) {
+            if (innerValue > a[iter.index()])
+            {
                 a[iter.index()] = innerValue;
             }
         }

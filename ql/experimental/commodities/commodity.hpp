@@ -31,17 +31,24 @@
 #include <utility>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     typedef std::map<std::string, ext::any> SecondaryCosts;
     typedef std::map<std::string, Money> SecondaryCostAmounts;
 
-    std::ostream& operator<<(std::ostream& out,
-                             const SecondaryCostAmounts& secondaryCostAmounts);
+    std::ostream& operator<<(std::ostream& out, const SecondaryCostAmounts& secondaryCostAmounts);
 
 
-    struct PricingError {
-        enum Level { Info, Warning, Error, Fatal };
+    struct PricingError
+    {
+        enum Level
+        {
+            Info,
+            Warning,
+            Error,
+            Fatal
+        };
 
         Level errorLevel;
         std::string tradeId;
@@ -49,7 +56,9 @@ namespace QuantLib {
         std::string detail;
 
         PricingError(Level errorLevel, std::string error, std::string detail)
-        : errorLevel(errorLevel), error(std::move(error)), detail(std::move(detail)) {}
+        : errorLevel(errorLevel), error(std::move(error)), detail(std::move(detail))
+        {
+        }
     };
 
     typedef std::vector<PricingError> PricingErrors;
@@ -60,15 +69,16 @@ namespace QuantLib {
 
     //! Commodity base class
     /*! \ingroup instruments */
-    class Commodity : public Instrument {
+    class Commodity : public Instrument
+    {
       public:
         explicit Commodity(ext::shared_ptr<SecondaryCosts> secondaryCosts);
         const ext::shared_ptr<SecondaryCosts>& secondaryCosts() const;
         const SecondaryCostAmounts& secondaryCostAmounts() const;
         const PricingErrors& pricingErrors() const;
-        void addPricingError(PricingError::Level errorLevel,
-                             const std::string& error,
-                             const std::string& detail = "") const;
+        void
+        addPricingError(PricingError::Level errorLevel, const std::string& error, const std::string& detail = "") const;
+
       protected:
         ext::shared_ptr<SecondaryCosts> secondaryCosts_;
         mutable PricingErrors pricingErrors_;

@@ -24,7 +24,8 @@
 #include <ql/types.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Market-model evolution description
     /*! This class stores:
@@ -51,30 +52,31 @@ namespace QuantLib {
            sr0   sr1   sr2   sr3   sr4          coterminalSwaps
         </pre>
     */
-    class EvolutionDescription {
+    class EvolutionDescription
+    {
         // This typedef is used so that gcc 3.3 can parse the
         // constructor declaration (not even parenthesizing the
         // default argument worked)
-        typedef std::pair<Size,Size> range;
+        typedef std::pair<Size, Size> range;
+
       public:
         EvolutionDescription() = default;
-        explicit EvolutionDescription(
-            const std::vector<Time>& rateTimes,
-            const std::vector<Time>& evolutionTimes = std::vector<Time>(),
-            const std::vector<std::pair<Size,Size> >& relevanceRates =
-                                                        std::vector<range>());
+        explicit EvolutionDescription(const std::vector<Time>& rateTimes,
+                                      const std::vector<Time>& evolutionTimes = std::vector<Time>(),
+                                      const std::vector<std::pair<Size, Size>>& relevanceRates = std::vector<range>());
         const std::vector<Time>& rateTimes() const;
         const std::vector<Time>& rateTaus() const;
         const std::vector<Time>& evolutionTimes() const;
-        //const Matrix& effectiveStopTimes() const;
+        // const Matrix& effectiveStopTimes() const;
         const std::vector<Size>& firstAliveRate() const;
-        const std::vector<std::pair<Size,Size> >& relevanceRates() const;
+        const std::vector<std::pair<Size, Size>>& relevanceRates() const;
         Size numberOfRates() const;
         Size numberOfSteps() const;
+
       private:
         Size numberOfRates_;
         std::vector<Time> rateTimes_, evolutionTimes_;
-        std::vector<std::pair<Size,Size> > relevanceRates_;
+        std::vector<std::pair<Size, Size>> relevanceRates_;
         // convenience variables
         std::vector<Time> rateTaus_;
         std::vector<Size> firstAliveRate_;
@@ -87,16 +89,13 @@ namespace QuantLib {
         from 0 to n. Each numeraire must not have expired before the end of
         the step.
     */
-    void checkCompatibility(const EvolutionDescription& evolution,
-                            const std::vector<Size>& numeraires);
+    void checkCompatibility(const EvolutionDescription& evolution, const std::vector<Size>& numeraires);
 
-    bool isInTerminalMeasure(const EvolutionDescription& evolution,
-                             const std::vector<Size>& numeraires);
+    bool isInTerminalMeasure(const EvolutionDescription& evolution, const std::vector<Size>& numeraires);
     bool isInMoneyMarketPlusMeasure(const EvolutionDescription& evolution,
                                     const std::vector<Size>& numeraires,
                                     Size offset = 1);
-    bool isInMoneyMarketMeasure(const EvolutionDescription& evolution,
-                                const std::vector<Size>& numeraires);
+    bool isInMoneyMarketMeasure(const EvolutionDescription& evolution, const std::vector<Size>& numeraires);
 
     //! Terminal measure: the last bond is used as numeraire.
     std::vector<Size> terminalMeasure(const EvolutionDescription& evolution);
@@ -106,8 +105,7 @@ namespace QuantLib {
         When offset=0 the result is the usual discretely compounded money
         market account measure
     */
-    std::vector<Size> moneyMarketPlusMeasure(const EvolutionDescription&,
-                                             Size offset = 1);
+    std::vector<Size> moneyMarketPlusMeasure(const EvolutionDescription&, Size offset = 1);
 
     /*! Discretely compounded money market account measure:
         for each step the first unexpired bond is used as numeraire.

@@ -39,14 +39,15 @@
 #ifndef quantlib_aad_hpp
 #define quantlib_aad_hpp
 
-#include <ql/types.hpp>
 #include <ql/errors.hpp>
+#include <ql/types.hpp>
 
 #ifdef QL_ENABLE_AAD
 
-#include <codi.hpp>
+#    include <codi.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Reverse-mode AAD scalar type (alias for CoDi's RealReverse).
     /*! \ingroup math */
@@ -70,7 +71,8 @@ namespace QuantLib {
         than the tape.
     */
     template <class F>
-    Real aadDerivative(F&& f, Real x) {
+    Real aadDerivative(F&& f, Real x)
+    {
         auto& tape = AADReal::getTape();
         tape.setActive();
         AADReal xa = x;
@@ -89,13 +91,15 @@ namespace QuantLib {
 
 #else // QL_ENABLE_AAD not defined
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Dummy AAD type when AAD is disabled (falls back to Real).
     using AADReal = Real;
 
     template <class F>
-    Real aadDerivative(F&&, Real) {
+    Real aadDerivative(F&&, Real)
+    {
         QL_FAIL("AAD is not enabled in this build. Reconfigure with "
                 "-DQL_ENABLE_AAD=ON to pull in CoDi-Pack and compile "
                 "the reverse-mode tape.");

@@ -33,7 +33,8 @@
 #include <ql/math/optimization/problem.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Multi-dimensional simplex class
     /*! This method is rather raw and requires quite a lot of
@@ -42,10 +43,10 @@ namespace QuantLib {
         it is quite easily implemented. First, we choose N+1
         starting points, given here by a starting point \f$
         \mathbf{P}_{0} \f$ and N points such that
-        \f[ 
+        \f[
             \mathbf{P}_{\mathbf{i}}=\mathbf{P}_{0}+\lambda \mathbf{e}_{\mathbf{i}},
         \f]
-        where \f$ \lambda \f$ is the problem's characteristic length scale). These 
+        where \f$ \lambda \f$ is the problem's characteristic length scale). These
         points will form a geometrical form called simplex.
         The principle of the downhill simplex method is, at each
         iteration, to move the worst point (highest cost function value)
@@ -55,7 +56,8 @@ namespace QuantLib {
 
         \ingroup optimizers
     */
-    class Simplex : public OptimizationMethod {
+    class Simplex : public OptimizationMethod
+    {
       public:
         /*! Constructor taking as input the characteristic length */
         Simplex(Real lambda) : lambda_(lambda) {}
@@ -63,9 +65,7 @@ namespace QuantLib {
         Real lambda() const { return lambda_; }
 
       private:
-        Real extrapolate(Problem& P,
-                         Size iHighest,
-                         Real& factor) const;
+        Real extrapolate(Problem& P, Size iHighest, Real& factor) const;
         Real lambda_;
         mutable std::vector<Array> vertices_;
         mutable Array values_, sum_;

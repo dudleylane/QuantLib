@@ -27,7 +27,8 @@
 #include <ql/instruments/barrieroption.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! perturbative barrier-option engine
     /*! This engine implements the approach described in
@@ -37,7 +38,8 @@ namespace QuantLib {
 
         \ingroup barrierengines
     */
-    class PerturbativeBarrierOptionEngine : public BarrierOption::engine  {
+    class PerturbativeBarrierOptionEngine : public BarrierOption::engine
+    {
       public:
         explicit PerturbativeBarrierOptionEngine(ext::shared_ptr<GeneralizedBlackScholesProcess>,
                                                  Natural order = 1,
@@ -54,4 +56,3 @@ namespace QuantLib {
 
 
 #endif
-

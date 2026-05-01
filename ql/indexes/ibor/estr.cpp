@@ -17,14 +17,16 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/currencies/europe.hpp>
 #include <ql/indexes/ibor/estr.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
-#include <ql/currencies/europe.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Estr::Estr(const Handle<YieldTermStructure>& h)
-    : OvernightIndex("ESTR", 0, EURCurrency(), TARGET(), Actual360(), h) {}
+    Estr::Estr(const Handle<YieldTermStructure>& h) : OvernightIndex("ESTR", 0, EURCurrency(), TARGET(), Actual360(), h)
+    {
+    }
 
 }

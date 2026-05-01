@@ -16,28 +16,28 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/indexes/fallbackiborindex.hpp>
 #include <ql/errors.hpp>
+#include <ql/indexes/fallbackiborindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
+    namespace
+    {
         // Check the legacy index is non-null and return it, so the
         // member-initializer list can dereference it without needing
         // fallback ternaries for every IborIndex base-class argument.
-        const ext::shared_ptr<IborIndex>& checkLegacy(
-            const ext::shared_ptr<IborIndex>& legacy) {
-            QL_REQUIRE(legacy,
-                       "FallbackIborIndex requires a non-null legacy IBOR index");
+        const ext::shared_ptr<IborIndex>& checkLegacy(const ext::shared_ptr<IborIndex>& legacy)
+        {
+            QL_REQUIRE(legacy, "FallbackIborIndex requires a non-null legacy IBOR index");
             return legacy;
         }
     }
 
-    FallbackIborIndex::FallbackIborIndex(
-        const ext::shared_ptr<IborIndex>& legacyIndex,
-        const ext::shared_ptr<OvernightIndex>& rfrIndex,
-        const Date& cessationDate,
-        Spread spreadAdjustment)
+    FallbackIborIndex::FallbackIborIndex(const ext::shared_ptr<IborIndex>& legacyIndex,
+                                         const ext::shared_ptr<OvernightIndex>& rfrIndex,
+                                         const Date& cessationDate,
+                                         Spread spreadAdjustment)
     : IborIndex(checkLegacy(legacyIndex)->familyName() + "-Fallback",
                 legacyIndex->tenor(),
                 legacyIndex->fixingDays(),
@@ -47,16 +47,14 @@ namespace QuantLib {
                 legacyIndex->endOfMonth(),
                 legacyIndex->dayCounter(),
                 legacyIndex->forwardingTermStructure()),
-      legacyIndex_(legacyIndex), rfrIndex_(rfrIndex),
-      cessationDate_(cessationDate), spreadAdjustment_(spreadAdjustment) {
+      legacyIndex_(legacyIndex), rfrIndex_(rfrIndex), cessationDate_(cessationDate), spreadAdjustment_(spreadAdjustment)
+    {
 
-        QL_REQUIRE(rfrIndex_,
-                   "FallbackIborIndex requires a non-null replacement RFR index");
-        QL_REQUIRE(legacyIndex_->currency() == rfrIndex_->currency(),
-                   "FallbackIborIndex: legacy index currency ("
-                   << legacyIndex_->currency().code()
-                   << ") must match RFR currency ("
-                   << rfrIndex_->currency().code() << ")");
+        QL_REQUIRE(rfrIndex_, "FallbackIborIndex requires a non-null replacement RFR index");
+        QL_REQUIRE(legacyIndex_->currency() == rfrIndex_->currency(), "FallbackIborIndex: legacy index currency ("
+                                                                          << legacyIndex_->currency().code()
+                                                                          << ") must match RFR currency ("
+                                                                          << rfrIndex_->currency().code() << ")");
         // Day-counter consistency: compoundedRfrRate() takes dfs from the
         // RFR curve but scales tau by dayCounter() (inherited from the
         // legacy index). If they differ, the period-yield implied by
@@ -64,19 +62,20 @@ namespace QuantLib {
         // (SOFR/USD-LIBOR Act/360; SONIA/GBP-LIBOR Act/365; €STR/EURIBOR
         // Act/360; SARON/CHF-LIBOR Act/360); enforce strictly.
         QL_REQUIRE(legacyIndex_->dayCounter() == rfrIndex_->dayCounter(),
-                   "FallbackIborIndex: legacy day counter ("
-                   << legacyIndex_->dayCounter().name()
-                   << ") differs from RFR day counter ("
-                   << rfrIndex_->dayCounter().name()
-                   << "). Coerce the RFR index's day counter to match "
-                   "or the post-cessation tau/discount pairing is "
-                   "inconsistent.");
+                   "FallbackIborIndex: legacy day counter (" << legacyIndex_->dayCounter().name()
+                                                             << ") differs from RFR day counter ("
+                                                             << rfrIndex_->dayCounter().name()
+                                                             << "). Coerce the RFR index's day counter to match "
+                                                                "or the post-cessation tau/discount pairing is "
+                                                                "inconsistent.");
         registerWith(legacyIndex_);
         registerWith(rfrIndex_);
     }
 
-    Rate FallbackIborIndex::forecastFixing(const Date& fixingDate) const {
-        if (fixingDate < cessationDate_) {
+    Rate FallbackIborIndex::forecastFixing(const Date& fixingDate) const
+    {
+        if (fixingDate < cessationDate_)
+        {
             // Legacy regime: delegate to the IBOR index.
             return legacyIndex_->forecastFixing(fixingDate);
         }
@@ -87,18 +86,15 @@ namespace QuantLib {
         return compoundedRfrRate(valueDt, maturityDt) + spreadAdjustment_;
     }
 
-    Rate FallbackIborIndex::compoundedRfrRate(const Date& startDate,
-                                              const Date& endDate) const {
-        QL_REQUIRE(endDate > startDate,
-                   "FallbackIborIndex::compoundedRfrRate: end date ("
-                   << endDate << ") must be after start date ("
-                   << startDate << ")");
+    Rate FallbackIborIndex::compoundedRfrRate(const Date& startDate, const Date& endDate) const
+    {
+        QL_REQUIRE(endDate > startDate, "FallbackIborIndex::compoundedRfrRate: end date ("
+                                            << endDate << ") must be after start date (" << startDate << ")");
 
         Handle<YieldTermStructure> rfrTS = rfrIndex_->forwardingTermStructure();
-        QL_REQUIRE(!rfrTS.empty(),
-                   "FallbackIborIndex: RFR index "
-                   << rfrIndex_->name() << " has no forwarding term structure; "
-                   "cannot forecast post-cessation fixings");
+        QL_REQUIRE(!rfrTS.empty(), "FallbackIborIndex: RFR index " << rfrIndex_->name()
+                                                                   << " has no forwarding term structure; "
+                                                                      "cannot forecast post-cessation fixings");
 
         // The RFR's discount curve reflects compounded overnight rates, so
         // the simply-compounded rate implied by df(start)/df(end) over the
@@ -108,16 +104,16 @@ namespace QuantLib {
         // fixing series; for now the curve-based computation covers both
         // past and future periods uniformly.
         DiscountFactor dfStart = rfrTS->discount(startDate);
-        DiscountFactor dfEnd   = rfrTS->discount(endDate);
+        DiscountFactor dfEnd = rfrTS->discount(endDate);
         Time tau = dayCounter().yearFraction(startDate, endDate);
-        QL_REQUIRE(tau > 0.0,
-                   "FallbackIborIndex::compoundedRfrRate: non-positive "
-                   "year fraction (" << tau << ")");
+        QL_REQUIRE(tau > 0.0, "FallbackIborIndex::compoundedRfrRate: non-positive "
+                              "year fraction ("
+                                  << tau << ")");
         return (dfStart / dfEnd - 1.0) / tau;
     }
 
-    ext::shared_ptr<IborIndex> FallbackIborIndex::clone(
-        const Handle<YieldTermStructure>& forwarding) const {
+    ext::shared_ptr<IborIndex> FallbackIborIndex::clone(const Handle<YieldTermStructure>& forwarding) const
+    {
         // The forwarding handle is relevant only to the legacy index
         // (pre-cessation). Clone the legacy with the new handle and keep
         // the same RFR pointer, cessation date, and spread: the RFR's
@@ -125,11 +121,8 @@ namespace QuantLib {
         // the cessation/spread are fixed protocol parameters. Callers
         // who want an independent RFR handle can clone the RFR
         // separately before constructing a new FallbackIborIndex.
-        return ext::make_shared<FallbackIborIndex>(
-            legacyIndex_->clone(forwarding),
-            rfrIndex_,
-            cessationDate_,
-            spreadAdjustment_);
+        return ext::make_shared<FallbackIborIndex>(legacyIndex_->clone(forwarding), rfrIndex_, cessationDate_,
+                                                   spreadAdjustment_);
     }
 
 }

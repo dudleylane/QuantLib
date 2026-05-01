@@ -31,41 +31,46 @@
 #include <set>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    FdmStepConditionComposite::FdmStepConditionComposite(
-        const std::list<std::vector<Time> >& stoppingTimes, Conditions conditions)
-    : conditions_(std::move(conditions)) {
+    FdmStepConditionComposite::FdmStepConditionComposite(const std::list<std::vector<Time>>& stoppingTimes,
+                                                         Conditions conditions)
+    : conditions_(std::move(conditions))
+    {
 
         std::set<Real> allStoppingTimes;
-        for (const auto& stoppingTime : stoppingTimes) {
+        for (const auto& stoppingTime : stoppingTimes)
+        {
             allStoppingTimes.insert(stoppingTime.begin(), stoppingTime.end());
         }
-        stoppingTimes_ = std::vector<Time>(allStoppingTimes.begin(),
-                                           allStoppingTimes.end());
+        stoppingTimes_ = std::vector<Time>(allStoppingTimes.begin(), allStoppingTimes.end());
     }
 
-    const FdmStepConditionComposite::Conditions&
-    FdmStepConditionComposite::conditions() const {
+    const FdmStepConditionComposite::Conditions& FdmStepConditionComposite::conditions() const
+    {
         return conditions_;
     }
 
-    const std::vector<Time>& FdmStepConditionComposite::stoppingTimes() const {
+    const std::vector<Time>& FdmStepConditionComposite::stoppingTimes() const
+    {
         return stoppingTimes_;
     }
 
-    void FdmStepConditionComposite::applyTo(Array& a, Time t) const {
-        for (const auto& condition : conditions_) {
+    void FdmStepConditionComposite::applyTo(Array& a, Time t) const
+    {
+        for (const auto& condition : conditions_)
+        {
             condition->applyTo(a, t);
         }
     }
-    
-    ext::shared_ptr<FdmStepConditionComposite> 
-    FdmStepConditionComposite::joinConditions(
-                const ext::shared_ptr<FdmSnapshotCondition>& c1,
-                const ext::shared_ptr<FdmStepConditionComposite>& c2) {
 
-        std::list<std::vector<Time> > stoppingTimes;
+    ext::shared_ptr<FdmStepConditionComposite>
+    FdmStepConditionComposite::joinConditions(const ext::shared_ptr<FdmSnapshotCondition>& c1,
+                                              const ext::shared_ptr<FdmStepConditionComposite>& c2)
+    {
+
+        std::list<std::vector<Time>> stoppingTimes;
         stoppingTimes.push_back(c2->stoppingTimes());
         stoppingTimes.emplace_back(1, c1->getTime());
 
@@ -73,75 +78,64 @@ namespace QuantLib {
         conditions.push_back(c2);
         conditions.push_back(c1);
 
-        return ext::make_shared<FdmStepConditionComposite>(
-            stoppingTimes, conditions);
+        return ext::make_shared<FdmStepConditionComposite>(stoppingTimes, conditions);
     }
 
-    ext::shared_ptr<FdmStepConditionComposite> 
-    FdmStepConditionComposite::vanillaComposite(
-                 const DividendSchedule& cashFlow,
-                 const ext::shared_ptr<Exercise>& exercise,
-                 const ext::shared_ptr<FdmMesher>& mesher,
-                 const ext::shared_ptr<FdmInnerValueCalculator>& calculator,
-                 const Date& refDate,
-                 const DayCounter& dayCounter) {
-        
-        std::list<std::vector<Time> > stoppingTimes;
-        std::list<ext::shared_ptr<StepCondition<Array> > > stepConditions;
+    ext::shared_ptr<FdmStepConditionComposite>
+    FdmStepConditionComposite::vanillaComposite(const DividendSchedule& cashFlow,
+                                                const ext::shared_ptr<Exercise>& exercise,
+                                                const ext::shared_ptr<FdmMesher>& mesher,
+                                                const ext::shared_ptr<FdmInnerValueCalculator>& calculator,
+                                                const Date& refDate,
+                                                const DayCounter& dayCounter)
+    {
 
-        if (!cashFlow.empty()) {
+        std::list<std::vector<Time>> stoppingTimes;
+        std::list<ext::shared_ptr<StepCondition<Array>>> stepConditions;
+
+        if (!cashFlow.empty())
+        {
             const Date maturityDate = exercise->lastDate();
             DividendSchedule dividends;
-            std::copy_if(
-                cashFlow.begin(), cashFlow.end(),
-                std::back_inserter(dividends),
-                [refDate, maturityDate](const ext::shared_ptr<Dividend>& div) -> bool {
-                    return div->date() >= refDate && div->date() <= maturityDate;
-                }
-            );
+            std::copy_if(cashFlow.begin(), cashFlow.end(), std::back_inserter(dividends),
+                         [refDate, maturityDate](const ext::shared_ptr<Dividend>& div) -> bool
+                         { return div->date() >= refDate && div->date() <= maturityDate; });
 
-            auto dividendCondition =
-                ext::make_shared<FdmDividendHandler>(dividends, mesher,
-                                                     refDate, dayCounter, 0);
+            auto dividendCondition = ext::make_shared<FdmDividendHandler>(dividends, mesher, refDate, dayCounter, 0);
             stepConditions.push_back(dividendCondition);
 
             std::vector<Time> dividendTimes = dividendCondition->dividendTimes();
             const Time maturityTime = dayCounter.yearFraction(refDate, exercise->lastDate());
 
             // this effectively excludes times after maturity
-            for (auto& t: dividendTimes)
+            for (auto& t : dividendTimes)
                 t = std::min(maturityTime, t);
             stoppingTimes.push_back(dividendTimes);
 
             // smoother convergence behavior with number of time steps
-            for (auto& t: dividendTimes)
-                t = std::min(maturityTime, t+1e-5);
+            for (auto& t : dividendTimes)
+                t = std::min(maturityTime, t + 1e-5);
             stoppingTimes.push_back(dividendTimes);
         }
 
-        QL_REQUIRE(   exercise->type() == Exercise::American
-                   || exercise->type() == Exercise::European
-                   || exercise->type() == Exercise::Bermudan,
+        QL_REQUIRE(exercise->type() == Exercise::American || exercise->type() == Exercise::European ||
+                       exercise->type() == Exercise::Bermudan,
                    "exercise type is not supported");
-        if (exercise->type() == Exercise::American) {
-            const Time exerciseStart =
-                dayCounter.yearFraction(refDate, exercise->date(0));
-            stepConditions.push_back(ext::shared_ptr<StepCondition<Array> >(
-                          new FdmAmericanStepCondition(mesher, calculator,
-                                                      exerciseStart)));
+        if (exercise->type() == Exercise::American)
+        {
+            const Time exerciseStart = dayCounter.yearFraction(refDate, exercise->date(0));
+            stepConditions.push_back(
+                ext::shared_ptr<StepCondition<Array>>(new FdmAmericanStepCondition(mesher, calculator, exerciseStart)));
         }
-        else if (exercise->type() == Exercise::Bermudan) {
+        else if (exercise->type() == Exercise::Bermudan)
+        {
             ext::shared_ptr<FdmBermudanStepCondition> bermudanCondition(
-                new FdmBermudanStepCondition(exercise->dates(),
-                                             refDate, dayCounter,
-                                             mesher, calculator));
+                new FdmBermudanStepCondition(exercise->dates(), refDate, dayCounter, mesher, calculator));
             stepConditions.push_back(bermudanCondition);
             stoppingTimes.push_back(bermudanCondition->exerciseTimes());
         }
-        
-        return ext::make_shared<FdmStepConditionComposite>(
-            stoppingTimes, stepConditions);
 
+        return ext::make_shared<FdmStepConditionComposite>(stoppingTimes, stepConditions);
     }
 
 }

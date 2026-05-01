@@ -24,25 +24,25 @@
 #ifndef quantlib_quanto_double_barrier_option_hpp
 #define quantlib_quanto_double_barrier_option_hpp
 
-#include <ql/instruments/quantovanillaoption.hpp>
 #include <ql/instruments/doublebarrieroption.hpp>
+#include <ql/instruments/quantovanillaoption.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Quanto version of a double barrier option
     /*! \ingroup instruments */
-    class QuantoDoubleBarrierOption : public DoubleBarrierOption {
+    class QuantoDoubleBarrierOption : public DoubleBarrierOption
+    {
       public:
         typedef DoubleBarrierOption::arguments arguments;
         typedef QuantoOptionResults<DoubleBarrierOption::results> results;
-        QuantoDoubleBarrierOption(
-                        DoubleBarrier::Type barrierType,
-                        Real barrier_lo,
-                        Real barrier_hi,
-                        Real rebate,
-                        const ext::shared_ptr<StrikedTypePayoff>& payoff,
-                        const ext::shared_ptr<Exercise>& exercise
-            );
+        QuantoDoubleBarrierOption(DoubleBarrier::Type barrierType,
+                                  Real barrier_lo,
+                                  Real barrier_hi,
+                                  Real rebate,
+                                  const ext::shared_ptr<StrikedTypePayoff>& payoff,
+                                  const ext::shared_ptr<Exercise>& exercise);
         //! \name greeks
         //@{
         Real qvega() const;
@@ -61,4 +61,3 @@ namespace QuantLib {
 
 
 #endif
-

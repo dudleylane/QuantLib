@@ -33,7 +33,8 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, QuantLib::TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(InstrumentTests)
 
-BOOST_AUTO_TEST_CASE(testObservable) {
+BOOST_AUTO_TEST_CASE(testObservable)
+{
 
     BOOST_TEST_MESSAGE("Testing observability of instruments...");
 
@@ -68,16 +69,15 @@ BOOST_AUTO_TEST_CASE(testObservable) {
         BOOST_FAIL("Observer was not notified of instrument change");
 }
 
-BOOST_AUTO_TEST_CASE(testCompositeWhenShiftingDates) {
-    BOOST_TEST_MESSAGE(
-        "Testing reaction of composite instrument to date changes...");
+BOOST_AUTO_TEST_CASE(testCompositeWhenShiftingDates)
+{
+    BOOST_TEST_MESSAGE("Testing reaction of composite instrument to date changes...");
 
     Date today = Date::todaysDate();
     DayCounter dc = Actual360();
 
-    ext::shared_ptr<StrikedTypePayoff> payoff(
-        new PlainVanillaPayoff(Option::Call, 100.0));
-    ext::shared_ptr<Exercise> exercise(new EuropeanExercise(today+30));
+    ext::shared_ptr<StrikedTypePayoff> payoff(new PlainVanillaPayoff(Option::Call, 100.0));
+    ext::shared_ptr<Exercise> exercise(new EuropeanExercise(today + 30));
 
     ext::shared_ptr<Instrument> option(new EuropeanOption(payoff, exercise));
 
@@ -87,10 +87,8 @@ BOOST_AUTO_TEST_CASE(testCompositeWhenShiftingDates) {
     ext::shared_ptr<BlackVolTermStructure> volTS = flatVol(0.1, dc);
 
     ext::shared_ptr<BlackScholesMertonProcess> process(
-        new BlackScholesMertonProcess(Handle<Quote>(spot),
-                                      Handle<YieldTermStructure>(qTS),
-                                      Handle<YieldTermStructure>(rTS),
-                                      Handle<BlackVolTermStructure>(volTS)));
+        new BlackScholesMertonProcess(Handle<Quote>(spot), Handle<YieldTermStructure>(qTS),
+                                      Handle<YieldTermStructure>(rTS), Handle<BlackVolTermStructure>(volTS)));
     ext::shared_ptr<PricingEngine> engine(new AnalyticEuropeanEngine(process));
 
     option->setPricingEngine(engine);
@@ -98,7 +96,7 @@ BOOST_AUTO_TEST_CASE(testCompositeWhenShiftingDates) {
     CompositeInstrument composite;
     composite.add(option);
 
-    Settings::instance().evaluationDate() = today+45;
+    Settings::instance().evaluationDate() = today + 45;
 
     if (!composite.isExpired())
         BOOST_FAIL("Composite didn't detect expiration");

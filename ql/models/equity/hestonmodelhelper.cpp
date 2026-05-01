@@ -28,7 +28,8 @@
 #include <utility>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     HestonModelHelper::HestonModelHelper(const Period& maturity,
                                          Calendar calendar,
@@ -38,9 +39,10 @@ namespace QuantLib {
                                          const Handle<YieldTermStructure>& riskFreeRate,
                                          const Handle<YieldTermStructure>& dividendYield,
                                          BlackCalibrationHelper::CalibrationErrorType errorType)
-    : BlackCalibrationHelper(volatility, errorType), maturity_(maturity),
-      calendar_(std::move(calendar)), s0_(Handle<Quote>(ext::make_shared<SimpleQuote>(s0))),
-      strikePrice_(strikePrice), riskFreeRate_(riskFreeRate), dividendYield_(dividendYield) {
+    : BlackCalibrationHelper(volatility, errorType), maturity_(maturity), calendar_(std::move(calendar)),
+      s0_(Handle<Quote>(ext::make_shared<SimpleQuote>(s0))), strikePrice_(strikePrice), riskFreeRate_(riskFreeRate),
+      dividendYield_(dividendYield)
+    {
         registerWith(riskFreeRate);
         registerWith(dividendYield);
     }
@@ -53,42 +55,39 @@ namespace QuantLib {
                                          const Handle<YieldTermStructure>& riskFreeRate,
                                          const Handle<YieldTermStructure>& dividendYield,
                                          BlackCalibrationHelper::CalibrationErrorType errorType)
-    : BlackCalibrationHelper(volatility, errorType), maturity_(maturity),
-      calendar_(std::move(calendar)), s0_(s0), strikePrice_(strikePrice),
-      riskFreeRate_(riskFreeRate), dividendYield_(dividendYield) {
+    : BlackCalibrationHelper(volatility, errorType), maturity_(maturity), calendar_(std::move(calendar)), s0_(s0),
+      strikePrice_(strikePrice), riskFreeRate_(riskFreeRate), dividendYield_(dividendYield)
+    {
         registerWith(s0);
         registerWith(riskFreeRate);
         registerWith(dividendYield);
     }
 
-    void HestonModelHelper::performCalculations() const {
-        exerciseDate_ =
-            calendar_.advance(riskFreeRate_->referenceDate(), maturity_);
+    void HestonModelHelper::performCalculations() const
+    {
+        exerciseDate_ = calendar_.advance(riskFreeRate_->referenceDate(), maturity_);
         tau_ = riskFreeRate_->timeFromReference(exerciseDate_);
-        type_ = strikePrice_ * riskFreeRate_->discount(tau_) >=
-                        s0_->value() * dividendYield_->discount(tau_)
-                    ? Option::Call
-                    : Option::Put;
-        ext::shared_ptr<StrikedTypePayoff> payoff(
-            new PlainVanillaPayoff(type_, strikePrice_));
-        ext::shared_ptr<Exercise> exercise =
-            ext::make_shared<EuropeanExercise>(exerciseDate_);
+        type_ = strikePrice_ * riskFreeRate_->discount(tau_) >= s0_->value() * dividendYield_->discount(tau_) ?
+                    Option::Call :
+                    Option::Put;
+        ext::shared_ptr<StrikedTypePayoff> payoff(new PlainVanillaPayoff(type_, strikePrice_));
+        ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(exerciseDate_);
         option_ = ext::make_shared<VanillaOption>(payoff, exercise);
         BlackCalibrationHelper::performCalculations();
     }
 
-    Real HestonModelHelper::modelValue() const {
+    Real HestonModelHelper::modelValue() const
+    {
         calculate();
         option_->setPricingEngine(engine_);
         return option_->NPV();
     }
 
-    Real HestonModelHelper::blackPrice(Real volatility) const {
+    Real HestonModelHelper::blackPrice(Real volatility) const
+    {
         calculate();
         const Real stdDev = volatility * std::sqrt(maturity());
-        return blackFormula(
-            type_, strikePrice_ * riskFreeRate_->discount(tau_),
-            s0_->value() * dividendYield_->discount(tau_), stdDev);
+        return blackFormula(type_, strikePrice_ * riskFreeRate_->discount(tau_),
+                            s0_->value() * dividendYield_->discount(tau_), stdDev);
     }
 }
-

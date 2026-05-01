@@ -24,9 +24,11 @@
 #include <ql/math/matrix.hpp>
 #include <valarray>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class BasisIncompleteOrdered {
+    class BasisIncompleteOrdered
+    {
       public:
         BasisIncompleteOrdered(Size euclideanDimension);
         //! return value indicates if the vector was linearly independent
@@ -34,29 +36,28 @@ namespace QuantLib {
         Size basisSize() const;
         Size euclideanDimension() const;
         Matrix getBasisAsRowsInMatrix() const;
+
       private:
         std::vector<Array> currentBasis_;
         Size euclideanDimension_;
         Array newVector_;
     };
 
-/*! Given a collection of vectors, w_i, find a collection of vectors x_i such that
-x_i is orthogonal to w_j for i != j, and <x_i, w_i> = <w_i, w_i>
+    /*! Given a collection of vectors, w_i, find a collection of vectors x_i such that
+    x_i is orthogonal to w_j for i != j, and <x_i, w_i> = <w_i, w_i>
 
-This is done by performing GramSchmidt on the other vectors and then projecting onto
-the orthogonal space.
+    This is done by performing GramSchmidt on the other vectors and then projecting onto
+    the orthogonal space.
 
-This class is tested in
+    This class is tested in
 
-    MatricesTest::testOrthogonalProjection();
-*/
+        MatricesTest::testOrthogonalProjection();
+    */
 
     class OrthogonalProjections
     {
-    public:
-        OrthogonalProjections(const Matrix& originalVectors,
-                              Real multiplierCutOff,
-                               Real tolerance  );
+      public:
+        OrthogonalProjections(const Matrix& originalVectors, Real multiplierCutOff, Real tolerance);
 
         const std::valarray<bool>& validVectors() const;
         const std::vector<Real>& GetVector(Size index) const;
@@ -64,8 +65,7 @@ This class is tested in
         Size numberValidVectors() const;
 
 
-    private:
-
+      private:
         //! inputs
         Matrix originalVectors_;
         Real multiplierCutoff_;
@@ -73,14 +73,12 @@ This class is tested in
         Size numberValidVectors_;
         Size dimension_;
 
-        //!outputs
+        //! outputs
         std::valarray<bool> validVectors_;
-        std::vector<std::vector<Real> > projectedVectors_;
+        std::vector<std::vector<Real>> projectedVectors_;
 
-        //!workspace
+        //! workspace
         Matrix orthoNormalizedVectors_;
-
-
     };
 
 }

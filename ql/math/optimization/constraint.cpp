@@ -20,25 +20,28 @@
 #include <ql/math/optimization/constraint.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     Constraint::Constraint(ext::shared_ptr<Constraint::Impl> impl) : impl_(std::move(impl)) {}
 
-    Real Constraint::update(Array& params, const Array& direction, Real beta) const {
+    Real Constraint::update(Array& params, const Array& direction, Real beta) const
+    {
 
-        Real diff=beta;
-        Array newParams = params + diff*direction;
+        Real diff = beta;
+        Array newParams = params + diff * direction;
         bool valid = test(newParams);
         Integer icount = 0;
-        while (!valid) {
+        while (!valid)
+        {
             if (icount > 200)
                 QL_FAIL("can't update parameter vector");
             diff *= 0.5;
-            icount ++;
-            newParams = params + diff*direction;
+            icount++;
+            newParams = params + diff * direction;
             valid = test(newParams);
         }
-        params += diff*direction;
+        params += diff * direction;
         return diff;
     }
 }

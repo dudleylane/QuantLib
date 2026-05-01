@@ -23,14 +23,15 @@
 #define quantlib_market_model_utilities_hpp
 
 #include <ql/types.hpp>
-#include <vector>
 #include <valarray>
+#include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    void mergeTimes(const std::vector<std::vector<Time> >& times,
+    void mergeTimes(const std::vector<std::vector<Time>>& times,
                     std::vector<Time>& mergedTimes,
-                    std::vector<std::valarray<bool> >& isPresent);
+                    std::vector<std::valarray<bool>>& isPresent);
 
     /*! Look for elements of a set in a subset.
         Returns a vector of booleans such that:
@@ -38,13 +39,11 @@ namespace QuantLib {
 
        \pre both vectors must be strictly increasing.
     */
-    std::valarray<bool> isInSubset(const std::vector<Time>& set,
-                                 const std::vector<Time>& subset);
+    std::valarray<bool> isInSubset(const std::vector<Time>& set, const std::vector<Time>& subset);
 
     //! check for strictly increasing times, first time greater than zero
     void checkIncreasingTimes(const std::vector<Time>& times);
-    void checkIncreasingTimesAndCalculateTaus(const std::vector<Time>& times,
-                                              std::vector<Time>& taus);
+    void checkIncreasingTimesAndCalculateTaus(const std::vector<Time>& times, std::vector<Time>& taus);
 }
 
 #endif

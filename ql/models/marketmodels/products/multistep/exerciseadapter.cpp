@@ -19,28 +19,26 @@
 
 #include <ql/models/marketmodels/products/multistep/exerciseadapter.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    ExerciseAdapter::ExerciseAdapter(
-                              const Clone<MarketModelExerciseValue>& exercise,
-                              Size numberOfProducts)
-    : MultiProductMultiStep(exercise->evolution().rateTimes()),
-      exercise_(exercise), numberOfProducts_(numberOfProducts),
-      isExerciseTime_(exercise->isExerciseTime()) {}
+    ExerciseAdapter::ExerciseAdapter(const Clone<MarketModelExerciseValue>& exercise, Size numberOfProducts)
+    : MultiProductMultiStep(exercise->evolution().rateTimes()), exercise_(exercise),
+      numberOfProducts_(numberOfProducts), isExerciseTime_(exercise->isExerciseTime())
+    {
+    }
 
-    bool ExerciseAdapter::nextTimeStep(
-            const CurveState& currentState,
-            std::vector<Size>& numberCashFlowsThisStep,
-            std::vector<std::vector<MarketModelMultiProduct::CashFlow> >&
-                                                         generatedCashFlows) {
-        std::fill(numberCashFlowsThisStep.begin(),
-                  numberCashFlowsThisStep.end(), 0);
+    bool ExerciseAdapter::nextTimeStep(const CurveState& currentState,
+                                       std::vector<Size>& numberCashFlowsThisStep,
+                                       std::vector<std::vector<MarketModelMultiProduct::CashFlow>>& generatedCashFlows)
+    {
+        std::fill(numberCashFlowsThisStep.begin(), numberCashFlowsThisStep.end(), 0);
         bool done = false;
 
         exercise_->nextStep(currentState);
-        if (isExerciseTime_[currentIndex_]) {
-            MarketModelMultiProduct::CashFlow cashflow =
-                exercise_->value(currentState);
+        if (isExerciseTime_[currentIndex_])
+        {
+            MarketModelMultiProduct::CashFlow cashflow = exercise_->value(currentState);
             numberCashFlowsThisStep[0] = 1;
             generatedCashFlows[0][0] = cashflow;
             done = true;
@@ -49,10 +47,9 @@ namespace QuantLib {
         return done || currentIndex_ == isExerciseTime_.size();
     }
 
-    std::unique_ptr<MarketModelMultiProduct>
-    ExerciseAdapter::clone() const {
+    std::unique_ptr<MarketModelMultiProduct> ExerciseAdapter::clone() const
+    {
         return std::unique_ptr<MarketModelMultiProduct>(new ExerciseAdapter(*this));
     }
 
 }
-

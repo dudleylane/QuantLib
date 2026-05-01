@@ -25,43 +25,47 @@
 #ifndef quantlib_frank_copula_rng_hpp
 #define quantlib_frank_copula_rng_hpp
 
-#include <ql/methods/montecarlo/sample.hpp>
 #include <ql/errors.hpp>
+#include <ql/methods/montecarlo/sample.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Frank copula random-number generator
     template <class RNG>
-    class FrankCopulaRng {
+    class FrankCopulaRng
+    {
       public:
-        typedef Sample<std::vector<Real> > sample_type;
+        typedef Sample<std::vector<Real>> sample_type;
         typedef RNG urng_type;
         explicit FrankCopulaRng(const RNG& uniformGenerator, Real theta);
         sample_type next() const;
+
       private:
         Real theta_;
         RNG uniformGenerator_;
     };
 
     template <class RNG>
-    FrankCopulaRng<RNG>::FrankCopulaRng(const RNG& ug, Real th)
-    : uniformGenerator_(ug), theta_(th) {
-     QL_REQUIRE(th != 0.0,
-                   "theta (" << th << ") must be different from 0");
+    FrankCopulaRng<RNG>::FrankCopulaRng(const RNG& ug, Real th) : uniformGenerator_(ug), theta_(th)
+    {
+        QL_REQUIRE(th != 0.0, "theta (" << th << ") must be different from 0");
     }
 
     template <class RNG>
-    inline typename FrankCopulaRng<RNG>::sample_type
-    FrankCopulaRng<RNG>::next() const {
+    inline typename FrankCopulaRng<RNG>::sample_type FrankCopulaRng<RNG>::next() const
+    {
         typename RNG::sample_type v1 = uniformGenerator_.next();
         typename RNG::sample_type v2 = uniformGenerator_.next();
         Real u1 = v1.value;
-        Real u2 = (-1.0/theta_)*std::log(1.0+(v2.value*(1.0-std::exp(-theta_)))/(v2.value*(std::exp(-theta_*v1.value)-1.0)-std::exp(-theta_*v1.value)));
+        Real u2 = (-1.0 / theta_) *
+                  std::log(1.0 + (v2.value * (1.0 - std::exp(-theta_))) /
+                                     (v2.value * (std::exp(-theta_ * v1.value) - 1.0) - std::exp(-theta_ * v1.value)));
         std::vector<Real> u;
         u.push_back(u1);
         u.push_back(u2);
-        return sample_type(u,v1.weight*v2.weight);
+        return sample_type(u, v1.weight * v2.weight);
     }
 
 }

@@ -28,7 +28,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Romanian calendars
     /*! Public holidays:
@@ -40,7 +41,7 @@ namespace QuantLib {
         <li>Unification Day, January 24th</li>
         <li>Orthodox Easter (only Sunday and Monday)</li>
         <li>Labour Day, May 1st</li>
-        <li>Pentecost with Monday (50th and 51st days after the 
+        <li>Pentecost with Monday (50th and 51st days after the
             Othodox Easter)</li>
         <li>Children's Day, June 1st (since 2017)</li>
         <li>St Marys Day, August 15th</li>
@@ -49,28 +50,34 @@ namespace QuantLib {
         <li>Christmas, December 25th</li>
         <li>2nd Day of Christmas, December 26th</li>
         </ul>
-        
+
         Holidays for the Bucharest stock exchange
         (data from <http://www.bvb.ro/Marketplace/TradingCalendar/index.aspx>):
         all public holidays, plus a few one-off closing days (2014 only).
 
         \ingroup calendars
     */
-    class Romania : public Calendar {
+    class Romania : public Calendar
+    {
       private:
-        class PublicImpl : public Calendar::OrthodoxImpl {
+        class PublicImpl : public Calendar::OrthodoxImpl
+        {
           public:
             std::string name() const override { return "Romania"; }
             bool isBusinessDay(const Date&) const override;
         };
-        class BVBImpl final : public PublicImpl {
+        class BVBImpl final : public PublicImpl
+        {
           public:
             std::string name() const override { return "Bucharest stock exchange"; }
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
-        enum Market { Public,     //!< Public holidays
-                      BVB         //!< Bucharest stock-exchange
+        enum Market
+        {
+            Public, //!< Public holidays
+            BVB     //!< Bucharest stock-exchange
         };
         Romania(Market market = BVB);
     };

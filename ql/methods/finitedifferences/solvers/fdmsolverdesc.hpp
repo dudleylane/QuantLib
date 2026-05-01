@@ -18,21 +18,23 @@
 */
 
 /*! \file fdmsolverdesc.hpp
-*/
+ */
 
 #ifndef quantlib_fdm_solver_desc_hpp
 #define quantlib_fdm_solver_desc_hpp
 
 #include <ql/methods/finitedifferences/utilities/fdmboundaryconditionset.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class FdmMesher;
     class FdmInnerValueCalculator;
     class FdmStepConditionComposite;
     class FdmInnerValueCalculator;
 
-    struct FdmSolverDesc {
+    struct FdmSolverDesc
+    {
         const ext::shared_ptr<FdmMesher> mesher;
         const FdmBoundaryConditionSet bcSet;
         const ext::shared_ptr<FdmStepConditionComposite> condition;

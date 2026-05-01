@@ -28,10 +28,13 @@
 #include <ql/math/interpolation.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace detail {
-        template<class I1, class I2> class LinearInterpolationImpl;
+    namespace detail
+    {
+        template <class I1, class I2>
+        class LinearInterpolationImpl;
     }
 
     //! %Linear interpolation between discrete points
@@ -39,63 +42,68 @@ namespace QuantLib {
         \warning See the Interpolation class for information about the
                  required lifetime of the underlying data.
     */
-    class LinearInterpolation : public Interpolation {
+    class LinearInterpolation : public Interpolation
+    {
       public:
         /*! \pre the \f$ x \f$ values must be sorted. */
         template <class I1, class I2>
-        LinearInterpolation(const I1& xBegin, const I1& xEnd,
-                            const I2& yBegin) {
-            impl_ = ext::shared_ptr<Interpolation::Impl>(new
-                detail::LinearInterpolationImpl<I1,I2>(xBegin, xEnd,
-                                                       yBegin));
+        LinearInterpolation(const I1& xBegin, const I1& xEnd, const I2& yBegin)
+        {
+            impl_ =
+                ext::shared_ptr<Interpolation::Impl>(new detail::LinearInterpolationImpl<I1, I2>(xBegin, xEnd, yBegin));
             impl_->update();
         }
     };
 
     //! %Linear-interpolation factory and traits
     /*! \ingroup interpolations */
-    class Linear {
+    class Linear
+    {
       public:
         template <class I1, class I2>
-        Interpolation interpolate(const I1& xBegin, const I1& xEnd,
-                                  const I2& yBegin) const {
+        Interpolation interpolate(const I1& xBegin, const I1& xEnd, const I2& yBegin) const
+        {
             return LinearInterpolation(xBegin, xEnd, yBegin);
         }
         static const bool global = false;
         static const Size requiredPoints = 2;
     };
 
-    namespace detail {
+    namespace detail
+    {
 
         template <class I1, class I2>
-        class LinearInterpolationImpl final
-            : public Interpolation::templateImpl<I1,I2> {
+        class LinearInterpolationImpl final : public Interpolation::templateImpl<I1, I2>
+        {
           public:
-            LinearInterpolationImpl(const I1& xBegin, const I1& xEnd,
-                                    const I2& yBegin)
-            : Interpolation::templateImpl<I1,I2>(xBegin, xEnd, yBegin,
-                                                 Linear::requiredPoints),
-              primitiveConst_(xEnd-xBegin), s_(xEnd-xBegin) {}
-            void update() override {
+            LinearInterpolationImpl(const I1& xBegin, const I1& xEnd, const I2& yBegin)
+            : Interpolation::templateImpl<I1, I2>(xBegin, xEnd, yBegin, Linear::requiredPoints),
+              primitiveConst_(xEnd - xBegin), s_(xEnd - xBegin)
+            {
+            }
+            void update() override
+            {
                 primitiveConst_[0] = 0.0;
-                for (Size i=1; i<Size(this->xEnd_-this->xBegin_); ++i) {
-                    Real dx = this->xBegin_[i]-this->xBegin_[i-1];
-                    s_[i-1] = (Real(this->yBegin_[i])-Real(this->yBegin_[i-1]))/dx;
-                    primitiveConst_[i] = primitiveConst_[i-1]
-                        + dx*(this->yBegin_[i-1] +0.5*dx*s_[i-1]);
+                for (Size i = 1; i < Size(this->xEnd_ - this->xBegin_); ++i)
+                {
+                    Real dx = this->xBegin_[i] - this->xBegin_[i - 1];
+                    s_[i - 1] = (Real(this->yBegin_[i]) - Real(this->yBegin_[i - 1])) / dx;
+                    primitiveConst_[i] = primitiveConst_[i - 1] + dx * (this->yBegin_[i - 1] + 0.5 * dx * s_[i - 1]);
                 }
             }
-            Real value(Real x) const override {
+            Real value(Real x) const override
+            {
                 Size i = this->locate(x);
-                return this->yBegin_[i] + (x-this->xBegin_[i])*s_[i];
+                return this->yBegin_[i] + (x - this->xBegin_[i]) * s_[i];
             }
-            Real primitive(Real x) const override {
+            Real primitive(Real x) const override
+            {
                 Size i = this->locate(x);
-                Real dx = x-this->xBegin_[i];
-                return primitiveConst_[i] +
-                    dx*(this->yBegin_[i] + 0.5*dx*s_[i]);
+                Real dx = x - this->xBegin_[i];
+                return primitiveConst_[i] + dx * (this->yBegin_[i] + 0.5 * dx * s_[i]);
             }
-            Real derivative(Real x) const override {
+            Real derivative(Real x) const override
+            {
                 Size i = this->locate(x);
                 return s_[i];
             }

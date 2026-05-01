@@ -23,7 +23,8 @@
 #include <ql/processes/hestonprocess.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     FdmCIRSolver::FdmCIRSolver(Handle<CoxIngersollRossProcess> cirProcess,
                                Handle<GeneralizedBlackScholesProcess> bsProcess,
@@ -31,41 +32,42 @@ namespace QuantLib {
                                const FdmSchemeDesc& schemeDesc,
                                const Real rho,
                                const Real strike)
-    : bsProcess_(std::move(bsProcess)), cirProcess_(std::move(cirProcess)),
-      solverDesc_(std::move(solverDesc)), schemeDesc_(schemeDesc), rho_(rho), strike_(strike) {
+    : bsProcess_(std::move(bsProcess)), cirProcess_(std::move(cirProcess)), solverDesc_(std::move(solverDesc)),
+      schemeDesc_(schemeDesc), rho_(rho), strike_(strike)
+    {
         registerWith(bsProcess_);
         registerWith(cirProcess_);
     }
 
-    void FdmCIRSolver::performCalculations() const {
-        ext::shared_ptr<FdmLinearOpComposite> op(
-			ext::make_shared<FdmCIROp>(
-                solverDesc_.mesher,
-                cirProcess_.currentLink(),
-                bsProcess_.currentLink(),
-                rho_,
-                strike_));
+    void FdmCIRSolver::performCalculations() const
+    {
+        ext::shared_ptr<FdmLinearOpComposite> op(ext::make_shared<FdmCIROp>(
+            solverDesc_.mesher, cirProcess_.currentLink(), bsProcess_.currentLink(), rho_, strike_));
 
         solver_ = ext::make_shared<Fdm2DimSolver>(solverDesc_, schemeDesc_, op);
     }
 
-    Real FdmCIRSolver::valueAt(Real s, Real r) const {
+    Real FdmCIRSolver::valueAt(Real s, Real r) const
+    {
         calculate();
         return solver_->interpolateAt(std::log(s), r);
     }
 
-    Real FdmCIRSolver::deltaAt(Real s, Real r) const {
+    Real FdmCIRSolver::deltaAt(Real s, Real r) const
+    {
         calculate();
-        return solver_->derivativeX(std::log(s), r)/s;
+        return solver_->derivativeX(std::log(s), r) / s;
     }
 
-    Real FdmCIRSolver::gammaAt(Real s, Real r) const {
+    Real FdmCIRSolver::gammaAt(Real s, Real r) const
+    {
         calculate();
         const Real x = std::log(s);
-        return (solver_->derivativeXX(x, r)-solver_->derivativeX(x, r))/(s*s);
+        return (solver_->derivativeXX(x, r) - solver_->derivativeX(x, r)) / (s * s);
     }
 
-    Real FdmCIRSolver::thetaAt(Real s, Real r) const {
+    Real FdmCIRSolver::thetaAt(Real s, Real r) const
+    {
         calculate();
         return solver_->thetaAt(std::log(s), r);
     }

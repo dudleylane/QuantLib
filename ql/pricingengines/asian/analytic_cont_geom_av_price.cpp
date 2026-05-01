@@ -24,24 +24,24 @@
 #include <ql/processes/blackscholesprocess.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    AnalyticContinuousGeometricAveragePriceAsianEngine::
-        AnalyticContinuousGeometricAveragePriceAsianEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess> process)
-    : process_(std::move(process)) {
+    AnalyticContinuousGeometricAveragePriceAsianEngine::AnalyticContinuousGeometricAveragePriceAsianEngine(
+        ext::shared_ptr<GeneralizedBlackScholesProcess> process)
+    : process_(std::move(process))
+    {
         registerWith(process_);
     }
 
-    void AnalyticContinuousGeometricAveragePriceAsianEngine::calculate()
-                                                                       const {
-        QL_REQUIRE(arguments_.averageType == Average::Geometric,
-                   "not a geometric average option");
-        QL_REQUIRE(arguments_.exercise->type() == Exercise::European,
-                   "not an European Option");
+    void AnalyticContinuousGeometricAveragePriceAsianEngine::calculate() const
+    {
+        QL_REQUIRE(arguments_.averageType == Average::Geometric, "not a geometric average option");
+        QL_REQUIRE(arguments_.exercise->type() == Exercise::European, "not an European Option");
 
         // Check if this is a seasoned option
-        if (arguments_.startDate != Date()) {
+        if (arguments_.startDate != Date())
+        {
             QL_FAIL("seasoned continuous geometric Asian options not yet supported - "
                     "requires adjustment of forward price and variance based on "
                     "accumulated geometric average. This feature needs mathematical "
@@ -50,61 +50,50 @@ namespace QuantLib {
 
         Date exercise = arguments_.exercise->lastDate();
 
-        ext::shared_ptr<PlainVanillaPayoff> payoff =
-            ext::dynamic_pointer_cast<PlainVanillaPayoff>(arguments_.payoff);
+        ext::shared_ptr<PlainVanillaPayoff> payoff = ext::dynamic_pointer_cast<PlainVanillaPayoff>(arguments_.payoff);
         QL_REQUIRE(payoff, "non-plain payoff given");
 
-        Volatility volatility =
-            process_->blackVolatility()->blackVol(exercise, payoff->strike());
-        Real variance =
-            process_->blackVolatility()->blackVariance(exercise,
-                                                       payoff->strike());
-        DiscountFactor riskFreeDiscount =
-            process_->riskFreeRate()->discount(exercise);
+        Volatility volatility = process_->blackVolatility()->blackVol(exercise, payoff->strike());
+        Real variance = process_->blackVolatility()->blackVariance(exercise, payoff->strike());
+        DiscountFactor riskFreeDiscount = process_->riskFreeRate()->discount(exercise);
 
-        DayCounter rfdc  = process_->riskFreeRate()->dayCounter();
+        DayCounter rfdc = process_->riskFreeRate()->dayCounter();
         DayCounter divdc = process_->dividendYield()->dayCounter();
         DayCounter voldc = process_->blackVolatility()->dayCounter();
 
-        Spread dividendYield = 0.5 * (
-            process_->riskFreeRate()->zeroRate(exercise, rfdc,
-                                               Continuous, NoFrequency).rate() +
-            process_->dividendYield()->zeroRate(exercise, divdc,
-                                                Continuous, NoFrequency).rate() +
-            volatility*volatility/6.0);
+        Spread dividendYield =
+            0.5 * (process_->riskFreeRate()->zeroRate(exercise, rfdc, Continuous, NoFrequency).rate() +
+                   process_->dividendYield()->zeroRate(exercise, divdc, Continuous, NoFrequency).rate() +
+                   volatility * volatility / 6.0);
 
-        Time t_q = divdc.yearFraction(
-            process_->dividendYield()->referenceDate(), exercise);
-        DiscountFactor dividendDiscount = std::exp(-dividendYield*t_q);
+        Time t_q = divdc.yearFraction(process_->dividendYield()->referenceDate(), exercise);
+        DiscountFactor dividendDiscount = std::exp(-dividendYield * t_q);
 
         Real spot = process_->stateVariable()->value();
         QL_REQUIRE(spot > 0.0, "negative or null underlying");
         Real forward = spot * dividendDiscount / riskFreeDiscount;
 
-        BlackCalculator black(payoff, forward, std::sqrt(variance/3.0),
-                              riskFreeDiscount);
+        BlackCalculator black(payoff, forward, std::sqrt(variance / 3.0), riskFreeDiscount);
 
         results_.value = black.value();
         results_.delta = black.delta(spot);
         results_.gamma = black.gamma(spot);
 
-        results_.dividendRho = black.dividendRho(t_q)/2.0;
+        results_.dividendRho = black.dividendRho(t_q) / 2.0;
 
-        Time t_r = rfdc.yearFraction(process_->riskFreeRate()->referenceDate(),
-                                     arguments_.exercise->lastDate());
+        Time t_r = rfdc.yearFraction(process_->riskFreeRate()->referenceDate(), arguments_.exercise->lastDate());
         results_.rho = black.rho(t_r) + 0.5 * black.dividendRho(t_q);
 
-        Time t_v = voldc.yearFraction(
-            process_->blackVolatility()->referenceDate(),
-            arguments_.exercise->lastDate());
-        results_.vega = black.vega(t_v)/std::sqrt(3.0) +
-                        black.dividendRho(t_q)*volatility/6.0;
-        try {
+        Time t_v = voldc.yearFraction(process_->blackVolatility()->referenceDate(), arguments_.exercise->lastDate());
+        results_.vega = black.vega(t_v) / std::sqrt(3.0) + black.dividendRho(t_q) * volatility / 6.0;
+        try
+        {
             results_.theta = black.theta(spot, t_v);
-        } catch (Error&) {
+        }
+        catch (Error&)
+        {
             results_.theta = Null<Real>();
         }
     }
 
 }
-

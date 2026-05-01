@@ -27,7 +27,8 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(CurrencyTests)
 
-BOOST_AUTO_TEST_CASE(testBespokeConstructor) {
+BOOST_AUTO_TEST_CASE(testBespokeConstructor)
+{
     BOOST_TEST_MESSAGE("Testing bespoke currency constructor...");
 
     std::string name("Some Currency");

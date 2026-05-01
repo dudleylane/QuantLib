@@ -27,13 +27,13 @@
 #include <ql/instruments/capfloor.hpp>
 #include <ql/pricingengines/latticeshortratemodelengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Numerical lattice engine for cap/floors
     /*! \ingroup capfloorengines */
-    class TreeCapFloorEngine
-        : public LatticeShortRateModelEngine<CapFloor::arguments,
-                                             CapFloor::results> {
+    class TreeCapFloorEngine : public LatticeShortRateModelEngine<CapFloor::arguments, CapFloor::results>
+    {
       public:
         /*! \name Constructors
             \note the term structure is only needed when the short-rate
@@ -57,4 +57,3 @@ namespace QuantLib {
 
 
 #endif
-

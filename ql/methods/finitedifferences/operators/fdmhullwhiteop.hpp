@@ -24,21 +24,21 @@
 #ifndef quantlib_fdm_hull_white_op_hpp
 #define quantlib_fdm_hull_white_op_hpp
 
-#include <ql/methods/finitedifferences/operators/triplebandlinearop.hpp>
 #include <ql/methods/finitedifferences/operators/fdmlinearopcomposite.hpp>
+#include <ql/methods/finitedifferences/operators/triplebandlinearop.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class FdmMesher;
     class HullWhite;
 
-    class FdmHullWhiteOp : public FdmLinearOpComposite {
+    class FdmHullWhiteOp : public FdmLinearOpComposite
+    {
       public:
-
-        FdmHullWhiteOp(
-            const ext::shared_ptr<FdmMesher>& mesher,
-            const ext::shared_ptr<HullWhite>& model,
-            Size direction);
+        FdmHullWhiteOp(const ext::shared_ptr<FdmMesher>& mesher,
+                       const ext::shared_ptr<HullWhite>& model,
+                       Size direction);
 
         Size size() const override;
 

@@ -29,7 +29,8 @@
 
 #include <ql/indexes/iborindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! base class for all ICE %EUR %LIBOR indexes but the O/N
     /*! Euro LIBOR fixed by ICE.
@@ -39,10 +40,10 @@ namespace QuantLib {
         \warning This is the rate fixed in London by BBA. Use Euribor if
                  you're interested in the fixing by the ECB.
     */
-    class EURLibor : public IborIndex {
+    class EURLibor : public IborIndex
+    {
       public:
-        EURLibor(const Period& tenor,
-                 const Handle<YieldTermStructure>& h = {});
+        EURLibor(const Period& tenor, const Handle<YieldTermStructure>& h = {});
         /*! \name Date calculations
 
             See <https://www.theice.com/marketdata/reports/170>.
@@ -69,45 +70,45 @@ namespace QuantLib {
         \warning This is the rate fixed in London by ICE. Use Eonia if
                  you're interested in the fixing by the ECB.
     */
-    class DailyTenorEURLibor : public IborIndex {
+    class DailyTenorEURLibor : public IborIndex
+    {
       public:
-        DailyTenorEURLibor(Natural settlementDays,
-                           const Handle<YieldTermStructure>& h = {});
+        DailyTenorEURLibor(Natural settlementDays, const Handle<YieldTermStructure>& h = {});
     };
 
     //! Overnight %EUR %Libor index
-    class EURLiborON : public DailyTenorEURLibor {
+    class EURLiborON : public DailyTenorEURLibor
+    {
       public:
-        explicit EURLiborON(const Handle<YieldTermStructure>& h = {})
-        : DailyTenorEURLibor(0, h) {}
+        explicit EURLiborON(const Handle<YieldTermStructure>& h = {}) : DailyTenorEURLibor(0, h) {}
     };
 
     //! 1-month %EUR %Libor index
-    class EURLibor1M : public EURLibor {
+    class EURLibor1M : public EURLibor
+    {
       public:
-        explicit EURLibor1M(const Handle<YieldTermStructure>& h = {})
-        : EURLibor(Period(1, Months), h) {}
+        explicit EURLibor1M(const Handle<YieldTermStructure>& h = {}) : EURLibor(Period(1, Months), h) {}
     };
 
     //! 3-months %EUR %Libor index
-    class EURLibor3M : public EURLibor {
+    class EURLibor3M : public EURLibor
+    {
       public:
-        explicit EURLibor3M(const Handle<YieldTermStructure>& h = {})
-        : EURLibor(Period(3, Months), h) {}
+        explicit EURLibor3M(const Handle<YieldTermStructure>& h = {}) : EURLibor(Period(3, Months), h) {}
     };
 
     //! 6-months %EUR %Libor index
-    class EURLibor6M : public EURLibor {
+    class EURLibor6M : public EURLibor
+    {
       public:
-        explicit EURLibor6M(const Handle<YieldTermStructure>& h = {})
-        : EURLibor(Period(6, Months), h) {}
+        explicit EURLibor6M(const Handle<YieldTermStructure>& h = {}) : EURLibor(Period(6, Months), h) {}
     };
 
     //! 1-year %EUR %Libor index
-    class EURLibor1Y : public EURLibor {
+    class EURLibor1Y : public EURLibor
+    {
       public:
-        explicit EURLibor1Y(const Handle<YieldTermStructure>& h = {})
-        : EURLibor(Period(1, Years), h) {}
+        explicit EURLibor1Y(const Handle<YieldTermStructure>& h = {}) : EURLibor(Period(1, Years), h) {}
     };
 
 

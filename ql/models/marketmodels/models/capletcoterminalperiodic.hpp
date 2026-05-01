@@ -23,16 +23,17 @@
 #define quantlib_ctsmm_caplet_calibration_periodic_hpp
 
 
-#include <ql/models/marketmodels/models/piecewiseconstantvariance.hpp>
-#include <ql/models/marketmodels/models/volatilityinterpolationspecifier.hpp>
 #include <ql/math/matrix.hpp>
 #include <ql/models/marketmodels/curvestate.hpp>
 #include <ql/models/marketmodels/evolutiondescription.hpp>
+#include <ql/models/marketmodels/models/piecewiseconstantvariance.hpp>
+#include <ql/models/marketmodels/models/volatilityinterpolationspecifier.hpp>
 #include <ql/models/marketmodels/piecewiseconstantcorrelation.hpp>
 #include <ql/shared_ptr.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
 
     Integer capletSwaptionPeriodicCalibration(
@@ -58,8 +59,7 @@ namespace QuantLib {
         std::vector<Real>& finalScales,                 // scalings used for matching
         Size& iterationsDone,                           // number of  period iteratations done
         Real& errorImprovement,                         // improvement in error for last iteration
-        Matrix&
-            modelSwaptionVolsMatrix // the swaption vols calibrated to at each step of the iteration
+        Matrix& modelSwaptionVolsMatrix                 // the swaption vols calibrated to at each step of the iteration
     );
 }
 

@@ -26,7 +26,8 @@
 
 #include <ql/instruments/multiassetoption.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Margrabe option on two assets
     /*! This option gives the holder the right to exchange Q2 stocks
@@ -34,14 +35,13 @@ namespace QuantLib {
 
         \ingroup instruments
     */
-    class MargrabeOption : public MultiAssetOption {
+    class MargrabeOption : public MultiAssetOption
+    {
       public:
         class arguments;
         class results;
         class engine;
-        MargrabeOption(Integer Q1,
-                       Integer Q2,
-                       const ext::shared_ptr<Exercise>&);
+        MargrabeOption(Integer Q1, Integer Q2, const ext::shared_ptr<Exercise>&);
         void setupArguments(PricingEngine::arguments*) const override;
         Real delta1() const;
         Real delta2() const;
@@ -56,7 +56,8 @@ namespace QuantLib {
     };
 
     //! Extra %arguments for Margrabe option
-    class MargrabeOption::arguments : public MultiAssetOption::arguments {
+    class MargrabeOption::arguments : public MultiAssetOption::arguments
+    {
       public:
         arguments() = default;
         void validate() const override;
@@ -65,14 +66,16 @@ namespace QuantLib {
     };
 
     //! Extra %results for Margrabe option
-    class MargrabeOption::results : public MultiAssetOption::results {
+    class MargrabeOption::results : public MultiAssetOption::results
+    {
       public:
         results() = default;
         Real delta1 = Null<Real>();
         Real delta2 = Null<Real>();
         Real gamma1 = Null<Real>();
         Real gamma2 = Null<Real>();
-        void reset() override {
+        void reset() override
+        {
             MultiAssetOption::results::reset();
             delta1 = Null<Real>();
             delta2 = Null<Real>();
@@ -82,8 +85,9 @@ namespace QuantLib {
     };
 
     //! %Margrabe option %engine base class
-    class MargrabeOption::engine : public GenericEngine<MargrabeOption::arguments,
-                                                        MargrabeOption::results> {};
+    class MargrabeOption::engine : public GenericEngine<MargrabeOption::arguments, MargrabeOption::results>
+    {
+    };
 }
 
 

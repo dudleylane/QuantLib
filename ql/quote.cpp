@@ -17,20 +17,19 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/errors.hpp>
 #include <ql/quote.hpp>
 #include <ql/quotes/simplequote.hpp>
-#include <ql/errors.hpp>
 #include <ql/utilities/variants.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Handle<Quote> handleFromVariant(const std::variant<Real, Handle<Quote>>& value) {
-        return std::visit(
-            detail::variant_visitor{
-                [](Real x) -> Handle<Quote> { return makeQuoteHandle(x); },
-                [](const Handle<Quote>& x) { return x; }
-            },
-            value);
+    Handle<Quote> handleFromVariant(const std::variant<Real, Handle<Quote>>& value)
+    {
+        return std::visit(detail::variant_visitor{[](Real x) -> Handle<Quote> { return makeQuoteHandle(x); },
+                                                  [](const Handle<Quote>& x) { return x; }},
+                          value);
     }
 
 }

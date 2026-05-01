@@ -31,7 +31,8 @@
 #include <utility>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Helper class to build interpolated term structures
     /*! Interpolated term structures can use protected or private
@@ -39,38 +40,38 @@ namespace QuantLib {
         members and implement correct copy behavior.
     */
     template <class Interpolator>
-    class InterpolatedCurve {
+    class InterpolatedCurve
+    {
       public:
         ~InterpolatedCurve() = default;
 
       protected:
         //! \name Building
         //@{
-        InterpolatedCurve(std::vector<Time> times,
-                          std::vector<Real> data,
-                          const Interpolator& i = Interpolator())
-        : times_(std::move(times)), data_(std::move(data)), interpolator_(i) {}
+        InterpolatedCurve(std::vector<Time> times, std::vector<Real> data, const Interpolator& i = Interpolator())
+        : times_(std::move(times)), data_(std::move(data)), interpolator_(i)
+        {
+        }
 
-        InterpolatedCurve(std::vector<Time> times,
-                          const Interpolator& i = Interpolator())
-        : times_(std::move(times)), data_(times_.size()), interpolator_(i) {}
+        InterpolatedCurve(std::vector<Time> times, const Interpolator& i = Interpolator())
+        : times_(std::move(times)), data_(times_.size()), interpolator_(i)
+        {
+        }
 
-        InterpolatedCurve(Size n,
-                          const Interpolator& i = Interpolator())
-        : times_(n), data_(n), interpolator_(i) {}
+        InterpolatedCurve(Size n, const Interpolator& i = Interpolator()) : times_(n), data_(n), interpolator_(i) {}
 
-        InterpolatedCurve(const Interpolator& i = Interpolator())
-        : interpolator_(i) {}
+        InterpolatedCurve(const Interpolator& i = Interpolator()) : interpolator_(i) {}
         //@}
 
         //! \name Copying
         //@{
-        InterpolatedCurve(const InterpolatedCurve& c)
-        : times_(c.times_), data_(c.data_), interpolator_(c.interpolator_) {
+        InterpolatedCurve(const InterpolatedCurve& c) : times_(c.times_), data_(c.data_), interpolator_(c.interpolator_)
+        {
             setupInterpolation();
         }
 
-        InterpolatedCurve& operator=(const InterpolatedCurve& c) {
+        InterpolatedCurve& operator=(const InterpolatedCurve& c)
+        {
             times_ = c.times_;
             data_ = c.data_;
             interpolator_ = c.interpolator_;
@@ -82,11 +83,13 @@ namespace QuantLib {
         //! \name Moving
         //@{
         InterpolatedCurve(InterpolatedCurve&& c) noexcept
-        : times_(std::move(c.times_)), data_(std::move(c.data_)), interpolator_(std::move(c.interpolator_)) {
+        : times_(std::move(c.times_)), data_(std::move(c.data_)), interpolator_(std::move(c.interpolator_))
+        {
             setupInterpolation();
         }
 
-        InterpolatedCurve& operator=(InterpolatedCurve&& c) noexcept {
+        InterpolatedCurve& operator=(InterpolatedCurve&& c) noexcept
+        {
             times_ = std::move(c.times_);
             data_ = std::move(c.data_);
             interpolator_ = std::move(c.interpolator_);
@@ -97,27 +100,26 @@ namespace QuantLib {
 
         //! \name Utilities
         //@{
-        void setupTimes(const std::vector<Date>& dates,
-                        Date referenceDate,
-                        const DayCounter& dayCounter) {
+        void setupTimes(const std::vector<Date>& dates, Date referenceDate, const DayCounter& dayCounter)
+        {
             times_.resize(dates.size());
             times_[0] = dayCounter.yearFraction(referenceDate, dates[0]);
-            for (Size i = 1; i < dates.size(); i++) {
-                QL_REQUIRE(dates[i] > dates[i-1],
-                           "dates not sorted: " << dates[i] << " passed after " << dates[i-1]);
+            for (Size i = 1; i < dates.size(); i++)
+            {
+                QL_REQUIRE(dates[i] > dates[i - 1],
+                           "dates not sorted: " << dates[i] << " passed after " << dates[i - 1]);
 
                 times_[i] = dayCounter.yearFraction(referenceDate, dates[i]);
-                QL_REQUIRE(!close(this->times_[i], this->times_[i-1]),
-                           "two passed dates (" << dates[i-1] << " and " << dates[i]
-                           << ") correspond to the same time "
-                           << "under this curve's day count convention (" << dayCounter << ")");
+                QL_REQUIRE(!close(this->times_[i], this->times_[i - 1]),
+                           "two passed dates (" << dates[i - 1] << " and " << dates[i]
+                                                << ") correspond to the same time "
+                                                << "under this curve's day count convention (" << dayCounter << ")");
             }
         }
 
-        void setupInterpolation() {
-            interpolation_ = interpolator_.interpolate(times_.begin(),
-                                                       times_.end(),
-                                                       data_.begin());
+        void setupInterpolation()
+        {
+            interpolation_ = interpolator_.interpolate(times_.begin(), times_.end(), data_.begin());
         }
         //@}
 
@@ -140,4 +142,3 @@ namespace QuantLib {
 }
 
 #endif
-

@@ -9,4 +9,3 @@
 #include <ql/models/shortrate/onefactormodels/hullwhite.hpp>
 #include <ql/models/shortrate/onefactormodels/markovfunctional.hpp>
 #include <ql/models/shortrate/onefactormodels/vasicek.hpp>
-

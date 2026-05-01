@@ -46,4 +46,3 @@
 #include <ql/time/calendars/unitedkingdom.hpp>
 #include <ql/time/calendars/unitedstates.hpp>
 #include <ql/time/calendars/weekendsonly.hpp>
-

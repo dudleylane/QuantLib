@@ -25,13 +25,14 @@
 #define quantlib_cpibond_hpp
 
 
+#include <ql/cashflows/cpicoupon.hpp>
 #include <ql/instruments/bond.hpp>
+#include <ql/interestrate.hpp>
 #include <ql/time/dategenerationrule.hpp>
 #include <ql/time/daycounter.hpp>
-#include <ql/interestrate.hpp>
-#include <ql/cashflows/cpicoupon.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Schedule;
 
@@ -40,7 +41,8 @@ namespace QuantLib {
     /*! \ingroup instruments
 
      */
-    class CPIBond : public Bond {
+    class CPIBond : public Bond
+    {
       public:
         CPIBond(Natural settlementDays,
                 Real faceAmount,
@@ -101,10 +103,6 @@ namespace QuantLib {
 
 
 }
-
-
-
-
 
 
 #endif

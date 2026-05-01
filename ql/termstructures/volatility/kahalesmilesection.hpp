@@ -34,13 +34,13 @@
 #ifndef quantlib_kahale_smile_section_hpp
 #define quantlib_kahale_smile_section_hpp
 
-#include <ql/termstructures/volatility/smilesection.hpp>
-#include <ql/pricingengines/blackformula.hpp>
 #include <ql/math/solvers1d/brent.hpp>
+#include <ql/pricingengines/blackformula.hpp>
+#include <ql/termstructures/volatility/smilesection.hpp>
 #include <ql/termstructures/volatility/smilesectionutils.hpp>
 #include <boost/math/distributions/normal.hpp>
-#include <vector>
 #include <utility>
+#include <vector>
 
 // numerical constants, still experimental
 #define QL_KAHALE_FMAX QL_MAX_REAL
@@ -48,18 +48,21 @@
 #define QL_KAHALE_ACC 1E-12
 #define QL_KAHALE_EPS QL_EPSILON
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class KahaleSmileSection : public SmileSection {
+    class KahaleSmileSection : public SmileSection
+    {
 
       public:
-        struct cFunction {
+        struct cFunction
+        {
             // this is just a helper class where we do not want virtual
             // functions
-            cFunction(Real f, Real s, Real a, Real b)
-                : f_(f), s_(s), a_(a), b_(b), exponential_(false) {}
+            cFunction(Real f, Real s, Real a, Real b) : f_(f), s_(s), a_(a), b_(b), exponential_(false) {}
             cFunction(Real a, Real b) : a_(a), b_(b), exponential_(true) {}
-            Real operator()(Real k) const {
+            Real operator()(Real k) const
+            {
                 if (exponential_)
                     return std::exp(-a_ * k + b_);
                 if (s_ < QL_EPSILON)
@@ -67,17 +70,20 @@ namespace QuantLib {
                 boost::math::normal_distribution<Real> normal;
                 Real d1 = std::log(f_ / k) / s_ + s_ / 2.0;
                 Real d2 = d1 - s_;
-                return f_ * boost::math::cdf(normal, d1) -
-                       k * boost::math::cdf(normal, d2) + a_ * k + b_;
+                return f_ * boost::math::cdf(normal, d1) - k * boost::math::cdf(normal, d2) + a_ * k + b_;
             }
             Real f_, s_, a_, b_;
             const bool exponential_;
         };
 
-        struct aHelper {
+        struct aHelper
+        {
             aHelper(Real k0, Real k1, Real c0, Real c1, Real c0p, Real c1p)
-                : k0_(k0), k1_(k1), c0_(c0), c1_(c1), c0p_(c0p), c1p_(c1p) {}
-            Real operator()(Real a) const {
+            : k0_(k0), k1_(k1), c0_(c0), c1_(c1), c0p_(c0p), c1p_(c1p)
+            {
+            }
+            Real operator()(Real a) const
+            {
                 boost::math::normal_distribution<Real> normal;
                 Real d20 = boost::math::quantile(normal, -c0p_ + a);
                 Real d21 = boost::math::quantile(normal, -c1p_ + a);
@@ -95,9 +101,11 @@ namespace QuantLib {
             mutable Real s_, f_, b_;
         };
 
-        struct sHelper {
+        struct sHelper
+        {
             sHelper(Real k0, Real c0, Real c0p) : k0_(k0), c0_(c0), c0p_(c0p) {}
-            Real operator()(Real s) const {
+            Real operator()(Real s) const
+            {
                 s = std::max(s, 0.0);
                 boost::math::normal_distribution<Real> normal;
                 Real d20 = boost::math::quantile(normal, -c0p_);
@@ -110,10 +118,11 @@ namespace QuantLib {
             mutable Real f_;
         };
 
-        struct sHelper1 {
-            sHelper1(Real k1, Real c0, Real c1, Real c1p)
-                : k1_(k1), c0_(c0), c1_(c1), c1p_(c1p) {}
-            Real operator()(Real s) const {
+        struct sHelper1
+        {
+            sHelper1(Real k1, Real c0, Real c1, Real c1p) : k1_(k1), c0_(c0), c1_(c1), c1p_(c1p) {}
+            Real operator()(Real s) const
+            {
                 s = std::max(s, 0.0);
                 boost::math::normal_distribution<Real> normal;
                 Real d21 = boost::math::quantile(normal, -c1p_);
@@ -150,13 +159,9 @@ namespace QuantLib {
         Real leftCoreStrike() const { return k_[leftIndex_]; }
         Real rightCoreStrike() const { return k_[rightIndex_]; }
 
-        std::pair<Size, Size> coreIndices() const {
-            return std::make_pair(leftIndex_, rightIndex_);
-        }
+        std::pair<Size, Size> coreIndices() const { return std::make_pair(leftIndex_, rightIndex_); }
 
-        Real optionPrice(Rate strike,
-                         Option::Type type = Option::Call,
-                         Real discount = 1.0) const override;
+        Real optionPrice(Rate strike, Option::Type type = Option::Call, Real discount = 1.0) const override;
 
       protected:
         Volatility volatilityImpl(Rate strike) const override;
@@ -169,7 +174,7 @@ namespace QuantLib {
         Real f_;
         const Real gap_;
         Size leftIndex_, rightIndex_;
-        std::vector<ext::shared_ptr<cFunction> > cFunctions_;
+        std::vector<ext::shared_ptr<cFunction>> cFunctions_;
         const bool interpolate_, exponentialExtrapolation_;
         int forcedLeftIndex_, forcedRightIndex_;
         ext::shared_ptr<SmileSectionUtils> ssutils_;

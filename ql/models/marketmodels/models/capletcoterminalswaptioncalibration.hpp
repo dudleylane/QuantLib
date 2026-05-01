@@ -23,16 +23,16 @@
 
 #include <ql/models/marketmodels/models/ctsmmcapletcalibration.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class CTSMMCapletOriginalCalibration : public CTSMMCapletCalibration {
+    class CTSMMCapletOriginalCalibration : public CTSMMCapletCalibration
+    {
       public:
         CTSMMCapletOriginalCalibration(
             const EvolutionDescription& evolution,
             const ext::shared_ptr<PiecewiseConstantCorrelation>& corr,
-            const std::vector<ext::shared_ptr<
-                        PiecewiseConstantVariance> >&
-                                    displacedSwapVariances,
+            const std::vector<ext::shared_ptr<PiecewiseConstantVariance>>& displacedSwapVariances,
             const std::vector<Volatility>& capletVols,
             const ext::shared_ptr<CurveState>& cs,
             Spread displacement,
@@ -40,12 +40,10 @@ namespace QuantLib {
             bool lowestRoot,
             bool useFullApprox);
         // actual calibration function
-        static Natural calibrationFunction(
-                            const EvolutionDescription& evolution,
+        static Natural
+        calibrationFunction(const EvolutionDescription& evolution,
                             const PiecewiseConstantCorrelation& corr,
-                            const std::vector<ext::shared_ptr<
-                                PiecewiseConstantVariance> >&
-                                    displacedSwapVariances,
+                            const std::vector<ext::shared_ptr<PiecewiseConstantVariance>>& displacedSwapVariances,
                             const std::vector<Volatility>& capletVols,
                             const CurveState& cs,
                             Spread displacement,
@@ -55,10 +53,11 @@ namespace QuantLib {
                             bool useFullApprox,
 
                             Size numberOfFactors,
-                            //Size maxIterations,
-                            //Real tolerance,
+                            // Size maxIterations,
+                            // Real tolerance,
 
                             std::vector<Matrix>& swapCovariancePseudoRoots);
+
       private:
         Natural calibrationImpl_(Natural numberOfFactors, Natural, Real) override;
         // input

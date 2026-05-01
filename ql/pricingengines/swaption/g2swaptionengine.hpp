@@ -24,11 +24,12 @@
 #ifndef quantlib_pricers_G2_swaption_hpp
 #define quantlib_pricers_G2_swaption_hpp
 
-#include <ql/pricingengines/genericmodelengine.hpp>
 #include <ql/models/shortrate/twofactormodels/g2.hpp>
+#include <ql/pricingengines/genericmodelengine.hpp>
 #include <ql/pricingengines/swap/discountingswapengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Swaption priced by means of the Black formula
     /*! \ingroup swaptionengines
@@ -36,18 +37,18 @@ namespace QuantLib {
         \warning The engine assumes that the exercise date equals the
                  start date of the passed swap.
     */
-    class G2SwaptionEngine : public GenericModelEngine<G2, Swaption::arguments,
-                                                           Swaption::results> {
+    class G2SwaptionEngine : public GenericModelEngine<G2, Swaption::arguments, Swaption::results>
+    {
       public:
         // range is the number of standard deviations to use in the
         // exponential term of the integral for the european swaption.
         // intervals is the number of intervals to use in the integration.
-        G2SwaptionEngine(const ext::shared_ptr<G2>& model,
-                         Real range,
-                         Size intervals)
-        : GenericModelEngine<G2, Swaption::arguments, Swaption::results>(model),
-          range_(range), intervals_(intervals) {}
-        void calculate() const override {
+        G2SwaptionEngine(const ext::shared_ptr<G2>& model, Real range, Size intervals)
+        : GenericModelEngine<G2, Swaption::arguments, Swaption::results>(model), range_(range), intervals_(intervals)
+        {
+        }
+        void calculate() const override
+        {
             QL_REQUIRE(arguments_.settlementType == Settlement::Physical,
                        "cash-settled swaptions not priced with G2 engine");
             QL_REQUIRE(!model_.empty(), "no model specified");
@@ -57,12 +58,10 @@ namespace QuantLib {
             // model)
             auto swap = arguments_.swap;
             swap->setPricingEngine(ext::make_shared<DiscountingSwapEngine>(model_->termStructure(), false));
-            Spread correction = swap->spread() *
-                std::fabs(swap->floatingLegBPS() / swap->fixedLegBPS());
+            Spread correction = swap->spread() * std::fabs(swap->floatingLegBPS() / swap->fixedLegBPS());
             Rate fixedRate = swap->fixedRate() - correction;
 
-            results_.value =  model_->swaption(arguments_, fixedRate,
-                                               range_, intervals_);
+            results_.value = model_->swaption(arguments_, fixedRate, range_, intervals_);
         }
 
       private:

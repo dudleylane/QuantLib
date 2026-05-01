@@ -20,9 +20,11 @@
 #include <ql/experimental/asian/analytic_cont_geom_av_price_heston.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class AnalyticContinuousGeometricAveragePriceAsianHestonEngine::Integrand {
+    class AnalyticContinuousGeometricAveragePriceAsianHestonEngine::Integrand
+    {
       private:
         Real t_ = 0.0, T_, K_, logK_;
         Size cutoff_;
@@ -36,47 +38,50 @@ namespace QuantLib {
                   Real K,
                   const AnalyticContinuousGeometricAveragePriceAsianHestonEngine* const parent,
                   Real xiRightLimit)
-        : T_(T), K_(K), logK_(std::log(K)), cutoff_(cutoff), parent_(parent),
-          xiRightLimit_(xiRightLimit), i_(std::complex<Real>(0.0, 1.0)) {}
+        : T_(T), K_(K), logK_(std::log(K)), cutoff_(cutoff), parent_(parent), xiRightLimit_(xiRightLimit),
+          i_(std::complex<Real>(0.0, 1.0))
+        {
+        }
 
-        Real operator()(Real xi) const {
-            Real xiDash = (0.5+1e-8+0.5*xi) * xiRightLimit_; // Map xi to full range
+        Real operator()(Real xi) const
+        {
+            Real xiDash = (0.5 + 1e-8 + 0.5 * xi) * xiRightLimit_; // Map xi to full range
 
-            std::complex<Real> inner1 = parent_->Phi(1.0 + xiDash*i_, 0, T_, t_, cutoff_);
-            std::complex<Real> inner2 = - K_*parent_->Phi(xiDash*i_, 0, T_, t_, cutoff_);
+            std::complex<Real> inner1 = parent_->Phi(1.0 + xiDash * i_, 0, T_, t_, cutoff_);
+            std::complex<Real> inner2 = -K_ * parent_->Phi(xiDash * i_, 0, T_, t_, cutoff_);
 
-            return 0.5*xiRightLimit_*std::real((inner1 + inner2) * std::exp(-xiDash*logK_*i_) / (xiDash*i_));
+            return 0.5 * xiRightLimit_ * std::real((inner1 + inner2) * std::exp(-xiDash * logK_ * i_) / (xiDash * i_));
         }
     };
 
-    class AnalyticContinuousGeometricAveragePriceAsianHestonEngine::DcfIntegrand {
+    class AnalyticContinuousGeometricAveragePriceAsianHestonEngine::DcfIntegrand
+    {
       private:
         Real t_, T_, denominator_;
         const Handle<YieldTermStructure> riskFreeRate_;
         const Handle<YieldTermStructure> dividendYield_;
+
       public:
-        DcfIntegrand(Real t,
-                     Real T,
-                     Handle<YieldTermStructure> riskFreeRate,
-                     Handle<YieldTermStructure> dividendYield)
-        : t_(t), T_(T), riskFreeRate_(std::move(riskFreeRate)),
-          dividendYield_(std::move(dividendYield)) {
+        DcfIntegrand(Real t, Real T, Handle<YieldTermStructure> riskFreeRate, Handle<YieldTermStructure> dividendYield)
+        : t_(t), T_(T), riskFreeRate_(std::move(riskFreeRate)), dividendYield_(std::move(dividendYield))
+        {
             denominator_ = std::log(riskFreeRate_->discount(t_)) - std::log(dividendYield_->discount(t_));
         }
 
-        Real operator()(Real u) const {
-            Real uDash = (0.5+1e-8+0.5*u) * (T_ - t_) + t_; // Map u to full range
-            return 0.5*(T_ - t_)*(-std::log(riskFreeRate_->discount(uDash))
-                               + std::log(dividendYield_->discount(uDash)) + denominator_);
+        Real operator()(Real u) const
+        {
+            Real uDash = (0.5 + 1e-8 + 0.5 * u) * (T_ - t_) + t_; // Map u to full range
+            return 0.5 * (T_ - t_) *
+                   (-std::log(riskFreeRate_->discount(uDash)) + std::log(dividendYield_->discount(uDash)) +
+                    denominator_);
         }
     };
 
 
-    AnalyticContinuousGeometricAveragePriceAsianHestonEngine::
-        AnalyticContinuousGeometricAveragePriceAsianHestonEngine(
-            ext::shared_ptr<HestonProcess> process, Size summationCutoff, Real xiRightLimit)
-    : process_(std::move(process)), summationCutoff_(summationCutoff), xiRightLimit_(xiRightLimit),
-      integrator_(128) {
+    AnalyticContinuousGeometricAveragePriceAsianHestonEngine::AnalyticContinuousGeometricAveragePriceAsianHestonEngine(
+        ext::shared_ptr<HestonProcess> process, Size summationCutoff, Real xiRightLimit)
+    : process_(std::move(process)), summationCutoff_(summationCutoff), xiRightLimit_(xiRightLimit), integrator_(128)
+    {
         registerWith(process_);
 
         v0_ = process_->v0();
@@ -91,65 +96,89 @@ namespace QuantLib {
 
         // Some of the required constant intermediate variables can be calculated now
         // (although anything depending on T will need to be calculated dynamically later)
-        a1_ = 2.0 * v0_ / (sigma_*sigma_);
-        a2_ = 2.0 * kappa_ * theta_ / (sigma_*sigma_);
+        a1_ = 2.0 * v0_ / (sigma_ * sigma_);
+        a2_ = 2.0 * kappa_ * theta_ / (sigma_ * sigma_);
     }
 
-    std::complex<Real> AnalyticContinuousGeometricAveragePriceAsianHestonEngine::z1_f(
-            const std::complex<Real>& s, const std::complex<Real>& w, Real T) const {
-        return s*s*(1-rho_*rho_)/(2*T*T);
+    std::complex<Real> AnalyticContinuousGeometricAveragePriceAsianHestonEngine::z1_f(const std::complex<Real>& s,
+                                                                                      const std::complex<Real>& w,
+                                                                                      Real T) const
+    {
+        return s * s * (1 - rho_ * rho_) / (2 * T * T);
     }
 
-    std::complex<Real> AnalyticContinuousGeometricAveragePriceAsianHestonEngine::z2_f(
-            const std::complex<Real>& s, const std::complex<Real>& w, Real T) const {
-        return s*(2*rho_*kappa_ - sigma_)/(2*sigma_*T) + s*w*(1-rho_*rho_)/T;
+    std::complex<Real> AnalyticContinuousGeometricAveragePriceAsianHestonEngine::z2_f(const std::complex<Real>& s,
+                                                                                      const std::complex<Real>& w,
+                                                                                      Real T) const
+    {
+        return s * (2 * rho_ * kappa_ - sigma_) / (2 * sigma_ * T) + s * w * (1 - rho_ * rho_) / T;
     }
 
-    std::complex<Real> AnalyticContinuousGeometricAveragePriceAsianHestonEngine::z3_f(
-            const std::complex<Real>& s, const std::complex<Real>& w, Real T) const {
-        return s*rho_/(sigma_*T) + 0.5*w*(2*rho_*kappa_ - sigma_)/sigma_ + 0.5*w*w*(1-rho_*rho_);
+    std::complex<Real> AnalyticContinuousGeometricAveragePriceAsianHestonEngine::z3_f(const std::complex<Real>& s,
+                                                                                      const std::complex<Real>& w,
+                                                                                      Real T) const
+    {
+        return s * rho_ / (sigma_ * T) + 0.5 * w * (2 * rho_ * kappa_ - sigma_) / sigma_ +
+               0.5 * w * w * (1 - rho_ * rho_);
     }
 
-    std::complex<Real> AnalyticContinuousGeometricAveragePriceAsianHestonEngine::z4_f(
-            const std::complex<Real>& s, const std::complex<Real>& w) const {
-        return w*rho_/sigma_;
+    std::complex<Real> AnalyticContinuousGeometricAveragePriceAsianHestonEngine::z4_f(const std::complex<Real>& s,
+                                                                                      const std::complex<Real>& w) const
+    {
+        return w * rho_ / sigma_;
     }
 
-    std::complex<Real> AnalyticContinuousGeometricAveragePriceAsianHestonEngine::f(const std::complex<Real>& z1,
-                                                                                   const std::complex<Real>& z2,
-                                                                                   const std::complex<Real>& z3,
-                                                                                   const std::complex<Real>& z4,
-                                                                                   int n, // Can't use Size here as n can be negative
-                                                                                   Real tau) const {;
+    std::complex<Real>
+    AnalyticContinuousGeometricAveragePriceAsianHestonEngine::f(const std::complex<Real>& z1,
+                                                                const std::complex<Real>& z2,
+                                                                const std::complex<Real>& z3,
+                                                                const std::complex<Real>& z4,
+                                                                int n, // Can't use Size here as n can be negative
+                                                                Real tau) const
+    {
+        ;
         std::complex<Real> result;
 
         // This equation is highly recursive, use dynamic programming with a mutable variable
         // to record the results of previous calls
-        if (n<2) {
-            if (n<0) {
+        if (n < 2)
+        {
+            if (n < 0)
+            {
                 result = 0.0;
-            } else if (n==0) {
-                result = 1.0;
-            } else {
-                result = 0.5*(kappa_ - z4*sigma_*sigma_)*tau;
             }
-        } else {
+            else if (n == 0)
+            {
+                result = 1.0;
+            }
+            else
+            {
+                result = 0.5 * (kappa_ - z4 * sigma_ * sigma_) * tau;
+            }
+        }
+        else
+        {
             std::complex<Real> fMinusN[4];
-            Real prefactor = -0.5*sigma_*sigma_*tau*tau / (n*(n-1));
+            Real prefactor = -0.5 * sigma_ * sigma_ * tau * tau / (n * (n - 1));
 
             // For each offset, look up the value in the map and only evaluate function if it's not there
-            for (int offset=1; offset<5; offset++) {
-                int location = n-offset;
+            for (int offset = 1; offset < 5; offset++)
+            {
+                int location = n - offset;
                 auto position = fLookupTable_.find(location);
-                if (position != fLookupTable_.end()) {
+                if (position != fLookupTable_.end())
+                {
                     std::complex<Real> value = position->second;
-                    fMinusN[offset-1] = value;
-                } else {
-                    fMinusN[offset-1] = f(z1, z2, z3, z4, location, tau);
+                    fMinusN[offset - 1] = value;
+                }
+                else
+                {
+                    fMinusN[offset - 1] = f(z1, z2, z3, z4, location, tau);
                 }
             }
 
-            result = prefactor * (z1*tau*tau*fMinusN[3] + z2*tau*fMinusN[2] + (z3 - 0.5*kappa_*kappa_/(sigma_*sigma_))*fMinusN[1]);
+            result = prefactor * (z1 * tau * tau * fMinusN[3] + z2 * tau * fMinusN[2] +
+                                  (z3 - 0.5 * kappa_ * kappa_ / (sigma_ * sigma_)) * fMinusN[1]);
         }
 
         // Store this value in our mutable lookup map
@@ -158,35 +187,33 @@ namespace QuantLib {
         return result;
     };
 
-    std::pair<std::complex<Real>, std::complex<Real> >
-        AnalyticContinuousGeometricAveragePriceAsianHestonEngine::F_F_tilde(
-            const std::complex<Real>& z1,
-            const std::complex<Real>& z2,
-            const std::complex<Real>& z3,
-            const std::complex<Real>& z4,
-            Real tau,
-            Size cutoff) const {
+    std::pair<std::complex<Real>, std::complex<Real>>
+    AnalyticContinuousGeometricAveragePriceAsianHestonEngine::F_F_tilde(const std::complex<Real>& z1,
+                                                                        const std::complex<Real>& z2,
+                                                                        const std::complex<Real>& z3,
+                                                                        const std::complex<Real>& z4,
+                                                                        Real tau,
+                                                                        Size cutoff) const
+    {
         std::complex<Real> temp = 0.0;
         std::complex<Real> runningSum1 = 0.0;
         std::complex<Real> runningSum2 = 0.0;
 
-        for (Size i=0; i<cutoff; i++) {
+        for (Size i = 0; i < cutoff; i++)
+        {
             temp = f(z1, z2, z3, z4, i, tau);
             runningSum1 += temp;
-            runningSum2 += temp*Real(i)/tau;
+            runningSum2 += temp * Real(i) / tau;
         }
 
-        std::pair<std::complex<Real>, std::complex<Real> > result(runningSum1, runningSum2);
+        std::pair<std::complex<Real>, std::complex<Real>> result(runningSum1, runningSum2);
 
         return result;
     };
 
     std::complex<Real> AnalyticContinuousGeometricAveragePriceAsianHestonEngine::Phi(
-            const std::complex<Real>& s,
-            const std::complex<Real>& w,
-            Real T,
-            Real t,
-            Size cutoff) const {
+        const std::complex<Real>& s, const std::complex<Real>& w, Real T, Real t, Size cutoff) const
+    {
         Real tau = T - t;
 
         std::complex<Real> z1 = z1_f(s, w, T);
@@ -195,24 +222,22 @@ namespace QuantLib {
         std::complex<Real> z4 = z4_f(s, w);
 
         // Clear the mutable lookup map before calling fLookupTable
-        fLookupTable_ = std::map<int, std::complex<Real> >();
-        std::pair<std::complex<Real>, std::complex<Real> > temp = F_F_tilde(z1, z2, z3, z4, tau, cutoff);
+        fLookupTable_ = std::map<int, std::complex<Real>>();
+        std::pair<std::complex<Real>, std::complex<Real>> temp = F_F_tilde(z1, z2, z3, z4, tau, cutoff);
 
         std::complex<Real> F, F_tilde;
         F = temp.first;
         F_tilde = temp.second;
 
-        return std::exp(-a1_*F_tilde/F - a2_*std::log(F) + a3_*s + a4_*w + a5_);
+        return std::exp(-a1_ * F_tilde / F - a2_ * std::log(F) + a3_ * s + a4_ * w + a5_);
     }
 
-    void AnalyticContinuousGeometricAveragePriceAsianHestonEngine::calculate() const {
-        QL_REQUIRE(arguments_.averageType == Average::Geometric,
-                   "not a geometric average option");
-        QL_REQUIRE(arguments_.exercise->type() == Exercise::European,
-                   "not an European Option");
+    void AnalyticContinuousGeometricAveragePriceAsianHestonEngine::calculate() const
+    {
+        QL_REQUIRE(arguments_.averageType == Average::Geometric, "not a geometric average option");
+        QL_REQUIRE(arguments_.exercise->type() == Exercise::European, "not an European Option");
 
-        ext::shared_ptr<PlainVanillaPayoff> payoff =
-            ext::dynamic_pointer_cast<PlainVanillaPayoff>(arguments_.payoff);
+        ext::shared_ptr<PlainVanillaPayoff> payoff = ext::dynamic_pointer_cast<PlainVanillaPayoff>(arguments_.payoff);
         QL_REQUIRE(payoff, "non-plain payoff given");
 
         Real strike = payoff->strike();
@@ -241,19 +266,21 @@ namespace QuantLib {
         DcfIntegrand dcfIntegrand = DcfIntegrand(t, T, riskFreeRate_, dividendYield_);
         Real integratedDcf = integrator_(dcfIntegrand);
 
-        a3_ = (tau*logS0 + integratedDcf)/T - kappa_*theta_*rho_*tau*tau/(2*sigma_*T) - rho_*tau*v0_/(sigma_*T);
-        a4_ = logS0*qdcf/dcf - rho_*v0_/sigma_ + rho_*kappa_*theta_*tau/sigma_;
-        a5_ = (kappa_*v0_ + kappa_*kappa_*theta_*tau) / (sigma_*sigma_);
+        a3_ = (tau * logS0 + integratedDcf) / T - kappa_ * theta_ * rho_ * tau * tau / (2 * sigma_ * T) -
+              rho_ * tau * v0_ / (sigma_ * T);
+        a4_ = logS0 * qdcf / dcf - rho_ * v0_ / sigma_ + rho_ * kappa_ * theta_ * tau / sigma_;
+        a5_ = (kappa_ * v0_ + kappa_ * kappa_ * theta_ * tau) / (sigma_ * sigma_);
 
         // Calculate the two terms in eq (29) - Phi(1,0) is real (asian forward) but need to type convert
-        Real term1 = 0.5 * (std::real(Phi(1,0, T, t, summationCutoff_)) - strike);
+        Real term1 = 0.5 * (std::real(Phi(1, 0, T, t, summationCutoff_)) - strike);
 
         Integrand integrand(T, summationCutoff_, strike, this, xiRightLimit_);
         Real term2 = integrator_(integrand) / M_PI;
 
         // Apply the payoff functions
         Real value = 0.0;
-        switch (payoff->optionType()){
+        switch (payoff->optionType())
+        {
             case Option::Call:
                 value = expiryDcf * (term1 + term2);
                 break;
@@ -262,7 +289,7 @@ namespace QuantLib {
                 break;
             default:
                 QL_FAIL("unknown option type");
-            }
+        }
 
         results_.value = value;
 

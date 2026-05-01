@@ -27,42 +27,43 @@
 #include <ql/models/shortrate/onefactormodels/hullwhite.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    FdmHestonHullWhiteEquityPart::FdmHestonHullWhiteEquityPart(
-        const ext::shared_ptr<FdmMesher>& mesher,
-        ext::shared_ptr<HullWhite> hwModel,
-        ext::shared_ptr<YieldTermStructure> qTS)
-    : x_(mesher->locations(2)), varianceValues_(0.5 * mesher->locations(1)),
-      dxMap_(FirstDerivativeOp(0, mesher)),
+    FdmHestonHullWhiteEquityPart::FdmHestonHullWhiteEquityPart(const ext::shared_ptr<FdmMesher>& mesher,
+                                                               ext::shared_ptr<HullWhite> hwModel,
+                                                               ext::shared_ptr<YieldTermStructure> qTS)
+    : x_(mesher->locations(2)), varianceValues_(0.5 * mesher->locations(1)), dxMap_(FirstDerivativeOp(0, mesher)),
       dxxMap_(SecondDerivativeOp(0, mesher).mult(0.5 * mesher->locations(1))), mapT_(0, mesher),
-      hwModel_(std::move(hwModel)), mesher_(mesher), qTS_(std::move(qTS)) {
+      hwModel_(std::move(hwModel)), mesher_(mesher), qTS_(std::move(qTS))
+    {
 
         // on the boundary s_min and s_max the second derivative
         // d²V/dS² is zero and due to Ito's Lemma the variance term
         // in the drift should vanish.
-        for (const auto& iter : *mesher_->layout()) {
-            if (   iter.coordinates()[0] == 0
-                || iter.coordinates()[0] == mesher_->layout()->dim()[0]-1) {
+        for (const auto& iter : *mesher_->layout())
+        {
+            if (iter.coordinates()[0] == 0 || iter.coordinates()[0] == mesher_->layout()->dim()[0] - 1)
+            {
                 varianceValues_[iter.index()] = 0.0;
             }
         }
-        volatilityValues_ = Sqrt(2*varianceValues_);
+        volatilityValues_ = Sqrt(2 * varianceValues_);
     }
 
-    void FdmHestonHullWhiteEquityPart::setTime(Time t1, Time t2) {
-        const ext::shared_ptr<OneFactorModel::ShortRateDynamics> dynamics =
-            hwModel_->dynamics();
+    void FdmHestonHullWhiteEquityPart::setTime(Time t1, Time t2)
+    {
+        const ext::shared_ptr<OneFactorModel::ShortRateDynamics> dynamics = hwModel_->dynamics();
 
-        const Real phi = 0.5*(  dynamics->shortRate(t1, 0.0)
-                              + dynamics->shortRate(t2, 0.0));
+        const Real phi = 0.5 * (dynamics->shortRate(t1, 0.0) + dynamics->shortRate(t2, 0.0));
 
         const Rate q = qTS_->forwardRate(t1, t2, Continuous).rate();
 
-        mapT_.axpyb(x_+phi-varianceValues_-q, dxMap_, dxxMap_, Array());
+        mapT_.axpyb(x_ + phi - varianceValues_ - q, dxMap_, dxxMap_, Array());
     }
 
-    const TripleBandLinearOp& FdmHestonHullWhiteEquityPart::getMap() const {
+    const TripleBandLinearOp& FdmHestonHullWhiteEquityPart::getMap() const
+    {
         return mapT_;
     }
 
@@ -72,41 +73,41 @@ namespace QuantLib {
                                                Real equityShortRateCorrelation)
     : v0_(hestonProcess->v0()), kappa_(hestonProcess->kappa()), theta_(hestonProcess->theta()),
       sigma_(hestonProcess->sigma()), rho_(hestonProcess->rho()),
-      hwModel_(ext::make_shared<HullWhite>(
-          hestonProcess->riskFreeRate(), hwProcess->a(), hwProcess->sigma())),
-      hestonCorrMap_(
-          SecondOrderMixedDerivativeOp(0, 1, mesher).mult(rho_ * sigma_ * mesher->locations(1))),
-      equityIrCorrMap_(
-          SecondOrderMixedDerivativeOp(0, 2, mesher)
-              .mult(Sqrt(mesher->locations(1)) * hwProcess->sigma() * equityShortRateCorrelation)),
+      hwModel_(ext::make_shared<HullWhite>(hestonProcess->riskFreeRate(), hwProcess->a(), hwProcess->sigma())),
+      hestonCorrMap_(SecondOrderMixedDerivativeOp(0, 1, mesher).mult(rho_ * sigma_ * mesher->locations(1))),
+      equityIrCorrMap_(SecondOrderMixedDerivativeOp(0, 2, mesher)
+                           .mult(Sqrt(mesher->locations(1)) * hwProcess->sigma() * equityShortRateCorrelation)),
       dyMap_(SecondDerivativeOp(1U, mesher)
                  .mult(0.5 * sigma_ * sigma_ * mesher->locations(1))
                  .add(FirstDerivativeOp(1, mesher).mult(kappa_ * (theta_ - mesher->locations(1))))),
-      dxMap_(mesher, hwModel_, hestonProcess->dividendYield().currentLink()),
-      hullWhiteOp_(mesher, hwModel_, 2) {
+      dxMap_(mesher, hwModel_, hestonProcess->dividendYield().currentLink()), hullWhiteOp_(mesher, hwModel_, 2)
+    {
 
-        QL_REQUIRE(  equityShortRateCorrelation*equityShortRateCorrelation
-                   + hestonProcess->rho()*hestonProcess->rho() <= 1.0,
+        QL_REQUIRE(equityShortRateCorrelation * equityShortRateCorrelation +
+                           hestonProcess->rho() * hestonProcess->rho() <=
+                       1.0,
                    "correlation matrix has negative eigenvalues");
     }
 
-    void FdmHestonHullWhiteOp::setTime(Time t1, Time t2) {
+    void FdmHestonHullWhiteOp::setTime(Time t1, Time t2)
+    {
         dxMap_.setTime(t1, t2);
         hullWhiteOp_.setTime(t1, t2);
     }
 
-    Size FdmHestonHullWhiteOp::size() const {
+    Size FdmHestonHullWhiteOp::size() const
+    {
         return 3;
     }
 
-    Array FdmHestonHullWhiteOp::apply(const Array& u) const {
-        return  dyMap_.apply(u) + dxMap_.getMap().apply(u)
-              + hullWhiteOp_.apply(u)
-              + hestonCorrMap_.apply(u) + equityIrCorrMap_.apply(u);
+    Array FdmHestonHullWhiteOp::apply(const Array& u) const
+    {
+        return dyMap_.apply(u) + dxMap_.getMap().apply(u) + hullWhiteOp_.apply(u) + hestonCorrMap_.apply(u) +
+               equityIrCorrMap_.apply(u);
     }
 
-    Array FdmHestonHullWhiteOp::apply_direction(Size direction,
-                                                const Array& r) const {
+    Array FdmHestonHullWhiteOp::apply_direction(Size direction, const Array& r) const
+    {
         if (direction == 0)
             return dxMap_.getMap().apply(r);
         else if (direction == 1)
@@ -117,37 +118,38 @@ namespace QuantLib {
             QL_FAIL("direction too large");
     }
 
-    Array FdmHestonHullWhiteOp::apply_mixed(const Array& r) const {
+    Array FdmHestonHullWhiteOp::apply_mixed(const Array& r) const
+    {
         return hestonCorrMap_.apply(r) + equityIrCorrMap_.apply(r);
     }
 
-    Array FdmHestonHullWhiteOp::solve_splitting(Size direction, const Array& r,
-                                                Real a) const {
-        if (direction == 0) {
+    Array FdmHestonHullWhiteOp::solve_splitting(Size direction, const Array& r, Real a) const
+    {
+        if (direction == 0)
+        {
             return dxMap_.getMap().solve_splitting(r, a, 1.0);
         }
-        else if (direction == 1) {
+        else if (direction == 1)
+        {
             return dyMap_.solve_splitting(r, a, 1.0);
         }
-        else if (direction == 2) {
+        else if (direction == 2)
+        {
             return hullWhiteOp_.solve_splitting(2, r, a);
         }
         else
             QL_FAIL("direction too large");
     }
-    
-    Array FdmHestonHullWhiteOp::preconditioner(const Array& r, 
-                                               Real dt) const {
+
+    Array FdmHestonHullWhiteOp::preconditioner(const Array& r, Real dt) const
+    {
         return solve_splitting(0, r, dt);
     }
 
-    std::vector<SparseMatrix> FdmHestonHullWhiteOp::toMatrixDecomp() const {
-        return {
-            dxMap_.getMap().toMatrix(),
-            dyMap_.toMatrix(),
-            hullWhiteOp_.toMatrixDecomp().front(),
-            hestonCorrMap_.toMatrix() + equityIrCorrMap_.toMatrix()
-        };
+    std::vector<SparseMatrix> FdmHestonHullWhiteOp::toMatrixDecomp() const
+    {
+        return {dxMap_.getMap().toMatrix(), dyMap_.toMatrix(), hullWhiteOp_.toMatrixDecomp().front(),
+                hestonCorrMap_.toMatrix() + equityIrCorrMap_.toMatrix()};
     }
 
 }

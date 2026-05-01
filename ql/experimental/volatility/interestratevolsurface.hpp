@@ -27,7 +27,8 @@
 #include <ql/experimental/volatility/blackvolsurface.hpp>
 #include <ql/indexes/interestrateindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Interest rate volatility (smile) surface
     /*! This abstract class defines the interface of concrete
@@ -36,7 +37,8 @@ namespace QuantLib {
 
         Volatilities are assumed to be expressed on an annual basis.
     */
-    class InterestRateVolSurface : public BlackVolSurface {
+    class InterestRateVolSurface : public BlackVolSurface
+    {
       public:
         /*! \name Constructors
             See the TermStructure documentation for issues regarding
@@ -80,8 +82,8 @@ namespace QuantLib {
 
     // inline
 
-    inline const ext::shared_ptr<InterestRateIndex>&
-    InterestRateVolSurface::index() const {
+    inline const ext::shared_ptr<InterestRateIndex>& InterestRateVolSurface::index() const
+    {
         return index_;
     }
 

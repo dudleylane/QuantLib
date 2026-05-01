@@ -24,20 +24,22 @@
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
-        class DiscountedCashflowAtBoundary {
+    namespace
+    {
+        class DiscountedCashflowAtBoundary
+        {
           public:
             DiscountedCashflowAtBoundary(Time maturityTime,
                                          Real valueOnBoundary,
                                          ext::shared_ptr<YieldTermStructure> rTS)
-            : maturityTime_(maturityTime), cashFlow_(valueOnBoundary), rTS_(std::move(rTS)) {}
-
-            Real operator()(Real t) const {
-                return cashFlow_
-                    * rTS_->discount(maturityTime_)/rTS_->discount(t);
+            : maturityTime_(maturityTime), cashFlow_(valueOnBoundary), rTS_(std::move(rTS))
+            {
             }
+
+            Real operator()(Real t) const { return cashFlow_ * rTS_->discount(maturityTime_) / rTS_->discount(t); }
 
           private:
             const Time maturityTime_;
@@ -46,35 +48,38 @@ namespace QuantLib {
         };
     }
 
-    FdmDiscountDirichletBoundary::FdmDiscountDirichletBoundary(
-        const ext::shared_ptr<FdmMesher>& mesher,
-        const ext::shared_ptr<YieldTermStructure>& rTS,
-        Time maturityTime,
-        Real valueOnBoundary,
-        Size direction, Side side)
+    FdmDiscountDirichletBoundary::FdmDiscountDirichletBoundary(const ext::shared_ptr<FdmMesher>& mesher,
+                                                               const ext::shared_ptr<YieldTermStructure>& rTS,
+                                                               Time maturityTime,
+                                                               Real valueOnBoundary,
+                                                               Size direction,
+                                                               Side side)
     : bc_(ext::make_shared<FdmTimeDepDirichletBoundary>(
-            mesher,
-            std::function<Real (Real)>(
-                DiscountedCashflowAtBoundary(
-                    maturityTime, valueOnBoundary, rTS)),
-            direction, side)) {
+          mesher,
+          std::function<Real(Real)>(DiscountedCashflowAtBoundary(maturityTime, valueOnBoundary, rTS)),
+          direction,
+          side))
+    {
     }
 
-    void FdmDiscountDirichletBoundary::setTime(Time t) {
+    void FdmDiscountDirichletBoundary::setTime(Time t)
+    {
         bc_->setTime(t);
     }
-    void FdmDiscountDirichletBoundary::applyBeforeApplying(
-        operator_type& op) const {
+    void FdmDiscountDirichletBoundary::applyBeforeApplying(operator_type& op) const
+    {
         bc_->applyBeforeApplying(op);
     }
-    void FdmDiscountDirichletBoundary::applyBeforeSolving(
-        operator_type& op, array_type& r) const {
+    void FdmDiscountDirichletBoundary::applyBeforeSolving(operator_type& op, array_type& r) const
+    {
         bc_->applyBeforeSolving(op, r);
     }
-    void FdmDiscountDirichletBoundary::applyAfterApplying(array_type& r) const {
+    void FdmDiscountDirichletBoundary::applyAfterApplying(array_type& r) const
+    {
         bc_->applyAfterApplying(r);
     }
-    void FdmDiscountDirichletBoundary::applyAfterSolving(array_type& r) const {
+    void FdmDiscountDirichletBoundary::applyAfterSolving(array_type& r) const
+    {
         bc_->applyAfterSolving(r);
     }
 }

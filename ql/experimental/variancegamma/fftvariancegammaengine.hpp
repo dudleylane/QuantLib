@@ -28,7 +28,8 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #include <ql/experimental/variancegamma/variancegammaprocess.hpp>
 #include <complex>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! FFT engine for vanilla options under a Variance Gamma process
     /*! \ingroup vanillaengines
@@ -36,19 +37,20 @@ namespace QuantLib {
         \test the correctness of the returned values is tested by
         comparison with known good values and the analytic approach
     */
-    class FFTVarianceGammaEngine : public FFTEngine {
-    public:
-        explicit FFTVarianceGammaEngine(
-            const ext::shared_ptr<VarianceGammaProcess>&process,
-            Real logStrikeSpacing = 0.001);
+    class FFTVarianceGammaEngine : public FFTEngine
+    {
+      public:
+        explicit FFTVarianceGammaEngine(const ext::shared_ptr<VarianceGammaProcess>& process,
+                                        Real logStrikeSpacing = 0.001);
         std::unique_ptr<FFTEngine> clone() const override;
-    protected:
+
+      protected:
         void precalculateExpiry(Date d) override;
         std::complex<Real> complexFourierTransform(std::complex<Real> u) const override;
         Real discountFactor(Date d) const override;
         Real dividendYield(Date d) const override;
 
-    private:
+      private:
         DiscountFactor dividendDiscount_;
         DiscountFactor riskFreeDiscount_;
         Time t_;
@@ -61,4 +63,3 @@ namespace QuantLib {
 
 
 #endif
-

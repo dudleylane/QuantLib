@@ -21,29 +21,35 @@
 #include <functional>
 #include <iterator>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Pool::Pool() {
+    Pool::Pool()
+    {
         clear();
     }
 
-    Size Pool::size() const {
+    Size Pool::size() const
+    {
         return names_.size();
     }
 
-    void Pool::clear() {
+    void Pool::clear()
+    {
         data_.clear();
         time_.clear();
         names_.clear();
     }
 
-    bool Pool::has(const std::string& name) const {
+    bool Pool::has(const std::string& name) const
+    {
         return data_.find(name) != data_.end();
     }
 
-    void Pool::add (const std::string& name, const Issuer& issuer, 
-        const DefaultProbKey& contractTrigger) {
-        if (!has(name)) {
+    void Pool::add(const std::string& name, const Issuer& issuer, const DefaultProbKey& contractTrigger)
+    {
+        if (!has(name))
+        {
             data_[name] = issuer;
             time_[name] = 0.0;
             names_.push_back(name);
@@ -51,37 +57,41 @@ namespace QuantLib {
         }
     }
 
-    const Issuer& Pool::get (const std::string& name) const {
+    const Issuer& Pool::get(const std::string& name) const
+    {
         QL_REQUIRE(has(name), name + " not found");
         return data_.find(name)->second;
     }
 
-    const DefaultProbKey& Pool::defaultKey (const std::string& name) const {
+    const DefaultProbKey& Pool::defaultKey(const std::string& name) const
+    {
         QL_REQUIRE(has(name), name + " not found");
         return defaultKeys_.find(name)->second;
     }
 
-    Real Pool::getTime (const std::string& name) const {
+    Real Pool::getTime(const std::string& name) const
+    {
         QL_REQUIRE(has(name), name + " not found");
         return time_.find(name)->second;
     }
 
-    void Pool::setTime(const std::string& name, Real time) {
+    void Pool::setTime(const std::string& name, Real time)
+    {
         time_[name] = time;
     }
 
-    const std::vector<std::string>& Pool::names() const {
+    const std::vector<std::string>& Pool::names() const
+    {
         return names_;
     }
 
-    std::vector<DefaultProbKey> Pool::defaultKeys() const {
+    std::vector<DefaultProbKey> Pool::defaultKeys() const
+    {
         std::vector<DefaultProbKey> defaultKeys;
         defaultKeys.reserve(defaultKeys_.size());
-        for (const auto & i : defaultKeys_)
+        for (const auto& i : defaultKeys_)
             defaultKeys.push_back(i.second);
         return defaultKeys;
     }
 
 }
-
-

@@ -23,7 +23,8 @@
 #include <cmath>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     MultiStepRatchet::MultiStepRatchet(const std::vector<Time>& rateTimes,
                                        std::vector<Real> accruals,
@@ -35,29 +36,26 @@ namespace QuantLib {
                                        Real initialFloor,
                                        bool payer)
     : MultiProductMultiStep(rateTimes), accruals_(std::move(accruals)), paymentTimes_(paymentTimes),
-      gearingOfFloor_(gearingOfFloor), gearingOfFixing_(gearingOfFixing),
-      spreadOfFloor_(spreadOfFloor), spreadOfFixing_(spreadOfFixing),
-      multiplier_(payer ? 1.0 : -1.0), lastIndex_(rateTimes.size() - 1),
-      initialFloor_(initialFloor) {
+      gearingOfFloor_(gearingOfFloor), gearingOfFixing_(gearingOfFixing), spreadOfFloor_(spreadOfFloor),
+      spreadOfFixing_(spreadOfFixing), multiplier_(payer ? 1.0 : -1.0), lastIndex_(rateTimes.size() - 1),
+      initialFloor_(initialFloor)
+    {
         checkIncreasingTimes(paymentTimes);
     }
 
-    bool MultiStepRatchet::nextTimeStep(
-            const CurveState& currentState,
-            std::vector<Size>& numberCashFlowsThisStep,
-            std::vector<std::vector<MarketModelMultiProduct::CashFlow> >&
-                                                                 genCashFlows)
+    bool MultiStepRatchet::nextTimeStep(const CurveState& currentState,
+                                        std::vector<Size>& numberCashFlowsThisStep,
+                                        std::vector<std::vector<MarketModelMultiProduct::CashFlow>>& genCashFlows)
     {
         Rate liborRate = currentState.forwardRate(currentIndex_);
-        Real currentCoupon = std::max(gearingOfFloor_* floor_ + spreadOfFloor_,
-                                      gearingOfFixing_* liborRate + spreadOfFixing_);
+        Real currentCoupon =
+            std::max(gearingOfFloor_ * floor_ + spreadOfFloor_, gearingOfFixing_ * liborRate + spreadOfFixing_);
 
         genCashFlows[0][0].timeIndex = currentIndex_;
-        genCashFlows[0][0].amount =
-            multiplier_* accruals_[currentIndex_]*currentCoupon;
+        genCashFlows[0][0].amount = multiplier_ * accruals_[currentIndex_] * currentCoupon;
 
-        //floor_ = liborRate;                           //StepRatchet
-        floor_ = currentCoupon;                         //FullRatchet
+        // floor_ = liborRate;                           //StepRatchet
+        floor_ = currentCoupon; // FullRatchet
         numberCashFlowsThisStep[0] = 1;
 
         ++currentIndex_;
@@ -65,10 +63,9 @@ namespace QuantLib {
         return (currentIndex_ == lastIndex_);
     }
 
-    std::unique_ptr<MarketModelMultiProduct>
-    MultiStepRatchet::clone() const {
+    std::unique_ptr<MarketModelMultiProduct> MultiStepRatchet::clone() const
+    {
         return std::unique_ptr<MarketModelMultiProduct>(new MultiStepRatchet(*this));
     }
 
 }
-

@@ -26,13 +26,15 @@
 
 #include <ql/math/statistics/sequencestatistics.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Statistic tool for sequences with discrepancy calculation
     /*! It inherit from SequenceStatistics<Statistics> and adds
         \f$ L^2 \f$ discrepancy calculation
     */
-    class DiscrepancyStatistics : public SequenceStatistics {
+    class DiscrepancyStatistics : public SequenceStatistics
+    {
       public:
         typedef SequenceStatistics::value_type value_type;
         // constructor
@@ -42,29 +44,31 @@ namespace QuantLib {
         Real discrepancy() const;
         //@}
         template <class Sequence>
-        void add(const Sequence& sample,
-                 Real weight = 1.0) {
-            add(sample.begin(),sample.end(),weight);
+        void add(const Sequence& sample, Real weight = 1.0)
+        {
+            add(sample.begin(), sample.end(), weight);
         }
         template <class Iterator>
-        void add(Iterator begin,
-                 Iterator end,
-                 Real weight = 1.0) {
-            SequenceStatistics::add(begin,end,weight);
+        void add(Iterator begin, Iterator end, Real weight = 1.0)
+        {
+            SequenceStatistics::add(begin, end, weight);
 
             Size k, m, N = samples();
 
             Real r_ik, r_jk, temp = 1.0;
             Iterator it;
-            for (k=0, it=begin; k<dimension_; ++it, ++k) {
-                r_ik = *it; //i=N
-                temp *= (1.0 - r_ik*r_ik);
+            for (k = 0, it = begin; k < dimension_; ++it, ++k)
+            {
+                r_ik = *it; // i=N
+                temp *= (1.0 - r_ik * r_ik);
             }
             cdiscr_ += temp;
 
-            for (m=0; m<N-1; m++) {
+            for (m = 0; m < N - 1; m++)
+            {
                 temp = 1.0;
-                for (k=0, it=begin; k<dimension_; ++it, ++k) {
+                for (k = 0, it = begin; k < dimension_; ++it, ++k)
+                {
                     // running i=1..(N-1)
                     r_ik = stats_[k].data()[m].first;
                     // fixed j=N
@@ -74,7 +78,8 @@ namespace QuantLib {
                 adiscr_ += temp;
 
                 temp = 1.0;
-                for (k=0, it=begin; k<dimension_; ++it, ++k) {
+                for (k = 0, it = begin; k < dimension_; ++it, ++k)
+                {
                     // fixed i=N
                     r_ik = *it;
                     // running j=1..(N-1)
@@ -84,7 +89,8 @@ namespace QuantLib {
                 adiscr_ += temp;
             }
             temp = 1.0;
-            for (k=0, it=begin; k<dimension_; ++it, ++k) {
+            for (k = 0, it = begin; k < dimension_; ++it, ++k)
+            {
                 // fixed i=N, j=N
                 r_ik = r_jk = *it;
                 temp *= (1.0 - std::max(r_ik, r_jk));
@@ -92,6 +98,7 @@ namespace QuantLib {
             adiscr_ += temp;
         }
         void reset(Size dimension = 0);
+
       private:
         mutable Real adiscr_, cdiscr_;
         Real bdiscr_, ddiscr_;
@@ -100,23 +107,23 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline DiscrepancyStatistics::DiscrepancyStatistics(Size dimension)
-    : SequenceStatistics(dimension) {
+    inline DiscrepancyStatistics::DiscrepancyStatistics(Size dimension) : SequenceStatistics(dimension)
+    {
         reset(dimension);
     }
 
-    inline void DiscrepancyStatistics::reset(Size dimension) {
-        if (dimension == 0)           // if no size given,
-            dimension = dimension_;   // keep the current one
-        QL_REQUIRE(dimension != 1,
-                   "dimension==1 not allowed");
+    inline void DiscrepancyStatistics::reset(Size dimension)
+    {
+        if (dimension == 0)         // if no size given,
+            dimension = dimension_; // keep the current one
+        QL_REQUIRE(dimension != 1, "dimension==1 not allowed");
 
         SequenceStatistics::reset(dimension);
 
         adiscr_ = 0.0;
-        bdiscr_ = 1.0/std::pow(2.0, Integer(dimension-1));
+        bdiscr_ = 1.0 / std::pow(2.0, Integer(dimension - 1));
         cdiscr_ = 0.0;
-        ddiscr_ = 1.0/std::pow(3.0, Integer(dimension));
+        ddiscr_ = 1.0 / std::pow(3.0, Integer(dimension));
     }
 
 }

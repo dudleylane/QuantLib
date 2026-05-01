@@ -27,17 +27,20 @@
 #include <ql/types.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Frank copula
-    class FrankCopula {
+    class FrankCopula
+    {
       public:
         FrankCopula(Real theta);
         Real operator()(Real x, Real y) const;
+
       private:
         Real theta_;
     };
-    
+
 }
 
 #endif

@@ -25,12 +25,13 @@
 #ifndef quantlib_risky_bond_engine_hpp
 #define quantlib_risky_bond_engine_hpp
 
-#include <ql/instruments/bond.hpp>
-#include <ql/termstructures/yieldtermstructure.hpp>
-#include <ql/termstructures/defaulttermstructure.hpp>
 #include <ql/handle.hpp>
+#include <ql/instruments/bond.hpp>
+#include <ql/termstructures/defaulttermstructure.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Risky pricing engine for bonds
     /*! The value of each cashflow is contingent to survival, i.e., the knockout
@@ -58,10 +59,12 @@ namespace QuantLib {
         where \f$Rec\f$ is the recovery rate and \f$N(T)\f$ is the time T notional. The default probability can be
         rewritten as
         \f[
-            Q(T_{i-1}<\tau\leq T_{i})=Q(T_{i}<\tau)-Q(T_{i-1}<\tau)=(1-Q(T_{i}\geq\tau))-(1-Q(T_{i-1}\geq\tau))=Q(T_{i-1}\geq\tau)-Q(T_{i}\geq\tau)
+            Q(T_{i-1}<\tau\leq
+       T_{i})=Q(T_{i}<\tau)-Q(T_{i-1}<\tau)=(1-Q(T_{i}\geq\tau))-(1-Q(T_{i-1}\geq\tau))=Q(T_{i-1}\geq\tau)-Q(T_{i}\geq\tau)
         \f]
     */
-    class RiskyBondEngine : public Bond::engine {
+    class RiskyBondEngine : public Bond::engine
+    {
       public:
         RiskyBondEngine(Handle<DefaultProbabilityTermStructure> defaultTS,
                         Real recoveryRate,
@@ -70,6 +73,7 @@ namespace QuantLib {
         Handle<DefaultProbabilityTermStructure> defaultTS() const;
         Real recoveryRate() const;
         Handle<YieldTermStructure> yieldTS() const;
+
       private:
         Handle<DefaultProbabilityTermStructure> defaultTS_;
         Real recoveryRate_;
@@ -77,13 +81,20 @@ namespace QuantLib {
     };
 
 
-    inline Handle<DefaultProbabilityTermStructure> RiskyBondEngine::defaultTS() const {
+    inline Handle<DefaultProbabilityTermStructure> RiskyBondEngine::defaultTS() const
+    {
         return defaultTS_;
     }
 
-    inline Real RiskyBondEngine::recoveryRate() const { return recoveryRate_; }
+    inline Real RiskyBondEngine::recoveryRate() const
+    {
+        return recoveryRate_;
+    }
 
-    inline Handle<YieldTermStructure> RiskyBondEngine::yieldTS() const { return yieldTS_; }
+    inline Handle<YieldTermStructure> RiskyBondEngine::yieldTS() const
+    {
+        return yieldTS_;
+    }
 
 }
 

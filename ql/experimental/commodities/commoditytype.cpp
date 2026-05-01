@@ -20,24 +20,25 @@
 #include <ql/experimental/commodities/commoditytype.hpp>
 #include <ostream>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    std::map<std::string, ext::shared_ptr<CommodityType::Data> >
-    CommodityType::commodityTypes_;
+    std::map<std::string, ext::shared_ptr<CommodityType::Data>> CommodityType::commodityTypes_;
 
-    CommodityType::CommodityType(const std::string& name,
-                                 const std::string& code) {
+    CommodityType::CommodityType(const std::string& name, const std::string& code)
+    {
         auto i = commodityTypes_.find(code);
         if (i != commodityTypes_.end())
             data_ = i->second;
-        else {
-            data_ = ext::make_shared<CommodityType::Data>(
-                                         name, code);
+        else
+        {
+            data_ = ext::make_shared<CommodityType::Data>(name, code);
             commodityTypes_[code] = data_;
         }
     }
 
-    std::ostream& operator<<(std::ostream& out, const CommodityType& c) {
+    std::ostream& operator<<(std::ostream& out, const CommodityType& c)
+    {
         if (!c.empty())
             return out << c.code();
         else
@@ -45,4 +46,3 @@ namespace QuantLib {
     }
 
 }
-

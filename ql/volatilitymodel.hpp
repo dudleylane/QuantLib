@@ -24,21 +24,23 @@
 #ifndef quantlib_volatility_model_hpp
 #define quantlib_volatility_model_hpp
 
-#include <ql/types.hpp>
 #include <ql/timeseries.hpp>
+#include <ql/types.hpp>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     template <class T>
-    class LocalVolatilityEstimator {
+    class LocalVolatilityEstimator
+    {
       public:
         virtual ~LocalVolatilityEstimator() = default;
-        virtual TimeSeries<Volatility>
-        calculate(const TimeSeries<T> &quoteSeries) = 0;
+        virtual TimeSeries<Volatility> calculate(const TimeSeries<T>& quoteSeries) = 0;
     };
 
-    class VolatilityCompositor {
+    class VolatilityCompositor
+    {
       public:
         typedef TimeSeries<Volatility> time_series;
         virtual ~VolatilityCompositor() = default;

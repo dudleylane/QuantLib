@@ -25,13 +25,14 @@
 #ifndef quantlib_jpy_libor_hpp
 #define quantlib_jpy_libor_hpp
 
-#include <ql/indexes/ibor/libor.hpp>
-#include <ql/time/calendars/unitedkingdom.hpp>
-#include <ql/time/calendars/japan.hpp>
-#include <ql/time/daycounters/actual360.hpp>
 #include <ql/currencies/asia.hpp>
+#include <ql/indexes/ibor/libor.hpp>
+#include <ql/time/calendars/japan.hpp>
+#include <ql/time/calendars/unitedkingdom.hpp>
+#include <ql/time/daycounters/actual360.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %JPY %LIBOR rate
     /*! Japanese Yen LIBOR fixed by ICE.
@@ -41,26 +42,23 @@ namespace QuantLib {
         \warning This is the rate fixed in London by ICE. Use TIBOR if
                  you're interested in the Tokio fixing.
     */
-    class JPYLibor : public Libor {
+    class JPYLibor : public Libor
+    {
       public:
-        JPYLibor(const Period& tenor,
-                 const Handle<YieldTermStructure>& h = {})
-        : Libor("JPYLibor", tenor,
-                2,
-                JPYCurrency(),
-                Japan(),
-                Actual360(), h) {}
+        JPYLibor(const Period& tenor, const Handle<YieldTermStructure>& h = {})
+        : Libor("JPYLibor", tenor, 2, JPYCurrency(), Japan(), Actual360(), h)
+        {
+        }
     };
 
     //! base class for the one day deposit ICE %JPY %LIBOR indexes
-    class DailyTenorJPYLibor : public DailyTenorLibor {
+    class DailyTenorJPYLibor : public DailyTenorLibor
+    {
       public:
-        DailyTenorJPYLibor(Natural settlementDays,
-                           const Handle<YieldTermStructure>& h = {})
-        : DailyTenorLibor("JPYLibor", settlementDays,
-                          JPYCurrency(),
-                          Japan(),
-                          Actual360(), h) {}
+        DailyTenorJPYLibor(Natural settlementDays, const Handle<YieldTermStructure>& h = {})
+        : DailyTenorLibor("JPYLibor", settlementDays, JPYCurrency(), Japan(), Actual360(), h)
+        {
+        }
     };
 
 }

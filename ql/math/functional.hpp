@@ -29,12 +29,16 @@
 #include <cmath>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     // functions
 
     template <class T>
-    inline T squared(T x) { return x * x; }
+    inline T squared(T x)
+    {
+        return x * x;
+    }
 
 }
 

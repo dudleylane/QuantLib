@@ -26,7 +26,8 @@
 
 #include <ql/stochasticprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! forward-measure stochastic process
     /*! stochastic process whose dynamics are expressed in the forward
@@ -34,15 +35,16 @@ namespace QuantLib {
 
         \ingroup processes
     */
-    class ForwardMeasureProcess : public StochasticProcess {
+    class ForwardMeasureProcess : public StochasticProcess
+    {
       public:
         virtual void setForwardMeasureTime(Time);
         Time getForwardMeasureTime() const;
+
       protected:
         ForwardMeasureProcess() = default;
         explicit ForwardMeasureProcess(Time T) : T_(T) {}
-        explicit ForwardMeasureProcess(
-                                   const ext::shared_ptr<discretization>&);
+        explicit ForwardMeasureProcess(const ext::shared_ptr<discretization>&);
         Time T_;
     };
 
@@ -52,15 +54,16 @@ namespace QuantLib {
 
         \ingroup processes
     */
-    class ForwardMeasureProcess1D : public StochasticProcess1D {
+    class ForwardMeasureProcess1D : public StochasticProcess1D
+    {
       public:
         virtual void setForwardMeasureTime(Time);
         Time getForwardMeasureTime() const;
+
       protected:
         ForwardMeasureProcess1D() = default;
         explicit ForwardMeasureProcess1D(Time T) : T_(T) {}
-        explicit ForwardMeasureProcess1D(
-                                    const ext::shared_ptr<discretization>&);
+        explicit ForwardMeasureProcess1D(const ext::shared_ptr<discretization>&);
         Time T_;
     };
 

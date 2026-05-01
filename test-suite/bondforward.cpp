@@ -18,11 +18,11 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
-#include <ql/time/calendars/target.hpp>
-#include <ql/time/daycounters/actualactual.hpp>
 #include <ql/instruments/bondforward.hpp>
 #include <ql/instruments/bonds/fixedratebond.hpp>
 #include <ql/pricingengines/bond/discountingbondengine.hpp>
+#include <ql/time/calendars/target.hpp>
+#include <ql/time/daycounters/actualactual.hpp>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -31,13 +31,15 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(BondForwardTests)
 
-struct CommonVars {
+struct CommonVars
+{
     // common data
     Date today;
     RelinkableHandle<YieldTermStructure> curveHandle;
 
     // setup
-    CommonVars() {
+    CommonVars()
+    {
         today = Date(7, March, 2022);
         Settings::instance().evaluationDate() = today;
 
@@ -45,28 +47,26 @@ struct CommonVars {
     }
 };
 
-ext::shared_ptr<Bond> buildBond(const Date &issue, 
-                                const Date &maturity, 
-                                Rate cpn) {
-    Schedule sch(issue, maturity, Period(Annual), TARGET(), Following, Following,
-                 DateGeneration::Backward, false);
+ext::shared_ptr<Bond> buildBond(const Date& issue, const Date& maturity, Rate cpn)
+{
+    Schedule sch(issue, maturity, Period(Annual), TARGET(), Following, Following, DateGeneration::Backward, false);
 
-    return ext::make_shared<FixedRateBond>(2, 1.e5, sch, std::vector<Rate>(1, cpn),
-                                           ActualActual(ActualActual::ISDA));
+    return ext::make_shared<FixedRateBond>(2, 1.e5, sch, std::vector<Rate>(1, cpn), ActualActual(ActualActual::ISDA));
 }
 
 ext::shared_ptr<BondForward> buildBondForward(const ext::shared_ptr<Bond>& underlying,
-                                              const Handle<YieldTermStructure> &handle,
-                                              const Date& delivery, 
-                                              Position::Type type) {
+                                              const Handle<YieldTermStructure>& handle,
+                                              const Date& delivery,
+                                              Position::Type type)
+{
     auto valueDt = handle->referenceDate();
-    return ext::make_shared<BondForward>(valueDt, delivery, type, 0.0, 2,
-                                         ActualActual(ActualActual::ISDA), 
-                                         TARGET(), Following, underlying, handle, handle);
+    return ext::make_shared<BondForward>(valueDt, delivery, type, 0.0, 2, ActualActual(ActualActual::ISDA), TARGET(),
+                                         Following, underlying, handle, handle);
 }
 
 
-BOOST_AUTO_TEST_CASE(testFuturesPriceReplication) {
+BOOST_AUTO_TEST_CASE(testFuturesPriceReplication)
+{
     BOOST_TEST_MESSAGE("Testing futures price replication...");
 
     CommonVars vars;
@@ -94,7 +94,8 @@ BOOST_AUTO_TEST_CASE(testFuturesPriceReplication) {
                     << "    expected:    " << expectedFuturesPrice << "\n");
 }
 
-BOOST_AUTO_TEST_CASE(testCleanForwardPriceReplication) {
+BOOST_AUTO_TEST_CASE(testCleanForwardPriceReplication)
+{
     BOOST_TEST_MESSAGE("Testing clean forward price replication...");
 
     CommonVars vars;
@@ -121,9 +122,9 @@ BOOST_AUTO_TEST_CASE(testCleanForwardPriceReplication) {
                     << "    expected:    " << expectedFwdCleanPrice << "\n");
 }
 
-BOOST_AUTO_TEST_CASE(testThatForwardValueIsEqualToSpotValueIfNoIncome) {
-    BOOST_TEST_MESSAGE(
-        "Testing that forward value is equal to spot value if no income...");
+BOOST_AUTO_TEST_CASE(testThatForwardValueIsEqualToSpotValueIfNoIncome)
+{
+    BOOST_TEST_MESSAGE("Testing that forward value is equal to spot value if no income...");
 
     CommonVars vars;
 

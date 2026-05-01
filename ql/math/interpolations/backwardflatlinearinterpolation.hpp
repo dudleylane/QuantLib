@@ -26,46 +26,50 @@
 
 #include <ql/math/interpolations/interpolation2d.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace detail {
+    namespace detail
+    {
 
         template <class I1, class I2, class M>
-        class BackwardflatLinearInterpolationImpl
-            : public Interpolation2D::templateImpl<I1,I2,M> {
+        class BackwardflatLinearInterpolationImpl : public Interpolation2D::templateImpl<I1, I2, M>
+        {
           public:
-            BackwardflatLinearInterpolationImpl(const I1& xBegin, const I1& xEnd,
-                                      const I2& yBegin, const I2& yEnd,
-                                      const M& zData)
-            : Interpolation2D::templateImpl<I1,I2,M>(xBegin,xEnd,
-                                                     yBegin,yEnd,
-                                                     zData) {
+            BackwardflatLinearInterpolationImpl(
+                const I1& xBegin, const I1& xEnd, const I2& yBegin, const I2& yEnd, const M& zData)
+            : Interpolation2D::templateImpl<I1, I2, M>(xBegin, xEnd, yBegin, yEnd, zData)
+            {
                 calculate();
             }
             void calculate() override {}
-            Real value(Real x, Real y) const override {
+            Real value(Real x, Real y) const override
+            {
                 Size j = this->locateY(y);
-                Real z1,z2;
-                if(x <= this->xBegin_[0]) {
+                Real z1, z2;
+                if (x <= this->xBegin_[0])
+                {
                     z1 = this->zData_[j][0];
-                    z2 = this->zData_[j+1][0];
+                    z2 = this->zData_[j + 1][0];
                 }
-                else {
+                else
+                {
                     Size i = this->locateX(x);
-                    if(x == this->xBegin_[i]) {
+                    if (x == this->xBegin_[i])
+                    {
                         z1 = this->zData_[j][i];
-                        z2 = this->zData_[j+1][i];
+                        z2 = this->zData_[j + 1][i];
                     }
-                    else {
-                        z1 = this->zData_[j][i+1];
-                        z2 = this->zData_[j+1][i+1];
+                    else
+                    {
+                        z1 = this->zData_[j][i + 1];
+                        z2 = this->zData_[j + 1][i + 1];
                     }
                 }
 
-                Real u=(y-this->yBegin_[j])/
-                    (this->yBegin_[j+1]-this->yBegin_[j]);
+                Real u = (y - this->yBegin_[j]) / (this->yBegin_[j + 1] - this->yBegin_[j]);
 
-                return (1.0-u)*z1 + u*z2;
+                return (1.0 - u) * z1 + u * z2;
             }
         };
 
@@ -74,27 +78,27 @@ namespace QuantLib {
     /*! \warning See the Interpolation class for information about the
                  required lifetime of the underlying data.
     */
-    class BackwardflatLinearInterpolation : public Interpolation2D {
+    class BackwardflatLinearInterpolation : public Interpolation2D
+    {
       public:
         /*! \pre the \f$ x \f$ and \f$ y \f$ values must be sorted. */
         template <class I1, class I2, class M>
-        BackwardflatLinearInterpolation(const I1& xBegin, const I1& xEnd,
-                              const I2& yBegin, const I2& yEnd,
-                              const M& zData) {
+        BackwardflatLinearInterpolation(
+            const I1& xBegin, const I1& xEnd, const I2& yBegin, const I2& yEnd, const M& zData)
+        {
             impl_ = ext::shared_ptr<Interpolation2D::Impl>(
-                  new detail::BackwardflatLinearInterpolationImpl<I1,I2,M>(xBegin, xEnd,
-                                                                 yBegin, yEnd,
-                                                                 zData));
+                new detail::BackwardflatLinearInterpolationImpl<I1, I2, M>(xBegin, xEnd, yBegin, yEnd, zData));
         }
     };
 
-    class BackwardflatLinear {
+    class BackwardflatLinear
+    {
       public:
         template <class I1, class I2, class M>
-        Interpolation2D interpolate(const I1& xBegin, const I1& xEnd,
-                                    const I2& yBegin, const I2& yEnd,
-                                    const M& z) const {
-            return BackwardflatLinearInterpolation(xBegin,xEnd,yBegin,yEnd,z);
+        Interpolation2D
+        interpolate(const I1& xBegin, const I1& xEnd, const I2& yBegin, const I2& yEnd, const M& z) const
+        {
+            return BackwardflatLinearInterpolation(xBegin, xEnd, yBegin, yEnd, z);
         }
     };
 

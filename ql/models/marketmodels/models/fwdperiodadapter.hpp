@@ -22,13 +22,15 @@
 #ifndef quantlib_forward_period_adapter_hpp
 #define quantlib_forward_period_adapter_hpp
 
-#include <ql/models/marketmodels/marketmodel.hpp>
 #include <ql/models/marketmodels/evolutiondescription.hpp>
+#include <ql/models/marketmodels/marketmodel.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
- 
-    class FwdPeriodAdapter : public MarketModel {
+
+    class FwdPeriodAdapter : public MarketModel
+    {
       public:
         FwdPeriodAdapter(const ext::shared_ptr<MarketModel>& largeModel,
                          Size period,
@@ -53,38 +55,40 @@ namespace QuantLib {
     };
 
 
-   
-
     // inline definitions
 
-    inline const std::vector<Rate>&
-    FwdPeriodAdapter::initialRates() const {
+    inline const std::vector<Rate>& FwdPeriodAdapter::initialRates() const
+    {
         return initialRates_;
     }
 
-    inline const std::vector<Spread>&
-    FwdPeriodAdapter::displacements() const {
+    inline const std::vector<Spread>& FwdPeriodAdapter::displacements() const
+    {
         return displacements_;
     }
 
-    inline const EvolutionDescription&
-    FwdPeriodAdapter::evolution() const {
+    inline const EvolutionDescription& FwdPeriodAdapter::evolution() const
+    {
         return evolution_;
     }
 
-    inline Size FwdPeriodAdapter::numberOfRates() const {
+    inline Size FwdPeriodAdapter::numberOfRates() const
+    {
         return numberOfRates_;
     }
 
-    inline Size FwdPeriodAdapter::numberOfFactors() const {
+    inline Size FwdPeriodAdapter::numberOfFactors() const
+    {
         return numberOfFactors_;
     }
 
-    inline Size FwdPeriodAdapter::numberOfSteps() const {
+    inline Size FwdPeriodAdapter::numberOfSteps() const
+    {
         return numberOfSteps_;
     }
 
-    inline const Matrix& FwdPeriodAdapter::pseudoRoot(Size i) const {
+    inline const Matrix& FwdPeriodAdapter::pseudoRoot(Size i) const
+    {
         return pseudoRoots_[i];
     }
 

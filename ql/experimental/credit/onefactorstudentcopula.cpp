@@ -19,29 +19,28 @@
 
 #include <ql/experimental/credit/onefactorstudentcopula.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //-------------------------------------------------------------------------
-    OneFactorStudentCopula::OneFactorStudentCopula (
-                                             const Handle<Quote>& correlation,
-                                             int nz, int nm,
-                                             Real maximum,
-                                             Size integrationSteps)
-    : OneFactorCopula (correlation, maximum, integrationSteps),
-      density_ (nm), cumulative_ (nz), nz_(nz), nm_(nm) {
-    //-------------------------------------------------------------------------
+    OneFactorStudentCopula::OneFactorStudentCopula(
+        const Handle<Quote>& correlation, int nz, int nm, Real maximum, Size integrationSteps)
+    : OneFactorCopula(correlation, maximum, integrationSteps), density_(nm), cumulative_(nz), nz_(nz), nm_(nm)
+    {
+        //-------------------------------------------------------------------------
 
-        QL_REQUIRE (nz > 2 && nm > 2, "degrees of freedom must be > 2");
+        QL_REQUIRE(nz > 2 && nm > 2, "degrees of freedom must be > 2");
 
-        scaleM_ = std::sqrt (Real (nm_ - 2) / nm_);
-        scaleZ_ = std::sqrt (Real (nz_ - 2) / nz_);
+        scaleM_ = std::sqrt(Real(nm_ - 2) / nm_);
+        scaleZ_ = std::sqrt(Real(nz_ - 2) / nz_);
 
-        calculate ();
+        calculate();
     }
 
     //-------------------------------------------------------------------------
-    void OneFactorStudentCopula::performCalculations () const {
-    //-------------------------------------------------------------------------
+    void OneFactorStudentCopula::performCalculations() const
+    {
+        //-------------------------------------------------------------------------
         y_.clear();
         cumulativeY_.clear();
 
@@ -51,17 +50,19 @@ namespace QuantLib {
         Real ymin = -10;
         Real ymax = +10;
         Size steps = 200;
-        for (Size i = 0; i <= steps; i++) {
+        for (Size i = 0; i <= steps; i++)
+        {
             Real y = ymin + (ymax - ymin) * i / steps;
-            Real c = cumulativeYintegral (y);
-            y_.push_back (y);
-            cumulativeY_.push_back (c);
+            Real c = cumulativeYintegral(y);
+            y_.push_back(y);
+            cumulativeY_.push_back(c);
         }
     }
 
     //-------------------------------------------------------------------------
-    Real OneFactorStudentCopula::cumulativeYintegral (Real y) const {
-    //-------------------------------------------------------------------------
+    Real OneFactorStudentCopula::cumulativeYintegral(Real y) const
+    {
+        //-------------------------------------------------------------------------
         Real c = correlation_->value();
 
         if (c == 0)
@@ -70,8 +71,8 @@ namespace QuantLib {
         if (c == 1)
             return CumulativeStudentDistribution(nm_)(y / scaleM_);
 
-        StudentDistribution dz (nz_);
-        StudentDistribution dm (nm_);
+        StudentDistribution dz(nz_);
+        StudentDistribution dm(nm_);
 
         // FIXME:
         // Find a sensitive way of setting these parameters,
@@ -83,47 +84,46 @@ namespace QuantLib {
         Real delta = (maximum - minimum) / steps;
         Real cumulated = 0;
 
-        if (c < 0.5) {
+        if (c < 0.5)
+        {
             // outer integral -> 1 for c -> 0
             // inner integral -> cumulativeStudent(nz)(y) for c-> 0
-            for (Real m = minimum + delta/2; m < maximum; m += delta)
-                for (Real z = minimum + delta/2;
-                     z < (y - std::sqrt(c) * m) / std::sqrt (1. - c); z += delta)
-                    cumulated += dm (m / scaleM_) / scaleM_
-                        * dz (z / scaleZ_) / scaleZ_;
+            for (Real m = minimum + delta / 2; m < maximum; m += delta)
+                for (Real z = minimum + delta / 2; z < (y - std::sqrt(c) * m) / std::sqrt(1. - c); z += delta)
+                    cumulated += dm(m / scaleM_) / scaleM_ * dz(z / scaleZ_) / scaleZ_;
         }
-        else {
+        else
+        {
             // outer integral -> 1 for c -> 1
             // inner integral -> cumulativeStudent(nm)(y) for c-> 1
-            for (Real z = minimum + delta/2; z < maximum; z += delta)
-                for (Real m = minimum + delta/2;
-                     m < (y - std::sqrt(1.0 - c) * z) / std::sqrt(c); m += delta)
-                    cumulated += dm (m / scaleM_) / scaleM_
-                        * dz (z / scaleZ_) / scaleZ_;
+            for (Real z = minimum + delta / 2; z < maximum; z += delta)
+                for (Real m = minimum + delta / 2; m < (y - std::sqrt(1.0 - c) * z) / std::sqrt(c); m += delta)
+                    cumulated += dm(m / scaleM_) / scaleM_ * dz(z / scaleZ_) / scaleZ_;
         }
 
         return cumulated * delta * delta;
     }
 
     //-------------------------------------------------------------------------
-    OneFactorGaussianStudentCopula::OneFactorGaussianStudentCopula (
-                                             const Handle<Quote>& correlation,
-                                             int nz, Real maximum,
-                                             Size integrationSteps)
-    : OneFactorCopula (correlation, maximum, integrationSteps),
-      cumulative_(nz), nz_(nz) {
-    //-------------------------------------------------------------------------
+    OneFactorGaussianStudentCopula::OneFactorGaussianStudentCopula(const Handle<Quote>& correlation,
+                                                                   int nz,
+                                                                   Real maximum,
+                                                                   Size integrationSteps)
+    : OneFactorCopula(correlation, maximum, integrationSteps), cumulative_(nz), nz_(nz)
+    {
+        //-------------------------------------------------------------------------
 
-        QL_REQUIRE (nz > 2, "degrees of freedom must be > 2");
+        QL_REQUIRE(nz > 2, "degrees of freedom must be > 2");
 
-        scaleZ_ = std::sqrt (Real (nz_ - 2) / nz_);
+        scaleZ_ = std::sqrt(Real(nz_ - 2) / nz_);
 
-        calculate ();
+        calculate();
     }
 
     //-------------------------------------------------------------------------
-    void OneFactorGaussianStudentCopula::performCalculations () const {
-    //-------------------------------------------------------------------------
+    void OneFactorGaussianStudentCopula::performCalculations() const
+    {
+        //-------------------------------------------------------------------------
         y_.clear();
         cumulativeY_.clear();
 
@@ -133,17 +133,19 @@ namespace QuantLib {
         Real ymin = -10;
         Real ymax = +10;
         Size steps = 200;
-        for (Size i = 0; i <= steps; i++) {
+        for (Size i = 0; i <= steps; i++)
+        {
             Real y = ymin + (ymax - ymin) * i / steps;
-            Real c = cumulativeYintegral (y);
-            y_.push_back (y);
-            cumulativeY_.push_back (c);
+            Real c = cumulativeYintegral(y);
+            y_.push_back(y);
+            cumulativeY_.push_back(c);
         }
     }
 
     //-------------------------------------------------------------------------
-    Real OneFactorGaussianStudentCopula::cumulativeYintegral (Real y) const {
-    //-------------------------------------------------------------------------
+    Real OneFactorGaussianStudentCopula::cumulativeYintegral(Real y) const
+    {
+        //-------------------------------------------------------------------------
         Real c = correlation_->value();
 
         if (c == 0)
@@ -152,7 +154,7 @@ namespace QuantLib {
         if (c == 1)
             return CumulativeNormalDistribution()(y);
 
-        StudentDistribution dz (nz_);
+        StudentDistribution dz(nz_);
         NormalDistribution dm;
 
         // FIXME:
@@ -165,47 +167,46 @@ namespace QuantLib {
         Real delta = (maximum - minimum) / steps;
         Real cumulated = 0;
 
-        if (c < 0.5) {
+        if (c < 0.5)
+        {
             // outer integral -> 1 for c -> 0
             // inner integral -> cumulativeStudent(nz)(y) for c-> 0
-            for (Real m = minimum + delta/2; m < maximum; m += delta)
-                for (Real z = minimum + delta/2;
-                     z < (y - std::sqrt(c) * m) / std::sqrt (1. - c);
-                     z += delta)
-                    cumulated += dm (m) * dz (z / scaleZ_) / scaleZ_;
+            for (Real m = minimum + delta / 2; m < maximum; m += delta)
+                for (Real z = minimum + delta / 2; z < (y - std::sqrt(c) * m) / std::sqrt(1. - c); z += delta)
+                    cumulated += dm(m) * dz(z / scaleZ_) / scaleZ_;
         }
-        else {
+        else
+        {
             // outer integral -> 1 for c -> 1
             // inner integral -> cumulativeNormal(y) for c-> 1
-            for (Real z = minimum + delta/2; z < maximum; z += delta)
-                for (Real m = minimum + delta/2;
-                     m < (y - std::sqrt(1.0 - c) * z) / std::sqrt(c);
-                     m += delta)
-                    cumulated += dm (m) * dz (z / scaleZ_) / scaleZ_;
+            for (Real z = minimum + delta / 2; z < maximum; z += delta)
+                for (Real m = minimum + delta / 2; m < (y - std::sqrt(1.0 - c) * z) / std::sqrt(c); m += delta)
+                    cumulated += dm(m) * dz(z / scaleZ_) / scaleZ_;
         }
 
         return cumulated * delta * delta;
     }
 
     //-------------------------------------------------------------------------
-    OneFactorStudentGaussianCopula::OneFactorStudentGaussianCopula (
-                                             const Handle<Quote>& correlation,
-                                             int nm, Real maximum,
-                                             Size integrationSteps)
-    : OneFactorCopula (correlation, maximum, integrationSteps),
-      density_ (nm), nm_(nm) {
-    //-------------------------------------------------------------------------
+    OneFactorStudentGaussianCopula::OneFactorStudentGaussianCopula(const Handle<Quote>& correlation,
+                                                                   int nm,
+                                                                   Real maximum,
+                                                                   Size integrationSteps)
+    : OneFactorCopula(correlation, maximum, integrationSteps), density_(nm), nm_(nm)
+    {
+        //-------------------------------------------------------------------------
 
-        QL_REQUIRE (nm > 2, "degrees of freedom must be > 2");
+        QL_REQUIRE(nm > 2, "degrees of freedom must be > 2");
 
-        scaleM_ = std::sqrt (Real (nm_ - 2) / nm_);
+        scaleM_ = std::sqrt(Real(nm_ - 2) / nm_);
 
-        calculate ();
+        calculate();
     }
 
     //-------------------------------------------------------------------------
-    void OneFactorStudentGaussianCopula::performCalculations () const {
-    //-------------------------------------------------------------------------
+    void OneFactorStudentGaussianCopula::performCalculations() const
+    {
+        //-------------------------------------------------------------------------
         y_.clear();
         cumulativeY_.clear();
 
@@ -215,17 +216,19 @@ namespace QuantLib {
         Real ymin = -10;
         Real ymax = +10;
         Size steps = 200;
-        for (Size i = 0; i <= steps; i++) {
+        for (Size i = 0; i <= steps; i++)
+        {
             Real y = ymin + (ymax - ymin) * i / steps;
-            Real c = cumulativeYintegral (y);
-            y_.push_back (y);
-            cumulativeY_.push_back (c);
+            Real c = cumulativeYintegral(y);
+            y_.push_back(y);
+            cumulativeY_.push_back(c);
         }
     }
 
     //-------------------------------------------------------------------------
-    Real OneFactorStudentGaussianCopula::cumulativeYintegral (Real y) const {
-    //-------------------------------------------------------------------------
+    Real OneFactorStudentGaussianCopula::cumulativeYintegral(Real y) const
+    {
+        //-------------------------------------------------------------------------
         Real c = correlation_->value();
 
         if (c == 0)
@@ -235,7 +238,7 @@ namespace QuantLib {
             return CumulativeStudentDistribution(nm_)(y / scaleM_);
 
 
-        StudentDistribution dm (nm_);
+        StudentDistribution dm(nm_);
         NormalDistribution dz;
 
         // FIXME:
@@ -248,23 +251,21 @@ namespace QuantLib {
         Real delta = (maximum - minimum) / steps;
         Real cumulated = 0;
 
-        if (c < 0.5) {
+        if (c < 0.5)
+        {
             // outer integral -> 1 for c -> 0
             // inner integral -> cumulativeNormal(y) for c-> 0
-            for (Real m = minimum + delta/2; m < maximum; m += delta)
-                for (Real z = minimum + delta/2;
-                     z < (y - std::sqrt(c) * m) / std::sqrt (1. - c);
-                     z += delta)
-                    cumulated += dm (m / scaleM_) / scaleM_ * dz (z);
+            for (Real m = minimum + delta / 2; m < maximum; m += delta)
+                for (Real z = minimum + delta / 2; z < (y - std::sqrt(c) * m) / std::sqrt(1. - c); z += delta)
+                    cumulated += dm(m / scaleM_) / scaleM_ * dz(z);
         }
-        else {
+        else
+        {
             // outer integral -> 1 for c -> 1
             // inner integral -> cumulativeStudent(nm)(y) for c-> 1
-            for (Real z = minimum + delta/2; z < maximum; z += delta)
-                for (Real m = minimum + delta/2;
-                     m < (y - std::sqrt(1.0 - c) * z) / std::sqrt(c);
-                     m += delta)
-                    cumulated += dm (m / scaleM_) / scaleM_ * dz (z);
+            for (Real z = minimum + delta / 2; z < maximum; z += delta)
+                for (Real m = minimum + delta / 2; m < (y - std::sqrt(1.0 - c) * z) / std::sqrt(c); m += delta)
+                    cumulated += dm(m / scaleM_) / scaleM_ * dz(z);
         }
 
         return cumulated * delta * delta;

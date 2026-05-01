@@ -27,21 +27,26 @@
 #include <ql/instruments/basketoption.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class SpreadBlackScholesVanillaEngine : public BasketOption::engine {
+    class SpreadBlackScholesVanillaEngine : public BasketOption::engine
+    {
       public:
-        SpreadBlackScholesVanillaEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess> process1,
-            ext::shared_ptr<GeneralizedBlackScholesProcess> process2,
-            Real correlation);
+        SpreadBlackScholesVanillaEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process1,
+                                        ext::shared_ptr<GeneralizedBlackScholesProcess> process2,
+                                        Real correlation);
 
         void calculate() const override;
 
       protected:
-        virtual Real calculate(
-           Real f1, Real f2, Real strike, Option::Type optionType,
-           Real variance1, Real variance2, DiscountFactor df) const = 0;
+        virtual Real calculate(Real f1,
+                               Real f2,
+                               Real strike,
+                               Option::Type optionType,
+                               Real variance1,
+                               Real variance2,
+                               DiscountFactor df) const = 0;
 
         const ext::shared_ptr<GeneralizedBlackScholesProcess> process1_;
         const ext::shared_ptr<GeneralizedBlackScholesProcess> process2_;

@@ -21,18 +21,20 @@
 #ifndef quantlib_coterminalswap_rate_pc_evolver_hpp
 #define quantlib_coterminalswap_rate_pc_evolver_hpp
 
-#include <ql/models/marketmodels/evolver.hpp>
 #include <ql/models/marketmodels/curvestates/coterminalswapcurvestate.hpp>
 #include <ql/models/marketmodels/driftcomputation/smmdriftcalculator.hpp>
+#include <ql/models/marketmodels/evolver.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class MarketModel;
     class BrownianGenerator;
     class BrownianGeneratorFactory;
 
     //! Predictor-Corrector
-    class LogNormalCotSwapRatePc : public MarketModelEvolver {
+    class LogNormalCotSwapRatePc : public MarketModelEvolver
+    {
       public:
         LogNormalCotSwapRatePc(const ext::shared_ptr<MarketModel>&,
                                const BrownianGeneratorFactory&,
@@ -55,8 +57,8 @@ namespace QuantLib {
         Size initialStep_;
         ext::shared_ptr<BrownianGenerator> generator_;
         // fixed variables
-        std::vector<std::vector<Real> > fixedDrifts_;
-         // working variables
+        std::vector<std::vector<Real>> fixedDrifts_;
+        // working variables
         Size numberOfRates_, numberOfFactors_;
         CoterminalSwapCurveState curveState_;
         Size currentStep_;

@@ -19,30 +19,34 @@
 
 #include <ql/termstructures/voltermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    VolatilityTermStructure::VolatilityTermStructure(BusinessDayConvention bdc,
-                                                     const DayCounter& dc)
-    : TermStructure(dc), bdc_(bdc) {}
+    VolatilityTermStructure::VolatilityTermStructure(BusinessDayConvention bdc, const DayCounter& dc)
+    : TermStructure(dc), bdc_(bdc)
+    {
+    }
 
     VolatilityTermStructure::VolatilityTermStructure(const Date& referenceDate,
                                                      const Calendar& cal,
                                                      BusinessDayConvention bdc,
                                                      const DayCounter& dc)
-    : TermStructure(referenceDate, cal, dc), bdc_(bdc) {}
+    : TermStructure(referenceDate, cal, dc), bdc_(bdc)
+    {
+    }
 
     VolatilityTermStructure::VolatilityTermStructure(Natural settlementDays,
                                                      const Calendar& cal,
                                                      BusinessDayConvention bdc,
                                                      const DayCounter& dc)
-    : TermStructure(settlementDays, cal, dc), bdc_(bdc) {}
+    : TermStructure(settlementDays, cal, dc), bdc_(bdc)
+    {
+    }
 
-    void VolatilityTermStructure::checkStrike(Rate k,
-                                              bool extrapolate) const {
-        QL_REQUIRE(extrapolate || allowsExtrapolation() ||
-                   (k >= minStrike() && k <= maxStrike()),
-                   "strike (" << k << ") is outside the curve domain ["
-                   << minStrike() << "," << maxStrike()<< "]");
+    void VolatilityTermStructure::checkStrike(Rate k, bool extrapolate) const
+    {
+        QL_REQUIRE(extrapolate || allowsExtrapolation() || (k >= minStrike() && k <= maxStrike()),
+                   "strike (" << k << ") is outside the curve domain [" << minStrike() << "," << maxStrike() << "]");
     }
 
 }

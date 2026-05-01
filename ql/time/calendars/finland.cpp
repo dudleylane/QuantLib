@@ -19,15 +19,18 @@
 
 #include <ql/time/calendars/finland.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Finland::Finland() {
+    Finland::Finland()
+    {
         // all calendar instances share the same implementation instance
         static ext::shared_ptr<Calendar::Impl> impl(new Finland::Impl);
         impl_ = impl;
     }
 
-    bool Finland::Impl::isBusinessDay(const Date& date) const {
+    bool Finland::Impl::isBusinessDay(const Date& date) const
+    {
         Weekday w = date.weekday();
         Day d = date.dayOfMonth(), dd = date.dayOfYear();
         Month m = date.month();
@@ -39,11 +42,11 @@ namespace QuantLib {
             // Epiphany
             || (d == 6 && m == January)
             // Good Friday
-            || (dd == em-3)
+            || (dd == em - 3)
             // Easter Monday
             || (dd == em)
             // Ascension Thursday
-            || (dd == em+38)
+            || (dd == em + 38)
             // Labour Day
             || (d == 1 && m == May)
             // Midsummer Eve (Friday between June 19-25)
@@ -61,4 +64,3 @@ namespace QuantLib {
     }
 
 }
-

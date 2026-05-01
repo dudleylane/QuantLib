@@ -27,7 +27,8 @@
 
 #include <ql/instruments/cdsoption.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Black-formula CDS-option engine
     /*! \warning The engine assumes that the exercise date equals the
@@ -35,7 +36,8 @@ namespace QuantLib {
 
         \ingroup engines
     */
-    class BlackCdsOptionEngine : public CdsOption::engine {
+    class BlackCdsOptionEngine : public CdsOption::engine
+    {
       public:
         BlackCdsOptionEngine(Handle<DefaultProbabilityTermStructure>,
                              Real recoveryRate,
@@ -44,6 +46,7 @@ namespace QuantLib {
         void calculate() const override;
         Handle<YieldTermStructure> termStructure();
         Handle<Quote> volatility();
+
       private:
         Handle<DefaultProbabilityTermStructure> probability_;
         Real recoveryRate_;

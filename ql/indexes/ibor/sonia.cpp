@@ -17,16 +17,17 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/currencies/europe.hpp>
 #include <ql/indexes/ibor/sonia.hpp>
 #include <ql/time/calendars/unitedkingdom.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
-#include <ql/currencies/europe.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     Sonia::Sonia(const Handle<YieldTermStructure>& h)
-    : OvernightIndex("Sonia", 0, GBPCurrency(),
-                     UnitedKingdom(UnitedKingdom::Exchange),
-                     Actual365Fixed(), h) {}
+    : OvernightIndex("Sonia", 0, GBPCurrency(), UnitedKingdom(UnitedKingdom::Exchange), Actual365Fixed(), h)
+    {
+    }
 
 }

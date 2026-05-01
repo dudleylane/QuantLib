@@ -33,7 +33,8 @@ Mathl. Comput. Modelling, 967-973, 1989
 #include <ql/shared_ptr.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! Method is fairly straightforward:
     1) Sampler provides a probability density (based on current value) for the parameters. Each
@@ -65,38 +66,41 @@ namespace QuantLib {
     \endcode
     */
     template <class Sampler, class Probability, class Temperature, class Reannealing = ReannealingTrivial>
-    class HybridSimulatedAnnealing : public OptimizationMethod {
+    class HybridSimulatedAnnealing : public OptimizationMethod
+    {
       public:
-        enum LocalOptimizeScheme {
+        enum LocalOptimizeScheme
+        {
             NoLocalOptimize,
             EveryNewPoint,
             EveryBestPoint
         };
-        enum ResetScheme {
+        enum ResetScheme
+        {
             NoResetScheme,
             ResetToBestPoint,
             ResetToOrigin
         };
 
-        HybridSimulatedAnnealing(const Sampler& sampler,
-                                 const Probability& probability,
-                                 Temperature temperature,
-                                 const Reannealing& reannealing = ReannealingTrivial(),
-                                 Real startTemperature = 200.0,
-                                 Real endTemperature = 0.01,
-                                 Size reAnnealSteps = 50,
-                                 ResetScheme resetScheme = ResetToBestPoint,
-                                 Size resetSteps = 150,
-                                 const ext::shared_ptr<OptimizationMethod>& localOptimizer =
-                                     ext::make_shared<LevenbergMarquardt>(),
-                                 LocalOptimizeScheme optimizeScheme = EveryBestPoint)
-        : sampler_(sampler), probability_(probability), temperature_(std::move(temperature)),
-          reannealing_(reannealing), startTemperature_(startTemperature),
-          endTemperature_(endTemperature),
-          reAnnealSteps_(reAnnealSteps == 0 ? QL_MAX_INTEGER : reAnnealSteps),
-          resetScheme_(resetScheme), resetSteps_(resetSteps == 0 ? QL_MAX_INTEGER : resetSteps),
-          localOptimizer_(localOptimizer),
-          optimizeScheme_(localOptimizer != nullptr ? optimizeScheme : NoLocalOptimize) {}
+        HybridSimulatedAnnealing(
+            const Sampler& sampler,
+            const Probability& probability,
+            Temperature temperature,
+            const Reannealing& reannealing = ReannealingTrivial(),
+            Real startTemperature = 200.0,
+            Real endTemperature = 0.01,
+            Size reAnnealSteps = 50,
+            ResetScheme resetScheme = ResetToBestPoint,
+            Size resetSteps = 150,
+            const ext::shared_ptr<OptimizationMethod>& localOptimizer = ext::make_shared<LevenbergMarquardt>(),
+            LocalOptimizeScheme optimizeScheme = EveryBestPoint)
+        : sampler_(sampler), probability_(probability), temperature_(std::move(temperature)), reannealing_(reannealing),
+          startTemperature_(startTemperature), endTemperature_(endTemperature),
+          reAnnealSteps_(reAnnealSteps == 0 ? QL_MAX_INTEGER : reAnnealSteps), resetScheme_(resetScheme),
+          resetSteps_(resetSteps == 0 ? QL_MAX_INTEGER : resetSteps), localOptimizer_(localOptimizer),
+          optimizeScheme_(localOptimizer != nullptr ? optimizeScheme : NoLocalOptimize)
+        {
+        }
 
         EndCriteria::Type minimize(Problem& P, const EndCriteria& endCriteria) override;
 
@@ -115,7 +119,10 @@ namespace QuantLib {
     };
 
     template <class Sampler, class Probability, class Temperature, class Reannealing>
-    EndCriteria::Type HybridSimulatedAnnealing<Sampler, Probability, Temperature, Reannealing>::minimize(Problem &P, const EndCriteria &endCriteria) {
+    EndCriteria::Type
+    HybridSimulatedAnnealing<Sampler, Probability, Temperature, Reannealing>::minimize(Problem& P,
+                                                                                       const EndCriteria& endCriteria)
+    {
         EndCriteria::Type ecType = EndCriteria::None;
         P.reset();
         reannealing_.setProblem(P);
@@ -136,18 +143,21 @@ namespace QuantLib {
         Array newPoint(x);
         Real bestValue = P.value(bestPoint);
         Real currentValue = bestValue;
-        Real startingValue = bestValue; //to reset to starting point if desired
+        Real startingValue = bestValue; // to reset to starting point if desired
         while (k <= maxK && kStationary <= maxKStationary && !temperatureBreached)
         {
-            //Draw a new sample point
+            // Draw a new sample point
             sampler_(newPoint, currentPoint, currentTemperature);
-            try{
-                //Evaluate new point
+            try
+            {
+                // Evaluate new point
                 Real newValue = P.value(newPoint);
-				
-                //Determine if new point is accepted
-                if (probability_(currentValue, newValue, currentTemperature)) {
-                    if (optimizeScheme_ == EveryNewPoint) {
+
+                // Determine if new point is accepted
+                if (probability_(currentValue, newValue, currentTemperature))
+                {
+                    if (optimizeScheme_ == EveryNewPoint)
+                    {
                         P.setCurrentValue(newPoint);
                         P.setFunctionValue(newValue);
                         localOptimizer_->minimize(P, endCriteria);
@@ -158,9 +168,11 @@ namespace QuantLib {
                     currentValue = newValue;
                 }
 
-                //Check if we have a new best point
-                if (newValue < bestValue) {
-                    if (optimizeScheme_ == EveryBestPoint) {
+                // Check if we have a new best point
+                if (newValue < bestValue)
+                {
+                    if (optimizeScheme_ == EveryBestPoint)
+                    {
                         P.setCurrentValue(newPoint);
                         P.setFunctionValue(newValue);
                         localOptimizer_->minimize(P, endCriteria);
@@ -171,66 +183,95 @@ namespace QuantLib {
                     bestValue = newValue;
                     bestPoint = newPoint;
                 }
-            } catch(...){
-                //Do nothing, move on to new draw
             }
-            //Increase steps
+            catch (...)
+            {
+                // Do nothing, move on to new draw
+            }
+            // Increase steps
             k++;
             kStationary++;
             for (Real& i : annealStep)
                 i++;
 
-            //Reanneal if necessary
-            if (kReAnneal == reAnnealSteps_) {
+            // Reanneal if necessary
+            if (kReAnneal == reAnnealSteps_)
+            {
                 kReAnneal = 0;
                 reannealing_(annealStep, currentPoint, currentValue, currentTemperature);
             }
             kReAnneal++;
 
-            //Reset if necessary
-            if (kReset == resetSteps_) {
+            // Reset if necessary
+            if (kReset == resetSteps_)
+            {
                 kReset = 0;
-                switch (resetScheme_) {
-                case NoResetScheme:
-                    break;
-                case ResetToOrigin:
-                    currentPoint = startingPoint;
-                    currentValue = startingValue;
-                    break;
-                case ResetToBestPoint:
-                    currentPoint = bestPoint;
-                    currentValue = bestValue;
-                    break;
+                switch (resetScheme_)
+                {
+                    case NoResetScheme:
+                        break;
+                    case ResetToOrigin:
+                        currentPoint = startingPoint;
+                        currentValue = startingValue;
+                        break;
+                    case ResetToBestPoint:
+                        currentPoint = bestPoint;
+                        currentValue = bestValue;
+                        break;
                 }
             }
             kReset++;
 
-            //Update the current temperature according to current step
+            // Update the current temperature according to current step
             temperature_(currentTemperature, currentTemperature, annealStep);
 
-            //Check if temperature condition is breached
+            // Check if temperature condition is breached
             for (Size i = 0; i < n; i++)
                 temperatureBreached = temperatureBreached && currentTemperature[i] < endTemperature_;
         }
-        
-        //Change end criteria type if appropriate
+
+        // Change end criteria type if appropriate
         if (k > maxK)
             ecType = EndCriteria::MaxIterations;
         else if (kStationary > maxKStationary)
             ecType = EndCriteria::StationaryPoint;
 
-        //Set result to best point
+        // Set result to best point
         P.setCurrentValue(bestPoint);
         P.setFunctionValue(bestValue);
         return ecType;
     }
 
-    typedef HybridSimulatedAnnealing<SamplerGaussian, ProbabilityBoltzmannDownhill, TemperatureExponential, ReannealingTrivial> GaussianSimulatedAnnealing;
-    typedef HybridSimulatedAnnealing<SamplerLogNormal, ProbabilityBoltzmannDownhill, TemperatureExponential, ReannealingTrivial> LogNormalSimulatedAnnealing;
-    typedef HybridSimulatedAnnealing<SamplerMirrorGaussian, ProbabilityBoltzmannDownhill, TemperatureExponential, ReannealingTrivial> MirrorGaussianSimulatedAnnealing;
-    typedef HybridSimulatedAnnealing<SamplerGaussian, ProbabilityBoltzmannDownhill, TemperatureExponential, ReannealingFiniteDifferences> GaussianSimulatedReAnnealing;
-    typedef HybridSimulatedAnnealing<SamplerVeryFastAnnealing, ProbabilityBoltzmannDownhill, TemperatureVeryFastAnnealing, ReannealingTrivial> VeryFastSimulatedAnnealing;
-    typedef HybridSimulatedAnnealing<SamplerVeryFastAnnealing, ProbabilityBoltzmannDownhill, TemperatureVeryFastAnnealing, ReannealingFiniteDifferences> VeryFastSimulatedReAnnealing;
+    typedef HybridSimulatedAnnealing<SamplerGaussian,
+                                     ProbabilityBoltzmannDownhill,
+                                     TemperatureExponential,
+                                     ReannealingTrivial>
+        GaussianSimulatedAnnealing;
+    typedef HybridSimulatedAnnealing<SamplerLogNormal,
+                                     ProbabilityBoltzmannDownhill,
+                                     TemperatureExponential,
+                                     ReannealingTrivial>
+        LogNormalSimulatedAnnealing;
+    typedef HybridSimulatedAnnealing<SamplerMirrorGaussian,
+                                     ProbabilityBoltzmannDownhill,
+                                     TemperatureExponential,
+                                     ReannealingTrivial>
+        MirrorGaussianSimulatedAnnealing;
+    typedef HybridSimulatedAnnealing<SamplerGaussian,
+                                     ProbabilityBoltzmannDownhill,
+                                     TemperatureExponential,
+                                     ReannealingFiniteDifferences>
+        GaussianSimulatedReAnnealing;
+    typedef HybridSimulatedAnnealing<SamplerVeryFastAnnealing,
+                                     ProbabilityBoltzmannDownhill,
+                                     TemperatureVeryFastAnnealing,
+                                     ReannealingTrivial>
+        VeryFastSimulatedAnnealing;
+    typedef HybridSimulatedAnnealing<SamplerVeryFastAnnealing,
+                                     ProbabilityBoltzmannDownhill,
+                                     TemperatureVeryFastAnnealing,
+                                     ReannealingFiniteDifferences>
+        VeryFastSimulatedReAnnealing;
 }
 
 #endif

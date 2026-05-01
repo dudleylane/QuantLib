@@ -28,7 +28,8 @@
 #include <utility>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Returns the Triangular Angles Parametrized correlation matrix
     /*! The matrix \f$ m \f$ is filled with values corresponding to angles
@@ -42,23 +43,15 @@ namespace QuantLib {
         - the correctness of the results is tested by checking
           returned values against numerical calculations.
     */
-    Matrix triangularAnglesParametrization(const Array& angles,
-                                           Size matrixSize,
-                                           Size rank);
+    Matrix triangularAnglesParametrization(const Array& angles, Size matrixSize, Size rank);
 
-    Matrix lmmTriangularAnglesParametrization(const Array& angles,
-                                              Size matrixSize,
-                                              Size rank);
+    Matrix lmmTriangularAnglesParametrization(const Array& angles, Size matrixSize, Size rank);
 
     // the same function using the angles parameterized by the following
     // transformation \f[ \teta_i = \frac{\Pi}{2} - arctan(x_i)\f]
-    Matrix triangularAnglesParametrizationUnconstrained(const Array& x,
-                                                        Size matrixSize,
-                                                        Size rank);
+    Matrix triangularAnglesParametrizationUnconstrained(const Array& x, Size matrixSize, Size rank);
 
-    Matrix lmmTriangularAnglesParametrizationUnconstrained(const Array& x,
-                                                           Size matrixSize,
-                                                           Size rank);
+    Matrix lmmTriangularAnglesParametrizationUnconstrained(const Array& x, Size matrixSize, Size rank);
 
 
     //! Returns the rank reduced Triangular Angles Parametrized correlation matrix
@@ -74,24 +67,23 @@ namespace QuantLib {
         - the correctness of the results is tested by checking
           returned values against numerical calculations.
     */
-    Matrix triangularAnglesParametrizationRankThree(Real alpha,
-                                                    Real t0,
-                                                    Real epsilon,
-                                                    Size nbRows);
+    Matrix triangularAnglesParametrizationRankThree(Real alpha, Real t0, Real epsilon, Size nbRows);
 
     // the same function with parameters packed in an Array
-    Matrix triangularAnglesParametrizationRankThreeVectorial(const Array& parameters,
-                                                             Size nbRows);
+    Matrix triangularAnglesParametrizationRankThreeVectorial(const Array& parameters, Size nbRows);
 
     // Cost function associated with Frobenius norm.
     // <http://en.wikipedia.org/wiki/Matrix_norm>
-    class FrobeniusCostFunction : public CostFunction{
+    class FrobeniusCostFunction : public CostFunction
+    {
       public:
         FrobeniusCostFunction(Matrix target,
                               std::function<Matrix(const Array&, Size, Size)> f,
                               Size matrixSize,
                               Size rank)
-        : target_(std::move(target)), f_(std::move(f)), matrixSize_(matrixSize), rank_(rank) {}
+        : target_(std::move(target)), f_(std::move(f)), matrixSize_(matrixSize), rank_(rank)
+        {
+        }
         Real value(const Array& x) const override;
         Array values(const Array& x) const override;
 

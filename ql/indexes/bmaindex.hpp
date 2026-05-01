@@ -24,11 +24,12 @@
 #ifndef quantlib_bma_index_hpp
 #define quantlib_bma_index_hpp
 
-#include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/indexes/interestrateindex.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/time/schedule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Bond Market Association index
     /*! The BMA index is the short-term tax-exempt reference index of
@@ -37,13 +38,14 @@ namespace QuantLib {
         gap from Thursdays on for one week.  It is the tax-exempt
         correspondent of the 1M USD-Libor.
     */
-    class BMAIndex : public InterestRateIndex {
+    class BMAIndex : public InterestRateIndex
+    {
       public:
         explicit BMAIndex(Handle<YieldTermStructure> h = {});
         //! \name Index interface
         //@{
         /*! BMA is fixed weekly on Wednesdays.
-        */
+         */
         bool isValidFixingDate(const Date& fixingDate) const override;
         //@}
         //! \name Inspectors
@@ -56,8 +58,7 @@ namespace QuantLib {
         /*! This method returns a schedule of fixing dates between
             start and end.
         */
-        Schedule fixingSchedule(const Date& start,
-                                const Date& end);
+        Schedule fixingSchedule(const Date& start, const Date& end);
         // @}
       protected:
         Rate forecastFixing(const Date& fixingDate) const override;

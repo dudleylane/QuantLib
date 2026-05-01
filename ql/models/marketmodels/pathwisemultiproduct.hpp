@@ -22,10 +22,11 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #define quantlib_market_model_pathwise_multi_product_hpp
 
 #include <ql/types.hpp>
-#include <vector>
 #include <memory>
+#include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class EvolutionDescription;
     class CurveState;
@@ -50,12 +51,13 @@ namespace QuantLib {
 
     */
 
-    class MarketModelPathwiseMultiProduct 
+    class MarketModelPathwiseMultiProduct
     {
-    public:
-        struct CashFlow {
+      public:
+        struct CashFlow
+        {
             Size timeIndex = 0;
-            std::vector<Real > amount;
+            std::vector<Real> amount;
         };
         virtual ~MarketModelPathwiseMultiProduct() = default;
 
@@ -65,15 +67,15 @@ namespace QuantLib {
         virtual Size numberOfProducts() const = 0;
         virtual Size maxNumberOfCashFlowsPerProductPerStep() const = 0;
 
-        virtual bool alreadyDeflated() const =0;
+        virtual bool alreadyDeflated() const = 0;
 
         //! during simulation put product at start of path
         virtual void reset() = 0;
         //! return value indicates whether path is finished, TRUE means done
-        virtual bool nextTimeStep(
-            const CurveState& currentState,
-            std::vector<Size>& numberCashFlowsThisStep,
-            std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow> >& cashFlowsGenerated) = 0;
+        virtual bool
+        nextTimeStep(const CurveState& currentState,
+                     std::vector<Size>& numberCashFlowsThisStep,
+                     std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow>>& cashFlowsGenerated) = 0;
         //! returns a newly-allocated copy of itself
         virtual std::unique_ptr<MarketModelPathwiseMultiProduct> clone() const = 0;
     };

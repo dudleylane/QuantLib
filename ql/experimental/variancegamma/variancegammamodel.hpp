@@ -24,10 +24,11 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #ifndef quantlib_variance_gamma_model_hpp
 #define quantlib_variance_gamma_model_hpp
 
-#include <ql/models/model.hpp>
 #include <ql/experimental/variancegamma/variancegammaprocess.hpp>
+#include <ql/models/model.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Variance Gamma model
     /*! References:
@@ -38,10 +39,10 @@ namespace QuantLib {
 
         \warning calibration is not implemented for VG
     */
-    class VarianceGammaModel : public CalibratedModel {
+    class VarianceGammaModel : public CalibratedModel
+    {
       public:
-        explicit VarianceGammaModel(
-                      const ext::shared_ptr<VarianceGammaProcess>& process);
+        explicit VarianceGammaModel(const ext::shared_ptr<VarianceGammaProcess>& process);
 
         // sigma
         Real sigma() const { return arguments_[0](0.0); }
@@ -53,12 +54,11 @@ namespace QuantLib {
         // underlying process
         ext::shared_ptr<VarianceGammaProcess> process() const { return process_; }
 
-    protected:
-      void generateArguments() override;
-      ext::shared_ptr<VarianceGammaProcess> process_;
+      protected:
+        void generateArguments() override;
+        ext::shared_ptr<VarianceGammaProcess> process_;
     };
 
 }
 
 #endif
-

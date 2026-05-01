@@ -29,7 +29,8 @@
 #include <ql/termstructures/yield/zeroyieldstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Term structure with an added spread on the zero yield rate
     /*! \note This term structure will remain linked to the original
@@ -44,7 +45,8 @@ namespace QuantLib {
         - observability against changes in the underlying term
           structure and in the added spread is checked.
     */
-    class ZeroSpreadedTermStructure : public ZeroYieldStructure {
+    class ZeroSpreadedTermStructure : public ZeroYieldStructure
+    {
       public:
         ZeroSpreadedTermStructure(Handle<YieldTermStructure>,
                                   Handle<Quote> spread,
@@ -55,11 +57,8 @@ namespace QuantLib {
                         Deprecated in version 1.41.
         */
         [[deprecated("Use the constructor without DayCounter")]]
-        ZeroSpreadedTermStructure(Handle<YieldTermStructure>,
-                                  Handle<Quote> spread,
-                                  Compounding comp,
-                                  Frequency freq,
-                                  const DayCounter& dc);
+        ZeroSpreadedTermStructure(
+            Handle<YieldTermStructure>, Handle<Quote> spread, Compounding comp, Frequency freq, const DayCounter& dc);
         //! \name YieldTermStructure interface
         //@{
         DayCounter dayCounter() const override;
@@ -76,6 +75,7 @@ namespace QuantLib {
       protected:
         //! returns the spreaded zero yield rate
         Rate zeroYieldImpl(Time) const override;
+
       private:
         Handle<YieldTermStructure> originalCurve_;
         Handle<Quote> spread_;
@@ -87,49 +87,59 @@ namespace QuantLib {
                                                                 Handle<Quote> spread,
                                                                 Compounding comp,
                                                                 Frequency freq)
-    : originalCurve_(std::move(h)), spread_(std::move(spread)), comp_(comp), freq_(freq) {
+    : originalCurve_(std::move(h)), spread_(std::move(spread)), comp_(comp), freq_(freq)
+    {
         if (!originalCurve_.empty())
             enableExtrapolation(originalCurve_->allowsExtrapolation());
         registerWith(originalCurve_);
         registerWith(spread_);
     }
 
-    inline ZeroSpreadedTermStructure::ZeroSpreadedTermStructure(Handle<YieldTermStructure> h,
-                                                                Handle<Quote> spread,
-                                                                Compounding comp,
-                                                                Frequency freq,
-                                                                const DayCounter& dc)
-    : ZeroSpreadedTermStructure(std::move(h), std::move(spread), comp, freq) {}
+    inline ZeroSpreadedTermStructure::ZeroSpreadedTermStructure(
+        Handle<YieldTermStructure> h, Handle<Quote> spread, Compounding comp, Frequency freq, const DayCounter& dc)
+    : ZeroSpreadedTermStructure(std::move(h), std::move(spread), comp, freq)
+    {
+    }
 
-    inline DayCounter ZeroSpreadedTermStructure::dayCounter() const {
+    inline DayCounter ZeroSpreadedTermStructure::dayCounter() const
+    {
         return originalCurve_->dayCounter();
     }
 
-    inline Calendar ZeroSpreadedTermStructure::calendar() const {
+    inline Calendar ZeroSpreadedTermStructure::calendar() const
+    {
         return originalCurve_->calendar();
     }
 
-    inline Natural ZeroSpreadedTermStructure::settlementDays() const {
+    inline Natural ZeroSpreadedTermStructure::settlementDays() const
+    {
         return originalCurve_->settlementDays();
     }
 
-    inline const Date& ZeroSpreadedTermStructure::referenceDate() const {
+    inline const Date& ZeroSpreadedTermStructure::referenceDate() const
+    {
         return originalCurve_->referenceDate();
     }
 
-    inline Date ZeroSpreadedTermStructure::maxDate() const {
+    inline Date ZeroSpreadedTermStructure::maxDate() const
+    {
         return originalCurve_->maxDate();
     }
 
-    inline Time ZeroSpreadedTermStructure::maxTime() const {
+    inline Time ZeroSpreadedTermStructure::maxTime() const
+    {
         return originalCurve_->maxTime();
     }
 
-    inline void ZeroSpreadedTermStructure::update() {
-        if (!originalCurve_.empty()) {
+    inline void ZeroSpreadedTermStructure::update()
+    {
+        if (!originalCurve_.empty())
+        {
             YieldTermStructure::update();
             enableExtrapolation(originalCurve_->allowsExtrapolation());
-        } else {
+        }
+        else
+        {
             /* The implementation inherited from YieldTermStructure
                asks for our reference date, which we don't have since
                the original curve is still not set. Therefore, we skip
@@ -139,12 +149,10 @@ namespace QuantLib {
         }
     }
 
-    inline Rate ZeroSpreadedTermStructure::zeroYieldImpl(Time t) const {
-        InterestRate zeroRate =
-            originalCurve_->zeroRate(t, comp_, freq_, true);
-        InterestRate spreadedRate(zeroRate + spread_->value(),
-                                  zeroRate.dayCounter(),
-                                  zeroRate.compounding(),
+    inline Rate ZeroSpreadedTermStructure::zeroYieldImpl(Time t) const
+    {
+        InterestRate zeroRate = originalCurve_->zeroRate(t, comp_, freq_, true);
+        InterestRate spreadedRate(zeroRate + spread_->value(), zeroRate.dayCounter(), zeroRate.compounding(),
                                   zeroRate.frequency());
         return spreadedRate.equivalentRate(Continuous, NoFrequency, t);
     }

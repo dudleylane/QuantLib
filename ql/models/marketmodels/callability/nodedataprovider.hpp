@@ -22,15 +22,17 @@
 #define quantlib_market_model_node_data_provider_hpp
 
 #include <ql/types.hpp>
-#include <vector>
 #include <valarray>
+#include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class CurveState;
     class EvolutionDescription;
 
-    class MarketModelNodeDataProvider {
+    class MarketModelNodeDataProvider
+    {
       public:
         virtual ~MarketModelNodeDataProvider() = default;
         virtual Size numberOfExercises() const = 0;
@@ -42,8 +44,7 @@ namespace QuantLib {
         virtual void reset() = 0;
         // whether or not evolution times are exercise times
         virtual std::valarray<bool> isExerciseTime() const = 0;
-        virtual void values(const CurveState&,
-                            std::vector<Real>& results) const = 0;
+        virtual void values(const CurveState&, std::vector<Real>& results) const = 0;
     };
 
 }

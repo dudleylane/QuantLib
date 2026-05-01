@@ -25,25 +25,24 @@
 #ifndef quantlib_nzd_libor_hpp
 #define quantlib_nzd_libor_hpp
 
+#include <ql/currencies/oceania.hpp>
 #include <ql/indexes/ibor/libor.hpp>
 #include <ql/time/calendars/newzealand.hpp>
 #include <ql/time/daycounters/actual360.hpp>
-#include <ql/currencies/oceania.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %NZD %LIBOR rate
     /*! New Zealand Dollar LIBOR discontinued as of 2013.
-    */
-    class NZDLibor : public Libor {
+     */
+    class NZDLibor : public Libor
+    {
       public:
-        NZDLibor(const Period& tenor,
-                 const Handle<YieldTermStructure>& h = {})
-        : Libor("NZDLibor", tenor,
-                2,
-                NZDCurrency(),
-                NewZealand(),
-                Actual360(), h) {}
+        NZDLibor(const Period& tenor, const Handle<YieldTermStructure>& h = {})
+        : Libor("NZDLibor", tenor, 2, NZDCurrency(), NewZealand(), Actual360(), h)
+        {
+        }
     };
 
 }

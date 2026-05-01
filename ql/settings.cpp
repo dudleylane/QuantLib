@@ -21,13 +21,13 @@
 
 #include <ql/settings.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Settings::DateProxy::DateProxy()
-    : ObservableValue<Date>(Date()) {}
+    Settings::DateProxy::DateProxy() : ObservableValue<Date>(Date()) {}
 
-    std::ostream& operator<<(std::ostream& out,
-                             const Settings::DateProxy& p) {
+    std::ostream& operator<<(std::ostream& out, const Settings::DateProxy& p)
+    {
         return out << Date(p);
     }
 
@@ -35,14 +35,16 @@ namespace QuantLib {
 
         = default;
 
-    void Settings::anchorEvaluationDate() {
+    void Settings::anchorEvaluationDate()
+    {
         // set to today's date if not already set.
         if (evaluationDate_.value() == Date())
             evaluationDate_ = Date::todaysDate();
         // If set, no-op since the date is already anchored.
     }
 
-    void Settings::resetEvaluationDate() {
+    void Settings::resetEvaluationDate()
+    {
         evaluationDate_ = Date();
     }
 
@@ -50,19 +52,22 @@ namespace QuantLib {
     : evaluationDate_(Settings::instance().evaluationDate()),
       includeReferenceDateEvents_(Settings::instance().includeReferenceDateEvents()),
       includeTodaysCashFlows_(Settings::instance().includeTodaysCashFlows()),
-      enforcesTodaysHistoricFixings_(Settings::instance().enforcesTodaysHistoricFixings()) {}
+      enforcesTodaysHistoricFixings_(Settings::instance().enforcesTodaysHistoricFixings())
+    {
+    }
 
-    SavedSettings::~SavedSettings() {
-        try {
+    SavedSettings::~SavedSettings()
+    {
+        try
+        {
             if (Settings::instance().evaluationDate() != evaluationDate_)
                 Settings::instance().evaluationDate() = evaluationDate_;
-            Settings::instance().includeReferenceDateEvents() =
-                includeReferenceDateEvents_;
-            Settings::instance().includeTodaysCashFlows() =
-                includeTodaysCashFlows_;
-            Settings::instance().enforcesTodaysHistoricFixings() =
-                enforcesTodaysHistoricFixings_;
-        } catch (...) {
+            Settings::instance().includeReferenceDateEvents() = includeReferenceDateEvents_;
+            Settings::instance().includeTodaysCashFlows() = includeTodaysCashFlows_;
+            Settings::instance().enforcesTodaysHistoricFixings() = enforcesTodaysHistoricFixings_;
+        }
+        catch (...)
+        {
             // nothing we can do except bailing out.
         }
     }

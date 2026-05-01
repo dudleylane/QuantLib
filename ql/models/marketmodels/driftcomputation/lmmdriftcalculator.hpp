@@ -27,7 +27,8 @@
 #include <ql/math/matrix.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class LMMCurveState;
 
@@ -37,7 +38,8 @@ namespace QuantLib {
         Reduced Factor Libor Market Model</i>, Wilmott Magazine,
         May 2003.
     */
-    class LMMDriftCalculator {
+    class LMMDriftCalculator
+    {
       public:
         LMMDriftCalculator(const Matrix& pseudo,
                            const std::vector<Spread>& displacements,
@@ -45,24 +47,18 @@ namespace QuantLib {
                            Size numeraire,
                            Size alive);
         //! Computes the drifts
-        void compute(const LMMCurveState& cs,
-                     std::vector<Real>& drifts) const;
-        void compute(const std::vector<Rate>& fwds,
-                     std::vector<Real>& drifts) const;
+        void compute(const LMMCurveState& cs, std::vector<Real>& drifts) const;
+        void compute(const std::vector<Rate>& fwds, std::vector<Real>& drifts) const;
 
         /*! Computes the drifts without factor reduction as in
             eqs. 2, 4 of ref. [1] (uses the covariance matrix directly). */
-        void computePlain(const LMMCurveState& cs,
-                          std::vector<Real>& drifts) const;
-        void computePlain(const std::vector<Rate>& fwds,
-                          std::vector<Real>& drifts) const;
+        void computePlain(const LMMCurveState& cs, std::vector<Real>& drifts) const;
+        void computePlain(const std::vector<Rate>& fwds, std::vector<Real>& drifts) const;
 
         /*! Computes the drifts with factor reduction as in eq. 7 of ref. [1]
             (uses pseudo square root of the covariance matrix). */
-        void computeReduced(const LMMCurveState& cs,
-                            std::vector<Real>& drifts) const;
-        void computeReduced(const std::vector<Rate>& fwds,
-                            std::vector<Real>& drifts) const;
+        void computeReduced(const LMMCurveState& cs, std::vector<Real>& drifts) const;
+        void computeReduced(const std::vector<Rate>& fwds, std::vector<Real>& drifts) const;
 
       private:
         Size numberOfRates_, numberOfFactors_;

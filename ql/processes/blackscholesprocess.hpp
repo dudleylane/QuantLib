@@ -27,14 +27,15 @@
 #ifndef quantlib_black_scholes_process_hpp
 #define quantlib_black_scholes_process_hpp
 
-#include <ql/stochasticprocess.hpp>
 #include <ql/processes/eulerdiscretization.hpp>
-#include <ql/termstructures/yieldtermstructure.hpp>
+#include <ql/quote.hpp>
+#include <ql/stochasticprocess.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvoltermstructure.hpp>
 #include <ql/termstructures/volatility/equityfx/localvoltermstructure.hpp>
-#include <ql/quote.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class LocalConstantVol;
     class LocalVolCurve;
@@ -51,15 +52,16 @@ namespace QuantLib {
 
         \ingroup processes
     */
-    class GeneralizedBlackScholesProcess : public StochasticProcess1D {
+    class GeneralizedBlackScholesProcess : public StochasticProcess1D
+    {
       public:
-        GeneralizedBlackScholesProcess(Handle<Quote> x0,
-                                       Handle<YieldTermStructure> dividendTS,
-                                       Handle<YieldTermStructure> riskFreeTS,
-                                       Handle<BlackVolTermStructure> blackVolTS,
-                                       const ext::shared_ptr<discretization>& d =
-                                           ext::shared_ptr<discretization>(new EulerDiscretization),
-                                       bool forceDiscretization = false);
+        GeneralizedBlackScholesProcess(
+            Handle<Quote> x0,
+            Handle<YieldTermStructure> dividendTS,
+            Handle<YieldTermStructure> riskFreeTS,
+            Handle<BlackVolTermStructure> blackVolTS,
+            const ext::shared_ptr<discretization>& d = ext::shared_ptr<discretization>(new EulerDiscretization),
+            bool forceDiscretization = false);
 
         GeneralizedBlackScholesProcess(Handle<Quote> x0,
                                        Handle<YieldTermStructure> dividendTS,
@@ -120,14 +122,14 @@ namespace QuantLib {
 
         \ingroup processes
     */
-    class BlackScholesProcess : public GeneralizedBlackScholesProcess {
+    class BlackScholesProcess : public GeneralizedBlackScholesProcess
+    {
       public:
         BlackScholesProcess(
             const Handle<Quote>& x0,
             const Handle<YieldTermStructure>& riskFreeTS,
             const Handle<BlackVolTermStructure>& blackVolTS,
-            const ext::shared_ptr<discretization>& d =
-                  ext::shared_ptr<discretization>(new EulerDiscretization),
+            const ext::shared_ptr<discretization>& d = ext::shared_ptr<discretization>(new EulerDiscretization),
             bool forceDiscretization = false);
     };
 
@@ -141,15 +143,15 @@ namespace QuantLib {
 
         \ingroup processes
     */
-    class BlackScholesMertonProcess : public GeneralizedBlackScholesProcess {
+    class BlackScholesMertonProcess : public GeneralizedBlackScholesProcess
+    {
       public:
         BlackScholesMertonProcess(
             const Handle<Quote>& x0,
             const Handle<YieldTermStructure>& dividendTS,
             const Handle<YieldTermStructure>& riskFreeTS,
             const Handle<BlackVolTermStructure>& blackVolTS,
-            const ext::shared_ptr<discretization>& d =
-                  ext::shared_ptr<discretization>(new EulerDiscretization),
+            const ext::shared_ptr<discretization>& d = ext::shared_ptr<discretization>(new EulerDiscretization),
             bool forceDiscretization = false);
     };
 
@@ -165,14 +167,14 @@ namespace QuantLib {
 
         \ingroup processes
     */
-    class BlackProcess : public GeneralizedBlackScholesProcess {
+    class BlackProcess : public GeneralizedBlackScholesProcess
+    {
       public:
         BlackProcess(
             const Handle<Quote>& x0,
             const Handle<YieldTermStructure>& riskFreeTS,
             const Handle<BlackVolTermStructure>& blackVolTS,
-            const ext::shared_ptr<discretization>& d =
-                  ext::shared_ptr<discretization>(new EulerDiscretization),
+            const ext::shared_ptr<discretization>& d = ext::shared_ptr<discretization>(new EulerDiscretization),
             bool forceDiscretization = false);
     };
 
@@ -189,15 +191,15 @@ namespace QuantLib {
 
         \ingroup processes
     */
-    class GarmanKohlagenProcess : public GeneralizedBlackScholesProcess {
+    class GarmanKohlagenProcess : public GeneralizedBlackScholesProcess
+    {
       public:
         GarmanKohlagenProcess(
             const Handle<Quote>& x0,
             const Handle<YieldTermStructure>& foreignRiskFreeTS,
             const Handle<YieldTermStructure>& domesticRiskFreeTS,
             const Handle<BlackVolTermStructure>& blackVolTS,
-            const ext::shared_ptr<discretization>& d =
-                  ext::shared_ptr<discretization>(new EulerDiscretization),
+            const ext::shared_ptr<discretization>& d = ext::shared_ptr<discretization>(new EulerDiscretization),
             bool forceDiscretization = false);
     };
 

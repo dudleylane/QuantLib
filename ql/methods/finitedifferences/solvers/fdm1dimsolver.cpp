@@ -27,49 +27,51 @@
 #include <ql/methods/finitedifferences/utilities/fdminnervaluecalculator.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     Fdm1DimSolver::Fdm1DimSolver(const FdmSolverDesc& solverDesc,
                                  const FdmSchemeDesc& schemeDesc,
                                  ext::shared_ptr<FdmLinearOpComposite> op)
     : solverDesc_(solverDesc), schemeDesc_(schemeDesc), op_(std::move(op)),
-      thetaCondition_(ext::make_shared<FdmSnapshotCondition>(
-          0.99 * std::min(1.0 / 365.0,
-                          solverDesc.condition->stoppingTimes().empty() ?
-                              solverDesc.maturity :
-                              solverDesc.condition->stoppingTimes().front()))),
+      thetaCondition_(
+          ext::make_shared<FdmSnapshotCondition>(0.99 * std::min(1.0 / 365.0,
+                                                                 solverDesc.condition->stoppingTimes().empty() ?
+                                                                     solverDesc.maturity :
+                                                                     solverDesc.condition->stoppingTimes().front()))),
       conditions_(FdmStepConditionComposite::joinConditions(thetaCondition_, solverDesc.condition)),
       x_(solverDesc.mesher->layout()->size()), initialValues_(solverDesc.mesher->layout()->size()),
-      resultValues_(solverDesc.mesher->layout()->size()) {
+      resultValues_(solverDesc.mesher->layout()->size())
+    {
 
-        for (const auto& iter : *solverDesc.mesher->layout()) {
-            initialValues_[iter.index()]
-                 = solverDesc_.calculator->avgInnerValue(iter,
-                                                         solverDesc.maturity);
+        for (const auto& iter : *solverDesc.mesher->layout())
+        {
+            initialValues_[iter.index()] = solverDesc_.calculator->avgInnerValue(iter, solverDesc.maturity);
             x_[iter.index()] = solverDesc.mesher->location(iter, 0);
         }
     }
 
 
-    void Fdm1DimSolver::performCalculations() const {
+    void Fdm1DimSolver::performCalculations() const
+    {
         Array rhs(initialValues_.size());
         std::copy(initialValues_.begin(), initialValues_.end(), rhs.begin());
 
         FdmBackwardSolver(op_, solverDesc_.bcSet, conditions_, schemeDesc_)
-            .rollback(rhs, solverDesc_.maturity, 0.0,
-                      solverDesc_.timeSteps, solverDesc_.dampingSteps);
+            .rollback(rhs, solverDesc_.maturity, 0.0, solverDesc_.timeSteps, solverDesc_.dampingSteps);
 
         std::copy(rhs.begin(), rhs.end(), resultValues_.begin());
-        interpolation_ = ext::make_shared<MonotonicCubicNaturalSpline>(x_.begin(), x_.end(),
-                                        resultValues_.begin());
+        interpolation_ = ext::make_shared<MonotonicCubicNaturalSpline>(x_.begin(), x_.end(), resultValues_.begin());
     }
 
-    Real Fdm1DimSolver::interpolateAt(Real x) const {
+    Real Fdm1DimSolver::interpolateAt(Real x) const
+    {
         calculate();
         return (*interpolation_)(x);
     }
 
-    Real Fdm1DimSolver::thetaAt(Real x) const {
+    Real Fdm1DimSolver::thetaAt(Real x) const
+    {
         if (conditions_->stoppingTimes().front() == 0.0)
             return Null<Real>();
 
@@ -79,18 +81,19 @@ namespace QuantLib {
         const Array& rhs = thetaCondition_->getValues();
         std::copy(rhs.begin(), rhs.end(), thetaValues.begin());
 
-        Real temp = MonotonicCubicNaturalSpline(
-            x_.begin(), x_.end(), thetaValues.begin())(x);
-        return ( temp - interpolateAt(x) ) / thetaCondition_->getTime();
+        Real temp = MonotonicCubicNaturalSpline(x_.begin(), x_.end(), thetaValues.begin())(x);
+        return (temp - interpolateAt(x)) / thetaCondition_->getTime();
     }
 
 
-    Real Fdm1DimSolver::derivativeX(Real x) const {
+    Real Fdm1DimSolver::derivativeX(Real x) const
+    {
         calculate();
         return interpolation_->derivative(x);
     }
 
-    Real Fdm1DimSolver::derivativeXX(Real x) const {
+    Real Fdm1DimSolver::derivativeXX(Real x) const
+    {
         calculate();
         return interpolation_->secondDerivative(x);
     }

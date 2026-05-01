@@ -22,38 +22,39 @@
 #include <ql/exercise.hpp>
 #include <ql/instruments/impliedvolatility.hpp>
 #include <ql/instruments/vanillaoption.hpp>
-#include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
 #include <ql/pricingengines/vanilla/analyticdividendeuropeanengine.hpp>
+#include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
 #include <ql/pricingengines/vanilla/fdblackscholesvanillaengine.hpp>
 #include <memory>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    VanillaOption::VanillaOption(
-        const ext::shared_ptr<StrikedTypePayoff>& payoff,
-        const ext::shared_ptr<Exercise>& exercise)
-    : OneAssetOption(payoff, exercise) {}
-
-
-    Volatility VanillaOption::impliedVolatility(
-             Real targetValue,
-             const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
-             Real accuracy,
-             Size maxEvaluations,
-             Volatility minVol,
-             Volatility maxVol) const {
-        return impliedVolatility(targetValue, process, DividendSchedule(),
-                                 accuracy, maxEvaluations, minVol, maxVol);
+    VanillaOption::VanillaOption(const ext::shared_ptr<StrikedTypePayoff>& payoff,
+                                 const ext::shared_ptr<Exercise>& exercise)
+    : OneAssetOption(payoff, exercise)
+    {
     }
 
-    Volatility VanillaOption::impliedVolatility(
-             Real targetValue,
-             const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
-             const DividendSchedule& dividends,
-             Real accuracy,
-             Size maxEvaluations,
-             Volatility minVol,
-             Volatility maxVol) const {
+
+    Volatility VanillaOption::impliedVolatility(Real targetValue,
+                                                const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
+                                                Real accuracy,
+                                                Size maxEvaluations,
+                                                Volatility minVol,
+                                                Volatility maxVol) const
+    {
+        return impliedVolatility(targetValue, process, DividendSchedule(), accuracy, maxEvaluations, minVol, maxVol);
+    }
+
+    Volatility VanillaOption::impliedVolatility(Real targetValue,
+                                                const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
+                                                const DividendSchedule& dividends,
+                                                Real accuracy,
+                                                Size maxEvaluations,
+                                                Volatility minVol,
+                                                Volatility maxVol) const
+    {
 
         QL_REQUIRE(!isExpired(), "option expired");
 
@@ -64,32 +65,27 @@ namespace QuantLib {
 
         // engines are built-in for the time being
         std::unique_ptr<PricingEngine> engine;
-        switch (exercise_->type()) {
-          case Exercise::European:
-            if (dividends.empty())
-                engine = std::make_unique<AnalyticEuropeanEngine>(newProcess);
-            else
-                engine = std::make_unique<AnalyticDividendEuropeanEngine>(newProcess, dividends);
-            break;
-          case Exercise::American:
-          case Exercise::Bermudan:
-            if (dividends.empty())
-                engine = std::make_unique<FdBlackScholesVanillaEngine>(newProcess);
-            else
-                engine = std::make_unique<FdBlackScholesVanillaEngine>(newProcess, dividends);
-            break;
-          default:
-            QL_FAIL("unknown exercise type");
+        switch (exercise_->type())
+        {
+            case Exercise::European:
+                if (dividends.empty())
+                    engine = std::make_unique<AnalyticEuropeanEngine>(newProcess);
+                else
+                    engine = std::make_unique<AnalyticDividendEuropeanEngine>(newProcess, dividends);
+                break;
+            case Exercise::American:
+            case Exercise::Bermudan:
+                if (dividends.empty())
+                    engine = std::make_unique<FdBlackScholesVanillaEngine>(newProcess);
+                else
+                    engine = std::make_unique<FdBlackScholesVanillaEngine>(newProcess, dividends);
+                break;
+            default:
+                QL_FAIL("unknown exercise type");
         }
 
-        return detail::ImpliedVolatilityHelper::calculate(*this,
-                                                          *engine,
-                                                          *volQuote,
-                                                          targetValue,
-                                                          accuracy,
-                                                          maxEvaluations,
-                                                          minVol, maxVol);
+        return detail::ImpliedVolatilityHelper::calculate(*this, *engine, *volQuote, targetValue, accuracy,
+                                                          maxEvaluations, minVol, maxVol);
     }
-    
-}
 
+}

@@ -19,24 +19,27 @@
 
 #include <ql/pricingengines/exotic/mceverestengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    EverestMultiPathPricer::EverestMultiPathPricer(Real notional,
-                                                   Real guarantee,
-                                                   DiscountFactor discount)
-    : notional_(notional), guarantee_(guarantee), discount_(discount) {}
+    EverestMultiPathPricer::EverestMultiPathPricer(Real notional, Real guarantee, DiscountFactor discount)
+    : notional_(notional), guarantee_(guarantee), discount_(discount)
+    {
+    }
 
-    Real EverestMultiPathPricer::operator()(const MultiPath& multiPath) const {
+    Real EverestMultiPathPricer::operator()(const MultiPath& multiPath) const
+    {
 
         Size n = multiPath.pathSize();
-        QL_REQUIRE(n>0, "the path cannot be empty");
+        QL_REQUIRE(n > 0, "the path cannot be empty");
 
         Size numAssets = multiPath.assetNumber();
-        QL_REQUIRE(numAssets>0, "there must be some paths");
+        QL_REQUIRE(numAssets > 0, "there must be some paths");
 
         // We search the yield min
         Real minYield = multiPath[0].back() / multiPath[0].front() - 1.0;
-        for (Size j=1; j<numAssets; ++j) {
+        for (Size j = 1; j < numAssets; ++j)
+        {
             Rate yield = multiPath[j].back() / multiPath[j].front() - 1.0;
             minYield = std::min(minYield, yield);
         }
@@ -44,4 +47,3 @@ namespace QuantLib {
     }
 
 }
-

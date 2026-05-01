@@ -27,13 +27,14 @@ namespace tt = boost::test_tools;
 
 if_speed::if_speed(SpeedLevel speed) : speed(speed) {}
 
-tt::assertion_result if_speed::operator()(utf::test_unit_id) {
-    tt::assertion_result level (QuantLibGlobalFixture::get_speed() <= speed);
+tt::assertion_result if_speed::operator()(utf::test_unit_id)
+{
+    tt::assertion_result level(QuantLibGlobalFixture::get_speed() <= speed);
     level.message() << "precondition failed";
     return level;
 }
 
-tt::assertion_result usingAtParCoupons::operator()(boost::unit_test::test_unit_id) {
+tt::assertion_result usingAtParCoupons::operator()(boost::unit_test::test_unit_id)
+{
     return tt::assertion_result(IborCoupon::Settings::instance().usingAtParCoupons());
 }
-

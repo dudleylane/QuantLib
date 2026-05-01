@@ -20,16 +20,20 @@
 #include <ql/instruments/compoundoption.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     CompoundOption::CompoundOption(const ext::shared_ptr<StrikedTypePayoff>& motherPayoff,
                                    const ext::shared_ptr<Exercise>& motherExercise,
                                    ext::shared_ptr<StrikedTypePayoff> daughterPayoff,
                                    ext::shared_ptr<Exercise> daughterExercise)
     : OneAssetOption(motherPayoff, motherExercise), daughterPayoff_(std::move(daughterPayoff)),
-      daughterExercise_(std::move(daughterExercise)) {}
+      daughterExercise_(std::move(daughterExercise))
+    {
+    }
 
-    void CompoundOption::setupArguments(PricingEngine::arguments* args) const {
+    void CompoundOption::setupArguments(PricingEngine::arguments* args) const
+    {
         OneAssetOption::setupArguments(args);
 
         auto* moreArgs = dynamic_cast<CompoundOption::arguments*>(args);
@@ -38,15 +42,13 @@ namespace QuantLib {
         moreArgs->daughterExercise = daughterExercise_;
     }
 
-    void CompoundOption::arguments::validate() const {
+    void CompoundOption::arguments::validate() const
+    {
         OneAssetOption::arguments::validate();
-        QL_REQUIRE(daughterPayoff,
-                   "no payoff given for underlying option");
-        QL_REQUIRE(daughterExercise,
-                   "no exercise given for underlying option");
-        QL_REQUIRE(exercise->lastDate() <= daughterExercise->lastDate(),
-                   "maturity of compound option exceeds "
-                   "maturity of underlying option");
+        QL_REQUIRE(daughterPayoff, "no payoff given for underlying option");
+        QL_REQUIRE(daughterExercise, "no exercise given for underlying option");
+        QL_REQUIRE(exercise->lastDate() <= daughterExercise->lastDate(), "maturity of compound option exceeds "
+                                                                         "maturity of underlying option");
     }
 
 }

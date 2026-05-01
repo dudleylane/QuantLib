@@ -20,8 +20,8 @@
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
 #include <ql/utilities/tracing.hpp>
-#include <sstream>
 #include <iostream>
+#include <sstream>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -30,24 +30,25 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(TracingTests)
 
-class TestCaseCleaner { // NOLINT(cppcoreguidelines-special-member-functions)
+class TestCaseCleaner
+{ // NOLINT(cppcoreguidelines-special-member-functions)
   public:
     TestCaseCleaner() = default;
-    ~TestCaseCleaner() {
-        QL_TRACE_ON(std::cerr);
-    }
+    ~TestCaseCleaner() { QL_TRACE_ON(std::cerr); }
 };
 
 #if defined(__clang__) && __clang_major__ >= 14
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunused-but-set-variable"
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wunused-but-set-variable"
 #endif
 
 void testTraceOutput(bool enable,
 #if defined(QL_ENABLE_TRACING)
-                     const std::string& result) {
+                     const std::string& result)
+{
 #else
-                     const std::string&) {
+                     const std::string&)
+{
 #endif
 
     TestCaseCleaner cleaner;
@@ -62,31 +63,36 @@ void testTraceOutput(bool enable,
     QL_TRACE_VARIABLE(i);
     i++;
 
-    #if defined(QL_ENABLE_TRACING)
+#if defined(QL_ENABLE_TRACING)
     std::string expected = result;
-    #else
+#else
     std::string expected;
-    #endif
-    if (output.str() != expected) {
+#endif
+    if (output.str() != expected)
+    {
         BOOST_FAIL("wrong trace:\n"
                    "    expected:\n"
-                   "\""+ expected + "\"\n"
+                   "\"" +
+                   expected +
+                   "\"\n"
                    "    written:\n"
-                   "\""+ output.str() + "\"");
+                   "\"" +
+                   output.str() + "\"");
     }
 }
 
 #if defined(__clang__) && __clang_major__ >= 14
-#pragma clang diagnostic pop
+#    pragma clang diagnostic pop
 #endif
 
 
-BOOST_AUTO_TEST_CASE(testOutput) {
+BOOST_AUTO_TEST_CASE(testOutput)
+{
 
     BOOST_TEST_MESSAGE("Testing tracing...");
 
     testTraceOutput(false, "");
-    testTraceOutput(true,  "trace[0]: i = 42\n");
+    testTraceOutput(true, "trace[0]: i = 42\n");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -28,14 +28,16 @@
 #include <ql/math/array.hpp>
 #include <ql/math/optimization/endcriteria.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Problem;
     class Constraint;
     class EndCriteria;
 
     //! Base class for line search
-    class LineSearch {
+    class LineSearch
+    {
       public:
         //! Default constructor
         explicit LineSearch(Real = 0.0) {}
@@ -58,14 +60,12 @@ namespace QuantLib {
                                 EndCriteria::Type& ecType,
                                 const EndCriteria&,
                                 Real t_ini) = 0; // initial value of line-search step
-        Real update(Array& params,
-                    const Array& direction,
-                    Real beta,
-                    const Constraint& constraint);
+        Real update(Array& params, const Array& direction, Real beta, const Constraint& constraint);
 
         //! current value of the search direction
         const Array& searchDirection() const { return searchDirection_; }
         Array& searchDirection() { return searchDirection_; }
+
       protected:
         //! current values of the search direction
         Array searchDirection_;

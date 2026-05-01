@@ -21,20 +21,16 @@
 #include <ql/quotes/simplequote.hpp>
 #include <ql/shared_ptr.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    HestonModel::HestonModel(const ext::shared_ptr<HestonProcess> & process)
-    : CalibratedModel(5), process_(process) {
-        arguments_[0] = ConstantParameter(process->theta(),
-                                          PositiveConstraint());
-        arguments_[1] = ConstantParameter(process->kappa(),
-                                          PositiveConstraint());
-        arguments_[2] = ConstantParameter(process->sigma(),
-                                          PositiveConstraint());
-        arguments_[3] = ConstantParameter(process->rho(),
-                                          BoundaryConstraint(-1.0, 1.0));
-        arguments_[4] = ConstantParameter(process->v0(),
-                                          PositiveConstraint());
+    HestonModel::HestonModel(const ext::shared_ptr<HestonProcess>& process) : CalibratedModel(5), process_(process)
+    {
+        arguments_[0] = ConstantParameter(process->theta(), PositiveConstraint());
+        arguments_[1] = ConstantParameter(process->kappa(), PositiveConstraint());
+        arguments_[2] = ConstantParameter(process->sigma(), PositiveConstraint());
+        arguments_[3] = ConstantParameter(process->rho(), BoundaryConstraint(-1.0, 1.0));
+        arguments_[4] = ConstantParameter(process->v0(), PositiveConstraint());
         HestonModel::generateArguments();
 
         registerWith(process_->riskFreeRate());
@@ -42,13 +38,10 @@ namespace QuantLib {
         registerWith(process_->s0());
     }
 
-    void HestonModel::generateArguments() {
-        process_ = ext::make_shared<HestonProcess>(process_->riskFreeRate(),
-                                         process_->dividendYield(),
-                                         process_->s0(),
-                                         v0(), kappa(), theta(),
-                                         sigma(), rho());
+    void HestonModel::generateArguments()
+    {
+        process_ = ext::make_shared<HestonProcess>(process_->riskFreeRate(), process_->dividendYield(), process_->s0(),
+                                                   v0(), kappa(), theta(), sigma(), rho());
     }
 
 }
-

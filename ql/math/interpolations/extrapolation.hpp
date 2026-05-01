@@ -26,10 +26,12 @@
 
 #include <ql/qldefines.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! base class for classes possibly allowing extrapolation
-    class Extrapolator {
+    class Extrapolator
+    {
       public:
         Extrapolator() = default;
         //! \name modifiers

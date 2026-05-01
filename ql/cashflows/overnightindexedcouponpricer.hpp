@@ -34,34 +34,35 @@
 #include <ql/cashflows/overnightindexedcoupon.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class OptionletVolatilityStructure;
 
     //! Base pricer for overnight-indexed floating coupons
-    /*! This is the base pricer class for coupons indexed to an overnight rate.  
-        It defines the common pricing interface and provides the foundation for 
-        more specialized overnight coupon pricers (e.g., compounded, averaged, 
+    /*! This is the base pricer class for coupons indexed to an overnight rate.
+        It defines the common pricing interface and provides the foundation for
+        more specialized overnight coupon pricers (e.g., compounded, averaged,
         capped/floored variants).
 
-        Derived classes should implement the specific logic for computing the 
-        rate and optional adjustments, depending on the compounding or 
+        Derived classes should implement the specific logic for computing the
+        rate and optional adjustments, depending on the compounding or
         averaging convention used.
     */
-    class OvernightIndexedCouponPricer : public FloatingRateCouponPricer {
-      using FloatingRateCouponPricer::capletRate;
-      using FloatingRateCouponPricer::floorletRate;
-      public:
+    class OvernightIndexedCouponPricer : public FloatingRateCouponPricer
+    {
+        using FloatingRateCouponPricer::capletRate;
+        using FloatingRateCouponPricer::floorletRate;
 
+      public:
         explicit OvernightIndexedCouponPricer(
-          Handle<OptionletVolatilityStructure> v = Handle<OptionletVolatilityStructure>(),
-          bool effectiveVolatilityInput = false);
+            Handle<OptionletVolatilityStructure> v = Handle<OptionletVolatilityStructure>(),
+            bool effectiveVolatilityInput = false);
 
         void initialize(const FloatingRateCoupon& coupon) override;
 
-        void setCapletVolatility(
-                            const Handle<OptionletVolatilityStructure>& v =
-                                    Handle<OptionletVolatilityStructure>()) {
+        void setCapletVolatility(const Handle<OptionletVolatilityStructure>& v = Handle<OptionletVolatilityStructure>())
+        {
             unregisterWith(capletVol_);
             capletVol_ = v;
             registerWith(capletVol_);
@@ -69,11 +70,10 @@ namespace QuantLib {
         }
 
         /*! \brief Returns the handle to the optionlet volatility structure used for caplets/floorlets */
-        Handle<OptionletVolatilityStructure> capletVolatility() const {
-            return capletVol_;
-        }
-        
-        void setEffectiveVolatilityInput(const bool effectiveVolatilityInput) {
+        Handle<OptionletVolatilityStructure> capletVolatility() const { return capletVol_; }
+
+        void setEffectiveVolatilityInput(const bool effectiveVolatilityInput)
+        {
             effectiveVolatilityInput_ = effectiveVolatilityInput;
         }
 
@@ -101,14 +101,15 @@ namespace QuantLib {
     };
 
     //! Base pricer for compounded overnight-indexed floating coupons
-    class CompoundingOvernightIndexedCouponPricer : public OvernightIndexedCouponPricer {
+    class CompoundingOvernightIndexedCouponPricer : public OvernightIndexedCouponPricer
+    {
       public:
         explicit CompoundingOvernightIndexedCouponPricer(
-          Handle<OptionletVolatilityStructure> v = Handle<OptionletVolatilityStructure>(),
-          bool effectiveVolatilityInput = false);
+            Handle<OptionletVolatilityStructure> v = Handle<OptionletVolatilityStructure>(),
+            bool effectiveVolatilityInput = false);
         //! \name FloatingRateCoupon interface
         //@{
-        //void initialize(const FloatingRateCoupon& coupon) override;
+        // void initialize(const FloatingRateCoupon& coupon) override;
         Rate swapletRate() const override;
         Real swapletPrice() const override { QL_FAIL("swapletPrice not available"); }
         Real capletPrice(Rate) const override { QL_FAIL("capletPrice not available"); }
@@ -116,11 +117,13 @@ namespace QuantLib {
         Real floorletPrice(Rate) const override { QL_FAIL("floorletPrice not available"); }
         Rate floorletRate(Rate) const override { QL_FAIL("floorletRate not available"); }
         //@}
-        Rate capletRate([[maybe_unused]] Rate effectiveCap, [[maybe_unused]] bool dailyCapFloor) const override {
-          QL_FAIL("CompoundingOvernightIndexedCouponPricer::capletRate(Rate, bool) not implemented");
+        Rate capletRate([[maybe_unused]] Rate effectiveCap, [[maybe_unused]] bool dailyCapFloor) const override
+        {
+            QL_FAIL("CompoundingOvernightIndexedCouponPricer::capletRate(Rate, bool) not implemented");
         }
-        Rate floorletRate([[maybe_unused]] Rate effectiveCap, [[maybe_unused]] bool dailyCapFloor) const override {
-          QL_FAIL("CompoundingOvernightIndexedCouponPricer::floorletRate(Rate, bool) not implemented");
+        Rate floorletRate([[maybe_unused]] Rate effectiveCap, [[maybe_unused]] bool dailyCapFloor) const override
+        {
+            QL_FAIL("CompoundingOvernightIndexedCouponPricer::floorletRate(Rate, bool) not implemented");
         }
         Rate averageRate(const Date& date) const override;
         Rate effectiveSpread() const;
@@ -135,22 +138,27 @@ namespace QuantLib {
     /*! Reference: Katsumi Takada 2011, Valuation of Arithmetically Average of
         Fed Funds Rates and Construction of the US Dollar Swap Yield Curve
     */
-    class ArithmeticAveragedOvernightIndexedCouponPricer : public OvernightIndexedCouponPricer {
+    class ArithmeticAveragedOvernightIndexedCouponPricer : public OvernightIndexedCouponPricer
+    {
       public:
         explicit ArithmeticAveragedOvernightIndexedCouponPricer(
             Real meanReversion = 0.03,
             Real volatility = 0.00, // NO convexity adjustment by default
-            bool byApprox = false, // TRUE to use Katsumi Takada approximation
+            bool byApprox = false,  // TRUE to use Katsumi Takada approximation
             Handle<OptionletVolatilityStructure> v = Handle<OptionletVolatilityStructure>(),
             const bool effectiveVolatilityInput = false)
-        : OvernightIndexedCouponPricer(std::move(v), effectiveVolatilityInput),
-         byApprox_(byApprox), mrs_(meanReversion), vol_(volatility) {}
+        : OvernightIndexedCouponPricer(std::move(v), effectiveVolatilityInput), byApprox_(byApprox),
+          mrs_(meanReversion), vol_(volatility)
+        {
+        }
 
         explicit ArithmeticAveragedOvernightIndexedCouponPricer(
             bool byApprox) // Simplified constructor assuming no convexity correction
-        : ArithmeticAveragedOvernightIndexedCouponPricer(0.03, 0.0, byApprox) {}
+        : ArithmeticAveragedOvernightIndexedCouponPricer(0.03, 0.0, byApprox)
+        {
+        }
 
-        //void initialize(const FloatingRateCoupon& coupon) override;
+        // void initialize(const FloatingRateCoupon& coupon) override;
         Rate swapletRate() const override;
         Real swapletPrice() const override { QL_FAIL("swapletPrice not available"); }
         Real capletPrice(Rate) const override { QL_FAIL("capletPrice not available"); }
@@ -158,13 +166,16 @@ namespace QuantLib {
         Real floorletPrice(Rate) const override { QL_FAIL("floorletPrice not available"); }
         Rate floorletRate(Rate) const override { QL_FAIL("floorletRate not available"); }
 
-        Rate capletRate([[maybe_unused]] Rate effectiveCap, [[maybe_unused]] bool dailyCapFloor) const override {
-          QL_FAIL("ArithmeticAveragedOvernightIndexedCouponPricer::capletRate(Rate, bool) not implemented");
+        Rate capletRate([[maybe_unused]] Rate effectiveCap, [[maybe_unused]] bool dailyCapFloor) const override
+        {
+            QL_FAIL("ArithmeticAveragedOvernightIndexedCouponPricer::capletRate(Rate, bool) not implemented");
         }
-        Rate floorletRate([[maybe_unused]] Rate effectiveCap, [[maybe_unused]] bool dailyCapFloor) const override {
-          QL_FAIL("ArithmeticAveragedOvernightIndexedCouponPricer::floorletRate(Rate, bool) not implemented");
+        Rate floorletRate([[maybe_unused]] Rate effectiveCap, [[maybe_unused]] bool dailyCapFloor) const override
+        {
+            QL_FAIL("ArithmeticAveragedOvernightIndexedCouponPricer::floorletRate(Rate, bool) not implemented");
         }
         Rate averageRate(const Date& date) const override;
+
       protected:
         Real convAdj1(Time ts, Time te) const;
         Real convAdj2(Time ts, Time te) const;

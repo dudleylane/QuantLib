@@ -4,4 +4,3 @@
 #include <ql/models/marketmodels/curvestates/cmswapcurvestate.hpp>
 #include <ql/models/marketmodels/curvestates/coterminalswapcurvestate.hpp>
 #include <ql/models/marketmodels/curvestates/lmmcurvestate.hpp>
-

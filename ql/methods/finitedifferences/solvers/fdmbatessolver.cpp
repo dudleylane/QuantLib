@@ -18,7 +18,7 @@
 */
 
 /*! \file fdmbatessolver.cpp
-*/
+ */
 
 #include <ql/methods/finitedifferences/operators/fdmbatesop.hpp>
 #include <ql/methods/finitedifferences/solvers/fdm2dimsolver.hpp>
@@ -27,7 +27,8 @@
 #include <utility>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     FdmBatesSolver::FdmBatesSolver(Handle<BatesProcess> process,
                                    FdmSolverDesc solverDesc,
@@ -35,40 +36,42 @@ namespace QuantLib {
                                    Size integroIntegrationOrder,
                                    Handle<FdmQuantoHelper> quantoHelper)
     : process_(std::move(process)), solverDesc_(std::move(solverDesc)), schemeDesc_(schemeDesc),
-      integroIntegrationOrder_(integroIntegrationOrder), quantoHelper_(std::move(quantoHelper)) {
+      integroIntegrationOrder_(integroIntegrationOrder), quantoHelper_(std::move(quantoHelper))
+    {
         registerWith(process_);
         registerWith(quantoHelper_);
     }
 
-    void FdmBatesSolver::performCalculations() const {
-        ext::shared_ptr<FdmLinearOpComposite> op(
-            new FdmBatesOp(solverDesc_.mesher, process_.currentLink(),
-                           solverDesc_.bcSet, integroIntegrationOrder_,
-                           (!quantoHelper_.empty()) 
-                                   ? quantoHelper_.currentLink()
-                                   : ext::shared_ptr<FdmQuantoHelper>()));
+    void FdmBatesSolver::performCalculations() const
+    {
+        ext::shared_ptr<FdmLinearOpComposite> op(new FdmBatesOp(
+            solverDesc_.mesher, process_.currentLink(), solverDesc_.bcSet, integroIntegrationOrder_,
+            (!quantoHelper_.empty()) ? quantoHelper_.currentLink() : ext::shared_ptr<FdmQuantoHelper>()));
 
-        solver_ = ext::make_shared<Fdm2DimSolver>(
-                               solverDesc_, schemeDesc_, op);
+        solver_ = ext::make_shared<Fdm2DimSolver>(solverDesc_, schemeDesc_, op);
     }
 
-    Real FdmBatesSolver::valueAt(Real s, Real v) const {
+    Real FdmBatesSolver::valueAt(Real s, Real v) const
+    {
         calculate();
         return solver_->interpolateAt(std::log(s), v);
     }
 
-    Real FdmBatesSolver::deltaAt(Real s, Real v) const {
+    Real FdmBatesSolver::deltaAt(Real s, Real v) const
+    {
         calculate();
-        return solver_->derivativeX(std::log(s), v)/s;
+        return solver_->derivativeX(std::log(s), v) / s;
     }
 
-    Real FdmBatesSolver::gammaAt(Real s, Real v) const {
+    Real FdmBatesSolver::gammaAt(Real s, Real v) const
+    {
         calculate();
         const Real x = std::log(s);
-        return (solver_->derivativeXX(x, v)-solver_->derivativeX(x, v))/(s*s);
+        return (solver_->derivativeXX(x, v) - solver_->derivativeX(x, v)) / (s * s);
     }
 
-    Real FdmBatesSolver::thetaAt(Real s, Real v) const {
+    Real FdmBatesSolver::thetaAt(Real s, Real v) const
+    {
         calculate();
         return solver_->thetaAt(std::log(s), v);
     }

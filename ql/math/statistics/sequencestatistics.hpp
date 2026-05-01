@@ -24,11 +24,12 @@
 #ifndef quantlib_sequence_statistics_hpp
 #define quantlib_sequence_statistics_hpp
 
-#include <ql/math/statistics/statistics.hpp>
-#include <ql/math/statistics/incrementalstatistics.hpp>
 #include <ql/math/matrix.hpp>
+#include <ql/math/statistics/incrementalstatistics.hpp>
+#include <ql/math/statistics/statistics.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Statistics analysis of N-dimensional (sequence) data
     /*! It provides 1-dimensional statistics as discrepancy plus
@@ -47,7 +48,8 @@ namespace QuantLib {
               checking them against numerical calculations.
     */
     template <class StatisticsType>
-    class GenericSequenceStatistics {
+    class GenericSequenceStatistics
+    {
       public:
         // typedefs
         typedef StatisticsType statistics_type;
@@ -112,32 +114,29 @@ namespace QuantLib {
         //@{
         void reset(Size dimension = 0);
         template <class Sequence>
-        void add(const Sequence& sample,
-                 Real weight = 1.0) {
+        void add(const Sequence& sample, Real weight = 1.0)
+        {
             add(sample.begin(), sample.end(), weight);
         }
         template <class Iterator>
-        void add(Iterator begin,
-                 Iterator end,
-                 Real weight = 1.0) {
-            if (dimension_ == 0) {
+        void add(Iterator begin, Iterator end, Real weight = 1.0)
+        {
+            if (dimension_ == 0)
+            {
                 // stat wasn't initialized yet
-                QL_REQUIRE(end>begin, "sample error: end<=begin");
+                QL_REQUIRE(end > begin, "sample error: end<=begin");
                 Size dimension = std::distance(begin, end);
                 reset(dimension);
             }
 
             QL_REQUIRE(std::distance(begin, end) == Integer(dimension_),
-                       "sample size mismatch: " << dimension_ <<
-                       " required, " << std::distance(begin, end) <<
-                       " provided");
+                       "sample size mismatch: " << dimension_ << " required, " << std::distance(begin, end)
+                                                << " provided");
 
-            quadraticSum_ += weight * outerProduct(begin, end,
-                                                   begin, end);
+            quadraticSum_ += weight * outerProduct(begin, end, begin, end);
 
-            for (Size i=0; i<dimension_; ++begin, ++i)
+            for (Size i = 0; i < dimension_; ++begin, ++i)
                 stats_[i].add(*begin, weight);
-
         }
         //@}
       protected:
@@ -157,31 +156,34 @@ namespace QuantLib {
     // inline definitions
 
     template <class Stat>
-    inline GenericSequenceStatistics<Stat>::GenericSequenceStatistics(Size dimension) {
+    inline GenericSequenceStatistics<Stat>::GenericSequenceStatistics(Size dimension)
+    {
         reset(dimension);
     }
 
     template <class Stat>
-    inline Size GenericSequenceStatistics<Stat>::samples() const {
+    inline Size GenericSequenceStatistics<Stat>::samples() const
+    {
         return (stats_.empty()) ? 0 : stats_[0].samples();
     }
 
     template <class Stat>
-    inline Real GenericSequenceStatistics<Stat>::weightSum() const {
+    inline Real GenericSequenceStatistics<Stat>::weightSum() const
+    {
         return (stats_.empty()) ? 0.0 : stats_[0].weightSum();
     }
 
 
-    // macros for the implementation of the lifted methods
+// macros for the implementation of the lifted methods
 
-    // N-D methods' definition with void argument list
-    #define DEFINE_SEQUENCE_STAT_CONST_METHOD_VOID(METHOD) \
-    template <class Stat> \
-    std::vector<Real> \
-    GenericSequenceStatistics<Stat>::METHOD() const { \
-        for (Size i=0; i<dimension_; i++) \
-            results_[i] = stats_[i].METHOD(); \
-        return results_; \
+// N-D methods' definition with void argument list
+#define DEFINE_SEQUENCE_STAT_CONST_METHOD_VOID(METHOD)                \
+    template <class Stat>                                             \
+    std::vector<Real> GenericSequenceStatistics<Stat>::METHOD() const \
+    {                                                                 \
+        for (Size i = 0; i < dimension_; i++)                         \
+            results_[i] = stats_[i].METHOD();                         \
+        return results_;                                              \
     }
     DEFINE_SEQUENCE_STAT_CONST_METHOD_VOID(mean)
     DEFINE_SEQUENCE_STAT_CONST_METHOD_VOID(variance)
@@ -195,17 +197,17 @@ namespace QuantLib {
     DEFINE_SEQUENCE_STAT_CONST_METHOD_VOID(kurtosis)
     DEFINE_SEQUENCE_STAT_CONST_METHOD_VOID(min)
     DEFINE_SEQUENCE_STAT_CONST_METHOD_VOID(max)
-    #undef DEFINE_SEQUENCE_STAT_CONST_METHOD_VOID
+#undef DEFINE_SEQUENCE_STAT_CONST_METHOD_VOID
 
 
-    // N-D methods' definition with single argument
-    #define DEFINE_SEQUENCE_STAT_CONST_METHOD_DOUBLE(METHOD) \
-    template <class Stat> \
-    std::vector<Real> \
-    GenericSequenceStatistics<Stat>::METHOD(Real x) const { \
-        for (Size i=0; i<dimension_; i++) \
-            results_[i] = stats_[i].METHOD(x); \
-        return results_; \
+// N-D methods' definition with single argument
+#define DEFINE_SEQUENCE_STAT_CONST_METHOD_DOUBLE(METHOD)                    \
+    template <class Stat>                                                   \
+    std::vector<Real> GenericSequenceStatistics<Stat>::METHOD(Real x) const \
+    {                                                                       \
+        for (Size i = 0; i < dimension_; i++)                               \
+            results_[i] = stats_[i].METHOD(x);                              \
+        return results_;                                                    \
     }
 
     DEFINE_SEQUENCE_STAT_CONST_METHOD_DOUBLE(gaussianPercentile)
@@ -222,70 +224,87 @@ namespace QuantLib {
     DEFINE_SEQUENCE_STAT_CONST_METHOD_DOUBLE(regret)
     DEFINE_SEQUENCE_STAT_CONST_METHOD_DOUBLE(shortfall)
     DEFINE_SEQUENCE_STAT_CONST_METHOD_DOUBLE(averageShortfall)
-    #undef DEFINE_SEQUENCE_STAT_CONST_METHOD_DOUBLE
+#undef DEFINE_SEQUENCE_STAT_CONST_METHOD_DOUBLE
 
 
     template <class Stat>
-    void GenericSequenceStatistics<Stat>::reset(Size dimension) {
+    void GenericSequenceStatistics<Stat>::reset(Size dimension)
+    {
         // (re-)initialize
-        if (dimension > 0) {
-            if (dimension == dimension_) {
-                for (Size i=0; i<dimension_; ++i)
+        if (dimension > 0)
+        {
+            if (dimension == dimension_)
+            {
+                for (Size i = 0; i < dimension_; ++i)
                     stats_[i].reset();
-            } else {
+            }
+            else
+            {
                 dimension_ = dimension;
                 stats_ = std::vector<Stat>(dimension);
                 results_ = std::vector<Real>(dimension);
             }
             quadraticSum_ = Matrix(dimension_, dimension_, 0.0);
-        } else {
+        }
+        else
+        {
             dimension_ = dimension;
         }
     }
 
     template <class Stat>
-    Matrix GenericSequenceStatistics<Stat>::covariance() const {
+    Matrix GenericSequenceStatistics<Stat>::covariance() const
+    {
         Real sampleWeight = weightSum();
-        QL_REQUIRE(sampleWeight > 0.0,
-                   "sampleWeight=0, unsufficient");
+        QL_REQUIRE(sampleWeight > 0.0, "sampleWeight=0, unsufficient");
 
         Real sampleNumber = static_cast<Real>(samples());
-        QL_REQUIRE(sampleNumber > 1.0,
-                   "sample number <=1, unsufficient");
+        QL_REQUIRE(sampleNumber > 1.0, "sample number <=1, unsufficient");
 
         std::vector<Real> m = mean();
-        Real inv = 1.0/sampleWeight;
+        Real inv = 1.0 / sampleWeight;
 
-        Matrix result = inv*quadraticSum_;
-        result -= outerProduct(m.begin(), m.end(),
-                               m.begin(), m.end());
+        Matrix result = inv * quadraticSum_;
+        result -= outerProduct(m.begin(), m.end(), m.begin(), m.end());
 
-        result *= (sampleNumber/(sampleNumber-1.0));
+        result *= (sampleNumber / (sampleNumber - 1.0));
         return result;
     }
 
 
     template <class Stat>
-    Matrix GenericSequenceStatistics<Stat>::correlation() const {
+    Matrix GenericSequenceStatistics<Stat>::correlation() const
+    {
         Matrix correlation = covariance();
         Array variances = correlation.diagonal();
-        for (Size i=0; i<dimension_; i++){
-            for (Size j=0; j<dimension_; j++){
-                if (i==j) {
-                    if (variances[i]==0.0) {
+        for (Size i = 0; i < dimension_; i++)
+        {
+            for (Size j = 0; j < dimension_; j++)
+            {
+                if (i == j)
+                {
+                    if (variances[i] == 0.0)
+                    {
                         correlation[i][j] = 1.0;
-                    } else {
-                        correlation[i][j] *=
-                            1.0/std::sqrt(variances[i]*variances[j]);
                     }
-                } else {
-                    if (variances[i]==0.0 && variances[j]==0) {
+                    else
+                    {
+                        correlation[i][j] *= 1.0 / std::sqrt(variances[i] * variances[j]);
+                    }
+                }
+                else
+                {
+                    if (variances[i] == 0.0 && variances[j] == 0)
+                    {
                         correlation[i][j] = 1.0;
-                    } else if (variances[i]==0.0 || variances[j]==0.0) {
+                    }
+                    else if (variances[i] == 0.0 || variances[j] == 0.0)
+                    {
                         correlation[i][j] = 0.0;
-                    } else {
-                        correlation[i][j] *=
-                            1.0/std::sqrt(variances[i]*variances[j]);
+                    }
+                    else
+                    {
+                        correlation[i][j] *= 1.0 / std::sqrt(variances[i] * variances[j]);
                     }
                 }
             } // j for

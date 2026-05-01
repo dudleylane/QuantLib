@@ -38,7 +38,8 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(FdCIRTests)
 
-BOOST_AUTO_TEST_CASE(testFdmCIRConvergence) {
+BOOST_AUTO_TEST_CASE(testFdmCIRConvergence)
+{
     BOOST_TEST_MESSAGE("Testing FDM CIR convergence...");
 
     FdmSchemeDesc schemes[] = {
@@ -63,11 +64,9 @@ BOOST_AUTO_TEST_CASE(testFdmCIRConvergence) {
     Date maturity = today + 365;
     DayCounter dayCounter = Actual365Fixed();
 
-    ext::shared_ptr<Exercise> europeanExercise(
-        new EuropeanExercise(maturity));
+    ext::shared_ptr<Exercise> europeanExercise(new EuropeanExercise(maturity));
 
-    Handle<Quote> underlyingH(
-        ext::shared_ptr<Quote>(new SimpleQuote(underlying)));
+    Handle<Quote> underlyingH(ext::shared_ptr<Quote>(new SimpleQuote(underlying)));
 
     Handle<YieldTermStructure> flatTermStructure(
         ext::shared_ptr<YieldTermStructure>(flatRate(today, riskFreeRate, dayCounter)));
@@ -75,11 +74,9 @@ BOOST_AUTO_TEST_CASE(testFdmCIRConvergence) {
         ext::shared_ptr<YieldTermStructure>(flatRate(today, dividendYield, dayCounter)));
     Handle<BlackVolTermStructure> flatVolTS(
         ext::shared_ptr<BlackVolTermStructure>(flatVol(today, volatility, dayCounter)));
-    ext::shared_ptr<StrikedTypePayoff> payoff(
-        new PlainVanillaPayoff(type, strike));
+    ext::shared_ptr<StrikedTypePayoff> payoff(new PlainVanillaPayoff(type, strike));
     ext::shared_ptr<BlackScholesMertonProcess> bsmProcess(
-        new BlackScholesMertonProcess(underlyingH, flatDividendTS,
-                                      flatTermStructure, flatVolTS));
+        new BlackScholesMertonProcess(underlyingH, flatDividendTS, flatTermStructure, flatVolTS));
 
     VanillaOption europeanOption(payoff, europeanExercise);
 
@@ -89,24 +86,25 @@ BOOST_AUTO_TEST_CASE(testFdmCIRConvergence) {
     Real initialRate = 0.06;
     Real rho = 0.00789;
     Real lambda = -0.5726;
-    Real newSpeed = speed + (cirSigma*lambda); //1.0792
-    Real newLevel = (level * speed)/(speed + (cirSigma*lambda));//// 0.0240
+    Real newSpeed = speed + (cirSigma * lambda);                     // 1.0792
+    Real newLevel = (level * speed) / (speed + (cirSigma * lambda)); //// 0.0240
 
-    ext::shared_ptr<CoxIngersollRossProcess> cirProcess(new CoxIngersollRossProcess(newSpeed, cirSigma, initialRate, newLevel));
+    ext::shared_ptr<CoxIngersollRossProcess> cirProcess(
+        new CoxIngersollRossProcess(newSpeed, cirSigma, initialRate, newLevel));
 
     Real expected = 4.275;
     Real tolerance = 0.0003;
 
-    for (const auto& scheme : schemes) {
+    for (const auto& scheme : schemes)
+    {
         ext::shared_ptr<PricingEngine> fdcirengine =
             MakeFdCIRVanillaEngine(cirProcess, bsmProcess, rho).withFdmSchemeDesc(scheme);
         europeanOption.setPricingEngine(fdcirengine);
         Real calculated = europeanOption.NPV();
-        if (std::fabs(expected - calculated) > tolerance) {
-            BOOST_ERROR("Failed to reproduce expected npv"
-                            << "\n    calculated: " << calculated
-                            << "\n    expected:   " << expected
-                            << "\n    tolerance:  " << tolerance);
+        if (std::fabs(expected - calculated) > tolerance)
+        {
+            BOOST_ERROR("Failed to reproduce expected npv" << "\n    calculated: " << calculated << "\n    expected:   "
+                                                           << expected << "\n    tolerance:  " << tolerance);
         }
     }
 }
@@ -114,4 +112,3 @@ BOOST_AUTO_TEST_CASE(testFdmCIRConvergence) {
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
-

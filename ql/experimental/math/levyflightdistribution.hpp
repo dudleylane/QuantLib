@@ -24,14 +24,15 @@
 #ifndef quantlib_levy_flight_distribution_hpp
 #define quantlib_levy_flight_distribution_hpp
 
-#include <ql/types.hpp>
 #include <ql/errors.hpp>
+#include <ql/types.hpp>
 #include <random>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Levy Flight distribution
-    /*! The levy flight distribution is a random distribution with 
+    /*! The levy flight distribution is a random distribution with
         the following form:
         \f[
         p(x) = \frac{\alpha x_m^{\alpha}}{x^{\alpha+1}}
@@ -55,16 +56,18 @@ namespace QuantLib {
             /*!    Constructs parameters with a given xm and alpha
                 Requires: alpha > 0
             */
-            param_type(Real xm = 1.0, Real alpha = 1.0)
-              : xm_(xm), alpha_(alpha) { QL_REQUIRE(alpha_ > 0.0, "alpha must be larger than 0"); }
+            param_type(Real xm = 1.0, Real alpha = 1.0) : xm_(xm), alpha_(alpha)
+            {
+                QL_REQUIRE(alpha_ > 0.0, "alpha must be larger than 0");
+            }
 
             //! Returns the xm parameter of the distribution
             Real xm() const { return xm_; }
-            
+
             //! Returns the alpha parameter of the distribution
             Real alpha() const { return alpha_; }
 
-        private:
+          private:
             Real xm_;
             Real alpha_;
         };
@@ -74,12 +77,13 @@ namespace QuantLib {
         /*! Constructs a LevyFlightDistribution with a given xm and alpha
             Requires: alpha > 0
         */
-        explicit LevyFlightDistribution(Real xm = 1.0, Real alpha = 1.0)
-          : xm_(xm), alpha_(alpha) { QL_REQUIRE(alpha_ > 0.0, "alpha must be larger than 0"); }
+        explicit LevyFlightDistribution(Real xm = 1.0, Real alpha = 1.0) : xm_(xm), alpha_(alpha)
+        {
+            QL_REQUIRE(alpha_ > 0.0, "alpha must be larger than 0");
+        }
 
-        //!Constructs a LevyFlightDistribution from its parameters
-        explicit LevyFlightDistribution(const param_type& parm)
-          : xm_(parm.xm()), alpha_(parm.alpha()) {}
+        //! Constructs a LevyFlightDistribution from its parameters
+        explicit LevyFlightDistribution(const param_type& parm) : xm_(parm.xm()), alpha_(parm.alpha()) {}
 
         // compiler-generated copy ctor and assignment operator are fine
         //@}
@@ -88,23 +92,22 @@ namespace QuantLib {
         //@{
         //! Returns the xm parameter of the distribution
         Real xm() const { return xm_; }
-            
+
         //! Returns the alpha parameter of the distribution
         Real alpha() const { return alpha_; }
 
         //! Returns the smallest value that the distribution can produce
-        Real min BOOST_PREVENT_MACRO_SUBSTITUTION () const
-        { return xm_; }
+        Real min BOOST_PREVENT_MACRO_SUBSTITUTION() const { return xm_; }
         //! Returns the largest value that the distribution can produce
-        Real max BOOST_PREVENT_MACRO_SUBSTITUTION () const
-        { return QL_MAX_REAL; }
+        Real max BOOST_PREVENT_MACRO_SUBSTITUTION() const { return QL_MAX_REAL; }
 
         //! Returns the parameters of the distribution
         param_type param() const { return {xm_, alpha_}; }
         //@}
-        
+
         //! Sets the parameters of the distribution
-        void param(const param_type& parm) { 
+        void param(const param_type& parm)
+        {
             xm_ = parm.xm();
             alpha_ = parm.alpha();
         }
@@ -112,33 +115,37 @@ namespace QuantLib {
         /*! Effects: Subsequent uses of the distribution do not depend
             on values produced by any engine prior to invoking reset.
         */
-        void reset() { }
-        
+        void reset() {}
+
         //! Returns the value of the pdf for x
-        Real operator()(Real x) const{
+        Real operator()(Real x) const
+        {
             using std::pow;
-            if(x < xm_) return 0.0;
-            return alpha_*pow(xm_/x, alpha_)/x;
+            if (x < xm_)
+                return 0.0;
+            return alpha_ * pow(xm_ / x, alpha_) / x;
         }
-        
+
         /*!    Returns a random variate distributed according to the
             levy flight distribution.
         */
-        template<class Engine>
-        Real operator()(Engine& eng) const {
+        template <class Engine>
+        Real operator()(Engine& eng) const
+        {
             using std::pow;
-            return xm_*pow(std::uniform_real_distribution<Real>(0.0, 1.0)(eng), -1.0/alpha_);
+            return xm_ * pow(std::uniform_real_distribution<Real>(0.0, 1.0)(eng), -1.0 / alpha_);
         }
 
         /*!    Returns a random variate distributed according to the
             levy flight with parameters specified by parm
         */
-        template<class Engine>
-        Real operator()(Engine& eng, const param_type& parm) const {
-            return LevyFlightDistribution (parm)(eng);
+        template <class Engine>
+        Real operator()(Engine& eng, const param_type& parm) const
+        {
+            return LevyFlightDistribution(parm)(eng);
         }
 
-    private:
+      private:
         Real xm_;
         Real alpha_;
     };

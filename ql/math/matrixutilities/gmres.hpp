@@ -28,7 +28,8 @@
 #include <functional>
 #include <list>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! References:
         Saad, Yousef. 1996, Iterative methods for sparse linear systems,
@@ -45,20 +46,21 @@ namespace QuantLib {
         http://bilder.buecher.de/zusatz/12/12950/12950560_lese_1.pdf
     */
 
-    struct GMRESResult {
+    struct GMRESResult
+    {
         std::list<Real> errors;
         Array x;
     };
 
-    class GMRES  {
+    class GMRES
+    {
       public:
         typedef std::function<Array(const Array&)> MatrixMult;
 
         GMRES(MatrixMult A, Size maxIter, Real relTol, MatrixMult preConditioner = MatrixMult());
 
         GMRESResult solve(const Array& b, const Array& x0 = Array()) const;
-        GMRESResult solveWithRestart(
-            Size restart, const Array& b, const Array& x0 = Array()) const;
+        GMRESResult solveWithRestart(Size restart, const Array& b, const Array& x0 = Array()) const;
 
       protected:
         GMRESResult solveImpl(const Array& b, const Array& x0) const;

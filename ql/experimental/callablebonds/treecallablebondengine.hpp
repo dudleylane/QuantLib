@@ -27,27 +27,26 @@
 #include <ql/experimental/callablebonds/callablebond.hpp>
 #include <ql/pricingengines/latticeshortratemodelengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Numerical lattice engine for callable fixed rate bonds
     /*! \ingroup bondengines */
     class TreeCallableFixedRateBondEngine
-        : public LatticeShortRateModelEngine<CallableBond::arguments,
-                                             CallableBond::results> {
+    : public LatticeShortRateModelEngine<CallableBond::arguments, CallableBond::results>
+    {
       public:
         /*! \name Constructors
             \note the term structure is only needed when the short-rate
                   model cannot provide one itself.
         */
         //@{
-        TreeCallableFixedRateBondEngine(
-            const ext::shared_ptr<ShortRateModel>&,
-            Size timeSteps,
-            Handle<YieldTermStructure> termStructure = Handle<YieldTermStructure>());
-        TreeCallableFixedRateBondEngine(
-            const ext::shared_ptr<ShortRateModel>&,
-            const TimeGrid& timeGrid,
-            Handle<YieldTermStructure> termStructure = Handle<YieldTermStructure>());
+        TreeCallableFixedRateBondEngine(const ext::shared_ptr<ShortRateModel>&,
+                                        Size timeSteps,
+                                        Handle<YieldTermStructure> termStructure = Handle<YieldTermStructure>());
+        TreeCallableFixedRateBondEngine(const ext::shared_ptr<ShortRateModel>&,
+                                        const TimeGrid& timeGrid,
+                                        Handle<YieldTermStructure> termStructure = Handle<YieldTermStructure>());
         //@}
         void calculate() const override;
 
@@ -58,23 +57,23 @@ namespace QuantLib {
 
     //! Numerical lattice engine for callable zero coupon bonds
     /*! \ingroup bondengines */
-    class TreeCallableZeroCouponBondEngine
-        : public TreeCallableFixedRateBondEngine {
+    class TreeCallableZeroCouponBondEngine : public TreeCallableFixedRateBondEngine
+    {
 
       public:
-        TreeCallableZeroCouponBondEngine(
-                           const ext::shared_ptr<ShortRateModel>& model,
-                           const Size timeSteps,
-                           const Handle<YieldTermStructure>& termStructure =
-                                                 Handle<YieldTermStructure>())
-        : TreeCallableFixedRateBondEngine(model, timeSteps, termStructure) {}
+        TreeCallableZeroCouponBondEngine(const ext::shared_ptr<ShortRateModel>& model,
+                                         const Size timeSteps,
+                                         const Handle<YieldTermStructure>& termStructure = Handle<YieldTermStructure>())
+        : TreeCallableFixedRateBondEngine(model, timeSteps, termStructure)
+        {
+        }
 
-        TreeCallableZeroCouponBondEngine(
-                               const ext::shared_ptr<ShortRateModel>& model,
-                               const TimeGrid& timeGrid,
-                           const Handle<YieldTermStructure>& termStructure =
-                                                 Handle<YieldTermStructure>())
-        : TreeCallableFixedRateBondEngine(model, timeGrid, termStructure) {}
+        TreeCallableZeroCouponBondEngine(const ext::shared_ptr<ShortRateModel>& model,
+                                         const TimeGrid& timeGrid,
+                                         const Handle<YieldTermStructure>& termStructure = Handle<YieldTermStructure>())
+        : TreeCallableFixedRateBondEngine(model, timeGrid, termStructure)
+        {
+        }
     };
 
 }

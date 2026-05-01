@@ -24,14 +24,16 @@
 #ifndef quantlib_energy_vanilla_swap_hpp
 #define quantlib_energy_vanilla_swap_hpp
 
-#include <ql/experimental/commodities/energyswap.hpp>
 #include <ql/experimental/commodities/commodityindex.hpp>
+#include <ql/experimental/commodities/energyswap.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Vanilla energy swap
-    class EnergyVanillaSwap : public EnergySwap {
+    class EnergyVanillaSwap : public EnergySwap
+    {
       public:
         EnergyVanillaSwap(bool payer,
                           const Calendar& calendar,
@@ -50,12 +52,8 @@ namespace QuantLib {
         bool isExpired() const override;
         Integer payReceive() const { return payReceive_; }
         const Money& fixedPrice() const { return fixedPrice_; }
-        const UnitOfMeasure& fixedPriceUnitOfMeasure() const {
-            return fixedPriceUnitOfMeasure_;
-        }
-        const ext::shared_ptr<CommodityIndex>& index() const {
-            return index_;
-        }
+        const UnitOfMeasure& fixedPriceUnitOfMeasure() const { return fixedPriceUnitOfMeasure_; }
+        const ext::shared_ptr<CommodityIndex>& index() const { return index_; }
 
       protected:
         void performCalculations() const override;

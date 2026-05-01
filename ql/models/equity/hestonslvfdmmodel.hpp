@@ -26,51 +26,53 @@
 #define quantlib_heston_slv_model_hpp
 
 #include <ql/handle.hpp>
+#include <ql/methods/finitedifferences/meshers/fdmmeshercomposite.hpp>
+#include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
+#include <ql/methods/finitedifferences/utilities/fdmhestongreensfct.hpp>
 #include <ql/patterns/lazyobject.hpp>
 #include <ql/patterns/observable.hpp>
-#include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
-#include <ql/methods/finitedifferences/meshers/fdmmeshercomposite.hpp>
-#include <ql/methods/finitedifferences/utilities/fdmhestongreensfct.hpp>
-
 #include <list>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-class SimpleQuote;
+    class SimpleQuote;
     class HestonModel;
     class LocalVolTermStructure;
 
-    struct HestonSLVFokkerPlanckFdmParams {
-         Size xGrid, vGrid;
-         Size tMaxStepsPerYear, tMinStepsPerYear;
-         Real tStepNumberDecay;
+    struct HestonSLVFokkerPlanckFdmParams
+    {
+        Size xGrid, vGrid;
+        Size tMaxStepsPerYear, tMinStepsPerYear;
+        Real tStepNumberDecay;
 
         // Rannacher smoothing steps at the beginning
-         Size nRannacherTimeSteps;
+        Size nRannacherTimeSteps;
 
-         Size predictionCorretionSteps;
+        Size predictionCorretionSteps;
 
         // local volatility forward equation
-         Real x0Density;
-         Real localVolEpsProb;
-         Size maxIntegrationIterations;
+        Real x0Density;
+        Real localVolEpsProb;
+        Size maxIntegrationIterations;
 
         // variance mesher definition
-         Real vLowerEps, vUpperEps, vMin;
-         Real v0Density, vLowerBoundDensity, vUpperBoundDensity;
+        Real vLowerEps, vUpperEps, vMin;
+        Real v0Density, vLowerBoundDensity, vUpperBoundDensity;
 
         // do not calculate leverage function if prob is smaller than eps
-         Real leverageFctPropEps;
+        Real leverageFctPropEps;
 
         // algorithm to get to the start configuration at time point one
-         FdmHestonGreensFct::Algorithm greensAlgorithm;
-         FdmSquareRootFwdOp::TransformationType trafoType;
+        FdmHestonGreensFct::Algorithm greensAlgorithm;
+        FdmSquareRootFwdOp::TransformationType trafoType;
 
         // define finite difference scheme
-         FdmSchemeDesc schemeDesc;
+        FdmSchemeDesc schemeDesc;
     };
 
-    class HestonSLVFDMModel : public LazyObject {
+    class HestonSLVFDMModel : public LazyObject
+    {
       public:
         HestonSLVFDMModel(Handle<LocalVolTermStructure> localVol,
                           Handle<HestonModel> hestonModel,
@@ -84,7 +86,8 @@ class SimpleQuote;
         ext::shared_ptr<LocalVolTermStructure> localVol() const;
         ext::shared_ptr<LocalVolTermStructure> leverageFunction() const;
 
-        struct LogEntry {
+        struct LogEntry
+        {
             const Time t;
             const ext::shared_ptr<Array> prob;
             const ext::shared_ptr<FdmMesherComposite> mesher;
@@ -111,4 +114,3 @@ class SimpleQuote;
 
 
 #endif
-

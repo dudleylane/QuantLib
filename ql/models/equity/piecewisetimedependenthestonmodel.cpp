@@ -21,7 +21,8 @@
 #include <ql/quotes/simplequote.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     PiecewiseTimeDependentHestonModel::PiecewiseTimeDependentHestonModel(
         const Handle<YieldTermStructure>& riskFreeRate,
@@ -34,7 +35,8 @@ namespace QuantLib {
         const Parameter& rho,
         TimeGrid timeGrid)
     : CalibratedModel(5), s0_(s0), riskFreeRate_(riskFreeRate), dividendYield_(dividendYield),
-      timeGrid_(std::move(timeGrid)) {
+      timeGrid_(std::move(timeGrid))
+    {
 
         arguments_[0] = theta;
         arguments_[1] = kappa;
@@ -47,18 +49,18 @@ namespace QuantLib {
         registerWith(dividendYield);
     }
 
-    const TimeGrid& PiecewiseTimeDependentHestonModel::timeGrid() const {
+    const TimeGrid& PiecewiseTimeDependentHestonModel::timeGrid() const
+    {
         return timeGrid_;
     }
-    
-    const Handle<YieldTermStructure>& 
-    PiecewiseTimeDependentHestonModel::dividendYield() const {
+
+    const Handle<YieldTermStructure>& PiecewiseTimeDependentHestonModel::dividendYield() const
+    {
         return dividendYield_;
     }
 
-    const Handle<YieldTermStructure>& 
-    PiecewiseTimeDependentHestonModel::riskFreeRate() const {
+    const Handle<YieldTermStructure>& PiecewiseTimeDependentHestonModel::riskFreeRate() const
+    {
         return riskFreeRate_;
     }
 }
-

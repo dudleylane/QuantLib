@@ -17,25 +17,25 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/instruments/holderextensibleoption.hpp>
 #include <ql/exercise.hpp>
+#include <ql/instruments/holderextensibleoption.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    HolderExtensibleOption::HolderExtensibleOption(
-                           Option::Type type,
-                           Real premium,
-                           Date secondExpiryDate,
-                           Real secondStrike,
-                           const ext::shared_ptr<StrikedTypePayoff>& payoff,
-                           const ext::shared_ptr<Exercise>& exercise)
-    : OneAssetOption(payoff,exercise),
-      premium_(premium),
-      secondExpiryDate_(secondExpiryDate),
-      secondStrike_(secondStrike) {}
+    HolderExtensibleOption::HolderExtensibleOption(Option::Type type,
+                                                   Real premium,
+                                                   Date secondExpiryDate,
+                                                   Real secondStrike,
+                                                   const ext::shared_ptr<StrikedTypePayoff>& payoff,
+                                                   const ext::shared_ptr<Exercise>& exercise)
+    : OneAssetOption(payoff, exercise), premium_(premium), secondExpiryDate_(secondExpiryDate),
+      secondStrike_(secondStrike)
+    {
+    }
 
-    void HolderExtensibleOption::setupArguments(
-                                       PricingEngine::arguments* args) const {
+    void HolderExtensibleOption::setupArguments(PricingEngine::arguments* args) const
+    {
         OneAssetOption::setupArguments(args);
         auto* moreArgs = dynamic_cast<HolderExtensibleOption::arguments*>(args);
         QL_REQUIRE(moreArgs != nullptr, "wrong argument type");
@@ -44,10 +44,11 @@ namespace QuantLib {
         moreArgs->secondStrike = secondStrike_;
     }
 
-    void HolderExtensibleOption:: arguments::validate() const {
+    void HolderExtensibleOption::arguments::validate() const
+    {
         OneAssetOption::arguments::validate();
-        QL_REQUIRE(premium > 0,"negative premium not allowed");
-        QL_REQUIRE(secondExpiryDate != Date() , "no extending date given");
+        QL_REQUIRE(premium > 0, "negative premium not allowed");
+        QL_REQUIRE(secondExpiryDate != Date(), "no extending date given");
         QL_REQUIRE(secondExpiryDate >= exercise->lastDate(),
                    "extended date is earlier than or equal to first maturity date");
     }

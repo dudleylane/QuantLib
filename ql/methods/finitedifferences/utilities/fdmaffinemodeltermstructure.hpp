@@ -18,7 +18,7 @@
 */
 
 /*! \file fdmaffinemodeltermstructure.hpp
-*/
+ */
 
 #ifndef quantlib_fdm_affine_model_termstructure_hpp
 #define quantlib_fdm_affine_model_termstructure_hpp
@@ -26,11 +26,13 @@
 #include <ql/math/array.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class AffineModel;
 
-    class FdmAffineModelTermStructure : public YieldTermStructure {
+    class FdmAffineModelTermStructure : public YieldTermStructure
+    {
       public:
         FdmAffineModelTermStructure(Array r,
                                     const Calendar& cal,

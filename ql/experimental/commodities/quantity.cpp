@@ -17,192 +17,252 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/errors.hpp>
 #include <ql/experimental/commodities/quantity.hpp>
 #include <ql/experimental/commodities/unitofmeasureconversionmanager.hpp>
 #include <ql/math/comparison.hpp>
-#include <ql/errors.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     Quantity::ConversionType Quantity::conversionType = Quantity::NoConversion;
 
     UnitOfMeasure Quantity::baseUnitOfMeasure = UnitOfMeasure();
 
-    namespace {
+    namespace
+    {
 
-        void convertTo(Quantity& m, const UnitOfMeasure& target) {
-            if (m.unitOfMeasure() != target) {
+        void convertTo(Quantity& m, const UnitOfMeasure& target)
+        {
+            if (m.unitOfMeasure() != target)
+            {
                 UnitOfMeasureConversion rate =
-                    UnitOfMeasureConversionManager::instance().lookup(
-                                m.commodityType(), m.unitOfMeasure(), target);
+                    UnitOfMeasureConversionManager::instance().lookup(m.commodityType(), m.unitOfMeasure(), target);
                 m = rate.convert(m).rounded();
             }
         }
 
-        void convertToBase(Quantity& m) {
-            QL_REQUIRE(!Quantity::baseUnitOfMeasure.empty(),
-                       "no base unitOfMeasure set");
+        void convertToBase(Quantity& m)
+        {
+            QL_REQUIRE(!Quantity::baseUnitOfMeasure.empty(), "no base unitOfMeasure set");
             convertTo(m, Quantity::baseUnitOfMeasure);
         }
 
     }
 
-    Quantity& Quantity::operator+=(const Quantity& m) {
-        if (unitOfMeasure_ == m.unitOfMeasure_) {
+    Quantity& Quantity::operator+=(const Quantity& m)
+    {
+        if (unitOfMeasure_ == m.unitOfMeasure_)
+        {
             amount_ += m.amount_;
-        } else if (conversionType == BaseUnitOfMeasureConversion) {
+        }
+        else if (conversionType == BaseUnitOfMeasureConversion)
+        {
             convertToBase(*this);
             Quantity tmp = m;
             convertToBase(tmp);
             *this += tmp;
-        } else if (conversionType == AutomatedConversion) {
+        }
+        else if (conversionType == AutomatedConversion)
+        {
             Quantity tmp = m;
             convertTo(tmp, unitOfMeasure_);
             *this += tmp;
-        } else {
+        }
+        else
+        {
             QL_FAIL("unitOfMeasure mismatch and no conversion specified");
         }
         return *this;
     }
 
-    Quantity& Quantity::operator-=(const Quantity& m) {
-        if (unitOfMeasure_ == m.unitOfMeasure_) {
+    Quantity& Quantity::operator-=(const Quantity& m)
+    {
+        if (unitOfMeasure_ == m.unitOfMeasure_)
+        {
             amount_ -= m.amount_;
-        } else if (conversionType == BaseUnitOfMeasureConversion) {
+        }
+        else if (conversionType == BaseUnitOfMeasureConversion)
+        {
             convertToBase(*this);
             Quantity tmp = m;
             convertToBase(tmp);
             *this -= tmp;
-        } else if (conversionType == AutomatedConversion) {
+        }
+        else if (conversionType == AutomatedConversion)
+        {
             Quantity tmp = m;
             convertTo(tmp, unitOfMeasure_);
             *this -= tmp;
-        } else {
+        }
+        else
+        {
             QL_FAIL("unitOfMeasure mismatch and no conversion specified");
         }
         return *this;
     }
 
-    Real operator/(const Quantity& m1, const Quantity& m2) {
-        if (m1.unitOfMeasure() == m2.unitOfMeasure()) {
-            return m1.amount()/m2.amount();
-        } else if (Quantity::conversionType
-                   == Quantity::BaseUnitOfMeasureConversion) {
+    Real operator/(const Quantity& m1, const Quantity& m2)
+    {
+        if (m1.unitOfMeasure() == m2.unitOfMeasure())
+        {
+            return m1.amount() / m2.amount();
+        }
+        else if (Quantity::conversionType == Quantity::BaseUnitOfMeasureConversion)
+        {
             Quantity tmp1 = m1;
             convertToBase(tmp1);
             Quantity tmp2 = m2;
             convertToBase(tmp2);
-            return tmp1/tmp2;
-        } else if (Quantity::conversionType == Quantity::AutomatedConversion) {
+            return tmp1 / tmp2;
+        }
+        else if (Quantity::conversionType == Quantity::AutomatedConversion)
+        {
             Quantity tmp = m2;
             convertTo(tmp, m1.unitOfMeasure());
-            return m1/tmp;
-        } else {
+            return m1 / tmp;
+        }
+        else
+        {
             QL_FAIL("unitOfMeasure mismatch and no conversion specified");
         }
     }
 
-    bool operator==(const Quantity& m1, const Quantity& m2) {
-        if (m1.unitOfMeasure() == m2.unitOfMeasure()) {
+    bool operator==(const Quantity& m1, const Quantity& m2)
+    {
+        if (m1.unitOfMeasure() == m2.unitOfMeasure())
+        {
             return m1.amount() == m2.amount();
-        } else if (Quantity::conversionType
-                   == Quantity::BaseUnitOfMeasureConversion) {
+        }
+        else if (Quantity::conversionType == Quantity::BaseUnitOfMeasureConversion)
+        {
             Quantity tmp1 = m1;
             convertToBase(tmp1);
             Quantity tmp2 = m2;
             convertToBase(tmp2);
             return tmp1 == tmp2;
-        } else if (Quantity::conversionType
-                   == Quantity::AutomatedConversion) {
+        }
+        else if (Quantity::conversionType == Quantity::AutomatedConversion)
+        {
             Quantity tmp = m2;
             convertTo(tmp, m1.unitOfMeasure());
             return m1 == tmp;
-        } else {
+        }
+        else
+        {
             QL_FAIL("unitOfMeasure mismatch and no conversion specified");
         }
     }
 
-    bool operator<(const Quantity& m1, const Quantity& m2) {
-        if (m1.unitOfMeasure() == m2.unitOfMeasure()) {
+    bool operator<(const Quantity& m1, const Quantity& m2)
+    {
+        if (m1.unitOfMeasure() == m2.unitOfMeasure())
+        {
             return m1.amount() < m2.amount();
-        } else if (Quantity::conversionType
-                   == Quantity::BaseUnitOfMeasureConversion) {
+        }
+        else if (Quantity::conversionType == Quantity::BaseUnitOfMeasureConversion)
+        {
             Quantity tmp1 = m1;
             convertToBase(tmp1);
             Quantity tmp2 = m2;
             convertToBase(tmp2);
             return tmp1 < tmp2;
-        } else if (Quantity::conversionType == Quantity::AutomatedConversion) {
+        }
+        else if (Quantity::conversionType == Quantity::AutomatedConversion)
+        {
             Quantity tmp = m2;
             convertTo(tmp, m1.unitOfMeasure());
             return m1 < tmp;
-        } else {
+        }
+        else
+        {
             QL_FAIL("unitOfMeasure mismatch and no conversion specified");
         }
     }
 
-    bool operator<=(const Quantity& m1, const Quantity& m2) {
-        if (m1.unitOfMeasure() == m2.unitOfMeasure()) {
+    bool operator<=(const Quantity& m1, const Quantity& m2)
+    {
+        if (m1.unitOfMeasure() == m2.unitOfMeasure())
+        {
             return m1.amount() <= m2.amount();
-        } else if (Quantity::conversionType
-                   == Quantity::BaseUnitOfMeasureConversion) {
+        }
+        else if (Quantity::conversionType == Quantity::BaseUnitOfMeasureConversion)
+        {
             Quantity tmp1 = m1;
             convertToBase(tmp1);
             Quantity tmp2 = m2;
             convertToBase(tmp2);
             return tmp1 <= tmp2;
-        } else if (Quantity::conversionType == Quantity::AutomatedConversion) {
+        }
+        else if (Quantity::conversionType == Quantity::AutomatedConversion)
+        {
             Quantity tmp = m2;
             convertTo(tmp, m1.unitOfMeasure());
             return m1 <= tmp;
-        } else {
+        }
+        else
+        {
             QL_FAIL("unitOfMeasure mismatch and no conversion specified");
         }
     }
 
-    bool close(const Quantity& m1, const Quantity& m2, Size n) {
-        if (m1.unitOfMeasure() == m2.unitOfMeasure()) {
-            return close(m1.amount(),m2.amount(),n);
-        } else if (Quantity::conversionType
-                   == Quantity::BaseUnitOfMeasureConversion) {
+    bool close(const Quantity& m1, const Quantity& m2, Size n)
+    {
+        if (m1.unitOfMeasure() == m2.unitOfMeasure())
+        {
+            return close(m1.amount(), m2.amount(), n);
+        }
+        else if (Quantity::conversionType == Quantity::BaseUnitOfMeasureConversion)
+        {
             Quantity tmp1 = m1;
             convertToBase(tmp1);
             Quantity tmp2 = m2;
             convertToBase(tmp2);
-            return close(tmp1,tmp2,n);
-        } else if (Quantity::conversionType == Quantity::AutomatedConversion) {
+            return close(tmp1, tmp2, n);
+        }
+        else if (Quantity::conversionType == Quantity::AutomatedConversion)
+        {
             Quantity tmp = m2;
             convertTo(tmp, m1.unitOfMeasure());
-            return close(m1,tmp,n);
-        } else {
+            return close(m1, tmp, n);
+        }
+        else
+        {
             QL_FAIL("unitOfMeasure mismatch and no conversion specified");
         }
     }
 
-    bool close_enough(const Quantity& m1, const Quantity& m2, Size n) {
-        if (m1.unitOfMeasure() == m2.unitOfMeasure()) {
-            return close_enough(m1.amount(),m2.amount(),n);
-        } else if (Quantity::conversionType
-                   == Quantity::BaseUnitOfMeasureConversion) {
+    bool close_enough(const Quantity& m1, const Quantity& m2, Size n)
+    {
+        if (m1.unitOfMeasure() == m2.unitOfMeasure())
+        {
+            return close_enough(m1.amount(), m2.amount(), n);
+        }
+        else if (Quantity::conversionType == Quantity::BaseUnitOfMeasureConversion)
+        {
             Quantity tmp1 = m1;
             convertToBase(tmp1);
             Quantity tmp2 = m2;
             convertToBase(tmp2);
-            return close_enough(tmp1,tmp2,n);
-        } else if (Quantity::conversionType == Quantity::AutomatedConversion) {
+            return close_enough(tmp1, tmp2, n);
+        }
+        else if (Quantity::conversionType == Quantity::AutomatedConversion)
+        {
             Quantity tmp = m2;
             convertTo(tmp, m1.unitOfMeasure());
-            return close_enough(m1,tmp,n);
-        } else {
+            return close_enough(m1, tmp, n);
+        }
+        else
+        {
             QL_FAIL("unitOfMeasure mismatch and no conversion specified");
         }
     }
 
 
-    std::ostream& operator<<(std::ostream& out, const Quantity& quantity) {
-        return out << quantity.commodityType_.code() << " "
-                   << quantity.amount_ << " " << quantity.unitOfMeasure_.code();
+    std::ostream& operator<<(std::ostream& out, const Quantity& quantity)
+    {
+        return out << quantity.commodityType_.code() << " " << quantity.amount_ << " "
+                   << quantity.unitOfMeasure_.code();
     }
 
 }
-

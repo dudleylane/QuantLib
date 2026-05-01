@@ -6,4 +6,3 @@
 #include <ql/pricingengines/bond/discountingbondengine.hpp>
 #include <ql/pricingengines/bond/discretizedconvertible.hpp>
 #include <ql/pricingengines/bond/riskybondengine.hpp>
-

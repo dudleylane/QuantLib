@@ -24,12 +24,13 @@
 #ifndef quantlib_fd_2d_black_scholes_vanilla_engine_hpp
 #define quantlib_fd_2d_black_scholes_vanilla_engine_hpp
 
-#include <ql/pricingengine.hpp>
 #include <ql/instruments/basketoption.hpp>
-#include <ql/processes/blackscholesprocess.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
+#include <ql/pricingengine.hpp>
+#include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Two dimensional finite-differences Black Scholes vanilla option engine
 
@@ -39,29 +40,31 @@ namespace QuantLib {
               reproducing results available in web/literature
               and comparison with Kirk approximation.
     */
-    class Fd2dBlackScholesVanillaEngine : public BasketOption::engine {
+    class Fd2dBlackScholesVanillaEngine : public BasketOption::engine
+    {
       public:
-          Fd2dBlackScholesVanillaEngine(
-                const ext::shared_ptr<GeneralizedBlackScholesProcess>& p1,
-                const ext::shared_ptr<GeneralizedBlackScholesProcess>& p2,
-                Real correlation,
-                Size xGrid = 100, Size yGrid = 100, 
-                Size tGrid = 50, Size dampingSteps = 0,
-                const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Hundsdorfer(),
-                bool localVol = false,
-                Real illegalLocalVolOverwrite = -Null<Real>());
+        Fd2dBlackScholesVanillaEngine(const ext::shared_ptr<GeneralizedBlackScholesProcess>& p1,
+                                      const ext::shared_ptr<GeneralizedBlackScholesProcess>& p2,
+                                      Real correlation,
+                                      Size xGrid = 100,
+                                      Size yGrid = 100,
+                                      Size tGrid = 50,
+                                      Size dampingSteps = 0,
+                                      const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Hundsdorfer(),
+                                      bool localVol = false,
+                                      Real illegalLocalVolOverwrite = -Null<Real>());
 
-          void calculate() const override;
+        void calculate() const override;
 
-        private:
-          const ext::shared_ptr<GeneralizedBlackScholesProcess> p1_;
-          const ext::shared_ptr<GeneralizedBlackScholesProcess> p2_;
-          const Real correlation_;
-          const Size xGrid_, yGrid_, tGrid_;
-          const Size dampingSteps_;
-          const FdmSchemeDesc schemeDesc_;
-          const bool localVol_;
-          const Real illegalLocalVolOverwrite_;
+      private:
+        const ext::shared_ptr<GeneralizedBlackScholesProcess> p1_;
+        const ext::shared_ptr<GeneralizedBlackScholesProcess> p2_;
+        const Real correlation_;
+        const Size xGrid_, yGrid_, tGrid_;
+        const Size dampingSteps_;
+        const FdmSchemeDesc schemeDesc_;
+        const bool localVol_;
+        const Real illegalLocalVolOverwrite_;
     };
 }
 

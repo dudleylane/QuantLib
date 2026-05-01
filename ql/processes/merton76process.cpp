@@ -22,7 +22,8 @@
 #include <ql/processes/merton76process.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     Merton76Process::Merton76Process(const Handle<Quote>& stateVariable,
                                      const Handle<YieldTermStructure>& dividendTS,
@@ -32,50 +33,58 @@ namespace QuantLib {
                                      Handle<Quote> logJMean,
                                      Handle<Quote> logJVol,
                                      const ext::shared_ptr<discretization>& disc)
-    : StochasticProcess1D(disc), blackProcess_(
-          new BlackScholesMertonProcess(stateVariable, dividendTS, riskFreeTS, blackVolTS, disc)),
-      jumpIntensity_(std::move(jumpInt)), logMeanJump_(std::move(logJMean)),
-      logJumpVolatility_(std::move(logJVol)) {
+    : StochasticProcess1D(disc),
+      blackProcess_(new BlackScholesMertonProcess(stateVariable, dividendTS, riskFreeTS, blackVolTS, disc)),
+      jumpIntensity_(std::move(jumpInt)), logMeanJump_(std::move(logJMean)), logJumpVolatility_(std::move(logJVol))
+    {
         registerWith(blackProcess_);
         registerWith(jumpIntensity_);
         registerWith(logMeanJump_);
         registerWith(logJumpVolatility_);
     }
 
-    Real Merton76Process::x0() const {
+    Real Merton76Process::x0() const
+    {
         return blackProcess_->x0();
     }
 
-    Time Merton76Process::time(const Date& d) const {
+    Time Merton76Process::time(const Date& d) const
+    {
         return blackProcess_->time(d);
     }
 
-    const Handle<Quote>& Merton76Process::stateVariable() const {
+    const Handle<Quote>& Merton76Process::stateVariable() const
+    {
         return blackProcess_->stateVariable();
     }
 
-    const Handle<YieldTermStructure>& Merton76Process::dividendYield() const {
+    const Handle<YieldTermStructure>& Merton76Process::dividendYield() const
+    {
         return blackProcess_->dividendYield();
     }
 
-    const Handle<YieldTermStructure>& Merton76Process::riskFreeRate() const {
+    const Handle<YieldTermStructure>& Merton76Process::riskFreeRate() const
+    {
         return blackProcess_->riskFreeRate();
     }
 
-    const Handle<BlackVolTermStructure>&
-    Merton76Process::blackVolatility() const {
+    const Handle<BlackVolTermStructure>& Merton76Process::blackVolatility() const
+    {
         return blackProcess_->blackVolatility();
     }
 
-    const Handle<Quote>& Merton76Process::jumpIntensity() const {
+    const Handle<Quote>& Merton76Process::jumpIntensity() const
+    {
         return jumpIntensity_;
     }
 
-    const Handle<Quote>& Merton76Process::logMeanJump() const {
+    const Handle<Quote>& Merton76Process::logMeanJump() const
+    {
         return logMeanJump_;
     }
 
-    const Handle<Quote>& Merton76Process::logJumpVolatility() const {
+    const Handle<Quote>& Merton76Process::logJumpVolatility() const
+    {
         return logJumpVolatility_;
     }
 

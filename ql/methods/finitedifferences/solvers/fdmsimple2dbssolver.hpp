@@ -19,22 +19,24 @@
 
 /*!
  * \file fdmsimple2dbssolver.hpp
-*/
+ */
 
 #ifndef quantlib_fdm_simple_2d_bs_solver_hpp
 #define quantlib_fdm_simple_2d_bs_solver_hpp
 
 #include <ql/handle.hpp>
-#include <ql/patterns/lazyobject.hpp>
-#include <ql/methods/finitedifferences/solvers/fdmsolverdesc.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
+#include <ql/methods/finitedifferences/solvers/fdmsolverdesc.hpp>
+#include <ql/patterns/lazyobject.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Fdm2DimSolver;
     class GeneralizedBlackScholesProcess;
 
-    class FdmSimple2dBSSolver : public LazyObject {
+    class FdmSimple2dBSSolver : public LazyObject
+    {
       public:
         FdmSimple2dBSSolver(Handle<GeneralizedBlackScholesProcess> process,
                             Real strike,

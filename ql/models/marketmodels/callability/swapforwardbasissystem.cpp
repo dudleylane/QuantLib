@@ -25,14 +25,12 @@ namespace QuantLib
 {
 
     SwapForwardBasisSystem::SwapForwardBasisSystem(const std::vector<Time>& rateTimes,
-                                     const std::vector<Time>& exerciseTimes)
-                                     : 
-                                    rateTimes_(rateTimes), exerciseTimes_(exerciseTimes),
-                                    rateIndex_(exerciseTimes.size()),
-                                    evolution_(rateTimes, exerciseTimes) 
-     {
+                                                   const std::vector<Time>& exerciseTimes)
+    : rateTimes_(rateTimes), exerciseTimes_(exerciseTimes), rateIndex_(exerciseTimes.size()),
+      evolution_(rateTimes, exerciseTimes)
+    {
         Size j = 0;
-        for (Size i=0; i<exerciseTimes.size(); ++i) 
+        for (Size i = 0; i < exerciseTimes.size(); ++i)
         {
             while (j < rateTimes.size() && rateTimes[j] < exerciseTimes[i])
                 ++j;
@@ -40,97 +38,92 @@ namespace QuantLib
         }
     }
 
-    Size SwapForwardBasisSystem::numberOfExercises() const 
+    Size SwapForwardBasisSystem::numberOfExercises() const
     {
         return exerciseTimes_.size();
     }
 
-    std::vector<Size> SwapForwardBasisSystem::numberOfFunctions() const 
+    std::vector<Size> SwapForwardBasisSystem::numberOfFunctions() const
     {
         std::vector<Size> sizes(exerciseTimes_.size(), 10);
-        
-        if (rateIndex_[exerciseTimes_.size()-1] == rateTimes_.size()-3)
+
+        if (rateIndex_[exerciseTimes_.size() - 1] == rateTimes_.size() - 3)
             sizes.back() = 6;
 
-        if (rateIndex_[exerciseTimes_.size()-1] == rateTimes_.size()-2)
+        if (rateIndex_[exerciseTimes_.size() - 1] == rateTimes_.size() - 2)
             sizes.back() = 3;
 
         return sizes;
     }
 
-    const EvolutionDescription& SwapForwardBasisSystem::evolution() const 
+    const EvolutionDescription& SwapForwardBasisSystem::evolution() const
     {
         return evolution_;
     }
 
-    void SwapForwardBasisSystem::nextStep(const CurveState&) 
+    void SwapForwardBasisSystem::nextStep(const CurveState&)
     {
         ++currentIndex_;
     }
 
-    void SwapForwardBasisSystem::reset() 
+    void SwapForwardBasisSystem::reset()
     {
         currentIndex_ = 0;
     }
 
-    std::valarray<bool> SwapForwardBasisSystem::isExerciseTime() const 
+    std::valarray<bool> SwapForwardBasisSystem::isExerciseTime() const
     {
         return std::valarray<bool>(true, exerciseTimes_.size());
     }
 
-    void SwapForwardBasisSystem::values(const CurveState& currentState,
-                                 std::vector<Real>& results) const 
+    void SwapForwardBasisSystem::values(const CurveState& currentState, std::vector<Real>& results) const
     {
-        Size rateIndex = rateIndex_[currentIndex_-1];
+        Size rateIndex = rateIndex_[currentIndex_ - 1];
 
-        if (rateIndex < rateTimes_.size() -3)
+        if (rateIndex < rateTimes_.size() - 3)
         {
             results.resize(10);
 
-            Real x= currentState.forwardRate(rateIndex);
-            Real y = currentState.coterminalSwapRate(rateIndex+1);
-            Real z = currentState.discountRatio(rateIndex,rateTimes_.size()-1);
+            Real x = currentState.forwardRate(rateIndex);
+            Real y = currentState.coterminalSwapRate(rateIndex + 1);
+            Real z = currentState.discountRatio(rateIndex, rateTimes_.size() - 1);
 
             results[0] = 1.0;
             results[1] = x;
             results[2] = y;
             results[3] = z;
-            results[4] = x*y;
-            results[5] = y*z;
-            results[6] = z*x;
-            results[7] = x*x;
-            results[8] = y*y;
-            results[9] = z*z;
+            results[4] = x * y;
+            results[5] = y * z;
+            results[6] = z * x;
+            results[7] = x * x;
+            results[8] = y * y;
+            results[9] = z * z;
+        }
+        else if (rateIndex == rateTimes_.size() - 3)
+        {
+            Real x = currentState.forwardRate(rateIndex);
+            Real y = currentState.forwardRate(rateIndex + 1);
+            results.resize(6);
+            results[0] = 1.0;
+            results[1] = x;
+            results[2] = y;
+            results[3] = x * x;
+            results[4] = x * y;
+            results[5] = y * y;
         }
         else
-            if ( rateIndex == rateTimes_.size() -3)
-            {
-                 Real x= currentState.forwardRate(rateIndex);
-                  Real y = currentState.forwardRate(rateIndex+1);
-                  results.resize(6);
-                 results[0] = 1.0;
-                 results[1] = x;
-                 results[2] = y;
-                 results[3] = x*x;
-                 results[4] = x*y;
-                 results[5] = y*y;
-     
-            }
-            else
-            {
-                 Real x= currentState.forwardRate(rateIndex);
-                 results.resize(3);
-                 results[0] =1.0;
-                 results[1] = x;
-                 results[2] = x*x;
-
-            }
+        {
+            Real x = currentState.forwardRate(rateIndex);
+            results.resize(3);
+            results[0] = 1.0;
+            results[1] = x;
+            results[2] = x * x;
+        }
     }
 
-    std::unique_ptr<MarketModelBasisSystem>
-    SwapForwardBasisSystem::clone() const {
+    std::unique_ptr<MarketModelBasisSystem> SwapForwardBasisSystem::clone() const
+    {
         return std::unique_ptr<MarketModelBasisSystem>(new SwapForwardBasisSystem(*this));
     }
 
 }
-

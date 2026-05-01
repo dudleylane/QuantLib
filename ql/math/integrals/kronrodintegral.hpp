@@ -26,12 +26,13 @@
 #define quantlib_kronrod_integral_hpp
 
 #include <ql/errors.hpp>
+#include <ql/math/integrals/integral.hpp>
 #include <ql/types.hpp>
 #include <ql/utilities/null.hpp>
-#include <ql/math/integrals/integral.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Integral of a 1-dimensional function using the Gauss-Kronrod methods
     /*! This class provide a non-adaptive integration procedure which
@@ -49,13 +50,13 @@ namespace QuantLib {
         all the results of its predecessors, in order to minimize the total
         number of function evaluations.
     */
-    class GaussKronrodNonAdaptive : public Integrator {
+    class GaussKronrodNonAdaptive : public Integrator
+    {
       public:
-        GaussKronrodNonAdaptive(Real absoluteAccuracy,
-                                Size maxEvaluations,
-                                Real relativeAccuracy);
+        GaussKronrodNonAdaptive(Real absoluteAccuracy, Size maxEvaluations, Real relativeAccuracy);
         void setRelativeAccuracy(Real);
         Real relativeAccuracy() const;
+
       protected:
         Real integrate(const std::function<Real(Real)>& f, Real a, Real b) const override;
 
@@ -82,19 +83,17 @@ namespace QuantLib {
         \test the correctness of the result is tested by checking it
               against known good values.
     */
-    class GaussKronrodAdaptive : public Integrator {
+    class GaussKronrodAdaptive : public Integrator
+    {
       public:
-        explicit GaussKronrodAdaptive(Real tolerance,
-                                      Size maxFunctionEvaluations = Null<Size>());
+        explicit GaussKronrodAdaptive(Real tolerance, Size maxFunctionEvaluations = Null<Size>());
+
       protected:
         Real integrate(const std::function<Real(Real)>& f, Real a, Real b) const override;
 
       private:
-          Real integrateRecursively(const std::function<Real (Real)>& f,
-                                    Real a,
-                                    Real b,
-                                    Real tolerance) const;
-      };
+        Real integrateRecursively(const std::function<Real(Real)>& f, Real a, Real b, Real tolerance) const;
+    };
 }
 
 #endif

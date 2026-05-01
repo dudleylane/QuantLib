@@ -19,25 +19,27 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/errors.hpp>
 #include <ql/instruments/barriertype.hpp>
 #include <ql/types.hpp>
-#include <ql/errors.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    std::ostream& operator<<(std::ostream& out,
-                             Barrier::Type type) {
-        switch (type) {
-          case Barrier::DownIn:
-            return out << "Down&In";
-          case Barrier::UpIn:
-            return out << "Up&In";
-          case Barrier::DownOut:
-            return out << "Down&Out";
-          case Barrier::UpOut:
-            return out << "Up&Out";
-          default:
-            QL_FAIL("unknown Barrier::Type (" << Integer(type) << ")");
+    std::ostream& operator<<(std::ostream& out, Barrier::Type type)
+    {
+        switch (type)
+        {
+            case Barrier::DownIn:
+                return out << "Down&In";
+            case Barrier::UpIn:
+                return out << "Up&In";
+            case Barrier::DownOut:
+                return out << "Down&Out";
+            case Barrier::UpOut:
+                return out << "Up&Out";
+            default:
+                QL_FAIL("unknown Barrier::Type (" << Integer(type) << ")");
         }
     }
 

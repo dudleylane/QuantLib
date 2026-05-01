@@ -24,7 +24,8 @@
 #include <ql/types.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class CurveState;
 
@@ -32,7 +33,8 @@ namespace QuantLib {
     /*! Abstract base class. The evolver does the actual gritty work of
         evolving the forward rates from one time to the next.
     */
-    class MarketModelEvolver {
+    class MarketModelEvolver
+    {
       public:
         virtual ~MarketModelEvolver() = default;
 

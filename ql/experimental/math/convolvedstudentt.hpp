@@ -21,11 +21,12 @@
 #define convolved_student_t_hpp
 
 #include <ql/types.hpp>
-#include <vector>
-#include <numeric>
 #include <functional>
+#include <numeric>
+#include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! \brief Cumulative (generalized) BehrensFisher distribution.
 
@@ -57,26 +58,23 @@ namespace QuantLib {
         independent Student t-random vectors' C.Berg, C.Vignat; June 2009;
         eprint arXiv:0906.3037
     */
-    class CumulativeBehrensFisher { // ODD orders only by now, rename?
-    public:
+    class CumulativeBehrensFisher
+    { // ODD orders only by now, rename?
+      public:
         /*!
             @param degreesFreedom Degrees of freedom of the Ts convolved. The
                 algorithm is limited to odd orders only.
             @param factors Factors in the linear combination of the Ts.
         */
-        CumulativeBehrensFisher(
-            const std::vector<Integer>& degreesFreedom = std::vector<Integer>(),
-            const std::vector<Real>& factors = std::vector<Real>());
+        CumulativeBehrensFisher(const std::vector<Integer>& degreesFreedom = std::vector<Integer>(),
+                                const std::vector<Real>& factors = std::vector<Real>());
 
         //! Degrees of freedom of the Ts involved in the convolution.
-        const std::vector<Integer>& degreeFreedom() const {
-            return degreesFreedom_;
-        }
+        const std::vector<Integer>& degreeFreedom() const { return degreesFreedom_; }
         //! Factors in the linear combination.
-        const std::vector<Real>& factors() const {
-            return factors_;
-        }
-    private:
+        const std::vector<Real>& factors() const { return factors_; }
+
+      private:
         /*! \brief Student t characteristic polynomials.
 
         Generates the polynomial coefficients defining the characteristic
@@ -98,10 +96,9 @@ namespace QuantLib {
         // move outside of the class, as a separate problem?
         std::vector<Real> polynCharactT(Natural n) const;
 
-        std::vector<Real> convolveVectorPolynomials(
-            const std::vector<Real>& v1,
-            const std::vector<Real>& v2) const ;
-    public:
+        std::vector<Real> convolveVectorPolynomials(const std::vector<Real>& v1, const std::vector<Real>& v2) const;
+
+      public:
         /*! \brief Returns the cumulative probability of the resulting
         distribution.\par
             To obtain the cumulative probability the Gil-Pelaez theorem
@@ -123,28 +120,27 @@ namespace QuantLib {
             The GP complex integration is simplified thanks to the symetry of
             the distribution.
         */
-      Probability operator()(Real x) const;
+        Probability operator()(Real x) const;
 
-      /*! \brief Returns the probability density of the resulting
-      distribution.\par
-          Similarly to the cumulative probability, Gil-Pelaez theorem is
-          applied, the integration is similar.
+        /*! \brief Returns the probability density of the resulting
+        distribution.\par
+            Similarly to the cumulative probability, Gil-Pelaez theorem is
+            applied, the integration is similar.
 
-          \todo Implement in a separate class? given the name of this class..
-      */
-      Probability density(Real x) const;
+            \todo Implement in a separate class? given the name of this class..
+        */
+        Probability density(Real x) const;
 
-    private:
+      private:
         mutable std::vector<Integer> degreesFreedom_;
         mutable std::vector<Real> factors_;
 
-        mutable std::vector<std::vector<Real> > polynCharFnc_;
+        mutable std::vector<std::vector<Real>> polynCharFnc_;
         mutable std::vector<Real> polyConvolved_;
 
         // cached factor in the exponential of the characteristic function
         mutable Real a_ = 0., a2_;
     };
-
 
 
     /*! \brief Inverse of the cumulative of the convolution of odd-T
@@ -158,18 +154,18 @@ namespace QuantLib {
     is used.
     Also the fact that the combination is symmetric is used.
      */
-    class InverseCumulativeBehrensFisher {
-    public:
+    class InverseCumulativeBehrensFisher
+    {
+      public:
         /*!
             @param degreesFreedom Degrees of freedom of the Ts convolved. The
                 algorithm is limited to odd orders only.
             @param factors Factors in the linear combination of the Ts.
             @param accuracy The accuracy of the root-solving process.
         */
-        InverseCumulativeBehrensFisher(
-            const std::vector<Integer>& degreesFreedom = std::vector<Integer>(),
-            const std::vector<Real>& factors = std::vector<Real>(),
-            Real accuracy = 1.e-6);
+        InverseCumulativeBehrensFisher(const std::vector<Integer>& degreesFreedom = std::vector<Integer>(),
+                                       const std::vector<Real>& factors = std::vector<Real>(),
+                                       Real accuracy = 1.e-6);
         //! Returns the cumulative inverse value.
         Real operator()(Probability q) const;
 

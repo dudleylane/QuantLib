@@ -27,7 +27,8 @@
 #include <ql/methods/montecarlo/sample.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Halton low-discrepancy sequence generator
     /*! Halton algorithm for low-discrepancy sequence.  For more
@@ -40,24 +41,24 @@ namespace QuantLib {
         - the correctness of the returned values is tested by checking
           their discrepancy against known good values.
     */
-    class HaltonRsg {
+    class HaltonRsg
+    {
       public:
-        typedef Sample<std::vector<Real> > sample_type;
+        typedef Sample<std::vector<Real>> sample_type;
         explicit HaltonRsg(Size dimensionality,
                            unsigned long seed = 0,
                            bool randomStart = true,
                            bool randomShift = false);
         const sample_type& nextSequence() const;
-        const sample_type& lastSequence() const {
-            return sequence_;
-        }
-        Size dimension() const {return dimensionality_;}
+        const sample_type& lastSequence() const { return sequence_; }
+        Size dimension() const { return dimensionality_; }
+
       private:
         Size dimensionality_;
         mutable unsigned long sequenceCounter_ = 0;
         mutable sample_type sequence_;
         std::vector<unsigned long> randomStart_;
-        std::vector<Real>  randomShift_;
+        std::vector<Real> randomShift_;
     };
 }
 

@@ -18,50 +18,54 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/experimental/commodities/unitofmeasureconversionmanager.hpp>
-#include <ql/experimental/commodities/petroleumunitsofmeasure.hpp>
 #include <ql/errors.hpp>
+#include <ql/experimental/commodities/petroleumunitsofmeasure.hpp>
+#include <ql/experimental/commodities/unitofmeasureconversionmanager.hpp>
 #include <algorithm>
 
 using namespace std;
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
+    namespace
+    {
 
-        bool matches(const UnitOfMeasureConversion& c1,
-                     const UnitOfMeasureConversion& c2) {
+        bool matches(const UnitOfMeasureConversion& c1, const UnitOfMeasureConversion& c2)
+        {
             return c1.commodityType() == c2.commodityType() &&
-                ((c1.source() == c2.source() && c1.target() == c2.target())
-                 || (c1.source() == c2.target() && c1.target() == c2.source()));
+                   ((c1.source() == c2.source() && c1.target() == c2.target()) ||
+                    (c1.source() == c2.target() && c1.target() == c2.source()));
         }
 
         bool matches(const UnitOfMeasureConversion& c,
                      const CommodityType& commodityType,
                      const UnitOfMeasure& source,
-                     const UnitOfMeasure& target) {
+                     const UnitOfMeasure& target)
+        {
             return c.commodityType() == commodityType &&
-                ((c.source() == source && c.target() == target)
-                 || (c.source() == target && c.target() == source));
+                   ((c.source() == source && c.target() == target) || (c.source() == target && c.target() == source));
         }
 
-        bool matches(const UnitOfMeasureConversion& c,
-                     const CommodityType& commodityType,
-                     const UnitOfMeasure& source) {
-            return c.commodityType() == commodityType &&
-                (c.source() == source || c.target() == source);
+        bool matches(const UnitOfMeasureConversion& c, const CommodityType& commodityType, const UnitOfMeasure& source)
+        {
+            return c.commodityType() == commodityType && (c.source() == source || c.target() == source);
         }
 
     }
 
-    UnitOfMeasureConversionManager::UnitOfMeasureConversionManager() {
+    UnitOfMeasureConversionManager::UnitOfMeasureConversionManager()
+    {
         addKnownConversionFactors();
     }
 
-    void UnitOfMeasureConversionManager::add(const UnitOfMeasureConversion& c) {
+    void UnitOfMeasureConversionManager::add(const UnitOfMeasureConversion& c)
+    {
         // not fast, but hopefully we won't have a lot of entries.
-        for (auto i = data_.begin(); i != data_.end(); ++i) {
-            if (matches(*i, c)) {
+        for (auto i = data_.begin(); i != data_.end(); ++i)
+        {
+            if (matches(*i, c))
+            {
                 data_.erase(i);
                 break;
             }
@@ -70,77 +74,66 @@ namespace QuantLib {
         data_.push_back(c);
     }
 
-    UnitOfMeasureConversion UnitOfMeasureConversionManager::lookup(
-                                   const CommodityType& commodityType,
-                                   const UnitOfMeasure& source,
-                                   const UnitOfMeasure& target,
-                                   UnitOfMeasureConversion::Type type) const {
-        if (type == UnitOfMeasureConversion::Direct) {
-            return directLookup(commodityType,source,target);
-        } else if (!source.triangulationUnitOfMeasure().empty()) {
+    UnitOfMeasureConversion UnitOfMeasureConversionManager::lookup(const CommodityType& commodityType,
+                                                                   const UnitOfMeasure& source,
+                                                                   const UnitOfMeasure& target,
+                                                                   UnitOfMeasureConversion::Type type) const
+    {
+        if (type == UnitOfMeasureConversion::Direct)
+        {
+            return directLookup(commodityType, source, target);
+        }
+        else if (!source.triangulationUnitOfMeasure().empty())
+        {
             const UnitOfMeasure& link = source.triangulationUnitOfMeasure();
             if (link == target)
-                return directLookup(commodityType,source,link);
+                return directLookup(commodityType, source, link);
             else
-                return UnitOfMeasureConversion::chain(
-                                      directLookup(commodityType,source,link),
-                                      lookup(commodityType,link,target));
-        } else if (!target.triangulationUnitOfMeasure().empty()) {
+                return UnitOfMeasureConversion::chain(directLookup(commodityType, source, link),
+                                                      lookup(commodityType, link, target));
+        }
+        else if (!target.triangulationUnitOfMeasure().empty())
+        {
             const UnitOfMeasure& link = target.triangulationUnitOfMeasure();
             if (source == link)
-                return directLookup(commodityType,link,target);
+                return directLookup(commodityType, link, target);
             else
-                return UnitOfMeasureConversion::chain(
-                                     lookup(commodityType,source,link),
-                                     directLookup(commodityType,link,target));
-        } else {
-            return smartLookup(commodityType,source,target);
+                return UnitOfMeasureConversion::chain(lookup(commodityType, source, link),
+                                                      directLookup(commodityType, link, target));
+        }
+        else
+        {
+            return smartLookup(commodityType, source, target);
         }
     }
 
-    void UnitOfMeasureConversionManager::clear() {
+    void UnitOfMeasureConversionManager::clear()
+    {
         data_.clear();
         addKnownConversionFactors();
     }
 
-    void UnitOfMeasureConversionManager::addKnownConversionFactors() {
-        add(UnitOfMeasureConversion(NullCommodityType(),
-                                    MBUnitOfMeasure(),
-                                    BarrelUnitOfMeasure(),
-                                    1000));
-        add(UnitOfMeasureConversion(NullCommodityType(),
-                                    BarrelUnitOfMeasure(),
-                                    GallonUnitOfMeasure(),
-                                    42));
-        add(UnitOfMeasureConversion(NullCommodityType(),
-                                    GallonUnitOfMeasure(),
-                                    MBUnitOfMeasure(),
-                                    1000 * 42));
-        add(UnitOfMeasureConversion(NullCommodityType(),
-                                    LitreUnitOfMeasure(),
-                                    GallonUnitOfMeasure(),
-                                    3.78541));
-        add(UnitOfMeasureConversion(NullCommodityType(),
-                                    BarrelUnitOfMeasure(),
-                                    LitreUnitOfMeasure(),
-                                    158.987));
-        add(UnitOfMeasureConversion(NullCommodityType(),
-                                    KilolitreUnitOfMeasure(),
-                                    BarrelUnitOfMeasure(),
-                                    6.28981));
-        add(UnitOfMeasureConversion(NullCommodityType(),
-                                    TokyoKilolitreUnitOfMeasure(),
-                                    BarrelUnitOfMeasure(),
+    void UnitOfMeasureConversionManager::addKnownConversionFactors()
+    {
+        add(UnitOfMeasureConversion(NullCommodityType(), MBUnitOfMeasure(), BarrelUnitOfMeasure(), 1000));
+        add(UnitOfMeasureConversion(NullCommodityType(), BarrelUnitOfMeasure(), GallonUnitOfMeasure(), 42));
+        add(UnitOfMeasureConversion(NullCommodityType(), GallonUnitOfMeasure(), MBUnitOfMeasure(), 1000 * 42));
+        add(UnitOfMeasureConversion(NullCommodityType(), LitreUnitOfMeasure(), GallonUnitOfMeasure(), 3.78541));
+        add(UnitOfMeasureConversion(NullCommodityType(), BarrelUnitOfMeasure(), LitreUnitOfMeasure(), 158.987));
+        add(UnitOfMeasureConversion(NullCommodityType(), KilolitreUnitOfMeasure(), BarrelUnitOfMeasure(), 6.28981));
+        add(UnitOfMeasureConversion(NullCommodityType(), TokyoKilolitreUnitOfMeasure(), BarrelUnitOfMeasure(),
                                     6.28981));
     }
 
-    UnitOfMeasureConversion UnitOfMeasureConversionManager::directLookup(
-                                           const CommodityType& commodityType,
-                                           const UnitOfMeasure& source,
-                                           const UnitOfMeasure& target) const {
+    UnitOfMeasureConversion UnitOfMeasureConversionManager::directLookup(const CommodityType& commodityType,
+                                                                         const UnitOfMeasure& source,
+                                                                         const UnitOfMeasure& target) const
+    {
 
-        for (const auto& i : data_) {
-            if (matches(i, commodityType, source, target)) {
+        for (const auto& i : data_)
+        {
+            if (matches(i, commodityType, source, target))
+            {
                 return i;
             }
         }
@@ -157,20 +150,22 @@ namespace QuantLib {
         // that they don't supersede specific types. We'll have to
         // think a bit about this, so no fall-back for the time being.
 
-        QL_FAIL("no direct conversion available from "
-                << commodityType.code() << " " << source.code()
-                << " to " << target.code());
+        QL_FAIL("no direct conversion available from " << commodityType.code() << " " << source.code() << " to "
+                                                       << target.code());
     }
 
-    UnitOfMeasureConversion UnitOfMeasureConversionManager::smartLookup(
-                              const CommodityType& commodityType,
-                              const UnitOfMeasure& source,
-                              const UnitOfMeasure& target,
-                              list<string> forbidden) const {
+    UnitOfMeasureConversion UnitOfMeasureConversionManager::smartLookup(const CommodityType& commodityType,
+                                                                        const UnitOfMeasure& source,
+                                                                        const UnitOfMeasure& target,
+                                                                        list<string> forbidden) const
+    {
 
-        try {
-            return directLookup(commodityType,source,target);
-        } catch (Error&) {
+        try
+        {
+            return directLookup(commodityType, source, target);
+        }
+        catch (Error&)
+        {
             ; // no direct conversion available; turn to smart lookup.
         }
 
@@ -178,19 +173,23 @@ namespace QuantLib {
         // to avoid cycles.
         forbidden.push_back(source.code());
 
-        for (const auto& i : data_) {
+        for (const auto& i : data_)
+        {
             // we look for conversion data which involve our source unit...
-            if (matches(i, commodityType, source)) {
+            if (matches(i, commodityType, source))
+            {
                 const UnitOfMeasure& other = source == i.source() ? i.target() : i.source();
-                if (find(forbidden.begin(),forbidden.end(),
-                         other.code()) == forbidden.end()) {
+                if (find(forbidden.begin(), forbidden.end(), other.code()) == forbidden.end())
+                {
                     // if we can get to the target from here...
-                    try {
-                        UnitOfMeasureConversion tail =
-                            smartLookup(commodityType,other,target);
+                    try
+                    {
+                        UnitOfMeasureConversion tail = smartLookup(commodityType, other, target);
                         // ..we're done.
                         return UnitOfMeasureConversion::chain(i, tail);
-                    } catch (Error&) {
+                    }
+                    catch (Error&)
+                    {
                         // otherwise, we just discard this conversion.
                         ;
                     }
@@ -200,10 +199,8 @@ namespace QuantLib {
 
         // if the loop completed, we have no way to return the
         // requested conversion.
-        QL_FAIL("no conversion available for "
-                << commodityType.code() << " from "
-                << source.code() << " to " << target.code());
+        QL_FAIL("no conversion available for " << commodityType.code() << " from " << source.code() << " to "
+                                               << target.code());
     }
 
 }
-

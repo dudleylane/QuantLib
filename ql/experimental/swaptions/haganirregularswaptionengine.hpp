@@ -26,52 +26,53 @@
 #define quantlib_hagan_irregular_swaption_engine_hpp
 
 #include <ql/experimental/swaptions/irregularswaption.hpp>
-#include <ql/termstructures/yieldtermstructure.hpp>
-#include <ql/termstructures/volatility/swaption/swaptionvolstructure.hpp>
-#include <ql/math/optimization/costfunction.hpp>
 #include <ql/instruments/makevanillaswap.hpp>
+#include <ql/math/optimization/costfunction.hpp>
+#include <ql/termstructures/volatility/swaption/swaptionvolstructure.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    //! Pricing engine for irregular swaptions 
+    //! Pricing engine for irregular swaptions
     /*! References:
 
         1. P.S. Hagan: "Methodology for Callable Swaps and Bermudan
            'Exercise into Swaptions'"
         2. P.J. Hunt, J.E. Kennedy: "Implied interest rate pricing
            models", Finance Stochast. 2, 275-293 (1998)
-    
+
         \warning Currently a spread is not handled correctly; it
                  should be a minor exercise to account for this
                  feature as well;
     */
-    class HaganIrregularSwaptionEngine
-        : public GenericEngine<IrregularSwaption::arguments,
-        IrregularSwaption::results> {
-    public:
+    class HaganIrregularSwaptionEngine : public GenericEngine<IrregularSwaption::arguments, IrregularSwaption::results>
+    {
+      public:
         //@{
-      explicit HaganIrregularSwaptionEngine(
-          Handle<SwaptionVolatilityStructure>,
-          Handle<YieldTermStructure> termStructure = Handle<YieldTermStructure>());
-      //@}
-      void calculate() const override;
+        explicit HaganIrregularSwaptionEngine(Handle<SwaptionVolatilityStructure>,
+                                              Handle<YieldTermStructure> termStructure = Handle<YieldTermStructure>());
+        //@}
+        void calculate() const override;
 
-      // helper class
-      class Basket {
-        public:
-          Basket(ext::shared_ptr<IrregularSwap> swap,
-                 Handle<YieldTermStructure> termStructure,
-                 Handle<SwaptionVolatilityStructure> volatilityStructure);
-          Array compute(Rate lambda = 0.0) const;
-          Real operator()(Rate x) const;
-          ext::shared_ptr<VanillaSwap> component(Size i) const;
-          Array weights() const { return compute(lambda_); };
-          Real& lambda() const { return lambda_; };
-          // NOLINTNEXTLINE(cppcoreguidelines-noexcept-swap,performance-noexcept-swap)
-          ext::shared_ptr<IrregularSwap> swap() const { return swap_; };
-        private:
+        // helper class
+        class Basket
+        {
+          public:
+            Basket(ext::shared_ptr<IrregularSwap> swap,
+                   Handle<YieldTermStructure> termStructure,
+                   Handle<SwaptionVolatilityStructure> volatilityStructure);
+            Array compute(Rate lambda = 0.0) const;
+            Real operator()(Rate x) const;
+            ext::shared_ptr<VanillaSwap> component(Size i) const;
+            Array weights() const { return compute(lambda_); };
+            Real& lambda() const { return lambda_; };
+            // NOLINTNEXTLINE(cppcoreguidelines-noexcept-swap,performance-noexcept-swap)
+            ext::shared_ptr<IrregularSwap> swap() const { return swap_; };
+
+          private:
             ext::shared_ptr<IrregularSwap> swap_;
-            Handle<YieldTermStructure>          termStructure_;
+            Handle<YieldTermStructure> termStructure_;
             Handle<SwaptionVolatilityStructure> volatilityStructure_;
 
             Real targetNPV_ = 0.0;
@@ -85,11 +86,11 @@ namespace QuantLib {
             mutable Real lambda_ = 0.0;
         };
 
-        Real HKPrice(Basket& basket,ext::shared_ptr<Exercise>& exercise)  const;
-        Real LGMPrice(Basket& basket,ext::shared_ptr<Exercise>& exercise) const;
+        Real HKPrice(Basket& basket, ext::shared_ptr<Exercise>& exercise) const;
+        Real LGMPrice(Basket& basket, ext::shared_ptr<Exercise>& exercise) const;
 
-    private:
-        Handle<YieldTermStructure>          termStructure_;
+      private:
+        Handle<YieldTermStructure> termStructure_;
         Handle<SwaptionVolatilityStructure> volatilityStructure_;
         class rStarFinder;
     };

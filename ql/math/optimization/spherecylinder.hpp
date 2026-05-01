@@ -28,7 +28,8 @@
 #include <ql/types.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! - we are in r^3 sphere centred at O radius r
         - vertical cylinder centred at (alpha,0) radius s
@@ -37,25 +38,14 @@ namespace QuantLib {
 
         the intersection may be empty!
     */
-    class SphereCylinderOptimizer {
+    class SphereCylinderOptimizer
+    {
       public:
-        SphereCylinderOptimizer(Real r,
-                                Real s,
-                                Real alpha,
-                                Real z1,
-                                Real z2,
-                                Real z3,
-                                Real zweight =1.0);
+        SphereCylinderOptimizer(Real r, Real s, Real alpha, Real z1, Real z2, Real z3, Real zweight = 1.0);
         bool isIntersectionNonEmpty() const;
-        void findClosest(Size maxIterations,
-                         Real tolerance,
-                         Real& y1,
-                         Real& y2,
-                         Real& y3) const;
-        bool findByProjection(
-                         Real& y1,
-                         Real& y2,
-                         Real& y3) const;
+        void findClosest(Size maxIterations, Real tolerance, Real& y1, Real& y2, Real& y3) const;
+        bool findByProjection(Real& y1, Real& y2, Real& y3) const;
+
       private:
         Real r_, s_, alpha_, z1_, z2_, z3_;
         Real objectiveFunction(Real x2) const;

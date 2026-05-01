@@ -24,24 +24,26 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #ifndef quantlib_tonar_hpp
 #define quantlib_tonar_hpp
 
+#include <ql/currencies/asia.hpp>
 #include <ql/indexes/iborindex.hpp>
 #include <ql/time/calendars/japan.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
-#include <ql/currencies/asia.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %TONAR index
     /*! TONAR (Tokyo Overnight Average Rate) fixed by the BOJ.
 
         See <https://www3.boj.or.jp/market/en/menu_m.htm>.
     */
-    class Tonar : public OvernightIndex {
+    class Tonar : public OvernightIndex
+    {
       public:
         explicit Tonar(const Handle<YieldTermStructure>& h = {})
-        : OvernightIndex("Tonar", 0, JPYCurrency(),
-                         Japan(),
-                         Actual365Fixed(), h) {}
+        : OvernightIndex("Tonar", 0, JPYCurrency(), Japan(), Actual365Fixed(), h)
+        {
+        }
     };
 
     /*! \deprecated Renamed to Tonar.

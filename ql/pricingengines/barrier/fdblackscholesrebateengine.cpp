@@ -30,111 +30,95 @@
 #include <ql/pricingengines/barrier/fdblackscholesrebateengine.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    FdBlackScholesRebateEngine::FdBlackScholesRebateEngine(
-        ext::shared_ptr<GeneralizedBlackScholesProcess> process,
-        Size tGrid,
-        Size xGrid,
-        Size dampingSteps,
-        const FdmSchemeDesc& schemeDesc,
-        bool localVol,
-        Real illegalLocalVolOverwrite)
-    : process_(std::move(process)),
-      tGrid_(tGrid), xGrid_(xGrid), dampingSteps_(dampingSteps),
-      schemeDesc_(schemeDesc), localVol_(localVol),
-      illegalLocalVolOverwrite_(illegalLocalVolOverwrite) {
-
-        registerWith(process_);
-    }
-
-    FdBlackScholesRebateEngine::FdBlackScholesRebateEngine(
-        ext::shared_ptr<GeneralizedBlackScholesProcess> process,
-        DividendSchedule dividends,
-        Size tGrid,
-        Size xGrid,
-        Size dampingSteps,
-        const FdmSchemeDesc& schemeDesc,
-        bool localVol,
-        Real illegalLocalVolOverwrite)
-    : process_(std::move(process)), dividends_(std::move(dividends)),
-      tGrid_(tGrid), xGrid_(xGrid), dampingSteps_(dampingSteps),
-      schemeDesc_(schemeDesc), localVol_(localVol),
-      illegalLocalVolOverwrite_(illegalLocalVolOverwrite) {
+    FdBlackScholesRebateEngine::FdBlackScholesRebateEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process,
+                                                           Size tGrid,
+                                                           Size xGrid,
+                                                           Size dampingSteps,
+                                                           const FdmSchemeDesc& schemeDesc,
+                                                           bool localVol,
+                                                           Real illegalLocalVolOverwrite)
+    : process_(std::move(process)), tGrid_(tGrid), xGrid_(xGrid), dampingSteps_(dampingSteps), schemeDesc_(schemeDesc),
+      localVol_(localVol), illegalLocalVolOverwrite_(illegalLocalVolOverwrite)
+    {
 
         registerWith(process_);
     }
 
-    void FdBlackScholesRebateEngine::calculate() const {
+    FdBlackScholesRebateEngine::FdBlackScholesRebateEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process,
+                                                           DividendSchedule dividends,
+                                                           Size tGrid,
+                                                           Size xGrid,
+                                                           Size dampingSteps,
+                                                           const FdmSchemeDesc& schemeDesc,
+                                                           bool localVol,
+                                                           Real illegalLocalVolOverwrite)
+    : process_(std::move(process)), dividends_(std::move(dividends)), tGrid_(tGrid), xGrid_(xGrid),
+      dampingSteps_(dampingSteps), schemeDesc_(schemeDesc), localVol_(localVol),
+      illegalLocalVolOverwrite_(illegalLocalVolOverwrite)
+    {
+
+        registerWith(process_);
+    }
+
+    void FdBlackScholesRebateEngine::calculate() const
+    {
 
         // 1. Mesher
         const ext::shared_ptr<StrikedTypePayoff> payoff =
             ext::dynamic_pointer_cast<StrikedTypePayoff>(arguments_.payoff);
         const Time maturity = process_->time(arguments_.exercise->lastDate());
 
-        Real xMin=Null<Real>();
-        Real xMax=Null<Real>();
-        if (   arguments_.barrierType == Barrier::DownIn
-            || arguments_.barrierType == Barrier::DownOut) {
+        Real xMin = Null<Real>();
+        Real xMax = Null<Real>();
+        if (arguments_.barrierType == Barrier::DownIn || arguments_.barrierType == Barrier::DownOut)
+        {
             xMin = std::log(arguments_.barrier);
         }
-        if (   arguments_.barrierType == Barrier::UpIn
-            || arguments_.barrierType == Barrier::UpOut) {
+        if (arguments_.barrierType == Barrier::UpIn || arguments_.barrierType == Barrier::UpOut)
+        {
             xMax = std::log(arguments_.barrier);
         }
 
         const ext::shared_ptr<Fdm1dMesher> equityMesher(
-            new FdmBlackScholesMesher(
-                xGrid_, process_, maturity, payoff->strike(),
-                xMin, xMax, 0.0001, 1.5,
-                std::make_pair(Null<Real>(), Null<Real>()),
-                dividends_));
-        
-        const ext::shared_ptr<FdmMesher> mesher (
-            new FdmMesherComposite(equityMesher));
-        
+            new FdmBlackScholesMesher(xGrid_, process_, maturity, payoff->strike(), xMin, xMax, 0.0001, 1.5,
+                                      std::make_pair(Null<Real>(), Null<Real>()), dividends_));
+
+        const ext::shared_ptr<FdmMesher> mesher(new FdmMesherComposite(equityMesher));
+
         // 2. Calculator
         const ext::shared_ptr<StrikedTypePayoff> rebatePayoff(
-                new CashOrNothingPayoff(Option::Call, 0.0, arguments_.rebate));
-        const ext::shared_ptr<FdmInnerValueCalculator> calculator(
-                                new FdmLogInnerValue(rebatePayoff, mesher, 0));
+            new CashOrNothingPayoff(Option::Call, 0.0, arguments_.rebate));
+        const ext::shared_ptr<FdmInnerValueCalculator> calculator(new FdmLogInnerValue(rebatePayoff, mesher, 0));
 
         // 3. Step conditions
-        QL_REQUIRE(arguments_.exercise->type() == Exercise::European,
-                   "only european style option are supported");
-        
-        const ext::shared_ptr<FdmStepConditionComposite> conditions =
-            FdmStepConditionComposite::vanillaComposite(
-                                dividends_, arguments_.exercise, 
-                                mesher, calculator, 
-                                process_->riskFreeRate()->referenceDate(),
-                                process_->riskFreeRate()->dayCounter());
+        QL_REQUIRE(arguments_.exercise->type() == Exercise::European, "only european style option are supported");
+
+        const ext::shared_ptr<FdmStepConditionComposite> conditions = FdmStepConditionComposite::vanillaComposite(
+            dividends_, arguments_.exercise, mesher, calculator, process_->riskFreeRate()->referenceDate(),
+            process_->riskFreeRate()->dayCounter());
 
         // 4. Boundary conditions
-        FdmBoundaryConditionSet  boundaries;
-        if (   arguments_.barrierType == Barrier::DownIn
-            || arguments_.barrierType == Barrier::DownOut) {
+        FdmBoundaryConditionSet boundaries;
+        if (arguments_.barrierType == Barrier::DownIn || arguments_.barrierType == Barrier::DownOut)
+        {
             boundaries.push_back(FdmBoundaryConditionSet::value_type(
-                new FdmDirichletBoundary(mesher, arguments_.rebate, 0,
-                                         FdmDirichletBoundary::Lower)));
-
+                new FdmDirichletBoundary(mesher, arguments_.rebate, 0, FdmDirichletBoundary::Lower)));
         }
-        if (   arguments_.barrierType == Barrier::UpIn
-            || arguments_.barrierType == Barrier::UpOut) {
+        if (arguments_.barrierType == Barrier::UpIn || arguments_.barrierType == Barrier::UpOut)
+        {
             boundaries.push_back(FdmBoundaryConditionSet::value_type(
-                new FdmDirichletBoundary(mesher, arguments_.rebate, 0,
-                                         FdmDirichletBoundary::Upper)));
+                new FdmDirichletBoundary(mesher, arguments_.rebate, 0, FdmDirichletBoundary::Upper)));
         }
 
         // 5. Solver
-        FdmSolverDesc solverDesc = { mesher, boundaries, conditions, calculator,
-                                     maturity, tGrid_, dampingSteps_ };
+        FdmSolverDesc solverDesc = {mesher, boundaries, conditions, calculator, maturity, tGrid_, dampingSteps_};
 
         const ext::shared_ptr<FdmBlackScholesSolver> solver(
-                new FdmBlackScholesSolver(
-                                Handle<GeneralizedBlackScholesProcess>(process_),
-                                payoff->strike(), solverDesc, schemeDesc_,
-                                localVol_, illegalLocalVolOverwrite_));
+            new FdmBlackScholesSolver(Handle<GeneralizedBlackScholesProcess>(process_), payoff->strike(), solverDesc,
+                                      schemeDesc_, localVol_, illegalLocalVolOverwrite_));
 
         const Real spot = process_->x0();
         results_.value = solver->valueAt(spot);

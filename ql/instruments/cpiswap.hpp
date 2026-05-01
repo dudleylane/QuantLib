@@ -25,14 +25,15 @@
 #ifndef quantlib_zeroinflationswap_hpp
 #define quantlib_zeroinflationswap_hpp
 
+#include <ql/cashflows/cpicoupon.hpp>
+#include <ql/indexes/iborindex.hpp>
 #include <ql/instruments/swap.hpp>
 #include <ql/time/calendar.hpp>
 #include <ql/time/daycounter.hpp>
 #include <ql/time/schedule.hpp>
-#include <ql/indexes/iborindex.hpp>
-#include <ql/cashflows/cpicoupon.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class ZeroInflationIndex;
 
@@ -63,7 +64,8 @@ namespace QuantLib {
         and swap settlement date are outside the scope of the
         instrument.
     */
-    class CPISwap : public Swap {
+    class CPISwap : public Swap
+    {
       public:
         class arguments;
         class results;
@@ -159,67 +161,124 @@ namespace QuantLib {
         // results
         mutable Spread fairSpread_;
         mutable Rate fairRate_;
-
     };
 
 
     //! %Arguments for swap calculation
-    class CPISwap::arguments : public Swap::arguments {
-    public:
-      arguments() : nominal(Null<Real>()) {}
-      Type type = Receiver;
-      Real nominal;
+    class CPISwap::arguments : public Swap::arguments
+    {
+      public:
+        arguments() : nominal(Null<Real>()) {}
+        Type type = Receiver;
+        Real nominal;
 
-      void validate() const override;
+        void validate() const override;
     };
 
     //! %Results from swap calculation
-    class CPISwap::results : public Swap::results {
-    public:
+    class CPISwap::results : public Swap::results
+    {
+      public:
         Rate fairRate;
         Spread fairSpread;
         void reset() override;
     };
 
-    class CPISwap::engine : public GenericEngine<CPISwap::arguments,
-                                                 CPISwap::results> {};
+    class CPISwap::engine : public GenericEngine<CPISwap::arguments, CPISwap::results>
+    {
+    };
 
 
     // inline definitions
 
     // inspectors
-    inline  Swap::Type CPISwap::type() const { return type_; }
-    inline  Real CPISwap::nominal() const { return nominal_; }
-    inline  bool CPISwap::subtractInflationNominal() const { return subtractInflationNominal_; }
+    inline Swap::Type CPISwap::type() const
+    {
+        return type_;
+    }
+    inline Real CPISwap::nominal() const
+    {
+        return nominal_;
+    }
+    inline bool CPISwap::subtractInflationNominal() const
+    {
+        return subtractInflationNominal_;
+    }
 
     // float+spread
-    inline Spread CPISwap::spread() const { return spread_; }
-    inline const DayCounter& CPISwap::floatDayCount() const { return floatDayCount_; }
-    inline const Schedule& CPISwap::floatSchedule() const { return floatSchedule_; }
-    inline const BusinessDayConvention& CPISwap::floatPaymentRoll() const { return floatPaymentRoll_; }
-    inline Natural CPISwap::fixingDays() const { return fixingDays_; }
-    inline const ext::shared_ptr<IborIndex>& CPISwap::floatIndex() const { return floatIndex_; }
+    inline Spread CPISwap::spread() const
+    {
+        return spread_;
+    }
+    inline const DayCounter& CPISwap::floatDayCount() const
+    {
+        return floatDayCount_;
+    }
+    inline const Schedule& CPISwap::floatSchedule() const
+    {
+        return floatSchedule_;
+    }
+    inline const BusinessDayConvention& CPISwap::floatPaymentRoll() const
+    {
+        return floatPaymentRoll_;
+    }
+    inline Natural CPISwap::fixingDays() const
+    {
+        return fixingDays_;
+    }
+    inline const ext::shared_ptr<IborIndex>& CPISwap::floatIndex() const
+    {
+        return floatIndex_;
+    }
 
     // fixed rate x inflation
-    inline Rate CPISwap::fixedRate() const { return fixedRate_; }
-    inline Real CPISwap::baseCPI() const { return baseCPI_; }
-    inline const DayCounter& CPISwap::fixedDayCount() const { return fixedDayCount_; }
-    inline const Schedule& CPISwap::fixedSchedule() const { return fixedSchedule_; }
-    inline const BusinessDayConvention& CPISwap::fixedPaymentRoll() const { return fixedPaymentRoll_; }
-    inline Period CPISwap::observationLag() const { return observationLag_; }
-    inline const ext::shared_ptr<ZeroInflationIndex>& CPISwap::fixedIndex() const { return fixedIndex_; }
-    inline CPI::InterpolationType CPISwap::observationInterpolation() const { return observationInterpolation_; }
-    inline Real CPISwap::inflationNominal() const { return inflationNominal_; }
+    inline Rate CPISwap::fixedRate() const
+    {
+        return fixedRate_;
+    }
+    inline Real CPISwap::baseCPI() const
+    {
+        return baseCPI_;
+    }
+    inline const DayCounter& CPISwap::fixedDayCount() const
+    {
+        return fixedDayCount_;
+    }
+    inline const Schedule& CPISwap::fixedSchedule() const
+    {
+        return fixedSchedule_;
+    }
+    inline const BusinessDayConvention& CPISwap::fixedPaymentRoll() const
+    {
+        return fixedPaymentRoll_;
+    }
+    inline Period CPISwap::observationLag() const
+    {
+        return observationLag_;
+    }
+    inline const ext::shared_ptr<ZeroInflationIndex>& CPISwap::fixedIndex() const
+    {
+        return fixedIndex_;
+    }
+    inline CPI::InterpolationType CPISwap::observationInterpolation() const
+    {
+        return observationInterpolation_;
+    }
+    inline Real CPISwap::inflationNominal() const
+    {
+        return inflationNominal_;
+    }
 
-    inline const Leg& CPISwap::cpiLeg() const {//inflation indexed
+    inline const Leg& CPISwap::cpiLeg() const
+    { // inflation indexed
         return legs_[0];
     }
 
-    inline const Leg& CPISwap::floatLeg() const {
+    inline const Leg& CPISwap::floatLeg() const
+    {
         return legs_[1];
     }
 
 }
 
 #endif
-

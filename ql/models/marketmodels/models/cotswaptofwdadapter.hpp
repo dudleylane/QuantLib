@@ -24,14 +24,15 @@
 
 #include <ql/models/marketmodels/marketmodel.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class EvolutionDescription;
 
-    class CotSwapToFwdAdapter : public MarketModel {
+    class CotSwapToFwdAdapter : public MarketModel
+    {
       public:
-        CotSwapToFwdAdapter(
-                       const ext::shared_ptr<MarketModel>& coterminalModel);
+        CotSwapToFwdAdapter(const ext::shared_ptr<MarketModel>& coterminalModel);
         //! \name MarketModel interface
         //@{
         const std::vector<Rate>& initialRates() const override;
@@ -50,13 +51,11 @@ namespace QuantLib {
     };
 
 
-    class CotSwapToFwdAdapterFactory : public MarketModelFactory,
-                                              public Observer {
+    class CotSwapToFwdAdapterFactory : public MarketModelFactory, public Observer
+    {
       public:
-        CotSwapToFwdAdapterFactory(
-              const ext::shared_ptr<MarketModelFactory>& coterminalFactory);
-        ext::shared_ptr<MarketModel> create(const EvolutionDescription&,
-                                            Size numberOfFactors) const override;
+        CotSwapToFwdAdapterFactory(const ext::shared_ptr<MarketModelFactory>& coterminalFactory);
+        ext::shared_ptr<MarketModel> create(const EvolutionDescription&, Size numberOfFactors) const override;
         void update() override;
 
       private:
@@ -66,34 +65,38 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline const std::vector<Rate>&
-    CotSwapToFwdAdapter::initialRates() const {
+    inline const std::vector<Rate>& CotSwapToFwdAdapter::initialRates() const
+    {
         return initialRates_;
     }
 
-    inline const std::vector<Spread>&
-    CotSwapToFwdAdapter::displacements() const {
+    inline const std::vector<Spread>& CotSwapToFwdAdapter::displacements() const
+    {
         return coterminalModel_->displacements();
     }
 
-    inline const EvolutionDescription&
-    CotSwapToFwdAdapter::evolution() const {
+    inline const EvolutionDescription& CotSwapToFwdAdapter::evolution() const
+    {
         return coterminalModel_->evolution();
     }
 
-    inline Size CotSwapToFwdAdapter::numberOfRates() const {
+    inline Size CotSwapToFwdAdapter::numberOfRates() const
+    {
         return coterminalModel_->numberOfRates();
     }
 
-    inline Size CotSwapToFwdAdapter::numberOfFactors() const {
+    inline Size CotSwapToFwdAdapter::numberOfFactors() const
+    {
         return coterminalModel_->numberOfFactors();
     }
 
-    inline Size CotSwapToFwdAdapter::numberOfSteps() const {
+    inline Size CotSwapToFwdAdapter::numberOfSteps() const
+    {
         return coterminalModel_->numberOfSteps();
     }
 
-    inline const Matrix& CotSwapToFwdAdapter::pseudoRoot(Size i) const {
+    inline const Matrix& CotSwapToFwdAdapter::pseudoRoot(Size i) const
+    {
         return pseudoRoots_[i];
     }
 

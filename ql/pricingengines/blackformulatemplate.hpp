@@ -43,13 +43,14 @@
 #ifndef quantlib_black_formula_template_hpp
 #define quantlib_black_formula_template_hpp
 
-#include <ql/option.hpp>
 #include <ql/errors.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
+#include <ql/option.hpp>
 #include <cmath>
 #include <type_traits>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Black-1976 lognormal call / put price, scalar-templated.
     /*! \ingroup engines */
@@ -87,48 +88,51 @@ namespace QuantLib {
         `T = Real`.
     */
     template <class T>
-    T blackFormulaT(Option::Type optionType,
-                    Real strike,
-                    T forward,
-                    T stddev,
-                    T discount = T(1.0),
-                    Real displacement = 0.0) {
-        QL_REQUIRE(strike + displacement >= 0.0,
-                   "blackFormulaT: strike + displacement must be non-negative "
-                   "(strike=" << strike << ", displacement=" << displacement << ")");
+    T blackFormulaT(
+        Option::Type optionType, Real strike, T forward, T stddev, T discount = T(1.0), Real displacement = 0.0)
+    {
+        QL_REQUIRE(strike + displacement >= 0.0, "blackFormulaT: strike + displacement must be non-negative "
+                                                 "(strike="
+                                                     << strike << ", displacement=" << displacement << ")");
 
         // stddev == 0: return discount * intrinsic. Displacements cancel in
         // the intrinsic (f+s) - (k+s) = f-k, so we use the undisplaced diff.
-        if (stddev == T(0.0)) {
-            if (optionType == Option::Call) {
+        if (stddev == T(0.0))
+        {
+            if (optionType == Option::Call)
+            {
                 T diff = forward - strike;
                 return discount * ((diff > T(0.0)) ? diff : T(0.0));
-            } else {
+            }
+            else
+            {
                 T diff = strike - forward;
                 return discount * ((diff > T(0.0)) ? diff : T(0.0));
             }
         }
-        QL_REQUIRE(stddev > T(0.0),
-                   "blackFormulaT: stddev must be non-negative");
+        QL_REQUIRE(stddev > T(0.0), "blackFormulaT: stddev must be non-negative");
 
         T forward_adj = forward + displacement;
         T strike_adj = strike + displacement;
-        QL_REQUIRE(forward_adj > T(0.0),
-                   "blackFormulaT: forward + displacement must be positive "
-                   "(forward=" << forward << ", displacement=" << displacement << ")");
+        QL_REQUIRE(forward_adj > T(0.0), "blackFormulaT: forward + displacement must be positive "
+                                         "(forward="
+                                             << forward << ", displacement=" << displacement << ")");
 
         using std::log;
         T d1 = log(forward_adj / strike_adj) / stddev + 0.5 * stddev;
         T d2 = d1 - stddev;
 
         T N1, N2;
-        if constexpr (std::is_same_v<T, Real>) {
+        if constexpr (std::is_same_v<T, Real>)
+        {
             // Real path: match blackFormula()'s CumulativeNormalDistribution
             // approximation bit-for-bit.
             CumulativeNormalDistribution N;
             N1 = N(d1);
             N2 = N(d2);
-        } else {
+        }
+        else
+        {
             // AAD path: inline 0.5*(1 + erf(x/sqrt(2))) so std::erf's CoDi
             // overload propagates derivatives through the tape.
             using std::erf;

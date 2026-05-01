@@ -25,13 +25,15 @@
 #define quantlib_fdm_simple_storage_condition_hpp
 
 #include <ql/math/matrix.hpp>
-#include <ql/methods/finitedifferences/stepcondition.hpp>
 #include <ql/methods/finitedifferences/meshers/fdmmesher.hpp>
+#include <ql/methods/finitedifferences/stepcondition.hpp>
 #include <ql/methods/finitedifferences/utilities/fdminnervaluecalculator.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class FdmSimpleStorageCondition : public StepCondition<Array> {
+    class FdmSimpleStorageCondition : public StepCondition<Array>
+    {
       public:
         FdmSimpleStorageCondition(std::vector<Time> exerciseTimes,
                                   ext::shared_ptr<FdmMesher> mesher,

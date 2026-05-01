@@ -21,18 +21,20 @@
 #ifndef quantlib_forward_rate_normal_pc_evolver_hpp
 #define quantlib_forward_rate_normal_pc_evolver_hpp
 
-#include <ql/models/marketmodels/evolver.hpp>
 #include <ql/models/marketmodels/curvestates/lmmcurvestate.hpp>
 #include <ql/models/marketmodels/driftcomputation/lmmnormaldriftcalculator.hpp>
+#include <ql/models/marketmodels/evolver.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class MarketModel;
     class BrownianGenerator;
     class BrownianGeneratorFactory;
 
     //! Predictor-Corrector
-    class NormalFwdRatePc : public MarketModelEvolver {
+    class NormalFwdRatePc : public MarketModelEvolver
+    {
       public:
         NormalFwdRatePc(const ext::shared_ptr<MarketModel>&,
                         const BrownianGeneratorFactory&,
@@ -54,7 +56,7 @@ namespace QuantLib {
         std::vector<Size> numeraires_;
         Size initialStep_;
         ext::shared_ptr<BrownianGenerator> generator_;
-         // working variables
+        // working variables
         Size numberOfRates_, numberOfFactors_;
         LMMCurveState curveState_;
         Size currentStep_;

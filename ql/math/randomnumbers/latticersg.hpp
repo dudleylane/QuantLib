@@ -27,17 +27,18 @@
 #include <ql/methods/montecarlo/sample.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-   
-    class LatticeRsg 
+
+    class LatticeRsg
     {
       public:
-        typedef Sample<std::vector<Real> > sample_type;
+        typedef Sample<std::vector<Real>> sample_type;
         LatticeRsg(Size dimensionality, std::vector<Real> z, Size N);
         /*! skip to the n-th sample in the low-discrepancy sequence */
         void skipTo(unsigned long n);
-        const LatticeRsg::sample_type& nextSequence();     
+        const LatticeRsg::sample_type& nextSequence();
         Size dimension() const { return dimensionality_; }
         const sample_type& lastSequence() const { return sequence_; }
 
@@ -46,7 +47,7 @@ namespace QuantLib {
         Size N_;
         Size i_ = 0;
         std::vector<Real> z_;
-        
+
         sample_type sequence_;
     };
 

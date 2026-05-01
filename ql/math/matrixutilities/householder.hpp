@@ -26,13 +26,15 @@
 
 #include <ql/math/matrix.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! References:
         https://en.wikipedia.org/wiki/Householder_transformation
     */
 
-    class HouseholderTransformation  {
+    class HouseholderTransformation
+    {
       public:
         explicit HouseholderTransformation(Array v);
 
@@ -44,7 +46,8 @@ namespace QuantLib {
     };
 
 
-    class HouseholderReflection {
+    class HouseholderReflection
+    {
       public:
         explicit HouseholderReflection(Array e);
 

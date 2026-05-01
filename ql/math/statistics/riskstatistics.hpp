@@ -26,7 +26,8 @@
 
 #include <ql/math/statistics/gaussianstatistics.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! empirical-distribution risk measures
     /*! This class wraps a somewhat generic statistic tool and adds
@@ -38,7 +39,8 @@ namespace QuantLib {
 
     */
     template <class S>
-    class GenericRiskStatistics : public S {
+    class GenericRiskStatistics : public S
+    {
       public:
         typedef typename S::value_type value_type;
 
@@ -123,53 +125,56 @@ namespace QuantLib {
     typedef GenericRiskStatistics<GaussianStatistics> RiskStatistics;
 
 
-
     // inline definitions
 
     template <class S>
-    inline Real GenericRiskStatistics<S>::semiVariance() const {
+    inline Real GenericRiskStatistics<S>::semiVariance() const
+    {
         return regret(this->mean());
     }
 
     template <class S>
-    inline Real GenericRiskStatistics<S>::semiDeviation() const {
+    inline Real GenericRiskStatistics<S>::semiDeviation() const
+    {
         return std::sqrt(semiVariance());
     }
 
     template <class S>
-    inline Real GenericRiskStatistics<S>::downsideVariance() const {
+    inline Real GenericRiskStatistics<S>::downsideVariance() const
+    {
         return regret(0.0);
     }
 
     template <class S>
-    inline Real GenericRiskStatistics<S>::downsideDeviation() const {
+    inline Real GenericRiskStatistics<S>::downsideDeviation() const
+    {
         return std::sqrt(downsideVariance());
     }
 
     // template definitions
 
     template <class S>
-    Real GenericRiskStatistics<S>::regret(Real target) const {
+    Real GenericRiskStatistics<S>::regret(Real target) const
+    {
         // average over the range below the target
         std::pair<Real, Size> result = this->expectationValue(
-            [=](Real xi) -> Real {
+            [=](Real xi) -> Real
+            {
                 Real d = (xi - target);
                 return d * d;
             },
             [=](Real xi) -> bool { return xi < target; });
         Real x = result.first;
         Size N = result.second;
-        QL_REQUIRE(N > 1,
-                   "samples under target <= 1, unsufficient");
-        return (N/(N-1.0))*x;
+        QL_REQUIRE(N > 1, "samples under target <= 1, unsufficient");
+        return (N / (N - 1.0)) * x;
     }
 
     /*! \pre percentile must be in range [90%-100%) */
     template <class S>
-    Real GenericRiskStatistics<S>::potentialUpside(Real centile)
-        const {
-        QL_REQUIRE(centile>=0.9 && centile<1.0,
-                   "percentile (" << centile << ") out of range [0.9, 1.0)");
+    Real GenericRiskStatistics<S>::potentialUpside(Real centile) const
+    {
+        QL_REQUIRE(centile >= 0.9 && centile < 1.0, "percentile (" << centile << ") out of range [0.9, 1.0)");
 
         // potential upside must be a gain, i.e., floored at 0.0
         return std::max<Real>(this->percentile(centile), 0.0);
@@ -177,26 +182,25 @@ namespace QuantLib {
 
     /*! \pre percentile must be in range [90%-100%) */
     template <class S>
-    Real GenericRiskStatistics<S>::valueAtRisk(Real centile) const {
+    Real GenericRiskStatistics<S>::valueAtRisk(Real centile) const
+    {
 
-        QL_REQUIRE(centile>=0.9 && centile<1.0,
-                   "percentile (" << centile << ") out of range [0.9, 1.0)");
+        QL_REQUIRE(centile >= 0.9 && centile < 1.0, "percentile (" << centile << ") out of range [0.9, 1.0)");
 
         // must be a loss, i.e., capped at 0.0 and negated
-        return -std::min<Real>(this->percentile(1.0-centile), 0.0);
+        return -std::min<Real>(this->percentile(1.0 - centile), 0.0);
     }
 
     /*! \pre percentile must be in range [90%-100%) */
     template <class S>
-    Real GenericRiskStatistics<S>::expectedShortfall(Real centile) const {
-        QL_REQUIRE(centile>=0.9 && centile<1.0,
-                   "percentile (" << centile << ") out of range [0.9, 1.0)");
+    Real GenericRiskStatistics<S>::expectedShortfall(Real centile) const
+    {
+        QL_REQUIRE(centile >= 0.9 && centile < 1.0, "percentile (" << centile << ") out of range [0.9, 1.0)");
 
         QL_ENSURE(this->samples() != 0, "empty sample set");
         Real target = -valueAtRisk(centile);
-        std::pair<Real,Size> result =
-            this->expectationValue([ ](Real xi) { return xi; },
-                                   [=](Real xi) { return xi < target; });
+        std::pair<Real, Size> result =
+            this->expectationValue([](Real xi) { return xi; }, [=](Real xi) { return xi < target; });
         Real x = result.first;
         Size N = result.second;
         QL_ENSURE(N != 0, "no data below the target");
@@ -205,17 +209,17 @@ namespace QuantLib {
     }
 
     template <class S>
-    Real GenericRiskStatistics<S>::shortfall(Real target) const {
+    Real GenericRiskStatistics<S>::shortfall(Real target) const
+    {
         QL_ENSURE(this->samples() != 0, "empty sample set");
         return this->expectationValue([=](Real x) -> Real { return x < target ? 1.0 : 0.0; }).first;
     }
 
     template <class S>
-    Real GenericRiskStatistics<S>::averageShortfall(Real target)
-        const {
-        std::pair<Real,Size> result = this->expectationValue(
-            [=](Real xi) -> Real { return target - xi; },
-                                   [=](Real xi) { return xi < target; });
+    Real GenericRiskStatistics<S>::averageShortfall(Real target) const
+    {
+        std::pair<Real, Size> result =
+            this->expectationValue([=](Real xi) -> Real { return target - xi; }, [=](Real xi) { return xi < target; });
         Real x = result.first;
         Size N = result.second;
         QL_ENSURE(N != 0, "no data below the target");
@@ -226,4 +230,3 @@ namespace QuantLib {
 
 
 #endif
-

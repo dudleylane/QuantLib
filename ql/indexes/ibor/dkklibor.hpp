@@ -25,25 +25,24 @@
 #ifndef quantlib_dkk_libor_hpp
 #define quantlib_dkk_libor_hpp
 
+#include <ql/currencies/europe.hpp>
 #include <ql/indexes/ibor/libor.hpp>
 #include <ql/time/calendars/denmark.hpp>
 #include <ql/time/daycounters/actual360.hpp>
-#include <ql/currencies/europe.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %DKK %LIBOR rate
     /*! Danish Krona LIBOR discontinued as of 2013.
-    */
-    class DKKLibor : public Libor {
+     */
+    class DKKLibor : public Libor
+    {
       public:
-        DKKLibor(const Period& tenor,
-                 const Handle<YieldTermStructure>& h = {})
-        : Libor("DKKLibor", tenor,
-                2,
-                DKKCurrency(),
-                Denmark(),
-                Actual360(), h) {}
+        DKKLibor(const Period& tenor, const Handle<YieldTermStructure>& h = {})
+        : Libor("DKKLibor", tenor, 2, DKKCurrency(), Denmark(), Actual360(), h)
+        {
+        }
     };
 
 }

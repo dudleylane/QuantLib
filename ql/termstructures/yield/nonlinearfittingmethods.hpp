@@ -25,12 +25,13 @@
 #ifndef quantlib_nonlinear_fitting_methods_hpp
 #define quantlib_nonlinear_fitting_methods_hpp
 
-#include <ql/termstructures/yield/fittedbonddiscountcurve.hpp>
-#include <ql/math/interpolations/cubicinterpolation.hpp>
 #include <ql/math/bspline.hpp>
+#include <ql/math/interpolations/cubicinterpolation.hpp>
 #include <ql/shared_ptr.hpp>
+#include <ql/termstructures/yield/fittedbonddiscountcurve.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Exponential-splines fitting method
     /*! Fits a discount function to the exponential form
@@ -47,8 +48,8 @@ namespace QuantLib {
 
         \warning convergence may be slow
     */
-    class ExponentialSplinesFitting
-        : public FittedBondDiscountCurve::FittingMethod {
+    class ExponentialSplinesFitting : public FittedBondDiscountCurve::FittingMethod
+    {
       public:
         ExponentialSplinesFitting(bool constrainAtZero = true,
                                   const Array& weights = Array(),
@@ -67,14 +68,15 @@ namespace QuantLib {
                                   Size numCoeffs = 9,
                                   Real fixedKappa = Null<Real>(),
                                   Constraint constraint = NoConstraint());
-        ExponentialSplinesFitting(bool constrainAtZero, 
-                                  Size numCoeffs, 
-                                  Real fixedKappa, 
+        ExponentialSplinesFitting(bool constrainAtZero,
+                                  Size numCoeffs,
+                                  Real fixedKappa,
                                   const Array& weights = Array(),
                                   Constraint constraint = NoConstraint());
 
 
         std::unique_ptr<FittedBondDiscountCurve::FittingMethod> clone() const override;
+
       private:
         Natural numCoeffs_;
         Real fixedKappa_;
@@ -93,8 +95,8 @@ namespace QuantLib {
         See: Nelson, C. and A. Siegel (1985): "Parsimonious modeling of yield
         curves for US Treasury bills." NBER Working Paper Series, no 1594.
     */
-    class NelsonSiegelFitting
-        : public FittedBondDiscountCurve::FittingMethod {
+    class NelsonSiegelFitting : public FittedBondDiscountCurve::FittingMethod
+    {
       public:
         NelsonSiegelFitting(const Array& weights = Array(),
                             const ext::shared_ptr<OptimizationMethod>& optimizationMethod = {},
@@ -108,6 +110,7 @@ namespace QuantLib {
                             Real maxCutoffTime = QL_MAX_REAL,
                             Constraint constraint = NoConstraint());
         std::unique_ptr<FittedBondDiscountCurve::FittingMethod> clone() const override;
+
       private:
         Size size() const override;
         DiscountFactor discountFunction(const Array& x, Time t) const override;
@@ -126,8 +129,8 @@ namespace QuantLib {
         interest rates: Sweden 1992-4.
         Discussion paper, Centre for Economic Policy Research(1051).
     */
-    class SvenssonFitting
-        : public FittedBondDiscountCurve::FittingMethod {
+    class SvenssonFitting : public FittedBondDiscountCurve::FittingMethod
+    {
       public:
         SvenssonFitting(const Array& weights = Array(),
                         const ext::shared_ptr<OptimizationMethod>& optimizationMethod = {},
@@ -141,6 +144,7 @@ namespace QuantLib {
                         Real maxCutoffTime = QL_MAX_REAL,
                         Constraint constraint = NoConstraint());
         std::unique_ptr<FittedBondDiscountCurve::FittingMethod> clone() const override;
+
       private:
         Size size() const override;
         DiscountFactor discountFunction(const Array& x, Time t) const override;
@@ -166,8 +170,8 @@ namespace QuantLib {
                   N. Webber, "Interest Rate Modelling" John Wiley,
                   2000, pp. 440.
     */
-    class CubicBSplinesFitting
-        : public FittedBondDiscountCurve::FittingMethod {
+    class CubicBSplinesFitting : public FittedBondDiscountCurve::FittingMethod
+    {
       public:
         CubicBSplinesFitting(const std::vector<Time>& knotVector,
                              bool constrainAtZero = true,
@@ -187,6 +191,7 @@ namespace QuantLib {
         //! cubic B-spline basis functions
         Real basisFunction(Integer i, Time t) const;
         std::unique_ptr<FittedBondDiscountCurve::FittingMethod> clone() const override;
+
       private:
         Size size() const override;
         DiscountFactor discountFunction(const Array& x, Time t) const override;
@@ -196,23 +201,23 @@ namespace QuantLib {
         Natural N_;
     };
 
-        //! Natural cubic spline fitting method
+    //! Natural cubic spline fitting method
     /*! Fits a discount function using natural cubic spline interpolation
         where the parameters are nodal discount values d(t_i).
         The natural boundary condition (second derivative = 0 at ends)
         is used. If constrainAtZero is true, d(0) is fixed to 1.0 and
         the parameter vector x contains the remaining nodal values.
     */
-    class NaturalCubicFitting : public FittedBondDiscountCurve::FittingMethod {
+    class NaturalCubicFitting : public FittedBondDiscountCurve::FittingMethod
+    {
       public:
-        explicit
-        NaturalCubicFitting(const std::vector<Time>& knotTimes,
-                            const Array& weights = Array(),
-                            const ext::shared_ptr<OptimizationMethod>& optimizationMethod = {},
-                            const Array& l2 = Array(),
-                            Real minCutoffTime = 0.0,
-                            Real maxCutoffTime = QL_MAX_REAL,
-                            Constraint constraint = NoConstraint());
+        explicit NaturalCubicFitting(const std::vector<Time>& knotTimes,
+                                     const Array& weights = Array(),
+                                     const ext::shared_ptr<OptimizationMethod>& optimizationMethod = {},
+                                     const Array& l2 = Array(),
+                                     Real minCutoffTime = 0.0,
+                                     Real maxCutoffTime = QL_MAX_REAL,
+                                     Constraint constraint = NoConstraint());
 
         NaturalCubicFitting(const std::vector<Time>& knotTimes,
                             const Array& weights,
@@ -242,8 +247,8 @@ namespace QuantLib {
         This is a simple/crude, but fast and robust, means of fitting
         a yield curve.
     */
-    class SimplePolynomialFitting
-        : public FittedBondDiscountCurve::FittingMethod {
+    class SimplePolynomialFitting : public FittedBondDiscountCurve::FittingMethod
+    {
       public:
         SimplePolynomialFitting(Natural degree,
                                 bool constrainAtZero = true,
@@ -261,6 +266,7 @@ namespace QuantLib {
                                 Real maxCutoffTime = QL_MAX_REAL,
                                 Constraint constraint = NoConstraint());
         std::unique_ptr<FittedBondDiscountCurve::FittingMethod> clone() const override;
+
       private:
         Size size() const override;
         DiscountFactor discountFunction(const Array& x, Time t) const override;
@@ -272,26 +278,27 @@ namespace QuantLib {
     /*! Fits a spread curve on top of a discount function according
         to the given parametric method
     */
-    class SpreadFittingMethod
-        : public FittedBondDiscountCurve::FittingMethod {
+    class SpreadFittingMethod : public FittedBondDiscountCurve::FittingMethod
+    {
       public:
         SpreadFittingMethod(const ext::shared_ptr<FittingMethod>& method,
                             Handle<YieldTermStructure> discountCurve,
                             Real minCutoffTime = 0.0,
                             Real maxCutoffTime = QL_MAX_REAL);
         std::unique_ptr<FittedBondDiscountCurve::FittingMethod> clone() const override;
-    protected:
-      void init() override;
 
-    private:
-      Size size() const override;
-      DiscountFactor discountFunction(const Array& x, Time t) const override;
-      // underlying parametric method
-      ext::shared_ptr<FittingMethod> method_;
-      // adjustment in case underlying discount curve has different reference date
-      DiscountFactor rebase_;
-      // discount curve from on top of which the spread will be calculated
-      Handle<YieldTermStructure> discountingCurve_;
+      protected:
+        void init() override;
+
+      private:
+        Size size() const override;
+        DiscountFactor discountFunction(const Array& x, Time t) const override;
+        // underlying parametric method
+        ext::shared_ptr<FittingMethod> method_;
+        // adjustment in case underlying discount curve has different reference date
+        DiscountFactor rebase_;
+        // discount curve from on top of which the spread will be calculated
+        Handle<YieldTermStructure> discountingCurve_;
     };
 }
 

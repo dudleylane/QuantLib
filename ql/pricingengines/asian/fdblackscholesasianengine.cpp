@@ -30,27 +30,26 @@
 #include <ql/processes/blackscholesprocess.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
 
-    FdBlackScholesAsianEngine::FdBlackScholesAsianEngine(
-        ext::shared_ptr<GeneralizedBlackScholesProcess> process,
-        Size tGrid,
-        Size xGrid,
-        Size aGrid,
-        const FdmSchemeDesc& schemeDesc)
-    : process_(std::move(process)), tGrid_(tGrid), xGrid_(xGrid), aGrid_(aGrid),
-      schemeDesc_(schemeDesc) {}
+    FdBlackScholesAsianEngine::FdBlackScholesAsianEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process,
+                                                         Size tGrid,
+                                                         Size xGrid,
+                                                         Size aGrid,
+                                                         const FdmSchemeDesc& schemeDesc)
+    : process_(std::move(process)), tGrid_(tGrid), xGrid_(xGrid), aGrid_(aGrid), schemeDesc_(schemeDesc)
+    {
+    }
 
 
-    void FdBlackScholesAsianEngine::calculate() const {
+    void FdBlackScholesAsianEngine::calculate() const
+    {
 
-        QL_REQUIRE(arguments_.exercise->type() == Exercise::European,
-                   "European exercise supported only");
-        QL_REQUIRE(arguments_.averageType == Average::Arithmetic,
-                   "Arithmetic averaging supported only");
-        QL_REQUIRE(   arguments_.runningAccumulator == 0
-                   || arguments_.pastFixings > 0,
+        QL_REQUIRE(arguments_.exercise->type() == Exercise::European, "European exercise supported only");
+        QL_REQUIRE(arguments_.averageType == Average::Arithmetic, "Arithmetic averaging supported only");
+        QL_REQUIRE(arguments_.runningAccumulator == 0 || arguments_.pastFixings > 0,
                    "Running average requires at least one past fixing");
 
         // 1. Mesher
@@ -58,68 +57,58 @@ namespace QuantLib {
             ext::dynamic_pointer_cast<StrikedTypePayoff>(arguments_.payoff);
         const Time maturity = process_->time(arguments_.exercise->lastDate());
         const ext::shared_ptr<Fdm1dMesher> equityMesher(
-            new FdmBlackScholesMesher(xGrid_, process_, maturity,
-                                      payoff->strike()));
+            new FdmBlackScholesMesher(xGrid_, process_, maturity, payoff->strike()));
 
         const Real spot = process_->x0();
         QL_REQUIRE(spot > 0.0, "negative or null underlying given");
 
-        const Real avg = (arguments_.runningAccumulator == 0)
-                 ? spot : arguments_.runningAccumulator/arguments_.pastFixings;
+        const Real avg =
+            (arguments_.runningAccumulator == 0) ? spot : arguments_.runningAccumulator / arguments_.pastFixings;
 
-        const Real normInvEps = InverseCumulativeNormal()(1-0.0001);
-        const Real sigmaSqrtT 
-            = process_->blackVolatility()->blackVol(maturity, payoff->strike())
-                                                        *std::sqrt(maturity);
-        const Real r = sigmaSqrtT*normInvEps;
+        const Real normInvEps = InverseCumulativeNormal()(1 - 0.0001);
+        const Real sigmaSqrtT = process_->blackVolatility()->blackVol(maturity, payoff->strike()) * std::sqrt(maturity);
+        const Real r = sigmaSqrtT * normInvEps;
 
-        Real xMin = std::min(std::log(avg)  - 0.25*r, std::log(spot) - 1.5*r);
-        Real xMax = std::max(std::log(avg)  + 0.25*r, std::log(spot) + 1.5*r);
+        Real xMin = std::min(std::log(avg) - 0.25 * r, std::log(spot) - 1.5 * r);
+        Real xMax = std::max(std::log(avg) + 0.25 * r, std::log(spot) + 1.5 * r);
 
         const ext::shared_ptr<Fdm1dMesher> averageMesher(
-            new FdmBlackScholesMesher(aGrid_, process_, maturity,
-                                      payoff->strike(), xMin, xMax));
+            new FdmBlackScholesMesher(aGrid_, process_, maturity, payoff->strike(), xMin, xMax));
 
-        const ext::shared_ptr<FdmMesher> mesher (
-            new FdmMesherComposite(equityMesher, averageMesher));
+        const ext::shared_ptr<FdmMesher> mesher(new FdmMesherComposite(equityMesher, averageMesher));
 
         // 2. Calculator
-        ext::shared_ptr<FdmInnerValueCalculator> calculator(
-                                new FdmLogInnerValue(payoff, mesher, 1));
+        ext::shared_ptr<FdmInnerValueCalculator> calculator(new FdmLogInnerValue(payoff, mesher, 1));
 
         // 3. Step conditions
-        std::list<ext::shared_ptr<StepCondition<Array> > > stepConditions;
-        std::list<std::vector<Time> > stoppingTimes;
+        std::list<ext::shared_ptr<StepCondition<Array>>> stepConditions;
+        std::list<std::vector<Time>> stoppingTimes;
 
         // 3.1 Arithmetic average step conditions
         std::vector<Time> averageTimes;
-        for (auto& fixingDate : arguments_.fixingDates) {
+        for (auto& fixingDate : arguments_.fixingDates)
+        {
             Time t = process_->time(fixingDate);
             QL_REQUIRE(t >= 0, "Fixing dates must not contain past date");
             averageTimes.push_back(t);
         }
         stoppingTimes.emplace_back(averageTimes);
-        stepConditions.push_back(ext::shared_ptr<StepCondition<Array> >(
-                new FdmArithmeticAverageCondition(
-                        averageTimes, arguments_.runningAccumulator,
-                        arguments_.pastFixings, mesher, 0)));
+        stepConditions.push_back(ext::shared_ptr<StepCondition<Array>>(new FdmArithmeticAverageCondition(
+            averageTimes, arguments_.runningAccumulator, arguments_.pastFixings, mesher, 0)));
 
         ext::shared_ptr<FdmStepConditionComposite> conditions(
-                new FdmStepConditionComposite(stoppingTimes, stepConditions));
+            new FdmStepConditionComposite(stoppingTimes, stepConditions));
 
         // 4. Boundary conditions
         const FdmBoundaryConditionSet boundaries;
 
         // 5. Solver
-        FdmSolverDesc solverDesc = { mesher, boundaries, conditions,
-                                     calculator, maturity, tGrid_, 0 };
-        ext::shared_ptr<FdmSimple2dBSSolver> solver(
-              new FdmSimple2dBSSolver(
-                              Handle<GeneralizedBlackScholesProcess>(process_),
-                              payoff->strike(), solverDesc, schemeDesc_));
+        FdmSolverDesc solverDesc = {mesher, boundaries, conditions, calculator, maturity, tGrid_, 0};
+        ext::shared_ptr<FdmSimple2dBSSolver> solver(new FdmSimple2dBSSolver(
+            Handle<GeneralizedBlackScholesProcess>(process_), payoff->strike(), solverDesc, schemeDesc_));
 
         results_.value = solver->valueAt(spot, avg);
-        results_.delta = solver->deltaAt(spot, avg, spot*0.01);
-        results_.gamma = solver->gammaAt(spot, avg, spot*0.01);
+        results_.delta = solver->deltaAt(spot, avg, spot * 0.01);
+        results_.gamma = solver->gammaAt(spot, avg, spot * 0.01);
     }
 }

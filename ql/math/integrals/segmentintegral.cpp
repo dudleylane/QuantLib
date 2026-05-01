@@ -19,10 +19,11 @@
 
 #include <ql/math/integrals/segmentintegral.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    SegmentIntegral::SegmentIntegral(Size intervals)
-    : Integrator(1, 1), intervals_(intervals) {
+    SegmentIntegral::SegmentIntegral(Size intervals) : Integrator(1, 1), intervals_(intervals)
+    {
         QL_REQUIRE(intervals > 0, "at least 1 interval needed, 0 given");
     }
 

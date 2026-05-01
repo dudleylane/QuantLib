@@ -17,17 +17,17 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/currencies/america.hpp>
 #include <ql/indexes/ibor/fedfunds.hpp>
 #include <ql/time/calendars/unitedstates.hpp>
 #include <ql/time/daycounters/actual360.hpp>
-#include <ql/currencies/america.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     FedFunds::FedFunds(const Handle<YieldTermStructure>& h)
-    : OvernightIndex("FedFunds", 0,
-                     USDCurrency(),
-                     UnitedStates(UnitedStates::FederalReserve),
-                     Actual360(), h) {}
+    : OvernightIndex("FedFunds", 0, USDCurrency(), UnitedStates(UnitedStates::FederalReserve), Actual360(), h)
+    {
+    }
 
 }

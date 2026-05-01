@@ -23,22 +23,20 @@
 
 #include <ql/models/marketmodels/products/multiproductmultistep.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class MultiStepNothing : public MultiProductMultiStep {
+    class MultiStepNothing : public MultiProductMultiStep
+    {
       public:
-        MultiStepNothing(const EvolutionDescription& evolution,
-                         Size numberOfProducts = 1,
-                         Size doneIndex = 0);
+        MultiStepNothing(const EvolutionDescription& evolution, Size numberOfProducts = 1, Size doneIndex = 0);
         //! \name MarketModelMultiProduct interface
         //@{
         std::vector<Time> possibleCashFlowTimes() const override;
         Size numberOfProducts() const override;
         Size maxNumberOfCashFlowsPerProductPerStep() const override;
         void reset() override;
-        bool nextTimeStep(const CurveState&,
-                          std::vector<Size>&,
-                          std::vector<std::vector<CashFlow> >&) override;
+        bool nextTimeStep(const CurveState&, std::vector<Size>&, std::vector<std::vector<CashFlow>>&) override;
         std::unique_ptr<MarketModelMultiProduct> clone() const override;
         //@}
       private:
@@ -49,22 +47,24 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline std::vector<Time>
-    MultiStepNothing::possibleCashFlowTimes() const {
+    inline std::vector<Time> MultiStepNothing::possibleCashFlowTimes() const
+    {
         return std::vector<Time>();
     }
 
-    inline Size MultiStepNothing::numberOfProducts() const {
+    inline Size MultiStepNothing::numberOfProducts() const
+    {
         return numberOfProducts_;
     }
 
-    inline Size
-    MultiStepNothing::maxNumberOfCashFlowsPerProductPerStep() const {
+    inline Size MultiStepNothing::maxNumberOfCashFlowsPerProductPerStep() const
+    {
         return 0;
     }
 
-    inline void MultiStepNothing::reset() {
-       currentIndex_=0;
+    inline void MultiStepNothing::reset()
+    {
+        currentIndex_ = 0;
     }
 
 }

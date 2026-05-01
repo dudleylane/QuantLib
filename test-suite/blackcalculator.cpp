@@ -18,9 +18,9 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
-#include <ql/pricingengines/blackcalculator.hpp>
 #include <ql/instruments/payoffs.hpp>
 #include <ql/math/comparison.hpp>
+#include <ql/pricingengines/blackcalculator.hpp>
 #include <cmath>
 
 using namespace QuantLib;
@@ -30,7 +30,8 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(BlackCalculatorTests)
 
-struct BlackCalculatorTestData {
+struct BlackCalculatorTestData
+{
     Option::Type type;
     Real strike;
     Real forward;
@@ -40,7 +41,8 @@ struct BlackCalculatorTestData {
     Real refValue;
 };
 
-BOOST_AUTO_TEST_CASE(testBlackCalculatorBasicValues) {
+BOOST_AUTO_TEST_CASE(testBlackCalculatorBasicValues)
+{
     BOOST_TEST_MESSAGE("Testing BlackCalculator basic option values...");
 
     BlackCalculatorTestData values[] = {
@@ -51,61 +53,64 @@ BOOST_AUTO_TEST_CASE(testBlackCalculatorBasicValues) {
         {Option::Put, 110.0, 100.0, 0.20, 1.0, 1e-8, 14.292010941409899},  // ITM Put
         {Option::Call, 110.0, 100.0, 0.20, 1.0, 1e-8, 4.2920109414098846}, // OTM Call
         {Option::Put, 90.0, 100.0, 0.20, 1.0, 1e-8, 3.5891081160548062},   // OTM Put
-        { Option::Call, 100.0, 100.0, 0.0,  1.0, 1e-8, 0.0 },  // Zero vol Call
-        { Option::Put,  100.0, 100.0, 0.0,  1.0, 1e-8, 0.0 },  // Zero vol Put
+        {Option::Call, 100.0, 100.0, 0.0, 1.0, 1e-8, 0.0},                 // Zero vol Call
+        {Option::Put, 100.0, 100.0, 0.0, 1.0, 1e-8, 0.0},                  // Zero vol Put
     };
 
-    for (auto& data : values) {
+    for (auto& data : values)
+    {
         // Test constructor with Option::Type
         BlackCalculator calc1(data.type, data.strike, data.forward, data.stdDev, data.discount);
         Real value1 = calc1.value();
-        
+
         // Test constructor with Payoff
-        ext::shared_ptr<StrikedTypePayoff> payoff(
-            new PlainVanillaPayoff(data.type, data.strike));
+        ext::shared_ptr<StrikedTypePayoff> payoff(new PlainVanillaPayoff(data.type, data.strike));
         BlackCalculator calc2(payoff, data.forward, data.stdDev, data.discount);
         Real value2 = calc2.value();
 
         // Both constructors should give the same result
         Real error = std::fabs(value1 - value2);
-        if (error > data.tolerance) {
+        if (error > data.tolerance)
+        {
             BOOST_ERROR("BlackCalculator constructor mismatch for "
-                       << (data.type == Option::Call ? "Call" : "Put")
-                       << " strike=" << data.strike << " forward=" << data.forward
-                       << " stdDev=" << data.stdDev << " discount=" << data.discount
-                       << " value1=" << value1 << " value2=" << value2
-                       << " error=" << error);
+                        << (data.type == Option::Call ? "Call" : "Put") << " strike=" << data.strike
+                        << " forward=" << data.forward << " stdDev=" << data.stdDev << " discount=" << data.discount
+                        << " value1=" << value1 << " value2=" << value2 << " error=" << error);
         }
 
         Real error2 = std::fabs(value1 - data.refValue);
-        if (error2 > data.tolerance) {
+        if (error2 > data.tolerance)
+        {
             BOOST_ERROR("BlackCalculator constructor rf value error for "
                         << (data.type == Option::Call ? "Call" : "Put") << " strike=" << data.strike
-                        << " forward=" << data.forward << " stdDev=" << data.stdDev
-                        << " discount=" << data.discount << " value1=" << value1
-                        << " value2=" << value2 << " error=" << error);
+                        << " forward=" << data.forward << " stdDev=" << data.stdDev << " discount=" << data.discount
+                        << " value1=" << value1 << " value2=" << value2 << " error=" << error);
         }
 
         // Basic sanity checks
-        if (data.stdDev == 0.0) {
+        if (data.stdDev == 0.0)
+        {
             // With zero volatility, option value should be intrinsic value
-            Real intrinsic = data.discount * std::max(0.0, 
-                data.type == Option::Call ? data.forward - data.strike : data.strike - data.forward);
-            if (std::fabs(value1 - intrinsic) > data.tolerance) {
+            Real intrinsic = data.discount * std::max(0.0, data.type == Option::Call ? data.forward - data.strike :
+                                                                                       data.strike - data.forward);
+            if (std::fabs(value1 - intrinsic) > data.tolerance)
+            {
                 BOOST_ERROR("BlackCalculator zero volatility test failed for "
-                           << (data.type == Option::Call ? "Call" : "Put")
-                           << " expected=" << intrinsic << " calculated=" << value1);
+                            << (data.type == Option::Call ? "Call" : "Put") << " expected=" << intrinsic
+                            << " calculated=" << value1);
             }
         }
 
         // Option value should be non-negative
-        if (value1 < -data.tolerance) {
+        if (value1 < -data.tolerance)
+        {
             BOOST_ERROR("BlackCalculator negative option value: " << value1);
         }
     }
 }
 
-BOOST_AUTO_TEST_CASE(testBlackCalculatorGreeks) {
+BOOST_AUTO_TEST_CASE(testBlackCalculatorGreeks)
+{
     BOOST_TEST_MESSAGE("Testing BlackCalculator Greeks calculations...");
 
     Real forward = 100.0;
@@ -151,72 +156,89 @@ BOOST_AUTO_TEST_CASE(testBlackCalculatorGreeks) {
     Real vanna = calc.vanna(spot, maturity);
     Real volga = calc.volga(maturity);
 
-    if (std::fabs(deltaForward - refDeltaFwd) > tolerance) {
+    if (std::fabs(deltaForward - refDeltaFwd) > tolerance)
+    {
         BOOST_ERROR("BlackCalculator call fwd delta error");
     }
 
-    if (std::fabs(delta - refDelta) > tolerance) {
+    if (std::fabs(delta - refDelta) > tolerance)
+    {
         BOOST_ERROR("BlackCalculator call delta error");
     }
 
-    if (std::fabs(gammaForward - refGammaFwd) > tolerance) {
+    if (std::fabs(gammaForward - refGammaFwd) > tolerance)
+    {
         BOOST_ERROR("BlackCalculator call fwd gamma error");
     }
 
-    if (std::fabs(gamma - refGamma) > tolerance) {
+    if (std::fabs(gamma - refGamma) > tolerance)
+    {
         BOOST_ERROR("BlackCalculator call gamma error");
     }
 
-    if (std::fabs(theta - refTheta) > tolerance) {
+    if (std::fabs(theta - refTheta) > tolerance)
+    {
         BOOST_ERROR("BlackCalculator call theta error");
     }
 
-    if (std::fabs(vega - refVega) > tolerance) {
+    if (std::fabs(vega - refVega) > tolerance)
+    {
         BOOST_ERROR("BlackCalculator call vega error");
     }
 
-    if (std::fabs(rho - refRho) > tolerance) {
+    if (std::fabs(rho - refRho) > tolerance)
+    {
         BOOST_ERROR("BlackCalculator call rho error");
     }
 
-    if (std::fabs(elasticityForward - refElasticityFwd) > tolerance) {
+    if (std::fabs(elasticityForward - refElasticityFwd) > tolerance)
+    {
         BOOST_ERROR("BlackCalculator call fwd elasticity error");
     }
 
-    if (std::fabs(elasticity - refElasticity) > tolerance) {
+    if (std::fabs(elasticity - refElasticity) > tolerance)
+    {
         BOOST_ERROR("BlackCalculator call elasticity error");
     }
 
-    if (std::fabs(itmCashProb - refItmCashProb) > tolerance) {
+    if (std::fabs(itmCashProb - refItmCashProb) > tolerance)
+    {
         BOOST_ERROR("BlackCalculator call itm cash probability error");
     }
 
-    if (std::fabs(itmAssetProb - refItmAssetProb) > tolerance) {
+    if (std::fabs(itmAssetProb - refItmAssetProb) > tolerance)
+    {
         BOOST_ERROR("BlackCalculator call itm asset probability error");
     }
 
-    if (std::fabs(dividendRho - refDividendRho) > tolerance) {
+    if (std::fabs(dividendRho - refDividendRho) > tolerance)
+    {
         BOOST_ERROR("BlackCalculator call dividend rho error");
     }
 
-    if (std::fabs(strikeSensitivity - refStrikeSensitivity) > tolerance) {
+    if (std::fabs(strikeSensitivity - refStrikeSensitivity) > tolerance)
+    {
         BOOST_ERROR("BlackCalculator call strike sensitivity error");
     }
 
-    if (std::fabs(strikeGamma - refStrikeGamma) > tolerance) {
+    if (std::fabs(strikeGamma - refStrikeGamma) > tolerance)
+    {
         BOOST_ERROR("BlackCalculator call strike gamma error");
     }
 
-    if (std::fabs(vanna - refVanna) > tolerance) {
+    if (std::fabs(vanna - refVanna) > tolerance)
+    {
         BOOST_ERROR("BlackCalculator call vanna error");
     }
 
-    if (std::fabs(volga - refVolga) > tolerance) {
+    if (std::fabs(volga - refVolga) > tolerance)
+    {
         BOOST_ERROR("BlackCalculator call volga error");
     }
 }
 
-BOOST_AUTO_TEST_CASE(testBlackCalculatorPutCallParity) {
+BOOST_AUTO_TEST_CASE(testBlackCalculatorPutCallParity)
+{
     BOOST_TEST_MESSAGE("Testing BlackCalculator put-call parity...");
 
     Real forward = 100.0;
@@ -236,14 +258,15 @@ BOOST_AUTO_TEST_CASE(testBlackCalculatorPutCallParity) {
     Real parityrhs = discount * (forward - strike);
     Real parityError = std::fabs(paritylhs - parityrhs);
 
-    if (parityError > tolerance) {
-        BOOST_ERROR("BlackCalculator put-call parity violation: "
-                   << "C-P=" << paritylhs << " discount*(F-K)=" << parityrhs
-                   << " error=" << parityError);
+    if (parityError > tolerance)
+    {
+        BOOST_ERROR("BlackCalculator put-call parity violation: " << "C-P=" << paritylhs << " discount*(F-K)="
+                                                                  << parityrhs << " error=" << parityError);
     }
 }
 
-BOOST_AUTO_TEST_CASE(testBlackCalculatorEdgeCases) {
+BOOST_AUTO_TEST_CASE(testBlackCalculatorEdgeCases)
+{
     BOOST_TEST_MESSAGE("Testing BlackCalculator edge cases...");
 
     Real tolerance = 1e-10;
@@ -253,7 +276,8 @@ BOOST_AUTO_TEST_CASE(testBlackCalculatorEdgeCases) {
         BlackCalculator calc(Option::Call, 100.0, 100.0, 0.0, 1.0);
         Real value = calc.value();
         Real refValue = 0.0;
-        if (std::fabs(value - refValue) > tolerance) {
+        if (std::fabs(value - refValue) > tolerance)
+        {
             BOOST_ERROR("BlackCalculator failed for zero volatility: " << value);
         }
     }
@@ -263,7 +287,8 @@ BOOST_AUTO_TEST_CASE(testBlackCalculatorEdgeCases) {
         BlackCalculator calc(Option::Call, 100.0, 100.0, 2.0, 1.0);
         Real value = calc.value();
         Real refValue = 68.268949213708595;
-        if (std::fabs(value - refValue) > tolerance) {
+        if (std::fabs(value - refValue) > tolerance)
+        {
             BOOST_ERROR("BlackCalculator failed for very high volatility: " << value);
         }
     }
@@ -272,10 +297,10 @@ BOOST_AUTO_TEST_CASE(testBlackCalculatorEdgeCases) {
     {
         BlackCalculator calc(Option::Call, 50.0, 100.0, 0.20, 1.0);
         Real value = calc.value();
-        Real intrinsicValue = 100.0 - 50.0;  // Should be close to intrinsic
-        if (value < intrinsicValue - tolerance) {
-            BOOST_ERROR("BlackCalculator deep ITM call below intrinsic: " 
-                       << value << " vs " << intrinsicValue);
+        Real intrinsicValue = 100.0 - 50.0; // Should be close to intrinsic
+        if (value < intrinsicValue - tolerance)
+        {
+            BOOST_ERROR("BlackCalculator deep ITM call below intrinsic: " << value << " vs " << intrinsicValue);
         }
     }
 
@@ -283,13 +308,15 @@ BOOST_AUTO_TEST_CASE(testBlackCalculatorEdgeCases) {
     {
         BlackCalculator calc(Option::Call, 150.0, 100.0, 0.20, 1.0);
         Real value = calc.value();
-        if (value < 0 || value > 10.0) {  // Should be small positive value
+        if (value < 0 || value > 10.0)
+        { // Should be small positive value
             BOOST_ERROR("BlackCalculator deep OTM call unreasonable: " << value);
         }
     }
 }
 
-BOOST_AUTO_TEST_CASE(testBlackCalculatorNumericalDerivatives) {
+BOOST_AUTO_TEST_CASE(testBlackCalculatorNumericalDerivatives)
+{
     BOOST_TEST_MESSAGE("Testing BlackCalculator numerical derivative consistency...");
 
     Real forward = 100.0;
@@ -305,16 +332,15 @@ BOOST_AUTO_TEST_CASE(testBlackCalculatorNumericalDerivatives) {
     // Test delta via finite differences
     BlackCalculator calcUp(Option::Call, strike, forward + bump, stdDev, discount);
     BlackCalculator calcDown(Option::Call, strike, forward - bump, stdDev, discount);
-    
+
     Real analyticalDelta = calc.deltaForward();
     Real numericalDelta = (calcUp.value() - calcDown.value()) / (2.0 * bump);
     Real deltaError = std::fabs(analyticalDelta - numericalDelta);
 
-    if (deltaError > tolerance) {
+    if (deltaError > tolerance)
+    {
         BOOST_ERROR("BlackCalculator delta finite difference test failed: "
-                   << "analytical=" << analyticalDelta 
-                   << " numerical=" << numericalDelta 
-                   << " error=" << deltaError);
+                    << "analytical=" << analyticalDelta << " numerical=" << numericalDelta << " error=" << deltaError);
     }
 
     // Test gamma via finite differences
@@ -322,11 +348,10 @@ BOOST_AUTO_TEST_CASE(testBlackCalculatorNumericalDerivatives) {
     Real numericalGamma = (calcUp.deltaForward() - calcDown.deltaForward()) / (2.0 * bump);
     Real gammaError = std::fabs(analyticalGamma - numericalGamma);
 
-    if (gammaError > tolerance) {
+    if (gammaError > tolerance)
+    {
         BOOST_ERROR("BlackCalculator gamma finite difference test failed: "
-                   << "analytical=" << analyticalGamma 
-                   << " numerical=" << numericalGamma 
-                   << " error=" << gammaError);
+                    << "analytical=" << analyticalGamma << " numerical=" << numericalGamma << " error=" << gammaError);
     }
 
     Real vanna = calc.vanna(forward, maturity);
@@ -337,9 +362,10 @@ BOOST_AUTO_TEST_CASE(testBlackCalculatorNumericalDerivatives) {
     Real vegaFwdDown = calcDown.vega(maturity);
     Real vannaFD = (vegaFwdUp - vegaFwdDown) / (2.0 * bump);
 
-    if (std::fabs(vanna - vannaFD) > tolerance) {
-        BOOST_ERROR("BlackCalculator call vanna error: analytical="
-                    << vanna << " finite-diff=" << vannaFD << " error=" << (vanna - vannaFD));
+    if (std::fabs(vanna - vannaFD) > tolerance)
+    {
+        BOOST_ERROR("BlackCalculator call vanna error: analytical=" << vanna << " finite-diff=" << vannaFD
+                                                                    << " error=" << (vanna - vannaFD));
     }
 
     // Finite difference for volga: dVega/dVol
@@ -349,13 +375,15 @@ BOOST_AUTO_TEST_CASE(testBlackCalculatorNumericalDerivatives) {
     Real vegaVolDown = calcVolDown.vega(maturity);
     Real volgaFD = (vegaVolUp - vegaVolDown) / (2.0 * bump);
 
-    if (std::fabs(volga - volgaFD) > tolerance) {
-        BOOST_ERROR("BlackCalculator call volga error: analytical="
-                    << volga << " finite-diff=" << volgaFD << " error=" << (volga - volgaFD));
+    if (std::fabs(volga - volgaFD) > tolerance)
+    {
+        BOOST_ERROR("BlackCalculator call volga error: analytical=" << volga << " finite-diff=" << volgaFD
+                                                                    << " error=" << (volga - volgaFD));
     }
 }
 
-BOOST_AUTO_TEST_CASE(testBlackCalculatorZeroVolatilityGreeks) {
+BOOST_AUTO_TEST_CASE(testBlackCalculatorZeroVolatilityGreeks)
+{
     BOOST_TEST_MESSAGE("Testing BlackCalculator Greeks with zero volatility...");
 
     Real tolerance = 1e-10;
@@ -363,32 +391,32 @@ BOOST_AUTO_TEST_CASE(testBlackCalculatorZeroVolatilityGreeks) {
     Real discount = 1.0;
     Real spot = 98.0;
     Real maturity = 1.0;
-    Real stdDev = 0.0;  // Zero volatility
+    Real stdDev = 0.0; // Zero volatility
 
     // Test different moneyness scenarios
-    struct ZeroVolTestCase {
+    struct ZeroVolTestCase
+    {
         Option::Type type;
         Real strike;
         std::string description;
         Real expectedDelta;
         Real expectedGamma;
         Real expectedVega;
-        Real expectedTheta;  // Approximate expected theta
+        Real expectedTheta; // Approximate expected theta
     };
 
-    ZeroVolTestCase testCases[] = {
-        // ITM options should have delta = 1 for calls, -1 for puts (approximately)
-        {Option::Call, 90.0, "ITM Call", 1.0, 0.0, 0.0, 0.0},
-        {Option::Put, 110.0, "ITM Put", -1.0, 0.0, 0.0, 0.0},
-        // ATM options have undefined behavior at zero vol, but should be finite
-        {Option::Call, 100.0, "ATM Call", 0.5, 0.0, 0.0, 0.0},
-        {Option::Put, 100.0, "ATM Put", -0.5, 0.0, 0.0, 0.0},
-        // OTM options should have delta = 0
-        {Option::Call, 110.0, "OTM Call", 0.0, 0.0, 0.0, 0.0},
-        {Option::Put, 90.0, "OTM Put", 0.0, 0.0, 0.0, 0.0}
-    };
+    ZeroVolTestCase testCases[] = {// ITM options should have delta = 1 for calls, -1 for puts (approximately)
+                                   {Option::Call, 90.0, "ITM Call", 1.0, 0.0, 0.0, 0.0},
+                                   {Option::Put, 110.0, "ITM Put", -1.0, 0.0, 0.0, 0.0},
+                                   // ATM options have undefined behavior at zero vol, but should be finite
+                                   {Option::Call, 100.0, "ATM Call", 0.5, 0.0, 0.0, 0.0},
+                                   {Option::Put, 100.0, "ATM Put", -0.5, 0.0, 0.0, 0.0},
+                                   // OTM options should have delta = 0
+                                   {Option::Call, 110.0, "OTM Call", 0.0, 0.0, 0.0, 0.0},
+                                   {Option::Put, 90.0, "OTM Put", 0.0, 0.0, 0.0, 0.0}};
 
-    for (const auto& testCase : testCases) {
+    for (const auto& testCase : testCases)
+    {
         BlackCalculator calc(testCase.type, testCase.strike, forward, stdDev, discount);
 
         Real deltaForward = calc.deltaForward();
@@ -401,62 +429,66 @@ BOOST_AUTO_TEST_CASE(testBlackCalculatorZeroVolatilityGreeks) {
         Real dividendRho = calc.dividendRho(maturity);
 
         // All Greeks should be finite (not NaN or infinite)
-        if (!std::isfinite(deltaForward) || !std::isfinite(delta) || 
-            !std::isfinite(gammaForward) || !std::isfinite(gamma) ||
-            !std::isfinite(vega) || !std::isfinite(theta) || 
-            !std::isfinite(rho) || !std::isfinite(dividendRho)) {
-            BOOST_ERROR("BlackCalculator " << testCase.description 
-                       << " produced non-finite Greeks with zero volatility");
+        if (!std::isfinite(deltaForward) || !std::isfinite(delta) || !std::isfinite(gammaForward) ||
+            !std::isfinite(gamma) || !std::isfinite(vega) || !std::isfinite(theta) || !std::isfinite(rho) ||
+            !std::isfinite(dividendRho))
+        {
+            BOOST_ERROR("BlackCalculator " << testCase.description
+                                           << " produced non-finite Greeks with zero volatility");
         }
 
         // Gamma should be zero (no convexity with zero vol)
-        if (std::fabs(gammaForward) > tolerance || std::fabs(gamma) > tolerance) {
-            BOOST_ERROR("BlackCalculator " << testCase.description 
-                       << " gamma should be zero with zero volatility: "
-                       << "gammaForward=" << gammaForward << " gamma=" << gamma);
+        if (std::fabs(gammaForward) > tolerance || std::fabs(gamma) > tolerance)
+        {
+            BOOST_ERROR("BlackCalculator " << testCase.description << " gamma should be zero with zero volatility: "
+                                           << "gammaForward=" << gammaForward << " gamma=" << gamma);
         }
 
         // Vega should be zero (no vol sensitivity)
-        if (std::fabs(vega) > tolerance) {
-            BOOST_ERROR("BlackCalculator " << testCase.description 
-                       << " vega should be zero with zero volatility: " << vega);
+        if (std::fabs(vega) > tolerance)
+        {
+            BOOST_ERROR("BlackCalculator " << testCase.description
+                                           << " vega should be zero with zero volatility: " << vega);
         }
 
         // For clearly ITM/OTM cases, check delta bounds
-        if (testCase.strike < forward * 0.95) { // Clearly ITM call
-            if (testCase.type == Option::Call && (deltaForward < 0.99 || deltaForward > 1.01)) {
-                BOOST_ERROR("BlackCalculator ITM call deltaForward should be ~1.0 with zero vol: " 
-                           << deltaForward);
+        if (testCase.strike < forward * 0.95)
+        { // Clearly ITM call
+            if (testCase.type == Option::Call && (deltaForward < 0.99 || deltaForward > 1.01))
+            {
+                BOOST_ERROR("BlackCalculator ITM call deltaForward should be ~1.0 with zero vol: " << deltaForward);
             }
         }
-        if (testCase.strike > forward * 1.05) { // Clearly OTM call
-            if (testCase.type == Option::Call && std::fabs(deltaForward) > tolerance) {
-                BOOST_ERROR("BlackCalculator OTM call deltaForward should be ~0.0 with zero vol: " 
-                           << deltaForward);
+        if (testCase.strike > forward * 1.05)
+        { // Clearly OTM call
+            if (testCase.type == Option::Call && std::fabs(deltaForward) > tolerance)
+            {
+                BOOST_ERROR("BlackCalculator OTM call deltaForward should be ~0.0 with zero vol: " << deltaForward);
             }
         }
 
         // Strike sensitivities should be finite
         Real strikeSens = calc.strikeSensitivity();
         Real strikeGamma = calc.strikeGamma();
-        
-        if (!std::isfinite(strikeSens) || !std::isfinite(strikeGamma)) {
-            BOOST_ERROR("BlackCalculator " << testCase.description 
-                       << " strike sensitivities should be finite with zero volatility");
+
+        if (!std::isfinite(strikeSens) || !std::isfinite(strikeGamma))
+        {
+            BOOST_ERROR("BlackCalculator " << testCase.description
+                                           << " strike sensitivities should be finite with zero volatility");
         }
 
         Real vanna = calc.vanna(spot, maturity);
         Real volga = calc.volga(maturity);
 
-        if (std::fabs(vanna) > tolerance) {
-            BOOST_ERROR("BlackCalculator "
-                        << testCase.description
-                        << " vanna should be zero with zero volatility: " << vanna);
+        if (std::fabs(vanna) > tolerance)
+        {
+            BOOST_ERROR("BlackCalculator " << testCase.description
+                                           << " vanna should be zero with zero volatility: " << vanna);
         }
-        if (std::fabs(volga) > tolerance) {
-            BOOST_ERROR("BlackCalculator "
-                        << testCase.description
-                        << " volga should be zero with zero volatility: " << volga);
+        if (std::fabs(volga) > tolerance)
+        {
+            BOOST_ERROR("BlackCalculator " << testCase.description
+                                           << " volga should be zero with zero volatility: " << volga);
         }
     }
 
@@ -469,13 +501,14 @@ BOOST_AUTO_TEST_CASE(testBlackCalculatorZeroVolatilityGreeks) {
     Real vegaSmallVol = calcSmallVol.vega(maturity);
 
     // These should be finite and reasonable
-    if (!std::isfinite(deltaSmallVol) || !std::isfinite(gammaSmallVol) ||
-        !std::isfinite(vegaSmallVol)) {
+    if (!std::isfinite(deltaSmallVol) || !std::isfinite(gammaSmallVol) || !std::isfinite(vegaSmallVol))
+    {
         BOOST_ERROR("BlackCalculator failed for very small volatility");
     }
 
     // Delta should be close to 0.5 for ATM
-    if (std::fabs(deltaSmallVol - discount * 0.5) > 0.1) {
+    if (std::fabs(deltaSmallVol - discount * 0.5) > 0.1)
+    {
         BOOST_ERROR("BlackCalculator ATM delta with small vol unreasonable: " << deltaSmallVol);
     }
 }

@@ -27,35 +27,33 @@
 #ifndef quantlib_extended_binomial_tree_hpp
 #define quantlib_extended_binomial_tree_hpp
 
-#include <ql/methods/lattices/tree.hpp>
 #include <ql/instruments/dividendschedule.hpp>
+#include <ql/methods/lattices/tree.hpp>
 #include <ql/stochasticprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Binomial tree base class
     /*! \ingroup lattices */
     template <class T>
-    class ExtendedBinomialTree : public Tree<T> {
+    class ExtendedBinomialTree : public Tree<T>
+    {
       public:
-        enum Branches { branches = 2 };
-        ExtendedBinomialTree(
-                        const ext::shared_ptr<StochasticProcess1D>& process,
-                        Time end,
-                        Size steps)
-        : Tree<T>(steps+1), x0_(process->x0()), dt_(end/steps),
-          treeProcess_(process) {}
-        Size size(Size i) const {
-            return i+1;
+        enum Branches
+        {
+            branches = 2
+        };
+        ExtendedBinomialTree(const ext::shared_ptr<StochasticProcess1D>& process, Time end, Size steps)
+        : Tree<T>(steps + 1), x0_(process->x0()), dt_(end / steps), treeProcess_(process)
+        {
         }
-        Size descendant(Size, Size index, Size branch) const {
-            return index + branch;
-        }
+        Size size(Size i) const { return i + 1; }
+        Size descendant(Size, Size index, Size branch) const { return index + branch; }
+
       protected:
-        //time dependent drift per step
-        Real driftStep(Time driftTime) const {
-            return this->treeProcess_->drift(driftTime, x0_) * dt_;
-        }
+        // time dependent drift per step
+        Real driftStep(Time driftTime) const { return this->treeProcess_->drift(driftTime, x0_) * dt_; }
 
         Real x0_;
         Time dt_;
@@ -68,26 +66,29 @@ namespace QuantLib {
     //! Base class for equal probabilities binomial tree
     /*! \ingroup lattices */
     template <class T>
-    class ExtendedEqualProbabilitiesBinomialTree
-        : public ExtendedBinomialTree<T> {
+    class ExtendedEqualProbabilitiesBinomialTree : public ExtendedBinomialTree<T>
+    {
       public:
-        ExtendedEqualProbabilitiesBinomialTree(
-                        const ext::shared_ptr<StochasticProcess1D>& process,
-                        Time end,
-                        Size steps)
-        : ExtendedBinomialTree<T>(process, end, steps) {}
+        ExtendedEqualProbabilitiesBinomialTree(const ext::shared_ptr<StochasticProcess1D>& process,
+                                               Time end,
+                                               Size steps)
+        : ExtendedBinomialTree<T>(process, end, steps)
+        {
+        }
         virtual ~ExtendedEqualProbabilitiesBinomialTree() = default;
 
-        Real underlying(Size i, Size index) const {
-            Time stepTime = i*this->dt_;
-            BigInteger j = 2*BigInteger(index) - BigInteger(i);
+        Real underlying(Size i, Size index) const
+        {
+            Time stepTime = i * this->dt_;
+            BigInteger j = 2 * BigInteger(index) - BigInteger(i);
             // exploiting the forward value tree centering
-            return this->x0_*std::exp(i*this->driftStep(stepTime) + j*this->upStep(stepTime));
+            return this->x0_ * std::exp(i * this->driftStep(stepTime) + j * this->upStep(stepTime));
         }
 
         Real probability(Size, Size, Size) const { return 0.5; }
+
       protected:
-        //the tree dependent up move term at time stepTime
+        // the tree dependent up move term at time stepTime
         virtual Real upStep(Time stepTime) const = 0;
         Real up_;
     };
@@ -96,32 +97,35 @@ namespace QuantLib {
     //! Base class for equal jumps binomial tree
     /*! \ingroup lattices */
     template <class T>
-    class ExtendedEqualJumpsBinomialTree : public ExtendedBinomialTree<T> {
+    class ExtendedEqualJumpsBinomialTree : public ExtendedBinomialTree<T>
+    {
       public:
-        ExtendedEqualJumpsBinomialTree(
-                        const ext::shared_ptr<StochasticProcess1D>& process,
-                        Time end,
-                        Size steps)
-        : ExtendedBinomialTree<T>(process, end, steps) {}
+        ExtendedEqualJumpsBinomialTree(const ext::shared_ptr<StochasticProcess1D>& process, Time end, Size steps)
+        : ExtendedBinomialTree<T>(process, end, steps)
+        {
+        }
         virtual ~ExtendedEqualJumpsBinomialTree() = default;
 
-        Real underlying(Size i, Size index) const {
-            Time stepTime = i*this->dt_;
-            BigInteger j = 2*BigInteger(index) - BigInteger(i);
+        Real underlying(Size i, Size index) const
+        {
+            Time stepTime = i * this->dt_;
+            BigInteger j = 2 * BigInteger(index) - BigInteger(i);
             // exploiting equal jump and the x0_ tree centering
-            return this->x0_*std::exp(j*this->dxStep(stepTime));
+            return this->x0_ * std::exp(j * this->dxStep(stepTime));
         }
 
-        Real probability(Size i, Size, Size branch) const {
-            Time stepTime = i*this->dt_;
+        Real probability(Size i, Size, Size branch) const
+        {
+            Time stepTime = i * this->dt_;
             Real upProb = this->probUp(stepTime);
             Real downProb = 1 - upProb;
             return (branch == 1 ? upProb : downProb);
         }
+
       protected:
-        //probability of a up move
+        // probability of a up move
         virtual Real probUp(Time stepTime) const = 0;
-        //time dependent term dx_
+        // time dependent term dx_
         virtual Real dxStep(Time stepTime) const = 0;
 
         Real dx_, pu_, pd_;
@@ -130,13 +134,11 @@ namespace QuantLib {
 
     //! Jarrow-Rudd (multiplicative) equal probabilities binomial tree
     /*! \ingroup lattices */
-    class ExtendedJarrowRudd
-        : public ExtendedEqualProbabilitiesBinomialTree<ExtendedJarrowRudd> {
+    class ExtendedJarrowRudd : public ExtendedEqualProbabilitiesBinomialTree<ExtendedJarrowRudd>
+    {
       public:
-        ExtendedJarrowRudd(const ext::shared_ptr<StochasticProcess1D>&,
-                           Time end,
-                           Size steps,
-                           Real strike);
+        ExtendedJarrowRudd(const ext::shared_ptr<StochasticProcess1D>&, Time end, Size steps, Real strike);
+
       protected:
         Real upStep(Time stepTime) const override;
     };
@@ -144,13 +146,11 @@ namespace QuantLib {
 
     //! Cox-Ross-Rubinstein (multiplicative) equal jumps binomial tree
     /*! \ingroup lattices */
-    class ExtendedCoxRossRubinstein
-        : public ExtendedEqualJumpsBinomialTree<ExtendedCoxRossRubinstein> {
+    class ExtendedCoxRossRubinstein : public ExtendedEqualJumpsBinomialTree<ExtendedCoxRossRubinstein>
+    {
       public:
-        ExtendedCoxRossRubinstein(const ext::shared_ptr<StochasticProcess1D>&,
-                                  Time end,
-                                  Size steps,
-                                  Real strike);
+        ExtendedCoxRossRubinstein(const ext::shared_ptr<StochasticProcess1D>&, Time end, Size steps, Real strike);
+
       protected:
         Real dxStep(Time stepTime) const override;
         Real probUp(Time stepTime) const override;
@@ -160,14 +160,10 @@ namespace QuantLib {
     //! Additive equal probabilities binomial tree
     /*! \ingroup lattices */
     class ExtendedAdditiveEQPBinomialTree
-        : public ExtendedEqualProbabilitiesBinomialTree<
-                                            ExtendedAdditiveEQPBinomialTree> {
+    : public ExtendedEqualProbabilitiesBinomialTree<ExtendedAdditiveEQPBinomialTree>
+    {
       public:
-        ExtendedAdditiveEQPBinomialTree(
-                        const ext::shared_ptr<StochasticProcess1D>&,
-                        Time end,
-                        Size steps,
-                        Real strike);
+        ExtendedAdditiveEQPBinomialTree(const ext::shared_ptr<StochasticProcess1D>&, Time end, Size steps, Real strike);
 
       protected:
         Real upStep(Time stepTime) const override;
@@ -176,46 +172,41 @@ namespace QuantLib {
 
     //! %Trigeorgis (additive equal jumps) binomial tree
     /*! \ingroup lattices */
-    class ExtendedTrigeorgis
-        : public ExtendedEqualJumpsBinomialTree<ExtendedTrigeorgis> {
+    class ExtendedTrigeorgis : public ExtendedEqualJumpsBinomialTree<ExtendedTrigeorgis>
+    {
       public:
-        ExtendedTrigeorgis(const ext::shared_ptr<StochasticProcess1D>&,
-                           Time end,
-                           Size steps,
-                           Real strike);
-    protected:
-      Real dxStep(Time stepTime) const override;
-      Real probUp(Time stepTime) const override;
+        ExtendedTrigeorgis(const ext::shared_ptr<StochasticProcess1D>&, Time end, Size steps, Real strike);
+
+      protected:
+        Real dxStep(Time stepTime) const override;
+        Real probUp(Time stepTime) const override;
     };
 
 
     //! %Tian tree: third moment matching, multiplicative approach
     /*! \ingroup lattices */
-    class ExtendedTian : public ExtendedBinomialTree<ExtendedTian> {
+    class ExtendedTian : public ExtendedBinomialTree<ExtendedTian>
+    {
       public:
-        ExtendedTian(const ext::shared_ptr<StochasticProcess1D>&,
-                     Time end,
-                     Size steps,
-                     Real strike);
+        ExtendedTian(const ext::shared_ptr<StochasticProcess1D>&, Time end, Size steps, Real strike);
 
         Real underlying(Size i, Size index) const;
         Real probability(Size, Size, Size branch) const;
+
       protected:
         Real up_, down_, pu_, pd_;
     };
 
     //! Leisen & Reimer tree: multiplicative approach
     /*! \ingroup lattices */
-    class ExtendedLeisenReimer
-        : public ExtendedBinomialTree<ExtendedLeisenReimer> {
+    class ExtendedLeisenReimer : public ExtendedBinomialTree<ExtendedLeisenReimer>
+    {
       public:
-        ExtendedLeisenReimer(const ext::shared_ptr<StochasticProcess1D>&,
-                             Time end,
-                             Size steps,
-                             Real strike);
+        ExtendedLeisenReimer(const ext::shared_ptr<StochasticProcess1D>&, Time end, Size steps, Real strike);
 
         Real underlying(Size i, Size index) const;
         Real probability(Size, Size, Size branch) const;
+
       protected:
         Time end_;
         Size oddSteps_;
@@ -223,15 +214,14 @@ namespace QuantLib {
     };
 
 
-     class ExtendedJoshi4 : public ExtendedBinomialTree<ExtendedJoshi4> {
+    class ExtendedJoshi4 : public ExtendedBinomialTree<ExtendedJoshi4>
+    {
       public:
-        ExtendedJoshi4(const ext::shared_ptr<StochasticProcess1D>&,
-                       Time end,
-                       Size steps,
-                       Real strike);
+        ExtendedJoshi4(const ext::shared_ptr<StochasticProcess1D>&, Time end, Size steps, Real strike);
 
         Real underlying(Size i, Size index) const;
         Real probability(Size, Size, Size branch) const;
+
       protected:
         Real computeUpProb(Real k, Real dj) const;
         Time end_;

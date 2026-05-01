@@ -27,15 +27,16 @@
 #include <ql/termstructures/volatility/equityfx/blackvariancecurve.hpp>
 #include <ql/termstructures/volatility/equityfx/localvoltermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Local volatility curve derived from a Black curve
-    class LocalVolCurve : public LocalVolTermStructure {
+    class LocalVolCurve : public LocalVolTermStructure
+    {
       public:
         LocalVolCurve(const Handle<BlackVarianceCurve>& curve)
-        : LocalVolTermStructure(curve->businessDayConvention(),
-                                curve->dayCounter()),
-          blackVarianceCurve_(curve) {
+        : LocalVolTermStructure(curve->businessDayConvention(), curve->dayCounter()), blackVarianceCurve_(curve)
+        {
             registerWith(blackVarianceCurve_);
         }
         //! \name TermStructure interface
@@ -62,10 +63,10 @@ namespace QuantLib {
     };
 
 
-
     // inline definitions
 
-    inline void LocalVolCurve::accept(AcyclicVisitor& v) {
+    inline void LocalVolCurve::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<LocalVolCurve>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);
@@ -85,12 +86,13 @@ namespace QuantLib {
         \f]
         can be deduced which is here implemented.
     */
-    inline Volatility LocalVolCurve::localVolImpl(Time t, Real dummy) const {
+    inline Volatility LocalVolCurve::localVolImpl(Time t, Real dummy) const
+    {
 
-        Time dt = (1.0/365.0);
+        Time dt = (1.0 / 365.0);
         Real var1 = blackVarianceCurve_->blackVariance(t, dummy, true);
-        Real var2 = blackVarianceCurve_->blackVariance(t+dt, dummy, true);
-        Real derivative = (var2-var1)/dt;
+        Real var2 = blackVarianceCurve_->blackVariance(t + dt, dummy, true);
+        Real derivative = (var2 - var1) / dt;
         return std::sqrt(derivative);
     }
 

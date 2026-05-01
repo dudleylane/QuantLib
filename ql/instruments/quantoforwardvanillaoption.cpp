@@ -20,50 +20,52 @@
 
 #include <ql/instruments/quantoforwardvanillaoption.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    QuantoForwardVanillaOption::QuantoForwardVanillaOption(
-                           Real moneyness,
-                           const Date& resetDate,
-                           const ext::shared_ptr<StrikedTypePayoff>& payoff,
-                           const ext::shared_ptr<Exercise>& exercise)
-    : ForwardVanillaOption(moneyness, resetDate, payoff, exercise) {}
+    QuantoForwardVanillaOption::QuantoForwardVanillaOption(Real moneyness,
+                                                           const Date& resetDate,
+                                                           const ext::shared_ptr<StrikedTypePayoff>& payoff,
+                                                           const ext::shared_ptr<Exercise>& exercise)
+    : ForwardVanillaOption(moneyness, resetDate, payoff, exercise)
+    {
+    }
 
-    Real QuantoForwardVanillaOption::qvega() const {
+    Real QuantoForwardVanillaOption::qvega() const
+    {
         calculate();
-        QL_REQUIRE(qvega_ != Null<Real>(),
-                   "exchange rate vega calculation failed");
+        QL_REQUIRE(qvega_ != Null<Real>(), "exchange rate vega calculation failed");
         return qvega_;
     }
 
-    Real QuantoForwardVanillaOption::qrho() const {
+    Real QuantoForwardVanillaOption::qrho() const
+    {
         calculate();
-        QL_REQUIRE(qrho_ != Null<Real>(),
-                   "foreign interest rate rho calculation failed");
+        QL_REQUIRE(qrho_ != Null<Real>(), "foreign interest rate rho calculation failed");
         return qrho_;
     }
 
-    Real QuantoForwardVanillaOption::qlambda() const {
+    Real QuantoForwardVanillaOption::qlambda() const
+    {
         calculate();
-        QL_REQUIRE(qlambda_ != Null<Real>(),
-                   "quanto correlation sensitivity calculation failed");
+        QL_REQUIRE(qlambda_ != Null<Real>(), "quanto correlation sensitivity calculation failed");
         return qlambda_;
     }
 
-    void QuantoForwardVanillaOption::setupExpired() const {
+    void QuantoForwardVanillaOption::setupExpired() const
+    {
         ForwardVanillaOption::setupExpired();
         qvega_ = qrho_ = qlambda_ = 0.0;
     }
 
-    void QuantoForwardVanillaOption::fetchResults(
-                                      const PricingEngine::results* r) const {
+    void QuantoForwardVanillaOption::fetchResults(const PricingEngine::results* r) const
+    {
         ForwardVanillaOption::fetchResults(r);
         const auto* quantoResults = dynamic_cast<const QuantoForwardVanillaOption::results*>(r);
         QL_ENSURE(quantoResults != nullptr, "no quanto results returned from pricing engine");
-        qrho_    = quantoResults->qrho;
-        qvega_   = quantoResults->qvega;
+        qrho_ = quantoResults->qrho;
+        qvega_ = quantoResults->qvega;
         qlambda_ = quantoResults->qlambda;
     }
 
 }
-

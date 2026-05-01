@@ -27,13 +27,16 @@
 #include <ql/types.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Clayton copula
-    class ClaytonCopula {
+    class ClaytonCopula
+    {
       public:
         ClaytonCopula(Real theta);
         Real operator()(Real x, Real y) const;
+
       private:
         Real theta_;
     };

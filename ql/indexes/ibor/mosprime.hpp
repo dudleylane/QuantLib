@@ -24,29 +24,38 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #ifndef quantlib_mosprime_hpp
 #define quantlib_mosprime_hpp
 
+#include <ql/currencies/europe.hpp>
 #include <ql/indexes/iborindex.hpp>
 #include <ql/time/calendars/russia.hpp>
 #include <ql/time/daycounters/actualactual.hpp>
-#include <ql/currencies/europe.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-	//! %MOSPRIME rate
-	/*! Moscow Prime Offered Rate fixed by NFEA.
+    //! %MOSPRIME rate
+    /*! Moscow Prime Offered Rate fixed by NFEA.
 
-	Conventions are taken from
-	http://www.mosprime.com/uploads/files/MosPrime%20Rate%20Rules%20since%2030.01.2014.docx
+    Conventions are taken from
+    http://www.mosprime.com/uploads/files/MosPrime%20Rate%20Rules%20since%2030.01.2014.docx
 
-	\warning Roll convention and EoM not yet checked.
-	*/
-	class Mosprime : public IborIndex {
-	public:
-		Mosprime(const Period& tenor,
-                 const Handle<YieldTermStructure>& h = {})
-			: IborIndex("MOSPRIME", tenor, (tenor == 1 * Days ? 0 : 1), RUBCurrency(),
-				Russia(), ModifiedFollowing, false,
-				ActualActual(ActualActual::ISDA), h) {}
-	};
+    \warning Roll convention and EoM not yet checked.
+    */
+    class Mosprime : public IborIndex
+    {
+      public:
+        Mosprime(const Period& tenor, const Handle<YieldTermStructure>& h = {})
+        : IborIndex("MOSPRIME",
+                    tenor,
+                    (tenor == 1 * Days ? 0 : 1),
+                    RUBCurrency(),
+                    Russia(),
+                    ModifiedFollowing,
+                    false,
+                    ActualActual(ActualActual::ISDA),
+                    h)
+        {
+        }
+    };
 
 }
 

@@ -29,9 +29,11 @@
 
 #include <ql/termstructures/volatility/smilesection.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class FlatSmileSection : public SmileSection {
+    class FlatSmileSection : public SmileSection
+    {
       public:
         FlatSmileSection(const Date& d,
                          Volatility vol,
@@ -59,19 +61,23 @@ namespace QuantLib {
         Real atmLevel_;
     };
 
-    inline Real FlatSmileSection::minStrike () const {
+    inline Real FlatSmileSection::minStrike() const
+    {
         return QL_MIN_REAL - shift();
     }
 
-    inline Real FlatSmileSection::maxStrike () const {
+    inline Real FlatSmileSection::maxStrike() const
+    {
         return QL_MAX_REAL;
     }
 
-    inline Real FlatSmileSection::atmLevel() const {
+    inline Real FlatSmileSection::atmLevel() const
+    {
         return atmLevel_;
     }
 
-    inline Volatility FlatSmileSection::volatilityImpl(Rate) const {
+    inline Volatility FlatSmileSection::volatilityImpl(Rate) const
+    {
         return vol_;
     }
 

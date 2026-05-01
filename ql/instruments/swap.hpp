@@ -26,11 +26,12 @@
 #ifndef quantlib_swap_hpp
 #define quantlib_swap_hpp
 
-#include <ql/instrument.hpp>
 #include <ql/cashflow.hpp>
+#include <ql/instrument.hpp>
 #include <iosfwd>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Interest rate swap
     /*! The cash flows belonging to the first leg are paid;
@@ -38,7 +39,8 @@ namespace QuantLib {
 
         \ingroup instruments
     */
-    class Swap : public Instrument {
+    class Swap : public Instrument
+    {
       public:
         /*! In most cases, the swap has just two legs and can be
             defined as receiver or payer.
@@ -47,7 +49,11 @@ namespace QuantLib {
             a fixed rate; derived swap classes will document any
             exceptions to the rule.
         */
-        enum Type { Receiver = -1, Payer = 1 };
+        enum Type
+        {
+            Receiver = -1,
+            Payer = 1
+        };
 
         class arguments;
         class results;
@@ -57,11 +63,9 @@ namespace QuantLib {
         /*! The cash flows belonging to the first leg are paid;
             the ones belonging to the second leg are received.
         */
-        Swap(const Leg& firstLeg,
-             const Leg& secondLeg);
+        Swap(const Leg& firstLeg, const Leg& secondLeg);
         /*! Multi leg constructor. */
-        Swap(const std::vector<Leg>& legs,
-             const std::vector<bool>& payer);
+        Swap(const std::vector<Leg>& legs, const std::vector<bool>& payer);
         //@}
         //! \name Observable interface
         //@{
@@ -79,41 +83,48 @@ namespace QuantLib {
         const std::vector<Leg>& legs() const;
         virtual Date startDate() const;
         virtual Date maturityDate() const;
-        Real legBPS(Size j) const {
-            QL_REQUIRE(j<legs_.size(), "leg# " << j << " doesn't exist!");
+        Real legBPS(Size j) const
+        {
+            QL_REQUIRE(j < legs_.size(), "leg# " << j << " doesn't exist!");
             calculate();
             QL_REQUIRE(legBPS_[j] != Null<Real>(), "result not available");
             return legBPS_[j];
         }
-        Real legNPV(Size j) const {
-            QL_REQUIRE(j<legs_.size(), "leg #" << j << " doesn't exist!");
+        Real legNPV(Size j) const
+        {
+            QL_REQUIRE(j < legs_.size(), "leg #" << j << " doesn't exist!");
             calculate();
             QL_REQUIRE(legNPV_[j] != Null<Real>(), "result not available");
             return legNPV_[j];
         }
-        DiscountFactor startDiscounts(Size j) const {
-            QL_REQUIRE(j<legs_.size(), "leg #" << j << " doesn't exist!");
+        DiscountFactor startDiscounts(Size j) const
+        {
+            QL_REQUIRE(j < legs_.size(), "leg #" << j << " doesn't exist!");
             calculate();
             QL_REQUIRE(startDiscounts_[j] != Null<Real>(), "result not available");
             return startDiscounts_[j];
         }
-        DiscountFactor endDiscounts(Size j) const {
-            QL_REQUIRE(j<legs_.size(), "leg #" << j << " doesn't exist!");
+        DiscountFactor endDiscounts(Size j) const
+        {
+            QL_REQUIRE(j < legs_.size(), "leg #" << j << " doesn't exist!");
             calculate();
             QL_REQUIRE(endDiscounts_[j] != Null<Real>(), "result not available");
             return endDiscounts_[j];
         }
-        DiscountFactor npvDateDiscount() const {
+        DiscountFactor npvDateDiscount() const
+        {
             calculate();
             QL_REQUIRE(npvDateDiscount_ != Null<Real>(), "result not available");
             return npvDateDiscount_;
         }
-        const Leg& leg(Size j) const {
-            QL_REQUIRE(j<legs_.size(), "leg #" << j << " doesn't exist!");
+        const Leg& leg(Size j) const
+        {
+            QL_REQUIRE(j < legs_.size(), "leg #" << j << " doesn't exist!");
             return legs_[j];
         }
-        bool payer(Size j) const {
-            QL_REQUIRE(j<legs_.size(), "leg #" << j << " doesn't exist!");
+        bool payer(Size j) const
+        {
+            QL_REQUIRE(j < legs_.size(), "leg #" << j << " doesn't exist!");
             return payer_[j] < 0.0;
         }
         //@}
@@ -139,14 +150,16 @@ namespace QuantLib {
     };
 
 
-    class Swap::arguments : public virtual PricingEngine::arguments {
+    class Swap::arguments : public virtual PricingEngine::arguments
+    {
       public:
         std::vector<Leg> legs;
         std::vector<Real> payer;
         void validate() const override;
     };
 
-    class Swap::results : public Instrument::results {
+    class Swap::results : public Instrument::results
+    {
       public:
         std::vector<Real> legNPV;
         std::vector<Real> legBPS;
@@ -155,8 +168,9 @@ namespace QuantLib {
         void reset() override;
     };
 
-    class Swap::engine : public GenericEngine<Swap::arguments,
-                                              Swap::results> {};
+    class Swap::engine : public GenericEngine<Swap::arguments, Swap::results>
+    {
+    };
 
     std::ostream& operator<<(std::ostream& out, Swap::Type t);
 

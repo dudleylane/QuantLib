@@ -18,24 +18,26 @@
 */
 
 /*! \file fdm1dimsolver.hpp
-*/
+ */
 
 #ifndef quantlib_fdm_1_dim_solver_hpp
 #define quantlib_fdm_1_dim_solver_hpp
 
 #include <ql/handle.hpp>
 #include <ql/math/matrix.hpp>
-#include <ql/patterns/lazyobject.hpp>
-#include <ql/methods/finitedifferences/solvers/fdmsolverdesc.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
+#include <ql/methods/finitedifferences/solvers/fdmsolverdesc.hpp>
+#include <ql/patterns/lazyobject.hpp>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class CubicInterpolation;
     class FdmSnapshotCondition;
 
-    class Fdm1DimSolver : public LazyObject {
+    class Fdm1DimSolver : public LazyObject
+    {
       public:
         Fdm1DimSolver(const FdmSolverDesc& solverDesc,
                       const FdmSchemeDesc& schemeDesc,

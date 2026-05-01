@@ -28,7 +28,8 @@
 #include <ql/models/shortrate/onefactormodel.hpp>
 #include <ql/processes/coxingersollrossprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Cox-Ingersoll-Ross model class.
     /*! This class implements the Cox-Ingersoll-Ross model defined by
@@ -41,18 +42,13 @@ namespace QuantLib {
 
         \ingroup shortrate
     */
-    class CoxIngersollRoss : public OneFactorAffineModel {
+    class CoxIngersollRoss : public OneFactorAffineModel
+    {
       public:
-        CoxIngersollRoss(Rate r0 = 0.05,
-                         Real theta = 0.1,
-                         Real k = 0.1,
-                         Real sigma = 0.1,
-                         bool withFellerConstraint = true);
+        CoxIngersollRoss(
+            Rate r0 = 0.05, Real theta = 0.1, Real k = 0.1, Real sigma = 0.1, bool withFellerConstraint = true);
 
-        Real discountBondOption(Option::Type type,
-                                Real strike,
-                                Time maturity,
-                                Time bondMaturity) const override;
+        Real discountBondOption(Option::Type type, Real strike, Time maturity, Time bondMaturity) const override;
 
         ext::shared_ptr<ShortRateDynamics> dynamics() const override;
 
@@ -60,6 +56,7 @@ namespace QuantLib {
 
 
         class Dynamics;
+
       protected:
         Real A(Time t, Time T) const override;
         Real B(Time t, Time T) const override;
@@ -83,15 +80,13 @@ namespace QuantLib {
         discretization scheme as described in Leif Andersen,
         Efficient Simulation of the Heston Stochastic Volatility Model.
     */
-    class CoxIngersollRoss::Dynamics :
-        public OneFactorModel::ShortRateDynamics {
+    class CoxIngersollRoss::Dynamics : public OneFactorModel::ShortRateDynamics
+    {
       public:
-        Dynamics(Real theta,
-                 Real k,
-                 Real sigma,
-                 Real x0)
-        : ShortRateDynamics(ext::shared_ptr<StochasticProcess1D>(
-                        new CoxIngersollRossProcess(k, sigma, x0, theta))) {}
+        Dynamics(Real theta, Real k, Real sigma, Real x0)
+        : ShortRateDynamics(ext::shared_ptr<StochasticProcess1D>(new CoxIngersollRossProcess(k, sigma, x0, theta)))
+        {
+        }
 
         Real variable(Time, Rate r) const override { return r; }
         Real shortRate(Time, Real y) const override { return y; }

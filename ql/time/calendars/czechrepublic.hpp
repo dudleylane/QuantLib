@@ -26,7 +26,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Czech calendars
     /*! Holidays for the Prague stock exchange (see http://www.pse.cz/):
@@ -49,15 +50,20 @@ namespace QuantLib {
 
         \ingroup calendars
     */
-    class CzechRepublic : public Calendar {
+    class CzechRepublic : public Calendar
+    {
       private:
-        class PseImpl final : public Calendar::WesternImpl {
+        class PseImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "Prague stock exchange"; }
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
-        enum Market { PSE    //!< Prague stock exchange
+        enum Market
+        {
+            PSE //!< Prague stock exchange
         };
         CzechRepublic(Market m = PSE);
     };

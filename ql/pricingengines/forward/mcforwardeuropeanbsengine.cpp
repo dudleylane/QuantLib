@@ -15,23 +15,22 @@
 
 #include <ql/pricingengines/forward/mcforwardeuropeanbsengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    ForwardEuropeanBSPathPricer::ForwardEuropeanBSPathPricer(
-                                          Option::Type type,
-                                          Real moneyness,
-                                          Size resetIndex,
-                                          DiscountFactor discount)
-    : type_(type), moneyness_(moneyness), resetIndex_(resetIndex),
-      discount_(discount)
-       {
-        QL_REQUIRE(moneyness>=0.0,
-                   "moneyness less than zero not allowed");
+    ForwardEuropeanBSPathPricer::ForwardEuropeanBSPathPricer(Option::Type type,
+                                                             Real moneyness,
+                                                             Size resetIndex,
+                                                             DiscountFactor discount)
+    : type_(type), moneyness_(moneyness), resetIndex_(resetIndex), discount_(discount)
+    {
+        QL_REQUIRE(moneyness >= 0.0, "moneyness less than zero not allowed");
     }
 
-    Real ForwardEuropeanBSPathPricer::operator()(const Path& path) const {
+    Real ForwardEuropeanBSPathPricer::operator()(const Path& path) const
+    {
         Size n = path.length() - 1;
-        QL_REQUIRE(n>0, "the path cannot be empty");
+        QL_REQUIRE(n > 0, "the path cannot be empty");
 
         const Real resetLevel = path[resetIndex_];
         const Real strike = resetLevel * moneyness_;

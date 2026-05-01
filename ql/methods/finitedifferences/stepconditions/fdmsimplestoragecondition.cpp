@@ -18,80 +18,82 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <algorithm>
 #include <ql/math/interpolations/bilinearinterpolation.hpp>
 #include <ql/methods/finitedifferences/operators/fdmlinearoplayout.hpp>
 #include <ql/methods/finitedifferences/stepconditions/fdmsimplestoragecondition.hpp>
+#include <algorithm>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    FdmSimpleStorageCondition::FdmSimpleStorageCondition(
-        std::vector<Time> exerciseTimes,
-        ext::shared_ptr<FdmMesher> mesher,
-        ext::shared_ptr<FdmInnerValueCalculator> calculator,
-        Real changeRate)
-    : exerciseTimes_(std::move(exerciseTimes)), mesher_(std::move(mesher)),
-      calculator_(std::move(calculator)), changeRate_(changeRate) {
+    FdmSimpleStorageCondition::FdmSimpleStorageCondition(std::vector<Time> exerciseTimes,
+                                                         ext::shared_ptr<FdmMesher> mesher,
+                                                         ext::shared_ptr<FdmInnerValueCalculator> calculator,
+                                                         Real changeRate)
+    : exerciseTimes_(std::move(exerciseTimes)), mesher_(std::move(mesher)), calculator_(std::move(calculator)),
+      changeRate_(changeRate)
+    {
 
         x_.reserve(mesher_->layout()->dim()[0]);
         y_.reserve(mesher_->layout()->dim()[1]);
 
-        for (const auto& iter : *mesher_->layout()) {
-            if (iter.coordinates()[1] == 0U) {
+        for (const auto& iter : *mesher_->layout())
+        {
+            if (iter.coordinates()[1] == 0U)
+            {
                 x_.push_back(mesher_->location(iter, 0));
             }
-            if (iter.coordinates()[0] == 0U) {
+            if (iter.coordinates()[0] == 0U)
+            {
                 y_.push_back(mesher_->location(iter, 1));
             }
         }
     }
 
-    void FdmSimpleStorageCondition::applyTo(Array& a, Time t) const {
-        const auto iter
-            = std::find(exerciseTimes_.begin(), exerciseTimes_.end(), t);
+    void FdmSimpleStorageCondition::applyTo(Array& a, Time t) const
+    {
+        const auto iter = std::find(exerciseTimes_.begin(), exerciseTimes_.end(), t);
 
-        if (iter != exerciseTimes_.end()) {
+        if (iter != exerciseTimes_.end())
+        {
             Array retVal(a.size());
 
             Matrix m(y_.size(), x_.size());
             std::copy(a.begin(), a.end(), m.begin());
-            BilinearInterpolation interpl(x_.begin(), x_.end(),
-                                          y_.begin(), y_.end(), m);
+            BilinearInterpolation interpl(x_.begin(), x_.end(), y_.begin(), y_.end(), m);
 
-            QL_REQUIRE(mesher_->layout()->size() == a.size(),
-                       "inconsistent array dimensions");
+            QL_REQUIRE(mesher_->layout()->size() == a.size(), "inconsistent array dimensions");
 
-            for (const auto& iter : *mesher_->layout()) {
+            for (const auto& iter : *mesher_->layout())
+            {
                 const std::vector<Size>& coor = iter.coordinates();
                 const Real x = x_[coor[0]];
                 const Real y = y_[coor[1]];
 
                 const Real price = calculator_->innerValue(iter, t);
 
-                const Real maxWithDraw = std::min(y-y_.front(), changeRate_);
-                const Real sellPrice   = interpl(x, y-maxWithDraw);
+                const Real maxWithDraw = std::min(y - y_.front(), changeRate_);
+                const Real sellPrice = interpl(x, y - maxWithDraw);
 
-                const Real maxInject = std::min(y_.back()-y, changeRate_);
-                const Real buyPrice  = interpl(x, y+maxInject);
+                const Real maxInject = std::min(y_.back() - y, changeRate_);
+                const Real buyPrice = interpl(x, y + maxInject);
 
                 // bang-bang-wait strategy
-                Real currentValue = std::max({
-                        a[iter.index()],
-                        Real(buyPrice - price*maxInject),
-                        Real(sellPrice + price*maxWithDraw)
-                    });
+                Real currentValue = std::max(
+                    {a[iter.index()], Real(buyPrice - price * maxInject), Real(sellPrice + price * maxWithDraw)});
 
                 // check if intermediate grid points give a better value
                 auto yIter = std::upper_bound(y_.begin(), y_.end(), y - maxWithDraw);
 
-                while (yIter != y_.end() && *yIter < y + maxInject) {
-                    if (*yIter != y) {
+                while (yIter != y_.end() && *yIter < y + maxInject)
+                {
+                    if (*yIter != y)
+                    {
                         const Real change = *yIter - y;
                         const Real storagePrice(interpl(x, *yIter));
 
-                        currentValue = std::max(currentValue,
-                            storagePrice - change*price);
+                        currentValue = std::max(currentValue, storagePrice - change * price);
                     }
                     ++yIter;
                 }

@@ -2,7 +2,7 @@
 
 /*
  Copyright (C) 2010 Klaus Spanderen
- 
+
  This file is part of QuantLib, a free-software/open-source library
  for financial quantitative analysts and developers - http://quantlib.org/
 
@@ -22,31 +22,26 @@
 #include <ql/pricingengines/blackcalculator.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     KirkEngine::KirkEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process1,
                            ext::shared_ptr<GeneralizedBlackScholesProcess> process2,
                            Real correlation)
-    : SpreadBlackScholesVanillaEngine(std::move(process1), std::move(process2), correlation) {
+    : SpreadBlackScholesVanillaEngine(std::move(process1), std::move(process2), correlation)
+    {
     }
 
     Real KirkEngine::calculate(
-        Real f1, Real f2, Real strike, Option::Type optionType,
-        Real variance1, Real variance2, DiscountFactor df) const {
-        
-        const Real f = f1/(f2 + strike);
-        const Real v 
-            = std::sqrt(variance1 
-                        + variance2*squared(f2/(f2+strike))
-                        - 2*rho_*std::sqrt(variance1*variance2)
-                            *(f2/(f2+strike)));
-        
-        BlackCalculator black(
-             ext::make_shared<PlainVanillaPayoff>(
-                 optionType,1.0),
-             f, v, df);
-        
-        return (f2 + strike)*black.value();
+        Real f1, Real f2, Real strike, Option::Type optionType, Real variance1, Real variance2, DiscountFactor df) const
+    {
+
+        const Real f = f1 / (f2 + strike);
+        const Real v = std::sqrt(variance1 + variance2 * squared(f2 / (f2 + strike)) -
+                                 2 * rho_ * std::sqrt(variance1 * variance2) * (f2 / (f2 + strike)));
+
+        BlackCalculator black(ext::make_shared<PlainVanillaPayoff>(optionType, 1.0), f, v, df);
+
+        return (f2 + strike) * black.value();
     }
 }
-

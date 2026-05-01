@@ -26,11 +26,12 @@
 #ifndef quantlib_stochastic_process_hpp
 #define quantlib_stochastic_process_hpp
 
-#include <ql/time/date.hpp>
-#include <ql/patterns/observable.hpp>
 #include <ql/math/matrix.hpp>
+#include <ql/patterns/observable.hpp>
+#include <ql/time/date.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! multi-dimensional stochastic process class.
     /*! This class describes a stochastic process governed by
@@ -39,24 +40,17 @@ namespace QuantLib {
                       + \sigma(t, \mathrm{x}_t) \cdot d\mathrm{W}_t.
         \f]
     */
-    class StochasticProcess : public Observer, public Observable {
+    class StochasticProcess : public Observer, public Observable
+    {
       public:
         //! discretization of a stochastic process over a given time interval
-        class discretization {
+        class discretization
+        {
           public:
             virtual ~discretization() = default;
-            virtual Array drift(const StochasticProcess&,
-                                Time t0,
-                                const Array& x0,
-                                Time dt) const = 0;
-            virtual Matrix diffusion(const StochasticProcess&,
-                                     Time t0,
-                                     const Array& x0,
-                                     Time dt) const = 0;
-            virtual Matrix covariance(const StochasticProcess&,
-                                      Time t0,
-                                      const Array& x0,
-                                      Time dt) const = 0;
+            virtual Array drift(const StochasticProcess&, Time t0, const Array& x0, Time dt) const = 0;
+            virtual Matrix diffusion(const StochasticProcess&, Time t0, const Array& x0, Time dt) const = 0;
+            virtual Matrix covariance(const StochasticProcess&, Time t0, const Array& x0, Time dt) const = 0;
         };
         ~StochasticProcess() override = default;
         //! \name Stochastic process interface
@@ -70,13 +64,11 @@ namespace QuantLib {
         /*! \brief returns the drift part of the equation, i.e.,
                    \f$ \mu(t, \mathrm{x}_t) \f$
         */
-        virtual Array drift(Time t,
-                            const Array& x) const = 0;
+        virtual Array drift(Time t, const Array& x) const = 0;
         /*! \brief returns the diffusion part of the equation, i.e.
                    \f$ \sigma(t, \mathrm{x}_t) \f$
         */
-        virtual Matrix diffusion(Time t,
-                                 const Array& x) const = 0;
+        virtual Matrix diffusion(Time t, const Array& x) const = 0;
         /*! returns the expectation
             \f$ E(\mathrm{x}_{t_0 + \Delta t}
                 | \mathrm{x}_{t_0} = \mathrm{x}_0) \f$
@@ -85,9 +77,7 @@ namespace QuantLib {
             overridden in derived classes which want to hard-code a
             particular discretization.
         */
-        virtual Array expectation(Time t0,
-                                  const Array& x0,
-                                  Time dt) const;
+        virtual Array expectation(Time t0, const Array& x0, Time dt) const;
         /*! returns the standard deviation
             \f$ S(\mathrm{x}_{t_0 + \Delta t}
                 | \mathrm{x}_{t_0} = \mathrm{x}_0) \f$
@@ -96,9 +86,7 @@ namespace QuantLib {
             overridden in derived classes which want to hard-code a
             particular discretization.
         */
-        virtual Matrix stdDeviation(Time t0,
-                                    const Array& x0,
-                                    Time dt) const;
+        virtual Matrix stdDeviation(Time t0, const Array& x0, Time dt) const;
         /*! returns the covariance
             \f$ V(\mathrm{x}_{t_0 + \Delta t}
                 | \mathrm{x}_{t_0} = \mathrm{x}_0) \f$
@@ -107,9 +95,7 @@ namespace QuantLib {
             overridden in derived classes which want to hard-code a
             particular discretization.
         */
-        virtual Matrix covariance(Time t0,
-                                  const Array& x0,
-                                  Time dt) const;
+        virtual Matrix covariance(Time t0, const Array& x0, Time dt) const;
         /*! returns the asset value after a time interval \f$ \Delta t
             \f$ according to the given discretization. By default, it
             returns
@@ -120,15 +106,11 @@ namespace QuantLib {
             where \f$ E \f$ is the expectation and \f$ S \f$ the
             standard deviation.
         */
-        virtual Array evolve(Time t0,
-                             const Array& x0,
-                             Time dt,
-                             const Array& dw) const;
+        virtual Array evolve(Time t0, const Array& x0, Time dt, const Array& dw) const;
         /*! applies a change to the asset value. By default, it
             returns \f$ \mathrm{x} + \Delta \mathrm{x} \f$.
         */
-        virtual Array apply(const Array& x0,
-                            const Array& dx) const;
+        virtual Array apply(const Array& x0, const Array& dx) const;
         //@}
 
         //! \name utilities
@@ -160,18 +142,17 @@ namespace QuantLib {
             dx_t = \mu(t, x_t)dt + \sigma(t, x_t)dW_t.
         \f]
     */
-    class StochasticProcess1D : public StochasticProcess {
+    class StochasticProcess1D : public StochasticProcess
+    {
       public:
         //! discretization of a 1-D stochastic process
-        class discretization {
+        class discretization
+        {
           public:
             virtual ~discretization() = default;
-            virtual Real drift(const StochasticProcess1D&,
-                               Time t0, Real x0, Time dt) const = 0;
-            virtual Real diffusion(const StochasticProcess1D&,
-                                   Time t0, Real x0, Time dt) const = 0;
-            virtual Real variance(const StochasticProcess1D&,
-                                  Time t0, Real x0, Time dt) const = 0;
+            virtual Real drift(const StochasticProcess1D&, Time t0, Real x0, Time dt) const = 0;
+            virtual Real diffusion(const StochasticProcess1D&, Time t0, Real x0, Time dt) const = 0;
+            virtual Real variance(const StochasticProcess1D&, Time t0, Real x0, Time dt) const = 0;
         };
         //! \name 1-D stochastic process interface
         //@{
@@ -226,6 +207,7 @@ namespace QuantLib {
         StochasticProcess1D() = default;
         explicit StochasticProcess1D(ext::shared_ptr<discretization>);
         ext::shared_ptr<discretization> discretization_;
+
       private:
         // StochasticProcess interface implementation
         Size size() const override;
@@ -242,75 +224,79 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline Size StochasticProcess1D::size() const {
+    inline Size StochasticProcess1D::size() const
+    {
         return 1;
     }
 
-    inline Array StochasticProcess1D::initialValues() const {
+    inline Array StochasticProcess1D::initialValues() const
+    {
         Array a(1, x0());
         return a;
     }
 
-    inline Array StochasticProcess1D::drift(Time t, const Array& x) const {
-        #if defined(QL_EXTRA_SAFETY_CHECKS)
+    inline Array StochasticProcess1D::drift(Time t, const Array& x) const
+    {
+#if defined(QL_EXTRA_SAFETY_CHECKS)
         QL_REQUIRE(x.size() == 1, "1-D array required");
-        #endif
+#endif
         Array a(1, drift(t, x[0]));
         return a;
     }
 
-    inline Matrix StochasticProcess1D::diffusion(Time t, const Array& x) const {
-        #if defined(QL_EXTRA_SAFETY_CHECKS)
+    inline Matrix StochasticProcess1D::diffusion(Time t, const Array& x) const
+    {
+#if defined(QL_EXTRA_SAFETY_CHECKS)
         QL_REQUIRE(x.size() == 1, "1-D array required");
-        #endif
+#endif
         Matrix m(1, 1, diffusion(t, x[0]));
         return m;
     }
 
-    inline Array StochasticProcess1D::expectation(
-                                    Time t0, const Array& x0, Time dt) const {
-        #if defined(QL_EXTRA_SAFETY_CHECKS)
+    inline Array StochasticProcess1D::expectation(Time t0, const Array& x0, Time dt) const
+    {
+#if defined(QL_EXTRA_SAFETY_CHECKS)
         QL_REQUIRE(x0.size() == 1, "1-D array required");
-        #endif
+#endif
         Array a(1, expectation(t0, x0[0], dt));
         return a;
     }
 
-    inline Matrix StochasticProcess1D::stdDeviation(
-                                    Time t0, const Array& x0, Time dt) const {
-        #if defined(QL_EXTRA_SAFETY_CHECKS)
+    inline Matrix StochasticProcess1D::stdDeviation(Time t0, const Array& x0, Time dt) const
+    {
+#if defined(QL_EXTRA_SAFETY_CHECKS)
         QL_REQUIRE(x0.size() == 1, "1-D array required");
-        #endif
+#endif
         Matrix m(1, 1, stdDeviation(t0, x0[0], dt));
         return m;
     }
 
-    inline Matrix StochasticProcess1D::covariance(
-                                    Time t0, const Array& x0, Time dt) const {
-        #if defined(QL_EXTRA_SAFETY_CHECKS)
+    inline Matrix StochasticProcess1D::covariance(Time t0, const Array& x0, Time dt) const
+    {
+#if defined(QL_EXTRA_SAFETY_CHECKS)
         QL_REQUIRE(x0.size() == 1, "1-D array required");
-        #endif
+#endif
         Matrix m(1, 1, variance(t0, x0[0], dt));
         return m;
     }
 
-    inline Array StochasticProcess1D::evolve(Time t0, const Array& x0,
-                                             Time dt, const Array& dw) const {
-        #if defined(QL_EXTRA_SAFETY_CHECKS)
+    inline Array StochasticProcess1D::evolve(Time t0, const Array& x0, Time dt, const Array& dw) const
+    {
+#if defined(QL_EXTRA_SAFETY_CHECKS)
         QL_REQUIRE(x0.size() == 1, "1-D array required");
         QL_REQUIRE(dw.size() == 1, "1-D array required");
-        #endif
-        Array a(1, evolve(t0,x0[0],dt,dw[0]));
+#endif
+        Array a(1, evolve(t0, x0[0], dt, dw[0]));
         return a;
     }
 
-    inline Array StochasticProcess1D::apply(const Array& x0,
-                                            const Array& dx) const {
-        #if defined(QL_EXTRA_SAFETY_CHECKS)
+    inline Array StochasticProcess1D::apply(const Array& x0, const Array& dx) const
+    {
+#if defined(QL_EXTRA_SAFETY_CHECKS)
         QL_REQUIRE(x0.size() == 1, "1-D array required");
         QL_REQUIRE(dx.size() == 1, "1-D array required");
-        #endif
-        Array a(1, apply(x0[0],dx[0]));
+#endif
+        Array a(1, apply(x0[0], dx[0]));
         return a;
     }
 

@@ -20,44 +20,50 @@
 
 #include <ql/indexes/region.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    CustomRegion::CustomRegion(const std::string& name,
-                               const std::string& code) {
-        data_ = ext::make_shared<Data>(name,code);
+    CustomRegion::CustomRegion(const std::string& name, const std::string& code)
+    {
+        data_ = ext::make_shared<Data>(name, code);
     }
 
 
-    AustraliaRegion::AustraliaRegion() {
-        static ext::shared_ptr<Data> AUdata(new Data("Australia","AU"));
+    AustraliaRegion::AustraliaRegion()
+    {
+        static ext::shared_ptr<Data> AUdata(new Data("Australia", "AU"));
         data_ = AUdata;
     }
 
-    EURegion::EURegion() {
-        static ext::shared_ptr<Data> EUdata(new Data("EU","EU"));
+    EURegion::EURegion()
+    {
+        static ext::shared_ptr<Data> EUdata(new Data("EU", "EU"));
         data_ = EUdata;
     }
 
-    FranceRegion::FranceRegion() {
-        static ext::shared_ptr<Data> FRdata(new Data("France","FR"));
+    FranceRegion::FranceRegion()
+    {
+        static ext::shared_ptr<Data> FRdata(new Data("France", "FR"));
         data_ = FRdata;
     }
 
-    UKRegion::UKRegion() {
-        static ext::shared_ptr<Data> UKdata(new Data("UK","UK"));
+    UKRegion::UKRegion()
+    {
+        static ext::shared_ptr<Data> UKdata(new Data("UK", "UK"));
         data_ = UKdata;
     }
 
-    USRegion::USRegion() {
-        static ext::shared_ptr<Data> USdata(new Data("USA","US"));
+    USRegion::USRegion()
+    {
+        static ext::shared_ptr<Data> USdata(new Data("USA", "US"));
         data_ = USdata;
     }
 
-    ZARegion::ZARegion() {
-        static ext::shared_ptr<Data> ZAdata(new Data("South Africa","ZA"));
+    ZARegion::ZARegion()
+    {
+        static ext::shared_ptr<Data> ZAdata(new Data("South Africa", "ZA"));
         data_ = ZAdata;
     }
 
 
 }
-

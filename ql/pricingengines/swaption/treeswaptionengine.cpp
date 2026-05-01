@@ -22,13 +22,15 @@
 #include <ql/pricingengines/swaption/treeswaptionengine.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     TreeSwaptionEngine::TreeSwaptionEngine(const ext::shared_ptr<ShortRateModel>& model,
                                            Size timeSteps,
                                            Handle<YieldTermStructure> termStructure)
     : LatticeShortRateModelEngine<Swaption::arguments, Swaption::results>(model, timeSteps),
-      termStructure_(std::move(termStructure)) {
+      termStructure_(std::move(termStructure))
+    {
         registerWith(termStructure_);
     }
 
@@ -36,7 +38,8 @@ namespace QuantLib {
                                            const TimeGrid& timeGrid,
                                            Handle<YieldTermStructure> termStructure)
     : LatticeShortRateModelEngine<Swaption::arguments, Swaption::results>(model, timeGrid),
-      termStructure_(std::move(termStructure)) {
+      termStructure_(std::move(termStructure))
+    {
         registerWith(termStructure_);
     }
 
@@ -44,11 +47,13 @@ namespace QuantLib {
                                            Size timeSteps,
                                            Handle<YieldTermStructure> termStructure)
     : LatticeShortRateModelEngine<Swaption::arguments, Swaption::results>(model, timeSteps),
-      termStructure_(std::move(termStructure)) {
+      termStructure_(std::move(termStructure))
+    {
         registerWith(termStructure_);
     }
 
-    void TreeSwaptionEngine::calculate() const {
+    void TreeSwaptionEngine::calculate() const
+    {
 
         QL_REQUIRE(arguments_.settlementMethod != Settlement::ParYieldCurve,
                    "cash settled (ParYieldCurve) swaptions not priced with "
@@ -60,10 +65,13 @@ namespace QuantLib {
 
         ext::shared_ptr<TermStructureConsistentModel> tsmodel =
             ext::dynamic_pointer_cast<TermStructureConsistentModel>(*model_);
-        if (tsmodel != nullptr) {
+        if (tsmodel != nullptr)
+        {
             referenceDate = tsmodel->termStructure()->referenceDate();
             dayCounter = tsmodel->termStructure()->dayCounter();
-        } else {
+        }
+        else
+        {
             referenceDate = termStructure_->referenceDate();
             dayCounter = termStructure_->dayCounter();
         }
@@ -71,25 +79,24 @@ namespace QuantLib {
         DiscretizedSwaption swaption(arguments_, referenceDate, dayCounter);
         ext::shared_ptr<Lattice> lattice;
 
-        if (lattice_ != nullptr) {
+        if (lattice_ != nullptr)
+        {
             lattice = lattice_;
-        } else {
+        }
+        else
+        {
             std::vector<Time> times = swaption.mandatoryTimes();
             TimeGrid timeGrid(times.begin(), times.end(), timeSteps_);
             lattice = model_->tree(timeGrid);
         }
 
         std::vector<Time> stoppingTimes(arguments_.exercise->dates().size());
-        for (Size i=0; i<stoppingTimes.size(); ++i)
-            stoppingTimes[i] =
-                dayCounter.yearFraction(referenceDate,
-                                        arguments_.exercise->date(i));
+        for (Size i = 0; i < stoppingTimes.size(); ++i)
+            stoppingTimes[i] = dayCounter.yearFraction(referenceDate, arguments_.exercise->date(i));
 
         swaption.initialize(lattice, stoppingTimes.back());
 
-        Time nextExercise =
-            *std::find_if(stoppingTimes.begin(), stoppingTimes.end(),
-                          [](Time t){ return t >= 0.0; });
+        Time nextExercise = *std::find_if(stoppingTimes.begin(), stoppingTimes.end(), [](Time t) { return t >= 0.0; });
         swaption.rollback(nextExercise);
 
         results_.value = swaption.presentValue();

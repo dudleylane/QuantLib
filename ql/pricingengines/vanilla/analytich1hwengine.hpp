@@ -28,7 +28,8 @@
 #include <ql/models/shortrate/onefactormodels/hullwhite.hpp>
 #include <ql/pricingengines/vanilla/analytichestonhullwhiteengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Analytic Heston-Hull-White engine based on the H1-HW approximation
     /*! This class is pricing a european option under the following process
@@ -65,15 +66,19 @@ namespace QuantLib {
               the finite difference Heston-Hull-White engine
     */
 
-    class AnalyticH1HWEngine : public AnalyticHestonHullWhiteEngine {
+    class AnalyticH1HWEngine : public AnalyticHestonHullWhiteEngine
+    {
       public:
         AnalyticH1HWEngine(const ext::shared_ptr<HestonModel>& model,
                            const ext::shared_ptr<HullWhite>& hullWhiteModel,
-                           Real rhoSr, Size integrationOrder = 144);
+                           Real rhoSr,
+                           Size integrationOrder = 144);
 
         AnalyticH1HWEngine(const ext::shared_ptr<HestonModel>& model,
                            const ext::shared_ptr<HullWhite>& hullWhiteModel,
-                           Real rhoSr, Real relTolerance, Size maxEvaluations);
+                           Real rhoSr,
+                           Real relTolerance,
+                           Size maxEvaluations);
 
       protected:
         std::complex<Real> addOnTerm(Real phi, Time t, Size j) const override;

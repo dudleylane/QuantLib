@@ -1,6 +1,6 @@
 /*
  Copyright (C) 2025 Sotirios Papathanasopoulos
- 
+
  This file is part of QuantLib, a free-software/open-source library
  for financial quantitative analysts and developers - http://quantlib.org/
  QuantLib is free software: you can redistribute it and/or modify it
@@ -15,9 +15,12 @@
 
 #include <ql/indexes/ibor/cdi.hpp>
 
-namespace QuantLib {
-    // Reference: Zine-eddine, Arroub. "OpenGamma Quantitative research Brazilian Swaps", London, December 2013. paragraph 5
-    Rate Cdi::forecastFixing(const Date& fixingDate) const {
+namespace QuantLib
+{
+    // Reference: Zine-eddine, Arroub. "OpenGamma Quantitative research Brazilian Swaps", London, December 2013.
+    // paragraph 5
+    Rate Cdi::forecastFixing(const Date& fixingDate) const
+    {
 
         Date startDate = valueDate(fixingDate);
         Date endDate = maturityDate(startDate);

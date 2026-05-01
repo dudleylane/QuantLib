@@ -26,7 +26,8 @@
 
 #include <ql/methods/finitedifferences/mixedscheme.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     QL_DEPRECATED_DISABLE_WARNING
 
@@ -35,7 +36,9 @@ namespace QuantLib {
                     Deprecated in version 1.42.
     */
     template <class Operator>
-    class [[deprecated("Part of the old FD framework; copy this function in your codebase if needed")]] CrankNicolson : public MixedScheme<Operator> {
+    class [[deprecated("Part of the old FD framework; copy this function in your codebase if needed")]] CrankNicolson
+    : public MixedScheme<Operator>
+    {
       public:
         // typedefs
         typedef OperatorTraits<Operator> traits;
@@ -44,9 +47,7 @@ namespace QuantLib {
         typedef typename traits::bc_set bc_set;
         typedef typename traits::condition_type condition_type;
         // constructors
-        CrankNicolson(const operator_type& L,
-                      const bc_set& bcs)
-        : MixedScheme<Operator>(L, 0.5, bcs) {}
+        CrankNicolson(const operator_type& L, const bc_set& bcs) : MixedScheme<Operator>(L, 0.5, bcs) {}
     };
 
     QL_DEPRECATED_ENABLE_WARNING

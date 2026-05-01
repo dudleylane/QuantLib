@@ -28,23 +28,29 @@
 #ifndef quantlib_instruments_irregular_swaption_hpp
 #define quantlib_instruments_irregular_swaption_hpp
 
-#include <ql/option.hpp>
 #include <ql/experimental/swaptions/irregularswap.hpp>
+#include <ql/option.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %settlement information
-    struct IrregularSettlement {
-        enum Type { Physical, Cash };
+    struct IrregularSettlement
+    {
+        enum Type
+        {
+            Physical,
+            Cash
+        };
     };
 
-    std::ostream& operator<<(std::ostream& out,
-                             IrregularSettlement::Type type);
+    std::ostream& operator<<(std::ostream& out, IrregularSettlement::Type type);
 
     //! Irregular %Swaption class
     /*! \ingroup instruments */
-    class IrregularSwaption : public Option {
+    class IrregularSwaption : public Option
+    {
       public:
         class arguments;
         class engine;
@@ -60,19 +66,17 @@ namespace QuantLib {
         //@{
         IrregularSettlement::Type settlementType() const { return settlementType_; }
         Swap::Type type() const { return swap_->type(); }
-        const ext::shared_ptr<IrregularSwap>& underlyingSwap() const {
-            return swap_;
-        }
+        const ext::shared_ptr<IrregularSwap>& underlyingSwap() const { return swap_; }
         //@}
         //! implied volatility
-        Volatility impliedVolatility(
-                              Real price,
-                              const Handle<YieldTermStructure>& discountCurve,
-                              Volatility guess,
-                              Real accuracy = 1.0e-4,
-                              Natural maxEvaluations = 100,
-                              Volatility minVol = 1.0e-7,
-                              Volatility maxVol = 4.0) const;
+        Volatility impliedVolatility(Real price,
+                                     const Handle<YieldTermStructure>& discountCurve,
+                                     Volatility guess,
+                                     Real accuracy = 1.0e-4,
+                                     Natural maxEvaluations = 100,
+                                     Volatility minVol = 1.0e-7,
+                                     Volatility maxVol = 4.0) const;
+
       private:
         // arguments
         ext::shared_ptr<IrregularSwap> swap_;
@@ -80,8 +84,8 @@ namespace QuantLib {
     };
 
     //! %Arguments for irregular-swaption calculation
-    class IrregularSwaption::arguments : public IrregularSwap::arguments,
-                                         public Option::arguments {
+    class IrregularSwaption::arguments : public IrregularSwap::arguments, public Option::arguments
+    {
       public:
         arguments() = default;
         ext::shared_ptr<IrregularSwap> swap;
@@ -90,8 +94,9 @@ namespace QuantLib {
     };
 
     //! base class for irregular-swaption engines
-    class IrregularSwaption::engine
-        : public GenericEngine<IrregularSwaption::arguments, IrregularSwaption::results> {};
+    class IrregularSwaption::engine : public GenericEngine<IrregularSwaption::arguments, IrregularSwaption::results>
+    {
+    };
 
 }
 

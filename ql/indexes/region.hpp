@@ -30,10 +30,12 @@
 #include <string>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Region class, used for inflation applicability.
-    class Region {
+    class Region
+    {
       public:
         //! \name Inspectors
         //@{
@@ -46,7 +48,8 @@ namespace QuantLib {
         ext::shared_ptr<Data> data_;
     };
 
-    struct Region::Data {
+    struct Region::Data
+    {
         std::string name;
         std::string code;
         Data(std::string name, std::string code) : name(std::move(name)), code(std::move(code)) {}
@@ -64,65 +67,75 @@ namespace QuantLib {
         region without having to define and compile a corresponding
         class.
     */
-    class CustomRegion : public Region {
+    class CustomRegion : public Region
+    {
       public:
-        CustomRegion(const std::string& name,
-                     const std::string& code);
+        CustomRegion(const std::string& name, const std::string& code);
     };
 
 
     //! Australia as geographical/economic region
-    class AustraliaRegion : public Region {
+    class AustraliaRegion : public Region
+    {
       public:
         AustraliaRegion();
     };
 
     //! European Union as geographical/economic region
-    class EURegion : public Region {
+    class EURegion : public Region
+    {
       public:
         EURegion();
     };
 
     //! France as geographical/economic region
-    class FranceRegion : public Region {
+    class FranceRegion : public Region
+    {
       public:
         FranceRegion();
     };
 
     //! United Kingdom as geographical/economic region
-    class UKRegion : public Region {
+    class UKRegion : public Region
+    {
       public:
         UKRegion();
     };
 
     //! USA as geographical/economic region
-    class USRegion : public Region {
-    public:
+    class USRegion : public Region
+    {
+      public:
         USRegion();
     };
 
     //! South Africa as geographical/economic region
-    class ZARegion : public Region {
-    public:
+    class ZARegion : public Region
+    {
+      public:
         ZARegion();
     };
 
 
     // inline definitions
 
-    inline const std::string& Region::name() const {
+    inline const std::string& Region::name() const
+    {
         return data_->name;
     }
 
-    inline const std::string& Region::code() const {
+    inline const std::string& Region::code() const
+    {
         return data_->code;
     }
 
-    inline bool operator==(const Region& r1, const Region& r2) {
+    inline bool operator==(const Region& r1, const Region& r2)
+    {
         return r1.name() == r2.name();
     }
 
-    inline bool operator!=(const Region& r1, const Region& r2) {
+    inline bool operator!=(const Region& r1, const Region& r2)
+    {
         return !(r1.name() == r2.name());
     }
 

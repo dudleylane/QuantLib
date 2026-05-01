@@ -30,14 +30,16 @@
 #include <ql/time/daycounters/actual365fixed.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Constant Black volatility, no time-strike dependence
     /*! This class implements the BlackVolatilityTermStructure
         interface for a constant Black volatility (no time/strike
         dependence).
     */
-    class BlackConstantVol : public BlackVolatilityTermStructure {
+    class BlackConstantVol : public BlackVolatilityTermStructure
+    {
       public:
         BlackConstantVol(const Date& referenceDate,
                          const Calendar&,
@@ -47,10 +49,7 @@ namespace QuantLib {
                          const Calendar&,
                          Handle<Quote> volatility,
                          const DayCounter& dayCounter);
-        BlackConstantVol(Natural settlementDays,
-                         const Calendar&,
-                         Volatility volatility,
-                         const DayCounter& dayCounter);
+        BlackConstantVol(Natural settlementDays, const Calendar&, Volatility volatility, const DayCounter& dayCounter);
         BlackConstantVol(Natural settlementDays,
                          const Calendar&,
                          Handle<Quote> volatility,
@@ -83,14 +82,16 @@ namespace QuantLib {
                                               Volatility volatility,
                                               const DayCounter& dc)
     : BlackVolatilityTermStructure(referenceDate, cal, Following, dc),
-      volatility_(ext::shared_ptr<Quote>(new SimpleQuote(volatility))) {}
+      volatility_(ext::shared_ptr<Quote>(new SimpleQuote(volatility)))
+    {
+    }
 
     inline BlackConstantVol::BlackConstantVol(const Date& referenceDate,
                                               const Calendar& cal,
                                               Handle<Quote> volatility,
                                               const DayCounter& dc)
-    : BlackVolatilityTermStructure(referenceDate, cal, Following, dc),
-      volatility_(std::move(volatility)) {
+    : BlackVolatilityTermStructure(referenceDate, cal, Following, dc), volatility_(std::move(volatility))
+    {
         registerWith(volatility_);
     }
 
@@ -99,30 +100,36 @@ namespace QuantLib {
                                               Volatility volatility,
                                               const DayCounter& dc)
     : BlackVolatilityTermStructure(settlementDays, cal, Following, dc),
-      volatility_(ext::shared_ptr<Quote>(new SimpleQuote(volatility))) {}
+      volatility_(ext::shared_ptr<Quote>(new SimpleQuote(volatility)))
+    {
+    }
 
     inline BlackConstantVol::BlackConstantVol(Natural settlementDays,
                                               const Calendar& cal,
                                               Handle<Quote> volatility,
                                               const DayCounter& dc)
-    : BlackVolatilityTermStructure(settlementDays, cal, Following, dc),
-      volatility_(std::move(volatility)) {
+    : BlackVolatilityTermStructure(settlementDays, cal, Following, dc), volatility_(std::move(volatility))
+    {
         registerWith(volatility_);
     }
 
-    inline Date BlackConstantVol::maxDate() const {
+    inline Date BlackConstantVol::maxDate() const
+    {
         return Date::maxDate();
     }
 
-    inline Real BlackConstantVol::minStrike() const {
+    inline Real BlackConstantVol::minStrike() const
+    {
         return QL_MIN_REAL;
     }
 
-    inline Real BlackConstantVol::maxStrike() const {
+    inline Real BlackConstantVol::maxStrike() const
+    {
         return QL_MAX_REAL;
     }
 
-    inline void BlackConstantVol::accept(AcyclicVisitor& v) {
+    inline void BlackConstantVol::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<BlackConstantVol>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);
@@ -130,7 +137,8 @@ namespace QuantLib {
             BlackVolatilityTermStructure::accept(v);
     }
 
-    inline Volatility BlackConstantVol::blackVolImpl(Time, Real) const {
+    inline Volatility BlackConstantVol::blackVolImpl(Time, Real) const
+    {
         return volatility_->value();
     }
 

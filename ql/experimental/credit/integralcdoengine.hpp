@@ -26,23 +26,26 @@
 
 #ifndef QL_PATCH_SOLARIS
 
-#include <ql/experimental/credit/syntheticcdo.hpp>
+#    include <ql/experimental/credit/syntheticcdo.hpp>
 #    include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class YieldTermStructure;
 
-    class IntegralCDOEngine : public SyntheticCDO::engine {
-    public:
-      explicit IntegralCDOEngine(Handle<YieldTermStructure> discountCurve,
-                                 Period stepSize = 3 * Months)
-      : stepSize_(stepSize), discountCurve_(std::move(discountCurve)) {}
-      void calculate() const override;
+    class IntegralCDOEngine : public SyntheticCDO::engine
+    {
+      public:
+        explicit IntegralCDOEngine(Handle<YieldTermStructure> discountCurve, Period stepSize = 3 * Months)
+        : stepSize_(stepSize), discountCurve_(std::move(discountCurve))
+        {
+        }
+        void calculate() const override;
 
-    protected:
-      Period stepSize_;
-      Handle<YieldTermStructure> discountCurve_;
+      protected:
+        Period stepSize_;
+        Handle<YieldTermStructure> discountCurve_;
     };
 
 }

@@ -21,9 +21,9 @@
 #define quantlib_functional_hpp
 
 // Deprecated in version 1.41
-#pragma message("Warning: this file is empty and will disappear in a future release; use #include <functional> instead.")
+#pragma message( \
+    "Warning: this file is empty and will disappear in a future release; use #include <functional> instead.")
 
 #include <functional>
 
 #endif
-

@@ -22,7 +22,6 @@
 
 #include <ql/math/array.hpp>
 #include <ql/methods/finitedifferences/tridiagonaloperator.hpp>
-#include <ql/math/array.hpp>
 #include <functional>
 #include <numeric>
 #include <utility>

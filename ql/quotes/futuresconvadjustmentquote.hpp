@@ -25,17 +25,18 @@
 #ifndef quantlib_futures_conv_adjustment_quote_hpp
 #define quantlib_futures_conv_adjustment_quote_hpp
 
-#include <ql/quote.hpp>
-#include <ql/types.hpp>
 #include <ql/handle.hpp>
 #include <ql/indexes/iborindex.hpp>
+#include <ql/quote.hpp>
+#include <ql/types.hpp>
 #include <ql/utilities/null.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %quote for the futures-convexity adjustment of an index
-    class FuturesConvAdjustmentQuote : public Quote,
-                                       public Observer {
+    class FuturesConvAdjustmentQuote : public Quote, public Observer
+    {
       public:
         FuturesConvAdjustmentQuote(const ext::shared_ptr<IborIndex>& index,
                                    const Date& futuresDate,
@@ -71,7 +72,8 @@ namespace QuantLib {
 
     // inline
 
-    inline void FuturesConvAdjustmentQuote::update() {
+    inline void FuturesConvAdjustmentQuote::update()
+    {
         rate_ = Null<Real>();
         notifyObservers();
     }

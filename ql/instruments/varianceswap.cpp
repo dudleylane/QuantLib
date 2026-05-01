@@ -18,32 +18,33 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/instruments/varianceswap.hpp>
 #include <ql/event.hpp>
+#include <ql/instruments/varianceswap.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     VarianceSwap::VarianceSwap(
-                          Position::Type position,
-                          Real strike,
-                          Real notional,
-                          const Date& startDate,
-                          const Date& maturityDate)
-    : position_(position), strike_(strike), notional_(notional),
-      startDate_(startDate), maturityDate_(maturityDate) {}
+        Position::Type position, Real strike, Real notional, const Date& startDate, const Date& maturityDate)
+    : position_(position), strike_(strike), notional_(notional), startDate_(startDate), maturityDate_(maturityDate)
+    {
+    }
 
-    Real VarianceSwap::variance() const {
+    Real VarianceSwap::variance() const
+    {
         calculate();
         QL_REQUIRE(variance_ != Null<Real>(), "result not available");
         return variance_;
     }
 
-    void VarianceSwap::setupExpired() const {
+    void VarianceSwap::setupExpired() const
+    {
         Instrument::setupExpired();
         variance_ = Null<Real>();
     }
 
-    void VarianceSwap::setupArguments(PricingEngine::arguments* args) const {
+    void VarianceSwap::setupArguments(PricingEngine::arguments* args) const
+    {
         auto* arguments = dynamic_cast<VarianceSwap::arguments*>(args);
         QL_REQUIRE(arguments != nullptr, "wrong argument type");
 
@@ -54,13 +55,15 @@ namespace QuantLib {
         arguments->maturityDate = maturityDate_;
     }
 
-    void VarianceSwap::fetchResults(const PricingEngine::results* r) const {
+    void VarianceSwap::fetchResults(const PricingEngine::results* r) const
+    {
         Instrument::fetchResults(r);
         const auto* results = dynamic_cast<const VarianceSwap::results*>(r);
         variance_ = results->variance;
     }
 
-    void VarianceSwap::arguments::validate() const {
+    void VarianceSwap::arguments::validate() const
+    {
         QL_REQUIRE(strike != Null<Real>(), "no strike given");
         QL_REQUIRE(strike > 0.0, "negative or null strike given");
         QL_REQUIRE(notional != Null<Real>(), "no notional given");
@@ -69,7 +72,8 @@ namespace QuantLib {
         QL_REQUIRE(maturityDate != Date(), "null maturity date given");
     }
 
-    bool VarianceSwap::isExpired() const {
+    bool VarianceSwap::isExpired() const
+    {
         return detail::simple_event(maturityDate_).hasOccurred();
     }
 

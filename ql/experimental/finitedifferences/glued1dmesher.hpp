@@ -26,15 +26,16 @@
 
 #include <ql/methods/finitedifferences/meshers/fdm1dmesher.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class Glued1dMesher : public Fdm1dMesher {
+    class Glued1dMesher : public Fdm1dMesher
+    {
       public:
-        Glued1dMesher(
-            const Fdm1dMesher& leftMesher,
-            const Fdm1dMesher& rightMesher);
+        Glued1dMesher(const Fdm1dMesher& leftMesher, const Fdm1dMesher& rightMesher);
+
       private:
-          const bool commonPoint_;
+        const bool commonPoint_;
     };
 }
 

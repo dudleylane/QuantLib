@@ -28,25 +28,20 @@
 #include <ql/models/model.hpp>
 #include <ql/pricingengines/genericmodelengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Engine for a short-rate model specialized on a lattice
     /*! Derived engines only need to implement the <tt>calculate()</tt>
         method
     */
     template <class Arguments, class Results>
-    class LatticeShortRateModelEngine
-        : public GenericModelEngine<ShortRateModel, Arguments, Results> {
+    class LatticeShortRateModelEngine : public GenericModelEngine<ShortRateModel, Arguments, Results>
+    {
       public:
-        LatticeShortRateModelEngine(
-                               const ext::shared_ptr<ShortRateModel>& model,
-                               Size timeSteps);
-        LatticeShortRateModelEngine(
-                               const Handle<ShortRateModel>& model,
-                               Size timeSteps);
-        LatticeShortRateModelEngine(
-                               const ext::shared_ptr<ShortRateModel>& model,
-                               const TimeGrid& timeGrid);
+        LatticeShortRateModelEngine(const ext::shared_ptr<ShortRateModel>& model, Size timeSteps);
+        LatticeShortRateModelEngine(const Handle<ShortRateModel>& model, Size timeSteps);
+        LatticeShortRateModelEngine(const ext::shared_ptr<ShortRateModel>& model, const TimeGrid& timeGrid);
         void update() override;
 
       protected:
@@ -57,32 +52,25 @@ namespace QuantLib {
 
     template <class Arguments, class Results>
     LatticeShortRateModelEngine<Arguments, Results>::LatticeShortRateModelEngine(
-            const ext::shared_ptr<ShortRateModel>& model,
-            Size timeSteps)
-    : GenericModelEngine<ShortRateModel, Arguments, Results>(model),
-      timeSteps_(timeSteps) {
-        QL_REQUIRE(timeSteps>0,
-                   "timeSteps must be positive, " << timeSteps <<
-                   " not allowed");
+        const ext::shared_ptr<ShortRateModel>& model, Size timeSteps)
+    : GenericModelEngine<ShortRateModel, Arguments, Results>(model), timeSteps_(timeSteps)
+    {
+        QL_REQUIRE(timeSteps > 0, "timeSteps must be positive, " << timeSteps << " not allowed");
+    }
+
+    template <class Arguments, class Results>
+    LatticeShortRateModelEngine<Arguments, Results>::LatticeShortRateModelEngine(const Handle<ShortRateModel>& model,
+                                                                                 Size timeSteps)
+    : GenericModelEngine<ShortRateModel, Arguments, Results>(model), timeSteps_(timeSteps)
+    {
+        QL_REQUIRE(timeSteps > 0, "timeSteps must be positive, " << timeSteps << " not allowed");
     }
 
     template <class Arguments, class Results>
     LatticeShortRateModelEngine<Arguments, Results>::LatticeShortRateModelEngine(
-            const Handle<ShortRateModel>& model,
-            Size timeSteps)
-    : GenericModelEngine<ShortRateModel, Arguments, Results>(model),
-      timeSteps_(timeSteps) {
-        QL_REQUIRE(timeSteps>0,
-                   "timeSteps must be positive, " << timeSteps <<
-                   " not allowed");
-    }
-
-    template <class Arguments, class Results>
-    LatticeShortRateModelEngine<Arguments, Results>::LatticeShortRateModelEngine(
-            const ext::shared_ptr<ShortRateModel>& model,
-            const TimeGrid& timeGrid)
-    : GenericModelEngine<ShortRateModel, Arguments, Results>(model),
-      timeGrid_(timeGrid), timeSteps_(0) {
+        const ext::shared_ptr<ShortRateModel>& model, const TimeGrid& timeGrid)
+    : GenericModelEngine<ShortRateModel, Arguments, Results>(model), timeGrid_(timeGrid), timeSteps_(0)
+    {
         lattice_ = this->model_->tree(timeGrid);
     }
 

@@ -26,7 +26,8 @@
 
 #include <ql/math/matrix.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! Iterative procedure to compute a correlation matrix reduction to
         a single factor dependence vector by minimizing the residuals.

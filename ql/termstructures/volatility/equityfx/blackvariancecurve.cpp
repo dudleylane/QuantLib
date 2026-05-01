@@ -23,7 +23,8 @@
 #include <ql/termstructures/volatility/equityfx/blackvariancecurve.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     BlackVarianceCurve::BlackVarianceCurve(const Date& referenceDate,
                                            const std::vector<Date>& dates,
@@ -31,45 +32,41 @@ namespace QuantLib {
                                            DayCounter dayCounter,
                                            bool forceMonotoneVariance,
                                            BlackVolTimeExtrapolation::Type timeExtrapolationType)
-    : BlackVarianceTermStructure(referenceDate), dayCounter_(std::move(dayCounter)),
-      maxDate_(dates.back()), timeExtrapolationType_(timeExtrapolationType) {
+    : BlackVarianceTermStructure(referenceDate), dayCounter_(std::move(dayCounter)), maxDate_(dates.back()),
+      timeExtrapolationType_(timeExtrapolationType)
+    {
 
-        QL_REQUIRE(dates.size()==blackVolCurve.size(),
-                   "mismatch between date vector and black vol vector");
+        QL_REQUIRE(dates.size() == blackVolCurve.size(), "mismatch between date vector and black vol vector");
 
         // cannot have dates[0]==referenceDate, since the
         // value of the vol at dates[0] would be lost
         // (variance at referenceDate must be zero)
-        QL_REQUIRE(dates[0]>referenceDate,
-                   "cannot have dates[0] <= referenceDate");
+        QL_REQUIRE(dates[0] > referenceDate, "cannot have dates[0] <= referenceDate");
 
-        variances_ = std::vector<Real>(dates.size()+1);
-        times_ = std::vector<Time>(dates.size()+1);
+        variances_ = std::vector<Real>(dates.size() + 1);
+        times_ = std::vector<Time>(dates.size() + 1);
         variances_[0] = 0.0;
         times_[0] = 0.0;
         Size j;
-        for (j=1; j<=blackVolCurve.size(); j++) {
-            times_[j] = timeFromReference(dates[j-1]);
-            QL_REQUIRE(times_[j]>times_[j-1],
-                       "dates must be sorted unique!");
-            variances_[j] = times_[j] *
-                blackVolCurve[j-1]*blackVolCurve[j-1];
-            QL_REQUIRE(variances_[j]>=variances_[j-1]
-                       || !forceMonotoneVariance,
-                       "variance must be non-decreasing");
+        for (j = 1; j <= blackVolCurve.size(); j++)
+        {
+            times_[j] = timeFromReference(dates[j - 1]);
+            QL_REQUIRE(times_[j] > times_[j - 1], "dates must be sorted unique!");
+            variances_[j] = times_[j] * blackVolCurve[j - 1] * blackVolCurve[j - 1];
+            QL_REQUIRE(variances_[j] >= variances_[j - 1] || !forceMonotoneVariance, "variance must be non-decreasing");
         }
 
         // default: linear interpolation
         setInterpolation<Linear>();
     }
 
-    Real BlackVarianceCurve::blackVarianceImpl(Time t, Real) const {
+    Real BlackVarianceCurve::blackVarianceImpl(Time t, Real) const
+    {
         if (t <= times_.back())
             return std::max(varianceCurve_(t, true), 0.0);
         else
             return BlackVolTimeExtrapolation::extrapolatedVariance(timeExtrapolationType_, t, times_,
-                                                                   [&](Real t){ return varianceCurve_(t, true); });
+                                                                   [&](Real t) { return varianceCurve_(t, true); });
     }
 
 }
-

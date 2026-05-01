@@ -23,7 +23,8 @@
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     IborIndex::IborIndex(const std::string& familyName,
                          const Period& tenor,
@@ -35,41 +36,31 @@ namespace QuantLib {
                          const DayCounter& dayCounter,
                          Handle<YieldTermStructure> h)
     : InterestRateIndex(familyName, tenor, settlementDays, currency, fixingCalendar, dayCounter),
-      convention_(convention), termStructure_(std::move(h)), endOfMonth_(endOfMonth) {
+      convention_(convention), termStructure_(std::move(h)), endOfMonth_(endOfMonth)
+    {
         registerWith(termStructure_);
     }
 
-    Rate IborIndex::forecastFixing(const Date& fixingDate) const {
+    Rate IborIndex::forecastFixing(const Date& fixingDate) const
+    {
         Date d1 = valueDate(fixingDate);
         Date d2 = maturityDate(d1);
         Time t = dayCounter_.yearFraction(d1, d2);
-        QL_REQUIRE(t>0.0,
-                   "\n cannot calculate forward rate between " <<
-                   d1 << " and " << d2 <<
-                   ":\n non positive time (" << t <<
-                   ") using " << dayCounter_.name() << " daycounter");
+        QL_REQUIRE(t > 0.0, "\n cannot calculate forward rate between " << d1 << " and " << d2
+                                                                        << ":\n non positive time (" << t << ") using "
+                                                                        << dayCounter_.name() << " daycounter");
         return forecastFixing(d1, d2, t);
     }
 
-    Date IborIndex::maturityDate(const Date& valueDate) const {
-        return fixingCalendar().advance(valueDate,
-                                        tenor_,
-                                        convention_,
-                                        endOfMonth_);
+    Date IborIndex::maturityDate(const Date& valueDate) const
+    {
+        return fixingCalendar().advance(valueDate, tenor_, convention_, endOfMonth_);
     }
 
-    ext::shared_ptr<IborIndex> IborIndex::clone(
-                               const Handle<YieldTermStructure>& h) const {
-        return ext::make_shared<IborIndex>(
-                                        familyName(),
-                                                      tenor(),
-                                                      fixingDays(),
-                                                      currency(),
-                                                      fixingCalendar(),
-                                                      businessDayConvention(),
-                                                      endOfMonth(),
-                                                      dayCounter(),
-                                                      h);
+    ext::shared_ptr<IborIndex> IborIndex::clone(const Handle<YieldTermStructure>& h) const
+    {
+        return ext::make_shared<IborIndex>(familyName(), tenor(), fixingDays(), currency(), fixingCalendar(),
+                                           businessDayConvention(), endOfMonth(), dayCounter(), h);
     }
 
 
@@ -79,18 +70,14 @@ namespace QuantLib {
                                    const Calendar& fixCal,
                                    const DayCounter& dc,
                                    const Handle<YieldTermStructure>& h)
-   : IborIndex(familyName, 1*Days, settlementDays, curr,
-               fixCal, Following, false, dc, h) {}
+    : IborIndex(familyName, 1 * Days, settlementDays, curr, fixCal, Following, false, dc, h)
+    {
+    }
 
-    ext::shared_ptr<IborIndex> OvernightIndex::clone(
-                               const Handle<YieldTermStructure>& h) const {
+    ext::shared_ptr<IborIndex> OvernightIndex::clone(const Handle<YieldTermStructure>& h) const
+    {
         return ext::shared_ptr<IborIndex>(
-                                        new OvernightIndex(familyName(),
-                                                           fixingDays(),
-                                                           currency(),
-                                                           fixingCalendar(),
-                                                           dayCounter(),
-                                                           h));
+            new OvernightIndex(familyName(), fixingDays(), currency(), fixingCalendar(), dayCounter(), h));
     }
 
 }

@@ -19,42 +19,37 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/math/optimization/endcriteria.hpp>
 #include <ql/errors.hpp>
+#include <ql/math/optimization/endcriteria.hpp>
 #include <algorithm>
 
-namespace QuantLib {
-    
+namespace QuantLib
+{
+
 
     EndCriteria::EndCriteria(Size maxIterations,
                              Size maxStationaryStateIterations,
                              Real rootEpsilon,
                              Real functionEpsilon,
                              Real gradientNormEpsilon)
-    : maxIterations_(maxIterations),
-      maxStationaryStateIterations_(maxStationaryStateIterations),
-      rootEpsilon_(rootEpsilon),
-      functionEpsilon_(functionEpsilon),
-      gradientNormEpsilon_(gradientNormEpsilon) {
+    : maxIterations_(maxIterations), maxStationaryStateIterations_(maxStationaryStateIterations),
+      rootEpsilon_(rootEpsilon), functionEpsilon_(functionEpsilon), gradientNormEpsilon_(gradientNormEpsilon)
+    {
 
         if (maxStationaryStateIterations_ == Null<Size>())
-            maxStationaryStateIterations_ = std::min(static_cast<Size>(maxIterations/2),
-                                                     static_cast<Size>(100));
-        QL_REQUIRE(maxStationaryStateIterations_>1,
-                   "maxStationaryStateIterations_ (" <<
-                   maxStationaryStateIterations_ <<
-                   ") must be greater than one");
-        QL_REQUIRE(maxStationaryStateIterations_<maxIterations_,
-                   "maxStationaryStateIterations_ (" <<
-                   maxStationaryStateIterations_ <<
-                   ") must be less than maxIterations_ (" <<
-                   maxIterations_ << ")");
+            maxStationaryStateIterations_ = std::min(static_cast<Size>(maxIterations / 2), static_cast<Size>(100));
+        QL_REQUIRE(maxStationaryStateIterations_ > 1,
+                   "maxStationaryStateIterations_ (" << maxStationaryStateIterations_ << ") must be greater than one");
+        QL_REQUIRE(maxStationaryStateIterations_ < maxIterations_, "maxStationaryStateIterations_ ("
+                                                                       << maxStationaryStateIterations_
+                                                                       << ") must be less than maxIterations_ ("
+                                                                       << maxIterations_ << ")");
         if (gradientNormEpsilon_ == Null<Real>())
             gradientNormEpsilon_ = functionEpsilon_;
     }
 
-    bool EndCriteria::checkMaxIterations(const Size iteration,
-                                         EndCriteria::Type& ecType) const{
+    bool EndCriteria::checkMaxIterations(const Size iteration, EndCriteria::Type& ecType) const
+    {
         if (iteration < maxIterations_)
             return false;
         ecType = MaxIterations;
@@ -64,8 +59,10 @@ namespace QuantLib {
     bool EndCriteria::checkStationaryPoint(const Real xOld,
                                            const Real xNew,
                                            Size& statStateIterations,
-                                           EndCriteria::Type& ecType) const {
-        if (std::fabs(xNew-xOld) >= rootEpsilon_) {
+                                           EndCriteria::Type& ecType) const
+    {
+        if (std::fabs(xNew - xOld) >= rootEpsilon_)
+        {
             statStateIterations = 0;
             return false;
         }
@@ -76,12 +73,13 @@ namespace QuantLib {
         return true;
     }
 
-    bool EndCriteria::checkStationaryFunctionValue(
-                                            const Real fxOld,
-                                            const Real fxNew,
-                                            Size& statStateIterations,
-                                            EndCriteria::Type& ecType) const {
-        if (std::fabs(fxNew-fxOld) >= functionEpsilon_) {
+    bool EndCriteria::checkStationaryFunctionValue(const Real fxOld,
+                                                   const Real fxNew,
+                                                   Size& statStateIterations,
+                                                   EndCriteria::Type& ecType) const
+    {
+        if (std::fabs(fxNew - fxOld) >= functionEpsilon_)
+        {
             statStateIterations = 0;
             return false;
         }
@@ -92,10 +90,10 @@ namespace QuantLib {
         return true;
     }
 
-    bool EndCriteria::checkStationaryFunctionAccuracy(
-                                            const Real f,
-                                            const bool positiveOptimization,
-                                            EndCriteria::Type& ecType) const {
+    bool EndCriteria::checkStationaryFunctionAccuracy(const Real f,
+                                                      const bool positiveOptimization,
+                                                      EndCriteria::Type& ecType) const
+    {
         if (!positiveOptimization)
             return false;
         if (f >= functionEpsilon_)
@@ -104,18 +102,18 @@ namespace QuantLib {
         return true;
     }
 
-    //bool EndCriteria::checkZerGradientNormValue(
-    //                                        const Real gNormOld,
-    //                                        const Real gNormNew,
-    //                                        EndCriteria::Type& ecType) const {
-    //    if (std::fabs(gNormNew-gNormOld) >= gradientNormEpsilon_)
-    //        return false;
-    //    ecType = StationaryGradient;
-    //    return true;
-    //}
+    // bool EndCriteria::checkZerGradientNormValue(
+    //                                         const Real gNormOld,
+    //                                         const Real gNormNew,
+    //                                         EndCriteria::Type& ecType) const {
+    //     if (std::fabs(gNormNew-gNormOld) >= gradientNormEpsilon_)
+    //         return false;
+    //     ecType = StationaryGradient;
+    //     return true;
+    // }
 
-    bool EndCriteria::checkZeroGradientNorm(const Real gradientNorm,
-                                            EndCriteria::Type& ecType) const {
+    bool EndCriteria::checkZeroGradientNorm(const Real gradientNorm, EndCriteria::Type& ecType) const
+    {
         if (gradientNorm >= gradientNormEpsilon_)
             return false;
         ecType = ZeroGradientNorm;
@@ -126,64 +124,70 @@ namespace QuantLib {
                                  Size& statStateIterations,
                                  const bool positiveOptimization,
                                  const Real fold,
-                                 const Real, //normgold,
+                                 const Real, // normgold,
                                  const Real fnew,
                                  const Real normgnew,
-                                 EndCriteria::Type& ecType) const {
-        return
-            checkMaxIterations(iteration, ecType) ||
-            checkStationaryFunctionValue(fold, fnew, statStateIterations, ecType) ||
-            checkStationaryFunctionAccuracy(fnew, positiveOptimization, ecType) ||
-            checkZeroGradientNorm(normgnew, ecType);
+                                 EndCriteria::Type& ecType) const
+    {
+        return checkMaxIterations(iteration, ecType) ||
+               checkStationaryFunctionValue(fold, fnew, statStateIterations, ecType) ||
+               checkStationaryFunctionAccuracy(fnew, positiveOptimization, ecType) ||
+               checkZeroGradientNorm(normgnew, ecType);
     }
 
     // Inspectors
-    Size EndCriteria::maxIterations() const {
+    Size EndCriteria::maxIterations() const
+    {
         return maxIterations_;
     }
 
-    Size EndCriteria::maxStationaryStateIterations() const {
+    Size EndCriteria::maxStationaryStateIterations() const
+    {
         return maxStationaryStateIterations_;
     }
 
-    Real EndCriteria::rootEpsilon() const {
+    Real EndCriteria::rootEpsilon() const
+    {
         return rootEpsilon_;
     }
 
-    Real EndCriteria::functionEpsilon() const {
+    Real EndCriteria::functionEpsilon() const
+    {
         return functionEpsilon_;
     }
 
-    Real EndCriteria::gradientNormEpsilon() const {
+    Real EndCriteria::gradientNormEpsilon() const
+    {
         return gradientNormEpsilon_;
     }
 
-    bool EndCriteria::succeeded(EndCriteria::Type ecType) {
-        return ecType == StationaryPoint ||
-               ecType == StationaryFunctionValue ||
-               ecType == StationaryFunctionAccuracy;
+    bool EndCriteria::succeeded(EndCriteria::Type ecType)
+    {
+        return ecType == StationaryPoint || ecType == StationaryFunctionValue || ecType == StationaryFunctionAccuracy;
     }
 
-    std::ostream& operator<<(std::ostream& out, EndCriteria::Type ec) {
-        switch (ec) {
-          case EndCriteria::None:
-            return out << "None";
-          case EndCriteria::MaxIterations:
-            return out << "MaxIterations";
-          case EndCriteria::StationaryPoint:
-            return out << "StationaryPoint";
-          case EndCriteria::StationaryFunctionValue:
-            return out << "StationaryFunctionValue";
-          case EndCriteria::StationaryFunctionAccuracy:
-            return out << "StationaryFunctionAccuracy";
-          case EndCriteria::ZeroGradientNorm:
-            return out << "ZeroGradientNorm";
-          case EndCriteria::FunctionEpsilonTooSmall:
-            return out << "FunctionEpsilonTooSmall";
-          case EndCriteria::Unknown:
-            return out << "Unknown";
-          default:
-            QL_FAIL("unknown EndCriteria::Type (" << Integer(ec) << ")");
+    std::ostream& operator<<(std::ostream& out, EndCriteria::Type ec)
+    {
+        switch (ec)
+        {
+            case EndCriteria::None:
+                return out << "None";
+            case EndCriteria::MaxIterations:
+                return out << "MaxIterations";
+            case EndCriteria::StationaryPoint:
+                return out << "StationaryPoint";
+            case EndCriteria::StationaryFunctionValue:
+                return out << "StationaryFunctionValue";
+            case EndCriteria::StationaryFunctionAccuracy:
+                return out << "StationaryFunctionAccuracy";
+            case EndCriteria::ZeroGradientNorm:
+                return out << "ZeroGradientNorm";
+            case EndCriteria::FunctionEpsilonTooSmall:
+                return out << "FunctionEpsilonTooSmall";
+            case EndCriteria::Unknown:
+                return out << "Unknown";
+            default:
+                QL_FAIL("unknown EndCriteria::Type (" << Integer(ec) << ")");
         }
     }
 

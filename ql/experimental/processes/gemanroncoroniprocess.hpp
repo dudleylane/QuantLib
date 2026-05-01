@@ -2,7 +2,7 @@
 
 /*
  Copyright (C) 2011 Klaus Spanderen
- 
+
  This file is part of QuantLib, a free-software/open-source library
  for financial quantitative analysts and developers - http://quantlib.org/
 
@@ -24,10 +24,11 @@
 #ifndef quantlib_geman_roncoroni_process_hpp
 #define quantlib_geman_roncoroni_process_hpp
 
-#include <ql/stochasticprocess.hpp>
 #include <ql/math/randomnumbers/rngtraits.hpp>
+#include <ql/stochasticprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Geman-Roncoroni process class
     /*! This class describes the Geman-Roncoroni process governed by
@@ -43,15 +44,25 @@ namespace QuantLib {
 
         \ingroup processes
     */
-    class GemanRoncoroniProcess : public StochasticProcess1D {
+    class GemanRoncoroniProcess : public StochasticProcess1D
+    {
       public:
-        GemanRoncoroniProcess(Real x0, 
-                              Real alpha, Real beta, 
-                              Real gamma, Real delta, 
-                              Real eps, Real zeta, Real d, 
-                              Real k, Real tau,
-                              Real sig2, Real a, Real b,
-                              Real theta1, Real theta2, Real theta3,
+        GemanRoncoroniProcess(Real x0,
+                              Real alpha,
+                              Real beta,
+                              Real gamma,
+                              Real delta,
+                              Real eps,
+                              Real zeta,
+                              Real d,
+                              Real k,
+                              Real tau,
+                              Real sig2,
+                              Real a,
+                              Real b,
+                              Real theta1,
+                              Real theta2,
+                              Real theta3,
                               Real psi);
 
         Real x0() const override;
@@ -61,14 +72,14 @@ namespace QuantLib {
         Real evolve(Time t0, Real x0, Time dt, Real dw) const override;
 
         Real evolve(Time t0, Real x0, Time dt, Real dw, const Array& du) const;
-        
-    private:
+
+      private:
         // avoid clang++ warnings
         using StochasticProcess::evolve;
 
         const Real x0_;
         const Real alpha_, beta_, gamma_, delta_;
-        const Real eps_, zeta_, d_; 
+        const Real eps_, zeta_, d_;
         const Real k_, tau_;
         const Real sig2_, a_, b_;
         const Real theta1_, theta2_, theta3_;

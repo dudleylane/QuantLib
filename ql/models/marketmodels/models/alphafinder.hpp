@@ -24,9 +24,11 @@
 #include <ql/shared_ptr.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class AlphaFinder {
+    class AlphaFinder
+    {
       public:
         AlphaFinder(ext::shared_ptr<AlphaForm> parametricform);
 
@@ -47,23 +49,23 @@ namespace QuantLib {
                    Real& b,
                    std::vector<Volatility>& ratetwovols);
 
-        bool solveWithMaxHomogeneity(
-                        Real alpha0,
-                        Integer stepindex,
-                        const std::vector<Volatility>& rateonevols,
-                        const std::vector<Volatility>& ratetwohomogeneousvols,
-                        const std::vector<Real>& correlations,
-                        Real w0,
-                        Real w1,
-                        Real targetVariance,
-                        Real tolerance,
-                        Real alphaMax,
-                        Real alphaMin,
-                        Integer steps,
-                        Real& alpha,
-                        Real& a,
-                        Real& b,
-                        std::vector<Volatility>& ratetwovols);
+        bool solveWithMaxHomogeneity(Real alpha0,
+                                     Integer stepindex,
+                                     const std::vector<Volatility>& rateonevols,
+                                     const std::vector<Volatility>& ratetwohomogeneousvols,
+                                     const std::vector<Real>& correlations,
+                                     Real w0,
+                                     Real w1,
+                                     Real targetVariance,
+                                     Real tolerance,
+                                     Real alphaMax,
+                                     Real alphaMin,
+                                     Integer steps,
+                                     Real& alpha,
+                                     Real& a,
+                                     Real& b,
+                                     std::vector<Volatility>& ratetwovols);
+
       private:
         Real computeLinearPart(Real alpha);
         Real computeQuadraticPart(Real alpha);

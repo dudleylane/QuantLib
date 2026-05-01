@@ -16,9 +16,9 @@
 #include <ql/termstructures/yield/nonlinearfittingmethods.hpp>
 #include <ql/termstructures/yield/oisratehelper.hpp>
 #include <ql/termstructures/yield/overnightindexfutureratehelper.hpp>
+#include <ql/termstructures/yield/piecewiseforwardspreadedtermstructure.hpp>
 #include <ql/termstructures/yield/piecewisespreadyieldcurve.hpp>
 #include <ql/termstructures/yield/piecewiseyieldcurve.hpp>
-#include <ql/termstructures/yield/piecewiseforwardspreadedtermstructure.hpp>
 #include <ql/termstructures/yield/piecewisezerospreadedtermstructure.hpp>
 #include <ql/termstructures/yield/quantotermstructure.hpp>
 #include <ql/termstructures/yield/ratehelpers.hpp>
@@ -28,4 +28,3 @@
 #include <ql/termstructures/yield/zerocurve.hpp>
 #include <ql/termstructures/yield/zerospreadedtermstructure.hpp>
 #include <ql/termstructures/yield/zeroyieldstructure.hpp>
-

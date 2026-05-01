@@ -24,12 +24,13 @@
 #ifndef quantlib_fdm_kluge_ext_ou_op_hpp
 #define quantlib_fdm_kluge_ext_ou_op_hpp
 
-#include <ql/methods/finitedifferences/operators/ninepointlinearop.hpp>
 #include <ql/methods/finitedifferences/operators/fdmlinearopcomposite.hpp>
+#include <ql/methods/finitedifferences/operators/ninepointlinearop.hpp>
 #include <ql/methods/finitedifferences/utilities/fdmboundaryconditionset.hpp>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class FdmMesher;
     class YieldTermStructure;
@@ -61,14 +62,14 @@ namespace QuantLib {
         http://spanderen.de/2011/06/13/vpp-pricing-i-stochastic-processes-partial-integro-differential-equation/
     */
 
-    class FdmKlugeExtOUOp : public FdmLinearOpComposite {
+    class FdmKlugeExtOUOp : public FdmLinearOpComposite
+    {
       public:
-        FdmKlugeExtOUOp(
-            const ext::shared_ptr<FdmMesher>& mesher,
-            const ext::shared_ptr<KlugeExtOUProcess>& klugeOUProcess,
-            const ext::shared_ptr<YieldTermStructure>& rTS,
-            const FdmBoundaryConditionSet& bcSet,
-            Size integroIntegrationOrder);
+        FdmKlugeExtOUOp(const ext::shared_ptr<FdmMesher>& mesher,
+                        const ext::shared_ptr<KlugeExtOUProcess>& klugeOUProcess,
+                        const ext::shared_ptr<YieldTermStructure>& rTS,
+                        const FdmBoundaryConditionSet& bcSet,
+                        Size integroIntegrationOrder);
 
         Size size() const override;
         void setTime(Time t1, Time t2) override;
@@ -83,7 +84,6 @@ namespace QuantLib {
         std::vector<SparseMatrix> toMatrixDecomp() const override;
 
       private:
-
         const ext::shared_ptr<FdmMesher> mesher_;
         const ext::shared_ptr<ExtOUWithJumpsProcess> kluge_;
         const ext::shared_ptr<ExtendedOrnsteinUhlenbeckProcess> extOU_;

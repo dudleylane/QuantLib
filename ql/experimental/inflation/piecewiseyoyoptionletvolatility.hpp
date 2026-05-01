@@ -30,24 +30,25 @@
 #include <ql/termstructures/iterativebootstrap.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! traits for inflation-volatility bootstrap
-    class YoYInflationVolatilityTraits {
+    class YoYInflationVolatilityTraits
+    {
       public:
         typedef BootstrapHelper<YoYOptionletVolatilitySurface> helper;
 
         // start of curve data
-        static Date initialDate(const YoYOptionletVolatilitySurface *s) {
-            return s->baseDate();
-        }
+        static Date initialDate(const YoYOptionletVolatilitySurface* s) { return s->baseDate(); }
         // value at reference date
-        static Real initialValue(const YoYOptionletVolatilitySurface *s) {
-            return s->baseLevel();  // REALLLYYYY important because
-                                    // generally don't have a clue
-                                    // what this should be - embodies
-                                    // assumptions on early options
-                                    // that are _not_ quoted
+        static Real initialValue(const YoYOptionletVolatilitySurface* s)
+        {
+            return s->baseLevel(); // REALLLYYYY important because
+                                   // generally don't have a clue
+                                   // what this should be - embodies
+                                   // assumptions on early options
+                                   // that are _not_ quoted
         }
 
         // guesses
@@ -60,7 +61,7 @@ namespace QuantLib {
             if (validData) // previous iteration value
                 return c->data()[i];
 
-            if (i==1) // first pillar
+            if (i == 1) // first pillar
                 return 0.005;
 
             // could/should extrapolate
@@ -74,7 +75,7 @@ namespace QuantLib {
                                   bool,
                                   Size) // firstAliveHelper
         {
-            return std::max(0.0, c->data()[i-1] - 0.02); // vol cannot be negative
+            return std::max(0.0, c->data()[i - 1] - 0.02); // vol cannot be negative
         }
         template <class C>
         static Real maxValueAfter(Size i,
@@ -82,17 +83,13 @@ namespace QuantLib {
                                   bool,
                                   Size) // firstAliveHelper
         {
-            return c->data()[i-1] + 0.02;
+            return c->data()[i - 1] + 0.02;
         }
 
         // root-finding update
-        static void updateGuess(std::vector<Real> &vols,
-                                Real level,
-                                Size i) {
-            vols[i] = level;
-        }
+        static void updateGuess(std::vector<Real>& vols, Real level, Size i) { vols[i] = level; }
         // upper bound for convergence loop
-        static Size maxIterations() {return 25;}
+        static Size maxIterations() { return 25; }
     };
 
 
@@ -105,33 +102,30 @@ namespace QuantLib {
     template <class Interpolator,
               template <class> class Bootstrap = IterativeBootstrap,
               class Traits = YoYInflationVolatilityTraits>
-    class PiecewiseYoYOptionletVolatilityCurve
-        : public InterpolatedYoYOptionletVolatilityCurve<Interpolator>,
-          public LazyObject {
+    class PiecewiseYoYOptionletVolatilityCurve : public InterpolatedYoYOptionletVolatilityCurve<Interpolator>,
+                                                 public LazyObject
+    {
       private:
-        typedef InterpolatedYoYOptionletVolatilityCurve<Interpolator>
-                                                                   base_curve;
-        typedef PiecewiseYoYOptionletVolatilityCurve<Interpolator,
-                                                     Bootstrap,
-                                                     Traits> this_curve;
+        typedef InterpolatedYoYOptionletVolatilityCurve<Interpolator> base_curve;
+        typedef PiecewiseYoYOptionletVolatilityCurve<Interpolator, Bootstrap, Traits> this_curve;
+
       public:
         typedef Traits traits_type;
         typedef Interpolator interpolator_type;
 
-        PiecewiseYoYOptionletVolatilityCurve(
-            Natural settlementDays,
-            const Calendar& cal,
-            BusinessDayConvention bdc,
-            const DayCounter& dc,
-            const Period& lag,
-            Frequency frequency,
-            bool indexIsInterpolated,
-            Rate minStrike,
-            Rate maxStrike,
-            Volatility baseYoYVolatility,
-            std::vector<ext::shared_ptr<typename Traits::helper> > instruments,
-            Real accuracy = 1.0e-12,
-            const Interpolator& interpolator = Interpolator())
+        PiecewiseYoYOptionletVolatilityCurve(Natural settlementDays,
+                                             const Calendar& cal,
+                                             BusinessDayConvention bdc,
+                                             const DayCounter& dc,
+                                             const Period& lag,
+                                             Frequency frequency,
+                                             bool indexIsInterpolated,
+                                             Rate minStrike,
+                                             Rate maxStrike,
+                                             Volatility baseYoYVolatility,
+                                             std::vector<ext::shared_ptr<typename Traits::helper>> instruments,
+                                             Real accuracy = 1.0e-12,
+                                             const Interpolator& interpolator = Interpolator())
         : base_curve(settlementDays,
                      cal,
                      bdc,
@@ -143,7 +137,8 @@ namespace QuantLib {
                      maxStrike,
                      baseYoYVolatility,
                      interpolator),
-          instruments_(std::move(instruments)), accuracy_(accuracy) {
+          instruments_(std::move(instruments)), accuracy_(accuracy)
+        {
             bootstrap_.setup(this);
         }
 
@@ -157,7 +152,7 @@ namespace QuantLib {
         const std::vector<Time>& times() const override;
         const std::vector<Date>& dates() const override;
         const std::vector<Real>& data() const override;
-        std::vector<std::pair<Date, Real> > nodes() const override;
+        std::vector<std::pair<Date, Real>> nodes() const override;
         //@}
         //! \name Observer interface
         //@{
@@ -167,7 +162,7 @@ namespace QuantLib {
         // methods
         void performCalculations() const override;
         // data members
-        std::vector<ext::shared_ptr<typename Traits::helper> > instruments_;
+        std::vector<ext::shared_ptr<typename Traits::helper>> instruments_;
         Real accuracy_;
 
         friend class Bootstrap<this_curve>;
@@ -178,53 +173,56 @@ namespace QuantLib {
     // inline and template definitions
 
     template <class I, template <class> class B, class T>
-    inline Date PiecewiseYoYOptionletVolatilityCurve<I,B,T>::baseDate() const {
+    inline Date PiecewiseYoYOptionletVolatilityCurve<I, B, T>::baseDate() const
+    {
         this->calculate();
         return base_curve::baseDate();
     }
 
     template <class I, template <class> class B, class T>
-    inline Date PiecewiseYoYOptionletVolatilityCurve<I,B,T>::maxDate() const {
+    inline Date PiecewiseYoYOptionletVolatilityCurve<I, B, T>::maxDate() const
+    {
         this->calculate();
         return base_curve::maxDate();
     }
 
     template <class I, template <class> class B, class T>
-    const std::vector<Time>&
-    PiecewiseYoYOptionletVolatilityCurve<I,B,T>::times() const {
+    const std::vector<Time>& PiecewiseYoYOptionletVolatilityCurve<I, B, T>::times() const
+    {
         calculate();
         return base_curve::times();
     }
 
     template <class I, template <class> class B, class T>
-    const std::vector<Date>&
-    PiecewiseYoYOptionletVolatilityCurve<I,B,T>::dates() const {
+    const std::vector<Date>& PiecewiseYoYOptionletVolatilityCurve<I, B, T>::dates() const
+    {
         calculate();
         return base_curve::dates();
     }
 
     template <class I, template <class> class B, class T>
-    const std::vector<Real>&
-    PiecewiseYoYOptionletVolatilityCurve<I,B,T>::data() const {
+    const std::vector<Real>& PiecewiseYoYOptionletVolatilityCurve<I, B, T>::data() const
+    {
         calculate();
         return base_curve::data();
     }
 
     template <class I, template <class> class B, class T>
-    std::vector<std::pair<Date, Real> >
-    PiecewiseYoYOptionletVolatilityCurve<I,B,T>::nodes() const {
+    std::vector<std::pair<Date, Real>> PiecewiseYoYOptionletVolatilityCurve<I, B, T>::nodes() const
+    {
         calculate();
         return base_curve::nodes();
     }
 
     template <class I, template <class> class B, class T>
-    void
-    PiecewiseYoYOptionletVolatilityCurve<I,B,T>::performCalculations() const {
+    void PiecewiseYoYOptionletVolatilityCurve<I, B, T>::performCalculations() const
+    {
         bootstrap_.calculate();
     }
 
     template <class I, template <class> class B, class T>
-    void PiecewiseYoYOptionletVolatilityCurve<I,B,T>::update() {
+    void PiecewiseYoYOptionletVolatilityCurve<I, B, T>::update()
+    {
         base_curve::update();
         LazyObject::update();
     }

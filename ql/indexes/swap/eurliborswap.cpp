@@ -18,108 +18,109 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/indexes/swap/eurliborswap.hpp>
+#include <ql/currencies/europe.hpp>
 #include <ql/indexes/ibor/eurlibor.hpp>
+#include <ql/indexes/swap/eurliborswap.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/thirty360.hpp>
-#include <ql/currencies/europe.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    EurLiborSwapIsdaFixA::EurLiborSwapIsdaFixA(
-                                        const Period& tenor,
-                                        const Handle<YieldTermStructure>& h)
+    EurLiborSwapIsdaFixA::EurLiborSwapIsdaFixA(const Period& tenor,
+                                               const Handle<YieldTermStructure>& h)
     : SwapIndex("EurLiborSwapIsdaFixA", // familyName
                 tenor,
                 2, // settlementDays
                 EURCurrency(),
                 TARGET(),
-                1*Years, // fixedLegTenor
-                ModifiedFollowing, // fixedLegConvention
+                1 * Years,                       // fixedLegTenor
+                ModifiedFollowing,               // fixedLegConvention
                 Thirty360(Thirty360::BondBasis), // fixedLegDaycounter
-                tenor > 1*Years ?
-                    ext::shared_ptr<IborIndex>(new EURLibor(6*Months, h)) :
-                    ext::shared_ptr<IborIndex>(new EURLibor(3*Months, h))) {}
+                tenor > 1 * Years ? ext::shared_ptr<IborIndex>(new EURLibor(6 * Months, h)) :
+                                    ext::shared_ptr<IborIndex>(new EURLibor(3 * Months, h)))
+    {
+    }
 
-    EurLiborSwapIsdaFixA::EurLiborSwapIsdaFixA(
-                                const Period& tenor,
-                                const Handle<YieldTermStructure>& forwarding,
-                                const Handle<YieldTermStructure>& discounting)
+    EurLiborSwapIsdaFixA::EurLiborSwapIsdaFixA(const Period& tenor,
+                                               const Handle<YieldTermStructure>& forwarding,
+                                               const Handle<YieldTermStructure>& discounting)
     : SwapIndex("EurLiborSwapIsdaFixA", // familyName
                 tenor,
                 2, // settlementDays
                 EURCurrency(),
                 TARGET(),
-                1*Years, // fixedLegTenor
-                ModifiedFollowing, // fixedLegConvention
+                1 * Years,                       // fixedLegTenor
+                ModifiedFollowing,               // fixedLegConvention
                 Thirty360(Thirty360::BondBasis), // fixedLegDaycounter
-                tenor > 1*Years ?
-                    ext::shared_ptr<IborIndex>(new EURLibor(6*Months, forwarding)) :
-                    ext::shared_ptr<IborIndex>(new EURLibor(3*Months, forwarding)),
-                discounting) {}
+                tenor > 1 * Years ? ext::shared_ptr<IborIndex>(new EURLibor(6 * Months, forwarding)) :
+                                    ext::shared_ptr<IborIndex>(new EURLibor(3 * Months, forwarding)),
+                discounting)
+    {
+    }
 
-    EurLiborSwapIsdaFixB::EurLiborSwapIsdaFixB(
-                                        const Period& tenor,
-                                        const Handle<YieldTermStructure>& h)
+    EurLiborSwapIsdaFixB::EurLiborSwapIsdaFixB(const Period& tenor,
+                                               const Handle<YieldTermStructure>& h)
     : SwapIndex("EurLiborSwapIsdaFixB", // familyName
                 tenor,
                 2, // settlementDays
                 EURCurrency(),
                 TARGET(),
-                1*Years, // fixedLegTenor
-                ModifiedFollowing, // fixedLegConvention
+                1 * Years,                       // fixedLegTenor
+                ModifiedFollowing,               // fixedLegConvention
                 Thirty360(Thirty360::BondBasis), // fixedLegDaycounter
-                tenor > 1*Years ?
-                    ext::shared_ptr<IborIndex>(new EURLibor(6*Months, h)) :
-                    ext::shared_ptr<IborIndex>(new EURLibor(3*Months, h))) {}
+                tenor > 1 * Years ? ext::shared_ptr<IborIndex>(new EURLibor(6 * Months, h)) :
+                                    ext::shared_ptr<IborIndex>(new EURLibor(3 * Months, h)))
+    {
+    }
 
-    EurLiborSwapIsdaFixB::EurLiborSwapIsdaFixB(
-                                const Period& tenor,
-                                const Handle<YieldTermStructure>& forwarding,
-                                const Handle<YieldTermStructure>& discounting)
+    EurLiborSwapIsdaFixB::EurLiborSwapIsdaFixB(const Period& tenor,
+                                               const Handle<YieldTermStructure>& forwarding,
+                                               const Handle<YieldTermStructure>& discounting)
     : SwapIndex("EurLiborSwapIsdaFixB", // familyName
                 tenor,
                 2, // settlementDays
                 EURCurrency(),
                 TARGET(),
-                1*Years, // fixedLegTenor
-                ModifiedFollowing, // fixedLegConvention
+                1 * Years,                       // fixedLegTenor
+                ModifiedFollowing,               // fixedLegConvention
                 Thirty360(Thirty360::BondBasis), // fixedLegDaycounter
-                tenor > 1*Years ?
-                    ext::shared_ptr<IborIndex>(new EURLibor(6*Months, forwarding)) :
-                    ext::shared_ptr<IborIndex>(new EURLibor(3*Months, forwarding)),
-                discounting) {}
+                tenor > 1 * Years ? ext::shared_ptr<IborIndex>(new EURLibor(6 * Months, forwarding)) :
+                                    ext::shared_ptr<IborIndex>(new EURLibor(3 * Months, forwarding)),
+                discounting)
+    {
+    }
 
-    EurLiborSwapIfrFix::EurLiborSwapIfrFix(
-                                        const Period& tenor,
-                                        const Handle<YieldTermStructure>& h)
+    EurLiborSwapIfrFix::EurLiborSwapIfrFix(const Period& tenor,
+                                           const Handle<YieldTermStructure>& h)
     : SwapIndex("EurLiborSwapIfrFix", // familyName
                 tenor,
                 2, // settlementDays
                 EURCurrency(),
                 TARGET(),
-                1*Years, // fixedLegTenor
-                ModifiedFollowing, // fixedLegConvention
+                1 * Years,                       // fixedLegTenor
+                ModifiedFollowing,               // fixedLegConvention
                 Thirty360(Thirty360::BondBasis), // fixedLegDaycounter
-                tenor > 1*Years ?
-                    ext::shared_ptr<IborIndex>(new EURLibor(6*Months, h)) :
-                    ext::shared_ptr<IborIndex>(new EURLibor(3*Months, h))) {}
+                tenor > 1 * Years ? ext::shared_ptr<IborIndex>(new EURLibor(6 * Months, h)) :
+                                    ext::shared_ptr<IborIndex>(new EURLibor(3 * Months, h)))
+    {
+    }
 
-    EurLiborSwapIfrFix::EurLiborSwapIfrFix(
-                                const Period& tenor,
-                                const Handle<YieldTermStructure>& forwarding,
-                                const Handle<YieldTermStructure>& discounting)
+    EurLiborSwapIfrFix::EurLiborSwapIfrFix(const Period& tenor,
+                                           const Handle<YieldTermStructure>& forwarding,
+                                           const Handle<YieldTermStructure>& discounting)
     : SwapIndex("EurLiborSwapIfrFix", // familyName
                 tenor,
                 2, // settlementDays
                 EURCurrency(),
                 TARGET(),
-                1*Years, // fixedLegTenor
-                ModifiedFollowing, // fixedLegConvention
+                1 * Years,                       // fixedLegTenor
+                ModifiedFollowing,               // fixedLegConvention
                 Thirty360(Thirty360::BondBasis), // fixedLegDaycounter
-                tenor > 1*Years ?
-                    ext::shared_ptr<IborIndex>(new EURLibor(6*Months, forwarding)) :
-                    ext::shared_ptr<IborIndex>(new EURLibor(3*Months, forwarding)),
-                discounting) {}
+                tenor > 1 * Years ? ext::shared_ptr<IborIndex>(new EURLibor(6 * Months, forwarding)) :
+                                    ext::shared_ptr<IborIndex>(new EURLibor(3 * Months, forwarding)),
+                discounting)
+    {
+    }
 
 }

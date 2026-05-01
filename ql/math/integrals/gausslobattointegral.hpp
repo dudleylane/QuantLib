@@ -26,10 +26,11 @@
 #define quantlib_gauss_lobatto_integral_hpp
 
 #include <ql/errors.hpp>
-#include <ql/utilities/null.hpp>
 #include <ql/math/integrals/integral.hpp>
+#include <ql/utilities/null.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Integral of a one-dimensional function
     /*! Given a target accuracy \f$ \epsilon \f$, the integral of
@@ -48,7 +49,8 @@ namespace QuantLib {
        http://www.inf.ethz.ch/personal/gander/adaptlob.m
     */
 
-    class GaussLobattoIntegral : public Integrator {
+    class GaussLobattoIntegral : public Integrator
+    {
       public:
         GaussLobattoIntegral(Size maxIterations,
                              Real absAccuracy,
@@ -58,11 +60,9 @@ namespace QuantLib {
       protected:
         Real integrate(const std::function<Real(Real)>& f, Real a, Real b) const override;
 
-        Real adaptivGaussLobattoStep(const std::function<Real (Real)>& f,
-                                     Real a, Real b, Real fa, Real fb,
-                                     Real is) const;
-        Real calculateAbsTolerance(const std::function<Real (Real)>& f,
-                                   Real a, Real b) const;
+        Real
+        adaptivGaussLobattoStep(const std::function<Real(Real)>& f, Real a, Real b, Real fa, Real fb, Real is) const;
+        Real calculateAbsTolerance(const std::function<Real(Real)>& f, Real a, Real b) const;
 
         Real relAccuracy_;
         const bool useConvergenceEstimate_;

@@ -29,7 +29,8 @@
 #include <ql/utilities/null.hpp>
 #include <iosfwd>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Criteria to end optimization process:
     /*! - maximum number of iterations AND minimum number of iterations around stationary point
@@ -37,16 +38,20 @@ namespace QuantLib {
         - y=f(x) (dependent variable) stationary point
         - stationary gradient
     */
-    class EndCriteria {
+    class EndCriteria
+    {
       public:
-        enum Type {None,
-                   MaxIterations,
-                   StationaryPoint,
-                   StationaryFunctionValue,
-                   StationaryFunctionAccuracy,
-                   ZeroGradientNorm,
-                   FunctionEpsilonTooSmall,
-                   Unknown};
+        enum Type
+        {
+            None,
+            MaxIterations,
+            StationaryPoint,
+            StationaryFunctionValue,
+            StationaryFunctionAccuracy,
+            ZeroGradientNorm,
+            FunctionEpsilonTooSmall,
+            Unknown
+        };
 
         //! Initialization constructor
         EndCriteria(Size maxIterations,
@@ -62,7 +67,7 @@ namespace QuantLib {
         Real functionEpsilon() const;
         Real gradientNormEpsilon() const;
 
-        /*! Test if the number of iterations is not too big 
+        /*! Test if the number of iterations is not too big
             and if a minimum point is not reached */
         bool operator()(Size iteration,
                         Size& statState,
@@ -76,27 +81,23 @@ namespace QuantLib {
         /*! Test if the number of iteration is below MaxIterations */
         bool checkMaxIterations(Size iteration, EndCriteria::Type& ecType) const;
         /*! Test if the root variation is below rootEpsilon */
-        bool checkStationaryPoint(Real xOld,
-                                  Real xNew,
-                                  Size& statStateIterations,
-                                  EndCriteria::Type& ecType) const;
+        bool checkStationaryPoint(Real xOld, Real xNew, Size& statStateIterations, EndCriteria::Type& ecType) const;
         /*! Test if the function variation is below functionEpsilon */
         bool checkStationaryFunctionValue(Real fxOld,
                                           Real fxNew,
                                           Size& statStateIterations,
                                           EndCriteria::Type& ecType) const;
         /*! Test if the function value is below functionEpsilon */
-        bool checkStationaryFunctionAccuracy(Real f,
-                                             bool positiveOptimization,
-                                             EndCriteria::Type& ecType) const;
+        bool checkStationaryFunctionAccuracy(Real f, bool positiveOptimization, EndCriteria::Type& ecType) const;
         /*! Test if the gradient norm variation is below gradientNormEpsilon */
-        //bool checkZerGradientNormValue(const Real gNormOld, 
-        //                               const Real gNormNew,
-        //                               EndCriteria::Type& ecType) const;
+        // bool checkZerGradientNormValue(const Real gNormOld,
+        //                                const Real gNormNew,
+        //                                EndCriteria::Type& ecType) const;
         /*! Test if the gradient norm value is below gradientNormEpsilon */
         bool checkZeroGradientNorm(Real gNorm, EndCriteria::Type& ecType) const;
 
         static bool succeeded(EndCriteria::Type ecType);
+
       protected:
         //! Maximum number of iterations
         Size maxIterations_;
@@ -104,7 +105,6 @@ namespace QuantLib {
         mutable Size maxStationaryStateIterations_;
         //! root, function and gradient epsilons
         Real rootEpsilon_, functionEpsilon_, gradientNormEpsilon_;
-
     };
 
     std::ostream& operator<<(std::ostream& out, EndCriteria::Type ecType);

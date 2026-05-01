@@ -28,15 +28,15 @@
 #include <ql/stochasticprocess.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Array of correlated 1-D stochastic processes
     /*! \ingroup processes */
-    class StochasticProcessArray : public StochasticProcess {
+    class StochasticProcessArray : public StochasticProcess
+    {
       public:
-        StochasticProcessArray(
-                  const std::vector<ext::shared_ptr<StochasticProcess1D> >&,
-                  const Matrix& correlation);
+        StochasticProcessArray(const std::vector<ext::shared_ptr<StochasticProcess1D>>&, const Matrix& correlation);
         // stochastic process interface
         Size size() const override;
         Array initialValues() const override;
@@ -54,8 +54,9 @@ namespace QuantLib {
         // inspectors
         const ext::shared_ptr<StochasticProcess1D>& process(Size i) const;
         Matrix correlation() const;
+
       protected:
-        std::vector<ext::shared_ptr<StochasticProcess1D> > processes_;
+        std::vector<ext::shared_ptr<StochasticProcess1D>> processes_;
         Matrix sqrtCorrelation_;
     };
 

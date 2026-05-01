@@ -36,4 +36,3 @@
 #include <ql/cashflows/timebasket.hpp>
 #include <ql/cashflows/yoyinflationcoupon.hpp>
 #include <ql/cashflows/zeroinflationcashflow.hpp>
-

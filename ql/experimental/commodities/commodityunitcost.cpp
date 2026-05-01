@@ -19,15 +19,14 @@
 
 #include <ql/experimental/commodities/commodityunitcost.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    std::ostream& operator<<(std::ostream& out,
-                             const CommodityUnitCost& unitCost) {
-        out << unitCost.amount().value() << " "
-            << unitCost.amount().currency().code() << "/"
+    std::ostream& operator<<(std::ostream& out, const CommodityUnitCost& unitCost)
+    {
+        out << unitCost.amount().value() << " " << unitCost.amount().currency().code() << "/"
             << unitCost.unitOfMeasure().code();
         return out;
     }
 
 }
-

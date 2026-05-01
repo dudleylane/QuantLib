@@ -24,16 +24,17 @@
 #ifndef quantlib_solver1d_hpp
 #define quantlib_solver1d_hpp
 
-#include <ql/math/comparison.hpp>
-#include <ql/utilities/null.hpp>
-#include <ql/patterns/curiouslyrecurring.hpp>
 #include <ql/errors.hpp>
+#include <ql/math/comparison.hpp>
+#include <ql/patterns/curiouslyrecurring.hpp>
+#include <ql/utilities/null.hpp>
 #include <algorithm>
 #include <iomanip>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    #define MAX_FUNCTION_EVALUATIONS 100
+#define MAX_FUNCTION_EVALUATIONS 100
 
     //! Base class for 1-D solvers
     /*! The implementation of this class uses the so-called
@@ -64,7 +65,8 @@ namespace QuantLib {
         - add target value (now the target value is 0.0)
     */
     template <class Impl>
-    class Solver1D : public CuriouslyRecurringTemplate<Impl> {
+    class Solver1D : public CuriouslyRecurringTemplate<Impl>
+    {
       public:
         Solver1D() = default;
         //! \name Modifiers
@@ -81,13 +83,10 @@ namespace QuantLib {
             scan the range of the possible bracketing values.
         */
         template <class F>
-        Real solve(const F& f,
-                   Real accuracy,
-                   Real guess,
-                   Real step) const {
+        Real solve(const F& f, Real accuracy, Real guess, Real step) const
+        {
 
-            QL_REQUIRE(accuracy>0.0,
-                       "accuracy (" << accuracy << ") must be positive");
+            QL_REQUIRE(accuracy > 0.0, "accuracy (" << accuracy << ") must be positive");
             // check whether we really want to use epsilon
             accuracy = std::max(accuracy, QL_EPSILON);
 
@@ -98,52 +97,63 @@ namespace QuantLib {
             fxMax_ = f(root_);
 
             // monotonically crescent bias, as in optionValue(volatility)
-            if (close(fxMax_,0.0))
+            if (close(fxMax_, 0.0))
                 return root_;
-            else if (fxMax_ > 0.0) {
+            else if (fxMax_ > 0.0)
+            {
                 xMin_ = enforceBounds_(root_ - step);
                 fxMin_ = f(xMin_);
                 xMax_ = root_;
-            } else {
+            }
+            else
+            {
                 xMin_ = root_;
                 fxMin_ = fxMax_;
-                xMax_ = enforceBounds_(root_+step);
+                xMax_ = enforceBounds_(root_ + step);
                 fxMax_ = f(xMax_);
             }
 
             evaluationNumber_ = 2;
-            while (evaluationNumber_ <= maxEvaluations_) {
-                if (fxMin_*fxMax_ <= 0.0) {
+            while (evaluationNumber_ <= maxEvaluations_)
+            {
+                if (fxMin_ * fxMax_ <= 0.0)
+                {
                     if (close(fxMin_, 0.0))
                         return xMin_;
                     if (close(fxMax_, 0.0))
                         return xMax_;
-                    root_ = (xMax_+xMin_)/2.0;
+                    root_ = (xMax_ + xMin_) / 2.0;
                     return this->impl().solveImpl(f, accuracy);
                 }
-                if (std::fabs(fxMin_) < std::fabs(fxMax_)) {
-                    xMin_ = enforceBounds_(xMin_+growthFactor*(xMin_ - xMax_));
-                    fxMin_= f(xMin_);
-                } else if (std::fabs(fxMin_) > std::fabs(fxMax_)) {
-                    xMax_ = enforceBounds_(xMax_+growthFactor*(xMax_ - xMin_));
-                    fxMax_= f(xMax_);
-                } else if (flipflop == -1) {
-                    xMin_ = enforceBounds_(xMin_+growthFactor*(xMin_ - xMax_));
-                    fxMin_= f(xMin_);
+                if (std::fabs(fxMin_) < std::fabs(fxMax_))
+                {
+                    xMin_ = enforceBounds_(xMin_ + growthFactor * (xMin_ - xMax_));
+                    fxMin_ = f(xMin_);
+                }
+                else if (std::fabs(fxMin_) > std::fabs(fxMax_))
+                {
+                    xMax_ = enforceBounds_(xMax_ + growthFactor * (xMax_ - xMin_));
+                    fxMax_ = f(xMax_);
+                }
+                else if (flipflop == -1)
+                {
+                    xMin_ = enforceBounds_(xMin_ + growthFactor * (xMin_ - xMax_));
+                    fxMin_ = f(xMin_);
                     evaluationNumber_++;
                     flipflop = 1;
-                } else if (flipflop == 1) {
-                    xMax_ = enforceBounds_(xMax_+growthFactor*(xMax_ - xMin_));
-                    fxMax_= f(xMax_);
+                }
+                else if (flipflop == 1)
+                {
+                    xMax_ = enforceBounds_(xMax_ + growthFactor * (xMax_ - xMin_));
+                    fxMax_ = f(xMax_);
                     flipflop = -1;
                 }
                 evaluationNumber_++;
             }
 
-            QL_FAIL("unable to bracket root in " << maxEvaluations_
-                    << " function evaluations (last bracket attempt: "
-                    << "f[" << xMin_ << "," << xMax_ << "] "
-                    << "-> [" << fxMin_ << "," << fxMax_ << "])");
+            QL_FAIL("unable to bracket root in " << maxEvaluations_ << " function evaluations (last bracket attempt: "
+                                                 << "f[" << xMin_ << "," << xMax_ << "] "
+                                                 << "-> [" << fxMin_ << "," << fxMax_ << "])");
         }
         /*! This method returns the zero of the function \f$ f \f$,
             determined with the given accuracy \f$ \epsilon \f$;
@@ -160,29 +170,21 @@ namespace QuantLib {
             be true).
         */
         template <class F>
-        Real solve(const F& f,
-                   Real accuracy,
-                   Real guess,
-                   Real xMin,
-                   Real xMax) const {
+        Real solve(const F& f, Real accuracy, Real guess, Real xMin, Real xMax) const
+        {
 
-            QL_REQUIRE(accuracy>0.0,
-                       "accuracy (" << accuracy << ") must be positive");
+            QL_REQUIRE(accuracy > 0.0, "accuracy (" << accuracy << ") must be positive");
             // check whether we really want to use epsilon
             accuracy = std::max(accuracy, QL_EPSILON);
 
             xMin_ = xMin;
             xMax_ = xMax;
 
-            QL_REQUIRE(xMin_ < xMax_,
-                       "invalid range: xMin_ (" << xMin_
-                       << ") >= xMax_ (" << xMax_ << ")");
+            QL_REQUIRE(xMin_ < xMax_, "invalid range: xMin_ (" << xMin_ << ") >= xMax_ (" << xMax_ << ")");
             QL_REQUIRE(!lowerBoundEnforced_ || xMin_ >= lowerBound_,
-                       "xMin_ (" << xMin_
-                       << ") < enforced low bound (" << lowerBound_ << ")");
+                       "xMin_ (" << xMin_ << ") < enforced low bound (" << lowerBound_ << ")");
             QL_REQUIRE(!upperBoundEnforced_ || xMax_ <= upperBound_,
-                       "xMax_ (" << xMax_
-                       << ") > enforced hi bound (" << upperBound_ << ")");
+                       "xMax_ (" << xMax_ << ") > enforced hi bound (" << upperBound_ << ")");
 
             fxMin_ = f(xMin_);
             if (close(fxMin_, 0.0))
@@ -194,16 +196,12 @@ namespace QuantLib {
 
             evaluationNumber_ = 2;
 
-            QL_REQUIRE(fxMin_*fxMax_ < 0.0,
-                       "root not bracketed: f["
-                       << xMin_ << "," << xMax_ << "] -> ["
-                       << std::scientific
-                       << fxMin_ << "," << fxMax_ << "]");
+            QL_REQUIRE(fxMin_ * fxMax_ < 0.0, "root not bracketed: f[" << xMin_ << "," << xMax_ << "] -> ["
+                                                                       << std::scientific << fxMin_ << "," << fxMax_
+                                                                       << "]");
 
-            QL_REQUIRE(guess > xMin_,
-                       "guess (" << guess << ") < xMin_ (" << xMin_ << ")");
-            QL_REQUIRE(guess < xMax_,
-                       "guess (" << guess << ") > xMax_ (" << xMax_ << ")");
+            QL_REQUIRE(guess > xMin_, "guess (" << guess << ") < xMin_ (" << xMin_ << ")");
+            QL_REQUIRE(guess < xMax_, "guess (" << guess << ") > xMax_ (" << xMax_ << ")");
 
             root_ = guess;
 
@@ -225,6 +223,7 @@ namespace QuantLib {
         mutable Real root_, xMin_, xMax_, fxMin_, fxMax_;
         Size maxEvaluations_ = MAX_FUNCTION_EVALUATIONS;
         mutable Size evaluationNumber_;
+
       private:
         Real enforceBounds_(Real x) const;
         Real lowerBound_{}, upperBound_{};
@@ -235,24 +234,28 @@ namespace QuantLib {
     // inline definitions
 
     template <class T>
-    inline void Solver1D<T>::setMaxEvaluations(Size evaluations) {
+    inline void Solver1D<T>::setMaxEvaluations(Size evaluations)
+    {
         maxEvaluations_ = evaluations;
     }
 
     template <class T>
-    inline void Solver1D<T>::setLowerBound(Real lowerBound) {
+    inline void Solver1D<T>::setLowerBound(Real lowerBound)
+    {
         lowerBound_ = lowerBound;
         lowerBoundEnforced_ = true;
     }
 
     template <class T>
-    inline void Solver1D<T>::setUpperBound(Real upperBound) {
+    inline void Solver1D<T>::setUpperBound(Real upperBound)
+    {
         upperBound_ = upperBound;
         upperBoundEnforced_ = true;
     }
 
     template <class T>
-    inline Real Solver1D<T>::enforceBounds_(Real x) const {
+    inline Real Solver1D<T>::enforceBounds_(Real x) const
+    {
         if (lowerBoundEnforced_ && x < lowerBound_)
             return lowerBound_;
         if (upperBoundEnforced_ && x > upperBound_)

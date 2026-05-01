@@ -27,12 +27,13 @@
 #include <ql/patterns/observable.hpp>
 #include <ql/shared_ptr.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Framework for calculation on demand and result caching.
     /*! \ingroup patterns */
-    class LazyObject : public virtual Observable,
-                       public virtual Observer {
+    class LazyObject : public virtual Observable, public virtual Observer
+    {
       public:
         LazyObject();
         ~LazyObject() override = default;
@@ -129,25 +130,27 @@ namespace QuantLib {
 
       protected:
         mutable bool calculated_ = false, frozen_ = false, failed_ = false, alwaysForward_;
+
       private:
         bool updating_ = false;
-        class UpdateChecker {  // NOLINT(cppcoreguidelines-special-member-functions)
+        class UpdateChecker
+        { // NOLINT(cppcoreguidelines-special-member-functions)
             LazyObject* subject_;
+
           public:
-            explicit UpdateChecker(LazyObject* subject) : subject_(subject) {
-                subject_->updating_ = true;
-            }
-            ~UpdateChecker() {
-                subject_->updating_ = false;
-            }
+            explicit UpdateChecker(LazyObject* subject) : subject_(subject) { subject_->updating_ = true; }
+            ~UpdateChecker() { subject_->updating_ = false; }
         };
+
       public:
         class Defaults;
     };
 
     //! Per-session settings for the LazyObject class
-    class LazyObject::Defaults : public Singleton<LazyObject::Defaults> {
+    class LazyObject::Defaults : public Singleton<LazyObject::Defaults>
+    {
         friend class Singleton<LazyObject::Defaults>;
+
       private:
         Defaults() = default;
 
@@ -157,43 +160,38 @@ namespace QuantLib {
             recalculation; see
             LazyObject::forwardFirstNotificationOnly for details.
         */
-        void forwardFirstNotificationOnly() {
-            forwardsAllNotifications_ = false;
-        }
+        void forwardFirstNotificationOnly() { forwardsAllNotifications_ = false; }
 
         /*! by default, lazy objects created after calling this method
             will always forward notifications; see
             LazyObject::alwaysForwardNotifications for details.
         */
-        void alwaysForwardNotifications() {
-            forwardsAllNotifications_ = true;
-        }
+        void alwaysForwardNotifications() { forwardsAllNotifications_ = true; }
 
         //! returns the current default
-        bool forwardsAllNotifications() const {
-            return forwardsAllNotifications_;
-        }
+        bool forwardsAllNotifications() const { return forwardsAllNotifications_; }
 
       private:
-        #ifdef QL_FASTER_LAZY_OBJECTS
+#ifdef QL_FASTER_LAZY_OBJECTS
         bool forwardsAllNotifications_ = false;
-        #else
+#else
         bool forwardsAllNotifications_ = true;
-        #endif
+#endif
     };
 
     // inline definitions
 
-    inline LazyObject::LazyObject()
-    : alwaysForward_(LazyObject::Defaults::instance().forwardsAllNotifications()) {}
+    inline LazyObject::LazyObject() : alwaysForward_(LazyObject::Defaults::instance().forwardsAllNotifications()) {}
 
-    inline void LazyObject::update() {
-        if (updating_) {
-            #ifdef QL_THROW_IN_CYCLES
+    inline void LazyObject::update()
+    {
+        if (updating_)
+        {
+#ifdef QL_THROW_IN_CYCLES
             QL_FAIL("recursive notification loop detected; you probably created an object cycle");
-            #else
+#else
             return;
-            #endif
+#endif
         }
 
         // This sets updating to true (so the above check breaks the
@@ -203,7 +201,8 @@ namespace QuantLib {
         UpdateChecker checker(this);
 
         // forwards notifications only the first time
-        if (calculated_ || failed_ || alwaysForward_) {
+        if (calculated_ || failed_ || alwaysForward_)
+        {
             // set to false early
             // 1) to prevent infinite recursion
             // 2) otherways non-lazy observers would be served obsolete
@@ -213,17 +212,21 @@ namespace QuantLib {
             // observers don't expect notifications from frozen objects
             if (!frozen_)
                 notifyObservers();
-                // exiting notifyObservers() calculated_ could be
-                // already true because of non-lazy observers
+            // exiting notifyObservers() calculated_ could be
+            // already true because of non-lazy observers
         }
     }
 
-    inline void LazyObject::recalculate() {
+    inline void LazyObject::recalculate()
+    {
         bool wasFrozen = frozen_;
         calculated_ = frozen_ = failed_ = false;
-        try {
+        try
+        {
             calculate();
-        } catch (...) {
+        }
+        catch (...)
+        {
             frozen_ = wasFrozen;
             notifyObservers();
             throw;
@@ -232,36 +235,46 @@ namespace QuantLib {
         notifyObservers();
     }
 
-    inline void LazyObject::freeze() {
+    inline void LazyObject::freeze()
+    {
         frozen_ = true;
     }
 
-    inline void LazyObject::unfreeze() {
+    inline void LazyObject::unfreeze()
+    {
         // send notifications, just in case we lost any,
         // but only once, i.e. if it was frozen
-        if (frozen_) {
+        if (frozen_)
+        {
             frozen_ = false;
             notifyObservers();
         }
     }
 
-    inline void LazyObject::forwardFirstNotificationOnly() {
+    inline void LazyObject::forwardFirstNotificationOnly()
+    {
         alwaysForward_ = false;
     }
 
-    inline void LazyObject::alwaysForwardNotifications() {
+    inline void LazyObject::alwaysForwardNotifications()
+    {
         alwaysForward_ = true;
     }
 
-    inline void LazyObject::calculate() const {
-        if (!calculated_ && !frozen_) {
-            calculated_ = true;   // prevent infinite recursion in
-                                  // case of bootstrapping
-            try {
+    inline void LazyObject::calculate() const
+    {
+        if (!calculated_ && !frozen_)
+        {
+            calculated_ = true; // prevent infinite recursion in
+                                // case of bootstrapping
+            try
+            {
                 performCalculations();
-                failed_ = false;  // needed when calculate() is called
-                                  // directly after a prior failure
-            } catch (...) {
+                failed_ = false; // needed when calculate() is called
+                                 // directly after a prior failure
+            }
+            catch (...)
+            {
                 calculated_ = false;
                 failed_ = true;
                 throw;
@@ -269,11 +282,13 @@ namespace QuantLib {
         }
     }
 
-    inline bool LazyObject::isCalculated() const {
+    inline bool LazyObject::isCalculated() const
+    {
         return calculated_;
     }
 
-    inline void LazyObject::setCalculated(const bool c) const {
+    inline void LazyObject::setCalculated(const bool c) const
+    {
         calculated_ = c;
     }
 }

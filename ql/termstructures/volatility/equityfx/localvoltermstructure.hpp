@@ -25,17 +25,19 @@
 #ifndef quantlib_local_vol_term_structures_hpp
 #define quantlib_local_vol_term_structures_hpp
 
-#include <ql/termstructures/voltermstructure.hpp>
 #include <ql/patterns/visitor.hpp>
+#include <ql/termstructures/voltermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! This abstract class defines the interface of concrete
         local-volatility term structures which will be derived from this one.
 
         Volatilities are assumed to be expressed on an annual basis.
     */
-    class LocalVolTermStructure : public VolatilityTermStructure {
+    class LocalVolTermStructure : public VolatilityTermStructure
+    {
       public:
         /*! \name Constructors
             See the TermStructure documentation for issues regarding
@@ -47,8 +49,7 @@ namespace QuantLib {
                      constructor must manage their own reference date
                      by overriding the referenceDate() method.
         */
-        LocalVolTermStructure(BusinessDayConvention bdc = Following,
-                              const DayCounter& dc = DayCounter());
+        LocalVolTermStructure(BusinessDayConvention bdc = Following, const DayCounter& dc = DayCounter());
         //! initialize with a fixed reference date
         LocalVolTermStructure(const Date& referenceDate,
                               const Calendar& cal = Calendar(),
@@ -63,12 +64,8 @@ namespace QuantLib {
         ~LocalVolTermStructure() override = default;
         //! \name Local Volatility
         //@{
-        Volatility localVol(const Date& d,
-                            Real underlyingLevel,
-                            bool extrapolate = false) const;
-        Volatility localVol(Time t,
-                            Real underlyingLevel,
-                            bool extrapolate = false) const;
+        Volatility localVol(const Date& d, Real underlyingLevel, bool extrapolate = false) const;
+        Volatility localVol(Time t, Real underlyingLevel, bool extrapolate = false) const;
         //@}
         //! \name Visitability
         //@{

@@ -28,35 +28,38 @@
 #include <ql/math/integrals/integral.hpp>
 #include <ql/utilities/null.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! References:
         Levy, D. Numerical Integration
         http://www2.math.umd.edu/~dlevy/classes/amsc466/lecture-notes/integration-chap.pdf
     */
-    class DiscreteTrapezoidIntegral {
+    class DiscreteTrapezoidIntegral
+    {
       public:
         Real operator()(const Array& x, const Array& f) const;
     };
 
-    class DiscreteSimpsonIntegral {
+    class DiscreteSimpsonIntegral
+    {
       public:
         Real operator()(const Array& x, const Array& f) const;
     };
 
-    class DiscreteTrapezoidIntegrator: public Integrator {
+    class DiscreteTrapezoidIntegrator : public Integrator
+    {
       public:
-        explicit DiscreteTrapezoidIntegrator(Size evaluations)
-        : Integrator(Null<Real>(), evaluations) {}
+        explicit DiscreteTrapezoidIntegrator(Size evaluations) : Integrator(Null<Real>(), evaluations) {}
 
       protected:
         Real integrate(const std::function<Real(Real)>& f, Real a, Real b) const override;
     };
 
-    class DiscreteSimpsonIntegrator: public Integrator {
+    class DiscreteSimpsonIntegrator : public Integrator
+    {
       public:
-        explicit DiscreteSimpsonIntegrator(Size evaluations)
-        : Integrator(Null<Real>(), evaluations) {}
+        explicit DiscreteSimpsonIntegrator(Size evaluations) : Integrator(Null<Real>(), evaluations) {}
 
       protected:
         Real integrate(const std::function<Real(Real)>& f, Real a, Real b) const override;

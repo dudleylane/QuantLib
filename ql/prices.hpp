@@ -29,22 +29,24 @@
 #include <ql/timeseries.hpp>
 #include <ql/utilities/null.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Price types
-    enum PriceType {
-         Bid,          /*!< Bid price. */
-         Ask,          /*!< Ask price. */
-         Last,         /*!< Last price. */
-         Close,        /*!< Close price. */
-         Mid,          /*!< Mid price, calculated as the arithmetic
+    enum PriceType
+    {
+        Bid,           /*!< Bid price. */
+        Ask,           /*!< Ask price. */
+        Last,          /*!< Last price. */
+        Close,         /*!< Close price. */
+        Mid,           /*!< Mid price, calculated as the arithmetic
                             average of bid and ask prices. */
-         MidEquivalent, /*!< Mid equivalent price, calculated as
-                            a) the arithmetic average of bid and ask prices
-                            when both are available; b) either the bid or the
-                            ask price if any of them is available;
-                            c) the last price; or d) the close price. */
-         MidSafe       /*!< Safe Mid price, returns the mid price only if
+        MidEquivalent, /*!< Mid equivalent price, calculated as
+                           a) the arithmetic average of bid and ask prices
+                           when both are available; b) either the bid or the
+                           ask price if any of them is available;
+                           c) the last price; or d) the close price. */
+        MidSafe        /*!< Safe Mid price, returns the mid price only if
                             both bid and ask are available. */
     };
 
@@ -62,10 +64,17 @@ namespace QuantLib {
 
     //! interval price
     /*! \test Inspectors, Modifiers, and Helper functions are tested.
-    */
-    class IntervalPrice {
+     */
+    class IntervalPrice
+    {
       public:
-        enum Type { Open, Close, High, Low };
+        enum Type
+        {
+            Open,
+            Close,
+            High,
+            Low
+        };
 
         IntervalPrice();
         IntervalPrice(Real open, Real close, Real high, Real low);
@@ -87,18 +96,13 @@ namespace QuantLib {
 
         //! \name Helper functions
         //@{
-        static TimeSeries<IntervalPrice> makeSeries(
-                                               const std::vector<Date>& d,
-                                               const std::vector<Real>& open,
-                                               const std::vector<Real>& close,
-                                               const std::vector<Real>& high,
-                                               const std::vector<Real>& low);
-        static std::vector<Real> extractValues(
-                                          const TimeSeries<IntervalPrice>&,
-                                          IntervalPrice::Type);
-        static TimeSeries<Real> extractComponent(
-                                          const TimeSeries<IntervalPrice>&,
-                                          IntervalPrice::Type);
+        static TimeSeries<IntervalPrice> makeSeries(const std::vector<Date>& d,
+                                                    const std::vector<Real>& open,
+                                                    const std::vector<Real>& close,
+                                                    const std::vector<Real>& high,
+                                                    const std::vector<Real>& low);
+        static std::vector<Real> extractValues(const TimeSeries<IntervalPrice>&, IntervalPrice::Type);
+        static TimeSeries<Real> extractComponent(const TimeSeries<IntervalPrice>&, IntervalPrice::Type);
         //@}
       private:
         Real open_, close_, high_, low_;

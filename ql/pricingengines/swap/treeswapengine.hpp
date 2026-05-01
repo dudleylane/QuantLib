@@ -28,28 +28,26 @@
 #include <ql/instruments/vanillaswap.hpp>
 #include <ql/pricingengines/latticeshortratemodelengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Numerical lattice engine for simple swaps
     /*! \test calculations are checked against known good results
-    */
-    class TreeVanillaSwapEngine
-    : public LatticeShortRateModelEngine<VanillaSwap::arguments,
-                                         VanillaSwap::results> {
+     */
+    class TreeVanillaSwapEngine : public LatticeShortRateModelEngine<VanillaSwap::arguments, VanillaSwap::results>
+    {
       public:
         /*! \name Constructors
             \note the term structure is only needed when the short-rate
                   model cannot provide one itself.
         */
         //@{
-        TreeVanillaSwapEngine(
-            const ext::shared_ptr<ShortRateModel>&,
-            Size timeSteps,
-            Handle<YieldTermStructure> termStructure = Handle<YieldTermStructure>());
-        TreeVanillaSwapEngine(
-            const ext::shared_ptr<ShortRateModel>&,
-            const TimeGrid& timeGrid,
-            Handle<YieldTermStructure> termStructure = Handle<YieldTermStructure>());
+        TreeVanillaSwapEngine(const ext::shared_ptr<ShortRateModel>&,
+                              Size timeSteps,
+                              Handle<YieldTermStructure> termStructure = Handle<YieldTermStructure>());
+        TreeVanillaSwapEngine(const ext::shared_ptr<ShortRateModel>&,
+                              const TimeGrid& timeGrid,
+                              Handle<YieldTermStructure> termStructure = Handle<YieldTermStructure>());
         //@}
         void calculate() const override;
 

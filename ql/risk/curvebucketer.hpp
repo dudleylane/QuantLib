@@ -38,7 +38,8 @@
 #include <ql/quotes/simplequote.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Tenor-bucketed delta/gamma for an instrument priced off a curve.
     /*! \ingroup riskanalysis */
@@ -58,15 +59,15 @@ namespace QuantLib {
 
         Not thread-safe: quote mutation is shared state.
     */
-    class CurveBucketer {
+    class CurveBucketer
+    {
       public:
         //! Construct from the vector of input quotes and a bump size.
         /*! Default bump is 1 basis point (1e-4). Regulatory sensitivity
             conventions (FRTB, SIMM) typically use 1bp for IR, 1% for
             equity, 1 vol point (0.01) for vols — the caller knows the
             right size for the underlying market. */
-        CurveBucketer(std::vector<ext::shared_ptr<SimpleQuote> > quotes,
-                      Real bump = 1.0e-4);
+        CurveBucketer(std::vector<ext::shared_ptr<SimpleQuote>> quotes, Real bump = 1.0e-4);
 
         //! Bucketed delta: one entry per quote.
         /*! \param instrument  the instrument to shock; its pricing
@@ -103,7 +104,7 @@ namespace QuantLib {
         Real bump() const { return bump_; }
 
       private:
-        std::vector<ext::shared_ptr<SimpleQuote> > quotes_;
+        std::vector<ext::shared_ptr<SimpleQuote>> quotes_;
         Real bump_;
     };
 

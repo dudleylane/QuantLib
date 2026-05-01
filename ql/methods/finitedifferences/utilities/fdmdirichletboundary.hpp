@@ -30,20 +30,21 @@
 #include <ql/methods/finitedifferences/boundarycondition.hpp>
 #include <ql/methods/finitedifferences/operators/fdmlinearop.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class FdmMesher;
     class FdmLinearOpLayout;
 
-    class FdmDirichletBoundary : public BoundaryCondition<FdmLinearOp> {
+    class FdmDirichletBoundary : public BoundaryCondition<FdmLinearOp>
+    {
       public:
         // types and enumerations
         typedef FdmLinearOp operator_type;
         typedef FdmLinearOp::array_type array_type;
         typedef BoundaryCondition<FdmLinearOp>::Side Side;
 
-        FdmDirichletBoundary(const ext::shared_ptr<FdmMesher>& mesher,
-                             Real valueOnBoundary, Size direction, Side side);
+        FdmDirichletBoundary(const ext::shared_ptr<FdmMesher>& mesher, Real valueOnBoundary, Size direction, Side side);
 
         void applyBeforeApplying(operator_type&) const override;
         void applyBeforeSolving(operator_type&, array_type&) const override;
@@ -54,7 +55,7 @@ namespace QuantLib {
         Real applyAfterApplying(Real x, Real value) const;
 
       private:
-        const Side side_;  
+        const Side side_;
         const Real valueOnBoundary_;
         const std::vector<Size> indices_;
 

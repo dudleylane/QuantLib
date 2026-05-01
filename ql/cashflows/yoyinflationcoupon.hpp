@@ -28,11 +28,13 @@
 #include <ql/indexes/inflationindex.hpp>
 #include <ql/time/schedule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
     class YoYInflationCouponPricer;
 
     //! %Coupon paying a YoY-inflation type index
-    class YoYInflationCoupon : public InflationCoupon {
+    class YoYInflationCoupon : public InflationCoupon
+    {
       public:
         YoYInflationCoupon(const Date& paymentDate,
                            Real nominal,
@@ -71,52 +73,55 @@ namespace QuantLib {
       private:
         ext::shared_ptr<YoYInflationIndex> yoyIndex_;
         CPI::InterpolationType interpolation_;
+
       protected:
         Real gearing_;
         Spread spread_;
         bool checkPricerImpl(const ext::shared_ptr<InflationCouponPricer>&) const override;
     };
 
-    inline const ext::shared_ptr<YoYInflationIndex>&
-    YoYInflationCoupon::yoyIndex() const {
+    inline const ext::shared_ptr<YoYInflationIndex>& YoYInflationCoupon::yoyIndex() const
+    {
         return yoyIndex_;
     }
 
-    inline CPI::InterpolationType YoYInflationCoupon::interpolation() const {
+    inline CPI::InterpolationType YoYInflationCoupon::interpolation() const
+    {
         return interpolation_;
     }
 
-    inline Rate YoYInflationCoupon::adjustedFixing() const {
-        return (rate()-spread())/gearing();
+    inline Rate YoYInflationCoupon::adjustedFixing() const
+    {
+        return (rate() - spread()) / gearing();
     }
 
 
-
-
     //! Helper class building a sequence of capped/floored yoy inflation coupons
-    class yoyInflationLeg {
-    public:
-      yoyInflationLeg(Schedule schedule,
-                      Calendar cal,
-                      ext::shared_ptr<YoYInflationIndex> index,
-                      const Period& observationLag,
-                      CPI::InterpolationType interpolation);
-      yoyInflationLeg& withNotionals(Real notional);
-      yoyInflationLeg& withNotionals(const std::vector<Real>& notionals);
-      yoyInflationLeg& withPaymentDayCounter(const DayCounter&);
-      yoyInflationLeg& withPaymentAdjustment(BusinessDayConvention);
-      yoyInflationLeg& withFixingDays(Natural fixingDays);
-      yoyInflationLeg& withFixingDays(const std::vector<Natural>& fixingDays);
-      yoyInflationLeg& withGearings(Real gearing);
-      yoyInflationLeg& withGearings(const std::vector<Real>& gearings);
-      yoyInflationLeg& withSpreads(Spread spread);
-      yoyInflationLeg& withSpreads(const std::vector<Spread>& spreads);
-      yoyInflationLeg& withCaps(Rate cap);
-      yoyInflationLeg& withCaps(const std::vector<Rate>& caps);
-      yoyInflationLeg& withFloors(Rate floor);
-      yoyInflationLeg& withFloors(const std::vector<Rate>& floors);
-      operator Leg() const;
-    private:
+    class yoyInflationLeg
+    {
+      public:
+        yoyInflationLeg(Schedule schedule,
+                        Calendar cal,
+                        ext::shared_ptr<YoYInflationIndex> index,
+                        const Period& observationLag,
+                        CPI::InterpolationType interpolation);
+        yoyInflationLeg& withNotionals(Real notional);
+        yoyInflationLeg& withNotionals(const std::vector<Real>& notionals);
+        yoyInflationLeg& withPaymentDayCounter(const DayCounter&);
+        yoyInflationLeg& withPaymentAdjustment(BusinessDayConvention);
+        yoyInflationLeg& withFixingDays(Natural fixingDays);
+        yoyInflationLeg& withFixingDays(const std::vector<Natural>& fixingDays);
+        yoyInflationLeg& withGearings(Real gearing);
+        yoyInflationLeg& withGearings(const std::vector<Real>& gearings);
+        yoyInflationLeg& withSpreads(Spread spread);
+        yoyInflationLeg& withSpreads(const std::vector<Spread>& spreads);
+        yoyInflationLeg& withCaps(Rate cap);
+        yoyInflationLeg& withCaps(const std::vector<Rate>& caps);
+        yoyInflationLeg& withFloors(Rate floor);
+        yoyInflationLeg& withFloors(const std::vector<Rate>& floors);
+        operator Leg() const;
+
+      private:
         Schedule schedule_;
         ext::shared_ptr<YoYInflationIndex> index_;
         Period observationLag_;
@@ -132,8 +137,6 @@ namespace QuantLib {
     };
 
 
-
 }
 
 #endif
-

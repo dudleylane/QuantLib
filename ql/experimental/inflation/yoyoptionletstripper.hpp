@@ -24,17 +24,19 @@
 #ifndef quantlib_yoy_optionlet_stripper_hpp
 #define quantlib_yoy_optionlet_stripper_hpp
 
+#include <ql/experimental/inflation/yoycapfloortermpricesurface.hpp>
 #include <ql/experimental/inflation/yoyinflationoptionletvolatilitystructure2.hpp>
 #include <ql/pricingengines/inflation/inflationcapfloorengines.hpp>
-#include <ql/experimental/inflation/yoycapfloortermpricesurface.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Interface for inflation cap stripping, i.e. from price surfaces.
     /*! Strippers return K slices of the volatility surface at a given T.
         In initialize they actually do the stripping along each K.
     */
-    class YoYOptionletStripper {
+    class YoYOptionletStripper
+    {
       public:
         virtual ~YoYOptionletStripper() = default;
 
@@ -46,13 +48,11 @@ namespace QuantLib {
         virtual Rate minStrike() const = 0;
         virtual Rate maxStrike() const = 0;
         virtual std::vector<Rate> strikes() const = 0;
-        virtual std::pair<std::vector<Rate>, std::vector<Volatility> >
-        slice(const Date &d) const = 0;
+        virtual std::pair<std::vector<Rate>, std::vector<Volatility>> slice(const Date& d) const = 0;
         //@}
 
       protected:
-        mutable ext::shared_ptr<YoYCapFloorTermPriceSurface>
-                                                 YoYCapFloorTermPriceSurface_;
+        mutable ext::shared_ptr<YoYCapFloorTermPriceSurface> YoYCapFloorTermPriceSurface_;
         mutable ext::shared_ptr<YoYInflationCapFloorEngine> p_;
         mutable Period lag_;
         mutable Frequency frequency_;
@@ -62,4 +62,3 @@ namespace QuantLib {
 }
 
 #endif
-

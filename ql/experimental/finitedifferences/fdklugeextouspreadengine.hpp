@@ -25,46 +25,45 @@
 #ifndef quantlib_fd_kluge_extou_spread_engine_hpp
 #define quantlib_fd_kluge_extou_spread_engine_hpp
 
-#include <ql/pricingengine.hpp>
+#include <ql/experimental/finitedifferences/fdmexpextouinnervaluecalculator.hpp>
+#include <ql/experimental/finitedifferences/fdmextoujumpmodelinnervalue.hpp>
+#include <ql/experimental/processes/klugeextouprocess.hpp>
 #include <ql/instruments/vanillaoption.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
-#include <ql/experimental/finitedifferences/fdmextoujumpmodelinnervalue.hpp>
-#include <ql/experimental/finitedifferences/fdmexpextouinnervaluecalculator.hpp>
-#include <ql/experimental/processes/klugeextouprocess.hpp>
+#include <ql/pricingengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class YieldTermStructure;
     class ExtOUWithJumpsProcess;
     class ExtendedOrnsteinUhlenbeckProcess;
 
-    class FdKlugeExtOUSpreadEngine
-        : public GenericEngine<VanillaOption::arguments,
-                               VanillaOption::results> {
+    class FdKlugeExtOUSpreadEngine : public GenericEngine<VanillaOption::arguments, VanillaOption::results>
+    {
       public:
-          typedef FdmExtOUJumpModelInnerValue::Shape GasShape;
-          typedef FdmExtOUJumpModelInnerValue::Shape PowerShape;
+        typedef FdmExtOUJumpModelInnerValue::Shape GasShape;
+        typedef FdmExtOUJumpModelInnerValue::Shape PowerShape;
 
-          FdKlugeExtOUSpreadEngine(
-              ext::shared_ptr<KlugeExtOUProcess> klugeOUProcess,
-              ext::shared_ptr<YieldTermStructure> rTS,
-              Size tGrid = 25,
-              Size xGrid = 50,
-              Size yGrid = 10,
-              Size uGrid = 25,
-              ext::shared_ptr<GasShape> gasShape = ext::shared_ptr<GasShape>(),
-              ext::shared_ptr<PowerShape> powerShape = ext::shared_ptr<PowerShape>(),
-              const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Hundsdorfer());
+        FdKlugeExtOUSpreadEngine(ext::shared_ptr<KlugeExtOUProcess> klugeOUProcess,
+                                 ext::shared_ptr<YieldTermStructure> rTS,
+                                 Size tGrid = 25,
+                                 Size xGrid = 50,
+                                 Size yGrid = 10,
+                                 Size uGrid = 25,
+                                 ext::shared_ptr<GasShape> gasShape = ext::shared_ptr<GasShape>(),
+                                 ext::shared_ptr<PowerShape> powerShape = ext::shared_ptr<PowerShape>(),
+                                 const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Hundsdorfer());
 
-          void calculate() const override;
+        void calculate() const override;
 
-        private:
-          const ext::shared_ptr<KlugeExtOUProcess> klugeOUProcess_;
-          const ext::shared_ptr<YieldTermStructure> rTS_;
-          const Size tGrid_, xGrid_, yGrid_, uGrid_;
-          const ext::shared_ptr<GasShape> gasShape_;
-          const ext::shared_ptr<PowerShape> powerShape_;
-          const FdmSchemeDesc schemeDesc_;
+      private:
+        const ext::shared_ptr<KlugeExtOUProcess> klugeOUProcess_;
+        const ext::shared_ptr<YieldTermStructure> rTS_;
+        const Size tGrid_, xGrid_, yGrid_, uGrid_;
+        const ext::shared_ptr<GasShape> gasShape_;
+        const ext::shared_ptr<PowerShape> powerShape_;
+        const FdmSchemeDesc schemeDesc_;
     };
 }
 

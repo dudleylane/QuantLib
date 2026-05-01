@@ -5,10 +5,10 @@
 #include <ql/math/integrals/exponentialintegrals.hpp>
 #include <ql/math/integrals/expsinhintegral.hpp>
 #include <ql/math/integrals/filonintegral.hpp>
-#include <ql/math/integrals/gausslaguerrecosinepolynomial.hpp>
-#include <ql/math/integrals/gausslobattointegral.hpp>
 #include <ql/math/integrals/gaussianorthogonalpolynomial.hpp>
 #include <ql/math/integrals/gaussianquadratures.hpp>
+#include <ql/math/integrals/gausslaguerrecosinepolynomial.hpp>
+#include <ql/math/integrals/gausslobattointegral.hpp>
 #include <ql/math/integrals/integral.hpp>
 #include <ql/math/integrals/kronrodintegral.hpp>
 #include <ql/math/integrals/momentbasedgaussianpolynomial.hpp>
@@ -17,4 +17,3 @@
 #include <ql/math/integrals/tanhsinhintegral.hpp>
 #include <ql/math/integrals/trapezoidintegral.hpp>
 #include <ql/math/integrals/twodimensionalintegral.hpp>
-

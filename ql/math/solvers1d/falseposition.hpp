@@ -26,7 +26,8 @@
 
 #include <ql/math/solver1d.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! False position 1-D solver
     /*! \test the correctness of the returned values is tested by
@@ -34,11 +35,12 @@ namespace QuantLib {
 
         \ingroup solvers
     */
-    class FalsePosition : public Solver1D<FalsePosition> {
+    class FalsePosition : public Solver1D<FalsePosition>
+    {
       public:
         template <class F>
-        Real solveImpl(const F& f,
-                       Real xAccuracy) const {
+        Real solveImpl(const F& f, Real xAccuracy) const
+        {
 
             /* The implementation of the algorithm was inspired by
                Press, Teukolsky, Vetterling, and Flannery,
@@ -48,12 +50,15 @@ namespace QuantLib {
 
             Real fl, fh, xl, xh;
             // Identify the limits so that xl corresponds to the low side
-            if (fxMin_ < 0.0) {
+            if (fxMin_ < 0.0)
+            {
                 xl = xMin_;
                 fl = fxMin_;
                 xh = xMax_;
                 fh = fxMax_;
-            } else {
+            }
+            else
+            {
                 xl = xMax_;
                 fl = fxMax_;
                 xh = xMin_;
@@ -61,17 +66,21 @@ namespace QuantLib {
             }
 
             Real del, froot;
-            while (evaluationNumber_<=maxEvaluations_) {
+            while (evaluationNumber_ <= maxEvaluations_)
+            {
                 // Increment with respect to latest value
-                root_ = xl+(xh-xl)*fl/(fl-fh);
+                root_ = xl + (xh - xl) * fl / (fl - fh);
                 froot = f(root_);
                 ++evaluationNumber_;
-                if (froot < 0.0) {       // Replace appropriate limit
-                    del = xl-root_;
+                if (froot < 0.0)
+                { // Replace appropriate limit
+                    del = xl - root_;
                     xl = root_;
                     fl = froot;
-                } else {
-                    del = xh-root_;
+                }
+                else
+                {
+                    del = xh - root_;
                     xh = root_;
                     fh = froot;
                 }
@@ -80,8 +89,7 @@ namespace QuantLib {
                     return root_;
             }
 
-            QL_FAIL("maximum number of function evaluations ("
-                    << maxEvaluations_ << ") exceeded");
+            QL_FAIL("maximum number of function evaluations (" << maxEvaluations_ << ") exceeded");
         }
     };
 

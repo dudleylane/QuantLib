@@ -23,17 +23,19 @@
 #ifndef quantlib_exp_corr_abcd_vol_hpp
 #define quantlib_exp_corr_abcd_vol_hpp
 
-#include <ql/models/marketmodels/marketmodel.hpp>
-#include <ql/models/marketmodels/evolutiondescription.hpp>
 #include <ql/math/matrix.hpp>
+#include <ql/models/marketmodels/evolutiondescription.hpp>
+#include <ql/models/marketmodels/marketmodel.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class PiecewiseConstantCorrelation;
 
     //! %Abcd-interpolated volatility structure
-    class AbcdVol : public MarketModel {
+    class AbcdVol : public MarketModel
+    {
       public:
         AbcdVol(Real a,
                 Real b,
@@ -65,34 +67,42 @@ namespace QuantLib {
 
     // inline
 
-    inline const std::vector<Rate>& AbcdVol::initialRates() const {
+    inline const std::vector<Rate>& AbcdVol::initialRates() const
+    {
         return initialRates_;
     }
 
-    inline const std::vector<Spread>& AbcdVol::displacements() const {
+    inline const std::vector<Spread>& AbcdVol::displacements() const
+    {
         return displacements_;
     }
 
-    inline const EvolutionDescription& AbcdVol::evolution() const {
+    inline const EvolutionDescription& AbcdVol::evolution() const
+    {
         return evolution_;
     }
 
-    inline Size AbcdVol::numberOfRates() const {
+    inline Size AbcdVol::numberOfRates() const
+    {
         return numberOfRates_;
     }
 
-    inline Size AbcdVol::numberOfFactors() const {
+    inline Size AbcdVol::numberOfFactors() const
+    {
         return numberOfFactors_;
     }
 
-    inline Size AbcdVol::numberOfSteps() const {
+    inline Size AbcdVol::numberOfSteps() const
+    {
         return numberOfSteps_;
     }
 
-    inline const Matrix& AbcdVol::pseudoRoot(Size i) const {
-        QL_REQUIRE(i<numberOfSteps_,
-                   "the index " << i << " is invalid: it must be less than "
-                   "number of steps (" << numberOfSteps_ << ")");
+    inline const Matrix& AbcdVol::pseudoRoot(Size i) const
+    {
+        QL_REQUIRE(i < numberOfSteps_, "the index " << i
+                                                    << " is invalid: it must be less than "
+                                                       "number of steps ("
+                                                    << numberOfSteps_ << ")");
         return pseudoRoots_[i];
     }
 }

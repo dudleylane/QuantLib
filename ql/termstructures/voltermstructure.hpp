@@ -26,14 +26,16 @@
 
 #include <ql/termstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Volatility term structure
     /*! This abstract class defines the interface of concrete
         volatility structures which will be derived from this one.
 
     */
-    class VolatilityTermStructure : public TermStructure {
+    class VolatilityTermStructure : public TermStructure
+    {
       public:
         /*! \name Constructors
             See the TermStructure documentation for issues regarding
@@ -44,8 +46,7 @@ namespace QuantLib {
                      constructor must manage their own reference date
                      by overriding the referenceDate() method.
         */
-        VolatilityTermStructure(BusinessDayConvention bdc,
-                                const DayCounter& dc = DayCounter());
+        VolatilityTermStructure(BusinessDayConvention bdc, const DayCounter& dc = DayCounter());
         //! initialize with a fixed reference date
         VolatilityTermStructure(const Date& referenceDate,
                                 const Calendar& cal,
@@ -65,27 +66,26 @@ namespace QuantLib {
         virtual Rate minStrike() const = 0;
         //! the maximum strike for which the term structure can return vols
         virtual Rate maxStrike() const = 0;
+
       protected:
         //! strike-range check
-        void checkStrike(Rate strike,
-                         bool extrapolate) const;
+        void checkStrike(Rate strike, bool extrapolate) const;
+
       private:
         BusinessDayConvention bdc_;
     };
 
     // inline definitions
 
-    inline BusinessDayConvention
-    VolatilityTermStructure::businessDayConvention() const {
+    inline BusinessDayConvention VolatilityTermStructure::businessDayConvention() const
+    {
         return bdc_;
     }
 
-    inline Date
-    VolatilityTermStructure::optionDateFromTenor(const Period& p) const {
+    inline Date VolatilityTermStructure::optionDateFromTenor(const Period& p) const
+    {
         // swaption style
-        return calendar().advance(referenceDate(),
-                                  p,
-                                  businessDayConvention());
+        return calendar().advance(referenceDate(), p, businessDayConvention());
     }
 }
 

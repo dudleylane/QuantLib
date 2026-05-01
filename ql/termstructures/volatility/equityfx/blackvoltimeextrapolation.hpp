@@ -28,7 +28,8 @@
 #include <ql/types.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Time-extrapolation strategies for Black volatility term structures.
     /*! This class provides static methods to extrapolate variance
@@ -37,22 +38,29 @@ namespace QuantLib {
 
         Different extrapolation strategies are available via the Type enum.
     */
-    class BlackVolTimeExtrapolation {
+    class BlackVolTimeExtrapolation
+    {
       public:
         //! Time-extrapolation strategy for Black volatility
-        enum Type {
-            FlatVolatility,    /*!< Flat extrapolation of the latest available volatility. */
-            UseInterpolator,   /*!< Delegate extrapolation to the underlying curve or surface,
-                                    whatever the method it uses. */
-            LinearVariance     /*!< Linear extrapolation of variance from the last two
-                                    available nodes. */
+        enum Type
+        {
+            FlatVolatility,  /*!< Flat extrapolation of the latest available volatility. */
+            UseInterpolator, /*!< Delegate extrapolation to the underlying curve or surface,
+                                  whatever the method it uses. */
+            LinearVariance   /*!< Linear extrapolation of variance from the last two
+                                  available nodes. */
         };
 
         //! extrapolate a surface to a given time and strike
-        static Real extrapolatedVariance(Type type, Time t, Real strike, const std::vector<Time>& times,
+        static Real extrapolatedVariance(Type type,
+                                         Time t,
+                                         Real strike,
+                                         const std::vector<Time>& times,
                                          const std::function<Real(Time t, Real k)>& varianceSurface);
         //! extrapolate an ATM curve to a given time
-        static Real extrapolatedVariance(Type type, Time t, const std::vector<Time>& times,
+        static Real extrapolatedVariance(Type type,
+                                         Time t,
+                                         const std::vector<Time>& times,
                                          const std::function<Real(Time t)>& varianceCurve);
     };
 

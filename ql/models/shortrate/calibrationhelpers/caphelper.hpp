@@ -24,15 +24,17 @@
 #ifndef quantlib_cap_calibration_helper_hpp
 #define quantlib_cap_calibration_helper_hpp
 
-#include <ql/models/calibrationhelper.hpp>
 #include <ql/instruments/capfloor.hpp>
+#include <ql/models/calibrationhelper.hpp>
 #include <ql/termstructures/volatility/volatilitytype.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! calibration helper for ATM cap
 
-    class CapHelper : public BlackCalibrationHelper {
+    class CapHelper : public BlackCalibrationHelper
+    {
       public:
         CapHelper(const Period& length,
                   const Handle<Quote>& volatility,
@@ -42,8 +44,7 @@ namespace QuantLib {
                   DayCounter fixedLegDayCounter,
                   bool includeFirstSwaplet,
                   Handle<YieldTermStructure> termStructure,
-                  BlackCalibrationHelper::CalibrationErrorType errorType =
-                      BlackCalibrationHelper::RelativePriceError,
+                  BlackCalibrationHelper::CalibrationErrorType errorType = BlackCalibrationHelper::RelativePriceError,
                   VolatilityType type = ShiftedLognormal,
                   Real shift = 0.0);
         void addTimesTo(std::list<Time>& times) const override;

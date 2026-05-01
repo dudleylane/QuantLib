@@ -29,33 +29,37 @@
 #include <cmath>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     BSMRNDCalculator::BSMRNDCalculator(ext::shared_ptr<GeneralizedBlackScholesProcess> process)
-    : process_(std::move(process)) {}
+    : process_(std::move(process))
+    {
+    }
 
-    std::pair<Real, Volatility>
-    BSMRNDCalculator::distributionParams(Real x, Time t) const {
-        const Volatility stdDev =
-            process_->blackVolatility()->blackVol(t, std::exp(x))*std::sqrt(t);
-        const Real mean = std::log(process_->x0()) - 0.5*stdDev*stdDev
-            + std::log(  process_->dividendYield()->discount(t)
-                       / process_->riskFreeRate()->discount(t));
+    std::pair<Real, Volatility> BSMRNDCalculator::distributionParams(Real x, Time t) const
+    {
+        const Volatility stdDev = process_->blackVolatility()->blackVol(t, std::exp(x)) * std::sqrt(t);
+        const Real mean = std::log(process_->x0()) - 0.5 * stdDev * stdDev +
+                          std::log(process_->dividendYield()->discount(t) / process_->riskFreeRate()->discount(t));
 
         return std::make_pair(mean, stdDev);
     }
 
-    Real BSMRNDCalculator::pdf(Real x, Time t) const {
+    Real BSMRNDCalculator::pdf(Real x, Time t) const
+    {
         std::pair<Real, Volatility> p = distributionParams(x, t);
         return NormalDistribution(p.first, p.second)(x);
     }
 
-    Real BSMRNDCalculator::cdf(Real x, Time t) const {
+    Real BSMRNDCalculator::cdf(Real x, Time t) const
+    {
         std::pair<Real, Volatility> p = distributionParams(x, t);
         return CumulativeNormalDistribution(p.first, p.second)(x);
     }
 
-    Real BSMRNDCalculator::invcdf(Real x, Time t) const {
+    Real BSMRNDCalculator::invcdf(Real x, Time t) const
+    {
         std::pair<Real, Volatility> p = distributionParams(x, t);
         return InvCumulativeNormalDistribution(p.first, p.second)(x);
     }

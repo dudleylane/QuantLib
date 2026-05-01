@@ -26,17 +26,19 @@
 #ifndef quantlib_range_accrual_h
 #define quantlib_range_accrual_h
 
-#include <ql/termstructures/volatility/smilesection.hpp>
 #include <ql/cashflows/couponpricer.hpp>
 #include <ql/cashflows/floatingratecoupon.hpp>
+#include <ql/termstructures/volatility/smilesection.hpp>
 #include <ql/time/schedule.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class IborIndex;
 
-    class RangeAccrualFloatersCoupon : public FloatingRateCoupon {
+    class RangeAccrualFloatersCoupon : public FloatingRateCoupon
+    {
 
       public:
         RangeAccrualFloatersCoupon(const Date& paymentDate,
@@ -72,42 +74,48 @@ namespace QuantLib {
                                    const ext::shared_ptr<Schedule>& observationsSchedule,
                                    Real lowerTrigger,
                                    Real upperTrigger)
-        : RangeAccrualFloatersCoupon(paymentDate, nominal, index, startDate, endDate,
-                                     fixingDays, dayCounter, gearing, spread,
-                                     refPeriodStart, refPeriodEnd,
+        : RangeAccrualFloatersCoupon(paymentDate,
+                                     nominal,
+                                     index,
+                                     startDate,
+                                     endDate,
+                                     fixingDays,
+                                     dayCounter,
+                                     gearing,
+                                     spread,
+                                     refPeriodStart,
+                                     refPeriodEnd,
                                      *observationsSchedule,
-                                     lowerTrigger, upperTrigger) {}
+                                     lowerTrigger,
+                                     upperTrigger)
+        {
+        }
 
-        Real startTime() const {return startTime_; }
-        Real endTime() const {return endTime_; }
-        Real lowerTrigger() const {return lowerTrigger_; }
-        Real upperTrigger() const {return upperTrigger_; }
-        Size observationsNo() const {return observationsNo_; }
-        const std::vector<Date>& observationDates() const {
-            return observationDates_;
-        }
-        const std::vector<Real>& observationTimes() const {
-            return observationTimes_;
-        }
+        Real startTime() const { return startTime_; }
+        Real endTime() const { return endTime_; }
+        Real lowerTrigger() const { return lowerTrigger_; }
+        Real upperTrigger() const { return upperTrigger_; }
+        Size observationsNo() const { return observationsNo_; }
+        const std::vector<Date>& observationDates() const { return observationDates_; }
+        const std::vector<Real>& observationTimes() const { return observationTimes_; }
         const Schedule& observationSchedule() const { return observationSchedule_; }
         /*! \deprecated Use observationSchedule instead.
                         Deprecated in version 1.40.
         */
         [[deprecated("Use observationSchedule instead")]]
-        ext::shared_ptr<Schedule> observationsSchedule() const {
+        ext::shared_ptr<Schedule> observationsSchedule() const
+        {
             return ext::make_shared<Schedule>(observationSchedule_);
         }
 
-        Real priceWithoutOptionality(
-                       const Handle<YieldTermStructure>& discountCurve) const;
+        Real priceWithoutOptionality(const Handle<YieldTermStructure>& discountCurve) const;
         //! \name Visitability
         //@{
         void accept(AcyclicVisitor&) override;
         //@}
       private:
-
-        Real startTime_;                               // S
-        Real endTime_;                                 // T
+        Real startTime_; // S
+        Real endTime_;   // T
 
         Schedule observationSchedule_;
         std::vector<Date> observationDates_;
@@ -116,9 +124,10 @@ namespace QuantLib {
 
         Real lowerTrigger_;
         Real upperTrigger_;
-     };
+    };
 
-    class RangeAccrualPricer: public FloatingRateCouponPricer {
+    class RangeAccrualPricer : public FloatingRateCouponPricer
+    {
       public:
         //! \name Observer interface
         //@{
@@ -130,13 +139,13 @@ namespace QuantLib {
         void initialize(const FloatingRateCoupon& coupon) override;
         //@}
 
-    protected:
+      protected:
         const RangeAccrualFloatersCoupon* coupon_;
-        Real startTime_;                                   // S
-        Real endTime_;                                     // T
-        Real accrualFactor_;                               // T-S
-        std::vector<Real> observationTimeLags_;            // d
-        std::vector<Real> observationTimes_;               // U
+        Real startTime_;                        // S
+        Real endTime_;                          // T
+        Real accrualFactor_;                    // T-S
+        std::vector<Real> observationTimeLags_; // d
+        std::vector<Real> observationTimes_;    // U
         std::vector<Real> initialValues_;
         Size observationsNo_;
         Real lowerTrigger_;
@@ -145,75 +154,55 @@ namespace QuantLib {
         Real gearing_;
         Spread spread_;
         Real spreadLegValue_;
-
     };
 
-    class RangeAccrualPricerByBgm : public RangeAccrualPricer {
+    class RangeAccrualPricerByBgm : public RangeAccrualPricer
+    {
 
-     public:
-       RangeAccrualPricerByBgm(Real correlation,
-                               ext::shared_ptr<SmileSection> smilesOnExpiry,
-                               ext::shared_ptr<SmileSection> smilesOnPayment,
-                               bool withSmile,
-                               bool byCallSpread);
-       //! \name Observer interface
-       //@{
-       Real swapletPrice() const override;
-       //@}
+      public:
+        RangeAccrualPricerByBgm(Real correlation,
+                                ext::shared_ptr<SmileSection> smilesOnExpiry,
+                                ext::shared_ptr<SmileSection> smilesOnPayment,
+                                bool withSmile,
+                                bool byCallSpread);
+        //! \name Observer interface
+        //@{
+        Real swapletPrice() const override;
+        //@}
 
-     protected:
-
+      protected:
         Real drift(Real U, Real lambdaS, Real lambdaT, Real correlation) const;
-        Real derDriftDerLambdaS(Real U, Real lambdaS, Real lambdaT,
-                                Real correlation) const;
-        Real derDriftDerLambdaT(Real U, Real lambdaS, Real lambdaT,
-                                Real correlation) const;
+        Real derDriftDerLambdaS(Real U, Real lambdaS, Real lambdaT, Real correlation) const;
+        Real derDriftDerLambdaT(Real U, Real lambdaS, Real lambdaT, Real correlation) const;
 
         Real lambda(Real U, Real lambdaS, Real lambdaT) const;
         Real derLambdaDerLambdaS(Real U) const;
         Real derLambdaDerLambdaT(Real U) const;
 
-        std::vector<Real> driftsOverPeriod(Real U, Real lambdaS, Real lambdaT,
-                                           Real correlation) const;
-        std::vector<Real> lambdasOverPeriod(Real U, Real lambdaS,
-                                            Real lambdaT) const;
+        std::vector<Real> driftsOverPeriod(Real U, Real lambdaS, Real lambdaT, Real correlation) const;
+        std::vector<Real> lambdasOverPeriod(Real U, Real lambdaS, Real lambdaT) const;
 
-        Real digitalRangePrice(Real lowerTrigger,
-                                Real upperTrigger,
-                                Real initialValue,
-                                Real expiry,
-                                Real deflator) const;
+        Real
+        digitalRangePrice(Real lowerTrigger, Real upperTrigger, Real initialValue, Real expiry, Real deflator) const;
 
-        Real digitalPrice(Real strike,
-                    Real initialValue,
-                    Real expiry,
-                    Real deflator) const;
+        Real digitalPrice(Real strike, Real initialValue, Real expiry, Real deflator) const;
 
-        Real digitalPriceWithoutSmile(Real strike,
-                    Real initialValue,
-                    Real expiry,
-                    Real deflator) const;
+        Real digitalPriceWithoutSmile(Real strike, Real initialValue, Real expiry, Real deflator) const;
 
-        Real digitalPriceWithSmile(Real strike,
-                    Real initialValue,
-                    Real expiry,
-                    Real deflator) const;
+        Real digitalPriceWithSmile(Real strike, Real initialValue, Real expiry, Real deflator) const;
 
         Real callSpreadPrice(Real previousInitialValue,
-                            Real nextInitialValue,
-                            Real previousStrike,
-                            Real nextStrike,
-                            Real deflator,
-                            Real previousVariance,
-                            Real nextVariance) const;
+                             Real nextInitialValue,
+                             Real previousStrike,
+                             Real nextStrike,
+                             Real deflator,
+                             Real previousVariance,
+                             Real nextVariance) const;
 
-        Real smileCorrection(Real strike,
-                               Real initialValue,
-                               Real expiry,
-                               Real deflator) const;
+        Real smileCorrection(Real strike, Real initialValue, Real expiry, Real deflator) const;
 
-     private:
-        Real correlation_;   // correlation between L(S) and L(T)
+      private:
+        Real correlation_; // correlation between L(S) and L(T)
         bool withSmile_;
         bool byCallSpread_;
 
@@ -224,7 +213,8 @@ namespace QuantLib {
 
 
     //! helper class building a sequence of range-accrual floating-rate coupons
-    class RangeAccrualLeg {
+    class RangeAccrualLeg
+    {
       public:
         RangeAccrualLeg(Schedule schedule, ext::shared_ptr<IborIndex> index);
         RangeAccrualLeg& withNotionals(Real notional);
@@ -244,6 +234,7 @@ namespace QuantLib {
         RangeAccrualLeg& withObservationTenor(const Period&);
         RangeAccrualLeg& withObservationConvention(BusinessDayConvention);
         operator Leg() const;
+
       private:
         Schedule schedule_;
         ext::shared_ptr<IborIndex> index_;

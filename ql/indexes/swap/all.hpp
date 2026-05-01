@@ -7,4 +7,3 @@
 #include <ql/indexes/swap/gbpliborswap.hpp>
 #include <ql/indexes/swap/jpyliborswap.hpp>
 #include <ql/indexes/swap/usdliborswap.hpp>
-

@@ -25,10 +25,11 @@
 #ifndef quantlib_black_vol_term_structures_hpp
 #define quantlib_black_vol_term_structures_hpp
 
-#include <ql/termstructures/voltermstructure.hpp>
 #include <ql/patterns/visitor.hpp>
+#include <ql/termstructures/voltermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Black-volatility term structure
     /*! This abstract class defines the interface of concrete
@@ -37,7 +38,8 @@ namespace QuantLib {
 
         Volatilities are assumed to be expressed on an annual basis.
     */
-    class BlackVolTermStructure : public VolatilityTermStructure {
+    class BlackVolTermStructure : public VolatilityTermStructure
+    {
       public:
         /*! \name Constructors
             See the TermStructure documentation for issues regarding
@@ -49,8 +51,7 @@ namespace QuantLib {
                      constructor must manage their own reference date
                      by overriding the referenceDate() method.
         */
-        BlackVolTermStructure(BusinessDayConvention bdc = Following,
-                              const DayCounter& dc = DayCounter());
+        BlackVolTermStructure(BusinessDayConvention bdc = Following, const DayCounter& dc = DayCounter());
         //! initialize with a fixed reference date
         BlackVolTermStructure(const Date& referenceDate,
                               const Calendar& cal = Calendar(),
@@ -66,41 +67,21 @@ namespace QuantLib {
         //! \name Black Volatility
         //@{
         //! spot volatility
-        Volatility blackVol(const Date& maturity,
-                            Real strike,
-                            bool extrapolate = false) const;
+        Volatility blackVol(const Date& maturity, Real strike, bool extrapolate = false) const;
         //! spot volatility
-        Volatility blackVol(Time maturity,
-                            Real strike,
-                            bool extrapolate = false) const;
+        Volatility blackVol(Time maturity, Real strike, bool extrapolate = false) const;
         //! spot variance
-        Real blackVariance(const Date& maturity,
-                           Real strike,
-                           bool extrapolate = false) const;
+        Real blackVariance(const Date& maturity, Real strike, bool extrapolate = false) const;
         //! spot variance
-        Real blackVariance(Time maturity,
-                           Real strike,
-                           bool extrapolate = false) const;
+        Real blackVariance(Time maturity, Real strike, bool extrapolate = false) const;
         //! forward (at-the-money) volatility
-        Volatility blackForwardVol(const Date& date1,
-                                   const Date& date2,
-                                   Real strike,
-                                   bool extrapolate = false) const;
+        Volatility blackForwardVol(const Date& date1, const Date& date2, Real strike, bool extrapolate = false) const;
         //! forward (at-the-money) volatility
-        Volatility blackForwardVol(Time time1,
-                                   Time time2,
-                                   Real strike,
-                                   bool extrapolate = false) const;
+        Volatility blackForwardVol(Time time1, Time time2, Real strike, bool extrapolate = false) const;
         //! forward (at-the-money) variance
-        Real blackForwardVariance(const Date& date1,
-                                  const Date& date2,
-                                  Real strike,
-                                  bool extrapolate = false) const;
+        Real blackForwardVariance(const Date& date1, const Date& date2, Real strike, bool extrapolate = false) const;
         //! forward (at-the-money) variance
-        Real blackForwardVariance(Time time1,
-                                  Time time2,
-                                  Real strike,
-                                  bool extrapolate = false) const;
+        Real blackForwardVariance(Time time1, Time time2, Real strike, bool extrapolate = false) const;
         //@}
         //! \name Visitability
         //@{
@@ -129,7 +110,8 @@ namespace QuantLib {
 
         Volatility are assumed to be expressed on an annual basis.
     */
-    class BlackVolatilityTermStructure : public BlackVolTermStructure {
+    class BlackVolatilityTermStructure : public BlackVolTermStructure
+    {
       public:
         /*! \name Constructors
             See the TermStructure documentation for issues regarding
@@ -141,8 +123,7 @@ namespace QuantLib {
                      constructor must manage their own reference date
                      by overriding the referenceDate() method.
         */
-        BlackVolatilityTermStructure(BusinessDayConvention bdc = Following,
-                                     const DayCounter& dc = DayCounter());
+        BlackVolatilityTermStructure(BusinessDayConvention bdc = Following, const DayCounter& dc = DayCounter());
         //! initialize with a fixed reference date
         BlackVolatilityTermStructure(const Date& referenceDate,
                                      const Calendar& cal = Calendar(),
@@ -174,7 +155,8 @@ namespace QuantLib {
 
         Volatility are assumed to be expressed on an annual basis.
     */
-    class BlackVarianceTermStructure : public BlackVolTermStructure {
+    class BlackVarianceTermStructure : public BlackVolTermStructure
+    {
       public:
         /*! \name Constructors
             See the TermStructure documentation for issues regarding
@@ -186,8 +168,7 @@ namespace QuantLib {
                      constructor must manage their own reference date
                      by overriding the referenceDate() method.
         */
-        BlackVarianceTermStructure(BusinessDayConvention bdc = Following,
-                                   const DayCounter& dc = DayCounter());
+        BlackVarianceTermStructure(BusinessDayConvention bdc = Following, const DayCounter& dc = DayCounter());
         //! initialize with a fixed reference date
         BlackVarianceTermStructure(const Date& referenceDate,
                                    const Calendar& cal = Calendar(),
@@ -211,44 +192,40 @@ namespace QuantLib {
     };
 
 
-
     // inline definitions
 
-    inline Volatility BlackVolTermStructure::blackVol(const Date& d,
-                                                      Real strike,
-                                                      bool extrapolate) const {
+    inline Volatility BlackVolTermStructure::blackVol(const Date& d, Real strike, bool extrapolate) const
+    {
         checkRange(d, extrapolate);
         checkStrike(strike, extrapolate);
         Time t = timeFromReference(d);
         return blackVolImpl(t, strike);
     }
 
-    inline Volatility BlackVolTermStructure::blackVol(Time t,
-                                                      Real strike,
-                                                      bool extrapolate) const {
+    inline Volatility BlackVolTermStructure::blackVol(Time t, Real strike, bool extrapolate) const
+    {
         checkRange(t, extrapolate);
         checkStrike(strike, extrapolate);
         return blackVolImpl(t, strike);
     }
 
-    inline Real BlackVolTermStructure::blackVariance(const Date& d,
-                                                     Real strike,
-                                                     bool extrapolate) const {
+    inline Real BlackVolTermStructure::blackVariance(const Date& d, Real strike, bool extrapolate) const
+    {
         checkRange(d, extrapolate);
         checkStrike(strike, extrapolate);
         Time t = timeFromReference(d);
         return blackVarianceImpl(t, strike);
     }
 
-    inline Real BlackVolTermStructure::blackVariance(Time t,
-                                                     Real strike,
-                                                     bool extrapolate) const {
+    inline Real BlackVolTermStructure::blackVariance(Time t, Real strike, bool extrapolate) const
+    {
         checkRange(t, extrapolate);
         checkStrike(strike, extrapolate);
         return blackVarianceImpl(t, strike);
     }
 
-    inline void BlackVolTermStructure::accept(AcyclicVisitor& v) {
+    inline void BlackVolTermStructure::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<BlackVolTermStructure>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);
@@ -256,14 +233,14 @@ namespace QuantLib {
             QL_FAIL("not a Black-volatility term structure visitor");
     }
 
-    inline
-    Real BlackVolatilityTermStructure::blackVarianceImpl(Time t,
-                                                         Real strike) const {
+    inline Real BlackVolatilityTermStructure::blackVarianceImpl(Time t, Real strike) const
+    {
         Volatility vol = blackVolImpl(t, strike);
-        return vol*vol*t;
+        return vol * vol * t;
     }
 
-    inline void BlackVolatilityTermStructure::accept(AcyclicVisitor& v) {
+    inline void BlackVolatilityTermStructure::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<BlackVolatilityTermStructure>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);
@@ -271,15 +248,15 @@ namespace QuantLib {
             BlackVolTermStructure::accept(v);
     }
 
-    inline
-    Volatility BlackVarianceTermStructure ::blackVolImpl(Time t,
-                                                         Real strike) const {
-        Time nonZeroMaturity = (t==0.0 ? 0.00001 : t);
+    inline Volatility BlackVarianceTermStructure ::blackVolImpl(Time t, Real strike) const
+    {
+        Time nonZeroMaturity = (t == 0.0 ? 0.00001 : t);
         Real var = blackVarianceImpl(nonZeroMaturity, strike);
-        return std::sqrt(var/nonZeroMaturity);
+        return std::sqrt(var / nonZeroMaturity);
     }
 
-    inline void BlackVarianceTermStructure::accept(AcyclicVisitor& v) {
+    inline void BlackVarianceTermStructure::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<BlackVarianceTermStructure>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);

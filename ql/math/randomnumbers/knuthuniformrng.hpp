@@ -27,7 +27,8 @@
 #include <ql/methods/montecarlo/sample.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Uniform random number generator
     /*! Random number generator by Knuth.
@@ -41,7 +42,8 @@ namespace QuantLib {
               structures used, which were converted to their standard C++
               equivalents.
     */
-    class KnuthUniformRng {
+    class KnuthUniformRng
+    {
       public:
         typedef Sample<Real> sample_type;
         /*! if the given seed is 0, a random seed will be chosen
@@ -50,6 +52,7 @@ namespace QuantLib {
         /*! returns a sample with weight 1.0 containing a random number
           uniformly chosen from (0.0,1.0) */
         sample_type next() const;
+
       private:
         static const int KK, LL, TT, QUALITY;
         mutable std::vector<double> ranf_arr_buf;
@@ -65,19 +68,20 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline KnuthUniformRng::sample_type KnuthUniformRng::next() const {
-        double result = (ranf_arr_ptr != ranf_arr_sentinel ?
-                         ranf_arr_buf[ranf_arr_ptr++] :
-                         ranf_arr_cycle());
+    inline KnuthUniformRng::sample_type KnuthUniformRng::next() const
+    {
+        double result = (ranf_arr_ptr != ranf_arr_sentinel ? ranf_arr_buf[ranf_arr_ptr++] : ranf_arr_cycle());
         return {result, 1.0};
     }
 
-    inline double KnuthUniformRng::mod_sum(double x, double y) const {
-        return (x+y)-int(x+y);
+    inline double KnuthUniformRng::mod_sum(double x, double y) const
+    {
+        return (x + y) - int(x + y);
     }
 
-    inline bool KnuthUniformRng::is_odd(int s) const {
-        return (s&1) != 0;
+    inline bool KnuthUniformRng::is_odd(int s) const
+    {
+        return (s & 1) != 0;
     }
 
 }

@@ -19,30 +19,32 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/time/calendars/romania.hpp>
 #include <ql/errors.hpp>
+#include <ql/time/calendars/romania.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Romania::Romania(Market market) {
+    Romania::Romania(Market market)
+    {
         // all calendar instances share the same implementation instance
-        static ext::shared_ptr<Calendar::Impl> publicImpl =
-            ext::make_shared<Romania::PublicImpl>();
-        static ext::shared_ptr<Calendar::Impl> bvbImpl =
-            ext::make_shared<Romania::BVBImpl>();
-        switch (market) {
-          case Public:
-            impl_ = publicImpl;
-            break;
-          case BVB:
-            impl_ = bvbImpl;
-            break;
-          default:
-            QL_FAIL("unknown market");
+        static ext::shared_ptr<Calendar::Impl> publicImpl = ext::make_shared<Romania::PublicImpl>();
+        static ext::shared_ptr<Calendar::Impl> bvbImpl = ext::make_shared<Romania::BVBImpl>();
+        switch (market)
+        {
+            case Public:
+                impl_ = publicImpl;
+                break;
+            case BVB:
+                impl_ = bvbImpl;
+                break;
+            default:
+                QL_FAIL("unknown market");
         }
     }
 
-    bool Romania::PublicImpl::isBusinessDay(const Date& date) const {
+    bool Romania::PublicImpl::isBusinessDay(const Date& date) const
+    {
         Weekday w = date.weekday();
         Day d = date.dayOfMonth(), dd = date.dayOfYear();
         Month m = date.month();
@@ -60,7 +62,7 @@ namespace QuantLib {
             // Labour Day
             || (d == 1 && m == May)
             // Pentecost
-            || (dd == em+49)
+            || (dd == em + 49)
             // Children's Day (since 2017)
             || (d == 1 && m == June && y >= 2017)
             // St Marys Day
@@ -77,19 +79,17 @@ namespace QuantLib {
         return true;
     }
 
-    bool Romania::BVBImpl::isBusinessDay(const Date& date) const {
+    bool Romania::BVBImpl::isBusinessDay(const Date& date) const
+    {
         if (!PublicImpl::isBusinessDay(date))
             return false;
         Day d = date.dayOfMonth();
         Month m = date.month();
         Year y = date.year();
-        if (// one-off closing days
-            (d == 24 && m == December && y == 2014) ||
-            (d == 31 && m == December && y == 2014)
-            )
+        if ( // one-off closing days
+            (d == 24 && m == December && y == 2014) || (d == 31 && m == December && y == 2014))
             return false; // NOLINT(readability-simplify-boolean-expr)
         return true;
     }
-            
-}
 
+}

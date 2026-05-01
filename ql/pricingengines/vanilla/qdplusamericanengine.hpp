@@ -18,55 +18,51 @@
 */
 
 /*! \file qdplusamericanengine.hpp
-*/
+ */
 
 #ifndef quantlib_qd_plus_american_engine_hpp
 #define quantlib_qd_plus_american_engine_hpp
 
-#include <ql/utilities/null.hpp>
 #include <ql/instruments/vanillaoption.hpp>
-#include <ql/processes/blackscholesprocess.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
+#include <ql/processes/blackscholesprocess.hpp>
+#include <ql/utilities/null.hpp>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Interpolation;
     class ChebyshevInterpolation;
     class QdPlusBoundaryEvaluator;
 
-    namespace detail {
+    namespace detail
+    {
 
-        class QdPutCallParityEngine: public VanillaOption::engine {
+        class QdPutCallParityEngine : public VanillaOption::engine
+        {
           public:
-            explicit QdPutCallParityEngine(
-                ext::shared_ptr<GeneralizedBlackScholesProcess> process);
+            explicit QdPutCallParityEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process);
 
             void calculate() const override;
 
           protected:
-            virtual Real calculatePut(
-                Real S, Real K, Rate r, Rate q, Volatility vol, Time T) const = 0;
+            virtual Real calculatePut(Real S, Real K, Rate r, Rate q, Volatility vol, Time T) const = 0;
 
             const ext::shared_ptr<GeneralizedBlackScholesProcess> process_;
 
           private:
-            Real calculatePutWithEdgeCases(
-               Real S, Real K, Rate r, Rate q, Volatility vol, Time T) const;
+            Real calculatePutWithEdgeCases(Real S, Real K, Rate r, Rate q, Volatility vol, Time T) const;
         };
 
-        class QdPlusAddOnValue {
+        class QdPlusAddOnValue
+        {
           public:
-            QdPlusAddOnValue(Time T,
-                             Real S,
-                             Real K,
-                             Rate r,
-                             Rate q,
-                             Volatility vol,
-                             Real xmax,
-                             ext::shared_ptr<Interpolation> q_z);
+            QdPlusAddOnValue(
+                Time T, Real S, Real K, Rate r, Rate q, Volatility vol, Real xmax, ext::shared_ptr<Interpolation> q_z);
 
             Real operator()(Real z) const;
+
           private:
             const Time T_;
             const Real S_, K_, xmax_;
@@ -89,36 +85,43 @@ namespace QuantLib {
 
         https://mpra.ub.uni-muenchen.de/15018/1/MPRA_paper_15018.pdf
     */
-    class QdPlusAmericanEngine: public detail::QdPutCallParityEngine {
+    class QdPlusAmericanEngine : public detail::QdPutCallParityEngine
+    {
       public:
-        enum SolverType {Brent, Newton, Ridder, Halley, SuperHalley};
+        enum SolverType
+        {
+            Brent,
+            Newton,
+            Ridder,
+            Halley,
+            SuperHalley
+        };
 
-        explicit QdPlusAmericanEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess>,
-            Size interpolationPoints = 8,
-            SolverType solverType = Halley,
-            Real eps = 1e-6,
-            Size maxIter = Null<Size>());
+        explicit QdPlusAmericanEngine(ext::shared_ptr<GeneralizedBlackScholesProcess>,
+                                      Size interpolationPoints = 8,
+                                      SolverType solverType = Halley,
+                                      Real eps = 1e-6,
+                                      Size maxIter = Null<Size>());
 
-        std::pair<Size, Real> putExerciseBoundaryAtTau(
-            Real S, Real K, Rate r, Rate q,
-            Volatility vol, Time T, Time tau) const;
+        std::pair<Size, Real>
+        putExerciseBoundaryAtTau(Real S, Real K, Rate r, Rate q, Volatility vol, Time T, Time tau) const;
 
-        ext::shared_ptr<ChebyshevInterpolation> getPutExerciseBoundary(
-            Real S, Real K, Rate r, Rate q, Volatility vol, Time T) const;
+        ext::shared_ptr<ChebyshevInterpolation>
+        getPutExerciseBoundary(Real S, Real K, Rate r, Rate q, Volatility vol, Time T) const;
 
         static Real xMax(Real K, Rate r, Rate q);
 
       protected:
-        Real calculatePut(
-            Real S, Real K, Rate r, Rate q, Volatility vol, Time T) const override;
+        Real calculatePut(Real S, Real K, Rate r, Rate q, Volatility vol, Time T) const override;
 
       private:
         template <class Solver>
-        Real buildInSolver(
-            const QdPlusBoundaryEvaluator& eval,
-            Solver solver, Real S, Real strike, Size maxIter,
-            Real guess = Null<Real>()) const;
+        Real buildInSolver(const QdPlusBoundaryEvaluator& eval,
+                           Solver solver,
+                           Real S,
+                           Real strike,
+                           Size maxIter,
+                           Real guess = Null<Real>()) const;
 
         const Size interpolationPoints_;
         const SolverType solverType_;

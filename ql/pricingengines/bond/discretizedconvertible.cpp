@@ -18,24 +18,26 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/pricingengines/bond/discretizedconvertible.hpp>
 #include <ql/math/comparison.hpp>
+#include <ql/pricingengines/bond/discretizedconvertible.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    DiscretizedConvertible::DiscretizedConvertible(
-        ConvertibleBond::arguments args,
-        ext::shared_ptr<GeneralizedBlackScholesProcess> process,
-        DividendSchedule dividends,
-        Handle<Quote> creditSpread,
-        const TimeGrid& grid)
-    : arguments_(std::move(args)), process_(std::move(process)),
-      creditSpread_(std::move(creditSpread)) {
+    DiscretizedConvertible::DiscretizedConvertible(ConvertibleBond::arguments args,
+                                                   ext::shared_ptr<GeneralizedBlackScholesProcess> process,
+                                                   DividendSchedule dividends,
+                                                   Handle<Quote> creditSpread,
+                                                   const TimeGrid& grid)
+    : arguments_(std::move(args)), process_(std::move(process)), creditSpread_(std::move(creditSpread))
+    {
 
-        for (const auto& dividend : dividends) {
-            if (!dividend->hasOccurred(arguments_.settlementDate, false)) {
+        for (const auto& dividend : dividends)
+        {
+            if (!dividend->hasOccurred(arguments_.settlementDate, false))
+            {
                 dividends_.push_back(dividend);
                 dividendDates_.push_back(dividend->date());
             }
@@ -44,12 +46,11 @@ namespace QuantLib {
         dividendValues_ = Array(dividends_.size(), 0.0);
 
         Date settlementDate = process_->riskFreeRate()->referenceDate();
-        for (Size i=0; i<dividends.size(); i++) {
-            if (dividends[i]->date() >= settlementDate) {
-                dividendValues_[i] =
-                    dividends[i]->amount() *
-                    process_->riskFreeRate()->discount(
-                                             dividends[i]->date());
+        for (Size i = 0; i < dividends.size(); i++)
+        {
+            if (dividends[i]->date() >= settlementDate)
+            {
+                dividendValues_[i] = dividends[i]->amount() * process_->riskFreeRate()->discount(dividends[i]->date());
             }
         }
 
@@ -57,34 +58,30 @@ namespace QuantLib {
         Date bondSettlement = arguments_.settlementDate;
 
         stoppingTimes_.resize(arguments_.exercise->dates().size());
-        for (Size i=0; i<stoppingTimes_.size(); ++i)
-            stoppingTimes_[i] =
-                dayCounter.yearFraction(bondSettlement,
-                                        arguments_.exercise->date(i));
+        for (Size i = 0; i < stoppingTimes_.size(); ++i)
+            stoppingTimes_[i] = dayCounter.yearFraction(bondSettlement, arguments_.exercise->date(i));
 
         callabilityTimes_.resize(arguments_.callabilityDates.size());
-        for (Size i=0; i<callabilityTimes_.size(); ++i)
-            callabilityTimes_[i] =
-                dayCounter.yearFraction(bondSettlement,
-                                        arguments_.callabilityDates[i]);
+        for (Size i = 0; i < callabilityTimes_.size(); ++i)
+            callabilityTimes_[i] = dayCounter.yearFraction(bondSettlement, arguments_.callabilityDates[i]);
 
         couponTimes_.clear();
         couponAmounts_.clear();
-        for (Size i = 0; i < arguments_.cashflows.size() - 1; ++i) {
-            if (!arguments_.cashflows[i]->hasOccurred(bondSettlement, false)) {
-                couponTimes_.push_back(dayCounter.yearFraction(bondSettlement,
-                                                               arguments_.cashflows[i]->date()));
+        for (Size i = 0; i < arguments_.cashflows.size() - 1; ++i)
+        {
+            if (!arguments_.cashflows[i]->hasOccurred(bondSettlement, false))
+            {
+                couponTimes_.push_back(dayCounter.yearFraction(bondSettlement, arguments_.cashflows[i]->date()));
                 couponAmounts_.push_back(arguments_.cashflows[i]->amount());
             }
         }
 
         dividendTimes_.resize(dividendDates_.size());
-        for (Size i=0; i<dividendTimes_.size(); ++i)
-            dividendTimes_[i] =
-                dayCounter.yearFraction(bondSettlement,
-                                        dividendDates_[i]);
+        for (Size i = 0; i < dividendTimes_.size(); ++i)
+            dividendTimes_[i] = dayCounter.yearFraction(bondSettlement, dividendDates_[i]);
 
-        if (!grid.empty()) {
+        if (!grid.empty())
+        {
             // adjust times to grid
             for (Real& stoppingTime : stoppingTimes_)
                 stoppingTime = grid.closestTime(stoppingTime);
@@ -97,7 +94,8 @@ namespace QuantLib {
         }
     }
 
-    void DiscretizedConvertible::reset(Size size) {
+    void DiscretizedConvertible::reset(Size size)
+    {
 
         // Set to bond redemption values
         values_ = Array(size, arguments_.redemption);
@@ -108,7 +106,7 @@ namespace QuantLib {
         conversionProbability_ = Array(size, 0.0);
         spreadAdjustedRate_ = Array(size, 0.0);
 
-        DayCounter rfdc  = process_->riskFreeRate()->dayCounter();
+        DayCounter rfdc = process_->riskFreeRate()->dayCounter();
 
         // this takes care of convertibility and conversion probabilities
         adjustValues();
@@ -117,46 +115,49 @@ namespace QuantLib {
 
         Date exercise = arguments_.exercise->lastDate();
 
-        Rate riskFreeRate =
-            process_->riskFreeRate()->zeroRate(exercise, rfdc,
-                                               Continuous, NoFrequency);
+        Rate riskFreeRate = process_->riskFreeRate()->zeroRate(exercise, rfdc, Continuous, NoFrequency);
 
         // Calculate blended discount rate to be used on roll back.
-        for (Size j=0; j<values_.size(); j++) {
-           spreadAdjustedRate_[j] =
-               conversionProbability_[j] * riskFreeRate +
-               (1-conversionProbability_[j])*(riskFreeRate + creditSpread);
+        for (Size j = 0; j < values_.size(); j++)
+        {
+            spreadAdjustedRate_[j] = conversionProbability_[j] * riskFreeRate +
+                                     (1 - conversionProbability_[j]) * (riskFreeRate + creditSpread);
         }
     }
 
-    void DiscretizedConvertible::postAdjustValuesImpl() {
+    void DiscretizedConvertible::postAdjustValuesImpl()
+    {
 
         bool convertible = false;
-        switch (arguments_.exercise->type()) {
-          case Exercise::American:
-            if (time() <= stoppingTimes_[1] && time() >= stoppingTimes_[0])
-                convertible = true;
-            break;
-          case Exercise::European:
-            if (isOnTime(stoppingTimes_[0]))
-                convertible = true;
-            break;
-          case Exercise::Bermudan:
-              for (Real stoppingTime : stoppingTimes_) {
-                  if (isOnTime(stoppingTime))
-                      convertible = true;
-              }
-            break;
-          default:
-            QL_FAIL("invalid option type");
+        switch (arguments_.exercise->type())
+        {
+            case Exercise::American:
+                if (time() <= stoppingTimes_[1] && time() >= stoppingTimes_[0])
+                    convertible = true;
+                break;
+            case Exercise::European:
+                if (isOnTime(stoppingTimes_[0]))
+                    convertible = true;
+                break;
+            case Exercise::Bermudan:
+                for (Real stoppingTime : stoppingTimes_)
+                {
+                    if (isOnTime(stoppingTime))
+                        convertible = true;
+                }
+                break;
+            default:
+                QL_FAIL("invalid option type");
         }
 
-        for (Size i=0; i<callabilityTimes_.size(); i++) {
+        for (Size i = 0; i < callabilityTimes_.size(); i++)
+        {
             if (isOnTime(callabilityTimes_[i]))
-                applyCallability(i,convertible);
+                applyCallability(i, convertible);
         }
 
-        for (Size i=0; i<couponTimes_.size(); i++) {
+        for (Size i = 0; i < couponTimes_.size(); i++)
+        {
             if (isOnTime(couponTimes_[i]))
                 addCoupon(i);
         }
@@ -165,79 +166,90 @@ namespace QuantLib {
             applyConvertibility();
     }
 
-    void DiscretizedConvertible::applyConvertibility() {
+    void DiscretizedConvertible::applyConvertibility()
+    {
         Array grid = adjustedGrid();
-        for (Size j=0; j<values_.size(); j++) {
-            Real payoff = arguments_.conversionRatio*grid[j];
-            if (values_[j] <= payoff) {
+        for (Size j = 0; j < values_.size(); j++)
+        {
+            Real payoff = arguments_.conversionRatio * grid[j];
+            if (values_[j] <= payoff)
+            {
                 values_[j] = payoff;
                 conversionProbability_[j] = 1.0;
             }
         }
     }
 
-    void DiscretizedConvertible::applyCallability(Size i, bool convertible) {
+    void DiscretizedConvertible::applyCallability(Size i, bool convertible)
+    {
         Size j;
         Array grid = adjustedGrid();
-        switch (arguments_.callabilityTypes[i]) {
-          case Callability::Call:
-            if (arguments_.callabilityTriggers[i] != Null<Real>()) {
-                Real conversionValue =
-                    arguments_.redemption/arguments_.conversionRatio;
-                Real trigger =
-                    conversionValue*arguments_.callabilityTriggers[i];
-                for (j=0; j<values_.size(); j++) {
-                    // the callability is conditioned by the trigger...
-                    if (grid[j] >= trigger) {
-                        // ...and might trigger conversion
+        switch (arguments_.callabilityTypes[i])
+        {
+            case Callability::Call:
+                if (arguments_.callabilityTriggers[i] != Null<Real>())
+                {
+                    Real conversionValue = arguments_.redemption / arguments_.conversionRatio;
+                    Real trigger = conversionValue * arguments_.callabilityTriggers[i];
+                    for (j = 0; j < values_.size(); j++)
+                    {
+                        // the callability is conditioned by the trigger...
+                        if (grid[j] >= trigger)
+                        {
+                            // ...and might trigger conversion
+                            values_[j] = std::min(
+                                std::max(arguments_.callabilityPrices[i], arguments_.conversionRatio * grid[j]),
+                                values_[j]);
+                        }
+                    }
+                }
+                else if (convertible)
+                {
+                    for (j = 0; j < values_.size(); j++)
+                    {
+                        // exercising the callability might trigger conversion
                         values_[j] =
-                            std::min(std::max(
-                                          arguments_.callabilityPrices[i],
-                                          arguments_.conversionRatio*grid[j]),
+                            std::min(std::max(arguments_.callabilityPrices[i], arguments_.conversionRatio * grid[j]),
                                      values_[j]);
                     }
                 }
-            } else if (convertible) {
-                for (j=0; j<values_.size(); j++) {
-                    // exercising the callability might trigger conversion
-                    values_[j] =
-                        std::min(std::max(arguments_.callabilityPrices[i],
-                                          arguments_.conversionRatio*grid[j]),
-                                 values_[j]);
+                else
+                {
+                    for (j = 0; j < values_.size(); j++)
+                    {
+                        values_[j] = std::min(arguments_.callabilityPrices[i], values_[j]);
+                    }
                 }
-            } else {
-                for (j=0; j<values_.size(); j++) {
-                    values_[j] = std::min(arguments_.callabilityPrices[i],
-                                          values_[j]);
+                break;
+            case Callability::Put:
+                for (j = 0; j < values_.size(); j++)
+                {
+                    values_[j] = std::max(values_[j], arguments_.callabilityPrices[i]);
                 }
-            }
-            break;
-          case Callability::Put:
-            for (j=0; j<values_.size(); j++) {
-                values_[j] = std::max(values_[j],
-                                      arguments_.callabilityPrices[i]);
-            }
-            break;
-          default:
-            QL_FAIL("unknown callability type");
+                break;
+            default:
+                QL_FAIL("unknown callability type");
         }
     }
 
-    void DiscretizedConvertible::addCoupon(Size i) {
+    void DiscretizedConvertible::addCoupon(Size i)
+    {
         values_ += couponAmounts_[i];
     }
 
-    Array DiscretizedConvertible::adjustedGrid() const {
+    Array DiscretizedConvertible::adjustedGrid() const
+    {
         Time t = time();
         Array grid = method()->grid(t);
         // add back all dividend amounts in the future
-        for (Size i=0; i<dividends_.size(); i++) {
+        for (Size i = 0; i < dividends_.size(); i++)
+        {
             Time dividendTime = dividendTimes_[i];
-            if (dividendTime >= t || close(dividendTime,t)) {
+            if (dividendTime >= t || close(dividendTime, t))
+            {
                 const ext::shared_ptr<Dividend>& d = dividends_[i];
                 DiscountFactor dividendDiscount =
-                    process_->riskFreeRate()->discount(dividendTime) /
-                    process_->riskFreeRate()->discount(t);
+                    process_->riskFreeRate()->discount(dividendTime) / process_->riskFreeRate()->discount(t);
                 for (Real& j : grid)
                     j += d->amount(j) * dividendDiscount;
             }
@@ -246,4 +258,3 @@ namespace QuantLib {
     }
 
 }
-

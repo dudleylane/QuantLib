@@ -29,11 +29,13 @@
 
 using namespace QuantLib;
 
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
+{
     FuzzedDataProvider fdp(data, size);
     SavedSettings saved_settings;
 
-    try {
+    try
+    {
         auto type = fdp.PickValueInArray({Option::Put, Option::Call});
         Real strike = fdp.ConsumeFloatingPointInRange<Real>(1.0, 500.0);
         Real spot = fdp.ConsumeFloatingPointInRange<Real>(1.0, 500.0);
@@ -50,28 +52,25 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         auto spotQuote = ext::make_shared<SimpleQuote>(spot);
         auto rTS = ext::make_shared<FlatForward>(today, r, dc);
         auto qTS = ext::make_shared<FlatForward>(today, q, dc);
-        auto volTS = ext::make_shared<BlackConstantVol>(
-            today, NullCalendar(), vol, dc);
+        auto volTS = ext::make_shared<BlackConstantVol>(today, NullCalendar(), vol, dc);
 
         auto bsmProcess = ext::make_shared<BlackScholesMertonProcess>(
-            Handle<Quote>(spotQuote),
-            Handle<YieldTermStructure>(qTS),
-            Handle<YieldTermStructure>(rTS),
+            Handle<Quote>(spotQuote), Handle<YieldTermStructure>(qTS), Handle<YieldTermStructure>(rTS),
             Handle<BlackVolTermStructure>(volTS));
 
         // Select pricing engine
         ext::shared_ptr<PricingEngine> engine;
-        switch (engineChoice) {
-        case 0:
-            engine = ext::make_shared<AnalyticEuropeanEngine>(bsmProcess);
-            break;
-        case 1:
-            engine = ext::make_shared<FdBlackScholesVanillaEngine>(
-                bsmProcess, 25, 25);
-            break;
-        case 2:
-            engine = ext::make_shared<IntegralEngine>(bsmProcess);
-            break;
+        switch (engineChoice)
+        {
+            case 0:
+                engine = ext::make_shared<AnalyticEuropeanEngine>(bsmProcess);
+                break;
+            case 1:
+                engine = ext::make_shared<FdBlackScholesVanillaEngine>(bsmProcess, 25, 25);
+                break;
+            case 2:
+                engine = ext::make_shared<IntegralEngine>(bsmProcess);
+                break;
         }
 
         auto payoff = ext::make_shared<PlainVanillaPayoff>(type, strike);
@@ -87,8 +86,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         (void)option.vega();
         (void)option.theta();
         (void)option.rho();
-
-    } catch (const std::exception&) {
+    }
+    catch (const std::exception&)
+    {
     }
     return 0;
 }

@@ -28,25 +28,28 @@
 #include <ql/methods/finitedifferences/utilities/fdminnervaluecalculator.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class FdmSpreadPayoffInnerValue : public FdmInnerValueCalculator {
+    class FdmSpreadPayoffInnerValue : public FdmInnerValueCalculator
+    {
       public:
         FdmSpreadPayoffInnerValue(ext::shared_ptr<BasketPayoff> payoff,
                                   ext::shared_ptr<FdmInnerValueCalculator> calc1,
                                   ext::shared_ptr<FdmInnerValueCalculator> calc2)
-        : payoff_(std::move(payoff)), calc1_(std::move(calc1)), calc2_(std::move(calc2)) {}
+        : payoff_(std::move(payoff)), calc1_(std::move(calc1)), calc2_(std::move(calc2))
+        {
+        }
 
-        Real innerValue(const FdmLinearOpIterator& iter, Time t) override {
+        Real innerValue(const FdmLinearOpIterator& iter, Time t) override
+        {
             Array a(2);
             a[0] = calc1_->innerValue(iter, t);
             a[1] = calc2_->innerValue(iter, t);
 
             return (*payoff_)(a);
         }
-        Real avgInnerValue(const FdmLinearOpIterator& iter, Time t) override {
-            return innerValue(iter, t);
-        }
+        Real avgInnerValue(const FdmLinearOpIterator& iter, Time t) override { return innerValue(iter, t); }
 
       private:
         const ext::shared_ptr<BasketPayoff> payoff_;

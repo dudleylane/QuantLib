@@ -18,7 +18,7 @@
 */
 
 /*! \file fdmg2solver.cpp
-*/
+ */
 
 #include <ql/methods/finitedifferences/operators/fdmg2op.hpp>
 #include <ql/methods/finitedifferences/solvers/fdm2dimsolver.hpp>
@@ -27,25 +27,25 @@
 #include <ql/models/shortrate/twofactormodels/g2.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    FdmG2Solver::FdmG2Solver(Handle<G2> model,
-                             FdmSolverDesc solverDesc,
-                             const FdmSchemeDesc& schemeDesc)
-    : model_(std::move(model)), solverDesc_(std::move(solverDesc)), schemeDesc_(schemeDesc) {
+    FdmG2Solver::FdmG2Solver(Handle<G2> model, FdmSolverDesc solverDesc, const FdmSchemeDesc& schemeDesc)
+    : model_(std::move(model)), solverDesc_(std::move(solverDesc)), schemeDesc_(schemeDesc)
+    {
         registerWith(model_);
     }
 
 
-    void FdmG2Solver::performCalculations() const {
-        const ext::shared_ptr<FdmG2Op> op(
-            new FdmG2Op(solverDesc_.mesher, model_.currentLink(), 0, 1));
+    void FdmG2Solver::performCalculations() const
+    {
+        const ext::shared_ptr<FdmG2Op> op(new FdmG2Op(solverDesc_.mesher, model_.currentLink(), 0, 1));
 
-        solver_ = ext::make_shared<Fdm2DimSolver>(
-            solverDesc_, schemeDesc_, op);
+        solver_ = ext::make_shared<Fdm2DimSolver>(solverDesc_, schemeDesc_, op);
     }
 
-    Real FdmG2Solver::valueAt(Real x, Real y) const {
+    Real FdmG2Solver::valueAt(Real x, Real y) const
+    {
         calculate();
         return solver_->interpolateAt(x, y);
     }

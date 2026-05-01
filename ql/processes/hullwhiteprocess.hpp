@@ -28,15 +28,15 @@
 #include <ql/processes/ornsteinuhlenbeckprocess.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Hull-White stochastic process
     /*! \ingroup processes */
-    class HullWhiteProcess: public StochasticProcess1D {
+    class HullWhiteProcess : public StochasticProcess1D
+    {
       public:
-        HullWhiteProcess(const Handle<YieldTermStructure>& h,
-                         Real a,
-                         Real sigma);
+        HullWhiteProcess(const Handle<YieldTermStructure>& h, Real a, Real sigma);
         //! \name StochasticProcess1D interface
         //@{
         Real x0() const override;
@@ -50,7 +50,7 @@ namespace QuantLib {
         Real sigma() const;
         Real alpha(Time t) const;
         //@}
-    protected:
+      protected:
         ext::shared_ptr<QuantLib::OrnsteinUhlenbeckProcess> process_;
         Handle<YieldTermStructure> h_;
         Real a_, sigma_;
@@ -58,11 +58,10 @@ namespace QuantLib {
 
     //! %Forward Hull-White stochastic process
     /*! \ingroup processes */
-    class HullWhiteForwardProcess: public ForwardMeasureProcess1D {
+    class HullWhiteForwardProcess : public ForwardMeasureProcess1D
+    {
       public:
-        HullWhiteForwardProcess(const Handle<YieldTermStructure>& h,
-                                Real a,
-                                Real sigma);
+        HullWhiteForwardProcess(const Handle<YieldTermStructure>& h, Real a, Real sigma);
         //! \name StochasticProcess1D interface
         //@{
         Real x0() const override;
@@ -79,7 +78,7 @@ namespace QuantLib {
         Real M_T(Real s, Real t, Real T) const;
         Real B(Time t, Time T) const;
 
-    protected:
+      protected:
         ext::shared_ptr<QuantLib::OrnsteinUhlenbeckProcess> process_;
         Handle<YieldTermStructure> h_;
         Real a_, sigma_;

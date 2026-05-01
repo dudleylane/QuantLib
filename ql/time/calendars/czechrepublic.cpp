@@ -19,16 +19,18 @@
 
 #include <ql/time/calendars/czechrepublic.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    CzechRepublic::CzechRepublic(Market) {
+    CzechRepublic::CzechRepublic(Market)
+    {
         // all calendar instances share the same implementation instance
-        static ext::shared_ptr<Calendar::Impl> impl(
-                                                  new CzechRepublic::PseImpl);
+        static ext::shared_ptr<Calendar::Impl> impl(new CzechRepublic::PseImpl);
         impl_ = impl;
     }
 
-    bool CzechRepublic::PseImpl::isBusinessDay(const Date& date) const {
+    bool CzechRepublic::PseImpl::isBusinessDay(const Date& date) const
+    {
         Weekday w = date.weekday();
         Day d = date.dayOfMonth(), dd = date.dayOfYear();
         Month m = date.month();
@@ -37,8 +39,8 @@ namespace QuantLib {
         if (isWeekend(w)
             // New Year's Day
             || (d == 1 && m == January)
-			// Good Friday
-			|| (dd == em - 3 && y >= 2016)
+            // Good Friday
+            || (dd == em - 3 && y >= 2016)
             // Easter Monday
             || (dd == em)
             // Labour Day
@@ -62,11 +64,9 @@ namespace QuantLib {
             // St. Stephen
             || (d == 26 && m == December)
             // unidentified closing days for stock exchange
-            || (d == 2 && m == January && y == 2004)
-            || (d == 31 && m == December && y == 2004))
+            || (d == 2 && m == January && y == 2004) || (d == 31 && m == December && y == 2004))
             return false; // NOLINT(readability-simplify-boolean-expr)
         return true;
     }
 
 }
-

@@ -26,7 +26,8 @@
 
 #include <ql/math/solvers1d/newtonsafe.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Halley 1-D solver
     /*! \note This solver requires that the passed function object
@@ -38,36 +39,38 @@ namespace QuantLib {
 
         \ingroup solvers
     */
-    class Halley : public Solver1D<Halley> {
+    class Halley : public Solver1D<Halley>
+    {
       public:
         template <class F>
-        Real solveImpl(const F& f,
-                       Real xAccuracy) const {
+        Real solveImpl(const F& f, Real xAccuracy) const
+        {
 
-            while (++evaluationNumber_ <= maxEvaluations_) {
+            while (++evaluationNumber_ <= maxEvaluations_)
+            {
                 const Real fx = f(root_);
                 const Real fPrime = f.derivative(root_);
-                const Real lf = fx*f.secondDerivative(root_)/(fPrime*fPrime);
-                const Real step = 1.0/(1.0 - 0.5*lf)*fx/fPrime;
+                const Real lf = fx * f.secondDerivative(root_) / (fPrime * fPrime);
+                const Real step = 1.0 / (1.0 - 0.5 * lf) * fx / fPrime;
                 root_ -= step;
 
                 // jumped out of brackets, switch to NewtonSafe
-                if ((xMin_-root_)*(root_-xMax_) < 0.0) {
+                if ((xMin_ - root_) * (root_ - xMax_) < 0.0)
+                {
                     NewtonSafe s;
-                    s.setMaxEvaluations(maxEvaluations_-evaluationNumber_);
-                    return s.solve(f, xAccuracy, root_+step, xMin_, xMax_);
+                    s.setMaxEvaluations(maxEvaluations_ - evaluationNumber_);
+                    return s.solve(f, xAccuracy, root_ + step, xMin_, xMax_);
                 }
 
-                if (std::abs(step) < xAccuracy) {
+                if (std::abs(step) < xAccuracy)
+                {
                     f(root_);
                     ++evaluationNumber_;
                     return root_;
                 }
-
             }
 
-            QL_FAIL("maximum number of function evaluations ("
-                    << maxEvaluations_ << ") exceeded");
+            QL_FAIL("maximum number of function evaluations (" << maxEvaluations_ << ") exceeded");
         }
     };
 }

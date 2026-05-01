@@ -26,7 +26,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Russian calendars
     /*! Public holidays (see <http://www.cbr.ru/eng/>:):
@@ -55,22 +56,28 @@ namespace QuantLib {
 
         \ingroup calendars
     */
-    class Russia : public Calendar {
+    class Russia : public Calendar
+    {
       private:
-        class SettlementImpl final : public Calendar::OrthodoxImpl {
+        class SettlementImpl final : public Calendar::OrthodoxImpl
+        {
           public:
             std::string name() const override { return "Russian settlement"; }
             bool isBusinessDay(const Date&) const override;
         };
-        class ExchangeImpl final : public Calendar::OrthodoxImpl {
+        class ExchangeImpl final : public Calendar::OrthodoxImpl
+        {
           public:
             std::string name() const override { return "Moscow exchange"; }
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
         //! Russian calendars
-        enum Market { Settlement, //!< generic settlement calendar
-                      MOEX        //!< Moscow Exchange calendar
+        enum Market
+        {
+            Settlement, //!< generic settlement calendar
+            MOEX        //!< Moscow Exchange calendar
         };
         Russia(Market = Settlement);
     };

@@ -24,38 +24,38 @@
 #ifndef quantlib_fdm_black_scholes_mesher_hpp
 #define quantlib_fdm_black_scholes_mesher_hpp
 
+#include <ql/handle.hpp>
 #include <ql/instruments/dividendschedule.hpp>
 #include <ql/methods/finitedifferences/meshers/fdm1dmesher.hpp>
-
-#include <ql/handle.hpp>
 #include <ql/quote.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class FdmQuantoHelper;
     class YieldTermStructure;
     class GeneralizedBlackScholesProcess;
 
-    class FdmBlackScholesMesher : public Fdm1dMesher {
+    class FdmBlackScholesMesher : public Fdm1dMesher
+    {
       public:
-        FdmBlackScholesMesher(
-            Size size,
-            const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
-            Time maturity, Real strike,
-            Real xMinConstraint = Null<Real>(),
-            Real xMaxConstraint = Null<Real>(),
-            Real eps = 0.0001,
-            Real scaleFactor = 1.5,
-            const std::pair<Real, Real>& cPoint = { Null<Real>(), Null<Real>() },
-            const DividendSchedule& dividendSchedule = {},
-            const ext::shared_ptr<FdmQuantoHelper>& fdmQuantoHelper = {},
-            Real spotAdjustment = 0.0);
+        FdmBlackScholesMesher(Size size,
+                              const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
+                              Time maturity,
+                              Real strike,
+                              Real xMinConstraint = Null<Real>(),
+                              Real xMaxConstraint = Null<Real>(),
+                              Real eps = 0.0001,
+                              Real scaleFactor = 1.5,
+                              const std::pair<Real, Real>& cPoint = {Null<Real>(), Null<Real>()},
+                              const DividendSchedule& dividendSchedule = {},
+                              const ext::shared_ptr<FdmQuantoHelper>& fdmQuantoHelper = {},
+                              Real spotAdjustment = 0.0);
 
-        static ext::shared_ptr<GeneralizedBlackScholesProcess> processHelper(
-             const Handle<Quote>& s0,
-             const Handle<YieldTermStructure>& rTS,
-             const Handle<YieldTermStructure>& qTS,
-             Volatility vol);
+        static ext::shared_ptr<GeneralizedBlackScholesProcess> processHelper(const Handle<Quote>& s0,
+                                                                             const Handle<YieldTermStructure>& rTS,
+                                                                             const Handle<YieldTermStructure>& qTS,
+                                                                             Volatility vol);
     };
 }
 

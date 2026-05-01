@@ -26,13 +26,15 @@
 #ifndef quantlib_craig_sneyd_scheme_hpp
 #define quantlib_craig_sneyd_scheme_hpp
 
-#include <ql/methods/finitedifferences/operatortraits.hpp>
 #include <ql/methods/finitedifferences/operators/fdmlinearopcomposite.hpp>
+#include <ql/methods/finitedifferences/operatortraits.hpp>
 #include <ql/methods/finitedifferences/schemes/boundaryconditionschemehelper.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class CraigSneydScheme  {
+    class CraigSneydScheme
+    {
       public:
         // typedefs
         typedef OperatorTraits<FdmLinearOp> traits;

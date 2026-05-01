@@ -25,14 +25,15 @@
 #ifndef quantlib_default_event_hpp
 #define quantlib_default_event_hpp
 
-#include <ql/event.hpp>
 #include <ql/currency.hpp>
-#include <ql/math/comparison.hpp>
-#include <ql/experimental/credit/defaulttype.hpp>
+#include <ql/event.hpp>
 #include <ql/experimental/credit/defaultprobabilitykey.hpp>
+#include <ql/experimental/credit/defaulttype.hpp>
+#include <ql/math/comparison.hpp>
 #include <map>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /**
     @class DefaultEvent
@@ -46,11 +47,14 @@ namespace QuantLib {
       The event is an actual realization, not a contractual reference,
       as such it contains only an atomic type.
     */
-    class DefaultEvent : public Event {
+    class DefaultEvent : public Event
+    {
       public:
-        class DefaultSettlement : public Event {
+        class DefaultSettlement : public Event
+        {
           public:
             friend class DefaultEvent;
+
           protected:
             /*! Default settlement events encode the settlement date
                 and the recovery rates for the affected
@@ -59,14 +63,12 @@ namespace QuantLib {
                 objects are constructed is a prerogative of the
                 particular event class.
             */
-            DefaultSettlement(const Date& date,
-                              const std::map<Seniority, Real>& recoveryRates);
+            DefaultSettlement(const Date& date, const std::map<Seniority, Real>& recoveryRates);
             /*! When NoSeniority is passed all seniorities are assumed
                 to have settled to the recovery passed.
             */
-            DefaultSettlement(const Date& date = Date(),
-                              Seniority seniority = NoSeniority,
-                              Real recoveryRate = 0.4);
+            DefaultSettlement(const Date& date = Date(), Seniority seniority = NoSeniority, Real recoveryRate = 0.4);
+
           public:
             Date date() const override;
             /*! Returns the recovery rate of a default event which has already
@@ -80,10 +82,12 @@ namespace QuantLib {
             //! Realized recovery rates
             std::map<Seniority, Real> recoveryRates_;
         };
+
       private:
         // for some reason, gcc chokes on the default parameter below
         // unless we use the typedef
         typedef std::map<Seniority, Real> rate_map;
+
       public:
         /*! Credit event with optional settlement
             information. Represents a credit event that has taken
@@ -112,30 +116,22 @@ namespace QuantLib {
 
         Date date() const override;
         bool isRestructuring() const { return eventType_.isRestructuring(); }
-        bool isDefault() const { return !isRestructuring();}
-        bool hasSettled() const {
-            return defSettlement_.date() != Date();
-        }
-        const DefaultSettlement& settlement() const {
-            return defSettlement_;
-        }
-        const DefaultType& defaultType() const {
-            return eventType_;
-        }
+        bool isDefault() const { return !isRestructuring(); }
+        bool hasSettled() const { return defSettlement_.date() != Date(); }
+        const DefaultSettlement& settlement() const { return defSettlement_; }
+        const DefaultType& defaultType() const { return eventType_; }
         //! returns the currency of the bond this event refers to.
-        const Currency& currency() const {
-            return bondsCurrency_;
-        }
+        const Currency& currency() const { return bondsCurrency_; }
         //! returns the seniority of the bond that triggered the event.
-        Seniority eventSeniority() const {
-            return bondsSeniority_;
-        }
+        Seniority eventSeniority() const { return bondsSeniority_; }
         /*! returns a value if the event lead to a settlement for the
             requested seniority.  Specializations on the default
             atomics and recoveries could change the default policy.
         */
-        virtual Real recoveryRate(Seniority seniority) const {
-            if(hasSettled()) {
+        virtual Real recoveryRate(Seniority seniority) const
+        {
+            if (hasSettled())
+            {
                 return defSettlement_.recoveryRate(seniority);
             }
             return Null<Real>();
@@ -147,15 +143,12 @@ namespace QuantLib {
             Notice it does not check seniority or currency only event
             type.  typically used from Issuer
         */
-        virtual bool matchesEventType(
-                 const ext::shared_ptr<DefaultType>& contractEvType) const {
+        virtual bool matchesEventType(const ext::shared_ptr<DefaultType>& contractEvType) const
+        {
             // remember we are made of an atomic type.
             // behaviour by default...
-            return
-                contractEvType->containsRestructuringType(
-                    eventType_.restructuringType()) &&
-                contractEvType->containsDefaultType(
-                    eventType_.defaultType());
+            return contractEvType->containsRestructuringType(eventType_.restructuringType()) &&
+                   contractEvType->containsDefaultType(eventType_.defaultType());
         }
         /*! Returns true if this event would trigger a contract with
             the arguments characteristics.
@@ -181,22 +174,22 @@ namespace QuantLib {
     */
     bool operator==(const DefaultEvent& lhs, const DefaultEvent& rhs);
 
-    inline bool operator!=(const DefaultEvent& lhs, const DefaultEvent& rhs) {
+    inline bool operator!=(const DefaultEvent& lhs, const DefaultEvent& rhs)
+    {
         return !(lhs == rhs);
     }
 
-    template<>
-    struct earlier_than<DefaultEvent> {
-        bool operator()(const DefaultEvent& e1,
-                        const DefaultEvent& e2) const {
-            return e1.date() < e2.date();
-        }
+    template <>
+    struct earlier_than<DefaultEvent>
+    {
+        bool operator()(const DefaultEvent& e1, const DefaultEvent& e2) const { return e1.date() < e2.date(); }
     };
 
 
     // ------------------------------------------------------------------------
 
-    class FailureToPayEvent : public DefaultEvent {
+    class FailureToPayEvent : public DefaultEvent
+    {
       public:
         FailureToPayEvent(const Date& creditEventDate,
                           const Currency& curr,
@@ -212,7 +205,7 @@ namespace QuantLib {
                           // Settlement information:
                           const Date& settleDate,
                           Real recoveryRates);
-        Real amountDefaulted() const {return defaultedAmount_;}
+        Real amountDefaulted() const { return defaultedAmount_; }
         bool matchesEventType(const ext::shared_ptr<DefaultType>& contractEvType) const override;
 
       private:
@@ -222,7 +215,8 @@ namespace QuantLib {
 
     // ------------------------------------------------------------------------
 
-    class BankruptcyEvent : public DefaultEvent {
+    class BankruptcyEvent : public DefaultEvent
+    {
       public:
         BankruptcyEvent(const Date& creditEventDate,
                         const Currency& curr,

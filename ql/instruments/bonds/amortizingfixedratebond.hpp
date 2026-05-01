@@ -25,14 +25,16 @@
 #define quantlib_amortizing_fixed_rate_bond_hpp
 
 #include <ql/instruments/bond.hpp>
+#include <ql/interestrate.hpp>
 #include <ql/time/daycounter.hpp>
 #include <ql/time/schedule.hpp>
-#include <ql/interestrate.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! amortizing fixed-rate bond
-    class AmortizingFixedRateBond : public Bond {
+    class AmortizingFixedRateBond : public Bond
+    {
       public:
         AmortizingFixedRateBond(Natural settlementDays,
                                 const std::vector<Real>& notionals,
@@ -45,11 +47,12 @@ namespace QuantLib {
                                 const Calendar& exCouponCalendar = Calendar(),
                                 BusinessDayConvention exCouponConvention = Unadjusted,
                                 bool exCouponEndOfMonth = false,
-                                const std::vector<Real>& redemptions = { 100.0 },
+                                const std::vector<Real>& redemptions = {100.0},
                                 Integer paymentLag = 0);
 
         Frequency frequency() const { return frequency_; }
         const DayCounter& dayCounter() const { return dayCounter_; }
+
       protected:
         Frequency frequency_;
         DayCounter dayCounter_;
@@ -62,10 +65,8 @@ namespace QuantLib {
                              const Calendar& paymentCalendar);
 
     //! returns a sequence of notionals for French amortization
-    std::vector<Real> sinkingNotionals(const Period& bondLength,
-                                       const Frequency& frequency,
-                                       Rate couponRate,
-                                       Real initialNotional);
+    std::vector<Real>
+    sinkingNotionals(const Period& bondLength, const Frequency& frequency, Rate couponRate, Real initialNotional);
 
 }
 

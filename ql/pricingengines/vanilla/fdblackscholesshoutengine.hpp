@@ -24,31 +24,31 @@
 #ifndef quantlib_fd_black_scholes_shout_engine_hpp
 #define quantlib_fd_black_scholes_shout_engine_hpp
 
-#include <ql/pricingengine.hpp>
 #include <ql/instruments/vanillaoption.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
+#include <ql/pricingengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class GeneralizedBlackScholesProcess;
 
-    class FdBlackScholesShoutEngine : public VanillaOption::engine {
+    class FdBlackScholesShoutEngine : public VanillaOption::engine
+    {
       public:
         // Constructor
-        explicit FdBlackScholesShoutEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess>,
-            Size tGrid = 100,
-            Size xGrid = 100,
-            Size dampingSteps = 0,
-            const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas());
+        explicit FdBlackScholesShoutEngine(ext::shared_ptr<GeneralizedBlackScholesProcess>,
+                                           Size tGrid = 100,
+                                           Size xGrid = 100,
+                                           Size dampingSteps = 0,
+                                           const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas());
 
-        FdBlackScholesShoutEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess>,
-            DividendSchedule dividends,
-            Size tGrid = 100,
-            Size xGrid = 100,
-            Size dampingSteps = 0,
-            const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas());
+        FdBlackScholesShoutEngine(ext::shared_ptr<GeneralizedBlackScholesProcess>,
+                                  DividendSchedule dividends,
+                                  Size tGrid = 100,
+                                  Size xGrid = 100,
+                                  Size dampingSteps = 0,
+                                  const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas());
 
         void calculate() const override;
 

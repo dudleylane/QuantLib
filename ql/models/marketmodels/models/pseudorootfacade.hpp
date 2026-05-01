@@ -22,15 +22,16 @@
 #ifndef quantlib_pseudoroot_facade_hpp
 #define quantlib_pseudoroot_facade_hpp
 
-#include <ql/models/marketmodels/models/ctsmmcapletcalibration.hpp>
-#include <ql/models/marketmodels/marketmodel.hpp>
-#include <ql/models/marketmodels/evolutiondescription.hpp>
 #include <ql/math/matrix.hpp>
+#include <ql/models/marketmodels/evolutiondescription.hpp>
+#include <ql/models/marketmodels/marketmodel.hpp>
+#include <ql/models/marketmodels/models/ctsmmcapletcalibration.hpp>
 #include <vector>
 
 namespace QuantLib
 {
-    class PseudoRootFacade : public MarketModel {
+    class PseudoRootFacade : public MarketModel
+    {
       public:
         PseudoRootFacade(const ext::shared_ptr<CTSMMCapletCalibration>& calibrator);
         PseudoRootFacade(const std::vector<Matrix>& covariancePseudoRoots,
@@ -57,34 +58,42 @@ namespace QuantLib
 
     // inline
 
-    inline const std::vector<Rate>& PseudoRootFacade::initialRates() const {
+    inline const std::vector<Rate>& PseudoRootFacade::initialRates() const
+    {
         return initialRates_;
     }
 
-    inline const std::vector<Spread>& PseudoRootFacade::displacements() const {
+    inline const std::vector<Spread>& PseudoRootFacade::displacements() const
+    {
         return displacements_;
     }
 
-    inline const EvolutionDescription& PseudoRootFacade::evolution() const {
+    inline const EvolutionDescription& PseudoRootFacade::evolution() const
+    {
         return evolution_;
     }
 
-    inline Size PseudoRootFacade::numberOfRates() const {
+    inline Size PseudoRootFacade::numberOfRates() const
+    {
         return numberOfRates_;
     }
 
-    inline Size PseudoRootFacade::numberOfFactors() const {
+    inline Size PseudoRootFacade::numberOfFactors() const
+    {
         return numberOfFactors_;
     }
 
-    inline Size PseudoRootFacade::numberOfSteps() const {
+    inline Size PseudoRootFacade::numberOfSteps() const
+    {
         return numberOfSteps_;
     }
 
-    inline const Matrix& PseudoRootFacade::pseudoRoot(Size i) const {
-        QL_REQUIRE(i<numberOfSteps_,
-                   "the index " << i << " is invalid: it must be less than "
-                   "number of steps (" << numberOfSteps_ << ")");
+    inline const Matrix& PseudoRootFacade::pseudoRoot(Size i) const
+    {
+        QL_REQUIRE(i < numberOfSteps_, "the index " << i
+                                                    << " is invalid: it must be less than "
+                                                       "number of steps ("
+                                                    << numberOfSteps_ << ")");
         return covariancePseudoRoots_[i];
     }
 }

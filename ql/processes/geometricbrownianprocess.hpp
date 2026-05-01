@@ -28,7 +28,8 @@
 
 #include <ql/stochasticprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Geometric brownian-motion process
     /*! This class describes the stochastic process governed by
@@ -38,11 +39,10 @@ namespace QuantLib {
 
         \ingroup processes
     */
-    class GeometricBrownianMotionProcess : public StochasticProcess1D {
+    class GeometricBrownianMotionProcess : public StochasticProcess1D
+    {
       public:
-        GeometricBrownianMotionProcess(Real initialValue,
-                                       Real mue,
-                                       Real sigma);
+        GeometricBrownianMotionProcess(Real initialValue, Real mue, Real sigma);
         Real x0() const override;
         Real drift(Time t, Real x) const override;
         Real diffusion(Time t, Real x) const override;

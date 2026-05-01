@@ -21,60 +21,65 @@
 #include <ql/pricingengines/vanilla/discretizedvanillaoption.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    DiscretizedVanillaOption::DiscretizedVanillaOption(
-                                         const VanillaOption::arguments& args,
-                                         const StochasticProcess& process,
-                                         const TimeGrid& grid)
-    : arguments_(args) {
+    DiscretizedVanillaOption::DiscretizedVanillaOption(const VanillaOption::arguments& args,
+                                                       const StochasticProcess& process,
+                                                       const TimeGrid& grid)
+    : arguments_(args)
+    {
         stoppingTimes_.resize(args.exercise->dates().size());
-        for (Size i=0; i<stoppingTimes_.size(); ++i) {
-            stoppingTimes_[i] =
-                process.time(args.exercise->date(i));
-            if (!grid.empty()) {
+        for (Size i = 0; i < stoppingTimes_.size(); ++i)
+        {
+            stoppingTimes_[i] = process.time(args.exercise->date(i));
+            if (!grid.empty())
+            {
                 // adjust to the given grid
                 stoppingTimes_[i] = grid.closestTime(stoppingTimes_[i]);
             }
         }
     }
 
-    void DiscretizedVanillaOption::reset(Size size) {
+    void DiscretizedVanillaOption::reset(Size size)
+    {
         values_ = Array(size, 0.0);
         adjustValues();
     }
 
-    void DiscretizedVanillaOption::postAdjustValuesImpl() {
+    void DiscretizedVanillaOption::postAdjustValuesImpl()
+    {
 
         Time now = time();
-        switch (arguments_.exercise->type()) {
-          case Exercise::American:
-            if (now <= stoppingTimes_[1] &&
-                now >= stoppingTimes_[0])
-                applySpecificCondition();
-            break;
-          case Exercise::European:
-            if (isOnTime(stoppingTimes_[0]))
-                applySpecificCondition();
-            break;
-          case Exercise::Bermudan:
-              for (Real stoppingTime : stoppingTimes_) {
-                  if (isOnTime(stoppingTime))
-                      applySpecificCondition();
-              }
-            break;
-          default:
-            QL_FAIL("invalid option type");
+        switch (arguments_.exercise->type())
+        {
+            case Exercise::American:
+                if (now <= stoppingTimes_[1] && now >= stoppingTimes_[0])
+                    applySpecificCondition();
+                break;
+            case Exercise::European:
+                if (isOnTime(stoppingTimes_[0]))
+                    applySpecificCondition();
+                break;
+            case Exercise::Bermudan:
+                for (Real stoppingTime : stoppingTimes_)
+                {
+                    if (isOnTime(stoppingTime))
+                        applySpecificCondition();
+                }
+                break;
+            default:
+                QL_FAIL("invalid option type");
         }
     }
 
-    void DiscretizedVanillaOption::applySpecificCondition() {
+    void DiscretizedVanillaOption::applySpecificCondition()
+    {
         Array grid = method()->grid(time());
-        for (Size j=0; j<values_.size(); j++) {
-            values_[j] = std::max(values_[j],
-                                  (*arguments_.payoff)(grid[j]));
+        for (Size j = 0; j < values_.size(); j++)
+        {
+            values_[j] = std::max(values_[j], (*arguments_.payoff)(grid[j]));
         }
     }
 
 }
-

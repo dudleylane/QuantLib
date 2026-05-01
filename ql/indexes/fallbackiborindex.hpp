@@ -25,7 +25,8 @@
 
 #include <ql/indexes/iborindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! IBOR index with an ISDA 2020 Protocol fallback.
     /*! Wraps a legacy IBOR index (e.g. USD LIBOR 3M) and an overnight
@@ -58,7 +59,8 @@ namespace QuantLib {
 
         \ingroup indexes
     */
-    class FallbackIborIndex : public IborIndex {
+    class FallbackIborIndex : public IborIndex
+    {
       public:
         FallbackIborIndex(const ext::shared_ptr<IborIndex>& legacyIndex,
                           const ext::shared_ptr<OvernightIndex>& rfrIndex,
@@ -67,12 +69,8 @@ namespace QuantLib {
 
         //! \name Inspectors
         //@{
-        const ext::shared_ptr<IborIndex>& legacyIndex() const {
-            return legacyIndex_;
-        }
-        const ext::shared_ptr<OvernightIndex>& rfrIndex() const {
-            return rfrIndex_;
-        }
+        const ext::shared_ptr<IborIndex>& legacyIndex() const { return legacyIndex_; }
+        const ext::shared_ptr<OvernightIndex>& rfrIndex() const { return rfrIndex_; }
         const Date& cessationDate() const { return cessationDate_; }
         Spread spreadAdjustment() const { return spreadAdjustment_; }
         //@}
@@ -80,8 +78,7 @@ namespace QuantLib {
         //! \name IborIndex interface
         //@{
         Rate forecastFixing(const Date& fixingDate) const override;
-        ext::shared_ptr<IborIndex> clone(
-            const Handle<YieldTermStructure>& forwarding) const override;
+        ext::shared_ptr<IborIndex> clone(const Handle<YieldTermStructure>& forwarding) const override;
         //@}
 
       private:
@@ -90,8 +87,7 @@ namespace QuantLib {
         Date cessationDate_;
         Spread spreadAdjustment_;
 
-        Rate compoundedRfrRate(const Date& startDate,
-                               const Date& endDate) const;
+        Rate compoundedRfrRate(const Date& startDate, const Date& endDate) const;
     };
 
 }

@@ -18,25 +18,27 @@
 */
 
 /*! \file fdmhestonhullwhitesolver.hpp
-*/
+ */
 
 #ifndef quantlib_fdm_heston_hull_white_solver_hpp
 #define quantlib_fdm_heston_hull_white_solver_hpp
 
 #include <ql/handle.hpp>
+#include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
+#include <ql/methods/finitedifferences/solvers/fdmsolverdesc.hpp>
+#include <ql/methods/finitedifferences/utilities/fdmdirichletboundary.hpp>
 #include <ql/patterns/lazyobject.hpp>
 #include <ql/processes/hestonprocess.hpp>
 #include <ql/processes/hullwhiteprocess.hpp>
-#include <ql/methods/finitedifferences/solvers/fdmsolverdesc.hpp>
-#include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
-#include <ql/methods/finitedifferences/utilities/fdmdirichletboundary.hpp>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Fdm3DimSolver;
 
-    class FdmHestonHullWhiteSolver : public LazyObject {
+    class FdmHestonHullWhiteSolver : public LazyObject
+    {
       public:
         FdmHestonHullWhiteSolver(const Handle<HestonProcess>& hestonProcess,
                                  const Handle<HullWhiteProcess>& hwProcess,
@@ -46,23 +48,23 @@ namespace QuantLib {
 
         Real valueAt(Real s, Real v, Rate r) const;
         Real thetaAt(Real s, Real v, Rate r) const;
-        
-        // First and second order derivative with respect to S_t. 
+
+        // First and second order derivative with respect to S_t.
         // Please note that this is not the "model implied" delta or gamma.
-        // E.g. see Fabio Mercurio, Massimo Morini 
+        // E.g. see Fabio Mercurio, Massimo Morini
         // "A Note on Hedging with Local and Stochastic Volatility Models",
-        // http://papers.ssrn.com/sol3/papers.cfm?abstract_id=1294284  
+        // http://papers.ssrn.com/sol3/papers.cfm?abstract_id=1294284
         Real deltaAt(Real s, Real v, Rate r, Real eps) const;
         Real gammaAt(Real s, Real v, Rate r, Real eps) const;
-        
+
       protected:
         void performCalculations() const override;
 
       private:
-        const Handle<HestonProcess> hestonProcess_;  
+        const Handle<HestonProcess> hestonProcess_;
         const Handle<HullWhiteProcess> hwProcess_;
         const Real corrEquityShortRate_;
-        
+
         const FdmSolverDesc solverDesc_;
         const FdmSchemeDesc schemeDesc_;
 

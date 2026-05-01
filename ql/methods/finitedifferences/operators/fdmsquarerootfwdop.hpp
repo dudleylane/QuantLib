@@ -27,21 +27,29 @@
 
 #include <ql/methods/finitedifferences/operators/fdmlinearopcomposite.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
     class FdmMesher;
     class SquareRootProcess;
     class TripleBandLinearOp;
     class ModTripleBandLinearOp;
 
-    class FdmSquareRootFwdOp : public FdmLinearOpComposite {
+    class FdmSquareRootFwdOp : public FdmLinearOpComposite
+    {
       public:
-        enum TransformationType { Plain, Power, Log };
+        enum TransformationType
+        {
+            Plain,
+            Power,
+            Log
+        };
 
-        FdmSquareRootFwdOp(
-            const ext::shared_ptr<FdmMesher>& mesher,
-            Real kappa, Real theta, Real sigma,
-            Size direction,
-            TransformationType type = Plain);
+        FdmSquareRootFwdOp(const ext::shared_ptr<FdmMesher>& mesher,
+                           Real kappa,
+                           Real theta,
+                           Real sigma,
+                           Size direction,
+                           TransformationType type = Plain);
 
         Size size() const override;
         void setTime(Time t1, Time t2) override;
@@ -62,14 +70,10 @@ namespace QuantLib {
         void setLowerBC(const ext::shared_ptr<FdmMesher>& mesher);
         void setUpperBC(const ext::shared_ptr<FdmMesher>& mesher);
 
-        void getCoeff(Real& alpha, Real& beta,
-                               Real& gamma, Size n) const;
-        void getCoeffPlain(Real& alpha, Real& beta,
-                               Real& gamma, Size n) const;
-        void getCoeffPower(Real& alpha, Real& beta,
-                               Real& gamma, Size n) const;
-        void getCoeffLog(Real& alpha, Real& beta,
-                               Real& gamma, Size n) const;
+        void getCoeff(Real& alpha, Real& beta, Real& gamma, Size n) const;
+        void getCoeffPlain(Real& alpha, Real& beta, Real& gamma, Size n) const;
+        void getCoeffPower(Real& alpha, Real& beta, Real& gamma, Size n) const;
+        void getCoeffLog(Real& alpha, Real& beta, Real& gamma, Size n) const;
 
         Real f0Plain() const;
         Real f1Plain() const;
@@ -78,11 +82,11 @@ namespace QuantLib {
         Real f0Log() const;
         Real f1Log() const;
 
-        Real h    (Size i) const;
+        Real h(Size i) const;
         Real zetam(Size i) const;
-        Real zeta (Size i) const;
+        Real zeta(Size i) const;
         Real zetap(Size i) const;
-        Real mu   (Size i) const;
+        Real mu(Size i) const;
 
         const Size direction_;
         const Real kappa_, theta_, sigma_;

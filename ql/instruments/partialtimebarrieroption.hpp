@@ -24,33 +24,37 @@
 #ifndef quantlib_partial_time_barrier_option_hpp
 #define quantlib_partial_time_barrier_option_hpp
 
-#include <ql/instruments/oneassetoption.hpp>
 #include <ql/instruments/barriertype.hpp>
+#include <ql/instruments/oneassetoption.hpp>
 #include <ql/instruments/payoffs.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class GeneralizedBlackScholesProcess;
 
     //! choice of time range for partial-time barrier options
-    struct PartialBarrier {
-        enum Range { Start = 0,  /*!< Monitor the barrier from the
-                                      start of the option lifetime
-                                      until the so-called cover event. */
-                     EndB1 = 2,  /*!< Monitor the barrier from the
-                                      cover event to the exercise
-                                      date; trigger a knock-out only
-                                      if the barrier is hit or crossed
-                                      from either side, regardless of
-                                      the underlying value when
-                                      monitoring starts. */
-                     EndB2 = 3   /*!< Monitor the barrier from the
-                                      cover event to the exercise
-                                      date; immediately trigger a
-                                      knock-out if the underlying
-                                      value is on the wrong side of
-                                      the barrier when monitoring
-                                      starts. */
+    struct PartialBarrier
+    {
+        enum Range
+        {
+            Start = 0, /*!< Monitor the barrier from the
+                            start of the option lifetime
+                            until the so-called cover event. */
+            EndB1 = 2, /*!< Monitor the barrier from the
+                            cover event to the exercise
+                            date; trigger a knock-out only
+                            if the barrier is hit or crossed
+                            from either side, regardless of
+                            the underlying value when
+                            monitoring starts. */
+            EndB2 = 3  /*!< Monitor the barrier from the
+                            cover event to the exercise
+                            date; immediately trigger a
+                            knock-out if the underlying
+                            value is on the wrong side of
+                            the barrier when monitoring
+                            starts. */
         };
     };
 
@@ -60,18 +64,18 @@ namespace QuantLib {
         from start to a so-called cover event, or from the cover event
         to the exercise date.
     */
-    class PartialTimeBarrierOption : public OneAssetOption {
+    class PartialTimeBarrierOption : public OneAssetOption
+    {
       public:
         class arguments;
         class engine;
-        PartialTimeBarrierOption(
-            Barrier::Type barrierType,
-            PartialBarrier::Range barrierRange,
-            Real barrier,
-            Real rebate,
-            Date coverEventDate,
-            const ext::shared_ptr<StrikedTypePayoff>& payoff,
-            const ext::shared_ptr<Exercise>& exercise);
+        PartialTimeBarrierOption(Barrier::Type barrierType,
+                                 PartialBarrier::Range barrierRange,
+                                 Real barrier,
+                                 Real rebate,
+                                 Date coverEventDate,
+                                 const ext::shared_ptr<StrikedTypePayoff>& payoff,
+                                 const ext::shared_ptr<Exercise>& exercise);
         void setupArguments(PricingEngine::arguments*) const override;
 
       protected:
@@ -83,8 +87,8 @@ namespace QuantLib {
     };
 
     //! %Arguments for partial-time %barrier %option calculation
-    class PartialTimeBarrierOption::arguments
-        : public OneAssetOption::arguments {
+    class PartialTimeBarrierOption::arguments : public OneAssetOption::arguments
+    {
       public:
         arguments();
         Barrier::Type barrierType;
@@ -97,8 +101,8 @@ namespace QuantLib {
 
     //! Base class for partial-time %barrier %option engines
     class PartialTimeBarrierOption::engine
-        : public GenericEngine<PartialTimeBarrierOption::arguments,
-                               PartialTimeBarrierOption::results> {
+    : public GenericEngine<PartialTimeBarrierOption::arguments, PartialTimeBarrierOption::results>
+    {
     };
 
 }

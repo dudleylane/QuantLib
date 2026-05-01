@@ -29,7 +29,8 @@
 #include <ql/termstructures/yield/zeroyieldstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Quanto term structure
     /*! Quanto term structure for modelling quanto effect in
@@ -39,7 +40,8 @@ namespace QuantLib {
               structures, i.e., any changes in the latters will be
               reflected in this structure as well.
     */
-    class QuantoTermStructure : public ZeroYieldStructure {
+    class QuantoTermStructure : public ZeroYieldStructure
+    {
       public:
         QuantoTermStructure(const Handle<YieldTermStructure>& underlyingDividendTS,
                             Handle<YieldTermStructure> riskFreeTS,
@@ -62,32 +64,28 @@ namespace QuantLib {
         Rate zeroYieldImpl(Time) const override;
 
       private:
-        Handle<YieldTermStructure> underlyingDividendTS_, riskFreeTS_,
-                                   foreignRiskFreeTS_;
-        Handle<BlackVolTermStructure> underlyingBlackVolTS_,
-                                      exchRateBlackVolTS_;
+        Handle<YieldTermStructure> underlyingDividendTS_, riskFreeTS_, foreignRiskFreeTS_;
+        Handle<BlackVolTermStructure> underlyingBlackVolTS_, exchRateBlackVolTS_;
         Real underlyingExchRateCorrelation_, strike_, exchRateATMlevel_;
     };
 
 
     // inline definitions
 
-    inline QuantoTermStructure::QuantoTermStructure(
-        const Handle<YieldTermStructure>& underlyingDividendTS,
-        Handle<YieldTermStructure> riskFreeTS,
-        Handle<YieldTermStructure> foreignRiskFreeTS,
-        Handle<BlackVolTermStructure> underlyingBlackVolTS,
-        Real strike,
-        Handle<BlackVolTermStructure> exchRateBlackVolTS,
-        Real exchRateATMlevel,
-        Real underlyingExchRateCorrelation)
-    : ZeroYieldStructure(underlyingDividendTS->dayCounter()),
-      underlyingDividendTS_(underlyingDividendTS), riskFreeTS_(std::move(riskFreeTS)),
-      foreignRiskFreeTS_(std::move(foreignRiskFreeTS)),
-      underlyingBlackVolTS_(std::move(underlyingBlackVolTS)),
-      exchRateBlackVolTS_(std::move(exchRateBlackVolTS)),
+    inline QuantoTermStructure::QuantoTermStructure(const Handle<YieldTermStructure>& underlyingDividendTS,
+                                                    Handle<YieldTermStructure> riskFreeTS,
+                                                    Handle<YieldTermStructure> foreignRiskFreeTS,
+                                                    Handle<BlackVolTermStructure> underlyingBlackVolTS,
+                                                    Real strike,
+                                                    Handle<BlackVolTermStructure> exchRateBlackVolTS,
+                                                    Real exchRateATMlevel,
+                                                    Real underlyingExchRateCorrelation)
+    : ZeroYieldStructure(underlyingDividendTS->dayCounter()), underlyingDividendTS_(underlyingDividendTS),
+      riskFreeTS_(std::move(riskFreeTS)), foreignRiskFreeTS_(std::move(foreignRiskFreeTS)),
+      underlyingBlackVolTS_(std::move(underlyingBlackVolTS)), exchRateBlackVolTS_(std::move(exchRateBlackVolTS)),
       underlyingExchRateCorrelation_(underlyingExchRateCorrelation), strike_(strike),
-      exchRateATMlevel_(exchRateATMlevel) {
+      exchRateATMlevel_(exchRateATMlevel)
+    {
         registerWith(underlyingDividendTS_);
         registerWith(riskFreeTS_);
         registerWith(foreignRiskFreeTS_);
@@ -95,40 +93,44 @@ namespace QuantLib {
         registerWith(exchRateBlackVolTS_);
     }
 
-    inline DayCounter QuantoTermStructure::dayCounter() const {
+    inline DayCounter QuantoTermStructure::dayCounter() const
+    {
         return underlyingDividendTS_->dayCounter();
     }
 
-    inline Calendar QuantoTermStructure::calendar() const {
+    inline Calendar QuantoTermStructure::calendar() const
+    {
         return underlyingDividendTS_->calendar();
     }
 
-    inline Natural QuantoTermStructure::settlementDays() const {
+    inline Natural QuantoTermStructure::settlementDays() const
+    {
         return underlyingDividendTS_->settlementDays();
     }
 
-    inline const Date& QuantoTermStructure::referenceDate() const {
+    inline const Date& QuantoTermStructure::referenceDate() const
+    {
         return underlyingDividendTS_->referenceDate();
     }
 
-    inline Date QuantoTermStructure::maxDate() const {
-        Date maxDate = std::min(underlyingDividendTS_->maxDate(),
-                                riskFreeTS_->maxDate());
+    inline Date QuantoTermStructure::maxDate() const
+    {
+        Date maxDate = std::min(underlyingDividendTS_->maxDate(), riskFreeTS_->maxDate());
         maxDate = std::min(maxDate, foreignRiskFreeTS_->maxDate());
         maxDate = std::min(maxDate, underlyingBlackVolTS_->maxDate());
         maxDate = std::min(maxDate, exchRateBlackVolTS_->maxDate());
         return maxDate;
     }
 
-    inline Rate QuantoTermStructure::zeroYieldImpl(Time t) const {
+    inline Rate QuantoTermStructure::zeroYieldImpl(Time t) const
+    {
         // warning: here it is assumed that all TS have the same daycount.
         //          It should be QL_REQUIREd
-        return underlyingDividendTS_->zeroRate(t, Continuous, NoFrequency, true).rate()
-            +            riskFreeTS_->zeroRate(t, Continuous, NoFrequency, true).rate()
-            -     foreignRiskFreeTS_->zeroRate(t, Continuous, NoFrequency, true).rate()
-            + underlyingExchRateCorrelation_
-            * underlyingBlackVolTS_->blackVol(t, strike_, true)
-            *   exchRateBlackVolTS_->blackVol(t, exchRateATMlevel_, true);
+        return underlyingDividendTS_->zeroRate(t, Continuous, NoFrequency, true).rate() +
+               riskFreeTS_->zeroRate(t, Continuous, NoFrequency, true).rate() -
+               foreignRiskFreeTS_->zeroRate(t, Continuous, NoFrequency, true).rate() +
+               underlyingExchRateCorrelation_ * underlyingBlackVolTS_->blackVol(t, strike_, true) *
+                   exchRateBlackVolTS_->blackVol(t, exchRateATMlevel_, true);
     }
 
 }

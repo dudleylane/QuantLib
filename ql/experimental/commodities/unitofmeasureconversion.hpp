@@ -30,13 +30,17 @@
 #include <ql/utilities/null.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class UnitOfMeasureConversion {
+    class UnitOfMeasureConversion
+    {
       public:
-        enum Type { Direct,  /*!< given directly by the user */
-                    Derived  /*!< derived from conversion factors
-                                  between other uoms */
+        enum Type
+        {
+            Direct, /*!< given directly by the user */
+            Derived /*!< derived from conversion factors
+                         between other uoms */
         };
         //! \name Constructors
         //@{
@@ -72,25 +76,23 @@ namespace QuantLib {
         //! apply the conversion factor to a cash amount
         Quantity convert(const Quantity& quantity) const;
         //! chain two conversion factors
-        static UnitOfMeasureConversion chain(const UnitOfMeasureConversion& r1,
-                                             const UnitOfMeasureConversion& r2);
+        static UnitOfMeasureConversion chain(const UnitOfMeasureConversion& r1, const UnitOfMeasureConversion& r2);
         //@}
       protected:
-        UnitOfMeasureConversion(const UnitOfMeasureConversion& r1,
-                                const UnitOfMeasureConversion& r2);
+        UnitOfMeasureConversion(const UnitOfMeasureConversion& r1, const UnitOfMeasureConversion& r2);
 
         struct Data;
         ext::shared_ptr<Data> data_;
 
-        struct Data {
+        struct Data
+        {
             CommodityType commodityType;
             UnitOfMeasure source, target;
             Real conversionFactor;
             Type type;
             std::string code;
-            std::pair<ext::shared_ptr<UnitOfMeasureConversion>,
-                      ext::shared_ptr<UnitOfMeasureConversion> >
-            conversionFactorChain;
+            std::pair<ext::shared_ptr<UnitOfMeasureConversion>, ext::shared_ptr<UnitOfMeasureConversion>>
+                conversionFactorChain;
 
             Data(const CommodityType& commodityType,
                  const UnitOfMeasure& source,
@@ -98,34 +100,39 @@ namespace QuantLib {
                  Real conversionFactor,
                  Type type);
 
-            Data(const UnitOfMeasureConversion& r1,
-                 const UnitOfMeasureConversion& r2);
+            Data(const UnitOfMeasureConversion& r1, const UnitOfMeasureConversion& r2);
         };
     };
 
     // inline definitions
 
-    inline const CommodityType& UnitOfMeasureConversion::commodityType() const {
+    inline const CommodityType& UnitOfMeasureConversion::commodityType() const
+    {
         return data_->commodityType;
     }
 
-    inline const UnitOfMeasure& UnitOfMeasureConversion::source() const {
+    inline const UnitOfMeasure& UnitOfMeasureConversion::source() const
+    {
         return data_->source;
     }
 
-    inline const UnitOfMeasure& UnitOfMeasureConversion::target() const {
+    inline const UnitOfMeasure& UnitOfMeasureConversion::target() const
+    {
         return data_->target;
     }
 
-    inline Real UnitOfMeasureConversion::conversionFactor() const {
+    inline Real UnitOfMeasureConversion::conversionFactor() const
+    {
         return data_->conversionFactor;
     }
 
-    inline UnitOfMeasureConversion::Type UnitOfMeasureConversion::type() const {
+    inline UnitOfMeasureConversion::Type UnitOfMeasureConversion::type() const
+    {
         return data_->type;
     }
 
-    inline const std::string& UnitOfMeasureConversion::code() const {
+    inline const std::string& UnitOfMeasureConversion::code() const
+    {
         return data_->code;
     }
 

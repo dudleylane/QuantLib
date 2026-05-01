@@ -27,45 +27,44 @@
 #ifndef quantlib_usd_libor_hpp
 #define quantlib_usd_libor_hpp
 
+#include <ql/currencies/america.hpp>
 #include <ql/indexes/ibor/libor.hpp>
 #include <ql/time/calendars/unitedstates.hpp>
 #include <ql/time/daycounters/actual360.hpp>
-#include <ql/currencies/america.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %USD %LIBOR rate
     /*! US Dollar LIBOR fixed by ICE.
 
         See <https://www.theice.com/marketdata/reports/170>.
     */
-    class USDLibor : public Libor {
+    class USDLibor : public Libor
+    {
       public:
-        USDLibor(const Period& tenor,
-                 const Handle<YieldTermStructure>& h = {})
-        : Libor("USDLibor", tenor,
-                2,
-                USDCurrency(),
-                UnitedStates(UnitedStates::LiborImpact),
-                Actual360(), h) {}
+        USDLibor(const Period& tenor, const Handle<YieldTermStructure>& h = {})
+        : Libor("USDLibor", tenor, 2, USDCurrency(), UnitedStates(UnitedStates::LiborImpact), Actual360(), h)
+        {
+        }
     };
 
     //! base class for the one day deposit ICE %USD %LIBOR indexes
-    class DailyTenorUSDLibor : public DailyTenorLibor {
+    class DailyTenorUSDLibor : public DailyTenorLibor
+    {
       public:
-        DailyTenorUSDLibor(Natural settlementDays,
-                           const Handle<YieldTermStructure>& h = {})
-        : DailyTenorLibor("USDLibor", settlementDays,
-                          USDCurrency(),
-                          UnitedStates(UnitedStates::LiborImpact),
-                          Actual360(), h) {}
+        DailyTenorUSDLibor(Natural settlementDays, const Handle<YieldTermStructure>& h = {})
+        : DailyTenorLibor(
+              "USDLibor", settlementDays, USDCurrency(), UnitedStates(UnitedStates::LiborImpact), Actual360(), h)
+        {
+        }
     };
 
     //! Overnight %USD %Libor index
-    class USDLiborON : public DailyTenorUSDLibor {
+    class USDLiborON : public DailyTenorUSDLibor
+    {
       public:
-        explicit USDLiborON(const Handle<YieldTermStructure>& h = {})
-        : DailyTenorUSDLibor(0, h) {}
+        explicit USDLiborON(const Handle<YieldTermStructure>& h = {}) : DailyTenorUSDLibor(0, h) {}
     };
 }
 

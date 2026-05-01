@@ -28,9 +28,10 @@
 #include <ql/cashflows/dividend.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    typedef std::vector<ext::shared_ptr<Dividend> > DividendSchedule;
+    typedef std::vector<ext::shared_ptr<Dividend>> DividendSchedule;
 
 }
 

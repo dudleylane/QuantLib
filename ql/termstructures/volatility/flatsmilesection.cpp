@@ -22,7 +22,8 @@
 
 #include <ql/termstructures/volatility/flatsmilesection.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     FlatSmileSection::FlatSmileSection(const Date& d,
                                        Volatility vol,
@@ -31,16 +32,14 @@ namespace QuantLib {
                                        Real atmLevel,
                                        VolatilityType type,
                                        Real shift)
-    : SmileSection(d, dc, referenceDate, type, shift),
-      vol_(vol), atmLevel_(atmLevel) {}
+    : SmileSection(d, dc, referenceDate, type, shift), vol_(vol), atmLevel_(atmLevel)
+    {
+    }
 
-    FlatSmileSection::FlatSmileSection(Time exerciseTime,
-                                       Volatility vol,
-                                       const DayCounter& dc,
-                                       Real atmLevel,
-                                       VolatilityType type,
-                                       Real shift)
-    : SmileSection(exerciseTime, dc, type, shift),
-      vol_(vol), atmLevel_(atmLevel) {}
+    FlatSmileSection::FlatSmileSection(
+        Time exerciseTime, Volatility vol, const DayCounter& dc, Real atmLevel, VolatilityType type, Real shift)
+    : SmileSection(exerciseTime, dc, type, shift), vol_(vol), atmLevel_(atmLevel)
+    {
+    }
 
 }

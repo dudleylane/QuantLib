@@ -27,25 +27,20 @@
 
 #include <ql/math/matrix.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class CurveState;
     class MarketModel;
 
-    class SwapForwardMappings {
+    class SwapForwardMappings
+    {
       public:
-
         //! compute annuity of arbitrary swap-rate
-        static Real annuity(const CurveState& cs,
-                            Size startIndex,
-                            Size endIndex,
-                            Size numeraireIndex);
+        static Real annuity(const CurveState& cs, Size startIndex, Size endIndex, Size numeraireIndex);
 
         //! compute derivative of swap-rate to underlying forward rate
-        static Real swapDerivative(const CurveState& cs,
-                                   Size startIndex,
-                                   Size endIndex,
-                                   Size forwardIndex);
+        static Real swapDerivative(const CurveState& cs, Size startIndex, Size endIndex, Size forwardIndex);
 
         /*! Returns the dsr[i]/df[j] jacobian between
             coterminal swap rates and forward rates */
@@ -66,8 +61,7 @@ namespace QuantLib {
 
         /*! Returns the dsr[i]/df[j] jacobian between
             constant maturity swap rates and forward rates */
-        static Matrix cmSwapForwardJacobian(const CurveState& cs,
-                                            Size spanningForwards);
+        static Matrix cmSwapForwardJacobian(const CurveState& cs, Size spanningForwards);
 
         /*! Returns the Z matrix to switch base from forward to
             constant maturity swap rates */
@@ -75,15 +69,11 @@ namespace QuantLib {
 
         /*! computes the implied vol of a swaption specified by two indices
         using the freezing coefficients methdodology. This routine is easy to use but not very efficient
-        and if you want to do a lot of cases, then a different approach should be used. 
+        and if you want to do a lot of cases, then a different approach should be used.
 
         Tested in SwapForwardMappingsTest::testSwaptionImpliedVolatility() in swapforwardmappings.cpp
         */
-        static Real 
-        swaptionImpliedVolatility(const MarketModel& volStructure,
-                                  Size startIndex,
-                                  Size endIndex);
-
+        static Real swaptionImpliedVolatility(const MarketModel& volStructure, Size startIndex, Size endIndex);
     };
 
 }

@@ -27,11 +27,12 @@
 #define quantlib_fixed_vs_floating_swap_hpp
 
 #include <ql/instruments/swap.hpp>
+#include <ql/optional.hpp>
 #include <ql/time/daycounter.hpp>
 #include <ql/time/schedule.hpp>
-#include <ql/optional.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class IborIndex;
 
@@ -48,7 +49,8 @@ namespace QuantLib {
                  fair-spread calculation. This might not be what you
                  want.
     */
-    class FixedVsFloatingSwap : public Swap {
+    class FixedVsFloatingSwap : public Swap
+    {
       public:
         class arguments;
         class results;
@@ -129,7 +131,8 @@ namespace QuantLib {
 
 
     //! %Arguments for simple swap calculation
-    class FixedVsFloatingSwap::arguments : public Swap::arguments {
+    class FixedVsFloatingSwap::arguments : public Swap::arguments
+    {
       public:
         arguments() : nominal(Null<Real>()) {}
         Type type = Receiver;
@@ -151,78 +154,96 @@ namespace QuantLib {
     };
 
     //! %Results from simple swap calculation
-    class FixedVsFloatingSwap::results : public Swap::results {
+    class FixedVsFloatingSwap::results : public Swap::results
+    {
       public:
         Rate fairRate;
         Spread fairSpread;
         void reset() override;
     };
 
-    class FixedVsFloatingSwap::engine : public GenericEngine<FixedVsFloatingSwap::arguments,
-                                                             FixedVsFloatingSwap::results> {};
+    class FixedVsFloatingSwap::engine
+    : public GenericEngine<FixedVsFloatingSwap::arguments, FixedVsFloatingSwap::results>
+    {
+    };
 
 
     // inline definitions
 
-    inline Swap::Type FixedVsFloatingSwap::type() const {
+    inline Swap::Type FixedVsFloatingSwap::type() const
+    {
         return type_;
     }
 
-    inline Real FixedVsFloatingSwap::nominal() const {
+    inline Real FixedVsFloatingSwap::nominal() const
+    {
         QL_REQUIRE(constantNominals_, "nominal is not constant");
         return fixedNominals_[0];
     }
 
-    inline const std::vector<Real>& FixedVsFloatingSwap::nominals() const {
+    inline const std::vector<Real>& FixedVsFloatingSwap::nominals() const
+    {
         QL_REQUIRE(sameNominals_, "different nominals on fixed and floating leg");
         return fixedNominals_;
     }
 
-    inline const std::vector<Real>& FixedVsFloatingSwap::fixedNominals() const {
+    inline const std::vector<Real>& FixedVsFloatingSwap::fixedNominals() const
+    {
         return fixedNominals_;
     }
 
-    inline const Schedule& FixedVsFloatingSwap::fixedSchedule() const {
+    inline const Schedule& FixedVsFloatingSwap::fixedSchedule() const
+    {
         return fixedSchedule_;
     }
 
-    inline Rate FixedVsFloatingSwap::fixedRate() const {
+    inline Rate FixedVsFloatingSwap::fixedRate() const
+    {
         return fixedRate_;
     }
 
-    inline const DayCounter& FixedVsFloatingSwap::fixedDayCount() const {
+    inline const DayCounter& FixedVsFloatingSwap::fixedDayCount() const
+    {
         return fixedDayCount_;
     }
 
-    inline const std::vector<Real>& FixedVsFloatingSwap::floatingNominals() const {
+    inline const std::vector<Real>& FixedVsFloatingSwap::floatingNominals() const
+    {
         return floatingNominals_;
     }
 
-    inline const Schedule& FixedVsFloatingSwap::floatingSchedule() const {
+    inline const Schedule& FixedVsFloatingSwap::floatingSchedule() const
+    {
         return floatingSchedule_;
     }
 
-    inline const ext::shared_ptr<IborIndex>& FixedVsFloatingSwap::iborIndex() const {
+    inline const ext::shared_ptr<IborIndex>& FixedVsFloatingSwap::iborIndex() const
+    {
         return iborIndex_;
     }
 
-    inline Spread FixedVsFloatingSwap::spread() const {
+    inline Spread FixedVsFloatingSwap::spread() const
+    {
         return spread_;
     }
 
-    inline const DayCounter& FixedVsFloatingSwap::floatingDayCount() const {
+    inline const DayCounter& FixedVsFloatingSwap::floatingDayCount() const
+    {
         return floatingDayCount_;
     }
 
-    inline BusinessDayConvention FixedVsFloatingSwap::paymentConvention() const {
+    inline BusinessDayConvention FixedVsFloatingSwap::paymentConvention() const
+    {
         return paymentConvention_;
     }
 
-    inline const Leg& FixedVsFloatingSwap::fixedLeg() const {
+    inline const Leg& FixedVsFloatingSwap::fixedLeg() const
+    {
         return legs_[0];
     }
 
-    inline const Leg& FixedVsFloatingSwap::floatingLeg() const {
+    inline const Leg& FixedVsFloatingSwap::floatingLeg() const
+    {
         return legs_[1];
     }
 

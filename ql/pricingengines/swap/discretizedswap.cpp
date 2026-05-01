@@ -23,25 +23,26 @@
 #include <ql/settings.hpp>
 #include <utility>
 
-namespace QuantLib {
-    namespace {
-        inline bool isResetTimeInPast(const Time& resetTime,
-                                      const Time& payTime,
-                                      const bool& includeTodaysCashFlows) {
-            return (resetTime < 0.0) &&
-                   ((payTime > 0.0) || (includeTodaysCashFlows && (payTime == 0.0)));
+namespace QuantLib
+{
+    namespace
+    {
+        inline bool isResetTimeInPast(const Time& resetTime, const Time& payTime, const bool& includeTodaysCashFlows)
+        {
+            return (resetTime < 0.0) && ((payTime > 0.0) || (includeTodaysCashFlows && (payTime == 0.0)));
         }
     }
 
     DiscretizedSwap::DiscretizedSwap(const VanillaSwap::arguments& args,
                                      const Date& referenceDate,
                                      const DayCounter& dayCounter)
-    : DiscretizedSwap(
-          args,
-          referenceDate,
-          dayCounter,
-          std::vector<CouponAdjustment>(args.fixedPayDates.size(), CouponAdjustment::pre),
-          std::vector<CouponAdjustment>(args.floatingPayDates.size(), CouponAdjustment::pre)) {}
+    : DiscretizedSwap(args,
+                      referenceDate,
+                      dayCounter,
+                      std::vector<CouponAdjustment>(args.fixedPayDates.size(), CouponAdjustment::pre),
+                      std::vector<CouponAdjustment>(args.floatingPayDates.size(), CouponAdjustment::pre))
+    {
+    }
 
     DiscretizedSwap::DiscretizedSwap(const VanillaSwap::arguments& args,
                                      const Date& referenceDate,
@@ -49,23 +50,25 @@ namespace QuantLib {
                                      std::vector<CouponAdjustment> fixedCouponAdjustments,
                                      std::vector<CouponAdjustment> floatingCouponAdjustments)
     : arguments_(args), fixedCouponAdjustments_(std::move(fixedCouponAdjustments)),
-      floatingCouponAdjustments_(std::move(floatingCouponAdjustments)) {
-        QL_REQUIRE(
-            fixedCouponAdjustments_.size() == arguments_.fixedPayDates.size(),
-            "The fixed coupon adjustments must have the same size as the number of fixed coupons.");
+      floatingCouponAdjustments_(std::move(floatingCouponAdjustments))
+    {
+        QL_REQUIRE(fixedCouponAdjustments_.size() == arguments_.fixedPayDates.size(),
+                   "The fixed coupon adjustments must have the same size as the number of fixed coupons.");
         QL_REQUIRE(floatingCouponAdjustments_.size() == arguments_.floatingPayDates.size(),
                    "The floating coupon adjustments must have the same size as the number of "
                    "floating coupons.");
 
         // NOLINTNEXTLINE(readability-implicit-bool-conversion)
-        auto includeTodaysCashFlows = Settings::instance().includeTodaysCashFlows() &&
-                                      *Settings::instance().includeTodaysCashFlows(); // NOLINT(bugprone-unchecked-optional-access)
+        auto includeTodaysCashFlows =
+            Settings::instance().includeTodaysCashFlows() &&
+            *Settings::instance().includeTodaysCashFlows(); // NOLINT(bugprone-unchecked-optional-access)
 
         auto nrOfFixedCoupons = args.fixedResetDates.size();
         fixedResetTimes_.resize(nrOfFixedCoupons);
         fixedPayTimes_.resize(nrOfFixedCoupons);
         fixedResetTimeIsInPast_.resize(nrOfFixedCoupons);
-        for (Size i = 0; i < nrOfFixedCoupons; ++i) {
+        for (Size i = 0; i < nrOfFixedCoupons; ++i)
+        {
             auto resetTime = dayCounter.yearFraction(referenceDate, args.fixedResetDates[i]);
             auto payTime = dayCounter.yearFraction(referenceDate, args.fixedPayDates[i]);
             auto resetIsInPast = isResetTimeInPast(resetTime, payTime, includeTodaysCashFlows);
@@ -81,7 +84,8 @@ namespace QuantLib {
         floatingResetTimes_.resize(nrOfFloatingCoupons);
         floatingPayTimes_.resize(nrOfFloatingCoupons);
         floatingResetTimeIsInPast_.resize(nrOfFloatingCoupons);
-        for (Size i = 0; i < nrOfFloatingCoupons; ++i) {
+        for (Size i = 0; i < nrOfFloatingCoupons; ++i)
+        {
             auto resetTime = dayCounter.yearFraction(referenceDate, args.floatingResetDates[i]);
             auto payTime = dayCounter.yearFraction(referenceDate, args.floatingPayDates[i]);
             auto resetIsInPast = isResetTimeInPast(resetTime, payTime, includeTodaysCashFlows);
@@ -94,70 +98,88 @@ namespace QuantLib {
         }
     }
 
-    void DiscretizedSwap::reset(Size size) {
+    void DiscretizedSwap::reset(Size size)
+    {
         values_ = Array(size, 0.0);
         adjustValues();
     }
 
-    std::vector<Time> DiscretizedSwap::mandatoryTimes() const {
+    std::vector<Time> DiscretizedSwap::mandatoryTimes() const
+    {
         std::vector<Time> times;
-        for (Real t : fixedResetTimes_) {
+        for (Real t : fixedResetTimes_)
+        {
             if (t >= 0.0)
                 times.push_back(t);
         }
-        for (Real t : fixedPayTimes_) {
+        for (Real t : fixedPayTimes_)
+        {
             if (t >= 0.0)
                 times.push_back(t);
         }
-        for (Real t : floatingResetTimes_) {
+        for (Real t : floatingResetTimes_)
+        {
             if (t >= 0.0)
                 times.push_back(t);
         }
-        for (Real t : floatingPayTimes_) {
+        for (Real t : floatingPayTimes_)
+        {
             if (t >= 0.0)
                 times.push_back(t);
         }
         return times;
     }
 
-    void DiscretizedSwap::preAdjustValuesImpl() {
+    void DiscretizedSwap::preAdjustValuesImpl()
+    {
         // floating payments
-        for (Size i = 0; i < floatingResetTimes_.size(); i++) {
+        for (Size i = 0; i < floatingResetTimes_.size(); i++)
+        {
             Time t = floatingResetTimes_[i];
-            if (floatingCouponAdjustments_[i] == CouponAdjustment::pre && t >= 0.0 && isOnTime(t)) {
+            if (floatingCouponAdjustments_[i] == CouponAdjustment::pre && t >= 0.0 && isOnTime(t))
+            {
                 addFloatingCoupon(i);
             }
         }
         // fixed payments
-        for (Size i = 0; i < fixedResetTimes_.size(); i++) {
+        for (Size i = 0; i < fixedResetTimes_.size(); i++)
+        {
             Time t = fixedResetTimes_[i];
-            if (fixedCouponAdjustments_[i] == CouponAdjustment::pre && t >= 0.0 && isOnTime(t)) {
+            if (fixedCouponAdjustments_[i] == CouponAdjustment::pre && t >= 0.0 && isOnTime(t))
+            {
                 addFixedCoupon(i);
             }
         }
     }
 
-    void DiscretizedSwap::postAdjustValuesImpl() {
+    void DiscretizedSwap::postAdjustValuesImpl()
+    {
         // floating payments
-        for (Size i = 0; i < floatingResetTimes_.size(); i++) {
+        for (Size i = 0; i < floatingResetTimes_.size(); i++)
+        {
             Time t = floatingResetTimes_[i];
-            if (floatingCouponAdjustments_[i] == CouponAdjustment::post && t >= 0.0 && isOnTime(t)) {
+            if (floatingCouponAdjustments_[i] == CouponAdjustment::post && t >= 0.0 && isOnTime(t))
+            {
                 addFloatingCoupon(i);
             }
         }
         // fixed payments
-        for (Size i = 0; i < fixedResetTimes_.size(); i++) {
+        for (Size i = 0; i < fixedResetTimes_.size(); i++)
+        {
             Time t = fixedResetTimes_[i];
-            if (fixedCouponAdjustments_[i] == CouponAdjustment::post && t >= 0.0 && isOnTime(t)) {
+            if (fixedCouponAdjustments_[i] == CouponAdjustment::post && t >= 0.0 && isOnTime(t))
+            {
                 addFixedCoupon(i);
             }
         }
 
         // fixed coupons whose reset time is in the past won't be managed
         // in preAdjustValues()
-        for (Size i = 0; i < fixedPayTimes_.size(); i++) {
+        for (Size i = 0; i < fixedPayTimes_.size(); i++)
+        {
             Time t = fixedPayTimes_[i];
-            if (fixedResetTimeIsInPast_[i] && isOnTime(t)) {
+            if (fixedResetTimeIsInPast_[i] && isOnTime(t))
+            {
                 Real fixedCoupon = arguments_.fixedCoupons[i];
                 if (arguments_.type == Swap::Payer)
                     values_ -= fixedCoupon;
@@ -167,12 +189,13 @@ namespace QuantLib {
         }
 
         // the same applies to floating payments whose rate is already fixed
-        for (Size i = 0; i < floatingPayTimes_.size(); i++) {
+        for (Size i = 0; i < floatingPayTimes_.size(); i++)
+        {
             Time t = floatingPayTimes_[i];
-            if (floatingResetTimeIsInPast_[i] && isOnTime(t)) {
+            if (floatingResetTimeIsInPast_[i] && isOnTime(t))
+            {
                 Real currentFloatingCoupon = arguments_.floatingCoupons[i];
-                QL_REQUIRE(currentFloatingCoupon != Null<Real>(),
-                           "current floating coupon not given");
+                QL_REQUIRE(currentFloatingCoupon != Null<Real>(), "current floating coupon not given");
                 if (arguments_.type == Swap::Payer)
                     values_ += currentFloatingCoupon;
                 else
@@ -181,13 +204,15 @@ namespace QuantLib {
         }
     }
 
-    void DiscretizedSwap::addFixedCoupon(Size i) {
+    void DiscretizedSwap::addFixedCoupon(Size i)
+    {
         DiscretizedDiscountBond bond;
         bond.initialize(method(), fixedPayTimes_[i]);
         bond.rollback(time_);
 
         Real fixedCoupon = arguments_.fixedCoupons[i];
-        for (Size j = 0; j < values_.size(); j++) {
+        for (Size j = 0; j < values_.size(); j++)
+        {
             Real coupon = fixedCoupon * bond.values()[j];
             if (arguments_.type == Swap::Payer)
                 values_[j] -= coupon;
@@ -196,19 +221,20 @@ namespace QuantLib {
         }
     }
 
-    void DiscretizedSwap::addFloatingCoupon(Size i) {
+    void DiscretizedSwap::addFloatingCoupon(Size i)
+    {
         DiscretizedDiscountBond bond;
         bond.initialize(method(), floatingPayTimes_[i]);
         bond.rollback(time_);
 
-        QL_REQUIRE(arguments_.nominal != Null<Real>(),
-                   "non-constant nominals are not supported yet");
+        QL_REQUIRE(arguments_.nominal != Null<Real>(), "non-constant nominals are not supported yet");
 
         Real nominal = arguments_.nominal;
         Time T = arguments_.floatingAccrualTimes[i];
         Spread spread = arguments_.floatingSpreads[i];
         Real accruedSpread = nominal * T * spread;
-        for (Size j = 0; j < values_.size(); j++) {
+        for (Size j = 0; j < values_.size(); j++)
+        {
             Real coupon = nominal * (1.0 - bond.values()[j]) + accruedSpread * bond.values()[j];
             if (arguments_.type == Swap::Payer)
                 values_[j] += coupon;

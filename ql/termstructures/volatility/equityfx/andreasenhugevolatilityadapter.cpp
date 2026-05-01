@@ -24,46 +24,54 @@
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     AndreasenHugeVolatilityAdapter::AndreasenHugeVolatilityAdapter(
         ext::shared_ptr<AndreasenHugeVolatilityInterpl> volInterpl, Real eps)
-    : eps_(eps), volInterpl_(std::move(volInterpl)) {}
+    : eps_(eps), volInterpl_(std::move(volInterpl))
+    {
+    }
 
-    Real AndreasenHugeVolatilityAdapter::blackVarianceImpl(Time t, Real strike)
-    const {
+    Real AndreasenHugeVolatilityAdapter::blackVarianceImpl(Time t, Real strike) const
+    {
         const Real fwd = volInterpl_->fwd(t);
-        const Option::Type optionType =
-            (fwd > strike)? Option::Put : Option::Call;
+        const Option::Type optionType = (fwd > strike) ? Option::Put : Option::Call;
 
         const Real npv = volInterpl_->optionPrice(t, strike, optionType);
 
-        return squared(blackFormulaImpliedStdDevLiRS(
-            optionType, strike, fwd, npv,
-            volInterpl_->riskFreeRate()->discount(t),
-            0.0, Null<Real>(), 1.0, eps_, 1000));
+        return squared(blackFormulaImpliedStdDevLiRS(optionType, strike, fwd, npv,
+                                                     volInterpl_->riskFreeRate()->discount(t), 0.0, Null<Real>(), 1.0,
+                                                     eps_, 1000));
     }
 
 
-    Date AndreasenHugeVolatilityAdapter::maxDate() const {
+    Date AndreasenHugeVolatilityAdapter::maxDate() const
+    {
         return volInterpl_->maxDate();
     }
-    Real AndreasenHugeVolatilityAdapter::minStrike() const {
+    Real AndreasenHugeVolatilityAdapter::minStrike() const
+    {
         return volInterpl_->minStrike();
     }
-    Real AndreasenHugeVolatilityAdapter::maxStrike() const {
+    Real AndreasenHugeVolatilityAdapter::maxStrike() const
+    {
         return volInterpl_->maxStrike();
     }
-    Calendar AndreasenHugeVolatilityAdapter::calendar() const {
+    Calendar AndreasenHugeVolatilityAdapter::calendar() const
+    {
         return volInterpl_->riskFreeRate()->calendar();
     }
-    DayCounter AndreasenHugeVolatilityAdapter::dayCounter() const {
+    DayCounter AndreasenHugeVolatilityAdapter::dayCounter() const
+    {
         return volInterpl_->riskFreeRate()->dayCounter();
     }
-    const Date& AndreasenHugeVolatilityAdapter::referenceDate() const {
+    const Date& AndreasenHugeVolatilityAdapter::referenceDate() const
+    {
         return volInterpl_->riskFreeRate()->referenceDate();
     }
-    Natural AndreasenHugeVolatilityAdapter::settlementDays() const {
+    Natural AndreasenHugeVolatilityAdapter::settlementDays() const
+    {
         return volInterpl_->riskFreeRate()->settlementDays();
     }
 }

@@ -19,46 +19,52 @@
 
 /*!
  * \file fdmsimple2dbssolver.cpp
-*/
+ */
 
 #include <ql/methods/finitedifferences/operators/fdmblackscholesop.hpp>
 #include <ql/methods/finitedifferences/solvers/fdm2dimsolver.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmsimple2dbssolver.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     FdmSimple2dBSSolver::FdmSimple2dBSSolver(Handle<GeneralizedBlackScholesProcess> process,
                                              Real strike,
                                              FdmSolverDesc solverDesc,
                                              const FdmSchemeDesc& schemeDesc)
-    : process_(std::move(process)), strike_(strike), solverDesc_(std::move(solverDesc)),
-      schemeDesc_(schemeDesc) {
+    : process_(std::move(process)), strike_(strike), solverDesc_(std::move(solverDesc)), schemeDesc_(schemeDesc)
+    {
 
         registerWith(process_);
     }
 
-    void FdmSimple2dBSSolver::performCalculations() const {
-        ext::shared_ptr<FdmBlackScholesOp> op(ext::make_shared<FdmBlackScholesOp>(
-                solverDesc_.mesher, process_.currentLink(), strike_));
+    void FdmSimple2dBSSolver::performCalculations() const
+    {
+        ext::shared_ptr<FdmBlackScholesOp> op(
+            ext::make_shared<FdmBlackScholesOp>(solverDesc_.mesher, process_.currentLink(), strike_));
 
         solver_ = ext::make_shared<Fdm2DimSolver>(solverDesc_, schemeDesc_, op);
     }
 
-    Real FdmSimple2dBSSolver::valueAt(Real s, Real a) const {
+    Real FdmSimple2dBSSolver::valueAt(Real s, Real a) const
+    {
         calculate();
         return solver_->interpolateAt(std::log(s), std::log(a));
     }
 
-    Real FdmSimple2dBSSolver::deltaAt(Real s, Real a, Real eps) const {
-        return (valueAt(s+eps, a) - valueAt(s-eps, a))/(2*eps);
+    Real FdmSimple2dBSSolver::deltaAt(Real s, Real a, Real eps) const
+    {
+        return (valueAt(s + eps, a) - valueAt(s - eps, a)) / (2 * eps);
     }
 
-    Real FdmSimple2dBSSolver::gammaAt(Real s, Real a, Real eps) const {
-        return (valueAt(s+eps, a)+valueAt(s-eps, a)-2*valueAt(s,a))/(eps*eps);
+    Real FdmSimple2dBSSolver::gammaAt(Real s, Real a, Real eps) const
+    {
+        return (valueAt(s + eps, a) + valueAt(s - eps, a) - 2 * valueAt(s, a)) / (eps * eps);
     }
 
-    Real FdmSimple2dBSSolver::thetaAt(Real s, Real a) const {
+    Real FdmSimple2dBSSolver::thetaAt(Real s, Real a) const
+    {
         calculate();
         return solver_->thetaAt(std::log(s), std::log(a));
     }

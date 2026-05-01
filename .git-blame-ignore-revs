@@ -1,0 +1,10 @@
+# Revisions listed here are skipped by `git blame` when the user has
+# `blame.ignoreRevsFile` set to this file. Enable per-clone with:
+#
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# Add the SHA of large mechanical reformat commits below, one per line,
+# with a short comment.
+
+# Project-wide reformat: BSD/Allman braces, 120-column limit (clang-format).
+# TODO: replace with the actual commit SHA once the reformat lands.

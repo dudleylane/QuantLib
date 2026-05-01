@@ -19,27 +19,28 @@
 
 #include <ql/experimental/commodities/paymentterm.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    std::map<std::string, ext::shared_ptr<PaymentTerm::Data> >
-    PaymentTerm::paymentTerms_;
+    std::map<std::string, ext::shared_ptr<PaymentTerm::Data>> PaymentTerm::paymentTerms_;
 
     PaymentTerm::PaymentTerm(const std::string& name,
                              PaymentTerm::EventType eventType,
                              Integer offsetDays,
-                             const Calendar& calendar) {
+                             const Calendar& calendar)
+    {
         auto i = paymentTerms_.find(name);
         if (i != paymentTerms_.end())
             data_ = i->second;
-        else {
-            data_ = ext::make_shared<PaymentTerm::Data>(
-                                 name, eventType,
-                                                       offsetDays, calendar);
+        else
+        {
+            data_ = ext::make_shared<PaymentTerm::Data>(name, eventType, offsetDays, calendar);
             paymentTerms_[name] = data_;
         }
     }
 
-    std::ostream& operator<<(std::ostream& out, const PaymentTerm& c) {
+    std::ostream& operator<<(std::ostream& out, const PaymentTerm& c)
+    {
         if (!c.empty())
             return out << c.name();
         else
@@ -47,4 +48,3 @@ namespace QuantLib {
     }
 
 }
-

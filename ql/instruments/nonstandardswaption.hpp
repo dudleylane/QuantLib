@@ -24,25 +24,27 @@
 #ifndef quantlib_instruments_nonstandardswaption_hpp
 #define quantlib_instruments_nonstandardswaption_hpp
 
-#include <ql/option.hpp>
-#include <ql/instruments/swaption.hpp>
 #include <ql/instruments/nonstandardswap.hpp>
-#include <ql/pricingengines/swaption/basketgeneratingengine.hpp>
-#include <ql/termstructures/yieldtermstructure.hpp>
-#include <ql/termstructures/volatility/swaption/swaptionvolstructure.hpp>
+#include <ql/instruments/swaption.hpp>
 #include <ql/models/calibrationhelper.hpp>
+#include <ql/option.hpp>
+#include <ql/pricingengines/swaption/basketgeneratingengine.hpp>
+#include <ql/termstructures/volatility/swaption/swaptionvolstructure.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! nonstandard swaption class
     /*! \ingroup instruments
-    */
+     */
 
-    class NonstandardSwaption : public Option {
+    class NonstandardSwaption : public Option
+    {
       public:
         class arguments;
         class engine;
-        NonstandardSwaption(const Swaption &fromSwaption);
+        NonstandardSwaption(const Swaption& fromSwaption);
         NonstandardSwaption(ext::shared_ptr<NonstandardSwap> swap,
                             const ext::shared_ptr<Exercise>& exercise,
                             Settlement::Type delivery = Settlement::Physical,
@@ -56,14 +58,10 @@ namespace QuantLib {
         //! \name Inspectors
         //@{
         Settlement::Type settlementType() const { return settlementType_; }
-        Settlement::Method settlementMethod() const {
-            return settlementMethod_;
-        }
+        Settlement::Method settlementMethod() const { return settlementMethod_; }
         Swap::Type type() const { return swap_->type(); }
 
-        const ext::shared_ptr<NonstandardSwap> &underlyingSwap() const {
-            return swap_;
-        }
+        const ext::shared_ptr<NonstandardSwap>& underlyingSwap() const { return swap_; }
         //@}
         std::vector<ext::shared_ptr<BlackCalibrationHelper>>
         calibrationBasket(const ext::shared_ptr<SwapIndex>& standardSwapBase,
@@ -79,8 +77,8 @@ namespace QuantLib {
     };
 
     //! %Arguments for nonstandard swaption calculation
-    class NonstandardSwaption::arguments : public NonstandardSwap::arguments,
-                                           public Option::arguments {
+    class NonstandardSwaption::arguments : public NonstandardSwap::arguments, public Option::arguments
+    {
       public:
         arguments() = default;
         ext::shared_ptr<NonstandardSwap> swap;
@@ -91,8 +89,9 @@ namespace QuantLib {
 
     //! base class for nonstandard swaption engines
     class NonstandardSwaption::engine
-        : public GenericEngine<NonstandardSwaption::arguments,
-                               NonstandardSwaption::results> {};
+    : public GenericEngine<NonstandardSwaption::arguments, NonstandardSwaption::results>
+    {
+    };
 }
 
 #endif

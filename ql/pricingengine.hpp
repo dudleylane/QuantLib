@@ -28,10 +28,12 @@
 
 #include <ql/patterns/observable.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! interface for pricing engines
-    class PricingEngine : public Observable {
+    class PricingEngine : public Observable
+    {
       public:
         class arguments;
         class results;
@@ -42,13 +44,15 @@ namespace QuantLib {
         virtual void calculate() const = 0;
     };
 
-    class PricingEngine::arguments {
+    class PricingEngine::arguments
+    {
       public:
         virtual ~arguments() = default;
         virtual void validate() const = 0;
     };
 
-    class PricingEngine::results {
+    class PricingEngine::results
+    {
       public:
         virtual ~results() = default;
         virtual void reset() = 0;
@@ -59,9 +63,9 @@ namespace QuantLib {
     /*! Derived engines only need to implement
         the <tt>calculate()</tt> method.
     */
-    template<class ArgumentsType, class ResultsType>
-    class GenericEngine : public PricingEngine,
-                          public Observer {
+    template <class ArgumentsType, class ResultsType>
+    class GenericEngine : public PricingEngine, public Observer
+    {
       public:
         PricingEngine::arguments* getArguments() const override { return &arguments_; }
         const PricingEngine::results* getResults() const override { return &results_; }

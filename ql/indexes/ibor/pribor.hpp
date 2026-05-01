@@ -24,31 +24,40 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #ifndef quantlib_pribor_hpp
 #define quantlib_pribor_hpp
 
+#include <ql/currencies/europe.hpp>
 #include <ql/indexes/iborindex.hpp>
 #include <ql/time/calendars/czechrepublic.hpp>
 #include <ql/time/daycounters/actual360.hpp>
-#include <ql/currencies/europe.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-	//! %PRIBOR rate
-	/*! Prague Interbank Offered Rate fixed by CFBF.
+    //! %PRIBOR rate
+    /*! Prague Interbank Offered Rate fixed by CFBF.
 
-	Conventions are taken from
-	OpenGamma "Interest Rate Instruments and Market Conventions
-	Guide" as well as
-	https://cfbf.cz/wp-content/uploads/2018/02/pribor-rules.pdf
+    Conventions are taken from
+    OpenGamma "Interest Rate Instruments and Market Conventions
+    Guide" as well as
+    https://cfbf.cz/wp-content/uploads/2018/02/pribor-rules.pdf
 
-	\warning Roll convention and EoM not yet checked.
-	*/
-	class Pribor : public IborIndex {
-	public:
-		Pribor(const Period& tenor,
-               const Handle<YieldTermStructure>& h = {})
-			: IborIndex("PRIBOR", tenor, (tenor == 1 * Days ? 0 : 2), CZKCurrency(),
-				CzechRepublic(), ModifiedFollowing, false,
-				Actual360(), h) {}
-	};
+    \warning Roll convention and EoM not yet checked.
+    */
+    class Pribor : public IborIndex
+    {
+      public:
+        Pribor(const Period& tenor, const Handle<YieldTermStructure>& h = {})
+        : IborIndex("PRIBOR",
+                    tenor,
+                    (tenor == 1 * Days ? 0 : 2),
+                    CZKCurrency(),
+                    CzechRepublic(),
+                    ModifiedFollowing,
+                    false,
+                    Actual360(),
+                    h)
+        {
+        }
+    };
 
 }
 

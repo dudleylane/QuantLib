@@ -26,13 +26,15 @@
 #ifndef quantlib_fdm_american_step_condition_hpp
 #define quantlib_fdm_american_step_condition_hpp
 
-#include <ql/methods/finitedifferences/stepcondition.hpp>
 #include <ql/methods/finitedifferences/meshers/fdmmesher.hpp>
+#include <ql/methods/finitedifferences/stepcondition.hpp>
 #include <ql/methods/finitedifferences/utilities/fdminnervaluecalculator.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class FdmAmericanStepCondition : public StepCondition<Array> {
+    class FdmAmericanStepCondition : public StepCondition<Array>
+    {
       public:
         FdmAmericanStepCondition(ext::shared_ptr<FdmMesher> mesher,
                                  ext::shared_ptr<FdmInnerValueCalculator> calculator,

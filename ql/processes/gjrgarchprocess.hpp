@@ -24,11 +24,12 @@
 #ifndef quantlib_gjrgarch_process_hpp
 #define quantlib_gjrgarch_process_hpp
 
+#include <ql/quote.hpp>
 #include <ql/stochasticprocess.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
-#include <ql/quote.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Stochastic-volatility GJR-GARCH(1,1) process
     // parameters supplied should be daily constants
@@ -38,20 +39,20 @@ namespace QuantLib {
         \f[
         \begin{array}{rcl}
         dS(t, S)  &=& \mu S dt + \sqrt{v} S dW_1 \\
-        dv(t, S)  &=& (\omega + (\beta + \alpha * q_{2} 
-        + \gamma * q_{3} - 1) v) dt + (\alpha \sigma_{12} 
-        + \gamma \sigma_{13}) v dW_1 
-        + \sqrt{\alpha^{2} (\sigma^{2}_{2} - \sigma^{2}_{12}) 
-        + \gamma^{2} (\sigma^{2}_{3} - \sigma^{2}_{13}) 
+        dv(t, S)  &=& (\omega + (\beta + \alpha * q_{2}
+        + \gamma * q_{3} - 1) v) dt + (\alpha \sigma_{12}
+        + \gamma \sigma_{13}) v dW_1
+        + \sqrt{\alpha^{2} (\sigma^{2}_{2} - \sigma^{2}_{12})
+        + \gamma^{2} (\sigma^{2}_{3} - \sigma^{2}_{13})
         + 2 \alpha \gamma (\sigma_{23} - \sigma_{12} \sigma_{13})} v dW_2 \ \
         N = normalCDF(\lambda) \\
         n &=& \exp{-\lambda^{2}/2} / \sqrt{2 \pi} \\
         q_{2} &=& 1 + \lambda^{2} \\
         q_{3} &=& \lambda n + N + \lambda^2 N \\
         \sigma^{2}_{2} = 2 + 4 \lambda^{4} \\
-        \sigma^{2}_{3} = \lambda^{3} n + 5 \lambda n + 3N 
-        + \lambda^{4} N + 6 \lambda^{2} N -\\lambda^{2} n^{2} - N^{2} 
-        - \lambda^{4} N^{2} - 2 \lambda n N - 2 \lambda^{3} nN 
+        \sigma^{2}_{3} = \lambda^{3} n + 5 \lambda n + 3N
+        + \lambda^{4} N + 6 \lambda^{2} N -\\lambda^{2} n^{2} - N^{2}
+        - \lambda^{4} N^{2} - 2 \lambda n N - 2 \lambda^{3} nN
         - 2 \lambda^{2} N^{2} \                 \
         \sigma_{12} = -2 \lambda \\
         \sigma_{13} = -2 n - 2 \lambda N \\
@@ -61,10 +62,15 @@ namespace QuantLib {
 
         \ingroup processes
     */
-    class GJRGARCHProcess : public StochasticProcess {
+    class GJRGARCHProcess : public StochasticProcess
+    {
       public:
-        enum Discretization { PartialTruncation, FullTruncation,
-                              Reflection};
+        enum Discretization
+        {
+            PartialTruncation,
+            FullTruncation,
+            Reflection
+        };
 
         GJRGARCHProcess(Handle<YieldTermStructure> riskFreeRate,
                         Handle<YieldTermStructure> dividendYield,
@@ -85,13 +91,13 @@ namespace QuantLib {
         Array apply(const Array& x0, const Array& dx) const override;
         Array evolve(Time t0, const Array& x0, Time dt, const Array& dw) const override;
 
-        Real v0()     const { return v0_; }
+        Real v0() const { return v0_; }
         Real lambda() const { return lambda_; }
-        Real omega()  const { return omega_; }
-        Real alpha()  const { return alpha_; }
-        Real beta()   const { return beta_; }
-        Real gamma()  const { return gamma_; }
-        Real daysPerYear()  const { return daysPerYear_; }
+        Real omega() const { return omega_; }
+        Real alpha() const { return alpha_; }
+        Real beta() const { return beta_; }
+        Real gamma() const { return gamma_; }
+        Real daysPerYear() const { return daysPerYear_; }
 
         const Handle<Quote>& s0() const;
         const Handle<YieldTermStructure>& dividendYield() const;

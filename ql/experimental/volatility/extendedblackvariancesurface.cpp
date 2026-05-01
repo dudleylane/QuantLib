@@ -21,39 +21,39 @@
 #include <ql/math/interpolations/bilinearinterpolation.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    ExtendedBlackVarianceSurface::ExtendedBlackVarianceSurface(
-        const Date& referenceDate,
-        const Calendar& calendar,
-        const std::vector<Date>& dates,
-        std::vector<Real> strikes,
-        const std::vector<Handle<Quote> >& volatilities,
-        DayCounter dayCounter,
-        ExtendedBlackVarianceSurface::Extrapolation lowerEx,
-        ExtendedBlackVarianceSurface::Extrapolation upperEx)
-    : BlackVarianceTermStructure(referenceDate, calendar), dayCounter_(std::move(dayCounter)),
-      maxDate_(dates.back()), volatilities_(volatilities), strikes_(std::move(strikes)),
-      lowerExtrapolation_(lowerEx), upperExtrapolation_(upperEx) {
+    ExtendedBlackVarianceSurface::ExtendedBlackVarianceSurface(const Date& referenceDate,
+                                                               const Calendar& calendar,
+                                                               const std::vector<Date>& dates,
+                                                               std::vector<Real> strikes,
+                                                               const std::vector<Handle<Quote>>& volatilities,
+                                                               DayCounter dayCounter,
+                                                               ExtendedBlackVarianceSurface::Extrapolation lowerEx,
+                                                               ExtendedBlackVarianceSurface::Extrapolation upperEx)
+    : BlackVarianceTermStructure(referenceDate, calendar), dayCounter_(std::move(dayCounter)), maxDate_(dates.back()),
+      volatilities_(volatilities), strikes_(std::move(strikes)), lowerExtrapolation_(lowerEx),
+      upperExtrapolation_(upperEx)
+    {
 
-        QL_REQUIRE(dates.size()*strikes_.size()==volatilities_.size(),
+        QL_REQUIRE(dates.size() * strikes_.size() == volatilities_.size(),
                    "size mismatch between date vector and vol matrix columns "
                    "and/or between money-strike vector and vol matrix rows");
 
-        QL_REQUIRE(dates[0] > referenceDate,
-                   "cannot have dates_[0] <= referenceDate_");
+        QL_REQUIRE(dates[0] > referenceDate, "cannot have dates_[0] <= referenceDate_");
 
 
-        times_ = std::vector<Time>(dates.size()+1);
+        times_ = std::vector<Time>(dates.size() + 1);
         times_[0] = 0.0;
 
-        for (Size j=1; j<=dates.size(); j++) {
-            times_[j] = timeFromReference(dates[j-1]);
-            QL_REQUIRE(times_[j]>times_[j-1],
-                       "dates must be sorted unique");
+        for (Size j = 1; j <= dates.size(); j++)
+        {
+            times_[j] = timeFromReference(dates[j - 1]);
+            QL_REQUIRE(times_[j] > times_[j - 1], "dates must be sorted unique");
         }
 
-        variances_ = Matrix(strikes_.size(), dates.size()+1);
+        variances_ = Matrix(strikes_.size(), dates.size() + 1);
         setVariances();
 
         setInterpolation<Bilinear>();
@@ -62,46 +62,47 @@ namespace QuantLib {
             registerWith(volatilitie);
     }
 
-    void ExtendedBlackVarianceSurface::setVariances() {
+    void ExtendedBlackVarianceSurface::setVariances()
+    {
 
-        for (Size i=0; i<times_.size()+1; i++) {
+        for (Size i = 0; i < times_.size() + 1; i++)
+        {
             variances_[0][i] = 0.0;
         }
-        for (Size j=1; j<=times_.size(); j++) {
-            for (Size i=0; i<strikes_.size(); i++) {
-                Volatility sigma = volatilities_[i*times_.size()+j-1]->value();
+        for (Size j = 1; j <= times_.size(); j++)
+        {
+            for (Size i = 0; i < strikes_.size(); i++)
+            {
+                Volatility sigma = volatilities_[i * times_.size() + j - 1]->value();
                 variances_[i][j] = times_[j] * sigma * sigma;
-                QL_REQUIRE(variances_[i][j]>=variances_[i][j-1],
-                           "variance must be non-decreasing");
+                QL_REQUIRE(variances_[i][j] >= variances_[i][j - 1], "variance must be non-decreasing");
             }
         }
     }
 
-    void ExtendedBlackVarianceSurface::update() {
+    void ExtendedBlackVarianceSurface::update()
+    {
         setVariances();
         varianceSurface_.update();
         notifyObservers();
     }
 
-    Real ExtendedBlackVarianceSurface::blackVarianceImpl(Time t,
-                                                         Real strike) const {
+    Real ExtendedBlackVarianceSurface::blackVarianceImpl(Time t, Real strike) const
+    {
 
-        if (t==0.0) return 0.0;
+        if (t == 0.0)
+            return 0.0;
 
         // enforce constant extrapolation when required
-        if (strike < strikes_.front()
-            && lowerExtrapolation_ == ConstantExtrapolation)
+        if (strike < strikes_.front() && lowerExtrapolation_ == ConstantExtrapolation)
             strike = strikes_.front();
-        if (strike > strikes_.back()
-            && upperExtrapolation_ == ConstantExtrapolation)
+        if (strike > strikes_.back() && upperExtrapolation_ == ConstantExtrapolation)
             strike = strikes_.back();
 
-        if (t<=times_.back())
+        if (t <= times_.back())
             return varianceSurface_(t, strike, true);
         else // t>times_.back() || extrapolate
-            return varianceSurface_(times_.back(), strike, true) *
-                t/times_.back();
+            return varianceSurface_(times_.back(), strike, true) * t / times_.back();
     }
 
 }
-

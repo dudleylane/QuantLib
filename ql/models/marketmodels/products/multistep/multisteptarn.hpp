@@ -22,9 +22,11 @@
 
 #include <ql/models/marketmodels/products/multiproductmultistep.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class MultiStepTarn : public MultiProductMultiStep {
+    class MultiStepTarn : public MultiProductMultiStep
+    {
       public:
         MultiStepTarn(const std::vector<Time>& rateTimes,
                       const std::vector<Real>& accruals,
@@ -43,7 +45,7 @@ namespace QuantLib {
         void reset() override;
         bool nextTimeStep(const CurveState& currentState,
                           std::vector<Size>& numberCashFlowsThisStep,
-                          std::vector<std::vector<CashFlow> >& cashFlowsGenerated) override;
+                          std::vector<std::vector<CashFlow>>& cashFlowsGenerated) override;
         std::unique_ptr<MarketModelMultiProduct> clone() const override;
         //@}
       private:
@@ -57,13 +59,11 @@ namespace QuantLib {
         std::vector<Real> multipliers_;
         std::vector<Real> floatingSpreads_;
         Size lastIndex_;
-      
+
         // things that vary in a path
         Real couponPaid_;
         Size currentIndex_;
     };
-
-
 
 
 }

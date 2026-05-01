@@ -26,7 +26,8 @@
 
 #include <ql/instruments/oneassetoption.hpp>
 
-namespace QuantLib{
+namespace QuantLib
+{
 
     //! Complex chooser option
     /*! This option gives the holder the right to choose, at a future
@@ -34,7 +35,8 @@ namespace QuantLib{
         a put.  The exercise date and strike are different for the
         call and put option.
     */
-    class ComplexChooserOption : public OneAssetOption {
+    class ComplexChooserOption : public OneAssetOption
+    {
       public:
         class arguments;
         class engine;
@@ -42,7 +44,7 @@ namespace QuantLib{
                              Real strikeCall,
                              Real strikePut,
                              const ext::shared_ptr<Exercise>& exerciseCall,
-                             ext::shared_ptr<Exercise>  exercisePut);
+                             ext::shared_ptr<Exercise> exercisePut);
         void setupArguments(PricingEngine::arguments*) const override;
 
       private:
@@ -54,7 +56,8 @@ namespace QuantLib{
     };
 
     //! Extra %arguments for complex chooser option
-    class ComplexChooserOption::arguments : public OneAssetOption::arguments {
+    class ComplexChooserOption::arguments : public OneAssetOption::arguments
+    {
       public:
         void validate() const override;
         Date choosingDate;
@@ -65,8 +68,10 @@ namespace QuantLib{
     };
 
     //! Complex-chooser-option %engine base class
-    class ComplexChooserOption::engine : public GenericEngine<ComplexChooserOption::arguments,
-                                                              ComplexChooserOption::results> {};
+    class ComplexChooserOption::engine
+    : public GenericEngine<ComplexChooserOption::arguments, ComplexChooserOption::results>
+    {
+    };
 
 }
 

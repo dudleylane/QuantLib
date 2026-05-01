@@ -27,7 +27,8 @@
 
 #include <ql/instruments/bond.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! zero-coupon bond
     /*! \ingroup instruments
@@ -35,7 +36,8 @@ namespace QuantLib {
         \test calculations are tested by checking results against
               cached values.
     */
-    class ZeroCouponBond : public Bond {
+    class ZeroCouponBond : public Bond
+    {
       public:
         ZeroCouponBond(Natural settlementDays,
                        const Calendar& calendar,

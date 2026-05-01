@@ -25,12 +25,13 @@
 #ifndef quantlib_black_variance_surface_hpp
 #define quantlib_black_variance_surface_hpp
 
-#include <ql/termstructures/volatility/equityfx/blackvoltermstructure.hpp>
-#include <ql/math/matrix.hpp>
 #include <ql/math/interpolations/interpolation2d.hpp>
+#include <ql/math/matrix.hpp>
+#include <ql/termstructures/volatility/equityfx/blackvoltermstructure.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Black volatility surface modelled as variance surface
     /*! This class calculates time/strike dependent Black volatilities
@@ -44,10 +45,14 @@ namespace QuantLib {
         \todo check time extrapolation
 
     */
-    class BlackVarianceSurface : public BlackVarianceTermStructure {
+    class BlackVarianceSurface : public BlackVarianceTermStructure
+    {
       public:
-        enum Extrapolation { ConstantExtrapolation,
-                             InterpolatorDefaultExtrapolation };
+        enum Extrapolation
+        {
+            ConstantExtrapolation,
+            InterpolatorDefaultExtrapolation
+        };
         BlackVarianceSurface(const Date& referenceDate,
                              const Calendar& cal,
                              const std::vector<Date>& dates,
@@ -69,11 +74,10 @@ namespace QuantLib {
         //! \name Modifiers
         //@{
         template <class Interpolator>
-        void setInterpolation(const Interpolator& i = Interpolator()) {
+        void setInterpolation(const Interpolator& i = Interpolator())
+        {
             varianceSurface_ =
-                i.interpolate(times_.begin(), times_.end(),
-                              strikes_.begin(), strikes_.end(),
-                              variances_);
+                i.interpolate(times_.begin(), times_.end(), strikes_.begin(), strikes_.end(), variances_);
             notifyObservers();
         }
         //@}
@@ -97,7 +101,8 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline void BlackVarianceSurface::accept(AcyclicVisitor& v) {
+    inline void BlackVarianceSurface::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<BlackVarianceSurface>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);

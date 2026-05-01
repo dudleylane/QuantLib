@@ -37,12 +37,13 @@
 #define quantlib_xva_calculator_hpp
 
 #include <ql/handle.hpp>
-#include <ql/time/date.hpp>
-#include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/termstructures/defaulttermstructure.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
+#include <ql/time/date.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Exposure-driven XVA adjustments (CVA/DVA/FVA/KVA/MVA).
     /*! \ingroup riskanalysis */
@@ -67,21 +68,21 @@ namespace QuantLib {
         are the recovery rates. When no IM profile is passed, MVA is
         reported as zero.
     */
-    class XvaCalculator {
+    class XvaCalculator
+    {
       public:
-        XvaCalculator(
-            std::vector<Date> exposureDates,
-            std::vector<Real> epe,
-            std::vector<Real> ene,
-            Handle<DefaultProbabilityTermStructure> counterpartyPd,
-            Handle<DefaultProbabilityTermStructure> ownPd,
-            Real counterpartyRecovery,
-            Real ownRecovery,
-            Spread fundingSpread,
-            Spread capitalSpread,
-            Spread marginSpread,
-            Handle<YieldTermStructure> discountCurve,
-            std::vector<Real> initialMargin = {});
+        XvaCalculator(std::vector<Date> exposureDates,
+                      std::vector<Real> epe,
+                      std::vector<Real> ene,
+                      Handle<DefaultProbabilityTermStructure> counterpartyPd,
+                      Handle<DefaultProbabilityTermStructure> ownPd,
+                      Real counterpartyRecovery,
+                      Real ownRecovery,
+                      Spread fundingSpread,
+                      Spread capitalSpread,
+                      Spread marginSpread,
+                      Handle<YieldTermStructure> discountCurve,
+                      std::vector<Real> initialMargin = {});
 
         //! \name Adjustments — all reported as positive magnitudes.
         //@{

@@ -24,10 +24,11 @@
 #ifndef quantlib_optimization_bfgs_hpp
 #define quantlib_optimization_bfgs_hpp
 
-#include <ql/math/optimization/linesearchbasedmethod.hpp>
 #include <ql/math/matrix.hpp>
+#include <ql/math/optimization/linesearchbasedmethod.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Broyden-Fletcher-Goldfarb-Shanno algorithm
     /*! See <http://en.wikipedia.org/wiki/BFGS_method>.
@@ -36,11 +37,14 @@ namespace QuantLib {
 
         User has to provide line-search method and optimization end criteria.
     */
-    class BFGS: public LineSearchBasedMethod {
+    class BFGS : public LineSearchBasedMethod
+    {
       public:
-        BFGS(const ext::shared_ptr<LineSearch>& lineSearch =
-                                              ext::shared_ptr<LineSearch>())
-        : LineSearchBasedMethod(lineSearch) {}
+        BFGS(const ext::shared_ptr<LineSearch>& lineSearch = ext::shared_ptr<LineSearch>())
+        : LineSearchBasedMethod(lineSearch)
+        {
+        }
+
       private:
         //! \name LineSearchBasedMethod interface
         //@{

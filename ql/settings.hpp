@@ -26,25 +26,30 @@
 #ifndef quantlib_settings_hpp
 #define quantlib_settings_hpp
 
+#include <ql/optional.hpp>
 #include <ql/patterns/singleton.hpp>
 #include <ql/time/date.hpp>
 #include <ql/utilities/observablevalue.hpp>
-#include <ql/optional.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! global repository for run-time library settings
-    class Settings : public Singleton<Settings> {
+    class Settings : public Singleton<Settings>
+    {
         friend class Singleton<Settings>;
+
       private:
         Settings();
-        class DateProxy : public ObservableValue<Date> {
+        class DateProxy : public ObservableValue<Date>
+        {
           public:
             DateProxy();
             DateProxy& operator=(const Date&);
             operator Date() const;
         };
         friend std::ostream& operator<<(std::ostream&, const DateProxy&);
+
       public:
         //! the date at which pricing is to be performed.
         /*! Client code can inspect the evaluation date, as in:
@@ -117,10 +122,12 @@ namespace QuantLib {
 
 
     // helper class to temporarily and safely change the settings
-    class SavedSettings { // NOLINT(cppcoreguidelines-special-member-functions)
+    class SavedSettings
+    { // NOLINT(cppcoreguidelines-special-member-functions)
       public:
         SavedSettings();
         ~SavedSettings();
+
       private:
         Date evaluationDate_;
         bool includeReferenceDateEvents_;
@@ -131,48 +138,58 @@ namespace QuantLib {
 
     // inline
 
-    inline Settings::DateProxy::operator Date() const {
+    inline Settings::DateProxy::operator Date() const
+    {
         if (value() == Date())
             return Date::todaysDate();
         else
             return value();
     }
 
-    inline Settings::DateProxy& Settings::DateProxy::operator=(const Date& d) {
+    inline Settings::DateProxy& Settings::DateProxy::operator=(const Date& d)
+    {
         if (value() != d) // avoid notifications if the date doesn't actually change
             ObservableValue<Date>::operator=(d);
         return *this;
     }
 
-    inline Settings::DateProxy& Settings::evaluationDate() {
+    inline Settings::DateProxy& Settings::evaluationDate()
+    {
         return evaluationDate_;
     }
 
-    inline const Settings::DateProxy& Settings::evaluationDate() const {
+    inline const Settings::DateProxy& Settings::evaluationDate() const
+    {
         return evaluationDate_;
     }
 
-    inline bool& Settings::includeReferenceDateEvents() {
+    inline bool& Settings::includeReferenceDateEvents()
+    {
         return includeReferenceDateEvents_;
     }
 
-    inline bool Settings::includeReferenceDateEvents() const {
+    inline bool Settings::includeReferenceDateEvents() const
+    {
         return includeReferenceDateEvents_;
     }
 
-    inline ext::optional<bool>& Settings::includeTodaysCashFlows() {
+    inline ext::optional<bool>& Settings::includeTodaysCashFlows()
+    {
         return includeTodaysCashFlows_;
     }
 
-    inline ext::optional<bool> Settings::includeTodaysCashFlows() const {
+    inline ext::optional<bool> Settings::includeTodaysCashFlows() const
+    {
         return includeTodaysCashFlows_;
     }
 
-    inline bool& Settings::enforcesTodaysHistoricFixings() {
+    inline bool& Settings::enforcesTodaysHistoricFixings()
+    {
         return enforcesTodaysHistoricFixings_;
     }
 
-    inline bool Settings::enforcesTodaysHistoricFixings() const {
+    inline bool Settings::enforcesTodaysHistoricFixings() const
+    {
         return enforcesTodaysHistoricFixings_;
     }
 

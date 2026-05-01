@@ -25,55 +25,54 @@ here we work with abcd curves and interpolate the a, b, c and d
 
 */
 
-#include <ql/models/marketmodels/models/volatilityinterpolationspecifierabcd.hpp>
-#include <ql/types.hpp>
 #include <ql/errors.hpp>
+#include <ql/models/marketmodels/models/volatilityinterpolationspecifierabcd.hpp>
 #include <ql/shared_ptr.hpp>
+#include <ql/types.hpp>
 #include <vector>
 
 namespace QuantLib
 {
 
-    VolatilityInterpolationSpecifierabcd::VolatilityInterpolationSpecifierabcd(Size period,
+    VolatilityInterpolationSpecifierabcd::VolatilityInterpolationSpecifierabcd(
+        Size period,
         Size offset,
-        const std::vector< PiecewiseConstantAbcdVariance>& originalVariances, // these should be associated with the long rates
+        const std::vector<PiecewiseConstantAbcdVariance>&
+            originalVariances,                       // these should be associated with the long rates
         const std::vector<Time>& timesForSmallRates, // these should be associated with the shorter rates
-        Real lastCapletVol
-        )
-        :
-    period_(period),
-        offset_(offset),
-        interpolatedVariances_(timesForSmallRates.size()-1),
-        originalVariances_(originalVariances.size()),
-        originalABCDVariances_(originalVariances),
-        originalABCDVariancesScaled_(originalVariances),
-        lastCapletVol_(lastCapletVol),
-        timesForSmallRates_(timesForSmallRates),
-        scalingFactors_(originalVariances.size(),1.0),
-        noBigRates_(originalVariances.size()),
-        noSmallRates_(timesForSmallRates.size()-1)
+        Real lastCapletVol)
+    : period_(period), offset_(offset), interpolatedVariances_(timesForSmallRates.size() - 1),
+      originalVariances_(originalVariances.size()), originalABCDVariances_(originalVariances),
+      originalABCDVariancesScaled_(originalVariances), lastCapletVol_(lastCapletVol),
+      timesForSmallRates_(timesForSmallRates), scalingFactors_(originalVariances.size(), 1.0),
+      noBigRates_(originalVariances.size()), noSmallRates_(timesForSmallRates.size() - 1)
     {
-        QL_REQUIRE( (noSmallRates_ - offset) /period == noBigRates_, "size mismatch in VolatilityInterpolationSpecifierabcd");
+        QL_REQUIRE((noSmallRates_ - offset) / period == noBigRates_,
+                   "size mismatch in VolatilityInterpolationSpecifierabcd");
 
-        for (Size i=0; i < noBigRates_; ++i)
-            for (Size j=0; j < originalVariances[i].rateTimes().size(); ++j)
-                QL_REQUIRE( originalVariances[i].rateTimes()[j] == timesForSmallRates[offset+j*period],"rate times in variances passed in don't match small times in VolatilityInterpolationSpecifierabcd");
+        for (Size i = 0; i < noBigRates_; ++i)
+            for (Size j = 0; j < originalVariances[i].rateTimes().size(); ++j)
+                QL_REQUIRE(originalVariances[i].rateTimes()[j] == timesForSmallRates[offset + j * period],
+                           "rate times in variances passed in don't match small times in "
+                           "VolatilityInterpolationSpecifierabcd");
 
         if (lastCapletVol_ == 0.0)
-            lastCapletVol_ =  originalVariances[noBigRates_-1].totalVolatility(noBigRates_-1);
+            lastCapletVol_ = originalVariances[noBigRates_ - 1].totalVolatility(noBigRates_ - 1);
 
         // change type of array to PiecewiseConstantVariance for client, from PiecewiseConstantAbcdVariance
-        for (Size i=0; i < noBigRates_; ++i)
-            originalVariances_[i] = ext::shared_ptr<PiecewiseConstantVariance>(new PiecewiseConstantAbcdVariance(originalVariances[i]));
+        for (Size i = 0; i < noBigRates_; ++i)
+            originalVariances_[i] =
+                ext::shared_ptr<PiecewiseConstantVariance>(new PiecewiseConstantAbcdVariance(originalVariances[i]));
 
         recompute();
-
     }
 
     void VolatilityInterpolationSpecifierabcd::setScalingFactors(const std::vector<Real>& scales)
     {
-        QL_REQUIRE(scalingFactors_.size() == scales.size(), "inappropriate number of scales passed in to VolatilityInterpolationSpecifierabcd::setScalingFactors ");
-        scalingFactors_= scales;
+        QL_REQUIRE(
+            scalingFactors_.size() == scales.size(),
+            "inappropriate number of scales passed in to VolatilityInterpolationSpecifierabcd::setScalingFactors ");
+        scalingFactors_ = scales;
         recompute();
     }
 
@@ -84,12 +83,14 @@ namespace QuantLib
     }
 
 
-    const std::vector<ext::shared_ptr<PiecewiseConstantVariance> >& VolatilityInterpolationSpecifierabcd::interpolatedVariances() const
+    const std::vector<ext::shared_ptr<PiecewiseConstantVariance>>&
+    VolatilityInterpolationSpecifierabcd::interpolatedVariances() const
     {
         return interpolatedVariances_;
     }
 
-    const std::vector<ext::shared_ptr<PiecewiseConstantVariance> >& VolatilityInterpolationSpecifierabcd::originalVariances() const
+    const std::vector<ext::shared_ptr<PiecewiseConstantVariance>>&
+    VolatilityInterpolationSpecifierabcd::originalVariances() const
     {
         return originalVariances_;
     }
@@ -121,76 +122,74 @@ namespace QuantLib
         //                                  const std::vector<Time>& rateTimes);
 
 
-        for (Size i=0; i < noBigRates_; ++i)
+        for (Size i = 0; i < noBigRates_; ++i)
         {
-            Real a,b,c,d;
-            originalABCDVariances_[i].getABCD(a,b,c,d);
-            a*=scalingFactors_[i];
-            b*=scalingFactors_[i];
+            Real a, b, c, d;
+            originalABCDVariances_[i].getABCD(a, b, c, d);
+            a *= scalingFactors_[i];
+            b *= scalingFactors_[i];
             // c is not scaled
-            d*=scalingFactors_[i];
+            d *= scalingFactors_[i];
 
-            originalABCDVariancesScaled_[i] = PiecewiseConstantAbcdVariance(a,b,c,d, i, originalABCDVariances_[i].rateTimes());
-
+            originalABCDVariancesScaled_[i] =
+                PiecewiseConstantAbcdVariance(a, b, c, d, i, originalABCDVariances_[i].rateTimes());
         }
 
         // three cases:
-        //before offset,
+        // before offset,
         // between offset and last big rate,
         // and after last big rate
 
         // before offset
 
         {
-            Real a,b,c,d;
-            originalABCDVariancesScaled_[0].getABCD(a,b,c,d);
+            Real a, b, c, d;
+            originalABCDVariancesScaled_[0].getABCD(a, b, c, d);
 
-            for (Size i=0; i < offset_; ++i)
+            for (Size i = 0; i < offset_; ++i)
                 interpolatedVariances_[i] = ext::shared_ptr<PiecewiseConstantVariance>(
-                new PiecewiseConstantAbcdVariance(a,b,c,d,i,timesForSmallRates_));
+                    new PiecewiseConstantAbcdVariance(a, b, c, d, i, timesForSmallRates_));
         }
 
 
         // in between rates
 
-        for (Size j=0; j < noBigRates_-1; ++j)
+        for (Size j = 0; j < noBigRates_ - 1; ++j)
         {
-            Real a,b,c,d;
-            Real a0,b0,c0,d0;
-            Real a1,b1,c1,d1;
-            originalABCDVariancesScaled_[j].getABCD(a0,b0,c0,d0);
-            originalABCDVariancesScaled_[j+1].getABCD(a1,b1,c1,d1);
-            a= 0.5*(a0+a1);
-            b= 0.5*(b0+b1);
-            c= 0.5*(c0+c1);
-            d= 0.5*(d0+d1);
+            Real a, b, c, d;
+            Real a0, b0, c0, d0;
+            Real a1, b1, c1, d1;
+            originalABCDVariancesScaled_[j].getABCD(a0, b0, c0, d0);
+            originalABCDVariancesScaled_[j + 1].getABCD(a1, b1, c1, d1);
+            a = 0.5 * (a0 + a1);
+            b = 0.5 * (b0 + b1);
+            c = 0.5 * (c0 + c1);
+            d = 0.5 * (d0 + d1);
 
-            for (Size i=0; i < period_; ++i)
-                interpolatedVariances_[i+j*period_+offset_] =  ext::shared_ptr<PiecewiseConstantVariance>(
-                new PiecewiseConstantAbcdVariance(a,b,c,d,i+j*period_,timesForSmallRates_));
-
+            for (Size i = 0; i < period_; ++i)
+                interpolatedVariances_[i + j * period_ + offset_] = ext::shared_ptr<PiecewiseConstantVariance>(
+                    new PiecewiseConstantAbcdVariance(a, b, c, d, i + j * period_, timesForSmallRates_));
         }
 
 
-       {
-            Real a,b,c,d;
-            originalABCDVariancesScaled_[noBigRates_-1].getABCD(a,b,c,d);
+        {
+            Real a, b, c, d;
+            originalABCDVariancesScaled_[noBigRates_ - 1].getABCD(a, b, c, d);
 
-            for (Size i=offset_+(noBigRates_-1)*period_; i < noSmallRates_; ++i)
+            for (Size i = offset_ + (noBigRates_ - 1) * period_; i < noSmallRates_; ++i)
                 interpolatedVariances_[i] = ext::shared_ptr<PiecewiseConstantVariance>(
-                                                                         new PiecewiseConstantAbcdVariance(a,b,c,d,i,timesForSmallRates_));
+                    new PiecewiseConstantAbcdVariance(a, b, c, d, i, timesForSmallRates_));
 
             // very last rate is special as we must match the caplet vol
-             Real vol = interpolatedVariances_[noSmallRates_-1]->totalVolatility(noSmallRates_-1);
+            Real vol = interpolatedVariances_[noSmallRates_ - 1]->totalVolatility(noSmallRates_ - 1);
 
-             Real scale = lastCapletVol_/vol;
-             a*=scale;
-             b*=scale;
-             d*=scale;
-             interpolatedVariances_[noSmallRates_-1] = ext::shared_ptr<PiecewiseConstantVariance>(
-                                                                         new PiecewiseConstantAbcdVariance(a,b,c,d,noSmallRates_-1,timesForSmallRates_));
-
-       }
+            Real scale = lastCapletVol_ / vol;
+            a *= scale;
+            b *= scale;
+            d *= scale;
+            interpolatedVariances_[noSmallRates_ - 1] = ext::shared_ptr<PiecewiseConstantVariance>(
+                new PiecewiseConstantAbcdVariance(a, b, c, d, noSmallRates_ - 1, timesForSmallRates_));
+        }
     }
 
 }

@@ -24,25 +24,27 @@
 #ifndef quantlib_nonstandard_swap_hpp
 #define quantlib_nonstandard_swap_hpp
 
-#include <ql/instruments/swap.hpp>
 #include <ql/instruments/fixedvsfloatingswap.hpp>
+#include <ql/instruments/swap.hpp>
+#include <ql/optional.hpp>
 #include <ql/time/daycounter.hpp>
 #include <ql/time/schedule.hpp>
-#include <ql/optional.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class IborIndex;
     class SwapIndex;
 
     //! nonstandard swap
 
-    class NonstandardSwap : public Swap {
+    class NonstandardSwap : public Swap
+    {
       public:
         class arguments;
         class results;
         class engine;
-        explicit NonstandardSwap(const FixedVsFloatingSwap &fromVanilla);
+        explicit NonstandardSwap(const FixedVsFloatingSwap& fromVanilla);
         NonstandardSwap(Swap::Type type,
                         std::vector<Real> fixedNominal,
                         const std::vector<Real>& floatingNominal,
@@ -74,25 +76,25 @@ namespace QuantLib {
         //! \name Inspectors
         //@{
         Swap::Type type() const;
-        const std::vector<Real> &fixedNominal() const;
-        const std::vector<Real> &floatingNominal() const;
+        const std::vector<Real>& fixedNominal() const;
+        const std::vector<Real>& floatingNominal() const;
 
-        const Schedule &fixedSchedule() const;
-        const std::vector<Real> &fixedRate() const;
-        const DayCounter &fixedDayCount() const;
+        const Schedule& fixedSchedule() const;
+        const std::vector<Real>& fixedRate() const;
+        const DayCounter& fixedDayCount() const;
 
-        const Schedule &floatingSchedule() const;
-        const ext::shared_ptr<IborIndex> &iborIndex() const;
+        const Schedule& floatingSchedule() const;
+        const ext::shared_ptr<IborIndex>& iborIndex() const;
         Spread spread() const;
         Real gearing() const;
         const std::vector<Spread>& spreads() const;
         const std::vector<Real>& gearings() const;
-        const DayCounter &floatingDayCount() const;
+        const DayCounter& floatingDayCount() const;
 
         BusinessDayConvention paymentConvention() const;
 
-        const Leg &fixedLeg() const;
-        const Leg &floatingLeg() const;
+        const Leg& fixedLeg() const;
+        const Leg& floatingLeg() const;
         //@}
 
         //! \name Results
@@ -123,7 +125,8 @@ namespace QuantLib {
     };
 
     //! %Arguments for nonstandard swap calculation
-    class NonstandardSwap::arguments : public Swap::arguments {
+    class NonstandardSwap::arguments : public Swap::arguments
+    {
       public:
         arguments() = default;
         Swap::Type type = Swap::Receiver;
@@ -151,79 +154,99 @@ namespace QuantLib {
     };
 
     //! %Results from nonstandard swap calculation
-    class NonstandardSwap::results : public Swap::results {
+    class NonstandardSwap::results : public Swap::results
+    {
       public:
         void reset() override;
     };
 
-    class NonstandardSwap::engine
-        : public GenericEngine<NonstandardSwap::arguments,
-                               NonstandardSwap::results> {};
+    class NonstandardSwap::engine : public GenericEngine<NonstandardSwap::arguments, NonstandardSwap::results>
+    {
+    };
 
     // inline definitions
 
-    inline Swap::Type NonstandardSwap::type() const { return type_; }
+    inline Swap::Type NonstandardSwap::type() const
+    {
+        return type_;
+    }
 
-    inline const std::vector<Real> &NonstandardSwap::fixedNominal() const {
+    inline const std::vector<Real>& NonstandardSwap::fixedNominal() const
+    {
         return fixedNominal_;
     }
 
-    inline const std::vector<Real> &NonstandardSwap::floatingNominal() const {
+    inline const std::vector<Real>& NonstandardSwap::floatingNominal() const
+    {
         return floatingNominal_;
     }
 
-    inline const Schedule &NonstandardSwap::fixedSchedule() const {
+    inline const Schedule& NonstandardSwap::fixedSchedule() const
+    {
         return fixedSchedule_;
     }
 
-    inline const std::vector<Real> &NonstandardSwap::fixedRate() const {
+    inline const std::vector<Real>& NonstandardSwap::fixedRate() const
+    {
         return fixedRate_;
     }
 
-    inline const DayCounter &NonstandardSwap::fixedDayCount() const {
+    inline const DayCounter& NonstandardSwap::fixedDayCount() const
+    {
         return fixedDayCount_;
     }
 
-    inline const Schedule &NonstandardSwap::floatingSchedule() const {
+    inline const Schedule& NonstandardSwap::floatingSchedule() const
+    {
         return floatingSchedule_;
     }
 
-    inline const ext::shared_ptr<IborIndex> &
-    NonstandardSwap::iborIndex() const {
+    inline const ext::shared_ptr<IborIndex>& NonstandardSwap::iborIndex() const
+    {
         return iborIndex_;
     }
 
-    inline Spread NonstandardSwap::spread() const {
-        QL_REQUIRE(singleSpreadAndGearing_,
-                   "spread is a vector, use spreads inspector instead");
+    inline Spread NonstandardSwap::spread() const
+    {
+        QL_REQUIRE(singleSpreadAndGearing_, "spread is a vector, use spreads inspector instead");
         return spread_.front();
     }
 
-    inline Real NonstandardSwap::gearing() const {
-        QL_REQUIRE(singleSpreadAndGearing_,
-                   "gearing is a vector, use gearings inspector instead");
+    inline Real NonstandardSwap::gearing() const
+    {
+        QL_REQUIRE(singleSpreadAndGearing_, "gearing is a vector, use gearings inspector instead");
         return gearing_.front();
     }
 
-    inline const std::vector<Spread> &NonstandardSwap::spreads() const {
+    inline const std::vector<Spread>& NonstandardSwap::spreads() const
+    {
         return spread_;
     }
 
-    inline const std::vector<Real> &NonstandardSwap::gearings() const {
+    inline const std::vector<Real>& NonstandardSwap::gearings() const
+    {
         return gearing_;
     }
 
-    inline const DayCounter &NonstandardSwap::floatingDayCount() const {
+    inline const DayCounter& NonstandardSwap::floatingDayCount() const
+    {
         return floatingDayCount_;
     }
 
-    inline BusinessDayConvention NonstandardSwap::paymentConvention() const {
+    inline BusinessDayConvention NonstandardSwap::paymentConvention() const
+    {
         return paymentConvention_;
     }
 
-    inline const Leg &NonstandardSwap::fixedLeg() const { return legs_[0]; }
+    inline const Leg& NonstandardSwap::fixedLeg() const
+    {
+        return legs_[0];
+    }
 
-    inline const Leg &NonstandardSwap::floatingLeg() const { return legs_[1]; }
+    inline const Leg& NonstandardSwap::floatingLeg() const
+    {
+        return legs_[1];
+    }
 }
 
 #endif

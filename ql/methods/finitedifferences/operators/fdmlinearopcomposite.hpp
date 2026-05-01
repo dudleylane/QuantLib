@@ -30,9 +30,11 @@
 #include <ql/methods/finitedifferences/operators/fdmlinearop.hpp>
 #include <numeric>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class FdmLinearOpComposite : public FdmLinearOp {
+    class FdmLinearOpComposite : public FdmLinearOp
+    {
       public:
         virtual Size size() const = 0;
 
@@ -40,21 +42,21 @@ namespace QuantLib {
         virtual void setTime(Time t1, Time t2) = 0;
 
         virtual Array apply_mixed(const Array& r) const = 0;
-        
+
         virtual Array apply_direction(Size direction, const Array& r) const = 0;
         virtual Array solve_splitting(Size direction, const Array& r, Real s) const = 0;
         virtual Array preconditioner(const Array& r, Real s) const = 0;
 
-        virtual std::vector<SparseMatrix> toMatrixDecomp() const {
+        virtual std::vector<SparseMatrix> toMatrixDecomp() const
+        {
             QL_FAIL(" ublas representation is not implemented");
         }
 
-        SparseMatrix toMatrix() const override {
+        SparseMatrix toMatrix() const override
+        {
             const std::vector<SparseMatrix> dcmp = toMatrixDecomp();
-            return std::accumulate(dcmp.begin()+1, dcmp.end(),
-                                   SparseMatrix(dcmp.front()));
+            return std::accumulate(dcmp.begin() + 1, dcmp.end(), SparseMatrix(dcmp.front()));
         }
-
     };
 }
 

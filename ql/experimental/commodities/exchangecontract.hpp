@@ -28,20 +28,20 @@
 #include <map>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class ExchangeContract {
+    class ExchangeContract
+    {
       public:
         ExchangeContract() = default;
-        ExchangeContract(std::string code,
-                         Date expirationDate,
-                         Date underlyingStartDate,
-                         Date underlyingEndDate);
+        ExchangeContract(std::string code, Date expirationDate, Date underlyingStartDate, Date underlyingEndDate);
 
         const std::string& code() const;
         const Date& expirationDate() const;
         const Date& underlyingStartDate() const;
         const Date& underlyingEndDate() const;
+
       protected:
         std::string code_;
         Date expirationDate_;
@@ -53,22 +53,28 @@ namespace QuantLib {
                                               Date expirationDate,
                                               Date underlyingStartDate,
                                               Date underlyingEndDate)
-    : code_(std::move(code)), expirationDate_(expirationDate),
-      underlyingStartDate_(underlyingStartDate), underlyingEndDate_(underlyingEndDate) {}
+    : code_(std::move(code)), expirationDate_(expirationDate), underlyingStartDate_(underlyingStartDate),
+      underlyingEndDate_(underlyingEndDate)
+    {
+    }
 
-    inline const std::string& ExchangeContract::code() const {
+    inline const std::string& ExchangeContract::code() const
+    {
         return code_;
     }
 
-    inline const Date& ExchangeContract::expirationDate() const {
+    inline const Date& ExchangeContract::expirationDate() const
+    {
         return expirationDate_;
     }
 
-    inline const Date& ExchangeContract::underlyingStartDate() const {
+    inline const Date& ExchangeContract::underlyingStartDate() const
+    {
         return underlyingStartDate_;
     }
 
-    inline const Date& ExchangeContract::underlyingEndDate() const {
+    inline const Date& ExchangeContract::underlyingEndDate() const
+    {
         return underlyingEndDate_;
     }
 

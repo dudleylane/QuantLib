@@ -22,43 +22,38 @@
 #define quantlib_proxy_greek_engine_hpp
 
 // to be removed using forward declaration
-#include <ql/models/marketmodels/multiproduct.hpp>
-
 #include <ql/math/statistics/sequencestatistics.hpp>
+#include <ql/models/marketmodels/multiproduct.hpp>
 #include <ql/utilities/clone.hpp>
 #include <valarray>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class MarketModelEvolver;
     class ConstrainedEvolver;
     class MarketModelDiscounter;
 
-    class ProxyGreekEngine {
+    class ProxyGreekEngine
+    {
       public:
-        ProxyGreekEngine(
-            ext::shared_ptr<MarketModelEvolver> evolver,
-            std::vector<std::vector<ext::shared_ptr<ConstrainedEvolver> > > constrainedEvolvers,
-            std::vector<std::vector<std::vector<Real> > > diffWeights,
-            std::vector<Size> startIndexOfConstraint,
-            std::vector<Size> endIndexOfConstraint,
-            const Clone<MarketModelMultiProduct>& product,
-            Real initialNumeraireValue);
-        void multiplePathValues(
-                  SequenceStatisticsInc& stats,
-                  std::vector<std::vector<SequenceStatisticsInc> >& modifiedStats,
-                  Size numberOfPaths);
-        void singlePathValues(
-                std::vector<Real>& values,
-                std::vector<std::vector<std::vector<Real> > >& modifiedValues);
+        ProxyGreekEngine(ext::shared_ptr<MarketModelEvolver> evolver,
+                         std::vector<std::vector<ext::shared_ptr<ConstrainedEvolver>>> constrainedEvolvers,
+                         std::vector<std::vector<std::vector<Real>>> diffWeights,
+                         std::vector<Size> startIndexOfConstraint,
+                         std::vector<Size> endIndexOfConstraint,
+                         const Clone<MarketModelMultiProduct>& product,
+                         Real initialNumeraireValue);
+        void multiplePathValues(SequenceStatisticsInc& stats,
+                                std::vector<std::vector<SequenceStatisticsInc>>& modifiedStats,
+                                Size numberOfPaths);
+        void singlePathValues(std::vector<Real>& values, std::vector<std::vector<std::vector<Real>>>& modifiedValues);
+
       private:
-        void singleEvolverValues(MarketModelEvolver& evolver,
-                                 std::vector<Real>& values,
-                                 bool storeRates = false);
+        void singleEvolverValues(MarketModelEvolver& evolver, std::vector<Real>& values, bool storeRates = false);
         ext::shared_ptr<MarketModelEvolver> originalEvolver_;
-        std::vector<std::vector<ext::shared_ptr<ConstrainedEvolver> > >
-            constrainedEvolvers_;
-        std::vector<std::vector<std::vector<Real> > > diffWeights_;
+        std::vector<std::vector<ext::shared_ptr<ConstrainedEvolver>>> constrainedEvolvers_;
+        std::vector<std::vector<std::vector<Real>>> diffWeights_;
         std::vector<Size> startIndexOfConstraint_;
         std::vector<Size> endIndexOfConstraint_;
         Clone<MarketModelMultiProduct> product_;
@@ -71,10 +66,8 @@ namespace QuantLib {
         std::valarray<bool> constraintsActive_;
         std::vector<Real> numerairesHeld_;
         std::vector<Size> numberCashFlowsThisStep_;
-        std::vector<std::vector<MarketModelMultiProduct::CashFlow> >
-                                                         cashFlowsGenerated_;
+        std::vector<std::vector<MarketModelMultiProduct::CashFlow>> cashFlowsGenerated_;
         std::vector<MarketModelDiscounter> discounters_;
-
     };
 
 }

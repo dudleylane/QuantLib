@@ -27,7 +27,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Mexican calendars
     /*! Holidays for the Mexican stock exchange
@@ -54,15 +55,20 @@ namespace QuantLib {
 
         \ingroup calendars
     */
-    class Mexico : public Calendar {
+    class Mexico : public Calendar
+    {
       private:
-        class BmvImpl final : public Calendar::WesternImpl {
+        class BmvImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "Mexican stock exchange"; }
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
-        enum Market { BMV    //!< Mexican stock exchange
+        enum Market
+        {
+            BMV //!< Mexican stock exchange
         };
         Mexico(Market m = BMV);
     };

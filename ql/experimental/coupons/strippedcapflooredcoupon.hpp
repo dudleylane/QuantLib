@@ -26,13 +26,14 @@
 
 #include <ql/cashflows/capflooredcoupon.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class StrippedCappedFlooredCoupon : public FloatingRateCoupon {
+    class StrippedCappedFlooredCoupon : public FloatingRateCoupon
+    {
 
-    public:
-
-        explicit StrippedCappedFlooredCoupon(const ext::shared_ptr<CappedFlooredCoupon> &underlying);
+      public:
+        explicit StrippedCappedFlooredCoupon(const ext::shared_ptr<CappedFlooredCoupon>& underlying);
 
         //! \name Obverver interface
         //@{
@@ -68,13 +69,14 @@ namespace QuantLib {
 
       protected:
         ext::shared_ptr<CappedFlooredCoupon> underlying_;
-
     };
 
-    class StrippedCappedFlooredCouponLeg {
+    class StrippedCappedFlooredCouponLeg
+    {
       public:
         explicit StrippedCappedFlooredCouponLeg(Leg underlyingLeg);
         operator Leg() const;
+
       private:
         Leg underlyingLeg_;
     };

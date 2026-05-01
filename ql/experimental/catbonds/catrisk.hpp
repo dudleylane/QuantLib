@@ -24,45 +24,47 @@
 #ifndef quantlib_catrisk_hpp
 #define quantlib_catrisk_hpp
 
-#include <ql/time/date.hpp>
 #include <ql/errors.hpp>
 #include <ql/shared_ptr.hpp>
+#include <ql/time/date.hpp>
 #include <random>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class CatSimulation {
+    class CatSimulation
+    {
       public:
-        CatSimulation(Date start, 
-                      Date end) 
-        : start_(start), end_(end) 
-        {}
+        CatSimulation(Date start, Date end) : start_(start), end_(end) {}
 
         virtual ~CatSimulation() = default;
-        virtual bool nextPath(std::vector<std::pair<Date, Real> > &path) = 0;
+        virtual bool nextPath(std::vector<std::pair<Date, Real>>& path) = 0;
+
       protected:
         Date start_;
         Date end_;
     };
 
-    class CatRisk {
+    class CatRisk
+    {
       public:
         virtual ~CatRisk() = default;
         virtual ext::shared_ptr<CatSimulation> newSimulation(const Date& start, const Date& end) const = 0;
     };
 
-    class EventSetSimulation : public CatSimulation {
+    class EventSetSimulation : public CatSimulation
+    {
       public:
-        EventSetSimulation(ext::shared_ptr<std::vector<std::pair<Date, Real> > > events,
+        EventSetSimulation(ext::shared_ptr<std::vector<std::pair<Date, Real>>> events,
                            Date eventsStart,
                            Date eventsEnd,
                            Date start,
                            Date end);
-        bool nextPath(std::vector<std::pair<Date, Real> >& path) override;
+        bool nextPath(std::vector<std::pair<Date, Real>>& path) override;
 
       private:
-        ext::shared_ptr<std::vector<std::pair<Date, Real> > > events_;
+        ext::shared_ptr<std::vector<std::pair<Date, Real>>> events_;
         Date eventsStart_;
         Date eventsEnd_;
 
@@ -72,54 +74,45 @@ namespace QuantLib {
         unsigned int i_ = 0;
     };
 
-    class EventSet : public CatRisk {        
+    class EventSet : public CatRisk
+    {
       public:
-        EventSet(ext::shared_ptr<std::vector<std::pair<Date, Real> > > events,
-                 Date eventsStart,
-                 Date eventsEnd);
+        EventSet(ext::shared_ptr<std::vector<std::pair<Date, Real>>> events, Date eventsStart, Date eventsEnd);
 
-        ext::shared_ptr<CatSimulation> newSimulation(const Date& start,
-                                                     const Date& end) const override;
+        ext::shared_ptr<CatSimulation> newSimulation(const Date& start, const Date& end) const override;
 
       private:
-        ext::shared_ptr<std::vector<std::pair<Date, Real> > > events_; 
+        ext::shared_ptr<std::vector<std::pair<Date, Real>>> events_;
         Date eventsStart_;
         Date eventsEnd_;
     };
 
-    class BetaRiskSimulation : public CatSimulation {
+    class BetaRiskSimulation : public CatSimulation
+    {
       public:
-        BetaRiskSimulation(Date start, 
-                           Date end, 
-                           Real maxLoss, 
-                           Real lambda, 
-                           Real alpha, 
-                           Real beta) ;
+        BetaRiskSimulation(Date start, Date end, Real maxLoss, Real lambda, Real alpha, Real beta);
 
-        bool nextPath(std::vector<std::pair<Date, Real> >& path) override;
+        bool nextPath(std::vector<std::pair<Date, Real>>& path) override;
         Real generateBeta();
-    
+
       private:
         Real maxLoss_;
-    
+
         Integer dayCount_;
         Real yearFraction_;
-    
+
         std::mt19937 rng_;
         std::exponential_distribution<Real> exponential_;
         std::gamma_distribution<Real> gammaAlpha_;
         std::gamma_distribution<Real> gammaBeta_;
     };
 
-    class BetaRisk : public CatRisk {
+    class BetaRisk : public CatRisk
+    {
       public:
-        BetaRisk(Real maxLoss, 
-                 Real years, 
-                 Real mean, 
-                 Real stdDev);
+        BetaRisk(Real maxLoss, Real years, Real mean, Real stdDev);
 
-        ext::shared_ptr<CatSimulation> newSimulation(const Date& start,
-                                                     const Date& end) const override;
+        ext::shared_ptr<CatSimulation> newSimulation(const Date& start, const Date& end) const override;
 
       private:
         Real maxLoss_;

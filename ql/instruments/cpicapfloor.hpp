@@ -25,14 +25,15 @@
 #ifndef quantlib_cpicapfloor_hpp
 #define quantlib_cpicapfloor_hpp
 
+#include <ql/cashflows/cpicoupon.hpp>
+#include <ql/indexes/inflationindex.hpp>
 #include <ql/instrument.hpp>
 #include <ql/option.hpp>
 #include <ql/time/calendar.hpp>
 #include <ql/time/daycounter.hpp>
-#include <ql/indexes/inflationindex.hpp>
-#include <ql/cashflows/cpicoupon.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! CPI cap or floor
     /*! Quoted as a fixed strike rate \f$ K \f$.  Payoff:
@@ -59,7 +60,8 @@ namespace QuantLib {
      because we do not have that degree of generality.
 
     */
-    class CPICapFloor : public Instrument {
+    class CPICapFloor : public Instrument
+    {
       public:
         class arguments;
         class engine;
@@ -74,7 +76,7 @@ namespace QuantLib {
                     Calendar payCalendar,
                     BusinessDayConvention payConvention,
                     Rate strike,
-                    ext::shared_ptr<ZeroInflationIndex>  inflationIndex,
+                    ext::shared_ptr<ZeroInflationIndex> inflationIndex,
                     const Period& observationLag,
                     CPI::InterpolationType observationInterpolation = CPI::Flat);
 
@@ -113,7 +115,8 @@ namespace QuantLib {
     };
 
 
-    class CPICapFloor::arguments : public virtual PricingEngine::arguments {
+    class CPICapFloor::arguments : public virtual PricingEngine::arguments
+    {
       public:
         Option::Type type;
         Real nominal;
@@ -130,11 +133,11 @@ namespace QuantLib {
         void validate() const override;
     };
 
-    class CPICapFloor::engine : public GenericEngine<CPICapFloor::arguments,
-                                                     CPICapFloor::results> {};
+    class CPICapFloor::engine : public GenericEngine<CPICapFloor::arguments, CPICapFloor::results>
+    {
+    };
 
 }
 
 
 #endif
-

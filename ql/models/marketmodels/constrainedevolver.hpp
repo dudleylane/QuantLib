@@ -24,7 +24,8 @@
 #include <ql/models/marketmodels/evolver.hpp>
 #include <valarray>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Constrained market-model evolver
     /*! Abstract base class. Requires extra methods above that of
@@ -36,17 +37,16 @@ namespace QuantLib {
         This is intended to be used for the Fries-Joshi proxy simulation
         approach to Greeks
     */
-    class ConstrainedEvolver : public MarketModelEvolver {
+    class ConstrainedEvolver : public MarketModelEvolver
+    {
       public:
         ~ConstrainedEvolver() override = default;
         //! call once
-        virtual void setConstraintType(
-            const std::vector<Size>& startIndexOfSwapRate,
-            const std::vector<Size>& EndIndexOfSwapRate) = 0;
+        virtual void setConstraintType(const std::vector<Size>& startIndexOfSwapRate,
+                                       const std::vector<Size>& EndIndexOfSwapRate) = 0;
         //! call before each path
-        virtual void setThisConstraint(
-            const std::vector<Rate>& rateConstraints,
-            const std::valarray<bool>& isConstraintActive) = 0;
+        virtual void setThisConstraint(const std::vector<Rate>& rateConstraints,
+                                       const std::valarray<bool>& isConstraintActive) = 0;
     };
 
 }

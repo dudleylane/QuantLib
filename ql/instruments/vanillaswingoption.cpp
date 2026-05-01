@@ -25,13 +25,15 @@
 #include <ql/event.hpp>
 #include <ql/instruments/vanillaswingoption.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
+    namespace
+    {
         const Size secPerDay = 24U * 3600U;
 
-        std::pair<std::vector<Date>, std::vector<Size> >
-            createDateTimes(const Date& from, const Date& to, Size stepSize) {
+        std::pair<std::vector<Date>, std::vector<Size>> createDateTimes(const Date& from, const Date& to, Size stepSize)
+        {
 
             std::vector<Size> secs;
             std::vector<Date> dates;
@@ -39,57 +41,61 @@ namespace QuantLib {
             Date iterDate = from;
             Size iterStepSize = 0U;
 
-            while (iterDate <= to) {
+            while (iterDate <= to)
+            {
                 dates.push_back(iterDate);
                 secs.push_back(iterStepSize);
 
-                iterStepSize+=stepSize;
-                if (iterStepSize >= secPerDay) {
-                    iterDate+=1L;
-                    iterStepSize%=secPerDay;
+                iterStepSize += stepSize;
+                if (iterStepSize >= secPerDay)
+                {
+                    iterDate += 1L;
+                    iterStepSize %= secPerDay;
                 }
             }
 
-            return std::pair<std::vector<Date>,std::vector<Size> >(dates, secs);
+            return std::pair<std::vector<Date>, std::vector<Size>>(dates, secs);
         }
     }
 
     SwingExercise::SwingExercise(const std::vector<Date>& dates, const std::vector<Size>& seconds)
-    : BermudanExercise(dates),
-      seconds_(seconds.empty() ? std::vector<Size>(dates.size(), 0U) : seconds) {
-        QL_REQUIRE(dates_.size() == seconds_.size(),
-                   "dates and seconds must have the same size");
-        for (Size i=0; i < dates_.size(); ++i) {
-            QL_REQUIRE(seconds_[i] < secPerDay,
-                       "a date can not have more than 24*3600 seconds");
-            if (i > 0) {
-                QL_REQUIRE(dates_[i-1] < dates_[i]
-                           || (dates_[i-1] == dates_[i]
-                               && seconds_[i-1] < seconds_[i]),
+    : BermudanExercise(dates), seconds_(seconds.empty() ? std::vector<Size>(dates.size(), 0U) : seconds)
+    {
+        QL_REQUIRE(dates_.size() == seconds_.size(), "dates and seconds must have the same size");
+        for (Size i = 0; i < dates_.size(); ++i)
+        {
+            QL_REQUIRE(seconds_[i] < secPerDay, "a date can not have more than 24*3600 seconds");
+            if (i > 0)
+            {
+                QL_REQUIRE(dates_[i - 1] < dates_[i] || (dates_[i - 1] == dates_[i] && seconds_[i - 1] < seconds_[i]),
                            "date times must be sorted");
             }
         }
     }
 
 
-    SwingExercise::SwingExercise(const Date& from,
-                                 const Date& to, Size stepSizeSecs)
+    SwingExercise::SwingExercise(const Date& from, const Date& to, Size stepSizeSecs)
     : BermudanExercise(createDateTimes(from, to, stepSizeSecs).first),
-      seconds_(createDateTimes(from, to, stepSizeSecs).second) {
+      seconds_(createDateTimes(from, to, stepSizeSecs).second)
+    {
     }
 
-    const std::vector<Size>& SwingExercise::seconds() const { return seconds_; }
+    const std::vector<Size>& SwingExercise::seconds() const
+    {
+        return seconds_;
+    }
 
-    std::vector<Time> SwingExercise::exerciseTimes(const DayCounter& dc,
-                                                   const Date& refDate) const {
+    std::vector<Time> SwingExercise::exerciseTimes(const DayCounter& dc, const Date& refDate) const
+    {
         std::vector<Time> exerciseTimes;
         exerciseTimes.reserve(dates().size());
-        for (Size i=0; i<dates().size(); ++i) {
+        for (Size i = 0; i < dates().size(); ++i)
+        {
             Time t = dc.yearFraction(refDate, dates()[i]);
 
             const Time dt = dc.yearFraction(refDate, dates()[i] + Period(1U, Days)) - t;
 
-            t += dt*seconds()[i]/(24*3600.);
+            t += dt * seconds()[i] / (24 * 3600.);
 
             QL_REQUIRE(t >= 0, "exercise dates must not contain past date");
             exerciseTimes.push_back(t);
@@ -98,18 +104,21 @@ namespace QuantLib {
         return exerciseTimes;
     }
 
-    Real VanillaForwardPayoff::operator()(Real price) const {
-        switch (type_) {
-          case Option::Call:
-            return price-strike_;
-          case Option::Put:
-            return strike_-price;
-          default:
-            QL_FAIL("unknown/illegal option type");
+    Real VanillaForwardPayoff::operator()(Real price) const
+    {
+        switch (type_)
+        {
+            case Option::Call:
+                return price - strike_;
+            case Option::Put:
+                return strike_ - price;
+            default:
+                QL_FAIL("unknown/illegal option type");
         }
     }
 
-    void VanillaForwardPayoff::accept(AcyclicVisitor& v) {
+    void VanillaForwardPayoff::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<VanillaForwardPayoff>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);
@@ -118,31 +127,29 @@ namespace QuantLib {
     }
 
 
-    void VanillaSwingOption::arguments::validate() const {
+    void VanillaSwingOption::arguments::validate() const
+    {
         QL_REQUIRE(payoff, "no payoff given");
         QL_REQUIRE(exercise, "no exercise given");
 
-        QL_REQUIRE(minExerciseRights <= maxExerciseRights,
-                   "minExerciseRights <= maxExerciseRights");
-        QL_REQUIRE(exercise->dates().size() >= maxExerciseRights,
-                   "number of exercise rights exceeds "
-                   "number of exercise dates");
+        QL_REQUIRE(minExerciseRights <= maxExerciseRights, "minExerciseRights <= maxExerciseRights");
+        QL_REQUIRE(exercise->dates().size() >= maxExerciseRights, "number of exercise rights exceeds "
+                                                                  "number of exercise dates");
     }
 
-    void VanillaSwingOption::setupArguments(
-                            PricingEngine::arguments* args) const {
+    void VanillaSwingOption::setupArguments(PricingEngine::arguments* args) const
+    {
         auto* arguments = dynamic_cast<VanillaSwingOption::arguments*>(args);
         QL_REQUIRE(arguments != nullptr, "wrong argument type");
 
-        arguments->payoff
-            = ext::dynamic_pointer_cast<StrikedTypePayoff>(payoff_);
-        arguments->exercise
-            = ext::dynamic_pointer_cast<SwingExercise>(exercise_);
+        arguments->payoff = ext::dynamic_pointer_cast<StrikedTypePayoff>(payoff_);
+        arguments->exercise = ext::dynamic_pointer_cast<SwingExercise>(exercise_);
         arguments->minExerciseRights = minExerciseRights_;
         arguments->maxExerciseRights = maxExerciseRights_;
     }
 
-    bool VanillaSwingOption::isExpired() const {
+    bool VanillaSwingOption::isExpired() const
+    {
         return detail::simple_event(exercise_->lastDate()).hasOccurred();
     }
 }

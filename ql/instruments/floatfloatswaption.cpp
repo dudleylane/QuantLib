@@ -21,14 +21,16 @@
 #include <ql/instruments/floatfloatswaption.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     FloatFloatSwaption::FloatFloatSwaption(ext::shared_ptr<FloatFloatSwap> swap,
                                            const ext::shared_ptr<Exercise>& exercise,
                                            Settlement::Type delivery,
                                            Settlement::Method settlementMethod)
-    : Option(ext::shared_ptr<Payoff>(), exercise), swap_(std::move(swap)),
-      settlementType_(delivery), settlementMethod_(settlementMethod) {
+    : Option(ext::shared_ptr<Payoff>(), exercise), swap_(std::move(swap)), settlementType_(delivery),
+      settlementMethod_(settlementMethod)
+    {
         registerWith(swap_);
         // When we ask for the NPV of an expired swaption, the
         // swap is not recalculated and thus wouldn't forward
@@ -41,12 +43,13 @@ namespace QuantLib {
         swap_->alwaysForwardNotifications();
     }
 
-    bool FloatFloatSwaption::isExpired() const {
+    bool FloatFloatSwaption::isExpired() const
+    {
         return detail::simple_event(exercise_->dates().back()).hasOccurred();
     }
 
-    void
-    FloatFloatSwaption::setupArguments(PricingEngine::arguments *args) const {
+    void FloatFloatSwaption::setupArguments(PricingEngine::arguments* args) const
+    {
 
         swap_->setupArguments(args);
 
@@ -60,28 +63,26 @@ namespace QuantLib {
         arguments->settlementMethod = settlementMethod_;
     }
 
-    void FloatFloatSwaption::arguments::validate() const {
+    void FloatFloatSwaption::arguments::validate() const
+    {
         FloatFloatSwap::arguments::validate();
         QL_REQUIRE(swap, "underlying cms swap not set");
         QL_REQUIRE(exercise, "exercise not set");
-        Settlement::checkTypeAndMethodConsistency(settlementType,
-                                                  settlementMethod);
+        Settlement::checkTypeAndMethodConsistency(settlementType, settlementMethod);
     }
 
     std::vector<ext::shared_ptr<BlackCalibrationHelper>>
-    FloatFloatSwaption::calibrationBasket(
-        const ext::shared_ptr<SwapIndex>& standardSwapBase,
-        const ext::shared_ptr<SwaptionVolatilityStructure>& swaptionVolatility,
-        const BasketGeneratingEngine::CalibrationBasketType basketType) const {
+    FloatFloatSwaption::calibrationBasket(const ext::shared_ptr<SwapIndex>& standardSwapBase,
+                                          const ext::shared_ptr<SwaptionVolatilityStructure>& swaptionVolatility,
+                                          const BasketGeneratingEngine::CalibrationBasketType basketType) const
+    {
 
-        ext::shared_ptr<BasketGeneratingEngine> engine =
-            ext::dynamic_pointer_cast<BasketGeneratingEngine>(engine_);
+        ext::shared_ptr<BasketGeneratingEngine> engine = ext::dynamic_pointer_cast<BasketGeneratingEngine>(engine_);
         QL_REQUIRE(engine, "engine is not a basket generating engine");
         engine_->reset();
         setupArguments(engine_->getArguments());
         engine_->getArguments()->validate();
-        return engine->calibrationBasket(exercise_, standardSwapBase,
-                                         swaptionVolatility, basketType);
+        return engine->calibrationBasket(exercise_, standardSwapBase, swaptionVolatility, basketType);
     }
 
 }

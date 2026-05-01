@@ -25,22 +25,23 @@
 #ifndef quantlib_cap_floor_term_vol_surface_hpp
 #define quantlib_cap_floor_term_vol_surface_hpp
 
-#include <ql/termstructures/volatility/capfloor/capfloortermvolatilitystructure.hpp>
 #include <ql/math/interpolations/interpolation2d.hpp>
-#include <ql/quote.hpp>
 #include <ql/patterns/lazyobject.hpp>
+#include <ql/quote.hpp>
+#include <ql/termstructures/volatility/capfloor/capfloortermvolatilitystructure.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Cap/floor smile volatility surface
     /*! This class provides the volatility for a given cap/floor interpolating
         a volatility surface whose elements are the market term volatilities
         of a set of caps/floors with given length and given strike.
     */
-    class CapFloorTermVolSurface : public LazyObject, 
-                                   public CapFloorTermVolatilityStructure {
+    class CapFloorTermVolSurface : public LazyObject, public CapFloorTermVolatilityStructure
+    {
       public:
         //! floating reference date, floating market data
         CapFloorTermVolSurface(Natural settlementDays,
@@ -48,7 +49,7 @@ namespace QuantLib {
                                BusinessDayConvention bdc,
                                const std::vector<Period>& optionTenors,
                                const std::vector<Rate>& strikes,
-                               const std::vector<std::vector<Handle<Quote> > >&,
+                               const std::vector<std::vector<Handle<Quote>>>&,
                                const DayCounter& dc = Actual365Fixed());
         //! fixed reference date, floating market data
         CapFloorTermVolSurface(const Date& settlementDate,
@@ -56,7 +57,7 @@ namespace QuantLib {
                                BusinessDayConvention bdc,
                                const std::vector<Period>& optionTenors,
                                const std::vector<Rate>& strikes,
-                               const std::vector<std::vector<Handle<Quote> > >&,
+                               const std::vector<std::vector<Handle<Quote>>>&,
                                const DayCounter& dc = Actual365Fixed());
         //! fixed reference date, fixed market data
         CapFloorTermVolSurface(const Date& settlementDate,
@@ -103,7 +104,7 @@ namespace QuantLib {
         void initializeOptionDatesAndTimes() const;
         void registerWithMarketData();
         void interpolate();
-        
+
         Size nOptionTenors_;
         std::vector<Period> optionTenors_;
         mutable std::vector<Date> optionDates_;
@@ -113,7 +114,7 @@ namespace QuantLib {
         Size nStrikes_;
         std::vector<Rate> strikes_;
 
-        std::vector<std::vector<Handle<Quote> > > volHandles_;
+        std::vector<std::vector<Handle<Quote>>> volHandles_;
         mutable Matrix vols_;
 
         // make it not mutable if possible
@@ -122,46 +123,49 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline Date CapFloorTermVolSurface::maxDate() const {
+    inline Date CapFloorTermVolSurface::maxDate() const
+    {
         calculate();
         return optionDateFromTenor(optionTenors_.back());
     }
 
-    inline Real CapFloorTermVolSurface::minStrike() const {
+    inline Real CapFloorTermVolSurface::minStrike() const
+    {
         return strikes_.front();
     }
 
-    inline Real CapFloorTermVolSurface::maxStrike() const {
+    inline Real CapFloorTermVolSurface::maxStrike() const
+    {
         return strikes_.back();
     }
 
-    inline
-    Volatility CapFloorTermVolSurface::volatilityImpl(Time t,
-                                                      Rate strike) const {
+    inline Volatility CapFloorTermVolSurface::volatilityImpl(Time t, Rate strike) const
+    {
         calculate();
         return interpolation_(strike, t, true);
     }
 
-    inline
-    const std::vector<Period>& CapFloorTermVolSurface::optionTenors() const {
+    inline const std::vector<Period>& CapFloorTermVolSurface::optionTenors() const
+    {
         return optionTenors_;
     }
 
-    inline
-    const std::vector<Date>& CapFloorTermVolSurface::optionDates() const {
+    inline const std::vector<Date>& CapFloorTermVolSurface::optionDates() const
+    {
         // what if quotes are not available?
         calculate();
         return optionDates_;
     }
 
-    inline
-    const std::vector<Time>& CapFloorTermVolSurface::optionTimes() const {
+    inline const std::vector<Time>& CapFloorTermVolSurface::optionTimes() const
+    {
         // what if quotes are not available?
         calculate();
         return optionTimes_;
     }
 
-    inline const std::vector<Rate>& CapFloorTermVolSurface::strikes() const {
+    inline const std::vector<Rate>& CapFloorTermVolSurface::strikes() const
+    {
         return strikes_;
     }
 }

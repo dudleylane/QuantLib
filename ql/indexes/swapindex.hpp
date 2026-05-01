@@ -23,11 +23,12 @@
 #ifndef quantlib_swapindex_hpp
 #define quantlib_swapindex_hpp
 
+#include <ql/cashflows/rateaveraging.hpp>
 #include <ql/indexes/interestrateindex.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
-#include <ql/cashflows/rateaveraging.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Schedule;
 
@@ -38,7 +39,8 @@ namespace QuantLib {
     class OvernightIndexedSwap;
 
     //! base class for swap-rate indexes
-    class SwapIndex : public InterestRateIndex {
+    class SwapIndex : public InterestRateIndex
+    {
       public:
         SwapIndex(const std::string& familyName,
                   const Period& tenor,
@@ -74,21 +76,17 @@ namespace QuantLib {
         /*! \warning Relinking the term structure underlying the index will
                      not have effect on the returned swap.
         */
-        ext::shared_ptr<VanillaSwap> underlyingSwap(
-                                                const Date& fixingDate) const;
+        ext::shared_ptr<VanillaSwap> underlyingSwap(const Date& fixingDate) const;
         //@}
         //! \name Other methods
         //@{
         //! returns a copy of itself linked to a different forwarding curve
-        virtual ext::shared_ptr<SwapIndex> clone(
-                        const Handle<YieldTermStructure>& forwarding) const;
+        virtual ext::shared_ptr<SwapIndex> clone(const Handle<YieldTermStructure>& forwarding) const;
         //! returns a copy of itself linked to different curves
-        virtual ext::shared_ptr<SwapIndex> clone(
-                        const Handle<YieldTermStructure>& forwarding,
-                        const Handle<YieldTermStructure>& discounting) const;
+        virtual ext::shared_ptr<SwapIndex> clone(const Handle<YieldTermStructure>& forwarding,
+                                                 const Handle<YieldTermStructure>& discounting) const;
         //! returns a copy of itself with different tenor
-        virtual ext::shared_ptr<SwapIndex> clone(
-                        const Period& tenor) const;
+        virtual ext::shared_ptr<SwapIndex> clone(const Period& tenor) const;
         // @}
       protected:
         Rate forecastFixing(const Date& fixingDate) const override;
@@ -106,24 +104,23 @@ namespace QuantLib {
 
 
     //! base class for overnight indexed swap indexes
-    class OvernightIndexedSwapIndex : public SwapIndex {
+    class OvernightIndexedSwapIndex : public SwapIndex
+    {
       public:
-        OvernightIndexedSwapIndex(
-                  const std::string& familyName,
-                  const Period& tenor,
-                  Natural settlementDays,
-                  const Currency& currency,
-                  const ext::shared_ptr<OvernightIndex>& overnightIndex,
-                  bool telescopicValueDates = false,
-                  RateAveraging::Type averagingMethod = RateAveraging::Compound);
+        OvernightIndexedSwapIndex(const std::string& familyName,
+                                  const Period& tenor,
+                                  Natural settlementDays,
+                                  const Currency& currency,
+                                  const ext::shared_ptr<OvernightIndex>& overnightIndex,
+                                  bool telescopicValueDates = false,
+                                  RateAveraging::Type averagingMethod = RateAveraging::Compound);
         //! \name Inspectors
         //@{
         ext::shared_ptr<OvernightIndex> overnightIndex() const;
         /*! \warning Relinking the term structure underlying the index will
                      not have effect on the returned swap.
         */
-        ext::shared_ptr<OvernightIndexedSwap> underlyingSwap(
-                                                const Date& fixingDate) const;
+        ext::shared_ptr<OvernightIndexedSwap> underlyingSwap(const Date& fixingDate) const;
         //@}
       protected:
         ext::shared_ptr<OvernightIndex> overnightIndex_;
@@ -137,16 +134,18 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline BusinessDayConvention SwapIndex::fixedLegConvention() const {
+    inline BusinessDayConvention SwapIndex::fixedLegConvention() const
+    {
         return fixedLegConvention_;
     }
 
-    inline bool SwapIndex::exogenousDiscount() const {
+    inline bool SwapIndex::exogenousDiscount() const
+    {
         return exogenousDiscount_;
     }
 
-    inline ext::shared_ptr<OvernightIndex>
-    OvernightIndexedSwapIndex::overnightIndex() const {
+    inline ext::shared_ptr<OvernightIndex> OvernightIndexedSwapIndex::overnightIndex() const
+    {
         return overnightIndex_;
     }
 

@@ -26,24 +26,29 @@
 
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! experimental Black-Scholes-Merton stochastic process
     /*! This class allows to choose a built-in discretization scheme
 
         \ingroup processes
     */
-    class ExtendedBlackScholesMertonProcess
-        : public GeneralizedBlackScholesProcess {
+    class ExtendedBlackScholesMertonProcess : public GeneralizedBlackScholesProcess
+    {
       public:
-        enum Discretization { Euler, Milstein, PredictorCorrector };
+        enum Discretization
+        {
+            Euler,
+            Milstein,
+            PredictorCorrector
+        };
         ExtendedBlackScholesMertonProcess(
             const Handle<Quote>& x0,
             const Handle<YieldTermStructure>& dividendTS,
             const Handle<YieldTermStructure>& riskFreeTS,
             const Handle<BlackVolTermStructure>& blackVolTS,
-            const ext::shared_ptr<discretization>& d =
-                  ext::shared_ptr<discretization>(new EulerDiscretization),
+            const ext::shared_ptr<discretization>& d = ext::shared_ptr<discretization>(new EulerDiscretization),
             Discretization evolDisc = Milstein);
         Real drift(Time t, Real x) const override;
         Real diffusion(Time t, Real x) const override;

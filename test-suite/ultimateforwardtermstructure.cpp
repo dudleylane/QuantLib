@@ -35,18 +35,21 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(UltimateForwardTermStructureTests)
 
-struct Datum {
+struct Datum
+{
     Integer n;
     TimeUnit units;
     Rate rate;
 };
 
-struct LLFRWeight {
+struct LLFRWeight
+{
     Time ttm;
     Real weight;
 };
 
-struct CommonVars {
+struct CommonVars
+{
     Date today, settlement;
     Calendar calendar;
     Natural settlementDays;
@@ -65,7 +68,8 @@ struct CommonVars {
 
     // utilities
 
-    CommonVars() {
+    CommonVars()
+    {
         settlementDays = 2;
         businessConvention = Unadjusted;
         dayCount = SimpleDayCounter();
@@ -74,9 +78,8 @@ struct CommonVars {
         fixedFrequency = Annual;
         floatingTenor = 6 * Months;
 
-        index = ext::make_shared<IborIndex>(
-                "FTK_IDX", floatingTenor, settlementDays, ccy, calendar,
-                              businessConvention, false, dayCount, ftkCurveHandle);
+        index = ext::make_shared<IborIndex>("FTK_IDX", floatingTenor, settlementDays, ccy, calendar, businessConvention,
+                                            false, dayCount, ftkCurveHandle);
 
         /* Data source: https://fred.stlouisfed.org/
            Note that these rates are used as a proxy.
@@ -84,16 +87,14 @@ struct CommonVars {
            In order to fully replicate the rates published by the Dutch Central Bank
            (with the required accuracy) one needs to use Bloomberg CMPL BID Euribor 6m swap
            rates as stated in the documentation: https://www.toezicht.dnb.nl */
-        Datum swapData[] = {{1, Years, -0.00315}, {2, Years, -0.00205}, {3, Years, -0.00144},
-                            {4, Years, -0.00068}, {5, Years, 0.00014},  {6, Years, 0.00103},
-                            {7, Years, 0.00194},  {8, Years, 0.00288},  {9, Years, 0.00381},
-                            {10, Years, 0.00471}, {12, Years, 0.0063},  {15, Years, 0.00808},
-                            {20, Years, 0.00973}, {25, Years, 0.01035}, {30, Years, 0.01055},
-                            {40, Years, 0.0103},  {50, Years, 0.0103}};
+        Datum swapData[] = {{1, Years, -0.00315}, {2, Years, -0.00205}, {3, Years, -0.00144}, {4, Years, -0.00068},
+                            {5, Years, 0.00014},  {6, Years, 0.00103},  {7, Years, 0.00194},  {8, Years, 0.00288},
+                            {9, Years, 0.00381},  {10, Years, 0.00471}, {12, Years, 0.0063},  {15, Years, 0.00808},
+                            {20, Years, 0.00973}, {25, Years, 0.01035}, {30, Years, 0.01055}, {40, Years, 0.0103},
+                            {50, Years, 0.0103}};
 
         InterestRate ufr(0.023, dayCount, Compounded, Annual);
-        ufrRate = ext::shared_ptr<Quote>(
-                new SimpleQuote(ufr.equivalentRate(Continuous, Annual, 1.0)));
+        ufrRate = ext::shared_ptr<Quote>(new SimpleQuote(ufr.equivalentRate(Continuous, Annual, 1.0)));
         fsp = 20 * Years;
         alpha = 0.1;
 
@@ -102,21 +103,23 @@ struct CommonVars {
         settlement = calendar.advance(today, settlementDays, Days);
 
         Size nInstruments = std::size(swapData);
-        std::vector<ext::shared_ptr<RateHelper> > instruments(nInstruments);
-        for (Size i = 0; i < nInstruments; i++) {
-            instruments[i] = ext::shared_ptr<RateHelper>(new SwapRateHelper(
-                    swapData[i].rate, Period(swapData[i].n, swapData[i].units), calendar,
-                    fixedFrequency, businessConvention, dayCount, index));
+        std::vector<ext::shared_ptr<RateHelper>> instruments(nInstruments);
+        for (Size i = 0; i < nInstruments; i++)
+        {
+            instruments[i] = ext::shared_ptr<RateHelper>(
+                new SwapRateHelper(swapData[i].rate, Period(swapData[i].n, swapData[i].units), calendar, fixedFrequency,
+                                   businessConvention, dayCount, index));
         }
 
         ext::shared_ptr<YieldTermStructure> ftkCurve(
-                new PiecewiseYieldCurve<Discount, LogLinear>(settlement, instruments, dayCount));
+            new PiecewiseYieldCurve<Discount, LogLinear>(settlement, instruments, dayCount));
         ftkCurve->enableExtrapolation();
         ftkCurveHandle.linkTo(ftkCurve);
     }
 };
 
-ext::shared_ptr<Quote> calculateLLFR(const Handle<YieldTermStructure>& ts, const Period& fsp) {
+ext::shared_ptr<Quote> calculateLLFR(const Handle<YieldTermStructure>& ts, const Period& fsp)
+{
     DayCounter dc = ts->dayCounter();
     Real omega = 8.0 / 15.0;
     Time cutOff = ts->timeFromReference(ts->referenceDate() + fsp);
@@ -124,14 +127,16 @@ ext::shared_ptr<Quote> calculateLLFR(const Handle<YieldTermStructure>& ts, const
     LLFRWeight llfrWeights[] = {{25.0, 1.0}, {30.0, 0.5}, {40.0, 0.25}, {50.0, 0.125}};
     Size nWeights = std::size(llfrWeights);
     Rate llfr = 0.0;
-    for (Size j = 0; j < nWeights; j++) {
+    for (Size j = 0; j < nWeights; j++)
+    {
         LLFRWeight w = llfrWeights[j];
         llfr += w.weight * ts->forwardRate(cutOff, w.ttm, Continuous, NoFrequency, true);
     }
     return ext::shared_ptr<Quote>(new SimpleQuote(omega * llfr));
 }
 
-Rate calculateExtrapolatedForward(Time t, Time fsp, Rate llfr, Rate ufr, Real alpha) {
+Rate calculateExtrapolatedForward(Time t, Time fsp, Rate llfr, Rate ufr, Real alpha)
+{
     Time deltaT = t - fsp;
     Real beta = (1.0 - std::exp(-alpha * deltaT)) / (alpha * deltaT);
     return ufr + (llfr - ufr) * beta;
@@ -141,18 +146,20 @@ void checkDutchBankRates(const std::vector<Datum>& expectedRates,
                          const ext::optional<Integer>& rounding = ext::nullopt,
                          Compounding compounding = Compounded,
                          Frequency frequency = Annual,
-                         Real tolerance = 1.0e-4) {
+                         Real tolerance = 1.0e-4)
+{
     CommonVars vars;
 
     ext::shared_ptr<Quote> llfr = calculateLLFR(vars.ftkCurveHandle, vars.fsp);
 
-    ext::shared_ptr<YieldTermStructure> ufrTs(new UltimateForwardTermStructure(
-        vars.ftkCurveHandle, Handle<Quote>(llfr), Handle<Quote>(vars.ufrRate), vars.fsp, vars.alpha,
-        rounding, compounding, frequency));
+    ext::shared_ptr<YieldTermStructure> ufrTs(
+        new UltimateForwardTermStructure(vars.ftkCurveHandle, Handle<Quote>(llfr), Handle<Quote>(vars.ufrRate),
+                                         vars.fsp, vars.alpha, rounding, compounding, frequency));
 
     Size nRates = std::size(expectedRates);
 
-    for (Size i = 0; i < nRates; ++i) {
+    for (Size i = 0; i < nRates; ++i)
+    {
         Period p = expectedRates[i].n * expectedRates[i].units;
         Date maturity = vars.settlement + p;
 
@@ -167,85 +174,81 @@ void checkDutchBankRates(const std::vector<Datum>& expectedRates,
     }
 }
 
-BOOST_AUTO_TEST_CASE(testDutchCentralBankRates) {
+BOOST_AUTO_TEST_CASE(testDutchCentralBankRates)
+{
     BOOST_TEST_MESSAGE("Testing DNB replication of UFR zero annually compounded rates...");
 
     std::vector<Datum> expectedRates{
-        {10, Years, 0.00477}, {20, Years, 0.01004}, {30, Years, 0.01223}, {40, Years, 0.01433},
-        {50, Years, 0.01589}, {60, Years, 0.01702}, {70, Years, 0.01785}, {80, Years, 0.01849},
-        {90, Years, 0.01899}, {100, Years, 0.01939}};
+        {10, Years, 0.00477}, {20, Years, 0.01004}, {30, Years, 0.01223}, {40, Years, 0.01433}, {50, Years, 0.01589},
+        {60, Years, 0.01702}, {70, Years, 0.01785}, {80, Years, 0.01849}, {90, Years, 0.01899}, {100, Years, 0.01939}};
     checkDutchBankRates(expectedRates);
 }
 
-BOOST_AUTO_TEST_CASE(testDutchCentralBankRatesWithRounding) {
-    BOOST_TEST_MESSAGE(
-        "Testing DNB replication of UFR zero annually compounded rates with rounding...");
-    std::vector<Datum> expectedRates{{10, Years, 0.005}, {20, Years, 0.01},   {30, Years, 0.012},
-                                     {40, Years, 0.014}, {50, Years, 0.016}, {60, Years, 0.017},
-                                     {70, Years, 0.018}, {80, Years, 0.018}, {90, Years, 0.019},
-                                     {100, Years, 0.019}};
+BOOST_AUTO_TEST_CASE(testDutchCentralBankRatesWithRounding)
+{
+    BOOST_TEST_MESSAGE("Testing DNB replication of UFR zero annually compounded rates with rounding...");
+    std::vector<Datum> expectedRates{{10, Years, 0.005}, {20, Years, 0.01},  {30, Years, 0.012}, {40, Years, 0.014},
+                                     {50, Years, 0.016}, {60, Years, 0.017}, {70, Years, 0.018}, {80, Years, 0.018},
+                                     {90, Years, 0.019}, {100, Years, 0.019}};
 
     checkDutchBankRates(expectedRates, 3, Compounded, Annual, 1.e-12);
 }
 
-BOOST_AUTO_TEST_CASE(testDutchCentralBankRatesWithRoundingAndContinuousCompounding) {
-    BOOST_TEST_MESSAGE(
-        "Testing DNB replication of UFR zero continuously compounded rates with rounding...");
+BOOST_AUTO_TEST_CASE(testDutchCentralBankRatesWithRoundingAndContinuousCompounding)
+{
+    BOOST_TEST_MESSAGE("Testing DNB replication of UFR zero continuously compounded rates with rounding...");
     std::vector<Datum> expectedRates{
-        {10, Years, 0.00477}, {20, Years, 0.01002}, {30, Years, 0.01211}, {40, Years, 0.01417},
-        {50, Years, 0.01571}, {60, Years, 0.01683}, {70, Years, 0.01766}, {80, Years, 0.01829},
-        {90, Years, 0.01878}, {100, Years, 0.01917}};
+        {10, Years, 0.00477}, {20, Years, 0.01002}, {30, Years, 0.01211}, {40, Years, 0.01417}, {50, Years, 0.01571},
+        {60, Years, 0.01683}, {70, Years, 0.01766}, {80, Years, 0.01829}, {90, Years, 0.01878}, {100, Years, 0.01917}};
 
     checkDutchBankRates(expectedRates, 5, Continuous, NoFrequency, 1.e-12);
 }
 
-BOOST_AUTO_TEST_CASE(testExtrapolatedForward) {
+BOOST_AUTO_TEST_CASE(testExtrapolatedForward)
+{
     BOOST_TEST_MESSAGE("Testing continuous forward rates in extrapolation region...");
 
     CommonVars vars;
 
     ext::shared_ptr<Quote> llfr(new SimpleQuote(0.0125));
 
-    ext::shared_ptr<YieldTermStructure> ufrTs(
-        new UltimateForwardTermStructure(vars.ftkCurveHandle, Handle<Quote>(llfr),
-                                         Handle<Quote>(vars.ufrRate), vars.fsp, vars.alpha));
+    ext::shared_ptr<YieldTermStructure> ufrTs(new UltimateForwardTermStructure(
+        vars.ftkCurveHandle, Handle<Quote>(llfr), Handle<Quote>(vars.ufrRate), vars.fsp, vars.alpha));
     Time cutOff = ufrTs->timeFromReference(ufrTs->referenceDate() + vars.fsp);
 
     Period tenors[] = {
-        20 * Years, 30 * Years, 40 * Years, 50 * Years,  60 * Years,
-        70 * Years, 80 * Years, 90 * Years, 100 * Years,
+        20 * Years, 30 * Years, 40 * Years, 50 * Years, 60 * Years, 70 * Years, 80 * Years, 90 * Years, 100 * Years,
     };
 
     Size nTenors = std::size(tenors);
 
-    for (Size i = 0; i < nTenors; ++i) {
+    for (Size i = 0; i < nTenors; ++i)
+    {
         Date maturity = vars.settlement + tenors[i];
         Time t = ufrTs->timeFromReference(maturity);
 
         Rate actual = ufrTs->forwardRate(cutOff, t, Continuous, NoFrequency, true).rate();
-        Rate expected = calculateExtrapolatedForward(t, cutOff, llfr->value(),
-                                                     vars.ufrRate->value(), vars.alpha);
+        Rate expected = calculateExtrapolatedForward(t, cutOff, llfr->value(), vars.ufrRate->value(), vars.alpha);
 
         Real tolerance = 1.0e-10;
         if (std::fabs(actual - expected) > tolerance)
             BOOST_ERROR("unable to replicate the forward rate from the UFR curve\n"
-                        << std::setprecision(5) 
-                        << "    calculated: " << actual << "\n"
+                        << std::setprecision(5) << "    calculated: " << actual << "\n"
                         << "    expected:   " << expected << "\n"
                         << "    tenor:       " << tenors[i] << "\n");
     }
 }
 
-BOOST_AUTO_TEST_CASE(testZeroRateAtFirstSmoothingPoint) {
+BOOST_AUTO_TEST_CASE(testZeroRateAtFirstSmoothingPoint)
+{
     BOOST_TEST_MESSAGE("Testing zero rate on the first smoothing point...");
 
     CommonVars vars;
 
     ext::shared_ptr<Quote> llfr(new SimpleQuote(0.0125));
 
-    ext::shared_ptr<YieldTermStructure> ufrTs(
-        new UltimateForwardTermStructure(vars.ftkCurveHandle, Handle<Quote>(llfr),
-                                         Handle<Quote>(vars.ufrRate), vars.fsp, vars.alpha));
+    ext::shared_ptr<YieldTermStructure> ufrTs(new UltimateForwardTermStructure(
+        vars.ftkCurveHandle, Handle<Quote>(llfr), Handle<Quote>(vars.ufrRate), vars.fsp, vars.alpha));
     Time cutOff = ufrTs->timeFromReference(ufrTs->referenceDate() + vars.fsp);
 
     Rate actual = ufrTs->zeroRate(cutOff, Continuous, NoFrequency, true).rate();
@@ -254,22 +257,21 @@ BOOST_AUTO_TEST_CASE(testZeroRateAtFirstSmoothingPoint) {
     Real tolerance = 1.0e-10;
     if (std::fabs(actual - expected) > tolerance)
         BOOST_ERROR("unable to replicate the zero rate on the First Smoothing Point\n"
-                    << std::setprecision(5) 
-                    << "    calculated: " << actual << "\n"
+                    << std::setprecision(5) << "    calculated: " << actual << "\n"
                     << "    expected:   " << expected << "\n"
                     << "    FSP:       " << vars.fsp << "\n");
 }
 
-BOOST_AUTO_TEST_CASE(testThatInspectorsEqualToBaseCurve) {
+BOOST_AUTO_TEST_CASE(testThatInspectorsEqualToBaseCurve)
+{
     BOOST_TEST_MESSAGE("Testing UFR curve inspectors...");
 
     CommonVars vars;
 
     ext::shared_ptr<Quote> llfr(new SimpleQuote(0.0125));
 
-    ext::shared_ptr<YieldTermStructure> ufrTs(
-        new UltimateForwardTermStructure(vars.ftkCurveHandle, Handle<Quote>(llfr),
-                                         Handle<Quote>(vars.ufrRate), vars.fsp, vars.alpha));
+    ext::shared_ptr<YieldTermStructure> ufrTs(new UltimateForwardTermStructure(
+        vars.ftkCurveHandle, Handle<Quote>(llfr), Handle<Quote>(vars.ufrRate), vars.fsp, vars.alpha));
 
     if (ufrTs->dayCounter() != vars.ftkCurveHandle->dayCounter())
         BOOST_ERROR("different day counter on the UFR curve than on the base curve\n"
@@ -292,7 +294,8 @@ BOOST_AUTO_TEST_CASE(testThatInspectorsEqualToBaseCurve) {
                     << "    base curve:   " << vars.ftkCurveHandle->maxTime() << "\n");
 }
 
-BOOST_AUTO_TEST_CASE(testExceptionWhenFspLessOrEqualZero) {
+BOOST_AUTO_TEST_CASE(testExceptionWhenFspLessOrEqualZero)
+{
     BOOST_TEST_MESSAGE("Testing exception when the first smoothing point is less than or equal to zero...");
 
     CommonVars vars;
@@ -300,19 +303,18 @@ BOOST_AUTO_TEST_CASE(testExceptionWhenFspLessOrEqualZero) {
     ext::shared_ptr<Quote> llfr(new SimpleQuote(0.0125));
 
     BOOST_CHECK_THROW(
-        ext::shared_ptr<YieldTermStructure> ufrTsZeroPeriod(
-            new UltimateForwardTermStructure(vars.ftkCurveHandle, Handle<Quote>(llfr),
-                                             Handle<Quote>(vars.ufrRate), 0 * Years, vars.alpha)),
+        ext::shared_ptr<YieldTermStructure> ufrTsZeroPeriod(new UltimateForwardTermStructure(
+            vars.ftkCurveHandle, Handle<Quote>(llfr), Handle<Quote>(vars.ufrRate), 0 * Years, vars.alpha)),
         Error);
 
     BOOST_CHECK_THROW(
-        ext::shared_ptr<YieldTermStructure> ufrTsNegativePeriod(
-            new UltimateForwardTermStructure(vars.ftkCurveHandle, Handle<Quote>(llfr),
-                                             Handle<Quote>(vars.ufrRate), -1 * Years, vars.alpha)),
+        ext::shared_ptr<YieldTermStructure> ufrTsNegativePeriod(new UltimateForwardTermStructure(
+            vars.ftkCurveHandle, Handle<Quote>(llfr), Handle<Quote>(vars.ufrRate), -1 * Years, vars.alpha)),
         Error);
 }
 
-BOOST_AUTO_TEST_CASE(testObservability) {
+BOOST_AUTO_TEST_CASE(testObservability)
+{
     BOOST_TEST_MESSAGE("Testing observability of the UFR curve...");
 
     CommonVars vars;
@@ -321,8 +323,8 @@ BOOST_AUTO_TEST_CASE(testObservability) {
     Handle<Quote> llfr_quote(llfr);
     ext::shared_ptr<SimpleQuote> ufr(new SimpleQuote(0.02));
     Handle<Quote> ufr_handle(ufr);
-    ext::shared_ptr<YieldTermStructure> ufrTs(new UltimateForwardTermStructure(
-        vars.ftkCurveHandle, llfr_quote, ufr_handle, vars.fsp, vars.alpha));
+    ext::shared_ptr<YieldTermStructure> ufrTs(
+        new UltimateForwardTermStructure(vars.ftkCurveHandle, llfr_quote, ufr_handle, vars.fsp, vars.alpha));
 
     Flag flag;
     flag.registerWith(ufrTs);

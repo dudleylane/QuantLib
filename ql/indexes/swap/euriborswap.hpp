@@ -26,7 +26,8 @@
 
 #include <ql/indexes/swapindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %EuriborSwapIsdaFixA index base class
     /*! %Euribor %Swap indexes fixed by ISDA in cooperation with
@@ -38,10 +39,10 @@ namespace QuantLib {
         Reuters page ISDAFIX.
 
     */
-    class EuriborSwapIsdaFixA : public SwapIndex {
+    class EuriborSwapIsdaFixA : public SwapIndex
+    {
       public:
-        EuriborSwapIsdaFixA(const Period& tenor,
-                            const Handle<YieldTermStructure>& h = {});
+        EuriborSwapIsdaFixA(const Period& tenor, const Handle<YieldTermStructure>& h = {});
         EuriborSwapIsdaFixA(const Period& tenor,
                             const Handle<YieldTermStructure>& forwarding,
                             const Handle<YieldTermStructure>& discounting);
@@ -57,10 +58,10 @@ namespace QuantLib {
         Reuters page ISDAFIX.
 
     */
-    class EuriborSwapIsdaFixB : public SwapIndex {
+    class EuriborSwapIsdaFixB : public SwapIndex
+    {
       public:
-        EuriborSwapIsdaFixB(const Period& tenor,
-                            const Handle<YieldTermStructure>& h = {});
+        EuriborSwapIsdaFixB(const Period& tenor, const Handle<YieldTermStructure>& h = {});
         EuriborSwapIsdaFixB(const Period& tenor,
                             const Handle<YieldTermStructure>& forwarding,
                             const Handle<YieldTermStructure>& discounting);
@@ -73,10 +74,10 @@ namespace QuantLib {
         For more info see <http://www.ifrmarkets.com>.
 
     */
-    class EuriborSwapIfrFix : public SwapIndex {
+    class EuriborSwapIfrFix : public SwapIndex
+    {
       public:
-        EuriborSwapIfrFix(const Period& tenor,
-                          const Handle<YieldTermStructure>& h = {});
+        EuriborSwapIfrFix(const Period& tenor, const Handle<YieldTermStructure>& h = {});
         EuriborSwapIfrFix(const Period& tenor,
                           const Handle<YieldTermStructure>& forwarding,
                           const Handle<YieldTermStructure>& discounting);

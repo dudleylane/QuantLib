@@ -24,11 +24,12 @@
 #ifndef quantlib_fd_ndim_black_scholes_vanilla_engine_hpp
 #define quantlib_fd_ndim_black_scholes_vanilla_engine_hpp
 
-#include <ql/math/matrix.hpp>
 #include <ql/instruments/basketoption.hpp>
+#include <ql/math/matrix.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class GeneralizedBlackScholesProcess;
 
@@ -40,27 +41,29 @@ namespace QuantLib {
               reproducing results available in web/literature
               and comparison with the PyFENG python package.
     */
-    class FdndimBlackScholesVanillaEngine : public BasketOption::engine {
+    class FdndimBlackScholesVanillaEngine : public BasketOption::engine
+    {
       public:
-        FdndimBlackScholesVanillaEngine(
-            std::vector<ext::shared_ptr<GeneralizedBlackScholesProcess> > processes,
-            Matrix rho,
-            std::vector<Size> xGrids,
-            Size tGrid = 50, Size dampingSteps = 0,
-            const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas());
+        FdndimBlackScholesVanillaEngine(std::vector<ext::shared_ptr<GeneralizedBlackScholesProcess>> processes,
+                                        Matrix rho,
+                                        std::vector<Size> xGrids,
+                                        Size tGrid = 50,
+                                        Size dampingSteps = 0,
+                                        const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas());
 
 
         // Auto-scaling of grids, largest eigenvalue gets xGrid size.
-        FdndimBlackScholesVanillaEngine(
-            std::vector<ext::shared_ptr<GeneralizedBlackScholesProcess> > processes,
-            Matrix rho,
-            Size xGrid, Size tGrid = 50, Size dampingSteps = 0,
-            const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas());
+        FdndimBlackScholesVanillaEngine(std::vector<ext::shared_ptr<GeneralizedBlackScholesProcess>> processes,
+                                        Matrix rho,
+                                        Size xGrid,
+                                        Size tGrid = 50,
+                                        Size dampingSteps = 0,
+                                        const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas());
 
         void calculate() const override;
 
       private:
-        const std::vector<ext::shared_ptr<GeneralizedBlackScholesProcess> > processes_;
+        const std::vector<ext::shared_ptr<GeneralizedBlackScholesProcess>> processes_;
         const Matrix rho_;
         const std::vector<Size> xGrids_;
         const Size tGrid_, dampingSteps_;

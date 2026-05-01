@@ -24,22 +24,24 @@
 #ifndef quantlib_extended_black_variance_curve_hpp
 #define quantlib_extended_black_variance_curve_hpp
 
-#include <ql/termstructures/volatility/equityfx/blackvoltermstructure.hpp>
-#include <ql/math/interpolation.hpp>
 #include <ql/handle.hpp>
+#include <ql/math/interpolation.hpp>
 #include <ql/quote.hpp>
+#include <ql/termstructures/volatility/equityfx/blackvoltermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Black volatility curve modelled as variance curve
     /*! This class is similar to BlackVarianceCurve, but extends it to
         use quotes for the input volatilities.
     */
-    class ExtendedBlackVarianceCurve : public BlackVarianceTermStructure {
+    class ExtendedBlackVarianceCurve : public BlackVarianceTermStructure
+    {
       public:
         ExtendedBlackVarianceCurve(const Date& referenceDate,
                                    const std::vector<Date>& dates,
-                                   std::vector<Handle<Quote> > volatilities,
+                                   std::vector<Handle<Quote>> volatilities,
                                    DayCounter dayCounter,
                                    bool forceMonotoneVariance = true);
 
@@ -49,9 +51,9 @@ namespace QuantLib {
         Real maxStrike() const override;
 
         template <class Interpolator>
-        void setInterpolation(const Interpolator& i = Interpolator()) {
-            varianceCurve_ = i.interpolate(times_.begin(), times_.end(),
-                                           variances_.begin());
+        void setInterpolation(const Interpolator& i = Interpolator())
+        {
+            varianceCurve_ = i.interpolate(times_.begin(), times_.end(), variances_.begin());
             varianceCurve_.update();
             notifyObservers();
         }
@@ -64,26 +66,30 @@ namespace QuantLib {
         void setVariances();
         DayCounter dayCounter_;
         Date maxDate_;
-        std::vector<Handle<Quote> > volatilities_;
+        std::vector<Handle<Quote>> volatilities_;
         std::vector<Time> times_;
         std::vector<Real> variances_;
         Interpolation varianceCurve_;
         bool forceMonotoneVariance_;
     };
 
-    inline Date ExtendedBlackVarianceCurve::maxDate() const {
+    inline Date ExtendedBlackVarianceCurve::maxDate() const
+    {
         return maxDate_;
     }
 
-    inline Real ExtendedBlackVarianceCurve::minStrike() const {
+    inline Real ExtendedBlackVarianceCurve::minStrike() const
+    {
         return QL_MIN_REAL;
     }
 
-    inline Real ExtendedBlackVarianceCurve::maxStrike() const {
+    inline Real ExtendedBlackVarianceCurve::maxStrike() const
+    {
         return QL_MAX_REAL;
     }
 
-    inline void ExtendedBlackVarianceCurve::accept(AcyclicVisitor& v) {
+    inline void ExtendedBlackVarianceCurve::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<ExtendedBlackVarianceCurve>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);

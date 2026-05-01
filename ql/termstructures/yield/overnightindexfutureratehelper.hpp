@@ -29,10 +29,12 @@
 #include <ql/termstructures/yield/ratehelpers.hpp>
 #include <variant>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! RateHelper for bootstrapping over overnight compounding futures
-    class OvernightIndexFutureRateHelper : public RateHelper {
+    class OvernightIndexFutureRateHelper : public RateHelper
+    {
       public:
         OvernightIndexFutureRateHelper(const Handle<Quote>& price,
                                        // first day of reference period
@@ -55,6 +57,7 @@ namespace QuantLib {
         void accept(AcyclicVisitor&) override;
         //@}
         Real convexityAdjustment() const;
+
       private:
         ext::shared_ptr<OvernightIndexFuture> future_;
         RelinkableHandle<YieldTermStructure> termStructureHandle_;
@@ -68,7 +71,8 @@ namespace QuantLib {
         It requires the index history to be populated when the
         reference period starts in the past.
     */
-    class SofrFutureRateHelper : public OvernightIndexFutureRateHelper {
+    class SofrFutureRateHelper : public OvernightIndexFutureRateHelper
+    {
       public:
         SofrFutureRateHelper(const std::variant<Rate, Handle<Quote>>& price,
                              Month referenceMonth,

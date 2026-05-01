@@ -24,36 +24,34 @@
 #include <ql/payoff.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     MultiStepOptionlets::MultiStepOptionlets(const std::vector<Time>& rateTimes,
                                              std::vector<Real> accruals,
                                              const std::vector<Time>& paymentTimes,
-                                             std::vector<ext::shared_ptr<Payoff> > payoffs)
+                                             std::vector<ext::shared_ptr<Payoff>> payoffs)
     : MultiProductMultiStep(rateTimes), accruals_(std::move(accruals)), paymentTimes_(paymentTimes),
-      payoffs_(std::move(payoffs)) {
+      payoffs_(std::move(payoffs))
+    {
         checkIncreasingTimes(paymentTimes);
     }
 
-    bool MultiStepOptionlets::nextTimeStep(
-            const CurveState& currentState,
-            std::vector<Size>& numberCashFlowsThisStep,
-            std::vector<std::vector<MarketModelMultiProduct::CashFlow> >&
-                                                               genCashFlows) {
+    bool MultiStepOptionlets::nextTimeStep(const CurveState& currentState,
+                                           std::vector<Size>& numberCashFlowsThisStep,
+                                           std::vector<std::vector<MarketModelMultiProduct::CashFlow>>& genCashFlows)
+    {
         Rate liborRate = currentState.forwardRate(currentIndex_);
         genCashFlows[currentIndex_][0].timeIndex = currentIndex_;
-        genCashFlows[currentIndex_][0].amount =
-            (*payoffs_[currentIndex_])(liborRate) *
-            accruals_[currentIndex_];
-        std::fill(numberCashFlowsThisStep.begin(),
-                  numberCashFlowsThisStep.end(), 0);
+        genCashFlows[currentIndex_][0].amount = (*payoffs_[currentIndex_])(liborRate)*accruals_[currentIndex_];
+        std::fill(numberCashFlowsThisStep.begin(), numberCashFlowsThisStep.end(), 0);
         numberCashFlowsThisStep[currentIndex_] = 1;
         ++currentIndex_;
         return (currentIndex_ == payoffs_.size());
     }
 
-    std::unique_ptr<MarketModelMultiProduct>
-    MultiStepOptionlets::clone() const {
+    std::unique_ptr<MarketModelMultiProduct> MultiStepOptionlets::clone() const
+    {
         return std::unique_ptr<MarketModelMultiProduct>(new MultiStepOptionlets(*this));
     }
 

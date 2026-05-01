@@ -28,10 +28,10 @@
 #include <ql/math/matrix.hpp>
 #include <ql/shared_ptr.hpp>
 #include <ql/types.hpp>
-
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class FdmLinearOpLayout;
 
@@ -39,7 +39,8 @@ namespace QuantLib {
        of dimensions n >= 1 and non-equidistant grids. For n = 1 the method is identical  to linear
        interpolation with flat extrapolation. Reference: Numerical Recipes, 3rd edition, ch. 3.8. */
 
-    class LaplaceInterpolation {
+    class LaplaceInterpolation
+    {
       public:
         /*! Missing values y should be encoded as Null<Real>(). */
         LaplaceInterpolation(std::function<Real(const std::vector<Size>&)> y,

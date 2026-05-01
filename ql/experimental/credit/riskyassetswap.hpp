@@ -25,15 +25,17 @@
 #define quantlib_risky_asset_swap_hpp
 
 #include <ql/instrument.hpp>
+#include <ql/termstructures/credit/defaultprobabilityhelpers.hpp>
 #include <ql/termstructures/defaulttermstructure.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
-#include <ql/termstructures/credit/defaultprobabilityhelpers.hpp>
 #include <ql/time/schedule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Risky asset-swap instrument
-    class RiskyAssetSwap : public Instrument {
+    class RiskyAssetSwap : public Instrument
+    {
       public:
         RiskyAssetSwap(bool fixedPayer,
                        Real nominal,
@@ -47,7 +49,7 @@ namespace QuantLib {
                        Handle<DefaultProbabilityTermStructure> defaultTS,
                        Rate coupon = Null<Rate>());
 
-        Real fairSpread ();
+        Real fairSpread();
 
         Real floatAnnuity() const;
 
@@ -86,7 +88,8 @@ namespace QuantLib {
 
 
     // risky-asset-swap helper for probability-curve bootstrap
-    class AssetSwapHelper : public DefaultProbabilityHelper {
+    class AssetSwapHelper : public DefaultProbabilityHelper
+    {
       public:
         AssetSwapHelper(const Handle<Quote>& spread,
                         const Period& tenor,
@@ -129,4 +132,3 @@ namespace QuantLib {
 }
 
 #endif
-

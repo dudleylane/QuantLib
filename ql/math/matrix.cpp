@@ -23,25 +23,27 @@
 
 #include <ql/math/matrix.hpp>
 #if defined(QL_PATCH_MSVC)
-#pragma warning(push)
-#pragma warning(disable:4180)
-#pragma warning(disable:4127)
+#    pragma warning(push)
+#    pragma warning(disable : 4180)
+#    pragma warning(disable : 4127)
 #endif
 
 #if BOOST_VERSION == 106400
-#include <boost/serialization/array_wrapper.hpp>
+#    include <boost/serialization/array_wrapper.hpp>
 #endif
-#include <boost/numeric/ublas/vector_proxy.hpp>
-#include <boost/numeric/ublas/triangular.hpp>
 #include <boost/numeric/ublas/lu.hpp>
+#include <boost/numeric/ublas/triangular.hpp>
+#include <boost/numeric/ublas/vector_proxy.hpp>
 
 #if defined(QL_PATCH_MSVC)
-#pragma warning(pop)
+#    pragma warning(pop)
 #endif
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Matrix inverse(const Matrix& m) {
+    Matrix inverse(const Matrix& m)
+    {
         QL_REQUIRE(m.rows() == m.columns(), "matrix is not square");
 
         boost::numeric::ublas::matrix<Real> a(m.rows(), m.columns());
@@ -52,33 +54,40 @@ namespace QuantLib {
 
         // lu decomposition
         Size singular = 1;
-        try {
+        try
+        {
             singular = lu_factorize(a, pert);
-        } catch (const boost::numeric::ublas::internal_logic& e) {
+        }
+        catch (const boost::numeric::ublas::internal_logic& e)
+        {
             QL_FAIL("lu_factorize error: " << e.what());
-        } catch (const boost::numeric::ublas::external_logic& e) {
+        }
+        catch (const boost::numeric::ublas::external_logic& e)
+        {
             QL_FAIL("lu_factorize error: " << e.what());
         }
         QL_REQUIRE(singular == 0, "singular matrix given");
 
-        boost::numeric::ublas::matrix<Real>
-            inverse = boost::numeric::ublas::identity_matrix<Real>(m.rows());
+        boost::numeric::ublas::matrix<Real> inverse = boost::numeric::ublas::identity_matrix<Real>(m.rows());
 
         // backsubstitution
-        try {
+        try
+        {
             boost::numeric::ublas::lu_substitute(a, pert, inverse);
-        } catch (const boost::numeric::ublas::internal_logic& e) {
+        }
+        catch (const boost::numeric::ublas::internal_logic& e)
+        {
             QL_FAIL("lu_substitute error: " << e.what());
         }
 
         Matrix retVal(m.rows(), m.columns());
-        std::copy(inverse.data().begin(), inverse.data().end(),
-                  retVal.begin());
+        std::copy(inverse.data().begin(), inverse.data().end(), retVal.begin());
 
         return retVal;
     }
 
-    Real determinant(const Matrix& m) {
+    Real determinant(const Matrix& m)
+    {
         QL_REQUIRE(m.rows() == m.columns(), "matrix is not square");
 
         boost::numeric::ublas::matrix<Real> a(m.rows(), m.columns());
@@ -91,11 +100,12 @@ namespace QuantLib {
 
         Real retVal = 1.0;
 
-        for (Size i=0; i < m.rows(); ++i) {
+        for (Size i = 0; i < m.rows(); ++i)
+        {
             if (pert[i] != i)
-                retVal *= -a(i,i);
+                retVal *= -a(i, i);
             else
-                retVal *=  a(i,i);
+                retVal *= a(i, i);
         }
         return retVal;
     }

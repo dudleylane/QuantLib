@@ -26,7 +26,8 @@
 
 #include <ql/pricingengines/basket/spreadblackscholesvanillaengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Pricing engine for spread option on two futures
     /*! P. Bjerksund and G. Stensland,
@@ -35,16 +36,21 @@ namespace QuantLib {
 
         \ingroup basketengines
     */
-    class BjerksundStenslandSpreadEngine : public SpreadBlackScholesVanillaEngine {
+    class BjerksundStenslandSpreadEngine : public SpreadBlackScholesVanillaEngine
+    {
       public:
-        BjerksundStenslandSpreadEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess> process1,
-            ext::shared_ptr<GeneralizedBlackScholesProcess> process2,
-            Real correlation);
+        BjerksundStenslandSpreadEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process1,
+                                       ext::shared_ptr<GeneralizedBlackScholesProcess> process2,
+                                       Real correlation);
 
       protected:
-        Real calculate(Real f1, Real f2, Real strike, Option::Type optionType,
-            Real variance1, Real variance2, DiscountFactor df) const override;
+        Real calculate(Real f1,
+                       Real f2,
+                       Real strike,
+                       Option::Type optionType,
+                       Real variance1,
+                       Real variance2,
+                       DiscountFactor df) const override;
     };
 }
 

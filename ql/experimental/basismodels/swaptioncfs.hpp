@@ -29,9 +29,11 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/time/date.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class IborLegCashFlows {
+    class IborLegCashFlows
+    {
       protected:
         Date refDate_; // today, base for time calculations w.r.t. Act/365 (Fixed)
         Leg floatLeg_;
@@ -50,7 +52,8 @@ namespace QuantLib {
     };
 
 
-    class SwapCashFlows : public IborLegCashFlows {
+    class SwapCashFlows : public IborLegCashFlows
+    {
       protected:
         // resulting cash flows as leg
         Leg fixedLeg_;
@@ -72,7 +75,8 @@ namespace QuantLib {
     };
 
 
-    class SwaptionCashFlows : public SwapCashFlows {
+    class SwaptionCashFlows : public SwapCashFlows
+    {
       protected:
         ext::shared_ptr<Swaption> swaption_;
         std::vector<Real> exerciseTimes_;

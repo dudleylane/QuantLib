@@ -17,14 +17,17 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/currencies/europe.hpp>
 #include <ql/indexes/ibor/saron.hpp>
 #include <ql/time/calendars/switzerland.hpp>
 #include <ql/time/daycounters/actual360.hpp>
-#include <ql/currencies/europe.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     Saron::Saron(const Handle<YieldTermStructure>& h)
-    : OvernightIndex("SARON", 0, CHFCurrency(), Switzerland(), Actual360(), h) {}
+    : OvernightIndex("SARON", 0, CHFCurrency(), Switzerland(), Actual360(), h)
+    {
+    }
 
 }

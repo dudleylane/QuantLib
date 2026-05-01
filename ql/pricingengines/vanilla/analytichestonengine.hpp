@@ -25,16 +25,17 @@
 #ifndef quantlib_analytic_heston_engine_hpp
 #define quantlib_analytic_heston_engine_hpp
 
-#include <ql/utilities/null.hpp>
-#include <ql/math/integrals/integral.hpp>
-#include <ql/math/integrals/gaussianquadratures.hpp>
-#include <ql/pricingengines/genericmodelengine.hpp>
-#include <ql/models/equity/hestonmodel.hpp>
 #include <ql/instruments/vanillaoption.hpp>
-#include <functional>
+#include <ql/math/integrals/gaussianquadratures.hpp>
+#include <ql/math/integrals/integral.hpp>
+#include <ql/models/equity/hestonmodel.hpp>
+#include <ql/pricingengines/genericmodelengine.hpp>
+#include <ql/utilities/null.hpp>
 #include <complex>
+#include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! analytic Heston-model engine based on Fourier transform
 
@@ -89,15 +90,15 @@ namespace QuantLib {
               and comparison with Black pricing.
     */
     class AnalyticHestonEngine
-        : public GenericModelEngine<HestonModel,
-                                    VanillaOption::arguments,
-                                    VanillaOption::results> {
+    : public GenericModelEngine<HestonModel, VanillaOption::arguments, VanillaOption::results>
+    {
       public:
         class Integration;
         class OptimalAlpha;
         class AP_Helper;
 
-        enum ComplexLogFormula {
+        enum ComplexLogFormula
+        {
             // Gatheral form of characteristic function w/o control variate
             Gatheral,
             // old branch correction form of the characteristic function w/o control variate
@@ -122,18 +123,17 @@ namespace QuantLib {
         // Be aware: using a too large number for maxEvaluations might result
         // in a stack overflow as the Lobatto integration is a recursive
         // algorithm.
-        AnalyticHestonEngine(const ext::shared_ptr<HestonModel>& model,
-                             Real relTolerance, Size maxEvaluations);
+        AnalyticHestonEngine(const ext::shared_ptr<HestonModel>& model, Real relTolerance, Size maxEvaluations);
 
         // Constructor using Laguerre integration
         // and Gatheral's version of complex log.
-        AnalyticHestonEngine(const ext::shared_ptr<HestonModel>& model,
-                             Size integrationOrder = 144);
+        AnalyticHestonEngine(const ext::shared_ptr<HestonModel>& model, Size integrationOrder = 144);
 
         // Constructor giving full control
         // over the Fourier integration algorithm
         AnalyticHestonEngine(const ext::shared_ptr<HestonModel>& model,
-                             ComplexLogFormula cpxLog, const Integration& itg,
+                             ComplexLogFormula cpxLog,
+                             const Integration& itg,
                              Real andersenPiterbargEpsilon = 1e-25,
                              Real alpha = -0.5);
 
@@ -163,29 +163,21 @@ namespace QuantLib {
                                   Real& value,
                                   Size& evaluations);
 
-        Real priceVanillaPayoff(
-           const ext::shared_ptr<PlainVanillaPayoff>& payoff,
-           const Date& maturity) const;
+        Real priceVanillaPayoff(const ext::shared_ptr<PlainVanillaPayoff>& payoff, const Date& maturity) const;
 
-        Real priceVanillaPayoff(
-           const ext::shared_ptr<PlainVanillaPayoff>& payoff, Time maturity) const;
+        Real priceVanillaPayoff(const ext::shared_ptr<PlainVanillaPayoff>& payoff, Time maturity) const;
 
-        static ComplexLogFormula optimalControlVariate(
-             Time t, Real v0, Real kappa, Real theta, Real sigma, Real rho);
+        static ComplexLogFormula optimalControlVariate(Time t, Real v0, Real kappa, Real theta, Real sigma, Real rho);
 
       protected:
         // call back for extended stochastic volatility
         // plus jump diffusion engines like bates model
-        virtual std::complex<Real> addOnTerm(Real phi,
-                                             Time t,
-                                             Size j) const;
+        virtual std::complex<Real> addOnTerm(Real phi, Time t, Size j) const;
 
       private:
         class Fj_Helper;
 
-        Real priceVanillaPayoff(
-           const ext::shared_ptr<PlainVanillaPayoff>& payoff,
-           Time maturity, Real fwd) const;
+        Real priceVanillaPayoff(const ext::shared_ptr<PlainVanillaPayoff>& payoff, Time maturity, Real fwd) const;
 
 
         mutable Size evaluations_;
@@ -195,55 +187,59 @@ namespace QuantLib {
     };
 
 
-    class AnalyticHestonEngine::Integration {
+    class AnalyticHestonEngine::Integration
+    {
       public:
         // non adaptive integration algorithms based on Gaussian quadrature
-        static Integration gaussLaguerre    (Size integrationOrder = 128);
-        static Integration gaussLegendre    (Size integrationOrder = 128);
-        static Integration gaussChebyshev   (Size integrationOrder = 128);
+        static Integration gaussLaguerre(Size integrationOrder = 128);
+        static Integration gaussLegendre(Size integrationOrder = 128);
+        static Integration gaussChebyshev(Size integrationOrder = 128);
         static Integration gaussChebyshev2nd(Size integrationOrder = 128);
 
         // Gatheral's version has to be used for an adaptive integration
         // algorithm .Be aware: using a too large number for maxEvaluations might
         // result in a stack overflow as the these integrations are based on
         // recursive algorithms.
-        static Integration gaussLobatto(Real relTolerance, Real absTolerance,
+        static Integration gaussLobatto(Real relTolerance,
+                                        Real absTolerance,
                                         Size maxEvaluations = 1000,
                                         bool useConvergenceEstimate = false);
 
         // usually these routines have a poor convergence behavior.
-        static Integration gaussKronrod(Real absTolerance,
-                                        Size maxEvaluations = 1000);
-        static Integration simpson(Real absTolerance,
-                                   Size maxEvaluations = 1000);
-        static Integration trapezoid(Real absTolerance,
-                                     Size maxEvaluations = 1000);
+        static Integration gaussKronrod(Real absTolerance, Size maxEvaluations = 1000);
+        static Integration simpson(Real absTolerance, Size maxEvaluations = 1000);
+        static Integration trapezoid(Real absTolerance, Size maxEvaluations = 1000);
         static Integration discreteSimpson(Size evaluation = 1000);
         static Integration discreteTrapezoid(Size evaluation = 1000);
         static Integration expSinh(Real relTolerance = 1e-8);
 
-        static Real andersenPiterbargIntegrationLimit(
-            Real c_inf, Real epsilon, Real v0, Real t);
+        static Real andersenPiterbargIntegrationLimit(Real c_inf, Real epsilon, Real v0, Real t);
 
         Real calculate(Real c_inf,
                        const std::function<Real(Real)>& f,
                        const std::function<Real()>& maxBound = {},
                        Real scaling = 1.0) const;
 
-        Real calculate(Real c_inf,
-                       const std::function<Real(Real)>& f,
-                       Real maxBound) const;
+        Real calculate(Real c_inf, const std::function<Real(Real)>& f, Real maxBound) const;
 
         Size numberOfEvaluations() const;
         bool isAdaptiveIntegration() const;
 
       private:
         enum Algorithm
-            { GaussLobatto, GaussKronrod, Simpson, Trapezoid,
-              DiscreteTrapezoid, DiscreteSimpson,
-              GaussLaguerre, GaussLegendre,
-              GaussChebyshev, GaussChebyshev2nd,
-              ExpSinh};
+        {
+            GaussLobatto,
+            GaussKronrod,
+            Simpson,
+            Trapezoid,
+            DiscreteTrapezoid,
+            DiscreteSimpson,
+            GaussLaguerre,
+            GaussLegendre,
+            GaussChebyshev,
+            GaussChebyshev2nd,
+            ExpSinh
+        };
 
         Integration(Algorithm intAlgo, ext::shared_ptr<GaussianQuadrature> quadrature);
 
@@ -254,9 +250,12 @@ namespace QuantLib {
         const ext::shared_ptr<GaussianQuadrature> gaussianQuadrature_;
     };
 
-    class AnalyticHestonEngine::AP_Helper {
+    class AnalyticHestonEngine::AP_Helper
+    {
       public:
-        AP_Helper(Time term, Real fwd, Real strike,
+        AP_Helper(Time term,
+                  Real fwd,
+                  Real strike,
                   ComplexLogFormula cpxLog,
                   const AnalyticHestonEngine* enginePtr,
                   Real alpha = -0.5);
@@ -275,11 +274,10 @@ namespace QuantLib {
     };
 
 
-    class AnalyticHestonEngine::OptimalAlpha {
+    class AnalyticHestonEngine::OptimalAlpha
+    {
       public:
-        OptimalAlpha(
-            Time t,
-            const AnalyticHestonEngine* enginePtr);
+        OptimalAlpha(Time t, const AnalyticHestonEngine* enginePtr);
 
         Real operator()(Real strike) const;
         std::pair<Real, Real> alphaGreaterZero(Real strike) const;
@@ -304,9 +302,9 @@ namespace QuantLib {
     };
 
 
-    inline std::complex<Real> AnalyticHestonEngine::addOnTerm(
-        Real, Time, Size) const {
-        return std::complex<Real>(0,0);
+    inline std::complex<Real> AnalyticHestonEngine::addOnTerm(Real, Time, Size) const
+    {
+        return std::complex<Real>(0, 0);
     }
 }
 

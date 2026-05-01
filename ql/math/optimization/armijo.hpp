@@ -26,7 +26,8 @@
 
 #include <ql/math/optimization/linesearch.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class EndCriteria;
 
@@ -45,13 +46,14 @@ namespace QuantLib {
         volume 124 of Applied Mathematical Sciences, Springer-Verlag, NY,
         1997)
     */
-    class ArmijoLineSearch : public LineSearch {
+    class ArmijoLineSearch : public LineSearch
+    {
       public:
         //! Default constructor
-        ArmijoLineSearch(Real eps = 1e-8,
-                         Real alpha = 0.05,
-                         Real beta = 0.65)
-        : LineSearch(eps), alpha_(alpha), beta_(beta) {}
+        ArmijoLineSearch(Real eps = 1e-8, Real alpha = 0.05, Real beta = 0.65)
+        : LineSearch(eps), alpha_(alpha), beta_(beta)
+        {
+        }
 
         //! Perform line search
         Real operator()(Problem& P, // Optimization problem

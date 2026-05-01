@@ -24,18 +24,18 @@
 
 #include <ql/models/marketmodels/curvestate.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Curve state for constant-maturity-swap market models
-    class CMSwapCurveState : public CurveState {
+    class CMSwapCurveState : public CurveState
+    {
       public:
-        explicit CMSwapCurveState(const std::vector<Time>& rateTimes,
-                                  Size spanningForwards);
+        explicit CMSwapCurveState(const std::vector<Time>& rateTimes, Size spanningForwards);
 
         //! \name Modifiers
         //@{
-        void setOnCMSwapRates(const std::vector<Rate>& cmSwapRates,
-                              Size firstValidIndex = 0);
+        void setOnCMSwapRates(const std::vector<Rate>& cmSwapRates, Size firstValidIndex = 0);
         //@}
         //! \name Inspectors
         //@{

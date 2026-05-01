@@ -19,25 +19,31 @@
 
 #include <ql/instruments/simplifynotificationgraph.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
 
-    void simplifyNotificationGraph(Instrument& instrument, const Leg& leg, bool unregisterCoupons) {
-        for (auto const& coupon : leg) {
+    void simplifyNotificationGraph(Instrument& instrument, const Leg& leg, bool unregisterCoupons)
+    {
+        for (auto const& coupon : leg)
+        {
             instrument.unregisterWith(coupon);
             instrument.registerWithObservables(coupon);
-            if (unregisterCoupons) {
+            if (unregisterCoupons)
+            {
                 coupon->unregisterWithAll();
             }
         }
     }
 
-    void simplifyNotificationGraph(Swap& swap, const bool unregisterCoupons) {
+    void simplifyNotificationGraph(Swap& swap, const bool unregisterCoupons)
+    {
         for (auto const& leg : swap.legs())
             simplifyNotificationGraph(swap, leg, unregisterCoupons);
     }
 
-    void simplifyNotificationGraph(Bond& bond, const bool unregisterCoupons) {
+    void simplifyNotificationGraph(Bond& bond, const bool unregisterCoupons)
+    {
         simplifyNotificationGraph(bond, bond.cashflows(), unregisterCoupons);
     }
 

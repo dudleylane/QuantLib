@@ -40,8 +40,7 @@
              condition is not checked for performance reasons.
 */
 
-#define QL_PIECEWISE_FUNCTION(X, Y, x)                                         \
-    Y[std::min<std::size_t>(                                                   \
-        std::upper_bound(X.begin(), X.end(), x) - X.begin(), Y.size() - 1)]
+#define QL_PIECEWISE_FUNCTION(X, Y, x) \
+    Y[std::min<std::size_t>(std::upper_bound(X.begin(), X.end(), x) - X.begin(), Y.size() - 1)]
 
 #endif

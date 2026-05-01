@@ -19,7 +19,7 @@
 
 
 /*! \file boundaryconditionschemehelper.hpp
-*/
+ */
 
 #ifndef quantlib_boundary_condition_scheme_helper_hpp
 #define quantlib_boundary_condition_scheme_helper_hpp
@@ -27,33 +27,39 @@
 #include <ql/methods/finitedifferences/utilities/fdmboundaryconditionset.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class BoundaryConditionSchemeHelper {
+    class BoundaryConditionSchemeHelper
+    {
       public:
         typedef OperatorTraits<FdmLinearOp>::array_type array_type;
         typedef OperatorTraits<FdmLinearOp>::operator_type operator_type;
 
-        explicit BoundaryConditionSchemeHelper(OperatorTraits<FdmLinearOp>::bc_set bcSet)
-        : bcSet_(std::move(bcSet)) {}
+        explicit BoundaryConditionSchemeHelper(OperatorTraits<FdmLinearOp>::bc_set bcSet) : bcSet_(std::move(bcSet)) {}
 
-        void applyBeforeApplying(operator_type& op) const {
+        void applyBeforeApplying(operator_type& op) const
+        {
             for (const auto& i : bcSet_)
                 i->applyBeforeApplying(op);
         }
-        void applyBeforeSolving(operator_type& op, array_type& a) const {
+        void applyBeforeSolving(operator_type& op, array_type& a) const
+        {
             for (const auto& i : bcSet_)
                 i->applyBeforeSolving(op, a);
         }
-        void applyAfterApplying(array_type& a) const {
+        void applyAfterApplying(array_type& a) const
+        {
             for (const auto& i : bcSet_)
                 i->applyAfterApplying(a);
         }
-        void applyAfterSolving(array_type& a) const {
+        void applyAfterSolving(array_type& a) const
+        {
             for (const auto& i : bcSet_)
                 i->applyAfterSolving(a);
         }
-        void setTime(Time t) const {
+        void setTime(Time t) const
+        {
             for (const auto& i : bcSet_)
                 i->setTime(t);
         }

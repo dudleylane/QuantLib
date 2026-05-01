@@ -24,10 +24,11 @@
 #ifndef quantlib_libor_market_hull_white_parameterization_hpp
 #define quantlib_libor_market_hull_white_parameterization_hpp
 
-#include <ql/legacy/libormarketmodels/lfmprocess.hpp>
 #include <ql/legacy/libormarketmodels/lfmcovarparam.hpp>
+#include <ql/legacy/libormarketmodels/lfmprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Libor market model parameterization based on Hull White paper
     /*! Hull, John, White, Alan, 1999, Forward Rate Volatilities, Swap Rate
@@ -38,12 +39,13 @@ namespace QuantLib {
               caplet & ratchet npvs and comparison with Black pricing.
     */
 
-    class LfmHullWhiteParameterization : public LfmCovarianceParameterization {
+    class LfmHullWhiteParameterization : public LfmCovarianceParameterization
+    {
       public:
-        LfmHullWhiteParameterization(
-            const ext::shared_ptr<LiborForwardModelProcess> & process,
-            const ext::shared_ptr<OptionletVolatilityStructure> & capletVol,
-            const Matrix& correlation = Matrix(), Size factors = 1);
+        LfmHullWhiteParameterization(const ext::shared_ptr<LiborForwardModelProcess>& process,
+                                     const ext::shared_ptr<OptionletVolatilityStructure>& capletVol,
+                                     const Matrix& correlation = Matrix(),
+                                     Size factors = 1);
 
         Matrix diffusion(Time t, const Array& x = {}) const override;
         Matrix covariance(Time t, const Array& x = {}) const override;
@@ -60,4 +62,3 @@ namespace QuantLib {
 
 
 #endif
-

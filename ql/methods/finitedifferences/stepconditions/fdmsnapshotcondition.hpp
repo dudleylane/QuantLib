@@ -28,17 +28,19 @@
 
 #include <ql/methods/finitedifferences/stepcondition.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class FdmSnapshotCondition : public StepCondition<Array> {
-    public:
+    class FdmSnapshotCondition : public StepCondition<Array>
+    {
+      public:
         explicit FdmSnapshotCondition(Time t);
 
         void applyTo(Array& a, Time t) const override;
-        Time getTime() const;       
+        Time getTime() const;
         const Array& getValues() const;
 
-    private:
+      private:
         const Time t_;
         mutable Array values_;
     };

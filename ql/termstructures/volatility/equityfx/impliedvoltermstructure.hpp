@@ -27,7 +27,8 @@
 #include <ql/termstructures/volatility/equityfx/blackvoltermstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Implied vol term structure at a given date in the future
     /*! The given date will be the implied reference date.
@@ -40,7 +41,8 @@ namespace QuantLib {
                  class should be used with term structures that are
                  time-dependent only.
     */
-    class ImpliedVolTermStructure : public BlackVarianceTermStructure {
+    class ImpliedVolTermStructure : public BlackVarianceTermStructure
+    {
       public:
         ImpliedVolTermStructure(Handle<BlackVolTermStructure> origTS, const Date& referenceDate);
         //! \name TermStructure interface
@@ -67,25 +69,30 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline ImpliedVolTermStructure::ImpliedVolTermStructure(
-        Handle<BlackVolTermStructure> originalTS, const Date& referenceDate)
-    : BlackVarianceTermStructure(referenceDate), originalTS_(std::move(originalTS)) {
+    inline ImpliedVolTermStructure::ImpliedVolTermStructure(Handle<BlackVolTermStructure> originalTS,
+                                                            const Date& referenceDate)
+    : BlackVarianceTermStructure(referenceDate), originalTS_(std::move(originalTS))
+    {
         registerWith(originalTS_);
     }
 
-    inline Date ImpliedVolTermStructure::maxDate() const {
+    inline Date ImpliedVolTermStructure::maxDate() const
+    {
         return originalTS_->maxDate();
     }
 
-    inline Real ImpliedVolTermStructure::minStrike() const {
+    inline Real ImpliedVolTermStructure::minStrike() const
+    {
         return originalTS_->minStrike();
     }
 
-    inline Real ImpliedVolTermStructure::maxStrike() const {
+    inline Real ImpliedVolTermStructure::maxStrike() const
+    {
         return originalTS_->maxStrike();
     }
 
-    inline void ImpliedVolTermStructure::accept(AcyclicVisitor& v) {
+    inline void ImpliedVolTermStructure::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<ImpliedVolTermStructure>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);
@@ -93,21 +100,16 @@ namespace QuantLib {
             BlackVarianceTermStructure::accept(v);
     }
 
-    inline Real ImpliedVolTermStructure::blackVarianceImpl(Time t,
-                                                           Real strike) const {
+    inline Real ImpliedVolTermStructure::blackVarianceImpl(Time t, Real strike) const
+    {
         /* timeShift (and/or variance) variance at evaluation date
            cannot be cached since the original curve could change
            between invocations of this method */
-        Time timeShift =
-            dayCounter().yearFraction(originalTS_->referenceDate(),
-                                      referenceDate());
+        Time timeShift = dayCounter().yearFraction(originalTS_->referenceDate(), referenceDate());
         /* t is relative to the current reference date
            and needs to be converted to the time relative
            to the reference date of the original curve */
-        return originalTS_->blackForwardVariance(timeShift,
-                                                 timeShift+t,
-                                                 strike,
-                                                 true);
+        return originalTS_->blackForwardVariance(timeShift, timeShift + t, strike, true);
     }
 
 }

@@ -28,7 +28,8 @@
 #include <ql/cashflows/floatingratecoupon.hpp>
 #include <ql/indexes/bmaindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Average BMA coupon
     /*! %Coupon paying a BMA index, where the coupon rate is a
@@ -41,7 +42,8 @@ namespace QuantLib {
         Before weights are computed, the fixing schedule is adjusted
         for the index's fixing day gap. See rate() method for details.
     */
-    class AverageBMACoupon : public FloatingRateCoupon {
+    class AverageBMACoupon : public FloatingRateCoupon
+    {
       public:
         AverageBMACoupon(const Date& paymentDate,
                          Real nominal,
@@ -80,7 +82,8 @@ namespace QuantLib {
 
 
     //! helper class building a sequence of average BMA coupons
-    class AverageBMALeg {
+    class AverageBMALeg
+    {
       public:
         AverageBMALeg(Schedule schedule, ext::shared_ptr<BMAIndex> index);
         AverageBMALeg& withNotionals(Real notional);
@@ -92,6 +95,7 @@ namespace QuantLib {
         AverageBMALeg& withSpreads(Spread spread);
         AverageBMALeg& withSpreads(const std::vector<Spread>& spreads);
         operator Leg() const;
+
       private:
         Schedule schedule_;
         ext::shared_ptr<BMAIndex> index_;

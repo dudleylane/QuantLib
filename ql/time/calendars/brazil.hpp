@@ -27,7 +27,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Brazilian calendar
     /*! Banking holidays:
@@ -75,22 +76,28 @@ namespace QuantLib {
         \test the correctness of the returned results is tested
               against a list of known holidays.
     */
-    class Brazil : public Calendar {
+    class Brazil : public Calendar
+    {
       private:
-        class SettlementImpl final : public Calendar::WesternImpl {
+        class SettlementImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "Brazil"; }
             bool isBusinessDay(const Date&) const override;
         };
-        class ExchangeImpl final : public Calendar::WesternImpl {
+        class ExchangeImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "BOVESPA"; }
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
         //! Brazilian calendars
-        enum Market { Settlement,            //!< generic settlement calendar
-                      Exchange               //!< BOVESPA calendar
+        enum Market
+        {
+            Settlement, //!< generic settlement calendar
+            Exchange    //!< BOVESPA calendar
         };
         Brazil(Market market = Settlement);
     };
@@ -99,4 +106,3 @@ namespace QuantLib {
 
 
 #endif
-

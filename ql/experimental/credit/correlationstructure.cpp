@@ -19,21 +19,23 @@
 
 #include <ql/experimental/credit/correlationstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    CorrelationTermStructure::CorrelationTermStructure(
-        const Calendar& cal,
-        BusinessDayConvention bdc,
-        const DayCounter& dc)
-    : TermStructure(dc), bdc_(bdc){
+    CorrelationTermStructure::CorrelationTermStructure(const Calendar& cal,
+                                                       BusinessDayConvention bdc,
+                                                       const DayCounter& dc)
+    : TermStructure(dc), bdc_(bdc)
+    {
         calendar_ = cal;
     }
 
-    CorrelationTermStructure::CorrelationTermStructure(
-        Natural settlementDays,
-        const Calendar& cal,
-        BusinessDayConvention bdc,
-        const DayCounter& dc)
-    : TermStructure(settlementDays, cal, dc), bdc_(bdc){ }
+    CorrelationTermStructure::CorrelationTermStructure(Natural settlementDays,
+                                                       const Calendar& cal,
+                                                       BusinessDayConvention bdc,
+                                                       const DayCounter& dc)
+    : TermStructure(settlementDays, cal, dc), bdc_(bdc)
+    {
+    }
 
 }

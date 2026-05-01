@@ -22,8 +22,8 @@
 #include <ql/instruments/twoassetcorrelationoption.hpp>
 #include <ql/pricingengines/exotic/analytictwoassetcorrelationengine.hpp>
 #include <ql/quotes/simplequote.hpp>
-#include <ql/utilities/dataformatters.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <ql/utilities/dataformatters.hpp>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -32,9 +32,9 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(TwoAssetCorrelationOptionTests)
 
-BOOST_AUTO_TEST_CASE(testAnalyticEngine) {
-    BOOST_TEST_MESSAGE(
-        "Testing analytic engine for two-asset correlation option...");
+BOOST_AUTO_TEST_CASE(testAnalyticEngine)
+{
+    BOOST_TEST_MESSAGE("Testing analytic engine for two-asset correlation option...");
 
     Date today = Settings::instance().evaluationDate();
     DayCounter dc = Actual360();
@@ -44,8 +44,7 @@ BOOST_AUTO_TEST_CASE(testAnalyticEngine) {
     Real strike2 = 70.0;
     Date exDate = today + 180;
 
-    ext::shared_ptr<Exercise> exercise =
-        ext::make_shared<EuropeanExercise>(exDate);
+    ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(exDate);
 
     TwoAssetCorrelationOption option(type, strike1, strike2, exercise);
 
@@ -59,31 +58,21 @@ BOOST_AUTO_TEST_CASE(testAnalyticEngine) {
     Handle<Quote> correlation(ext::make_shared<SimpleQuote>(0.75));
 
     ext::shared_ptr<BlackScholesMertonProcess> process1 =
-        ext::make_shared<BlackScholesMertonProcess>(underlying1,
-                                                      dividendTS1,
-                                                      riskFreeTS,
-                                                      blackVolTS1);
+        ext::make_shared<BlackScholesMertonProcess>(underlying1, dividendTS1, riskFreeTS, blackVolTS1);
 
     ext::shared_ptr<BlackScholesMertonProcess> process2 =
-        ext::make_shared<BlackScholesMertonProcess>(underlying2,
-                                                      dividendTS2,
-                                                      riskFreeTS,
-                                                      blackVolTS2);
+        ext::make_shared<BlackScholesMertonProcess>(underlying2, dividendTS2, riskFreeTS, blackVolTS2);
 
-    option.setPricingEngine(
-          ext::make_shared<AnalyticTwoAssetCorrelationEngine>(process1,
-                                                                process2,
-                                                                correlation));
+    option.setPricingEngine(ext::make_shared<AnalyticTwoAssetCorrelationEngine>(process1, process2, correlation));
 
     Real calculated = option.NPV();
     Real expected = 4.7073;
-    Real error = std::fabs(calculated-expected);
+    Real error = std::fabs(calculated - expected);
     Real tolerance = 1e-4;
     if (error > tolerance)
-        BOOST_ERROR("Failed to reproduce holder-extensible option value"
-                    << "\n    expected:   " << expected
-                    << "\n    calculated: " << calculated
-                    << "\n    error:      " << error);
+        BOOST_ERROR("Failed to reproduce holder-extensible option value" << "\n    expected:   " << expected
+                                                                         << "\n    calculated: " << calculated
+                                                                         << "\n    error:      " << error);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

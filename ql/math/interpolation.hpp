@@ -26,13 +26,14 @@
 #ifndef quantlib_interpolation_hpp
 #define quantlib_interpolation_hpp
 
-#include <ql/math/interpolations/extrapolation.hpp>
-#include <ql/math/comparison.hpp>
 #include <ql/errors.hpp>
-#include <vector>
+#include <ql/math/comparison.hpp>
+#include <ql/math/interpolations/extrapolation.hpp>
 #include <algorithm>
+#include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! base class for 1-D interpolations.
     /*! Classes derived from this class will provide interpolated
@@ -52,10 +53,12 @@ namespace QuantLib {
                  InterpolatedCurve class) and call the update() method
                  on the latter when the data change.
     */
-    class Interpolation : public Extrapolator {
+    class Interpolation : public Extrapolator
+    {
       public:
         //! abstract base class for interpolation implementations
-        class Impl {
+        class Impl
+        {
           public:
             virtual ~Impl() = default;
             virtual void update() = 0;
@@ -70,47 +73,50 @@ namespace QuantLib {
             virtual Real secondDerivative(Real) const = 0;
         };
         //! basic template implementation
-        template <class I1, class I2, class Base=Impl>
-        class templateImpl : public Base {
+        template <class I1, class I2, class Base = Impl>
+        class templateImpl : public Base
+        {
           public:
-            templateImpl(const I1& xBegin, const I1& xEnd, const I2& yBegin)
-            : templateImpl(xBegin, xEnd, yBegin, 2) {}
+            templateImpl(const I1& xBegin, const I1& xEnd, const I2& yBegin) : templateImpl(xBegin, xEnd, yBegin, 2) {}
             template <class... Args>
-            templateImpl(const I1& xBegin, const I1& xEnd, const I2& yBegin,
-                         const int requiredPoints, Args&&... args)
-            : Base(std::forward<Args>(args)...), xBegin_(xBegin), xEnd_(xEnd), yBegin_(yBegin) {
-                QL_REQUIRE(static_cast<std::ptrdiff_t>(xEnd_-xBegin_) >= requiredPoints,
-                           "not enough points to interpolate: at least " <<
-                           requiredPoints <<
-                           " required, " << static_cast<std::ptrdiff_t>(xEnd_-xBegin_)<< " provided");
+            templateImpl(const I1& xBegin, const I1& xEnd, const I2& yBegin, const int requiredPoints, Args&&... args)
+            : Base(std::forward<Args>(args)...), xBegin_(xBegin), xEnd_(xEnd), yBegin_(yBegin)
+            {
+                QL_REQUIRE(static_cast<std::ptrdiff_t>(xEnd_ - xBegin_) >= requiredPoints,
+                           "not enough points to interpolate: at least " << requiredPoints << " required, "
+                                                                         << static_cast<std::ptrdiff_t>(xEnd_ - xBegin_)
+                                                                         << " provided");
             }
             Real xMin() const override { return *xBegin_; }
             Real xMax() const override { return *(xEnd_ - 1); }
             std::vector<Real> xValues() const override { return std::vector<Real>(xBegin_, xEnd_); }
-            std::vector<Real> yValues() const override {
-                return std::vector<Real>(yBegin_,yBegin_+(xEnd_-xBegin_));
+            std::vector<Real> yValues() const override
+            {
+                return std::vector<Real>(yBegin_, yBegin_ + (xEnd_ - xBegin_));
             }
-            bool isInRange(Real x) const override {
+            bool isInRange(Real x) const override
+            {
 #if defined(QL_EXTRA_SAFETY_CHECKS)
-                for (I1 i=xBegin_, j=xBegin_+1; j!=xEnd_; ++i, ++j)
+                for (I1 i = xBegin_, j = xBegin_ + 1; j != xEnd_; ++i, ++j)
                     QL_REQUIRE(*j > *i, "unsorted x values");
-                #endif
+#endif
                 Real x1 = xMin(), x2 = xMax();
-                return (x >= x1 && x <= x2) || close(x,x1) || close(x,x2);
+                return (x >= x1 && x <= x2) || close(x, x1) || close(x, x2);
             }
 
           protected:
-            Size locate(Real x) const {
-                #if defined(QL_EXTRA_SAFETY_CHECKS)
-                for (I1 i=xBegin_, j=xBegin_+1; j!=xEnd_; ++i, ++j)
+            Size locate(Real x) const
+            {
+#if defined(QL_EXTRA_SAFETY_CHECKS)
+                for (I1 i = xBegin_, j = xBegin_ + 1; j != xEnd_; ++i, ++j)
                     QL_REQUIRE(*j > *i, "unsorted x values");
-                #endif
+#endif
                 if (x < *xBegin_)
                     return 0;
-                else if (x > *(xEnd_-1))
-                    return xEnd_-xBegin_-2;
+                else if (x > *(xEnd_ - 1))
+                    return xEnd_ - xBegin_ - 2;
                 else
-                    return std::upper_bound(xBegin_,xEnd_-1,x)-xBegin_-1;
+                    return std::upper_bound(xBegin_, xEnd_ - 1, x) - xBegin_ - 1;
             }
             I1 xBegin_, xEnd_;
             I2 yBegin_;
@@ -118,49 +124,41 @@ namespace QuantLib {
 
         Interpolation() = default;
         bool empty() const { return !impl_; }
-        Real operator()(Real x, bool allowExtrapolation = false) const {
-            checkRange(x,allowExtrapolation);
+        Real operator()(Real x, bool allowExtrapolation = false) const
+        {
+            checkRange(x, allowExtrapolation);
             return impl_->value(x);
         }
-        Real primitive(Real x, bool allowExtrapolation = false) const {
-            checkRange(x,allowExtrapolation);
+        Real primitive(Real x, bool allowExtrapolation = false) const
+        {
+            checkRange(x, allowExtrapolation);
             return impl_->primitive(x);
         }
-        Real derivative(Real x, bool allowExtrapolation = false) const {
-            checkRange(x,allowExtrapolation);
+        Real derivative(Real x, bool allowExtrapolation = false) const
+        {
+            checkRange(x, allowExtrapolation);
             return impl_->derivative(x);
         }
-        Real secondDerivative(Real x, bool allowExtrapolation = false) const {
-            checkRange(x,allowExtrapolation);
+        Real secondDerivative(Real x, bool allowExtrapolation = false) const
+        {
+            checkRange(x, allowExtrapolation);
             return impl_->secondDerivative(x);
         }
-        Real xMin() const {
-            return impl_->xMin();
-        }
-        Real xMax() const {
-            return impl_->xMax();
-        }
-        std::vector<Real> xValues() const {
-            return impl_->xValues();
-        }
-        std::vector<Real> yValues() const {
-            return impl_->yValues();
-        }
-        bool isInRange(Real x) const {
-            return impl_->isInRange(x);
-        }
-        void update() {
-            impl_->update();
-        }
+        Real xMin() const { return impl_->xMin(); }
+        Real xMax() const { return impl_->xMax(); }
+        std::vector<Real> xValues() const { return impl_->xValues(); }
+        std::vector<Real> yValues() const { return impl_->yValues(); }
+        bool isInRange(Real x) const { return impl_->isInRange(x); }
+        void update() { impl_->update(); }
+
       protected:
         ext::shared_ptr<Impl> impl_;
 
-        void checkRange(Real x, bool extrapolate) const {
-            QL_REQUIRE(extrapolate || allowsExtrapolation() ||
-                       impl_->isInRange(x),
-                       "interpolation range is ["
-                       << impl_->xMin() << ", " << impl_->xMax()
-                       << "]: extrapolation at " << x << " not allowed");
+        void checkRange(Real x, bool extrapolate) const
+        {
+            QL_REQUIRE(extrapolate || allowsExtrapolation() || impl_->isInRange(x),
+                       "interpolation range is [" << impl_->xMin() << ", " << impl_->xMax() << "]: extrapolation at "
+                                                  << x << " not allowed");
         }
         friend class MixedLinearCubicInterpolation;
     };

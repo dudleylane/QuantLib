@@ -28,14 +28,15 @@
 #include <ql/types.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class CumulativeGammaDistribution {
+    class CumulativeGammaDistribution
+    {
       public:
-        CumulativeGammaDistribution(Real a) : a_(a) {
-            QL_REQUIRE(a>0.0, "invalid parameter for gamma distribution");
-        }
+        CumulativeGammaDistribution(Real a) : a_(a) { QL_REQUIRE(a > 0.0, "invalid parameter for gamma distribution"); }
         Real operator()(Real x) const;
+
       private:
         Real a_;
     };
@@ -53,10 +54,12 @@ namespace QuantLib {
         \test the correctness of the returned value is tested by
               checking it against known good results.
     */
-    class GammaFunction {
+    class GammaFunction
+    {
       public:
         Real value(Real x) const;
         Real logValue(Real x) const;
+
       private:
         static const Real c1_, c2_, c3_, c4_, c5_, c6_;
     };

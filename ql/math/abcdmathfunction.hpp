@@ -23,22 +23,21 @@
 #ifndef quantlib_abcd_math_function_hpp
 #define quantlib_abcd_math_function_hpp
 
-#include <ql/types.hpp>
 #include <ql/errors.hpp>
+#include <ql/types.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Abcd functional form
     /*! \f[ f(t) = [ a + b*t ] e^{-c*t} + d \f]
         following Rebonato's notation. */
-    class AbcdMathFunction {
+    class AbcdMathFunction
+    {
 
       public:
-        AbcdMathFunction(Real a = 0.002,
-                         Real b = 0.001, 
-                         Real c = 0.16,
-                         Real d = 0.0005);
+        AbcdMathFunction(Real a = 0.002, Real b = 0.001, Real c = 0.16, Real d = 0.0005);
         AbcdMathFunction(std::vector<Real> abcd);
 
         //! function value at time t: \f[ f(t) \f]
@@ -56,11 +55,11 @@ namespace QuantLib {
         /*! first derivative of the function at time t
             \f[ f'(t) = [ (b-c*a) + (-c*b)*t) ] e^{-c*t} \f] */
         Real derivative(Time t) const;
-        
+
         /*! indefinite integral of the function at time t
             \f[ \int f(t)dt = [ (-a/c-b/c^2) + (-b/c)*t ] e^{-c*t} + d*t \f] */
         Real primitive(Time t) const;
-        
+
         /*! definite integral of the function between t1 and t2
             \f[ \int_{t1}^{t2} f(t)dt \f] */
         Real definiteIntegral(Time t1, Time t2) const;
@@ -76,20 +75,17 @@ namespace QuantLib {
 
         /*! coefficients of a AbcdMathFunction defined as definite
             integral on a rolling window of length tau, with tau = t2-t */
-        std::vector<Real> definiteIntegralCoefficients(Time t,
-                                                       Time t2) const;
+        std::vector<Real> definiteIntegralCoefficients(Time t, Time t2) const;
 
         /*! coefficients of a AbcdMathFunction defined as definite
             derivative on a rolling window of length tau, with tau = t2-t */
-        std::vector<Real> definiteDerivativeCoefficients(Time t,
-                                                         Time t2) const;
+        std::vector<Real> definiteDerivativeCoefficients(Time t, Time t2) const;
 
-        static void validate(Real a,
-                             Real b,
-                             Real c,
-                             Real d);
+        static void validate(Real a, Real b, Real c, Real d);
+
       protected:
         Real a_, b_, c_, d_;
+
       private:
         void initialize_();
         std::vector<Real> abcd_;
@@ -101,23 +97,27 @@ namespace QuantLib {
     };
 
     // inline AbcdMathFunction
-    inline Real AbcdMathFunction::operator()(Time t) const {
-        //return (a_ + b_*t)*std::exp(-c_*t) + d_;
-        return t<0 ? 0.0 : Real((a_ + b_*t)*std::exp(-c_*t) + d_);
+    inline Real AbcdMathFunction::operator()(Time t) const
+    {
+        // return (a_ + b_*t)*std::exp(-c_*t) + d_;
+        return t < 0 ? 0.0 : Real((a_ + b_ * t) * std::exp(-c_ * t) + d_);
     }
 
-    inline Real AbcdMathFunction::derivative(Time t) const {
-        //return (da_ + db_*t)*std::exp(-c_*t);
-        return t<0 ? 0.0 : Real((da_ + db_*t)*std::exp(-c_*t));
+    inline Real AbcdMathFunction::derivative(Time t) const
+    {
+        // return (da_ + db_*t)*std::exp(-c_*t);
+        return t < 0 ? 0.0 : Real((da_ + db_ * t) * std::exp(-c_ * t));
     }
 
-    inline Real AbcdMathFunction::primitive(Time t) const {
-        //return (pa_ + pb_*t)*std::exp(-c_*t) + d_*t + K_;
-        return t<0 ? 0.0 : Real((pa_ + pb_*t)*std::exp(-c_*t) + d_*t + K_);
+    inline Real AbcdMathFunction::primitive(Time t) const
+    {
+        // return (pa_ + pb_*t)*std::exp(-c_*t) + d_*t + K_;
+        return t < 0 ? 0.0 : Real((pa_ + pb_ * t) * std::exp(-c_ * t) + d_ * t + K_);
     }
 
-    inline Real AbcdMathFunction::maximumValue() const {
-        if (b_==0.0 || a_<=0.0)
+    inline Real AbcdMathFunction::maximumValue() const
+    {
+        if (b_ == 0.0 || a_ <= 0.0)
             return d_;
         return (*this)(maximumLocation());
     }

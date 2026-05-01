@@ -50,105 +50,107 @@
 #ifndef quantlib_noarb_sabr
 #define quantlib_noarb_sabr
 
+#include <ql/math/integrals/gausslobattointegral.hpp>
 #include <ql/qldefines.hpp>
 #include <ql/types.hpp>
-#include <ql/math/integrals/gausslobattointegral.hpp>
-
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-namespace detail::NoArbSabrModel {
-// parameter bounds
-const Real beta_min = 0.01;
-const Real beta_max = 0.99;
-const Real expiryTime_max = 30.0;
-const Real sigmaI_min = 0.05;
-const Real sigmaI_max = 1.00;
-const Real nu_min = 0.01;
-const Real nu_max = 0.80;
-const Real rho_min = -0.99;
-const Real rho_max = 0.99;
-// cutoff for phi(d0) / tau
-// if beta = 0.99, d0 is below 1E-14 for
-// bigger values than this
-const Real phiByTau_cutoff = 124.587;
-// number of mc simulations in tabulated
-// absorption probabilities
-const Real nsim = 2500000.0;
-// small probability used for extrapolation
-// of beta towards 1
-const Real tiny_prob = 1E-5;
-// minimum strike used for normal case integration
-const Real strike_min = 1E-6;
-// accuracy and max iterations for
-// numerical integration
-const Real i_accuracy = 1E-7;
-const Size i_max_iterations = 10000;
-// accuracy when adjusting the model forward
-// to match the given forward
-const Real forward_accuracy = 1E-6;
-// step for searching the model forward
-// in newton algorithm
-const Real forward_search_step = 0.0010;
-// lower bound for density evaluation
-const Real density_lower_bound = 1E-50;
-// threshold to identify a zero density
-const Real density_threshold = 1E-100;
-}
-
-class NoArbSabrModel {
-
-  public:
-    NoArbSabrModel(Real expiryTime, Real forward, Real alpha, Real beta, Real nu, Real rho);
-
-    Real optionPrice(Real strike) const;
-    Real digitalOptionPrice(Real strike) const;
-    Real density(const Real strike) const {
-        return p(strike) * (1 - absProb_) / numericalIntegralOverP_;
+    namespace detail::NoArbSabrModel
+    {
+        // parameter bounds
+        const Real beta_min = 0.01;
+        const Real beta_max = 0.99;
+        const Real expiryTime_max = 30.0;
+        const Real sigmaI_min = 0.05;
+        const Real sigmaI_max = 1.00;
+        const Real nu_min = 0.01;
+        const Real nu_max = 0.80;
+        const Real rho_min = -0.99;
+        const Real rho_max = 0.99;
+        // cutoff for phi(d0) / tau
+        // if beta = 0.99, d0 is below 1E-14 for
+        // bigger values than this
+        const Real phiByTau_cutoff = 124.587;
+        // number of mc simulations in tabulated
+        // absorption probabilities
+        const Real nsim = 2500000.0;
+        // small probability used for extrapolation
+        // of beta towards 1
+        const Real tiny_prob = 1E-5;
+        // minimum strike used for normal case integration
+        const Real strike_min = 1E-6;
+        // accuracy and max iterations for
+        // numerical integration
+        const Real i_accuracy = 1E-7;
+        const Size i_max_iterations = 10000;
+        // accuracy when adjusting the model forward
+        // to match the given forward
+        const Real forward_accuracy = 1E-6;
+        // step for searching the model forward
+        // in newton algorithm
+        const Real forward_search_step = 0.0010;
+        // lower bound for density evaluation
+        const Real density_lower_bound = 1E-50;
+        // threshold to identify a zero density
+        const Real density_threshold = 1E-100;
     }
 
-    Real forward() const { return externalForward_; }
-    Real numericalForward() const { return numericalForward_; }
-    Real expiryTime() const { return expiryTime_; }
-    Real alpha() const { return alpha_; }
-    Real beta() const { return beta_; }
-    Real nu() const { return nu_; }
-    Real rho() const { return rho_; }
+    class NoArbSabrModel
+    {
 
-    Real absorptionProbability() const { return absProb_; }
+      public:
+        NoArbSabrModel(Real expiryTime, Real forward, Real alpha, Real beta, Real nu, Real rho);
 
-    private:
-      Real p(Real f) const;
-      Real forwardError(Real forward) const;
-      const Real expiryTime_, externalForward_;
-      const Real alpha_, beta_, nu_, rho_;
-      Real absProb_, fmin_, fmax_;
-      mutable Real forward_, numericalIntegralOverP_;
-      mutable Real numericalForward_;
-      ext::shared_ptr<GaussLobattoIntegral> integrator_;
-      class integrand;
-      class p_integrand;
-};
+        Real optionPrice(Real strike) const;
+        Real digitalOptionPrice(Real strike) const;
+        Real density(const Real strike) const { return p(strike) * (1 - absProb_) / numericalIntegralOverP_; }
 
-namespace detail {
+        Real forward() const { return externalForward_; }
+        Real numericalForward() const { return numericalForward_; }
+        Real expiryTime() const { return expiryTime_; }
+        Real alpha() const { return alpha_; }
+        Real beta() const { return beta_; }
+        Real nu() const { return nu_; }
+        Real rho() const { return rho_; }
 
-extern "C" const unsigned long sabrabsprob[1209600];
+        Real absorptionProbability() const { return absProb_; }
 
-class D0Interpolator {
-  public:
-    D0Interpolator(Real forward, Real expiryTime, Real alpha, Real beta, Real nu, Real rho);
-    Real operator()() const;
+      private:
+        Real p(Real f) const;
+        Real forwardError(Real forward) const;
+        const Real expiryTime_, externalForward_;
+        const Real alpha_, beta_, nu_, rho_;
+        Real absProb_, fmin_, fmax_;
+        mutable Real forward_, numericalIntegralOverP_;
+        mutable Real numericalForward_;
+        ext::shared_ptr<GaussLobattoIntegral> integrator_;
+        class integrand;
+        class p_integrand;
+    };
 
-  private:
-    Real phi(Real d0) const;
-    Real d0(Real phi) const;
-    const Real forward_, expiryTime_, alpha_, beta_, nu_, rho_, gamma_;
-    Real sigmaI_;
-    std::vector<Real> tauG_, sigmaIG_, rhoG_, nuG_, betaG_;
-};
+    namespace detail
+    {
 
-} // namespace detail
+        extern "C" const unsigned long sabrabsprob[1209600];
+
+        class D0Interpolator
+        {
+          public:
+            D0Interpolator(Real forward, Real expiryTime, Real alpha, Real beta, Real nu, Real rho);
+            Real operator()() const;
+
+          private:
+            Real phi(Real d0) const;
+            Real d0(Real phi) const;
+            const Real forward_, expiryTime_, alpha_, beta_, nu_, rho_, gamma_;
+            Real sigmaI_;
+            std::vector<Real> tauG_, sigmaIG_, rhoG_, nuG_, betaG_;
+        };
+
+    } // namespace detail
 } // namespace QuantLib
 
 #endif

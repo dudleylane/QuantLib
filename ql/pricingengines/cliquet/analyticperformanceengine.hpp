@@ -27,7 +27,8 @@
 #include <ql/instruments/cliquetoption.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Pricing engine for performance options using analytical formulae
     /*! \ingroup cliquetengines
@@ -35,7 +36,8 @@ namespace QuantLib {
         \test the correctness of the returned greeks is tested by
               reproducing numerical derivatives.
     */
-    class AnalyticPerformanceEngine : public CliquetOption::engine {
+    class AnalyticPerformanceEngine : public CliquetOption::engine
+    {
       public:
         AnalyticPerformanceEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process);
         void calculate() const override;

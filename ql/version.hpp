@@ -39,7 +39,8 @@
 
 /*! @}  */
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! Returns the version of boost that the QuantLib library was built with
         Use to check that client code is using a consistent version of boost.

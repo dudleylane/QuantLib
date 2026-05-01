@@ -27,7 +27,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Chinese calendar
     /*! Holidays:
@@ -55,19 +56,21 @@ namespace QuantLib {
 
         \ingroup calendars
     */
-    class China : public Calendar {
+    class China : public Calendar
+    {
       private:
-        class SseImpl final : public Calendar::Impl {
+        class SseImpl final : public Calendar::Impl
+        {
           public:
             std::string name() const override { return "Shanghai stock exchange"; }
             bool isWeekend(Weekday) const override;
             bool isBusinessDay(const Date&) const override;
         };
 
-        class IbImpl final : public Calendar::Impl {
+        class IbImpl final : public Calendar::Impl
+        {
           public:
-            IbImpl()
-            : sseImpl(ext::make_shared<China::SseImpl>()) {}
+            IbImpl() : sseImpl(ext::make_shared<China::SseImpl>()) {}
             std::string name() const override { return "China inter bank market"; }
             bool isWeekend(Weekday) const override;
             bool isBusinessDay(const Date&) const override;
@@ -75,9 +78,12 @@ namespace QuantLib {
           private:
             ext::shared_ptr<Calendar::Impl> sseImpl;
         };
+
       public:
-        enum Market { SSE,    //!< Shanghai stock exchange
-                      IB      //!< Interbank calendar
+        enum Market
+        {
+            SSE, //!< Shanghai stock exchange
+            IB   //!< Interbank calendar
         };
         China(Market m = SSE);
     };

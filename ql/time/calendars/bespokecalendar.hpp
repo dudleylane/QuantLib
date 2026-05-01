@@ -26,7 +26,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Bespoke calendar
     /*! This calendar has no predefined set of business days. Holidays
@@ -37,20 +38,24 @@ namespace QuantLib {
 
         \ingroup calendars
     */
-    class BespokeCalendar : public Calendar {
+    class BespokeCalendar : public Calendar
+    {
       private:
-        class Impl final : public Calendar::Impl {
+        class Impl final : public Calendar::Impl
+        {
           public:
             explicit Impl(std::string name = "");
             std::string name() const override;
             bool isWeekend(Weekday) const override;
             bool isBusinessDay(const Date&) const override;
             void addWeekend(Weekday);
+
           private:
             std::string name_;
             unsigned int weekend_mask_ = 0;
         };
         ext::shared_ptr<BespokeCalendar::Impl> bespokeImpl_;
+
       public:
         /*! \warning different bespoke calendars created with the same
                      name (or different bespoke calendars created with

@@ -28,26 +28,29 @@
 #include <ql/math/array.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    struct BiCGStabResult {
+    struct BiCGStabResult
+    {
         Size iterations;
         Real error;
         Array x;
     };
 
-    class BiCGstab  {
+    class BiCGstab
+    {
       public:
         typedef std::function<Array(const Array&)> MatrixMult;
 
         BiCGstab(MatrixMult A, Size maxIter, Real relTol, MatrixMult preConditioner = MatrixMult());
 
         BiCGStabResult solve(const Array& b, const Array& x0 = Array()) const;
-        
+
       protected:
         const MatrixMult A_, M_;
         const Size maxIter_;
-        const Real relTol_;  
+        const Real relTol_;
     };
 }
 

@@ -24,20 +24,22 @@
 #ifndef quantlib_modified_craig_sneyd_scheme_hpp
 #define quantlib_modified_craig_sneyd_scheme_hpp
 
-#include <ql/methods/finitedifferences/operatortraits.hpp>
 #include <ql/methods/finitedifferences/operators/fdmlinearopcomposite.hpp>
+#include <ql/methods/finitedifferences/operatortraits.hpp>
 #include <ql/methods/finitedifferences/schemes/boundaryconditionschemehelper.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
     //! modified Craig-Sneyd scheme
 
     /*! References:
-        K. J. in ’t Hout and S. Foulon, 
-        ADI finite difference schemes for option pricing in the Heston 
+        K. J. in ’t Hout and S. Foulon,
+        ADI finite difference schemes for option pricing in the Heston
         model with correlation, http://arxiv.org/pdf/0811.3427
     */
 
-    class ModifiedCraigSneydScheme  {
+    class ModifiedCraigSneydScheme
+    {
       public:
         // typedefs
         typedef OperatorTraits<FdmLinearOp> traits;

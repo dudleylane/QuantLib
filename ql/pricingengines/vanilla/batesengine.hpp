@@ -25,11 +25,12 @@
 #ifndef quantlib_bates_engine_hpp
 #define quantlib_bates_engine_hpp
 
-#include <ql/qldefines.hpp>
 #include <ql/models/equity/batesmodel.hpp>
 #include <ql/pricingengines/vanilla/analytichestonengine.hpp>
+#include <ql/qldefines.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Bates model engines based on Fourier transform
     /*! this classes price european options under the following processes
@@ -103,52 +104,47 @@ namespace QuantLib {
               against QuantLib's jump diffusion engine
               and comparison with Black pricing.
     */
-    class BatesEngine : public AnalyticHestonEngine {
+    class BatesEngine : public AnalyticHestonEngine
+    {
       public:
-        explicit BatesEngine(const ext::shared_ptr<BatesModel>& model,
-                             Size integrationOrder = 144);
-        BatesEngine(const ext::shared_ptr<BatesModel>& model,
-                    Real relTolerance, Size maxEvaluations);
+        explicit BatesEngine(const ext::shared_ptr<BatesModel>& model, Size integrationOrder = 144);
+        BatesEngine(const ext::shared_ptr<BatesModel>& model, Real relTolerance, Size maxEvaluations);
 
       protected:
         std::complex<Real> addOnTerm(Real phi, Time t, Size j) const override;
     };
 
 
-    class BatesDetJumpEngine : public BatesEngine {
+    class BatesDetJumpEngine : public BatesEngine
+    {
       public:
-        explicit BatesDetJumpEngine(const ext::shared_ptr<BatesDetJumpModel>& model,
-                                    Size integrationOrder = 144);
-        BatesDetJumpEngine(const ext::shared_ptr<BatesDetJumpModel>& model,
-                           Real relTolerance, Size maxEvaluations);
+        explicit BatesDetJumpEngine(const ext::shared_ptr<BatesDetJumpModel>& model, Size integrationOrder = 144);
+        BatesDetJumpEngine(const ext::shared_ptr<BatesDetJumpModel>& model, Real relTolerance, Size maxEvaluations);
 
       protected:
         std::complex<Real> addOnTerm(Real phi, Time t, Size j) const override;
     };
 
 
-    class BatesDoubleExpEngine : public AnalyticHestonEngine {
+    class BatesDoubleExpEngine : public AnalyticHestonEngine
+    {
       public:
-        explicit BatesDoubleExpEngine(
-            const ext::shared_ptr<BatesDoubleExpModel>& model,
-            Size integrationOrder = 144);
-        BatesDoubleExpEngine(
-            const ext::shared_ptr<BatesDoubleExpModel>& model,
-            Real relTolerance, Size maxEvaluations);
+        explicit BatesDoubleExpEngine(const ext::shared_ptr<BatesDoubleExpModel>& model, Size integrationOrder = 144);
+        BatesDoubleExpEngine(const ext::shared_ptr<BatesDoubleExpModel>& model, Real relTolerance, Size maxEvaluations);
 
       protected:
         std::complex<Real> addOnTerm(Real phi, Time t, Size j) const override;
     };
 
 
-    class BatesDoubleExpDetJumpEngine : public BatesDoubleExpEngine {
+    class BatesDoubleExpDetJumpEngine : public BatesDoubleExpEngine
+    {
       public:
-        explicit BatesDoubleExpDetJumpEngine(
-            const ext::shared_ptr<BatesDoubleExpDetJumpModel>& model,
-            Size integrationOrder = 144);
-        BatesDoubleExpDetJumpEngine(
-            const ext::shared_ptr<BatesDoubleExpDetJumpModel>& model,
-            Real relTolerance, Size maxEvaluations);
+        explicit BatesDoubleExpDetJumpEngine(const ext::shared_ptr<BatesDoubleExpDetJumpModel>& model,
+                                             Size integrationOrder = 144);
+        BatesDoubleExpDetJumpEngine(const ext::shared_ptr<BatesDoubleExpDetJumpModel>& model,
+                                    Real relTolerance,
+                                    Size maxEvaluations);
 
       protected:
         std::complex<Real> addOnTerm(Real phi, Time t, Size j) const override;

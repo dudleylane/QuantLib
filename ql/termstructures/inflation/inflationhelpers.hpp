@@ -30,51 +30,49 @@
 #include <ql/termstructures/bootstraphelper.hpp>
 #include <ql/termstructures/inflationtermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Zero-coupon inflation-swap bootstrap helper
-    class ZeroCouponInflationSwapHelper
-        : public RelativeDateBootstrapHelper<ZeroInflationTermStructure> {
+    class ZeroCouponInflationSwapHelper : public RelativeDateBootstrapHelper<ZeroInflationTermStructure>
+    {
       public:
-        ZeroCouponInflationSwapHelper(
-            const Handle<Quote>& quote,
-            const Period& swapObsLag, // lag on swap observation of index
-            const Date& maturity,
-            Calendar calendar, // index may have null calendar as valid on every day
-            BusinessDayConvention paymentConvention,
-            const DayCounter& dayCounter,
-            const ext::shared_ptr<ZeroInflationIndex>& zii,
-            CPI::InterpolationType observationInterpolation,
-            Pillar::Choice pillar = Pillar::LastRelevantDate,
-            Date customPillarDate = Date());
+        ZeroCouponInflationSwapHelper(const Handle<Quote>& quote,
+                                      const Period& swapObsLag, // lag on swap observation of index
+                                      const Date& maturity,
+                                      Calendar calendar, // index may have null calendar as valid on every day
+                                      BusinessDayConvention paymentConvention,
+                                      const DayCounter& dayCounter,
+                                      const ext::shared_ptr<ZeroInflationIndex>& zii,
+                                      CPI::InterpolationType observationInterpolation,
+                                      Pillar::Choice pillar = Pillar::LastRelevantDate,
+                                      Date customPillarDate = Date());
 
-        ZeroCouponInflationSwapHelper(
-            const Handle<Quote>& quote,
-            const Period& swapObsLag, // lag on swap observation of index
-            const Date& startDate,
-            const Date& endDate,
-            Calendar calendar, // index may have null calendar as valid on every day
-            BusinessDayConvention paymentConvention,
-            const DayCounter& dayCounter,
-            const ext::shared_ptr<ZeroInflationIndex>& zii,
-            CPI::InterpolationType observationInterpolation,
-            Pillar::Choice pillar = Pillar::LastRelevantDate,
-            Date customPillarDate = Date());
+        ZeroCouponInflationSwapHelper(const Handle<Quote>& quote,
+                                      const Period& swapObsLag, // lag on swap observation of index
+                                      const Date& startDate,
+                                      const Date& endDate,
+                                      Calendar calendar, // index may have null calendar as valid on every day
+                                      BusinessDayConvention paymentConvention,
+                                      const DayCounter& dayCounter,
+                                      const ext::shared_ptr<ZeroInflationIndex>& zii,
+                                      CPI::InterpolationType observationInterpolation,
+                                      Pillar::Choice pillar = Pillar::LastRelevantDate,
+                                      Date customPillarDate = Date());
 
         /*! \deprecated Use the overload that does not take a nominal curve.
                         Deprecated in version 1.39.
         */
         [[deprecated("Use the overload that does not take a nominal curve.")]]
-        ZeroCouponInflationSwapHelper(
-            const Handle<Quote>& quote,
-            const Period& swapObsLag,
-            const Date& maturity,
-            Calendar calendar,
-            BusinessDayConvention paymentConvention,
-            DayCounter dayCounter,
-            const ext::shared_ptr<ZeroInflationIndex>& zii,
-            CPI::InterpolationType observationInterpolation,
-            Handle<YieldTermStructure> nominalTermStructure);
+        ZeroCouponInflationSwapHelper(const Handle<Quote>& quote,
+                                      const Period& swapObsLag,
+                                      const Date& maturity,
+                                      Calendar calendar,
+                                      BusinessDayConvention paymentConvention,
+                                      DayCounter dayCounter,
+                                      const ext::shared_ptr<ZeroInflationIndex>& zii,
+                                      CPI::InterpolationType observationInterpolation,
+                                      Handle<YieldTermStructure> nominalTermStructure);
 
         void setTermStructure(ZeroInflationTermStructure*) override;
         Real impliedQuote() const override;
@@ -97,26 +95,26 @@ namespace QuantLib {
         ext::shared_ptr<ZeroCouponInflationSwap> zciis_;
         Handle<YieldTermStructure> nominalTermStructure_;
         RelinkableHandle<ZeroInflationTermStructure> termStructureHandle_;
+
       private:
-        ZeroCouponInflationSwapHelper(
-            const Handle<Quote>& quote,
-            const Period& swapObsLag,
-            const Date& startDate,
-            const Date& endDate,
-            Calendar calendar,
-            BusinessDayConvention paymentConvention,
-            DayCounter dayCounter,
-            const ext::shared_ptr<ZeroInflationIndex>& zii,
-            CPI::InterpolationType observationInterpolation,
-            Handle<YieldTermStructure> nominalTermStructure,
-            Pillar::Choice pillar,
-            Date customPillarDate);
+        ZeroCouponInflationSwapHelper(const Handle<Quote>& quote,
+                                      const Period& swapObsLag,
+                                      const Date& startDate,
+                                      const Date& endDate,
+                                      Calendar calendar,
+                                      BusinessDayConvention paymentConvention,
+                                      DayCounter dayCounter,
+                                      const ext::shared_ptr<ZeroInflationIndex>& zii,
+                                      CPI::InterpolationType observationInterpolation,
+                                      Handle<YieldTermStructure> nominalTermStructure,
+                                      Pillar::Choice pillar,
+                                      Date customPillarDate);
     };
 
 
     //! Year-on-year inflation-swap bootstrap helper
-    class YearOnYearInflationSwapHelper
-        : public RelativeDateBootstrapHelper<YoYInflationTermStructure> {
+    class YearOnYearInflationSwapHelper : public RelativeDateBootstrapHelper<YoYInflationTermStructure>
+    {
       public:
         YearOnYearInflationSwapHelper(const Handle<Quote>& quote,
                                       const Period& swapObsLag,

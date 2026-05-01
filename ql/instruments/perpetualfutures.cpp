@@ -21,18 +21,21 @@
 #include <ql/time/calendars/nullcalendar.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    PerpetualFutures::PerpetualFutures(
-        PerpetualFutures::PayoffType payoffType,
-        PerpetualFutures::FundingType fundingType,
-        Period fundingFrequency,
-        Calendar cal,
-        DayCounter dc) : payoffType_(payoffType), fundingType_(fundingType), fundingFrequency_(fundingFrequency),
-        cal_(std::move(cal)), dc_(std::move(dc)) {
+    PerpetualFutures::PerpetualFutures(PerpetualFutures::PayoffType payoffType,
+                                       PerpetualFutures::FundingType fundingType,
+                                       Period fundingFrequency,
+                                       Calendar cal,
+                                       DayCounter dc)
+    : payoffType_(payoffType), fundingType_(fundingType), fundingFrequency_(fundingFrequency), cal_(std::move(cal)),
+      dc_(std::move(dc))
+    {
     }
 
-    void PerpetualFutures::setupArguments(PricingEngine::arguments* args) const {
+    void PerpetualFutures::setupArguments(PricingEngine::arguments* args) const
+    {
         auto* moreArgs = dynamic_cast<PerpetualFutures::arguments*>(args);
         QL_REQUIRE(moreArgs != nullptr, "wrong argument type");
         moreArgs->payoffType = payoffType_;
@@ -44,11 +47,14 @@ namespace QuantLib {
 
     PerpetualFutures::arguments::arguments()
     : payoffType(PerpetualFutures::PayoffType(-1)), fundingType(PerpetualFutures::FundingType(-1)),
-      fundingFrequency(Period(8, Hours)), cal(NullCalendar()),
-      dc(ActualActual(ActualActual::ISDA)) {}
+      fundingFrequency(Period(8, Hours)), cal(NullCalendar()), dc(ActualActual(ActualActual::ISDA))
+    {
+    }
 
-    void PerpetualFutures::arguments::validate() const {
-        switch (payoffType) {
+    void PerpetualFutures::arguments::validate() const
+    {
+        switch (payoffType)
+        {
             case PerpetualFutures::Linear:
             case PerpetualFutures::Inverse:
             case PerpetualFutures::Quanto:
@@ -56,7 +62,8 @@ namespace QuantLib {
             default:
                 QL_FAIL("unknown payoff type");
         }
-        switch (fundingType) {
+        switch (fundingType)
+        {
             case PerpetualFutures::FundingWithPreviousSpot:
                 break;
             case PerpetualFutures::FundingWithCurrentSpot:
@@ -66,8 +73,10 @@ namespace QuantLib {
         }
     }
 
-    std::ostream& operator<<(std::ostream& out, PerpetualFutures::PayoffType type) {
-        switch (type) {
+    std::ostream& operator<<(std::ostream& out, PerpetualFutures::PayoffType type)
+    {
+        switch (type)
+        {
             case PerpetualFutures::Linear:
                 return out << "Linear";
             case PerpetualFutures::Inverse:
@@ -79,8 +88,10 @@ namespace QuantLib {
         }
     }
 
-    std::ostream& operator<<(std::ostream& out, PerpetualFutures::FundingType type) {
-        switch (type) {
+    std::ostream& operator<<(std::ostream& out, PerpetualFutures::FundingType type)
+    {
+        switch (type)
+        {
             case PerpetualFutures::FundingWithPreviousSpot:
                 return out << "FundingWithPreviousSpot";
             case PerpetualFutures::FundingWithCurrentSpot:
@@ -91,4 +102,3 @@ namespace QuantLib {
     }
 
 }
-

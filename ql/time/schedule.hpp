@@ -26,32 +26,33 @@
 #ifndef quantlib_schedule_hpp
 #define quantlib_schedule_hpp
 
-#include <ql/time/calendars/nullcalendar.hpp>
-#include <ql/utilities/null.hpp>
-#include <ql/time/period.hpp>
-#include <ql/time/dategenerationrule.hpp>
 #include <ql/errors.hpp>
 #include <ql/optional.hpp>
+#include <ql/time/calendars/nullcalendar.hpp>
+#include <ql/time/dategenerationrule.hpp>
+#include <ql/time/period.hpp>
+#include <ql/utilities/null.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Payment schedule
     /*! \ingroup datetime */
-    class Schedule {
+    class Schedule
+    {
       public:
         /*! constructor that takes any list of dates, and optionally
             meta information that can be used by client classes. Note
             that neither the list of dates nor the meta information is
             checked for plausibility in any sense. */
-        Schedule(
-            const std::vector<Date>&,
-            Calendar calendar = NullCalendar(),
-            BusinessDayConvention convention = Unadjusted,
-            const ext::optional<BusinessDayConvention>& terminationDateConvention = ext::nullopt,
-            const ext::optional<Period>& tenor = ext::nullopt,
-            const ext::optional<DateGeneration::Rule>& rule = ext::nullopt,
-            const ext::optional<bool>& endOfMonth = ext::nullopt,
-            std::vector<bool> isRegular = std::vector<bool>(0));
+        Schedule(const std::vector<Date>&,
+                 Calendar calendar = NullCalendar(),
+                 BusinessDayConvention convention = Unadjusted,
+                 const ext::optional<BusinessDayConvention>& terminationDateConvention = ext::nullopt,
+                 const ext::optional<Period>& tenor = ext::nullopt,
+                 const ext::optional<DateGeneration::Rule>& rule = ext::nullopt,
+                 const ext::optional<bool>& endOfMonth = ext::nullopt,
+                 std::vector<bool> isRegular = std::vector<bool>(0));
         /*! rule based constructor */
         Schedule(Date effectiveDate,
                  const Date& terminationDate,
@@ -125,7 +126,8 @@ namespace QuantLib {
     /*! This class provides a more comfortable interface to the
         argument list of Schedule's constructor.
     */
-    class MakeSchedule {
+    class MakeSchedule
+    {
       public:
         MakeSchedule& from(const Date& effectiveDate);
         MakeSchedule& to(const Date& terminationDate);
@@ -137,10 +139,11 @@ namespace QuantLib {
         MakeSchedule& withRule(DateGeneration::Rule);
         MakeSchedule& forwards();
         MakeSchedule& backwards();
-        MakeSchedule& endOfMonth(bool flag=true);
+        MakeSchedule& endOfMonth(bool flag = true);
         MakeSchedule& withFirstDate(const Date& d);
         MakeSchedule& withNextToLastDate(const Date& d);
         operator Schedule() const;
+
       private:
         Calendar calendar_;
         Date effectiveDate_, terminationDate_;
@@ -152,7 +155,7 @@ namespace QuantLib {
         Date firstDate_, nextToLastDate_;
     };
 
-    /*! Helper function for returning the date on or before date \p d that is the 20th of the month and obeserves the 
+    /*! Helper function for returning the date on or before date \p d that is the 20th of the month and obeserves the
         given date generation \p rule if it is relevant.
     */
     Date previousTwentieth(const Date& d, DateGeneration::Rule rule);
@@ -162,90 +165,102 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline const Date& Schedule::date(Size i) const {
+    inline const Date& Schedule::date(Size i) const
+    {
         return dates_.at(i);
     }
 
-    inline const Date& Schedule::operator[](Size i) const {
-        #if defined(QL_EXTRA_SAFETY_CHECKS)
+    inline const Date& Schedule::operator[](Size i) const
+    {
+#if defined(QL_EXTRA_SAFETY_CHECKS)
         return dates_.at(i);
-        #else
+#else
         return dates_[i];
-        #endif
+#endif
     }
 
-    inline const Date& Schedule::at(Size i) const {
+    inline const Date& Schedule::at(Size i) const
+    {
         return dates_.at(i);
     }
 
-    inline const Date& Schedule::front() const {
+    inline const Date& Schedule::front() const
+    {
         QL_REQUIRE(!dates_.empty(), "no front date for empty schedule");
         return dates_.front();
     }
 
-    inline const Date& Schedule::back() const {
+    inline const Date& Schedule::back() const
+    {
         QL_REQUIRE(!dates_.empty(), "no back date for empty schedule");
         return dates_.back();
     }
 
-    inline const Calendar& Schedule::calendar() const {
+    inline const Calendar& Schedule::calendar() const
+    {
         return calendar_;
     }
 
-    inline const Date& Schedule::startDate() const {
-        QL_REQUIRE(!dates_.empty(), "empty Schedule: no start date"); 
+    inline const Date& Schedule::startDate() const
+    {
+        QL_REQUIRE(!dates_.empty(), "empty Schedule: no start date");
         return dates_.front();
     }
 
-    inline const Date &Schedule::endDate() const {
+    inline const Date& Schedule::endDate() const
+    {
         // Checks to avoid segfault, issue #2302
-        QL_REQUIRE(!dates_.empty(), "empty Schedule: no end date"); 
-        return dates_.back(); 
+        QL_REQUIRE(!dates_.empty(), "empty Schedule: no end date");
+        return dates_.back();
     }
 
-    inline bool Schedule::hasTenor() const {
+    inline bool Schedule::hasTenor() const
+    {
         return static_cast<bool>(tenor_);
     }
 
-    inline const Period& Schedule::tenor() const {
-        QL_REQUIRE(hasTenor(),
-                   "full interface (tenor) not available");
-        return *tenor_;  // NOLINT(bugprone-unchecked-optional-access)
+    inline const Period& Schedule::tenor() const
+    {
+        QL_REQUIRE(hasTenor(), "full interface (tenor) not available");
+        return *tenor_; // NOLINT(bugprone-unchecked-optional-access)
     }
 
-    inline BusinessDayConvention Schedule::businessDayConvention() const {
+    inline BusinessDayConvention Schedule::businessDayConvention() const
+    {
         return convention_;
     }
 
-    inline bool
-    Schedule::hasTerminationDateBusinessDayConvention() const {
+    inline bool Schedule::hasTerminationDateBusinessDayConvention() const
+    {
         return static_cast<bool>(terminationDateConvention_);
     }
 
-    inline BusinessDayConvention
-    Schedule::terminationDateBusinessDayConvention() const {
-        QL_REQUIRE(hasTerminationDateBusinessDayConvention(),
-                   "full interface (termination date bdc) not available");
-        return *terminationDateConvention_;  // NOLINT(bugprone-unchecked-optional-access)
+    inline BusinessDayConvention Schedule::terminationDateBusinessDayConvention() const
+    {
+        QL_REQUIRE(hasTerminationDateBusinessDayConvention(), "full interface (termination date bdc) not available");
+        return *terminationDateConvention_; // NOLINT(bugprone-unchecked-optional-access)
     }
 
-    inline bool Schedule::hasRule() const {
+    inline bool Schedule::hasRule() const
+    {
         return static_cast<bool>(rule_);
     }
 
-    inline DateGeneration::Rule Schedule::rule() const {
+    inline DateGeneration::Rule Schedule::rule() const
+    {
         QL_REQUIRE(hasRule(), "full interface (rule) not available");
-        return *rule_;  // NOLINT(bugprone-unchecked-optional-access)
+        return *rule_; // NOLINT(bugprone-unchecked-optional-access)
     }
 
-    inline bool Schedule::hasEndOfMonth() const {
+    inline bool Schedule::hasEndOfMonth() const
+    {
         return static_cast<bool>(endOfMonth_);
     }
 
-    inline bool Schedule::endOfMonth() const {
-        QL_REQUIRE(hasEndOfMonth(),
-                   "full interface (end of month) not available");
-        return *endOfMonth_;  // NOLINT(bugprone-unchecked-optional-access)
+    inline bool Schedule::endOfMonth() const
+    {
+        QL_REQUIRE(hasEndOfMonth(), "full interface (end of month) not available");
+        return *endOfMonth_; // NOLINT(bugprone-unchecked-optional-access)
     }
 
 }

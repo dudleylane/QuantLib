@@ -19,15 +19,18 @@
 
 #include <ql/time/calendars/norway.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Norway::Norway() {
+    Norway::Norway()
+    {
         // all calendar instances share the same implementation instance
         static ext::shared_ptr<Calendar::Impl> impl(new Norway::Impl);
         impl_ = impl;
     }
 
-    bool Norway::Impl::isBusinessDay(const Date& date) const {
+    bool Norway::Impl::isBusinessDay(const Date& date) const
+    {
         Weekday w = date.weekday();
         Day d = date.dayOfMonth(), dd = date.dayOfYear();
         Month m = date.month();
@@ -35,19 +38,19 @@ namespace QuantLib {
         Day em = easterMonday(y);
         if (isWeekend(w)
             // Holy Thursday
-            || (dd == em-4)
+            || (dd == em - 4)
             // Good Friday
-            || (dd == em-3)
+            || (dd == em - 3)
             // Easter Monday
             || (dd == em)
             // Ascension Thursday
-            || (dd == em+38)
+            || (dd == em + 38)
             // Whit Monday
-            || (dd == em+49)
+            || (dd == em + 49)
             // New Year's Day
-            || (d == 1  && m == January)
+            || (d == 1 && m == January)
             // May Day
-            || (d == 1  && m == May)
+            || (d == 1 && m == May)
             // National Independence Day
             || (d == 17 && m == May)
             // Christmas Eve
@@ -61,4 +64,3 @@ namespace QuantLib {
     }
 
 }
-

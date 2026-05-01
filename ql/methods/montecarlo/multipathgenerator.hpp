@@ -32,7 +32,8 @@
 #include <ql/stochasticprocess.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Generates a multipath from a random number generator.
     /*! RSG is a sample generator which returns a random sequence.
@@ -48,7 +49,8 @@ namespace QuantLib {
         \test the generated paths are checked against cached results
     */
     template <class GSG>
-    class MultiPathGenerator {
+    class MultiPathGenerator
+    {
       public:
         typedef Sample<MultiPath> sample_type;
         MultiPathGenerator(const ext::shared_ptr<StochasticProcess>&,
@@ -57,6 +59,7 @@ namespace QuantLib {
                            bool brownianBridge = false);
         const sample_type& next() const;
         const sample_type& antithetic() const;
+
       private:
         const sample_type& next(bool antithetic) const;
         bool brownianBridge_;
@@ -74,45 +77,42 @@ namespace QuantLib {
                                                 GSG generator,
                                                 bool brownianBridge)
     : brownianBridge_(brownianBridge), process_(process), generator_(std::move(generator)),
-      next_(MultiPath(process->size(), times), 1.0) {
+      next_(MultiPath(process->size(), times), 1.0)
+    {
 
-        QL_REQUIRE(generator_.dimension() ==
-                   process->factors()*(times.size()-1),
-                   "dimension (" << generator_.dimension()
-                   << ") is not equal to ("
-                   << process->factors() << " * " << times.size()-1
-                   << ") the number of factors "
-                   << "times the number of time steps");
-        QL_REQUIRE(times.size() > 1,
-                   "no times given");
+        QL_REQUIRE(generator_.dimension() == process->factors() * (times.size() - 1),
+                   "dimension (" << generator_.dimension() << ") is not equal to (" << process->factors() << " * "
+                                 << times.size() - 1 << ") the number of factors "
+                                 << "times the number of time steps");
+        QL_REQUIRE(times.size() > 1, "no times given");
     }
 
     template <class GSG>
-    inline const typename MultiPathGenerator<GSG>::sample_type&
-    MultiPathGenerator<GSG>::next() const {
+    inline const typename MultiPathGenerator<GSG>::sample_type& MultiPathGenerator<GSG>::next() const
+    {
         return next(false);
     }
 
     template <class GSG>
-    inline const typename MultiPathGenerator<GSG>::sample_type&
-    MultiPathGenerator<GSG>::antithetic() const {
+    inline const typename MultiPathGenerator<GSG>::sample_type& MultiPathGenerator<GSG>::antithetic() const
+    {
         return next(true);
     }
 
     template <class GSG>
-    const typename MultiPathGenerator<GSG>::sample_type&
-    MultiPathGenerator<GSG>::next(bool antithetic) const {
+    const typename MultiPathGenerator<GSG>::sample_type& MultiPathGenerator<GSG>::next(bool antithetic) const
+    {
 
-        if (brownianBridge_) {
+        if (brownianBridge_)
+        {
 
             QL_FAIL("Brownian bridge not supported");
-
-        } else {
+        }
+        else
+        {
 
             typedef typename GSG::sample_type sequence_type;
-            const sequence_type& sequence_ =
-                antithetic ? generator_.lastSequence()
-                           : generator_.nextSequence();
+            const sequence_type& sequence_ = antithetic ? generator_.lastSequence() : generator_.nextSequence();
 
             Size m = process_->size();
             Size n = process_->factors();
@@ -120,7 +120,7 @@ namespace QuantLib {
             MultiPath& path = next_.value;
 
             Array asset = process_->initialValues();
-            for (Size j=0; j<m; j++)
+            for (Size j = 0; j < m; j++)
                 path[j].front() = asset[j];
 
             Array temp(n);
@@ -128,22 +128,19 @@ namespace QuantLib {
 
             const TimeGrid& timeGrid = path[0].timeGrid();
             Time t, dt;
-            for (Size i = 1; i < path.pathSize(); i++) {
-                Size offset = (i-1)*n;
-                t = timeGrid[i-1];
-                dt = timeGrid.dt(i-1);
+            for (Size i = 1; i < path.pathSize(); i++)
+            {
+                Size offset = (i - 1) * n;
+                t = timeGrid[i - 1];
+                dt = timeGrid.dt(i - 1);
                 if (antithetic)
-                    std::transform(sequence_.value.begin()+offset,
-                                   sequence_.value.begin()+offset+n,
-                                   temp.begin(),
+                    std::transform(sequence_.value.begin() + offset, sequence_.value.begin() + offset + n, temp.begin(),
                                    std::negate<>());
                 else
-                    std::copy(sequence_.value.begin()+offset,
-                              sequence_.value.begin()+offset+n,
-                              temp.begin());
+                    std::copy(sequence_.value.begin() + offset, sequence_.value.begin() + offset + n, temp.begin());
 
                 asset = process_->evolve(t, asset, dt, temp);
-                for (Size j=0; j<m; j++)
+                for (Size j = 0; j < m; j++)
                     path[j][i] = asset[j];
             }
             return next_;

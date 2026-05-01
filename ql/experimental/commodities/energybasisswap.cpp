@@ -21,7 +21,8 @@
 #include <ql/experimental/commodities/energybasisswap.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     EnergyBasisSwap::EnergyBasisSwap(const Calendar& calendar,
                                      ext::shared_ptr<CommodityIndex> spreadIndex,
@@ -37,46 +38,50 @@ namespace QuantLib {
                                      Handle<YieldTermStructure> payLegTermStructure,
                                      Handle<YieldTermStructure> receiveLegTermStructure,
                                      Handle<YieldTermStructure> discountTermStructure)
-    : EnergySwap(
-          calendar, payCurrency, receiveCurrency, pricingPeriods, commodityType, secondaryCosts),
-      spreadIndex_(std::move(spreadIndex)), payIndex_(std::move(payIndex)),
-      receiveIndex_(std::move(receiveIndex)), spreadToPayLeg_(spreadToPayLeg),
-      basis_(std::move(basis)), payLegTermStructure_(std::move(payLegTermStructure)),
+    : EnergySwap(calendar, payCurrency, receiveCurrency, pricingPeriods, commodityType, secondaryCosts),
+      spreadIndex_(std::move(spreadIndex)), payIndex_(std::move(payIndex)), receiveIndex_(std::move(receiveIndex)),
+      spreadToPayLeg_(spreadToPayLeg), basis_(std::move(basis)), payLegTermStructure_(std::move(payLegTermStructure)),
       receiveLegTermStructure_(std::move(receiveLegTermStructure)),
-      discountTermStructure_(std::move(discountTermStructure)) {
+      discountTermStructure_(std::move(discountTermStructure))
+    {
         QL_REQUIRE(!pricingPeriods_.empty(), "no payment dates");
         registerWith(spreadIndex_);
         registerWith(payIndex_);
         registerWith(receiveIndex_);
     }
 
-    void EnergyBasisSwap::performCalculations() const {
+    void EnergyBasisSwap::performCalculations() const
+    {
 
-        try {
+        try
+        {
 
-            if (payIndex_->empty()) {
-                if (payIndex_->forwardCurveEmpty()) {
-                    QL_FAIL("index [" + payIndex_->name() +
-                            "] does not have any quotes or forward prices");
-                } else {
-                    addPricingError(PricingError::Warning,
-                                    "index [" + payIndex_->name() +
-                                    "] does not have any quotes; "
-                                    "using forward prices from [" +
-                                    payIndex_->forwardCurve()->name() + "]");
+            if (payIndex_->empty())
+            {
+                if (payIndex_->forwardCurveEmpty())
+                {
+                    QL_FAIL("index [" + payIndex_->name() + "] does not have any quotes or forward prices");
+                }
+                else
+                {
+                    addPricingError(PricingError::Warning, "index [" + payIndex_->name() +
+                                                               "] does not have any quotes; "
+                                                               "using forward prices from [" +
+                                                               payIndex_->forwardCurve()->name() + "]");
                 }
             }
-            if (receiveIndex_->empty()) {
-                if (receiveIndex_->forwardCurveEmpty()) {
-                    QL_FAIL("index [" + receiveIndex_->name() +
-                            "] does not have any quotes or forward prices");
-                } else {
-                    addPricingError(PricingError::Warning,
-                                    "index [" + receiveIndex_->name() +
-                                    "] does not have any quotes; "
-                                    "using forward prices from [" +
-                                    receiveIndex_->forwardCurve()->name() +
-                                    "]");
+            if (receiveIndex_->empty())
+            {
+                if (receiveIndex_->forwardCurveEmpty())
+                {
+                    QL_FAIL("index [" + receiveIndex_->name() + "] does not have any quotes or forward prices");
+                }
+                else
+                {
+                    addPricingError(PricingError::Warning, "index [" + receiveIndex_->name() +
+                                                               "] does not have any quotes; "
+                                                               "using forward prices from [" +
+                                                               receiveIndex_->forwardCurve()->name() + "]");
                 }
             }
 
@@ -87,127 +92,103 @@ namespace QuantLib {
 
             Date evaluationDate = Settings::instance().evaluationDate();
 
-            const Currency& baseCurrency =
-                CommoditySettings::instance().currency();
-            const UnitOfMeasure baseUnitOfMeasure =
-                CommoditySettings::instance().unitOfMeasure();
+            const Currency& baseCurrency = CommoditySettings::instance().currency();
+            const UnitOfMeasure baseUnitOfMeasure = CommoditySettings::instance().unitOfMeasure();
 
             Real quantityUomConversionFactor =
-                calculateUomConversionFactor(
-                               pricingPeriods_[0]->quantity().commodityType(),
-                               baseUnitOfMeasure,
-                               pricingPeriods_[0]->quantity().unitOfMeasure());
+                calculateUomConversionFactor(pricingPeriods_[0]->quantity().commodityType(), baseUnitOfMeasure,
+                                             pricingPeriods_[0]->quantity().unitOfMeasure());
             Real payIndexUomConversionFactor =
-                calculateUomConversionFactor(payIndex_->commodityType(),
-                                             payIndex_->unitOfMeasure(),
-                                             baseUnitOfMeasure);
-            Real receiveIndexUomConversionFactor =
-                calculateUomConversionFactor(receiveIndex_->commodityType(),
-                                             receiveIndex_->unitOfMeasure(),
-                                             baseUnitOfMeasure);
+                calculateUomConversionFactor(payIndex_->commodityType(), payIndex_->unitOfMeasure(), baseUnitOfMeasure);
+            Real receiveIndexUomConversionFactor = calculateUomConversionFactor(
+                receiveIndex_->commodityType(), receiveIndex_->unitOfMeasure(), baseUnitOfMeasure);
 
             Real payIndexFxConversionFactor =
-                calculateFxConversionFactor(payIndex_->currency(),
-                                            baseCurrency, evaluationDate);
+                calculateFxConversionFactor(payIndex_->currency(), baseCurrency, evaluationDate);
             Real receiveIndexFxConversionFactor =
-                calculateFxConversionFactor(receiveIndex_->currency(),
-                                            baseCurrency, evaluationDate);
-            Real payLegFxConversionFactor =
-                calculateFxConversionFactor(baseCurrency, payCurrency_,
-                                            evaluationDate);
+                calculateFxConversionFactor(receiveIndex_->currency(), baseCurrency, evaluationDate);
+            Real payLegFxConversionFactor = calculateFxConversionFactor(baseCurrency, payCurrency_, evaluationDate);
             Real receiveLegFxConversionFactor =
-                calculateFxConversionFactor(baseCurrency, receiveCurrency_,
-                                            evaluationDate);
+                calculateFxConversionFactor(baseCurrency, receiveCurrency_, evaluationDate);
 
-            Real basisUomConversionFactor =
-                calculateUomConversionFactor(
-                               pricingPeriods_[0]->quantity().commodityType(),
-                               basis_.unitOfMeasure(), baseUnitOfMeasure);
+            Real basisUomConversionFactor = calculateUomConversionFactor(pricingPeriods_[0]->quantity().commodityType(),
+                                                                         basis_.unitOfMeasure(), baseUnitOfMeasure);
             Real basisFxConversionFactor =
-                calculateFxConversionFactor(baseCurrency,
-                                            basis_.amount().currency(),
-                                            evaluationDate);
+                calculateFxConversionFactor(baseCurrency, basis_.amount().currency(), evaluationDate);
 
-            Real basisValue = basis_.amount().value() *
-                basisUomConversionFactor * basisFxConversionFactor;
+            Real basisValue = basis_.amount().value() * basisUomConversionFactor * basisFxConversionFactor;
 
             Date lastPayIndexQuoteDate = payIndex_->lastQuoteDate();
             Date lastReceiveIndexQuoteDate = receiveIndex_->lastQuoteDate();
 
-            if (lastPayIndexQuoteDate < evaluationDate - 1) {
+            if (lastPayIndexQuoteDate < evaluationDate - 1)
+            {
                 std::ostringstream message;
-                message << "index [" << payIndex_->name()
-                        << "] has last quote date of "
+                message << "index [" << payIndex_->name() << "] has last quote date of "
                         << io::iso_date(lastPayIndexQuoteDate);
                 addPricingError(PricingError::Warning, message.str());
             }
-            if (lastReceiveIndexQuoteDate < evaluationDate - 1) {
+            if (lastReceiveIndexQuoteDate < evaluationDate - 1)
+            {
                 std::ostringstream message;
-                message << "index [" << receiveIndex_->name()
-                        << "] has last quote date of "
+                message << "index [" << receiveIndex_->name() << "] has last quote date of "
                         << io::iso_date(lastReceiveIndexQuoteDate);
                 addPricingError(PricingError::Warning, message.str());
             }
 
-            Date lastQuoteDate = std::min(lastPayIndexQuoteDate,
-                                          lastReceiveIndexQuoteDate);
+            Date lastQuoteDate = std::min(lastPayIndexQuoteDate, lastReceiveIndexQuoteDate);
 
             Real totalQuantityAmount = 0;
 
             // price each period
-            for (const auto& pricingPeriod : pricingPeriods_) {
+            for (const auto& pricingPeriod : pricingPeriods_)
+            {
                 Integer periodDayCount = 0;
 
                 // get the index quotes
-                Date periodStartDate =
-                    calendar_.adjust(pricingPeriod->startDate());
-                for (Date stepDate = periodStartDate;
-                     stepDate <= pricingPeriod->endDate();
-                     stepDate = calendar_.advance(stepDate, 1*Days)) {
+                Date periodStartDate = calendar_.adjust(pricingPeriod->startDate());
+                for (Date stepDate = periodStartDate; stepDate <= pricingPeriod->endDate();
+                     stepDate = calendar_.advance(stepDate, 1 * Days))
+                {
 
                     bool unrealized = stepDate > evaluationDate;
                     Real payQuoteValue = 0;
                     Real receiveQuoteValue = 0;
 
-                    if (stepDate <= lastQuoteDate) {
+                    if (stepDate <= lastQuoteDate)
+                    {
                         payQuoteValue = payIndex_->fixing(stepDate);
                         receiveQuoteValue = receiveIndex_->fixing(stepDate);
-                    } else {
+                    }
+                    else
+                    {
                         payQuoteValue = payIndex_->forwardPrice(stepDate);
-                        receiveQuoteValue =
-                            receiveIndex_->forwardPrice(stepDate);
+                        receiveQuoteValue = receiveIndex_->forwardPrice(stepDate);
                     }
 
-                    if (payQuoteValue == 0) {
+                    if (payQuoteValue == 0)
+                    {
                         std::ostringstream message;
-                        message << "pay quote value for curve ["
-                                << payIndex_->name() << "] is 0 for date "
+                        message << "pay quote value for curve [" << payIndex_->name() << "] is 0 for date "
                                 << io::iso_date(stepDate);
                         addPricingError(PricingError::Warning, message.str());
                     }
-                    if (receiveQuoteValue == 0) {
+                    if (receiveQuoteValue == 0)
+                    {
                         std::ostringstream message;
-                        message << "receive quote value for curve ["
-                                << receiveIndex_->name() << "] is 0 for date "
+                        message << "receive quote value for curve [" << receiveIndex_->name() << "] is 0 for date "
                                 << io::iso_date(stepDate);
                         addPricingError(PricingError::Warning, message.str());
                     }
 
                     QL_REQUIRE(payQuoteValue != Null<Real>(),
-                               "curve [" << payIndex_->name() <<
-                               "] missing value for pricing date: "
-                               << stepDate);
+                               "curve [" << payIndex_->name() << "] missing value for pricing date: " << stepDate);
                     QL_REQUIRE(receiveQuoteValue != Null<Real>(),
-                               "curve [" << receiveIndex_->name() <<
-                               "] missing value for pricing date: "
-                               << stepDate);
+                               "curve [" << receiveIndex_->name() << "] missing value for pricing date: " << stepDate);
 
-                    Real payLegPriceValue =
-                        payQuoteValue * payIndexUomConversionFactor *
-                        payIndexFxConversionFactor;
+                    Real payLegPriceValue = payQuoteValue * payIndexUomConversionFactor * payIndexFxConversionFactor;
                     Real receiveLegPriceValue =
-                        receiveQuoteValue * receiveIndexUomConversionFactor *
-                        receiveIndexFxConversionFactor;
+                        receiveQuoteValue * receiveIndexUomConversionFactor * receiveIndexFxConversionFactor;
 
                     if (spreadToPayLeg_)
                         payLegPriceValue += basisValue;
@@ -215,25 +196,20 @@ namespace QuantLib {
                         receiveLegPriceValue += basisValue;
 
                     dailyPositions_[stepDate] =
-                        EnergyDailyPosition(stepDate, payLegPriceValue,
-                                            receiveLegPriceValue, unrealized);
+                        EnergyDailyPosition(stepDate, payLegPriceValue, receiveLegPriceValue, unrealized);
                     periodDayCount++;
                 }
 
-                Real periodQuantityAmount =
-                    pricingPeriod->quantity().amount() *
-                    quantityUomConversionFactor;
+                Real periodQuantityAmount = pricingPeriod->quantity().amount() * quantityUomConversionFactor;
                 totalQuantityAmount += periodQuantityAmount;
 
-                Real avgDailyQuantityAmount =
-                    periodDayCount == 0 ? Real(0) :
-                                          periodQuantityAmount / periodDayCount;
+                Real avgDailyQuantityAmount = periodDayCount == 0 ? Real(0) : periodQuantityAmount / periodDayCount;
 
                 Real payLegValue = 0;
                 Real receiveLegValue = 0;
                 for (auto dpi = dailyPositions_.find(periodStartDate);
-                     dpi != dailyPositions_.end() && dpi->first <= pricingPeriod->endDate();
-                     ++dpi) {
+                     dpi != dailyPositions_.end() && dpi->first <= pricingPeriod->endDate(); ++dpi)
+                {
                     EnergyDailyPosition& dailyPosition = dpi->second;
                     dailyPosition.quantityAmount = avgDailyQuantityAmount;
                     dailyPosition.riskDelta =
@@ -245,66 +221,51 @@ namespace QuantLib {
                 Real discountFactor = 1;
                 Real payLegDiscountFactor = 1;
                 Real receiveLegDiscountFactor = 1;
-                if (pricingPeriod->paymentDate() >= evaluationDate + 2 /* settlement days*/) {
-                    discountFactor =
-                        discountTermStructure_->discount(
-                                                pricingPeriod->paymentDate());
-                    payLegDiscountFactor =
-                        payLegTermStructure_->discount(
-                                                pricingPeriod->paymentDate());
-                    receiveLegDiscountFactor =
-                        receiveLegTermStructure_->discount(
-                                                pricingPeriod->paymentDate());
+                if (pricingPeriod->paymentDate() >= evaluationDate + 2 /* settlement days*/)
+                {
+                    discountFactor = discountTermStructure_->discount(pricingPeriod->paymentDate());
+                    payLegDiscountFactor = payLegTermStructure_->discount(pricingPeriod->paymentDate());
+                    receiveLegDiscountFactor = receiveLegTermStructure_->discount(pricingPeriod->paymentDate());
                 }
 
                 Real uDelta = receiveLegValue + payLegValue;
-                Real dDelta = (receiveLegValue * receiveLegDiscountFactor) +
-                    (payLegValue * payLegDiscountFactor);
-                Real pmtFxConversionFactor =
-                    (dDelta > 0) ? payLegFxConversionFactor : receiveLegFxConversionFactor;
-                Currency pmtCurrency =
-                    (dDelta  > 0) ? receiveCurrency_ : payCurrency_;
-                Real pmtDiscountFactor =
-                    (dDelta  > 0) ? receiveLegDiscountFactor : payLegDiscountFactor;
+                Real dDelta = (receiveLegValue * receiveLegDiscountFactor) + (payLegValue * payLegDiscountFactor);
+                Real pmtFxConversionFactor = (dDelta > 0) ? payLegFxConversionFactor : receiveLegFxConversionFactor;
+                Currency pmtCurrency = (dDelta > 0) ? receiveCurrency_ : payCurrency_;
+                Real pmtDiscountFactor = (dDelta > 0) ? receiveLegDiscountFactor : payLegDiscountFactor;
 
-                paymentCashFlows_[pricingPeriod->paymentDate()] =
-                    ext::make_shared<CommodityCashFlow> (
-                           pricingPeriod->paymentDate(),
-                                                 Money(baseCurrency,
-                                                       uDelta * discountFactor),
-                                                 Money(baseCurrency, uDelta),
-                                                 Money(pmtCurrency,
-                                                       dDelta * pmtFxConversionFactor),
-                                                 Money(pmtCurrency,
-                                                       uDelta * pmtFxConversionFactor),
-                                                 discountFactor,
-                                                 pmtDiscountFactor,
-                                                 pricingPeriod->paymentDate() <= evaluationDate);
+                paymentCashFlows_[pricingPeriod->paymentDate()] = ext::make_shared<CommodityCashFlow>(
+                    pricingPeriod->paymentDate(), Money(baseCurrency, uDelta * discountFactor),
+                    Money(baseCurrency, uDelta), Money(pmtCurrency, dDelta * pmtFxConversionFactor),
+                    Money(pmtCurrency, uDelta * pmtFxConversionFactor), discountFactor, pmtDiscountFactor,
+                    pricingPeriod->paymentDate() <= evaluationDate);
 
-                calculateSecondaryCostAmounts(
-                               pricingPeriods_[0]->quantity().commodityType(),
-                               totalQuantityAmount, evaluationDate);
+                calculateSecondaryCostAmounts(pricingPeriods_[0]->quantity().commodityType(), totalQuantityAmount,
+                                              evaluationDate);
 
                 NPV_ += dDelta;
             }
 
             QL_REQUIRE(!paymentCashFlows_.empty(), "no cashflows");
 
-            for (auto & secondaryCostAmount : secondaryCostAmounts_) {
+            for (auto& secondaryCostAmount : secondaryCostAmounts_)
+            {
                 Real amount = secondaryCostAmount.second.value();
                 NPV_ -= amount;
             }
 
             additionalResults_["dailyPositions"] = dailyPositions_;
-          
-        } catch (const QuantLib::Error& e) {
+        }
+        catch (const QuantLib::Error& e)
+        {
             addPricingError(PricingError::Error, e.what());
             throw;
-        } catch (const std::exception& e) {
+        }
+        catch (const std::exception& e)
+        {
             addPricingError(PricingError::Error, e.what());
             throw;
         }
     }
 
 }
-

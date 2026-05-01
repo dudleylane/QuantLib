@@ -29,10 +29,12 @@
 #include <ql/indexes/interestrateindex.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! base class for Inter-Bank-Offered-Rate indexes (e.g. %Libor, etc.)
-    class IborIndex : public InterestRateIndex {
+    class IborIndex : public InterestRateIndex
+    {
       public:
         IborIndex(const std::string& familyName,
                   const Period& tenor,
@@ -58,13 +60,13 @@ namespace QuantLib {
         //! \name Other methods
         //@{
         //! returns a copy of itself linked to a different forwarding curve
-        virtual ext::shared_ptr<IborIndex> clone(
-                        const Handle<YieldTermStructure>& forwarding) const;
+        virtual ext::shared_ptr<IborIndex> clone(const Handle<YieldTermStructure>& forwarding) const;
         // @}
       protected:
         BusinessDayConvention convention_;
         Handle<YieldTermStructure> termStructure_;
         bool endOfMonth_;
+
       private:
         // overload to avoid date/time (re)calculation
         /* This can be called with cached coupon dates (and it does
@@ -78,14 +80,13 @@ namespace QuantLib {
            public, but before doing that I'd think hard whether we
            have any other way to get the same results.
         */
-        Rate forecastFixing(const Date& valueDate,
-                            const Date& endDate,
-                            Time t) const;
+        Rate forecastFixing(const Date& valueDate, const Date& endDate, Time t) const;
         friend class IborCoupon;
     };
 
 
-    class OvernightIndex : public IborIndex {
+    class OvernightIndex : public IborIndex
+    {
       public:
         OvernightIndex(const std::string& familyName,
                        Natural settlementDays,
@@ -100,23 +101,22 @@ namespace QuantLib {
 
     // inline
 
-    inline BusinessDayConvention IborIndex::businessDayConvention() const {
+    inline BusinessDayConvention IborIndex::businessDayConvention() const
+    {
         return convention_;
     }
 
-    inline Handle<YieldTermStructure>
-    IborIndex::forwardingTermStructure() const {
+    inline Handle<YieldTermStructure> IborIndex::forwardingTermStructure() const
+    {
         return termStructure_;
     }
 
-    inline Rate IborIndex::forecastFixing(const Date& d1,
-                                          const Date& d2,
-                                          Time t) const {
-        QL_REQUIRE(!termStructure_.empty(),
-                   "null term structure set to this instance of " << name());
+    inline Rate IborIndex::forecastFixing(const Date& d1, const Date& d2, Time t) const
+    {
+        QL_REQUIRE(!termStructure_.empty(), "null term structure set to this instance of " << name());
         DiscountFactor disc1 = termStructure_->discount(d1);
         DiscountFactor disc2 = termStructure_->discount(d2);
-        return (disc1/disc2 - 1.0) / t;
+        return (disc1 / disc2 - 1.0) / t;
     }
 
 }

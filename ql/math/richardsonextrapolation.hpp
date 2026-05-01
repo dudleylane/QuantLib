@@ -18,7 +18,7 @@
 */
 
 /*! \file richardsonextrapolation.hpp
-*/
+ */
 
 #ifndef quantlib_richardson_extrapolation_hpp
 #define quantlib_richardson_extrapolation_hpp
@@ -27,7 +27,8 @@
 #include <ql/utilities/null.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Richardson Extrapolation
     /*! Richardson Extrapolation is a sequence acceleration technique for
@@ -40,21 +41,21 @@ namespace QuantLib {
         http://en.wikipedia.org/wiki/Richardson_extrapolation
      */
 
-    class RichardsonExtrapolation {
+    class RichardsonExtrapolation
+    {
       public:
         /*! Richardon Extrapolation
            \param f function to be extrapolated to delta_h -> 0
            \param delta_h step size
            \param n if known, n is the order of convergence
          */
-        RichardsonExtrapolation(const std::function<Real (Real)>& f,
-                                Real delta_h, Real n = Null<Real>());
+        RichardsonExtrapolation(const std::function<Real(Real)>& f, Real delta_h, Real n = Null<Real>());
 
 
         /*! Extrapolation for known order of convergence
             \param t scaling factor for the step size
         */
-        Real operator()(Real t=2.0) const;
+        Real operator()(Real t = 2.0) const;
 
         /*! Extrapolation for unknown order of convergence
             \param t first scaling factor for the step size
@@ -66,7 +67,7 @@ namespace QuantLib {
         const Real delta_h_;
         const Real fdelta_h_;
         const Real n_;
-        const std::function<Real (Real)> f_;
+        const std::function<Real(Real)> f_;
     };
 }
 

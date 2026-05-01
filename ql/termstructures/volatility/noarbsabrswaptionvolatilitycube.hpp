@@ -27,13 +27,15 @@
 #ifndef quantlib_noarb_sabr_swaption_volatility_cube_hpp
 #define quantlib_noarb_sabr_swaption_volatility_cube_hpp
 
-#include <ql/termstructures/volatility/swaption/sabrswaptionvolatilitycube.hpp>
 #include <ql/termstructures/volatility/noarbsabrinterpolation.hpp>
+#include <ql/termstructures/volatility/swaption/sabrswaptionvolatilitycube.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! No-Arbitrage SABR model specification for XabrSwaptionVolatilityCube
-    struct SwaptionVolCubeNoArbSabrModel {
+    struct SwaptionVolCubeNoArbSabrModel
+    {
         typedef NoArbSabrInterpolation Interpolation;
         typedef NoArbSabrSmileSection SmileSection;
     };
@@ -43,39 +45,40 @@ namespace QuantLib {
         so we specialize the traits to pass only shift.
     */
     template <>
-    struct XabrModelTraits<SwaptionVolCubeNoArbSabrModel> {
+    struct XabrModelTraits<SwaptionVolCubeNoArbSabrModel>
+    {
         static constexpr Size nParams = 4;
 
         template <class I1, class I2>
-        static ext::shared_ptr<NoArbSabrInterpolation> createInterpolation(
-            const I1& xBegin, const I1& xEnd, const I2& yBegin,
-            Time t, const Real& forward,
-            const std::vector<Real>& params,
-            const std::vector<bool>& paramIsFixed,
-            bool vegaWeighted,
-            const ext::shared_ptr<EndCriteria>& endCriteria,
-            const ext::shared_ptr<OptimizationMethod>& optMethod,
-            Real errorAccept, bool useMaxError, Size maxGuesses,
-            Real shift, VolatilityType /* volatilityType */) {
-            return ext::make_shared<NoArbSabrInterpolation>(
-                xBegin, xEnd, yBegin, t, forward,
-                params[0], params[1], params[2], params[3],
-                paramIsFixed[0], paramIsFixed[1], paramIsFixed[2], paramIsFixed[3],
-                vegaWeighted, endCriteria, optMethod,
-                errorAccept, useMaxError, maxGuesses, shift);
+        static ext::shared_ptr<NoArbSabrInterpolation>
+        createInterpolation(const I1& xBegin,
+                            const I1& xEnd,
+                            const I2& yBegin,
+                            Time t,
+                            const Real& forward,
+                            const std::vector<Real>& params,
+                            const std::vector<bool>& paramIsFixed,
+                            bool vegaWeighted,
+                            const ext::shared_ptr<EndCriteria>& endCriteria,
+                            const ext::shared_ptr<OptimizationMethod>& optMethod,
+                            Real errorAccept,
+                            bool useMaxError,
+                            Size maxGuesses,
+                            Real shift,
+                            VolatilityType /* volatilityType */)
+        {
+            return ext::make_shared<NoArbSabrInterpolation>(xBegin, xEnd, yBegin, t, forward, params[0], params[1],
+                                                            params[2], params[3], paramIsFixed[0], paramIsFixed[1],
+                                                            paramIsFixed[2], paramIsFixed[3], vegaWeighted, endCriteria,
+                                                            optMethod, errorAccept, useMaxError, maxGuesses, shift);
         }
 
-        static Real extractGamma(
-            const ext::shared_ptr<NoArbSabrInterpolation>& /* interp */) {
-            return 0.0;
-        }
+        static Real extractGamma(const ext::shared_ptr<NoArbSabrInterpolation>& /* interp */) { return 0.0; }
 
         static ext::shared_ptr<NoArbSabrSmileSection> createSmileSection(
-            Time optionTime, Real forward,
-            const std::vector<Real>& params,
-            Real shift, VolatilityType volatilityType) {
-            return ext::make_shared<NoArbSabrSmileSection>(
-                optionTime, forward, params, shift, volatilityType);
+            Time optionTime, Real forward, const std::vector<Real>& params, Real shift, VolatilityType volatilityType)
+        {
+            return ext::make_shared<NoArbSabrSmileSection>(optionTime, forward, params, shift, volatilityType);
         }
     };
 
@@ -85,4 +88,3 @@ namespace QuantLib {
 }
 
 #endif
-

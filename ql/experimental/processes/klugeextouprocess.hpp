@@ -26,7 +26,8 @@
 
 #include <ql/stochasticprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class ExtOUWithJumpsProcess;
     class ExtendedOrnsteinUhlenbeckProcess;
@@ -53,7 +54,8 @@ namespace QuantLib {
     */
 
 
-    class KlugeExtOUProcess : public StochasticProcess {
+    class KlugeExtOUProcess : public StochasticProcess
+    {
       public:
         KlugeExtOUProcess(Real rho,
                           ext::shared_ptr<ExtOUWithJumpsProcess> kluge,

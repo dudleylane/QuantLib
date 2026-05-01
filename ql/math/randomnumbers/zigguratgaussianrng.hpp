@@ -27,7 +27,8 @@
 #include <ql/methods/montecarlo/sample.hpp>
 #include <cstdint>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Gaussian random number generator
     /*! It uses the Ziggurat transformation to return a
@@ -53,12 +54,12 @@ namespace QuantLib {
         Currently, Xoshiro256StarStarUniformRng is the only RNG supporting this.
     */
     template <class RNG>
-    class ZigguratGaussianRng {
+    class ZigguratGaussianRng
+    {
       public:
         typedef Sample<Real> sample_type;
 
-        explicit ZigguratGaussianRng(const RNG& uint64Generator)
-        : uint64Generator_(uint64Generator) {}
+        explicit ZigguratGaussianRng(const RNG& uint64Generator) : uint64Generator_(uint64Generator) {}
 
         //! returns a sample from a Gaussian distribution
         sample_type next() const { return {nextReal(), 1.0}; }
@@ -82,8 +83,10 @@ namespace QuantLib {
     };
 
     template <class RNG>
-    inline Real ZigguratGaussianRng<RNG>::nextReal() const {
-        while (true) {
+    inline Real ZigguratGaussianRng<RNG>::nextReal() const
+    {
+        while (true)
+        {
             // As an optimisation we re-implement the conversion
             // to a double in the interval (-1,1).
             // From the remaining 12 most significant bits we use 8 to construct `i`.
@@ -96,24 +99,29 @@ namespace QuantLib {
 
             Real x = u * normX(i);
 
-            if (std::abs(x) < normX(i + 1)) {
+            if (std::abs(x) < normX(i + 1))
+            {
                 return x;
             }
-            if (i == 0) {
+            if (i == 0)
+            {
                 // compute a random number in the tail by hand
                 return zeroCase(u);
             }
-            if (normF(i + 1) + (normF(i) - normF(i + 1) * uint64Generator_.nextReal()) < pdf(x)) {
+            if (normF(i + 1) + (normF(i) - normF(i + 1) * uint64Generator_.nextReal()) < pdf(x))
+            {
                 return x;
             }
         }
     }
 
     template <class RNG>
-    inline Real ZigguratGaussianRng<RNG>::zeroCase(Real u) const {
+    inline Real ZigguratGaussianRng<RNG>::zeroCase(Real u) const
+    {
         // compute a random number in the tail by hand
         Real x, y;
-        do {
+        do
+        {
             x = std::log(uint64Generator_.nextReal()) / normR();
             y = std::log(uint64Generator_.nextReal());
         } while (-2.0 * y < x * x);
@@ -122,17 +130,20 @@ namespace QuantLib {
     }
 
     template <class RNG>
-    inline Real ZigguratGaussianRng<RNG>::pdf(Real x) const {
+    inline Real ZigguratGaussianRng<RNG>::pdf(Real x) const
+    {
         return std::exp(-x * x / 2.0);
     }
 
     template <class RNG>
-    inline Real ZigguratGaussianRng<RNG>::normR() const {
+    inline Real ZigguratGaussianRng<RNG>::normR() const
+    {
         return 3.654152885361008796;
     }
 
     template <class RNG>
-    Real ZigguratGaussianRng<RNG>::normX(int i) const {
+    Real ZigguratGaussianRng<RNG>::normX(int i) const
+    {
         static const ZigguratTable normX = {
             3.910757959537090045, 3.654152885361008796, 3.449278298560964462, 3.320244733839166074,
             3.224575052047029100, 3.147889289517149969, 3.083526132001233044, 3.027837791768635434,
@@ -203,7 +214,8 @@ namespace QuantLib {
     }
 
     template <class RNG>
-    Real ZigguratGaussianRng<RNG>::normF(int i) const {
+    Real ZigguratGaussianRng<RNG>::normF(int i) const
+    {
         static const ZigguratGaussianRng<RNG>::ZigguratTable normF = {
             0.000477467764586655, 0.001260285930498598, 0.002609072746106363, 0.004037972593371872,
             0.005522403299264754, 0.007050875471392110, 0.008616582769422917, 0.010214971439731100,

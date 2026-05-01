@@ -28,7 +28,8 @@
 
 #include <ql/stochasticprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Ornstein-Uhlenbeck process class
     /*! This class describes the Ornstein-Uhlenbeck process governed by
@@ -38,12 +39,10 @@ namespace QuantLib {
 
         \ingroup processes
     */
-    class OrnsteinUhlenbeckProcess : public StochasticProcess1D {
+    class OrnsteinUhlenbeckProcess : public StochasticProcess1D
+    {
       public:
-        OrnsteinUhlenbeckProcess(Real speed,
-                                 Volatility vol,
-                                 Real x0 = 0.0,
-                                 Real level = 0.0);
+        OrnsteinUhlenbeckProcess(Real speed, Volatility vol, Real x0 = 0.0, Real level = 0.0);
         //! \name StochasticProcess interface
         //@{
         Real drift(Time t, Real x) const override;
@@ -64,38 +63,44 @@ namespace QuantLib {
 
     // inline
 
-    inline Real OrnsteinUhlenbeckProcess::x0() const {
+    inline Real OrnsteinUhlenbeckProcess::x0() const
+    {
         return x0_;
     }
 
-    inline Real OrnsteinUhlenbeckProcess::speed() const {
+    inline Real OrnsteinUhlenbeckProcess::speed() const
+    {
         return speed_;
     }
 
-    inline Real OrnsteinUhlenbeckProcess::volatility() const {
+    inline Real OrnsteinUhlenbeckProcess::volatility() const
+    {
         return volatility_;
     }
 
-    inline Real OrnsteinUhlenbeckProcess::level() const {
+    inline Real OrnsteinUhlenbeckProcess::level() const
+    {
         return level_;
     }
 
-    inline Real OrnsteinUhlenbeckProcess::drift(Time, Real x) const {
+    inline Real OrnsteinUhlenbeckProcess::drift(Time, Real x) const
+    {
         return speed_ * (level_ - x);
     }
 
-    inline Real OrnsteinUhlenbeckProcess::diffusion(Time, Real) const {
+    inline Real OrnsteinUhlenbeckProcess::diffusion(Time, Real) const
+    {
         return volatility_;
     }
 
-    inline Real OrnsteinUhlenbeckProcess::expectation(Time, Real x0,
-                                               Time dt) const {
-        return level_ + (x0 - level_) * std::exp(-speed_*dt);
+    inline Real OrnsteinUhlenbeckProcess::expectation(Time, Real x0, Time dt) const
+    {
+        return level_ + (x0 - level_) * std::exp(-speed_ * dt);
     }
 
-    inline Real OrnsteinUhlenbeckProcess::stdDeviation(Time t, Real x0,
-                                                Time dt) const {
-        return std::sqrt(variance(t,x0,dt));
+    inline Real OrnsteinUhlenbeckProcess::stdDeviation(Time t, Real x0, Time dt) const
+    {
+        return std::sqrt(variance(t, x0, dt));
     }
 
 }

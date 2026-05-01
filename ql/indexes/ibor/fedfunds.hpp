@@ -26,11 +26,13 @@
 
 #include <ql/indexes/iborindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Fed Funds rate fixed by the FED.
     /*! (for balances held at the Federal Reserve) */
-    class FedFunds : public OvernightIndex {
+    class FedFunds : public OvernightIndex
+    {
       public:
         explicit FedFunds(const Handle<YieldTermStructure>& h = {});
     };

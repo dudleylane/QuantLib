@@ -24,9 +24,11 @@
 #include <ql/models/marketmodels/curvestate.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class SwapRateTrigger : public ExerciseStrategy<CurveState> {
+    class SwapRateTrigger : public ExerciseStrategy<CurveState>
+    {
       public:
         SwapRateTrigger(const std::vector<Time>& rateTimes,
                         std::vector<Rate> swapTriggers,
@@ -36,7 +38,8 @@ namespace QuantLib {
         void reset() override;
         bool exercise(const CurveState& currentState) const override;
         void nextStep(const CurveState& currentState) override;
-        std::unique_ptr<ExerciseStrategy<CurveState> > clone() const override;
+        std::unique_ptr<ExerciseStrategy<CurveState>> clone() const override;
+
       private:
         std::vector<Time> rateTimes_;
         std::vector<Rate> swapTriggers_;

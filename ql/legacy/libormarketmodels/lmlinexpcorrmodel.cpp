@@ -17,60 +17,67 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/math/matrixutilities/pseudosqrt.hpp>
 #include <ql/legacy/libormarketmodels/lmlinexpcorrmodel.hpp>
+#include <ql/math/matrixutilities/pseudosqrt.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    LmLinearExponentialCorrelationModel::LmLinearExponentialCorrelationModel(
-                                  Size size, Real rho, Real beta, Size factors)
-   : LmCorrelationModel(size, 2),
-     corrMatrix_(size, size),
-     factors_((factors != Null<Size>()) ? factors : size) {
+    LmLinearExponentialCorrelationModel::LmLinearExponentialCorrelationModel(Size size,
+                                                                             Real rho,
+                                                                             Real beta,
+                                                                             Size factors)
+    : LmCorrelationModel(size, 2), corrMatrix_(size, size), factors_((factors != Null<Size>()) ? factors : size)
+    {
         arguments_[0] = ConstantParameter(rho, BoundaryConstraint(-1.0, 1.0));
         arguments_[1] = ConstantParameter(beta, PositiveConstraint());
         LmLinearExponentialCorrelationModel::generateArguments();
     }
 
-    Matrix LmLinearExponentialCorrelationModel::correlation(Time, const Array&) const {
+    Matrix LmLinearExponentialCorrelationModel::correlation(Time, const Array&) const
+    {
         Matrix tmp(corrMatrix_);
         return tmp;
     }
 
-    Real LmLinearExponentialCorrelationModel::correlation(
-                                   Size i, Size j, Time, const Array&) const {
+    Real LmLinearExponentialCorrelationModel::correlation(Size i, Size j, Time, const Array&) const
+    {
         return corrMatrix_[i][j];
     }
 
-    bool LmLinearExponentialCorrelationModel::isTimeIndependent() const {
+    bool LmLinearExponentialCorrelationModel::isTimeIndependent() const
+    {
         return true;
     }
 
-    Size LmLinearExponentialCorrelationModel::factors() const {
+    Size LmLinearExponentialCorrelationModel::factors() const
+    {
         return factors_;
     }
 
 
-    Matrix LmLinearExponentialCorrelationModel::pseudoSqrt(Time, const Array&) const {
+    Matrix LmLinearExponentialCorrelationModel::pseudoSqrt(Time, const Array&) const
+    {
         Matrix tmp(pseudoSqrt_);
         return tmp;
     }
 
-    void LmLinearExponentialCorrelationModel::generateArguments() {
+    void LmLinearExponentialCorrelationModel::generateArguments()
+    {
         const Real rho = arguments_[0](0.0);
-        const Real beta= arguments_[1](0.0);
+        const Real beta = arguments_[1](0.0);
 
-        for (Size i=0; i<size_; ++i) {
-            for (Size j=i; j<size_; ++j) {
-                corrMatrix_[i][j] = corrMatrix_[j][i]
-                    = rho + (1-rho)*std::exp(-beta*std::fabs(Real(i)-Real(j)));
+        for (Size i = 0; i < size_; ++i)
+        {
+            for (Size j = i; j < size_; ++j)
+            {
+                corrMatrix_[i][j] = corrMatrix_[j][i] =
+                    rho + (1 - rho) * std::exp(-beta * std::fabs(Real(i) - Real(j)));
             }
         }
 
-        pseudoSqrt_ = rankReducedSqrt(corrMatrix_, factors_,
-                                      1.0, SalvagingAlgorithm::None);
+        pseudoSqrt_ = rankReducedSqrt(corrMatrix_, factors_, 1.0, SalvagingAlgorithm::None);
 
         corrMatrix_ = pseudoSqrt_ * transpose(pseudoSqrt_);
     }
 }
-

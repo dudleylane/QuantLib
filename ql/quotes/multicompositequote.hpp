@@ -27,13 +27,15 @@
 #include <ql/types.hpp>
 #include <ql/utilities/null.hpp>
 #include <algorithm>
-#include <vector>
 #include <utility>
+#include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     template <class ArrayFunction>
-    class MultiCompositeQuote : public Quote, public Observer {
+    class MultiCompositeQuote : public Quote, public Observer
+    {
       public:
         MultiCompositeQuote(std::vector<Handle<Quote>> elements, ArrayFunction f);
         //! \name inspectors
@@ -58,17 +60,18 @@ namespace QuantLib {
     // inline definitions
 
     template <class ArrayFunction>
-    inline MultiCompositeQuote<ArrayFunction>::MultiCompositeQuote(
-        std::vector<Handle<Quote>> elements,
-        ArrayFunction f)
-    : elements_(std::move(elements)), f_(std::move(f)) {
+    inline MultiCompositeQuote<ArrayFunction>::MultiCompositeQuote(std::vector<Handle<Quote>> elements, ArrayFunction f)
+    : elements_(std::move(elements)), f_(std::move(f))
+    {
         for (auto& elem : elements_)
             registerWith(elem);
     }
 
     template <class ArrayFunction>
-    inline Real MultiCompositeQuote<ArrayFunction>::value() const {
-        if (value_ == Null<Real>()) {
+    inline Real MultiCompositeQuote<ArrayFunction>::value() const
+    {
+        if (value_ == Null<Real>())
+        {
             QL_ENSURE(isValid(), "invalid MultiCompositeQuote");
             Array args(elements_.size());
             std::transform(elements_.begin(), elements_.end(), args.begin(),
@@ -79,14 +82,15 @@ namespace QuantLib {
     }
 
     template <class ArrayFunction>
-    inline bool MultiCompositeQuote<ArrayFunction>::isValid() const {
-        return std::all_of(elements_.begin(), elements_.end(), [](const Handle<Quote>& elem) {
-            return !elem.empty() && elem->isValid();
-        });
+    inline bool MultiCompositeQuote<ArrayFunction>::isValid() const
+    {
+        return std::all_of(elements_.begin(), elements_.end(),
+                           [](const Handle<Quote>& elem) { return !elem.empty() && elem->isValid(); });
     }
 
     template <class ArrayFunction>
-    inline void MultiCompositeQuote<ArrayFunction>::update() {
+    inline void MultiCompositeQuote<ArrayFunction>::update()
+    {
         value_ = Null<Real>();
         notifyObservers();
     }

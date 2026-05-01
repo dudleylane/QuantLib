@@ -27,12 +27,13 @@
 #include <ql/instruments/twoassetcorrelationoption.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Analytic two-asset correlation %option engine
     /*! Formulas by Zhang, from Haug's "Option Pricing Formulas". */
-    class AnalyticTwoAssetCorrelationEngine
-        : public TwoAssetCorrelationOption::engine {
+    class AnalyticTwoAssetCorrelationEngine : public TwoAssetCorrelationOption::engine
+    {
       public:
         AnalyticTwoAssetCorrelationEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> p1,
                                           ext::shared_ptr<GeneralizedBlackScholesProcess> p2,

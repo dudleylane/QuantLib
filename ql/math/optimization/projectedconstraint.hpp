@@ -28,27 +28,31 @@
 #include <ql/math/optimization/projection.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class ProjectedConstraint : public Constraint {
+    class ProjectedConstraint : public Constraint
+    {
 
       private:
-
-        class Impl final : public Constraint::Impl {
+        class Impl final : public Constraint::Impl
+        {
           public:
-            Impl(Constraint constraint,
-                 const Array& parameterValues,
-                 const std::vector<bool>& fixParameters)
-            : constraint_(std::move(constraint)), projection_(parameterValues, fixParameters) {}
-            Impl(Constraint constraint, const Projection& projection)
-            : constraint_(std::move(constraint)), projection_(projection) {}
-            bool test(const Array& params) const override {
-                return constraint_.test(projection_.include(params));
+            Impl(Constraint constraint, const Array& parameterValues, const std::vector<bool>& fixParameters)
+            : constraint_(std::move(constraint)), projection_(parameterValues, fixParameters)
+            {
             }
-            Array upperBound(const Array& params) const override {
+            Impl(Constraint constraint, const Projection& projection)
+            : constraint_(std::move(constraint)), projection_(projection)
+            {
+            }
+            bool test(const Array& params) const override { return constraint_.test(projection_.include(params)); }
+            Array upperBound(const Array& params) const override
+            {
                 return projection_.project(constraint_.upperBound(projection_.include(params)));
             }
-            Array lowerBound(const Array& params) const override {
+            Array lowerBound(const Array& params) const override
+            {
                 return projection_.project(constraint_.lowerBound(projection_.include(params)));
             }
 
@@ -58,18 +62,18 @@ namespace QuantLib {
         };
 
       public:
+        ProjectedConstraint(const Constraint& constraint,
+                            const Array& parameterValues,
+                            const std::vector<bool>& fixParameters)
+        : Constraint(ext::shared_ptr<Constraint::Impl>(
+              new ProjectedConstraint::Impl(constraint, parameterValues, fixParameters)))
+        {
+        }
 
-        ProjectedConstraint(const Constraint &constraint,
-                            const Array &parameterValues,
-                            const std::vector<bool> &fixParameters)
-            : Constraint(ext::shared_ptr<Constraint::Impl>(
-                  new ProjectedConstraint::Impl(constraint, parameterValues,
-                                                fixParameters))) {}
-
-        ProjectedConstraint(const Constraint &constraint,
-                            const Projection &projection)
-            : Constraint(ext::shared_ptr<Constraint::Impl>(
-                  new ProjectedConstraint::Impl(constraint, projection))) {}
+        ProjectedConstraint(const Constraint& constraint, const Projection& projection)
+        : Constraint(ext::shared_ptr<Constraint::Impl>(new ProjectedConstraint::Impl(constraint, projection)))
+        {
+        }
     };
 }
 

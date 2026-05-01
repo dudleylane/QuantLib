@@ -19,11 +19,11 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
-#include <ql/volatilitymodel.hpp>
 #include <ql/models/volatility/constantestimator.hpp>
-#include <ql/models/volatility/simplelocalestimator.hpp>
 #include <ql/models/volatility/garmanklass.hpp>
+#include <ql/models/volatility/simplelocalestimator.hpp>
 #include <ql/timeseries.hpp>
+#include <ql/volatilitymodel.hpp>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -32,7 +32,8 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(VolatilityModelsTests)
 
-BOOST_AUTO_TEST_CASE(testConstruction) {
+BOOST_AUTO_TEST_CASE(testConstruction)
+{
 
     BOOST_TEST_MESSAGE("Testing volatility model construction...");
 
@@ -41,7 +42,7 @@ BOOST_AUTO_TEST_CASE(testConstruction) {
     ts[Date(29, March, 2005)] = 2.3;
     ts[Date(15, March, 2005)] = 0.3;
 
-    SimpleLocalEstimator sle(1/360.0);
+    SimpleLocalEstimator sle(1 / 360.0);
     TimeSeries<Volatility> locale = sle.calculate(ts);
 
     ConstantEstimator ce(1);

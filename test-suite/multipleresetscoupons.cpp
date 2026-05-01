@@ -18,9 +18,9 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
-#include <ql/cashflows/multipleresetscoupon.hpp>
-#include <ql/cashflows/iborcoupon.hpp>
 #include <ql/cashflows/cashflows.hpp>
+#include <ql/cashflows/iborcoupon.hpp>
+#include <ql/cashflows/multipleresetscoupon.hpp>
 #include <ql/indexes/ibor/euribor.hpp>
 #include <ql/time/calendars/target.hpp>
 
@@ -31,7 +31,8 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(MultipleResetsCouponTests)
 
-struct CommonVars {
+struct CommonVars
+{
 
     Date today;
     Calendar calendar;
@@ -43,7 +44,8 @@ struct CommonVars {
 
     // utilities
 
-    CommonVars() {
+    CommonVars()
+    {
         dayCount = Actual365Fixed();
         businessConvention = ModifiedFollowing;
 
@@ -59,17 +61,19 @@ struct CommonVars {
         euriborHandle.linkTo(flatRate(today, 0.007, dayCount));
     }
 
-    Schedule createSchedule(const Date& start, const Date& end) {
+    Schedule createSchedule(const Date& start, const Date& end)
+    {
         Schedule s = MakeSchedule()
-            .from(start)
-            .to(end)
-            .withTenor(euribor->tenor())
-            .withCalendar(euribor->fixingCalendar())
-            .withConvention(euribor->businessDayConvention());
+                         .from(start)
+                         .to(end)
+                         .withTenor(euribor->tenor())
+                         .withCalendar(euribor->fixingCalendar())
+                         .withConvention(euribor->businessDayConvention());
         return s;
     }
 
-    Leg createIborLeg(const Schedule& schedule, Spread spread) {
+    Leg createIborLeg(const Schedule& schedule, Spread spread)
+    {
         return IborLeg(schedule, euribor)
             .withNotionals(1.0)
             .withSpreads(spread)
@@ -80,14 +84,15 @@ struct CommonVars {
 
     ext::shared_ptr<CashFlow> createMultipleResetsCoupon(const Schedule& schedule,
                                                          Spread rateSpread = 0.0,
-                                                         RateAveraging::Type averaging = RateAveraging::Compound) {
+                                                         RateAveraging::Type averaging = RateAveraging::Compound)
+    {
         Calendar paymentCalendar = euribor->fixingCalendar();
         BusinessDayConvention paymentBdc = euribor->businessDayConvention();
         Date paymentDate = paymentCalendar.advance(schedule.back(), 1 * Days, paymentBdc);
         Date exCouponDate = paymentCalendar.advance(paymentDate, -2 * Days, paymentBdc);
-        auto cpn = ext::make_shared<MultipleResetsCoupon>(
-                paymentDate, 1.0, schedule, euribor->fixingDays(), euribor, 1.0, 0.0,
-                rateSpread, Date(), Date(), DayCounter(), exCouponDate);
+        auto cpn =
+            ext::make_shared<MultipleResetsCoupon>(paymentDate, 1.0, schedule, euribor->fixingDays(), euribor, 1.0, 0.0,
+                                                   rateSpread, Date(), Date(), DayCounter(), exCouponDate);
         if (averaging == RateAveraging::Compound)
             cpn->setPricer(ext::make_shared<CompoundingMultipleResetsPricer>());
         else
@@ -95,8 +100,8 @@ struct CommonVars {
         return cpn;
     }
 
-    MultipleResetsLeg createMultipleResetsLeg(const Date& start,
-                                              const Date& end) {
+    MultipleResetsLeg createMultipleResetsLeg(const Date& start, const Date& end)
+    {
         Schedule s = createSchedule(start, end);
         return MultipleResetsLeg(s, euribor, 6)
             .withNotionals(1.0)
@@ -107,11 +112,11 @@ struct CommonVars {
             .withCouponSpreads(0.0)
             .withAveragingMethod(RateAveraging::Compound);
     }
-
 };
 
 
-BOOST_AUTO_TEST_CASE(testCompoundedCouponWithMultipleResets) {
+BOOST_AUTO_TEST_CASE(testCompoundedCouponWithMultipleResets)
+{
     BOOST_TEST_MESSAGE("Testing coupon with multiple compounded resets...");
 
     CommonVars vars;
@@ -131,7 +136,8 @@ BOOST_AUTO_TEST_CASE(testCompoundedCouponWithMultipleResets) {
     Real actualPayment = testCpn->amount();
 
     Real compound = 1.0;
-    for (const auto& cf : iborLeg) {
+    for (const auto& cf : iborLeg)
+    {
         auto cpn = ext::dynamic_pointer_cast<IborCoupon>(cf);
         Real yearFraction = cpn->accrualPeriod();
         Rate fixing = vars.euribor->fixing(cpn->fixingDate());
@@ -147,7 +153,8 @@ BOOST_AUTO_TEST_CASE(testCompoundedCouponWithMultipleResets) {
                     << "    end:    " << end << "\n");
 }
 
-BOOST_AUTO_TEST_CASE(testAveragedCouponWithMultipleResets) {
+BOOST_AUTO_TEST_CASE(testAveragedCouponWithMultipleResets)
+{
     BOOST_TEST_MESSAGE("Testing coupon with multiple averaged resets...");
 
     CommonVars vars;
@@ -167,7 +174,8 @@ BOOST_AUTO_TEST_CASE(testAveragedCouponWithMultipleResets) {
     Real actualPayment = testCpn->amount();
 
     Real expectedPayment = 0.0;
-    for (const auto& cf : iborLeg) {
+    for (const auto& cf : iborLeg)
+    {
         auto cpn = ext::dynamic_pointer_cast<IborCoupon>(cf);
         Real yearFraction = cpn->accrualPeriod();
         Rate fixing = vars.euribor->fixing(cpn->fixingDate());
@@ -182,12 +190,13 @@ BOOST_AUTO_TEST_CASE(testAveragedCouponWithMultipleResets) {
                     << "    end:    " << end << "\n");
 }
 
-BOOST_AUTO_TEST_CASE(testExCouponCashFlow) {
+BOOST_AUTO_TEST_CASE(testExCouponCashFlow)
+{
     BOOST_TEST_MESSAGE("Testing ex-coupon cash flow...");
 
     CommonVars vars;
 
-    Date start = vars.calendar.advance(vars.today, - 6 * Months);
+    Date start = vars.calendar.advance(vars.today, -6 * Months);
     Date end = vars.today;
     auto schedule = vars.createSchedule(start, end);
 
@@ -195,9 +204,8 @@ BOOST_AUTO_TEST_CASE(testExCouponCashFlow) {
     Date paymentDate = paymentCalendar.advance(end, 2 * Days);
     Date exCouponDate = paymentCalendar.advance(end, -2 * Days);
 
-    auto cpn = ext::make_shared<MultipleResetsCoupon>(
-                paymentDate, 1.0, schedule, 2, vars.euribor,
-                1.0, 0.0, 0.0, Date(), Date(), DayCounter(), exCouponDate);
+    auto cpn = ext::make_shared<MultipleResetsCoupon>(paymentDate, 1.0, schedule, 2, vars.euribor, 1.0, 0.0, 0.0,
+                                                      Date(), Date(), DayCounter(), exCouponDate);
     cpn->setPricer(ext::make_shared<CompoundingMultipleResetsPricer>());
 
     Real npv = CashFlows::npv({cpn}, **vars.euriborHandle, false, vars.today, vars.today);
@@ -212,7 +220,8 @@ BOOST_AUTO_TEST_CASE(testExCouponCashFlow) {
                     << "    end:    " << end << "\n");
 }
 
-BOOST_AUTO_TEST_CASE(testMultipleResetsLegConsistencyChecks) {
+BOOST_AUTO_TEST_CASE(testMultipleResetsLegConsistencyChecks)
+{
     BOOST_TEST_MESSAGE("Testing multiple-resets leg consistency checks...");
 
     CommonVars vars;
@@ -223,62 +232,47 @@ BOOST_AUTO_TEST_CASE(testMultipleResetsLegConsistencyChecks) {
     Leg validLeg = vars.createMultipleResetsLeg(start, end);
     Size N = validLeg.size();
 
-    BOOST_CHECK_THROW(
-        Leg l0(vars.createMultipleResetsLeg(start, end)
-               .withNotionals(std::vector<Real>())),
-        Error);
+    BOOST_CHECK_THROW(Leg l0(vars.createMultipleResetsLeg(start, end).withNotionals(std::vector<Real>())), Error);
+
+    BOOST_CHECK_THROW(Leg l1(vars.createMultipleResetsLeg(start, end).withNotionals(std::vector<Real>(N + 1, 1.0))),
+                      Error);
+
+    BOOST_CHECK_THROW(Leg l2(vars.createMultipleResetsLeg(start, end).withFixingDays(std::vector<Natural>(N + 1, 2))),
+                      Error);
+
+    BOOST_CHECK_THROW(Leg l3(vars.createMultipleResetsLeg(start, end).withGearings(0.0)), Error);
+
+    BOOST_CHECK_THROW(Leg l4(vars.createMultipleResetsLeg(start, end).withGearings(std::vector<Real>(N + 1, 1.0))),
+                      Error);
 
     BOOST_CHECK_THROW(
-        Leg l1(vars.createMultipleResetsLeg(start, end)
-               .withNotionals(std::vector<Real>(N + 1, 1.0))),
-        Error);
+        Leg l5(vars.createMultipleResetsLeg(start, end).withCouponSpreads(std::vector<Spread>(N + 1, 0.0))), Error);
 
-    BOOST_CHECK_THROW(
-        Leg l2(vars.createMultipleResetsLeg(start, end)
-               .withFixingDays(std::vector<Natural>(N + 1, 2))),
-        Error);
-
-    BOOST_CHECK_THROW(
-        Leg l3(vars.createMultipleResetsLeg(start, end)
-               .withGearings(0.0)),
-        Error);
-
-    BOOST_CHECK_THROW(
-        Leg l4(vars.createMultipleResetsLeg(start, end)
-               .withGearings(std::vector<Real>(N + 1, 1.0))),
-        Error);
-
-    BOOST_CHECK_THROW(
-        Leg l5(vars.createMultipleResetsLeg(start, end)
-               .withCouponSpreads(std::vector<Spread>(N + 1, 0.0))),
-        Error);
-
-    BOOST_CHECK_THROW(
-        Leg l6(vars.createMultipleResetsLeg(start, end)
-               .withRateSpreads(std::vector<Spread>(N + 1, 0.0))),
-        Error);
+    BOOST_CHECK_THROW(Leg l6(vars.createMultipleResetsLeg(start, end).withRateSpreads(std::vector<Spread>(N + 1, 0.0))),
+                      Error);
 }
 
 
-BOOST_AUTO_TEST_CASE(testMultipleResetsLegRegression) {
+BOOST_AUTO_TEST_CASE(testMultipleResetsLegRegression)
+{
     BOOST_TEST_MESSAGE("Testing number of fixing dates in multiple-resets coupons...");
 
-    Schedule schedule = MakeSchedule()
-        .from({1, August, 2024})
-        .to({1, August, 2025})
-        .withFrequency(Monthly)
-        .withCalendar(TARGET());
+    Schedule schedule =
+        MakeSchedule().from({1, August, 2024}).to({1, August, 2025}).withFrequency(Monthly).withCalendar(TARGET());
 
     Size resetsPerCoupon = 3;
     Leg leg = MultipleResetsLeg(schedule, ext::make_shared<Euribor1M>(), resetsPerCoupon)
-        .withNotionals(100.0)
-        .withAveragingMethod(RateAveraging::Compound);
+                  .withNotionals(100.0)
+                  .withAveragingMethod(RateAveraging::Compound);
 
-    for (const auto& cf : leg) {
+    for (const auto& cf : leg)
+    {
         auto c = ext::dynamic_pointer_cast<MultipleResetsCoupon>(cf);
         if (c->fixingDates().size() != 3)
-            BOOST_ERROR("Unexpected number of fixing dates (" << c->fixingDates().size() << ") "
-                        "in coupon paying on " << c->date());
+            BOOST_ERROR("Unexpected number of fixing dates (" << c->fixingDates().size()
+                                                              << ") "
+                                                                 "in coupon paying on "
+                                                              << c->date());
     }
 }
 

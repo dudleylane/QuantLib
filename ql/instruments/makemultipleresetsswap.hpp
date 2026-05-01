@@ -29,18 +29,18 @@
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/time/dategenerationrule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! helper class
     /*! Provides a more comfortable way to instantiate multiple-resets swaps.
         By default the fixed leg frequency matches the coupon period implied
         by the index tenor and \c resetsPerCoupon.
     */
-    class MakeMultipleResetsSwap {
+    class MakeMultipleResetsSwap
+    {
       public:
-        MakeMultipleResetsSwap(const Period& tenor,
-                               const ext::shared_ptr<IborIndex>& iborIndex,
-                               Size resetsPerCoupon);
+        MakeMultipleResetsSwap(const Period& tenor, const ext::shared_ptr<IborIndex>& iborIndex, Size resetsPerCoupon);
 
         operator MultipleResetsSwap() const;
         operator ext::shared_ptr<MultipleResetsSwap>() const;

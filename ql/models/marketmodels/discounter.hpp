@@ -24,16 +24,17 @@
 #include <ql/types.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class CurveState;
 
-    class MarketModelDiscounter {
+    class MarketModelDiscounter
+    {
       public:
-        MarketModelDiscounter(Time paymentTime,
-                              const std::vector<Time>& rateTimes);
-        Real numeraireBonds(const CurveState&,
-                            Size numeraire) const;
+        MarketModelDiscounter(Time paymentTime, const std::vector<Time>& rateTimes);
+        Real numeraireBonds(const CurveState&, Size numeraire) const;
+
       private:
         Size before_;
         Real beforeWeight_;

@@ -16,32 +16,33 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/math/comparison.hpp>
 #include <ql/math/optimization/goldstein.hpp>
 #include <ql/math/optimization/method.hpp>
 #include <ql/math/optimization/problem.hpp>
-#include <ql/math/comparison.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Real GoldsteinLineSearch::operator()(Problem& P, 
-                                         EndCriteria::Type& ecType, 
-                                         const EndCriteria& endCriteria, 
-                                         const Real t_ini) 
+    Real GoldsteinLineSearch::operator()(Problem& P,
+                                         EndCriteria::Type& ecType,
+                                         const EndCriteria& endCriteria,
+                                         const Real t_ini)
     {
         Constraint& constraint = P.constraint();
-        succeed_=true;
+        succeed_ = true;
         bool maxIter = false;
         Real t = t_ini;
         Size loopNumber = 0;
 
         Real q0 = P.functionValue();
         Real qp0 = P.gradientNormValue();
-        
+
         Real tl = 0.0;
         Real tr = 0.0;
 
         qt_ = q0;
-        qpt_ = (gradient_.empty()) ? qp0 : -DotProduct(gradient_,searchDirection_);
+        qpt_ = (gradient_.empty()) ? qp0 : -DotProduct(gradient_, searchDirection_);
 
         // Initialize gradient
         gradient_ = Array(P.currentValue().size());
@@ -49,15 +50,16 @@ namespace QuantLib {
         xtd_ = P.currentValue();
         t = update(xtd_, searchDirection_, t, constraint);
         // Compute function value at the new point
-        qt_ = P.value (xtd_);
+        qt_ = P.value(xtd_);
 
-        while ((qt_ - q0) < -beta_*t*qpt_ || (qt_ - q0) > -alpha_*t*qpt_) {
-            if ((qt_ - q0) > -alpha_*t*qpt_)
+        while ((qt_ - q0) < -beta_ * t * qpt_ || (qt_ - q0) > -alpha_ * t * qpt_)
+        {
+            if ((qt_ - q0) > -alpha_ * t * qpt_)
                 tr = t;
             else
                 tl = t;
             ++loopNumber;
-            
+
             // calculate the new step
             if (close_enough(tr, 0.0))
                 t *= extrapolation_;
@@ -69,8 +71,8 @@ namespace QuantLib {
             t = update(xtd_, searchDirection_, t, constraint);
 
             // Compute function value at the new point
-            qt_ = P.value (xtd_);
-            P.gradient (gradient_, xtd_);
+            qt_ = P.value(xtd_);
+            P.gradient(gradient_, xtd_);
             // and it squared norm
             maxIter = endCriteria.checkMaxIterations(loopNumber, ecType);
 

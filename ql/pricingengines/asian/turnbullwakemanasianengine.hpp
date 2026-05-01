@@ -27,7 +27,8 @@
 #include <ql/processes/blackscholesprocess.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! Turnbull Wakeman two moment-matching Asian option Engine
         Analytical pricing based on the two-moment Turnbull-Wakeman
@@ -44,10 +45,12 @@ namespace QuantLib {
           sloping volatility term structures.
         - the pricing of trades with guaranteed exercise/OTM is also tested.
     */
-    class TurnbullWakemanAsianEngine : public DiscreteAveragingAsianOption::engine {
+    class TurnbullWakemanAsianEngine : public DiscreteAveragingAsianOption::engine
+    {
       public:
         explicit TurnbullWakemanAsianEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process)
-        : process_(std::move(process)) {
+        : process_(std::move(process))
+        {
             registerWith(process_);
         }
 

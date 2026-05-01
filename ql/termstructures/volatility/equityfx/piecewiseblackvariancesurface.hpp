@@ -30,7 +30,8 @@
 #include <ql/termstructures/volatility/smilesection.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Black volatility surface built from smile sections
     /*! This class builds a Black volatility surface from a set of
@@ -38,20 +39,18 @@ namespace QuantLib {
         total variance between tenors for a given strike.
 
     */
-    class PiecewiseBlackVarianceSurface
-        : public BlackVarianceTermStructure {
+    class PiecewiseBlackVarianceSurface : public BlackVarianceTermStructure
+    {
       public:
-        PiecewiseBlackVarianceSurface(
-            const Date& referenceDate,
-            const std::vector<Date>& dates,
-            std::vector<ext::shared_ptr<SmileSection>> smileSections,
-            DayCounter dayCounter = DayCounter());
+        PiecewiseBlackVarianceSurface(const Date& referenceDate,
+                                      const std::vector<Date>& dates,
+                                      std::vector<ext::shared_ptr<SmileSection>> smileSections,
+                                      DayCounter dayCounter = DayCounter());
 
-        PiecewiseBlackVarianceSurface(
-            const Date& referenceDate,
-            const Date& date,
-            ext::shared_ptr<SmileSection> smileSection,
-            DayCounter dayCounter = DayCounter());
+        PiecewiseBlackVarianceSurface(const Date& referenceDate,
+                                      const Date& date,
+                                      ext::shared_ptr<SmileSection> smileSection,
+                                      DayCounter dayCounter = DayCounter());
 
         DayCounter dayCounter() const override;
         Date maxDate() const override;
@@ -67,12 +66,11 @@ namespace QuantLib {
             \param blackVols a matrix with rows indexed by strike and
                              columns indexed by date
         */
-        static ext::shared_ptr<PiecewiseBlackVarianceSurface>
-        makeFromGrid(const Date& referenceDate,
-                     const std::vector<Date>& dates,
-                     const std::vector<Real>& strikes,
-                     const Matrix& blackVols,
-                     const DayCounter& dc = DayCounter());
+        static ext::shared_ptr<PiecewiseBlackVarianceSurface> makeFromGrid(const Date& referenceDate,
+                                                                           const std::vector<Date>& dates,
+                                                                           const std::vector<Real>& strikes,
+                                                                           const Matrix& blackVols,
+                                                                           const DayCounter& dc = DayCounter());
 
       protected:
         Real blackVarianceImpl(Time t, Real strike) const override;
@@ -89,23 +87,23 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline DayCounter
-    PiecewiseBlackVarianceSurface::dayCounter() const {
+    inline DayCounter PiecewiseBlackVarianceSurface::dayCounter() const
+    {
         return dayCounter_;
     }
 
-    inline Date
-    PiecewiseBlackVarianceSurface::maxDate() const {
+    inline Date PiecewiseBlackVarianceSurface::maxDate() const
+    {
         return maxDate_;
     }
 
-    inline Real
-    PiecewiseBlackVarianceSurface::minStrike() const {
+    inline Real PiecewiseBlackVarianceSurface::minStrike() const
+    {
         return QL_MIN_REAL;
     }
 
-    inline Real
-    PiecewiseBlackVarianceSurface::maxStrike() const {
+    inline Real PiecewiseBlackVarianceSurface::maxStrike() const
+    {
         return QL_MAX_REAL;
     }
 

@@ -26,7 +26,8 @@
 
 #include <ql/legacy/libormarketmodels/lmcorrmodel.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! exponential correlation model
     /*! This class describes a exponential correlation model
@@ -42,7 +43,8 @@ namespace QuantLib {
         Caps/Swaptions Calibration,
         (<http://www.business.uts.edu.au/qfrc/conferences/qmf2001/Brigo_D.pdf>)
     */
-    class LmExponentialCorrelationModel : public LmCorrelationModel {
+    class LmExponentialCorrelationModel : public LmCorrelationModel
+    {
       public:
         LmExponentialCorrelationModel(Size size, Real rho);
 
@@ -62,4 +64,3 @@ namespace QuantLib {
 
 
 #endif
-

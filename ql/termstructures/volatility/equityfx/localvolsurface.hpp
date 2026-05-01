@@ -26,7 +26,8 @@
 
 #include <ql/termstructures/volatility/equityfx/localvoltermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class BlackVolTermStructure;
     class YieldTermStructure;
@@ -42,7 +43,8 @@ namespace QuantLib {
 
         \bug this class is untested, probably unreliable.
     */
-    class LocalVolSurface : public LocalVolTermStructure {
+    class LocalVolSurface : public LocalVolTermStructure
+    {
       public:
         LocalVolSurface(const Handle<BlackVolTermStructure>& blackTS,
                         Handle<YieldTermStructure> riskFreeTS,

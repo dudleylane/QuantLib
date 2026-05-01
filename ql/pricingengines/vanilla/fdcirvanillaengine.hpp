@@ -32,7 +32,8 @@
 #include <ql/processes/coxingersollrossprocess.hpp>
 #include <ql/termstructures/volatility/equityfx/localvoltermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class FdmQuantoHelper;
 
@@ -41,7 +42,8 @@ namespace QuantLib {
 
         \test the engine has been tested to converge among different schemes.
     */
-    class FdCIRVanillaEngine : public VanillaOption::engine {
+    class FdCIRVanillaEngine : public VanillaOption::engine
+    {
       public:
         FdCIRVanillaEngine(ext::shared_ptr<CoxIngersollRossProcess> cirProcess,
                            ext::shared_ptr<GeneralizedBlackScholesProcess> bsProcess,
@@ -78,27 +80,24 @@ namespace QuantLib {
         const FdmSchemeDesc schemeDesc_;
     };
 
-    class MakeFdCIRVanillaEngine {
+    class MakeFdCIRVanillaEngine
+    {
       public:
         explicit MakeFdCIRVanillaEngine(ext::shared_ptr<CoxIngersollRossProcess> cirProcess,
                                         ext::shared_ptr<GeneralizedBlackScholesProcess> bsProcess,
                                         Real rho);
 
-        MakeFdCIRVanillaEngine& withQuantoHelper(
-            const ext::shared_ptr<FdmQuantoHelper>& quantoHelper);
+        MakeFdCIRVanillaEngine& withQuantoHelper(const ext::shared_ptr<FdmQuantoHelper>& quantoHelper);
 
         MakeFdCIRVanillaEngine& withTGrid(Size tGrid);
         MakeFdCIRVanillaEngine& withXGrid(Size xGrid);
         MakeFdCIRVanillaEngine& withRGrid(Size rGrid);
-        MakeFdCIRVanillaEngine& withDampingSteps(
-            Size dampingSteps);
+        MakeFdCIRVanillaEngine& withDampingSteps(Size dampingSteps);
 
-        MakeFdCIRVanillaEngine& withFdmSchemeDesc(
-            const FdmSchemeDesc& schemeDesc);
+        MakeFdCIRVanillaEngine& withFdmSchemeDesc(const FdmSchemeDesc& schemeDesc);
 
-        MakeFdCIRVanillaEngine& withCashDividends(
-            const std::vector<Date>& dividendDates,
-            const std::vector<Real>& dividendAmounts);
+        MakeFdCIRVanillaEngine& withCashDividends(const std::vector<Date>& dividendDates,
+                                                  const std::vector<Real>& dividendAmounts);
 
         operator ext::shared_ptr<PricingEngine>() const;
 

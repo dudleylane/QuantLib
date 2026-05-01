@@ -19,37 +19,36 @@
 
 #include <ql/legacy/libormarketmodels/lmlinexpvolmodel.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    LmVolatilityModel::LmVolatilityModel(Size size, Size nArguments)
-    : size_(size),
-      arguments_(nArguments) {
-    }
+    LmVolatilityModel::LmVolatilityModel(Size size, Size nArguments) : size_(size), arguments_(nArguments) {}
 
-    Size LmVolatilityModel::size() const {
+    Size LmVolatilityModel::size() const
+    {
         return size_;
     }
 
-    Volatility LmVolatilityModel::volatility(
-        Size i, Time t, const Array& x) const {
+    Volatility LmVolatilityModel::volatility(Size i, Time t, const Array& x) const
+    {
         // inefficient implementation, please overload in derived classes
         return volatility(t, x)[i];
     }
 
-    Real LmVolatilityModel::integratedVariance(Size, Size, Time,
-                                               const Array&) const {
+    Real LmVolatilityModel::integratedVariance(Size, Size, Time, const Array&) const
+    {
         QL_FAIL("integratedVariance() method is not supported");
     }
 
-    std::vector<Parameter> & LmVolatilityModel::params() {
+    std::vector<Parameter>& LmVolatilityModel::params()
+    {
         return arguments_;
     }
 
-    void LmVolatilityModel::setParams(
-        const std::vector<Parameter> & arguments) {
+    void LmVolatilityModel::setParams(const std::vector<Parameter>& arguments)
+    {
         arguments_ = arguments;
         generateArguments();
     }
 
 }
-

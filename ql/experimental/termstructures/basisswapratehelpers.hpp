@@ -26,7 +26,8 @@
 
 #include <ql/termstructures/yield/ratehelpers.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Rate helper for bootstrapping over ibor-ibor basis swaps
     /*! The swap is assumed to pay baseIndex + basis and receive
@@ -38,7 +39,8 @@ namespace QuantLib {
         forecast curve).
         In both cases, an exogenous discount curve is required.
     */
-    class IborIborBasisSwapRateHelper : public RelativeDateRateHelper {
+    class IborIborBasisSwapRateHelper : public RelativeDateRateHelper
+    {
       public:
         IborIborBasisSwapRateHelper(const Handle<Quote>& basis,
                                     const Period& tenor,
@@ -55,6 +57,7 @@ namespace QuantLib {
         void accept(AcyclicVisitor&) override;
         // NOLINTNEXTLINE(cppcoreguidelines-noexcept-swap,performance-noexcept-swap)
         ext::shared_ptr<Swap> swap() const { return swap_; }
+
       private:
         void initializeDates() override;
         void setTermStructure(YieldTermStructure*) override;
@@ -82,7 +85,8 @@ namespace QuantLib {
         curve.  An exogenous discount curve can be passed; if not,
         the overnight-index curve will be used.
     */
-    class OvernightIborBasisSwapRateHelper : public RelativeDateRateHelper {
+    class OvernightIborBasisSwapRateHelper : public RelativeDateRateHelper
+    {
       public:
         OvernightIborBasisSwapRateHelper(const Handle<Quote>& basis,
                                          const Period& tenor,
@@ -98,6 +102,7 @@ namespace QuantLib {
         void accept(AcyclicVisitor&) override;
         // NOLINTNEXTLINE(cppcoreguidelines-noexcept-swap,performance-noexcept-swap)
         ext::shared_ptr<Swap> swap() const { return swap_; }
+
       private:
         void initializeDates() override;
         void setTermStructure(YieldTermStructure*) override;

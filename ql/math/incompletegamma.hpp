@@ -28,7 +28,8 @@
 #include <ql/types.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Incomplete Gamma function
     /*! Incomplete Gamma function
@@ -37,19 +38,10 @@ namespace QuantLib {
         "Numerical Recipes in C", 2nd edition,
         Press, Teukolsky, Vetterling, Flannery, chapter 6
     */
-    Real incompleteGammaFunction(Real a,
-                                 Real x,
-                                 Real accuracy = 1.0e-13,
-                                 Integer maxIteration = 100);
-    Real incompleteGammaFunctionSeriesRepr(Real a,
-                                           Real x,
-                                           Real accuracy = 1.0e-13,
-                                           Integer maxIteration = 100);
-    Real incompleteGammaFunctionContinuedFractionRepr(
-                                                  Real a,
-                                                  Real x,
-                                                  Real accuracy = 1.0e-13,
-                                                  Integer maxIteration = 100);
+    Real incompleteGammaFunction(Real a, Real x, Real accuracy = 1.0e-13, Integer maxIteration = 100);
+    Real incompleteGammaFunctionSeriesRepr(Real a, Real x, Real accuracy = 1.0e-13, Integer maxIteration = 100);
+    Real
+    incompleteGammaFunctionContinuedFractionRepr(Real a, Real x, Real accuracy = 1.0e-13, Integer maxIteration = 100);
 
 }
 

@@ -30,14 +30,16 @@
 #include <ql/timegrid.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! single-factor random walk
     /*! \ingroup mcarlo
 
         \note the path includes the initial asset value as its first point.
     */
-    class Path {
+    class Path
+    {
       public:
         Path(TimeGrid timeGrid, Array values = Array());
         //! \name inspectors
@@ -79,83 +81,100 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline Path::Path(TimeGrid timeGrid, Array values)
-    : timeGrid_(std::move(timeGrid)), values_(std::move(values)) {
+    inline Path::Path(TimeGrid timeGrid, Array values) : timeGrid_(std::move(timeGrid)), values_(std::move(values))
+    {
         if (values_.empty())
             values_ = Array(timeGrid_.size());
-        QL_REQUIRE(values_.size() == timeGrid_.size(),
-                   "different number of times and asset values");
+        QL_REQUIRE(values_.size() == timeGrid_.size(), "different number of times and asset values");
     }
 
-    inline bool Path::empty() const {
+    inline bool Path::empty() const
+    {
         return timeGrid_.empty();
     }
 
-    inline Size Path::length() const {
+    inline Size Path::length() const
+    {
         return timeGrid_.size();
     }
 
-    inline Real Path::operator[](Size i) const {
+    inline Real Path::operator[](Size i) const
+    {
         return values_[i];
     }
 
-    inline Real Path::at(Size i) const {
+    inline Real Path::at(Size i) const
+    {
         return values_.at(i);
     }
 
-    inline Real& Path::operator[](Size i) {
+    inline Real& Path::operator[](Size i)
+    {
         return values_[i];
     }
 
-    inline Real& Path::at(Size i) {
+    inline Real& Path::at(Size i)
+    {
         return values_.at(i);
     }
 
-    inline Real Path::value(Size i) const {
+    inline Real Path::value(Size i) const
+    {
         return values_[i];
     }
 
-    inline Real& Path::value(Size i) {
+    inline Real& Path::value(Size i)
+    {
         return values_[i];
     }
 
-    inline Real Path::front() const {
+    inline Real Path::front() const
+    {
         return values_[0];
     }
 
-    inline Real& Path::front() {
+    inline Real& Path::front()
+    {
         return values_[0];
     }
 
-    inline Real Path::back() const {
-        return values_[values_.size()-1];
+    inline Real Path::back() const
+    {
+        return values_[values_.size() - 1];
     }
 
-    inline Real& Path::back() {
-        return values_[values_.size()-1];
+    inline Real& Path::back()
+    {
+        return values_[values_.size() - 1];
     }
 
-    inline Time Path::time(Size i) const {
+    inline Time Path::time(Size i) const
+    {
         return timeGrid_[i];
     }
 
-    inline const TimeGrid& Path::timeGrid() const {
+    inline const TimeGrid& Path::timeGrid() const
+    {
         return timeGrid_;
     }
 
-    inline Path::iterator Path::begin() const {
+    inline Path::iterator Path::begin() const
+    {
         return values_.begin();
     }
 
-    inline Path::iterator Path::end() const {
+    inline Path::iterator Path::end() const
+    {
         return values_.end();
     }
 
-    inline Path::reverse_iterator Path::rbegin() const {
+    inline Path::reverse_iterator Path::rbegin() const
+    {
         return values_.rbegin();
     }
 
-    inline Path::reverse_iterator Path::rend() const {
+    inline Path::reverse_iterator Path::rend() const
+    {
         return values_.rend();
     }
 

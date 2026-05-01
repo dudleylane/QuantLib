@@ -21,23 +21,26 @@
 #ifndef quantlib_top_level_fixture_hpp
 #define quantlib_top_level_fixture_hpp
 
-#include <boost/test/unit_test.hpp>
 #include <ql/indexes/indexmanager.hpp>
 #include <ql/settings.hpp>
+#include <boost/test/unit_test.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     using QuantLib::SavedSettings;
     using QuantLib::IndexManager;
 
-    class TopLevelFixture {  // NOLINT(cppcoreguidelines-special-member-functions)
+    class TopLevelFixture
+    { // NOLINT(cppcoreguidelines-special-member-functions)
       public:
         // Restore settings after each test.
         SavedSettings restore;
 
         TopLevelFixture() = default;
 
-        ~TopLevelFixture() {
+        ~TopLevelFixture()
+        {
             IndexManager::instance().clearHistories();
             BOOST_CHECK(true);
         }
@@ -47,7 +50,9 @@ namespace QuantLib {
         // work after Boost 1.53 because the functions were
         // overloaded and the address can't be resolved.
         void _use_check(const void* = &boost::test_tools::check_is_close,
-                        const void* = &boost::test_tools::check_is_small) const {}
+                        const void* = &boost::test_tools::check_is_small) const
+        {
+        }
 #endif
     };
 }

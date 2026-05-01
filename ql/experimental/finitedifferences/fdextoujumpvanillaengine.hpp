@@ -18,26 +18,26 @@
 */
 
 /*! \file fdextoujumpvanillaengine.hpp
-    \brief Finite Differences Ornstein Uhlenbeck plus exponential jumps engine 
+    \brief Finite Differences Ornstein Uhlenbeck plus exponential jumps engine
            for vanilla options
 */
 
 #ifndef quantlib_fd_simple_ou_jump_swing_engine_hpp
 #define quantlib_fd_simple_ou_jump_swing_engine_hpp
 
-#include <ql/pricingengine.hpp>
+#include <ql/experimental/finitedifferences/fdmextoujumpmodelinnervalue.hpp>
 #include <ql/instruments/vanillaoption.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
-#include <ql/experimental/finitedifferences/fdmextoujumpmodelinnervalue.hpp>
+#include <ql/pricingengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class YieldTermStructure;
     class ExtOUWithJumpsProcess;
 
-    class FdExtOUJumpVanillaEngine
-        : public GenericEngine<VanillaOption::arguments,
-                               VanillaOption::results> {
+    class FdExtOUJumpVanillaEngine : public GenericEngine<VanillaOption::arguments, VanillaOption::results>
+    {
       public:
         typedef FdmExtOUJumpModelInnerValue::Shape Shape;
         FdExtOUJumpVanillaEngine(ext::shared_ptr<ExtOUWithJumpsProcess> p,

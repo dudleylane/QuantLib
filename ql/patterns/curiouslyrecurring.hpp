@@ -26,7 +26,8 @@
 
 #include <ql/qldefines.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Support for the curiously recurring template pattern
     /*! See James O. Coplien. A Curiously Recurring Template Pattern.
@@ -36,18 +37,15 @@ namespace QuantLib {
         \ingroup patterns
     */
     template <class Impl>
-    class CuriouslyRecurringTemplate {
+    class CuriouslyRecurringTemplate
+    {
       protected:
         // not meant to be instantiated as such
         CuriouslyRecurringTemplate() = default;
         ~CuriouslyRecurringTemplate() = default;
         // support for the curiously recurring template pattern
-        Impl& impl() {
-            return static_cast<Impl&>(*this);
-        }
-        const Impl& impl() const {
-            return static_cast<const Impl&>(*this);
-        }
+        Impl& impl() { return static_cast<Impl&>(*this); }
+        const Impl& impl() const { return static_cast<const Impl&>(*this); }
     };
 
 }

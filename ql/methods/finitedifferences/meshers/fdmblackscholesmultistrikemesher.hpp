@@ -24,26 +24,28 @@
 #ifndef quantlib_fdm_black_scholes_multi_strike_mesher_hpp
 #define quantlib_fdm_black_scholes_multi_strike_mesher_hpp
 
+#include <ql/handle.hpp>
 #include <ql/instruments/dividendschedule.hpp>
 #include <ql/methods/finitedifferences/meshers/fdm1dmesher.hpp>
-#include <ql/handle.hpp>
 #include <ql/quote.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class YieldTermStructure;
     class GeneralizedBlackScholesProcess;
 
-    class FdmBlackScholesMultiStrikeMesher : public Fdm1dMesher {
+    class FdmBlackScholesMultiStrikeMesher : public Fdm1dMesher
+    {
       public:
-        FdmBlackScholesMultiStrikeMesher(
-            Size size,
-            const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
-            Time maturity, const std::vector<Real>& strikes,
-            Real eps = 0.0001,
-            Real scaleFactor = 1.5,
-            const std::pair<Real, Real>& cPoint
-                        = (std::pair<Real, Real>(Null<Real>(), Null<Real>())));
+        FdmBlackScholesMultiStrikeMesher(Size size,
+                                         const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
+                                         Time maturity,
+                                         const std::vector<Real>& strikes,
+                                         Real eps = 0.0001,
+                                         Real scaleFactor = 1.5,
+                                         const std::pair<Real, Real>& cPoint = (std::pair<Real, Real>(Null<Real>(),
+                                                                                                      Null<Real>())));
     };
 }
 #endif

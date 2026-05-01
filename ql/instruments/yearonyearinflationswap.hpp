@@ -25,13 +25,14 @@
 #ifndef quantlib_yyiis_hpp
 #define quantlib_yyiis_hpp
 
-#include <ql/instruments/swap.hpp>
 #include <ql/indexes/inflationindex.hpp>
+#include <ql/instruments/swap.hpp>
 #include <ql/time/calendar.hpp>
 #include <ql/time/daycounter.hpp>
 #include <ql/time/schedule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Year-on-year inflation-indexed swap
     /*! Quoted as a fixed rate \f$ K \f$.  At start:
@@ -44,25 +45,25 @@ namespace QuantLib {
         notional, and \f$ I(t) \f$ is the inflation index value at
         time \f$ t \f$.
     */
-    class YearOnYearInflationSwap : public Swap {
-    public:
+    class YearOnYearInflationSwap : public Swap
+    {
+      public:
         class arguments;
         class results;
         class engine;
-        YearOnYearInflationSwap(
-            Type type,
-            Real nominal,
-            Schedule fixedSchedule,
-            Rate fixedRate,
-            DayCounter fixedDayCount,
-            Schedule yoySchedule,
-            ext::shared_ptr<YoYInflationIndex> yoyIndex,
-            const Period& observationLag,
-            CPI::InterpolationType interpolation,
-            Spread spread,
-            DayCounter yoyDayCount,
-            Calendar paymentCalendar, // inflation index does not have a calendar
-            BusinessDayConvention paymentConvention = ModifiedFollowing);
+        YearOnYearInflationSwap(Type type,
+                                Real nominal,
+                                Schedule fixedSchedule,
+                                Rate fixedRate,
+                                DayCounter fixedDayCount,
+                                Schedule yoySchedule,
+                                ext::shared_ptr<YoYInflationIndex> yoyIndex,
+                                const Period& observationLag,
+                                CPI::InterpolationType interpolation,
+                                Spread spread,
+                                DayCounter yoyDayCount,
+                                Calendar paymentCalendar, // inflation index does not have a calendar
+                                BusinessDayConvention paymentConvention = ModifiedFollowing);
 
         // results
         virtual Real fixedLegNPV() const;
@@ -116,88 +117,103 @@ namespace QuantLib {
 
 
     //! %Arguments for YoY swap calculation
-    class YearOnYearInflationSwap::arguments : public Swap::arguments {
-    public:
-      arguments() : nominal(Null<Real>()) {}
-      Type type = Receiver;
-      Real nominal;
+    class YearOnYearInflationSwap::arguments : public Swap::arguments
+    {
+      public:
+        arguments() : nominal(Null<Real>()) {}
+        Type type = Receiver;
+        Real nominal;
 
-      std::vector<Date> fixedResetDates;
-      std::vector<Date> fixedPayDates;
-      std::vector<Time> yoyAccrualTimes;
-      std::vector<Date> yoyResetDates;
-      std::vector<Date> yoyFixingDates;
-      std::vector<Date> yoyPayDates;
+        std::vector<Date> fixedResetDates;
+        std::vector<Date> fixedPayDates;
+        std::vector<Time> yoyAccrualTimes;
+        std::vector<Date> yoyResetDates;
+        std::vector<Date> yoyFixingDates;
+        std::vector<Date> yoyPayDates;
 
-      std::vector<Real> fixedCoupons;
-      std::vector<Spread> yoySpreads;
-      std::vector<Real> yoyCoupons;
-      void validate() const override;
+        std::vector<Real> fixedCoupons;
+        std::vector<Spread> yoySpreads;
+        std::vector<Real> yoyCoupons;
+        void validate() const override;
     };
 
     //! %Results from YoY swap calculation
-    class YearOnYearInflationSwap::results : public Swap::results {
-    public:
+    class YearOnYearInflationSwap::results : public Swap::results
+    {
+      public:
         Rate fairRate;
         Spread fairSpread;
         void reset() override;
     };
 
-    class YearOnYearInflationSwap::engine : public GenericEngine<YearOnYearInflationSwap::arguments,
-                                                                 YearOnYearInflationSwap::results> {};
+    class YearOnYearInflationSwap::engine
+    : public GenericEngine<YearOnYearInflationSwap::arguments, YearOnYearInflationSwap::results>
+    {
+    };
 
 
     // inline definitions
 
-    inline Swap::Type YearOnYearInflationSwap::type() const {
+    inline Swap::Type YearOnYearInflationSwap::type() const
+    {
         return type_;
     }
 
-    inline Real YearOnYearInflationSwap::nominal() const {
+    inline Real YearOnYearInflationSwap::nominal() const
+    {
         return nominal_;
     }
 
-    inline const Schedule& YearOnYearInflationSwap::fixedSchedule() const {
+    inline const Schedule& YearOnYearInflationSwap::fixedSchedule() const
+    {
         return fixedSchedule_;
     }
 
-    inline Rate YearOnYearInflationSwap::fixedRate() const {
+    inline Rate YearOnYearInflationSwap::fixedRate() const
+    {
         return fixedRate_;
     }
 
-    inline const DayCounter& YearOnYearInflationSwap::fixedDayCount() const {
+    inline const DayCounter& YearOnYearInflationSwap::fixedDayCount() const
+    {
         return fixedDayCount_;
     }
 
-    inline const Schedule& YearOnYearInflationSwap::yoySchedule() const {
+    inline const Schedule& YearOnYearInflationSwap::yoySchedule() const
+    {
         return yoySchedule_;
     }
 
-    inline const ext::shared_ptr<YoYInflationIndex>& YearOnYearInflationSwap::yoyInflationIndex() const {
+    inline const ext::shared_ptr<YoYInflationIndex>& YearOnYearInflationSwap::yoyInflationIndex() const
+    {
         return yoyIndex_;
     }
 
-    inline Spread YearOnYearInflationSwap::spread() const {
+    inline Spread YearOnYearInflationSwap::spread() const
+    {
         return spread_;
     }
 
-    inline const DayCounter& YearOnYearInflationSwap::yoyDayCount() const {
+    inline const DayCounter& YearOnYearInflationSwap::yoyDayCount() const
+    {
         return yoyDayCount_;
     }
 
-    inline BusinessDayConvention YearOnYearInflationSwap::paymentConvention() const {
+    inline BusinessDayConvention YearOnYearInflationSwap::paymentConvention() const
+    {
         return paymentConvention_;
     }
 
-    inline const Leg& YearOnYearInflationSwap::fixedLeg() const {
+    inline const Leg& YearOnYearInflationSwap::fixedLeg() const
+    {
         return legs_[0];
     }
 
-    inline const Leg& YearOnYearInflationSwap::yoyLeg() const {
+    inline const Leg& YearOnYearInflationSwap::yoyLeg() const
+    {
         return legs_[1];
     }
 
 }
 
 #endif
-

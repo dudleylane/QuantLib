@@ -23,16 +23,18 @@
 
 #include <ql/models/marketmodels/models/ctsmmcapletcalibration.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class AlphaForm;
 
-    class CTSMMCapletAlphaFormCalibration : public CTSMMCapletCalibration {
+    class CTSMMCapletAlphaFormCalibration : public CTSMMCapletCalibration
+    {
       public:
         CTSMMCapletAlphaFormCalibration(
             const EvolutionDescription& evolution,
             const ext::shared_ptr<PiecewiseConstantCorrelation>& corr,
-            const std::vector<ext::shared_ptr<PiecewiseConstantVariance> >& displacedSwapVariances,
+            const std::vector<ext::shared_ptr<PiecewiseConstantVariance>>& displacedSwapVariances,
             const std::vector<Volatility>& capletVols,
             const ext::shared_ptr<CurveState>& cs,
             Spread displacement,
@@ -47,7 +49,7 @@ namespace QuantLib {
         static Natural capletAlphaFormCalibration(
             const EvolutionDescription& evolution,
             const PiecewiseConstantCorrelation& corr,
-            const std::vector<ext::shared_ptr<PiecewiseConstantVariance> >& displacedSwapVariances,
+            const std::vector<ext::shared_ptr<PiecewiseConstantVariance>>& displacedSwapVariances,
             const std::vector<Volatility>& capletVols,
             const CurveState& cs,
             Spread displacement,
@@ -69,8 +71,7 @@ namespace QuantLib {
             std::vector<Matrix>& swapCovariancePseudoRoots);
 
       private:
-        Natural
-        calibrationImpl_(Natural numberOfFactors, Natural maxIterations, Real tolerance) override;
+        Natural calibrationImpl_(Natural numberOfFactors, Natural maxIterations, Real tolerance) override;
         // input
         std::vector<Real> alphaInitial_, alphaMax_, alphaMin_;
         bool maximizeHomogeneity_;
@@ -79,8 +80,8 @@ namespace QuantLib {
         std::vector<Real> alpha_, a_, b_;
     };
 
-    inline const std::vector<Real>&
-    CTSMMCapletAlphaFormCalibration::alpha() const {
+    inline const std::vector<Real>& CTSMMCapletAlphaFormCalibration::alpha() const
+    {
         QL_REQUIRE(calibrated_, "not successfully calibrated yet");
         return alpha_;
     }

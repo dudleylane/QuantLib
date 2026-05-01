@@ -27,17 +27,20 @@
 #include <ql/types.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Farlie-Gumbel-Morgenstern copula
-    class FarlieGumbelMorgensternCopula {
+    class FarlieGumbelMorgensternCopula
+    {
       public:
         FarlieGumbelMorgensternCopula(Real theta);
         Real operator()(Real x, Real y) const;
+
       private:
         Real theta_;
     };
-    
+
 }
 
 #endif

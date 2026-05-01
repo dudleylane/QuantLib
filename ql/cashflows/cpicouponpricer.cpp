@@ -21,93 +21,99 @@
 #include <ql/cashflows/cpicouponpricer.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     CPICouponPricer::CPICouponPricer(Handle<YieldTermStructure> nominalTermStructure)
-    : nominalTermStructure_(std::move(nominalTermStructure)) {
+    : nominalTermStructure_(std::move(nominalTermStructure))
+    {
         registerWith(nominalTermStructure_);
     }
 
     CPICouponPricer::CPICouponPricer(Handle<CPIVolatilitySurface> capletVol,
                                      Handle<YieldTermStructure> nominalTermStructure)
-    : capletVol_(std::move(capletVol)), nominalTermStructure_(std::move(nominalTermStructure)) {
+    : capletVol_(std::move(capletVol)), nominalTermStructure_(std::move(nominalTermStructure))
+    {
         registerWith(capletVol_);
         registerWith(nominalTermStructure_);
     }
 
-    void CPICouponPricer::setCapletVolatility(
-       const Handle<CPIVolatilitySurface>& capletVol) {
-        QL_REQUIRE(!capletVol.empty(),"empty capletVol handle");
+    void CPICouponPricer::setCapletVolatility(const Handle<CPIVolatilitySurface>& capletVol)
+    {
+        QL_REQUIRE(!capletVol.empty(), "empty capletVol handle");
         capletVol_ = capletVol;
         registerWith(capletVol_);
     }
 
 
-    Real CPICouponPricer::floorletPrice(Rate effectiveFloor) const{
+    Real CPICouponPricer::floorletPrice(Rate effectiveFloor) const
+    {
         Real floorletPrice = optionletPrice(Option::Put, effectiveFloor);
         return gearing_ * floorletPrice;
     }
 
-    Real CPICouponPricer::capletPrice(Rate effectiveCap) const{
+    Real CPICouponPricer::capletPrice(Rate effectiveCap) const
+    {
         Real capletPrice = optionletPrice(Option::Call, effectiveCap);
         return gearing_ * capletPrice;
     }
 
 
-    Rate CPICouponPricer::floorletRate(Rate effectiveFloor) const {
+    Rate CPICouponPricer::floorletRate(Rate effectiveFloor) const
+    {
         return gearing_ * optionletRate(Option::Put, effectiveFloor);
     }
 
-    Rate CPICouponPricer::capletRate(Rate effectiveCap) const{
+    Rate CPICouponPricer::capletRate(Rate effectiveCap) const
+    {
         return gearing_ * optionletRate(Option::Call, effectiveCap);
     }
 
 
-    Real CPICouponPricer::optionletPriceImp(Option::Type,
-                                            Real,
-                                            Real,
-                                            Real) const {
+    Real CPICouponPricer::optionletPriceImp(Option::Type, Real, Real, Real) const
+    {
         QL_FAIL("you must implement this to get a vol-dependent price");
     }
 
 
-    Real CPICouponPricer::optionletPrice(Option::Type optionType,
-                                         Real effStrike) const {
+    Real CPICouponPricer::optionletPrice(Option::Type optionType, Real effStrike) const
+    {
         QL_REQUIRE(discount_ != Null<Real>(), "no nominal term structure provided");
         return optionletRate(optionType, effStrike) * coupon_->accrualPeriod() * discount_;
     }
 
 
-    Real CPICouponPricer::optionletRate(Option::Type optionType,
-                                        Real effStrike) const {
+    Real CPICouponPricer::optionletRate(Option::Type optionType, Real effStrike) const
+    {
         Date fixingDate = coupon_->fixingDate();
-        if (fixingDate <= Settings::instance().evaluationDate()) {
+        if (fixingDate <= Settings::instance().evaluationDate())
+        {
             // the amount is determined
             Real a, b;
-            if (optionType==Option::Call) {
+            if (optionType == Option::Call)
+            {
                 a = coupon_->indexFixing();
                 b = effStrike;
-            } else {
+            }
+            else
+            {
                 a = effStrike;
                 b = coupon_->indexFixing();
             }
             return std::max(a - b, 0.0);
-        } else {
+        }
+        else
+        {
             // not yet determined, use Black/DD1/Bachelier/whatever from Impl
-            QL_REQUIRE(!capletVolatility().empty(),
-                       "missing optionlet volatility");
-            Real stdDev =
-            std::sqrt(capletVolatility()->totalVariance(fixingDate,
-                                                        effStrike));
-            return optionletPriceImp(optionType,
-                                     effStrike,
-                                     coupon_->indexRatio(coupon_->accrualEndDate()),
-                                     stdDev);
+            QL_REQUIRE(!capletVolatility().empty(), "missing optionlet volatility");
+            Real stdDev = std::sqrt(capletVolatility()->totalVariance(fixingDate, effStrike));
+            return optionletPriceImp(optionType, effStrike, coupon_->indexRatio(coupon_->accrualEndDate()), stdDev);
         }
     }
 
 
-    void CPICouponPricer::initialize(const InflationCoupon& coupon) {
+    void CPICouponPricer::initialize(const InflationCoupon& coupon)
+    {
         coupon_ = dynamic_cast<const CPICoupon*>(&coupon);
         gearing_ = coupon_->fixedRate();
         paymentDate_ = coupon_->date();
@@ -116,28 +122,34 @@ namespace QuantLib {
         // use yield curve from index (which sets discount)
 
         discount_ = 1.0;
-        if (nominalTermStructure_.empty()) {
+        if (nominalTermStructure_.empty())
+        {
             // allow to extract rates, but mark the discount as invalid for prices
             discount_ = Null<Real>();
-        } else {
+        }
+        else
+        {
             if (paymentDate_ > nominalTermStructure_->referenceDate())
                 discount_ = nominalTermStructure_->discount(paymentDate_);
         }
     }
 
 
-    Real CPICouponPricer::swapletPrice() const {
+    Real CPICouponPricer::swapletPrice() const
+    {
         QL_REQUIRE(discount_ != Null<Real>(), "no nominal term structure provided");
         return swapletRate() * coupon_->accrualPeriod() * discount_;
     }
 
 
-    Rate CPICouponPricer::swapletRate() const {
+    Rate CPICouponPricer::swapletRate() const
+    {
         return accruedRate(coupon_->accrualEndDate());
     }
 
 
-    Rate CPICouponPricer::accruedRate(Date settlementDate) const {
+    Rate CPICouponPricer::accruedRate(Date settlementDate) const
+    {
         return gearing_ * coupon_->indexRatio(settlementDate);
     }
 

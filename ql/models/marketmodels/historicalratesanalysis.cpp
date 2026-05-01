@@ -22,16 +22,17 @@
 #include <ql/time/calendar.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    void historicalRatesAnalysis(
-                SequenceStatistics& statistics,
-                std::vector<Date>& skippedDates,
-                std::vector<std::string>& skippedDatesErrorMessage,
-                const Date& startDate,
-                const Date& endDate,
-                const Period& step,
-                const std::vector<ext::shared_ptr<InterestRateIndex> >& indexes) {
+    void historicalRatesAnalysis(SequenceStatistics& statistics,
+                                 std::vector<Date>& skippedDates,
+                                 std::vector<std::string>& skippedDatesErrorMessage,
+                                 const Date& startDate,
+                                 const Date& endDate,
+                                 const Period& step,
+                                 const std::vector<ext::shared_ptr<InterestRateIndex>>& indexes)
+    {
 
         skippedDates.clear();
         skippedDatesErrorMessage.clear();
@@ -45,18 +46,22 @@ namespace QuantLib {
 
         Calendar cal = indexes[0]->fixingCalendar();
         // start with a valid business date
-        Date currentDate = cal.advance(startDate, 1*Days, Following);
+        Date currentDate = cal.advance(startDate, 1 * Days, Following);
         bool isFirst = true;
         // Loop over the historical dataset
-        for (; currentDate<=endDate;
-            currentDate = cal.advance(currentDate, step, Following)) {
+        for (; currentDate <= endDate; currentDate = cal.advance(currentDate, step, Following))
+        {
 
-            try {
-                for (Size i=0; i<nRates; ++i) {
+            try
+            {
+                for (Size i = 0; i < nRates; ++i)
+                {
                     Rate fixing = indexes[i]->fixing(currentDate, false);
                     sample[i] = fixing;
                 }
-            } catch (std::exception& e) {
+            }
+            catch (std::exception& e)
+            {
                 skippedDates.push_back(currentDate);
                 skippedDatesErrorMessage.emplace_back(e.what());
                 continue;
@@ -64,9 +69,10 @@ namespace QuantLib {
 
             // From 2nd step onwards, calculate forward rate
             // relative differences
-            if (!isFirst){
-                for (Size i=0; i<nRates; ++i)
-                    sampleDiff[i] = sample[i]/prevSample[i] -1.0;
+            if (!isFirst)
+            {
+                for (Size i = 0; i < nRates; ++i)
+                    sampleDiff[i] = sample[i] / prevSample[i] - 1.0;
                 // add observation
                 statistics.add(sampleDiff.begin(), sampleDiff.end());
             }
@@ -75,21 +81,16 @@ namespace QuantLib {
 
             // Store last calculated forward rates
             std::swap(prevSample, sample);
-
         }
     }
 
-    HistoricalRatesAnalysis::HistoricalRatesAnalysis(
-        ext::shared_ptr<SequenceStatistics> stats,
-        const Date& startDate,
-        const Date& endDate,
-        const Period& step,
-        const std::vector<ext::shared_ptr<InterestRateIndex> >& indexes)
-    : stats_(std::move(stats)) {
-        historicalRatesAnalysis(
-                    *stats_,
-                    skippedDates_, skippedDatesErrorMessage_,
-                    startDate, endDate, step,
-                    indexes);
+    HistoricalRatesAnalysis::HistoricalRatesAnalysis(ext::shared_ptr<SequenceStatistics> stats,
+                                                     const Date& startDate,
+                                                     const Date& endDate,
+                                                     const Period& step,
+                                                     const std::vector<ext::shared_ptr<InterestRateIndex>>& indexes)
+    : stats_(std::move(stats))
+    {
+        historicalRatesAnalysis(*stats_, skippedDates_, skippedDatesErrorMessage_, startDate, endDate, step, indexes);
     }
 }

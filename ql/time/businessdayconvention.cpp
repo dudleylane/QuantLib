@@ -20,31 +20,33 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/errors.hpp>
 #include <ql/time/businessdayconvention.hpp>
 #include <ql/types.hpp>
-#include <ql/errors.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    std::ostream& operator<<(std::ostream& out,
-                             BusinessDayConvention b) {
-        switch (b) {
-          case Following:
-            return out << "Following";
-          case ModifiedFollowing:
-            return out << "Modified Following";
-          case HalfMonthModifiedFollowing:
-            return out << "Half-Month Modified Following";
-          case Preceding:
-            return out << "Preceding";
-          case ModifiedPreceding:
-            return out << "Modified Preceding";
-          case Unadjusted:
-            return out << "Unadjusted";
-          case Nearest:
-            return out << "Nearest";
-          default:
-            QL_FAIL("unknown BusinessDayConvention (" << Integer(b) << ")");
+    std::ostream& operator<<(std::ostream& out, BusinessDayConvention b)
+    {
+        switch (b)
+        {
+            case Following:
+                return out << "Following";
+            case ModifiedFollowing:
+                return out << "Modified Following";
+            case HalfMonthModifiedFollowing:
+                return out << "Half-Month Modified Following";
+            case Preceding:
+                return out << "Preceding";
+            case ModifiedPreceding:
+                return out << "Modified Preceding";
+            case Unadjusted:
+                return out << "Unadjusted";
+            case Nearest:
+                return out << "Nearest";
+            default:
+                QL_FAIL("unknown BusinessDayConvention (" << Integer(b) << ")");
         }
     }
 

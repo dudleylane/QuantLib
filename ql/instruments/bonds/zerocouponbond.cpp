@@ -18,10 +18,11 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/instruments/bonds/zerocouponbond.hpp>
 #include <ql/cashflows/simplecashflow.hpp>
+#include <ql/instruments/bonds/zerocouponbond.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     ZeroCouponBond::ZeroCouponBond(Natural settlementDays,
                                    const Calendar& calendar,
@@ -30,11 +31,11 @@ namespace QuantLib {
                                    BusinessDayConvention paymentConvention,
                                    Real redemption,
                                    const Date& issueDate)
-    : Bond(settlementDays, calendar, issueDate) {
+    : Bond(settlementDays, calendar, issueDate)
+    {
 
         maturityDate_ = maturityDate;
-        Date redemptionDate = calendar_.adjust(maturityDate,
-                                               paymentConvention);
+        Date redemptionDate = calendar_.adjust(maturityDate, paymentConvention);
         setSingleRedemption(faceAmount, redemption, redemptionDate);
     }
 

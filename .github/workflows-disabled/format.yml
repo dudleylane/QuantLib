@@ -1,0 +1,23 @@
+name: Formatting
+on:
+  push:
+    branches-ignore:
+      - 'dependabot/**'
+  pull_request:
+    branches:
+      - '**'
+jobs:
+  clang-format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+          clang-format --version
+      - name: Check formatting
+        run: |
+          mapfile -d '' files < <(find ql test-suite Examples fuzz-test-suite \
+              -type f \( -name '*.hpp' -o -name '*.cpp' \) -print0)
+          clang-format --dry-run -Werror "${files[@]}"

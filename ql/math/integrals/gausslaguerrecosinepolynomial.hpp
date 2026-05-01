@@ -28,53 +28,55 @@
 #include <ql/math/integrals/momentbasedgaussianpolynomial.hpp>
 #include <cmath>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-	template <class mp_real>
-	class GaussLaguerreTrigonometricBase
-			: public MomentBasedGaussianPolynomial<mp_real> {
-	  public:
-		explicit GaussLaguerreTrigonometricBase(Real u)
-		: u_(u) { }
+    template <class mp_real>
+    class GaussLaguerreTrigonometricBase : public MomentBasedGaussianPolynomial<mp_real>
+    {
+      public:
+        explicit GaussLaguerreTrigonometricBase(Real u) : u_(u) {}
 
-	  protected:
-		virtual mp_real m0() const = 0;
-		virtual mp_real m1() const = 0;
+      protected:
+        virtual mp_real m0() const = 0;
+        virtual mp_real m1() const = 0;
 
-		mp_real moment_(Size n) const { //NOLINT(bugprone-virtual-near-miss)
-			if (m_.size() <= n)
-				m_.resize(n+1, std::numeric_limits<mp_real>::quiet_NaN());
+        mp_real moment_(Size n) const
+        { // NOLINT(bugprone-virtual-near-miss)
+            if (m_.size() <= n)
+                m_.resize(n + 1, std::numeric_limits<mp_real>::quiet_NaN());
 
-			if (std::isnan(m_[n])) {
-				if (n == 0)
-					m_[0] = m0();
-				else if (n == 1)
-					m_[1] = m1();
-				else
-					m_[n] = (2*n*moment_(n-1)
-						- n*(n-1)*moment_(n-2))/(1+u_*u_);
-			}
+            if (std::isnan(m_[n]))
+            {
+                if (n == 0)
+                    m_[0] = m0();
+                else if (n == 1)
+                    m_[1] = m1();
+                else
+                    m_[n] = (2 * n * moment_(n - 1) - n * (n - 1) * moment_(n - 2)) / (1 + u_ * u_);
+            }
 
-			return m_[n];
-		}
-		mp_real fact(Size n) const {
-			if (f_.size() <= n)
-				f_.resize(n+1, std::numeric_limits<mp_real>::quiet_NaN());
+            return m_[n];
+        }
+        mp_real fact(Size n) const
+        {
+            if (f_.size() <= n)
+                f_.resize(n + 1, std::numeric_limits<mp_real>::quiet_NaN());
 
-			if (std::isnan(f_[n])) {
-				if (n == 0)
-					f_[0] = 1.0;
-				else
-					f_[n] = n*fact(n-1);
-			}
-			return f_[n];
+            if (std::isnan(f_[n]))
+            {
+                if (n == 0)
+                    f_[0] = 1.0;
+                else
+                    f_[n] = n * fact(n - 1);
+            }
+            return f_[n];
+        }
+        const Real u_;
 
-		}
-		const Real u_;
-
-	  private:
-		mutable std::vector<mp_real> m_, f_;
-	};
+      private:
+        mutable std::vector<mp_real> m_, f_;
+    };
 
     //! Gauss-Laguerre Cosine integration
 
@@ -88,21 +90,20 @@ namespace QuantLib {
         \f]
     */
     template <class mp_real>
-    class GaussLaguerreCosinePolynomial
-            : public GaussLaguerreTrigonometricBase<mp_real> {
+    class GaussLaguerreCosinePolynomial : public GaussLaguerreTrigonometricBase<mp_real>
+    {
       public:
         explicit GaussLaguerreCosinePolynomial(Real u)
-        : GaussLaguerreTrigonometricBase<mp_real>(u),
-          m0_(1.0+1.0/(1.0+u*u)) { }
+        : GaussLaguerreTrigonometricBase<mp_real>(u), m0_(1.0 + 1.0 / (1.0 + u * u))
+        {
+        }
 
         mp_real moment(Size n) const override { return (this->moment_(n) + this->fact(n)) / m0_; }
         Real w(Real x) const override { return std::exp(-x) * (1 + std::cos(this->u_ * x)) / m0_; }
 
       protected:
         mp_real m0() const override { return 1 / (1 + this->u_ * this->u_); }
-        mp_real m1() const override {
-            return (1 - this->u_*this->u_) / squared(1 + this->u_*this->u_);
-        }
+        mp_real m1() const override { return (1 - this->u_ * this->u_) / squared(1 + this->u_ * this->u_); }
 
       private:
         const Real m0_;
@@ -120,21 +121,20 @@ namespace QuantLib {
         \f]
     */
     template <class mp_real>
-    class GaussLaguerreSinePolynomial
-            : public GaussLaguerreTrigonometricBase<mp_real> {
+    class GaussLaguerreSinePolynomial : public GaussLaguerreTrigonometricBase<mp_real>
+    {
       public:
         explicit GaussLaguerreSinePolynomial(Real u)
-        : GaussLaguerreTrigonometricBase<mp_real>(u),
-          m0_(1.0+u/(1.0+u*u)) { }
+        : GaussLaguerreTrigonometricBase<mp_real>(u), m0_(1.0 + u / (1.0 + u * u))
+        {
+        }
 
         mp_real moment(Size n) const override { return (this->moment_(n) + this->fact(n)) / m0_; }
         Real w(Real x) const override { return std::exp(-x) * (1 + std::sin(this->u_ * x)) / m0_; }
 
       protected:
         mp_real m0() const override { return this->u_ / (1 + this->u_ * this->u_); }
-        mp_real m1() const override {
-            return 2*this->u_ / squared(1 + this->u_*this->u_);
-        }
+        mp_real m1() const override { return 2 * this->u_ / squared(1 + this->u_ * this->u_); }
 
       private:
         const Real m0_;

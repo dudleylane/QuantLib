@@ -22,7 +22,8 @@
 #include <ql/termstructures/yield/flatforward.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     FlatForward::FlatForward(const Date& referenceDate,
                              Handle<Quote> forward,
@@ -30,7 +31,8 @@ namespace QuantLib {
                              Compounding compounding,
                              Frequency frequency)
     : YieldTermStructure(referenceDate, Calendar(), dayCounter), forward_(std::move(forward)),
-      compounding_(compounding), frequency_(frequency) {
+      compounding_(compounding), frequency_(frequency)
+    {
         registerWith(forward_);
     }
 
@@ -40,8 +42,9 @@ namespace QuantLib {
                              Compounding compounding,
                              Frequency frequency)
     : YieldTermStructure(referenceDate, Calendar(), dayCounter),
-      forward_(ext::shared_ptr<Quote>(new SimpleQuote(forward))),
-      compounding_(compounding), frequency_(frequency) {}
+      forward_(ext::shared_ptr<Quote>(new SimpleQuote(forward))), compounding_(compounding), frequency_(frequency)
+    {
+    }
 
     FlatForward::FlatForward(Natural settlementDays,
                              const Calendar& calendar,
@@ -49,8 +52,9 @@ namespace QuantLib {
                              const DayCounter& dayCounter,
                              Compounding compounding,
                              Frequency frequency)
-    : YieldTermStructure(settlementDays, calendar, dayCounter), forward_(std::move(forward)),
-      compounding_(compounding), frequency_(frequency) {
+    : YieldTermStructure(settlementDays, calendar, dayCounter), forward_(std::move(forward)), compounding_(compounding),
+      frequency_(frequency)
+    {
         registerWith(forward_);
     }
 
@@ -61,7 +65,8 @@ namespace QuantLib {
                              Compounding compounding,
                              Frequency frequency)
     : YieldTermStructure(settlementDays, calendar, dayCounter),
-      forward_(ext::shared_ptr<Quote>(new SimpleQuote(forward))),
-      compounding_(compounding), frequency_(frequency) {}
+      forward_(ext::shared_ptr<Quote>(new SimpleQuote(forward))), compounding_(compounding), frequency_(frequency)
+    {
+    }
 
 }

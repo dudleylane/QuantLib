@@ -20,40 +20,44 @@
 #include <ql/instruments/margrabeoption.hpp>
 #include <ql/instruments/payoffs.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    MargrabeOption::MargrabeOption(Integer Q1,
-                                   Integer Q2,
-                                   const ext::shared_ptr<Exercise>& exercise)
-    : MultiAssetOption(ext::shared_ptr<Payoff>(new NullPayoff), exercise),
-      Q1_(Q1),
-      Q2_(Q2) {}
+    MargrabeOption::MargrabeOption(Integer Q1, Integer Q2, const ext::shared_ptr<Exercise>& exercise)
+    : MultiAssetOption(ext::shared_ptr<Payoff>(new NullPayoff), exercise), Q1_(Q1), Q2_(Q2)
+    {
+    }
 
-    Real MargrabeOption::delta1() const {
+    Real MargrabeOption::delta1() const
+    {
         calculate();
         QL_REQUIRE(delta1_ != Null<Real>(), "delta1 not provided");
         return delta1_;
     }
 
-    Real MargrabeOption::delta2() const {
+    Real MargrabeOption::delta2() const
+    {
         calculate();
         QL_REQUIRE(delta2_ != Null<Real>(), "delta2 not provided");
         return delta2_;
     }
 
-    Real MargrabeOption::gamma1() const {
+    Real MargrabeOption::gamma1() const
+    {
         calculate();
         QL_REQUIRE(gamma1_ != Null<Real>(), "gamma1 not provided");
         return gamma1_;
     }
 
-    Real MargrabeOption::gamma2() const {
+    Real MargrabeOption::gamma2() const
+    {
         calculate();
         QL_REQUIRE(gamma2_ != Null<Real>(), "gamma2 not provided");
         return gamma2_;
     }
 
-    void MargrabeOption::setupArguments(PricingEngine::arguments* args) const {
+    void MargrabeOption::setupArguments(PricingEngine::arguments* args) const
+    {
         MultiAssetOption::setupArguments(args);
 
         auto* moreArgs = dynamic_cast<MargrabeOption::arguments*>(args);
@@ -63,7 +67,8 @@ namespace QuantLib {
         moreArgs->Q2 = Q2_;
     }
 
-    void MargrabeOption::arguments::validate() const {
+    void MargrabeOption::arguments::validate() const
+    {
         MultiAssetOption::arguments::validate();
 
         QL_REQUIRE(Q1 != Null<Integer>(), "unspecified quantity for asset 1");
@@ -72,14 +77,15 @@ namespace QuantLib {
         QL_REQUIRE(Q2 > 0, "quantity of asset 2 must be positive");
     }
 
-    void MargrabeOption::fetchResults(const PricingEngine::results* r) const {
+    void MargrabeOption::fetchResults(const PricingEngine::results* r) const
+    {
         MultiAssetOption::fetchResults(r);
         const auto* results = dynamic_cast<const MargrabeOption::results*>(r);
         QL_REQUIRE(results != nullptr, "wrong result type");
-        delta1_          = results->delta1;
-        delta2_          = results->delta2;
-        gamma1_          = results->gamma1;
-        gamma2_          = results->gamma2;
+        delta1_ = results->delta1;
+        delta2_ = results->delta2;
+        gamma1_ = results->gamma1;
+        gamma2_ = results->gamma2;
     }
 
 }

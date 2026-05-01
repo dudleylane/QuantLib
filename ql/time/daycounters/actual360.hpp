@@ -26,7 +26,8 @@
 
 #include <ql/time/daycounter.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Actual/360 day count convention
 
@@ -34,32 +35,35 @@ namespace QuantLib {
 
         \ingroup daycounters
     */
-    class Actual360 : public DayCounter {
+    class Actual360 : public DayCounter
+    {
       private:
-        class Impl final : public DayCounter::Impl {
+        class Impl final : public DayCounter::Impl
+        {
           private:
-              bool includeLastDay_;
+            bool includeLastDay_;
+
           public:
-            explicit Impl(const bool includeLastDay)
-            : includeLastDay_(includeLastDay) {}
-            std::string name() const override {
-                return includeLastDay_ ?
-                    std::string("Actual/360 (inc)")
-                    : std::string("Actual/360");
+            explicit Impl(const bool includeLastDay) : includeLastDay_(includeLastDay) {}
+            std::string name() const override
+            {
+                return includeLastDay_ ? std::string("Actual/360 (inc)") : std::string("Actual/360");
             }
-            Date::serial_type dayCount(const Date& d1, const Date& d2) const override {
-                return (d2-d1) + (includeLastDay_ ? 1 : 0);
+            Date::serial_type dayCount(const Date& d1, const Date& d2) const override
+            {
+                return (d2 - d1) + (includeLastDay_ ? 1 : 0);
             }
-            Time
-            yearFraction(const Date& d1, const Date& d2, const Date&, const Date&) const override {
-                return (daysBetween(d1,d2)
-                        + (includeLastDay_ ? 1.0 : 0.0))/360.0;
+            Time yearFraction(const Date& d1, const Date& d2, const Date&, const Date&) const override
+            {
+                return (daysBetween(d1, d2) + (includeLastDay_ ? 1.0 : 0.0)) / 360.0;
             }
         };
+
       public:
         explicit Actual360(const bool includeLastDay = false)
-        : DayCounter(ext::shared_ptr<DayCounter::Impl>(
-            new Actual360::Impl(includeLastDay))) {}
+        : DayCounter(ext::shared_ptr<DayCounter::Impl>(new Actual360::Impl(includeLastDay)))
+        {
+        }
     };
 
 }

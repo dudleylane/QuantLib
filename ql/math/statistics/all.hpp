@@ -10,4 +10,3 @@
 #include <ql/math/statistics/riskstatistics.hpp>
 #include <ql/math/statistics/sequencestatistics.hpp>
 #include <ql/math/statistics/statistics.hpp>
-

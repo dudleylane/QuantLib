@@ -9,4 +9,3 @@
 #include <ql/methods/lattices/tflattice.hpp>
 #include <ql/methods/lattices/tree.hpp>
 #include <ql/methods/lattices/trinomialtree.hpp>
-

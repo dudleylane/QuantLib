@@ -28,9 +28,11 @@
 #include <ql/instruments/creditdefaultswap.hpp>
 #include <ql/optional.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class IntegralCdsEngine : public CreditDefaultSwap::engine {
+    class IntegralCdsEngine : public CreditDefaultSwap::engine
+    {
       public:
         IntegralCdsEngine(const Period& integrationStep,
                           Handle<DefaultProbabilityTermStructure>,

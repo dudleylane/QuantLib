@@ -27,7 +27,8 @@
 #include <ql/models/marketmodels/driftcomputation/lmmdriftcalculator.hpp>
 #include <valarray>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class MarketModel;
     class BrownianGenerator;
@@ -35,7 +36,7 @@ namespace QuantLib {
 
     //! euler stepping
     class LogNormalFwdRateEulerConstrained : public ConstrainedEvolver
-        {
+    {
       public:
         LogNormalFwdRateEulerConstrained(const ext::shared_ptr<MarketModel>&,
                                          const BrownianGeneratorFactory&,
@@ -68,17 +69,17 @@ namespace QuantLib {
         std::vector<Size> startIndexOfSwapRate_;
         std::vector<Size> endIndexOfSwapRate_;
 
-        //often changing inputs
+        // often changing inputs
         std::vector<Rate> rateConstraints_;
         std::valarray<bool> isConstraintActive_;
 
         // fixed variables
-        std::vector<std::vector<Real> > fixedDrifts_;
-        std::vector<std::vector<Real> > variances_;
+        std::vector<std::vector<Real>> fixedDrifts_;
+        std::vector<std::vector<Real>> variances_;
 
         // working variables
-        std::vector<std::vector<Real> > covariances_; // covariance of constrained rate with other rates on same step
-                                                                                          // step first index
+        std::vector<std::vector<Real>> covariances_; // covariance of constrained rate with other rates on same step
+                                                     // step first index
         Size numberOfRates_, numberOfFactors_;
         LMMCurveState curveState_;
         Size currentStep_;
@@ -86,7 +87,7 @@ namespace QuantLib {
         std::vector<Real> drifts1_, initialDrifts_;
         std::vector<Real> brownians_, correlatedBrownians_;
         std::vector<Size> alive_;
-         // helper classes
+        // helper classes
         std::vector<LMMDriftCalculator> calculators_;
     };
 

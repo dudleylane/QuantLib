@@ -24,13 +24,13 @@
 #ifndef quantlib_cos_heston_engine_hpp
 #define quantlib_cos_heston_engine_hpp
 
-#include <ql/models/equity/hestonmodel.hpp>
 #include <ql/instruments/vanillaoption.hpp>
+#include <ql/models/equity/hestonmodel.hpp>
 #include <ql/pricingengines/genericmodelengine.hpp>
-
 #include <complex>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! COS-method Heston engine based on efficient Fourier series expansions
 
@@ -50,13 +50,10 @@ namespace QuantLib {
               reproducing results available in web/literature
               and comparison with Black pricing.
     */
-    class COSHestonEngine
-        : public GenericModelEngine<HestonModel,
-                                    VanillaOption::arguments,
-                                    VanillaOption::results> {
+    class COSHestonEngine : public GenericModelEngine<HestonModel, VanillaOption::arguments, VanillaOption::results>
+    {
       public:
-        explicit COSHestonEngine(const ext::shared_ptr<HestonModel>& model,
-                                 Real L = 16, Size N=200);
+        explicit COSHestonEngine(const ext::shared_ptr<HestonModel>& model, Real L = 16, Size N = 200);
 
         void update() override;
         void calculate() const override;

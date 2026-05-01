@@ -26,10 +26,12 @@
 
 #include <ql/indexes/iborindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %SARON (Swiss Average Rate Overnight) index.
-    class Saron : public OvernightIndex {
+    class Saron : public OvernightIndex
+    {
       public:
         explicit Saron(const Handle<YieldTermStructure>& h = {});
     };

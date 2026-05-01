@@ -21,9 +21,11 @@
 #include <ql/patterns/visitor.hpp>
 #include <iomanip>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    void CommodityCashFlow::accept(AcyclicVisitor& v) {
+    void CommodityCashFlow::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<CommodityCashFlow>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);
@@ -31,33 +33,30 @@ namespace QuantLib {
             CashFlow::accept(v);
     }
 
-    std::ostream& operator<<(std::ostream& out,
-                             const CommodityCashFlows& cashFlows) {
+    std::ostream& operator<<(std::ostream& out, const CommodityCashFlows& cashFlows)
+    {
         if (cashFlows.empty())
             return out << "no cashflows" << std::endl;
         out << "cashflows" << std::endl;
         std::string currencyCode; //= cashFlows[0]->discountedAmount().currency().code();
         Real totalDiscounted = 0;
         Real totalUndiscounted = 0;
-        for (const auto& i : cashFlows) {
-            //const ext::shared_ptr<CommodityCashFlow> cashFlow = *i;
+        for (const auto& i : cashFlows)
+        {
+            // const ext::shared_ptr<CommodityCashFlow> cashFlow = *i;
             const ext::shared_ptr<CommodityCashFlow> cashFlow = i.second;
             totalDiscounted += cashFlow->discountedAmount().value();
             totalUndiscounted += cashFlow->undiscountedAmount().value();
-            //out << io::iso_date(cashFlow->date()) << " " <<
-            out << io::iso_date(i.first) << " " << std::setw(16) << std::right << std::fixed
-                << std::setprecision(2) << cashFlow->discountedAmount().value() << " "
-                << currencyCode << std::setw(16) << std::right << std::fixed << std::setprecision(2)
-                << cashFlow->undiscountedAmount().value() << " " << currencyCode << std::endl;
+            // out << io::iso_date(cashFlow->date()) << " " <<
+            out << io::iso_date(i.first) << " " << std::setw(16) << std::right << std::fixed << std::setprecision(2)
+                << cashFlow->discountedAmount().value() << " " << currencyCode << std::setw(16) << std::right
+                << std::fixed << std::setprecision(2) << cashFlow->undiscountedAmount().value() << " " << currencyCode
+                << std::endl;
         }
-        out << "total      "
-            << std::setw(16) << std::right << std::fixed
-            << std::setprecision(2) << totalDiscounted << " " << currencyCode
-            << std::setw(16) << std::right << std::fixed
-            << std::setprecision(2) << totalUndiscounted << " "
-            << currencyCode << std::endl;
+        out << "total      " << std::setw(16) << std::right << std::fixed << std::setprecision(2) << totalDiscounted
+            << " " << currencyCode << std::setw(16) << std::right << std::fixed << std::setprecision(2)
+            << totalUndiscounted << " " << currencyCode << std::endl;
         return out;
     }
 
 }
-

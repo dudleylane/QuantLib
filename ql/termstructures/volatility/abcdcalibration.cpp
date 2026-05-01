@@ -31,10 +31,12 @@
 #include <ql/termstructures/volatility/abcdcalibration.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     // to constrained <- from unconstrained
-    Array AbcdCalibration::AbcdParametersTransformation::direct(const Array& x) const {
+    Array AbcdCalibration::AbcdParametersTransformation::direct(const Array& x) const
+    {
         y_[1] = x[1];
         y_[2] = std::exp(x[2]);
         y_[3] = std::exp(x[3]);
@@ -43,7 +45,8 @@ namespace QuantLib {
     }
 
     // to unconstrained <- from constrained
-    Array AbcdCalibration::AbcdParametersTransformation::inverse(const Array& x) const {
+    Array AbcdCalibration::AbcdParametersTransformation::inverse(const Array& x) const
+    {
         y_[1] = x[1];
         y_[2] = std::log(x[2]);
         y_[3] = std::log(x[3]);
@@ -66,64 +69,70 @@ namespace QuantLib {
                                      bool vegaWeighted,
                                      ext::shared_ptr<EndCriteria> endCriteria,
                                      ext::shared_ptr<OptimizationMethod> optMethod)
-    : aIsFixed_(aIsFixed), bIsFixed_(bIsFixed), cIsFixed_(cIsFixed), dIsFixed_(dIsFixed), a_(a),
-      b_(b), c_(c), d_(d), abcdEndCriteria_(EndCriteria::None),
-      endCriteria_(std::move(endCriteria)), optMethod_(std::move(optMethod)),
-      weights_(blackVols.size(), 1.0 / blackVols.size()), vegaWeighted_(vegaWeighted), times_(t),
-      blackVols_(blackVols) {
+    : aIsFixed_(aIsFixed), bIsFixed_(bIsFixed), cIsFixed_(cIsFixed), dIsFixed_(dIsFixed), a_(a), b_(b), c_(c), d_(d),
+      abcdEndCriteria_(EndCriteria::None), endCriteria_(std::move(endCriteria)), optMethod_(std::move(optMethod)),
+      weights_(blackVols.size(), 1.0 / blackVols.size()), vegaWeighted_(vegaWeighted), times_(t), blackVols_(blackVols)
+    {
 
         AbcdMathFunction::validate(a, b, c, d);
 
-        QL_REQUIRE(blackVols.size()==t.size(),
-                       "mismatch between number of times (" << t.size() <<
-                       ") and blackVols (" << blackVols.size() << ")");
+        QL_REQUIRE(blackVols.size() == t.size(),
+                   "mismatch between number of times (" << t.size() << ") and blackVols (" << blackVols.size() << ")");
 
         // if no optimization method or endCriteria is provided, we provide one
-        if (!optMethod_) {
+        if (!optMethod_)
+        {
             Real epsfcn = 1.0e-8;
             Real xtol = 1.0e-8;
             Real gtol = 1.0e-8;
             bool useCostFunctionsJacobian = false;
-            optMethod_ = ext::shared_ptr<OptimizationMethod>(new
-                LevenbergMarquardt(epsfcn, xtol, gtol, useCostFunctionsJacobian));
+            optMethod_ = ext::shared_ptr<OptimizationMethod>(
+                new LevenbergMarquardt(epsfcn, xtol, gtol, useCostFunctionsJacobian));
         }
-        if (!endCriteria_) {
+        if (!endCriteria_)
+        {
             Size maxIterations = 10000;
             Size maxStationaryStateIterations = 1000;
             Real rootEpsilon = 1.0e-8;
             Real functionEpsilon = 0.3e-4;     // Why 0.3e-4 ?
             Real gradientNormEpsilon = 0.3e-4; // Why 0.3e-4 ?
-            endCriteria_ = ext::make_shared<EndCriteria>(maxIterations, maxStationaryStateIterations,
-                            rootEpsilon, functionEpsilon, gradientNormEpsilon);
+            endCriteria_ = ext::make_shared<EndCriteria>(maxIterations, maxStationaryStateIterations, rootEpsilon,
+                                                         functionEpsilon, gradientNormEpsilon);
         }
     }
 
-    void AbcdCalibration::compute() {
-        if (vegaWeighted_) {
+    void AbcdCalibration::compute()
+    {
+        if (vegaWeighted_)
+        {
             Real weightsSum = 0.0;
-            for (Size i=0; i<times_.size() ; i++) {
-                Real stdDev = std::sqrt(blackVols_[i]* blackVols_[i]* times_[i]);
+            for (Size i = 0; i < times_.size(); i++)
+            {
+                Real stdDev = std::sqrt(blackVols_[i] * blackVols_[i] * times_[i]);
                 // when strike==forward, the blackFormulaStdDevDerivative becomes
-                weights_[i] = CumulativeNormalDistribution().derivative(.5*stdDev);
+                weights_[i] = CumulativeNormalDistribution().derivative(.5 * stdDev);
                 weightsSum += weights_[i];
             }
             // weight normalization
-            for (Size i=0; i<times_.size() ; i++) {
+            for (Size i = 0; i < times_.size(); i++)
+            {
                 weights_[i] /= weightsSum;
             }
         }
 
         // there is nothing to optimize
-        if (aIsFixed_ && bIsFixed_ && cIsFixed_ && dIsFixed_) {
+        if (aIsFixed_ && bIsFixed_ && cIsFixed_ && dIsFixed_)
+        {
             abcdEndCriteria_ = EndCriteria::None;
-            //error_ = interpolationError();
-            //maxError_ = interpolationMaxError();
+            // error_ = interpolationError();
+            // maxError_ = interpolationMaxError();
             return;
-        } else {
+        }
+        else
+        {
 
             AbcdError costFunction(this);
-            transformation_ = ext::shared_ptr<ParametersTransformation>(new
-                AbcdParametersTransformation);
+            transformation_ = ext::shared_ptr<ParametersTransformation>(new AbcdParametersTransformation);
 
             Array guess(4);
             guess[0] = a_;
@@ -139,11 +148,10 @@ namespace QuantLib {
 
             Array inversedTransformatedGuess(transformation_->inverse(guess));
 
-            ProjectedCostFunction projectedAbcdCostFunction(costFunction,
-                            inversedTransformatedGuess, parameterAreFixed);
+            ProjectedCostFunction projectedAbcdCostFunction(costFunction, inversedTransformatedGuess,
+                                                            parameterAreFixed);
 
-            Array projectedGuess
-                (projectedAbcdCostFunction.project(inversedTransformatedGuess));
+            Array projectedGuess(projectedAbcdCostFunction.project(inversedTransformatedGuess));
 
             NoConstraint constraint;
             Problem problem(projectedAbcdCostFunction, constraint, projectedGuess);
@@ -157,39 +165,43 @@ namespace QuantLib {
             b_ = result[1];
             c_ = result[2];
             d_ = result[3];
-
         }
     }
 
-    Real AbcdCalibration::value(Real x) const {
-        return abcdBlackVolatility(x,a_,b_,c_,d_);
+    Real AbcdCalibration::value(Real x) const
+    {
+        return abcdBlackVolatility(x, a_, b_, c_, d_);
     }
 
-    std::vector<Real> AbcdCalibration::k(const std::vector<Real>& t,
-                                         const std::vector<Real>& blackVols) const {
-        QL_REQUIRE(blackVols.size()==t.size(),
-               "mismatch between number of times (" << t.size() <<
-               ") and blackVols (" << blackVols.size() << ")");
+    std::vector<Real> AbcdCalibration::k(const std::vector<Real>& t, const std::vector<Real>& blackVols) const
+    {
+        QL_REQUIRE(blackVols.size() == t.size(),
+                   "mismatch between number of times (" << t.size() << ") and blackVols (" << blackVols.size() << ")");
         std::vector<Real> k(t.size());
-        for (Size i=0; i<t.size() ; i++) {
-            k[i]=blackVols[i]/value(t[i]);
+        for (Size i = 0; i < t.size(); i++)
+        {
+            k[i] = blackVols[i] / value(t[i]);
         }
         return k;
     }
 
-    Real AbcdCalibration::error() const {
+    Real AbcdCalibration::error() const
+    {
         Size n = times_.size();
         Real error, squaredError = 0.0;
-        for (Size i=0; i<times_.size() ; i++) {
+        for (Size i = 0; i < times_.size(); i++)
+        {
             error = (value(times_[i]) - blackVols_[i]);
             squaredError += error * error * weights_[i];
         }
-        return std::sqrt(n*squaredError/(n-1));
+        return std::sqrt(n * squaredError / (n - 1));
     }
 
-    Real AbcdCalibration::maxError() const {
+    Real AbcdCalibration::maxError() const
+    {
         Real error, maxError = QL_MIN_REAL;
-        for (Size i=0; i<times_.size() ; i++) {
+        for (Size i = 0; i < times_.size(); i++)
+        {
             error = std::fabs(value(times_[i]) - blackVols_[i]);
             maxError = std::max(maxError, error);
         }
@@ -197,15 +209,18 @@ namespace QuantLib {
     }
 
     // calculate weighted differences
-    Array AbcdCalibration::errors() const {
+    Array AbcdCalibration::errors() const
+    {
         Array results(times_.size());
-        for (Size i=0; i<times_.size() ; i++) {
-            results[i] = (value(times_[i]) - blackVols_[i])* std::sqrt(weights_[i]);
+        for (Size i = 0; i < times_.size(); i++)
+        {
+            results[i] = (value(times_[i]) - blackVols_[i]) * std::sqrt(weights_[i]);
         }
         return results;
     }
 
-    EndCriteria::Type AbcdCalibration::endCriteria() const{
+    EndCriteria::Type AbcdCalibration::endCriteria() const
+    {
         return abcdEndCriteria_;
     }
 

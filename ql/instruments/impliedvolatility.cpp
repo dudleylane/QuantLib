@@ -18,19 +18,21 @@
 */
 
 #include <ql/instruments/impliedvolatility.hpp>
-#include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
 #include <ql/math/solvers1d/brent.hpp>
+#include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
+    namespace
+    {
 
-        class PriceError {
+        class PriceError
+        {
           public:
-            PriceError(const PricingEngine& engine,
-                       SimpleQuote& vol,
-                       Real targetValue);
+            PriceError(const PricingEngine& engine, SimpleQuote& vol, Real targetValue);
             Real operator()(Volatility x) const;
+
           private:
             const PricingEngine& engine_;
             SimpleQuote& vol_;
@@ -38,35 +40,35 @@ namespace QuantLib {
             const Instrument::results* results_;
         };
 
-        PriceError::PriceError(const PricingEngine& engine,
-                               SimpleQuote& vol,
-                               Real targetValue)
-        : engine_(engine), vol_(vol), targetValue_(targetValue) {
-            results_ =
-                dynamic_cast<const Instrument::results*>(engine_.getResults());
+        PriceError::PriceError(const PricingEngine& engine, SimpleQuote& vol, Real targetValue)
+        : engine_(engine), vol_(vol), targetValue_(targetValue)
+        {
+            results_ = dynamic_cast<const Instrument::results*>(engine_.getResults());
             QL_REQUIRE(results_ != nullptr, "pricing engine does not supply needed results");
         }
 
-        Real PriceError::operator()(Volatility x) const {
+        Real PriceError::operator()(Volatility x) const
+        {
             vol_.setValue(x);
             engine_.calculate();
-            return results_->value-targetValue_;
+            return results_->value - targetValue_;
         }
 
     }
 
 
-    namespace detail {
+    namespace detail
+    {
 
-        Volatility ImpliedVolatilityHelper::calculate(
-                                                 const Instrument& instrument,
-                                                 const PricingEngine& engine,
-                                                 SimpleQuote& volQuote,
-                                                 Real targetValue,
-                                                 Real accuracy,
-                                                 Natural maxEvaluations,
-                                                 Volatility minVol,
-                                                 Volatility maxVol) {
+        Volatility ImpliedVolatilityHelper::calculate(const Instrument& instrument,
+                                                      const PricingEngine& engine,
+                                                      SimpleQuote& volQuote,
+                                                      Real targetValue,
+                                                      Real accuracy,
+                                                      Natural maxEvaluations,
+                                                      Volatility minVol,
+                                                      Volatility maxVol)
+        {
 
             instrument.setupArguments(engine.getArguments());
             engine.getArguments()->validate();
@@ -74,32 +76,26 @@ namespace QuantLib {
             PriceError f(engine, volQuote, targetValue);
             Brent solver;
             solver.setMaxEvaluations(maxEvaluations);
-            Volatility guess = (minVol+maxVol)/2.0;
-            Volatility result = solver.solve(f, accuracy, guess,
-                                             minVol, maxVol);
+            Volatility guess = (minVol + maxVol) / 2.0;
+            Volatility result = solver.solve(f, accuracy, guess, minVol, maxVol);
             return result;
         }
 
         ext::shared_ptr<GeneralizedBlackScholesProcess>
-        ImpliedVolatilityHelper::clone(
-             const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
-             const ext::shared_ptr<SimpleQuote>& volQuote) {
+        ImpliedVolatilityHelper::clone(const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
+                                       const ext::shared_ptr<SimpleQuote>& volQuote)
+        {
 
             Handle<Quote> stateVariable = process->stateVariable();
             Handle<YieldTermStructure> dividendYield = process->dividendYield();
             Handle<YieldTermStructure> riskFreeRate = process->riskFreeRate();
 
             Handle<BlackVolTermStructure> blackVol = process->blackVolatility();
-            Handle<BlackVolTermStructure> volatility(
-                ext::shared_ptr<BlackVolTermStructure>(
-                               new BlackConstantVol(blackVol->referenceDate(),
-                                                    blackVol->calendar(),
-                                                    Handle<Quote>(volQuote),
-                                                    blackVol->dayCounter())));
+            Handle<BlackVolTermStructure> volatility(ext::shared_ptr<BlackVolTermStructure>(new BlackConstantVol(
+                blackVol->referenceDate(), blackVol->calendar(), Handle<Quote>(volQuote), blackVol->dayCounter())));
 
-            return ext::make_shared<GeneralizedBlackScholesProcess>(
-                stateVariable, dividendYield,
-                                                   riskFreeRate, volatility);
+            return ext::make_shared<GeneralizedBlackScholesProcess>(stateVariable, dividendYield, riskFreeRate,
+                                                                    volatility);
         }
 
     }

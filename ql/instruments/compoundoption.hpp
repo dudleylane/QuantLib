@@ -24,15 +24,17 @@
 #ifndef quantlib_compound_option_hpp
 #define quantlib_compound_option_hpp
 
+#include <ql/exercise.hpp>
 #include <ql/instruments/oneassetoption.hpp>
 #include <ql/instruments/payoffs.hpp>
-#include <ql/exercise.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Compound option (i.e., option on option) on a single asset.
     /*! \ingroup instruments */
-    class CompoundOption : public OneAssetOption {
+    class CompoundOption : public OneAssetOption
+    {
       public:
         class arguments;
         class engine;
@@ -50,7 +52,8 @@ namespace QuantLib {
         ext::shared_ptr<Exercise> daughterExercise_;
     };
 
-    class CompoundOption::arguments : public OneAssetOption::arguments {
+    class CompoundOption::arguments : public OneAssetOption::arguments
+    {
       public:
         ext::shared_ptr<StrikedTypePayoff> daughterPayoff;
         ext::shared_ptr<Exercise> daughterExercise;
@@ -58,8 +61,9 @@ namespace QuantLib {
     };
 
     //! %Compound-option %engine base class
-    class CompoundOption::engine : public GenericEngine<CompoundOption::arguments,
-                                                        CompoundOption::results> {};
+    class CompoundOption::engine : public GenericEngine<CompoundOption::arguments, CompoundOption::results>
+    {
+    };
 
 }
 

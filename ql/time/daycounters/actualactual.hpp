@@ -28,7 +28,8 @@
 #include <ql/time/schedule.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Actual/Actual day count
     /*! The day count can be calculated according to:
@@ -48,13 +49,23 @@ namespace QuantLib {
         \test the correctness of the results is checked against known
               good values.
     */
-    class ActualActual : public DayCounter {
+    class ActualActual : public DayCounter
+    {
       public:
-        enum Convention { ISMA, Bond,
-                          ISDA, Historical, Actual365,
-                          AFB, Euro };
+        enum Convention
+        {
+            ISMA,
+            Bond,
+            ISDA,
+            Historical,
+            Actual365,
+            AFB,
+            Euro
+        };
+
       private:
-        class ISMA_Impl final : public DayCounter::Impl {
+        class ISMA_Impl final : public DayCounter::Impl
+        {
           public:
             explicit ISMA_Impl(Schedule schedule) : schedule_(std::move(schedule)) {}
 
@@ -67,7 +78,8 @@ namespace QuantLib {
           private:
             Schedule schedule_;
         };
-        class Old_ISMA_Impl final : public DayCounter::Impl {
+        class Old_ISMA_Impl final : public DayCounter::Impl
+        {
           public:
             std::string name() const override { return std::string("Actual/Actual (ISMA)"); }
             Time yearFraction(const Date& d1,
@@ -75,22 +87,25 @@ namespace QuantLib {
                               const Date& refPeriodStart,
                               const Date& refPeriodEnd) const override;
         };
-        class ISDA_Impl final : public DayCounter::Impl {
+        class ISDA_Impl final : public DayCounter::Impl
+        {
           public:
             std::string name() const override { return std::string("Actual/Actual (ISDA)"); }
-            Time
-            yearFraction(const Date& d1, const Date& d2, const Date&, const Date&) const override;
+            Time yearFraction(const Date& d1, const Date& d2, const Date&, const Date&) const override;
         };
-        class AFB_Impl final : public DayCounter::Impl {
+        class AFB_Impl final : public DayCounter::Impl
+        {
           public:
             std::string name() const override { return std::string("Actual/Actual (AFB)"); }
-            Time
-            yearFraction(const Date& d1, const Date& d2, const Date&, const Date&) const override;
+            Time yearFraction(const Date& d1, const Date& d2, const Date&, const Date&) const override;
         };
         static ext::shared_ptr<DayCounter::Impl> implementation(Convention c, Schedule schedule);
+
       public:
         explicit ActualActual(Convention c, Schedule schedule = Schedule())
-        : DayCounter(implementation(c, std::move(schedule))) {}
+        : DayCounter(implementation(c, std::move(schedule)))
+        {
+        }
     };
 
 }

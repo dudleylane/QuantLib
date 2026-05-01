@@ -28,7 +28,8 @@
 
 #include <ql/termstructures/defaulttermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Default-density term structure
     /*! This abstract class acts as an adapter to
@@ -40,29 +41,27 @@ namespace QuantLib {
 
         \ingroup defaultprobabilitytermstructures
     */
-    class DefaultDensityStructure : public DefaultProbabilityTermStructure {
+    class DefaultDensityStructure : public DefaultProbabilityTermStructure
+    {
       public:
         /*! \name Constructors
             See the TermStructure documentation for issues regarding
             constructors.
         */
         //@{
-        DefaultDensityStructure(
-            const DayCounter& dayCounter = DayCounter(),
-            const std::vector<Handle<Quote> >& jumps = {},
-            const std::vector<Date>& jumpDates = {});
-        DefaultDensityStructure(
-            const Date& referenceDate,
-            const Calendar& cal = Calendar(),
-            const DayCounter& dayCounter = DayCounter(),
-            const std::vector<Handle<Quote> >& jumps = {},
-            const std::vector<Date>& jumpDates = {});
-        DefaultDensityStructure(
-            Natural settlementDays,
-            const Calendar& cal,
-            const DayCounter& dayCounter = DayCounter(),
-            const std::vector<Handle<Quote> >& jumps = {},
-            const std::vector<Date>& jumpDates = {});
+        DefaultDensityStructure(const DayCounter& dayCounter = DayCounter(),
+                                const std::vector<Handle<Quote>>& jumps = {},
+                                const std::vector<Date>& jumpDates = {});
+        DefaultDensityStructure(const Date& referenceDate,
+                                const Calendar& cal = Calendar(),
+                                const DayCounter& dayCounter = DayCounter(),
+                                const std::vector<Handle<Quote>>& jumps = {},
+                                const std::vector<Date>& jumpDates = {});
+        DefaultDensityStructure(Natural settlementDays,
+                                const Calendar& cal,
+                                const DayCounter& dayCounter = DayCounter(),
+                                const std::vector<Handle<Quote>>& jumps = {},
+                                const std::vector<Date>& jumpDates = {});
         //@}
       protected:
         //! \name DefaultProbabilityTermStructure implementation

@@ -26,7 +26,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Swiss calendar
     /*! Holidays:
@@ -47,13 +48,16 @@ namespace QuantLib {
 
         \ingroup calendars
     */
-    class Switzerland : public Calendar {
+    class Switzerland : public Calendar
+    {
       private:
-        class Impl final : public Calendar::WesternImpl {
+        class Impl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "Switzerland"; }
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
         Switzerland();
     };

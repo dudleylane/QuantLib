@@ -21,36 +21,34 @@
 #include <ql/methods/finitedifferences/operators/fdmlinearoplayout.hpp>
 #include <ql/methods/finitedifferences/utilities/fdmmesherintegral.hpp>
 
-namespace QuantLib {
-    FdmMesherIntegral::FdmMesherIntegral(
-        const ext::shared_ptr<FdmMesherComposite>& mesher,
-        const std::function<Real(const Array&, const Array&)>& integrator1d)
-    : meshers_(mesher->getFdm1dMeshers().begin(),
-               mesher->getFdm1dMeshers().end()),
-      integrator1d_(integrator1d) {
+namespace QuantLib
+{
+    FdmMesherIntegral::FdmMesherIntegral(const ext::shared_ptr<FdmMesherComposite>& mesher,
+                                         const std::function<Real(const Array&, const Array&)>& integrator1d)
+    : meshers_(mesher->getFdm1dMeshers().begin(), mesher->getFdm1dMeshers().end()), integrator1d_(integrator1d)
+    {
     }
 
-    Real FdmMesherIntegral::integrate(const Array& f) const {
-        const Array x(meshers_.back()->locations().begin(),
-                      meshers_.back()->locations().end());
+    Real FdmMesherIntegral::integrate(const Array& f) const
+    {
+        const Array x(meshers_.back()->locations().begin(), meshers_.back()->locations().end());
 
-        if (meshers_.size() == 1) {
+        if (meshers_.size() == 1)
+        {
             return integrator1d_(x, f);
         }
 
         const ext::shared_ptr<FdmMesherComposite> subMesher(
-            new FdmMesherComposite(
-                std::vector<ext::shared_ptr<Fdm1dMesher> >(
-                    meshers_.begin(), meshers_.end()-1)));
+            new FdmMesherComposite(std::vector<ext::shared_ptr<Fdm1dMesher>>(meshers_.begin(), meshers_.end() - 1)));
 
         FdmMesherIntegral subMesherIntegral(subMesher, integrator1d_);
         const Size subSize = subMesher->layout()->size();
 
         Array g(x.size()), fSub(subSize);
 
-        for (Size i=0; i < x.size(); ++i) {
-            std::copy(f.begin() + i    *subSize,
-                      f.begin() + (i+1)*subSize, fSub.begin());
+        for (Size i = 0; i < x.size(); ++i)
+        {
+            std::copy(f.begin() + i * subSize, f.begin() + (i + 1) * subSize, fSub.begin());
 
             g[i] = subMesherIntegral.integrate(fSub);
         }

@@ -30,11 +30,12 @@
 #include <ql/currency.hpp>
 
 #if defined(QL_PATCH_MSVC)
-#pragma warning(push)
-#pragma warning(disable:4819)
+#    pragma warning(push)
+#    pragma warning(disable : 4819)
 #endif
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Australian dollar
     /*! The ISO three-letter code is AUD; the numeric code is 36.
@@ -42,7 +43,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class AUDCurrency : public Currency {
+    class AUDCurrency : public Currency
+    {
       public:
         AUDCurrency();
     };
@@ -53,7 +55,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class NZDCurrency : public Currency {
+    class NZDCurrency : public Currency
+    {
       public:
         NZDCurrency();
     };
@@ -61,7 +64,7 @@ namespace QuantLib {
 }
 
 #if defined(QL_PATCH_MSVC)
-#pragma warning(pop)
+#    pragma warning(pop)
 #endif
 
 #endif

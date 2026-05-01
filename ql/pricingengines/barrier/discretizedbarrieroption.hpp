@@ -25,13 +25,15 @@
 #define quantlib_discretized_barrier_option_h
 
 #include <ql/discretizedasset.hpp>
-#include <ql/methods/lattices/bsmlattice.hpp>
 #include <ql/instruments/barrieroption.hpp>
+#include <ql/methods/lattices/bsmlattice.hpp>
 #include <ql/pricingengines/vanilla/discretizedvanillaoption.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class DiscretizedBarrierOption : public DiscretizedAsset {
+    class DiscretizedBarrierOption : public DiscretizedAsset
+    {
       public:
         DiscretizedBarrierOption(const BarrierOption::arguments&,
                                  const StochasticProcess& process,
@@ -39,31 +41,29 @@ namespace QuantLib {
 
         void reset(Size size) override;
 
-        const Array& vanilla() const { 
-            return vanilla_.values(); 
-        }
+        const Array& vanilla() const { return vanilla_.values(); }
 
-        const BarrierOption::arguments& arguments() const {
-           return arguments_;
-        }
+        const BarrierOption::arguments& arguments() const { return arguments_; }
 
         std::vector<Time> mandatoryTimes() const override { return stoppingTimes_; }
 
-        void checkBarrier(Array &optvalues, const Array &grid) const;
+        void checkBarrier(Array& optvalues, const Array& grid) const;
+
       protected:
         void postAdjustValuesImpl() override;
 
       private:
         BarrierOption::arguments arguments_;
         std::vector<Time> stoppingTimes_;
-        DiscretizedVanillaOption vanilla_; 
+        DiscretizedVanillaOption vanilla_;
     };
 
-    class DiscretizedDermanKaniBarrierOption : public DiscretizedAsset {
+    class DiscretizedDermanKaniBarrierOption : public DiscretizedAsset
+    {
       public:
         DiscretizedDermanKaniBarrierOption(const BarrierOption::arguments&,
-                                 const StochasticProcess& process,
-                                 const TimeGrid& grid = TimeGrid());
+                                           const StochasticProcess& process,
+                                           const TimeGrid& grid = TimeGrid());
 
         void reset(Size size) override;
 
@@ -73,13 +73,10 @@ namespace QuantLib {
         void postAdjustValuesImpl() override;
 
       private:
-        void adjustBarrier(Array &optvalues, const Array &grid);
+        void adjustBarrier(Array& optvalues, const Array& grid);
         DiscretizedBarrierOption unenhanced_;
     };
 }
-
-
-
 
 
 #endif

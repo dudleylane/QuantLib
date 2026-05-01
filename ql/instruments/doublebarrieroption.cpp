@@ -23,20 +23,22 @@
 #include <ql/pricingengines/barrier/analyticdoublebarrierengine.hpp>
 #include <memory>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    DoubleBarrierOption::DoubleBarrierOption(
-        DoubleBarrier::Type barrierType,
-        Real barrier_lo,
-        Real barrier_hi,
-        Real rebate,
-        const ext::shared_ptr<StrikedTypePayoff>& payoff,
-        const ext::shared_ptr<Exercise>& exercise)
-    : OneAssetOption(payoff, exercise),
-      barrierType_(barrierType), barrier_lo_(barrier_lo), 
-      barrier_hi_(barrier_hi), rebate_(rebate) {}
+    DoubleBarrierOption::DoubleBarrierOption(DoubleBarrier::Type barrierType,
+                                             Real barrier_lo,
+                                             Real barrier_hi,
+                                             Real rebate,
+                                             const ext::shared_ptr<StrikedTypePayoff>& payoff,
+                                             const ext::shared_ptr<Exercise>& exercise)
+    : OneAssetOption(payoff, exercise), barrierType_(barrierType), barrier_lo_(barrier_lo), barrier_hi_(barrier_hi),
+      rebate_(rebate)
+    {
+    }
 
-    void DoubleBarrierOption::setupArguments(PricingEngine::arguments* args) const {
+    void DoubleBarrierOption::setupArguments(PricingEngine::arguments* args) const
+    {
 
         OneAssetOption::setupArguments(args);
 
@@ -49,13 +51,13 @@ namespace QuantLib {
     }
 
 
-    Volatility DoubleBarrierOption::impliedVolatility(
-             Real targetValue,
-             const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
-             Real accuracy,
-             Size maxEvaluations,
-             Volatility minVol,
-             Volatility maxVol) const {
+    Volatility DoubleBarrierOption::impliedVolatility(Real targetValue,
+                                                      const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
+                                                      Real accuracy,
+                                                      Size maxEvaluations,
+                                                      Volatility minVol,
+                                                      Volatility maxVol) const
+    {
 
         QL_REQUIRE(!isExpired(), "option expired");
 
@@ -66,39 +68,35 @@ namespace QuantLib {
 
         // engines are built-in for the time being
         std::unique_ptr<PricingEngine> engine;
-        switch (exercise_->type()) {
-          case Exercise::European:
-              engine = std::make_unique<AnalyticDoubleBarrierEngine>(newProcess);
-              break;
-          case Exercise::American:
-          case Exercise::Bermudan:
-            QL_FAIL("engine not available for non-European barrier option");
-            break;
-          default:
-            QL_FAIL("unknown exercise type");
+        switch (exercise_->type())
+        {
+            case Exercise::European:
+                engine = std::make_unique<AnalyticDoubleBarrierEngine>(newProcess);
+                break;
+            case Exercise::American:
+            case Exercise::Bermudan:
+                QL_FAIL("engine not available for non-European barrier option");
+                break;
+            default:
+                QL_FAIL("unknown exercise type");
         }
 
-        return detail::ImpliedVolatilityHelper::calculate(*this,
-                                                          *engine,
-                                                          *volQuote,
-                                                          targetValue,
-                                                          accuracy,
-                                                          maxEvaluations,
-                                                          minVol, maxVol);
+        return detail::ImpliedVolatilityHelper::calculate(*this, *engine, *volQuote, targetValue, accuracy,
+                                                          maxEvaluations, minVol, maxVol);
     }
 
 
     DoubleBarrierOption::arguments::arguments()
-    : barrierType(DoubleBarrier::Type(-1)), barrier_lo(Null<Real>()),
-      barrier_hi(Null<Real>()), rebate(Null<Real>()) {}
+    : barrierType(DoubleBarrier::Type(-1)), barrier_lo(Null<Real>()), barrier_hi(Null<Real>()), rebate(Null<Real>())
+    {
+    }
 
-    void DoubleBarrierOption::arguments::validate() const {
+    void DoubleBarrierOption::arguments::validate() const
+    {
         OneAssetOption::arguments::validate();
 
-        QL_REQUIRE(barrierType == DoubleBarrier::KnockIn ||
-                   barrierType == DoubleBarrier::KnockOut ||
-                   barrierType == DoubleBarrier::KIKO ||
-                   barrierType == DoubleBarrier::KOKI,
+        QL_REQUIRE(barrierType == DoubleBarrier::KnockIn || barrierType == DoubleBarrier::KnockOut ||
+                       barrierType == DoubleBarrier::KIKO || barrierType == DoubleBarrier::KOKI,
                    "Invalid barrier type");
 
         QL_REQUIRE(barrier_lo != Null<Real>(), "no low barrier given");
@@ -106,9 +104,9 @@ namespace QuantLib {
         QL_REQUIRE(rebate != Null<Real>(), "no rebate given");
     }
 
-    bool DoubleBarrierOption::engine::triggered(Real underlying) const {
+    bool DoubleBarrierOption::engine::triggered(Real underlying) const
+    {
         return underlying <= arguments_.barrier_lo || underlying >= arguments_.barrier_hi;
     }
 
 }
-

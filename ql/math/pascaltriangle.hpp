@@ -28,17 +28,20 @@
 #include <ql/types.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Pascal triangle coefficients calculator
-    class PascalTriangle {
+    class PascalTriangle
+    {
       public:
         //! Get and store one vector of coefficients after another.
         static const std::vector<BigNatural>& get(Size order);
+
       private:
         PascalTriangle() = default;
         static void nextOrder();
-        static std::vector<std::vector<BigNatural> > coefficients_;
+        static std::vector<std::vector<BigNatural>> coefficients_;
     };
 
 }

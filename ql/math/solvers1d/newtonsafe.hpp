@@ -26,7 +26,8 @@
 
 #include <ql/math/solver1d.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! safe %Newton 1-D solver
     /*! \note This solver requires that the passed function object
@@ -37,11 +38,12 @@ namespace QuantLib {
 
         \ingroup solvers
     */
-    class NewtonSafe : public Solver1D<NewtonSafe> {
+    class NewtonSafe : public Solver1D<NewtonSafe>
+    {
       public:
         template <class F>
-        Real solveImpl(const F& f,
-                       Real xAccuracy) const {
+        Real solveImpl(const F& f, Real xAccuracy) const
+        {
 
             /* The implementation of the algorithm was inspired by
                Press, Teukolsky, Vetterling, and Flannery,
@@ -53,16 +55,19 @@ namespace QuantLib {
             Real xh, xl;
 
             // Orient the search so that f(xl) < 0
-            if (fxMin_ < 0.0) {
+            if (fxMin_ < 0.0)
+            {
                 xl = xMin_;
                 xh = xMax_;
-            } else {
+            }
+            else
+            {
                 xh = xMin_;
                 xl = xMax_;
             }
 
             // the "stepsize before last"
-            dxold = xMax_-xMin_;
+            dxold = xMax_ - xMin_;
             // it was dxold=std::fabs(xMax_-xMin_); in Numerical Recipes
             // here (xMax_-xMin_ > 0) is verified in the constructor
 
@@ -71,26 +76,29 @@ namespace QuantLib {
 
             froot = f(root_);
             dfroot = f.derivative(root_);
-            QL_REQUIRE(dfroot != Null<Real>(),
-                       "NewtonSafe requires function's derivative");
+            QL_REQUIRE(dfroot != Null<Real>(), "NewtonSafe requires function's derivative");
             ++evaluationNumber_;
 
-            while (evaluationNumber_<=maxEvaluations_) {
+            while (evaluationNumber_ <= maxEvaluations_)
+            {
                 // Bisect if (out of range || not decreasing fast enough)
-                if ((((root_-xh)*dfroot-froot)*
-                     ((root_-xl)*dfroot-froot) > 0.0)
-                    || (std::fabs(2.0*froot) > std::fabs(dxold*dfroot))) {
+                if ((((root_ - xh) * dfroot - froot) * ((root_ - xl) * dfroot - froot) > 0.0) ||
+                    (std::fabs(2.0 * froot) > std::fabs(dxold * dfroot)))
+                {
 
                     dxold = dx;
-                    dx = (xh-xl)/2.0;
-                    root_=xl+dx;
-                } else {
+                    dx = (xh - xl) / 2.0;
+                    root_ = xl + dx;
+                }
+                else
+                {
                     dxold = dx;
-                    dx = froot/dfroot;
+                    dx = froot / dfroot;
                     root_ -= dx;
                 }
                 // Convergence criterion
-                if (std::fabs(dx) < xAccuracy) {
+                if (std::fabs(dx) < xAccuracy)
+                {
                     f(root_);
                     ++evaluationNumber_;
                     return root_;
@@ -99,13 +107,12 @@ namespace QuantLib {
                 dfroot = f.derivative(root_);
                 ++evaluationNumber_;
                 if (froot < 0.0)
-                    xl=root_;
+                    xl = root_;
                 else
-                    xh=root_;
+                    xh = root_;
             }
 
-            QL_FAIL("maximum number of function evaluations ("
-                    << maxEvaluations_ << ") exceeded");
+            QL_FAIL("maximum number of function evaluations (" << maxEvaluations_ << ") exceeded");
         }
     };
 

@@ -23,7 +23,8 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(FrtbSaGirrDeltaTests)
 
-BOOST_AUTO_TEST_CASE(testTwoTenorHandComputed) {
+BOOST_AUTO_TEST_CASE(testTwoTenorHandComputed)
+{
     BOOST_TEST_MESSAGE("FRTB-SA GIRR: two-tenor bucket charge against "
                        "hand-computed reference...");
 
@@ -43,7 +44,7 @@ BOOST_AUTO_TEST_CASE(testTwoTenorHandComputed) {
     // WS_1 = 0.017 * 1e6 = 17000
     // WS_2 = 0.012 * 0.5e6 = 6000
     BOOST_CHECK_SMALL(calc.weightedSensitivities()[0] - 17000.0, 1e-9);
-    BOOST_CHECK_SMALL(calc.weightedSensitivities()[1] - 6000.0,  1e-9);
+    BOOST_CHECK_SMALL(calc.weightedSensitivities()[1] - 6000.0, 1e-9);
 
     // rho_{1,10} = max(exp(-0.03 * 9 / 1), 0.40)
     //           = max(exp(-0.27), 0.40)
@@ -52,13 +53,12 @@ BOOST_AUTO_TEST_CASE(testTwoTenorHandComputed) {
     BOOST_CHECK_SMALL(rho - std::exp(-0.27), 1e-10);
 
     // K_b = sqrt( WS_1^2 + WS_2^2 + 2 * rho * WS_1 * WS_2 )
-    Real expected = std::sqrt(17000.0 * 17000.0
-                              + 6000.0 * 6000.0
-                              + 2.0 * std::exp(-0.27) * 17000.0 * 6000.0);
+    Real expected = std::sqrt(17000.0 * 17000.0 + 6000.0 * 6000.0 + 2.0 * std::exp(-0.27) * 17000.0 * 6000.0);
     BOOST_CHECK_SMALL(calc.bucketCharge() - expected, 1e-6);
 }
 
-BOOST_AUTO_TEST_CASE(testPhiFloorActuallyFloors) {
+BOOST_AUTO_TEST_CASE(testPhiFloorActuallyFloors)
+{
     BOOST_TEST_MESSAGE("FRTB-SA GIRR: far-apart tenors hit the 40% floor...");
 
     // Tenors 0.1y and 30y: |dT|/min = 29.9 / 0.1 = 299
@@ -71,7 +71,8 @@ BOOST_AUTO_TEST_CASE(testPhiFloorActuallyFloors) {
     BOOST_CHECK_SMALL(calc.correlation(0, 1) - 0.40, 1e-12);
 }
 
-BOOST_AUTO_TEST_CASE(testOffsettingSensitivitiesReduceCharge) {
+BOOST_AUTO_TEST_CASE(testOffsettingSensitivitiesReduceCharge)
+{
     BOOST_TEST_MESSAGE("FRTB-SA GIRR: offsetting (opposite-sign) "
                        "sensitivities give a smaller charge than aligned ones...");
 
@@ -87,11 +88,11 @@ BOOST_AUTO_TEST_CASE(testOffsettingSensitivitiesReduceCharge) {
     FrtbSaGirrDelta o(tenors, offset, riskWeights);
 
     BOOST_CHECK_MESSAGE(o.bucketCharge() < a.bucketCharge(),
-        "offsetting charge " << o.bucketCharge()
-        << " not lower than aligned " << a.bucketCharge());
+                        "offsetting charge " << o.bucketCharge() << " not lower than aligned " << a.bucketCharge());
 }
 
-BOOST_AUTO_TEST_CASE(testIntegratesWithCurveBucketer) {
+BOOST_AUTO_TEST_CASE(testIntegratesWithCurveBucketer)
+{
     BOOST_TEST_MESSAGE("FRTB-SA GIRR: output of CurveBucketer plugs into "
                        "FrtbSaGirrDelta as sensitivities...");
 
@@ -114,24 +115,28 @@ BOOST_AUTO_TEST_CASE(testIntegratesWithCurveBucketer) {
     Real maxAbsWs = 0.0;
     for (Real w : charge.weightedSensitivities())
         maxAbsWs = std::max(maxAbsWs, std::fabs(w));
-    BOOST_CHECK_MESSAGE(k >= maxAbsWs * 0.99,   // tiny tolerance for rounding
-        "charge " << k << " below max |WS| " << maxAbsWs);
+    BOOST_CHECK_MESSAGE(k >= maxAbsWs * 0.99, // tiny tolerance for rounding
+                        "charge " << k << " below max |WS| " << maxAbsWs);
 }
 
-BOOST_AUTO_TEST_CASE(testRejectsBadInputs) {
-    auto sizeMismatch = [&]{
+BOOST_AUTO_TEST_CASE(testRejectsBadInputs)
+{
+    auto sizeMismatch = [&]
+    {
         FrtbSaGirrDelta c({1.0, 2.0}, {1.0}, {0.01, 0.01});
         (void)c;
     };
     BOOST_CHECK_THROW(sizeMismatch(), Error);
 
-    auto badTheta = [&]{
+    auto badTheta = [&]
+    {
         FrtbSaGirrDelta c({1.0}, {1.0}, {0.01}, 0.0);
         (void)c;
     };
     BOOST_CHECK_THROW(badTheta(), Error);
 
-    auto badPhi = [&]{
+    auto badPhi = [&]
+    {
         FrtbSaGirrDelta c({1.0}, {1.0}, {0.01}, 0.03, 1.5);
         (void)c;
     };

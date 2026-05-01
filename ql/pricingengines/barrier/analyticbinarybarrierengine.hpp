@@ -27,11 +27,12 @@
 #include <ql/instruments/barrieroption.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Analytic pricing engine for American binary barriers options
     /*! The formulas are taken from "The complete guide to option pricing formulas 2nd Ed",
-         E.G. Haug, McGraw-Hill, p.176 and following. 
+         E.G. Haug, McGraw-Hill, p.176 and following.
 
         \ingroup barrierengines
 
@@ -43,7 +44,8 @@ namespace QuantLib {
           asset-or-nothing at-expiry binary payoff is tested by
           reproducing results available in literature.
     */
-    class AnalyticBinaryBarrierEngine : public BarrierOption::engine {
+    class AnalyticBinaryBarrierEngine : public BarrierOption::engine
+    {
       public:
         AnalyticBinaryBarrierEngine(ext::shared_ptr<GeneralizedBlackScholesProcess>);
         void calculate() const override;

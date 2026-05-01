@@ -25,11 +25,12 @@
 #ifndef quantlib_bates_process_hpp
 #define quantlib_bates_process_hpp
 
-#include <ql/processes/hestonprocess.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
+#include <ql/processes/hestonprocess.hpp>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Square-root stochastic-volatility Bates process
     /*! This class describes the square root stochastic volatility
@@ -46,24 +47,30 @@ namespace QuantLib {
 
         \ingroup processes
     */
-    class BatesProcess : public HestonProcess {
-    public:
+    class BatesProcess : public HestonProcess
+    {
+      public:
         BatesProcess(const Handle<YieldTermStructure>& riskFreeRate,
                      const Handle<YieldTermStructure>& dividendYield,
                      const Handle<Quote>& s0,
-                     Real v0, Real kappa,
-                     Real theta, Real sigma, Real rho,
-                     Real lambda, Real nu, Real delta,
-                     HestonProcess::Discretization d
-                         = HestonProcess::FullTruncation);
+                     Real v0,
+                     Real kappa,
+                     Real theta,
+                     Real sigma,
+                     Real rho,
+                     Real lambda,
+                     Real nu,
+                     Real delta,
+                     HestonProcess::Discretization d = HestonProcess::FullTruncation);
 
         Size factors() const override;
         Array drift(Time t, const Array& x) const override;
         Array evolve(Time t0, const Array& x0, Time dt, const Array& dw) const override;
 
         Real lambda() const;
-        Real nu()     const;
-        Real delta()  const;
+        Real nu() const;
+        Real delta() const;
+
       private:
         const Real lambda_, delta_, nu_, m_;
         const CumulativeNormalDistribution cumNormalDist_;

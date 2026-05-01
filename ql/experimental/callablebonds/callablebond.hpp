@@ -25,14 +25,15 @@
 #ifndef quantlib_callable_bond_hpp
 #define quantlib_callable_bond_hpp
 
-#include <ql/instruments/bond.hpp>
-#include <ql/pricingengine.hpp>
-#include <ql/instruments/callabilityschedule.hpp>
-#include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/handle.hpp>
+#include <ql/instruments/bond.hpp>
+#include <ql/instruments/callabilityschedule.hpp>
+#include <ql/pricingengine.hpp>
 #include <ql/quotes/simplequote.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Schedule;
     class DayCounter;
@@ -50,7 +51,8 @@ namespace QuantLib {
 
         \ingroup instruments
     */
-    class CallableBond : public Bond {
+    class CallableBond : public Bond
+    {
       public:
         class arguments;
         class results;
@@ -59,9 +61,7 @@ namespace QuantLib {
         //! \name Inspectors
         //@{
         //! return the bond's put/call schedule
-        const CallabilitySchedule& callability() const {
-            return putCallSchedule_;
-        }
+        const CallabilitySchedule& callability() const { return putCallSchedule_; }
         //@}
 
         //! \name Calculations
@@ -71,13 +71,12 @@ namespace QuantLib {
             Chapter 20, pg 536). Relevant only to European put/call
             schedules
         */
-        Volatility impliedVolatility(
-                              const Bond::Price& targetPrice,
-                              const Handle<YieldTermStructure>& discountCurve,
-                              Real accuracy,
-                              Size maxEvaluations,
-                              Volatility minVol,
-                              Volatility maxVol) const;
+        Volatility impliedVolatility(const Bond::Price& targetPrice,
+                                     const Handle<YieldTermStructure>& discountCurve,
+                                     Real accuracy,
+                                     Size maxEvaluations,
+                                     Volatility minVol,
+                                     Volatility maxVol) const;
 
         //! Calculate the Option Adjusted Spread (OAS)
         /*! Calculates the spread that needs to be added to the
@@ -113,7 +112,7 @@ namespace QuantLib {
                                const DayCounter& dayCounter,
                                Compounding compounding,
                                Frequency frequency,
-                               Real bump=2e-4);
+                               Real bump = 2e-4);
 
         //! Calculate the effective convexity, i.e., the second
         //! differential of the dirty price w.r.t. a parallel shift of
@@ -123,7 +122,7 @@ namespace QuantLib {
                                 const DayCounter& dayCounter,
                                 Compounding compounding,
                                 Frequency frequency,
-                                Real bump=2e-4);
+                                Real bump = 2e-4);
         //@}
 
         void setupArguments(PricingEngine::arguments* args) const override;
@@ -145,10 +144,10 @@ namespace QuantLib {
         class ImpliedVolHelper;
         // helper class for option adjusted spread calculations
         class NPVSpreadHelper;
-
     };
 
-    class CallableBond::arguments : public Bond::arguments {
+    class CallableBond::arguments : public Bond::arguments
+    {
       public:
         arguments() = default;
         std::vector<Date> couponDates;
@@ -171,15 +170,16 @@ namespace QuantLib {
     };
 
     //! results for a callable bond calculation
-    class CallableBond::results : public Bond::results {
+    class CallableBond::results : public Bond::results
+    {
       public:
         // no extra results set yet
     };
 
     //! base class for callable fixed rate bond engine
-    class CallableBond::engine
-        : public GenericEngine<CallableBond::arguments,
-                               CallableBond::results> {};
+    class CallableBond::engine : public GenericEngine<CallableBond::arguments, CallableBond::results>
+    {
+    };
 
 
     //! callable/puttable fixed rate bond
@@ -187,7 +187,8 @@ namespace QuantLib {
 
         \ingroup instruments
     */
-    class CallableFixedRateBond : public CallableBond {
+    class CallableFixedRateBond : public CallableBond
+    {
       public:
         CallableFixedRateBond(Natural settlementDays,
                               Real faceAmount,
@@ -209,7 +210,8 @@ namespace QuantLib {
 
         \ingroup instruments
     */
-    class CallableZeroCouponBond : public CallableBond {
+    class CallableZeroCouponBond : public CallableBond
+    {
       public:
         CallableZeroCouponBond(Natural settlementDays,
                                Real faceAmount,

@@ -28,10 +28,12 @@
 #include <ql/instruments/vanillaoption.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
     class YieldTermStructure;
 
-    class FdSabrVanillaEngine : public VanillaOption::engine {
+    class FdSabrVanillaEngine : public VanillaOption::engine
+    {
       public:
         FdSabrVanillaEngine(Real f0,
                             Real alpha,

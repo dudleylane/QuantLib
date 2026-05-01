@@ -19,9 +19,7 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
-
 #include <ql/version.hpp>
-
 #include <boost/version.hpp>
 
 using namespace QuantLib;
@@ -31,7 +29,8 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(CompiledBoostVersionTests)
 
-BOOST_AUTO_TEST_CASE(test) {
+BOOST_AUTO_TEST_CASE(test)
+{
 
     BOOST_TEST_MESSAGE("Testing compiled boost version...");
 

@@ -26,7 +26,8 @@
 
 #include <ql/time/daycounter.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Simple day counter for reproducing theoretical calculations.
     /*! This day counter tries to ensure that whole-month distances
@@ -43,19 +44,19 @@ namespace QuantLib {
         \test the correctness of the results is checked against known
               good values.
     */
-    class SimpleDayCounter : public DayCounter {
+    class SimpleDayCounter : public DayCounter
+    {
       private:
-        class Impl final : public DayCounter::Impl {
+        class Impl final : public DayCounter::Impl
+        {
           public:
             std::string name() const override { return "Simple"; }
             Date::serial_type dayCount(const Date& d1, const Date& d2) const override;
-            Time
-            yearFraction(const Date& d1, const Date& d2, const Date&, const Date&) const override;
+            Time yearFraction(const Date& d1, const Date& d2, const Date&, const Date&) const override;
         };
+
       public:
-        SimpleDayCounter()
-        : DayCounter(ext::shared_ptr<DayCounter::Impl>(
-                                             new SimpleDayCounter::Impl())) {}
+        SimpleDayCounter() : DayCounter(ext::shared_ptr<DayCounter::Impl>(new SimpleDayCounter::Impl())) {}
     };
 
 }

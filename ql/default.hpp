@@ -26,11 +26,17 @@
 
 #include <ql/qldefines.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! information on a default-protection contract
-    struct Protection {
-        enum Side { Buyer, Seller };
+    struct Protection
+    {
+        enum Side
+        {
+            Buyer,
+            Seller
+        };
     };
 
 }

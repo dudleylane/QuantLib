@@ -24,17 +24,18 @@
 #ifndef quantlib_joint_stochastic_process_hpp
 #define quantlib_joint_stochastic_process_hpp
 
-#include <ql/utilities/null.hpp>
 #include <ql/stochasticprocess.hpp>
-#include <vector>
+#include <ql/utilities/null.hpp>
 #include <map>
+#include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class JointStochasticProcess : public StochasticProcess {
+    class JointStochasticProcess : public StochasticProcess
+    {
       public:
-        JointStochasticProcess(std::vector<ext::shared_ptr<StochasticProcess> > l,
-                               Size factors = Null<Size>());
+        JointStochasticProcess(std::vector<ext::shared_ptr<StochasticProcess>> l, Size factors = Null<Size>());
 
         Size size() const override;
         Size factors() const override;
@@ -50,45 +51,35 @@ namespace QuantLib {
         Array apply(const Array& x0, const Array& dx) const override;
         Array evolve(Time t0, const Array& x0, Time dt, const Array& dw) const override;
 
-        virtual void preEvolve(Time t0, const Array& x0,
-                               Time dt, const Array& dw) const = 0;
-        virtual Array postEvolve(Time t0, const Array& x0,
-                                 Time dt, const Array& dw,
-                                 const Array& y0) const = 0;
+        virtual void preEvolve(Time t0, const Array& x0, Time dt, const Array& dw) const = 0;
+        virtual Array postEvolve(Time t0, const Array& x0, Time dt, const Array& dw, const Array& y0) const = 0;
 
         virtual DiscountFactor numeraire(Time t, const Array& x) const = 0;
         virtual bool correlationIsStateDependent() const = 0;
         virtual Matrix crossModelCorrelation(Time t0, const Array& x0) const = 0;
 
-        const std::vector<ext::shared_ptr<StochasticProcess> > &
-                                                       constituents() const;
+        const std::vector<ext::shared_ptr<StochasticProcess>>& constituents() const;
 
         void update() override;
         Time time(const Date& date) const override;
 
       protected:
-        std::vector<ext::shared_ptr<StochasticProcess> > l_;
+        std::vector<ext::shared_ptr<StochasticProcess>> l_;
         Array slice(const Array& x, Size i) const;
 
       private:
-        typedef
-            std::vector<ext::shared_ptr<StochasticProcess> >::const_iterator
-            const_iterator;
+        typedef std::vector<ext::shared_ptr<StochasticProcess>>::const_iterator const_iterator;
 
-        typedef std::vector<ext::shared_ptr<StochasticProcess> >::iterator
-            iterator;
+        typedef std::vector<ext::shared_ptr<StochasticProcess>>::iterator iterator;
 
         Size size_ = 0, factors_, modelFactors_ = 0;
         std::vector<Size> vsize_, vfactors_;
 
-        struct CachingKey {
-            CachingKey(const Time t0, const Time dt)
-                : t0_(t0), dt_(dt) {}
+        struct CachingKey
+        {
+            CachingKey(const Time t0, const Time dt) : t0_(t0), dt_(dt) {}
 
-            bool operator<(const CachingKey& key) const {
-                return   t0_ < key.t0_ 
-                    || ( t0_ == key.t0_ && dt_ < key.dt_); 
-            }
+            bool operator<(const CachingKey& key) const { return t0_ < key.t0_ || (t0_ == key.t0_ && dt_ < key.dt_); }
             Time t0_;
             Time dt_;
         };

@@ -20,52 +20,46 @@
 #include <ql/legacy/libormarketmodels/lmfixedvolmodel.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    LmFixedVolatilityModel::LmFixedVolatilityModel(Array volatilities,
-                                                   const std::vector<Time>& startTimes)
-    : LmVolatilityModel(startTimes.size(), 0), volatilities_(std::move(volatilities)),
-      startTimes_(startTimes) {
-        QL_REQUIRE(startTimes_.size()>1, "too few dates");
-        QL_REQUIRE(volatilities_.size() == startTimes_.size(),
-                   "volatility array and fixing time array have to have "
-                   "the same size");
-        for (Size i = 1; i < startTimes_.size(); i++) {
-            QL_REQUIRE(startTimes_[i] > startTimes_[i-1],
-                       "invalid time (" << startTimes_[i] << ", vs "
-                       << startTimes_[i-1] << ")");
+    LmFixedVolatilityModel::LmFixedVolatilityModel(Array volatilities, const std::vector<Time>& startTimes)
+    : LmVolatilityModel(startTimes.size(), 0), volatilities_(std::move(volatilities)), startTimes_(startTimes)
+    {
+        QL_REQUIRE(startTimes_.size() > 1, "too few dates");
+        QL_REQUIRE(volatilities_.size() == startTimes_.size(), "volatility array and fixing time array have to have "
+                                                               "the same size");
+        for (Size i = 1; i < startTimes_.size(); i++)
+        {
+            QL_REQUIRE(startTimes_[i] > startTimes_[i - 1],
+                       "invalid time (" << startTimes_[i] << ", vs " << startTimes_[i - 1] << ")");
         }
     }
 
-    Array LmFixedVolatilityModel::volatility(Time t, const Array&) const {
-        QL_REQUIRE(t >= startTimes_.front() && t <= startTimes_.back(),
-                   "invalid time given for volatility model");
+    Array LmFixedVolatilityModel::volatility(Time t, const Array&) const
+    {
+        QL_REQUIRE(t >= startTimes_.front() && t <= startTimes_.back(), "invalid time given for volatility model");
 
-        const Size ti = std::upper_bound(startTimes_.begin(),
-                                         startTimes_.end()-1, t)
-                      - startTimes_.begin()-1;
+        const Size ti = std::upper_bound(startTimes_.begin(), startTimes_.end() - 1, t) - startTimes_.begin() - 1;
 
         Array tmp(size_, 0.0);
 
-        for (Size i=ti; i<size_; ++i) {
-            tmp[i] = volatilities_[i-ti];
+        for (Size i = ti; i < size_; ++i)
+        {
+            tmp[i] = volatilities_[i - ti];
         }
 
         return tmp;
     }
 
-    Volatility LmFixedVolatilityModel::volatility(
-                                         Size i, Time t, const Array&) const {
-        QL_REQUIRE(t >= startTimes_.front() && t <= startTimes_.back(),
-                   "invalid time given for volatility model");
+    Volatility LmFixedVolatilityModel::volatility(Size i, Time t, const Array&) const
+    {
+        QL_REQUIRE(t >= startTimes_.front() && t <= startTimes_.back(), "invalid time given for volatility model");
 
-        const Size ti = std::upper_bound(startTimes_.begin(),
-                                         startTimes_.end()-1, t)
-                      - startTimes_.begin()-1;
+        const Size ti = std::upper_bound(startTimes_.begin(), startTimes_.end() - 1, t) - startTimes_.begin() - 1;
 
-        return volatilities_[i-ti];
+        return volatilities_[i - ti];
     }
 
     void LmFixedVolatilityModel::generateArguments() {}
 }
-

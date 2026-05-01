@@ -23,53 +23,58 @@
 #include <ql/models/shortrate/onefactormodel.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    TreeCallableFixedRateBondEngine::TreeCallableFixedRateBondEngine(
-        const ext::shared_ptr<ShortRateModel>& model,
-        const Size timeSteps,
-        Handle<YieldTermStructure> termStructure)
+    TreeCallableFixedRateBondEngine::TreeCallableFixedRateBondEngine(const ext::shared_ptr<ShortRateModel>& model,
+                                                                     const Size timeSteps,
+                                                                     Handle<YieldTermStructure> termStructure)
     : LatticeShortRateModelEngine<CallableBond::arguments, CallableBond::results>(model, timeSteps),
-      termStructure_(std::move(termStructure)) {
+      termStructure_(std::move(termStructure))
+    {
         registerWith(termStructure_);
     }
 
-    TreeCallableFixedRateBondEngine::TreeCallableFixedRateBondEngine(
-        const ext::shared_ptr<ShortRateModel>& model,
-        const TimeGrid& timeGrid,
-        Handle<YieldTermStructure> termStructure)
+    TreeCallableFixedRateBondEngine::TreeCallableFixedRateBondEngine(const ext::shared_ptr<ShortRateModel>& model,
+                                                                     const TimeGrid& timeGrid,
+                                                                     Handle<YieldTermStructure> termStructure)
     : LatticeShortRateModelEngine<CallableBond::arguments, CallableBond::results>(model, timeGrid),
-      termStructure_(std::move(termStructure)) {
+      termStructure_(std::move(termStructure))
+    {
         registerWith(termStructure_);
     }
 
-    void TreeCallableFixedRateBondEngine::calculate() const {
+    void TreeCallableFixedRateBondEngine::calculate() const
+    {
         calculateWithSpread(arguments_.spread);
     }
 
-    void TreeCallableFixedRateBondEngine::calculateWithSpread(Spread s) const {
+    void TreeCallableFixedRateBondEngine::calculateWithSpread(Spread s) const
+    {
         QL_REQUIRE(!model_.empty(), "no model specified");
 
         ext::shared_ptr<TermStructureConsistentModel> tsmodel =
             ext::dynamic_pointer_cast<TermStructureConsistentModel>(*model_);
-        Handle<YieldTermStructure> discountCurve =
-            tsmodel != nullptr ? tsmodel->termStructure() : termStructure_;
+        Handle<YieldTermStructure> discountCurve = tsmodel != nullptr ? tsmodel->termStructure() : termStructure_;
 
         DiscretizedCallableFixedRateBond callableBond(arguments_, discountCurve);
         ext::shared_ptr<Lattice> lattice;
 
-        if (lattice_ != nullptr) {
+        if (lattice_ != nullptr)
+        {
             lattice = lattice_;
-        } else {
+        }
+        else
+        {
             std::vector<Time> times = callableBond.mandatoryTimes();
             TimeGrid timeGrid(times.begin(), times.end(), timeSteps_);
             lattice = model_->tree(timeGrid);
         }
 
-        if (s != 0.0) {
+        if (s != 0.0)
+        {
             auto* sr = dynamic_cast<OneFactorModel::ShortRateTree*>(&(*lattice));
-            QL_REQUIRE(sr,
-                       "Spread is not supported for trees other than OneFactorModel");
+            QL_REQUIRE(sr, "Spread is not supported for trees other than OneFactorModel");
             sr->setSpread(s);
         }
 
@@ -87,4 +92,3 @@ namespace QuantLib {
     }
 
 }
-

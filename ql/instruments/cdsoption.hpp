@@ -25,10 +25,11 @@
 #ifndef quantlib_cds_option_hpp
 #define quantlib_cds_option_hpp
 
-#include <ql/option.hpp>
 #include <ql/instruments/creditdefaultswap.hpp>
+#include <ql/option.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Quote;
     class YieldTermStructure;
@@ -42,7 +43,8 @@ namespace QuantLib {
 
         \ingroup instruments
     */
-    class CdsOption : public Option {
+    class CdsOption : public Option
+    {
       public:
         class arguments;
         class results;
@@ -58,26 +60,23 @@ namespace QuantLib {
         //@}
         //! \name Inspectors
         //@{
-        const ext::shared_ptr<CreditDefaultSwap>& underlyingSwap() const {
-            return swap_;
-        }
+        const ext::shared_ptr<CreditDefaultSwap>& underlyingSwap() const { return swap_; }
         //@}
         //! \name Calculations
         //@{
         Rate atmRate() const;
         Real riskyAnnuity() const;
-        Volatility impliedVolatility(
-                              Real price,
-                              const Handle<YieldTermStructure>& termStructure,
-                              const Handle<DefaultProbabilityTermStructure>&,
-                              Real recoveryRate,
-                              Real accuracy = 1.e-4,
-                              Size maxEvaluations = 100,
-                              Volatility minVol = 1.0e-7,
-                              Volatility maxVol = 4.0) const;
+        Volatility impliedVolatility(Real price,
+                                     const Handle<YieldTermStructure>& termStructure,
+                                     const Handle<DefaultProbabilityTermStructure>&,
+                                     Real recoveryRate,
+                                     Real accuracy = 1.e-4,
+                                     Size maxEvaluations = 100,
+                                     Volatility minVol = 1.0e-7,
+                                     Volatility maxVol = 4.0) const;
         //@}
 
-    private:
+      private:
         ext::shared_ptr<CreditDefaultSwap> swap_;
         bool knocksOut_;
 
@@ -88,8 +87,8 @@ namespace QuantLib {
 
 
     //! %Arguments for CDS-option calculation
-    class CdsOption::arguments : public CreditDefaultSwap::arguments,
-                                 public Option::arguments {
+    class CdsOption::arguments : public CreditDefaultSwap::arguments, public Option::arguments
+    {
       public:
         arguments() = default;
 
@@ -99,15 +98,17 @@ namespace QuantLib {
     };
 
     //! %Results from CDS-option calculation
-    class CdsOption::results : public Option::results {
+    class CdsOption::results : public Option::results
+    {
       public:
         Real riskyAnnuity;
         void reset() override;
     };
 
     //! base class for swaption engines
-    class CdsOption::engine
-        : public GenericEngine<CdsOption::arguments, CdsOption::results> {};
+    class CdsOption::engine : public GenericEngine<CdsOption::arguments, CdsOption::results>
+    {
+    };
 
 }
 

@@ -40,7 +40,8 @@
     ql\experimental\credit\randomdefaultmodel.Xpp
 */
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! Simulation event trait class template forward declaration.
     Each latent model will be modelling different entities according to the
@@ -65,7 +66,8 @@ namespace QuantLib {
     methods)
     */
     // replaces class Loss
-    template <class simEventOwner> struct simEvent;
+    template <class simEventOwner>
+    struct simEvent;
 
 
     /*! Base class for latent model monte carlo simulation. Independent of the
@@ -91,43 +93,44 @@ namespace QuantLib {
     are very expensive.
     \todo: consider another design, taking the statistics outside the models.
     */
-    template<template <class, class> class derivedRandomLM, class copulaPolicy,
-        class USNG = SobolRsg>
-    class RandomLM : public virtual LazyObject,
-                     public virtual DefaultLossModel {
-    private:
+    template <template <class, class> class derivedRandomLM, class copulaPolicy, class USNG = SobolRsg>
+    class RandomLM : public virtual LazyObject, public virtual DefaultLossModel
+    {
+      private:
         // Takes the parents type, all children have the same type, the
         // random generation is performed in this class only.
-        typedef typename LatentModel<copulaPolicy>::template FactorSampler<USNG>
-            copulaRNG_type;
-    protected:
-      RandomLM(Size numFactors, Size numLMVars, copulaPolicy copula, Size nSims, BigNatural seed)
-      : seed_(seed), numFactors_(numFactors), numLMVars_(numLMVars), nSims_(nSims),
-        copula_(std::move(copula)) {}
+        typedef typename LatentModel<copulaPolicy>::template FactorSampler<USNG> copulaRNG_type;
 
-      void update() override {
-          simsBuffer_.clear();
-          // tell basket to notify instruments, etc, we are invalid
-          if (!basket_.empty())
-              basket_->notifyObservers();
-          LazyObject::update();
+      protected:
+        RandomLM(Size numFactors, Size numLMVars, copulaPolicy copula, Size nSims, BigNatural seed)
+        : seed_(seed), numFactors_(numFactors), numLMVars_(numLMVars), nSims_(nSims), copula_(std::move(copula))
+        {
         }
 
-        void performCalculations() const override {
-            static_cast<const derivedRandomLM<copulaPolicy, USNG>* >(
-                this)->initDates();//in update?
+        void update() override
+        {
+            simsBuffer_.clear();
+            // tell basket to notify instruments, etc, we are invalid
+            if (!basket_.empty())
+                basket_->notifyObservers();
+            LazyObject::update();
+        }
+
+        void performCalculations() const override
+        {
+            static_cast<const derivedRandomLM<copulaPolicy, USNG>*>(this)->initDates(); // in update?
             copulasRng_ = ext::make_shared<copulaRNG_type>(copula_, seed_);
             performSimulations();
         }
 
-        void performSimulations() const {
+        void performSimulations() const
+        {
             // Next sequence should determine the event and push it into buffer
-            for (Size i = nSims_; i != 0U; i--) {
-                const std::vector<Real>& sample =
-                    copulasRng_->nextSequence().value;
-                static_cast<const derivedRandomLM<copulaPolicy, USNG>* >(
-                    this)->nextSample(sample);
-            // alternatively make call an explicit local method...
+            for (Size i = nSims_; i != 0U; i--)
+            {
+                const std::vector<Real>& sample = copulasRng_->nextSequence().value;
+                static_cast<const derivedRandomLM<copulaPolicy, USNG>*>(this)->nextSample(sample);
+                // alternatively make call an explicit local method...
             }
         }
 
@@ -137,16 +140,16 @@ namespace QuantLib {
         serves to detach the statistics access to the way the simulations are
         stored.
         */
-        const std::vector<simEvent<derivedRandomLM<copulaPolicy, USNG> > >&
-            getSim(const Size iSim) const { return simsBuffer_[iSim]; }
+        const std::vector<simEvent<derivedRandomLM<copulaPolicy, USNG>>>& getSim(const Size iSim) const
+        {
+            return simsBuffer_[iSim];
+        }
 
         /* Allows statistics to be written generically for fixed and random
         recovery rates. */
-        Real getEventRecovery(
-            const simEvent<derivedRandomLM<copulaPolicy, USNG> >& evt) const
+        Real getEventRecovery(const simEvent<derivedRandomLM<copulaPolicy, USNG>>& evt) const
         {
-            return static_cast<const derivedRandomLM<copulaPolicy, USNG>* >(
-                this)->getEventRecovery(evt);
+            return static_cast<const derivedRandomLM<copulaPolicy, USNG>*>(this)->getEventRecovery(evt);
         }
 
         //! \name Statistics, DefaultLossModel interface.
@@ -173,16 +176,14 @@ namespace QuantLib {
         //! Pearsons' default probability correlation.
         Real defaultCorrelation(const Date& d, Size iName, Size jName) const override;
         Real expectedTrancheLoss(const Date& d) const override;
-        virtual std::pair<Real, Real> expectedTrancheLossInterval(const Date& d,
-            Probability confidencePerc) const;
+        virtual std::pair<Real, Real> expectedTrancheLossInterval(const Date& d, Probability confidencePerc) const;
         std::map<Real, Probability> lossDistribution(const Date& d) const override;
         virtual Histogram computeHistogram(const Date& d) const;
         Real expectedShortfall(const Date& d, Real percent) const override;
         Real percentile(const Date& d, Real percentile) const override;
         /*! Returns the VaR value for a given percentile and the 95 confidence
         interval of that value. */
-        virtual std::tuple<Real, Real, Real> percentileAndInterval(
-            const Date& d, Real percentile) const;
+        virtual std::tuple<Real, Real, Real> percentileAndInterval(const Date& d, Real percentile) const;
         /*! Distributes the total VaR amount along the portfolio counterparties.
             The passed loss amount is in loss units.
         */
@@ -195,22 +196,22 @@ namespace QuantLib {
 
             The passed loss amount is in loss units.
         */
-        virtual std::vector<std::vector<Real> > splitVaRAndError(
-            const Date& date, Real loss, Probability confInterval) const;
+        virtual std::vector<std::vector<Real>>
+        splitVaRAndError(const Date& date, Real loss, Probability confInterval) const;
         //@}
-    public:
-      ~RandomLM() override = default;
+      public:
+        ~RandomLM() override = default;
 
-    private:
+      private:
         BigNatural seed_;
-    protected:
+
+      protected:
         const Size numFactors_;
         const Size numLMVars_;
 
         const Size nSims_;
 
-        mutable std::vector<std::vector<simEvent<derivedRandomLM<copulaPolicy,
-            USNG > > > > simsBuffer_;
+        mutable std::vector<std::vector<simEvent<derivedRandomLM<copulaPolicy, USNG>>>> simsBuffer_;
 
         mutable copulaPolicy copula_;
         mutable ext::shared_ptr<copulaRNG_type> copulasRng_;
@@ -223,127 +224,127 @@ namespace QuantLib {
 
     /* ---- Statistics ---------------------------------------------------  */
 
-    template<template <class, class> class D, class C, class URNG>
-    Probability RandomLM<D, C, URNG>::probAtLeastNEvents(Size n,
-        const Date& d) const
+    template <template <class, class> class D, class C, class URNG>
+    Probability RandomLM<D, C, URNG>::probAtLeastNEvents(Size n, const Date& d) const
     {
         calculate();
         Date today = Settings::instance().evaluationDate();
 
-        QL_REQUIRE(d>today, "Date for statistic must be in the future.");
+        QL_REQUIRE(d > today, "Date for statistic must be in the future.");
         // casted to natural to avoid warning, we have just checked the sign
         Natural val = d.serialNumber() - today.serialNumber();
 
-        if(n==0) return 1.;
+        if (n == 0)
+            return 1.;
 
         Real counts = 0.;
-        for(Size iSim=0; iSim < nSims_; iSim++) {
+        for (Size iSim = 0; iSim < nSims_; iSim++)
+        {
             Size simCount = 0;
-            const std::vector<simEvent<D<C, URNG> > >& events =
-                getSim(iSim);
-            for(Size iEvt=0; iEvt < events.size(); iEvt++)
+            const std::vector<simEvent<D<C, URNG>>>& events = getSim(iSim);
+            for (Size iEvt = 0; iEvt < events.size(); iEvt++)
                 // duck type on the members:
-                if(val > events[iEvt].dayFromRef) simCount++;
-            if(simCount >= n) counts++;
+                if (val > events[iEvt].dayFromRef)
+                    simCount++;
+            if (simCount >= n)
+                counts++;
         }
-        return counts/nSims_;
+        return counts / nSims_;
         // \todo Provide confidence interval
     }
 
-    template<template <class, class> class D, class C, class URNG>
-    std::vector<Probability> RandomLM<D, C, URNG>::probsBeingNthEvent(Size n,
-                                                                      const Date& d) const
+    template <template <class, class> class D, class C, class URNG>
+    std::vector<Probability> RandomLM<D, C, URNG>::probsBeingNthEvent(Size n, const Date& d) const
     {
         calculate();
         Size basketSize = basket_->size();
 
-        QL_REQUIRE(n>0 && n<=basketSize, "Impossible number of defaults.");
+        QL_REQUIRE(n > 0 && n <= basketSize, "Impossible number of defaults.");
         Date today = Settings::instance().evaluationDate();
 
-        QL_REQUIRE(d>today, "Date for statistic must be in the future.");
+        QL_REQUIRE(d > today, "Date for statistic must be in the future.");
         // casted to natural to avoid warning, we have just checked the sign
         Natural val = d.serialNumber() - today.serialNumber();
 
         std::vector<Probability> hitsByDate(basketSize, 0.);
-        for(Size iSim=0; iSim < nSims_; iSim++) {
-            const std::vector<simEvent<D<C, URNG> > >& events = getSim(iSim);
+        for (Size iSim = 0; iSim < nSims_; iSim++)
+        {
+            const std::vector<simEvent<D<C, URNG>>>& events = getSim(iSim);
             std::map<unsigned short, unsigned short> namesDefaulting;
-            for(Size iEvt=0; iEvt < events.size(); iEvt++) {
+            for (Size iEvt = 0; iEvt < events.size(); iEvt++)
+            {
                 // if event is within time horizon...
-                if(val > events[iEvt].dayFromRef)
+                if (val > events[iEvt].dayFromRef)
                     //...count it. notice insertion sorts by date.
-                    namesDefaulting.insert(std::make_pair<unsigned short,
-                      unsigned short>(events[iEvt].dayFromRef,
-                        events[iEvt].nameIdx));
+                    namesDefaulting.insert(
+                        std::make_pair<unsigned short, unsigned short>(events[iEvt].dayFromRef, events[iEvt].nameIdx));
             }
-            if(namesDefaulting.size() >= n) {
-                auto
-                    itdefs = namesDefaulting.begin();
+            if (namesDefaulting.size() >= n)
+            {
+                auto itdefs = namesDefaulting.begin();
                 // locate nth default in time:
-                std::advance(itdefs, n-1);
+                std::advance(itdefs, n - 1);
                 // update statistic:
                 hitsByDate[itdefs->second]++;
             }
         }
-        std::transform(hitsByDate.begin(), hitsByDate.end(),
-                       hitsByDate.begin(),
-                       [this](Real x){ return x/nSims_; });
+        std::transform(hitsByDate.begin(), hitsByDate.end(), hitsByDate.begin(), [this](Real x) { return x / nSims_; });
         return hitsByDate;
         // \todo Provide confidence interval
     }
 
 
-    template<template <class, class> class D, class C, class URNG>
-    Real RandomLM<D, C, URNG>::defaultCorrelation(const Date& d,
-        Size iName, Size jName) const
+    template <template <class, class> class D, class C, class URNG>
+    Real RandomLM<D, C, URNG>::defaultCorrelation(const Date& d, Size iName, Size jName) const
     {
         // a control variate with the probabilities is possible
         calculate();
         Date today = Settings::instance().evaluationDate();
 
-        QL_REQUIRE(d>today, "Date for statistic must be in the future.");
+        QL_REQUIRE(d > today, "Date for statistic must be in the future.");
         // casted to natural to avoid warning, we have just checked the sign
         Natural val = d.serialNumber() - today.serialNumber();
 
-        Real expectedDefiDefj = 0.;// E[1_i 1_j]
+        Real expectedDefiDefj = 0.; // E[1_i 1_j]
         // the rest of magnitudes have known values (probabilities) but that
         //   would distort the simulation results.
         Real expectedDefi = 0.;
         Real expectedDefj = 0.;
-        for(Size iSim=0; iSim < nSims_; iSim++) {
-            const std::vector<simEvent<D<C, URNG> > >& events = getSim(iSim);
+        for (Size iSim = 0; iSim < nSims_; iSim++)
+        {
+            const std::vector<simEvent<D<C, URNG>>>& events = getSim(iSim);
             Real imatch = 0., jmatch = 0.;
-            for(Size iEvt=0; iEvt < events.size(); iEvt++) {
-                if((val > events[iEvt].dayFromRef) &&
-                   (events[iEvt].nameIdx == iName)) imatch = 1.;
-                if((val > events[iEvt].dayFromRef) &&
-                   (events[iEvt].nameIdx == jName)) jmatch = 1.;
+            for (Size iEvt = 0; iEvt < events.size(); iEvt++)
+            {
+                if ((val > events[iEvt].dayFromRef) && (events[iEvt].nameIdx == iName))
+                    imatch = 1.;
+                if ((val > events[iEvt].dayFromRef) && (events[iEvt].nameIdx == jName))
+                    jmatch = 1.;
             }
             expectedDefiDefj += imatch * jmatch;
             expectedDefi += imatch;
             expectedDefj += jmatch;
         }
-        expectedDefiDefj = expectedDefiDefj / (nSims_-1);// unbiased
+        expectedDefiDefj = expectedDefiDefj / (nSims_ - 1); // unbiased
         expectedDefi = expectedDefi / nSims_;
         expectedDefj = expectedDefj / nSims_;
 
-        return (expectedDefiDefj - expectedDefi*expectedDefj) /
-            std::sqrt((expectedDefi*expectedDefj*(1.-expectedDefi)
-                *(1.-expectedDefj)));
+        return (expectedDefiDefj - expectedDefi * expectedDefj) /
+               std::sqrt((expectedDefi * expectedDefj * (1. - expectedDefi) * (1. - expectedDefj)));
         // \todo Provide confidence interval
     }
 
 
-    template<template <class, class> class D, class C, class URNG>
-    Real RandomLM<D, C, URNG>::expectedTrancheLoss(
-        const Date& d) const {
-            return expectedTrancheLossInterval(d, 0.95).first;
+    template <template <class, class> class D, class C, class URNG>
+    Real RandomLM<D, C, URNG>::expectedTrancheLoss(const Date& d) const
+    {
+        return expectedTrancheLossInterval(d, 0.95).first;
     }
 
 
-    template<template <class, class> class D, class C, class URNG>
-    std::pair<Real, Real> RandomLM<D, C, URNG>::expectedTrancheLossInterval(
-        const Date& d, Probability confidencePerc) const
+    template <template <class, class> class D, class C, class URNG>
+    std::pair<Real, Real> RandomLM<D, C, URNG>::expectedTrancheLossInterval(const Date& d,
+                                                                            Probability confidencePerc) const
     {
         calculate();
         Date today = Settings::instance().evaluationDate();
@@ -354,34 +355,34 @@ namespace QuantLib {
 
         // Real trancheLoss= 0.;
         GeneralStatistics lossStats;
-        for(Size iSim=0; iSim < nSims_; iSim++) {
-            const std::vector<simEvent<D<C, URNG> > >& events = getSim(iSim);
+        for (Size iSim = 0; iSim < nSims_; iSim++)
+        {
+            const std::vector<simEvent<D<C, URNG>>>& events = getSim(iSim);
 
-            Real portfSimLoss=0.;
-            for(Size iEvt=0; iEvt < events.size(); iEvt++) {
+            Real portfSimLoss = 0.;
+            for (Size iEvt = 0; iEvt < events.size(); iEvt++)
+            {
                 // if event is within time horizon...
-                if(val > static_cast<Date::serial_type>(
-					   events[iEvt].dayFromRef)) {
+                if (val > static_cast<Date::serial_type>(events[iEvt].dayFromRef))
+                {
                     Size iName = events[iEvt].nameIdx;
                     // ...and is contained in the basket.
-                        portfSimLoss +=
-                            basket_->exposure(basket_->names()[iName],
-                                Date(events[iEvt].dayFromRef +
-                                    today.serialNumber())) *
-                                        (1.-getEventRecovery(events[iEvt]));
-               }
+                    portfSimLoss += basket_->exposure(basket_->names()[iName],
+                                                      Date(events[iEvt].dayFromRef + today.serialNumber())) *
+                                    (1. - getEventRecovery(events[iEvt]));
+                }
             }
-            lossStats.add(// d  ates? current losses? realized defaults, not yet
-                std::min(std::max(portfSimLoss - attachAmount, 0.),
-                    detachAmount - attachAmount) );
+            lossStats.add( // d  ates? current losses? realized defaults, not yet
+                std::min(std::max(portfSimLoss - attachAmount, 0.), detachAmount - attachAmount));
         }
-        return std::make_pair(lossStats.mean(), lossStats.errorEstimate() *
-            InverseCumulativeNormal::standard_value(0.5*(1.+confidencePerc)));
+        return std::make_pair(lossStats.mean(), lossStats.errorEstimate() * InverseCumulativeNormal::standard_value(
+                                                                                0.5 * (1. + confidencePerc)));
     }
 
 
-    template<template <class, class> class D, class C, class URNG>
-    std::map<Real, Probability> RandomLM<D, C, URNG>::lossDistribution(const Date& d) const {
+    template <template <class, class> class D, class C, class URNG>
+    std::map<Real, Probability> RandomLM<D, C, URNG>::lossDistribution(const Date& d) const
+    {
 
         Histogram hist = computeHistogram(d);
         std::map<Real, Probability> distrib;
@@ -389,91 +390,90 @@ namespace QuantLib {
         // prob of losses less or equal to
         Real suma = hist.frequency(0);
         distrib.insert(std::make_pair(0., suma));
-        for(Size i=1; i<hist.bins(); i++) {
+        for (Size i = 1; i < hist.bins(); i++)
+        {
             suma += hist.frequency(i);
-            distrib.insert(std::make_pair( hist.breaks()[i-1], suma ));
+            distrib.insert(std::make_pair(hist.breaks()[i - 1], suma));
         }
         return distrib;
     }
 
 
-    template<template <class, class> class D, class C, class URNG>
-    Histogram RandomLM<D, C, URNG>::computeHistogram(const Date& d) const {
+    template <template <class, class> class D, class C, class URNG>
+    Histogram RandomLM<D, C, URNG>::computeHistogram(const Date& d) const
+    {
         std::vector<Real> data;
-        std::set<Real> keys;// attainable loss values
+        std::set<Real> keys; // attainable loss values
         keys.insert(0.);
         Date today = Settings::instance().evaluationDate();
         Date::serial_type val = d.serialNumber() - today.serialNumber();
         // redundant test? should have been tested by the basket caller?
-        QL_REQUIRE(d >= today,
-            "Requested percentile date must lie after computation date.");
+        QL_REQUIRE(d >= today, "Requested percentile date must lie after computation date.");
         calculate();
 
         Real attachAmount = basket_->attachmentAmount();
         Real detachAmount = basket_->detachmentAmount();
 
-        for(Size iSim=0; iSim < nSims_; iSim++) {
-            const std::vector<simEvent<D<C, URNG> > >& events = getSim(iSim);
+        for (Size iSim = 0; iSim < nSims_; iSim++)
+        {
+            const std::vector<simEvent<D<C, URNG>>>& events = getSim(iSim);
 
-            Real portfSimLoss=0.;
-            for(Size iEvt=0; iEvt < events.size(); iEvt++) {
-                if(val > static_cast<Date::serial_type>(
-					 events[iEvt].dayFromRef)) {
+            Real portfSimLoss = 0.;
+            for (Size iEvt = 0; iEvt < events.size(); iEvt++)
+            {
+                if (val > static_cast<Date::serial_type>(events[iEvt].dayFromRef))
+                {
                     Size iName = events[iEvt].nameIdx;
-          // test needed (here and the others) to reuse simulations:
-          //          if(basket_->pool()->has(copula_->pool()->names()[iName]))
-                        portfSimLoss +=
-                            basket_->exposure(basket_->names()[iName],
-                                Date(events[iEvt].dayFromRef +
-                                    today.serialNumber())) *
-                                        (1.-getEventRecovery(events[iEvt]));
+                    // test needed (here and the others) to reuse simulations:
+                    //          if(basket_->pool()->has(copula_->pool()->names()[iName]))
+                    portfSimLoss += basket_->exposure(basket_->names()[iName],
+                                                      Date(events[iEvt].dayFromRef + today.serialNumber())) *
+                                    (1. - getEventRecovery(events[iEvt]));
                 }
             }
-            data.push_back(std::min(std::max(portfSimLoss - attachAmount, 0.),
-                detachAmount - attachAmount));
+            data.push_back(std::min(std::max(portfSimLoss - attachAmount, 0.), detachAmount - attachAmount));
             keys.insert(data.back());
         }
         // avoid using as many points as in the simulation.
-        Size nPts = std::min<Size>(data.size(), 150);// fix
+        Size nPts = std::min<Size>(data.size(), 150); // fix
         return Histogram(data.begin(), data.end(), nPts);
     }
 
 
-    template<template <class, class> class D, class C, class URNG>
-    Real RandomLM<D, C, URNG>::expectedShortfall(const Date& d,
-        Real percent) const {
+    template <template <class, class> class D, class C, class URNG>
+    Real RandomLM<D, C, URNG>::expectedShortfall(const Date& d, Real percent) const
+    {
 
         const Date today = Settings::instance().evaluationDate();
-        QL_REQUIRE(d >= today,
-            "Requested percentile date must lie after computation date.");
+        QL_REQUIRE(d >= today, "Requested percentile date must lie after computation date.");
         calculate();
 
         Real attachAmount = basket_->attachmentAmount();
         Real detachAmount = basket_->detachmentAmount();
 
         Date::serial_type val = d.serialNumber() - today.serialNumber();
-        if(val <= 0) return 0.;// plus basket realized losses
+        if (val <= 0)
+            return 0.; // plus basket realized losses
 
-        //GenericRiskStatistics<GeneralStatistics> statsX;
+        // GenericRiskStatistics<GeneralStatistics> statsX;
         std::vector<Real> losses;
-        for(Size iSim=0; iSim < nSims_; iSim++) {
-            const std::vector<simEvent<D<C, URNG> > >& events = getSim(iSim);
-            Real portfSimLoss=0.;
-            for(Size iEvt=0; iEvt < events.size(); iEvt++) {
-                if(val > static_cast<Date::serial_type>(
-					  events[iEvt].dayFromRef)) {
+        for (Size iSim = 0; iSim < nSims_; iSim++)
+        {
+            const std::vector<simEvent<D<C, URNG>>>& events = getSim(iSim);
+            Real portfSimLoss = 0.;
+            for (Size iEvt = 0; iEvt < events.size(); iEvt++)
+            {
+                if (val > static_cast<Date::serial_type>(events[iEvt].dayFromRef))
+                {
                     Size iName = events[iEvt].nameIdx;
                     // ...and is contained in the basket.
-                    //if(basket_->pool()->has(copula_->pool()->names()[iName]))
-                        portfSimLoss +=
-                            basket_->exposure(basket_->names()[iName],
-                                Date(events[iEvt].dayFromRef +
-                                    today.serialNumber())) *
-                                        (1.-getEventRecovery(events[iEvt]));
+                    // if(basket_->pool()->has(copula_->pool()->names()[iName]))
+                    portfSimLoss += basket_->exposure(basket_->names()[iName],
+                                                      Date(events[iEvt].dayFromRef + today.serialNumber())) *
+                                    (1. - getEventRecovery(events[iEvt]));
                 }
             }
-            portfSimLoss = std::min(std::max(portfSimLoss - attachAmount, 0.),
-                detachAmount - attachAmount);
+            portfSimLoss = std::min(std::max(portfSimLoss - attachAmount, 0.), detachAmount - attachAmount);
             losses.push_back(portfSimLoss);
         }
 
@@ -481,17 +481,15 @@ namespace QuantLib {
         Real posit = std::ceil(percent * nSims_);
         posit = posit >= 0. ? posit : 0.;
         Size position = static_cast<Size>(posit);
-        Real perctlInf = losses[position];//q_{\alpha}
+        Real perctlInf = losses[position]; // q_{\alpha}
 
         // the prob of values strictly larger than the quantile value.
         Probability probOverQ =
-            static_cast<Real>(std::distance(losses.begin() + position,
-                losses.end())) / static_cast<Real>(nSims_);
+            static_cast<Real>(std::distance(losses.begin() + position, losses.end())) / static_cast<Real>(nSims_);
 
-        return ( perctlInf * (1.-percent-probOverQ) +//<-correction term
-            std::accumulate(losses.begin() + position, losses.end(), 
-			    Real(0.))/nSims_
-                )/(1.-percent);
+        return (perctlInf * (1. - percent - probOverQ) + //<-correction term
+                std::accumulate(losses.begin() + position, losses.end(), Real(0.)) / nSims_) /
+               (1. - percent);
 
         /* Alternative ESF definition; find the first loss larger than the
         one of the percentile. Notice the choice here, the expected shortfall
@@ -521,8 +519,9 @@ namespace QuantLib {
     }
 
 
-    template<template <class, class> class D, class C, class URNG>
-    Real RandomLM<D, C, URNG>::percentile(const Date& d, Real perc) const {
+    template <template <class, class> class D, class C, class URNG>
+    Real RandomLM<D, C, URNG>::percentile(const Date& d, Real perc) const
+    {
         // need to specify return type in tuples' get is parametric
         return std::get<0>(percentileAndInterval(d, perc));
     }
@@ -534,12 +533,11 @@ namespace QuantLib {
     the true value being within the interval; which is different to the error
     of the stimator just computed. See the reference for a discussion.
     */
-    template<template <class, class> class D, class C, class URNG>
-    std::tuple<Real, Real, Real> RandomLM<D, C, URNG>::percentileAndInterval(const Date& d,
-                                                                             Real percentile) const {
+    template <template <class, class> class D, class C, class URNG>
+    std::tuple<Real, Real, Real> RandomLM<D, C, URNG>::percentileAndInterval(const Date& d, Real percentile) const
+    {
 
-        QL_REQUIRE(percentile >= 0. && percentile <= 1.,
-            "Incorrect percentile");
+        QL_REQUIRE(percentile >= 0. && percentile <= 1., "Incorrect percentile");
         calculate();
 
         Real attachAmount = basket_->attachmentAmount();
@@ -548,67 +546,62 @@ namespace QuantLib {
         std::vector<Real> rankLosses;
         Date today = Settings::instance().evaluationDate();
         Date::serial_type val = d.serialNumber() - today.serialNumber();
-        for(Size iSim=0; iSim < nSims_; iSim++) {
-            const std::vector<simEvent<D<C, URNG> > >& events = getSim(iSim);
-            Real portfSimLoss=0.;
-            for(Size iEvt=0; iEvt < events.size(); iEvt++) {
-                if(val > static_cast<Date::serial_type>(
-					 events[iEvt].dayFromRef)) {
+        for (Size iSim = 0; iSim < nSims_; iSim++)
+        {
+            const std::vector<simEvent<D<C, URNG>>>& events = getSim(iSim);
+            Real portfSimLoss = 0.;
+            for (Size iEvt = 0; iEvt < events.size(); iEvt++)
+            {
+                if (val > static_cast<Date::serial_type>(events[iEvt].dayFromRef))
+                {
                     Size iName = events[iEvt].nameIdx;
-                 //   if(basket_->pool()->has(copula_->pool()->names()[iName]))
-                        portfSimLoss +=
-                            basket_->exposure(basket_->names()[iName],
-                                Date(events[iEvt].dayFromRef +
-                                    today.serialNumber())) *
-                                        (1.-getEventRecovery(events[iEvt]));
+                    //   if(basket_->pool()->has(copula_->pool()->names()[iName]))
+                    portfSimLoss += basket_->exposure(basket_->names()[iName],
+                                                      Date(events[iEvt].dayFromRef + today.serialNumber())) *
+                                    (1. - getEventRecovery(events[iEvt]));
                 }
             }
-            portfSimLoss = std::min(std::max(portfSimLoss - attachAmount, 0.),
-                detachAmount - attachAmount);
+            portfSimLoss = std::min(std::max(portfSimLoss - attachAmount, 0.), detachAmount - attachAmount);
             // update dataset for rank stat:
             rankLosses.push_back(portfSimLoss);
         }
 
         std::sort(rankLosses.begin(), rankLosses.end());
-        Size quantilePosition = static_cast<Size>(floor(nSims_*percentile));
+        Size quantilePosition = static_cast<Size>(floor(nSims_ * percentile));
         Real quantileValue = rankLosses[quantilePosition];
 
         // compute confidence interval:
-        const Probability confInterval = 0.95;// as an argument?
+        const Probability confInterval = 0.95; // as an argument?
         Real lowerPercentile, upperPercentile;
         Size r = quantilePosition - 1;
         Size s = quantilePosition + 1;
-        bool rLocked = false,
-            sLocked = false;
+        bool rLocked = false, sLocked = false;
         // Size rfinal = 0,
         //      sfinal = 0;
-        for(Size delta=1; delta < quantilePosition; delta++) {
-            Real cached =
-                incompleteBetaFunction(Real(s), Real(nSims_+1-s),
-                                       percentile, 1.e-8, 500);
+        for (Size delta = 1; delta < quantilePosition; delta++)
+        {
+            Real cached = incompleteBetaFunction(Real(s), Real(nSims_ + 1 - s), percentile, 1.e-8, 500);
             Real pMinus =
-            /* There was a fix in the repository on the gammadistribution. It
-            might impact these, it might be neccesary to multiply these values
-            by '-1'*/
-                incompleteBetaFunction(Real(r+1), Real(nSims_-r),
-                                       percentile, 1.e-8, 500)
-                - cached;
-            Real pPlus  =
-                incompleteBetaFunction(Real(r), Real(nSims_-r+1),
-                                       percentile, 1.e-8, 500)
-                - cached;
-            if((pMinus > confInterval) && !rLocked ) {
+                /* There was a fix in the repository on the gammadistribution. It
+                might impact these, it might be neccesary to multiply these values
+                by '-1'*/
+                incompleteBetaFunction(Real(r + 1), Real(nSims_ - r), percentile, 1.e-8, 500) - cached;
+            Real pPlus = incompleteBetaFunction(Real(r), Real(nSims_ - r + 1), percentile, 1.e-8, 500) - cached;
+            if ((pMinus > confInterval) && !rLocked)
+            {
                 // rfinal = r + 1;
-               rLocked = true;
+                rLocked = true;
             }
-            if((pPlus >= confInterval) && !sLocked) {
+            if ((pPlus >= confInterval) && !sLocked)
+            {
                 // sfinal = s;
                 sLocked = true;
             }
-            if(rLocked && sLocked) break;
+            if (rLocked && sLocked)
+                break;
             r--;
             s++;
-            s = std::min(nSims_-1, s);
+            s = std::min(nSims_ - 1, s);
         }
         lowerPercentile = rankLosses[r];
         upperPercentile = rankLosses[s];
@@ -617,24 +610,22 @@ namespace QuantLib {
     }
 
 
-    template<template <class, class> class D, class C, class URNG>
-    std::vector<Real> RandomLM<D, C, URNG>::splitVaRLevel(
-        const Date& date, Real loss) const
+    template <template <class, class> class D, class C, class URNG>
+    std::vector<Real> RandomLM<D, C, URNG>::splitVaRLevel(const Date& date, Real loss) const
     {
         std::vector<Real> varLevels = splitVaRAndError(date, loss, 0.95)[0];
         // turn relative units into absolute:
-        std::transform(varLevels.begin(), varLevels.end(), varLevels.begin(),
-                       [=](Real x) -> Real { return x * loss; });
+        std::transform(varLevels.begin(), varLevels.end(), varLevels.begin(), [=](Real x) -> Real { return x * loss; });
         return varLevels;
     }
 
 
     // parallelize this one(if possible), it is really expensive
-    template<template <class, class> class D, class C, class URNG>
+    template <template <class, class> class D, class C, class URNG>
     /* FIX ME: some trouble on limit cases, like zero loss or no losses over the
     requested level.*/
-    std::vector<std::vector<Real> > RandomLM<D, C, URNG>::splitVaRAndError(const Date& date, Real loss,
-                                                                           Probability confInterval) const
+    std::vector<std::vector<Real>>
+    RandomLM<D, C, URNG>::splitVaRAndError(const Date& date, Real loss, Probability confInterval) const
     {
         /* Check 'loss' value integrity: i.e. is within tranche limits? (should
             have been done basket...)*/
@@ -645,91 +636,87 @@ namespace QuantLib {
         Size numLiveNames = basket_->remainingSize();
 
         std::vector<Real> split(numLiveNames, 0.);
-        std::vector<GeneralStatistics> splitStats(numLiveNames,
-            GeneralStatistics());
+        std::vector<GeneralStatistics> splitStats(numLiveNames, GeneralStatistics());
         Date today = Settings::instance().evaluationDate();
         Date::serial_type val = date.serialNumber() - today.serialNumber();
 
-        for(Size iSim=0; iSim < nSims_; iSim++) {
-            const std::vector<simEvent<D<C, URNG> > >& events = getSim(iSim);
-            Real portfSimLoss=0.;
-            //std::vector<Real> splitBuffer(numLiveNames_, 0.);
-            std::vector<simEvent<D<C, URNG> > > splitEventsBuffer;
+        for (Size iSim = 0; iSim < nSims_; iSim++)
+        {
+            const std::vector<simEvent<D<C, URNG>>>& events = getSim(iSim);
+            Real portfSimLoss = 0.;
+            // std::vector<Real> splitBuffer(numLiveNames_, 0.);
+            std::vector<simEvent<D<C, URNG>>> splitEventsBuffer;
 
-            for(Size iEvt=0; iEvt < events.size(); iEvt++) {
-                if(val > static_cast<Date::serial_type>(
-					 events[iEvt].dayFromRef)) {
+            for (Size iEvt = 0; iEvt < events.size(); iEvt++)
+            {
+                if (val > static_cast<Date::serial_type>(events[iEvt].dayFromRef))
+                {
                     Size iName = events[iEvt].nameIdx;
-                // if(basket_->pool()->has(copula_->pool()->names()[iName])) {
-                        portfSimLoss +=
-                            basket_->exposure(basket_->names()[iName],
-                                Date(events[iEvt].dayFromRef +
-                                    today.serialNumber())) *
-                                        (1.-getEventRecovery(events[iEvt]));
-                        //and will sort later if buffer applies:
-                        splitEventsBuffer.push_back(events[iEvt]);
+                    // if(basket_->pool()->has(copula_->pool()->names()[iName])) {
+                    portfSimLoss += basket_->exposure(basket_->names()[iName],
+                                                      Date(events[iEvt].dayFromRef + today.serialNumber())) *
+                                    (1. - getEventRecovery(events[iEvt]));
+                    // and will sort later if buffer applies:
+                    splitEventsBuffer.push_back(events[iEvt]);
                 }
             }
-            portfSimLoss = std::min(std::max(portfSimLoss - attachAmount, 0.),
-                detachAmount - attachAmount);
+            portfSimLoss = std::min(std::max(portfSimLoss - attachAmount, 0.), detachAmount - attachAmount);
 
             /* second pass; split is conditional to total losses within target
             losses/percentile:  */
             Real ptflCumulLoss = 0.;
-            if(portfSimLoss > loss) {
+            if (portfSimLoss > loss)
+            {
                 std::sort(splitEventsBuffer.begin(), splitEventsBuffer.end());
-                //NOW THIS:
+                // NOW THIS:
                 split.assign(numLiveNames, 0.);
                 /*  if the name triggered a loss in the portf limits assign
                 this loss to that name..  */
-                for(Size i=0; i<splitEventsBuffer.size(); i++) {
+                for (Size i = 0; i < splitEventsBuffer.size(); i++)
+                {
                     Size iName = splitEventsBuffer[i].nameIdx;
                     Real lossName =
-            // allows amortizing (others should be like this)
-            // basket_->remainingNotionals(Date(simsBuffer_[i].dayFromRef +
-            //      today.serialNumber()))[iName] *
+                        // allows amortizing (others should be like this)
+                        // basket_->remainingNotionals(Date(simsBuffer_[i].dayFromRef +
+                        //      today.serialNumber()))[iName] *
                         basket_->exposure(basket_->names()[iName],
-                            Date(splitEventsBuffer[i].dayFromRef +
-                                today.serialNumber())) *
-                                (1.-getEventRecovery(splitEventsBuffer[i]));
+                                          Date(splitEventsBuffer[i].dayFromRef + today.serialNumber())) *
+                        (1. - getEventRecovery(splitEventsBuffer[i]));
 
                     Real tranchedLossBefore =
-                        std::min(std::max(ptflCumulLoss - attachAmount, 0.),
-                        detachAmount - attachAmount);
+                        std::min(std::max(ptflCumulLoss - attachAmount, 0.), detachAmount - attachAmount);
                     ptflCumulLoss += lossName;
                     Real tranchedLossAfter =
-                        std::min(std::max(ptflCumulLoss - attachAmount, 0.),
-                        detachAmount - attachAmount);
+                        std::min(std::max(ptflCumulLoss - attachAmount, 0.), detachAmount - attachAmount);
                     // assign new losses:
                     split[iName] += tranchedLossAfter - tranchedLossBefore;
                 }
-                for(Size iName=0; iName<numLiveNames; iName++) {
-                    splitStats[iName].add(split[iName] /
-                        std::min(std::max(ptflCumulLoss - attachAmount, 0.),
-                            detachAmount - attachAmount) );
+                for (Size iName = 0; iName < numLiveNames; iName++)
+                {
+                    splitStats[iName].add(split[iName] / std::min(std::max(ptflCumulLoss - attachAmount, 0.),
+                                                                  detachAmount - attachAmount));
                 }
             }
         }
 
         // Compute error in VaR split
         std::vector<Real> means, rangeUp, rangeDown;
-        Real confidFactor = InverseCumulativeNormal()(0.5+confInterval/2.);
-        for(Size iName=0; iName<numLiveNames; iName++) {
+        Real confidFactor = InverseCumulativeNormal()(0.5 + confInterval / 2.);
+        for (Size iName = 0; iName < numLiveNames; iName++)
+        {
             means.push_back(splitStats[iName].mean());
-            Real error = confidFactor * splitStats[iName].errorEstimate() ;
+            Real error = confidFactor * splitStats[iName].errorEstimate();
             rangeDown.push_back(means.back() - error);
             rangeUp.push_back(means.back() + error);
         }
 
-        std::vector<std::vector<Real> > results;
+        std::vector<std::vector<Real>> results;
         results.push_back(means);
         results.push_back(rangeDown);
         results.push_back(rangeUp);
 
         return results;
     }
-
-
 
 
     // --------- Time inversion solver target function: -----------------------
@@ -744,29 +731,34 @@ namespace QuantLib {
     Alternatively use the faster trick (flat HR) mentioned in the code or make
     the algorithm parametric on the type of interpolation in the default TS.
     */
-    namespace detail {// not template dependent .....move it
+    namespace detail
+    { // not template dependent .....move it
         //! Utility for the numerical time solver
-        class Root {
+        class Root
+        {
           public:
             /* See a faster algorithm (neeeds to locate the points) in
             D.O'KANE p.249 sect 13.5 */
             Root(const Handle<DefaultProbabilityTermStructure>& dts, Real pd)
-            : dts_(dts), pd_(pd), curveRef_(dts->referenceDate()) {}
+            : dts_(dts), pd_(pd), curveRef_(dts->referenceDate())
+            {
+            }
             /* The cast I am forcing here comes from the requirement of 1D
             solvers to take in a target (cost) function of Real domain. It could
             be possible to change the template arg F in the 1D solvers to a
             boost function and then use the (template arg) domain argument type
             of the function for use with the 'guess' and operator() ?
              */
-            Real operator()(Real t) const {
-                QL_REQUIRE (t >= 0.0, "t < 0");
+            Real operator()(Real t) const
+            {
+                QL_REQUIRE(t >= 0.0, "t < 0");
                 /* As long as this doesnt involve modifying a mutable member
                 it should be thread safe (they are const methods and access is
                 read only)
                 */
-                return dts_->defaultProbability(curveRef_ +
-                    Period(static_cast<Integer>(t), Days), true) - pd_;
+                return dts_->defaultProbability(curveRef_ + Period(static_cast<Integer>(t), Days), true) - pd_;
             }
+
           private:
             const Handle<DefaultProbabilityTermStructure> dts_;
             Real pd_;
@@ -787,59 +779,55 @@ namespace QuantLib {
     Some computations, like conditional statistics, precise that all sims
     results be available.
     */
-    template<class , class > class RandomDefaultLM;
-    template<class copulaPolicy, class USNG>
-    struct simEvent<RandomDefaultLM<copulaPolicy, USNG> > {
-        simEvent(unsigned int n, unsigned int d)
-        : nameIdx(n), dayFromRef(d){}
-        unsigned int nameIdx : 16; // can index up to 65535 names
-        unsigned int dayFromRef : 16; //indexes up to 65535 days ~179 years
-        bool operator<(const simEvent& evt) const {
-            return dayFromRef < evt.dayFromRef;
-        }
+    template <class, class>
+    class RandomDefaultLM;
+    template <class copulaPolicy, class USNG>
+    struct simEvent<RandomDefaultLM<copulaPolicy, USNG>>
+    {
+        simEvent(unsigned int n, unsigned int d) : nameIdx(n), dayFromRef(d) {}
+        unsigned int nameIdx : 16;    // can index up to 65535 names
+        unsigned int dayFromRef : 16; // indexes up to 65535 days ~179 years
+        bool operator<(const simEvent& evt) const { return dayFromRef < evt.dayFromRef; }
     };
 
     /*! Default only latent model simulation with trivially fixed recovery
         amounts.
     */
-    template<class copulaPolicy, class USNG = SobolRsg>
+    template <class copulaPolicy, class USNG = SobolRsg>
     class RandomDefaultLM : public RandomLM<RandomDefaultLM, copulaPolicy, USNG>
     {
-    private:
+      private:
         typedef simEvent<RandomDefaultLM> defaultSimEvent;
 
         // \todo Consider this to be only a ConstantLossLM instead
-        const ext::shared_ptr<DefaultLatentModel<copulaPolicy> > model_;
+        const ext::shared_ptr<DefaultLatentModel<copulaPolicy>> model_;
         const std::vector<Real> recoveries_;
         // for time inversion:
         Real accuracy_;
-    public:
+
+      public:
         // \todo: Allow a constructor building its own default latent model.
-      explicit RandomDefaultLM(const ext::shared_ptr<DefaultLatentModel<copulaPolicy> >& model,
-                               const std::vector<Real>& recoveries = std::vector<Real>(),
-                               Size nSims = 0, // stats will crash on div by zero, FIX ME.
-                               Real accuracy = 1.e-6,
-                               BigNatural seed = 2863311530UL)
-      : RandomLM< ::QuantLib::RandomDefaultLM, copulaPolicy, USNG>(
-            model->numFactors(), model->size(), model->copula(), nSims, seed),
-        model_(model),
-        recoveries_(recoveries.empty() ? std::vector<Real>(model->size(), 0.) : recoveries),
-        accuracy_(accuracy) {
-          // redundant through basket?
-          this->registerWith(Settings::instance().evaluationDate());
-          this->registerWith(model_);
-        }
-        explicit RandomDefaultLM(
-            const ext::shared_ptr<ConstantLossLatentmodel<copulaPolicy> >& model,
-            Size nSims = 0,// stats will crash on div by zero, FIX ME.
-            Real accuracy = 1.e-6,
-            BigNatural seed = 2863311530UL)
-        : RandomLM< ::QuantLib::RandomDefaultLM, copulaPolicy, USNG>
-            (model->numFactors(), model->size(), model->copula(),
-                nSims, seed ),
-          model_(model),
-          recoveries_(model->recoveries()),
+        explicit RandomDefaultLM(const ext::shared_ptr<DefaultLatentModel<copulaPolicy>>& model,
+                                 const std::vector<Real>& recoveries = std::vector<Real>(),
+                                 Size nSims = 0, // stats will crash on div by zero, FIX ME.
+                                 Real accuracy = 1.e-6,
+                                 BigNatural seed = 2863311530UL)
+        : RandomLM<::QuantLib::RandomDefaultLM, copulaPolicy, USNG>(
+              model->numFactors(), model->size(), model->copula(), nSims, seed),
+          model_(model), recoveries_(recoveries.empty() ? std::vector<Real>(model->size(), 0.) : recoveries),
           accuracy_(accuracy)
+        {
+            // redundant through basket?
+            this->registerWith(Settings::instance().evaluationDate());
+            this->registerWith(model_);
+        }
+        explicit RandomDefaultLM(const ext::shared_ptr<ConstantLossLatentmodel<copulaPolicy>>& model,
+                                 Size nSims = 0, // stats will crash on div by zero, FIX ME.
+                                 Real accuracy = 1.e-6,
+                                 BigNatural seed = 2863311530UL)
+        : RandomLM<::QuantLib::RandomDefaultLM, copulaPolicy, USNG>(
+              model->numFactors(), model->size(), model->copula(), nSims, seed),
+          model_(model), recoveries_(model->recoveries()), accuracy_(accuracy)
         {
             // redundant through basket?
             this->registerWith(Settings::instance().evaluationDate());
@@ -857,54 +845,55 @@ namespace QuantLib {
         It might well be that gcc is allowing some c11 features silently, which
         wont pass on a lower gcc version.
         */
-        friend class RandomLM< ::QuantLib::RandomDefaultLM, copulaPolicy, USNG>;
-    protected:
+        friend class RandomLM<::QuantLib::RandomDefaultLM, copulaPolicy, USNG>;
+
+      protected:
         void nextSample(const std::vector<Real>& values) const;
-        void initDates() const {
+        void initDates() const
+        {
             /* Precalculate horizon time default probabilities (used to
               determine if the default took place and subsequently compute its
               event time)
             */
             Date today = Settings::instance().evaluationDate();
-            Date maxHorizonDate = today  + Period(this->maxHorizon_, Days);
+            Date maxHorizonDate = today + Period(this->maxHorizon_, Days);
 
             const ext::shared_ptr<Pool>& pool = this->basket_->pool();
-            for(Size iName=0; iName < this->basket_->size(); ++iName)//use'live'
-                horizonDefaultPs_.push_back(pool->get(pool->names()[iName]).
-                    defaultProbability(this->basket_->defaultKeys()[iName])
-                        ->defaultProbability(maxHorizonDate, true));
+            for (Size iName = 0; iName < this->basket_->size(); ++iName) // use'live'
+                horizonDefaultPs_.push_back(pool->get(pool->names()[iName])
+                                                .defaultProbability(this->basket_->defaultKeys()[iName])
+                                                ->defaultProbability(maxHorizonDate, true));
         }
-        Real getEventRecovery(const defaultSimEvent& evt) const {
-            return recoveries_[evt.nameIdx];
-        }
-        Real expectedRecovery(const Date&, Size iName, const DefaultProbKey&) const override {
+        Real getEventRecovery(const defaultSimEvent& evt) const { return recoveries_[evt.nameIdx]; }
+        Real expectedRecovery(const Date&, Size iName, const DefaultProbKey&) const override
+        {
             // deterministic
             return recoveries_[iName];
         }
 
-        Real latentVarValue(const std::vector<Real>& factorsSample,
-            Size iVar) const {
+        Real latentVarValue(const std::vector<Real>& factorsSample, Size iVar) const
+        {
             return model_->latentVarValue(factorsSample, iVar);
         }
-        //allows statistics to know the portfolio size (could be moved to parent
-        //invoking duck typing on the variable name or a handle to the basket)
+        // allows statistics to know the portfolio size (could be moved to parent
+        // invoking duck typing on the variable name or a handle to the basket)
         Size basketSize() const { return model_->size(); }
-    private:
-      void resetModel() override /*const*/ {
-          /* Explore: might save recalculation if the basket is the same
-          (some situations, like BC or control variates) in that case do not
-          update, only reset the model's basket.
-          */
-          model_->resetBasket(this->basket_.currentLink());
 
-          QL_REQUIRE(this->basket_->size() == model_->size(),
-                     "Incompatible basket and model sizes.");
-          QL_REQUIRE(recoveries_.size() == this->basket_->size(),
-                     "Incompatible basket and recovery sizes.");
-          // invalidate current calculations if any and notify observers
-          // NOLINTNEXTLINE(bugprone-parent-virtual-call)
-          LazyObject::update();
-      }
+      private:
+        void resetModel() override /*const*/
+        {
+            /* Explore: might save recalculation if the basket is the same
+            (some situations, like BC or control variates) in that case do not
+            update, only reset the model's basket.
+            */
+            model_->resetBasket(this->basket_.currentLink());
+
+            QL_REQUIRE(this->basket_->size() == model_->size(), "Incompatible basket and model sizes.");
+            QL_REQUIRE(recoveries_.size() == this->basket_->size(), "Incompatible basket and recovery sizes.");
+            // invalidate current calculations if any and notify observers
+            // NOLINTNEXTLINE(bugprone-parent-virtual-call)
+            LazyObject::update();
+        }
         // This one and the buffer might be moved to the parent, only some
         //   dates might be specific to a particular model.
         // Default probabilities for each name at the time of the maximun
@@ -913,56 +902,48 @@ namespace QuantLib {
     };
 
 
-
-
-
-    template<class C, class URNG>
-    void RandomDefaultLM<C, URNG>::nextSample(
-        const std::vector<Real>& values) const
+    template <class C, class URNG>
+    void RandomDefaultLM<C, URNG>::nextSample(const std::vector<Real>& values) const
     {
         const ext::shared_ptr<Pool>& pool = this->basket_->pool();
         // starts with no events
-        this->simsBuffer_.push_back(std::vector<defaultSimEvent> ());
+        this->simsBuffer_.push_back(std::vector<defaultSimEvent>());
 
-        for(Size iName=0; iName<model_->size(); iName++) {
-            Real latentVarSample =
-                model_->latentVarValue(values, iName);
-            Probability simDefaultProb =
-               model_->cumulativeY(latentVarSample, iName);
+        for (Size iName = 0; iName < model_->size(); iName++)
+        {
+            Real latentVarSample = model_->latentVarValue(values, iName);
+            Probability simDefaultProb = model_->cumulativeY(latentVarSample, iName);
             // If the default simulated lies before the max date:
-            if (horizonDefaultPs_[iName] >= simDefaultProb) {
+            if (horizonDefaultPs_[iName] >= simDefaultProb)
+            {
                 const Handle<DefaultProbabilityTermStructure>& dfts =
-                    pool->get(pool->names()[iName]).// use 'live' names
+                    pool->get(pool->names()[iName])
+                        . // use 'live' names
                     defaultProbability(this->basket_->defaultKeys()[iName]);
                 // compute and store default time with respect to the
                 //  curve ref date:
-                Size dateSTride =
-                    static_cast<Size>(Brent().solve(// casted from Real:
-                        detail::Root(dfts, simDefaultProb),
-                            accuracy_,0.,1.));
-                   /*
-                   // value if one approximates to a flat HR;
-                   //   faster (>x2) but it introduces an error:..
-                   // \todo: see how to include this 'polymorphically'.
-                   // While not the case in pricing in risk metrics/real
-                   //   probabilities the curves are often flat
-                    static_cast<Size>(ceil(maxHorizon_ *
-                                        std::log(1.-simDefaultProb)
-                    /std::log(1.-data_.horizonDefaultPs_[iName])));
-                   */
-                this->simsBuffer_.back().push_back(defaultSimEvent(iName,
-                    dateSTride));
-               //emplace_back
+                Size dateSTride = static_cast<Size>(Brent().solve( // casted from Real:
+                    detail::Root(dfts, simDefaultProb), accuracy_, 0., 1.));
+                /*
+                // value if one approximates to a flat HR;
+                //   faster (>x2) but it introduces an error:..
+                // \todo: see how to include this 'polymorphically'.
+                // While not the case in pricing in risk metrics/real
+                //   probabilities the curves are often flat
+                 static_cast<Size>(ceil(maxHorizon_ *
+                                     std::log(1.-simDefaultProb)
+                 /std::log(1.-data_.horizonDefaultPs_[iName])));
+                */
+                this->simsBuffer_.back().push_back(defaultSimEvent(iName, dateSTride));
+                // emplace_back
             }
-        /* Used to remove sims with no events. Uses less memory, faster
-        post-statistics. But only if all names in the portfolio have low
-        default probability, otherwise is more expensive and sim access has
-        to be modified. However low probability is also an indicator that
-        variance reduction is needed. */
+            /* Used to remove sims with no events. Uses less memory, faster
+            post-statistics. But only if all names in the portfolio have low
+            default probability, otherwise is more expensive and sim access has
+            to be modified. However low probability is also an indicator that
+            variance reduction is needed. */
         }
     }
-
-
 
 
     // Common usage typedefs (notice they vary in the multithread version)

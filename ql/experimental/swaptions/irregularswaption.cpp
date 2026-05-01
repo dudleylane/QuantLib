@@ -29,17 +29,21 @@
 #include <ql/quotes/simplequote.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
+    namespace
+    {
 
-        class IrregularImpliedVolHelper {
+        class IrregularImpliedVolHelper
+        {
           public:
             IrregularImpliedVolHelper(const IrregularSwaption&,
                                       Handle<YieldTermStructure> discountCurve,
                                       Real targetValue);
             Real operator()(Volatility x) const;
             Real derivative(Volatility x) const;
+
           private:
             ext::shared_ptr<PricingEngine> engine_;
             Handle<YieldTermStructure> discountCurve_;
@@ -48,67 +52,70 @@ namespace QuantLib {
             const Instrument::results* results_;
         };
 
-        IrregularImpliedVolHelper::IrregularImpliedVolHelper(
-            const IrregularSwaption& swaption,
-            Handle<YieldTermStructure> discountCurve,
-            Real targetValue)
-        : discountCurve_(std::move(discountCurve)), targetValue_(targetValue),
-          vol_(ext::make_shared<SimpleQuote>(-1.0)) {
+        IrregularImpliedVolHelper::IrregularImpliedVolHelper(const IrregularSwaption& swaption,
+                                                             Handle<YieldTermStructure> discountCurve,
+                                                             Real targetValue)
+        : discountCurve_(std::move(discountCurve)), targetValue_(targetValue), vol_(ext::make_shared<SimpleQuote>(-1.0))
+        {
 
             Handle<Quote> h(vol_);
-            engine_ = ext::shared_ptr<PricingEngine>(new
-                                    BlackSwaptionEngine(discountCurve_, h));
+            engine_ = ext::shared_ptr<PricingEngine>(new BlackSwaptionEngine(discountCurve_, h));
             swaption.setupArguments(engine_->getArguments());
 
-            results_ =
-                dynamic_cast<const Instrument::results*>(engine_->getResults());
+            results_ = dynamic_cast<const Instrument::results*>(engine_->getResults());
         }
 
-        Real IrregularImpliedVolHelper::operator()(Volatility x) const {
-            if (x!=vol_->value()) {
+        Real IrregularImpliedVolHelper::operator()(Volatility x) const
+        {
+            if (x != vol_->value())
+            {
                 vol_->setValue(x);
                 engine_->calculate();
             }
-            return results_->value-targetValue_;
+            return results_->value - targetValue_;
         }
 
-        Real IrregularImpliedVolHelper::derivative(Volatility x) const {
-            if (x!=vol_->value()) {
+        Real IrregularImpliedVolHelper::derivative(Volatility x) const
+        {
+            if (x != vol_->value())
+            {
                 vol_->setValue(x);
                 engine_->calculate();
             }
             auto vega_ = results_->additionalResults.find("vega");
-            QL_REQUIRE(vega_ != results_->additionalResults.end(),
-                       "vega not provided");
+            QL_REQUIRE(vega_ != results_->additionalResults.end(), "vega not provided");
             return ext::any_cast<Real>(vega_->second);
         }
     }
 
-    std::ostream& operator<<(std::ostream& out,
-                             IrregularSettlement::Type t) {
-        switch (t) {
-          case IrregularSettlement::Physical:
-            return out << "Delivery";
-          case IrregularSettlement::Cash:
-            return out << "Cash";
-          default:
-            QL_FAIL("unknown IrregularSettlement::Type(" << Integer(t) << ")");
+    std::ostream& operator<<(std::ostream& out, IrregularSettlement::Type t)
+    {
+        switch (t)
+        {
+            case IrregularSettlement::Physical:
+                return out << "Delivery";
+            case IrregularSettlement::Cash:
+                return out << "Cash";
+            default:
+                QL_FAIL("unknown IrregularSettlement::Type(" << Integer(t) << ")");
         }
     }
 
     IrregularSwaption::IrregularSwaption(ext::shared_ptr<IrregularSwap> swap,
                                          const ext::shared_ptr<Exercise>& exercise,
                                          IrregularSettlement::Type delivery)
-    : Option(ext::shared_ptr<Payoff>(), exercise), swap_(std::move(swap)),
-      settlementType_(delivery) {
+    : Option(ext::shared_ptr<Payoff>(), exercise), swap_(std::move(swap)), settlementType_(delivery)
+    {
         registerWith(swap_);
     }
 
-    bool IrregularSwaption::isExpired() const {
+    bool IrregularSwaption::isExpired() const
+    {
         return detail::simple_event(exercise_->dates().back()).hasOccurred();
     }
 
-    void IrregularSwaption::setupArguments(PricingEngine::arguments* args) const {
+    void IrregularSwaption::setupArguments(PricingEngine::arguments* args) const
+    {
 
         swap_->setupArguments(args);
 
@@ -121,25 +128,26 @@ namespace QuantLib {
         arguments->exercise = exercise_;
     }
 
-    void IrregularSwaption::arguments::validate() const {
+    void IrregularSwaption::arguments::validate() const
+    {
         IrregularSwap::arguments::validate();
         QL_REQUIRE(swap, "Irregular swap not set");
         QL_REQUIRE(exercise, "exercise not set");
     }
 
-    Volatility IrregularSwaption::impliedVolatility(
-                              Real targetValue,
-                              const Handle<YieldTermStructure>& discountCurve,
-                              Volatility guess,
-                              Real accuracy,
-                              Natural maxEvaluations,
-                              Volatility minVol,
-                              Volatility maxVol) const {
+    Volatility IrregularSwaption::impliedVolatility(Real targetValue,
+                                                    const Handle<YieldTermStructure>& discountCurve,
+                                                    Volatility guess,
+                                                    Real accuracy,
+                                                    Natural maxEvaluations,
+                                                    Volatility minVol,
+                                                    Volatility maxVol) const
+    {
         calculate();
         QL_REQUIRE(!isExpired(), "instrument expired");
 
         IrregularImpliedVolHelper f(*this, discountCurve, targetValue);
-        //Brent solver;
+        // Brent solver;
         NewtonSafe solver;
         solver.setMaxEvaluations(maxEvaluations);
         return solver.solve(f, accuracy, guess, minVol, maxVol);

@@ -28,14 +28,16 @@
 
 #include <ql/indexes/iborindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! base class for all ICE LIBOR indexes but the EUR, O/N, and S/N ones
     /*! LIBOR fixed by ICE.
 
         See <https://www.theice.com/marketdata/reports/170>.
     */
-    class Libor : public IborIndex {
+    class Libor : public IborIndex
+    {
       public:
         Libor(const std::string& familyName,
               const Period& tenor,
@@ -70,7 +72,8 @@ namespace QuantLib {
 
         See <https://www.theice.com/marketdata/reports/170>.
     */
-    class DailyTenorLibor : public IborIndex {
+    class DailyTenorLibor : public IborIndex
+    {
       public:
         DailyTenorLibor(const std::string& familyName,
                         Natural settlementDays,

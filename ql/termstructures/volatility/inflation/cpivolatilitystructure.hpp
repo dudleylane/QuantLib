@@ -26,14 +26,16 @@
 
 #include <ql/termstructures/voltermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! zero inflation (i.e. CPI/RPI/HICP/etc.) volatility structures
     /*! Abstract interface. CPI volatility is always with respect to
         some base date.  Also deal with lagged observations of an index
         with a (usually different) availability lag.
     */
-    class CPIVolatilitySurface : public VolatilityTermStructure {
+    class CPIVolatilitySurface : public VolatilityTermStructure
+    {
       public:
         /*! calculates the reference date based on the global
             evaluation date.
@@ -58,12 +60,12 @@ namespace QuantLib {
         //! Returns the volatility for a given maturity date and strike rate.
         Volatility volatility(const Date& maturityDate,
                               Rate strike,
-                              const Period &obsLag = Period(-1,Days),
+                              const Period& obsLag = Period(-1, Days),
                               bool extrapolate = false) const;
         //! returns the volatility for a given option tenor and strike rate
         Volatility volatility(const Period& optionTenor,
                               Rate strike,
-                              const Period &obsLag = Period(-1,Days),
+                              const Period& obsLag = Period(-1, Days),
                               bool extrapolate = false) const;
         /*! Returns the volatility for a given time and strike rate. No adjustments
           due to lags and interpolation are applied to the input time. */
@@ -80,13 +82,13 @@ namespace QuantLib {
         */
         virtual Volatility totalVariance(const Date& exerciseDate,
                                          Rate strike,
-                                         const Period &obsLag = Period(-1,Days),
+                                         const Period& obsLag = Period(-1, Days),
                                          bool extrapolate = false) const;
         //! returns the total integrated variance for a given option
         //! tenor and strike rate.
         virtual Volatility totalVariance(const Period& optionTenor,
                                          Rate strike,
-                                         const Period &obsLag = Period(-1,Days),
+                                         const Period& obsLag = Period(-1, Days),
                                          bool extrapolate = false) const;
         //@}
 
@@ -99,17 +101,14 @@ namespace QuantLib {
         */
         virtual Period observationLag() const { return observationLag_; }
         virtual Frequency frequency() const { return frequency_; }
-        virtual bool indexIsInterpolated() const {
-            return indexIsInterpolated_;
-        }
+        virtual bool indexIsInterpolated() const { return indexIsInterpolated_; }
         virtual Date baseDate() const;
         //! base date will be in the past because of observation lag
-        virtual Time timeFromBase(const Date &date,
-                                  const Period& obsLag = Period(-1,Days)) const;
+        virtual Time timeFromBase(const Date& date, const Period& obsLag = Period(-1, Days)) const;
         // acts as zero time value for boostrapping
-        virtual Volatility baseLevel() const {
-            QL_REQUIRE(baseLevel_ != Null<Volatility>(),
-                       "Base volatility, for baseDate(), not set.");
+        virtual Volatility baseLevel() const
+        {
+            QL_REQUIRE(baseLevel_ != Null<Volatility>(), "Base volatility, for baseDate(), not set.");
             return baseLevel_;
         }
         //@}
@@ -129,8 +128,7 @@ namespace QuantLib {
             derived classes e.g. bilinear interpolation.  N.B. does
             not derive the surface.
         */
-        virtual Volatility volatilityImpl(Time length,
-                                          Rate strike) const = 0;
+        virtual Volatility volatilityImpl(Time length, Rate strike) const = 0;
 
         mutable Volatility baseLevel_;
         // so you do not need an index
@@ -142,4 +140,3 @@ namespace QuantLib {
 }
 
 #endif
-

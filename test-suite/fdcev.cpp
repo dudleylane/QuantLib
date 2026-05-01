@@ -19,12 +19,12 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
-#include <ql/math/randomnumbers/rngtraits.hpp>
 #include <ql/math/integrals/gausslobattointegral.hpp>
+#include <ql/math/randomnumbers/rngtraits.hpp>
 #include <ql/math/statistics/generalstatistics.hpp>
+#include <ql/methods/finitedifferences/utilities/cevrndcalculator.hpp>
 #include <ql/pricingengines/vanilla/analyticcevengine.hpp>
 #include <ql/pricingengines/vanilla/fdcevvanillaengine.hpp>
-#include <ql/methods/finitedifferences/utilities/cevrndcalculator.hpp>
 #include <ql/shared_ptr.hpp>
 
 using namespace QuantLib;
@@ -34,12 +34,12 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(FdCevTests)
 
-class ExpectationFct {
+class ExpectationFct
+{
   public:
-    ExpectationFct(const CEVRNDCalculator& calculator, Time t)
-    : t_(t), calculator_(calculator) { }
+    ExpectationFct(const CEVRNDCalculator& calculator, Time t) : t_(t), calculator_(calculator) {}
 
-    Real operator()(Real f) const { return f*calculator_.pdf(f, t_); }
+    Real operator()(Real f) const { return f * calculator_.pdf(f, t_); }
 
   private:
     const Time t_;
@@ -47,9 +47,9 @@ class ExpectationFct {
 };
 
 
-BOOST_AUTO_TEST_CASE(testLocalMartingale) {
-    BOOST_TEST_MESSAGE(
-        "Testing local martingale property of CEV process with PDF...");
+BOOST_AUTO_TEST_CASE(testLocalMartingale)
+{
+    BOOST_TEST_MESSAGE("Testing local martingale property of CEV process with PDF...");
 
     const Time t = 1.0;
 
@@ -57,33 +57,33 @@ BOOST_AUTO_TEST_CASE(testLocalMartingale) {
     const Real alpha = 1.75;
     const Real betas[] = {-2.4, 0.23, 0.9, 1.1, 1.5};
 
-    for (Real beta : betas) {
+    for (Real beta : betas)
+    {
         const CEVRNDCalculator rndCalculator(f0, alpha, beta);
 
         const Real eps = 1e-10;
-        const Real tol = 100*eps;
+        const Real tol = 100 * eps;
 
-        const Real upperBound = 10*rndCalculator.invcdf(1-eps, t);
+        const Real upperBound = 10 * rndCalculator.invcdf(1 - eps, t);
 
-        const Real expectationValue = GaussLobattoIntegral(10000, eps)(
-            ExpectationFct(rndCalculator, t), QL_EPSILON, upperBound);
+        const Real expectationValue =
+            GaussLobattoIntegral(10000, eps)(ExpectationFct(rndCalculator, t), QL_EPSILON, upperBound);
 
-        const Real diff = expectationValue-f0;
+        const Real diff = expectationValue - f0;
 
 
-        if (beta < 1.0 && std::fabs(diff) > tol) {
+        if (beta < 1.0 && std::fabs(diff) > tol)
+        {
             BOOST_ERROR("CEV process should be a martingale for beta < 1.0"
-                        << "\n    expected:   " << f0
-                        << std::scientific
-                        << "\n    difference  " << diff
+                        << "\n    expected:   " << f0 << std::scientific << "\n    difference  " << diff
                         << "\n    tolerance:  " << tol);
         }
 
-        if (beta > 1.0 && diff > -tol) {
+        if (beta > 1.0 && diff > -tol)
+        {
             BOOST_ERROR("CEV process should only be a local martingale "
                         "for beta > 1.0. Expectation is E[F_t|F_0] < F_0"
-                        << "\n    E[F_t|F_0]: " << expectationValue
-                        << "\n    F_0:        " << f0);
+                        << "\n    E[F_t|F_0]: " << expectationValue << "\n    F_0:        " << f0);
         }
 
         // check local martingale property with Monte-Carlo simulation
@@ -96,14 +96,18 @@ BOOST_AUTO_TEST_CASE(testLocalMartingale) {
         GeneralStatistics stat;
         const PseudoRandom::rng_type mt(MersenneTwisterUniformRng(42));
 
-        if (beta > 1.2) {
-            for (Size i=0; i < nSims; ++i) {
+        if (beta > 1.2)
+        {
+            for (Size i = 0; i < nSims; ++i)
+            {
                 Real f = f0;
-                for (Size j=0; j < nSteps; ++j) {
+                for (Size j = 0; j < nSteps; ++j)
+                {
                     f += alpha * std::pow(f, beta) * mt.next().value * sqrtDt;
                     f = std::max(0.0, f);
 
-                    if (f == 0.0) break; // absorbing boundary
+                    if (f == 0.0)
+                        break; // absorbing boundary
                 }
                 stat.add(f - f0);
             }
@@ -111,23 +115,21 @@ BOOST_AUTO_TEST_CASE(testLocalMartingale) {
             const Real calculated = stat.mean();
             const Real error = stat.errorEstimate();
 
-            if (std::fabs(calculated - diff) > 2.35*error) {
-                BOOST_ERROR(
-                    "failed to calculate local martingale property "
-                    "by Monte-Carlo Simulation for beta > 1.0. "
-                            << "\n    E[F_t|F_0]   : " << expectationValue
-                            << "\n    E_MC[F_t|F_0]: " << calculated + f0
-                            << "\n    error_MC     : " << error
-                            << "\n    difference   : " << std::fabs(calculated - diff)
-                            << "\n    tolerance    : " << 2.35*error);
+            if (std::fabs(calculated - diff) > 2.35 * error)
+            {
+                BOOST_ERROR("failed to calculate local martingale property "
+                            "by Monte-Carlo Simulation for beta > 1.0. "
+                            << "\n    E[F_t|F_0]   : " << expectationValue << "\n    E_MC[F_t|F_0]: " << calculated + f0
+                            << "\n    error_MC     : " << error << "\n    difference   : "
+                            << std::fabs(calculated - diff) << "\n    tolerance    : " << 2.35 * error);
             }
         }
     }
 }
 
-BOOST_AUTO_TEST_CASE(testFdmCevOp) {
-    BOOST_TEST_MESSAGE(
-            "Testing FDM constant elasticity of variance (CEV) operator...");
+BOOST_AUTO_TEST_CASE(testFdmCevOp)
+{
+    BOOST_TEST_MESSAGE("Testing FDM constant elasticity of variance (CEV) operator...");
 
     const Date today = Date(22, February, 2018);
     const DayCounter dc = Actual365Fixed();
@@ -136,68 +138,58 @@ BOOST_AUTO_TEST_CASE(testFdmCevOp) {
     const Date maturityDate = today + Period(12, Months);
     const Real strike = 2.3;
 
-    const Option::Type optionTypes[] = { Option::Call, Option::Put};
+    const Option::Type optionTypes[] = {Option::Call, Option::Put};
 
-    const ext::shared_ptr<Exercise> exercise =
-        ext::make_shared<EuropeanExercise>(maturityDate);
+    const ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(maturityDate);
 
-    for (auto optionType : optionTypes) {
-        const ext::shared_ptr<PlainVanillaPayoff> payoff =
-            ext::make_shared<PlainVanillaPayoff>(optionType, strike);
+    for (auto optionType : optionTypes)
+    {
+        const ext::shared_ptr<PlainVanillaPayoff> payoff = ext::make_shared<PlainVanillaPayoff>(optionType, strike);
 
-        const ext::shared_ptr<YieldTermStructure> rTS =
-            flatRate(today, 0.15, dc);
+        const ext::shared_ptr<YieldTermStructure> rTS = flatRate(today, 0.15, dc);
 
         const Real f0 = 2.1;
         const Real alpha = 0.75;
 
-        const Real betas[] = { -2.0, -0.5, 0.45, 0.6, 0.9, 1.45 };
-        for (Real beta : betas) {
+        const Real betas[] = {-2.0, -0.5, 0.45, 0.6, 0.9, 1.45};
+        for (Real beta : betas)
+        {
 
             VanillaOption option(payoff, exercise);
-            option.setPricingEngine(ext::make_shared<AnalyticCEVEngine>(
-                f0, alpha, beta, Handle<YieldTermStructure>(rTS)));
+            option.setPricingEngine(
+                ext::make_shared<AnalyticCEVEngine>(f0, alpha, beta, Handle<YieldTermStructure>(rTS)));
 
             const Real analyticNPV = option.NPV();
 
             const Real eps = 1e-3;
 
-            option.setPricingEngine(ext::make_shared<AnalyticCEVEngine>(
-                f0*(1+eps), alpha, beta, Handle<YieldTermStructure>(rTS)));
+            option.setPricingEngine(
+                ext::make_shared<AnalyticCEVEngine>(f0 * (1 + eps), alpha, beta, Handle<YieldTermStructure>(rTS)));
             const Real analyticUpNPV = option.NPV();
 
-            option.setPricingEngine(ext::make_shared<AnalyticCEVEngine>(
-                f0*(1-eps), alpha, beta, Handle<YieldTermStructure>(rTS)));
+            option.setPricingEngine(
+                ext::make_shared<AnalyticCEVEngine>(f0 * (1 - eps), alpha, beta, Handle<YieldTermStructure>(rTS)));
             const Real analyticDownNPV = option.NPV();
 
-            const Real analyticDelta = (analyticUpNPV - analyticDownNPV)
-                /(2*eps*f0);
+            const Real analyticDelta = (analyticUpNPV - analyticDownNPV) / (2 * eps * f0);
 
             option.setPricingEngine(ext::make_shared<FdCEVVanillaEngine>(
-                f0, alpha, beta, Handle<YieldTermStructure>(rTS),
-                100, 1000, 1, 1.0, 1e-6));
+                f0, alpha, beta, Handle<YieldTermStructure>(rTS), 100, 1000, 1, 1.0, 1e-6));
 
             const Real calculatedNPV = option.NPV();
             const Real calculatedDelta = option.delta();
 
             const Real tol = 0.01;
-            if (std::fabs(calculatedNPV - analyticNPV) > tol
-                || std::fabs(calculatedDelta - analyticDelta) > tol) {
-                BOOST_ERROR(
-                    "failed to calculate vanilla option prices/delta "
-                    << "\n    beta            : " << beta
-                    << "\n    option type     : "
-                    << ((payoff->optionType() == Option::Call) ? "Call" : "Put")
-                    << "\n    analytic npv    : " << analyticNPV
-                    << "\n    pde npv         : " << calculatedNPV
-                    << "\n    npv difference  : "
-                    << std::fabs(calculatedNPV - analyticNPV)
-                    << "\n    tolerance       : " << tol
-                    << "\n    analytic delta  : " << analyticDelta
-                    << "\n    pde delta       : " << calculatedDelta
-                    << "\n    delta difference: "
-                    << std::fabs(calculatedDelta - analyticDelta)
-                    << "\n    tolerance       : " << tol);
+            if (std::fabs(calculatedNPV - analyticNPV) > tol || std::fabs(calculatedDelta - analyticDelta) > tol)
+            {
+                BOOST_ERROR("failed to calculate vanilla option prices/delta "
+                            << "\n    beta            : " << beta
+                            << "\n    option type     : " << ((payoff->optionType() == Option::Call) ? "Call" : "Put")
+                            << "\n    analytic npv    : " << analyticNPV << "\n    pde npv         : " << calculatedNPV
+                            << "\n    npv difference  : " << std::fabs(calculatedNPV - analyticNPV)
+                            << "\n    tolerance       : " << tol << "\n    analytic delta  : " << analyticDelta
+                            << "\n    pde delta       : " << calculatedDelta << "\n    delta difference: "
+                            << std::fabs(calculatedDelta - analyticDelta) << "\n    tolerance       : " << tol);
             }
         }
     }

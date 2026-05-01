@@ -26,10 +26,11 @@
 #ifndef quantlib_normal_distribution_hpp
 #define quantlib_normal_distribution_hpp
 
-#include <ql/math/errorfunction.hpp>
 #include <ql/errors.hpp>
+#include <ql/math/errorfunction.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Normal distribution function
     /*! Given x, it returns its probability in a Gaussian normal distribution.
@@ -41,16 +42,16 @@ namespace QuantLib {
               CumulativeNormalDistribution and InverseCumulativeNormal
               classes.
     */
-    class NormalDistribution {
+    class NormalDistribution
+    {
       public:
-        NormalDistribution(Real average = 0.0,
-                           Real sigma = 1.0);
+        NormalDistribution(Real average = 0.0, Real sigma = 1.0);
         // function
         Real operator()(Real x) const;
         Real derivative(Real x) const;
+
       private:
-        Real average_, sigma_, normalizationFactor_, denominator_,
-            derNormalizationFactor_;
+        Real average_, sigma_, normalizationFactor_, denominator_, derNormalizationFactor_;
     };
 
     typedef NormalDistribution GaussianDistribution;
@@ -65,13 +66,14 @@ namespace QuantLib {
         Handbook of Mathematical Functions,
         Dover Publications, New York (1972)
     */
-    class CumulativeNormalDistribution {
+    class CumulativeNormalDistribution
+    {
       public:
-        CumulativeNormalDistribution(Real average = 0.0,
-                                     Real sigma   = 1.0);
+        CumulativeNormalDistribution(Real average = 0.0, Real sigma = 1.0);
         // function
         Real operator()(Real x) const;
         Real derivative(Real x) const;
+
       private:
         Real average_, sigma_;
         NormalDistribution gaussian_;
@@ -97,43 +99,46 @@ namespace QuantLib {
       variants would not preserve the sequence's low-discrepancy.
 
     */
-    class InverseCumulativeNormal {
+    class InverseCumulativeNormal
+    {
       public:
-        InverseCumulativeNormal(Real average = 0.0,
-                                Real sigma   = 1.0);
+        InverseCumulativeNormal(Real average = 0.0, Real sigma = 1.0);
         // function
-        Real operator()(Real x) const {
-            return average_ + sigma_*standard_value(x);
-        }
+        Real operator()(Real x) const { return average_ + sigma_ * standard_value(x); }
         // value for average=0, sigma=1
         /* Compared to operator(), this method avoids 2 floating point
            operations (we use average=0 and sigma=1 most of the
            time). The speed difference is noticeable.
         */
-        static Real standard_value(Real x) {
+        static Real standard_value(Real x)
+        {
             Real z;
-            if (x < x_low_ || x_high_ < x) {
+            if (x < x_low_ || x_high_ < x)
+            {
                 z = tail_value(x);
-            } else {
+            }
+            else
+            {
                 z = x - 0.5;
-                Real r = z*z;
-                z = (((((a1_*r+a2_)*r+a3_)*r+a4_)*r+a5_)*r+a6_)*z /
-                    (((((b1_*r+b2_)*r+b3_)*r+b4_)*r+b5_)*r+1.0);
+                Real r = z * z;
+                z = (((((a1_ * r + a2_) * r + a3_) * r + a4_) * r + a5_) * r + a6_) * z /
+                    (((((b1_ * r + b2_) * r + b3_) * r + b4_) * r + b5_) * r + 1.0);
             }
 
-            // The relative error of the approximation has absolute value less
-            // than 1.15e-9.  One iteration of Halley's rational method (third
-            // order) gives full machine precision.
-            // #define REFINE_TO_FULL_MACHINE_PRECISION_USING_HALLEYS_METHOD
-            #ifdef REFINE_TO_FULL_MACHINE_PRECISION_USING_HALLEYS_METHOD
+// The relative error of the approximation has absolute value less
+// than 1.15e-9.  One iteration of Halley's rational method (third
+// order) gives full machine precision.
+// #define REFINE_TO_FULL_MACHINE_PRECISION_USING_HALLEYS_METHOD
+#ifdef REFINE_TO_FULL_MACHINE_PRECISION_USING_HALLEYS_METHOD
             // error (f_(z) - x) divided by the cumulative's derivative
-            const Real r = (f_(z) - x) * M_SQRT2 * M_SQRTPI * exp(0.5 * z*z);
+            const Real r = (f_(z) - x) * M_SQRT2 * M_SQRTPI * exp(0.5 * z * z);
             //  Halley's method
-            z -= r/(1+0.5*z*r);
-            #endif
+            z -= r / (1 + 0.5 * z * r);
+#endif
 
             return z;
         }
+
       private:
         /* Handling tails moved into a separate method, which should
            make the inlining of operator() and standard_value method
@@ -141,11 +146,11 @@ namespace QuantLib {
            inlined.
         */
         static Real tail_value(Real x);
-        #if defined(QL_PATCH_SOLARIS)
+#if defined(QL_PATCH_SOLARIS)
         CumulativeNormalDistribution f_;
-        #else
+#else
         static const CumulativeNormalDistribution f_;
-        #endif
+#endif
         Real average_, sigma_;
         static const Real a1_;
         static const Real a2_;
@@ -195,12 +200,13 @@ namespace QuantLib {
         Peter J. Acklam's approximation is better and is available
         as QuantLib::InverseCumulativeNormal
     */
-    class MoroInverseCumulativeNormal {
+    class MoroInverseCumulativeNormal
+    {
       public:
-        MoroInverseCumulativeNormal(Real average = 0.0,
-                                    Real sigma   = 1.0);
+        MoroInverseCumulativeNormal(Real average = 0.0, Real sigma = 1.0);
         // function
         Real operator()(Real x) const;
+
       private:
         Real average_, sigma_;
         static const Real a0_;
@@ -235,10 +241,10 @@ namespace QuantLib {
          insufficient accuracy compared to the epsilon for type double,
          do we clean up the result using Halley iteration.
     */
-    class MaddockInverseCumulativeNormal {
+    class MaddockInverseCumulativeNormal
+    {
       public:
-        MaddockInverseCumulativeNormal(Real average = 0.0,
-                                       Real sigma   = 1.0);
+        MaddockInverseCumulativeNormal(Real average = 0.0, Real sigma = 1.0);
         Real operator()(Real x) const;
 
       private:
@@ -246,10 +252,10 @@ namespace QuantLib {
     };
 
     //! Maddock's cumulative normal distribution class
-    class MaddockCumulativeNormal {
+    class MaddockCumulativeNormal
+    {
       public:
-        MaddockCumulativeNormal(Real average = 0.0,
-                                       Real sigma   = 1.0);
+        MaddockCumulativeNormal(Real average = 0.0, Real sigma = 1.0);
         Real operator()(Real x) const;
 
       private:
@@ -259,61 +265,54 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline NormalDistribution::NormalDistribution(Real average,
-                                                  Real sigma)
-    : average_(average), sigma_(sigma) {
+    inline NormalDistribution::NormalDistribution(Real average, Real sigma) : average_(average), sigma_(sigma)
+    {
 
-        QL_REQUIRE(sigma_>0.0,
-                   "sigma must be greater than 0.0 ("
-                   << sigma_ << " not allowed)");
+        QL_REQUIRE(sigma_ > 0.0, "sigma must be greater than 0.0 (" << sigma_ << " not allowed)");
 
-        normalizationFactor_ = M_SQRT_2*M_1_SQRTPI/sigma_;
-        derNormalizationFactor_ = sigma_*sigma_;
-        denominator_ = 2.0*derNormalizationFactor_;
+        normalizationFactor_ = M_SQRT_2 * M_1_SQRTPI / sigma_;
+        derNormalizationFactor_ = sigma_ * sigma_;
+        denominator_ = 2.0 * derNormalizationFactor_;
     }
 
-    inline Real NormalDistribution::operator()(Real x) const {
-        Real deltax = x-average_;
-        Real exponent = -(deltax*deltax)/denominator_;
+    inline Real NormalDistribution::operator()(Real x) const
+    {
+        Real deltax = x - average_;
+        Real exponent = -(deltax * deltax) / denominator_;
         // debian alpha had some strange problem in the very-low range
-        return exponent <= -690.0 ? 0.0 :  // exp(x) < 1.0e-300 anyway
-            Real(normalizationFactor_*std::exp(exponent));
+        return exponent <= -690.0 ? 0.0 : // exp(x) < 1.0e-300 anyway
+                                    Real(normalizationFactor_ * std::exp(exponent));
     }
 
-    inline Real NormalDistribution::derivative(Real x) const {
+    inline Real NormalDistribution::derivative(Real x) const
+    {
         return ((*this)(x) * (average_ - x)) / derNormalizationFactor_;
     }
 
-    inline CumulativeNormalDistribution::CumulativeNormalDistribution(
-                                                 Real average, Real sigma)
-    : average_(average), sigma_(sigma) {
+    inline CumulativeNormalDistribution::CumulativeNormalDistribution(Real average, Real sigma)
+    : average_(average), sigma_(sigma)
+    {
 
-        QL_REQUIRE(sigma_>0.0,
-                   "sigma must be greater than 0.0 ("
-                   << sigma_ << " not allowed)");
+        QL_REQUIRE(sigma_ > 0.0, "sigma must be greater than 0.0 (" << sigma_ << " not allowed)");
     }
 
-    inline Real CumulativeNormalDistribution::derivative(Real x) const {
+    inline Real CumulativeNormalDistribution::derivative(Real x) const
+    {
         Real xn = (x - average_) / sigma_;
         return gaussian_(xn) / sigma_;
     }
 
-    inline InverseCumulativeNormal::InverseCumulativeNormal(
-                                                 Real average, Real sigma)
-    : average_(average), sigma_(sigma) {
+    inline InverseCumulativeNormal::InverseCumulativeNormal(Real average, Real sigma) : average_(average), sigma_(sigma)
+    {
 
-        QL_REQUIRE(sigma_>0.0,
-                   "sigma must be greater than 0.0 ("
-                   << sigma_ << " not allowed)");
+        QL_REQUIRE(sigma_ > 0.0, "sigma must be greater than 0.0 (" << sigma_ << " not allowed)");
     }
 
-    inline MoroInverseCumulativeNormal::MoroInverseCumulativeNormal(
-                                                 Real average, Real sigma)
-    : average_(average), sigma_(sigma) {
+    inline MoroInverseCumulativeNormal::MoroInverseCumulativeNormal(Real average, Real sigma)
+    : average_(average), sigma_(sigma)
+    {
 
-        QL_REQUIRE(sigma_>0.0,
-                   "sigma must be greater than 0.0 ("
-                   << sigma_ << " not allowed)");
+        QL_REQUIRE(sigma_ > 0.0, "sigma must be greater than 0.0 (" << sigma_ << " not allowed)");
     }
 
 }

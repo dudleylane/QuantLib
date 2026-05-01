@@ -25,31 +25,33 @@
 #include <ql/methods/finitedifferences/utilities/fdmdirichletboundary.hpp>
 #include <ql/methods/finitedifferences/utilities/fdmdividendhandler.hpp>
 #include <ql/methods/finitedifferences/utilities/fdminnervaluecalculator.hpp>
-#include <ql/pricingengines/barrier/fdhestonrebateengine.hpp>
 #include <ql/pricingengines/barrier/fdhestondoublebarrierengine.hpp>
+#include <ql/pricingengines/barrier/fdhestonrebateengine.hpp>
 #include <ql/pricingengines/vanilla/fdhestonvanillaengine.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    FdHestonDoubleBarrierEngine::FdHestonDoubleBarrierEngine(
-        const ext::shared_ptr<HestonModel>& model,
-        Size tGrid,
-        Size xGrid,
-        Size vGrid,
-        Size dampingSteps,
-        const FdmSchemeDesc& schemeDesc,
-        ext::shared_ptr<LocalVolTermStructure> leverageFct,
-        const Real mixingFactor)
-    : GenericModelEngine<HestonModel, DoubleBarrierOption::arguments, DoubleBarrierOption::results>(
-          model),
-      tGrid_(tGrid), xGrid_(xGrid), vGrid_(vGrid), dampingSteps_(dampingSteps),
-      schemeDesc_(schemeDesc), leverageFct_(std::move(leverageFct)), mixingFactor_(mixingFactor) {}
+    FdHestonDoubleBarrierEngine::FdHestonDoubleBarrierEngine(const ext::shared_ptr<HestonModel>& model,
+                                                             Size tGrid,
+                                                             Size xGrid,
+                                                             Size vGrid,
+                                                             Size dampingSteps,
+                                                             const FdmSchemeDesc& schemeDesc,
+                                                             ext::shared_ptr<LocalVolTermStructure> leverageFct,
+                                                             const Real mixingFactor)
+    : GenericModelEngine<HestonModel, DoubleBarrierOption::arguments, DoubleBarrierOption::results>(model),
+      tGrid_(tGrid), xGrid_(xGrid), vGrid_(vGrid), dampingSteps_(dampingSteps), schemeDesc_(schemeDesc),
+      leverageFct_(std::move(leverageFct)), mixingFactor_(mixingFactor)
+    {
+    }
 
-    void FdHestonDoubleBarrierEngine::calculate() const {
+    void FdHestonDoubleBarrierEngine::calculate() const
+    {
 
         QL_REQUIRE(arguments_.barrierType == DoubleBarrier::KnockOut,
-                "only Knock-Out double barrier options are supported");
+                   "only Knock-Out double barrier options are supported");
 
         // 1. Mesher
         const ext::shared_ptr<HestonProcess>& process = model_->process();
@@ -57,11 +59,11 @@ namespace QuantLib {
 
         // 1.1 The variance mesher
         const Size tGridMin = 5;
-        const Size tGridAvgSteps = std::max(tGridMin, tGrid_/50);
+        const Size tGridAvgSteps = std::max(tGridMin, tGrid_ / 50);
 
-        const ext::shared_ptr<FdmHestonLocalVolatilityVarianceMesher> vMesher
-            = ext::make_shared<FdmHestonLocalVolatilityVarianceMesher>(
-                  vGrid_, process, leverageFct_, maturity, tGridAvgSteps, 0.0001, mixingFactor_);
+        const ext::shared_ptr<FdmHestonLocalVolatilityVarianceMesher> vMesher =
+            ext::make_shared<FdmHestonLocalVolatilityVarianceMesher>(vGrid_, process, leverageFct_, maturity,
+                                                                     tGridAvgSteps, 0.0001, mixingFactor_);
 
         // 1.2 The equity mesher
         const ext::shared_ptr<StrikedTypePayoff> payoff =
@@ -70,49 +72,40 @@ namespace QuantLib {
         Real xMin = std::log(arguments_.barrier_lo);
         Real xMax = std::log(arguments_.barrier_hi);
 
-        const ext::shared_ptr<Fdm1dMesher> equityMesher(
-            new FdmBlackScholesMesher(
-                xGrid_,
-                FdmBlackScholesMesher::processHelper(
-                    process->s0(), process->dividendYield(),
-                    process->riskFreeRate(), vMesher->volaEstimate()),
-                maturity, payoff->strike(), xMin, xMax));
+        const ext::shared_ptr<Fdm1dMesher> equityMesher(new FdmBlackScholesMesher(
+            xGrid_,
+            FdmBlackScholesMesher::processHelper(process->s0(), process->dividendYield(), process->riskFreeRate(),
+                                                 vMesher->volaEstimate()),
+            maturity, payoff->strike(), xMin, xMax));
 
-        const ext::shared_ptr<FdmMesher> mesher (
-            new FdmMesherComposite(equityMesher, vMesher));
+        const ext::shared_ptr<FdmMesher> mesher(new FdmMesherComposite(equityMesher, vMesher));
 
         // 2. Calculator
-        const ext::shared_ptr<FdmInnerValueCalculator> calculator(
-                                new FdmLogInnerValue(payoff, mesher, 0));
+        const ext::shared_ptr<FdmInnerValueCalculator> calculator(new FdmLogInnerValue(payoff, mesher, 0));
 
         // 3. Step conditions
-        std::list<ext::shared_ptr<StepCondition<Array> > > stepConditions;
-        std::list<std::vector<Time> > stoppingTimes;
+        std::list<ext::shared_ptr<StepCondition<Array>>> stepConditions;
+        std::list<std::vector<Time>> stoppingTimes;
 
-        QL_REQUIRE(arguments_.exercise->type() == Exercise::European,
-                   "only european style option are supported");
+        QL_REQUIRE(arguments_.exercise->type() == Exercise::European, "only european style option are supported");
 
         ext::shared_ptr<FdmStepConditionComposite> conditions(
-                new FdmStepConditionComposite(stoppingTimes, stepConditions));
+            new FdmStepConditionComposite(stoppingTimes, stepConditions));
 
         // 4. Boundary conditions
         FdmBoundaryConditionSet boundaries;
         boundaries.push_back(FdmBoundaryConditionSet::value_type(
-            new FdmDirichletBoundary(mesher, arguments_.rebate, 0,
-                                     FdmDirichletBoundary::Lower)));
+            new FdmDirichletBoundary(mesher, arguments_.rebate, 0, FdmDirichletBoundary::Lower)));
 
         boundaries.push_back(FdmBoundaryConditionSet::value_type(
-            new FdmDirichletBoundary(mesher, arguments_.rebate, 0,
-                                     FdmDirichletBoundary::Upper)));
+            new FdmDirichletBoundary(mesher, arguments_.rebate, 0, FdmDirichletBoundary::Upper)));
 
         // 5. Solver
-        FdmSolverDesc solverDesc = { mesher, boundaries, conditions,
-                                     calculator, maturity,
-                                     tGrid_, dampingSteps_ };
+        FdmSolverDesc solverDesc = {mesher, boundaries, conditions, calculator, maturity, tGrid_, dampingSteps_};
 
-        ext::shared_ptr<FdmHestonSolver> solver(new FdmHestonSolver(
-                    Handle<HestonProcess>(process), solverDesc, schemeDesc_,
-                    Handle<FdmQuantoHelper>(), leverageFct_, mixingFactor_));
+        ext::shared_ptr<FdmHestonSolver> solver(new FdmHestonSolver(Handle<HestonProcess>(process), solverDesc,
+                                                                    schemeDesc_, Handle<FdmQuantoHelper>(),
+                                                                    leverageFct_, mixingFactor_));
 
         const Real spot = process->s0()->value();
         results_.value = solver->valueAt(spot, process->v0());

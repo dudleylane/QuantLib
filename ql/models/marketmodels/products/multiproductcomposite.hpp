@@ -22,7 +22,8 @@
 
 #include <ql/models/marketmodels/products/compositeproduct.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Composition of one or more market-model products
     /*! Instances of this class build a multiple market-model product by
@@ -30,7 +31,8 @@ namespace QuantLib {
 
         \pre All subproducts must have the same rate times.
     */
-    class MultiProductComposite : public MarketModelComposite {
+    class MultiProductComposite : public MarketModelComposite
+    {
       public:
         //! \name MarketModelMultiProduct interface
         //@{
@@ -38,7 +40,7 @@ namespace QuantLib {
         Size maxNumberOfCashFlowsPerProductPerStep() const override;
         bool nextTimeStep(const CurveState& currentState,
                           std::vector<Size>& numberCashFlowsThisStep,
-                          std::vector<std::vector<CashFlow> >& cashFlowsGenerated) override;
+                          std::vector<std::vector<CashFlow>>& cashFlowsGenerated) override;
         std::unique_ptr<MarketModelMultiProduct> clone() const override;
         //@}
     };

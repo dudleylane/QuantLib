@@ -28,7 +28,8 @@
 #include <ql/instruments/basketoption.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Pricing engine for 2D European Baskets
     /*! This class implements formulae from
@@ -41,7 +42,8 @@ namespace QuantLib {
         \test the correctness of the returned value is tested by
               reproducing results available in literature.
     */
-    class StulzEngine : public BasketOption::engine {
+    class StulzEngine : public BasketOption::engine
+    {
       public:
         StulzEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process1,
                     ext::shared_ptr<GeneralizedBlackScholesProcess> process2,

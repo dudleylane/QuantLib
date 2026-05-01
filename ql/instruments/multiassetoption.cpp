@@ -19,65 +19,73 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/event.hpp>
+#include <ql/exercise.hpp>
 #include <ql/instruments/multiassetoption.hpp>
 #include <ql/stochasticprocess.hpp>
-#include <ql/exercise.hpp>
-#include <ql/event.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    MultiAssetOption::MultiAssetOption(
-        const ext::shared_ptr<Payoff>& payoff,
-        const ext::shared_ptr<Exercise>& exercise)
-    : Option(payoff, exercise) {}
+    MultiAssetOption::MultiAssetOption(const ext::shared_ptr<Payoff>& payoff, const ext::shared_ptr<Exercise>& exercise)
+    : Option(payoff, exercise)
+    {
+    }
 
-    bool MultiAssetOption::isExpired() const {
+    bool MultiAssetOption::isExpired() const
+    {
         return detail::simple_event(exercise_->lastDate()).hasOccurred();
     }
 
-    Real MultiAssetOption::delta() const {
+    Real MultiAssetOption::delta() const
+    {
         calculate();
         QL_REQUIRE(delta_ != Null<Real>(), "delta not provided");
         return delta_;
     }
 
-    Real MultiAssetOption::gamma() const {
+    Real MultiAssetOption::gamma() const
+    {
         calculate();
         QL_REQUIRE(gamma_ != Null<Real>(), "gamma not provided");
         return gamma_;
     }
 
-    Real MultiAssetOption::theta() const {
+    Real MultiAssetOption::theta() const
+    {
         calculate();
         QL_REQUIRE(theta_ != Null<Real>(), "theta not provided");
         return theta_;
     }
 
-    Real MultiAssetOption::vega() const {
+    Real MultiAssetOption::vega() const
+    {
         calculate();
         QL_REQUIRE(vega_ != Null<Real>(), "vega not provided");
         return vega_;
     }
 
-    Real MultiAssetOption::rho() const {
+    Real MultiAssetOption::rho() const
+    {
         calculate();
         QL_REQUIRE(rho_ != Null<Real>(), "rho not provided");
         return rho_;
     }
 
-    Real MultiAssetOption::dividendRho() const {
+    Real MultiAssetOption::dividendRho() const
+    {
         calculate();
         QL_REQUIRE(dividendRho_ != Null<Real>(), "dividend rho not provided");
         return dividendRho_;
     }
 
-    void MultiAssetOption::setupExpired() const {
-        NPV_ = delta_ = gamma_ = theta_ =
-            vega_ = rho_ = dividendRho_ =  0.0;
+    void MultiAssetOption::setupExpired() const
+    {
+        NPV_ = delta_ = gamma_ = theta_ = vega_ = rho_ = dividendRho_ = 0.0;
     }
 
-    void MultiAssetOption::setupArguments(
-                                       PricingEngine::arguments* args) const {
+    void MultiAssetOption::setupArguments(PricingEngine::arguments* args) const
+    {
         auto* arguments = dynamic_cast<MultiAssetOption::arguments*>(args);
         QL_REQUIRE(arguments != nullptr, "wrong argument type");
 
@@ -85,16 +93,17 @@ namespace QuantLib {
         arguments->exercise = exercise_;
     }
 
-    void MultiAssetOption::fetchResults(const PricingEngine::results* r) const {
+    void MultiAssetOption::fetchResults(const PricingEngine::results* r) const
+    {
         Option::fetchResults(r);
         const auto* results = dynamic_cast<const Greeks*>(r);
         QL_ENSURE(results != nullptr, "no greeks returned from pricing engine");
-        delta_          = results->delta;
-        gamma_          = results->gamma;
-        theta_          = results->theta;
-        vega_           = results->vega;
-        rho_            = results->rho;
-        dividendRho_    = results->dividendRho;
+        delta_ = results->delta;
+        gamma_ = results->gamma;
+        theta_ = results->theta;
+        vega_ = results->vega;
+        rho_ = results->rho;
+        dividendRho_ = results->dividendRho;
     }
 
 }

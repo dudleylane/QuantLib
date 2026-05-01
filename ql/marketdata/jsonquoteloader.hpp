@@ -55,11 +55,13 @@
 #include <map>
 #include <string>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! JSON-backed market quote snapshot.
     /*! \ingroup marketdata */
-    class JsonQuoteLoader {
+    class JsonQuoteLoader
+    {
       public:
         //! Construct from a path to a JSON file. See class doc for the
         //  two supported schemas. Throws on parse error, malformed
@@ -67,22 +69,20 @@ namespace QuantLib {
         explicit JsonQuoteLoader(const std::string& filepath);
 
         //! Access a quote by id; throws if the id is not present.
-        const ext::shared_ptr<SimpleQuote>&
-        operator[](const std::string& id) const;
+        const ext::shared_ptr<SimpleQuote>& operator[](const std::string& id) const;
 
         //! Test whether an id is present in the loaded snapshot.
         bool has(const std::string& id) const;
 
         //! Immutable view of the full id -> SimpleQuote map. Iterate
         //! / filter as needed — the underlying map owns the quotes.
-        const std::map<std::string, ext::shared_ptr<SimpleQuote> >&
-        quotes() const { return quotes_; }
+        const std::map<std::string, ext::shared_ptr<SimpleQuote>>& quotes() const { return quotes_; }
 
         //! Number of quotes loaded from the file.
         Size size() const { return quotes_.size(); }
 
       private:
-        std::map<std::string, ext::shared_ptr<SimpleQuote> > quotes_;
+        std::map<std::string, ext::shared_ptr<SimpleQuote>> quotes_;
     };
 
 }

@@ -24,27 +24,26 @@
 #ifndef quantlib_variance_option_hpp
 #define quantlib_variance_option_hpp
 
-#include <ql/processes/blackscholesprocess.hpp>
 #include <ql/instruments/payoffs.hpp>
 #include <ql/option.hpp>
 #include <ql/position.hpp>
+#include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Variance option
     /*! \warning This class does not manage seasoned variance options.
 
         \ingroup instruments
     */
-    class VarianceOption : public Instrument {
+    class VarianceOption : public Instrument
+    {
       public:
         class arguments;
         class results;
         class engine;
-        VarianceOption(ext::shared_ptr<Payoff> payoff,
-                       Real notional,
-                       const Date& startDate,
-                       const Date& maturityDate);
+        VarianceOption(ext::shared_ptr<Payoff> payoff, Real notional, const Date& startDate, const Date& maturityDate);
         //! \name Instrument interface
         //@{
         bool isExpired() const override;
@@ -67,7 +66,8 @@ namespace QuantLib {
 
 
     //! %Arguments for forward fair-variance calculation
-    class VarianceOption::arguments : public virtual PricingEngine::arguments {
+    class VarianceOption::arguments : public virtual PricingEngine::arguments
+    {
       public:
         arguments() : notional(Null<Real>()) {}
         void validate() const override;
@@ -79,29 +79,35 @@ namespace QuantLib {
 
 
     //! %Results from variance-option calculation
-    class VarianceOption::results : public Instrument::results {};
+    class VarianceOption::results : public Instrument::results
+    {
+    };
 
     //! base class for variance-option engines
-    class VarianceOption::engine :
-        public GenericEngine<VarianceOption::arguments,
-                             VarianceOption::results> {};
+    class VarianceOption::engine : public GenericEngine<VarianceOption::arguments, VarianceOption::results>
+    {
+    };
 
 
     // inline definitions
 
-    inline Date VarianceOption::startDate() const {
+    inline Date VarianceOption::startDate() const
+    {
         return startDate_;
     }
 
-    inline Date VarianceOption::maturityDate() const {
+    inline Date VarianceOption::maturityDate() const
+    {
         return maturityDate_;
     }
 
-    inline Real VarianceOption::notional() const {
+    inline Real VarianceOption::notional() const
+    {
         return notional_;
     }
 
-    inline ext::shared_ptr<Payoff> VarianceOption::payoff() const {
+    inline ext::shared_ptr<Payoff> VarianceOption::payoff() const
+    {
         return payoff_;
     }
 

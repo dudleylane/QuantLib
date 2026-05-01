@@ -19,36 +19,41 @@
 
 #include <ql/processes/forwardmeasureprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     // base class
 
-    ForwardMeasureProcess::ForwardMeasureProcess(
-                                const ext::shared_ptr<discretization>& disc)
-    : StochasticProcess(disc) {}
+    ForwardMeasureProcess::ForwardMeasureProcess(const ext::shared_ptr<discretization>& disc) : StochasticProcess(disc)
+    {
+    }
 
-    void ForwardMeasureProcess::setForwardMeasureTime(Time T) {
+    void ForwardMeasureProcess::setForwardMeasureTime(Time T)
+    {
         T_ = T;
         notifyObservers();
     }
 
-    Time ForwardMeasureProcess::getForwardMeasureTime() const {
+    Time ForwardMeasureProcess::getForwardMeasureTime() const
+    {
         return T_;
     }
 
     // 1-D specialization
 
-    ForwardMeasureProcess1D::ForwardMeasureProcess1D(
-                                const ext::shared_ptr<discretization>& disc)
-    : StochasticProcess1D(disc) {}
+    ForwardMeasureProcess1D::ForwardMeasureProcess1D(const ext::shared_ptr<discretization>& disc)
+    : StochasticProcess1D(disc)
+    {
+    }
 
-    void ForwardMeasureProcess1D::setForwardMeasureTime(Time T) {
+    void ForwardMeasureProcess1D::setForwardMeasureTime(Time T)
+    {
         T_ = T;
         notifyObservers();
     }
 
-    Time ForwardMeasureProcess1D::getForwardMeasureTime() const {
+    Time ForwardMeasureProcess1D::getForwardMeasureTime() const
+    {
         return T_;
     }
 }
-

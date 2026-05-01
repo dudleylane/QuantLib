@@ -33,19 +33,22 @@
 #include <ql/methods/finitedifferences/operators/secondderivativeop.hpp>
 #include <ql/methods/finitedifferences/operators/triplebandlinearop.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     LaplaceInterpolation::LaplaceInterpolation(std::function<Real(const std::vector<Size>&)> y,
                                                std::vector<std::vector<Real>> x,
                                                Real relTol,
                                                Size maxIterMultiplier)
-    : y_(std::move(y)), x_(std::move(x)), relTol_(relTol), maxIterMultiplier_(maxIterMultiplier) {
+    : y_(std::move(y)), x_(std::move(x)), relTol_(relTol), maxIterMultiplier_(maxIterMultiplier)
+    {
 
         // set up the mesher
 
         std::vector<Size> dim;
         coordinateIncluded_.resize(x_.size());
-        for (Size i = 0; i < x_.size(); ++i) {
+        for (Size i = 0; i < x_.size(); ++i)
+        {
             coordinateIncluded_[i] = x_[i].size() > 1;
             if (coordinateIncluded_[i])
                 dim.push_back(x_[i].size());
@@ -53,7 +56,8 @@ namespace QuantLib {
 
         numberOfCoordinatesIncluded_ = dim.size();
 
-        if (numberOfCoordinatesIncluded_ == 0) {
+        if (numberOfCoordinatesIncluded_ == 0)
+        {
             return;
         }
 
@@ -62,7 +66,8 @@ namespace QuantLib {
         layout_ = ext::make_shared<FdmLinearOpLayout>(dim);
 
         std::vector<ext::shared_ptr<Fdm1dMesher>> meshers;
-        for (auto & i : x_) {
+        for (auto& i : x_)
+        {
             if (i.size() > 1)
                 meshers.push_back(ext::make_shared<Predefined1dMesher>(i));
         }
@@ -71,9 +76,12 @@ namespace QuantLib {
 
         // set up the Laplace operator and convert it to matrix
 
-        struct LaplaceOp : public FdmLinearOpComposite {
-            explicit LaplaceOp(const ext::shared_ptr<FdmMesher>& mesher) {
-                for (Size direction = 0; direction < mesher->layout()->dim().size(); ++direction) {
+        struct LaplaceOp : public FdmLinearOpComposite
+        {
+            explicit LaplaceOp(const ext::shared_ptr<FdmMesher>& mesher)
+            {
+                for (Size direction = 0; direction < mesher->layout()->dim().size(); ++direction)
+                {
                     if (mesher->layout()->dim()[direction] > 1)
                         map_.push_back(SecondDerivativeOp(direction, mesher));
                 }
@@ -84,17 +92,14 @@ namespace QuantLib {
             void setTime(Time t1, Time t2) override { QL_FAIL("no impl"); }
             Array apply(const array_type& r) const override { QL_FAIL("no impl"); }
             Array apply_mixed(const Array& r) const override { QL_FAIL("no impl"); }
-            Array apply_direction(Size direction, const Array& r) const override {
-                QL_FAIL("no impl");
-            }
-            Array solve_splitting(Size direction, const Array& r, Real s) const override {
-                QL_FAIL("no impl");
-            }
+            Array apply_direction(Size direction, const Array& r) const override { QL_FAIL("no impl"); }
+            Array solve_splitting(Size direction, const Array& r, Real s) const override { QL_FAIL("no impl"); }
             Array preconditioner(const Array& r, Real s) const override { QL_FAIL("no impl"); }
-            std::vector<SparseMatrix> toMatrixDecomp() const override {
+            std::vector<SparseMatrix> toMatrixDecomp() const override
+            {
                 std::vector<SparseMatrix> decomp;
                 decomp.reserve(map_.size());
-for (auto const& m : map_)
+                for (auto const& m : map_)
                     decomp.push_back(m.toMatrix());
                 return decomp;
             }
@@ -110,7 +115,8 @@ for (auto const& m : map_)
         Array rhs(N, 0.0), guess(N, 0.0);
         Real guessTmp = 0.0;
 
-        struct f_A {
+        struct f_A
+        {
             const SparseMatrix& g;
             explicit f_A(const SparseMatrix& g) : g(g) {}
             Array operator()(const Array& x) const { return prod(g, x); }
@@ -120,37 +126,46 @@ for (auto const& m : map_)
         Size count = 0;
         std::vector<Real> corner_h(dim.size());
         std::vector<Size> corner_neighbour_index(dim.size());
-        for (auto const& pos : *layout_) {
+        for (auto const& pos : *layout_)
+        {
             const auto& coord = pos.coordinates();
-            Real val =
-                y_(numberOfCoordinatesIncluded_ == x_.size() ? coord : fullCoordinates(coord));
+            Real val = y_(numberOfCoordinatesIncluded_ == x_.size() ? coord : fullCoordinates(coord));
             QL_REQUIRE(rowit != op.end1() && rowit.index1() == count,
                        "LaplaceInterpolation: op matrix row iterator ("
                            << (rowit != op.end1() ? std::to_string(rowit.index1()) : "na")
                            << ") does not match expected row count (" << count << ")");
-            if (val == Null<Real>()) {
+            if (val == Null<Real>())
+            {
                 bool isCorner = true;
-                for (Size d = 0; d < dim.size() && isCorner; ++d) {
-                    if (coord[d] == 0) {
+                for (Size d = 0; d < dim.size() && isCorner; ++d)
+                {
+                    if (coord[d] == 0)
+                    {
                         corner_h[d] = meshers[d]->dplus(0);
                         corner_neighbour_index[d] = 1;
-                    } else if (coord[d] == layout_->dim()[d] - 1) {
+                    }
+                    else if (coord[d] == layout_->dim()[d] - 1)
+                    {
                         corner_h[d] = meshers[d]->dminus(dim[d] - 1);
                         corner_neighbour_index[d] = dim[d] - 2;
-                    } else {
+                    }
+                    else
+                    {
                         isCorner = false;
                     }
                 }
-                if (isCorner) {
+                if (isCorner)
+                {
                     // handling of the "corners", all second derivs are zero in the op
                     // this directly generalizes Numerical Recipes, 3rd ed, eq 3.8.6
-                    Real sum_corner_h =
-                        std::accumulate(corner_h.begin(), corner_h.end(), Real(0.0), std::plus<>());
-                    for (Size j = 0; j < dim.size(); ++j) {
+                    Real sum_corner_h = std::accumulate(corner_h.begin(), corner_h.end(), Real(0.0), std::plus<>());
+                    for (Size j = 0; j < dim.size(); ++j)
+                    {
                         std::vector<Size> coord_j(coord);
                         coord_j[j] = corner_neighbour_index[j];
                         Real weight = 0.0;
-                        for (Size i = 0; i < dim.size(); ++i) {
+                        for (Size i = 0; i < dim.size(); ++i)
+                        {
                             if (i != j)
                                 weight += corner_h[i];
                         }
@@ -158,14 +173,18 @@ for (auto const& m : map_)
                         g(count, layout_->index(coord_j)) = -weight;
                     }
                     g(count, count) = 1.0;
-                } else {
+                }
+                else
+                {
                     // point with at least one dimension with non-trivial second derivative
                     for (auto colit = rowit.begin(); colit != rowit.end(); ++colit)
                         g(count, colit.index2()) = *colit;
                 }
                 rhs[count] = 0.0;
                 guess[count] = guessTmp;
-            } else {
+            }
+            else
+            {
                 g(count, count) = 1;
                 rhs[count] = val;
                 guess[count] = guessTmp = val;
@@ -177,68 +196,72 @@ for (auto const& m : map_)
         interpolatedValues_ = BiCGstab(f_A(g), maxIterMultiplier_ * N, relTol_).solve(rhs, guess).x;
     }
 
-    std::vector<Size>
-    LaplaceInterpolation::projectedCoordinates(const std::vector<Size>& coordinates) const {
+    std::vector<Size> LaplaceInterpolation::projectedCoordinates(const std::vector<Size>& coordinates) const
+    {
         std::vector<Size> tmp;
-        for (Size i = 0; i < coordinates.size(); ++i) {
+        for (Size i = 0; i < coordinates.size(); ++i)
+        {
             if (coordinateIncluded_[i])
                 tmp.push_back(coordinates[i]);
         }
         return tmp;
     }
 
-    std::vector<Size>
-    LaplaceInterpolation::fullCoordinates(const std::vector<Size>& projectedCoordinates) const {
+    std::vector<Size> LaplaceInterpolation::fullCoordinates(const std::vector<Size>& projectedCoordinates) const
+    {
         std::vector<Size> tmp(coordinateIncluded_.size(), 0);
-        for (Size i = 0, count = 0; i < coordinateIncluded_.size(); ++i) {
+        for (Size i = 0, count = 0; i < coordinateIncluded_.size(); ++i)
+        {
             if (coordinateIncluded_[i])
                 tmp[i] = projectedCoordinates[count++];
         }
         return tmp;
     }
 
-    Real LaplaceInterpolation::operator()(const std::vector<Size>& coordinates) const {
+    Real LaplaceInterpolation::operator()(const std::vector<Size>& coordinates) const
+    {
         QL_REQUIRE(coordinates.size() == x_.size(), "LaplaceInterpolation::operator(): expected "
-                                                        << x_.size() << " coordinates, got "
-                                                        << coordinates.size());
-        if (numberOfCoordinatesIncluded_ == 0) {
+                                                        << x_.size() << " coordinates, got " << coordinates.size());
+        if (numberOfCoordinatesIncluded_ == 0)
+        {
             Real val = y_(coordinates);
             return val == Null<Real>() ? 0.0 : val;
-        } else {
-            return interpolatedValues_[layout_->index(numberOfCoordinatesIncluded_ == x_.size() ?
-                                                          coordinates :
-                                                          projectedCoordinates(coordinates))];
+        }
+        else
+        {
+            return interpolatedValues_[layout_->index(
+                numberOfCoordinatesIncluded_ == x_.size() ? coordinates : projectedCoordinates(coordinates))];
         }
     }
 
-    void laplaceInterpolation(Matrix& A,
-                              const std::vector<Real>& x,
-                              const std::vector<Real>& y,
-                              Real relTol,
-                              Size maxIterMultiplier) {
+    void laplaceInterpolation(
+        Matrix& A, const std::vector<Real>& x, const std::vector<Real>& y, Real relTol, Size maxIterMultiplier)
+    {
 
         std::vector<std::vector<Real>> tmp;
         tmp.push_back(y);
         tmp.push_back(x);
 
-        if (y.empty()) {
+        if (y.empty())
+        {
             tmp[0].resize(A.rows());
             std::iota(tmp[0].begin(), tmp[0].end(), 0.0);
         }
 
-        if (x.empty()) {
+        if (x.empty())
+        {
             tmp[1].resize(A.columns());
             std::iota(tmp[1].begin(), tmp[1].end(), 0.0);
         }
 
-        LaplaceInterpolation interpolation(
-            [&A](const std::vector<Size>& coordinates) {
-                return A(coordinates[0], coordinates[1]);
-            },
-            tmp, relTol, maxIterMultiplier);
+        LaplaceInterpolation interpolation([&A](const std::vector<Size>& coordinates)
+                                           { return A(coordinates[0], coordinates[1]); }, tmp, relTol,
+                                           maxIterMultiplier);
 
-        for (Size i = 0; i < A.rows(); ++i) {
-            for (Size j = 0; j < A.columns(); ++j) {
+        for (Size i = 0; i < A.rows(); ++i)
+        {
+            for (Size j = 0; j < A.columns(); ++j)
+            {
                 if (A(i, j) == Null<Real>())
                     A(i, j) = interpolation({i, j});
             }

@@ -32,12 +32,14 @@
 #include <list>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class PricingEngine;
 
     //! abstract base class for calibration helpers
-    class CalibrationHelper {
+    class CalibrationHelper
+    {
       public:
         virtual ~CalibrationHelper() = default;
         //! returns the error resulting from the model valuation
@@ -45,23 +47,27 @@ namespace QuantLib {
     };
 
     //! liquid Black76 market instrument used during calibration
-    class BlackCalibrationHelper : public LazyObject, public CalibrationHelper {
+    class BlackCalibrationHelper : public LazyObject, public CalibrationHelper
+    {
       public:
-        enum CalibrationErrorType {
-                            RelativePriceError, PriceError, ImpliedVolError};
+        enum CalibrationErrorType
+        {
+            RelativePriceError,
+            PriceError,
+            ImpliedVolError
+        };
 
         BlackCalibrationHelper(Handle<Quote> volatility,
                                CalibrationErrorType calibrationErrorType = RelativePriceError,
                                const VolatilityType type = ShiftedLognormal,
                                const Real shift = 0.0)
         : volatility_(std::move(volatility)), volatilityType_(type), shift_(shift),
-          calibrationErrorType_(calibrationErrorType) {
+          calibrationErrorType_(calibrationErrorType)
+        {
             registerWith(volatility_);
         }
 
-        void performCalculations() const override {
-            marketValue_ = blackPrice(volatility_->value());
-        }
+        void performCalculations() const override { marketValue_ = blackPrice(volatility_->value()); }
 
         //! returns the volatility Handle
         Handle<Quote> volatility() const { return volatility_; }
@@ -70,7 +76,11 @@ namespace QuantLib {
         VolatilityType volatilityType() const { return volatilityType_; }
 
         //! returns the actual price of the instrument (from volatility)
-        Real marketValue() const { calculate(); return marketValue_; }
+        Real marketValue() const
+        {
+            calculate();
+            return marketValue_;
+        }
 
         //! returns the price of the instrument according to the model
         virtual Real modelValue() const = 0;
@@ -81,18 +91,13 @@ namespace QuantLib {
         virtual void addTimesTo(std::list<Time>& times) const = 0;
 
         //! Black volatility implied by the model
-        Volatility impliedVolatility(Real targetValue,
-                                     Real accuracy,
-                                     Size maxEvaluations,
-                                     Volatility minVol,
-                                     Volatility maxVol) const;
+        Volatility impliedVolatility(
+            Real targetValue, Real accuracy, Size maxEvaluations, Volatility minVol, Volatility maxVol) const;
 
         //! Black or Bachelier price given a volatility
         virtual Real blackPrice(Volatility volatility) const = 0;
 
-        void setPricingEngine(const ext::shared_ptr<PricingEngine>& engine) {
-            engine_ = engine;
-        }
+        void setPricingEngine(const ext::shared_ptr<PricingEngine>& engine) { engine_ = engine; }
 
       protected:
         mutable Real marketValue_;

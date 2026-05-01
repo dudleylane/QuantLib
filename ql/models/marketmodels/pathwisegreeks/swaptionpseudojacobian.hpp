@@ -38,73 +38,61 @@ namespace QuantLib
     class SwaptionPseudoDerivative
     {
 
-        public:
-          SwaptionPseudoDerivative(const ext::shared_ptr<MarketModel>& inputModel,
-                                   Size startIndex,
-                                   Size endIndex);
+      public:
+        SwaptionPseudoDerivative(const ext::shared_ptr<MarketModel>& inputModel, Size startIndex, Size endIndex);
 
-          const Matrix& varianceDerivative(Size i) const;
-          const Matrix& volatilityDerivative(Size i) const;
+        const Matrix& varianceDerivative(Size i) const;
+        const Matrix& volatilityDerivative(Size i) const;
 
-          Real impliedVolatility() const;
-          Real variance() const;
-          Real expiry() const;
+        Real impliedVolatility() const;
+        Real variance() const;
+        Real expiry() const;
 
 
+      private:
+        ext::shared_ptr<MarketModel> inputModel_;
+        std::vector<Matrix> varianceDerivatives_;
+        std::vector<Matrix> volatilityDerivatives_;
 
-        private:
-            ext::shared_ptr<MarketModel> inputModel_;
-            std::vector<Matrix> varianceDerivatives_;
-            std::vector<Matrix> volatilityDerivatives_;
-
-            Real impliedVolatility_;
-            Real expiry_;
-            Real variance_;
-
-
+        Real impliedVolatility_;
+        Real expiry_;
+        Real variance_;
     };
 
-/*! In order to compute market vegas, we need a class that gives the
-derivative of a cap implied vol against changes in pseudo-root elements.
-This is that class.
+    /*! In order to compute market vegas, we need a class that gives the
+    derivative of a cap implied vol against changes in pseudo-root elements.
+    This is that class.
 
-The operation is non-trivial because the cap implied vol has a complicated
-relationship with the caplet implied vols. 
+    The operation is non-trivial because the cap implied vol has a complicated
+    relationship with the caplet implied vols.
 
-This is  tested in the pathwise vegas routine in MarketModels.cpp
+    This is  tested in the pathwise vegas routine in MarketModels.cpp
 
-*/
+    */
 
-   class CapPseudoDerivative
+    class CapPseudoDerivative
     {
 
-        public:
-          CapPseudoDerivative(const ext::shared_ptr<MarketModel>& inputModel,
-                              Real strike,
-                              Size startIndex,
-                              Size endIndex,
-                              Real firstDF);
+      public:
+        CapPseudoDerivative(
+            const ext::shared_ptr<MarketModel>& inputModel, Real strike, Size startIndex, Size endIndex, Real firstDF);
 
-          const Matrix& volatilityDerivative(Size i) const;
-          const Matrix& priceDerivative(Size i) const;
+        const Matrix& volatilityDerivative(Size i) const;
+        const Matrix& priceDerivative(Size i) const;
 
-          Real impliedVolatility() const;
+        Real impliedVolatility() const;
 
 
+      private:
+        ext::shared_ptr<MarketModel> inputModel_;
 
-        private:
-            ext::shared_ptr<MarketModel> inputModel_;
-      
-            std::vector<Matrix> volatilityDerivatives_;
-            
-            std::vector<Matrix> priceDerivatives_;
+        std::vector<Matrix> volatilityDerivatives_;
 
-            Real impliedVolatility_;
-            Real vega_;
-            Real firstDF_;
+        std::vector<Matrix> priceDerivatives_;
 
-
-
+        Real impliedVolatility_;
+        Real vega_;
+        Real firstDF_;
     };
 
 }

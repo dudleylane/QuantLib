@@ -30,7 +30,8 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(ZigguratGaussianTests)
 
-BOOST_AUTO_TEST_CASE(testStatisticsOfNextReal) {
+BOOST_AUTO_TEST_CASE(testStatisticsOfNextReal)
+{
     BOOST_TEST_MESSAGE("Testing ZigguratGaussianRng<Xoshiro256StarStarUniformRng>::nextReal() for "
                        "mean, variance, skewness and kurtosis...");
     auto seed = 42UL;
@@ -40,7 +41,8 @@ BOOST_AUTO_TEST_CASE(testStatisticsOfNextReal) {
     auto randoms = IncrementalStatistics();
 
     auto iterations = 10'000'000;
-    for (auto j = 0; j < iterations; ++j) {
+    for (auto j = 0; j < iterations; ++j)
+    {
         Real next = random.next().value;
         randoms.add(next);
     }
@@ -50,16 +52,20 @@ BOOST_AUTO_TEST_CASE(testStatisticsOfNextReal) {
     auto skewness = randoms.skewness();
     auto kurtosis = randoms.kurtosis();
 
-    if (std::abs(mean) > 0.001) {
+    if (std::abs(mean) > 0.001)
+    {
         BOOST_ERROR("Mean " << mean << " for seed " << seed << " is not close to 0.");
     }
-    if (std::abs(1.0 - variance) > 0.005) {
+    if (std::abs(1.0 - variance) > 0.005)
+    {
         BOOST_ERROR("Variance " << variance << " for seed " << seed << " is not close to 1.");
     }
-    if (std::abs(skewness) > 0.001) {
+    if (std::abs(skewness) > 0.001)
+    {
         BOOST_ERROR("Skewness " << skewness << " for seed " << seed << " is not close to 0.");
     }
-    if (std::abs(kurtosis) > 0.03) {
+    if (std::abs(kurtosis) > 0.03)
+    {
         BOOST_ERROR("Kurtosis " << kurtosis << " for seed " << seed << " is not close to 0.");
     }
 }

@@ -26,7 +26,8 @@
 
 #include <ql/stochasticprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class MarkovFunctional;
 
@@ -35,7 +36,8 @@ namespace QuantLib {
         \f[ dx = \sigma(t) e^{at} dW(t) \f]
         \ingroup processes
     */
-    class MfStateProcess : public StochasticProcess1D {
+    class MfStateProcess : public StochasticProcess1D
+    {
       public:
         MfStateProcess(Real reversion, Array times, Array vols);
 

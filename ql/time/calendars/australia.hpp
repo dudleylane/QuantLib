@@ -26,7 +26,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Australian calendar
     /*! Holidays:
@@ -49,21 +50,27 @@ namespace QuantLib {
 
         \ingroup calendars
     */
-    class Australia : public Calendar {
+    class Australia : public Calendar
+    {
       private:
-        class SettlementImpl final : public Calendar::WesternImpl {
+        class SettlementImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "Australia settlement"; }
             bool isBusinessDay(const Date&) const override;
         };
-        class AsxImpl final : public Calendar::WesternImpl {
+        class AsxImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "Australia exchange"; }
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
-        enum Market { Settlement,     //!< generic settlement calendar
-                      ASX,       //!< Australia ASX calendar
+        enum Market
+        {
+            Settlement, //!< generic settlement calendar
+            ASX,        //!< Australia ASX calendar
         };
         Australia(Market market = Settlement);
     };

@@ -32,7 +32,8 @@
 #include <ql/termstructures/yield/zerospreadedtermstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     FdmBatesOp::FdmBatesOp(const ext::shared_ptr<FdmMesher>& mesher,
                            const ext::shared_ptr<BatesProcess>& batesProcess,
@@ -40,84 +41,90 @@ namespace QuantLib {
                            const Size integroIntegrationOrder,
                            const ext::shared_ptr<FdmQuantoHelper>& quantoHelper)
     : lambda_(batesProcess->lambda()), delta_(batesProcess->delta()), nu_(batesProcess->nu()),
-      m_(std::exp(nu_ + 0.5 * delta_ * delta_) - 1.0),
-      gaussHermiteIntegration_(integroIntegrationOrder), mesher_(mesher), bcSet_(std::move(bcSet)),
+      m_(std::exp(nu_ + 0.5 * delta_ * delta_) - 1.0), gaussHermiteIntegration_(integroIntegrationOrder),
+      mesher_(mesher), bcSet_(std::move(bcSet)),
       hestonOp_(new FdmHestonOp(
           mesher,
-          ext::make_shared<HestonProcess>(
-              batesProcess->riskFreeRate(),
-              Handle<YieldTermStructure>(ext::make_shared<ZeroSpreadedTermStructure>(
-                  batesProcess->dividendYield(),
-                  Handle<Quote>(ext::shared_ptr<Quote>(new SimpleQuote(lambda_ * m_))),
-                  Continuous)),
-              batesProcess->s0(),
-              batesProcess->v0(),
-              batesProcess->kappa(),
-              batesProcess->theta(),
-              batesProcess->sigma(),
-              batesProcess->rho()),
-          quantoHelper)) {}
+          ext::make_shared<HestonProcess>(batesProcess->riskFreeRate(),
+                                          Handle<YieldTermStructure>(ext::make_shared<ZeroSpreadedTermStructure>(
+                                              batesProcess->dividendYield(),
+                                              Handle<Quote>(ext::shared_ptr<Quote>(new SimpleQuote(lambda_ * m_))),
+                                              Continuous)),
+                                          batesProcess->s0(),
+                                          batesProcess->v0(),
+                                          batesProcess->kappa(),
+                                          batesProcess->theta(),
+                                          batesProcess->sigma(),
+                                          batesProcess->rho()),
+          quantoHelper))
+    {
+    }
 
-    FdmBatesOp::IntegroIntegrand::IntegroIntegrand(
-                    const ext::shared_ptr<LinearInterpolation>& interpl,
-                    const FdmBoundaryConditionSet& bcSet,
-                    Real x, Real delta, Real nu)
-    : x_(x), delta_(delta), nu_(nu), 
-      bcSet_(bcSet), interpl_(interpl) { }
-                    
-    Real FdmBatesOp::IntegroIntegrand::operator()(Real y) const {
-        const Real x = x_ + M_SQRT2*delta_*y + nu_;
+    FdmBatesOp::IntegroIntegrand::IntegroIntegrand(const ext::shared_ptr<LinearInterpolation>& interpl,
+                                                   const FdmBoundaryConditionSet& bcSet,
+                                                   Real x,
+                                                   Real delta,
+                                                   Real nu)
+    : x_(x), delta_(delta), nu_(nu), bcSet_(bcSet), interpl_(interpl)
+    {
+    }
+
+    Real FdmBatesOp::IntegroIntegrand::operator()(Real y) const
+    {
+        const Real x = x_ + M_SQRT2 * delta_ * y + nu_;
         Real valueOfDerivative = (*interpl_)(x, true);
 
-        for (auto iter = bcSet_.begin(); iter < bcSet_.end(); ++iter) {
+        for (auto iter = bcSet_.begin(); iter < bcSet_.end(); ++iter)
+        {
 
-            const ext::shared_ptr<FdmDirichletBoundary> dirichlet
-                = ext::dynamic_pointer_cast<FdmDirichletBoundary>(*iter);
+            const ext::shared_ptr<FdmDirichletBoundary> dirichlet =
+                ext::dynamic_pointer_cast<FdmDirichletBoundary>(*iter);
 
             QL_REQUIRE(dirichlet, "FdmBatesOp can only deal with Dirichlet "
                                   "boundary conditions.");
 
-            valueOfDerivative
-                = dirichlet->applyAfterApplying(x, valueOfDerivative);
+            valueOfDerivative = dirichlet->applyAfterApplying(x, valueOfDerivative);
         }
 
-        return std::exp(-y*y)*valueOfDerivative;
+        return std::exp(-y * y) * valueOfDerivative;
     }
-    
-    Array FdmBatesOp::integro(const Array& r) const {
+
+    Array FdmBatesOp::integro(const Array& r) const
+    {
         QL_REQUIRE(mesher_->layout()->dim().size() == 2, "invalid layout dimension");
 
         Array x(mesher_->layout()->dim()[0]);
         Matrix f(mesher_->layout()->dim()[1], mesher_->layout()->dim()[0]);
-        
-        for (const auto& iter : *mesher_->layout()) {
+
+        for (const auto& iter : *mesher_->layout())
+        {
             const Size i = iter.coordinates()[0];
             const Size j = iter.coordinates()[1];
-            
-            x[i]    = mesher_->location(iter, 0);
+
+            x[i] = mesher_->location(iter, 0);
             f[j][i] = r[iter.index()];
-            
         }
-        std::vector<ext::shared_ptr<LinearInterpolation> > interpl(f.rows());
-        for (Size i=0; i < f.rows(); ++i) {
-            interpl[i] = ext::make_shared<LinearInterpolation>(
-                x.begin(), x.end(), f.row_begin(i));
+        std::vector<ext::shared_ptr<LinearInterpolation>> interpl(f.rows());
+        for (Size i = 0; i < f.rows(); ++i)
+        {
+            interpl[i] = ext::make_shared<LinearInterpolation>(x.begin(), x.end(), f.row_begin(i));
         }
-        
+
         Array integral(r.size());
-        for (const auto& iter : *mesher_->layout()) {
+        for (const auto& iter : *mesher_->layout())
+        {
             const Size i = iter.coordinates()[0];
             const Size j = iter.coordinates()[1];
 
-            integral[iter.index()] = M_1_SQRTPI* 
-                gaussHermiteIntegration_(
-                      IntegroIntegrand(interpl[j], bcSet_, x[i], delta_, nu_));
+            integral[iter.index()] =
+                M_1_SQRTPI * gaussHermiteIntegration_(IntegroIntegrand(interpl[j], bcSet_, x[i], delta_, nu_));
         }
 
-        return lambda_*(integral-r);
+        return lambda_ * (integral - r);
     }
 
-    std::vector<SparseMatrix> FdmBatesOp::toMatrixDecomp() const {
+    std::vector<SparseMatrix> FdmBatesOp::toMatrixDecomp() const
+    {
         QL_FAIL("not implemented");
     }
 

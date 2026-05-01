@@ -17,20 +17,23 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/errors.hpp>
 #include <ql/position.hpp>
 #include <ql/types.hpp>
-#include <ql/errors.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    std::ostream& operator<<(std::ostream& out, Position::Type p) {
-        switch (p) {
-          case Position::Long :
-            return out << "Long";
-          case Position::Short :
-            return out << "Short";
-          default:
-            QL_FAIL("unknown Position Type (" << Integer(p) << ")");
+    std::ostream& operator<<(std::ostream& out, Position::Type p)
+    {
+        switch (p)
+        {
+            case Position::Long:
+                return out << "Long";
+            case Position::Short:
+                return out << "Short";
+            default:
+                QL_FAIL("unknown Position Type (" << Integer(p) << ")");
         }
     }
 

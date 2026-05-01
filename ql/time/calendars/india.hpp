@@ -27,7 +27,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Indian calendars
     /*! Clearing holidays for the National Stock Exchange
@@ -67,15 +68,20 @@ namespace QuantLib {
         Note: The holidays Ramzan Id, Bakri Id and Id-E-Milad rely on estimates for 2024-2025.
         \ingroup calendars
     */
-    class India : public Calendar {
+    class India : public Calendar
+    {
       private:
-        class NseImpl final : public Calendar::WesternImpl {
+        class NseImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "National Stock Exchange of India"; }
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
-        enum Market { NSE    //!< National Stock Exchange
+        enum Market
+        {
+            NSE //!< National Stock Exchange
         };
         India(Market m = NSE);
     };

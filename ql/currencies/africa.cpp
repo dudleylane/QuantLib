@@ -21,88 +21,103 @@
 
 #include <ql/currencies/africa.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     // Angolan kwanza
-    AOACurrency::AOACurrency() {
+    AOACurrency::AOACurrency()
+    {
         static auto aoaData = ext::make_shared<Data>("Angolan kwanza", "AOA", 973, "AOA", "", 100, Rounding());
         data_ = aoaData;
     }
 
     // Botswanan pula
-    BWPCurrency::BWPCurrency() {
-        static auto  bwpData = ext::make_shared<Data>("Botswanan pula", "BWP", 72, "P", "", 100, Rounding());
+    BWPCurrency::BWPCurrency()
+    {
+        static auto bwpData = ext::make_shared<Data>("Botswanan pula", "BWP", 72, "P", "", 100, Rounding());
         data_ = bwpData;
     }
 
     // Egyptian pound
-    EGPCurrency::EGPCurrency() {
-        static auto  egpData = ext::make_shared<Data>("Egyptian pound", "EGP", 818, "EGP", "", 100, Rounding());
+    EGPCurrency::EGPCurrency()
+    {
+        static auto egpData = ext::make_shared<Data>("Egyptian pound", "EGP", 818, "EGP", "", 100, Rounding());
         data_ = egpData;
     }
 
     // Ethiopian birr
-    ETBCurrency::ETBCurrency() {
-        static auto  etbData = ext::make_shared<Data>("Ethiopian birr", "ETB", 230, "ETB", "", 100, Rounding());
+    ETBCurrency::ETBCurrency()
+    {
+        static auto etbData = ext::make_shared<Data>("Ethiopian birr", "ETB", 230, "ETB", "", 100, Rounding());
         data_ = etbData;
     }
 
     // Ghanaian cedi
-    GHSCurrency::GHSCurrency() {
-        static auto  ghsData = ext::make_shared<Data>("Ghanaian cedi", "GHS", 936, "GHS", "", 100, Rounding());
+    GHSCurrency::GHSCurrency()
+    {
+        static auto ghsData = ext::make_shared<Data>("Ghanaian cedi", "GHS", 936, "GHS", "", 100, Rounding());
         data_ = ghsData;
     }
 
     // Kenyan shilling
-    KESCurrency::KESCurrency() {
-        static auto  kesData = ext::make_shared<Data>("Kenyan shilling", "KES", 404, "KES", "", 100, Rounding());
+    KESCurrency::KESCurrency()
+    {
+        static auto kesData = ext::make_shared<Data>("Kenyan shilling", "KES", 404, "KES", "", 100, Rounding());
         data_ = kesData;
     }
 
     // Moroccan dirham
-    MADCurrency::MADCurrency() {
-        static auto  madData = ext::make_shared<Data>("Moroccan dirham", "MAD", 504, "MAD", "", 100, Rounding());
+    MADCurrency::MADCurrency()
+    {
+        static auto madData = ext::make_shared<Data>("Moroccan dirham", "MAD", 504, "MAD", "", 100, Rounding());
         data_ = madData;
     }
 
     // Mauritian rupee
-    MURCurrency::MURCurrency() {
+    MURCurrency::MURCurrency()
+    {
         static auto murData = ext::make_shared<Data>("Mauritian rupee", "MUR", 480, "MUR", "", 100, Rounding());
         data_ = murData;
     }
 
     // Nigerian Naira
-    NGNCurrency::NGNCurrency() {
+    NGNCurrency::NGNCurrency()
+    {
         static auto ngnData = ext::make_shared<Data>("Nigerian Naira", "NGN", 566, "N", "K", 100, Rounding());
         data_ = ngnData;
     }
 
     // Tunisian dinar
-    TNDCurrency::TNDCurrency() {
+    TNDCurrency::TNDCurrency()
+    {
         static auto tndData = ext::make_shared<Data>("Tunisian dinar", "TND", 788, "TND", "", 1000, Rounding());
         data_ = tndData;
     }
 
     // Ugandan shilling
-    UGXCurrency::UGXCurrency() {
+    UGXCurrency::UGXCurrency()
+    {
         static auto ugxData = ext::make_shared<Data>("Ugandan shilling", "UGX", 800, "UGX", "", 1, Rounding());
         data_ = ugxData;
     }
 
     // West African CFA franc
-    XOFCurrency::XOFCurrency() {
+    XOFCurrency::XOFCurrency()
+    {
         static auto xofData = ext::make_shared<Data>("West African CFA franc", "XOF", 952, "XOF", "", 100, Rounding());
         data_ = xofData;
     }
 
     // South-African rand
-    ZARCurrency::ZARCurrency() {
+    ZARCurrency::ZARCurrency()
+    {
         static auto zarData = ext::make_shared<Data>("South-African rand", "ZAR", 710, "R", "", 100, Rounding());
         data_ = zarData;
     }
 
     // Zambian kwacha
-    ZMWCurrency::ZMWCurrency() {
+    ZMWCurrency::ZMWCurrency()
+    {
         static auto zmwData = ext::make_shared<Data>("Zambian kwacha", "ZMW", 967, "ZMW", "", 100, Rounding());
         data_ = zmwData;
     }

@@ -25,18 +25,19 @@
 #ifndef quantlib_smile_section_hpp
 #define quantlib_smile_section_hpp
 
+#include <ql/option.hpp>
 #include <ql/patterns/observable.hpp>
+#include <ql/termstructures/volatility/volatilitytype.hpp>
 #include <ql/time/daycounter.hpp>
 #include <ql/utilities/null.hpp>
-#include <ql/option.hpp>
-#include <ql/termstructures/volatility/volatilitytype.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! interest rate volatility smile section
     /*! This abstract class provides volatility smile section interface */
-    class SmileSection : public virtual Observable,
-                         public virtual Observer {
+    class SmileSection : public virtual Observable, public virtual Observer
+    {
       public:
         SmileSection(const Date& d,
                      DayCounter dc = DayCounter(),
@@ -58,30 +59,23 @@ namespace QuantLib {
         Volatility volatility(Rate strike) const;
         virtual Real atmLevel() const = 0;
         virtual const Date& exerciseDate() const { return exerciseDate_; }
-        virtual VolatilityType volatilityType() const {
-            return volatilityType_;
-        }
+        virtual VolatilityType volatilityType() const { return volatilityType_; }
         virtual Rate shift() const { return shift_; }
         virtual const Date& referenceDate() const;
         virtual Time exerciseTime() const { return exerciseTime_; }
         virtual const DayCounter& dayCounter() const { return dc_; }
-        virtual Real optionPrice(Rate strike,
-                                 Option::Type type = Option::Call,
-                                 Real discount=1.0) const;
-        virtual Real digitalOptionPrice(Rate strike,
-                                        Option::Type type = Option::Call,
-                                        Real discount=1.0,
-                                        Real gap=1.0e-5) const;
-        virtual Real vega(Rate strike,
-                          Real discount=1.0) const;
-        virtual Real density(Rate strike,
-                             Real discount=1.0,
-                             Real gap=1.0E-4) const;
-        Volatility volatility(Rate strike, VolatilityType type, Real shift=0.0) const;
+        virtual Real optionPrice(Rate strike, Option::Type type = Option::Call, Real discount = 1.0) const;
+        virtual Real
+        digitalOptionPrice(Rate strike, Option::Type type = Option::Call, Real discount = 1.0, Real gap = 1.0e-5) const;
+        virtual Real vega(Rate strike, Real discount = 1.0) const;
+        virtual Real density(Rate strike, Real discount = 1.0, Real gap = 1.0E-4) const;
+        Volatility volatility(Rate strike, VolatilityType type, Real shift = 0.0) const;
+
       protected:
         virtual void initializeExerciseTime() const;
         virtual Real varianceImpl(Rate strike) const;
         virtual Volatility volatilityImpl(Rate strike) const = 0;
+
       private:
         bool isFloating_;
         mutable Date referenceDate_;
@@ -95,23 +89,26 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline Real SmileSection::variance(Rate strike) const {
+    inline Real SmileSection::variance(Rate strike) const
+    {
         return varianceImpl(strike);
     }
 
-    inline Volatility SmileSection::volatility(Rate strike) const {
+    inline Volatility SmileSection::volatility(Rate strike) const
+    {
         return volatilityImpl(strike);
     }
 
-    inline const Date& SmileSection::referenceDate() const {
-        QL_REQUIRE(referenceDate_!=Date(),
-                   "referenceDate not available for this instance");
+    inline const Date& SmileSection::referenceDate() const
+    {
+        QL_REQUIRE(referenceDate_ != Date(), "referenceDate not available for this instance");
         return referenceDate_;
     }
 
-    inline Real SmileSection::varianceImpl(Rate strike) const {
+    inline Real SmileSection::varianceImpl(Rate strike) const
+    {
         Volatility v = volatilityImpl(strike);
-        return v*v*exerciseTime();
+        return v * v * exerciseTime();
     }
 
 }

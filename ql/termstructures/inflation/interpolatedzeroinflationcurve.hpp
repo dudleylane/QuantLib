@@ -25,19 +25,19 @@
 #ifndef quantlib_interpolated_zeroinflationcurve_hpp
 #define quantlib_interpolated_zeroinflationcurve_hpp
 
+#include <ql/math/interpolations/linearinterpolation.hpp>
 #include <ql/termstructures/inflationtermstructure.hpp>
 #include <ql/termstructures/interpolatedcurve.hpp>
-#include <ql/math/interpolations/linearinterpolation.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Inflation term structure based on the interpolation of zero rates.
     /*! \ingroup inflationtermstructures */
-    template<class Interpolator>
-    class InterpolatedZeroInflationCurve
-        : public ZeroInflationTermStructure,
-          protected InterpolatedCurve<Interpolator> {
+    template <class Interpolator>
+    class InterpolatedZeroInflationCurve : public ZeroInflationTermStructure, protected InterpolatedCurve<Interpolator>
+    {
       public:
         InterpolatedZeroInflationCurve(const Date& referenceDate,
                                        std::vector<Date> dates,
@@ -58,7 +58,7 @@ namespace QuantLib {
         const std::vector<Time>& times() const;
         const std::vector<Real>& data() const;
         const std::vector<Rate>& rates() const;
-        std::vector<std::pair<Date,Rate> > nodes() const;
+        std::vector<std::pair<Date, Rate>> nodes() const;
         //@}
 
       protected:
@@ -77,11 +77,10 @@ namespace QuantLib {
                                        Frequency frequency,
                                        const DayCounter& dayCounter,
                                        const ext::shared_ptr<Seasonality>& seasonality = {},
-                                       const Interpolator &interpolator = Interpolator());
+                                       const Interpolator& interpolator = Interpolator());
     };
 
     typedef InterpolatedZeroInflationCurve<Linear> ZeroInflationCurve;
-
 
 
     // template definitions
@@ -96,15 +95,15 @@ namespace QuantLib {
         const ext::shared_ptr<Seasonality>& seasonality,
         const Interpolator& interpolator)
     : ZeroInflationTermStructure(referenceDate, dates.at(0), frequency, dayCounter, seasonality),
-      InterpolatedCurve<Interpolator>(std::vector<Time>(), rates, interpolator),
-      dates_(std::move(dates)) {
+      InterpolatedCurve<Interpolator>(std::vector<Time>(), rates, interpolator), dates_(std::move(dates))
+    {
 
         QL_REQUIRE(dates_.size() > 1, "too few dates: " << dates_.size());
 
         QL_REQUIRE(this->data_.size() == dates_.size(),
-                   "indices/dates count mismatch: " << this->data_.size() << " vs "
-                                                    << dates_.size());
-        for (Size i = 1; i < dates_.size(); i++) {
+                   "indices/dates count mismatch: " << this->data_.size() << " vs " << dates_.size());
+        for (Size i = 1; i < dates_.size(); i++)
+        {
             // must be greater than -1
             QL_REQUIRE(this->data_[i] > -1.0, "zero inflation data < -100 %");
         }
@@ -115,59 +114,62 @@ namespace QuantLib {
     }
 
     template <class Interpolator>
-    InterpolatedZeroInflationCurve<Interpolator>::
-    InterpolatedZeroInflationCurve(const Date& referenceDate,
-                                   Date baseDate,
-                                   Frequency frequency,
-                                   const DayCounter& dayCounter,
-                                   const ext::shared_ptr<Seasonality>& seasonality,
-                                   const Interpolator& interpolator)
-    :  ZeroInflationTermStructure(referenceDate, baseDate, frequency, dayCounter, seasonality),
-       InterpolatedCurve<Interpolator>(interpolator) {
+    InterpolatedZeroInflationCurve<Interpolator>::InterpolatedZeroInflationCurve(
+        const Date& referenceDate,
+        Date baseDate,
+        Frequency frequency,
+        const DayCounter& dayCounter,
+        const ext::shared_ptr<Seasonality>& seasonality,
+        const Interpolator& interpolator)
+    : ZeroInflationTermStructure(referenceDate, baseDate, frequency, dayCounter, seasonality),
+      InterpolatedCurve<Interpolator>(interpolator)
+    {
     }
 
     template <class T>
-    Date InterpolatedZeroInflationCurve<T>::maxDate() const {
+    Date InterpolatedZeroInflationCurve<T>::maxDate() const
+    {
         if (this->maxDate_ != Date())
             return this->maxDate_;
         return dates_.back();
     }
 
     template <class T>
-    inline Rate InterpolatedZeroInflationCurve<T>::zeroRateImpl(Time t) const {
+    inline Rate InterpolatedZeroInflationCurve<T>::zeroRateImpl(Time t) const
+    {
         return this->interpolation_(t, true);
     }
 
     template <class T>
-    inline const std::vector<Time>&
-    InterpolatedZeroInflationCurve<T>::times() const {
+    inline const std::vector<Time>& InterpolatedZeroInflationCurve<T>::times() const
+    {
         return this->times_;
     }
 
     template <class T>
-    inline const std::vector<Date>&
-    InterpolatedZeroInflationCurve<T>::dates() const {
+    inline const std::vector<Date>& InterpolatedZeroInflationCurve<T>::dates() const
+    {
         return dates_;
     }
 
     template <class T>
-    inline const std::vector<Rate>&
-    InterpolatedZeroInflationCurve<T>::rates() const {
+    inline const std::vector<Rate>& InterpolatedZeroInflationCurve<T>::rates() const
+    {
         return this->data_;
     }
 
     template <class T>
-    inline const std::vector<Real>&
-    InterpolatedZeroInflationCurve<T>::data() const {
+    inline const std::vector<Real>& InterpolatedZeroInflationCurve<T>::data() const
+    {
         return this->data_;
     }
 
     template <class T>
-    inline std::vector<std::pair<Date,Rate> >
-    InterpolatedZeroInflationCurve<T>::nodes() const {
-        std::vector<std::pair<Date,Rate> > results(dates_.size());
-        for (Size i=0; i<dates_.size(); ++i)
-            results[i] = std::make_pair(dates_[i],this->data_[i]);
+    inline std::vector<std::pair<Date, Rate>> InterpolatedZeroInflationCurve<T>::nodes() const
+    {
+        std::vector<std::pair<Date, Rate>> results(dates_.size());
+        for (Size i = 0; i < dates_.size(); ++i)
+            results[i] = std::make_pair(dates_[i], this->data_[i]);
         return results;
     }
 

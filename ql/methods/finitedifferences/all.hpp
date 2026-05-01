@@ -10,16 +10,15 @@
 #include <ql/methods/finitedifferences/expliciteuler.hpp>
 #include <ql/methods/finitedifferences/finitedifferencemodel.hpp>
 #include <ql/methods/finitedifferences/impliciteuler.hpp>
-#include <ql/methods/finitedifferences/mixedscheme.hpp>
-#include <ql/methods/finitedifferences/operatortraits.hpp>
-#include <ql/methods/finitedifferences/stepcondition.hpp>
-#include <ql/methods/finitedifferences/trbdf2.hpp>
-#include <ql/methods/finitedifferences/tridiagonaloperator.hpp>
-#include <ql/methods/finitedifferences/zerocondition.hpp>
-
 #include <ql/methods/finitedifferences/meshers/all.hpp>
+#include <ql/methods/finitedifferences/mixedscheme.hpp>
 #include <ql/methods/finitedifferences/operators/all.hpp>
+#include <ql/methods/finitedifferences/operatortraits.hpp>
 #include <ql/methods/finitedifferences/schemes/all.hpp>
 #include <ql/methods/finitedifferences/solvers/all.hpp>
+#include <ql/methods/finitedifferences/stepcondition.hpp>
 #include <ql/methods/finitedifferences/stepconditions/all.hpp>
+#include <ql/methods/finitedifferences/trbdf2.hpp>
+#include <ql/methods/finitedifferences/tridiagonaloperator.hpp>
 #include <ql/methods/finitedifferences/utilities/all.hpp>
+#include <ql/methods/finitedifferences/zerocondition.hpp>

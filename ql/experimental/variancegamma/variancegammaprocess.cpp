@@ -23,7 +23,8 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #include <ql/processes/eulerdiscretization.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     VarianceGammaProcess::VarianceGammaProcess(Handle<Quote> s0,
                                                Handle<YieldTermStructure> dividendYield,
@@ -31,9 +32,10 @@ namespace QuantLib {
                                                Real sigma,
                                                Real nu,
                                                Real theta)
-    : StochasticProcess1D(ext::shared_ptr<discretization>(new EulerDiscretization)),
-      s0_(std::move(s0)), dividendYield_(std::move(dividendYield)),
-      riskFreeRate_(std::move(riskFreeRate)), sigma_(sigma), nu_(nu), theta_(theta) {
+    : StochasticProcess1D(ext::shared_ptr<discretization>(new EulerDiscretization)), s0_(std::move(s0)),
+      dividendYield_(std::move(dividendYield)), riskFreeRate_(std::move(riskFreeRate)), sigma_(sigma), nu_(nu),
+      theta_(theta)
+    {
         registerWith(riskFreeRate_);
         registerWith(dividendYield_);
         registerWith(s0_);
@@ -54,15 +56,18 @@ namespace QuantLib {
         QL_FAIL("not implemented yet");
     }
 
-    const Handle<Quote>& VarianceGammaProcess::s0() const {
+    const Handle<Quote>& VarianceGammaProcess::s0() const
+    {
         return s0_;
     }
 
-    const Handle<YieldTermStructure>& VarianceGammaProcess::dividendYield() const {
+    const Handle<YieldTermStructure>& VarianceGammaProcess::dividendYield() const
+    {
         return dividendYield_;
     }
 
-    const Handle<YieldTermStructure>& VarianceGammaProcess::riskFreeRate() const {
+    const Handle<YieldTermStructure>& VarianceGammaProcess::riskFreeRate() const
+    {
         return riskFreeRate_;
     }
 

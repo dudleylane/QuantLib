@@ -29,13 +29,15 @@
 #include <ql/instruments/capfloor.hpp>
 #include <ql/termstructures/volatility/optionlet/optionletvolatilitystructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Quote;
 
     //! Black-formula cap/floor engine
     /*! \ingroup capfloorengines */
-    class BlackCapFloorEngine : public CapFloor::engine {
+    class BlackCapFloorEngine : public CapFloor::engine
+    {
       public:
         BlackCapFloorEngine(Handle<YieldTermStructure> discountCurve,
                             Volatility vol,

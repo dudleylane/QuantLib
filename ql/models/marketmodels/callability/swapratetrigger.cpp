@@ -21,55 +21,60 @@
 #include <ql/models/marketmodels/utilities.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     SwapRateTrigger::SwapRateTrigger(const std::vector<Time>& rateTimes,
                                      std::vector<Rate> swapTriggers,
                                      const std::vector<Time>& exerciseTimes)
     : rateTimes_(rateTimes), swapTriggers_(std::move(swapTriggers)), exerciseTimes_(exerciseTimes),
-      rateIndex_(exerciseTimes.size()) {
+      rateIndex_(exerciseTimes.size())
+    {
 
         checkIncreasingTimes(rateTimes);
-        QL_REQUIRE(rateTimes.size()>1,
-                   "Rate times must contain at least two values");
+        QL_REQUIRE(rateTimes.size() > 1, "Rate times must contain at least two values");
 
         checkIncreasingTimes(exerciseTimes);
 
-        QL_REQUIRE(swapTriggers_.size()==exerciseTimes_.size(),
-                   "swapTriggers/exerciseTimes mismatch");
+        QL_REQUIRE(swapTriggers_.size() == exerciseTimes_.size(), "swapTriggers/exerciseTimes mismatch");
         Size j = 0;
-        for (Size i=0; i<exerciseTimes.size(); ++i) {
+        for (Size i = 0; i < exerciseTimes.size(); ++i)
+        {
             while (j < rateTimes.size() && rateTimes[j] < exerciseTimes[i])
                 ++j;
             rateIndex_[i] = j;
         }
     }
 
-    std::vector<Time> SwapRateTrigger::exerciseTimes() const {
+    std::vector<Time> SwapRateTrigger::exerciseTimes() const
+    {
         return exerciseTimes_;
     }
 
-    std::vector<Time> SwapRateTrigger::relevantTimes() const {
+    std::vector<Time> SwapRateTrigger::relevantTimes() const
+    {
         return exerciseTimes_;
     }
 
-    void SwapRateTrigger::reset() {
-        currentIndex_=0;
+    void SwapRateTrigger::reset()
+    {
+        currentIndex_ = 0;
     }
 
-    bool SwapRateTrigger::exercise(const CurveState& currentState) const {
-        Size rateIndex = rateIndex_[currentIndex_-1];
-        Rate currentSwapRate =
-            currentState.coterminalSwapRate(rateIndex);
-        return swapTriggers_[currentIndex_-1]<currentSwapRate;
+    bool SwapRateTrigger::exercise(const CurveState& currentState) const
+    {
+        Size rateIndex = rateIndex_[currentIndex_ - 1];
+        Rate currentSwapRate = currentState.coterminalSwapRate(rateIndex);
+        return swapTriggers_[currentIndex_ - 1] < currentSwapRate;
     }
 
-    void SwapRateTrigger::nextStep(const CurveState&) {
+    void SwapRateTrigger::nextStep(const CurveState&)
+    {
         ++currentIndex_;
     }
 
-    std::unique_ptr<ExerciseStrategy<CurveState>>
-    SwapRateTrigger::clone() const {
+    std::unique_ptr<ExerciseStrategy<CurveState>> SwapRateTrigger::clone() const
+    {
         return std::unique_ptr<ExerciseStrategy<CurveState>>(new SwapRateTrigger(*this));
     }
 

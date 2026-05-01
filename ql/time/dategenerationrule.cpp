@@ -18,36 +18,39 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/errors.hpp>
 #include <ql/time/dategenerationrule.hpp>
 #include <ql/types.hpp>
-#include <ql/errors.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    std::ostream& operator<<(std::ostream& out, DateGeneration::Rule r) {
-        switch (r) {
-          case DateGeneration::Backward:
-            return out << "Backward";
-          case DateGeneration::Forward:
-            return out << "Forward";
-          case DateGeneration::Zero:
-            return out << "Zero";
-          case DateGeneration::ThirdWednesday:
-            return out << "ThirdWednesday";
-          case DateGeneration::ThirdWednesdayInclusive:
-            return out << "ThirdWednesdayInclusive";
-          case DateGeneration::Twentieth:
-            return out << "Twentieth";
-          case DateGeneration::TwentiethIMM:
-            return out << "TwentiethIMM";
-          case DateGeneration::OldCDS:
-            return out << "OldCDS";
-          case DateGeneration::CDS:
-            return out << "CDS";
-          case DateGeneration::CDS2015:
-            return out << "CDS2015";
-          default:
-            QL_FAIL("unknown DateGeneration::Rule (" << Integer(r) << ")");
+    std::ostream& operator<<(std::ostream& out, DateGeneration::Rule r)
+    {
+        switch (r)
+        {
+            case DateGeneration::Backward:
+                return out << "Backward";
+            case DateGeneration::Forward:
+                return out << "Forward";
+            case DateGeneration::Zero:
+                return out << "Zero";
+            case DateGeneration::ThirdWednesday:
+                return out << "ThirdWednesday";
+            case DateGeneration::ThirdWednesdayInclusive:
+                return out << "ThirdWednesdayInclusive";
+            case DateGeneration::Twentieth:
+                return out << "Twentieth";
+            case DateGeneration::TwentiethIMM:
+                return out << "TwentiethIMM";
+            case DateGeneration::OldCDS:
+                return out << "OldCDS";
+            case DateGeneration::CDS:
+                return out << "CDS";
+            case DateGeneration::CDS2015:
+                return out << "CDS2015";
+            default:
+                QL_FAIL("unknown DateGeneration::Rule (" << Integer(r) << ")");
         }
     }
 

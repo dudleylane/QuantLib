@@ -27,20 +27,17 @@
 #include <ql/experimental/callablebonds/callablebondvolstructure.hpp>
 #include <ql/time/period.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Quote;
 
     //! Constant callable-bond volatility, no time-strike dependence
-    class CallableBondConstantVolatility
-        : public CallableBondVolatilityStructure {
+    class CallableBondConstantVolatility : public CallableBondVolatilityStructure
+    {
       public:
-        CallableBondConstantVolatility(const Date& referenceDate,
-                                       Volatility volatility,
-                                       DayCounter dayCounter);
-        CallableBondConstantVolatility(const Date& referenceDate,
-                                       Handle<Quote> volatility,
-                                       DayCounter dayCounter);
+        CallableBondConstantVolatility(const Date& referenceDate, Volatility volatility, DayCounter dayCounter);
+        CallableBondConstantVolatility(const Date& referenceDate, Handle<Quote> volatility, DayCounter dayCounter);
         CallableBondConstantVolatility(Natural settlementDays,
                                        const Calendar&,
                                        Volatility volatility,
@@ -63,8 +60,7 @@ namespace QuantLib {
 
       protected:
         Volatility volatilityImpl(Time, Time, Rate) const override;
-        ext::shared_ptr<SmileSection> smileSectionImpl(Time optionTime,
-                                                       Time bondLength) const override;
+        ext::shared_ptr<SmileSection> smileSectionImpl(Time optionTime, Time bondLength) const override;
         Volatility volatilityImpl(const Date&, const Period&, Rate) const override;
         //@}
       private:
@@ -76,23 +72,26 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline const Period& CallableBondConstantVolatility::maxBondTenor() const {
+    inline const Period& CallableBondConstantVolatility::maxBondTenor() const
+    {
         return maxBondTenor_;
     }
 
-    inline Time CallableBondConstantVolatility::maxBondLength() const {
+    inline Time CallableBondConstantVolatility::maxBondLength() const
+    {
         return QL_MAX_REAL;
     }
 
-    inline Real CallableBondConstantVolatility::minStrike() const {
+    inline Real CallableBondConstantVolatility::minStrike() const
+    {
         return QL_MIN_REAL;
     }
 
-    inline Real CallableBondConstantVolatility::maxStrike() const {
+    inline Real CallableBondConstantVolatility::maxStrike() const
+    {
         return QL_MAX_REAL;
     }
 
 }
 
 #endif
-

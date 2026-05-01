@@ -27,7 +27,8 @@
 #include <ql/compounding.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Concrete interest rate class
     /*! This class encapsulate the interest rate compounding algebra.
@@ -37,7 +38,8 @@ namespace QuantLib {
 
         \test Converted rates are checked against known good results
     */
-    class InterestRate {
+    class InterestRate
+    {
       public:
         //! \name constructors
         //@{
@@ -55,9 +57,7 @@ namespace QuantLib {
         Rate rate() const { return r_; }
         const DayCounter& dayCounter() const { return dc_; }
         Compounding compounding() const { return comp_; }
-        Frequency frequency() const {
-            return freqMakesSense_ ? Frequency(Integer(freq_)) : NoFrequency;
-        }
+        Frequency frequency() const { return freqMakesSense_ ? Frequency(Integer(freq_)) : NoFrequency; }
         //@}
 
         //! \name discount/compound factor calculations
@@ -66,18 +66,16 @@ namespace QuantLib {
         /*! \warning Time must be measured using InterestRate's own
                      day counter.
         */
-        DiscountFactor discountFactor(Time t) const {
-            return 1.0/compoundFactor(t);
-        }
+        DiscountFactor discountFactor(Time t) const { return 1.0 / compoundFactor(t); }
 
         //! discount factor implied by the rate compounded between two dates
-        DiscountFactor discountFactor(const Date& d1,
-                                      const Date& d2,
-                                      const Date& refStart = Date(),
-                                      const Date& refEnd = Date()) const {
-            QL_REQUIRE(d2>=d1,
-                       "d1 (" << d1 << ") "
-                       "later than d2 (" << d2 << ")");
+        DiscountFactor
+        discountFactor(const Date& d1, const Date& d2, const Date& refStart = Date(), const Date& refEnd = Date()) const
+        {
+            QL_REQUIRE(d2 >= d1, "d1 (" << d1
+                                        << ") "
+                                           "later than d2 ("
+                                        << d2 << ")");
             Time t = dc_.yearFraction(d1, d2, refStart, refEnd);
             return discountFactor(t);
         }
@@ -95,13 +93,13 @@ namespace QuantLib {
         /*! returns the compound (a.k.a capitalization) factor
             implied by the rate compounded between two dates.
         */
-        Real compoundFactor(const Date& d1,
-                            const Date& d2,
-                            const Date& refStart = Date(),
-                            const Date& refEnd = Date()) const {
-            QL_REQUIRE(d2>=d1,
-                       "d1 (" << d1 << ") "
-                       "later than d2 (" << d2 << ")");
+        Real
+        compoundFactor(const Date& d1, const Date& d2, const Date& refStart = Date(), const Date& refEnd = Date()) const
+        {
+            QL_REQUIRE(d2 >= d1, "d1 (" << d1
+                                        << ") "
+                                           "later than d2 ("
+                                        << d2 << ")");
             Time t = dc_.yearFraction(d1, d2, refStart, refEnd);
             return compoundFactor(t);
         }
@@ -116,11 +114,8 @@ namespace QuantLib {
             \warning Time must be measured using the day-counter provided
                      as input.
         */
-        static InterestRate impliedRate(Real compound,
-                                        const DayCounter& resultDC,
-                                        Compounding comp,
-                                        Frequency freq,
-                                        Time t);
+        static InterestRate
+        impliedRate(Real compound, const DayCounter& resultDC, Compounding comp, Frequency freq, Time t);
 
         //! implied rate for a given compound factor between two dates.
         /*! The resulting rate is calculated taking the required
@@ -133,10 +128,12 @@ namespace QuantLib {
                                         const Date& d1,
                                         const Date& d2,
                                         const Date& refStart = Date(),
-                                        const Date& refEnd = Date()) {
-            QL_REQUIRE(d2>=d1,
-                       "d1 (" << d1 << ") "
-                       "later than d2 (" << d2 << ")");
+                                        const Date& refEnd = Date())
+        {
+            QL_REQUIRE(d2 >= d1, "d1 (" << d1
+                                        << ") "
+                                           "later than d2 ("
+                                        << d2 << ")");
             Time t = resultDC.yearFraction(d1, d2, refStart, refEnd);
             return impliedRate(compound, resultDC, comp, freq, t);
         }
@@ -152,9 +149,8 @@ namespace QuantLib {
             \warning Time must be measured using the InterestRate's
                      own day counter.
         */
-        InterestRate equivalentRate(Compounding comp,
-                                    Frequency freq,
-                                    Time t) const {
+        InterestRate equivalentRate(Compounding comp, Frequency freq, Time t) const
+        {
             return impliedRate(compoundFactor(t), dc_, comp, freq, t);
         }
 
@@ -168,10 +164,12 @@ namespace QuantLib {
                                     Date d1,
                                     Date d2,
                                     const Date& refStart = Date(),
-                                    const Date& refEnd = Date()) const {
-            QL_REQUIRE(d2>=d1,
-                       "d1 (" << d1 << ") "
-                       "later than d2 (" << d2 << ")");
+                                    const Date& refEnd = Date()) const
+        {
+            QL_REQUIRE(d2 >= d1, "d1 (" << d1
+                                        << ") "
+                                           "later than d2 ("
+                                        << d2 << ")");
             Time t1 = dc_.yearFraction(d1, d2, refStart, refEnd);
             Time t2 = resultDC.yearFraction(d1, d2, refStart, refEnd);
             return impliedRate(compoundFactor(t1), resultDC, comp, freq, t2);
@@ -186,8 +184,7 @@ namespace QuantLib {
     };
 
     /*! \relates InterestRate */
-    std::ostream& operator<<(std::ostream&,
-                             const InterestRate&);
+    std::ostream& operator<<(std::ostream&, const InterestRate&);
 
 }
 

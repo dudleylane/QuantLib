@@ -22,16 +22,18 @@
 #include <ql/time/imm.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     FuturesConvAdjustmentQuote::FuturesConvAdjustmentQuote(const ext::shared_ptr<IborIndex>& index,
                                                            const Date& futuresDate,
                                                            Handle<Quote> futuresQuote,
                                                            Handle<Quote> volatility,
                                                            Handle<Quote> meanReversion)
-    : dc_(index->dayCounter()), futuresDate_(futuresDate),
-      indexMaturityDate_(index->maturityDate(futuresDate_)), futuresQuote_(std::move(futuresQuote)),
-      volatility_(std::move(volatility)), meanReversion_(std::move(meanReversion)) {
+    : dc_(index->dayCounter()), futuresDate_(futuresDate), indexMaturityDate_(index->maturityDate(futuresDate_)),
+      futuresQuote_(std::move(futuresQuote)), volatility_(std::move(volatility)),
+      meanReversion_(std::move(meanReversion))
+    {
 
         registerWith(futuresQuote_);
         registerWith(volatility_);
@@ -44,27 +46,27 @@ namespace QuantLib {
                                                            Handle<Quote> futuresQuote,
                                                            Handle<Quote> volatility,
                                                            Handle<Quote> meanReversion)
-    : FuturesConvAdjustmentQuote(index, IMM::date(immCode), std::move(futuresQuote),
-                                 std::move(volatility), std::move(meanReversion)) {}
+    : FuturesConvAdjustmentQuote(
+          index, IMM::date(immCode), std::move(futuresQuote), std::move(volatility), std::move(meanReversion))
+    {
+    }
 
-    Real FuturesConvAdjustmentQuote::value() const {
-        if (rate_ == Null<Real>()) {
+    Real FuturesConvAdjustmentQuote::value() const
+    {
+        if (rate_ == Null<Real>())
+        {
             Date settlementDate = Settings::instance().evaluationDate();
             Time startTime = dc_.yearFraction(settlementDate, futuresDate_);
-            Time indexMaturity = dc_.yearFraction(settlementDate,
-                                                  indexMaturityDate_);
-            rate_ = HullWhite::convexityBias(futuresQuote_->value(),
-                                             startTime,
-                                             indexMaturity,
-                                             volatility_->value(),
+            Time indexMaturity = dc_.yearFraction(settlementDate, indexMaturityDate_);
+            rate_ = HullWhite::convexityBias(futuresQuote_->value(), startTime, indexMaturity, volatility_->value(),
                                              meanReversion_->value());
         }
         return rate_;
     }
 
-    bool FuturesConvAdjustmentQuote::isValid() const {
-        return !futuresQuote_.empty() && !volatility_.empty() &&
-               !meanReversion_.empty() && futuresQuote_->isValid() &&
+    bool FuturesConvAdjustmentQuote::isValid() const
+    {
+        return !futuresQuote_.empty() && !volatility_.empty() && !meanReversion_.empty() && futuresQuote_->isValid() &&
                volatility_->isValid() && meanReversion_->isValid();
     }
 }

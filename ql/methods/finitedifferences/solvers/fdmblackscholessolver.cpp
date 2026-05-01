@@ -25,7 +25,8 @@
 #include <ql/processes/blackscholesprocess.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     FdmBlackScholesSolver::FdmBlackScholesSolver(Handle<GeneralizedBlackScholesProcess> process,
                                                  Real strike,
@@ -34,43 +35,43 @@ namespace QuantLib {
                                                  bool localVol,
                                                  Real illegalLocalVolOverwrite,
                                                  Handle<FdmQuantoHelper> quantoHelper)
-    : process_(std::move(process)), strike_(strike), solverDesc_(std::move(solverDesc)),
-      schemeDesc_(schemeDesc), localVol_(localVol),
-      illegalLocalVolOverwrite_(illegalLocalVolOverwrite), quantoHelper_(std::move(quantoHelper)) {
+    : process_(std::move(process)), strike_(strike), solverDesc_(std::move(solverDesc)), schemeDesc_(schemeDesc),
+      localVol_(localVol), illegalLocalVolOverwrite_(illegalLocalVolOverwrite), quantoHelper_(std::move(quantoHelper))
+    {
 
         registerWith(process_);
         registerWith(quantoHelper_);
     }
 
-    void FdmBlackScholesSolver::performCalculations() const {
-            const ext::shared_ptr<FdmBlackScholesOp> op(
-            ext::make_shared<FdmBlackScholesOp>(
-                solverDesc_.mesher, process_.currentLink(), strike_,
-                localVol_, illegalLocalVolOverwrite_, 0,
-                (quantoHelper_.empty())
-                    ? ext::shared_ptr<FdmQuantoHelper>()
-                    : quantoHelper_.currentLink()));
+    void FdmBlackScholesSolver::performCalculations() const
+    {
+        const ext::shared_ptr<FdmBlackScholesOp> op(ext::make_shared<FdmBlackScholesOp>(
+            solverDesc_.mesher, process_.currentLink(), strike_, localVol_, illegalLocalVolOverwrite_, 0,
+            (quantoHelper_.empty()) ? ext::shared_ptr<FdmQuantoHelper>() : quantoHelper_.currentLink()));
 
         solver_ = ext::make_shared<Fdm1DimSolver>(solverDesc_, schemeDesc_, op);
     }
 
-    Real FdmBlackScholesSolver::valueAt(Real s) const {
+    Real FdmBlackScholesSolver::valueAt(Real s) const
+    {
         calculate();
         return solver_->interpolateAt(std::log(s));
     }
 
-    Real FdmBlackScholesSolver::deltaAt(Real s) const {
+    Real FdmBlackScholesSolver::deltaAt(Real s) const
+    {
         calculate();
-        return solver_->derivativeX(std::log(s))/s;
+        return solver_->derivativeX(std::log(s)) / s;
     }
 
-    Real FdmBlackScholesSolver::gammaAt(Real s) const {
+    Real FdmBlackScholesSolver::gammaAt(Real s) const
+    {
         calculate();
-        return (solver_->derivativeXX(std::log(s))
-                -solver_->derivativeX(std::log(s)))/(s*s);
+        return (solver_->derivativeXX(std::log(s)) - solver_->derivativeX(std::log(s))) / (s * s);
     }
 
-    Real FdmBlackScholesSolver::thetaAt(Real s) const {
+    Real FdmBlackScholesSolver::thetaAt(Real s) const
+    {
         return solver_->thetaAt(std::log(s));
     }
 }

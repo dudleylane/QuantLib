@@ -18,26 +18,27 @@
 */
 
 #include <ql/cashflows/replication.hpp>
-#include <ql/types.hpp>
 #include <ql/errors.hpp>
+#include <ql/types.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    std::ostream& operator<<(std::ostream& out, Replication::Type r) {
-        switch (r) {
-          case Replication::Sub :
-            return out << "Sub";
-          case Replication::Central :
-            return out << "Central";
-          case Replication::Super :
-            return out << "Super";
-          default:
-            QL_FAIL("unknown Replication Type (" << Integer(r) << ")");
+    std::ostream& operator<<(std::ostream& out, Replication::Type r)
+    {
+        switch (r)
+        {
+            case Replication::Sub:
+                return out << "Sub";
+            case Replication::Central:
+                return out << "Central";
+            case Replication::Super:
+                return out << "Super";
+            default:
+                QL_FAIL("unknown Replication Type (" << Integer(r) << ")");
         }
     }
 
-    DigitalReplication::DigitalReplication(Replication::Type t, Real gap)
-    : gap_(gap), replicationType_(t) {}
+    DigitalReplication::DigitalReplication(Replication::Type t, Real gap) : gap_(gap), replicationType_(t) {}
 
 }
-

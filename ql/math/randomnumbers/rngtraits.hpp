@@ -26,31 +26,36 @@
 #ifndef quantlib_rng_traits_hpp
 #define quantlib_rng_traits_hpp
 
-#include <ql/methods/montecarlo/pathgenerator.hpp>
-#include <ql/math/randomnumbers/mt19937uniformrng.hpp>
-#include <ql/math/randomnumbers/inversecumulativerng.hpp>
-#include <ql/math/randomnumbers/randomsequencegenerator.hpp>
-#include <ql/math/randomnumbers/sobolrsg.hpp>
-#include <ql/math/randomnumbers/inversecumulativersg.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/math/distributions/poissondistribution.hpp>
+#include <ql/math/randomnumbers/inversecumulativerng.hpp>
+#include <ql/math/randomnumbers/inversecumulativersg.hpp>
+#include <ql/math/randomnumbers/mt19937uniformrng.hpp>
+#include <ql/math/randomnumbers/randomsequencegenerator.hpp>
+#include <ql/math/randomnumbers/sobolrsg.hpp>
+#include <ql/methods/montecarlo/pathgenerator.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     // random number traits
 
     template <class URNG, class IC>
-    struct GenericPseudoRandom {
+    struct GenericPseudoRandom
+    {
         // typedefs
         typedef URNG urng_type;
-        typedef InverseCumulativeRng<urng_type,IC> rng_type;
+        typedef InverseCumulativeRng<urng_type, IC> rng_type;
         typedef RandomSequenceGenerator<urng_type> ursg_type;
-        typedef InverseCumulativeRsg<ursg_type,IC> rsg_type;
+        typedef InverseCumulativeRsg<ursg_type, IC> rsg_type;
         // more traits
-        enum { allowsErrorEstimate = 1 };
+        enum
+        {
+            allowsErrorEstimate = 1
+        };
         // factory
-        static rsg_type make_sequence_generator(Size dimension,
-                                                BigNatural seed) {
+        static rsg_type make_sequence_generator(Size dimension, BigNatural seed)
+        {
             ursg_type g(dimension, seed);
             return (icInstance ? rsg_type(g, *icInstance) : rsg_type(g));
         }
@@ -59,7 +64,7 @@ namespace QuantLib {
     };
 
     // static member initialization
-    template<class URNG, class IC>
+    template <class URNG, class IC>
     ext::shared_ptr<IC> GenericPseudoRandom<URNG, IC>::icInstance;
 
 
@@ -67,27 +72,29 @@ namespace QuantLib {
     /*! \test a sequence generator is generated and tested by comparing
               samples against known good values.
     */
-    typedef GenericPseudoRandom<MersenneTwisterUniformRng,
-                                InverseCumulativeNormal> PseudoRandom;
+    typedef GenericPseudoRandom<MersenneTwisterUniformRng, InverseCumulativeNormal> PseudoRandom;
 
     //! traits for Poisson-distributed pseudo-random number generation
     /*! \test sequence generators are generated and tested by comparing
               samples against known good values.
     */
-    typedef GenericPseudoRandom<MersenneTwisterUniformRng,
-                                InverseCumulativePoisson> PoissonPseudoRandom;
+    typedef GenericPseudoRandom<MersenneTwisterUniformRng, InverseCumulativePoisson> PoissonPseudoRandom;
 
 
     template <class URSG, class IC>
-    struct GenericLowDiscrepancy {
+    struct GenericLowDiscrepancy
+    {
         // typedefs
         typedef URSG ursg_type;
-        typedef InverseCumulativeRsg<ursg_type,IC> rsg_type;
+        typedef InverseCumulativeRsg<ursg_type, IC> rsg_type;
         // more traits
-        enum { allowsErrorEstimate = 0 };
+        enum
+        {
+            allowsErrorEstimate = 0
+        };
         // factory
-        static rsg_type make_sequence_generator(Size dimension,
-                                                BigNatural seed) {
+        static rsg_type make_sequence_generator(Size dimension, BigNatural seed)
+        {
             ursg_type g(dimension, seed);
             return (icInstance ? rsg_type(g, *icInstance) : rsg_type(g));
         }
@@ -96,13 +103,12 @@ namespace QuantLib {
     };
 
     // static member initialization
-    template<class URSG, class IC>
+    template <class URSG, class IC>
     ext::shared_ptr<IC> GenericLowDiscrepancy<URSG, IC>::icInstance;
 
 
     //! default traits for low-discrepancy sequence generation
-    typedef GenericLowDiscrepancy<SobolRsg,
-                                  InverseCumulativeNormal> LowDiscrepancy;
+    typedef GenericLowDiscrepancy<SobolRsg, InverseCumulativeNormal> LowDiscrepancy;
 
 }
 

@@ -31,16 +31,17 @@
 #include <ql/pricingengines/mcsimulation.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
 
-    namespace detail {
+    namespace detail
+    {
 
-        class PastFixingsOnly : public Error {
+        class PastFixingsOnly : public Error
+        {
           public:
-            PastFixingsOnly()
-            : Error("n/a", 0, "n/a",
-                    "all fixings are in the past") {}
+            PastFixingsOnly() : Error("n/a", 0, "n/a", "all fixings are in the past") {}
         };
 
     }
@@ -50,19 +51,14 @@ namespace QuantLib {
         \ingroup asianengines
     */
 
-    template<template <class> class MC,
-             class RNG = PseudoRandom, class S = Statistics>
-    class MCDiscreteAveragingAsianEngineBase :
-                                public DiscreteAveragingAsianOption::engine,
-                                public McSimulation<MC,RNG,S> {
+    template <template <class> class MC, class RNG = PseudoRandom, class S = Statistics>
+    class MCDiscreteAveragingAsianEngineBase : public DiscreteAveragingAsianOption::engine,
+                                               public McSimulation<MC, RNG, S>
+    {
       public:
-        typedef
-        typename McSimulation<MC,RNG,S>::path_generator_type
-            path_generator_type;
-        typedef typename McSimulation<MC,RNG,S>::path_pricer_type
-            path_pricer_type;
-        typedef typename McSimulation<MC,RNG,S>::stats_type
-            stats_type;
+        typedef typename McSimulation<MC, RNG, S>::path_generator_type path_generator_type;
+        typedef typename McSimulation<MC, RNG, S>::path_pricer_type path_pricer_type;
+        typedef typename McSimulation<MC, RNG, S>::stats_type stats_type;
         // constructor
         MCDiscreteAveragingAsianEngineBase(ext::shared_ptr<StochasticProcess> process,
                                            bool brownianBridge,
@@ -75,12 +71,14 @@ namespace QuantLib {
                                            Size timeSteps = Null<Size>(),
                                            Size timeStepsPerYear = Null<Size>(),
                                            bool includeExerciseDate = false);
-        void calculate() const override {
-            try {
-                McSimulation<MC,RNG,S>::calculate(requiredTolerance_,
-                                                  requiredSamples_,
-                                                  maxSamples_);
-            } catch (detail::PastFixingsOnly&) {
+        void calculate() const override
+        {
+            try
+            {
+                McSimulation<MC, RNG, S>::calculate(requiredTolerance_, requiredSamples_, maxSamples_);
+            }
+            catch (detail::PastFixingsOnly&)
+            {
                 // Ideally, here we could calculate the payoff (which
                 // is fully determine) and write it into the results.
                 // This would probably need a new virtual method that
@@ -90,15 +88,15 @@ namespace QuantLib {
 
             results_.value = this->mcModel_->sampleAccumulator().mean();
 
-            if (this->controlVariate_) {
+            if (this->controlVariate_)
+            {
                 // control variate might lead to small negative
                 // option values for deep OTM options
                 this->results_.value = std::max(0.0, this->results_.value);
             }
 
             if constexpr (RNG::allowsErrorEstimate)
-                results_.errorEstimate =
-                    this->mcModel_->sampleAccumulator().errorEstimate();
+                results_.errorEstimate = this->mcModel_->sampleAccumulator().errorEstimate();
 
             // Allow inspection of the timeGrid via additional results
             this->results_.additionalResults["TimeGrid"] = this->timeGrid();
@@ -107,15 +105,13 @@ namespace QuantLib {
       protected:
         // McSimulation implementation
         TimeGrid timeGrid() const override;
-        ext::shared_ptr<path_generator_type> pathGenerator() const override {
+        ext::shared_ptr<path_generator_type> pathGenerator() const override
+        {
 
             Size dimensions = process_->factors();
             TimeGrid grid = this->timeGrid();
-            typename RNG::rsg_type gen =
-                RNG::make_sequence_generator(dimensions*(grid.size()-1),seed_);
-            return ext::shared_ptr<path_generator_type>(
-                         new path_generator_type(process_, grid,
-                                                 gen, brownianBridge_));
+            typename RNG::rsg_type gen = RNG::make_sequence_generator(dimensions * (grid.size() - 1), seed_);
+            return ext::shared_ptr<path_generator_type>(new path_generator_type(process_, grid, gen, brownianBridge_));
         }
         Real controlVariateValue() const override;
         // data members
@@ -145,25 +141,28 @@ namespace QuantLib {
         bool includeExerciseDate)
     : McSimulation<MC, RNG, S>(antitheticVariate, controlVariate), process_(std::move(process)),
       requiredSamples_(requiredSamples), maxSamples_(maxSamples), timeSteps_(timeSteps),
-      timeStepsPerYear_(timeStepsPerYear), requiredTolerance_(requiredTolerance),
-      brownianBridge_(brownianBridge), seed_(seed), includeExerciseDate_(includeExerciseDate) {
+      timeStepsPerYear_(timeStepsPerYear), requiredTolerance_(requiredTolerance), brownianBridge_(brownianBridge),
+      seed_(seed), includeExerciseDate_(includeExerciseDate)
+    {
         registerWith(process_);
     }
 
     template <template <class> class MC, class RNG, class S>
-    inline TimeGrid MCDiscreteAveragingAsianEngineBase<MC,RNG,S>::timeGrid() const {
+    inline TimeGrid MCDiscreteAveragingAsianEngineBase<MC, RNG, S>::timeGrid() const
+    {
 
         std::vector<Time> fixingTimes;
         Size i;
-        for (i=0; i<arguments_.fixingDates.size(); i++) {
+        for (i = 0; i < arguments_.fixingDates.size(); i++)
+        {
             Time t = process_->time(arguments_.fixingDates[i]);
-            if (t>=0) {
+            if (t >= 0)
+            {
                 fixingTimes.push_back(t);
             }
         }
 
-        if (fixingTimes.empty() ||
-            (fixingTimes.size() == 1 && fixingTimes.front() == 0.0))
+        if (fixingTimes.empty() || (fixingTimes.size() == 1 && fixingTimes.front() == 0.0))
             throw detail::PastFixingsOnly();
 
         // Some models (eg. Heston) might request additional points in
@@ -174,35 +173,34 @@ namespace QuantLib {
         if (includeExerciseDate_ && t > fixingTimes.back())
             fixingTimes.push_back(t);
 
-        if (this->timeSteps_ != Null<Size>()) {
+        if (this->timeSteps_ != Null<Size>())
+        {
             return TimeGrid(fixingTimes.begin(), fixingTimes.end(), timeSteps_);
-        } else if (this->timeStepsPerYear_ != Null<Size>()) {
-            return TimeGrid(fixingTimes.begin(), fixingTimes.end(),
-                static_cast<Size>(this->timeStepsPerYear_*t));
+        }
+        else if (this->timeStepsPerYear_ != Null<Size>())
+        {
+            return TimeGrid(fixingTimes.begin(), fixingTimes.end(), static_cast<Size>(this->timeStepsPerYear_ * t));
         }
 
         return TimeGrid(fixingTimes.begin(), fixingTimes.end());
     }
 
-    template<template <class> class MC, class RNG, class S>
-    inline
-    Real MCDiscreteAveragingAsianEngineBase<MC,RNG,S>::controlVariateValue() const {
+    template <template <class> class MC, class RNG, class S>
+    inline Real MCDiscreteAveragingAsianEngineBase<MC, RNG, S>::controlVariateValue() const
+    {
 
-        ext::shared_ptr<PricingEngine> controlPE =
-                this->controlPricingEngine();
-            QL_REQUIRE(controlPE,
-                       "engine does not provide "
-                       "control variation pricing engine");
+        ext::shared_ptr<PricingEngine> controlPE = this->controlPricingEngine();
+        QL_REQUIRE(controlPE, "engine does not provide "
+                              "control variation pricing engine");
 
-            auto* controlArguments =
-                dynamic_cast<DiscreteAveragingAsianOption::arguments*>(controlPE->getArguments());
-            *controlArguments = arguments_;
-            controlPE->calculate();
+        auto* controlArguments = dynamic_cast<DiscreteAveragingAsianOption::arguments*>(controlPE->getArguments());
+        *controlArguments = arguments_;
+        controlPE->calculate();
 
-            const auto* controlResults =
-                dynamic_cast<const DiscreteAveragingAsianOption::results*>(controlPE->getResults());
+        const auto* controlResults =
+            dynamic_cast<const DiscreteAveragingAsianOption::results*>(controlPE->getResults());
 
-            return controlResults->value;
+        return controlResults->value;
     }
 
 }

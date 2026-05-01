@@ -26,7 +26,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Chilean calendars
     /*! Holidays for the Santiago Stock Exchange
@@ -57,15 +58,20 @@ namespace QuantLib {
 
         \ingroup calendars
     */
-    class Chile : public Calendar {
+    class Chile : public Calendar
+    {
       private:
-        class SseImpl final : public Calendar::WesternImpl {
+        class SseImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "Santiago Stock Exchange"; }
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
-        enum Market { SSE    //!< Santiago Stock Exchange
+        enum Market
+        {
+            SSE //!< Santiago Stock Exchange
         };
         Chile(Market m = SSE);
     };

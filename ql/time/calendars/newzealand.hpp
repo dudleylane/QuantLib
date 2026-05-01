@@ -26,7 +26,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! New Zealand calendar
     /*! Common holidays:
@@ -55,7 +56,7 @@ namespace QuantLib {
         <ul>
         <li>Anniversary Day, Monday nearest January 29nd</li>
         </ul>
-        
+
         \note The holiday rules for New Zealand were documented by
               David Gilbert for IDB (http://www.jrefinery.com/ibd/)
               The Matariki holiday calendar has been released by the NZ Government
@@ -63,25 +64,34 @@ namespace QuantLib {
 
         \ingroup calendars
     */
-    class NewZealand : public Calendar {
+    class NewZealand : public Calendar
+    {
       private:
-        class CommonImpl : public Calendar::WesternImpl {
+        class CommonImpl : public Calendar::WesternImpl
+        {
           public:
             bool isBusinessDay(const Date&) const override;
         };
-        class WellingtonImpl final : public CommonImpl {
+        class WellingtonImpl final : public CommonImpl
+        {
           public:
             std::string name() const override { return "New Zealand (Wellington)"; }
             bool isBusinessDay(const Date&) const override;
         };
-        class AucklandImpl final : public CommonImpl {
+        class AucklandImpl final : public CommonImpl
+        {
           public:
             std::string name() const override { return "New Zealand (Auckland)"; }
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
         //! NZ calendars
-        enum Market { Wellington, Auckland };
+        enum Market
+        {
+            Wellington,
+            Auckland
+        };
         explicit NewZealand(Market market = Wellington);
     };
 

@@ -47,19 +47,18 @@
 
 #include <ql/qldefines.hpp>
 #if !defined(BOOST_ALL_NO_LIB) && defined(BOOST_MSVC)
-#  include <ql/auto_link.hpp>
+#    include <ql/auto_link.hpp>
 #endif
 #include <ql/methods/montecarlo/montecarlomodel.hpp>
-#include <ql/processes/blackscholesprocess.hpp>
-#include <ql/termstructures/yield/flatforward.hpp>
-#include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
 #include <ql/pricingengines/blackcalculator.hpp>
+#include <ql/processes/blackscholesprocess.hpp>
 #include <ql/quotes/simplequote.hpp>
+#include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
+#include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
-
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 
 using namespace QuantLib;
 
@@ -69,23 +68,18 @@ using namespace QuantLib;
 */
 class ReplicationError
 {
-public:
-    ReplicationError(Option::Type type,
-                     Time maturity,
-                     Real strike,
-                     Real s0,
-                     Volatility sigma,
-                     Rate r)
-    : maturity_(maturity), payoff_(type, strike), s0_(s0),
-      sigma_(sigma), r_(r) {
+  public:
+    ReplicationError(Option::Type type, Time maturity, Real strike, Real s0, Volatility sigma, Rate r)
+    : maturity_(maturity), payoff_(type, strike), s0_(s0), sigma_(sigma), r_(r)
+    {
 
         // value of the option
-        DiscountFactor rDiscount = std::exp(-r_*maturity_);
+        DiscountFactor rDiscount = std::exp(-r_ * maturity_);
         DiscountFactor qDiscount = 1.0;
-        Real forward = s0_*qDiscount/rDiscount;
-        Real stdDev = std::sqrt(sigma_*sigma_*maturity_);
+        Real forward = s0_ * qDiscount / rDiscount;
+        Real stdDev = std::sqrt(sigma_ * sigma_ * maturity_);
         auto payoff = ext::make_shared<PlainVanillaPayoff>(payoff_);
-        BlackCalculator black(payoff,forward,stdDev,rDiscount);
+        BlackCalculator black(payoff, forward, stdDev, rDiscount);
         std::cout << "Option value: " << black.value() << std::endl;
 
         // store option's vega, since Derman and Kamal's formula needs it
@@ -93,28 +87,21 @@ public:
 
         std::cout << std::endl;
 
-        std::cout << std::setw(8) << " " << " | "
-                  << std::setw(8) << " " << " | "
-                  << std::setw(8) << "P&L" << " | "
-                  << std::setw(8) << "P&L" << " | "
-                  << std::setw(12) << "Derman&Kamal" << " | "
-                  << std::setw(8) << "P&L" << " | "
-                  << std::setw(8) << "P&L" << std::endl;
+        std::cout << std::setw(8) << " " << " | " << std::setw(8) << " " << " | " << std::setw(8) << "P&L" << " | "
+                  << std::setw(8) << "P&L" << " | " << std::setw(12) << "Derman&Kamal" << " | " << std::setw(8) << "P&L"
+                  << " | " << std::setw(8) << "P&L" << std::endl;
 
-        std::cout << std::setw(8) << "samples" << " | "
-                  << std::setw(8) << "trades" << " | "
-                  << std::setw(8) << "mean" << " | "
-                  << std::setw(8) << "std.dev." << " | "
-                  << std::setw(12) << "formula" << " | "
-                  << std::setw(8) << "skewness" << " | "
-                  << std::setw(8) << "kurtosis" << std::endl;
+        std::cout << std::setw(8) << "samples" << " | " << std::setw(8) << "trades" << " | " << std::setw(8) << "mean"
+                  << " | " << std::setw(8) << "std.dev." << " | " << std::setw(12) << "formula" << " | " << std::setw(8)
+                  << "skewness" << " | " << std::setw(8) << "kurtosis" << std::endl;
 
         std::cout << std::string(78, '-') << std::endl;
     }
 
     // the actual replication error computation
     void compute(Size nTimeSteps, Size nSamples);
-private:
+
+  private:
     Time maturity_;
     PlainVanillaPayoff payoff_;
     Real s0_;
@@ -126,23 +113,17 @@ private:
 // The key for the MonteCarlo simulation is to have a PathPricer that
 // implements a value(const Path& path) method.
 // This method prices the portfolio for each Path of the random variable
-class ReplicationPathPricer : public PathPricer<Path> {
+class ReplicationPathPricer : public PathPricer<Path>
+{
   public:
     // real constructor
-    ReplicationPathPricer(Option::Type type,
-                          Real strike,
-                          Rate r,
-                          Time maturity,
-                          Volatility sigma)
-    : type_(type), strike_(strike),
-      r_(r), maturity_(maturity), sigma_(sigma) {
+    ReplicationPathPricer(Option::Type type, Real strike, Rate r, Time maturity, Volatility sigma)
+    : type_(type), strike_(strike), r_(r), maturity_(maturity), sigma_(sigma)
+    {
         QL_REQUIRE(strike_ > 0.0, "strike must be positive");
-        QL_REQUIRE(r_ >= 0.0,
-                   "risk free rate (r) must be positive or zero");
+        QL_REQUIRE(r_ >= 0.0, "risk free rate (r) must be positive or zero");
         QL_REQUIRE(maturity_ > 0.0, "maturity must be positive");
-        QL_REQUIRE(sigma_ >= 0.0,
-                   "volatility (sigma) must be positive or zero");
-
+        QL_REQUIRE(sigma_ >= 0.0, "volatility (sigma) must be positive or zero");
     }
     // The value() method encapsulates the pricing code
     Real operator()(const Path& path) const override;
@@ -157,19 +138,20 @@ class ReplicationPathPricer : public PathPricer<Path> {
 
 
 // Compute Replication Error as in the Derman and Kamal's research note
-int main(int, char* []) {
+int main(int, char*[])
+{
 
-    try {
+    try
+    {
 
         std::cout << std::endl;
 
-        Time maturity = 1.0/12.0;   // 1 month
+        Time maturity = 1.0 / 12.0; // 1 month
         Real strike = 100;
         Real underlying = 100;
         Volatility volatility = 0.20; // 20%
-        Rate riskFreeRate = 0.05; // 5%
-        ReplicationError rp(Option::Call, maturity, strike, underlying,
-                volatility, riskFreeRate);
+        Rate riskFreeRate = 0.05;     // 5%
+        ReplicationError rp(Option::Call, maturity, strike, underlying, volatility, riskFreeRate);
 
         Size scenarios = 50000;
         Size hedgesNum;
@@ -181,10 +163,14 @@ int main(int, char* []) {
         rp.compute(hedgesNum, scenarios);
 
         return 0;
-    } catch (std::exception& e) {
+    }
+    catch (std::exception& e)
+    {
         std::cerr << e.what() << std::endl;
         return 1;
-    } catch (...) {
+    }
+    catch (...)
+    {
         std::cerr << "unknown error" << std::endl;
         return 1;
     }
@@ -197,13 +183,14 @@ int main(int, char* []) {
    the life of the option are carried out, using the Black-Scholes
    hedge ratio.
 */
-Real ReplicationPathPricer::operator()(const Path& path) const {
+Real ReplicationPathPricer::operator()(const Path& path) const
+{
 
-    Size n = path.length()-1;
-    QL_REQUIRE(n>0, "the path cannot be empty");
+    Size n = path.length() - 1;
+    QL_REQUIRE(n > 0, "the path cannot be empty");
 
     // discrete hedging interval
-    Time dt = maturity_/n;
+    Time dt = maturity_ / n;
 
     // For simplicity, we assume the stock pays no dividends.
     Rate stockDividendYield = 0.0;
@@ -221,47 +208,48 @@ Real ReplicationPathPricer::operator()(const Path& path) const {
     /*** the initial deal ***/
     /************************/
     // option fair price (Black-Scholes) at t=0
-    DiscountFactor rDiscount = std::exp(-r_*maturity_);
-    DiscountFactor qDiscount = std::exp(-stockDividendYield*maturity_);
-    Real forward = stock*qDiscount/rDiscount;
-    Real stdDev = std::sqrt(sigma_*sigma_*maturity_);
-    auto payoff = ext::make_shared<PlainVanillaPayoff>(type_,strike_);
-    BlackCalculator black(payoff,forward,stdDev,rDiscount);
+    DiscountFactor rDiscount = std::exp(-r_ * maturity_);
+    DiscountFactor qDiscount = std::exp(-stockDividendYield * maturity_);
+    Real forward = stock * qDiscount / rDiscount;
+    Real stdDev = std::sqrt(sigma_ * sigma_ * maturity_);
+    auto payoff = ext::make_shared<PlainVanillaPayoff>(type_, strike_);
+    BlackCalculator black(payoff, forward, stdDev, rDiscount);
     // sell the option, cash in its premium
     money_account += black.value();
     // compute delta
     Real delta = black.delta(stock);
     // delta-hedge the option buying stock
     Real stockAmount = delta;
-    money_account -= stockAmount*stock;
+    money_account -= stockAmount * stock;
 
     /**********************************/
     /*** hedging during option life ***/
     /**********************************/
-    for (Size step = 0; step < n-1; step++){
+    for (Size step = 0; step < n - 1; step++)
+    {
 
         // time flows
         t += dt;
 
         // accruing on the money account
-        money_account *= std::exp( r_*dt );
+        money_account *= std::exp(r_ * dt);
 
         // stock growth:
-        stock = path[step+1];
+        stock = path[step + 1];
 
         // recalculate option value at the current stock value,
         // and the current time to maturity
-        rDiscount = std::exp(-r_*(maturity_-t));
-        qDiscount = std::exp(-stockDividendYield*(maturity_-t));
-        forward = stock*qDiscount/rDiscount;
-        stdDev = std::sqrt(sigma_*sigma_*(maturity_-t));
-        BlackCalculator black(payoff,forward,stdDev,rDiscount);
+        rDiscount = std::exp(-r_ * (maturity_ - t));
+        qDiscount = std::exp(-stockDividendYield * (maturity_ - t));
+        forward = stock * qDiscount / rDiscount;
+        stdDev = std::sqrt(sigma_ * sigma_ * (maturity_ - t));
+        BlackCalculator black(payoff, forward, stdDev, rDiscount);
 
         // recalculate delta
         delta = black.delta(stock);
 
         // re-hedging
-        money_account -= (delta - stockAmount)*stock;
+        money_account -= (delta - stockAmount) * stock;
         stockAmount = delta;
     }
 
@@ -269,7 +257,7 @@ Real ReplicationPathPricer::operator()(const Path& path) const {
     /*** option expiration ***/
     /*************************/
     // last accrual on my money account
-    money_account *= std::exp( r_*dt );
+    money_account *= std::exp(r_ * dt);
     // last stock growth
     stock = path[n];
 
@@ -278,7 +266,7 @@ Real ReplicationPathPricer::operator()(const Path& path) const {
     money_account -= optionPayoff;
 
     // and unwinds the hedge selling his stock position
-    money_account += stockAmount*stock;
+    money_account += stockAmount * stock;
 
     // final Profit&Loss
     return money_account;
@@ -288,7 +276,7 @@ Real ReplicationPathPricer::operator()(const Path& path) const {
 // The computation over nSamples paths of the P&L distribution
 void ReplicationError::compute(Size nTimeSteps, Size nSamples)
 {
-    QL_REQUIRE(nTimeSteps>0, "the number of steps must be > 0");
+    QL_REQUIRE(nTimeSteps > 0, "the number of steps must be > 0");
 
     // hedging interval
     // Time tau = maturity_ / nTimeSteps;
@@ -301,34 +289,27 @@ void ReplicationError::compute(Size nTimeSteps, Size nSamples)
     Date today = Date::todaysDate();
     DayCounter dayCount = Actual365Fixed();
     auto stateVariable = makeQuoteHandle(s0_);
-    Handle<YieldTermStructure> riskFreeRate(
-                          ext::make_shared<FlatForward>(today, r_, dayCount));
-    Handle<YieldTermStructure> dividendYield(
-                          ext::make_shared<FlatForward>(today, 0.0, dayCount));
-    Handle<BlackVolTermStructure> volatility(
-                          ext::make_shared<BlackConstantVol>(today, calendar, sigma_, dayCount));
-    auto diffusion = ext::make_shared<BlackScholesMertonProcess>(
-                          stateVariable, dividendYield, riskFreeRate, volatility);
+    Handle<YieldTermStructure> riskFreeRate(ext::make_shared<FlatForward>(today, r_, dayCount));
+    Handle<YieldTermStructure> dividendYield(ext::make_shared<FlatForward>(today, 0.0, dayCount));
+    Handle<BlackVolTermStructure> volatility(ext::make_shared<BlackConstantVol>(today, calendar, sigma_, dayCount));
+    auto diffusion =
+        ext::make_shared<BlackScholesMertonProcess>(stateVariable, dividendYield, riskFreeRate, volatility);
 
     // Black Scholes equation rules the path generator:
     // at each step the log of the stock
     // will have drift and sigma^2 variance
-    PseudoRandom::rsg_type rsg =
-        PseudoRandom::make_sequence_generator(nTimeSteps, 0);
+    PseudoRandom::rsg_type rsg = PseudoRandom::make_sequence_generator(nTimeSteps, 0);
 
     bool brownianBridge = false;
 
     typedef SingleVariate<PseudoRandom>::path_generator_type generator_type;
-    auto myPathGenerator = ext::make_shared<generator_type>(
-                       diffusion, maturity_, nTimeSteps,
-                       rsg, brownianBridge);
+    auto myPathGenerator = ext::make_shared<generator_type>(diffusion, maturity_, nTimeSteps, rsg, brownianBridge);
 
     // The replication strategy's Profit&Loss is computed for each path
     // of the stock. The path pricer knows how to price a path using its
     // value() method
-    auto myPathPricer = ext::make_shared<ReplicationPathPricer>(
-                              payoff_.optionType(), payoff_.strike(),
-                              r_, maturity_, sigma_);
+    auto myPathPricer =
+        ext::make_shared<ReplicationPathPricer>(payoff_.optionType(), payoff_.strike(), r_, maturity_, sigma_);
 
     // a statistics accumulator for the path-dependent Profit&Loss values
     Statistics statisticsAccumulator;
@@ -336,32 +317,25 @@ void ReplicationError::compute(Size nTimeSteps, Size nSamples)
     // The Monte Carlo model generates paths using myPathGenerator
     // each path is priced using myPathPricer
     // prices will be accumulated into statisticsAccumulator
-    MonteCarloModel<SingleVariate,PseudoRandom>
-        MCSimulation(myPathGenerator,
-                     myPathPricer,
-                     statisticsAccumulator,
-                     false);
+    MonteCarloModel<SingleVariate, PseudoRandom> MCSimulation(myPathGenerator, myPathPricer, statisticsAccumulator,
+                                                              false);
 
     // the model simulates nSamples paths
     MCSimulation.addSamples(nSamples);
 
     // the sampleAccumulator method
     // gives access to all the methods of statisticsAccumulator
-    Real PLMean  = MCSimulation.sampleAccumulator().mean();
+    Real PLMean = MCSimulation.sampleAccumulator().mean();
     Real PLStDev = MCSimulation.sampleAccumulator().standardDeviation();
-    Real PLSkew  = MCSimulation.sampleAccumulator().skewness();
-    Real PLKurt  = MCSimulation.sampleAccumulator().kurtosis();
+    Real PLSkew = MCSimulation.sampleAccumulator().skewness();
+    Real PLKurt = MCSimulation.sampleAccumulator().kurtosis();
 
     // Derman and Kamal's formula
-    Real theorStD = std::sqrt(M_PI/4/nTimeSteps)*vega_*sigma_;
+    Real theorStD = std::sqrt(M_PI / 4 / nTimeSteps) * vega_ * sigma_;
 
 
-    std::cout << std::fixed
-              << std::setw(8) << nSamples << " | "
-              << std::setw(8) << nTimeSteps << " | "
-              << std::setw(8) << std::setprecision(3) << PLMean << " | "
-              << std::setw(8) << std::setprecision(2) << PLStDev << " | "
-              << std::setw(12) << std::setprecision(2) << theorStD << " | "
-              << std::setw(8) << std::setprecision(2) << PLSkew << " | "
-              << std::setw(8) << std::setprecision(2) << PLKurt << std::endl;
+    std::cout << std::fixed << std::setw(8) << nSamples << " | " << std::setw(8) << nTimeSteps << " | " << std::setw(8)
+              << std::setprecision(3) << PLMean << " | " << std::setw(8) << std::setprecision(2) << PLStDev << " | "
+              << std::setw(12) << std::setprecision(2) << theorStD << " | " << std::setw(8) << std::setprecision(2)
+              << PLSkew << " | " << std::setw(8) << std::setprecision(2) << PLKurt << std::endl;
 }

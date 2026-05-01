@@ -26,7 +26,8 @@
 
 #include <ql/methods/lattices/lattice.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! One-dimensional tree-based lattice.
     /*! Derived classes must implement the following interface:
@@ -36,20 +37,19 @@ namespace QuantLib {
 
         \ingroup lattices */
     template <class Impl>
-    class TreeLattice1D : public TreeLattice<Impl> {
+    class TreeLattice1D : public TreeLattice<Impl>
+    {
       public:
-        TreeLattice1D(const TimeGrid& timeGrid, Size n)
-        : TreeLattice<Impl>(timeGrid,n) {}
-        Array grid(Time t) const override {
+        TreeLattice1D(const TimeGrid& timeGrid, Size n) : TreeLattice<Impl>(timeGrid, n) {}
+        Array grid(Time t) const override
+        {
             Size i = this->timeGrid().index(t);
             Array grid(this->impl().size(i));
-            for (Size j=0; j<grid.size(); j++)
-                grid[j] = this->impl().underlying(i,j);
+            for (Size j = 0; j < grid.size(); j++)
+                grid[j] = this->impl().underlying(i, j);
             return grid;
         }
-        Real underlying(Size i, Size index) const {
-            return this->impl().underlying(i,index);
-        }
+        Real underlying(Size i, Size index) const { return this->impl().underlying(i, index); }
     };
 
 }

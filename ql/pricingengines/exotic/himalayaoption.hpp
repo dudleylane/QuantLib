@@ -28,7 +28,8 @@
 #include <ql/time/date.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Himalaya option
     /*! The payoff of a Himalaya option is computed in the following
@@ -41,13 +42,13 @@ namespace QuantLib {
         \warning This implementation still does not manage seasoned
                  options.
     */
-    class HimalayaOption : public MultiAssetOption {
+    class HimalayaOption : public MultiAssetOption
+    {
       public:
         class engine;
         class arguments;
         class results;
-        HimalayaOption(const std::vector<Date>& fixingDates,
-                       Real strike);
+        HimalayaOption(const std::vector<Date>& fixingDates, Real strike);
 
         void setupArguments(PricingEngine::arguments*) const override;
 
@@ -55,17 +56,20 @@ namespace QuantLib {
         std::vector<Date> fixingDates_;
     };
 
-    class HimalayaOption::arguments : public MultiAssetOption::arguments {
+    class HimalayaOption::arguments : public MultiAssetOption::arguments
+    {
       public:
         void validate() const override;
         std::vector<Date> fixingDates;
     };
 
-    class HimalayaOption::results : public MultiAssetOption::results {};
+    class HimalayaOption::results : public MultiAssetOption::results
+    {
+    };
 
-    class HimalayaOption::engine
-        : public GenericEngine<HimalayaOption::arguments,
-                               HimalayaOption::results> {};
+    class HimalayaOption::engine : public GenericEngine<HimalayaOption::arguments, HimalayaOption::results>
+    {
+    };
 
 }
 

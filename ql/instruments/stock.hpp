@@ -27,11 +27,13 @@
 #include <ql/instrument.hpp>
 #include <ql/quote.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Simple stock class
     /*! \ingroup instruments */
-    class Stock : public Instrument {
+    class Stock : public Instrument
+    {
       public:
         Stock(Handle<Quote> quote);
         bool isExpired() const override { return false; }

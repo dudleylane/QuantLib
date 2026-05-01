@@ -17,38 +17,49 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/indexes/ibor/shibor.hpp>
 #include <ql/currencies/asia.hpp>
+#include <ql/indexes/ibor/shibor.hpp>
 #include <ql/time/calendars/china.hpp>
 #include <ql/time/daycounters/actual360.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
+    namespace
+    {
 
-        BusinessDayConvention shiborConvention(const Period& p) {
-            switch (p.units()) {
-              case Days:
-              case Weeks:
-                return Following;
-              case Months:
-              case Years:
-                return ModifiedFollowing;
-              default:
-                QL_FAIL("invalid time units");
+        BusinessDayConvention shiborConvention(const Period& p)
+        {
+            switch (p.units())
+            {
+                case Days:
+                case Weeks:
+                    return Following;
+                case Months:
+                case Years:
+                    return ModifiedFollowing;
+                default:
+                    QL_FAIL("invalid time units");
             }
         }
 
     }
 
-    Shibor::Shibor(const Period& tenor,
-                   const Handle<YieldTermStructure>& h)
-    : IborIndex("Shibor", tenor, (tenor == 1*Days? 0 : 1), CNYCurrency(),
-                China(China::IB), shiborConvention(tenor), false,
-                Actual360(), h) {}
-    
-    ext::shared_ptr<IborIndex> Shibor::clone(
-                                  const Handle<YieldTermStructure>& h) const {
+    Shibor::Shibor(const Period& tenor, const Handle<YieldTermStructure>& h)
+    : IborIndex("Shibor",
+                tenor,
+                (tenor == 1 * Days ? 0 : 1),
+                CNYCurrency(),
+                China(China::IB),
+                shiborConvention(tenor),
+                false,
+                Actual360(),
+                h)
+    {
+    }
+
+    ext::shared_ptr<IborIndex> Shibor::clone(const Handle<YieldTermStructure>& h) const
+    {
         return ext::shared_ptr<IborIndex>(new Shibor(tenor(), h));
     }
 }

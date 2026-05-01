@@ -18,18 +18,21 @@
 */
 
 /*! \file vanillavppoption.cpp
-*/
+ */
 
 
 #include <ql/event.hpp>
+#include <ql/experimental/finitedifferences/vanillavppoption.hpp>
 #include <ql/instruments/basketoption.hpp>
 #include <ql/instruments/vanillaswingoption.hpp>
-#include <ql/experimental/finitedifferences/vanillavppoption.hpp>
 
-namespace QuantLib {
-    namespace {
+namespace QuantLib
+{
+    namespace
+    {
 
-        class IdenticalPayoff : public Payoff {
+        class IdenticalPayoff : public Payoff
+        {
           public:
             std::string name() const override { return "IdenticalPayoff"; }
             std::string description() const override { return name(); }
@@ -37,55 +40,56 @@ namespace QuantLib {
         };
     }
 
-    VanillaVPPOption::VanillaVPPOption(
-        Real heatRate,
-        Real pMin, Real pMax,
-        Size tMinUp, Size tMinDown,
-        Real startUpFuel, Real startUpFixCost,
-        const ext::shared_ptr<SwingExercise>& exercise,
-        Size nStarts, Size nRunningHours)
-    : MultiAssetOption(ext::shared_ptr<Payoff>(), exercise),
-      heatRate_(heatRate),
-      pMin_(pMin), pMax_(pMax),
-      tMinUp_(tMinUp), tMinDown_(tMinDown),
-      startUpFuel_(startUpFuel),
-      startUpFixCost_(startUpFixCost),
-      nStarts_(nStarts),
-      nRunningHours_(nRunningHours) {
+    VanillaVPPOption::VanillaVPPOption(Real heatRate,
+                                       Real pMin,
+                                       Real pMax,
+                                       Size tMinUp,
+                                       Size tMinDown,
+                                       Real startUpFuel,
+                                       Real startUpFixCost,
+                                       const ext::shared_ptr<SwingExercise>& exercise,
+                                       Size nStarts,
+                                       Size nRunningHours)
+    : MultiAssetOption(ext::shared_ptr<Payoff>(), exercise), heatRate_(heatRate), pMin_(pMin), pMax_(pMax),
+      tMinUp_(tMinUp), tMinDown_(tMinDown), startUpFuel_(startUpFuel), startUpFixCost_(startUpFixCost),
+      nStarts_(nStarts), nRunningHours_(nRunningHours)
+    {
         Array weigths(2);
-        weigths[0] = 1.0; weigths[1] = -heatRate;
+        weigths[0] = 1.0;
+        weigths[1] = -heatRate;
 
-        payoff_ = ext::shared_ptr<Payoff>(new AverageBasketPayoff(
-            ext::shared_ptr<Payoff>(new IdenticalPayoff()), weigths));
+        payoff_ =
+            ext::shared_ptr<Payoff>(new AverageBasketPayoff(ext::shared_ptr<Payoff>(new IdenticalPayoff()), weigths));
     }
 
-    void VanillaVPPOption::arguments::validate() const {
+    void VanillaVPPOption::arguments::validate() const
+    {
         QL_REQUIRE(exercise, "no exercise given");
         QL_REQUIRE(nStarts == Null<Size>() || nRunningHours == Null<Size>(),
-                "either a start limit or fuel limit is supported");
+                   "either a start limit or fuel limit is supported");
     }
 
-    void VanillaVPPOption::setupArguments(
-                                PricingEngine::arguments* args) const {
+    void VanillaVPPOption::setupArguments(PricingEngine::arguments* args) const
+    {
 
         MultiAssetOption::setupArguments(args);
 
         auto* arguments = dynamic_cast<VanillaVPPOption::arguments*>(args);
         QL_REQUIRE(arguments != nullptr, "wrong argument type");
 
-        arguments->heatRate       = heatRate_;
-        arguments->pMin           = pMin_;
-        arguments->pMax           = pMax_;
-        arguments->tMinUp         = tMinUp_;
-        arguments->tMinDown       = tMinDown_;
-        arguments->startUpFuel    = startUpFuel_;
+        arguments->heatRate = heatRate_;
+        arguments->pMin = pMin_;
+        arguments->pMax = pMax_;
+        arguments->tMinUp = tMinUp_;
+        arguments->tMinDown = tMinDown_;
+        arguments->startUpFuel = startUpFuel_;
         arguments->startUpFixCost = startUpFixCost_;
-        arguments->nStarts        = nStarts_;
-        arguments->nRunningHours  = nRunningHours_;
+        arguments->nStarts = nStarts_;
+        arguments->nRunningHours = nRunningHours_;
     }
 
-    bool VanillaVPPOption::isExpired() const {
+    bool VanillaVPPOption::isExpired() const
+    {
         return detail::simple_event(exercise_->lastDate()).hasOccurred();
     }
 }
-

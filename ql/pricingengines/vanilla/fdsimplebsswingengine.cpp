@@ -33,81 +33,73 @@
 #include <ql/processes/blackscholesprocess.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    FdSimpleBSSwingEngine::FdSimpleBSSwingEngine(
-        ext::shared_ptr<GeneralizedBlackScholesProcess> process,
-        Size tGrid,
-        Size xGrid,
-        const FdmSchemeDesc& schemeDesc)
-    : process_(std::move(process)), tGrid_(tGrid), xGrid_(xGrid), schemeDesc_(schemeDesc) {}
+    FdSimpleBSSwingEngine::FdSimpleBSSwingEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process,
+                                                 Size tGrid,
+                                                 Size xGrid,
+                                                 const FdmSchemeDesc& schemeDesc)
+    : process_(std::move(process)), tGrid_(tGrid), xGrid_(xGrid), schemeDesc_(schemeDesc)
+    {
+    }
 
-    void FdSimpleBSSwingEngine::calculate() const {
-        QL_REQUIRE(arguments_.exercise->type() == Exercise::Bermudan,
-                   "Bermudan exercise supported only");
+    void FdSimpleBSSwingEngine::calculate() const
+    {
+        QL_REQUIRE(arguments_.exercise->type() == Exercise::Bermudan, "Bermudan exercise supported only");
 
         // 1. Mesher
         const ext::shared_ptr<StrikedTypePayoff> payoff =
             ext::dynamic_pointer_cast<StrikedTypePayoff>(arguments_.payoff);
         QL_REQUIRE(payoff, "Strike type payoff expected");
-            
+
         const Time maturity = process_->time(arguments_.exercise->lastDate());
         const ext::shared_ptr<Fdm1dMesher> equityMesher(
-            new FdmBlackScholesMesher(xGrid_, process_,
-                                      maturity, payoff->strike()));
-        
-        const ext::shared_ptr<Fdm1dMesher> exerciseMesher(
-                 new Uniform1dMesher(
-                           0, static_cast<Real>(arguments_.maxExerciseRights),
-                           arguments_.maxExerciseRights+1));
+            new FdmBlackScholesMesher(xGrid_, process_, maturity, payoff->strike()));
 
-        const ext::shared_ptr<FdmMesher> mesher (
-            new FdmMesherComposite(equityMesher, exerciseMesher));
-        
+        const ext::shared_ptr<Fdm1dMesher> exerciseMesher(
+            new Uniform1dMesher(0, static_cast<Real>(arguments_.maxExerciseRights), arguments_.maxExerciseRights + 1));
+
+        const ext::shared_ptr<FdmMesher> mesher(new FdmMesherComposite(equityMesher, exerciseMesher));
+
         // 2. Calculator
-        ext::shared_ptr<FdmInnerValueCalculator> calculator(
-                                                    new FdmZeroInnerValue());
-        
+        ext::shared_ptr<FdmInnerValueCalculator> calculator(new FdmZeroInnerValue());
+
         // 3. Step conditions
-        std::list<ext::shared_ptr<StepCondition<Array> > > stepConditions;
-        std::list<std::vector<Time> > stoppingTimes;
-        
+        std::list<ext::shared_ptr<StepCondition<Array>>> stepConditions;
+        std::list<std::vector<Time>> stoppingTimes;
+
         // 3.1 Bermudan step conditions
         std::vector<Time> exerciseTimes;
-        for (auto i : arguments_.exercise->dates()) {
+        for (auto i : arguments_.exercise->dates())
+        {
             Time t = process_->time(i);
             QL_REQUIRE(t >= 0, "exercise dates must not contain past date");
             exerciseTimes.push_back(t);
         }
         stoppingTimes.push_back(exerciseTimes);
-        
-        ext::shared_ptr<FdmInnerValueCalculator> exerciseCalculator(
-                                    new FdmLogInnerValue(payoff, mesher, 0));
 
-        stepConditions.push_back(ext::shared_ptr<StepCondition<Array> >(
-            new FdmSimpleSwingCondition(
-                exerciseTimes, mesher, exerciseCalculator,
-                1, arguments_.minExerciseRights)));
-        
+        ext::shared_ptr<FdmInnerValueCalculator> exerciseCalculator(new FdmLogInnerValue(payoff, mesher, 0));
+
+        stepConditions.push_back(ext::shared_ptr<StepCondition<Array>>(
+            new FdmSimpleSwingCondition(exerciseTimes, mesher, exerciseCalculator, 1, arguments_.minExerciseRights)));
+
         ext::shared_ptr<FdmStepConditionComposite> conditions(
-                new FdmStepConditionComposite(stoppingTimes, stepConditions));
-        
+            new FdmStepConditionComposite(stoppingTimes, stepConditions));
+
         // 4. Boundary conditions
         const FdmBoundaryConditionSet boundaries;
-        
+
         // 5. Solver
-        FdmSolverDesc solverDesc = { mesher, boundaries, conditions,
-                                     calculator, maturity, tGrid_, 0 };
-        ext::shared_ptr<FdmSimple2dBSSolver> solver(
-                new FdmSimple2dBSSolver(
-                               Handle<GeneralizedBlackScholesProcess>(process_),
-                               payoff->strike(), solverDesc, schemeDesc_));
-    
+        FdmSolverDesc solverDesc = {mesher, boundaries, conditions, calculator, maturity, tGrid_, 0};
+        ext::shared_ptr<FdmSimple2dBSSolver> solver(new FdmSimple2dBSSolver(
+            Handle<GeneralizedBlackScholesProcess>(process_), payoff->strike(), solverDesc, schemeDesc_));
+
         const Real spot = process_->x0();
 
         results_.value = solver->valueAt(spot, 1);
-        results_.delta = solver->deltaAt(spot, 1, spot*0.01);
-        results_.gamma = solver->gammaAt(spot, 1, spot*0.01);
+        results_.delta = solver->deltaAt(spot, 1, spot * 0.01);
+        results_.gamma = solver->gammaAt(spot, 1, spot * 0.01);
         results_.theta = solver->thetaAt(spot, 1);
     }
 }

@@ -29,82 +29,88 @@
     \brief Kernel interpolation
 */
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace detail {
+    namespace detail
+    {
 
         template <class I1, class I2, class Kernel>
-        class KernelInterpolationImpl final
-            : public Interpolation::templateImpl<I1,I2> {
+        class KernelInterpolationImpl final : public Interpolation::templateImpl<I1, I2>
+        {
           public:
-            KernelInterpolationImpl(const I1& xBegin,
-                                    const I1& xEnd,
-                                    const I2& yBegin,
-                                    Kernel kernel,
-                                    const Real epsilon)
-            : Interpolation::templateImpl<I1, I2>(xBegin, xEnd, yBegin),
-              xSize_(Size(xEnd - xBegin)), invPrec_(epsilon), M_(xSize_, xSize_), alphaVec_(xSize_),
-              yVec_(xSize_), kernel_(std::move(kernel)) {}
+            KernelInterpolationImpl(
+                const I1& xBegin, const I1& xEnd, const I2& yBegin, Kernel kernel, const Real epsilon)
+            : Interpolation::templateImpl<I1, I2>(xBegin, xEnd, yBegin), xSize_(Size(xEnd - xBegin)), invPrec_(epsilon),
+              M_(xSize_, xSize_), alphaVec_(xSize_), yVec_(xSize_), kernel_(std::move(kernel))
+            {
+            }
 
             void update() override { updateAlphaVec(); }
 
-            Real value(Real x) const override {
+            Real value(Real x) const override
+            {
 
-                Real res=0.0;
+                Real res = 0.0;
 
-                for( Size i=0; i< xSize_;++i){
-                    res+=alphaVec_[i]*kernelAbs(x,this->xBegin_[i]);
+                for (Size i = 0; i < xSize_; ++i)
+                {
+                    res += alphaVec_[i] * kernelAbs(x, this->xBegin_[i]);
                 }
 
-                return res/gammaFunc(x);
+                return res / gammaFunc(x);
             }
 
-            Real primitive(Real) const override {
+            Real primitive(Real) const override
+            {
                 QL_FAIL("Primitive calculation not implemented "
                         "for kernel interpolation");
             }
 
-            Real derivative(Real) const override {
+            Real derivative(Real) const override
+            {
                 QL_FAIL("First derivative calculation not implemented "
                         "for kernel interpolation");
             }
 
-            Real secondDerivative(Real) const override {
+            Real secondDerivative(Real) const override
+            {
                 QL_FAIL("Second derivative calculation not implemented "
                         "for kernel interpolation");
             }
 
-        private:
+          private:
+            Real kernelAbs(Real x1, Real x2) const { return kernel_(std::fabs(x1 - x2)); }
 
-            Real kernelAbs(Real x1, Real x2)const{
-                return kernel_(std::fabs(x1-x2));
-            }
+            Real gammaFunc(Real x) const
+            {
 
-            Real gammaFunc(Real x)const{
+                Real res = 0.0;
 
-                Real res=0.0;
-
-                for(Size i=0; i< xSize_;++i){
-                    res+=kernelAbs(x,this->xBegin_[i]);
+                for (Size i = 0; i < xSize_; ++i)
+                {
+                    res += kernelAbs(x, this->xBegin_[i]);
                 }
                 return res;
             }
 
-            void updateAlphaVec(){
+            void updateAlphaVec()
+            {
                 // Function calculates the alpha vector with given
                 // fixed pillars+values
 
                 // Write Matrix M
-                Real tmp=0.0;
+                Real tmp = 0.0;
 
-                for(Size rowIt=0; rowIt<xSize_;++rowIt){
+                for (Size rowIt = 0; rowIt < xSize_; ++rowIt)
+                {
 
-                    yVec_[rowIt]=this->yBegin_[rowIt];
-                    tmp=1.0/gammaFunc(this->xBegin_[rowIt]);
+                    yVec_[rowIt] = this->yBegin_[rowIt];
+                    tmp = 1.0 / gammaFunc(this->xBegin_[rowIt]);
 
-                    for(Size colIt=0; colIt<xSize_;++colIt){
-                        M_[rowIt][colIt]=kernelAbs(this->xBegin_[rowIt],
-                                                   this->xBegin_[colIt])*tmp;
+                    for (Size colIt = 0; colIt < xSize_; ++colIt)
+                    {
+                        M_[rowIt][colIt] = kernelAbs(this->xBegin_[rowIt], this->xBegin_[colIt]) * tmp;
                     }
                 }
 
@@ -114,9 +120,10 @@ namespace QuantLib {
                 // check if inversion worked up to a reasonable precision.
                 // I've chosen not to check determinant(M_)!=0 before solving
 
-                Array diffVec=Abs(M_*alphaVec_ - yVec_);
+                Array diffVec = Abs(M_ * alphaVec_ - yVec_);
 
-                for (Real i : diffVec) {
+                for (Real i : diffVec)
+                {
                     QL_REQUIRE(i < invPrec_, "Inversion failed in 1d kernel interpolation");
                 }
             }
@@ -124,7 +131,7 @@ namespace QuantLib {
             Size xSize_;
             Real invPrec_;
             Matrix M_;
-            Array alphaVec_,yVec_;
+            Array alphaVec_, yVec_;
             Kernel kernel_;
         };
 
@@ -143,7 +150,8 @@ namespace QuantLib {
         \warning See the Interpolation class for information about the
                  required lifetime of the underlying data.
     */
-    class KernelInterpolation : public Interpolation {
+    class KernelInterpolation : public Interpolation
+    {
       public:
         /*! \pre the \f$ x \f$ values must be sorted.
             \pre kernel needs a Real operator()(Real x) implementation
@@ -156,17 +164,13 @@ namespace QuantLib {
             \left\| Ma-y \right\|_\infty \geq \epsilon
             \f] */
         template <class I1, class I2, class Kernel>
-        KernelInterpolation(const I1& xBegin, const I1& xEnd,
-                            const I2& yBegin,
-                            const Kernel& kernel,
-                            const double epsilon = 1.0E-7) {
-            impl_ = ext::shared_ptr<Interpolation::Impl>(new
-                detail::KernelInterpolationImpl<I1,I2,Kernel>(xBegin, xEnd,
-                                                              yBegin, kernel,
-                                                              epsilon));
+        KernelInterpolation(
+            const I1& xBegin, const I1& xEnd, const I2& yBegin, const Kernel& kernel, const double epsilon = 1.0E-7)
+        {
+            impl_ = ext::shared_ptr<Interpolation::Impl>(
+                new detail::KernelInterpolationImpl<I1, I2, Kernel>(xBegin, xEnd, yBegin, kernel, epsilon));
             impl_->update();
         }
-
     };
 }
 

@@ -26,11 +26,12 @@
 #include <ql/cashflows/couponpricer.hpp>
 #include <ql/cashflows/iborcoupon.hpp>
 #include <ql/indexes/interestrateindex.hpp>
-#include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/optional.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     IborCoupon::IborCoupon(const Date& paymentDate,
                            Real nominal,
@@ -46,68 +47,95 @@ namespace QuantLib {
                            bool isInArrears,
                            const Date& exCouponDate,
                            BusinessDayConvention fixingConvention)
-    : FloatingRateCoupon(paymentDate, nominal, startDate, endDate,
-                         fixingDays, iborIndex, gearing, spread,
-                         refPeriodStart, refPeriodEnd,
-                         dayCounter, isInArrears, exCouponDate,
+    : FloatingRateCoupon(paymentDate,
+                         nominal,
+                         startDate,
+                         endDate,
+                         fixingDays,
+                         iborIndex,
+                         gearing,
+                         spread,
+                         refPeriodStart,
+                         refPeriodEnd,
+                         dayCounter,
+                         isInArrears,
+                         exCouponDate,
                          fixingConvention),
-      iborIndex_(iborIndex) {
+      iborIndex_(iborIndex)
+    {
         fixingDate_ = FloatingRateCoupon::fixingDate();
     }
 
-    void IborCoupon::initializeCachedData() const {
+    void IborCoupon::initializeCachedData() const
+    {
         auto p = ext::dynamic_pointer_cast<IborCouponPricer>(pricer_);
         QL_REQUIRE(p, "IborCoupon: pricer not set or not derived from IborCouponPricer");
         p->initializeCachedData(*this);
     }
 
-    const Date& IborCoupon::fixingValueDate() const {
+    const Date& IborCoupon::fixingValueDate() const
+    {
         initializeCachedData();
         return fixingValueDate_;
     }
 
-    const Date& IborCoupon::fixingEndDate() const {
+    const Date& IborCoupon::fixingEndDate() const
+    {
         initializeCachedData();
         return fixingEndDate_;
     }
 
-    const Date& IborCoupon::fixingMaturityDate() const {
+    const Date& IborCoupon::fixingMaturityDate() const
+    {
         initializeCachedData();
         return fixingMaturityDate_;
     }
 
-    Time IborCoupon::spanningTime() const {
+    Time IborCoupon::spanningTime() const
+    {
         initializeCachedData();
         return spanningTime_;
     }
 
-    Time IborCoupon::spanningTimeIndexMaturity() const {
+    Time IborCoupon::spanningTimeIndexMaturity() const
+    {
         initializeCachedData();
         return spanningTimeIndexMaturity_;
     }
 
-    Date IborCoupon::fixingDate() const {
+    Date IborCoupon::fixingDate() const
+    {
         return fixingDate_;
     }
 
-    bool IborCoupon::hasFixed() const {
+    bool IborCoupon::hasFixed() const
+    {
         Date today = QuantLib::Settings::instance().evaluationDate();
 
-        if (fixingDate_ > today) {
+        if (fixingDate_ > today)
+        {
             return false;
-        } else if (fixingDate_ < today) {
+        }
+        else if (fixingDate_ < today)
+        {
             return true;
-        } else {
+        }
+        else
+        {
             // fixingDate_ == today
-            if (QuantLib::Settings::instance().enforcesTodaysHistoricFixings()) {
+            if (QuantLib::Settings::instance().enforcesTodaysHistoricFixings())
+            {
                 return true;
-            } else {
+            }
+            else
+            {
                 return index_->hasHistoricalFixing(fixingDate_);
             }
         }
     }
 
-    Rate IborCoupon::indexFixing() const {
+    Rate IborCoupon::indexFixing() const
+    {
         initializeCachedData();
 
         /* instead of just returning index_->fixing(fixingValueDate_)
@@ -117,22 +145,26 @@ namespace QuantLib {
            2) takes into account par coupon needs
         */
 
-        if (hasFixed()) {
+        if (hasFixed())
+        {
             Rate result = index_->pastFixing(fixingDate_);
-            QL_REQUIRE(result != Null<Real>(),
-                       "Missing " << index_->name() << " fixing for " << fixingDate_);
+            QL_REQUIRE(result != Null<Real>(), "Missing " << index_->name() << " fixing for " << fixingDate_);
             return result;
-        } else {
+        }
+        else
+        {
             return iborIndex_->forecastFixing(fixingValueDate_, fixingEndDate_, spanningTime_);
         }
     }
 
-    void IborCoupon::setPricer(const ext::shared_ptr<FloatingRateCouponPricer>& pricer) {
+    void IborCoupon::setPricer(const ext::shared_ptr<FloatingRateCouponPricer>& pricer)
+    {
         cachedDataIsInitialized_ = false;
         FloatingRateCoupon::setPricer(pricer);
     }
 
-    void IborCoupon::accept(AcyclicVisitor& v) {
+    void IborCoupon::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<IborCoupon>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);
@@ -141,152 +173,177 @@ namespace QuantLib {
     }
 
 
-    void IborCoupon::Settings::createAtParCoupons() {
-         usingAtParCoupons_ = true;
+    void IborCoupon::Settings::createAtParCoupons()
+    {
+        usingAtParCoupons_ = true;
     }
 
-    void IborCoupon::Settings::createIndexedCoupons() {
-         usingAtParCoupons_ = false;
+    void IborCoupon::Settings::createIndexedCoupons()
+    {
+        usingAtParCoupons_ = false;
     }
 
-    bool IborCoupon::Settings::usingAtParCoupons() const {
+    bool IborCoupon::Settings::usingAtParCoupons() const
+    {
         return usingAtParCoupons_;
     }
 
     IborLeg::IborLeg(Schedule schedule, ext::shared_ptr<IborIndex> index)
-    : schedule_(std::move(schedule)), index_(std::move(index)) {
+    : schedule_(std::move(schedule)), index_(std::move(index))
+    {
         QL_REQUIRE(index_, "no index provided");
     }
 
-    IborLeg& IborLeg::withNotionals(Real notional) {
-        notionals_ = std::vector<Real>(1,notional);
+    IborLeg& IborLeg::withNotionals(Real notional)
+    {
+        notionals_ = std::vector<Real>(1, notional);
         return *this;
     }
 
-    IborLeg& IborLeg::withNotionals(const std::vector<Real>& notionals) {
+    IborLeg& IborLeg::withNotionals(const std::vector<Real>& notionals)
+    {
         notionals_ = notionals;
         return *this;
     }
 
-    IborLeg& IborLeg::withPaymentDayCounter(const DayCounter& dayCounter) {
+    IborLeg& IborLeg::withPaymentDayCounter(const DayCounter& dayCounter)
+    {
         paymentDayCounter_ = dayCounter;
         return *this;
     }
 
-    IborLeg& IborLeg::withPaymentAdjustment(BusinessDayConvention convention) {
+    IborLeg& IborLeg::withPaymentAdjustment(BusinessDayConvention convention)
+    {
         paymentAdjustment_ = convention;
         return *this;
     }
 
-    IborLeg& IborLeg::withPaymentLag(Integer lag) {
+    IborLeg& IborLeg::withPaymentLag(Integer lag)
+    {
         paymentLag_ = lag;
         return *this;
     }
 
-    IborLeg& IborLeg::withPaymentCalendar(const Calendar& cal) {
+    IborLeg& IborLeg::withPaymentCalendar(const Calendar& cal)
+    {
         paymentCalendar_ = cal;
         return *this;
     }
 
-    IborLeg& IborLeg::withFixingDays(Natural fixingDays) {
-        fixingDays_ = std::vector<Natural>(1,fixingDays);
+    IborLeg& IborLeg::withFixingDays(Natural fixingDays)
+    {
+        fixingDays_ = std::vector<Natural>(1, fixingDays);
         return *this;
     }
 
-    IborLeg& IborLeg::withFixingDays(const std::vector<Natural>& fixingDays) {
+    IborLeg& IborLeg::withFixingDays(const std::vector<Natural>& fixingDays)
+    {
         fixingDays_ = fixingDays;
         return *this;
     }
 
-    IborLeg& IborLeg::withGearings(Real gearing) {
-        gearings_ = std::vector<Real>(1,gearing);
+    IborLeg& IborLeg::withGearings(Real gearing)
+    {
+        gearings_ = std::vector<Real>(1, gearing);
         return *this;
     }
 
-    IborLeg& IborLeg::withGearings(const std::vector<Real>& gearings) {
+    IborLeg& IborLeg::withGearings(const std::vector<Real>& gearings)
+    {
         gearings_ = gearings;
         return *this;
     }
 
-    IborLeg& IborLeg::withSpreads(Spread spread) {
-        spreads_ = std::vector<Spread>(1,spread);
+    IborLeg& IborLeg::withSpreads(Spread spread)
+    {
+        spreads_ = std::vector<Spread>(1, spread);
         return *this;
     }
 
-    IborLeg& IborLeg::withSpreads(const std::vector<Spread>& spreads) {
+    IborLeg& IborLeg::withSpreads(const std::vector<Spread>& spreads)
+    {
         spreads_ = spreads;
         return *this;
     }
 
-    IborLeg& IborLeg::withCaps(Rate cap) {
-        caps_ = std::vector<Rate>(1,cap);
+    IborLeg& IborLeg::withCaps(Rate cap)
+    {
+        caps_ = std::vector<Rate>(1, cap);
         return *this;
     }
 
-    IborLeg& IborLeg::withCaps(const std::vector<Rate>& caps) {
+    IborLeg& IborLeg::withCaps(const std::vector<Rate>& caps)
+    {
         caps_ = caps;
         return *this;
     }
 
-    IborLeg& IborLeg::withFloors(Rate floor) {
-        floors_ = std::vector<Rate>(1,floor);
+    IborLeg& IborLeg::withFloors(Rate floor)
+    {
+        floors_ = std::vector<Rate>(1, floor);
         return *this;
     }
 
-    IborLeg& IborLeg::withFloors(const std::vector<Rate>& floors) {
+    IborLeg& IborLeg::withFloors(const std::vector<Rate>& floors)
+    {
         floors_ = floors;
         return *this;
     }
 
-    IborLeg& IborLeg::inArrears(bool flag) {
+    IborLeg& IborLeg::inArrears(bool flag)
+    {
         inArrears_ = flag;
         return *this;
     }
 
-    IborLeg& IborLeg::withZeroPayments(bool flag) {
+    IborLeg& IborLeg::withZeroPayments(bool flag)
+    {
         zeroPayments_ = flag;
         return *this;
     }
 
-	IborLeg& IborLeg::withExCouponPeriod(const Period& period,
+    IborLeg& IborLeg::withExCouponPeriod(const Period& period,
                                          const Calendar& cal,
                                          BusinessDayConvention convention,
-                                         bool endOfMonth) {
+                                         bool endOfMonth)
+    {
         exCouponPeriod_ = period;
         exCouponCalendar_ = cal;
         exCouponAdjustment_ = convention;
         exCouponEndOfMonth_ = endOfMonth;
         return *this;
-	}
+    }
 
-    IborLeg& IborLeg::withFixingConvention(BusinessDayConvention convention) {
+    IborLeg& IborLeg::withFixingConvention(BusinessDayConvention convention)
+    {
         fixingConvention_ = convention;
         return *this;
     }
 
-    IborLeg& IborLeg::withIndexedCoupons(ext::optional<bool> b) {
+    IborLeg& IborLeg::withIndexedCoupons(ext::optional<bool> b)
+    {
         useIndexedCoupons_ = b;
         return *this;
     }
 
-    IborLeg& IborLeg::withAtParCoupons(bool b) {
+    IborLeg& IborLeg::withAtParCoupons(bool b)
+    {
         useIndexedCoupons_ = !b;
         return *this;
     }
 
-    IborLeg::operator Leg() const {
+    IborLeg::operator Leg() const
+    {
 
         Leg leg = FloatingLeg<IborIndex, IborCoupon, CappedFlooredIborCoupon>(
-                         schedule_, notionals_, index_, paymentDayCounter_,
-                         paymentAdjustment_, fixingDays_, gearings_, spreads_,
-                         caps_, floors_, inArrears_, zeroPayments_, paymentLag_, paymentCalendar_, 
-			             exCouponPeriod_, exCouponCalendar_, exCouponAdjustment_, exCouponEndOfMonth_,
-			             fixingConvention_);
+            schedule_, notionals_, index_, paymentDayCounter_, paymentAdjustment_, fixingDays_, gearings_, spreads_,
+            caps_, floors_, inArrears_, zeroPayments_, paymentLag_, paymentCalendar_, exCouponPeriod_,
+            exCouponCalendar_, exCouponAdjustment_, exCouponEndOfMonth_, fixingConvention_);
 
-        if (caps_.empty() && floors_.empty() && !inArrears_) {
+        if (caps_.empty() && floors_.empty() && !inArrears_)
+        {
             ext::shared_ptr<IborCouponPricer> pricer = ext::make_shared<BlackIborCouponPricer>(
-                Handle<OptionletVolatilityStructure>(),
-                BlackIborCouponPricer::TimingAdjustment::Black76,
+                Handle<OptionletVolatilityStructure>(), BlackIborCouponPricer::TimingAdjustment::Black76,
                 Handle<Quote>(ext::make_shared<SimpleQuote>(1.0)), useIndexedCoupons_);
             setCouponPricer(leg, pricer);
         }

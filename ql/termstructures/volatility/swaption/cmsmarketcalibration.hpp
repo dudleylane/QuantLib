@@ -20,31 +20,37 @@
 */
 
 /*! \file cmsmarketcalibration.hpp
-*/
+ */
 
 #ifndef quantlib_cms_market_calibration_h
 #define quantlib_cms_market_calibration_h
 
-#include <ql/math/optimization/endcriteria.hpp>
-#include <ql/math/matrix.hpp>
-#include <ql/math/array.hpp>
 #include <ql/handle.hpp>
+#include <ql/math/array.hpp>
+#include <ql/math/matrix.hpp>
+#include <ql/math/optimization/endcriteria.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class SwaptionVolatilityStructure;
     class CmsMarket;
     class OptimizationMethod;
 
-    class CmsMarketCalibration {
+    class CmsMarketCalibration
+    {
       public:
-        enum CalibrationType {OnSpread, OnPrice, OnForwardCmsPrice };
+        enum CalibrationType
+        {
+            OnSpread,
+            OnPrice,
+            OnForwardCmsPrice
+        };
 
-        CmsMarketCalibration(
-            Handle<SwaptionVolatilityStructure>& volCube,
-            ext::shared_ptr<CmsMarket>& cmsMarket,
-            const Matrix& weights,
-            CalibrationType calibrationType);
+        CmsMarketCalibration(Handle<SwaptionVolatilityStructure>& volCube,
+                             ext::shared_ptr<CmsMarket>& cmsMarket,
+                             const Matrix& weights,
+                             CalibrationType calibrationType);
 
         Handle<SwaptionVolatilityStructure> volCube_;
         ext::shared_ptr<CmsMarket> cmsMarket_;
@@ -72,21 +78,13 @@ namespace QuantLib {
         Real error() const { return error_; }
         EndCriteria::Type endCriteria() { return endCriteria_; };
 
-        static Real betaTransformInverse(Real beta) {
-            return std::sqrt(-std::log(beta));
+        static Real betaTransformInverse(Real beta) { return std::sqrt(-std::log(beta)); }
+        static Real betaTransformDirect(Real y)
+        {
+            return std::max(std::min(std::fabs(y) < 10.0 ? Real(std::exp(-(y * y))) : 0.0, 0.999999), 0.000001);
         }
-        static Real betaTransformDirect(Real y) {
-            return std::max(
-                std::min(std::fabs(y) < 10.0 ? Real(std::exp(-(y * y))) : 0.0,
-                         0.999999),
-                0.000001);
-        }
-        static Real reversionTransformInverse(Real reversion) {
-            return reversion * reversion;
-        }
-        static Real reversionTransformDirect(Real y) {
-            return std::sqrt(y);
-        }
+        static Real reversionTransformInverse(Real reversion) { return reversion * reversion; }
+        static Real reversionTransformDirect(Real y) { return std::sqrt(y); }
 
       private:
         Real error_;

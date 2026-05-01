@@ -27,16 +27,18 @@
 #include <ql/methods/finitedifferences/meshers/fdmmesher.hpp>
 #include <ql/methods/finitedifferences/operators/triplebandlinearop.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class ModTripleBandLinearOp : public TripleBandLinearOp {
+    class ModTripleBandLinearOp : public TripleBandLinearOp
+    {
       public:
-        ModTripleBandLinearOp(Size direction,
-                              const ext::shared_ptr<FdmMesher>& mesher)
-        : TripleBandLinearOp(direction, mesher) { }
+        ModTripleBandLinearOp(Size direction, const ext::shared_ptr<FdmMesher>& mesher)
+        : TripleBandLinearOp(direction, mesher)
+        {
+        }
 
-        explicit ModTripleBandLinearOp(const TripleBandLinearOp& m)
-        : TripleBandLinearOp(m) { }
+        explicit ModTripleBandLinearOp(const TripleBandLinearOp& m) : TripleBandLinearOp(m) {}
 
         Real lower(Size i) const { return lower_[i]; }
         Real& lower(Size i) { return lower_[i]; }

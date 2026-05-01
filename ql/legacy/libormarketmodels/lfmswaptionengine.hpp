@@ -25,19 +25,18 @@
 #define quantlib_libor_forward_model_swaption_engine_hpp
 
 #include <ql/instruments/swaption.hpp>
-#include <ql/pricingengines/genericmodelengine.hpp>
 #include <ql/legacy/libormarketmodels/liborforwardmodel.hpp>
+#include <ql/pricingengines/genericmodelengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Libor forward model swaption engine based on Black formula
     /*! \ingroup swaptionengines */
-    class LfmSwaptionEngine : public GenericModelEngine<LiborForwardModel,
-                                                        Swaption::arguments,
-                                                        Swaption::results> {
+    class LfmSwaptionEngine : public GenericModelEngine<LiborForwardModel, Swaption::arguments, Swaption::results>
+    {
       public:
-        LfmSwaptionEngine(const ext::shared_ptr<LiborForwardModel>& model,
-                          Handle<YieldTermStructure> discountCurve);
+        LfmSwaptionEngine(const ext::shared_ptr<LiborForwardModel>& model, Handle<YieldTermStructure> discountCurve);
         void calculate() const override;
 
       private:

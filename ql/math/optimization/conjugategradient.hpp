@@ -28,7 +28,8 @@
 
 #include <ql/math/optimization/linesearchbasedmethod.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Multi-dimensional Conjugate Gradient class.
     /*! Fletcher-Reeves-Polak-Ribiere algorithm
@@ -44,11 +45,14 @@ namespace QuantLib {
 
         \ingroup optimizers
     */
-    class ConjugateGradient: public LineSearchBasedMethod {
+    class ConjugateGradient : public LineSearchBasedMethod
+    {
       public:
-        ConjugateGradient(const ext::shared_ptr<LineSearch>& lineSearch =
-                                            ext::shared_ptr<LineSearch>())
-        : LineSearchBasedMethod(lineSearch) {}
+        ConjugateGradient(const ext::shared_ptr<LineSearch>& lineSearch = ext::shared_ptr<LineSearch>())
+        : LineSearchBasedMethod(lineSearch)
+        {
+        }
+
       private:
         //! \name LineSearchBasedMethod interface
         //@{

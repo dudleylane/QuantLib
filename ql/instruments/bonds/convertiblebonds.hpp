@@ -33,16 +33,20 @@
 #include <ql/time/daycounter.hpp>
 #include <ql/time/schedule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class IborIndex;
     class PricingEngine;
 
     //! %callability leaving to the holder the possibility to convert
-    class SoftCallability : public Callability {
+    class SoftCallability : public Callability
+    {
       public:
         SoftCallability(const Bond::Price& price, const Date& date, Real trigger)
-        : Callability(price, Callability::Call, date), trigger_(trigger) {}
+        : Callability(price, Callability::Call, date), trigger_(trigger)
+        {
+        }
         Real trigger() const { return trigger_; }
 
       private:
@@ -51,7 +55,8 @@ namespace QuantLib {
 
 
     //! base class for convertible bonds
-    class ConvertibleBond : public Bond {
+    class ConvertibleBond : public Bond
+    {
       public:
         class arguments;
         class engine;
@@ -82,7 +87,8 @@ namespace QuantLib {
                  the underlying plain-vanilla bond and do not take
                  convertibility and callability into account.
     */
-    class ConvertibleZeroCouponBond : public ConvertibleBond {
+    class ConvertibleZeroCouponBond : public ConvertibleBond
+    {
       public:
         ConvertibleZeroCouponBond(const ext::shared_ptr<Exercise>& exercise,
                                   Real conversionRatio,
@@ -101,7 +107,8 @@ namespace QuantLib {
                  the underlying plain-vanilla bond and do not take
                  convertibility and callability into account.
     */
-    class ConvertibleFixedCouponBond : public ConvertibleBond {
+    class ConvertibleFixedCouponBond : public ConvertibleBond
+    {
       public:
         ConvertibleFixedCouponBond(const ext::shared_ptr<Exercise>& exercise,
                                    Real conversionRatio,
@@ -125,7 +132,8 @@ namespace QuantLib {
                  the underlying plain-vanilla bond and do not take
                  convertibility and callability into account.
     */
-    class ConvertibleFloatingRateBond : public ConvertibleBond {
+    class ConvertibleFloatingRateBond : public ConvertibleBond
+    {
       public:
         ConvertibleFloatingRateBond(const ext::shared_ptr<Exercise>& exercise,
                                     Real conversionRatio,
@@ -145,14 +153,14 @@ namespace QuantLib {
     };
 
 
-    class ConvertibleBond::arguments : public PricingEngine::arguments {
+    class ConvertibleBond::arguments : public PricingEngine::arguments
+    {
       public:
-        arguments()
-        : conversionRatio(Null<Real>()), settlementDays(Null<Natural>()), redemption(Null<Real>()) {}
+        arguments() : conversionRatio(Null<Real>()), settlementDays(Null<Natural>()), redemption(Null<Real>()) {}
 
         ext::shared_ptr<Exercise> exercise;
         Real conversionRatio;
-        std::vector<Date> callabilityDates; 
+        std::vector<Date> callabilityDates;
         std::vector<Callability::Type> callabilityTypes;
         std::vector<Real> callabilityPrices;
         std::vector<Real> callabilityTriggers;
@@ -165,8 +173,9 @@ namespace QuantLib {
         void validate() const override;
     };
 
-    class ConvertibleBond::engine
-    : public GenericEngine<ConvertibleBond::arguments, ConvertibleBond::results> {};
+    class ConvertibleBond::engine : public GenericEngine<ConvertibleBond::arguments, ConvertibleBond::results>
+    {
+    };
 
 }
 

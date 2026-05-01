@@ -27,7 +27,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! United Kingdom calendars
     /*! Repeating Public holidays (data from https://www.gov.uk/bank-holidays):
@@ -88,28 +89,35 @@ namespace QuantLib {
         \test the correctness of the returned results is tested
               against a list of known holidays.
     */
-    class UnitedKingdom : public Calendar {
+    class UnitedKingdom : public Calendar
+    {
       private:
-        class SettlementImpl final : public Calendar::WesternImpl {
+        class SettlementImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "UK settlement"; }
             bool isBusinessDay(const Date&) const override;
         };
-        class ExchangeImpl final : public Calendar::WesternImpl {
+        class ExchangeImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "London stock exchange"; }
             bool isBusinessDay(const Date&) const override;
         };
-        class MetalsImpl final : public Calendar::WesternImpl {
+        class MetalsImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "London metals exchange"; }
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
         //! UK calendars
-        enum Market { Settlement,     //!< generic settlement calendar
-                      Exchange,       //!< London stock-exchange calendar
-                      Metals          //|< London metals-exchange calendar
+        enum Market
+        {
+            Settlement, //!< generic settlement calendar
+            Exchange,   //!< London stock-exchange calendar
+            Metals      //|< London metals-exchange calendar
         };
         UnitedKingdom(Market market = Settlement);
     };

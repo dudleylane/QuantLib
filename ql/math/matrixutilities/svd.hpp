@@ -42,7 +42,8 @@
 
 #include <ql/math/matrix.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Singular value decomposition
     /*! Refer to Golub and Van Loan: Matrix computation,
@@ -51,7 +52,8 @@ namespace QuantLib {
         \test the correctness of the returned values is tested by
               checking their properties.
     */
-    class SVD {
+    class SVD
+    {
       public:
         // constructor
         explicit SVD(const Matrix&);
@@ -61,10 +63,11 @@ namespace QuantLib {
         const Array& singularValues() const;
         Matrix S() const;
         Real norm2() const;
-        Real cond()  const;
-        Size rank()  const;
+        Real cond() const;
+        Size rank() const;
         // utilities
         Array solveFor(const Array&) const;
+
       private:
         Matrix U_, V_;
         Array s_;
@@ -76,4 +79,3 @@ namespace QuantLib {
 
 
 #endif
-

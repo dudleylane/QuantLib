@@ -18,42 +18,40 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/models/marketmodels/forwardforwardmappings.hpp>
 #include <ql/models/marketmodels/curvestate.hpp>
 #include <ql/models/marketmodels/curvestates/lmmcurvestate.hpp>
+#include <ql/models/marketmodels/forwardforwardmappings.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Matrix ForwardForwardMappings::ForwardForwardJacobian(const CurveState& cs,
-                                                          Size multiplier,
-                                                          Size offset) {
+    Matrix ForwardForwardMappings::ForwardForwardJacobian(const CurveState& cs, Size multiplier, Size offset)
+    {
 
         Size n = cs.numberOfRates();
 
         QL_REQUIRE(offset < multiplier, "offset  must be less than period in"
-            "  forward forward mappings");
-        Size k = (n-offset)/multiplier;
+                                        "  forward forward mappings");
+        Size k = (n - offset) / multiplier;
 
         const std::vector<Time>& tau = cs.rateTaus();
 
         Matrix jacobian = Matrix(k, n, 0.0);
 
-        Size m=offset;
-        for (Size l=0; l < k; ++l)
+        Size m = offset;
+        for (Size l = 0; l < k; ++l)
+        {
+            Real df = cs.discountRatio(m, m + multiplier);
+            Real bigTau = cs.rateTimes()[m + multiplier] - cs.rateTimes()[m];
+
+            for (Size r = 0; r < multiplier; ++r, ++m)
             {
-            Real df = cs.discountRatio(m,m+multiplier);
-            Real bigTau = cs.rateTimes()[m+multiplier]
-            -  cs.rateTimes()[m];
-
-            for (Size r=0; r < multiplier; ++r, ++m)
-                {
-                Real value = df * tau[m]*cs.discountRatio(m+1,m)-1;
+                Real value = df * tau[m] * cs.discountRatio(m + 1, m) - 1;
                 value /= bigTau;
-                jacobian[l][m]=-value;
-
-                }
+                jacobian[l][m] = -value;
             }
+        }
 
         return jacobian;
     }
@@ -62,64 +60,60 @@ namespace QuantLib {
                                            const std::vector<Spread>& shortDisplacements,
                                            const std::vector<Spread>& longDisplacements,
                                            Size multiplier,
-                                           Size offset) {
+                                           Size offset)
+    {
         Size n = cs.numberOfRates();
 
         QL_REQUIRE(offset < multiplier, "offset  must be less than period in"
-            "  forward forward mappings");
-        Size k = (n-offset)/multiplier;
+                                        "  forward forward mappings");
+        Size k = (n - offset) / multiplier;
 
 
-        QL_REQUIRE(shortDisplacements.size() == n , "shortDisplacements must be of size"
-            " equal to number of rates");
+        QL_REQUIRE(shortDisplacements.size() == n, "shortDisplacements must be of size"
+                                                   " equal to number of rates");
 
-        QL_REQUIRE(longDisplacements.size() == k , "longDisplacements must be of size"
-            " equal to (number of rates minus offset) divided by multiplier");
+        QL_REQUIRE(longDisplacements.size() == k, "longDisplacements must be of size"
+                                                  " equal to (number of rates minus offset) divided by multiplier");
 
-        Matrix jacobian(ForwardForwardJacobian(cs,multiplier,offset));
+        Matrix jacobian(ForwardForwardJacobian(cs, multiplier, offset));
 
-        for (Size i=0; i < k ; ++i)
+        for (Size i = 0; i < k; ++i)
+        {
+            Real tau = cs.rateTimes()[(i + 1) * multiplier + offset] - cs.rateTimes()[i * multiplier + offset];
+
+            Real longForward = (cs.discountRatio((i + 1) * multiplier + offset, i * multiplier + offset) - 1.0) / tau;
+            Real longForwardDisplaced = longForward + longDisplacements[i];
+            for (Size j = 0; j < n; ++j)
             {
-            Real tau = cs.rateTimes()[(i+1)*multiplier+offset]
-            -  cs.rateTimes()[i*multiplier+offset];
-
-            Real longForward = (cs.discountRatio((i+1)*multiplier+offset,i*multiplier+offset)-1.0)
-                /tau;
-            Real longForwardDisplaced = longForward+ longDisplacements[i];
-            for (Size j=0; j < n; ++j)
-                {
                 Real shortForward = cs.forwardRate(j);
-                Real shortForwardDisplaced = shortForward+shortDisplacements[j];
-                jacobian[i][j] *= shortForwardDisplaced/longForwardDisplaced;
-                }
-
+                Real shortForwardDisplaced = shortForward + shortDisplacements[j];
+                jacobian[i][j] *= shortForwardDisplaced / longForwardDisplaced;
             }
+        }
 
         return jacobian;
     }
 
-    LMMCurveState ForwardForwardMappings::RestrictCurveState(const CurveState& cs,
-                                                             Size multiplier,
-                                                             Size offset) {
-           Size n = cs.numberOfRates();
+    LMMCurveState ForwardForwardMappings::RestrictCurveState(const CurveState& cs, Size multiplier, Size offset)
+    {
+        Size n = cs.numberOfRates();
 
-           QL_REQUIRE(offset < multiplier, "offset  must be less than period in"
-           "  forward forward mappings");
-           Size k = (n-offset)/multiplier;
+        QL_REQUIRE(offset < multiplier, "offset  must be less than period in"
+                                        "  forward forward mappings");
+        Size k = (n - offset) / multiplier;
 
-           std::vector<Time> times(k+1);
-           std::vector<DiscountFactor> discRatios(k+1);
+        std::vector<Time> times(k + 1);
+        std::vector<DiscountFactor> discRatios(k + 1);
 
 
-           for (Size i=0; i < k+1; ++i)
-           {
-               times[i] = cs.rateTimes()[i*multiplier+offset];
-               discRatios[i] = cs.discountRatio(i*multiplier+offset,0);
-           }
+        for (Size i = 0; i < k + 1; ++i)
+        {
+            times[i] = cs.rateTimes()[i * multiplier + offset];
+            discRatios[i] = cs.discountRatio(i * multiplier + offset, 0);
+        }
 
-           LMMCurveState newState(times);
-           newState.setOnDiscountRatios(discRatios);
-           return newState;
-
+        LMMCurveState newState(times);
+        newState.setOnDiscountRatios(discRatios);
+        return newState;
     }
 }

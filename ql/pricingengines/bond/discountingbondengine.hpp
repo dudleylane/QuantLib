@@ -25,26 +25,26 @@
 #ifndef quantlib_discounting_bond_engine_hpp
 #define quantlib_discounting_bond_engine_hpp
 
-#include <ql/instruments/bond.hpp>
-#include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/handle.hpp>
+#include <ql/instruments/bond.hpp>
 #include <ql/optional.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Discounting engine for bonds
     /*! This engine discounts future bond cashflows to the settlement date.
         \ingroup bondengines
     */
-    class DiscountingBondEngine : public Bond::engine {
+    class DiscountingBondEngine : public Bond::engine
+    {
       public:
-        DiscountingBondEngine(
-            Handle<YieldTermStructure> discountCurve = Handle<YieldTermStructure>(),
-            const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt);
+        DiscountingBondEngine(Handle<YieldTermStructure> discountCurve = Handle<YieldTermStructure>(),
+                              const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt);
         void calculate() const override;
-        Handle<YieldTermStructure> discountCurve() const {
-            return discountCurve_;
-        }
+        Handle<YieldTermStructure> discountCurve() const { return discountCurve_; }
+
       private:
         Handle<YieldTermStructure> discountCurve_;
         ext::optional<bool> includeSettlementDateFlows_;

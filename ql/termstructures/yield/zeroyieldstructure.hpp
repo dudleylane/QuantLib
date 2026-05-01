@@ -28,7 +28,8 @@
 
 #include <ql/termstructures/yieldtermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Zero-yield term structure
     /*! This abstract class acts as an adapter to YieldTermStructure
@@ -41,27 +42,25 @@ namespace QuantLib {
 
         \ingroup yieldtermstructures
     */
-    class ZeroYieldStructure : public YieldTermStructure {
+    class ZeroYieldStructure : public YieldTermStructure
+    {
       public:
         /*! \name Constructors
             See the TermStructure documentation for issues regarding
             constructors.
         */
         //@{
-        explicit ZeroYieldStructure(
-            const DayCounter& dc = DayCounter());
-        explicit ZeroYieldStructure(
-            const Date& referenceDate,
-            const Calendar& calendar = Calendar(),
-            const DayCounter& dc = DayCounter(),
-            const std::vector<Handle<Quote> >& jumps = {},
-            const std::vector<Date>& jumpDates = {});
-        ZeroYieldStructure(
-            Natural settlementDays,
-            const Calendar& calendar,
-            const DayCounter& dc = DayCounter(),
-            const std::vector<Handle<Quote> >& jumps = {},
-            const std::vector<Date>& jumpDates = {});
+        explicit ZeroYieldStructure(const DayCounter& dc = DayCounter());
+        explicit ZeroYieldStructure(const Date& referenceDate,
+                                    const Calendar& calendar = Calendar(),
+                                    const DayCounter& dc = DayCounter(),
+                                    const std::vector<Handle<Quote>>& jumps = {},
+                                    const std::vector<Date>& jumpDates = {});
+        ZeroYieldStructure(Natural settlementDays,
+                           const Calendar& calendar,
+                           const DayCounter& dc = DayCounter(),
+                           const std::vector<Handle<Quote>>& jumps = {},
+                           const std::vector<Date>& jumpDates = {});
         //@}
       protected:
         /*! \name Calculations
@@ -87,12 +86,13 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline DiscountFactor ZeroYieldStructure::discountImpl(Time t) const {
-        if (t == 0.0)     // this acts as a safe guard in cases where
-            return 1.0;   // zeroYieldImpl(0.0) would throw.
+    inline DiscountFactor ZeroYieldStructure::discountImpl(Time t) const
+    {
+        if (t == 0.0)   // this acts as a safe guard in cases where
+            return 1.0; // zeroYieldImpl(0.0) would throw.
 
         Rate r = zeroYieldImpl(t);
-        return DiscountFactor(std::exp(-r*t));
+        return DiscountFactor(std::exp(-r * t));
     }
 
 }

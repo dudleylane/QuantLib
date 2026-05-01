@@ -25,14 +25,17 @@
 #ifndef quantlib_bicubic_spline_interpolation_hpp
 #define quantlib_bicubic_spline_interpolation_hpp
 
-#include <ql/math/interpolations/interpolation2d.hpp>
 #include <ql/math/interpolations/cubicinterpolation.hpp>
+#include <ql/math/interpolations/interpolation2d.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace detail {
+    namespace detail
+    {
 
-        class BicubicSplineDerivatives {
+        class BicubicSplineDerivatives
+        {
           public:
             virtual ~BicubicSplineDerivatives() = default;
             virtual Real derivativeX(Real x, Real y) const = 0;
@@ -41,111 +44,100 @@ namespace QuantLib {
             virtual Real secondDerivativeX(Real x, Real y) const = 0;
             virtual Real secondDerivativeY(Real x, Real y) const = 0;
         };
-    
+
         template <class I1, class I2, class M>
-        class BicubicSplineImpl
-            : public Interpolation2D::templateImpl<I1,I2,M>,
-              public BicubicSplineDerivatives {
+        class BicubicSplineImpl : public Interpolation2D::templateImpl<I1, I2, M>, public BicubicSplineDerivatives
+        {
           public:
-            BicubicSplineImpl(const I1& xBegin, const I1& xEnd,
-                              const I2& yBegin, const I2& yEnd,
-                              const M& zData)
-            : Interpolation2D::templateImpl<I1,I2,M>(xBegin,xEnd,
-                                                     yBegin,yEnd,
-                                                     zData) {
+            BicubicSplineImpl(const I1& xBegin, const I1& xEnd, const I2& yBegin, const I2& yEnd, const M& zData)
+            : Interpolation2D::templateImpl<I1, I2, M>(xBegin, xEnd, yBegin, yEnd, zData)
+            {
                 BicubicSplineImpl::calculate();
             }
-            void calculate() override {
+            void calculate() override
+            {
                 splines_.resize(this->zData_.rows());
-                for (Size i=0; i<(this->zData_.rows()); ++i)
+                for (Size i = 0; i < (this->zData_.rows()); ++i)
                     splines_[i] = CubicInterpolation(
-                                this->xBegin_, this->xEnd_,
-                                this->zData_.row_begin(i),
-                                CubicInterpolation::Spline, false,
-                                CubicInterpolation::SecondDerivative, 0.0,
-                                CubicInterpolation::SecondDerivative, 0.0);
+                        this->xBegin_, this->xEnd_, this->zData_.row_begin(i), CubicInterpolation::Spline, false,
+                        CubicInterpolation::SecondDerivative, 0.0, CubicInterpolation::SecondDerivative, 0.0);
             }
-            Real value(Real x, Real y) const override {
+            Real value(Real x, Real y) const override
+            {
                 std::vector<Real> section(splines_.size());
-                for (Size i=0; i<splines_.size(); i++)
-                    section[i]=splines_[i](x,true);
+                for (Size i = 0; i < splines_.size(); i++)
+                    section[i] = splines_[i](x, true);
 
-                CubicInterpolation spline(this->yBegin_, this->yEnd_,
-                                          section.begin(),
-                                          CubicInterpolation::Spline, false,
-                                          CubicInterpolation::SecondDerivative, 0.0,
+                CubicInterpolation spline(this->yBegin_, this->yEnd_, section.begin(), CubicInterpolation::Spline,
+                                          false, CubicInterpolation::SecondDerivative, 0.0,
                                           CubicInterpolation::SecondDerivative, 0.0);
-                return spline(y,true);
+                return spline(y, true);
             }
 
-            Real derivativeX(Real x, Real y) const override {
+            Real derivativeX(Real x, Real y) const override
+            {
                 std::vector<Real> section(this->zData_.columns());
-                for (Size i=0; i < section.size(); ++i) {
+                for (Size i = 0; i < section.size(); ++i)
+                {
                     section[i] = value(this->xBegin_[i], y);
                 }
-                
-                return CubicInterpolation(
-                    this->xBegin_, this->xEnd_,
-                    section.begin(),
-                    CubicInterpolation::Spline, false,
-                    CubicInterpolation::SecondDerivative, 0.0,
-                    CubicInterpolation::SecondDerivative, 0.0).derivative(x);
+
+                return CubicInterpolation(this->xBegin_, this->xEnd_, section.begin(), CubicInterpolation::Spline,
+                                          false, CubicInterpolation::SecondDerivative, 0.0,
+                                          CubicInterpolation::SecondDerivative, 0.0)
+                    .derivative(x);
             }
 
-            Real secondDerivativeX(Real x, Real y) const override {
+            Real secondDerivativeX(Real x, Real y) const override
+            {
                 std::vector<Real> section(this->zData_.columns());
-                for (Size i=0; i < section.size(); ++i) {
+                for (Size i = 0; i < section.size(); ++i)
+                {
                     section[i] = value(this->xBegin_[i], y);
                 }
-                
-                return CubicInterpolation(
-                    this->xBegin_, this->xEnd_,
-                    section.begin(),
-                    CubicInterpolation::Spline, false,
-                    CubicInterpolation::SecondDerivative, 0.0,
-                    CubicInterpolation::SecondDerivative, 0.0)
-                                                          .secondDerivative(x);
+
+                return CubicInterpolation(this->xBegin_, this->xEnd_, section.begin(), CubicInterpolation::Spline,
+                                          false, CubicInterpolation::SecondDerivative, 0.0,
+                                          CubicInterpolation::SecondDerivative, 0.0)
+                    .secondDerivative(x);
             }
 
-            Real derivativeY(Real x, Real y) const override {
+            Real derivativeY(Real x, Real y) const override
+            {
                 std::vector<Real> section(splines_.size());
-                for (Size i=0; i<splines_.size(); i++)
-                    section[i]=splines_[i](x,true);
+                for (Size i = 0; i < splines_.size(); i++)
+                    section[i] = splines_[i](x, true);
 
-                return CubicInterpolation(
-                    this->yBegin_, this->yEnd_,
-                    section.begin(),
-                    CubicInterpolation::Spline, false,
-                    CubicInterpolation::SecondDerivative, 0.0,
-                    CubicInterpolation::SecondDerivative, 0.0).derivative(y);
+                return CubicInterpolation(this->yBegin_, this->yEnd_, section.begin(), CubicInterpolation::Spline,
+                                          false, CubicInterpolation::SecondDerivative, 0.0,
+                                          CubicInterpolation::SecondDerivative, 0.0)
+                    .derivative(y);
             }
 
-            Real secondDerivativeY(Real x, Real y) const override {
+            Real secondDerivativeY(Real x, Real y) const override
+            {
                 std::vector<Real> section(splines_.size());
-                for (Size i=0; i<splines_.size(); i++)
-                    section[i]=splines_[i](x,true);
+                for (Size i = 0; i < splines_.size(); i++)
+                    section[i] = splines_[i](x, true);
 
-                return CubicInterpolation(
-                    this->yBegin_, this->yEnd_,
-                    section.begin(),
-                    CubicInterpolation::Spline, false,
-                    CubicInterpolation::SecondDerivative, 0.0,
-                    CubicInterpolation::SecondDerivative, 0.0)
-                                                        .secondDerivative(y);
+                return CubicInterpolation(this->yBegin_, this->yEnd_, section.begin(), CubicInterpolation::Spline,
+                                          false, CubicInterpolation::SecondDerivative, 0.0,
+                                          CubicInterpolation::SecondDerivative, 0.0)
+                    .secondDerivative(y);
             }
 
-            Real derivativeXY(Real x, Real y) const override {
+            Real derivativeXY(Real x, Real y) const override
+            {
                 std::vector<Real> section(this->zData_.columns());
-                for (Size i=0; i < section.size(); ++i) {
+                for (Size i = 0; i < section.size(); ++i)
+                {
                     section[i] = derivativeY(this->xBegin_[i], y);
                 }
-                
-                return CubicInterpolation(
-                    this->xBegin_, this->xEnd_,
-                    section.begin(),
-                    CubicInterpolation::Spline, false,
-                    CubicInterpolation::SecondDerivative, 0.0,
-                    CubicInterpolation::SecondDerivative, 0.0).derivative(x);
+
+                return CubicInterpolation(this->xBegin_, this->xEnd_, section.begin(), CubicInterpolation::Spline,
+                                          false, CubicInterpolation::SecondDerivative, 0.0,
+                                          CubicInterpolation::SecondDerivative, 0.0)
+                    .derivative(x);
             }
 
           private:
@@ -160,49 +152,49 @@ namespace QuantLib {
         \warning See the Interpolation class for information about the
                  required lifetime of the underlying data.
     */
-    class BicubicSpline : public Interpolation2D {
+    class BicubicSpline : public Interpolation2D
+    {
       public:
         /*! \pre the \f$ x \f$ and \f$ y \f$ values must be sorted. */
         template <class I1, class I2, class M>
-        BicubicSpline(const I1& xBegin, const I1& xEnd,
-                      const I2& yBegin, const I2& yEnd,
-                      const M& zData) {
+        BicubicSpline(const I1& xBegin, const I1& xEnd, const I2& yBegin, const I2& yEnd, const M& zData)
+        {
             impl_ = ext::shared_ptr<Interpolation2D::Impl>(
-                  new detail::BicubicSplineImpl<I1,I2,M>(xBegin, xEnd,
-                                                         yBegin, yEnd, zData));
+                new detail::BicubicSplineImpl<I1, I2, M>(xBegin, xEnd, yBegin, yEnd, zData));
         }
-        
-        Real derivativeX(Real x, Real y) const {
-            return ext::dynamic_pointer_cast<detail::BicubicSplineDerivatives>
-                    (impl_)->derivativeX(x, y);
+
+        Real derivativeX(Real x, Real y) const
+        {
+            return ext::dynamic_pointer_cast<detail::BicubicSplineDerivatives>(impl_)->derivativeX(x, y);
         }
-        Real derivativeY(Real x, Real y) const {
-            return ext::dynamic_pointer_cast<detail::BicubicSplineDerivatives>
-                    (impl_)->derivativeY(x, y);
+        Real derivativeY(Real x, Real y) const
+        {
+            return ext::dynamic_pointer_cast<detail::BicubicSplineDerivatives>(impl_)->derivativeY(x, y);
         }
-        Real secondDerivativeX(Real x, Real y) const {
-            return ext::dynamic_pointer_cast<detail::BicubicSplineDerivatives>
-                    (impl_)->secondDerivativeX(x, y);
+        Real secondDerivativeX(Real x, Real y) const
+        {
+            return ext::dynamic_pointer_cast<detail::BicubicSplineDerivatives>(impl_)->secondDerivativeX(x, y);
         }
-        Real secondDerivativeY(Real x, Real y) const {
-            return ext::dynamic_pointer_cast<detail::BicubicSplineDerivatives>
-                    (impl_)->secondDerivativeY(x, y);
+        Real secondDerivativeY(Real x, Real y) const
+        {
+            return ext::dynamic_pointer_cast<detail::BicubicSplineDerivatives>(impl_)->secondDerivativeY(x, y);
         }
-        
-        Real derivativeXY(Real x, Real y) const {
-            return ext::dynamic_pointer_cast<detail::BicubicSplineDerivatives>
-                    (impl_)->derivativeXY(x, y);            
+
+        Real derivativeXY(Real x, Real y) const
+        {
+            return ext::dynamic_pointer_cast<detail::BicubicSplineDerivatives>(impl_)->derivativeXY(x, y);
         }
     };
 
     //! bicubic-spline-interpolation factory
-    class Bicubic {
+    class Bicubic
+    {
       public:
         template <class I1, class I2, class M>
-        Interpolation2D interpolate(const I1& xBegin, const I1& xEnd,
-                                    const I2& yBegin, const I2& yEnd,
-                                    const M& z) const {
-            return BicubicSpline(xBegin,xEnd,yBegin,yEnd,z);
+        Interpolation2D
+        interpolate(const I1& xBegin, const I1& xEnd, const I2& yBegin, const I2& yEnd, const M& z) const
+        {
+            return BicubicSpline(xBegin, xEnd, yBegin, yEnd, z);
         }
     };
 

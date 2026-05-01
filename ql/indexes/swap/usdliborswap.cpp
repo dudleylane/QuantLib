@@ -17,68 +17,73 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/indexes/swap/usdliborswap.hpp>
+#include <ql/currencies/america.hpp>
 #include <ql/indexes/ibor/usdlibor.hpp>
+#include <ql/indexes/swap/usdliborswap.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/thirty360.hpp>
-#include <ql/currencies/america.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    UsdLiborSwapIsdaFixAm::UsdLiborSwapIsdaFixAm(
-                                const Period& tenor,
-                                const Handle<YieldTermStructure>& h)
+    UsdLiborSwapIsdaFixAm::UsdLiborSwapIsdaFixAm(const Period& tenor,
+                                                 const Handle<YieldTermStructure>& h)
     : SwapIndex("UsdLiborSwapIsdaFixAm", // familyName
                 tenor,
                 2, // settlementDays
                 USDCurrency(),
                 UnitedStates(UnitedStates::GovernmentBond),
-                6*Months, // fixedLegTenor
-                ModifiedFollowing, // fixedLegConvention
+                6 * Months,                      // fixedLegTenor
+                ModifiedFollowing,               // fixedLegConvention
                 Thirty360(Thirty360::BondBasis), // fixedLegDaycounter
-                ext::shared_ptr<IborIndex>(new USDLibor(3*Months, h))) {}
+                ext::shared_ptr<IborIndex>(new USDLibor(3 * Months, h)))
+    {
+    }
 
-    UsdLiborSwapIsdaFixAm::UsdLiborSwapIsdaFixAm(
-                                const Period& tenor,
-                                const Handle<YieldTermStructure>& forwarding,
-                                const Handle<YieldTermStructure>& discounting)
+    UsdLiborSwapIsdaFixAm::UsdLiborSwapIsdaFixAm(const Period& tenor,
+                                                 const Handle<YieldTermStructure>& forwarding,
+                                                 const Handle<YieldTermStructure>& discounting)
     : SwapIndex("UsdLiborSwapIsdaFixAm", // familyName
                 tenor,
                 2, // settlementDays
                 USDCurrency(),
                 UnitedStates(UnitedStates::GovernmentBond),
-                6*Months, // fixedLegTenor
-                ModifiedFollowing, // fixedLegConvention
+                6 * Months,                      // fixedLegTenor
+                ModifiedFollowing,               // fixedLegConvention
                 Thirty360(Thirty360::BondBasis), // fixedLegDaycounter
-                ext::shared_ptr<IborIndex>(new USDLibor(3*Months, forwarding)),
-                discounting) {}
+                ext::shared_ptr<IborIndex>(new USDLibor(3 * Months, forwarding)),
+                discounting)
+    {
+    }
 
-    UsdLiborSwapIsdaFixPm::UsdLiborSwapIsdaFixPm(
-                                const Period& tenor,
-                                const Handle<YieldTermStructure>& h)
+    UsdLiborSwapIsdaFixPm::UsdLiborSwapIsdaFixPm(const Period& tenor,
+                                                 const Handle<YieldTermStructure>& h)
     : SwapIndex("UsdLiborSwapIsdaFixPm", // familyName
                 tenor,
                 2, // settlementDays
                 USDCurrency(),
                 UnitedStates(UnitedStates::GovernmentBond),
-                6*Months, // fixedLegTenor
-                ModifiedFollowing, // fixedLegConvention
+                6 * Months,                      // fixedLegTenor
+                ModifiedFollowing,               // fixedLegConvention
                 Thirty360(Thirty360::BondBasis), // fixedLegDaycounter
-                ext::shared_ptr<IborIndex>(new USDLibor(3*Months, h))) {}
+                ext::shared_ptr<IborIndex>(new USDLibor(3 * Months, h)))
+    {
+    }
 
-    UsdLiborSwapIsdaFixPm::UsdLiborSwapIsdaFixPm(
-                                const Period& tenor,
-                                const Handle<YieldTermStructure>& forwarding,
-                                const Handle<YieldTermStructure>& discounting)
+    UsdLiborSwapIsdaFixPm::UsdLiborSwapIsdaFixPm(const Period& tenor,
+                                                 const Handle<YieldTermStructure>& forwarding,
+                                                 const Handle<YieldTermStructure>& discounting)
     : SwapIndex("UsdLiborSwapIsdaFixPm", // familyName
                 tenor,
                 2, // settlementDays
                 USDCurrency(),
                 UnitedStates(UnitedStates::GovernmentBond),
-                6*Months, // fixedLegTenor
-                ModifiedFollowing, // fixedLegConvention
+                6 * Months,                      // fixedLegTenor
+                ModifiedFollowing,               // fixedLegConvention
                 Thirty360(Thirty360::BondBasis), // fixedLegDaycounter
-                ext::shared_ptr<IborIndex>(new USDLibor(3*Months, forwarding)),
-                discounting) {}
+                ext::shared_ptr<IborIndex>(new USDLibor(3 * Months, forwarding)),
+                discounting)
+    {
+    }
 
 }

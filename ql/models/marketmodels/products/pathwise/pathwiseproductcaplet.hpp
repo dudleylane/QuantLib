@@ -21,13 +21,14 @@
 #ifndef quantlib_market_model_pathwise_caplet_hpp
 #define quantlib_market_model_pathwise_caplet_hpp
 
-#include <ql/types.hpp>
-#include <ql/models/marketmodels/pathwisemultiproduct.hpp>
 #include <ql/models/marketmodels/evolutiondescription.hpp>
-#include <vector>
+#include <ql/models/marketmodels/pathwisemultiproduct.hpp>
+#include <ql/types.hpp>
 #include <memory>
+#include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class EvolutionDescription;
     class CurveState;
@@ -43,40 +44,38 @@ namespace QuantLib {
 
     class MarketModelPathwiseMultiCaplet : public MarketModelPathwiseMultiProduct
     {
-     public:
+      public:
+        MarketModelPathwiseMultiCaplet(const std::vector<Time>& rateTimes,
+                                       const std::vector<Real>& accruals,
+                                       const std::vector<Time>& paymentTimes,
+                                       const std::vector<Rate>& strikes);
 
-       MarketModelPathwiseMultiCaplet(
-                          const std::vector<Time>& rateTimes,
-                          const std::vector<Real>& accruals,
-                          const std::vector<Time>& paymentTimes,
-                          const std::vector<Rate>& strikes);
+        ~MarketModelPathwiseMultiCaplet() override = default;
 
-       ~MarketModelPathwiseMultiCaplet() override = default;
+        std::vector<Size> suggestedNumeraires() const override;
+        const EvolutionDescription& evolution() const override;
+        std::vector<Time> possibleCashFlowTimes() const override;
+        Size numberOfProducts() const override;
+        Size maxNumberOfCashFlowsPerProductPerStep() const override;
 
-       std::vector<Size> suggestedNumeraires() const override;
-       const EvolutionDescription& evolution() const override;
-       std::vector<Time> possibleCashFlowTimes() const override;
-       Size numberOfProducts() const override;
-       Size maxNumberOfCashFlowsPerProductPerStep() const override;
-
-       // has division by the numeraire already been done?
-       bool alreadyDeflated() const override;
+        // has division by the numeraire already been done?
+        bool alreadyDeflated() const override;
 
 
-       //! during simulation put product at start of path
-       void reset() override;
+        //! during simulation put product at start of path
+        void reset() override;
 
-       //! return value indicates whether path is finished, TRUE means done
+        //! return value indicates whether path is finished, TRUE means done
 
-       bool nextTimeStep(const CurveState& currentState,
-                         std::vector<Size>& numberCashFlowsThisStep,
-                         std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow> >&
-                             cashFlowsGenerated) override;
+        bool
+        nextTimeStep(const CurveState& currentState,
+                     std::vector<Size>& numberCashFlowsThisStep,
+                     std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow>>& cashFlowsGenerated) override;
 
         //! returns a newly-allocated copy of itself
         std::unique_ptr<MarketModelPathwiseMultiProduct> clone() const override;
 
-    private:
+      private:
         std::vector<Real> rateTimes_;
         std::vector<Real> accruals_;
         std::vector<Time> paymentTimes_;
@@ -90,45 +89,43 @@ namespace QuantLib {
 
     class MarketModelPathwiseMultiDeflatedCaplet : public MarketModelPathwiseMultiProduct
     {
-     public:
+      public:
+        MarketModelPathwiseMultiDeflatedCaplet(const std::vector<Time>& rateTimes,
+                                               const std::vector<Real>& accruals,
+                                               const std::vector<Time>& paymentTimes,
+                                               const std::vector<Rate>& strikes);
 
-       MarketModelPathwiseMultiDeflatedCaplet(
-                          const std::vector<Time>& rateTimes,
-                          const std::vector<Real>& accruals,
-                          const std::vector<Time>& paymentTimes,
-                          const std::vector<Rate>& strikes);
+        MarketModelPathwiseMultiDeflatedCaplet(const std::vector<Time>& rateTimes,
+                                               const std::vector<Real>& accruals,
+                                               const std::vector<Time>& paymentTimes,
+                                               Rate strike);
 
-       MarketModelPathwiseMultiDeflatedCaplet(const std::vector<Time>& rateTimes,
-                                     const std::vector<Real>& accruals,
-                                     const std::vector<Time>& paymentTimes,
-                                     Rate strike);
+        ~MarketModelPathwiseMultiDeflatedCaplet() override = default;
 
-       ~MarketModelPathwiseMultiDeflatedCaplet() override = default;
+        std::vector<Size> suggestedNumeraires() const override;
+        const EvolutionDescription& evolution() const override;
+        std::vector<Time> possibleCashFlowTimes() const override;
+        Size numberOfProducts() const override;
+        Size maxNumberOfCashFlowsPerProductPerStep() const override;
 
-       std::vector<Size> suggestedNumeraires() const override;
-       const EvolutionDescription& evolution() const override;
-       std::vector<Time> possibleCashFlowTimes() const override;
-       Size numberOfProducts() const override;
-       Size maxNumberOfCashFlowsPerProductPerStep() const override;
-
-       // has division by the numeraire already been done?
-       bool alreadyDeflated() const override;
+        // has division by the numeraire already been done?
+        bool alreadyDeflated() const override;
 
 
-       //! during simulation put product at start of path
-       void reset() override;
+        //! during simulation put product at start of path
+        void reset() override;
 
-       //! return value indicates whether path is finished, TRUE means done
+        //! return value indicates whether path is finished, TRUE means done
 
-       bool nextTimeStep(const CurveState& currentState,
-                         std::vector<Size>& numberCashFlowsThisStep,
-                         std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow> >&
-                             cashFlowsGenerated) override;
+        bool
+        nextTimeStep(const CurveState& currentState,
+                     std::vector<Size>& numberCashFlowsThisStep,
+                     std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow>>& cashFlowsGenerated) override;
 
         //! returns a newly-allocated copy of itself
         std::unique_ptr<MarketModelPathwiseMultiProduct> clone() const override;
 
-    private:
+      private:
         std::vector<Real> rateTimes_;
         std::vector<Real> accruals_;
         std::vector<Time> paymentTimes_;
@@ -145,53 +142,52 @@ namespace QuantLib {
 
     */
 
-  class MarketModelPathwiseMultiDeflatedCap : public MarketModelPathwiseMultiProduct
+    class MarketModelPathwiseMultiDeflatedCap : public MarketModelPathwiseMultiProduct
     {
-     public:
-       MarketModelPathwiseMultiDeflatedCap(const std::vector<Time>& rateTimes,
-                                           const std::vector<Real>& accruals,
-                                           const std::vector<Time>& paymentTimes,
-                                           Rate strike,
-                                           std::vector<std::pair<Size, Size> > startsAndEnds);
+      public:
+        MarketModelPathwiseMultiDeflatedCap(const std::vector<Time>& rateTimes,
+                                            const std::vector<Real>& accruals,
+                                            const std::vector<Time>& paymentTimes,
+                                            Rate strike,
+                                            std::vector<std::pair<Size, Size>> startsAndEnds);
 
 
-       ~MarketModelPathwiseMultiDeflatedCap() override = default;
+        ~MarketModelPathwiseMultiDeflatedCap() override = default;
 
-       std::vector<Size> suggestedNumeraires() const override;
-       const EvolutionDescription& evolution() const override;
-       std::vector<Time> possibleCashFlowTimes() const override;
-       Size numberOfProducts() const override;
-       Size maxNumberOfCashFlowsPerProductPerStep() const override;
+        std::vector<Size> suggestedNumeraires() const override;
+        const EvolutionDescription& evolution() const override;
+        std::vector<Time> possibleCashFlowTimes() const override;
+        Size numberOfProducts() const override;
+        Size maxNumberOfCashFlowsPerProductPerStep() const override;
 
-       // has division by the numeraire already been done?
-       bool alreadyDeflated() const override;
+        // has division by the numeraire already been done?
+        bool alreadyDeflated() const override;
 
 
-       //! during simulation put product at start of path
-       void reset() override;
+        //! during simulation put product at start of path
+        void reset() override;
 
-       //! return value indicates whether path is finished, TRUE means done
+        //! return value indicates whether path is finished, TRUE means done
 
-       bool nextTimeStep(const CurveState& currentState,
-                         std::vector<Size>& numberCashFlowsThisStep,
-                         std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow> >&
-                             cashFlowsGenerated) override;
+        bool
+        nextTimeStep(const CurveState& currentState,
+                     std::vector<Size>& numberCashFlowsThisStep,
+                     std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow>>& cashFlowsGenerated) override;
 
         //! returns a newly-allocated copy of itself
         std::unique_ptr<MarketModelPathwiseMultiProduct> clone() const override;
 
-    private:
+      private:
         MarketModelPathwiseMultiDeflatedCaplet underlyingCaplets_;
 
         Size numberRates_;
 
-        std::vector<std::pair<Size,Size> > startsAndEnds_;
+        std::vector<std::pair<Size, Size>> startsAndEnds_;
 
         // things that vary in a path
         Size currentIndex_;
         std::vector<Size> innerCashFlowSizes_;
-        std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow> > innerCashFlowsGenerated_;
-
+        std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow>> innerCashFlowsGenerated_;
     };
 
 

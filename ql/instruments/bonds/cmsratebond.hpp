@@ -27,7 +27,8 @@
 
 #include <ql/instruments/bond.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Schedule;
     class SwapIndex;
@@ -38,7 +39,8 @@ namespace QuantLib {
         \test calculations are tested by checking results against
               cached values.
     */
-    class CmsRateBond : public Bond {
+    class CmsRateBond : public Bond
+    {
       public:
         CmsRateBond(Natural settlementDays,
                     Real faceAmount,
@@ -47,8 +49,8 @@ namespace QuantLib {
                     const DayCounter& paymentDayCounter,
                     BusinessDayConvention paymentConvention = Following,
                     Natural fixingDays = Null<Natural>(),
-                    const std::vector<Real>& gearings = { 1.0 },
-                    const std::vector<Spread>& spreads = { 0.0 },
+                    const std::vector<Real>& gearings = {1.0},
+                    const std::vector<Spread>& spreads = {0.0},
                     const std::vector<Rate>& caps = {},
                     const std::vector<Rate>& floors = {},
                     bool inArrears = false,

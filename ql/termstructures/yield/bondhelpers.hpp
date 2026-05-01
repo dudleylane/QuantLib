@@ -26,18 +26,20 @@
 #ifndef quantlib_bond_helpers_hpp
 #define quantlib_bond_helpers_hpp
 
-#include <ql/termstructures/yield/ratehelpers.hpp>
-#include <ql/instruments/bonds/fixedratebond.hpp>
-#include <ql/instruments/bonds/cpibond.hpp>
 #include <ql/cashflows/cpicoupon.hpp>
+#include <ql/instruments/bonds/cpibond.hpp>
+#include <ql/instruments/bonds/fixedratebond.hpp>
+#include <ql/termstructures/yield/ratehelpers.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Bond helper for curve bootstrap
     /*! \warning This class assumes that the reference date
                  does not change between calls of setTermStructure().
     */
-    class BondHelper : public RateHelper {
+    class BondHelper : public RateHelper
+    {
       public:
         /*! \warning Setting a pricing engine to the passed bond from
                      external code will cause the bootstrap to fail or
@@ -72,7 +74,8 @@ namespace QuantLib {
 
 
     //! Fixed-coupon bond helper for curve bootstrap
-    class FixedRateBondHelper : public BondHelper {
+    class FixedRateBondHelper : public BondHelper
+    {
       public:
         FixedRateBondHelper(const Handle<Quote>& price,
                             Natural settlementDays,
@@ -98,7 +101,8 @@ namespace QuantLib {
 
 
     //! CPI bond helper for curve bootstrap
-    class CPIBondHelper : public BondHelper {
+    class CPIBondHelper : public BondHelper
+    {
       public:
         CPIBondHelper(const Handle<Quote>& price,
                       Natural settlementDays,
@@ -152,11 +156,13 @@ namespace QuantLib {
 
     // inline
 
-    inline ext::shared_ptr<Bond> BondHelper::bond() const {
+    inline ext::shared_ptr<Bond> BondHelper::bond() const
+    {
         return bond_;
     }
 
-    inline Bond::Price::Type BondHelper::priceType() const {
+    inline Bond::Price::Type BondHelper::priceType() const
+    {
         return priceType_;
     }
 

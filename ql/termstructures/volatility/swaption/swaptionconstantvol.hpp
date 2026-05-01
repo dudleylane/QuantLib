@@ -29,12 +29,14 @@
 #include <ql/termstructures/volatility/swaption/swaptionvolstructure.hpp>
 #include <ql/time/period.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Quote;
 
     //! Constant swaption volatility, no time-strike dependence
-    class ConstantSwaptionVolatility : public SwaptionVolatilityStructure {
+    class ConstantSwaptionVolatility : public SwaptionVolatilityStructure
+    {
       public:
         //! floating reference date, floating market data
         ConstantSwaptionVolatility(Natural settlementDays,
@@ -101,27 +103,33 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline Date ConstantSwaptionVolatility::maxDate() const {
+    inline Date ConstantSwaptionVolatility::maxDate() const
+    {
         return Date::maxDate();
     }
 
-    inline Real ConstantSwaptionVolatility::minStrike() const {
+    inline Real ConstantSwaptionVolatility::minStrike() const
+    {
         return QL_MIN_REAL;
     }
 
-    inline Real ConstantSwaptionVolatility::maxStrike() const {
+    inline Real ConstantSwaptionVolatility::maxStrike() const
+    {
         return QL_MAX_REAL;
     }
 
-    inline const Period& ConstantSwaptionVolatility::maxSwapTenor() const {
+    inline const Period& ConstantSwaptionVolatility::maxSwapTenor() const
+    {
         return maxSwapTenor_;
     }
 
-    inline VolatilityType ConstantSwaptionVolatility::volatilityType() const {
+    inline VolatilityType ConstantSwaptionVolatility::volatilityType() const
+    {
         return volatilityType_;
     }
 
-    inline Real ConstantSwaptionVolatility::shiftImpl(Time optionTime, Time swapLength) const {
+    inline Real ConstantSwaptionVolatility::shiftImpl(Time optionTime, Time swapLength) const
+    {
         // consistency check
         SwaptionVolatilityStructure::shiftImpl(optionTime, swapLength);
         return shift_;

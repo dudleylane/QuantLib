@@ -30,9 +30,11 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #include <ql/termstructures/yield/zeroyieldstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
     template <class BinaryFunction>
-    class CompositeZeroYieldStructure : public ZeroYieldStructure {
+    class CompositeZeroYieldStructure : public ZeroYieldStructure
+    {
       public:
         CompositeZeroYieldStructure(Handle<YieldTermStructure> h1,
                                     Handle<YieldTermStructure> h2,
@@ -68,13 +70,13 @@ namespace QuantLib {
     // inline definitions
 
     template <class BinaryFunction>
-    inline CompositeZeroYieldStructure<BinaryFunction>::CompositeZeroYieldStructure(
-        Handle<YieldTermStructure> h1,
-        Handle<YieldTermStructure> h2,
-        const BinaryFunction& f,
-        Compounding comp,
-        Frequency freq)
-    : curve1_(std::move(h1)), curve2_(std::move(h2)), f_(f), comp_(comp), freq_(freq) {
+    inline CompositeZeroYieldStructure<BinaryFunction>::CompositeZeroYieldStructure(Handle<YieldTermStructure> h1,
+                                                                                    Handle<YieldTermStructure> h2,
+                                                                                    const BinaryFunction& f,
+                                                                                    Compounding comp,
+                                                                                    Frequency freq)
+    : curve1_(std::move(h1)), curve2_(std::move(h2)), f_(f), comp_(comp), freq_(freq)
+    {
         if (!curve1_.empty() && !curve2_.empty())
             enableExtrapolation(curve1_->allowsExtrapolation() && curve2_->allowsExtrapolation());
 
@@ -83,42 +85,51 @@ namespace QuantLib {
     }
 
     template <class BinaryFunction>
-    inline DayCounter CompositeZeroYieldStructure<BinaryFunction>::dayCounter() const {
+    inline DayCounter CompositeZeroYieldStructure<BinaryFunction>::dayCounter() const
+    {
         return curve1_->dayCounter();
     }
 
     template <class BinaryFunction>
-    inline Calendar CompositeZeroYieldStructure<BinaryFunction>::calendar() const {
+    inline Calendar CompositeZeroYieldStructure<BinaryFunction>::calendar() const
+    {
         return curve1_->calendar();
     }
 
     template <class BinaryFunction>
-    inline Natural CompositeZeroYieldStructure<BinaryFunction>::settlementDays() const {
+    inline Natural CompositeZeroYieldStructure<BinaryFunction>::settlementDays() const
+    {
         return curve1_->settlementDays();
     }
 
     template <class BinaryFunction>
-    inline const Date& CompositeZeroYieldStructure<BinaryFunction>::referenceDate() const {
+    inline const Date& CompositeZeroYieldStructure<BinaryFunction>::referenceDate() const
+    {
         return curve1_->referenceDate();
     }
 
     template <class BinaryFunction>
-    inline Date CompositeZeroYieldStructure<BinaryFunction>::maxDate() const {
+    inline Date CompositeZeroYieldStructure<BinaryFunction>::maxDate() const
+    {
         return curve1_->maxDate();
     }
 
     template <class BinaryFunction>
-    inline Time CompositeZeroYieldStructure<BinaryFunction>::maxTime() const {
+    inline Time CompositeZeroYieldStructure<BinaryFunction>::maxTime() const
+    {
         return curve1_->maxTime();
     }
 
     template <class BinaryFunction>
-    inline void CompositeZeroYieldStructure<BinaryFunction>::update() {
-        if (!curve1_.empty() && !curve2_.empty()) {
+    inline void CompositeZeroYieldStructure<BinaryFunction>::update()
+    {
+        if (!curve1_.empty() && !curve2_.empty())
+        {
             YieldTermStructure::update();
             enableExtrapolation(curve1_->allowsExtrapolation() && curve2_->allowsExtrapolation());
         }
-        else {
+        else
+        {
             /* The implementation inherited from YieldTermStructure
             asks for our reference date, which we don't have since
             the original curve is still not set. Therefore, we skip
@@ -129,12 +140,11 @@ namespace QuantLib {
     }
 
     template <class BinaryFunction>
-    inline Rate CompositeZeroYieldStructure<BinaryFunction>::zeroYieldImpl(Time t) const {
-        Rate zeroRate1 =
-            curve1_->zeroRate(t, comp_, freq_, true);
+    inline Rate CompositeZeroYieldStructure<BinaryFunction>::zeroYieldImpl(Time t) const
+    {
+        Rate zeroRate1 = curve1_->zeroRate(t, comp_, freq_, true);
 
-        InterestRate zeroRate2 =
-            curve2_->zeroRate(t, comp_, freq_, true);
+        InterestRate zeroRate2 = curve2_->zeroRate(t, comp_, freq_, true);
 
         InterestRate compositeRate(f_(zeroRate1, zeroRate2), dayCounter(), comp_, freq_);
         return compositeRate.equivalentRate(Continuous, NoFrequency, t);

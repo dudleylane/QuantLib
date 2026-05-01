@@ -18,13 +18,14 @@
 */
 
 /*! \file fdmaffinemodeltermstructure.cpp
-*/
+ */
 
 #include <ql/methods/finitedifferences/utilities/fdmaffinemodeltermstructure.hpp>
 #include <ql/models/model.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     FdmAffineModelTermStructure::FdmAffineModelTermStructure(Array r,
                                                              const Calendar& cal,
@@ -33,20 +34,24 @@ namespace QuantLib {
                                                              const Date& modelReferenceDate,
                                                              ext::shared_ptr<AffineModel> model)
     : YieldTermStructure(referenceDate, cal, dayCounter), r_(std::move(r)),
-      t_(dayCounter.yearFraction(modelReferenceDate, referenceDate)), model_(std::move(model)) {
+      t_(dayCounter.yearFraction(modelReferenceDate, referenceDate)), model_(std::move(model))
+    {
         registerWith(model_);
     }
 
-    Date FdmAffineModelTermStructure::maxDate() const {
+    Date FdmAffineModelTermStructure::maxDate() const
+    {
         return Date::maxDate();
     }
 
-    void FdmAffineModelTermStructure::setVariable(const Array& r) {
+    void FdmAffineModelTermStructure::setVariable(const Array& r)
+    {
         r_ = r;
         notifyObservers();
     }
 
-    DiscountFactor FdmAffineModelTermStructure::discountImpl(Time T) const {
-        return model_->discountBond(t_, T+t_, r_);
+    DiscountFactor FdmAffineModelTermStructure::discountImpl(Time T) const
+    {
+        return model_->discountBond(t_, T + t_, r_);
     }
 }

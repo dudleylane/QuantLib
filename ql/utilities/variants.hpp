@@ -3,11 +3,13 @@
 #ifndef quantlib_utilities_variants_hpp
 #define quantlib_utilities_variants_hpp
 
-namespace QuantLib::detail {
+namespace QuantLib::detail
+{
 
     // Helper type for use with std::visit.
     template <class... Ts>
-    struct variant_visitor : Ts... {
+    struct variant_visitor : Ts...
+    {
         using Ts::operator()...;
     };
 

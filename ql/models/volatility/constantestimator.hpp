@@ -27,17 +27,19 @@
 #include <ql/volatilitymodel.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Constant-estimator volatility model
     /*! Volatilities are assumed to be expressed on an annual basis.
-    */
-    class ConstantEstimator : public VolatilityCompositor {
+     */
+    class ConstantEstimator : public VolatilityCompositor
+    {
       private:
         Size size_;
+
       public:
-        ConstantEstimator(Size size)
-        : size_(size) {}
+        ConstantEstimator(Size size) : size_(size) {}
         TimeSeries<Volatility> calculate(const TimeSeries<Volatility>&) override;
         void calibrate(const TimeSeries<Volatility>&) override {}
     };

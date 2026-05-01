@@ -20,7 +20,8 @@
 #include <ql/experimental/coupons/proxyibor.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     ProxyIbor::ProxyIbor(const std::string& familyName,
                          const Period& tenor,
@@ -33,15 +34,9 @@ namespace QuantLib {
                          Handle<Quote> gearing,
                          ext::shared_ptr<IborIndex> iborIndex,
                          Handle<Quote> spread)
-    : IborIndex(familyName,
-                tenor,
-                settlementDays,
-                currency,
-                fixingCalendar,
-                convention,
-                endOfMonth,
-                dayCounter),
-      gearing_(std::move(gearing)), iborIndex_(std::move(iborIndex)), spread_(std::move(spread)) {
+    : IborIndex(familyName, tenor, settlementDays, currency, fixingCalendar, convention, endOfMonth, dayCounter),
+      gearing_(std::move(gearing)), iborIndex_(std::move(iborIndex)), spread_(std::move(spread))
+    {
         registerWith(iborIndex_);
     }
 }

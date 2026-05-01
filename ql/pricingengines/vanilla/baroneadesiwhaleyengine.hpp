@@ -28,7 +28,8 @@
 #include <ql/instruments/vanillaoption.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Barone-Adesi and Whaley pricing engine for American options (1987)
     /*! \ingroup vanillaengines
@@ -36,16 +37,15 @@ namespace QuantLib {
         \test the correctness of the returned value is tested by
               reproducing results available in literature.
     */
-    class BaroneAdesiWhaleyApproximationEngine
-        : public VanillaOption::engine {
+    class BaroneAdesiWhaleyApproximationEngine : public VanillaOption::engine
+    {
       public:
         BaroneAdesiWhaleyApproximationEngine(ext::shared_ptr<GeneralizedBlackScholesProcess>);
-        static Real criticalPrice(
-            const ext::shared_ptr<StrikedTypePayoff>& payoff,
-            DiscountFactor riskFreeDiscount,
-            DiscountFactor dividendDiscount,
-            Real variance,
-            Real tolerance = 1e-6);
+        static Real criticalPrice(const ext::shared_ptr<StrikedTypePayoff>& payoff,
+                                  DiscountFactor riskFreeDiscount,
+                                  DiscountFactor dividendDiscount,
+                                  Real variance,
+                                  Real tolerance = 1e-6);
         void calculate() const override;
 
       private:

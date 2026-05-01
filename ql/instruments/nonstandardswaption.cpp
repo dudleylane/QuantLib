@@ -21,15 +21,14 @@
 #include <ql/instruments/nonstandardswaption.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    NonstandardSwaption::NonstandardSwaption(const Swaption &fromSwaption)
-        : Option(ext::shared_ptr<Payoff>(),
-                 const_cast<Swaption &>(fromSwaption).exercise()),
-          swap_(ext::make_shared<NonstandardSwap>(
-              *fromSwaption.underlying())),
-          settlementType_(fromSwaption.settlementType()),
-          settlementMethod_(fromSwaption.settlementMethod()) {
+    NonstandardSwaption::NonstandardSwaption(const Swaption& fromSwaption)
+    : Option(ext::shared_ptr<Payoff>(), const_cast<Swaption&>(fromSwaption).exercise()),
+      swap_(ext::make_shared<NonstandardSwap>(*fromSwaption.underlying())),
+      settlementType_(fromSwaption.settlementType()), settlementMethod_(fromSwaption.settlementMethod())
+    {
 
         registerWith(swap_);
         // When we ask for the NPV of an expired swaption, the
@@ -47,19 +46,21 @@ namespace QuantLib {
                                              const ext::shared_ptr<Exercise>& exercise,
                                              Settlement::Type delivery,
                                              Settlement::Method settlementMethod)
-    : Option(ext::shared_ptr<Payoff>(), exercise), swap_(std::move(swap)),
-      settlementType_(delivery), settlementMethod_(settlementMethod) {
+    : Option(ext::shared_ptr<Payoff>(), exercise), swap_(std::move(swap)), settlementType_(delivery),
+      settlementMethod_(settlementMethod)
+    {
         registerWith(swap_);
         swap_->alwaysForwardNotifications();
     }
 
-    bool NonstandardSwaption::isExpired() const {
+    bool NonstandardSwaption::isExpired() const
+    {
 
         return detail::simple_event(exercise_->dates().back()).hasOccurred();
     }
 
-    void
-    NonstandardSwaption::setupArguments(PricingEngine::arguments *args) const {
+    void NonstandardSwaption::setupArguments(PricingEngine::arguments* args) const
+    {
 
         swap_->setupArguments(args);
 
@@ -73,28 +74,26 @@ namespace QuantLib {
         arguments->settlementMethod = settlementMethod_;
     }
 
-    void NonstandardSwaption::arguments::validate() const {
+    void NonstandardSwaption::arguments::validate() const
+    {
 
         NonstandardSwap::arguments::validate();
         QL_REQUIRE(swap, "underlying non standard swap not set");
         QL_REQUIRE(exercise, "exercise not set");
-        Settlement::checkTypeAndMethodConsistency(settlementType,
-                                                  settlementMethod);
+        Settlement::checkTypeAndMethodConsistency(settlementType, settlementMethod);
     }
 
     std::vector<ext::shared_ptr<BlackCalibrationHelper>>
-    NonstandardSwaption::calibrationBasket(
-        const ext::shared_ptr<SwapIndex>& standardSwapBase,
-        const ext::shared_ptr<SwaptionVolatilityStructure>& swaptionVolatility,
-        const BasketGeneratingEngine::CalibrationBasketType basketType) const {
+    NonstandardSwaption::calibrationBasket(const ext::shared_ptr<SwapIndex>& standardSwapBase,
+                                           const ext::shared_ptr<SwaptionVolatilityStructure>& swaptionVolatility,
+                                           const BasketGeneratingEngine::CalibrationBasketType basketType) const
+    {
 
-        ext::shared_ptr<BasketGeneratingEngine> engine =
-            ext::dynamic_pointer_cast<BasketGeneratingEngine>(engine_);
+        ext::shared_ptr<BasketGeneratingEngine> engine = ext::dynamic_pointer_cast<BasketGeneratingEngine>(engine_);
         QL_REQUIRE(engine, "engine is not a basket generating engine");
         engine_->reset();
         setupArguments(engine_->getArguments());
         engine_->getArguments()->validate();
-        return engine->calibrationBasket(exercise_, standardSwapBase,
-                                         swaptionVolatility, basketType);
+        return engine->calibrationBasket(exercise_, standardSwapBase, swaptionVolatility, basketType);
     }
 }

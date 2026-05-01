@@ -21,25 +21,26 @@
 
 #include <ql/processes/ornsteinuhlenbeckprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    OrnsteinUhlenbeckProcess::OrnsteinUhlenbeckProcess(Real speed,
-                                                       Volatility vol,
-                                                       Real x0,
-                                                       Real level)
-    : x0_(x0), speed_(speed), level_(level), volatility_(vol) {
+    OrnsteinUhlenbeckProcess::OrnsteinUhlenbeckProcess(Real speed, Volatility vol, Real x0, Real level)
+    : x0_(x0), speed_(speed), level_(level), volatility_(vol)
+    {
         QL_REQUIRE(volatility_ >= 0.0, "negative volatility given");
     }
 
-    Real OrnsteinUhlenbeckProcess::variance(Time, Real, Time dt) const {
-        if (std::fabs(speed_) < std::sqrt(QL_EPSILON)) {
-             // algebraic limit for small speed
-            return volatility_*volatility_*dt;
-        } else {
-            return 0.5*volatility_*volatility_/speed_*
-                (1.0 - std::exp(-2.0*speed_*dt));
+    Real OrnsteinUhlenbeckProcess::variance(Time, Real, Time dt) const
+    {
+        if (std::fabs(speed_) < std::sqrt(QL_EPSILON))
+        {
+            // algebraic limit for small speed
+            return volatility_ * volatility_ * dt;
+        }
+        else
+        {
+            return 0.5 * volatility_ * volatility_ / speed_ * (1.0 - std::exp(-2.0 * speed_ * dt));
         }
     }
 
 }
-

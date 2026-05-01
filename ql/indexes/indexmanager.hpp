@@ -24,18 +24,20 @@
 #ifndef quantlib_index_manager_hpp
 #define quantlib_index_manager_hpp
 
+#include <ql/math/comparison.hpp>
 #include <ql/patterns/singleton.hpp>
 #include <ql/timeseries.hpp>
-#include <ql/math/comparison.hpp>
 #include <ql/utilities/observablevalue.hpp>
 #include <algorithm>
 #include <cctype>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! global repository for past index fixings
     /*! \note index names are case insensitive */
-    class IndexManager : public Singleton<IndexManager> {
+    class IndexManager : public Singleton<IndexManager>
+    {
         friend class Singleton<IndexManager>;
         friend class Index;
 
@@ -49,22 +51,24 @@ namespace QuantLib {
         void clearHistories();
 
       private:
-        struct CaseInsensitiveCompare {
-          bool operator()(const std::string& s1, const std::string& s2) const {
-            return std::lexicographical_compare(s1.begin(), s1.end(), s2.begin(), s2.end(), [](const auto& c1, const auto& c2) {
-              return std::toupper(static_cast<unsigned char>(c1)) < std::toupper(static_cast<unsigned char>(c2));
-            });
-          }
+        struct CaseInsensitiveCompare
+        {
+            bool operator()(const std::string& s1, const std::string& s2) const
+            {
+                return std::lexicographical_compare(s1.begin(), s1.end(), s2.begin(), s2.end(),
+                                                    [](const auto& c1, const auto& c2)
+                                                    {
+                                                        return std::toupper(static_cast<unsigned char>(c1)) <
+                                                               std::toupper(static_cast<unsigned char>(c2));
+                                                    });
+            }
         };
 
         mutable std::map<std::string, TimeSeries<Real>, CaseInsensitiveCompare> data_;
         mutable std::map<std::string, ext::shared_ptr<Observable>> notifiers_;
 
         //! add a fixing
-        void addFixing(const std::string& name,
-                       const Date& fixingDate,
-                       Real fixing,
-                       bool forceOverwrite = false);
+        void addFixing(const std::string& name, const Date& fixingDate, Real fixing, bool forceOverwrite = false);
         //! add fixings
         template <class DateIterator, class ValueIterator>
         void addFixings(const std::string& name,
@@ -72,29 +76,37 @@ namespace QuantLib {
                         DateIterator dEnd,
                         ValueIterator vBegin,
                         bool forceOverwrite = false,
-                        const std::function<bool(const Date& d)>& isValidFixingDate = {}) {
+                        const std::function<bool(const Date& d)>& isValidFixingDate = {})
+        {
             auto& h = data_[name];
             bool noInvalidFixing = true, noDuplicatedFixing = true;
             Date invalidDate, duplicatedDate;
             Real nullValue = Null<Real>();
             Real invalidValue = Null<Real>();
             Real duplicatedValue = Null<Real>();
-            while (dBegin != dEnd) {
+            while (dBegin != dEnd)
+            {
                 bool validFixing = isValidFixingDate ? isValidFixingDate(*dBegin) : true;
                 Real currentValue = h[*dBegin];
                 bool missingFixing = forceOverwrite || currentValue == nullValue;
-                if (validFixing) {
+                if (validFixing)
+                {
                     if (missingFixing)
                         h[*(dBegin++)] = *(vBegin++);
-                    else if (close(currentValue, *(vBegin))) {
+                    else if (close(currentValue, *(vBegin)))
+                    {
                         ++dBegin;
                         ++vBegin;
-                    } else {
+                    }
+                    else
+                    {
                         noDuplicatedFixing = false;
                         duplicatedDate = *(dBegin++);
                         duplicatedValue = *(vBegin++);
                     }
-                } else {
+                }
+                else
+                {
                     noInvalidFixing = false;
                     invalidDate = *(dBegin++);
                     invalidValue = *(vBegin++);
@@ -104,12 +116,10 @@ namespace QuantLib {
             notifier(name)->notifyObservers();
             QL_DEPRECATED_ENABLE_WARNING
             QL_REQUIRE(noInvalidFixing, "At least one invalid fixing provided: "
-                                            << invalidDate.weekday() << " " << invalidDate << ", "
-                                            << invalidValue);
+                                            << invalidDate.weekday() << " " << invalidDate << ", " << invalidValue);
             QL_REQUIRE(noDuplicatedFixing, "At least one duplicated fixing provided: "
-                                               << duplicatedDate << ", " << duplicatedValue
-                                               << " while " << h[duplicatedDate]
-                                               << " value is already present");
+                                               << duplicatedDate << ", " << duplicatedValue << " while "
+                                               << h[duplicatedDate] << " value is already present");
         }
 
         bool hasHistory(const std::string& name) const;

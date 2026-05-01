@@ -26,7 +26,8 @@
 
 #include <ql/indexes/swapindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %GbpLiborSwapIsdaFix index base class
     /*! %GBP %Libor %Swap indexes fixed by ISDA in cooperation with
@@ -38,10 +39,10 @@ namespace QuantLib {
         Reuters page ISDAFIX.
 
     */
-    class GbpLiborSwapIsdaFix : public SwapIndex {
+    class GbpLiborSwapIsdaFix : public SwapIndex
+    {
       public:
-        GbpLiborSwapIsdaFix(const Period& tenor,
-                            const Handle<YieldTermStructure>& h = {});
+        GbpLiborSwapIsdaFix(const Period& tenor, const Handle<YieldTermStructure>& h = {});
         GbpLiborSwapIsdaFix(const Period& tenor,
                             const Handle<YieldTermStructure>& forwarding,
                             const Handle<YieldTermStructure>& discounting);

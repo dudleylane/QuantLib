@@ -24,13 +24,13 @@
 #include <ql/models/marketmodels/callability/marketmodelbasissystem.hpp>
 #include <ql/models/marketmodels/evolutiondescription.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class SwapForwardBasisSystem : public MarketModelBasisSystem
     {
       public:
-        SwapForwardBasisSystem(const std::vector<Time>& rateTimes,
-                                                                    const std::vector<Time>& exerciseTimes);
+        SwapForwardBasisSystem(const std::vector<Time>& rateTimes, const std::vector<Time>& exerciseTimes);
 
         Size numberOfExercises() const override;
         std::vector<Size> numberOfFunctions() const override;
@@ -42,6 +42,7 @@ namespace QuantLib {
         void values(const CurveState&, std::vector<Real>& results) const override;
 
         std::unique_ptr<MarketModelBasisSystem> clone() const override;
+
       private:
         std::vector<Time> rateTimes_, exerciseTimes_;
         Size currentIndex_;

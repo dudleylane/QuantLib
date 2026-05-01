@@ -27,18 +27,19 @@
 
 #include <ql/models/marketmodels/browniangenerators/sobolbrowniangenerator.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class SobolBrownianBridgeRsg {
+    class SobolBrownianBridgeRsg
+    {
       public:
-        typedef Sample<std::vector<Real> > sample_type;
+        typedef Sample<std::vector<Real>> sample_type;
 
-        SobolBrownianBridgeRsg(Size factors, Size steps,
-                               SobolBrownianGenerator::Ordering ordering
-                                   = SobolBrownianGenerator::Diagonal,
+        SobolBrownianBridgeRsg(Size factors,
+                               Size steps,
+                               SobolBrownianGenerator::Ordering ordering = SobolBrownianGenerator::Diagonal,
                                unsigned long seed = 0,
-                               SobolRsg::DirectionIntegers directionIntegers
-                                   = SobolRsg::JoeKuoD7);
+                               SobolRsg::DirectionIntegers directionIntegers = SobolRsg::JoeKuoD7);
 
         const sample_type& nextSequence() const;
         const sample_type& lastSequence() const;
@@ -49,17 +50,17 @@ namespace QuantLib {
         mutable SobolBrownianGenerator gen_;
     };
 
-   class Burley2020SobolBrownianBridgeRsg {
+    class Burley2020SobolBrownianBridgeRsg
+    {
       public:
-        typedef Sample<std::vector<Real> > sample_type;
+        typedef Sample<std::vector<Real>> sample_type;
 
-        Burley2020SobolBrownianBridgeRsg(
-            Size factors,
-            Size steps,
-            SobolBrownianGenerator::Ordering ordering = SobolBrownianGenerator::Diagonal,
-            unsigned long seed = 42,
-            SobolRsg::DirectionIntegers directionIntegers = SobolRsg::JoeKuoD7,
-            unsigned long scrambleSeed = 43);
+        Burley2020SobolBrownianBridgeRsg(Size factors,
+                                         Size steps,
+                                         SobolBrownianGenerator::Ordering ordering = SobolBrownianGenerator::Diagonal,
+                                         unsigned long seed = 42,
+                                         SobolRsg::DirectionIntegers directionIntegers = SobolRsg::JoeKuoD7,
+                                         unsigned long scrambleSeed = 43);
 
         const sample_type& nextSequence() const;
         const sample_type& lastSequence() const;

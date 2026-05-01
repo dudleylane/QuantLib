@@ -17,48 +17,50 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/math/matrixutilities/pseudosqrt.hpp>
 #include <ql/legacy/libormarketmodels/lmcorrmodel.hpp>
+#include <ql/math/matrixutilities/pseudosqrt.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    LmCorrelationModel::LmCorrelationModel(Size size, Size nArguments)
-    : size_(size), arguments_(nArguments) {}
+    LmCorrelationModel::LmCorrelationModel(Size size, Size nArguments) : size_(size), arguments_(nArguments) {}
 
-    Size LmCorrelationModel::size() const {
+    Size LmCorrelationModel::size() const
+    {
         return size_;
     }
 
-    Size LmCorrelationModel::factors() const {
+    Size LmCorrelationModel::factors() const
+    {
         return size_;
     }
 
-    bool LmCorrelationModel::isTimeIndependent() const {
+    bool LmCorrelationModel::isTimeIndependent() const
+    {
         return false;
     }
 
-    Matrix LmCorrelationModel::pseudoSqrt(
-        Time t, const Array& x) const {
-        return QuantLib::pseudoSqrt(this->correlation(t, x),
-                                    SalvagingAlgorithm::Spectral);
+    Matrix LmCorrelationModel::pseudoSqrt(Time t, const Array& x) const
+    {
+        return QuantLib::pseudoSqrt(this->correlation(t, x), SalvagingAlgorithm::Spectral);
     }
 
-    Real LmCorrelationModel::correlation(
-        Size i, Size j, Time t, const Array& x) const {
+    Real LmCorrelationModel::correlation(Size i, Size j, Time t, const Array& x) const
+    {
         // inefficient implementation, please overload in derived classes
         return correlation(t, x)[i][j];
     }
 
 
-    std::vector<Parameter>& LmCorrelationModel::params() {
+    std::vector<Parameter>& LmCorrelationModel::params()
+    {
         return arguments_;
     }
 
-    void LmCorrelationModel::setParams(
-        const std::vector<Parameter> & arguments) {
+    void LmCorrelationModel::setParams(const std::vector<Parameter>& arguments)
+    {
         arguments_ = arguments;
         generateArguments();
     }
 
 }
-

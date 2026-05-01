@@ -27,19 +27,21 @@
 #include <ql/models/model.hpp>
 #include <ql/processes/gjrgarchprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! GJR-GARCH model for the stochastic volatility of an asset
     /*! References:
 
-        Glosten, L., Jagannathan, R., Runkle, D., 1993. 
+        Glosten, L., Jagannathan, R., Runkle, D., 1993.
     Relationship between the expected value and the volatility
     of the nominal excess return on stocks. Journal of Finance
     48, 1779-1801
 
         \test calibration is not implemented for GJR-GARCH
     */
-    class GJRGARCHModel : public CalibratedModel {
+    class GJRGARCHModel : public CalibratedModel
+    {
       public:
         GJRGARCHModel(const ext::shared_ptr<GJRGARCHProcess>& process);
 
@@ -51,16 +53,17 @@ namespace QuantLib {
         // proportion attributed to the impact of previous variance
         Real beta() const { return arguments_[2](0.0); }
         // proportion attributed to the impact of negative innovations
-        Real gamma()   const { return arguments_[3](0.0); }
+        Real gamma() const { return arguments_[3](0.0); }
         // market price of risk
-        Real lambda()   const { return arguments_[4](0.0); }
+        Real lambda() const { return arguments_[4](0.0); }
         // spot variance
-        Real v0()    const { return arguments_[5](0.0); }
+        Real v0() const { return arguments_[5](0.0); }
 
         // underlying process
         ext::shared_ptr<GJRGARCHProcess> process() const { return process_; }
 
         class VolatilityConstraint;
+
       protected:
         void generateArguments() override;
         ext::shared_ptr<GJRGARCHProcess> process_;
@@ -69,4 +72,3 @@ namespace QuantLib {
 
 
 #endif
-

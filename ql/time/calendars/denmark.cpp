@@ -20,15 +20,18 @@
 
 #include <ql/time/calendars/denmark.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Denmark::Denmark() {
+    Denmark::Denmark()
+    {
         // all calendar instances share the same implementation instance
         static ext::shared_ptr<Calendar::Impl> impl(new Denmark::Impl);
         impl_ = impl;
     }
 
-    bool Denmark::Impl::isBusinessDay(const Date& date) const {
+    bool Denmark::Impl::isBusinessDay(const Date& date) const
+    {
         Weekday w = date.weekday();
         Day d = date.dayOfMonth(), dd = date.dayOfYear();
         Month m = date.month();
@@ -36,23 +39,23 @@ namespace QuantLib {
         Day em = easterMonday(y);
         if (isWeekend(w)
             // Maunday Thursday
-            || (dd == em-4)
+            || (dd == em - 4)
             // Good Friday
-            || (dd == em-3)
+            || (dd == em - 3)
             // Easter Monday
             || (dd == em)
             // General Prayer Day
-            || (dd == em+25 && y <= 2023)
+            || (dd == em + 25 && y <= 2023)
             // Ascension
-            || (dd == em+38)
+            || (dd == em + 38)
             // Day after Ascension
-            || (dd == em+39 && y >= 2009)
+            || (dd == em + 39 && y >= 2009)
             // Whit Monday
-            || (dd == em+49)
+            || (dd == em + 49)
             // New Year's Day
-            || (d == 1  && m == January)
+            || (d == 1 && m == January)
             // Constitution Day, June 5th
-            || (d == 5  && m == June)
+            || (d == 5 && m == June)
             // Christmas Eve
             || (d == 24 && m == December)
             // Christmas
@@ -66,4 +69,3 @@ namespace QuantLib {
     }
 
 }
-

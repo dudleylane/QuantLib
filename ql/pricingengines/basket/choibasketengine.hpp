@@ -27,7 +27,8 @@
 #include <ql/instruments/basketoption.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Pricing engine for basket option on multiple underlyings
     /*! This class implements the pricing formula from
@@ -43,22 +44,22 @@ namespace QuantLib {
         \test the correctness of the returned value is tested by
               reproducing results available in literature.
     */
-    class ChoiBasketEngine : public BasketOption::engine {
+    class ChoiBasketEngine : public BasketOption::engine
+    {
       public:
         // lambda controls the integration order and the precision of the result.
-        ChoiBasketEngine(
-            std::vector<ext::shared_ptr<GeneralizedBlackScholesProcess> > processes,
-            Matrix rho,
-            Real lambda = 10.0,
-            Size maxNrIntegrationSteps = std::numeric_limits<Size>::max(),
-            bool calcfwdDelta = false,
-            bool controlVariate = false);
+        ChoiBasketEngine(std::vector<ext::shared_ptr<GeneralizedBlackScholesProcess>> processes,
+                         Matrix rho,
+                         Real lambda = 10.0,
+                         Size maxNrIntegrationSteps = std::numeric_limits<Size>::max(),
+                         bool calcfwdDelta = false,
+                         bool controlVariate = false);
 
         void calculate() const override;
 
       private:
         const Size n_;
-        const std::vector<ext::shared_ptr<GeneralizedBlackScholesProcess> > processes_;
+        const std::vector<ext::shared_ptr<GeneralizedBlackScholesProcess>> processes_;
         const Matrix rho_;
         const Real lambda_;
         const Size maxNrIntegrationSteps_;

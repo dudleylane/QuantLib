@@ -26,10 +26,11 @@
 #define quantlib_gaussian_quadratures_hpp
 
 #include <ql/math/array.hpp>
-#include <ql/math/integrals/integral.hpp>
 #include <ql/math/integrals/gaussianorthogonalpolynomial.hpp>
+#include <ql/math/integrals/integral.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
     class GaussianOrthogonalPolynomial;
 
     //! Integral of a 1-dimensional function using the Gauss quadratures method
@@ -45,42 +46,44 @@ namespace QuantLib {
         \test the correctness of the result is tested by checking it
               against known good values.
     */
-    class GaussianQuadrature {
+    class GaussianQuadrature
+    {
       public:
-        GaussianQuadrature(Size n,
-                           const GaussianOrthogonalPolynomial& p);
+        GaussianQuadrature(Size n, const GaussianOrthogonalPolynomial& p);
 
 #if defined(__GNUC__) && (__GNUC__ >= 7)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wnoexcept-type"
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wnoexcept-type"
 #endif
 
         template <class F>
-        Real operator()(const F& f) const {
+        Real operator()(const F& f) const
+        {
             Real sum = 0.0;
-            for (Integer i = Integer(order())-1; i >= 0; --i) {
+            for (Integer i = Integer(order()) - 1; i >= 0; --i)
+            {
                 sum += w_[i] * f(x_[i]);
             }
             return sum;
         }
 
 #if defined(__GNUC__) && (__GNUC__ >= 7)
-#pragma GCC diagnostic pop
+#    pragma GCC diagnostic pop
 #endif
 
         Size order() const { return x_.size(); }
         const Array& weights() { return w_; }
-        const Array& x()       { return x_; }
-        
+        const Array& x() { return x_; }
+
       protected:
         Array x_, w_;
     };
 
-    class MultiDimGaussianIntegration {
+    class MultiDimGaussianIntegration
+    {
       public:
-        MultiDimGaussianIntegration(
-            const std::vector<Size>& ns,
-            const std::function<ext::shared_ptr<GaussianQuadrature>(Size)>& genQuad);
+        MultiDimGaussianIntegration(const std::vector<Size>& ns,
+                                    const std::function<ext::shared_ptr<GaussianQuadrature>(Size)>& genQuad);
 
         Real operator()(const std::function<Real(Array)>& f) const;
 
@@ -104,10 +107,10 @@ namespace QuantLib {
         \f]
         and \f[ s > -1 \f]
     */
-    class GaussLaguerreIntegration : public GaussianQuadrature {
+    class GaussLaguerreIntegration : public GaussianQuadrature
+    {
       public:
-        explicit GaussLaguerreIntegration(Size n, Real s = 0.0)
-        : GaussianQuadrature(n, GaussLaguerrePolynomial(s)) {}
+        explicit GaussLaguerreIntegration(Size n, Real s = 0.0) : GaussianQuadrature(n, GaussLaguerrePolynomial(s)) {}
     };
 
     //! generalized Gauss-Hermite integration
@@ -121,10 +124,10 @@ namespace QuantLib {
         \f]
         and \f[ \mu > -0.5 \f]
     */
-    class GaussHermiteIntegration : public GaussianQuadrature {
+    class GaussHermiteIntegration : public GaussianQuadrature
+    {
       public:
-        explicit GaussHermiteIntegration(Size n, Real mu = 0.0)
-        : GaussianQuadrature(n, GaussHermitePolynomial(mu)) {}
+        explicit GaussHermiteIntegration(Size n, Real mu = 0.0) : GaussianQuadrature(n, GaussHermitePolynomial(mu)) {}
     };
 
     //! Gauss-Jacobi integration
@@ -137,10 +140,13 @@ namespace QuantLib {
             w(x;\alpha,\beta)=(1-x)^\alpha (1+x)^\beta
         \f]
     */
-    class GaussJacobiIntegration : public GaussianQuadrature {
+    class GaussJacobiIntegration : public GaussianQuadrature
+    {
       public:
         GaussJacobiIntegration(Size n, Real alpha, Real beta)
-        : GaussianQuadrature(n, GaussJacobiPolynomial(alpha, beta)) {}
+        : GaussianQuadrature(n, GaussJacobiPolynomial(alpha, beta))
+        {
+        }
     };
 
     //! Gauss-Hyperbolic integration
@@ -153,10 +159,10 @@ namespace QuantLib {
             w(x)=1/cosh(x)
         \f]
     */
-    class GaussHyperbolicIntegration : public GaussianQuadrature {
+    class GaussHyperbolicIntegration : public GaussianQuadrature
+    {
       public:
-        explicit GaussHyperbolicIntegration(Size n)
-        : GaussianQuadrature(n, GaussHyperbolicPolynomial()) {}
+        explicit GaussHyperbolicIntegration(Size n) : GaussianQuadrature(n, GaussHyperbolicPolynomial()) {}
     };
 
     //! Gauss-Legendre integration
@@ -169,10 +175,10 @@ namespace QuantLib {
             w(x)=1
         \f]
     */
-    class GaussLegendreIntegration : public GaussianQuadrature {
+    class GaussLegendreIntegration : public GaussianQuadrature
+    {
       public:
-        explicit GaussLegendreIntegration(Size n)
-        : GaussianQuadrature(n, GaussJacobiPolynomial(0.0, 0.0)) {}
+        explicit GaussLegendreIntegration(Size n) : GaussianQuadrature(n, GaussJacobiPolynomial(0.0, 0.0)) {}
     };
 
     //! Gauss-Chebyshev integration
@@ -185,10 +191,10 @@ namespace QuantLib {
             w(x)=(1-x^2)^{-1/2}
         \f]
     */
-    class GaussChebyshevIntegration : public GaussianQuadrature {
+    class GaussChebyshevIntegration : public GaussianQuadrature
+    {
       public:
-        explicit GaussChebyshevIntegration(Size n)
-        : GaussianQuadrature(n, GaussJacobiPolynomial(-0.5, -0.5)) {}
+        explicit GaussChebyshevIntegration(Size n) : GaussianQuadrature(n, GaussJacobiPolynomial(-0.5, -0.5)) {}
     };
 
     //! Gauss-Chebyshev integration (second kind)
@@ -201,10 +207,10 @@ namespace QuantLib {
             w(x)=(1-x^2)^{1/2}
         \f]
     */
-    class GaussChebyshev2ndIntegration : public GaussianQuadrature {
+    class GaussChebyshev2ndIntegration : public GaussianQuadrature
+    {
       public:
-        explicit GaussChebyshev2ndIntegration(Size n)
-      : GaussianQuadrature(n, GaussJacobiPolynomial(0.5, 0.5)) {}
+        explicit GaussChebyshev2ndIntegration(Size n) : GaussianQuadrature(n, GaussJacobiPolynomial(0.5, 0.5)) {}
     };
 
     //! Gauss-Gegenbauer integration
@@ -217,46 +223,47 @@ namespace QuantLib {
             w(x)=(1-x^2)^{\lambda-1/2}
         \f]
     */
-    class GaussGegenbauerIntegration : public GaussianQuadrature {
+    class GaussGegenbauerIntegration : public GaussianQuadrature
+    {
       public:
         GaussGegenbauerIntegration(Size n, Real lambda)
-        : GaussianQuadrature(n, GaussJacobiPolynomial(lambda-0.5, lambda-0.5))
-        {}
+        : GaussianQuadrature(n, GaussJacobiPolynomial(lambda - 0.5, lambda - 0.5))
+        {
+        }
     };
 
 
-    namespace detail {
+    namespace detail
+    {
         template <class Integration>
-        class GaussianQuadratureIntegrator: public Integrator {
+        class GaussianQuadratureIntegrator : public Integrator
+        {
           public:
             explicit GaussianQuadratureIntegrator(Size n);
 
             ext::shared_ptr<Integration> getIntegration() const { return integration_; }
 
           private:
-            Real integrate(const std::function<Real (Real)>& f,
-                                           Real a,
-                                           Real b) const override;
+            Real integrate(const std::function<Real(Real)>& f, Real a, Real b) const override;
 
             const ext::shared_ptr<Integration> integration_;
         };
     }
 
-    typedef detail::GaussianQuadratureIntegrator<GaussLegendreIntegration>
-        GaussLegendreIntegrator;
+    typedef detail::GaussianQuadratureIntegrator<GaussLegendreIntegration> GaussLegendreIntegrator;
 
-    typedef detail::GaussianQuadratureIntegrator<GaussChebyshevIntegration>
-        GaussChebyshevIntegrator;
+    typedef detail::GaussianQuadratureIntegrator<GaussChebyshevIntegration> GaussChebyshevIntegrator;
 
-    typedef detail::GaussianQuadratureIntegrator<GaussChebyshev2ndIntegration>
-        GaussChebyshev2ndIntegrator;
+    typedef detail::GaussianQuadratureIntegrator<GaussChebyshev2ndIntegration> GaussChebyshev2ndIntegrator;
 
     //! tabulated Gauss-Legendre quadratures
-    class TabulatedGaussLegendre {
+    class TabulatedGaussLegendre
+    {
       public:
         explicit TabulatedGaussLegendre(Size n = 20) { order(n); }
         template <class F>
-        Real operator() (const F& f) const {
+        Real operator()(const F& f) const
+        {
             QL_ASSERT(w_ != nullptr, "Null weights");
             QL_ASSERT(x_ != nullptr, "Null abscissas");
             Size startIdx;
@@ -264,18 +271,22 @@ namespace QuantLib {
 
             const Size isOrderOdd = order_ & 1;
 
-            if (isOrderOdd) {
-              QL_ASSERT((n_>0), "assume at least 1 point in quadrature");
-              val = w_[0]*f(x_[0]);
-              startIdx=1;
-            } else {
-              val = 0.0;
-              startIdx=0;
+            if (isOrderOdd)
+            {
+                QL_ASSERT((n_ > 0), "assume at least 1 point in quadrature");
+                val = w_[0] * f(x_[0]);
+                startIdx = 1;
+            }
+            else
+            {
+                val = 0.0;
+                startIdx = 0;
             }
 
-            for (Size i=startIdx; i<n_; ++i) {
-                val += w_[i]*f( x_[i]);
-                val += w_[i]*f(-x_[i]);
+            for (Size i = startIdx; i < n_; ++i)
+            {
+                val += w_[i] * f(x_[i]);
+                val += w_[i] * f(-x_[i]);
             }
             return val;
         }
@@ -288,7 +299,7 @@ namespace QuantLib {
 
         const Real* w_;
         const Real* x_;
-        Size  n_;
+        Size n_;
 
         static const Real w6[3];
         static const Real x6[3];

@@ -26,18 +26,20 @@
 #include <ql/pricingengines/barrier/fdblackscholesbarrierengine.hpp>
 #include <memory>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    BarrierOption::BarrierOption(
-        Barrier::Type barrierType,
-        Real barrier,
-        Real rebate,
-        const ext::shared_ptr<StrikedTypePayoff>& payoff,
-        const ext::shared_ptr<Exercise>& exercise)
-    : OneAssetOption(payoff, exercise),
-      barrierType_(barrierType), barrier_(barrier), rebate_(rebate) {}
+    BarrierOption::BarrierOption(Barrier::Type barrierType,
+                                 Real barrier,
+                                 Real rebate,
+                                 const ext::shared_ptr<StrikedTypePayoff>& payoff,
+                                 const ext::shared_ptr<Exercise>& exercise)
+    : OneAssetOption(payoff, exercise), barrierType_(barrierType), barrier_(barrier), rebate_(rebate)
+    {
+    }
 
-    void BarrierOption::setupArguments(PricingEngine::arguments* args) const {
+    void BarrierOption::setupArguments(PricingEngine::arguments* args) const
+    {
 
         OneAssetOption::setupArguments(args);
 
@@ -49,25 +51,24 @@ namespace QuantLib {
     }
 
 
-    Volatility BarrierOption::impliedVolatility(
-             Real targetValue,
-             const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
-             Real accuracy,
-             Size maxEvaluations,
-             Volatility minVol,
-             Volatility maxVol) const {
-        return impliedVolatility(targetValue, process, DividendSchedule(),
-                                 accuracy, maxEvaluations, minVol, maxVol);
+    Volatility BarrierOption::impliedVolatility(Real targetValue,
+                                                const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
+                                                Real accuracy,
+                                                Size maxEvaluations,
+                                                Volatility minVol,
+                                                Volatility maxVol) const
+    {
+        return impliedVolatility(targetValue, process, DividendSchedule(), accuracy, maxEvaluations, minVol, maxVol);
     }
 
-    Volatility BarrierOption::impliedVolatility(
-             Real targetValue,
-             const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
-             const DividendSchedule& dividends,
-             Real accuracy,
-             Size maxEvaluations,
-             Volatility minVol,
-             Volatility maxVol) const {
+    Volatility BarrierOption::impliedVolatility(Real targetValue,
+                                                const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
+                                                const DividendSchedule& dividends,
+                                                Real accuracy,
+                                                Size maxEvaluations,
+                                                Volatility minVol,
+                                                Volatility maxVol) const
+    {
         QL_REQUIRE(!isExpired(), "option expired");
 
         ext::shared_ptr<SimpleQuote> volQuote(new SimpleQuote);
@@ -77,64 +78,63 @@ namespace QuantLib {
 
         // engines are built-in for the time being
         std::unique_ptr<PricingEngine> engine;
-        switch (exercise_->type()) {
-          case Exercise::European:
-            if (dividends.empty())
-                engine = std::make_unique<AnalyticBarrierEngine>(newProcess);
-            else
-                engine = std::make_unique<FdBlackScholesBarrierEngine>(newProcess, dividends);
-            break;
-          case Exercise::American:
-          case Exercise::Bermudan:
-            QL_FAIL("engine not available for non-European barrier option");
-            break;
-          default:
-            QL_FAIL("unknown exercise type");
+        switch (exercise_->type())
+        {
+            case Exercise::European:
+                if (dividends.empty())
+                    engine = std::make_unique<AnalyticBarrierEngine>(newProcess);
+                else
+                    engine = std::make_unique<FdBlackScholesBarrierEngine>(newProcess, dividends);
+                break;
+            case Exercise::American:
+            case Exercise::Bermudan:
+                QL_FAIL("engine not available for non-European barrier option");
+                break;
+            default:
+                QL_FAIL("unknown exercise type");
         }
 
-        return detail::ImpliedVolatilityHelper::calculate(*this,
-                                                          *engine,
-                                                          *volQuote,
-                                                          targetValue,
-                                                          accuracy,
-                                                          maxEvaluations,
-                                                          minVol, maxVol);
+        return detail::ImpliedVolatilityHelper::calculate(*this, *engine, *volQuote, targetValue, accuracy,
+                                                          maxEvaluations, minVol, maxVol);
     }
 
 
-    BarrierOption::arguments::arguments()
-    : barrierType(Barrier::Type(-1)), barrier(Null<Real>()),
-      rebate(Null<Real>()) {}
+    BarrierOption::arguments::arguments() : barrierType(Barrier::Type(-1)), barrier(Null<Real>()), rebate(Null<Real>())
+    {
+    }
 
-    void BarrierOption::arguments::validate() const {
+    void BarrierOption::arguments::validate() const
+    {
         OneAssetOption::arguments::validate();
 
-        switch (barrierType) {
-          case Barrier::DownIn:
-          case Barrier::UpIn:
-          case Barrier::DownOut:
-          case Barrier::UpOut:
-            break;
-          default:
-            QL_FAIL("unknown type");
+        switch (barrierType)
+        {
+            case Barrier::DownIn:
+            case Barrier::UpIn:
+            case Barrier::DownOut:
+            case Barrier::UpOut:
+                break;
+            default:
+                QL_FAIL("unknown type");
         }
 
         QL_REQUIRE(barrier != Null<Real>(), "no barrier given");
         QL_REQUIRE(rebate != Null<Real>(), "no rebate given");
     }
 
-    bool BarrierOption::engine::triggered(Real underlying) const {
-        switch (arguments_.barrierType) {
-          case Barrier::DownIn:
-          case Barrier::DownOut:
-            return underlying < arguments_.barrier;
-          case Barrier::UpIn:
-          case Barrier::UpOut:
-            return underlying > arguments_.barrier;
-          default:
-            QL_FAIL("unknown type");
+    bool BarrierOption::engine::triggered(Real underlying) const
+    {
+        switch (arguments_.barrierType)
+        {
+            case Barrier::DownIn:
+            case Barrier::DownOut:
+                return underlying < arguments_.barrier;
+            case Barrier::UpIn:
+            case Barrier::UpOut:
+                return underlying > arguments_.barrier;
+            default:
+                QL_FAIL("unknown type");
         }
     }
 
 }
-

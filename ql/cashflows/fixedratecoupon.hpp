@@ -30,15 +30,17 @@
 #define quantlib_fixed_rate_coupon_hpp
 
 #include <ql/cashflows/coupon.hpp>
-#include <ql/patterns/visitor.hpp>
 #include <ql/interestrate.hpp>
+#include <ql/patterns/visitor.hpp>
 #include <ql/time/daycounter.hpp>
 #include <ql/time/schedule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Coupon paying a fixed interest rate
-    class FixedRateCoupon : public Coupon {
+    class FixedRateCoupon : public Coupon
+    {
       public:
         //! \name constructors
         //@{
@@ -85,17 +87,15 @@ namespace QuantLib {
     };
 
 
-
     //! helper class building a sequence of fixed rate coupons
-    class FixedRateLeg {
+    class FixedRateLeg
+    {
       public:
         FixedRateLeg(Schedule schedule);
         FixedRateLeg& withNotionals(Real);
         FixedRateLeg& withNotionals(const std::vector<Real>&);
-        FixedRateLeg& withCouponRates(Rate,
-                                      const DayCounter& paymentDayCounter,
-                                      Compounding comp = Simple,
-                                      Frequency freq = Annual);
+        FixedRateLeg&
+        withCouponRates(Rate, const DayCounter& paymentDayCounter, Compounding comp = Simple, Frequency freq = Annual);
         FixedRateLeg& withCouponRates(const std::vector<Rate>&,
                                       const DayCounter& paymentDayCounter,
                                       Compounding comp = Simple,
@@ -107,16 +107,15 @@ namespace QuantLib {
         FixedRateLeg& withLastPeriodDayCounter(const DayCounter&);
         FixedRateLeg& withPaymentCalendar(const Calendar&);
         FixedRateLeg& withPaymentLag(Integer lag);
-        FixedRateLeg& withExCouponPeriod(const Period&,
-                                         const Calendar&,
-                                         BusinessDayConvention,
-                                         bool endOfMonth = false);
+        FixedRateLeg&
+        withExCouponPeriod(const Period&, const Calendar&, BusinessDayConvention, bool endOfMonth = false);
         operator Leg() const;
+
       private:
         Schedule schedule_;
         std::vector<Real> notionals_;
         std::vector<InterestRate> couponRates_;
-        DayCounter firstPeriodDC_ , lastPeriodDC_;
+        DayCounter firstPeriodDC_, lastPeriodDC_;
         Calendar paymentCalendar_;
         BusinessDayConvention paymentAdjustment_ = Following;
         Integer paymentLag_ = 0;
@@ -126,7 +125,8 @@ namespace QuantLib {
         bool exCouponEndOfMonth_ = false;
     };
 
-    inline void FixedRateCoupon::accept(AcyclicVisitor& v) {
+    inline void FixedRateCoupon::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<FixedRateCoupon>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);

@@ -27,17 +27,18 @@
 #ifndef quantlib_mc_american_engine_hpp
 #define quantlib_mc_american_engine_hpp
 
-#include <ql/qldefines.hpp>
-#include <ql/payoff.hpp>
 #include <ql/exercise.hpp>
-#include <ql/optional.hpp>
 #include <ql/methods/montecarlo/lsmbasissystem.hpp>
-#include <ql/processes/blackscholesprocess.hpp>
+#include <ql/optional.hpp>
+#include <ql/payoff.hpp>
 #include <ql/pricingengines/mclongstaffschwartzengine.hpp>
-#include <ql/pricingengines/vanilla/mceuropeanengine.hpp>
 #include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
+#include <ql/pricingengines/vanilla/mceuropeanengine.hpp>
+#include <ql/processes/blackscholesprocess.hpp>
+#include <ql/qldefines.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! American Monte Carlo engine
     /*! References:
@@ -47,11 +48,10 @@ namespace QuantLib {
         \test the correctness of the returned value is tested by
               reproducing results available in web/literature
     */
-    template <class RNG = PseudoRandom, class S = Statistics,
-              class RNG_Calibration = RNG>
+    template <class RNG = PseudoRandom, class S = Statistics, class RNG_Calibration = RNG>
     class MCAmericanEngine
-        : public MCLongstaffSchwartzEngine<VanillaOption::engine,
-                                           SingleVariate,RNG,S,RNG_Calibration> {
+    : public MCLongstaffSchwartzEngine<VanillaOption::engine, SingleVariate, RNG, S, RNG_Calibration>
+    {
       public:
         MCAmericanEngine(const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
                          Size timeSteps,
@@ -71,18 +71,19 @@ namespace QuantLib {
         void calculate() const override;
 
       protected:
-        ext::shared_ptr<LongstaffSchwartzPathPricer<Path> > lsmPathPricer() const override;
+        ext::shared_ptr<LongstaffSchwartzPathPricer<Path>> lsmPathPricer() const override;
 
         Real controlVariateValue() const override;
         ext::shared_ptr<PricingEngine> controlPricingEngine() const override;
-        ext::shared_ptr<PathPricer<Path> > controlPathPricer() const override;
+        ext::shared_ptr<PathPricer<Path>> controlPathPricer() const override;
 
       private:
         const Size polynomialOrder_;
         const LsmBasisSystem::PolynomialType polynomialType_;
     };
 
-    class AmericanPathPricer : public EarlyExercisePathPricer<Path>  {
+    class AmericanPathPricer : public EarlyExercisePathPricer<Path>
+    {
       public:
         AmericanPathPricer(ext::shared_ptr<Payoff> payoff,
                            Size polynomialOrder,
@@ -91,21 +92,21 @@ namespace QuantLib {
         Real state(const Path& path, Size t) const override;
         Real operator()(const Path& path, Size t) const override;
 
-        std::vector<std::function<Real(Real)> > basisSystem() const override;
+        std::vector<std::function<Real(Real)>> basisSystem() const override;
 
       protected:
         Real payoff(Real state) const;
 
         Real scalingValue_ = 1.0;
         const ext::shared_ptr<Payoff> payoff_;
-        std::vector<std::function<Real(Real)> > v_;
+        std::vector<std::function<Real(Real)>> v_;
     };
 
 
     //! Monte Carlo American engine factory
-    template <class RNG = PseudoRandom, class S = Statistics,
-              class RNG_Calibration = RNG>
-    class MakeMCAmericanEngine {
+    template <class RNG = PseudoRandom, class S = Statistics, class RNG_Calibration = RNG>
+    class MakeMCAmericanEngine
+    {
       public:
         MakeMCAmericanEngine(ext::shared_ptr<GeneralizedBlackScholesProcess>);
         // named parameters
@@ -125,6 +126,7 @@ namespace QuantLib {
 
         // conversion to pricing engine
         operator ext::shared_ptr<PricingEngine>() const;
+
       private:
         ext::shared_ptr<GeneralizedBlackScholesProcess> process_;
         bool antithetic_ = false, controlVariate_ = false;
@@ -169,13 +171,16 @@ namespace QuantLib {
           false,
           antitheticVariateCalibration,
           seedCalibration),
-      polynomialOrder_(polynomialOrder), polynomialType_(polynomialType) {}
+      polynomialOrder_(polynomialOrder), polynomialType_(polynomialType)
+    {
+    }
 
     template <class RNG, class S, class RNG_Calibration>
-    inline void MCAmericanEngine<RNG, S, RNG_Calibration>::calculate() const {
-        MCLongstaffSchwartzEngine<VanillaOption::engine, SingleVariate, RNG, S,
-                                  RNG_Calibration>::calculate();
-        if (this->controlVariate_) {
+    inline void MCAmericanEngine<RNG, S, RNG_Calibration>::calculate() const
+    {
+        MCLongstaffSchwartzEngine<VanillaOption::engine, SingleVariate, RNG, S, RNG_Calibration>::calculate();
+        if (this->controlVariate_)
+        {
             // control variate might lead to small negative
             // option values for deep OTM options
             this->results_.value = std::max(0.0, this->results_.value);
@@ -183,83 +188,66 @@ namespace QuantLib {
     }
 
     template <class RNG, class S, class RNG_Calibration>
-    inline ext::shared_ptr<LongstaffSchwartzPathPricer<Path> >
-    MCAmericanEngine<RNG, S, RNG_Calibration>::lsmPathPricer() const {
+    inline ext::shared_ptr<LongstaffSchwartzPathPricer<Path>>
+    MCAmericanEngine<RNG, S, RNG_Calibration>::lsmPathPricer() const
+    {
         ext::shared_ptr<GeneralizedBlackScholesProcess> process =
-            ext::dynamic_pointer_cast<GeneralizedBlackScholesProcess>(
-                                                              this->process_);
+            ext::dynamic_pointer_cast<GeneralizedBlackScholesProcess>(this->process_);
         QL_REQUIRE(process, "generalized Black-Scholes process required");
 
-        ext::shared_ptr<EarlyExercise> exercise =
-            ext::dynamic_pointer_cast<EarlyExercise>(
-                this->arguments_.exercise);
+        ext::shared_ptr<EarlyExercise> exercise = ext::dynamic_pointer_cast<EarlyExercise>(this->arguments_.exercise);
         QL_REQUIRE(exercise, "wrong exercise given");
-        QL_REQUIRE(!exercise->payoffAtExpiry(),
-                   "payoff at expiry not handled");
+        QL_REQUIRE(!exercise->payoffAtExpiry(), "payoff at expiry not handled");
 
         ext::shared_ptr<AmericanPathPricer> earlyExercisePathPricer(
-            new AmericanPathPricer(this->arguments_.payoff,
-                                   polynomialOrder_, polynomialType_));
+            new AmericanPathPricer(this->arguments_.payoff, polynomialOrder_, polynomialType_));
 
-        return ext::make_shared<LongstaffSchwartzPathPricer<Path> > (
-             
-                                      this->timeGrid(),
-                                      earlyExercisePathPricer,
-                                      *(process->riskFreeRate()));
+        return ext::make_shared<LongstaffSchwartzPathPricer<Path>>(
+
+            this->timeGrid(), earlyExercisePathPricer, *(process->riskFreeRate()));
     }
 
     template <class RNG, class S, class RNG_Calibration>
-    inline ext::shared_ptr<PathPricer<Path> >
-    MCAmericanEngine<RNG, S, RNG_Calibration>::controlPathPricer() const {
+    inline ext::shared_ptr<PathPricer<Path>> MCAmericanEngine<RNG, S, RNG_Calibration>::controlPathPricer() const
+    {
         ext::shared_ptr<StrikedTypePayoff> payoff =
-            ext::dynamic_pointer_cast<StrikedTypePayoff>(
-                this->arguments_.payoff);
+            ext::dynamic_pointer_cast<StrikedTypePayoff>(this->arguments_.payoff);
         QL_REQUIRE(payoff, "StrikedTypePayoff needed for control variate");
 
         ext::shared_ptr<GeneralizedBlackScholesProcess> process =
-            ext::dynamic_pointer_cast<GeneralizedBlackScholesProcess>(
-                                                              this->process_);
+            ext::dynamic_pointer_cast<GeneralizedBlackScholesProcess>(this->process_);
         QL_REQUIRE(process, "generalized Black-Scholes process required");
 
-        return ext::shared_ptr<PathPricer<Path> >(
-            new EuropeanPathPricer(
-                payoff->optionType(),
-                payoff->strike(),
-                process->riskFreeRate()->discount(this->timeGrid().back()))
-            );
+        return ext::shared_ptr<PathPricer<Path>>(new EuropeanPathPricer(
+            payoff->optionType(), payoff->strike(), process->riskFreeRate()->discount(this->timeGrid().back())));
     }
 
     template <class RNG, class S, class RNG_Calibration>
-    inline ext::shared_ptr<PricingEngine>
-    MCAmericanEngine<RNG, S, RNG_Calibration>::controlPricingEngine() const {
+    inline ext::shared_ptr<PricingEngine> MCAmericanEngine<RNG, S, RNG_Calibration>::controlPricingEngine() const
+    {
         ext::shared_ptr<GeneralizedBlackScholesProcess> process =
-            ext::dynamic_pointer_cast<GeneralizedBlackScholesProcess>(
-                                                              this->process_);
+            ext::dynamic_pointer_cast<GeneralizedBlackScholesProcess>(this->process_);
         QL_REQUIRE(process, "generalized Black-Scholes process required");
 
-        return ext::shared_ptr<PricingEngine>(
-                                         new AnalyticEuropeanEngine(process));
+        return ext::shared_ptr<PricingEngine>(new AnalyticEuropeanEngine(process));
     }
 
     template <class RNG, class S, class RNG_Calibration>
-    inline Real
-    MCAmericanEngine<RNG, S, RNG_Calibration>::controlVariateValue() const {
-        ext::shared_ptr<PricingEngine> controlPE =
-            this->controlPricingEngine();
+    inline Real MCAmericanEngine<RNG, S, RNG_Calibration>::controlVariateValue() const
+    {
+        ext::shared_ptr<PricingEngine> controlPE = this->controlPricingEngine();
 
-        QL_REQUIRE(controlPE,
-                   "engine does not provide "
-                   "control variation pricing engine");
+        QL_REQUIRE(controlPE, "engine does not provide "
+                              "control variation pricing engine");
 
         auto* controlArguments = dynamic_cast<VanillaOption::arguments*>(controlPE->getArguments());
         *controlArguments = this->arguments_;
-        controlArguments->exercise = ext::shared_ptr<Exercise>(
-             new EuropeanExercise(this->arguments_.exercise->lastDate()));
+        controlArguments->exercise =
+            ext::shared_ptr<Exercise>(new EuropeanExercise(this->arguments_.exercise->lastDate()));
 
         controlPE->calculate();
 
-        const auto* controlResults =
-            dynamic_cast<const VanillaOption::results*>(controlPE->getResults());
+        const auto* controlResults = dynamic_cast<const VanillaOption::results*>(controlPE->getResults());
 
         return controlResults->value;
     }
@@ -267,135 +255,128 @@ namespace QuantLib {
     template <class RNG, class S, class RNG_Calibration>
     inline MakeMCAmericanEngine<RNG, S, RNG_Calibration>::MakeMCAmericanEngine(
         ext::shared_ptr<GeneralizedBlackScholesProcess> process)
-    : process_(std::move(process)), steps_(Null<Size>()), stepsPerYear_(Null<Size>()),
-      samples_(Null<Size>()), maxSamples_(Null<Size>()), tolerance_(Null<Real>()),
-      antitheticCalibration_(ext::nullopt), seedCalibration_(Null<Size>()) {}
+    : process_(std::move(process)), steps_(Null<Size>()), stepsPerYear_(Null<Size>()), samples_(Null<Size>()),
+      maxSamples_(Null<Size>()), tolerance_(Null<Real>()), antitheticCalibration_(ext::nullopt),
+      seedCalibration_(Null<Size>())
+    {
+    }
 
     template <class RNG, class S, class RNG_Calibration>
-    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration> &
-    MakeMCAmericanEngine<RNG, S, RNG_Calibration>::withPolynomialOrder(Size polynomialOrder) {
+    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration>&
+    MakeMCAmericanEngine<RNG, S, RNG_Calibration>::withPolynomialOrder(Size polynomialOrder)
+    {
         polynomialOrder_ = polynomialOrder;
         return *this;
     }
 
     template <class RNG, class S, class RNG_Calibration>
-    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration> &
-    MakeMCAmericanEngine<RNG, S, RNG_Calibration>::withBasisSystem(LsmBasisSystem::PolynomialType polynomialType) {
+    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration>&
+    MakeMCAmericanEngine<RNG, S, RNG_Calibration>::withBasisSystem(LsmBasisSystem::PolynomialType polynomialType)
+    {
         polynomialType_ = polynomialType;
         return *this;
     }
 
     template <class RNG, class S, class RNG_Calibration>
-    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration> &
-    MakeMCAmericanEngine<RNG, S, RNG_Calibration>::withSteps(Size steps) {
+    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration>&
+    MakeMCAmericanEngine<RNG, S, RNG_Calibration>::withSteps(Size steps)
+    {
         steps_ = steps;
         return *this;
     }
 
     template <class RNG, class S, class RNG_Calibration>
-    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration> &
-    MakeMCAmericanEngine<RNG, S, RNG_Calibration>::withStepsPerYear(
-        Size steps) {
+    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration>&
+    MakeMCAmericanEngine<RNG, S, RNG_Calibration>::withStepsPerYear(Size steps)
+    {
         stepsPerYear_ = steps;
         return *this;
     }
 
     template <class RNG, class S, class RNG_Calibration>
-    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration> &
-    MakeMCAmericanEngine<RNG, S, RNG_Calibration>::withSamples(Size samples) {
-        QL_REQUIRE(tolerance_ == Null<Real>(),
-                   "tolerance already set");
+    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration>&
+    MakeMCAmericanEngine<RNG, S, RNG_Calibration>::withSamples(Size samples)
+    {
+        QL_REQUIRE(tolerance_ == Null<Real>(), "tolerance already set");
         samples_ = samples;
         return *this;
     }
 
     template <class RNG, class S, class RNG_Calibration>
-    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration> &
-    MakeMCAmericanEngine<RNG, S, RNG_Calibration>::withAbsoluteTolerance(
-        Real tolerance) {
-        QL_REQUIRE(samples_ == Null<Size>(),
-                   "number of samples already set");
-        QL_REQUIRE(RNG::allowsErrorEstimate,
-                   "chosen random generator policy "
-                   "does not allow an error estimate");
+    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration>&
+    MakeMCAmericanEngine<RNG, S, RNG_Calibration>::withAbsoluteTolerance(Real tolerance)
+    {
+        QL_REQUIRE(samples_ == Null<Size>(), "number of samples already set");
+        QL_REQUIRE(RNG::allowsErrorEstimate, "chosen random generator policy "
+                                             "does not allow an error estimate");
         tolerance_ = tolerance;
         return *this;
     }
 
     template <class RNG, class S, class RNG_Calibration>
-    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration> &
-    MakeMCAmericanEngine<RNG, S, RNG_Calibration>::withMaxSamples(
-        Size samples) {
+    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration>&
+    MakeMCAmericanEngine<RNG, S, RNG_Calibration>::withMaxSamples(Size samples)
+    {
         maxSamples_ = samples;
         return *this;
     }
 
     template <class RNG, class S, class RNG_Calibration>
-    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration> &
-    MakeMCAmericanEngine<RNG, S, RNG_Calibration>::withCalibrationSamples(
-        Size samples) {
+    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration>&
+    MakeMCAmericanEngine<RNG, S, RNG_Calibration>::withCalibrationSamples(Size samples)
+    {
         calibrationSamples_ = samples;
         return *this;
     }
 
     template <class RNG, class S, class RNG_Calibration>
-    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration> &
-    MakeMCAmericanEngine<RNG, S, RNG_Calibration>::withSeed(BigNatural seed) {
+    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration>&
+    MakeMCAmericanEngine<RNG, S, RNG_Calibration>::withSeed(BigNatural seed)
+    {
         seed_ = seed;
         return *this;
     }
 
     template <class RNG, class S, class RNG_Calibration>
-    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration> &
-    MakeMCAmericanEngine<RNG, S, RNG_Calibration>::withAntitheticVariate(
-        bool b) {
+    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration>&
+    MakeMCAmericanEngine<RNG, S, RNG_Calibration>::withAntitheticVariate(bool b)
+    {
         antithetic_ = b;
         return *this;
     }
 
     template <class RNG, class S, class RNG_Calibration>
-    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration> &
-    MakeMCAmericanEngine<RNG, S, RNG_Calibration>::withControlVariate(bool b) {
+    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration>&
+    MakeMCAmericanEngine<RNG, S, RNG_Calibration>::withControlVariate(bool b)
+    {
         controlVariate_ = b;
         return *this;
     }
 
     template <class RNG, class S, class RNG_Calibration>
-    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration> &MakeMCAmericanEngine<
-        RNG, S, RNG_Calibration>::withAntitheticVariateCalibration(bool b) {
+    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration>&
+    MakeMCAmericanEngine<RNG, S, RNG_Calibration>::withAntitheticVariateCalibration(bool b)
+    {
         antitheticCalibration_ = b;
         return *this;
     }
 
     template <class RNG, class S, class RNG_Calibration>
-    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration> &
-    MakeMCAmericanEngine<RNG, S, RNG_Calibration>::withSeedCalibration(
-        BigNatural seed) {
+    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration>&
+    MakeMCAmericanEngine<RNG, S, RNG_Calibration>::withSeedCalibration(BigNatural seed)
+    {
         seedCalibration_ = seed;
         return *this;
     }
 
     template <class RNG, class S, class RNG_Calibration>
-    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration>::
-    operator ext::shared_ptr<PricingEngine>() const {
-        QL_REQUIRE(steps_ != Null<Size>() || stepsPerYear_ != Null<Size>(),
-                   "number of steps not given");
-        QL_REQUIRE(steps_ == Null<Size>() || stepsPerYear_ == Null<Size>(),
-                   "number of steps overspecified");
-        return ext::shared_ptr<PricingEngine>(new
-           MCAmericanEngine<RNG, S, RNG_Calibration>(process_,
-                                     steps_,
-                                     stepsPerYear_,
-                                     antithetic_,
-                                     controlVariate_,
-                                     samples_, tolerance_,
-                                     maxSamples_,
-                                     seed_,
-                                     polynomialOrder_,
-                                     polynomialType_,
-                                     calibrationSamples_,
-                                     antitheticCalibration_,
-                                     seedCalibration_));
+    inline MakeMCAmericanEngine<RNG, S, RNG_Calibration>::operator ext::shared_ptr<PricingEngine>() const
+    {
+        QL_REQUIRE(steps_ != Null<Size>() || stepsPerYear_ != Null<Size>(), "number of steps not given");
+        QL_REQUIRE(steps_ == Null<Size>() || stepsPerYear_ == Null<Size>(), "number of steps overspecified");
+        return ext::shared_ptr<PricingEngine>(new MCAmericanEngine<RNG, S, RNG_Calibration>(
+            process_, steps_, stepsPerYear_, antithetic_, controlVariate_, samples_, tolerance_, maxSamples_, seed_,
+            polynomialOrder_, polynomialType_, calibrationSamples_, antitheticCalibration_, seedCalibration_));
     }
 
 }

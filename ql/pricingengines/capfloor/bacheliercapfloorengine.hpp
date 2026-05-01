@@ -27,13 +27,15 @@
 #include <ql/instruments/capfloor.hpp>
 #include <ql/termstructures/volatility/optionlet/optionletvolatilitystructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Quote;
 
     //! Bachelier-Black-formula cap/floor engine
     /*! \ingroup capfloorengines */
-    class BachelierCapFloorEngine : public CapFloor::engine {
+    class BachelierCapFloorEngine : public CapFloor::engine
+    {
       public:
         BachelierCapFloorEngine(Handle<YieldTermStructure> discountCurve,
                                 Volatility vol,
@@ -41,11 +43,11 @@ namespace QuantLib {
         BachelierCapFloorEngine(Handle<YieldTermStructure> discountCurve,
                                 const Handle<Quote>& vol,
                                 const DayCounter& dc = Actual365Fixed());
-        BachelierCapFloorEngine(Handle<YieldTermStructure> discountCurve,
-                                Handle<OptionletVolatilityStructure> vol);
+        BachelierCapFloorEngine(Handle<YieldTermStructure> discountCurve, Handle<OptionletVolatilityStructure> vol);
         void calculate() const override;
         Handle<YieldTermStructure> termStructure() { return discountCurve_; }
         Handle<OptionletVolatilityStructure> volatility() { return vol_; }
+
       private:
         Handle<YieldTermStructure> discountCurve_;
         Handle<OptionletVolatilityStructure> vol_;

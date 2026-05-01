@@ -21,14 +21,15 @@
 #ifndef quantlib_market_model_parametric_exercise_hpp
 #define quantlib_market_model_parametric_exercise_hpp
 
-#include <ql/models/marketmodels/callability/nodedataprovider.hpp>
 #include <ql/methods/montecarlo/parametricexercise.hpp>
+#include <ql/models/marketmodels/callability/nodedataprovider.hpp>
 #include <memory>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class MarketModelParametricExercise : public MarketModelNodeDataProvider,
-                                          public ParametricExercise {
+    class MarketModelParametricExercise : public MarketModelNodeDataProvider, public ParametricExercise
+    {
       public:
         std::vector<Size> numberOfData() const override { return numberOfVariables(); }
         virtual std::unique_ptr<MarketModelParametricExercise> clone() const = 0;

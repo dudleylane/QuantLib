@@ -25,15 +25,16 @@
 #ifndef quantlib_implied_std_dev_quote_hpp
 #define quantlib_implied_std_dev_quote_hpp
 
-#include <ql/quote.hpp>
 #include <ql/handle.hpp>
 #include <ql/option.hpp>
+#include <ql/quote.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %quote for the implied standard deviation of an underlying
-    class ImpliedStdDevQuote : public Quote,
-                               public LazyObject {
+    class ImpliedStdDevQuote : public Quote, public LazyObject
+    {
       public:
         ImpliedStdDevQuote(Option::Type optionType,
                            Handle<Quote> forward,

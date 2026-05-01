@@ -22,28 +22,28 @@
 #include <utility>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    MultiProductOneStep::MultiProductOneStep(std::vector<Time> rateTimes)
-    : rateTimes_(std::move(rateTimes)) {
-        QL_REQUIRE(rateTimes_.size()>1,
-                   "Rate times must contain at least two values");
-        std::vector<Time> evolutionTimes(1, rateTimes_[rateTimes_.size()-2]);
-        std::vector<std::pair<Size,Size> > relevanceRates(1);
-        relevanceRates[0] =
-            std::make_pair<Size,Size>(0, rateTimes_.size()-1);
+    MultiProductOneStep::MultiProductOneStep(std::vector<Time> rateTimes) : rateTimes_(std::move(rateTimes))
+    {
+        QL_REQUIRE(rateTimes_.size() > 1, "Rate times must contain at least two values");
+        std::vector<Time> evolutionTimes(1, rateTimes_[rateTimes_.size() - 2]);
+        std::vector<std::pair<Size, Size>> relevanceRates(1);
+        relevanceRates[0] = std::make_pair<Size, Size>(0, rateTimes_.size() - 1);
 
-        evolution_ = EvolutionDescription(rateTimes_, evolutionTimes,
-                                          relevanceRates);
+        evolution_ = EvolutionDescription(rateTimes_, evolutionTimes, relevanceRates);
     }
 
-    const EvolutionDescription& MultiProductOneStep::evolution() const {
+    const EvolutionDescription& MultiProductOneStep::evolution() const
+    {
         return evolution_;
     }
 
-    std::vector<Size> MultiProductOneStep::suggestedNumeraires() const {
+    std::vector<Size> MultiProductOneStep::suggestedNumeraires() const
+    {
         // Terminal measure
-        return std::vector<Size>(1, rateTimes_.size()-1);
+        return std::vector<Size>(1, rateTimes_.size() - 1);
     }
 
 }

@@ -28,32 +28,28 @@
 #include <ql/currencies/oceania.hpp>
 #include <ql/indexes/inflationindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! AU CPI index (either quarterly or annual)
-    class AUCPI : public ZeroInflationIndex {
+    class AUCPI : public ZeroInflationIndex
+    {
       public:
-        AUCPI(Frequency frequency,
-              bool revised,
-              const Handle<ZeroInflationTermStructure>& ts = {})
-        : ZeroInflationIndex(
-              "CPI", AustraliaRegion(), revised, frequency, Period(2, Months), AUDCurrency(), ts) {}
+        AUCPI(Frequency frequency, bool revised, const Handle<ZeroInflationTermStructure>& ts = {})
+        : ZeroInflationIndex("CPI", AustraliaRegion(), revised, frequency, Period(2, Months), AUDCurrency(), ts)
+        {
+        }
     };
 
 
     //! Quoted year-on-year AU CPI (i.e. not a ratio)
-    class YYAUCPI : public YoYInflationIndex {
+    class YYAUCPI : public YoYInflationIndex
+    {
       public:
-        YYAUCPI(Frequency frequency,
-                bool revised,
-                const Handle<YoYInflationTermStructure>& ts = {})
-        : YoYInflationIndex("YY_CPI",
-                            AustraliaRegion(),
-                            revised,
-                            frequency,
-                            Period(2, Months),
-                            AUDCurrency(),
-                            ts) {}
+        YYAUCPI(Frequency frequency, bool revised, const Handle<YoYInflationTermStructure>& ts = {})
+        : YoYInflationIndex("YY_CPI", AustraliaRegion(), revised, frequency, Period(2, Months), AUDCurrency(), ts)
+        {
+        }
     };
 
 }

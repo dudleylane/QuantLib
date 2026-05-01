@@ -31,19 +31,19 @@
 #include <ql/termstructures/iterativebootstrap.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Piecewise year-on-year inflation term structure
     template <class Interpolator,
               template <class> class Bootstrap = IterativeBootstrap,
               class Traits = YoYInflationTraits>
-    class PiecewiseYoYInflationCurve:
-        public InterpolatedYoYInflationCurve<Interpolator>,
-        public LazyObject {
+    class PiecewiseYoYInflationCurve : public InterpolatedYoYInflationCurve<Interpolator>, public LazyObject
+    {
       private:
         typedef InterpolatedYoYInflationCurve<Interpolator> base_curve;
-        typedef PiecewiseYoYInflationCurve<Interpolator,Bootstrap,Traits>
-                                                                   this_curve;
+        typedef PiecewiseYoYInflationCurve<Interpolator, Bootstrap, Traits> this_curve;
+
       public:
         typedef Traits traits_type;
         typedef Interpolator interpolator_type;
@@ -51,24 +51,18 @@ namespace QuantLib {
         //! \name Constructors
         //@{
 
-        PiecewiseYoYInflationCurve(
-            const Date& referenceDate,
-            Date baseDate,
-            Rate baseYoYRate,
-            Frequency frequency,
-            const DayCounter& dayCounter,
-            std::vector<ext::shared_ptr<typename Traits::helper> > instruments,
-            const ext::shared_ptr<Seasonality>& seasonality = {},
-            Real accuracy = 1.0e-12,
-            const Interpolator& i = Interpolator())
-        : base_curve(referenceDate,
-                     baseDate,
-                     baseYoYRate,
-                     frequency,
-                     dayCounter,
-                     seasonality,
-                     i),
-          instruments_(std::move(instruments)), accuracy_(accuracy) {
+        PiecewiseYoYInflationCurve(const Date& referenceDate,
+                                   Date baseDate,
+                                   Rate baseYoYRate,
+                                   Frequency frequency,
+                                   const DayCounter& dayCounter,
+                                   std::vector<ext::shared_ptr<typename Traits::helper>> instruments,
+                                   const ext::shared_ptr<Seasonality>& seasonality = {},
+                                   Real accuracy = 1.0e-12,
+                                   const Interpolator& i = Interpolator())
+        : base_curve(referenceDate, baseDate, baseYoYRate, frequency, dayCounter, seasonality, i),
+          instruments_(std::move(instruments)), accuracy_(accuracy)
+        {
             bootstrap_.setup(this);
         }
 
@@ -83,7 +77,7 @@ namespace QuantLib {
         const std::vector<Time>& times() const;
         const std::vector<Date>& dates() const;
         const std::vector<Real>& data() const;
-        std::vector<std::pair<Date, Real> > nodes() const;
+        std::vector<std::pair<Date, Real>> nodes() const;
         //@}
         //! \name Observer interface
         //@{
@@ -94,7 +88,7 @@ namespace QuantLib {
         void performCalculations() const override;
         Rate yoyRateImpl(Time t) const override;
         // data members
-        std::vector<ext::shared_ptr<typename Traits::helper> > instruments_;
+        std::vector<ext::shared_ptr<typename Traits::helper>> instruments_;
         Real accuracy_;
 
         friend class Bootstrap<this_curve>;
@@ -105,49 +99,56 @@ namespace QuantLib {
     // inline and template definitions
 
     template <class I, template <class> class B, class T>
-    inline Date PiecewiseYoYInflationCurve<I,B,T>::maxDate() const {
+    inline Date PiecewiseYoYInflationCurve<I, B, T>::maxDate() const
+    {
         this->calculate();
         return base_curve::maxDate();
     }
 
     template <class I, template <class> class B, class T>
-    const std::vector<Time>& PiecewiseYoYInflationCurve<I,B,T>::times() const {
+    const std::vector<Time>& PiecewiseYoYInflationCurve<I, B, T>::times() const
+    {
         calculate();
         return base_curve::times();
     }
 
     template <class I, template <class> class B, class T>
-    const std::vector<Date>& PiecewiseYoYInflationCurve<I,B,T>::dates() const {
+    const std::vector<Date>& PiecewiseYoYInflationCurve<I, B, T>::dates() const
+    {
         calculate();
         return base_curve::dates();
     }
 
     template <class I, template <class> class B, class T>
-    const std::vector<Real>& PiecewiseYoYInflationCurve<I,B,T>::data() const {
+    const std::vector<Real>& PiecewiseYoYInflationCurve<I, B, T>::data() const
+    {
         calculate();
         return base_curve::data();
     }
 
     template <class I, template <class> class B, class T>
-    std::vector<std::pair<Date, Real> >
-    PiecewiseYoYInflationCurve<I,B,T>::nodes() const {
+    std::vector<std::pair<Date, Real>> PiecewiseYoYInflationCurve<I, B, T>::nodes() const
+    {
         calculate();
         return base_curve::nodes();
     }
 
     template <class I, template <class> class B, class T>
-    void PiecewiseYoYInflationCurve<I,B,T>::performCalculations() const {
+    void PiecewiseYoYInflationCurve<I, B, T>::performCalculations() const
+    {
         bootstrap_.calculate();
     }
 
     template <class I, template <class> class B, class T>
-    Rate PiecewiseYoYInflationCurve<I,B,T>::yoyRateImpl(Time t) const {
+    Rate PiecewiseYoYInflationCurve<I, B, T>::yoyRateImpl(Time t) const
+    {
         calculate();
         return base_curve::yoyRateImpl(t);
     }
 
     template <class I, template <class> class B, class T>
-    void PiecewiseYoYInflationCurve<I,B,T>::update() {
+    void PiecewiseYoYInflationCurve<I, B, T>::update()
+    {
         base_curve::update();
         LazyObject::update();
     }

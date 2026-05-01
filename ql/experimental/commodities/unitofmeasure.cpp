@@ -21,29 +21,29 @@
 #include <ostream>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    std::ostream& operator<<(std::ostream& out, const UnitOfMeasure& c) {
+    std::ostream& operator<<(std::ostream& out, const UnitOfMeasure& c)
+    {
         if (!c.empty())
             return out << c.code();
         else
             return out << "null unit of measure";
     }
 
-    std::map<std::string,
-             ext::shared_ptr<UnitOfMeasure::Data> >
-    UnitOfMeasure::unitsOfMeasure_;
+    std::map<std::string, ext::shared_ptr<UnitOfMeasure::Data>> UnitOfMeasure::unitsOfMeasure_;
 
-    UnitOfMeasure::UnitOfMeasure(const std::string& name,
-                                 const std::string& code,
-                                 UnitOfMeasure::Type unitType) {
-        auto i =
-            unitsOfMeasure_.find(name);
-        if (i != unitsOfMeasure_.end()) {
+    UnitOfMeasure::UnitOfMeasure(const std::string& name, const std::string& code, UnitOfMeasure::Type unitType)
+    {
+        auto i = unitsOfMeasure_.find(name);
+        if (i != unitsOfMeasure_.end())
+        {
             data_ = i->second;
-        } else {
-            data_ = ext::make_shared<UnitOfMeasure::Data>(
-                               name, code, unitType);
+        }
+        else
+        {
+            data_ = ext::make_shared<UnitOfMeasure::Data>(name, code, unitType);
             unitsOfMeasure_[name] = data_;
         }
     }
@@ -54,6 +54,7 @@ namespace QuantLib {
                               UnitOfMeasure triangulationUnitOfMeasure,
                               const Rounding& rounding)
     : name(std::move(name)), code(std::move(code)), unitType(unitType),
-      triangulationUnitOfMeasure(std::move(triangulationUnitOfMeasure)), rounding(rounding) {}
+      triangulationUnitOfMeasure(std::move(triangulationUnitOfMeasure)), rounding(rounding)
+    {
+    }
 }
-

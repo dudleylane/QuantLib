@@ -7,4 +7,3 @@
 #include <ql/experimental/variancegamma/fftvariancegammaengine.hpp>
 #include <ql/experimental/variancegamma/variancegammamodel.hpp>
 #include <ql/experimental/variancegamma/variancegammaprocess.hpp>
-

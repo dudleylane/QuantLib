@@ -31,17 +31,15 @@
 #include <set>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    typedef std::set<ext::shared_ptr<DefaultEvent>,
-                earlier_than<ext::shared_ptr<DefaultEvent> > >
-            DefaultEventSet;
+    typedef std::set<ext::shared_ptr<DefaultEvent>, earlier_than<ext::shared_ptr<DefaultEvent>>> DefaultEventSet;
 
-    class Issuer {
+    class Issuer
+    {
       public:
-        typedef std::pair<DefaultProbKey,
-                          Handle<DefaultProbabilityTermStructure> >
-                                                               key_curve_pair;
+        typedef std::pair<DefaultProbKey, Handle<DefaultProbabilityTermStructure>> key_curve_pair;
         /*! The first argument represents the probability of an issuer
             of having any of its bonds with the given seniority,
             currency incurring in that particular event.  The second
@@ -55,16 +53,15 @@ namespace QuantLib {
         Issuer(std::vector<key_curve_pair> probabilities = std::vector<key_curve_pair>(),
                DefaultEventSet events = DefaultEventSet());
 
-        Issuer(const std::vector<std::vector<ext::shared_ptr<DefaultType> > >& eventTypes,
+        Issuer(const std::vector<std::vector<ext::shared_ptr<DefaultType>>>& eventTypes,
                const std::vector<Currency>& currencies,
                const std::vector<Seniority>& seniorities,
-               const std::vector<Handle<DefaultProbabilityTermStructure> >& curves,
+               const std::vector<Handle<DefaultProbabilityTermStructure>>& curves,
                DefaultEventSet events = DefaultEventSet());
 
         //! \name Inspectors
         //@{
-        const Handle<DefaultProbabilityTermStructure>&
-            defaultProbability(const DefaultProbKey& key) const;
+        const Handle<DefaultProbabilityTermStructure>& defaultProbability(const DefaultProbKey& key) const;
 
         //@}
 
@@ -73,25 +70,21 @@ namespace QuantLib {
         //! If a default event with the required seniority and
         //    restructuring type is found, it is returned for
         //    inspection; otherwise, the method returns an empty pointer.
-        ext::shared_ptr<DefaultEvent>
-        defaultedBetween(const Date& start,
-                         const Date& end,
-                         const DefaultProbKey& key,
-                         bool includeRefDate = false
-                         ) const;
+        ext::shared_ptr<DefaultEvent> defaultedBetween(const Date& start,
+                                                       const Date& end,
+                                                       const DefaultProbKey& key,
+                                                       bool includeRefDate = false) const;
 
         //@}
-        std::vector<ext::shared_ptr<DefaultEvent> >
-        defaultsBetween(const Date& start,
-                        const Date& end,
-                        const DefaultProbKey& contractKey,
-                        bool includeRefDate
-                        ) const ;
+        std::vector<ext::shared_ptr<DefaultEvent>> defaultsBetween(const Date& start,
+                                                                   const Date& end,
+                                                                   const DefaultProbKey& contractKey,
+                                                                   bool includeRefDate) const;
+
       private:
         //! probabilities of events for each bond collection
         // vector of pairs preferred over maps for performance
-        std::vector<std::pair<DefaultProbKey,
-            Handle<DefaultProbabilityTermStructure> > > probabilities_;
+        std::vector<std::pair<DefaultProbKey, Handle<DefaultProbabilityTermStructure>>> probabilities_;
         //! History of past events affecting this issuer. Notice it is possible
         //    for the same event to occur on the same bond several times along
         //    time.

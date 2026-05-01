@@ -27,13 +27,15 @@
 
 #include <ql/termstructures/volatility/equityfx/blackvariancecurve.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
     class AndreasenHugeVolatilityInterpl;
 
-    class AndreasenHugeVolatilityAdapter : public BlackVarianceTermStructure {
+    class AndreasenHugeVolatilityAdapter : public BlackVarianceTermStructure
+    {
       public:
-        explicit AndreasenHugeVolatilityAdapter(
-            ext::shared_ptr<AndreasenHugeVolatilityInterpl> volInterpl, Real eps = 1e-6);
+        explicit AndreasenHugeVolatilityAdapter(ext::shared_ptr<AndreasenHugeVolatilityInterpl> volInterpl,
+                                                Real eps = 1e-6);
 
         Date maxDate() const override;
         Real minStrike() const override;

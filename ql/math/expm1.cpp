@@ -19,36 +19,36 @@
 
 #include <ql/math/expm1.hpp>
 #include <ql/math/functional.hpp>
-
 #include <cmath>
 
-namespace QuantLib {
-    std::complex<Real> expm1(const std::complex<Real>& z) {
-        if (std::abs(z) < 1.0) {
+namespace QuantLib
+{
+    std::complex<Real> expm1(const std::complex<Real>& z)
+    {
+        if (std::abs(z) < 1.0)
+        {
             const Real a = z.real(), b = z.imag();
             const Real exp_1 = std::expm1(a);
-            const Real cos_1 = -2*squared(std::sin(0.5*b));
+            const Real cos_1 = -2 * squared(std::sin(0.5 * b));
 
-            return std::complex<Real>(
-                exp_1*cos_1 + exp_1 + cos_1,
-                std::sin(b)*std::exp(a)
-            );
+            return std::complex<Real>(exp_1 * cos_1 + exp_1 + cos_1, std::sin(b) * std::exp(a));
         }
-        else {
-            return std::exp(z)-1.0;
+        else
+        {
+            return std::exp(z) - 1.0;
         }
     }
 
-    std::complex<Real> log1p(const std::complex<Real>& z) {
+    std::complex<Real> log1p(const std::complex<Real>& z)
+    {
         const Real a = z.real(), b = z.imag();
-        if (std::abs(a) < 0.5 && std::abs(b) < 0.5) {
-            return std::complex<Real>(
-                0.5*std::log1p(a*a + 2*a + b*b),
-                std::arg(1.0 + z)
-            );
+        if (std::abs(a) < 0.5 && std::abs(b) < 0.5)
+        {
+            return std::complex<Real>(0.5 * std::log1p(a * a + 2 * a + b * b), std::arg(1.0 + z));
         }
-        else {
-            return std::log(1.0+z);
+        else
+        {
+            return std::log(1.0 + z);
         }
     }
 }

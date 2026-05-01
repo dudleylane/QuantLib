@@ -25,24 +25,27 @@
 #include <ql/utilities/clone.hpp>
 #include <valarray>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class CurveState;
     class MarketModelParametricExercise;
 
-    class ParametricExerciseAdapter : public ExerciseStrategy<CurveState> {
+    class ParametricExerciseAdapter : public ExerciseStrategy<CurveState>
+    {
       public:
         ParametricExerciseAdapter(const MarketModelParametricExercise& exercise,
-                                  std::vector<std::vector<Real> > parameters);
+                                  std::vector<std::vector<Real>> parameters);
         std::vector<Time> exerciseTimes() const override;
         std::vector<Time> relevantTimes() const override;
         void reset() override;
         void nextStep(const CurveState& currentState) override;
         bool exercise(const CurveState& currentState) const override;
-        std::unique_ptr<ExerciseStrategy<CurveState> > clone() const override;
+        std::unique_ptr<ExerciseStrategy<CurveState>> clone() const override;
+
       private:
         Clone<MarketModelParametricExercise> exercise_;
-        std::vector<std::vector<Real> > parameters_;
+        std::vector<std::vector<Real>> parameters_;
         std::vector<Time> exerciseTimes_;
         Size currentStep_ = 0, currentExercise_ = 0;
         std::valarray<bool> isExerciseTime_;

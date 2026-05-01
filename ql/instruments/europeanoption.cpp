@@ -20,12 +20,13 @@
 #include <ql/instruments/europeanoption.hpp>
 #include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    EuropeanOption::EuropeanOption(
-        const ext::shared_ptr<StrikedTypePayoff>& payoff,
-        const ext::shared_ptr<Exercise>& exercise)
-    : VanillaOption(payoff, exercise) {}
+    EuropeanOption::EuropeanOption(const ext::shared_ptr<StrikedTypePayoff>& payoff,
+                                   const ext::shared_ptr<Exercise>& exercise)
+    : VanillaOption(payoff, exercise)
+    {
+    }
 
 }
-

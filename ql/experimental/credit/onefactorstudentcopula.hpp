@@ -25,10 +25,11 @@
 #define quantlib_one_factor_student_copula_hpp
 
 #include <ql/experimental/credit/onefactorcopula.hpp>
-#include <ql/math/distributions/studenttdistribution.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
+#include <ql/math/distributions/studenttdistribution.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! One-factor Double Student t-Copula
     /*! The copula model
@@ -50,11 +51,11 @@ namespace QuantLib {
               inverse cumulative Y. Tabulate and store it for selected
               correlations?
     */
-    class OneFactorStudentCopula : public OneFactorCopula {
+    class OneFactorStudentCopula : public OneFactorCopula
+    {
       public:
-        OneFactorStudentCopula (const Handle<Quote>& correlation,
-                                int nz, int nm,
-                                Real maximum = 10, Size integrationSteps = 200);
+        OneFactorStudentCopula(
+            const Handle<Quote>& correlation, int nz, int nm, Real maximum = 10, Size integrationSteps = 200);
 
         Real density(Real m) const override;
         Real cumulativeZ(Real z) const override;
@@ -74,14 +75,16 @@ namespace QuantLib {
         // This function is used to update the table of the cumulative
         // distribution of Y. It is invoked by performCalculations() when the
         // correlation handle is amended.
-        Real cumulativeYintegral (Real y) const;
+        Real cumulativeYintegral(Real y) const;
     };
 
-    inline Real OneFactorStudentCopula::density (Real m) const {
+    inline Real OneFactorStudentCopula::density(Real m) const
+    {
         return density_(m / scaleM_) / scaleM_;
     }
 
-    inline Real OneFactorStudentCopula::cumulativeZ (Real z) const {
+    inline Real OneFactorStudentCopula::cumulativeZ(Real z) const
+    {
         return cumulative_(z / scaleZ_);
     }
 
@@ -105,12 +108,13 @@ namespace QuantLib {
               inverse cumulative Y. Tabulate and store it for selected
               correlations?
     */
-    class OneFactorGaussianStudentCopula : public OneFactorCopula {
+    class OneFactorGaussianStudentCopula : public OneFactorCopula
+    {
       public:
-        OneFactorGaussianStudentCopula (const Handle<Quote>& correlation,
-                                        int nz,
-                                        Real maximum = 10,
-                                        Size integrationSteps = 200);
+        OneFactorGaussianStudentCopula(const Handle<Quote>& correlation,
+                                       int nz,
+                                       Real maximum = 10,
+                                       Size integrationSteps = 200);
 
         Real density(Real m) const override;
         Real cumulativeZ(Real z) const override;
@@ -128,14 +132,16 @@ namespace QuantLib {
         // This function is used to update the table of the cumulative
         // distribution of Y. It is invoked by performCalculations() when the
         // correlation handle is amended.
-        Real cumulativeYintegral (Real y) const;
+        Real cumulativeYintegral(Real y) const;
     };
 
-    inline Real OneFactorGaussianStudentCopula::density (Real m) const {
+    inline Real OneFactorGaussianStudentCopula::density(Real m) const
+    {
         return density_(m);
     }
 
-    inline Real OneFactorGaussianStudentCopula::cumulativeZ (Real z) const {
+    inline Real OneFactorGaussianStudentCopula::cumulativeZ(Real z) const
+    {
         return cumulative_(z / scaleZ_);
     }
 
@@ -158,12 +164,13 @@ namespace QuantLib {
               inverse cumulative Y. Tabulate and store it for selected
               correlations?
     */
-    class OneFactorStudentGaussianCopula : public OneFactorCopula {
+    class OneFactorStudentGaussianCopula : public OneFactorCopula
+    {
       public:
-        OneFactorStudentGaussianCopula (const Handle<Quote>& correlation,
-                                        int nm,
-                                        Real maximum = 10,
-                                        Size integrationSteps = 200);
+        OneFactorStudentGaussianCopula(const Handle<Quote>& correlation,
+                                       int nm,
+                                       Real maximum = 10,
+                                       Size integrationSteps = 200);
 
         Real density(Real m) const override;
         Real cumulativeZ(Real z) const override;
@@ -172,23 +179,25 @@ namespace QuantLib {
         //! Observer interface
         void performCalculations() const override;
 
-        StudentDistribution density_;              // density of M
-        CumulativeNormalDistribution cumulative_;  // cumulated density of Z
-        int nm_;                                   // degrees of freedom of M
+        StudentDistribution density_;             // density of M
+        CumulativeNormalDistribution cumulative_; // cumulated density of Z
+        int nm_;                                  // degrees of freedom of M
 
         Real scaleM_; // scaling for m to ensure unit variance
 
         // This function is used to update the table of the cumulative
         // distribution of Y. It is invoked by performCalculations() when the
         // correlation handle is amended.
-        Real cumulativeYintegral (Real y) const;
+        Real cumulativeYintegral(Real y) const;
     };
 
-    inline Real OneFactorStudentGaussianCopula::density (Real m) const {
+    inline Real OneFactorStudentGaussianCopula::density(Real m) const
+    {
         return density_(m / scaleM_) / scaleM_;
     }
 
-    inline Real OneFactorStudentGaussianCopula::cumulativeZ (Real z) const {
+    inline Real OneFactorStudentGaussianCopula::cumulativeZ(Real z) const
+    {
         return cumulative_(z);
     }
 

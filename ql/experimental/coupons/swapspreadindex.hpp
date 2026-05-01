@@ -24,10 +24,12 @@
 
 #include <ql/indexes/swapindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! class for swap-rate spread indexes
-    class SwapSpreadIndex : public InterestRateIndex {
+    class SwapSpreadIndex : public InterestRateIndex
+    {
       public:
         SwapSpreadIndex(const std::string& familyName,
                         const ext::shared_ptr<SwapIndex>& swapIndex1,
@@ -37,7 +39,8 @@ namespace QuantLib {
 
         //! \name InterestRateIndex interface
         //@{
-        Date maturityDate(const Date& valueDate) const override {
+        Date maturityDate(const Date& valueDate) const override
+        {
             QL_FAIL("SwapSpreadIndex does not provide a single maturity date");
         }
         Rate forecastFixing(const Date& fixingDate) const override;
@@ -54,27 +57,27 @@ namespace QuantLib {
         //@}
 
 
-    private:
+      private:
         ext::shared_ptr<SwapIndex> swapIndex1_, swapIndex2_;
         Real gearing1_, gearing2_;
     };
 
 
-    inline Rate SwapSpreadIndex::forecastFixing(const Date& fixingDate) const {
+    inline Rate SwapSpreadIndex::forecastFixing(const Date& fixingDate) const
+    {
         // this also handles the case when one of indices has
         // a historic fixing on the evaluation date
-        return gearing1_ * swapIndex1_->fixing(fixingDate,false) +
-            gearing2_ * swapIndex2_->fixing(fixingDate,false);
-
+        return gearing1_ * swapIndex1_->fixing(fixingDate, false) + gearing2_ * swapIndex2_->fixing(fixingDate, false);
     }
 
-    inline Rate SwapSpreadIndex::pastFixing(const Date& fixingDate) const {
+    inline Rate SwapSpreadIndex::pastFixing(const Date& fixingDate) const
+    {
 
         Real f1 = swapIndex1_->pastFixing(fixingDate);
         Real f2 = swapIndex2_->pastFixing(fixingDate);
         // if one of the fixings is missing we return null, indicating
         // a missing fixing for the spread index
-        if(f1 == Null<Real>() || f2 == Null<Real>())
+        if (f1 == Null<Real>() || f2 == Null<Real>())
             return Null<Real>();
         else
             return gearing1_ * f1 + gearing2_ * f2;

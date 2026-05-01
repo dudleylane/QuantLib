@@ -31,13 +31,15 @@
 #include <ql/patterns/lazyobject.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Base class for cash flows
     /*! This class is purely virtual and acts as a base class for the
         actual cash flow implementations.
     */
-    class CashFlow : public Event, public LazyObject {
+    class CashFlow : public Event, public LazyObject
+    {
       public:
         ~CashFlow() override = default;
         //! \name Event interface
@@ -75,14 +77,12 @@ namespace QuantLib {
     };
 
     //! Sequence of cash-flows
-    typedef std::vector<ext::shared_ptr<CashFlow> > Leg;
+    typedef std::vector<ext::shared_ptr<CashFlow>> Leg;
 
     template <>
-    struct earlier_than<CashFlow> {
-        bool operator()(const CashFlow& c1,
-                        const CashFlow& c2) const {
-            return c1.date() < c2.date();
-        }
+    struct earlier_than<CashFlow>
+    {
+        bool operator()(const CashFlow& c1, const CashFlow& c2) const { return c1.date() < c2.date(); }
     };
 
 }

@@ -22,12 +22,13 @@
 #ifndef quantlib_seasonality_hpp
 #define quantlib_seasonality_hpp
 
+#include <ql/shared_ptr.hpp>
 #include <ql/time/daycounter.hpp>
 #include <ql/time/frequency.hpp>
-#include <ql/shared_ptr.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class InflationTermStructure;
 
@@ -52,30 +53,28 @@ namespace QuantLib {
         If seasonality is additive then both swap rates will show
         affects.  Additive seasonality is not implemented.
     */
-    class Seasonality {
+    class Seasonality
+    {
 
-        public:
-
+      public:
         //! \name Seasonality interface
         //@{
-          virtual Rate
-          correctZeroRate(const Date& d, Rate r, const InflationTermStructure& iTS) const = 0;
-          virtual Rate
-          correctYoYRate(const Date& d, Rate r, const InflationTermStructure& iTS) const = 0;
-          /*! It is possible for multi-year seasonalities to be
-              inconsistent with the inflation term structure they are
-              given to.  This method enables testing - but programmers
-              are not required to implement it.  E.g. for price
-              seasonality the corrections at whole years after the
-              inflation curve base date should be the same or else there
-              can be an inconsistency with quoted instruments.
-              Alternatively, the seasonality can be set _before_ the
-              inflation curve is bootstrapped.
-          */
-          virtual bool isConsistent(const InflationTermStructure& iTS) const;
-          //@}
+        virtual Rate correctZeroRate(const Date& d, Rate r, const InflationTermStructure& iTS) const = 0;
+        virtual Rate correctYoYRate(const Date& d, Rate r, const InflationTermStructure& iTS) const = 0;
+        /*! It is possible for multi-year seasonalities to be
+            inconsistent with the inflation term structure they are
+            given to.  This method enables testing - but programmers
+            are not required to implement it.  E.g. for price
+            seasonality the corrections at whole years after the
+            inflation curve base date should be the same or else there
+            can be an inconsistency with quoted instruments.
+            Alternatively, the seasonality can be set _before_ the
+            inflation curve is bootstrapped.
+        */
+        virtual bool isConsistent(const InflationTermStructure& iTS) const;
+        //@}
 
-          virtual ~Seasonality() = default;
+        virtual ~Seasonality() = default;
     };
 
     //! Multiplicative seasonality in the price index (CPI/RPI/HICP/etc).
@@ -116,63 +115,60 @@ namespace QuantLib {
         correction factor frequency is the same as the index frequency
         (or less).
     */
-    class MultiplicativePriceSeasonality : public Seasonality {
+    class MultiplicativePriceSeasonality : public Seasonality
+    {
 
-        private:
-            Date seasonalityBaseDate_;
-            Frequency frequency_;
-            std::vector<Rate> seasonalityFactors_;
+      private:
+        Date seasonalityBaseDate_;
+        Frequency frequency_;
+        std::vector<Rate> seasonalityFactors_;
 
-        public:
+      public:
+        // Constructors
+        //
+        MultiplicativePriceSeasonality() = default;
 
-            //Constructors
-            //
-            MultiplicativePriceSeasonality() = default;
+        MultiplicativePriceSeasonality(const Date& seasonalityBaseDate,
+                                       Frequency frequency,
+                                       const std::vector<Rate>& seasonalityFactors);
 
-            MultiplicativePriceSeasonality(const Date& seasonalityBaseDate,
-                                           Frequency frequency,
-                                           const std::vector<Rate>& seasonalityFactors);
+        virtual void
+        set(const Date& seasonalityBaseDate, Frequency frequency, const std::vector<Rate>& seasonalityFactors);
 
-            virtual void set(const Date& seasonalityBaseDate,
-                             Frequency frequency,
-                             const std::vector<Rate>& seasonalityFactors);
+        //! inspectors
+        //@{
+        virtual Date seasonalityBaseDate() const;
+        virtual Frequency frequency() const;
+        virtual std::vector<Rate> seasonalityFactors() const;
+        //! The factor returned is NOT normalized relative to ANYTHING.
+        virtual Rate seasonalityFactor(const Date& d) const;
+        //@}
 
-            //! inspectors
-            //@{
-            virtual Date seasonalityBaseDate() const;
-            virtual Frequency frequency() const;
-            virtual std::vector<Rate> seasonalityFactors() const;
-            //! The factor returned is NOT normalized relative to ANYTHING.
-            virtual Rate seasonalityFactor(const Date &d) const;
-            //@}
+        //! \name Seasonality interface
+        //@{
+        Rate correctZeroRate(const Date& d, Rate r, const InflationTermStructure& iTS) const override;
+        Rate correctYoYRate(const Date& d, Rate r, const InflationTermStructure& iTS) const override;
+        bool isConsistent(const InflationTermStructure& iTS) const override;
+        //@}
 
-            //! \name Seasonality interface
-            //@{
-            Rate correctZeroRate(const Date& d,
-                                 Rate r,
-                                 const InflationTermStructure& iTS) const override;
-            Rate
-            correctYoYRate(const Date& d, Rate r, const InflationTermStructure& iTS) const override;
-            bool isConsistent(const InflationTermStructure& iTS) const override;
-            //@}
+        // Destructor
+        ~MultiplicativePriceSeasonality() override = default;
+        ;
 
-            //Destructor
-            ~MultiplicativePriceSeasonality() override = default;
-            ;
-
-          protected:
-            virtual void validate() const;
-            virtual Rate seasonalityCorrection(Rate r, const Date &d, const DayCounter &dc,
-                                               const Date &curveBaseDate, bool isZeroRate) const;
+      protected:
+        virtual void validate() const;
+        virtual Rate seasonalityCorrection(
+            Rate r, const Date& d, const DayCounter& dc, const Date& curveBaseDate, bool isZeroRate) const;
     };
 
 
-    class KerkhofSeasonality : public MultiplicativePriceSeasonality {
+    class KerkhofSeasonality : public MultiplicativePriceSeasonality
+    {
       public:
-        KerkhofSeasonality(const Date& seasonalityBaseDate,
-                           const std::vector<Rate>& seasonalityFactors)
-        : MultiplicativePriceSeasonality(seasonalityBaseDate,Monthly,
-                                         seasonalityFactors) {}
+        KerkhofSeasonality(const Date& seasonalityBaseDate, const std::vector<Rate>& seasonalityFactors)
+        : MultiplicativePriceSeasonality(seasonalityBaseDate, Monthly, seasonalityFactors)
+        {
+        }
 
         /*Rate correctZeroRate(const Date &d, const Rate r,
                                const InflationTermStructure& iTS) const;*/
@@ -186,7 +182,6 @@ namespace QuantLib {
                                    bool isZeroRate) const override;
     };
 
-}  // end of namespace QuantLib
+} // end of namespace QuantLib
 
 #endif
-

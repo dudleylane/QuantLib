@@ -28,29 +28,35 @@
 #include <numeric>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
-        class MatrixVectorProductFct {
+    namespace
+    {
+        class MatrixVectorProductFct
+        {
           public:
             explicit MatrixVectorProductFct(Matrix m) : m_(std::move(m)) {}
 
             // implements x = M*y
-            std::vector<Real> operator()(Real t, const std::vector<Real>& y) {
+            std::vector<Real> operator()(Real t, const std::vector<Real>& y)
+            {
 
                 std::vector<Real> result(m_.rows());
-                for (Size i=0; i < result.size(); i++) {
-                    result[i] = std::inner_product(y.begin(), y.end(),
-                                                   m_.row_begin(i), Real(0.0));
+                for (Size i = 0; i < result.size(); i++)
+                {
+                    result[i] = std::inner_product(y.begin(), y.end(), m_.row_begin(i), Real(0.0));
                 }
                 return result;
             }
+
           private:
             const Matrix m_;
         };
     }
 
-    Matrix Expm(const Matrix& M, Real t, Real tol) {
+    Matrix Expm(const Matrix& M, Real t, Real tol)
+    {
         const Size n = M.rows();
         QL_REQUIRE(n == M.columns(), "Expm expects a square matrix");
 
@@ -58,7 +64,8 @@ namespace QuantLib {
         AdaptiveRungeKutta<>::OdeFct odeFct = MatrixVectorProductFct(M);
 
         Matrix result(n, n);
-        for (Size i=0; i < n; ++i) {
+        for (Size i = 0; i < n; ++i)
+        {
             std::vector<Real> x0(n, 0.0);
             x0[i] = 1.0;
 

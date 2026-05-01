@@ -27,12 +27,12 @@
 
 #include <ql/models/marketmodels/driftcomputation/lmmdriftcalculator.hpp>
 
-/*! Classes for computing derivative of the map taking rates one step 
+/*! Classes for computing derivative of the map taking rates one step
 to the next with respect to a change in the pseudo-root. We do it both
 numerically and analytically to provide an easy test of the analytic method.
 This is useful for pathwise vegas.
 
-Evolution is log Euler. 
+Evolution is log Euler.
 
 One is tested against the other in MarketModelTest::testPathwiseVegas
 */
@@ -42,28 +42,29 @@ namespace QuantLib
 
     class RatePseudoRootJacobianNumerical
     {
-    public:
+      public:
         RatePseudoRootJacobianNumerical(const Matrix& pseudoRoot,
-                                        Size aliveIndex, 
+                                        Size aliveIndex,
                                         Size numeraire,
                                         const std::vector<Time>& taus,
                                         const std::vector<Matrix>& pseudoBumps,
                                         const std::vector<Spread>& displacements);
 
         void getBumps(const std::vector<Rate>& oldRates,
-            const std::vector<Real>& oneStepDFs, // redundant info but saves time to pass in since will have been needed elsewhere
-            const std::vector<Rate>& newRates,   // redundant info but saves time to pass in since will have been needed elsewhere
-            const std::vector<Real>& gaussians,
-            Matrix& B); // B as in page 95 of the GG paper, rows should be number rates long, one row for bump
+                      const std::vector<Real>&
+                          oneStepDFs, // redundant info but saves time to pass in since will have been needed elsewhere
+                      const std::vector<Rate>&
+                          newRates, // redundant info but saves time to pass in since will have been needed elsewhere
+                      const std::vector<Real>& gaussians,
+                      Matrix& B); // B as in page 95 of the GG paper, rows should be number rates long, one row for bump
 
-    private:
-
+      private:
         //! this data is always the same
         Matrix pseudoRoot_;
-        Size aliveIndex_; 
+        Size aliveIndex_;
         std::vector<Time> taus_;
         std::vector<Matrix> pseudoBumped_;
-        std::vector<Spread> displacements_; 
+        std::vector<Spread> displacements_;
         Size numberBumps_;
         std::vector<LMMDriftCalculator> driftsComputers_;
         Size factors_;
@@ -71,86 +72,78 @@ namespace QuantLib
         //! workspace variables
         std::vector<Real> drifts_;
         std::vector<Real> bumpedRates_;
-   
     };
 
 
-    
-
     class RatePseudoRootJacobian
     {
-    public:
-      RatePseudoRootJacobian(const Matrix& pseudoRoot,
-                             Size aliveIndex,
-                             Size numeraire,
-                             const std::vector<Time>& taus,
-                             const std::vector<Matrix>& pseudoBumps,
-                             std::vector<Spread> displacements);
+      public:
+        RatePseudoRootJacobian(const Matrix& pseudoRoot,
+                               Size aliveIndex,
+                               Size numeraire,
+                               const std::vector<Time>& taus,
+                               const std::vector<Matrix>& pseudoBumps,
+                               std::vector<Spread> displacements);
 
-      void getBumps(const std::vector<Rate>& oldRates,
-                    const std::vector<Real>& oneStepDFs, // redundant info but saves time to pass in
-                                                         // since will have been needed elsewhere
-                    const std::vector<Rate>& newRates,   // redundant info but saves time to pass in
-                                                         // since will have been needed elsewhere
-                    const std::vector<Real>& gaussians,
-                    Matrix& B); // B as in page 95 of the GG paper, rows should be number rates
-                                // long, one row for each bump
+        void getBumps(const std::vector<Rate>& oldRates,
+                      const std::vector<Real>& oneStepDFs, // redundant info but saves time to pass in
+                                                           // since will have been needed elsewhere
+                      const std::vector<Rate>& newRates,   // redundant info but saves time to pass in
+                                                           // since will have been needed elsewhere
+                      const std::vector<Real>& gaussians,
+                      Matrix& B); // B as in page 95 of the GG paper, rows should be number rates
+                                  // long, one row for each bump
 
-    private:
-
+      private:
         //! this data does not change after construction
         Matrix pseudoRoot_;
-        Size aliveIndex_; 
+        Size aliveIndex_;
         std::vector<Time> taus_;
         std::vector<Matrix> pseudoBumps_;
-        std::vector<Spread> displacements_; 
+        std::vector<Spread> displacements_;
         Size numberBumps_;
         Size factors_;
 
         //! workspace variables
 
-        std::vector<Matrix> allDerivatives_; 
-    //    std::vector<Real> bumpedRates_;
+        std::vector<Matrix> allDerivatives_;
+        //    std::vector<Real> bumpedRates_;
         Matrix e_;
         std::vector<Real> ratios_;
-   
     };
 
-    
+
     class RatePseudoRootJacobianAllElements
     {
-    public:
-      RatePseudoRootJacobianAllElements(const Matrix& pseudoRoot,
-                                        Size aliveIndex,
-                                        Size numeraire,
-                                        const std::vector<Time>& taus,
-                                        std::vector<Spread> displacements);
+      public:
+        RatePseudoRootJacobianAllElements(const Matrix& pseudoRoot,
+                                          Size aliveIndex,
+                                          Size numeraire,
+                                          const std::vector<Time>& taus,
+                                          std::vector<Spread> displacements);
 
-      void getBumps(const std::vector<Rate>& oldRates,
-                    const std::vector<Real>& oneStepDFs, // redundant info but saves time to pass in
-                                                         // since will have been needed elsewhere
-                    const std::vector<Rate>& newRates,   // redundant info but saves time to pass in
-                                                         // since will have been needed elsewhere
-                    const std::vector<Real>& gaussians,
-                    std::vector<Matrix>&
-                        B); // one Matrix for each rate, the elements of the matrix are the
-                            // derivatives of that rate with respect to each pseudo-root element
+        void getBumps(const std::vector<Rate>& oldRates,
+                      const std::vector<Real>& oneStepDFs, // redundant info but saves time to pass in
+                                                           // since will have been needed elsewhere
+                      const std::vector<Rate>& newRates,   // redundant info but saves time to pass in
+                                                           // since will have been needed elsewhere
+                      const std::vector<Real>& gaussians,
+                      std::vector<Matrix>& B); // one Matrix for each rate, the elements of the matrix are the
+                                               // derivatives of that rate with respect to each pseudo-root element
 
-    private:
-
+      private:
         //! this data does not change after construction
         Matrix pseudoRoot_;
-        Size aliveIndex_; 
+        Size aliveIndex_;
         std::vector<Time> taus_;
         std::vector<Matrix> pseudoBumps_;
-        std::vector<Spread> displacements_; 
+        std::vector<Spread> displacements_;
         Size factors_;
 
         //! workspace
 
         Matrix e_;
         std::vector<Real> ratios_;
-   
     };
 
 }

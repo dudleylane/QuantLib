@@ -6,17 +6,20 @@
 #include <ql/termstructures/yield/bootstraptraits.hpp>
 #include <ql/termstructures/yield/spreaddiscountcurve.hpp>
 
-namespace QuantLib::detail {
+namespace QuantLib::detail
+{
 
     template <class Traits>
     struct SpreadTraits;
 
     //! Spread Discount-curve traits
     template <>
-    struct SpreadTraits<Discount> : Discount {
+    struct SpreadTraits<Discount> : Discount
+    {
         // interpolated curve type
         template <class Interpolator>
-        struct curve {
+        struct curve
+        {
             typedef InterpolatedSpreadDiscountCurve<Interpolator> type;
         };
     };

@@ -21,19 +21,20 @@
 #define quantlib_longstaff_schwartz_exercise_strategy_hpp
 
 #include <ql/methods/montecarlo/exercisestrategy.hpp>
-#include <ql/models/marketmodels/callability/marketmodelbasissystem.hpp>
 #include <ql/models/marketmodels/callability/exercisevalue.hpp>
+#include <ql/models/marketmodels/callability/marketmodelbasissystem.hpp>
 #include <ql/utilities/clone.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class MarketModelDiscounter;
 
-    class LongstaffSchwartzExerciseStrategy
-        : public ExerciseStrategy<CurveState> {
+    class LongstaffSchwartzExerciseStrategy : public ExerciseStrategy<CurveState>
+    {
       public:
         LongstaffSchwartzExerciseStrategy(Clone<MarketModelBasisSystem> basisSystem,
-                                          std::vector<std::vector<Real> > basisCoefficients,
+                                          std::vector<std::vector<Real>> basisCoefficients,
                                           const EvolutionDescription& evolution,
                                           const std::vector<Size>& numeraires,
                                           Clone<MarketModelExerciseValue> exercise,
@@ -43,10 +44,11 @@ namespace QuantLib {
         void reset() override;
         bool exercise(const CurveState& currentState) const override;
         void nextStep(const CurveState& currentState) override;
-        std::unique_ptr<ExerciseStrategy<CurveState> > clone() const override;
+        std::unique_ptr<ExerciseStrategy<CurveState>> clone() const override;
+
       private:
         Clone<MarketModelBasisSystem> basisSystem_;
-        std::vector<std::vector<Real> > basisCoefficients_;
+        std::vector<std::vector<Real>> basisCoefficients_;
         Clone<MarketModelExerciseValue> exercise_;
         Clone<MarketModelExerciseValue> control_;
         std::vector<Size> numeraires_;
@@ -58,7 +60,7 @@ namespace QuantLib {
         std::valarray<bool> isExerciseTime_;
         std::vector<MarketModelDiscounter> rebateDiscounters_;
         std::vector<MarketModelDiscounter> controlDiscounters_;
-        mutable std::vector<std::vector<Real> > basisValues_;
+        mutable std::vector<std::vector<Real>> basisValues_;
         std::vector<Size> exerciseIndex_;
     };
 

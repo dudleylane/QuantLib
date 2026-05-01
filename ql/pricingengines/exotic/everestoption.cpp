@@ -17,34 +17,37 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/pricingengines/exotic/everestoption.hpp>
 #include <ql/instruments/payoffs.hpp>
+#include <ql/pricingengines/exotic/everestoption.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    EverestOption::EverestOption(Real notional,
-                                 Rate guarantee,
-                                 const ext::shared_ptr<Exercise>& exercise)
-    : MultiAssetOption(ext::shared_ptr<Payoff>(new NullPayoff), exercise),
-      notional_(notional), guarantee_(guarantee) {}
+    EverestOption::EverestOption(Real notional, Rate guarantee, const ext::shared_ptr<Exercise>& exercise)
+    : MultiAssetOption(ext::shared_ptr<Payoff>(new NullPayoff), exercise), notional_(notional), guarantee_(guarantee)
+    {
+    }
 
-    Rate EverestOption::yield() const {
+    Rate EverestOption::yield() const
+    {
         calculate();
         QL_REQUIRE(yield_ != Null<Rate>(), "yield not provided");
         return yield_;
     }
 
-    void EverestOption::setupArguments(PricingEngine::arguments* args) const {
+    void EverestOption::setupArguments(PricingEngine::arguments* args) const
+    {
         MultiAssetOption::setupArguments(args);
 
         auto* arguments = dynamic_cast<EverestOption::arguments*>(args);
         QL_REQUIRE(arguments != nullptr, "wrong argument type");
 
         arguments->notional = notional_;
-        arguments->guarantee= guarantee_;
+        arguments->guarantee = guarantee_;
     }
 
-    void EverestOption::fetchResults(const PricingEngine::results* r) const {
+    void EverestOption::fetchResults(const PricingEngine::results* r) const
+    {
         MultiAssetOption::fetchResults(r);
         const auto* results = dynamic_cast<const EverestOption::results*>(r);
         QL_ENSURE(results != nullptr, "no results returned from pricing engine");
@@ -52,10 +55,10 @@ namespace QuantLib {
     }
 
 
-    EverestOption::arguments::arguments()
-    : notional(Null<Real>()), guarantee(Null<Rate>()) {}
+    EverestOption::arguments::arguments() : notional(Null<Real>()), guarantee(Null<Rate>()) {}
 
-    void EverestOption::arguments::validate() const {
+    void EverestOption::arguments::validate() const
+    {
         MultiAssetOption::arguments::validate();
         QL_REQUIRE(notional != Null<Rate>(), "no notional given");
         QL_REQUIRE(notional != 0.0, "null notional given");
@@ -63,10 +66,10 @@ namespace QuantLib {
     }
 
 
-    void EverestOption::results::reset() {
+    void EverestOption::results::reset()
+    {
         MultiAssetOption::results::reset();
         yield = Null<Rate>();
     }
 
 }
-

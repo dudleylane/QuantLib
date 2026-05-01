@@ -26,12 +26,19 @@
 
 #include <ql/methods/finitedifferences/operators/fdmsquarerootfwdop.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class HestonProcess;
-    class FdmHestonGreensFct {
+    class FdmHestonGreensFct
+    {
       public:
-        enum Algorithm { ZeroCorrelation, Gaussian, SemiAnalytical };
+        enum Algorithm
+        {
+            ZeroCorrelation,
+            Gaussian,
+            SemiAnalytical
+        };
 
         FdmHestonGreensFct(ext::shared_ptr<FdmMesher> mesher,
                            ext::shared_ptr<HestonProcess> process,

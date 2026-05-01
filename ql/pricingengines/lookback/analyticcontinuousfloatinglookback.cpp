@@ -22,90 +22,96 @@
 #include <ql/pricingengines/lookback/analyticcontinuousfloatinglookback.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     AnalyticContinuousFloatingLookbackEngine::AnalyticContinuousFloatingLookbackEngine(
         ext::shared_ptr<GeneralizedBlackScholesProcess> process)
-    : process_(std::move(process)) {
+    : process_(std::move(process))
+    {
         registerWith(process_);
     }
 
-    void AnalyticContinuousFloatingLookbackEngine::calculate() const {
+    void AnalyticContinuousFloatingLookbackEngine::calculate() const
+    {
 
-        ext::shared_ptr<FloatingTypePayoff> payoff =
-            ext::dynamic_pointer_cast<FloatingTypePayoff>(arguments_.payoff);
+        ext::shared_ptr<FloatingTypePayoff> payoff = ext::dynamic_pointer_cast<FloatingTypePayoff>(arguments_.payoff);
         QL_REQUIRE(payoff, "Non-floating payoff given");
 
         QL_REQUIRE(process_->x0() > 0.0, "negative or null underlying");
 
-        switch (payoff->optionType()) {
-          case Option::Call:
-            results_.value = A(1);
-            break;
-          case Option::Put:
-            results_.value = A(-1);
-            break;
-          default:
-            QL_FAIL("Unknown type");
+        switch (payoff->optionType())
+        {
+            case Option::Call:
+                results_.value = A(1);
+                break;
+            case Option::Put:
+                results_.value = A(-1);
+                break;
+            default:
+                QL_FAIL("Unknown type");
         }
     }
 
-    Real AnalyticContinuousFloatingLookbackEngine::underlying() const {
+    Real AnalyticContinuousFloatingLookbackEngine::underlying() const
+    {
         return process_->x0();
     }
 
-    Time AnalyticContinuousFloatingLookbackEngine::residualTime() const {
+    Time AnalyticContinuousFloatingLookbackEngine::residualTime() const
+    {
         return process_->time(arguments_.exercise->lastDate());
     }
 
-    Volatility AnalyticContinuousFloatingLookbackEngine::volatility() const {
+    Volatility AnalyticContinuousFloatingLookbackEngine::volatility() const
+    {
         return process_->blackVolatility()->blackVol(residualTime(), minmax());
     }
 
-    Real AnalyticContinuousFloatingLookbackEngine::stdDeviation() const {
+    Real AnalyticContinuousFloatingLookbackEngine::stdDeviation() const
+    {
         return volatility() * std::sqrt(residualTime());
     }
 
-    Rate AnalyticContinuousFloatingLookbackEngine::riskFreeRate() const {
-        return process_->riskFreeRate()->zeroRate(residualTime(), Continuous,
-                                                  NoFrequency);
+    Rate AnalyticContinuousFloatingLookbackEngine::riskFreeRate() const
+    {
+        return process_->riskFreeRate()->zeroRate(residualTime(), Continuous, NoFrequency);
     }
 
-    DiscountFactor AnalyticContinuousFloatingLookbackEngine::riskFreeDiscount()
-                                 const {
+    DiscountFactor AnalyticContinuousFloatingLookbackEngine::riskFreeDiscount() const
+    {
         return process_->riskFreeRate()->discount(residualTime());
     }
 
-    Rate AnalyticContinuousFloatingLookbackEngine::dividendYield() const {
-        return process_->dividendYield()->zeroRate(residualTime(),
-                                                   Continuous, NoFrequency);
+    Rate AnalyticContinuousFloatingLookbackEngine::dividendYield() const
+    {
+        return process_->dividendYield()->zeroRate(residualTime(), Continuous, NoFrequency);
     }
 
-    DiscountFactor AnalyticContinuousFloatingLookbackEngine::dividendDiscount()
-                                 const {
+    DiscountFactor AnalyticContinuousFloatingLookbackEngine::dividendDiscount() const
+    {
         return process_->dividendYield()->discount(residualTime());
     }
 
-    Real AnalyticContinuousFloatingLookbackEngine::minmax() const {
+    Real AnalyticContinuousFloatingLookbackEngine::minmax() const
+    {
         return arguments_.minmax;
     }
 
-    Real AnalyticContinuousFloatingLookbackEngine::A(Real eta) const {
+    Real AnalyticContinuousFloatingLookbackEngine::A(Real eta) const
+    {
         Volatility vol = volatility();
-        Real lambda = 2.0*(riskFreeRate() - dividendYield())/(vol*vol);
-        Real s = underlying()/minmax();
-        Real d1 = std::log(s)/stdDeviation() + 0.5*(lambda+1.0)*stdDeviation();
-        Real n1 = f_(eta*d1);
-        Real n2 = f_(eta*(d1-stdDeviation()));
-        Real n3 = f_(eta*(-d1+lambda*stdDeviation()));
-        Real n4 = f_(eta*-d1);
+        Real lambda = 2.0 * (riskFreeRate() - dividendYield()) / (vol * vol);
+        Real s = underlying() / minmax();
+        Real d1 = std::log(s) / stdDeviation() + 0.5 * (lambda + 1.0) * stdDeviation();
+        Real n1 = f_(eta * d1);
+        Real n2 = f_(eta * (d1 - stdDeviation()));
+        Real n3 = f_(eta * (-d1 + lambda * stdDeviation()));
+        Real n4 = f_(eta * -d1);
         Real pow_s = std::pow(s, -lambda);
-        return eta*((underlying() * dividendDiscount() * n1 -
-                    minmax() * riskFreeDiscount() * n2) +
-                    (underlying() * riskFreeDiscount() *
-                    (pow_s * n3 - dividendDiscount()* n4/riskFreeDiscount())/
-            lambda));
+        return eta * ((underlying() * dividendDiscount() * n1 - minmax() * riskFreeDiscount() * n2) +
+                      (underlying() * riskFreeDiscount() * (pow_s * n3 - dividendDiscount() * n4 / riskFreeDiscount()) /
+                       lambda));
     }
 
 }
-

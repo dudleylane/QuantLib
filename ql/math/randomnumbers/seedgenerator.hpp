@@ -27,7 +27,8 @@
 #include <ql/math/randomnumbers/mt19937uniformrng.hpp>
 #include <ql/patterns/singleton.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Random seed generator
     /*! Random number generator used for automatic generation of
@@ -35,10 +36,13 @@ namespace QuantLib {
 
         \test correct initialization of the single instance is tested.
     */
-    class SeedGenerator : public Singleton<SeedGenerator> {
+    class SeedGenerator : public Singleton<SeedGenerator>
+    {
         friend class Singleton<SeedGenerator>;
+
       public:
         unsigned long get();
+
       private:
         SeedGenerator();
         void initialize();

@@ -24,41 +24,44 @@
 #ifndef quantlib_extended_black_variance_surface_hpp
 #define quantlib_extended_black_variance_surface_hpp
 
-#include <ql/termstructures/volatility/equityfx/blackvoltermstructure.hpp>
-#include <ql/math/matrix.hpp>
-#include <ql/math/interpolations/interpolation2d.hpp>
 #include <ql/handle.hpp>
+#include <ql/math/interpolations/interpolation2d.hpp>
+#include <ql/math/matrix.hpp>
 #include <ql/quote.hpp>
+#include <ql/termstructures/volatility/equityfx/blackvoltermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Black volatility surface modelled as variance surface
     /*! This class is similar to BlackVarianceSurface, but extends it
         to use quotes for the input volatilities.
     */
-    class ExtendedBlackVarianceSurface : public BlackVarianceTermStructure {
+    class ExtendedBlackVarianceSurface : public BlackVarianceTermStructure
+    {
       public:
-        enum Extrapolation { ConstantExtrapolation,
-                             InterpolatorDefaultExtrapolation };
-        ExtendedBlackVarianceSurface(
-            const Date& referenceDate,
-            const Calendar& calendar,
-            const std::vector<Date>& dates,
-            std::vector<Real> strikes,
-            const std::vector<Handle<Quote> >& volatilities,
-            DayCounter dayCounter,
-            Extrapolation lowerExtrapolation = InterpolatorDefaultExtrapolation,
-            Extrapolation upperExtrapolation = InterpolatorDefaultExtrapolation);
+        enum Extrapolation
+        {
+            ConstantExtrapolation,
+            InterpolatorDefaultExtrapolation
+        };
+        ExtendedBlackVarianceSurface(const Date& referenceDate,
+                                     const Calendar& calendar,
+                                     const std::vector<Date>& dates,
+                                     std::vector<Real> strikes,
+                                     const std::vector<Handle<Quote>>& volatilities,
+                                     DayCounter dayCounter,
+                                     Extrapolation lowerExtrapolation = InterpolatorDefaultExtrapolation,
+                                     Extrapolation upperExtrapolation = InterpolatorDefaultExtrapolation);
         DayCounter dayCounter() const override { return dayCounter_; }
         Date maxDate() const override { return maxDate_; }
         Real minStrike() const override { return strikes_.front(); }
         Real maxStrike() const override { return strikes_.back(); }
         template <class Interpolator>
-        void setInterpolation(const Interpolator& i = Interpolator()) {
+        void setInterpolation(const Interpolator& i = Interpolator())
+        {
             varianceSurface_ =
-                i.interpolate(times_.begin(), times_.end(),
-                              strikes_.begin(), strikes_.end(),
-                              variances_);
+                i.interpolate(times_.begin(), times_.end(), strikes_.begin(), strikes_.end(), variances_);
             varianceSurface_.update();
             notifyObservers();
         }
@@ -70,7 +73,7 @@ namespace QuantLib {
         void setVariances();
         DayCounter dayCounter_;
         Date maxDate_;
-        const std::vector<Handle<Quote> >& volatilities_;
+        const std::vector<Handle<Quote>>& volatilities_;
         std::vector<Real> strikes_;
         std::vector<Time> times_;
         Matrix variances_;
@@ -78,7 +81,8 @@ namespace QuantLib {
         Extrapolation lowerExtrapolation_, upperExtrapolation_;
     };
 
-    inline void ExtendedBlackVarianceSurface::accept(AcyclicVisitor& v) {
+    inline void ExtendedBlackVarianceSurface::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<ExtendedBlackVarianceSurface>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);

@@ -24,20 +24,19 @@
 #ifndef quantlib_forward_swap_quote_hpp
 #define quantlib_forward_swap_quote_hpp
 
-#include <ql/patterns/lazyobject.hpp>
-#include <ql/instruments/vanillaswap.hpp>
 #include <ql/indexes/swapindex.hpp>
+#include <ql/instruments/vanillaswap.hpp>
+#include <ql/patterns/lazyobject.hpp>
 #include <ql/quote.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Quote for a forward starting swap
-    class ForwardSwapQuote : public Quote,
-                             public LazyObject {
+    class ForwardSwapQuote : public Quote, public LazyObject
+    {
       public:
-        ForwardSwapQuote(ext::shared_ptr<SwapIndex> swapIndex,
-                         Handle<Quote> spread,
-                         const Period& fwdStart);
+        ForwardSwapQuote(ext::shared_ptr<SwapIndex> swapIndex, Handle<Quote> spread, const Period& fwdStart);
         //! \name Quote interface
         //@{
         Real value() const override;
@@ -50,6 +49,7 @@ namespace QuantLib {
         const Date& valueDate() const;
         const Date& startDate() const;
         const Date& fixingDate() const;
+
       protected:
         void initializeDates();
         void performCalculations() const override;

@@ -27,23 +27,24 @@
 #include <ql/qldefines.hpp>
 
 #if defined(QL_USE_STD_ANY)
-#include <any>
+#    include <any>
 #else
 // Deprecated in version 1.39
-#pragma message("Warning: using boost::any is deprecated.  Enable std::any instead.")
-#include <boost/any.hpp>
+#    pragma message("Warning: using boost::any is deprecated.  Enable std::any instead.")
+#    include <boost/any.hpp>
 #endif
 
-namespace QuantLib::ext {
+namespace QuantLib::ext
+{
 
-        #if defined(QL_USE_STD_ANY)
-        using std::any;                   // NOLINT(misc-unused-using-decls)
-        using std::any_cast;              // NOLINT(misc-unused-using-decls)
-        #else
-        using boost::any;                 // NOLINT(misc-unused-using-decls)
-        using boost::any_cast;            // NOLINT(misc-unused-using-decls)
-        #endif
+#if defined(QL_USE_STD_ANY)
+    using std::any;      // NOLINT(misc-unused-using-decls)
+    using std::any_cast; // NOLINT(misc-unused-using-decls)
+#else
+    using boost::any;      // NOLINT(misc-unused-using-decls)
+    using boost::any_cast; // NOLINT(misc-unused-using-decls)
+#endif
 
-    }
+}
 
 #endif

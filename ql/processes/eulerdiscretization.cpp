@@ -19,45 +19,40 @@
 
 #include <ql/processes/eulerdiscretization.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Array EulerDiscretization::drift(const StochasticProcess& process,
-                                     Time t0, const Array& x0,
-                                     Time dt) const {
-        return process.drift(t0, x0)*dt;
+    Array EulerDiscretization::drift(const StochasticProcess& process, Time t0, const Array& x0, Time dt) const
+    {
+        return process.drift(t0, x0) * dt;
     }
 
-    Real EulerDiscretization::drift(const StochasticProcess1D& process,
-                                    Time t0, Real x0, Time dt) const {
-        return process.drift(t0, x0)*dt;
+    Real EulerDiscretization::drift(const StochasticProcess1D& process, Time t0, Real x0, Time dt) const
+    {
+        return process.drift(t0, x0) * dt;
     }
 
-    Matrix EulerDiscretization::diffusion(const StochasticProcess& process,
-                                          Time t0,
-                                          const Array& x0,
-                                          Time dt) const {
+    Matrix EulerDiscretization::diffusion(const StochasticProcess& process, Time t0, const Array& x0, Time dt) const
+    {
         return process.diffusion(t0, x0) * std::sqrt(dt);
     }
 
-    Real EulerDiscretization::diffusion(const StochasticProcess1D& process,
-                                        Time t0, Real x0, Time dt) const {
+    Real EulerDiscretization::diffusion(const StochasticProcess1D& process, Time t0, Real x0, Time dt) const
+    {
         return process.diffusion(t0, x0) * std::sqrt(dt);
     }
 
-    Matrix EulerDiscretization::covariance(const StochasticProcess& process,
-                                           Time t0,
-                                           const Array& x0,
-                                           Time dt) const {
+    Matrix EulerDiscretization::covariance(const StochasticProcess& process, Time t0, const Array& x0, Time dt) const
+    {
         Matrix sigma = process.diffusion(t0, x0);
-        Matrix result = sigma*transpose(sigma)*dt;
+        Matrix result = sigma * transpose(sigma) * dt;
         return result;
     }
 
-    Real EulerDiscretization::variance(const StochasticProcess1D& process,
-                                       Time t0, Real x0, Time dt) const {
+    Real EulerDiscretization::variance(const StochasticProcess1D& process, Time t0, Real x0, Time dt) const
+    {
         Real sigma = process.diffusion(t0, x0);
-        return sigma*sigma*dt;
+        return sigma * sigma * dt;
     }
 
 }
-

@@ -27,17 +27,18 @@
 #include <ql/instruments/doublebarrieroption.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Analytic pricing engine for double barrier binary options
-    /*! This engine implements C.H.Hui series ("One-Touch Double Barrier 
+    /*! This engine implements C.H.Hui series ("One-Touch Double Barrier
         Binary Option Values", Applied Financial Economics 6/1996), as
-        described in "The complete guide to option pricing formulas 2nd Ed", 
+        described in "The complete guide to option pricing formulas 2nd Ed",
         E.G. Haug, McGraw-Hill, p.180
 
         The Knock In part of KI+KO and KO+KI options pays at hit, while the
-        Double Knock In pays at end. 
-        This engine thus requires European esercise for Double Knock options, 
+        Double Knock In pays at end.
+        This engine thus requires European esercise for Double Knock options,
         and American exercise for KIKO/KOKI.
 
         \ingroup barrierengines
@@ -45,10 +46,11 @@ namespace QuantLib {
         greeks are calculated by simple numeric derivation
 
         \test
-        - the correctness of the returned value is tested by reproducing 
+        - the correctness of the returned value is tested by reproducing
           results available in literature.
     */
-    class AnalyticDoubleBarrierBinaryEngine : public DoubleBarrierOption::engine {
+    class AnalyticDoubleBarrierBinaryEngine : public DoubleBarrierOption::engine
+    {
       public:
         explicit AnalyticDoubleBarrierBinaryEngine(ext::shared_ptr<GeneralizedBlackScholesProcess>);
         void calculate() const override;

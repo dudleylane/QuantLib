@@ -30,7 +30,8 @@
 #include <cstdint>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Sobol low-discrepancy sequence generator
     /*! A Gray code counter and bitwise operations are used for very
@@ -107,13 +108,23 @@ namespace QuantLib {
         - the correctness of the returned values is tested by checking
           their discrepancy against known good values.
     */
-    class SobolRsg {
+    class SobolRsg
+    {
       public:
-        typedef Sample<std::vector<Real> > sample_type;
-        enum DirectionIntegers {
-            Unit, Jaeckel, SobolLevitan, SobolLevitanLemieux,
-            JoeKuoD5, JoeKuoD6, JoeKuoD7,
-            Kuo, Kuo2, Kuo3 };
+        typedef Sample<std::vector<Real>> sample_type;
+        enum DirectionIntegers
+        {
+            Unit,
+            Jaeckel,
+            SobolLevitan,
+            SobolLevitanLemieux,
+            JoeKuoD5,
+            JoeKuoD6,
+            JoeKuoD7,
+            Kuo,
+            Kuo2,
+            Kuo3
+        };
         /*! The so called generating integer is chosen to be \f$\gamma(n) = n\f$ if useGrayCode is set to false and
             \f$\gamma(n) = G(n)\f$ where \f$G(n)\f$ is the Gray code of \f$n\f$ otherwise. The Sobol integers are then
             constructed using formula 8.20 resp. 8.23, see "Monte Carlo Methods in Finance" by Peter Jäckel. The default
@@ -131,7 +142,8 @@ namespace QuantLib {
         const std::vector<std::uint32_t>& skipTo(std::uint32_t n) const;
         const std::vector<std::uint32_t>& nextInt32Sequence() const;
 
-        const SobolRsg::sample_type& nextSequence() const {
+        const SobolRsg::sample_type& nextSequence() const
+        {
             const std::vector<std::uint32_t>& v = nextInt32Sequence();
             // normalize to get a double in (0,1)
             for (Size k = 0; k < dimensionality_; ++k)
@@ -140,6 +152,7 @@ namespace QuantLib {
         }
         const sample_type& lastSequence() const { return sequence_; }
         Size dimension() const { return dimensionality_; }
+
       private:
         Size dimensionality_;
         mutable std::uint32_t sequenceCounter_ = 0;

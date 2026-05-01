@@ -25,28 +25,27 @@
 #ifndef quantlib_variance_swap_hpp
 #define quantlib_variance_swap_hpp
 
-#include <ql/processes/blackscholesprocess.hpp>
 #include <ql/instruments/payoffs.hpp>
 #include <ql/option.hpp>
 #include <ql/position.hpp>
+#include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Variance swap
     /*! \warning This class does not manage seasoned variance swaps.
 
         \ingroup instruments
     */
-    class VarianceSwap : public Instrument {
+    class VarianceSwap : public Instrument
+    {
       public:
         class arguments;
         class results;
         class engine;
-        VarianceSwap(Position::Type position,
-                     Real strike,
-                     Real notional,
-                     const Date& startDate,
-                     const Date& maturityDate);
+        VarianceSwap(
+            Position::Type position, Real strike, Real notional, const Date& startDate, const Date& maturityDate);
         //! \name Instrument interface
         //@{
         bool isExpired() const override;
@@ -79,7 +78,8 @@ namespace QuantLib {
 
 
     //! %Arguments for forward fair-variance calculation
-    class VarianceSwap::arguments : public virtual PricingEngine::arguments {
+    class VarianceSwap::arguments : public virtual PricingEngine::arguments
+    {
       public:
         arguments() : strike(Null<Real>()), notional(Null<Real>()) {}
         void validate() const override;
@@ -92,40 +92,47 @@ namespace QuantLib {
 
 
     //! %Results from variance-swap calculation
-    class VarianceSwap::results : public Instrument::results {
+    class VarianceSwap::results : public Instrument::results
+    {
       public:
         Real variance;
-        void reset() override {
+        void reset() override
+        {
             Instrument::results::reset();
             variance = Null<Real>();
         }
     };
 
     //! base class for variance-swap engines
-    class VarianceSwap::engine :
-        public GenericEngine<VarianceSwap::arguments,
-                             VarianceSwap::results> {};
+    class VarianceSwap::engine : public GenericEngine<VarianceSwap::arguments, VarianceSwap::results>
+    {
+    };
 
 
     // inline definitions
 
-    inline Date VarianceSwap::startDate() const {
+    inline Date VarianceSwap::startDate() const
+    {
         return startDate_;
     }
 
-    inline Date VarianceSwap::maturityDate() const {
+    inline Date VarianceSwap::maturityDate() const
+    {
         return maturityDate_;
     }
 
-    inline Real VarianceSwap::strike() const {
+    inline Real VarianceSwap::strike() const
+    {
         return strike_;
     }
 
-    inline Real VarianceSwap::notional() const {
+    inline Real VarianceSwap::notional() const
+    {
         return notional_;
     }
 
-    inline Position::Type VarianceSwap::position() const {
+    inline Position::Type VarianceSwap::position() const
+    {
         return position_;
     }
 

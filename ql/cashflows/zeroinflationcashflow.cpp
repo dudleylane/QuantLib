@@ -22,7 +22,8 @@
 #include <ql/termstructures/inflationtermstructure.hpp>
 #include <ql/time/calendars/nullcalendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     ZeroInflationCashFlow::ZeroInflationCashFlow(Real notional,
                                                  const ext::shared_ptr<ZeroInflationIndex>& index,
@@ -32,21 +33,24 @@ namespace QuantLib {
                                                  const Period& observationLag,
                                                  const Date& paymentDate,
                                                  bool growthOnly)
-    : IndexedCashFlow(notional, index,
-                      startDate - observationLag, endDate - observationLag,
-                      paymentDate, growthOnly),
-      zeroInflationIndex_(index), interpolation_(observationInterpolation),
-      startDate_(startDate), endDate_(endDate), observationLag_(observationLag) {}
+    : IndexedCashFlow(notional, index, startDate - observationLag, endDate - observationLag, paymentDate, growthOnly),
+      zeroInflationIndex_(index), interpolation_(observationInterpolation), startDate_(startDate), endDate_(endDate),
+      observationLag_(observationLag)
+    {
+    }
 
-    Real ZeroInflationCashFlow::baseFixing() const {
+    Real ZeroInflationCashFlow::baseFixing() const
+    {
         return CPI::laggedFixing(zeroInflationIndex_, startDate_, observationLag_, interpolation_);
     }
 
-    Real ZeroInflationCashFlow::indexFixing() const {
+    Real ZeroInflationCashFlow::indexFixing() const
+    {
         return CPI::laggedFixing(zeroInflationIndex_, endDate_, observationLag_, interpolation_);
     }
 
-    void ZeroInflationCashFlow::accept(AcyclicVisitor& v) {
+    void ZeroInflationCashFlow::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<ZeroInflationCashFlow>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);

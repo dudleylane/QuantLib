@@ -24,14 +24,15 @@
 #ifndef quantlib_lineartsr_pricer_hpp
 #define quantlib_lineartsr_pricer_hpp
 
-#include <ql/termstructures/volatility/smilesection.hpp>
 #include <ql/cashflows/couponpricer.hpp>
-#include <ql/instruments/payoffs.hpp>
 #include <ql/indexes/swapindex.hpp>
 #include <ql/instruments/fixedvsfloatingswap.hpp>
+#include <ql/instruments/payoffs.hpp>
 #include <ql/math/integrals/integral.hpp>
+#include <ql/termstructures/volatility/smilesection.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class CmsCoupon;
     class YieldTermStructure;
@@ -61,20 +62,21 @@ namespace QuantLib {
         are set explicitly.
     */
 
-    class LinearTsrPricer : public CmsCouponPricer, public MeanRevertingPricer {
+    class LinearTsrPricer : public CmsCouponPricer, public MeanRevertingPricer
+    {
 
       private:
-        static const Real defaultLowerBound,
-                          defaultUpperBound;
+        static const Real defaultLowerBound, defaultUpperBound;
 
       public:
-
-        struct Settings {
+        struct Settings
+        {
 
             Settings() : lowerRateBound_(defaultLowerBound), upperRateBound_(defaultUpperBound) {}
 
-            Settings &withRateBound(const Real lowerRateBound = defaultLowerBound,
-                                    const Real upperRateBound = defaultUpperBound) {
+            Settings& withRateBound(const Real lowerRateBound = defaultLowerBound,
+                                    const Real upperRateBound = defaultUpperBound)
+            {
                 strategy_ = RateBound;
                 lowerRateBound_ = lowerRateBound;
                 upperRateBound_ = upperRateBound;
@@ -82,7 +84,8 @@ namespace QuantLib {
                 return *this;
             }
 
-            Settings &withVegaRatio(const Real vegaRatio = 0.01) {
+            Settings& withVegaRatio(const Real vegaRatio = 0.01)
+            {
                 strategy_ = VegaRatio;
                 vegaRatio_ = vegaRatio;
                 lowerRateBound_ = defaultLowerBound;
@@ -91,9 +94,8 @@ namespace QuantLib {
                 return *this;
             }
 
-            Settings &withVegaRatio(const Real vegaRatio,
-                                    const Real lowerRateBound,
-                                    const Real upperRateBound) {
+            Settings& withVegaRatio(const Real vegaRatio, const Real lowerRateBound, const Real upperRateBound)
+            {
                 strategy_ = VegaRatio;
                 vegaRatio_ = vegaRatio;
                 lowerRateBound_ = lowerRateBound;
@@ -102,7 +104,8 @@ namespace QuantLib {
                 return *this;
             }
 
-            Settings &withPriceThreshold(const Real priceThreshold = 1.0E-8) {
+            Settings& withPriceThreshold(const Real priceThreshold = 1.0E-8)
+            {
                 strategy_ = PriceThreshold;
                 priceThreshold_ = priceThreshold;
                 lowerRateBound_ = defaultLowerBound;
@@ -111,9 +114,9 @@ namespace QuantLib {
                 return *this;
             }
 
-            Settings &withPriceThreshold(const Real priceThreshold,
-                                         const Real lowerRateBound,
-                                         const Real upperRateBound) {
+            Settings&
+            withPriceThreshold(const Real priceThreshold, const Real lowerRateBound, const Real upperRateBound)
+            {
                 strategy_ = PriceThreshold;
                 priceThreshold_ = priceThreshold;
                 lowerRateBound_ = lowerRateBound;
@@ -122,7 +125,8 @@ namespace QuantLib {
                 return *this;
             }
 
-            Settings &withBSStdDevs(const Real stdDevs = 3.0) {
+            Settings& withBSStdDevs(const Real stdDevs = 3.0)
+            {
                 strategy_ = BSStdDevs;
                 stdDevs_ = stdDevs;
                 lowerRateBound_ = defaultLowerBound;
@@ -131,9 +135,8 @@ namespace QuantLib {
                 return *this;
             }
 
-            Settings &withBSStdDevs(const Real stdDevs,
-                                    const Real lowerRateBound,
-                                    const Real upperRateBound) {
+            Settings& withBSStdDevs(const Real stdDevs, const Real lowerRateBound, const Real upperRateBound)
+            {
                 strategy_ = BSStdDevs;
                 stdDevs_ = stdDevs;
                 lowerRateBound_ = lowerRateBound;
@@ -142,7 +145,8 @@ namespace QuantLib {
                 return *this;
             }
 
-            enum Strategy {
+            enum Strategy
+            {
                 RateBound,
                 VegaRatio,
                 PriceThreshold,
@@ -158,12 +162,11 @@ namespace QuantLib {
         };
 
 
-        LinearTsrPricer(
-            const Handle<SwaptionVolatilityStructure>& swaptionVol,
-            Handle<Quote> meanReversion,
-            Handle<YieldTermStructure> couponDiscountCurve = Handle<YieldTermStructure>(),
-            const Settings& settings = Settings(),
-            ext::shared_ptr<Integrator> integrator = ext::shared_ptr<Integrator>());
+        LinearTsrPricer(const Handle<SwaptionVolatilityStructure>& swaptionVol,
+                        Handle<Quote> meanReversion,
+                        Handle<YieldTermStructure> couponDiscountCurve = Handle<YieldTermStructure>(),
+                        const Settings& settings = Settings(),
+                        ext::shared_ptr<Integrator> integrator = ext::shared_ptr<Integrator>());
 
         /* */
         Real swapletPrice() const override;
@@ -174,7 +177,8 @@ namespace QuantLib {
         Rate floorletRate(Rate effectiveFloor) const override;
         /* */
         Real meanReversion() const override;
-        void setMeanReversion(const Handle<Quote>& meanReversion) override {
+        void setMeanReversion(const Handle<Quote>& meanReversion) override
+        {
             unregisterWith(meanReversion_);
             meanReversion_ = meanReversion;
             registerWith(meanReversion_);
@@ -183,59 +187,56 @@ namespace QuantLib {
 
 
       private:
-
-        Real GsrG(const Date &d) const;
+        Real GsrG(const Date& d) const;
         Real singularTerms(Option::Type type, Real strike) const;
         Real integrand(Real strike) const;
         Real a_, b_;
 
         class integrand_f;
 
-        class VegaRatioHelper {
+        class VegaRatioHelper
+        {
           public:
-            VegaRatioHelper(const SmileSection *section, const Real targetVega)
-                : section_(section), targetVega_(targetVega) {}
-            Real operator()(Real strike) const {
-                return section_->vega(strike) - targetVega_;
-            };
-            const SmileSection *section_;
+            VegaRatioHelper(const SmileSection* section, const Real targetVega)
+            : section_(section), targetVega_(targetVega)
+            {
+            }
+            Real operator()(Real strike) const { return section_->vega(strike) - targetVega_; };
+            const SmileSection* section_;
             const Real targetVega_;
         };
 
-        class PriceHelper {
+        class PriceHelper
+        {
           public:
-            PriceHelper(const SmileSection *section, const Option::Type type,
-                        const Real targetPrice)
-                : section_(section), targetPrice_(targetPrice), type_(type) {}
-            Real operator()(Real strike) const {
-                return section_->optionPrice(strike, type_) - targetPrice_;
-            };
-            const SmileSection *section_;
+            PriceHelper(const SmileSection* section, const Option::Type type, const Real targetPrice)
+            : section_(section), targetPrice_(targetPrice), type_(type)
+            {
+            }
+            Real operator()(Real strike) const { return section_->optionPrice(strike, type_) - targetPrice_; };
+            const SmileSection* section_;
             const Real targetPrice_;
             const Option::Type type_;
         };
 
         void initialize(const FloatingRateCoupon& coupon) override;
         Real optionletPrice(Option::Type optionType, Real strike) const;
-        Real strikeFromVegaRatio(Real ratio, Option::Type optionType,
-                                 Real referenceStrike) const;
-        Real strikeFromPrice(Real price, Option::Type optionType,
-                             Real referenceStrike) const;
+        Real strikeFromVegaRatio(Real ratio, Option::Type optionType, Real referenceStrike) const;
+        Real strikeFromPrice(Real price, Option::Type optionType, Real referenceStrike) const;
 
         Handle<Quote> meanReversion_;
 
         Handle<YieldTermStructure> forwardCurve_, discountCurve_;
         Handle<YieldTermStructure> couponDiscountCurve_;
 
-        const CmsCoupon *coupon_;
+        const CmsCoupon* coupon_;
 
         Date today_, paymentDate_, fixingDate_;
 
         Real gearing_, spread_;
 
         Period swapTenor_;
-        Real spreadLegValue_, swapRateValue_, couponDiscountRatio_, discountCurvePaymentDiscount_,
-            annuity_;
+        Real spreadLegValue_, swapRateValue_, couponDiscountRatio_, discountCurvePaymentDiscount_, annuity_;
 
         ext::shared_ptr<SwapIndex> swapIndex_;
         ext::shared_ptr<FixedVsFloatingSwap> swap_;

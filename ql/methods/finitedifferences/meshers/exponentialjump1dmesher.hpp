@@ -18,7 +18,7 @@
 */
 
 /*! \file exponentialjump1dmesher.hpp
-    \brief mesher for a exponential jump mesher with high 
+    \brief mesher for a exponential jump mesher with high
            mean reversion rate and low jump intensity
 */
 
@@ -28,9 +28,10 @@
 #include <ql/methods/finitedifferences/meshers/fdm1dmesher.hpp>
 #include <ql/methods/finitedifferences/operators/fdmlinearopiterator.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    /*! Mesher for a exponential jump process with high 
+    /*! Mesher for a exponential jump process with high
         mean reversion rate and low jump intensity
         \f[
         \begin{array}{rcl}
@@ -41,22 +42,22 @@ namespace QuantLib {
     */
 
     /*! References:
-        B. Hambly, S. Howison, T. Kluge, Modelling spikes and pricing 
+        B. Hambly, S. Howison, T. Kluge, Modelling spikes and pricing
         swing options in electricity markets,
         http://people.maths.ox.ac.uk/hambly/PDF/Papers/elec.pdf
     */
 
-    class ExponentialJump1dMesher : public Fdm1dMesher {
+    class ExponentialJump1dMesher : public Fdm1dMesher
+    {
       public:
-        ExponentialJump1dMesher(Size steps, Real beta, Real jumpIntensity, 
-                                Real eta, Real eps = 1e-3);
-        
+        ExponentialJump1dMesher(Size steps, Real beta, Real jumpIntensity, Real eta, Real eps = 1e-3);
+
         // approximation. see Hambly et.al.
         Real jumpSizeDensity(Real x) const; // t->\inf
         Real jumpSizeDensity(Real x, Time t) const;
         Real jumpSizeDistribution(Real x) const; // t->\inf
         Real jumpSizeDistribution(Real x, Time t) const;
-        
+
       private:
         const Real beta_, jumpIntensity_, eta_;
     };

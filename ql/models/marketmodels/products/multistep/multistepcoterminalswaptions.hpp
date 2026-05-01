@@ -24,15 +24,17 @@
 #include <ql/models/marketmodels/products/multiproductmultistep.hpp>
 #include <ql/shared_ptr.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class StrikedTypePayoff;
 
-    class MultiStepCoterminalSwaptions : public MultiProductMultiStep {
+    class MultiStepCoterminalSwaptions : public MultiProductMultiStep
+    {
       public:
         MultiStepCoterminalSwaptions(const std::vector<Time>& rateTimes,
                                      const std::vector<Time>& paymentTimes,
-                                     std::vector<ext::shared_ptr<StrikedTypePayoff> >);
+                                     std::vector<ext::shared_ptr<StrikedTypePayoff>>);
         //! \name MarketModelMultiProduct interface
         //@{
         std::vector<Time> possibleCashFlowTimes() const override;
@@ -41,13 +43,13 @@ namespace QuantLib {
         void reset() override;
         bool nextTimeStep(const CurveState& currentState,
                           std::vector<Size>& numberCashFlowsThisStep,
-                          std::vector<std::vector<CashFlow> >& cashFlowsGenerated) override;
+                          std::vector<std::vector<CashFlow>>& cashFlowsGenerated) override;
         std::unique_ptr<MarketModelMultiProduct> clone() const override;
-         //@}
+        //@}
 
       private:
         std::vector<Time> paymentTimes_;
-        std::vector<ext::shared_ptr<StrikedTypePayoff> > payoffs_;
+        std::vector<ext::shared_ptr<StrikedTypePayoff>> payoffs_;
         Size lastIndex_;
         // things that vary in a path
         Size currentIndex_;
@@ -55,22 +57,24 @@ namespace QuantLib {
 
     // Inline definitions
 
-    inline std::vector<Time>
-    MultiStepCoterminalSwaptions::possibleCashFlowTimes() const {
+    inline std::vector<Time> MultiStepCoterminalSwaptions::possibleCashFlowTimes() const
+    {
         return paymentTimes_;
     }
 
-    inline Size MultiStepCoterminalSwaptions::numberOfProducts() const {
+    inline Size MultiStepCoterminalSwaptions::numberOfProducts() const
+    {
         return lastIndex_;
     }
 
-    inline Size
-    MultiStepCoterminalSwaptions::maxNumberOfCashFlowsPerProductPerStep() const {
+    inline Size MultiStepCoterminalSwaptions::maxNumberOfCashFlowsPerProductPerStep() const
+    {
         return 1;
     }
 
-    inline void MultiStepCoterminalSwaptions::reset() {
-       currentIndex_=0;
+    inline void MultiStepCoterminalSwaptions::reset()
+    {
+        currentIndex_ = 0;
     }
 
 }

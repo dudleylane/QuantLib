@@ -26,7 +26,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Indonesian calendars
     /*! Holidays for the Indonesia stock exchange
@@ -59,17 +60,22 @@ namespace QuantLib {
         </ul>
         \ingroup calendars
     */
-    class Indonesia : public Calendar {
+    class Indonesia : public Calendar
+    {
       private:
-        class BejImpl final : public Calendar::WesternImpl {
+        class BejImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "Jakarta stock exchange"; }
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
-        enum Market { BEJ,  //!< Jakarta stock exchange (merged into IDX)
-                      JSX,  //!< Jakarta stock exchange (merged into IDX)
-                      IDX   //!< Indonesia stock exchange
+        enum Market
+        {
+            BEJ, //!< Jakarta stock exchange (merged into IDX)
+            JSX, //!< Jakarta stock exchange (merged into IDX)
+            IDX  //!< Indonesia stock exchange
         };
         Indonesia(Market m = IDX);
     };

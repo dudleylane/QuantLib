@@ -21,12 +21,13 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/instruments/bonds/fixedratebond.hpp>
 #include <ql/cashflows/cashflowvectors.hpp>
 #include <ql/cashflows/simplecashflow.hpp>
+#include <ql/instruments/bonds/fixedratebond.hpp>
 #include <ql/time/schedule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     FixedRateBond::FixedRateBond(Natural settlementDays,
                                  Real faceAmount,
@@ -42,25 +43,20 @@ namespace QuantLib {
                                  const BusinessDayConvention exCouponConvention,
                                  bool exCouponEndOfMonth,
                                  const DayCounter& firstPeriodDayCounter)
-     : Bond(settlementDays,
-            paymentCalendar==Calendar() ? schedule.calendar() : paymentCalendar,
-            issueDate),
-       frequency_(schedule.hasTenor() ? schedule.tenor().frequency() : NoFrequency),
-       dayCounter_(accrualDayCounter),
-       firstPeriodDayCounter_(firstPeriodDayCounter) {
+    : Bond(settlementDays, paymentCalendar == Calendar() ? schedule.calendar() : paymentCalendar, issueDate),
+      frequency_(schedule.hasTenor() ? schedule.tenor().frequency() : NoFrequency), dayCounter_(accrualDayCounter),
+      firstPeriodDayCounter_(firstPeriodDayCounter)
+    {
 
         maturityDate_ = schedule.endDate();
 
         cashflows_ = FixedRateLeg(std::move(schedule))
-            .withNotionals(faceAmount)
-            .withCouponRates(coupons, accrualDayCounter)
-            .withFirstPeriodDayCounter(firstPeriodDayCounter)
-            .withPaymentCalendar(calendar_)
-            .withPaymentAdjustment(paymentConvention)
-            .withExCouponPeriod(exCouponPeriod,
-                                exCouponCalendar,
-                                exCouponConvention,
-                                exCouponEndOfMonth);
+                         .withNotionals(faceAmount)
+                         .withCouponRates(coupons, accrualDayCounter)
+                         .withFirstPeriodDayCounter(firstPeriodDayCounter)
+                         .withPaymentCalendar(calendar_)
+                         .withPaymentAdjustment(paymentConvention)
+                         .withExCouponPeriod(exCouponPeriod, exCouponCalendar, exCouponConvention, exCouponEndOfMonth);
 
         addRedemptionsToCashflows(std::vector<Real>(1, redemption));
 

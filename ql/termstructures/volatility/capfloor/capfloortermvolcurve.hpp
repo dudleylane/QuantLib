@@ -27,36 +27,37 @@
 #ifndef quantlib_cap_volatility_vector_hpp
 #define quantlib_cap_volatility_vector_hpp
 
-#include <ql/termstructures/volatility/capfloor/capfloortermvolatilitystructure.hpp>
 #include <ql/math/interpolation.hpp>
-#include <ql/quote.hpp>
 #include <ql/patterns/lazyobject.hpp>
+#include <ql/quote.hpp>
+#include <ql/termstructures/volatility/capfloor/capfloortermvolatilitystructure.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Cap/floor at-the-money term-volatility vector
     /*! This class provides the at-the-money volatility for a given cap/floor
         interpolating a volatility vector whose elements are the market
         volatilities of a set of caps/floors with given length.
     */
-    class CapFloorTermVolCurve : public LazyObject,
-                                 public CapFloorTermVolatilityStructure {
+    class CapFloorTermVolCurve : public LazyObject, public CapFloorTermVolatilityStructure
+    {
       public:
         //! floating reference date, floating market data
         CapFloorTermVolCurve(Natural settlementDays,
                              const Calendar& calendar,
                              BusinessDayConvention bdc,
                              const std::vector<Period>& optionTenors,
-                             const std::vector<Handle<Quote> >& vols,
+                             const std::vector<Handle<Quote>>& vols,
                              const DayCounter& dc = Actual365Fixed());
         //! fixed reference date, floating market data
         CapFloorTermVolCurve(const Date& settlementDate,
                              const Calendar& calendar,
                              BusinessDayConvention bdc,
                              const std::vector<Period>& optionTenors,
-                             const std::vector<Handle<Quote> >& vols,
+                             const std::vector<Handle<Quote>>& vols,
                              const DayCounter& dc = Actual365Fixed());
         //! fixed reference date, fixed market data
         CapFloorTermVolCurve(const Date& settlementDate,
@@ -116,7 +117,7 @@ namespace QuantLib {
         mutable std::vector<Time> optionTimes_;
         Date evaluationDate_;
 
-        std::vector<Handle<Quote> > volHandles_;
+        std::vector<Handle<Quote>> volHandles_;
         mutable std::vector<Volatility> vols_;
 
         // make it not mutable if possible
@@ -125,40 +126,42 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline Date CapFloorTermVolCurve::maxDate() const {
+    inline Date CapFloorTermVolCurve::maxDate() const
+    {
         calculate();
         return optionDateFromTenor(optionTenors_.back());
     }
 
-    inline Real CapFloorTermVolCurve::minStrike() const {
+    inline Real CapFloorTermVolCurve::minStrike() const
+    {
         return QL_MIN_REAL;
     }
 
-    inline Real CapFloorTermVolCurve::maxStrike() const {
+    inline Real CapFloorTermVolCurve::maxStrike() const
+    {
         return QL_MAX_REAL;
     }
 
-    inline
-    Volatility CapFloorTermVolCurve::volatilityImpl(Time t,
-                                                    Rate) const {
+    inline Volatility CapFloorTermVolCurve::volatilityImpl(Time t, Rate) const
+    {
         calculate();
         return interpolation_(t, true);
     }
 
-    inline
-    const std::vector<Period>& CapFloorTermVolCurve::optionTenors() const {
+    inline const std::vector<Period>& CapFloorTermVolCurve::optionTenors() const
+    {
         return optionTenors_;
     }
 
-    inline
-    const std::vector<Date>& CapFloorTermVolCurve::optionDates() const {
+    inline const std::vector<Date>& CapFloorTermVolCurve::optionDates() const
+    {
         // what if quotes are not available?
         calculate();
         return optionDates_;
     }
 
-    inline
-    const std::vector<Time>& CapFloorTermVolCurve::optionTimes() const {
+    inline const std::vector<Time>& CapFloorTermVolCurve::optionTimes() const
+    {
         // what if quotes are not available?
         calculate();
         return optionTimes_;

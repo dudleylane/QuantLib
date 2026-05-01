@@ -25,13 +25,14 @@
 #ifndef quantlib_libor_forward_model_hpp
 #define quantlib_libor_forward_model_hpp
 
-#include <ql/legacy/libormarketmodels/lfmprocess.hpp>
-#include <ql/termstructures/volatility/swaption/swaptionvolmatrix.hpp>
-#include <ql/termstructures/volatility/optionlet/capletvariancecurve.hpp>
-#include <ql/models/model.hpp>
 #include <ql/legacy/libormarketmodels/lfmcovarproxy.hpp>
+#include <ql/legacy/libormarketmodels/lfmprocess.hpp>
+#include <ql/models/model.hpp>
+#include <ql/termstructures/volatility/optionlet/capletvariancecurve.hpp>
+#include <ql/termstructures/volatility/swaption/swaptionvolmatrix.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Libor forward model
     /*! References:
@@ -48,25 +49,21 @@ namespace QuantLib {
           reproduce swaption npvs, model calibration and exact cap pricing
     */
 
-    class LiborForwardModel : public CalibratedModel, public AffineModel {
+    class LiborForwardModel : public CalibratedModel, public AffineModel
+    {
       public:
-        LiborForwardModel(
-            const ext::shared_ptr<LiborForwardModelProcess> & process,
-            const ext::shared_ptr<LmVolatilityModel>  & volaModel,
-            const ext::shared_ptr<LmCorrelationModel> & corrModel);
+        LiborForwardModel(const ext::shared_ptr<LiborForwardModelProcess>& process,
+                          const ext::shared_ptr<LmVolatilityModel>& volaModel,
+                          const ext::shared_ptr<LmCorrelationModel>& corrModel);
 
         Rate S_0(Size alpha, Size beta) const;
         // approx. swaption matrix using Rebonato's approx.
         // fix and floating leg have the same frequency
-        virtual ext::shared_ptr<SwaptionVolatilityMatrix>
-            getSwaptionVolatilityMatrix() const;
+        virtual ext::shared_ptr<SwaptionVolatilityMatrix> getSwaptionVolatilityMatrix() const;
 
         DiscountFactor discount(Time t) const override;
         Real discountBond(Time now, Time maturity, Array factors) const override;
-        Real discountBondOption(Option::Type type,
-                                Real strike,
-                                Time maturity,
-                                Time bondMaturity) const override;
+        Real discountBondOption(Option::Type type, Real strike, Time maturity, Time bondMaturity) const override;
 
         void setParams(const Array& params) override;
 
@@ -86,4 +83,3 @@ namespace QuantLib {
 
 
 #endif
-

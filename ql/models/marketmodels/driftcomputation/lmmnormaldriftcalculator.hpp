@@ -29,7 +29,8 @@
 #include <ql/models/marketmodels/curvestates/lmmcurvestate.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Drift computation for normal %Libor market models
     /*! Returns the drift \f$ \mu \Delta t \f$.
@@ -37,33 +38,25 @@ namespace QuantLib {
         Reduced Factor Libor Market Model</i>, Wilmott Magazine,
         May 2003.
     */
-    class LMMNormalDriftCalculator {
+    class LMMNormalDriftCalculator
+    {
       public:
-        LMMNormalDriftCalculator(const Matrix& pseudo,
-                                 const std::vector<Time>& taus,
-                                 Size numeraire,
-                                 Size alive);
+        LMMNormalDriftCalculator(const Matrix& pseudo, const std::vector<Time>& taus, Size numeraire, Size alive);
         //! Computes the drifts
-        void compute(const LMMCurveState& cs,
-                     std::vector<Real>& drifts) const;
-        void compute(const std::vector<Rate>& fwds,
-                     std::vector<Real>& drifts) const;
+        void compute(const LMMCurveState& cs, std::vector<Real>& drifts) const;
+        void compute(const std::vector<Rate>& fwds, std::vector<Real>& drifts) const;
 
         /*! Computes the drifts without factor reduction as in
             eqs. 2, 4 of ref. [1], modified for normal forward rates dynamic
             (uses the covariance matrix directly). */
-        void computePlain(const LMMCurveState& cs,
-                          std::vector<Real>& drifts) const;
-        void computePlain(const std::vector<Rate>& fwds,
-                          std::vector<Real>& drifts) const;
+        void computePlain(const LMMCurveState& cs, std::vector<Real>& drifts) const;
+        void computePlain(const std::vector<Rate>& fwds, std::vector<Real>& drifts) const;
 
         /*! Computes the drifts with factor reduction as in
             eq. 7 of ref. [1], modified for normal forward rates dynamic
             (uses pseudo square root of the covariance matrix). */
-        void computeReduced(const LMMCurveState& cs,
-                            std::vector<Real>& drifts) const;
-        void computeReduced(const std::vector<Rate>& fwds,
-                            std::vector<Real>& drifts) const;
+        void computeReduced(const LMMCurveState& cs, std::vector<Real>& drifts) const;
+        void computeReduced(const std::vector<Rate>& fwds, std::vector<Real>& drifts) const;
 
 
       private:

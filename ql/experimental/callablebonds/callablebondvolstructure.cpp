@@ -20,38 +20,40 @@
 #include <ql/experimental/callablebonds/callablebondvolstructure.hpp>
 #include <ql/time/period.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    CallableBondVolatilityStructure::CallableBondVolatilityStructure(
-                                                    const DayCounter& dc,
-                                                    BusinessDayConvention bdc)
-    : TermStructure(dc), bdc_(bdc) {}
-
-    CallableBondVolatilityStructure::CallableBondVolatilityStructure(
-                                                    const Date& referenceDate,
-                                                    const Calendar& calendar,
-                                                    const DayCounter& dc,
-                                                    BusinessDayConvention bdc)
-    : TermStructure(referenceDate, calendar, dc), bdc_(bdc) {}
-
-    CallableBondVolatilityStructure::CallableBondVolatilityStructure(
-                                                    Natural settlementDays,
-                                                    const Calendar& calendar,
-                                                    const DayCounter& dc,
-                                                    BusinessDayConvention bdc)
-    : TermStructure(settlementDays, calendar, dc), bdc_(bdc) {}
-
-    Time CallableBondVolatilityStructure::maxBondLength() const {
-        return timeFromReference(referenceDate()+maxBondTenor());
+    CallableBondVolatilityStructure::CallableBondVolatilityStructure(const DayCounter& dc, BusinessDayConvention bdc)
+    : TermStructure(dc), bdc_(bdc)
+    {
     }
 
-    std::pair<Time,Time>
-    CallableBondVolatilityStructure::convertDates(
-                                              const Date& optionDate,
-                                              const Period& bondTenor) const {
+    CallableBondVolatilityStructure::CallableBondVolatilityStructure(const Date& referenceDate,
+                                                                     const Calendar& calendar,
+                                                                     const DayCounter& dc,
+                                                                     BusinessDayConvention bdc)
+    : TermStructure(referenceDate, calendar, dc), bdc_(bdc)
+    {
+    }
+
+    CallableBondVolatilityStructure::CallableBondVolatilityStructure(Natural settlementDays,
+                                                                     const Calendar& calendar,
+                                                                     const DayCounter& dc,
+                                                                     BusinessDayConvention bdc)
+    : TermStructure(settlementDays, calendar, dc), bdc_(bdc)
+    {
+    }
+
+    Time CallableBondVolatilityStructure::maxBondLength() const
+    {
+        return timeFromReference(referenceDate() + maxBondTenor());
+    }
+
+    std::pair<Time, Time> CallableBondVolatilityStructure::convertDates(const Date& optionDate,
+                                                                        const Period& bondTenor) const
+    {
         Date end = optionDate + bondTenor;
-        QL_REQUIRE(end>optionDate,
-                   "negative bond tenor (" << bondTenor << ") given");
+        QL_REQUIRE(end > optionDate, "negative bond tenor (" << bondTenor << ") given");
         Time optionTime = timeFromReference(optionDate);
         Time timeLength = dayCounter().yearFraction(optionDate, end);
         return std::make_pair(optionTime, timeLength);
@@ -60,20 +62,14 @@ namespace QuantLib {
     void CallableBondVolatilityStructure::checkRange(const Date& optionDate,
                                                      const Period& bondTenor,
                                                      Rate k,
-                                                     bool extrapolate) const {
-        TermStructure::checkRange(timeFromReference(optionDate),
-                                  extrapolate);
-        QL_REQUIRE(bondTenor.length() > 0,
-                   "negative bond tenor (" << bondTenor << ") given");
-        QL_REQUIRE(extrapolate || allowsExtrapolation() ||
-                   bondTenor <= maxBondTenor(),
-                   "bond tenor (" << bondTenor << ") is past max tenor ("
-                   << maxBondTenor() << ")");
-        QL_REQUIRE(extrapolate || allowsExtrapolation() ||
-                   (k >= minStrike() && k <= maxStrike()),
-                   "strike (" << k << ") is outside the curve domain ["
-                   << minStrike() << "," << maxStrike()<< "]");
+                                                     bool extrapolate) const
+    {
+        TermStructure::checkRange(timeFromReference(optionDate), extrapolate);
+        QL_REQUIRE(bondTenor.length() > 0, "negative bond tenor (" << bondTenor << ") given");
+        QL_REQUIRE(extrapolate || allowsExtrapolation() || bondTenor <= maxBondTenor(),
+                   "bond tenor (" << bondTenor << ") is past max tenor (" << maxBondTenor() << ")");
+        QL_REQUIRE(extrapolate || allowsExtrapolation() || (k >= minStrike() && k <= maxStrike()),
+                   "strike (" << k << ") is outside the curve domain [" << minStrike() << "," << maxStrike() << "]");
     }
 
 }
-

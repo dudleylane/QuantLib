@@ -28,7 +28,8 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(SviVolatilityTests)
 
-BOOST_AUTO_TEST_CASE(testSviSmileSection) {
+BOOST_AUTO_TEST_CASE(testSviSmileSection)
+{
 
     BOOST_TEST_MESSAGE("Testing SviSmileSection construction...");
 
@@ -49,8 +50,7 @@ BOOST_AUTO_TEST_CASE(testSviSmileSection) {
     Real strike = forward * std::exp(m);
     ext::shared_ptr<SviSmileSection> time_section;
 
-    BOOST_CHECK_NO_THROW(time_section =
-                             ext::make_shared<SviSmileSection>(tte, forward, sviParameters));
+    BOOST_CHECK_NO_THROW(time_section = ext::make_shared<SviSmileSection>(tte, forward, sviParameters));
     BOOST_CHECK_EQUAL(time_section->atmLevel(), forward);
     QL_CHECK_CLOSE(time_section->variance(strike), a + b * sigma, 1E-10);
 
@@ -58,8 +58,7 @@ BOOST_AUTO_TEST_CASE(testSviSmileSection) {
     Date date = today + Period(11, Days);
     ext::shared_ptr<SviSmileSection> date_section;
 
-    BOOST_CHECK_NO_THROW(date_section =
-                             ext::make_shared<SviSmileSection>(date, forward, sviParameters));
+    BOOST_CHECK_NO_THROW(date_section = ext::make_shared<SviSmileSection>(date, forward, sviParameters));
 
     BOOST_CHECK_EQUAL(date_section->atmLevel(), forward);
     QL_CHECK_CLOSE(date_section->variance(strike), a + b * sigma, 1E-10);

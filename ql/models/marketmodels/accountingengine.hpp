@@ -23,31 +23,32 @@
 #define quantlib_accounting_engine_hpp
 
 // to be removed using forward declaration
-#include <ql/models/marketmodels/multiproduct.hpp>
-#include <ql/models/marketmodels/discounter.hpp>
 #include <ql/math/statistics/sequencestatistics.hpp>
-
-#include <ql/utilities/clone.hpp>
+#include <ql/models/marketmodels/discounter.hpp>
+#include <ql/models/marketmodels/multiproduct.hpp>
 #include <ql/types.hpp>
+#include <ql/utilities/clone.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class MarketModelEvolver;
 
-    //class MarketModelDiscounter;
-    //class SequenceStatistics;
-    //class MarketModelMultiProduct;
-    //struct MarketModelMultiProduct::CashFlow;
+    // class MarketModelDiscounter;
+    // class SequenceStatistics;
+    // class MarketModelMultiProduct;
+    // struct MarketModelMultiProduct::CashFlow;
 
     //! Engine collecting cash flows along a market-model simulation
-    class AccountingEngine {
+    class AccountingEngine
+    {
       public:
         AccountingEngine(ext::shared_ptr<MarketModelEvolver> evolver,
                          const Clone<MarketModelMultiProduct>& product,
                          Real initialNumeraireValue);
-        void multiplePathValues(SequenceStatisticsInc& stats,
-                                Size numberOfPaths);
+        void multiplePathValues(SequenceStatisticsInc& stats, Size numberOfPaths);
+
       private:
         Real singlePathValues(std::vector<Real>& values);
 
@@ -60,10 +61,8 @@ namespace QuantLib {
         // workspace
         std::vector<Real> numerairesHeld_;
         std::vector<Size> numberCashFlowsThisStep_;
-        std::vector<std::vector<MarketModelMultiProduct::CashFlow> >
-                                                         cashFlowsGenerated_;
+        std::vector<std::vector<MarketModelMultiProduct::CashFlow>> cashFlowsGenerated_;
         std::vector<MarketModelDiscounter> discounters_;
-
     };
 
 }

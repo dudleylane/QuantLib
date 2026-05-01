@@ -21,37 +21,32 @@
     \brief One-dimensional grid mesher combining two existing ones
 */
 
-#include <ql/experimental/finitedifferences/glued1dmesher.hpp>
 #include <ql/errors.hpp>
+#include <ql/experimental/finitedifferences/glued1dmesher.hpp>
 #include <ql/math/comparison.hpp>
 #include <ql/utilities/null.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Glued1dMesher::Glued1dMesher(
-        const Fdm1dMesher& leftMesher,
-        const Fdm1dMesher& rightMesher)
-    : Fdm1dMesher(leftMesher.locations().size()+rightMesher.locations().size()
-                  - ( close(leftMesher.locations().back(),
-                      rightMesher.locations().front()) ? 1 :0) ),
-      commonPoint_( close(leftMesher.locations().back(),
-                    rightMesher.locations().front()) ) {
+    Glued1dMesher::Glued1dMesher(const Fdm1dMesher& leftMesher, const Fdm1dMesher& rightMesher)
+    : Fdm1dMesher(leftMesher.locations().size() + rightMesher.locations().size() -
+                  (close(leftMesher.locations().back(), rightMesher.locations().front()) ? 1 : 0)),
+      commonPoint_(close(leftMesher.locations().back(), rightMesher.locations().front()))
+    {
 
-        QL_REQUIRE(leftMesher.locations().back()
-                    <= rightMesher.locations().front(),
-            "left meshers rightmost point (" <<
-            leftMesher.locations().back() <<
-            ") may not be greater than right meshers leftmost point (" <<
-            rightMesher.locations().front() << ")");
+        QL_REQUIRE(leftMesher.locations().back() <= rightMesher.locations().front(),
+                   "left meshers rightmost point (" << leftMesher.locations().back()
+                                                    << ") may not be greater than right meshers leftmost point ("
+                                                    << rightMesher.locations().front() << ")");
 
-        std::copy(leftMesher.locations().begin(),leftMesher.locations().end(),
-                  locations_.begin());
-        std::copy(rightMesher.locations().begin() + (commonPoint_ ? 1 : 0),
-                  rightMesher.locations().end(),
-                  locations_.begin()+leftMesher.locations().size());
+        std::copy(leftMesher.locations().begin(), leftMesher.locations().end(), locations_.begin());
+        std::copy(rightMesher.locations().begin() + (commonPoint_ ? 1 : 0), rightMesher.locations().end(),
+                  locations_.begin() + leftMesher.locations().size());
 
-        for (Size i=0; i < locations_.size()-1; ++i) {
-            dplus_[i] = dminus_[i+1] = locations_[i+1] - locations_[i];
+        for (Size i = 0; i < locations_.size() - 1; ++i)
+        {
+            dplus_[i] = dminus_[i + 1] = locations_[i + 1] - locations_[i];
         }
         dplus_.back() = dminus_.front() = Null<Real>();
     }

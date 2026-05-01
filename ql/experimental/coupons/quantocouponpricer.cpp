@@ -17,45 +17,47 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/experimental/coupons/quantocouponpricer.hpp>
 #include <ql/cashflows/capflooredcoupon.hpp>
-#include <ql/cashflows/digitalcoupon.hpp>
 #include <ql/cashflows/digitalcmscoupon.hpp>
+#include <ql/cashflows/digitalcoupon.hpp>
 #include <ql/cashflows/digitaliborcoupon.hpp>
 #include <ql/cashflows/rangeaccrual.hpp>
-#include <ql/pricingengines/blackformula.hpp>
+#include <ql/experimental/coupons/quantocouponpricer.hpp>
 #include <ql/indexes/interestrateindex.hpp>
+#include <ql/pricingengines/blackformula.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Rate BlackIborQuantoCouponPricer::adjustedFixing(Real fixing) const {
+    Rate BlackIborQuantoCouponPricer::adjustedFixing(Real fixing) const
+    {
 
         if (fixing == Null<Rate>())
             fixing = coupon_->indexFixing();
 
         // Here we apply the quanto adjustment first, then delegate to
         // the parent class
-        Date d1 = coupon_->fixingDate(),
-             referenceDate = capletVolatility()->referenceDate();
+        Date d1 = coupon_->fixingDate(), referenceDate = capletVolatility()->referenceDate();
 
-        if (d1 > referenceDate) {
-            Time t1 =
-                capletVolatility()->timeFromReference(d1);
-            Volatility fxsigma =
-                fxRateBlackVolatility_->blackVol(d1, fixing, true);
+        if (d1 > referenceDate)
+        {
+            Time t1 = capletVolatility()->timeFromReference(d1);
+            Volatility fxsigma = fxRateBlackVolatility_->blackVol(d1, fixing, true);
             Volatility sigma = capletVolatility()->volatility(d1, fixing);
             Real rho = underlyingFxCorrelation_->value();
 
             // Apply Quanto Adjustment.
             // Hull 6th Edition, page 642, generalised to
             // shifted lognormal and normal volatilities
-            if(capletVolatility()->volatilityType() == ShiftedLognormal) {
-                Real dQuantoAdj = std::exp(sigma*fxsigma*rho*t1);
+            if (capletVolatility()->volatilityType() == ShiftedLognormal)
+            {
+                Real dQuantoAdj = std::exp(sigma * fxsigma * rho * t1);
                 Real shift = capletVolatility()->displacement();
-                fixing = (fixing+shift)*dQuantoAdj-shift;
+                fixing = (fixing + shift) * dQuantoAdj - shift;
             }
-            else {
-                Real dQuantoAdj = sigma*fxsigma*rho*t1;
+            else
+            {
+                Real dQuantoAdj = sigma * fxsigma * rho * t1;
                 fixing += dQuantoAdj;
             }
         }
@@ -64,4 +66,3 @@ namespace QuantLib {
     }
 
 }
-

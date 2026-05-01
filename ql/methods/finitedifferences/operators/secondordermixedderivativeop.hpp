@@ -28,12 +28,13 @@
 
 #include <ql/methods/finitedifferences/operators/ninepointlinearop.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class SecondOrderMixedDerivativeOp : public NinePointLinearOp {
-    public:
-        SecondOrderMixedDerivativeOp(
-            Size d0, Size d1, const ext::shared_ptr<FdmMesher>& mesher);
+    class SecondOrderMixedDerivativeOp : public NinePointLinearOp
+    {
+      public:
+        SecondOrderMixedDerivativeOp(Size d0, Size d1, const ext::shared_ptr<FdmMesher>& mesher);
     };
 }
 

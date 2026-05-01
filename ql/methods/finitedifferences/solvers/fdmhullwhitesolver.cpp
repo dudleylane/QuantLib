@@ -18,7 +18,7 @@
 */
 
 /*! \file fdmhullwhitesolver.cpp
-*/
+ */
 
 #include <ql/methods/finitedifferences/operators/fdmhullwhiteop.hpp>
 #include <ql/methods/finitedifferences/solvers/fdm1dimsolver.hpp>
@@ -27,24 +27,28 @@
 #include <ql/models/shortrate/onefactormodels/hullwhite.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     FdmHullWhiteSolver::FdmHullWhiteSolver(Handle<HullWhite> model,
                                            FdmSolverDesc solverDesc,
                                            const FdmSchemeDesc& schemeDesc)
-    : model_(std::move(model)), solverDesc_(std::move(solverDesc)), schemeDesc_(schemeDesc) {
+    : model_(std::move(model)), solverDesc_(std::move(solverDesc)), schemeDesc_(schemeDesc)
+    {
         registerWith(model_);
     }
 
 
-    void FdmHullWhiteSolver::performCalculations() const {
+    void FdmHullWhiteSolver::performCalculations() const
+    {
         const ext::shared_ptr<FdmHullWhiteOp> op(
-			ext::make_shared<FdmHullWhiteOp>(solverDesc_.mesher, model_.currentLink(), 0));
+            ext::make_shared<FdmHullWhiteOp>(solverDesc_.mesher, model_.currentLink(), 0));
 
         solver_ = ext::make_shared<Fdm1DimSolver>(solverDesc_, schemeDesc_, op);
     }
 
-    Real FdmHullWhiteSolver::valueAt(Real r) const {
+    Real FdmHullWhiteSolver::valueAt(Real r) const
+    {
         calculate();
         return solver_->interpolateAt(r);
     }

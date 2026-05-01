@@ -11,4 +11,3 @@
 #include <ql/utilities/tracing.hpp>
 #include <ql/utilities/variants.hpp>
 #include <ql/utilities/vectors.hpp>
-

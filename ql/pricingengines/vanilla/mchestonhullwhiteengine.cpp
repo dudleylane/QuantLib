@@ -24,25 +24,27 @@
 #include <ql/pricingengines/vanilla/mchestonhullwhiteengine.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    HestonHullWhitePathPricer::HestonHullWhitePathPricer(
-        Time exerciseTime,
-        ext::shared_ptr<Payoff> payoff,
-        ext::shared_ptr<HybridHestonHullWhiteProcess> process)
-    : exerciseTime_(exerciseTime), payoff_(std::move(payoff)), process_(std::move(process)) {}
+    HestonHullWhitePathPricer::HestonHullWhitePathPricer(Time exerciseTime,
+                                                         ext::shared_ptr<Payoff> payoff,
+                                                         ext::shared_ptr<HybridHestonHullWhiteProcess> process)
+    : exerciseTime_(exerciseTime), payoff_(std::move(payoff)), process_(std::move(process))
+    {
+    }
 
-    Real HestonHullWhitePathPricer::operator()(const MultiPath& path) const {
+    Real HestonHullWhitePathPricer::operator()(const MultiPath& path) const
+    {
         QL_REQUIRE(path.pathSize() > 0, "the path cannot be empty");
 
         Array states(path.assetNumber());
-        for (Size j=0; j < states.size(); ++j) {
-            states[j] = path[j][path.pathSize()-1];
+        for (Size j = 0; j < states.size(); ++j)
+        {
+            states[j] = path[j][path.pathSize() - 1];
         }
 
-        const DiscountFactor df(
-                             1.0/process_->numeraire(exerciseTime_, states));
-        return (*payoff_)(states[0])*df;
+        const DiscountFactor df(1.0 / process_->numeraire(exerciseTime_, states));
+        return (*payoff_)(states[0]) * df;
     }
 }
-

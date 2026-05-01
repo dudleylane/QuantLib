@@ -29,10 +29,11 @@
 #define quantlib_analytic_barrier_engine_hpp
 
 #include <ql/instruments/barrieroption.hpp>
-#include <ql/processes/blackscholesprocess.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
+#include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Pricing engine for barrier options using analytical formulae
     /*! The formulas are taken from "Option pricing formulas",
@@ -43,7 +44,8 @@ namespace QuantLib {
         \test the correctness of the returned value is tested by
               reproducing results available in literature.
     */
-    class AnalyticBarrierEngine : public BarrierOption::engine {
+    class AnalyticBarrierEngine : public BarrierOption::engine
+    {
       public:
         AnalyticBarrierEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process);
         void calculate() const override;

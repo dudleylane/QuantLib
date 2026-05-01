@@ -34,14 +34,14 @@
    thrown by the library.
 */
 #ifndef QL_ERROR_FUNCTIONS
-//#   define QL_ERROR_FUNCTIONS
+// #   define QL_ERROR_FUNCTIONS
 #endif
 
 /* If defined, file and line information is added to the error
    messages thrown by the library.
 */
 #ifndef QL_ERROR_LINES
-//#   define QL_ERROR_LINES
+// #   define QL_ERROR_LINES
 #endif
 
 /* If defined, tracing messages might be emitted by the library
@@ -49,7 +49,7 @@
    performance.
 */
 #ifndef QL_ENABLE_TRACING
-//#   define QL_ENABLE_TRACING
+// #   define QL_ENABLE_TRACING
 #endif
 
 /* If defined, extra run-time checks are added to a few
@@ -57,14 +57,14 @@
    performance.
 */
 #ifndef QL_EXTRA_SAFETY_CHECKS
-//#   define QL_EXTRA_SAFETY_CHECKS
+// #   define QL_EXTRA_SAFETY_CHECKS
 #endif
 
 /* If defined, indexed coupons (see the documentation) are used in
    floating legs.  If undefined, par coupons are used.
 */
 #ifndef QL_USE_INDEXED_COUPON
-//#   define QL_USE_INDEXED_COUPON
+// #   define QL_USE_INDEXED_COUPON
 #endif
 
 /* If defined, singletons will return different instances for
@@ -73,7 +73,7 @@
    per-thread.
 */
 #ifndef QL_ENABLE_SESSIONS
-//#   define QL_ENABLE_SESSIONS
+// #   define QL_ENABLE_SESSIONS
 #endif
 
 /* If defined, a thread-safe (but less performant) version of the
@@ -82,7 +82,7 @@
    any other environment with an async garbage collector.
 */
 #ifndef QL_ENABLE_THREAD_SAFE_OBSERVER_PATTERN
-//#    define QL_ENABLE_THREAD_SAFE_OBSERVER_PATTERN
+// #    define QL_ENABLE_THREAD_SAFE_OBSERVER_PATTERN
 #endif
 
 /* If defined, date objects willsupport an intraday datetime
@@ -93,7 +93,7 @@
    a single day.  Intraday datetime resolution is experimental.
 */
 #ifndef QL_HIGH_RESOLUTION_DATE
-//#    define QL_HIGH_RESOLUTION_DATE
+// #    define QL_HIGH_RESOLUTION_DATE
 #endif
 
 /* If defined, lazy objects will raise an exception when they detect a
@@ -103,7 +103,7 @@
    to throw.
 */
 #ifndef QL_THROW_IN_CYCLES
-//#    define QL_THROW_IN_CYCLES
+// #    define QL_THROW_IN_CYCLES
 #endif
 
 /* If defined, lazy objects will forward the first notification
@@ -141,7 +141,7 @@
    access and can cause segmentation faults.
 */
 #ifndef QL_USE_STD_SHARED_PTR
-//#    define QL_USE_STD_SHARED_PTR
+// #    define QL_USE_STD_SHARED_PTR
 #endif
 
 /* If defined, `Null` will be implemented as a template function.
@@ -151,14 +151,14 @@
    template, as in previous releases.
 */
 #ifndef QL_NULL_AS_FUNCTIONS
-//#    define QL_NULL_AS_FUNCTIONS
+// #    define QL_NULL_AS_FUNCTIONS
 #endif
 
 /* If defined, a parallel unit test runner will be used to execute the
    C++ test suite. This will reduce the runtime on multi core CPUs.
 */
 #ifndef QL_ENABLE_PARALLEL_UNIT_TEST_RUNNER
-//#    define QL_ENABLE_PARALLEL_UNIT_TEST_RUNNER
+// #    define QL_ENABLE_PARALLEL_UNIT_TEST_RUNNER
 #endif
 
 #endif

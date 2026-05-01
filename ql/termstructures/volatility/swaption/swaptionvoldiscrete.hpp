@@ -24,14 +24,15 @@
 #ifndef quantlib_swaption_volatility_discrete_h
 #define quantlib_swaption_volatility_discrete_h
 
-#include <ql/termstructures/volatility/swaption/swaptionvolstructure.hpp>
 #include <ql/math/interpolation.hpp>
 #include <ql/patterns/lazyobject.hpp>
+#include <ql/termstructures/volatility/swaption/swaptionvolstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class SwaptionVolatilityDiscrete : public LazyObject,
-                                       public SwaptionVolatilityStructure {
+    class SwaptionVolatilityDiscrete : public LazyObject, public SwaptionVolatilityStructure
+    {
       public:
         SwaptionVolatilityDiscrete(const std::vector<Period>& optionTenors,
                                    const std::vector<Period>& swapTenors,
@@ -82,6 +83,7 @@ namespace QuantLib {
         std::vector<Period> swapTenors_;
         mutable std::vector<Time> swapLengths_;
         mutable Date cachedReferenceDate_;
+
       private:
         void checkOptionTenors() const;
         void checkOptionDates(const Date& reference) const;
@@ -93,32 +95,33 @@ namespace QuantLib {
 
     // inline
 
-    inline const std::vector<Period>&
-    SwaptionVolatilityDiscrete::optionTenors() const {
-         return optionTenors_;
+    inline const std::vector<Period>& SwaptionVolatilityDiscrete::optionTenors() const
+    {
+        return optionTenors_;
     }
 
-    inline const std::vector<Date>&
-    SwaptionVolatilityDiscrete::optionDates() const {
+    inline const std::vector<Date>& SwaptionVolatilityDiscrete::optionDates() const
+    {
         return optionDates_;
     }
 
-    inline const std::vector<Time>&
-    SwaptionVolatilityDiscrete::optionTimes() const {
+    inline const std::vector<Time>& SwaptionVolatilityDiscrete::optionTimes() const
+    {
         return optionTimes_;
     }
 
-    inline const std::vector<Period>&
-    SwaptionVolatilityDiscrete::swapTenors() const {
-     return swapTenors_;
+    inline const std::vector<Period>& SwaptionVolatilityDiscrete::swapTenors() const
+    {
+        return swapTenors_;
     }
 
-    inline const std::vector<Time>&
-    SwaptionVolatilityDiscrete::swapLengths() const {
+    inline const std::vector<Time>& SwaptionVolatilityDiscrete::swapLengths() const
+    {
         return swapLengths_;
     }
 
-    inline Date SwaptionVolatilityDiscrete::optionDateFromTime(Time optionTime) const {
+    inline Date SwaptionVolatilityDiscrete::optionDateFromTime(Time optionTime) const
+    {
         return Date(static_cast<Date::serial_type>(optionInterpolator_(optionTime)));
     }
 }

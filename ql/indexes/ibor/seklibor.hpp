@@ -26,25 +26,24 @@
 #ifndef quantlib_sek_libor_hpp
 #define quantlib_sek_libor_hpp
 
+#include <ql/currencies/europe.hpp>
 #include <ql/indexes/ibor/libor.hpp>
 #include <ql/time/calendars/sweden.hpp>
 #include <ql/time/daycounters/actual360.hpp>
-#include <ql/currencies/europe.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %SEK %LIBOR rate
     /*! Sweden Krone LIBOR discontinued as of 2013.
-    */
-    class SEKLibor : public Libor {
+     */
+    class SEKLibor : public Libor
+    {
       public:
-        SEKLibor(const Period& tenor,
-                 const Handle<YieldTermStructure>& h = {})
-        : Libor("SEKLibor", tenor,
-                2,
-                SEKCurrency(),
-                Sweden(),
-                Actual360(), h) {}
+        SEKLibor(const Period& tenor, const Handle<YieldTermStructure>& h = {})
+        : Libor("SEKLibor", tenor, 2, SEKCurrency(), Sweden(), Actual360(), h)
+        {
+        }
     };
 
 }

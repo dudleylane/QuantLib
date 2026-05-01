@@ -25,60 +25,70 @@
 #include <ql/termstructures/credit/hazardratestructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
+    namespace
+    {
 
         template <class F>
-        struct remapper {
+        struct remapper
+        {
             F f;
             Time T;
             remapper(F f, Time T) : f(std::move(f)), T(T) {}
             // This remaps [-1,1] to [0,T]. No differential included.
-            Real operator()(Real x) const {
-                const Real arg = (x+1.0)*T/2.0;
+            Real operator()(Real x) const
+            {
+                const Real arg = (x + 1.0) * T / 2.0;
                 return f(arg);
             }
         };
 
         template <class F>
-        remapper<F> remap(const F& f, Time T) {
-            return remapper<F>(f,T);
+        remapper<F> remap(const F& f, Time T)
+        {
+            return remapper<F>(f, T);
         }
 
     }
 
-    HazardRateStructure::HazardRateStructure(
-                                    const DayCounter& dc,
-                                    const std::vector<Handle<Quote> >& jumps,
-                                    const std::vector<Date>& jumpDates)
-    : DefaultProbabilityTermStructure(dc, jumps, jumpDates) {}
+    HazardRateStructure::HazardRateStructure(const DayCounter& dc,
+                                             const std::vector<Handle<Quote>>& jumps,
+                                             const std::vector<Date>& jumpDates)
+    : DefaultProbabilityTermStructure(dc, jumps, jumpDates)
+    {
+    }
 
-    HazardRateStructure::HazardRateStructure(
-                                    const Date& refDate,
-                                    const Calendar& cal,
-                                    const DayCounter& dc,
-                                    const std::vector<Handle<Quote> >& jumps,
-                                    const std::vector<Date>& jumpDates)
-    : DefaultProbabilityTermStructure(refDate, cal, dc, jumps, jumpDates) {}
+    HazardRateStructure::HazardRateStructure(const Date& refDate,
+                                             const Calendar& cal,
+                                             const DayCounter& dc,
+                                             const std::vector<Handle<Quote>>& jumps,
+                                             const std::vector<Date>& jumpDates)
+    : DefaultProbabilityTermStructure(refDate, cal, dc, jumps, jumpDates)
+    {
+    }
 
-    HazardRateStructure::HazardRateStructure(
-                                    Natural settlDays,
-                                    const Calendar& cal,
-                                    const DayCounter& dc,
-                                    const std::vector<Handle<Quote> >& jumps,
-                                    const std::vector<Date>& jumpDates)
-    : DefaultProbabilityTermStructure(settlDays, cal, dc, jumps, jumpDates) {}
+    HazardRateStructure::HazardRateStructure(Natural settlDays,
+                                             const Calendar& cal,
+                                             const DayCounter& dc,
+                                             const std::vector<Handle<Quote>>& jumps,
+                                             const std::vector<Date>& jumpDates)
+    : DefaultProbabilityTermStructure(settlDays, cal, dc, jumps, jumpDates)
+    {
+    }
 
-    Real HazardRateStructure::hazardRateImpl(Time) const {
+    Real HazardRateStructure::hazardRateImpl(Time) const
+    {
         QL_FAIL("hazardRateImpl() must be implemented by a class derived from HazardRateStructure");
     }
 
-    Probability HazardRateStructure::survivalProbabilityImpl(Time t) const {
+    Probability HazardRateStructure::survivalProbabilityImpl(Time t) const
+    {
         static GaussChebyshevIntegration integral(48);
         // the Gauss-Chebyshev quadratures integrate over [-1,1],
         // hence the remapping (and the Jacobian term t/2)
-        return std::exp(-integral(remap([&](Time tau){ return hazardRateImpl(tau); }, t)) * t/2.0);
+        return std::exp(-integral(remap([&](Time tau) { return hazardRateImpl(tau); }, t)) * t / 2.0);
     }
 
 }

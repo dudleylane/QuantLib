@@ -27,10 +27,11 @@
 #include <ql/math/integrals/momentbasedgaussianpolynomial.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class GaussNonCentralChiSquaredPolynomial
-            : public MomentBasedGaussianPolynomial<Real> {
+    class GaussNonCentralChiSquaredPolynomial : public MomentBasedGaussianPolynomial<Real>
+    {
       public:
         GaussNonCentralChiSquaredPolynomial(Real nu, Real lambda);
 
@@ -40,7 +41,7 @@ namespace QuantLib {
       private:
         const Real nu_, lambda_;
 
-        static std::vector<std::function<Real(Real, Real)> > moments;
+        static std::vector<std::function<Real(Real, Real)>> moments;
     };
 }
 

@@ -24,16 +24,18 @@
 #ifndef quantlib_commodity_pricing_helpers_hpp
 #define quantlib_commodity_pricing_helpers_hpp
 
+#include <ql/currencies/exchangeratemanager.hpp>
 #include <ql/experimental/commodities/energycommodity.hpp>
 #include <ql/experimental/commodities/paymentterm.hpp>
 #include <ql/experimental/commodities/pricingperiod.hpp>
 #include <ql/experimental/commodities/unitofmeasureconversionmanager.hpp>
-#include <ql/currencies/exchangeratemanager.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! commodity index helper
-    class CommodityPricingHelper {
+    class CommodityPricingHelper
+    {
       public:
         CommodityPricingHelper();
 
@@ -41,10 +43,9 @@ namespace QuantLib {
                                                 const Currency& toCurrency,
                                                 const Date& evaluationDate);
 
-        static Real calculateUomConversionFactor(
-                                       const CommodityType& commodityType,
-                                       const UnitOfMeasure& fromUnitOfMeasure,
-                                       const UnitOfMeasure& toUnitOfMeasure);
+        static Real calculateUomConversionFactor(const CommodityType& commodityType,
+                                                 const UnitOfMeasure& fromUnitOfMeasure,
+                                                 const UnitOfMeasure& toUnitOfMeasure);
 
         static Real calculateUnitCost(const CommodityType& commodityType,
                                       const CommodityUnitCost& unitCost,
@@ -52,40 +53,38 @@ namespace QuantLib {
                                       const UnitOfMeasure& baseUnitOfMeasure,
                                       const Date& evaluationDate);
 
-        static void createPricingPeriods(
-                          Date startDate, Date endDate,
-                          const Quantity& quantity,
-                          EnergyCommodity::DeliverySchedule deliverySchedule,
-                          EnergyCommodity::QuantityPeriodicity qtyPeriodicity,
-                          const PaymentTerm& paymentTerm,
-                          PricingPeriods& pricingPeriods);
+        static void createPricingPeriods(Date startDate,
+                                         Date endDate,
+                                         const Quantity& quantity,
+                                         EnergyCommodity::DeliverySchedule deliverySchedule,
+                                         EnergyCommodity::QuantityPeriodicity qtyPeriodicity,
+                                         const PaymentTerm& paymentTerm,
+                                         PricingPeriods& pricingPeriods);
     };
 
 
-    inline Real CommodityPricingHelper::calculateUomConversionFactor(
-                                       const CommodityType& commodityType,
-                                       const UnitOfMeasure& fromUnitOfMeasure,
-                                       const UnitOfMeasure& toUnitOfMeasure) {
-        if (toUnitOfMeasure != fromUnitOfMeasure) {
+    inline Real CommodityPricingHelper::calculateUomConversionFactor(const CommodityType& commodityType,
+                                                                     const UnitOfMeasure& fromUnitOfMeasure,
+                                                                     const UnitOfMeasure& toUnitOfMeasure)
+    {
+        if (toUnitOfMeasure != fromUnitOfMeasure)
+        {
             UnitOfMeasureConversion uomConv =
-                UnitOfMeasureConversionManager::instance().lookup(
-                           commodityType, fromUnitOfMeasure, toUnitOfMeasure);
+                UnitOfMeasureConversionManager::instance().lookup(commodityType, fromUnitOfMeasure, toUnitOfMeasure);
             return uomConv.conversionFactor();
         }
 
         return 1;
     }
 
-    inline Real CommodityPricingHelper::calculateFxConversionFactor(
-                                                 const Currency& fromCurrency,
-                                                 const Currency& toCurrency,
-                                                 const Date& evaluationDate) {
-        if (fromCurrency != toCurrency) {
+    inline Real CommodityPricingHelper::calculateFxConversionFactor(const Currency& fromCurrency,
+                                                                    const Currency& toCurrency,
+                                                                    const Date& evaluationDate)
+    {
+        if (fromCurrency != toCurrency)
+        {
             ExchangeRate exchRate =
-                ExchangeRateManager::instance().lookup(fromCurrency,
-                                                       toCurrency,
-                                                       evaluationDate,
-                                                       ExchangeRate::Direct);
+                ExchangeRateManager::instance().lookup(fromCurrency, toCurrency, evaluationDate, ExchangeRate::Direct);
             if (fromCurrency != exchRate.source())
                 return (Real)1 / exchRate.rate();
             return exchRate.rate();
@@ -93,22 +92,19 @@ namespace QuantLib {
         return 1;
     }
 
-    inline Real CommodityPricingHelper::calculateUnitCost(
-                                       const CommodityType& commodityType,
-                                       const CommodityUnitCost& unitCost,
-                                       const Currency& baseCurrency,
-                                       const UnitOfMeasure& baseUnitOfMeasure,
-                                       const Date& evaluationDate) {
-        if (unitCost.amount().value() != 0) {
+    inline Real CommodityPricingHelper::calculateUnitCost(const CommodityType& commodityType,
+                                                          const CommodityUnitCost& unitCost,
+                                                          const Currency& baseCurrency,
+                                                          const UnitOfMeasure& baseUnitOfMeasure,
+                                                          const Date& evaluationDate)
+    {
+        if (unitCost.amount().value() != 0)
+        {
             Real unitCostUomConversionFactor =
-                calculateUomConversionFactor(commodityType,
-                                             unitCost.unitOfMeasure(),
-                                             baseUnitOfMeasure);
+                calculateUomConversionFactor(commodityType, unitCost.unitOfMeasure(), baseUnitOfMeasure);
             Real unitCostFxConversionFactor =
-                calculateFxConversionFactor(unitCost.amount().currency(),
-                                            baseCurrency, evaluationDate);
-            return unitCost.amount().value() * unitCostUomConversionFactor
-                 * unitCostFxConversionFactor;
+                calculateFxConversionFactor(unitCost.amount().currency(), baseCurrency, evaluationDate);
+            return unitCost.amount().value() * unitCostUomConversionFactor * unitCostFxConversionFactor;
         }
         return 0;
     }

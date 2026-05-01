@@ -28,7 +28,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Singapore calendars
     /*! Holidays for the Singapore exchange
@@ -57,15 +58,20 @@ namespace QuantLib {
 
         \ingroup calendars
     */
-    class Singapore : public Calendar {
+    class Singapore : public Calendar
+    {
       private:
-        class SgxImpl final : public Calendar::WesternImpl {
+        class SgxImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "Singapore exchange"; }
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
-        enum Market { SGX    //!< Singapore exchange
+        enum Market
+        {
+            SGX //!< Singapore exchange
         };
         Singapore(Market m = SGX);
     };

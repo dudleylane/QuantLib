@@ -28,7 +28,8 @@
 #include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/math/statistics/generalstatistics.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Statistics tool for gaussian-assumption risk measures
     /*! This class wraps a somewhat generic statistic tool and adds
@@ -36,8 +37,9 @@ namespace QuantLib {
         shortfall, etc.) based on the mean and variance provided by
         the underlying statistic tool.
     */
-    template<class Stat>
-    class GenericGaussianStatistics : public Stat {
+    template <class Stat>
+    class GenericGaussianStatistics : public Stat
+    {
       public:
         typedef typename Stat::value_type value_type;
         GenericGaussianStatistics() = default;
@@ -50,16 +52,12 @@ namespace QuantLib {
             where \f$ \theta \f$ = 0 if x > 0 and
             \f$ \theta \f$ =1 if x <0
         */
-        Real gaussianDownsideVariance() const {
-            return gaussianRegret(0.0);
-        }
+        Real gaussianDownsideVariance() const { return gaussianRegret(0.0); }
 
         /*! returns the downside deviation, defined as the
             square root of the downside variance.
         */
-        Real gaussianDownsideDeviation() const {
-            return std::sqrt(gaussianDownsideVariance());
-        }
+        Real gaussianDownsideDeviation() const { return std::sqrt(gaussianDownsideVariance()); }
 
         /*! returns the variance of observations below target
             \f[ \frac{\sum w_i (min(0, x_i-target))^2 }{\sum w_i}. \f]
@@ -111,15 +109,15 @@ namespace QuantLib {
 
 
     //! Helper class for precomputed distributions
-    class StatsHolder {
+    class StatsHolder
+    {
       public:
         typedef Real value_type;
-        StatsHolder(Real mean,
-                    Real standardDeviation)
-                    : mean_(mean), standardDeviation_(standardDeviation) {}
+        StatsHolder(Real mean, Real standardDeviation) : mean_(mean), standardDeviation_(standardDeviation) {}
         ~StatsHolder() = default;
         Real mean() const { return mean_; }
         Real standardDeviation() const { return standardDeviation_; }
+
       private:
         Real mean_, standardDeviation_;
     };
@@ -127,52 +125,48 @@ namespace QuantLib {
 
     // inline definitions
 
-    template<class Stat>
-    inline
-    Real GenericGaussianStatistics<Stat>::gaussianRegret(Real target) const {
+    template <class Stat>
+    inline Real GenericGaussianStatistics<Stat>::gaussianRegret(Real target) const
+    {
         Real m = this->mean();
         Real std = this->standardDeviation();
-        Real variance = std*std;
+        Real variance = std * std;
         CumulativeNormalDistribution gIntegral(m, std);
         NormalDistribution g(m, std);
-        Real firstTerm = variance + m*m - 2.0*target*m + target*target;
+        Real firstTerm = variance + m * m - 2.0 * target * m + target * target;
         Real alfa = gIntegral(target);
         Real secondTerm = m - target;
-        Real beta = variance*g(target);
-        Real result = alfa*firstTerm - beta*secondTerm;
-        return result/alfa;
+        Real beta = variance * g(target);
+        Real result = alfa * firstTerm - beta * secondTerm;
+        return result / alfa;
     }
 
     /*! \pre percentile must be in range (0%-100%) extremes excluded */
-    template<class Stat>
-    inline Real GenericGaussianStatistics<Stat>::gaussianPercentile(
-                                                     Real percentile) const {
+    template <class Stat>
+    inline Real GenericGaussianStatistics<Stat>::gaussianPercentile(Real percentile) const
+    {
 
-        QL_REQUIRE(percentile>0.0,
-                   "percentile (" << percentile << ") must be > 0.0");
-        QL_REQUIRE(percentile<1.0,
-                   "percentile (" << percentile << ") must be < 1.0");
+        QL_REQUIRE(percentile > 0.0, "percentile (" << percentile << ") must be > 0.0");
+        QL_REQUIRE(percentile < 1.0, "percentile (" << percentile << ") must be < 1.0");
 
-        InverseCumulativeNormal gInverse(Stat::mean(),
-                                         Stat::standardDeviation());
+        InverseCumulativeNormal gInverse(Stat::mean(), Stat::standardDeviation());
         return gInverse(percentile);
     }
 
     /*! \pre percentile must be in range (0%-100%) extremes excluded */
-    template<class Stat>
-    inline Real GenericGaussianStatistics<Stat>::gaussianTopPercentile(
-                                                     Real percentile) const {
+    template <class Stat>
+    inline Real GenericGaussianStatistics<Stat>::gaussianTopPercentile(Real percentile) const
+    {
 
-        return gaussianPercentile(1.0-percentile);
+        return gaussianPercentile(1.0 - percentile);
     }
 
     /*! \pre percentile must be in range [90%-100%) */
-    template<class Stat>
-    inline Real GenericGaussianStatistics<Stat>::gaussianPotentialUpside(
-                                                    Real percentile) const {
+    template <class Stat>
+    inline Real GenericGaussianStatistics<Stat>::gaussianPotentialUpside(Real percentile) const
+    {
 
-        QL_REQUIRE(percentile<1.0 && percentile>=0.9,
-                   "percentile (" << percentile << ") out of range [0.9, 1)");
+        QL_REQUIRE(percentile < 1.0 && percentile >= 0.9, "percentile (" << percentile << ") out of range [0.9, 1)");
 
         Real result = gaussianPercentile(percentile);
         // potential upside must be a gain, i.e., floored at 0.0
@@ -181,14 +175,13 @@ namespace QuantLib {
 
 
     /*! \pre percentile must be in range [90%-100%) */
-    template<class Stat>
-    inline Real GenericGaussianStatistics<Stat>::gaussianValueAtRisk(
-                                                    Real percentile) const {
+    template <class Stat>
+    inline Real GenericGaussianStatistics<Stat>::gaussianValueAtRisk(Real percentile) const
+    {
 
-        QL_REQUIRE(percentile<1.0 && percentile>=0.9,
-                   "percentile (" << percentile << ") out of range [0.9, 1)");
+        QL_REQUIRE(percentile < 1.0 && percentile >= 0.9, "percentile (" << percentile << ") out of range [0.9, 1)");
 
-        Real result = gaussianPercentile(1.0-percentile);
+        Real result = gaussianPercentile(1.0 - percentile);
         // VAR must be a loss
         // this means that it has to be MIN(dist(1.0-percentile), 0.0)
         // VAR must also be a positive quantity, so -MIN(*)
@@ -197,18 +190,17 @@ namespace QuantLib {
 
 
     /*! \pre percentile must be in range [90%-100%) */
-    template<class Stat>
-    inline Real GenericGaussianStatistics<Stat>::gaussianExpectedShortfall(
-                                                    Real percentile) const {
-        QL_REQUIRE(percentile<1.0 && percentile>=0.9,
-                   "percentile (" << percentile << ") out of range [0.9, 1)");
+    template <class Stat>
+    inline Real GenericGaussianStatistics<Stat>::gaussianExpectedShortfall(Real percentile) const
+    {
+        QL_REQUIRE(percentile < 1.0 && percentile >= 0.9, "percentile (" << percentile << ") out of range [0.9, 1)");
 
         Real m = this->mean();
         Real std = this->standardDeviation();
         InverseCumulativeNormal gInverse(m, std);
-        Real var = gInverse(1.0-percentile);
+        Real var = gInverse(1.0 - percentile);
         NormalDistribution g(m, std);
-        Real result = m - std*std*g(var)/(1.0-percentile);
+        Real result = m - std * std * g(var) / (1.0 - percentile);
         // expectedShortfall must be a loss
         // this means that it has to be MIN(result, 0.0)
         // expectedShortfall must also be a positive quantity, so -MIN(*)
@@ -216,23 +208,22 @@ namespace QuantLib {
     }
 
 
-    template<class Stat>
-    inline Real GenericGaussianStatistics<Stat>::gaussianShortfall(
-                                                        Real target) const {
-        CumulativeNormalDistribution gIntegral(this->mean(),
-                                               this->standardDeviation());
+    template <class Stat>
+    inline Real GenericGaussianStatistics<Stat>::gaussianShortfall(Real target) const
+    {
+        CumulativeNormalDistribution gIntegral(this->mean(), this->standardDeviation());
         return gIntegral(target);
     }
 
 
-    template<class Stat>
-    inline Real GenericGaussianStatistics<Stat>::gaussianAverageShortfall(
-                                                        Real target) const {
+    template <class Stat>
+    inline Real GenericGaussianStatistics<Stat>::gaussianAverageShortfall(Real target) const
+    {
         Real m = this->mean();
         Real std = this->standardDeviation();
         CumulativeNormalDistribution gIntegral(m, std);
         NormalDistribution g(m, std);
-        return ( (target-m) + std*std*g(target)/gIntegral(target) );
+        return ((target - m) + std * std * g(target) / gIntegral(target));
     }
 
 }

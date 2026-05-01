@@ -21,10 +21,10 @@
 #include "utilities.hpp"
 #include <ql/instruments/perpetualfutures.hpp>
 #include <ql/pricingengines/futures/discountingperpetualfuturesengine.hpp>
+#include <ql/quotes/simplequote.hpp>
+#include <ql/time/calendars/nullcalendar.hpp>
 #include <ql/time/daycounters/actualactual.hpp>
 #include <ql/time/daycounters/thirty360.hpp>
-#include <ql/time/calendars/nullcalendar.hpp>
-#include <ql/quotes/simplequote.hpp>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -34,61 +34,70 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 BOOST_AUTO_TEST_SUITE(PerpetualFuturesTests)
 
 #undef REPORT_FAILURE
-#define REPORT_FAILURE(greekName, payoffType, fundingType, fundingFreq, s, r, q, k, iDiff, today, \
-                       expected, calculated, relError, tolerance) \
-    BOOST_FAIL(payoffType \
-               << " perpetual futures with " << fundingType << " funding type:\n" \
-               << "    spot value:                      " << s << "\n" \
-               << "    risk-free rate:                  " << r << "\n" \
-               << "    asset yield:                     " << q << "\n" \
-               << "    funding rate:                    " << k << "\n" \
-               << "    interest rate differential:      " << iDiff << "\n" \
-               << "    funding frequency:               " << fundingFreq << "\n" \
-               << "    reference date:                  " << today << "\n" \
-               << "    expected   " << greekName << ": " << expected << "\n" \
-               << "    calculated " << greekName << ": " << calculated << "\n" \
-               << "    rel error: " << relError << "\n" \
-               << "    tolerance: " << tolerance << "\n");
+#define REPORT_FAILURE(greekName, payoffType, fundingType, fundingFreq, s, r, q, k, iDiff, today, expected, \
+                       calculated, relError, tolerance)                                                     \
+    BOOST_FAIL(payoffType << " perpetual futures with " << fundingType << " funding type:\n"                \
+                          << "    spot value:                      " << s << "\n"                           \
+                          << "    risk-free rate:                  " << r << "\n"                           \
+                          << "    asset yield:                     " << q << "\n"                           \
+                          << "    funding rate:                    " << k << "\n"                           \
+                          << "    interest rate differential:      " << iDiff << "\n"                       \
+                          << "    funding frequency:               " << fundingFreq << "\n"                 \
+                          << "    reference date:                  " << today << "\n"                       \
+                          << "    expected   " << greekName << ": " << expected << "\n"                     \
+                          << "    calculated " << greekName << ": " << calculated << "\n"                   \
+                          << "    rel error: " << relError << "\n"                                          \
+                          << "    tolerance: " << tolerance << "\n");
 
-struct PerpetualFuturesData {
+struct PerpetualFuturesData
+{
     PerpetualFutures::PayoffType payoffType;
     PerpetualFutures::FundingType fundingType;
     Period fundingFreq;
-    Real s;       // spot
-    Rate r;       // risk-free rate
-    Rate q;       // asset yield
-    Rate k;       // funding rate
+    Real s;      // spot
+    Rate r;      // risk-free rate
+    Rate q;      // asset yield
+    Rate k;      // funding rate
     Rate iDiff;  // interest rate differential
-    Real relTol;  // relative tolerance
+    Real relTol; // relative tolerance
 };
 
 
-BOOST_AUTO_TEST_CASE(testPerpetualFuturesValues) {
+BOOST_AUTO_TEST_CASE(testPerpetualFuturesValues)
+{
 
     BOOST_TEST_MESSAGE("Testing perpetual futures value against analytic form for constant parameters...");
 
     PerpetualFuturesData values[] = {
         // Discrete time
-        {PerpetualFutures::Linear,  PerpetualFutures::FundingWithPreviousSpot,     Period(3, Months), 10000., 0.04, 0.02, 0.01, 0.005, 1.e-6},
-        {PerpetualFutures::Linear,  PerpetualFutures::FundingWithCurrentSpot,      Period(3, Months), 10000., 0.04, 0.02, 0.01, 0.005, 1.e-6},
-        {PerpetualFutures::Inverse, PerpetualFutures::FundingWithPreviousSpot,     Period(3, Months), 10000., 0.04, 0.02, 0.01, 0.005, 1.e-6},
-        {PerpetualFutures::Inverse, PerpetualFutures::FundingWithCurrentSpot,      Period(3, Months), 10000., 0.04, 0.02, 0.01, 0.005, 1.e-6},
-        {PerpetualFutures::Linear,  PerpetualFutures::FundingWithPreviousSpot,     Period(3, Months), 10000., 0.04, 0.02, 0.01, 0.005, 1.e-6},
+        {PerpetualFutures::Linear, PerpetualFutures::FundingWithPreviousSpot, Period(3, Months), 10000., 0.04, 0.02,
+         0.01, 0.005, 1.e-6},
+        {PerpetualFutures::Linear, PerpetualFutures::FundingWithCurrentSpot, Period(3, Months), 10000., 0.04, 0.02,
+         0.01, 0.005, 1.e-6},
+        {PerpetualFutures::Inverse, PerpetualFutures::FundingWithPreviousSpot, Period(3, Months), 10000., 0.04, 0.02,
+         0.01, 0.005, 1.e-6},
+        {PerpetualFutures::Inverse, PerpetualFutures::FundingWithCurrentSpot, Period(3, Months), 10000., 0.04, 0.02,
+         0.01, 0.005, 1.e-6},
+        {PerpetualFutures::Linear, PerpetualFutures::FundingWithPreviousSpot, Period(3, Months), 10000., 0.04, 0.02,
+         0.01, 0.005, 1.e-6},
         // Continuous time
-        {PerpetualFutures::Linear,  PerpetualFutures::FundingWithPreviousSpot,     Period(0, Months), 10000., 0.04, 0.02, 0.2,  0.005, 1.e-6},
-        {PerpetualFutures::Inverse, PerpetualFutures::FundingWithPreviousSpot,     Period(0, Months), 10000., 0.04, 0.02, 0.2,  0.005, 1.e-6},
+        {PerpetualFutures::Linear, PerpetualFutures::FundingWithPreviousSpot, Period(0, Months), 10000., 0.04, 0.02,
+         0.2, 0.005, 1.e-6},
+        {PerpetualFutures::Inverse, PerpetualFutures::FundingWithPreviousSpot, Period(0, Months), 10000., 0.04, 0.02,
+         0.2, 0.005, 1.e-6},
     };
 
     DayCounter dc = ActualActual(ActualActual::ISDA);
     Calendar cal = NullCalendar();
     Date today = Date::todaysDate();
 
-    for (auto& value : values) {
+    for (auto& value : values)
+    {
         PerpetualFutures trade(value.payoffType, value.fundingType, value.fundingFreq, cal, dc);
         Handle<YieldTermStructure> domCurve(flatRate(today, value.r, dc));
         Handle<YieldTermStructure> forCurve(flatRate(today, value.q, dc));
         Handle<Quote> spot(ext::make_shared<SimpleQuote>(value.s));
-        std::vector<Real> fundingTimes = { 0.0 }, fundingRates = { value.k }, interestRateDiffs = { value.iDiff };
+        std::vector<Real> fundingTimes = {0.0}, fundingRates = {value.k}, interestRateDiffs = {value.iDiff};
         ext::shared_ptr<PricingEngine> engine(new DiscountingPerpetualFuturesEngine(
             domCurve, forCurve, spot, fundingTimes, fundingRates, interestRateDiffs));
         trade.setPricingEngine(engine);
@@ -99,7 +108,8 @@ BOOST_AUTO_TEST_CASE(testPerpetualFuturesValues) {
         // Perpetual Futures Pricing, Damien Ackerer, Julien Hugonnier, Urban Jermann, 2024
         // https://finance.wharton.upenn.edu/~jermann/AHJ-main-10.pdf
         Real dt = 0.;
-        switch (value.fundingFreq.units()) {
+        switch (value.fundingFreq.units())
+        {
             case Years:
                 dt = (Real)value.fundingFreq.length();
                 break;
@@ -126,48 +136,57 @@ BOOST_AUTO_TEST_CASE(testPerpetualFuturesValues) {
         }
         Real expected = 0.;
         // Discrete time
-        if (value.fundingFreq.length() > 0) {
-            if (value.payoffType == PerpetualFutures::Linear) {
-                if (value.fundingType == PerpetualFutures::FundingWithPreviousSpot) {
+        if (value.fundingFreq.length() > 0)
+        {
+            if (value.payoffType == PerpetualFutures::Linear)
+            {
+                if (value.fundingType == PerpetualFutures::FundingWithPreviousSpot)
+                {
                     // Equation (12) in the above paper
-                    expected =
-                        value.s * (value.k - value.iDiff) * exp(value.q * dt) /
-                        (exp(value.q * dt) - exp(value.r * dt) + value.k * exp(value.q * dt));
-                } else if (value.fundingType == PerpetualFutures::FundingWithCurrentSpot) {
-                    // at the end of "3 Perpetual futures pricing" in the above paper
-                    expected =
-                        value.s * (value.k - value.iDiff) * exp(value.r * dt) /
-                        (exp(value.q * dt) - exp(value.r * dt) + value.k * exp(value.r * dt));
+                    expected = value.s * (value.k - value.iDiff) * exp(value.q * dt) /
+                               (exp(value.q * dt) - exp(value.r * dt) + value.k * exp(value.q * dt));
                 }
-            } else if (value.payoffType == PerpetualFutures::Inverse) {
-                if (value.fundingType == PerpetualFutures::FundingWithPreviousSpot) {
-                    // "Proposition 2" in the above paper
-                    expected =
-                        value.s *
-                        (exp(value.r * dt) - exp(value.q * dt) + value.k * exp(value.r * dt)) /
-                        (value.k - value.iDiff) / exp(value.r * dt);
-                } else if (value.fundingType == PerpetualFutures::FundingWithCurrentSpot) {
-                    expected =
-                        value.s *
-                        (exp(value.r * dt) - exp(value.q * dt) + value.k * exp(value.q * dt)) /
-                        (value.k - value.iDiff) / exp(value.q * dt);
+                else if (value.fundingType == PerpetualFutures::FundingWithCurrentSpot)
+                {
+                    // at the end of "3 Perpetual futures pricing" in the above paper
+                    expected = value.s * (value.k - value.iDiff) * exp(value.r * dt) /
+                               (exp(value.q * dt) - exp(value.r * dt) + value.k * exp(value.r * dt));
                 }
             }
-        } else {
+            else if (value.payoffType == PerpetualFutures::Inverse)
+            {
+                if (value.fundingType == PerpetualFutures::FundingWithPreviousSpot)
+                {
+                    // "Proposition 2" in the above paper
+                    expected = value.s * (exp(value.r * dt) - exp(value.q * dt) + value.k * exp(value.r * dt)) /
+                               (value.k - value.iDiff) / exp(value.r * dt);
+                }
+                else if (value.fundingType == PerpetualFutures::FundingWithCurrentSpot)
+                {
+                    expected = value.s * (exp(value.r * dt) - exp(value.q * dt) + value.k * exp(value.q * dt)) /
+                               (value.k - value.iDiff) / exp(value.q * dt);
+                }
+            }
+        }
+        else
+        {
             // Continuous time
-            if (value.payoffType == PerpetualFutures::Linear) {
+            if (value.payoffType == PerpetualFutures::Linear)
+            {
                 // "Proposition 3" in the above paper
                 expected = value.s * (value.k - value.iDiff) / (value.q - value.r + value.k);
-            } else if (value.payoffType == PerpetualFutures::Inverse) {
+            }
+            else if (value.payoffType == PerpetualFutures::Inverse)
+            {
                 // "Proposition 4" in the above paper
                 expected = value.s * (value.r - value.q + value.k) / (value.k - value.iDiff);
             }
         }
         Real relError = std::fabs(calculated / expected - 1.);
-        if (relError > value.relTol) {
-            REPORT_FAILURE("value", value.payoffType, value.fundingType, value.fundingFreq, value.s,
-                           value.r, value.q, value.k, value.iDiff, today, expected, calculated,
-                           relError, value.relTol);
+        if (relError > value.relTol)
+        {
+            REPORT_FAILURE("value", value.payoffType, value.fundingType, value.fundingFreq, value.s, value.r, value.q,
+                           value.k, value.iDiff, today, expected, calculated, relError, value.relTol);
         }
     }
 }

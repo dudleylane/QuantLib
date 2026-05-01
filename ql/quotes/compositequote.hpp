@@ -31,14 +31,16 @@
 #include <ql/utilities/null.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! market element whose value depends on two other market element
     /*! \test the correctness of the returned values is tested by
               checking them against numerical calculations.
     */
     template <class BinaryFunction>
-    class CompositeQuote : public Quote, public Observer {
+    class CompositeQuote : public Quote, public Observer
+    {
       public:
         CompositeQuote(Handle<Quote> element1, Handle<Quote> element2, BinaryFunction f);
         //! \name inspectors
@@ -63,11 +65,9 @@ namespace QuantLib {
 
     //! creator method
     template <class BinaryFunction>
-    CompositeQuote<BinaryFunction> makeCompositeQuote(Handle<Quote> element1,
-                                                      Handle<Quote> element2,
-                                                      BinaryFunction f) {
-        return CompositeQuote<BinaryFunction>(std::move(element1), std::move(element2),
-                                              std::move(f));
+    CompositeQuote<BinaryFunction> makeCompositeQuote(Handle<Quote> element1, Handle<Quote> element2, BinaryFunction f)
+    {
+        return CompositeQuote<BinaryFunction>(std::move(element1), std::move(element2), std::move(f));
     }
 
     // inline definitions
@@ -76,14 +76,17 @@ namespace QuantLib {
     inline CompositeQuote<BinaryFunction>::CompositeQuote(Handle<Quote> element1,
                                                           Handle<Quote> element2,
                                                           BinaryFunction f)
-    : element1_(std::move(element1)), element2_(std::move(element2)), f_(std::move(f)) {
+    : element1_(std::move(element1)), element2_(std::move(element2)), f_(std::move(f))
+    {
         registerWith(element1_);
         registerWith(element2_);
     }
 
     template <class BinaryFunction>
-    inline Real CompositeQuote<BinaryFunction>::value() const {
-        if (value_ == Null<Real>()) {
+    inline Real CompositeQuote<BinaryFunction>::value() const
+    {
+        if (value_ == Null<Real>())
+        {
             QL_ENSURE(isValid(), "invalid CompositeQuote");
             value_ = f_(element1_->value(), element2_->value());
         }
@@ -91,13 +94,14 @@ namespace QuantLib {
     }
 
     template <class BinaryFunction>
-    inline bool CompositeQuote<BinaryFunction>::isValid() const {
-        return !element1_.empty()    && !element2_.empty() &&
-                element1_->isValid() &&  element2_->isValid();
+    inline bool CompositeQuote<BinaryFunction>::isValid() const
+    {
+        return !element1_.empty() && !element2_.empty() && element1_->isValid() && element2_->isValid();
     }
 
     template <class BinaryFunction>
-    inline void CompositeQuote<BinaryFunction>::update() {
+    inline void CompositeQuote<BinaryFunction>::update()
+    {
         value_ = Null<Real>();
         notifyObservers();
     }

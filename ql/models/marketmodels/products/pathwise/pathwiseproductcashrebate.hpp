@@ -21,15 +21,16 @@
 #ifndef quantlib_market_model_pathwise_cash_rebate_hpp
 #define quantlib_market_model_pathwise_cash_rebate_hpp
 
-#include <ql/types.hpp>
-#include <ql/models/marketmodels/pathwisemultiproduct.hpp>
-#include <ql/models/marketmodels/evolutiondescription.hpp>
-#include <ql/models/marketmodels/curvestates/lmmcurvestate.hpp>
 #include <ql/math/matrix.hpp>
-#include <vector>
+#include <ql/models/marketmodels/curvestates/lmmcurvestate.hpp>
+#include <ql/models/marketmodels/evolutiondescription.hpp>
+#include <ql/models/marketmodels/pathwisemultiproduct.hpp>
+#include <ql/types.hpp>
 #include <memory>
+#include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class EvolutionDescription;
     class CurveState;
@@ -41,7 +42,7 @@ namespace QuantLib {
     */
     class MarketModelPathwiseCashRebate : public MarketModelPathwiseMultiProduct
 
-     {
+    {
       public:
         MarketModelPathwiseCashRebate(EvolutionDescription evolution,
                                       const std::vector<Time>& paymentTimes,
@@ -58,10 +59,10 @@ namespace QuantLib {
 
         bool alreadyDeflated() const override;
 
-        bool nextTimeStep(const CurveState& currentState,
-                          std::vector<Size>& numberCashFlowsThisStep,
-                          std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow> >&
-                              cashFlowsGenerated) override;
+        bool
+        nextTimeStep(const CurveState& currentState,
+                     std::vector<Size>& numberCashFlowsThisStep,
+                     std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow>>& cashFlowsGenerated) override;
 
         std::unique_ptr<MarketModelPathwiseMultiProduct> clone() const override;
 

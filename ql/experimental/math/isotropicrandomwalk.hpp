@@ -29,11 +29,12 @@
 #include <ql/mathconstants.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Isotropic random walk
-    /*! A variate is used to draw from a random element of a 
-        probability distribution. The draw corresponds to the 
+    /*! A variate is used to draw from a random element of a
+        probability distribution. The draw corresponds to the
         radius of a d-dimensional sphere. The position on the
         surface of the d-dimensional sphere is randomly chosen
         with all points on the surface having the same probability,
@@ -41,46 +42,50 @@ namespace QuantLib {
         drawn from the given variate.
     */
     template <class Distribution, class Engine>
-    class IsotropicRandomWalk {
+    class IsotropicRandomWalk
+    {
       public:
-        IsotropicRandomWalk(Engine eng,
-                            Distribution dist,
-                            Size dim,
-                            Array weights = Array(),
-                            unsigned long seed = 0)
-        : engine_(std::move(eng)), distribution_(std::move(dist)), rng_(seed), weights_(std::move(weights)), dim_(dim) {
+        IsotropicRandomWalk(Engine eng, Distribution dist, Size dim, Array weights = Array(), unsigned long seed = 0)
+        : engine_(std::move(eng)), distribution_(std::move(dist)), rng_(seed), weights_(std::move(weights)), dim_(dim)
+        {
             if (weights_.empty())
                 weights_ = Array(dim, 1.0);
             else
                 QL_REQUIRE(dim_ == weights_.size(), "Invalid weights");
         }
         template <class InputIterator>
-        void nextReal(InputIterator first) {
+        void nextReal(InputIterator first)
+        {
             Real radius = distribution_(engine_);
             Array::const_iterator weight = weights_.begin();
-            if (dim_ > 1) {
-                //Isotropic random direction
-                Real phi = M_PI*rng_.nextReal();
-                for (Size i = 0; i < dim_ - 2; i++) {
-                    *first++ = radius*cos(phi)*(*weight++);
+            if (dim_ > 1)
+            {
+                // Isotropic random direction
+                Real phi = M_PI * rng_.nextReal();
+                for (Size i = 0; i < dim_ - 2; i++)
+                {
+                    *first++ = radius * cos(phi) * (*weight++);
                     radius *= sin(phi);
-                    phi = M_PI*rng_.nextReal();
+                    phi = M_PI * rng_.nextReal();
                 }
-                *first++ = radius*cos(2.0*phi)*(*weight++);
-                *first = radius*sin(2.0*phi)*(*weight);
+                *first++ = radius * cos(2.0 * phi) * (*weight++);
+                *first = radius * sin(2.0 * phi) * (*weight);
             }
-            else {
+            else
+            {
                 if (rng_.nextReal() < 0.5)
-                    *first = -radius*(*weight);
+                    *first = -radius * (*weight);
                 else
-                    *first = radius*(*weight);
+                    *first = radius * (*weight);
             }
         }
-        void setDimension(Size dim) { 
+        void setDimension(Size dim)
+        {
             dim_ = dim;
             weights_ = Array(dim, 1.0);
         }
-        void setDimension(Size dim, const Array& weights) {
+        void setDimension(Size dim, const Array& weights)
+        {
             QL_REQUIRE(dim == weights.size(), "Invalid weights");
             dim_ = dim;
             weights_ = weights;
@@ -90,24 +95,25 @@ namespace QuantLib {
         but if the limits are provided, they are used to rescale the sphere so as to make it to an
         ellipsoid, with different radius in different dimensions.
         */
-        void setDimension(Size dim,
-            const Array& lowerBound, const Array& upperBound) {
-            QL_REQUIRE(dim == lowerBound.size(),
-                "Incompatible dimension and lower bound");
-            QL_REQUIRE(dim == upperBound.size(),
-                "Incompatible dimension and upper bound");
-            //Find largest bound
+        void setDimension(Size dim, const Array& lowerBound, const Array& upperBound)
+        {
+            QL_REQUIRE(dim == lowerBound.size(), "Incompatible dimension and lower bound");
+            QL_REQUIRE(dim == upperBound.size(), "Incompatible dimension and upper bound");
+            // Find largest bound
             Array bounds = upperBound - lowerBound;
             Real maxBound = bounds[0];
-            for (Size j = 1; j < dim; j++) {
-                if (bounds[j] > maxBound) maxBound = bounds[j];
+            for (Size j = 1; j < dim; j++)
+            {
+                if (bounds[j] > maxBound)
+                    maxBound = bounds[j];
             }
-            //weights by dimension is the size of the bound
-            //divided by the largest bound
+            // weights by dimension is the size of the bound
+            // divided by the largest bound
             maxBound = 1.0 / maxBound;
             bounds *= maxBound;
             setDimension(dim, bounds);
         }
+
       protected:
         Engine engine_;
         Distribution distribution_;

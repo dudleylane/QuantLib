@@ -25,7 +25,8 @@
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     VanillaSwap::VanillaSwap(Type type,
                              Real nominal,
@@ -38,21 +39,31 @@ namespace QuantLib {
                              DayCounter floatingDayCount,
                              ext::optional<BusinessDayConvention> paymentConvention,
                              ext::optional<bool> useIndexedCoupons)
-    : FixedVsFloatingSwap(type, {nominal}, std::move(fixedSchedule), fixedRate, std::move(fixedDayCount),
-                          {nominal}, std::move(floatSchedule), std::move(index), spread, std::move(floatingDayCount),
-                          paymentConvention) {
+    : FixedVsFloatingSwap(type,
+                          {nominal},
+                          std::move(fixedSchedule),
+                          fixedRate,
+                          std::move(fixedDayCount),
+                          {nominal},
+                          std::move(floatSchedule),
+                          std::move(index),
+                          spread,
+                          std::move(floatingDayCount),
+                          paymentConvention)
+    {
 
         legs_[1] = IborLeg(floatingSchedule(), iborIndex())
-            .withNotionals(this->floatingNominals())
-            .withPaymentDayCounter(this->floatingDayCount())
-            .withPaymentAdjustment(this->paymentConvention())
-            .withSpreads(this->spread())
-            .withIndexedCoupons(useIndexedCoupons);
+                       .withNotionals(this->floatingNominals())
+                       .withPaymentDayCounter(this->floatingDayCount())
+                       .withPaymentAdjustment(this->paymentConvention())
+                       .withSpreads(this->spread())
+                       .withIndexedCoupons(useIndexedCoupons);
         for (const auto& c : legs_[1])
             registerWith(c);
     }
 
-    void VanillaSwap::setupFloatingArguments(arguments* args) const {
+    void VanillaSwap::setupFloatingArguments(arguments* args) const
+    {
         const Leg& floatingCoupons = floatingLeg();
         Size n = floatingCoupons.size();
 
@@ -61,7 +72,8 @@ namespace QuantLib {
         args->floatingSpreads = std::vector<Spread>(n);
         args->floatingCoupons = args->floatingNominals = std::vector<Real>(n);
 
-        for (Size i=0; i<n; ++i) {
+        for (Size i = 0; i < n; ++i)
+        {
             auto coupon = ext::dynamic_pointer_cast<IborCoupon>(floatingCoupons[i]);
 
             args->floatingResetDates[i] = coupon->accrualStartDate();
@@ -71,9 +83,12 @@ namespace QuantLib {
             args->floatingFixingDates[i] = coupon->fixingDate();
             args->floatingAccrualTimes[i] = coupon->accrualPeriod();
             args->floatingSpreads[i] = coupon->spread();
-            try {
+            try
+            {
                 args->floatingCoupons[i] = coupon->amount();
-            } catch (Error&) {
+            }
+            catch (Error&)
+            {
                 args->floatingCoupons[i] = Null<Real>();
             }
         }

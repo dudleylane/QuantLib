@@ -31,23 +31,24 @@
 #ifndef quantlib_date_hpp
 #define quantlib_date_hpp
 
+#include <ql/errors.hpp>
 #include <ql/time/period.hpp>
 #include <ql/time/weekday.hpp>
 #include <ql/utilities/null.hpp>
-#include <ql/errors.hpp>
 
 #ifdef QL_HIGH_RESOLUTION_DATE
-#include <boost/date_time/posix_time/ptime.hpp>
-#include <boost/date_time/posix_time/posix_time_duration.hpp>
+#    include <boost/date_time/posix_time/posix_time_duration.hpp>
+#    include <boost/date_time/posix_time/ptime.hpp>
 #endif
 
 #include <cstdint>
-#include <utility>
 #include <functional>
 #include <string>
+#include <utility>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Day number
     /*! \ingroup datetime */
@@ -55,29 +56,31 @@ namespace QuantLib {
 
     //! Month names
     /*! \ingroup datetime */
-    enum Month { January   = 1,
-                 February  = 2,
-                 March     = 3,
-                 April     = 4,
-                 May       = 5,
-                 June      = 6,
-                 July      = 7,
-                 August    = 8,
-                 September = 9,
-                 October   = 10,
-                 November  = 11,
-                 December  = 12,
-                 Jan = 1,
-                 Feb = 2,
-                 Mar = 3,
-                 Apr = 4,
-                 Jun = 6,
-                 Jul = 7,
-                 Aug = 8,
-                 Sep = 9,
-                 Oct = 10,
-                 Nov = 11,
-                 Dec = 12
+    enum Month
+    {
+        January = 1,
+        February = 2,
+        March = 3,
+        April = 4,
+        May = 5,
+        June = 6,
+        July = 7,
+        August = 8,
+        September = 9,
+        October = 10,
+        November = 11,
+        December = 12,
+        Jan = 1,
+        Feb = 2,
+        Mar = 3,
+        Apr = 4,
+        Jun = 6,
+        Jul = 7,
+        Aug = 8,
+        Sep = 9,
+        Oct = 10,
+        Nov = 11,
+        Dec = 12
     };
 
     /*! \relates Month */
@@ -102,13 +105,11 @@ namespace QuantLib {
 
     //! Millisecond number
     /*! \ingroup datetime */
-    typedef boost::posix_time::time_duration::fractional_seconds_type
-        Millisecond;
+    typedef boost::posix_time::time_duration::fractional_seconds_type Millisecond;
 
     //! Microsecond number
     /*! \ingroup datetime */
-    typedef boost::posix_time::time_duration::fractional_seconds_type
-        Microsecond;
+    typedef boost::posix_time::time_duration::fractional_seconds_type Microsecond;
 #endif
 
     //! Concrete date class
@@ -123,7 +124,8 @@ namespace QuantLib {
               date range.
     */
 
-    class Date {
+    class Date
+    {
       public:
         //! serial number type
         typedef std::int_fast32_t serial_type;
@@ -140,9 +142,14 @@ namespace QuantLib {
         //! Constructor taking boost posix date time object
         explicit Date(const boost::posix_time::ptime& localTime);
         //! More traditional constructor.
-        Date(Day d, Month m, Year y,
-             Hour hours, Minute minutes, Second seconds,
-             Millisecond millisec = 0, Microsecond microsec = 0);
+        Date(Day d,
+             Month m,
+             Year y,
+             Hour hours,
+             Minute minutes,
+             Second seconds,
+             Millisecond millisec = 0,
+             Microsecond microsec = 0);
 #endif
         //@}
 
@@ -183,11 +190,11 @@ namespace QuantLib {
         //! 1-day pre-increment
         Date& operator++();
         //! 1-day post-increment
-        Date operator++(int );
+        Date operator++(int);
         //! 1-day pre-decrement
         Date& operator--();
         //! 1-day post-decrement
-        Date operator--(int );
+        Date operator--(int);
         //! returns a new date incremented by the given number of days
         Date operator+(Date::serial_type days) const;
         //! returns a new date incremented by the given period
@@ -222,18 +229,14 @@ namespace QuantLib {
 
             see http://www.cpearson.com/excel/DateTimeWS.htm
         */
-        static Date nextWeekday(const Date& d,
-                                Weekday w);
+        static Date nextWeekday(const Date& d, Weekday w);
         //! n-th given weekday in the given month and year
         /*! E.g., the 4th Thursday of March, 1998 was March 26th,
             1998.
 
             see http://www.cpearson.com/excel/DateTimeWS.htm
         */
-        static Date nthWeekday(Size n,
-                               Weekday w,
-                               Month m,
-                               Year y);
+        static Date nthWeekday(Size n, Weekday w, Month m, Year y);
 
 #ifdef QL_HIGH_RESOLUTION_DATE
         //! local date time, based on the time zone settings of the computer
@@ -306,7 +309,7 @@ namespace QuantLib {
       #include <unordered_set>
 
       std::unordered_set<Date> set;
-      Date d = Date(1, Jan, 2020); 
+      Date d = Date(1, Jan, 2020);
 
       set.insert(d);
       assert(set.count(d)); // 'd' was added to 'set'
@@ -321,36 +324,41 @@ namespace QuantLib {
     /*! \relates Date */
     std::ostream& operator<<(std::ostream&, const Date&);
 
-    namespace detail {
+    namespace detail
+    {
 
-        struct short_date_holder {
+        struct short_date_holder
+        {
             explicit short_date_holder(const Date d) : d(d) {}
             Date d;
         };
         std::ostream& operator<<(std::ostream&, const short_date_holder&);
 
-        struct long_date_holder {
+        struct long_date_holder
+        {
             explicit long_date_holder(const Date& d) : d(d) {}
             Date d;
         };
         std::ostream& operator<<(std::ostream&, const long_date_holder&);
 
-        struct iso_date_holder {
+        struct iso_date_holder
+        {
             explicit iso_date_holder(const Date& d) : d(d) {}
             Date d;
         };
         std::ostream& operator<<(std::ostream&, const iso_date_holder&);
 
-        struct formatted_date_holder {
+        struct formatted_date_holder
+        {
             formatted_date_holder(const Date& d, std::string f) : d(d), f(std::move(f)) {}
             Date d;
             std::string f;
         };
-        std::ostream& operator<<(std::ostream&,
-                                 const formatted_date_holder&);
+        std::ostream& operator<<(std::ostream&, const formatted_date_holder&);
 
 #ifdef QL_HIGH_RESOLUTION_DATE
-        struct iso_datetime_holder {
+        struct iso_datetime_holder
+        {
             explicit iso_datetime_holder(const Date& d) : d(d) {}
             Date d;
         };
@@ -358,7 +366,8 @@ namespace QuantLib {
 #endif
     }
 
-    namespace io {
+    namespace io
+    {
 
         //! output dates in short format (mm/dd/yyyy)
         /*! \ingroup manips */
@@ -374,8 +383,7 @@ namespace QuantLib {
 
         //! output dates in user defined format using boost date functionality
         /*! \ingroup manips */
-        detail::formatted_date_holder formatted_date(const Date&,
-                                                     const std::string& fmt);
+        detail::formatted_date_holder formatted_date(const Date&, const std::string& fmt);
 
 #ifdef QL_HIGH_RESOLUTION_DATE
         //! output datetimes in ISO format (YYYY-MM-DDThh:mm:ss,SSSSSS)
@@ -388,18 +396,21 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline Date Date::startOfMonth(const Date& d) {
+    inline Date Date::startOfMonth(const Date& d)
+    {
         Month m = d.month();
         Year y = d.year();
         return Date(1, m, y);
     }
 
-    inline bool Date::isStartOfMonth(const Date& d) {
-       return (d.dayOfMonth() == 1);
+    inline bool Date::isStartOfMonth(const Date& d)
+    {
+        return (d.dayOfMonth() == 1);
     }
 
 #ifndef QL_HIGH_RESOLUTION_DATE
-    namespace detail {
+    namespace detail
+    {
         // Static lookup tables defined in date.cpp.  Exposed here so
         // the small accessor functions below can inline cross-TU.
         // Issue #2: these accessors plus year()/month() were ~52% of
@@ -414,26 +425,29 @@ namespace QuantLib {
         extern const Integer MonthLeapOffsetTable[13];
     }
 
-    inline bool Date::isLeap(Year y) {
+    inline bool Date::isLeap(Year y)
+    {
         QL_REQUIRE(y >= 1900 && y <= 2200, "year outside valid range");
         return detail::YearIsLeapTable[y - 1900];
     }
 
-    inline Integer Date::monthLength(Month m, bool leapYear) {
-        return leapYear ? detail::MonthLeapLengthTable[m - 1]
-                        : detail::MonthLengthTable[m - 1];
+    inline Integer Date::monthLength(Month m, bool leapYear)
+    {
+        return leapYear ? detail::MonthLeapLengthTable[m - 1] : detail::MonthLengthTable[m - 1];
     }
 
-    inline Integer Date::monthOffset(Month m, bool leapYear) {
-        return leapYear ? detail::MonthLeapOffsetTable[m - 1]
-                        : detail::MonthOffsetTable[m - 1];
+    inline Integer Date::monthOffset(Month m, bool leapYear)
+    {
+        return leapYear ? detail::MonthLeapOffsetTable[m - 1] : detail::MonthOffsetTable[m - 1];
     }
 
-    inline Date::serial_type Date::yearOffset(Year y) {
+    inline Date::serial_type Date::yearOffset(Year y)
+    {
         return detail::YearOffsetTable[y - 1900];
     }
 
-    inline void Date::computeYMD() const noexcept {
+    inline void Date::computeYMD() const noexcept
+    {
         Year y = (serialNumber_ / 365) + 1900;
         // yearOffset(y) is December 31st of the preceding year.
         if (serialNumber_ <= yearOffset(y))
@@ -445,128 +459,145 @@ namespace QuantLib {
             --m;
         while (dOfYear > monthOffset(Month(m + 1), leap))
             ++m;
-        cachedDay_ = static_cast<std::uint8_t>(
-            dOfYear - monthOffset(Month(m), leap));
+        cachedDay_ = static_cast<std::uint8_t>(dOfYear - monthOffset(Month(m), leap));
         cachedMonth_ = static_cast<std::uint8_t>(m);
-        cachedYear_ = y;  // last so the sentinel transition is atomic-ish
+        cachedYear_ = y; // last so the sentinel transition is atomic-ish
     }
 
-    inline Year Date::year() const {
+    inline Year Date::year() const
+    {
         if (cachedYear_ == 0)
             computeYMD();
         return cachedYear_;
     }
 
-    inline Month Date::month() const {
+    inline Month Date::month() const
+    {
         if (cachedYear_ == 0)
             computeYMD();
         return static_cast<Month>(cachedMonth_);
     }
 
-    inline Date::Date(Day d, Month m, Year y) {
-        QL_REQUIRE(y > 1900 && y < 2200,
-                   "year " << y << " out of bound. It must be in [1901,2199]");
+    inline Date::Date(Day d, Month m, Year y)
+    {
+        QL_REQUIRE(y > 1900 && y < 2200, "year " << y << " out of bound. It must be in [1901,2199]");
         QL_REQUIRE(Integer(m) > 0 && Integer(m) < 13,
-                   "month " << Integer(m)
-                   << " outside January-December range [1,12]");
+                   "month " << Integer(m) << " outside January-December range [1,12]");
 
         bool leap = isLeap(y);
         Day len = monthLength(m, leap), offset = monthOffset(m, leap);
-        QL_REQUIRE(d <= len && d > 0,
-                   "day outside month (" << Integer(m) << ") day-range "
-                   << "[1," << len << "]");
+        QL_REQUIRE(d <= len && d > 0, "day outside month (" << Integer(m) << ") day-range "
+                                                            << "[1," << len << "]");
 
         serialNumber_ = d + offset + yearOffset(y);
         cachedDay_ = static_cast<std::uint8_t>(d);
         cachedMonth_ = static_cast<std::uint8_t>(m);
-        cachedYear_ = y;  // populating the cache is essentially free here.
+        cachedYear_ = y; // populating the cache is essentially free here.
     }
 
-    inline Weekday Date::weekday() const {
+    inline Weekday Date::weekday() const
+    {
         Integer w = serialNumber_ % 7;
         return Weekday(w == 0 ? 7 : w);
     }
 
-    inline Day Date::dayOfMonth() const {
+    inline Day Date::dayOfMonth() const
+    {
         if (cachedYear_ == 0)
             computeYMD();
         return static_cast<Day>(cachedDay_);
     }
 
-    inline Day Date::dayOfYear() const {
+    inline Day Date::dayOfYear() const
+    {
         return serialNumber_ - yearOffset(year());
     }
 
-    inline Date::serial_type Date::serialNumber() const {
+    inline Date::serial_type Date::serialNumber() const
+    {
         return serialNumber_;
     }
 
-    inline Date Date::operator+(Date::serial_type days) const {
-        return Date(serialNumber_+days);
+    inline Date Date::operator+(Date::serial_type days) const
+    {
+        return Date(serialNumber_ + days);
     }
 
-    inline Date Date::operator-(Date::serial_type days) const {
-        return Date(serialNumber_-days);
+    inline Date Date::operator-(Date::serial_type days) const
+    {
+        return Date(serialNumber_ - days);
     }
 
-    inline Date Date::operator+(const Period& p) const {
-        return advance(*this,p.length(),p.units());
+    inline Date Date::operator+(const Period& p) const
+    {
+        return advance(*this, p.length(), p.units());
     }
 
-    inline Date Date::operator-(const Period& p) const {
-        return advance(*this,-p.length(),p.units());
+    inline Date Date::operator-(const Period& p) const
+    {
+        return advance(*this, -p.length(), p.units());
     }
 
-    inline Date Date::endOfMonth(const Date& d) {
+    inline Date Date::endOfMonth(const Date& d)
+    {
         Month m = d.month();
         Year y = d.year();
         return {monthLength(m, isLeap(y)), m, y};
     }
 
-    inline bool Date::isEndOfMonth(const Date& d) {
-       return (d.dayOfMonth() == monthLength(d.month(), isLeap(d.year())));
+    inline bool Date::isEndOfMonth(const Date& d)
+    {
+        return (d.dayOfMonth() == monthLength(d.month(), isLeap(d.year())));
     }
 
-    inline Date::serial_type operator-(const Date& d1, const Date& d2) {
-        return d1.serialNumber()-d2.serialNumber();
+    inline Date::serial_type operator-(const Date& d1, const Date& d2)
+    {
+        return d1.serialNumber() - d2.serialNumber();
     }
 
-    inline Time daysBetween(const Date& d1, const Date& d2) {
-        return Time(d2-d1);
+    inline Time daysBetween(const Date& d1, const Date& d2)
+    {
+        return Time(d2 - d1);
     }
 
-    inline bool operator==(const Date& d1, const Date& d2) {
+    inline bool operator==(const Date& d1, const Date& d2)
+    {
         return (d1.serialNumber() == d2.serialNumber());
     }
 
-    inline bool operator!=(const Date& d1, const Date& d2) {
+    inline bool operator!=(const Date& d1, const Date& d2)
+    {
         return (d1.serialNumber() != d2.serialNumber());
     }
 
-    inline bool operator<(const Date& d1, const Date& d2) {
+    inline bool operator<(const Date& d1, const Date& d2)
+    {
         return (d1.serialNumber() < d2.serialNumber());
     }
 
-    inline bool operator<=(const Date& d1, const Date& d2) {
+    inline bool operator<=(const Date& d1, const Date& d2)
+    {
         return (d1.serialNumber() <= d2.serialNumber());
     }
 
-    inline bool operator>(const Date& d1, const Date& d2) {
+    inline bool operator>(const Date& d1, const Date& d2)
+    {
         return (d1.serialNumber() > d2.serialNumber());
     }
 
-    inline bool operator>=(const Date& d1, const Date& d2) {
+    inline bool operator>=(const Date& d1, const Date& d2)
+    {
         return (d1.serialNumber() >= d2.serialNumber());
     }
 #endif
 }
 
-namespace std {
-    template<>
-    struct hash<QuantLib::Date> {
-        std::size_t operator()(const QuantLib::Date& d) const {
-            return QuantLib::hash_value(d);
-        }
+namespace std
+{
+    template <>
+    struct hash<QuantLib::Date>
+    {
+        std::size_t operator()(const QuantLib::Date& d) const { return QuantLib::hash_value(d); }
     };
 }
 

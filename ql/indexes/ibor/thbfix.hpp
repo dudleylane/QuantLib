@@ -24,12 +24,13 @@
 #ifndef quantlib_thbfix_hpp
 #define quantlib_thbfix_hpp
 
+#include <ql/currencies/asia.hpp>
 #include <ql/indexes/ibor/libor.hpp>
 #include <ql/time/calendars/thailand.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
-#include <ql/currencies/asia.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %THB %THBFIX rate
     /*! THBFIX
@@ -47,16 +48,13 @@ namespace QuantLib {
 
     Fixing is published at 11:00 am BKK time
     */
-    class THBFIX : public IborIndex {
+    class THBFIX : public IborIndex
+    {
       public:
-        THBFIX(const Period& tenor,
-               const Handle<YieldTermStructure>& h = {})
-        : IborIndex("THBFIX", tenor,
-                    2,
-                    THBCurrency(),
-                    Thailand(),
-                    ModifiedFollowing, true,
-                    Actual365Fixed(), h) {}
+        THBFIX(const Period& tenor, const Handle<YieldTermStructure>& h = {})
+        : IborIndex("THBFIX", tenor, 2, THBCurrency(), Thailand(), ModifiedFollowing, true, Actual365Fixed(), h)
+        {
+        }
     };
 }
 

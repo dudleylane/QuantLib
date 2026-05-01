@@ -26,10 +26,12 @@
 
 #include <ql/experimental/credit/riskyassetswap.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Option on risky asset swap
-    class RiskyAssetSwapOption : public Instrument {
+    class RiskyAssetSwapOption : public Instrument
+    {
       public:
         RiskyAssetSwapOption(ext::shared_ptr<RiskyAssetSwap> asw,
                              const Date& expiry,

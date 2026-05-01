@@ -19,14 +19,14 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
+#include <ql/math/randomnumbers/inversecumulativersg.hpp>
+#include <ql/math/randomnumbers/sobolrsg.hpp>
+#include <ql/math/statistics/sequencestatistics.hpp>
 #include <ql/methods/montecarlo/brownianbridge.hpp>
 #include <ql/methods/montecarlo/pathgenerator.hpp>
-#include <ql/math/randomnumbers/sobolrsg.hpp>
-#include <ql/math/randomnumbers/inversecumulativersg.hpp>
-#include <ql/math/statistics/sequencestatistics.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
-#include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
+#include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/time/calendars/nullcalendar.hpp>
 
 using namespace QuantLib;
@@ -37,29 +37,34 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 BOOST_AUTO_TEST_SUITE(BrownianBridgeTests)
 
 template <class ForwardIterator1, class ForwardIterator2>
-Real maxDiff(ForwardIterator1 begin1, ForwardIterator1 end1,
-             ForwardIterator2 begin2) {
+Real maxDiff(ForwardIterator1 begin1, ForwardIterator1 end1, ForwardIterator2 begin2)
+{
     Real diff = 0.0;
-    while (begin1 != end1) {
+    while (begin1 != end1)
+    {
         diff = std::max(diff, std::fabs(*begin1 - *begin2));
-        ++begin1; ++begin2;
+        ++begin1;
+        ++begin2;
     }
     return diff;
 }
 
 template <class ForwardIterator1, class ForwardIterator2>
-Real maxRelDiff(ForwardIterator1 begin1, ForwardIterator1 end1,
-                ForwardIterator2 begin2) {
+Real maxRelDiff(ForwardIterator1 begin1, ForwardIterator1 end1, ForwardIterator2 begin2)
+{
     Real diff = 0.0;
-    while (begin1 != end1) {
-        diff = std::max(diff, std::fabs((*begin1 - *begin2)/(*begin2)));
-        ++begin1; ++begin2;
+    while (begin1 != end1)
+    {
+        diff = std::max(diff, std::fabs((*begin1 - *begin2) / (*begin2)));
+        ++begin1;
+        ++begin2;
     }
     return diff;
 }
 
 
-BOOST_AUTO_TEST_CASE(testVariates) {
+BOOST_AUTO_TEST_CASE(testVariates)
+{
     BOOST_TEST_MESSAGE("Testing Brownian-bridge variates...");
 
     std::vector<Time> times = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 2.0, 5.0};
@@ -69,7 +74,7 @@ BOOST_AUTO_TEST_CASE(testVariates) {
     Size samples = 262143;
     unsigned long seed = 42;
     SobolRsg sobol(N, seed);
-    InverseCumulativeRsg<SobolRsg,InverseCumulativeNormal> generator(sobol);
+    InverseCumulativeRsg<SobolRsg, InverseCumulativeNormal> generator(sobol);
 
     BrownianBridge bridge(times);
 
@@ -78,22 +83,23 @@ BOOST_AUTO_TEST_CASE(testVariates) {
 
     std::vector<Real> temp(N);
 
-    for (Size i=0; i<samples; ++i) {
+    for (Size i = 0; i < samples; ++i)
+    {
         const std::vector<Real>& sample = generator.nextSequence().value;
 
         bridge.transform(sample.begin(), sample.end(), temp.begin());
         stats1.add(temp.begin(), temp.end());
 
-        temp[0] = temp[0]*std::sqrt(times[0]);
-        for (Size j=1; j<N; ++j)
-            temp[j] = temp[j-1] + temp[j]*std::sqrt(times[j]-times[j-1]);
+        temp[0] = temp[0] * std::sqrt(times[0]);
+        for (Size j = 1; j < N; ++j)
+            temp[j] = temp[j - 1] + temp[j] * std::sqrt(times[j] - times[j - 1]);
         stats2.add(temp.begin(), temp.end());
     }
 
     // normalized single variates
     std::vector<Real> expectedMean(N, 0.0);
     Matrix expectedCovariance(N, N, 0.0);
-    for (Size i=0; i<N; i++)
+    for (Size i = 0; i < N; i++)
         expectedCovariance[i][i] = 1.0;
 
 #ifndef __FAST_MATH__
@@ -106,33 +112,32 @@ BOOST_AUTO_TEST_CASE(testVariates) {
     std::vector<Real> mean = stats1.mean();
     Matrix covariance = stats1.covariance();
 
-    Real maxMeanError = maxDiff(mean.begin(), mean.end(),
-                                expectedMean.begin());
-    Real maxCovError = maxDiff(covariance.begin(), covariance.end(),
-                               expectedCovariance.begin());
+    Real maxMeanError = maxDiff(mean.begin(), mean.end(), expectedMean.begin());
+    Real maxCovError = maxDiff(covariance.begin(), covariance.end(), expectedCovariance.begin());
 
-    if (maxMeanError > meanTolerance) {
+    if (maxMeanError > meanTolerance)
+    {
         Array calculated(N), expected(N);
         std::copy(mean.begin(), mean.end(), calculated.begin());
         std::copy(expectedMean.begin(), expectedMean.end(), expected.begin());
-        BOOST_ERROR("failed to reproduce expected mean values"
-                    << "\n    calculated: " << calculated
-                    << "\n    expected:   " << expected
-                    << "\n    max error:  " << maxMeanError);
+        BOOST_ERROR("failed to reproduce expected mean values" << "\n    calculated: " << calculated
+                                                               << "\n    expected:   " << expected
+                                                               << "\n    max error:  " << maxMeanError);
     }
 
-    if (maxCovError > covTolerance) {
+    if (maxCovError > covTolerance)
+    {
         BOOST_ERROR("failed to reproduce expected covariance\n"
-                    << "    calculated:\n" << covariance
-                    << "    expected:\n" << expectedCovariance
-                    << "    max error:  " << maxCovError);
+                    << "    calculated:\n"
+                    << covariance << "    expected:\n"
+                    << expectedCovariance << "    max error:  " << maxCovError);
     }
 
     // denormalized sums along the path
     expectedMean = std::vector<Real>(N, 0.0);
     expectedCovariance = Matrix(N, N);
-    for (Size i=0; i<N; ++i)
-        for (Size j=i; j<N; ++j)
+    for (Size i = 0; i < N; ++i)
+        for (Size j = i; j < N; ++j)
             expectedCovariance[i][j] = expectedCovariance[j][i] = times[i];
 
     covTolerance = 6.0e-4;
@@ -140,30 +145,30 @@ BOOST_AUTO_TEST_CASE(testVariates) {
     mean = stats2.mean();
     covariance = stats2.covariance();
 
-    maxMeanError = maxDiff(mean.begin(), mean.end(),
-                           expectedMean.begin());
-    maxCovError = maxDiff(covariance.begin(), covariance.end(),
-                          expectedCovariance.begin());
+    maxMeanError = maxDiff(mean.begin(), mean.end(), expectedMean.begin());
+    maxCovError = maxDiff(covariance.begin(), covariance.end(), expectedCovariance.begin());
 
-    if (maxMeanError > meanTolerance) {
+    if (maxMeanError > meanTolerance)
+    {
         Array calculated(N), expected(N);
         std::copy(mean.begin(), mean.end(), calculated.begin());
         std::copy(expectedMean.begin(), expectedMean.end(), expected.begin());
-        BOOST_ERROR("failed to reproduce expected mean values"
-                    << "\n    calculated: " << calculated
-                    << "\n    expected:   " << expected
-                    << "\n    max error:  " << maxMeanError);
+        BOOST_ERROR("failed to reproduce expected mean values" << "\n    calculated: " << calculated
+                                                               << "\n    expected:   " << expected
+                                                               << "\n    max error:  " << maxMeanError);
     }
 
-    if (maxCovError > covTolerance) {
+    if (maxCovError > covTolerance)
+    {
         BOOST_ERROR("failed to reproduce expected covariance\n"
-                    << "    calculated:\n" << covariance
-                    << "    expected:\n" << expectedCovariance
-                    << "    max error:  " << maxCovError);
+                    << "    calculated:\n"
+                    << covariance << "    expected:\n"
+                    << expectedCovariance << "    max error:  " << maxCovError);
     }
 }
 
-BOOST_AUTO_TEST_CASE(testPathGeneration) {
+BOOST_AUTO_TEST_CASE(testPathGeneration)
+{
     BOOST_TEST_MESSAGE("Testing Brownian-bridge path generation...");
 
     std::vector<Time> times = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 2.0, 5.0, 7.0, 9.0, 10.0};
@@ -175,39 +180,34 @@ BOOST_AUTO_TEST_CASE(testPathGeneration) {
     Size samples = 131071;
     unsigned long seed = 42;
     SobolRsg sobol(N, seed);
-    InverseCumulativeRsg<SobolRsg,InverseCumulativeNormal> gsg(sobol);
+    InverseCumulativeRsg<SobolRsg, InverseCumulativeNormal> gsg(sobol);
 
     Date today = Settings::instance().evaluationDate();
     Handle<Quote> x0(ext::shared_ptr<Quote>(new SimpleQuote(100.0)));
-    Handle<YieldTermStructure> r(ext::shared_ptr<YieldTermStructure>(
-                               new FlatForward(today,0.06,Actual365Fixed())));
-    Handle<YieldTermStructure> q(ext::shared_ptr<YieldTermStructure>(
-                               new FlatForward(today,0.03,Actual365Fixed())));
+    Handle<YieldTermStructure> r(ext::shared_ptr<YieldTermStructure>(new FlatForward(today, 0.06, Actual365Fixed())));
+    Handle<YieldTermStructure> q(ext::shared_ptr<YieldTermStructure>(new FlatForward(today, 0.03, Actual365Fixed())));
     Handle<BlackVolTermStructure> sigma(
-                   ext::shared_ptr<BlackVolTermStructure>(
-                          new BlackConstantVol(today, NullCalendar(), 0.20,Actual365Fixed())));
+        ext::shared_ptr<BlackVolTermStructure>(new BlackConstantVol(today, NullCalendar(), 0.20, Actual365Fixed())));
 
-    ext::shared_ptr<StochasticProcess1D> process(
-                              new BlackScholesMertonProcess(x0, q, r, sigma));
+    ext::shared_ptr<StochasticProcess1D> process(new BlackScholesMertonProcess(x0, q, r, sigma));
 
 
-    PathGenerator<InverseCumulativeRsg<SobolRsg,InverseCumulativeNormal> >
-    generator1(process, grid, gsg, false);
-    PathGenerator<InverseCumulativeRsg<SobolRsg,InverseCumulativeNormal> >
-    generator2(process, grid, gsg, true);
+    PathGenerator<InverseCumulativeRsg<SobolRsg, InverseCumulativeNormal>> generator1(process, grid, gsg, false);
+    PathGenerator<InverseCumulativeRsg<SobolRsg, InverseCumulativeNormal>> generator2(process, grid, gsg, true);
 
     SequenceStatistics stats1(N);
     SequenceStatistics stats2(N);
 
     std::vector<Real> temp(N);
 
-    for (Size i=0; i<samples; ++i) {
+    for (Size i = 0; i < samples; ++i)
+    {
         const Path& path1 = generator1.next().value;
-        std::copy(path1.begin()+1, path1.end(), temp.begin());
+        std::copy(path1.begin() + 1, path1.end(), temp.begin());
         stats1.add(temp.begin(), temp.end());
 
         const Path& path2 = generator2.next().value;
-        std::copy(path2.begin()+1, path2.end(), temp.begin());
+        std::copy(path2.begin() + 1, path2.end(), temp.begin());
         stats2.add(temp.begin(), temp.end());
     }
 
@@ -220,26 +220,25 @@ BOOST_AUTO_TEST_CASE(testPathGeneration) {
     Real meanTolerance = 3.0e-5;
     Real covTolerance = 3.0e-3;
 
-    Real maxMeanError = maxRelDiff(mean.begin(), mean.end(),
-                                   expectedMean.begin());
-    Real maxCovError = maxRelDiff(covariance.begin(), covariance.end(),
-                                  expectedCovariance.begin());
+    Real maxMeanError = maxRelDiff(mean.begin(), mean.end(), expectedMean.begin());
+    Real maxCovError = maxRelDiff(covariance.begin(), covariance.end(), expectedCovariance.begin());
 
-    if (maxMeanError > meanTolerance) {
+    if (maxMeanError > meanTolerance)
+    {
         Array calculated(N), expected(N);
         std::copy(mean.begin(), mean.end(), calculated.begin());
         std::copy(expectedMean.begin(), expectedMean.end(), expected.begin());
-        BOOST_ERROR("failed to reproduce expected mean values"
-                    << "\n    calculated: " << calculated
-                    << "\n    expected:   " << expected
-                    << "\n    max error:  " << maxMeanError);
+        BOOST_ERROR("failed to reproduce expected mean values" << "\n    calculated: " << calculated
+                                                               << "\n    expected:   " << expected
+                                                               << "\n    max error:  " << maxMeanError);
     }
 
-    if (maxCovError > covTolerance) {
+    if (maxCovError > covTolerance)
+    {
         BOOST_ERROR("failed to reproduce expected covariance\n"
-                    << "    calculated:\n" << covariance
-                    << "    expected:\n" << expectedCovariance
-                    << "    max error:  " << maxCovError);
+                    << "    calculated:\n"
+                    << covariance << "    expected:\n"
+                    << expectedCovariance << "    max error:  " << maxCovError);
     }
 }
 

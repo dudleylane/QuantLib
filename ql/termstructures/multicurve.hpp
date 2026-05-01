@@ -31,9 +31,11 @@
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/utilities/null_deleter.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    struct MultiCurveBootstrapProvider {
+    struct MultiCurveBootstrapProvider
+    {
         virtual ~MultiCurveBootstrapProvider() = default;
         virtual const MultiCurveBootstrapContributor* multiCurveBootstrapContributor() const = 0;
     };
@@ -87,13 +89,11 @@ namespace QuantLib {
         explicit MultiCurve(const ext::shared_ptr<OptimizationMethod>& optimizer = nullptr,
                             const ext::shared_ptr<EndCriteria>& endCriteria = nullptr);
 
-        Handle<YieldTermStructure>
-        addBootstrappedCurve(RelinkableHandle<YieldTermStructure>& internalHandle,
-                             ext::shared_ptr<YieldTermStructure>&& curve);
+        Handle<YieldTermStructure> addBootstrappedCurve(RelinkableHandle<YieldTermStructure>& internalHandle,
+                                                        ext::shared_ptr<YieldTermStructure>&& curve);
 
-        Handle<YieldTermStructure>
-        addNonBootstrappedCurve(RelinkableHandle<YieldTermStructure>& internalHandle,
-                                ext::shared_ptr<YieldTermStructure>&& curve);
+        Handle<YieldTermStructure> addNonBootstrappedCurve(RelinkableHandle<YieldTermStructure>& internalHandle,
+                                                           ext::shared_ptr<YieldTermStructure>&& curve);
 
       private:
         Handle<YieldTermStructure> addCurve(RelinkableHandle<YieldTermStructure>& internalHandle,

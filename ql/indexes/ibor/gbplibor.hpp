@@ -25,45 +25,44 @@
 #ifndef quantlib_gbp_libor_hpp
 #define quantlib_gbp_libor_hpp
 
+#include <ql/currencies/europe.hpp>
 #include <ql/indexes/ibor/libor.hpp>
 #include <ql/time/calendars/unitedkingdom.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
-#include <ql/currencies/europe.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %GBP %LIBOR rate
     /*! Pound Sterling LIBOR fixed by ICE.
 
         See <https://www.theice.com/marketdata/reports/170>.
     */
-    class GBPLibor : public Libor {
+    class GBPLibor : public Libor
+    {
       public:
-        GBPLibor(const Period& tenor,
-                 const Handle<YieldTermStructure>& h = {})
-        : Libor("GBPLibor", tenor,
-                0,
-                GBPCurrency(),
-                UnitedKingdom(UnitedKingdom::Exchange),
-                Actual365Fixed(), h) {}
+        GBPLibor(const Period& tenor, const Handle<YieldTermStructure>& h = {})
+        : Libor("GBPLibor", tenor, 0, GBPCurrency(), UnitedKingdom(UnitedKingdom::Exchange), Actual365Fixed(), h)
+        {
+        }
     };
 
     //! Base class for the one day deposit ICE %GBP %LIBOR indexes
-    class DailyTenorGBPLibor : public DailyTenorLibor {
+    class DailyTenorGBPLibor : public DailyTenorLibor
+    {
       public:
-        DailyTenorGBPLibor(Natural settlementDays,
-                           const Handle<YieldTermStructure>& h = {})
-        : DailyTenorLibor("GBPLibor", settlementDays,
-                          GBPCurrency(),
-                          UnitedKingdom(UnitedKingdom::Exchange),
-                          Actual365Fixed(), h) {}
+        DailyTenorGBPLibor(Natural settlementDays, const Handle<YieldTermStructure>& h = {})
+        : DailyTenorLibor(
+              "GBPLibor", settlementDays, GBPCurrency(), UnitedKingdom(UnitedKingdom::Exchange), Actual365Fixed(), h)
+        {
+        }
     };
 
     //! Overnight %GBP %Libor index
-    class GBPLiborON : public DailyTenorGBPLibor {
+    class GBPLiborON : public DailyTenorGBPLibor
+    {
       public:
-        explicit GBPLiborON(const Handle<YieldTermStructure>& h = {})
-        : DailyTenorGBPLibor(0, h) {}
+        explicit GBPLiborON(const Handle<YieldTermStructure>& h = {}) : DailyTenorGBPLibor(0, h) {}
     };
 
 }

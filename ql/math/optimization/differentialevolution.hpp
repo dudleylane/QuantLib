@@ -29,7 +29,8 @@
 #include <ql/math/optimization/problem.hpp>
 #include <ql/math/randomnumbers/mt19937uniformrng.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Differential Evolution configuration object
     /*! The algorithm and strategy names are taken from here:
@@ -56,9 +57,11 @@ namespace QuantLib {
 
     //! %OptimizationMethod using Differential Evolution algorithm
     /*! \ingroup optimizers */
-    class DifferentialEvolution: public OptimizationMethod {
+    class DifferentialEvolution : public OptimizationMethod
+    {
       public:
-        enum Strategy {
+        enum Strategy
+        {
             Rand1Standard,
             BestMemberWithJitter,
             CurrentToBest2Diffs,
@@ -67,19 +70,22 @@ namespace QuantLib {
             EitherOrWithOptimalRecombination,
             Rand1SelfadaptiveWithRotation
         };
-        enum CrossoverType {
+        enum CrossoverType
+        {
             Normal,
             Binomial,
             Exponential
         };
 
-        struct Candidate {
+        struct Candidate
+        {
             Array values;
             Real cost = 0.0;
             Candidate(Size size = 0) : values(size, 0.0) {}
         };
 
-        class Configuration {
+        class Configuration
+        {
           public:
             Strategy strategy = BestMemberWithJitter;
             CrossoverType crossoverType = Normal;
@@ -94,66 +100,73 @@ namespace QuantLib {
             // NOLINTNEXTLINE(modernize-use-equals-default)
             Configuration() {}
 
-            Configuration& withBounds(bool b = true) {
+            Configuration& withBounds(bool b = true)
+            {
                 applyBounds = b;
                 return *this;
             }
 
-            Configuration& withCrossoverProbability(Real p) {
-                QL_REQUIRE(p>=0.0 && p<=1.0,
-                          "Crossover probability (" << p
-                           << ") must be in [0,1] range");
+            Configuration& withCrossoverProbability(Real p)
+            {
+                QL_REQUIRE(p >= 0.0 && p <= 1.0, "Crossover probability (" << p << ") must be in [0,1] range");
                 crossoverProbability = p;
                 return *this;
             }
 
-            Configuration& withPopulationMembers(Size n) {
-                QL_REQUIRE(n>0, "Positive number of population members required");
+            Configuration& withPopulationMembers(Size n)
+            {
+                QL_REQUIRE(n > 0, "Positive number of population members required");
                 populationMembers = n;
                 initialPopulation.clear();
                 return *this;
             }
 
-            Configuration& withInitialPopulation(const std::vector<Array>& c) {
+            Configuration& withInitialPopulation(const std::vector<Array>& c)
+            {
                 initialPopulation = c;
                 populationMembers = c.size();
                 return *this;
             }
 
-            Configuration& withUpperBound(const Array& u) {
+            Configuration& withUpperBound(const Array& u)
+            {
                 upperBound = u;
                 return *this;
             }
-            
-            Configuration& withLowerBound(const Array& l) {
+
+            Configuration& withLowerBound(const Array& l)
+            {
                 lowerBound = l;
                 return *this;
             }
 
-            Configuration& withSeed(unsigned long s) {
+            Configuration& withSeed(unsigned long s)
+            {
                 seed = s;
                 return *this;
             }
 
-            Configuration& withAdaptiveCrossover(bool b = true) {
+            Configuration& withAdaptiveCrossover(bool b = true)
+            {
                 crossoverIsAdaptive = b;
                 return *this;
             }
 
-            Configuration& withStepsizeWeight(Real w) {
-                QL_ENSURE(w>=0 && w<=2.0,
-                          "Step size weight ("<< w
-                          << ") must be in [0,2] range");
+            Configuration& withStepsizeWeight(Real w)
+            {
+                QL_ENSURE(w >= 0 && w <= 2.0, "Step size weight (" << w << ") must be in [0,2] range");
                 stepsizeWeight = w;
                 return *this;
             }
 
-            Configuration& withCrossoverType(CrossoverType t) {
+            Configuration& withCrossoverType(CrossoverType t)
+            {
                 crossoverType = t;
                 return *this;
             }
 
-            Configuration& withStrategy(Strategy s) {
+            Configuration& withStrategy(Strategy s)
+            {
                 strategy = s;
                 return *this;
             }
@@ -161,13 +174,13 @@ namespace QuantLib {
 
 
         DifferentialEvolution(const Configuration& configuration = Configuration())
-        : configuration_(configuration), rng_(configuration.seed) {}
+        : configuration_(configuration), rng_(configuration.seed)
+        {
+        }
 
         EndCriteria::Type minimize(Problem& p, const EndCriteria& endCriteria) override;
 
-        const Configuration& configuration() const {
-            return configuration_;
-        }
+        const Configuration& configuration() const { return configuration_; }
 
       private:
         Configuration configuration_;
@@ -176,27 +189,24 @@ namespace QuantLib {
         Candidate bestMemberEver_;
         MersenneTwisterUniformRng rng_;
 
-        void fillInitialPopulation(std::vector<Candidate>& population,
-                                   const Problem& p) const;
+        void fillInitialPopulation(std::vector<Candidate>& population, const Problem& p) const;
 
         void getCrossoverMask(std::vector<Array>& crossoverMask,
                               std::vector<Array>& invCrossoverMask,
                               const Array& mutationProbabilities) const;
 
-        Array getMutationProbabilities(
-                              const std::vector<Candidate>& population) const;
+        Array getMutationProbabilities(const std::vector<Candidate>& population) const;
 
         void adaptSizeWeights() const;
 
         void adaptCrossover() const;
 
-        void calculateNextGeneration(std::vector<Candidate>& population,
-                                     Problem& costFunction) const;
+        void calculateNextGeneration(std::vector<Candidate>& population, Problem& costFunction) const;
 
         Array rotateArray(Array inputArray) const;
 
         void crossover(const std::vector<Candidate>& oldPopulation,
-                       std::vector<Candidate> & population,
+                       std::vector<Candidate>& population,
                        const std::vector<Candidate>& mutantPopulation,
                        const std::vector<Candidate>& mirrorPopulation,
                        Problem& costFunction) const;

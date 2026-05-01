@@ -29,9 +29,11 @@
 #include <ql/time/daycounters/actual365fixed.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class SabrSmileSection : public SmileSection {
+    class SabrSmileSection : public SmileSection
+    {
       public:
         SabrSmileSection(Time timeToExpiry,
                          Rate forward,
@@ -53,6 +55,7 @@ namespace QuantLib {
         Real beta() const { return beta_; }
         Real nu() const { return nu_; }
         Real rho() const { return rho_; }
+
       protected:
         Real varianceImpl(Rate strike) const override;
         Volatility volatilityImpl(Rate strike) const override;

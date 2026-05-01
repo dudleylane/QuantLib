@@ -26,10 +26,10 @@
 #include <ql/methods/finitedifferences/utilities/fdmshoutloginnervaluecalculator.hpp>
 #include <ql/pricingengines/blackformula.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvoltermstructure.hpp>
-
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     FdmShoutLogInnerValueCalculator::FdmShoutLogInnerValueCalculator(
         Handle<BlackVolTermStructure> blackVolatility,
@@ -38,42 +38,38 @@ namespace QuantLib {
         ext::shared_ptr<PlainVanillaPayoff> payoff,
         ext::shared_ptr<FdmMesher> mesher,
         Size direction)
-    : blackVolatility_(std::move(blackVolatility)),
-      escrowedDividendAdj_(std::move(escrowedDividendAdj)),
-      maturity_(maturity), payoff_(std::move(payoff)),
-      mesher_(std::move(mesher)), direction_(direction) {}
+    : blackVolatility_(std::move(blackVolatility)), escrowedDividendAdj_(std::move(escrowedDividendAdj)),
+      maturity_(maturity), payoff_(std::move(payoff)), mesher_(std::move(mesher)), direction_(direction)
+    {
+    }
 
 
-    Real FdmShoutLogInnerValueCalculator::innerValue(
-        const FdmLinearOpIterator& iter, Time t) {
+    Real FdmShoutLogInnerValueCalculator::innerValue(const FdmLinearOpIterator& iter, Time t)
+    {
 
         const Real s_t = std::exp(mesher_->location(iter, direction_));
 
-        const DiscountFactor qf =
-            escrowedDividendAdj_->dividendYield()->discount(maturity_)/
-            escrowedDividendAdj_->dividendYield()->discount(t);
+        const DiscountFactor qf = escrowedDividendAdj_->dividendYield()->discount(maturity_) /
+                                  escrowedDividendAdj_->dividendYield()->discount(t);
 
-        const DiscountFactor df =
-            escrowedDividendAdj_->riskFreeRate()->discount(maturity_)/
-            escrowedDividendAdj_->riskFreeRate()->discount(t);
+        const DiscountFactor df = escrowedDividendAdj_->riskFreeRate()->discount(maturity_) /
+                                  escrowedDividendAdj_->riskFreeRate()->discount(t);
 
-        const Real fwd = s_t*qf/df;
-        const Volatility stdDev = blackVolatility_->blackForwardVol(
-            t, maturity_, s_t)*std::sqrt(maturity_-t);
+        const Real fwd = s_t * qf / df;
+        const Volatility stdDev = blackVolatility_->blackForwardVol(t, maturity_, s_t) * std::sqrt(maturity_ - t);
 
-        const Real npv = blackFormula(
-            payoff_->optionType(), s_t, fwd, stdDev, df);
+        const Real npv = blackFormula(payoff_->optionType(), s_t, fwd, stdDev, df);
 
         const Real spot = s_t - escrowedDividendAdj_->dividendAdjustment(t);
 
-        const Real intrinsic = (payoff_->optionType() == Option::Call)
-            ? spot - payoff_->strike() : payoff_->strike() - spot;
+        const Real intrinsic =
+            (payoff_->optionType() == Option::Call) ? spot - payoff_->strike() : payoff_->strike() - spot;
 
-        return std::max(0.0, npv + intrinsic*df);
+        return std::max(0.0, npv + intrinsic * df);
     }
 
-    Real FdmShoutLogInnerValueCalculator::avgInnerValue(
-        const FdmLinearOpIterator& iter, Time t) {
+    Real FdmShoutLogInnerValueCalculator::avgInnerValue(const FdmLinearOpIterator& iter, Time t)
+    {
         return innerValue(iter, t);
     }
 }

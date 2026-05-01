@@ -25,10 +25,11 @@
 #ifndef quantlib_tree_hpp
 #define quantlib_tree_hpp
 
-#include <ql/types.hpp>
 #include <ql/patterns/curiouslyrecurring.hpp>
+#include <ql/types.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Tree approximating a single-factor diffusion
     /*! Derived classes must implement the following interface:
@@ -48,10 +49,12 @@ namespace QuantLib {
         \ingroup lattices
     */
     template <class T>
-    class Tree : public CuriouslyRecurringTemplate<T> {
+    class Tree : public CuriouslyRecurringTemplate<T>
+    {
       public:
         explicit Tree(Size columns) : columns_(columns) {}
         Size columns() const { return columns_; }
+
       private:
         Size columns_;
     };

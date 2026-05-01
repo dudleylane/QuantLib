@@ -20,53 +20,61 @@
 #include <ql/legacy/libormarketmodels/lfmcovarparam.hpp>
 #include <ql/math/integrals/kronrodintegral.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class LfmCovarianceParameterization::Var_Helper {
+    class LfmCovarianceParameterization::Var_Helper
+    {
       public:
         Var_Helper(const LfmCovarianceParameterization* param, Size i, Size j);
 
         Real operator()(Real t) const;
+
       private:
         const Size i_, j_;
         const LfmCovarianceParameterization* param_;
     };
 
-    LfmCovarianceParameterization::Var_Helper::Var_Helper(
-                                   const LfmCovarianceParameterization* param,
-                                   Size i, Size j)
-    : i_(i), j_(j), param_(param) {}
-
-    Real LfmCovarianceParameterization::Var_Helper::operator()(Real t) const {
-        const Matrix m = param_->diffusion(t);
-
-        return std::inner_product(m.row_begin(i_), m.row_end(i_),
-                                  m.row_begin(j_), Real(0.0));
+    LfmCovarianceParameterization::Var_Helper::Var_Helper(const LfmCovarianceParameterization* param, Size i, Size j)
+    : i_(i), j_(j), param_(param)
+    {
     }
 
-    Matrix LfmCovarianceParameterization::covariance(Time t, const Array& x) const {
+    Real LfmCovarianceParameterization::Var_Helper::operator()(Real t) const
+    {
+        const Matrix m = param_->diffusion(t);
+
+        return std::inner_product(m.row_begin(i_), m.row_end(i_), m.row_begin(j_), Real(0.0));
+    }
+
+    Matrix LfmCovarianceParameterization::covariance(Time t, const Array& x) const
+    {
         Matrix sigma = this->diffusion(t, x);
-        Matrix result = sigma*transpose(sigma);
+        Matrix result = sigma * transpose(sigma);
         return result;
     }
 
-    Matrix LfmCovarianceParameterization::integratedCovariance(Time t, const Array& x) const {
+    Matrix LfmCovarianceParameterization::integratedCovariance(Time t, const Array& x) const
+    {
         // this implementation is not intended for production.
         // because it is too slow and too inefficient.
         // This method is useful for testing and R&D.
         // Please overload the method within derived classes.
         QL_REQUIRE(x.empty(), "can not handle given x here");
 
-        Matrix tmp(size_, size_,0.0);
+        Matrix tmp(size_, size_, 0.0);
 
-        for (Size i=0; i<size_; ++i) {
-            for (Size j=0; j<=i;++j) {
+        for (Size i = 0; i < size_; ++i)
+        {
+            for (Size j = 0; j <= i; ++j)
+            {
                 Var_Helper helper(this, i, j);
                 GaussKronrodAdaptive integrator(1e-10, 10000);
-                for (Size k=0; k < 64; ++k) {
-                    tmp[i][j]+=integrator(helper, k*t/64.,(k+1)*t/64.);
+                for (Size k = 0; k < 64; ++k)
+                {
+                    tmp[i][j] += integrator(helper, k * t / 64., (k + 1) * t / 64.);
                 }
-                tmp[j][i]=tmp[i][j];
+                tmp[j][i] = tmp[i][j];
             }
         }
 
@@ -74,4 +82,3 @@ namespace QuantLib {
     }
 
 }
-

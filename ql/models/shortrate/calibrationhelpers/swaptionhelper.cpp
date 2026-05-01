@@ -30,7 +30,8 @@
 #include <ql/time/schedule.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     SwaptionHelper::SwaptionHelper(const Period& maturity,
                                    const Period& length,
@@ -47,12 +48,11 @@ namespace QuantLib {
                                    const Real shift,
                                    Natural settlementDays,
                                    RateAveraging::Type averagingMethod)
-    : BlackCalibrationHelper(volatility, errorType, type, shift),
-      maturity_(maturity), length_(length), fixedLegTenor_(fixedLegTenor),
-      index_(std::move(index)), termStructure_(std::move(termStructure)),
-      fixedLegDayCounter_(std::move(fixedLegDayCounter)),
-      floatingLegDayCounter_(std::move(floatingLegDayCounter)), strike_(strike), nominal_(nominal),
-      settlementDays_(settlementDays), averagingMethod_(averagingMethod) {
+    : BlackCalibrationHelper(volatility, errorType, type, shift), maturity_(maturity), length_(length),
+      fixedLegTenor_(fixedLegTenor), index_(std::move(index)), termStructure_(std::move(termStructure)),
+      fixedLegDayCounter_(std::move(fixedLegDayCounter)), floatingLegDayCounter_(std::move(floatingLegDayCounter)),
+      strike_(strike), nominal_(nominal), settlementDays_(settlementDays), averagingMethod_(averagingMethod)
+    {
         registerWith(index_);
         registerWith(termStructure_);
     }
@@ -72,12 +72,12 @@ namespace QuantLib {
                                    const Real shift,
                                    Natural settlementDays,
                                    RateAveraging::Type averagingMethod)
-    : BlackCalibrationHelper(volatility, errorType, type, shift), exerciseDate_(exerciseDate),
-      maturity_(0 * Days), length_(length), fixedLegTenor_(fixedLegTenor),
-      index_(std::move(index)), termStructure_(std::move(termStructure)),
-      fixedLegDayCounter_(std::move(fixedLegDayCounter)),
+    : BlackCalibrationHelper(volatility, errorType, type, shift), exerciseDate_(exerciseDate), maturity_(0 * Days),
+      length_(length), fixedLegTenor_(fixedLegTenor), index_(std::move(index)),
+      termStructure_(std::move(termStructure)), fixedLegDayCounter_(std::move(fixedLegDayCounter)),
       floatingLegDayCounter_(std::move(floatingLegDayCounter)), strike_(strike), nominal_(nominal),
-      settlementDays_(settlementDays), averagingMethod_(averagingMethod) {
+      settlementDays_(settlementDays), averagingMethod_(averagingMethod)
+    {
         registerWith(index_);
         registerWith(termStructure_);
     }
@@ -97,51 +97,50 @@ namespace QuantLib {
                                    const Real shift,
                                    Natural settlementDays,
                                    RateAveraging::Type averagingMethod)
-    : BlackCalibrationHelper(volatility, errorType, type, shift), exerciseDate_(exerciseDate),
-      endDate_(endDate), maturity_(0 * Days), length_(0 * Days), fixedLegTenor_(fixedLegTenor),
-      index_(std::move(index)), termStructure_(std::move(termStructure)),
-      fixedLegDayCounter_(std::move(fixedLegDayCounter)),
+    : BlackCalibrationHelper(volatility, errorType, type, shift), exerciseDate_(exerciseDate), endDate_(endDate),
+      maturity_(0 * Days), length_(0 * Days), fixedLegTenor_(fixedLegTenor), index_(std::move(index)),
+      termStructure_(std::move(termStructure)), fixedLegDayCounter_(std::move(fixedLegDayCounter)),
       floatingLegDayCounter_(std::move(floatingLegDayCounter)), strike_(strike), nominal_(nominal),
-      settlementDays_(settlementDays), averagingMethod_(averagingMethod) {
+      settlementDays_(settlementDays), averagingMethod_(averagingMethod)
+    {
         registerWith(index_);
         registerWith(termStructure_);
     }
 
 
-    void SwaptionHelper::addTimesTo(std::list<Time>& times) const {
+    void SwaptionHelper::addTimesTo(std::list<Time>& times) const
+    {
         calculate();
         Swaption::arguments args;
         swaption_->setupArguments(&args);
         std::vector<Time> swaptionTimes =
-            DiscretizedSwaption(args,
-                                termStructure_->referenceDate(),
-                                termStructure_->dayCounter()).mandatoryTimes();
-        times.insert(times.end(),
-                     swaptionTimes.begin(), swaptionTimes.end());
+            DiscretizedSwaption(args, termStructure_->referenceDate(), termStructure_->dayCounter()).mandatoryTimes();
+        times.insert(times.end(), swaptionTimes.begin(), swaptionTimes.end());
     }
 
-    Real SwaptionHelper::modelValue() const {
+    Real SwaptionHelper::modelValue() const
+    {
         calculate();
         swaption_->setPricingEngine(engine_);
         return swaption_->NPV();
     }
 
-    Real SwaptionHelper::blackPrice(Volatility sigma) const {
+    Real SwaptionHelper::blackPrice(Volatility sigma) const
+    {
         calculate();
         Handle<Quote> vol(ext::shared_ptr<Quote>(new SimpleQuote(sigma)));
         ext::shared_ptr<PricingEngine> engine;
-        switch(volatilityType_) {
-        case ShiftedLognormal:
-            engine = ext::make_shared<BlackSwaptionEngine>(
-                termStructure_, vol, Actual365Fixed(), shift_);
-            break;
-        case Normal:
-            engine = ext::make_shared<BachelierSwaptionEngine>(
-                termStructure_, vol, Actual365Fixed());
-            break;
-        default:
-            QL_FAIL("can not construct engine: " << volatilityType_);
-            break;
+        switch (volatilityType_)
+        {
+            case ShiftedLognormal:
+                engine = ext::make_shared<BlackSwaptionEngine>(termStructure_, vol, Actual365Fixed(), shift_);
+                break;
+            case Normal:
+                engine = ext::make_shared<BachelierSwaptionEngine>(termStructure_, vol, Actual365Fixed());
+                break;
+            default:
+                QL_FAIL("can not construct engine: " << volatilityType_);
+                break;
         }
         swaption_->setPricingEngine(engine);
         Real value = swaption_->NPV();
@@ -149,35 +148,31 @@ namespace QuantLib {
         return value;
     }
 
-    void SwaptionHelper::performCalculations() const {
+    void SwaptionHelper::performCalculations() const
+    {
 
         Calendar calendar = index_->fixingCalendar();
         Date exerciseDate = exerciseDate_;
         if (exerciseDate == Date())
-            exerciseDate = calendar.advance(termStructure_->referenceDate(),
-                                            maturity_,
-                                            index_->businessDayConvention());
+            exerciseDate =
+                calendar.advance(termStructure_->referenceDate(), maturity_, index_->businessDayConvention());
         Date startDate;
-        if (settlementDays_ == Null<Size>()) {
+        if (settlementDays_ == Null<Size>())
+        {
             startDate = index_->valueDate(index_->fixingCalendar().adjust(exerciseDate));
-        } else {
-            startDate = calendar.advance(exerciseDate,
-                                         index_->fixingDays(), Days,
-                                         index_->businessDayConvention());
+        }
+        else
+        {
+            startDate = calendar.advance(exerciseDate, index_->fixingDays(), Days, index_->businessDayConvention());
         }
 
         Date endDate = endDate_;
         if (endDate == Date())
-            endDate = calendar.advance(startDate, length_,
-                                       index_->businessDayConvention());
-        Schedule fixedSchedule(startDate, endDate, fixedLegTenor_, calendar,
-                               index_->businessDayConvention(),
-                               index_->businessDayConvention(),
-                               DateGeneration::Forward, false);
-        Schedule floatSchedule(startDate, endDate, index_->tenor(), calendar,
-                               index_->businessDayConvention(),
-                               index_->businessDayConvention(),
-                               DateGeneration::Forward, false);
+            endDate = calendar.advance(startDate, length_, index_->businessDayConvention());
+        Schedule fixedSchedule(startDate, endDate, fixedLegTenor_, calendar, index_->businessDayConvention(),
+                               index_->businessDayConvention(), DateGeneration::Forward, false);
+        Schedule floatSchedule(startDate, endDate, index_->tenor(), calendar, index_->businessDayConvention(),
+                               index_->businessDayConvention(), DateGeneration::Forward, false);
 
         auto swapEngine = ext::make_shared<DiscountingSwapEngine>(termStructure_, false);
 
@@ -186,9 +181,12 @@ namespace QuantLib {
         auto temp = makeSwap(fixedSchedule, floatSchedule, 0.0, type);
         temp->setPricingEngine(swapEngine);
         Real forward = temp->fairRate();
-        if (strike_ == Null<Real>()) {
+        if (strike_ == Null<Real>())
+        {
             exerciseRate_ = forward;
-        } else {
+        }
+        else
+        {
             exerciseRate_ = strike_;
             type = strike_ <= forward ? Swap::Receiver : Swap::Payer;
         }
@@ -198,17 +196,18 @@ namespace QuantLib {
         BlackCalibrationHelper::performCalculations();
     }
 
-    ext::shared_ptr<FixedVsFloatingSwap> SwaptionHelper::makeSwap(Schedule fixedSchedule,
-                                                                  Schedule floatSchedule,
-                                                                  Rate exerciseRate,
-                                                                  Swap::Type type) const {
+    ext::shared_ptr<FixedVsFloatingSwap>
+    SwaptionHelper::makeSwap(Schedule fixedSchedule, Schedule floatSchedule, Rate exerciseRate, Swap::Type type) const
+    {
         auto onIndex = ext::dynamic_pointer_cast<OvernightIndex>(index_);
-        if (onIndex) {
-            return ext::make_shared<OvernightIndexedSwap>(
-                type, nominal_, std::move(fixedSchedule), exerciseRate, fixedLegDayCounter_,
-                std::move(floatSchedule), onIndex, 0.0, 0, Following,
-                Calendar(), true, averagingMethod_);
-        } else {
+        if (onIndex)
+        {
+            return ext::make_shared<OvernightIndexedSwap>(type, nominal_, std::move(fixedSchedule), exerciseRate,
+                                                          fixedLegDayCounter_, std::move(floatSchedule), onIndex, 0.0,
+                                                          0, Following, Calendar(), true, averagingMethod_);
+        }
+        else
+        {
             return ext::make_shared<VanillaSwap>(type, nominal_, std::move(fixedSchedule), exerciseRate,
                                                  fixedLegDayCounter_, std::move(floatSchedule), index_, 0.0,
                                                  floatingLegDayCounter_);

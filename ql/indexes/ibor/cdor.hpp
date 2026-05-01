@@ -24,12 +24,13 @@
 #ifndef quantlib_cdor_hpp
 #define quantlib_cdor_hpp
 
+#include <ql/currencies/america.hpp>
 #include <ql/indexes/iborindex.hpp>
 #include <ql/time/calendars/canada.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
-#include <ql/currencies/america.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %CDOR rate
     /*! Canadian Dollar Offered Rate fixed by IDA.
@@ -41,13 +42,13 @@ namespace QuantLib {
         \warning This is the rate fixed in Canada by IDA. Use CADLibor
                  if you're interested in the London fixing by BBA.
     */
-    class Cdor : public IborIndex {
+    class Cdor : public IborIndex
+    {
       public:
-        Cdor(const Period& tenor,
-             const Handle<YieldTermStructure>& h = {})
-        : IborIndex("CDOR", tenor, 0, CADCurrency(),
-                    Canada(), ModifiedFollowing, false,
-                    Actual365Fixed(), h) {}
+        Cdor(const Period& tenor, const Handle<YieldTermStructure>& h = {})
+        : IborIndex("CDOR", tenor, 0, CADCurrency(), Canada(), ModifiedFollowing, false, Actual365Fixed(), h)
+        {
+        }
     };
 
 }

@@ -19,46 +19,50 @@
 */
 
 /*! \file stochasticcollationcdf.cpp
-*/
+ */
 
 #include <ql/math/integrals/gaussianquadratures.hpp>
 #include <ql/math/randomnumbers/stochasticcollocationinvcdf.hpp>
 #include <ql/mathconstants.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
-        Array g(Real sigma, const Array& x,
-                const std::function<Real(Real)>& invCDF) {
+    namespace
+    {
+        Array g(Real sigma, const Array& x, const std::function<Real(Real)>& invCDF)
+        {
 
             Array y(x.size());
             const CumulativeNormalDistribution normalCDF;
 
-            for (Size i=0, n=x.size(); i < n; ++i) {
-                y[i] = invCDF(normalCDF(x[i]/sigma));
+            for (Size i = 0, n = x.size(); i < n; ++i)
+            {
+                y[i] = invCDF(normalCDF(x[i] / sigma));
             }
 
             return y;
         }
     }
 
-    StochasticCollocationInvCDF::StochasticCollocationInvCDF(
-        const std::function<Real(Real)>& invCDF,
-        Size lagrangeOrder, Real pMax, Real pMin)
-    : x_(M_SQRT2*GaussHermiteIntegration(lagrangeOrder).x()),
-      sigma_( (pMax != Null<Real>())
-              ? x_.back() / InverseCumulativeNormal()(pMax)
-              : (pMin != Null<Real>())
-                  ? Real(x_.front() / InverseCumulativeNormal()(pMin))
-                  : 1.0),
-      y_(g(sigma_, x_, invCDF)),
-      interpl_(x_.begin(), x_.end(), y_.begin()) {
+    StochasticCollocationInvCDF::StochasticCollocationInvCDF(const std::function<Real(Real)>& invCDF,
+                                                             Size lagrangeOrder,
+                                                             Real pMax,
+                                                             Real pMin)
+    : x_(M_SQRT2 * GaussHermiteIntegration(lagrangeOrder).x()),
+      sigma_((pMax != Null<Real>()) ? x_.back() / InverseCumulativeNormal()(pMax) :
+             (pMin != Null<Real>()) ? Real(x_.front() / InverseCumulativeNormal()(pMin)) :
+                                      1.0),
+      y_(g(sigma_, x_, invCDF)), interpl_(x_.begin(), x_.end(), y_.begin())
+    {
     }
 
-    Real StochasticCollocationInvCDF::value(Real x) const {
-        return interpl_(x*sigma_, true);
+    Real StochasticCollocationInvCDF::value(Real x) const
+    {
+        return interpl_(x * sigma_, true);
     }
-    Real StochasticCollocationInvCDF::operator()(Real u) const {
+    Real StochasticCollocationInvCDF::operator()(Real u) const
+    {
         return value(InverseCumulativeNormal()(u));
     }
 }

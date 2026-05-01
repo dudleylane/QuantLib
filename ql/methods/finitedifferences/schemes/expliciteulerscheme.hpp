@@ -26,13 +26,15 @@
 #ifndef quantlib_explicit_euler_scheme_hpp
 #define quantlib_explicit_euler_scheme_hpp
 
-#include <ql/methods/finitedifferences/operatortraits.hpp>
 #include <ql/methods/finitedifferences/operators/fdmlinearopcomposite.hpp>
+#include <ql/methods/finitedifferences/operatortraits.hpp>
 #include <ql/methods/finitedifferences/schemes/boundaryconditionschemehelper.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class ExplicitEulerScheme  {
+    class ExplicitEulerScheme
+    {
       public:
         // typedefs
         typedef OperatorTraits<FdmLinearOp> traits;
@@ -42,8 +44,7 @@ namespace QuantLib {
         typedef traits::condition_type condition_type;
 
         // constructors
-        explicit ExplicitEulerScheme(ext::shared_ptr<FdmLinearOpComposite> map,
-                                     const bc_set& bcSet = bc_set());
+        explicit ExplicitEulerScheme(ext::shared_ptr<FdmLinearOpComposite> map, const bc_set& bcSet = bc_set());
 
         void step(array_type& a, Time t);
         void setStep(Time dt);

@@ -21,22 +21,24 @@
 */
 
 /*! \file strippedoptionlet.hpp
-*/
+ */
 
 #ifndef quantlib_strippedoptionlet_hpp
 #define quantlib_strippedoptionlet_hpp
 
-#include <ql/termstructures/volatility/optionlet/strippedoptionletbase.hpp>
 #include <ql/indexes/iborindex.hpp>
 #include <ql/quote.hpp>
+#include <ql/termstructures/volatility/optionlet/strippedoptionletbase.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! Helper class to wrap in a StrippedOptionletBase object a matrix of
         exogenously calculated optionlet (i.e. caplet/floorlet) volatilities
         (a.k.a. forward-forward volatilities).
     */
-    class StrippedOptionlet : public StrippedOptionletBase {
+    class StrippedOptionlet : public StrippedOptionletBase
+    {
       public:
         StrippedOptionlet(Natural settlementDays,
                           const Calendar& calendar,
@@ -44,7 +46,7 @@ namespace QuantLib {
                           ext::shared_ptr<IborIndex> iborIndex,
                           const std::vector<Date>& optionletDates,
                           const std::vector<Rate>& strikes,
-                          std::vector<std::vector<Handle<Quote> > >,
+                          std::vector<std::vector<Handle<Quote>>>,
                           DayCounter dc,
                           VolatilityType type = ShiftedLognormal,
                           Real displacement = 0.0);
@@ -94,10 +96,10 @@ namespace QuantLib {
         std::vector<Date> optionletDates_;
         std::vector<Time> optionletTimes_;
         mutable std::vector<Rate> optionletAtmRates_;
-        std::vector<std::vector<Rate> > optionletStrikes_;
+        std::vector<std::vector<Rate>> optionletStrikes_;
 
-        std::vector<std::vector<Handle<Quote> > > optionletVolQuotes_;
-        mutable std::vector<std::vector<Volatility> > optionletVolatilities_;
+        std::vector<std::vector<Handle<Quote>>> optionletVolQuotes_;
+        mutable std::vector<std::vector<Volatility>> optionletVolatilities_;
     };
 
 }

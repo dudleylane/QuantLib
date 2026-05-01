@@ -21,7 +21,8 @@
 #define quantlib_experimental_black_delta_calculator_hpp
 
 // Deprecated in version 1.40
-#pragma message("Warning: this file will disappear in a future release; include <ql/pricingengines/blackdeltacalculator.hpp> instead.")
+#pragma message( \
+    "Warning: this file will disappear in a future release; include <ql/pricingengines/blackdeltacalculator.hpp> instead.")
 
 #include <ql/pricingengines/blackdeltacalculator.hpp>
 

@@ -30,20 +30,22 @@
 #define quantlib_floating_rate_coupon_hpp
 
 #include <ql/cashflows/coupon.hpp>
-#include <ql/patterns/visitor.hpp>
+#include <ql/handle.hpp>
 #include <ql/patterns/lazyobject.hpp>
+#include <ql/patterns/visitor.hpp>
 #include <ql/time/businessdayconvention.hpp>
 #include <ql/time/daycounter.hpp>
-#include <ql/handle.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class InterestRateIndex;
     class YieldTermStructure;
     class FloatingRateCouponPricer;
 
     //! base floating-rate coupon class
-    class FloatingRateCoupon : public Coupon {
+    class FloatingRateCoupon : public Coupon
+    {
       public:
         FloatingRateCoupon(const Date& paymentDate,
                            Real nominal,
@@ -108,6 +110,7 @@ namespace QuantLib {
 
         virtual void setPricer(const ext::shared_ptr<FloatingRateCouponPricer>&);
         ext::shared_ptr<FloatingRateCouponPricer> pricer() const;
+
       protected:
         //! convexity adjustment for the given index fixing
         Rate convexityAdjustmentImpl(Rate fixing) const;
@@ -124,30 +127,33 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline const ext::shared_ptr<InterestRateIndex>&
-    FloatingRateCoupon::index() const {
+    inline const ext::shared_ptr<InterestRateIndex>& FloatingRateCoupon::index() const
+    {
         return index_;
     }
 
-    inline Rate FloatingRateCoupon::convexityAdjustment() const {
+    inline Rate FloatingRateCoupon::convexityAdjustment() const
+    {
         return convexityAdjustmentImpl(indexFixing());
     }
 
-    inline Rate FloatingRateCoupon::adjustedFixing() const {
-        return (rate()-spread())/gearing();
+    inline Rate FloatingRateCoupon::adjustedFixing() const
+    {
+        return (rate() - spread()) / gearing();
     }
 
-    inline ext::shared_ptr<FloatingRateCouponPricer>
-    FloatingRateCoupon::pricer() const {
+    inline ext::shared_ptr<FloatingRateCouponPricer> FloatingRateCoupon::pricer() const
+    {
         return pricer_;
     }
 
-    inline Rate
-    FloatingRateCoupon::convexityAdjustmentImpl(Rate fixing) const {
-        return (gearing() == 0.0 ? Rate(0.0) : Rate(adjustedFixing()-fixing));
+    inline Rate FloatingRateCoupon::convexityAdjustmentImpl(Rate fixing) const
+    {
+        return (gearing() == 0.0 ? Rate(0.0) : Rate(adjustedFixing() - fixing));
     }
 
-    inline void FloatingRateCoupon::accept(AcyclicVisitor& v) {
+    inline void FloatingRateCoupon::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<FloatingRateCoupon>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);

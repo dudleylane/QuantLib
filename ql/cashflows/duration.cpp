@@ -20,22 +20,24 @@
 */
 
 #include <ql/cashflows/duration.hpp>
-#include <ql/types.hpp>
 #include <ql/errors.hpp>
+#include <ql/types.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    std::ostream& operator<<(std::ostream& out,
-                             Duration::Type d) {
-        switch (d) {
-          case Duration::Simple:
-            return out << "Simple";
-          case Duration::Macaulay:
-            return out << "Macaulay";
-          case Duration::Modified:
-            return out << "Modified";
-          default:
-            QL_FAIL("unknown Duration::Type (" << Integer(d) << ")");
+    std::ostream& operator<<(std::ostream& out, Duration::Type d)
+    {
+        switch (d)
+        {
+            case Duration::Simple:
+                return out << "Simple";
+            case Duration::Macaulay:
+                return out << "Macaulay";
+            case Duration::Modified:
+                return out << "Modified";
+            default:
+                QL_FAIL("unknown Duration::Type (" << Integer(d) << ")");
         }
     }
 

@@ -22,45 +22,50 @@
 #include <ql/methods/finitedifferences/utilities/fdminnervaluecalculator.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    FdmBermudanStepCondition::FdmBermudanStepCondition(
-        const std::vector<Date>& exerciseDates,
-        const Date& referenceDate,
-        const DayCounter& dayCounter,
-        ext::shared_ptr<FdmMesher> mesher,
-        ext::shared_ptr<FdmInnerValueCalculator> calculator)
-    : mesher_(std::move(mesher)), calculator_(std::move(calculator)) {
+    FdmBermudanStepCondition::FdmBermudanStepCondition(const std::vector<Date>& exerciseDates,
+                                                       const Date& referenceDate,
+                                                       const DayCounter& dayCounter,
+                                                       ext::shared_ptr<FdmMesher> mesher,
+                                                       ext::shared_ptr<FdmInnerValueCalculator> calculator)
+    : mesher_(std::move(mesher)), calculator_(std::move(calculator))
+    {
 
         exerciseTimes_.reserve(exerciseDates.size());
-        for (auto exerciseDate : exerciseDates) {
+        for (auto exerciseDate : exerciseDates)
+        {
             exerciseTimes_.push_back(dayCounter.yearFraction(referenceDate, exerciseDate));
         }
     }
 
-    const std::vector<Time>& FdmBermudanStepCondition::exerciseTimes() const {
+    const std::vector<Time>& FdmBermudanStepCondition::exerciseTimes() const
+    {
         return exerciseTimes_;
     }
-    
-    void FdmBermudanStepCondition::applyTo(Array& a, Time t) const {
-        if (std::find(exerciseTimes_.begin(), exerciseTimes_.end(), t) 
-              != exerciseTimes_.end()) {
-            
-            QL_REQUIRE(mesher_->layout()->size() == a.size(),
-                       "inconsistent array dimensions");
+
+    void FdmBermudanStepCondition::applyTo(Array& a, Time t) const
+    {
+        if (std::find(exerciseTimes_.begin(), exerciseTimes_.end(), t) != exerciseTimes_.end())
+        {
+
+            QL_REQUIRE(mesher_->layout()->size() == a.size(), "inconsistent array dimensions");
 
             const Size dims = mesher_->layout()->dim().size();
             Array locations(dims);
 
-            for (const auto& iter : *mesher_->layout()) {
-                for (Size i=0; i < dims; ++i)
+            for (const auto& iter : *mesher_->layout())
+            {
+                for (Size i = 0; i < dims; ++i)
                     locations[i] = mesher_->location(iter, i);
 
                 const Real innerValue = calculator_->innerValue(iter, t);
-                if (innerValue > a[iter.index()]) {
+                if (innerValue > a[iter.index()])
+                {
                     a[iter.index()] = innerValue;
                 }
-            }            
+            }
         }
     }
 }

@@ -43,10 +43,12 @@
 
 using namespace QuantLib;
 
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
+{
     FuzzedDataProvider fdp(data, size);
 
-    try {
+    try
+    {
         // --- Calendar operations with fuzz-selected calendar ---
         Calendar calendars[] = {
             TARGET(),
@@ -86,10 +88,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         (void)cal.endOfMonth(d1);
         (void)cal.name();
 
-        BusinessDayConvention convs[] = {
-            Following, ModifiedFollowing, Preceding,
-            ModifiedPreceding, Unadjusted, Nearest,
-            HalfMonthModifiedFollowing};
+        BusinessDayConvention convs[] = {Following, ModifiedFollowing,         Preceding, ModifiedPreceding, Unadjusted,
+                                         Nearest,   HalfMonthModifiedFollowing};
         auto convIdx = fdp.ConsumeIntegralInRange<int>(0, 6);
         BusinessDayConvention conv = convs[convIdx];
 
@@ -101,24 +101,26 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         auto advanceMonths = fdp.ConsumeIntegralInRange<int>(-24, 24);
         (void)cal.advance(d1, advanceMonths, Months, conv, true);
 
-        if (d1 < d2) {
+        if (d1 < d2)
+        {
             (void)cal.businessDaysBetween(d1, d2);
             (void)cal.holidayList(d1, d2);
         }
 
         // --- Day counter operations ---
-        DayCounter dayCounters[] = {
-            Actual360(), Actual365Fixed(),
-            Thirty360(Thirty360::BondBasis),
-            Thirty360(Thirty360::EurobondBasis),
-            ActualActual(ActualActual::ISMA),
-            ActualActual(ActualActual::ISDA),
-            ActualActual(ActualActual::AFB),
-            Business252(cal)};
+        DayCounter dayCounters[] = {Actual360(),
+                                    Actual365Fixed(),
+                                    Thirty360(Thirty360::BondBasis),
+                                    Thirty360(Thirty360::EurobondBasis),
+                                    ActualActual(ActualActual::ISMA),
+                                    ActualActual(ActualActual::ISDA),
+                                    ActualActual(ActualActual::AFB),
+                                    Business252(cal)};
         auto dcIdx = fdp.ConsumeIntegralInRange<int>(0, 7);
         DayCounter dc = dayCounters[dcIdx];
 
-        if (d1 < d2) {
+        if (d1 < d2)
+        {
             (void)dc.dayCount(d1, d2);
             (void)dc.yearFraction(d1, d2);
         }
@@ -131,30 +133,28 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         (void)ECB::nextDate(d1);
 
         // --- Schedule generation ---
-        Frequency freqs[] = {Annual, Semiannual, Quarterly,
-                             Monthly, Weekly, Biweekly};
+        Frequency freqs[] = {Annual, Semiannual, Quarterly, Monthly, Weekly, Biweekly};
         auto freqIdx = fdp.ConsumeIntegralInRange<int>(0, 5);
         Frequency freq = freqs[freqIdx];
 
-        DateGeneration::Rule rules[] = {
-            DateGeneration::Backward, DateGeneration::Forward,
-            DateGeneration::Zero, DateGeneration::ThirdWednesday,
-            DateGeneration::Twentieth};
+        DateGeneration::Rule rules[] = {DateGeneration::Backward, DateGeneration::Forward, DateGeneration::Zero,
+                                        DateGeneration::ThirdWednesday, DateGeneration::Twentieth};
         auto ruleIdx = fdp.ConsumeIntegralInRange<int>(0, 4);
         DateGeneration::Rule rule = rules[ruleIdx];
 
-        if (d1 < d2) {
+        if (d1 < d2)
+        {
             Date start = d1;
             Date end = d2;
             // Cap the range to avoid extremely long schedules
             if (end - start > 365 * 40)
                 end = start + 365 * 40;
 
-            Schedule schedule(start, end, Period(freq), cal,
-                              conv, conv, rule, false);
+            Schedule schedule(start, end, Period(freq), cal, conv, conv, rule, false);
             (void)schedule.size();
             (void)schedule.dates();
-            if (schedule.size() > 0) {
+            if (schedule.size() > 0)
+            {
                 (void)schedule.startDate();
                 (void)schedule.endDate();
             }
@@ -168,8 +168,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         auto dateStr = fdp.ConsumeRandomLengthString(30);
         (void)DateParser::parseISO(dateStr);
         (void)DateParser::parseFormatted(dateStr, "%Y-%m-%d");
-
-    } catch (const std::exception&) {
+    }
+    catch (const std::exception&)
+    {
     }
     return 0;
 }

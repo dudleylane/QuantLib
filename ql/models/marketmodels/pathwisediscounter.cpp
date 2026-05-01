@@ -23,62 +23,57 @@
 namespace QuantLib
 {
 
-MarketModelPathwiseDiscounter::MarketModelPathwiseDiscounter(Time paymentTime,
-                              const std::vector<Time>& rateTimes)
-{
-    checkIncreasingTimes(rateTimes);
+    MarketModelPathwiseDiscounter::MarketModelPathwiseDiscounter(Time paymentTime, const std::vector<Time>& rateTimes)
+    {
+        checkIncreasingTimes(rateTimes);
 
-    numberRates_ = rateTimes.size()-1;
-        before_ = std::lower_bound(rateTimes.begin(), rateTimes.end(),
-                                   paymentTime) - rateTimes.begin();
+        numberRates_ = rateTimes.size() - 1;
+        before_ = std::lower_bound(rateTimes.begin(), rateTimes.end(), paymentTime) - rateTimes.begin();
 
         // handle the case where the payment is in the last
         // period or after the last period
-        if (before_ > rateTimes.size()-2)
-            before_ =  rateTimes.size()-2;
+        if (before_ > rateTimes.size() - 2)
+            before_ = rateTimes.size() - 2;
 
-        beforeWeight_=1.0-(paymentTime-rateTimes[before_])/
-            (rateTimes[before_+1]-rateTimes[before_]);
+        beforeWeight_ = 1.0 - (paymentTime - rateTimes[before_]) / (rateTimes[before_ + 1] - rateTimes[before_]);
 
-        postWeight_  = 1.0 - beforeWeight_;
+        postWeight_ = 1.0 - beforeWeight_;
         taus_.resize(numberRates_);
 
-        for (Size i=0; i < numberRates_; ++i)
-            taus_[i] = rateTimes[i+1] - rateTimes[i];
-
-}
-
-void MarketModelPathwiseDiscounter::getFactors(
-            const Matrix& , // LIBORRates, for all steps
-            const Matrix& Discounts, // P(t_0, t_j) for j=0,...n for each step
-            Size currentStep,
-            std::vector<Real>& factors) const
-{
-    Real preDF = Discounts[currentStep][before_];
-    Real postDF = Discounts[currentStep][before_+1];
-
-    for (Size i=before_+1; i<numberRates_; ++i)
-        factors[i+1] =0.0;
-
-    if (postWeight_==0.0)
-    {
-        factors[0] = preDF;
-
-        for (Size i=0; i<before_; ++i)
-            factors[i+1] = -preDF*taus_[i]*Discounts[currentStep][i+1]/Discounts[currentStep][i];
-
-        factors[before_+1]=0.0;
-
-        return;
+        for (Size i = 0; i < numberRates_; ++i)
+            taus_[i] = rateTimes[i + 1] - rateTimes[i];
     }
 
-    Real df = preDF * std::pow(postDF/preDF, postWeight_);
+    void MarketModelPathwiseDiscounter::getFactors(const Matrix&,           // LIBORRates, for all steps
+                                                   const Matrix& Discounts, // P(t_0, t_j) for j=0,...n for each step
+                                                   Size currentStep,
+                                                   std::vector<Real>& factors) const
+    {
+        Real preDF = Discounts[currentStep][before_];
+        Real postDF = Discounts[currentStep][before_ + 1];
 
-    factors[0] = df;
+        for (Size i = before_ + 1; i < numberRates_; ++i)
+            factors[i + 1] = 0.0;
 
-    for (Size i=0; i<=before_; ++i)
-       factors[i+1] = -df*taus_[i]*Discounts[currentStep][i+1]/Discounts[currentStep][i];
+        if (postWeight_ == 0.0)
+        {
+            factors[0] = preDF;
 
-    factors[before_+1] *= postWeight_;
-}
+            for (Size i = 0; i < before_; ++i)
+                factors[i + 1] = -preDF * taus_[i] * Discounts[currentStep][i + 1] / Discounts[currentStep][i];
+
+            factors[before_ + 1] = 0.0;
+
+            return;
+        }
+
+        Real df = preDF * std::pow(postDF / preDF, postWeight_);
+
+        factors[0] = df;
+
+        for (Size i = 0; i <= before_; ++i)
+            factors[i + 1] = -df * taus_[i] * Discounts[currentStep][i + 1] / Discounts[currentStep][i];
+
+        factors[before_ + 1] *= postWeight_;
+    }
 }

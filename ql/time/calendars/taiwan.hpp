@@ -28,7 +28,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Taiwanese calendars
     /*! Holidays for the Taiwan stock exchange
@@ -53,16 +54,21 @@ namespace QuantLib {
 
         \ingroup calendars
     */
-    class Taiwan : public Calendar {
+    class Taiwan : public Calendar
+    {
       private:
-        class TsecImpl final : public Calendar::Impl {
+        class TsecImpl final : public Calendar::Impl
+        {
           public:
             std::string name() const override { return "Taiwan stock exchange"; }
             bool isWeekend(Weekday) const override;
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
-        enum Market { TSEC    //!< Taiwan stock exchange
+        enum Market
+        {
+            TSEC //!< Taiwan stock exchange
         };
         Taiwan(Market m = TSEC);
     };

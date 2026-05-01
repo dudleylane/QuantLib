@@ -22,22 +22,21 @@
 #ifndef quantlib_abcd_hpp
 #define quantlib_abcd_hpp
 
-#include <ql/types.hpp>
 #include <ql/errors.hpp>
 #include <ql/math/abcdmathfunction.hpp>
+#include <ql/types.hpp>
 
-namespace QuantLib {
-    
+namespace QuantLib
+{
+
     //! %Abcd functional form for instantaneous volatility
     /*! \f[ f(T-t) = [ a + b(T-t) ] e^{-c(T-t)} + d \f]
         following Rebonato's notation. */
-    class AbcdFunction : public AbcdMathFunction {
+    class AbcdFunction : public AbcdMathFunction
+    {
 
       public:
-        AbcdFunction(Real a = -0.06,
-                     Real b =  0.17,
-                     Real c =  0.54,
-                     Real d =  0.17);
+        AbcdFunction(Real a = -0.06, Real b = 0.17, Real c = 0.54, Real d = 0.17);
 
         //! maximum value of the volatility function
         Real maximumVolatility() const { return maximumValue(); }
@@ -57,16 +56,15 @@ namespace QuantLib {
             \f[ \int_{t1}^{t2} f(T-t)f(S-t)dt \f] */
         Real covariance(Time t1, Time t2, Time T, Time S) const;
 
-         /*! average volatility in [tMin,tMax] of T-fixing rate:
-            \f[ \sqrt{ \frac{\int_{tMin}^{tMax} f^2(T-u)du}{tMax-tMin} } \f] */
+        /*! average volatility in [tMin,tMax] of T-fixing rate:
+           \f[ \sqrt{ \frac{\int_{tMin}^{tMax} f^2(T-u)du}{tMax-tMin} } \f] */
         Real volatility(Time tMin, Time tMax, Time T) const;
 
         /*! variance between tMin and tMax of T-fixing rate:
             \f[ \frac{\int_{tMin}^{tMax} f^2(T-u)du}{tMax-tMin} \f] */
         Real variance(Time tMin, Time tMax, Time T) const;
-        
 
-        
+
         // INSTANTANEOUS
         /*! instantaneous volatility at time t of the T-fixing rate:
             \f[ f(T-t) \f] */
@@ -85,25 +83,26 @@ namespace QuantLib {
             time t between T-fixing and S-fixing rates
             \f[ \int f(T-t)f(S-t)dt \f] */
         Real primitive(Time t, Time T, Time S) const;
-        
     };
 
-    
+
     // Helper class used by unit tests
-    class AbcdSquared {
-      
+    class AbcdSquared
+    {
+
       public:
         AbcdSquared(Real a, Real b, Real c, Real d, Time T, Time S);
         Real operator()(Time t) const;
-      
+
       private:
         ext::shared_ptr<AbcdFunction> abcd_;
         Time T_, S_;
     };
 
-    inline Real abcdBlackVolatility(Time u, Real a, Real b, Real c, Real d) {
-        AbcdFunction model(a,b,c,d);
-        return model.volatility(0.,u,u);
+    inline Real abcdBlackVolatility(Time u, Real a, Real b, Real c, Real d)
+    {
+        AbcdFunction model(a, b, c, d);
+        return model.volatility(0., u, u);
     }
 }
 

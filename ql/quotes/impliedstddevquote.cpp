@@ -22,7 +22,8 @@
 #include <ql/quotes/impliedstddevquote.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     ImpliedStdDevQuote::ImpliedStdDevQuote(Option::Type optionType,
                                            Handle<Quote> forward,
@@ -31,34 +32,36 @@ namespace QuantLib {
                                            Real guess,
                                            Real accuracy,
                                            Natural maxIter)
-    : impliedStdev_(guess), optionType_(optionType), strike_(strike), accuracy_(accuracy),
-      maxIter_(maxIter), forward_(std::move(forward)), price_(std::move(price)) {
+    : impliedStdev_(guess), optionType_(optionType), strike_(strike), accuracy_(accuracy), maxIter_(maxIter),
+      forward_(std::move(forward)), price_(std::move(price))
+    {
         registerWith(forward_);
         registerWith(price_);
     }
 
-    Real ImpliedStdDevQuote::value() const {
+    Real ImpliedStdDevQuote::value() const
+    {
         calculate();
         return impliedStdev_;
     }
 
-    bool ImpliedStdDevQuote::isValid() const {
-        return !price_.empty()    && !forward_.empty() &&
-                price_->isValid() &&  forward_->isValid();
+    bool ImpliedStdDevQuote::isValid() const
+    {
+        return !price_.empty() && !forward_.empty() && price_->isValid() && forward_->isValid();
     }
 
-    void ImpliedStdDevQuote::performCalculations() const {
+    void ImpliedStdDevQuote::performCalculations() const
+    {
         static const Real discount = 1.0;
         static const Real displacement = 0.0;
         Real blackPrice = price_->value();
-        try {
-            impliedStdev_ = blackFormulaImpliedStdDev(optionType_, strike_,
-                                                      forward_->value(),
-                                                      blackPrice,
-                                                      discount, displacement,
-                                                      impliedStdev_,
-                                                      accuracy_, maxIter_);
-        } catch(Error&) {
+        try
+        {
+            impliedStdev_ = blackFormulaImpliedStdDev(optionType_, strike_, forward_->value(), blackPrice, discount,
+                                                      displacement, impliedStdev_, accuracy_, maxIter_);
+        }
+        catch (Error&)
+        {
             impliedStdev_ = 0.0;
         }
     }

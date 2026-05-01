@@ -26,10 +26,12 @@
 
 #include <ql/indexes/iborindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! IborIndex calculated as proxy of some other IborIndex
-    class ProxyIbor : public IborIndex {
+    class ProxyIbor : public IborIndex
+    {
       public:
         ProxyIbor(const std::string& familyName,
                   const Period& tenor,
@@ -52,7 +54,8 @@ namespace QuantLib {
         Handle<Quote> spread_;
     };
 
-    inline Rate ProxyIbor::forecastFixing(const Date& fixingDate) const {
+    inline Rate ProxyIbor::forecastFixing(const Date& fixingDate) const
+    {
         Rate proxy = iborIndex_->fixing(fixingDate);
         return gearing_->value() * proxy * spread_->value();
     }

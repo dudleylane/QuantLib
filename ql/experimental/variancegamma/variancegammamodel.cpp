@@ -21,31 +21,27 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #include <ql/quotes/simplequote.hpp>
 #include <ql/shared_ptr.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    VarianceGammaModel::VarianceGammaModel(
-        const ext::shared_ptr<VarianceGammaProcess> & process)
-        : CalibratedModel(3), process_(process) {
-            arguments_[0] = ConstantParameter(process->sigma(),
-                PositiveConstraint());
-            arguments_[1] = ConstantParameter(process->nu(),
-                PositiveConstraint());
-            arguments_[2] = ConstantParameter(process->theta(),
-                NoConstraint());
+    VarianceGammaModel::VarianceGammaModel(const ext::shared_ptr<VarianceGammaProcess>& process)
+    : CalibratedModel(3), process_(process)
+    {
+        arguments_[0] = ConstantParameter(process->sigma(), PositiveConstraint());
+        arguments_[1] = ConstantParameter(process->nu(), PositiveConstraint());
+        arguments_[2] = ConstantParameter(process->theta(), NoConstraint());
 
-            VarianceGammaModel::generateArguments();
+        VarianceGammaModel::generateArguments();
 
-            registerWith(process_->riskFreeRate());
-            registerWith(process_->dividendYield());
-            registerWith(process_->s0());
+        registerWith(process_->riskFreeRate());
+        registerWith(process_->dividendYield());
+        registerWith(process_->s0());
     }
 
-    void VarianceGammaModel::generateArguments() {
-        process_ = ext::make_shared<VarianceGammaProcess>(process_->s0(),
-            process_->dividendYield(),
-            process_->riskFreeRate(),
-            sigma(), nu(), theta());
+    void VarianceGammaModel::generateArguments()
+    {
+        process_ = ext::make_shared<VarianceGammaProcess>(process_->s0(), process_->dividendYield(),
+                                                          process_->riskFreeRate(), sigma(), nu(), theta());
     }
 
 }
-

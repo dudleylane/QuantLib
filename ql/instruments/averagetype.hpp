@@ -28,15 +28,20 @@
 #include <ql/qldefines.hpp>
 #include <iosfwd>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Placeholder for enumerated averaging types
-    struct Average {
-        enum Type { Arithmetic, Geometric };
+    struct Average
+    {
+        enum Type
+        {
+            Arithmetic,
+            Geometric
+        };
     };
 
-    std::ostream& operator<<(std::ostream& out,
-                             Average::Type type);
+    std::ostream& operator<<(std::ostream& out, Average::Type type);
 
 }
 

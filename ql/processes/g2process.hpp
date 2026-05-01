@@ -27,11 +27,13 @@
 #include <ql/processes/forwardmeasureprocess.hpp>
 #include <ql/processes/ornsteinuhlenbeckprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %G2 stochastic process
     /*! \ingroup processes */
-    class G2Process : public StochasticProcess {
+    class G2Process : public StochasticProcess
+    {
       public:
         G2Process(Real a, Real sigma, Real b, Real eta, Real rho);
         //! \name StochasticProcess interface
@@ -51,6 +53,7 @@ namespace QuantLib {
         Real b() const;
         Real eta() const;
         Real rho() const;
+
       private:
         Real x0_ = 0.0, y0_ = 0.0, a_, sigma_, b_, eta_, rho_;
         ext::shared_ptr<QuantLib::OrnsteinUhlenbeckProcess> xProcess_;
@@ -59,7 +62,8 @@ namespace QuantLib {
 
     //! %Forward %G2 stochastic process
     /*! \ingroup processes */
-    class G2ForwardProcess : public ForwardMeasureProcess {
+    class G2ForwardProcess : public ForwardMeasureProcess
+    {
       public:
         G2ForwardProcess(Real a, Real sigma, Real b, Real eta, Real rho);
         //! \name StochasticProcess interface
@@ -86,4 +90,3 @@ namespace QuantLib {
 
 
 #endif
-

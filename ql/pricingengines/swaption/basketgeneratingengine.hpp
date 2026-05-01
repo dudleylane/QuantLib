@@ -36,7 +36,8 @@
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /* \warning the generated calibrating swaptions have a strike floored at
        0.1bp (minus lognormal shift, if applicable), this is not true for atm
@@ -54,11 +55,12 @@ namespace QuantLib {
        should be the same curve as the discounting curve of the swapIndex used to
        determine the calibration basket. */
 
-    class BasketGeneratingEngine {
+    class BasketGeneratingEngine
+    {
 
       public:
-
-        typedef enum CalibrationBasketType {
+        typedef enum CalibrationBasketType
+        {
             Naive,
             MaturityStrikeByDeltaGamma
         } CalibrationBasketType;
@@ -75,13 +77,16 @@ namespace QuantLib {
         BasketGeneratingEngine(const ext::shared_ptr<Gaussian1dModel>& model,
                                Handle<Quote> oas,
                                Handle<YieldTermStructure> discountCurve)
-        : onefactormodel_(model), oas_(std::move(oas)), discountCurve_(std::move(discountCurve)) {}
+        : onefactormodel_(model), oas_(std::move(oas)), discountCurve_(std::move(discountCurve))
+        {
+        }
 
         BasketGeneratingEngine(Handle<Gaussian1dModel> model,
                                Handle<Quote> oas,
                                Handle<YieldTermStructure> discountCurve)
-        : onefactormodel_(std::move(model)), oas_(std::move(oas)),
-          discountCurve_(std::move(discountCurve)) {}
+        : onefactormodel_(std::move(model)), oas_(std::move(oas)), discountCurve_(std::move(discountCurve))
+        {
+        }
 
         virtual Real underlyingNpv(const Date& expiry, Real y) const = 0;
 
@@ -89,16 +94,16 @@ namespace QuantLib {
 
         virtual const Date underlyingLastDate() const = 0;
 
-        virtual const Array initialGuess(const Date &expiry) const = 0; // return (nominal,
+        virtual const Array initialGuess(const Date& expiry) const = 0; // return (nominal,
                                                                         // maturity, rate)
 
       private:
-
         const Handle<Gaussian1dModel> onefactormodel_;
         const Handle<Quote> oas_;
         const Handle<YieldTermStructure> discountCurve_;
 
-        class MatchHelper : public CostFunction {
+        class MatchHelper : public CostFunction
+        {
           public:
             MatchHelper(const Swap::Type type,
                         const Real npv,
@@ -109,46 +114,42 @@ namespace QuantLib {
                         const Date& expiry,
                         const Real maxMaturity,
                         const Real h)
-            : type_(type), mdl_(std::move(model)), indexBase_(std::move(indexBase)),
-              expiry_(expiry), maxMaturity_(maxMaturity), npv_(npv), delta_(delta), gamma_(gamma),
-              h_(h) {}
+            : type_(type), mdl_(std::move(model)), indexBase_(std::move(indexBase)), expiry_(expiry),
+              maxMaturity_(maxMaturity), npv_(npv), delta_(delta), gamma_(gamma), h_(h)
+            {
+            }
 
-            Real NPV(const ext::shared_ptr<VanillaSwap>& swap,
-                     Real fixedRate,
-                     Real nominal,
-                     Real y,
-                     int type) const {
+            Real NPV(const ext::shared_ptr<VanillaSwap>& swap, Real fixedRate, Real nominal, Real y, int type) const
+            {
                 Real npv = 0.0;
-                for (const auto& i : swap->fixedLeg()) {
-                    ext::shared_ptr<FixedRateCoupon> c =
-                        ext::dynamic_pointer_cast<FixedRateCoupon>(i);
-                    npv -=
-                        fixedRate * c->accrualPeriod() * nominal *
-                        mdl_->zerobond(c->date(), expiry_, y,
-                                       indexBase_->discountingTermStructure());
+                for (const auto& i : swap->fixedLeg())
+                {
+                    ext::shared_ptr<FixedRateCoupon> c = ext::dynamic_pointer_cast<FixedRateCoupon>(i);
+                    npv -= fixedRate * c->accrualPeriod() * nominal *
+                           mdl_->zerobond(c->date(), expiry_, y, indexBase_->discountingTermStructure());
                 }
-                for (const auto& i : swap->floatingLeg()) {
+                for (const auto& i : swap->floatingLeg())
+                {
                     ext::shared_ptr<IborCoupon> c = ext::dynamic_pointer_cast<IborCoupon>(i);
-                    npv +=
-                        mdl_->forwardRate(c->fixingDate(), expiry_, y,
-                                          c->iborIndex()) *
-                        c->accrualPeriod() * nominal *
-                        mdl_->zerobond(c->date(), expiry_, y,
-                                       indexBase_->discountingTermStructure());
+                    npv += mdl_->forwardRate(c->fixingDate(), expiry_, y, c->iborIndex()) * c->accrualPeriod() *
+                           nominal * mdl_->zerobond(c->date(), expiry_, y, indexBase_->discountingTermStructure());
                 }
                 return (Real)type * npv;
             }
 
-            Real value(const Array& v) const override {
+            Real value(const Array& v) const override
+            {
                 Array vals = values(v);
                 Real res = 0.0;
-                for (Real val : vals) {
+                for (Real val : vals)
+                {
                     res += val * val;
                 }
                 return std::sqrt(res / vals.size());
             }
 
-            Array values(const Array& v) const override {
+            Array values(const Array& v) const override
+            {
                 // transformations
                 int type = type_; // start with same type as non standard
                                   // underlying (1 means payer, -1 receiver)
@@ -165,7 +166,8 @@ namespace QuantLib {
                 maturity *= 12.0;
                 Size months = (Size)std::floor(maturity);
                 Real alpha = 1.0 - (maturity - (Real)months);
-                if (years == 0 && months == 0) {
+                if (years == 0 && months == 0)
+                {
                     months = 1;  // ensure a maturity of at least one month ...
                     alpha = 1.0; // ... but in this case only look at the lower
                                  // maturity swap
@@ -174,29 +176,20 @@ namespace QuantLib {
                 // Size days = (Size)std::floor(maturity);
                 // Real alpha = 1.0-(maturity-(Real)days);
                 // generate swap
-                Period lowerPeriod =
-                    years * Years + months * Months;           //+days*Days;
-                Period upperPeriod = lowerPeriod + 1 * Months; // 1*Days;
+                Period lowerPeriod = years * Years + months * Months; //+days*Days;
+                Period upperPeriod = lowerPeriod + 1 * Months;        // 1*Days;
                 ext::shared_ptr<SwapIndex> tmpIndexLower, tmpIndexUpper;
                 tmpIndexLower = indexBase_->clone(lowerPeriod);
                 tmpIndexUpper = indexBase_->clone(upperPeriod);
-                ext::shared_ptr<VanillaSwap> swapLower =
-                    tmpIndexLower->underlyingSwap(expiry_);
-                ext::shared_ptr<VanillaSwap> swapUpper =
-                    tmpIndexUpper->underlyingSwap(expiry_);
+                ext::shared_ptr<VanillaSwap> swapLower = tmpIndexLower->underlyingSwap(expiry_);
+                ext::shared_ptr<VanillaSwap> swapUpper = tmpIndexUpper->underlyingSwap(expiry_);
                 // compute npv, delta, gamma
-                Real npvm =
-                    alpha * NPV(swapLower, fixedRate, nominal, -h_, type) +
-                    (1.0 - alpha) *
-                        NPV(swapUpper, fixedRate, nominal, -h_, type);
-                Real npv =
-                    alpha * NPV(swapLower, fixedRate, nominal, 0.0, type) +
-                    (1.0 - alpha) *
-                        NPV(swapUpper, fixedRate, nominal, 0.0, type);
-                Real npvu =
-                    alpha * NPV(swapLower, fixedRate, nominal, h_, type) +
-                    (1.0 - alpha) *
-                        NPV(swapUpper, fixedRate, nominal, h_, type);
+                Real npvm = alpha * NPV(swapLower, fixedRate, nominal, -h_, type) +
+                            (1.0 - alpha) * NPV(swapUpper, fixedRate, nominal, -h_, type);
+                Real npv = alpha * NPV(swapLower, fixedRate, nominal, 0.0, type) +
+                           (1.0 - alpha) * NPV(swapUpper, fixedRate, nominal, 0.0, type);
+                Real npvu = alpha * NPV(swapLower, fixedRate, nominal, h_, type) +
+                            (1.0 - alpha) * NPV(swapUpper, fixedRate, nominal, h_, type);
                 Real delta = (npvu - npvm) / (2.0 * h_);
                 Real gamma = (npvu - 2.0 * npv + npvm) / (h_ * h_);
 

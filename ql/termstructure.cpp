@@ -21,23 +21,28 @@
 #include <ql/termstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    TermStructure::TermStructure(DayCounter dc)
-    : settlementDays_(Null<Natural>()), dayCounter_(std::move(dc)) {}
+    TermStructure::TermStructure(DayCounter dc) : settlementDays_(Null<Natural>()), dayCounter_(std::move(dc)) {}
 
     TermStructure::TermStructure(const Date& referenceDate, Calendar cal, DayCounter dc)
     : calendar_(std::move(cal)), referenceDate_(referenceDate), settlementDays_(Null<Natural>()),
-      dayCounter_(std::move(dc)) {}
+      dayCounter_(std::move(dc))
+    {
+    }
 
     TermStructure::TermStructure(Natural settlementDays, Calendar cal, DayCounter dc)
     : moving_(true), updated_(false), calendar_(std::move(cal)), settlementDays_(settlementDays),
-      dayCounter_(std::move(dc)) {
+      dayCounter_(std::move(dc))
+    {
         registerWith(Settings::instance().evaluationDate());
     }
 
-    const Date& TermStructure::referenceDate() const {
-        if (!updated_) {
+    const Date& TermStructure::referenceDate() const
+    {
+        if (!updated_)
+        {
             Date today = Settings::instance().evaluationDate();
             referenceDate_ = calendar().advance(today, settlementDays(), Days);
             updated_ = true;
@@ -45,7 +50,8 @@ namespace QuantLib {
         return referenceDate_;
     }
 
-    void TermStructure::update() {
+    void TermStructure::update()
+    {
         if (moving_)
             updated_ = false;
         maxTimeUpdated_ = false;

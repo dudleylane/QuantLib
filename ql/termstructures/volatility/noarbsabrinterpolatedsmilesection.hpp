@@ -26,15 +26,16 @@
 
 #include <ql/handle.hpp>
 #include <ql/patterns/lazyobject.hpp>
-#include <ql/termstructures/volatility/smilesection.hpp>
 #include <ql/termstructures/volatility/noarbsabrinterpolation.hpp>
+#include <ql/termstructures/volatility/smilesection.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Quote;
-    class NoArbSabrInterpolatedSmileSection : public SmileSection,
-                                         public LazyObject {
+    class NoArbSabrInterpolatedSmileSection : public SmileSection, public LazyObject
+    {
       public:
         //! \name Constructors
         //@{
@@ -45,7 +46,7 @@ namespace QuantLib {
             const std::vector<Rate>& strikes,
             bool hasFloatingStrikes,
             Handle<Quote> atmVolatility,
-            const std::vector<Handle<Quote> >& volHandles,
+            const std::vector<Handle<Quote>>& volHandles,
             Real alpha,
             Real beta,
             Real nu,
@@ -104,7 +105,6 @@ namespace QuantLib {
         //@}
 
       protected:
-
         //! Creates the mutable SABRInterpolation
         void createInterpolation() const;
         mutable ext::shared_ptr<NoArbSabrInterpolation> noArbSabrInterpolation_;
@@ -112,7 +112,7 @@ namespace QuantLib {
         //! Market data
         const Handle<Quote> forward_;
         const Handle<Quote> atmVolatility_;
-        std::vector<Handle<Quote> > volHandles_;
+        std::vector<Handle<Quote>> volHandles_;
         mutable std::vector<Rate> strikes_;
         //! Only strikes corresponding to valid market data
         mutable std::vector<Rate> actualStrikes_;
@@ -129,63 +129,74 @@ namespace QuantLib {
         const ext::shared_ptr<OptimizationMethod> method_;
     };
 
-    inline void NoArbSabrInterpolatedSmileSection::update() {
+    inline void NoArbSabrInterpolatedSmileSection::update()
+    {
         LazyObject::update();
         SmileSection::update();
     }
 
-    inline Real NoArbSabrInterpolatedSmileSection::volatilityImpl(Rate strike) const {
+    inline Real NoArbSabrInterpolatedSmileSection::volatilityImpl(Rate strike) const
+    {
         calculate();
         return (*noArbSabrInterpolation_)(strike, true);
     }
 
-    inline Real NoArbSabrInterpolatedSmileSection::alpha() const {
+    inline Real NoArbSabrInterpolatedSmileSection::alpha() const
+    {
         calculate();
         return noArbSabrInterpolation_->alpha();
     }
 
-    inline Real NoArbSabrInterpolatedSmileSection::beta() const {
+    inline Real NoArbSabrInterpolatedSmileSection::beta() const
+    {
         calculate();
         return noArbSabrInterpolation_->beta();
     }
 
-    inline Real NoArbSabrInterpolatedSmileSection::nu() const {
+    inline Real NoArbSabrInterpolatedSmileSection::nu() const
+    {
         calculate();
         return noArbSabrInterpolation_->nu();
     }
 
-    inline Real NoArbSabrInterpolatedSmileSection::rho() const {
+    inline Real NoArbSabrInterpolatedSmileSection::rho() const
+    {
         calculate();
         return noArbSabrInterpolation_->rho();
     }
 
-    inline Real NoArbSabrInterpolatedSmileSection::rmsError() const {
+    inline Real NoArbSabrInterpolatedSmileSection::rmsError() const
+    {
         calculate();
         return noArbSabrInterpolation_->rmsError();
     }
 
-    inline Real NoArbSabrInterpolatedSmileSection::maxError() const {
+    inline Real NoArbSabrInterpolatedSmileSection::maxError() const
+    {
         calculate();
         return noArbSabrInterpolation_->maxError();
     }
 
-    inline EndCriteria::Type NoArbSabrInterpolatedSmileSection::endCriteria() const {
+    inline EndCriteria::Type NoArbSabrInterpolatedSmileSection::endCriteria() const
+    {
         calculate();
         return noArbSabrInterpolation_->endCriteria();
     }
 
-    inline Real NoArbSabrInterpolatedSmileSection::minStrike() const {
+    inline Real NoArbSabrInterpolatedSmileSection::minStrike() const
+    {
         calculate();
         return actualStrikes_.front();
-
     }
 
-    inline Real NoArbSabrInterpolatedSmileSection::maxStrike() const {
+    inline Real NoArbSabrInterpolatedSmileSection::maxStrike() const
+    {
         calculate();
         return actualStrikes_.back();
     }
 
-    inline Real NoArbSabrInterpolatedSmileSection::atmLevel() const {
+    inline Real NoArbSabrInterpolatedSmileSection::atmLevel() const
+    {
         calculate();
         return forwardValue_;
     }

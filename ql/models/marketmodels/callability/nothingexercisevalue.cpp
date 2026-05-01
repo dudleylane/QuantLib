@@ -22,70 +22,75 @@
 #include <ql/models/marketmodels/utilities.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    NothingExerciseValue::NothingExerciseValue(const std::vector<Time>& rateTimes,
-                                               std::valarray<bool> isExerciseTime)
-    : rateTimes_(rateTimes), isExerciseTime_(std::move(isExerciseTime)) {
+    NothingExerciseValue::NothingExerciseValue(const std::vector<Time>& rateTimes, std::valarray<bool> isExerciseTime)
+    : rateTimes_(rateTimes), isExerciseTime_(std::move(isExerciseTime))
+    {
 
         checkIncreasingTimes(rateTimes);
-        QL_REQUIRE(rateTimes.size() >= 2,
-                   "Rate times must contain at least two values");
+        QL_REQUIRE(rateTimes.size() >= 2, "Rate times must contain at least two values");
         cf_.amount = 0.0;
         std::vector<Time> evolutionTimes(rateTimes_);
         evolutionTimes.pop_back();
-        evolution_= EvolutionDescription(rateTimes_, evolutionTimes);
-        if(isExerciseTime_.size()==0) {
-            isExerciseTime_ = std::valarray<bool>(true,rateTimes.empty() ? 0 : rateTimes.size()-1);
+        evolution_ = EvolutionDescription(rateTimes_, evolutionTimes);
+        if (isExerciseTime_.size() == 0)
+        {
+            isExerciseTime_ = std::valarray<bool>(true, rateTimes.empty() ? 0 : rateTimes.size() - 1);
         }
-        else {
-            QL_REQUIRE(isExerciseTime_.size() ==
-                           (rateTimes.empty() ? 0 : rateTimes.size() - 1),
-                       "isExerciseTime ("
-                           << isExerciseTime_.size() << ") must "
-                           << "have same size as rateTimes minus 1 ("
-                           << (rateTimes.empty() ? 0 : rateTimes.size() - 1)
-                           << ")");
+        else
+        {
+            QL_REQUIRE(isExerciseTime_.size() == (rateTimes.empty() ? 0 : rateTimes.size() - 1),
+                       "isExerciseTime (" << isExerciseTime_.size() << ") must "
+                                          << "have same size as rateTimes minus 1 ("
+                                          << (rateTimes.empty() ? 0 : rateTimes.size() - 1) << ")");
         }
         numberOfExercises_ = 0;
-        for(Size i=0;i<isExerciseTime_.size();i++)
-            if(isExerciseTime_[i])
+        for (Size i = 0; i < isExerciseTime_.size(); i++)
+            if (isExerciseTime_[i])
                 ++numberOfExercises_;
     }
 
-    Size NothingExerciseValue::numberOfExercises() const {
+    Size NothingExerciseValue::numberOfExercises() const
+    {
         return numberOfExercises_;
     }
 
-    const EvolutionDescription& NothingExerciseValue::evolution() const {
+    const EvolutionDescription& NothingExerciseValue::evolution() const
+    {
         return evolution_;
     }
 
-    std::vector<Time> NothingExerciseValue::possibleCashFlowTimes() const {
+    std::vector<Time> NothingExerciseValue::possibleCashFlowTimes() const
+    {
         return rateTimes_;
     }
 
-    void NothingExerciseValue::reset() {
-        currentIndex_=0;
+    void NothingExerciseValue::reset()
+    {
+        currentIndex_ = 0;
     }
 
-    void NothingExerciseValue::nextStep(const CurveState&) {
+    void NothingExerciseValue::nextStep(const CurveState&)
+    {
         cf_.timeIndex = currentIndex_;
         ++currentIndex_;
     }
 
 
-    std::valarray<bool> NothingExerciseValue::isExerciseTime() const {
+    std::valarray<bool> NothingExerciseValue::isExerciseTime() const
+    {
         return isExerciseTime_;
     }
 
-    MarketModelMultiProduct::CashFlow
-    NothingExerciseValue::value(const CurveState&) const {
-         return cf_;
+    MarketModelMultiProduct::CashFlow NothingExerciseValue::value(const CurveState&) const
+    {
+        return cf_;
     }
 
-    std::unique_ptr<MarketModelExerciseValue>
-    NothingExerciseValue::clone() const {
+    std::unique_ptr<MarketModelExerciseValue> NothingExerciseValue::clone() const
+    {
         return std::unique_ptr<MarketModelExerciseValue>(new NothingExerciseValue(*this));
     }
 

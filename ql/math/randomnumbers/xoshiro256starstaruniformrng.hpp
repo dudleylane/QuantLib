@@ -40,7 +40,8 @@ See <http://creativecommons.org/publicdomain/zero/1.0/>. */
 #include <ql/types.hpp>
 #include <cstdint>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Uniform random number generator
     /*! xoshiro256** random number generator of period 2**256-1
@@ -53,7 +54,8 @@ namespace QuantLib {
         \test the correctness of the returned values is tested by checking them
                against the reference implementation in c.
     */
-    class Xoshiro256StarStarUniformRng {
+    class Xoshiro256StarStarUniformRng
+    {
       public:
         typedef Sample<Real> sample_type;
 
@@ -73,7 +75,8 @@ namespace QuantLib {
         Real nextReal() const { return (Real(nextInt64() >> 11) + 0.5) * (1.0 / Real(1ULL << 53)); }
 
         //! return a random integer in the [0,0xffffffffffffffffULL]-interval
-        std::uint64_t nextInt64() const {
+        std::uint64_t nextInt64() const
+        {
             const auto result = rotl(s1_ * 5, 7) * 9;
 
             const auto t = s1_ << 17;

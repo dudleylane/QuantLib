@@ -28,13 +28,15 @@
 
 #include <ql/time/period.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Seniority of a bond.
     /*! They are also ISDA tier/seniorities used for CDS conventional
         spreads.
     */
-    enum Seniority {
+    enum Seniority
+    {
         SecDom = 0,
         SnrFor,
         SubLT2,
@@ -43,11 +45,11 @@ namespace QuantLib {
         // Unassigned value, allows for default RR quote
         NoSeniority,
         // markit parlance
-        SeniorSec     = SecDom,
-        SeniorUnSec   = SnrFor,
-        SubTier1      = PrefT1,
+        SeniorSec = SecDom,
+        SeniorUnSec = SnrFor,
+        SubTier1 = PrefT1,
         SubUpperTier2 = JrSubT2,
-        SubLoweTier2  = SubLT2
+        SubLoweTier2 = SubLT2
     };
 
 
@@ -57,8 +59,10 @@ namespace QuantLib {
         DefaultType. If your new type requires more sofisticated test
         you need to derive from it as in FailureToPay
     */
-    struct AtomicDefault {
-        enum Type {
+    struct AtomicDefault
+    {
+        enum Type
+        {
             // Includes one of the restructuring cases
             Restructuring = 0,
             Bankruptcy,
@@ -71,8 +75,8 @@ namespace QuantLib {
             ObligationDefault = Default,
             CrossDefault = Default,
             // Other non-isda
-            Downgrade,   // Non-ISDA, not in FpML
-            MergerEvent  // Non-ISDA, not in FpML
+            Downgrade,  // Non-ISDA, not in FpML
+            MergerEvent // Non-ISDA, not in FpML
         };
     };
 
@@ -81,8 +85,10 @@ namespace QuantLib {
     //   restructuring types can not be combined together.
 
     //! Restructuring type
-    struct Restructuring {
-        enum Type {
+    struct Restructuring
+    {
+        enum Type
+        {
             NoRestructuring = 0,
             ModifiedRestructuring,
             ModifiedModifiedRestructuring,
@@ -103,21 +109,17 @@ namespace QuantLib {
         type level, obviating the specific event characteristics which
         it is accounted for only in derived classes.
     */
-    class DefaultType {
+    class DefaultType
+    {
       public:
-        explicit DefaultType(AtomicDefault::Type defType =
-                                                    AtomicDefault::Bankruptcy,
+        explicit DefaultType(AtomicDefault::Type defType = AtomicDefault::Bankruptcy,
                              Restructuring::Type restType = Restructuring::XR);
 
         virtual ~DefaultType() = default;
 
-        AtomicDefault::Type defaultType() const {
-            return defTypes_;
-        }
-        Restructuring::Type restructuringType() const {return restrType_;}
-        bool isRestructuring() const {
-            return restrType_ != Restructuring::NoRestructuring;
-        }
+        AtomicDefault::Type defaultType() const { return defTypes_; }
+        Restructuring::Type restructuringType() const { return restrType_; }
+        bool isRestructuring() const { return restrType_ != Restructuring::NoRestructuring; }
 
         // bool isAtomic() const { return defTypes_.size() == 1;}
 
@@ -131,16 +133,15 @@ namespace QuantLib {
             match. This policies should be implemented at the
             CreditEvent class, which is polymorphic.
         */
-        bool containsDefaultType(AtomicDefault::Type defType) const {
-            return defTypes_ ==  defType;
+        bool containsDefaultType(AtomicDefault::Type defType) const { return defTypes_ == defType; }
+
+        bool containsRestructuringType(Restructuring::Type resType) const
+        {
+            return (restrType_ == resType) || (Restructuring::AnyRestructuring == resType);
         }
 
-        bool containsRestructuringType(Restructuring::Type resType) const {
-            return (restrType_ == resType) ||
-                (Restructuring::AnyRestructuring == resType);
-        }
-    protected:
-        //std::set<AtomicDefault::Type> defTypes_;
+      protected:
+        // std::set<AtomicDefault::Type> defTypes_;
         AtomicDefault::Type defTypes_;
         Restructuring::Type restrType_;
     };
@@ -160,20 +161,21 @@ namespace QuantLib {
     bool operator==(const DefaultType& lhs, const DefaultType& rhs);
 
 
-
     //! Failure to Pay atomic event type.
-    class FailureToPay : public DefaultType {
+    class FailureToPay : public DefaultType
+    {
       public:
         // Only atomic construction.
         // Amount contract by default is in dollars as per ISDA doc and not
         //   the contract curr. Theres an issue here...... FIX ME
-        explicit FailureToPay(const Period& grace,
-                              Real amount = 1.e+6)
-        : DefaultType(AtomicDefault::FailureToPay, Restructuring::XR),
-          gracePeriod_(grace), amountRequired_(amount) {}
+        explicit FailureToPay(const Period& grace, Real amount = 1.e+6)
+        : DefaultType(AtomicDefault::FailureToPay, Restructuring::XR), gracePeriod_(grace), amountRequired_(amount)
+        {
+        }
 
-        Real amountRequired() const {return amountRequired_;}
-        const Period& gracePeriod() const {return gracePeriod_;}
+        Real amountRequired() const { return amountRequired_; }
+        const Period& gracePeriod() const { return gracePeriod_; }
+
       private:
         // Grace period to consider the event. If payment occurs during
         // the period the event should be removed from its container.

@@ -28,7 +28,8 @@
 #include <ql/termstructures/credit/hazardratestructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Default-probability structure with an additive spread on hazard rates
     /*! \note This term structure will remain linked to the original
@@ -37,10 +38,10 @@ namespace QuantLib {
 
         \ingroup defaultprobabilitytermstructures
     */
-    class SpreadedHazardRateCurve : public HazardRateStructure {
+    class SpreadedHazardRateCurve : public HazardRateStructure
+    {
       public:
-        SpreadedHazardRateCurve(Handle<DefaultProbabilityTermStructure> originalCurve,
-                                Handle<Quote> spread);
+        SpreadedHazardRateCurve(Handle<DefaultProbabilityTermStructure> originalCurve, Handle<Quote> spread);
         //! \name DefaultProbabilityTermStructure interface
         //@{
         DayCounter dayCounter() const override;
@@ -62,34 +63,41 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline SpreadedHazardRateCurve::SpreadedHazardRateCurve(
-        Handle<DefaultProbabilityTermStructure> h, Handle<Quote> spread)
-    : originalCurve_(std::move(h)), spread_(std::move(spread)) {
+    inline SpreadedHazardRateCurve::SpreadedHazardRateCurve(Handle<DefaultProbabilityTermStructure> h,
+                                                            Handle<Quote> spread)
+    : originalCurve_(std::move(h)), spread_(std::move(spread))
+    {
         registerWith(originalCurve_);
         registerWith(spread_);
     }
 
-    inline DayCounter SpreadedHazardRateCurve::dayCounter() const {
+    inline DayCounter SpreadedHazardRateCurve::dayCounter() const
+    {
         return originalCurve_->dayCounter();
     }
 
-    inline Calendar SpreadedHazardRateCurve::calendar() const {
+    inline Calendar SpreadedHazardRateCurve::calendar() const
+    {
         return originalCurve_->calendar();
     }
 
-    inline const Date& SpreadedHazardRateCurve::referenceDate() const {
+    inline const Date& SpreadedHazardRateCurve::referenceDate() const
+    {
         return originalCurve_->referenceDate();
     }
 
-    inline Date SpreadedHazardRateCurve::maxDate() const {
+    inline Date SpreadedHazardRateCurve::maxDate() const
+    {
         return originalCurve_->maxDate();
     }
 
-    inline Time SpreadedHazardRateCurve::maxTime() const {
+    inline Time SpreadedHazardRateCurve::maxTime() const
+    {
         return originalCurve_->maxTime();
     }
 
-    inline Real SpreadedHazardRateCurve::hazardRateImpl(Time t) const {
+    inline Real SpreadedHazardRateCurve::hazardRateImpl(Time t) const
+    {
         return originalCurve_->hazardRate(t, true) + spread_->value();
     }
 

@@ -5,4 +5,3 @@
 #include <ql/models/marketmodels/pathwisegreeks/ratepseudorootjacobian.hpp>
 #include <ql/models/marketmodels/pathwisegreeks/swaptionpseudojacobian.hpp>
 #include <ql/models/marketmodels/pathwisegreeks/vegabumpcluster.hpp>
-

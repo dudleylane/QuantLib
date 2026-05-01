@@ -25,11 +25,12 @@
 #ifndef quantlib_capped_floored_coupon_hpp
 #define quantlib_capped_floored_coupon_hpp
 
-#include <ql/cashflows/iborcoupon.hpp>
 #include <ql/cashflows/cmscoupon.hpp>
+#include <ql/cashflows/iborcoupon.hpp>
 #include <ql/utilities/null.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
     class Date;
     //! Capped and/or floored floating-rate coupon
     /*! The payoff \f$ P \f$ of a capped floating-rate coupon is:
@@ -54,12 +55,12 @@ namespace QuantLib {
         R = (a L + b) + |a| \min(\frac{C - b}{|a|} - \xi L, 0)
         \f]
     */
-    class CappedFlooredCoupon : public FloatingRateCoupon {
+    class CappedFlooredCoupon : public FloatingRateCoupon
+    {
       public:
-        CappedFlooredCoupon(
-                  const ext::shared_ptr<FloatingRateCoupon>& underlying,
-                  Rate cap = Null<Rate>(),
-                  Rate floor = Null<Rate>());
+        CappedFlooredCoupon(const ext::shared_ptr<FloatingRateCoupon>& underlying,
+                            Rate cap = Null<Rate>(),
+                            Rate floor = Null<Rate>());
         //! \name Observer interface
         //@{
         void deepUpdate() override;
@@ -86,8 +87,8 @@ namespace QuantLib {
         //@{
         void accept(AcyclicVisitor&) override;
 
-        bool isCapped() const {return isCapped_;}
-        bool isFloored() const {return isFloored_;}
+        bool isCapped() const { return isCapped_; }
+        bool isFloored() const { return isFloored_; }
 
         void setPricer(const ext::shared_ptr<FloatingRateCouponPricer>& pricer) override;
 
@@ -100,32 +101,46 @@ namespace QuantLib {
         Rate cap_, floor_;
     };
 
-    class CappedFlooredIborCoupon : public CappedFlooredCoupon {
+    class CappedFlooredIborCoupon : public CappedFlooredCoupon
+    {
       public:
-        CappedFlooredIborCoupon(
-                  const Date& paymentDate,
-                  Real nominal,
-                  const Date& startDate,
-                  const Date& endDate,
-                  Natural fixingDays,
-                  const ext::shared_ptr<IborIndex>& index,
-                  Real gearing = 1.0,
-                  Spread spread = 0.0,
-                  Rate cap = Null<Rate>(),
-                  Rate floor = Null<Rate>(),
-                  const Date& refPeriodStart = Date(),
-                  const Date& refPeriodEnd = Date(),
-                  const DayCounter& dayCounter = DayCounter(),
-                  bool isInArrears = false,
-                  const Date& exCouponDate = Date(),
-                  BusinessDayConvention fixingConvention = Preceding)
-        : CappedFlooredCoupon(ext::shared_ptr<FloatingRateCoupon>(new
-            IborCoupon(paymentDate, nominal, startDate, endDate, fixingDays,
-                       index, gearing, spread, refPeriodStart, refPeriodEnd,
-                       dayCounter, isInArrears, exCouponDate,
-                       fixingConvention)), cap, floor) {}
+        CappedFlooredIborCoupon(const Date& paymentDate,
+                                Real nominal,
+                                const Date& startDate,
+                                const Date& endDate,
+                                Natural fixingDays,
+                                const ext::shared_ptr<IborIndex>& index,
+                                Real gearing = 1.0,
+                                Spread spread = 0.0,
+                                Rate cap = Null<Rate>(),
+                                Rate floor = Null<Rate>(),
+                                const Date& refPeriodStart = Date(),
+                                const Date& refPeriodEnd = Date(),
+                                const DayCounter& dayCounter = DayCounter(),
+                                bool isInArrears = false,
+                                const Date& exCouponDate = Date(),
+                                BusinessDayConvention fixingConvention = Preceding)
+        : CappedFlooredCoupon(ext::shared_ptr<FloatingRateCoupon>(new IborCoupon(paymentDate,
+                                                                                 nominal,
+                                                                                 startDate,
+                                                                                 endDate,
+                                                                                 fixingDays,
+                                                                                 index,
+                                                                                 gearing,
+                                                                                 spread,
+                                                                                 refPeriodStart,
+                                                                                 refPeriodEnd,
+                                                                                 dayCounter,
+                                                                                 isInArrears,
+                                                                                 exCouponDate,
+                                                                                 fixingConvention)),
+                              cap,
+                              floor)
+        {
+        }
 
-        void accept(AcyclicVisitor& v) override {
+        void accept(AcyclicVisitor& v) override
+        {
             auto* v1 = dynamic_cast<Visitor<CappedFlooredIborCoupon>*>(&v);
             if (v1 != nullptr)
                 v1->visit(*this);
@@ -134,32 +149,46 @@ namespace QuantLib {
         }
     };
 
-    class CappedFlooredCmsCoupon : public CappedFlooredCoupon {
+    class CappedFlooredCmsCoupon : public CappedFlooredCoupon
+    {
       public:
-        CappedFlooredCmsCoupon(
-                  const Date& paymentDate,
-                  Real nominal,
-                  const Date& startDate,
-                  const Date& endDate,
-                  Natural fixingDays,
-                  const ext::shared_ptr<SwapIndex>& index,
-                  Real gearing = 1.0,
-                  Spread spread= 0.0,
-                  const Rate cap = Null<Rate>(),
-                  const Rate floor = Null<Rate>(),
-                  const Date& refPeriodStart = Date(),
-                  const Date& refPeriodEnd = Date(),
-                  const DayCounter& dayCounter = DayCounter(),
-                  bool isInArrears = false,
-                  const Date& exCouponDate = Date(),
-                  BusinessDayConvention fixingConvention = Preceding)
-        : CappedFlooredCoupon(ext::shared_ptr<FloatingRateCoupon>(new
-            CmsCoupon(paymentDate, nominal, startDate, endDate, fixingDays,
-                      index, gearing, spread, refPeriodStart, refPeriodEnd,
-                      dayCounter, isInArrears, exCouponDate,
-                      fixingConvention)), cap, floor) {}
+        CappedFlooredCmsCoupon(const Date& paymentDate,
+                               Real nominal,
+                               const Date& startDate,
+                               const Date& endDate,
+                               Natural fixingDays,
+                               const ext::shared_ptr<SwapIndex>& index,
+                               Real gearing = 1.0,
+                               Spread spread = 0.0,
+                               const Rate cap = Null<Rate>(),
+                               const Rate floor = Null<Rate>(),
+                               const Date& refPeriodStart = Date(),
+                               const Date& refPeriodEnd = Date(),
+                               const DayCounter& dayCounter = DayCounter(),
+                               bool isInArrears = false,
+                               const Date& exCouponDate = Date(),
+                               BusinessDayConvention fixingConvention = Preceding)
+        : CappedFlooredCoupon(ext::shared_ptr<FloatingRateCoupon>(new CmsCoupon(paymentDate,
+                                                                                nominal,
+                                                                                startDate,
+                                                                                endDate,
+                                                                                fixingDays,
+                                                                                index,
+                                                                                gearing,
+                                                                                spread,
+                                                                                refPeriodStart,
+                                                                                refPeriodEnd,
+                                                                                dayCounter,
+                                                                                isInArrears,
+                                                                                exCouponDate,
+                                                                                fixingConvention)),
+                              cap,
+                              floor)
+        {
+        }
 
-        void accept(AcyclicVisitor& v) override {
+        void accept(AcyclicVisitor& v) override
+        {
             auto* v1 = dynamic_cast<Visitor<CappedFlooredCmsCoupon>*>(&v);
             if (v1 != nullptr)
                 v1->visit(*this);

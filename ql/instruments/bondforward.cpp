@@ -18,27 +18,34 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/cashflow.hpp>
 #include <ql/instruments/bondforward.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
-#include <ql/cashflow.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    BondForward::BondForward(
-                    const Date& valueDate,
-                    const Date& maturityDate,
-                    Position::Type type,
-                    Real strike,
-                    Natural settlementDays,
-                    const DayCounter& dayCounter,
-                    const Calendar& calendar,
-                    BusinessDayConvention businessDayConvention,
-                    const ext::shared_ptr<Bond>& bond,
-                    const Handle<YieldTermStructure>& discountCurve,
-                    const Handle<YieldTermStructure>& incomeDiscountCurve)
-    : Forward(dayCounter, calendar, businessDayConvention, settlementDays,
-              ext::shared_ptr<Payoff>(new ForwardTypePayoff(type,strike)),
-              valueDate, maturityDate, discountCurve), bond_(bond) {
+    BondForward::BondForward(const Date& valueDate,
+                             const Date& maturityDate,
+                             Position::Type type,
+                             Real strike,
+                             Natural settlementDays,
+                             const DayCounter& dayCounter,
+                             const Calendar& calendar,
+                             BusinessDayConvention businessDayConvention,
+                             const ext::shared_ptr<Bond>& bond,
+                             const Handle<YieldTermStructure>& discountCurve,
+                             const Handle<YieldTermStructure>& incomeDiscountCurve)
+    : Forward(dayCounter,
+              calendar,
+              businessDayConvention,
+              settlementDays,
+              ext::shared_ptr<Payoff>(new ForwardTypePayoff(type, strike)),
+              valueDate,
+              maturityDate,
+              discountCurve),
+      bond_(bond)
+    {
 
         incomeDiscountCurve_ = incomeDiscountCurve;
         registerWith(incomeDiscountCurve_);
@@ -46,18 +53,20 @@ namespace QuantLib {
     }
 
 
-    Real BondForward::cleanForwardPrice() const {
+    Real BondForward::cleanForwardPrice() const
+    {
         return forwardValue() - bond_->accruedAmount(maturityDate_);
     }
 
 
-    Real BondForward::forwardPrice() const {
+    Real BondForward::forwardPrice() const
+    {
         return forwardValue();
     }
 
 
-    Real BondForward::spotIncome(
-        const Handle<YieldTermStructure>& incomeDiscountCurve) const {
+    Real BondForward::spotIncome(const Handle<YieldTermStructure>& incomeDiscountCurve) const
+    {
 
         Real income = 0.0;
         Date settlement = settlementDate();
@@ -69,11 +78,16 @@ namespace QuantLib {
           2. considers as income: all coupons paid between settlementDate()
           and contract delivery/maturity date
         */
-        for (auto& i : cf) {
-            if (!i->hasOccurred(settlement, false)) {
-                if (i->hasOccurred(maturityDate_, false)) {
+        for (auto& i : cf)
+        {
+            if (!i->hasOccurred(settlement, false))
+            {
+                if (i->hasOccurred(maturityDate_, false))
+                {
                     income += i->amount() * incomeDiscountCurve->discount(i->date());
-                } else {
+                }
+                else
+                {
                     break;
                 }
             }
@@ -83,18 +97,19 @@ namespace QuantLib {
     }
 
 
-    Real BondForward::spotValue() const { 
+    Real BondForward::spotValue() const
+    {
         return bond_->dirtyPrice();
     }
 
 
-    void BondForward::performCalculations() const {
+    void BondForward::performCalculations() const
+    {
 
         underlyingSpotValue_ = spotValue();
-        underlyingIncome_    = spotIncome(incomeDiscountCurve_);
+        underlyingIncome_ = spotIncome(incomeDiscountCurve_);
 
         Forward::performCalculations();
     }
 
 }
-

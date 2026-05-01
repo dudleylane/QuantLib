@@ -22,7 +22,8 @@
 #include <ql/utilities/null_deleter.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     YoYOptionletHelper::YoYOptionletHelper(const Handle<Quote>& price,
                                            Real notional,
@@ -36,27 +37,23 @@ namespace QuantLib {
                                            Rate strike,
                                            Size n,
                                            ext::shared_ptr<YoYInflationCapFloorEngine> pricer)
-    : BootstrapHelper<YoYOptionletVolatilitySurface>(price), notional_(notional),
-      capFloorType_(capFloorType), lag_(lag), fixingDays_(fixingDays), index_(std::move(index)),
-      strike_(strike), n_(n), yoyDayCounter_(std::move(yoyDayCounter)),
-      calendar_(std::move(paymentCalendar)), pricer_(std::move(pricer)) {
+    : BootstrapHelper<YoYOptionletVolatilitySurface>(price), notional_(notional), capFloorType_(capFloorType),
+      lag_(lag), fixingDays_(fixingDays), index_(std::move(index)), strike_(strike), n_(n),
+      yoyDayCounter_(std::move(yoyDayCounter)), calendar_(std::move(paymentCalendar)), pricer_(std::move(pricer))
+    {
 
         // build the instrument to reprice (only need do this once)
-        yoyCapFloor_ =
-            MakeYoYInflationCapFloor(capFloorType_, index_,
-                                     n_, calendar_, lag_, interpolation)
-            .withNominal(notional)
-            .withFixingDays(fixingDays_)
-            .withPaymentDayCounter(yoyDayCounter_)
-            .withStrike(strike_);
+        yoyCapFloor_ = MakeYoYInflationCapFloor(capFloorType_, index_, n_, calendar_, lag_, interpolation)
+                           .withNominal(notional)
+                           .withFixingDays(fixingDays_)
+                           .withPaymentDayCounter(yoyDayCounter_)
+                           .withStrike(strike_);
 
         // dates already build in lag of index/instrument
         // these are the dates of the values of the index
         // that fix the capfloor
-          earliestDate_ = ext::dynamic_pointer_cast<YoYInflationCoupon>(
-              yoyCapFloor_->yoyLeg().front())->fixingDate();
-          latestDate_ = ext::dynamic_pointer_cast<YoYInflationCoupon>(
-              yoyCapFloor_->yoyLeg().back())->fixingDate();
+        earliestDate_ = ext::dynamic_pointer_cast<YoYInflationCoupon>(yoyCapFloor_->yoyLeg().front())->fixingDate();
+        latestDate_ = ext::dynamic_pointer_cast<YoYInflationCoupon>(yoyCapFloor_->yoyLeg().back())->fixingDate();
 
         // each reprice is resetting the inflation surf in the
         // pricer... so set the pricer
@@ -65,23 +62,23 @@ namespace QuantLib {
     }
 
 
-    Real YoYOptionletHelper::impliedQuote() const {
+    Real YoYOptionletHelper::impliedQuote() const
+    {
         yoyCapFloor_->deepUpdate();
         return yoyCapFloor_->NPV();
     }
 
 
-    void YoYOptionletHelper::setTermStructure(
-                                           YoYOptionletVolatilitySurface* v) {
+    void YoYOptionletHelper::setTermStructure(YoYOptionletVolatilitySurface* v)
+    {
 
         BootstrapHelper<YoYOptionletVolatilitySurface>::setTermStructure(v);
         // set up a new yoyCapFloor
         // but this one does NOT own its inflation term structure
         const bool own = false;
         // create a handle to the new vol surface
-        Handle<YoYOptionletVolatilitySurface> volSurf(
-            ext::shared_ptr<YoYOptionletVolatilitySurface>(v, null_deleter()),
-            own);
+        Handle<YoYOptionletVolatilitySurface> volSurf(ext::shared_ptr<YoYOptionletVolatilitySurface>(v, null_deleter()),
+                                                      own);
         // in this case all we need to do is reset the vol in the pricer
         // we must do it because the surface is a different one each time
         // i.e. the pointer (handle) changes, not just what it points to
@@ -89,4 +86,3 @@ namespace QuantLib {
     }
 
 }
-

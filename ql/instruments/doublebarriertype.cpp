@@ -17,25 +17,27 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/errors.hpp>
 #include <ql/instruments/doublebarriertype.hpp>
 #include <ql/types.hpp>
-#include <ql/errors.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    std::ostream& operator<<(std::ostream& out,
-                             DoubleBarrier::Type type) {
-        switch (type) {
-          case DoubleBarrier::KnockIn:
-            return out << "KnockIn";
-          case DoubleBarrier::KnockOut:
-            return out << "KnockOut";
-          case DoubleBarrier::KIKO:
-            return out << "KI lo+KO up";
-          case DoubleBarrier::KOKI:
-            return out << "KO lo+KI up";
-          default:
-            QL_FAIL("unknown DoubleBarrier::Type (" << Integer(type) << ")");
+    std::ostream& operator<<(std::ostream& out, DoubleBarrier::Type type)
+    {
+        switch (type)
+        {
+            case DoubleBarrier::KnockIn:
+                return out << "KnockIn";
+            case DoubleBarrier::KnockOut:
+                return out << "KnockOut";
+            case DoubleBarrier::KIKO:
+                return out << "KI lo+KO up";
+            case DoubleBarrier::KOKI:
+                return out << "KO lo+KI up";
+            default:
+                QL_FAIL("unknown DoubleBarrier::Type (" << Integer(type) << ")");
         }
     }
 

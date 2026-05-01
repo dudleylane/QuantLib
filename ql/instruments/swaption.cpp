@@ -31,11 +31,14 @@
 #include <ql/shared_ptr.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
+    namespace
+    {
 
-        class ImpliedSwaptionVolHelper {
+        class ImpliedSwaptionVolHelper
+        {
           public:
             ImpliedSwaptionVolHelper(const Swaption&,
                                      Handle<YieldTermStructure> discountCurve,
@@ -44,6 +47,7 @@ namespace QuantLib {
                                      VolatilityType type);
             Real operator()(Volatility x) const;
             Real derivative(Volatility x) const;
+
           private:
             ext::shared_ptr<PricingEngine> engine_;
             Handle<YieldTermStructure> discountCurve_;
@@ -57,76 +61,80 @@ namespace QuantLib {
                                                            Real targetValue,
                                                            Real displacement,
                                                            VolatilityType type)
-        : discountCurve_(std::move(discountCurve)), targetValue_(targetValue),
-          vol_(ext::make_shared<SimpleQuote>(-1.0)) {
+        : discountCurve_(std::move(discountCurve)), targetValue_(targetValue), vol_(ext::make_shared<SimpleQuote>(-1.0))
+        {
 
             // vol_ is set an implausible value, so that calculation is forced
             // at first ImpliedSwaptionVolHelper::operator()(Volatility x) call
 
             Handle<Quote> h(vol_);
 
-            switch (type) {
-            case ShiftedLognormal:
-                engine_ = ext::make_shared<BlackSwaptionEngine>(
-                    discountCurve_, h, Actual365Fixed(), displacement);
-                break;
-            case Normal:
-                engine_ = ext::make_shared<BachelierSwaptionEngine>(
-                    discountCurve_, h, Actual365Fixed());
-                break;
-            default:
-                QL_FAIL("unknown VolatilityType (" << type << ")");
-                break;
+            switch (type)
+            {
+                case ShiftedLognormal:
+                    engine_ = ext::make_shared<BlackSwaptionEngine>(discountCurve_, h, Actual365Fixed(), displacement);
+                    break;
+                case Normal:
+                    engine_ = ext::make_shared<BachelierSwaptionEngine>(discountCurve_, h, Actual365Fixed());
+                    break;
+                default:
+                    QL_FAIL("unknown VolatilityType (" << type << ")");
+                    break;
             }
             swaption.setupArguments(engine_->getArguments());
-            results_ = dynamic_cast<const Instrument::results *>(
-                engine_->getResults());
+            results_ = dynamic_cast<const Instrument::results*>(engine_->getResults());
         }
 
-        Real ImpliedSwaptionVolHelper::operator()(Volatility x) const {
-            if (x!=vol_->value()) {
+        Real ImpliedSwaptionVolHelper::operator()(Volatility x) const
+        {
+            if (x != vol_->value())
+            {
                 vol_->setValue(x);
                 engine_->calculate();
             }
-            return results_->value-targetValue_;
+            return results_->value - targetValue_;
         }
 
-        Real ImpliedSwaptionVolHelper::derivative(Volatility x) const {
-            if (x!=vol_->value()) {
+        Real ImpliedSwaptionVolHelper::derivative(Volatility x) const
+        {
+            if (x != vol_->value())
+            {
                 vol_->setValue(x);
                 engine_->calculate();
             }
             auto vega_ = results_->additionalResults.find("vega");
-            QL_REQUIRE(vega_ != results_->additionalResults.end(),
-                       "vega not provided");
+            QL_REQUIRE(vega_ != results_->additionalResults.end(), "vega not provided");
             return ext::any_cast<Real>(vega_->second);
         }
     }
 
-    std::ostream& operator<<(std::ostream& out,
-                             Settlement::Type t) {
-        switch (t) {
-          case Settlement::Physical:
-            return out << "Delivery";
-          case Settlement::Cash:
-            return out << "Cash";
-          default:
-            QL_FAIL("unknown Settlement::Type(" << Integer(t) << ")");
+    std::ostream& operator<<(std::ostream& out, Settlement::Type t)
+    {
+        switch (t)
+        {
+            case Settlement::Physical:
+                return out << "Delivery";
+            case Settlement::Cash:
+                return out << "Cash";
+            default:
+                QL_FAIL("unknown Settlement::Type(" << Integer(t) << ")");
         }
     }
 
-    std::ostream& operator<<(std::ostream& out, Settlement::Method m) {
-        switch (m) {
-        case Settlement::PhysicalOTC:
-            return out << "PhysicalOTC";
-        case Settlement::PhysicalCleared:
-            return out << "PhysicalCleared";
-        case Settlement::CollateralizedCashPrice:
-            return out << "CollateralizedCashPrice";
-        case Settlement::ParYieldCurve:
-            return out << "ParYieldCurve";
-        default:
-            QL_FAIL("unknown Settlement::Method(" << Integer(m) << ")");
+    std::ostream& operator<<(std::ostream& out, Settlement::Method m)
+    {
+        switch (m)
+        {
+            case Settlement::PhysicalOTC:
+                return out << "PhysicalOTC";
+            case Settlement::PhysicalCleared:
+                return out << "PhysicalCleared";
+            case Settlement::CollateralizedCashPrice:
+                return out << "CollateralizedCashPrice";
+            case Settlement::ParYieldCurve:
+                return out << "ParYieldCurve";
+            default:
+                QL_FAIL("unknown Settlement::Method(" << Integer(m) << ")");
         }
     }
 
@@ -134,8 +142,9 @@ namespace QuantLib {
                        const ext::shared_ptr<Exercise>& exercise,
                        Settlement::Type delivery,
                        Settlement::Method settlementMethod)
-    : Option(ext::shared_ptr<Payoff>(), exercise), swap_(std::move(swap)),
-      settlementType_(delivery), settlementMethod_(settlementMethod) {
+    : Option(ext::shared_ptr<Payoff>(), exercise), swap_(std::move(swap)), settlementType_(delivery),
+      settlementMethod_(settlementMethod)
+    {
         registerWith(swap_);
         // When we ask for the NPV of an expired swaption, the
         // swap is not recalculated and thus wouldn't forward
@@ -150,16 +159,19 @@ namespace QuantLib {
         vanilla_ = ext::dynamic_pointer_cast<VanillaSwap>(swap_);
     }
 
-    void Swaption::deepUpdate() {
+    void Swaption::deepUpdate()
+    {
         swap_->deepUpdate();
         update();
     }
 
-    bool Swaption::isExpired() const {
+    bool Swaption::isExpired() const
+    {
         return detail::simple_event(exercise_->dates().back()).hasOccurred();
     }
 
-    void Swaption::setupArguments(PricingEngine::arguments* args) const {
+    void Swaption::setupArguments(PricingEngine::arguments* args) const
+    {
 
         swap_->setupArguments(args);
         auto* arguments = dynamic_cast<Swaption::arguments*>(args);
@@ -172,7 +184,8 @@ namespace QuantLib {
         arguments->exercise = exercise_;
     }
 
-    void Swaption::arguments::validate() const {
+    void Swaption::arguments::validate() const
+    {
         FixedVsFloatingSwap::arguments::validate();
         QL_REQUIRE(swap, "swap not set");
         QL_REQUIRE(exercise, "exercise not set");
@@ -188,12 +201,14 @@ namespace QuantLib {
                                            Volatility maxVol,
                                            VolatilityType type,
                                            Real displacement,
-                                           PriceType priceType) const {
+                                           PriceType priceType) const
+    {
 
         QL_REQUIRE(!isExpired(), "instrument expired");
         QL_REQUIRE(exercise_->type() == Exercise::European, "not a European option");
 
-        if (priceType == Forward) {
+        if (priceType == Forward)
+        {
             // convert to spot
             targetValue *= discountCurve->discount(exercise_->date(0));
         }
@@ -204,17 +219,16 @@ namespace QuantLib {
         return solver.solve(f, accuracy, guess, minVol, maxVol);
     }
 
-    void Settlement::checkTypeAndMethodConsistency(
-                                        Settlement::Type settlementType,
-                                        Settlement::Method settlementMethod) {
-        if (settlementType == Physical) {
-            QL_REQUIRE(settlementMethod == PhysicalOTC ||
-                       settlementMethod == PhysicalCleared,
+    void Settlement::checkTypeAndMethodConsistency(Settlement::Type settlementType, Settlement::Method settlementMethod)
+    {
+        if (settlementType == Physical)
+        {
+            QL_REQUIRE(settlementMethod == PhysicalOTC || settlementMethod == PhysicalCleared,
                        "invalid settlement method for physical settlement");
         }
-        if (settlementType == Cash) {
-            QL_REQUIRE(settlementMethod == CollateralizedCashPrice ||
-                       settlementMethod == ParYieldCurve,
+        if (settlementType == Cash)
+        {
+            QL_REQUIRE(settlementMethod == CollateralizedCashPrice || settlementMethod == ParYieldCurve,
                        "invalid settlement method for cash settlement");
         }
     }

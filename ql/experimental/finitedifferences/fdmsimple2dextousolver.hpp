@@ -35,33 +35,34 @@
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class FdmSimple2dExtOUSolver : public LazyObject {
+    class FdmSimple2dExtOUSolver : public LazyObject
+    {
       public:
         FdmSimple2dExtOUSolver(const Handle<ExtendedOrnsteinUhlenbeckProcess>& process,
                                ext::shared_ptr<YieldTermStructure> rTS,
                                FdmSolverDesc solverDesc,
                                const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Hundsdorfer())
-        : process_(process), rTS_(std::move(rTS)), solverDesc_(std::move(solverDesc)),
-          schemeDesc_(schemeDesc) {
+        : process_(process), rTS_(std::move(rTS)), solverDesc_(std::move(solverDesc)), schemeDesc_(schemeDesc)
+        {
             registerWith(process);
         }
 
-        Real valueAt(Real x, Real y) const {
+        Real valueAt(Real x, Real y) const
+        {
             calculate();
             return solver_->interpolateAt(x, y);
         }
 
       protected:
-        void performCalculations() const override {
-            ext::shared_ptr<FdmLinearOpComposite>op(
-                new FdmExtendedOrnsteinUhlenbeckOp(
-                                solverDesc_.mesher, process_.currentLink(),
-                                rTS_, solverDesc_.bcSet));
+        void performCalculations() const override
+        {
+            ext::shared_ptr<FdmLinearOpComposite> op(new FdmExtendedOrnsteinUhlenbeckOp(
+                solverDesc_.mesher, process_.currentLink(), rTS_, solverDesc_.bcSet));
 
-            solver_ = ext::make_shared<Fdm2DimSolver>(
-                          solverDesc_, schemeDesc_, op);
+            solver_ = ext::make_shared<Fdm2DimSolver>(solverDesc_, schemeDesc_, op);
         }
 
       private:
@@ -75,4 +76,3 @@ namespace QuantLib {
 }
 
 #endif
-

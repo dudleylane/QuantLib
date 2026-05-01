@@ -27,13 +27,15 @@
 #include <ql/termstructures/volatility/smilesection.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! smile-section utilities, the moneyness is expressed in
         - absolute terms for normal
         - relative terms for shifted lognormal
         volatility smile sections */
-    class SmileSectionUtils {
+    class SmileSectionUtils
+    {
       public:
         SmileSectionUtils(const SmileSection& section,
                           const std::vector<Real>& moneynessGrid = std::vector<Real>(),
@@ -42,9 +44,9 @@ namespace QuantLib {
 
         std::pair<Real, Real> arbitragefreeRegion() const;
         std::pair<Size, Size> arbitragefreeIndices() const;
-        const std::vector<Real> &moneyGrid() const { return m_; }
-        const std::vector<Real> &strikeGrid() const { return k_; }
-        const std::vector<Real> &callPrices() const { return c_; }
+        const std::vector<Real>& moneyGrid() const { return m_; }
+        const std::vector<Real>& strikeGrid() const { return k_; }
+        const std::vector<Real>& callPrices() const { return c_; }
         Real atmLevel() const { return f_; }
 
       private:

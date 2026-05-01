@@ -17,53 +17,55 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/math/matrixutilities/pseudosqrt.hpp>
 #include <ql/legacy/libormarketmodels/lmexpcorrmodel.hpp>
+#include <ql/math/matrixutilities/pseudosqrt.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    LmExponentialCorrelationModel::LmExponentialCorrelationModel(Size size,
-                                                                 Real rho)
-   : LmCorrelationModel(size, 1),
-     corrMatrix_(size, size),
-     pseudoSqrt_(size, size) {
+    LmExponentialCorrelationModel::LmExponentialCorrelationModel(Size size, Real rho)
+    : LmCorrelationModel(size, 1), corrMatrix_(size, size), pseudoSqrt_(size, size)
+    {
         arguments_[0] = ConstantParameter(rho, PositiveConstraint());
         LmExponentialCorrelationModel::generateArguments();
     }
 
-    Matrix LmExponentialCorrelationModel::correlation(Time, const Array&) const {
+    Matrix LmExponentialCorrelationModel::correlation(Time, const Array&) const
+    {
 
         Matrix tmp(corrMatrix_);
         return tmp;
     }
 
-    Real LmExponentialCorrelationModel::correlation(
-                                   Size i, Size j, Time, const Array&) const {
+    Real LmExponentialCorrelationModel::correlation(Size i, Size j, Time, const Array&) const
+    {
         return corrMatrix_[i][j];
     }
 
-    bool LmExponentialCorrelationModel::isTimeIndependent() const {
+    bool LmExponentialCorrelationModel::isTimeIndependent() const
+    {
         return true;
     }
 
-    Matrix LmExponentialCorrelationModel::pseudoSqrt(Time, const Array&) const {
+    Matrix LmExponentialCorrelationModel::pseudoSqrt(Time, const Array&) const
+    {
         Matrix tmp(pseudoSqrt_);
         return tmp;
     }
 
-    void LmExponentialCorrelationModel::generateArguments() {
+    void LmExponentialCorrelationModel::generateArguments()
+    {
         const Real rho = arguments_[0](0.0);
 
-        for (Size i=0; i<size_; ++i) {
-            for (Size j=i; j<size_; ++j) {
-                corrMatrix_[i][j] = corrMatrix_[j][i]
-                    = std::exp(-rho*std::fabs(Real(i)-Real(j)));
+        for (Size i = 0; i < size_; ++i)
+        {
+            for (Size j = i; j < size_; ++j)
+            {
+                corrMatrix_[i][j] = corrMatrix_[j][i] = std::exp(-rho * std::fabs(Real(i) - Real(j)));
             }
         }
 
-        pseudoSqrt_ = QuantLib::pseudoSqrt(corrMatrix_,
-                                           SalvagingAlgorithm::Spectral);
+        pseudoSqrt_ = QuantLib::pseudoSqrt(corrMatrix_, SalvagingAlgorithm::Spectral);
     }
 
 }
-

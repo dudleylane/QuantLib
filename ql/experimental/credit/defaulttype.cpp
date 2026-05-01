@@ -18,24 +18,24 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/experimental/credit/defaulttype.hpp>
 #include <ql/errors.hpp>
+#include <ql/experimental/credit/defaulttype.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    DefaultType::DefaultType(AtomicDefault::Type defType,
-                             Restructuring::Type restType)
-    : defTypes_(defType), restrType_(restType) {
+    DefaultType::DefaultType(AtomicDefault::Type defType, Restructuring::Type restType)
+    : defTypes_(defType), restrType_(restType)
+    {
         // checks restruct and norestruct are never together.
         QL_REQUIRE((defType == AtomicDefault::Restructuring) != // xor
-                   (restrType_ == Restructuring::NoRestructuring),
+                       (restrType_ == Restructuring::NoRestructuring),
                    "Incoherent credit event type definition.");
     }
 
-    bool operator==(const DefaultType& lhs, const DefaultType& rhs) {
-        return (lhs.defaultType() == rhs.defaultType()) &&
-            (lhs.restructuringType() == rhs.restructuringType());
+    bool operator==(const DefaultType& lhs, const DefaultType& rhs)
+    {
+        return (lhs.defaultType() == rhs.defaultType()) && (lhs.restructuringType() == rhs.restructuringType());
     }
 
 }
-

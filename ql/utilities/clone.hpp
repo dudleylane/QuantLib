@@ -28,7 +28,8 @@
 #include <algorithm>
 #include <memory>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! cloning proxy to an underlying object
     /*! When copied, this class will make a clone of its underlying
@@ -37,7 +38,8 @@ namespace QuantLib {
         configuration) to a newly-allocated instance.
     */
     template <class T>
-    class Clone {
+    class Clone
+    {
       public:
         Clone() = default;
         Clone(std::unique_ptr<T>&&);
@@ -52,6 +54,7 @@ namespace QuantLib {
         bool empty() const;
         void swap(Clone<T>& t) noexcept;
         ~Clone() = default;
+
       private:
         std::unique_ptr<T> ptr_;
     };
@@ -64,63 +67,75 @@ namespace QuantLib {
     // inline definitions
 
     template <class T>
-    inline Clone<T>::Clone(std::unique_ptr<T>&& p)
-    : ptr_(std::move(p)) {}
+    inline Clone<T>::Clone(std::unique_ptr<T>&& p) : ptr_(std::move(p))
+    {
+    }
 
     template <class T>
-    inline Clone<T>::Clone(const T& t)
-    : ptr_(t.clone().release()) {}
+    inline Clone<T>::Clone(const T& t) : ptr_(t.clone().release())
+    {
+    }
 
     template <class T>
-    inline Clone<T>::Clone(const Clone<T>& t)
-    : ptr_(t.empty() ? (T*)nullptr : t->clone().release()) {}
+    inline Clone<T>::Clone(const Clone<T>& t) : ptr_(t.empty() ? (T*)nullptr : t->clone().release())
+    {
+    }
 
     template <class T>
-    inline Clone<T>::Clone(Clone<T>&& t) noexcept {
+    inline Clone<T>::Clone(Clone<T>&& t) noexcept
+    {
         swap(t);
     }
 
     template <class T>
-    inline Clone<T>& Clone<T>::operator=(const T& t) {
+    inline Clone<T>& Clone<T>::operator=(const T& t)
+    {
         ptr_ = t.clone();
         return *this;
     }
 
     template <class T>
-    inline Clone<T>& Clone<T>::operator=(const Clone<T>& t) {
+    inline Clone<T>& Clone<T>::operator=(const Clone<T>& t)
+    {
         ptr_.reset(t.empty() ? (T*)nullptr : t->clone().release());
         return *this;
     }
 
     template <class T>
-    inline Clone<T>& Clone<T>::operator=(Clone<T>&& t) noexcept {
+    inline Clone<T>& Clone<T>::operator=(Clone<T>&& t) noexcept
+    {
         swap(t);
         return *this;
     }
 
     template <class T>
-    inline T& Clone<T>::operator*() const {
+    inline T& Clone<T>::operator*() const
+    {
         QL_REQUIRE(!this->empty(), "no underlying objects");
         return *(this->ptr_);
     }
 
     template <class T>
-    inline T* Clone<T>::operator->() const {
+    inline T* Clone<T>::operator->() const
+    {
         return this->ptr_.get();
     }
 
     template <class T>
-    inline bool Clone<T>::empty() const {
+    inline bool Clone<T>::empty() const
+    {
         return !ptr_;
     }
 
     template <class T>
-    inline void Clone<T>::swap(Clone<T>& t) noexcept {
+    inline void Clone<T>::swap(Clone<T>& t) noexcept
+    {
         this->ptr_.swap(t.ptr_);
     }
 
     template <class T>
-    inline void swap(Clone<T>& t, Clone<T>& u) noexcept {
+    inline void swap(Clone<T>& t, Clone<T>& u) noexcept
+    {
         t.swap(u);
     }
 

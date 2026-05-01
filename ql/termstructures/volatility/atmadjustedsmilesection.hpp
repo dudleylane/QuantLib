@@ -27,9 +27,11 @@
 
 #include <ql/termstructures/volatility/smilesection.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class AtmAdjustedSmileSection : public SmileSection {
+    class AtmAdjustedSmileSection : public SmileSection
+    {
 
       public:
         explicit AtmAdjustedSmileSection(const ext::shared_ptr<SmileSection>& source,
@@ -46,25 +48,26 @@ namespace QuantLib {
         VolatilityType volatilityType() const override { return source_->volatilityType(); }
         Rate shift() const override { return source_->shift(); }
 
-        Real optionPrice(Rate strike,
-                         Option::Type type = Option::Call,
-                         Real discount = 1.0) const override {
+        Real optionPrice(Rate strike, Option::Type type = Option::Call, Real discount = 1.0) const override
+        {
             return source_->optionPrice(adjustedStrike(strike), type, discount);
         }
 
         Real digitalOptionPrice(Rate strike,
                                 Option::Type type = Option::Call,
                                 Real discount = 1.0,
-                                Real gap = 1.0e-5) const override {
-            return source_->digitalOptionPrice(adjustedStrike(strike), type,
-                                               discount, gap);
+                                Real gap = 1.0e-5) const override
+        {
+            return source_->digitalOptionPrice(adjustedStrike(strike), type, discount, gap);
         }
 
-        Real vega(Rate strike, Real discount = 1.0) const override {
+        Real vega(Rate strike, Real discount = 1.0) const override
+        {
             return source_->vega(adjustedStrike(strike), discount);
         }
 
-        Real density(Rate strike, Real discount = 1.0, Real gap = 1.0E-4) const override {
+        Real density(Rate strike, Real discount = 1.0, Real gap = 1.0E-4) const override
+        {
             return source_->density(adjustedStrike(strike), discount, gap);
         }
 
@@ -73,7 +76,6 @@ namespace QuantLib {
         Volatility volatilityImpl(Rate strike) const override;
 
       private:
-
         Real adjustedStrike(Real strike) const;
         ext::shared_ptr<SmileSection> source_;
         Real adjustment_;

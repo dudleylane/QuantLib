@@ -27,7 +27,8 @@
 #include <ql/types.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! B-spline basis functions
     /*! Follows treatment and notation from:
@@ -55,11 +56,10 @@ namespace QuantLib {
         \end{array}
         \f]
     */
-    class BSpline {
+    class BSpline
+    {
       public:
-        BSpline(Natural p,
-                Natural n,
-                const std::vector<Real>& knots);
+        BSpline(Natural p, Natural n, const std::vector<Real>& knots);
 
         Real operator()(Natural i, Real x) const;
 

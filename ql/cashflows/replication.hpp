@@ -27,27 +27,34 @@
 #include <ql/types.hpp>
 #include <iosfwd>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Digital option replication strategy
     /*! Specification of replication strategies used to price
         the embedded digital option in a digital coupon.
     */
-    struct Replication {
-        enum Type { Sub, Central, Super };
+    struct Replication
+    {
+        enum Type
+        {
+            Sub,
+            Central,
+            Super
+        };
     };
 
     /*! \relates Replication */
-    std::ostream& operator<<(std::ostream&,
-                             Replication::Type);
+    std::ostream& operator<<(std::ostream&, Replication::Type);
 
-    class DigitalReplication {
-    public:
-        DigitalReplication(Replication::Type t = Replication::Central,
-                           Real gap = 1e-4);
-        Replication::Type replicationType() const { return replicationType_;};
-        Real gap() const { return gap_;};
-    private:
+    class DigitalReplication
+    {
+      public:
+        DigitalReplication(Replication::Type t = Replication::Central, Real gap = 1e-4);
+        Replication::Type replicationType() const { return replicationType_; };
+        Real gap() const { return gap_; };
+
+      private:
         Real gap_;
         Replication::Type replicationType_;
     };

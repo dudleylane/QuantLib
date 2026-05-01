@@ -30,14 +30,15 @@
 #include <ql/methods/finitedifferences/operators/fdmlinearop.hpp>
 #include <memory>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class FdmMesher;
 
-    class NinePointLinearOp : public FdmLinearOp {
+    class NinePointLinearOp : public FdmLinearOp
+    {
       public:
-        NinePointLinearOp(Size d0, Size d1,
-                const ext::shared_ptr<FdmMesher>& mesher);
+        NinePointLinearOp(Size d0, Size d1, const ext::shared_ptr<FdmMesher>& mesher);
         NinePointLinearOp(const NinePointLinearOp& m);
         NinePointLinearOp(NinePointLinearOp&& m) noexcept;
         NinePointLinearOp& operator=(const NinePointLinearOp& m);
@@ -66,17 +67,20 @@ namespace QuantLib {
     };
 
 
-    inline NinePointLinearOp::NinePointLinearOp(NinePointLinearOp&& m) noexcept {
+    inline NinePointLinearOp::NinePointLinearOp(NinePointLinearOp&& m) noexcept
+    {
         swap(m);
     }
 
-    inline NinePointLinearOp& NinePointLinearOp::operator=(const NinePointLinearOp& m) {
+    inline NinePointLinearOp& NinePointLinearOp::operator=(const NinePointLinearOp& m)
+    {
         NinePointLinearOp temp(m);
         swap(temp);
         return *this;
     }
 
-    inline NinePointLinearOp& NinePointLinearOp::operator=(NinePointLinearOp&& m) noexcept {
+    inline NinePointLinearOp& NinePointLinearOp::operator=(NinePointLinearOp&& m) noexcept
+    {
         swap(m);
         return *this;
     }

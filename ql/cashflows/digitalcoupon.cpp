@@ -23,7 +23,8 @@
 #include <ql/indexes/indexmanager.hpp>
 #include <ql/indexes/interestrateindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     DigitalCoupon::DigitalCoupon(const ext::shared_ptr<FloatingRateCoupon>& underlying,
                                  Rate callStrike,
@@ -48,145 +49,163 @@ namespace QuantLib {
                          underlying->referencePeriodEnd(),
                          underlying->dayCounter(),
                          underlying->isInArrears()),
-      underlying_(underlying), isCallATMIncluded_(isCallATMIncluded),
-      isPutATMIncluded_(isPutATMIncluded), nakedOption_(nakedOption) {
+      underlying_(underlying), isCallATMIncluded_(isCallATMIncluded), isPutATMIncluded_(isPutATMIncluded),
+      nakedOption_(nakedOption)
+    {
 
         if (replication == nullptr)
             replication = ext::make_shared<DigitalReplication>();
-        
-        QL_REQUIRE(replication->gap()>0.0, "Non positive epsilon not allowed");
+
+        QL_REQUIRE(replication->gap() > 0.0, "Non positive epsilon not allowed");
 
         callLeftEps_ = callRightEps_ = putLeftEps_ = putRightEps_ = replication->gap() / 2;
         replicationType_ = replication->replicationType();
-        
-        if (putStrike == Null<Rate>()) {
-            QL_REQUIRE(putDigitalPayoff == Null<Rate>(),
-            "Put Cash rate non allowed if put strike is null");
+
+        if (putStrike == Null<Rate>())
+        {
+            QL_REQUIRE(putDigitalPayoff == Null<Rate>(), "Put Cash rate non allowed if put strike is null");
         }
-        if (callStrike == Null<Rate>()) {
-            QL_REQUIRE(callDigitalPayoff == Null<Rate>(),
-            "Call Cash rate non allowed if call strike is null");
+        if (callStrike == Null<Rate>())
+        {
+            QL_REQUIRE(callDigitalPayoff == Null<Rate>(), "Call Cash rate non allowed if call strike is null");
         }
-        if (callStrike != Null<Rate>()) {
+        if (callStrike != Null<Rate>())
+        {
             hasCallStrike_ = true;
             callStrike_ = callStrike;
-            switch (callPosition) {
-                case Position::Long :
+            switch (callPosition)
+            {
+                case Position::Long:
                     callCsi_ = 1.0;
                     break;
-                case Position::Short :
+                case Position::Short:
                     callCsi_ = -1.0;
                     break;
                 default:
                     QL_FAIL("unsupported position type");
             }
-            if (callDigitalPayoff != Null<Rate>()){
+            if (callDigitalPayoff != Null<Rate>())
+            {
                 callDigitalPayoff_ = callDigitalPayoff;
                 isCallCashOrNothing_ = true;
             }
         }
-        if (putStrike != Null<Rate>()){
+        if (putStrike != Null<Rate>())
+        {
             hasPutStrike_ = true;
             putStrike_ = putStrike;
-            switch (putPosition) {
-                case Position::Long :
+            switch (putPosition)
+            {
+                case Position::Long:
                     putCsi_ = 1.0;
                     break;
-                case Position::Short :
+                case Position::Short:
                     putCsi_ = -1.0;
                     break;
                 default:
                     QL_FAIL("unsupported position type");
             }
-            if (putDigitalPayoff != Null<Rate>()){
+            if (putDigitalPayoff != Null<Rate>())
+            {
                 putDigitalPayoff_ = putDigitalPayoff;
                 isPutCashOrNothing_ = true;
             }
         }
 
-        switch (replicationType_) {
-          case Replication::Central :
-            // do nothing
-            break;
-          case Replication::Sub :
-            if (hasCallStrike_) {
-                switch (callPosition) {
-                    case Position::Long :
-                        callLeftEps_ = 0.;
-                        callRightEps_ = replication->gap();
-                        break;
-                    case Position::Short :
-                        callLeftEps_ = replication->gap();
-                        callRightEps_ = 0.;
-                        break;
-                    default:
-                        QL_FAIL("unsupported position type");
+        switch (replicationType_)
+        {
+            case Replication::Central:
+                // do nothing
+                break;
+            case Replication::Sub:
+                if (hasCallStrike_)
+                {
+                    switch (callPosition)
+                    {
+                        case Position::Long:
+                            callLeftEps_ = 0.;
+                            callRightEps_ = replication->gap();
+                            break;
+                        case Position::Short:
+                            callLeftEps_ = replication->gap();
+                            callRightEps_ = 0.;
+                            break;
+                        default:
+                            QL_FAIL("unsupported position type");
+                    }
                 }
-            }
-            if (hasPutStrike_) {
-                switch (putPosition) {
-                    case Position::Long :
-                        putLeftEps_ = replication->gap();
-                        putRightEps_ = 0.;
-                        break;
-                    case Position::Short :
-                        putLeftEps_ = 0.;
-                        putRightEps_ = replication->gap();
-                        break;
-                    default:
-                        QL_FAIL("unsupported position type");
+                if (hasPutStrike_)
+                {
+                    switch (putPosition)
+                    {
+                        case Position::Long:
+                            putLeftEps_ = replication->gap();
+                            putRightEps_ = 0.;
+                            break;
+                        case Position::Short:
+                            putLeftEps_ = 0.;
+                            putRightEps_ = replication->gap();
+                            break;
+                        default:
+                            QL_FAIL("unsupported position type");
+                    }
                 }
-            }
-            break;
-          case Replication::Super :
-            if (hasCallStrike_) {
-                switch (callPosition) {
-                    case Position::Long :
-                        callLeftEps_ = replication->gap();
-                        callRightEps_ = 0.;
-                        break;
-                    case Position::Short :
-                        callLeftEps_ = 0.;
-                        callRightEps_ = replication->gap();
-                        break;
-                    default:
-                        QL_FAIL("unsupported position type");
+                break;
+            case Replication::Super:
+                if (hasCallStrike_)
+                {
+                    switch (callPosition)
+                    {
+                        case Position::Long:
+                            callLeftEps_ = replication->gap();
+                            callRightEps_ = 0.;
+                            break;
+                        case Position::Short:
+                            callLeftEps_ = 0.;
+                            callRightEps_ = replication->gap();
+                            break;
+                        default:
+                            QL_FAIL("unsupported position type");
+                    }
                 }
-            }
-            if (hasPutStrike_) {
-                switch (putPosition) {
-                    case Position::Long :
-                        putLeftEps_ = 0.;
-                        putRightEps_ = replication->gap();
-                        break;
-                    case Position::Short :
-                        putLeftEps_ = replication->gap();
-                        putRightEps_ = 0.;
-                        break;
-                    default:
-                        QL_FAIL("unsupported position type");
+                if (hasPutStrike_)
+                {
+                    switch (putPosition)
+                    {
+                        case Position::Long:
+                            putLeftEps_ = 0.;
+                            putRightEps_ = replication->gap();
+                            break;
+                        case Position::Short:
+                            putLeftEps_ = replication->gap();
+                            putRightEps_ = 0.;
+                            break;
+                        default:
+                            QL_FAIL("unsupported position type");
+                    }
                 }
-            }
-            break;
-          default:
-            QL_FAIL("unsupported replication type");
+                break;
+            default:
+                QL_FAIL("unsupported replication type");
         }
 
         registerWith(underlying);
     }
 
 
-    Rate DigitalCoupon::callOptionRate() const {
+    Rate DigitalCoupon::callOptionRate() const
+    {
 
         Rate callOptionRate = Rate(0.);
-        if(hasCallStrike_) {
+        if (hasCallStrike_)
+        {
             // Step function
             callOptionRate = isCallCashOrNothing_ ? callDigitalPayoff_ : callStrike_;
             CappedFlooredCoupon next(underlying_, callStrike_ + callRightEps_);
             CappedFlooredCoupon previous(underlying_, callStrike_ - callLeftEps_);
-            callOptionRate *= (next.rate() - previous.rate())
-                            / (callLeftEps_ + callRightEps_);
-            if (!isCallCashOrNothing_) {
+            callOptionRate *= (next.rate() - previous.rate()) / (callLeftEps_ + callRightEps_);
+            if (!isCallCashOrNothing_)
+            {
                 // Call
                 CappedFlooredCoupon atStrike(underlying_, callStrike_);
                 Rate call = underlying_->rate() - atStrike.rate();
@@ -197,20 +216,22 @@ namespace QuantLib {
         return callOptionRate;
     }
 
-    Rate DigitalCoupon::putOptionRate() const {
+    Rate DigitalCoupon::putOptionRate() const
+    {
 
         Rate putOptionRate = Rate(0.);
-        if(hasPutStrike_) {
+        if (hasPutStrike_)
+        {
             // Step function
             putOptionRate = isPutCashOrNothing_ ? putDigitalPayoff_ : putStrike_;
             CappedFlooredCoupon next(underlying_, Null<Rate>(), putStrike_ + putRightEps_);
             CappedFlooredCoupon previous(underlying_, Null<Rate>(), putStrike_ - putLeftEps_);
-            putOptionRate *= (next.rate() - previous.rate())
-                           / (putLeftEps_ + putRightEps_);
-            if (!isPutCashOrNothing_) {
+            putOptionRate *= (next.rate() - previous.rate()) / (putLeftEps_ + putRightEps_);
+            if (!isPutCashOrNothing_)
+            {
                 // Put
                 CappedFlooredCoupon atStrike(underlying_, Null<Rate>(), putStrike_);
-                Rate put = - underlying_->rate() + atStrike.rate();
+                Rate put = -underlying_->rate() + atStrike.rate();
                 // Sum up
                 putOptionRate -= put;
             }
@@ -218,74 +239,89 @@ namespace QuantLib {
         return putOptionRate;
     }
 
-    void DigitalCoupon::deepUpdate() {
+    void DigitalCoupon::deepUpdate()
+    {
         update();
         underlying_->deepUpdate();
     }
 
-    void DigitalCoupon::performCalculations() const {
+    void DigitalCoupon::performCalculations() const
+    {
 
         QL_REQUIRE(underlying_->pricer(), "pricer not set");
 
         Date fixingDate = underlying_->fixingDate();
         Date today = Settings::instance().evaluationDate();
-        bool enforceTodaysHistoricFixings =
-            Settings::instance().enforcesTodaysHistoricFixings();
+        bool enforceTodaysHistoricFixings = Settings::instance().enforcesTodaysHistoricFixings();
         Rate underlyingRate = nakedOption_ ? 0.0 : underlying_->rate();
-        if (fixingDate < today ||
-            ((fixingDate == today) && enforceTodaysHistoricFixings)) {
+        if (fixingDate < today || ((fixingDate == today) && enforceTodaysHistoricFixings))
+        {
             // must have been fixed
-            rate_ = underlyingRate + callCsi_ * callPayoff() + putCsi_  * putPayoff();
-        } else if (fixingDate == today) {
+            rate_ = underlyingRate + callCsi_ * callPayoff() + putCsi_ * putPayoff();
+        }
+        else if (fixingDate == today)
+        {
             // might have been fixed
-            if (underlying_->index()->hasHistoricalFixing(fixingDate)) {
-                rate_ = underlyingRate + callCsi_ * callPayoff() + putCsi_  * putPayoff();
-            } else {
+            if (underlying_->index()->hasHistoricalFixing(fixingDate))
+            {
+                rate_ = underlyingRate + callCsi_ * callPayoff() + putCsi_ * putPayoff();
+            }
+            else
+            {
                 rate_ = underlyingRate + callCsi_ * callOptionRate() + putCsi_ * putOptionRate();
             }
-        } else {
+        }
+        else
+        {
             rate_ = underlyingRate + callCsi_ * callOptionRate() + putCsi_ * putOptionRate();
         }
     }
 
-    Rate DigitalCoupon::rate() const {
+    Rate DigitalCoupon::rate() const
+    {
         calculate();
         return rate_;
     }
 
-    Rate DigitalCoupon::convexityAdjustment() const {
+    Rate DigitalCoupon::convexityAdjustment() const
+    {
         return underlying_->convexityAdjustment();
     }
 
-    Rate DigitalCoupon::callStrike() const {
+    Rate DigitalCoupon::callStrike() const
+    {
         if (hasCall())
             return callStrike_;
         else
             return Null<Rate>();
-   }
+    }
 
-    Rate DigitalCoupon::putStrike() const {
+    Rate DigitalCoupon::putStrike() const
+    {
         if (hasPut())
             return putStrike_;
         else
             return Null<Rate>();
     }
 
-    Rate DigitalCoupon::callDigitalPayoff() const {
+    Rate DigitalCoupon::callDigitalPayoff() const
+    {
         if (isCallCashOrNothing_)
             return callDigitalPayoff_;
         else
             return Null<Rate>();
     }
 
-    Rate DigitalCoupon::putDigitalPayoff() const {
+    Rate DigitalCoupon::putDigitalPayoff() const
+    {
         if (isPutCashOrNothing_)
             return putDigitalPayoff_;
         else
             return Null<Rate>();
     }
 
-    void DigitalCoupon::accept(AcyclicVisitor& v) {
+    void DigitalCoupon::accept(AcyclicVisitor& v)
+    {
         typedef FloatingRateCoupon super;
         auto* v1 = dynamic_cast<Visitor<DigitalCoupon>*>(&v);
         if (v1 != nullptr)
@@ -294,16 +330,22 @@ namespace QuantLib {
             super::accept(v);
     }
 
-    Rate DigitalCoupon::callPayoff() const {
+    Rate DigitalCoupon::callPayoff() const
+    {
         // to use only if index has fixed
         Rate payoff(0.);
-        if(hasCallStrike_) {
+        if (hasCallStrike_)
+        {
             Rate underlyingRate = underlying_->rate();
-            if ( (underlyingRate - callStrike_) > 1.e-16 ) {
+            if ((underlyingRate - callStrike_) > 1.e-16)
+            {
                 payoff = isCallCashOrNothing_ ? callDigitalPayoff_ : underlyingRate;
-            } else {
-                if (isCallATMIncluded_) {
-                    if ( std::abs(callStrike_ - underlyingRate) <= 1.e-16 )
+            }
+            else
+            {
+                if (isCallATMIncluded_)
+                {
+                    if (std::abs(callStrike_ - underlyingRate) <= 1.e-16)
                         payoff = isCallCashOrNothing_ ? callDigitalPayoff_ : underlyingRate;
                 }
             }
@@ -311,17 +353,23 @@ namespace QuantLib {
         return payoff;
     }
 
-    Rate DigitalCoupon::putPayoff() const {
+    Rate DigitalCoupon::putPayoff() const
+    {
         // to use only if index has fixed
         Rate payoff(0.);
-        if(hasPutStrike_) {
+        if (hasPutStrike_)
+        {
             Rate underlyingRate = underlying_->rate();
-            if ( (putStrike_ - underlyingRate) > 1.e-16 ) {
+            if ((putStrike_ - underlyingRate) > 1.e-16)
+            {
                 payoff = isPutCashOrNothing_ ? putDigitalPayoff_ : underlyingRate;
-            } else {
+            }
+            else
+            {
                 // putStrike_ <= underlyingRate
-                if (isPutATMIncluded_) {
-                    if ( std::abs(putStrike_ - underlyingRate) <= 1.e-16 )
+                if (isPutATMIncluded_)
+                {
+                    if (std::abs(putStrike_ - underlyingRate) <= 1.e-16)
                         payoff = isPutCashOrNothing_ ? putDigitalPayoff_ : underlyingRate;
                 }
             }
@@ -330,4 +378,3 @@ namespace QuantLib {
     }
 
 }
-

@@ -30,15 +30,15 @@
 #include <ql/pricingengines/vanilla/analytichestonengine.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvoltermstructure.hpp>
 
-namespace QuantLib {
-    class HestonBlackVolSurface : public BlackVolTermStructure {
+namespace QuantLib
+{
+    class HestonBlackVolSurface : public BlackVolTermStructure
+    {
       public:
         explicit HestonBlackVolSurface(
             const Handle<HestonModel>& hestonModel,
-            AnalyticHestonEngine::ComplexLogFormula cpxLogFormula =
-                AnalyticHestonEngine::AngledContour,
-            AnalyticHestonEngine::Integration integration =
-                AnalyticHestonEngine::Integration::gaussLaguerre(160));
+            AnalyticHestonEngine::ComplexLogFormula cpxLogFormula = AnalyticHestonEngine::AngledContour,
+            AnalyticHestonEngine::Integration integration = AnalyticHestonEngine::Integration::gaussLaguerre(160));
 
         DayCounter dayCounter() const override;
         Date maxDate() const override;
@@ -57,5 +57,3 @@ namespace QuantLib {
 }
 
 #endif
-
-

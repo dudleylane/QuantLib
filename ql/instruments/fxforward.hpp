@@ -29,7 +29,8 @@
 #include <ql/time/calendar.hpp>
 #include <ql/time/date.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %FX Forward instrument
     /*! This class represents a foreign exchange forward contract,
@@ -51,7 +52,8 @@ namespace QuantLib {
 
         \ingroup instruments
     */
-    class FxForward : public Instrument {
+    class FxForward : public Instrument
+    {
       public:
         class arguments;
         class results;
@@ -161,7 +163,8 @@ namespace QuantLib {
     };
 
     //! Arguments for FX Forward pricing engine
-    class FxForward::arguments : public virtual PricingEngine::arguments {
+    class FxForward::arguments : public virtual PricingEngine::arguments
+    {
       public:
         Real sourceNominal = Null<Real>();
         Currency sourceCurrency;
@@ -174,7 +177,8 @@ namespace QuantLib {
     };
 
     //! Results for FX Forward pricing engine
-    class FxForward::results : public Instrument::results {
+    class FxForward::results : public Instrument::results
+    {
       public:
         Real fairForwardRate = Null<Real>();
         Real npvSourceCurrency = Null<Real>();
@@ -183,7 +187,9 @@ namespace QuantLib {
     };
 
     //! Base class for FX Forward pricing engines
-    class FxForward::engine : public GenericEngine<FxForward::arguments, FxForward::results> {};
+    class FxForward::engine : public GenericEngine<FxForward::arguments, FxForward::results>
+    {
+    };
 
 }
 

@@ -29,7 +29,8 @@
 #include <functional>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Integral of a two-dimensional function
     /*! The integral of a two dimensional function\f$ f(x,y) \f$
@@ -37,22 +38,24 @@ namespace QuantLib {
         is calculated by means of two nested integrations
     */
 
-    class TwoDimensionalIntegral {
+    class TwoDimensionalIntegral
+    {
       public:
-        TwoDimensionalIntegral(ext::shared_ptr<Integrator> integratorX,
-                               ext::shared_ptr<Integrator> integratorY)
-        : integratorX_(std::move(integratorX)), integratorY_(std::move(integratorY)) {}
+        TwoDimensionalIntegral(ext::shared_ptr<Integrator> integratorX, ext::shared_ptr<Integrator> integratorY)
+        : integratorX_(std::move(integratorX)), integratorY_(std::move(integratorY))
+        {
+        }
 
-        Real operator()(const std::function<Real (Real, Real)>& f,
+        Real operator()(const std::function<Real(Real, Real)>& f,
                         const std::pair<Real, Real>& a,
-                        const std::pair<Real, Real>& b) const {
-            return (*integratorX_)([&](Real x) { return g(f, x, a.second, b.second); },
-                                   a.first, b.first);
+                        const std::pair<Real, Real>& b) const
+        {
+            return (*integratorX_)([&](Real x) { return g(f, x, a.second, b.second); }, a.first, b.first);
         }
 
       private:
-        Real g(const std::function<Real (Real, Real)>& f,
-               Real x, Real a, Real b) const {
+        Real g(const std::function<Real(Real, Real)>& f, Real x, Real a, Real b) const
+        {
             return (*integratorY_)([&](Real y) { return f(x, y); }, a, b);
         }
 

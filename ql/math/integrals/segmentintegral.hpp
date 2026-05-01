@@ -25,11 +25,12 @@
 #ifndef quantlib_segment_integral_h
 #define quantlib_segment_integral_h
 
-#include <ql/math/integrals/integral.hpp>
-#include <ql/math/comparison.hpp>
 #include <ql/errors.hpp>
+#include <ql/math/comparison.hpp>
+#include <ql/math/integrals/integral.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Integral of a one-dimensional function
     /*! Given a number \f$ N \f$ of intervals, the integral of
@@ -47,9 +48,11 @@ namespace QuantLib {
         \test the correctness of the result is tested by checking it
               against known good values.
     */
-    class SegmentIntegral : public Integrator {
+    class SegmentIntegral : public Integrator
+    {
       public:
         explicit SegmentIntegral(Size intervals);
+
       protected:
         Real integrate(const std::function<Real(Real)>& f, Real a, Real b) const override;
 
@@ -60,18 +63,16 @@ namespace QuantLib {
 
     // inline and template definitions
 
-    inline Real
-    SegmentIntegral::integrate(const std::function<Real (Real)>& f,
-                               Real a,
-                               Real b) const {
-        if(close_enough(a,b))
+    inline Real SegmentIntegral::integrate(const std::function<Real(Real)>& f, Real a, Real b) const
+    {
+        if (close_enough(a, b))
             return 0.0;
-        Real dx = (b-a)/intervals_;
-        Real sum = 0.5*(f(a)+f(b));
-        Real end = b - 0.5*dx;
-        for (Real x = a+dx; x < end; x += dx)
+        Real dx = (b - a) / intervals_;
+        Real sum = 0.5 * (f(a) + f(b));
+        Real end = b - 0.5 * dx;
+        for (Real x = a + dx; x < end; x += dx)
             sum += f(x);
-        return sum*dx;
+        return sum * dx;
     }
 
 }

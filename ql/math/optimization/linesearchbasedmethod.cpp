@@ -24,24 +24,24 @@
 #include <ql/math/optimization/problem.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     LineSearchBasedMethod::LineSearchBasedMethod(ext::shared_ptr<LineSearch> lineSearch)
-    : lineSearch_(std::move(lineSearch)) {
+    : lineSearch_(std::move(lineSearch))
+    {
         if (!lineSearch_)
-           lineSearch_ = ext::shared_ptr<LineSearch>(new ArmijoLineSearch);
+            lineSearch_ = ext::shared_ptr<LineSearch>(new ArmijoLineSearch);
     }
 
-    EndCriteria::Type
-    LineSearchBasedMethod::minimize(Problem& P,
-                                    const EndCriteria& endCriteria) {
+    EndCriteria::Type LineSearchBasedMethod::minimize(Problem& P, const EndCriteria& endCriteria)
+    {
         // Initializations
         Real ftol = endCriteria.functionEpsilon();
-        Size maxStationaryStateIterations_
-            = endCriteria.maxStationaryStateIterations();
-        EndCriteria::Type ecType = EndCriteria::None;   // reset end criteria
-        P.reset();                                      // reset problem
-        Array x_ = P.currentValue();              // store the starting point
+        Size maxStationaryStateIterations_ = endCriteria.maxStationaryStateIterations();
+        EndCriteria::Type ecType = EndCriteria::None; // reset end criteria
+        P.reset();                                    // reset problem
+        Array x_ = P.currentValue();                  // store the starting point
         Size iterationNumber_ = 0;
         // dimension line search
         lineSearch_->searchDirection() = Array(x_.size());
@@ -63,13 +63,14 @@ namespace QuantLib {
 
         bool first_time = true;
         // Loop over iterations
-        do {
+        do
+        {
             // Linesearch
             if (!first_time)
                 prevGradient = lineSearch_->lastGradient();
             t = (*lineSearch_)(P, ecType, endCriteria, t);
             // don't throw: it can fail just because maxIterations exceeded
-            //QL_REQUIRE(lineSearch_->succeed(), "line-search failed!");
+            // QL_REQUIRE(lineSearch_->succeed(), "line-search failed!");
             if (lineSearch_->succeed())
             {
                 // Updates
@@ -93,19 +94,19 @@ namespace QuantLib {
                 // Now compute accuracy and check end criteria
                 // Numerical Recipes exit strategy on fx (see NR in C++, p.423)
                 fnew = P.functionValue();
-                fdiff = 2.0*std::fabs(fnew-fold) /
-                        (std::fabs(fnew) + std::fabs(fold) + QL_EPSILON);
-                if (fdiff < ftol ||
-                    endCriteria.checkMaxIterations(iterationNumber_, ecType)) {
-                    endCriteria.checkStationaryFunctionValue(0.0, 0.0,
-                        maxStationaryStateIterations_, ecType);
+                fdiff = 2.0 * std::fabs(fnew - fold) / (std::fabs(fnew) + std::fabs(fold) + QL_EPSILON);
+                if (fdiff < ftol || endCriteria.checkMaxIterations(iterationNumber_, ecType))
+                {
+                    endCriteria.checkStationaryFunctionValue(0.0, 0.0, maxStationaryStateIterations_, ecType);
                     endCriteria.checkMaxIterations(iterationNumber_, ecType);
                     return ecType;
                 }
-                P.setCurrentValue(x_);      // update problem current value
-                ++iterationNumber_;         // Increase iteration number
+                P.setCurrentValue(x_); // update problem current value
+                ++iterationNumber_;    // Increase iteration number
                 first_time = false;
-            } else {
+            }
+            else
+            {
                 done = true;
             }
         } while (!done);

@@ -27,23 +27,29 @@
 
 #include <ql/event.hpp>
 #include <ql/instruments/bond.hpp>
-#include <ql/patterns/visitor.hpp>
-#include <ql/utilities/null.hpp>
-#include <ql/shared_ptr.hpp>
 #include <ql/optional.hpp>
+#include <ql/patterns/visitor.hpp>
+#include <ql/shared_ptr.hpp>
+#include <ql/utilities/null.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %instrument callability
-    class Callability : public Event {
+    class Callability : public Event
+    {
       public:
         //! type of the callability
-        enum Type { Call, Put };
+        enum Type
+        {
+            Call,
+            Put
+        };
 
-        Callability(const Bond::Price& price, Type type, const Date& date)
-        : price_(price), type_(type), date_(date) {}
-        const Bond::Price& price() const {
+        Callability(const Bond::Price& price, Type type, const Date& date) : price_(price), type_(type), date_(date) {}
+        const Bond::Price& price() const
+        {
             QL_REQUIRE(price_, "no price given");
             return *price_;
         }
@@ -62,7 +68,8 @@ namespace QuantLib {
         Date date_;
     };
 
-    inline void Callability::accept(AcyclicVisitor& v){
+    inline void Callability::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<Callability>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);
@@ -70,7 +77,7 @@ namespace QuantLib {
             Event::accept(v);
     }
 
-    typedef std::vector<ext::shared_ptr<Callability> > CallabilitySchedule;
+    typedef std::vector<ext::shared_ptr<Callability>> CallabilitySchedule;
 
 }
 

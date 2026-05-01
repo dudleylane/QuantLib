@@ -25,30 +25,37 @@
 #define quantlib_fdm_vpp_step_condition_hpp
 
 #include <ql/methods/finitedifferences/stepcondition.hpp>
-#include <ql/shared_ptr.hpp>
 #include <ql/methods/finitedifferences/utilities/fdminnervaluecalculator.hpp>
+#include <ql/shared_ptr.hpp>
 #include <functional>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
     class FdmMesher;
     class FdmLinearOpIterator;
     class FdmInnerValueCalculator;
 
-    struct FdmVPPStepConditionParams {
+    struct FdmVPPStepConditionParams
+    {
         Real heatRate;
-        Real pMin; Real pMax;
-        Size tMinUp; Size tMinDown;
-        Real startUpFuel; Real startUpFixCost;
+        Real pMin;
+        Real pMax;
+        Size tMinUp;
+        Size tMinDown;
+        Real startUpFuel;
+        Real startUpFixCost;
         Real fuelCostAddon;
     };
 
-    struct FdmVPPStepConditionMesher {
+    struct FdmVPPStepConditionMesher
+    {
         Size stateDirection;
         ext::shared_ptr<FdmMesher> mesher;
     };
 
-    class FdmVPPStepCondition : public StepCondition<Array> {
+    class FdmVPPStepCondition : public StepCondition<Array>
+    {
       public:
         FdmVPPStepCondition(const FdmVPPStepConditionParams& params,
                             Size nStates,
@@ -81,7 +88,7 @@ namespace QuantLib {
         const ext::shared_ptr<FdmInnerValueCalculator> gasPrice_;
         const ext::shared_ptr<FdmInnerValueCalculator> sparkSpreadPrice_;
 
-        std::vector<std::function<Real (Real)> > stateEvolveFcts_;
+        std::vector<std::function<Real(Real)>> stateEvolveFcts_;
     };
 }
 

@@ -26,11 +26,12 @@
 
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Black-Scholes process which supports local vega stress tests
-    class VegaStressedBlackScholesProcess
-        : public GeneralizedBlackScholesProcess {
+    class VegaStressedBlackScholesProcess : public GeneralizedBlackScholesProcess
+    {
       public:
         VegaStressedBlackScholesProcess(
             const Handle<Quote>& x0,
@@ -42,8 +43,7 @@ namespace QuantLib {
             Real lowerAssetBorderForStressTest = 0,
             Real upperAssetBorderForStressTest = 1000000,
             Real stressLevel = 0,
-            const ext::shared_ptr<discretization>& d =
-                  ext::shared_ptr<discretization>(new EulerDiscretization));
+            const ext::shared_ptr<discretization>& d = ext::shared_ptr<discretization>(new EulerDiscretization));
         //! \name StochasticProcess1D interface
         //@{
         Real diffusion(Time t, Real x) const override;

@@ -26,44 +26,44 @@
 #ifndef quantlib_fdm_step_condition_composite_hpp
 #define quantlib_fdm_step_condition_composite_hpp
 
-#include <ql/time/date.hpp>
-#include <ql/time/daycounter.hpp>
 #include <ql/instruments/dividendschedule.hpp>
 #include <ql/methods/finitedifferences/stepcondition.hpp>
-
+#include <ql/time/date.hpp>
+#include <ql/time/daycounter.hpp>
 #include <list>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class FdmMesher;
     class Exercise;
     class FdmSnapshotCondition;
     class FdmInnerValueCalculator;
-    
-    class FdmStepConditionComposite : public StepCondition<Array> {
-    public:
-        typedef std::list<ext::shared_ptr<StepCondition<Array> > > Conditions;
 
-        FdmStepConditionComposite(const std::list<std::vector<Time> >& stoppingTimes,
-                                  Conditions conditions);
+    class FdmStepConditionComposite : public StepCondition<Array>
+    {
+      public:
+        typedef std::list<ext::shared_ptr<StepCondition<Array>>> Conditions;
+
+        FdmStepConditionComposite(const std::list<std::vector<Time>>& stoppingTimes, Conditions conditions);
 
         void applyTo(Array& a, Time t) const override;
         const std::vector<Time>& stoppingTimes() const;
         const Conditions& conditions() const;
 
-        static ext::shared_ptr<FdmStepConditionComposite> joinConditions(
-                    const ext::shared_ptr<FdmSnapshotCondition>& c1,
-                    const ext::shared_ptr<FdmStepConditionComposite>& c2);
+        static ext::shared_ptr<FdmStepConditionComposite>
+        joinConditions(const ext::shared_ptr<FdmSnapshotCondition>& c1,
+                       const ext::shared_ptr<FdmStepConditionComposite>& c2);
 
-        static ext::shared_ptr<FdmStepConditionComposite> vanillaComposite(
-             const DividendSchedule& schedule,
-             const ext::shared_ptr<Exercise>& exercise,
-             const ext::shared_ptr<FdmMesher>& mesher,
-             const ext::shared_ptr<FdmInnerValueCalculator>& calculator,
-             const Date& refDate,
-             const DayCounter& dayCounter);
-        
-    private:
+        static ext::shared_ptr<FdmStepConditionComposite>
+        vanillaComposite(const DividendSchedule& schedule,
+                         const ext::shared_ptr<Exercise>& exercise,
+                         const ext::shared_ptr<FdmMesher>& mesher,
+                         const ext::shared_ptr<FdmInnerValueCalculator>& calculator,
+                         const Date& refDate,
+                         const DayCounter& dayCounter);
+
+      private:
         std::vector<Time> stoppingTimes_;
         const Conditions conditions_;
     };

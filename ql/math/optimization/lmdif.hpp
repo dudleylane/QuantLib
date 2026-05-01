@@ -28,32 +28,38 @@
 #include <ql/types.hpp>
 #include <functional>
 
-namespace QuantLib::MINPACK {
-        typedef std::function<void (int,
-                                      int, 
-                                      Real*,
-                                      Real*,
-                                      int*)> LmdifCostFunction;
+namespace QuantLib::MINPACK
+{
+    typedef std::function<void(int, int, Real*, Real*, int*)> LmdifCostFunction;
 
-        void lmdif(int m,int n,Real* x,Real* fvec,Real ftol,
-                   Real xtol,Real gtol,int maxfev,Real epsfcn,
-                   Real* diag, int mode, Real factor,
-                   int nprint, int* info,int* nfev,Real* fjac,
-                   int ldfjac,int* ipvt,Real* qtf,
-                   Real* wa1,Real* wa2,Real* wa3,Real* wa4,
-                   const LmdifCostFunction& fcn,
-                   const LmdifCostFunction& jacFcn);
+    void lmdif(int m,
+               int n,
+               Real* x,
+               Real* fvec,
+               Real ftol,
+               Real xtol,
+               Real gtol,
+               int maxfev,
+               Real epsfcn,
+               Real* diag,
+               int mode,
+               Real factor,
+               int nprint,
+               int* info,
+               int* nfev,
+               Real* fjac,
+               int ldfjac,
+               int* ipvt,
+               Real* qtf,
+               Real* wa1,
+               Real* wa2,
+               Real* wa3,
+               Real* wa4,
+               const LmdifCostFunction& fcn,
+               const LmdifCostFunction& jacFcn);
 
-        void qrsolv(int n,
-                    Real* r,
-                    int ldr,
-                    const int* ipvt,
-                    const Real* diag,
-                    const Real* qtb,
-                    Real* x,
-                    Real* sdiag,
-                    Real* wa);
-        void qrfac(int m,int n,Real* a,int, int pivot,int* ipvt,
-                   int,Real* rdiag,Real* acnorm,Real* wa);
-    }
+    void
+    qrsolv(int n, Real* r, int ldr, const int* ipvt, const Real* diag, const Real* qtb, Real* x, Real* sdiag, Real* wa);
+    void qrfac(int m, int n, Real* a, int, int pivot, int* ipvt, int, Real* rdiag, Real* acnorm, Real* wa);
+}
 #endif

@@ -26,88 +26,77 @@
 #include <boost/math/special_functions/gamma.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     CEVCalculator::CEVCalculator(Real f0, Real alpha, Real beta)
-    : f0_(f0),
-      alpha_(alpha),
-      beta_(beta),
-      delta_((1.0-2.0*beta)/(1.0-beta)),
-      x0_(X(f0)) { }
-
-    Real CEVCalculator::X(Real f) const {
-        return std::pow(f, 2.0*(1.0-beta_))/squared(alpha_*(1.0-beta_));
+    : f0_(f0), alpha_(alpha), beta_(beta), delta_((1.0 - 2.0 * beta) / (1.0 - beta)), x0_(X(f0))
+    {
     }
 
-    Real CEVCalculator::value(
-        Option::Type optionType, Real strike, Time t) const {
+    Real CEVCalculator::X(Real f) const
+    {
+        return std::pow(f, 2.0 * (1.0 - beta_)) / squared(alpha_ * (1.0 - beta_));
+    }
 
-        typedef boost::math::non_central_chi_squared_distribution<Real>
-            nc_chi2;
+    Real CEVCalculator::value(Option::Type optionType, Real strike, Time t) const
+    {
+
+        typedef boost::math::non_central_chi_squared_distribution<Real> nc_chi2;
 
         const Real kTilde = X(strike);
 
-        if (optionType == Option::Call) {
-            if (delta_ < 2.0) {
-                return f0_ * (1.0 - boost::math::cdf(
-                         nc_chi2(4.0-delta_, x0_/t), kTilde/t))
-                     - strike * boost::math::cdf(
-                         nc_chi2(2.0-delta_, kTilde/t), x0_/t);
+        if (optionType == Option::Call)
+        {
+            if (delta_ < 2.0)
+            {
+                return f0_ * (1.0 - boost::math::cdf(nc_chi2(4.0 - delta_, x0_ / t), kTilde / t)) -
+                       strike * boost::math::cdf(nc_chi2(2.0 - delta_, kTilde / t), x0_ / t);
             }
-            else {
-                const Real g =
-                    boost::math::gamma_p(0.5*delta_-1.0,x0_/(2.0*t));
+            else
+            {
+                const Real g = boost::math::gamma_p(0.5 * delta_ - 1.0, x0_ / (2.0 * t));
 
-                return f0_ * (g - boost::math::cdf(
-                         nc_chi2(delta_-2.0, kTilde/t), x0_/t))
-                     - strike * boost::math::cdf(
-                         nc_chi2(delta_, x0_/t), kTilde/t);
+                return f0_ * (g - boost::math::cdf(nc_chi2(delta_ - 2.0, kTilde / t), x0_ / t)) -
+                       strike * boost::math::cdf(nc_chi2(delta_, x0_ / t), kTilde / t);
             }
         }
-        else if (optionType == Option::Put) {
-            if (delta_ < 2.0) {
-                return - f0_ * boost::math::cdf(
-                           nc_chi2(4.0-delta_, x0_/t), kTilde/t)
-                       + strike * (1.0 - boost::math::cdf(
-                           nc_chi2(2.0-delta_, kTilde/t), x0_/t));
+        else if (optionType == Option::Put)
+        {
+            if (delta_ < 2.0)
+            {
+                return -f0_ * boost::math::cdf(nc_chi2(4.0 - delta_, x0_ / t), kTilde / t) +
+                       strike * (1.0 - boost::math::cdf(nc_chi2(2.0 - delta_, kTilde / t), x0_ / t));
             }
-            else {
-                return - f0_ * boost::math::cdf(
-                           nc_chi2(delta_-2.0, kTilde/t), x0_/t)
-                       + strike * (1.0 - boost::math::cdf(
-                           nc_chi2(delta_, x0_/t), kTilde/t));
+            else
+            {
+                return -f0_ * boost::math::cdf(nc_chi2(delta_ - 2.0, kTilde / t), x0_ / t) +
+                       strike * (1.0 - boost::math::cdf(nc_chi2(delta_, x0_ / t), kTilde / t));
             }
         }
         else
             QL_FAIL("unknown option type");
-
     }
 
-    AnalyticCEVEngine::AnalyticCEVEngine(Real f0,
-                                         Real alpha,
-                                         Real beta,
-                                         Handle<YieldTermStructure> discountCurve)
-    : calculator_(ext::make_shared<CEVCalculator>(f0, alpha, beta)),
-      discountCurve_(std::move(discountCurve)) {
+    AnalyticCEVEngine::AnalyticCEVEngine(Real f0, Real alpha, Real beta, Handle<YieldTermStructure> discountCurve)
+    : calculator_(ext::make_shared<CEVCalculator>(f0, alpha, beta)), discountCurve_(std::move(discountCurve))
+    {
         registerWith(discountCurve_);
     }
 
-    void AnalyticCEVEngine::calculate() const {
+    void AnalyticCEVEngine::calculate() const
+    {
 
-        QL_REQUIRE(arguments_.exercise->type() == Exercise::European,
-                   "not an European option");
+        QL_REQUIRE(arguments_.exercise->type() == Exercise::European, "not an European option");
 
-        ext::shared_ptr<StrikedTypePayoff> payoff =
-            ext::dynamic_pointer_cast<StrikedTypePayoff>(arguments_.payoff);
+        ext::shared_ptr<StrikedTypePayoff> payoff = ext::dynamic_pointer_cast<StrikedTypePayoff>(arguments_.payoff);
         QL_REQUIRE(payoff, "non-striked payoff given");
 
         const Date exerciseDate = arguments_.exercise->lastDate();
 
-        results_.value = calculator_->value(
-                payoff->optionType(),
-                payoff->strike(),
-                discountCurve_->timeFromReference(exerciseDate))
-            * discountCurve_->discount(exerciseDate);
+        results_.value = calculator_->value(payoff->optionType(), payoff->strike(),
+                                            discountCurve_->timeFromReference(exerciseDate)) *
+                         discountCurve_->discount(exerciseDate);
     }
 
 }

@@ -23,39 +23,41 @@
 #include <ql/methods/finitedifferences/operators/fdmlinearoplayout.hpp>
 #include <ql/methods/finitedifferences/operators/firstderivativeop.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    FirstDerivativeOp::FirstDerivativeOp(
-                                Size direction,
-                                const ext::shared_ptr<FdmMesher>& mesher)
-    : TripleBandLinearOp(direction, mesher) {
+    FirstDerivativeOp::FirstDerivativeOp(Size direction, const ext::shared_ptr<FdmMesher>& mesher)
+    : TripleBandLinearOp(direction, mesher)
+    {
 
-        for (const auto& iter : *mesher->layout()) {
+        for (const auto& iter : *mesher->layout())
+        {
             const Size i = iter.index();
             const Real hm = mesher->dminus(iter, direction_);
             const Real hp = mesher->dplus(iter, direction_);
 
-            const Real zetam1 = hm*(hm+hp);
-            const Real zeta0  = hm*hp;
-            const Real zetap1 = hp*(hm+hp);
+            const Real zetam1 = hm * (hm + hp);
+            const Real zeta0 = hm * hp;
+            const Real zetap1 = hp * (hm + hp);
 
-            if (iter.coordinates()[direction_] == 0) {
-                //upwinding scheme
+            if (iter.coordinates()[direction_] == 0)
+            {
+                // upwinding scheme
                 lower_[i] = 0.0;
-                diag_[i]  = -(upper_[i] = 1/hp);
+                diag_[i] = -(upper_[i] = 1 / hp);
             }
-            else if (   iter.coordinates()[direction_]
-                     == mesher->layout()->dim()[direction]-1) {
-                 // downwinding scheme
-                lower_[i] = -(diag_[i] = 1/hm);
+            else if (iter.coordinates()[direction_] == mesher->layout()->dim()[direction] - 1)
+            {
+                // downwinding scheme
+                lower_[i] = -(diag_[i] = 1 / hm);
                 upper_[i] = 0.0;
             }
-            else {
-                lower_[i] = -hp/zetam1;
-                diag_[i]  = (hp-hm)/zeta0;
-                upper_[i] = hm/zetap1;
+            else
+            {
+                lower_[i] = -hp / zetam1;
+                diag_[i] = (hp - hm) / zeta0;
+                upper_[i] = hm / zetap1;
             }
         }
     }
 }
-

@@ -27,14 +27,15 @@
 #include <ql/instruments/asianoption.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Levy engine for continuously averaged arithmetic Asian options
     /*! Formulas from Haug, "Option Pricing Formulas".
         \ingroup asianengines
     */
-    class ContinuousArithmeticAsianLevyEngine
-        : public ContinuousAveragingAsianOption::engine {
+    class ContinuousArithmeticAsianLevyEngine : public ContinuousAveragingAsianOption::engine
+    {
       public:
         ContinuousArithmeticAsianLevyEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process,
                                             Handle<Quote> currentAverage);
@@ -51,7 +52,7 @@ namespace QuantLib {
 
       private:
         ext::shared_ptr<GeneralizedBlackScholesProcess> process_;
-        Handle<Quote> currentAverage_ ;
+        Handle<Quote> currentAverage_;
         Date startDate_;
     };
 

@@ -22,13 +22,15 @@
 #include <ql/pricingengines/swap/treeswapengine.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     TreeVanillaSwapEngine::TreeVanillaSwapEngine(const ext::shared_ptr<ShortRateModel>& model,
                                                  Size timeSteps,
                                                  Handle<YieldTermStructure> termStructure)
     : LatticeShortRateModelEngine<VanillaSwap::arguments, VanillaSwap::results>(model, timeSteps),
-      termStructure_(std::move(termStructure)) {
+      termStructure_(std::move(termStructure))
+    {
         registerWith(termStructure_);
     }
 
@@ -36,11 +38,13 @@ namespace QuantLib {
                                                  const TimeGrid& timeGrid,
                                                  Handle<YieldTermStructure> termStructure)
     : LatticeShortRateModelEngine<VanillaSwap::arguments, VanillaSwap::results>(model, timeGrid),
-      termStructure_(std::move(termStructure)) {
+      termStructure_(std::move(termStructure))
+    {
         registerWith(termStructure_);
     }
 
-    void TreeVanillaSwapEngine::calculate() const {
+    void TreeVanillaSwapEngine::calculate() const
+    {
 
         QL_REQUIRE(!model_.empty(), "no model specified");
 
@@ -49,10 +53,13 @@ namespace QuantLib {
 
         ext::shared_ptr<TermStructureConsistentModel> tsmodel =
             ext::dynamic_pointer_cast<TermStructureConsistentModel>(*model_);
-        if (tsmodel != nullptr) {
+        if (tsmodel != nullptr)
+        {
             referenceDate = tsmodel->termStructure()->referenceDate();
             dayCounter = tsmodel->termStructure()->dayCounter();
-        } else {
+        }
+        else
+        {
             referenceDate = termStructure_->referenceDate();
             dayCounter = termStructure_->dayCounter();
         }
@@ -61,9 +68,12 @@ namespace QuantLib {
         std::vector<Time> times = swap.mandatoryTimes();
 
         ext::shared_ptr<Lattice> lattice;
-        if (lattice_ != nullptr) {
+        if (lattice_ != nullptr)
+        {
             lattice = lattice_;
-        } else {
+        }
+        else
+        {
             TimeGrid timeGrid(times.begin(), times.end(), timeSteps_);
             lattice = model_->tree(timeGrid);
         }

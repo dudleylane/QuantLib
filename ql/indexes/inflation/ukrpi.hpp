@@ -28,28 +28,28 @@
 #include <ql/currencies/europe.hpp>
 #include <ql/indexes/inflationindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! UK Retail Price Inflation Index
-    class UKRPI : public ZeroInflationIndex {
+    class UKRPI : public ZeroInflationIndex
+    {
       public:
         explicit UKRPI(const Handle<ZeroInflationTermStructure>& ts = {})
-        : ZeroInflationIndex(
-              "RPI", UKRegion(), false, Monthly, Period(1, Months), GBPCurrency(), ts) {}
+        : ZeroInflationIndex("RPI", UKRegion(), false, Monthly, Period(1, Months), GBPCurrency(), ts)
+        {
+        }
     };
 
 
     //! Quoted year-on-year UK RPI (i.e. not a ratio of UK RPI)
-    class YYUKRPI : public YoYInflationIndex {
+    class YYUKRPI : public YoYInflationIndex
+    {
       public:
         explicit YYUKRPI(const Handle<YoYInflationTermStructure>& ts = {})
-        : YoYInflationIndex("YY_RPI",
-                            UKRegion(),
-                            false,
-                            Monthly,
-                            Period(1, Months),
-                            GBPCurrency(),
-                            ts) {}
+        : YoYInflationIndex("YY_RPI", UKRegion(), false, Monthly, Period(1, Months), GBPCurrency(), ts)
+        {
+        }
     };
 
 }

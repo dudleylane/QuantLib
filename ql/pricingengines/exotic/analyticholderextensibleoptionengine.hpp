@@ -25,18 +25,18 @@
 #define quantlib_analytic_holder_extensible_option_engine_hpp
 
 #include <ql/instruments/holderextensibleoption.hpp>
-#include <ql/processes/blackscholesprocess.hpp>
 #include <ql/pricingengines/blackscholescalculator.hpp>
+#include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Analytic enging for holder-extensible options
     /*! Formulas from Haug, "Option Pricing Formulas". */
-    class AnalyticHolderExtensibleOptionEngine
-        : public HolderExtensibleOption::engine {
+    class AnalyticHolderExtensibleOptionEngine : public HolderExtensibleOption::engine
+    {
       public:
-        explicit AnalyticHolderExtensibleOptionEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess> process);
+        explicit AnalyticHolderExtensibleOptionEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process);
         void calculate() const override;
 
       private:

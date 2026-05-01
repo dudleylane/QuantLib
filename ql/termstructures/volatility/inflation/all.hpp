@@ -4,4 +4,3 @@
 #include <ql/termstructures/volatility/inflation/constantcpivolatility.hpp>
 #include <ql/termstructures/volatility/inflation/cpivolatilitystructure.hpp>
 #include <ql/termstructures/volatility/inflation/yoyinflationoptionletvolatilitystructure.hpp>
-

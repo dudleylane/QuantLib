@@ -23,9 +23,11 @@
 #include <ql/models/marketmodels/models/alphaform.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class AlphaFormInverseLinear : public AlphaForm {
+    class AlphaFormInverseLinear : public AlphaForm
+    {
       public:
         AlphaFormInverseLinear(std::vector<Time> times, Real alpha = 0.0);
         ~AlphaFormInverseLinear() override = default;
@@ -37,7 +39,8 @@ namespace QuantLib {
         Real alpha_;
     };
 
-    class AlphaFormLinearHyperbolic : public AlphaForm {
+    class AlphaFormLinearHyperbolic : public AlphaForm
+    {
       public:
         AlphaFormLinearHyperbolic(std::vector<Time> times, Real alpha = 0.0);
         ~AlphaFormLinearHyperbolic() override = default;

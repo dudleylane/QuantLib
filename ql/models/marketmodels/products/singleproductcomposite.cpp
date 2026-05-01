@@ -19,14 +19,17 @@
 
 #include <ql/models/marketmodels/products/singleproductcomposite.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Size SingleProductComposite::numberOfProducts() const {
+    Size SingleProductComposite::numberOfProducts() const
+    {
         return 1;
     }
 
 
-    Size SingleProductComposite::maxNumberOfCashFlowsPerProductPerStep() const {
+    Size SingleProductComposite::maxNumberOfCashFlowsPerProductPerStep() const
+    {
         Size result = 0;
         for (const auto& component : components_)
             result += component.product->maxNumberOfCashFlowsPerProductPerStep();
@@ -34,29 +37,31 @@ namespace QuantLib {
     }
 
 
-    bool SingleProductComposite::nextTimeStep(
-                     const CurveState& currentState,
-                     std::vector<Size>& numberCashFlowsThisStep,
-                     std::vector<std::vector<CashFlow> >& cashFlowsGenerated) {
+    bool SingleProductComposite::nextTimeStep(const CurveState& currentState,
+                                              std::vector<Size>& numberCashFlowsThisStep,
+                                              std::vector<std::vector<CashFlow>>& cashFlowsGenerated)
+    {
         QL_REQUIRE(finalized_, "composite not finalized");
         bool done = true;
         Size n = 0, totalCashflows = 0;
         // for each sub-product...
-        for (auto i = components_.begin(); i != components_.end(); ++i, ++n) {
-            if (isInSubset_[n][currentIndex_] && !i->done) {
+        for (auto i = components_.begin(); i != components_.end(); ++i, ++n)
+        {
+            if (isInSubset_[n][currentIndex_] && !i->done)
+            {
                 // ...make it evolve...
-                bool thisDone = i->product->nextTimeStep(currentState,
-                                                         i->numberOfCashflows,
-                                                         i->cashflows);
+                bool thisDone = i->product->nextTimeStep(currentState, i->numberOfCashflows, i->cashflows);
                 // ...and copy the results. Time indices need to be remapped
                 // so that they point into all cash-flow times. Amounts need
                 // to be adjusted by the corresponding multiplier.
-                for (Size j=0; j<i->product->numberOfProducts(); ++j) {
+                for (Size j = 0; j < i->product->numberOfProducts(); ++j)
+                {
                     Size offset = totalCashflows;
                     totalCashflows += i->numberOfCashflows[j];
-                    for (Size k=0; k<i->numberOfCashflows[j]; ++k) {
+                    for (Size k = 0; k < i->numberOfCashflows[j]; ++k)
+                    {
                         CashFlow& from = i->cashflows[j][k];
-                        CashFlow& to = cashFlowsGenerated[0][k+offset];
+                        CashFlow& to = cashFlowsGenerated[0][k + offset];
                         to.timeIndex = i->timeIndices[from.timeIndex];
                         to.amount = from.amount * i->multiplier;
                     }
@@ -70,10 +75,9 @@ namespace QuantLib {
         return done;
     }
 
-    std::unique_ptr<MarketModelMultiProduct>
-    SingleProductComposite::clone() const {
+    std::unique_ptr<MarketModelMultiProduct> SingleProductComposite::clone() const
+    {
         return std::unique_ptr<MarketModelMultiProduct>(new SingleProductComposite(*this));
     }
 
 }
-

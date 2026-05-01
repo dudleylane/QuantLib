@@ -23,20 +23,24 @@
 #include <ql/settings.hpp>
 #include <ql/time/schedule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     MakeMultipleResetsSwap::MakeMultipleResetsSwap(const Period& tenor,
                                                    const ext::shared_ptr<IborIndex>& iborIndex,
                                                    Size resetsPerCoupon)
-    : tenor_(tenor), iborIndex_(iborIndex), resetsPerCoupon_(resetsPerCoupon),
-      fixedDayCount_(iborIndex->dayCounter()) {}
+    : tenor_(tenor), iborIndex_(iborIndex), resetsPerCoupon_(resetsPerCoupon), fixedDayCount_(iborIndex->dayCounter())
+    {
+    }
 
-    MakeMultipleResetsSwap::operator MultipleResetsSwap() const {
+    MakeMultipleResetsSwap::operator MultipleResetsSwap() const
+    {
         ext::shared_ptr<MultipleResetsSwap> swap = *this;
         return *swap;
     }
 
-    MakeMultipleResetsSwap::operator ext::shared_ptr<MultipleResetsSwap>() const {
+    MakeMultipleResetsSwap::operator ext::shared_ptr<MultipleResetsSwap>() const
+    {
         Calendar cal = iborIndex_->fixingCalendar();
         BusinessDayConvention bdc = iborIndex_->businessDayConvention();
 
@@ -44,140 +48,157 @@ namespace QuantLib {
                    "withEffectiveDate and withSettlementDays are mutually exclusive");
 
         Date startDate;
-        if (effectiveDate_ != Date()) {
+        if (effectiveDate_ != Date())
+        {
             startDate = effectiveDate_;
-        } else {
-            Natural settlDays =
-                settlementDays_ != Null<Natural>() ? settlementDays_ : iborIndex_->fixingDays();
+        }
+        else
+        {
+            Natural settlDays = settlementDays_ != Null<Natural>() ? settlementDays_ : iborIndex_->fixingDays();
             Date refDate = Settings::instance().evaluationDate();
             startDate = cal.advance(cal.adjust(refDate), settlDays * Days);
-            startDate = cal.advance(startDate, forwardStart_,
-                                    forwardStart_.length() < 0 ? Preceding : Following);
+            startDate = cal.advance(startDate, forwardStart_, forwardStart_.length() < 0 ? Preceding : Following);
         }
 
-        Date endDate =
-            terminationDate_ != Date() ? terminationDate_ : cal.advance(startDate, tenor_, bdc);
+        Date endDate = terminationDate_ != Date() ? terminationDate_ : cal.advance(startDate, tenor_, bdc);
 
         Period resetTenor = iborIndex_->tenor();
         Frequency fixedFreq = fixedFrequency_;
-        if (fixedFreq == NoFrequency) {
+        if (fixedFreq == NoFrequency)
+        {
             Period couponTenor(resetsPerCoupon_ * resetTenor.length(), resetTenor.units());
             fixedFreq = couponTenor.frequency();
         }
 
-        Schedule fixedSchedule(startDate, endDate, Period(fixedFreq), cal, fixedConvention_,
-                               fixedConvention_, DateGeneration::Backward, false);
+        Schedule fixedSchedule(startDate, endDate, Period(fixedFreq), cal, fixedConvention_, fixedConvention_,
+                               DateGeneration::Backward, false);
 
-        Schedule fullResetSchedule(startDate, endDate, resetTenor, cal, bdc, bdc,
-                                   DateGeneration::Backward, false);
+        Schedule fullResetSchedule(startDate, endDate, resetTenor, cal, bdc, bdc, DateGeneration::Backward, false);
 
         Rate usedFixedRate = fixedRate_;
-        if (fixedRate_ == Null<Rate>()) {
-            MultipleResetsSwap temp(type_, nominal_, fixedSchedule, 0.0, fixedDayCount_,
-                                    fullResetSchedule, iborIndex_, resetsPerCoupon_, spread_,
-                                    averagingMethod_);
-            if (engine_ == nullptr) {
+        if (fixedRate_ == Null<Rate>())
+        {
+            MultipleResetsSwap temp(type_, nominal_, fixedSchedule, 0.0, fixedDayCount_, fullResetSchedule, iborIndex_,
+                                    resetsPerCoupon_, spread_, averagingMethod_);
+            if (engine_ == nullptr)
+            {
                 Handle<YieldTermStructure> disc = iborIndex_->forwardingTermStructure();
-                QL_REQUIRE(!disc.empty(),
-                           "null term structure set to this instance of " << iborIndex_->name());
+                QL_REQUIRE(!disc.empty(), "null term structure set to this instance of " << iborIndex_->name());
                 temp.setPricingEngine(ext::make_shared<DiscountingSwapEngine>(disc, false));
-            } else {
+            }
+            else
+            {
                 temp.setPricingEngine(engine_);
             }
             usedFixedRate = temp.fairRate();
         }
 
-        auto swap = ext::make_shared<MultipleResetsSwap>(
-            type_, nominal_, fixedSchedule, usedFixedRate, fixedDayCount_, fullResetSchedule,
-            iborIndex_, resetsPerCoupon_, spread_, averagingMethod_);
+        auto swap = ext::make_shared<MultipleResetsSwap>(type_, nominal_, fixedSchedule, usedFixedRate, fixedDayCount_,
+                                                         fullResetSchedule, iborIndex_, resetsPerCoupon_, spread_,
+                                                         averagingMethod_);
 
-        if (engine_ == nullptr) {
+        if (engine_ == nullptr)
+        {
             Handle<YieldTermStructure> disc = iborIndex_->forwardingTermStructure();
             if (!disc.empty())
                 swap->setPricingEngine(ext::make_shared<DiscountingSwapEngine>(disc, false));
-        } else {
+        }
+        else
+        {
             swap->setPricingEngine(engine_);
         }
 
         return swap;
     }
 
-    MakeMultipleResetsSwap& MakeMultipleResetsSwap::receiveFixed(bool flag) {
+    MakeMultipleResetsSwap& MakeMultipleResetsSwap::receiveFixed(bool flag)
+    {
         type_ = flag ? Swap::Receiver : Swap::Payer;
         return *this;
     }
 
-    MakeMultipleResetsSwap& MakeMultipleResetsSwap::withType(Swap::Type type) {
+    MakeMultipleResetsSwap& MakeMultipleResetsSwap::withType(Swap::Type type)
+    {
         type_ = type;
         return *this;
     }
 
-    MakeMultipleResetsSwap& MakeMultipleResetsSwap::withNominal(Real n) {
+    MakeMultipleResetsSwap& MakeMultipleResetsSwap::withNominal(Real n)
+    {
         nominal_ = n;
         return *this;
     }
 
-    MakeMultipleResetsSwap& MakeMultipleResetsSwap::withFixedRate(Rate fixedRate) {
+    MakeMultipleResetsSwap& MakeMultipleResetsSwap::withFixedRate(Rate fixedRate)
+    {
         fixedRate_ = fixedRate;
         return *this;
     }
 
-    MakeMultipleResetsSwap& MakeMultipleResetsSwap::withSettlementDays(Natural settlementDays) {
+    MakeMultipleResetsSwap& MakeMultipleResetsSwap::withSettlementDays(Natural settlementDays)
+    {
         settlementDays_ = settlementDays;
         return *this;
     }
 
-    MakeMultipleResetsSwap& MakeMultipleResetsSwap::withEffectiveDate(const Date& d) {
+    MakeMultipleResetsSwap& MakeMultipleResetsSwap::withEffectiveDate(const Date& d)
+    {
         effectiveDate_ = d;
         return *this;
     }
 
-    MakeMultipleResetsSwap& MakeMultipleResetsSwap::withTerminationDate(const Date& d) {
+    MakeMultipleResetsSwap& MakeMultipleResetsSwap::withTerminationDate(const Date& d)
+    {
         terminationDate_ = d;
         if (d != Date())
             tenor_ = Period();
         return *this;
     }
 
-    MakeMultipleResetsSwap& MakeMultipleResetsSwap::withForwardStart(const Period& fwdStart) {
+    MakeMultipleResetsSwap& MakeMultipleResetsSwap::withForwardStart(const Period& fwdStart)
+    {
         forwardStart_ = fwdStart;
         return *this;
     }
 
-    MakeMultipleResetsSwap& MakeMultipleResetsSwap::withFixedLegFrequency(Frequency f) {
+    MakeMultipleResetsSwap& MakeMultipleResetsSwap::withFixedLegFrequency(Frequency f)
+    {
         fixedFrequency_ = f;
         return *this;
     }
 
-    MakeMultipleResetsSwap& MakeMultipleResetsSwap::withFixedLegDayCount(const DayCounter& dc) {
+    MakeMultipleResetsSwap& MakeMultipleResetsSwap::withFixedLegDayCount(const DayCounter& dc)
+    {
         fixedDayCount_ = dc;
         return *this;
     }
 
-    MakeMultipleResetsSwap&
-    MakeMultipleResetsSwap::withFixedLegConvention(BusinessDayConvention bdc) {
+    MakeMultipleResetsSwap& MakeMultipleResetsSwap::withFixedLegConvention(BusinessDayConvention bdc)
+    {
         fixedConvention_ = bdc;
         return *this;
     }
 
-    MakeMultipleResetsSwap& MakeMultipleResetsSwap::withFloatingLegSpread(Spread sp) {
+    MakeMultipleResetsSwap& MakeMultipleResetsSwap::withFloatingLegSpread(Spread sp)
+    {
         spread_ = sp;
         return *this;
     }
 
-    MakeMultipleResetsSwap& MakeMultipleResetsSwap::withAveragingMethod(RateAveraging::Type m) {
+    MakeMultipleResetsSwap& MakeMultipleResetsSwap::withAveragingMethod(RateAveraging::Type m)
+    {
         averagingMethod_ = m;
         return *this;
     }
 
-    MakeMultipleResetsSwap&
-    MakeMultipleResetsSwap::withDiscountingTermStructure(const Handle<YieldTermStructure>& d) {
+    MakeMultipleResetsSwap& MakeMultipleResetsSwap::withDiscountingTermStructure(const Handle<YieldTermStructure>& d)
+    {
         engine_ = ext::make_shared<DiscountingSwapEngine>(d, false);
         return *this;
     }
 
-    MakeMultipleResetsSwap&
-    MakeMultipleResetsSwap::withPricingEngine(const ext::shared_ptr<PricingEngine>& engine) {
+    MakeMultipleResetsSwap& MakeMultipleResetsSwap::withPricingEngine(const ext::shared_ptr<PricingEngine>& engine)
+    {
         engine_ = engine;
         return *this;
     }

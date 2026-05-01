@@ -19,7 +19,7 @@
 
 #include <ql/qldefines.hpp>
 #if !defined(BOOST_ALL_NO_LIB) && defined(BOOST_MSVC)
-#  include <ql/auto_link.hpp>
+#    include <ql/auto_link.hpp>
 #endif
 #include <ql/instruments/vanillaoption.hpp>
 #include <ql/math/integrals/tanhsinhintegral.hpp>
@@ -37,15 +37,16 @@
 #include <ql/pricingengines/vanilla/qdfpamericanengine.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/utilities/dataformatters.hpp>
-
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 
 using namespace QuantLib;
 
-int main(int, char* []) {
+int main(int, char*[])
+{
 
-    try {
+    try
+    {
 
         std::cout << std::endl;
 
@@ -65,31 +66,26 @@ int main(int, char* []) {
         Date maturity(17, May, 1999);
         DayCounter dayCounter = Actual365Fixed();
 
-        std::cout << "Option type = "  << type << std::endl;
-        std::cout << "Maturity = "        << maturity << std::endl;
-        std::cout << "Underlying price = "        << underlying << std::endl;
-        std::cout << "Strike = "                  << strike << std::endl;
-        std::cout << "Risk-free interest rate = " << io::rate(riskFreeRate)
-                  << std::endl;
-        std::cout << "Dividend yield = " << io::rate(dividendYield)
-                  << std::endl;
-        std::cout << "Volatility = " << io::volatility(volatility)
-                  << std::endl;
+        std::cout << "Option type = " << type << std::endl;
+        std::cout << "Maturity = " << maturity << std::endl;
+        std::cout << "Underlying price = " << underlying << std::endl;
+        std::cout << "Strike = " << strike << std::endl;
+        std::cout << "Risk-free interest rate = " << io::rate(riskFreeRate) << std::endl;
+        std::cout << "Dividend yield = " << io::rate(dividendYield) << std::endl;
+        std::cout << "Volatility = " << io::volatility(volatility) << std::endl;
         std::cout << std::endl;
         std::string method;
-        std::cout << std::endl ;
+        std::cout << std::endl;
 
         // write column headings
-        Size widths[] = { 35, 14, 14, 14 };
-        std::cout << std::setw(widths[0]) << std::left << "Method"
-                  << std::setw(widths[1]) << std::left << "European"
-                  << std::setw(widths[2]) << std::left << "Bermudan"
-                  << std::setw(widths[3]) << std::left << "American"
+        Size widths[] = {35, 14, 14, 14};
+        std::cout << std::setw(widths[0]) << std::left << "Method" << std::setw(widths[1]) << std::left << "European"
+                  << std::setw(widths[2]) << std::left << "Bermudan" << std::setw(widths[3]) << std::left << "American"
                   << std::endl;
 
         std::vector<Date> exerciseDates;
-        for (Integer i=1; i<=4; i++)
-            exerciseDates.push_back(settlementDate + 3*i*Months);
+        for (Integer i = 1; i <= 4; i++)
+            exerciseDates.push_back(settlementDate + 3 * i * Months);
 
         auto europeanExercise = ext::make_shared<EuropeanExercise>(maturity);
 
@@ -105,11 +101,10 @@ int main(int, char* []) {
         Handle<YieldTermStructure> flatDividendTS(
             ext::make_shared<FlatForward>(settlementDate, dividendYield, dayCounter));
         Handle<BlackVolTermStructure> flatVolTS(
-            ext::make_shared<BlackConstantVol>(settlementDate, calendar, volatility,
-                                     dayCounter));
+            ext::make_shared<BlackConstantVol>(settlementDate, calendar, volatility, dayCounter));
         auto payoff = ext::make_shared<PlainVanillaPayoff>(type, strike);
-        auto bsmProcess = ext::make_shared<BlackScholesMertonProcess>(
-                underlyingH, flatDividendTS, flatTermStructure, flatVolTS);
+        auto bsmProcess =
+            ext::make_shared<BlackScholesMertonProcess>(underlyingH, flatDividendTS, flatTermStructure, flatVolTS);
 
         // options
         VanillaOption europeanOption(payoff, europeanExercise);
@@ -121,14 +116,11 @@ int main(int, char* []) {
         // Black-Scholes for European
         method = "Black-Scholes";
         europeanOption.setPricingEngine(ext::make_shared<AnalyticEuropeanEngine>(bsmProcess));
-        std::cout << std::setw(widths[0]) << std::left << method
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << europeanOption.NPV()
-                  << std::setw(widths[2]) << std::left << "N/A"
-                  << std::setw(widths[3]) << std::left << "N/A"
-                  << std::endl;
+        std::cout << std::setw(widths[0]) << std::left << method << std::fixed << std::setw(widths[1]) << std::left
+                  << europeanOption.NPV() << std::setw(widths[2]) << std::left << "N/A" << std::setw(widths[3])
+                  << std::left << "N/A" << std::endl;
 
-        //Vasicek rates model for European
+        // Vasicek rates model for European
         method = "Black Vasicek Model";
         Real r0 = riskFreeRate;
         Real a = 0.3;
@@ -137,120 +129,87 @@ int main(int, char* []) {
         Real riskPremium = 0.0;
         Real correlation = 0.5;
         auto vasicekProcess = ext::make_shared<Vasicek>(r0, a, b, sigma_r, riskPremium);
-        europeanOption.setPricingEngine(ext::make_shared<AnalyticBlackVasicekEngine>(bsmProcess, vasicekProcess, correlation));
-        std::cout << std::setw(widths[0]) << std::left << method
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << europeanOption.NPV()
-                  << std::setw(widths[2]) << std::left << "N/A"
-                  << std::setw(widths[3]) << std::left << "N/A"
-                  << std::endl;
+        europeanOption.setPricingEngine(
+            ext::make_shared<AnalyticBlackVasicekEngine>(bsmProcess, vasicekProcess, correlation));
+        std::cout << std::setw(widths[0]) << std::left << method << std::fixed << std::setw(widths[1]) << std::left
+                  << europeanOption.NPV() << std::setw(widths[2]) << std::left << "N/A" << std::setw(widths[3])
+                  << std::left << "N/A" << std::endl;
 
         // semi-analytic Heston for European
         method = "Heston semi-analytic";
-        auto hestonProcess = ext::make_shared<HestonProcess>(flatTermStructure, flatDividendTS,
-                              underlyingH, volatility*volatility,
-                              1.0, volatility*volatility, 0.001, 0.0);
+        auto hestonProcess =
+            ext::make_shared<HestonProcess>(flatTermStructure, flatDividendTS, underlyingH, volatility * volatility,
+                                            1.0, volatility * volatility, 0.001, 0.0);
         auto hestonModel = ext::make_shared<HestonModel>(hestonProcess);
         europeanOption.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(hestonModel));
-        std::cout << std::setw(widths[0]) << std::left << method
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << europeanOption.NPV()
-                  << std::setw(widths[2]) << std::left << "N/A"
-                  << std::setw(widths[3]) << std::left << "N/A"
-                  << std::endl;
+        std::cout << std::setw(widths[0]) << std::left << method << std::fixed << std::setw(widths[1]) << std::left
+                  << europeanOption.NPV() << std::setw(widths[2]) << std::left << "N/A" << std::setw(widths[3])
+                  << std::left << "N/A" << std::endl;
 
         // semi-analytic Bates for European
         method = "Bates semi-analytic";
-        auto batesProcess = ext::make_shared<BatesProcess>(flatTermStructure, flatDividendTS,
-                             underlyingH, volatility*volatility,
-                             1.0, volatility*volatility, 0.001, 0.0,
-                             1e-14, 1e-14, 1e-14);
+        auto batesProcess =
+            ext::make_shared<BatesProcess>(flatTermStructure, flatDividendTS, underlyingH, volatility * volatility, 1.0,
+                                           volatility * volatility, 0.001, 0.0, 1e-14, 1e-14, 1e-14);
         auto batesModel = ext::make_shared<BatesModel>(batesProcess);
         europeanOption.setPricingEngine(ext::make_shared<BatesEngine>(batesModel));
-        std::cout << std::setw(widths[0]) << std::left << method
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << europeanOption.NPV()
-                  << std::setw(widths[2]) << std::left << "N/A"
-                  << std::setw(widths[3]) << std::left << "N/A"
-                  << std::endl;
+        std::cout << std::setw(widths[0]) << std::left << method << std::fixed << std::setw(widths[1]) << std::left
+                  << europeanOption.NPV() << std::setw(widths[2]) << std::left << "N/A" << std::setw(widths[3])
+                  << std::left << "N/A" << std::endl;
 
         // Barone-Adesi and Whaley approximation for American
         method = "Barone-Adesi/Whaley";
         americanOption.setPricingEngine(ext::make_shared<BaroneAdesiWhaleyApproximationEngine>(bsmProcess));
-        std::cout << std::setw(widths[0]) << std::left << method
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << "N/A"
-                  << std::setw(widths[2]) << std::left << "N/A"
-                  << std::setw(widths[3]) << std::left << americanOption.NPV()
-                  << std::endl;
+        std::cout << std::setw(widths[0]) << std::left << method << std::fixed << std::setw(widths[1]) << std::left
+                  << "N/A" << std::setw(widths[2]) << std::left << "N/A" << std::setw(widths[3]) << std::left
+                  << americanOption.NPV() << std::endl;
 
         // Bjerksund and Stensland approximation for American
         method = "Bjerksund/Stensland";
         americanOption.setPricingEngine(ext::make_shared<BjerksundStenslandApproximationEngine>(bsmProcess));
-        std::cout << std::setw(widths[0]) << std::left << method
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << "N/A"
-                  << std::setw(widths[2]) << std::left << "N/A"
-                  << std::setw(widths[3]) << std::left << americanOption.NPV()
-                  << std::endl;
+        std::cout << std::setw(widths[0]) << std::left << method << std::fixed << std::setw(widths[1]) << std::left
+                  << "N/A" << std::setw(widths[2]) << std::left << "N/A" << std::setw(widths[3]) << std::left
+                  << americanOption.NPV() << std::endl;
 
         // QD+ fixed-point engine for American
         method = "QD+ fixed-point (fast)";
-        americanOption.setPricingEngine(ext::make_shared<QdFpAmericanEngine>
-                                        (bsmProcess, QdFpAmericanEngine::fastScheme()));
-        std::cout << std::setw(widths[0]) << std::left << method
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << "N/A"
-                  << std::setw(widths[2]) << std::left << "N/A"
-                  << std::setw(widths[3]) << std::left << americanOption.NPV()
-                  << std::endl;
+        americanOption.setPricingEngine(
+            ext::make_shared<QdFpAmericanEngine>(bsmProcess, QdFpAmericanEngine::fastScheme()));
+        std::cout << std::setw(widths[0]) << std::left << method << std::fixed << std::setw(widths[1]) << std::left
+                  << "N/A" << std::setw(widths[2]) << std::left << "N/A" << std::setw(widths[3]) << std::left
+                  << americanOption.NPV() << std::endl;
 
         method = "QD+ fixed-point (accurate)";
-        americanOption.setPricingEngine(ext::make_shared<QdFpAmericanEngine>
-                                        (bsmProcess, QdFpAmericanEngine::accurateScheme()));
-        std::cout << std::setw(widths[0]) << std::left << method
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << "N/A"
-                  << std::setw(widths[2]) << std::left << "N/A"
-                  << std::setw(widths[3]) << std::left << americanOption.NPV()
-                  << std::endl;
+        americanOption.setPricingEngine(
+            ext::make_shared<QdFpAmericanEngine>(bsmProcess, QdFpAmericanEngine::accurateScheme()));
+        std::cout << std::setw(widths[0]) << std::left << method << std::fixed << std::setw(widths[1]) << std::left
+                  << "N/A" << std::setw(widths[2]) << std::left << "N/A" << std::setw(widths[3]) << std::left
+                  << americanOption.NPV() << std::endl;
 
         method = "QD+ fixed-point (high precision)";
-        americanOption.setPricingEngine(ext::make_shared<QdFpAmericanEngine>
-                                        (bsmProcess, QdFpAmericanEngine::highPrecisionScheme()));
-        std::cout << std::setw(widths[0]) << std::left << method
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << "N/A"
-                  << std::setw(widths[2]) << std::left << "N/A"
-                  << std::setw(widths[3]) << std::left << americanOption.NPV()
-                  << std::endl;
+        americanOption.setPricingEngine(
+            ext::make_shared<QdFpAmericanEngine>(bsmProcess, QdFpAmericanEngine::highPrecisionScheme()));
+        std::cout << std::setw(widths[0]) << std::left << method << std::fixed << std::setw(widths[1]) << std::left
+                  << "N/A" << std::setw(widths[2]) << std::left << "N/A" << std::setw(widths[3]) << std::left
+                  << americanOption.NPV() << std::endl;
 
         // Integral
         method = "Integral";
         europeanOption.setPricingEngine(ext::make_shared<IntegralEngine>(bsmProcess));
-        std::cout << std::setw(widths[0]) << std::left << method
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << europeanOption.NPV()
-                  << std::setw(widths[2]) << std::left << "N/A"
-                  << std::setw(widths[3]) << std::left << "N/A"
-                  << std::endl;
+        std::cout << std::setw(widths[0]) << std::left << method << std::fixed << std::setw(widths[1]) << std::left
+                  << europeanOption.NPV() << std::setw(widths[2]) << std::left << "N/A" << std::setw(widths[3])
+                  << std::left << "N/A" << std::endl;
 
         // Finite differences
         Size timeSteps = 801;
         method = "Finite differences";
-        auto fdengine =
-            ext::make_shared<FdBlackScholesVanillaEngine>(bsmProcess,
-                                                          timeSteps,
-                                                          timeSteps-1);
+        auto fdengine = ext::make_shared<FdBlackScholesVanillaEngine>(bsmProcess, timeSteps, timeSteps - 1);
         europeanOption.setPricingEngine(fdengine);
         bermudanOption.setPricingEngine(fdengine);
         americanOption.setPricingEngine(fdengine);
-        std::cout << std::setw(widths[0]) << std::left << method
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << europeanOption.NPV()
-                  << std::setw(widths[2]) << std::left << bermudanOption.NPV()
-                  << std::setw(widths[3]) << std::left << americanOption.NPV()
-                  << std::endl;
+        std::cout << std::setw(widths[0]) << std::left << method << std::fixed << std::setw(widths[1]) << std::left
+                  << europeanOption.NPV() << std::setw(widths[2]) << std::left << bermudanOption.NPV()
+                  << std::setw(widths[3]) << std::left << americanOption.NPV() << std::endl;
 
         // Binomial method: Jarrow-Rudd
         method = "Binomial Jarrow-Rudd";
@@ -258,12 +217,9 @@ int main(int, char* []) {
         europeanOption.setPricingEngine(jrEngine);
         bermudanOption.setPricingEngine(jrEngine);
         americanOption.setPricingEngine(jrEngine);
-        std::cout << std::setw(widths[0]) << std::left << method
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << europeanOption.NPV()
-                  << std::setw(widths[2]) << std::left << bermudanOption.NPV()
-                  << std::setw(widths[3]) << std::left << americanOption.NPV()
-                  << std::endl;
+        std::cout << std::setw(widths[0]) << std::left << method << std::fixed << std::setw(widths[1]) << std::left
+                  << europeanOption.NPV() << std::setw(widths[2]) << std::left << bermudanOption.NPV()
+                  << std::setw(widths[3]) << std::left << americanOption.NPV() << std::endl;
 
         // Binomial method: Cox-Ross-Rubinstein
         method = "Binomial Cox-Ross-Rubinstein";
@@ -271,12 +227,9 @@ int main(int, char* []) {
         europeanOption.setPricingEngine(crrEngine);
         bermudanOption.setPricingEngine(crrEngine);
         americanOption.setPricingEngine(crrEngine);
-        std::cout << std::setw(widths[0]) << std::left << method
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << europeanOption.NPV()
-                  << std::setw(widths[2]) << std::left << bermudanOption.NPV()
-                  << std::setw(widths[3]) << std::left << americanOption.NPV()
-                  << std::endl;
+        std::cout << std::setw(widths[0]) << std::left << method << std::fixed << std::setw(widths[1]) << std::left
+                  << europeanOption.NPV() << std::setw(widths[2]) << std::left << bermudanOption.NPV()
+                  << std::setw(widths[3]) << std::left << americanOption.NPV() << std::endl;
 
         // Binomial method: Additive equiprobabilities
         method = "Additive equiprobabilities";
@@ -284,12 +237,9 @@ int main(int, char* []) {
         europeanOption.setPricingEngine(aeqpEngine);
         bermudanOption.setPricingEngine(aeqpEngine);
         americanOption.setPricingEngine(aeqpEngine);
-        std::cout << std::setw(widths[0]) << std::left << method
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << europeanOption.NPV()
-                  << std::setw(widths[2]) << std::left << bermudanOption.NPV()
-                  << std::setw(widths[3]) << std::left << americanOption.NPV()
-                  << std::endl;
+        std::cout << std::setw(widths[0]) << std::left << method << std::fixed << std::setw(widths[1]) << std::left
+                  << europeanOption.NPV() << std::setw(widths[2]) << std::left << bermudanOption.NPV()
+                  << std::setw(widths[3]) << std::left << americanOption.NPV() << std::endl;
 
         // Binomial method: Binomial Trigeorgis
         method = "Binomial Trigeorgis";
@@ -297,12 +247,9 @@ int main(int, char* []) {
         europeanOption.setPricingEngine(trigeorgisEngine);
         bermudanOption.setPricingEngine(trigeorgisEngine);
         americanOption.setPricingEngine(trigeorgisEngine);
-        std::cout << std::setw(widths[0]) << std::left << method
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << europeanOption.NPV()
-                  << std::setw(widths[2]) << std::left << bermudanOption.NPV()
-                  << std::setw(widths[3]) << std::left << americanOption.NPV()
-                  << std::endl;
+        std::cout << std::setw(widths[0]) << std::left << method << std::fixed << std::setw(widths[1]) << std::left
+                  << europeanOption.NPV() << std::setw(widths[2]) << std::left << bermudanOption.NPV()
+                  << std::setw(widths[3]) << std::left << americanOption.NPV() << std::endl;
 
         // Binomial method: Binomial Tian
         method = "Binomial Tian";
@@ -310,12 +257,9 @@ int main(int, char* []) {
         europeanOption.setPricingEngine(tianEngine);
         bermudanOption.setPricingEngine(tianEngine);
         americanOption.setPricingEngine(tianEngine);
-        std::cout << std::setw(widths[0]) << std::left << method
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << europeanOption.NPV()
-                  << std::setw(widths[2]) << std::left << bermudanOption.NPV()
-                  << std::setw(widths[3]) << std::left << americanOption.NPV()
-                  << std::endl;
+        std::cout << std::setw(widths[0]) << std::left << method << std::fixed << std::setw(widths[1]) << std::left
+                  << europeanOption.NPV() << std::setw(widths[2]) << std::left << bermudanOption.NPV()
+                  << std::setw(widths[3]) << std::left << americanOption.NPV() << std::endl;
 
         // Binomial method: Binomial Leisen-Reimer
         method = "Binomial Leisen-Reimer";
@@ -323,12 +267,9 @@ int main(int, char* []) {
         europeanOption.setPricingEngine(lrEngine);
         bermudanOption.setPricingEngine(lrEngine);
         americanOption.setPricingEngine(lrEngine);
-        std::cout << std::setw(widths[0]) << std::left << method
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << europeanOption.NPV()
-                  << std::setw(widths[2]) << std::left << bermudanOption.NPV()
-                  << std::setw(widths[3]) << std::left << americanOption.NPV()
-                  << std::endl;
+        std::cout << std::setw(widths[0]) << std::left << method << std::fixed << std::setw(widths[1]) << std::left
+                  << europeanOption.NPV() << std::setw(widths[2]) << std::left << bermudanOption.NPV()
+                  << std::setw(widths[3]) << std::left << americanOption.NPV() << std::endl;
 
         // Binomial method: Binomial Joshi
         method = "Binomial Joshi";
@@ -336,68 +277,57 @@ int main(int, char* []) {
         europeanOption.setPricingEngine(joshiEngine);
         bermudanOption.setPricingEngine(joshiEngine);
         americanOption.setPricingEngine(joshiEngine);
-        std::cout << std::setw(widths[0]) << std::left << method
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << europeanOption.NPV()
-                  << std::setw(widths[2]) << std::left << bermudanOption.NPV()
-                  << std::setw(widths[3]) << std::left << americanOption.NPV()
-                  << std::endl;
+        std::cout << std::setw(widths[0]) << std::left << method << std::fixed << std::setw(widths[1]) << std::left
+                  << europeanOption.NPV() << std::setw(widths[2]) << std::left << bermudanOption.NPV()
+                  << std::setw(widths[3]) << std::left << americanOption.NPV() << std::endl;
 
         // Monte Carlo Method: MC (crude)
         timeSteps = 1;
         method = "MC (crude)";
         Size mcSeed = 42;
         auto mcengine1 = MakeMCEuropeanEngine<PseudoRandom>(bsmProcess)
-            .withSteps(timeSteps)
-            .withAbsoluteTolerance(0.02)
-            .withSeed(mcSeed);
+                             .withSteps(timeSteps)
+                             .withAbsoluteTolerance(0.02)
+                             .withSeed(mcSeed);
         europeanOption.setPricingEngine(mcengine1);
         // Real errorEstimate = europeanOption.errorEstimate();
-        std::cout << std::setw(widths[0]) << std::left << method
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << europeanOption.NPV()
-                  << std::setw(widths[2]) << std::left << "N/A"
-                  << std::setw(widths[3]) << std::left << "N/A"
-                  << std::endl;
+        std::cout << std::setw(widths[0]) << std::left << method << std::fixed << std::setw(widths[1]) << std::left
+                  << europeanOption.NPV() << std::setw(widths[2]) << std::left << "N/A" << std::setw(widths[3])
+                  << std::left << "N/A" << std::endl;
 
         // Monte Carlo Method: QMC (Sobol)
         method = "QMC (Sobol)";
-        Size nSamples = 32768;  // 2^15
+        Size nSamples = 32768; // 2^15
 
-        auto mcengine2 = MakeMCEuropeanEngine<LowDiscrepancy>(bsmProcess)
-            .withSteps(timeSteps)
-            .withSamples(nSamples);
+        auto mcengine2 = MakeMCEuropeanEngine<LowDiscrepancy>(bsmProcess).withSteps(timeSteps).withSamples(nSamples);
         europeanOption.setPricingEngine(mcengine2);
-        std::cout << std::setw(widths[0]) << std::left << method
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << europeanOption.NPV()
-                  << std::setw(widths[2]) << std::left << "N/A"
-                  << std::setw(widths[3]) << std::left << "N/A"
-                  << std::endl;
+        std::cout << std::setw(widths[0]) << std::left << method << std::fixed << std::setw(widths[1]) << std::left
+                  << europeanOption.NPV() << std::setw(widths[2]) << std::left << "N/A" << std::setw(widths[3])
+                  << std::left << "N/A" << std::endl;
 
         // Monte Carlo Method: MC (Longstaff Schwartz)
         method = "MC (Longstaff Schwartz)";
         auto mcengine3 = MakeMCAmericanEngine<PseudoRandom>(bsmProcess)
-            .withSteps(100)
-            .withAntitheticVariate()
-            .withCalibrationSamples(4096)
-            .withAbsoluteTolerance(0.02)
-            .withSeed(mcSeed);
+                             .withSteps(100)
+                             .withAntitheticVariate()
+                             .withCalibrationSamples(4096)
+                             .withAbsoluteTolerance(0.02)
+                             .withSeed(mcSeed);
         americanOption.setPricingEngine(mcengine3);
-        std::cout << std::setw(widths[0]) << std::left << method
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << "N/A"
-                  << std::setw(widths[2]) << std::left << "N/A"
-                  << std::setw(widths[3]) << std::left << americanOption.NPV()
-                  << std::endl;
+        std::cout << std::setw(widths[0]) << std::left << method << std::fixed << std::setw(widths[1]) << std::left
+                  << "N/A" << std::setw(widths[2]) << std::left << "N/A" << std::setw(widths[3]) << std::left
+                  << americanOption.NPV() << std::endl;
 
         // End test
         return 0;
-
-    } catch (std::exception& e) {
+    }
+    catch (std::exception& e)
+    {
         std::cerr << e.what() << std::endl;
         return 1;
-    } catch (...) {
+    }
+    catch (...)
+    {
         std::cerr << "unknown error" << std::endl;
         return 1;
     }

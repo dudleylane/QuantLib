@@ -26,7 +26,8 @@
 
 #include <ql/instruments/oneassetoption.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Simple chooser option
     /*! This option gives the holder the right to choose, at a future
@@ -34,13 +35,12 @@ namespace QuantLib {
         a put.  The exercise date and strike are the same for both
         call and put option.
     */
-    class SimpleChooserOption : public OneAssetOption {
+    class SimpleChooserOption : public OneAssetOption
+    {
       public:
         class arguments;
         class engine;
-        SimpleChooserOption(Date choosingDate,
-                            Real strike,
-                            const ext::shared_ptr<Exercise>& exercise);
+        SimpleChooserOption(Date choosingDate, Real strike, const ext::shared_ptr<Exercise>& exercise);
         void setupArguments(PricingEngine::arguments*) const override;
 
       private:
@@ -48,7 +48,8 @@ namespace QuantLib {
     };
 
     //! Extra %arguments for single chooser option
-    class SimpleChooserOption::arguments : public OneAssetOption::arguments {
+    class SimpleChooserOption::arguments : public OneAssetOption::arguments
+    {
       public:
         arguments() = default;
         void validate() const override;
@@ -56,8 +57,10 @@ namespace QuantLib {
     };
 
     //! Simple-chooser-option %engine base class
-    class SimpleChooserOption::engine : public GenericEngine<SimpleChooserOption::arguments,
-                                                             SimpleChooserOption::results> {};
+    class SimpleChooserOption::engine
+    : public GenericEngine<SimpleChooserOption::arguments, SimpleChooserOption::results>
+    {
+    };
 
 }
 

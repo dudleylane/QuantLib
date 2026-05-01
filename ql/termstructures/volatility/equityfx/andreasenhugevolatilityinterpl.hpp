@@ -24,18 +24,19 @@
 #ifndef quantlib_andreasen_huge_local_volatility_hpp
 #define quantlib_andreasen_huge_local_volatility_hpp
 
-#include <ql/quote.hpp>
 #include <ql/handle.hpp>
-#include <ql/option.hpp>
-#include <ql/math/matrix.hpp>
-#include <ql/patterns/lazyobject.hpp>
-#include <ql/math/optimization/levenbergmarquardt.hpp>
 #include <ql/math/interpolations/linearinterpolation.hpp>
+#include <ql/math/matrix.hpp>
+#include <ql/math/optimization/levenbergmarquardt.hpp>
+#include <ql/option.hpp>
+#include <ql/patterns/lazyobject.hpp>
+#include <ql/quote.hpp>
 #include <ql/termstructures/volatility/equityfx/localvoltermstructure.hpp>
 #include <tuple>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class VanillaOption;
     class YieldTermStructure;
@@ -50,30 +51,37 @@ namespace QuantLib {
         https://ssrn.com/abstract=1694972
     */
 
-    class AndreasenHugeVolatilityInterpl : public LazyObject {
+    class AndreasenHugeVolatilityInterpl : public LazyObject
+    {
 
       public:
-        enum InterpolationType {PiecewiseConstant, Linear, CubicSpline};
-        enum CalibrationType {
-            Call = Option::Call, Put = Option::Put, CallPut};
+        enum InterpolationType
+        {
+            PiecewiseConstant,
+            Linear,
+            CubicSpline
+        };
+        enum CalibrationType
+        {
+            Call = Option::Call,
+            Put = Option::Put,
+            CallPut
+        };
 
-        typedef std::vector<std::pair<
-            ext::shared_ptr<VanillaOption>, ext::shared_ptr<Quote> > >
-          CalibrationSet;
+        typedef std::vector<std::pair<ext::shared_ptr<VanillaOption>, ext::shared_ptr<Quote>>> CalibrationSet;
 
-        AndreasenHugeVolatilityInterpl(
-            const CalibrationSet& calibrationSet,
-            Handle<Quote> spot,
-            Handle<YieldTermStructure> rTS,
-            Handle<YieldTermStructure> qTS,
-            InterpolationType interpolationType = CubicSpline,
-            CalibrationType calibrationType = Call,
-            Size nGridPoints = 500,
-            Real minStrike = Null<Real>(),
-            Real maxStrike = Null<Real>(),
-            ext::shared_ptr<OptimizationMethod> optimizationMethod =
-                ext::shared_ptr<OptimizationMethod>(new LevenbergMarquardt),
-            const EndCriteria& endCriteria = EndCriteria(500, 100, 1e-12, 1e-10, 1e-10));
+        AndreasenHugeVolatilityInterpl(const CalibrationSet& calibrationSet,
+                                       Handle<Quote> spot,
+                                       Handle<YieldTermStructure> rTS,
+                                       Handle<YieldTermStructure> qTS,
+                                       InterpolationType interpolationType = CubicSpline,
+                                       CalibrationType calibrationType = Call,
+                                       Size nGridPoints = 500,
+                                       Real minStrike = Null<Real>(),
+                                       Real maxStrike = Null<Real>(),
+                                       ext::shared_ptr<OptimizationMethod> optimizationMethod =
+                                           ext::shared_ptr<OptimizationMethod>(new LevenbergMarquardt),
+                                       const EndCriteria& endCriteria = EndCriteria(500, 100, 1e-12, 1e-10, 1e-10));
 
         Date maxDate() const;
         Real minStrike() const;
@@ -95,25 +103,21 @@ namespace QuantLib {
         void performCalculations() const override;
 
       private:
-        typedef std::map<Time,
-            std::tuple<
-                Real,
-                ext::shared_ptr<Array>,
-                ext::shared_ptr<Interpolation> > > TimeValueCacheType;
+        typedef std::map<Time, std::tuple<Real, ext::shared_ptr<Array>, ext::shared_ptr<Interpolation>>>
+            TimeValueCacheType;
 
-        struct SingleStepCalibrationResult {
+        struct SingleStepCalibrationResult
+        {
             Array putNPVs, callNPVs, sigmas;
             ext::shared_ptr<AndreasenHugeCostFunction> costFunction;
         };
 
-        ext::shared_ptr<AndreasenHugeCostFunction> buildCostFunction(
-            Size iExpiry, Option::Type optionType,
-            const Array& previousNPVs) const;
+        ext::shared_ptr<AndreasenHugeCostFunction>
+        buildCostFunction(Size iExpiry, Option::Type optionType, const Array& previousNPVs) const;
 
         Size getExerciseTimeIdx(Time t) const;
 
-        Real getCacheValue(
-            Real strike, const TimeValueCacheType::const_iterator& f) const;
+        Real getCacheValue(Real strike, const TimeValueCacheType::const_iterator& f) const;
 
         Array getPriceSlice(Time t, Option::Type optionType) const;
 
@@ -136,7 +140,7 @@ namespace QuantLib {
         std::vector<Date> expiries_;
         mutable std::vector<Time> expiryTimes_, dT_;
 
-        std::vector<std::vector<Size> > calibrationMatrix_;
+        std::vector<std::vector<Size>> calibrationMatrix_;
         mutable Real avgError_, minError_, maxError_;
 
         mutable ext::shared_ptr<FdmMesherComposite> mesher_;

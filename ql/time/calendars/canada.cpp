@@ -18,29 +18,32 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/time/calendars/canada.hpp>
 #include <ql/errors.hpp>
+#include <ql/time/calendars/canada.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Canada::Canada(Canada::Market market) {
+    Canada::Canada(Canada::Market market)
+    {
         // all calendar instances share the same implementation instance
-        static ext::shared_ptr<Calendar::Impl> settlementImpl(
-                                                  new Canada::SettlementImpl);
+        static ext::shared_ptr<Calendar::Impl> settlementImpl(new Canada::SettlementImpl);
         static ext::shared_ptr<Calendar::Impl> tsxImpl(new Canada::TsxImpl);
-        switch (market) {
-          case Settlement:
-            impl_ = settlementImpl;
-            break;
-          case TSX:
-            impl_ = tsxImpl;
-            break;
-          default:
-            QL_FAIL("unknown market");
+        switch (market)
+        {
+            case Settlement:
+                impl_ = settlementImpl;
+                break;
+            case TSX:
+                impl_ = tsxImpl;
+                break;
+            default:
+                QL_FAIL("unknown market");
         }
     }
 
-    bool Canada::SettlementImpl::isBusinessDay(const Date& date) const {
+    bool Canada::SettlementImpl::isBusinessDay(const Date& date) const
+    {
         Weekday w = date.weekday();
         Day d = date.dayOfMonth(), dd = date.dayOfYear();
         Month m = date.month();
@@ -50,14 +53,13 @@ namespace QuantLib {
             // New Year's Day (possibly moved to Monday)
             || ((d == 1 || ((d == 2 || d == 3) && w == Monday)) && m == January)
             // Family Day (third Monday in February, since 2008)
-            || ((d >= 15 && d <= 21) && w == Monday && m == February
-                && y >= 2008)
+            || ((d >= 15 && d <= 21) && w == Monday && m == February && y >= 2008)
             // Good Friday
-            || (dd == em-3)
+            || (dd == em - 3)
             // The Monday on or preceding 24 May (Victoria Day)
             || (d > 17 && d <= 24 && w == Monday && m == May)
             // July 1st, possibly moved to Monday (Canada Day)
-            || ((d == 1 || ((d == 2 || d == 3) && w == Monday)) && m==July)
+            || ((d == 1 || ((d == 2 || d == 3) && w == Monday)) && m == July)
             // first Monday of August (Provincial Holiday)
             || (d <= 7 && w == Monday && m == August)
             // first Monday of September (Labor Day)
@@ -68,20 +70,17 @@ namespace QuantLib {
             // second Monday of October (Thanksgiving Day)
             || (d > 7 && d <= 14 && w == Monday && m == October)
             // November 11th (possibly moved to Monday)
-            || ((d == 11 || ((d == 12 || d == 13) && w == Monday))
-                && m == November)
+            || ((d == 11 || ((d == 12 || d == 13) && w == Monday)) && m == November)
             // Christmas (possibly moved to Monday or Tuesday)
-            || ((d == 25 || (d == 27 && (w == Monday || w == Tuesday)))
-                && m == December)
+            || ((d == 25 || (d == 27 && (w == Monday || w == Tuesday))) && m == December)
             // Boxing Day (possibly moved to Monday or Tuesday)
-            || ((d == 26 || (d == 28 && (w == Monday || w == Tuesday)))
-                && m == December)
-            )
+            || ((d == 26 || (d == 28 && (w == Monday || w == Tuesday))) && m == December))
             return false; // NOLINT(readability-simplify-boolean-expr)
         return true;
     }
 
-    bool Canada::TsxImpl::isBusinessDay(const Date& date) const {
+    bool Canada::TsxImpl::isBusinessDay(const Date& date) const
+    {
         Weekday w = date.weekday();
         Day d = date.dayOfMonth(), dd = date.dayOfYear();
         Month m = date.month();
@@ -91,14 +90,13 @@ namespace QuantLib {
             // New Year's Day (possibly moved to Monday)
             || ((d == 1 || ((d == 2 || d == 3) && w == Monday)) && m == January)
             // Family Day (third Monday in February, since 2008)
-            || ((d >= 15 && d <= 21) && w == Monday && m == February
-                && y >= 2008)
+            || ((d >= 15 && d <= 21) && w == Monday && m == February && y >= 2008)
             // Good Friday
-            || (dd == em-3)
+            || (dd == em - 3)
             // The Monday on or preceding 24 May (Victoria Day)
             || (d > 17 && d <= 24 && w == Monday && m == May)
             // July 1st, possibly moved to Monday (Canada Day)
-            || ((d == 1 || ((d == 2 || d == 3) && w == Monday)) && m==July)
+            || ((d == 1 || ((d == 2 || d == 3) && w == Monday)) && m == July)
             // first Monday of August (Provincial Holiday)
             || (d <= 7 && w == Monday && m == August)
             // first Monday of September (Labor Day)
@@ -106,12 +104,9 @@ namespace QuantLib {
             // second Monday of October (Thanksgiving Day)
             || (d > 7 && d <= 14 && w == Monday && m == October)
             // Christmas (possibly moved to Monday or Tuesday)
-            || ((d == 25 || (d == 27 && (w == Monday || w == Tuesday)))
-                && m == December)
+            || ((d == 25 || (d == 27 && (w == Monday || w == Tuesday))) && m == December)
             // Boxing Day (possibly moved to Monday or Tuesday)
-            || ((d == 26 || (d == 28 && (w == Monday || w == Tuesday)))
-                && m == December)
-            )
+            || ((d == 26 || (d == 28 && (w == Monday || w == Tuesday))) && m == December))
             return false; // NOLINT(readability-simplify-boolean-expr)
         return true;
     }

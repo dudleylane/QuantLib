@@ -21,11 +21,12 @@
 #ifndef quantlib_pathwise_market_model_discounter_hpp
 #define quantlib_pathwise_market_model_discounter_hpp
 
-#include <ql/types.hpp>
 #include <ql/math/matrix.hpp>
+#include <ql/types.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class CurveState;
     /*!
@@ -40,21 +41,21 @@ namespace QuantLib {
     to get a discounting back to zero you need to multiply by
     the discount factor of t_0.
     */
-    class MarketModelPathwiseDiscounter {
+    class MarketModelPathwiseDiscounter
+    {
       public:
-        MarketModelPathwiseDiscounter(Time paymentTime,
-                                      const std::vector<Time>& rateTimes);
+        MarketModelPathwiseDiscounter(Time paymentTime, const std::vector<Time>& rateTimes);
         void getFactors(const Matrix& LIBORRates, // LIBOR rate values for all steps
-                        const Matrix& Discounts, // P(t_0, t_j) for j=0,...n for each step
+                        const Matrix& Discounts,  // P(t_0, t_j) for j=0,...n for each step
                         Size currentStep,
                         std::vector<Real>& factors) const;
+
       private:
         Size before_;
         Size numberRates_;
         Real beforeWeight_;
         Real postWeight_;
         std::vector<Real> taus_;
-
     };
 
 }

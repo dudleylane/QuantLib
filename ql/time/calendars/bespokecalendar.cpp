@@ -21,36 +21,41 @@
 #include <sstream>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     BespokeCalendar::Impl::Impl(std::string name) : name_(std::move(name)) {}
 
-    std::string BespokeCalendar::Impl::name() const {
+    std::string BespokeCalendar::Impl::name() const
+    {
         return name_;
     }
 
-    bool BespokeCalendar::Impl::isWeekend(Weekday w) const {
+    bool BespokeCalendar::Impl::isWeekend(Weekday w) const
+    {
         return (weekend_mask_ & (1 << w)) != 0;
     }
 
-    bool BespokeCalendar::Impl::isBusinessDay(const Date& date) const {
+    bool BespokeCalendar::Impl::isBusinessDay(const Date& date) const
+    {
         return !isWeekend(date.weekday());
     }
 
-    void BespokeCalendar::Impl::addWeekend(Weekday w) {
+    void BespokeCalendar::Impl::addWeekend(Weekday w)
+    {
         weekend_mask_ |= (1 << w);
     }
 
 
-    BespokeCalendar::BespokeCalendar(const std::string& name) {
-        bespokeImpl_ = ext::make_shared<BespokeCalendar::Impl>(
-                                             name);
+    BespokeCalendar::BespokeCalendar(const std::string& name)
+    {
+        bespokeImpl_ = ext::make_shared<BespokeCalendar::Impl>(name);
         impl_ = bespokeImpl_;
     }
 
-    void BespokeCalendar::addWeekend(Weekday w) {
+    void BespokeCalendar::addWeekend(Weekday w)
+    {
         bespokeImpl_->addWeekend(w);
     }
 
 }
-

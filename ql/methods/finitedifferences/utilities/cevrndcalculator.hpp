@@ -27,7 +27,8 @@
 
 #include <ql/methods/finitedifferences/utilities/riskneutraldensitycalculator.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
     //! constant elasticity of variance process (absorbing boundary at f=0)
     /*! \f[
          df_t = \alpha f_t^\beta \mathrm{d}W_t
@@ -40,7 +41,8 @@ namespace QuantLib {
         https://www.fincad.com/sites/default/files/wysiwyg/Resources-Wiki/cev-process-working-paper.pdf
     */
 
-    class CEVRNDCalculator : public RiskNeutralDensityCalculator {
+    class CEVRNDCalculator : public RiskNeutralDensityCalculator
+    {
       public:
         CEVRNDCalculator(Real f0, Real alpha, Real beta);
 

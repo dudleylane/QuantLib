@@ -38,23 +38,23 @@ namespace QuantLib
 
     class CallSpecifiedPathwiseMultiProduct : public MarketModelPathwiseMultiProduct
     {
-    public:
-      CallSpecifiedPathwiseMultiProduct(
-          const Clone<MarketModelPathwiseMultiProduct>& underlying,
-          const Clone<ExerciseStrategy<CurveState> >&,
-          Clone<MarketModelPathwiseMultiProduct> rebate = Clone<MarketModelPathwiseMultiProduct>());
-      //! \name MarketModelPathwiseMultiProduct interface
-      //@{
-      std::vector<Size> suggestedNumeraires() const override;
-      const EvolutionDescription& evolution() const override;
-      std::vector<Time> possibleCashFlowTimes() const override;
-      Size numberOfProducts() const override;
-      Size maxNumberOfCashFlowsPerProductPerStep() const override;
-      void reset() override;
-      bool nextTimeStep(const CurveState& currentState,
-                        std::vector<Size>& numberCashFlowsThisStep,
-                        std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow> >&
-                            cashFlowsGenerated) override;
+      public:
+        CallSpecifiedPathwiseMultiProduct(
+            const Clone<MarketModelPathwiseMultiProduct>& underlying,
+            const Clone<ExerciseStrategy<CurveState>>&,
+            Clone<MarketModelPathwiseMultiProduct> rebate = Clone<MarketModelPathwiseMultiProduct>());
+        //! \name MarketModelPathwiseMultiProduct interface
+        //@{
+        std::vector<Size> suggestedNumeraires() const override;
+        const EvolutionDescription& evolution() const override;
+        std::vector<Time> possibleCashFlowTimes() const override;
+        Size numberOfProducts() const override;
+        Size maxNumberOfCashFlowsPerProductPerStep() const override;
+        void reset() override;
+        bool
+        nextTimeStep(const CurveState& currentState,
+                     std::vector<Size>& numberCashFlowsThisStep,
+                     std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow>>& cashFlowsGenerated) override;
 
         std::unique_ptr<MarketModelPathwiseMultiProduct> clone() const override;
 
@@ -65,19 +65,19 @@ namespace QuantLib
         const MarketModelPathwiseMultiProduct& rebate() const;
         void enableCallability();
         void disableCallability();
-              
 
-    private:
+
+      private:
         Clone<MarketModelPathwiseMultiProduct> underlying_;
-        Clone<ExerciseStrategy<CurveState> > strategy_;
+        Clone<ExerciseStrategy<CurveState>> strategy_;
         Clone<MarketModelPathwiseMultiProduct> rebate_;
         EvolutionDescription evolution_;
-        std::vector<std::valarray<bool> > isPresent_;
+        std::vector<std::valarray<bool>> isPresent_;
         std::vector<Time> cashFlowTimes_;
         Size rebateOffset_ = 0UL;
         bool wasCalled_ = false;
         std::vector<Size> dummyCashFlowsThisStep_;
-        std::vector<std::vector<CashFlow> > dummyCashFlowsGenerated_;
+        std::vector<std::vector<CashFlow>> dummyCashFlowsGenerated_;
         Size currentIndex_ = 0UL;
         bool callable_ = true;
     };

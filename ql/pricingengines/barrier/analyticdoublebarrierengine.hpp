@@ -27,15 +27,16 @@
 #define quantlib_analytic_double_barrier_engine_hpp
 
 #include <ql/instruments/doublebarrieroption.hpp>
-#include <ql/processes/blackscholesprocess.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
+#include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Pricing engine for double barrier european options using analytical formulae
     /*! The formulas are taken from "The complete guide to option pricing formulas 2nd Ed",
          E.G. Haug, McGraw-Hill, p.156 and following.
-         Implements the Ikeda and Kunitomo series (see "Pricing Options with 
+         Implements the Ikeda and Kunitomo series (see "Pricing Options with
          Curved Boundaries" Mathematical Finance 2/1992").
          This code handles only flat barriers
 
@@ -46,10 +47,10 @@ namespace QuantLib {
         \test the correctness of the returned value is tested by
               reproducing results available in literature.
     */
-    class AnalyticDoubleBarrierEngine : public DoubleBarrierOption::engine {
+    class AnalyticDoubleBarrierEngine : public DoubleBarrierOption::engine
+    {
       public:
-        explicit AnalyticDoubleBarrierEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess> process, int series = 5);
+        explicit AnalyticDoubleBarrierEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process, int series = 5);
         void calculate() const override;
 
       private:

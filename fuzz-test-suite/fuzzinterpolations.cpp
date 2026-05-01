@@ -15,22 +15,24 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/math/interpolations/linearinterpolation.hpp>
-#include <ql/math/interpolations/loginterpolation.hpp>
-#include <ql/math/interpolations/cubicinterpolation.hpp>
 #include <ql/math/interpolations/backwardflatinterpolation.hpp>
+#include <ql/math/interpolations/cubicinterpolation.hpp>
 #include <ql/math/interpolations/forwardflatinterpolation.hpp>
 #include <ql/math/interpolations/lagrangeinterpolation.hpp>
-#include <fuzzer/FuzzedDataProvider.h>
+#include <ql/math/interpolations/linearinterpolation.hpp>
+#include <ql/math/interpolations/loginterpolation.hpp>
 #include <algorithm>
+#include <fuzzer/FuzzedDataProvider.h>
 #include <vector>
 
 using namespace QuantLib;
 
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
+{
     FuzzedDataProvider fdp(data, size);
 
-    try {
+    try
+    {
         // Consume a variable number of (x, y) data points from fuzz input.
         // Each point is 2 doubles = 16 bytes, so the fuzzer controls both
         // the number of points and their values.
@@ -45,7 +47,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         std::sort(x.begin(), x.end());
 
         // Ensure strictly increasing x values
-        for (size_t i = 1; i < numPoints; ++i) {
+        for (size_t i = 1; i < numPoints; ++i)
+        {
             if (x[i] <= x[i - 1])
                 x[i] = x[i - 1] + 0.01;
         }
@@ -55,57 +58,55 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
             y[i] = fdp.ConsumeFloatingPointInRange<Real>(-1e6, 1e6);
 
         // For log interpolation, y must be positive
-        if (interpType == 1) {
+        if (interpType == 1)
+        {
             for (size_t i = 0; i < numPoints; ++i)
                 y[i] = std::abs(y[i]) + 0.001;
         }
 
         // Build the interpolation
         ext::shared_ptr<Interpolation> interp;
-        switch (interpType) {
-        case 0:
-            interp = ext::make_shared<LinearInterpolation>(
-                x.begin(), x.end(), y.begin());
-            break;
-        case 1:
-            interp = ext::make_shared<LogLinearInterpolation>(
-                x.begin(), x.end(), y.begin());
-            break;
-        case 2:
-            interp = ext::make_shared<CubicNaturalSpline>(
-                x.begin(), x.end(), y.begin());
-            break;
-        case 3:
-            interp = ext::make_shared<BackwardFlatInterpolation>(
-                x.begin(), x.end(), y.begin());
-            break;
-        case 4:
-            interp = ext::make_shared<ForwardFlatInterpolation>(
-                x.begin(), x.end(), y.begin());
-            break;
-        case 5:
-            interp = ext::make_shared<LagrangeInterpolation>(
-                x.begin(), x.end(), y.begin());
-            break;
+        switch (interpType)
+        {
+            case 0:
+                interp = ext::make_shared<LinearInterpolation>(x.begin(), x.end(), y.begin());
+                break;
+            case 1:
+                interp = ext::make_shared<LogLinearInterpolation>(x.begin(), x.end(), y.begin());
+                break;
+            case 2:
+                interp = ext::make_shared<CubicNaturalSpline>(x.begin(), x.end(), y.begin());
+                break;
+            case 3:
+                interp = ext::make_shared<BackwardFlatInterpolation>(x.begin(), x.end(), y.begin());
+                break;
+            case 4:
+                interp = ext::make_shared<ForwardFlatInterpolation>(x.begin(), x.end(), y.begin());
+                break;
+            case 5:
+                interp = ext::make_shared<LagrangeInterpolation>(x.begin(), x.end(), y.begin());
+                break;
         }
 
         interp->enableExtrapolation();
 
         // Evaluate the interpolation at fuzz-controlled query points
         auto numQueries = fdp.ConsumeIntegralInRange<size_t>(1, 30);
-        for (size_t i = 0; i < numQueries; ++i) {
-            Real xq = fdp.ConsumeFloatingPointInRange<Real>(
-                x.front() - 10.0, x.back() + 10.0);
+        for (size_t i = 0; i < numQueries; ++i)
+        {
+            Real xq = fdp.ConsumeFloatingPointInRange<Real>(x.front() - 10.0, x.back() + 10.0);
             (void)(*interp)(xq);
             // Exercise derivative computation where supported
-            if (interpType <= 2) {
+            if (interpType <= 2)
+            {
                 (void)interp->derivative(xq);
                 (void)interp->secondDerivative(xq);
             }
             (void)interp->primitive(xq);
         }
-
-    } catch (const std::exception&) {
+    }
+    catch (const std::exception&)
+    {
     }
     return 0;
 }

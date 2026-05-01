@@ -24,22 +24,24 @@
 #ifndef quantlib_predefined_1d_mesher_hpp
 #define quantlib_predefined_1d_mesher_hpp
 
-#include <ql/utilities/null.hpp>
 #include <ql/methods/finitedifferences/meshers/fdm1dmesher.hpp>
-
+#include <ql/utilities/null.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class Predefined1dMesher : public Fdm1dMesher {
+    class Predefined1dMesher : public Fdm1dMesher
+    {
       public:
-        explicit Predefined1dMesher(const std::vector<Real>& x)
-        : Fdm1dMesher(x.size()) {
+        explicit Predefined1dMesher(const std::vector<Real>& x) : Fdm1dMesher(x.size())
+        {
             std::copy(x.begin(), x.end(), locations_.begin());
 
             dplus_.back() = dminus_.front() = Null<Real>();
-            for (Size i=0; i < x.size()-1; ++i) {
-                dplus_[i] = dminus_[i+1] = x[i+1] - x[i];
+            for (Size i = 0; i < x.size() - 1; ++i)
+            {
+                dplus_[i] = dminus_[i + 1] = x[i + 1] - x[i];
             }
         }
     };

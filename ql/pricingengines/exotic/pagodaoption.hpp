@@ -28,7 +28,8 @@
 #include <ql/time/date.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Roofed Asian option on a number of assets
     /*! The payoff is a given fraction multiplied by the minimum
@@ -41,13 +42,12 @@ namespace QuantLib {
 
         \ingroup instruments
     */
-    class PagodaOption : public MultiAssetOption {
+    class PagodaOption : public MultiAssetOption
+    {
       public:
         class engine;
         class arguments;
-        PagodaOption(const std::vector<Date>& fixingDates,
-                     Real roof,
-                     Real fraction);
+        PagodaOption(const std::vector<Date>& fixingDates, Real roof, Real fraction);
         void setupArguments(PricingEngine::arguments*) const override;
 
       protected:
@@ -58,19 +58,21 @@ namespace QuantLib {
     };
 
 
-    class PagodaOption::arguments : public MultiAssetOption::arguments {
+    class PagodaOption::arguments : public MultiAssetOption::arguments
+    {
       public:
         arguments();
         void validate() const override;
         std::vector<Date> fixingDates;
-        Real roof; Real fraction;
+        Real roof;
+        Real fraction;
     };
 
 
     //! %Pagoda-option %engine base class
-    class PagodaOption::engine
-        : public GenericEngine<PagodaOption::arguments,
-                               PagodaOption::results> {};
+    class PagodaOption::engine : public GenericEngine<PagodaOption::arguments, PagodaOption::results>
+    {
+    };
 
 }
 

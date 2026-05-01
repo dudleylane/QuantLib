@@ -19,28 +19,30 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/processes/geometricbrownianprocess.hpp>
 #include <ql/processes/eulerdiscretization.hpp>
+#include <ql/processes/geometricbrownianprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    GeometricBrownianMotionProcess::GeometricBrownianMotionProcess(
-                                                          Real initialValue,
-                                                          Real mue,
-                                                          Real sigma)
-    : StochasticProcess1D(ext::shared_ptr<discretization>(
-                                                    new EulerDiscretization)),
-      initialValue_(initialValue), mue_(mue), sigma_(sigma) {}
+    GeometricBrownianMotionProcess::GeometricBrownianMotionProcess(Real initialValue, Real mue, Real sigma)
+    : StochasticProcess1D(ext::shared_ptr<discretization>(new EulerDiscretization)), initialValue_(initialValue),
+      mue_(mue), sigma_(sigma)
+    {
+    }
 
-    Real GeometricBrownianMotionProcess::x0() const {
+    Real GeometricBrownianMotionProcess::x0() const
+    {
         return initialValue_;
     }
 
-    Real GeometricBrownianMotionProcess::drift(Time, Real x) const {
+    Real GeometricBrownianMotionProcess::drift(Time, Real x) const
+    {
         return mue_ * x;
     }
 
-    Real GeometricBrownianMotionProcess::diffusion(Time, Real x) const {
+    Real GeometricBrownianMotionProcess::diffusion(Time, Real x) const
+    {
         return sigma_ * x;
     }
 

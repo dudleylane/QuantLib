@@ -26,43 +26,44 @@
 
 #include <ql/event.hpp>
 #include <ql/exercise.hpp>
-#include <ql/instruments/payoffs.hpp>
 #include <ql/instruments/oneassetoption.hpp>
+#include <ql/instruments/payoffs.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! base option class
-    class VanillaStorageOption : public OneAssetOption {
+    class VanillaStorageOption : public OneAssetOption
+    {
       public:
-          class arguments;
-          VanillaStorageOption(const ext::shared_ptr<BermudanExercise>& ex,
-                               Real capacity, Real load, Real changeRate)
-        : OneAssetOption(ext::shared_ptr<Payoff>(new NullPayoff), ex),
-          capacity_  (capacity),
-          load_      (load),
-          changeRate_(changeRate) {}
+        class arguments;
+        VanillaStorageOption(const ext::shared_ptr<BermudanExercise>& ex, Real capacity, Real load, Real changeRate)
+        : OneAssetOption(ext::shared_ptr<Payoff>(new NullPayoff), ex), capacity_(capacity), load_(load),
+          changeRate_(changeRate)
+        {
+        }
 
-          bool isExpired() const override;
-          void setupArguments(PricingEngine::arguments*) const override;
+        bool isExpired() const override;
+        void setupArguments(PricingEngine::arguments*) const override;
 
-        private:
-          const Real capacity_;
-          const Real load_;
-          const Real changeRate_;
+      private:
+        const Real capacity_;
+        const Real load_;
+        const Real changeRate_;
     };
 
-    class VanillaStorageOption::arguments
-        : public virtual PricingEngine::arguments {
+    class VanillaStorageOption::arguments : public virtual PricingEngine::arguments
+    {
       public:
         arguments() = default;
-        void validate() const override {
+        void validate() const override
+        {
             QL_REQUIRE(payoff, "no payoff given");
             QL_REQUIRE(exercise, "no exercise given");
 
             QL_REQUIRE(capacity > 0.0 && changeRate > 0.0 && load >= 0.0,
-                      "positive capacity, load and change rate required");
-            QL_REQUIRE(load <= capacity && changeRate <= capacity,
-                        "illegal values load of changeRate");
+                       "positive capacity, load and change rate required");
+            QL_REQUIRE(load <= capacity && changeRate <= capacity, "illegal values load of changeRate");
         }
 
         Real capacity;
@@ -72,21 +73,20 @@ namespace QuantLib {
         ext::shared_ptr<BermudanExercise> exercise;
     };
 
-    inline void VanillaStorageOption::setupArguments(
-                                PricingEngine::arguments* args) const {
+    inline void VanillaStorageOption::setupArguments(PricingEngine::arguments* args) const
+    {
         auto* arguments = dynamic_cast<VanillaStorageOption::arguments*>(args);
         QL_REQUIRE(arguments != nullptr, "wrong argument type");
 
-        arguments->payoff
-            = ext::dynamic_pointer_cast<NullPayoff>(payoff_);
-        arguments->exercise
-            = ext::dynamic_pointer_cast<BermudanExercise>(exercise_);
-        arguments->capacity   = capacity_;
-        arguments->load       = load_;
+        arguments->payoff = ext::dynamic_pointer_cast<NullPayoff>(payoff_);
+        arguments->exercise = ext::dynamic_pointer_cast<BermudanExercise>(exercise_);
+        arguments->capacity = capacity_;
+        arguments->load = load_;
         arguments->changeRate = changeRate_;
     }
 
-    inline bool VanillaStorageOption::isExpired() const {
+    inline bool VanillaStorageOption::isExpired() const
+    {
         return detail::simple_event(exercise_->lastDate()).hasOccurred();
     }
 }

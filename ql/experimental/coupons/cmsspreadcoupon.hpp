@@ -29,7 +29,8 @@
 #include <ql/time/schedule.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class SwapIndex;
 
@@ -38,27 +39,26 @@ namespace QuantLib {
                  i.e., the start and end date passed upon construction
                  should be already rolled to a business day.
     */
-    class CmsSpreadCoupon : public FloatingRateCoupon {
+    class CmsSpreadCoupon : public FloatingRateCoupon
+    {
       public:
         CmsSpreadCoupon(const Date& paymentDate,
-                  Real nominal,
-                  const Date& startDate,
-                  const Date& endDate,
-                  Natural fixingDays,
-                  const ext::shared_ptr<SwapSpreadIndex>& index,
-                  Real gearing = 1.0,
-                  Spread spread = 0.0,
-                  const Date& refPeriodStart = Date(),
-                  const Date& refPeriodEnd = Date(),
-                  const DayCounter& dayCounter = DayCounter(),
-                  bool isInArrears = false,
-                  const Date& exCouponDate = Date(),
-                  BusinessDayConvention fixingConvention = Preceding);
+                        Real nominal,
+                        const Date& startDate,
+                        const Date& endDate,
+                        Natural fixingDays,
+                        const ext::shared_ptr<SwapSpreadIndex>& index,
+                        Real gearing = 1.0,
+                        Spread spread = 0.0,
+                        const Date& refPeriodStart = Date(),
+                        const Date& refPeriodEnd = Date(),
+                        const DayCounter& dayCounter = DayCounter(),
+                        bool isInArrears = false,
+                        const Date& exCouponDate = Date(),
+                        BusinessDayConvention fixingConvention = Preceding);
         //! \name Inspectors
         //@{
-        const ext::shared_ptr<SwapSpreadIndex>& swapSpreadIndex() const {
-            return index_;
-        }
+        const ext::shared_ptr<SwapSpreadIndex>& swapSpreadIndex() const { return index_; }
         //@}
         //! \name Visitability
         //@{
@@ -68,32 +68,46 @@ namespace QuantLib {
         ext::shared_ptr<SwapSpreadIndex> index_;
     };
 
-    class CappedFlooredCmsSpreadCoupon : public CappedFlooredCoupon {
+    class CappedFlooredCmsSpreadCoupon : public CappedFlooredCoupon
+    {
       public:
-        CappedFlooredCmsSpreadCoupon(
-                  const Date& paymentDate,
-                  Real nominal,
-                  const Date& startDate,
-                  const Date& endDate,
-                  Natural fixingDays,
-                  const ext::shared_ptr<SwapSpreadIndex>& index,
-                  Real gearing = 1.0,
-                  Spread spread= 0.0,
-                  const Rate cap = Null<Rate>(),
-                  const Rate floor = Null<Rate>(),
-                  const Date& refPeriodStart = Date(),
-                  const Date& refPeriodEnd = Date(),
-                  const DayCounter& dayCounter = DayCounter(),
-                  bool isInArrears = false,
-                  const Date& exCouponDate = Date(),
-                  BusinessDayConvention fixingConvention = Preceding)
-        : CappedFlooredCoupon(ext::shared_ptr<FloatingRateCoupon>(new
-            CmsSpreadCoupon(paymentDate, nominal, startDate, endDate, fixingDays,
-                      index, gearing, spread, refPeriodStart, refPeriodEnd,
-                      dayCounter, isInArrears, exCouponDate,
-                      fixingConvention)), cap, floor) {}
+        CappedFlooredCmsSpreadCoupon(const Date& paymentDate,
+                                     Real nominal,
+                                     const Date& startDate,
+                                     const Date& endDate,
+                                     Natural fixingDays,
+                                     const ext::shared_ptr<SwapSpreadIndex>& index,
+                                     Real gearing = 1.0,
+                                     Spread spread = 0.0,
+                                     const Rate cap = Null<Rate>(),
+                                     const Rate floor = Null<Rate>(),
+                                     const Date& refPeriodStart = Date(),
+                                     const Date& refPeriodEnd = Date(),
+                                     const DayCounter& dayCounter = DayCounter(),
+                                     bool isInArrears = false,
+                                     const Date& exCouponDate = Date(),
+                                     BusinessDayConvention fixingConvention = Preceding)
+        : CappedFlooredCoupon(ext::shared_ptr<FloatingRateCoupon>(new CmsSpreadCoupon(paymentDate,
+                                                                                      nominal,
+                                                                                      startDate,
+                                                                                      endDate,
+                                                                                      fixingDays,
+                                                                                      index,
+                                                                                      gearing,
+                                                                                      spread,
+                                                                                      refPeriodStart,
+                                                                                      refPeriodEnd,
+                                                                                      dayCounter,
+                                                                                      isInArrears,
+                                                                                      exCouponDate,
+                                                                                      fixingConvention)),
+                              cap,
+                              floor)
+        {
+        }
 
-        void accept(AcyclicVisitor& v) override {
+        void accept(AcyclicVisitor& v) override
+        {
             auto* v1 = dynamic_cast<Visitor<CappedFlooredCmsSpreadCoupon>*>(&v);
             if (v1 != nullptr)
                 v1->visit(*this);
@@ -103,7 +117,8 @@ namespace QuantLib {
     };
 
     //! helper class building a sequence of capped/floored cms-spread-rate coupons
-    class CmsSpreadLeg {
+    class CmsSpreadLeg
+    {
       public:
         CmsSpreadLeg(Schedule schedule, ext::shared_ptr<SwapSpreadIndex> swapSpreadIndex);
         CmsSpreadLeg& withNotionals(Real notional);
@@ -123,6 +138,7 @@ namespace QuantLib {
         CmsSpreadLeg& inArrears(bool flag = true);
         CmsSpreadLeg& withZeroPayments(bool flag = true);
         operator Leg() const;
+
       private:
         Schedule schedule_;
         ext::shared_ptr<SwapSpreadIndex> swapSpreadIndex_;
@@ -138,24 +154,25 @@ namespace QuantLib {
 
 
     //! base pricer for vanilla CMS spread coupons
-    class CmsSpreadCouponPricer : public FloatingRateCouponPricer {
+    class CmsSpreadCouponPricer : public FloatingRateCouponPricer
+    {
       public:
         explicit CmsSpreadCouponPricer(Handle<Quote> correlation = Handle<Quote>())
-        : correlation_(std::move(correlation)) {
+        : correlation_(std::move(correlation))
+        {
             registerWith(correlation_);
         }
 
-        Handle<Quote> correlation() const{
-            return correlation_;
-        }
+        Handle<Quote> correlation() const { return correlation_; }
 
-        void setCorrelation(
-                         const Handle<Quote> &correlation = Handle<Quote>()) {
+        void setCorrelation(const Handle<Quote>& correlation = Handle<Quote>())
+        {
             unregisterWith(correlation_);
             correlation_ = correlation;
             registerWith(correlation_);
             update();
         }
+
       private:
         Handle<Quote> correlation_;
     };

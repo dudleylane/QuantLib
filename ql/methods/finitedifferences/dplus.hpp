@@ -26,19 +26,22 @@
 
 #include <ql/methods/finitedifferences/tridiagonaloperator.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! \deprecated Part of the old FD framework; copy this function
                     in your codebase if needed.
                     Deprecated in version 1.42.
     */
-    class [[deprecated("Part of the old FD framework; copy this function in your codebase if needed")]] DPlus : public TridiagonalOperator {
+    class [[deprecated("Part of the old FD framework; copy this function in your codebase if needed")]] DPlus
+    : public TridiagonalOperator
+    {
       public:
-        DPlus(Size gridPoints, Real h)
-        : TridiagonalOperator(gridPoints) {
-            setFirstRow(-1/h,1/h);
-            setMidRows(0.0,-1/h,1/h);
-            setLastRow(-1/h,1/h);                   // linear extrapolation
+        DPlus(Size gridPoints, Real h) : TridiagonalOperator(gridPoints)
+        {
+            setFirstRow(-1 / h, 1 / h);
+            setMidRows(0.0, -1 / h, 1 / h);
+            setLastRow(-1 / h, 1 / h); // linear extrapolation
         }
     };
 

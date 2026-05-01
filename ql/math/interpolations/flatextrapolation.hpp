@@ -28,7 +28,8 @@
 #include <algorithm>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! \ingroup interpolations
         Decorator that turns any 1-D interpolation into one that
@@ -38,49 +39,46 @@ namespace QuantLib {
         \warning See the Interpolation class for information about the
                  required lifetime of the underlying data.
     */
-    class FlatExtrapolator : public Interpolation {
+    class FlatExtrapolator : public Interpolation
+    {
       public:
-        explicit FlatExtrapolator(ext::shared_ptr<Interpolation> decoratedInterpolation) {
-            impl_ = ext::make_shared<FlatExtrapolatorImpl>(
-                std::move(decoratedInterpolation));
+        explicit FlatExtrapolator(ext::shared_ptr<Interpolation> decoratedInterpolation)
+        {
+            impl_ = ext::make_shared<FlatExtrapolatorImpl>(std::move(decoratedInterpolation));
         }
+
       protected:
-        class FlatExtrapolatorImpl final : public Interpolation::Impl {
+        class FlatExtrapolatorImpl final : public Interpolation::Impl
+        {
           public:
             explicit FlatExtrapolatorImpl(ext::shared_ptr<Interpolation> decoratedInterpolation)
-            : decoratedInterp_(std::move(decoratedInterpolation)) {
+            : decoratedInterp_(std::move(decoratedInterpolation))
+            {
                 FlatExtrapolatorImpl::calculate();
             }
             Real xMin() const override { return decoratedInterp_->xMin(); }
             Real xMax() const override { return decoratedInterp_->xMax(); }
-            std::vector<Real> xValues() const override {
-                return decoratedInterp_->xValues();
-            }
-            std::vector<Real> yValues() const override {
-                return decoratedInterp_->yValues();
-            }
-            bool isInRange(Real x) const override {
-                return decoratedInterp_->isInRange(x);
-            }
+            std::vector<Real> xValues() const override { return decoratedInterp_->xValues(); }
+            std::vector<Real> yValues() const override { return decoratedInterp_->yValues(); }
+            bool isInRange(Real x) const override { return decoratedInterp_->isInRange(x); }
             void update() override { decoratedInterp_->update(); }
-            Real value(Real x) const override {
-                return (*decoratedInterp_)(bind(x), true);
-            }
-            Real primitive(Real x) const override {
+            Real value(Real x) const override { return (*decoratedInterp_)(bind(x), true); }
+            Real primitive(Real x) const override
+            {
                 if (x < xMin())
-                    return decoratedInterp_->primitive(xMin(), true) +
-                           (*decoratedInterp_)(xMin(), true) * (x - xMin());
+                    return decoratedInterp_->primitive(xMin(), true) + (*decoratedInterp_)(xMin(), true) * (x - xMin());
                 if (x > xMax())
-                    return decoratedInterp_->primitive(xMax(), true) +
-                           (*decoratedInterp_)(xMax(), true) * (x - xMax());
+                    return decoratedInterp_->primitive(xMax(), true) + (*decoratedInterp_)(xMax(), true) * (x - xMax());
                 return decoratedInterp_->primitive(x, true);
             }
-            Real derivative(Real x) const override {
+            Real derivative(Real x) const override
+            {
                 if (x < xMin() || x > xMax())
                     return 0.0;
                 return decoratedInterp_->derivative(x, true);
             }
-            Real secondDerivative(Real x) const override {
+            Real secondDerivative(Real x) const override
+            {
                 if (x < xMin() || x > xMax())
                     return 0.0;
                 return decoratedInterp_->secondDerivative(x, true);
@@ -89,9 +87,7 @@ namespace QuantLib {
           private:
             ext::shared_ptr<Interpolation> decoratedInterp_;
 
-            Real bind(Real x) const {
-                return std::clamp(x, xMin(), xMax());
-            }
+            Real bind(Real x) const { return std::clamp(x, xMin(), xMax()); }
 
             void calculate() { decoratedInterp_->update(); }
         };

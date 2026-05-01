@@ -27,13 +27,14 @@
 #define quantlib_fd_heston_vanilla_engine_hpp
 
 #include <ql/instruments/vanillaoption.hpp>
+#include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
+#include <ql/methods/finitedifferences/solvers/fdmsolverdesc.hpp>
 #include <ql/models/equity/hestonmodel.hpp>
 #include <ql/pricingengines/genericmodelengine.hpp>
-#include <ql/methods/finitedifferences/solvers/fdmsolverdesc.hpp>
-#include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
 #include <ql/termstructures/volatility/equityfx/localvoltermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class FdmQuantoHelper;
 
@@ -45,19 +46,17 @@ namespace QuantLib {
               and comparison with Black pricing.
     */
     class FdHestonVanillaEngine
-        : public GenericModelEngine<HestonModel,
-                                    VanillaOption::arguments,
-                                    VanillaOption::results> {
+    : public GenericModelEngine<HestonModel, VanillaOption::arguments, VanillaOption::results>
+    {
       public:
-        explicit
-        FdHestonVanillaEngine(const ext::shared_ptr<HestonModel>& model,
-                              Size tGrid = 100,
-                              Size xGrid = 100,
-                              Size vGrid = 50,
-                              Size dampingSteps = 0,
-                              const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Hundsdorfer(),
-                              ext::shared_ptr<LocalVolTermStructure> leverageFct = {},
-                              Real mixingFactor = 1.0);
+        explicit FdHestonVanillaEngine(const ext::shared_ptr<HestonModel>& model,
+                                       Size tGrid = 100,
+                                       Size xGrid = 100,
+                                       Size vGrid = 50,
+                                       Size dampingSteps = 0,
+                                       const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Hundsdorfer(),
+                                       ext::shared_ptr<LocalVolTermStructure> leverageFct = {},
+                                       Real mixingFactor = 1.0);
 
         FdHestonVanillaEngine(const ext::shared_ptr<HestonModel>& model,
                               DividendSchedule dividends,
@@ -108,33 +107,27 @@ namespace QuantLib {
         const Real mixingFactor_;
 
         std::vector<Real> strikes_;
-        mutable std::vector<std::pair<VanillaOption::arguments,
-                                      VanillaOption::results> >
-                                                            cachedArgs2results_;
+        mutable std::vector<std::pair<VanillaOption::arguments, VanillaOption::results>> cachedArgs2results_;
     };
 
-    class MakeFdHestonVanillaEngine {
+    class MakeFdHestonVanillaEngine
+    {
       public:
         explicit MakeFdHestonVanillaEngine(ext::shared_ptr<HestonModel> hestonModel);
 
-        MakeFdHestonVanillaEngine& withQuantoHelper(
-            const ext::shared_ptr<FdmQuantoHelper>& quantoHelper);
+        MakeFdHestonVanillaEngine& withQuantoHelper(const ext::shared_ptr<FdmQuantoHelper>& quantoHelper);
 
         MakeFdHestonVanillaEngine& withTGrid(Size tGrid);
         MakeFdHestonVanillaEngine& withXGrid(Size xGrid);
         MakeFdHestonVanillaEngine& withVGrid(Size vGrid);
-        MakeFdHestonVanillaEngine& withDampingSteps(
-            Size dampingSteps);
+        MakeFdHestonVanillaEngine& withDampingSteps(Size dampingSteps);
 
-        MakeFdHestonVanillaEngine& withFdmSchemeDesc(
-            const FdmSchemeDesc& schemeDesc);
+        MakeFdHestonVanillaEngine& withFdmSchemeDesc(const FdmSchemeDesc& schemeDesc);
 
-        MakeFdHestonVanillaEngine& withLeverageFunction(
-            ext::shared_ptr<LocalVolTermStructure>& leverageFct);
+        MakeFdHestonVanillaEngine& withLeverageFunction(ext::shared_ptr<LocalVolTermStructure>& leverageFct);
 
-        MakeFdHestonVanillaEngine& withCashDividends(
-            const std::vector<Date>& dividendDates,
-            const std::vector<Real>& dividendAmounts);
+        MakeFdHestonVanillaEngine& withCashDividends(const std::vector<Date>& dividendDates,
+                                                     const std::vector<Real>& dividendAmounts);
 
         operator ext::shared_ptr<PricingEngine>() const;
 

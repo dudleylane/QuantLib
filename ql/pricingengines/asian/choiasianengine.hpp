@@ -24,17 +24,18 @@
 #ifndef quantlib_choi_asian_engine_hpp
 #define quantlib_choi_asian_engine_hpp
 
-#include <ql/pricingengine.hpp>
 #include <ql/instruments/asianoption.hpp>
+#include <ql/pricingengine.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
     //! Pricing engine for arithmetic Asian options
     /*! This class replicates an arithmetic Asian option using a basket option.
         The pricing of an arithmetic Asian option is substituted with the pricing
         of a basket option.
     */
-        
+
     /*! References:
         "Sum of all Black-Scholes-Merton Models: An efficient Pricing Method for
         Spread, Basket and Asian Options", Jaehyuk Choi, 2018
@@ -45,13 +46,13 @@ namespace QuantLib {
 
         \ingroup asianengines
     */
-    
-    class ChoiAsianEngine : public DiscreteAveragingAsianOption::engine {
+
+    class ChoiAsianEngine : public DiscreteAveragingAsianOption::engine
+    {
       public:
-        explicit ChoiAsianEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess> p,
-            Real lambda = 15,
-            Size maxNrIntegrationSteps = 2 << 21);
+        explicit ChoiAsianEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> p,
+                                 Real lambda = 15,
+                                 Size maxNrIntegrationSteps = 2 << 21);
 
         void calculate() const override;
 

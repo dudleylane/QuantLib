@@ -22,11 +22,13 @@
 #include <ql/termstructures/volatility/inflation/yoyinflationoptionletvolatilitystructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    void setCouponPricer(const Leg& leg,
-                         const ext::shared_ptr<InflationCouponPricer>& p) {
-        for (const auto& i : leg) {
+    void setCouponPricer(const Leg& leg, const ext::shared_ptr<InflationCouponPricer>& p)
+    {
+        for (const auto& i : leg)
+        {
             ext::shared_ptr<InflationCoupon> c = ext::dynamic_pointer_cast<InflationCoupon>(i);
             if (c != nullptr)
                 c->setPricer(p);
@@ -34,96 +36,98 @@ namespace QuantLib {
     }
 
 
-    YoYInflationCouponPricer::YoYInflationCouponPricer(
-        Handle<YieldTermStructure> nominalTermStructure)
-    : nominalTermStructure_(std::move(nominalTermStructure)) {
+    YoYInflationCouponPricer::YoYInflationCouponPricer(Handle<YieldTermStructure> nominalTermStructure)
+    : nominalTermStructure_(std::move(nominalTermStructure))
+    {
         registerWith(nominalTermStructure_);
     }
 
-    YoYInflationCouponPricer::YoYInflationCouponPricer(
-        Handle<YoYOptionletVolatilitySurface> capletVol,
-        Handle<YieldTermStructure> nominalTermStructure)
-    : capletVol_(std::move(capletVol)), nominalTermStructure_(std::move(nominalTermStructure)) {
+    YoYInflationCouponPricer::YoYInflationCouponPricer(Handle<YoYOptionletVolatilitySurface> capletVol,
+                                                       Handle<YieldTermStructure> nominalTermStructure)
+    : capletVol_(std::move(capletVol)), nominalTermStructure_(std::move(nominalTermStructure))
+    {
         registerWith(capletVol_);
         registerWith(nominalTermStructure_);
     }
 
 
-    void YoYInflationCouponPricer::setCapletVolatility(
-       const Handle<YoYOptionletVolatilitySurface>& capletVol) {
-        QL_REQUIRE(!capletVol.empty(),"empty capletVol handle");
+    void YoYInflationCouponPricer::setCapletVolatility(const Handle<YoYOptionletVolatilitySurface>& capletVol)
+    {
+        QL_REQUIRE(!capletVol.empty(), "empty capletVol handle");
         capletVol_ = capletVol;
         registerWith(capletVol_);
     }
 
 
-    Real YoYInflationCouponPricer::floorletPrice(Rate effectiveFloor) const{
+    Real YoYInflationCouponPricer::floorletPrice(Rate effectiveFloor) const
+    {
         Real floorletPrice = optionletPrice(Option::Put, effectiveFloor);
         return gearing_ * floorletPrice;
     }
 
-    Real YoYInflationCouponPricer::capletPrice(Rate effectiveCap) const{
+    Real YoYInflationCouponPricer::capletPrice(Rate effectiveCap) const
+    {
         Real capletPrice = optionletPrice(Option::Call, effectiveCap);
         return gearing_ * capletPrice;
     }
 
 
-    Rate YoYInflationCouponPricer::floorletRate(Rate effectiveFloor) const{
+    Rate YoYInflationCouponPricer::floorletRate(Rate effectiveFloor) const
+    {
         return gearing_ * optionletRate(Option::Put, effectiveFloor);
     }
 
-    Rate YoYInflationCouponPricer::capletRate(Rate effectiveCap) const{
+    Rate YoYInflationCouponPricer::capletRate(Rate effectiveCap) const
+    {
         return gearing_ * optionletRate(Option::Call, effectiveCap);
     }
 
 
-    Real YoYInflationCouponPricer::optionletPriceImp(
-                                                    Option::Type,
-                                                    Real,
-                                                    Real,
-                                                    Real) const {
+    Real YoYInflationCouponPricer::optionletPriceImp(Option::Type, Real, Real, Real) const
+    {
         QL_FAIL("you must implement this to get a vol-dependent price");
     }
 
 
-    Real YoYInflationCouponPricer::optionletPrice(Option::Type optionType,
-                                                  Real effStrike) const {
+    Real YoYInflationCouponPricer::optionletPrice(Option::Type optionType, Real effStrike) const
+    {
         QL_REQUIRE(discount_ != Null<Real>(), "no nominal term structure provided");
         return optionletRate(optionType, effStrike) * coupon_->accrualPeriod() * discount_;
     }
 
 
-    Real YoYInflationCouponPricer::optionletRate(Option::Type optionType,
-                                                 Real effStrike) const {
+    Real YoYInflationCouponPricer::optionletRate(Option::Type optionType, Real effStrike) const
+    {
         Date fixingDate = coupon_->fixingDate();
-        if (fixingDate <= capletVolatility()->baseDate()) {
+        if (fixingDate <= capletVolatility()->baseDate())
+        {
             // the amount is determined
             Real a, b;
-            if (optionType==Option::Call) {
+            if (optionType == Option::Call)
+            {
                 a = coupon_->indexFixing();
                 b = effStrike;
-            } else {
+            }
+            else
+            {
                 a = effStrike;
                 b = coupon_->indexFixing();
             }
             return std::max(a - b, 0.0);
-        } else {
+        }
+        else
+        {
             // not yet determined, use Black/DD1/Bachelier/whatever from Impl
             QL_REQUIRE(!capletVolatility().empty(), "missing optionlet volatility");
 
-            Real stdDev =
-                std::sqrt(capletVolatility()->totalVariance(fixingDate,
-                                                            effStrike,
-                                                            Period(0, Days)));
-            return optionletPriceImp(optionType,
-                                     effStrike,
-                                     adjustedFixing(),
-                                     stdDev);
+            Real stdDev = std::sqrt(capletVolatility()->totalVariance(fixingDate, effStrike, Period(0, Days)));
+            return optionletPriceImp(optionType, effStrike, adjustedFixing(), stdDev);
         }
     }
 
 
-    Rate YoYInflationCouponPricer::adjustedFixing(Rate fixing) const {
+    Rate YoYInflationCouponPricer::adjustedFixing(Rate fixing) const
+    {
 
         if (fixing == Null<Rate>())
             fixing = coupon_->indexFixing();
@@ -133,7 +137,8 @@ namespace QuantLib {
     }
 
 
-    void YoYInflationCouponPricer::initialize(const InflationCoupon& coupon) {
+    void YoYInflationCouponPricer::initialize(const InflationCoupon& coupon)
+    {
         coupon_ = dynamic_cast<const YoYInflationCoupon*>(&coupon);
         QL_REQUIRE(coupon_, "year-on-year inflation coupon needed");
         gearing_ = coupon_->gearing();
@@ -144,23 +149,28 @@ namespace QuantLib {
         // use yield curve from index (which sets discount)
 
         discount_ = 1.0;
-        if (nominalTermStructure_.empty()) {
+        if (nominalTermStructure_.empty())
+        {
             // allow to extract rates, but mark the discount as invalid for prices
             discount_ = Null<Real>();
-        } else {
+        }
+        else
+        {
             if (paymentDate_ > nominalTermStructure_->referenceDate())
                 discount_ = nominalTermStructure_->discount(paymentDate_);
         }
     }
 
 
-    Real YoYInflationCouponPricer::swapletPrice() const {
+    Real YoYInflationCouponPricer::swapletPrice() const
+    {
         QL_REQUIRE(discount_ != Null<Real>(), "no nominal term structure provided");
         return swapletRate() * coupon_->accrualPeriod() * discount_;
     }
 
 
-    Rate YoYInflationCouponPricer::swapletRate() const {
+    Rate YoYInflationCouponPricer::swapletRate() const
+    {
         // This way we do not require the index to have
         // a yield curve, i.e. we do not get the problem
         // that a discounting-instrument-pricer is used
@@ -174,40 +184,30 @@ namespace QuantLib {
     //=========================================================================
 
 
-
     Real BlackYoYInflationCouponPricer::optionletPriceImp(Option::Type optionType,
-                                                     Real  effStrike,
-                                                     Real  forward,
-                                                     Real stdDev
-                                                     ) const {
+                                                          Real effStrike,
+                                                          Real forward,
+                                                          Real stdDev) const
+    {
 
-        return blackFormula(optionType,
-                            effStrike,
-                            forward,
-                            stdDev);
+        return blackFormula(optionType, effStrike, forward, stdDev);
     }
 
     Real UnitDisplacedBlackYoYInflationCouponPricer::optionletPriceImp(Option::Type optionType,
-                                                                  Real  effStrike,
-                                                                  Real  forward,
-                                                                  Real stdDev
-                                                          ) const {
+                                                                       Real effStrike,
+                                                                       Real forward,
+                                                                       Real stdDev) const
+    {
 
-        return blackFormula(optionType,
-                            effStrike + 1.0,
-                            forward + 1.0,
-                            stdDev);
+        return blackFormula(optionType, effStrike + 1.0, forward + 1.0, stdDev);
     }
 
     Real BachelierYoYInflationCouponPricer::optionletPriceImp(Option::Type optionType,
-                                                              Real  effStrike,
-                                                              Real  forward,
-                                                              Real stdDev
-                                                          ) const {
-        return bachelierBlackFormula(optionType,
-                                     effStrike,
-                                     forward,
-                                     stdDev);
+                                                              Real effStrike,
+                                                              Real forward,
+                                                              Real stdDev) const
+    {
+        return bachelierBlackFormula(optionType, effStrike, forward, stdDev);
     }
 
 }

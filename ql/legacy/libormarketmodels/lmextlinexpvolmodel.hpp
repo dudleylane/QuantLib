@@ -26,7 +26,8 @@
 
 #include <ql/legacy/libormarketmodels/lmlinexpvolmodel.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! extended linear exponential volatility model
     /*! This class describes an extended linear-exponential volatility model
@@ -43,11 +44,10 @@ namespace QuantLib {
         (<http://www.business.uts.edu.au/qfrc/conferences/qmf2001/Brigo_D.pdf>)
     */
 
-    class LmExtLinearExponentialVolModel
-        : public LmLinearExponentialVolatilityModel {
+    class LmExtLinearExponentialVolModel : public LmLinearExponentialVolatilityModel
+    {
       public:
-        LmExtLinearExponentialVolModel(const std::vector<Time>& fixingTimes,
-                                       Real a, Real b, Real c, Real d);
+        LmExtLinearExponentialVolModel(const std::vector<Time>& fixingTimes, Real a, Real b, Real c, Real d);
 
         Array volatility(Time t, const Array& x = {}) const override;
         Volatility volatility(Size i, Time t, const Array& x = {}) const override;
@@ -59,4 +59,3 @@ namespace QuantLib {
 
 
 #endif
-

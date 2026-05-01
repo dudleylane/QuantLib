@@ -25,10 +25,11 @@
 #define wulin_yong_double_barrier_engine_hpp
 
 #include <ql/instruments/doublebarrieroption.hpp>
-#include <ql/processes/blackscholesprocess.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
+#include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Pricing engine for barrier options using analytical formulae
     /*! The formulas are taken from "Barrier Option Pricing",
@@ -39,10 +40,10 @@ namespace QuantLib {
         \test the correctness of the returned value is tested by
               reproducing results available in literature.
     */
-    class SuoWangDoubleBarrierEngine : public DoubleBarrierOption::engine {
+    class SuoWangDoubleBarrierEngine : public DoubleBarrierOption::engine
+    {
       public:
-        explicit SuoWangDoubleBarrierEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess> process, int series = 5);
+        explicit SuoWangDoubleBarrierEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process, int series = 5);
         void calculate() const override;
 
       private:
@@ -58,7 +59,6 @@ namespace QuantLib {
         Rate dividendYield() const;
         DiscountFactor dividendDiscount() const;
         Real D(Real X, Real lambda, Real sigma, Real T) const;
-
     };
 
 }

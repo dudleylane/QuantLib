@@ -19,8 +19,8 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
-#include <ql/experimental/commodities/unitofmeasureconversionmanager.hpp>
 #include <ql/experimental/commodities/petroleumunitsofmeasure.hpp>
+#include <ql/experimental/commodities/unitofmeasureconversionmanager.hpp>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -29,112 +29,101 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(CommodityUnitOfMeasureTests)
 
-BOOST_AUTO_TEST_CASE(testDirect) {
+BOOST_AUTO_TEST_CASE(testDirect)
+{
 
     BOOST_TEST_MESSAGE("Testing direct commodity unit of measure conversions...");
 
-    UnitOfMeasureConversionManager& UOMManager =
-        UnitOfMeasureConversionManager::instance();
+    UnitOfMeasureConversionManager& UOMManager = UnitOfMeasureConversionManager::instance();
 
-    //MB to BBL
-    Quantity actual =
-        UnitOfMeasureConversion(NullCommodityType(), MBUnitOfMeasure(),
-                                BarrelUnitOfMeasure(), 1000)
-        .convert(Quantity(NullCommodityType(), MBUnitOfMeasure(), 1000));
+    // MB to BBL
+    Quantity actual = UnitOfMeasureConversion(NullCommodityType(), MBUnitOfMeasure(), BarrelUnitOfMeasure(), 1000)
+                          .convert(Quantity(NullCommodityType(), MBUnitOfMeasure(), 1000));
     Quantity calc =
-        UOMManager.lookup(NullCommodityType(), BarrelUnitOfMeasure(),
-                          MBUnitOfMeasure(), UnitOfMeasureConversion::Direct)
-        .convert(Quantity(NullCommodityType(), MBUnitOfMeasure(), 1000));
+        UOMManager
+            .lookup(NullCommodityType(), BarrelUnitOfMeasure(), MBUnitOfMeasure(), UnitOfMeasureConversion::Direct)
+            .convert(Quantity(NullCommodityType(), MBUnitOfMeasure(), 1000));
 
-     if (!close(calc,actual)) {
+    if (!close(calc, actual))
+    {
         BOOST_FAIL("Wrong result for MB to BBL Conversion: \n"
                    << "    actual:     " << actual << "\n"
                    << "    calculated: " << calc);
     }
 
-     //BBL to Gallon 
-     actual =
-         UnitOfMeasureConversion(NullCommodityType(), BarrelUnitOfMeasure(),
-                                 GallonUnitOfMeasure(), 42)
-         .convert(Quantity(NullCommodityType(), GallonUnitOfMeasure(), 1000));
-     calc =
-         UOMManager.lookup(NullCommodityType(), BarrelUnitOfMeasure(),
-                           GallonUnitOfMeasure(),
-                           UnitOfMeasureConversion::Direct)
-         .convert(Quantity(NullCommodityType(), GallonUnitOfMeasure(), 1000));
+    // BBL to Gallon
+    actual = UnitOfMeasureConversion(NullCommodityType(), BarrelUnitOfMeasure(), GallonUnitOfMeasure(), 42)
+                 .convert(Quantity(NullCommodityType(), GallonUnitOfMeasure(), 1000));
+    calc =
+        UOMManager
+            .lookup(NullCommodityType(), BarrelUnitOfMeasure(), GallonUnitOfMeasure(), UnitOfMeasureConversion::Direct)
+            .convert(Quantity(NullCommodityType(), GallonUnitOfMeasure(), 1000));
 
-     if (!close(calc,actual)) {
+    if (!close(calc, actual))
+    {
         BOOST_FAIL("Wrong result for BBL to Gallon Conversion: \n"
                    << "    actual:     " << actual << "\n"
                    << "    calculated: " << calc);
-     }
+    }
 
-     //BBL to Litre 
-     actual =
-         UnitOfMeasureConversion(NullCommodityType(), BarrelUnitOfMeasure(),
-                                 LitreUnitOfMeasure(), 158.987)
-         .convert(Quantity(NullCommodityType(), LitreUnitOfMeasure(), 1000));
-     calc =
-         UOMManager.lookup(NullCommodityType(),BarrelUnitOfMeasure(),
-                           LitreUnitOfMeasure(),
-                           UnitOfMeasureConversion::Direct)
-         .convert(Quantity(NullCommodityType(), LitreUnitOfMeasure(), 1000));
+    // BBL to Litre
+    actual = UnitOfMeasureConversion(NullCommodityType(), BarrelUnitOfMeasure(), LitreUnitOfMeasure(), 158.987)
+                 .convert(Quantity(NullCommodityType(), LitreUnitOfMeasure(), 1000));
+    calc =
+        UOMManager
+            .lookup(NullCommodityType(), BarrelUnitOfMeasure(), LitreUnitOfMeasure(), UnitOfMeasureConversion::Direct)
+            .convert(Quantity(NullCommodityType(), LitreUnitOfMeasure(), 1000));
 
-     if (!close(calc,actual)) {
+    if (!close(calc, actual))
+    {
         BOOST_FAIL("Wrong result for BBL to Litre Conversion: \n"
                    << "    actual:     " << actual << "\n"
                    << "    calculated: " << calc);
-     }
+    }
 
-     //BBL to KL 
-     actual =
-         UnitOfMeasureConversion(NullCommodityType(), KilolitreUnitOfMeasure(),
-                                 BarrelUnitOfMeasure(), 6.28981)
-         .convert(Quantity(NullCommodityType(),KilolitreUnitOfMeasure(),1000));
-     calc =
-         UOMManager.lookup(NullCommodityType(),BarrelUnitOfMeasure(),
-                           KilolitreUnitOfMeasure(),
-                           UnitOfMeasureConversion::Direct)
-         .convert(Quantity(NullCommodityType(),KilolitreUnitOfMeasure(),1000));
+    // BBL to KL
+    actual = UnitOfMeasureConversion(NullCommodityType(), KilolitreUnitOfMeasure(), BarrelUnitOfMeasure(), 6.28981)
+                 .convert(Quantity(NullCommodityType(), KilolitreUnitOfMeasure(), 1000));
+    calc = UOMManager
+               .lookup(NullCommodityType(), BarrelUnitOfMeasure(), KilolitreUnitOfMeasure(),
+                       UnitOfMeasureConversion::Direct)
+               .convert(Quantity(NullCommodityType(), KilolitreUnitOfMeasure(), 1000));
 
-     if (!close(calc,actual)) {
+    if (!close(calc, actual))
+    {
         BOOST_FAIL("Wrong result for BBL to KiloLitre Conversion: \n"
                    << "    actual:     " << actual << "\n"
                    << "    calculated: " << calc);
-     }
+    }
 
-     //MB to Gallon 
-     actual =
-         UnitOfMeasureConversion(NullCommodityType(), GallonUnitOfMeasure(),
-                                 MBUnitOfMeasure(), 42000)
-         .convert(Quantity(NullCommodityType(),MBUnitOfMeasure(),1000));
-     calc =
-         UOMManager.lookup(NullCommodityType(),GallonUnitOfMeasure(),
-                           MBUnitOfMeasure(), UnitOfMeasureConversion::Direct)
-         .convert(Quantity(NullCommodityType(),MBUnitOfMeasure(),1000));
+    // MB to Gallon
+    actual = UnitOfMeasureConversion(NullCommodityType(), GallonUnitOfMeasure(), MBUnitOfMeasure(), 42000)
+                 .convert(Quantity(NullCommodityType(), MBUnitOfMeasure(), 1000));
+    calc = UOMManager
+               .lookup(NullCommodityType(), GallonUnitOfMeasure(), MBUnitOfMeasure(), UnitOfMeasureConversion::Direct)
+               .convert(Quantity(NullCommodityType(), MBUnitOfMeasure(), 1000));
 
-     if (!close(calc,actual)) {
+    if (!close(calc, actual))
+    {
         BOOST_FAIL("Wrong result for MB to Gallon Conversion: \n"
                    << "    actual:     " << actual << "\n"
                    << "    calculated: " << calc);
-     }
+    }
 
-     //Gallon to Litre 
-     actual =
-         UnitOfMeasureConversion(NullCommodityType(), LitreUnitOfMeasure(),
-                                 GallonUnitOfMeasure(), 3.78541)
-         .convert(Quantity(NullCommodityType(),LitreUnitOfMeasure(),1000));
-     calc =
-         UOMManager.lookup(NullCommodityType(),GallonUnitOfMeasure(),
-                           LitreUnitOfMeasure(),
-                           UnitOfMeasureConversion::Direct)
-         .convert(Quantity(NullCommodityType(),LitreUnitOfMeasure(),1000));
+    // Gallon to Litre
+    actual = UnitOfMeasureConversion(NullCommodityType(), LitreUnitOfMeasure(), GallonUnitOfMeasure(), 3.78541)
+                 .convert(Quantity(NullCommodityType(), LitreUnitOfMeasure(), 1000));
+    calc =
+        UOMManager
+            .lookup(NullCommodityType(), GallonUnitOfMeasure(), LitreUnitOfMeasure(), UnitOfMeasureConversion::Direct)
+            .convert(Quantity(NullCommodityType(), LitreUnitOfMeasure(), 1000));
 
-     if (!close(calc,actual)) {
+    if (!close(calc, actual))
+    {
         BOOST_FAIL("Wrong result for Gallon to Litre Conversion: \n"
                    << "    actual:     " << actual << "\n"
                    << "    calculated: " << calc);
-     }
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

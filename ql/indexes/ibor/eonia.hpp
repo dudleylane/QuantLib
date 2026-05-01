@@ -26,10 +26,12 @@
 
 #include <ql/indexes/iborindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Eonia (Euro Overnight Index Average) rate fixed by the ECB.
-    class Eonia : public OvernightIndex {
+    class Eonia : public OvernightIndex
+    {
       public:
         explicit Eonia(const Handle<YieldTermStructure>& h = {});
     };

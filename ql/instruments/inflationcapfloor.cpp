@@ -24,12 +24,14 @@
 #include <ql/utilities/dataformatters.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
 
-    std::ostream& operator<<(std::ostream& out,
-                             YoYInflationCapFloor::Type t) {
-        switch (t) {
+    std::ostream& operator<<(std::ostream& out, YoYInflationCapFloor::Type t)
+    {
+        switch (t)
+        {
             case YoYInflationCapFloor::Cap:
                 return out << "YoYInflationCap";
             case YoYInflationCapFloor::Floor:
@@ -45,15 +47,17 @@ namespace QuantLib {
                                                Leg yoyLeg,
                                                std::vector<Rate> capRates,
                                                std::vector<Rate> floorRates)
-    : type_(type), yoyLeg_(std::move(yoyLeg)), capRates_(std::move(capRates)),
-      floorRates_(std::move(floorRates)) {
-        if (type_ == Cap || type_ == Collar) {
+    : type_(type), yoyLeg_(std::move(yoyLeg)), capRates_(std::move(capRates)), floorRates_(std::move(floorRates))
+    {
+        if (type_ == Cap || type_ == Collar)
+        {
             QL_REQUIRE(!capRates_.empty(), "no cap rates given");
             capRates_.reserve(yoyLeg_.size());
             while (capRates_.size() < yoyLeg_.size())
                 capRates_.push_back(capRates_.back());
         }
-        if (type_ == Floor || type_ == Collar) {
+        if (type_ == Floor || type_ == Collar)
+        {
             QL_REQUIRE(!floorRates_.empty(), "no floor rates given");
             floorRates_.reserve(yoyLeg_.size());
             while (floorRates_.size() < yoyLeg_.size())
@@ -69,19 +73,24 @@ namespace QuantLib {
     YoYInflationCapFloor::YoYInflationCapFloor(YoYInflationCapFloor::Type type,
                                                Leg yoyLeg,
                                                const std::vector<Rate>& strikes)
-    : type_(type), yoyLeg_(std::move(yoyLeg)) {
+    : type_(type), yoyLeg_(std::move(yoyLeg))
+    {
         QL_REQUIRE(!strikes.empty(), "no strikes given");
-        if (type_ == Cap) {
+        if (type_ == Cap)
+        {
             capRates_ = strikes;
             capRates_.reserve(yoyLeg_.size());
             while (capRates_.size() < yoyLeg_.size())
                 capRates_.push_back(capRates_.back());
-        } else if (type_ == Floor) {
+        }
+        else if (type_ == Floor)
+        {
             floorRates_ = strikes;
             floorRates_.reserve(yoyLeg_.size());
             while (floorRates_.size() < yoyLeg_.size())
                 floorRates_.push_back(floorRates_.back());
-        } else
+        }
+        else
             QL_FAIL("only Cap/Floor types allowed in this constructor");
 
         Leg::const_iterator i;
@@ -91,33 +100,35 @@ namespace QuantLib {
         registerWith(Settings::instance().evaluationDate());
     }
 
-    bool YoYInflationCapFloor::isExpired() const {
-        for (Size i=yoyLeg_.size(); i>0; --i)
-            if (!yoyLeg_[i-1]->hasOccurred())
+    bool YoYInflationCapFloor::isExpired() const
+    {
+        for (Size i = yoyLeg_.size(); i > 0; --i)
+            if (!yoyLeg_[i - 1]->hasOccurred())
                 return false;
         return true;
     }
 
-    Date YoYInflationCapFloor::startDate() const {
+    Date YoYInflationCapFloor::startDate() const
+    {
         return CashFlows::startDate(yoyLeg_);
     }
 
-    Date YoYInflationCapFloor::maturityDate() const {
+    Date YoYInflationCapFloor::maturityDate() const
+    {
         return CashFlows::maturityDate(yoyLeg_);
     }
 
-    ext::shared_ptr<YoYInflationCoupon>
-    YoYInflationCapFloor::lastYoYInflationCoupon() const {
+    ext::shared_ptr<YoYInflationCoupon> YoYInflationCapFloor::lastYoYInflationCoupon() const
+    {
         ext::shared_ptr<CashFlow> lastCF(yoyLeg_.back());
         ext::shared_ptr<YoYInflationCoupon> lastYoYInflationCoupon =
-        ext::dynamic_pointer_cast<YoYInflationCoupon>(lastCF);
+            ext::dynamic_pointer_cast<YoYInflationCoupon>(lastCF);
         return lastYoYInflationCoupon;
     }
 
-    ext::shared_ptr<YoYInflationCapFloor> YoYInflationCapFloor::optionlet(const Size i) const {
-        QL_REQUIRE(i < yoyLeg().size(),
-                   io::ordinal(i+1) << " optionlet does not exist, only " <<
-                   yoyLeg().size());
+    ext::shared_ptr<YoYInflationCapFloor> YoYInflationCapFloor::optionlet(const Size i) const
+    {
+        QL_REQUIRE(i < yoyLeg().size(), io::ordinal(i + 1) << " optionlet does not exist, only " << yoyLeg().size());
         Leg cf(1, yoyLeg()[i]);
 
         std::vector<Rate> cap, floor;
@@ -126,11 +137,11 @@ namespace QuantLib {
         if (type() == Floor || type() == Collar)
             floor.push_back(floorRates()[i]);
 
-        return ext::make_shared<YoYInflationCapFloor>(type(),
-                                                    cf, cap, floor);
+        return ext::make_shared<YoYInflationCapFloor>(type(), cf, cap, floor);
     }
 
-    void YoYInflationCapFloor::setupArguments(PricingEngine::arguments* args) const {
+    void YoYInflationCapFloor::setupArguments(PricingEngine::arguments* args) const
+    {
         auto* arguments = dynamic_cast<YoYInflationCapFloor::arguments*>(args);
         QL_REQUIRE(arguments != nullptr, "wrong argument type");
 
@@ -148,10 +159,9 @@ namespace QuantLib {
 
         arguments->type = type_;
 
-        for (Size i=0; i<n; ++i) {
-            ext::shared_ptr<YoYInflationCoupon> coupon =
-            ext::dynamic_pointer_cast<YoYInflationCoupon>(
-                                                            yoyLeg_[i]);
+        for (Size i = 0; i < n; ++i)
+        {
+            ext::shared_ptr<YoYInflationCoupon> coupon = ext::dynamic_pointer_cast<YoYInflationCoupon>(yoyLeg_[i]);
             QL_REQUIRE(coupon, "non-YoYInflationCoupon given");
             arguments->startDates[i] = coupon->accrualStartDate();
             arguments->fixingDates[i] = coupon->fixingDate();
@@ -167,53 +177,45 @@ namespace QuantLib {
             arguments->spreads[i] = spread;
 
             if (type_ == Cap || type_ == Collar)
-                arguments->capRates[i] = (capRates_[i]-spread)/gearing;
+                arguments->capRates[i] = (capRates_[i] - spread) / gearing;
             else
                 arguments->capRates[i] = Null<Rate>();
 
             if (type_ == Floor || type_ == Collar)
-                arguments->floorRates[i] = (floorRates_[i]-spread)/gearing;
+                arguments->floorRates[i] = (floorRates_[i] - spread) / gearing;
             else
                 arguments->floorRates[i] = Null<Rate>();
         }
     }
 
-    void YoYInflationCapFloor::arguments::validate() const {
+    void YoYInflationCapFloor::arguments::validate() const
+    {
         QL_REQUIRE(payDates.size() == startDates.size(),
-                   "number of start dates (" << startDates.size()
-                   << ") different from that of pay dates ("
-                   << payDates.size() << ")");
+                   "number of start dates (" << startDates.size() << ") different from that of pay dates ("
+                                             << payDates.size() << ")");
         QL_REQUIRE(accrualTimes.size() == startDates.size(),
-                   "number of start dates (" << startDates.size()
-                   << ") different from that of accrual times ("
-                   << accrualTimes.size() << ")");
-        QL_REQUIRE(type == YoYInflationCapFloor::Floor ||
-                   capRates.size() == startDates.size(),
-                   "number of start dates (" << startDates.size()
-                   << ") different from that of cap rates ("
-                   << capRates.size() << ")");
-        QL_REQUIRE(type == YoYInflationCapFloor::Cap ||
-                   floorRates.size() == startDates.size(),
-                   "number of start dates (" << startDates.size()
-                   << ") different from that of floor rates ("
-                   << floorRates.size() << ")");
+                   "number of start dates (" << startDates.size() << ") different from that of accrual times ("
+                                             << accrualTimes.size() << ")");
+        QL_REQUIRE(type == YoYInflationCapFloor::Floor || capRates.size() == startDates.size(),
+                   "number of start dates (" << startDates.size() << ") different from that of cap rates ("
+                                             << capRates.size() << ")");
+        QL_REQUIRE(type == YoYInflationCapFloor::Cap || floorRates.size() == startDates.size(),
+                   "number of start dates (" << startDates.size() << ") different from that of floor rates ("
+                                             << floorRates.size() << ")");
         QL_REQUIRE(gearings.size() == startDates.size(),
-                   "number of start dates (" << startDates.size()
-                   << ") different from that of gearings ("
-                   << gearings.size() << ")");
-        QL_REQUIRE(spreads.size() == startDates.size(),
-                   "number of start dates (" << startDates.size()
-                   << ") different from that of spreads ("
-                   << spreads.size() << ")");
+                   "number of start dates (" << startDates.size() << ") different from that of gearings ("
+                                             << gearings.size() << ")");
+        QL_REQUIRE(spreads.size() == startDates.size(), "number of start dates ("
+                                                            << startDates.size() << ") different from that of spreads ("
+                                                            << spreads.size() << ")");
         QL_REQUIRE(nominals.size() == startDates.size(),
-                   "number of start dates (" << startDates.size()
-                   << ") different from that of nominals ("
-                   << nominals.size() << ")");
+                   "number of start dates (" << startDates.size() << ") different from that of nominals ("
+                                             << nominals.size() << ")");
     }
 
-    Rate YoYInflationCapFloor::atmRate(const YieldTermStructure& discountCurve) const {
-        return CashFlows::atmRate(yoyLeg_, discountCurve,
-                                  false, discountCurve.referenceDate());
+    Rate YoYInflationCapFloor::atmRate(const YieldTermStructure& discountCurve) const
+    {
+        return CashFlows::atmRate(yoyLeg_, discountCurve, false, discountCurve.referenceDate());
     }
 
 

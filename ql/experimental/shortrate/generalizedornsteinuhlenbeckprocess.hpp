@@ -28,7 +28,8 @@
 #include <ql/stochasticprocess.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Piecewise linear Ornstein-Uhlenbeck process class
     /*! This class describes the Ornstein-Uhlenbeck process governed by
@@ -40,7 +41,8 @@ namespace QuantLib {
 
         where the coefficients a and sigma are piecewise linear.
     */
-    class GeneralizedOrnsteinUhlenbeckProcess : public StochasticProcess1D {
+    class GeneralizedOrnsteinUhlenbeckProcess : public StochasticProcess1D
+    {
       public:
         GeneralizedOrnsteinUhlenbeckProcess(std::function<Real(Time)> speed,
                                             std::function<Real(Time)> vol,
@@ -64,8 +66,8 @@ namespace QuantLib {
 
       private:
         Real x0_, level_;
-        std::function<Real (Time)> speed_;
-        std::function<Real (Time)> volatility_;
+        std::function<Real(Time)> speed_;
+        std::function<Real(Time)> volatility_;
     };
 
 }

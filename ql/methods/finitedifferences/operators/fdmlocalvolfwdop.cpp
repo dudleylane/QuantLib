@@ -25,7 +25,8 @@
 #include <ql/methods/finitedifferences/operators/secondderivativeop.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     FdmLocalVolFwdOp::FdmLocalVolFwdOp(const ext::shared_ptr<FdmMesher>& mesher,
                                        const ext::shared_ptr<Quote>& spot,
@@ -36,56 +37,67 @@ namespace QuantLib {
     : mesher_(mesher), rTS_(std::move(rTS)), qTS_(std::move(qTS)), localVol_(localVol),
       x_((localVol) != nullptr ? Array(Exp(mesher->locations(direction))) : Array()),
       dxMap_(FirstDerivativeOp(direction, mesher)), dxxMap_(SecondDerivativeOp(direction, mesher)),
-      mapT_(direction, mesher), direction_(direction) {}
+      mapT_(direction, mesher), direction_(direction)
+    {
+    }
 
-    void FdmLocalVolFwdOp::setTime(Time t1, Time t2) {
+    void FdmLocalVolFwdOp::setTime(Time t1, Time t2)
+    {
         const Rate r = rTS_->forwardRate(t1, t2, Continuous).rate();
         const Rate q = qTS_->forwardRate(t1, t2, Continuous).rate();
 
         Array v(mesher_->layout()->size());
-        for (const auto& iter : *mesher_->layout()) {
+        for (const auto& iter : *mesher_->layout())
+        {
             const Size i = iter.index();
 
-            v[i] = squared(localVol_->localVol(0.5*(t1+t2), x_[i], true));
+            v[i] = squared(localVol_->localVol(0.5 * (t1 + t2), x_[i], true));
         }
-        mapT_.axpyb(Array(1, 1.0), dxMap_.multR(- r + q + 0.5*v),
-                    dxxMap_.multR(0.5*v), Array(1, 0.0));
+        mapT_.axpyb(Array(1, 1.0), dxMap_.multR(-r + q + 0.5 * v), dxxMap_.multR(0.5 * v), Array(1, 0.0));
     }
 
-    Size FdmLocalVolFwdOp::size() const { return 1U; }
+    Size FdmLocalVolFwdOp::size() const
+    {
+        return 1U;
+    }
 
-    Array FdmLocalVolFwdOp::apply(const Array& u) const {
+    Array FdmLocalVolFwdOp::apply(const Array& u) const
+    {
         return mapT_.apply(u);
     }
 
-    Array FdmLocalVolFwdOp::apply_direction(
-        Size direction, const Array& r) const {
+    Array FdmLocalVolFwdOp::apply_direction(Size direction, const Array& r) const
+    {
         if (direction == direction_)
             return mapT_.apply(r);
-        else {
+        else
+        {
             return Array(r.size(), 0.0);
         }
     }
 
-    Array FdmLocalVolFwdOp::apply_mixed(const Array& r) const {
+    Array FdmLocalVolFwdOp::apply_mixed(const Array& r) const
+    {
         return Array(r.size(), 0.0);
     }
 
-    Array FdmLocalVolFwdOp::solve_splitting(
-        Size direction, const Array& r, Real dt) const {
+    Array FdmLocalVolFwdOp::solve_splitting(Size direction, const Array& r, Real dt) const
+    {
         if (direction == direction_)
             return mapT_.solve_splitting(r, dt, 1.0);
-        else {
+        else
+        {
             return r;
         }
     }
 
-    Array FdmLocalVolFwdOp::preconditioner(
-        const Array& r, Real dt) const {
+    Array FdmLocalVolFwdOp::preconditioner(const Array& r, Real dt) const
+    {
         return solve_splitting(direction_, r, dt);
     }
 
-    std::vector<SparseMatrix> FdmLocalVolFwdOp::toMatrixDecomp() const {
+    std::vector<SparseMatrix> FdmLocalVolFwdOp::toMatrixDecomp() const
+    {
         return std::vector<SparseMatrix>(1, mapT_.toMatrix());
     }
 

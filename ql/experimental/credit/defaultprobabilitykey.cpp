@@ -20,78 +20,76 @@
 
 #include <ql/experimental/credit/defaultprobabilitykey.hpp>
 #if defined(QL_PATCH_MSVC)
-#pragma warning(push)
-#pragma warning(disable:4181)
+#    pragma warning(push)
+#    pragma warning(disable : 4181)
 #endif
 #include <algorithm>
 #include <set>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
+    namespace
+    {
 
-        struct points_to {
+        struct points_to
+        {
             explicit points_to(const DefaultType& t) : t(t) {}
-            bool operator()(const ext::shared_ptr<DefaultType>& p) const {
-                return *p == t;
-            }
+            bool operator()(const ext::shared_ptr<DefaultType>& p) const { return *p == t; }
             const DefaultType& t;
         };
-        
+
     }
-    
-    bool operator==(const DefaultProbKey& lhs, const DefaultProbKey& rhs) {
-        if(lhs.seniority() != rhs.seniority()) return false;
-        if(lhs.currency() != rhs.currency()) return false;
+
+    bool operator==(const DefaultProbKey& lhs, const DefaultProbKey& rhs)
+    {
+        if (lhs.seniority() != rhs.seniority())
+            return false;
+        if (lhs.currency() != rhs.currency())
+            return false;
 
         Size mySize = rhs.eventTypes().size();
-        if(mySize != lhs.eventTypes().size()) return false;
+        if (mySize != lhs.eventTypes().size())
+            return false;
         // the all types must be equal in the weak sense.
-        for(Size i=0; i<mySize; i++) {
-            if(std::find_if(lhs.eventTypes().begin(), lhs.eventTypes().end(),
-                            points_to(*rhs.eventTypes()[i])) == lhs.eventTypes().end())
+        for (Size i = 0; i < mySize; i++)
+        {
+            if (std::find_if(lhs.eventTypes().begin(), lhs.eventTypes().end(), points_to(*rhs.eventTypes()[i])) ==
+                lhs.eventTypes().end())
                 return false;
-        }// naah, I bet this can be done with a double lambda
+        } // naah, I bet this can be done with a double lambda
         return true;
     }
 
     DefaultProbKey::DefaultProbKey() = default;
 
-    DefaultProbKey::DefaultProbKey(std::vector<ext::shared_ptr<DefaultType> > eventTypes,
-                                   Currency cur,
-                                   Seniority sen)
-    : eventTypes_(std::move(eventTypes)), obligationCurrency_(std::move(cur)), seniority_(sen) {
+    DefaultProbKey::DefaultProbKey(std::vector<ext::shared_ptr<DefaultType>> eventTypes, Currency cur, Seniority sen)
+    : eventTypes_(std::move(eventTypes)), obligationCurrency_(std::move(cur)), seniority_(sen)
+    {
         std::set<AtomicDefault::Type> buffer;
         Size numEvents = eventTypes_.size();
-        for(Size i=0; i< numEvents; i++)
+        for (Size i = 0; i < numEvents; i++)
             buffer.insert(eventTypes_[i]->defaultType());
-        QL_REQUIRE(buffer.size() == numEvents,
-            "Duplicated event type in contract definition");
+        QL_REQUIRE(buffer.size() == numEvents, "Duplicated event type in contract definition");
     }
 
-    NorthAmericaCorpDefaultKey::NorthAmericaCorpDefaultKey(
-        const Currency& currency,
-        Seniority sen,
-        Period graceFailureToPay,
-        Real amountFailure,
-        Restructuring::Type resType)
-    : DefaultProbKey(std::vector<ext::shared_ptr<DefaultType> >(),
-                     currency, sen) {
-        eventTypes_.push_back( ext::shared_ptr<DefaultType>(
-            new FailureToPay(graceFailureToPay,
-            amountFailure)));
+    NorthAmericaCorpDefaultKey::NorthAmericaCorpDefaultKey(const Currency& currency,
+                                                           Seniority sen,
+                                                           Period graceFailureToPay,
+                                                           Real amountFailure,
+                                                           Restructuring::Type resType)
+    : DefaultProbKey(std::vector<ext::shared_ptr<DefaultType>>(), currency, sen)
+    {
+        eventTypes_.push_back(ext::shared_ptr<DefaultType>(new FailureToPay(graceFailureToPay, amountFailure)));
         // no specifics for Bankruptcy
-        eventTypes_.push_back( ext::make_shared<DefaultType>(
-            AtomicDefault::Bankruptcy,
-                            Restructuring::XR));
-        if(resType != Restructuring::NoRestructuring)
-            eventTypes_.push_back( ext::make_shared<DefaultType>(
-                AtomicDefault::Restructuring, resType));
+        eventTypes_.push_back(ext::make_shared<DefaultType>(AtomicDefault::Bankruptcy, Restructuring::XR));
+        if (resType != Restructuring::NoRestructuring)
+            eventTypes_.push_back(ext::make_shared<DefaultType>(AtomicDefault::Restructuring, resType));
     }
 
 }
 
 #if defined(QL_PATCH_MSVC)
-#pragma warning(pop)
+#    pragma warning(pop)
 #endif

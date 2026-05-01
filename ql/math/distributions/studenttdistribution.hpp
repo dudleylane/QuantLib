@@ -28,7 +28,8 @@
 #include <ql/types.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Student t-distribution
     /*! Probability density function for \f$ n \f$ degrees of freedom
@@ -39,12 +40,12 @@ namespace QuantLib {
         \frac {1} {\left(1+\frac{x^2}{n}\right)^{(n+1)/2}}
         \f]
     */
-    class StudentDistribution {
+    class StudentDistribution
+    {
       public:
-        StudentDistribution(Integer n) : n_(n) {
-            QL_REQUIRE(n > 0, "invalid parameter for t-distribution");
-        }
+        StudentDistribution(Integer n) : n_(n) { QL_REQUIRE(n > 0, "invalid parameter for t-distribution"); }
         Real operator()(Real x) const;
+
       private:
         Integer n_;
     };
@@ -61,12 +62,12 @@ namespace QuantLib {
         \f]
         where \f$ I(z; a, b) \f$ is the regularized incomplete beta function.
     */
-    class CumulativeStudentDistribution {
+    class CumulativeStudentDistribution
+    {
       public:
-        CumulativeStudentDistribution(Integer n) : n_(n) {
-            QL_REQUIRE(n > 0, "invalid parameter for t-distribution");
-        }
+        CumulativeStudentDistribution(Integer n) : n_(n) { QL_REQUIRE(n > 0, "invalid parameter for t-distribution"); }
         Real operator()(Real x) const;
+
       private:
         Integer n_;
     };
@@ -76,14 +77,15 @@ namespace QuantLib {
               cumulative Student t-distribution, replacing the Newton
               iteration
     */
-    class InverseCumulativeStudent {
+    class InverseCumulativeStudent
+    {
       public:
-        InverseCumulativeStudent(Integer n,
-                                 Real accuracy = 1e-6,
-                                 Size maxIterations = 50)
-        : d_(n), f_(n), accuracy_(accuracy),
-          maxIterations_(maxIterations) {}
+        InverseCumulativeStudent(Integer n, Real accuracy = 1e-6, Size maxIterations = 50)
+        : d_(n), f_(n), accuracy_(accuracy), maxIterations_(maxIterations)
+        {
+        }
         Real operator()(Real x) const;
+
       private:
         StudentDistribution d_;
         CumulativeStudentDistribution f_;

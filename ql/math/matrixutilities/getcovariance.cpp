@@ -19,31 +19,26 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 
 #include <ql/math/matrixutilities/getcovariance.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    CovarianceDecomposition::CovarianceDecomposition(const Matrix& cov,
-                                                     Real tolerance)
-    : variances_(cov.diagonal()), stdDevs_(Array(cov.rows())),
-      correlationMatrix_(Matrix(cov.rows(), cov.rows()))
+    CovarianceDecomposition::CovarianceDecomposition(const Matrix& cov, Real tolerance)
+    : variances_(cov.diagonal()), stdDevs_(Array(cov.rows())), correlationMatrix_(Matrix(cov.rows(), cov.rows()))
     {
         Size size = cov.rows();
-        QL_REQUIRE(size==cov.columns(),
-                   "input covariance matrix must be square, it is [" <<
-                   size << "x" << cov.rows() << "]");
+        QL_REQUIRE(size == cov.columns(),
+                   "input covariance matrix must be square, it is [" << size << "x" << cov.rows() << "]");
 
-        for (Size i=0; i<size; ++i)
+        for (Size i = 0; i < size; ++i)
         {
             stdDevs_[i] = std::sqrt(variances_[i]);
             correlationMatrix_[i][i] = 1.0;
-            for (Size j=0; j<i; ++j)
+            for (Size j = 0; j < i; ++j)
             {
-                QL_REQUIRE(std::fabs(cov[i][j]-cov[j][i]) <= tolerance,
-                           "invalid covariance matrix:" <<
-                           "\nc[" << i << ", " << j << "] = " <<
-                           cov[i][j] << "\nc[" << j << ", " << i <<
-                           "] = " << cov[j][i]);
-                correlationMatrix_[i][j] = correlationMatrix_[j][i] =
-                    cov[i][j]/(stdDevs_[i]*stdDevs_[j]);
+                QL_REQUIRE(std::fabs(cov[i][j] - cov[j][i]) <= tolerance,
+                           "invalid covariance matrix:" << "\nc[" << i << ", " << j << "] = " << cov[i][j] << "\nc["
+                                                        << j << ", " << i << "] = " << cov[j][i]);
+                correlationMatrix_[i][j] = correlationMatrix_[j][i] = cov[i][j] / (stdDevs_[i] * stdDevs_[j]);
             }
         }
     }

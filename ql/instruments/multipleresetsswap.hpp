@@ -28,7 +28,8 @@
 #include <ql/instruments/fixedvsfloatingswap.hpp>
 #include <ql/time/schedule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class IborIndex;
 
@@ -37,7 +38,8 @@ namespace QuantLib {
         compounding or averaging \c resetsPerCoupon consecutive Ibor
         fixings during each accrual period.
     */
-    class MultipleResetsSwap : public FixedVsFloatingSwap {
+    class MultipleResetsSwap : public FixedVsFloatingSwap
+    {
       public:
         MultipleResetsSwap(Type type,
                            Real nominal,

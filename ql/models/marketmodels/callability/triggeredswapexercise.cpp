@@ -22,73 +22,81 @@
 #include <ql/models/marketmodels/utilities.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     TriggeredSwapExercise::TriggeredSwapExercise(const std::vector<Time>& rateTimes,
                                                  const std::vector<Time>& exerciseTimes,
                                                  std::vector<Rate> strikes)
     : rateTimes_(rateTimes), exerciseTimes_(exerciseTimes), strikes_(std::move(strikes)),
-      rateIndex_(exerciseTimes.size()), evolution_(rateTimes, exerciseTimes) {
+      rateIndex_(exerciseTimes.size()), evolution_(rateTimes, exerciseTimes)
+    {
         Size j = 0;
-        for (Size i=0; i<exerciseTimes.size(); ++i) {
+        for (Size i = 0; i < exerciseTimes.size(); ++i)
+        {
             while (j < rateTimes.size() && rateTimes[j] < exerciseTimes[i])
                 ++j;
             rateIndex_[i] = j;
         }
     }
 
-    Size TriggeredSwapExercise::numberOfExercises() const {
+    Size TriggeredSwapExercise::numberOfExercises() const
+    {
         return exerciseTimes_.size();
     }
 
-    const EvolutionDescription& TriggeredSwapExercise::evolution() const {
+    const EvolutionDescription& TriggeredSwapExercise::evolution() const
+    {
         return evolution_;
     }
 
-    void TriggeredSwapExercise::nextStep(const CurveState&) {
+    void TriggeredSwapExercise::nextStep(const CurveState&)
+    {
         ++currentStep_;
     }
 
-    void TriggeredSwapExercise::reset() {
+    void TriggeredSwapExercise::reset()
+    {
         currentStep_ = 0;
     }
 
-    std::valarray<bool> TriggeredSwapExercise::isExerciseTime() const {
-        return std::valarray<bool>(true,numberOfExercises());
+    std::valarray<bool> TriggeredSwapExercise::isExerciseTime() const
+    {
+        return std::valarray<bool>(true, numberOfExercises());
     }
 
-    void TriggeredSwapExercise::values(const CurveState& state,
-                                       std::vector<Real>& results) const {
-        Size swapIndex = rateIndex_[currentStep_-1];
+    void TriggeredSwapExercise::values(const CurveState& state, std::vector<Real>& results) const
+    {
+        Size swapIndex = rateIndex_[currentStep_ - 1];
         results.resize(1);
         results[0] = state.coterminalSwapRate(swapIndex);
     }
 
-    std::vector<Size> TriggeredSwapExercise::numberOfVariables() const {
+    std::vector<Size> TriggeredSwapExercise::numberOfVariables() const
+    {
         return std::vector<Size>(numberOfExercises(), 1);
     }
 
-    std::vector<Size> TriggeredSwapExercise::numberOfParameters() const {
+    std::vector<Size> TriggeredSwapExercise::numberOfParameters() const
+    {
         return std::vector<Size>(numberOfExercises(), 1);
     }
 
-    bool TriggeredSwapExercise::exercise(
-                                   Size,
-                                   const std::vector<Real>& parameters,
-                                   const std::vector<Real>& variables) const {
+    bool
+    TriggeredSwapExercise::exercise(Size, const std::vector<Real>& parameters, const std::vector<Real>& variables) const
+    {
         return variables[0] >= parameters[0];
     }
 
-    void TriggeredSwapExercise::guess(Size exerciseIndex,
-                                      std::vector<Real>& parameters) const {
+    void TriggeredSwapExercise::guess(Size exerciseIndex, std::vector<Real>& parameters) const
+    {
         parameters.resize(1);
         parameters[0] = strikes_.at(exerciseIndex);
     }
 
-    std::unique_ptr<MarketModelParametricExercise>
-    TriggeredSwapExercise::clone() const {
+    std::unique_ptr<MarketModelParametricExercise> TriggeredSwapExercise::clone() const
+    {
         return std::unique_ptr<MarketModelParametricExercise>(new TriggeredSwapExercise(*this));
     }
 
 }
-

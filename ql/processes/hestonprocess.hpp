@@ -24,11 +24,12 @@
 #ifndef quantlib_heston_process_hpp
 #define quantlib_heston_process_hpp
 
+#include <ql/quote.hpp>
 #include <ql/stochasticprocess.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
-#include <ql/quote.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Square-root stochastic-volatility Heston process
     /*! This class describes the square root stochastic volatility
@@ -43,17 +44,21 @@ namespace QuantLib {
 
         \ingroup processes
     */
-    class HestonProcess : public StochasticProcess {
+    class HestonProcess : public StochasticProcess
+    {
       public:
-        enum Discretization { PartialTruncation,
-                              FullTruncation,
-                              Reflection,
-                              NonCentralChiSquareVariance,
-                              QuadraticExponential,
-                              QuadraticExponentialMartingale,
-                              BroadieKayaExactSchemeLobatto,
-                              BroadieKayaExactSchemeLaguerre,
-                              BroadieKayaExactSchemeTrapezoidal };
+        enum Discretization
+        {
+            PartialTruncation,
+            FullTruncation,
+            Reflection,
+            NonCentralChiSquareVariance,
+            QuadraticExponential,
+            QuadraticExponentialMartingale,
+            BroadieKayaExactSchemeLobatto,
+            BroadieKayaExactSchemeLaguerre,
+            BroadieKayaExactSchemeTrapezoidal
+        };
 
         HestonProcess(Handle<YieldTermStructure> riskFreeRate,
                       Handle<YieldTermStructure> dividendYield,
@@ -74,8 +79,8 @@ namespace QuantLib {
         Array apply(const Array& x0, const Array& dx) const override;
         Array evolve(Time t0, const Array& x0, Time dt, const Array& dw) const override;
 
-        Real v0()    const { return v0_; }
-        Real rho()   const { return rho_; }
+        Real v0() const { return v0_; }
+        Real rho() const { return rho_; }
         Real kappa() const { return kappa_; }
         Real theta() const { return theta_; }
         Real sigma() const { return sigma_; }
@@ -88,7 +93,7 @@ namespace QuantLib {
 
         // probability densitiy function,
         // semi-analytical solution of the Fokker-Planck equation in x=ln(s)
-        Real pdf(Real x, Real v, Time t, Real eps=1e-3) const;
+        Real pdf(Real x, Real v, Time t, Real eps = 1e-3) const;
 
       private:
         Real varianceDistribution(Real v, Real dw, Time dt) const;

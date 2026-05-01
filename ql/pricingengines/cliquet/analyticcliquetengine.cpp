@@ -22,31 +22,28 @@
 #include <ql/pricingengines/cliquet/analyticcliquetengine.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    AnalyticCliquetEngine::AnalyticCliquetEngine(
-        ext::shared_ptr<GeneralizedBlackScholesProcess> process)
-    : process_(std::move(process)) {
+    AnalyticCliquetEngine::AnalyticCliquetEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process)
+    : process_(std::move(process))
+    {
         registerWith(process_);
     }
 
-    void AnalyticCliquetEngine::calculate() const {
+    void AnalyticCliquetEngine::calculate() const
+    {
 
-        QL_REQUIRE(arguments_.accruedCoupon == Null<Real>() &&
-                   arguments_.lastFixing == Null<Real>(),
+        QL_REQUIRE(arguments_.accruedCoupon == Null<Real>() && arguments_.lastFixing == Null<Real>(),
                    "this engine cannot price options already started");
-        QL_REQUIRE(arguments_.localCap == Null<Real>() &&
-                   arguments_.localFloor == Null<Real>() &&
-                   arguments_.globalCap == Null<Real>() &&
-                   arguments_.globalFloor == Null<Real>(),
+        QL_REQUIRE(arguments_.localCap == Null<Real>() && arguments_.localFloor == Null<Real>() &&
+                       arguments_.globalCap == Null<Real>() && arguments_.globalFloor == Null<Real>(),
                    "this engine cannot price capped/floored options");
 
-        QL_REQUIRE(arguments_.exercise->type() == Exercise::European,
-                   "not an European option");
+        QL_REQUIRE(arguments_.exercise->type() == Exercise::European, "not an European option");
 
         ext::shared_ptr<PercentageStrikePayoff> moneyness =
-            ext::dynamic_pointer_cast<PercentageStrikePayoff>(
-                                                           arguments_.payoff);
+            ext::dynamic_pointer_cast<PercentageStrikePayoff>(arguments_.payoff);
         QL_REQUIRE(moneyness, "wrong payoff given");
 
         std::vector<Date> resetDates = arguments_.resetDates;
@@ -55,8 +52,7 @@ namespace QuantLib {
         Real underlying = process_->stateVariable()->value();
         QL_REQUIRE(underlying > 0.0, "negative or null underlying");
         Real strike = underlying * moneyness->strike();
-        ext::shared_ptr<StrikedTypePayoff> payoff(
-                      new PlainVanillaPayoff(moneyness->optionType(),strike));
+        ext::shared_ptr<StrikedTypePayoff> payoff(new PlainVanillaPayoff(moneyness->optionType(), strike));
 
         results_.value = 0.0;
         results_.delta = results_.gamma = 0.0;
@@ -64,51 +60,40 @@ namespace QuantLib {
         results_.rho = results_.dividendRho = 0.0;
         results_.vega = 0.0;
 
-        for (Size i = 1; i < resetDates.size(); i++) {
+        for (Size i = 1; i < resetDates.size(); i++)
+        {
 
-            Real weight =
-                process_->dividendYield()->discount(resetDates[i-1]);
-            DiscountFactor discount =
-                process_->riskFreeRate()->discount(resetDates[i]) /
-                process_->riskFreeRate()->discount(resetDates[i-1]);
-            DiscountFactor qDiscount =
-                process_->dividendYield()->discount(resetDates[i]) /
-                process_->dividendYield()->discount(resetDates[i-1]);
-            Real forward = underlying*qDiscount/discount;
-            Real variance =
-                process_->blackVolatility()->blackForwardVariance(
-                                        resetDates[i-1],resetDates[i],strike);
+            Real weight = process_->dividendYield()->discount(resetDates[i - 1]);
+            DiscountFactor discount = process_->riskFreeRate()->discount(resetDates[i]) /
+                                      process_->riskFreeRate()->discount(resetDates[i - 1]);
+            DiscountFactor qDiscount = process_->dividendYield()->discount(resetDates[i]) /
+                                       process_->dividendYield()->discount(resetDates[i - 1]);
+            Real forward = underlying * qDiscount / discount;
+            Real variance = process_->blackVolatility()->blackForwardVariance(resetDates[i - 1], resetDates[i], strike);
 
             BlackCalculator black(payoff, forward, std::sqrt(variance), discount);
 
-            DayCounter rfdc  = process_->riskFreeRate()->dayCounter();
+            DayCounter rfdc = process_->riskFreeRate()->dayCounter();
             DayCounter divdc = process_->dividendYield()->dayCounter();
             DayCounter voldc = process_->blackVolatility()->dayCounter();
 
             results_.value += weight * black.value();
-            results_.delta += weight * (black.delta(underlying) +
-                                        moneyness->strike() * discount *
-                                        black.beta());
+            results_.delta += weight * (black.delta(underlying) + moneyness->strike() * discount * black.beta());
             results_.gamma += 0.0;
-            results_.theta += process_->dividendYield()->forwardRate(
-                resetDates[i-1], resetDates[i], rfdc, Continuous, NoFrequency) *
-                weight * black.value();
+            results_.theta += process_->dividendYield()->forwardRate(resetDates[i - 1], resetDates[i], rfdc, Continuous,
+                                                                     NoFrequency) *
+                              weight * black.value();
 
-            Time dt = rfdc.yearFraction(resetDates[i-1],resetDates[i]);
+            Time dt = rfdc.yearFraction(resetDates[i - 1], resetDates[i]);
             results_.rho += weight * black.rho(dt);
 
-            Time t = divdc.yearFraction(
-                                    process_->dividendYield()->referenceDate(),
-                                    resetDates[i-1]);
-            dt = divdc.yearFraction(resetDates[i-1],resetDates[i]);
-            results_.dividendRho += weight * (black.dividendRho(dt) -
-                                              t * black.value());
+            Time t = divdc.yearFraction(process_->dividendYield()->referenceDate(), resetDates[i - 1]);
+            dt = divdc.yearFraction(resetDates[i - 1], resetDates[i]);
+            results_.dividendRho += weight * (black.dividendRho(dt) - t * black.value());
 
-            dt = voldc.yearFraction(resetDates[i-1], resetDates[i]);
+            dt = voldc.yearFraction(resetDates[i - 1], resetDates[i]);
             results_.vega += weight * black.vega(dt);
         }
-
     }
 
 }
-

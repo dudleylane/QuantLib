@@ -27,7 +27,8 @@
 
 #include <ql/experimental/volatility/blackatmvolcurve.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class SmileSection;
 
@@ -39,7 +40,8 @@ namespace QuantLib {
         Volatilities are assumed to be expressed on an annual basis.
 
     */
-    class BlackVolSurface : public BlackAtmVolCurve {
+    class BlackVolSurface : public BlackAtmVolCurve
+    {
       public:
         /*! \name Constructors
             See the TermStructure documentation for issues regarding
@@ -51,8 +53,7 @@ namespace QuantLib {
                      constructor must manage their own reference date
                      by overriding the referenceDate() method.
         */
-        BlackVolSurface(BusinessDayConvention bdc = Following,
-                        const DayCounter& dc = DayCounter());
+        BlackVolSurface(BusinessDayConvention bdc = Following, const DayCounter& dc = DayCounter());
         //! initialize with a fixed reference date
         BlackVolSurface(const Date& referenceDate,
                         const Calendar& cal = Calendar(),
@@ -67,14 +68,11 @@ namespace QuantLib {
         //! \name Black spot volatility
         //@{
         //! returns the smile for a given option tenor
-        ext::shared_ptr<SmileSection> smileSection(const Period&,
-                                                     bool extrapolate) const;
+        ext::shared_ptr<SmileSection> smileSection(const Period&, bool extrapolate) const;
         //! returns the smile for a given option date
-        ext::shared_ptr<SmileSection> smileSection(const Date&,
-                                                     bool extrapolate) const;
+        ext::shared_ptr<SmileSection> smileSection(const Date&, bool extrapolate) const;
         //! returns the smile for a given option time
-        ext::shared_ptr<SmileSection> smileSection(Time,
-                                                     bool extrapolate) const;
+        ext::shared_ptr<SmileSection> smileSection(Time, bool extrapolate) const;
         //@}
         //! \name Visitability
         //@{
@@ -96,27 +94,24 @@ namespace QuantLib {
             assume that time-extrapolation is allowed.
         */
         //@{
-        virtual ext::shared_ptr<SmileSection> smileSectionImpl(Time) const=0;
+        virtual ext::shared_ptr<SmileSection> smileSectionImpl(Time) const = 0;
         //@}
     };
 
     // inline definitions
 
-    inline ext::shared_ptr<SmileSection>
-    BlackVolSurface::smileSection(const Period& p,
-                                  bool extrapolate) const {
+    inline ext::shared_ptr<SmileSection> BlackVolSurface::smileSection(const Period& p, bool extrapolate) const
+    {
         return smileSection(optionDateFromTenor(p), extrapolate);
     }
 
-    inline ext::shared_ptr<SmileSection>
-    BlackVolSurface::smileSection(const Date& d,
-                                  bool extrapolate) const {
+    inline ext::shared_ptr<SmileSection> BlackVolSurface::smileSection(const Date& d, bool extrapolate) const
+    {
         return smileSection(timeFromReference(d), extrapolate);
     }
 
-    inline ext::shared_ptr<SmileSection>
-    BlackVolSurface::smileSection(Time t,
-                                  bool extrapolate) const {
+    inline ext::shared_ptr<SmileSection> BlackVolSurface::smileSection(Time t, bool extrapolate) const
+    {
         checkRange(t, extrapolate);
         return smileSectionImpl(t);
     }

@@ -18,31 +18,30 @@
 */
 
 /*! \file FdmAffineModelswapinnervalue.cpp
-*/
+ */
 
-#include <ql/models/shortrate/twofactormodels/g2.hpp>
-#include <ql/models/shortrate/onefactormodels/hullwhite.hpp>
 #include <ql/methods/finitedifferences/utilities/fdmaffinemodelswapinnervalue.hpp>
+#include <ql/models/shortrate/onefactormodels/hullwhite.hpp>
+#include <ql/models/shortrate/twofactormodels/g2.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     template <>
-    Array FdmAffineModelSwapInnerValue<HullWhite>::getState(
-        const ext::shared_ptr<HullWhite>& model, Time t,
-        const FdmLinearOpIterator& iter) const {
+    Array FdmAffineModelSwapInnerValue<HullWhite>::getState(const ext::shared_ptr<HullWhite>& model,
+                                                            Time t,
+                                                            const FdmLinearOpIterator& iter) const
+    {
 
-        return { model->dynamics()->shortRate(t, mesher_->location(iter, direction_)) };
+        return {model->dynamics()->shortRate(t, mesher_->location(iter, direction_))};
     }
 
     template <>
-    Array FdmAffineModelSwapInnerValue<G2>::getState(
-        const ext::shared_ptr<G2>&, Time,
-        const FdmLinearOpIterator& iter) const {
+    Array
+    FdmAffineModelSwapInnerValue<G2>::getState(const ext::shared_ptr<G2>&, Time, const FdmLinearOpIterator& iter) const
+    {
 
-        return {
-            mesher_->location(iter, direction_),
-            mesher_->location(iter, direction_+1)
-        };
+        return {mesher_->location(iter, direction_), mesher_->location(iter, direction_ + 1)};
     }
 
 }

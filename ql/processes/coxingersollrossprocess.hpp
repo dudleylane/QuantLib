@@ -25,10 +25,11 @@
 #ifndef quantlib_coxingersollross_process_hpp
 #define quantlib_coxingersollross_process_hpp
 
-#include <ql/stochasticprocess.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
+#include <ql/stochasticprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! CoxIngersollRoss process class
     /*! This class describes the CoxIngersollRoss process governed by
@@ -42,13 +43,10 @@ namespace QuantLib {
 
         \ingroup processes
     */
-    class CoxIngersollRossProcess : public StochasticProcess1D {
+    class CoxIngersollRossProcess : public StochasticProcess1D
+    {
       public:
-
-        CoxIngersollRossProcess(Real speed,
-                                 Volatility vol,
-                                 Real x0 = 0.0,
-                                 Real level = 0.0);
+        CoxIngersollRossProcess(Real speed, Volatility vol, Real x0 = 0.0, Real level = 0.0);
         //@{
         Real drift(Time t, Real x) const override;
         Real diffusion(Time t, Real x) const override;
@@ -60,10 +58,8 @@ namespace QuantLib {
         Real volatility() const;
         Real level() const;
         Real variance(Time t0, Real x0, Time dt) const override;
-        Real evolve (Time t0,
-                     Real x0,
-                     Time dt,
-                     Real dw) const override;
+        Real evolve(Time t0, Real x0, Time dt, Real dw) const override;
+
       private:
         Real x0_, speed_, level_;
         Volatility volatility_;
@@ -71,67 +67,73 @@ namespace QuantLib {
 
     // inline
 
-    inline Real CoxIngersollRossProcess::x0() const {
+    inline Real CoxIngersollRossProcess::x0() const
+    {
         return x0_;
     }
 
-    inline Real CoxIngersollRossProcess::speed() const {
+    inline Real CoxIngersollRossProcess::speed() const
+    {
         return speed_;
     }
 
-    inline Real CoxIngersollRossProcess::volatility() const {
+    inline Real CoxIngersollRossProcess::volatility() const
+    {
         return volatility_;
     }
 
-    inline Real CoxIngersollRossProcess::level() const {
+    inline Real CoxIngersollRossProcess::level() const
+    {
         return level_;
     }
 
-    inline Real CoxIngersollRossProcess::drift(Time, Real x) const {
+    inline Real CoxIngersollRossProcess::drift(Time, Real x) const
+    {
         return speed_ * (level_ - x);
     }
 
-    inline Real CoxIngersollRossProcess::diffusion(Time, Real) const {
+    inline Real CoxIngersollRossProcess::diffusion(Time, Real) const
+    {
         return volatility_;
     }
 
-    inline Real CoxIngersollRossProcess::expectation(Time, Real x0,
-                                               Time dt) const {
-        return level_ + (x0 - level_) * std::exp(-speed_*dt);
+    inline Real CoxIngersollRossProcess::expectation(Time, Real x0, Time dt) const
+    {
+        return level_ + (x0 - level_) * std::exp(-speed_ * dt);
     }
 
-    inline Real CoxIngersollRossProcess::stdDeviation(Time t, Real x0,
-                                                Time dt) const {
-        return std::sqrt(variance(t,x0,dt));
+    inline Real CoxIngersollRossProcess::stdDeviation(Time t, Real x0, Time dt) const
+    {
+        return std::sqrt(variance(t, x0, dt));
     }
 
-    inline Real CoxIngersollRossProcess::evolve (Time t0,
-      Real x0,
-                                    Time dt,
-                                    Real dw) const {
+    inline Real CoxIngersollRossProcess::evolve(Time t0, Real x0, Time dt, Real dw) const
+    {
         Real result;
 
-        const Real ex = std::exp(-speed_*dt);
+        const Real ex = std::exp(-speed_ * dt);
 
-        const Real m  =  level_+(x0-level_)*ex;
-        const Real s2 =  x0*volatility_*volatility_*ex/speed_*(1-ex)
-                       + level_*volatility_*volatility_/(2*speed_)*(1-ex)*(1-ex);
-        const Real psi = s2/(m*m);
+        const Real m = level_ + (x0 - level_) * ex;
+        const Real s2 = x0 * volatility_ * volatility_ * ex / speed_ * (1 - ex) +
+                        level_ * volatility_ * volatility_ / (2 * speed_) * (1 - ex) * (1 - ex);
+        const Real psi = s2 / (m * m);
 
-        if (psi <= 1.5) {
-            const Real b2 = 2/psi-1+std::sqrt(2/psi*(2/psi-1));
-            const Real b  = std::sqrt(b2);
-            const Real a  = m/(1+b2);
+        if (psi <= 1.5)
+        {
+            const Real b2 = 2 / psi - 1 + std::sqrt(2 / psi * (2 / psi - 1));
+            const Real b = std::sqrt(b2);
+            const Real a = m / (1 + b2);
 
-            result = a*(b+dw)*(b+dw);
+            result = a * (b + dw) * (b + dw);
         }
-        else {
-            const Real p = (psi-1)/(psi+1);
-            const Real beta = (1-p)/m;
+        else
+        {
+            const Real p = (psi - 1) / (psi + 1);
+            const Real beta = (1 - p) / m;
 
             const Real u = CumulativeNormalDistribution()(dw);
 
-            result = ((u <= p) ? 0.0 : Real(std::log((1-p)/(1-u))/beta));
+            result = ((u <= p) ? 0.0 : Real(std::log((1 - p) / (1 - u)) / beta));
         }
 
         return result;

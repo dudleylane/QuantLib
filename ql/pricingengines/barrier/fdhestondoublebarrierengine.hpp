@@ -25,14 +25,15 @@
 #define quantlib_fd_heston_double_barrier_engine_hpp
 
 #include <ql/instruments/doublebarrieroption.hpp>
+#include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
+#include <ql/methods/finitedifferences/solvers/fdmhestonsolver.hpp>
 #include <ql/models/equity/hestonmodel.hpp>
 #include <ql/pricingengines/genericmodelengine.hpp>
-#include <ql/methods/finitedifferences/solvers/fdmhestonsolver.hpp>
-#include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
 #include <ql/termstructures/volatility/equityfx/localvoltermstructure.hpp>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Finite-Differences Heston Double Barrier Option engine
 
@@ -40,9 +41,8 @@ namespace QuantLib {
         \ingroup barrierengines
     */
     class FdHestonDoubleBarrierEngine
-        : public GenericModelEngine<HestonModel,
-                                    DoubleBarrierOption::arguments,
-                                    DoubleBarrierOption::results> {
+    : public GenericModelEngine<HestonModel, DoubleBarrierOption::arguments, DoubleBarrierOption::results>
+    {
       public:
         // Constructor
         explicit FdHestonDoubleBarrierEngine(
@@ -52,8 +52,7 @@ namespace QuantLib {
             Size vGrid = 50,
             Size dampingSteps = 0,
             const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Hundsdorfer(),
-            ext::shared_ptr<LocalVolTermStructure> leverageFct =
-                ext::shared_ptr<LocalVolTermStructure>(),
+            ext::shared_ptr<LocalVolTermStructure> leverageFct = ext::shared_ptr<LocalVolTermStructure>(),
             Real mixingFactor = 1.0);
 
         void calculate() const override;

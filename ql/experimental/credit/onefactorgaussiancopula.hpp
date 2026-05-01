@@ -27,7 +27,8 @@
 #include <ql/experimental/credit/onefactorcopula.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! One-factor Gaussian Copula
     /*! The copula model
@@ -37,18 +38,19 @@ namespace QuantLib {
         normal distribution
         \f$ \phi(x) = \exp(-x^2/2) / \sqrt{2\pi}. \f$
     */
-    class OneFactorGaussianCopula : public OneFactorCopula {
+    class OneFactorGaussianCopula : public OneFactorCopula
+    {
       public:
-        explicit OneFactorGaussianCopula(const Handle<Quote>& correlation,
-                                         Real maximum = 5, Size integrationSteps = 50)
-        : OneFactorCopula (correlation, maximum, integrationSteps) {
+        explicit OneFactorGaussianCopula(const Handle<Quote>& correlation, Real maximum = 5, Size integrationSteps = 50)
+        : OneFactorCopula(correlation, maximum, integrationSteps)
+        {
             registerWith(correlation_);
         }
         Real density(Real m) const override;
         Real cumulativeZ(Real z) const override;
         /*! overrides the base class implementation based on table data */
         Real cumulativeY(Real y) const override;
-        Real testCumulativeY (Real y) const;
+        Real testCumulativeY(Real y) const;
         /*! overrides the base class implementation based on table data */
         Real inverseCumulativeY(Real p) const override;
 
@@ -61,19 +63,23 @@ namespace QuantLib {
         InverseCumulativeNormal inverseCumulative_;
     };
 
-    inline Real OneFactorGaussianCopula::density (Real m) const {
+    inline Real OneFactorGaussianCopula::density(Real m) const
+    {
         return density_(m);
     }
 
-    inline Real OneFactorGaussianCopula::cumulativeZ (Real z) const {
+    inline Real OneFactorGaussianCopula::cumulativeZ(Real z) const
+    {
         return cumulative_(z);
     }
 
-    inline Real OneFactorGaussianCopula::cumulativeY (Real y) const {
+    inline Real OneFactorGaussianCopula::cumulativeY(Real y) const
+    {
         return cumulative_(y);
     }
 
-    inline Real OneFactorGaussianCopula::inverseCumulativeY (Real p) const {
+    inline Real OneFactorGaussianCopula::inverseCumulativeY(Real p) const
+    {
         return inverseCumulative_(p);
     }
 

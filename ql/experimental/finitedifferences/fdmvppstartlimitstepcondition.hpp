@@ -28,16 +28,17 @@
 #include <ql/shared_ptr.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class FdmVPPStartLimitStepCondition : public FdmVPPStepCondition {
+    class FdmVPPStartLimitStepCondition : public FdmVPPStepCondition
+    {
       public:
-        FdmVPPStartLimitStepCondition(
-            const FdmVPPStepConditionParams& params,
-            Size nStarts,
-            const FdmVPPStepConditionMesher& mesh,
-            const ext::shared_ptr<FdmInnerValueCalculator>& gasPrice,
-            const ext::shared_ptr<FdmInnerValueCalculator>& sparkSpreadPrice);
+        FdmVPPStartLimitStepCondition(const FdmVPPStepConditionParams& params,
+                                      Size nStarts,
+                                      const FdmVPPStepConditionMesher& mesh,
+                                      const ext::shared_ptr<FdmInnerValueCalculator>& gasPrice,
+                                      const ext::shared_ptr<FdmInnerValueCalculator>& sparkSpreadPrice);
 
         static Size nStates(Size tMinUp, Size tMinDown, Size nStarts);
         Real maxValue(const Array& states) const override;

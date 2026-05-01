@@ -25,12 +25,13 @@
 #ifndef quantlib_hybrid_heston_hull_white_process_hpp
 #define quantlib_hybrid_heston_hull_white_process_hpp
 
+#include <ql/models/shortrate/onefactormodels/hullwhite.hpp>
 #include <ql/processes/hestonprocess.hpp>
 #include <ql/processes/hullwhiteprocess.hpp>
 #include <ql/processes/jointstochasticprocess.hpp>
-#include <ql/models/shortrate/onefactormodels/hullwhite.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
     //! Hybrid Heston Hull-White stochastic process
     /*! This class implements a three factor Heston Hull-White model
 
@@ -39,15 +40,19 @@ namespace QuantLib {
 
         \ingroup processes
     */
-    class HybridHestonHullWhiteProcess : public StochasticProcess {
+    class HybridHestonHullWhiteProcess : public StochasticProcess
+    {
       public:
-        enum Discretization { Euler, BSMHullWhite };
+        enum Discretization
+        {
+            Euler,
+            BSMHullWhite
+        };
 
-        HybridHestonHullWhiteProcess(
-          const ext::shared_ptr<HestonProcess> & hestonProcess,
-          const ext::shared_ptr<HullWhiteForwardProcess> & hullWhiteProcess,
-          Real corrEquityShortRate,
-          Discretization discretization = BSMHullWhite);
+        HybridHestonHullWhiteProcess(const ext::shared_ptr<HestonProcess>& hestonProcess,
+                                     const ext::shared_ptr<HullWhiteForwardProcess>& hullWhiteProcess,
+                                     Real corrEquityShortRate,
+                                     Discretization discretization = BSMHullWhite);
 
         Size size() const override;
         Array initialValues() const override;
@@ -70,8 +75,8 @@ namespace QuantLib {
       protected:
         const ext::shared_ptr<HestonProcess> hestonProcess_;
         const ext::shared_ptr<HullWhiteForwardProcess> hullWhiteProcess_;
-        
-        //model is used to calculate P(t,T)
+
+        // model is used to calculate P(t,T)
         const ext::shared_ptr<HullWhite> hullWhiteModel_;
 
         const Real corrEquityShortRate_;

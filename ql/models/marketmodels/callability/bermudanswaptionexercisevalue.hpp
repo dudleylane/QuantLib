@@ -26,14 +26,15 @@
 #include <ql/shared_ptr.hpp>
 #include <valarray>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Payoff;
 
-    class BermudanSwaptionExerciseValue : public MarketModelExerciseValue {
+    class BermudanSwaptionExerciseValue : public MarketModelExerciseValue
+    {
       public:
-        BermudanSwaptionExerciseValue(const std::vector<Time>& rateTimes,
-                                      std::vector<ext::shared_ptr<Payoff> >);
+        BermudanSwaptionExerciseValue(const std::vector<Time>& rateTimes, std::vector<ext::shared_ptr<Payoff>>);
         Size numberOfExercises() const override;
         // including any time at which state should be updated
         const EvolutionDescription& evolution() const override;
@@ -44,10 +45,11 @@ namespace QuantLib {
         std::valarray<bool> isExerciseTime() const override;
         MarketModelMultiProduct::CashFlow value(const CurveState&) const override;
         std::unique_ptr<MarketModelExerciseValue> clone() const override;
+
       private:
         Size numberOfExercises_;
         std::vector<Time> rateTimes_;
-        std::vector<ext::shared_ptr<Payoff> > payoffs_;
+        std::vector<ext::shared_ptr<Payoff>> payoffs_;
         EvolutionDescription evolution_;
         // evolving
         Size currentIndex_ = 0;

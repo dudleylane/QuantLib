@@ -25,39 +25,46 @@
 #ifndef quantlib_heston_option_helper_hpp
 #define quantlib_heston_option_helper_hpp
 
-#include <ql/models/calibrationhelper.hpp>
 #include <ql/instruments/vanillaoption.hpp>
+#include <ql/models/calibrationhelper.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! calibration helper for Heston model
-    class HestonModelHelper : public BlackCalibrationHelper {
+    class HestonModelHelper : public BlackCalibrationHelper
+    {
       public:
-        HestonModelHelper(const Period& maturity,
-                          Calendar calendar,
-                          Real s0,
-                          Real strikePrice,
-                          const Handle<Quote>& volatility,
-                          const Handle<YieldTermStructure>& riskFreeRate,
-                          const Handle<YieldTermStructure>& dividendYield,
-                          BlackCalibrationHelper::CalibrationErrorType errorType =
-                              BlackCalibrationHelper::RelativePriceError);
+        HestonModelHelper(
+            const Period& maturity,
+            Calendar calendar,
+            Real s0,
+            Real strikePrice,
+            const Handle<Quote>& volatility,
+            const Handle<YieldTermStructure>& riskFreeRate,
+            const Handle<YieldTermStructure>& dividendYield,
+            BlackCalibrationHelper::CalibrationErrorType errorType = BlackCalibrationHelper::RelativePriceError);
 
-        HestonModelHelper(const Period& maturity,
-                          Calendar calendar,
-                          const Handle<Quote>& s0,
-                          Real strikePrice,
-                          const Handle<Quote>& volatility,
-                          const Handle<YieldTermStructure>& riskFreeRate,
-                          const Handle<YieldTermStructure>& dividendYield,
-                          BlackCalibrationHelper::CalibrationErrorType errorType =
-                              BlackCalibrationHelper::RelativePriceError);
+        HestonModelHelper(
+            const Period& maturity,
+            Calendar calendar,
+            const Handle<Quote>& s0,
+            Real strikePrice,
+            const Handle<Quote>& volatility,
+            const Handle<YieldTermStructure>& riskFreeRate,
+            const Handle<YieldTermStructure>& dividendYield,
+            BlackCalibrationHelper::CalibrationErrorType errorType = BlackCalibrationHelper::RelativePriceError);
 
         void addTimesTo(std::list<Time>&) const override {}
         void performCalculations() const override;
         Real modelValue() const override;
         Real blackPrice(Real volatility) const override;
-        Time maturity() const  { calculate(); return tau_; }
+        Time maturity() const
+        {
+            calculate();
+            return tau_;
+        }
+
       private:
         const Period maturity_;
         const Calendar calendar_;
@@ -75,4 +82,3 @@ namespace QuantLib {
 
 
 #endif
-

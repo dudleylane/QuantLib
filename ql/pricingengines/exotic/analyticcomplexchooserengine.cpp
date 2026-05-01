@@ -18,8 +18,8 @@
 */
 
 #include <ql/exercise.hpp>
-#include <ql/pricingengines/exotic/analyticcomplexchooserengine.hpp>
 #include <ql/math/distributions/bivariatenormaldistribution.hpp>
+#include <ql/pricingengines/exotic/analyticcomplexchooserengine.hpp>
 #include <utility>
 
 using std::pow;
@@ -27,15 +27,17 @@ using std::log;
 using std::exp;
 using std::sqrt;
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    AnalyticComplexChooserEngine::AnalyticComplexChooserEngine(
-        ext::shared_ptr<GeneralizedBlackScholesProcess> process)
-    : process_(std::move(process)) {
+    AnalyticComplexChooserEngine::AnalyticComplexChooserEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process)
+    : process_(std::move(process))
+    {
         registerWith(process_);
     }
 
-    void AnalyticComplexChooserEngine::calculate() const {
+    void AnalyticComplexChooserEngine::calculate() const
+    {
         Real S = process_->x0();
         Real b;
         Real v;
@@ -49,53 +51,55 @@ namespace QuantLib {
 
         b = riskFreeRate(T) - dividendYield(T);
         v = volatility(T);
-        Real d1 = (log(S / i) + (b + pow(v, 2) / 2)*T) / (v*sqrt(T));
-        Real d2 = d1 - v*sqrt(T);
+        Real d1 = (log(S / i) + (b + pow(v, 2) / 2) * T) / (v * sqrt(T));
+        Real d2 = d1 - v * sqrt(T);
 
         b = riskFreeRate(T + Tc) - dividendYield(T + Tc);
         v = volatility(Tc);
-        Real y1 = (log(S / Xc) + (b + pow(v, 2) / 2)*Tc) / (v*sqrt(Tc));
+        Real y1 = (log(S / Xc) + (b + pow(v, 2) / 2) * Tc) / (v * sqrt(Tc));
 
         b = riskFreeRate(T + Tp) - dividendYield(T + Tp);
         v = volatility(Tp);
-        Real y2 = (log(S / Xp) + (b + pow(v, 2) / 2)*Tp) / (v*sqrt(Tp));
+        Real y2 = (log(S / Xp) + (b + pow(v, 2) / 2) * Tp) / (v * sqrt(Tp));
 
         Real rho1 = sqrt(T / Tc);
         Real rho2 = sqrt(T / Tp);
         b = riskFreeRate(T + Tc) - dividendYield(T + Tc);
         Real r = riskFreeRate(T + Tc);
-        Real ComplexChooser = S * exp((b - r)*Tc) *  BivariateCumulativeNormalDistributionDr78(rho1)(d1, y1)
-            - Xc * exp(-r*Tc)*BivariateCumulativeNormalDistributionDr78(rho1)(d2, y1 - v * sqrt(Tc)) ;
+        Real ComplexChooser =
+            S * exp((b - r) * Tc) * BivariateCumulativeNormalDistributionDr78(rho1)(d1, y1) -
+            Xc * exp(-r * Tc) * BivariateCumulativeNormalDistributionDr78(rho1)(d2, y1 - v * sqrt(Tc));
         b = riskFreeRate(T + Tp) - dividendYield(T + Tp);
         r = riskFreeRate(T + Tp);
-        ComplexChooser -= S * exp((b - r)*Tp) * BivariateCumulativeNormalDistributionDr78(rho2)(-d1, -y2);
-        ComplexChooser += Xp * exp(-r*Tp) * BivariateCumulativeNormalDistributionDr78(rho2)(-d2, -y2 + v * sqrt(Tp));
+        ComplexChooser -= S * exp((b - r) * Tp) * BivariateCumulativeNormalDistributionDr78(rho2)(-d1, -y2);
+        ComplexChooser += Xp * exp(-r * Tp) * BivariateCumulativeNormalDistributionDr78(rho2)(-d2, -y2 + v * sqrt(Tp));
 
         results_.value = ComplexChooser;
     }
 
-    BlackScholesCalculator AnalyticComplexChooserEngine::bsCalculator(
-                                   Real spot, Option::Type optionType) const {
+    BlackScholesCalculator AnalyticComplexChooserEngine::bsCalculator(Real spot, Option::Type optionType) const
+    {
         Real vol;
         DiscountFactor growth;
         DiscountFactor discount;
         Time T = choosingTime();
 
         // payoff
-        ext::shared_ptr<PlainVanillaPayoff > vanillaPayoff;
-        if (optionType == Option::Call){
-            //TC-T
-            Time t=callMaturity()-2*T;
-            vanillaPayoff = ext::make_shared<PlainVanillaPayoff>(
-                                          Option::Call, strike(Option::Call));
-            //QuantLib requires sigma * sqrt(t) rather than just sigma/volatility
+        ext::shared_ptr<PlainVanillaPayoff> vanillaPayoff;
+        if (optionType == Option::Call)
+        {
+            // TC-T
+            Time t = callMaturity() - 2 * T;
+            vanillaPayoff = ext::make_shared<PlainVanillaPayoff>(Option::Call, strike(Option::Call));
+            // QuantLib requires sigma * sqrt(t) rather than just sigma/volatility
             vol = volatility(t) * std::sqrt(t);
             growth = dividendDiscount(t);
             discount = riskFreeDiscount(t);
-        } else{
-            Time t=putMaturity()-2*T;
-            vanillaPayoff = ext::make_shared<PlainVanillaPayoff>(
-                                            Option::Put, strike(Option::Put));
+        }
+        else
+        {
+            Time t = putMaturity() - 2 * T;
+            vanillaPayoff = ext::make_shared<PlainVanillaPayoff>(Option::Put, strike(Option::Put));
             vol = volatility(t) * std::sqrt(t);
             growth = dividendDiscount(t);
             discount = riskFreeDiscount(t);
@@ -105,14 +109,15 @@ namespace QuantLib {
         return bs;
     }
 
-    Real AnalyticComplexChooserEngine::criticalValue() const{
+    Real AnalyticComplexChooserEngine::criticalValue() const
+    {
         Real Sv = process_->x0();
 
-        BlackScholesCalculator bs=bsCalculator(Sv,Option::Call);
+        BlackScholesCalculator bs = bsCalculator(Sv, Option::Call);
         Real ci = bs.value();
         Real dc = bs.delta();
 
-        bs=bsCalculator(Sv,Option::Put);
+        bs = bsCalculator(Sv, Option::Put);
         Real Pi = bs.value();
         Real dp = bs.delta();
 
@@ -120,15 +125,16 @@ namespace QuantLib {
         Real di = dc - dp;
         Real epsilon = 0.001;
 
-        //Newton-Raphson process
-        while (std::fabs(yi) > epsilon){
+        // Newton-Raphson process
+        while (std::fabs(yi) > epsilon)
+        {
             Sv = Sv - yi / di;
 
-            bs=bsCalculator(Sv,Option::Call);
+            bs = bsCalculator(Sv, Option::Call);
             ci = bs.value();
             dc = bs.delta();
 
-            bs=bsCalculator(Sv,Option::Put);
+            bs = bsCalculator(Sv, Option::Put);
             Pi = bs.value();
             dp = bs.delta();
 
@@ -139,42 +145,51 @@ namespace QuantLib {
     }
 
 
-    Real AnalyticComplexChooserEngine::strike(Option::Type optionType) const {
+    Real AnalyticComplexChooserEngine::strike(Option::Type optionType) const
+    {
         if (optionType == Option::Call)
             return arguments_.strikeCall;
         else
             return arguments_.strikePut;
     }
 
-    Time AnalyticComplexChooserEngine::choosingTime() const {
+    Time AnalyticComplexChooserEngine::choosingTime() const
+    {
         return process_->time(arguments_.choosingDate);
     }
 
-    Time AnalyticComplexChooserEngine::putMaturity() const {
+    Time AnalyticComplexChooserEngine::putMaturity() const
+    {
         return process_->time(arguments_.exercisePut->lastDate());
     }
 
-    Time AnalyticComplexChooserEngine::callMaturity() const {
+    Time AnalyticComplexChooserEngine::callMaturity() const
+    {
         return process_->time(arguments_.exerciseCall->lastDate());
     }
 
-    Volatility AnalyticComplexChooserEngine::volatility(Time t) const {
+    Volatility AnalyticComplexChooserEngine::volatility(Time t) const
+    {
         return process_->blackVolatility()->blackVol(t, arguments_.strikeCall);
     }
 
-    Rate AnalyticComplexChooserEngine::dividendYield(Time t) const {
+    Rate AnalyticComplexChooserEngine::dividendYield(Time t) const
+    {
         return process_->dividendYield()->zeroRate(t, Continuous, NoFrequency);
     }
 
-    DiscountFactor AnalyticComplexChooserEngine::dividendDiscount(Time t) const {
+    DiscountFactor AnalyticComplexChooserEngine::dividendDiscount(Time t) const
+    {
         return process_->dividendYield()->discount(t);
     }
 
-    Rate AnalyticComplexChooserEngine::riskFreeRate(Time t) const {
+    Rate AnalyticComplexChooserEngine::riskFreeRate(Time t) const
+    {
         return process_->riskFreeRate()->zeroRate(t, Continuous, NoFrequency);
     }
 
-    DiscountFactor AnalyticComplexChooserEngine::riskFreeDiscount(Time t) const {
+    DiscountFactor AnalyticComplexChooserEngine::riskFreeDiscount(Time t) const
+    {
         return process_->riskFreeRate()->discount(t);
     }
 

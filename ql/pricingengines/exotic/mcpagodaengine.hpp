@@ -31,19 +31,17 @@
 #include <ql/processes/stochasticprocessarray.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Pricing engine for pagoda options using Monte Carlo simulation
     template <class RNG = PseudoRandom, class S = Statistics>
-    class MCPagodaEngine : public PagodaOption::engine,
-                           public McSimulation<MultiVariate,RNG,S> {
+    class MCPagodaEngine : public PagodaOption::engine, public McSimulation<MultiVariate, RNG, S>
+    {
       public:
-        typedef typename McSimulation<MultiVariate,RNG,S>::path_generator_type
-            path_generator_type;
-        typedef typename McSimulation<MultiVariate,RNG,S>::path_pricer_type
-            path_pricer_type;
-        typedef typename McSimulation<MultiVariate,RNG,S>::stats_type
-            stats_type;
+        typedef typename McSimulation<MultiVariate, RNG, S>::path_generator_type path_generator_type;
+        typedef typename McSimulation<MultiVariate, RNG, S>::path_pricer_type path_pricer_type;
+        typedef typename McSimulation<MultiVariate, RNG, S>::stats_type stats_type;
         // constructor
         MCPagodaEngine(ext::shared_ptr<StochasticProcessArray>,
                        bool brownianBridge,
@@ -52,30 +50,27 @@ namespace QuantLib {
                        Real requiredTolerance,
                        Size maxSamples,
                        BigNatural seed);
-        void calculate() const override {
-            McSimulation<MultiVariate,RNG,S>::calculate(requiredTolerance_,
-                                                        requiredSamples_,
-                                                        maxSamples_);
+        void calculate() const override
+        {
+            McSimulation<MultiVariate, RNG, S>::calculate(requiredTolerance_, requiredSamples_, maxSamples_);
             results_.value = this->mcModel_->sampleAccumulator().mean();
             if constexpr (RNG::allowsErrorEstimate)
-                results_.errorEstimate =
-                    this->mcModel_->sampleAccumulator().errorEstimate();
+                results_.errorEstimate = this->mcModel_->sampleAccumulator().errorEstimate();
         }
 
       private:
         // McSimulation implementation
         TimeGrid timeGrid() const override;
-        ext::shared_ptr<path_generator_type> pathGenerator() const override {
+        ext::shared_ptr<path_generator_type> pathGenerator() const override
+        {
 
             Size numAssets = processes_->size();
 
             TimeGrid grid = timeGrid();
-            typename RNG::rsg_type gen =
-                RNG::make_sequence_generator(numAssets*(grid.size()-1),seed_);
+            typename RNG::rsg_type gen = RNG::make_sequence_generator(numAssets * (grid.size() - 1), seed_);
 
             return ext::shared_ptr<path_generator_type>(
-                         new path_generator_type(processes_,
-                                                 grid, gen, brownianBridge_));
+                new path_generator_type(processes_, grid, gen, brownianBridge_));
         }
         ext::shared_ptr<path_pricer_type> pathPricer() const override;
 
@@ -91,7 +86,8 @@ namespace QuantLib {
 
     //! Monte Carlo pagoda-option engine factory
     template <class RNG = PseudoRandom, class S = Statistics>
-    class MakeMCPagodaEngine {
+    class MakeMCPagodaEngine
+    {
       public:
         explicit MakeMCPagodaEngine(ext::shared_ptr<StochasticProcessArray>);
         // named parameters
@@ -103,6 +99,7 @@ namespace QuantLib {
         MakeMCPagodaEngine& withSeed(BigNatural seed);
         // conversion to pricing engine
         operator ext::shared_ptr<PricingEngine>() const;
+
       private:
         ext::shared_ptr<StochasticProcessArray> process_;
         bool brownianBridge_ = false, antithetic_ = false;
@@ -112,10 +109,10 @@ namespace QuantLib {
     };
 
 
-    class PagodaMultiPathPricer : public PathPricer<MultiPath> {
+    class PagodaMultiPathPricer : public PathPricer<MultiPath>
+    {
       public:
-        PagodaMultiPathPricer(Real roof, Real fraction,
-                              DiscountFactor discount);
+        PagodaMultiPathPricer(Real roof, Real fraction, DiscountFactor discount);
         Real operator()(const MultiPath& multiPath) const override;
 
       private:
@@ -134,20 +131,24 @@ namespace QuantLib {
                                                   Real requiredTolerance,
                                                   Size maxSamples,
                                                   BigNatural seed)
-    : McSimulation<MultiVariate, RNG, S>(antitheticVariate, false),
-      processes_(std::move(processes)), requiredSamples_(requiredSamples), maxSamples_(maxSamples),
-      requiredTolerance_(requiredTolerance), brownianBridge_(brownianBridge), seed_(seed) {
+    : McSimulation<MultiVariate, RNG, S>(antitheticVariate, false), processes_(std::move(processes)),
+      requiredSamples_(requiredSamples), maxSamples_(maxSamples), requiredTolerance_(requiredTolerance),
+      brownianBridge_(brownianBridge), seed_(seed)
+    {
         registerWith(processes_);
     }
 
     template <class RNG, class S>
-    inline TimeGrid MCPagodaEngine<RNG,S>::timeGrid() const {
+    inline TimeGrid MCPagodaEngine<RNG, S>::timeGrid() const
+    {
 
         std::vector<Time> fixingTimes;
-        for (Size i=0; i<arguments_.fixingDates.size(); i++) {
+        for (Size i = 0; i < arguments_.fixingDates.size(); i++)
+        {
             Time t = processes_->time(arguments_.fixingDates[i]);
             QL_REQUIRE(t >= 0.0, "seasoned options are not handled");
-            if (i > 0) {
+            if (i > 0)
+            {
                 QL_REQUIRE(t > fixingTimes.back(), "fixing dates not sorted");
             }
             fixingTimes.push_back(t);
@@ -158,93 +159,78 @@ namespace QuantLib {
 
 
     template <class RNG, class S>
-    inline
-    ext::shared_ptr<typename MCPagodaEngine<RNG,S>::path_pricer_type>
-    MCPagodaEngine<RNG,S>::pathPricer() const {
+    inline ext::shared_ptr<typename MCPagodaEngine<RNG, S>::path_pricer_type> MCPagodaEngine<RNG, S>::pathPricer() const
+    {
 
         ext::shared_ptr<GeneralizedBlackScholesProcess> process =
-            ext::dynamic_pointer_cast<GeneralizedBlackScholesProcess>(
-                                                      processes_->process(0));
+            ext::dynamic_pointer_cast<GeneralizedBlackScholesProcess>(processes_->process(0));
         QL_REQUIRE(process, "Black-Scholes process required");
 
-        return ext::shared_ptr<
-                         typename MCPagodaEngine<RNG,S>::path_pricer_type>(
-            new PagodaMultiPathPricer(arguments_.roof, arguments_.fraction,
-                                      process->riskFreeRate()->discount(
-                                           arguments_.exercise->lastDate())));
+        return ext::shared_ptr<typename MCPagodaEngine<RNG, S>::path_pricer_type>(new PagodaMultiPathPricer(
+            arguments_.roof, arguments_.fraction, process->riskFreeRate()->discount(arguments_.exercise->lastDate())));
     }
 
 
     template <class RNG, class S>
-    inline MakeMCPagodaEngine<RNG, S>::MakeMCPagodaEngine(
-        ext::shared_ptr<StochasticProcessArray> process)
-    : process_(std::move(process)), samples_(Null<Size>()), maxSamples_(Null<Size>()),
-      tolerance_(Null<Real>()) {}
+    inline MakeMCPagodaEngine<RNG, S>::MakeMCPagodaEngine(ext::shared_ptr<StochasticProcessArray> process)
+    : process_(std::move(process)), samples_(Null<Size>()), maxSamples_(Null<Size>()), tolerance_(Null<Real>())
+    {
+    }
 
     template <class RNG, class S>
-    inline MakeMCPagodaEngine<RNG,S>&
-    MakeMCPagodaEngine<RNG,S>::withBrownianBridge(bool brownianBridge) {
+    inline MakeMCPagodaEngine<RNG, S>& MakeMCPagodaEngine<RNG, S>::withBrownianBridge(bool brownianBridge)
+    {
         brownianBridge_ = brownianBridge;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCPagodaEngine<RNG,S>&
-    MakeMCPagodaEngine<RNG,S>::withAntitheticVariate(bool b) {
+    inline MakeMCPagodaEngine<RNG, S>& MakeMCPagodaEngine<RNG, S>::withAntitheticVariate(bool b)
+    {
         antithetic_ = b;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCPagodaEngine<RNG,S>&
-    MakeMCPagodaEngine<RNG,S>::withSamples(Size samples) {
-        QL_REQUIRE(tolerance_ == Null<Real>(),
-                   "tolerance already set");
+    inline MakeMCPagodaEngine<RNG, S>& MakeMCPagodaEngine<RNG, S>::withSamples(Size samples)
+    {
+        QL_REQUIRE(tolerance_ == Null<Real>(), "tolerance already set");
         samples_ = samples;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCPagodaEngine<RNG,S>&
-    MakeMCPagodaEngine<RNG,S>::withAbsoluteTolerance(Real tolerance) {
-        QL_REQUIRE(samples_ == Null<Size>(),
-                   "number of samples already set");
-        QL_REQUIRE(RNG::allowsErrorEstimate,
-                   "chosen random generator policy "
-                   "does not allow an error estimate");
+    inline MakeMCPagodaEngine<RNG, S>& MakeMCPagodaEngine<RNG, S>::withAbsoluteTolerance(Real tolerance)
+    {
+        QL_REQUIRE(samples_ == Null<Size>(), "number of samples already set");
+        QL_REQUIRE(RNG::allowsErrorEstimate, "chosen random generator policy "
+                                             "does not allow an error estimate");
         tolerance_ = tolerance;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCPagodaEngine<RNG,S>&
-    MakeMCPagodaEngine<RNG,S>::withMaxSamples(Size samples) {
+    inline MakeMCPagodaEngine<RNG, S>& MakeMCPagodaEngine<RNG, S>::withMaxSamples(Size samples)
+    {
         maxSamples_ = samples;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCPagodaEngine<RNG,S>&
-    MakeMCPagodaEngine<RNG,S>::withSeed(BigNatural seed) {
+    inline MakeMCPagodaEngine<RNG, S>& MakeMCPagodaEngine<RNG, S>::withSeed(BigNatural seed)
+    {
         seed_ = seed;
         return *this;
     }
 
     template <class RNG, class S>
-    inline
-    MakeMCPagodaEngine<RNG,S>::operator
-    ext::shared_ptr<PricingEngine>() const {
-        return ext::shared_ptr<PricingEngine>(new
-            MCPagodaEngine<RNG,S>(process_,
-                                  brownianBridge_,
-                                  antithetic_,
-                                  samples_, tolerance_,
-                                  maxSamples_,
-                                  seed_));
+    inline MakeMCPagodaEngine<RNG, S>::operator ext::shared_ptr<PricingEngine>() const
+    {
+        return ext::shared_ptr<PricingEngine>(new MCPagodaEngine<RNG, S>(process_, brownianBridge_, antithetic_,
+                                                                         samples_, tolerance_, maxSamples_, seed_));
     }
 
 }
-
 
 
 #endif

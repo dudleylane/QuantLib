@@ -24,13 +24,15 @@
 
 #include <ql/currencies/oceania.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     // Australian dollar
     /* The ISO three-letter code is AUD; the numeric code is 36.
        It is divided into 100 cents.
     */
-    AUDCurrency::AUDCurrency() {
+    AUDCurrency::AUDCurrency()
+    {
         static auto audData = ext::make_shared<Data>("Australian dollar", "AUD", 36, "A$", "", 100, Rounding());
         data_ = audData;
     }
@@ -39,7 +41,8 @@ namespace QuantLib {
     /* The ISO three-letter code is NZD; the numeric code is 554.
        It is divided in 100 cents.
     */
-    NZDCurrency::NZDCurrency() {
+    NZDCurrency::NZDCurrency()
+    {
         static auto nzdData = ext::make_shared<Data>("New Zealand dollar", "NZD", 554, "NZ$", "", 100, Rounding());
         data_ = nzdData;
     }

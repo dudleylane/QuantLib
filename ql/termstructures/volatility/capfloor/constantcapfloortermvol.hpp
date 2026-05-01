@@ -26,12 +26,14 @@
 
 #include <ql/termstructures/volatility/capfloor/capfloortermvolatilitystructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Quote;
 
     //! Constant caplet volatility, no time-strike dependence
-    class ConstantCapFloorTermVolatility : public CapFloorTermVolatilityStructure {
+    class ConstantCapFloorTermVolatility : public CapFloorTermVolatilityStructure
+    {
       public:
         //! floating reference date, floating market data
         ConstantCapFloorTermVolatility(Natural settlementDays,
@@ -47,10 +49,10 @@ namespace QuantLib {
                                        const DayCounter& dc);
         //! floating reference date, fixed market data
         ConstantCapFloorTermVolatility(Natural settlementDays,
-                                      const Calendar& cal,
-                                      BusinessDayConvention bdc,
-                                      Volatility volatility,
-                                      const DayCounter& dc);
+                                       const Calendar& cal,
+                                       BusinessDayConvention bdc,
+                                       Volatility volatility,
+                                       const DayCounter& dc);
         //! fixed reference date, fixed market data
         ConstantCapFloorTermVolatility(const Date& referenceDate,
                                        const Calendar& cal,
@@ -76,15 +78,18 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline Date ConstantCapFloorTermVolatility::maxDate() const {
+    inline Date ConstantCapFloorTermVolatility::maxDate() const
+    {
         return Date::maxDate();
     }
 
-    inline Real ConstantCapFloorTermVolatility::minStrike() const {
+    inline Real ConstantCapFloorTermVolatility::minStrike() const
+    {
         return QL_MIN_REAL;
     }
 
-    inline Real ConstantCapFloorTermVolatility::maxStrike() const {
+    inline Real ConstantCapFloorTermVolatility::maxStrike() const
+    {
         return QL_MAX_REAL;
     }
 

@@ -29,7 +29,8 @@
 #include <utility>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Inverse cumulative random sequence generator
     /*! It uses a sequence of uniform deviate in (0, 1) as the
@@ -54,15 +55,17 @@ namespace QuantLib {
         \endcode
     */
     template <class USG, class IC>
-    class InverseCumulativeRsg {
+    class InverseCumulativeRsg
+    {
       public:
-        typedef Sample<std::vector<Real> > sample_type;
+        typedef Sample<std::vector<Real>> sample_type;
         explicit InverseCumulativeRsg(USG uniformSequenceGenerator);
         InverseCumulativeRsg(USG uniformSequenceGenerator, const IC& inverseCumulative);
         //! returns next sample from the inverse cumulative distribution
         const sample_type& nextSequence() const;
         const sample_type& lastSequence() const { return x_; }
         Size dimension() const { return dimension_; }
+
       private:
         USG uniformSequenceGenerator_;
         Size dimension_;
@@ -73,20 +76,25 @@ namespace QuantLib {
     template <class USG, class IC>
     InverseCumulativeRsg<USG, IC>::InverseCumulativeRsg(USG usg)
     : uniformSequenceGenerator_(std::move(usg)), dimension_(uniformSequenceGenerator_.dimension()),
-      x_(std::vector<Real>(dimension_), 1.0) {}
+      x_(std::vector<Real>(dimension_), 1.0)
+    {
+    }
 
     template <class USG, class IC>
     InverseCumulativeRsg<USG, IC>::InverseCumulativeRsg(USG usg, const IC& inverseCum)
     : uniformSequenceGenerator_(std::move(usg)), dimension_(uniformSequenceGenerator_.dimension()),
-      x_(std::vector<Real>(dimension_), 1.0), ICD_(inverseCum) {}
+      x_(std::vector<Real>(dimension_), 1.0), ICD_(inverseCum)
+    {
+    }
 
     template <class USG, class IC>
     inline const typename InverseCumulativeRsg<USG, IC>::sample_type&
-    InverseCumulativeRsg<USG, IC>::nextSequence() const {
-        typename USG::sample_type sample =
-            uniformSequenceGenerator_.nextSequence();
+    InverseCumulativeRsg<USG, IC>::nextSequence() const
+    {
+        typename USG::sample_type sample = uniformSequenceGenerator_.nextSequence();
         x_.weight = sample.weight;
-        for (Size i = 0; i < dimension_; i++) {
+        for (Size i = 0; i < dimension_; i++)
+        {
             x_.value[i] = ICD_(sample.value[i]);
         }
         return x_;

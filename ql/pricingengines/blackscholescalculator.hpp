@@ -26,17 +26,18 @@
 
 #include <ql/pricingengines/blackcalculator.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Black-Scholes 1973 calculator class
-    class BlackScholesCalculator : public BlackCalculator {
+    class BlackScholesCalculator : public BlackCalculator
+    {
       public:
-        BlackScholesCalculator(
-                        const ext::shared_ptr<StrikedTypePayoff>& payoff,
-                        Real spot,
-                        DiscountFactor growth,
-                        Real stdDev,
-                        DiscountFactor discount);
+        BlackScholesCalculator(const ext::shared_ptr<StrikedTypePayoff>& payoff,
+                               Real spot,
+                               DiscountFactor growth,
+                               Real stdDev,
+                               DiscountFactor discount);
         BlackScholesCalculator(Option::Type optionType,
                                Real strike,
                                Real spot,
@@ -63,29 +64,35 @@ namespace QuantLib {
         using BlackCalculator::gamma;
         using BlackCalculator::theta;
         using BlackCalculator::thetaPerDay;
+
       protected:
         Real spot_;
         DiscountFactor growth_;
     };
 
     // inline
-    inline Real BlackScholesCalculator::delta() const {
+    inline Real BlackScholesCalculator::delta() const
+    {
         return BlackCalculator::delta(spot_);
     }
 
-    inline Real BlackScholesCalculator::elasticity() const {
+    inline Real BlackScholesCalculator::elasticity() const
+    {
         return BlackCalculator::elasticity(spot_);
     }
 
-    inline Real BlackScholesCalculator::gamma() const {
+    inline Real BlackScholesCalculator::gamma() const
+    {
         return BlackCalculator::gamma(spot_);
     }
 
-    inline Real BlackScholesCalculator::theta(Time maturity) const {
+    inline Real BlackScholesCalculator::theta(Time maturity) const
+    {
         return BlackCalculator::theta(spot_, maturity);
     }
 
-    inline Real BlackScholesCalculator::thetaPerDay(Time maturity) const {
+    inline Real BlackScholesCalculator::thetaPerDay(Time maturity) const
+    {
         return BlackCalculator::thetaPerDay(spot_, maturity);
     }
 

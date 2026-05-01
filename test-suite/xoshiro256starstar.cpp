@@ -156,42 +156,45 @@ extern "C" {
     _Pragma("clang diagnostic pop")
 #endif
 // NOLINTEND
-// clang-format on
+    // clang-format on
 
-BOOST_AUTO_TEST_CASE(testMeanAndStdDevOfNextReal) {
-    BOOST_TEST_MESSAGE(
-        "Testing Xoshiro256StarStarUniformRng::nextReal() for mean=0.5 and stddev=1/12...");
+    BOOST_AUTO_TEST_CASE(testMeanAndStdDevOfNextReal)
+{
+    BOOST_TEST_MESSAGE("Testing Xoshiro256StarStarUniformRng::nextReal() for mean=0.5 and stddev=1/12...");
 
     auto random = Xoshiro256StarStarUniformRng(1);
     const auto iterations = 10'000'000;
     auto randoms = std::vector<Real>();
     randoms.reserve(iterations);
-    for (auto j = 0; j < iterations; ++j) {
+    for (auto j = 0; j < iterations; ++j)
+    {
         auto next = random.nextReal();
-        if (next <= 0.0 || 1.0 <= next) {
+        if (next <= 0.0 || 1.0 <= next)
+        {
             BOOST_FAIL("next " << next << " not in range");
         }
         randoms.push_back(next);
     }
     Real mean = std::accumulate(randoms.begin(), randoms.end(), Real(0.0)) / randoms.size();
     Real meanError = std::fabs(0.5 - mean);
-    if (meanError > 0.005) {
+    if (meanError > 0.005)
+    {
         BOOST_ERROR("Mean " << mean << " for seed 1 is not close to 0.5.");
     }
     std::vector<Real> diff(randoms.size());
-    std::transform(randoms.begin(), randoms.end(), diff.begin(),
-                   [mean](Real x) -> Real { return x - mean; });
+    std::transform(randoms.begin(), randoms.end(), diff.begin(), [mean](Real x) -> Real { return x - mean; });
     Real stdDev = std::inner_product(diff.begin(), diff.end(), diff.begin(), Real(0.0)) / randoms.size();
     Real stdDevError = std::fabs(1.0 / 12.0 - stdDev);
-    if (stdDevError > 0.00005) {
+    if (stdDevError > 0.00005)
+    {
         BOOST_ERROR("Standard deviation " << stdDev << " for seed 1 is not close to 1/12.");
     }
 }
 
-BOOST_AUTO_TEST_CASE(testAgainstReferenceImplementationInC) {
-    BOOST_TEST_MESSAGE(
-        "Testing Xoshiro256StarStarUniformRng::nextInt64() against reference implementation in C...");
-    
+BOOST_AUTO_TEST_CASE(testAgainstReferenceImplementationInC)
+{
+    BOOST_TEST_MESSAGE("Testing Xoshiro256StarStarUniformRng::nextInt64() against reference implementation in C...");
+
     // some random initial seed
     static const auto seed = 10108360646465513120ULL;
 
@@ -207,29 +210,30 @@ BOOST_AUTO_TEST_CASE(testAgainstReferenceImplementationInC) {
 
     auto rngFromSeed = Xoshiro256StarStarUniformRng(seed);
     auto rngFroms0s1s2s3 = Xoshiro256StarStarUniformRng(s0, s1, s2, s3);
-    for (auto i = 0; i < 1'000; i++) {
+    for (auto i = 0; i < 1'000; i++)
+    {
         auto nextRefImpl = next();
         auto nextFromSeed = rngFromSeed.nextInt64();
         auto nextFroms0s1s2s3 = rngFroms0s1s2s3.nextInt64();
-        if (nextRefImpl != nextFromSeed) {
-            BOOST_FAIL("Test failed at index "
-                       << i << " (expected from reference implementation: " << nextRefImpl
-                       << "ULL, from Xoshiro256StarStarUniformRng(" << seed
-                       << "ULL): " << nextFromSeed << "ULL)");
+        if (nextRefImpl != nextFromSeed)
+        {
+            BOOST_FAIL("Test failed at index " << i << " (expected from reference implementation: " << nextRefImpl
+                                               << "ULL, from Xoshiro256StarStarUniformRng(" << seed
+                                               << "ULL): " << nextFromSeed << "ULL)");
         }
-        if (nextFroms0s1s2s3 != nextFromSeed) {
-            BOOST_FAIL("Test failed at index " << i << " (from Xoshiro256StarStarUniformRng("
-                                               << seed << "): " << nextFroms0s1s2s3
-                                               << "ULL, from Xoshiro256StarStarUniformRng(" << s0
-                                               << "ULL, " << s1 << "ULL, " << s2 << "ULL, " << s3
+        if (nextFroms0s1s2s3 != nextFromSeed)
+        {
+            BOOST_FAIL("Test failed at index " << i << " (from Xoshiro256StarStarUniformRng(" << seed
+                                               << "): " << nextFroms0s1s2s3 << "ULL, from Xoshiro256StarStarUniformRng("
+                                               << s0 << "ULL, " << s1 << "ULL, " << s2 << "ULL, " << s3
                                                << "ULL): " << nextFromSeed << "ULL)");
         }
     }
 }
 
-BOOST_AUTO_TEST_CASE(testAbsenceOfInteractionBetweenInstances) {
-    BOOST_TEST_MESSAGE(
-        "Testing Xoshiro256StarStarUniformRng for absence of interaction between instances...");
+BOOST_AUTO_TEST_CASE(testAbsenceOfInteractionBetweenInstances)
+{
+    BOOST_TEST_MESSAGE("Testing Xoshiro256StarStarUniformRng for absence of interaction between instances...");
 
     auto seed = 16880566536755896171ULL;
     Xoshiro256StarStarUniformRng rng(seed);
@@ -249,7 +253,8 @@ BOOST_AUTO_TEST_CASE(testAbsenceOfInteractionBetweenInstances) {
 
     // parallel use
     Xoshiro256StarStarUniformRng rng3(seed), rng4(seed);
-    for (auto i = 0; i < 999; i++) {
+    for (auto i = 0; i < 999; i++)
+    {
         rng3.nextInt64();
         rng4.nextInt64();
     }

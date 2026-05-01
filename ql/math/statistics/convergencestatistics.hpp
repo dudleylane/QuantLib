@@ -28,9 +28,11 @@
 #include <ql/types.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class DoublingConvergenceSteps {
+    class DoublingConvergenceSteps
+    {
       public:
         Size initialSamples() const { return 1; }
         Size nextSamples(Size current) { return 2 * current + 1; }
@@ -55,28 +57,29 @@ namespace QuantLib {
         \test results are tested against known good values.
     */
     template <class T, class U = DoublingConvergenceSteps>
-    class ConvergenceStatistics : public T {
+    class ConvergenceStatistics : public T
+    {
       public:
         typedef typename T::value_type value_type;
-        typedef std::vector<std::pair<Size,value_type> > table_type;
-        ConvergenceStatistics(const T& stats,
-                              const U& rule = U());
+        typedef std::vector<std::pair<Size, value_type>> table_type;
+        ConvergenceStatistics(const T& stats, const U& rule = U());
         ConvergenceStatistics(const U& rule = U());
         void add(const value_type& value, Real weight = 1.0);
         template <class DataIterator>
-        void addSequence(DataIterator begin, DataIterator end) {
+        void addSequence(DataIterator begin, DataIterator end)
+        {
             for (; begin != end; ++begin)
                 add(*begin);
         }
         template <class DataIterator, class WeightIterator>
-        void addSequence(DataIterator begin, DataIterator end,
-                         WeightIterator wbegin) {
+        void addSequence(DataIterator begin, DataIterator end, WeightIterator wbegin)
+        {
             for (; begin != end; ++begin, ++wbegin)
-                add(*begin,*wbegin);
+                add(*begin, *wbegin);
         }
         void reset();
-        const std::vector<std::pair<Size,value_type> >& convergenceTable()
-                                                                        const;
+        const std::vector<std::pair<Size, value_type>>& convergenceTable() const;
+
       private:
         table_type table_;
         U samplingRule_;
@@ -87,41 +90,41 @@ namespace QuantLib {
     // inline definitions
 
     template <class T, class U>
-    ConvergenceStatistics<T,U>::ConvergenceStatistics(const T& stats,
-                                                      const U& rule)
-    : T(stats), samplingRule_(rule) {
+    ConvergenceStatistics<T, U>::ConvergenceStatistics(const T& stats, const U& rule) : T(stats), samplingRule_(rule)
+    {
         reset();
     }
 
     template <class T, class U>
-    ConvergenceStatistics<T,U>::ConvergenceStatistics(const U& rule)
-    : samplingRule_(rule) {
+    ConvergenceStatistics<T, U>::ConvergenceStatistics(const U& rule) : samplingRule_(rule)
+    {
         reset();
     }
 
-    #ifndef __DOXYGEN__
+#ifndef __DOXYGEN__
     template <class T, class U>
-    void ConvergenceStatistics<T,U>::add(
-                 const typename ConvergenceStatistics<T,U>::value_type& value,
-                 Real weight) {
-        T::add(value,weight);
-        if (this->samples() == nextSampleSize_) {
-            table_.push_back(std::make_pair(this->samples(),this->mean()));
+    void ConvergenceStatistics<T, U>::add(const typename ConvergenceStatistics<T, U>::value_type& value, Real weight)
+    {
+        T::add(value, weight);
+        if (this->samples() == nextSampleSize_)
+        {
+            table_.push_back(std::make_pair(this->samples(), this->mean()));
             nextSampleSize_ = samplingRule_.nextSamples(nextSampleSize_);
         }
     }
-    #endif
+#endif
 
     template <class T, class U>
-    void ConvergenceStatistics<T,U>::reset() {
+    void ConvergenceStatistics<T, U>::reset()
+    {
         T::reset();
         nextSampleSize_ = samplingRule_.initialSamples();
         table_.clear();
     }
 
     template <class T, class U>
-    const typename ConvergenceStatistics<T,U>::table_type&
-    ConvergenceStatistics<T,U>::convergenceTable() const {
+    const typename ConvergenceStatistics<T, U>::table_type& ConvergenceStatistics<T, U>::convergenceTable() const
+    {
         return table_;
     }
 
@@ -129,4 +132,3 @@ namespace QuantLib {
 
 
 #endif
-

@@ -28,7 +28,8 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(SettingsTests)
 
-BOOST_AUTO_TEST_CASE(testNotificationsOnDateChange) {
+BOOST_AUTO_TEST_CASE(testNotificationsOnDateChange)
+{
     BOOST_TEST_MESSAGE("Testing notifications on evaluation-date change...");
 
 #ifdef QL_HIGH_RESOLUTION_DATE

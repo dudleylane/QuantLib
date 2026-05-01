@@ -25,17 +25,16 @@
 #include <ql/types.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class Integrator{
+    class Integrator
+    {
       public:
-        Integrator(Real absoluteAccuracy,
-                   Size maxEvaluations);
+        Integrator(Real absoluteAccuracy, Size maxEvaluations);
         virtual ~Integrator() = default;
 
-        Real operator()(const std::function<Real (Real)>& f,
-                        Real a,
-                        Real b) const;
+        Real operator()(const std::function<Real(Real)>& f, Real a, Real b) const;
 
         //! \name Modifiers
         //@{
@@ -49,19 +48,18 @@ namespace QuantLib {
         Size maxEvaluations() const;
         //@}
 
-        Real absoluteError() const ;
+        Real absoluteError() const;
 
         Size numberOfEvaluations() const;
 
         virtual bool integrationSuccess() const;
 
       protected:
-        virtual Real integrate(const std::function<Real (Real)>& f,
-                               Real a,
-                               Real b) const = 0;
+        virtual Real integrate(const std::function<Real(Real)>& f, Real a, Real b) const = 0;
         void setAbsoluteError(Real error) const;
         void setNumberOfEvaluations(Size evaluations) const;
         void increaseNumberOfEvaluations(Size increase) const;
+
       private:
         Real absoluteAccuracy_;
         mutable Real absoluteError_;

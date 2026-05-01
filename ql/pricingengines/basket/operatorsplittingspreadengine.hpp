@@ -26,7 +26,8 @@
 
 #include <ql/pricingengines/basket/spreadblackscholesvanillaengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Pricing engine for spread options with two assets
     /*! Chi-Fai Lo,
@@ -35,18 +36,27 @@ namespace QuantLib {
 
         \ingroup basketengines
     */
-    class OperatorSplittingSpreadEngine : public SpreadBlackScholesVanillaEngine {
+    class OperatorSplittingSpreadEngine : public SpreadBlackScholesVanillaEngine
+    {
       public:
-        enum Order {First, Second};
-        OperatorSplittingSpreadEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess> process1,
-            ext::shared_ptr<GeneralizedBlackScholesProcess> process2,
-            Real correlation,
-            Order order = Second);
+        enum Order
+        {
+            First,
+            Second
+        };
+        OperatorSplittingSpreadEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process1,
+                                      ext::shared_ptr<GeneralizedBlackScholesProcess> process2,
+                                      Real correlation,
+                                      Order order = Second);
 
       protected:
-        Real calculate(Real f1, Real f2, Real strike, Option::Type optionType,
-            Real variance1, Real variance2, DiscountFactor df) const override;
+        Real calculate(Real f1,
+                       Real f2,
+                       Real strike,
+                       Option::Type optionType,
+                       Real variance1,
+                       Real variance2,
+                       DiscountFactor df) const override;
 
         const Order order_;
     };

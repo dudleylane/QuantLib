@@ -19,17 +19,17 @@
 
 #include <ql/experimental/credit/recoveryratemodel.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    ConstantRecoveryModel::ConstantRecoveryModel(
-                                       const Handle<RecoveryRateQuote>& quote)
-    : quote_(quote) {
+    ConstantRecoveryModel::ConstantRecoveryModel(const Handle<RecoveryRateQuote>& quote) : quote_(quote)
+    {
         registerWith(quote);
     }
 
-    ConstantRecoveryModel::ConstantRecoveryModel(Real recovery,
-                                                 Seniority sen)
-    : quote_(Handle<RecoveryRateQuote>(ext::make_shared<RecoveryRateQuote>(
-                                    recovery, sen))) {}
+    ConstantRecoveryModel::ConstantRecoveryModel(Real recovery, Seniority sen)
+    : quote_(Handle<RecoveryRateQuote>(ext::make_shared<RecoveryRateQuote>(recovery, sen)))
+    {
+    }
 
 }

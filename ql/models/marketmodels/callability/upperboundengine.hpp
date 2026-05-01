@@ -22,14 +22,15 @@
 #ifndef quantlib_upper_bound_engine_hpp
 #define quantlib_upper_bound_engine_hpp
 
-#include <ql/models/marketmodels/products/multiproductcomposite.hpp>
-#include <ql/methods/montecarlo/exercisestrategy.hpp>
 #include <ql/math/statistics/sequencestatistics.hpp>
+#include <ql/methods/montecarlo/exercisestrategy.hpp>
+#include <ql/models/marketmodels/products/multiproductcomposite.hpp>
 #include <ql/utilities/clone.hpp>
 #include <utility>
 #include <valarray>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class MarketModelEvolver;
     class MarketModelDiscounter;
@@ -40,20 +41,20 @@ namespace QuantLib {
     /*! \pre product and hedge must have the same rate times
              and exercise times
     */
-    class UpperBoundEngine {
+    class UpperBoundEngine
+    {
       public:
         UpperBoundEngine(ext::shared_ptr<MarketModelEvolver> evolver,
-                         std::vector<ext::shared_ptr<MarketModelEvolver> > innerEvolvers,
+                         std::vector<ext::shared_ptr<MarketModelEvolver>> innerEvolvers,
                          const MarketModelMultiProduct& underlying,
                          const MarketModelExerciseValue& rebate,
                          const MarketModelMultiProduct& hedge,
                          const MarketModelExerciseValue& hedgeRebate,
                          const ExerciseStrategy<CurveState>& hedgeStrategy,
                          Real initialNumeraireValue);
-        void multiplePathValues(Statistics& stats,
-                                Size outerPaths,
-                                Size innerPaths);
-        std::pair<Real,Real> singlePathValue(Size innerPaths);
+        void multiplePathValues(Statistics& stats, Size outerPaths, Size innerPaths);
+        std::pair<Real, Real> singlePathValue(Size innerPaths);
+
       private:
         Real collectCashFlows(Size currentStep,
                               Real principalInNumerairePortfolio,
@@ -61,7 +62,7 @@ namespace QuantLib {
                               Size endProduct) const;
 
         ext::shared_ptr<MarketModelEvolver> evolver_;
-        std::vector<ext::shared_ptr<MarketModelEvolver> > innerEvolvers_;
+        std::vector<ext::shared_ptr<MarketModelEvolver>> innerEvolvers_;
         MultiProductComposite composite_;
 
         Real initialNumeraireValue_;
@@ -73,8 +74,7 @@ namespace QuantLib {
 
         // workspace
         std::vector<Size> numberCashFlowsThisStep_;
-        std::vector<std::vector<MarketModelMultiProduct::CashFlow> >
-                                                         cashFlowsGenerated_;
+        std::vector<std::vector<MarketModelMultiProduct::CashFlow>> cashFlowsGenerated_;
         std::vector<MarketModelDiscounter> discounters_;
     };
 

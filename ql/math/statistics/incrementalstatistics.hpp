@@ -28,21 +28,22 @@
 #ifndef quantlib_incremental_statistics_hpp
 #define quantlib_incremental_statistics_hpp
 
-#include <ql/utilities/null.hpp>
 #include <ql/errors.hpp>
+#include <ql/utilities/null.hpp>
 #include <boost/accumulators/accumulators.hpp>
-#include <boost/accumulators/statistics/stats.hpp>
 #include <boost/accumulators/statistics/count.hpp>
-#include <boost/accumulators/statistics/sum.hpp>
-#include <boost/accumulators/statistics/min.hpp>
 #include <boost/accumulators/statistics/max.hpp>
-#include <boost/accumulators/statistics/weighted_mean.hpp>
-#include <boost/accumulators/statistics/weighted_variance.hpp>
-#include <boost/accumulators/statistics/weighted_skewness.hpp>
+#include <boost/accumulators/statistics/min.hpp>
+#include <boost/accumulators/statistics/stats.hpp>
+#include <boost/accumulators/statistics/sum.hpp>
 #include <boost/accumulators/statistics/weighted_kurtosis.hpp>
+#include <boost/accumulators/statistics/weighted_mean.hpp>
 #include <boost/accumulators/statistics/weighted_moment.hpp>
+#include <boost/accumulators/statistics/weighted_skewness.hpp>
+#include <boost/accumulators/statistics/weighted_variance.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Statistics tool based on incremental accumulation
     /*! It can accumulate a set of data and return statistics (e.g: mean,
@@ -50,7 +51,8 @@ namespace QuantLib {
         This class is a wrapper to the boost accumulator library.
     */
 
-    class IncrementalStatistics {
+    class IncrementalStatistics
+    {
       public:
         typedef Real value_type;
         IncrementalStatistics();
@@ -133,40 +135,43 @@ namespace QuantLib {
         void add(Real value, Real weight = 1.0);
         //! adds a sequence of data to the set, with default weight
         template <class DataIterator>
-        void addSequence(DataIterator begin, DataIterator end) {
-            for (;begin!=end;++begin)
+        void addSequence(DataIterator begin, DataIterator end)
+        {
+            for (; begin != end; ++begin)
                 add(*begin);
         }
         //! adds a sequence of data to the set, each with its weight
         /*! \pre weights must be positive or null */
         template <class DataIterator, class WeightIterator>
-        void addSequence(DataIterator begin, DataIterator end,
-                         WeightIterator wbegin) {
-            for (;begin!=end;++begin,++wbegin)
+        void addSequence(DataIterator begin, DataIterator end, WeightIterator wbegin)
+        {
+            for (; begin != end; ++begin, ++wbegin)
                 add(*begin, *wbegin);
         }
         //! resets the data to a null set
         void reset();
         //@}
-     private:
-       typedef boost::accumulators::accumulator_set<
-           Real,
-           boost::accumulators::stats<
-               boost::accumulators::tag::count, boost::accumulators::tag::min,
-               boost::accumulators::tag::max,
-               boost::accumulators::tag::weighted_mean,
-               boost::accumulators::tag::weighted_variance,
-               boost::accumulators::tag::weighted_skewness,
-               boost::accumulators::tag::weighted_kurtosis,
-               boost::accumulators::tag::sum_of_weights>,
-           Real> accumulator_set;
+      private:
+        typedef boost::accumulators::accumulator_set<
+            Real,
+            boost::accumulators::stats<boost::accumulators::tag::count,
+                                       boost::accumulators::tag::min,
+                                       boost::accumulators::tag::max,
+                                       boost::accumulators::tag::weighted_mean,
+                                       boost::accumulators::tag::weighted_variance,
+                                       boost::accumulators::tag::weighted_skewness,
+                                       boost::accumulators::tag::weighted_kurtosis,
+                                       boost::accumulators::tag::sum_of_weights>,
+            Real>
+            accumulator_set;
         accumulator_set acc_;
         typedef boost::accumulators::accumulator_set<
-            Real, boost::accumulators::stats<
-                      boost::accumulators::tag::count,
-                      boost::accumulators::tag::weighted_moment<2>,
-                      boost::accumulators::tag::sum_of_weights>,
-            Real> downside_accumulator_set;
+            Real,
+            boost::accumulators::stats<boost::accumulators::tag::count,
+                                       boost::accumulators::tag::weighted_moment<2>,
+                                       boost::accumulators::tag::sum_of_weights>,
+            Real>
+            downside_accumulator_set;
         downside_accumulator_set downsideAcc_;
     };
 

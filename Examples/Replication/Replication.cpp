@@ -26,27 +26,28 @@
 
 #include <ql/qldefines.hpp>
 #if !defined(BOOST_ALL_NO_LIB) && defined(BOOST_MSVC)
-#  include <ql/auto_link.hpp>
+#    include <ql/auto_link.hpp>
 #endif
-#include <ql/instruments/compositeinstrument.hpp>
+#include <ql/exercise.hpp>
 #include <ql/instruments/barrieroption.hpp>
+#include <ql/instruments/compositeinstrument.hpp>
 #include <ql/instruments/europeanoption.hpp>
 #include <ql/pricingengines/barrier/analyticbarrierengine.hpp>
 #include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
-#include <ql/exercise.hpp>
-#include <ql/termstructures/yield/flatforward.hpp>
-#include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
 #include <ql/quotes/simplequote.hpp>
+#include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
+#include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/time/calendars/nullcalendar.hpp>
-
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 
 using namespace QuantLib;
 
-int main(int, char* []) {
+int main(int, char*[])
+{
 
-    try {
+    try
+    {
 
         std::cout << std::endl;
 
@@ -63,54 +64,45 @@ int main(int, char* []) {
         Real strike = 100.0;
         auto riskFreeRate = ext::make_shared<SimpleQuote>(0.04);
         auto volatility = ext::make_shared<SimpleQuote>(0.20);
-        Date maturity = today + 1*Years;
+        Date maturity = today + 1 * Years;
 
-        std::cout << std::endl ;
+        std::cout << std::endl;
 
         // write column headings
-        Size widths[] = { 45, 15, 15 };
-        Size totalWidth = widths[0]+widths[1]+widths[2];
+        Size widths[] = {45, 15, 15};
+        Size totalWidth = widths[0] + widths[1] + widths[2];
         std::string rule(totalWidth, '-'), dblrule(totalWidth, '=');
 
         std::cout << dblrule << std::endl;
         std::cout << "Initial market conditions" << std::endl;
         std::cout << dblrule << std::endl;
-        std::cout << std::setw(widths[0]) << std::left << "Option"
-                  << std::setw(widths[1]) << std::left << "NPV"
-                  << std::setw(widths[2]) << std::left << "Error"
-                  << std::endl;
+        std::cout << std::setw(widths[0]) << std::left << "Option" << std::setw(widths[1]) << std::left << "NPV"
+                  << std::setw(widths[2]) << std::left << "Error" << std::endl;
         std::cout << rule << std::endl;
 
         // bootstrap the yield/vol curves
         DayCounter dayCounter = Actual365Fixed();
         Handle<Quote> h1(riskFreeRate);
         Handle<Quote> h2(volatility);
-        Handle<YieldTermStructure> flatRate(
-            ext::make_shared<FlatForward>(0, NullCalendar(), h1, dayCounter));
-        Handle<BlackVolTermStructure> flatVol(
-            ext::make_shared<BlackConstantVol>(0, NullCalendar(), h2, dayCounter));
+        Handle<YieldTermStructure> flatRate(ext::make_shared<FlatForward>(0, NullCalendar(), h1, dayCounter));
+        Handle<BlackVolTermStructure> flatVol(ext::make_shared<BlackConstantVol>(0, NullCalendar(), h2, dayCounter));
 
         // instantiate the option
         auto exercise = ext::make_shared<EuropeanExercise>(maturity);
         auto payoff = ext::make_shared<PlainVanillaPayoff>(type, strike);
 
-        auto bsProcess = ext::make_shared<BlackScholesProcess>(
-            Handle<Quote>(underlying), flatRate, flatVol);
+        auto bsProcess = ext::make_shared<BlackScholesProcess>(Handle<Quote>(underlying), flatRate, flatVol);
 
         auto barrierEngine = ext::make_shared<AnalyticBarrierEngine>(bsProcess);
         auto europeanEngine = ext::make_shared<AnalyticEuropeanEngine>(bsProcess);
 
-        BarrierOption referenceOption(barrierType, barrier, rebate,
-                                      payoff, exercise);
+        BarrierOption referenceOption(barrierType, barrier, rebate, payoff, exercise);
         referenceOption.setPricingEngine(barrierEngine);
 
         Real referenceValue = referenceOption.NPV();
 
-        std::cout << std::setw(widths[0]) << std::left
-                  << "Original barrier option"
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << referenceValue
-                  << std::setw(widths[2]) << std::left << "N/A"
+        std::cout << std::setw(widths[0]) << std::left << "Original barrier option" << std::fixed
+                  << std::setw(widths[1]) << std::left << referenceValue << std::setw(widths[2]) << std::left << "N/A"
                   << std::endl;
 
         // Replicating portfolios
@@ -127,9 +119,9 @@ int main(int, char* []) {
         auto digitalPayoff = ext::make_shared<CashOrNothingPayoff>(Option::Put, barrier, 1.0);
         auto digitalPut = ext::make_shared<EuropeanOption>(digitalPayoff, exercise);
         digitalPut->setPricingEngine(europeanEngine);
-        portfolio1.subtract(digitalPut, strike-barrier);
-        portfolio2.subtract(digitalPut, strike-barrier);
-        portfolio3.subtract(digitalPut, strike-barrier);
+        portfolio1.subtract(digitalPut, strike - barrier);
+        portfolio2.subtract(digitalPut, strike - barrier);
+        portfolio3.subtract(digitalPut, strike - barrier);
         // ...minus a put option struck at B.
         auto lowerPayoff = ext::make_shared<PlainVanillaPayoff>(Option::Put, barrier);
         auto put2 = ext::make_shared<EuropeanOption>(lowerPayoff, exercise);
@@ -142,23 +134,24 @@ int main(int, char* []) {
         // portfolio on a number of points (B,t).  For the first
         // portfolio, we'll use 12 dates at one-month's distance.
         Integer i;
-        for (i=12; i>=1; i--) {
+        for (i = 12; i >= 1; i--)
+        {
             // First, we instantiate the option...
-            Date innerMaturity = today + i*Months;
+            Date innerMaturity = today + i * Months;
             auto innerExercise = ext::make_shared<EuropeanExercise>(innerMaturity);
             auto innerPayoff = ext::make_shared<PlainVanillaPayoff>(Option::Put, barrier);
             auto putn = ext::make_shared<EuropeanOption>(innerPayoff, innerExercise);
             putn->setPricingEngine(europeanEngine);
             // ...second, we evaluate the current portfolio and the
             // latest put at (B,t)...
-            Date killDate = today + (i-1)*Months;
+            Date killDate = today + (i - 1) * Months;
             Settings::instance().evaluationDate() = killDate;
             underlying->setValue(barrier);
             Real portfolioValue = portfolio1.NPV();
             Real putValue = putn->NPV();
             // ...finally, we estimate the notional that kills the
             // portfolio value at that point...
-            Real notional = portfolioValue/putValue;
+            Real notional = portfolioValue / putValue;
             // ...and we subtract from the portfolio a put with such
             // notional.
             portfolio1.subtract(putn, notional);
@@ -169,114 +162,92 @@ int main(int, char* []) {
         // ...and output the value.
         Real portfolioValue = portfolio1.NPV();
         Real error = portfolioValue - referenceValue;
-        std::cout << std::setw(widths[0]) << std::left
-                  << "Replicating portfolio (12 dates)"
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << portfolioValue
-                  << std::setw(widths[2]) << std::left << error
+        std::cout << std::setw(widths[0]) << std::left << "Replicating portfolio (12 dates)" << std::fixed
+                  << std::setw(widths[1]) << std::left << portfolioValue << std::setw(widths[2]) << std::left << error
                   << std::endl;
 
         // For the second portfolio, we'll use 26 dates at two-weeks'
         // distance.
-        for (i=52; i>=2; i-=2) {
+        for (i = 52; i >= 2; i -= 2)
+        {
             // Same as above.
-            Date innerMaturity = today + i*Weeks;
+            Date innerMaturity = today + i * Weeks;
             auto innerExercise = ext::make_shared<EuropeanExercise>(innerMaturity);
             auto innerPayoff = ext::make_shared<PlainVanillaPayoff>(Option::Put, barrier);
             auto putn = ext::make_shared<EuropeanOption>(innerPayoff, innerExercise);
             putn->setPricingEngine(europeanEngine);
-            Date killDate = today + (i-2)*Weeks;
+            Date killDate = today + (i - 2) * Weeks;
             Settings::instance().evaluationDate() = killDate;
             underlying->setValue(barrier);
             Real portfolioValue = portfolio2.NPV();
             Real putValue = putn->NPV();
-            Real notional = portfolioValue/putValue;
+            Real notional = portfolioValue / putValue;
             portfolio2.subtract(putn, notional);
         }
         Settings::instance().evaluationDate() = today;
         underlying->setValue(underlyingValue);
         portfolioValue = portfolio2.NPV();
         error = portfolioValue - referenceValue;
-        std::cout << std::setw(widths[0]) << std::left
-                  << "Replicating portfolio (26 dates)"
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << portfolioValue
-                  << std::setw(widths[2]) << std::left << error
+        std::cout << std::setw(widths[0]) << std::left << "Replicating portfolio (26 dates)" << std::fixed
+                  << std::setw(widths[1]) << std::left << portfolioValue << std::setw(widths[2]) << std::left << error
                   << std::endl;
 
         // For the third portfolio, we'll use 52 dates at one-week's
         // distance.
-        for (i=52; i>=1; i--) {
+        for (i = 52; i >= 1; i--)
+        {
             // Same as above.
-            Date innerMaturity = today + i*Weeks;
+            Date innerMaturity = today + i * Weeks;
             auto innerExercise = ext::make_shared<EuropeanExercise>(innerMaturity);
             auto innerPayoff = ext::make_shared<PlainVanillaPayoff>(Option::Put, barrier);
             auto putn = ext::make_shared<EuropeanOption>(innerPayoff, innerExercise);
             putn->setPricingEngine(europeanEngine);
-            Date killDate = today + (i-1)*Weeks;
+            Date killDate = today + (i - 1) * Weeks;
             Settings::instance().evaluationDate() = killDate;
             underlying->setValue(barrier);
             Real portfolioValue = portfolio3.NPV();
             Real putValue = putn->NPV();
-            Real notional = portfolioValue/putValue;
+            Real notional = portfolioValue / putValue;
             portfolio3.subtract(putn, notional);
         }
         Settings::instance().evaluationDate() = today;
         underlying->setValue(underlyingValue);
         portfolioValue = portfolio3.NPV();
         error = portfolioValue - referenceValue;
-        std::cout << std::setw(widths[0]) << std::left
-                  << "Replicating portfolio (52 dates)"
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << portfolioValue
-                  << std::setw(widths[2]) << std::left << error
+        std::cout << std::setw(widths[0]) << std::left << "Replicating portfolio (52 dates)" << std::fixed
+                  << std::setw(widths[1]) << std::left << portfolioValue << std::setw(widths[2]) << std::left << error
                   << std::endl;
 
         // Now we modify the market condition to see whether the
         // replication holds. First, we change the underlying value so
         // that the option is out of the money.
         std::cout << dblrule << std::endl;
-        std::cout << "Modified market conditions: out of the money"
-                  << std::endl;
+        std::cout << "Modified market conditions: out of the money" << std::endl;
         std::cout << dblrule << std::endl;
-        std::cout << std::setw(widths[0]) << std::left << "Option"
-                  << std::setw(widths[1]) << std::left << "NPV"
-                  << std::setw(widths[2]) << std::left << "Error"
-                  << std::endl;
+        std::cout << std::setw(widths[0]) << std::left << "Option" << std::setw(widths[1]) << std::left << "NPV"
+                  << std::setw(widths[2]) << std::left << "Error" << std::endl;
         std::cout << rule << std::endl;
 
         underlying->setValue(110.0);
 
         referenceValue = referenceOption.NPV();
-        std::cout << std::setw(widths[0]) << std::left
-                  << "Original barrier option"
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << referenceValue
-                  << std::setw(widths[2]) << std::left << "N/A"
+        std::cout << std::setw(widths[0]) << std::left << "Original barrier option" << std::fixed
+                  << std::setw(widths[1]) << std::left << referenceValue << std::setw(widths[2]) << std::left << "N/A"
                   << std::endl;
         portfolioValue = portfolio1.NPV();
         error = portfolioValue - referenceValue;
-        std::cout << std::setw(widths[0]) << std::left
-                  << "Replicating portfolio (12 dates)"
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << portfolioValue
-                  << std::setw(widths[2]) << std::left << error
+        std::cout << std::setw(widths[0]) << std::left << "Replicating portfolio (12 dates)" << std::fixed
+                  << std::setw(widths[1]) << std::left << portfolioValue << std::setw(widths[2]) << std::left << error
                   << std::endl;
         portfolioValue = portfolio2.NPV();
         error = portfolioValue - referenceValue;
-        std::cout << std::setw(widths[0]) << std::left
-                  << "Replicating portfolio (26 dates)"
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << portfolioValue
-                  << std::setw(widths[2]) << std::left << error
+        std::cout << std::setw(widths[0]) << std::left << "Replicating portfolio (26 dates)" << std::fixed
+                  << std::setw(widths[1]) << std::left << portfolioValue << std::setw(widths[2]) << std::left << error
                   << std::endl;
         portfolioValue = portfolio3.NPV();
         error = portfolioValue - referenceValue;
-        std::cout << std::setw(widths[0]) << std::left
-                  << "Replicating portfolio (52 dates)"
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << portfolioValue
-                  << std::setw(widths[2]) << std::left << error
+        std::cout << std::setw(widths[0]) << std::left << "Replicating portfolio (52 dates)" << std::fixed
+                  << std::setw(widths[1]) << std::left << portfolioValue << std::setw(widths[2]) << std::left << error
                   << std::endl;
 
         // Next, we change the underlying value so that the option is
@@ -284,61 +255,49 @@ int main(int, char* []) {
         std::cout << dblrule << std::endl;
         std::cout << "Modified market conditions: in the money" << std::endl;
         std::cout << dblrule << std::endl;
-        std::cout << std::setw(widths[0]) << std::left << "Option"
-                  << std::setw(widths[1]) << std::left << "NPV"
-                  << std::setw(widths[2]) << std::left << "Error"
-                  << std::endl;
+        std::cout << std::setw(widths[0]) << std::left << "Option" << std::setw(widths[1]) << std::left << "NPV"
+                  << std::setw(widths[2]) << std::left << "Error" << std::endl;
         std::cout << rule << std::endl;
 
         underlying->setValue(90.0);
 
         referenceValue = referenceOption.NPV();
-        std::cout << std::setw(widths[0]) << std::left
-                  << "Original barrier option"
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << referenceValue
-                  << std::setw(widths[2]) << std::left << "N/A"
+        std::cout << std::setw(widths[0]) << std::left << "Original barrier option" << std::fixed
+                  << std::setw(widths[1]) << std::left << referenceValue << std::setw(widths[2]) << std::left << "N/A"
                   << std::endl;
         portfolioValue = portfolio1.NPV();
         error = portfolioValue - referenceValue;
-        std::cout << std::setw(widths[0]) << std::left
-                  << "Replicating portfolio (12 dates)"
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << portfolioValue
-                  << std::setw(widths[2]) << std::left << error
+        std::cout << std::setw(widths[0]) << std::left << "Replicating portfolio (12 dates)" << std::fixed
+                  << std::setw(widths[1]) << std::left << portfolioValue << std::setw(widths[2]) << std::left << error
                   << std::endl;
         portfolioValue = portfolio2.NPV();
         error = portfolioValue - referenceValue;
-        std::cout << std::setw(widths[0]) << std::left
-                  << "Replicating portfolio (26 dates)"
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << portfolioValue
-                  << std::setw(widths[2]) << std::left << error
+        std::cout << std::setw(widths[0]) << std::left << "Replicating portfolio (26 dates)" << std::fixed
+                  << std::setw(widths[1]) << std::left << portfolioValue << std::setw(widths[2]) << std::left << error
                   << std::endl;
         portfolioValue = portfolio3.NPV();
         error = portfolioValue - referenceValue;
-        std::cout << std::setw(widths[0]) << std::left
-                  << "Replicating portfolio (52 dates)"
-                  << std::fixed
-                  << std::setw(widths[1]) << std::left << portfolioValue
-                  << std::setw(widths[2]) << std::left << error
+        std::cout << std::setw(widths[0]) << std::left << "Replicating portfolio (52 dates)" << std::fixed
+                  << std::setw(widths[1]) << std::left << portfolioValue << std::setw(widths[2]) << std::left << error
                   << std::endl;
 
         // Finally, a word of warning for those (shame on them) who
         // run the example but do not read the code.
         std::cout << dblrule << std::endl;
-        std::cout
-            << std::endl
-            << "The replication seems to be less robust when volatility and \n"
-            << "risk-free rate are changed. Feel free to experiment with \n"
-            << "the example and contribute a patch if you spot any errors."
-            << std::endl;
+        std::cout << std::endl
+                  << "The replication seems to be less robust when volatility and \n"
+                  << "risk-free rate are changed. Feel free to experiment with \n"
+                  << "the example and contribute a patch if you spot any errors." << std::endl;
 
         return 0;
-    } catch (std::exception& e) {
+    }
+    catch (std::exception& e)
+    {
         std::cerr << e.what() << std::endl;
         return 1;
-    } catch (...) {
+    }
+    catch (...)
+    {
         std::cerr << "unknown error" << std::endl;
         return 1;
     }

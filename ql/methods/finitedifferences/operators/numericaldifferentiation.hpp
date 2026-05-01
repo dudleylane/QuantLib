@@ -28,7 +28,8 @@
 #include <ql/math/array.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Numerical Differentiation on arbitrarily spaced grids
 
@@ -38,19 +39,20 @@ namespace QuantLib {
         on Arbitrarily Spaced Grids,
         http://amath.colorado.edu/faculty/fornberg/Docs/MathComp_88_FD_formulas.pdf
     */
-    class NumericalDifferentiation {
+    class NumericalDifferentiation
+    {
       public:
-        enum Scheme { Central, Backward, Forward };
+        enum Scheme
+        {
+            Central,
+            Backward,
+            Forward
+        };
 
-        NumericalDifferentiation(std::function<Real(Real)> f,
-                                 Size orderOfDerivative,
-                                 Array x_offsets);
+        NumericalDifferentiation(std::function<Real(Real)> f, Size orderOfDerivative, Array x_offsets);
 
-        NumericalDifferentiation(std::function<Real(Real)> f,
-                                 Size orderOfDerivative,
-                                 Real stepSize,
-                                 Size steps,
-                                 Scheme scheme);
+        NumericalDifferentiation(
+            std::function<Real(Real)> f, Size orderOfDerivative, Real stepSize, Size steps, Scheme scheme);
 
         Real operator()(Real x) const;
         const Array& offsets() const;
@@ -62,25 +64,29 @@ namespace QuantLib {
     };
 
 
-    inline Real NumericalDifferentiation::operator()(Real x) const {
+    inline Real NumericalDifferentiation::operator()(Real x) const
+    {
         Real s = 0.0;
-        for (Size i=0; i < w_.size(); ++i) {
-            if (std::fabs(w_[i]) > QL_EPSILON*QL_EPSILON) {
-                s += w_[i] * f_(x+offsets_[i]);
+        for (Size i = 0; i < w_.size(); ++i)
+        {
+            if (std::fabs(w_[i]) > QL_EPSILON * QL_EPSILON)
+            {
+                s += w_[i] * f_(x + offsets_[i]);
             }
         }
         return s;
     }
 
-    inline const Array& NumericalDifferentiation::weights() const {
+    inline const Array& NumericalDifferentiation::weights() const
+    {
         return w_;
     }
 
-    inline const Array& NumericalDifferentiation::offsets() const {
+    inline const Array& NumericalDifferentiation::offsets() const
+    {
         return offsets_;
     }
 }
 
 
 #endif
-

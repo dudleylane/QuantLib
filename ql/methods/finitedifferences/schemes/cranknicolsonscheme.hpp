@@ -26,7 +26,8 @@
 
 #include <ql/methods/finitedifferences/schemes/impliciteulerscheme.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! In one dimension the Crank-Nicolson scheme is equivalent to the
         Douglas scheme and in higher dimensions it is usually inferior to
@@ -34,7 +35,8 @@ namespace QuantLib {
     */
     class ExplicitEulerScheme;
 
-    class CrankNicolsonScheme  {
+    class CrankNicolsonScheme
+    {
       public:
         // typedefs
         typedef OperatorTraits<FdmLinearOp> traits;
@@ -44,18 +46,17 @@ namespace QuantLib {
         typedef traits::condition_type condition_type;
 
         // constructors
-        CrankNicolsonScheme(
-            Real theta,
-            const ext::shared_ptr<FdmLinearOpComposite>& map,
-            const bc_set& bcSet = bc_set(),
-            Real relTol = 1e-8,
-            ImplicitEulerScheme::SolverType solverType
-                = ImplicitEulerScheme::BiCGstab);
+        CrankNicolsonScheme(Real theta,
+                            const ext::shared_ptr<FdmLinearOpComposite>& map,
+                            const bc_set& bcSet = bc_set(),
+                            Real relTol = 1e-8,
+                            ImplicitEulerScheme::SolverType solverType = ImplicitEulerScheme::BiCGstab);
 
         void step(array_type& a, Time t);
         void setStep(Time dt);
 
         Size numberOfIterations() const;
+
       protected:
         Real dt_;
         const Real theta_;

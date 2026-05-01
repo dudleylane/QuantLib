@@ -26,11 +26,12 @@
 #ifndef quantlib_black_variance_curve_hpp
 #define quantlib_black_variance_curve_hpp
 
+#include <ql/math/interpolation.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvoltermstructure.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvoltimeextrapolation.hpp>
-#include <ql/math/interpolation.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Black volatility curve modelled as variance curve
     /*! This class calculates time-dependent Black volatilities using
@@ -46,14 +47,16 @@ namespace QuantLib {
         \todo check time extrapolation
 
     */
-    class BlackVarianceCurve : public BlackVarianceTermStructure {
+    class BlackVarianceCurve : public BlackVarianceTermStructure
+    {
       public:
-        BlackVarianceCurve(const Date& referenceDate,
-                           const std::vector<Date>& dates,
-                           const std::vector<Volatility>& blackVolCurve,
-                           DayCounter dayCounter,
-                           bool forceMonotoneVariance = true,
-                           BlackVolTimeExtrapolation::Type timeExtrapolationType = BlackVolTimeExtrapolation::FlatVolatility);
+        BlackVarianceCurve(
+            const Date& referenceDate,
+            const std::vector<Date>& dates,
+            const std::vector<Volatility>& blackVolCurve,
+            DayCounter dayCounter,
+            bool forceMonotoneVariance = true,
+            BlackVolTimeExtrapolation::Type timeExtrapolationType = BlackVolTimeExtrapolation::FlatVolatility);
         //! \name TermStructure interface
         //@{
         DayCounter dayCounter() const override { return dayCounter_; }
@@ -67,9 +70,9 @@ namespace QuantLib {
         //! \name Modifiers
         //@{
         template <class Interpolator>
-        void setInterpolation(const Interpolator& i = Interpolator()) {
-            varianceCurve_ = i.interpolate(times_.begin(), times_.end(),
-                                           variances_.begin());
+        void setInterpolation(const Interpolator& i = Interpolator())
+        {
+            varianceCurve_ = i.interpolate(times_.begin(), times_.end(), variances_.begin());
             varianceCurve_.update();
             notifyObservers();
         }
@@ -93,19 +96,23 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline Date BlackVarianceCurve::maxDate() const {
+    inline Date BlackVarianceCurve::maxDate() const
+    {
         return maxDate_;
     }
 
-    inline Real BlackVarianceCurve::minStrike() const {
+    inline Real BlackVarianceCurve::minStrike() const
+    {
         return QL_MIN_REAL;
     }
 
-    inline Real BlackVarianceCurve::maxStrike() const {
+    inline Real BlackVarianceCurve::maxStrike() const
+    {
         return QL_MAX_REAL;
     }
 
-    inline void BlackVarianceCurve::accept(AcyclicVisitor& v) {
+    inline void BlackVarianceCurve::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<BlackVarianceCurve>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);

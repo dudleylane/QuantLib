@@ -25,14 +25,15 @@
 #ifndef quantlib_analytic_continuous_geometric_average_price_asian_heston_engine_hpp
 #define quantlib_analytic_continuous_geometric_average_price_asian_heston_engine_hpp
 
+#include <ql/exercise.hpp>
 #include <ql/instruments/asianoption.hpp>
-#include <ql/processes/hestonprocess.hpp>
 #include <ql/math/integrals/gaussianquadratures.hpp>
 #include <ql/math/integrals/simpsonintegral.hpp>
-#include <ql/exercise.hpp>
+#include <ql/processes/hestonprocess.hpp>
 #include <complex>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Pricing engine for European continuous geometric average price Asian
     /*! This class implements a continuous geometric average price
@@ -62,20 +63,18 @@ namespace QuantLib {
 
         \todo handle seasoned options
     */
-    class AnalyticContinuousGeometricAveragePriceAsianHestonEngine
-        : public ContinuousAveragingAsianOption::engine {
+    class AnalyticContinuousGeometricAveragePriceAsianHestonEngine : public ContinuousAveragingAsianOption::engine
+    {
       public:
-        explicit AnalyticContinuousGeometricAveragePriceAsianHestonEngine(
-            ext::shared_ptr<HestonProcess> process,
-            Size summationCutoff = 50,
-            Real xiRightLimit = 100.0);
+        explicit AnalyticContinuousGeometricAveragePriceAsianHestonEngine(ext::shared_ptr<HestonProcess> process,
+                                                                          Size summationCutoff = 50,
+                                                                          Real xiRightLimit = 100.0);
         void calculate() const override;
 
         // Phi, defined in eq (25). Must be public so the integrand can access it (Could
         // use friend functions I think, but perhaps overkill?)
-        std::complex<Real> Phi(const std::complex<Real>& s,
-                               const std::complex<Real>& w,
-                               Real T, Real t = 0.0, Size cutoff = 50) const;
+        std::complex<Real>
+        Phi(const std::complex<Real>& s, const std::complex<Real>& w, Real T, Real t = 0.0, Size cutoff = 50) const;
 
       private:
         // Initial process params
@@ -91,7 +90,7 @@ namespace QuantLib {
         mutable Real a3_ = 0.0, a4_ = 0.0, a5_ = 0.0;
 
         // A lookup table for the reuslts of f() to avoid repeated calls
-        mutable std::map<int, std::complex<Real> > fLookupTable_;
+        mutable std::map<int, std::complex<Real>> fLookupTable_;
 
         // Cutoff parameters for summation (19), (20) and for integral (29)
         Size summationCutoff_;
@@ -111,13 +110,12 @@ namespace QuantLib {
         std::complex<Real> z4_f(const std::complex<Real>& s, const std::complex<Real>& w) const;
 
         // Equations (19), (20)
-        std::pair<std::complex<Real>, std::complex<Real> > F_F_tilde(
-                                        const std::complex<Real>& z1,
-                                        const std::complex<Real>& z2,
-                                        const std::complex<Real>& z3,
-                                        const std::complex<Real>& z4,
-                                        Real tau,
-                                        Size cutoff = 50) const;
+        std::pair<std::complex<Real>, std::complex<Real>> F_F_tilde(const std::complex<Real>& z1,
+                                                                    const std::complex<Real>& z2,
+                                                                    const std::complex<Real>& z3,
+                                                                    const std::complex<Real>& z4,
+                                                                    Real tau,
+                                                                    Size cutoff = 50) const;
 
         // Equation (21)
         std::complex<Real> f(const std::complex<Real>& z1,

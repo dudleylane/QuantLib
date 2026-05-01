@@ -20,41 +20,46 @@
 
 #include <ql/pricingengines/asian/mc_discr_geom_av_price.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     GeometricAPOPathPricer::GeometricAPOPathPricer(
-                                         Option::Type type,
-                                         Real strike, DiscountFactor discount,
-                                         Real runningProduct, Size pastFixings)
-    : payoff_(type, strike), discount_(discount),
-      runningProduct_(runningProduct), pastFixings_(pastFixings) {
-        QL_REQUIRE(strike>=0.0, "negative strike given");
+        Option::Type type, Real strike, DiscountFactor discount, Real runningProduct, Size pastFixings)
+    : payoff_(type, strike), discount_(discount), runningProduct_(runningProduct), pastFixings_(pastFixings)
+    {
+        QL_REQUIRE(strike >= 0.0, "negative strike given");
     }
 
-    Real GeometricAPOPathPricer::operator()(const Path& path) const {
+    Real GeometricAPOPathPricer::operator()(const Path& path) const
+    {
         Size n = path.length() - 1;
-        QL_REQUIRE(n>0, "the path cannot be empty");
+        QL_REQUIRE(n > 0, "the path cannot be empty");
 
         Real averagePrice;
         Real product = runningProduct_;
-        Size fixings = n+pastFixings_;
-        if (path.timeGrid().mandatoryTimes()[0]==0.0) {
+        Size fixings = n + pastFixings_;
+        if (path.timeGrid().mandatoryTimes()[0] == 0.0)
+        {
             fixings += 1;
             product *= path.front();
         }
         // care must be taken not to overflow product
         constexpr double maxValue = QL_MAX_REAL;
         averagePrice = 1.0;
-        for (Size i=1; i<n+1; i++) {
+        for (Size i = 1; i < n + 1; i++)
+        {
             Real price = path[i];
-            if (product < maxValue/price) {
+            if (product < maxValue / price)
+            {
                 product *= price;
-            } else {
-                averagePrice *= std::pow(product, 1.0/fixings);
+            }
+            else
+            {
+                averagePrice *= std::pow(product, 1.0 / fixings);
                 product = price;
             }
         }
-        averagePrice *= std::pow(product, 1.0/fixings);
+        averagePrice *= std::pow(product, 1.0 / fixings);
         return discount_ * payoff_(averagePrice);
     }
 

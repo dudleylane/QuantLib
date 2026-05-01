@@ -14,4 +14,3 @@
 #include <ql/pricingengines/basket/spreadblackscholesvanillaengine.hpp>
 #include <ql/pricingengines/basket/stulzengine.hpp>
 #include <ql/pricingengines/basket/vectorbsmprocessextractor.hpp>
-

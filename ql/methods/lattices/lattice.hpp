@@ -25,11 +25,12 @@
 #ifndef quantlib_tree_based_lattice_hpp
 #define quantlib_tree_based_lattice_hpp
 
-#include <ql/numericalmethod.hpp>
 #include <ql/discretizedasset.hpp>
+#include <ql/numericalmethod.hpp>
 #include <ql/patterns/curiouslyrecurring.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Tree-based lattice-method base class
     /*! This class defines a lattice method that is able to rollback
@@ -54,13 +55,12 @@ namespace QuantLib {
         \ingroup lattices
     */
     template <class Impl>
-    class TreeLattice : public Lattice,
-                        public CuriouslyRecurringTemplate<Impl> {
+    class TreeLattice : public Lattice, public CuriouslyRecurringTemplate<Impl>
+    {
       public:
-        TreeLattice(const TimeGrid& timeGrid,
-                    Size n)
-        : Lattice(timeGrid), n_(n) {
-            QL_REQUIRE(n>0, "there is no zeronomial lattice!");
+        TreeLattice(const TimeGrid& timeGrid, Size n) : Lattice(timeGrid), n_(n)
+        {
+            QL_REQUIRE(n > 0, "there is no zeronomial lattice!");
             statePrices_ = std::vector<Array>(1, Array(1, 1.0));
             statePricesLimit_ = 0;
         }
@@ -76,9 +76,7 @@ namespace QuantLib {
 
         const Array& statePrices(Size i) const;
 
-        void stepback(Size i,
-                      const Array& values,
-                      Array& newValues) const;
+        void stepback(Size i, const Array& values, Array& newValues) const;
 
       protected:
         void computeStatePrices(Size until) const;
@@ -95,15 +93,19 @@ namespace QuantLib {
     // template definitions
 
     template <class Impl>
-    void TreeLattice<Impl>::computeStatePrices(Size until) const {
-        for (Size i=statePricesLimit_; i<until; i++) {
-            statePrices_.push_back(Array(this->impl().size(i+1), 0.0));
-            for (Size j=0; j<this->impl().size(i); j++) {
-                DiscountFactor disc = this->impl().discount(i,j);
+    void TreeLattice<Impl>::computeStatePrices(Size until) const
+    {
+        for (Size i = statePricesLimit_; i < until; i++)
+        {
+            statePrices_.push_back(Array(this->impl().size(i + 1), 0.0));
+            for (Size j = 0; j < this->impl().size(i); j++)
+            {
+                DiscountFactor disc = this->impl().discount(i, j);
                 Real statePrice = statePrices_[i][j];
-                for (Size l=0; l<n_; l++) {
-                    statePrices_[i+1][this->impl().descendant(i,j,l)] +=
-                        statePrice*disc*this->impl().probability(i,j,l);
+                for (Size l = 0; l < n_; l++)
+                {
+                    statePrices_[i + 1][this->impl().descendant(i, j, l)] +=
+                        statePrice * disc * this->impl().probability(i, j, l);
                 }
             }
         }
@@ -111,48 +113,51 @@ namespace QuantLib {
     }
 
     template <class Impl>
-    const Array& TreeLattice<Impl>::statePrices(Size i) const {
-        if (i>statePricesLimit_)
+    const Array& TreeLattice<Impl>::statePrices(Size i) const
+    {
+        if (i > statePricesLimit_)
             computeStatePrices(i);
         return statePrices_[i];
     }
 
     template <class Impl>
-    inline Real TreeLattice<Impl>::presentValue(DiscretizedAsset& asset) const {
+    inline Real TreeLattice<Impl>::presentValue(DiscretizedAsset& asset) const
+    {
         Size i = t_.index(asset.time());
         return DotProduct(asset.values(), statePrices(i));
     }
 
     template <class Impl>
-    inline void TreeLattice<Impl>::initialize(DiscretizedAsset& asset, Time t) const {
+    inline void TreeLattice<Impl>::initialize(DiscretizedAsset& asset, Time t) const
+    {
         Size i = t_.index(t);
         asset.time() = t;
         asset.reset(this->impl().size(i));
     }
 
     template <class Impl>
-    inline void TreeLattice<Impl>::rollback(DiscretizedAsset& asset, Time to) const {
-        partialRollback(asset,to);
+    inline void TreeLattice<Impl>::rollback(DiscretizedAsset& asset, Time to) const
+    {
+        partialRollback(asset, to);
         asset.adjustValues();
     }
 
     template <class Impl>
-    void TreeLattice<Impl>::partialRollback(DiscretizedAsset& asset,
-                                            Time to) const {
+    void TreeLattice<Impl>::partialRollback(DiscretizedAsset& asset, Time to) const
+    {
 
         Time from = asset.time();
 
-        if (close(from,to))
+        if (close(from, to))
             return;
 
-        QL_REQUIRE(from > to,
-                   "cannot roll the asset back to" << to
-                   << " (it is already at t = " << from << ")");
+        QL_REQUIRE(from > to, "cannot roll the asset back to" << to << " (it is already at t = " << from << ")");
 
         auto iFrom = Integer(t_.index(from));
         auto iTo = Integer(t_.index(to));
 
-        for (Integer i=iFrom-1; i>=iTo; --i) {
+        for (Integer i = iFrom - 1; i >= iTo; --i)
+        {
             Array newValues(this->impl().size(i));
             this->impl().stepback(i, asset.values(), newValues);
             asset.time() = t_[i];
@@ -164,16 +169,17 @@ namespace QuantLib {
     }
 
     template <class Impl>
-    void TreeLattice<Impl>::stepback(Size i, const Array& values,
-                                     Array& newValues) const {
-        #pragma omp parallel for
-        for (long j=0; j<(long)this->impl().size(i); j++) {
+    void TreeLattice<Impl>::stepback(Size i, const Array& values, Array& newValues) const
+    {
+#pragma omp parallel for
+        for (long j = 0; j < (long)this->impl().size(i); j++)
+        {
             Real value = 0.0;
-            for (Size l=0; l<n_; l++) {
-                value += this->impl().probability(i,j,l) *
-                         values[this->impl().descendant(i,j,l)];
+            for (Size l = 0; l < n_; l++)
+            {
+                value += this->impl().probability(i, j, l) * values[this->impl().descendant(i, j, l)];
             }
-            value *= this->impl().discount(i,j);
+            value *= this->impl().discount(i, j);
             newValues[j] = value;
         }
     }

@@ -23,55 +23,64 @@
 #include <ql/pricingengines/vanilla/analyticeuropeanvasicekengine.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
+    namespace
+    {
 
-        Real g_k(Real t, Real kappa){
-            return (1 - std::exp(- kappa * t )) / kappa;
+        Real g_k(Real t, Real kappa)
+        {
+            return (1 - std::exp(-kappa * t)) / kappa;
         }
 
-        class integrand_vasicek {
+        class integrand_vasicek
+        {
           private:
             const Real sigma_s_;
             const Real sigma_r_;
             const Real correlation_;
             const Real kappa_;
             const Real T_;
+
           public:
             integrand_vasicek(Real sigma_s, Real sigma_r, Real correlation, Real kappa, Real T)
-            : sigma_s_(sigma_s), sigma_r_(sigma_r), correlation_(correlation), kappa_(kappa), T_(T){}
-            Real operator()(Real u) const {
+            : sigma_s_(sigma_s), sigma_r_(sigma_r), correlation_(correlation), kappa_(kappa), T_(T)
+            {
+            }
+            Real operator()(Real u) const
+            {
                 Real g = g_k(T_ - u, kappa_);
-                return (sigma_s_ * sigma_s_) + (2 * correlation_ * sigma_s_ * sigma_r_ * g) + (sigma_r_ * sigma_r_ * g * g);
+                return (sigma_s_ * sigma_s_) + (2 * correlation_ * sigma_s_ * sigma_r_ * g) +
+                       (sigma_r_ * sigma_r_ * g * g);
             }
         };
 
     }
 
-    AnalyticBlackVasicekEngine::AnalyticBlackVasicekEngine(
-        ext::shared_ptr<GeneralizedBlackScholesProcess> blackProcess,
-        ext::shared_ptr<Vasicek> vasicekProcess,
-        Real correlation)
+    AnalyticBlackVasicekEngine::AnalyticBlackVasicekEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> blackProcess,
+                                                           ext::shared_ptr<Vasicek> vasicekProcess,
+                                                           Real correlation)
     : blackProcess_(std::move(blackProcess)), vasicekProcess_(std::move(vasicekProcess)),
-      simpsonIntegral_(new SimpsonIntegral(1e-5, 1000)), correlation_(correlation) {
+      simpsonIntegral_(new SimpsonIntegral(1e-5, 1000)), correlation_(correlation)
+    {
         registerWith(blackProcess_);
         registerWith(vasicekProcess_);
     }
 
-    void AnalyticBlackVasicekEngine::calculate() const {
-        QL_REQUIRE(arguments_.exercise->type() == Exercise::European,
-                   "not an European option");
+    void AnalyticBlackVasicekEngine::calculate() const
+    {
+        QL_REQUIRE(arguments_.exercise->type() == Exercise::European, "not an European option");
 
-        ext::shared_ptr<StrikedTypePayoff> payoff =
-                ext::dynamic_pointer_cast<StrikedTypePayoff>(arguments_.payoff);
+        ext::shared_ptr<StrikedTypePayoff> payoff = ext::dynamic_pointer_cast<StrikedTypePayoff>(arguments_.payoff);
 
         QL_REQUIRE(payoff, "non-striked payoff given");
 
         CumulativeNormalDistribution f;
 
         Real t = 0;
-        Real T = blackProcess_->riskFreeRate()->dayCounter().yearFraction(blackProcess_->riskFreeRate().currentLink()->referenceDate(),arguments_.exercise->lastDate());
+        Real T = blackProcess_->riskFreeRate()->dayCounter().yearFraction(
+            blackProcess_->riskFreeRate().currentLink()->referenceDate(), arguments_.exercise->lastDate());
         Real kappa = vasicekProcess_->a();
         Real S_t = blackProcess_->x0();
         Real K = payoff->strike();
@@ -91,4 +100,3 @@ namespace QuantLib {
     }
 
 }
-

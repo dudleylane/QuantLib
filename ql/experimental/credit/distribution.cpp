@@ -21,30 +21,27 @@
     \brief Discretized probability density and cumulative probability
 */
 
+#include <ql/errors.hpp>
 #include <ql/experimental/credit/distribution.hpp>
 #include <ql/math/comparison.hpp>
-#include <ql/errors.hpp>
 #include <algorithm>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //-------------------------------------------------------------------------
-    Distribution::Distribution (int nBuckets, Real xmin, Real xmax)
+    Distribution::Distribution(int nBuckets, Real xmin, Real xmax)
     //-------------------------------------------------------------------------
-        : size_(nBuckets),
-          xmin_(xmin), xmax_(xmax), count_(nBuckets),
-          x_(nBuckets,0), dx_(nBuckets,0),
-          density_(nBuckets,0),
-          cumulativeDensity_(nBuckets,0),
-          excessProbability_(nBuckets,0),
-          cumulativeExcessProbability_(nBuckets,0),
-          average_(nBuckets,0),
-          overFlow_(0), underFlow_(0),
-          isNormalized_(false) {
-        for (int i = 0; i < nBuckets; i++) {
+    : size_(nBuckets), xmin_(xmin), xmax_(xmax), count_(nBuckets), x_(nBuckets, 0), dx_(nBuckets, 0),
+      density_(nBuckets, 0), cumulativeDensity_(nBuckets, 0), excessProbability_(nBuckets, 0),
+      cumulativeExcessProbability_(nBuckets, 0), average_(nBuckets, 0), overFlow_(0), underFlow_(0),
+      isNormalized_(false)
+    {
+        for (int i = 0; i < nBuckets; i++)
+        {
             dx_[i] = (xmax - xmin) / nBuckets;
-            x_[i] = (i == 0 ? xmin : x_[i-1] + dx_[i-1]);
+            x_[i] = (i == 0 ? xmin : x_[i - 1] + dx_[i - 1]);
         }
         // ensure we match exactly the domain, otherwise we might fail the
         //   locate test because of precission mismatches
@@ -52,15 +49,14 @@ namespace QuantLib {
     }
 
     //-------------------------------------------------------------------------
-    int Distribution::locate (Real x) {
-    //-------------------------------------------------------------------------
-        QL_REQUIRE ((x >= x_.front() || close(x, x_.front())) &&
-                    (x <= x_.back() + dx_.back()
-                     || close(x, x_.back() + dx_.back())),
-                    "coordinate " << x
-                    << " out of range [" << x_.front() << "; "
-                    << x_.back() + dx_.back() << "]");
-        for (Size i = 0; i < x_.size(); i++) {
+    int Distribution::locate(Real x)
+    {
+        //-------------------------------------------------------------------------
+        QL_REQUIRE((x >= x_.front() || close(x, x_.front())) &&
+                       (x <= x_.back() + dx_.back() || close(x, x_.back() + dx_.back())),
+                   "coordinate " << x << " out of range [" << x_.front() << "; " << x_.back() + dx_.back() << "]");
+        for (Size i = 0; i < x_.size(); i++)
+        {
             if (x_[i] > x)
                 return i - 1;
         }
@@ -68,20 +64,26 @@ namespace QuantLib {
     }
 
     //-------------------------------------------------------------------------
-    Real Distribution::dx (Real x) {
-    //-------------------------------------------------------------------------
-        int i = locate (x);
+    Real Distribution::dx(Real x)
+    {
+        //-------------------------------------------------------------------------
+        int i = locate(x);
         return dx_[i];
     }
 
     //-------------------------------------------------------------------------
-    void Distribution::add (Real value) {
-    //-------------------------------------------------------------------------
+    void Distribution::add(Real value)
+    {
+        //-------------------------------------------------------------------------
         isNormalized_ = false;
-        if (value < x_.front()) underFlow_++;
-        else {
-            for (Size i = 0; i < count_.size(); i++) {
-                if (x_[i] + dx_[i] > value) {
+        if (value < x_.front())
+            underFlow_++;
+        else
+        {
+            for (Size i = 0; i < count_.size(); i++)
+            {
+                if (x_[i] + dx_[i] > value)
+                {
                     count_[i]++;
                     average_[i] += value;
                     return;
@@ -92,24 +94,27 @@ namespace QuantLib {
     }
 
     //-------------------------------------------------------------------------
-    void Distribution::addDensity (int bucket, Real value) {
-    //-------------------------------------------------------------------------
-        QL_REQUIRE (bucket >= 0 && bucket < size_, "bucket out of range");
+    void Distribution::addDensity(int bucket, Real value)
+    {
+        //-------------------------------------------------------------------------
+        QL_REQUIRE(bucket >= 0 && bucket < size_, "bucket out of range");
         isNormalized_ = false;
         density_[bucket] += value;
     }
 
     //-------------------------------------------------------------------------
-    void Distribution::addAverage (int bucket, Real value) {
-    //-------------------------------------------------------------------------
-        QL_REQUIRE (bucket >= 0 && bucket < size_, "bucket out of range");
+    void Distribution::addAverage(int bucket, Real value)
+    {
+        //-------------------------------------------------------------------------
+        QL_REQUIRE(bucket >= 0 && bucket < size_, "bucket out of range");
         isNormalized_ = false;
         average_[bucket] += value;
     }
 
     //-------------------------------------------------------------------------
-    void Distribution::normalize () {
-    //-------------------------------------------------------------------------
+    void Distribution::normalize()
+    {
+        //-------------------------------------------------------------------------
         if (isNormalized_)
             return;
 
@@ -119,28 +124,30 @@ namespace QuantLib {
 
         excessProbability_[0] = 1.0;
         cumulativeExcessProbability_[0] = 0.0;
-        for (int i = 0; i < size_; i++) {
-            if (count > 0) {
+        for (int i = 0; i < size_; i++)
+        {
+            if (count > 0)
+            {
                 density_[i] = 1.0 / dx_[i] * count_[i] / count;
                 if (count_[i] > 0)
                     average_[i] /= count_[i];
             }
             if (density_[i] == 0.0)
-                average_[i] = x_[i] + dx_[i]/2;
+                average_[i] = x_[i] + dx_[i] / 2;
 
             cumulativeDensity_[i] = density_[i] * dx_[i];
-            if (i > 0) {
-                cumulativeDensity_[i] += cumulativeDensity_[i-1];
-                excessProbability_[i] = 1.0 - cumulativeDensity_[i-1];
-//                     excessProbability_[i] = excessProbability_[i-1]
-//                         - density_[i-1] * dx_[i-1];
-//                     cumulativeExcessProbability_[i]
-//                         = (excessProbability_[i-1] +
-//                            excessProbability_[i]) / 2 * dx_[i-1]
-//                         + cumulativeExcessProbability_[i-1];
-                cumulativeExcessProbability_[i]
-                    = excessProbability_[i-1] * dx_[i-1]
-                    + cumulativeExcessProbability_[i-1];
+            if (i > 0)
+            {
+                cumulativeDensity_[i] += cumulativeDensity_[i - 1];
+                excessProbability_[i] = 1.0 - cumulativeDensity_[i - 1];
+                //                     excessProbability_[i] = excessProbability_[i-1]
+                //                         - density_[i-1] * dx_[i-1];
+                //                     cumulativeExcessProbability_[i]
+                //                         = (excessProbability_[i-1] +
+                //                            excessProbability_[i]) / 2 * dx_[i-1]
+                //                         + cumulativeExcessProbability_[i-1];
+                cumulativeExcessProbability_[i] =
+                    excessProbability_[i - 1] * dx_[i - 1] + cumulativeExcessProbability_[i - 1];
             }
         }
 
@@ -148,10 +155,12 @@ namespace QuantLib {
     }
 
     //-------------------------------------------------------------------------
-    Real Distribution::confidenceLevel (Real quantil) {
-    //-------------------------------------------------------------------------
+    Real Distribution::confidenceLevel(Real quantil)
+    {
+        //-------------------------------------------------------------------------
         normalize();
-        for (int i = 0; i < size_; i++) {
+        for (int i = 0; i < size_; i++)
+        {
             if (cumulativeDensity_[i] > quantil)
                 return x_[i] + dx_[i];
         }
@@ -159,24 +168,28 @@ namespace QuantLib {
     }
 
     //-------------------------------------------------------------------------
-    Real Distribution::expectedValue () {
-    //-------------------------------------------------------------------------
+    Real Distribution::expectedValue()
+    {
+        //-------------------------------------------------------------------------
         normalize();
         Real expected = 0;
-        for (int i = 0; i < size_; i++) {
-            Real x = x_[i] + dx_[i]/2;
+        for (int i = 0; i < size_; i++)
+        {
+            Real x = x_[i] + dx_[i] / 2;
             expected += x * dx_[i] * density_[i];
         }
         return expected;
     }
 
     //-------------------------------------------------------------------------
-    Real Distribution::trancheExpectedValue (Real a, Real d) {
-    //-------------------------------------------------------------------------
+    Real Distribution::trancheExpectedValue(Real a, Real d)
+    {
+        //-------------------------------------------------------------------------
         normalize();
         Real expected = 0;
-        for (int i = 0; i < size_; i++) {
-            Real x = x_[i] + dx_[i]/2;
+        for (int i = 0; i < size_; i++)
+        {
+            Real x = x_[i] + dx_[i] / 2;
             if (x < a)
                 continue;
             if (x > d)
@@ -184,67 +197,65 @@ namespace QuantLib {
             expected += (x - a) * dx_[i] * density_[i];
         }
 
-        expected += (d - a) * (1.0 - cumulativeDensity (d));
+        expected += (d - a) * (1.0 - cumulativeDensity(d));
 
         return expected;
     }
 
-//     Real Distribution::cumulativeExcessProbability (Real a, Real b) {
-//         //normalize();
-//         Real integral = 0.0;
-//         for (int i = 0; i < size_; i++) {
-//             if (x_[i] >= b) break;
-//             if (x_[i] >= a)
-//                 integral += dx_[i] * excessProbability_[i];
-//         }
-//         return integral;
-//     }
+    //     Real Distribution::cumulativeExcessProbability (Real a, Real b) {
+    //         //normalize();
+    //         Real integral = 0.0;
+    //         for (int i = 0; i < size_; i++) {
+    //             if (x_[i] >= b) break;
+    //             if (x_[i] >= a)
+    //                 integral += dx_[i] * excessProbability_[i];
+    //         }
+    //         return integral;
+    //     }
 
     //-------------------------------------------------------------------------
-    Real Distribution::cumulativeExcessProbability (Real a, Real b) {
-    //-------------------------------------------------------------------------
+    Real Distribution::cumulativeExcessProbability(Real a, Real b)
+    {
+        //-------------------------------------------------------------------------
         normalize();
-        QL_REQUIRE (b <= xmax_,
-                 "end of interval " << b << " out of range ["
-                 << xmin_ << ", " << xmax_ << "]");
-        QL_REQUIRE (a >= xmin_,
-                 "start of interval " << a << " out of range ["
-                 << xmin_ << ", " << xmax_ << "]");
+        QL_REQUIRE(b <= xmax_, "end of interval " << b << " out of range [" << xmin_ << ", " << xmax_ << "]");
+        QL_REQUIRE(a >= xmin_, "start of interval " << a << " out of range [" << xmin_ << ", " << xmax_ << "]");
 
-        int i = locate (a);
-        int j = locate (b);
-        return cumulativeExcessProbability_[j]-cumulativeExcessProbability_[i];
+        int i = locate(a);
+        int j = locate(b);
+        return cumulativeExcessProbability_[j] - cumulativeExcessProbability_[i];
     }
 
     //-------------------------------------------------------------------------
-    Real Distribution::cumulativeDensity (Real x) {
-    //-------------------------------------------------------------------------
+    Real Distribution::cumulativeDensity(Real x)
+    {
+        //-------------------------------------------------------------------------
         Real tiny = dx_.back() * 1e-3;
-        QL_REQUIRE (x > 0, "x must be positive");
+        QL_REQUIRE(x > 0, "x must be positive");
         normalize();
-        for (int i = 0; i < size_; i++) {
+        for (int i = 0; i < size_; i++)
+        {
             if (x_[i] + dx_[i] + tiny >= x)
-                return ((x - x_[i]) * cumulativeDensity_[i]
-                     + (x_[i] + dx_[i] - x) * cumulativeDensity_[i-1]) / dx_[i];
+                return ((x - x_[i]) * cumulativeDensity_[i] + (x_[i] + dx_[i] - x) * cumulativeDensity_[i - 1]) /
+                       dx_[i];
         }
-        QL_FAIL ("x = " << x << " beyond distribution cutoff "
-                 << x_.back() + dx_.back());
+        QL_FAIL("x = " << x << " beyond distribution cutoff " << x_.back() + dx_.back());
     }
 
     //-------------------------------------------------------------------------
     // Dangerous to perform calls to members after this; transform and clone?
-    void Distribution::tranche (Real attachmentPoint, Real detachmentPoint) {
-    //-------------------------------------------------------------------------
-        QL_REQUIRE (attachmentPoint < detachmentPoint,
-                 "attachment >= detachment point");
-        QL_REQUIRE (x_.back() > attachmentPoint && 
-                    x_.back()+dx_.back() >= detachmentPoint,
-                 "attachment or detachment too large");
+    void Distribution::tranche(Real attachmentPoint, Real detachmentPoint)
+    {
+        //-------------------------------------------------------------------------
+        QL_REQUIRE(attachmentPoint < detachmentPoint, "attachment >= detachment point");
+        QL_REQUIRE(x_.back() > attachmentPoint && x_.back() + dx_.back() >= detachmentPoint,
+                   "attachment or detachment too large");
 
         normalize();
 
         // shift
-        while (x_[0] < attachmentPoint) {
+        while (x_[0] < attachmentPoint)
+        {
             x_.erase(x_.begin());
             dx_.erase(dx_.begin());
             count_.erase(count_.begin());
@@ -254,69 +265,70 @@ namespace QuantLib {
         }
 
         // remove losses over detachment point:
-        auto detachPosit = std::find_if(x_.begin(), x_.end(), [=](Real x){ return x > detachmentPoint; });
-        if(detachPosit != x_.end())
+        auto detachPosit = std::find_if(x_.begin(), x_.end(), [=](Real x) { return x > detachmentPoint; });
+        if (detachPosit != x_.end())
             x_.erase(detachPosit + 1, x_.end());
 
         size_ = x_.size();
-        cumulativeDensity_.erase(cumulativeDensity_.begin() + size_, 
-            cumulativeDensity_.end());
-        cumulativeDensity_.back() = 1.; 
+        cumulativeDensity_.erase(cumulativeDensity_.begin() + size_, cumulativeDensity_.end());
+        cumulativeDensity_.back() = 1.;
         count_.erase(count_.begin() + size_, count_.end());
         dx_.erase(dx_.begin() + size_, dx_.end());
 
         // truncate
-        for (Real& i : x_) {
+        for (Real& i : x_)
+        {
             i = std::min(std::max(i - attachmentPoint, 0.), detachmentPoint - attachmentPoint);
         }
 
-        density_.clear(); 
+        density_.clear();
         excessProbability_.clear();
         cumulativeExcessProbability_.clear(); //? reuse?
-        density_.push_back((cumulativeDensity_[0]-0.)/dx_[0]);
+        density_.push_back((cumulativeDensity_[0] - 0.) / dx_[0]);
         excessProbability_.push_back(1.);
-        for(Integer i=1; i<size_-1; i++) {
-            excessProbability_.push_back(1.-cumulativeDensity_[i-1]);
-            density_.push_back((cumulativeDensity_[i]-
-                cumulativeDensity_[i-1])/dx_[i]);
+        for (Integer i = 1; i < size_ - 1; i++)
+        {
+            excessProbability_.push_back(1. - cumulativeDensity_[i - 1]);
+            density_.push_back((cumulativeDensity_[i] - cumulativeDensity_[i - 1]) / dx_[i]);
         }
-        excessProbability_.push_back(1.-cumulativeDensity_.back());
-        density_.push_back((1.-cumulativeDensity_.back())/dx_.back());
+        excessProbability_.push_back(1. - cumulativeDensity_.back());
+        density_.push_back((1. - cumulativeDensity_.back()) / dx_.back());
     }
 
     //-------------------------------------------------------------------------
-    Distribution ManipulateDistribution::convolve (const Distribution& d1,
-                                                   const Distribution& d2) {
-    //-------------------------------------------------------------------------
+    Distribution ManipulateDistribution::convolve(const Distribution& d1, const Distribution& d2)
+    {
+        //-------------------------------------------------------------------------
         // force equal constant bucket sizes
-        QL_REQUIRE (d1.dx_[0] == d2.dx_[0], "bucket sizes differ in d1 and d2");
+        QL_REQUIRE(d1.dx_[0] == d2.dx_[0], "bucket sizes differ in d1 and d2");
         for (Size i = 1; i < d1.size(); i++)
-            QL_REQUIRE (d1.dx_[i] == d1.dx_[i-1], "bucket size varies in d1");
+            QL_REQUIRE(d1.dx_[i] == d1.dx_[i - 1], "bucket size varies in d1");
         for (Size i = 1; i < d2.size(); i++)
-            QL_REQUIRE (d2.dx_[i] == d2.dx_[i-1], "bucket size varies in d2");
+            QL_REQUIRE(d2.dx_[i] == d2.dx_[i - 1], "bucket size varies in d2");
 
         // force offset 0
-        QL_REQUIRE (d1.xmin_ == 0.0 && d2.xmin_ == 0.0,
-                 "distributions offset larger than 0");
+        QL_REQUIRE(d1.xmin_ == 0.0 && d2.xmin_ == 0.0, "distributions offset larger than 0");
 
         Distribution dist(d1.size() + d2.size() - 1,
                           0.0, // assuming both distributions have xmin = 0
                           d1.xmax_ + d2.xmax_);
 
-        for (Size i1 = 0; i1 < d1.size(); i1++) {
+        for (Size i1 = 0; i1 < d1.size(); i1++)
+        {
             Real dx = d1.dx_[i1];
             for (Size i2 = 0; i2 < d2.size(); i2++)
-                dist.density_[i1+i2] = d1.density_[i1] * d2.density_[i2] * dx;
+                dist.density_[i1 + i2] = d1.density_[i1] * d2.density_[i2] * dx;
         }
 
         // update cumulated and excess
         dist.excessProbability_[0] = 1.0;
-        for (Size i = 0; i < dist.size(); i++) {
+        for (Size i = 0; i < dist.size(); i++)
+        {
             dist.cumulativeDensity_[i] = dist.density_[i] * dist.dx_[i];
-            if (i > 0) {
-                dist.cumulativeDensity_[i] += dist.cumulativeDensity_[i-1];
-                dist.excessProbability_[i] = dist.excessProbability_[i-1]
-                    - dist.density_[i-1] * dist.dx_[i-1];
+            if (i > 0)
+            {
+                dist.cumulativeDensity_[i] += dist.cumulativeDensity_[i - 1];
+                dist.excessProbability_[i] = dist.excessProbability_[i - 1] - dist.density_[i - 1] * dist.dx_[i - 1];
             }
         }
 
@@ -325,20 +337,20 @@ namespace QuantLib {
 
 
     //-------------------------------------------------------------------------
-    Real Distribution::expectedShortfall (Real percValue) {
-    //-------------------------------------------------------------------------
-        QL_REQUIRE(percValue >= 0. && percValue <= 1., 
-            "Incorrect percentile");
+    Real Distribution::expectedShortfall(Real percValue)
+    {
+        //-------------------------------------------------------------------------
+        QL_REQUIRE(percValue >= 0. && percValue <= 1., "Incorrect percentile");
         normalize();
         Real expected = 0;
         Integer iVal = locate(confidenceLevel(percValue));
 
-        if(iVal == size_-1) return x_.back();
+        if (iVal == size_ - 1)
+            return x_.back();
 
         for (int i = iVal; i < size_; i++)
-            expected += x_[i] * 
-                (cumulativeDensity_[i] - cumulativeDensity_[i-1]);
-        return expected/(1.-cumulativeDensity_.at(iVal));
+            expected += x_[i] * (cumulativeDensity_[i] - cumulativeDensity_[i - 1]);
+        return expected / (1. - cumulativeDensity_.at(iVal));
     }
 
 }

@@ -21,9 +21,10 @@
 #include <ql/experimental/commodities/commoditypricinghelpers.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    CommodityIndex::CommodityIndex(std::string  indexName,
+    CommodityIndex::CommodityIndex(std::string indexName,
                                    CommodityType commodityType,
                                    Currency currency,
                                    UnitOfMeasure unitOfMeasure,
@@ -32,27 +33,23 @@ namespace QuantLib {
                                    ext::shared_ptr<CommodityCurve> forwardCurve,
                                    ext::shared_ptr<ExchangeContracts> exchangeContracts,
                                    int nearbyOffset)
-    : name_(std::move(indexName)), commodityType_(std::move(commodityType)),
-      unitOfMeasure_(std::move(unitOfMeasure)), currency_(std::move(currency)),
-      calendar_(std::move(calendar)), lotQuantity_(lotQuantity),
+    : name_(std::move(indexName)), commodityType_(std::move(commodityType)), unitOfMeasure_(std::move(unitOfMeasure)),
+      currency_(std::move(currency)), calendar_(std::move(calendar)), lotQuantity_(lotQuantity),
       forwardCurve_(std::move(forwardCurve)), exchangeContracts_(std::move(exchangeContracts)),
-      nearbyOffset_(nearbyOffset) {
+      nearbyOffset_(nearbyOffset)
+    {
         registerWith(Settings::instance().evaluationDate());
         registerWith(notifier());
 
         if (forwardCurve_ != nullptr)
             // registerWith(forwardCurve_);
-            forwardCurveUomConversionFactor_ =
-                CommodityPricingHelper::calculateUomConversionFactor(
-                                                commodityType_,
-                                                forwardCurve_->unitOfMeasure_,
-                                                unitOfMeasure_);
+            forwardCurveUomConversionFactor_ = CommodityPricingHelper::calculateUomConversionFactor(
+                commodityType_, forwardCurve_->unitOfMeasure_, unitOfMeasure_);
     }
 
-    std::ostream& operator<<(std::ostream& out, const CommodityIndex& index) {
-        out << "[" << index.name_ << "] ("
-            << index.currency_.code() << "/"
-            << index.unitOfMeasure_.code() << ")";
+    std::ostream& operator<<(std::ostream& out, const CommodityIndex& index)
+    {
+        out << "[" << index.name_ << "] (" << index.currency_.code() << "/" << index.unitOfMeasure_.code() << ")";
         if (index.forwardCurve_ != nullptr)
             out << "; forward (" << (*index.forwardCurve_) << ")";
         return out;

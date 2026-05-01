@@ -26,30 +26,31 @@
 
 #include <ql/instruments/bond.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Claim associated to a default event
-    class Claim : public Observable, public Observer {
+    class Claim : public Observable, public Observer
+    {
       public:
         ~Claim() override = default;
-        virtual Real amount(const Date& defaultDate,
-                            Real notional,
-                            Real recoveryRate) const = 0;
+        virtual Real amount(const Date& defaultDate, Real notional, Real recoveryRate) const = 0;
         void update() override { notifyObservers(); }
     };
 
 
     //! Claim on a notional
-    class FaceValueClaim : public Claim {
+    class FaceValueClaim : public Claim
+    {
       public:
         Real amount(const Date& d, Real notional, Real recoveryRate) const override;
     };
 
     //! Claim on the notional of a reference security, including accrual
-    class FaceValueAccrualClaim : public Claim {
+    class FaceValueAccrualClaim : public Claim
+    {
       public:
-        FaceValueAccrualClaim(
-                          const ext::shared_ptr<Bond>& referenceSecurity);
+        FaceValueAccrualClaim(const ext::shared_ptr<Bond>& referenceSecurity);
         Real amount(const Date& d, Real notional, Real recoveryRate) const override;
 
       private:

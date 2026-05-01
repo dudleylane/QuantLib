@@ -24,15 +24,16 @@
 #ifndef quantlib_last_fixing_quote_hpp
 #define quantlib_last_fixing_quote_hpp
 
-#include <ql/quote.hpp>
 #include <ql/index.hpp>
 #include <ql/patterns/observable.hpp>
+#include <ql/quote.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Quote adapter for the last fixing available of a given Index
-    class LastFixingQuote : public Quote,
-                            public Observer {
+    class LastFixingQuote : public Quote, public Observer
+    {
       public:
         LastFixingQuote(ext::shared_ptr<Index> index);
         //! \name Quote interface
@@ -47,7 +48,7 @@ namespace QuantLib {
         //! \name LastFixingQuote interface
         //@{
         const ext::shared_ptr<Index>& index() const { return index_; }
-        Date referenceDate() const; 
+        Date referenceDate() const;
         //@}
       protected:
         ext::shared_ptr<Index> index_;

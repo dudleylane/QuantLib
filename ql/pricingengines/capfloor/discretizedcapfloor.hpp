@@ -25,16 +25,16 @@
 #ifndef quantlib_pricers_capfloor_pricer_h
 #define quantlib_pricers_capfloor_pricer_h
 
-#include <ql/instruments/capfloor.hpp>
 #include <ql/discretizedasset.hpp>
+#include <ql/instruments/capfloor.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class DiscretizedCapFloor : public DiscretizedAsset {
+    class DiscretizedCapFloor : public DiscretizedAsset
+    {
       public:
-        DiscretizedCapFloor(const CapFloor::arguments& args,
-                            const Date& referenceDate,
-                            const DayCounter& dayCounter);
+        DiscretizedCapFloor(const CapFloor::arguments& args, const Date& referenceDate, const DayCounter& dayCounter);
         void reset(Size size) override;
         std::vector<Time> mandatoryTimes() const override;
 

@@ -18,23 +18,25 @@
 */
 
 /*! \file fdmbatessolver.hpp
-*/
+ */
 
 #ifndef quantlib_fdm_bates_solver_hpp
 #define quantlib_fdm_bates_solver_hpp
 
 #include <ql/handle.hpp>
-#include <ql/patterns/lazyobject.hpp>
-#include <ql/methods/finitedifferences/utilities/fdmquantohelper.hpp>
-#include <ql/methods/finitedifferences/solvers/fdmhestonsolver.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
+#include <ql/methods/finitedifferences/solvers/fdmhestonsolver.hpp>
 #include <ql/methods/finitedifferences/utilities/fdmdirichletboundary.hpp>
+#include <ql/methods/finitedifferences/utilities/fdmquantohelper.hpp>
+#include <ql/patterns/lazyobject.hpp>
 
-namespace QuantLib {
-    
+namespace QuantLib
+{
+
     class BatesProcess;
 
-    class FdmBatesSolver : public LazyObject {
+    class FdmBatesSolver : public LazyObject
+    {
       public:
         FdmBatesSolver(Handle<BatesProcess> process,
                        FdmSolverDesc solverDesc,

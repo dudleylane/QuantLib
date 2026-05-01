@@ -28,13 +28,16 @@
 #include <ql/types.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Ali-Mikhail-Haq copula
-    class AliMikhailHaqCopula {
+    class AliMikhailHaqCopula
+    {
       public:
         AliMikhailHaqCopula(Real theta);
         Real operator()(Real x, Real y) const;
+
       private:
         Real theta_;
     };

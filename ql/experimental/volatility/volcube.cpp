@@ -22,20 +22,24 @@
 #include <ql/experimental/volatility/volcube.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    VolatilityCube::VolatilityCube(std::vector<Handle<InterestRateVolSurface> > surfaces,
-                                   std::vector<Handle<AbcdAtmVolCurve> > curves)
-    : surfaces_(std::move(surfaces)), curves_(std::move(curves)) {
-        QL_REQUIRE(surfaces_.size()>1, "at least 2 surfaces are needed");
+    VolatilityCube::VolatilityCube(std::vector<Handle<InterestRateVolSurface>> surfaces,
+                                   std::vector<Handle<AbcdAtmVolCurve>> curves)
+    : surfaces_(std::move(surfaces)), curves_(std::move(curves))
+    {
+        QL_REQUIRE(surfaces_.size() > 1, "at least 2 surfaces are needed");
 
         Date refDate = surfaces_[0]->referenceDate();
-        for (auto& surface : surfaces_) {
+        for (auto& surface : surfaces_)
+        {
             QL_REQUIRE(surface->referenceDate() == refDate, "different reference dates");
-            //curves_.push_back(surfaces_[i]);
+            // curves_.push_back(surfaces_[i]);
         }
 
-        for (auto& curve : curves_) {
+        for (auto& curve : curves_)
+        {
             QL_REQUIRE(curve->referenceDate() == refDate, "different reference dates");
         }
 

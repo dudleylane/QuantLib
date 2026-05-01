@@ -21,7 +21,8 @@
 #include <ql/settings.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     EnergySwap::EnergySwap(Calendar calendar,
                            Currency payCurrency,
@@ -31,28 +32,30 @@ namespace QuantLib {
                            const ext::shared_ptr<SecondaryCosts>& secondaryCosts)
     : EnergyCommodity(commodityType, secondaryCosts), calendar_(std::move(calendar)),
       payCurrency_(std::move(payCurrency)), receiveCurrency_(std::move(receiveCurrency)),
-      pricingPeriods_(std::move(pricingPeriods)) {}
+      pricingPeriods_(std::move(pricingPeriods))
+    {
+    }
 
-    const CommodityType& EnergySwap::commodityType() const {
+    const CommodityType& EnergySwap::commodityType() const
+    {
         QL_REQUIRE(!pricingPeriods_.empty(), "no pricing periods");
         return pricingPeriods_[0]->quantity().commodityType();
     }
 
-    Quantity EnergySwap::quantity() const {
+    Quantity EnergySwap::quantity() const
+    {
         Real totalQuantityAmount = 0;
-        for (const auto& pricingPeriod : pricingPeriods_) {
+        for (const auto& pricingPeriod : pricingPeriods_)
+        {
             totalQuantityAmount += pricingPeriod->quantity().amount();
         }
-        return Quantity(pricingPeriods_[0]->quantity().commodityType(),
-                        pricingPeriods_[0]->quantity().unitOfMeasure(),
+        return Quantity(pricingPeriods_[0]->quantity().commodityType(), pricingPeriods_[0]->quantity().unitOfMeasure(),
                         totalQuantityAmount);
     }
 
-    bool EnergySwap::isExpired() const {
-        return pricingPeriods_.empty()
-            || detail::simple_event(pricingPeriods_.back()->paymentDate())
-               .hasOccurred();
+    bool EnergySwap::isExpired() const
+    {
+        return pricingPeriods_.empty() || detail::simple_event(pricingPeriods_.back()->paymentDate()).hasOccurred();
     }
 
 }
-

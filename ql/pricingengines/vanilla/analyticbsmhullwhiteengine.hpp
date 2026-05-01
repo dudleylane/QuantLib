@@ -25,11 +25,12 @@
 #define quantlib_analytic_bsm_hull_white_engine_hpp
 
 #include <ql/instruments/vanillaoption.hpp>
-#include <ql/pricingengines/genericmodelengine.hpp>
 #include <ql/models/shortrate/onefactormodels/hullwhite.hpp>
+#include <ql/pricingengines/genericmodelengine.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! analytic european option pricer including stochastic interest rates
     /*! References:
@@ -43,9 +44,8 @@ namespace QuantLib {
     */
 
     class AnalyticBSMHullWhiteEngine
-        : public GenericModelEngine<HullWhite,
-                                    VanillaOption::arguments,
-                                    VanillaOption::results> {
+    : public GenericModelEngine<HullWhite, VanillaOption::arguments, VanillaOption::results>
+    {
       public:
         AnalyticBSMHullWhiteEngine(Real equityShortRateCorrelation,
                                    ext::shared_ptr<GeneralizedBlackScholesProcess>,

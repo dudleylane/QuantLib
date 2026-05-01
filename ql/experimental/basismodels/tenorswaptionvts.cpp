@@ -22,72 +22,68 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
 
-#include <ql/experimental/basismodels/tenorswaptionvts.hpp>
-#include <ql/experimental/basismodels/swaptioncfs.hpp>
-#include <ql/instruments/vanillaswap.hpp>
 #include <ql/exercise.hpp>
+#include <ql/experimental/basismodels/swaptioncfs.hpp>
+#include <ql/experimental/basismodels/tenorswaptionvts.hpp>
 #include <ql/indexes/iborindex.hpp>
+#include <ql/instruments/vanillaswap.hpp>
 #include <ql/math/rounding.hpp>
 #include <ql/pricingengines/swap/discountingswapengine.hpp>
 #include <ql/time/dategenerationrule.hpp>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    TenorSwaptionVTS::TenorSwaptionSmileSection::TenorSwaptionSmileSection(
-        const TenorSwaptionVTS& volTS, Time optionTime, Time swapLength)
-    : SmileSection(optionTime, volTS.baseVTS_->dayCounter(), Normal, 0.0) {
+    TenorSwaptionVTS::TenorSwaptionSmileSection::TenorSwaptionSmileSection(const TenorSwaptionVTS& volTS,
+                                                                           Time optionTime,
+                                                                           Time swapLength)
+    : SmileSection(optionTime, volTS.baseVTS_->dayCounter(), Normal, 0.0)
+    {
         baseSmileSection_ = volTS.baseVTS_->smileSection(optionTime, swapLength, true);
         // first we need the swap start and end date
-        Real oneDayAsYear =
-            volTS.dayCounter().yearFraction(volTS.referenceDate(), volTS.referenceDate() + 1);
-        Date exerciseDate =
-            volTS.referenceDate() + ((BigInteger)ClosestRounding(0)(optionTime / oneDayAsYear));
-        Date effectiveDate = volTS.baseIndex_->fixingCalendar().advance(
-            exerciseDate, volTS.baseIndex_->fixingDays() * Days);
+        Real oneDayAsYear = volTS.dayCounter().yearFraction(volTS.referenceDate(), volTS.referenceDate() + 1);
+        Date exerciseDate = volTS.referenceDate() + ((BigInteger)ClosestRounding(0)(optionTime / oneDayAsYear));
+        Date effectiveDate =
+            volTS.baseIndex_->fixingCalendar().advance(exerciseDate, volTS.baseIndex_->fixingDays() * Days);
         Date maturityDate = volTS.baseIndex_->fixingCalendar().advance(
             effectiveDate, ((BigInteger)swapLength * 12.0) * Months, Unadjusted, false);
         // now we can set up the schedules
         Schedule baseFixedSchedule(effectiveDate, maturityDate, volTS.baseFixedFreq_,
-                                   volTS.baseIndex_->fixingCalendar(), ModifiedFollowing,
-                                   Unadjusted, DateGeneration::Backward, false);
+                                   volTS.baseIndex_->fixingCalendar(), ModifiedFollowing, Unadjusted,
+                                   DateGeneration::Backward, false);
         Schedule finlFixedSchedule(effectiveDate, maturityDate, volTS.targFixedFreq_,
-                                   volTS.targIndex_->fixingCalendar(), ModifiedFollowing,
-                                   Unadjusted, DateGeneration::Backward, false);
+                                   volTS.targIndex_->fixingCalendar(), ModifiedFollowing, Unadjusted,
+                                   DateGeneration::Backward, false);
         Schedule baseFloatSchedule(effectiveDate, maturityDate, volTS.baseIndex_->tenor(),
-                                   volTS.baseIndex_->fixingCalendar(), ModifiedFollowing,
-                                   Unadjusted, DateGeneration::Backward, false);
+                                   volTS.baseIndex_->fixingCalendar(), ModifiedFollowing, Unadjusted,
+                                   DateGeneration::Backward, false);
         Schedule targFloatSchedule(effectiveDate, maturityDate, volTS.targIndex_->tenor(),
-                                   volTS.baseIndex_->fixingCalendar(), ModifiedFollowing,
-                                   Unadjusted, DateGeneration::Backward, false);
+                                   volTS.baseIndex_->fixingCalendar(), ModifiedFollowing, Unadjusted,
+                                   DateGeneration::Backward, false);
         // and swaps
-        auto baseSwap = ext::make_shared<VanillaSwap>(
-            Swap::Payer, 1.0, baseFixedSchedule, 1.0, volTS.baseFixedDC_, baseFloatSchedule,
-            volTS.baseIndex_, 0.0, volTS.baseIndex_->dayCounter());
-        auto targSwap = ext::make_shared<VanillaSwap>(
-            Swap::Payer, 1.0, baseFixedSchedule, 1.0, volTS.baseFixedDC_, targFloatSchedule,
-            volTS.targIndex_, 0.0, volTS.targIndex_->dayCounter());
-        auto finlSwap = ext::make_shared<VanillaSwap>(
-            Swap::Payer, 1.0, finlFixedSchedule, 1.0, volTS.targFixedDC_, targFloatSchedule,
-            volTS.targIndex_, 0.0, volTS.targIndex_->dayCounter());
+        auto baseSwap =
+            ext::make_shared<VanillaSwap>(Swap::Payer, 1.0, baseFixedSchedule, 1.0, volTS.baseFixedDC_,
+                                          baseFloatSchedule, volTS.baseIndex_, 0.0, volTS.baseIndex_->dayCounter());
+        auto targSwap =
+            ext::make_shared<VanillaSwap>(Swap::Payer, 1.0, baseFixedSchedule, 1.0, volTS.baseFixedDC_,
+                                          targFloatSchedule, volTS.targIndex_, 0.0, volTS.targIndex_->dayCounter());
+        auto finlSwap =
+            ext::make_shared<VanillaSwap>(Swap::Payer, 1.0, finlFixedSchedule, 1.0, volTS.targFixedDC_,
+                                          targFloatSchedule, volTS.targIndex_, 0.0, volTS.targIndex_->dayCounter());
         // adding engines
-        baseSwap->setPricingEngine(
-            ext::shared_ptr<PricingEngine>(new DiscountingSwapEngine(volTS.discountCurve_)));
-        targSwap->setPricingEngine(
-            ext::shared_ptr<PricingEngine>(new DiscountingSwapEngine(volTS.discountCurve_)));
-        finlSwap->setPricingEngine(
-            ext::shared_ptr<PricingEngine>(new DiscountingSwapEngine(volTS.discountCurve_)));
+        baseSwap->setPricingEngine(ext::shared_ptr<PricingEngine>(new DiscountingSwapEngine(volTS.discountCurve_)));
+        targSwap->setPricingEngine(ext::shared_ptr<PricingEngine>(new DiscountingSwapEngine(volTS.discountCurve_)));
+        finlSwap->setPricingEngine(ext::shared_ptr<PricingEngine>(new DiscountingSwapEngine(volTS.discountCurve_)));
         // swap rates
         swapRateBase_ = baseSwap->fairRate();
         swapRateTarg_ = targSwap->fairRate();
         swapRateFinl_ = finlSwap->fairRate();
         SwaptionCashFlows cfs(
-            ext::make_shared<Swaption>(
-                baseSwap, ext::shared_ptr<Exercise>(new EuropeanExercise(exerciseDate))),
+            ext::make_shared<Swaption>(baseSwap, ext::shared_ptr<Exercise>(new EuropeanExercise(exerciseDate))),
             volTS.discountCurve_);
         SwaptionCashFlows cf2(
-            ext::make_shared<Swaption>(
-                targSwap, ext::shared_ptr<Exercise>(new EuropeanExercise(exerciseDate))),
+            ext::make_shared<Swaption>(targSwap, ext::shared_ptr<Exercise>(new EuropeanExercise(exerciseDate))),
             volTS.discountCurve_);
         // calculate affine TSR model u and v
         // Sum tau_j   (fixed leg)
@@ -97,8 +93,7 @@ namespace QuantLib {
         // Sum tau_j (T_M - T_j)   (fixed leg)
         Real sumTaujDeltaT = 0.0;
         for (Size k = 0; k < cfs.annuityWeights().size(); ++k)
-            sumTaujDeltaT +=
-                cfs.annuityWeights()[k] * (cfs.fixedTimes().back() - cfs.fixedTimes()[k]);
+            sumTaujDeltaT += cfs.annuityWeights()[k] * (cfs.fixedTimes().back() - cfs.fixedTimes()[k]);
         // Sum w_i   (float leg)
         Real sumWi = 0.0;
         for (Real k : cfs.floatWeights())
@@ -126,9 +121,10 @@ namespace QuantLib {
         annuityScaling_ = targSwap->fixedLegBPS() / finlSwap->fixedLegBPS();
     }
 
-    Volatility TenorSwaptionVTS::TenorSwaptionSmileSection::volatilityImpl(Rate strike) const {
-        Real strikeBase = (strike - (swapRateTarg_ - (1.0 + lambda_) * swapRateBase_)) /
-                          (1.0 + lambda_) / annuityScaling_;
+    Volatility TenorSwaptionVTS::TenorSwaptionSmileSection::volatilityImpl(Rate strike) const
+    {
+        Real strikeBase =
+            (strike - (swapRateTarg_ - (1.0 + lambda_) * swapRateBase_)) / (1.0 + lambda_) / annuityScaling_;
         Real volBase = baseSmileSection_->volatility(strikeBase, Normal, 0.0);
         Real volTarg = annuityScaling_ * (1.0 + lambda_) * volBase;
         return volTarg;

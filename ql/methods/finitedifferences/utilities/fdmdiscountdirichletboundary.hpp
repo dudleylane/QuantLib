@@ -27,23 +27,24 @@
 
 #include <ql/methods/finitedifferences/utilities/fdmtimedepdirichletboundary.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class YieldTermStructure;
 
-    class FdmDiscountDirichletBoundary
-            : public BoundaryCondition<FdmLinearOp> {
+    class FdmDiscountDirichletBoundary : public BoundaryCondition<FdmLinearOp>
+    {
       public:
         typedef FdmLinearOp operator_type;
         typedef FdmLinearOp::array_type array_type;
         typedef BoundaryCondition<FdmLinearOp>::Side Side;
 
-        FdmDiscountDirichletBoundary(
-            const ext::shared_ptr<FdmMesher>& mesher,
-            const ext::shared_ptr<YieldTermStructure>& rTS,
-            Time maturityTime,
-            Real valueOnBoundary,
-            Size direction, Side side);
+        FdmDiscountDirichletBoundary(const ext::shared_ptr<FdmMesher>& mesher,
+                                     const ext::shared_ptr<YieldTermStructure>& rTS,
+                                     Time maturityTime,
+                                     Real valueOnBoundary,
+                                     Size direction,
+                                     Side side);
 
         void setTime(Time) override;
         void applyBeforeApplying(operator_type&) const override;

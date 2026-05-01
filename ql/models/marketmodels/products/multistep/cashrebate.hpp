@@ -21,19 +21,19 @@
 #ifndef quantlib_market_model_cash_rebate_hpp
 #define quantlib_market_model_cash_rebate_hpp
 
-#include <ql/models/marketmodels/multiproduct.hpp>
-#include <ql/models/marketmodels/evolutiondescription.hpp>
 #include <ql/math/matrix.hpp>
+#include <ql/models/marketmodels/evolutiondescription.hpp>
+#include <ql/models/marketmodels/multiproduct.hpp>
 
-namespace QuantLib 
+namespace QuantLib
 {
     /*!
-    Class to model receipt of a fixed cash amount once. Product terminates immediately. 
-    Mainly useful as rebate received when another product is cancelled. 
+    Class to model receipt of a fixed cash amount once. Product terminates immediately.
+    Mainly useful as rebate received when another product is cancelled.
 
     */
 
-    class MarketModelCashRebate : public MarketModelMultiProduct 
+    class MarketModelCashRebate : public MarketModelMultiProduct
     {
       public:
         MarketModelCashRebate(EvolutionDescription evolution,
@@ -50,7 +50,7 @@ namespace QuantLib
         void reset() override;
         bool nextTimeStep(const CurveState& currentState,
                           std::vector<Size>& numberCashFlowsThisStep,
-                          std::vector<std::vector<CashFlow> >& cashFlowsGenerated) override;
+                          std::vector<std::vector<CashFlow>>& cashFlowsGenerated) override;
         std::unique_ptr<MarketModelMultiProduct> clone() const override;
         //@}
       private:

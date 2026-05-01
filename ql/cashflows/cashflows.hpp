@@ -27,20 +27,23 @@
 #ifndef quantlib_cashflows_hpp
 #define quantlib_cashflows_hpp
 
-#include <ql/cashflows/duration.hpp>
 #include <ql/cashflow.hpp>
+#include <ql/cashflows/duration.hpp>
 #include <ql/interestrate.hpp>
 #include <ql/shared_ptr.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class YieldTermStructure;
 
     //! %cashflow-analysis functions
     /*! \todo add tests */
-    class CashFlows {
+    class CashFlows
+    {
       private:
-        class IrrFinder {
+        class IrrFinder
+        {
           public:
             IrrFinder(const Leg& leg,
                       Real npv,
@@ -53,6 +56,7 @@ namespace QuantLib {
 
             Real operator()(Rate y) const;
             Real derivative(Rate y) const;
+
           private:
             void checkSign() const;
 
@@ -64,6 +68,7 @@ namespace QuantLib {
             ext::optional<bool> includeSettlementDateFlows_;
             Date settlementDate_, npvDate_;
         };
+
       public:
         CashFlows() = delete;
         CashFlows(CashFlows&&) = delete;
@@ -89,79 +94,62 @@ namespace QuantLib {
                          const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
                          Date settlementDate = Date());
         //! the first cashflow paying after the given date
-        static Leg::const_iterator
-        nextCashFlow(const Leg& leg,
-                     const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
-                     Date settlementDate = Date());
-        static Date
-        previousCashFlowDate(const Leg& leg,
-                             const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
-                             Date settlementDate = Date());
-        static Date
-        nextCashFlowDate(const Leg& leg,
-                         const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
-                         Date settlementDate = Date());
-        static Real
-        previousCashFlowAmount(const Leg& leg,
-                               const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
-                               Date settlementDate = Date());
-        static Real
-        nextCashFlowAmount(const Leg& leg,
-                           const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
-                           Date settlementDate = Date());
+        static Leg::const_iterator nextCashFlow(const Leg& leg,
+                                                const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
+                                                Date settlementDate = Date());
+        static Date previousCashFlowDate(const Leg& leg,
+                                         const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
+                                         Date settlementDate = Date());
+        static Date nextCashFlowDate(const Leg& leg,
+                                     const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
+                                     Date settlementDate = Date());
+        static Real previousCashFlowAmount(const Leg& leg,
+                                           const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
+                                           Date settlementDate = Date());
+        static Real nextCashFlowAmount(const Leg& leg,
+                                       const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
+                                       Date settlementDate = Date());
         //@}
 
         //! \name Coupon inspectors
         //@{
-        static Rate
-        previousCouponRate(const Leg& leg,
-                           const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
-                           Date settlementDate = Date());
-        static Rate
-        nextCouponRate(const Leg& leg,
-                       const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
-                       Date settlementDate = Date());
+        static Rate previousCouponRate(const Leg& leg,
+                                       const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
+                                       Date settlementDate = Date());
+        static Rate nextCouponRate(const Leg& leg,
+                                   const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
+                                   Date settlementDate = Date());
 
-        static Real
-        nominal(const Leg& leg,
-                const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
-                Date settlementDate = Date());
-        static Date
-        accrualStartDate(const Leg& leg,
-                         const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
-                         Date settlementDate = Date());
-        static Date
-        accrualEndDate(const Leg& leg,
-                       const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
-                       Date settlementDate = Date());
-        static Date
-        referencePeriodStart(const Leg& leg,
-                             const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
-                             Date settlementDate = Date());
-        static Date
-        referencePeriodEnd(const Leg& leg,
-                           const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
-                           Date settlementDate = Date());
-        static Time
-        accrualPeriod(const Leg& leg,
-                      const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
-                      Date settlementDate = Date());
-        static Date::serial_type
-        accrualDays(const Leg& leg,
-                    const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
-                    Date settlementDate = Date());
-        static Time
-        accruedPeriod(const Leg& leg,
-                      const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
-                      Date settlementDate = Date());
-        static Date::serial_type
-        accruedDays(const Leg& leg,
-                    const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
-                    Date settlementDate = Date());
-        static Real
-        accruedAmount(const Leg& leg,
-                      const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
-                      Date settlementDate = Date());
+        static Real nominal(const Leg& leg,
+                            const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
+                            Date settlementDate = Date());
+        static Date accrualStartDate(const Leg& leg,
+                                     const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
+                                     Date settlementDate = Date());
+        static Date accrualEndDate(const Leg& leg,
+                                   const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
+                                   Date settlementDate = Date());
+        static Date referencePeriodStart(const Leg& leg,
+                                         const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
+                                         Date settlementDate = Date());
+        static Date referencePeriodEnd(const Leg& leg,
+                                       const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
+                                       Date settlementDate = Date());
+        static Time accrualPeriod(const Leg& leg,
+                                  const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
+                                  Date settlementDate = Date());
+        static Date::serial_type accrualDays(const Leg& leg,
+                                             const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
+                                             Date settlementDate = Date());
+        static Time accruedPeriod(const Leg& leg,
+                                  const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
+                                  Date settlementDate = Date());
+        static Date::serial_type accruedDays(const Leg& leg,
+                                             const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
+                                             Date settlementDate = Date());
+        static Real accruedAmount(const Leg& leg,
+                                  const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
+                                  Date settlementDate = Date());
         //@}
 
         //! \name YieldTermStructure functions
@@ -284,11 +272,11 @@ namespace QuantLib {
                           Date settlementDate = Date(),
                           Date npvDate = Date(),
                           Real accuracy = 1.0e-10,
-                          Rate guess = 0.05) {
-            IrrFinder objFunction(leg, npv, dayCounter, compounding,
-                                  frequency, includeSettlementDateFlows,
+                          Rate guess = 0.05)
+        {
+            IrrFinder objFunction(leg, npv, dayCounter, compounding, frequency, includeSettlementDateFlows,
                                   settlementDate, npvDate);
-            return solver.solve(objFunction, accuracy, guess, guess/10.0);
+            return solver.solve(objFunction, accuracy, guess, guess / 10.0);
         }
 
         //! Cash-flow duration.
@@ -452,7 +440,6 @@ namespace QuantLib {
                               Size maxIterations = 100,
                               Rate guess = 0.0);
         //@}
-
     };
 
 }

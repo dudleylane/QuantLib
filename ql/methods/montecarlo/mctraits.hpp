@@ -25,35 +25,44 @@
 #ifndef quantlib_mc_traits_hpp
 #define quantlib_mc_traits_hpp
 
-#include <ql/methods/montecarlo/pathgenerator.hpp>
-#include <ql/methods/montecarlo/multipathgenerator.hpp>
-#include <ql/methods/montecarlo/pathpricer.hpp>
 #include <ql/math/randomnumbers/rngtraits.hpp>
+#include <ql/methods/montecarlo/multipathgenerator.hpp>
+#include <ql/methods/montecarlo/pathgenerator.hpp>
+#include <ql/methods/montecarlo/pathpricer.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     // path generation and pricing traits
 
     //! default Monte Carlo traits for single-variate models
     template <class RNG = PseudoRandom>
-    struct SingleVariate {
+    struct SingleVariate
+    {
         typedef RNG rng_traits;
         typedef Path path_type;
         typedef PathPricer<path_type> path_pricer_type;
         typedef typename RNG::rsg_type rsg_type;
         typedef PathGenerator<rsg_type> path_generator_type;
-        enum { allowsErrorEstimate = RNG::allowsErrorEstimate };
+        enum
+        {
+            allowsErrorEstimate = RNG::allowsErrorEstimate
+        };
     };
 
     //! default Monte Carlo traits for multi-variate models
     template <class RNG = PseudoRandom>
-    struct MultiVariate {
+    struct MultiVariate
+    {
         typedef RNG rng_traits;
         typedef MultiPath path_type;
         typedef PathPricer<path_type> path_pricer_type;
         typedef typename RNG::rsg_type rsg_type;
         typedef MultiPathGenerator<rsg_type> path_generator_type;
-        enum { allowsErrorEstimate = RNG::allowsErrorEstimate };
+        enum
+        {
+            allowsErrorEstimate = RNG::allowsErrorEstimate
+        };
     };
 
 }

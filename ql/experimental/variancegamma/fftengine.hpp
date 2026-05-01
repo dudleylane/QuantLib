@@ -28,14 +28,15 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #include <ql/stochasticprocess.hpp>
 #include <complex>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Base class for FFT pricing engines for European vanilla options
     /*! \ingroup vanillaengines
-    
+
         The FFT engine calculates the values of all options with the same expiry at the same time.
         For that reason it is very inefficient to price options individually.  When using this engine
-        you should collect all the options you wish to price in a list and call 
+        you should collect all the options you wish to price in a list and call
         the engine's precalculate method before calling the NPV method of the option.
 
         References:
@@ -44,15 +45,16 @@ namespace QuantLib {
         Journal of Computational Finance, 2, 61-73.
     */
 
-    class FFTEngine :
-        public VanillaOption::engine {
+    class FFTEngine : public VanillaOption::engine
+    {
       public:
         FFTEngine(ext::shared_ptr<StochasticProcess1D> process, Real logStrikeSpacing);
         void calculate() const override;
         void update() override;
 
-        void precalculate(const std::vector<ext::shared_ptr<Instrument> >& optionList);
+        void precalculate(const std::vector<ext::shared_ptr<Instrument>>& optionList);
         virtual std::unique_ptr<FFTEngine> clone() const = 0;
+
       protected:
         virtual void precalculateExpiry(Date d) = 0;
         virtual std::complex<Real> complexFourierTransform(std::complex<Real> u) const = 0;
@@ -62,7 +64,7 @@ namespace QuantLib {
                                const ext::shared_ptr<Exercise>& exercise) const;
 
         ext::shared_ptr<StochasticProcess1D> process_;
-        Real lambda_;   // Log strike spacing
+        Real lambda_; // Log strike spacing
 
       private:
         typedef std::map<ext::shared_ptr<StrikedTypePayoff>, Real> PayoffResultMap;
@@ -74,4 +76,3 @@ namespace QuantLib {
 
 
 #endif
-

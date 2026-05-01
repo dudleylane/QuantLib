@@ -26,38 +26,38 @@
 #ifndef quantlib_asian_option_hpp
 #define quantlib_asian_option_hpp
 
+#include <ql/instruments/averagetype.hpp>
 #include <ql/instruments/oneassetoption.hpp>
 #include <ql/instruments/payoffs.hpp>
-#include <ql/instruments/averagetype.hpp>
 #include <ql/time/date.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Continuous-averaging Asian option
     /*! \ingroup instruments */
-    class ContinuousAveragingAsianOption : public OneAssetOption {
+    class ContinuousAveragingAsianOption : public OneAssetOption
+    {
       public:
         class arguments;
         class engine;
         /*! This constructor is for unseasoned (fresh) options where
             averaging has not yet started.
         */
-        ContinuousAveragingAsianOption(
-                Average::Type averageType,
-                const ext::shared_ptr<StrikedTypePayoff>& payoff,
-                const ext::shared_ptr<Exercise>& exercise);
+        ContinuousAveragingAsianOption(Average::Type averageType,
+                                       const ext::shared_ptr<StrikedTypePayoff>& payoff,
+                                       const ext::shared_ptr<Exercise>& exercise);
 
         /*! This constructor is for seasoned options where averaging
             has already started. The start date is a contract term specifying
             when averaging began. The current average (market data) should be
             provided to the pricing engine.
         */
-        ContinuousAveragingAsianOption(
-                Average::Type averageType,
-                Date startDate,
-                const ext::shared_ptr<StrikedTypePayoff>& payoff,
-                const ext::shared_ptr<Exercise>& exercise);
+        ContinuousAveragingAsianOption(Average::Type averageType,
+                                       Date startDate,
+                                       const ext::shared_ptr<StrikedTypePayoff>& payoff,
+                                       const ext::shared_ptr<Exercise>& exercise);
 
         void setupArguments(PricingEngine::arguments*) const override;
 
@@ -68,7 +68,8 @@ namespace QuantLib {
 
     //! Discrete-averaging Asian option
     /*! \ingroup instruments */
-    class DiscreteAveragingAsianOption : public OneAssetOption {
+    class DiscreteAveragingAsianOption : public OneAssetOption
+    {
       public:
         class arguments;
         class engine;
@@ -112,12 +113,10 @@ namespace QuantLib {
     };
 
     //! Extra %arguments for single-asset discrete-average Asian option
-    class DiscreteAveragingAsianOption::arguments
-        : public OneAssetOption::arguments {
+    class DiscreteAveragingAsianOption::arguments : public OneAssetOption::arguments
+    {
       public:
-        arguments() : averageType(Average::Type(-1)),
-                      runningAccumulator(Null<Real>()),
-                      pastFixings(Null<Size>()) {}
+        arguments() : averageType(Average::Type(-1)), runningAccumulator(Null<Real>()), pastFixings(Null<Size>()) {}
         void validate() const override;
         Average::Type averageType;
         Real runningAccumulator;
@@ -126,11 +125,10 @@ namespace QuantLib {
     };
 
     //! Extra %arguments for single-asset continuous-average Asian option
-    class ContinuousAveragingAsianOption::arguments
-        : public OneAssetOption::arguments {
+    class ContinuousAveragingAsianOption::arguments : public OneAssetOption::arguments
+    {
       public:
-        arguments() : averageType(Average::Type(-1))
-                      {}
+        arguments() : averageType(Average::Type(-1)) {}
         void validate() const override;
         Average::Type averageType;
         Date startDate;
@@ -138,13 +136,15 @@ namespace QuantLib {
 
     //! Discrete-averaging Asian %engine base class
     class DiscreteAveragingAsianOption::engine
-        : public GenericEngine<DiscreteAveragingAsianOption::arguments,
-                               DiscreteAveragingAsianOption::results> {};
+    : public GenericEngine<DiscreteAveragingAsianOption::arguments, DiscreteAveragingAsianOption::results>
+    {
+    };
 
     //! Continuous-averaging Asian %engine base class
     class ContinuousAveragingAsianOption::engine
-        : public GenericEngine<ContinuousAveragingAsianOption::arguments,
-                               ContinuousAveragingAsianOption::results> {};
+    : public GenericEngine<ContinuousAveragingAsianOption::arguments, ContinuousAveragingAsianOption::results>
+    {
+    };
 
 }
 

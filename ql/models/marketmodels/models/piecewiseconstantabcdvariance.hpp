@@ -22,20 +22,22 @@
 #ifndef quantlib_piecewise_const_abcd_variance_hpp
 #define quantlib_piecewise_const_abcd_variance_hpp
 
-#include <ql/models/marketmodels/models/piecewiseconstantvariance.hpp>
 #include <ql/models/marketmodels/evolutiondescription.hpp>
+#include <ql/models/marketmodels/models/piecewiseconstantvariance.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class PiecewiseConstantAbcdVariance : public PiecewiseConstantVariance {
+    class PiecewiseConstantAbcdVariance : public PiecewiseConstantVariance
+    {
       public:
-        PiecewiseConstantAbcdVariance(Real a, Real b, Real c, Real d,
-                                      Size resetIndex,
-                                      const std::vector<Time>& rateTimes);
+        PiecewiseConstantAbcdVariance(
+            Real a, Real b, Real c, Real d, Size resetIndex, const std::vector<Time>& rateTimes);
         const std::vector<Real>& variances() const override;
         const std::vector<Real>& volatilities() const override;
         const std::vector<Time>& rateTimes() const override;
         void getABCD(Real& a, Real& b, Real& c, Real& d) const;
+
       private:
         std::vector<Real> variances_;
         std::vector<Real> volatilities_;
@@ -44,7 +46,6 @@ namespace QuantLib {
         Real b_;
         Real c_;
         Real d_;
-
     };
 
 }

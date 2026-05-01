@@ -26,7 +26,8 @@
 
 #include <ql/math/integrals/integral.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Integral of a one-dimensional function
     /*! Given a number \f$ N \f$ of intervals, the integral of
@@ -43,9 +44,14 @@ namespace QuantLib {
         \test the correctness of the result is tested by checking it
               against known good values.
     */
-    class FilonIntegral : public Integrator {
+    class FilonIntegral : public Integrator
+    {
       public:
-        enum Type { Sine, Cosine };
+        enum Type
+        {
+            Sine,
+            Cosine
+        };
         FilonIntegral(Type type, Real t, Size intervals);
 
       protected:

@@ -31,11 +31,12 @@
 #include <ql/currency.hpp>
 
 #if defined(QL_PATCH_MSVC)
-#pragma warning(push)
-#pragma warning(disable:4819)
+#    pragma warning(push)
+#    pragma warning(disable : 4819)
 #endif
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Bulgarian lev
     /*! The ISO three-letter code is BGL; the numeric code is 100.
@@ -43,7 +44,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class BGLCurrency : public Currency {
+    class BGLCurrency : public Currency
+    {
       public:
         BGLCurrency();
     };
@@ -54,7 +56,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class BGNCurrency : public Currency {
+    class BGNCurrency : public Currency
+    {
       public:
         BGNCurrency();
     };
@@ -65,7 +68,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class BYRCurrency : public Currency {
+    class BYRCurrency : public Currency
+    {
       public:
         BYRCurrency();
     };
@@ -76,7 +80,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class CHFCurrency : public Currency {
+    class CHFCurrency : public Currency
+    {
       public:
         CHFCurrency();
     };
@@ -87,7 +92,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class CZKCurrency : public Currency {
+    class CZKCurrency : public Currency
+    {
       public:
         CZKCurrency();
     };
@@ -98,7 +104,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class DKKCurrency : public Currency {
+    class DKKCurrency : public Currency
+    {
       public:
         DKKCurrency();
     };
@@ -109,7 +116,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class EEKCurrency : public Currency {
+    class EEKCurrency : public Currency
+    {
       public:
         EEKCurrency();
     };
@@ -120,7 +128,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class EURCurrency : public Currency {
+    class EURCurrency : public Currency
+    {
       public:
         EURCurrency();
     };
@@ -131,7 +140,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class GBPCurrency : public Currency {
+    class GBPCurrency : public Currency
+    {
       public:
         GBPCurrency();
     };
@@ -142,7 +152,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class GELCurrency : public Currency {
+    class GELCurrency : public Currency
+    {
       public:
         GELCurrency();
     };
@@ -153,7 +164,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class HUFCurrency : public Currency {
+    class HUFCurrency : public Currency
+    {
       public:
         HUFCurrency();
     };
@@ -164,7 +176,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class ISKCurrency : public Currency {
+    class ISKCurrency : public Currency
+    {
       public:
         ISKCurrency();
     };
@@ -175,7 +188,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class LTLCurrency : public Currency {
+    class LTLCurrency : public Currency
+    {
       public:
         LTLCurrency();
     };
@@ -186,7 +200,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class LVLCurrency : public Currency {
+    class LVLCurrency : public Currency
+    {
       public:
         LVLCurrency();
     };
@@ -197,7 +212,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class NOKCurrency : public Currency {
+    class NOKCurrency : public Currency
+    {
       public:
         NOKCurrency();
     };
@@ -208,7 +224,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class PLNCurrency : public Currency {
+    class PLNCurrency : public Currency
+    {
       public:
         PLNCurrency();
     };
@@ -221,7 +238,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class ROLCurrency : public Currency {
+    class ROLCurrency : public Currency
+    {
       public:
         ROLCurrency();
     };
@@ -232,7 +250,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class RONCurrency : public Currency {
+    class RONCurrency : public Currency
+    {
       public:
         RONCurrency();
     };
@@ -243,7 +262,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class RSDCurrency : public Currency {
+    class RSDCurrency : public Currency
+    {
       public:
         RSDCurrency();
     };
@@ -254,7 +274,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class RUBCurrency : public Currency {
+    class RUBCurrency : public Currency
+    {
       public:
         RUBCurrency();
     };
@@ -265,7 +286,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class SEKCurrency : public Currency {
+    class SEKCurrency : public Currency
+    {
       public:
         SEKCurrency();
     };
@@ -276,7 +298,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class SITCurrency : public Currency {
+    class SITCurrency : public Currency
+    {
       public:
         SITCurrency();
     };
@@ -289,7 +312,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class TRLCurrency : public Currency {
+    class TRLCurrency : public Currency
+    {
       public:
         TRLCurrency();
     };
@@ -300,7 +324,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class TRYCurrency : public Currency {
+    class TRYCurrency : public Currency
+    {
       public:
         TRYCurrency();
     };
@@ -311,8 +336,9 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class UAHCurrency : public Currency {
-    public:
+    class UAHCurrency : public Currency
+    {
+      public:
         UAHCurrency();
     };
 
@@ -327,7 +353,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class ATSCurrency : public Currency {
+    class ATSCurrency : public Currency
+    {
       public:
         ATSCurrency();
     };
@@ -340,7 +367,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class BEFCurrency : public Currency {
+    class BEFCurrency : public Currency
+    {
       public:
         BEFCurrency();
     };
@@ -353,7 +381,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class CYPCurrency : public Currency {
+    class CYPCurrency : public Currency
+    {
       public:
         CYPCurrency();
     };
@@ -366,7 +395,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class DEMCurrency : public Currency {
+    class DEMCurrency : public Currency
+    {
       public:
         DEMCurrency();
     };
@@ -379,7 +409,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class ESPCurrency : public Currency {
+    class ESPCurrency : public Currency
+    {
       public:
         ESPCurrency();
     };
@@ -392,7 +423,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class FIMCurrency : public Currency {
+    class FIMCurrency : public Currency
+    {
       public:
         FIMCurrency();
     };
@@ -405,7 +437,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class FRFCurrency : public Currency {
+    class FRFCurrency : public Currency
+    {
       public:
         FRFCurrency();
     };
@@ -418,7 +451,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class GRDCurrency : public Currency {
+    class GRDCurrency : public Currency
+    {
       public:
         GRDCurrency();
     };
@@ -431,7 +465,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class HRKCurrency : public Currency {
+    class HRKCurrency : public Currency
+    {
       public:
         HRKCurrency();
     };
@@ -444,7 +479,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class IEPCurrency : public Currency {
+    class IEPCurrency : public Currency
+    {
       public:
         IEPCurrency();
     };
@@ -457,7 +493,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class ITLCurrency : public Currency {
+    class ITLCurrency : public Currency
+    {
       public:
         ITLCurrency();
     };
@@ -470,7 +507,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class LUFCurrency : public Currency {
+    class LUFCurrency : public Currency
+    {
       public:
         LUFCurrency();
     };
@@ -483,7 +521,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class MTLCurrency : public Currency {
+    class MTLCurrency : public Currency
+    {
       public:
         MTLCurrency();
     };
@@ -496,7 +535,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class NLGCurrency : public Currency {
+    class NLGCurrency : public Currency
+    {
       public:
         NLGCurrency();
     };
@@ -509,7 +549,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class PTECurrency : public Currency {
+    class PTECurrency : public Currency
+    {
       public:
         PTECurrency();
     };
@@ -522,7 +563,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class SKKCurrency : public Currency {
+    class SKKCurrency : public Currency
+    {
       public:
         SKKCurrency();
     };
@@ -530,7 +572,7 @@ namespace QuantLib {
 }
 
 #if defined(QL_PATCH_MSVC)
-#pragma warning(pop)
+#    pragma warning(pop)
 #endif
 
 #endif

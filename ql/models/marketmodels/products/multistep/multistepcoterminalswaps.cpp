@@ -22,7 +22,8 @@
 #include <ql/models/marketmodels/utilities.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     MultiStepCoterminalSwaps::MultiStepCoterminalSwaps(const std::vector<Time>& rateTimes,
                                                        std::vector<Real> fixedAccruals,
@@ -30,29 +31,27 @@ namespace QuantLib {
                                                        const std::vector<Time>& paymentTimes,
                                                        Real fixedRate)
     : MultiProductMultiStep(rateTimes), fixedAccruals_(std::move(fixedAccruals)),
-      floatingAccruals_(std::move(floatingAccruals)), paymentTimes_(paymentTimes),
-      fixedRate_(fixedRate) {
+      floatingAccruals_(std::move(floatingAccruals)), paymentTimes_(paymentTimes), fixedRate_(fixedRate)
+    {
         checkIncreasingTimes(paymentTimes);
 
-        lastIndex_ = rateTimes.size()-1;
+        lastIndex_ = rateTimes.size() - 1;
     }
 
-    bool MultiStepCoterminalSwaps::nextTimeStep(
-            const CurveState& currentState,
-            std::vector<Size>& numberCashFlowsThisStep,
-            std::vector<std::vector<MarketModelMultiProduct::CashFlow> >&
-                                                               genCashFlows) {
+    bool
+    MultiStepCoterminalSwaps::nextTimeStep(const CurveState& currentState,
+                                           std::vector<Size>& numberCashFlowsThisStep,
+                                           std::vector<std::vector<MarketModelMultiProduct::CashFlow>>& genCashFlows)
+    {
         Rate liborRate = currentState.forwardRate(currentIndex_);
-        std::fill(numberCashFlowsThisStep.begin(),
-                  numberCashFlowsThisStep.end(),0);
-        for(Size i=0;i<=currentIndex_;i++){
+        std::fill(numberCashFlowsThisStep.begin(), numberCashFlowsThisStep.end(), 0);
+        for (Size i = 0; i <= currentIndex_; i++)
+        {
             genCashFlows[i][0].timeIndex = currentIndex_;
-            genCashFlows[i][0].amount =
-                -fixedRate_*fixedAccruals_[currentIndex_];
+            genCashFlows[i][0].amount = -fixedRate_ * fixedAccruals_[currentIndex_];
 
             genCashFlows[i][1].timeIndex = currentIndex_;
-            genCashFlows[i][1].amount =
-                liborRate*floatingAccruals_[currentIndex_];
+            genCashFlows[i][1].amount = liborRate * floatingAccruals_[currentIndex_];
 
             numberCashFlowsThisStep[i] = 2;
         }
@@ -61,8 +60,8 @@ namespace QuantLib {
         return (currentIndex_ == lastIndex_);
     }
 
-    std::unique_ptr<MarketModelMultiProduct>
-    MultiStepCoterminalSwaps::clone() const {
+    std::unique_ptr<MarketModelMultiProduct> MultiStepCoterminalSwaps::clone() const
+    {
         return std::unique_ptr<MarketModelMultiProduct>(new MultiStepCoterminalSwaps(*this));
     }
 

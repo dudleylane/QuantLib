@@ -24,22 +24,23 @@
 #ifndef quantlib_fdm_g2_op_hpp
 #define quantlib_fdm_g2_op_hpp
 
+#include <ql/methods/finitedifferences/operators/fdmlinearopcomposite.hpp>
 #include <ql/methods/finitedifferences/operators/ninepointlinearop.hpp>
 #include <ql/methods/finitedifferences/operators/triplebandlinearop.hpp>
-#include <ql/methods/finitedifferences/operators/fdmlinearopcomposite.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class G2;
     class FdmMesher;
 
-    class FdmG2Op : public FdmLinearOpComposite {
+    class FdmG2Op : public FdmLinearOpComposite
+    {
       public:
-
-        FdmG2Op(
-            const ext::shared_ptr<FdmMesher>& mesher,
-            const ext::shared_ptr<G2>& model,
-            Size direction1, Size direction2);
+        FdmG2Op(const ext::shared_ptr<FdmMesher>& mesher,
+                const ext::shared_ptr<G2>& model,
+                Size direction1,
+                Size direction2);
 
         Size size() const override;
         void setTime(Time t1, Time t2) override;

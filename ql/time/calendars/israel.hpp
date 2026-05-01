@@ -27,7 +27,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Israel calendar
     /*! Due to the lack of reliable sources, the settlement calendar
@@ -58,16 +59,20 @@ namespace QuantLib {
 
         \ingroup calendars
     */
-    class Israel : public Calendar {
+    class Israel : public Calendar
+    {
       private:
         class TelAvivImpl;
         class ShirImpl;
+
       public:
-          enum Market { Settlement,     //!< generic settlement calendar
-                        TASE,           //!< Tel-Aviv stock exchange calendar
-                        SHIR            //!< SHIR fixing calendar
-          };
-          Israel(Market market = Settlement);
+        enum Market
+        {
+            Settlement, //!< generic settlement calendar
+            TASE,       //!< Tel-Aviv stock exchange calendar
+            SHIR        //!< SHIR fixing calendar
+        };
+        Israel(Market market = Settlement);
     };
 
 }

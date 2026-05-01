@@ -26,25 +26,23 @@
 
 #include <ql/legacy/libormarketmodels/lmcorrmodel.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class LmConstWrapperCorrelationModel : public LmCorrelationModel {
+    class LmConstWrapperCorrelationModel : public LmCorrelationModel
+    {
       public:
-        LmConstWrapperCorrelationModel(
-            const ext::shared_ptr<LmCorrelationModel> & corrModel)
-        : LmCorrelationModel(corrModel->size(), 0),
-          corrModel_(corrModel) {
+        LmConstWrapperCorrelationModel(const ext::shared_ptr<LmCorrelationModel>& corrModel)
+        : LmCorrelationModel(corrModel->size(), 0), corrModel_(corrModel)
+        {
         }
 
         Size factors() const override { return corrModel_->factors(); }
 
-        Matrix correlation(Time t, const Array& x = {}) const override {
-            return corrModel_->correlation(t, x);
-        }
-        Matrix pseudoSqrt(Time t, const Array& x = {}) const override {
-            return corrModel_->pseudoSqrt(t, x);
-        }
-        Real correlation(Size i, Size j, Time t, const Array& x = {}) const override {
+        Matrix correlation(Time t, const Array& x = {}) const override { return corrModel_->correlation(t, x); }
+        Matrix pseudoSqrt(Time t, const Array& x = {}) const override { return corrModel_->pseudoSqrt(t, x); }
+        Real correlation(Size i, Size j, Time t, const Array& x = {}) const override
+        {
             return corrModel_->correlation(i, j, t, x);
         }
         bool isTimeIndependent() const override { return corrModel_->isTimeIndependent(); }
@@ -59,5 +57,3 @@ namespace QuantLib {
 
 
 #endif
-
-

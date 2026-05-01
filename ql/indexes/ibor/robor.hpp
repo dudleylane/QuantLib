@@ -24,29 +24,38 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #ifndef quantlib_robor_hpp
 #define quantlib_robor_hpp
 
+#include <ql/currencies/europe.hpp>
 #include <ql/indexes/iborindex.hpp>
 #include <ql/time/calendars/romania.hpp>
 #include <ql/time/daycounters/actual360.hpp>
-#include <ql/currencies/europe.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-	//! %ROBOR rate
-	/*! Romanian Interbank Offered Rate fixed by BNR.
+    //! %ROBOR rate
+    /*! Romanian Interbank Offered Rate fixed by BNR.
 
-	Conventions are taken from
-	http://www.bnr.ro/files/d/Legislatie/En/RRR.pdf
+    Conventions are taken from
+    http://www.bnr.ro/files/d/Legislatie/En/RRR.pdf
 
-	\warning Roll convention and EoM not yet checked.
-	*/
-	class Robor : public IborIndex {
-	public:
-		Robor(const Period& tenor,
-              const Handle<YieldTermStructure>& h = {})
-			: IborIndex("ROBOR", tenor, (tenor == 1 * Days ? 0 : 2), RONCurrency(),
-				Romania(), ModifiedFollowing, false,
-				Actual360(), h) {}
-	};
+    \warning Roll convention and EoM not yet checked.
+    */
+    class Robor : public IborIndex
+    {
+      public:
+        Robor(const Period& tenor, const Handle<YieldTermStructure>& h = {})
+        : IborIndex("ROBOR",
+                    tenor,
+                    (tenor == 1 * Days ? 0 : 2),
+                    RONCurrency(),
+                    Romania(),
+                    ModifiedFollowing,
+                    false,
+                    Actual360(),
+                    h)
+        {
+        }
+    };
 
 }
 

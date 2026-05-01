@@ -19,4 +19,3 @@
 #include <ql/models/marketmodels/models/pseudorootfacade.hpp>
 #include <ql/models/marketmodels/models/volatilityinterpolationspecifier.hpp>
 #include <ql/models/marketmodels/models/volatilityinterpolationspecifierabcd.hpp>
-

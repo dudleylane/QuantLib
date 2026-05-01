@@ -23,23 +23,24 @@
 #include <ql/termstructures/volatility/inflation/yoyinflationoptionletvolatilitystructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
 
-    YoYInflationCapFloorEngine::YoYInflationCapFloorEngine(
-        ext::shared_ptr<YoYInflationIndex> index,
-        Handle<YoYOptionletVolatilitySurface> volatility,
-        Handle<YieldTermStructure> nominalTermStructure)
+    YoYInflationCapFloorEngine::YoYInflationCapFloorEngine(ext::shared_ptr<YoYInflationIndex> index,
+                                                           Handle<YoYOptionletVolatilitySurface> volatility,
+                                                           Handle<YieldTermStructure> nominalTermStructure)
     : index_(std::move(index)), volatility_(std::move(volatility)),
-      nominalTermStructure_(std::move(nominalTermStructure)) {
+      nominalTermStructure_(std::move(nominalTermStructure))
+    {
         registerWith(index_);
         registerWith(volatility_);
         registerWith(nominalTermStructure_);
     }
 
 
-    void YoYInflationCapFloorEngine::setVolatility(
-            const Handle<YoYOptionletVolatilitySurface> &v) {
+    void YoYInflationCapFloorEngine::setVolatility(const Handle<YoYOptionletVolatilitySurface>& v)
+    {
         if (!volatility_.empty())
             unregisterWith(volatility_);
         volatility_ = v;
@@ -48,7 +49,8 @@ namespace QuantLib {
     }
 
 
-    void YoYInflationCapFloorEngine::calculate() const {
+    void YoYInflationCapFloorEngine::calculate() const
+    {
 
         // copy black version then adapt to others
 
@@ -63,13 +65,13 @@ namespace QuantLib {
 
         Date settlement = nominalTermStructure_->referenceDate();
 
-        for (Size i=0; i<optionlets; ++i) {
+        for (Size i = 0; i < optionlets; ++i)
+        {
             Date paymentDate = arguments_.payDates[i];
-            if (paymentDate > settlement) { // discard expired caplets
-                DiscountFactor d = arguments_.nominals[i] *
-                    arguments_.gearings[i] *
-                    nominalTermStructure_->discount(paymentDate) *
-                arguments_.accrualTimes[i];
+            if (paymentDate > settlement)
+            { // discard expired caplets
+                DiscountFactor d = arguments_.nominals[i] * arguments_.gearings[i] *
+                                   nominalTermStructure_->discount(paymentDate) * arguments_.accrualTimes[i];
 
                 // We explicitly have the index and assume that
                 // the fixing is natural, i.e. no convexity adjustment.
@@ -83,38 +85,39 @@ namespace QuantLib {
 
                 Date fixingDate = arguments_.fixingDates[i];
                 Time sqrtTime = 0.0;
-                if (fixingDate > volatility_->baseDate()){
-                    sqrtTime = std::sqrt(
-                        volatility_->timeFromBase(fixingDate));
+                if (fixingDate > volatility_->baseDate())
+                {
+                    sqrtTime = std::sqrt(volatility_->timeFromBase(fixingDate));
                 }
 
-                if (type == YoYInflationCapFloor::Cap || type == YoYInflationCapFloor::Collar) {
+                if (type == YoYInflationCapFloor::Cap || type == YoYInflationCapFloor::Collar)
+                {
                     Rate strike = arguments_.capRates[i];
-                    if (sqrtTime>0.0) {
-                        stdDevs[i] = std::sqrt(
-                            volatility_->totalVariance(fixingDate, strike, Period(0,Days)));
-
+                    if (sqrtTime > 0.0)
+                    {
+                        stdDevs[i] = std::sqrt(volatility_->totalVariance(fixingDate, strike, Period(0, Days)));
                     }
 
                     // sttDev=0 for already-fixed dates so everything on forward
-                    values[i] = optionletImpl(Option::Call, strike,
-                                              forward, stdDevs[i], d);
+                    values[i] = optionletImpl(Option::Call, strike, forward, stdDevs[i], d);
                 }
-                if (type == YoYInflationCapFloor::Floor || type == YoYInflationCapFloor::Collar) {
+                if (type == YoYInflationCapFloor::Floor || type == YoYInflationCapFloor::Collar)
+                {
                     Rate strike = arguments_.floorRates[i];
-                    if (sqrtTime>0.0) {
-                        stdDevs[i] = std::sqrt(
-                            volatility_->totalVariance(fixingDate, strike, Period(0,Days)));
+                    if (sqrtTime > 0.0)
+                    {
+                        stdDevs[i] = std::sqrt(volatility_->totalVariance(fixingDate, strike, Period(0, Days)));
                     }
-                    Real floorlet = optionletImpl(Option::Put, strike,
-                                                  forward, stdDevs[i], d);
-                    if (type == YoYInflationCapFloor::Floor) {
+                    Real floorlet = optionletImpl(Option::Put, strike, forward, stdDevs[i], d);
+                    if (type == YoYInflationCapFloor::Floor)
+                    {
                         values[i] = floorlet;
-                    } else {
+                    }
+                    else
+                    {
                         // a collar is long a cap and short a floor
                         values[i] -= floorlet;
                     }
-
                 }
                 value += values[i];
             }
@@ -133,55 +136,51 @@ namespace QuantLib {
     //======================================================================
 
     YoYInflationBlackCapFloorEngine::YoYInflationBlackCapFloorEngine(
-                    const ext::shared_ptr<YoYInflationIndex>& index,
-                    const Handle<YoYOptionletVolatilitySurface>& volatility,
-                    const Handle<YieldTermStructure>& nominalTermStructure)
-    : YoYInflationCapFloorEngine(index, volatility, nominalTermStructure) {}
-
-
-    Real YoYInflationBlackCapFloorEngine::optionletImpl(Option::Type type, Rate strike,
-                                                        Rate forward, Real stdDev,
-                                                        Real d) const
+        const ext::shared_ptr<YoYInflationIndex>& index,
+        const Handle<YoYOptionletVolatilitySurface>& volatility,
+        const Handle<YieldTermStructure>& nominalTermStructure)
+    : YoYInflationCapFloorEngine(index, volatility, nominalTermStructure)
     {
-        return blackFormula(type, strike,
-                            forward, stdDev, d);
     }
 
 
+    Real YoYInflationBlackCapFloorEngine::optionletImpl(
+        Option::Type type, Rate strike, Rate forward, Real stdDev, Real d) const
+    {
+        return blackFormula(type, strike, forward, stdDev, d);
+    }
 
-    YoYInflationUnitDisplacedBlackCapFloorEngine
-    ::YoYInflationUnitDisplacedBlackCapFloorEngine(
-                    const ext::shared_ptr<YoYInflationIndex>& index,
-                    const Handle<YoYOptionletVolatilitySurface>& volatility,
-                    const Handle<YieldTermStructure>& nominalTermStructure)
-    : YoYInflationCapFloorEngine(index, volatility, nominalTermStructure) {}
+
+    YoYInflationUnitDisplacedBlackCapFloorEngine ::YoYInflationUnitDisplacedBlackCapFloorEngine(
+        const ext::shared_ptr<YoYInflationIndex>& index,
+        const Handle<YoYOptionletVolatilitySurface>& volatility,
+        const Handle<YieldTermStructure>& nominalTermStructure)
+    : YoYInflationCapFloorEngine(index, volatility, nominalTermStructure)
+    {
+    }
 
 
     Real YoYInflationUnitDisplacedBlackCapFloorEngine::optionletImpl(
-                                                        Option::Type type, Rate strike,
-                                                        Rate forward, Real stdDev,
-                                                        Real d) const
+        Option::Type type, Rate strike, Rate forward, Real stdDev, Real d) const
     {
         // could use displacement parameter in blackFormula but this is clearer
-        return blackFormula(type, strike+1.0,
-                            forward+1.0, stdDev, d);
+        return blackFormula(type, strike + 1.0, forward + 1.0, stdDev, d);
     }
 
 
     YoYInflationBachelierCapFloorEngine::YoYInflationBachelierCapFloorEngine(
-                    const ext::shared_ptr<YoYInflationIndex>& index,
-                    const Handle<YoYOptionletVolatilitySurface>& volatility,
-                    const Handle<YieldTermStructure>& nominalTermStructure)
-    : YoYInflationCapFloorEngine(index, volatility, nominalTermStructure) {}
-
-
-    Real YoYInflationBachelierCapFloorEngine::optionletImpl(Option::Type type, Rate strike,
-                                                        Rate forward, Real stdDev,
-                                                        Real d) const
+        const ext::shared_ptr<YoYInflationIndex>& index,
+        const Handle<YoYOptionletVolatilitySurface>& volatility,
+        const Handle<YieldTermStructure>& nominalTermStructure)
+    : YoYInflationCapFloorEngine(index, volatility, nominalTermStructure)
     {
-        return bachelierBlackFormula(type, strike,
-                                     forward, stdDev, d);
+    }
+
+
+    Real YoYInflationBachelierCapFloorEngine::optionletImpl(
+        Option::Type type, Rate strike, Rate forward, Real stdDev, Real d) const
+    {
+        return bachelierBlackFormula(type, strike, forward, stdDev, d);
     }
 
 }
-

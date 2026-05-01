@@ -24,35 +24,35 @@
 #ifndef quantlib_fd_ornstein_uhlenbeck_vanilla_engine_hpp
 #define quantlib_fd_ornstein_uhlenbeck_vanilla_engine_hpp
 
-#include <ql/pricingengine.hpp>
 #include <ql/instruments/vanillaoption.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
+#include <ql/pricingengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class YieldTermStructure;
     class OrnsteinUhlenbeckProcess;
 
-    class FdOrnsteinUhlenbeckVanillaEngine : public VanillaOption::engine {
+    class FdOrnsteinUhlenbeckVanillaEngine : public VanillaOption::engine
+    {
       public:
-        FdOrnsteinUhlenbeckVanillaEngine(
-            ext::shared_ptr<OrnsteinUhlenbeckProcess>,
-            const ext::shared_ptr<YieldTermStructure>& rTS,
-            Size tGrid = 100,
-            Size xGrid = 100,
-            Size dampingSteps = 0,
-            Real epsilon = 0.0001,
-            const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas());
+        FdOrnsteinUhlenbeckVanillaEngine(ext::shared_ptr<OrnsteinUhlenbeckProcess>,
+                                         const ext::shared_ptr<YieldTermStructure>& rTS,
+                                         Size tGrid = 100,
+                                         Size xGrid = 100,
+                                         Size dampingSteps = 0,
+                                         Real epsilon = 0.0001,
+                                         const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas());
 
-        FdOrnsteinUhlenbeckVanillaEngine(
-            ext::shared_ptr<OrnsteinUhlenbeckProcess>,
-            const ext::shared_ptr<YieldTermStructure>& rTS,
-            DividendSchedule dividends,
-            Size tGrid = 100,
-            Size xGrid = 100,
-            Size dampingSteps = 0,
-            Real epsilon = 0.0001,
-            const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas());
+        FdOrnsteinUhlenbeckVanillaEngine(ext::shared_ptr<OrnsteinUhlenbeckProcess>,
+                                         const ext::shared_ptr<YieldTermStructure>& rTS,
+                                         DividendSchedule dividends,
+                                         Size tGrid = 100,
+                                         Size xGrid = 100,
+                                         Size dampingSteps = 0,
+                                         Real epsilon = 0.0001,
+                                         const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas());
 
         void calculate() const override;
 

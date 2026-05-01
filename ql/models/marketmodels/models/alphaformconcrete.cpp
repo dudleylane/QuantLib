@@ -21,33 +21,42 @@
 #include <cmath>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     AlphaFormInverseLinear::AlphaFormInverseLinear(std::vector<Time> times, Real alpha)
-    : times_(std::move(times)), alpha_(alpha) {}
-
-    Real AlphaFormInverseLinear::operator()(Integer i) const {
-        return 1.0/(1.0+alpha_*times_[i]);
+    : times_(std::move(times)), alpha_(alpha)
+    {
     }
 
-    void AlphaFormInverseLinear::setAlpha(Real alpha) {
-        alpha_=alpha;
+    Real AlphaFormInverseLinear::operator()(Integer i) const
+    {
+        return 1.0 / (1.0 + alpha_ * times_[i]);
+    }
+
+    void AlphaFormInverseLinear::setAlpha(Real alpha)
+    {
+        alpha_ = alpha;
     }
 
 
     AlphaFormLinearHyperbolic::AlphaFormLinearHyperbolic(std::vector<Time> times, Real alpha)
-    : times_(std::move(times)), alpha_(alpha) {}
+    : times_(std::move(times)), alpha_(alpha)
+    {
+    }
 
-    Real AlphaFormLinearHyperbolic::operator()(Integer i) const {
-        Real at = alpha_*times_[i];
-        Real res = std::atan(at)-0.5*M_PI;
+    Real AlphaFormLinearHyperbolic::operator()(Integer i) const
+    {
+        Real at = alpha_ * times_[i];
+        Real res = std::atan(at) - 0.5 * M_PI;
         res *= at;
         res += 1.0;
-        res =std::sqrt(res);
+        res = std::sqrt(res);
         return res;
     }
 
-    void AlphaFormLinearHyperbolic::setAlpha(Real alpha) {
+    void AlphaFormLinearHyperbolic::setAlpha(Real alpha)
+    {
         alpha_ = alpha;
     }
 

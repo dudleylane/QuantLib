@@ -32,16 +32,19 @@
 namespace QuantLib
 {
 
-class LatticeRule
-{
-public:
+    class LatticeRule
+    {
+      public:
+        enum type
+        {
+            A,
+            B,
+            C,
+            D
+        };
 
-    enum type {A, B , C , D};
-
-    static void getRule(type name, std::vector<Real>& Z, Integer N);
-
-
-};
+        static void getRule(type name, std::vector<Real>& Z, Integer N);
+    };
 }
 
 #endif

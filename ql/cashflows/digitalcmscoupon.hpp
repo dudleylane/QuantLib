@@ -26,27 +26,28 @@
 #ifndef quantlib_digital_cms_coupon_hpp
 #define quantlib_digital_cms_coupon_hpp
 
-#include <ql/cashflows/digitalcoupon.hpp>
 #include <ql/cashflows/cmscoupon.hpp>
+#include <ql/cashflows/digitalcoupon.hpp>
 #include <ql/time/schedule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Cms-rate coupon with digital digital call/put option
-    class DigitalCmsCoupon : public DigitalCoupon {
+    class DigitalCmsCoupon : public DigitalCoupon
+    {
       public:
-        DigitalCmsCoupon(
-            const ext::shared_ptr<CmsCoupon> &underlying,
-            Rate callStrike = Null<Rate>(),
-            Position::Type callPosition = Position::Long,
-            bool isCallATMIncluded = false,
-            Rate callDigitalPayoff = Null<Rate>(),
-            Rate putStrike = Null<Rate>(),
-            Position::Type putPosition = Position::Long,
-            bool isPutATMIncluded = false,
-            Rate putDigitalPayoff = Null<Rate>(),
-            const ext::shared_ptr<DigitalReplication>& replication = {},
-            bool nakedOption = false);
+        DigitalCmsCoupon(const ext::shared_ptr<CmsCoupon>& underlying,
+                         Rate callStrike = Null<Rate>(),
+                         Position::Type callPosition = Position::Long,
+                         bool isCallATMIncluded = false,
+                         Rate callDigitalPayoff = Null<Rate>(),
+                         Rate putStrike = Null<Rate>(),
+                         Position::Type putPosition = Position::Long,
+                         bool isPutATMIncluded = false,
+                         Rate putDigitalPayoff = Null<Rate>(),
+                         const ext::shared_ptr<DigitalReplication>& replication = {},
+                         bool nakedOption = false);
 
         //! \name Visitability
         //@{
@@ -56,7 +57,8 @@ namespace QuantLib {
 
 
     //! helper class building a sequence of digital ibor-rate coupons
-    class DigitalCmsLeg {
+    class DigitalCmsLeg
+    {
       public:
         DigitalCmsLeg(Schedule schedule, ext::shared_ptr<SwapIndex> index);
         DigitalCmsLeg& withNotionals(Real notional);
@@ -86,6 +88,7 @@ namespace QuantLib {
         DigitalCmsLeg& withNakedOption(bool nakedOption = true);
 
         operator Leg() const;
+
       private:
         Schedule schedule_;
         ext::shared_ptr<SwapIndex> index_;

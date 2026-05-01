@@ -27,17 +27,20 @@
 #include <ql/types.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Marshall-Olkin copula
-    class MarshallOlkinCopula {
+    class MarshallOlkinCopula
+    {
       public:
         MarshallOlkinCopula(Real a1, Real a2);
         Real operator()(Real x, Real y) const;
+
       private:
         Real a1_, a2_;
     };
-    
+
 }
 
 #endif

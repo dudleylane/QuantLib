@@ -26,18 +26,21 @@
 
 #include <ql/qldefines.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! degenerate base class for the Acyclic %Visitor pattern
     /*! \ingroup patterns */
-    class AcyclicVisitor {
+    class AcyclicVisitor
+    {
       public:
         virtual ~AcyclicVisitor() = default;
     };
 
     //! %Visitor for a specific class
     template <class T>
-    class Visitor {
+    class Visitor
+    {
       public:
         virtual ~Visitor() = default;
         virtual void visit(T&) = 0;

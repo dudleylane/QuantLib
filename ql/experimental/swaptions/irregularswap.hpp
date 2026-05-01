@@ -33,20 +33,19 @@
 #include <ql/time/daycounter.hpp>
 #include <ql/time/schedule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class IborIndex;
 
     //! Irregular swap: fixed vs floating leg
-    class IrregularSwap : public Swap {
+    class IrregularSwap : public Swap
+    {
       public:
         class arguments;
         class results;
         class engine;
-        IrregularSwap(
-            Type type,
-            const Leg& fixLeg,
-            const Leg& floatLeg);
+        IrregularSwap(Type type, const Leg& fixLeg, const Leg& floatLeg);
         //! \name Inspectors
         //@{
         Type type() const;
@@ -80,7 +79,8 @@ namespace QuantLib {
 
 
     //! %Arguments for irregular-swap calculation
-    class IrregularSwap::arguments : public Swap::arguments {
+    class IrregularSwap::arguments : public Swap::arguments
+    {
       public:
         arguments() = default;
         Type type = Receiver;
@@ -103,28 +103,33 @@ namespace QuantLib {
     };
 
     //! %Results from irregular-swap calculation
-    class IrregularSwap::results : public Swap::results {
+    class IrregularSwap::results : public Swap::results
+    {
       public:
         Rate fairRate;
         Spread fairSpread;
         void reset() override;
     };
 
-    class IrregularSwap::engine : public GenericEngine<IrregularSwap::arguments,
-                                                       IrregularSwap::results> {};
+    class IrregularSwap::engine : public GenericEngine<IrregularSwap::arguments, IrregularSwap::results>
+    {
+    };
 
 
     // inline definitions
 
-    inline Swap::Type IrregularSwap::type() const {
+    inline Swap::Type IrregularSwap::type() const
+    {
         return type_;
     }
 
-    inline const Leg& IrregularSwap::fixedLeg() const {
+    inline const Leg& IrregularSwap::fixedLeg() const
+    {
         return legs_[0];
     }
 
-    inline const Leg& IrregularSwap::floatingLeg() const {
+    inline const Leg& IrregularSwap::floatingLeg() const
+    {
         return legs_[1];
     }
 

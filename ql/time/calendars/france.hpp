@@ -27,7 +27,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! French calendars
     /*! Public holidays:
@@ -47,9 +48,8 @@ namespace QuantLib {
         <li>Christmas Day, December 25th</li>
         </ul>
 
-        Holidays for the stock exchange (data from https://www.stockmarketclock.com/exchanges/euronext-paris/market-holidays/):
-        <ul>
-        <li>Saturdays</li>
+        Holidays for the stock exchange (data from
+       https://www.stockmarketclock.com/exchanges/euronext-paris/market-holidays/): <ul> <li>Saturdays</li>
         <li>Sundays</li>
         <li>New Year's Day, January 1st</li>
         <li>Good Friday</li>
@@ -63,22 +63,28 @@ namespace QuantLib {
 
         \ingroup calendars
     */
-    class France : public Calendar {
+    class France : public Calendar
+    {
       private:
-        class SettlementImpl final : public Calendar::WesternImpl {
+        class SettlementImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "French settlement"; }
             bool isBusinessDay(const Date&) const override;
         };
-        class ExchangeImpl final : public Calendar::WesternImpl {
+        class ExchangeImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "Paris stock exchange"; }
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
         //! French calendars
-        enum Market { Settlement,     //!< generic settlement calendar
-                      Exchange        //!< Paris stock-exchange calendar
+        enum Market
+        {
+            Settlement, //!< generic settlement calendar
+            Exchange    //!< Paris stock-exchange calendar
         };
         explicit France(Market market = Settlement);
     };

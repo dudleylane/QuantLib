@@ -32,7 +32,8 @@
 #include <ql/types.hpp>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! This class provides a Period (length + TimeUnit) class
         and implements a limited algebra.
@@ -41,11 +42,11 @@ namespace QuantLib {
 
         \test self-consistency of algebra is checked.
     */
-    class Period {
+    class Period
+    {
       public:
         Period() = default;
-        Period(Integer n, TimeUnit units)
-        : length_(n), units_(units) {}
+        Period(Integer n, TimeUnit units) : length_(n), units_(units) {}
         explicit Period(Frequency f);
         Integer length() const { return length_; }
         TimeUnit units() const { return units_; }
@@ -56,6 +57,7 @@ namespace QuantLib {
         Period& operator/=(Integer);
         void normalize();
         Period normalized() const;
+
       private:
         Integer length_ = 0;
         TimeUnit units_ = Days;
@@ -71,9 +73,11 @@ namespace QuantLib {
     Real days(const Period&);
 
     /*! \relates Period */
-    template <typename T> Period operator*(T n, TimeUnit units);
+    template <typename T>
+    Period operator*(T n, TimeUnit units);
     /*! \relates Period */
-    template <typename T> Period operator*(TimeUnit units, T n);
+    template <typename T>
+    Period operator*(TimeUnit units, T n);
 
     /*! \relates Period */
     Period operator-(const Period&);
@@ -107,15 +111,18 @@ namespace QuantLib {
     /*! \relates Period */
     std::ostream& operator<<(std::ostream&, const Period&);
 
-    namespace detail {
+    namespace detail
+    {
 
-        struct long_period_holder {
+        struct long_period_holder
+        {
             explicit long_period_holder(const Period& p) : p(p) {}
             Period p;
         };
         std::ostream& operator<<(std::ostream&, const long_period_holder&);
 
-        struct short_period_holder {
+        struct short_period_holder
+        {
             explicit short_period_holder(Period p) : p(p) {}
             Period p;
         };
@@ -123,7 +130,8 @@ namespace QuantLib {
 
     }
 
-    namespace io {
+    namespace io
+    {
 
         //! output periods in long format (e.g. "2 weeks")
         /*! \ingroup manips */
@@ -137,45 +145,62 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline Period Period::normalized() const {
+    inline Period Period::normalized() const
+    {
         Period p = *this;
         p.normalize();
         return p;
     }
 
     template <typename T>
-    inline Period operator*(T n, TimeUnit units) {
+    inline Period operator*(T n, TimeUnit units)
+    {
         return {Integer(n), units};
     }
 
     template <typename T>
-    inline Period operator*(TimeUnit units, T n) {
+    inline Period operator*(TimeUnit units, T n)
+    {
         return {Integer(n), units};
     }
 
-    inline Period operator-(const Period& p) { return {-p.length(), p.units()}; }
+    inline Period operator-(const Period& p)
+    {
+        return {-p.length(), p.units()};
+    }
 
-    inline Period operator*(Integer n, const Period& p) { return {n * p.length(), p.units()}; }
+    inline Period operator*(Integer n, const Period& p)
+    {
+        return {n * p.length(), p.units()};
+    }
 
-    inline Period operator*(const Period& p, Integer n) { return {n * p.length(), p.units()}; }
+    inline Period operator*(const Period& p, Integer n)
+    {
+        return {n * p.length(), p.units()};
+    }
 
-    inline bool operator==(const Period& p1, const Period& p2) {
+    inline bool operator==(const Period& p1, const Period& p2)
+    {
         return !(p1 < p2 || p2 < p1);
     }
 
-    inline bool operator!=(const Period& p1, const Period& p2) {
+    inline bool operator!=(const Period& p1, const Period& p2)
+    {
         return !(p1 == p2);
     }
 
-    inline bool operator>(const Period& p1, const Period& p2) {
+    inline bool operator>(const Period& p1, const Period& p2)
+    {
         return p2 < p1;
     }
 
-    inline bool operator<=(const Period& p1, const Period& p2) {
+    inline bool operator<=(const Period& p1, const Period& p2)
+    {
         return !(p1 > p2);
     }
 
-    inline bool operator>=(const Period& p1, const Period& p2) {
+    inline bool operator>=(const Period& p1, const Period& p2)
+    {
         return !(p1 < p2);
     }
 

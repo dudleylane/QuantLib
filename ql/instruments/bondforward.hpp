@@ -25,10 +25,11 @@
 #ifndef quantlib_bond_forward_hpp
 #define quantlib_bond_forward_hpp
 
-#include <ql/instruments/forward.hpp>
 #include <ql/instruments/bond.hpp>
+#include <ql/instruments/forward.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Forward contract on a bond
     /*! 1. valueDate refers to the settlement date of the bond forward
@@ -66,7 +67,8 @@ namespace QuantLib {
 
         \ingroup instruments
     */
-    class BondForward : public Forward {
+    class BondForward : public Forward
+    {
       public:
         //! \name Constructors
         /*! If strike is given in the constructor, can calculate the
@@ -77,18 +79,17 @@ namespace QuantLib {
             constructor is irrelevant and will be ignored.
         */
         //@{
-        BondForward(
-            const Date& valueDate,
-            const Date& maturityDate,
-            Position::Type type,
-            Real strike,
-            Natural settlementDays,
-            const DayCounter& dayCounter,
-            const Calendar& calendar,
-            BusinessDayConvention businessDayConvention,
-            const ext::shared_ptr<Bond>& bond,
-            const Handle<YieldTermStructure>& discountCurve = Handle<YieldTermStructure>(),
-            const Handle<YieldTermStructure>& incomeDiscountCurve = Handle<YieldTermStructure>());
+        BondForward(const Date& valueDate,
+                    const Date& maturityDate,
+                    Position::Type type,
+                    Real strike,
+                    Natural settlementDays,
+                    const DayCounter& dayCounter,
+                    const Calendar& calendar,
+                    BusinessDayConvention businessDayConvention,
+                    const ext::shared_ptr<Bond>& bond,
+                    const Handle<YieldTermStructure>& discountCurve = Handle<YieldTermStructure>(),
+                    const Handle<YieldTermStructure>& incomeDiscountCurve = Handle<YieldTermStructure>());
         //@}
 
         //! \name Calculations

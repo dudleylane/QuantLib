@@ -25,16 +25,17 @@
 
 #include <ql/math/optimization/linesearch.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class GoldsteinLineSearch : public LineSearch {
+    class GoldsteinLineSearch : public LineSearch
+    {
       public:
         //! Default constructor
-        GoldsteinLineSearch(Real eps = 1e-8,
-                            Real alpha = 0.05,
-                            Real beta = 0.65,
-                            Real extrapolation = 1.5)
-        : LineSearch(eps), alpha_(alpha), beta_(beta), extrapolation_(extrapolation) {}
+        GoldsteinLineSearch(Real eps = 1e-8, Real alpha = 0.05, Real beta = 0.65, Real extrapolation = 1.5)
+        : LineSearch(eps), alpha_(alpha), beta_(beta), extrapolation_(extrapolation)
+        {
+        }
 
         //! Perform line search
         Real operator()(Problem& P, // Optimization problem

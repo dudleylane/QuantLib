@@ -20,25 +20,28 @@
 
 #include <ql/termstructures/volatility/capfloor/capfloortermvolatilitystructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    CapFloorTermVolatilityStructure::CapFloorTermVolatilityStructure(
-                                                    BusinessDayConvention bdc,
-                                                    const DayCounter& dc)
-    : VolatilityTermStructure(bdc, dc) {}
+    CapFloorTermVolatilityStructure::CapFloorTermVolatilityStructure(BusinessDayConvention bdc, const DayCounter& dc)
+    : VolatilityTermStructure(bdc, dc)
+    {
+    }
 
-    CapFloorTermVolatilityStructure::CapFloorTermVolatilityStructure(
-                                                    const Date& refDate,
-                                                    const Calendar& cal,
-                                                    BusinessDayConvention bdc,
-                                                    const DayCounter& dc)
-    : VolatilityTermStructure(refDate, cal, bdc, dc) {}
+    CapFloorTermVolatilityStructure::CapFloorTermVolatilityStructure(const Date& refDate,
+                                                                     const Calendar& cal,
+                                                                     BusinessDayConvention bdc,
+                                                                     const DayCounter& dc)
+    : VolatilityTermStructure(refDate, cal, bdc, dc)
+    {
+    }
 
-    CapFloorTermVolatilityStructure::CapFloorTermVolatilityStructure(
-                                                    Natural settlementDays,
-                                                    const Calendar& cal,
-                                                    BusinessDayConvention bdc,
-                                                    const DayCounter& dc)
-    : VolatilityTermStructure(settlementDays, cal, bdc, dc) {}
+    CapFloorTermVolatilityStructure::CapFloorTermVolatilityStructure(Natural settlementDays,
+                                                                     const Calendar& cal,
+                                                                     BusinessDayConvention bdc,
+                                                                     const DayCounter& dc)
+    : VolatilityTermStructure(settlementDays, cal, bdc, dc)
+    {
+    }
 
 }

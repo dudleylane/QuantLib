@@ -20,10 +20,9 @@
 #ifndef quantlib_pdebsm_hpp
 #define quantlib_pdebsm_hpp
 
-#include <ql/processes/blackscholesprocess.hpp>
 #include <ql/math/array.hpp>
 #include <ql/methods/finitedifferences/tridiagonaloperator.hpp>
-#include <ql/math/array.hpp>
+#include <ql/processes/blackscholesprocess.hpp>
 #include <functional>
 #include <numeric>
 #include <utility>

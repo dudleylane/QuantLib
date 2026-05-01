@@ -24,21 +24,28 @@
 #ifndef quantlib_boundary_condition_hpp
 #define quantlib_boundary_condition_hpp
 
-#include <ql/utilities/null.hpp>
 #include <ql/methods/finitedifferences/tridiagonaloperator.hpp>
+#include <ql/utilities/null.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Abstract boundary condition class for finite difference problems
     /*! \ingroup findiff */
     template <class Operator>
-    class BoundaryCondition {
+    class BoundaryCondition
+    {
       public:
         // types and enumerations
         typedef Operator operator_type;
         typedef typename Operator::array_type array_type;
         //! \todo Generalize for n-dimensional conditions
-        enum Side { None, Upper, Lower };
+        enum Side
+        {
+            None,
+            Upper,
+            Lower
+        };
         // destructor
         virtual ~BoundaryCondition() = default;
         // interface
@@ -52,8 +59,7 @@ namespace QuantLib {
         /*! This method modifies an operator \f$ L \f$ before the linear
             system \f$ Lu' = u \f$ is solved so that \f$ u' \f$ will
             satisfy the given condition. */
-        virtual void applyBeforeSolving(operator_type&,
-                                        array_type& rhs) const = 0;
+        virtual void applyBeforeSolving(operator_type&, array_type& rhs) const = 0;
         /*! This method modifies an array \f$ u \f$ so that it satisfies
             the given condition. */
         virtual void applyAfterSolving(array_type&) const = 0;
@@ -63,12 +69,13 @@ namespace QuantLib {
     };
 
 
-
     /*! \deprecated Part of the old FD framework; copy this function
                     in your codebase if needed.
                     Deprecated in version 1.42.
     */
-    class [[deprecated("Part of the old FD framework; copy this function in your codebase if needed")]] NeumannBC : public BoundaryCondition<TridiagonalOperator> {
+    class [[deprecated("Part of the old FD framework; copy this function in your codebase if needed")]] NeumannBC
+    : public BoundaryCondition<TridiagonalOperator>
+    {
       public:
         NeumannBC(Real value, Side side);
         // interface
@@ -87,7 +94,9 @@ namespace QuantLib {
                     in your codebase if needed.
                     Deprecated in version 1.42.
     */
-    class [[deprecated("Part of the old FD framework; copy this function in your codebase if needed")]] DirichletBC : public BoundaryCondition<TridiagonalOperator> {
+    class [[deprecated("Part of the old FD framework; copy this function in your codebase if needed")]] DirichletBC
+    : public BoundaryCondition<TridiagonalOperator>
+    {
       public:
         DirichletBC(Real value, Side side);
         // interface

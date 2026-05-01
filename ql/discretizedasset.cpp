@@ -20,9 +20,11 @@
 
 #include <ql/discretizedasset.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    void DiscretizedOption::postAdjustValuesImpl() {
+    void DiscretizedOption::postAdjustValuesImpl()
+    {
         /* In the real world, with time flowing forward, first
            any payment is settled and only after options can be
            exercised. Here, with time flowing backward, options
@@ -31,24 +33,25 @@ namespace QuantLib {
         underlying_->partialRollback(time());
         underlying_->preAdjustValues();
         Size i;
-        switch (exerciseType_) {
-          case Exercise::American:
-            if (time_ >= exerciseTimes_[0] && time_ <= exerciseTimes_[1])
-                applyExerciseCondition();
-            break;
-          case Exercise::Bermudan:
-          case Exercise::European:
-            for (i=0; i<exerciseTimes_.size(); i++) {
-                Time t = exerciseTimes_[i];
-                if (t >= 0.0 && isOnTime(t))
+        switch (exerciseType_)
+        {
+            case Exercise::American:
+                if (time_ >= exerciseTimes_[0] && time_ <= exerciseTimes_[1])
                     applyExerciseCondition();
-            }
-            break;
-          default:
-            QL_FAIL("invalid exercise type");
+                break;
+            case Exercise::Bermudan:
+            case Exercise::European:
+                for (i = 0; i < exerciseTimes_.size(); i++)
+                {
+                    Time t = exerciseTimes_[i];
+                    if (t >= 0.0 && isOnTime(t))
+                        applyExerciseCondition();
+                }
+                break;
+            default:
+                QL_FAIL("invalid exercise type");
         }
         underlying_->postAdjustValues();
     }
 
 }
-

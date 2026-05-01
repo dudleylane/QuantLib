@@ -27,21 +27,23 @@
 #define quantlib_makevanillaswap_hpp
 
 #include <ql/instruments/vanillaswap.hpp>
-#include <ql/time/dategenerationrule.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
+#include <ql/time/dategenerationrule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! helper class
     /*! This class provides a more comfortable way
         to instantiate standard market swap.
     */
-    class MakeVanillaSwap {
+    class MakeVanillaSwap
+    {
       public:
         MakeVanillaSwap(const Period& swapTenor,
                         const ext::shared_ptr<IborIndex>& iborIndex,
                         Rate fixedRate = Null<Rate>(),
-                        const Period& forwardStart = 0*Days);
+                        const Period& forwardStart = 0 * Days);
 
         operator VanillaSwap() const;
         operator ext::shared_ptr<VanillaSwap>() const;
@@ -59,8 +61,7 @@ namespace QuantLib {
         MakeVanillaSwap& withFixedLegTenor(const Period& t);
         MakeVanillaSwap& withFixedLegCalendar(const Calendar& cal);
         MakeVanillaSwap& withFixedLegConvention(BusinessDayConvention bdc);
-        MakeVanillaSwap& withFixedLegTerminationDateConvention(
-                                                   BusinessDayConvention bdc);
+        MakeVanillaSwap& withFixedLegTerminationDateConvention(BusinessDayConvention bdc);
         MakeVanillaSwap& withFixedLegRule(DateGeneration::Rule r);
         MakeVanillaSwap& withFixedLegEndOfMonth(bool flag = true);
         MakeVanillaSwap& withFixedLegFirstDate(const Date& d);
@@ -70,8 +71,7 @@ namespace QuantLib {
         MakeVanillaSwap& withFloatingLegTenor(const Period& t);
         MakeVanillaSwap& withFloatingLegCalendar(const Calendar& cal);
         MakeVanillaSwap& withFloatingLegConvention(BusinessDayConvention bdc);
-        MakeVanillaSwap& withFloatingLegTerminationDateConvention(
-                                                   BusinessDayConvention bdc);
+        MakeVanillaSwap& withFloatingLegTerminationDateConvention(BusinessDayConvention bdc);
         MakeVanillaSwap& withFloatingLegRule(DateGeneration::Rule r);
         MakeVanillaSwap& withFloatingLegEndOfMonth(bool flag = true);
         MakeVanillaSwap& withMaturityEndOfMonth(bool flag = true);
@@ -80,12 +80,11 @@ namespace QuantLib {
         MakeVanillaSwap& withFloatingLegDayCount(const DayCounter& dc);
         MakeVanillaSwap& withFloatingLegSpread(Spread sp);
 
-        MakeVanillaSwap& withDiscountingTermStructure(
-                              const Handle<YieldTermStructure>& discountCurve);
-        MakeVanillaSwap& withPricingEngine(
-                              const ext::shared_ptr<PricingEngine>& engine);
+        MakeVanillaSwap& withDiscountingTermStructure(const Handle<YieldTermStructure>& discountCurve);
+        MakeVanillaSwap& withPricingEngine(const ext::shared_ptr<PricingEngine>& engine);
         MakeVanillaSwap& withIndexedCoupons(const ext::optional<bool>& b = true);
         MakeVanillaSwap& withAtParCoupons(bool b = true);
+
       private:
         Period swapTenor_;
         ext::shared_ptr<IborIndex> iborIndex_;
@@ -99,11 +98,9 @@ namespace QuantLib {
         Swap::Type type_ = Swap::Payer;
         Real nominal_ = 1.0;
         Period fixedTenor_, floatTenor_;
-        BusinessDayConvention fixedConvention_ = ModifiedFollowing,
-                              fixedTerminationDateConvention_ = ModifiedFollowing;
+        BusinessDayConvention fixedConvention_ = ModifiedFollowing, fixedTerminationDateConvention_ = ModifiedFollowing;
         BusinessDayConvention floatConvention_, floatTerminationDateConvention_;
-        DateGeneration::Rule fixedRule_ = DateGeneration::Backward,
-                             floatRule_ = DateGeneration::Backward;
+        DateGeneration::Rule fixedRule_ = DateGeneration::Backward, floatRule_ = DateGeneration::Backward;
         bool fixedEndOfMonth_ = false, floatEndOfMonth_ = false;
         ext::optional<bool> maturityEndOfMonth_;
         Date fixedFirstDate_, fixedNextToLastDate_;

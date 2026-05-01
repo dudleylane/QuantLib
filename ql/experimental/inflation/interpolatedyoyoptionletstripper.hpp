@@ -33,7 +33,8 @@
 #include <utility>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! The interpolated version interpolates along each K (as opposed
         to fitting a model, say).
@@ -41,9 +42,9 @@ namespace QuantLib {
         \bug Tests currently fail.
     */
     template <class Interpolator1D>
-    class InterpolatedYoYOptionletStripper : public YoYOptionletStripper {
+    class InterpolatedYoYOptionletStripper : public YoYOptionletStripper
+    {
       public:
-
         //! YoYOptionletStripper interface
         //@{
         void initialize(const ext::shared_ptr<YoYCapFloorTermPriceSurface>&,
@@ -51,18 +52,17 @@ namespace QuantLib {
                         Real slope) const override;
         Rate minStrike() const override { return YoYCapFloorTermPriceSurface_->strikes().front(); }
         Rate maxStrike() const override { return YoYCapFloorTermPriceSurface_->strikes().back(); }
-        std::vector<Rate> strikes() const override {
-            return YoYCapFloorTermPriceSurface_->strikes();
-        }
-        std::pair<std::vector<Rate>, std::vector<Volatility> > slice(const Date& d) const override;
+        std::vector<Rate> strikes() const override { return YoYCapFloorTermPriceSurface_->strikes(); }
+        std::pair<std::vector<Rate>, std::vector<Volatility>> slice(const Date& d) const override;
         //@}
 
       protected:
-        mutable std::vector<ext::shared_ptr<YoYOptionletVolatilitySurface> > volCurves_;
+        mutable std::vector<ext::shared_ptr<YoYOptionletVolatilitySurface>> volCurves_;
 
         // used to set up the first point on each vol curve
         // using assumptions on unobserved vols at start
-        class ObjectiveFunction {
+        class ObjectiveFunction
+        {
           public:
             ObjectiveFunction(YoYInflationCapFloor::Type type,
                               Real slope,
@@ -74,6 +74,7 @@ namespace QuantLib {
                               ext::shared_ptr<YoYInflationCapFloorEngine> p,
                               Real priceToMatch);
             Real operator()(Volatility guess) const;
+
           protected:
             Real slope_;
             Rate K_;
@@ -104,32 +105,25 @@ namespace QuantLib {
         const ext::shared_ptr<YoYCapFloorTermPriceSurface>& surf,
         ext::shared_ptr<YoYInflationCapFloorEngine> p,
         Real priceToMatch)
-    : slope_(slope), K_(K), frequency_(anIndex->frequency()),
-       tvec_(std::vector<Time>(2)),
-      dvec_(std::vector<Date>(2)), vvec_(std::vector<Volatility>(2)), priceToMatch_(priceToMatch),
-      surf_(surf), p_(std::move(p)) {
+    : slope_(slope), K_(K), frequency_(anIndex->frequency()), tvec_(std::vector<Time>(2)), dvec_(std::vector<Date>(2)),
+      vvec_(std::vector<Volatility>(2)), priceToMatch_(priceToMatch), surf_(surf), p_(std::move(p))
+    {
 
         lag_ = surf_->observationLag();
-        capfloor_ =
-            MakeYoYInflationCapFloor(type, anIndex,
-                                     (Size)std::floor(0.5+surf->timeFromReference(surf->minMaturity())),
-                                     surf->calendar(), lag, CPI::Flat)
-            .withNominal(10000.0)
-            .withStrike(K);
+        capfloor_ = MakeYoYInflationCapFloor(type, anIndex,
+                                             (Size)std::floor(0.5 + surf->timeFromReference(surf->minMaturity())),
+                                             surf->calendar(), lag, CPI::Flat)
+                        .withNominal(10000.0)
+                        .withStrike(K);
 
         // shortest time available from price surface
         dvec_[0] = surf_->baseDate();
-        dvec_[1] = surf_->minMaturity() +
-                   Period(7, Days);
-        tvec_[0] = surf_->dayCounter().yearFraction(surf_->referenceDate(),
-                                                    dvec_[0] );
-        tvec_[1] = surf_->dayCounter().yearFraction(surf_->referenceDate(),
-                                                    dvec_[1]);
+        dvec_[1] = surf_->minMaturity() + Period(7, Days);
+        tvec_[0] = surf_->dayCounter().yearFraction(surf_->referenceDate(), dvec_[0]);
+        tvec_[1] = surf_->dayCounter().yearFraction(surf_->referenceDate(), dvec_[1]);
 
         Size n = (Size)std::floor(0.5 + surf->timeFromReference(surf_->minMaturity()));
-        QL_REQUIRE( n > 0,
-                    "first maturity in price surface not > 0: "
-                    << n);
+        QL_REQUIRE(n > 0, "first maturity in price surface not > 0: " << n);
 
         capfloor_->setPricingEngine(p_);
         // pricer already setup just need to do the volatility surface each time
@@ -137,20 +131,16 @@ namespace QuantLib {
 
 
     template <class Interpolator1D>
-    Real InterpolatedYoYOptionletStripper<Interpolator1D>::
-    ObjectiveFunction::operator()(Volatility guess) const {
+    Real InterpolatedYoYOptionletStripper<Interpolator1D>::ObjectiveFunction::operator()(Volatility guess) const
+    {
 
         vvec_[1] = guess;
         vvec_[0] = guess - slope_ * (tvec_[1] - tvec_[0]) * guess;
         // could have Interpolator1D instead of Linear
-        ext::shared_ptr<InterpolatedYoYOptionletVolatilityCurve<Linear> >
-        vCurve(
-            new InterpolatedYoYOptionletVolatilityCurve<Linear>(
-                                               0, TARGET(), ModifiedFollowing,
-                                               Actual365Fixed(), lag_,
-                                               frequency_, indexIsInterpolated_,
-                                               dvec_, vvec_,
-                                               -1.0, 3.0) ); // strike limits
+        ext::shared_ptr<InterpolatedYoYOptionletVolatilityCurve<Linear>> vCurve(
+            new InterpolatedYoYOptionletVolatilityCurve<Linear>(0, TARGET(), ModifiedFollowing, Actual365Fixed(), lag_,
+                                                                frequency_, indexIsInterpolated_, dvec_, vvec_, -1.0,
+                                                                3.0)); // strike limits
         Handle<YoYOptionletVolatilitySurface> hCurve(vCurve);
         p_->setVolatility(hCurve);
         // hopefully this gets to the pricer ... then
@@ -159,10 +149,11 @@ namespace QuantLib {
 
 
     template <class Interpolator1D>
-    void InterpolatedYoYOptionletStripper<Interpolator1D>::
-    initialize(const ext::shared_ptr<YoYCapFloorTermPriceSurface> &s,
-               const ext::shared_ptr<YoYInflationCapFloorEngine> &p,
-               const Real slope) const {
+    void
+    InterpolatedYoYOptionletStripper<Interpolator1D>::initialize(const ext::shared_ptr<YoYCapFloorTermPriceSurface>& s,
+                                                                 const ext::shared_ptr<YoYInflationCapFloorEngine>& p,
+                                                                 const Real slope) const
+    {
         YoYCapFloorTermPriceSurface_ = s;
         p_ = p;
         lag_ = YoYCapFloorTermPriceSurface_->observationLag();
@@ -171,8 +162,7 @@ namespace QuantLib {
         Natural fixingDays_ = YoYCapFloorTermPriceSurface_->fixingDays();
         Natural settlementDays = 0; // always
         Calendar cal = YoYCapFloorTermPriceSurface_->calendar();
-        BusinessDayConvention bdc =
-            YoYCapFloorTermPriceSurface_->businessDayConvention();
+        BusinessDayConvention bdc = YoYCapFloorTermPriceSurface_->businessDayConvention();
         DayCounter dc = YoYCapFloorTermPriceSurface_->dayCounter();
 
         // switch from caps to floors when out of floors
@@ -181,77 +171,65 @@ namespace QuantLib {
         Period TPmin = YoYCapFloorTermPriceSurface_->maturities().front();
         // create a "fake index" based on Generic, this should work
         // provided that the lag and frequency are correct
-        RelinkableHandle<YoYInflationTermStructure> hYoY(
-                                       YoYCapFloorTermPriceSurface_->YoYTS());
-        ext::shared_ptr<YoYInflationIndex> anIndex(
-                                           new YYGenericCPI(frequency_,
-                                                            false, lag_,
-                                                            Currency(), hYoY));
+        RelinkableHandle<YoYInflationTermStructure> hYoY(YoYCapFloorTermPriceSurface_->YoYTS());
+        ext::shared_ptr<YoYInflationIndex> anIndex(new YYGenericCPI(frequency_, false, lag_, Currency(), hYoY));
 
         // strip each K separatly
-        for (Size i=0; i<YoYCapFloorTermPriceSurface_->strikes().size(); i++) {
+        for (Size i = 0; i < YoYCapFloorTermPriceSurface_->strikes().size(); i++)
+        {
             Rate K = YoYCapFloorTermPriceSurface_->strikes()[i];
-            if (K > maxFloor) useType = YoYInflationCapFloor::Cap;
+            if (K > maxFloor)
+                useType = YoYInflationCapFloor::Cap;
 
             // solve for the initial point on the vol curve
             Brent solver;
             Real solverTolerance_ = 1e-7;
-             // these are VOLATILITY guesses (always +)
+            // these are VOLATILITY guesses (always +)
             Real lo = 0.00001, hi = 0.08;
-            Real guess = (hi+lo)/2.0;
+            Real guess = (hi + lo) / 2.0;
             Real found;
             Real priceToMatch =
-                (useType == YoYInflationCapFloor::Cap ?
-                 YoYCapFloorTermPriceSurface_->capPrice(TPmin, K) :
-                 YoYCapFloorTermPriceSurface_->floorPrice(TPmin, K));
+                (useType == YoYInflationCapFloor::Cap ? YoYCapFloorTermPriceSurface_->capPrice(TPmin, K) :
+                                                        YoYCapFloorTermPriceSurface_->floorPrice(TPmin, K));
 
-            try{
-                found = solver.solve(
-                      ObjectiveFunction(useType, slope, K, lag_, fixingDays_,
-                                        anIndex, YoYCapFloorTermPriceSurface_,
-                                        p_, priceToMatch),
-                      solverTolerance_, guess, lo, hi );
-            } catch( std::exception &e) {
+            try
+            {
+                found = solver.solve(ObjectiveFunction(useType, slope, K, lag_, fixingDays_, anIndex,
+                                                       YoYCapFloorTermPriceSurface_, p_, priceToMatch),
+                                     solverTolerance_, guess, lo, hi);
+            }
+            catch (std::exception& e)
+            {
                 QL_FAIL("failed to find solution here because: " << e.what());
             }
 
             // ***create helpers***
             Real notional = 10000; // work in bps
-            std::vector<ext::shared_ptr<BootstrapHelper<YoYOptionletVolatilitySurface> > > helperInstruments;
-            std::vector<ext::shared_ptr<YoYOptionletHelper> > helpers;
-            for (Size j = 0; j < YoYCapFloorTermPriceSurface_->maturities().size(); j++){
+            std::vector<ext::shared_ptr<BootstrapHelper<YoYOptionletVolatilitySurface>>> helperInstruments;
+            std::vector<ext::shared_ptr<YoYOptionletHelper>> helpers;
+            for (Size j = 0; j < YoYCapFloorTermPriceSurface_->maturities().size(); j++)
+            {
                 Period Tp = YoYCapFloorTermPriceSurface_->maturities()[j];
 
                 Real nextPrice =
-                    (useType == YoYInflationCapFloor::Cap ?
-                     YoYCapFloorTermPriceSurface_->capPrice(Tp, K) :
-                     YoYCapFloorTermPriceSurface_->floorPrice(Tp, K));
+                    (useType == YoYInflationCapFloor::Cap ? YoYCapFloorTermPriceSurface_->capPrice(Tp, K) :
+                                                            YoYCapFloorTermPriceSurface_->floorPrice(Tp, K));
 
-                Handle<Quote> quote1(ext::shared_ptr<Quote>(
-                                               new SimpleQuote( nextPrice )));
+                Handle<Quote> quote1(ext::shared_ptr<Quote>(new SimpleQuote(nextPrice)));
                 // helper should be an integer number of periods away,
                 // this is enforced by rounding
-                Size nT = (Size)floor(s->timeFromReference(s->yoyOptionDateFromTenor(Tp))+0.5);
-                helpers.push_back(ext::shared_ptr<YoYOptionletHelper>(
-                          new YoYOptionletHelper(quote1, notional, useType,
-                                                 lag_,
-                                                 dc, cal,
-                                                 fixingDays_,
-                                                 anIndex, CPI::Flat,
-                                                 K, nT, p_)));
+                Size nT = (Size)floor(s->timeFromReference(s->yoyOptionDateFromTenor(Tp)) + 0.5);
+                helpers.push_back(ext::shared_ptr<YoYOptionletHelper>(new YoYOptionletHelper(
+                    quote1, notional, useType, lag_, dc, cal, fixingDays_, anIndex, CPI::Flat, K, nT, p_)));
 
                 ext::shared_ptr<ConstantYoYOptionletVolatility> yoyVolBLACK(
-                          new ConstantYoYOptionletVolatility(found, settlementDays,
-                                                             cal, bdc, dc,
-                                                             lag_, frequency_,
-                                                             false,
-                                                             // -100% to +300%
-                                                             -1.0,3.0));
+                    new ConstantYoYOptionletVolatility(found, settlementDays, cal, bdc, dc, lag_, frequency_, false,
+                                                       // -100% to +300%
+                                                       -1.0, 3.0));
 
                 helpers[j]->setTermStructure(
-                       // gets underlying pointer & removes const
-                       const_cast<ConstantYoYOptionletVolatility*>(
-                                                          yoyVolBLACK.get()));
+                    // gets underlying pointer & removes const
+                    const_cast<ConstantYoYOptionletVolatility*>(yoyVolBLACK.get()));
                 helperInstruments.push_back(helpers[j]);
             }
             // ***bootstrap***
@@ -259,16 +237,12 @@ namespace QuantLib {
             Real Tmin = s->timeFromReference(s->yoyOptionDateFromTenor(TPmin));
             Volatility baseYoYVolatility = found - slope * Tmin * found;
             Rate eps = std::max(K, 0.02) / 1000.0;
-            Rate minStrike = K-eps;
-            Rate maxStrike = K+eps;
-            ext::shared_ptr<
-                PiecewiseYoYOptionletVolatilityCurve<Interpolator1D> > testPW(
-                new PiecewiseYoYOptionletVolatilityCurve<Interpolator1D>(
-                                            settlementDays, cal, bdc, dc, lag_,
-                                            frequency_, indexIsInterpolated_,
-                                            minStrike, maxStrike,
-                                            baseYoYVolatility,
-                                            helperInstruments) );
+            Rate minStrike = K - eps;
+            Rate maxStrike = K + eps;
+            ext::shared_ptr<PiecewiseYoYOptionletVolatilityCurve<Interpolator1D>> testPW(
+                new PiecewiseYoYOptionletVolatilityCurve<Interpolator1D>(settlementDays, cal, bdc, dc, lag_, frequency_,
+                                                                         indexIsInterpolated_, minStrike, maxStrike,
+                                                                         baseYoYVolatility, helperInstruments));
             testPW->recalculate();
             volCurves_.push_back(testPW);
         }
@@ -276,18 +250,19 @@ namespace QuantLib {
 
 
     template <class Interpolator1D>
-    std::pair<std::vector<Rate>, std::vector<Volatility> >
-    InterpolatedYoYOptionletStripper<Interpolator1D>::slice(
-                                                        const Date &d) const {
+    std::pair<std::vector<Rate>, std::vector<Volatility>>
+    InterpolatedYoYOptionletStripper<Interpolator1D>::slice(const Date& d) const
+    {
 
         const std::vector<Real>& Ks = strikes();
 
         const Size nK = Ks.size();
 
-        std::pair<std::vector<Rate>, std::vector<Volatility> > result =
+        std::pair<std::vector<Rate>, std::vector<Volatility>> result =
             std::make_pair(std::vector<Rate>(nK), std::vector<Volatility>(nK));
 
-        for (Size i = 0; i < nK; i++) {
+        for (Size i = 0; i < nK; i++)
+        {
             Rate K = Ks[i];
             Volatility v = volCurves_[i]->volatility(d, K);
             result.first[i] = K;
@@ -300,4 +275,3 @@ namespace QuantLib {
 }
 
 #endif
-

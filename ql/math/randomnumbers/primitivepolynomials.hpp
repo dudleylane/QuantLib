@@ -95,175 +95,175 @@
  */
 
 
-#define N_PRIMITIVES_UP_TO_DEGREE_01         1
-#define N_PRIMITIVES_UP_TO_DEGREE_02         2
-#define N_PRIMITIVES_UP_TO_DEGREE_03         4
-#define N_PRIMITIVES_UP_TO_DEGREE_04         6
-#define N_PRIMITIVES_UP_TO_DEGREE_05        12
-#define N_PRIMITIVES_UP_TO_DEGREE_06        18
-#define N_PRIMITIVES_UP_TO_DEGREE_07        36
-#define N_PRIMITIVES_UP_TO_DEGREE_08        52
-#define N_PRIMITIVES_UP_TO_DEGREE_09       100
-#define N_PRIMITIVES_UP_TO_DEGREE_10       160
-#define N_PRIMITIVES_UP_TO_DEGREE_11       336
-#define N_PRIMITIVES_UP_TO_DEGREE_12       480
-#define N_PRIMITIVES_UP_TO_DEGREE_13      1110
-#define N_PRIMITIVES_UP_TO_DEGREE_14      1866
-#define N_PRIMITIVES_UP_TO_DEGREE_15      3666
-#define N_PRIMITIVES_UP_TO_DEGREE_16      5714
-#define N_PRIMITIVES_UP_TO_DEGREE_17     13424
-#define N_PRIMITIVES_UP_TO_DEGREE_18     21200
-#define N_PRIMITIVES_UP_TO_DEGREE_19     48794
-#define N_PRIMITIVES_UP_TO_DEGREE_20     72794
-#define N_PRIMITIVES_UP_TO_DEGREE_21    157466
-#define N_PRIMITIVES_UP_TO_DEGREE_22    277498
-#define N_PRIMITIVES_UP_TO_DEGREE_23    634458
-#define N_PRIMITIVES_UP_TO_DEGREE_24    910938
-#define N_PRIMITIVES_UP_TO_DEGREE_25   2206938
-#define N_PRIMITIVES_UP_TO_DEGREE_26   3926838
-#define N_PRIMITIVES_UP_TO_DEGREE_27   8129334
+#define N_PRIMITIVES_UP_TO_DEGREE_01 1
+#define N_PRIMITIVES_UP_TO_DEGREE_02 2
+#define N_PRIMITIVES_UP_TO_DEGREE_03 4
+#define N_PRIMITIVES_UP_TO_DEGREE_04 6
+#define N_PRIMITIVES_UP_TO_DEGREE_05 12
+#define N_PRIMITIVES_UP_TO_DEGREE_06 18
+#define N_PRIMITIVES_UP_TO_DEGREE_07 36
+#define N_PRIMITIVES_UP_TO_DEGREE_08 52
+#define N_PRIMITIVES_UP_TO_DEGREE_09 100
+#define N_PRIMITIVES_UP_TO_DEGREE_10 160
+#define N_PRIMITIVES_UP_TO_DEGREE_11 336
+#define N_PRIMITIVES_UP_TO_DEGREE_12 480
+#define N_PRIMITIVES_UP_TO_DEGREE_13 1110
+#define N_PRIMITIVES_UP_TO_DEGREE_14 1866
+#define N_PRIMITIVES_UP_TO_DEGREE_15 3666
+#define N_PRIMITIVES_UP_TO_DEGREE_16 5714
+#define N_PRIMITIVES_UP_TO_DEGREE_17 13424
+#define N_PRIMITIVES_UP_TO_DEGREE_18 21200
+#define N_PRIMITIVES_UP_TO_DEGREE_19 48794
+#define N_PRIMITIVES_UP_TO_DEGREE_20 72794
+#define N_PRIMITIVES_UP_TO_DEGREE_21 157466
+#define N_PRIMITIVES_UP_TO_DEGREE_22 277498
+#define N_PRIMITIVES_UP_TO_DEGREE_23 634458
+#define N_PRIMITIVES_UP_TO_DEGREE_24 910938
+#define N_PRIMITIVES_UP_TO_DEGREE_25 2206938
+#define N_PRIMITIVES_UP_TO_DEGREE_26 3926838
+#define N_PRIMITIVES_UP_TO_DEGREE_27 8129334
 
 #define N_PRIMITIVES N_PRIMITIVES_UP_TO_DEGREE_27
 
-#ifndef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_18
+#ifndef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_18
 #endif
 
-#if      PPMT_MAX_DIM > N_PRIMITIVES
-# error  PPMT_MAX_DIM cannot be greater than N_PRIMITIVES
-#elif    PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_01
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_01
-# define N_MAX_DEGREE 01
-#elif    PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_02
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_02
-# define N_MAX_DEGREE 02
-#elif    PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_03
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_03
-# define N_MAX_DEGREE 03
-#elif    PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_04
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_04
-# define N_MAX_DEGREE 04
-#elif    PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_05
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_05
-# define N_MAX_DEGREE 05
-#elif    PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_06
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_06
-# define N_MAX_DEGREE 06
-#elif    PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_07
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_07
-# define N_MAX_DEGREE 07
-#elif    PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_08
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_08
-# define N_MAX_DEGREE 08
-#elif    PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_09
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_09
-# define N_MAX_DEGREE 09
-#elif    PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_10
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_10
-# define N_MAX_DEGREE 10
-#elif    PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_11
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_11
-# define N_MAX_DEGREE 11
-#elif    PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_12
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_12
-# define N_MAX_DEGREE 12
-#elif    PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_13
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_13
-# define N_MAX_DEGREE 13
-#elif    PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_14
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_14
-# define N_MAX_DEGREE 14
-#elif    PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_15
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_15
-# define N_MAX_DEGREE 15
-#elif    PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_16
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_16
-# define N_MAX_DEGREE 16
-#elif    PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_17
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_17
-# define N_MAX_DEGREE 17
-#elif    PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_18
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_18
-# define N_MAX_DEGREE 18
-#elif    PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_19
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_19
-# define N_MAX_DEGREE 19
-#elif    PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_20
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_20
-# define N_MAX_DEGREE 20
-#elif    PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_21
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_21
-# define N_MAX_DEGREE 21
-#elif    PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_22
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_22
-# define N_MAX_DEGREE 22
-#elif    PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_23
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_23
-# define N_MAX_DEGREE 23
-#elif    PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_24
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_24
-# define N_MAX_DEGREE 24
-#elif    PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_25
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_25
-# define N_MAX_DEGREE 25
-#elif    PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_26
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_26
-# define N_MAX_DEGREE 26
+#if PPMT_MAX_DIM > N_PRIMITIVES
+#    error PPMT_MAX_DIM cannot be greater than N_PRIMITIVES
+#elif PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_01
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_01
+#    define N_MAX_DEGREE 01
+#elif PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_02
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_02
+#    define N_MAX_DEGREE 02
+#elif PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_03
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_03
+#    define N_MAX_DEGREE 03
+#elif PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_04
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_04
+#    define N_MAX_DEGREE 04
+#elif PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_05
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_05
+#    define N_MAX_DEGREE 05
+#elif PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_06
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_06
+#    define N_MAX_DEGREE 06
+#elif PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_07
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_07
+#    define N_MAX_DEGREE 07
+#elif PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_08
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_08
+#    define N_MAX_DEGREE 08
+#elif PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_09
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_09
+#    define N_MAX_DEGREE 09
+#elif PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_10
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_10
+#    define N_MAX_DEGREE 10
+#elif PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_11
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_11
+#    define N_MAX_DEGREE 11
+#elif PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_12
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_12
+#    define N_MAX_DEGREE 12
+#elif PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_13
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_13
+#    define N_MAX_DEGREE 13
+#elif PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_14
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_14
+#    define N_MAX_DEGREE 14
+#elif PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_15
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_15
+#    define N_MAX_DEGREE 15
+#elif PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_16
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_16
+#    define N_MAX_DEGREE 16
+#elif PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_17
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_17
+#    define N_MAX_DEGREE 17
+#elif PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_18
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_18
+#    define N_MAX_DEGREE 18
+#elif PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_19
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_19
+#    define N_MAX_DEGREE 19
+#elif PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_20
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_20
+#    define N_MAX_DEGREE 20
+#elif PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_21
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_21
+#    define N_MAX_DEGREE 21
+#elif PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_22
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_22
+#    define N_MAX_DEGREE 22
+#elif PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_23
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_23
+#    define N_MAX_DEGREE 23
+#elif PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_24
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_24
+#    define N_MAX_DEGREE 24
+#elif PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_25
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_25
+#    define N_MAX_DEGREE 25
+#elif PPMT_MAX_DIM <= N_PRIMITIVES_UP_TO_DEGREE_26
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_26
+#    define N_MAX_DEGREE 26
 #else
-# undef  PPMT_MAX_DIM
-# define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_27
-# define N_MAX_DEGREE 27
+#    undef PPMT_MAX_DIM
+#    define PPMT_MAX_DIM N_PRIMITIVES_UP_TO_DEGREE_27
+#    define N_MAX_DEGREE 27
 #endif
 
 /* Microsoft Visual C++ 6.0 */
 #if defined(_MSC_VER)
-    /* disable useless warning C4049
-       compiler limit : terminating line number emission
-       No line number support is available for file with more
-       than 64K source lines. */
-    #pragma warning(disable: 4049)
+/* disable useless warning C4049
+   compiler limit : terminating line number emission
+   No line number support is available for file with more
+   than 64K source lines. */
+#    pragma warning(disable : 4049)
 #endif
 
 extern
 
 #ifdef __cplusplus
 
-"C"
+    "C"
 
 #endif
 
-/*! You can access the following array as in PrimitivePolynomials[i][j]
-    with i and j counting from 0 in C convention. PrimitivePolynomials[i][j]
-    will get you the j-th (counting from zero) primitive polynomial of degree
-    i+1. Each one-dimensional array of primitive polynomials of a given
-    degree is terminated with an entry of -1. Accessing beyond this entry
-    will result in a memory violation and must be avoided.  */
-const long *const PrimitivePolynomials[N_MAX_DEGREE];
+    /*! You can access the following array as in PrimitivePolynomials[i][j]
+        with i and j counting from 0 in C convention. PrimitivePolynomials[i][j]
+        will get you the j-th (counting from zero) primitive polynomial of degree
+        i+1. Each one-dimensional array of primitive polynomials of a given
+        degree is terminated with an entry of -1. Accessing beyond this entry
+        will result in a memory violation and must be avoided.  */
+    const long* const PrimitivePolynomials[N_MAX_DEGREE];
 
 #endif

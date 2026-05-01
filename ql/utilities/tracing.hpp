@@ -24,40 +24,45 @@
 #ifndef quantlib_tracing_hpp
 #define quantlib_tracing_hpp
 
-#include <ql/types.hpp>
 #include <ql/errors.hpp>
 #include <ql/patterns/singleton.hpp>
+#include <ql/types.hpp>
 #include <boost/current_function.hpp>
 #include <iosfwd>
 
-namespace QuantLib::detail {
+namespace QuantLib::detail
+{
 
-        class Tracing : public Singleton<Tracing> {
-            friend class QuantLib::Singleton<Tracing>;
-          private:
-            Tracing();  // NOLINT(modernize-use-equals-delete)
-          public:
-            void enable() {
-                #if defined(QL_ENABLE_TRACING)
-                enabled_ = true;
-                #else
-                QL_FAIL("tracing support not available");
-                #endif
-            }
-            void disable() { enabled_ = false; }
-            void setStream(std::ostream& stream) { out_ = &stream; }
-            bool enabled() const { return enabled_; }
-            std::ostream& stream() { return *out_; }
-            Integer depth() const { return depth_; }
-            void down() { depth_++; }
-            void up() { depth_--; }
-          private:
-            std::ostream* out_;
-            bool enabled_ = false;
-            Integer depth_ = 0;
-        };
+    class Tracing : public Singleton<Tracing>
+    {
+        friend class QuantLib::Singleton<Tracing>;
 
-    }
+      private:
+        Tracing(); // NOLINT(modernize-use-equals-delete)
+      public:
+        void enable()
+        {
+#if defined(QL_ENABLE_TRACING)
+            enabled_ = true;
+#else
+            QL_FAIL("tracing support not available");
+#endif
+        }
+        void disable() { enabled_ = false; }
+        void setStream(std::ostream& stream) { out_ = &stream; }
+        bool enabled() const { return enabled_; }
+        std::ostream& stream() { return *out_; }
+        Integer depth() const { return depth_; }
+        void down() { depth_++; }
+        void up() { depth_--; }
+
+      private:
+        std::ostream* out_;
+        bool enabled_ = false;
+        Integer depth_ = 0;
+    };
+
+}
 
 /*! \addtogroup macros
     @{
@@ -213,64 +218,67 @@ namespace QuantLib::detail {
 
 #if defined(QL_ENABLE_TRACING)
 
-#define QL_DEFAULT_TRACER   QuantLib::detail::Tracing::instance()
+#    define QL_DEFAULT_TRACER QuantLib::detail::Tracing::instance()
 
-#define QL_TRACE_ENABLE \
-QL_DEFAULT_TRACER.enable()
+#    define QL_TRACE_ENABLE QL_DEFAULT_TRACER.enable()
 
-#define QL_TRACE_DISABLE \
-QL_DEFAULT_TRACER.disable()
+#    define QL_TRACE_DISABLE QL_DEFAULT_TRACER.disable()
 
-#define QL_TRACE_ON(out) \
-QL_DEFAULT_TRACER.setStream(out)
+#    define QL_TRACE_ON(out) QL_DEFAULT_TRACER.setStream(out)
 
-#define QL_TRACE(message) \
-if (QL_DEFAULT_TRACER.enabled()) \
-    try { \
-        QL_DEFAULT_TRACER.stream() << "trace[" << QL_DEFAULT_TRACER.depth() \
-                                   << "]: " << message << std::endl; \
-    } catch (...) {} \
-else
+#    define QL_TRACE(message)                                                                                         \
+        if (QL_DEFAULT_TRACER.enabled())                                                                              \
+            try                                                                                                       \
+            {                                                                                                         \
+                QL_DEFAULT_TRACER.stream() << "trace[" << QL_DEFAULT_TRACER.depth() << "]: " << message << std::endl; \
+            }                                                                                                         \
+            catch (...)                                                                                               \
+            {                                                                                                         \
+            }                                                                                                         \
+        else
 
-#define QL_TRACE_ENTER_FUNCTION \
-if (QL_DEFAULT_TRACER.enabled()) \
-    try { \
-        QL_DEFAULT_TRACER.down(); \
-        QL_DEFAULT_TRACER.stream() << "trace[" << QL_DEFAULT_TRACER.depth() \
-                                   << "]: " \
-                                   << "Entering " << BOOST_CURRENT_FUNCTION \
-                                   << std::endl; \
-    } catch (...) {} \
-else
+#    define QL_TRACE_ENTER_FUNCTION                                                               \
+        if (QL_DEFAULT_TRACER.enabled())                                                          \
+            try                                                                                   \
+            {                                                                                     \
+                QL_DEFAULT_TRACER.down();                                                         \
+                QL_DEFAULT_TRACER.stream() << "trace[" << QL_DEFAULT_TRACER.depth() << "]: "      \
+                                           << "Entering " << BOOST_CURRENT_FUNCTION << std::endl; \
+            }                                                                                     \
+            catch (...)                                                                           \
+            {                                                                                     \
+            }                                                                                     \
+        else
 
-#define QL_TRACE_EXIT_FUNCTION \
-if (QL_DEFAULT_TRACER.enabled()) \
-    try { \
-        QL_DEFAULT_TRACER.stream() << "trace[" << QL_DEFAULT_TRACER.depth() \
-                                   << "]: " \
-                                   << "Exiting " << BOOST_CURRENT_FUNCTION \
-                                   << std::endl; \
-        QL_DEFAULT_TRACER.up(); \
-    } catch (...) { QL_DEFAULT_TRACER.up(); } \
-else
+#    define QL_TRACE_EXIT_FUNCTION                                                               \
+        if (QL_DEFAULT_TRACER.enabled())                                                         \
+            try                                                                                  \
+            {                                                                                    \
+                QL_DEFAULT_TRACER.stream() << "trace[" << QL_DEFAULT_TRACER.depth() << "]: "     \
+                                           << "Exiting " << BOOST_CURRENT_FUNCTION << std::endl; \
+                QL_DEFAULT_TRACER.up();                                                          \
+            }                                                                                    \
+            catch (...)                                                                          \
+            {                                                                                    \
+                QL_DEFAULT_TRACER.up();                                                          \
+            }                                                                                    \
+        else
 
-#define QL_TRACE_LOCATION \
-QL_TRACE("At line " << __LINE__ << " in " << __FILE__)
+#    define QL_TRACE_LOCATION QL_TRACE("At line " << __LINE__ << " in " << __FILE__)
 
-#define QL_TRACE_VARIABLE(variable) \
-QL_TRACE(#variable << " = " << variable)
+#    define QL_TRACE_VARIABLE(variable) QL_TRACE(#variable << " = " << variable)
 
 #else
 
-#define QL_DEFAULT_TRACER
-#define QL_TRACE_ENABLE
-#define QL_TRACE_DISABLE
-#define QL_TRACE_ON(out)
-#define QL_TRACE(message)
-#define QL_TRACE_ENTER_FUNCTION
-#define QL_TRACE_EXIT_FUNCTION
-#define QL_TRACE_LOCATION
-#define QL_TRACE_VARIABLE(variable)
+#    define QL_DEFAULT_TRACER
+#    define QL_TRACE_ENABLE
+#    define QL_TRACE_DISABLE
+#    define QL_TRACE_ON(out)
+#    define QL_TRACE(message)
+#    define QL_TRACE_ENTER_FUNCTION
+#    define QL_TRACE_EXIT_FUNCTION
+#    define QL_TRACE_LOCATION
+#    define QL_TRACE_VARIABLE(variable)
 
 #endif
 

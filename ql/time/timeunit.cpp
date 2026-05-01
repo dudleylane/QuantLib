@@ -17,16 +17,19 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/errors.hpp>
 #include <ql/time/timeunit.hpp>
 #include <ql/types.hpp>
-#include <ql/errors.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     // timeunit formatting
 
-    std::ostream& operator<<(std::ostream& out, const TimeUnit& timeunit) {
-        switch (timeunit) {
+    std::ostream& operator<<(std::ostream& out, const TimeUnit& timeunit)
+    {
+        switch (timeunit)
+        {
             case Years:
                 return out << "Years";
             case Months:

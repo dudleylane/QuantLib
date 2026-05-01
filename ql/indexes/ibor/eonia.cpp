@@ -17,14 +17,17 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/currencies/europe.hpp>
 #include <ql/indexes/ibor/eonia.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
-#include <ql/currencies/europe.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     Eonia::Eonia(const Handle<YieldTermStructure>& h)
-    : OvernightIndex("Eonia", 0, EURCurrency(), TARGET(), Actual360(), h) {}
+    : OvernightIndex("Eonia", 0, EURCurrency(), TARGET(), Actual360(), h)
+    {
+    }
 
 }

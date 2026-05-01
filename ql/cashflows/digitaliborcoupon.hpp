@@ -30,23 +30,24 @@
 #include <ql/cashflows/iborcoupon.hpp>
 #include <ql/time/schedule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Ibor rate coupon with digital digital call/put option
-    class DigitalIborCoupon : public DigitalCoupon {
+    class DigitalIborCoupon : public DigitalCoupon
+    {
       public:
-        DigitalIborCoupon(
-            const ext::shared_ptr<IborCoupon> &underlying,
-            Rate callStrike = Null<Rate>(),
-            Position::Type callPosition = Position::Long,
-            bool isCallATMIncluded = false,
-            Rate callDigitalPayoff = Null<Rate>(),
-            Rate putStrike = Null<Rate>(),
-            Position::Type putPosition = Position::Long,
-            bool isPutATMIncluded = false,
-            Rate putDigitalPayoff = Null<Rate>(),
-            const ext::shared_ptr<DigitalReplication>& replication = {},
-            bool nakedOption =false);
+        DigitalIborCoupon(const ext::shared_ptr<IborCoupon>& underlying,
+                          Rate callStrike = Null<Rate>(),
+                          Position::Type callPosition = Position::Long,
+                          bool isCallATMIncluded = false,
+                          Rate callDigitalPayoff = Null<Rate>(),
+                          Rate putStrike = Null<Rate>(),
+                          Position::Type putPosition = Position::Long,
+                          bool isPutATMIncluded = false,
+                          Rate putDigitalPayoff = Null<Rate>(),
+                          const ext::shared_ptr<DigitalReplication>& replication = {},
+                          bool nakedOption = false);
 
         //! \name Visitability
         //@{
@@ -56,7 +57,8 @@ namespace QuantLib {
 
 
     //! helper class building a sequence of digital ibor-rate coupons
-    class DigitalIborLeg {
+    class DigitalIborLeg
+    {
       public:
         DigitalIborLeg(Schedule schedule, ext::shared_ptr<IborIndex> index);
         DigitalIborLeg& withNotionals(Real notional);
@@ -86,6 +88,7 @@ namespace QuantLib {
         DigitalIborLeg& withNakedOption(bool nakedOption = true);
 
         operator Leg() const;
+
       private:
         Schedule schedule_;
         ext::shared_ptr<IborIndex> index_;

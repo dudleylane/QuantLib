@@ -25,11 +25,12 @@
 #ifndef quantlib_default_probability_key_hpp
 #define quantlib_default_probability_key_hpp
 
-#include <ql/experimental/credit/defaulttype.hpp>
 #include <ql/currency.hpp>
+#include <ql/experimental/credit/defaulttype.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! Used to index market implied credit curve probabilities. It is
         a proxy to the defaultable bond or class of bonds which
@@ -38,10 +39,11 @@ namespace QuantLib {
         conditions and which serves to index the probability curves
         calibrated to the market.
     */
-    class DefaultProbKey {
+    class DefaultProbKey
+    {
       protected:
         //! aggregation of event types for which the contract is sensitive.
-        std::vector<ext::shared_ptr<DefaultType> > eventTypes_;
+        std::vector<ext::shared_ptr<DefaultType>> eventTypes_;
         //! Currency of the bond and protection leg payment.
         Currency obligationCurrency_;
         //! Reference bonds seniority.
@@ -50,17 +52,12 @@ namespace QuantLib {
       public:
         DefaultProbKey();
 
-        DefaultProbKey(std::vector<ext::shared_ptr<DefaultType> > eventTypes,
-                       Currency cur,
-                       Seniority sen);
+        DefaultProbKey(std::vector<ext::shared_ptr<DefaultType>> eventTypes, Currency cur, Seniority sen);
 
-        const Currency& currency() const {return obligationCurrency_;}
-        Seniority seniority() const {return seniority_;}
-        const std::vector<ext::shared_ptr<DefaultType> >&
-            eventTypes() const {
-                return eventTypes_;
-        }
-        Size size() const {return eventTypes_.size();}
+        const Currency& currency() const { return obligationCurrency_; }
+        Seniority seniority() const { return seniority_; }
+        const std::vector<ext::shared_ptr<DefaultType>>& eventTypes() const { return eventTypes_; }
+        Size size() const { return eventTypes_.size(); }
     };
 
     bool operator==(const DefaultProbKey& lhs, const DefaultProbKey& rhs);
@@ -68,16 +65,15 @@ namespace QuantLib {
 
     //! ISDA standard default contractual key for corporate US debt.
     //    Restructuring here can be set to NoRestructuring.
-    class NorthAmericaCorpDefaultKey : public DefaultProbKey {
+    class NorthAmericaCorpDefaultKey : public DefaultProbKey
+    {
       public:
         // with only one restructuring type
         NorthAmericaCorpDefaultKey(const Currency& currency,
                                    Seniority sen,
-                                   Period graceFailureToPay =
-                                       Period(30, Days),
+                                   Period graceFailureToPay = Period(30, Days),
                                    Real amountFailure = 1.e6,
-                                   Restructuring::Type resType =
-                                                           Restructuring::CR);
+                                   Restructuring::Type resType = Restructuring::CR);
     };
 
 }

@@ -25,20 +25,21 @@
 #ifndef quantlib_vanilla_option_hpp
 #define quantlib_vanilla_option_hpp
 
+#include <ql/instruments/dividendschedule.hpp>
 #include <ql/instruments/oneassetoption.hpp>
 #include <ql/instruments/payoffs.hpp>
-#include <ql/instruments/dividendschedule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class GeneralizedBlackScholesProcess;
 
     //! Vanilla option (no discrete dividends, no barriers) on a single asset
     /*! \ingroup instruments */
-    class VanillaOption : public OneAssetOption {
+    class VanillaOption : public OneAssetOption
+    {
       public:
-        VanillaOption(const ext::shared_ptr<StrikedTypePayoff>&,
-                      const ext::shared_ptr<Exercise>&);
+        VanillaOption(const ext::shared_ptr<StrikedTypePayoff>&, const ext::shared_ptr<Exercise>&);
 
         /*! \warning currently, this method returns the Black-Scholes
                      implied volatility using analytic formulas for
@@ -59,22 +60,20 @@ namespace QuantLib {
                      of American options.
         */
         //@{
-        Volatility impliedVolatility(
-             Real price,
-             const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
-             Real accuracy = 1.0e-4,
-             Size maxEvaluations = 100,
-             Volatility minVol = 1.0e-7,
-             Volatility maxVol = 4.0) const;
+        Volatility impliedVolatility(Real price,
+                                     const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
+                                     Real accuracy = 1.0e-4,
+                                     Size maxEvaluations = 100,
+                                     Volatility minVol = 1.0e-7,
+                                     Volatility maxVol = 4.0) const;
 
-        Volatility impliedVolatility(
-             Real price,
-             const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
-             const DividendSchedule& dividends,
-             Real accuracy = 1.0e-4,
-             Size maxEvaluations = 100,
-             Volatility minVol = 1.0e-7,
-             Volatility maxVol = 4.0) const;
+        Volatility impliedVolatility(Real price,
+                                     const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
+                                     const DividendSchedule& dividends,
+                                     Real accuracy = 1.0e-4,
+                                     Size maxEvaluations = 100,
+                                     Volatility minVol = 1.0e-7,
+                                     Volatility maxVol = 4.0) const;
         //@}
     };
 
@@ -82,4 +81,3 @@ namespace QuantLib {
 
 
 #endif
-

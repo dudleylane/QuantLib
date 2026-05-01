@@ -19,20 +19,18 @@
 
 #include <ql/math/comparison.hpp>
 #include <ql/time/daycounters/yearfractiontodate.hpp>
-
 #include <boost/numeric/conversion/cast.hpp>
 #include <cmath>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Date yearFractionToDate(
-        const DayCounter& dayCounter, const Date& referenceDate, Time t) {
-        Date guessDate = referenceDate
-            + Period(boost::numeric_cast<Integer>(round(t * 365.25)), Days);
+    Date yearFractionToDate(const DayCounter& dayCounter, const Date& referenceDate, Time t)
+    {
+        Date guessDate = referenceDate + Period(boost::numeric_cast<Integer>(round(t * 365.25)), Days);
         Time guessTime = dayCounter.yearFraction(referenceDate, guessDate);
 
-        guessDate += Period(boost::numeric_cast<Integer>(
-            round((t - guessTime)*365.25)), Days);
+        guessDate += Period(boost::numeric_cast<Integer>(round((t - guessTime) * 365.25)), Days);
         guessTime = dayCounter.yearFraction(referenceDate, guessDate);
 
         if (close_enough(guessTime, t))
@@ -40,25 +38,23 @@ namespace QuantLib {
 
         const auto searchDirection = boost::numeric_cast<Integer>(copysign(1.0, t - guessTime));
 
-        t += searchDirection*100*QL_EPSILON;
+        t += searchDirection * 100 * QL_EPSILON;
 
         Date nextDate;
-        for (TimeUnit u: {Years, Months, Days}) {
-            while (searchDirection*(
-                dayCounter.yearFraction(
-                    referenceDate,
-                    nextDate = guessDate + Period(searchDirection, u)) - t) < 0.0)
+        for (TimeUnit u : {Years, Months, Days})
+        {
+            while (searchDirection *
+                       (dayCounter.yearFraction(referenceDate, nextDate = guessDate + Period(searchDirection, u)) - t) <
+                   0.0)
                 guessDate = nextDate;
         }
 
         guessTime = dayCounter.yearFraction(referenceDate, guessDate);
-        if (close_enough(guessTime, t)
-                || std::abs(dayCounter.yearFraction(referenceDate,
-                    guessDate + Period(searchDirection, Days)) - t) >
-                    std::abs(guessTime - t))
+        if (close_enough(guessTime, t) ||
+            std::abs(dayCounter.yearFraction(referenceDate, guessDate + Period(searchDirection, Days)) - t) >
+                std::abs(guessTime - t))
             return guessDate;
         else
             return guessDate + Period(searchDirection, Days);
     }
 }
-

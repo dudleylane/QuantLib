@@ -26,25 +26,23 @@
 #ifndef quantlib_fdm_mesher_composite_hpp
 #define quantlib_fdm_mesher_composite_hpp
 
-#include <ql/methods/finitedifferences/meshers/fdmmesher.hpp>
 #include <ql/methods/finitedifferences/meshers/fdm1dmesher.hpp>
+#include <ql/methods/finitedifferences/meshers/fdmmesher.hpp>
 #include <ql/methods/finitedifferences/operators/fdmlinearopiterator.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class FdmMesherComposite : public FdmMesher {
+    class FdmMesherComposite : public FdmMesher
+    {
       public:
-        FdmMesherComposite(
-            const ext::shared_ptr<FdmLinearOpLayout>& layout,
-            const std::vector<ext::shared_ptr<Fdm1dMesher> > & mesher);
+        FdmMesherComposite(const ext::shared_ptr<FdmLinearOpLayout>& layout,
+                           const std::vector<ext::shared_ptr<Fdm1dMesher>>& mesher);
 
         // convenient constructors
-        explicit FdmMesherComposite(
-            const std::vector<ext::shared_ptr<Fdm1dMesher> > & mesher);
-        explicit FdmMesherComposite(
-            const ext::shared_ptr<Fdm1dMesher>& mesher);
-        FdmMesherComposite(const ext::shared_ptr<Fdm1dMesher>& m1,
-                           const ext::shared_ptr<Fdm1dMesher>& m2);
+        explicit FdmMesherComposite(const std::vector<ext::shared_ptr<Fdm1dMesher>>& mesher);
+        explicit FdmMesherComposite(const ext::shared_ptr<Fdm1dMesher>& mesher);
+        FdmMesherComposite(const ext::shared_ptr<Fdm1dMesher>& m1, const ext::shared_ptr<Fdm1dMesher>& m2);
         FdmMesherComposite(const ext::shared_ptr<Fdm1dMesher>& m1,
                            const ext::shared_ptr<Fdm1dMesher>& m2,
                            const ext::shared_ptr<Fdm1dMesher>& m3);
@@ -59,11 +57,10 @@ namespace QuantLib {
         Real location(const FdmLinearOpIterator& iter, Size direction) const override;
         Array locations(Size direction) const override;
 
-        const std::vector<ext::shared_ptr<Fdm1dMesher> >&
-            getFdm1dMeshers() const;
+        const std::vector<ext::shared_ptr<Fdm1dMesher>>& getFdm1dMeshers() const;
 
       private:
-        const std::vector<ext::shared_ptr<Fdm1dMesher> > mesher_;
+        const std::vector<ext::shared_ptr<Fdm1dMesher>> mesher_;
     };
 }
 

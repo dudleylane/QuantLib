@@ -23,25 +23,36 @@
 #include <ql/cashflows/digitalcmscoupon.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    DigitalCmsCoupon::DigitalCmsCoupon(
-                      const ext::shared_ptr<CmsCoupon>& underlying,
-                      Rate callStrike,
-                      Position::Type callPosition,
-                      bool isCallATMIncluded,
-                      Rate callDigitalPayoff,
-                      Rate putStrike,
-                      Position::Type putPosition,
-                      bool isPutATMIncluded,
-                      Rate putDigitalPayoff,
-                      const ext::shared_ptr<DigitalReplication>& replication,
-                      bool nakedOption)
-    : DigitalCoupon(underlying, callStrike, callPosition, isCallATMIncluded,
-                    callDigitalPayoff, putStrike, putPosition,
-                    isPutATMIncluded, putDigitalPayoff, replication, nakedOption) {}
+    DigitalCmsCoupon::DigitalCmsCoupon(const ext::shared_ptr<CmsCoupon>& underlying,
+                                       Rate callStrike,
+                                       Position::Type callPosition,
+                                       bool isCallATMIncluded,
+                                       Rate callDigitalPayoff,
+                                       Rate putStrike,
+                                       Position::Type putPosition,
+                                       bool isPutATMIncluded,
+                                       Rate putDigitalPayoff,
+                                       const ext::shared_ptr<DigitalReplication>& replication,
+                                       bool nakedOption)
+    : DigitalCoupon(underlying,
+                    callStrike,
+                    callPosition,
+                    isCallATMIncluded,
+                    callDigitalPayoff,
+                    putStrike,
+                    putPosition,
+                    isPutATMIncluded,
+                    putDigitalPayoff,
+                    replication,
+                    nakedOption)
+    {
+    }
 
-    void DigitalCmsCoupon::accept(AcyclicVisitor& v) {
+    void DigitalCmsCoupon::accept(AcyclicVisitor& v)
+    {
         typedef DigitalCoupon super;
         auto* v1 = dynamic_cast<Visitor<DigitalCmsCoupon>*>(&v);
         if (v1 != nullptr)
@@ -52,154 +63,166 @@ namespace QuantLib {
 
 
     DigitalCmsLeg::DigitalCmsLeg(Schedule schedule, ext::shared_ptr<SwapIndex> index)
-    : schedule_(std::move(schedule)), index_(std::move(index)) {}
+    : schedule_(std::move(schedule)), index_(std::move(index))
+    {
+    }
 
-    DigitalCmsLeg& DigitalCmsLeg::withNotionals(Real notional) {
-        notionals_ = std::vector<Real>(1,notional);
+    DigitalCmsLeg& DigitalCmsLeg::withNotionals(Real notional)
+    {
+        notionals_ = std::vector<Real>(1, notional);
         return *this;
     }
 
-    DigitalCmsLeg& DigitalCmsLeg::withNotionals(
-                                         const std::vector<Real>& notionals) {
+    DigitalCmsLeg& DigitalCmsLeg::withNotionals(const std::vector<Real>& notionals)
+    {
         notionals_ = notionals;
         return *this;
     }
 
-    DigitalCmsLeg& DigitalCmsLeg::withPaymentDayCounter(
-                                               const DayCounter& dayCounter) {
+    DigitalCmsLeg& DigitalCmsLeg::withPaymentDayCounter(const DayCounter& dayCounter)
+    {
         paymentDayCounter_ = dayCounter;
         return *this;
     }
 
-    DigitalCmsLeg& DigitalCmsLeg::withPaymentAdjustment(
-                                           BusinessDayConvention convention) {
+    DigitalCmsLeg& DigitalCmsLeg::withPaymentAdjustment(BusinessDayConvention convention)
+    {
         paymentAdjustment_ = convention;
         return *this;
     }
 
-    DigitalCmsLeg& DigitalCmsLeg::withFixingDays(Natural fixingDays) {
-        fixingDays_ = std::vector<Natural>(1,fixingDays);
+    DigitalCmsLeg& DigitalCmsLeg::withFixingDays(Natural fixingDays)
+    {
+        fixingDays_ = std::vector<Natural>(1, fixingDays);
         return *this;
     }
 
-    DigitalCmsLeg& DigitalCmsLeg::withFixingDays(
-                                     const std::vector<Natural>& fixingDays) {
+    DigitalCmsLeg& DigitalCmsLeg::withFixingDays(const std::vector<Natural>& fixingDays)
+    {
         fixingDays_ = fixingDays;
         return *this;
     }
 
-    DigitalCmsLeg& DigitalCmsLeg::withGearings(Real gearing) {
-        gearings_ = std::vector<Real>(1,gearing);
+    DigitalCmsLeg& DigitalCmsLeg::withGearings(Real gearing)
+    {
+        gearings_ = std::vector<Real>(1, gearing);
         return *this;
     }
 
-    DigitalCmsLeg& DigitalCmsLeg::withGearings(
-                                          const std::vector<Real>& gearings) {
+    DigitalCmsLeg& DigitalCmsLeg::withGearings(const std::vector<Real>& gearings)
+    {
         gearings_ = gearings;
         return *this;
     }
 
-    DigitalCmsLeg& DigitalCmsLeg::withSpreads(Spread spread) {
-        spreads_ = std::vector<Spread>(1,spread);
+    DigitalCmsLeg& DigitalCmsLeg::withSpreads(Spread spread)
+    {
+        spreads_ = std::vector<Spread>(1, spread);
         return *this;
     }
 
-    DigitalCmsLeg& DigitalCmsLeg::withSpreads(
-                                         const std::vector<Spread>& spreads) {
+    DigitalCmsLeg& DigitalCmsLeg::withSpreads(const std::vector<Spread>& spreads)
+    {
         spreads_ = spreads;
         return *this;
     }
 
-    DigitalCmsLeg& DigitalCmsLeg::inArrears(bool flag) {
+    DigitalCmsLeg& DigitalCmsLeg::inArrears(bool flag)
+    {
         inArrears_ = flag;
         return *this;
     }
 
-    DigitalCmsLeg& DigitalCmsLeg::withCallStrikes(Rate strike) {
-        callStrikes_ = std::vector<Rate>(1,strike);
+    DigitalCmsLeg& DigitalCmsLeg::withCallStrikes(Rate strike)
+    {
+        callStrikes_ = std::vector<Rate>(1, strike);
         return *this;
     }
 
-    DigitalCmsLeg& DigitalCmsLeg::withCallStrikes(
-                                           const std::vector<Rate>& strikes) {
+    DigitalCmsLeg& DigitalCmsLeg::withCallStrikes(const std::vector<Rate>& strikes)
+    {
         callStrikes_ = strikes;
         return *this;
     }
 
-    DigitalCmsLeg& DigitalCmsLeg::withLongCallOption(Position::Type type) {
+    DigitalCmsLeg& DigitalCmsLeg::withLongCallOption(Position::Type type)
+    {
         longCallOption_ = type;
         return *this;
     }
 
-    DigitalCmsLeg& DigitalCmsLeg::withCallATM(bool flag) {
+    DigitalCmsLeg& DigitalCmsLeg::withCallATM(bool flag)
+    {
         callATM_ = flag;
         return *this;
     }
 
-    DigitalCmsLeg& DigitalCmsLeg::withCallPayoffs(Rate payoff) {
-        callPayoffs_ = std::vector<Rate>(1,payoff);
+    DigitalCmsLeg& DigitalCmsLeg::withCallPayoffs(Rate payoff)
+    {
+        callPayoffs_ = std::vector<Rate>(1, payoff);
         return *this;
     }
 
-    DigitalCmsLeg& DigitalCmsLeg::withCallPayoffs(
-                                           const std::vector<Rate>& payoffs) {
+    DigitalCmsLeg& DigitalCmsLeg::withCallPayoffs(const std::vector<Rate>& payoffs)
+    {
         callPayoffs_ = payoffs;
         return *this;
     }
 
-    DigitalCmsLeg& DigitalCmsLeg::withPutStrikes(Rate strike) {
-        putStrikes_ = std::vector<Rate>(1,strike);
+    DigitalCmsLeg& DigitalCmsLeg::withPutStrikes(Rate strike)
+    {
+        putStrikes_ = std::vector<Rate>(1, strike);
         return *this;
     }
 
-    DigitalCmsLeg& DigitalCmsLeg::withPutStrikes(
-                                           const std::vector<Rate>& strikes) {
+    DigitalCmsLeg& DigitalCmsLeg::withPutStrikes(const std::vector<Rate>& strikes)
+    {
         putStrikes_ = strikes;
         return *this;
     }
 
-    DigitalCmsLeg& DigitalCmsLeg::withLongPutOption(Position::Type type) {
+    DigitalCmsLeg& DigitalCmsLeg::withLongPutOption(Position::Type type)
+    {
         longPutOption_ = type;
         return *this;
     }
 
-    DigitalCmsLeg& DigitalCmsLeg::withPutATM(bool flag) {
+    DigitalCmsLeg& DigitalCmsLeg::withPutATM(bool flag)
+    {
         putATM_ = flag;
         return *this;
     }
 
-    DigitalCmsLeg& DigitalCmsLeg::withPutPayoffs(Rate payoff) {
-        putPayoffs_ = std::vector<Rate>(1,payoff);
+    DigitalCmsLeg& DigitalCmsLeg::withPutPayoffs(Rate payoff)
+    {
+        putPayoffs_ = std::vector<Rate>(1, payoff);
         return *this;
     }
 
-    DigitalCmsLeg& DigitalCmsLeg::withPutPayoffs(
-                                           const std::vector<Rate>& payoffs) {
+    DigitalCmsLeg& DigitalCmsLeg::withPutPayoffs(const std::vector<Rate>& payoffs)
+    {
         putPayoffs_ = payoffs;
         return *this;
     }
 
-    DigitalCmsLeg& DigitalCmsLeg::withReplication(
-                   const ext::shared_ptr<DigitalReplication>& replication) {
+    DigitalCmsLeg& DigitalCmsLeg::withReplication(const ext::shared_ptr<DigitalReplication>& replication)
+    {
         replication_ = replication;
         return *this;
     }
 
-    DigitalCmsLeg& DigitalCmsLeg::withNakedOption(bool nakedOption) {
+    DigitalCmsLeg& DigitalCmsLeg::withNakedOption(bool nakedOption)
+    {
         nakedOption_ = nakedOption;
         return *this;
     }
 
-    DigitalCmsLeg::operator Leg() const {
+    DigitalCmsLeg::operator Leg() const
+    {
         return FloatingDigitalLeg<SwapIndex, CmsCoupon, DigitalCmsCoupon>(
-                            schedule_, notionals_, index_, paymentDayCounter_,
-                            paymentAdjustment_, fixingDays_,
-                            gearings_, spreads_, inArrears_,
-                            callStrikes_, longCallOption_,
-                            callATM_, callPayoffs_,
-                            putStrikes_, longPutOption_,
-                            putATM_, putPayoffs_,
-                            replication_, nakedOption_);
+            schedule_, notionals_, index_, paymentDayCounter_, paymentAdjustment_, fixingDays_, gearings_, spreads_,
+            inArrears_, callStrikes_, longCallOption_, callATM_, callPayoffs_, putStrikes_, longPutOption_, putATM_,
+            putPayoffs_, replication_, nakedOption_);
     }
 
 }

@@ -21,24 +21,24 @@
 #ifndef quantlib_time_homogeneous_forward_correlation_hpp
 #define quantlib_time_homogeneous_forward_correlation_hpp
 
-#include <ql/models/marketmodels/piecewiseconstantcorrelation.hpp>
 #include <ql/math/matrix.hpp>
+#include <ql/models/marketmodels/piecewiseconstantcorrelation.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class TimeHomogeneousForwardCorrelation :
-                                        public PiecewiseConstantCorrelation {
+    class TimeHomogeneousForwardCorrelation : public PiecewiseConstantCorrelation
+    {
       public:
-        TimeHomogeneousForwardCorrelation(const Matrix& fwdCorrelation,
-                                          const std::vector<Time>& rateTimes);
+        TimeHomogeneousForwardCorrelation(const Matrix& fwdCorrelation, const std::vector<Time>& rateTimes);
         const std::vector<Time>& times() const override;
         const std::vector<Time>& rateTimes() const override;
         const std::vector<Matrix>& correlations() const override;
         Size numberOfRates() const override;
-        static std::vector<Matrix> evolvedMatrices(
-                                        const Matrix& fwdCorrelation);
-    private:
+        static std::vector<Matrix> evolvedMatrices(const Matrix& fwdCorrelation);
+
+      private:
         Size numberOfRates_;
         Matrix fwdCorrelation_;
         std::vector<Time> rateTimes_, times_;

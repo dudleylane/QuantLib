@@ -28,7 +28,8 @@
 #include <ql/instruments/bond.hpp>
 #include <ql/time/dategenerationrule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Schedule;
     class IborIndex;
@@ -39,7 +40,8 @@ namespace QuantLib {
         \test calculations are tested by checking results against
               cached values.
     */
-    class FloatingRateBond : public Bond {
+    class FloatingRateBond : public Bond
+    {
       public:
         FloatingRateBond(Natural settlementDays,
                          Real faceAmount,
@@ -48,8 +50,8 @@ namespace QuantLib {
                          const DayCounter& accrualDayCounter,
                          BusinessDayConvention paymentConvention = Following,
                          Natural fixingDays = Null<Natural>(),
-                         const std::vector<Real>& gearings = { 1.0 },
-                         const std::vector<Spread>& spreads = { 0.0 },
+                         const std::vector<Real>& gearings = {1.0},
+                         const std::vector<Spread>& spreads = {0.0},
                          const std::vector<Rate>& caps = {},
                          const std::vector<Rate>& floors = {},
                          bool inArrears = false,

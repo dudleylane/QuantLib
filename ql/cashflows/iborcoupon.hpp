@@ -31,14 +31,16 @@
 
 #include <ql/cashflows/floatingratecoupon.hpp>
 #include <ql/indexes/iborindex.hpp>
+#include <ql/optional.hpp>
 #include <ql/patterns/singleton.hpp>
 #include <ql/time/schedule.hpp>
-#include <ql/optional.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Coupon paying a Libor-type index
-    class IborCoupon : public FloatingRateCoupon {
+    class IborCoupon : public FloatingRateCoupon
+    {
       public:
         IborCoupon(const Date& paymentDate,
                    Real nominal,
@@ -107,8 +109,10 @@ namespace QuantLib {
 
 
     //! Per-session settings for IborCoupon class
-    class IborCoupon::Settings : public Singleton<IborCoupon::Settings> {
+    class IborCoupon::Settings : public Singleton<IborCoupon::Settings>
+    {
         friend class Singleton<IborCoupon::Settings>;
+
       private:
         Settings() = default;
 
@@ -125,15 +129,16 @@ namespace QuantLib {
         bool usingAtParCoupons() const;
 
       private:
-        #ifndef QL_USE_INDEXED_COUPON
+#ifndef QL_USE_INDEXED_COUPON
         bool usingAtParCoupons_ = true;
-        #else
+#else
         bool usingAtParCoupons_ = false;
-        #endif
+#endif
     };
 
     //! helper class building a sequence of capped/floored ibor-rate coupons
-    class IborLeg {
+    class IborLeg
+    {
       public:
         IborLeg(Schedule schedule, ext::shared_ptr<IborIndex> index);
         IborLeg& withNotionals(Real notional);
@@ -154,10 +159,7 @@ namespace QuantLib {
         IborLeg& withFloors(const std::vector<Rate>& floors);
         IborLeg& inArrears(bool flag = true);
         IborLeg& withZeroPayments(bool flag = true);
-        IborLeg& withExCouponPeriod(const Period&,
-                                    const Calendar&,
-                                    BusinessDayConvention,
-                                    bool endOfMonth = false);
+        IborLeg& withExCouponPeriod(const Period&, const Calendar&, BusinessDayConvention, bool endOfMonth = false);
         IborLeg& withFixingConvention(BusinessDayConvention);
         IborLeg& withIndexedCoupons(ext::optional<bool> b = true);
         IborLeg& withAtParCoupons(bool b = true);

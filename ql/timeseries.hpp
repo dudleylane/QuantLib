@@ -25,18 +25,19 @@
 #ifndef quantlib_timeseries_hpp
 #define quantlib_timeseries_hpp
 
+#include <ql/errors.hpp>
 #include <ql/time/date.hpp>
 #include <ql/utilities/null.hpp>
-#include <ql/errors.hpp>
 #include <boost/iterator/transform_iterator.hpp>
+#include <algorithm>
 #include <functional>
 #include <iterator>
-#include <algorithm>
 #include <map>
-#include <vector>
 #include <type_traits>
+#include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Container for historical data
     /*! This class acts as a generic repository for a set of
@@ -47,13 +48,16 @@ namespace QuantLib {
         \pre The <c>Container</c> type must satisfy the requirements
              set by the C++ standard for associative containers.
     */
-    template <class T, class Container = std::map<Date, T> >
-    class TimeSeries {
+    template <class T, class Container = std::map<Date, T>>
+    class TimeSeries
+    {
       public:
         typedef Date key_type;
         typedef T value_type;
+
       private:
         mutable Container values_;
+
       public:
         /*! Default constructor */
         TimeSeries() = default;
@@ -62,8 +66,8 @@ namespace QuantLib {
             and the second containing corresponding values.
         */
         template <class DateIterator, class ValueIterator>
-        TimeSeries(DateIterator dBegin, DateIterator dEnd,
-                   ValueIterator vBegin) {
+        TimeSeries(DateIterator dBegin, DateIterator dEnd, ValueIterator vBegin)
+        {
             while (dBegin != dEnd)
                 values_[*(dBegin++)] = *(vBegin++);
         }
@@ -73,8 +77,8 @@ namespace QuantLib {
             included.
         */
         template <class ValueIterator>
-        TimeSeries(const Date& firstDate,
-                   ValueIterator begin, ValueIterator end) {
+        TimeSeries(const Date& firstDate, ValueIterator begin, ValueIterator end)
+        {
             Date d = firstDate;
             while (begin != end)
                 values_[d++] = *(begin++);
@@ -93,13 +97,15 @@ namespace QuantLib {
         //! \name Historical data access
         //@{
         //! returns the (possibly null) datum corresponding to the given date
-        T operator[](const Date& d) const {
+        T operator[](const Date& d) const
+        {
             auto found = values_.find(d);
             if (found == values_.cend())
                 return Null<T>();
             return found->second;
         }
-        T& operator[](const Date& d) {
+        T& operator[](const Date& d)
+        {
             auto found = values_.insert(std::pair<Date, T>(d, Null<T>())).first;
             return found->second;
         }
@@ -117,25 +123,21 @@ namespace QuantLib {
         // features should compile and work for this type of
         // containers.
         template <class container, class iterator_category>
-        struct reverse {
-            typedef std::reverse_iterator<typename container::const_iterator>
-                                                       const_reverse_iterator;
+        struct reverse
+        {
+            typedef std::reverse_iterator<typename container::const_iterator> const_reverse_iterator;
             reverse(const container& c) : c_(c) {}
-            const_reverse_iterator rbegin() const {
-                return const_reverse_iterator(c_.end());
-            }
-            const_reverse_iterator rend() const {
-                return const_reverse_iterator(c_.begin());
-            }
+            const_reverse_iterator rbegin() const { return const_reverse_iterator(c_.end()); }
+            const_reverse_iterator rend() const { return const_reverse_iterator(c_.begin()); }
             const container& c_;
         };
 
         // This class defines reverse iterator features via
         // container's native calls.
         template <class container>
-        struct reverse<container, std::bidirectional_iterator_tag> {
-            typedef typename container::const_reverse_iterator
-                                                       const_reverse_iterator;
+        struct reverse<container, std::bidirectional_iterator_tag>
+        {
+            typedef typename container::const_reverse_iterator const_reverse_iterator;
             reverse(const container& c) : c_(c) {}
             const_reverse_iterator rbegin() const { return c_.rbegin(); }
             const_reverse_iterator rend() const { return c_.rend(); }
@@ -144,35 +146,28 @@ namespace QuantLib {
 
         // The following typedef enables reverse iterators for
         // bidirectional_iterator_tag category.
-        typedef std::conditional_t<
-                std::is_same_v<iterator_category, std::bidirectional_iterator_tag> ||
-                std::is_base_of_v<std::bidirectional_iterator_tag, iterator_category>,
-            std::bidirectional_iterator_tag, std::input_iterator_tag> enable_reverse;
+        typedef std::conditional_t<std::is_same_v<iterator_category, std::bidirectional_iterator_tag> ||
+                                       std::is_base_of_v<std::bidirectional_iterator_tag, iterator_category>,
+                                   std::bidirectional_iterator_tag,
+                                   std::input_iterator_tag>
+            enable_reverse;
 
-        typedef typename
-        reverse<Container, enable_reverse>::const_reverse_iterator
-                                                       const_reverse_iterator;
+        typedef typename reverse<Container, enable_reverse>::const_reverse_iterator const_reverse_iterator;
 
         const_iterator cbegin() const;
         const_iterator cend() const;
         const_iterator begin() const { return cbegin(); }
         const_iterator end() const { return cend(); }
-        const_reverse_iterator crbegin() const {
-            return reverse<Container, enable_reverse>(values_).rbegin();
-        }
-        const_reverse_iterator crend() const {
-            return reverse<Container, enable_reverse>(values_).rend();
-        }
+        const_reverse_iterator crbegin() const { return reverse<Container, enable_reverse>(values_).rbegin(); }
+        const_reverse_iterator crend() const { return reverse<Container, enable_reverse>(values_).rend(); }
         const_reverse_iterator rbegin() const { return crbegin(); }
         const_reverse_iterator rend() const { return crend(); }
         //@}
 
       private:
         typedef typename Container::value_type container_value_type;
-        typedef std::function<Date(const container_value_type&)>
-                                                              projection_time;
-        typedef std::function<T(const container_value_type&)>
-                                                             projection_value;
+        typedef std::function<Date(const container_value_type&)> projection_time;
+        typedef std::function<T(const container_value_type&)> projection_value;
 
       public:
         //! \name Utilities
@@ -185,56 +180,57 @@ namespace QuantLib {
         //@}
 
       private:
-        static const Date& get_time (const container_value_type& v) {
-            return v.first;
-        }
-        static const T& get_value (const container_value_type& v) {
-            return v.second;
-        }
+        static const Date& get_time(const container_value_type& v) { return v.first; }
+        static const T& get_value(const container_value_type& v) { return v.second; }
     };
 
 
     // inline definitions
 
     template <class T, class C>
-    inline Date TimeSeries<T,C>::firstDate() const {
+    inline Date TimeSeries<T, C>::firstDate() const
+    {
         QL_REQUIRE(!values_.empty(), "empty timeseries");
         return values_.begin()->first;
     }
 
     template <class T, class C>
-    inline Date TimeSeries<T,C>::lastDate() const {
+    inline Date TimeSeries<T, C>::lastDate() const
+    {
         QL_REQUIRE(!values_.empty(), "empty timeseries");
         return rbegin()->first;
     }
 
     template <class T, class C>
-    inline Size TimeSeries<T,C>::size() const {
+    inline Size TimeSeries<T, C>::size() const
+    {
         return values_.size();
     }
 
     template <class T, class C>
-    inline bool TimeSeries<T,C>::empty() const {
+    inline bool TimeSeries<T, C>::empty() const
+    {
         return values_.empty();
     }
 
     template <class T, class C>
-    inline typename TimeSeries<T,C>::const_iterator
-    TimeSeries<T,C>::cbegin() const {
+    inline typename TimeSeries<T, C>::const_iterator TimeSeries<T, C>::cbegin() const
+    {
         return values_.begin();
     }
 
     template <class T, class C>
-    inline typename TimeSeries<T,C>::const_iterator
-    TimeSeries<T,C>::cend() const {
+    inline typename TimeSeries<T, C>::const_iterator TimeSeries<T, C>::cend() const
+    {
         return values_.end();
     }
 
     template <class T, class C>
-    inline typename TimeSeries<T,C>::const_iterator
-    TimeSeries<T,C>::find(const Date& d) {
+    inline typename TimeSeries<T, C>::const_iterator TimeSeries<T, C>::find(const Date& d)
+    {
         auto i = values_.find(d);
-        if (i == values_.end()) {
+        if (i == values_.end())
+        {
             values_[d] = Null<T>();
             i = values_.find(d);
         }
@@ -242,20 +238,20 @@ namespace QuantLib {
     }
 
     template <class T, class C>
-    std::vector<Date> TimeSeries<T,C>::dates() const {
+    std::vector<Date> TimeSeries<T, C>::dates() const
+    {
         std::vector<Date> v;
         v.reserve(size());
-        std::transform(cbegin(), cend(), std::back_inserter(v),
-                       TimeSeries<T,C>::get_time);
+        std::transform(cbegin(), cend(), std::back_inserter(v), TimeSeries<T, C>::get_time);
         return v;
     }
 
     template <class T, class C>
-    std::vector<T> TimeSeries<T,C>::values() const {
+    std::vector<T> TimeSeries<T, C>::values() const
+    {
         std::vector<T> v;
         v.reserve(size());
-        std::transform(cbegin(), cend(), std::back_inserter(v),
-                       TimeSeries<T,C>::get_value);
+        std::transform(cbegin(), cend(), std::back_inserter(v), TimeSeries<T, C>::get_value);
         return v;
     }
 

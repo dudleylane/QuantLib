@@ -18,7 +18,7 @@
 */
 
 /*! \file fdmcirsolver.hpp
-*/
+ */
 
 #ifndef quantlib_fdm_cir_solver_hpp
 #define quantlib_fdm_cir_solver_hpp
@@ -34,12 +34,14 @@
 #include <ql/processes/coxingersollrossprocess.hpp>
 #include <ql/termstructures/volatility/equityfx/localvoltermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class HestonProcess;
     class Fdm2DimSolver;
 
-    class FdmCIRSolver : public LazyObject {
+    class FdmCIRSolver : public LazyObject
+    {
       public:
         FdmCIRSolver(Handle<CoxIngersollRossProcess> process,
                      Handle<GeneralizedBlackScholesProcess> bsProcess,

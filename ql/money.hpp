@@ -29,13 +29,15 @@
 #include <ql/patterns/singleton.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! amount of cash
     /*! \test money arithmetic is tested with and without currency
               conversions.
     */
-    class Money {
+    class Money
+    {
       public:
         //! \name Constructors
         //@{
@@ -68,7 +70,8 @@ namespace QuantLib {
             in different currencies
         */
         //@{
-        enum ConversionType {
+        enum ConversionType
+        {
             NoConversion,           /*!< do not perform conversions */
             BaseCurrencyConversion, /*!< convert both operands to
                                          the base currency before
@@ -85,13 +88,15 @@ namespace QuantLib {
         Currency currency_;
 
         // temporary support for old syntax
-        struct BaseCurrencyProxy {
+        struct BaseCurrencyProxy
+        {
           public:
             BaseCurrencyProxy& operator=(const Currency&);
             operator Currency() const;
         };
 
-        struct ConversionTypeProxy {
+        struct ConversionTypeProxy
+        {
           public:
             ConversionTypeProxy& operator=(Money::ConversionType);
             operator Money::ConversionType() const;
@@ -99,17 +104,19 @@ namespace QuantLib {
     };
 
     //! Per-session settings for the Money class
-    class Money::Settings : public Singleton<Money::Settings> {
+    class Money::Settings : public Singleton<Money::Settings>
+    {
         friend class Singleton<Money::Settings>;
+
       private:
         Settings() = default;
 
       public:
-        const Money::ConversionType & conversionType() const;
-        Money::ConversionType & conversionType();
+        const Money::ConversionType& conversionType() const;
+        Money::ConversionType& conversionType();
 
-        const Currency & baseCurrency() const;
-        Currency & baseCurrency();
+        const Currency& baseCurrency() const;
+        Currency& baseCurrency();
 
       private:
         Money::ConversionType conversionType_ = Money::NoConversion;
@@ -164,89 +171,104 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline Money::Money(Currency currency, Decimal value)
-    : value_(value), currency_(std::move(currency)) {}
+    inline Money::Money(Currency currency, Decimal value) : value_(value), currency_(std::move(currency)) {}
 
-    inline Money::Money(Decimal value, Currency currency)
-    : value_(value), currency_(std::move(currency)) {}
+    inline Money::Money(Decimal value, Currency currency) : value_(value), currency_(std::move(currency)) {}
 
-    inline const Currency& Money::currency() const {
+    inline const Currency& Money::currency() const
+    {
         return currency_;
     }
 
-    inline Decimal Money::value() const {
+    inline Decimal Money::value() const
+    {
         return value_;
     }
 
-    inline Money Money::rounded() const {
+    inline Money Money::rounded() const
+    {
         return Money(currency_.rounding()(value_), currency_);
     }
 
-    inline Money Money::operator+() const {
+    inline Money Money::operator+() const
+    {
         return *this;
     }
 
-    inline Money Money::operator-() const {
+    inline Money Money::operator-() const
+    {
         return Money(-value_, currency_);
     }
 
-    inline Money& Money::operator*=(Decimal x) {
+    inline Money& Money::operator*=(Decimal x)
+    {
         value_ *= x;
         return *this;
     }
 
-    inline Money& Money::operator/=(Decimal x) {
+    inline Money& Money::operator/=(Decimal x)
+    {
         value_ /= x;
         return *this;
     }
 
 
-    inline Money operator+(const Money& m1, const Money& m2) {
+    inline Money operator+(const Money& m1, const Money& m2)
+    {
         Money tmp = m1;
         tmp += m2;
         return tmp;
     }
 
-    inline Money operator-(const Money& m1, const Money& m2) {
+    inline Money operator-(const Money& m1, const Money& m2)
+    {
         Money tmp = m1;
         tmp -= m2;
         return tmp;
     }
 
-    inline Money operator*(const Money& m, Decimal x) {
+    inline Money operator*(const Money& m, Decimal x)
+    {
         Money tmp = m;
         tmp *= x;
         return tmp;
     }
 
-    inline Money operator*(Decimal x, const Money& m) {
-        return m*x;
+    inline Money operator*(Decimal x, const Money& m)
+    {
+        return m * x;
     }
 
-    inline Money operator/(const Money& m, Decimal x) {
+    inline Money operator/(const Money& m, Decimal x)
+    {
         Money tmp = m;
         tmp /= x;
         return tmp;
     }
 
-    inline bool operator!=(const Money& m1, const Money& m2) {
+    inline bool operator!=(const Money& m1, const Money& m2)
+    {
         return !(m1 == m2);
     }
 
-    inline bool operator>(const Money& m1, const Money& m2) {
+    inline bool operator>(const Money& m1, const Money& m2)
+    {
         return m2 < m1;
     }
 
-    inline bool operator>=(const Money& m1, const Money& m2) {
+    inline bool operator>=(const Money& m1, const Money& m2)
+    {
         return m2 <= m1;
     }
 
-    inline Money operator*(Decimal value, const Currency& c) {
-        return Money(value,c);
+    inline Money operator*(Decimal value, const Currency& c)
+    {
+        return Money(value, c);
     }
 
-    inline Money operator*(const Currency& c, Decimal value) {
-        return Money(value,c);
+    inline Money operator*(const Currency& c, Decimal value)
+    {
+        return Money(value, c);
     }
 
 }

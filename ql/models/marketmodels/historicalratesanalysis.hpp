@@ -27,30 +27,32 @@
 #include <ql/math/statistics/sequencestatistics.hpp>
 #include <ql/time/date.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class InterestRateIndex;
 
-    void historicalRatesAnalysis(
-                SequenceStatistics& statistics,
-                std::vector<Date>& skippedDates,
-                std::vector<std::string>& skippedDatesErrorMessage,
-                const Date& startDate,
-                const Date& endDate,
-                const Period& step,
-                const std::vector<ext::shared_ptr<InterestRateIndex> >& indexes);
+    void historicalRatesAnalysis(SequenceStatistics& statistics,
+                                 std::vector<Date>& skippedDates,
+                                 std::vector<std::string>& skippedDatesErrorMessage,
+                                 const Date& startDate,
+                                 const Date& endDate,
+                                 const Period& step,
+                                 const std::vector<ext::shared_ptr<InterestRateIndex>>& indexes);
 
     //! %Historical rate analysis class
-    class HistoricalRatesAnalysis {
+    class HistoricalRatesAnalysis
+    {
       public:
         HistoricalRatesAnalysis(ext::shared_ptr<SequenceStatistics> stats,
                                 const Date& startDate,
                                 const Date& endDate,
                                 const Period& step,
-                                const std::vector<ext::shared_ptr<InterestRateIndex> >& indexes);
+                                const std::vector<ext::shared_ptr<InterestRateIndex>>& indexes);
         const std::vector<Date>& skippedDates() const;
         const std::vector<std::string>& skippedDatesErrorMessage() const;
         const ext::shared_ptr<SequenceStatistics>& stats() const;
+
       private:
         // calculated data
         ext::shared_ptr<SequenceStatistics> stats_;
@@ -60,18 +62,18 @@ namespace QuantLib {
 
     // inline
 
-    inline const std::vector<Date>&
-    HistoricalRatesAnalysis::skippedDates() const {
+    inline const std::vector<Date>& HistoricalRatesAnalysis::skippedDates() const
+    {
         return skippedDates_;
     }
 
-    inline const std::vector<std::string>&
-    HistoricalRatesAnalysis::skippedDatesErrorMessage() const {
+    inline const std::vector<std::string>& HistoricalRatesAnalysis::skippedDatesErrorMessage() const
+    {
         return skippedDatesErrorMessage_;
     }
 
-    inline const ext::shared_ptr<SequenceStatistics>&
-    HistoricalRatesAnalysis::stats() const {
+    inline const ext::shared_ptr<SequenceStatistics>& HistoricalRatesAnalysis::stats() const
+    {
         return stats_;
     }
 

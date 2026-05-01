@@ -23,4 +23,3 @@
 #include <ql/math/optimization/simulatedannealing.hpp>
 #include <ql/math/optimization/spherecylinder.hpp>
 #include <ql/math/optimization/steepestdescent.hpp>
-

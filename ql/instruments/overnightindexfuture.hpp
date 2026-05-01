@@ -25,31 +25,33 @@
 #ifndef quantlib_overnightindexfuture_hpp
 #define quantlib_overnightindexfuture_hpp
 
+#include <ql/cashflows/rateaveraging.hpp>
 #include <ql/indexes/iborindex.hpp>
 #include <ql/instruments/forward.hpp>
-#include <ql/cashflows/rateaveraging.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! Future on a compounded overnight index investment.
 
         Compatible with SOFR futures and Sonia futures available on
         CME and ICE exchanges.
     */
-    class OvernightIndexFuture : public Instrument {
+    class OvernightIndexFuture : public Instrument
+    {
       public:
-        OvernightIndexFuture(
-            ext::shared_ptr<OvernightIndex> overnightIndex,
-            const Date& valueDate,
-            const Date& maturityDate,
-            Handle<Quote> convexityAdjustment = Handle<Quote>(),
-            RateAveraging::Type averagingMethod = RateAveraging::Compound);
+        OvernightIndexFuture(ext::shared_ptr<OvernightIndex> overnightIndex,
+                             const Date& valueDate,
+                             const Date& maturityDate,
+                             Handle<Quote> convexityAdjustment = Handle<Quote>(),
+                             RateAveraging::Type averagingMethod = RateAveraging::Compound);
 
         Real convexityAdjustment() const;
         bool isExpired() const override;
         const ext::shared_ptr<OvernightIndex>& overnightIndex() const { return overnightIndex_; }
         Date valueDate() const { return valueDate_; }
         Date maturityDate() const { return maturityDate_; }
+
       private:
         void performCalculations() const override;
         Real rate() const;

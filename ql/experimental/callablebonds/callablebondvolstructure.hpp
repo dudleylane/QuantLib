@@ -24,18 +24,20 @@
 #ifndef quantlib_callable_bond_volatility_structure_hpp
 #define quantlib_callable_bond_volatility_structure_hpp
 
-#include <ql/termstructure.hpp>
 #include <ql/math/interpolations/linearinterpolation.hpp>
+#include <ql/termstructure.hpp>
 #include <ql/termstructures/volatility/smilesection.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Callable-bond volatility structure
     /*! This class is purely abstract and defines the interface of
         concrete callable-bond volatility structures which will be
         derived from this one.
     */
-    class CallableBondVolatilityStructure : public TermStructure {
+    class CallableBondVolatilityStructure : public TermStructure
+    {
       public:
         /*! \name Constructors
             See the TermStructure documentation for issues regarding
@@ -47,8 +49,7 @@ namespace QuantLib {
                      constructor must manage their own reference date
                      by overriding the referenceDate() method.
         */
-        CallableBondVolatilityStructure(const DayCounter& dc = DayCounter(),
-                                        BusinessDayConvention bdc = Following);
+        CallableBondVolatilityStructure(const DayCounter& dc = DayCounter(), BusinessDayConvention bdc = Following);
         //! initialize with a fixed reference date
         CallableBondVolatilityStructure(const Date& referenceDate,
                                         const Calendar& calendar = Calendar(),
@@ -64,46 +65,29 @@ namespace QuantLib {
         //! \name Volatility, variance and smile
         //@{
         //! returns the volatility for a given option time and bondLength
-        Volatility volatility(Time optionTime,
-                              Time bondLength,
-                              Rate strike,
-                              bool extrapolate = false) const;
+        Volatility volatility(Time optionTime, Time bondLength, Rate strike, bool extrapolate = false) const;
         //! returns the Black variance for a given option time and bondLength
-        Real blackVariance(Time optionTime,
-                           Time bondLength,
-                           Rate strike,
-                           bool extrapolate = false) const;
+        Real blackVariance(Time optionTime, Time bondLength, Rate strike, bool extrapolate = false) const;
 
         //! returns the volatility for a given option date and bond tenor
-        Volatility volatility(const Date& optionDate,
-                              const Period& bondTenor,
-                              Rate strike,
-                              bool extrapolate = false) const;
+        Volatility
+        volatility(const Date& optionDate, const Period& bondTenor, Rate strike, bool extrapolate = false) const;
         //! returns the Black variance for a given option date and bond tenor
-        Real blackVariance(const Date& optionDate,
-                           const Period& bondTenor,
-                           Rate strike,
-                           bool extrapolate = false) const;
-        virtual ext::shared_ptr<SmileSection> smileSection(
-                                              const Date& optionDate,
-                                              const Period& bondTenor) const {
+        Real
+        blackVariance(const Date& optionDate, const Period& bondTenor, Rate strike, bool extrapolate = false) const;
+        virtual ext::shared_ptr<SmileSection> smileSection(const Date& optionDate, const Period& bondTenor) const
+        {
             const std::pair<Time, Time> p = convertDates(optionDate, bondTenor);
             return smileSectionImpl(p.first, p.second);
         }
 
         //! returns the volatility for a given option tenor and bond tenor
-        Volatility volatility(const Period& optionTenor,
-                              const Period& bondTenor,
-                              Rate strike,
-                              bool extrapolate = false) const;
+        Volatility
+        volatility(const Period& optionTenor, const Period& bondTenor, Rate strike, bool extrapolate = false) const;
         //! returns the Black variance for a given option tenor and bond tenor
-        Real blackVariance(const Period& optionTenor,
-                           const Period& bondTenor,
-                           Rate strike,
-                           bool extrapolate = false) const;
-        ext::shared_ptr<SmileSection> smileSection(
-                                               const Period& optionTenor,
-                                               const Period& bondTenor) const;
+        Real
+        blackVariance(const Period& optionTenor, const Period& bondTenor, Rate strike, bool extrapolate = false) const;
+        ext::shared_ptr<SmileSection> smileSection(const Period& optionTenor, const Period& bondTenor) const;
         //@}
         //! \name Limits
         //@{
@@ -117,34 +101,26 @@ namespace QuantLib {
         virtual Rate maxStrike() const = 0;
         //@}
         //! implements the conversion between dates and times
-        virtual std::pair<Time,Time> convertDates(
-                                               const Date& optionDate,
-                                               const Period& bondTenor) const;
+        virtual std::pair<Time, Time> convertDates(const Date& optionDate, const Period& bondTenor) const;
         //! the business day convention used for option date calculation
         virtual BusinessDayConvention businessDayConvention() const;
         //! implements the conversion between optionTenors and optionDates
         Date optionDateFromTenor(const Period& optionTenor) const;
-    protected:
 
+      protected:
         //! return smile section
-        virtual ext::shared_ptr<SmileSection> smileSectionImpl(
-                                                   Time optionTime,
-                                                   Time bondLength) const = 0;
+        virtual ext::shared_ptr<SmileSection> smileSectionImpl(Time optionTime, Time bondLength) const = 0;
 
         //! implements the actual volatility calculation in derived classes
-        virtual Volatility volatilityImpl(Time optionTime,
-                                          Time bondLength,
-                                          Rate strike) const = 0;
-        virtual Volatility volatilityImpl(const Date& optionDate,
-                                          const Period& bondTenor,
-                                          Rate strike) const {
+        virtual Volatility volatilityImpl(Time optionTime, Time bondLength, Rate strike) const = 0;
+        virtual Volatility volatilityImpl(const Date& optionDate, const Period& bondTenor, Rate strike) const
+        {
             const std::pair<Time, Time> p = convertDates(optionDate, bondTenor);
             return volatilityImpl(p.first, p.second, strike);
         }
         void checkRange(Time, Time, Rate strike, bool extrapolate) const;
-        void checkRange(const Date& optionDate,
-                        const Period& bondTenor,
-                        Rate strike, bool extrapolate) const;
+        void checkRange(const Date& optionDate, const Period& bondTenor, Rate strike, bool extrapolate) const;
+
       private:
         BusinessDayConvention bdc_;
     };
@@ -152,103 +128,92 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline BusinessDayConvention
-    CallableBondVolatilityStructure::businessDayConvention() const {
+    inline BusinessDayConvention CallableBondVolatilityStructure::businessDayConvention() const
+    {
         return bdc_;
     }
 
-    inline Date CallableBondVolatilityStructure::optionDateFromTenor(
-                                            const Period& optionTenor) const {
-        return calendar().advance(referenceDate(),
-                                  optionTenor,
-                                  businessDayConvention());
+    inline Date CallableBondVolatilityStructure::optionDateFromTenor(const Period& optionTenor) const
+    {
+        return calendar().advance(referenceDate(), optionTenor, businessDayConvention());
     }
 
-    inline Volatility CallableBondVolatilityStructure::volatility(
-                                                     Time optionTime,
-                                                     Time bondLength,
-                                                     Rate strike,
-                                                     bool extrapolate) const {
+    inline Volatility
+    CallableBondVolatilityStructure::volatility(Time optionTime, Time bondLength, Rate strike, bool extrapolate) const
+    {
         checkRange(optionTime, bondLength, strike, extrapolate);
         return volatilityImpl(optionTime, bondLength, strike);
     }
 
 
-    inline Real CallableBondVolatilityStructure::blackVariance(
-                                                     Time optionTime,
-                                                     Time bondLength,
-                                                     Rate strike,
-                                                     bool extrapolate) const {
+    inline Real CallableBondVolatilityStructure::blackVariance(Time optionTime,
+                                                               Time bondLength,
+                                                               Rate strike,
+                                                               bool extrapolate) const
+    {
         checkRange(optionTime, bondLength, strike, extrapolate);
         Volatility vol = volatilityImpl(optionTime, bondLength, strike);
-        return vol*vol*optionTime;
+        return vol * vol * optionTime;
     }
 
 
-    inline Volatility CallableBondVolatilityStructure::volatility(
-                                                     const Date& optionDate,
-                                                     const Period& bondTenor,
-                                                     Rate strike,
-                                                     bool extrapolate) const {
+    inline Volatility CallableBondVolatilityStructure::volatility(const Date& optionDate,
+                                                                  const Period& bondTenor,
+                                                                  Rate strike,
+                                                                  bool extrapolate) const
+    {
         checkRange(optionDate, bondTenor, strike, extrapolate);
         return volatilityImpl(optionDate, bondTenor, strike);
     }
 
-    inline Real CallableBondVolatilityStructure::blackVariance(
-                                                     const Date& optionDate,
-                                                     const Period& bondTenor,
-                                                     Rate strike,
-                                                     bool extrapolate) const {
-        Volatility vol =
-            volatility(optionDate, bondTenor, strike, extrapolate);
+    inline Real CallableBondVolatilityStructure::blackVariance(const Date& optionDate,
+                                                               const Period& bondTenor,
+                                                               Rate strike,
+                                                               bool extrapolate) const
+    {
+        Volatility vol = volatility(optionDate, bondTenor, strike, extrapolate);
         const std::pair<Time, Time> p = convertDates(optionDate, bondTenor);
-        return vol*vol*p.first;
+        return vol * vol * p.first;
     }
 
-    inline Volatility CallableBondVolatilityStructure::volatility(
-                                                    const Period& optionTenor,
-                                                    const Period& bondTenor,
-                                                    Rate strike,
-                                                    bool extrapolate) const {
+    inline Volatility CallableBondVolatilityStructure::volatility(const Period& optionTenor,
+                                                                  const Period& bondTenor,
+                                                                  Rate strike,
+                                                                  bool extrapolate) const
+    {
         Date optionDate = optionDateFromTenor(optionTenor);
         return volatility(optionDate, bondTenor, strike, extrapolate);
     }
 
-    inline Real CallableBondVolatilityStructure::blackVariance(
-                                                    const Period& optionTenor,
-                                                    const Period& bondTenor,
-                                                    Rate strike,
-                                                    bool extrapolate) const {
+    inline Real CallableBondVolatilityStructure::blackVariance(const Period& optionTenor,
+                                                               const Period& bondTenor,
+                                                               Rate strike,
+                                                               bool extrapolate) const
+    {
         Date optionDate = optionDateFromTenor(optionTenor);
-        Volatility vol =
-            volatility(optionDate, bondTenor, strike, extrapolate);
+        Volatility vol = volatility(optionDate, bondTenor, strike, extrapolate);
         const std::pair<Time, Time> p = convertDates(optionDate, bondTenor);
-        return vol*vol*p.first;
+        return vol * vol * p.first;
     }
 
 
-    inline ext::shared_ptr<SmileSection>
-    CallableBondVolatilityStructure::smileSection(
-                                              const Period& optionTenor,
-                                              const Period& bondTenor) const {
+    inline ext::shared_ptr<SmileSection> CallableBondVolatilityStructure::smileSection(const Period& optionTenor,
+                                                                                       const Period& bondTenor) const
+    {
         Date optionDate = optionDateFromTenor(optionTenor);
         return smileSection(optionDate, bondTenor);
     }
 
 
-    inline void CallableBondVolatilityStructure::checkRange(
-        Time optionTime, Time bondLength, Rate k, bool extrapolate) const {
+    inline void
+    CallableBondVolatilityStructure::checkRange(Time optionTime, Time bondLength, Rate k, bool extrapolate) const
+    {
         TermStructure::checkRange(optionTime, extrapolate);
-        QL_REQUIRE(bondLength >= 0.0,
-                   "negative bondLength (" << bondLength << ") given");
-        QL_REQUIRE(extrapolate || allowsExtrapolation() ||
-                   bondLength <= maxBondLength(),
-                   "bondLength (" << bondLength << ") is past max curve bondLength ("
-                   << maxBondLength() << ")");
-        QL_REQUIRE(extrapolate || allowsExtrapolation() ||
-                   (k >= minStrike() && k <= maxStrike()),
-                   "strike (" << k << ") is outside the curve domain ["
-                   << minStrike() << "," << maxStrike()<< "]");
+        QL_REQUIRE(bondLength >= 0.0, "negative bondLength (" << bondLength << ") given");
+        QL_REQUIRE(extrapolate || allowsExtrapolation() || bondLength <= maxBondLength(),
+                   "bondLength (" << bondLength << ") is past max curve bondLength (" << maxBondLength() << ")");
+        QL_REQUIRE(extrapolate || allowsExtrapolation() || (k >= minStrike() && k <= maxStrike()),
+                   "strike (" << k << ") is outside the curve domain [" << minStrike() << "," << maxStrike() << "]");
     }
 
 }

@@ -16,26 +16,29 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/risk/curvebucketer.hpp>
 #include <ql/errors.hpp>
+#include <ql/risk/curvebucketer.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
+    namespace
+    {
         // RAII guard: restore a SimpleQuote to its original value on
         // scope exit, even when an exception is thrown. Keeps the
         // observer graph clean for subsequent callers regardless of
         // what the pricing engine does under shock.
-        class ScopedQuoteRestore {
+        class ScopedQuoteRestore
+        {
           public:
-            ScopedQuoteRestore(ext::shared_ptr<SimpleQuote> q)
-            : quote_(std::move(q)), original_(quote_->value()) {}
+            ScopedQuoteRestore(ext::shared_ptr<SimpleQuote> q) : quote_(std::move(q)), original_(quote_->value()) {}
             ~ScopedQuoteRestore() { quote_->setValue(original_); }
             Real original() const { return original_; }
             // Non-copyable, non-movable
             ScopedQuoteRestore(const ScopedQuoteRestore&) = delete;
             ScopedQuoteRestore& operator=(const ScopedQuoteRestore&) = delete;
+
           private:
             // Held by value so the guard is safe to store or pass around:
             // a reference here was fragile against future refactors that
@@ -45,22 +48,22 @@ namespace QuantLib {
         };
     }
 
-    CurveBucketer::CurveBucketer(
-        std::vector<ext::shared_ptr<SimpleQuote> > quotes, Real bump)
-    : quotes_(std::move(quotes)), bump_(bump) {
-        QL_REQUIRE(bump_ > 0.0,
-                   "CurveBucketer bump size must be positive; got " << bump_);
-        for (Size i = 0; i < quotes_.size(); ++i) {
-            QL_REQUIRE(quotes_[i], "CurveBucketer: quote at index " << i
-                                   << " is a null shared_ptr");
+    CurveBucketer::CurveBucketer(std::vector<ext::shared_ptr<SimpleQuote>> quotes, Real bump)
+    : quotes_(std::move(quotes)), bump_(bump)
+    {
+        QL_REQUIRE(bump_ > 0.0, "CurveBucketer bump size must be positive; got " << bump_);
+        for (Size i = 0; i < quotes_.size(); ++i)
+        {
+            QL_REQUIRE(quotes_[i], "CurveBucketer: quote at index " << i << " is a null shared_ptr");
         }
     }
 
-    std::vector<Real>
-    CurveBucketer::bucketedDelta(const Instrument& instrument) const {
+    std::vector<Real> CurveBucketer::bucketedDelta(const Instrument& instrument) const
+    {
         std::vector<Real> result;
         result.reserve(quotes_.size());
-        for (const auto& q : quotes_) {
+        for (const auto& q : quotes_)
+        {
             ScopedQuoteRestore guard(q);
             q->setValue(guard.original() + bump_);
             Real up = instrument.NPV();
@@ -72,15 +75,16 @@ namespace QuantLib {
         return result;
     }
 
-    std::vector<Real>
-    CurveBucketer::bucketedGamma(const Instrument& instrument) const {
+    std::vector<Real> CurveBucketer::bucketedGamma(const Instrument& instrument) const
+    {
         // Evaluate baseline once; the quote state is the original
         // during this call since no bucket has been mutated yet.
         Real mid = instrument.NPV();
         std::vector<Real> result;
         result.reserve(quotes_.size());
         const Real bump2 = bump_ * bump_;
-        for (const auto& q : quotes_) {
+        for (const auto& q : quotes_)
+        {
             ScopedQuoteRestore guard(q);
             q->setValue(guard.original() + bump_);
             Real up = instrument.NPV();
@@ -91,24 +95,29 @@ namespace QuantLib {
         return result;
     }
 
-    Real CurveBucketer::parallelDelta(const Instrument& instrument) const {
+    Real CurveBucketer::parallelDelta(const Instrument& instrument) const
+    {
         // Centered parallel shift: bump all quotes up, then all down,
         // then restore. Gives the sum of the bucketed deltas when the
         // instrument's NPV is locally linear in each quote, which is
         // the regime where bucketing is meaningful in the first place.
         std::vector<Real> originals;
         originals.reserve(quotes_.size());
-        for (const auto& q : quotes_) originals.push_back(q->value());
+        for (const auto& q : quotes_)
+            originals.push_back(q->value());
 
         Real up = 0.0, down = 0.0;
-        try {
+        try
+        {
             for (Size i = 0; i < quotes_.size(); ++i)
                 quotes_[i]->setValue(originals[i] + bump_);
             up = instrument.NPV();
             for (Size i = 0; i < quotes_.size(); ++i)
                 quotes_[i]->setValue(originals[i] - bump_);
             down = instrument.NPV();
-        } catch (...) {
+        }
+        catch (...)
+        {
             for (Size i = 0; i < quotes_.size(); ++i)
                 quotes_[i]->setValue(originals[i]);
             throw;

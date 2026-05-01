@@ -27,14 +27,16 @@
 #include <ql/types.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! min copula
-    class MinCopula {
+    class MinCopula
+    {
       public:
         Real operator()(Real x, Real y) const;
     };
-    
+
 }
 
 #endif

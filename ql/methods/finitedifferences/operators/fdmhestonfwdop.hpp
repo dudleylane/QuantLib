@@ -25,12 +25,13 @@
 #ifndef quantlib_fdm_heston_fwd_op_hpp
 #define quantlib_fdm_heston_fwd_op_hpp
 
-#include <ql/types.hpp>
-#include <ql/methods/finitedifferences/operators/fdmsquarerootfwdop.hpp>
 #include <ql/methods/finitedifferences/operators/fdmlinearopcomposite.hpp>
+#include <ql/methods/finitedifferences/operators/fdmsquarerootfwdop.hpp>
 #include <ql/termstructures/volatility/equityfx/localvoltermstructure.hpp>
+#include <ql/types.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class YieldTermStructure;
     class FdmMesher;
@@ -39,13 +40,13 @@ namespace QuantLib {
     class TripleBandLinearOp;
     class NinePointLinearOp;
 
-    class FdmHestonFwdOp : public FdmLinearOpComposite {
+    class FdmHestonFwdOp : public FdmLinearOpComposite
+    {
       public:
         FdmHestonFwdOp(const ext::shared_ptr<FdmMesher>& mesher,
                        const ext::shared_ptr<HestonProcess>& process,
                        FdmSquareRootFwdOp::TransformationType type = FdmSquareRootFwdOp::Plain,
-                       ext::shared_ptr<LocalVolTermStructure> leverageFct =
-                           ext::shared_ptr<LocalVolTermStructure>(),
+                       ext::shared_ptr<LocalVolTermStructure> leverageFct = ext::shared_ptr<LocalVolTermStructure>(),
                        Real mixingFactor = 1.0);
 
         Size size() const override;
@@ -59,6 +60,7 @@ namespace QuantLib {
         Array preconditioner(const Array& r, Real s) const override;
 
         std::vector<SparseMatrix> toMatrixDecomp() const override;
+
       private:
         Array getLeverageFctSlice(Time t1, Time t2) const;
         const FdmSquareRootFwdOp::TransformationType type_;

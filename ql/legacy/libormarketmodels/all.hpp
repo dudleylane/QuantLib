@@ -16,4 +16,3 @@
 #include <ql/legacy/libormarketmodels/lmlinexpcorrmodel.hpp>
 #include <ql/legacy/libormarketmodels/lmlinexpvolmodel.hpp>
 #include <ql/legacy/libormarketmodels/lmvolmodel.hpp>
-

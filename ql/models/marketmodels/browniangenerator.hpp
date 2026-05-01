@@ -21,13 +21,15 @@
 #ifndef quantlib_brownian_generator_hpp
 #define quantlib_brownian_generator_hpp
 
-#include <ql/types.hpp>
 #include <ql/shared_ptr.hpp>
+#include <ql/types.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class BrownianGenerator {
+    class BrownianGenerator
+    {
       public:
         virtual ~BrownianGenerator() = default;
 
@@ -38,12 +40,12 @@ namespace QuantLib {
         virtual Size numberOfSteps() const = 0;
     };
 
-    class BrownianGeneratorFactory {
+    class BrownianGeneratorFactory
+    {
       public:
         virtual ~BrownianGeneratorFactory() = default;
 
-        virtual ext::shared_ptr<BrownianGenerator> create(Size factors,
-                                                            Size steps) const = 0;
+        virtual ext::shared_ptr<BrownianGenerator> create(Size factors, Size steps) const = 0;
     };
 
 }

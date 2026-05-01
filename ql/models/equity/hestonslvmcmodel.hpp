@@ -26,13 +26,14 @@
 #define quantlib_heston_slv_mc_model_hpp
 
 #include <ql/handle.hpp>
-#include <ql/timegrid.hpp>
-#include <ql/patterns/lazyobject.hpp>
 #include <ql/models/equity/hestonmodel.hpp>
 #include <ql/models/marketmodels/browniangenerator.hpp>
+#include <ql/patterns/lazyobject.hpp>
 #include <ql/termstructures/volatility/equityfx/fixedlocalvolsurface.hpp>
+#include <ql/timegrid.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
     /*! References:
 
         Anthonie W. van der Stoep,Lech A. Grzelak, Cornelis W. Oosterlee, 2013,
@@ -40,7 +41,8 @@ namespace QuantLib {
         http://papers.ssrn.com/sol3/papers.cfm?abstract_id=2278122
     */
 
-    class HestonSLVMCModel : public LazyObject {
+    class HestonSLVMCModel : public LazyObject
+    {
       public:
         HestonSLVMCModel(Handle<LocalVolTermStructure> localVol,
                          Handle<HestonModel> hestonModel,

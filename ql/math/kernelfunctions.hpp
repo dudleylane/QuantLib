@@ -26,14 +26,16 @@
 
 #include <ql/math/distributions/normaldistribution.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! Kernel function in the statistical sense, e.g. a nonnegative,
         real-valued function which integrates to one and is symmetric.
 
         Derived classes will serve as functors.
     */
-    class KernelFunction {
+    class KernelFunction
+    {
       public:
         virtual ~KernelFunction() = default;
         virtual Real operator()(Real x) const = 0;
@@ -41,21 +43,19 @@ namespace QuantLib {
 
 
     //! Gaussian kernel function
-    class GaussianKernel : public KernelFunction {
+    class GaussianKernel : public KernelFunction
+    {
       public:
         GaussianKernel(Real average, Real sigma)
-        : nd_(average,sigma), cnd_(average,sigma),
-          normFact_(M_SQRT2*M_SQRTPI) {} // normFact is \sqrt{2*\pi}.
+        : nd_(average, sigma), cnd_(average, sigma), normFact_(M_SQRT2 * M_SQRTPI)
+        {
+        } // normFact is \sqrt{2*\pi}.
 
         Real operator()(Real x) const override { return nd_(x) * normFact_; }
 
-        Real derivative(Real x) const{
-            return nd_.derivative(x)*normFact_;
-        }
+        Real derivative(Real x) const { return nd_.derivative(x) * normFact_; }
 
-        Real primitive(Real x) const{
-            return cnd_(x)*normFact_;
-        }
+        Real primitive(Real x) const { return cnd_(x) * normFact_; }
 
       private:
         NormalDistribution nd_;

@@ -27,38 +27,36 @@
 
 #include <ql/math/interpolations/interpolation2d.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace detail {
+    namespace detail
+    {
 
         template <class I1, class I2, class M>
-        class BilinearInterpolationImpl
-            : public Interpolation2D::templateImpl<I1,I2,M> {
+        class BilinearInterpolationImpl : public Interpolation2D::templateImpl<I1, I2, M>
+        {
           public:
-            BilinearInterpolationImpl(const I1& xBegin, const I1& xEnd,
-                                      const I2& yBegin, const I2& yEnd,
-                                      const M& zData)
-            : Interpolation2D::templateImpl<I1,I2,M>(xBegin,xEnd,
-                                                     yBegin,yEnd,
-                                                     zData) {
+            BilinearInterpolationImpl(
+                const I1& xBegin, const I1& xEnd, const I2& yBegin, const I2& yEnd, const M& zData)
+            : Interpolation2D::templateImpl<I1, I2, M>(xBegin, xEnd, yBegin, yEnd, zData)
+            {
                 BilinearInterpolationImpl::calculate();
             }
             void calculate() override {}
-            Real value(Real x, Real y) const override {
+            Real value(Real x, Real y) const override
+            {
                 Size i = this->locateX(x), j = this->locateY(y);
 
                 Real z1 = this->zData_[j][i];
-                Real z2 = this->zData_[j][i+1];
-                Real z3 = this->zData_[j+1][i];
-                Real z4 = this->zData_[j+1][i+1];
+                Real z2 = this->zData_[j][i + 1];
+                Real z3 = this->zData_[j + 1][i];
+                Real z4 = this->zData_[j + 1][i + 1];
 
-                Real t=(x-this->xBegin_[i])/
-                    (this->xBegin_[i+1]-this->xBegin_[i]);
-                Real u=(y-this->yBegin_[j])/
-                    (this->yBegin_[j+1]-this->yBegin_[j]);
+                Real t = (x - this->xBegin_[i]) / (this->xBegin_[i + 1] - this->xBegin_[i]);
+                Real u = (y - this->yBegin_[j]) / (this->yBegin_[j + 1] - this->yBegin_[j]);
 
-                return (1.0-t)*(1.0-u)*z1 + t*(1.0-u)*z2
-                     + (1.0-t)*u*z3 + t*u*z4;
+                return (1.0 - t) * (1.0 - u) * z1 + t * (1.0 - u) * z2 + (1.0 - t) * u * z3 + t * u * z4;
             }
         };
 
@@ -69,28 +67,27 @@ namespace QuantLib {
         \warning See the Interpolation class for information about the
                  required lifetime of the underlying data.
     */
-    class BilinearInterpolation : public Interpolation2D {
+    class BilinearInterpolation : public Interpolation2D
+    {
       public:
         /*! \pre the \f$ x \f$ and \f$ y \f$ values must be sorted. */
         template <class I1, class I2, class M>
-        BilinearInterpolation(const I1& xBegin, const I1& xEnd,
-                              const I2& yBegin, const I2& yEnd,
-                              const M& zData) {
+        BilinearInterpolation(const I1& xBegin, const I1& xEnd, const I2& yBegin, const I2& yEnd, const M& zData)
+        {
             impl_ = ext::shared_ptr<Interpolation2D::Impl>(
-                  new detail::BilinearInterpolationImpl<I1,I2,M>(xBegin, xEnd,
-                                                                 yBegin, yEnd,
-                                                                 zData));
+                new detail::BilinearInterpolationImpl<I1, I2, M>(xBegin, xEnd, yBegin, yEnd, zData));
         }
     };
 
     //! bilinear-interpolation factory
-    class Bilinear {
+    class Bilinear
+    {
       public:
         template <class I1, class I2, class M>
-        Interpolation2D interpolate(const I1& xBegin, const I1& xEnd,
-                                    const I2& yBegin, const I2& yEnd,
-                                    const M& z) const {
-            return BilinearInterpolation(xBegin,xEnd,yBegin,yEnd,z);
+        Interpolation2D
+        interpolate(const I1& xBegin, const I1& xEnd, const I2& yBegin, const I2& yEnd, const M& z) const
+        {
+            return BilinearInterpolation(xBegin, xEnd, yBegin, yEnd, z);
         }
     };
 

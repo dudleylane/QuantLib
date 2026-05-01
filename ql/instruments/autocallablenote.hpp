@@ -43,11 +43,13 @@
 #include <ql/time/date.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Single-underlying step-down autocallable note.
     /*! \ingroup instruments */
-    class AutocallableNote : public Instrument {
+    class AutocallableNote : public Instrument
+    {
       public:
         class arguments;
         class results;
@@ -71,12 +73,8 @@ namespace QuantLib {
         //@{
         Real notional() const { return notional_; }
         Real initialSpot() const { return initialSpot_; }
-        const std::vector<Date>& observationDates() const {
-            return observationDates_;
-        }
-        const std::vector<Real>& autocallBarriers() const {
-            return autocallBarriers_;
-        }
+        const std::vector<Date>& observationDates() const { return observationDates_; }
+        const std::vector<Real>& autocallBarriers() const { return autocallBarriers_; }
         Rate couponRate() const { return couponRate_; }
         Real protectionBarrier() const { return protectionBarrier_; }
         Date maturityDate() const { return maturityDate_; }
@@ -92,7 +90,8 @@ namespace QuantLib {
         Date maturityDate_;
     };
 
-    class AutocallableNote::arguments : public PricingEngine::arguments {
+    class AutocallableNote::arguments : public PricingEngine::arguments
+    {
       public:
         //! Principal / face value of the note.
         Real notional = 0.0;
@@ -122,11 +121,13 @@ namespace QuantLib {
     /*! Uses the default `Instrument::results` surface. Engines are
         expected to set `results_.value` plus any additional
         per-engine diagnostics via `additionalResults`. */
-    class AutocallableNote::results : public Instrument::results {};
+    class AutocallableNote::results : public Instrument::results
+    {
+    };
 
-    class AutocallableNote::engine
-        : public GenericEngine<AutocallableNote::arguments,
-                               AutocallableNote::results> {};
+    class AutocallableNote::engine : public GenericEngine<AutocallableNote::arguments, AutocallableNote::results>
+    {
+    };
 
 }
 

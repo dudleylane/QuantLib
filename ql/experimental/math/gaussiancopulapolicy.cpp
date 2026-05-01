@@ -19,11 +19,10 @@
 
 #include <ql/experimental/math/gaussiancopulapolicy.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    const NormalDistribution GaussianCopulaPolicy::density_ = 
-        NormalDistribution();
-    const CumulativeNormalDistribution GaussianCopulaPolicy::cumulative_ = 
-        CumulativeNormalDistribution();
+    const NormalDistribution GaussianCopulaPolicy::density_ = NormalDistribution();
+    const CumulativeNormalDistribution GaussianCopulaPolicy::cumulative_ = CumulativeNormalDistribution();
 
 }

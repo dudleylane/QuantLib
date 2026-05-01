@@ -21,12 +21,14 @@
 #ifndef quantlib_parametric_exercise_hpp
 #define quantlib_parametric_exercise_hpp
 
-#include <ql/methods/montecarlo/nodedata.hpp>
 #include <ql/math/optimization/method.hpp>
+#include <ql/methods/montecarlo/nodedata.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class ParametricExercise {
+    class ParametricExercise
+    {
       public:
         virtual ~ParametricExercise() = default;
         // possibly different for each exercise
@@ -35,10 +37,9 @@ namespace QuantLib {
         virtual bool exercise(Size exerciseNumber,
                               const std::vector<Real>& parameters,
                               const std::vector<Real>& variables) const = 0;
-        virtual void guess(Size exerciseNumber,
-                           std::vector<Real>& parameters) const = 0;
+        virtual void guess(Size exerciseNumber, std::vector<Real>& parameters) const = 0;
     };
-    
+
 
     //! returns the biased estimate obtained while optimizing
     /* TODO document:
@@ -50,15 +51,13 @@ namespace QuantLib {
 
        parameters.size() = n
     */
-    Real genericEarlyExerciseOptimization(
-        std::vector<std::vector<NodeData> >& simulationData,
-        const ParametricExercise& exercise,
-        std::vector<std::vector<Real> >& parameters,
-        const EndCriteria& endCriteria,
-        OptimizationMethod& method);
+    Real genericEarlyExerciseOptimization(std::vector<std::vector<NodeData>>& simulationData,
+                                          const ParametricExercise& exercise,
+                                          std::vector<std::vector<Real>>& parameters,
+                                          const EndCriteria& endCriteria,
+                                          OptimizationMethod& method);
 
 }
 
 
 #endif
-

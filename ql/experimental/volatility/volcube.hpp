@@ -28,35 +28,37 @@
 #include <ql/shared_ptr.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Period;
     class AbcdAtmVolCurve;
     class InterestRateVolSurface;
     class InterestRateIndex;
 
-    class VolatilityCube {
+    class VolatilityCube
+    {
       public:
-        VolatilityCube(std::vector<Handle<InterestRateVolSurface> >,
-                       std::vector<Handle<AbcdAtmVolCurve> >);
+        VolatilityCube(std::vector<Handle<InterestRateVolSurface>>, std::vector<Handle<AbcdAtmVolCurve>>);
         const Period& minIndexTenor() const;
         const Period& maxIndexTenor() const;
-        const std::vector<Handle<InterestRateVolSurface> >& surfaces() const;
-        const std::vector<Handle<AbcdAtmVolCurve> >& curves() const;
+        const std::vector<Handle<InterestRateVolSurface>>& surfaces() const;
+        const std::vector<Handle<AbcdAtmVolCurve>>& curves() const;
+
       protected:
-        std::vector<Handle<InterestRateVolSurface> > surfaces_;
-        std::vector<Handle<AbcdAtmVolCurve> > curves_;
+        std::vector<Handle<InterestRateVolSurface>> surfaces_;
+        std::vector<Handle<AbcdAtmVolCurve>> curves_;
     };
 
     // inline
 
-    inline const std::vector<Handle<InterestRateVolSurface> >&
-    VolatilityCube::surfaces() const {
+    inline const std::vector<Handle<InterestRateVolSurface>>& VolatilityCube::surfaces() const
+    {
         return surfaces_;
     }
 
-    inline const std::vector<Handle<AbcdAtmVolCurve> >&
-    VolatilityCube::curves() const {
+    inline const std::vector<Handle<AbcdAtmVolCurve>>& VolatilityCube::curves() const
+    {
         return curves_;
     }
 

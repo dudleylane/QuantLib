@@ -26,20 +26,21 @@
 #ifndef quantlib_array_hpp
 #define quantlib_array_hpp
 
-#include <ql/types.hpp>
 #include <ql/errors.hpp>
+#include <ql/types.hpp>
 #include <ql/utilities/null.hpp>
-#include <iterator>
-#include <functional>
 #include <algorithm>
-#include <numeric>
-#include <vector>
+#include <functional>
 #include <initializer_list>
 #include <iomanip>
+#include <iterator>
 #include <memory>
+#include <numeric>
 #include <type_traits>
+#include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! 1-D array used in linear algebra.
     /*! This class implements the concept of vector as used in linear
@@ -49,7 +50,8 @@ namespace QuantLib {
 
         \test construction of arrays is checked in a number of cases
     */
-    class Array {
+    class Array
+    {
       public:
         //! \name Constructors, destructor, and assignment
         //@{
@@ -264,39 +266,38 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline Array::Array(Size size)
-    : data_(size != 0U ? new Real[size] : (Real*)nullptr), n_(size) {}
+    inline Array::Array(Size size) : data_(size != 0U ? new Real[size] : (Real*)nullptr), n_(size) {}
 
-    inline Array::Array(Size size, Real value)
-    : data_(size != 0U ? new Real[size] : (Real*)nullptr), n_(size) {
-        std::fill(begin(),end(),value);
+    inline Array::Array(Size size, Real value) : data_(size != 0U ? new Real[size] : (Real*)nullptr), n_(size)
+    {
+        std::fill(begin(), end(), value);
     }
 
     inline Array::Array(Size size, Real value, Real increment)
-    : data_(size != 0U ? new Real[size] : (Real*)nullptr), n_(size) {
-        for (iterator i=begin(); i!=end(); ++i, value+=increment)
+    : data_(size != 0U ? new Real[size] : (Real*)nullptr), n_(size)
+    {
+        for (iterator i = begin(); i != end(); ++i, value += increment)
             *i = value;
     }
 
-    inline Array::Array(const Array& from)
-    : data_(from.n_ != 0U ? new Real[from.n_] : (Real*)nullptr), n_(from.n_) {
+    inline Array::Array(const Array& from) : data_(from.n_ != 0U ? new Real[from.n_] : (Real*)nullptr), n_(from.n_)
+    {
         if (data_)
-            std::copy(from.begin(),from.end(),begin());
+            std::copy(from.begin(), from.end(), begin());
     }
 
-    inline Array::Array(Array&& from) noexcept
-    : data_((Real*)nullptr), n_(0) {
+    inline Array::Array(Array&& from) noexcept : data_((Real*)nullptr), n_(0)
+    {
         swap(from);
     }
 
-    namespace detail {
+    namespace detail
+    {
 
         template <class I>
-        inline void _fill_array_(Array& a,
-                                 std::unique_ptr<Real[]>& data_,
-                                 Size& n_,
-                                 I begin, I end,
-                                 const std::true_type&) {
+        inline void
+        _fill_array_(Array& a, std::unique_ptr<Real[]>& data_, Size& n_, I begin, I end, const std::true_type&)
+        {
             // we got redirected here from a call like Array(3, 4)
             // because it matched the constructor below exactly with
             // ForwardIterator = int.  What we wanted was fill an
@@ -305,247 +306,265 @@ namespace QuantLib {
             Real value = end;
             data_.reset(n ? new Real[n] : (Real*)nullptr);
             n_ = n;
-            std::fill(a.begin(),a.end(),value);
+            std::fill(a.begin(), a.end(), value);
         }
 
         template <class I>
-        inline void _fill_array_(Array& a,
-                                 std::unique_ptr<Real[]>& data_,
-                                 Size& n_,
-                                 const I& begin, const I& end,
-                                 const std::false_type&) {
+        inline void _fill_array_(
+            Array& a, std::unique_ptr<Real[]>& data_, Size& n_, const I& begin, const I& end, const std::false_type&)
+        {
             // true iterators
             Size n = std::distance(begin, end);
             data_.reset(n ? new Real[n] : (Real*)nullptr);
             n_ = n;
-            #if defined(QL_PATCH_MSVC) && defined(QL_DEBUG)
+#if defined(QL_PATCH_MSVC) && defined(QL_DEBUG)
             if (n_)
-            #endif
-            std::copy(begin, end, a.begin());
+#endif
+                std::copy(begin, end, a.begin());
         }
 
     }
 
-    inline Array::Array(std::initializer_list<Real> init) {
-        detail::_fill_array_(*this, data_, n_, init.begin(), init.end(),
-                             std::false_type());
-    }
-
-    template <class ForwardIterator>
-    inline Array::Array(ForwardIterator begin, ForwardIterator end) {   // NOLINT(performance-unnecessary-value-param)
-        // Unfortunately, calls such as Array(3, 4) match this constructor.
-        // We have to detect integral types and dispatch.
-        detail::_fill_array_(*this, data_, n_, begin, end,
-                             std::is_integral<ForwardIterator>());
-    }
-
-    template <typename T, typename>
-    Array::Array(std::initializer_list<T> init) {
+    inline Array::Array(std::initializer_list<Real> init)
+    {
         detail::_fill_array_(*this, data_, n_, init.begin(), init.end(), std::false_type());
     }
 
-    inline Array& Array::operator=(const Array& from) {
+    template <class ForwardIterator>
+    inline Array::Array(ForwardIterator begin, ForwardIterator end)
+    { // NOLINT(performance-unnecessary-value-param)
+        // Unfortunately, calls such as Array(3, 4) match this constructor.
+        // We have to detect integral types and dispatch.
+        detail::_fill_array_(*this, data_, n_, begin, end, std::is_integral<ForwardIterator>());
+    }
+
+    template <typename T, typename>
+    Array::Array(std::initializer_list<T> init)
+    {
+        detail::_fill_array_(*this, data_, n_, init.begin(), init.end(), std::false_type());
+    }
+
+    inline Array& Array::operator=(const Array& from)
+    {
         // strong guarantee
         Array temp(from);
         swap(temp);
         return *this;
     }
 
-    inline Array& Array::operator=(Array&& from) noexcept {
+    inline Array& Array::operator=(Array&& from) noexcept
+    {
         swap(from);
         return *this;
     }
 
-    inline bool Array::operator==(const Array& to) const {
+    inline bool Array::operator==(const Array& to) const
+    {
         return (n_ == to.n_) && std::equal(begin(), end(), to.begin());
     }
 
-    inline bool Array::operator!=(const Array& to) const {
+    inline bool Array::operator!=(const Array& to) const
+    {
         return !(this->operator==(to));
     }
 
-    inline const Array& Array::operator+=(const Array& v) {
-        QL_REQUIRE(n_ == v.n_,
-                   "arrays with different sizes (" << n_ << ", "
-                   << v.n_ << ") cannot be added");
-        std::transform(begin(),end(),v.begin(),begin(), std::plus<>());
+    inline const Array& Array::operator+=(const Array& v)
+    {
+        QL_REQUIRE(n_ == v.n_, "arrays with different sizes (" << n_ << ", " << v.n_ << ") cannot be added");
+        std::transform(begin(), end(), v.begin(), begin(), std::plus<>());
         return *this;
     }
 
 
-    inline const Array& Array::operator+=(Real x) {
+    inline const Array& Array::operator+=(Real x)
+    {
         std::transform(begin(), end(), begin(), [=](Real y) -> Real { return y + x; });
         return *this;
     }
 
-    inline const Array& Array::operator-=(const Array& v) {
-        QL_REQUIRE(n_ == v.n_,
-                   "arrays with different sizes (" << n_ << ", "
-                   << v.n_ << ") cannot be subtracted");
+    inline const Array& Array::operator-=(const Array& v)
+    {
+        QL_REQUIRE(n_ == v.n_, "arrays with different sizes (" << n_ << ", " << v.n_ << ") cannot be subtracted");
         std::transform(begin(), end(), v.begin(), begin(), std::minus<>());
         return *this;
     }
 
-    inline const Array& Array::operator-=(Real x) {
-        std::transform(begin(),end(),begin(), [=](Real y) -> Real { return y - x; });
+    inline const Array& Array::operator-=(Real x)
+    {
+        std::transform(begin(), end(), begin(), [=](Real y) -> Real { return y - x; });
         return *this;
     }
 
-    inline const Array& Array::operator*=(const Array& v) {
-        QL_REQUIRE(n_ == v.n_,
-                   "arrays with different sizes (" << n_ << ", "
-                   << v.n_ << ") cannot be multiplied");
+    inline const Array& Array::operator*=(const Array& v)
+    {
+        QL_REQUIRE(n_ == v.n_, "arrays with different sizes (" << n_ << ", " << v.n_ << ") cannot be multiplied");
         std::transform(begin(), end(), v.begin(), begin(), std::multiplies<>());
         return *this;
     }
 
-    inline const Array& Array::operator*=(Real x) {
+    inline const Array& Array::operator*=(Real x)
+    {
         std::transform(begin(), end(), begin(), [=](Real y) -> Real { return y * x; });
         return *this;
     }
 
-    inline const Array& Array::operator/=(const Array& v) {
-        QL_REQUIRE(n_ == v.n_,
-                   "arrays with different sizes (" << n_ << ", "
-                   << v.n_ << ") cannot be divided");
+    inline const Array& Array::operator/=(const Array& v)
+    {
+        QL_REQUIRE(n_ == v.n_, "arrays with different sizes (" << n_ << ", " << v.n_ << ") cannot be divided");
         std::transform(begin(), end(), v.begin(), begin(), std::divides<>());
         return *this;
     }
 
-    inline const Array& Array::operator/=(Real x) {
-        #if defined(QL_EXTRA_SAFETY_CHECKS)
+    inline const Array& Array::operator/=(Real x)
+    {
+#if defined(QL_EXTRA_SAFETY_CHECKS)
         QL_REQUIRE(x != 0.0, "division by zero");
-        #endif
+#endif
         std::transform(begin(), end(), begin(), [=](Real y) -> Real { return y / x; });
         return *this;
     }
 
-    inline Real Array::operator[](Size i) const {
-        #if defined(QL_EXTRA_SAFETY_CHECKS)
-        QL_REQUIRE(i<n_,
-                   "index (" << i << ") must be less than " << n_ <<
-                   ": array access out of range");
-        #endif
+    inline Real Array::operator[](Size i) const
+    {
+#if defined(QL_EXTRA_SAFETY_CHECKS)
+        QL_REQUIRE(i < n_, "index (" << i << ") must be less than " << n_ << ": array access out of range");
+#endif
         return data_.get()[i];
     }
 
-    inline Real Array::at(Size i) const {
-        QL_REQUIRE(i<n_,
-                   "index (" << i << ") must be less than " << n_ <<
-                   ": array access out of range");
+    inline Real Array::at(Size i) const
+    {
+        QL_REQUIRE(i < n_, "index (" << i << ") must be less than " << n_ << ": array access out of range");
         return data_.get()[i];
     }
 
-    inline Real Array::front() const {
-        #if defined(QL_EXTRA_SAFETY_CHECKS)
-        QL_REQUIRE(n_>0, "null Array: array access out of range");
-        #endif
+    inline Real Array::front() const
+    {
+#if defined(QL_EXTRA_SAFETY_CHECKS)
+        QL_REQUIRE(n_ > 0, "null Array: array access out of range");
+#endif
         return data_.get()[0];
     }
 
-    inline Real Array::back() const {
-        #if defined(QL_EXTRA_SAFETY_CHECKS)
-        QL_REQUIRE(n_>0, "null Array: array access out of range");
-        #endif
-        return data_.get()[n_-1];
+    inline Real Array::back() const
+    {
+#if defined(QL_EXTRA_SAFETY_CHECKS)
+        QL_REQUIRE(n_ > 0, "null Array: array access out of range");
+#endif
+        return data_.get()[n_ - 1];
     }
 
-    inline Real& Array::operator[](Size i) {
-        #if defined(QL_EXTRA_SAFETY_CHECKS)
-        QL_REQUIRE(i<n_,
-                   "index (" << i << ") must be less than " << n_ <<
-                   ": array access out of range");
-        #endif
+    inline Real& Array::operator[](Size i)
+    {
+#if defined(QL_EXTRA_SAFETY_CHECKS)
+        QL_REQUIRE(i < n_, "index (" << i << ") must be less than " << n_ << ": array access out of range");
+#endif
         return data_.get()[i];
     }
 
-    inline Real& Array::at(Size i) {
-        QL_REQUIRE(i<n_,
-                   "index (" << i << ") must be less than " << n_ <<
-                   ": array access out of range");
+    inline Real& Array::at(Size i)
+    {
+        QL_REQUIRE(i < n_, "index (" << i << ") must be less than " << n_ << ": array access out of range");
         return data_.get()[i];
     }
 
-    inline Real& Array::front() {
-        #if defined(QL_EXTRA_SAFETY_CHECKS)
-        QL_REQUIRE(n_>0, "null Array: array access out of range");
-        #endif
+    inline Real& Array::front()
+    {
+#if defined(QL_EXTRA_SAFETY_CHECKS)
+        QL_REQUIRE(n_ > 0, "null Array: array access out of range");
+#endif
         return data_.get()[0];
     }
 
-    inline Real& Array::back() {
-        #if defined(QL_EXTRA_SAFETY_CHECKS)
-        QL_REQUIRE(n_>0, "null Array: array access out of range");
-        #endif
-        return data_.get()[n_-1];
+    inline Real& Array::back()
+    {
+#if defined(QL_EXTRA_SAFETY_CHECKS)
+        QL_REQUIRE(n_ > 0, "null Array: array access out of range");
+#endif
+        return data_.get()[n_ - 1];
     }
 
-    inline Size Array::size() const {
+    inline Size Array::size() const
+    {
         return n_;
     }
 
-    inline bool Array::empty() const {
+    inline bool Array::empty() const
+    {
         return n_ == 0;
     }
 
-    inline Array::const_iterator Array::begin() const {
+    inline Array::const_iterator Array::begin() const
+    {
         return data_.get();
     }
 
-    inline Array::iterator Array::begin() {
+    inline Array::iterator Array::begin()
+    {
         return data_.get();
     }
 
-    inline Array::const_iterator Array::end() const {
-        return data_.get()+n_;
+    inline Array::const_iterator Array::end() const
+    {
+        return data_.get() + n_;
     }
 
-    inline Array::iterator Array::end() {
-        return data_.get()+n_;
+    inline Array::iterator Array::end()
+    {
+        return data_.get() + n_;
     }
 
-    inline Array::const_reverse_iterator Array::rbegin() const {
+    inline Array::const_reverse_iterator Array::rbegin() const
+    {
         return const_reverse_iterator(end());
     }
 
-    inline Array::reverse_iterator Array::rbegin() {
+    inline Array::reverse_iterator Array::rbegin()
+    {
         return reverse_iterator(end());
     }
 
-    inline Array::const_reverse_iterator Array::rend() const {
+    inline Array::const_reverse_iterator Array::rend() const
+    {
         return const_reverse_iterator(begin());
     }
 
-    inline Array::reverse_iterator Array::rend() {
+    inline Array::reverse_iterator Array::rend()
+    {
         return reverse_iterator(begin());
     }
 
-    inline void Array::resize(Size n) {
-        if (n > n_) {
+    inline void Array::resize(Size n)
+    {
+        if (n > n_)
+        {
             Array swp(n);
             std::copy(begin(), end(), swp.begin());
             swap(swp);
         }
-        else if (n < n_) {
+        else if (n < n_)
+        {
             n_ = n;
         }
     }
 
-    inline void Array::swap(Array& from) noexcept {
+    inline void Array::swap(Array& from) noexcept
+    {
         data_.swap(from.data_);
         std::swap(n_, from.n_);
     }
 
     // dot product and norm
 
-    inline Real DotProduct(const Array& v1, const Array& v2) {
+    inline Real DotProduct(const Array& v1, const Array& v2)
+    {
         QL_REQUIRE(v1.size() == v2.size(),
-                   "arrays with different sizes (" << v1.size() << ", "
-                   << v2.size() << ") cannot be multiplied");
-        return std::inner_product(v1.begin(),v1.end(),v2.begin(),Real(0.0));
+                   "arrays with different sizes (" << v1.size() << ", " << v2.size() << ") cannot be multiplied");
+        return std::inner_product(v1.begin(), v1.end(), v2.begin(), Real(0.0));
     }
 
-    inline Real Norm2(const Array& v) {
+    inline Real Norm2(const Array& v)
+    {
         return std::sqrt(DotProduct(v, v));
     }
 
@@ -553,22 +572,26 @@ namespace QuantLib {
 
     // unary
 
-    inline Array operator+(const Array& v) {
+    inline Array operator+(const Array& v)
+    {
         Array result = v;
         return result;
     }
 
-    inline Array operator+(Array&& v) {
+    inline Array operator+(Array&& v)
+    {
         return std::move(v);
     }
 
-    inline Array operator-(const Array& v) {
+    inline Array operator-(const Array& v)
+    {
         Array result(v.size());
         std::transform(v.begin(), v.end(), result.begin(), std::negate<>());
         return result;
     }
 
-    inline Array operator-(Array&& v) {
+    inline Array operator-(Array&& v)
+    {
         Array result = std::move(v);
         std::transform(result.begin(), result.end(), result.begin(), std::negate<>());
         return result;
@@ -576,241 +599,257 @@ namespace QuantLib {
 
     // binary operators
 
-    inline Array operator+(const Array& v1, const Array& v2) {
+    inline Array operator+(const Array& v1, const Array& v2)
+    {
         QL_REQUIRE(v1.size() == v2.size(),
-                   "arrays with different sizes (" << v1.size() << ", "
-                   << v2.size() << ") cannot be added");
+                   "arrays with different sizes (" << v1.size() << ", " << v2.size() << ") cannot be added");
         Array result(v1.size());
-        std::transform(v1.begin(),v1.end(),v2.begin(),result.begin(), std::plus<>());
+        std::transform(v1.begin(), v1.end(), v2.begin(), result.begin(), std::plus<>());
         return result;
     }
 
-    inline Array operator+(const Array& v1, Array&& v2) {
+    inline Array operator+(const Array& v1, Array&& v2)
+    {
         QL_REQUIRE(v1.size() == v2.size(),
-                   "arrays with different sizes (" << v1.size() << ", "
-                   << v2.size() << ") cannot be added");
+                   "arrays with different sizes (" << v1.size() << ", " << v2.size() << ") cannot be added");
         Array result = std::move(v2);
         std::transform(v1.begin(), v1.end(), result.begin(), result.begin(), std::plus<>());
         return result;
     }
 
-    inline Array operator+(Array&& v1, const Array& v2) {
+    inline Array operator+(Array&& v1, const Array& v2)
+    {
         QL_REQUIRE(v1.size() == v2.size(),
-                   "arrays with different sizes (" << v1.size() << ", "
-                   << v2.size() << ") cannot be added");
+                   "arrays with different sizes (" << v1.size() << ", " << v2.size() << ") cannot be added");
         Array result = std::move(v1);
         std::transform(result.begin(), result.end(), v2.begin(), result.begin(), std::plus<>());
         return result;
     }
 
-    inline Array operator+(Array&& v1, Array&& v2) { // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
+    inline Array operator+(Array&& v1, Array&& v2)
+    { // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
         QL_REQUIRE(v1.size() == v2.size(),
-                   "arrays with different sizes (" << v1.size() << ", "
-                   << v2.size() << ") cannot be added");
+                   "arrays with different sizes (" << v1.size() << ", " << v2.size() << ") cannot be added");
         Array result = std::move(v2);
         std::transform(v1.begin(), v1.end(), result.begin(), result.begin(), std::plus<>());
         return result;
     }
 
-    inline Array operator+(const Array& v1, Real a) {
+    inline Array operator+(const Array& v1, Real a)
+    {
         Array result(v1.size());
         std::transform(v1.begin(), v1.end(), result.begin(), [=](Real y) -> Real { return y + a; });
         return result;
     }
 
-    inline Array operator+(Array&& v1, Real a) {
+    inline Array operator+(Array&& v1, Real a)
+    {
         Array result = std::move(v1);
         std::transform(result.begin(), result.end(), result.begin(), [=](Real y) -> Real { return y + a; });
         return result;
     }
 
-    inline Array operator+(Real a, const Array& v2) {
+    inline Array operator+(Real a, const Array& v2)
+    {
         Array result(v2.size());
-        std::transform(v2.begin(),v2.end(),result.begin(), [=](Real y) -> Real { return a + y; });
+        std::transform(v2.begin(), v2.end(), result.begin(), [=](Real y) -> Real { return a + y; });
         return result;
     }
 
-    inline Array operator+(Real a, Array&& v2) {
+    inline Array operator+(Real a, Array&& v2)
+    {
         Array result = std::move(v2);
         std::transform(result.begin(), result.end(), result.begin(), [=](Real y) -> Real { return a + y; });
         return result;
     }
 
-    inline Array operator-(const Array& v1, const Array& v2) {
+    inline Array operator-(const Array& v1, const Array& v2)
+    {
         QL_REQUIRE(v1.size() == v2.size(),
-                   "arrays with different sizes (" << v1.size() << ", "
-                   << v2.size() << ") cannot be subtracted");
+                   "arrays with different sizes (" << v1.size() << ", " << v2.size() << ") cannot be subtracted");
         Array result(v1.size());
         std::transform(v1.begin(), v1.end(), v2.begin(), result.begin(), std::minus<>());
         return result;
     }
 
-    inline Array operator-(const Array& v1, Array&& v2) {
+    inline Array operator-(const Array& v1, Array&& v2)
+    {
         QL_REQUIRE(v1.size() == v2.size(),
-                   "arrays with different sizes (" << v1.size() << ", "
-                   << v2.size() << ") cannot be subtracted");
+                   "arrays with different sizes (" << v1.size() << ", " << v2.size() << ") cannot be subtracted");
         Array result = std::move(v2);
         std::transform(v1.begin(), v1.end(), result.begin(), result.begin(), std::minus<>());
         return result;
     }
 
-    inline Array operator-(Array&& v1, const Array& v2) {
+    inline Array operator-(Array&& v1, const Array& v2)
+    {
         QL_REQUIRE(v1.size() == v2.size(),
-                   "arrays with different sizes (" << v1.size() << ", "
-                   << v2.size() << ") cannot be subtracted");
+                   "arrays with different sizes (" << v1.size() << ", " << v2.size() << ") cannot be subtracted");
         Array result = std::move(v1);
         std::transform(result.begin(), result.end(), v2.begin(), result.begin(), std::minus<>());
         return result;
     }
 
-    inline Array operator-(Array&& v1, Array&& v2) { // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
+    inline Array operator-(Array&& v1, Array&& v2)
+    { // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
         QL_REQUIRE(v1.size() == v2.size(),
-                   "arrays with different sizes (" << v1.size() << ", "
-                   << v2.size() << ") cannot be subtracted");
+                   "arrays with different sizes (" << v1.size() << ", " << v2.size() << ") cannot be subtracted");
         Array result = std::move(v2);
         std::transform(v1.begin(), v1.end(), result.begin(), result.begin(), std::minus<>());
         return result;
     }
 
-    inline Array operator-(const Array& v1, Real a) {
+    inline Array operator-(const Array& v1, Real a)
+    {
         Array result(v1.size());
-        std::transform(v1.begin(),v1.end(),result.begin(), [=](Real y) -> Real { return y - a; });
+        std::transform(v1.begin(), v1.end(), result.begin(), [=](Real y) -> Real { return y - a; });
         return result;
     }
 
-    inline Array operator-(Array&& v1, Real a) {
+    inline Array operator-(Array&& v1, Real a)
+    {
         Array result = std::move(v1);
         std::transform(result.begin(), result.end(), result.begin(), [=](Real y) -> Real { return y - a; });
         return result;
     }
 
-    inline Array operator-(Real a, const Array& v2) {
+    inline Array operator-(Real a, const Array& v2)
+    {
         Array result(v2.size());
-        std::transform(v2.begin(),v2.end(),result.begin(), [=](Real y) -> Real { return a - y; });
+        std::transform(v2.begin(), v2.end(), result.begin(), [=](Real y) -> Real { return a - y; });
         return result;
     }
 
-    inline Array operator-(Real a, Array&& v2) {
+    inline Array operator-(Real a, Array&& v2)
+    {
         Array result = std::move(v2);
         std::transform(result.begin(), result.end(), result.begin(), [=](Real y) -> Real { return a - y; });
         return result;
     }
 
-    inline Array operator*(const Array& v1, const Array& v2) {
+    inline Array operator*(const Array& v1, const Array& v2)
+    {
         QL_REQUIRE(v1.size() == v2.size(),
-                   "arrays with different sizes (" << v1.size() << ", "
-                   << v2.size() << ") cannot be multiplied");
+                   "arrays with different sizes (" << v1.size() << ", " << v2.size() << ") cannot be multiplied");
         Array result(v1.size());
         std::transform(v1.begin(), v1.end(), v2.begin(), result.begin(), std::multiplies<>());
         return result;
     }
 
-    inline Array operator*(const Array& v1, Array&& v2) {
+    inline Array operator*(const Array& v1, Array&& v2)
+    {
         QL_REQUIRE(v1.size() == v2.size(),
-                   "arrays with different sizes (" << v1.size() << ", "
-                   << v2.size() << ") cannot be multiplied");
+                   "arrays with different sizes (" << v1.size() << ", " << v2.size() << ") cannot be multiplied");
         Array result = std::move(v2);
         std::transform(v1.begin(), v1.end(), result.begin(), result.begin(), std::multiplies<>());
         return result;
     }
 
-    inline Array operator*(Array&& v1, const Array& v2) {
+    inline Array operator*(Array&& v1, const Array& v2)
+    {
         QL_REQUIRE(v1.size() == v2.size(),
-                   "arrays with different sizes (" << v1.size() << ", "
-                   << v2.size() << ") cannot be multiplied");
+                   "arrays with different sizes (" << v1.size() << ", " << v2.size() << ") cannot be multiplied");
         Array result = std::move(v1);
         std::transform(result.begin(), result.end(), v2.begin(), result.begin(), std::multiplies<>());
         return result;
     }
 
-    inline Array operator*(Array&& v1, Array&& v2) { // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
+    inline Array operator*(Array&& v1, Array&& v2)
+    { // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
         QL_REQUIRE(v1.size() == v2.size(),
-                   "arrays with different sizes (" << v1.size() << ", "
-                   << v2.size() << ") cannot be multiplied");
+                   "arrays with different sizes (" << v1.size() << ", " << v2.size() << ") cannot be multiplied");
         Array result = std::move(v2);
         std::transform(v1.begin(), v1.end(), result.begin(), result.begin(), std::multiplies<>());
         return result;
     }
 
-    inline Array operator*(const Array& v1, Real a) {
+    inline Array operator*(const Array& v1, Real a)
+    {
         Array result(v1.size());
-        std::transform(v1.begin(),v1.end(),result.begin(), [=](Real y) -> Real { return y * a; });
+        std::transform(v1.begin(), v1.end(), result.begin(), [=](Real y) -> Real { return y * a; });
         return result;
     }
 
-    inline Array operator*(Array&& v1, Real a) {
+    inline Array operator*(Array&& v1, Real a)
+    {
         Array result = std::move(v1);
         std::transform(result.begin(), result.end(), result.begin(), [=](Real y) -> Real { return y * a; });
         return result;
     }
 
-    inline Array operator*(Real a, const Array& v2) {
+    inline Array operator*(Real a, const Array& v2)
+    {
         Array result(v2.size());
-        std::transform(v2.begin(),v2.end(),result.begin(), [=](Real y) -> Real { return a * y; });
+        std::transform(v2.begin(), v2.end(), result.begin(), [=](Real y) -> Real { return a * y; });
         return result;
     }
 
-    inline Array operator*(Real a, Array&& v2) {
+    inline Array operator*(Real a, Array&& v2)
+    {
         Array result = std::move(v2);
         std::transform(result.begin(), result.end(), result.begin(), [=](Real y) -> Real { return a * y; });
         return result;
     }
 
-    inline Array operator/(const Array& v1, const Array& v2) {
+    inline Array operator/(const Array& v1, const Array& v2)
+    {
         QL_REQUIRE(v1.size() == v2.size(),
-                   "arrays with different sizes (" << v1.size() << ", "
-                   << v2.size() << ") cannot be divided");
+                   "arrays with different sizes (" << v1.size() << ", " << v2.size() << ") cannot be divided");
         Array result(v1.size());
         std::transform(v1.begin(), v1.end(), v2.begin(), result.begin(), std::divides<>());
         return result;
     }
 
-    inline Array operator/(const Array& v1, Array&& v2) {
+    inline Array operator/(const Array& v1, Array&& v2)
+    {
         QL_REQUIRE(v1.size() == v2.size(),
-                   "arrays with different sizes (" << v1.size() << ", "
-                   << v2.size() << ") cannot be divided");
+                   "arrays with different sizes (" << v1.size() << ", " << v2.size() << ") cannot be divided");
         Array result = std::move(v2);
         std::transform(v1.begin(), v1.end(), result.begin(), result.begin(), std::divides<>());
         return result;
     }
 
-    inline Array operator/(Array&& v1, const Array& v2) {
+    inline Array operator/(Array&& v1, const Array& v2)
+    {
         QL_REQUIRE(v1.size() == v2.size(),
-                   "arrays with different sizes (" << v1.size() << ", "
-                   << v2.size() << ") cannot be divided");
+                   "arrays with different sizes (" << v1.size() << ", " << v2.size() << ") cannot be divided");
         Array result = std::move(v1);
         std::transform(result.begin(), result.end(), v2.begin(), result.begin(), std::divides<>());
         return result;
     }
 
-    inline Array operator/(Array&& v1, Array&& v2) { // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
+    inline Array operator/(Array&& v1, Array&& v2)
+    { // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
         QL_REQUIRE(v1.size() == v2.size(),
-                   "arrays with different sizes (" << v1.size() << ", "
-                   << v2.size() << ") cannot be divided");
+                   "arrays with different sizes (" << v1.size() << ", " << v2.size() << ") cannot be divided");
         Array result = std::move(v2);
         std::transform(v1.begin(), v1.end(), result.begin(), result.begin(), std::divides<>());
         return result;
     }
 
-    inline Array operator/(const Array& v1, Real a) {
+    inline Array operator/(const Array& v1, Real a)
+    {
         Array result(v1.size());
-        std::transform(v1.begin(),v1.end(),result.begin(), [=](Real y) -> Real { return y / a; });
+        std::transform(v1.begin(), v1.end(), result.begin(), [=](Real y) -> Real { return y / a; });
         return result;
     }
 
-    inline Array operator/(Array&& v1, Real a) {
+    inline Array operator/(Array&& v1, Real a)
+    {
         Array result = std::move(v1);
         std::transform(result.begin(), result.end(), result.begin(), [=](Real y) -> Real { return y / a; });
         return result;
     }
 
-    inline Array operator/(Real a, const Array& v2) {
+    inline Array operator/(Real a, const Array& v2)
+    {
         Array result(v2.size());
-        std::transform(v2.begin(),v2.end(),result.begin(), [=](Real y) -> Real { return a / y; });
+        std::transform(v2.begin(), v2.end(), result.begin(), [=](Real y) -> Real { return a / y; });
         return result;
     }
 
-    inline Array operator/(Real a, Array&& v2) {
+    inline Array operator/(Real a, Array&& v2)
+    {
         Array result = std::move(v2);
         std::transform(result.begin(), result.end(), result.begin(), [=](Real y) -> Real { return a / y; });
         return result;
@@ -818,85 +857,89 @@ namespace QuantLib {
 
     // functions
 
-    inline Array Abs(const Array& v) {
+    inline Array Abs(const Array& v)
+    {
         Array result(v.size());
-        std::transform(v.begin(), v.end(), result.begin(),
-                       [](Real x) -> Real { return std::fabs(x); });
+        std::transform(v.begin(), v.end(), result.begin(), [](Real x) -> Real { return std::fabs(x); });
         return result;
     }
 
-    inline Array Abs(Array&& v) {
+    inline Array Abs(Array&& v)
+    {
+        Array result = std::move(v);
+        std::transform(result.begin(), result.end(), result.begin(), [](Real x) -> Real { return std::fabs(x); });
+        return result;
+    }
+
+    inline Array Sqrt(const Array& v)
+    {
+        Array result(v.size());
+        std::transform(v.begin(), v.end(), result.begin(), [](Real x) -> Real { return std::sqrt(x); });
+        return result;
+    }
+
+    inline Array Sqrt(Array&& v)
+    {
+        Array result = std::move(v);
+        std::transform(result.begin(), result.end(), result.begin(), [](Real x) -> Real { return std::sqrt(x); });
+        return result;
+    }
+
+    inline Array Log(const Array& v)
+    {
+        Array result(v.size());
+        std::transform(v.begin(), v.end(), result.begin(), [](Real x) -> Real { return std::log(x); });
+        return result;
+    }
+
+    inline Array Log(Array&& v)
+    {
+        Array result = std::move(v);
+        std::transform(result.begin(), result.end(), result.begin(), [](Real x) -> Real { return std::log(x); });
+        return result;
+    }
+
+    inline Array Exp(const Array& v)
+    {
+        Array result(v.size());
+        std::transform(v.begin(), v.end(), result.begin(), [](Real x) -> Real { return std::exp(x); });
+        return result;
+    }
+
+    inline Array Exp(Array&& v)
+    {
+        Array result = std::move(v);
+        std::transform(result.begin(), result.end(), result.begin(), [](Real x) -> Real { return std::exp(x); });
+        return result;
+    }
+
+    inline Array Pow(const Array& v, Real alpha)
+    {
+        Array result(v.size());
+        std::transform(v.begin(), v.end(), result.begin(), [=](Real x) -> Real { return std::pow(x, alpha); });
+        return result;
+    }
+
+    inline Array Pow(Array&& v, Real alpha)
+    {
         Array result = std::move(v);
         std::transform(result.begin(), result.end(), result.begin(),
-                       [](Real x) -> Real { return std::fabs(x); });
-        return result;
-    }
-
-    inline Array Sqrt(const Array& v) {
-        Array result(v.size());
-        std::transform(v.begin(),v.end(),result.begin(),
-                       [](Real x) -> Real { return std::sqrt(x); });
-        return result;
-    }
-
-    inline Array Sqrt(Array&& v) {
-        Array result = std::move(v);
-        std::transform(result.begin(), result.end(), result.begin(),
-                       [](Real x) -> Real { return std::sqrt(x); });
-        return result;
-    }
-
-    inline Array Log(const Array& v) {
-        Array result(v.size());
-        std::transform(v.begin(),v.end(),result.begin(),
-                       [](Real x) -> Real { return std::log(x); });
-        return result;
-    }
-
-    inline Array Log(Array&& v) {
-        Array result = std::move(v);
-        std::transform(result.begin(), result.end(), result.begin(),
-                       [](Real x) -> Real { return std::log(x); });
-        return result;
-    }
-
-    inline Array Exp(const Array& v) {
-        Array result(v.size());
-        std::transform(v.begin(), v.end(), result.begin(),
-                       [](Real x) -> Real { return std::exp(x); });
-        return result;
-    }
-
-    inline Array Exp(Array&& v) {
-        Array result = std::move(v);
-        std::transform(result.begin(), result.end(), result.begin(),
-                       [](Real x) -> Real { return std::exp(x); });
-        return result;
-    }
-
-    inline Array Pow(const Array& v, Real alpha) {
-        Array result(v.size());
-        std::transform(v.begin(), v.end(), result.begin(),
                        [=](Real x) -> Real { return std::pow(x, alpha); });
         return result;
     }
 
-    inline Array Pow(Array&& v, Real alpha) {
-        Array result = std::move(v);
-        std::transform(result.begin(), result.end(), result.begin(),
-                       [=](Real x) -> Real { return std::pow(x, alpha); });
-        return result;
-    }
-
-    inline void swap(Array& v, Array& w) noexcept {
+    inline void swap(Array& v, Array& w) noexcept
+    {
         v.swap(w);
     }
 
-    inline std::ostream& operator<<(std::ostream& out, const Array& a) {
+    inline std::ostream& operator<<(std::ostream& out, const Array& a)
+    {
         std::streamsize width = out.width();
         out << "[ ";
-        if (!a.empty()) {
-            for (Size n=0; n<a.size()-1; ++n)
+        if (!a.empty())
+        {
+            for (Size n = 0; n < a.size() - 1; ++n)
                 out << std::setw(int(width)) << a[n] << "; ";
             out << std::setw(int(width)) << a.back();
         }

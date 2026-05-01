@@ -20,17 +20,23 @@
 #include <ql/math/randomnumbers/seedgenerator.hpp>
 #include <ctime>
 #if defined(BOOST_NO_STDC_NAMESPACE)
-    namespace std { using ::time; }
+namespace std
+{
+    using ::time;
+}
 #endif
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     // we need to prevent rng from being default-initialized
-    SeedGenerator::SeedGenerator() : rng_(42UL) {
+    SeedGenerator::SeedGenerator() : rng_(42UL)
+    {
         initialize();
     }
 
-    void SeedGenerator::initialize() {
+    void SeedGenerator::initialize()
+    {
 
         // firstSeed is chosen based on clock() and used for the first rng
         auto firstSeed = (unsigned long)(std::time(nullptr));
@@ -45,18 +51,19 @@ namespace QuantLib {
         // use the second rng to initialize the final one
         unsigned long skip = second.nextInt32() % 1000;
         std::vector<unsigned long> init(4);
-        init[0]=second.nextInt32();
-        init[1]=second.nextInt32();
-        init[2]=second.nextInt32();
-        init[3]=second.nextInt32();
+        init[0] = second.nextInt32();
+        init[1] = second.nextInt32();
+        init[2] = second.nextInt32();
+        init[3] = second.nextInt32();
 
         rng_ = MersenneTwisterUniformRng(init);
 
-        for (unsigned long i=0; i<skip ; i++)
+        for (unsigned long i = 0; i < skip; i++)
             rng_.nextInt32();
     }
 
-    unsigned long SeedGenerator::get() {
+    unsigned long SeedGenerator::get()
+    {
         return rng_.nextInt32();
     }
 

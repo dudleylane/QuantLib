@@ -24,14 +24,15 @@
 #ifndef quantlib_normal_clv_model_hpp
 #define quantlib_normal_clv_model_hpp
 
-#include <ql/patterns/lazyobject.hpp>
-#include <ql/math/interpolations/linearinterpolation.hpp>
 #include <ql/math/interpolations/lagrangeinterpolation.hpp>
+#include <ql/math/interpolations/linearinterpolation.hpp>
 #include <ql/math/matrix.hpp>
+#include <ql/patterns/lazyobject.hpp>
 #include <ql/time/date.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
     /*! References:
 
         A. Grzelak, 2016, The CLV Framework -
@@ -45,7 +46,8 @@ namespace QuantLib {
     class OrnsteinUhlenbeckProcess;
     class GeneralizedBlackScholesProcess;
 
-    class NormalCLVModel : public LazyObject {
+    class NormalCLVModel : public LazyObject
+    {
       public:
         NormalCLVModel(const ext::shared_ptr<GeneralizedBlackScholesProcess>& bsProcess,
                        ext::shared_ptr<OrnsteinUhlenbeckProcess> ouProcess,
@@ -73,7 +75,8 @@ namespace QuantLib {
         void performCalculations() const override;
 
       private:
-        class MappingFunction {
+        class MappingFunction
+        {
           public:
             explicit MappingFunction(const NormalCLVModel& model);
 
@@ -84,12 +87,13 @@ namespace QuantLib {
             const Volatility sigma_;
             const ext::shared_ptr<OrnsteinUhlenbeckProcess> ouProcess_;
 
-            struct InterpolationData {
+            struct InterpolationData
+            {
                 explicit InterpolationData(const NormalCLVModel& model)
-                : s_(model.x_.size(), model.maturityDates_.size()),
-                  x_(model.x_),
-                  t_(model.maturityTimes_),
-                  lagrangeInterpl_(x_.begin(), x_.end(), x_.begin()) {}
+                : s_(model.x_.size(), model.maturityDates_.size()), x_(model.x_), t_(model.maturityTimes_),
+                  lagrangeInterpl_(x_.begin(), x_.end(), x_.begin())
+                {
+                }
 
                 Matrix s_;
                 std::vector<LinearInterpolation> interpl_;

@@ -24,39 +24,41 @@
 #include <ql/payoff.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     OneStepOptionlets::OneStepOptionlets(const std::vector<Time>& rateTimes,
                                          std::vector<Real> accruals,
                                          const std::vector<Time>& paymentTimes,
-                                         std::vector<ext::shared_ptr<Payoff> > payoffs)
+                                         std::vector<ext::shared_ptr<Payoff>> payoffs)
     : MultiProductOneStep(rateTimes), accruals_(std::move(accruals)), paymentTimes_(paymentTimes),
-      payoffs_(std::move(payoffs)) {
+      payoffs_(std::move(payoffs))
+    {
         checkIncreasingTimes(paymentTimes);
     }
 
-    bool OneStepOptionlets::nextTimeStep(
-            const CurveState& currentState,
-            std::vector<Size>& numberCashFlowsThisStep,
-            std::vector<std::vector<MarketModelMultiProduct::CashFlow> >&
-                                                               genCashFlows) {
-        std::fill(numberCashFlowsThisStep.begin(),
-                  numberCashFlowsThisStep.end(), 0);
-        for (Size i=0; i<payoffs_.size(); ++i) {
+    bool OneStepOptionlets::nextTimeStep(const CurveState& currentState,
+                                         std::vector<Size>& numberCashFlowsThisStep,
+                                         std::vector<std::vector<MarketModelMultiProduct::CashFlow>>& genCashFlows)
+    {
+        std::fill(numberCashFlowsThisStep.begin(), numberCashFlowsThisStep.end(), 0);
+        for (Size i = 0; i < payoffs_.size(); ++i)
+        {
             Rate liborRate = currentState.forwardRate(i);
             Real payoff = (*payoffs_[i])(liborRate);
-            if (payoff>0.0) {
+            if (payoff > 0.0)
+            {
                 numberCashFlowsThisStep[i] = 1;
                 genCashFlows[i][0].timeIndex = i;
-                genCashFlows[i][0].amount = payoff*accruals_[i];
+                genCashFlows[i][0].amount = payoff * accruals_[i];
             }
         }
 
         return true;
     }
 
-    std::unique_ptr<MarketModelMultiProduct>
-    OneStepOptionlets::clone() const {
+    std::unique_ptr<MarketModelMultiProduct> OneStepOptionlets::clone() const
+    {
         return std::unique_ptr<MarketModelMultiProduct>(new OneStepOptionlets(*this));
     }
 

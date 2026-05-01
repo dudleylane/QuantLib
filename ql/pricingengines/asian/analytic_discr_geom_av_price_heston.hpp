@@ -25,13 +25,14 @@
 #ifndef quantlib_analytic_discrete_geometric_average_price_asian_heston_engine_hpp
 #define quantlib_analytic_discrete_geometric_average_price_asian_heston_engine_hpp
 
-#include <ql/instruments/asianoption.hpp>
-#include <ql/processes/hestonprocess.hpp>
-#include <ql/math/integrals/gaussianquadratures.hpp>
 #include <ql/exercise.hpp>
+#include <ql/instruments/asianoption.hpp>
+#include <ql/math/integrals/gaussianquadratures.hpp>
+#include <ql/processes/hestonprocess.hpp>
 #include <complex>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Pricing engine for European discrete geometric average price Asian
     /*! This class implements a discrete geometric average price
@@ -61,11 +62,11 @@ namespace QuantLib {
 
         \todo handle seasoned options
     */
-    class AnalyticDiscreteGeometricAveragePriceAsianHestonEngine
-        : public DiscreteAveragingAsianOption::engine {
+    class AnalyticDiscreteGeometricAveragePriceAsianHestonEngine : public DiscreteAveragingAsianOption::engine
+    {
       public:
-        explicit AnalyticDiscreteGeometricAveragePriceAsianHestonEngine(
-            ext::shared_ptr<HestonProcess> process, Real xiRightLimit = 100.0);
+        explicit AnalyticDiscreteGeometricAveragePriceAsianHestonEngine(ext::shared_ptr<HestonProcess> process,
+                                                                        Real xiRightLimit = 100.0);
         void calculate() const override;
 
         // Equation (21) - must be public so the integrand can access it.
@@ -87,7 +88,7 @@ namespace QuantLib {
         ext::shared_ptr<HestonProcess> process_;
 
         // A lookup table for the reuslts of omega_tilde() to avoid repeated calls for given Phi call
-        mutable std::map<Size, std::complex<Real> > omegaTildeLookupTable_;
+        mutable std::map<Size, std::complex<Real>> omegaTildeLookupTable_;
 
         // Cutoff parameter for integral in Eqs (23) and (24)
         Real xiRightLimit_;
@@ -106,34 +107,31 @@ namespace QuantLib {
         mutable std::vector<Real> tkr_tk_;
 
         // Equation (11)
-        std::complex<Real> F(const std::complex<Real>& z1,
-                             const std::complex<Real>& z2,
-                             Time tau) const;
+        std::complex<Real> F(const std::complex<Real>& z1, const std::complex<Real>& z2, Time tau) const;
 
-        std::complex<Real> F_tilde(const std::complex<Real>& z1,
-                                   const std::complex<Real>& z2,
-                                   Time tau) const;
+        std::complex<Real> F_tilde(const std::complex<Real>& z1, const std::complex<Real>& z2, Time tau) const;
 
         // Equation (14)
-        std::complex<Real> z(const std::complex<Real>& s,
-                             const std::complex<Real>& w,
-                             Size k, Size n) const;
+        std::complex<Real> z(const std::complex<Real>& s, const std::complex<Real>& w, Size k, Size n) const;
 
         // Equation (15)
-        std::complex<Real> omega(const std::complex<Real>& s,
-                                 const std::complex<Real>& w,
-                                 Size k, Size kStar, Size n) const;
+        std::complex<Real>
+        omega(const std::complex<Real>& s, const std::complex<Real>& w, Size k, Size kStar, Size n) const;
 
         // Equation (16)
         std::complex<Real> a(const std::complex<Real>& s,
                              const std::complex<Real>& w,
-                             Time t, Time T, Size kStar,
+                             Time t,
+                             Time T,
+                             Size kStar,
                              const std::vector<Time>& t_n) const;
 
         // Equation (19)
         std::complex<Real> omega_tilde(const std::complex<Real>& s,
                                        const std::complex<Real>& w,
-                                       Size k, Size kStar, Size n,
+                                       Size k,
+                                       Size kStar,
+                                       Size n,
                                        const std::vector<Time>& tauK) const;
     };
 }

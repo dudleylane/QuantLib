@@ -27,7 +27,8 @@
 
 #include <ql/math/distributions/normaldistribution.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Cumulative bivariate normal distribution function
     /*! Drezner (1978) algorithm, six decimal places accuracy.
@@ -56,11 +57,13 @@ namespace QuantLib {
         \test the correctness of the returned value is tested by
               checking it against known good results.
     */
-    class BivariateCumulativeNormalDistributionDr78 {
+    class BivariateCumulativeNormalDistributionDr78
+    {
       public:
         BivariateCumulativeNormalDistributionDr78(Real rho);
         // function
         Real operator()(Real a, Real b) const;
+
       private:
         Real rho_, rho2_;
         static const Real x_[], y_[];
@@ -89,19 +92,20 @@ namespace QuantLib {
         \test the correctness of the returned value is tested by
               checking it against known good results.
     */
-    class BivariateCumulativeNormalDistributionWe04DP {
+    class BivariateCumulativeNormalDistributionWe04DP
+    {
       public:
         BivariateCumulativeNormalDistributionWe04DP(Real rho);
         // function
         Real operator()(Real a, Real b) const;
+
       private:
         Real correlation_;
         CumulativeNormalDistribution cumnorm_;
     };
 
     //! default bivariate implementation
-    typedef BivariateCumulativeNormalDistributionWe04DP
-                                        BivariateCumulativeNormalDistribution;
+    typedef BivariateCumulativeNormalDistributionWe04DP BivariateCumulativeNormalDistribution;
 
 }
 

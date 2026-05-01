@@ -30,7 +30,8 @@
 #include <ql/instruments/swap.hpp>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Utility function to optimize the observability graph of an instrument
     /*! This function unregisters the given instrument from the given cashflows and
@@ -51,9 +52,7 @@ namespace QuantLib {
 
        There are overloads of this function for specific instrument types like Swap, Bond.
     */
-    void simplifyNotificationGraph(Instrument& instrument,
-                                   const Leg& leg,
-                                   bool unregisterCoupons = false);
+    void simplifyNotificationGraph(Instrument& instrument, const Leg& leg, bool unregisterCoupons = false);
 
     //! Utility function to opimize the observability graph of a swap
     void simplifyNotificationGraph(Swap& swap, bool unregisterCoupons = false);

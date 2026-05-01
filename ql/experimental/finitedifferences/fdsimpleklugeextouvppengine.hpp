@@ -24,21 +24,21 @@
 #ifndef quantlib_fd_simple_kluge_ou_vpp_engine_hpp
 #define quantlib_fd_simple_kluge_ou_vpp_engine_hpp
 
-#include <ql/pricingengine.hpp>
+#include <ql/experimental/finitedifferences/fdmextoujumpmodelinnervalue.hpp>
 #include <ql/experimental/finitedifferences/vanillavppoption.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
-#include <ql/experimental/finitedifferences/fdmextoujumpmodelinnervalue.hpp>
+#include <ql/pricingengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Finite-Differences engine for simple vpp options
 
     class YieldTermStructure;
     class KlugeExtOUProcess;
 
-    class FdSimpleKlugeExtOUVPPEngine
-        : public GenericEngine<VanillaVPPOption::arguments,
-                               VanillaVPPOption::results> {
+    class FdSimpleKlugeExtOUVPPEngine : public GenericEngine<VanillaVPPOption::arguments, VanillaVPPOption::results>
+    {
       public:
         typedef FdmExtOUJumpModelInnerValue::Shape Shape;
 
@@ -67,4 +67,3 @@ namespace QuantLib {
 }
 
 #endif
-

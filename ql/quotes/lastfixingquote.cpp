@@ -21,24 +21,27 @@
 #include <ql/settings.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    LastFixingQuote::LastFixingQuote(ext::shared_ptr<Index> index) : index_(std::move(index)) {
+    LastFixingQuote::LastFixingQuote(ext::shared_ptr<Index> index) : index_(std::move(index))
+    {
         registerWith(index_);
     }
 
-    Real LastFixingQuote::value() const {
-        QL_ENSURE(isValid(),
-                  index_->name() << " has no fixing");
+    Real LastFixingQuote::value() const
+    {
+        QL_ENSURE(isValid(), index_->name() << " has no fixing");
         return index_->fixing(referenceDate());
     }
 
-    bool LastFixingQuote::isValid() const {
+    bool LastFixingQuote::isValid() const
+    {
         return !index_->timeSeries().empty();
     }
 
-    Date LastFixingQuote::referenceDate() const {
-        return std::min<Date>(index_->timeSeries().lastDate(),
-                              Settings::instance().evaluationDate());
+    Date LastFixingQuote::referenceDate() const
+    {
+        return std::min<Date>(index_->timeSeries().lastDate(), Settings::instance().evaluationDate());
     }
 }

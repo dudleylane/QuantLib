@@ -29,7 +29,8 @@
 #include <ql/math/interpolations/lagrangeinterpolation.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
     //! Stochastic collocation inverse cumulative distribution function
 
     /*! References:
@@ -39,13 +40,13 @@ namespace QuantLib {
         http://papers.ssrn.com/sol3/papers.cfm?abstract_id=2529691
      */
 
-    class StochasticCollocationInvCDF {
+    class StochasticCollocationInvCDF
+    {
       public:
-        StochasticCollocationInvCDF(
-            const std::function<Real(Real)>& invCDF,
-            Size lagrangeOrder,
-            Real pMax = Null<Real>(),
-            Real pMin = Null<Real>());
+        StochasticCollocationInvCDF(const std::function<Real(Real)>& invCDF,
+                                    Size lagrangeOrder,
+                                    Real pMax = Null<Real>(),
+                                    Real pMin = Null<Real>());
 
         Real value(Real x) const;
         Real operator()(Real u) const;

@@ -22,25 +22,25 @@
 #include <ql/termstructures/yield/multipleresetsswaphelper.hpp>
 #include <ql/utilities/null_deleter.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    MultipleResetsSwapRateHelper::MultipleResetsSwapRateHelper(
-        Natural settlementDays,
-        const Period& tenor,
-        const std::variant<Rate, Handle<Quote>>& fixedRate,
-        const ext::shared_ptr<IborIndex>& iborIndex,
-        Size resetsPerCoupon,
-        Handle<YieldTermStructure> discountingCurve,
-        RateAveraging::Type averagingMethod,
-        Spread spread,
-        Frequency fixedFrequency,
-        const DayCounter& fixedDayCount,
-        BusinessDayConvention fixedConvention)
+    MultipleResetsSwapRateHelper::MultipleResetsSwapRateHelper(Natural settlementDays,
+                                                               const Period& tenor,
+                                                               const std::variant<Rate, Handle<Quote>>& fixedRate,
+                                                               const ext::shared_ptr<IborIndex>& iborIndex,
+                                                               Size resetsPerCoupon,
+                                                               Handle<YieldTermStructure> discountingCurve,
+                                                               RateAveraging::Type averagingMethod,
+                                                               Spread spread,
+                                                               Frequency fixedFrequency,
+                                                               const DayCounter& fixedDayCount,
+                                                               BusinessDayConvention fixedConvention)
     : RelativeDateRateHelper(fixedRate), settlementDays_(settlementDays), tenor_(tenor),
       resetsPerCoupon_(resetsPerCoupon), averagingMethod_(averagingMethod), spread_(spread),
-      fixedFrequency_(fixedFrequency),
-      fixedDayCount_(!fixedDayCount.empty() ? fixedDayCount : iborIndex->dayCounter()),
-      fixedConvention_(fixedConvention), discountHandle_(std::move(discountingCurve)) {
+      fixedFrequency_(fixedFrequency), fixedDayCount_(!fixedDayCount.empty() ? fixedDayCount : iborIndex->dayCounter()),
+      fixedConvention_(fixedConvention), discountHandle_(std::move(discountingCurve))
+    {
 
         // Clone the index so it forwards rates from termStructureHandle_,
         // but don't register the clone as an observer of termStructureHandle_
@@ -53,7 +53,8 @@ namespace QuantLib {
         initializeDates();
     }
 
-    void MultipleResetsSwapRateHelper::initializeDates() {
+    void MultipleResetsSwapRateHelper::initializeDates()
+    {
         swap_ = MakeMultipleResetsSwap(tenor_, iborIndex_, resetsPerCoupon_)
                     .withFixedRate(0.0)
                     .withSettlementDays(settlementDays_)
@@ -71,7 +72,8 @@ namespace QuantLib {
             std::max(swap_->fixedLeg().back()->date(), swap_->floatingLeg().back()->date());
     }
 
-    void MultipleResetsSwapRateHelper::setTermStructure(YieldTermStructure* t) {
+    void MultipleResetsSwapRateHelper::setTermStructure(YieldTermStructure* t)
+    {
         bool observer = false;
         ext::shared_ptr<YieldTermStructure> temp(t, null_deleter());
         termStructureHandle_.linkTo(temp, observer);
@@ -82,13 +84,15 @@ namespace QuantLib {
         RelativeDateRateHelper::setTermStructure(t);
     }
 
-    Real MultipleResetsSwapRateHelper::impliedQuote() const {
+    Real MultipleResetsSwapRateHelper::impliedQuote() const
+    {
         QL_REQUIRE(termStructure_ != nullptr, "term structure not set");
         swap_->deepUpdate();
         return swap_->fairRate();
     }
 
-    void MultipleResetsSwapRateHelper::accept(AcyclicVisitor& v) {
+    void MultipleResetsSwapRateHelper::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<MultipleResetsSwapRateHelper>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);

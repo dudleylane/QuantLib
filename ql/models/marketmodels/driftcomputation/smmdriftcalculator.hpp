@@ -28,7 +28,8 @@
 #include <ql/math/matrix.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class CoterminalSwapCurveState;
 
@@ -37,7 +38,8 @@ namespace QuantLib {
         See Mark Joshi, Lorenzo Liesch, <i>Effective
         Implementation Of Generic Market Models</i>.
     */
-    class SMMDriftCalculator {
+    class SMMDriftCalculator
+    {
       public:
         SMMDriftCalculator(const Matrix& pseudo,
                            const std::vector<Spread>& displacements,
@@ -45,8 +47,8 @@ namespace QuantLib {
                            Size numeraire,
                            Size alive);
         //! Computes the drifts
-        void compute(const CoterminalSwapCurveState& cs,
-                     std::vector<Real>& drifts) const;
+        void compute(const CoterminalSwapCurveState& cs, std::vector<Real>& drifts) const;
+
       private:
         Size numberOfRates_, numberOfFactors_;
         Size numeraire_, alive_;
@@ -55,7 +57,7 @@ namespace QuantLib {
         Matrix C_, pseudo_;
         // temporary variables to be added later
         mutable std::vector<Real> tmp_;
-        mutable Matrix wkaj_;  // < W(k) | A(j)/P(n) >
+        mutable Matrix wkaj_; // < W(k) | A(j)/P(n) >
         mutable Matrix wkpj_; // < W(k) | P(j)/P(n) >
         mutable Matrix wkajshifted_;
     };

@@ -26,62 +26,62 @@
 
 #include <ql/experimental/mcbasket/pathpayoff.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class AdaptedPathPayoff : public PathPayoff {
-    public:
-
-        class ValuationData {
-        public:
+    class AdaptedPathPayoff : public PathPayoff
+    {
+      public:
+        class ValuationData
+        {
+          public:
             Size numberOfTimes() const;
             Size numberOfAssets() const;
 
             Real getAssetValue(Size time, Size asset);
 
-            const Handle<YieldTermStructure> & getYieldTermStructure(Size time);
+            const Handle<YieldTermStructure>& getYieldTermStructure(Size time);
 
             void setPayoffValue(Size time, Real value);
 
             // set the exercise payoff if the option is exercised at time "time"
             // it destroys state
-            void setExerciseData(Size time, Real exercise, Array & state);
+            void setExerciseData(Size time, Real exercise, Array& state);
 
-        private:
-
+          private:
             friend class AdaptedPathPayoff;
 
-            ValuationData(const Matrix       & path, 
-                          const std::vector<Handle<YieldTermStructure> > & forwardTermStructures,
-                          Array              & payments, 
-                          Array              & exercises, 
-                          std::vector<Array> & states);
+            ValuationData(const Matrix& path,
+                          const std::vector<Handle<YieldTermStructure>>& forwardTermStructures,
+                          Array& payments,
+                          Array& exercises,
+                          std::vector<Array>& states);
 
-            const Matrix & path_;
-            const std::vector<Handle<YieldTermStructure> > & forwardTermStructures_;
+            const Matrix& path_;
+            const std::vector<Handle<YieldTermStructure>>& forwardTermStructures_;
 
-            Array & payments_;
-            Array & exercises_;
-            std::vector<Array> & states_;
+            Array& payments_;
+            Array& exercises_;
+            std::vector<Array>& states_;
 
             Size maximumTimeRead_ = 0;
         };
 
         void value(const Matrix& path,
-                   const std::vector<Handle<YieldTermStructure> >& forwardTermStructures,
+                   const std::vector<Handle<YieldTermStructure>>& forwardTermStructures,
                    Array& payments,
                    Array& exercises,
                    std::vector<Array>& states) const override;
 
       protected:
-
         /*
           Key method of this class.
 
           It computes the payoff by calling ValuationData::setPayoffValue();
-          and provides early exercise information 
+          and provides early exercise information
           via ValuationData::setExerciseData();
          */
-        virtual void operator()(ValuationData & data) const = 0;
+        virtual void operator()(ValuationData& data) const = 0;
     };
 }
 

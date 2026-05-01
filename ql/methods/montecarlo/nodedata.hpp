@@ -24,9 +24,11 @@
 #include <ql/types.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    struct NodeData {
+    struct NodeData
+    {
         Real exerciseValue;
         Real cumulatedCashFlows;
         std::vector<Real> values;
@@ -38,4 +40,3 @@ namespace QuantLib {
 
 
 #endif
-

@@ -21,52 +21,50 @@
 #include <ql/models/marketmodels/utilities.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     MarketModelCashRebate::MarketModelCashRebate(EvolutionDescription evolution,
                                                  const std::vector<Time>& paymentTimes,
                                                  Matrix amounts,
                                                  Size numberOfProducts)
     : evolution_(std::move(evolution)), paymentTimes_(paymentTimes), amounts_(std::move(amounts)),
-      numberOfProducts_(numberOfProducts) {
+      numberOfProducts_(numberOfProducts)
+    {
 
         checkIncreasingTimes(paymentTimes);
 
-        QL_REQUIRE(amounts_.rows() == numberOfProducts_,
-                   "the number of rows in the matrix must equal "
-                   "the number of products");
-        QL_REQUIRE(amounts_.columns() == paymentTimes_.size(),
-                   "the number of columns in the matrix must equal "
-                   "the number of payment times");
+        QL_REQUIRE(amounts_.rows() == numberOfProducts_, "the number of rows in the matrix must equal "
+                                                         "the number of products");
+        QL_REQUIRE(amounts_.columns() == paymentTimes_.size(), "the number of columns in the matrix must equal "
+                                                               "the number of payment times");
         QL_REQUIRE(evolution_.evolutionTimes().size() == paymentTimes_.size(),
                    "the number of evolution times must equal "
                    "the number of payment times");
     }
 
 
-    std::vector<Time>
-    MarketModelCashRebate::possibleCashFlowTimes() const 
+    std::vector<Time> MarketModelCashRebate::possibleCashFlowTimes() const
     {
         return paymentTimes_;
     }
 
-    Size MarketModelCashRebate::numberOfProducts() const 
+    Size MarketModelCashRebate::numberOfProducts() const
     {
         return numberOfProducts_;
     }
 
-    Size MarketModelCashRebate::maxNumberOfCashFlowsPerProductPerStep() const 
+    Size MarketModelCashRebate::maxNumberOfCashFlowsPerProductPerStep() const
     {
         return 1;
     }
 
-    void MarketModelCashRebate::reset() 
+    void MarketModelCashRebate::reset()
     {
-       currentIndex_=0;
+        currentIndex_ = 0;
     }
 
-    std::vector<Size>
-    MarketModelCashRebate::suggestedNumeraires() const 
+    std::vector<Size> MarketModelCashRebate::suggestedNumeraires() const
     {
         QL_FAIL("not implemented (yet?)");
     }
@@ -77,13 +75,11 @@ namespace QuantLib {
     }
 
 
-    bool MarketModelCashRebate::nextTimeStep(
-            const CurveState&,
-            std::vector<Size>& numberCashFlowsThisStep,
-            std::vector<std::vector<MarketModelMultiProduct::CashFlow> >&
-                                                               genCashFlows)
+    bool MarketModelCashRebate::nextTimeStep(const CurveState&,
+                                             std::vector<Size>& numberCashFlowsThisStep,
+                                             std::vector<std::vector<MarketModelMultiProduct::CashFlow>>& genCashFlows)
     {
-        for (Size i=0; i<numberOfProducts_; ++i) 
+        for (Size i = 0; i < numberOfProducts_; ++i)
         {
             numberCashFlowsThisStep[i] = 1;
             genCashFlows[i][0].timeIndex = currentIndex_;
@@ -93,11 +89,9 @@ namespace QuantLib {
         return true;
     }
 
-    std::unique_ptr<MarketModelMultiProduct>
-    MarketModelCashRebate::clone() const 
+    std::unique_ptr<MarketModelMultiProduct> MarketModelCashRebate::clone() const
     {
         return std::unique_ptr<MarketModelMultiProduct>(new MarketModelCashRebate(*this));
     }
 
 }
-

@@ -26,72 +26,79 @@
 
 #include <ql/experimental/commodities/unitofmeasure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class BarrelUnitOfMeasure : public UnitOfMeasure {
+    class BarrelUnitOfMeasure : public UnitOfMeasure
+    {
       public:
-        BarrelUnitOfMeasure() {
-            static ext::shared_ptr<Data> data(
-                           new Data("Barrels", "BBL", UnitOfMeasure::Volume));
+        BarrelUnitOfMeasure()
+        {
+            static ext::shared_ptr<Data> data(new Data("Barrels", "BBL", UnitOfMeasure::Volume));
             data_ = data;
         }
     };
 
-    class MTUnitOfMeasure : public UnitOfMeasure {
+    class MTUnitOfMeasure : public UnitOfMeasure
+    {
       public:
-        MTUnitOfMeasure() {
-            static ext::shared_ptr<Data> data(
-                        new Data("Metric Tonnes", "MT", UnitOfMeasure::Mass));
+        MTUnitOfMeasure()
+        {
+            static ext::shared_ptr<Data> data(new Data("Metric Tonnes", "MT", UnitOfMeasure::Mass));
             data_ = data;
         }
     };
 
-    class MBUnitOfMeasure : public UnitOfMeasure {
+    class MBUnitOfMeasure : public UnitOfMeasure
+    {
       public:
-        MBUnitOfMeasure() {
+        MBUnitOfMeasure()
+        {
             static ext::shared_ptr<Data> data(
-                         new Data("1000 Barrels", "MB", UnitOfMeasure::Volume,
-                                  BarrelUnitOfMeasure()));
+                new Data("1000 Barrels", "MB", UnitOfMeasure::Volume, BarrelUnitOfMeasure()));
             data_ = data;
         }
     };
 
-    class GallonUnitOfMeasure : public UnitOfMeasure {
+    class GallonUnitOfMeasure : public UnitOfMeasure
+    {
       public:
-        GallonUnitOfMeasure() {
+        GallonUnitOfMeasure()
+        {
             static ext::shared_ptr<Data> data(
-                          new Data("US Gallons", "GAL", UnitOfMeasure::Volume,
-                                   BarrelUnitOfMeasure()));
+                new Data("US Gallons", "GAL", UnitOfMeasure::Volume, BarrelUnitOfMeasure()));
             data_ = data;
         }
     };
 
-    class LitreUnitOfMeasure : public UnitOfMeasure {
+    class LitreUnitOfMeasure : public UnitOfMeasure
+    {
       public:
-        LitreUnitOfMeasure() {
-            static ext::shared_ptr<Data> data(
-                                new Data("Litres", "l", UnitOfMeasure::Volume,
-                                         BarrelUnitOfMeasure()));
+        LitreUnitOfMeasure()
+        {
+            static ext::shared_ptr<Data> data(new Data("Litres", "l", UnitOfMeasure::Volume, BarrelUnitOfMeasure()));
             data_ = data;
         }
     };
 
-    class KilolitreUnitOfMeasure : public UnitOfMeasure {
+    class KilolitreUnitOfMeasure : public UnitOfMeasure
+    {
       public:
-        KilolitreUnitOfMeasure() {
+        KilolitreUnitOfMeasure()
+        {
             static ext::shared_ptr<Data> data(
-                           new Data("Kilolitres", "kl", UnitOfMeasure::Volume,
-                                    BarrelUnitOfMeasure()));
+                new Data("Kilolitres", "kl", UnitOfMeasure::Volume, BarrelUnitOfMeasure()));
             data_ = data;
         }
     };
 
-    class TokyoKilolitreUnitOfMeasure : public UnitOfMeasure {
+    class TokyoKilolitreUnitOfMeasure : public UnitOfMeasure
+    {
       public:
-        TokyoKilolitreUnitOfMeasure() {
+        TokyoKilolitreUnitOfMeasure()
+        {
             static ext::shared_ptr<Data> data(
-                new Data("Tokyo Kilolitres", "KL_tk", UnitOfMeasure::Volume,
-                         BarrelUnitOfMeasure()));
+                new Data("Tokyo Kilolitres", "KL_tk", UnitOfMeasure::Volume, BarrelUnitOfMeasure()));
             data_ = data;
         }
     };

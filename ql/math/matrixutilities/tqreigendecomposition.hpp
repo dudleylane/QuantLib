@@ -27,7 +27,8 @@
 #include <ql/math/array.hpp>
 #include <ql/math/matrix.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! tridiag. QR eigen decomposition with explicite shift aka Wilkinson
     /*! References:
@@ -41,22 +42,29 @@ namespace QuantLib {
         \test the correctness of the result is tested by checking it
               against known good values.
     */
-    class TqrEigenDecomposition {
+    class TqrEigenDecomposition
+    {
       public:
-        enum EigenVectorCalculation { WithEigenVector,
-                                      WithoutEigenVector,
-                                      OnlyFirstRowEigenVector };
+        enum EigenVectorCalculation
+        {
+            WithEigenVector,
+            WithoutEigenVector,
+            OnlyFirstRowEigenVector
+        };
 
-        enum ShiftStrategy { NoShift,
-                             Overrelaxation,
-                             CloseEigenValue };
+        enum ShiftStrategy
+        {
+            NoShift,
+            Overrelaxation,
+            CloseEigenValue
+        };
 
         TqrEigenDecomposition(const Array& diag,
                               const Array& sub,
                               EigenVectorCalculation calc = WithEigenVector,
                               ShiftStrategy strategy = CloseEigenValue);
 
-        const Array& eigenvalues()  const { return d_; }
+        const Array& eigenvalues() const { return d_; }
         const Matrix& eigenvectors() const { return ev_; }
 
         Size iterations() const { return iter_; }

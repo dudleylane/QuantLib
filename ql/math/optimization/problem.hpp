@@ -31,7 +31,8 @@
 #include <ql/math/optimization/method.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Constrained optimization problem
     /*! \warning The passed CostFunction and Constraint instances are
@@ -39,17 +40,18 @@ namespace QuantLib {
                  make sure that they are not destroyed before the
                  Problem instance.
     */
-    class Problem {
+    class Problem
+    {
       public:
         //! default constructor
         Problem(CostFunction& costFunction, Constraint& constraint, Array initialValue = Array())
-        : costFunction_(costFunction), constraint_(constraint),
-          currentValue_(std::move(initialValue)) {
+        : costFunction_(costFunction), constraint_(constraint), currentValue_(std::move(initialValue))
+        {
             QL_REQUIRE(!constraint.empty(), "empty constraint given");
         }
 
         /*! \warning it does not reset the current minumum to any initial value
-        */
+         */
         void reset();
 
         //! call cost function computation and increment evaluation counter
@@ -60,12 +62,10 @@ namespace QuantLib {
 
         //! call cost function gradient computation and increment
         //  evaluation counter
-        void gradient(Array& grad_f,
-                      const Array& x);
+        void gradient(Array& grad_f, const Array& x);
 
         //! call cost function computation and it gradient
-        Real valueAndGradient(Array& grad_f,
-                              const Array& x);
+        Real valueAndGradient(Array& grad_f, const Array& x);
 
         //! Constraint
         Constraint& constraint() const { return constraint_; }
@@ -73,23 +73,17 @@ namespace QuantLib {
         //! Cost function
         CostFunction& costFunction() const { return costFunction_; }
 
-        void setCurrentValue(Array currentValue) {
-            currentValue_ = std::move(currentValue);
-        }
+        void setCurrentValue(Array currentValue) { currentValue_ = std::move(currentValue); }
 
         //! current value of the local minimum
         const Array& currentValue() const { return currentValue_; }
 
-        void setFunctionValue(Real functionValue) {
-            functionValue_=functionValue;
-        }
+        void setFunctionValue(Real functionValue) { functionValue_ = functionValue; }
 
         //! value of cost function
         Real functionValue() const { return functionValue_; }
 
-        void setGradientNormValue(Real squaredNorm) {
-            squaredNorm_=squaredNorm;
-        }
+        void setGradientNormValue(Real squaredNorm) { squaredNorm_ = squaredNorm; }
         //! value of cost function gradient norm
         Real gradientNormValue() const { return squaredNorm_; }
 
@@ -113,30 +107,33 @@ namespace QuantLib {
     };
 
     // inline definitions
-    inline Real Problem::value(const Array& x) {
+    inline Real Problem::value(const Array& x)
+    {
         ++functionEvaluation_;
         return costFunction_.value(x);
     }
 
-    inline Array Problem::values(const Array& x) {
+    inline Array Problem::values(const Array& x)
+    {
         ++functionEvaluation_;
         return costFunction_.values(x);
     }
 
-    inline void Problem::gradient(Array& grad_f,
-                                  const Array& x) {
+    inline void Problem::gradient(Array& grad_f, const Array& x)
+    {
         ++gradientEvaluation_;
         costFunction_.gradient(grad_f, x);
     }
 
-    inline Real Problem::valueAndGradient(Array& grad_f,
-                                          const Array& x) {
+    inline Real Problem::valueAndGradient(Array& grad_f, const Array& x)
+    {
         ++functionEvaluation_;
         ++gradientEvaluation_;
         return costFunction_.valueAndGradient(grad_f, x);
     }
 
-    inline void Problem::reset() {
+    inline void Problem::reset()
+    {
         functionEvaluation_ = gradientEvaluation_ = 0;
         functionValue_ = squaredNorm_ = Null<Real>();
     }

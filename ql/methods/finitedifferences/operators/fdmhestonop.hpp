@@ -27,24 +27,26 @@
 #ifndef quantlib_fdm_heston_op_hpp
 #define quantlib_fdm_heston_op_hpp
 
-#include <ql/processes/hestonprocess.hpp>
-#include <ql/methods/finitedifferences/utilities/fdmquantohelper.hpp>
-#include <ql/methods/finitedifferences/operators/firstderivativeop.hpp>
-#include <ql/methods/finitedifferences/operators/triplebandlinearop.hpp>
-#include <ql/methods/finitedifferences/operators/ninepointlinearop.hpp>
 #include <ql/methods/finitedifferences/operators/fdmlinearopcomposite.hpp>
+#include <ql/methods/finitedifferences/operators/firstderivativeop.hpp>
+#include <ql/methods/finitedifferences/operators/ninepointlinearop.hpp>
+#include <ql/methods/finitedifferences/operators/triplebandlinearop.hpp>
+#include <ql/methods/finitedifferences/utilities/fdmquantohelper.hpp>
+#include <ql/processes/hestonprocess.hpp>
 #include <ql/termstructures/volatility/equityfx/localvoltermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class FdmHestonEquityPart {
+    class FdmHestonEquityPart
+    {
       public:
-        FdmHestonEquityPart(const ext::shared_ptr<FdmMesher>& mesher,
-                            ext::shared_ptr<YieldTermStructure> rTS,
-                            ext::shared_ptr<YieldTermStructure> qTS,
-                            ext::shared_ptr<FdmQuantoHelper> quantoHelper,
-                            ext::shared_ptr<LocalVolTermStructure> leverageFct =
-                                ext::shared_ptr<LocalVolTermStructure>());
+        FdmHestonEquityPart(
+            const ext::shared_ptr<FdmMesher>& mesher,
+            ext::shared_ptr<YieldTermStructure> rTS,
+            ext::shared_ptr<YieldTermStructure> qTS,
+            ext::shared_ptr<FdmQuantoHelper> quantoHelper,
+            ext::shared_ptr<LocalVolTermStructure> leverageFct = ext::shared_ptr<LocalVolTermStructure>());
 
         void setTime(Time t1, Time t2);
         const TripleBandLinearOp& getMap() const;
@@ -54,7 +56,7 @@ namespace QuantLib {
         Array getLeverageFctSlice(Time t1, Time t2) const;
 
         Array varianceValues_, volatilityValues_, L_;
-        const FirstDerivativeOp  dxMap_;
+        const FirstDerivativeOp dxMap_;
         const TripleBandLinearOp dxxMap_;
         TripleBandLinearOp mapT_;
 
@@ -64,7 +66,8 @@ namespace QuantLib {
         const ext::shared_ptr<LocalVolTermStructure> leverageFct_;
     };
 
-    class FdmHestonVariancePart {
+    class FdmHestonVariancePart
+    {
       public:
         FdmHestonVariancePart(const ext::shared_ptr<FdmMesher>& mesher,
                               ext::shared_ptr<YieldTermStructure> rTS,
@@ -83,15 +86,15 @@ namespace QuantLib {
     };
 
 
-    class FdmHestonOp : public FdmLinearOpComposite {
+    class FdmHestonOp : public FdmLinearOpComposite
+    {
       public:
-        FdmHestonOp(const ext::shared_ptr<FdmMesher>& mesher,
-                    const ext::shared_ptr<HestonProcess>& hestonProcess,
-                    const ext::shared_ptr<FdmQuantoHelper>& quantoHelper =
-                        ext::shared_ptr<FdmQuantoHelper>(),
-                    const ext::shared_ptr<LocalVolTermStructure>& leverageFct =
-                        ext::shared_ptr<LocalVolTermStructure>(),
-                    Real mixingFactor = 1.0);
+        FdmHestonOp(
+            const ext::shared_ptr<FdmMesher>& mesher,
+            const ext::shared_ptr<HestonProcess>& hestonProcess,
+            const ext::shared_ptr<FdmQuantoHelper>& quantoHelper = ext::shared_ptr<FdmQuantoHelper>(),
+            const ext::shared_ptr<LocalVolTermStructure>& leverageFct = ext::shared_ptr<LocalVolTermStructure>(),
+            Real mixingFactor = 1.0);
 
         Size size() const override;
         void setTime(Time t1, Time t2) override;

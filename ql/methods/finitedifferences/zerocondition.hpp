@@ -27,15 +27,19 @@
 
 #include <ql/methods/finitedifferences/stepcondition.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Zero exercise condition.
     /*! Used in CEV models */
     template <class array_type>
-    class ZeroCondition :  public StepCondition<array_type> {
-    public:
-        void applyTo(array_type& a, Time) const {
-            for(Size i=0; i < a.size(); i++) {
+    class ZeroCondition : public StepCondition<array_type>
+    {
+      public:
+        void applyTo(array_type& a, Time) const
+        {
+            for (Size i = 0; i < a.size(); i++)
+            {
                 a[i] = std::max(a[i], 0.0);
             }
         }

@@ -28,12 +28,14 @@
 
 #include <ql/termstructures/volatility/optionlet/optionletvolatilitystructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Quote;
 
     //! Constant caplet volatility, no time-strike dependence
-    class ConstantOptionletVolatility : public OptionletVolatilityStructure {
+    class ConstantOptionletVolatility : public OptionletVolatilityStructure
+    {
       public:
         //! floating reference date, floating market data
         ConstantOptionletVolatility(Natural settlementDays,
@@ -52,16 +54,19 @@ namespace QuantLib {
                                     VolatilityType type = ShiftedLognormal,
                                     Real displacement = 0.0);
         //! floating reference date, fixed market data
-        ConstantOptionletVolatility(Natural settlementDays, const Calendar &cal,
+        ConstantOptionletVolatility(Natural settlementDays,
+                                    const Calendar& cal,
                                     BusinessDayConvention bdc,
-                                    Volatility volatility, const DayCounter &dc,
+                                    Volatility volatility,
+                                    const DayCounter& dc,
                                     VolatilityType type = ShiftedLognormal,
                                     Real displacement = 0.0);
         //! fixed reference date, fixed market data
-        ConstantOptionletVolatility(const Date &referenceDate,
-                                    const Calendar &cal,
+        ConstantOptionletVolatility(const Date& referenceDate,
+                                    const Calendar& cal,
                                     BusinessDayConvention bdc,
-                                    Volatility volatility, const DayCounter &dc,
+                                    Volatility volatility,
+                                    const DayCounter& dc,
                                     VolatilityType type = ShiftedLognormal,
                                     Real displacement = 0.0);
         //! \name TermStructure interface
@@ -90,24 +95,28 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline Date ConstantOptionletVolatility::maxDate() const {
+    inline Date ConstantOptionletVolatility::maxDate() const
+    {
         return Date::maxDate();
     }
 
-    inline Real ConstantOptionletVolatility::minStrike() const {
+    inline Real ConstantOptionletVolatility::minStrike() const
+    {
         return QL_MIN_REAL;
     }
 
-    inline Real ConstantOptionletVolatility::maxStrike() const {
+    inline Real ConstantOptionletVolatility::maxStrike() const
+    {
         return QL_MAX_REAL;
     }
 
-    inline VolatilityType
-    ConstantOptionletVolatility::volatilityType() const {
+    inline VolatilityType ConstantOptionletVolatility::volatilityType() const
+    {
         return type_;
     }
 
-    inline Real ConstantOptionletVolatility::displacement() const {
+    inline Real ConstantOptionletVolatility::displacement() const
+    {
         return displacement_;
     }
 }

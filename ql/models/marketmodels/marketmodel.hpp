@@ -24,11 +24,12 @@
 #define quantlib_marketmodel_hpp
 
 #include <ql/math/matrix.hpp>
-#include <ql/utilities/null.hpp>
 #include <ql/patterns/observable.hpp>
+#include <ql/utilities/null.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class EvolutionDescription;
 
@@ -36,7 +37,8 @@ namespace QuantLib {
     /*! For each time step, generates the pseudo-square root of the covariance
         matrix for that time step.
     */
-    class MarketModel {
+    class MarketModel
+    {
       public:
         virtual ~MarketModel() = default;
         virtual const std::vector<Rate>& initialRates() const = 0;
@@ -49,19 +51,19 @@ namespace QuantLib {
         virtual const Matrix& covariance(Size i) const;
         virtual const Matrix& totalCovariance(Size endIndex) const;
         std::vector<Volatility> timeDependentVolatility(Size i) const;
-    private:
+
+      private:
         mutable std::vector<Matrix> covariance_, totalCovariance_;
     };
 
     //! base class for market-model factories
-    class MarketModelFactory : public Observable {
+    class MarketModelFactory : public Observable
+    {
       public:
         ~MarketModelFactory() override = default;
-        virtual ext::shared_ptr<MarketModel> create(
-                                              const EvolutionDescription&,
-                                              Size numberOfFactors) const = 0;
+        virtual ext::shared_ptr<MarketModel> create(const EvolutionDescription&, Size numberOfFactors) const = 0;
     };
-    
+
 
 }
 

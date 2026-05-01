@@ -26,10 +26,11 @@
 #ifndef quantlib_square_root_process_hpp
 #define quantlib_square_root_process_hpp
 
-#include <ql/stochasticprocess.hpp>
 #include <ql/processes/eulerdiscretization.hpp>
+#include <ql/stochasticprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Square-root process class
     /*! This class describes a square-root process governed by
@@ -39,12 +40,15 @@ namespace QuantLib {
 
         \ingroup processes
     */
-    class SquareRootProcess : public StochasticProcess1D {
+    class SquareRootProcess : public StochasticProcess1D
+    {
       public:
         SquareRootProcess(
-            Real b, Real a, Volatility sigma, Real x0 = 0.0,
-            const ext::shared_ptr<discretization>& d =
-                  ext::shared_ptr<discretization>(new EulerDiscretization));
+            Real b,
+            Real a,
+            Volatility sigma,
+            Real x0 = 0.0,
+            const ext::shared_ptr<discretization>& d = ext::shared_ptr<discretization>(new EulerDiscretization));
         //! \name StochasticProcess interface
         //@{
         Real x0() const override;
@@ -52,9 +56,10 @@ namespace QuantLib {
         Real diffusion(Time t, Real x) const override;
         //@}
 
-        Real a() const { return speed_;  }
+        Real a() const { return speed_; }
         Real b() const { return mean_; }
         Real sigma() const { return volatility_; }
+
       private:
         Real x0_, mean_, speed_;
         Volatility volatility_;

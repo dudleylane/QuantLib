@@ -19,69 +19,73 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/models/marketmodels/utilities.hpp>
 #include <ql/errors.hpp>
+#include <ql/models/marketmodels/utilities.hpp>
 #include <algorithm>
 #include <valarray>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    void mergeTimes(const std::vector<std::vector<Time> >& times,
+    void mergeTimes(const std::vector<std::vector<Time>>& times,
                     std::vector<Time>& mergedTimes,
-                    std::vector<std::valarray<bool> >& isPresent) {
+                    std::vector<std::valarray<bool>>& isPresent)
+    {
 
         std::vector<Time> allTimes;
-        for (const auto& time : times) {
+        for (const auto& time : times)
+        {
             allTimes.insert(allTimes.end(), time.begin(), time.end());
         }
 
         // ...sort and compact the vector mergedTimes...
         std::sort(allTimes.begin(), allTimes.end());
         auto end = std::unique(allTimes.begin(), allTimes.end());
-        //mergedTimes.clear(); // shouldn't be cleared?
-        mergedTimes.insert(mergedTimes.end(),
-                           allTimes.begin(), end);
+        // mergedTimes.clear(); // shouldn't be cleared?
+        mergedTimes.insert(mergedTimes.end(), allTimes.begin(), end);
 
         isPresent.resize(times.size());
-        for (Size i=0; i<times.size(); i++) {
+        for (Size i = 0; i < times.size(); i++)
+        {
             isPresent[i].resize(allTimes.size());
-            for (Size j=0; j<allTimes.size(); j++) {
-                isPresent[i][j] = std::binary_search(times[i].begin(),
-                                                     times[i].end(),
-                                                     allTimes[j]);
+            for (Size j = 0; j < allTimes.size(); j++)
+            {
+                isPresent[i][j] = std::binary_search(times[i].begin(), times[i].end(), allTimes[j]);
             }
         }
     }
 
-    std::valarray<bool> isInSubset(const std::vector<Time>& set,
-                                   const std::vector<Time>& subset) {
+    std::valarray<bool> isInSubset(const std::vector<Time>& set, const std::vector<Time>& subset)
+    {
 
-        std::valarray<bool> result(false,set.size());
+        std::valarray<bool> result(false, set.size());
         Size dimsubSet = subset.size();
-        if (dimsubSet==0)
+        if (dimsubSet == 0)
             return result;
         Size dimSet = set.size();
         Time setElement, subsetElement;
 
-        QL_REQUIRE(dimSet >= dimsubSet,
-                   "set is required to be larger or equal than subset");
+        QL_REQUIRE(dimSet >= dimsubSet, "set is required to be larger or equal than subset");
 
-        for (Size i=0; i<dimSet; ++i) {  // loop in set
-            Size j=0;
+        for (Size i = 0; i < dimSet; ++i)
+        { // loop in set
+            Size j = 0;
             setElement = set[i];
-            for (;;) {              // loop in subset
+            for (;;)
+            { // loop in subset
                 subsetElement = subset[j];
                 result[i] = false;
                 // if smaller no hope, leave false and go to next i
                 if (setElement < subsetElement)
                     break;
                 // if match, set result[i] to true and go to next i
-                if (setElement == subsetElement) {
+                if (setElement == subsetElement)
+                {
                     result[i] = true;
                     break;
                 }
                 // if larger, leave false if at the end or go to next j
-                if (j == dimsubSet-1)
+                if (j == dimsubSet - 1)
                     break;
                 ++j;
             }
@@ -89,36 +93,36 @@ namespace QuantLib {
         return result;
     }
 
-    void checkIncreasingTimes(const std::vector<Time>& times) {
+    void checkIncreasingTimes(const std::vector<Time>& times)
+    {
         Size nTimes = times.size();
-        QL_REQUIRE(nTimes>0,
-                   "at least one time is required");
-        QL_REQUIRE(times[0]>0.0,
-                   "first time (" << times[0] <<
-                   ") must be greater than zero");
-        for (Size i=0; i<nTimes-1; ++i)
-            QL_REQUIRE(times[i+1]-times[i]>0,
-                       "non increasing rate times: "
-                       "times[" << i   << "]=" << times[i] << ", "
-                       "times[" << i+1 << "]=" << times[i+1]);
+        QL_REQUIRE(nTimes > 0, "at least one time is required");
+        QL_REQUIRE(times[0] > 0.0, "first time (" << times[0] << ") must be greater than zero");
+        for (Size i = 0; i < nTimes - 1; ++i)
+            QL_REQUIRE(times[i + 1] - times[i] > 0, "non increasing rate times: "
+                                                    "times["
+                                                        << i << "]=" << times[i]
+                                                        << ", "
+                                                           "times["
+                                                        << i + 1 << "]=" << times[i + 1]);
     }
 
-    void checkIncreasingTimesAndCalculateTaus(const std::vector<Time>& times,
-                                              std::vector<Time>& taus) {
+    void checkIncreasingTimesAndCalculateTaus(const std::vector<Time>& times, std::vector<Time>& taus)
+    {
         Size nTimes = times.size();
-        QL_REQUIRE(nTimes>1,
-                   "at least two times are required, " << nTimes << " provided");
-        QL_REQUIRE(times[0]>0.0,
-                   "first time (" << times[0] <<
-                   ") must be greater than zero");
-        if (taus.size()!=nTimes-1)
-            taus.resize(nTimes-1);
-        for (Size i=0; i<nTimes-1; ++i) {
-            taus[i]=times[i+1]-times[i];
-            QL_REQUIRE(taus[i]>0,
-                       "non increasing rate times: "
-                       "times[" << i   << "]=" << times[i] << ", "
-                       "times[" << i+1 << "]=" << times[i+1]);
+        QL_REQUIRE(nTimes > 1, "at least two times are required, " << nTimes << " provided");
+        QL_REQUIRE(times[0] > 0.0, "first time (" << times[0] << ") must be greater than zero");
+        if (taus.size() != nTimes - 1)
+            taus.resize(nTimes - 1);
+        for (Size i = 0; i < nTimes - 1; ++i)
+        {
+            taus[i] = times[i + 1] - times[i];
+            QL_REQUIRE(taus[i] > 0, "non increasing rate times: "
+                                    "times["
+                                        << i << "]=" << times[i]
+                                        << ", "
+                                           "times["
+                                        << i + 1 << "]=" << times[i + 1]);
         }
     }
 

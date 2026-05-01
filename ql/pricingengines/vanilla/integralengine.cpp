@@ -23,20 +23,26 @@
 #include <ql/pricingengines/vanilla/integralengine.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
+    namespace
+    {
 
-        class Integrand {
+        class Integrand
+        {
           public:
             Integrand(ext::shared_ptr<Payoff> payoff, Real s0, Rate drift, Real variance)
-            : payoff_(std::move(payoff)), s0_(s0), drift_(drift), variance_(variance) {}
-            Real operator()(Real x) const {
+            : payoff_(std::move(payoff)), s0_(s0), drift_(drift), variance_(variance)
+            {
+            }
+            Real operator()(Real x) const
+            {
                 Real temp = s0_ * std::exp(x);
                 Real result = (*payoff_)(temp);
-                return result *
-                    std::exp(-(x - drift_)*(x -drift_)/(2.0*variance_)) ;
+                return result * std::exp(-(x - drift_) * (x - drift_) / (2.0 * variance_));
             }
+
           private:
             ext::shared_ptr<Payoff> payoff_;
             Real s0_;
@@ -46,42 +52,31 @@ namespace QuantLib {
     }
 
     IntegralEngine::IntegralEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process)
-    : process_(std::move(process)) {
+    : process_(std::move(process))
+    {
         registerWith(process_);
     }
 
-    void IntegralEngine::calculate() const {
+    void IntegralEngine::calculate() const
+    {
 
-        QL_REQUIRE(arguments_.exercise->type() == Exercise::European,
-                   "not an European Option");
+        QL_REQUIRE(arguments_.exercise->type() == Exercise::European, "not an European Option");
 
-        ext::shared_ptr<StrikedTypePayoff> payoff =
-            ext::dynamic_pointer_cast<StrikedTypePayoff>(arguments_.payoff);
+        ext::shared_ptr<StrikedTypePayoff> payoff = ext::dynamic_pointer_cast<StrikedTypePayoff>(arguments_.payoff);
         QL_REQUIRE(payoff, "non-striked payoff given");
 
-        Real variance =
-            process_->blackVolatility()->blackVariance(
-                           arguments_.exercise->lastDate(), payoff->strike());
+        Real variance = process_->blackVolatility()->blackVariance(arguments_.exercise->lastDate(), payoff->strike());
 
-        DiscountFactor dividendDiscount =
-            process_->dividendYield()->discount(
-                                             arguments_.exercise->lastDate());
-        DiscountFactor riskFreeDiscount =
-            process_->riskFreeRate()->discount(arguments_.exercise->lastDate());
-        Rate drift = std::log(dividendDiscount/riskFreeDiscount)-0.5*variance;
+        DiscountFactor dividendDiscount = process_->dividendYield()->discount(arguments_.exercise->lastDate());
+        DiscountFactor riskFreeDiscount = process_->riskFreeRate()->discount(arguments_.exercise->lastDate());
+        Rate drift = std::log(dividendDiscount / riskFreeDiscount) - 0.5 * variance;
 
-        Integrand f(arguments_.payoff,
-                    process_->stateVariable()->value(),
-                    drift, variance);
+        Integrand f(arguments_.payoff, process_->stateVariable()->value(), drift, variance);
         SegmentIntegral integrator(5000);
 
-        Real infinity = 10.0*std::sqrt(variance);
-        results_.value =
-            process_->riskFreeRate()->discount(
-                                            arguments_.exercise->lastDate()) /
-            std::sqrt(2.0*M_PI*variance) *
-            integrator(f, drift-infinity, drift+infinity);
+        Real infinity = 10.0 * std::sqrt(variance);
+        results_.value = process_->riskFreeRate()->discount(arguments_.exercise->lastDate()) /
+                         std::sqrt(2.0 * M_PI * variance) * integrator(f, drift - infinity, drift + infinity);
     }
 
 }
-

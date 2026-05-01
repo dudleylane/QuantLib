@@ -27,7 +27,8 @@
 #include <ql/experimental/callablebonds/callablebond.hpp>
 #include <ql/experimental/callablebonds/callablebondvolstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Black-formula callable fixed rate bond engine
     /*! Callable fixed rate bond Black engine. The embedded (European)
@@ -40,12 +41,11 @@ namespace QuantLib {
 
         \ingroup bondengines
     */
-    class BlackCallableFixedRateBondEngine
-        : public CallableFixedRateBond::engine {
+    class BlackCallableFixedRateBondEngine : public CallableFixedRateBond::engine
+    {
       public:
         //! volatility is the quoted fwd yield volatility, not price vol
-        BlackCallableFixedRateBondEngine(const Handle<Quote>& fwdYieldVol,
-                                         Handle<YieldTermStructure> discountCurve);
+        BlackCallableFixedRateBondEngine(const Handle<Quote>& fwdYieldVol, Handle<YieldTermStructure> discountCurve);
         //! volatility is the quoted fwd yield volatility, not price vol
         BlackCallableFixedRateBondEngine(Handle<CallableBondVolatilityStructure> yieldVolStructure,
                                          Handle<YieldTermStructure> discountCurve);
@@ -71,20 +71,22 @@ namespace QuantLib {
 
         \ingroup bondengines
     */
-    class BlackCallableZeroCouponBondEngine :
-        public BlackCallableFixedRateBondEngine {
+    class BlackCallableZeroCouponBondEngine : public BlackCallableFixedRateBondEngine
+    {
       public:
         //! volatility is the quoted fwd yield volatility, not price vol
-        BlackCallableZeroCouponBondEngine(
-                              const Handle<Quote>& fwdYieldVol,
-                              const Handle<YieldTermStructure>& discountCurve)
-        : BlackCallableFixedRateBondEngine(fwdYieldVol, discountCurve) {}
+        BlackCallableZeroCouponBondEngine(const Handle<Quote>& fwdYieldVol,
+                                          const Handle<YieldTermStructure>& discountCurve)
+        : BlackCallableFixedRateBondEngine(fwdYieldVol, discountCurve)
+        {
+        }
 
         //! volatility is the quoted fwd yield volatility, not price vol
-        BlackCallableZeroCouponBondEngine(
-             const Handle<CallableBondVolatilityStructure>& yieldVolStructure,
-             const Handle<YieldTermStructure>& discountCurve)
-        : BlackCallableFixedRateBondEngine(yieldVolStructure, discountCurve) {}
+        BlackCallableZeroCouponBondEngine(const Handle<CallableBondVolatilityStructure>& yieldVolStructure,
+                                          const Handle<YieldTermStructure>& discountCurve)
+        : BlackCallableFixedRateBondEngine(yieldVolStructure, discountCurve)
+        {
+        }
     };
 
 }

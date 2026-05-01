@@ -17,8 +17,8 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
- /*! \file expm1.hpp
-    \brief complex versions of expm1 and logp1
+/*! \file expm1.hpp
+   \brief complex versions of expm1 and logp1
 */
 
 #ifndef quantlib_expm1_hpp
@@ -27,9 +27,9 @@
 #include <ql/types.hpp>
 #include <complex>
 
-namespace QuantLib {
+namespace QuantLib
+{
     std::complex<Real> expm1(const std::complex<Real>& z);
     std::complex<Real> log1p(const std::complex<Real>& z);
 }
 #endif
-

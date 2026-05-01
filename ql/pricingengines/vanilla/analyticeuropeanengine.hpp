@@ -29,7 +29,8 @@
 #include <ql/instruments/vanillaoption.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Pricing engine for European vanilla options using analytical formulae
     /*! \ingroup vanillaengines
@@ -58,7 +59,8 @@ namespace QuantLib {
           cash-or-nothing digital payoff is tested by reproducing
           numerical derivatives.
     */
-    class AnalyticEuropeanEngine : public VanillaOption::engine {
+    class AnalyticEuropeanEngine : public VanillaOption::engine
+    {
       public:
         /*! This constructor triggers the usual calculation, in which
             the risk-free rate in the given process is used for both

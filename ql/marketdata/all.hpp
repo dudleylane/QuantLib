@@ -3,4 +3,3 @@
 
 #include <ql/marketdata/csvquoteloader.hpp>
 #include <ql/marketdata/jsonquoteloader.hpp>
-

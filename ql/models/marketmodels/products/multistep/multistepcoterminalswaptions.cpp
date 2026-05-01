@@ -23,39 +23,37 @@
 #include <ql/models/marketmodels/utilities.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    MultiStepCoterminalSwaptions::MultiStepCoterminalSwaptions(
-        const std::vector<Time>& rateTimes,
-        const std::vector<Time>& paymentTimes,
-        std::vector<ext::shared_ptr<StrikedTypePayoff> > payoffs)
-    : MultiProductMultiStep(rateTimes), paymentTimes_(paymentTimes), payoffs_(std::move(payoffs)) {
+    MultiStepCoterminalSwaptions::MultiStepCoterminalSwaptions(const std::vector<Time>& rateTimes,
+                                                               const std::vector<Time>& paymentTimes,
+                                                               std::vector<ext::shared_ptr<StrikedTypePayoff>> payoffs)
+    : MultiProductMultiStep(rateTimes), paymentTimes_(paymentTimes), payoffs_(std::move(payoffs))
+    {
         checkIncreasingTimes(paymentTimes);
 
-        lastIndex_ = rateTimes.size()-1;
+        lastIndex_ = rateTimes.size() - 1;
     }
 
     bool MultiStepCoterminalSwaptions::nextTimeStep(
-            const CurveState& currentState,
-            std::vector<Size>& numberCashFlowsThisStep,
-            std::vector<std::vector<MarketModelMultiProduct::CashFlow> >&
-                                                               genCashFlows)
+        const CurveState& currentState,
+        std::vector<Size>& numberCashFlowsThisStep,
+        std::vector<std::vector<MarketModelMultiProduct::CashFlow>>& genCashFlows)
     {
         genCashFlows[currentIndex_][0].timeIndex = currentIndex_;
 
         Rate swapRate = currentState.coterminalSwapRate(currentIndex_);
         Real annuity = currentState.coterminalSwapAnnuity(currentIndex_, currentIndex_);
-        genCashFlows[currentIndex_][0].amount =
-            (*payoffs_[currentIndex_])(swapRate) * annuity;
-        std::fill(numberCashFlowsThisStep.begin(),
-                  numberCashFlowsThisStep.end(),0);
+        genCashFlows[currentIndex_][0].amount = (*payoffs_[currentIndex_])(swapRate)*annuity;
+        std::fill(numberCashFlowsThisStep.begin(), numberCashFlowsThisStep.end(), 0);
         numberCashFlowsThisStep[currentIndex_] = 1;
         ++currentIndex_;
         return (currentIndex_ == lastIndex_);
     }
 
-    std::unique_ptr<MarketModelMultiProduct>
-    MultiStepCoterminalSwaptions::clone() const {
+    std::unique_ptr<MarketModelMultiProduct> MultiStepCoterminalSwaptions::clone() const
+    {
         return std::unique_ptr<MarketModelMultiProduct>(new MultiStepCoterminalSwaptions(*this));
     }
 

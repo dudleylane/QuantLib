@@ -26,18 +26,19 @@
 #ifndef quantlib_spreaded_caplet_volstructure_h
 #define quantlib_spreaded_caplet_volstructure_h
 
-#include <ql/termstructures/volatility/optionlet/optionletvolatilitystructure.hpp>
 #include <ql/termstructures/volatility/optionlet/optionletstripper.hpp>
+#include <ql/termstructures/volatility/optionlet/optionletvolatilitystructure.hpp>
 #include <ql/termstructures/volatility/optionlet/strippedoptionletadapter.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Quote;
 
-    class SpreadedOptionletVolatility : public OptionletVolatilityStructure {
+    class SpreadedOptionletVolatility : public OptionletVolatilityStructure
+    {
       public:
-        SpreadedOptionletVolatility(const Handle<OptionletVolatilityStructure>&,
-                                    Handle<Quote> spread);
+        SpreadedOptionletVolatility(const Handle<OptionletVolatilityStructure>&, Handle<Quote> spread);
         // All virtual methods of base classes must be forwarded
         //! \name VolatilityTermStructure interface
         //@{
@@ -70,49 +71,58 @@ namespace QuantLib {
         const Handle<Quote> spread_;
     };
 
-    inline DayCounter SpreadedOptionletVolatility::dayCounter() const {
+    inline DayCounter SpreadedOptionletVolatility::dayCounter() const
+    {
         return baseVol_->dayCounter();
     }
-    
-    inline Date SpreadedOptionletVolatility::maxDate() const {
+
+    inline Date SpreadedOptionletVolatility::maxDate() const
+    {
         return baseVol_->maxDate();
     }
 
-    inline Time SpreadedOptionletVolatility::maxTime() const {
+    inline Time SpreadedOptionletVolatility::maxTime() const
+    {
         return baseVol_->maxTime();
     }
-        
-    inline const Date& SpreadedOptionletVolatility::referenceDate() const {
+
+    inline const Date& SpreadedOptionletVolatility::referenceDate() const
+    {
         return baseVol_->referenceDate();
     }
-        
-    inline Calendar SpreadedOptionletVolatility::calendar() const {
+
+    inline Calendar SpreadedOptionletVolatility::calendar() const
+    {
         return baseVol_->calendar();
     }
-        
-    inline Natural SpreadedOptionletVolatility::settlementDays() const {
+
+    inline Natural SpreadedOptionletVolatility::settlementDays() const
+    {
         return baseVol_->settlementDays();
     }
 
-    inline BusinessDayConvention
-    SpreadedOptionletVolatility::businessDayConvention() const {
+    inline BusinessDayConvention SpreadedOptionletVolatility::businessDayConvention() const
+    {
         return baseVol_->businessDayConvention();
     }
-    
-    inline Rate SpreadedOptionletVolatility::minStrike() const {
+
+    inline Rate SpreadedOptionletVolatility::minStrike() const
+    {
         return baseVol_->minStrike();
     }
-    
-    inline Rate SpreadedOptionletVolatility::maxStrike() const {
+
+    inline Rate SpreadedOptionletVolatility::maxStrike() const
+    {
         return baseVol_->maxStrike();
     }
 
-    inline VolatilityType
-    SpreadedOptionletVolatility::volatilityType() const {
+    inline VolatilityType SpreadedOptionletVolatility::volatilityType() const
+    {
         return baseVol_->volatilityType();
     }
 
-    inline Real SpreadedOptionletVolatility::displacement() const {
+    inline Real SpreadedOptionletVolatility::displacement() const
+    {
         return baseVol_->displacement();
     }
 }

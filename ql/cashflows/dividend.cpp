@@ -21,9 +21,11 @@
 #include <ql/cashflows/dividend.hpp>
 #include <ql/patterns/visitor.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    void Dividend::accept(AcyclicVisitor& v) {
+    void Dividend::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<Dividend>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);
@@ -31,24 +33,21 @@ namespace QuantLib {
             CashFlow::accept(v);
     }
 
-    std::vector<ext::shared_ptr<Dividend> >
-    DividendVector(const std::vector<Date>& dividendDates,
-                   const std::vector<Real>& dividends) {
+    std::vector<ext::shared_ptr<Dividend>> DividendVector(const std::vector<Date>& dividendDates,
+                                                          const std::vector<Real>& dividends)
+    {
 
-        QL_REQUIRE(dividendDates.size() == dividends.size(),
-                   "size mismatch between dividend dates and amounts");
+        QL_REQUIRE(dividendDates.size() == dividends.size(), "size mismatch between dividend dates and amounts");
 
         std::vector<Date>::const_iterator dd;
         std::vector<Real>::const_iterator d;
-        std::vector<ext::shared_ptr<Dividend> > items;
+        std::vector<ext::shared_ptr<Dividend>> items;
         items.reserve(dividendDates.size());
-        for (dd = dividendDates.begin(), d = dividends.begin();
-             dd != dividendDates.end(); ++dd, ++d) {
-            items.push_back(ext::shared_ptr<Dividend>(new
-                FixedDividend(*d, *dd)));
+        for (dd = dividendDates.begin(), d = dividends.begin(); dd != dividendDates.end(); ++dd, ++d)
+        {
+            items.push_back(ext::shared_ptr<Dividend>(new FixedDividend(*d, *dd)));
         }
         return items;
     }
 
 }
-

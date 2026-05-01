@@ -26,14 +26,15 @@
 #ifndef quantlib_fitted_bond_discount_curve_hpp
 #define quantlib_fitted_bond_discount_curve_hpp
 
-#include <ql/termstructures/yield/bondhelpers.hpp>
+#include <ql/math/array.hpp>
+#include <ql/math/optimization/constraint.hpp>
 #include <ql/math/optimization/method.hpp>
 #include <ql/patterns/lazyobject.hpp>
-#include <ql/math/array.hpp>
+#include <ql/termstructures/yield/bondhelpers.hpp>
 #include <ql/utilities/clone.hpp>
-#include <ql/math/optimization/constraint.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Discount curve fitted to a set of fixed-coupon bonds
     /*! This class fits a discount function \f$ d(t) \f$ over a set of
@@ -78,8 +79,8 @@ namespace QuantLib {
 
         \ingroup yieldtermstructures
     */
-    class FittedBondDiscountCurve : public YieldTermStructure,
-                                    public LazyObject {
+    class FittedBondDiscountCurve : public YieldTermStructure, public LazyObject
+    {
       public:
         class FittingMethod;
 
@@ -88,7 +89,7 @@ namespace QuantLib {
         //! reference date based on current evaluation date
         FittedBondDiscountCurve(Natural settlementDays,
                                 const Calendar& calendar,
-                                std::vector<ext::shared_ptr<BondHelper> > bonds,
+                                std::vector<ext::shared_ptr<BondHelper>> bonds,
                                 const DayCounter& dayCounter,
                                 const FittingMethod& fittingMethod,
                                 Real accuracy = 1.0e-10,
@@ -99,7 +100,7 @@ namespace QuantLib {
 
         //! curve reference date fixed for life of curve
         FittedBondDiscountCurve(const Date& referenceDate,
-                                std::vector<ext::shared_ptr<BondHelper> > bonds,
+                                std::vector<ext::shared_ptr<BondHelper>> bonds,
                                 const DayCounter& dayCounter,
                                 const FittingMethod& fittingMethod,
                                 Real accuracy = 1.0e-10,
@@ -160,7 +161,7 @@ namespace QuantLib {
         // a guess solution may be passed into the constructor to speed calcs
         Array guessSolution_;
         mutable Date maxDate_;
-        std::vector<ext::shared_ptr<BondHelper> > bondHelpers_;
+        std::vector<ext::shared_ptr<BondHelper>> bondHelpers_;
         Clone<FittingMethod> fittingMethod_;
     };
 
@@ -180,7 +181,7 @@ namespace QuantLib {
         or empty, then the bonds will be weighted by inverse duration
 
         An optional Array may be provided as an L2 regularizor in this case
-        a L2 (gaussian) penalty is applied to each parameter starting from the 
+        a L2 (gaussian) penalty is applied to each parameter starting from the
         initial guess. This is the same as giving a Gaussian prior on the parameters
 
         \todo derive the special-case class LinearFittingMethods from
@@ -200,10 +201,12 @@ namespace QuantLib {
                  depending on the fitting method used, in order to get
                  proper/reasonable/faster convergence.
     */
-    class FittedBondDiscountCurve::FittingMethod {
+    class FittedBondDiscountCurve::FittingMethod
+    {
         friend class FittedBondDiscountCurve;
         // internal class
         class FittingCost;
+
       public:
         virtual ~FittingMethod() = default;
         //! total number of coefficients to fit/solve for
@@ -230,12 +233,12 @@ namespace QuantLib {
         const Constraint& constraint() const;
         //! open discountFunction to public
         DiscountFactor discount(const Array& x, Time t) const;
+
       protected:
         //! constructors
         FittingMethod(bool constrainAtZero = true,
                       const Array& weights = Array(),
-                      ext::shared_ptr<OptimizationMethod> optimizationMethod =
-                          ext::shared_ptr<OptimizationMethod>(),
+                      ext::shared_ptr<OptimizationMethod> optimizationMethod = ext::shared_ptr<OptimizationMethod>(),
                       Array l2 = Array(),
                       Real minCutoffTime = 0.0,
                       Real maxCutoffTime = QL_MAX_REAL,
@@ -243,8 +246,7 @@ namespace QuantLib {
         //! rerun every time instruments/referenceDate changes
         virtual void init();
         //! discount function called by FittedBondDiscountCurve
-        virtual DiscountFactor discountFunction(const Array& x,
-                                                Time t) const = 0;
+        virtual DiscountFactor discountFunction(const Array& x, Time t) const = 0;
 
         //! constrains discount function to unity at \f$ T=0 \f$, if true
         bool constrainAtZero_;
@@ -259,6 +261,7 @@ namespace QuantLib {
         Array guessSolution_;
         //! base class sets this cost function used in the optimization routine
         ext::shared_ptr<FittingCost> costFunction_;
+
       private:
         // curve optimization called here- adjust optimization parameters here
         void calculate();
@@ -285,87 +288,103 @@ namespace QuantLib {
 
     // inline
 
-    inline Size FittedBondDiscountCurve::numberOfBonds() const {
+    inline Size FittedBondDiscountCurve::numberOfBonds() const
+    {
         return bondHelpers_.size();
     }
 
-    inline Date FittedBondDiscountCurve::maxDate() const {
+    inline Date FittedBondDiscountCurve::maxDate() const
+    {
         calculate();
         return maxDate_;
     }
 
-    inline const FittedBondDiscountCurve::FittingMethod&
-    FittedBondDiscountCurve::fitResults() const {
+    inline const FittedBondDiscountCurve::FittingMethod& FittedBondDiscountCurve::fitResults() const
+    {
         calculate();
         return *fittingMethod_;
     }
 
-    inline void FittedBondDiscountCurve::update() {
+    inline void FittedBondDiscountCurve::update()
+    {
         YieldTermStructure::update();
         LazyObject::update();
     }
 
-    inline void FittedBondDiscountCurve::setup() {
+    inline void FittedBondDiscountCurve::setup()
+    {
         for (auto& bondHelper : bondHelpers_)
             registerWith(bondHelper);
     }
 
-    inline DiscountFactor FittedBondDiscountCurve::discountImpl(Time t) const {
+    inline DiscountFactor FittedBondDiscountCurve::discountImpl(Time t) const
+    {
         calculate();
         return fittingMethod_->discount(fittingMethod_->solution_, t);
     }
 
-    inline Integer
-    FittedBondDiscountCurve::FittingMethod::numberOfIterations() const {
+    inline Integer FittedBondDiscountCurve::FittingMethod::numberOfIterations() const
+    {
         return numberOfIterations_;
     }
 
-    inline
-    Real FittedBondDiscountCurve::FittingMethod::minimumCostValue() const {
+    inline Real FittedBondDiscountCurve::FittingMethod::minimumCostValue() const
+    {
         return costValue_;
     }
 
-    inline 
-    EndCriteria::Type FittedBondDiscountCurve::FittingMethod::errorCode() const {
+    inline EndCriteria::Type FittedBondDiscountCurve::FittingMethod::errorCode() const
+    {
         return errorCode_;
     }
 
-    inline Array FittedBondDiscountCurve::FittingMethod::solution() const {
+    inline Array FittedBondDiscountCurve::FittingMethod::solution() const
+    {
         return solution_;
     }
-    
-    inline bool FittedBondDiscountCurve::FittingMethod::constrainAtZero() const {
+
+    inline bool FittedBondDiscountCurve::FittingMethod::constrainAtZero() const
+    {
         return constrainAtZero_;
     }
-    
-    inline Array FittedBondDiscountCurve::FittingMethod::weights() const {
+
+    inline Array FittedBondDiscountCurve::FittingMethod::weights() const
+    {
         return weights_;
     }
 
-    inline Array FittedBondDiscountCurve::FittingMethod::l2() const {
+    inline Array FittedBondDiscountCurve::FittingMethod::l2() const
+    {
         return l2_;
     }
 
-    inline ext::shared_ptr<OptimizationMethod> 
-    FittedBondDiscountCurve::FittingMethod::optimizationMethod() const {
+    inline ext::shared_ptr<OptimizationMethod> FittedBondDiscountCurve::FittingMethod::optimizationMethod() const
+    {
         return optimizationMethod_;
     }
 
-    inline const Constraint& FittedBondDiscountCurve::FittingMethod::constraint() const {
+    inline const Constraint& FittedBondDiscountCurve::FittingMethod::constraint() const
+    {
         return constraint_;
     }
 
-    inline DiscountFactor FittedBondDiscountCurve::FittingMethod::discount(const Array& x, Time t) const {
-        if (t < minCutoffTime_) {
+    inline DiscountFactor FittedBondDiscountCurve::FittingMethod::discount(const Array& x, Time t) const
+    {
+        if (t < minCutoffTime_)
+        {
             // flat fwd extrapolation before min cutoff time
             return std::exp(std::log(discountFunction(x, minCutoffTime_)) / minCutoffTime_ * t);
-        } else if (t > maxCutoffTime_) {
+        }
+        else if (t > maxCutoffTime_)
+        {
             // flat fwd extrapolation after max cutoff time
             return discountFunction(x, maxCutoffTime_) *
                    std::exp((std::log(discountFunction(x, maxCutoffTime_ + 1E-4)) -
                              std::log(discountFunction(x, maxCutoffTime_))) *
                             1E4 * (t - maxCutoffTime_));
-        } else {
+        }
+        else
+        {
             return discountFunction(x, t);
         }
     }

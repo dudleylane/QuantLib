@@ -26,30 +26,35 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #include <ql/pricingengines/blackscholescalculator.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
+    namespace
+    {
 
-        class Integrand {
-        public:
-          Integrand(ext::shared_ptr<StrikedTypePayoff> payoff,
-                    Real s0,
-                    Real t,
-                    Real riskFreeDiscount,
-                    Real dividendDiscount,
-                    Real sigma,
-                    Real nu,
-                    Real theta)
-          : payoff_(std::move(payoff)), s0_(s0), t_(t), riskFreeDiscount_(riskFreeDiscount),
-            dividendDiscount_(dividendDiscount), sigma_(sigma), nu_(nu), theta_(theta) {
-              omega_ = std::log(1.0 - theta_ * nu_ - (sigma_ * sigma_ * nu_) / 2.0) / nu_;
-              // We can precompute the denominator of the gamma pdf (does not depend on x)
-              // shape = t_/nu_, scale = nu_
-              GammaFunction gf;
-              gammaDenom_ = std::exp(gf.logValue(t_ / nu_)) * std::pow(nu_, t_ / nu_);
-          }
+        class Integrand
+        {
+          public:
+            Integrand(ext::shared_ptr<StrikedTypePayoff> payoff,
+                      Real s0,
+                      Real t,
+                      Real riskFreeDiscount,
+                      Real dividendDiscount,
+                      Real sigma,
+                      Real nu,
+                      Real theta)
+            : payoff_(std::move(payoff)), s0_(s0), t_(t), riskFreeDiscount_(riskFreeDiscount),
+              dividendDiscount_(dividendDiscount), sigma_(sigma), nu_(nu), theta_(theta)
+            {
+                omega_ = std::log(1.0 - theta_ * nu_ - (sigma_ * sigma_ * nu_) / 2.0) / nu_;
+                // We can precompute the denominator of the gamma pdf (does not depend on x)
+                // shape = t_/nu_, scale = nu_
+                GammaFunction gf;
+                gammaDenom_ = std::exp(gf.logValue(t_ / nu_)) * std::pow(nu_, t_ / nu_);
+            }
 
-            Real operator()(Real x) const {
+            Real operator()(Real x) const
+            {
                 // Compute adjusted black scholes price
                 Real s0_adj = s0_ * std::exp(theta_ * x + omega_ * t_ + (sigma_ * sigma_ * x) / 2.0);
                 Real vol_adj = sigma_ * std::sqrt(x / t_);
@@ -64,7 +69,7 @@ namespace QuantLib {
                 return result;
             }
 
-        private:
+          private:
             ext::shared_ptr<StrikedTypePayoff> payoff_;
             Real s0_;
             Real t_;
@@ -79,43 +84,37 @@ namespace QuantLib {
     }
 
 
-    VarianceGammaEngine::VarianceGammaEngine(ext::shared_ptr<VarianceGammaProcess> process,
-                                             Real absoluteError)
-    : process_(std::move(process)), absErr_(absoluteError) {
+    VarianceGammaEngine::VarianceGammaEngine(ext::shared_ptr<VarianceGammaProcess> process, Real absoluteError)
+    : process_(std::move(process)), absErr_(absoluteError)
+    {
         QL_REQUIRE(absErr_ > 0, "absolute error must be positive");
         registerWith(process_);
     }
 
-    void VarianceGammaEngine::calculate() const {
+    void VarianceGammaEngine::calculate() const
+    {
 
-        QL_REQUIRE(arguments_.exercise->type() == Exercise::European,
-            "not an European Option");
+        QL_REQUIRE(arguments_.exercise->type() == Exercise::European, "not an European Option");
 
-        ext::shared_ptr<StrikedTypePayoff> payoff =
-            ext::dynamic_pointer_cast<StrikedTypePayoff>(arguments_.payoff);
+        ext::shared_ptr<StrikedTypePayoff> payoff = ext::dynamic_pointer_cast<StrikedTypePayoff>(arguments_.payoff);
         QL_REQUIRE(payoff, "non-striked payoff given");
 
-        DiscountFactor dividendDiscount =
-            process_->dividendYield()->discount(
-            arguments_.exercise->lastDate());
-        DiscountFactor riskFreeDiscount =
-            process_->riskFreeRate()->discount(arguments_.exercise->lastDate());
+        DiscountFactor dividendDiscount = process_->dividendYield()->discount(arguments_.exercise->lastDate());
+        DiscountFactor riskFreeDiscount = process_->riskFreeRate()->discount(arguments_.exercise->lastDate());
 
-        DayCounter rfdc  = process_->riskFreeRate()->dayCounter();
-        Time t = rfdc.yearFraction(process_->riskFreeRate()->referenceDate(),
-            arguments_.exercise->lastDate());
+        DayCounter rfdc = process_->riskFreeRate()->dayCounter();
+        Time t = rfdc.yearFraction(process_->riskFreeRate()->referenceDate(), arguments_.exercise->lastDate());
 
-        Integrand f(payoff,
-            process_->x0(),
-            t, riskFreeDiscount, dividendDiscount,
-            process_->sigma(), process_->nu(), process_->theta());
+        Integrand f(payoff, process_->x0(), t, riskFreeDiscount, dividendDiscount, process_->sigma(), process_->nu(),
+                    process_->theta());
 
         Real infinity = 15.0 * std::sqrt(process_->nu() * t);
-        Real target = absErr_*1e-4;
+        Real target = absErr_ * 1e-4;
         Real val = f(infinity);
-        while (std::abs(val)>target){
-          infinity*=1.5;
-          val = f(infinity);
+        while (std::abs(val) > target)
+        {
+            infinity *= 1.5;
+            val = f(infinity);
         }
         // the integration is split due to occasional singularities at 0
         Real split = 0.1;

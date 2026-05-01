@@ -24,20 +24,20 @@
 #ifndef quantlib_term_structure_hpp
 #define quantlib_term_structure_hpp
 
-#include <ql/time/calendar.hpp>
-#include <ql/time/daycounter.hpp>
-#include <ql/settings.hpp>
 #include <ql/handle.hpp>
 #include <ql/math/comparison.hpp>
 #include <ql/math/interpolations/extrapolation.hpp>
+#include <ql/settings.hpp>
+#include <ql/time/calendar.hpp>
+#include <ql/time/daycounter.hpp>
 #include <ql/utilities/null.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Basic term-structure functionality
-    class TermStructure : public virtual Observer,
-                          public virtual Observable,
-                          public Extrapolator {
+    class TermStructure : public virtual Observer, public virtual Observable, public Extrapolator
+    {
       public:
         /*! \name Constructors
 
@@ -67,9 +67,7 @@ namespace QuantLib {
         */
         explicit TermStructure(DayCounter dc = DayCounter());
         //! initialize with a fixed reference date
-        explicit TermStructure(const Date& referenceDate,
-                               Calendar calendar = Calendar(),
-                               DayCounter dc = DayCounter());
+        explicit TermStructure(const Date& referenceDate, Calendar calendar = Calendar(), DayCounter dc = DayCounter());
         //! calculate the reference date based on the global evaluation date
         TermStructure(Natural settlementDays, Calendar, DayCounter dc = DayCounter());
         //@}
@@ -97,14 +95,13 @@ namespace QuantLib {
         //@}
       protected:
         //! date-range check
-        void checkRange(const Date& d,
-                        bool extrapolate) const;
+        void checkRange(const Date& d, bool extrapolate) const;
         //! time-range check
-        void checkRange(Time t,
-                        bool extrapolate) const;
+        void checkRange(Time t, bool extrapolate) const;
         bool moving_ = false;
         mutable bool updated_ = true;
         Calendar calendar_;
+
       private:
         mutable Date referenceDate_;
         Natural settlementDays_;
@@ -119,52 +116,51 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline DayCounter TermStructure::dayCounter() const {
+    inline DayCounter TermStructure::dayCounter() const
+    {
         return dayCounter_;
     }
 
-    inline Time TermStructure::maxTime() const {
-        if (!maxTimeUpdated_) {
+    inline Time TermStructure::maxTime() const
+    {
+        if (!maxTimeUpdated_)
+        {
             maxTime_ = timeFromReference(maxDate());
             maxTimeUpdated_ = true;
         }
         return maxTime_;
     }
 
-    inline void TermStructure::checkRange(const Date& d,
-                                          bool extrapolate) const {
-        QL_REQUIRE(d >= referenceDate(),
-                   "date (" << d << ") before reference date (" <<
-                   referenceDate() << ")");
+    inline void TermStructure::checkRange(const Date& d, bool extrapolate) const
+    {
+        QL_REQUIRE(d >= referenceDate(), "date (" << d << ") before reference date (" << referenceDate() << ")");
         if (extrapolate || allowsExtrapolation())
             return;
-        QL_REQUIRE(d <= maxDate(),
-                   "date (" << d << ") is past max curve date ("
-                            << maxDate() << ")");
+        QL_REQUIRE(d <= maxDate(), "date (" << d << ") is past max curve date (" << maxDate() << ")");
     }
 
-    inline void TermStructure::checkRange(Time t,
-                                          bool extrapolate) const {
-        QL_REQUIRE(t >= 0.0,
-                   "negative time (" << t << ") given");
+    inline void TermStructure::checkRange(Time t, bool extrapolate) const
+    {
+        QL_REQUIRE(t >= 0.0, "negative time (" << t << ") given");
         if (extrapolate || allowsExtrapolation())
             return;
         QL_REQUIRE(t <= maxTime() || close_enough(t, maxTime()),
-                   "time (" << t << ") is past max curve time ("
-                            << maxTime() << ")");
+                   "time (" << t << ") is past max curve time (" << maxTime() << ")");
     }
 
-    inline Calendar TermStructure::calendar() const {
+    inline Calendar TermStructure::calendar() const
+    {
         return calendar_;
     }
 
-    inline Natural TermStructure::settlementDays() const {
-        QL_REQUIRE(settlementDays_!=Null<Natural>(),
-                   "settlement days not provided for this instance");
+    inline Natural TermStructure::settlementDays() const
+    {
+        QL_REQUIRE(settlementDays_ != Null<Natural>(), "settlement days not provided for this instance");
         return settlementDays_;
     }
 
-    inline Time TermStructure::timeFromReference(const Date& d) const {
+    inline Time TermStructure::timeFromReference(const Date& d) const
+    {
         return dayCounter().yearFraction(referenceDate(), d);
     }
 

@@ -26,20 +26,22 @@
 
 #include <ql/instruments/payoffs.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Analytic formula for American exercise payoff at-expiry options
     /*! \todo calculate greeks */
-    class AmericanPayoffAtExpiry {
+    class AmericanPayoffAtExpiry
+    {
       public:
-        AmericanPayoffAtExpiry(
-                          Real spot,
-                          DiscountFactor discount,
-                          DiscountFactor dividendDiscount,
-                          Real variance,
-                          const ext::shared_ptr<StrikedTypePayoff>& payoff,
-                          bool knock_in = true);
+        AmericanPayoffAtExpiry(Real spot,
+                               DiscountFactor discount,
+                               DiscountFactor dividendDiscount,
+                               Real variance,
+                               const ext::shared_ptr<StrikedTypePayoff>& payoff,
+                               bool knock_in = true);
         Real value() const;
+
       private:
         Real spot_;
         DiscountFactor discount_, dividendDiscount_;
@@ -62,7 +64,8 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline Real AmericanPayoffAtExpiry::value() const {
+    inline Real AmericanPayoffAtExpiry::value() const
+    {
         return discount_ * K_ * (X_ * cum_d1_ + Y_ * cum_d2_);
     }
 

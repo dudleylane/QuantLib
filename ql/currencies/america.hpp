@@ -31,11 +31,12 @@
 #include <ql/currency.hpp>
 
 #if defined(QL_PATCH_MSVC)
-#pragma warning(push)
-#pragma warning(disable:4819)
+#    pragma warning(push)
+#    pragma warning(disable : 4819)
 #endif
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Argentinian peso
     /*! The ISO three-letter code is ARS; the numeric code is 32.
@@ -43,7 +44,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class ARSCurrency : public Currency {
+    class ARSCurrency : public Currency
+    {
       public:
         ARSCurrency();
     };
@@ -54,7 +56,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class BRLCurrency : public Currency {
+    class BRLCurrency : public Currency
+    {
       public:
         BRLCurrency();
     };
@@ -65,7 +68,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class CADCurrency : public Currency {
+    class CADCurrency : public Currency
+    {
       public:
         CADCurrency();
     };
@@ -76,7 +80,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class CLPCurrency : public Currency {
+    class CLPCurrency : public Currency
+    {
       public:
         CLPCurrency();
     };
@@ -87,7 +92,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class COPCurrency : public Currency {
+    class COPCurrency : public Currency
+    {
       public:
         COPCurrency();
     };
@@ -98,7 +104,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class MXNCurrency : public Currency {
+    class MXNCurrency : public Currency
+    {
       public:
         MXNCurrency();
     };
@@ -109,7 +116,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class PENCurrency : public Currency {
+    class PENCurrency : public Currency
+    {
       public:
         PENCurrency();
     };
@@ -123,7 +131,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class PEICurrency : public Currency {
+    class PEICurrency : public Currency
+    {
       public:
         PEICurrency();
     };
@@ -137,7 +146,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class PEHCurrency : public Currency {
+    class PEHCurrency : public Currency
+    {
       public:
         PEHCurrency();
     };
@@ -148,7 +158,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class TTDCurrency : public Currency {
+    class TTDCurrency : public Currency
+    {
       public:
         TTDCurrency();
     };
@@ -159,7 +170,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class USDCurrency : public Currency {
+    class USDCurrency : public Currency
+    {
       public:
         USDCurrency();
     };
@@ -170,7 +182,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class VEBCurrency : public Currency {
+    class VEBCurrency : public Currency
+    {
       public:
         VEBCurrency();
     };
@@ -179,7 +192,8 @@ namespace QuantLib {
      A unit of account used in Mexico.
      \ingroup currencies
     */
-    class MXVCurrency : public Currency {
+    class MXVCurrency : public Currency
+    {
       public:
         MXVCurrency();
     };
@@ -189,7 +203,8 @@ namespace QuantLib {
      A unit of account used in Colombia.
      \ingroup currencies
     */
-    class COUCurrency : public Currency {
+    class COUCurrency : public Currency
+    {
       public:
         COUCurrency();
     };
@@ -199,7 +214,8 @@ namespace QuantLib {
      A unit of account used in Chile.
      \ingroup currencies
      */
-    class CLFCurrency : public Currency {
+    class CLFCurrency : public Currency
+    {
       public:
         CLFCurrency();
     };
@@ -209,7 +225,8 @@ namespace QuantLib {
      A unit of account used in Uruguay.
      \ingroup currencies
      */
-    class UYUCurrency : public Currency {
+    class UYUCurrency : public Currency
+    {
       public:
         UYUCurrency();
     };
@@ -217,7 +234,7 @@ namespace QuantLib {
 }
 
 #if defined(QL_PATCH_MSVC)
-#pragma warning(pop)
+#    pragma warning(pop)
 #endif
 
 #endif

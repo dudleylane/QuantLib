@@ -17,22 +17,23 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/pricingengines/exotic/pagodaoption.hpp>
-#include <ql/instruments/payoffs.hpp>
 #include <ql/exercise.hpp>
+#include <ql/instruments/payoffs.hpp>
+#include <ql/pricingengines/exotic/pagodaoption.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    PagodaOption::PagodaOption(const std::vector<Date>& fixingDates,
-                               Real roof,
-                               Real fraction)
+    PagodaOption::PagodaOption(const std::vector<Date>& fixingDates, Real roof, Real fraction)
     : MultiAssetOption(ext::shared_ptr<Payoff>(new NullPayoff),
-                       ext::shared_ptr<Exercise>(
-                                   new EuropeanExercise(fixingDates.back()))),
-      fixingDates_(fixingDates), roof_(roof), fraction_(fraction) {}
+                       ext::shared_ptr<Exercise>(new EuropeanExercise(fixingDates.back()))),
+      fixingDates_(fixingDates), roof_(roof), fraction_(fraction)
+    {
+    }
 
 
-    void PagodaOption::setupArguments(PricingEngine::arguments* args) const {
+    void PagodaOption::setupArguments(PricingEngine::arguments* args) const
+    {
         MultiAssetOption::setupArguments(args);
 
         auto* arguments = dynamic_cast<PagodaOption::arguments*>(args);
@@ -44,10 +45,10 @@ namespace QuantLib {
     }
 
 
-    PagodaOption::arguments::arguments()
-    : roof(Null<Real>()), fraction(Null<Real>()) {}
+    PagodaOption::arguments::arguments() : roof(Null<Real>()), fraction(Null<Real>()) {}
 
-    void PagodaOption::arguments::validate() const {
+    void PagodaOption::arguments::validate() const
+    {
         MultiAssetOption::arguments::validate();
         QL_REQUIRE(!fixingDates.empty(), "no fixingDates given");
         QL_REQUIRE(roof != Null<Real>(), "no roof given");

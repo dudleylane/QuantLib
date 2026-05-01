@@ -29,7 +29,8 @@
 #include <ql/pricingengines/genericmodelengine.hpp>
 #include <ql/termstructures/volatility/swaption/swaptionvolstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! One factor model non standard swaption engine
     /*! \ingroup swaptionengines
@@ -51,37 +52,34 @@ namespace QuantLib {
     */
 
     class Gaussian1dNonstandardSwaptionEngine
-        : public BasketGeneratingEngine,
-          public GenericModelEngine<Gaussian1dModel,
-                                    NonstandardSwaption::arguments,
-                                    NonstandardSwaption::results> {
+    : public BasketGeneratingEngine,
+      public GenericModelEngine<Gaussian1dModel, NonstandardSwaption::arguments, NonstandardSwaption::results>
+    {
       public:
-        enum Probabilities {
+        enum Probabilities
+        {
             None,
             Naive,
             Digital
         };
 
         Gaussian1dNonstandardSwaptionEngine(
-            const ext::shared_ptr<Gaussian1dModel> &model,
-            const int integrationPoints = 64, const Real stddevs = 7.0,
+            const ext::shared_ptr<Gaussian1dModel>& model,
+            const int integrationPoints = 64,
+            const Real stddevs = 7.0,
             const bool extrapolatePayoff = true,
             const bool flatPayoffExtrapolation = false,
-            const Handle<Quote> &oas = Handle<Quote>(), // continuously
+            const Handle<Quote>& oas = Handle<Quote>(), // continuously
                                                         // compounded w.r.t. yts
                                                         // daycounter
-            const Handle<YieldTermStructure> &discountCurve =
-                Handle<YieldTermStructure>(),
+            const Handle<YieldTermStructure>& discountCurve = Handle<YieldTermStructure>(),
             const Probabilities probabilities = None)
-            : BasketGeneratingEngine(model, oas, discountCurve),
-              GenericModelEngine<Gaussian1dModel,
-                                 NonstandardSwaption::arguments,
-                                 NonstandardSwaption::results>(model),
-              integrationPoints_(integrationPoints), stddevs_(stddevs),
-              extrapolatePayoff_(extrapolatePayoff),
-              flatPayoffExtrapolation_(flatPayoffExtrapolation),
-              discountCurve_(discountCurve), oas_(oas),
-              probabilities_(probabilities) {
+        : BasketGeneratingEngine(model, oas, discountCurve),
+          GenericModelEngine<Gaussian1dModel, NonstandardSwaption::arguments, NonstandardSwaption::results>(model),
+          integrationPoints_(integrationPoints), stddevs_(stddevs), extrapolatePayoff_(extrapolatePayoff),
+          flatPayoffExtrapolation_(flatPayoffExtrapolation), discountCurve_(discountCurve), oas_(oas),
+          probabilities_(probabilities)
+        {
 
             if (!oas_.empty())
                 registerWith(oas_);
@@ -91,25 +89,22 @@ namespace QuantLib {
         }
 
         Gaussian1dNonstandardSwaptionEngine(
-            const Handle<Gaussian1dModel> &model,
-            const int integrationPoints = 64, const Real stddevs = 7.0,
+            const Handle<Gaussian1dModel>& model,
+            const int integrationPoints = 64,
+            const Real stddevs = 7.0,
             const bool extrapolatePayoff = true,
             const bool flatPayoffExtrapolation = false,
-            const Handle<Quote> &oas = Handle<Quote>(), // continuously
+            const Handle<Quote>& oas = Handle<Quote>(), // continuously
                                                         // compounded w.r.t. yts
                                                         // daycounter
-            const Handle<YieldTermStructure> &discountCurve =
-                Handle<YieldTermStructure>(),
+            const Handle<YieldTermStructure>& discountCurve = Handle<YieldTermStructure>(),
             const Probabilities probabilities = None)
-            : BasketGeneratingEngine(model, oas, discountCurve),
-              GenericModelEngine<Gaussian1dModel,
-                                 NonstandardSwaption::arguments,
-                                 NonstandardSwaption::results>(model),
-              integrationPoints_(integrationPoints), stddevs_(stddevs),
-              extrapolatePayoff_(extrapolatePayoff),
-              flatPayoffExtrapolation_(flatPayoffExtrapolation),
-              discountCurve_(discountCurve), oas_(oas),
-              probabilities_(probabilities) {
+        : BasketGeneratingEngine(model, oas, discountCurve),
+          GenericModelEngine<Gaussian1dModel, NonstandardSwaption::arguments, NonstandardSwaption::results>(model),
+          integrationPoints_(integrationPoints), stddevs_(stddevs), extrapolatePayoff_(extrapolatePayoff),
+          flatPayoffExtrapolation_(flatPayoffExtrapolation), discountCurve_(discountCurve), oas_(oas),
+          probabilities_(probabilities)
+        {
 
             if (!oas_.empty())
                 registerWith(oas_);

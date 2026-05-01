@@ -24,11 +24,12 @@
 #ifndef quantlib_instruments_inflationcapfloor_hpp
 #define quantlib_instruments_inflationcapfloor_hpp
 
-#include <ql/instrument.hpp>
 #include <ql/cashflows/yoyinflationcoupon.hpp>
 #include <ql/handle.hpp>
+#include <ql/instrument.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class YieldTermStructure;
 
@@ -52,15 +53,18 @@ namespace QuantLib {
         - the correctness of the returned value is tested by checking
           it against a known good value.
      */
-    class YoYInflationCapFloor : public Instrument {
+    class YoYInflationCapFloor : public Instrument
+    {
       public:
-        enum Type { Cap, Floor, Collar };
+        enum Type
+        {
+            Cap,
+            Floor,
+            Collar
+        };
         class arguments;
         class engine;
-        YoYInflationCapFloor(Type type,
-                             Leg yoyLeg,
-                             std::vector<Rate> capRates,
-                             std::vector<Rate> floorRates);
+        YoYInflationCapFloor(Type type, Leg yoyLeg, std::vector<Rate> capRates, std::vector<Rate> floorRates);
         YoYInflationCapFloor(Type type, Leg yoyLeg, const std::vector<Rate>& strikes);
         //! \name Instrument interface
         //@{
@@ -82,14 +86,14 @@ namespace QuantLib {
         //@}
         virtual Rate atmRate(const YieldTermStructure& discountCurve) const;
         //! implied term volatility
-        virtual Volatility impliedVolatility(
-                            Real price,
-                            const Handle<YoYInflationTermStructure>& yoyCurve,
-                            Volatility guess,
-                            Real accuracy = 1.0e-4,
-                            Natural maxEvaluations = 100,
-                            Volatility minVol = 1.0e-7,
-                            Volatility maxVol = 4.0) const;
+        virtual Volatility impliedVolatility(Real price,
+                                             const Handle<YoYInflationTermStructure>& yoyCurve,
+                                             Volatility guess,
+                                             Real accuracy = 1.0e-4,
+                                             Natural maxEvaluations = 100,
+                                             Volatility minVol = 1.0e-7,
+                                             Volatility maxVol = 4.0) const;
+
       private:
         Type type_;
         Leg yoyLeg_;
@@ -99,39 +103,41 @@ namespace QuantLib {
 
     //! Concrete YoY Inflation cap class
     /*! \ingroup instruments */
-    class YoYInflationCap : public YoYInflationCapFloor {
+    class YoYInflationCap : public YoYInflationCapFloor
+    {
       public:
-        YoYInflationCap(const Leg& yoyLeg,
-            const std::vector<Rate>& exerciseRates)
-        : YoYInflationCapFloor(YoYInflationCapFloor::Cap, yoyLeg,
-                   exerciseRates, std::vector<Rate>()) {}
+        YoYInflationCap(const Leg& yoyLeg, const std::vector<Rate>& exerciseRates)
+        : YoYInflationCapFloor(YoYInflationCapFloor::Cap, yoyLeg, exerciseRates, std::vector<Rate>())
+        {
+        }
     };
 
     //! Concrete YoY Inflation floor class
     /*! \ingroup instruments */
-    class YoYInflationFloor : public YoYInflationCapFloor {
+    class YoYInflationFloor : public YoYInflationCapFloor
+    {
       public:
-        YoYInflationFloor(const Leg& yoyLeg,
-              const std::vector<Rate>& exerciseRates)
-        : YoYInflationCapFloor(YoYInflationCapFloor::Floor, yoyLeg,
-                   std::vector<Rate>(), exerciseRates) {}
+        YoYInflationFloor(const Leg& yoyLeg, const std::vector<Rate>& exerciseRates)
+        : YoYInflationCapFloor(YoYInflationCapFloor::Floor, yoyLeg, std::vector<Rate>(), exerciseRates)
+        {
+        }
     };
 
     //! Concrete YoY Inflation collar class
     /*! \ingroup instruments */
-    class YoYInflationCollar : public YoYInflationCapFloor {
+    class YoYInflationCollar : public YoYInflationCapFloor
+    {
       public:
-        YoYInflationCollar(const Leg& yoyLeg,
-               const std::vector<Rate>& capRates,
-               const std::vector<Rate>& floorRates)
-        : YoYInflationCapFloor(YoYInflationCapFloor::Collar, yoyLeg,
-                               capRates, floorRates) {}
+        YoYInflationCollar(const Leg& yoyLeg, const std::vector<Rate>& capRates, const std::vector<Rate>& floorRates)
+        : YoYInflationCapFloor(YoYInflationCapFloor::Collar, yoyLeg, capRates, floorRates)
+        {
+        }
     };
 
 
     //! %Arguments for YoY Inflation cap/floor calculation
-    class YoYInflationCapFloor::arguments
-        : public virtual PricingEngine::arguments {
+    class YoYInflationCapFloor::arguments : public virtual PricingEngine::arguments
+    {
       public:
         arguments() : type(YoYInflationCapFloor::Type(-1)) {}
         YoYInflationCapFloor::Type type;
@@ -151,23 +157,19 @@ namespace QuantLib {
 
     //! base class for cap/floor engines
     class YoYInflationCapFloor::engine
-    : public GenericEngine<YoYInflationCapFloor::arguments,
-                           YoYInflationCapFloor::results> {};
+    : public GenericEngine<YoYInflationCapFloor::arguments, YoYInflationCapFloor::results>
+    {
+    };
 
     std::ostream& operator<<(std::ostream&, YoYInflationCapFloor::Type);
 
     // inline
 
     inline Volatility YoYInflationCapFloor::impliedVolatility(
-                            Real,
-                            const Handle<YoYInflationTermStructure>&,
-                            Volatility,
-                            Real,
-                            Natural,
-                            Volatility,
-                            Volatility) const {
-            QL_FAIL("not implemented yet");
-        }
+        Real, const Handle<YoYInflationTermStructure>&, Volatility, Real, Natural, Volatility, Volatility) const
+    {
+        QL_FAIL("not implemented yet");
+    }
 
 }
 

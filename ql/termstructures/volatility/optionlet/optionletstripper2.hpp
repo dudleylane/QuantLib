@@ -27,7 +27,8 @@
 
 #include <ql/termstructures/volatility/optionlet/optionletstripper.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class CapFloorTermVolCurve;
     class OptionletStripper1;
@@ -39,12 +40,12 @@ namespace QuantLib {
         forward-forward volatilities) from the (cap/floor) At-The-Money
         term volatilities of a CapFloorTermVolCurve.
     */
-    class OptionletStripper2 : public OptionletStripper {
+    class OptionletStripper2 : public OptionletStripper
+    {
       public:
         // Handle or just shared_ptr ??
-        OptionletStripper2(
-            const ext::shared_ptr<OptionletStripper1>& optionletStripper1,
-            const Handle<CapFloorTermVolCurve>& atmCapFloorTermVolCurve);
+        OptionletStripper2(const ext::shared_ptr<OptionletStripper1>& optionletStripper1,
+                           const Handle<CapFloorTermVolCurve>& atmCapFloorTermVolCurve);
 
         std::vector<Rate> atmCapFloorStrikes() const;
         std::vector<Real> atmCapFloorPrices() const;
@@ -58,12 +59,12 @@ namespace QuantLib {
       private:
         std::vector<Volatility> spreadsVolImplied() const;
 
-        class ObjectiveFunction {
+        class ObjectiveFunction
+        {
           public:
-            ObjectiveFunction(const ext::shared_ptr<OptionletStripper1>&,
-                              ext::shared_ptr<CapFloor>,
-                              Real targetValue);
+            ObjectiveFunction(const ext::shared_ptr<OptionletStripper1>&, ext::shared_ptr<CapFloor>, Real targetValue);
             Real operator()(Volatility spreadVol) const;
+
           private:
             ext::shared_ptr<SimpleQuote> spreadQuote_;
             ext::shared_ptr<CapFloor> cap_;
@@ -77,7 +78,7 @@ namespace QuantLib {
         mutable std::vector<Rate> atmCapFloorStrikes_;
         mutable std::vector<Real> atmCapFloorPrices_;
         mutable std::vector<Volatility> spreadsVolImplied_;
-        mutable std::vector<ext::shared_ptr<CapFloor> > caps_;
+        mutable std::vector<ext::shared_ptr<CapFloor>> caps_;
         Size maxEvaluations_ = 10000;
         Real accuracy_ = 1.e-6;
     };

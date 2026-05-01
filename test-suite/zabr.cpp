@@ -31,7 +31,8 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(ZabrTests)
 
-BOOST_AUTO_TEST_CASE(testConsistency, *precondition(if_speed(Slow))) {
+BOOST_AUTO_TEST_CASE(testConsistency, *precondition(if_speed(Slow)))
+{
     BOOST_TEST_MESSAGE("Testing the consistency of ZABR interpolation...");
 
     Real tol = 1E-4;
@@ -43,26 +44,21 @@ BOOST_AUTO_TEST_CASE(testConsistency, *precondition(if_speed(Slow))) {
     Real tau = 5.0;
     Real forward = 0.03;
 
-    SabrSmileSection sabr(tau, forward,
-                          {alpha, beta, nu, rho});
+    SabrSmileSection sabr(tau, forward, {alpha, beta, nu, rho});
 
-    ZabrSmileSection<ZabrShortMaturityLognormal> zabr0(tau, forward,
-                                                       {alpha, beta, nu, rho, 1.0});
+    ZabrSmileSection<ZabrShortMaturityLognormal> zabr0(tau, forward, {alpha, beta, nu, rho, 1.0});
 
-    ZabrSmileSection<ZabrShortMaturityNormal> zabr1(tau, forward,
-                                                    {alpha, beta, nu, rho, 1.0});
+    ZabrSmileSection<ZabrShortMaturityNormal> zabr1(tau, forward, {alpha, beta, nu, rho, 1.0});
 
-    ZabrSmileSection<ZabrLocalVolatility> zabr2(tau, forward,
-                                                {alpha, beta, nu, rho, 1.0});
+    ZabrSmileSection<ZabrLocalVolatility> zabr2(tau, forward, {alpha, beta, nu, rho, 1.0});
 
     // for full finite prices reduce the number of intermediate points here
     // below the recommended value to speed up the test
-    ZabrSmileSection<ZabrFullFd> zabr3(tau, forward,
-                                       {alpha, beta, nu, rho, 1.0},
-                                       std::vector<Real>(), 2);
+    ZabrSmileSection<ZabrFullFd> zabr3(tau, forward, {alpha, beta, nu, rho, 1.0}, std::vector<Real>(), 2);
 
     Real k = 0.0001;
-    while (k <= 0.70) {
+    while (k <= 0.70)
+    {
         Real c0 = sabr.optionPrice(k);
         Real z0 = zabr0.optionPrice(k);
         Real z1 = zabr1.optionPrice(k);
@@ -70,24 +66,32 @@ BOOST_AUTO_TEST_CASE(testConsistency, *precondition(if_speed(Slow))) {
         Real z3 = zabr3.optionPrice(k);
         if (std::fabs(z0 - c0) > tol)
             BOOST_ERROR("Zabr short maturity lognormal expansion price "
-                          "("
-                          << z0 << ") deviates from Sabr Hagan 2002 price "
-                                   "by " << (z0 - c0));
+                        "("
+                        << z0
+                        << ") deviates from Sabr Hagan 2002 price "
+                           "by "
+                        << (z0 - c0));
         if (std::fabs(z1 - c0) > tol)
             BOOST_ERROR("Zabr short maturity normal expansion price "
-                          "("
-                          << z1 << ") deviates from Sabr Hagan 2002 price "
-                                   "by " << (z1 - c0));
+                        "("
+                        << z1
+                        << ") deviates from Sabr Hagan 2002 price "
+                           "by "
+                        << (z1 - c0));
         if (std::fabs(z2 - c0) > tol)
             BOOST_ERROR("Zabr local volatility price "
-                          "("
-                          << z2 << ") deviates from Sabr Hagan 2002 price "
-                                   "by " << (z2 - c0));
+                        "("
+                        << z2
+                        << ") deviates from Sabr Hagan 2002 price "
+                           "by "
+                        << (z2 - c0));
         if (std::fabs(z3 - c0) > tol)
             BOOST_ERROR("Zabr full finite difference price "
-                          "("
-                          << z3 << ") deviates from Sabr Hagan 2002 price "
-                                   "by " << (z3 - c0));
+                        "("
+                        << z3
+                        << ") deviates from Sabr Hagan 2002 price "
+                           "by "
+                        << (z3 - c0));
         k += 0.0001;
     }
 }

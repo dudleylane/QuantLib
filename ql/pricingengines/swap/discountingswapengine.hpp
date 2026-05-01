@@ -25,28 +25,28 @@
 #ifndef quantlib_discounting_swap_engine_hpp
 #define quantlib_discounting_swap_engine_hpp
 
-#include <ql/instruments/swap.hpp>
-#include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/handle.hpp>
+#include <ql/instruments/swap.hpp>
 #include <ql/optional.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Discounting engine for swaps
     /*! This engine discounts future swap cashflows to the reference
         date of the discount curve.
     */
-    class DiscountingSwapEngine : public Swap::engine {
+    class DiscountingSwapEngine : public Swap::engine
+    {
       public:
-        DiscountingSwapEngine(
-            Handle<YieldTermStructure> discountCurve = Handle<YieldTermStructure>(),
-            const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
-            Date settlementDate = Date(),
-            Date npvDate = Date());
+        DiscountingSwapEngine(Handle<YieldTermStructure> discountCurve = Handle<YieldTermStructure>(),
+                              const ext::optional<bool>& includeSettlementDateFlows = ext::nullopt,
+                              Date settlementDate = Date(),
+                              Date npvDate = Date());
         void calculate() const override;
-        Handle<YieldTermStructure> discountCurve() const {
-            return discountCurve_;
-        }
+        Handle<YieldTermStructure> discountCurve() const { return discountCurve_; }
+
       private:
         Handle<YieldTermStructure> discountCurve_;
         ext::optional<bool> includeSettlementDateFlows_;

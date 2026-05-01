@@ -9,4 +9,3 @@
 #include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/math/distributions/poissondistribution.hpp>
 #include <ql/math/distributions/studenttdistribution.hpp>
-

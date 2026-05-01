@@ -27,23 +27,30 @@
 #include <ql/instrument.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Payoff;
     class Exercise;
 
     //! base option class
-    class Option : public Instrument {
+    class Option : public Instrument
+    {
       public:
         class arguments;
-        enum Type { Put = -1,
-                    Call = 1
+        enum Type
+        {
+            Put = -1,
+            Call = 1
         };
         Option(ext::shared_ptr<Payoff> payoff, ext::shared_ptr<Exercise> exercise)
-        : payoff_(std::move(payoff)), exercise_(std::move(exercise)) {}
+        : payoff_(std::move(payoff)), exercise_(std::move(exercise))
+        {
+        }
         void setupArguments(PricingEngine::arguments*) const override;
         ext::shared_ptr<Payoff> payoff() const { return payoff_; }
         ext::shared_ptr<Exercise> exercise() const { return exercise_; }
+
       protected:
         // arguments
         ext::shared_ptr<Payoff> payoff_;
@@ -54,10 +61,12 @@ namespace QuantLib {
     std::ostream& operator<<(std::ostream&, Option::Type);
 
     //! basic %option %arguments
-    class Option::arguments : public virtual PricingEngine::arguments {
+    class Option::arguments : public virtual PricingEngine::arguments
+    {
       public:
         arguments() = default;
-        void validate() const override {
+        void validate() const override
+        {
             QL_REQUIRE(payoff, "no payoff given");
             QL_REQUIRE(exercise, "no exercise given");
         }
@@ -66,7 +75,8 @@ namespace QuantLib {
     };
 
     //! additional %option results
-    class Greeks : public virtual PricingEngine::results {
+    class Greeks : public virtual PricingEngine::results
+    {
       public:
         void reset() override { delta = gamma = theta = vega = rho = dividendRho = Null<Real>(); }
         Real delta, gamma;
@@ -76,20 +86,21 @@ namespace QuantLib {
     };
 
     //! more additional %option results
-    class MoreGreeks : public virtual PricingEngine::results {
+    class MoreGreeks : public virtual PricingEngine::results
+    {
       public:
-        void reset() override {
-            itmCashProbability = deltaForward = elasticity = thetaPerDay =
-                strikeSensitivity = Null<Real>();
+        void reset() override
+        {
+            itmCashProbability = deltaForward = elasticity = thetaPerDay = strikeSensitivity = Null<Real>();
         }
-        Real itmCashProbability, deltaForward, elasticity, thetaPerDay,
-             strikeSensitivity;
+        Real itmCashProbability, deltaForward, elasticity, thetaPerDay, strikeSensitivity;
     };
 
 
     // inline definitions
 
-    inline void Option::setupArguments(PricingEngine::arguments* args) const {
+    inline void Option::setupArguments(PricingEngine::arguments* args) const
+    {
         auto* arguments = dynamic_cast<Option::arguments*>(args);
         QL_REQUIRE(arguments != nullptr, "wrong argument type");
 
@@ -97,14 +108,16 @@ namespace QuantLib {
         arguments->exercise = exercise_;
     }
 
-    inline std::ostream& operator<<(std::ostream& out, Option::Type type) {
-        switch (type) {
-          case Option::Call:
-            return out << "Call";
-          case Option::Put:
-            return out << "Put";
-          default:
-            QL_FAIL("unknown option type");
+    inline std::ostream& operator<<(std::ostream& out, Option::Type type)
+    {
+        switch (type)
+        {
+            case Option::Call:
+                return out << "Call";
+            case Option::Put:
+                return out << "Put";
+            default:
+                QL_FAIL("unknown option type");
         }
     }
 

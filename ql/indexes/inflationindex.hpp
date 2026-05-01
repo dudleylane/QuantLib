@@ -31,21 +31,24 @@
 #include <ql/indexes/region.hpp>
 #include <ql/termstructures/inflationtermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class ZeroInflationIndex;
     class YoYInflationIndex;
 
-    struct CPI {
+    struct CPI
+    {
 
         //! when you observe an index, how do you interpolate between fixings?
         /*! AsIndex was used to facilitate migration from the index to
             the coupons using it.  Deprecated in version 1.43.
         */
-        enum InterpolationType {
+        enum InterpolationType
+        {
             AsIndex [[deprecated("Use either Linear or Flat")]] = 0, //!< same interpolation as index
-            Flat = 1,    //!< flat from previous fixing
-            Linear = 2   //!< linearly between bracketing fixings
+            Flat = 1,                                                //!< flat from previous fixing
+            Linear = 2                                               //!< linearly between bracketing fixings
         };
 
         //! interpolated inflation fixing
@@ -84,7 +87,8 @@ namespace QuantLib {
 
 
     //! Base class for inflation-rate indexes,
-    class InflationIndex : public Index {
+    class InflationIndex : public Index
+    {
       public:
         InflationIndex(std::string familyName,
                        Region region,
@@ -153,16 +157,16 @@ namespace QuantLib {
 
 
     //! Base class for zero inflation indices.
-    class ZeroInflationIndex : public InflationIndex {
+    class ZeroInflationIndex : public InflationIndex
+    {
       public:
-        ZeroInflationIndex(
-            const std::string& familyName,
-            const Region& region,
-            bool revised,
-            Frequency frequency,
-            const Period& availabilityLag,
-            const Currency& currency,
-            Handle<ZeroInflationTermStructure> ts = {});
+        ZeroInflationIndex(const std::string& familyName,
+                           const Region& region,
+                           bool revised,
+                           Frequency frequency,
+                           const Period& availabilityLag,
+                           const Currency& currency,
+                           Handle<ZeroInflationTermStructure> ts = {});
 
         //! \name Index interface
         //@{
@@ -189,7 +193,8 @@ namespace QuantLib {
     /*! These may be quoted indices published on, say, Bloomberg, or can be
         defined as the ratio of an index at different time points.
     */
-    class YoYInflationIndex : public InflationIndex {
+    class YoYInflationIndex : public InflationIndex
+    {
       public:
         //! \name Constructors
         //@{
@@ -198,23 +203,21 @@ namespace QuantLib {
             past fixings of its own; they will be calculated as a
             ratio from the past fixings stored in the underlying index.
         */
-        explicit YoYInflationIndex(
-            const ext::shared_ptr<ZeroInflationIndex>& underlyingIndex,
-            Handle<YoYInflationTermStructure> ts = {});
+        explicit YoYInflationIndex(const ext::shared_ptr<ZeroInflationIndex>& underlyingIndex,
+                                   Handle<YoYInflationTermStructure> ts = {});
 
         //! Constructor for quoted year-on-year indices.
         /*! An index built with this constructor needs its past
             fixings (i.e., the past year-on-year values) to be stored
             via the `addFixing` or `addFixings` method.
         */
-        YoYInflationIndex(
-            const std::string& familyName,
-            const Region& region,
-            bool revised,
-            Frequency frequency,
-            const Period& availabilityLag,
-            const Currency& currency,
-            Handle<YoYInflationTermStructure> ts = {});
+        YoYInflationIndex(const std::string& familyName,
+                          const Region& region,
+                          bool revised,
+                          Frequency frequency,
+                          const Period& availabilityLag,
+                          const Currency& currency,
+                          Handle<YoYInflationTermStructure> ts = {});
 
         QL_DEPRECATED_DISABLE_WARNING
         ~YoYInflationIndex() override = default;
@@ -260,16 +263,15 @@ namespace QuantLib {
     };
 
 
-    namespace detail::CPI {
+    namespace detail::CPI
+    {
 
         // Returns either CPI::Flat or CPI::Linear depending on the combination of index and
         // CPI::InterpolationType.
-        QuantLib::CPI::InterpolationType
-        effectiveInterpolationType(const QuantLib::CPI::InterpolationType& type);
+        QuantLib::CPI::InterpolationType effectiveInterpolationType(const QuantLib::CPI::InterpolationType& type);
 
-        QuantLib::CPI::InterpolationType
-        effectiveInterpolationType(const QuantLib::CPI::InterpolationType& type,
-                                   const ext::shared_ptr<YoYInflationIndex>& index);
+        QuantLib::CPI::InterpolationType effectiveInterpolationType(const QuantLib::CPI::InterpolationType& type,
+                                                                    const ext::shared_ptr<YoYInflationIndex>& index);
 
         // checks whether the combination of index and CPI::InterpolationType results
         // effectively in CPI::Linear
@@ -283,55 +285,65 @@ namespace QuantLib {
 
     // inline
 
-    inline std::string InflationIndex::name() const {
+    inline std::string InflationIndex::name() const
+    {
         return name_;
     }
 
-    inline std::string InflationIndex::familyName() const {
+    inline std::string InflationIndex::familyName() const
+    {
         return familyName_;
     }
 
-    inline Region InflationIndex::region() const {
+    inline Region InflationIndex::region() const
+    {
         return region_;
     }
 
-    inline bool InflationIndex::revised() const {
+    inline bool InflationIndex::revised() const
+    {
         return revised_;
     }
 
-    inline Frequency InflationIndex::frequency() const {
+    inline Frequency InflationIndex::frequency() const
+    {
         return frequency_;
     }
 
-    inline Period InflationIndex::availabilityLag() const {
+    inline Period InflationIndex::availabilityLag() const
+    {
         return availabilityLag_;
     }
 
-    inline Currency InflationIndex::currency() const {
+    inline Currency InflationIndex::currency() const
+    {
         return currency_;
     }
 
-    inline Handle<ZeroInflationTermStructure>
-    ZeroInflationIndex::zeroInflationTermStructure() const {
+    inline Handle<ZeroInflationTermStructure> ZeroInflationIndex::zeroInflationTermStructure() const
+    {
         return zeroInflation_;
     }
 
     QL_DEPRECATED_DISABLE_WARNING
-    inline bool YoYInflationIndex::interpolated() const {
+    inline bool YoYInflationIndex::interpolated() const
+    {
         return interpolated_;
     }
     QL_DEPRECATED_ENABLE_WARNING
 
-    inline bool YoYInflationIndex::ratio() const {
+    inline bool YoYInflationIndex::ratio() const
+    {
         return ratio_;
     }
 
-    inline ext::shared_ptr<ZeroInflationIndex> YoYInflationIndex::underlyingIndex() const {
+    inline ext::shared_ptr<ZeroInflationIndex> YoYInflationIndex::underlyingIndex() const
+    {
         return underlyingIndex_;
     }
 
-    inline Handle<YoYInflationTermStructure>
-    YoYInflationIndex::yoyInflationTermStructure() const {
+    inline Handle<YoYInflationTermStructure> YoYInflationIndex::yoyInflationTermStructure() const
+    {
         return yoyInflation_;
     }
 

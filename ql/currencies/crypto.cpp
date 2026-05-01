@@ -24,71 +24,79 @@
 
 #include <ql/currencies/crypto.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     // Bitcoin
     /* https://bitcoin.org/
-    */
-    BTCCurrency::BTCCurrency() {
+     */
+    BTCCurrency::BTCCurrency()
+    {
         static auto btcData = ext::make_shared<Data>("Bitcoin", "BTC", 10000, "BTC", "", 100000, Rounding());
         data_ = btcData;
     }
 
     //! Ethereum
     /*! https://www.ethereum.org/
-    */
-    ETHCurrency::ETHCurrency() {
+     */
+    ETHCurrency::ETHCurrency()
+    {
         static auto ethData = ext::make_shared<Data>("Ethereum", "ETH", 10001, "ETH", "", 100000, Rounding());
         data_ = ethData;
     }
 
     //! Ethereum Classic
     /*! https://ethereumclassic.github.io/
-    */
-    ETCCurrency::ETCCurrency() {
+     */
+    ETCCurrency::ETCCurrency()
+    {
         static auto etcData = ext::make_shared<Data>("Ethereum Classic", "ETC", 10002, "ETC", "", 100000, Rounding());
         data_ = etcData;
     }
 
     //! Bitcoin Cash
     /*! https://www.bitcoincash.org/
-    */
-    BCHCurrency::BCHCurrency() {
+     */
+    BCHCurrency::BCHCurrency()
+    {
         static auto bchData = ext::make_shared<Data>("Bitcoin Cash", "BCH", 10003, "BCH", "", 100000, Rounding());
         data_ = bchData;
     }
 
     //! Ripple
     /*! https://ripple.com/
-    */
-    XRPCurrency::XRPCurrency() {
+     */
+    XRPCurrency::XRPCurrency()
+    {
         static auto xrpData = ext::make_shared<Data>("Ripple", "XRP", 10004, "XRP", "", 100000, Rounding());
         data_ = xrpData;
     }
 
     //! Litecoin
     /*! https://litecoin.com/
-    */
-    LTCCurrency::LTCCurrency() {
+     */
+    LTCCurrency::LTCCurrency()
+    {
         static auto ltcData = ext::make_shared<Data>("Litecoin", "LTC", 10005, "LTC", "", 100000, Rounding());
         data_ = ltcData;
     }
 
     //! Dash coin
     /*! https://www.dash.org/
-    */
-    DASHCurrency::DASHCurrency() {
+     */
+    DASHCurrency::DASHCurrency()
+    {
         static auto dashData = ext::make_shared<Data>("Dash coin", "DASH", 10006, "DASH", "", 100000, Rounding());
         data_ = dashData;
     }
 
     //! Zcash
     /*! https://z.cash/
-    */
-    ZECCurrency::ZECCurrency() {
+     */
+    ZECCurrency::ZECCurrency()
+    {
         static auto zecData = ext::make_shared<Data>("Zcash", "ZEC", 10007, "ZEC", "", 100000, Rounding());
         data_ = zecData;
     }
 
 }
-

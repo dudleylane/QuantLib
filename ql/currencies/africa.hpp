@@ -31,18 +31,20 @@
 #include <ql/currency.hpp>
 
 #if defined(QL_PATCH_MSVC)
-#pragma warning(push)
-#pragma warning(disable:4819)
+#    pragma warning(push)
+#    pragma warning(disable : 4819)
 #endif
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     // Angolan kwanza
     /*! The ISO three-letter code is AOA; the numeric code is 973.
      It is divided into 100 cêntimo.
      \ingroup currencies
     */
-    class AOACurrency : public Currency {
+    class AOACurrency : public Currency
+    {
       public:
         AOACurrency();
     };
@@ -52,7 +54,8 @@ namespace QuantLib {
      It is divided into 100 thebe.
      \ingroup currencies
     */
-    class BWPCurrency : public Currency {
+    class BWPCurrency : public Currency
+    {
       public:
         BWPCurrency();
     };
@@ -62,7 +65,8 @@ namespace QuantLib {
      It is divided into 100 piastres.
      \ingroup currencies
     */
-    class EGPCurrency : public Currency {
+    class EGPCurrency : public Currency
+    {
       public:
         EGPCurrency();
     };
@@ -72,7 +76,8 @@ namespace QuantLib {
      It is divided into 100 santim.
      \ingroup currencies
     */
-    class ETBCurrency : public Currency {
+    class ETBCurrency : public Currency
+    {
       public:
         ETBCurrency();
     };
@@ -82,7 +87,8 @@ namespace QuantLib {
      It is divided into 100 pesewas.
      \ingroup currencies
     */
-    class GHSCurrency : public Currency {
+    class GHSCurrency : public Currency
+    {
       public:
         GHSCurrency();
     };
@@ -92,7 +98,8 @@ namespace QuantLib {
      It is divided into 100 cents.
      \ingroup currencies
     */
-    class KESCurrency : public Currency {
+    class KESCurrency : public Currency
+    {
       public:
         KESCurrency();
     };
@@ -102,7 +109,8 @@ namespace QuantLib {
      It is divided into 100 santim.
      \ingroup currencies
     */
-    class MADCurrency : public Currency {
+    class MADCurrency : public Currency
+    {
       public:
         MADCurrency();
     };
@@ -112,7 +120,8 @@ namespace QuantLib {
      It is divided into 100 cents.
      \ingroup currencies
     */
-    class MURCurrency : public Currency {
+    class MURCurrency : public Currency
+    {
       public:
         MURCurrency();
     };
@@ -122,7 +131,8 @@ namespace QuantLib {
      It is divided into 100 kobo.
      \ingroup currencies
     */
-    class NGNCurrency : public Currency {
+    class NGNCurrency : public Currency
+    {
       public:
         NGNCurrency();
     };
@@ -132,7 +142,8 @@ namespace QuantLib {
      It is divided into 1000 millim.
      \ingroup currencies
      */
-    class TNDCurrency : public Currency {
+    class TNDCurrency : public Currency
+    {
       public:
         TNDCurrency();
     };
@@ -142,7 +153,8 @@ namespace QuantLib {
     It is the smallest unit.
      \ingroup currencies
     */
-    class UGXCurrency : public Currency {
+    class UGXCurrency : public Currency
+    {
       public:
         UGXCurrency();
     };
@@ -152,7 +164,8 @@ namespace QuantLib {
      It is divided into 100 centime.
      \ingroup currencies
     */
-    class XOFCurrency : public Currency {
+    class XOFCurrency : public Currency
+    {
       public:
         XOFCurrency();
     };
@@ -163,7 +176,8 @@ namespace QuantLib {
 
         \ingroup currencies
     */
-    class ZARCurrency : public Currency {
+    class ZARCurrency : public Currency
+    {
       public:
         ZARCurrency();
     };
@@ -173,7 +187,8 @@ namespace QuantLib {
     It is divided into 100 ngwee.
      \ingroup currencies
     */
-    class ZMWCurrency : public Currency {
+    class ZMWCurrency : public Currency
+    {
       public:
         ZMWCurrency();
     };
@@ -181,7 +196,7 @@ namespace QuantLib {
 }
 
 #if defined(QL_PATCH_MSVC)
-#pragma warning(pop)
+#    pragma warning(pop)
 #endif
 
 #endif

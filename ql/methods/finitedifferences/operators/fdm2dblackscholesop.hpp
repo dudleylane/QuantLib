@@ -19,30 +19,31 @@
 
 
 /*! \file fdm2dblackscholesop.hpp
-*/
+ */
 
 #ifndef quantlib_fdm_2d_black_scholes_op_hpp
 #define quantlib_fdm_2d_black_scholes_op_hpp
 
-#include <ql/methods/finitedifferences/operators/ninepointlinearop.hpp>
 #include <ql/methods/finitedifferences/operators/fdmblackscholesop.hpp>
 #include <ql/methods/finitedifferences/operators/fdmlinearopcomposite.hpp>
+#include <ql/methods/finitedifferences/operators/ninepointlinearop.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class FdmMesher;
     class GeneralizedBlackScholesProcess;
 
-    class Fdm2dBlackScholesOp : public FdmLinearOpComposite {
+    class Fdm2dBlackScholesOp : public FdmLinearOpComposite
+    {
       public:
-        Fdm2dBlackScholesOp(
-            const ext::shared_ptr<FdmMesher>& mesher,
-            const ext::shared_ptr<GeneralizedBlackScholesProcess>& p1,
-            const ext::shared_ptr<GeneralizedBlackScholesProcess>& p2,
-            Real correlation,
-            Time maturity,
-            bool localVol = false,
-            Real illegalLocalVolOverwrite = -Null<Real>());
+        Fdm2dBlackScholesOp(const ext::shared_ptr<FdmMesher>& mesher,
+                            const ext::shared_ptr<GeneralizedBlackScholesProcess>& p1,
+                            const ext::shared_ptr<GeneralizedBlackScholesProcess>& p2,
+                            Real correlation,
+                            Time maturity,
+                            bool localVol = false,
+                            Real illegalLocalVolOverwrite = -Null<Real>());
 
         Size size() const override;
         void setTime(Time t1, Time t2) override;
@@ -61,7 +62,7 @@ namespace QuantLib {
         const ext::shared_ptr<GeneralizedBlackScholesProcess> p1_, p2_;
         const ext::shared_ptr<LocalVolTermStructure> localVol1_, localVol2_;
         const Array x_, y_;
-        
+
         Real currentForwardRate_;
         FdmBlackScholesOp opX_, opY_;
         NinePointLinearOp corrMapT_;

@@ -26,16 +26,19 @@
 
 #include <ql/types.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Factorial numbers calculator
     /*! \test the correctness of the returned value is tested by
               checking it against numerical calculations.
     */
-    class Factorial {
+    class Factorial
+    {
       public:
         static Real get(Natural n);
         static Real ln(Natural n);
+
       private:
         Factorial() = default;
     };

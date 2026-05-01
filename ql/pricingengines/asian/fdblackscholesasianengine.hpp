@@ -24,30 +24,30 @@
 #ifndef quantlib_fd_black_scholes_asian_engine_hpp
 #define quantlib_fd_black_scholes_asian_engine_hpp
 
-#include <ql/pricingengine.hpp>
 #include <ql/instruments/asianoption.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
+#include <ql/pricingengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Finite-Differences Black Scholes arithmetic asian option engine
 
     /*! \ingroup asianengines
-    */
+     */
 
     class GeneralizedBlackScholesProcess;
-    
+
     class FdBlackScholesAsianEngine
-        : public GenericEngine<DiscreteAveragingAsianOption::arguments,
-                               DiscreteAveragingAsianOption::results> {
+    : public GenericEngine<DiscreteAveragingAsianOption::arguments, DiscreteAveragingAsianOption::results>
+    {
       public:
         // Constructor
-        explicit FdBlackScholesAsianEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess>,
-            Size tGrid = 100,
-            Size xGrid = 100,
-            Size aGrid = 50,
-            const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas());
+        explicit FdBlackScholesAsianEngine(ext::shared_ptr<GeneralizedBlackScholesProcess>,
+                                           Size tGrid = 100,
+                                           Size xGrid = 100,
+                                           Size aGrid = 50,
+                                           const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas());
 
         void calculate() const override;
 

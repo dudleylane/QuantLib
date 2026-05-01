@@ -18,32 +18,34 @@
  */
 
 #include <ql/cashflows/fixedratecoupon.hpp>
-#include <ql/cashflows/simplecashflow.hpp>
 #include <ql/cashflows/multipleresetscoupon.hpp>
+#include <ql/cashflows/simplecashflow.hpp>
 #include <ql/indexes/iborindex.hpp>
 #include <ql/instruments/zerocouponswap.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {       
+    namespace
+    {
 
-        ext::shared_ptr<CashFlow>
-        compoundedSubPeriodicCoupon(const Date& paymentDate,
-                                    const Date& startDate,
-                                    const Date& maturityDate,
-                                    Real nominal,
-                                    const ext::shared_ptr<IborIndex>& index) {
+        ext::shared_ptr<CashFlow> compoundedSubPeriodicCoupon(const Date& paymentDate,
+                                                              const Date& startDate,
+                                                              const Date& maturityDate,
+                                                              Real nominal,
+                                                              const ext::shared_ptr<IborIndex>& index)
+        {
             Schedule schedule = MakeSchedule()
-                           .from(startDate)
-                           .to(maturityDate)
-                           .withTenor(index->tenor())
-                           .withCalendar(index->fixingCalendar())
-                           .withConvention(index->businessDayConvention())
-                           .backwards()
-                           .endOfMonth(index->endOfMonth());
-            auto floatCpn = ext::make_shared<MultipleResetsCoupon>(
-                paymentDate, nominal, schedule, index->fixingDays(), index);
+                                    .from(startDate)
+                                    .to(maturityDate)
+                                    .withTenor(index->tenor())
+                                    .withCalendar(index->fixingCalendar())
+                                    .withConvention(index->businessDayConvention())
+                                    .backwards()
+                                    .endOfMonth(index->endOfMonth());
+            auto floatCpn =
+                ext::make_shared<MultipleResetsCoupon>(paymentDate, nominal, schedule, index->fixingDays(), index);
             floatCpn->setPricer(ext::make_shared<CompoundingMultipleResetsPricer>());
             return floatCpn;
         }
@@ -58,23 +60,23 @@ namespace QuantLib {
                                    const Calendar& paymentCalendar,
                                    BusinessDayConvention paymentConvention,
                                    Natural paymentDelay)
-    : Swap(2), type_(type), baseNominal_(baseNominal), iborIndex_(std::move(iborIndex)), 
-      startDate_(startDate), maturityDate_(maturityDate) {
+    : Swap(2), type_(type), baseNominal_(baseNominal), iborIndex_(std::move(iborIndex)), startDate_(startDate),
+      maturityDate_(maturityDate)
+    {
 
         QL_REQUIRE(!(baseNominal < 0.0), "base nominal cannot be negative");
         QL_REQUIRE(startDate < maturityDate,
-                   "start date (" << startDate 
-                   << ") later than or equal to maturity date ("
-                   << maturityDate << ")");
+                   "start date (" << startDate << ") later than or equal to maturity date (" << maturityDate << ")");
 
         paymentDate_ = paymentCalendar.advance(maturityDate, paymentDelay, Days, paymentConvention);
 
-        legs_[1].push_back(compoundedSubPeriodicCoupon(paymentDate_, startDate, maturityDate,
-                                                       baseNominal_, iborIndex_));
+        legs_[1].push_back(
+            compoundedSubPeriodicCoupon(paymentDate_, startDate, maturityDate, baseNominal_, iborIndex_));
         for (auto i = legs_[1].begin(); i < legs_[1].end(); ++i)
             registerWith(*i);
 
-        switch (type_) {
+        switch (type_)
+        {
             case Payer:
                 payer_[0] = -1.0;
                 payer_[1] = +1.0;
@@ -104,10 +106,10 @@ namespace QuantLib {
                      std::move(iborIndex),
                      paymentCalendar,
                      paymentConvention,
-                     paymentDelay) {
+                     paymentDelay)
+    {
 
-        legs_[0].push_back(
-            ext::make_shared<SimpleCashFlow>(fixedPayment, paymentDate_));
+        legs_[0].push_back(ext::make_shared<SimpleCashFlow>(fixedPayment, paymentDate_));
     }
 
     ZeroCouponSwap::ZeroCouponSwap(Type type,
@@ -127,22 +129,26 @@ namespace QuantLib {
                      std::move(iborIndex),
                      paymentCalendar,
                      paymentConvention,
-                     paymentDelay) {
+                     paymentDelay)
+    {
 
         InterestRate interest(fixedRate, fixedDayCounter, Compounded, Annual);
-        legs_[0].push_back(ext::make_shared<FixedRateCoupon>(
-            paymentDate_, baseNominal_, std::move(interest), startDate, maturityDate));
+        legs_[0].push_back(ext::make_shared<FixedRateCoupon>(paymentDate_, baseNominal_, std::move(interest), startDate,
+                                                             maturityDate));
     }
 
-    Real ZeroCouponSwap::fixedLegNPV() const {
+    Real ZeroCouponSwap::fixedLegNPV() const
+    {
         return legNPV(0);
     }
 
-    Real ZeroCouponSwap::floatingLegNPV() const {
+    Real ZeroCouponSwap::floatingLegNPV() const
+    {
         return legNPV(1);
     }
 
-    Real ZeroCouponSwap::fairFixedPayment() const {
+    Real ZeroCouponSwap::fairFixedPayment() const
+    {
         // Knowing that for the fair payment NPV = 0.0, where:
         // NPV = (discount at fixed amount pay date) * (payer\receiver * fixed amount)
         //     + (discount at float amount pay date) * (-payer\receiver * float amount)
@@ -153,20 +159,29 @@ namespace QuantLib {
         return floatingLegNPV() / (endDiscounts(0) * scaling);
     }
 
-    Rate ZeroCouponSwap::fairFixedRate(const DayCounter& dayCounter) const {
+    Rate ZeroCouponSwap::fairFixedRate(const DayCounter& dayCounter) const
+    {
         // Given the relation between the fixed payment (N^FIX) and the fixed rate (R),
         // N^FIX = N * [(1 + R)^T - 1],
         // the compound factor C = (1 + R)^T
         // can be equivalently expressed as:
         // C = N^FIX / N + 1
         Real compound = fairFixedPayment() / baseNominal_ + 1.0;
-        return InterestRate::impliedRate(compound, dayCounter, Compounded, Annual, startDate_,
-                                         maturityDate_);
+        return InterestRate::impliedRate(compound, dayCounter, Compounded, Annual, startDate_, maturityDate_);
     }
 
-    const Leg& ZeroCouponSwap::fixedLeg() const { return leg(0); }
+    const Leg& ZeroCouponSwap::fixedLeg() const
+    {
+        return leg(0);
+    }
 
-    const Leg& ZeroCouponSwap::floatingLeg() const { return leg(1); }
+    const Leg& ZeroCouponSwap::floatingLeg() const
+    {
+        return leg(1);
+    }
 
-    Real ZeroCouponSwap::fixedPayment() const { return fixedLeg()[0]->amount(); }
+    Real ZeroCouponSwap::fixedPayment() const
+    {
+        return fixedLeg()[0]->amount();
+    }
 }

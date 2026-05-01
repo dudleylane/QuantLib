@@ -25,11 +25,12 @@
 #define quantlib_equitytotalreturnswap_hpp
 
 #include <ql/instruments/swap.hpp>
-#include <ql/time/schedule.hpp>
 #include <ql/time/calendar.hpp>
 #include <ql/time/daycounter.hpp>
+#include <ql/time/schedule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
     class InterestRateIndex;
     class IborIndex;
     class OvernightIndex;
@@ -51,7 +52,8 @@ namespace QuantLib {
 
         Swap type (payer of receiver) refers to the equity leg.
     */
-    class EquityTotalReturnSwap : public Swap {
+    class EquityTotalReturnSwap : public Swap
+    {
       public:
         EquityTotalReturnSwap(Type type,
                               Real nominal,
@@ -81,7 +83,7 @@ namespace QuantLib {
         //@{
         Type type() const { return type_; }
         Real nominal() const { return nominal_; }
-        const ext::shared_ptr<EquityIndex>& equityIndex() const { return equityIndex_; } 
+        const ext::shared_ptr<EquityIndex>& equityIndex() const { return equityIndex_; }
         const ext::shared_ptr<InterestRateIndex>& interestRateIndex() const { return interestRateIndex_; }
         const Schedule& schedule() const { return schedule_; }
         const DayCounter& dayCounter() const { return dayCounter_; }

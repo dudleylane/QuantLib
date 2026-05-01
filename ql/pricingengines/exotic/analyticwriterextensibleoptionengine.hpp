@@ -27,15 +27,15 @@
 #include <ql/instruments/writerextensibleoption.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Analytic engine for writer-extensible options
     /*! Formulas from Haug, "Option Pricing Formulas". */
-    class AnalyticWriterExtensibleOptionEngine
-        : public WriterExtensibleOption::engine {
+    class AnalyticWriterExtensibleOptionEngine : public WriterExtensibleOption::engine
+    {
       public:
-        explicit AnalyticWriterExtensibleOptionEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess> process);
+        explicit AnalyticWriterExtensibleOptionEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process);
         void calculate() const override;
 
       private:

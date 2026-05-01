@@ -27,7 +27,8 @@
 
 #include <ql/experimental/volatility/blackvolsurface.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Equity/FX volatility (smile) surface
     /*! This abstract class defines the interface of concrete
@@ -39,7 +40,8 @@ namespace QuantLib {
         It's only in absence of smile that the concept of (at-the-money)
         forward volatility makes sense.
     */
-    class EquityFXVolSurface : public BlackVolSurface {
+    class EquityFXVolSurface : public BlackVolSurface
+    {
       public:
         /*! \name Constructors
             See the TermStructure documentation for issues regarding
@@ -51,8 +53,7 @@ namespace QuantLib {
                      constructor must manage their own reference date
                      by overriding the referenceDate() method.
         */
-        explicit EquityFXVolSurface(BusinessDayConvention bdc = Following,
-                                    const DayCounter& dc = DayCounter());
+        explicit EquityFXVolSurface(BusinessDayConvention bdc = Following, const DayCounter& dc = DayCounter());
         //! initialize with a fixed reference date
         explicit EquityFXVolSurface(const Date& referenceDate,
                                     const Calendar& cal = Calendar(),
@@ -67,21 +68,13 @@ namespace QuantLib {
         //! \name Black Volatility
         //@{
         //! forward (at-the-money) volatility
-        Volatility atmForwardVol(const Date& date1,
-                                 const Date& date2,
-                                 bool extrapolate = false) const;
+        Volatility atmForwardVol(const Date& date1, const Date& date2, bool extrapolate = false) const;
         //! forward (at-the-money) volatility
-        Volatility atmForwardVol(Time time1,
-                                 Time time2,
-                                 bool extrapolate = false) const;
+        Volatility atmForwardVol(Time time1, Time time2, bool extrapolate = false) const;
         //! forward (at-the-money) variance
-        Real atmForwardVariance(const Date& date1,
-                                const Date& date2,
-                                bool extrapolate = false) const;
+        Real atmForwardVariance(const Date& date1, const Date& date2, bool extrapolate = false) const;
         //! forward (at-the-money) variance
-        Real atmForwardVariance(Time time1,
-                                Time time2,
-                                bool extrapolate = false) const;
+        Real atmForwardVariance(Time time1, Time time2, bool extrapolate = false) const;
         //@}
         //! \name Visitability
         //@{

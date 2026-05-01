@@ -22,12 +22,12 @@
 
 #include <ql/instruments/basketoption.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    BasketOption::BasketOption(
-        const ext::shared_ptr<BasketPayoff>& payoff,
-        const ext::shared_ptr<Exercise>& exercise)
-    : MultiAssetOption(payoff, exercise) {}
+    BasketOption::BasketOption(const ext::shared_ptr<BasketPayoff>& payoff, const ext::shared_ptr<Exercise>& exercise)
+    : MultiAssetOption(payoff, exercise)
+    {
+    }
 
 }
-

@@ -34,7 +34,8 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(FxForwardTests)
 
-struct CommonVars {
+struct CommonVars
+{
     // Common data
     Date today;
     Date maturityDate;
@@ -46,7 +47,8 @@ struct CommonVars {
     Real tolerance;
 
     // Setup in constructor
-    CommonVars() {
+    CommonVars()
+    {
         today = Date(15, March, 2024);
         Settings::instance().evaluationDate() = today;
         maturityDate = today + 6 * Months;
@@ -67,7 +69,8 @@ struct CommonVars {
 };
 
 
-BOOST_AUTO_TEST_CASE(testFxForwardConstruction) {
+BOOST_AUTO_TEST_CASE(testFxForwardConstruction)
+{
     BOOST_TEST_MESSAGE("Testing FX-forward construction...");
 
     CommonVars vars;
@@ -89,7 +92,8 @@ BOOST_AUTO_TEST_CASE(testFxForwardConstruction) {
 }
 
 
-BOOST_AUTO_TEST_CASE(testFxForwardConstructionWithRate) {
+BOOST_AUTO_TEST_CASE(testFxForwardConstructionWithRate)
+{
     BOOST_TEST_MESSAGE("Testing FX-forward construction with rate...");
 
     CommonVars vars;
@@ -107,7 +111,8 @@ BOOST_AUTO_TEST_CASE(testFxForwardConstructionWithRate) {
 }
 
 
-BOOST_AUTO_TEST_CASE(testContractedForwardRate) {
+BOOST_AUTO_TEST_CASE(testContractedForwardRate)
+{
     BOOST_TEST_MESSAGE("Testing FX-forward contracted rate...");
 
     CommonVars vars;
@@ -128,8 +133,8 @@ BOOST_AUTO_TEST_CASE(testContractedForwardRate) {
     QL_CHECK_CLOSE(fwd2.forwardRate(), inputRate, 1.0e-10);
 
     // Verify contracted rate differs from fair forward rate
-    auto engine = ext::make_shared<DiscountingFxForwardEngine>(
-        vars.usdCurveHandle, vars.sgdCurveHandle, vars.spotFxHandle);
+    auto engine =
+        ext::make_shared<DiscountingFxForwardEngine>(vars.usdCurveHandle, vars.sgdCurveHandle, vars.spotFxHandle);
     fwd1.setPricingEngine(engine);
 
     Real fairRate = fwd1.fairForwardRate();
@@ -140,7 +145,8 @@ BOOST_AUTO_TEST_CASE(testContractedForwardRate) {
 }
 
 
-BOOST_AUTO_TEST_CASE(testFxForwardExpiry) {
+BOOST_AUTO_TEST_CASE(testFxForwardExpiry)
+{
     BOOST_TEST_MESSAGE("Testing FX-forward expiry...");
 
     CommonVars vars;
@@ -154,7 +160,8 @@ BOOST_AUTO_TEST_CASE(testFxForwardExpiry) {
 }
 
 
-BOOST_AUTO_TEST_CASE(testDiscountingFxForwardEngine) {
+BOOST_AUTO_TEST_CASE(testDiscountingFxForwardEngine)
+{
     BOOST_TEST_MESSAGE("Testing discounting FX-forward engine...");
 
     CommonVars vars;
@@ -165,8 +172,8 @@ BOOST_AUTO_TEST_CASE(testDiscountingFxForwardEngine) {
     FxForward fwd(usdNominal, vars.usd, sgdNominal, vars.sgd, vars.maturityDate,
                   true); // pay USD, receive SGD
 
-    auto engine = ext::make_shared<DiscountingFxForwardEngine>(
-        vars.usdCurveHandle, vars.sgdCurveHandle, vars.spotFxHandle);
+    auto engine =
+        ext::make_shared<DiscountingFxForwardEngine>(vars.usdCurveHandle, vars.sgdCurveHandle, vars.spotFxHandle);
 
     fwd.setPricingEngine(engine);
 
@@ -180,7 +187,8 @@ BOOST_AUTO_TEST_CASE(testDiscountingFxForwardEngine) {
 }
 
 
-BOOST_AUTO_TEST_CASE(testFairForwardRate) {
+BOOST_AUTO_TEST_CASE(testFairForwardRate)
+{
     BOOST_TEST_MESSAGE("Testing fair forward rate calculation...");
 
     CommonVars vars;
@@ -190,8 +198,8 @@ BOOST_AUTO_TEST_CASE(testFairForwardRate) {
 
     FxForward fwd(usdNominal, vars.usd, sgdNominal, vars.sgd, vars.maturityDate, true);
 
-    auto engine = ext::make_shared<DiscountingFxForwardEngine>(
-        vars.usdCurveHandle, vars.sgdCurveHandle, vars.spotFxHandle);
+    auto engine =
+        ext::make_shared<DiscountingFxForwardEngine>(vars.usdCurveHandle, vars.sgdCurveHandle, vars.spotFxHandle);
 
     fwd.setPricingEngine(engine);
 
@@ -201,10 +209,8 @@ BOOST_AUTO_TEST_CASE(testFairForwardRate) {
     // F = S * (DF_SGD / DF_USD)
     Date settlementDate = fwd.settlementDate();
     Real spotFx = vars.spotFxHandle->value();
-    Real dfUsd = vars.usdCurveHandle->discount(vars.maturityDate) /
-                 vars.usdCurveHandle->discount(settlementDate);
-    Real dfSgd = vars.sgdCurveHandle->discount(vars.maturityDate) /
-                 vars.sgdCurveHandle->discount(settlementDate);
+    Real dfUsd = vars.usdCurveHandle->discount(vars.maturityDate) / vars.usdCurveHandle->discount(settlementDate);
+    Real dfSgd = vars.sgdCurveHandle->discount(vars.maturityDate) / vars.sgdCurveHandle->discount(settlementDate);
     Real expectedFairRate = spotFx * dfSgd / dfUsd;
 
     Real calculatedFairRate = fwd.fairForwardRate();
@@ -213,7 +219,8 @@ BOOST_AUTO_TEST_CASE(testFairForwardRate) {
 }
 
 
-BOOST_AUTO_TEST_CASE(testAtTheMoney) {
+BOOST_AUTO_TEST_CASE(testAtTheMoney)
+{
     BOOST_TEST_MESSAGE("Testing that an FX forward at-the-money has zero NPV...");
 
     CommonVars vars;
@@ -226,19 +233,17 @@ BOOST_AUTO_TEST_CASE(testAtTheMoney) {
     // Solving: targetNominal = sourceNominal * dfSource * spotFx / dfTarget
 
     Real spotFx = vars.spotFxHandle->value();
-    
+
     // We need to use a forward with default settlement (2 days) to compute the correct DFs
     Real usdNominal = 1000000.0;
-    
+
     // Create a temporary forward to get the settlement date
     FxForward tempFwd(usdNominal, vars.usd, usdNominal, vars.sgd, vars.maturityDate, true);
     Date settlementDate = tempFwd.settlementDate();
-    
+
     // Calculate discount factors from settlement to maturity (as the engine does)
-    Real dfUsd = vars.usdCurveHandle->discount(vars.maturityDate) / 
-                 vars.usdCurveHandle->discount(settlementDate);
-    Real dfSgd = vars.sgdCurveHandle->discount(vars.maturityDate) / 
-                 vars.sgdCurveHandle->discount(settlementDate);
+    Real dfUsd = vars.usdCurveHandle->discount(vars.maturityDate) / vars.usdCurveHandle->discount(settlementDate);
+    Real dfSgd = vars.sgdCurveHandle->discount(vars.maturityDate) / vars.sgdCurveHandle->discount(settlementDate);
 
     // Create a forward at the ATM strike
     // ATM condition: targetNominal = sourceNominal * dfSource * spotFx / dfTarget
@@ -246,8 +251,8 @@ BOOST_AUTO_TEST_CASE(testAtTheMoney) {
 
     FxForward fwd(usdNominal, vars.usd, sgdNominal, vars.sgd, vars.maturityDate, true);
 
-    auto engine = ext::make_shared<DiscountingFxForwardEngine>(
-        vars.usdCurveHandle, vars.sgdCurveHandle, vars.spotFxHandle);
+    auto engine =
+        ext::make_shared<DiscountingFxForwardEngine>(vars.usdCurveHandle, vars.sgdCurveHandle, vars.spotFxHandle);
 
     fwd.setPricingEngine(engine);
 
@@ -258,7 +263,8 @@ BOOST_AUTO_TEST_CASE(testAtTheMoney) {
 }
 
 
-BOOST_AUTO_TEST_CASE(testPositionDirection) {
+BOOST_AUTO_TEST_CASE(testPositionDirection)
+{
     BOOST_TEST_MESSAGE("Testing FX-forward position direction...");
 
     CommonVars vars;
@@ -272,8 +278,8 @@ BOOST_AUTO_TEST_CASE(testPositionDirection) {
     // Short USD (pay USD, receive SGD) - paySourceCurrency = true
     FxForward shortUsd(usdNominal, vars.usd, sgdNominal, vars.sgd, vars.maturityDate, true);
 
-    auto engine = ext::make_shared<DiscountingFxForwardEngine>(
-        vars.usdCurveHandle, vars.sgdCurveHandle, vars.spotFxHandle);
+    auto engine =
+        ext::make_shared<DiscountingFxForwardEngine>(vars.usdCurveHandle, vars.sgdCurveHandle, vars.spotFxHandle);
 
     longUsd.setPricingEngine(engine);
     shortUsd.setPricingEngine(engine);
@@ -286,7 +292,8 @@ BOOST_AUTO_TEST_CASE(testPositionDirection) {
 }
 
 
-BOOST_AUTO_TEST_CASE(testIRCurveSensitivity) {
+BOOST_AUTO_TEST_CASE(testIRCurveSensitivity)
+{
     BOOST_TEST_MESSAGE("Testing FX-forward sensitivity to IR curves...");
 
     CommonVars vars;
@@ -296,8 +303,8 @@ BOOST_AUTO_TEST_CASE(testIRCurveSensitivity) {
 
     FxForward fwd(usdNominal, vars.usd, sgdNominal, vars.sgd, vars.maturityDate, true);
 
-    auto engine = ext::make_shared<DiscountingFxForwardEngine>(
-        vars.usdCurveHandle, vars.sgdCurveHandle, vars.spotFxHandle);
+    auto engine =
+        ext::make_shared<DiscountingFxForwardEngine>(vars.usdCurveHandle, vars.sgdCurveHandle, vars.spotFxHandle);
 
     fwd.setPricingEngine(engine);
 
@@ -322,7 +329,8 @@ BOOST_AUTO_TEST_CASE(testIRCurveSensitivity) {
 }
 
 
-BOOST_AUTO_TEST_CASE(testSpotFxSensitivity) {
+BOOST_AUTO_TEST_CASE(testSpotFxSensitivity)
+{
     BOOST_TEST_MESSAGE("Testing FX-forward sensitivity to spot FX...");
 
     CommonVars vars;
@@ -333,8 +341,8 @@ BOOST_AUTO_TEST_CASE(testSpotFxSensitivity) {
     FxForward fwd(usdNominal, vars.usd, sgdNominal, vars.sgd, vars.maturityDate,
                   true); // pay USD, receive SGD
 
-    auto engine = ext::make_shared<DiscountingFxForwardEngine>(
-        vars.usdCurveHandle, vars.sgdCurveHandle, vars.spotFxHandle);
+    auto engine =
+        ext::make_shared<DiscountingFxForwardEngine>(vars.usdCurveHandle, vars.sgdCurveHandle, vars.spotFxHandle);
 
     fwd.setPricingEngine(engine);
 
@@ -358,7 +366,8 @@ BOOST_AUTO_TEST_CASE(testSpotFxSensitivity) {
 }
 
 
-BOOST_AUTO_TEST_CASE(testAdditionalResults) {
+BOOST_AUTO_TEST_CASE(testAdditionalResults)
+{
     BOOST_TEST_MESSAGE("Testing FX-forward additional results...");
 
     CommonVars vars;
@@ -368,8 +377,8 @@ BOOST_AUTO_TEST_CASE(testAdditionalResults) {
 
     FxForward fwd(usdNominal, vars.usd, sgdNominal, vars.sgd, vars.maturityDate, true);
 
-    auto engine = ext::make_shared<DiscountingFxForwardEngine>(
-        vars.usdCurveHandle, vars.sgdCurveHandle, vars.spotFxHandle);
+    auto engine =
+        ext::make_shared<DiscountingFxForwardEngine>(vars.usdCurveHandle, vars.sgdCurveHandle, vars.spotFxHandle);
 
     fwd.setPricingEngine(engine);
 
@@ -393,7 +402,8 @@ BOOST_AUTO_TEST_CASE(testAdditionalResults) {
 }
 
 
-BOOST_AUTO_TEST_CASE(testSettlementDays) {
+BOOST_AUTO_TEST_CASE(testSettlementDays)
+{
     BOOST_TEST_MESSAGE("Testing FX-forward settlement days...");
 
     CommonVars vars;
@@ -403,26 +413,24 @@ BOOST_AUTO_TEST_CASE(testSettlementDays) {
 
     // Test different settlement conventions
     // Overnight (O/N): 0 days
-    FxForward overnightFwd(usdNominal, vars.usd, sgdNominal, vars.sgd, 
-                           vars.maturityDate, true, 0);
+    FxForward overnightFwd(usdNominal, vars.usd, sgdNominal, vars.sgd, vars.maturityDate, true, 0);
     BOOST_CHECK_EQUAL(overnightFwd.settlementDays(), 0);
     BOOST_CHECK_EQUAL(overnightFwd.settlementDate(), vars.today);
 
     // TomNext (T/N): 1 day
-    FxForward tomNextFwd(usdNominal, vars.usd, sgdNominal, vars.sgd, 
-                         vars.maturityDate, true, 1);
+    FxForward tomNextFwd(usdNominal, vars.usd, sgdNominal, vars.sgd, vars.maturityDate, true, 1);
     BOOST_CHECK_EQUAL(tomNextFwd.settlementDays(), 1);
     BOOST_CHECK_EQUAL(tomNextFwd.settlementDate(), vars.today + 1);
 
     // Spot (S/N): 2 days (default)
-    FxForward spotFwd(usdNominal, vars.usd, sgdNominal, vars.sgd, 
-                      vars.maturityDate, true);  // default is 2
+    FxForward spotFwd(usdNominal, vars.usd, sgdNominal, vars.sgd, vars.maturityDate, true); // default is 2
     BOOST_CHECK_EQUAL(spotFwd.settlementDays(), 2);
     BOOST_CHECK_EQUAL(spotFwd.settlementDate(), vars.today + 2);
 }
 
 
-BOOST_AUTO_TEST_CASE(testSettlementDaysWithCalendar) {
+BOOST_AUTO_TEST_CASE(testSettlementDaysWithCalendar)
+{
     BOOST_TEST_MESSAGE("Testing FX-forward settlement days with calendar...");
 
     CommonVars vars;
@@ -434,12 +442,11 @@ BOOST_AUTO_TEST_CASE(testSettlementDaysWithCalendar) {
     Calendar cal = TARGET();
 
     // Find a Friday to test weekend skipping
-    Date friday(15, March, 2024);  // March 15, 2024 is a Friday
+    Date friday(15, March, 2024); // March 15, 2024 is a Friday
     Settings::instance().evaluationDate() = friday;
 
     // With 2 settlement days on a Friday, settlement should be Tuesday (skipping weekend)
-    FxForward fwd(usdNominal, vars.usd, sgdNominal, vars.sgd, 
-                  vars.maturityDate, true, 2, cal);
+    FxForward fwd(usdNominal, vars.usd, sgdNominal, vars.sgd, vars.maturityDate, true, 2, cal);
 
     Date expectedSettlementDate = cal.advance(friday, 2, Days);
     BOOST_CHECK_EQUAL(fwd.settlementDate(), expectedSettlementDate);

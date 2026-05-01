@@ -24,19 +24,21 @@
 #ifndef quantlib_fdm_extended_ornsteinuhlenback_op_hpp
 #define quantlib_fdm_extended_ornsteinuhlenback_op_hpp
 
+#include <ql/methods/finitedifferences/operators/fdmlinearopcomposite.hpp>
 #include <ql/methods/finitedifferences/operators/firstderivativeop.hpp>
 #include <ql/methods/finitedifferences/operators/triplebandlinearop.hpp>
-#include <ql/methods/finitedifferences/operators/fdmlinearopcomposite.hpp>
 #include <ql/methods/finitedifferences/utilities/fdmboundaryconditionset.hpp>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class FdmMesher;
     class YieldTermStructure;
     class ExtendedOrnsteinUhlenbeckProcess;
 
-    class FdmExtendedOrnsteinUhlenbeckOp : public FdmLinearOpComposite {
+    class FdmExtendedOrnsteinUhlenbeckOp : public FdmLinearOpComposite
+    {
       public:
         FdmExtendedOrnsteinUhlenbeckOp(const ext::shared_ptr<FdmMesher>& mesher,
                                        ext::shared_ptr<ExtendedOrnsteinUhlenbeckProcess> p,
@@ -67,7 +69,6 @@ namespace QuantLib {
         const FirstDerivativeOp dxMap_;
         const TripleBandLinearOp dxxMap_;
         TripleBandLinearOp mapX_;
-
     };
 
 }

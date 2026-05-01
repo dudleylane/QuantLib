@@ -27,29 +27,30 @@
 #include <ql/instruments/asianoption.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Vecer engine for continuous-avaeraging Asian options
     /*! See <http://www.stat.columbia.edu/~vecer/asian-vecer.pdf> */
-    class ContinuousArithmeticAsianVecerEngine
-        : public ContinuousAveragingAsianOption::engine {
+    class ContinuousArithmeticAsianVecerEngine : public ContinuousAveragingAsianOption::engine
+    {
       public:
-        ContinuousArithmeticAsianVecerEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess> process,
-            Handle<Quote> currentAverage,
-            Date startDate,
-            Size timeSteps = 100,
-            Size assetSteps = 100,
-            Real z_min = -1.0,
-            Real z_max = 1.0);
+        ContinuousArithmeticAsianVecerEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process,
+                                             Handle<Quote> currentAverage,
+                                             Date startDate,
+                                             Size timeSteps = 100,
+                                             Size assetSteps = 100,
+                                             Real z_min = -1.0,
+                                             Real z_max = 1.0);
         void calculate() const override;
 
       protected:
         // Replication of average by holding this amount in assets
-        Real cont_strategy(Time t, Time T1,Time T2,Real v, Real r) const; 
+        Real cont_strategy(Time t, Time T1, Time T2, Real v, Real r) const;
+
       private:
         ext::shared_ptr<GeneralizedBlackScholesProcess> process_;
-        Handle<Quote> currentAverage_ ;
+        Handle<Quote> currentAverage_;
         Date startDate_;
         Real z_min_;
         Real z_max_;

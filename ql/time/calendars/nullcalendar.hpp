@@ -27,7 +27,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Calendar for reproducing theoretical calculations.
     /*! This calendar has no holidays. It ensures that dates at
@@ -35,18 +36,19 @@ namespace QuantLib {
 
         \ingroup calendars
     */
-    class NullCalendar : public Calendar {
+    class NullCalendar : public Calendar
+    {
       private:
-        class Impl final : public Calendar::Impl {
+        class Impl final : public Calendar::Impl
+        {
           public:
             std::string name() const override { return "Null"; }
             bool isWeekend(Weekday) const override { return false; }
             bool isBusinessDay(const Date&) const override { return true; }
         };
+
       public:
-        NullCalendar() {
-            impl_ = ext::shared_ptr<Calendar::Impl>(new NullCalendar::Impl);
-        }
+        NullCalendar() { impl_ = ext::shared_ptr<Calendar::Impl>(new NullCalendar::Impl); }
     };
 
 }

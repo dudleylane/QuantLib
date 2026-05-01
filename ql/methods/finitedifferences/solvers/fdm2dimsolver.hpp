@@ -18,24 +18,26 @@
 */
 
 /*! \file fdm2dimsolver.hpp
-*/
+ */
 
 #ifndef quantlib_fdm_2_dim_solver_hpp
 #define quantlib_fdm_2_dim_solver_hpp
 
 #include <ql/handle.hpp>
 #include <ql/math/matrix.hpp>
-#include <ql/patterns/lazyobject.hpp>
-#include <ql/methods/finitedifferences/solvers/fdmsolverdesc.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
+#include <ql/methods/finitedifferences/solvers/fdmsolverdesc.hpp>
+#include <ql/patterns/lazyobject.hpp>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class BicubicSpline;
     class FdmSnapshotCondition;
 
-    class Fdm2DimSolver : public LazyObject {
+    class Fdm2DimSolver : public LazyObject
+    {
       public:
         Fdm2DimSolver(const FdmSolverDesc& solverDesc,
                       const FdmSchemeDesc& schemeDesc,

@@ -28,9 +28,11 @@
 #include <ql/discretizedasset.hpp>
 #include <ql/experimental/callablebonds/callablebond.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class DiscretizedCallableFixedRateBond : public DiscretizedAsset {
+    class DiscretizedCallableFixedRateBond : public DiscretizedAsset
+    {
       public:
         DiscretizedCallableFixedRateBond(const CallableBond::arguments&,
                                          const Handle<YieldTermStructure>& termStructure);

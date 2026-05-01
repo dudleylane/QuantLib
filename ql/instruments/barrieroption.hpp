@@ -26,12 +26,13 @@
 #ifndef quantlib_barrier_option_hpp
 #define quantlib_barrier_option_hpp
 
-#include <ql/instruments/oneassetoption.hpp>
 #include <ql/instruments/barriertype.hpp>
-#include <ql/instruments/payoffs.hpp>
 #include <ql/instruments/dividendschedule.hpp>
+#include <ql/instruments/oneassetoption.hpp>
+#include <ql/instruments/payoffs.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class GeneralizedBlackScholesProcess;
 
@@ -40,7 +41,8 @@ namespace QuantLib {
 
         \ingroup instruments
     */
-    class BarrierOption : public OneAssetOption {
+    class BarrierOption : public OneAssetOption
+    {
       public:
         class arguments;
         class engine;
@@ -55,21 +57,19 @@ namespace QuantLib {
                      calculation.
         */
         //@{
-        Volatility impliedVolatility(
-             Real price,
-             const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
-             Real accuracy = 1.0e-4,
-             Size maxEvaluations = 100,
-             Volatility minVol = 1.0e-7,
-             Volatility maxVol = 4.0) const;
-        Volatility impliedVolatility(
-             Real price,
-             const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
-             const DividendSchedule& dividends,
-             Real accuracy = 1.0e-4,
-             Size maxEvaluations = 100,
-             Volatility minVol = 1.0e-7,
-             Volatility maxVol = 4.0) const;
+        Volatility impliedVolatility(Real price,
+                                     const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
+                                     Real accuracy = 1.0e-4,
+                                     Size maxEvaluations = 100,
+                                     Volatility minVol = 1.0e-7,
+                                     Volatility maxVol = 4.0) const;
+        Volatility impliedVolatility(Real price,
+                                     const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
+                                     const DividendSchedule& dividends,
+                                     Real accuracy = 1.0e-4,
+                                     Size maxEvaluations = 100,
+                                     Volatility minVol = 1.0e-7,
+                                     Volatility maxVol = 4.0) const;
         //@}
       protected:
         // arguments
@@ -79,7 +79,8 @@ namespace QuantLib {
     };
 
     //! %Arguments for barrier option calculation
-    class BarrierOption::arguments : public OneAssetOption::arguments {
+    class BarrierOption::arguments : public OneAssetOption::arguments
+    {
       public:
         arguments();
         Barrier::Type barrierType;
@@ -89,9 +90,8 @@ namespace QuantLib {
     };
 
     //! %Barrier-option %engine base class
-    class BarrierOption::engine
-        : public GenericEngine<BarrierOption::arguments,
-                               BarrierOption::results> {
+    class BarrierOption::engine : public GenericEngine<BarrierOption::arguments, BarrierOption::results>
+    {
       protected:
         bool triggered(Real underlying) const;
     };

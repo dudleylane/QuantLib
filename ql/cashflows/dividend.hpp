@@ -29,14 +29,15 @@
 #include <ql/utilities/null.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Predetermined cash flow
     /*! This cash flow pays a predetermined amount at a given date. */
-    class Dividend : public CashFlow {
+    class Dividend : public CashFlow
+    {
       public:
-        Dividend(const Date& date)
-        : date_(date) {}
+        Dividend(const Date& date) : date_(date) {}
         //! \name Event interface
         //@{
         Date date() const override { return date_; }
@@ -56,10 +57,10 @@ namespace QuantLib {
 
     //! Predetermined cash flow
     /*! This cash flow pays a predetermined amount at a given date. */
-    class FixedDividend : public Dividend {
+    class FixedDividend : public Dividend
+    {
       public:
-        FixedDividend(Real amount, const Date& date)
-        : Dividend(date), amount_(amount) {}
+        FixedDividend(Real amount, const Date& date) : Dividend(date), amount_(amount) {}
         //! \name Dividend interface
         //@{
         Real amount() const override { return amount_; }
@@ -71,16 +72,18 @@ namespace QuantLib {
 
     //! Predetermined cash flow
     /*! This cash flow pays a fractional amount at a given date. */
-    class FractionalDividend : public Dividend {
+    class FractionalDividend : public Dividend
+    {
       public:
-        FractionalDividend(Real rate, const Date& date)
-        : Dividend(date), rate_(rate), nominal_(Null<Real>()) {}
+        FractionalDividend(Real rate, const Date& date) : Dividend(date), rate_(rate), nominal_(Null<Real>()) {}
 
-        FractionalDividend(Real rate, Real nominal, const Date& date)
-        : Dividend(date), rate_(rate), nominal_(nominal) {}
+        FractionalDividend(Real rate, Real nominal, const Date& date) : Dividend(date), rate_(rate), nominal_(nominal)
+        {
+        }
         //! \name Dividend interface
         //@{
-        Real amount() const override {
+        Real amount() const override
+        {
             QL_REQUIRE(nominal_ != Null<Real>(), "no nominal given");
             return rate_ * nominal_;
         }
@@ -98,9 +101,8 @@ namespace QuantLib {
 
 
     //! helper function building a sequence of fixed dividends
-    std::vector<ext::shared_ptr<Dividend> >
-    DividendVector(const std::vector<Date>& dividendDates,
-                   const std::vector<Real>& dividends);
+    std::vector<ext::shared_ptr<Dividend>> DividendVector(const std::vector<Date>& dividendDates,
+                                                          const std::vector<Real>& dividends);
 
 }
 

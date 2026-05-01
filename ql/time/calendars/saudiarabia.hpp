@@ -27,7 +27,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Saudi Arabian calendar
     /*! Holidays for the Tadawul financial market
@@ -47,16 +48,21 @@ namespace QuantLib {
 
         \ingroup calendars
     */
-    class SaudiArabia : public Calendar {
+    class SaudiArabia : public Calendar
+    {
       private:
-        class TadawulImpl final : public Calendar::Impl {
+        class TadawulImpl final : public Calendar::Impl
+        {
           public:
             std::string name() const override { return "Tadawul"; }
             bool isWeekend(Weekday) const override;
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
-        enum Market { Tadawul    //!< Tadawul financial market
+        enum Market
+        {
+            Tadawul //!< Tadawul financial market
         };
         SaudiArabia(Market m = Tadawul);
     };

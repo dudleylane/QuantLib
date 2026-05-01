@@ -19,71 +19,70 @@
 */
 
 #include <ql/exercise.hpp>
-#include <ql/pricingengines/credit/blackcdsoptionengine.hpp>
 #include <ql/pricingengines/blackformula.hpp>
+#include <ql/pricingengines/credit/blackcdsoptionengine.hpp>
 #include <ql/quote.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     BlackCdsOptionEngine::BlackCdsOptionEngine(Handle<DefaultProbabilityTermStructure> probability,
                                                Real recoveryRate,
                                                Handle<YieldTermStructure> termStructure,
                                                Handle<Quote> volatility)
-    : probability_(std::move(probability)), recoveryRate_(recoveryRate),
-      termStructure_(std::move(termStructure)), volatility_(std::move(volatility)) {
+    : probability_(std::move(probability)), recoveryRate_(recoveryRate), termStructure_(std::move(termStructure)),
+      volatility_(std::move(volatility))
+    {
 
         registerWith(probability_);
         registerWith(termStructure_);
         registerWith(volatility_);
     }
 
-    void BlackCdsOptionEngine::calculate() const {
+    void BlackCdsOptionEngine::calculate() const
+    {
 
         Date maturityDate = arguments_.swap->coupons().front()->date();
         Date exerciseDate = arguments_.exercise->date(0);
-        QL_REQUIRE(maturityDate > exerciseDate,
-                   "Underlying CDS should start after option maturity");
-        Date settlement   = termStructure_->referenceDate();
+        QL_REQUIRE(maturityDate > exerciseDate, "Underlying CDS should start after option maturity");
+        Date settlement = termStructure_->referenceDate();
 
         Rate spotFwdSpread = arguments_.swap->fairSpread();
-        Rate swapSpread    = arguments_.swap->runningSpread();
+        Rate swapSpread = arguments_.swap->runningSpread();
 
         DayCounter tSDc = termStructure_->dayCounter();
 
         // The sense of the underlying/option has to be sent this way
         // to the Black formula, no sign.
-        Real riskyAnnuity =
-            std::fabs(arguments_.swap->couponLegNPV() / swapSpread);
+        Real riskyAnnuity = std::fabs(arguments_.swap->couponLegNPV() / swapSpread);
         results_.riskyAnnuity = riskyAnnuity;
 
         Time T = tSDc.yearFraction(settlement, exerciseDate);
 
-        Real stdDev = volatility_->value()  * std::sqrt(T);
-        Option::Type callPut = (arguments_.side == Protection::Buyer) ?
-                                                   Option::Call : Option::Put;
+        Real stdDev = volatility_->value() * std::sqrt(T);
+        Option::Type callPut = (arguments_.side == Protection::Buyer) ? Option::Call : Option::Put;
 
-        results_.value =
-            blackFormula(callPut, swapSpread, spotFwdSpread,
-                         stdDev, riskyAnnuity);
+        results_.value = blackFormula(callPut, swapSpread, spotFwdSpread, stdDev, riskyAnnuity);
 
         // if a non knock-out payer option, add front end protection value
-        if (arguments_.side == Protection::Buyer && !arguments_.knocksOut) {
-            Real frontEndProtection =
-                Integer(callPut) * arguments_.swap->notional()
-                * (1.-recoveryRate_)
-                * probability_->defaultProbability(exerciseDate)
-                * termStructure_->discount(exerciseDate);
+        if (arguments_.side == Protection::Buyer && !arguments_.knocksOut)
+        {
+            Real frontEndProtection = Integer(callPut) * arguments_.swap->notional() * (1. - recoveryRate_) *
+                                      probability_->defaultProbability(exerciseDate) *
+                                      termStructure_->discount(exerciseDate);
             results_.value += frontEndProtection;
         }
     }
 
-    Handle<YieldTermStructure> BlackCdsOptionEngine::termStructure() {
+    Handle<YieldTermStructure> BlackCdsOptionEngine::termStructure()
+    {
         return termStructure_;
     }
 
-    Handle<Quote> BlackCdsOptionEngine::volatility() {
+    Handle<Quote> BlackCdsOptionEngine::volatility()
+    {
         return volatility_;
     }
 

@@ -26,9 +26,11 @@
 
 #include <ql/legacy/libormarketmodels/lmvolmodel.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class LmFixedVolatilityModel : public LmVolatilityModel {
+    class LmFixedVolatilityModel : public LmVolatilityModel
+    {
       public:
         LmFixedVolatilityModel(Array volatilities, const std::vector<Time>& startTimes);
 
@@ -46,4 +48,3 @@ namespace QuantLib {
 
 
 #endif
-

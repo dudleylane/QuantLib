@@ -19,43 +19,44 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/instruments/bonds/cmsratebond.hpp>
 #include <ql/cashflows/cmscoupon.hpp>
 #include <ql/cashflows/simplecashflow.hpp>
 #include <ql/indexes/swapindex.hpp>
+#include <ql/instruments/bonds/cmsratebond.hpp>
 #include <ql/time/schedule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    CmsRateBond::CmsRateBond(
-                           Natural settlementDays,
-                           Real faceAmount,
-                           Schedule schedule,
-                           const ext::shared_ptr<SwapIndex>& index,
-                           const DayCounter& paymentDayCounter,
-                           BusinessDayConvention paymentConvention,
-                           Natural fixingDays,
-                           const std::vector<Real>& gearings,
-                           const std::vector<Spread>& spreads,
-                           const std::vector<Rate>& caps,
-                           const std::vector<Rate>& floors,
-                           bool inArrears,
-                           Real redemption,
-                           const Date& issueDate)
-    : Bond(settlementDays, schedule.calendar(), issueDate) {
+    CmsRateBond::CmsRateBond(Natural settlementDays,
+                             Real faceAmount,
+                             Schedule schedule,
+                             const ext::shared_ptr<SwapIndex>& index,
+                             const DayCounter& paymentDayCounter,
+                             BusinessDayConvention paymentConvention,
+                             Natural fixingDays,
+                             const std::vector<Real>& gearings,
+                             const std::vector<Spread>& spreads,
+                             const std::vector<Rate>& caps,
+                             const std::vector<Rate>& floors,
+                             bool inArrears,
+                             Real redemption,
+                             const Date& issueDate)
+    : Bond(settlementDays, schedule.calendar(), issueDate)
+    {
 
         maturityDate_ = schedule.endDate();
 
         cashflows_ = CmsLeg(std::move(schedule), index)
-            .withNotionals(faceAmount)
-            .withPaymentDayCounter(paymentDayCounter)
-            .withPaymentAdjustment(paymentConvention)
-            .withFixingDays(fixingDays)
-            .withGearings(gearings)
-            .withSpreads(spreads)
-            .withCaps(caps)
-            .withFloors(floors)
-            .inArrears(inArrears);
+                         .withNotionals(faceAmount)
+                         .withPaymentDayCounter(paymentDayCounter)
+                         .withPaymentAdjustment(paymentConvention)
+                         .withFixingDays(fixingDays)
+                         .withGearings(gearings)
+                         .withSpreads(spreads)
+                         .withCaps(caps)
+                         .withFloors(floors)
+                         .inArrears(inArrears);
 
         addRedemptionsToCashflows(std::vector<Real>(1, redemption));
 

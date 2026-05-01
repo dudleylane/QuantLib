@@ -17,48 +17,47 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/time/calendars/germany.hpp>
 #include <ql/errors.hpp>
+#include <ql/time/calendars/germany.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Germany::Germany(Germany::Market market) {
+    Germany::Germany(Germany::Market market)
+    {
         // all calendar instances on the same market share the same
         // implementation instance
-        static ext::shared_ptr<Calendar::Impl> settlementImpl(
-            new Germany::SettlementImpl);
-        static ext::shared_ptr<Calendar::Impl> frankfurtStockExchangeImpl(
-            new Germany::FrankfurtStockExchangeImpl);
-        static ext::shared_ptr<Calendar::Impl> xetraImpl(
-            new Germany::XetraImpl);
-        static ext::shared_ptr<Calendar::Impl> eurexImpl(
-            new Germany::EurexImpl);
-        static ext::shared_ptr<Calendar::Impl> euwaxImpl(
-            new Germany::EuwaxImpl);
+        static ext::shared_ptr<Calendar::Impl> settlementImpl(new Germany::SettlementImpl);
+        static ext::shared_ptr<Calendar::Impl> frankfurtStockExchangeImpl(new Germany::FrankfurtStockExchangeImpl);
+        static ext::shared_ptr<Calendar::Impl> xetraImpl(new Germany::XetraImpl);
+        static ext::shared_ptr<Calendar::Impl> eurexImpl(new Germany::EurexImpl);
+        static ext::shared_ptr<Calendar::Impl> euwaxImpl(new Germany::EuwaxImpl);
 
-        switch (market) {
-          case Settlement:
-            impl_ = settlementImpl;
-            break;
-          case FrankfurtStockExchange:
-            impl_ = frankfurtStockExchangeImpl;
-            break;
-          case Xetra:
-            impl_ = xetraImpl;
-            break;
-          case Eurex:
-            impl_ = eurexImpl;
-            break;
-          case Euwax:
-            impl_ = euwaxImpl;
-            break;
-          default:
-            QL_FAIL("unknown market");
+        switch (market)
+        {
+            case Settlement:
+                impl_ = settlementImpl;
+                break;
+            case FrankfurtStockExchange:
+                impl_ = frankfurtStockExchangeImpl;
+                break;
+            case Xetra:
+                impl_ = xetraImpl;
+                break;
+            case Eurex:
+                impl_ = eurexImpl;
+                break;
+            case Euwax:
+                impl_ = euwaxImpl;
+                break;
+            default:
+                QL_FAIL("unknown market");
         }
     }
 
 
-    bool Germany::SettlementImpl::isBusinessDay(const Date& date) const {
+    bool Germany::SettlementImpl::isBusinessDay(const Date& date) const
+    {
         Weekday w = date.weekday();
         Day d = date.dayOfMonth(), dd = date.dayOfYear();
         Month m = date.month();
@@ -68,15 +67,15 @@ namespace QuantLib {
             // New Year's Day
             || (d == 1 && m == January)
             // Good Friday
-            || (dd == em-3)
+            || (dd == em - 3)
             // Easter Monday
             || (dd == em)
             // Ascension Thursday
-            || (dd == em+38)
+            || (dd == em + 38)
             // Whit Monday
-            || (dd == em+49)
+            || (dd == em + 49)
             // Corpus Christi
-            || (dd == em+59)
+            || (dd == em + 59)
             // Labour Day
             || (d == 1 && m == May)
             // National Day
@@ -91,8 +90,8 @@ namespace QuantLib {
         return true;
     }
 
-    bool Germany::FrankfurtStockExchangeImpl::isBusinessDay(
-      const Date& date) const {
+    bool Germany::FrankfurtStockExchangeImpl::isBusinessDay(const Date& date) const
+    {
         Weekday w = date.weekday();
         Day d = date.dayOfMonth(), dd = date.dayOfYear();
         Month m = date.month();
@@ -102,7 +101,7 @@ namespace QuantLib {
             // New Year's Day
             || (d == 1 && m == January)
             // Good Friday
-            || (dd == em-3)
+            || (dd == em - 3)
             // Easter Monday
             || (dd == em)
             // Labour Day
@@ -117,7 +116,8 @@ namespace QuantLib {
         return true;
     }
 
-    bool Germany::XetraImpl::isBusinessDay(const Date& date) const {
+    bool Germany::XetraImpl::isBusinessDay(const Date& date) const
+    {
         Weekday w = date.weekday();
         Day d = date.dayOfMonth(), dd = date.dayOfYear();
         Month m = date.month();
@@ -127,7 +127,7 @@ namespace QuantLib {
             // New Year's Day
             || (d == 1 && m == January)
             // Good Friday
-            || (dd == em-3)
+            || (dd == em - 3)
             // Easter Monday
             || (dd == em)
             // Labour Day
@@ -142,7 +142,8 @@ namespace QuantLib {
         return true;
     }
 
-    bool Germany::EurexImpl::isBusinessDay(const Date& date) const {
+    bool Germany::EurexImpl::isBusinessDay(const Date& date) const
+    {
         Weekday w = date.weekday();
         Day d = date.dayOfMonth(), dd = date.dayOfYear();
         Month m = date.month();
@@ -152,7 +153,7 @@ namespace QuantLib {
             // New Year's Day
             || (d == 1 && m == January)
             // Good Friday
-            || (dd == em-3)
+            || (dd == em - 3)
             // Easter Monday
             || (dd == em)
             // Labour Day
@@ -168,8 +169,9 @@ namespace QuantLib {
             return false; // NOLINT(readability-simplify-boolean-expr)
         return true;
     }
-    
-    bool Germany::EuwaxImpl::isBusinessDay(const Date& date) const {
+
+    bool Germany::EuwaxImpl::isBusinessDay(const Date& date) const
+    {
         Weekday w = date.weekday();
         Day d = date.dayOfMonth(), dd = date.dayOfYear();
         Month m = date.month();
@@ -179,13 +181,13 @@ namespace QuantLib {
             // New Year's Day
             || (d == 1 && m == January)
             // Good Friday
-            || (dd == em-3)
+            || (dd == em - 3)
             // Easter Monday
             || (dd == em)
             // Labour Day
             || (d == 1 && m == May)
             // Whit Monday
-            || (dd == em+49)
+            || (dd == em + 49)
             // Christmas' Eve
             || (d == 24 && m == December)
             // Christmas
@@ -196,4 +198,3 @@ namespace QuantLib {
         return true;
     }
 }
-

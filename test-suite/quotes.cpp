@@ -19,18 +19,18 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
+#include <ql/indexes/ibor/euribor.hpp>
 #include <ql/math/array.hpp>
-#include <ql/quotes/simplequote.hpp>
-#include <ql/quotes/derivedquote.hpp>
+#include <ql/pricingengines/blackformula.hpp>
 #include <ql/quotes/compositequote.hpp>
+#include <ql/quotes/derivedquote.hpp>
 #include <ql/quotes/forwardvaluequote.hpp>
 #include <ql/quotes/impliedstddevquote.hpp>
 #include <ql/quotes/multicompositequote.hpp>
+#include <ql/quotes/simplequote.hpp>
+#include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actualactual.hpp>
-#include <ql/termstructures/yield/flatforward.hpp>
-#include <ql/indexes/ibor/euribor.hpp>
-#include <ql/pricingengines/blackformula.hpp>
 #include <numeric>
 
 using namespace QuantLib;
@@ -40,20 +40,43 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(QuoteTests)
 
-Real add10(Real x) { return x+10; }
-Real mul10(Real x) { return x*10; }
-Real sub10(Real x) { return x-10; }
-
-Real add(Real x, Real y) { return x+y; }
-Real mul(Real x, Real y) { return x*y; }
-Real sub(Real x, Real y) { return x-y; }
-
-Real addAll(const Array& x) { return std::accumulate(x.begin(), x.end(), Real(0.0)); }
-Real mulAll(const Array& x) {
-    return std::accumulate(x.begin(), x.end(), Real(1.0), [](Real x, Real y) -> Real { return x*y; });
+Real add10(Real x)
+{
+    return x + 10;
+}
+Real mul10(Real x)
+{
+    return x * 10;
+}
+Real sub10(Real x)
+{
+    return x - 10;
 }
 
-BOOST_AUTO_TEST_CASE(testObservable) {
+Real add(Real x, Real y)
+{
+    return x + y;
+}
+Real mul(Real x, Real y)
+{
+    return x * y;
+}
+Real sub(Real x, Real y)
+{
+    return x - y;
+}
+
+Real addAll(const Array& x)
+{
+    return std::accumulate(x.begin(), x.end(), Real(0.0));
+}
+Real mulAll(const Array& x)
+{
+    return std::accumulate(x.begin(), x.end(), Real(1.0), [](Real x, Real y) -> Real { return x * y; });
+}
+
+BOOST_AUTO_TEST_CASE(testObservable)
+{
 
     BOOST_TEST_MESSAGE("Testing observability of quotes...");
 
@@ -64,10 +87,10 @@ BOOST_AUTO_TEST_CASE(testObservable) {
 
     if (!f.isUp())
         BOOST_FAIL("Observer was not notified of quote change");
-
 }
 
-BOOST_AUTO_TEST_CASE(testObservableHandle) {
+BOOST_AUTO_TEST_CASE(testObservableHandle)
+{
 
     BOOST_TEST_MESSAGE("Testing observability of quote handles...");
 
@@ -85,80 +108,88 @@ BOOST_AUTO_TEST_CASE(testObservableHandle) {
     h.linkTo(me2);
     if (!f.isUp())
         BOOST_FAIL("Observer was not notified of quote change");
-
 }
 
-BOOST_AUTO_TEST_CASE(testDerived) {
+BOOST_AUTO_TEST_CASE(testDerived)
+{
 
     BOOST_TEST_MESSAGE("Testing derived quotes...");
 
     typedef Real (*unary_f)(Real);
-    static const unary_f funcs[] = { add10, mul10, sub10 };
-    static const Real values[] = { 12, 23, 34 };
+    static const unary_f funcs[] = {add10, mul10, sub10};
+    static const Real values[] = {12, 23, 34};
 
     auto me = ext::make_shared<SimpleQuote>();
     Handle<Quote> h(me);
 
-    for (const auto& func : funcs) {
+    for (const auto& func : funcs)
+    {
         DerivedQuote<unary_f> derived(h, func);
-        for (Real value : values) {
+        for (Real value : values)
+        {
             me->setValue(value);
             Real x = derived.value(), y = func(value);
-            if (std::fabs(x-y) > 1.0e-10)
+            if (std::fabs(x - y) > 1.0e-10)
                 BOOST_FAIL("derived quote yields " << x << "\n"
-                           << "function result is " << y);
+                                                   << "function result is " << y);
         }
     }
 }
 
-BOOST_AUTO_TEST_CASE(testComposite) {
+BOOST_AUTO_TEST_CASE(testComposite)
+{
 
     BOOST_TEST_MESSAGE("Testing composite quotes...");
 
-    typedef Real (*binary_f)(Real,Real);
-    static const binary_f funcs[] = { add, mul, sub };
-    static const Real values[] = { 12, 23, 34 };
+    typedef Real (*binary_f)(Real, Real);
+    static const binary_f funcs[] = {add, mul, sub};
+    static const Real values[] = {12, 23, 34};
 
-    auto me1 = ext::make_shared<SimpleQuote>(),
-         me2 = ext::make_shared<SimpleQuote>();
+    auto me1 = ext::make_shared<SimpleQuote>(), me2 = ext::make_shared<SimpleQuote>();
     Handle<Quote> h1(me1), h2(me2);
 
-    for (const auto& func : funcs) {
+    for (const auto& func : funcs)
+    {
         CompositeQuote<binary_f> composite(h1, h2, func);
-        for (Real value : values) {
+        for (Real value : values)
+        {
             me1->setValue(value);
             me2->setValue(value + 1);
             Real x = composite.value(), y = func(value, value + 1);
-            if (std::fabs(x-y) > 1.0e-10)
+            if (std::fabs(x - y) > 1.0e-10)
                 BOOST_FAIL("composite quote yields " << x << "\n"
-                           << "function result is " << y);
+                                                     << "function result is " << y);
         }
     }
 }
 
-BOOST_AUTO_TEST_CASE(testMultiComposite) {
+BOOST_AUTO_TEST_CASE(testMultiComposite)
+{
 
     BOOST_TEST_MESSAGE("Testing multi composite quotes...");
 
     typedef Real (*array_f)(const Array&);
-    static const array_f funcs[] = { addAll, mulAll, Norm2 };
+    static const array_f funcs[] = {addAll, mulAll, Norm2};
 
-    for (const auto& func : funcs) {
+    for (const auto& func : funcs)
+    {
         std::vector<ext::shared_ptr<SimpleQuote>> mes;
         std::vector<Handle<Quote>> handles;
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 3; i++)
+        {
             mes.push_back(ext::make_shared<SimpleQuote>(i + 1));
             handles.emplace_back(mes.back());
             MultiCompositeQuote<array_f> composite(handles, func);
-            for (int j = 0; j <= i; j++) {
+            for (int j = 0; j <= i; j++)
+            {
                 mes[j]->setValue(j * 10 + 1);
                 Array args(mes.size());
                 for (Size k = 0; k < mes.size(); k++)
                     args[k] = mes[k]->value();
                 Real x = composite.value(), y = func(args);
-                if (std::fabs(x-y) > 1.0e-10)
+                if (std::fabs(x - y) > 1.0e-10)
                     BOOST_FAIL("composite quote yields " << x << "\n"
-                               << "function result is " << y);
+                                                         << "function result is " << y);
                 for (Size k = 0; k < mes.size(); k++)
                     BOOST_CHECK_EQUAL(composite.inputValue(k), mes[k]->value());
             }
@@ -166,30 +197,28 @@ BOOST_AUTO_TEST_CASE(testMultiComposite) {
     }
 }
 
-BOOST_AUTO_TEST_CASE(testForwardValueQuoteAndImpliedStdevQuote){
-    BOOST_TEST_MESSAGE(
-            "Testing forward-value and implied-standard-deviation quotes...");
+BOOST_AUTO_TEST_CASE(testForwardValueQuoteAndImpliedStdevQuote)
+{
+    BOOST_TEST_MESSAGE("Testing forward-value and implied-standard-deviation quotes...");
     Real forwardRate = .05;
     DayCounter dc = ActualActual(ActualActual::ISDA);
     Calendar calendar = TARGET();
     ext::shared_ptr<SimpleQuote> forwardQuote(new SimpleQuote(forwardRate));
     Handle<Quote> forwardHandle(forwardQuote);
     Date evaluationDate = Settings::instance().evaluationDate();
-    ext::shared_ptr<YieldTermStructure>yc (new FlatForward(
-        evaluationDate, forwardHandle, dc));
+    ext::shared_ptr<YieldTermStructure> yc(new FlatForward(evaluationDate, forwardHandle, dc));
     Handle<YieldTermStructure> ycHandle(yc);
-    Period euriborTenor(1,Years);
+    Period euriborTenor(1, Years);
     ext::shared_ptr<Index> euribor(new Euribor(euriborTenor, ycHandle));
     Date fixingDate = calendar.advance(evaluationDate, euriborTenor);
-    ext::shared_ptr<ForwardValueQuote> forwardValueQuote( new
-        ForwardValueQuote(euribor, fixingDate));
-    Rate forwardValue =  forwardValueQuote->value();
+    ext::shared_ptr<ForwardValueQuote> forwardValueQuote(new ForwardValueQuote(euribor, fixingDate));
+    Rate forwardValue = forwardValueQuote->value();
     Rate expectedForwardValue = euribor->fixing(fixingDate, true);
     // we test if the forward value given by the quote is consistent
     // with the one directly given by the index
-    if (std::fabs(forwardValue-expectedForwardValue) > 1.0e-15)
+    if (std::fabs(forwardValue - expectedForwardValue) > 1.0e-15)
         BOOST_FAIL("Foward Value Quote quote yields " << forwardValue << "\n"
-                   << "expected result is " << expectedForwardValue);
+                                                      << "expected result is " << expectedForwardValue);
     // then we test the observer/observable chain
     Flag f;
     f.registerWith(forwardValueQuote);
@@ -198,11 +227,11 @@ BOOST_AUTO_TEST_CASE(testForwardValueQuoteAndImpliedStdevQuote){
         BOOST_FAIL("Observer was not notified of quote change");
 
     // and we retest if the values are still matching
-    forwardValue =  forwardValueQuote->value();
+    forwardValue = forwardValueQuote->value();
     expectedForwardValue = euribor->fixing(fixingDate, true);
-    if (std::fabs(forwardValue-expectedForwardValue) > 1.0e-15)
+    if (std::fabs(forwardValue - expectedForwardValue) > 1.0e-15)
         BOOST_FAIL("Foward Value Quote quote yields " << forwardValue << "\n"
-                   << "expected result is " << expectedForwardValue);
+                                                      << "expected result is " << expectedForwardValue);
     // we test the ImpliedStdevQuote class
     f.unregisterWith(forwardValueQuote);
     f.lower();
@@ -213,17 +242,14 @@ BOOST_AUTO_TEST_CASE(testForwardValueQuoteAndImpliedStdevQuote){
     Option::Type optionType = Option::Call;
     ext::shared_ptr<SimpleQuote> priceQuote(new SimpleQuote(price));
     Handle<Quote> priceHandle(priceQuote);
-    ext::shared_ptr<ImpliedStdDevQuote> impliedStdevQuote(new
-        ImpliedStdDevQuote(optionType, forwardHandle, priceHandle,
-                           strike, guess, accuracy));
+    ext::shared_ptr<ImpliedStdDevQuote> impliedStdevQuote(
+        new ImpliedStdDevQuote(optionType, forwardHandle, priceHandle, strike, guess, accuracy));
     Real impliedStdev = impliedStdevQuote->value();
     Real expectedImpliedStdev =
-        blackFormulaImpliedStdDev(optionType, strike,
-                                  forwardQuote->value(), price,
-                                  1.0, 0.0, guess, 1.0e-6);
-    if (std::fabs(impliedStdev-expectedImpliedStdev) > 1.0e-15)
-        BOOST_FAIL("\nimpliedStdevQuote yields :" << impliedStdev <<
-                   "\nexpected result is       :" << expectedImpliedStdev);
+        blackFormulaImpliedStdDev(optionType, strike, forwardQuote->value(), price, 1.0, 0.0, guess, 1.0e-6);
+    if (std::fabs(impliedStdev - expectedImpliedStdev) > 1.0e-15)
+        BOOST_FAIL("\nimpliedStdevQuote yields :" << impliedStdev
+                                                  << "\nexpected result is       :" << expectedImpliedStdev);
     // then we test the observer/observable chain
     ext::shared_ptr<Quote> quote = impliedStdevQuote;
     f.registerWith(quote);
@@ -236,7 +262,6 @@ BOOST_AUTO_TEST_CASE(testForwardValueQuoteAndImpliedStdevQuote){
     priceQuote->setValue(0.11);
     if (!f.isUp())
         BOOST_FAIL("Observer was not notified of quote change");
-
 }
 BOOST_AUTO_TEST_SUITE_END()
 

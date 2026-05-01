@@ -18,24 +18,22 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/math/copulas/alimikhailhaqcopula.hpp>
 #include <ql/errors.hpp>
+#include <ql/math/copulas/alimikhailhaqcopula.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     AliMikhailHaqCopula::AliMikhailHaqCopula(Real theta) : theta_(theta)
     {
-        QL_REQUIRE(theta >= -1.0 && theta <= 1.0 ,
-                   "theta (" << theta << ") must be in [-1,1]");
+        QL_REQUIRE(theta >= -1.0 && theta <= 1.0, "theta (" << theta << ") must be in [-1,1]");
     }
 
     Real AliMikhailHaqCopula::operator()(Real x, Real y) const
     {
-        QL_REQUIRE(x >= 0.0 && x <=1.0 ,
-                   "1st argument (" << x << ") must be in [0,1]");
-        QL_REQUIRE(y >= 0.0 && y <=1.0 ,
-                   "2nd argument (" << y << ") must be in [0,1]");
-        return (x*y)/(1.0-theta_*(1.0-x)*(1.0-y));
+        QL_REQUIRE(x >= 0.0 && x <= 1.0, "1st argument (" << x << ") must be in [0,1]");
+        QL_REQUIRE(y >= 0.0 && y <= 1.0, "2nd argument (" << y << ") must be in [0,1]");
+        return (x * y) / (1.0 - theta_ * (1.0 - x) * (1.0 - y));
     }
 
 }

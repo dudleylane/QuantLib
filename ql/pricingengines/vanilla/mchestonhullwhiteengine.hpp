@@ -31,28 +31,28 @@
 #include <ql/processes/hybridhestonhullwhiteprocess.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     template <class RNG = PseudoRandom, class S = Statistics>
-    class MCHestonHullWhiteEngine
-        : public MCVanillaEngine<MultiVariate, RNG, S> {
+    class MCHestonHullWhiteEngine : public MCVanillaEngine<MultiVariate, RNG, S>
+    {
       public:
-        typedef MCVanillaEngine<MultiVariate, RNG,S> base_type;
+        typedef MCVanillaEngine<MultiVariate, RNG, S> base_type;
         typedef typename base_type::path_generator_type path_generator_type;
         typedef typename base_type::path_pricer_type path_pricer_type;
         typedef typename base_type::stats_type stats_type;
         typedef typename base_type::result_type result_type;
 
-        MCHestonHullWhiteEngine(
-               const ext::shared_ptr<HybridHestonHullWhiteProcess>& process,
-               Size timeSteps,
-               Size timeStepsPerYear,
-               bool antitheticVariate,
-               bool controlVariate,
-               Size requiredSamples,
-               Real requiredTolerance,
-               Size maxSamples,
-               BigNatural seed);
+        MCHestonHullWhiteEngine(const ext::shared_ptr<HybridHestonHullWhiteProcess>& process,
+                                Size timeSteps,
+                                Size timeStepsPerYear,
+                                bool antitheticVariate,
+                                bool controlVariate,
+                                Size requiredSamples,
+                                Real requiredTolerance,
+                                Size maxSamples,
+                                BigNatural seed);
 
         void calculate() const override;
 
@@ -69,7 +69,8 @@ namespace QuantLib {
 
     //! Monte Carlo Heston/Hull-White engine factory
     template <class RNG = PseudoRandom, class S = Statistics>
-    class MakeMCHestonHullWhiteEngine {
+    class MakeMCHestonHullWhiteEngine
+    {
       public:
         explicit MakeMCHestonHullWhiteEngine(ext::shared_ptr<HybridHestonHullWhiteProcess>);
         // named parameters
@@ -83,6 +84,7 @@ namespace QuantLib {
         MakeMCHestonHullWhiteEngine& withSeed(BigNatural seed);
         // conversion to pricing engine
         operator ext::shared_ptr<PricingEngine>() const;
+
       private:
         ext::shared_ptr<HybridHestonHullWhiteProcess> process_;
         Size steps_, stepsPerYear_, samples_, maxSamples_;
@@ -92,7 +94,8 @@ namespace QuantLib {
     };
 
 
-    class HestonHullWhitePathPricer : public PathPricer<MultiPath> {
+    class HestonHullWhitePathPricer : public PathPricer<MultiPath>
+    {
       public:
         HestonHullWhitePathPricer(Time exerciseTime,
                                   ext::shared_ptr<Payoff> payoff,
@@ -107,206 +110,186 @@ namespace QuantLib {
     };
 
 
-    template<class RNG,class S>
-    inline MCHestonHullWhiteEngine<RNG,S>::MCHestonHullWhiteEngine(
-              const ext::shared_ptr<HybridHestonHullWhiteProcess> & process,
-              Size timeSteps,
-              Size timeStepsPerYear,
-              bool antitheticVariate,
-              bool controlVariate,
-              Size requiredSamples,
-              Real requiredTolerance,
-              Size maxSamples,
-              BigNatural seed)
-    : base_type(process, timeSteps, timeStepsPerYear,
-                false, antitheticVariate,
-                controlVariate, requiredSamples,
-                requiredTolerance, maxSamples, seed),
-      process_(process) {}
+    template <class RNG, class S>
+    inline MCHestonHullWhiteEngine<RNG, S>::MCHestonHullWhiteEngine(
+        const ext::shared_ptr<HybridHestonHullWhiteProcess>& process,
+        Size timeSteps,
+        Size timeStepsPerYear,
+        bool antitheticVariate,
+        bool controlVariate,
+        Size requiredSamples,
+        Real requiredTolerance,
+        Size maxSamples,
+        BigNatural seed)
+    : base_type(process,
+                timeSteps,
+                timeStepsPerYear,
+                false,
+                antitheticVariate,
+                controlVariate,
+                requiredSamples,
+                requiredTolerance,
+                maxSamples,
+                seed),
+      process_(process)
+    {
+    }
 
-    template<class RNG,class S>
-    inline void MCHestonHullWhiteEngine<RNG,S>::calculate() const {
+    template <class RNG, class S>
+    inline void MCHestonHullWhiteEngine<RNG, S>::calculate() const
+    {
         MCVanillaEngine<MultiVariate, RNG, S>::calculate();
-        
-        if (this->controlVariate_) {
+
+        if (this->controlVariate_)
+        {
             // control variate might lead to small negative
             // option values for deep OTM options
             this->results_.value = std::max(0.0, this->results_.value);
         }
     }
-                  
-    template <class RNG,class S> inline
-    ext::shared_ptr<typename MCHestonHullWhiteEngine<RNG,S>::path_pricer_type>
-    MCHestonHullWhiteEngine<RNG,S>::pathPricer() const {
+
+    template <class RNG, class S>
+    inline ext::shared_ptr<typename MCHestonHullWhiteEngine<RNG, S>::path_pricer_type>
+    MCHestonHullWhiteEngine<RNG, S>::pathPricer() const
+    {
 
         ext::shared_ptr<Exercise> exercise = this->arguments_.exercise;
 
-        QL_REQUIRE(exercise->type() == Exercise::European,
-                       "only european exercise is supported");
+        QL_REQUIRE(exercise->type() == Exercise::European, "only european exercise is supported");
 
         const Time exerciseTime = process_->time(exercise->lastDate());
 
         return ext::shared_ptr<path_pricer_type>(
-             new HestonHullWhitePathPricer(exerciseTime,
-                                           this->arguments_.payoff,
-                                           process_));
+            new HestonHullWhitePathPricer(exerciseTime, this->arguments_.payoff, process_));
     }
 
-    template <class RNG, class S> inline
-    ext::shared_ptr<
-        typename MCHestonHullWhiteEngine<RNG,S>::path_pricer_type>
-    MCHestonHullWhiteEngine<RNG,S>::controlPathPricer() const {
+    template <class RNG, class S>
+    inline ext::shared_ptr<typename MCHestonHullWhiteEngine<RNG, S>::path_pricer_type>
+    MCHestonHullWhiteEngine<RNG, S>::controlPathPricer() const
+    {
 
-        ext::shared_ptr<HestonProcess> hestonProcess =
-            process_->hestonProcess();
+        ext::shared_ptr<HestonProcess> hestonProcess = process_->hestonProcess();
 
         QL_REQUIRE(hestonProcess, "first constituent of the joint stochastic "
                                   "process need to be of type HestonProcess");
 
         ext::shared_ptr<Exercise> exercise = this->arguments_.exercise;
 
-        QL_REQUIRE(exercise->type() == Exercise::European,
-                       "only european exercise is supported");
+        QL_REQUIRE(exercise->type() == Exercise::European, "only european exercise is supported");
 
         const Time exerciseTime = process_->time(exercise->lastDate());
 
         return ext::shared_ptr<path_pricer_type>(
-             new HestonHullWhitePathPricer(
-                  exerciseTime,
-                  this->arguments_.payoff,
-                  process_) );
+            new HestonHullWhitePathPricer(exerciseTime, this->arguments_.payoff, process_));
     }
 
-    template <class RNG, class S> inline
-    ext::shared_ptr<PricingEngine>
-    MCHestonHullWhiteEngine<RNG,S>::controlPricingEngine() const {
+    template <class RNG, class S>
+    inline ext::shared_ptr<PricingEngine> MCHestonHullWhiteEngine<RNG, S>::controlPricingEngine() const
+    {
 
-        ext::shared_ptr<HestonProcess> hestonProcess =
-            process_->hestonProcess();
+        ext::shared_ptr<HestonProcess> hestonProcess = process_->hestonProcess();
 
-        ext::shared_ptr<HullWhiteForwardProcess> hullWhiteProcess =
-            process_->hullWhiteProcess();
+        ext::shared_ptr<HullWhiteForwardProcess> hullWhiteProcess = process_->hullWhiteProcess();
 
-        ext::shared_ptr<HestonModel> hestonModel(
-                                              new HestonModel(hestonProcess));
+        ext::shared_ptr<HestonModel> hestonModel(new HestonModel(hestonProcess));
         ext::shared_ptr<HullWhite> hwModel(
-                              new HullWhite(hestonProcess->riskFreeRate(),
-                                            hullWhiteProcess->a(),
-                                            hullWhiteProcess->sigma()));
+            new HullWhite(hestonProcess->riskFreeRate(), hullWhiteProcess->a(), hullWhiteProcess->sigma()));
 
-        return ext::shared_ptr<PricingEngine>(
-                new AnalyticHestonHullWhiteEngine(hestonModel, hwModel, 144));
+        return ext::shared_ptr<PricingEngine>(new AnalyticHestonHullWhiteEngine(hestonModel, hwModel, 144));
     }
 
-    template <class RNG, class S> inline
-    ext::shared_ptr<
-        typename MCHestonHullWhiteEngine<RNG,S>::path_generator_type>
-    MCHestonHullWhiteEngine<RNG,S>::controlPathGenerator() const {
+    template <class RNG, class S>
+    inline ext::shared_ptr<typename MCHestonHullWhiteEngine<RNG, S>::path_generator_type>
+    MCHestonHullWhiteEngine<RNG, S>::controlPathGenerator() const
+    {
 
         Size dimensions = process_->factors();
         TimeGrid grid = this->timeGrid();
-        typename RNG::rsg_type generator =
-            RNG::make_sequence_generator(dimensions*(grid.size()-1),
-                                         this->seed_);
+        typename RNG::rsg_type generator = RNG::make_sequence_generator(dimensions * (grid.size() - 1), this->seed_);
 
-        ext::shared_ptr<HybridHestonHullWhiteProcess> cvProcess(
-            new HybridHestonHullWhiteProcess(process_->hestonProcess(),
-                                             process_->hullWhiteProcess(),
-                                             0.0,
-                                             process_->discretization()));
+        ext::shared_ptr<HybridHestonHullWhiteProcess> cvProcess(new HybridHestonHullWhiteProcess(
+            process_->hestonProcess(), process_->hullWhiteProcess(), 0.0, process_->discretization()));
 
-        return ext::shared_ptr<path_generator_type>(
-                  new path_generator_type(cvProcess, grid, generator, false));
+        return ext::shared_ptr<path_generator_type>(new path_generator_type(cvProcess, grid, generator, false));
     }
 
 
     template <class RNG, class S>
     inline MakeMCHestonHullWhiteEngine<RNG, S>::MakeMCHestonHullWhiteEngine(
         ext::shared_ptr<HybridHestonHullWhiteProcess> process)
-    : process_(std::move(process)), steps_(Null<Size>()), stepsPerYear_(Null<Size>()),
-      samples_(Null<Size>()), maxSamples_(Null<Size>()), tolerance_(Null<Real>()) {}
+    : process_(std::move(process)), steps_(Null<Size>()), stepsPerYear_(Null<Size>()), samples_(Null<Size>()),
+      maxSamples_(Null<Size>()), tolerance_(Null<Real>())
+    {
+    }
 
     template <class RNG, class S>
-    inline MakeMCHestonHullWhiteEngine<RNG,S>&
-    MakeMCHestonHullWhiteEngine<RNG,S>::withSteps(Size steps) {
+    inline MakeMCHestonHullWhiteEngine<RNG, S>& MakeMCHestonHullWhiteEngine<RNG, S>::withSteps(Size steps)
+    {
         steps_ = steps;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCHestonHullWhiteEngine<RNG,S>&
-    MakeMCHestonHullWhiteEngine<RNG,S>::withStepsPerYear(Size steps) {
+    inline MakeMCHestonHullWhiteEngine<RNG, S>& MakeMCHestonHullWhiteEngine<RNG, S>::withStepsPerYear(Size steps)
+    {
         stepsPerYear_ = steps;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCHestonHullWhiteEngine<RNG,S>&
-    MakeMCHestonHullWhiteEngine<RNG,S>::withAntitheticVariate(bool b) {
+    inline MakeMCHestonHullWhiteEngine<RNG, S>& MakeMCHestonHullWhiteEngine<RNG, S>::withAntitheticVariate(bool b)
+    {
         antithetic_ = b;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCHestonHullWhiteEngine<RNG,S>&
-    MakeMCHestonHullWhiteEngine<RNG,S>::withControlVariate(bool b) {
+    inline MakeMCHestonHullWhiteEngine<RNG, S>& MakeMCHestonHullWhiteEngine<RNG, S>::withControlVariate(bool b)
+    {
         controlVariate_ = b;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCHestonHullWhiteEngine<RNG,S>&
-    MakeMCHestonHullWhiteEngine<RNG,S>::withSamples(Size samples) {
-        QL_REQUIRE(tolerance_ == Null<Real>(),
-                   "tolerance already set");
+    inline MakeMCHestonHullWhiteEngine<RNG, S>& MakeMCHestonHullWhiteEngine<RNG, S>::withSamples(Size samples)
+    {
+        QL_REQUIRE(tolerance_ == Null<Real>(), "tolerance already set");
         samples_ = samples;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCHestonHullWhiteEngine<RNG,S>&
-    MakeMCHestonHullWhiteEngine<RNG,S>::withAbsoluteTolerance(Real tolerance) {
-        QL_REQUIRE(samples_ == Null<Size>(),
-                   "number of samples already set");
-        QL_REQUIRE(RNG::allowsErrorEstimate,
-                   "chosen random generator policy "
-                   "does not allow an error estimate");
+    inline MakeMCHestonHullWhiteEngine<RNG, S>&
+    MakeMCHestonHullWhiteEngine<RNG, S>::withAbsoluteTolerance(Real tolerance)
+    {
+        QL_REQUIRE(samples_ == Null<Size>(), "number of samples already set");
+        QL_REQUIRE(RNG::allowsErrorEstimate, "chosen random generator policy "
+                                             "does not allow an error estimate");
         tolerance_ = tolerance;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCHestonHullWhiteEngine<RNG,S>&
-    MakeMCHestonHullWhiteEngine<RNG,S>::withMaxSamples(Size samples) {
+    inline MakeMCHestonHullWhiteEngine<RNG, S>& MakeMCHestonHullWhiteEngine<RNG, S>::withMaxSamples(Size samples)
+    {
         maxSamples_ = samples;
         return *this;
     }
 
     template <class RNG, class S>
-    inline MakeMCHestonHullWhiteEngine<RNG,S>&
-    MakeMCHestonHullWhiteEngine<RNG,S>::withSeed(BigNatural seed) {
+    inline MakeMCHestonHullWhiteEngine<RNG, S>& MakeMCHestonHullWhiteEngine<RNG, S>::withSeed(BigNatural seed)
+    {
         seed_ = seed;
         return *this;
     }
 
     template <class RNG, class S>
-    inline
-    MakeMCHestonHullWhiteEngine<RNG,S>::operator
-    ext::shared_ptr<PricingEngine>() const {
-        QL_REQUIRE(steps_ != Null<Size>() || stepsPerYear_ != Null<Size>(),
-                   "number of steps not given");
-        QL_REQUIRE(steps_ == Null<Size>() || stepsPerYear_ == Null<Size>(),
-                   "number of steps overspecified");
-        return ext::shared_ptr<PricingEngine>(new
-            MCHestonHullWhiteEngine<RNG,S>(process_,
-                                           steps_,
-                                           stepsPerYear_,
-                                           antithetic_,
-                                           controlVariate_,
-                                           samples_,
-                                           tolerance_,
-                                           maxSamples_,
-                                           seed_));
+    inline MakeMCHestonHullWhiteEngine<RNG, S>::operator ext::shared_ptr<PricingEngine>() const
+    {
+        QL_REQUIRE(steps_ != Null<Size>() || stepsPerYear_ != Null<Size>(), "number of steps not given");
+        QL_REQUIRE(steps_ == Null<Size>() || stepsPerYear_ == Null<Size>(), "number of steps overspecified");
+        return ext::shared_ptr<PricingEngine>(new MCHestonHullWhiteEngine<RNG, S>(
+            process_, steps_, stepsPerYear_, antithetic_, controlVariate_, samples_, tolerance_, maxSamples_, seed_));
     }
 
 }

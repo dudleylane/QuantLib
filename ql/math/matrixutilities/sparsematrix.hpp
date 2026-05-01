@@ -24,47 +24,50 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #ifndef quantlib_sparse_matrix_hpp
 #define quantlib_sparse_matrix_hpp
 
-#include <ql/qldefines.hpp>
 #include <ql/math/array.hpp>
+#include <ql/qldefines.hpp>
 
 #if defined(QL_PATCH_MSVC)
-#pragma warning(push)
-#pragma warning(disable:4180)
-#pragma warning(disable:4127)
+#    pragma warning(push)
+#    pragma warning(disable : 4180)
+#    pragma warning(disable : 4127)
 #endif
 
 #if BOOST_VERSION == 106400
-#include <boost/serialization/array_wrapper.hpp>
+#    include <boost/serialization/array_wrapper.hpp>
 #endif
 
 #include <boost/numeric/ublas/matrix_sparse.hpp>
 
 #if defined(QL_PATCH_MSVC)
-#pragma warning(pop)
+#    pragma warning(pop)
 #endif
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     typedef boost::numeric::ublas::compressed_matrix<Real> SparseMatrix;
     typedef boost::numeric::ublas::matrix_reference<SparseMatrix> SparseMatrixReference;
 
-    inline Array prod(const SparseMatrix& A, const Array& x) {
-        QL_REQUIRE(x.size() == A.size2(),
-                   "vectors and sparse matrices with different sizes ("
-                   << x.size() << ", " << A.size1() << "x" << A.size2() <<
-                   ") cannot be multiplied");
+    inline Array prod(const SparseMatrix& A, const Array& x)
+    {
+        QL_REQUIRE(x.size() == A.size2(), "vectors and sparse matrices with different sizes ("
+                                              << x.size() << ", " << A.size1() << "x" << A.size2()
+                                              << ") cannot be multiplied");
 
         Array b(x.size(), 0.0);
 
-        for (Size i=0; i < A.filled1()-1; ++i) {
+        for (Size i = 0; i < A.filled1() - 1; ++i)
+        {
             const Size begin = A.index1_data()[i];
-            const Size end   = A.index1_data()[i+1];
-            Real t=0;
-            for (Size j=begin; j < end; ++j) {
-                t += A.value_data()[j]*x[A.index2_data()[j]];
+            const Size end = A.index1_data()[i + 1];
+            Real t = 0;
+            for (Size j = begin; j < end; ++j)
+            {
+                t += A.value_data()[j] * x[A.index2_data()[j]];
             }
 
-            b[i]=t;
+            b[i] = t;
         }
         return b;
     }

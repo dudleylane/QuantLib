@@ -20,39 +20,38 @@
 
 #include <ql/instruments/forwardvanillaoption.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    ForwardVanillaOption::ForwardVanillaOption(
-                           Real moneyness,
-                           const Date& resetDate,
-                           const ext::shared_ptr<StrikedTypePayoff>& payoff,
-                           const ext::shared_ptr<Exercise>& exercise)
-    : OneAssetOption(payoff, exercise),
-      moneyness_(moneyness), resetDate_(resetDate) {}
+    ForwardVanillaOption::ForwardVanillaOption(Real moneyness,
+                                               const Date& resetDate,
+                                               const ext::shared_ptr<StrikedTypePayoff>& payoff,
+                                               const ext::shared_ptr<Exercise>& exercise)
+    : OneAssetOption(payoff, exercise), moneyness_(moneyness), resetDate_(resetDate)
+    {
+    }
 
-    void ForwardVanillaOption::setupArguments(
-                                       PricingEngine::arguments* args) const {
+    void ForwardVanillaOption::setupArguments(PricingEngine::arguments* args) const
+    {
         OneAssetOption::setupArguments(args);
         auto* arguments = dynamic_cast<ForwardVanillaOption::arguments*>(args);
         QL_REQUIRE(arguments != nullptr, "wrong argument type");
 
         arguments->moneyness = moneyness_;
         arguments->resetDate = resetDate_;
-
     }
 
-    void ForwardVanillaOption::fetchResults(
-                                      const PricingEngine::results* r) const {
+    void ForwardVanillaOption::fetchResults(const PricingEngine::results* r) const
+    {
         OneAssetOption::fetchResults(r);
         const auto* results = dynamic_cast<const ForwardVanillaOption::results*>(r);
         QL_ENSURE(results != nullptr, "no results returned from pricing engine");
-        delta_       = results->delta;
-        gamma_       = results->gamma;
-        theta_       = results->theta;
-        vega_        = results->vega;
-        rho_         = results->rho;
+        delta_ = results->delta;
+        gamma_ = results->gamma;
+        theta_ = results->theta;
+        vega_ = results->vega;
+        rho_ = results->rho;
         dividendRho_ = results->dividendRho;
     }
 
 }
-

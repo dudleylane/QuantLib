@@ -2,7 +2,7 @@
 
 /*
  Copyright (C) 2010 Klaus Spanderen
- 
+
  This file is part of QuantLib, a free-software/open-source library
  for financial quantitative analysts and developers - http://quantlib.org/
 
@@ -26,12 +26,13 @@
 
 #include <ql/pricingengines/basket/spreadblackscholesvanillaengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Pricing engine for spread option on two futures
     /*! This class implements formulae from
         "Correlation in the Energy Markets", E. Kirk
-        Managing Energy Price Risk. 
+        Managing Energy Price Risk.
         London: Risk Publications and Enron, pp. 71-78
 
         \ingroup basketengines
@@ -39,15 +40,21 @@ namespace QuantLib {
         \test the correctness of the returned value is tested by
               reproducing results available in literature.
     */
-    class KirkEngine : public SpreadBlackScholesVanillaEngine {
+    class KirkEngine : public SpreadBlackScholesVanillaEngine
+    {
       public:
         KirkEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process1,
                    ext::shared_ptr<GeneralizedBlackScholesProcess> process2,
                    Real correlation);
 
       protected:
-        Real calculate(Real f1, Real f2, Real strike, Option::Type optionType,
-            Real variance1, Real variance2, DiscountFactor df) const override;
+        Real calculate(Real f1,
+                       Real f2,
+                       Real strike,
+                       Option::Type optionType,
+                       Real variance1,
+                       Real variance2,
+                       DiscountFactor df) const override;
     };
 }
 

@@ -28,52 +28,52 @@
 #ifndef quantlib_default_probability_helpers_hpp
 #define quantlib_default_probability_helpers_hpp
 
-#include <ql/termstructures/defaulttermstructure.hpp>
-#include <ql/termstructures/bootstraphelper.hpp>
-#include <ql/time/schedule.hpp>
 #include <ql/instruments/creditdefaultswap.hpp>
+#include <ql/termstructures/bootstraphelper.hpp>
+#include <ql/termstructures/defaulttermstructure.hpp>
+#include <ql/time/schedule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class YieldTermStructure;
     class CreditDefaultSwap;
 
     //! alias for default-probability bootstrap helpers
-    typedef BootstrapHelper<DefaultProbabilityTermStructure>
-                                                     DefaultProbabilityHelper;
-    typedef RelativeDateBootstrapHelper<DefaultProbabilityTermStructure>
-                                         RelativeDateDefaultProbabilityHelper;
+    typedef BootstrapHelper<DefaultProbabilityTermStructure> DefaultProbabilityHelper;
+    typedef RelativeDateBootstrapHelper<DefaultProbabilityTermStructure> RelativeDateDefaultProbabilityHelper;
 
     //! Base class for CDS helpers
-    class CdsHelper : public RelativeDateDefaultProbabilityHelper {
+    class CdsHelper : public RelativeDateDefaultProbabilityHelper
+    {
       public:
         /*! Constructor taking CDS market quote
             @param quote  The helper's market quote.
             @param tenor  CDS tenor.
             @param settlementDays  The number of days from evaluation date to the start of the protection period.
-                                   Prior to the CDS Big Bang in 2009, this was typically 1 calendar day. After the 
-                                   CDS Big Bang, this is typically 0 calendar days i.e. protection starts 
+                                   Prior to the CDS Big Bang in 2009, this was typically 1 calendar day. After the
+                                   CDS Big Bang, this is typically 0 calendar days i.e. protection starts
                                    immediately.
             @param calendar  CDS calendar. Typically weekends only for standard non-JPY CDS and TYO for JPY.
             @param frequency  Coupon frequency. Typically 3 months for standard CDS.
             @param paymentConvention  The convention applied to coupons schedules and settlement dates.
-            @param rule  The date generation rule for generating the CDS schedule. Typically, for CDS prior to the 
-                         Big Bang, \c OldCDS should be used. After the Big Bang, \c CDS was typical and since 2015 
+            @param rule  The date generation rule for generating the CDS schedule. Typically, for CDS prior to the
+                         Big Bang, \c OldCDS should be used. After the Big Bang, \c CDS was typical and since 2015
                          \c CDS2015 is standard.
-            @param dayCounter  The day counter for CDS fee leg coupons. Typically it is Actual/360, excluding 
-                               accrual end, for all but the final coupon period with Actual/360, including accrual 
-                               end, for the final coupon. The \p lastPeriodDayCounter below allows for this 
+            @param dayCounter  The day counter for CDS fee leg coupons. Typically it is Actual/360, excluding
+                               accrual end, for all but the final coupon period with Actual/360, including accrual
+                               end, for the final coupon. The \p lastPeriodDayCounter below allows for this
                                distinction.
             @param recoveryRate  The recovery rate of the underlying reference entity.
             @param discountCurve  A handle to the relevant discount curve.
-            @param settlesAccrual  Set to \c true if accrued fee is paid on the occurrence of a credit event and set 
+            @param settlesAccrual  Set to \c true if accrued fee is paid on the occurrence of a credit event and set
                                    to \c false if it is not. Typically this is \c true.
-            @param paysAtDefaultTime  Set to \c true if default payment is made at time of credit event or postponed 
+            @param paysAtDefaultTime  Set to \c true if default payment is made at time of credit event or postponed
                                       to the end of the coupon period. Typically this is \c true.
             @param startDate  Used to specify an explicit start date for the CDS schedule and the date from which the
                               CDS maturity is calculated via the \p tenor. Useful for off-the-run index schedules.
             @param lastPeriodDayCounter  The day counter for the last fee leg coupon. See comment on \p dayCounter.
-            @param rebatesAccrual  Set to \c true if the fee leg accrual is rebated on the cash settlement date. For 
+            @param rebatesAccrual  Set to \c true if the fee leg accrual is rebated on the cash settlement date. For
                                    CDS after the Big Bang, this is typically \c true.
             @param model  The pricing model to use for the helper.
         */
@@ -96,9 +96,7 @@ namespace QuantLib {
 
         void setTermStructure(DefaultProbabilityTermStructure*) override;
         // NOLINTNEXTLINE(cppcoreguidelines-noexcept-swap,performance-noexcept-swap)
-        ext::shared_ptr<CreditDefaultSwap> swap() const {
-            return swap_;
-        }
+        ext::shared_ptr<CreditDefaultSwap> swap() const { return swap_; }
         void update() override;
 
       protected:
@@ -128,7 +126,8 @@ namespace QuantLib {
     };
 
     //! Spread-quoted CDS hazard rate bootstrap helper.
-    class SpreadCdsHelper : public CdsHelper {
+    class SpreadCdsHelper : public CdsHelper
+    {
       public:
         SpreadCdsHelper(const std::variant<Rate, Handle<Quote>>& runningSpread,
                         const Period& tenor,
@@ -154,7 +153,8 @@ namespace QuantLib {
     };
 
     //! Upfront-quoted CDS hazard rate bootstrap helper.
-    class UpfrontCdsHelper : public CdsHelper {
+    class UpfrontCdsHelper : public CdsHelper
+    {
       public:
         /*! \note the upfront must be quoted in fractional units. */
         UpfrontCdsHelper(const std::variant<Rate, Handle<Quote>>& upfront,

@@ -26,12 +26,11 @@
 
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! default theta calculation for Black-Scholes options
-    Real blackScholesTheta(
-                     const ext::shared_ptr<GeneralizedBlackScholesProcess>&,
-                     Real value, Real delta, Real gamma);
+    Real blackScholesTheta(const ext::shared_ptr<GeneralizedBlackScholesProcess>&, Real value, Real delta, Real gamma);
 
     //! default theta-per-day calculation
     Real defaultThetaPerDay(Real theta);

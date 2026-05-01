@@ -27,12 +27,14 @@
 #include <ql/types.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! weighted sample
     /*! \ingroup mcarlo */
     template <class T>
-    struct Sample {
+    struct Sample
+    {
       public:
         typedef T value_type;
         Sample(T value, Real weight) : value(std::move(value)), weight(weight) {}

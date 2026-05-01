@@ -29,15 +29,14 @@
 #ifndef quantlib_bond_hpp
 #define quantlib_bond_hpp
 
-#include <ql/instrument.hpp>
-
-#include <ql/time/calendar.hpp>
 #include <ql/cashflow.hpp>
 #include <ql/compounding.hpp>
-
+#include <ql/instrument.hpp>
+#include <ql/time/calendar.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class DayCounter;
 
@@ -56,20 +55,28 @@ namespace QuantLib {
         - price/yield calculations are checked against known good
           values.
     */
-    class Bond : public Instrument {
+    class Bond : public Instrument
+    {
       public:
         //! Bond price information
-        class Price {
+        class Price
+        {
           public:
-            enum Type { Dirty, Clean };
+            enum Type
+            {
+                Dirty,
+                Clean
+            };
             Price() : amount_(Null<Real>()), type_(Bond::Price::Clean) {}
             Price(Real amount, Type type) : amount_(amount), type_(type) {}
-            Real amount() const {
+            Real amount() const
+            {
                 QL_REQUIRE(amount_ != Null<Real>(), "no amount given");
                 return amount_;
             }
             Type type() const { return type_; }
             bool isValid() const { return amount_ != Null<Real>(); }
+
           private:
             Real amount_;
             Type type_;
@@ -80,10 +87,7 @@ namespace QuantLib {
             data, if available.  Therefore, redemptions must not be
             included in the passed cash flows.
         */
-        Bond(Natural settlementDays,
-             Calendar calendar,
-             const Date& issueDate = Date(),
-             const Leg& coupons = Leg());
+        Bond(Natural settlementDays, Calendar calendar, const Date& issueDate = Date(), const Leg& coupons = Leg());
 
         //! old constructor for non amortizing bonds.
         /*! \warning The last passed cash flow must be the bond
@@ -177,19 +181,13 @@ namespace QuantLib {
 
         //! clean price given a yield and settlement date
         /*! The default bond settlement is used if no date is given. */
-        Real cleanPrice(Rate yield,
-                        const DayCounter& dc,
-                        Compounding comp,
-                        Frequency freq,
-                        Date settlementDate = Date()) const;
+        Real cleanPrice(
+            Rate yield, const DayCounter& dc, Compounding comp, Frequency freq, Date settlementDate = Date()) const;
 
         //! dirty price given a yield and settlement date
         /*! The default bond settlement is used if no date is given. */
-        Real dirtyPrice(Rate yield,
-                        const DayCounter& dc,
-                        Compounding comp,
-                        Frequency freq,
-                        Date settlementDate = Date()) const;
+        Real dirtyPrice(
+            Rate yield, const DayCounter& dc, Compounding comp, Frequency freq, Date settlementDate = Date()) const;
 
         //! settlement value as a function of the clean price
         /*! The default bond settlement date is used for calculation. */
@@ -252,25 +250,21 @@ namespace QuantLib {
             \pre The cashflows_ vector must contain at least one
                  coupon and must be sorted by date.
         */
-        void addRedemptionsToCashflows(const std::vector<Real>& redemptions
-                                                       = std::vector<Real>());
+        void addRedemptionsToCashflows(const std::vector<Real>& redemptions = std::vector<Real>());
 
         /*! This method can be called by derived classes in order to
             build a bond with a single redemption payment.  It will
             fill the notionalSchedule_, notionals_, and redemptions_
             data members.
         */
-        void setSingleRedemption(Real notional,
-                                 Real redemption,
-                                 const Date& date);
+        void setSingleRedemption(Real notional, Real redemption, const Date& date);
 
         /*! This method can be called by derived classes in order to
             build a bond with a single redemption payment.  It will
             fill the notionalSchedule_, notionals_, and redemptions_
             data members.
         */
-        void setSingleRedemption(Real notional,
-                                 const ext::shared_ptr<CashFlow>& redemption);
+        void setSingleRedemption(Real notional, const ext::shared_ptr<CashFlow>& redemption);
 
         /*! used internally to collect notional information from the
             coupons. It should not be called by derived classes,
@@ -285,14 +279,15 @@ namespace QuantLib {
         Calendar calendar_;
         std::vector<Date> notionalSchedule_;
         std::vector<Real> notionals_;
-        Leg cashflows_; // all cashflows
+        Leg cashflows_;   // all cashflows
         Leg redemptions_; // the redemptions
 
         Date maturityDate_, issueDate_;
         mutable Real settlementValue_;
     };
 
-    class Bond::arguments : public PricingEngine::arguments {
+    class Bond::arguments : public PricingEngine::arguments
+    {
       public:
         Date settlementDate;
         Leg cashflows;
@@ -300,42 +295,51 @@ namespace QuantLib {
         void validate() const override;
     };
 
-    class Bond::results : public Instrument::results {
+    class Bond::results : public Instrument::results
+    {
       public:
         Real settlementValue;
-        void reset() override {
+        void reset() override
+        {
             settlementValue = Null<Real>();
             Instrument::results::reset();
         }
     };
 
-    class Bond::engine : public GenericEngine<Bond::arguments,
-                                              Bond::results> {};
+    class Bond::engine : public GenericEngine<Bond::arguments, Bond::results>
+    {
+    };
 
 
     // inline definitions
 
-    inline Natural Bond::settlementDays() const {
+    inline Natural Bond::settlementDays() const
+    {
         return settlementDays_;
     }
 
-    inline const Calendar& Bond::calendar() const {
+    inline const Calendar& Bond::calendar() const
+    {
         return calendar_;
     }
 
-    inline const std::vector<Real>& Bond::notionals() const {
+    inline const std::vector<Real>& Bond::notionals() const
+    {
         return notionals_;
     }
 
-    inline const Leg& Bond::cashflows() const {
+    inline const Leg& Bond::cashflows() const
+    {
         return cashflows_;
     }
 
-    inline const Leg& Bond::redemptions() const {
+    inline const Leg& Bond::redemptions() const
+    {
         return redemptions_;
     }
 
-    inline Date Bond::issueDate() const {
+    inline Date Bond::issueDate() const
+    {
         return issueDate_;
     }
 

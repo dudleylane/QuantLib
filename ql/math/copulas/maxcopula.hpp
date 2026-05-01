@@ -27,14 +27,16 @@
 #include <ql/types.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! max copula
-    class MaxCopula {
+    class MaxCopula
+    {
       public:
         Real operator()(Real x, Real y) const;
     };
-    
+
 }
 
 #endif

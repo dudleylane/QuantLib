@@ -19,49 +19,51 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
  */
 
-#include <ql/cashflows/zeroinflationcashflow.hpp>
 #include <ql/cashflows/simplecashflow.hpp>
+#include <ql/cashflows/zeroinflationcashflow.hpp>
 #include <ql/instruments/zerocouponinflationswap.hpp>
 #include <ql/time/calendars/nullcalendar.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /* Generally inflation indices are available with a lag of 1month
        and then observed with a lag of 2-3 months depending whether
        they use an interpolated fixing or not.  Here, we make the
        swap use the interpolation of the index to avoid incompatibilities.
     */
-    ZeroCouponInflationSwap::ZeroCouponInflationSwap(
-        Type type,
-        Real nominal,
-        const Date& startDate, // start date of contract (only)
-        const Date& maturity,  // this is pre-adjustment!
-        Calendar fixCalendar,
-        BusinessDayConvention fixConvention,
-        DayCounter dayCounter,
-        Rate fixedRate,
-        const ext::shared_ptr<ZeroInflationIndex>& infIndex,
-        const Period& observationLag,
-        CPI::InterpolationType observationInterpolation,
-        bool adjustInfObsDates,
-        Calendar infCalendar,
-        BusinessDayConvention infConvention)
+    ZeroCouponInflationSwap::ZeroCouponInflationSwap(Type type,
+                                                     Real nominal,
+                                                     const Date& startDate, // start date of contract (only)
+                                                     const Date& maturity,  // this is pre-adjustment!
+                                                     Calendar fixCalendar,
+                                                     BusinessDayConvention fixConvention,
+                                                     DayCounter dayCounter,
+                                                     Rate fixedRate,
+                                                     const ext::shared_ptr<ZeroInflationIndex>& infIndex,
+                                                     const Period& observationLag,
+                                                     CPI::InterpolationType observationInterpolation,
+                                                     bool adjustInfObsDates,
+                                                     Calendar infCalendar,
+                                                     BusinessDayConvention infConvention)
     : Swap(2), type_(type), nominal_(nominal), startDate_(startDate), maturityDate_(maturity),
-      fixCalendar_(std::move(fixCalendar)), fixConvention_(fixConvention), fixedRate_(fixedRate),
-      infIndex_(infIndex), observationLag_(observationLag),
-      observationInterpolation_(observationInterpolation), adjustInfObsDates_(adjustInfObsDates),
-      infCalendar_(std::move(infCalendar)), infConvention_(infConvention),
-      dayCounter_(std::move(dayCounter)) {
+      fixCalendar_(std::move(fixCalendar)), fixConvention_(fixConvention), fixedRate_(fixedRate), infIndex_(infIndex),
+      observationLag_(observationLag), observationInterpolation_(observationInterpolation),
+      adjustInfObsDates_(adjustInfObsDates), infCalendar_(std::move(infCalendar)), infConvention_(infConvention),
+      dayCounter_(std::move(dayCounter))
+    {
         // first check compatibility of index and swap definitions
-        if (detail::CPI::effectiveInterpolationType(observationInterpolation_) == CPI::Linear) {
+        if (detail::CPI::effectiveInterpolationType(observationInterpolation_) == CPI::Linear)
+        {
             Period pShift(infIndex_->frequency());
             QL_REQUIRE(observationLag_ - pShift >= infIndex_->availabilityLag(),
                        "inconsistency between swap observation lag "
-                           << observationLag_ << ", interpolated index period "
-                           << pShift << " and index availability " << infIndex_->availabilityLag()
-                           << ": need (obsLag-index period) >= availLag");
-        } else {
+                           << observationLag_ << ", interpolated index period " << pShift << " and index availability "
+                           << infIndex_->availabilityLag() << ": need (obsLag-index period) >= availLag");
+        }
+        else
+        {
             QL_REQUIRE(infIndex_->availabilityLag() <= observationLag_,
                        "index tries to observe inflation fixings that do not yet exist: "
                            << " availability lag " << infIndex_->availabilityLag()
@@ -78,10 +80,8 @@ namespace QuantLib {
 
         bool growthOnly = true;
 
-        auto inflationCashFlow =
-            ext::make_shared<ZeroInflationCashFlow>(nominal, infIndex, observationInterpolation_,
-                                                    startDate, maturity, observationLag_,
-                                                    infPayDate, growthOnly);
+        auto inflationCashFlow = ext::make_shared<ZeroInflationCashFlow>(
+            nominal, infIndex, observationInterpolation_, startDate, maturity, observationLag_, infPayDate, growthOnly);
 
         baseDate_ = inflationCashFlow->baseDate();
         obsDate_ = inflationCashFlow->fixingDate();
@@ -100,7 +100,8 @@ namespace QuantLib {
 
         registerWith(inflationCashFlow);
 
-        switch (type_) {
+        switch (type_)
+        {
             case Payer:
                 payer_[0] = +1.0;
                 payer_[1] = -1.0;
@@ -115,21 +116,21 @@ namespace QuantLib {
     }
 
 
-    Real ZeroCouponInflationSwap::fairRate() const {
+    Real ZeroCouponInflationSwap::fairRate() const
+    {
         // What does this mean before or after trade date?
         // Always means that NPV is zero for _this_ instrument
         // if it was created with _this_ rate
         // _knowing_ the time from base to obs (etc).
 
-        ext::shared_ptr<IndexedCashFlow> icf =
-        ext::dynamic_pointer_cast<IndexedCashFlow>(legs_[1].at(0));
-        QL_REQUIRE(icf,"failed to downcast to IndexedCashFlow in ::fairRate()");
+        ext::shared_ptr<IndexedCashFlow> icf = ext::dynamic_pointer_cast<IndexedCashFlow>(legs_[1].at(0));
+        QL_REQUIRE(icf, "failed to downcast to IndexedCashFlow in ::fairRate()");
 
         // +1 because the IndexedCashFlow has growthOnly=true
         Real growth = icf->amount() / icf->notional() + 1.0;
         Real T = dayCounter_.yearFraction(startDate_, maturityDate_);
 
-        return std::pow(growth,1.0/T) - 1.0;
+        return std::pow(growth, 1.0 / T) - 1.0;
 
         // we cannot use this simple definition because
         // it does not work for already-issued instruments
@@ -137,7 +138,8 @@ namespace QuantLib {
         //      maturityDate(), observationLag(), infIndex_->interpolated());
     }
 
-    Real ZeroCouponInflationSwap::fixedLegBPS() const {
+    Real ZeroCouponInflationSwap::fixedLegBPS() const
+    {
         // legBPS_[0] is 0, because fixed leg uses a SimpleCashFlow. BPSCalculator assumes
         // that simple cashflows are not sensitive to fixedRate. We could change that to a
         // FixedRateCoupon, however BPSCalculator also assumes that all coupons are linear
@@ -154,23 +156,27 @@ namespace QuantLib {
         return df * nominal_ * (pow(1.0 + fixedRate_ + basisPoint, T) - pow(1.0 + fixedRate_, T));
     }
 
-    Real ZeroCouponInflationSwap::fixedLegNPV() const {
+    Real ZeroCouponInflationSwap::fixedLegNPV() const
+    {
         calculate();
         QL_REQUIRE(legNPV_[0] != Null<Real>(), "result not available");
         return legNPV_[0];
     }
 
-    Real ZeroCouponInflationSwap::inflationLegNPV() const {
+    Real ZeroCouponInflationSwap::inflationLegNPV() const
+    {
         calculate();
         QL_REQUIRE(legNPV_[1] != Null<Real>(), "result not available");
         return legNPV_[1];
     }
 
-    const Leg& ZeroCouponInflationSwap::fixedLeg() const {
+    const Leg& ZeroCouponInflationSwap::fixedLeg() const
+    {
         return legs_[0];
     }
 
-    const Leg& ZeroCouponInflationSwap::inflationLeg() const {
+    const Leg& ZeroCouponInflationSwap::inflationLeg() const
+    {
         return legs_[1];
     }
 

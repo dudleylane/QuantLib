@@ -7,17 +7,21 @@
 #include <string>
 
 #ifndef __clang__
-#pragma message("Fuzzer headers are available from clang, other compilers have not been tested.")
+#    pragma message("Fuzzer headers are available from clang, other compilers have not been tested.")
 #endif
 #include <fuzzer/FuzzedDataProvider.h>
 
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
+{
     FuzzedDataProvider fdp(data, size);
     constexpr int kMaxString = 100;
-    try {
+    try
+    {
         (void)QuantLib::DateParser::parseFormatted(fdp.ConsumeRandomLengthString(kMaxString), "%Y-%m-%d");
         (void)QuantLib::DateParser::parseISO(fdp.ConsumeRandomLengthString(kMaxString));
-    } catch (const std::exception& e) {
+    }
+    catch (const std::exception& e)
+    {
         // Handle or ignore exceptions
     }
     return 0;

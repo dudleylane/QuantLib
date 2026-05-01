@@ -21,24 +21,28 @@
 
 #include <ql/processes/squarerootprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     SquareRootProcess::SquareRootProcess(
-             Real b, Real a, Volatility sigma, Real x0,
-             const ext::shared_ptr<discretization>& disc)
-    : StochasticProcess1D(disc), x0_(x0), mean_(b), speed_(a),
-      volatility_(sigma) {}
+        Real b, Real a, Volatility sigma, Real x0, const ext::shared_ptr<discretization>& disc)
+    : StochasticProcess1D(disc), x0_(x0), mean_(b), speed_(a), volatility_(sigma)
+    {
+    }
 
-    Real SquareRootProcess::x0() const {
+    Real SquareRootProcess::x0() const
+    {
         return x0_;
     }
 
-    Real SquareRootProcess::drift(Time, Real x) const {
-        return speed_*(mean_ - x);
+    Real SquareRootProcess::drift(Time, Real x) const
+    {
+        return speed_ * (mean_ - x);
     }
 
-    Real SquareRootProcess::diffusion(Time, Real x) const {
-        return volatility_*std::sqrt(x);
+    Real SquareRootProcess::diffusion(Time, Real x) const
+    {
+        return volatility_ * std::sqrt(x);
     }
 
 }

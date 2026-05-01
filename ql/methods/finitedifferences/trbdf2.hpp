@@ -26,7 +26,8 @@
 
 #include <ql/methods/finitedifferences/finitedifferencemodel.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! TR-BDF2 scheme for finite difference methods
     /*! See <http://ssrn.com/abstract=1648878> for details.
@@ -70,7 +71,8 @@ namespace QuantLib {
     // the array manipulation
 
     template <class Operator>
-    class TRBDF2  {
+    class TRBDF2
+    {
       public:
         // typedefs
         typedef OperatorTraits<Operator> traits;
@@ -79,25 +81,24 @@ namespace QuantLib {
         typedef typename traits::bc_set bc_set;
         typedef typename traits::condition_type condition_type;
         // constructors
-        TRBDF2(const operator_type& L,
-               const bc_set& bcs)
-        : L_(L), I_(operator_type::identity(L.size())),
-          dt_(0.0), bcs_(bcs), alpha_(2.0-sqrt(2.0)) {}
-        void step(array_type& a,
-                  Time t);
-        void setStep(Time dt) {
+        TRBDF2(const operator_type& L, const bc_set& bcs)
+        : L_(L), I_(operator_type::identity(L.size())), dt_(0.0), bcs_(bcs), alpha_(2.0 - sqrt(2.0))
+        {
+        }
+        void step(array_type& a, Time t);
+        void setStep(Time dt)
+        {
             dt_ = dt;
 
-            implicitPart_ = I_ + 0.5*alpha_*dt_*L_;
-            explicitTrapezoidalPart_ = I_ - 0.5*alpha_*dt_*L_;
-            explicitBDF2PartFull_ =
-                -(1.0-alpha_)*(1.0-alpha_)/(alpha_*(2.0-alpha_))*I_;
-            explicitBDF2PartMid_ = 1.0/(alpha_*(2.0-alpha_))*I_;
+            implicitPart_ = I_ + 0.5 * alpha_ * dt_ * L_;
+            explicitTrapezoidalPart_ = I_ - 0.5 * alpha_ * dt_ * L_;
+            explicitBDF2PartFull_ = -(1.0 - alpha_) * (1.0 - alpha_) / (alpha_ * (2.0 - alpha_)) * I_;
+            explicitBDF2PartMid_ = 1.0 / (alpha_ * (2.0 - alpha_)) * I_;
         }
+
       private:
         Real alpha_;
-        operator_type L_, I_, explicitTrapezoidalPart_,
-            explicitBDF2PartFull_,explicitBDF2PartMid_, implicitPart_;
+        operator_type L_, I_, explicitTrapezoidalPart_, explicitBDF2PartFull_, explicitBDF2PartMid_, implicitPart_;
         Time dt_;
         bc_set bcs_;
         array_type aInit_;
@@ -107,64 +108,70 @@ namespace QuantLib {
     // inline definitions
 
     template <class Operator>
-    inline void TRBDF2<Operator>::step(array_type& a, Time t) {
+    inline void TRBDF2<Operator>::step(array_type& a, Time t)
+    {
         Size i;
         Array aInit(a.size());
-        for (i=0; i<a.size();i++) {
+        for (i = 0; i < a.size(); i++)
+        {
             aInit[i] = a[i];
         }
         aInit_ = aInit;
-        for (i=0; i<bcs_.size(); i++)
+        for (i = 0; i < bcs_.size(); i++)
             bcs_[i]->setTime(t);
-        //trapezoidal explicit part
-        if (L_.isTimeDependent()) {
+        // trapezoidal explicit part
+        if (L_.isTimeDependent())
+        {
             L_.setTime(t);
-            explicitTrapezoidalPart_ = I_ - 0.5*alpha_*dt_*L_;
+            explicitTrapezoidalPart_ = I_ - 0.5 * alpha_ * dt_ * L_;
         }
-        for (i=0; i<bcs_.size(); i++)
+        for (i = 0; i < bcs_.size(); i++)
             bcs_[i]->applyBeforeApplying(explicitTrapezoidalPart_);
         a = explicitTrapezoidalPart_.applyTo(a);
-        for (i=0; i<bcs_.size(); i++)
+        for (i = 0; i < bcs_.size(); i++)
             bcs_[i]->applyAfterApplying(a);
 
         // trapezoidal implicit part
-        if (L_.isTimeDependent()) {
-            L_.setTime(t-dt_);
-            implicitPart_ = I_ + 0.5*alpha_*dt_*L_;
+        if (L_.isTimeDependent())
+        {
+            L_.setTime(t - dt_);
+            implicitPart_ = I_ + 0.5 * alpha_ * dt_ * L_;
         }
-        for (i=0; i<bcs_.size(); i++)
-            bcs_[i]->applyBeforeSolving(implicitPart_,a);
+        for (i = 0; i < bcs_.size(); i++)
+            bcs_[i]->applyBeforeSolving(implicitPart_, a);
         a = implicitPart_.solveFor(a);
-        for (i=0; i<bcs_.size(); i++)
+        for (i = 0; i < bcs_.size(); i++)
             bcs_[i]->applyAfterSolving(a);
 
 
         // BDF2 explicit part
-        if (L_.isTimeDependent()) {
+        if (L_.isTimeDependent())
+        {
             L_.setTime(t);
         }
-        for (i=0; i<bcs_.size(); i++) {
+        for (i = 0; i < bcs_.size(); i++)
+        {
             bcs_[i]->applyBeforeApplying(explicitBDF2PartFull_);
         }
         array_type b0 = explicitBDF2PartFull_.applyTo(aInit_);
-        for (i=0; i<bcs_.size(); i++)
+        for (i = 0; i < bcs_.size(); i++)
             bcs_[i]->applyAfterApplying(b0);
 
-        for (i=0; i<bcs_.size(); i++) {
+        for (i = 0; i < bcs_.size(); i++)
+        {
             bcs_[i]->applyBeforeApplying(explicitBDF2PartMid_);
         }
         array_type b1 = explicitBDF2PartMid_.applyTo(a);
-        for (i=0; i<bcs_.size(); i++)
+        for (i = 0; i < bcs_.size(); i++)
             bcs_[i]->applyAfterApplying(b1);
-        a = b0+b1;
+        a = b0 + b1;
 
         // reuse implicit part - works only for alpha=2-sqrt(2)
-        for (i=0; i<bcs_.size(); i++)
-            bcs_[i]->applyBeforeSolving(implicitPart_,a);
+        for (i = 0; i < bcs_.size(); i++)
+            bcs_[i]->applyBeforeSolving(implicitPart_, a);
         a = implicitPart_.solveFor(a);
-        for (i=0; i<bcs_.size(); i++)
+        for (i = 0; i < bcs_.size(); i++)
             bcs_[i]->applyAfterSolving(a);
-
     }
 
 }

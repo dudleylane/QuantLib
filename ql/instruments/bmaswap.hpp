@@ -25,14 +25,16 @@
 #ifndef quantlib_bma_swap_hpp
 #define quantlib_bma_swap_hpp
 
-#include <ql/instruments/swap.hpp>
-#include <ql/indexes/iborindex.hpp>
 #include <ql/indexes/bmaindex.hpp>
+#include <ql/indexes/iborindex.hpp>
+#include <ql/instruments/swap.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! swap paying Libor against BMA coupons
-    class BMASwap : public Swap {
+    class BMASwap : public Swap
+    {
       public:
         /*! In this constructor, the type (Payer or Receiver) refers
             to the BMA leg.

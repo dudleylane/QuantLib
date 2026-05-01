@@ -5,8 +5,11 @@
 #include <ql/termstructures/volatility/abcdcalibration.hpp>
 #include <ql/termstructures/volatility/atmadjustedsmilesection.hpp>
 #include <ql/termstructures/volatility/atmsmilesection.hpp>
+#include <ql/termstructures/volatility/capfloor/all.hpp>
+#include <ql/termstructures/volatility/equityfx/all.hpp>
 #include <ql/termstructures/volatility/flatsmilesection.hpp>
 #include <ql/termstructures/volatility/gaussian1dsmilesection.hpp>
+#include <ql/termstructures/volatility/inflation/all.hpp>
 #include <ql/termstructures/volatility/interpolatedsmilesection.hpp>
 #include <ql/termstructures/volatility/kahalesmilesection.hpp>
 #include <ql/termstructures/volatility/noarbsabr.hpp>
@@ -14,19 +17,15 @@
 #include <ql/termstructures/volatility/noarbsabrinterpolation.hpp>
 #include <ql/termstructures/volatility/noarbsabrsmilesection.hpp>
 #include <ql/termstructures/volatility/noarbsabrswaptionvolatilitycube.hpp>
+#include <ql/termstructures/volatility/optionlet/all.hpp>
 #include <ql/termstructures/volatility/sabr.hpp>
 #include <ql/termstructures/volatility/sabrinterpolatedsmilesection.hpp>
 #include <ql/termstructures/volatility/sabrsmilesection.hpp>
 #include <ql/termstructures/volatility/smilesection.hpp>
 #include <ql/termstructures/volatility/smilesectionutils.hpp>
 #include <ql/termstructures/volatility/spreadedsmilesection.hpp>
+#include <ql/termstructures/volatility/swaption/all.hpp>
 #include <ql/termstructures/volatility/volatilitytype.hpp>
 #include <ql/termstructures/volatility/zabr.hpp>
 #include <ql/termstructures/volatility/zabrinterpolatedsmilesection.hpp>
 #include <ql/termstructures/volatility/zabrsmilesection.hpp>
-
-#include <ql/termstructures/volatility/equityfx/all.hpp>
-#include <ql/termstructures/volatility/capfloor/all.hpp>
-#include <ql/termstructures/volatility/inflation/all.hpp>
-#include <ql/termstructures/volatility/optionlet/all.hpp>
-#include <ql/termstructures/volatility/swaption/all.hpp>

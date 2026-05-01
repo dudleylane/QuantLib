@@ -24,14 +24,15 @@
 #ifndef quantlib_nth_to_default_hpp
 #define quantlib_nth_to_default_hpp
 
-#include <ql/instrument.hpp>
 #include <ql/cashflow.hpp>
 #include <ql/default.hpp>
-#include <ql/termstructures/defaulttermstructure.hpp>
 #include <ql/experimental/credit/onefactorcopula.hpp>
+#include <ql/instrument.hpp>
+#include <ql/termstructures/defaulttermstructure.hpp>
 #include <ql/time/schedule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class YieldTermStructure;
     class Claim;
@@ -67,7 +68,8 @@ namespace QuantLib {
         The class is tested against data in Hull-White (see reference
         above.)
     */
-    class NthToDefault : public Instrument {
+    class NthToDefault : public Instrument
+    {
       public:
         class arguments;
         class results;
@@ -76,14 +78,14 @@ namespace QuantLib {
         //! This product is 'digital'; the basket might be tranched but this is
         //  not relevant to it.
         NthToDefault(const ext::shared_ptr<Basket>& basket,
-                Size n,
-                Protection::Side side,
-                Schedule premiumSchedule,
-                Rate upfrontRate,
-                Rate premiumRate,
-                const DayCounter& dayCounter,
-                Real nominal,
-                bool settlePremiumAccrual);
+                     Size n,
+                     Protection::Side side,
+                     Schedule premiumSchedule,
+                     Rate upfrontRate,
+                     Rate premiumRate,
+                     const DayCounter& dayCounter,
+                     Real nominal,
+                     bool settlePremiumAccrual);
 
         bool isExpired() const override;
 
@@ -95,9 +97,9 @@ namespace QuantLib {
         Size rank() const { return n_; }
         Size basketSize() const;
 
-        const Date& maturity() const {return premiumSchedule_.endDate();}//???
+        const Date& maturity() const { return premiumSchedule_.endDate(); } //???
 
-        const ext::shared_ptr<Basket>& basket() const {return basket_;}
+        const ext::shared_ptr<Basket>& basket() const { return basket_; }
 
         // results
         Rate fairPremium() const;
@@ -121,7 +123,7 @@ namespace QuantLib {
         DayCounter dayCounter_;
         bool settlePremiumAccrual_;
 
-        Leg premiumLeg_;/////////////////// LEG AND SCHEDULE BOTH MEMBERS..... REVISE THIS!
+        Leg premiumLeg_; /////////////////// LEG AND SCHEDULE BOTH MEMBERS..... REVISE THIS!
 
         // results
         mutable Rate premiumValue_;
@@ -132,12 +134,10 @@ namespace QuantLib {
     };
 
 
-
-    class NthToDefault::arguments : public virtual PricingEngine::arguments {
-    public:
-        arguments() : side(Protection::Side(-1)),
-                      premiumRate(Null<Real>()),
-                      upfrontRate(Null<Real>()) {}
+    class NthToDefault::arguments : public virtual PricingEngine::arguments
+    {
+      public:
+        arguments() : side(Protection::Side(-1)), premiumRate(Null<Real>()), upfrontRate(Null<Real>()) {}
         void validate() const override;
 
         ext::shared_ptr<Basket> basket;
@@ -146,25 +146,27 @@ namespace QuantLib {
 
         Size ntdOrder;
         bool settlePremiumAccrual;
-        Real notional;// ALL NAMES WITH THE SAME WEIGHT, NOTIONAL IS NOT MAPPED TO THE BASKET HERE, this does not have to be that way, its perfectly possible to have irreg notionals...
+        Real notional; // ALL NAMES WITH THE SAME WEIGHT, NOTIONAL IS NOT MAPPED TO THE BASKET HERE, this does not have
+                       // to be that way, its perfectly possible to have irreg notionals...
         Real premiumRate;
         Rate upfrontRate;
     };
 
-    class NthToDefault::results : public Instrument::results {
-    public:
-      void reset() override;
-      Real premiumValue;
-      Real protectionValue;
-      Real upfrontPremiumValue;
-      Real fairPremium;
-      Real errorEstimate;
+    class NthToDefault::results : public Instrument::results
+    {
+      public:
+        void reset() override;
+        Real premiumValue;
+        Real protectionValue;
+        Real upfrontPremiumValue;
+        Real fairPremium;
+        Real errorEstimate;
     };
 
     //! NTD base engine
-    class NthToDefault::engine :
-        public GenericEngine<NthToDefault::arguments,
-                             NthToDefault::results> { };
+    class NthToDefault::engine : public GenericEngine<NthToDefault::arguments, NthToDefault::results>
+    {
+    };
 
 }
 

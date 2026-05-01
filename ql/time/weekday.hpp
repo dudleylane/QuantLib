@@ -31,56 +31,63 @@
 #include <ql/qldefines.hpp>
 #include <iosfwd>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! Day's serial number MOD 7;
         WEEKDAY Excel function is the same except for Sunday = 7.
 
         \ingroup datetime
     */
-    enum Weekday { Sunday    = 1,
-                   Monday    = 2,
-                   Tuesday   = 3,
-                   Wednesday = 4,
-                   Thursday  = 5,
-                   Friday    = 6,
-                   Saturday  = 7,
-                   Sun = 1,
-                   Mon = 2,
-                   Tue = 3,
-                   Wed = 4,
-                   Thu = 5,
-                   Fri = 6,
-                   Sat = 7
+    enum Weekday
+    {
+        Sunday = 1,
+        Monday = 2,
+        Tuesday = 3,
+        Wednesday = 4,
+        Thursday = 5,
+        Friday = 6,
+        Saturday = 7,
+        Sun = 1,
+        Mon = 2,
+        Tue = 3,
+        Wed = 4,
+        Thu = 5,
+        Fri = 6,
+        Sat = 7
     };
 
     /*! \relates Weekday */
     std::ostream& operator<<(std::ostream&, const Weekday&);
 
-    namespace detail {
+    namespace detail
+    {
 
-        struct long_weekday_holder {
+        struct long_weekday_holder
+        {
             explicit long_weekday_holder(Weekday d) : d(d) {}
             Weekday d;
         };
         std::ostream& operator<<(std::ostream&, const long_weekday_holder&);
 
-        struct short_weekday_holder {
+        struct short_weekday_holder
+        {
             explicit short_weekday_holder(Weekday d) : d(d) {}
             Weekday d;
         };
         std::ostream& operator<<(std::ostream&, const short_weekday_holder&);
 
-        struct shortest_weekday_holder {
+        struct shortest_weekday_holder
+        {
             explicit shortest_weekday_holder(Weekday d) : d(d) {}
             Weekday d;
         };
-        std::ostream& operator<<(std::ostream&,
-                                 const shortest_weekday_holder&);
+        std::ostream& operator<<(std::ostream&, const shortest_weekday_holder&);
 
     }
 
-    namespace io {
+    namespace io
+    {
 
         //! output weekdays in long format
         /*! \ingroup manips */

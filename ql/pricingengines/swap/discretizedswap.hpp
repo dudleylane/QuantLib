@@ -29,13 +29,13 @@
 #include <ql/discretizedasset.hpp>
 #include <ql/instruments/vanillaswap.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class DiscretizedSwap : public DiscretizedAsset {
+    class DiscretizedSwap : public DiscretizedAsset
+    {
       public:
-        DiscretizedSwap(const VanillaSwap::arguments& args,
-                        const Date& referenceDate,
-                        const DayCounter& dayCounter);
+        DiscretizedSwap(const VanillaSwap::arguments& args, const Date& referenceDate, const DayCounter& dayCounter);
 
         DiscretizedSwap(const VanillaSwap::arguments& args,
                         const Date& referenceDate,

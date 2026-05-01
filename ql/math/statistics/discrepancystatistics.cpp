@@ -19,9 +19,11 @@
 
 #include <ql/math/statistics/discrepancystatistics.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Real DiscrepancyStatistics::discrepancy() const {
+    Real DiscrepancyStatistics::discrepancy() const
+    {
         Size N = samples();
         /*
         Size i;
@@ -48,9 +50,7 @@ namespace QuantLib {
             }
         }
         */
-        return std::sqrt(adiscr_/(N*N)-bdiscr_/N*cdiscr_+ddiscr_);
+        return std::sqrt(adiscr_ / (N * N) - bdiscr_ / N * cdiscr_ + ddiscr_);
     }
 
 }
-
-

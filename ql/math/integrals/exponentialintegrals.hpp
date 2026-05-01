@@ -18,7 +18,7 @@
 */
 
 /*! \file exponentialintegrals.hpp
-*/
+ */
 
 #ifndef quantlib_exponentail_integral_hpp
 #define quantlib_exponentail_integral_hpp
@@ -27,7 +27,7 @@
 #include <complex>
 
 #ifndef M_EULER_MASCHERONI
-#define M_EULER_MASCHERONI 0.5772156649015328606065121
+#    define M_EULER_MASCHERONI 0.5772156649015328606065121
 #endif
 
 /*! References:
@@ -37,8 +37,9 @@
     On the Evaluation of the Complex-Valued Exponential Integral
     https://www.sci.utah.edu/~vpegorar/research/2011_JGT.pdf
 */
-namespace QuantLib::ExponentialIntegral {
-    
+namespace QuantLib::ExponentialIntegral
+{
+
     Real Si(Real x);
     Real Ci(Real x);
 

@@ -29,7 +29,8 @@
 #include <ql/time/schedule.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     YearOnYearInflationSwap::YearOnYearInflationSwap(Type type,
                                                      Real nominal,
@@ -44,23 +45,22 @@ namespace QuantLib {
                                                      DayCounter yoyDayCount,
                                                      Calendar paymentCalendar,
                                                      BusinessDayConvention paymentConvention)
-    : Swap(2), type_(type), nominal_(nominal), fixedSchedule_(std::move(fixedSchedule)),
-      fixedRate_(fixedRate), fixedDayCount_(std::move(fixedDayCount)),
-      yoySchedule_(std::move(yoySchedule)), yoyIndex_(std::move(yoyIndex)),
+    : Swap(2), type_(type), nominal_(nominal), fixedSchedule_(std::move(fixedSchedule)), fixedRate_(fixedRate),
+      fixedDayCount_(std::move(fixedDayCount)), yoySchedule_(std::move(yoySchedule)), yoyIndex_(std::move(yoyIndex)),
       observationLag_(observationLag), spread_(spread), yoyDayCount_(std::move(yoyDayCount)),
-      paymentCalendar_(std::move(paymentCalendar)), paymentConvention_(paymentConvention) {
+      paymentCalendar_(std::move(paymentCalendar)), paymentConvention_(paymentConvention)
+    {
         // N.B. fixed leg gets its calendar from the schedule!
         Leg fixedLeg = FixedRateLeg(fixedSchedule_)
-        .withNotionals(nominal_)
-        .withCouponRates(fixedRate_, fixedDayCount_) // Simple compounding by default
-        .withPaymentAdjustment(paymentConvention_);
+                           .withNotionals(nominal_)
+                           .withCouponRates(fixedRate_, fixedDayCount_) // Simple compounding by default
+                           .withPaymentAdjustment(paymentConvention_);
 
-        Leg yoyLeg = yoyInflationLeg(yoySchedule_, paymentCalendar_, yoyIndex_,
-                                     observationLag_, interpolation)
-        .withNotionals(nominal_)
-        .withPaymentDayCounter(yoyDayCount_)
-        .withPaymentAdjustment(paymentConvention_)
-        .withSpreads(spread_);
+        Leg yoyLeg = yoyInflationLeg(yoySchedule_, paymentCalendar_, yoyIndex_, observationLag_, interpolation)
+                         .withNotionals(nominal_)
+                         .withPaymentDayCounter(yoyDayCount_)
+                         .withPaymentAdjustment(paymentConvention_)
+                         .withSpreads(spread_);
 
         Leg::const_iterator i;
         for (i = yoyLeg.begin(); i < yoyLeg.end(); ++i)
@@ -68,16 +68,20 @@ namespace QuantLib {
 
         legs_[0] = fixedLeg;
         legs_[1] = yoyLeg;
-        if (type_==Payer) {
+        if (type_ == Payer)
+        {
             payer_[0] = -1.0;
             payer_[1] = +1.0;
-        } else {
+        }
+        else
+        {
             payer_[0] = +1.0;
             payer_[1] = -1.0;
         }
     }
 
-     void YearOnYearInflationSwap::setupArguments(PricingEngine::arguments* args) const {
+    void YearOnYearInflationSwap::setupArguments(PricingEngine::arguments* args) const
+    {
 
         Swap::setupArguments(args);
 
@@ -91,13 +95,12 @@ namespace QuantLib {
 
         const Leg& fixedCoupons = fixedLeg();
 
-        arguments->fixedResetDates = arguments->fixedPayDates =
-        std::vector<Date>(fixedCoupons.size());
+        arguments->fixedResetDates = arguments->fixedPayDates = std::vector<Date>(fixedCoupons.size());
         arguments->fixedCoupons = std::vector<Real>(fixedCoupons.size());
 
-        for (Size i=0; i<fixedCoupons.size(); ++i) {
-            ext::shared_ptr<FixedRateCoupon> coupon =
-            ext::dynamic_pointer_cast<FixedRateCoupon>(fixedCoupons[i]);
+        for (Size i = 0; i < fixedCoupons.size(); ++i)
+        {
+            ext::shared_ptr<FixedRateCoupon> coupon = ext::dynamic_pointer_cast<FixedRateCoupon>(fixedCoupons[i]);
 
             arguments->fixedPayDates[i] = coupon->date();
             arguments->fixedResetDates[i] = coupon->accrualStartDate();
@@ -106,17 +109,14 @@ namespace QuantLib {
 
         const Leg& yoyCoupons = yoyLeg();
 
-        arguments->yoyResetDates = arguments->yoyPayDates =
-        arguments->yoyFixingDates =
-        std::vector<Date>(yoyCoupons.size());
-        arguments->yoyAccrualTimes =
-        std::vector<Time>(yoyCoupons.size());
-        arguments->yoySpreads =
-        std::vector<Spread>(yoyCoupons.size());
+        arguments->yoyResetDates = arguments->yoyPayDates = arguments->yoyFixingDates =
+            std::vector<Date>(yoyCoupons.size());
+        arguments->yoyAccrualTimes = std::vector<Time>(yoyCoupons.size());
+        arguments->yoySpreads = std::vector<Spread>(yoyCoupons.size());
         arguments->yoyCoupons = std::vector<Real>(yoyCoupons.size());
-        for (Size i=0; i<yoyCoupons.size(); ++i) {
-            ext::shared_ptr<YoYInflationCoupon> coupon =
-            ext::dynamic_pointer_cast<YoYInflationCoupon>(yoyCoupons[i]);
+        for (Size i = 0; i < yoyCoupons.size(); ++i)
+        {
+            ext::shared_ptr<YoYInflationCoupon> coupon = ext::dynamic_pointer_cast<YoYInflationCoupon>(yoyCoupons[i]);
 
             arguments->yoyResetDates[i] = coupon->accrualStartDate();
             arguments->yoyPayDates[i] = coupon->date();
@@ -124,48 +124,57 @@ namespace QuantLib {
             arguments->yoyFixingDates[i] = coupon->fixingDate();
             arguments->yoyAccrualTimes[i] = coupon->accrualPeriod();
             arguments->yoySpreads[i] = coupon->spread();
-            try {
+            try
+            {
                 arguments->yoyCoupons[i] = coupon->amount();
-            } catch (Error&) {
+            }
+            catch (Error&)
+            {
                 arguments->yoyCoupons[i] = Null<Real>();
             }
         }
     }
 
 
-    Rate YearOnYearInflationSwap::fairRate() const {
+    Rate YearOnYearInflationSwap::fairRate() const
+    {
         calculate();
         QL_REQUIRE(fairRate_ != Null<Rate>(), "result not available");
         return fairRate_;
     }
 
-    Spread YearOnYearInflationSwap::fairSpread() const {
+    Spread YearOnYearInflationSwap::fairSpread() const
+    {
         calculate();
         QL_REQUIRE(fairSpread_ != Null<Spread>(), "result not available");
         return fairSpread_;
     }
 
 
-    Real YearOnYearInflationSwap::fixedLegNPV() const {
+    Real YearOnYearInflationSwap::fixedLegNPV() const
+    {
         calculate();
         QL_REQUIRE(legNPV_[0] != Null<Real>(), "result not available");
         return legNPV_[0];
     }
 
-    Real YearOnYearInflationSwap::yoyLegNPV() const {
+    Real YearOnYearInflationSwap::yoyLegNPV() const
+    {
         calculate();
         QL_REQUIRE(legNPV_[1] != Null<Real>(), "result not available");
         return legNPV_[1];
     }
 
-    void YearOnYearInflationSwap::setupExpired() const {
+    void YearOnYearInflationSwap::setupExpired() const
+    {
         Swap::setupExpired();
         legBPS_[0] = legBPS_[1] = 0.0;
         fairRate_ = Null<Rate>();
         fairSpread_ = Null<Spread>();
     }
 
-    void YearOnYearInflationSwap::fetchResults(const PricingEngine::results* r) const {
+    void YearOnYearInflationSwap::fetchResults(const PricingEngine::results* r) const
+    {
         static const Spread basisPoint = 1.0e-4;
 
         // copy from VanillaSwap
@@ -175,58 +184,56 @@ namespace QuantLib {
         Swap::fetchResults(r);
 
         const auto* results = dynamic_cast<const YearOnYearInflationSwap::results*>(r);
-        if (results != nullptr) { // might be a swap engine, so no error is thrown
+        if (results != nullptr)
+        { // might be a swap engine, so no error is thrown
             fairRate_ = results->fairRate;
             fairSpread_ = results->fairSpread;
-        } else {
+        }
+        else
+        {
             fairRate_ = Null<Rate>();
             fairSpread_ = Null<Spread>();
         }
 
-        if (fairRate_ == Null<Rate>()) {
+        if (fairRate_ == Null<Rate>())
+        {
             // calculate it from other results
             if (legBPS_[0] != Null<Real>())
-                fairRate_ = fixedRate_ - NPV_/(legBPS_[0]/basisPoint);
+                fairRate_ = fixedRate_ - NPV_ / (legBPS_[0] / basisPoint);
         }
-        if (fairSpread_ == Null<Spread>()) {
+        if (fairSpread_ == Null<Spread>())
+        {
             // ditto
             if (legBPS_[1] != Null<Real>())
-                fairSpread_ = spread_ - NPV_/(legBPS_[1]/basisPoint);
+                fairSpread_ = spread_ - NPV_ / (legBPS_[1] / basisPoint);
         }
-
     }
 
-    void YearOnYearInflationSwap::arguments::validate() const {
+    void YearOnYearInflationSwap::arguments::validate() const
+    {
         Swap::arguments::validate();
         QL_REQUIRE(nominal != Null<Real>(), "nominal null or not set");
-        QL_REQUIRE(fixedResetDates.size() == fixedPayDates.size(),
-                   "number of fixed start dates different from "
-                   "number of fixed payment dates");
-        QL_REQUIRE(fixedPayDates.size() == fixedCoupons.size(),
-                   "number of fixed payment dates different from "
-                   "number of fixed coupon amounts");
-        QL_REQUIRE(yoyResetDates.size() == yoyPayDates.size(),
-                   "number of yoy start dates different from "
-                   "number of yoy payment dates");
-        QL_REQUIRE(yoyFixingDates.size() == yoyPayDates.size(),
-                   "number of yoy fixing dates different from "
-                   "number of yoy payment dates");
-        QL_REQUIRE(yoyAccrualTimes.size() == yoyPayDates.size(),
-                   "number of yoy accrual Times different from "
-                   "number of yoy payment dates");
-        QL_REQUIRE(yoySpreads.size() == yoyPayDates.size(),
-                   "number of yoy spreads different from "
-                   "number of yoy payment dates");
-        QL_REQUIRE(yoyPayDates.size() == yoyCoupons.size(),
-                   "number of yoy payment dates different from "
-                   "number of yoy coupon amounts");
+        QL_REQUIRE(fixedResetDates.size() == fixedPayDates.size(), "number of fixed start dates different from "
+                                                                   "number of fixed payment dates");
+        QL_REQUIRE(fixedPayDates.size() == fixedCoupons.size(), "number of fixed payment dates different from "
+                                                                "number of fixed coupon amounts");
+        QL_REQUIRE(yoyResetDates.size() == yoyPayDates.size(), "number of yoy start dates different from "
+                                                               "number of yoy payment dates");
+        QL_REQUIRE(yoyFixingDates.size() == yoyPayDates.size(), "number of yoy fixing dates different from "
+                                                                "number of yoy payment dates");
+        QL_REQUIRE(yoyAccrualTimes.size() == yoyPayDates.size(), "number of yoy accrual Times different from "
+                                                                 "number of yoy payment dates");
+        QL_REQUIRE(yoySpreads.size() == yoyPayDates.size(), "number of yoy spreads different from "
+                                                            "number of yoy payment dates");
+        QL_REQUIRE(yoyPayDates.size() == yoyCoupons.size(), "number of yoy payment dates different from "
+                                                            "number of yoy coupon amounts");
     }
 
-    void YearOnYearInflationSwap::results::reset() {
+    void YearOnYearInflationSwap::results::reset()
+    {
         Swap::results::reset();
         fairRate = Null<Rate>();
         fairSpread = Null<Spread>();
     }
 
 }
-

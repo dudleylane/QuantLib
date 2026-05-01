@@ -30,10 +30,12 @@
 #include <ql/option.hpp>
 #include <ql/payoff.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Dummy %payoff class
-    class NullPayoff : public Payoff {
+    class NullPayoff : public Payoff
+    {
       public:
         //! \name Payoff interface
         //@{
@@ -46,7 +48,8 @@ namespace QuantLib {
 
 
     //! Intermediate class for put/call payoffs
-    class TypePayoff : public Payoff {
+    class TypePayoff : public Payoff
+    {
       public:
         Option::Type optionType() const { return type_; };
         //! \name Payoff interface
@@ -59,20 +62,21 @@ namespace QuantLib {
     };
 
     ////! Intermediate class for payoffs based on a fixed strike
-    //class StrikedPayoff : public Payoff {
-    //  public:
-    //    StrikedPayoff(Real strike) : strike_(strike) {}
-    //    Real strike() const { return strike_; };
-    //    //! \name Payoff interface
-    //    //@{
-    //    std::string description() const;
-    //    //@}
-    //  protected:
-    //    Real strike_;
-    //};
+    // class StrikedPayoff : public Payoff {
+    //   public:
+    //     StrikedPayoff(Real strike) : strike_(strike) {}
+    //     Real strike() const { return strike_; };
+    //     //! \name Payoff interface
+    //     //@{
+    //     std::string description() const;
+    //     //@}
+    //   protected:
+    //     Real strike_;
+    // };
 
     //! %Payoff based on a floating strike
-    class FloatingTypePayoff : public TypePayoff {
+    class FloatingTypePayoff : public TypePayoff
+    {
       public:
         FloatingTypePayoff(Option::Type type) : TypePayoff(type) {}
         //! \name Payoff interface
@@ -86,7 +90,7 @@ namespace QuantLib {
 
     //! Intermediate class for payoffs based on a fixed strike
     class StrikedTypePayoff : public TypePayoff
-                              //, public StrikedPayoff
+    //, public StrikedPayoff
     {
       public:
         //! \name Payoff interface
@@ -94,19 +98,17 @@ namespace QuantLib {
         std::string description() const override;
         //@}
         Real strike() const { return strike_; };
+
       protected:
-        StrikedTypePayoff(Option::Type type,
-                          Real strike)
-        : TypePayoff(type), strike_(strike) {}
+        StrikedTypePayoff(Option::Type type, Real strike) : TypePayoff(type), strike_(strike) {}
         Real strike_;
     };
 
     //! Plain-vanilla payoff
-    class PlainVanillaPayoff : public StrikedTypePayoff {
+    class PlainVanillaPayoff : public StrikedTypePayoff
+    {
       public:
-        PlainVanillaPayoff(Option::Type type,
-                           Real strike)
-        : StrikedTypePayoff(type, strike) {}
+        PlainVanillaPayoff(Option::Type type, Real strike) : StrikedTypePayoff(type, strike) {}
         //! \name Payoff interface
         //@{
         std::string name() const override { return "Vanilla"; }
@@ -116,11 +118,10 @@ namespace QuantLib {
     };
 
     //! %Payoff with strike expressed as percentage
-    class PercentageStrikePayoff : public StrikedTypePayoff {
+    class PercentageStrikePayoff : public StrikedTypePayoff
+    {
       public:
-        PercentageStrikePayoff(Option::Type type,
-                               Real moneyness)
-        : StrikedTypePayoff(type, moneyness) {}
+        PercentageStrikePayoff(Option::Type type, Real moneyness) : StrikedTypePayoff(type, moneyness) {}
         //! \name Payoff interface
         //@{
         std::string name() const override { return "PercentageStrike"; }
@@ -135,11 +136,10 @@ namespace QuantLib {
     */
 
     //! Binary asset-or-nothing payoff
-    class AssetOrNothingPayoff : public StrikedTypePayoff {
+    class AssetOrNothingPayoff : public StrikedTypePayoff
+    {
       public:
-        AssetOrNothingPayoff(Option::Type type,
-                             Real strike)
-        : StrikedTypePayoff(type, strike) {}
+        AssetOrNothingPayoff(Option::Type type, Real strike) : StrikedTypePayoff(type, strike) {}
         //! \name Payoff interface
         //@{
         std::string name() const override { return "AssetOrNothing"; }
@@ -149,12 +149,13 @@ namespace QuantLib {
     };
 
     //! Binary cash-or-nothing payoff
-    class CashOrNothingPayoff : public StrikedTypePayoff {
+    class CashOrNothingPayoff : public StrikedTypePayoff
+    {
       public:
-        CashOrNothingPayoff(Option::Type type,
-                            Real strike,
-                            Real cashPayoff)
-        : StrikedTypePayoff(type, strike), cashPayoff_(cashPayoff) {}
+        CashOrNothingPayoff(Option::Type type, Real strike, Real cashPayoff)
+        : StrikedTypePayoff(type, strike), cashPayoff_(cashPayoff)
+        {
+        }
         //! \name Payoff interface
         //@{
         std::string name() const override { return "CashOrNothing"; }
@@ -162,7 +163,8 @@ namespace QuantLib {
         Real operator()(Real price) const override;
         void accept(AcyclicVisitor&) override;
         //@}
-        Real cashPayoff() const { return cashPayoff_;}
+        Real cashPayoff() const { return cashPayoff_; }
+
       protected:
         Real cashPayoff_;
     };
@@ -175,12 +177,15 @@ namespace QuantLib {
         strike.
         \warning this payoff can be negative depending on the strikes
     */
-    class GapPayoff : public StrikedTypePayoff {
+    class GapPayoff : public StrikedTypePayoff
+    {
       public:
         GapPayoff(Option::Type type,
                   Real strike,
                   Real secondStrike) // a.k.a. payoff strike
-        : StrikedTypePayoff(type, strike), secondStrike_(secondStrike) {}
+        : StrikedTypePayoff(type, strike), secondStrike_(secondStrike)
+        {
+        }
         //! \name Payoff interface
         //@{
         std::string name() const override { return "Gap"; }
@@ -188,7 +193,8 @@ namespace QuantLib {
         Real operator()(Real price) const override;
         void accept(AcyclicVisitor&) override;
         //@}
-        Real secondStrike() const { return secondStrike_;}
+        Real secondStrike() const { return secondStrike_; }
+
       protected:
         Real secondStrike_;
     };
@@ -204,18 +210,19 @@ namespace QuantLib {
         Call (Put) at the lower strike and b) short (long) an AssetOrNothing
         Call (Put) at the higher strike
     */
-    class SuperFundPayoff : public StrikedTypePayoff {
+    class SuperFundPayoff : public StrikedTypePayoff
+    {
       public:
-        SuperFundPayoff(Real strike,
-                        Real secondStrike)
-        : StrikedTypePayoff(Option::Call, strike),
-          secondStrike_(secondStrike) {
-            QL_REQUIRE(strike>0.0,
-                       "strike (" <<  strike << ") must be "
-                       "positive");
-            QL_REQUIRE(secondStrike>strike,
-                       "second strike (" <<  secondStrike << ") must be "
-                       "higher than first strike (" << strike << ")");
+        SuperFundPayoff(Real strike, Real secondStrike)
+        : StrikedTypePayoff(Option::Call, strike), secondStrike_(secondStrike)
+        {
+            QL_REQUIRE(strike > 0.0, "strike (" << strike
+                                                << ") must be "
+                                                   "positive");
+            QL_REQUIRE(secondStrike > strike, "second strike (" << secondStrike
+                                                                << ") must be "
+                                                                   "higher than first strike ("
+                                                                << strike << ")");
         }
         //! \name Payoff interface
         //@{
@@ -223,23 +230,24 @@ namespace QuantLib {
         Real operator()(Real price) const override;
         void accept(AcyclicVisitor&) override;
         //@}
-        Real secondStrike() const { return secondStrike_;}
+        Real secondStrike() const { return secondStrike_; }
+
       protected:
         Real secondStrike_;
     };
 
     //! Binary supershare payoff
-    class SuperSharePayoff : public StrikedTypePayoff {
+    class SuperSharePayoff : public StrikedTypePayoff
+    {
       public:
-        SuperSharePayoff(Real strike,
-                         Real secondStrike,
-                         Real cashPayoff)
-        : StrikedTypePayoff(Option::Call, strike),
-          secondStrike_(secondStrike),
-          cashPayoff_(cashPayoff){
-              QL_REQUIRE(secondStrike>strike,
-              "second strike (" <<  secondStrike << ") must be "
-              "higher than first strike (" << strike << ")");}
+        SuperSharePayoff(Real strike, Real secondStrike, Real cashPayoff)
+        : StrikedTypePayoff(Option::Call, strike), secondStrike_(secondStrike), cashPayoff_(cashPayoff)
+        {
+            QL_REQUIRE(secondStrike > strike, "second strike (" << secondStrike
+                                                                << ") must be "
+                                                                   "higher than first strike ("
+                                                                << strike << ")");
+        }
 
         //! \name Payoff interface
         //@{
@@ -248,8 +256,9 @@ namespace QuantLib {
         Real operator()(Real price) const override;
         void accept(AcyclicVisitor&) override;
         //@}
-        Real secondStrike() const { return secondStrike_;}
-        Real cashPayoff() const { return cashPayoff_;}
+        Real secondStrike() const { return secondStrike_; }
+        Real cashPayoff() const { return cashPayoff_; }
+
       protected:
         Real secondStrike_;
         Real cashPayoff_;

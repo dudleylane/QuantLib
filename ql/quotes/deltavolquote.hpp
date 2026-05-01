@@ -24,26 +24,29 @@
 #ifndef quantlib_delta_vol_quote_hpp
 #define quantlib_delta_vol_quote_hpp
 
-#include <ql/quote.hpp>
 #include <ql/handle.hpp>
+#include <ql/quote.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Class for the quotation of delta vs vol.
     /*! It includes the various delta quotation types
         in FX markets as well as ATM types.
     */
-    class DeltaVolQuote : public Quote,
-                          public Observer {
+    class DeltaVolQuote : public Quote, public Observer
+    {
       public:
-        enum DeltaType {
-            Spot,        // Spot Delta, e.g. usual Black Scholes delta
-            Fwd,         // Forward Delta
-            PaSpot,      // Premium Adjusted Spot Delta
-            PaFwd        // Premium Adjusted Forward Delta
+        enum DeltaType
+        {
+            Spot,   // Spot Delta, e.g. usual Black Scholes delta
+            Fwd,    // Forward Delta
+            PaSpot, // Premium Adjusted Spot Delta
+            PaFwd   // Premium Adjusted Forward Delta
         };
 
-        enum AtmType {
+        enum AtmType
+        {
             AtmNull,         // Default, if not an atm quote
             AtmSpot,         // K=S_0
             AtmFwd,          // K=F
@@ -65,17 +68,17 @@ namespace QuantLib {
         Real delta() const;
         Time maturity() const;
 
-        AtmType atmType()   const;
+        AtmType atmType() const;
         DeltaType deltaType() const;
 
         bool isValid() const override;
 
       private:
-          Real delta_;
-          Handle<Quote> vol_;
-          DeltaType deltaType_;
-          Time maturity_;
-          AtmType atmType_;
+        Real delta_;
+        Handle<Quote> vol_;
+        DeltaType deltaType_;
+        Time maturity_;
+        AtmType atmType_;
     };
 
 }

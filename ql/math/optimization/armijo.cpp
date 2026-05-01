@@ -21,16 +21,17 @@
 #include <ql/math/optimization/method.hpp>
 #include <ql/math/optimization/problem.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     Real ArmijoLineSearch::operator()(Problem& P,
                                       EndCriteria::Type& ecType,
                                       const EndCriteria& endCriteria,
                                       const Real t_ini)
     {
-        //OptimizationMethod& method = P.method();
+        // OptimizationMethod& method = P.method();
         Constraint& constraint = P.constraint();
-        succeed_=true;
+        succeed_ = true;
         bool maxIter = false;
         Real qtold, t = t_ini;
         Size loopNumber = 0;
@@ -39,7 +40,7 @@ namespace QuantLib {
         Real qp0 = P.gradientNormValue();
 
         qt_ = q0;
-        qpt_ = (gradient_.empty()) ? qp0 : -DotProduct(gradient_,searchDirection_);
+        qpt_ = (gradient_.empty()) ? qp0 : -DotProduct(gradient_, searchDirection_);
 
         // Initialize gradient
         gradient_ = Array(P.currentValue().size());
@@ -47,11 +48,13 @@ namespace QuantLib {
         xtd_ = P.currentValue();
         t = update(xtd_, searchDirection_, t, constraint);
         // Compute function value at the new point
-        qt_ = P.value (xtd_);
+        qt_ = P.value(xtd_);
 
         // Enter in the loop if the criterion is not satisfied
-        if ((qt_-q0) > -alpha_*t*qpt_) {
-            do {
+        if ((qt_ - q0) > -alpha_ * t * qpt_)
+        {
+            do
+            {
                 loopNumber++;
                 // Decrease step
                 t *= beta_;
@@ -62,13 +65,11 @@ namespace QuantLib {
                 t = update(xtd_, searchDirection_, t, constraint);
 
                 // Compute function value at the new point
-                qt_ = P.value (xtd_);
-                P.gradient (gradient_, xtd_);
+                qt_ = P.value(xtd_);
+                P.gradient(gradient_, xtd_);
                 // and it squared norm
                 maxIter = endCriteria.checkMaxIterations(loopNumber, ecType);
-            } while (
-                     (((qt_ - q0) > (-alpha_ * t * qpt_)) ||
-                      ((qtold - q0) <= (-alpha_ * t * qpt_ / beta_))) &&
+            } while ((((qt_ - q0) > (-alpha_ * t * qpt_)) || ((qtold - q0) <= (-alpha_ * t * qpt_ / beta_))) &&
                      (!maxIter));
         }
 

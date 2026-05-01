@@ -27,7 +27,8 @@
 #include <ql/math/matrix.hpp>
 #include <ql/utilities/null.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Libor market model parameterization
     /*! Brigo, Damiano, Mercurio, Fabio, Morini, Massimo, 2003,
@@ -36,10 +37,10 @@ namespace QuantLib {
       (<http://www.exoticderivatives.com/Files/Papers/brigomercuriomorini.pdf>)
     */
 
-    class LfmCovarianceParameterization {
+    class LfmCovarianceParameterization
+    {
       public:
-        LfmCovarianceParameterization(Size size, Size factors)
-        : size_(size), factors_(factors) {}
+        LfmCovarianceParameterization(Size size, Size factors) : size_(size), factors_(factors) {}
         virtual ~LfmCovarianceParameterization() = default;
 
         Size size() const { return size_; }
@@ -61,4 +62,3 @@ namespace QuantLib {
 
 
 #endif
-

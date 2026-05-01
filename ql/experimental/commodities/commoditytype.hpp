@@ -31,10 +31,12 @@
 #include <string>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! commodity type
-    class CommodityType {
+    class CommodityType
+    {
       public:
         //! default constructor
         /*! Instances built via this constructor have undefined
@@ -62,53 +64,55 @@ namespace QuantLib {
         struct Data;
         ext::shared_ptr<Data> data_;
 
-        struct Data {
+        struct Data
+        {
             std::string name, code;
 
-            Data(std::string name, std::string code)
-            : name(std::move(name)), code(std::move(code)) {}
+            Data(std::string name, std::string code) : name(std::move(name)), code(std::move(code)) {}
         };
 
-        static std::map<std::string, ext::shared_ptr<Data> > commodityTypes_;
+        static std::map<std::string, ext::shared_ptr<Data>> commodityTypes_;
     };
 
     /*! \relates CommodityType */
-    bool operator==(const CommodityType&,
-                    const CommodityType&);
+    bool operator==(const CommodityType&, const CommodityType&);
 
     /*! \relates CommodityType */
-    bool operator!=(const CommodityType&,
-                    const CommodityType&);
+    bool operator!=(const CommodityType&, const CommodityType&);
 
     /*! \relates CommodityType */
-    std::ostream& operator<<(std::ostream&,
-                             const CommodityType&);
+    std::ostream& operator<<(std::ostream&, const CommodityType&);
 
 
-    class NullCommodityType : public CommodityType {
+    class NullCommodityType : public CommodityType
+    {
       public:
-        NullCommodityType() :
-        CommodityType("<NULL>", "<NULL>") {}
+        NullCommodityType() : CommodityType("<NULL>", "<NULL>") {}
     };
 
 
-    inline const std::string& CommodityType::code() const {
+    inline const std::string& CommodityType::code() const
+    {
         return data_->code;
     }
 
-    inline const std::string& CommodityType::name() const {
+    inline const std::string& CommodityType::name() const
+    {
         return data_->name;
     }
 
-    inline bool CommodityType::empty() const {
+    inline bool CommodityType::empty() const
+    {
         return !data_;
     }
 
-    inline bool operator==(const CommodityType& c1, const CommodityType& c2) {
+    inline bool operator==(const CommodityType& c1, const CommodityType& c2)
+    {
         return c1.code() == c2.code();
     }
 
-    inline bool operator!=(const CommodityType& c1, const CommodityType& c2) {
+    inline bool operator!=(const CommodityType& c1, const CommodityType& c2)
+    {
         return !(c1 == c2);
     }
 

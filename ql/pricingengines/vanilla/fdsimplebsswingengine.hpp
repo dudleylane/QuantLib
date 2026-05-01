@@ -24,19 +24,19 @@
 #ifndef quantlib_fd_simple_bs_swing_engine_hpp
 #define quantlib_fd_simple_bs_swing_engine_hpp
 
-#include <ql/pricingengine.hpp>
 #include <ql/instruments/vanillaswingoption.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
+#include <ql/pricingengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Finite-Differences Black Scholes engine for simple swing options
 
     class GeneralizedBlackScholesProcess;
 
-    class FdSimpleBSSwingEngine
-        : public GenericEngine<VanillaSwingOption::arguments,
-                               VanillaSwingOption::results> {
+    class FdSimpleBSSwingEngine : public GenericEngine<VanillaSwingOption::arguments, VanillaSwingOption::results>
+    {
       public:
         explicit FdSimpleBSSwingEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> p,
                                        Size tGrid = 50,

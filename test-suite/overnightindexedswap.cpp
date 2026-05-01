@@ -20,46 +20,44 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
-
-#include <ql/termstructures/yield/oisratehelper.hpp>
-#include <ql/instruments/makeois.hpp>
-#include <ql/pricingengines/swap/discountingswapengine.hpp>
-#include <ql/termstructures/yield/piecewiseyieldcurve.hpp>
-#include <ql/termstructures/yield/flatforward.hpp>
-#include <ql/time/calendars/nullcalendar.hpp>
-#include <ql/time/calendars/target.hpp>
-#include <ql/time/daycounters/actual360.hpp>
-#include <ql/time/daycounters/thirty360.hpp>
-#include <ql/time/daycounters/actual365fixed.hpp>
-#include <ql/time/daycounters/simpledaycounter.hpp>
-#include <ql/time/schedule.hpp>
+#include <ql/cashflows/cashflows.hpp>
+#include <ql/cashflows/cashflowvectors.hpp>
+#include <ql/cashflows/couponpricer.hpp>
+#include <ql/cashflows/iborcoupon.hpp>
+#include <ql/cashflows/overnightindexedcouponpricer.hpp>
+#include <ql/currencies/europe.hpp>
+#include <ql/indexes/ibor/aonia.hpp>
+#include <ql/indexes/ibor/corra.hpp>
+#include <ql/indexes/ibor/destr.hpp>
+#include <ql/indexes/ibor/eonia.hpp>
 #include <ql/indexes/ibor/estr.hpp>
 #include <ql/indexes/ibor/euribor.hpp>
 #include <ql/indexes/ibor/fedfunds.hpp>
-#include <ql/indexes/ibor/sofr.hpp>
-#include <ql/cashflows/iborcoupon.hpp>
-#include <ql/cashflows/cashflowvectors.hpp>
-#include <ql/cashflows/cashflows.hpp>
-#include <ql/cashflows/couponpricer.hpp>
-#include <ql/cashflows/overnightindexedcouponpricer.hpp>
-#include <ql/currencies/europe.hpp>
-#include <ql/time/calendars/unitedstates.hpp>
-#include <ql/utilities/dataformatters.hpp>
-#include <ql/indexes/ibor/sonia.hpp>
-#include <ql/indexes/ibor/eonia.hpp>
-#include <ql/indexes/ibor/corra.hpp>
-#include <ql/indexes/ibor/tibor.hpp>
-#include <ql/indexes/ibor/aonia.hpp>
-#include <ql/indexes/ibor/tonar.hpp>
-#include <ql/indexes/ibor/saron.hpp>
-#include <ql/indexes/ibor/nzocr.hpp>
-#include <ql/indexes/ibor/destr.hpp>
-#include <ql/indexes/ibor/swestr.hpp>
 #include <ql/indexes/ibor/kofr.hpp>
 #include <ql/indexes/ibor/mosprime.hpp>
-
-#include <iostream>
+#include <ql/indexes/ibor/nzocr.hpp>
+#include <ql/indexes/ibor/saron.hpp>
+#include <ql/indexes/ibor/sofr.hpp>
+#include <ql/indexes/ibor/sonia.hpp>
+#include <ql/indexes/ibor/swestr.hpp>
+#include <ql/indexes/ibor/tibor.hpp>
+#include <ql/indexes/ibor/tonar.hpp>
+#include <ql/instruments/makeois.hpp>
+#include <ql/pricingengines/swap/discountingswapengine.hpp>
+#include <ql/termstructures/yield/flatforward.hpp>
+#include <ql/termstructures/yield/oisratehelper.hpp>
+#include <ql/termstructures/yield/piecewiseyieldcurve.hpp>
+#include <ql/time/calendars/nullcalendar.hpp>
+#include <ql/time/calendars/target.hpp>
+#include <ql/time/calendars/unitedstates.hpp>
+#include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
+#include <ql/time/daycounters/simpledaycounter.hpp>
+#include <ql/time/daycounters/thirty360.hpp>
+#include <ql/time/schedule.hpp>
+#include <ql/utilities/dataformatters.hpp>
 #include <iomanip>
+#include <iostream>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -70,63 +68,30 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(OvernightIndexedSwapTests)
 
-struct Datum {
+struct Datum
+{
     Integer settlementDays;
     Integer n;
     TimeUnit unit;
     Rate rate;
 };
 
-Datum depositData[] = {
-    { 0, 1, Days, 1.10 },
-    { 1, 1, Days, 1.10 },
-    { 2, 1, Weeks, 1.40 },
-    { 2, 2, Weeks, 1.50 },
-    { 2, 1, Months, 1.70 },
-    { 2, 2, Months, 1.90 },
-    { 2, 3, Months, 2.05 },
-    { 2, 4, Months, 2.08 },
-    { 2, 5, Months, 2.11 },
-    { 2, 6, Months, 2.13 }
-};
+Datum depositData[] = {{0, 1, Days, 1.10},   {1, 1, Days, 1.10},   {2, 1, Weeks, 1.40},  {2, 2, Weeks, 1.50},
+                       {2, 1, Months, 1.70}, {2, 2, Months, 1.90}, {2, 3, Months, 2.05}, {2, 4, Months, 2.08},
+                       {2, 5, Months, 2.11}, {2, 6, Months, 2.13}};
 
-Datum estrSwapData[] = {
-    { 2,  1, Weeks, 1.245 },
-    { 2,  2, Weeks, 1.269 },
-    { 2,  3, Weeks, 1.277 },
-    { 2,  1, Months, 1.281 },
-    { 2,  2, Months, 1.18 },
-    { 2,  3, Months, 1.143 },
-    { 2,  4, Months, 1.125 },
-    { 2,  5, Months, 1.116 },
-    { 2,  6, Months, 1.111 },
-    { 2,  7, Months, 1.109 },
-    { 2,  8, Months, 1.111 },
-    { 2,  9, Months, 1.117 },
-    { 2, 10, Months, 1.129 },
-    { 2, 11, Months, 1.141 },
-    { 2, 12, Months, 1.153 },
-    { 2, 15, Months, 1.218 },
-    { 2, 18, Months, 1.308 },
-    { 2, 21, Months, 1.407 },
-    { 2,  2,  Years, 1.510 },
-    { 2,  3,  Years, 1.916 },
-    { 2,  4,  Years, 2.254 },
-    { 2,  5,  Years, 2.523 },
-    { 2,  6,  Years, 2.746 },
-    { 2,  7,  Years, 2.934 },
-    { 2,  8,  Years, 3.092 },
-    { 2,  9,  Years, 3.231 },
-    { 2, 10,  Years, 3.380 },
-    { 2, 11,  Years, 3.457 },
-    { 2, 12,  Years, 3.544 },
-    { 2, 15,  Years, 3.702 },
-    { 2, 20,  Years, 3.703 },
-    { 2, 25,  Years, 3.541 },
-    { 2, 30,  Years, 3.369 }
-};
+Datum estrSwapData[] = {{2, 1, Weeks, 1.245},   {2, 2, Weeks, 1.269},   {2, 3, Weeks, 1.277},   {2, 1, Months, 1.281},
+                        {2, 2, Months, 1.18},   {2, 3, Months, 1.143},  {2, 4, Months, 1.125},  {2, 5, Months, 1.116},
+                        {2, 6, Months, 1.111},  {2, 7, Months, 1.109},  {2, 8, Months, 1.111},  {2, 9, Months, 1.117},
+                        {2, 10, Months, 1.129}, {2, 11, Months, 1.141}, {2, 12, Months, 1.153}, {2, 15, Months, 1.218},
+                        {2, 18, Months, 1.308}, {2, 21, Months, 1.407}, {2, 2, Years, 1.510},   {2, 3, Years, 1.916},
+                        {2, 4, Years, 2.254},   {2, 5, Years, 2.523},   {2, 6, Years, 2.746},   {2, 7, Years, 2.934},
+                        {2, 8, Years, 3.092},   {2, 9, Years, 3.231},   {2, 10, Years, 3.380},  {2, 11, Years, 3.457},
+                        {2, 12, Years, 3.544},  {2, 15, Years, 3.702},  {2, 20, Years, 3.703},  {2, 25, Years, 3.541},
+                        {2, 30, Years, 3.369}};
 
-struct CommonVars {
+struct CommonVars
+{
     // global data
     Date today, settlement;
     Swap::Type type;
@@ -147,14 +112,14 @@ struct CommonVars {
     RelinkableHandle<YieldTermStructure> swapTermStructure;
 
     // utilities
-    ext::shared_ptr<OvernightIndexedSwap>
-    makeSwap(Period length,
-             Rate fixedRate,
-             Spread spread,
-             bool telescopicValueDates,
-             Date effectiveDate = Date(),
-             Integer paymentLag = 0,
-             RateAveraging::Type averagingMethod = RateAveraging::Compound) {
+    ext::shared_ptr<OvernightIndexedSwap> makeSwap(Period length,
+                                                   Rate fixedRate,
+                                                   Spread spread,
+                                                   bool telescopicValueDates,
+                                                   Date effectiveDate = Date(),
+                                                   Integer paymentLag = 0,
+                                                   RateAveraging::Type averagingMethod = RateAveraging::Compound)
+    {
         return MakeOIS(length, estrIndex, fixedRate, 0 * Days)
             .withEffectiveDate(effectiveDate == Date() ? settlement : effectiveDate)
             .withOvernightLegSpread(spread)
@@ -165,14 +130,14 @@ struct CommonVars {
             .withAveragingMethod(averagingMethod);
     }
 
-    ext::shared_ptr<OvernightIndexedSwap>
-    makeSwapWithLookback(Period length,
-                         Rate fixedRate,
-                         Integer paymentLag,
-                         Natural lookbackDays,
-                         Natural lockoutDays,
-                         bool applyObservationShift,
-                         bool telescopicValueDates) {
+    ext::shared_ptr<OvernightIndexedSwap> makeSwapWithLookback(Period length,
+                                                               Rate fixedRate,
+                                                               Integer paymentLag,
+                                                               Natural lookbackDays,
+                                                               Natural lockoutDays,
+                                                               bool applyObservationShift,
+                                                               bool telescopicValueDates)
+    {
         return MakeOIS(length, estrIndex, fixedRate, 0 * Days)
             .withEffectiveDate(settlement)
             .withNominal(nominal)
@@ -184,14 +149,15 @@ struct CommonVars {
             .withTelescopicValueDates(telescopicValueDates);
     }
 
-    CommonVars() {
+    CommonVars()
+    {
         type = Swap::Payer;
         settlementDays = 2;
         nominal = 100.0;
         fixedEstrConvention = ModifiedFollowing;
         floatingEstrConvention = ModifiedFollowing;
-        fixedEstrPeriod = 1*Years;
-        floatingEstrPeriod = 1*Years;
+        fixedEstrPeriod = 1 * Years;
+        floatingEstrPeriod = 1 * Years;
         fixedEstrDayCount = Actual360();
         estrIndex = ext::make_shared<Estr>(estrTermStructure);
         fixedSwapConvention = ModifiedFollowing;
@@ -201,58 +167,48 @@ struct CommonVars {
         calendar = estrIndex->fixingCalendar();
         today = Date(5, February, 2009);
         Settings::instance().evaluationDate() = today;
-        settlement = calendar.advance(today,settlementDays*Days,Following);
+        settlement = calendar.advance(today, settlementDays * Days, Following);
         estrTermStructure.linkTo(flatRate(today, 0.05, Actual365Fixed()));
     }
 };
 
-void testBootstrap(bool telescopicValueDates,
-                   RateAveraging::Type averagingMethod,
-                   Real tolerance = 1.0e-8) {
+void testBootstrap(bool telescopicValueDates, RateAveraging::Type averagingMethod, Real tolerance = 1.0e-8)
+{
 
     CommonVars vars;
 
     Natural paymentLag = 2;
 
-    std::vector<ext::shared_ptr<RateHelper> > estrHelpers;
+    std::vector<ext::shared_ptr<RateHelper>> estrHelpers;
     auto spread = makeQuoteHandle(0.0);
 
     auto euribor3m = ext::make_shared<Euribor3M>();
     auto estr = ext::make_shared<Estr>();
 
-    for (auto& i : depositData) {
+    for (auto& i : depositData)
+    {
         Real rate = 0.01 * i.rate;
         ext::shared_ptr<SimpleQuote> simple = ext::make_shared<SimpleQuote>(rate);
-        ext::shared_ptr<Quote> quote (simple);
+        ext::shared_ptr<Quote> quote(simple);
         Period term = i.n * i.unit;
         auto helper = ext::make_shared<DepositRateHelper>(
-                Handle<Quote>(quote), term, i.settlementDays, euribor3m->fixingCalendar(),
-                euribor3m->businessDayConvention(), euribor3m->endOfMonth(), euribor3m->dayCounter());
+            Handle<Quote>(quote), term, i.settlementDays, euribor3m->fixingCalendar(),
+            euribor3m->businessDayConvention(), euribor3m->endOfMonth(), euribor3m->dayCounter());
 
-        if (term <= 2*Days)
+        if (term <= 2 * Days)
             estrHelpers.push_back(helper);
     }
 
-    for (auto& i : estrSwapData) {
+    for (auto& i : estrSwapData)
+    {
         Real rate = 0.01 * i.rate;
         ext::shared_ptr<SimpleQuote> simple = ext::make_shared<SimpleQuote>(rate);
-        ext::shared_ptr<Quote> quote (simple);
+        ext::shared_ptr<Quote> quote(simple);
         Period term = i.n * i.unit;
-        auto helper = ext::make_shared<OISRateHelper>(i.settlementDays,
-                                                      term,
-                                                      Handle<Quote>(quote),
-                                                      estr,
-                                                      Handle<YieldTermStructure>(),
-                                                      telescopicValueDates,
-                                                      paymentLag,
-                                                      Following,
-                                                      Annual,
-                                                      Calendar(),
-                                                      0 * Days,
-                                                      spread,
-                                                      Pillar::LastRelevantDate,
-                                                      Date(),
-                                                      averagingMethod);
+        auto helper = ext::make_shared<OISRateHelper>(i.settlementDays, term, Handle<Quote>(quote), estr,
+                                                      Handle<YieldTermStructure>(), telescopicValueDates, paymentLag,
+                                                      Following, Annual, Calendar(), 0 * Days, spread,
+                                                      Pillar::LastRelevantDate, Date(), averagingMethod);
         estrHelpers.push_back(helper);
     }
 
@@ -261,58 +217,62 @@ void testBootstrap(bool telescopicValueDates,
     vars.estrTermStructure.linkTo(estrTS);
 
     // test curve consistency
-    for (auto& i : estrSwapData) {
+    for (auto& i : estrSwapData)
+    {
         Rate expected = i.rate / 100;
         Period term = i.n * i.unit;
         // test telescopic value dates (in bootstrap) against non telescopic value dates (swap here)
         ext::shared_ptr<OvernightIndexedSwap> swap =
             vars.makeSwap(term, 0.0, 0.0, false, Date(), paymentLag, averagingMethod);
         Rate calculated = swap->fairRate();
-        Rate error = std::fabs(expected-calculated);
+        Rate error = std::fabs(expected - calculated);
 
-        if (error>tolerance)
-            BOOST_ERROR("curve inconsistency:" << std::setprecision(10) <<
-                        "\n swap length:     " << term <<
-                        "\n quoted rate:     " << expected <<
-                        "\n calculated rate: " << calculated <<
-                        "\n error:           " << error <<
-                        "\n tolerance:       " << tolerance);
+        if (error > tolerance)
+            BOOST_ERROR("curve inconsistency:" << std::setprecision(10) << "\n swap length:     " << term
+                                               << "\n quoted rate:     " << expected << "\n calculated rate: "
+                                               << calculated << "\n error:           " << error
+                                               << "\n tolerance:       " << tolerance);
     }
 }
 
 
-BOOST_AUTO_TEST_CASE(testFairRate) {
+BOOST_AUTO_TEST_CASE(testFairRate)
+{
 
     BOOST_TEST_MESSAGE("Testing Estr-swap calculation of fair fixed rate...");
 
     CommonVars vars;
 
-    Period lengths[] = { 1*Years, 2*Years, 5*Years, 10*Years, 20*Years };
-    Spread spreads[] = { -0.001, -0.01, 0.0, 0.01, 0.001 };
+    Period lengths[] = {1 * Years, 2 * Years, 5 * Years, 10 * Years, 20 * Years};
+    Spread spreads[] = {-0.001, -0.01, 0.0, 0.01, 0.001};
 
-    for (auto& length : lengths) {
-        for (Real spread : spreads) {
+    for (auto& length : lengths)
+    {
+        for (Real spread : spreads)
+        {
 
             ext::shared_ptr<OvernightIndexedSwap> swap = vars.makeSwap(length, 0.0, spread, false);
             ext::shared_ptr<OvernightIndexedSwap> swap2 = vars.makeSwap(length, 0.0, spread, true);
-            if(std::fabs(swap->fairRate()-swap2->fairRate()) > 1.0e-10) {
+            if (std::fabs(swap->fairRate() - swap2->fairRate()) > 1.0e-10)
+            {
                 BOOST_ERROR("fair rates are different:\n"
                             << std::setprecision(2) << "    length: " << length << " \n"
                             << "    floating spread: " << io::rate(spread) << "\n"
                             << std::setprecision(12)
-                            << "    fair rate (non telescopic value dates): " << swap->fairRate()
-                            << "\n"
+                            << "    fair rate (non telescopic value dates): " << swap->fairRate() << "\n"
                             << "    fair rate (telescopic value dates)    : " << swap2->fairRate());
             }
             swap = vars.makeSwap(length, swap->fairRate(), spread, false);
-            if (std::fabs(swap->NPV()) > 1.0e-10) {
+            if (std::fabs(swap->NPV()) > 1.0e-10)
+            {
                 BOOST_ERROR("recalculating with implied rate (non telescopic value dates):\n"
                             << std::setprecision(2) << "    length: " << length << " \n"
                             << "    floating spread: " << io::rate(spread) << "\n"
                             << "    swap value: " << swap->NPV());
             }
             swap = vars.makeSwap(length, swap->fairRate(), spread, true);
-            if (std::fabs(swap->NPV()) > 1.0e-10) {
+            if (std::fabs(swap->NPV()) > 1.0e-10)
+            {
                 BOOST_ERROR("recalculating with implied rate (telescopic value dates):\n"
                             << std::setprecision(2) << "    length: " << length << " \n"
                             << "    floating spread: " << io::rate(spread) << "\n"
@@ -322,104 +282,105 @@ BOOST_AUTO_TEST_CASE(testFairRate) {
     }
 }
 
-BOOST_AUTO_TEST_CASE(testFairSpread) {
+BOOST_AUTO_TEST_CASE(testFairSpread)
+{
 
     BOOST_TEST_MESSAGE("Testing Estr-swap calculation of fair floating spread...");
 
     CommonVars vars;
 
-    Period lengths[] = { 1*Years, 2*Years, 5*Years, 10*Years, 20*Years };
-    Rate rates[] = { 0.04, 0.05, 0.06, 0.07 };
+    Period lengths[] = {1 * Years, 2 * Years, 5 * Years, 10 * Years, 20 * Years};
+    Rate rates[] = {0.04, 0.05, 0.06, 0.07};
 
-    for (auto& length : lengths) {
-        for (Real j : rates) {
+    for (auto& length : lengths)
+    {
+        for (Real j : rates)
+        {
 
             ext::shared_ptr<OvernightIndexedSwap> swap = vars.makeSwap(length, j, 0.0, false);
             ext::shared_ptr<OvernightIndexedSwap> swap2 = vars.makeSwap(length, j, 0.0, true);
             Spread fairSpread = swap->fairSpread();
             Spread fairSpread2 = swap2->fairSpread();
-            if(std::fabs(fairSpread-fairSpread2) > 1.0e-10) {
-                BOOST_ERROR(
-                    "fair spreads are different:\n"
-                    << std::setprecision(2) << "\n     length: " << length
-                    << "\n fixed rate: " << io::rate(j)
-                    << "\nfair spread (non telescopic value dates): " << io::rate(fairSpread)
-                    << "\nfair spread (telescopic value dates)    : " << io::rate(fairSpread2));
+            if (std::fabs(fairSpread - fairSpread2) > 1.0e-10)
+            {
+                BOOST_ERROR("fair spreads are different:\n"
+                            << std::setprecision(2) << "\n     length: " << length << "\n fixed rate: " << io::rate(j)
+                            << "\nfair spread (non telescopic value dates): " << io::rate(fairSpread)
+                            << "\nfair spread (telescopic value dates)    : " << io::rate(fairSpread2));
             }
             swap = vars.makeSwap(length, j, fairSpread, false);
-            if (std::fabs(swap->NPV()) > 1.0e-10) {
+            if (std::fabs(swap->NPV()) > 1.0e-10)
+            {
                 BOOST_ERROR("\nrecalculating with implied spread (non telescopic value dates):"
-                            << std::setprecision(2) << "\n     length: " << length
-                            << "\n fixed rate: " << io::rate(j) << "\nfair spread: "
-                            << io::rate(fairSpread) << "\n swap value: " << swap->NPV());
+                            << std::setprecision(2) << "\n     length: " << length << "\n fixed rate: " << io::rate(j)
+                            << "\nfair spread: " << io::rate(fairSpread) << "\n swap value: " << swap->NPV());
             }
             swap = vars.makeSwap(length, j, fairSpread, true);
-            if (std::fabs(swap->NPV()) > 1.0e-10) {
+            if (std::fabs(swap->NPV()) > 1.0e-10)
+            {
                 BOOST_ERROR("\nrecalculating with implied spread (telescopic value dates):"
-                            << std::setprecision(2) << "\n     length: " << length
-                            << "\n fixed rate: " << io::rate(j) << "\nfair spread: "
-                            << io::rate(fairSpread) << "\n swap value: " << swap->NPV());
+                            << std::setprecision(2) << "\n     length: " << length << "\n fixed rate: " << io::rate(j)
+                            << "\nfair spread: " << io::rate(fairSpread) << "\n swap value: " << swap->NPV());
             }
         }
     }
 }
 
-BOOST_AUTO_TEST_CASE(testCachedValue) {
+BOOST_AUTO_TEST_CASE(testCachedValue)
+{
 
     BOOST_TEST_MESSAGE("Testing Estr-swap calculation against cached value...");
 
     CommonVars vars;
 
     Settings::instance().evaluationDate() = vars.today;
-    vars.settlement =
-        vars.calendar.advance(vars.today,vars.settlementDays,Days);
+    vars.settlement = vars.calendar.advance(vars.today, vars.settlementDays, Days);
     Real flat = 0.05;
-    vars.estrTermStructure.linkTo(flatRate(vars.settlement,flat,Actual360()));
+    vars.estrTermStructure.linkTo(flatRate(vars.settlement, flat, Actual360()));
     Real fixedRate = exp(flat) - 1;
-    ext::shared_ptr<OvernightIndexedSwap> swap = vars.makeSwap(1*Years, fixedRate, 0.0,false);
-    ext::shared_ptr<OvernightIndexedSwap> swap2 = vars.makeSwap(1*Years, fixedRate, 0.0,true);
-    Real cachedNPV   = 0.001730450147;
+    ext::shared_ptr<OvernightIndexedSwap> swap = vars.makeSwap(1 * Years, fixedRate, 0.0, false);
+    ext::shared_ptr<OvernightIndexedSwap> swap2 = vars.makeSwap(1 * Years, fixedRate, 0.0, true);
+    Real cachedNPV = 0.001730450147;
     Real tolerance = 1.0e-11;
-    if (std::fabs(swap->NPV()-cachedNPV) > tolerance)
-        BOOST_ERROR("\nfailed to reproduce cached swap value (non telescopic value dates):" <<
-                    std::fixed << std::setprecision(12) <<
-                    "\ncalculated: " << swap->NPV() <<
-                    "\n  expected: " << cachedNPV <<
-                    "\n tolerance:" << tolerance);
-    if (std::fabs(swap2->NPV()-cachedNPV) > tolerance)
-        BOOST_ERROR("\nfailed to reproduce cached swap value (telescopic value dates):" <<
-                    std::fixed << std::setprecision(12) <<
-                    "\ncalculated: " << swap->NPV() <<
-                    "\n  expected: " << cachedNPV <<
-                    "\n tolerance:" << tolerance);
+    if (std::fabs(swap->NPV() - cachedNPV) > tolerance)
+        BOOST_ERROR("\nfailed to reproduce cached swap value (non telescopic value dates):"
+                    << std::fixed << std::setprecision(12) << "\ncalculated: " << swap->NPV()
+                    << "\n  expected: " << cachedNPV << "\n tolerance:" << tolerance);
+    if (std::fabs(swap2->NPV() - cachedNPV) > tolerance)
+        BOOST_ERROR("\nfailed to reproduce cached swap value (telescopic value dates):"
+                    << std::fixed << std::setprecision(12) << "\ncalculated: " << swap->NPV()
+                    << "\n  expected: " << cachedNPV << "\n tolerance:" << tolerance);
 }
 
-BOOST_AUTO_TEST_CASE(testBaseBootstrap) {
+BOOST_AUTO_TEST_CASE(testBaseBootstrap)
+{
     BOOST_TEST_MESSAGE("Testing Estr-swap curve building with daily compounded ON rates...");
     testBootstrap(false, RateAveraging::Compound);
 }
 
-BOOST_AUTO_TEST_CASE(testBootstrapWithArithmeticAverage) {
+BOOST_AUTO_TEST_CASE(testBootstrapWithArithmeticAverage)
+{
     BOOST_TEST_MESSAGE("Testing Estr-swap curve building with arithmetic average ON rates...");
     testBootstrap(false, RateAveraging::Simple);
 }
 
-BOOST_AUTO_TEST_CASE(testBootstrapWithTelescopicDates) {
-    BOOST_TEST_MESSAGE(
-        "Testing Estr-swap curve building with telescopic value dates and DCON rates...");
+BOOST_AUTO_TEST_CASE(testBootstrapWithTelescopicDates)
+{
+    BOOST_TEST_MESSAGE("Testing Estr-swap curve building with telescopic value dates and DCON rates...");
     testBootstrap(true, RateAveraging::Compound);
 }
 
-BOOST_AUTO_TEST_CASE(testBootstrapWithTelescopicDatesAndArithmeticAverage) {
-    BOOST_TEST_MESSAGE(
-        "Testing Estr-swap curve building with telescopic value dates and AAON rates...");
+BOOST_AUTO_TEST_CASE(testBootstrapWithTelescopicDatesAndArithmeticAverage)
+{
+    BOOST_TEST_MESSAGE("Testing Estr-swap curve building with telescopic value dates and AAON rates...");
     // Given that we are using an approximation that omits
     // the required convexity correction, a lower tolerance
     // is needed.
     testBootstrap(true, RateAveraging::Simple, 1.0e-5);
 }
 
-BOOST_AUTO_TEST_CASE(testBootstrapWithCustomPricer) {
+BOOST_AUTO_TEST_CASE(testBootstrapWithCustomPricer)
+{
     BOOST_TEST_MESSAGE("Testing Estr-swap curve building with custom pricer...");
 
     CommonVars vars;
@@ -427,42 +388,24 @@ BOOST_AUTO_TEST_CASE(testBootstrapWithCustomPricer) {
     Natural paymentLag = 2;
     bool telescopicValueDates = false;
     auto averagingMethod = RateAveraging::Simple;
-    auto pricer =
-        ext::make_shared<ArithmeticAveragedOvernightIndexedCouponPricer>(0.02, 0.15, true);
+    auto pricer = ext::make_shared<ArithmeticAveragedOvernightIndexedCouponPricer>(0.02, 0.15, true);
 
-    std::vector<ext::shared_ptr<RateHelper> > estrHelpers;
+    std::vector<ext::shared_ptr<RateHelper>> estrHelpers;
     auto spread = makeQuoteHandle(0.0);
 
     auto euribor3m = ext::make_shared<Euribor3M>();
     auto estr = ext::make_shared<Estr>();
 
-    for (auto& i : estrSwapData) {
+    for (auto& i : estrSwapData)
+    {
         Real rate = 0.01 * i.rate;
         ext::shared_ptr<SimpleQuote> simple = ext::make_shared<SimpleQuote>(rate);
-        ext::shared_ptr<Quote> quote (simple);
+        ext::shared_ptr<Quote> quote(simple);
         Period term = i.n * i.unit;
-        auto helper = ext::make_shared<OISRateHelper>(i.settlementDays,
-                                                      term,
-                                                      Handle<Quote>(quote),
-                                                      estr,
-                                                      Handle<YieldTermStructure>(),
-                                                      telescopicValueDates,
-                                                      paymentLag,
-                                                      Following,
-                                                      Annual,
-                                                      Calendar(),
-                                                      0 * Days,
-                                                      spread,
-                                                      Pillar::LastRelevantDate,
-                                                      Date(),
-                                                      averagingMethod,
-                                                      ext::nullopt,
-                                                      ext::nullopt,
-                                                      Calendar(),
-                                                      Null<Natural>(),
-                                                      0,
-                                                      false,
-                                                      pricer);
+        auto helper = ext::make_shared<OISRateHelper>(
+            i.settlementDays, term, Handle<Quote>(quote), estr, Handle<YieldTermStructure>(), telescopicValueDates,
+            paymentLag, Following, Annual, Calendar(), 0 * Days, spread, Pillar::LastRelevantDate, Date(),
+            averagingMethod, ext::nullopt, ext::nullopt, Calendar(), Null<Natural>(), 0, false, pricer);
         estrHelpers.push_back(helper);
     }
 
@@ -471,7 +414,8 @@ BOOST_AUTO_TEST_CASE(testBootstrapWithCustomPricer) {
     vars.estrTermStructure.linkTo(estrTS);
 
     // test curve consistency
-    for (auto& i : estrSwapData) {
+    for (auto& i : estrSwapData)
+    {
         Rate expected = i.rate / 100;
         Period term = i.n * i.unit;
 
@@ -480,16 +424,14 @@ BOOST_AUTO_TEST_CASE(testBootstrapWithCustomPricer) {
         setCouponPricer(swap->overnightLeg(), pricer);
 
         Rate calculated = swap->fairRate();
-        Rate error = std::fabs(expected-calculated);
+        Rate error = std::fabs(expected - calculated);
         Real tolerance = 1.0e-8;
 
-        if (error>tolerance)
-            BOOST_ERROR("curve inconsistency:" << std::setprecision(10) <<
-                        "\n swap length:     " << term <<
-                        "\n quoted rate:     " << expected <<
-                        "\n calculated rate: " << calculated <<
-                        "\n error:           " << error <<
-                        "\n tolerance:       " << tolerance);
+        if (error > tolerance)
+            BOOST_ERROR("curve inconsistency:" << std::setprecision(10) << "\n swap length:     " << term
+                                               << "\n quoted rate:     " << expected << "\n calculated rate: "
+                                               << calculated << "\n error:           " << error
+                                               << "\n tolerance:       " << tolerance);
     }
 }
 
@@ -498,72 +440,57 @@ void testBootstrapWithLookback(Natural lookbackDays,
                                Natural lockoutDays,
                                bool applyObservationShift,
                                bool telescopicValueDates,
-                               Natural paymentLag) {
+                               Natural paymentLag)
+{
 
     CommonVars vars;
 
-    std::vector<ext::shared_ptr<RateHelper> > estrHelpers;
+    std::vector<ext::shared_ptr<RateHelper>> estrHelpers;
 
     auto estr = ext::make_shared<Estr>();
     auto spread = makeQuoteHandle(0.0);
 
 
-    for (auto& i : estrSwapData) {
+    for (auto& i : estrSwapData)
+    {
         Real rate = 0.01 * i.rate;
         auto quote = ext::make_shared<SimpleQuote>(rate);
         Period term = i.n * i.unit;
-        auto helper = ext::make_shared<OISRateHelper>(i.settlementDays,
-                                                      term,
-                                                      Handle<Quote>(quote),
-                                                      estr,
-                                                      Handle<YieldTermStructure>(),
-                                                      telescopicValueDates,
-                                                      paymentLag,
-                                                      Following,
-                                                      Annual,
-                                                      Calendar(),
-                                                      0 * Days,
-                                                      spread,
-                                                      Pillar::LastRelevantDate,
-                                                      Date(),
-                                                      RateAveraging::Compound,
-                                                      ext::nullopt,
-                                                      ext::nullopt,
-                                                      Calendar(),
-                                                      lookbackDays,
-                                                      lockoutDays,
-                                                      applyObservationShift);
+        auto helper = ext::make_shared<OISRateHelper>(
+            i.settlementDays, term, Handle<Quote>(quote), estr, Handle<YieldTermStructure>(), telescopicValueDates,
+            paymentLag, Following, Annual, Calendar(), 0 * Days, spread, Pillar::LastRelevantDate, Date(),
+            RateAveraging::Compound, ext::nullopt, ext::nullopt, Calendar(), lookbackDays, lockoutDays,
+            applyObservationShift);
         estrHelpers.push_back(helper);
     }
 
-    auto estrTS = ext::make_shared<PiecewiseYieldCurve<ForwardRate, BackwardFlat>>(vars.today, estrHelpers, Actual365Fixed());
+    auto estrTS =
+        ext::make_shared<PiecewiseYieldCurve<ForwardRate, BackwardFlat>>(vars.today, estrHelpers, Actual365Fixed());
 
     vars.estrTermStructure.linkTo(estrTS);
 
     // test curve consistency
-    for (auto& i : estrSwapData) {
+    for (auto& i : estrSwapData)
+    {
         Rate expected = i.rate / 100;
         Period term = i.n * i.unit;
-        ext::shared_ptr<OvernightIndexedSwap> swap =
-            vars.makeSwapWithLookback(term, 0.0, paymentLag, lookbackDays, lockoutDays,
-                                      applyObservationShift, telescopicValueDates);
+        ext::shared_ptr<OvernightIndexedSwap> swap = vars.makeSwapWithLookback(
+            term, 0.0, paymentLag, lookbackDays, lockoutDays, applyObservationShift, telescopicValueDates);
         Rate calculated = swap->fairRate();
-        Rate error = std::fabs(expected-calculated);
+        Rate error = std::fabs(expected - calculated);
         Real tolerance = 1e-8;
 
-        if (error>tolerance)
-            BOOST_ERROR("curve inconsistency:" << std::setprecision(10) <<
-                        "\n swap length:     " << term <<
-                        "\n quoted rate:     " << expected <<
-                        "\n calculated rate: " << calculated <<
-                        "\n error:           " << error <<
-                        "\n tolerance:       " << tolerance);
+        if (error > tolerance)
+            BOOST_ERROR("curve inconsistency:" << std::setprecision(10) << "\n swap length:     " << term
+                                               << "\n quoted rate:     " << expected << "\n calculated rate: "
+                                               << calculated << "\n error:           " << error
+                                               << "\n tolerance:       " << tolerance);
     }
 }
 
 
-
-BOOST_AUTO_TEST_CASE(testBootstrapWithLookbackDays) {
+BOOST_AUTO_TEST_CASE(testBootstrapWithLookbackDays)
+{
     BOOST_TEST_MESSAGE("Testing Estr-swap curve building with lookback days...");
 
     auto lookbackDays = 2;
@@ -573,12 +500,12 @@ BOOST_AUTO_TEST_CASE(testBootstrapWithLookbackDays) {
 
     testBootstrapWithLookback(lookbackDays, lockoutDays, applyObservationShift, false, paymentLag);
 
-    BOOST_CHECK_EXCEPTION(
-        testBootstrapWithLookback(lookbackDays, lockoutDays, applyObservationShift, true, paymentLag),
-        Error, ExpectedErrorMessage("Telescopic formula cannot be applied"));
+    BOOST_CHECK_EXCEPTION(testBootstrapWithLookback(lookbackDays, lockoutDays, applyObservationShift, true, paymentLag),
+                          Error, ExpectedErrorMessage("Telescopic formula cannot be applied"));
 }
 
-BOOST_AUTO_TEST_CASE(testBootstrapWithLookbackDaysAndShift) {
+BOOST_AUTO_TEST_CASE(testBootstrapWithLookbackDaysAndShift)
+{
     BOOST_TEST_MESSAGE("Testing Estr-swap curve building with lookback days and observation shift...");
 
     auto lookbackDays = 2;
@@ -591,7 +518,8 @@ BOOST_AUTO_TEST_CASE(testBootstrapWithLookbackDaysAndShift) {
     testBootstrapWithLookback(lookbackDays, lockoutDays, applyObservationShift, true, paymentLag);
 }
 
-BOOST_AUTO_TEST_CASE(testBootstrapWithLockoutDays) {
+BOOST_AUTO_TEST_CASE(testBootstrapWithLockoutDays)
+{
     BOOST_TEST_MESSAGE("Testing Estr-swap curve building with lookback and lockout days...");
 
     auto lookbackDays = 2;
@@ -601,12 +529,12 @@ BOOST_AUTO_TEST_CASE(testBootstrapWithLockoutDays) {
 
     testBootstrapWithLookback(lookbackDays, lockoutDays, applyObservationShift, false, paymentLag);
 
-    BOOST_CHECK_EXCEPTION(
-        testBootstrapWithLookback(lookbackDays, lockoutDays, applyObservationShift, true, paymentLag),
-        Error, ExpectedErrorMessage("Telescopic formula cannot be applied"));
+    BOOST_CHECK_EXCEPTION(testBootstrapWithLookback(lookbackDays, lockoutDays, applyObservationShift, true, paymentLag),
+                          Error, ExpectedErrorMessage("Telescopic formula cannot be applied"));
 }
 
-BOOST_AUTO_TEST_CASE(testBootstrapWithLockoutDaysAndShift) {
+BOOST_AUTO_TEST_CASE(testBootstrapWithLockoutDaysAndShift)
+{
     BOOST_TEST_MESSAGE("Testing Estr-swap curve building with lookback and lockout days and observation shift...");
 
     auto lookbackDays = 2;
@@ -620,30 +548,32 @@ BOOST_AUTO_TEST_CASE(testBootstrapWithLockoutDaysAndShift) {
 }
 
 
-BOOST_AUTO_TEST_CASE(testSeasonedSwaps) {
+BOOST_AUTO_TEST_CASE(testSeasonedSwaps)
+{
 
     BOOST_TEST_MESSAGE("Testing seasoned Estr-swap calculation...");
 
     CommonVars vars;
 
-    Period lengths[] = { 1*Years, 2*Years, 5*Years, 10*Years, 20*Years };
-    Spread spreads[] = { -0.001, -0.01, 0.0, 0.01, 0.001 };
+    Period lengths[] = {1 * Years, 2 * Years, 5 * Years, 10 * Years, 20 * Years};
+    Spread spreads[] = {-0.001, -0.01, 0.0, 0.01, 0.001};
 
     Date effectiveDate = Date(2, February, 2009);
 
-    vars.estrIndex->addFixing(Date(2,February,2009), 0.0010); // fake fixing values
-    vars.estrIndex->addFixing(Date(3,February,2009), 0.0011);
-    vars.estrIndex->addFixing(Date(4,February,2009), 0.0012);
-    vars.estrIndex->addFixing(Date(5,February,2009), 0.0013);
+    vars.estrIndex->addFixing(Date(2, February, 2009), 0.0010); // fake fixing values
+    vars.estrIndex->addFixing(Date(3, February, 2009), 0.0011);
+    vars.estrIndex->addFixing(Date(4, February, 2009), 0.0012);
+    vars.estrIndex->addFixing(Date(5, February, 2009), 0.0013);
 
-    for (auto& length : lengths) {
-        for (Real spread : spreads) {
+    for (auto& length : lengths)
+    {
+        for (Real spread : spreads)
+        {
 
-            ext::shared_ptr<OvernightIndexedSwap> swap =
-                vars.makeSwap(length, 0.0, spread, false, effectiveDate);
-            ext::shared_ptr<OvernightIndexedSwap> swap2 =
-                vars.makeSwap(length, 0.0, spread, true, effectiveDate);
-            if (std::fabs(swap->NPV() - swap2->NPV()) > 1.0e-10) {
+            ext::shared_ptr<OvernightIndexedSwap> swap = vars.makeSwap(length, 0.0, spread, false, effectiveDate);
+            ext::shared_ptr<OvernightIndexedSwap> swap2 = vars.makeSwap(length, 0.0, spread, true, effectiveDate);
+            if (std::fabs(swap->NPV() - swap2->NPV()) > 1.0e-10)
+            {
                 BOOST_ERROR("swap npv is different:\n"
                             << std::setprecision(2) << "    length: " << length << " \n"
                             << "    floating spread: " << io::rate(spread) << "\n"
@@ -654,71 +584,45 @@ BOOST_AUTO_TEST_CASE(testSeasonedSwaps) {
     }
 }
 
-BOOST_AUTO_TEST_CASE(testBootstrapRegression) {
+BOOST_AUTO_TEST_CASE(testBootstrapRegression)
+{
     BOOST_TEST_MESSAGE("Testing 1.16 regression with OIS bootstrap...");
 
-    Datum data[] = {
-        { 0,  1, Days,   0.0066   },
-        { 2,  1, Weeks,  0.006445 },
-        { 2,  2, Weeks,  0.006455 },
-        { 2,  3, Weeks,  0.00645  },
-        { 2,  1, Months, 0.00675  },
-        { 2,  2, Months, 0.007    },
-        { 2,  3, Months, 0.00724  },
-        { 2,  4, Months, 0.007533 },
-        { 2,  5, Months, 0.00785  },
-        { 2,  6, Months, 0.00814  },
-        { 2,  9, Months, 0.00889  },
-        { 2,  1, Years,  0.00967  },
-        { 2,  2, Years,  0.01221  },
-        { 2,  3, Years,  0.01413  },
-        { 2,  4, Years,  0.01555  },
-        { 2,  5, Years,  0.01672  },
-        { 2, 10, Years,  0.02005  },
-        { 2, 12, Years,  0.0208   },
-        { 2, 15, Years,  0.02152  },
-        { 2, 20, Years,  0.02215  },
-        { 2, 25, Years,  0.02233  },
-        { 2, 30, Years,  0.02234  },
-        { 2, 40, Years,  0.02233  }
-    };
+    Datum data[] = {{0, 1, Days, 0.0066},    {2, 1, Weeks, 0.006445}, {2, 2, Weeks, 0.006455}, {2, 3, Weeks, 0.00645},
+                    {2, 1, Months, 0.00675}, {2, 2, Months, 0.007},   {2, 3, Months, 0.00724}, {2, 4, Months, 0.007533},
+                    {2, 5, Months, 0.00785}, {2, 6, Months, 0.00814}, {2, 9, Months, 0.00889}, {2, 1, Years, 0.00967},
+                    {2, 2, Years, 0.01221},  {2, 3, Years, 0.01413},  {2, 4, Years, 0.01555},  {2, 5, Years, 0.01672},
+                    {2, 10, Years, 0.02005}, {2, 12, Years, 0.0208},  {2, 15, Years, 0.02152}, {2, 20, Years, 0.02215},
+                    {2, 25, Years, 0.02233}, {2, 30, Years, 0.02234}, {2, 40, Years, 0.02233}};
 
     Settings::instance().evaluationDate() = Date(21, February, 2017);
 
-    std::vector<ext::shared_ptr<RateHelper> > helpers;
+    std::vector<ext::shared_ptr<RateHelper>> helpers;
     auto index = ext::make_shared<FedFunds>();
     Spread spread = 0.0;
 
-    helpers.push_back(
-        ext::make_shared<DepositRateHelper>(data[0].rate,
-                                            Period(data[0].n, data[0].unit),
-                                            index->fixingDays(),
-                                            index->fixingCalendar(),
-                                            index->businessDayConvention(),
-                                            index->endOfMonth(),
-                                            index->dayCounter()));
+    helpers.push_back(ext::make_shared<DepositRateHelper>(
+        data[0].rate, Period(data[0].n, data[0].unit), index->fixingDays(), index->fixingCalendar(),
+        index->businessDayConvention(), index->endOfMonth(), index->dayCounter()));
 
-    for (Size i=1; i<std::size(data); ++i) {
-        helpers.push_back(
-            ext::make_shared<OISRateHelper>(
-                                  data[i].settlementDays,
-                                  Period(data[i].n, data[i].unit),
-                                  Handle<Quote>(ext::make_shared<SimpleQuote>(data[i].rate)),
-                                  index,
-                                  Handle<YieldTermStructure>(),
-                                  false, 2,
-                                  Following, Annual, Calendar(), 0*Days, spread,
-                                  // this bootstrap fails with the default LastRelevantDate choice
-                                  Pillar::MaturityDate));
+    for (Size i = 1; i < std::size(data); ++i)
+    {
+        helpers.push_back(ext::make_shared<OISRateHelper>(
+            data[i].settlementDays, Period(data[i].n, data[i].unit),
+            Handle<Quote>(ext::make_shared<SimpleQuote>(data[i].rate)), index, Handle<YieldTermStructure>(), false, 2,
+            Following, Annual, Calendar(), 0 * Days, spread,
+            // this bootstrap fails with the default LastRelevantDate choice
+            Pillar::MaturityDate));
     }
 
-    PiecewiseYieldCurve<Discount,LogCubic> curve(0, UnitedStates(UnitedStates::GovernmentBond),
-                                                 helpers, Actual365Fixed(), MonotonicLogCubic());
+    PiecewiseYieldCurve<Discount, LogCubic> curve(0, UnitedStates(UnitedStates::GovernmentBond), helpers,
+                                                  Actual365Fixed(), MonotonicLogCubic());
 
     BOOST_CHECK_NO_THROW(curve.discount(1.0));
 }
 
-BOOST_AUTO_TEST_CASE(test131BootstrapRegression) {
+BOOST_AUTO_TEST_CASE(test131BootstrapRegression)
+{
     BOOST_TEST_MESSAGE("Testing 1.31 regression with OIS bootstrap...");
 
     Date today(11, December, 2012);
@@ -727,81 +631,67 @@ BOOST_AUTO_TEST_CASE(test131BootstrapRegression) {
     auto estr = ext::make_shared<Estr>();
 
     std::vector<ext::shared_ptr<RateHelper>> helpers;
-    helpers.push_back(ext::make_shared<OISRateHelper>(2, 1 * Weeks, makeQuoteHandle(0.070/100), estr));
-    helpers.push_back(ext::make_shared<OISRateHelper>(Date(16, January, 2013), Date(13, February, 2013), makeQuoteHandle(0.046/100), estr));
+    helpers.push_back(ext::make_shared<OISRateHelper>(2, 1 * Weeks, makeQuoteHandle(0.070 / 100), estr));
+    helpers.push_back(ext::make_shared<OISRateHelper>(Date(16, January, 2013), Date(13, February, 2013),
+                                                      makeQuoteHandle(0.046 / 100), estr));
 
-    auto curve = PiecewiseYieldCurve<ForwardRate,BackwardFlat>(0, TARGET(), helpers, Actual365Fixed());
+    auto curve = PiecewiseYieldCurve<ForwardRate, BackwardFlat>(0, TARGET(), helpers, Actual365Fixed());
     BOOST_CHECK_NO_THROW(curve.nodes());
 }
 
-BOOST_AUTO_TEST_CASE(testBootstrapWithDifferentCalendars) {
+BOOST_AUTO_TEST_CASE(testBootstrapWithDifferentCalendars)
+{
     BOOST_TEST_MESSAGE("Testing OIS bootstrap when the swap maturity is not a fixing day for the index...");
 
     Date today(10, April, 2025);
     Settings::instance().evaluationDate() = today;
 
-    Datum data[] = {
-        { 2,  1, Years,  0.037755 },
-        { 2,  2, Years,  0.034115 },
-        { 2,  3, Years,  0.033417 }
-    };
+    Datum data[] = {{2, 1, Years, 0.037755}, {2, 2, Years, 0.034115}, {2, 3, Years, 0.033417}};
 
-    std::vector<ext::shared_ptr<RateHelper> > helpers;
+    std::vector<ext::shared_ptr<RateHelper>> helpers;
     auto index = ext::make_shared<Sofr>();
 
     auto calendar = UnitedStates(UnitedStates::FederalReserve);
 
     helpers.reserve(std::size(data));
-for (auto & i : data) {
-        helpers.push_back(
-            ext::make_shared<OISRateHelper>(
-                                  i.settlementDays,
-                                  Period(i.n, i.unit),
-                                  makeQuoteHandle(i.rate),
-                                  index,
-                                  Handle<YieldTermStructure>(),
-                                  false, 0,
-                                  Following, Annual, calendar, 0*Days, 0.0,
-                                  Pillar::LastRelevantDate, Date(),
-                                  RateAveraging::Compound, ext::nullopt, ext::nullopt,
-                                  calendar, Null<Natural>(), 0, false,
-                                  ext::shared_ptr<FloatingRateCouponPricer>(),
-                                  DateGeneration::Backward, calendar));
+    for (auto& i : data)
+    {
+        helpers.push_back(ext::make_shared<OISRateHelper>(
+            i.settlementDays, Period(i.n, i.unit), makeQuoteHandle(i.rate), index, Handle<YieldTermStructure>(), false,
+            0, Following, Annual, calendar, 0 * Days, 0.0, Pillar::LastRelevantDate, Date(), RateAveraging::Compound,
+            ext::nullopt, ext::nullopt, calendar, Null<Natural>(), 0, false,
+            ext::shared_ptr<FloatingRateCouponPricer>(), DateGeneration::Backward, calendar));
     }
 
-    BOOST_CHECK_EQUAL(helpers.back()->maturityDate(), Date(14, April, 2028)); // Good Friday; holiday for SOFR
-                                                                              // but not for Federal Reserve
+    BOOST_CHECK_EQUAL(helpers.back()->maturityDate(), Date(14, April, 2028));       // Good Friday; holiday for SOFR
+                                                                                    // but not for Federal Reserve
     BOOST_CHECK_EQUAL(helpers.back()->latestRelevantDate(), Date(17, April, 2028)); // end of last fixing
 
-    auto curve = PiecewiseYieldCurve<ForwardRate,BackwardFlat>(today, helpers, Actual365Fixed());
+    auto curve = PiecewiseYieldCurve<ForwardRate, BackwardFlat>(today, helpers, Actual365Fixed());
     BOOST_CHECK_NO_THROW(curve.nodes());
 }
 
-BOOST_AUTO_TEST_CASE(testConstructorsAndNominals) {
+BOOST_AUTO_TEST_CASE(testConstructorsAndNominals)
+{
     BOOST_TEST_MESSAGE("Testing different constructors for OIS...");
 
     CommonVars vars;
 
-    Date spot = vars.calendar.advance(vars.today, 2*Days);
+    Date spot = vars.calendar.advance(vars.today, 2 * Days);
     Real nominal = 100000.0;
 
     // constant notional, same schedule
 
     Schedule schedule = MakeSchedule()
-        .from(spot)
-        .to(vars.calendar.advance(spot, 2*Years))
-        .withCalendar(vars.calendar)
-        .withFrequency(Annual);
+                            .from(spot)
+                            .to(vars.calendar.advance(spot, 2 * Years))
+                            .withCalendar(vars.calendar)
+                            .withFrequency(Annual);
 
-    auto ois_1 = OvernightIndexedSwap(Swap::Payer,
-                                      nominal,
-                                      schedule,
-                                      0.03,
-                                      Actual360(),
-                                      vars.estrIndex);
+    auto ois_1 = OvernightIndexedSwap(Swap::Payer, nominal, schedule, 0.03, Actual360(), vars.estrIndex);
 
-    BOOST_CHECK_EQUAL(ois_1.fixedSchedule().tenor(), 1*Years);
-    BOOST_CHECK_EQUAL(ois_1.overnightSchedule().tenor(), 1*Years);
+    BOOST_CHECK_EQUAL(ois_1.fixedSchedule().tenor(), 1 * Years);
+    BOOST_CHECK_EQUAL(ois_1.overnightSchedule().tenor(), 1 * Years);
     BOOST_CHECK_EQUAL(ois_1.paymentFrequency(), Annual);
 
     BOOST_CHECK_EQUAL(ois_1.nominal(), nominal);
@@ -817,51 +707,40 @@ BOOST_AUTO_TEST_CASE(testConstructorsAndNominals) {
 
     // amortizing notionals, same schedule
 
-    auto ois_2 = OvernightIndexedSwap(Swap::Payer,
-                                      { nominal, nominal/2 },
-                                      schedule,
-                                      0.03,
-                                      Actual360(),
-                                      vars.estrIndex);
+    auto ois_2 = OvernightIndexedSwap(Swap::Payer, {nominal, nominal / 2}, schedule, 0.03, Actual360(), vars.estrIndex);
 
-    BOOST_CHECK_EQUAL(ois_2.fixedSchedule().tenor(), 1*Years);
-    BOOST_CHECK_EQUAL(ois_2.overnightSchedule().tenor(), 1*Years);
+    BOOST_CHECK_EQUAL(ois_2.fixedSchedule().tenor(), 1 * Years);
+    BOOST_CHECK_EQUAL(ois_2.overnightSchedule().tenor(), 1 * Years);
     BOOST_CHECK_EQUAL(ois_2.paymentFrequency(), Annual);
 
-    BOOST_CHECK_EXCEPTION(ois_2.nominal(), Error,
-                          ExpectedErrorMessage("nominal is not constant"));
+    BOOST_CHECK_EXCEPTION(ois_2.nominal(), Error, ExpectedErrorMessage("nominal is not constant"));
 
     BOOST_CHECK_EQUAL(ois_2.nominals().size(), Size(2));
     BOOST_CHECK_EQUAL(ois_2.nominals()[0], nominal);
-    BOOST_CHECK_EQUAL(ois_2.nominals()[1], nominal/2);
+    BOOST_CHECK_EQUAL(ois_2.nominals()[1], nominal / 2);
 
     BOOST_CHECK_EQUAL(ois_2.fixedNominals().size(), Size(2));
     BOOST_CHECK_EQUAL(ois_2.fixedNominals()[0], nominal);
-    BOOST_CHECK_EQUAL(ois_2.fixedNominals()[1], nominal/2);
+    BOOST_CHECK_EQUAL(ois_2.fixedNominals()[1], nominal / 2);
 
     BOOST_CHECK_EQUAL(ois_2.overnightNominals().size(), Size(2));
     BOOST_CHECK_EQUAL(ois_2.overnightNominals()[0], nominal);
-    BOOST_CHECK_EQUAL(ois_2.overnightNominals()[1], nominal/2);
+    BOOST_CHECK_EQUAL(ois_2.overnightNominals()[1], nominal / 2);
 
     // constant notional, different schedules
 
     const Schedule& fixedSchedule = schedule;
     Schedule overnightSchedule = MakeSchedule()
-        .from(spot)
-        .to(vars.calendar.advance(spot, 2*Years))
-        .withCalendar(vars.calendar)
-        .withFrequency(Semiannual);
+                                     .from(spot)
+                                     .to(vars.calendar.advance(spot, 2 * Years))
+                                     .withCalendar(vars.calendar)
+                                     .withFrequency(Semiannual);
 
-    auto ois_3 = OvernightIndexedSwap(Swap::Payer,
-                                      nominal,
-                                      fixedSchedule,
-                                      0.03,
-                                      Actual360(),
-                                      overnightSchedule,
-                                      vars.estrIndex);
+    auto ois_3 =
+        OvernightIndexedSwap(Swap::Payer, nominal, fixedSchedule, 0.03, Actual360(), overnightSchedule, vars.estrIndex);
 
-    BOOST_CHECK_EQUAL(ois_3.fixedSchedule().tenor(), 1*Years);
-    BOOST_CHECK_EQUAL(ois_3.overnightSchedule().tenor(), 6*Months);
+    BOOST_CHECK_EQUAL(ois_3.fixedSchedule().tenor(), 1 * Years);
+    BOOST_CHECK_EQUAL(ois_3.overnightSchedule().tenor(), 6 * Months);
     BOOST_CHECK_EQUAL(ois_3.paymentFrequency(), Semiannual);
 
     BOOST_CHECK_EQUAL(ois_3.nominal(), nominal);
@@ -877,49 +756,42 @@ BOOST_AUTO_TEST_CASE(testConstructorsAndNominals) {
 
     // amortizing notionals, different schedules
 
-    auto ois_4 = OvernightIndexedSwap(Swap::Payer,
-                                      { nominal, nominal/2 },
-                                      fixedSchedule,
-                                      0.03,
-                                      Actual360(),
-                                      { nominal, nominal, nominal/2, nominal/2 },
-                                      overnightSchedule,
-                                      vars.estrIndex);
+    auto ois_4 = OvernightIndexedSwap(Swap::Payer, {nominal, nominal / 2}, fixedSchedule, 0.03, Actual360(),
+                                      {nominal, nominal, nominal / 2, nominal / 2}, overnightSchedule, vars.estrIndex);
 
-    BOOST_CHECK_EQUAL(ois_4.fixedSchedule().tenor(), 1*Years);
-    BOOST_CHECK_EQUAL(ois_4.overnightSchedule().tenor(), 6*Months);
+    BOOST_CHECK_EQUAL(ois_4.fixedSchedule().tenor(), 1 * Years);
+    BOOST_CHECK_EQUAL(ois_4.overnightSchedule().tenor(), 6 * Months);
     BOOST_CHECK_EQUAL(ois_4.paymentFrequency(), Semiannual);
 
-    BOOST_CHECK_EXCEPTION(ois_4.nominal(), Error,
-                          ExpectedErrorMessage("nominal is not constant"));
+    BOOST_CHECK_EXCEPTION(ois_4.nominal(), Error, ExpectedErrorMessage("nominal is not constant"));
 
-    BOOST_CHECK_EXCEPTION(ois_4.nominals(), Error,
-                          ExpectedErrorMessage("different nominals"));
+    BOOST_CHECK_EXCEPTION(ois_4.nominals(), Error, ExpectedErrorMessage("different nominals"));
 
     BOOST_CHECK_EQUAL(ois_4.fixedNominals().size(), Size(2));
     BOOST_CHECK_EQUAL(ois_4.fixedNominals()[0], nominal);
-    BOOST_CHECK_EQUAL(ois_4.fixedNominals()[1], nominal/2);
+    BOOST_CHECK_EQUAL(ois_4.fixedNominals()[1], nominal / 2);
 
     BOOST_CHECK_EQUAL(ois_4.overnightNominals().size(), Size(4));
     BOOST_CHECK_EQUAL(ois_4.overnightNominals()[0], nominal);
     BOOST_CHECK_EQUAL(ois_4.overnightNominals()[1], nominal);
-    BOOST_CHECK_EQUAL(ois_4.overnightNominals()[2], nominal/2);
-    BOOST_CHECK_EQUAL(ois_4.overnightNominals()[3], nominal/2);
+    BOOST_CHECK_EQUAL(ois_4.overnightNominals()[2], nominal / 2);
+    BOOST_CHECK_EQUAL(ois_4.overnightNominals()[3], nominal / 2);
 }
 
-BOOST_AUTO_TEST_CASE(testNotifications) {
+BOOST_AUTO_TEST_CASE(testNotifications)
+{
     BOOST_TEST_MESSAGE("Testing cash-flow notifications for OIS...");
 
     CommonVars vars;
 
-    Date spot = vars.calendar.advance(vars.today, 2*Days);
+    Date spot = vars.calendar.advance(vars.today, 2 * Days);
     Real nominal = 100000.0;
 
     Schedule schedule = MakeSchedule()
-        .from(spot)
-        .to(vars.calendar.advance(spot, 2*Years))
-        .withCalendar(vars.calendar)
-        .withFrequency(Annual);
+                            .from(spot)
+                            .to(vars.calendar.advance(spot, 2 * Years))
+                            .withCalendar(vars.calendar)
+                            .withFrequency(Annual);
 
     RelinkableHandle<YieldTermStructure> forecast_handle;
     forecast_handle.linkTo(flatRate(0.02, Actual360()));
@@ -929,12 +801,7 @@ BOOST_AUTO_TEST_CASE(testNotifications) {
 
     auto index = ext::make_shared<Estr>(forecast_handle);
 
-    auto ois = ext::make_shared<OvernightIndexedSwap>(Swap::Payer,
-                                                      nominal,
-                                                      schedule,
-                                                      0.03,
-                                                      Actual360(),
-                                                      index);
+    auto ois = ext::make_shared<OvernightIndexedSwap>(Swap::Payer, nominal, schedule, 0.03, Actual360(), index);
     ois->setPricingEngine(ext::make_shared<DiscountingSwapEngine>(discount_handle));
     ois->NPV();
 
@@ -948,7 +815,8 @@ BOOST_AUTO_TEST_CASE(testNotifications) {
         BOOST_FAIL("OIS was not notified of curve change");
 }
 
-BOOST_AUTO_TEST_CASE(testMakeOISDefaultSettlementDays) {
+BOOST_AUTO_TEST_CASE(testMakeOISDefaultSettlementDays)
+{
     BOOST_TEST_MESSAGE("Testing default settlement days in MakeOIS...");
 
     Date today(12, May, 2025);
@@ -971,29 +839,34 @@ BOOST_AUTO_TEST_CASE(testMakeOISDefaultSettlementDays) {
         {"NZOCR", ext::make_shared<Nzocr>()},
         {"DESTR", ext::make_shared<Destr>()},
         {"SWESTR", ext::make_shared<Swestr>()},
-        {"KOFR", ext::make_shared<Kofr>()}
-    };
+        {"KOFR", ext::make_shared<Kofr>()}};
 
     // Test default settlement days
-    for (const auto& [name, index] : indices) {
+    for (const auto& [name, index] : indices)
+    {
         OvernightIndexedSwap swap = MakeOIS(6 * Months, index, 0.01);
         Date expected;
-        if (name == "SONIA") {
+        if (name == "SONIA")
+        {
             expected = today; // T+0 settlement for SONIA
-        } else if (name == "CORRA") {
+        }
+        else if (name == "CORRA")
+        {
             expected = today + 1 * Days; // T+1 settlement for CORRA
-        } else {
+        }
+        else
+        {
             expected = today + 2 * Days; // T+2 settlement for all others
         }
         BOOST_CHECK_EQUAL(swap.startDate(), expected);
     }
 
     // Test manual override
-    for (const auto& [name, index] : indices) {
+    for (const auto& [name, index] : indices)
+    {
         // Override settlement days: 2 for CORRA, 1 for all others
         Natural settlementDaysOverride = (name == "CORRA") ? 2 : 1;
-        OvernightIndexedSwap swap = MakeOIS(6 * Months, index, 0.01)
-                                        .withSettlementDays(settlementDaysOverride);
+        OvernightIndexedSwap swap = MakeOIS(6 * Months, index, 0.01).withSettlementDays(settlementDaysOverride);
         Date expected = today + settlementDaysOverride * Days;
         BOOST_CHECK_EQUAL(swap.startDate(), expected);
     }
@@ -1005,26 +878,27 @@ BOOST_AUTO_TEST_CASE(testMakeOISDefaultSettlementDays) {
     // Test 0-day settlement index on weekend
     {
         OvernightIndexedSwap swap = MakeOIS(6 * Months, indices[0].second, 0.01); // SONIA
-        Date expected(12, May, 2025); // Monday
+        Date expected(12, May, 2025);                                             // Monday
         BOOST_CHECK_EQUAL(swap.startDate(), expected);
     }
 
     // Test 1-day settlement index on weekend
     {
         OvernightIndexedSwap swap = MakeOIS(6 * Months, indices[1].second, 0.01); // CORRA
-        Date expected(13, May, 2025); // Tuesday
+        Date expected(13, May, 2025);                                             // Tuesday
         BOOST_CHECK_EQUAL(swap.startDate(), expected);
     }
 
     // Test 2-day settlement index on weekend
     {
         OvernightIndexedSwap swap = MakeOIS(6 * Months, indices[2].second, 0.01); // EONIA
-        Date expected(14, May, 2025); // Wednesday
+        Date expected(14, May, 2025);                                             // Wednesday
         BOOST_CHECK_EQUAL(swap.startDate(), expected);
     }
 }
 
-BOOST_AUTO_TEST_CASE(testMakeOisEndOfMonthRegression2453) {
+BOOST_AUTO_TEST_CASE(testMakeOisEndOfMonthRegression2453)
+{
 
     /* See https://github.com/lballabio/QuantLib/issues/2453. Before the fix, the swap will roll
      * backwards from 18 December 2028 (instead of 17 December 2028) and create a front stub. */
@@ -1034,16 +908,15 @@ BOOST_AUTO_TEST_CASE(testMakeOisEndOfMonthRegression2453) {
     Date today(16, December, 2025);
     Settings::instance().evaluationDate() = today;
 
-    auto aonia =
-        ext::make_shared<Aonia>(Handle<YieldTermStructure>(flatRate(0.03, Actual365Fixed())));
-    OvernightIndexedSwap swap =
-        MakeOIS(3 * Years, aonia).withSettlementDays(1).withEndOfMonth(true);
+    auto aonia = ext::make_shared<Aonia>(Handle<YieldTermStructure>(flatRate(0.03, Actual365Fixed())));
+    OvernightIndexedSwap swap = MakeOIS(3 * Years, aonia).withSettlementDays(1).withEndOfMonth(true);
 
     BOOST_CHECK_EQUAL(swap.overnightSchedule()[0], Date(17, December, 2025));
     BOOST_CHECK_EQUAL(swap.overnightSchedule()[1], Date(17, December, 2026));
 }
 
-BOOST_AUTO_TEST_CASE(testSettlementDaysEffectiveDateConflict) {
+BOOST_AUTO_TEST_CASE(testSettlementDaysEffectiveDateConflict)
+{
     BOOST_TEST_MESSAGE("Testing that MakeOIS rejects "
                        "settlementDays and effectiveDate together...");
 
@@ -1058,38 +931,25 @@ BOOST_AUTO_TEST_CASE(testSettlementDaysEffectiveDateConflict) {
     Date effectiveDate(9, February, 2009);
 
     // settlementDays first, then effectiveDate
-    BOOST_CHECK_EXCEPTION(
-        ext::shared_ptr<OvernightIndexedSwap> swap =
-            MakeOIS(5 * Years, index, 0.03)
-                .withSettlementDays(2)
-                .withEffectiveDate(effectiveDate),
-        Error,
-        ExpectedErrorMessage("cannot set both"));
+    BOOST_CHECK_EXCEPTION(ext::shared_ptr<OvernightIndexedSwap> swap =
+                              MakeOIS(5 * Years, index, 0.03).withSettlementDays(2).withEffectiveDate(effectiveDate),
+                          Error, ExpectedErrorMessage("cannot set both"));
 
     // effectiveDate first, then settlementDays
-    BOOST_CHECK_EXCEPTION(
-        ext::shared_ptr<OvernightIndexedSwap> swap =
-            MakeOIS(5 * Years, index, 0.03)
-                .withEffectiveDate(effectiveDate)
-                .withSettlementDays(2),
-        Error,
-        ExpectedErrorMessage("cannot set both"));
+    BOOST_CHECK_EXCEPTION(ext::shared_ptr<OvernightIndexedSwap> swap =
+                              MakeOIS(5 * Years, index, 0.03).withEffectiveDate(effectiveDate).withSettlementDays(2),
+                          Error, ExpectedErrorMessage("cannot set both"));
 
     // withSettlementDays alone works
-    ext::shared_ptr<OvernightIndexedSwap> swap1 =
-        MakeOIS(5 * Years, index, 0.03)
-            .withSettlementDays(2);
+    ext::shared_ptr<OvernightIndexedSwap> swap1 = MakeOIS(5 * Years, index, 0.03).withSettlementDays(2);
     BOOST_CHECK(swap1->startDate() != Date());
 
     // withEffectiveDate alone works
-    ext::shared_ptr<OvernightIndexedSwap> swap2 =
-        MakeOIS(5 * Years, index, 0.03)
-            .withEffectiveDate(effectiveDate);
+    ext::shared_ptr<OvernightIndexedSwap> swap2 = MakeOIS(5 * Years, index, 0.03).withEffectiveDate(effectiveDate);
     BOOST_CHECK_EQUAL(swap2->startDate(), effectiveDate);
 
     // neither set (constructor defaults) works
-    ext::shared_ptr<OvernightIndexedSwap> swap3 =
-        MakeOIS(5 * Years, index, 0.03);
+    ext::shared_ptr<OvernightIndexedSwap> swap3 = MakeOIS(5 * Years, index, 0.03);
     BOOST_CHECK(swap3->startDate() != Date());
 }
 

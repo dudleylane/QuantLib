@@ -26,11 +26,12 @@
 #ifndef quantlib_fd_black_scholes_vanilla_engine_hpp
 #define quantlib_fd_black_scholes_vanilla_engine_hpp
 
+#include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
 #include <ql/pricingengine.hpp>
 #include <ql/pricingengines/vanilla/cashdividendeuropeanengine.hpp>
-#include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class FdmQuantoHelper;
     class GeneralizedBlackScholesProcess;
@@ -42,56 +43,54 @@ namespace QuantLib {
               reproducing results available in web/literature
               and comparison with Black pricing.
     */
-    class FdBlackScholesVanillaEngine : public VanillaOption::engine {
+    class FdBlackScholesVanillaEngine : public VanillaOption::engine
+    {
       public:
-        enum CashDividendModel {
+        enum CashDividendModel
+        {
             Spot = CashDividendEuropeanEngine::Spot,
             Escrowed = CashDividendEuropeanEngine::Escrowed
         };
 
-        explicit FdBlackScholesVanillaEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess>,
-            Size tGrid = 100,
-            Size xGrid = 100,
-            Size dampingSteps = 0,
-            const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas(),
-            bool localVol = false,
-            Real illegalLocalVolOverwrite = -Null<Real>(),
-            CashDividendModel cashDividendModel = Spot);
+        explicit FdBlackScholesVanillaEngine(ext::shared_ptr<GeneralizedBlackScholesProcess>,
+                                             Size tGrid = 100,
+                                             Size xGrid = 100,
+                                             Size dampingSteps = 0,
+                                             const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas(),
+                                             bool localVol = false,
+                                             Real illegalLocalVolOverwrite = -Null<Real>(),
+                                             CashDividendModel cashDividendModel = Spot);
 
-        FdBlackScholesVanillaEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess>,
-            DividendSchedule dividends,
-            Size tGrid = 100,
-            Size xGrid = 100,
-            Size dampingSteps = 0,
-            const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas(),
-            bool localVol = false,
-            Real illegalLocalVolOverwrite = -Null<Real>(),
-            CashDividendModel cashDividendModel = Spot);
+        FdBlackScholesVanillaEngine(ext::shared_ptr<GeneralizedBlackScholesProcess>,
+                                    DividendSchedule dividends,
+                                    Size tGrid = 100,
+                                    Size xGrid = 100,
+                                    Size dampingSteps = 0,
+                                    const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas(),
+                                    bool localVol = false,
+                                    Real illegalLocalVolOverwrite = -Null<Real>(),
+                                    CashDividendModel cashDividendModel = Spot);
 
-        FdBlackScholesVanillaEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess>,
-            ext::shared_ptr<FdmQuantoHelper> quantoHelper,
-            Size tGrid = 100,
-            Size xGrid = 100,
-            Size dampingSteps = 0,
-            const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas(),
-            bool localVol = false,
-            Real illegalLocalVolOverwrite = -Null<Real>(),
-            CashDividendModel cashDividendModel = Spot);
+        FdBlackScholesVanillaEngine(ext::shared_ptr<GeneralizedBlackScholesProcess>,
+                                    ext::shared_ptr<FdmQuantoHelper> quantoHelper,
+                                    Size tGrid = 100,
+                                    Size xGrid = 100,
+                                    Size dampingSteps = 0,
+                                    const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas(),
+                                    bool localVol = false,
+                                    Real illegalLocalVolOverwrite = -Null<Real>(),
+                                    CashDividendModel cashDividendModel = Spot);
 
-        FdBlackScholesVanillaEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess>,
-            DividendSchedule dividends,
-            ext::shared_ptr<FdmQuantoHelper> quantoHelper,
-            Size tGrid = 100,
-            Size xGrid = 100,
-            Size dampingSteps = 0,
-            const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas(),
-            bool localVol = false,
-            Real illegalLocalVolOverwrite = -Null<Real>(),
-            CashDividendModel cashDividendModel = Spot);
+        FdBlackScholesVanillaEngine(ext::shared_ptr<GeneralizedBlackScholesProcess>,
+                                    DividendSchedule dividends,
+                                    ext::shared_ptr<FdmQuantoHelper> quantoHelper,
+                                    Size tGrid = 100,
+                                    Size xGrid = 100,
+                                    Size dampingSteps = 0,
+                                    const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Douglas(),
+                                    bool localVol = false,
+                                    Real illegalLocalVolOverwrite = -Null<Real>(),
+                                    CashDividendModel cashDividendModel = Spot);
 
         void calculate() const override;
 
@@ -107,34 +106,30 @@ namespace QuantLib {
     };
 
 
-    class MakeFdBlackScholesVanillaEngine {
+    class MakeFdBlackScholesVanillaEngine
+    {
       public:
-        explicit MakeFdBlackScholesVanillaEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess> process);
+        explicit MakeFdBlackScholesVanillaEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process);
 
-        MakeFdBlackScholesVanillaEngine& withQuantoHelper(
-            const ext::shared_ptr<FdmQuantoHelper>& quantoHelper);
+        MakeFdBlackScholesVanillaEngine& withQuantoHelper(const ext::shared_ptr<FdmQuantoHelper>& quantoHelper);
 
         MakeFdBlackScholesVanillaEngine& withTGrid(Size tGrid);
         MakeFdBlackScholesVanillaEngine& withXGrid(Size xGrid);
-        MakeFdBlackScholesVanillaEngine& withDampingSteps(
-            Size dampingSteps);
+        MakeFdBlackScholesVanillaEngine& withDampingSteps(Size dampingSteps);
 
-        MakeFdBlackScholesVanillaEngine& withFdmSchemeDesc(
-            const FdmSchemeDesc& schemeDesc);
+        MakeFdBlackScholesVanillaEngine& withFdmSchemeDesc(const FdmSchemeDesc& schemeDesc);
 
         MakeFdBlackScholesVanillaEngine& withLocalVol(bool localVol);
-        MakeFdBlackScholesVanillaEngine& withIllegalLocalVolOverwrite(
-            Real illegalLocalVolOverwrite);
+        MakeFdBlackScholesVanillaEngine& withIllegalLocalVolOverwrite(Real illegalLocalVolOverwrite);
 
-        MakeFdBlackScholesVanillaEngine& withCashDividends(
-            const std::vector<Date>& dividendDates,
-            const std::vector<Real>& dividendAmounts);
+        MakeFdBlackScholesVanillaEngine& withCashDividends(const std::vector<Date>& dividendDates,
+                                                           const std::vector<Real>& dividendAmounts);
 
-        MakeFdBlackScholesVanillaEngine& withCashDividendModel(
-            FdBlackScholesVanillaEngine::CashDividendModel cashDividendModel);
+        MakeFdBlackScholesVanillaEngine&
+        withCashDividendModel(FdBlackScholesVanillaEngine::CashDividendModel cashDividendModel);
 
         operator ext::shared_ptr<PricingEngine>() const;
+
       private:
         ext::shared_ptr<GeneralizedBlackScholesProcess> process_;
         DividendSchedule dividends_;

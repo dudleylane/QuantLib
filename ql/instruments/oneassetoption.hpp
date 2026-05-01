@@ -28,15 +28,16 @@
 
 #include <ql/option.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Base class for options on a single asset
-    class OneAssetOption : public Option {
+    class OneAssetOption : public Option
+    {
       public:
         class engine;
         class results;
-        OneAssetOption(const ext::shared_ptr<Payoff>&,
-                       const ext::shared_ptr<Exercise>&);
+        OneAssetOption(const ext::shared_ptr<Payoff>&, const ext::shared_ptr<Exercise>&);
         //! \name Instrument interface
         //@{
         bool isExpired() const override;
@@ -60,29 +61,27 @@ namespace QuantLib {
       protected:
         void setupExpired() const override;
         // results
-        mutable Real delta_, deltaForward_, elasticity_, gamma_, theta_,
-            thetaPerDay_, vega_, rho_, dividendRho_, strikeSensitivity_,
-            itmCashProbability_;
+        mutable Real delta_, deltaForward_, elasticity_, gamma_, theta_, thetaPerDay_, vega_, rho_, dividendRho_,
+            strikeSensitivity_, itmCashProbability_;
     };
 
     //! %Results from single-asset option calculation
-    class OneAssetOption::results : public Instrument::results,
-                                    public Greeks,
-                                    public MoreGreeks {
+    class OneAssetOption::results : public Instrument::results, public Greeks, public MoreGreeks
+    {
       public:
-        void reset() override {
+        void reset() override
+        {
             Instrument::results::reset();
             Greeks::reset();
             MoreGreeks::reset();
         }
     };
 
-    class OneAssetOption::engine :
-        public GenericEngine<OneAssetOption::arguments,
-                             OneAssetOption::results> {};
+    class OneAssetOption::engine : public GenericEngine<OneAssetOption::arguments, OneAssetOption::results>
+    {
+    };
 
 }
 
 
 #endif
-

@@ -21,12 +21,13 @@
 #ifndef quantlib_mt_brownian_generator_hpp
 #define quantlib_mt_brownian_generator_hpp
 
-#include <ql/models/marketmodels/browniangenerator.hpp>
-#include <ql/math/randomnumbers/randomsequencegenerator.hpp>
-#include <ql/math/randomnumbers/mt19937uniformrng.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
+#include <ql/math/randomnumbers/mt19937uniformrng.hpp>
+#include <ql/math/randomnumbers/randomsequencegenerator.hpp>
+#include <ql/models/marketmodels/browniangenerator.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Mersenne-twister Brownian generator for market-model simulations
     /*! Incremental Brownian generator using a Mersenne-twister
@@ -40,11 +41,10 @@ namespace QuantLib {
               clear how much of a difference this would make when
               compared to the inverse-cumulative Gaussian calculation.
     */
-    class MTBrownianGenerator : public BrownianGenerator {
+    class MTBrownianGenerator : public BrownianGenerator
+    {
       public:
-        MTBrownianGenerator(Size factors,
-                            Size steps,
-                            unsigned long seed = 0);
+        MTBrownianGenerator(Size factors, Size steps, unsigned long seed = 0);
 
         Real nextStep(std::vector<Real>&) override;
         Real nextPath() override;
@@ -59,7 +59,8 @@ namespace QuantLib {
         InverseCumulativeNormal inverseCumulative_;
     };
 
-    class MTBrownianGeneratorFactory : public BrownianGeneratorFactory {
+    class MTBrownianGeneratorFactory : public BrownianGeneratorFactory
+    {
       public:
         MTBrownianGeneratorFactory(unsigned long seed = 0);
         ext::shared_ptr<BrownianGenerator> create(Size factors, Size steps) const override;

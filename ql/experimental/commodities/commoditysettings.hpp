@@ -24,21 +24,25 @@
 #ifndef quantlib_commodity_settings_hpp
 #define quantlib_commodity_settings_hpp
 
-#include <ql/patterns/singleton.hpp>
-#include <ql/experimental/commodities/unitofmeasure.hpp>
 #include <ql/currency.hpp>
+#include <ql/experimental/commodities/unitofmeasure.hpp>
+#include <ql/patterns/singleton.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! global repository for run-time library settings
-    class CommoditySettings : public Singleton<CommoditySettings> {
+    class CommoditySettings : public Singleton<CommoditySettings>
+    {
         friend class Singleton<CommoditySettings>;
+
       private:
         CommoditySettings();
 
       public:
         Currency& currency();
         UnitOfMeasure& unitOfMeasure();
+
       private:
         Currency currency_;
         UnitOfMeasure unitOfMeasure_;
@@ -48,4 +52,3 @@ namespace QuantLib {
 
 
 #endif
-

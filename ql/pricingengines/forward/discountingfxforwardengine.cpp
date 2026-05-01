@@ -20,25 +20,24 @@
 #include <ql/pricingengines/forward/discountingfxforwardengine.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    DiscountingFxForwardEngine::DiscountingFxForwardEngine(
-        Handle<YieldTermStructure> sourceCurrencyDiscountCurve,
-        Handle<YieldTermStructure> targetCurrencyDiscountCurve,
-        Handle<Quote> spotFx)
+    DiscountingFxForwardEngine::DiscountingFxForwardEngine(Handle<YieldTermStructure> sourceCurrencyDiscountCurve,
+                                                           Handle<YieldTermStructure> targetCurrencyDiscountCurve,
+                                                           Handle<Quote> spotFx)
     : sourceCurrencyDiscountCurve_(std::move(sourceCurrencyDiscountCurve)),
-      targetCurrencyDiscountCurve_(std::move(targetCurrencyDiscountCurve)),
-      spotFx_(std::move(spotFx)) {
+      targetCurrencyDiscountCurve_(std::move(targetCurrencyDiscountCurve)), spotFx_(std::move(spotFx))
+    {
         registerWith(sourceCurrencyDiscountCurve_);
         registerWith(targetCurrencyDiscountCurve_);
         registerWith(spotFx_);
     }
 
-    void DiscountingFxForwardEngine::calculate() const {
-        QL_REQUIRE(!sourceCurrencyDiscountCurve_.empty(),
-                   "source currency discount curve handle is empty");
-        QL_REQUIRE(!targetCurrencyDiscountCurve_.empty(),
-                   "target currency discount curve handle is empty");
+    void DiscountingFxForwardEngine::calculate() const
+    {
+        QL_REQUIRE(!sourceCurrencyDiscountCurve_.empty(), "source currency discount curve handle is empty");
+        QL_REQUIRE(!targetCurrencyDiscountCurve_.empty(), "target currency discount curve handle is empty");
         QL_REQUIRE(!spotFx_.empty(), "spot FX quote handle is empty");
 
         results_.value = 0.0;
@@ -50,12 +49,12 @@ namespace QuantLib {
         // Validate that curve reference dates are on or before settlement date
         Date sourceRefDate = sourceCurrencyDiscountCurve_->referenceDate();
         Date targetRefDate = targetCurrencyDiscountCurve_->referenceDate();
-        QL_REQUIRE(sourceRefDate <= settlementDate,
-                   "source currency discount curve reference date (" << sourceRefDate
-                   << ") must be on or before settlement date (" << settlementDate << ")");
-        QL_REQUIRE(targetRefDate <= settlementDate,
-                   "target currency discount curve reference date (" << targetRefDate
-                   << ") must be on or before settlement date (" << settlementDate << ")");
+        QL_REQUIRE(sourceRefDate <= settlementDate, "source currency discount curve reference date ("
+                                                        << sourceRefDate << ") must be on or before settlement date ("
+                                                        << settlementDate << ")");
+        QL_REQUIRE(targetRefDate <= settlementDate, "target currency discount curve reference date ("
+                                                        << targetRefDate << ") must be on or before settlement date ("
+                                                        << settlementDate << ")");
 
         // Get the spot FX rate (targetCurrency/sourceCurrency)
         Real spotFxRate = spotFx_->value();
@@ -87,9 +86,12 @@ namespace QuantLib {
         // If paySourceCurrency is false: receive source currency, pay target currency
         //   NPV = +PVSource - PVTarget (in source currency terms)
         Real npvInSourceCurrency;
-        if (arguments_.paySourceCurrency) {
+        if (arguments_.paySourceCurrency)
+        {
             npvInSourceCurrency = -pvSource + pvTargetInSourceCurrency;
-        } else {
+        }
+        else
+        {
             npvInSourceCurrency = pvSource - pvTargetInSourceCurrency;
         }
 

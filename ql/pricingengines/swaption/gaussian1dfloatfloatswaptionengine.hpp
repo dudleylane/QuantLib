@@ -26,11 +26,11 @@
 
 #include <ql/instruments/floatfloatswaption.hpp>
 #include <ql/models/shortrate/onefactormodels/gaussian1dmodel.hpp>
+#include <ql/pricingengines/genericmodelengine.hpp>
 #include <ql/rebatedexercise.hpp>
 
-#include <ql/pricingengines/genericmodelengine.hpp>
-
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! One factor model float float swaption engine
     /*! \ingroup swaptionengines
@@ -55,37 +55,33 @@ namespace QuantLib {
    */
 
     class Gaussian1dFloatFloatSwaptionEngine
-        : public BasketGeneratingEngine,
-          public GenericModelEngine<Gaussian1dModel,
-                                    FloatFloatSwaption::arguments,
-                                    FloatFloatSwaption::results> {
+    : public BasketGeneratingEngine,
+      public GenericModelEngine<Gaussian1dModel, FloatFloatSwaption::arguments, FloatFloatSwaption::results>
+    {
       public:
-        enum Probabilities {
+        enum Probabilities
+        {
             None,
             Naive,
             Digital
         };
 
         Gaussian1dFloatFloatSwaptionEngine(
-            const ext::shared_ptr<Gaussian1dModel> &model,
-            const int integrationPoints = 64, const Real stddevs = 7.0,
+            const ext::shared_ptr<Gaussian1dModel>& model,
+            const int integrationPoints = 64,
+            const Real stddevs = 7.0,
             const bool extrapolatePayoff = true,
             const bool flatPayoffExtrapolation = false,
-            const Handle<Quote> &oas =
-                Handle<Quote>(), // continuously compounded w.r.t. yts daycounter
-            const Handle<YieldTermStructure> &discountCurve =
-                Handle<YieldTermStructure>(),
+            const Handle<Quote>& oas = Handle<Quote>(), // continuously compounded w.r.t. yts daycounter
+            const Handle<YieldTermStructure>& discountCurve = Handle<YieldTermStructure>(),
             const bool includeTodaysExercise = false,
             const Probabilities probabilities = None)
-            : BasketGeneratingEngine(model, oas, discountCurve),
-              GenericModelEngine<Gaussian1dModel, FloatFloatSwaption::arguments,
-                                 FloatFloatSwaption::results>(model),
-              integrationPoints_(integrationPoints), stddevs_(stddevs),
-              extrapolatePayoff_(extrapolatePayoff),
-              flatPayoffExtrapolation_(flatPayoffExtrapolation),
-              oas_(oas), discountCurve_(discountCurve),
-              includeTodaysExercise_(includeTodaysExercise),
-              probabilities_(probabilities) {
+        : BasketGeneratingEngine(model, oas, discountCurve),
+          GenericModelEngine<Gaussian1dModel, FloatFloatSwaption::arguments, FloatFloatSwaption::results>(model),
+          integrationPoints_(integrationPoints), stddevs_(stddevs), extrapolatePayoff_(extrapolatePayoff),
+          flatPayoffExtrapolation_(flatPayoffExtrapolation), oas_(oas), discountCurve_(discountCurve),
+          includeTodaysExercise_(includeTodaysExercise), probabilities_(probabilities)
+        {
 
             if (!discountCurve_.empty())
                 registerWith(discountCurve_);
@@ -95,25 +91,21 @@ namespace QuantLib {
         }
 
         Gaussian1dFloatFloatSwaptionEngine(
-            const Handle<Gaussian1dModel> &model,
-            const int integrationPoints = 64, const Real stddevs = 7.0,
+            const Handle<Gaussian1dModel>& model,
+            const int integrationPoints = 64,
+            const Real stddevs = 7.0,
             const bool extrapolatePayoff = true,
             const bool flatPayoffExtrapolation = false,
-            const Handle<Quote> &oas =
-                Handle<Quote>(), // continuously compounded w.r.t. yts daycounter
-            const Handle<YieldTermStructure> &discountCurve =
-                Handle<YieldTermStructure>(),
+            const Handle<Quote>& oas = Handle<Quote>(), // continuously compounded w.r.t. yts daycounter
+            const Handle<YieldTermStructure>& discountCurve = Handle<YieldTermStructure>(),
             const bool includeTodaysExercise = false,
             const Probabilities probabilities = None)
-            : BasketGeneratingEngine(model, oas, discountCurve),
-              GenericModelEngine<Gaussian1dModel, FloatFloatSwaption::arguments,
-                                 FloatFloatSwaption::results>(model),
-              integrationPoints_(integrationPoints), stddevs_(stddevs),
-              extrapolatePayoff_(extrapolatePayoff),
-              flatPayoffExtrapolation_(flatPayoffExtrapolation),
-              oas_(oas), discountCurve_(discountCurve),
-              includeTodaysExercise_(includeTodaysExercise),
-              probabilities_(probabilities) {
+        : BasketGeneratingEngine(model, oas, discountCurve),
+          GenericModelEngine<Gaussian1dModel, FloatFloatSwaption::arguments, FloatFloatSwaption::results>(model),
+          integrationPoints_(integrationPoints), stddevs_(stddevs), extrapolatePayoff_(extrapolatePayoff),
+          flatPayoffExtrapolation_(flatPayoffExtrapolation), oas_(oas), discountCurve_(discountCurve),
+          includeTodaysExercise_(includeTodaysExercise), probabilities_(probabilities)
+        {
 
             if (!discountCurve_.empty())
                 registerWith(discountCurve_);
@@ -124,9 +116,9 @@ namespace QuantLib {
 
         void calculate() const override;
 
-        Handle<YieldTermStructure> discountingCurve() const {
-            return discountCurve_.empty() ? model_->termStructure()
-                                          : discountCurve_;
+        Handle<YieldTermStructure> discountingCurve() const
+        {
+            return discountCurve_.empty() ? model_->termStructure() : discountCurve_;
         }
 
       protected:
@@ -144,10 +136,8 @@ namespace QuantLib {
         const bool includeTodaysExercise_;
         const Probabilities probabilities_;
 
-        std::pair<Real, Real> npvs(const Date& expiry,
-                                   Real y,
-                                   bool includeExerciseOnxpiry,
-                                   bool considerProbabilities = false) const;
+        std::pair<Real, Real>
+        npvs(const Date& expiry, Real y, bool includeExerciseOnxpiry, bool considerProbabilities = false) const;
 
         mutable ext::shared_ptr<RebatedExercise> rebatedExercise_;
     };

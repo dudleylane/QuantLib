@@ -26,10 +26,12 @@
 
 #include <ql/indexes/iborindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Sonia (Sterling Overnight Index Average) rate.
-    class Sonia : public OvernightIndex {
+    class Sonia : public OvernightIndex
+    {
       public:
         explicit Sonia(const Handle<YieldTermStructure>& h = {});
     };

@@ -24,11 +24,12 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #ifndef quantlib_variance_gamma_process_hpp
 #define quantlib_variance_gamma_process_hpp
 
+#include <ql/quote.hpp>
 #include <ql/stochasticprocess.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
-#include <ql/quote.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Variance gamma process
 
@@ -47,28 +48,29 @@ namespace QuantLib {
 
     \ingroup processes
     */
-    class VarianceGammaProcess : public StochasticProcess1D {
-    public:
-      VarianceGammaProcess(Handle<Quote> s0,
-                           Handle<YieldTermStructure> dividendYield,
-                           Handle<YieldTermStructure> riskFreeRate,
-                           Real sigma,
-                           Real nu,
-                           Real theta);
+    class VarianceGammaProcess : public StochasticProcess1D
+    {
+      public:
+        VarianceGammaProcess(Handle<Quote> s0,
+                             Handle<YieldTermStructure> dividendYield,
+                             Handle<YieldTermStructure> riskFreeRate,
+                             Real sigma,
+                             Real nu,
+                             Real theta);
 
-      Real x0() const override;
-      Real drift(Time t, Real x) const override;
-      Real diffusion(Time t, Real x) const override;
+        Real x0() const override;
+        Real drift(Time t, Real x) const override;
+        Real diffusion(Time t, Real x) const override;
 
-      Real sigma() const { return sigma_; }
-      Real nu() const { return nu_; }
-      Real theta() const { return theta_; }
+        Real sigma() const { return sigma_; }
+        Real nu() const { return nu_; }
+        Real theta() const { return theta_; }
 
-      const Handle<Quote>& s0() const;
-      const Handle<YieldTermStructure>& dividendYield() const;
-      const Handle<YieldTermStructure>& riskFreeRate() const;
+        const Handle<Quote>& s0() const;
+        const Handle<YieldTermStructure>& dividendYield() const;
+        const Handle<YieldTermStructure>& riskFreeRate() const;
 
-    private:
+      private:
         Handle<Quote> s0_;
         Handle<YieldTermStructure> dividendYield_, riskFreeRate_;
         Real sigma_, nu_, theta_;
@@ -78,4 +80,3 @@ namespace QuantLib {
 
 
 #endif
-

@@ -24,23 +24,24 @@
 #ifndef quantlib_binomial_distribution_h
 #define quantlib_binomial_distribution_h
 
-#include <ql/math/factorial.hpp>
 #include <ql/math/beta.hpp>
+#include <ql/math/factorial.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    inline Real binomialCoefficientLn(BigNatural n, BigNatural k) {
+    inline Real binomialCoefficientLn(BigNatural n, BigNatural k)
+    {
 
-        QL_REQUIRE(n>=k, "n<k not allowed");
+        QL_REQUIRE(n >= k, "n<k not allowed");
 
-        return Factorial::ln(n)-Factorial::ln(k)-Factorial::ln(n-k);
-
+        return Factorial::ln(n) - Factorial::ln(k) - Factorial::ln(n - k);
     }
 
-    inline Real binomialCoefficient(BigNatural n, BigNatural k) {
+    inline Real binomialCoefficient(BigNatural n, BigNatural k)
+    {
 
-        return std::floor(0.5+std::exp(binomialCoefficientLn(n, k)));
-
+        return std::floor(0.5 + std::exp(binomialCoefficientLn(n, k)));
     }
 
     //! Binomial probability distribution function
@@ -48,11 +49,13 @@ namespace QuantLib {
         Given an integer k it returns its probability in a Binomial
         distribution with parameters p and n.
     */
-    class BinomialDistribution {
+    class BinomialDistribution
+    {
       public:
         BinomialDistribution(Real p, BigNatural n);
         // function
         Real operator()(BigNatural k) const;
+
       private:
         BigNatural n_;
         Real logP_, logOneMinusP_;
@@ -64,67 +67,71 @@ namespace QuantLib {
         formula here ...
 
     */
-    class CumulativeBinomialDistribution {
+    class CumulativeBinomialDistribution
+    {
       public:
         CumulativeBinomialDistribution(Real p, BigNatural n);
         // function
-        Real operator()(BigNatural k) const {
+        Real operator()(BigNatural k) const
+        {
             if (k >= n_)
                 return 1.0;
             else
-                return 1.0 - incompleteBetaFunction(k+1, n_-k, p_);
+                return 1.0 - incompleteBetaFunction(k + 1, n_ - k, p_);
         }
+
       private:
         BigNatural n_;
         Real p_;
     };
 
 
-    inline BinomialDistribution::BinomialDistribution(Real p,
-                                                      BigNatural n)
-    : n_(n) {
+    inline BinomialDistribution::BinomialDistribution(Real p, BigNatural n) : n_(n)
+    {
 
-        if (p==0.0) {
+        if (p == 0.0)
+        {
             logP_ = -QL_MAX_REAL;
             logOneMinusP_ = 0.0;
-        } else if (p==1.0) {
+        }
+        else if (p == 1.0)
+        {
             logP_ = 0.0;
             logOneMinusP_ = -QL_MAX_REAL;
-        } else {
-            QL_REQUIRE(p>0, "negative p not allowed");
-            QL_REQUIRE(p<1.0, "p>1.0 not allowed");
+        }
+        else
+        {
+            QL_REQUIRE(p > 0, "negative p not allowed");
+            QL_REQUIRE(p < 1.0, "p>1.0 not allowed");
 
             logP_ = std::log(p);
-            logOneMinusP_ = std::log(1.0-p);
+            logOneMinusP_ = std::log(1.0 - p);
         }
     }
 
 
-    inline
-    CumulativeBinomialDistribution::CumulativeBinomialDistribution(
-                                                       Real p, BigNatural n)
-    : n_(n), p_(p) {
+    inline CumulativeBinomialDistribution::CumulativeBinomialDistribution(Real p, BigNatural n) : n_(n), p_(p)
+    {
 
-        QL_REQUIRE(p>=0, "negative p not allowed");
-        QL_REQUIRE(p<=1.0, "p>1.0 not allowed");
-
+        QL_REQUIRE(p >= 0, "negative p not allowed");
+        QL_REQUIRE(p <= 1.0, "p>1.0 not allowed");
     }
 
-    inline Real BinomialDistribution::operator()(BigNatural k) const {
+    inline Real BinomialDistribution::operator()(BigNatural k) const
+    {
 
-        if (k > n_) return 0.0;
+        if (k > n_)
+            return 0.0;
 
         // p==1.0
-        if (logP_==0.0)
-            return (k==n_ ? 1.0 : 0.0);
+        if (logP_ == 0.0)
+            return (k == n_ ? 1.0 : 0.0);
         // p==0.0
-        else if (logOneMinusP_==0.0)
-            return (k==0 ? 1.0 : 0.0);
+        else if (logOneMinusP_ == 0.0)
+            return (k == 0 ? 1.0 : 0.0);
         else
-            return std::exp(binomialCoefficientLn(n_, k) +
-                            k * logP_ + (n_-k) * logOneMinusP_);
+            return std::exp(binomialCoefficientLn(n_, k) + k * logP_ + (n_ - k) * logOneMinusP_);
     }
-
 
 
     /*! Given an odd integer n and a real number z it returns p such that:
@@ -133,15 +140,15 @@ namespace QuantLib {
 
         \pre n must be odd
     */
-    inline Real PeizerPrattMethod2Inversion(Real z, BigNatural n) {
+    inline Real PeizerPrattMethod2Inversion(Real z, BigNatural n)
+    {
 
-        QL_REQUIRE(n%2==1,
-                   "n must be an odd number: " << n << " not allowed");
+        QL_REQUIRE(n % 2 == 1, "n must be an odd number: " << n << " not allowed");
 
-        Real result = (z/(n+1.0/3.0+0.1/(n+1.0)));
+        Real result = (z / (n + 1.0 / 3.0 + 0.1 / (n + 1.0)));
         result *= result;
-        result = std::exp(-result*(n+1.0/6.0));
-        result = 0.5 + (z>0 ? 1 : -1) * std::sqrt((0.25 * (1.0-result)));
+        result = std::exp(-result * (n + 1.0 / 6.0));
+        result = 0.5 + (z > 0 ? 1 : -1) * std::sqrt((0.25 * (1.0 - result)));
         return result;
     }
 

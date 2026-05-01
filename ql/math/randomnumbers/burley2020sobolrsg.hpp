@@ -27,19 +27,20 @@
 #include <ql/math/randomnumbers/sobolrsg.hpp>
 #include <ql/shared_ptr.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Scrambled sobol sequence according to Burley, 2020
     /*! Reference: Brent Burley: Practical Hash-based Owen Scrambling,
         Journal of Computer Graphics Techniques, Vol. 9, No. 4, 2020 */
-    class Burley2020SobolRsg {
+    class Burley2020SobolRsg
+    {
       public:
         typedef Sample<std::vector<Real>> sample_type;
-        explicit Burley2020SobolRsg(
-            Size dimensionality,
-            unsigned long seed = 42,
-            SobolRsg::DirectionIntegers directionIntegers = SobolRsg::Jaeckel,
-            unsigned long scrambleSeed = 43);
+        explicit Burley2020SobolRsg(Size dimensionality,
+                                    unsigned long seed = 42,
+                                    SobolRsg::DirectionIntegers directionIntegers = SobolRsg::Jaeckel,
+                                    unsigned long scrambleSeed = 43);
         const std::vector<std::uint32_t>& skipTo(std::uint32_t n) const;
         const std::vector<std::uint32_t>& nextInt32Sequence() const;
         const SobolRsg::sample_type& nextSequence() const;

@@ -31,86 +31,89 @@
 #include <functional>
 #include <type_traits>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace details {
+    namespace details
+    {
 
         template <class Container>
-        class LinearFct {
+        class LinearFct
+        {
           public:
             explicit LinearFct(Size i) : i_(i) {}
 
-            Real operator()(const Container& x) const {
-                return x[i_];
-            }
+            Real operator()(const Container& x) const { return x[i_]; }
 
           private:
             const Size i_;
-       };
+        };
 
         template <class xContainer>
-        class LinearFcts {
+        class LinearFcts
+        {
           public:
             typedef typename xContainer::value_type ArgumentType;
-            LinearFcts(const xContainer &x, Real intercept) {
+            LinearFcts(const xContainer& x, Real intercept)
+            {
                 if (intercept != 0.0)
-                    v.push_back([=](const ArgumentType&){ return intercept; });
-                if constexpr (std::is_arithmetic_v<ArgumentType>) {
-                    v.push_back([](ArgumentType x){ return x; });
-                } else {
+                    v.push_back([=](const ArgumentType&) { return intercept; });
+                if constexpr (std::is_arithmetic_v<ArgumentType>)
+                {
+                    v.push_back([](ArgumentType x) { return x; });
+                }
+                else
+                {
                     Size m = x.begin()->size();
                     for (Size i = 0; i < m; ++i)
                         v.push_back(LinearFct<ArgumentType>(i));
                 }
             }
 
-            const std::vector< std::function<Real(ArgumentType)> > & fcts() {
-                return v;
-            }
+            const std::vector<std::function<Real(ArgumentType)>>& fcts() { return v; }
+
           private:
-            std::vector< std::function<Real(ArgumentType)> > v;
+            std::vector<std::function<Real(ArgumentType)>> v;
         };
 
     }
 
-    class LinearRegression : public GeneralLinearLeastSquares {
-    public:
+    class LinearRegression : public GeneralLinearLeastSquares
+    {
+      public:
         //! linear regression y_i = a_0 + a_1*x_0 +..+a_n*x_{n-1} + eps
         template <class xContainer, class yContainer>
-        LinearRegression(const xContainer& x, 
-                         const yContainer& y, Real intercept = 1.0);
+        LinearRegression(const xContainer& x, const yContainer& y, Real intercept = 1.0);
 
         template <class xContainer, class yContainer, class vContainer>
-        LinearRegression(const xContainer& x, 
-                         const yContainer& y, const vContainer &v);
+        LinearRegression(const xContainer& x, const yContainer& y, const vContainer& v);
     };
 
 
-    template <class xContainer, class yContainer> inline
-        LinearRegression::LinearRegression(const xContainer& x, 
-                                           const yContainer& y, Real intercept) 
-    : GeneralLinearLeastSquares(x, y,
-          details::LinearFcts<xContainer>(x, intercept).fcts()) {
+    template <class xContainer, class yContainer>
+    inline LinearRegression::LinearRegression(const xContainer& x, const yContainer& y, Real intercept)
+    : GeneralLinearLeastSquares(x, y, details::LinearFcts<xContainer>(x, intercept).fcts())
+    {
     }
 
-    template <class xContainer, class yContainer, class vContainer> inline
-        LinearRegression::LinearRegression(const xContainer& x, 
-                                           const yContainer& y, 
-                                           const vContainer &v) 
-    : GeneralLinearLeastSquares(x, y, v) {
+    template <class xContainer, class yContainer, class vContainer>
+    inline LinearRegression::LinearRegression(const xContainer& x, const yContainer& y, const vContainer& v)
+    : GeneralLinearLeastSquares(x, y, v)
+    {
     }
 
     // general linear least squares regression
     // this interface is support for backward compatibility only
     // please use GeneralLinearLeastSquares directly
     template <class ArgumentType = Real>
-    class LinearLeastSquaresRegression : public GeneralLinearLeastSquares {
+    class LinearLeastSquaresRegression : public GeneralLinearLeastSquares
+    {
       public:
-        LinearLeastSquaresRegression(
-            const std::vector<ArgumentType> & x,
-            const std::vector<Real> &         y,
-            const std::vector<std::function<Real(ArgumentType)> > & v)
-        : GeneralLinearLeastSquares(x, y, v) {
+        LinearLeastSquaresRegression(const std::vector<ArgumentType>& x,
+                                     const std::vector<Real>& y,
+                                     const std::vector<std::function<Real(ArgumentType)>>& v)
+        : GeneralLinearLeastSquares(x, y, v)
+        {
         }
     };
 }

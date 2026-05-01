@@ -21,35 +21,36 @@
 #include <ql/models/marketmodels/products/multiproductmultistep.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    MultiProductMultiStep::MultiProductMultiStep(std::vector<Time> rateTimes)
-    : rateTimes_(std::move(rateTimes)) {
-        QL_REQUIRE(rateTimes_.size()>1,
-                   "Rate times must contain at least two values");
-        Size n = rateTimes_.size()-1;
+    MultiProductMultiStep::MultiProductMultiStep(std::vector<Time> rateTimes) : rateTimes_(std::move(rateTimes))
+    {
+        QL_REQUIRE(rateTimes_.size() > 1, "Rate times must contain at least two values");
+        Size n = rateTimes_.size() - 1;
         std::vector<Time> evolutionTimes(n);
-        std::vector<std::pair<Size,Size> > relevanceRates(n);
-        for (Size i=0; i<n; ++i) {
+        std::vector<std::pair<Size, Size>> relevanceRates(n);
+        for (Size i = 0; i < n; ++i)
+        {
             evolutionTimes[i] = rateTimes_[i];
-            relevanceRates[i] = std::make_pair(i, i+1);
+            relevanceRates[i] = std::make_pair(i, i + 1);
         }
 
-        evolution_ = EvolutionDescription(rateTimes_, evolutionTimes,
-                                          relevanceRates);
+        evolution_ = EvolutionDescription(rateTimes_, evolutionTimes, relevanceRates);
     }
 
-    const EvolutionDescription& MultiProductMultiStep::evolution() const {
+    const EvolutionDescription& MultiProductMultiStep::evolution() const
+    {
         return evolution_;
     }
 
     std::vector<Size> MultiProductMultiStep::suggestedNumeraires() const
     {
-        Size n = rateTimes_.size()-1;
+        Size n = rateTimes_.size() - 1;
         std::vector<Size> numeraires(n);
         // MoneyMarketPlus(1)
-        for (Size i=0; i<n; ++i)
-            numeraires[i]=i+1;
+        for (Size i = 0; i < n; ++i)
+            numeraires[i] = i + 1;
         return numeraires;
     }
 

@@ -2,7 +2,7 @@
 
 /*
  Copyright (C) 2010 Klaus Spanderen
- 
+
  This file is part of QuantLib, a free-software/open-source library
  for financial quantitative analysts and developers - http://quantlib.org/
 
@@ -27,7 +27,8 @@
 #include <ql/stochasticprocess.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class OrnsteinUhlenbeckProcess;
 
@@ -39,9 +40,15 @@ namespace QuantLib {
 
         \ingroup processes
     */
-    class ExtendedOrnsteinUhlenbeckProcess : public StochasticProcess1D {
+    class ExtendedOrnsteinUhlenbeckProcess : public StochasticProcess1D
+    {
       public:
-        enum Discretization { MidPoint, Trapezodial, GaussLobatto };
+        enum Discretization
+        {
+            MidPoint,
+            Trapezodial,
+            GaussLobatto
+        };
 
         ExtendedOrnsteinUhlenbeckProcess(Real speed,
                                          Volatility sigma,
@@ -64,7 +71,7 @@ namespace QuantLib {
       private:
         const Real speed_;
         const Volatility vol_;
-        const std::function<Real (Real)> b_;
+        const std::function<Real(Real)> b_;
         const Real intEps_;
         const ext::shared_ptr<OrnsteinUhlenbeckProcess> ouProcess_;
         const Discretization discretization_;

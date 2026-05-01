@@ -20,26 +20,30 @@
 #include <ql/pricingengines/cliquet/mcperformanceengine.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     PerformanceOptionPathPricer::PerformanceOptionPathPricer(Option::Type type,
                                                              Real strike,
                                                              std::vector<DiscountFactor> discounts)
-    : strike_(strike), type_(type), discounts_(std::move(discounts)) {}
+    : strike_(strike), type_(type), discounts_(std::move(discounts))
+    {
+    }
 
-    Real PerformanceOptionPathPricer::operator()(const Path& path) const {
+    Real PerformanceOptionPathPricer::operator()(const Path& path) const
+    {
 
         Size n = path.length();
-        QL_REQUIRE(n==discounts_.size()+1, "discounts/options mismatch");
-        PlainVanillaPayoff payoff(type_,strike_);
+        QL_REQUIRE(n == discounts_.size() + 1, "discounts/options mismatch");
+        PlainVanillaPayoff payoff(type_, strike_);
 
         Real sum = 0.0;
-        for (Size i = 2 ; i < n; i++) {
-            sum += discounts_[i-1] * payoff(path[i]/path[i-1]);
+        for (Size i = 2; i < n; i++)
+        {
+            sum += discounts_[i - 1] * payoff(path[i] / path[i - 1]);
         }
 
         return sum;
     }
 
 }
-

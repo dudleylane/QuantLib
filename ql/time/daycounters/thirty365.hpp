@@ -26,21 +26,25 @@
 
 #include <ql/time/daycounter.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! 30/365 day count convention
     /*! \ingroup daycounters */
-    class Thirty365 : public DayCounter {
+    class Thirty365 : public DayCounter
+    {
       private:
-        class Impl final : public DayCounter::Impl {
+        class Impl final : public DayCounter::Impl
+        {
           public:
             std::string name() const override { return std::string("30/365"); }
             Date::serial_type dayCount(const Date& d1, const Date& d2) const override;
-            Time
-            yearFraction(const Date& d1, const Date& d2, const Date&, const Date&) const override {
-                return dayCount(d1,d2)/365.0;
+            Time yearFraction(const Date& d1, const Date& d2, const Date&, const Date&) const override
+            {
+                return dayCount(d1, d2) / 365.0;
             }
         };
+
       public:
         Thirty365();
     };

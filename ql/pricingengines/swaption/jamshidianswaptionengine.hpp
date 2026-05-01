@@ -31,29 +31,29 @@
 #include <ql/pricingengines/genericmodelengine.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Jamshidian swaption engine
     /*! \ingroup swaptionengines
         \warning The engine might assume that the exercise date equals the
                  start date of the passed swap unless the model provides
                  an implementation of the discountBondOption method with
-                 start delay 
+                 start delay
     */
 
     class JamshidianSwaptionEngine
-        : public GenericModelEngine<OneFactorAffineModel,
-                                    Swaption::arguments,
-                                    Swaption::results > {
+    : public GenericModelEngine<OneFactorAffineModel, Swaption::arguments, Swaption::results>
+    {
       public:
         /*! \note the term structure is only needed when the short-rate
                   model cannot provide one itself.
         */
-        JamshidianSwaptionEngine(
-            const ext::shared_ptr<OneFactorAffineModel>& model,
-            Handle<YieldTermStructure> termStructure = Handle<YieldTermStructure>())
+        JamshidianSwaptionEngine(const ext::shared_ptr<OneFactorAffineModel>& model,
+                                 Handle<YieldTermStructure> termStructure = Handle<YieldTermStructure>())
         : GenericModelEngine<OneFactorAffineModel, Swaption::arguments, Swaption::results>(model),
-          termStructure_(std::move(termStructure)) {
+          termStructure_(std::move(termStructure))
+        {
             registerWith(termStructure_);
         }
         void calculate() const override;
@@ -67,4 +67,3 @@ namespace QuantLib {
 
 
 #endif
-

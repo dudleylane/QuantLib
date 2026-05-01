@@ -27,11 +27,12 @@
 #define quantlib_analytic_continuous_partial_fixed_lookback_engine_hpp
 
 #include <ql/instruments/lookbackoption.hpp>
-#include <ql/processes/blackscholesprocess.hpp>
-#include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/math/distributions/bivariatenormaldistribution.hpp>
+#include <ql/math/distributions/normaldistribution.hpp>
+#include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Pricing engine for European continuous partial-time fixed-strike lookback options
     /*! Formula from "Option Pricing Formulas, Second Edition",
@@ -41,11 +42,10 @@ namespace QuantLib {
 
         \test returned values are verified against results from literature
     */
-    class AnalyticContinuousPartialFixedLookbackEngine
-        : public ContinuousPartialFixedLookbackOption::engine {
+    class AnalyticContinuousPartialFixedLookbackEngine : public ContinuousPartialFixedLookbackOption::engine
+    {
       public:
-        AnalyticContinuousPartialFixedLookbackEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess> process);
+        AnalyticContinuousPartialFixedLookbackEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process);
         void calculate() const override;
 
       private:

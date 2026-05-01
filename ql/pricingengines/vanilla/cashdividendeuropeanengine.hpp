@@ -28,7 +28,8 @@
 #include <ql/processes/blackscholesprocess.hpp>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! (Semi)-Analytic pricing engine for European options with cash dividends
 
@@ -44,14 +45,18 @@ namespace QuantLib {
               reproducing numerical derivatives.
     */
 
-    class CashDividendEuropeanEngine : public VanillaOption::engine {
+    class CashDividendEuropeanEngine : public VanillaOption::engine
+    {
       public:
-        enum CashDividendModel { Spot, Escrowed };
+        enum CashDividendModel
+        {
+            Spot,
+            Escrowed
+        };
 
-        CashDividendEuropeanEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess> process,
-            DividendSchedule dividends,
-            CashDividendModel cashDividendModel = Spot);
+        CashDividendEuropeanEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process,
+                                   DividendSchedule dividends,
+                                   CashDividendModel cashDividendModel = Spot);
 
         void calculate() const override;
 

@@ -22,33 +22,32 @@
 #include <ql/types.hpp>
 #include <vector>
 
-namespace QuantLib 
+namespace QuantLib
 {
 
-  
+
     /*!
-   Displaced diffusion LMM with uncorrelated vol process. Called "Shifted BGM" with Heston vol by Brace in "Engineering BGM."
-   Vol process is an external input.
-    
+   Displaced diffusion LMM with uncorrelated vol process. Called "Shifted BGM" with Heston vol by Brace in "Engineering
+   BGM." Vol process is an external input.
+
     */
-    class MarketModelVolProcess 
+    class MarketModelVolProcess
     {
       public:
-          MarketModelVolProcess() = default;
-          virtual ~MarketModelVolProcess() = default;
+        MarketModelVolProcess() = default;
+        virtual ~MarketModelVolProcess() = default;
 
-          virtual Size variatesPerStep()=0;
-          virtual Size numberSteps()=0;
+        virtual Size variatesPerStep() = 0;
+        virtual Size numberSteps() = 0;
 
-          virtual void nextPath() =0;
-          virtual Real nextstep(const std::vector<Real>& variates)=0;
-          virtual Real stepSd() const =0;
+        virtual void nextPath() = 0;
+        virtual Real nextstep(const std::vector<Real>& variates) = 0;
+        virtual Real stepSd() const = 0;
 
-          virtual const std::vector<Real>& stateVariables() const=0;
-          virtual Size numberStateVariables() const=0;
-     
+        virtual const std::vector<Real>& stateVariables() const = 0;
+        virtual Size numberStateVariables() const = 0;
+
       private:
- 
     };
 
 }

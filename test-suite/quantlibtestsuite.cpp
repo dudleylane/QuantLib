@@ -23,15 +23,14 @@
 #define BOOST_TEST_MODULE QuantLibTests
 
 #ifdef QL_ENABLE_PARALLEL_UNIT_TEST_RUNNER
-#include "paralleltestrunner.hpp"
+#    include "paralleltestrunner.hpp"
 #else
-#include <boost/test/included/unit_test.hpp>
+#    include <boost/test/included/unit_test.hpp>
 #endif
 
 /* Use BOOST_MSVC instead of _MSC_VER since some other vendors (Metrowerks,
    for example) also #define _MSC_VER
 */
 #if !defined(BOOST_ALL_NO_LIB) && defined(BOOST_MSVC)
-#  include <ql/auto_link.hpp>
+#    include <ql/auto_link.hpp>
 #endif
-

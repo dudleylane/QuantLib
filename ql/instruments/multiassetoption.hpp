@@ -28,15 +28,16 @@
 
 #include <ql/option.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Base class for options on multiple assets
-    class MultiAssetOption : public Option {
+    class MultiAssetOption : public Option
+    {
       public:
         class engine;
         class results;
-        MultiAssetOption(const ext::shared_ptr<Payoff>&,
-                         const ext::shared_ptr<Exercise>&);
+        MultiAssetOption(const ext::shared_ptr<Payoff>&, const ext::shared_ptr<Exercise>&);
         //! \name Instrument interface
         //@{
         bool isExpired() const override;
@@ -56,26 +57,25 @@ namespace QuantLib {
       protected:
         void setupExpired() const override;
         // results
-        mutable Real delta_,  gamma_, theta_,
-            vega_, rho_, dividendRho_;
+        mutable Real delta_, gamma_, theta_, vega_, rho_, dividendRho_;
     };
 
     //! %Results from multi-asset option calculation
-    class MultiAssetOption::results : public Instrument::results,
-                                      public Greeks {
+    class MultiAssetOption::results : public Instrument::results, public Greeks
+    {
       public:
-        void reset() override {
+        void reset() override
+        {
             Instrument::results::reset();
             Greeks::reset();
         }
     };
 
-    class MultiAssetOption::engine :
-        public GenericEngine<MultiAssetOption::arguments,
-                             MultiAssetOption::results> {};
+    class MultiAssetOption::engine : public GenericEngine<MultiAssetOption::arguments, MultiAssetOption::results>
+    {
+    };
 
 }
 
 
 #endif
-

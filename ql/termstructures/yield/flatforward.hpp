@@ -26,15 +26,16 @@
 #define quantlib_flat_forward_curve_hpp
 
 #include <ql/patterns/lazyobject.hpp>
-#include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/quote.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Flat interest-rate curve
     /*! \ingroup yieldtermstructures */
-    class FlatForward : public YieldTermStructure,
-                        public LazyObject {
+    class FlatForward : public YieldTermStructure, public LazyObject
+    {
       public:
         //! \name Constructors
         //@{
@@ -94,19 +95,21 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline void FlatForward::update() {
+    inline void FlatForward::update()
+    {
         LazyObject::update();
         YieldTermStructure::update();
     }
 
-    inline DiscountFactor FlatForward::discountImpl(Time t) const {
+    inline DiscountFactor FlatForward::discountImpl(Time t) const
+    {
         calculate();
         return rate_.discountFactor(t);
     }
-  
-    inline void FlatForward::performCalculations() const {
-        rate_ = InterestRate(forward_->value(), dayCounter(),
-                             compounding_, frequency_);
+
+    inline void FlatForward::performCalculations() const
+    {
+        rate_ = InterestRate(forward_->value(), dayCounter(), compounding_, frequency_);
     }
 
 }

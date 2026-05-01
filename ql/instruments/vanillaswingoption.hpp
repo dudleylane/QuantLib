@@ -25,34 +25,34 @@
 #define quantlib_vanilla_swing_option_hpp
 
 #include <ql/exercise.hpp>
-#include <ql/time/daycounter.hpp>
-#include <ql/instruments/payoffs.hpp>
 #include <ql/instruments/oneassetoption.hpp>
+#include <ql/instruments/payoffs.hpp>
+#include <ql/time/daycounter.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Swing exercise
     /*! A Swing option can only be exercised at a set of fixed date times
-    */
-    class SwingExercise : public BermudanExercise {
+     */
+    class SwingExercise : public BermudanExercise
+    {
       public:
-        explicit SwingExercise(const std::vector<Date>& dates,
-                               const std::vector<Size>& seconds = std::vector<Size>());
+        explicit SwingExercise(const std::vector<Date>& dates, const std::vector<Size>& seconds = std::vector<Size>());
         SwingExercise(const Date& from, const Date& to, Size stepSizeSecs);
 
         const std::vector<Size>& seconds() const;
 
-        std::vector<Time> exerciseTimes(const DayCounter& dc,
-                                        const Date& refDate) const;
+        std::vector<Time> exerciseTimes(const DayCounter& dc, const Date& refDate) const;
 
       private:
         const std::vector<Size> seconds_;
     };
 
-    class VanillaForwardPayoff : public StrikedTypePayoff {
+    class VanillaForwardPayoff : public StrikedTypePayoff
+    {
       public:
-        VanillaForwardPayoff(Option::Type type, Real strike)
-          : StrikedTypePayoff(type, strike) {}
+        VanillaForwardPayoff(Option::Type type, Real strike) : StrikedTypePayoff(type, strike) {}
 
         std::string name() const override { return "ForwardTypePayoff"; }
         Real operator()(Real price) const override;
@@ -60,25 +60,27 @@ namespace QuantLib {
     };
 
     //! base option class
-    class VanillaSwingOption : public OneAssetOption {
+    class VanillaSwingOption : public OneAssetOption
+    {
       public:
-          class arguments;
-          VanillaSwingOption(const ext::shared_ptr<Payoff>& payoff,
-                             const ext::shared_ptr<SwingExercise>& ex,
-                             Size minExerciseRights, Size maxExerciseRights)
-        : OneAssetOption(payoff, ex),
-          minExerciseRights_(minExerciseRights),
-          maxExerciseRights_(maxExerciseRights) {}
+        class arguments;
+        VanillaSwingOption(const ext::shared_ptr<Payoff>& payoff,
+                           const ext::shared_ptr<SwingExercise>& ex,
+                           Size minExerciseRights,
+                           Size maxExerciseRights)
+        : OneAssetOption(payoff, ex), minExerciseRights_(minExerciseRights), maxExerciseRights_(maxExerciseRights)
+        {
+        }
 
-          bool isExpired() const override;
-          void setupArguments(PricingEngine::arguments*) const override;
+        bool isExpired() const override;
+        void setupArguments(PricingEngine::arguments*) const override;
 
-        private:
-          const Size minExerciseRights_, maxExerciseRights_;
+      private:
+        const Size minExerciseRights_, maxExerciseRights_;
     };
 
-    class VanillaSwingOption::arguments 
-        : public virtual PricingEngine::arguments {
+    class VanillaSwingOption::arguments : public virtual PricingEngine::arguments
+    {
       public:
         arguments() = default;
         void validate() const override;

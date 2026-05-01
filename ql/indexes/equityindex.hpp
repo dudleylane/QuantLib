@@ -24,12 +24,13 @@
 #ifndef quantlib_equityindex_hpp
 #define quantlib_equityindex_hpp
 
-#include <ql/index.hpp>
-#include <ql/time/calendar.hpp>
 #include <ql/currency.hpp>
+#include <ql/index.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
+#include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Base class for equity indexes
     /*! The equity index object allows to retrieve past fixings,
@@ -38,7 +39,7 @@ namespace QuantLib {
         term structure, or just the interest rate term structure
         in which case one can provide a term structure of equity
         forwards implied from, e.g. option prices.
-        
+
         In case of the first method, the forward is calculated as:
         \f[
         I(t, T) = I(t, t) \frac{P_{D}(t, T)}{P_{R}(t, T)},
@@ -60,7 +61,8 @@ namespace QuantLib {
         handle to the current index spot. If spot handle is empty,
         today's fixing will be used, instead.
     */
-    class EquityIndex : public Index {
+    class EquityIndex : public Index
+    {
       public:
         EquityIndex(std::string name,
                     Calendar fixingCalendar,
@@ -109,7 +111,8 @@ namespace QuantLib {
         Handle<Quote> spot_;
     };
 
-    inline bool EquityIndex::isValidFixingDate(const Date& d) const {
+    inline bool EquityIndex::isValidFixingDate(const Date& d) const
+    {
         return fixingCalendar().isBusinessDay(d);
     }
 }

@@ -26,18 +26,21 @@
 #ifndef quantlib_fdm_heston_variance_mesher_hpp
 #define quantlib_fdm_heston_variance_mesher_hpp
 
-#include <ql/processes/hestonprocess.hpp>
 #include <ql/methods/finitedifferences/meshers/fdm1dmesher.hpp>
+#include <ql/processes/hestonprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class FdmHestonVarianceMesher : public Fdm1dMesher {
+    class FdmHestonVarianceMesher : public Fdm1dMesher
+    {
       public:
-        FdmHestonVarianceMesher(
-            Size size,
-            const ext::shared_ptr<HestonProcess> & process,
-            Time maturity, Size tAvgSteps = 10, Real epsilon = 0.0001,
-            Real mixingFactor = 1.0);
+        FdmHestonVarianceMesher(Size size,
+                                const ext::shared_ptr<HestonProcess>& process,
+                                Time maturity,
+                                Size tAvgSteps = 10,
+                                Real epsilon = 0.0001,
+                                Real mixingFactor = 1.0);
 
         Real volaEstimate() const { return volaEstimate_; }
 
@@ -48,14 +51,16 @@ namespace QuantLib {
 
     class LocalVolTermStructure;
 
-    class FdmHestonLocalVolatilityVarianceMesher : public Fdm1dMesher {
+    class FdmHestonLocalVolatilityVarianceMesher : public Fdm1dMesher
+    {
       public:
-        FdmHestonLocalVolatilityVarianceMesher(
-            Size size,
-            const ext::shared_ptr<HestonProcess>& process,
-            const ext::shared_ptr<LocalVolTermStructure>& leverageFct,
-            Time maturity, Size tAvgSteps = 10, Real epsilon = 0.0001,
-            Real mixingFactor = 1.0);
+        FdmHestonLocalVolatilityVarianceMesher(Size size,
+                                               const ext::shared_ptr<HestonProcess>& process,
+                                               const ext::shared_ptr<LocalVolTermStructure>& leverageFct,
+                                               Time maturity,
+                                               Size tAvgSteps = 10,
+                                               Real epsilon = 0.0001,
+                                               Real mixingFactor = 1.0);
 
         Real volaEstimate() const { return volaEstimate_; }
 

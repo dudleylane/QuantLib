@@ -21,32 +21,33 @@
 */
 
 /*! \file fdmhestonsolver.hpp
-*/
+ */
 
 #ifndef quantlib_fdm_heston_solver_hpp
 #define quantlib_fdm_heston_solver_hpp
 
 #include <ql/handle.hpp>
-#include <ql/patterns/lazyobject.hpp>
-#include <ql/methods/finitedifferences/utilities/fdmquantohelper.hpp>
-#include <ql/methods/finitedifferences/solvers/fdmsolverdesc.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
+#include <ql/methods/finitedifferences/solvers/fdmsolverdesc.hpp>
 #include <ql/methods/finitedifferences/utilities/fdmdirichletboundary.hpp>
+#include <ql/methods/finitedifferences/utilities/fdmquantohelper.hpp>
+#include <ql/patterns/lazyobject.hpp>
 #include <ql/termstructures/volatility/equityfx/localvoltermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class HestonProcess;
     class Fdm2DimSolver;
 
-    class FdmHestonSolver : public LazyObject {
+    class FdmHestonSolver : public LazyObject
+    {
       public:
         FdmHestonSolver(Handle<HestonProcess> process,
                         FdmSolverDesc solverDesc,
                         const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Hundsdorfer(),
                         Handle<FdmQuantoHelper> quantoHelper = Handle<FdmQuantoHelper>(),
-                        ext::shared_ptr<LocalVolTermStructure> leverageFct =
-                            ext::shared_ptr<LocalVolTermStructure>(),
+                        ext::shared_ptr<LocalVolTermStructure> leverageFct = ext::shared_ptr<LocalVolTermStructure>(),
                         Real mixingFactor = 1.0);
 
         Real valueAt(Real s, Real v) const;

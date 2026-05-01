@@ -27,7 +27,8 @@
 #include <ql/experimental/varianceoption/varianceoption.hpp>
 #include <ql/processes/hestonprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! integral Heston-model variance-option engine
     /*! This engine implements the approach described in
@@ -35,7 +36,8 @@ namespace QuantLib {
 
         \ingroup forwardengines
     */
-    class IntegralHestonVarianceOptionEngine : public VarianceOption::engine  {
+    class IntegralHestonVarianceOptionEngine : public VarianceOption::engine
+    {
       public:
         explicit IntegralHestonVarianceOptionEngine(ext::shared_ptr<HestonProcess>);
         void calculate() const override;

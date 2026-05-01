@@ -27,13 +27,13 @@
 #include <ql/methods/finitedifferences/meshers/fdmmesher.hpp>
 #include <ql/methods/finitedifferences/operators/fdmlinearop.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class NthOrderDerivativeOp : public FdmLinearOp {
+    class NthOrderDerivativeOp : public FdmLinearOp
+    {
       public:
-        NthOrderDerivativeOp(
-            Size direction, Size order, Integer nPoints,
-            const ext::shared_ptr<FdmMesher>& mesher);
+        NthOrderDerivativeOp(Size direction, Size order, Integer nPoints, const ext::shared_ptr<FdmMesher>& mesher);
 
         array_type apply(const array_type& r) const override;
         SparseMatrix toMatrix() const override;

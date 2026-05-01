@@ -26,7 +26,8 @@
 
 #include <ql/termstructures/defaulttermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Hazard-rate term structure
     /*! This abstract class acts as an adapter to
@@ -39,30 +40,27 @@ namespace QuantLib {
 
         \ingroup defaultprobabilitytermstructures
     */
-    class SurvivalProbabilityStructure
-        : public DefaultProbabilityTermStructure {
+    class SurvivalProbabilityStructure : public DefaultProbabilityTermStructure
+    {
       public:
         /*! \name Constructors
             See the TermStructure documentation for issues regarding
             constructors.
         */
         //@{
-        SurvivalProbabilityStructure(
-            const DayCounter& dayCounter = DayCounter(),
-            const std::vector<Handle<Quote> >& jumps = {},
-            const std::vector<Date>& jumpDates = {});
-        SurvivalProbabilityStructure(
-            const Date& referenceDate,
-            const Calendar& cal = Calendar(),
-            const DayCounter& dayCounter = DayCounter(),
-            const std::vector<Handle<Quote> >& jumps = {},
-            const std::vector<Date>& jumpDates = {});
-        SurvivalProbabilityStructure(
-            Natural settlementDays,
-            const Calendar& cal,
-            const DayCounter& dayCounter = DayCounter(),
-            const std::vector<Handle<Quote> >& jumps = {},
-            const std::vector<Date>& jumpDates = {});
+        SurvivalProbabilityStructure(const DayCounter& dayCounter = DayCounter(),
+                                     const std::vector<Handle<Quote>>& jumps = {},
+                                     const std::vector<Date>& jumpDates = {});
+        SurvivalProbabilityStructure(const Date& referenceDate,
+                                     const Calendar& cal = Calendar(),
+                                     const DayCounter& dayCounter = DayCounter(),
+                                     const std::vector<Handle<Quote>>& jumps = {},
+                                     const std::vector<Date>& jumpDates = {});
+        SurvivalProbabilityStructure(Natural settlementDays,
+                                     const Calendar& cal,
+                                     const DayCounter& dayCounter = DayCounter(),
+                                     const std::vector<Handle<Quote>>& jumps = {},
+                                     const std::vector<Date>& jumpDates = {});
         //@}
       protected:
         //! \name DefaultProbabilityTermStructure implementation

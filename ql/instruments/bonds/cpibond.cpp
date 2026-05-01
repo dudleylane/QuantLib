@@ -31,7 +31,8 @@
 #include <utility>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     QL_DEPRECATED_DISABLE_WARNING
 
@@ -51,10 +52,25 @@ namespace QuantLib {
                      const Calendar& exCouponCalendar,
                      const BusinessDayConvention exCouponConvention,
                      bool exCouponEndOfMonth)
-    : CPIBond(settlementDays, faceAmount, false, baseCPI, observationLag, std::move(cpiIndex),
-              observationInterpolation, std::move(schedule), fixedRate, accrualDayCounter,
-              paymentConvention, issueDate, paymentCalendar, exCouponPeriod,
-              exCouponCalendar, exCouponConvention, exCouponEndOfMonth) {}
+    : CPIBond(settlementDays,
+              faceAmount,
+              false,
+              baseCPI,
+              observationLag,
+              std::move(cpiIndex),
+              observationInterpolation,
+              std::move(schedule),
+              fixedRate,
+              accrualDayCounter,
+              paymentConvention,
+              issueDate,
+              paymentCalendar,
+              exCouponPeriod,
+              exCouponCalendar,
+              exCouponConvention,
+              exCouponEndOfMonth)
+    {
+    }
 
     CPIBond::CPIBond(Natural settlementDays,
                      Real faceAmount,
@@ -73,28 +89,23 @@ namespace QuantLib {
                      const Calendar& exCouponCalendar,
                      const BusinessDayConvention exCouponConvention,
                      bool exCouponEndOfMonth)
-    : Bond(settlementDays,
-           paymentCalendar == Calendar() ? schedule.calendar() : paymentCalendar,
-           issueDate),
-      frequency_(schedule.tenor().frequency()), dayCounter_(accrualDayCounter),
-      growthOnly_(growthOnly), baseCPI_(baseCPI), observationLag_(observationLag),
-      cpiIndex_(std::move(cpiIndex)), observationInterpolation_(observationInterpolation) {
+    : Bond(settlementDays, paymentCalendar == Calendar() ? schedule.calendar() : paymentCalendar, issueDate),
+      frequency_(schedule.tenor().frequency()), dayCounter_(accrualDayCounter), growthOnly_(growthOnly),
+      baseCPI_(baseCPI), observationLag_(observationLag), cpiIndex_(std::move(cpiIndex)),
+      observationInterpolation_(observationInterpolation)
+    {
 
         maturityDate_ = schedule.endDate();
 
-        cashflows_ = CPILeg(std::move(schedule), cpiIndex_,
-                            baseCPI_, observationLag_)
-            .withNotionals(faceAmount)
-            .withFixedRates(fixedRate)
-            .withPaymentDayCounter(accrualDayCounter)
-            .withPaymentAdjustment(paymentConvention)
-            .withPaymentCalendar(calendar_)
-            .withObservationInterpolation(observationInterpolation_)
-            .withSubtractInflationNominal(growthOnly_)
-            .withExCouponPeriod(exCouponPeriod,
-                                exCouponCalendar,
-                                exCouponConvention,
-                                exCouponEndOfMonth);
+        cashflows_ = CPILeg(std::move(schedule), cpiIndex_, baseCPI_, observationLag_)
+                         .withNotionals(faceAmount)
+                         .withFixedRates(fixedRate)
+                         .withPaymentDayCounter(accrualDayCounter)
+                         .withPaymentAdjustment(paymentConvention)
+                         .withPaymentCalendar(calendar_)
+                         .withObservationInterpolation(observationInterpolation_)
+                         .withSubtractInflationNominal(growthOnly_)
+                         .withExCouponPeriod(exCouponPeriod, exCouponCalendar, exCouponConvention, exCouponEndOfMonth);
 
 
         calculateNotionalsFromCashflows();
@@ -103,7 +114,8 @@ namespace QuantLib {
 
         registerWith(cpiIndex_);
         Leg::const_iterator i;
-        for (i = cashflows_.begin(); i < cashflows_.end(); ++i) {
+        for (i = cashflows_.begin(); i < cashflows_.end(); ++i)
+        {
             registerWith(*i);
         }
     }

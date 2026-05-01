@@ -27,25 +27,26 @@
 #include <ql/processes/blackscholesprocess.hpp>
 #include <functional>
 
-namespace QuantLib::detail {
+namespace QuantLib::detail
+{
 
-        class VectorBsmProcessExtractor {
-          public:
-            explicit VectorBsmProcessExtractor(
-                std::vector<ext::shared_ptr<GeneralizedBlackScholesProcess> > p);
+    class VectorBsmProcessExtractor
+    {
+      public:
+        explicit VectorBsmProcessExtractor(std::vector<ext::shared_ptr<GeneralizedBlackScholesProcess>> p);
 
-            Array getSpot() const;
-            Array getBlackStdDev(const Date& maturityDate) const;
-            Array getBlackVariance(const Date& maturityDate) const;
-            Array getDividendYieldDf(const Date& maturityDate) const;
-            DiscountFactor getInterestRateDf(const Date& maturityDate) const;
+        Array getSpot() const;
+        Array getBlackStdDev(const Date& maturityDate) const;
+        Array getBlackVariance(const Date& maturityDate) const;
+        Array getDividendYieldDf(const Date& maturityDate) const;
+        DiscountFactor getInterestRateDf(const Date& maturityDate) const;
 
-          private:
-            Array extractProcesses(
-                const std::function<Real(const ext::shared_ptr<GeneralizedBlackScholesProcess>&)>& f) const;
+      private:
+        Array
+        extractProcesses(const std::function<Real(const ext::shared_ptr<GeneralizedBlackScholesProcess>&)>& f) const;
 
-            const std::vector<ext::shared_ptr<GeneralizedBlackScholesProcess> > processes_;
-        };
+        const std::vector<ext::shared_ptr<GeneralizedBlackScholesProcess>> processes_;
+    };
 
 }
 

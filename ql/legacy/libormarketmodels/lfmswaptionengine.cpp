@@ -22,17 +22,20 @@
 #include <ql/pricingengines/swap/discountingswapengine.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     LfmSwaptionEngine::LfmSwaptionEngine(const ext::shared_ptr<LiborForwardModel>& model,
                                          Handle<YieldTermStructure> discountCurve)
     : GenericModelEngine<LiborForwardModel, Swaption::arguments, Swaption::results>(model),
-      discountCurve_(std::move(discountCurve)) {
+      discountCurve_(std::move(discountCurve))
+    {
         registerWith(discountCurve_);
     }
 
 
-    void LfmSwaptionEngine::calculate() const {
+    void LfmSwaptionEngine::calculate() const
+    {
 
         QL_REQUIRE(arguments_.settlementMethod != Settlement::ParYieldCurve,
                    "cash settled (ParYieldCurve) swaptions not priced with Lfm engine");
@@ -40,33 +43,25 @@ namespace QuantLib {
         static const Spread basisPoint = 1.0e-4;
 
         auto swap = arguments_.swap;
-        swap->setPricingEngine(ext::shared_ptr<PricingEngine>(
-                                  new DiscountingSwapEngine(discountCurve_, false)));
+        swap->setPricingEngine(ext::shared_ptr<PricingEngine>(new DiscountingSwapEngine(discountCurve_, false)));
 
-        Spread correction = swap->spread() *
-            std::fabs(swap->floatingLegBPS()/swap->fixedLegBPS());
+        Spread correction = swap->spread() * std::fabs(swap->floatingLegBPS() / swap->fixedLegBPS());
         Rate fixedRate = swap->fixedRate() - correction;
         Rate fairRate = swap->fairRate() - correction;
 
-        ext::shared_ptr<SwaptionVolatilityMatrix> volatility =
-            model_->getSwaptionVolatilityMatrix();
+        ext::shared_ptr<SwaptionVolatilityMatrix> volatility = model_->getSwaptionVolatilityMatrix();
 
         Date referenceDate = volatility->referenceDate();
         DayCounter dayCounter = volatility->dayCounter();
 
-        Time exercise = dayCounter.yearFraction(referenceDate,
-                                                arguments_.exercise->date(0));
-        Time swapLength =
-            dayCounter.yearFraction(referenceDate,
-                                    arguments_.fixedPayDates.back())
-            - dayCounter.yearFraction(referenceDate,
-                                      arguments_.fixedResetDates[0]);
+        Time exercise = dayCounter.yearFraction(referenceDate, arguments_.exercise->date(0));
+        Time swapLength = dayCounter.yearFraction(referenceDate, arguments_.fixedPayDates.back()) -
+                          dayCounter.yearFraction(referenceDate, arguments_.fixedResetDates[0]);
 
-        Option::Type w = arguments_.type==Swap::Payer ? Option::Call : Option::Put;
-        Volatility vol = volatility->volatility(exercise, swapLength,
-                                                fairRate, true);
-        results_.value = (swap->fixedLegBPS()/basisPoint) *
-            blackFormula(w, fixedRate, fairRate, vol*std::sqrt(exercise));
+        Option::Type w = arguments_.type == Swap::Payer ? Option::Call : Option::Put;
+        Volatility vol = volatility->volatility(exercise, swapLength, fairRate, true);
+        results_.value =
+            (swap->fixedLegBPS() / basisPoint) * blackFormula(w, fixedRate, fairRate, vol * std::sqrt(exercise));
     }
 
 }

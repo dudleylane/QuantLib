@@ -28,13 +28,17 @@
 #include <ql/money.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class CommodityUnitCost {
+    class CommodityUnitCost
+    {
       public:
         CommodityUnitCost() = default;
         CommodityUnitCost(Money amount, UnitOfMeasure unitOfMeasure)
-        : amount_(std::move(amount)), unitOfMeasure_(std::move(unitOfMeasure)) {}
+        : amount_(std::move(amount)), unitOfMeasure_(std::move(unitOfMeasure))
+        {
+        }
 
         const Money& amount() const { return amount_; }
         const UnitOfMeasure& unitOfMeasure() const { return unitOfMeasure_; }
@@ -44,8 +48,7 @@ namespace QuantLib {
         UnitOfMeasure unitOfMeasure_;
     };
 
-    std::ostream& operator<<(std::ostream& out,
-                             const CommodityUnitCost& unitCost);
+    std::ostream& operator<<(std::ostream& out, const CommodityUnitCost& unitCost);
 
 }
 

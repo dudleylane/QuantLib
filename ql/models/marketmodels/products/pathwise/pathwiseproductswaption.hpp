@@ -21,14 +21,15 @@
 #ifndef quantlib_market_model_pathwise_swaption_hpp
 #define quantlib_market_model_pathwise_swaption_hpp
 
-#include <ql/types.hpp>
-#include <ql/models/marketmodels/pathwisemultiproduct.hpp>
-#include <ql/models/marketmodels/evolutiondescription.hpp>
 #include <ql/models/marketmodels/curvestates/lmmcurvestate.hpp>
-#include <vector>
+#include <ql/models/marketmodels/evolutiondescription.hpp>
+#include <ql/models/marketmodels/pathwisemultiproduct.hpp>
+#include <ql/types.hpp>
 #include <memory>
+#include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class EvolutionDescription;
     class CurveState;
@@ -37,39 +38,37 @@ namespace QuantLib {
     Main use is to test market pathwise vegas. The swaptions are payers and co-terminal.
     The class is tested in TestPathwiseVegas by running against the numerical version below.
     */
-class MarketModelPathwiseCoterminalSwaptionsDeflated : public MarketModelPathwiseMultiProduct
+    class MarketModelPathwiseCoterminalSwaptionsDeflated : public MarketModelPathwiseMultiProduct
     {
-     public:
+      public:
+        MarketModelPathwiseCoterminalSwaptionsDeflated(const std::vector<Time>& rateTimes,
+                                                       const std::vector<Rate>& strikes);
 
-       MarketModelPathwiseCoterminalSwaptionsDeflated(
-                          const std::vector<Time>& rateTimes,
-                          const std::vector<Rate>& strikes);
+        ~MarketModelPathwiseCoterminalSwaptionsDeflated() override = default;
 
-       ~MarketModelPathwiseCoterminalSwaptionsDeflated() override = default;
+        std::vector<Size> suggestedNumeraires() const override;
+        const EvolutionDescription& evolution() const override;
+        std::vector<Time> possibleCashFlowTimes() const override;
+        Size numberOfProducts() const override;
+        Size maxNumberOfCashFlowsPerProductPerStep() const override;
 
-       std::vector<Size> suggestedNumeraires() const override;
-       const EvolutionDescription& evolution() const override;
-       std::vector<Time> possibleCashFlowTimes() const override;
-       Size numberOfProducts() const override;
-       Size maxNumberOfCashFlowsPerProductPerStep() const override;
-
-       // has division by the numeraire already been done?
-       bool alreadyDeflated() const override;
+        // has division by the numeraire already been done?
+        bool alreadyDeflated() const override;
 
 
-       //! during simulation put product at start of path
-       void reset() override;
+        //! during simulation put product at start of path
+        void reset() override;
 
-       //! return value indicates whether path is finished, TRUE means done
-       bool nextTimeStep(const CurveState& currentState,
-                         std::vector<Size>& numberCashFlowsThisStep,
-                         std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow> >&
-                             cashFlowsGenerated) override;
+        //! return value indicates whether path is finished, TRUE means done
+        bool
+        nextTimeStep(const CurveState& currentState,
+                     std::vector<Size>& numberCashFlowsThisStep,
+                     std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow>>& cashFlowsGenerated) override;
 
         //! returns a newly-allocated copy of itself
         std::unique_ptr<MarketModelPathwiseMultiProduct> clone() const override;
 
-    private:
+      private:
         std::vector<Real> rateTimes_;
         std::vector<Rate> strikes_;
         Size numberRates_;
@@ -79,44 +78,42 @@ class MarketModelPathwiseCoterminalSwaptionsDeflated : public MarketModelPathwis
         EvolutionDescription evolution_;
     };
 
-  /*!
-  Easiest way to test MarketModelPathwiseCoterminalSwaptionsDeflated is by doing a numerical differentiation version.
+    /*!
+    Easiest way to test MarketModelPathwiseCoterminalSwaptionsDeflated is by doing a numerical differentiation version.
 
-  */
-class MarketModelPathwiseCoterminalSwaptionsNumericalDeflated : public MarketModelPathwiseMultiProduct
+    */
+    class MarketModelPathwiseCoterminalSwaptionsNumericalDeflated : public MarketModelPathwiseMultiProduct
     {
-     public:
+      public:
+        MarketModelPathwiseCoterminalSwaptionsNumericalDeflated(const std::vector<Time>& rateTimes,
+                                                                const std::vector<Rate>& strikes,
+                                                                Real bumpSize_);
 
-       MarketModelPathwiseCoterminalSwaptionsNumericalDeflated(
-                          const std::vector<Time>& rateTimes,
-                          const std::vector<Rate>& strikes,
-                          Real bumpSize_);
+        ~MarketModelPathwiseCoterminalSwaptionsNumericalDeflated() override = default;
 
-       ~MarketModelPathwiseCoterminalSwaptionsNumericalDeflated() override = default;
+        std::vector<Size> suggestedNumeraires() const override;
+        const EvolutionDescription& evolution() const override;
+        std::vector<Time> possibleCashFlowTimes() const override;
+        Size numberOfProducts() const override;
+        Size maxNumberOfCashFlowsPerProductPerStep() const override;
 
-       std::vector<Size> suggestedNumeraires() const override;
-       const EvolutionDescription& evolution() const override;
-       std::vector<Time> possibleCashFlowTimes() const override;
-       Size numberOfProducts() const override;
-       Size maxNumberOfCashFlowsPerProductPerStep() const override;
-
-       // has division by the numeraire already been done?
-       bool alreadyDeflated() const override;
+        // has division by the numeraire already been done?
+        bool alreadyDeflated() const override;
 
 
-       //! during simulation put product at start of path
-       void reset() override;
+        //! during simulation put product at start of path
+        void reset() override;
 
-       //! return value indicates whether path is finished, TRUE means done
-       bool nextTimeStep(const CurveState& currentState,
-                         std::vector<Size>& numberCashFlowsThisStep,
-                         std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow> >&
-                             cashFlowsGenerated) override;
+        //! return value indicates whether path is finished, TRUE means done
+        bool
+        nextTimeStep(const CurveState& currentState,
+                     std::vector<Size>& numberCashFlowsThisStep,
+                     std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow>>& cashFlowsGenerated) override;
 
         //! returns a newly-allocated copy of itself
         std::unique_ptr<MarketModelPathwiseMultiProduct> clone() const override;
 
-    private:
+      private:
         std::vector<Real> rateTimes_;
         std::vector<Rate> strikes_;
         Size numberRates_;
@@ -130,8 +127,6 @@ class MarketModelPathwiseCoterminalSwaptionsNumericalDeflated : public MarketMod
         LMMCurveState down_;
         std::vector<Rate> forwards_;
     };
-
-
 
 
 }

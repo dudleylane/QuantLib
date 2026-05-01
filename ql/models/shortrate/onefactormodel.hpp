@@ -30,12 +30,14 @@
 #include <ql/models/model.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
     class StochasticProcess1D;
 
     //! Single-factor short-rate model abstract class
     /*! \ingroup shortrate */
-    class OneFactorModel : public ShortRateModel {
+    class OneFactorModel : public ShortRateModel
+    {
       public:
         explicit OneFactorModel(Size nArguments);
         ~OneFactorModel() override = default;
@@ -51,10 +53,10 @@ namespace QuantLib {
     };
 
     //! Base class describing the short-rate dynamics
-    class OneFactorModel::ShortRateDynamics {
+    class OneFactorModel::ShortRateDynamics
+    {
       public:
-        explicit ShortRateDynamics(ext::shared_ptr<StochasticProcess1D> process)
-        : process_(std::move(process)) {}
+        explicit ShortRateDynamics(ext::shared_ptr<StochasticProcess1D> process) : process_(std::move(process)) {}
         virtual ~ShortRateDynamics() = default;
 
         //! Compute state variable from short rate
@@ -64,16 +66,15 @@ namespace QuantLib {
         virtual Rate shortRate(Time t, Real variable) const = 0;
 
         //! Returns the risk-neutral dynamics of the state variable
-        const ext::shared_ptr<StochasticProcess1D>& process() {
-            return process_;
-        }
+        const ext::shared_ptr<StochasticProcess1D>& process() { return process_; }
+
       private:
         ext::shared_ptr<StochasticProcess1D> process_;
     };
 
     //! Recombining trinomial tree discretizing the state variable
-    class OneFactorModel::ShortRateTree
-        : public TreeLattice1D<OneFactorModel::ShortRateTree> {
+    class OneFactorModel::ShortRateTree : public TreeLattice1D<OneFactorModel::ShortRateTree>
+    {
       public:
         //! Plain tree build-up from short-rate dynamics
         ShortRateTree(const ext::shared_ptr<TrinomialTree>& tree,
@@ -85,27 +86,18 @@ namespace QuantLib {
                       const ext::shared_ptr<TermStructureFittingParameter::NumericalImpl>& phi,
                       const TimeGrid& timeGrid);
 
-        Size size(Size i) const {
-            return tree_->size(i);
-        }
-        DiscountFactor discount(Size i, Size index) const {
-            Real x = tree_->underlying(i, index);
-            Rate r = dynamics_->shortRate(timeGrid()[i], x) +spread_;
-            return std::exp(-r*timeGrid().dt(i));
-        }
-        Real underlying(Size i, Size index) const {
-            return tree_->underlying(i, index);
-        }
-        Size descendant(Size i, Size index, Size branch) const {
-            return tree_->descendant(i, index, branch);
-        }
-        Real probability(Size i, Size index, Size branch) const {
-            return tree_->probability(i, index, branch);
-        }
-        void setSpread(Spread spread)
+        Size size(Size i) const { return tree_->size(i); }
+        DiscountFactor discount(Size i, Size index) const
         {
-            spread_=spread;
+            Real x = tree_->underlying(i, index);
+            Rate r = dynamics_->shortRate(timeGrid()[i], x) + spread_;
+            return std::exp(-r * timeGrid().dt(i));
         }
+        Real underlying(Size i, Size index) const { return tree_->underlying(i, index); }
+        Size descendant(Size i, Size index, Size branch) const { return tree_->descendant(i, index, branch); }
+        Real probability(Size i, Size index, Size branch) const { return tree_->probability(i, index, branch); }
+        void setSpread(Spread spread) { spread_ = spread; }
+
       private:
         ext::shared_ptr<TrinomialTree> tree_;
         ext::shared_ptr<ShortRateDynamics> dynamics_;
@@ -123,18 +115,19 @@ namespace QuantLib {
 
         \ingroup shortrate
     */
-    class OneFactorAffineModel : public OneFactorModel,
-                                 public AffineModel {
+    class OneFactorAffineModel : public OneFactorModel, public AffineModel
+    {
       public:
-        explicit OneFactorAffineModel(Size nArguments)
-        : OneFactorModel(nArguments) {}
+        explicit OneFactorAffineModel(Size nArguments) : OneFactorModel(nArguments) {}
 
-        Real discountBond(Time now, Time maturity, Array factors) const override {
+        Real discountBond(Time now, Time maturity, Array factors) const override
+        {
             return discountBond(now, maturity, factors[0]);
         }
 
-        Real discountBond(Time now, Time maturity, Rate rate) const {
-            return A(now, maturity)*std::exp(-B(now, maturity)*rate);
+        Real discountBond(Time now, Time maturity, Rate rate) const
+        {
+            return A(now, maturity) * std::exp(-B(now, maturity) * rate);
         }
 
         DiscountFactor discount(Time t) const override;
@@ -147,4 +140,3 @@ namespace QuantLib {
 }
 
 #endif
-

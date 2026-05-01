@@ -24,13 +24,14 @@
 #ifndef quantlib_moment_based_gaussian_polynomial_hpp
 #define quantlib_moment_based_gaussian_polynomial_hpp
 
+#include <ql/errors.hpp>
 #include <ql/math/comparison.hpp>
 #include <ql/math/integrals/gaussianorthogonalpolynomial.hpp>
-#include <ql/errors.hpp>
 #include <cmath>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
     /*! References:
         Gauss quadratures and orthogonal polynomials
 
@@ -45,8 +46,8 @@ namespace QuantLib {
     */
 
     template <class mp_real>
-    class MomentBasedGaussianPolynomial
-            : public GaussianOrthogonalPolynomial {
+    class MomentBasedGaussianPolynomial : public GaussianOrthogonalPolynomial
+    {
       public:
         MomentBasedGaussianPolynomial();
 
@@ -63,35 +64,40 @@ namespace QuantLib {
         mp_real z(Integer k, Integer i) const;
 
         mutable std::vector<mp_real> b_, c_;
-        mutable std::vector<std::vector<mp_real> > z_;
+        mutable std::vector<std::vector<mp_real>> z_;
     };
 
-    template <class mp_real> inline
-    MomentBasedGaussianPolynomial<mp_real>::MomentBasedGaussianPolynomial()
-    : z_(1, std::vector<mp_real>()) {}
+    template <class mp_real>
+    inline MomentBasedGaussianPolynomial<mp_real>::MomentBasedGaussianPolynomial() : z_(1, std::vector<mp_real>())
+    {
+    }
 
-    template <class mp_real> inline
-    mp_real MomentBasedGaussianPolynomial<mp_real>::z(Integer k, Integer i) const {
-        if (k == -1) return mp_real(0.0);
+    template <class mp_real>
+    inline mp_real MomentBasedGaussianPolynomial<mp_real>::z(Integer k, Integer i) const
+    {
+        if (k == -1)
+            return mp_real(0.0);
 
         const Integer rows = z_.size();
         const Integer cols = z_[0].size();
 
-        if (cols <= i) {
-            for (Integer l=0; l<rows; ++l)
-                z_[l].resize(i+1, std::numeric_limits<mp_real>::quiet_NaN());
+        if (cols <= i)
+        {
+            for (Integer l = 0; l < rows; ++l)
+                z_[l].resize(i + 1, std::numeric_limits<mp_real>::quiet_NaN());
         }
-        if (rows <= k) {
-            z_.resize(k+1, std::vector<mp_real>(
-                z_[0].size(), std::numeric_limits<mp_real>::quiet_NaN()));
+        if (rows <= k)
+        {
+            z_.resize(k + 1, std::vector<mp_real>(z_[0].size(), std::numeric_limits<mp_real>::quiet_NaN()));
         }
 
-        if (std::isnan(z_[k][i])) {
+        if (std::isnan(z_[k][i]))
+        {
             if (k == 0)
                 z_[k][i] = moment(i);
-            else {
-                const mp_real tmp = z(k-1, i+1)
-                    - alpha_(k-1)*z(k-1, i) - beta_(k-1)*z(k-2, i);
+            else
+            {
+                const mp_real tmp = z(k - 1, i + 1) - alpha_(k - 1) * z(k - 1, i) - beta_(k - 1) * z(k - 2, i);
                 z_[k][i] = tmp;
             }
         }
@@ -99,72 +105,82 @@ namespace QuantLib {
         return z_[k][i];
     };
 
-    template <class mp_real> inline
-    mp_real MomentBasedGaussianPolynomial<mp_real>::alpha_(Size u) const {
+    template <class mp_real>
+    inline mp_real MomentBasedGaussianPolynomial<mp_real>::alpha_(Size u) const
+    {
 
         if (b_.size() <= u)
-            b_.resize(u+1, std::numeric_limits<mp_real>::quiet_NaN());
+            b_.resize(u + 1, std::numeric_limits<mp_real>::quiet_NaN());
 
-        if (std::isnan(b_[u])) {
+        if (std::isnan(b_[u]))
+        {
             if (u == 0)
                 b_[u] = moment(1);
-            else {
+            else
+            {
                 const Integer iu(u);
-                const mp_real tmp =
-                    -z(iu-1, iu)/z(iu-1, iu-1) + z(iu, iu+1)/z(iu, iu);
+                const mp_real tmp = -z(iu - 1, iu) / z(iu - 1, iu - 1) + z(iu, iu + 1) / z(iu, iu);
                 b_[u] = tmp;
             }
         }
         return b_[u];
     }
 
-    template <class mp_real> inline
-    mp_real MomentBasedGaussianPolynomial<mp_real>::beta_(Size u) const {
+    template <class mp_real>
+    inline mp_real MomentBasedGaussianPolynomial<mp_real>::beta_(Size u) const
+    {
         if (u == 0)
             return mp_real(1.0);
 
         if (c_.size() <= u)
-            c_.resize(u+1, std::numeric_limits<mp_real>::quiet_NaN());
+            c_.resize(u + 1, std::numeric_limits<mp_real>::quiet_NaN());
 
-        if (std::isnan(c_[u])) {
+        if (std::isnan(c_[u]))
+        {
             const Integer iu(u);
-            const mp_real tmp = z(iu, iu) / z(iu-1, iu-1);
+            const mp_real tmp = z(iu, iu) / z(iu - 1, iu - 1);
             c_[u] = tmp;
         }
         return c_[u];
     }
 
-    template <> inline
-    Real MomentBasedGaussianPolynomial<Real>::alpha(Size u) const {
+    template <>
+    inline Real MomentBasedGaussianPolynomial<Real>::alpha(Size u) const
+    {
         return alpha_(u);
     }
 
-    template <class mp_real> inline
-    Real MomentBasedGaussianPolynomial<mp_real>::alpha(Size u) const {
+    template <class mp_real>
+    inline Real MomentBasedGaussianPolynomial<mp_real>::alpha(Size u) const
+    {
         return alpha_(u).template convert_to<Real>();
     }
 
-    template <> inline
-    Real MomentBasedGaussianPolynomial<Real>::beta(Size u) const {
+    template <>
+    inline Real MomentBasedGaussianPolynomial<Real>::beta(Size u) const
+    {
         return beta_(u);
     }
 
-    template <class mp_real> inline
-    Real MomentBasedGaussianPolynomial<mp_real>::beta(Size u) const {
+    template <class mp_real>
+    inline Real MomentBasedGaussianPolynomial<mp_real>::beta(Size u) const
+    {
         mp_real b = beta_(u);
         return b.template convert_to<Real>();
     }
 
-    template <> inline
-    Real MomentBasedGaussianPolynomial<Real>::mu_0() const {
+    template <>
+    inline Real MomentBasedGaussianPolynomial<Real>::mu_0() const
+    {
         const Real m0 = moment(0);
         QL_REQUIRE(close_enough(m0, 1.0), "zero moment must by one.");
 
         return moment(0);
     }
 
-    template <class mp_real> inline
-    Real MomentBasedGaussianPolynomial<mp_real>::mu_0() const {
+    template <class mp_real>
+    inline Real MomentBasedGaussianPolynomial<mp_real>::mu_0() const
+    {
         return moment(0).template convert_to<Real>();
     }
 }

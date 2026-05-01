@@ -18,23 +18,25 @@
 */
 
 /*! \file fdm3dimsolver.hpp
-*/
+ */
 
 #ifndef quantlib_fdm_3_dim_solver_hpp
 #define quantlib_fdm_3_dim_solver_hpp
 
 #include <ql/math/matrix.hpp>
-#include <ql/patterns/lazyobject.hpp>
-#include <ql/methods/finitedifferences/solvers/fdmsolverdesc.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
+#include <ql/methods/finitedifferences/solvers/fdmsolverdesc.hpp>
+#include <ql/patterns/lazyobject.hpp>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class BicubicSpline;
     class FdmSnapshotCondition;
 
-    class Fdm3DimSolver : public LazyObject {
+    class Fdm3DimSolver : public LazyObject
+    {
       public:
         Fdm3DimSolver(const FdmSolverDesc& solverDesc,
                       const FdmSchemeDesc& schemeDesc,
@@ -55,7 +57,7 @@ namespace QuantLib {
 
         std::vector<Real> x_, y_, z_, initialValues_;
         mutable std::vector<Matrix> resultValues_;
-        mutable std::vector<ext::shared_ptr<BicubicSpline> > interpolation_;
+        mutable std::vector<ext::shared_ptr<BicubicSpline>> interpolation_;
     };
 }
 

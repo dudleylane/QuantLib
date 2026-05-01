@@ -21,7 +21,8 @@
 #include <ql/settings.hpp>
 #include <ql/time/calendars/nullcalendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     FxForward::FxForward(Real sourceNominal,
                          const Currency& sourceCurrency,
@@ -32,15 +33,13 @@ namespace QuantLib {
                          Natural settlementDays,
                          const Calendar& paymentCalendar)
     : sourceNominal_(sourceNominal), sourceCurrency_(sourceCurrency), targetNominal_(targetNominal),
-      targetCurrency_(targetCurrency), maturityDate_(maturityDate),
-      paySourceCurrency_(paySourceCurrency), settlementDays_(settlementDays),
-      paymentCalendar_(paymentCalendar.empty() ? NullCalendar() : paymentCalendar),
-      fairForwardRate_(Null<Real>()),
-      npvSourceCurrency_(Null<Real>()), npvTargetCurrency_(Null<Real>()) {
+      targetCurrency_(targetCurrency), maturityDate_(maturityDate), paySourceCurrency_(paySourceCurrency),
+      settlementDays_(settlementDays), paymentCalendar_(paymentCalendar.empty() ? NullCalendar() : paymentCalendar),
+      fairForwardRate_(Null<Real>()), npvSourceCurrency_(Null<Real>()), npvTargetCurrency_(Null<Real>())
+    {
         QL_REQUIRE(!sourceCurrency.empty(), "source currency must not be empty");
         QL_REQUIRE(!targetCurrency.empty(), "target currency must not be empty");
-        QL_REQUIRE(sourceCurrency != targetCurrency,
-                   "source and target currencies must be different");
+        QL_REQUIRE(sourceCurrency != targetCurrency, "source and target currencies must be different");
         QL_REQUIRE(sourceNominal > 0.0, "source nominal must be positive");
         QL_REQUIRE(targetNominal > 0.0, "target nominal must be positive");
     }
@@ -53,32 +52,31 @@ namespace QuantLib {
                          bool paySourceCurrency,
                          Natural settlementDays,
                          const Calendar& paymentCalendar)
-    : sourceNominal_(sourceNominal), sourceCurrency_(sourceCurrency),
-      targetNominal_(sourceNominal * forwardRate), targetCurrency_(targetCurrency),
-      maturityDate_(maturityDate), paySourceCurrency_(paySourceCurrency),
-      settlementDays_(settlementDays),
-      paymentCalendar_(paymentCalendar.empty() ? NullCalendar() : paymentCalendar),
-      fairForwardRate_(Null<Real>()), npvSourceCurrency_(Null<Real>()),
-      npvTargetCurrency_(Null<Real>()) {
+    : sourceNominal_(sourceNominal), sourceCurrency_(sourceCurrency), targetNominal_(sourceNominal * forwardRate),
+      targetCurrency_(targetCurrency), maturityDate_(maturityDate), paySourceCurrency_(paySourceCurrency),
+      settlementDays_(settlementDays), paymentCalendar_(paymentCalendar.empty() ? NullCalendar() : paymentCalendar),
+      fairForwardRate_(Null<Real>()), npvSourceCurrency_(Null<Real>()), npvTargetCurrency_(Null<Real>())
+    {
         QL_REQUIRE(!sourceCurrency.empty(), "source currency must not be empty");
         QL_REQUIRE(!targetCurrency.empty(), "target currency must not be empty");
-        QL_REQUIRE(sourceCurrency != targetCurrency,
-                   "source and target currencies must be different");
+        QL_REQUIRE(sourceCurrency != targetCurrency, "source and target currencies must be different");
         QL_REQUIRE(sourceNominal > 0.0, "source nominal must be positive");
         QL_REQUIRE(forwardRate > 0.0, "forward rate must be positive");
     }
 
 
-    bool FxForward::isExpired() const {
+    bool FxForward::isExpired() const
+    {
         return maturityDate_ < Settings::instance().evaluationDate();
     }
 
-    Date FxForward::settlementDate() const {
-        return paymentCalendar_.advance(Settings::instance().evaluationDate(),
-                                        settlementDays_, Days);
+    Date FxForward::settlementDate() const
+    {
+        return paymentCalendar_.advance(Settings::instance().evaluationDate(), settlementDays_, Days);
     }
 
-    void FxForward::setupArguments(PricingEngine::arguments* args) const {
+    void FxForward::setupArguments(PricingEngine::arguments* args) const
+    {
         auto* arguments = dynamic_cast<FxForward::arguments*>(args);
         QL_REQUIRE(arguments != nullptr, "wrong argument type");
 
@@ -91,7 +89,8 @@ namespace QuantLib {
         arguments->settlementDate = settlementDate();
     }
 
-    void FxForward::fetchResults(const PricingEngine::results* r) const {
+    void FxForward::fetchResults(const PricingEngine::results* r) const
+    {
         Instrument::fetchResults(r);
 
         const auto* results = dynamic_cast<const FxForward::results*>(r);
@@ -102,25 +101,29 @@ namespace QuantLib {
         npvTargetCurrency_ = results->npvTargetCurrency;
     }
 
-    Real FxForward::fairForwardRate() const {
+    Real FxForward::fairForwardRate() const
+    {
         calculate();
         QL_REQUIRE(fairForwardRate_ != Null<Real>(), "fair forward rate not available");
         return fairForwardRate_;
     }
 
-    Real FxForward::npvSourceCurrency() const {
+    Real FxForward::npvSourceCurrency() const
+    {
         calculate();
         QL_REQUIRE(npvSourceCurrency_ != Null<Real>(), "NPV in source currency not available");
         return npvSourceCurrency_;
     }
 
-    Real FxForward::npvTargetCurrency() const {
+    Real FxForward::npvTargetCurrency() const
+    {
         calculate();
         QL_REQUIRE(npvTargetCurrency_ != Null<Real>(), "NPV in target currency not available");
         return npvTargetCurrency_;
     }
 
-    void FxForward::arguments::validate() const {
+    void FxForward::arguments::validate() const
+    {
         QL_REQUIRE(sourceNominal != Null<Real>(), "source nominal not set");
         QL_REQUIRE(targetNominal != Null<Real>(), "target nominal not set");
         QL_REQUIRE(!sourceCurrency.empty(), "source currency not set");
@@ -129,7 +132,8 @@ namespace QuantLib {
         QL_REQUIRE(settlementDate != Date(), "settlement date not set");
     }
 
-    void FxForward::results::reset() {
+    void FxForward::results::reset()
+    {
         Instrument::results::reset();
         fairForwardRate = Null<Real>();
         npvSourceCurrency = Null<Real>();

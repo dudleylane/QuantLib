@@ -23,9 +23,11 @@
 #include <ql/models/marketmodels/callability/exercisevalue.hpp>
 #include <ql/models/marketmodels/evolutiondescription.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class NothingExerciseValue : public MarketModelExerciseValue {
+    class NothingExerciseValue : public MarketModelExerciseValue
+    {
       public:
         //! \todo use Payoff
         NothingExerciseValue(const std::vector<Time>& rateTimes,
@@ -40,6 +42,7 @@ namespace QuantLib {
         std::valarray<bool> isExerciseTime() const override;
         MarketModelMultiProduct::CashFlow value(const CurveState&) const override;
         std::unique_ptr<MarketModelExerciseValue> clone() const override;
+
       private:
         Size numberOfExercises_;
         std::vector<Time> rateTimes_;

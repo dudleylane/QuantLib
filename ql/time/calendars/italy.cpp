@@ -17,32 +17,34 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/time/calendars/italy.hpp>
 #include <ql/errors.hpp>
+#include <ql/time/calendars/italy.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Italy::Italy(Italy::Market market) {
+    Italy::Italy(Italy::Market market)
+    {
         // all calendar instances on the same market share the same
         // implementation instance
-        static ext::shared_ptr<Calendar::Impl> settlementImpl(
-                                                   new Italy::SettlementImpl);
-        static ext::shared_ptr<Calendar::Impl> exchangeImpl(
-                                                   new Italy::ExchangeImpl);
-        switch (market) {
-          case Settlement:
-            impl_ = settlementImpl;
-            break;
-          case Exchange:
-            impl_ = exchangeImpl;
-            break;
-          default:
-            QL_FAIL("unknown market");
+        static ext::shared_ptr<Calendar::Impl> settlementImpl(new Italy::SettlementImpl);
+        static ext::shared_ptr<Calendar::Impl> exchangeImpl(new Italy::ExchangeImpl);
+        switch (market)
+        {
+            case Settlement:
+                impl_ = settlementImpl;
+                break;
+            case Exchange:
+                impl_ = exchangeImpl;
+                break;
+            default:
+                QL_FAIL("unknown market");
         }
     }
 
 
-    bool Italy::SettlementImpl::isBusinessDay(const Date& date) const {
+    bool Italy::SettlementImpl::isBusinessDay(const Date& date) const
+    {
         Weekday w = date.weekday();
         Day d = date.dayOfMonth(), dd = date.dayOfYear();
         Month m = date.month();
@@ -78,7 +80,8 @@ namespace QuantLib {
     }
 
 
-    bool Italy::ExchangeImpl::isBusinessDay(const Date& date) const {
+    bool Italy::ExchangeImpl::isBusinessDay(const Date& date) const
+    {
         Weekday w = date.weekday();
         Day d = date.dayOfMonth(), dd = date.dayOfYear();
         Month m = date.month();
@@ -88,7 +91,7 @@ namespace QuantLib {
             // New Year's Day
             || (d == 1 && m == January)
             // Good Friday
-            || (dd == em-3)
+            || (dd == em - 3)
             // Easter Monday
             || (dd == em)
             // Labour Day
@@ -108,4 +111,3 @@ namespace QuantLib {
     }
 
 }
-

@@ -1,19 +1,19 @@
 ---
 Language:        Cpp
-Standard:        c++17
+Standard:        Latest
 
 
-# The following is close to the style we've been using all these years
-# without formalizing it.  Formatting won't be enforced, but this file
-# can help if you want to use the general feel of the library.
+# Project style: BSD/Allman braces, 120-column limit, 4-space indent.
+# Enforced in CI via the format.yml workflow (clang-format --dry-run -Werror).
 
 
 # General appearance:
 
 BasedOnStyle: LLVM
 
+BreakBeforeBraces: Allman
 IndentWidth: 4
-ColumnLimit: 100
+ColumnLimit: 120
 NamespaceIndentation: All
 MaxEmptyLinesToKeep: 2
 FixNamespaceComments: false

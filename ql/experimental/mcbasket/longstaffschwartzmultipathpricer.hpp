@@ -20,15 +20,16 @@
 #ifndef quantlib_longstaff_schwartz_multi_path_pricer_hpp
 #define quantlib_longstaff_schwartz_multi_path_pricer_hpp
 
-#include <ql/termstructures/yieldtermstructure.hpp>
-#include <ql/methods/montecarlo/pathpricer.hpp>
-#include <ql/methods/montecarlo/multipath.hpp>
-#include <ql/methods/montecarlo/lsmbasissystem.hpp>
 #include <ql/experimental/mcbasket/pathpayoff.hpp>
+#include <ql/methods/montecarlo/lsmbasissystem.hpp>
+#include <ql/methods/montecarlo/multipath.hpp>
+#include <ql/methods/montecarlo/pathpricer.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
 #include <functional>
 #include <memory>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Longstaff-Schwarz path pricer for early exercise options
     /*! References:
@@ -42,11 +43,12 @@ namespace QuantLib {
         \test the correctness of the returned value is tested by
               reproducing results available in web/literature
     */
-    class LongstaffSchwartzMultiPathPricer : public PathPricer<MultiPath> {
+    class LongstaffSchwartzMultiPathPricer : public PathPricer<MultiPath>
+    {
       public:
         LongstaffSchwartzMultiPathPricer(const ext::shared_ptr<PathPayoff>& payoff,
                                          const std::vector<Size>& timePositions,
-                                         std::vector<Handle<YieldTermStructure> > forwardTermStructure,
+                                         std::vector<Handle<YieldTermStructure>> forwardTermStructure,
                                          Array discounts,
                                          Size polynomialOrder,
                                          LsmBasisSystem::PolynomialType polynomialType);
@@ -55,14 +57,15 @@ namespace QuantLib {
         virtual void calibrate();
 
       protected:
-        struct PathInfo {
+        struct PathInfo
+        {
             explicit PathInfo(Size numberOfTimes);
 
             Size pathLength() const;
 
-            Array                   payments;
-            Array                   exercises;
-            std::vector<Array>      states;
+            Array payments;
+            Array exercises;
+            std::vector<Array> states;
         };
 
         PathInfo transformPath(const MultiPath& path) const;
@@ -75,11 +78,11 @@ namespace QuantLib {
         std::unique_ptr<Real[]> lowerBounds_;
 
         const std::vector<Size> timePositions_;
-        const std::vector<Handle<YieldTermStructure> > forwardTermStructures_;
+        const std::vector<Handle<YieldTermStructure>> forwardTermStructures_;
         const Array dF_;
 
         mutable std::vector<PathInfo> paths_;
-        const std::vector<std::function<Real(Array)> > v_;
+        const std::vector<std::function<Real(Array)>> v_;
     };
 
 }

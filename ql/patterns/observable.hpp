@@ -33,16 +33,19 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #include <ql/patterns/singleton.hpp>
 #include <ql/shared_ptr.hpp>
 #include <ql/types.hpp>
-#include <set>
 #include <map>
+#include <set>
 
 #if !defined(QL_USE_STD_SHARED_PTR) && BOOST_VERSION < 107400
 
-namespace std {
+namespace std
+{
 
-    template<typename T>
-    struct hash<boost::shared_ptr<T>> {
-        std::size_t operator()(const boost::shared_ptr<T>& ptr) const noexcept {
+    template <typename T>
+    struct hash<boost::shared_ptr<T>>
+    {
+        std::size_t operator()(const boost::shared_ptr<T>& ptr) const noexcept
+        {
             return std::hash<typename boost::shared_ptr<T>::element_type*>()(ptr.get());
         }
     };
@@ -53,16 +56,19 @@ namespace std {
 
 #ifndef QL_ENABLE_THREAD_SAFE_OBSERVER_PATTERN
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Observer;
     class ObservableSettings;
 
     //! Object that notifies its changes to a set of observers
     /*! \ingroup patterns */
-    class Observable {
+    class Observable
+    {
         friend class Observer;
         friend class ObservableSettings;
+
       public:
         // constructors, assignment, destructor
         Observable() = default;
@@ -76,6 +82,7 @@ namespace QuantLib {
             or when the programmer desires to notify any changes.
         */
         void notifyObservers();
+
       private:
         typedef std::set<Observer*> set_type;
         typedef set_type::iterator iterator;
@@ -85,12 +92,15 @@ namespace QuantLib {
     };
 
     //! global repository for run-time library settings
-    class ObservableSettings : public Singleton<ObservableSettings> {
+    class ObservableSettings : public Singleton<ObservableSettings>
+    {
         friend class Singleton<ObservableSettings>;
         friend class Observable;
+
       public:
-        void disableUpdates(bool deferred=false) {
-            updatesEnabled_  = false;
+        void disableUpdates(bool deferred = false)
+        {
+            updatesEnabled_ = false;
             updatesDeferred_ = deferred;
         }
         void enableUpdates();
@@ -116,9 +126,11 @@ namespace QuantLib {
 
     //! Object that gets notified when a given observable changes
     /*! \ingroup patterns */
-    class Observer { // NOLINT(cppcoreguidelines-special-member-functions)
+    class Observer
+    { // NOLINT(cppcoreguidelines-special-member-functions)
       private:
         typedef std::set<ext::shared_ptr<Observable>> set_type;
+
       public:
         typedef set_type::iterator iterator;
 
@@ -129,8 +141,7 @@ namespace QuantLib {
         virtual ~Observer();
 
         // observer interface
-        std::pair<iterator, bool>
-        registerWith(const ext::shared_ptr<Observable>&);
+        std::pair<iterator, bool> registerWith(const ext::shared_ptr<Observable>&);
 
         /*! register with all observables of a given observer. Note
             that this does not include registering with the observer
@@ -161,14 +172,17 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline void ObservableSettings::registerDeferredObservers(const Observable::set_type& observers) {
-        if (updatesDeferred()) {
+    inline void ObservableSettings::registerDeferredObservers(const Observable::set_type& observers)
+    {
+        if (updatesDeferred())
+        {
             for (Observer* obs : observers)
                 deferredObservers_.emplace(obs, true);
         }
     }
 
-    inline void ObservableSettings::unregisterDeferredObserver(Observer* o) {
+    inline void ObservableSettings::unregisterDeferredObserver(Observer* o)
+    {
         if (updatesDeferred())
             deferredObservers_.erase(o);
         else
@@ -179,7 +193,8 @@ namespace QuantLib {
         }
     }
 
-    inline Observable::Observable(const Observable&) {
+    inline Observable::Observable(const Observable&)
+    {
         // the observer set is not copied; no observer asked to
         // register with this object
     }
@@ -192,7 +207,8 @@ namespace QuantLib {
                  method just raise a flag in order to trigger
                  a later recalculation.
     */
-    inline Observable& Observable::operator=(const Observable& o) {
+    inline Observable& Observable::operator=(const Observable& o)
+    {
         // as above, the observer set is not copied. Moreover,
         // observers of this object must be notified of the change
         if (&o != this)
@@ -200,27 +216,28 @@ namespace QuantLib {
         return *this;
     }
 
-    inline std::pair<Observable::iterator, bool>
-    Observable::registerObserver(Observer* o) {
+    inline std::pair<Observable::iterator, bool> Observable::registerObserver(Observer* o)
+    {
         return observers_.insert(o);
     }
 
-    inline Size Observable::unregisterObserver(Observer* o) {
-        if (ObservableSettings::instance().updatesDeferred() ||
-            ObservableSettings::instance().runningDeferredUpdates())
+    inline Size Observable::unregisterObserver(Observer* o)
+    {
+        if (ObservableSettings::instance().updatesDeferred() || ObservableSettings::instance().runningDeferredUpdates())
             ObservableSettings::instance().unregisterDeferredObserver(o);
 
         return observers_.erase(o);
     }
 
 
-    inline Observer::Observer(const Observer& o)
-    : observables_(o.observables_) {
+    inline Observer::Observer(const Observer& o) : observables_(o.observables_)
+    {
         for (const auto& observable : observables_)
             observable->registerObserver(this);
     }
 
-    inline Observer& Observer::operator=(const Observer& o) {
+    inline Observer& Observer::operator=(const Observer& o)
+    {
         for (const auto& observable : observables_)
             observable->unregisterObserver(this);
         observables_ = o.observables_;
@@ -229,42 +246,47 @@ namespace QuantLib {
         return *this;
     }
 
-    inline Observer::~Observer() {
+    inline Observer::~Observer()
+    {
         for (const auto& observable : observables_)
             observable->unregisterObserver(this);
     }
 
-    inline std::pair<Observer::iterator, bool>
-    Observer::registerWith(const ext::shared_ptr<Observable>& h) {
-        if (h != nullptr) {
+    inline std::pair<Observer::iterator, bool> Observer::registerWith(const ext::shared_ptr<Observable>& h)
+    {
+        if (h != nullptr)
+        {
             h->registerObserver(this);
             return observables_.insert(h);
         }
         return std::make_pair(observables_.end(), false);
     }
 
-    inline void
-    Observer::registerWithObservables(const ext::shared_ptr<Observer> &o) {
-        if (o != nullptr) {
+    inline void Observer::registerWithObservables(const ext::shared_ptr<Observer>& o)
+    {
+        if (o != nullptr)
+        {
             for (const auto& observable : o->observables_)
                 registerWith(observable);
         }
     }
 
-    inline
-    Size Observer::unregisterWith(const ext::shared_ptr<Observable>& h) {
+    inline Size Observer::unregisterWith(const ext::shared_ptr<Observable>& h)
+    {
         if (h != nullptr)
             h->unregisterObserver(this);
         return observables_.erase(h);
     }
 
-    inline void Observer::unregisterWithAll() {
+    inline void Observer::unregisterWithAll()
+    {
         for (const auto& observable : observables_)
             observable->unregisterObserver(this);
         observables_.clear();
     }
 
-    inline void Observer::deepUpdate() {
+    inline void Observer::deepUpdate()
+    {
         update();
     }
 
@@ -272,26 +294,30 @@ namespace QuantLib {
 
 #else
 
-#ifndef QL_USE_STD_SHARED_PTR
-#include <boost/smart_ptr/owner_less.hpp>
-#endif
-#include <atomic>
-#include <mutex>
-#include <set>
-#include <thread>
+#    ifndef QL_USE_STD_SHARED_PTR
+#        include <boost/smart_ptr/owner_less.hpp>
+#    endif
+#    include <atomic>
+#    include <mutex>
+#    include <set>
+#    include <thread>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Observable;
     class ObservableSettings;
 
     //! Object that gets notified when a given observable changes
     /*! \ingroup patterns */
-    class Observer : public ext::enable_shared_from_this<Observer> {
+    class Observer : public ext::enable_shared_from_this<Observer>
+    {
         friend class Observable;
         friend class ObservableSettings;
+
       private:
         typedef std::set<ext::shared_ptr<Observable>> set_type;
+
       public:
         typedef set_type::iterator iterator;
 
@@ -301,8 +327,7 @@ namespace QuantLib {
         Observer& operator=(const Observer&);
         virtual ~Observer();
         // observer interface
-        std::pair<iterator, bool>
-        registerWith(const ext::shared_ptr<Observable>&);
+        std::pair<iterator, bool> registerWith(const ext::shared_ptr<Observable>&);
         /*! register with all observables of a given observer. Note
             that this does not include registering with the observer
             itself.
@@ -326,41 +351,42 @@ namespace QuantLib {
         virtual void deepUpdate();
 
       private:
-
-        class Proxy {
+        class Proxy
+        {
           public:
-            explicit Proxy(Observer* const observer)
-             : active_  (true),
-               observer_(observer) {
-            }
+            explicit Proxy(Observer* const observer) : active_(true), observer_(observer) {}
 
-            void update() const {
+            void update() const
+            {
                 std::lock_guard<std::recursive_mutex> lock(mutex_);
-                if (active_) {
+                if (active_)
+                {
                     // c++17 is required if used with std::shared_ptr<T>
-                    const ext::weak_ptr<Observer> o
-                        = observer_->weak_from_this();
+                    const ext::weak_ptr<Observer> o = observer_->weak_from_this();
 
-                    //check for empty weak reference
-                    //https://stackoverflow.com/questions/45507041/how-to-check-if-weak-ptr-is-empty-non-assigned
+                    // check for empty weak reference
+                    // https://stackoverflow.com/questions/45507041/how-to-check-if-weak-ptr-is-empty-non-assigned
                     const ext::weak_ptr<Observer> empty;
-                    if (o.owner_before(empty) || empty.owner_before(o)) {
+                    if (o.owner_before(empty) || empty.owner_before(o))
+                    {
                         const ext::shared_ptr<Observer> obs(o.lock());
                         if (obs)
                             obs->update();
                     }
-                    else {
+                    else
+                    {
                         observer_->update();
                     }
                 }
             }
 
-            void deactivate() {
+            void deactivate()
+            {
                 std::lock_guard<std::recursive_mutex> lock(mutex_);
                 active_ = false;
             }
 
-        private:
+          private:
             bool active_;
             mutable std::recursive_mutex mutex_;
             Observer* const observer_;
@@ -372,17 +398,21 @@ namespace QuantLib {
         set_type observables_;
     };
 
-    namespace detail {
+    namespace detail
+    {
         class Signal;
     }
 
     //! Object that notifies its changes to a set of observers
     /*! \ingroup patterns */
-    class Observable {
+    class Observable
+    {
         friend class Observer;
         friend class ObservableSettings;
+
       private:
         typedef std::set<ext::shared_ptr<Observer::Proxy>> set_type;
+
       public:
         typedef set_type::iterator iterator;
 
@@ -395,10 +425,10 @@ namespace QuantLib {
             or when the programmer desires to notify any changes.
         */
         void notifyObservers();
+
       private:
         void registerObserver(const ext::shared_ptr<Observer::Proxy>&);
-        void unregisterObserver(
-            const ext::shared_ptr<Observer::Proxy>& proxy, bool disconnect);
+        void unregisterObserver(const ext::shared_ptr<Observer::Proxy>& proxy, bool disconnect);
 
         ext::shared_ptr<detail::Signal> sig_;
         set_type observers_;
@@ -406,31 +436,30 @@ namespace QuantLib {
     };
 
     //! global repository for run-time library settings
-    class ObservableSettings : public Singleton<ObservableSettings> {
+    class ObservableSettings : public Singleton<ObservableSettings>
+    {
         friend class Singleton<ObservableSettings>;
         friend class Observable;
 
       public:
-        void disableUpdates(bool deferred=false) {
+        void disableUpdates(bool deferred = false)
+        {
             std::lock_guard<std::mutex> lock(mutex_);
             updatesType_ = (deferred) ? UpdatesDeferred : UpdatesDisabled;
         }
         void enableUpdates();
 
-        bool updatesEnabled()  {return (updatesType_ & UpdatesEnabled) != 0; }
-        bool updatesDeferred() {return (updatesType_ & UpdatesDeferred) != 0; }
+        bool updatesEnabled() { return (updatesType_ & UpdatesEnabled) != 0; }
+        bool updatesDeferred() { return (updatesType_ & UpdatesDeferred) != 0; }
+
       private:
         ObservableSettings() : updatesType_(UpdatesEnabled) {}
 
-#if defined(QL_USE_STD_SHARED_PTR)
-        typedef std::set<ext::weak_ptr<Observer::Proxy>,
-                         std::owner_less<ext::weak_ptr<Observer::Proxy> > >
-            set_type;
-#else
-        typedef std::set<ext::weak_ptr<Observer::Proxy>,
-                         boost::owner_less<ext::weak_ptr<Observer::Proxy> > >
-            set_type;
-#endif
+#    if defined(QL_USE_STD_SHARED_PTR)
+        typedef std::set<ext::weak_ptr<Observer::Proxy>, std::owner_less<ext::weak_ptr<Observer::Proxy>>> set_type;
+#    else
+        typedef std::set<ext::weak_ptr<Observer::Proxy>, boost::owner_less<ext::weak_ptr<Observer::Proxy>>> set_type;
+#    endif
 
         void registerDeferredObservers(const Observable::set_type& observers);
         void unregisterDeferredObserver(const ext::shared_ptr<Observer::Proxy>& proxy);
@@ -438,50 +467,62 @@ namespace QuantLib {
         set_type deferredObservers_;
         mutable std::mutex mutex_;
 
-        enum UpdateType { UpdatesDisabled = 0, UpdatesEnabled = 1, UpdatesDeferred = 2} ;
+        enum UpdateType
+        {
+            UpdatesDisabled = 0,
+            UpdatesEnabled = 1,
+            UpdatesDeferred = 2
+        };
         std::atomic<int> updatesType_;
     };
 
 
     // inline definitions
 
-    inline void ObservableSettings::registerDeferredObservers(const Observable::set_type& observers) {
+    inline void ObservableSettings::registerDeferredObservers(const Observable::set_type& observers)
+    {
         deferredObservers_.insert(observers.begin(), observers.end());
     }
 
-    inline void ObservableSettings::unregisterDeferredObserver(
-        const ext::shared_ptr<Observer::Proxy>& o) {
+    inline void ObservableSettings::unregisterDeferredObserver(const ext::shared_ptr<Observer::Proxy>& o)
+    {
         deferredObservers_.erase(o);
     }
 
-    inline void ObservableSettings::enableUpdates() {
+    inline void ObservableSettings::enableUpdates()
+    {
         std::lock_guard<std::mutex> lock(mutex_);
 
         // if there are outstanding deferred updates, do the notification
         updatesType_ = UpdatesEnabled;
 
-        if (deferredObservers_.size()) {
+        if (deferredObservers_.size())
+        {
             bool successful = true;
             std::string errMsg;
 
-            for (auto i=deferredObservers_.begin();
-                i!=deferredObservers_.end(); ++i) {
-                try {
+            for (auto i = deferredObservers_.begin(); i != deferredObservers_.end(); ++i)
+            {
+                try
+                {
                     const ext::shared_ptr<Observer::Proxy> proxy = i->lock();
                     if (proxy)
                         proxy->update();
-                } catch (std::exception& e) {
+                }
+                catch (std::exception& e)
+                {
                     successful = false;
                     errMsg = e.what();
-                } catch (...) {
+                }
+                catch (...)
+                {
                     successful = false;
                 }
             }
 
             deferredObservers_.clear();
 
-            QL_ENSURE(successful,
-                  "could not notify one or more observers: " << errMsg);
+            QL_ENSURE(successful, "could not notify one or more observers: " << errMsg);
         }
     }
 
@@ -494,7 +535,8 @@ namespace QuantLib {
              method just raise a flag in order to trigger
             a later recalculation.
     */
-    inline Observable& Observable::operator=(const Observable& o) {
+    inline Observable& Observable::operator=(const Observable& o)
+    {
         // as above, the observer set is not copied. Moreover,
         // observers of this object must be notified of the change
         if (&o != this)
@@ -502,21 +544,24 @@ namespace QuantLib {
         return *this;
     }
 
-    inline Observer::Observer(const Observer& o) {
+    inline Observer::Observer(const Observer& o)
+    {
         proxy_.reset(new Proxy(this));
 
         {
-             std::lock_guard<std::recursive_mutex> lock(o.mutex_);
-             observables_ = o.observables_;
+            std::lock_guard<std::recursive_mutex> lock(o.mutex_);
+            observables_ = o.observables_;
         }
 
         for (const auto& observable : observables_)
             observable->registerObserver(proxy_);
     }
 
-    inline Observer& Observer::operator=(const Observer& o) {
+    inline Observer& Observer::operator=(const Observer& o)
+    {
         std::lock_guard<std::recursive_mutex> lock(mutex_);
-        if (!proxy_) {
+        if (!proxy_)
+        {
             proxy_.reset(new Proxy(this));
         }
 
@@ -533,7 +578,8 @@ namespace QuantLib {
         return *this;
     }
 
-    inline Observer::~Observer() {
+    inline Observer::~Observer()
+    {
         std::lock_guard<std::recursive_mutex> lock(mutex_);
         if (proxy_)
             proxy_->deactivate();
@@ -542,23 +588,26 @@ namespace QuantLib {
             observable->unregisterObserver(proxy_, false);
     }
 
-    inline std::pair<Observer::iterator, bool>
-    Observer::registerWith(const ext::shared_ptr<Observable>& h) {
+    inline std::pair<Observer::iterator, bool> Observer::registerWith(const ext::shared_ptr<Observable>& h)
+    {
         std::lock_guard<std::recursive_mutex> lock(mutex_);
-        if (!proxy_) {
+        if (!proxy_)
+        {
             proxy_.reset(new Proxy(this));
         }
 
-        if (h) {
+        if (h)
+        {
             h->registerObserver(proxy_);
             return observables_.insert(h);
         }
         return std::make_pair(observables_.end(), false);
     }
 
-    inline void
-    Observer::registerWithObservables(const ext::shared_ptr<Observer>& o) {
-        if (o) {
+    inline void Observer::registerWithObservables(const ext::shared_ptr<Observer>& o)
+    {
+        if (o)
+        {
             std::lock_guard<std::recursive_mutex> lock(o->mutex_);
 
             for (const auto& observable : o->observables_)
@@ -566,18 +615,20 @@ namespace QuantLib {
         }
     }
 
-    inline
-    Size Observer::unregisterWith(const ext::shared_ptr<Observable>& h) {
+    inline Size Observer::unregisterWith(const ext::shared_ptr<Observable>& h)
+    {
         std::lock_guard<std::recursive_mutex> lock(mutex_);
 
-        if (h && proxy_)  {
+        if (h && proxy_)
+        {
             h->unregisterObserver(proxy_, true);
         }
 
         return observables_.erase(h);
     }
 
-    inline void Observer::unregisterWithAll() {
+    inline void Observer::unregisterWithAll()
+    {
         std::lock_guard<std::recursive_mutex> lock(mutex_);
 
         for (const auto& observable : observables_)
@@ -586,7 +637,8 @@ namespace QuantLib {
         observables_.clear();
     }
 
-    inline void Observer::deepUpdate() {
+    inline void Observer::deepUpdate()
+    {
         update();
     }
 }

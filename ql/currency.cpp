@@ -20,9 +20,11 @@
 #include <ql/currency.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    std::ostream& operator<<(std::ostream& out, const Currency& c) {
+    std::ostream& operator<<(std::ostream& out, const Currency& c)
+    {
         if (!c.empty())
             return out << c.code();
         else
@@ -39,9 +41,10 @@ namespace QuantLib {
                          Currency triangulationCurrency,
                          std::set<std::string> minorUnitCodes)
     : name(std::move(name)), code(std::move(code)), numeric(numericCode), symbol(std::move(symbol)),
-      fractionSymbol(std::move(fractionSymbol)), fractionsPerUnit(fractionsPerUnit),
-      rounding(rounding), triangulated(std::move(triangulationCurrency)),
-      minorUnitCodes(std::move(minorUnitCodes)) {}
+      fractionSymbol(std::move(fractionSymbol)), fractionsPerUnit(fractionsPerUnit), rounding(rounding),
+      triangulated(std::move(triangulationCurrency)), minorUnitCodes(std::move(minorUnitCodes))
+    {
+    }
 
     Currency::Currency(const std::string& name,
                        const std::string& code,
@@ -60,6 +63,8 @@ namespace QuantLib {
                                              fractionsPerUnit,
                                              rounding,
                                              triangulationCurrency,
-                                             minorUnitCodes)) {}
+                                             minorUnitCodes))
+    {
+    }
 
 }

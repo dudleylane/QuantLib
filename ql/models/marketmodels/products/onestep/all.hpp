@@ -5,4 +5,3 @@
 #include <ql/models/marketmodels/products/onestep/onestepcoterminalswaps.hpp>
 #include <ql/models/marketmodels/products/onestep/onestepforwards.hpp>
 #include <ql/models/marketmodels/products/onestep/onestepoptionlets.hpp>
-

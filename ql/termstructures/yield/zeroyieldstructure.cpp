@@ -21,25 +21,27 @@
 
 #include <ql/termstructures/yield/zeroyieldstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    ZeroYieldStructure::ZeroYieldStructure(const DayCounter& dc)
-    : YieldTermStructure(dc) {}
+    ZeroYieldStructure::ZeroYieldStructure(const DayCounter& dc) : YieldTermStructure(dc) {}
 
-    ZeroYieldStructure::ZeroYieldStructure(
-                                    const Date& refDate,
-                                    const Calendar& cal,
-                                    const DayCounter& dc,
-                                    const std::vector<Handle<Quote> >& jumps,
-                                    const std::vector<Date>& jumpDates)
-    : YieldTermStructure(refDate, cal, dc, jumps, jumpDates) {}
+    ZeroYieldStructure::ZeroYieldStructure(const Date& refDate,
+                                           const Calendar& cal,
+                                           const DayCounter& dc,
+                                           const std::vector<Handle<Quote>>& jumps,
+                                           const std::vector<Date>& jumpDates)
+    : YieldTermStructure(refDate, cal, dc, jumps, jumpDates)
+    {
+    }
 
-    ZeroYieldStructure::ZeroYieldStructure(
-                                    Natural settlementDays,
-                                    const Calendar& cal,
-                                    const DayCounter& dc,
-                                    const std::vector<Handle<Quote> >& jumps,
-                                    const std::vector<Date>& jumpDates)
-    : YieldTermStructure(settlementDays, cal, dc, jumps, jumpDates) {}
+    ZeroYieldStructure::ZeroYieldStructure(Natural settlementDays,
+                                           const Calendar& cal,
+                                           const DayCounter& dc,
+                                           const std::vector<Handle<Quote>>& jumps,
+                                           const std::vector<Date>& jumpDates)
+    : YieldTermStructure(settlementDays, cal, dc, jumps, jumpDates)
+    {
+    }
 
 }

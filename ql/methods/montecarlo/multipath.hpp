@@ -28,7 +28,8 @@
 #include <ql/methods/montecarlo/path.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Correlated multiple asset paths
     /*! MultiPath contains the list of paths for each asset, i.e.,
@@ -36,11 +37,11 @@ namespace QuantLib {
 
         \ingroup mcarlo
     */
-    class MultiPath {
+    class MultiPath
+    {
       public:
         MultiPath() = default;
-        MultiPath(Size nAsset,
-                  const TimeGrid& timeGrid);
+        MultiPath(Size nAsset, const TimeGrid& timeGrid);
         MultiPath(std::vector<Path> multiPath);
         //! \name inspectors
         //@{
@@ -61,8 +62,8 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline MultiPath::MultiPath(Size nAsset, const TimeGrid& timeGrid)
-    : multiPath_(nAsset,Path(timeGrid)) {
+    inline MultiPath::MultiPath(Size nAsset, const TimeGrid& timeGrid) : multiPath_(nAsset, Path(timeGrid))
+    {
         QL_REQUIRE(nAsset > 0, "number of asset must be positive");
     }
 

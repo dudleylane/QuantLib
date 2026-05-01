@@ -8,4 +8,3 @@
 #include <ql/currencies/europe.hpp>
 #include <ql/currencies/exchangeratemanager.hpp>
 #include <ql/currencies/oceania.hpp>
-

@@ -25,16 +25,18 @@
 #include <ql/models/marketmodels/products/multiproductmultistep.hpp>
 #include <ql/shared_ptr.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Payoff;
 
-    class MultiStepOptionlets : public MultiProductMultiStep {
+    class MultiStepOptionlets : public MultiProductMultiStep
+    {
       public:
         MultiStepOptionlets(const std::vector<Time>& rateTimes,
                             std::vector<Real> accruals,
                             const std::vector<Time>& paymentTimes,
-                            std::vector<ext::shared_ptr<Payoff> >);
+                            std::vector<ext::shared_ptr<Payoff>>);
         //! \name MarketModelMultiProduct interface
         //@{
         std::vector<Time> possibleCashFlowTimes() const override;
@@ -43,35 +45,37 @@ namespace QuantLib {
         void reset() override;
         bool nextTimeStep(const CurveState& currentState,
                           std::vector<Size>& numberCashFlowsThisStep,
-                          std::vector<std::vector<CashFlow> >& cashFlowsGenerated) override;
+                          std::vector<std::vector<CashFlow>>& cashFlowsGenerated) override;
         std::unique_ptr<MarketModelMultiProduct> clone() const override;
         //@}
       private:
         std::vector<Real> accruals_;
         std::vector<Time> paymentTimes_;
-        std::vector<ext::shared_ptr<Payoff> > payoffs_;
+        std::vector<ext::shared_ptr<Payoff>> payoffs_;
         // things that vary in a path
         Size currentIndex_;
     };
 
     // inline definitions
 
-    inline std::vector<Time>
-    MultiStepOptionlets::possibleCashFlowTimes() const {
-      return paymentTimes_;
+    inline std::vector<Time> MultiStepOptionlets::possibleCashFlowTimes() const
+    {
+        return paymentTimes_;
     }
 
-    inline Size MultiStepOptionlets::numberOfProducts() const {
+    inline Size MultiStepOptionlets::numberOfProducts() const
+    {
         return payoffs_.size();
     }
 
-    inline Size
-    MultiStepOptionlets::maxNumberOfCashFlowsPerProductPerStep() const {
+    inline Size MultiStepOptionlets::maxNumberOfCashFlowsPerProductPerStep() const
+    {
         return 1;
     }
 
-    inline void MultiStepOptionlets::reset() {
-       currentIndex_=0;
+    inline void MultiStepOptionlets::reset()
+    {
+        currentIndex_ = 0;
     }
 
 }

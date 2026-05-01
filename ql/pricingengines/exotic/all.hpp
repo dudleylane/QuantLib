@@ -15,4 +15,3 @@
 #include <ql/pricingengines/exotic/mchimalayaengine.hpp>
 #include <ql/pricingengines/exotic/mcpagodaengine.hpp>
 #include <ql/pricingengines/exotic/pagodaoption.hpp>
-

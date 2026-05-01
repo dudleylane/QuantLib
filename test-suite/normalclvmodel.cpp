@@ -55,7 +55,8 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(NormalCLVModelTests)
 
-BOOST_AUTO_TEST_CASE(testBSCumlativeDistributionFunction) {
+BOOST_AUTO_TEST_CASE(testBSCumlativeDistributionFunction)
+{
     BOOST_TEST_MESSAGE("Testing Black-Scholes cumulative distribution function"
                        " with constant volatility...");
 
@@ -74,31 +75,30 @@ BOOST_AUTO_TEST_CASE(testBSCumlativeDistributionFunction) {
     const Handle<BlackVolTermStructure> volTS(flatVol(today, vol, dc));
 
     const ext::shared_ptr<GeneralizedBlackScholesProcess> bsProcess(
-        ext::make_shared<GeneralizedBlackScholesProcess>(
-            spot, qTS, rTS, volTS));
+        ext::make_shared<GeneralizedBlackScholesProcess>(spot, qTS, rTS, volTS));
     const ext::shared_ptr<OrnsteinUhlenbeckProcess> ouProcess;
 
-    const NormalCLVModel m(
-        bsProcess, ouProcess, std::vector<Date>(), 5);
+    const NormalCLVModel m(bsProcess, ouProcess, std::vector<Date>(), 5);
     const BSMRNDCalculator rndCalculator(bsProcess);
 
 
     constexpr double tol = 1e5 * QL_EPSILON;
     const Time t = dc.yearFraction(today, maturity);
-    for (Real x=10; x < 400; x+=10) {
+    for (Real x = 10; x < 400; x += 10)
+    {
         const Real calculated = m.cdf(maturity, x);
         const Real expected = rndCalculator.cdf(std::log(x), t);
 
-        if (std::fabs(calculated - expected) > tol) {
-            BOOST_FAIL("Failed to reproduce CDF for "
-                       << "\n    strike:     " << x
-                       << "\n    calculated: " << calculated
-                       << "\n    expected:   " << expected);
+        if (std::fabs(calculated - expected) > tol)
+        {
+            BOOST_FAIL("Failed to reproduce CDF for " << "\n    strike:     " << x << "\n    calculated: " << calculated
+                                                      << "\n    expected:   " << expected);
         }
     }
 }
 
-BOOST_AUTO_TEST_CASE(testHestonCumlativeDistributionFunction) {
+BOOST_AUTO_TEST_CASE(testHestonCumlativeDistributionFunction)
+{
     BOOST_TEST_MESSAGE("Testing Heston cumulative distribution function...");
 
     const DayCounter dc = Actual365Fixed();
@@ -119,39 +119,34 @@ BOOST_AUTO_TEST_CASE(testHestonCumlativeDistributionFunction) {
     const Handle<YieldTermStructure> rTS(flatRate(today, rRate, dc));
 
     const ext::shared_ptr<HestonProcess> process(
-        ext::make_shared<HestonProcess>(
-            rTS, qTS, spot, v0, kappa, theta, sigma, rho));
+        ext::make_shared<HestonProcess>(rTS, qTS, spot, v0, kappa, theta, sigma, rho));
 
     const Handle<BlackVolTermStructure> hestonVolTS(
-        ext::make_shared<HestonBlackVolSurface>(
-            Handle<HestonModel>(ext::make_shared<HestonModel>(process))));
+        ext::make_shared<HestonBlackVolSurface>(Handle<HestonModel>(ext::make_shared<HestonModel>(process))));
 
-    const NormalCLVModel m(
-        ext::make_shared<GeneralizedBlackScholesProcess>(
-            spot, qTS, rTS, hestonVolTS),
-        ext::shared_ptr<OrnsteinUhlenbeckProcess>(),
-        std::vector<Date>(), 5);
+    const NormalCLVModel m(ext::make_shared<GeneralizedBlackScholesProcess>(spot, qTS, rTS, hestonVolTS),
+                           ext::shared_ptr<OrnsteinUhlenbeckProcess>(), std::vector<Date>(), 5);
 
     const HestonRNDCalculator rndCalculator(process);
 
     const Real tol = 1e-6;
     const Time t = dc.yearFraction(today, maturity);
-    for (Real x=10; x < 400; x+=25) {
+    for (Real x = 10; x < 400; x += 25)
+    {
         const Real calculated = m.cdf(maturity, x);
         const Real expected = rndCalculator.cdf(std::log(x), t);
 
-        if (std::fabs(calculated - expected) > tol) {
-            BOOST_FAIL("Failed to reproduce CDF for "
-                       << "\n    strike:     " << x
-                       << "\n    calculated: " << calculated
-                       << "\n    expected:   " << expected);
+        if (std::fabs(calculated - expected) > tol)
+        {
+            BOOST_FAIL("Failed to reproduce CDF for " << "\n    strike:     " << x << "\n    calculated: " << calculated
+                                                      << "\n    expected:   " << expected);
         }
     }
 }
 
-BOOST_AUTO_TEST_CASE(testIllustrative1DExample) {
-    BOOST_TEST_MESSAGE(
-        "Testing illustrative 1D example of normal CLV model...");
+BOOST_AUTO_TEST_CASE(testIllustrative1DExample)
+{
+    BOOST_TEST_MESSAGE("Testing illustrative 1D example of normal CLV model...");
 
     // example taken from:
     // A. Grzelak, 2015, The CLV Framework -
@@ -161,19 +156,19 @@ BOOST_AUTO_TEST_CASE(testIllustrative1DExample) {
     const DayCounter dc = Actual360();
     const Date today = Date(22, June, 2016);
 
-    //SABR
+    // SABR
     const Real beta = 0.5;
-    const Real alpha= 0.2;
-    const Real rho  = -0.9;
-    const Real gamma= 0.2;
+    const Real alpha = 0.2;
+    const Real rho = -0.9;
+    const Real gamma = 0.2;
 
     // Ornstein-Uhlenbeck
     const Real speed = 1.3;
     const Real level = 0.1;
-    const Real vol   = 0.25;
-    const Real x0    = 1.0;
+    const Real vol = 0.25;
+    const Real x0 = 1.0;
 
-    const Real s0    = 1.0;
+    const Real s0 = 1.0;
     const Real rRate = 0.03;
     const Real qRate = 0.0;
 
@@ -182,93 +177,79 @@ BOOST_AUTO_TEST_CASE(testIllustrative1DExample) {
     const Handle<YieldTermStructure> rTS(flatRate(today, rRate, dc));
 
     const Handle<BlackVolTermStructure> sabrVol(
-        ext::make_shared<SABRVolTermStructure>(
-            alpha, beta, gamma, rho, s0, rRate, today, dc));
+        ext::make_shared<SABRVolTermStructure>(alpha, beta, gamma, rho, s0, rRate, today, dc));
 
     const ext::shared_ptr<GeneralizedBlackScholesProcess> bsProcess(
-        ext::make_shared<GeneralizedBlackScholesProcess>(
-            spot, qTS, rTS, sabrVol));
+        ext::make_shared<GeneralizedBlackScholesProcess>(spot, qTS, rTS, sabrVol));
 
     const ext::shared_ptr<OrnsteinUhlenbeckProcess> ouProcess(
-        ext::make_shared<OrnsteinUhlenbeckProcess>(
-            speed, vol, x0, level));
+        ext::make_shared<OrnsteinUhlenbeckProcess>(speed, vol, x0, level));
 
-    std::vector<Date> maturityDates = {
-        today + Period(18, Days),
-        today + Period(90, Days),
-        today + Period(180, Days),
-        today + Period(360, Days),
-        today + Period(720, Days)
-    };
+    std::vector<Date> maturityDates = {today + Period(18, Days), today + Period(90, Days), today + Period(180, Days),
+                                       today + Period(360, Days), today + Period(720, Days)};
 
     const NormalCLVModel m(bsProcess, ouProcess, maturityDates, 4);
     const std::function<Real(Real, Real)> g = m.g();
 
     // test collocation points in x_ij
-    std::vector<Date> maturities = { maturityDates[0], maturityDates[2], maturityDates[4] };
+    std::vector<Date> maturities = {maturityDates[0], maturityDates[2], maturityDates[4]};
 
-    std::vector<std::vector<Real> > x = {
-        { 1.070, 0.984, 0.903, 0.817 },
-        { 0.879, 0.668, 0.472, 0.261 },
-        { 0.528, 0.282, 0.052,-0.194 }
-    };
+    std::vector<std::vector<Real>> x = {
+        {1.070, 0.984, 0.903, 0.817}, {0.879, 0.668, 0.472, 0.261}, {0.528, 0.282, 0.052, -0.194}};
 
-    std::vector<std::vector<Real> > s = {
-        {1.104, 1.035, 0.969, 0.895},
-        {1.328, 1.122, 0.911, 0.668},
-        {1.657, 1.283, 0.854, 0.339}
-    };
+    std::vector<std::vector<Real>> s = {
+        {1.104, 1.035, 0.969, 0.895}, {1.328, 1.122, 0.911, 0.668}, {1.657, 1.283, 0.854, 0.339}};
 
-    std::vector<Real> c = { 2.3344, 0.7420, -0.7420, -2.3344 };
+    std::vector<Real> c = {2.3344, 0.7420, -0.7420, -2.3344};
 
     const Real tol = 0.001;
-    for (Size i=0; i < maturities.size(); ++i) {
+    for (Size i = 0; i < maturities.size(); ++i)
+    {
         const Time t = dc.yearFraction(today, maturities[i]);
 
-        for (Size j=0; j < x.front().size(); ++j) {
+        for (Size j = 0; j < x.front().size(); ++j)
+        {
             const Real calculatedX = m.collocationPointsX(maturities[i])[j];
             const Real expectedX = x[i][j];
 
-            if (std::fabs(calculatedX - expectedX) > tol) {
+            if (std::fabs(calculatedX - expectedX) > tol)
+            {
                 BOOST_FAIL("Failed to reproduce collocation x points for "
-                           << "\n    time:       " << maturities[i]
-                           << "\n    j           " << j
-                           << "\n    calculated: " << calculatedX
-                           << "\n    expected:   " << expectedX);
+                           << "\n    time:       " << maturities[i] << "\n    j           " << j
+                           << "\n    calculated: " << calculatedX << "\n    expected:   " << expectedX);
             }
 
             const Real calculatedS = m.collocationPointsY(maturities[i])[j];
             const Real expectedS = s[i][j];
-            if (std::fabs(calculatedS - expectedS) > tol) {
+            if (std::fabs(calculatedS - expectedS) > tol)
+            {
                 BOOST_FAIL("Failed to reproduce collocation s points for "
-                           << "\n    time:       " << maturities[i]
-                           << "\n    j           " << j
-                           << "\n    calculated: " << calculatedS
-                           << "\n    expected:   " << expectedS);
+                           << "\n    time:       " << maturities[i] << "\n    j           " << j
+                           << "\n    calculated: " << calculatedS << "\n    expected:   " << expectedS);
             }
 
-            const Real expectation
-                = ouProcess->expectation(0.0, ouProcess->x0(), t);
-            const Real stdDeviation
-                = ouProcess->stdDeviation(0.0, ouProcess->x0(), t);
+            const Real expectation = ouProcess->expectation(0.0, ouProcess->x0(), t);
+            const Real stdDeviation = ouProcess->stdDeviation(0.0, ouProcess->x0(), t);
 
-            const Real calculatedG = g(t, expectation + stdDeviation*c[j]);
-            if (std::fabs(calculatedG - expectedS) > tol) {
+            const Real calculatedG = g(t, expectation + stdDeviation * c[j]);
+            if (std::fabs(calculatedG - expectedS) > tol)
+            {
                 BOOST_FAIL("Failed to reproduce g values "
                            "at collocation points for "
-                           << "\n    time:       " << maturities[i]
-                           << "\n    j           " << j
-                           << "\n    calculated: " << calculatedG
-                           << "\n    expected:   " << expectedS);
+                           << "\n    time:       " << maturities[i] << "\n    j           " << j
+                           << "\n    calculated: " << calculatedG << "\n    expected:   " << expectedS);
             }
         }
     }
 }
 
-class CLVModelPayoff : public PlainVanillaPayoff {
+class CLVModelPayoff : public PlainVanillaPayoff
+{
   public:
     CLVModelPayoff(Option::Type type, Real strike, std::function<Real(Real)> g)
-    : PlainVanillaPayoff(type, strike), g_(std::move(g)) {}
+    : PlainVanillaPayoff(type, strike), g_(std::move(g))
+    {
+    }
 
     Real operator()(Real x) const override { return PlainVanillaPayoff::operator()(g_(x)); }
 
@@ -277,7 +258,8 @@ class CLVModelPayoff : public PlainVanillaPayoff {
 };
 
 
-BOOST_AUTO_TEST_CASE(testMonteCarloBSOptionPricing) {
+BOOST_AUTO_TEST_CASE(testMonteCarloBSOptionPricing)
+{
     BOOST_TEST_MESSAGE("Testing Monte Carlo BS option pricing...");
 
     const DayCounter dc = Actual365Fixed();
@@ -286,21 +268,19 @@ BOOST_AUTO_TEST_CASE(testMonteCarloBSOptionPricing) {
     const Time t = dc.yearFraction(today, maturity);
 
     const Real strike = 110;
-    const ext::shared_ptr<StrikedTypePayoff> payoff =
-        ext::make_shared<PlainVanillaPayoff>(Option::Call, strike);
-    const ext::shared_ptr<Exercise> exercise =
-        ext::make_shared<EuropeanExercise>(maturity);
+    const ext::shared_ptr<StrikedTypePayoff> payoff = ext::make_shared<PlainVanillaPayoff>(Option::Call, strike);
+    const ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(maturity);
 
     // Ornstein-Uhlenbeck
     const Real speed = 2.3;
     const Real level = 100;
     const Real sigma = 0.35;
-    const Real x0    = 100.0;
+    const Real x0 = 100.0;
 
-    const Real s0        = x0;
+    const Real s0 = x0;
     const Volatility vol = 0.25;
-    const Real rRate     = 0.10;
-    const Real qRate     = 0.04;
+    const Real rRate = 0.10;
+    const Real qRate = 0.04;
 
     const Handle<Quote> spot(ext::make_shared<SimpleQuote>(s0));
     const Handle<YieldTermStructure> qTS(flatRate(today, qRate, dc));
@@ -308,70 +288,62 @@ BOOST_AUTO_TEST_CASE(testMonteCarloBSOptionPricing) {
     const Handle<BlackVolTermStructure> vTS(flatVol(today, vol, dc));
 
     const ext::shared_ptr<GeneralizedBlackScholesProcess> bsProcess(
-        ext::make_shared<GeneralizedBlackScholesProcess>(
-            spot, qTS, rTS, vTS));
+        ext::make_shared<GeneralizedBlackScholesProcess>(spot, qTS, rTS, vTS));
 
     const ext::shared_ptr<OrnsteinUhlenbeckProcess> ouProcess(
-        ext::make_shared<OrnsteinUhlenbeckProcess>(
-            speed, sigma, x0, level));
+        ext::make_shared<OrnsteinUhlenbeckProcess>(speed, sigma, x0, level));
 
-    std::vector<Date> maturities = { today + Period(6, Months), maturity };
+    std::vector<Date> maturities = {today + Period(6, Months), maturity};
 
     const NormalCLVModel m(bsProcess, ouProcess, maturities, 8);
     const std::function<Real(Real, Real)> g = m.g();
 
     const Size nSims = 32767;
-    const LowDiscrepancy::rsg_type ld
-        = LowDiscrepancy::make_sequence_generator(1, 23455);
+    const LowDiscrepancy::rsg_type ld = LowDiscrepancy::make_sequence_generator(1, 23455);
 
     Statistics stat;
-    for (Size i=0; i < nSims; ++i) {
+    for (Size i = 0; i < nSims; ++i)
+    {
         const Real dw = ld.nextSequence().value.front();
 
         const Real o_t = ouProcess->evolve(0, x0, t, dw);
         const Real s = g(t, o_t);
 
         stat.add((*payoff)(s));
-
     }
 
     Real calculated = stat.mean() * rTS->discount(maturity);
 
     VanillaOption option(payoff, exercise);
-    option.setPricingEngine(
-        ext::make_shared<AnalyticEuropeanEngine>(bsProcess));
+    option.setPricingEngine(ext::make_shared<AnalyticEuropeanEngine>(bsProcess));
     const Real expected = option.NPV();
 
     const Real tol = 0.01;
-    if (std::fabs(calculated - expected) > tol) {
+    if (std::fabs(calculated - expected) > tol)
+    {
         BOOST_FAIL("Failed to reproduce Monte-Carlo vanilla option price "
-                   << "\n    time:       " << maturity
-                   << "\n    strike:     " << strike
-                   << "\n    calculated: " << calculated
-                   << "\n    expected:   " << expected);
+                   << "\n    time:       " << maturity << "\n    strike:     " << strike
+                   << "\n    calculated: " << calculated << "\n    expected:   " << expected);
     }
 
     VanillaOption fdmOption(
-         ext::make_shared<CLVModelPayoff>(payoff->optionType(), payoff->strike(),
-                                          [&](Real _x) { return g(t, _x); }),
-         exercise);
+        ext::make_shared<CLVModelPayoff>(payoff->optionType(), payoff->strike(), [&](Real _x) { return g(t, _x); }),
+        exercise);
 
     fdmOption.setPricingEngine(
-        ext::make_shared<FdOrnsteinUhlenbeckVanillaEngine>(
-            ouProcess, rTS.currentLink(), 50, 800));
+        ext::make_shared<FdOrnsteinUhlenbeckVanillaEngine>(ouProcess, rTS.currentLink(), 50, 800));
 
     calculated = fdmOption.NPV();
-    if (std::fabs(calculated - expected) > tol) {
+    if (std::fabs(calculated - expected) > tol)
+    {
         BOOST_FAIL("Failed to reproduce FDM vanilla option price "
-                   << "\n    time:       " << maturity
-                   << "\n    strike:     " << strike
-                   << "\n    calculated: " << calculated
-                   << "\n    expected:   " << expected);
+                   << "\n    time:       " << maturity << "\n    strike:     " << strike
+                   << "\n    calculated: " << calculated << "\n    expected:   " << expected);
     }
 }
-BOOST_AUTO_TEST_CASE(testMoustacheGraph, *precondition(if_speed(Slow))) {
-    BOOST_TEST_MESSAGE(
-        "Testing double no-touch pricing with normal CLV model...");
+BOOST_AUTO_TEST_CASE(testMoustacheGraph, *precondition(if_speed(Slow)))
+{
+    BOOST_TEST_MESSAGE("Testing double no-touch pricing with normal CLV model...");
 
     /*
      The comparison of Black-Scholes and normal CLV prices is derived
@@ -392,58 +364,45 @@ BOOST_AUTO_TEST_CASE(testMoustacheGraph, *precondition(if_speed(Slow))) {
     const Rate q = 0.01;
 
     // parameter of the "calibrated" Heston model
-    const Real kappa =   1.0;
-    const Real theta =   0.06;
-    const Real rho   =  -0.8;
-    const Real sigma =   0.8;
-    const Real v0    =   0.09;
+    const Real kappa = 1.0;
+    const Real theta = 0.06;
+    const Real rho = -0.8;
+    const Real sigma = 0.8;
+    const Real v0 = 0.09;
 
     const Handle<YieldTermStructure> rTS(flatRate(r, dc));
     const Handle<YieldTermStructure> qTS(flatRate(q, dc));
 
     const ext::shared_ptr<HestonModel> hestonModel(
-        ext::make_shared<HestonModel>(
-            ext::make_shared<HestonProcess>(
-                rTS, qTS, spot, v0, kappa, theta, sigma, rho)));
+        ext::make_shared<HestonModel>(ext::make_shared<HestonProcess>(rTS, qTS, spot, v0, kappa, theta, sigma, rho)));
 
-    const Handle<BlackVolTermStructure> vTS(
-        ext::make_shared<HestonBlackVolSurface>(
-            Handle<HestonModel>(hestonModel)));
+    const Handle<BlackVolTermStructure> vTS(ext::make_shared<HestonBlackVolSurface>(Handle<HestonModel>(hestonModel)));
 
     const ext::shared_ptr<GeneralizedBlackScholesProcess> bsProcess =
-        ext::make_shared<GeneralizedBlackScholesProcess>(
-            spot, qTS, rTS, vTS);
+        ext::make_shared<GeneralizedBlackScholesProcess>(spot, qTS, rTS, vTS);
 
     // Ornstein-Uhlenbeck
-    const Real speed   = -0.80;
-    const Real level   = 100;
+    const Real speed = -0.80;
+    const Real level = 100;
     const Real sigmaOU = 0.15;
-    const Real x0      = 100;
+    const Real x0 = 100;
 
     const ext::shared_ptr<OrnsteinUhlenbeckProcess> ouProcess(
-        ext::make_shared<OrnsteinUhlenbeckProcess>(
-            speed, sigmaOU, x0, level));
+        ext::make_shared<OrnsteinUhlenbeckProcess>(speed, sigmaOU, x0, level));
 
-    const ext::shared_ptr<Exercise> europeanExercise(
-        ext::make_shared<EuropeanExercise>(maturityDate));
+    const ext::shared_ptr<Exercise> europeanExercise(ext::make_shared<EuropeanExercise>(maturityDate));
 
-    VanillaOption vanillaOption(
-        ext::make_shared<PlainVanillaPayoff>(Option::Call, s0),
-        europeanExercise);
+    VanillaOption vanillaOption(ext::make_shared<PlainVanillaPayoff>(Option::Call, s0), europeanExercise);
 
-    vanillaOption.setPricingEngine(
-        ext::make_shared<AnalyticHestonEngine>(hestonModel));
+    vanillaOption.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(hestonModel));
 
     const Volatility atmVol = vanillaOption.impliedVolatility(
-        vanillaOption.NPV(),
-        ext::make_shared<GeneralizedBlackScholesProcess>(spot, qTS, rTS,
-            Handle<BlackVolTermStructure>(flatVol(std::sqrt(theta), dc))));
+        vanillaOption.NPV(), ext::make_shared<GeneralizedBlackScholesProcess>(
+                                 spot, qTS, rTS, Handle<BlackVolTermStructure>(flatVol(std::sqrt(theta), dc))));
 
     const ext::shared_ptr<PricingEngine> analyticEngine(
-        ext::make_shared<AnalyticDoubleBarrierBinaryEngine>(
-            ext::make_shared<GeneralizedBlackScholesProcess>(
-                spot, qTS, rTS,
-                Handle<BlackVolTermStructure>(flatVol(atmVol, dc)))));
+        ext::make_shared<AnalyticDoubleBarrierBinaryEngine>(ext::make_shared<GeneralizedBlackScholesProcess>(
+            spot, qTS, rTS, Handle<BlackVolTermStructure>(flatVol(atmVol, dc)))));
 
 
     std::vector<Date> maturities(1, todaysDate + Period(2, Weeks));
@@ -456,18 +415,16 @@ BOOST_AUTO_TEST_CASE(testMoustacheGraph, *precondition(if_speed(Slow))) {
     const Size n = 18;
     Array barrier_lo(n), barrier_hi(n), bsNPV(n);
 
-    const ext::shared_ptr<CashOrNothingPayoff> payoff =
-        ext::make_shared<CashOrNothingPayoff>(Option::Call, 0.0, 1.0);
+    const ext::shared_ptr<CashOrNothingPayoff> payoff = ext::make_shared<CashOrNothingPayoff>(Option::Call, 0.0, 1.0);
 
-    for (Size i=0; i < n; ++i) {
-        const Real dist = 10.0+5.0*i;
+    for (Size i = 0; i < n; ++i)
+    {
+        const Real dist = 10.0 + 5.0 * i;
 
         barrier_lo[i] = std::max(s0 - dist, 1e-2);
         barrier_hi[i] = s0 + dist;
-        DoubleBarrierOption doubleBarrier(
-            DoubleBarrier::KnockOut, barrier_lo[i], barrier_hi[i], 0.0,
-            payoff,
-            europeanExercise);
+        DoubleBarrierOption doubleBarrier(DoubleBarrier::KnockOut, barrier_lo[i], barrier_hi[i], 0.0, payoff,
+                                          europeanExercise);
 
         doubleBarrier.setPricingEngine(analyticEngine);
         bsNPV[i] = doubleBarrier.NPV();
@@ -480,58 +437,61 @@ BOOST_AUTO_TEST_CASE(testMoustacheGraph, *precondition(if_speed(Slow))) {
     const Size tSteps = 200;
     const TimeGrid grid(maturityTime, tSteps);
 
-    const ext::shared_ptr<PathGenerator<rsg_type> > pathGenerator =
-        ext::make_shared<PathGenerator<rsg_type> >(
-            ouProcess, grid, rsg_type(factors, tSteps), false);
+    const ext::shared_ptr<PathGenerator<rsg_type>> pathGenerator =
+        ext::make_shared<PathGenerator<rsg_type>>(ouProcess, grid, rsg_type(factors, tSteps), false);
 
     const Size nSims = 100000;
     std::vector<GeneralStatistics> stats(n);
     const DiscountFactor df = rTS->discount(maturityDate);
 
-    for (Size i=0; i < nSims; ++i) {
+    for (Size i = 0; i < nSims; ++i)
+    {
         std::vector<bool> touch(n, false);
 
         const sample_type& path = pathGenerator->next();
 
         Real s;
-        for (Size j=1; j <= tSteps; ++j) {
+        for (Size j = 1; j <= tSteps; ++j)
+        {
             const Time t = grid.at(j);
             s = g(t, path.value.at(j));
 
-            for (Size u=0; u < n; ++u) {
-                if (s <= barrier_lo[u] || s >= barrier_hi[u]) {
+            for (Size u = 0; u < n; ++u)
+            {
+                if (s <= barrier_lo[u] || s >= barrier_hi[u])
+                {
                     touch[u] = true;
                 }
             }
         }
-        for (Size u=0; u < n; ++u) {
-            if (touch[u]) {
+        for (Size u = 0; u < n; ++u)
+        {
+            if (touch[u])
+            {
                 stats[u].add(0.0);
             }
-            else {
-                stats[u].add(df*(*payoff)(s));
+            else
+            {
+                stats[u].add(df * (*payoff)(s));
             }
         }
     }
 
-    const Real expected[] = {
-            0.0093023407, 0.090099067, 0.13903052, 0.11206888, 0.059511722,
-            0.016627484, -0.0091168814, -0.020725808, -0.022513829,
-            -0.020280851, -0.015967361, -0.011476705, -0.0071604902,
-            -0.003219595, -0.00014875974, 0.0049910036, 0.0034770584,
-            0.0023821554};
+    const Real expected[] = {0.0093023407,  0.090099067,  0.13903052,     0.11206888,   0.059511722,  0.016627484,
+                             -0.0091168814, -0.020725808, -0.022513829,   -0.020280851, -0.015967361, -0.011476705,
+                             -0.0071604902, -0.003219595, -0.00014875974, 0.0049910036, 0.0034770584, 0.0023821554};
 
     const Real tol = 1e-5;
-    for (Size u=0; u < n; ++u) {
+    for (Size u = 0; u < n; ++u)
+    {
         const Real calculated = stats[u].mean() - bsNPV[u];
 
-        if (std::fabs(calculated - expected[u]) > tol) {
+        if (std::fabs(calculated - expected[u]) > tol)
+        {
             BOOST_FAIL("Failed to reproduce Double no Touch prices"
-                   << "\n    time:          " << maturityDate
-                   << "\n    barrier lower: " << barrier_lo[u]
-                   << "\n    barrier high:  " << barrier_hi[u]
-                   << "\n    calculated:    " << calculated
-                   << "\n    expected:      " << expected[u]);
+                       << "\n    time:          " << maturityDate << "\n    barrier lower: " << barrier_lo[u]
+                       << "\n    barrier high:  " << barrier_hi[u] << "\n    calculated:    " << calculated
+                       << "\n    expected:      " << expected[u]);
         }
     }
 }

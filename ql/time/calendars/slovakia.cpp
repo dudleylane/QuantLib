@@ -19,15 +19,18 @@
 
 #include <ql/time/calendars/slovakia.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Slovakia::Slovakia(Market) {
+    Slovakia::Slovakia(Market)
+    {
         // all calendar instances share the same implementation instance
         static ext::shared_ptr<Calendar::Impl> impl(new Slovakia::BsseImpl);
         impl_ = impl;
     }
 
-    bool Slovakia::BsseImpl::isBusinessDay(const Date& date) const {
+    bool Slovakia::BsseImpl::isBusinessDay(const Date& date) const
+    {
         Weekday w = date.weekday();
         Day d = date.dayOfMonth(), dd = date.dayOfYear();
         Month m = date.month();
@@ -39,7 +42,7 @@ namespace QuantLib {
             // Epiphany
             || (d == 6 && m == January)
             // Good Friday
-            || (dd == em-3)
+            || (dd == em - 3)
             // Easter Monday
             || (dd == em)
             // May Day
@@ -65,11 +68,9 @@ namespace QuantLib {
             // St. Stephen
             || (d == 26 && m == December)
             // unidentified closing days for stock exchange
-            || (d >= 24 && d <= 31 && m == December && y == 2004)
-            || (d >= 24 && d <= 31 && m == December && y == 2005))
+            || (d >= 24 && d <= 31 && m == December && y == 2004) || (d >= 24 && d <= 31 && m == December && y == 2005))
             return false; // NOLINT(readability-simplify-boolean-expr)
         return true;
     }
 
 }
-

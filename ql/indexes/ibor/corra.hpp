@@ -22,8 +22,10 @@
 
 #include <ql/indexes/iborindex.hpp>
 
-namespace QuantLib {
-    class Corra : public OvernightIndex {
+namespace QuantLib
+{
+    class Corra : public OvernightIndex
+    {
       public:
         explicit Corra(const Handle<YieldTermStructure>& h = {});
     };

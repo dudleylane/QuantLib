@@ -19,16 +19,18 @@
 */
 
 #include <ql/cashflow.hpp>
-#include <ql/settings.hpp>
 #include <ql/patterns/visitor.hpp>
+#include <ql/settings.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    bool CashFlow::hasOccurred(const Date& refDate,
-                               ext::optional<bool> includeRefDate) const {
+    bool CashFlow::hasOccurred(const Date& refDate, ext::optional<bool> includeRefDate) const
+    {
 
         // easy and quick handling of most cases
-        if (refDate != Date()) {
+        if (refDate != Date())
+        {
             Date cf = date();
             if (refDate < cf)
                 return false;
@@ -36,31 +38,31 @@ namespace QuantLib {
                 return true;
         }
 
-        if (refDate == Date() ||
-            refDate == Settings::instance().evaluationDate()) {
+        if (refDate == Date() || refDate == Settings::instance().evaluationDate())
+        {
             // today's date; we override the bool with the one
             // specified in the settings (if any)
-            ext::optional<bool> includeToday =
-                Settings::instance().includeTodaysCashFlows();
+            ext::optional<bool> includeToday = Settings::instance().includeTodaysCashFlows();
             if (includeToday.has_value())
                 includeRefDate = includeToday;
         }
         return Event::hasOccurred(refDate, includeRefDate);
     }
 
-    bool CashFlow::tradingExCoupon(const Date& refDate) const {
+    bool CashFlow::tradingExCoupon(const Date& refDate) const
+    {
 
         Date ecd = exCouponDate();
         if (ecd == Date())
             return false;
 
-        Date ref =
-            refDate != Date() ? refDate : Settings::instance().evaluationDate();
+        Date ref = refDate != Date() ? refDate : Settings::instance().evaluationDate();
 
         return ecd <= ref;
     }
 
-    void CashFlow::accept(AcyclicVisitor& v) {
+    void CashFlow::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<CashFlow>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);

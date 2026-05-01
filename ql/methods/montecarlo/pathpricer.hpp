@@ -29,20 +29,22 @@
 #include <ql/types.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! base class for path pricers
     /*! Returns the value of an option on a given path.
 
         \ingroup mcarlo
     */
-    template<class PathType, class ValueType=Real>
-    class PathPricer {
+    template <class PathType, class ValueType = Real>
+    class PathPricer
+    {
       public:
         typedef ValueType result_type;
 
         virtual ~PathPricer() = default;
-        virtual ValueType operator()(const PathType& path) const=0;
+        virtual ValueType operator()(const PathType& path) const = 0;
     };
 
 }

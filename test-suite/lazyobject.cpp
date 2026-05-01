@@ -30,11 +30,14 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(LazyObjectTests)
 
-class TearDown { // NOLINT(cppcoreguidelines-special-member-functions)
+class TearDown
+{ // NOLINT(cppcoreguidelines-special-member-functions)
     bool alwaysForward;
+
   public:
     TearDown() : alwaysForward(LazyObject::Defaults::instance().forwardsAllNotifications()) {}
-    ~TearDown() {
+    ~TearDown()
+    {
         if (alwaysForward)
             LazyObject::Defaults::instance().alwaysForwardNotifications();
         else
@@ -43,7 +46,8 @@ class TearDown { // NOLINT(cppcoreguidelines-special-member-functions)
 };
 
 
-BOOST_AUTO_TEST_CASE(testDiscardingNotifications) {
+BOOST_AUTO_TEST_CASE(testDiscardingNotifications)
+{
 
     BOOST_TEST_MESSAGE("Testing that lazy objects can discard notifications after the first against default...");
 
@@ -76,7 +80,8 @@ BOOST_AUTO_TEST_CASE(testDiscardingNotifications) {
         BOOST_FAIL("Observer was not notified of change after recalculation");
 }
 
-BOOST_AUTO_TEST_CASE(testDiscardingNotificationsByDefault) {
+BOOST_AUTO_TEST_CASE(testDiscardingNotificationsByDefault)
+{
 
     BOOST_TEST_MESSAGE("Testing that lazy objects can discard notifications after the first by default...");
 
@@ -107,7 +112,8 @@ BOOST_AUTO_TEST_CASE(testDiscardingNotificationsByDefault) {
         BOOST_FAIL("Observer was not notified of change after recalculation");
 }
 
-BOOST_AUTO_TEST_CASE(testForwardingNotificationsByDefault) {
+BOOST_AUTO_TEST_CASE(testForwardingNotificationsByDefault)
+{
 
     BOOST_TEST_MESSAGE("Testing that lazy objects can forward all notifications by default...");
 
@@ -132,7 +138,8 @@ BOOST_AUTO_TEST_CASE(testForwardingNotificationsByDefault) {
         BOOST_FAIL("Observer was not notified of second change");
 }
 
-BOOST_AUTO_TEST_CASE(testForwardingNotifications) {
+BOOST_AUTO_TEST_CASE(testForwardingNotifications)
+{
 
     BOOST_TEST_MESSAGE("Testing that lazy objects can forward all notifications against default...");
 
@@ -159,7 +166,8 @@ BOOST_AUTO_TEST_CASE(testForwardingNotifications) {
         BOOST_FAIL("Observer was not notified of second change");
 }
 
-BOOST_AUTO_TEST_CASE(testNotificationLoop) {
+BOOST_AUTO_TEST_CASE(testNotificationLoop)
+{
 
     BOOST_TEST_MESSAGE("Testing that lazy objects manage recursive notifications...");
 
@@ -178,8 +186,7 @@ BOOST_AUTO_TEST_CASE(testNotificationLoop) {
 
 #ifdef QL_THROW_IN_CYCLES
 
-    BOOST_CHECK_EXCEPTION(q->setValue(2.0), Error,
-                          ExpectedErrorMessage("recursive notification loop detected"));
+    BOOST_CHECK_EXCEPTION(q->setValue(2.0), Error, ExpectedErrorMessage("recursive notification loop detected"));
 
 #else
 
@@ -199,7 +206,8 @@ BOOST_AUTO_TEST_CASE(testNotificationLoop) {
     s3->unregisterWithAll();
 }
 
-BOOST_AUTO_TEST_CASE(testNotificationAfterFailedCalculation) {
+BOOST_AUTO_TEST_CASE(testNotificationAfterFailedCalculation)
+{
 
     BOOST_TEST_MESSAGE("Testing that lazy objects forward notifications after a failed calculation...");
 
@@ -208,12 +216,15 @@ BOOST_AUTO_TEST_CASE(testNotificationAfterFailedCalculation) {
     LazyObject::Defaults::instance().forwardFirstNotificationOnly();
 
     // a lazy object whose performCalculations() can be made to fail
-    class Failing : public LazyObject {
+    class Failing : public LazyObject
+    {
         mutable bool fail_ = false;
+
       public:
         void failOnCalculation(bool b) { fail_ = b; }
         void doCalculate() const { calculate(); }
-        void performCalculations() const override {
+        void performCalculations() const override
+        {
             if (fail_)
                 QL_FAIL("intentional failure");
         }
@@ -236,8 +247,7 @@ BOOST_AUTO_TEST_CASE(testNotificationAfterFailedCalculation) {
 
     // failed calculation
     s->failOnCalculation(true);
-    BOOST_CHECK_EXCEPTION(s->doCalculate(), Error,
-                          ExpectedErrorMessage("intentional failure"));
+    BOOST_CHECK_EXCEPTION(s->doCalculate(), Error, ExpectedErrorMessage("intentional failure"));
 
     if (f.isUp())
         BOOST_FAIL("Observer was notified by failed calculation itself");

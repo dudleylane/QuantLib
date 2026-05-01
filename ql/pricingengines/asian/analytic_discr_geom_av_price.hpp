@@ -28,7 +28,8 @@
 #include <ql/instruments/asianoption.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Pricing engine for European discrete geometric average price Asian
     /*! This class implements a discrete geometric average price Asian
@@ -46,11 +47,10 @@ namespace QuantLib {
 
         \ingroup asianengines
     */
-    class AnalyticDiscreteGeometricAveragePriceAsianEngine
-        : public DiscreteAveragingAsianOption::engine {
+    class AnalyticDiscreteGeometricAveragePriceAsianEngine : public DiscreteAveragingAsianOption::engine
+    {
       public:
-        AnalyticDiscreteGeometricAveragePriceAsianEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess> process);
+        AnalyticDiscreteGeometricAveragePriceAsianEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process);
         void calculate() const override;
 
       private:

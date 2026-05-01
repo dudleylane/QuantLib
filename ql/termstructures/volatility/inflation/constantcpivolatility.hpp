@@ -26,12 +26,14 @@
 
 #include <ql/termstructures/volatility/inflation/cpivolatilitystructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Quote;
 
     //! Constant surface, no K or T dependence.
-    class ConstantCPIVolatility : public CPIVolatilitySurface {
+    class ConstantCPIVolatility : public CPIVolatilitySurface
+    {
       public:
         //! \name Constructors
         //@{
@@ -70,4 +72,3 @@ namespace QuantLib {
 }
 
 #endif
-

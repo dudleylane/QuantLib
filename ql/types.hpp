@@ -28,7 +28,8 @@
 #include <ql/qldefines.hpp>
 #include <cstddef>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! integer number
     /*! \ingroup types */

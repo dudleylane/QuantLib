@@ -24,12 +24,13 @@
 #ifndef quantlib_fd_simple_ext_ou_jump_swing_engine_hpp
 #define quantlib_fd_simple_ext_ou_jump_swing_engine_hpp
 
-#include <ql/pricingengine.hpp>
+#include <ql/experimental/finitedifferences/fdmextoujumpmodelinnervalue.hpp>
 #include <ql/instruments/vanillaswingoption.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
-#include <ql/experimental/finitedifferences/fdmextoujumpmodelinnervalue.hpp>
+#include <ql/pricingengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Finite-Differences engine for simple swing options
 
@@ -37,19 +38,18 @@ namespace QuantLib {
     class ExtOUWithJumpsProcess;
 
     class FdSimpleExtOUJumpSwingEngine
-        : public GenericEngine<VanillaSwingOption::arguments,
-                               VanillaSwingOption::results> {
+    : public GenericEngine<VanillaSwingOption::arguments, VanillaSwingOption::results>
+    {
       public:
         typedef FdmExtOUJumpModelInnerValue::Shape Shape;
 
-        FdSimpleExtOUJumpSwingEngine(
-            ext::shared_ptr<ExtOUWithJumpsProcess> p,
-            ext::shared_ptr<YieldTermStructure> rTS,
-            Size tGrid = 50,
-            Size xGrid = 200,
-            Size yGrid = 50,
-            ext::shared_ptr<Shape> shape = ext::shared_ptr<Shape>(),
-            const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Hundsdorfer());
+        FdSimpleExtOUJumpSwingEngine(ext::shared_ptr<ExtOUWithJumpsProcess> p,
+                                     ext::shared_ptr<YieldTermStructure> rTS,
+                                     Size tGrid = 50,
+                                     Size xGrid = 200,
+                                     Size yGrid = 50,
+                                     ext::shared_ptr<Shape> shape = ext::shared_ptr<Shape>(),
+                                     const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Hundsdorfer());
 
         void calculate() const override;
 
@@ -63,4 +63,3 @@ namespace QuantLib {
 }
 
 #endif
-

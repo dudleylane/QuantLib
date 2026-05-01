@@ -17,49 +17,70 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/math/factorial.hpp>
-#include <ql/math/distributions/gammadistribution.hpp>
 #include <ql/errors.hpp>
+#include <ql/math/distributions/gammadistribution.hpp>
+#include <ql/math/factorial.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
+    namespace
+    {
 
-        const double firstFactorials[] = {
-                                   1.0,                                   1.0,
-                                   2.0,                                   6.0,
-                                  24.0,                                 120.0,
-                                 720.0,                                5040.0,
-                               40320.0,                              362880.0,
-                             3628800.0,                            39916800.0,
-                           479001600.0,                          6227020800.0,
-                         87178291200.0,                       1307674368000.0,
-                      20922789888000.0,                     355687428096000.0,
-                    6402373705728000.0,                  121645100408832000.0,
-                 2432902008176640000.0,                51090942171709440000.0,
-              1124000727777607680000.0,             25852016738884976640000.0,
-            620448401733239439360000.0,          15511210043330985984000000.0,
-         403291461126605635584000000.0,       10888869450418352160768000000.0
-        };
+        const double firstFactorials[] = {1.0,
+                                          1.0,
+                                          2.0,
+                                          6.0,
+                                          24.0,
+                                          120.0,
+                                          720.0,
+                                          5040.0,
+                                          40320.0,
+                                          362880.0,
+                                          3628800.0,
+                                          39916800.0,
+                                          479001600.0,
+                                          6227020800.0,
+                                          87178291200.0,
+                                          1307674368000.0,
+                                          20922789888000.0,
+                                          355687428096000.0,
+                                          6402373705728000.0,
+                                          121645100408832000.0,
+                                          2432902008176640000.0,
+                                          51090942171709440000.0,
+                                          1124000727777607680000.0,
+                                          25852016738884976640000.0,
+                                          620448401733239439360000.0,
+                                          15511210043330985984000000.0,
+                                          403291461126605635584000000.0,
+                                          10888869450418352160768000000.0};
 
-        const Size tabulated =
-            sizeof(firstFactorials)/sizeof(firstFactorials[0])-1;
+        const Size tabulated = sizeof(firstFactorials) / sizeof(firstFactorials[0]) - 1;
 
     }
 
-    Real Factorial::get(Natural i) {
-        if (i<=tabulated) {
+    Real Factorial::get(Natural i)
+    {
+        if (i <= tabulated)
+        {
             return firstFactorials[i];
-        } else {
-            return std::exp(GammaFunction().logValue(i+1));
+        }
+        else
+        {
+            return std::exp(GammaFunction().logValue(i + 1));
         }
     }
 
-    Real Factorial::ln(Natural i) {
-        if (i<=tabulated) {
+    Real Factorial::ln(Natural i)
+    {
+        if (i <= tabulated)
+        {
             return std::log(firstFactorials[i]);
-        } else {
-            return GammaFunction().logValue(i+1);
+        }
+        else
+        {
+            return GammaFunction().logValue(i + 1);
         }
     }
 

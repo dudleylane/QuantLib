@@ -24,12 +24,13 @@
 #ifndef quantlib_tibor_hpp
 #define quantlib_tibor_hpp
 
+#include <ql/currencies/asia.hpp>
 #include <ql/indexes/iborindex.hpp>
 #include <ql/time/calendars/japan.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
-#include <ql/currencies/asia.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %JPY %TIBOR index
     /*! Tokyo Interbank Offered Rate.
@@ -39,13 +40,13 @@ namespace QuantLib {
 
         \todo check settlement days and end-of-month adjustment.
     */
-    class Tibor : public IborIndex {
+    class Tibor : public IborIndex
+    {
       public:
-        Tibor(const Period& tenor,
-              const Handle<YieldTermStructure>& h = {})
-        : IborIndex("Tibor", tenor, 2, JPYCurrency(),
-                    Japan(), ModifiedFollowing,
-                    false, Actual365Fixed(), h) {}
+        Tibor(const Period& tenor, const Handle<YieldTermStructure>& h = {})
+        : IborIndex("Tibor", tenor, 2, JPYCurrency(), Japan(), ModifiedFollowing, false, Actual365Fixed(), h)
+        {
+        }
     };
 
 }

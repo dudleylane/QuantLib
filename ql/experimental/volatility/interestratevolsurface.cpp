@@ -20,37 +20,46 @@
 #include <ql/experimental/volatility/interestratevolsurface.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     InterestRateVolSurface::InterestRateVolSurface(ext::shared_ptr<InterestRateIndex> index,
                                                    BusinessDayConvention bdc,
                                                    const DayCounter& dc)
-    : BlackVolSurface(bdc, dc), index_(std::move(index)) {}
+    : BlackVolSurface(bdc, dc), index_(std::move(index))
+    {
+    }
 
     InterestRateVolSurface::InterestRateVolSurface(ext::shared_ptr<InterestRateIndex> index,
                                                    const Date& refDate,
                                                    const Calendar& cal,
                                                    BusinessDayConvention bdc,
                                                    const DayCounter& dc)
-    : BlackVolSurface(refDate, cal, bdc, dc), index_(std::move(index)) {}
+    : BlackVolSurface(refDate, cal, bdc, dc), index_(std::move(index))
+    {
+    }
 
     InterestRateVolSurface::InterestRateVolSurface(ext::shared_ptr<InterestRateIndex> index,
                                                    Natural settlDays,
                                                    const Calendar& cal,
                                                    BusinessDayConvention bdc,
                                                    const DayCounter& dc)
-    : BlackVolSurface(settlDays, cal, bdc, dc), index_(std::move(index)) {}
+    : BlackVolSurface(settlDays, cal, bdc, dc), index_(std::move(index))
+    {
+    }
 
-    Date InterestRateVolSurface::optionDateFromTenor(const Period& p) const {
+    Date InterestRateVolSurface::optionDateFromTenor(const Period& p) const
+    {
         ext::shared_ptr<InterestRateIndex> i = index();
         // optionlet style
         Date refDate = i->fixingCalendar().adjust(referenceDate(), Following);
         Date settlement = i->valueDate(refDate);
-        Date start = settlement+p;
+        Date start = settlement + p;
         return i->fixingDate(start);
     }
 
-    void InterestRateVolSurface::accept(AcyclicVisitor& v) {
+    void InterestRateVolSurface::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<InterestRateVolSurface>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);

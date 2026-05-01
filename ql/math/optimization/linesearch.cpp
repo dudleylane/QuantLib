@@ -17,30 +17,30 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/math/optimization/constraint.hpp>
 #include <ql/math/optimization/linesearch.hpp>
 #include <ql/math/optimization/problem.hpp>
-#include <ql/math/optimization/constraint.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Real LineSearch::update(Array& params,
-                            const Array& direction,
-                            Real beta,
-                            const Constraint& constraint) {
+    Real LineSearch::update(Array& params, const Array& direction, Real beta, const Constraint& constraint)
+    {
 
-        Real diff=beta;
-        Array newParams = params + diff*direction;
+        Real diff = beta;
+        Array newParams = params + diff * direction;
         bool valid = constraint.test(newParams);
         Integer icount = 0;
-        while (!valid) {
+        while (!valid)
+        {
             if (icount > 200)
                 QL_FAIL("can't update linesearch");
             diff *= 0.5;
-            icount ++;
-            newParams = params + diff*direction;
+            icount++;
+            newParams = params + diff * direction;
             valid = constraint.test(newParams);
         }
-        params += diff*direction;
+        params += diff * direction;
         return diff;
     }
 

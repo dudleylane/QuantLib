@@ -22,18 +22,19 @@
 
 // Macros for forcing the compiler not to inline code
 // For now only used here, but could move this to a common header if necessary
-#if defined(BOOST_MSVC)       // Microsoft Visual C++
-#define QL_FORCE_NONINLINE __declspec(noinline)
+#if defined(BOOST_MSVC) // Microsoft Visual C++
+#    define QL_FORCE_NONINLINE __declspec(noinline)
 #elif defined(__GNUC__) || defined(__clang__)
-#define QL_FORCE_NONINLINE __attribute__((noinline))
+#    define QL_FORCE_NONINLINE __attribute__((noinline))
 #else
 // we don't know how to enable it, just define the macro away and emit a warning
-#define QL_FORCE_NONINLINE
-#warning QL_FORCE_NONINLINE is not implemented on this platform
+#    define QL_FORCE_NONINLINE
+#    warning QL_FORCE_NONINLINE is not implemented on this platform
 #endif
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     QL_FORCE_NONINLINE std::size_t compiledBoostVersion()
     {

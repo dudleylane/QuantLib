@@ -21,63 +21,66 @@
 #include <iomanip>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Commodity::Commodity(ext::shared_ptr<SecondaryCosts> secondaryCosts)
-    : secondaryCosts_(std::move(secondaryCosts)) {}
+    Commodity::Commodity(ext::shared_ptr<SecondaryCosts> secondaryCosts) : secondaryCosts_(std::move(secondaryCosts)) {}
 
-    const SecondaryCostAmounts& Commodity::secondaryCostAmounts() const {
+    const SecondaryCostAmounts& Commodity::secondaryCostAmounts() const
+    {
         return secondaryCostAmounts_;
     }
 
-    const PricingErrors& Commodity::pricingErrors() const {
+    const PricingErrors& Commodity::pricingErrors() const
+    {
         return pricingErrors_;
     }
 
     void Commodity::addPricingError(PricingError::Level errorLevel,
                                     const std::string& error,
-                                    const std::string& detail) const {
+                                    const std::string& detail) const
+    {
         pricingErrors_.emplace_back(errorLevel, error, detail);
     }
 
 
-    std::ostream& operator<<(std::ostream& out,
-                             const SecondaryCostAmounts& secondaryCostAmounts) {
+    std::ostream& operator<<(std::ostream& out, const SecondaryCostAmounts& secondaryCostAmounts)
+    {
         std::string currencyCode;
         Real totalAmount = 0;
 
         out << "secondary costs" << std::endl;
-        for (const auto& secondaryCostAmount : secondaryCostAmounts) {
+        for (const auto& secondaryCostAmount : secondaryCostAmounts)
+        {
             Real amount = secondaryCostAmount.second.value();
             if (currencyCode.empty())
                 currencyCode = secondaryCostAmount.second.currency().code();
             totalAmount += amount;
-            out << std::setw(28) << std::left << secondaryCostAmount.first << std::setw(12)
-                << std::right << std::fixed << std::setprecision(2) << amount << " " << currencyCode
-                << std::endl;
+            out << std::setw(28) << std::left << secondaryCostAmount.first << std::setw(12) << std::right << std::fixed
+                << std::setprecision(2) << amount << " " << currencyCode << std::endl;
         }
-        out << std::setw(28) << std::left << "total"
-            << std::setw(12) << std::right << std::fixed
-            << std::setprecision(2) << totalAmount << " " << currencyCode
-            << std::endl;
+        out << std::setw(28) << std::left << "total" << std::setw(12) << std::right << std::fixed
+            << std::setprecision(2) << totalAmount << " " << currencyCode << std::endl;
         return out;
     }
 
 
-    std::ostream& operator<<(std::ostream& out, const PricingError& error) {
-        switch (error.errorLevel) {
-          case PricingError::Info:
-            out << "info: ";
-            break;
-          case PricingError::Warning:
-            out << "warning: ";
-            break;
-          case PricingError::Error:
-            out << "*** error: ";
-            break;
-          case PricingError::Fatal:
-            out << "*** fatal: ";
-            break;
+    std::ostream& operator<<(std::ostream& out, const PricingError& error)
+    {
+        switch (error.errorLevel)
+        {
+            case PricingError::Info:
+                out << "info: ";
+                break;
+            case PricingError::Warning:
+                out << "warning: ";
+                break;
+            case PricingError::Error:
+                out << "*** error: ";
+                break;
+            case PricingError::Fatal:
+                out << "*** fatal: ";
+                break;
         }
         out << error.error;
         if (!error.detail.empty())
@@ -85,8 +88,10 @@ namespace QuantLib {
         return out;
     }
 
-    std::ostream& operator<<(std::ostream& out, const PricingErrors& errors) {
-        if (!errors.empty()) {
+    std::ostream& operator<<(std::ostream& out, const PricingErrors& errors)
+    {
+        if (!errors.empty())
+        {
             out << "*** pricing errors" << std::endl;
             for (const auto& error : errors)
                 out << error << std::endl;
@@ -95,4 +100,3 @@ namespace QuantLib {
     }
 
 }
-

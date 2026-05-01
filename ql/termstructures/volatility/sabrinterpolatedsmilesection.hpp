@@ -27,61 +27,60 @@
 #define quantlib_sabr_interpolated_smile_section_hpp
 
 #include <ql/handle.hpp>
+#include <ql/math/interpolations/sabrinterpolation.hpp>
 #include <ql/patterns/lazyobject.hpp>
 #include <ql/termstructures/volatility/smilesection.hpp>
-#include <ql/math/interpolations/sabrinterpolation.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Quote;
-    class SabrInterpolatedSmileSection : public SmileSection,
-                                         public LazyObject {
+    class SabrInterpolatedSmileSection : public SmileSection, public LazyObject
+    {
       public:
         //! \name Constructors
         //@{
         //! all market data are quotes
-        SabrInterpolatedSmileSection(
-            const Date& optionDate,
-            Handle<Quote> forward,
-            const std::vector<Rate>& strikes,
-            bool hasFloatingStrikes,
-            Handle<Quote> atmVolatility,
-            const std::vector<Handle<Quote> >& volHandles,
-            Real alpha,
-            Real beta,
-            Real nu,
-            Real rho,
-            bool isAlphaFixed = false,
-            bool isBetaFixed = false,
-            bool isNuFixed = false,
-            bool isRhoFixed = false,
-            bool vegaWeighted = true,
-            ext::shared_ptr<EndCriteria> endCriteria = ext::shared_ptr<EndCriteria>(),
-            ext::shared_ptr<OptimizationMethod> method = ext::shared_ptr<OptimizationMethod>(),
-            const DayCounter& dc = Actual365Fixed(),
-            Real shift = 0.0);
+        SabrInterpolatedSmileSection(const Date& optionDate,
+                                     Handle<Quote> forward,
+                                     const std::vector<Rate>& strikes,
+                                     bool hasFloatingStrikes,
+                                     Handle<Quote> atmVolatility,
+                                     const std::vector<Handle<Quote>>& volHandles,
+                                     Real alpha,
+                                     Real beta,
+                                     Real nu,
+                                     Real rho,
+                                     bool isAlphaFixed = false,
+                                     bool isBetaFixed = false,
+                                     bool isNuFixed = false,
+                                     bool isRhoFixed = false,
+                                     bool vegaWeighted = true,
+                                     ext::shared_ptr<EndCriteria> endCriteria = ext::shared_ptr<EndCriteria>(),
+                                     ext::shared_ptr<OptimizationMethod> method = ext::shared_ptr<OptimizationMethod>(),
+                                     const DayCounter& dc = Actual365Fixed(),
+                                     Real shift = 0.0);
         //! no quotes
-        SabrInterpolatedSmileSection(
-            const Date& optionDate,
-            const Rate& forward,
-            const std::vector<Rate>& strikes,
-            bool hasFloatingStrikes,
-            const Volatility& atmVolatility,
-            const std::vector<Volatility>& vols,
-            Real alpha,
-            Real beta,
-            Real nu,
-            Real rho,
-            bool isAlphaFixed = false,
-            bool isBetaFixed = false,
-            bool isNuFixed = false,
-            bool isRhoFixed = false,
-            bool vegaWeighted = true,
-            ext::shared_ptr<EndCriteria> endCriteria = ext::shared_ptr<EndCriteria>(),
-            ext::shared_ptr<OptimizationMethod> method = ext::shared_ptr<OptimizationMethod>(),
-            const DayCounter& dc = Actual365Fixed(),
-            Real shift = 0.0);
+        SabrInterpolatedSmileSection(const Date& optionDate,
+                                     const Rate& forward,
+                                     const std::vector<Rate>& strikes,
+                                     bool hasFloatingStrikes,
+                                     const Volatility& atmVolatility,
+                                     const std::vector<Volatility>& vols,
+                                     Real alpha,
+                                     Real beta,
+                                     Real nu,
+                                     Real rho,
+                                     bool isAlphaFixed = false,
+                                     bool isBetaFixed = false,
+                                     bool isNuFixed = false,
+                                     bool isRhoFixed = false,
+                                     bool vegaWeighted = true,
+                                     ext::shared_ptr<EndCriteria> endCriteria = ext::shared_ptr<EndCriteria>(),
+                                     ext::shared_ptr<OptimizationMethod> method = ext::shared_ptr<OptimizationMethod>(),
+                                     const DayCounter& dc = Actual365Fixed(),
+                                     Real shift = 0.0);
         //@}
         //! \name LazyObject interface
         //@{
@@ -108,7 +107,6 @@ namespace QuantLib {
         //@}
 
       protected:
-
         //! Creates the mutable SABRInterpolation
         void createInterpolation() const;
         mutable ext::shared_ptr<SABRInterpolation> sabrInterpolation_;
@@ -116,7 +114,7 @@ namespace QuantLib {
         //! Market data
         const Handle<Quote> forward_;
         const Handle<Quote> atmVolatility_;
-        std::vector<Handle<Quote> > volHandles_;
+        std::vector<Handle<Quote>> volHandles_;
         mutable std::vector<Rate> strikes_;
         //! Only strikes corresponding to valid market data
         mutable std::vector<Rate> actualStrikes_;
@@ -135,63 +133,74 @@ namespace QuantLib {
         mutable Date evaluationDate_;
     };
 
-    inline void SabrInterpolatedSmileSection::update() {
+    inline void SabrInterpolatedSmileSection::update()
+    {
         LazyObject::update();
         SmileSection::update();
     }
 
-    inline Real SabrInterpolatedSmileSection::volatilityImpl(Rate strike) const {
+    inline Real SabrInterpolatedSmileSection::volatilityImpl(Rate strike) const
+    {
         calculate();
         return (*sabrInterpolation_)(strike, true);
     }
 
-    inline Real SabrInterpolatedSmileSection::alpha() const {
+    inline Real SabrInterpolatedSmileSection::alpha() const
+    {
         calculate();
         return sabrInterpolation_->alpha();
     }
 
-    inline Real SabrInterpolatedSmileSection::beta() const {
+    inline Real SabrInterpolatedSmileSection::beta() const
+    {
         calculate();
         return sabrInterpolation_->beta();
     }
 
-    inline Real SabrInterpolatedSmileSection::nu() const {
+    inline Real SabrInterpolatedSmileSection::nu() const
+    {
         calculate();
         return sabrInterpolation_->nu();
     }
 
-    inline Real SabrInterpolatedSmileSection::rho() const {
+    inline Real SabrInterpolatedSmileSection::rho() const
+    {
         calculate();
         return sabrInterpolation_->rho();
     }
 
-    inline Real SabrInterpolatedSmileSection::rmsError() const {
+    inline Real SabrInterpolatedSmileSection::rmsError() const
+    {
         calculate();
         return sabrInterpolation_->rmsError();
     }
 
-    inline Real SabrInterpolatedSmileSection::maxError() const {
+    inline Real SabrInterpolatedSmileSection::maxError() const
+    {
         calculate();
         return sabrInterpolation_->maxError();
     }
 
-    inline EndCriteria::Type SabrInterpolatedSmileSection::endCriteria() const {
+    inline EndCriteria::Type SabrInterpolatedSmileSection::endCriteria() const
+    {
         calculate();
         return sabrInterpolation_->endCriteria();
     }
 
-    inline Real SabrInterpolatedSmileSection::minStrike() const {
+    inline Real SabrInterpolatedSmileSection::minStrike() const
+    {
         calculate();
         return actualStrikes_.front();
-
     }
 
-    inline Real SabrInterpolatedSmileSection::maxStrike() const {
+    inline Real SabrInterpolatedSmileSection::maxStrike() const
+    {
         calculate();
         return actualStrikes_.back();
     }
 
-    inline Real SabrInterpolatedSmileSection::atmLevel() const {
+    inline Real SabrInterpolatedSmileSection::atmLevel() const
+    {
         calculate();
         return forwardValue_;
     }

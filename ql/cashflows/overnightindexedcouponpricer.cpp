@@ -25,15 +25,16 @@
 #include <ql/cashflows/overnightindexedcouponpricer.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
+    namespace
+    {
 
-        Size determineNumberOfFixings(const std::vector<Date>& interestDates,
-                                      const Date& date,
-                                      bool applyObservationShift) {
-            Size n = std::lower_bound(interestDates.begin(), interestDates.end(), date) -
-                     interestDates.begin();
+        Size
+        determineNumberOfFixings(const std::vector<Date>& interestDates, const Date& date, bool applyObservationShift)
+        {
+            Size n = std::lower_bound(interestDates.begin(), interestDates.end(), date) - interestDates.begin();
             // When using the observation shift, it may happen that
             // that the end of accrual period will fall later than the last
             // interest date. In which case, n will be equal to the number of
@@ -43,44 +44,56 @@ namespace QuantLib {
         }
     }
 
-    OvernightIndexedCouponPricer::OvernightIndexedCouponPricer(
-            Handle<OptionletVolatilityStructure> v,
-            const bool effectiveVolatilityInput)
-        : capletVol_(std::move(v)),
-          effectiveVolatilityInput_(effectiveVolatilityInput) {
+    OvernightIndexedCouponPricer::OvernightIndexedCouponPricer(Handle<OptionletVolatilityStructure> v,
+                                                               const bool effectiveVolatilityInput)
+    : capletVol_(std::move(v)), effectiveVolatilityInput_(effectiveVolatilityInput)
+    {
         registerWith(capletVol_);
     }
 
-    void OvernightIndexedCouponPricer::initialize(const FloatingRateCoupon& coupon) {
-        if (const auto *cfCoupon = dynamic_cast<const CappedFlooredOvernightIndexedCoupon*>(&coupon)) {
-            auto *underlying = cfCoupon->underlying().get();
-            QL_REQUIRE(underlying, "OvernightIndexedCouponPricer: CappedFlooredOvernightIndexedCoupon underlying coupon not defined");
+    void OvernightIndexedCouponPricer::initialize(const FloatingRateCoupon& coupon)
+    {
+        if (const auto* cfCoupon = dynamic_cast<const CappedFlooredOvernightIndexedCoupon*>(&coupon))
+        {
+            auto* underlying = cfCoupon->underlying().get();
+            QL_REQUIRE(
+                underlying,
+                "OvernightIndexedCouponPricer: CappedFlooredOvernightIndexedCoupon underlying coupon not defined");
             coupon_ = cfCoupon->underlying().get();
-        } else if (const auto *onCoupon = dynamic_cast<const OvernightIndexedCoupon*>(&coupon)) {
+        }
+        else if (const auto* onCoupon = dynamic_cast<const OvernightIndexedCoupon*>(&coupon))
+        {
             coupon_ = onCoupon;
-        } else {
+        }
+        else
+        {
             QL_FAIL("OvernightIndexedCouponPricer: unsupported coupon type");
         }
     }
 
-    bool OvernightIndexedCouponPricer::effectiveVolatilityInput() const {
+    bool OvernightIndexedCouponPricer::effectiveVolatilityInput() const
+    {
         return effectiveVolatilityInput_;
     }
 
-    Real OvernightIndexedCouponPricer::effectiveCapletVolatility() const {
+    Real OvernightIndexedCouponPricer::effectiveCapletVolatility() const
+    {
         return effectiveCapletVolatility_;
     }
 
-    Real OvernightIndexedCouponPricer::effectiveFloorletVolatility() const {
+    Real OvernightIndexedCouponPricer::effectiveFloorletVolatility() const
+    {
         return effectiveFloorletVolatility_;
     }
-    
-    CompoundingOvernightIndexedCouponPricer::CompoundingOvernightIndexedCouponPricer(
-            Handle<OptionletVolatilityStructure> v,
-            const bool effectiveVolatilityInput)
-        : OvernightIndexedCouponPricer(std::move(v), effectiveVolatilityInput) {}
 
-    Rate CompoundingOvernightIndexedCouponPricer::swapletRate() const {
+    CompoundingOvernightIndexedCouponPricer::CompoundingOvernightIndexedCouponPricer(
+        Handle<OptionletVolatilityStructure> v, const bool effectiveVolatilityInput)
+    : OvernightIndexedCouponPricer(std::move(v), effectiveVolatilityInput)
+    {
+    }
+
+    Rate CompoundingOvernightIndexedCouponPricer::swapletRate() const
+    {
         auto [swapletRate, effectiveSpread, effectiveIndexFixing] = compute(coupon_->accrualEndDate());
         swapletRate_ = swapletRate;
         effectiveSpread_ = effectiveSpread;
@@ -88,25 +101,29 @@ namespace QuantLib {
         return swapletRate;
     }
 
-    Rate CompoundingOvernightIndexedCouponPricer::averageRate(const Date& date) const {
+    Rate CompoundingOvernightIndexedCouponPricer::averageRate(const Date& date) const
+    {
         auto [rate, effectiveSpread, effectiveIndexFixing] = compute(date);
         return rate;
     }
 
-    Rate CompoundingOvernightIndexedCouponPricer::effectiveSpread() const {
+    Rate CompoundingOvernightIndexedCouponPricer::effectiveSpread() const
+    {
         auto [r, effectiveSpread, effectiveIndexFixing] = compute(coupon_->accrualEndDate());
         effectiveSpread_ = effectiveSpread;
         return effectiveSpread_;
     }
 
-    Rate CompoundingOvernightIndexedCouponPricer::effectiveIndexFixing() const {
+    Rate CompoundingOvernightIndexedCouponPricer::effectiveIndexFixing() const
+    {
         auto [r, effectiveSpread, effectiveIndexFixing] = compute(coupon_->accrualEndDate());
         effectiveIndexFixing_ = effectiveIndexFixing;
         return effectiveIndexFixing_;
     }
 
-    std::tuple<Rate, Spread, Rate> CompoundingOvernightIndexedCouponPricer::compute(const Date& date) const {
-	    const Date today = Settings::instance().evaluationDate();
+    std::tuple<Rate, Spread, Rate> CompoundingOvernightIndexedCouponPricer::compute(const Date& date) const
+    {
+        const Date today = Settings::instance().evaluationDate();
 
         const ext::shared_ptr<OvernightIndex> index = ext::dynamic_pointer_cast<OvernightIndex>(coupon_->index());
         const auto& pastFixings = index->timeSeries();
@@ -116,7 +133,7 @@ namespace QuantLib {
         const auto& interestDates = coupon_->interestDates();
         const auto& dt = coupon_->dt();
         const bool applyObservationShift = coupon_->applyObservationShift();
-	    Real couponSpread = coupon_->spread();
+        Real couponSpread = coupon_->spread();
 
         Size i = 0;
         const Size n = determineNumberOfFixings(interestDates, date, applyObservationShift);
@@ -124,15 +141,15 @@ namespace QuantLib {
         Real compoundFactor = 1.0, compoundFactorWithoutSpread = 1.0;
 
         // already fixed part
-        while (i < n && fixingDates[i] < today) {
+        while (i < n && fixingDates[i] < today)
+        {
             // rate must have been fixed
             Rate fixing = pastFixings[fixingDates[i]];
-            QL_REQUIRE(fixing != Null<Real>(),
-                       "Missing " << index->name() << " fixing for " << fixingDates[i]);
-            Time span = (date >= interestDates[i + 1] ?
-                             dt[i] :
-                             index->dayCounter().yearFraction(interestDates[i], date));
-            if (coupon_->compoundSpreadDaily()) {
+            QL_REQUIRE(fixing != Null<Real>(), "Missing " << index->name() << " fixing for " << fixingDates[i]);
+            Time span =
+                (date >= interestDates[i + 1] ? dt[i] : index->dayCounter().yearFraction(interestDates[i], date));
+            if (coupon_->compoundSpreadDaily())
+            {
                 compoundFactorWithoutSpread *= (1.0 + fixing * span);
                 fixing += coupon_->spread();
             }
@@ -141,24 +158,32 @@ namespace QuantLib {
         }
 
         // today is a border case
-        if (i < n && fixingDates[i] == today) {
+        if (i < n && fixingDates[i] == today)
+        {
             // might have been fixed
-            try {
+            try
+            {
                 Rate fixing = pastFixings[fixingDates[i]];
-                if (fixing != Null<Real>()) {
-                    Time span = (date >= interestDates[i + 1] ?
-                                     dt[i] :
-                                     index->dayCounter().yearFraction(interestDates[i], date));
-                    if (coupon_->compoundSpreadDaily()) {
+                if (fixing != Null<Real>())
+                {
+                    Time span =
+                        (date >= interestDates[i + 1] ? dt[i] :
+                                                        index->dayCounter().yearFraction(interestDates[i], date));
+                    if (coupon_->compoundSpreadDaily())
+                    {
                         compoundFactorWithoutSpread *= (1.0 + fixing * span);
                         fixing += coupon_->spread();
                     }
                     compoundFactor *= (1.0 + fixing * span);
                     ++i;
-                } else {
+                }
+                else
+                {
                     ; // fall through and forecast
                 }
-            } catch (Error&) {
+            }
+            catch (Error&)
+            {
                 ; // fall through and forecast
             }
         }
@@ -166,13 +191,14 @@ namespace QuantLib {
         // forward part using telescopic property in order
         // to avoid the evaluation of multiple forward fixings
         // where possible.
-        if (i < n) {
+        if (i < n)
+        {
             const Handle<YieldTermStructure> curve = index->forwardingTermStructure();
-            QL_REQUIRE(!curve.empty(),
-                       "null term structure set to this instance of " << index->name());
+            QL_REQUIRE(!curve.empty(), "null term structure set to this instance of " << index->name());
 
-            const auto effectiveRate = [&index, &fixingDates, &date, &interestDates,
-                                        &dt, &couponSpread](Size position, bool compoundSpreadDaily) {
+            const auto effectiveRate = [&index, &fixingDates, &date, &interestDates, &dt,
+                                        &couponSpread](Size position, bool compoundSpreadDaily)
+            {
                 Rate fixing = index->fixing(fixingDates[position]);
                 Time span = (date >= interestDates[position + 1] ?
                                  dt[position] :
@@ -181,7 +207,8 @@ namespace QuantLib {
                 return span * (fixing + spreadToAdd);
             };
 
-            if (!coupon_->canApplyTelescopicFormula()) {
+            if (!coupon_->canApplyTelescopicFormula())
+            {
                 // With lookback applied, the telescopic formula cannot be used,
                 // we need to project each fixing in the coupon.
                 // Only in one particular case when observation shift is used and
@@ -192,12 +219,15 @@ namespace QuantLib {
                 // setting, will be handled automatically based on fixing dates.
                 // Same applies to a case when accrual calculation date does or
                 // does not occur on an interest date.
-                while (i < n) {
-		            compoundFactorWithoutSpread *= (1.0 + effectiveRate(i, false));
+                while (i < n)
+                {
+                    compoundFactorWithoutSpread *= (1.0 + effectiveRate(i, false));
                     compoundFactor *= (1.0 + effectiveRate(i, coupon_->compoundSpreadDaily()));
                     ++i;
                 }
-            } else {
+            }
+            else
+            {
                 // No lookback, we can partially apply the telescopic formula.
                 // But we need to make a correction for a potential lockout.
                 const Size nLockout = n - coupon_->lockoutDays();
@@ -205,12 +235,11 @@ namespace QuantLib {
 
                 // Lockout could already start at or before i.
                 // In such case the ratio of discount factors will be equal to 1.
-                const DiscountFactor startDiscount =
-                    curve->discount(valueDates[std::min<Size>(nLockout, i)]);
-                if (interestDates[n] == date || isLockoutApplied) {
+                const DiscountFactor startDiscount = curve->discount(valueDates[std::min<Size>(nLockout, i)]);
+                if (interestDates[n] == date || isLockoutApplied)
+                {
                     // telescopic formula up to potential lockout dates.
-                    const DiscountFactor endDiscount =
-                        curve->discount(valueDates[std::min<Size>(nLockout, n)]);
+                    const DiscountFactor endDiscount = curve->discount(valueDates[std::min<Size>(nLockout, n)]);
                     compoundFactor *= startDiscount / endDiscount;
                     compoundFactorWithoutSpread *= startDiscount / endDiscount;
                     // For the lockout periods the telescopic formula does not apply.
@@ -221,12 +250,15 @@ namespace QuantLib {
                     i = std::max(nLockout, i);
 
                     // With no lockout, the loop is skipped because i = n.
-                    while (i < n) {
+                    while (i < n)
+                    {
                         compoundFactorWithoutSpread *= (1.0 + effectiveRate(i, false));
                         compoundFactor *= (1.0 + effectiveRate(i, coupon_->compoundSpreadDaily()));
                         ++i;
                     }
-                } else {
+                }
+                else
+                {
                     // No lockout and date is different than last interest date.
                     // The last fixing is not used for its full period (the date is between
                     // its start and end date).  We can use the telescopic formula until the
@@ -245,12 +277,15 @@ namespace QuantLib {
         Rate swapletRate = coupon_->gearing() * rate;
         Spread effectiveSpread;
         Rate effectiveIndexFixing;
-        
-        if (!coupon_->compoundSpreadDaily()) {
+
+        if (!coupon_->compoundSpreadDaily())
+        {
             swapletRate += coupon_->spread();
             effectiveSpread = coupon_->spread();
             effectiveIndexFixing = rate;
-        } else {
+        }
+        else
+        {
             effectiveSpread = rate - (compoundFactorWithoutSpread - 1.0) / tau;
             effectiveIndexFixing = rate - effectiveSpread;
         }
@@ -258,14 +293,15 @@ namespace QuantLib {
         return std::make_tuple(swapletRate, effectiveSpread, effectiveIndexFixing);
     }
 
-    Rate ArithmeticAveragedOvernightIndexedCouponPricer::swapletRate() const {
+    Rate ArithmeticAveragedOvernightIndexedCouponPricer::swapletRate() const
+    {
         return averageRate(coupon_->accrualEndDate());
     }
 
-    Rate ArithmeticAveragedOvernightIndexedCouponPricer::averageRate(const Date& date) const {
+    Rate ArithmeticAveragedOvernightIndexedCouponPricer::averageRate(const Date& date) const
+    {
 
-        ext::shared_ptr<OvernightIndex> index =
-            ext::dynamic_pointer_cast<OvernightIndex>(coupon_->index());
+        ext::shared_ptr<OvernightIndex> index = ext::dynamic_pointer_cast<OvernightIndex>(coupon_->index());
 
         const auto& fixingDates = coupon_->fixingDates();
         const auto& interestDates = coupon_->interestDates();
@@ -281,33 +317,39 @@ namespace QuantLib {
 
         // already fixed part
         Date today = Settings::instance().evaluationDate();
-        while (i < n && fixingDates[i] < today) {
+        while (i < n && fixingDates[i] < today)
+        {
             // rate must have been fixed
             Rate pastFixing = pastFixings[fixingDates[i]];
-            QL_REQUIRE(pastFixing != Null<Real>(),
-                       "Missing " << index->name() << " fixing for " << fixingDates[i]);
-            Time span = (date >= interestDates[i + 1] ?
-                         dt[i] :
-                         index->dayCounter().yearFraction(interestDates[i], date));
+            QL_REQUIRE(pastFixing != Null<Real>(), "Missing " << index->name() << " fixing for " << fixingDates[i]);
+            Time span =
+                (date >= interestDates[i + 1] ? dt[i] : index->dayCounter().yearFraction(interestDates[i], date));
             accumulatedRate += pastFixing * span;
             ++i;
         }
 
         // today is a border case
-        if (i < n && fixingDates[i] == today) {
+        if (i < n && fixingDates[i] == today)
+        {
             // might have been fixed
-            try {
+            try
+            {
                 Rate pastFixing = pastFixings[fixingDates[i]];
-                if (pastFixing != Null<Real>()) {
-                    Time span = (date >= interestDates[i + 1] ?
-                                 dt[i] :
-                                 index->dayCounter().yearFraction(interestDates[i], date));
+                if (pastFixing != Null<Real>())
+                {
+                    Time span =
+                        (date >= interestDates[i + 1] ? dt[i] :
+                                                        index->dayCounter().yearFraction(interestDates[i], date));
                     accumulatedRate += pastFixing * span;
                     ++i;
-                } else {
+                }
+                else
+                {
                     ; // fall through and forecast
                 }
-            } catch (Error&) {
+            }
+            catch (Error&)
+            {
                 ; // fall through and forecast
             }
         }
@@ -315,38 +357,37 @@ namespace QuantLib {
         /* forward part using telescopic property in order
         to avoid the evaluation of multiple forward fixings
         (approximation proposed by Katsumi Takada)*/
-        if (byApprox_ && i < n) {
+        if (byApprox_ && i < n)
+        {
             Handle<YieldTermStructure> curve = index->forwardingTermStructure();
-            QL_REQUIRE(!curve.empty(),
-                       "null term structure set to this instance of " << index->name());
+            QL_REQUIRE(!curve.empty(), "null term structure set to this instance of " << index->name());
 
             const auto& dates = coupon_->valueDates();
             DiscountFactor startDiscount = curve->discount(dates[i]);
             DiscountFactor endDiscount = curve->discount(dates[n]);
 
-            accumulatedRate +=
-                log(startDiscount / endDiscount) -
-                convAdj1(curve->timeFromReference(dates[i]), curve->timeFromReference(dates[n])) -
-                convAdj2(curve->timeFromReference(dates[i]), curve->timeFromReference(dates[n]));
+            accumulatedRate += log(startDiscount / endDiscount) -
+                               convAdj1(curve->timeFromReference(dates[i]), curve->timeFromReference(dates[n])) -
+                               convAdj2(curve->timeFromReference(dates[i]), curve->timeFromReference(dates[n]));
         }
         // otherwise
-        else if (i < n) {
+        else if (i < n)
+        {
             Handle<YieldTermStructure> curve = index->forwardingTermStructure();
-            QL_REQUIRE(!curve.empty(),
-                       "null term structure set to this instance of " << index->name());
+            QL_REQUIRE(!curve.empty(), "null term structure set to this instance of " << index->name());
 
             const auto& dates = coupon_->valueDates();
             Time te = curve->timeFromReference(dates[n]);
-            while (i < n) {
+            while (i < n)
+            {
                 // forcast fixing
                 Rate forecastFixing = index->fixing(fixingDates[i]);
                 Time ti1 = curve->timeFromReference(dates[i]);
                 Time ti2 = curve->timeFromReference(dates[i + 1]);
                 /*convexity adjustment due to payment dalay of each
                 overnight fixing, supposing an Hull-White short rate model*/
-                Real convAdj = exp(
-                    0.5 * pow(vol_, 2.0) / pow(mrs_, 3.0) * (exp(2 * mrs_ * ti1) - 1) *
-                    (exp(-mrs_ * ti2) - exp(-mrs_ * te)) * (exp(-mrs_ * ti2) - exp(-mrs_ * ti1)));
+                Real convAdj = exp(0.5 * pow(vol_, 2.0) / pow(mrs_, 3.0) * (exp(2 * mrs_ * ti1) - 1) *
+                                   (exp(-mrs_ * ti2) - exp(-mrs_ * te)) * (exp(-mrs_ * ti2) - exp(-mrs_ * ti1)));
                 accumulatedRate += convAdj * (1 + forecastFixing * dt[i]) - 1;
                 ++i;
             }
@@ -356,12 +397,14 @@ namespace QuantLib {
         return coupon_->gearing() * rate + coupon_->spread();
     }
 
-    Real ArithmeticAveragedOvernightIndexedCouponPricer::convAdj1(Time ts, Time te) const {
+    Real ArithmeticAveragedOvernightIndexedCouponPricer::convAdj1(Time ts, Time te) const
+    {
         return vol_ * vol_ / (4.0 * pow(mrs_, 3.0)) * (1.0 - exp(-2.0 * mrs_ * ts)) *
                pow((1.0 - exp(-mrs_ * (te - ts))), 2.0);
     }
 
-    Real ArithmeticAveragedOvernightIndexedCouponPricer::convAdj2(Time ts, Time te) const {
+    Real ArithmeticAveragedOvernightIndexedCouponPricer::convAdj2(Time ts, Time te) const
+    {
         return vol_ * vol_ / (2.0 * pow(mrs_, 2.0)) *
                ((te - ts) - pow(1.0 - exp(-mrs_ * (te - ts)), 2.0) / mrs_ -
                 (1.0 - exp(-2.0 * mrs_ * (te - ts))) / (2.0 * mrs_));

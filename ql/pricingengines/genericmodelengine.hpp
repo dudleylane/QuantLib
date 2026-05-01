@@ -29,24 +29,26 @@
 #include <ql/pricingengine.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Base class for some pricing engine on a particular model
     /*! Derived engines only need to implement the <tt>calculate()</tt>
         method
     */
-    template<class ModelType, class ArgumentsType, class ResultsType>
-    class GenericModelEngine
-        : public GenericEngine<ArgumentsType, ResultsType> {
+    template <class ModelType, class ArgumentsType, class ResultsType>
+    class GenericModelEngine : public GenericEngine<ArgumentsType, ResultsType>
+    {
       public:
-        explicit GenericModelEngine(Handle<ModelType> model = Handle<ModelType>())
-        : model_(std::move(model)) {
+        explicit GenericModelEngine(Handle<ModelType> model = Handle<ModelType>()) : model_(std::move(model))
+        {
             this->registerWith(model_);
         }
-        explicit GenericModelEngine(const ext::shared_ptr<ModelType>& model)
-        : model_(model) {
+        explicit GenericModelEngine(const ext::shared_ptr<ModelType>& model) : model_(model)
+        {
             this->registerWith(model_);
         }
+
       protected:
         Handle<ModelType> model_;
     };
@@ -55,4 +57,3 @@ namespace QuantLib {
 
 
 #endif
-

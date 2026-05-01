@@ -30,7 +30,8 @@
 #include <ql/stochasticprocess.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
     class StochasticProcess;
     class StochasticProcess1D;
     //! Generates random paths using a sequence generator
@@ -42,19 +43,14 @@ namespace QuantLib {
         \test the generated paths are checked against cached results
     */
     template <class GSG>
-    class PathGenerator {
+    class PathGenerator
+    {
       public:
         typedef Sample<Path> sample_type;
         // constructors
-        PathGenerator(const ext::shared_ptr<StochasticProcess>&,
-                      Time length,
-                      Size timeSteps,
-                      GSG generator,
-                      bool brownianBridge);
-        PathGenerator(const ext::shared_ptr<StochasticProcess>&,
-                      TimeGrid timeGrid,
-                      GSG generator,
-                      bool brownianBridge);
+        PathGenerator(
+            const ext::shared_ptr<StochasticProcess>&, Time length, Size timeSteps, GSG generator, bool brownianBridge);
+        PathGenerator(const ext::shared_ptr<StochasticProcess>&, TimeGrid timeGrid, GSG generator, bool brownianBridge);
         //! \name inspectors
         //@{
         const sample_type& next() const;
@@ -83,13 +79,12 @@ namespace QuantLib {
                                       Size timeSteps,
                                       GSG generator,
                                       bool brownianBridge)
-    : brownianBridge_(brownianBridge), generator_(std::move(generator)),
-      dimension_(generator_.dimension()), timeGrid_(length, timeSteps),
-      process_(ext::dynamic_pointer_cast<StochasticProcess1D>(process)),
-      next_(Path(timeGrid_), 1.0), temp_(dimension_), bb_(timeGrid_) {
-        QL_REQUIRE(dimension_==timeSteps,
-                   "sequence generator dimensionality (" << dimension_
-                   << ") != timeSteps (" << timeSteps << ")");
+    : brownianBridge_(brownianBridge), generator_(std::move(generator)), dimension_(generator_.dimension()),
+      timeGrid_(length, timeSteps), process_(ext::dynamic_pointer_cast<StochasticProcess1D>(process)),
+      next_(Path(timeGrid_), 1.0), temp_(dimension_), bb_(timeGrid_)
+    {
+        QL_REQUIRE(dimension_ == timeSteps,
+                   "sequence generator dimensionality (" << dimension_ << ") != timeSteps (" << timeSteps << ")");
     }
 
     template <class GSG>
@@ -97,44 +92,41 @@ namespace QuantLib {
                                       TimeGrid timeGrid,
                                       GSG generator,
                                       bool brownianBridge)
-    : brownianBridge_(brownianBridge), generator_(std::move(generator)),
-      dimension_(generator_.dimension()), timeGrid_(std::move(timeGrid)),
-      process_(ext::dynamic_pointer_cast<StochasticProcess1D>(process)),
-      next_(Path(timeGrid_), 1.0), temp_(dimension_), bb_(timeGrid_) {
-        QL_REQUIRE(dimension_==timeGrid_.size()-1,
-                   "sequence generator dimensionality (" << dimension_
-                   << ") != timeSteps (" << timeGrid_.size()-1 << ")");
+    : brownianBridge_(brownianBridge), generator_(std::move(generator)), dimension_(generator_.dimension()),
+      timeGrid_(std::move(timeGrid)), process_(ext::dynamic_pointer_cast<StochasticProcess1D>(process)),
+      next_(Path(timeGrid_), 1.0), temp_(dimension_), bb_(timeGrid_)
+    {
+        QL_REQUIRE(dimension_ == timeGrid_.size() - 1, "sequence generator dimensionality ("
+                                                           << dimension_ << ") != timeSteps (" << timeGrid_.size() - 1
+                                                           << ")");
     }
 
     template <class GSG>
-    const typename PathGenerator<GSG>::sample_type&
-    PathGenerator<GSG>::next() const {
+    const typename PathGenerator<GSG>::sample_type& PathGenerator<GSG>::next() const
+    {
         return next(false);
     }
 
     template <class GSG>
-    const typename PathGenerator<GSG>::sample_type&
-    PathGenerator<GSG>::antithetic() const {
+    const typename PathGenerator<GSG>::sample_type& PathGenerator<GSG>::antithetic() const
+    {
         return next(true);
     }
 
     template <class GSG>
-    const typename PathGenerator<GSG>::sample_type&
-    PathGenerator<GSG>::next(bool antithetic) const {
+    const typename PathGenerator<GSG>::sample_type& PathGenerator<GSG>::next(bool antithetic) const
+    {
 
         typedef typename GSG::sample_type sequence_type;
-        const sequence_type& sequence_ =
-            antithetic ? generator_.lastSequence()
-                       : generator_.nextSequence();
+        const sequence_type& sequence_ = antithetic ? generator_.lastSequence() : generator_.nextSequence();
 
-        if (brownianBridge_) {
-            bb_.transform(sequence_.value.begin(),
-                          sequence_.value.end(),
-                          temp_.begin());
-        } else {
-            std::copy(sequence_.value.begin(),
-                      sequence_.value.end(),
-                      temp_.begin());
+        if (brownianBridge_)
+        {
+            bb_.transform(sequence_.value.begin(), sequence_.value.end(), temp_.begin());
+        }
+        else
+        {
+            std::copy(sequence_.value.begin(), sequence_.value.end(), temp_.begin());
         }
 
         next_.weight = sequence_.weight;
@@ -142,12 +134,11 @@ namespace QuantLib {
         Path& path = next_.value;
         path.front() = process_->x0();
 
-        for (Size i=1; i<path.length(); i++) {
-            Time t = timeGrid_[i-1];
-            Time dt = timeGrid_.dt(i-1);
-            path[i] = process_->evolve(t, path[i-1], dt,
-                                       antithetic ? -temp_[i-1] :
-                                                     temp_[i-1]);
+        for (Size i = 1; i < path.length(); i++)
+        {
+            Time t = timeGrid_[i - 1];
+            Time dt = timeGrid_.dt(i - 1);
+            path[i] = process_->evolve(t, path[i - 1], dt, antithetic ? -temp_[i - 1] : temp_[i - 1]);
         }
 
         return next_;

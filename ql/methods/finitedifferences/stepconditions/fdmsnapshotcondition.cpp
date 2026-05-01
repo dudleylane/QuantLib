@@ -21,25 +21,27 @@
 
 #include <ql/methods/finitedifferences/stepconditions/fdmsnapshotcondition.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    FdmSnapshotCondition::FdmSnapshotCondition(Time t)
-    : t_(t) {
-    }
+    FdmSnapshotCondition::FdmSnapshotCondition(Time t) : t_(t) {}
 
 
-    void FdmSnapshotCondition::applyTo(Array& a, Time t) const {
+    void FdmSnapshotCondition::applyTo(Array& a, Time t) const
+    {
         if (t == t_)
             values_ = a;
     }
 
 
-    Time FdmSnapshotCondition::getTime() const {
+    Time FdmSnapshotCondition::getTime() const
+    {
         return t_;
     }
 
 
-    const Array& FdmSnapshotCondition::getValues() const {
+    const Array& FdmSnapshotCondition::getValues() const
+    {
         return values_;
     }
 

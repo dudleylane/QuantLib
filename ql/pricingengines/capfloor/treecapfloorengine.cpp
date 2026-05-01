@@ -22,13 +22,15 @@
 #include <ql/pricingengines/capfloor/treecapfloorengine.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     TreeCapFloorEngine::TreeCapFloorEngine(const ext::shared_ptr<ShortRateModel>& model,
                                            Size timeSteps,
                                            Handle<YieldTermStructure> termStructure)
     : LatticeShortRateModelEngine<CapFloor::arguments, CapFloor::results>(model, timeSteps),
-      termStructure_(std::move(termStructure)) {
+      termStructure_(std::move(termStructure))
+    {
         registerWith(termStructure_);
     }
 
@@ -36,11 +38,13 @@ namespace QuantLib {
                                            const TimeGrid& timeGrid,
                                            Handle<YieldTermStructure> termStructure)
     : LatticeShortRateModelEngine<CapFloor::arguments, CapFloor::results>(model, timeGrid),
-      termStructure_(std::move(termStructure)) {
+      termStructure_(std::move(termStructure))
+    {
         registerWith(termStructure_);
     }
 
-    void TreeCapFloorEngine::calculate() const {
+    void TreeCapFloorEngine::calculate() const
+    {
 
         QL_REQUIRE(!model_.empty(), "no model specified");
 
@@ -49,10 +53,13 @@ namespace QuantLib {
 
         ext::shared_ptr<TermStructureConsistentModel> tsmodel =
             ext::dynamic_pointer_cast<TermStructureConsistentModel>(*model_);
-        if (tsmodel != nullptr) {
+        if (tsmodel != nullptr)
+        {
             referenceDate = tsmodel->termStructure()->referenceDate();
             dayCounter = tsmodel->termStructure()->dayCounter();
-        } else {
+        }
+        else
+        {
             referenceDate = termStructure_->referenceDate();
             dayCounter = termStructure_->dayCounter();
         }
@@ -60,18 +67,19 @@ namespace QuantLib {
         DiscretizedCapFloor capfloor(arguments_, referenceDate, dayCounter);
         ext::shared_ptr<Lattice> lattice;
 
-        if (lattice_ != nullptr) {
+        if (lattice_ != nullptr)
+        {
             lattice = lattice_;
-        } else {
+        }
+        else
+        {
             std::vector<Time> times = capfloor.mandatoryTimes();
             TimeGrid timeGrid(times.begin(), times.end(), timeSteps_);
             lattice = model_->tree(timeGrid);
         }
 
-        Time firstTime = dayCounter.yearFraction(referenceDate,
-                                                 arguments_.startDates.front());
-        Time lastTime = dayCounter.yearFraction(referenceDate,
-                                                arguments_.endDates.back());
+        Time firstTime = dayCounter.yearFraction(referenceDate, arguments_.startDates.front());
+        Time lastTime = dayCounter.yearFraction(referenceDate, arguments_.endDates.back());
         capfloor.initialize(lattice, lastTime);
         capfloor.rollback(firstTime);
 
@@ -79,5 +87,3 @@ namespace QuantLib {
     }
 
 }
-
-

@@ -18,7 +18,7 @@
 */
 
 /*! \file fdmextoujumpsolver.cpp
-*/
+ */
 
 #include <ql/experimental/finitedifferences/fdmextoujumpop.hpp>
 #include <ql/experimental/finitedifferences/fdmextoujumpsolver.hpp>
@@ -26,30 +26,30 @@
 #include <ql/methods/finitedifferences/solvers/fdm2dimsolver.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     FdmExtOUJumpSolver::FdmExtOUJumpSolver(Handle<ExtOUWithJumpsProcess> process,
                                            ext::shared_ptr<YieldTermStructure> rTS,
                                            FdmSolverDesc solverDesc,
                                            const FdmSchemeDesc& schemeDesc)
-    : process_(std::move(process)), rTS_(std::move(rTS)), solverDesc_(std::move(solverDesc)),
-      schemeDesc_(schemeDesc) {
+    : process_(std::move(process)), rTS_(std::move(rTS)), solverDesc_(std::move(solverDesc)), schemeDesc_(schemeDesc)
+    {
 
         registerWith(process_);
     }
 
-    void FdmExtOUJumpSolver::performCalculations() const {
-        ext::shared_ptr<FdmLinearOpComposite>op(
-            new FdmExtOUJumpOp(solverDesc_.mesher, process_.currentLink(),
-                               rTS_, solverDesc_.bcSet, 32));
-        
-        solver_ = ext::make_shared<Fdm2DimSolver>(
-                              solverDesc_, schemeDesc_, op);
+    void FdmExtOUJumpSolver::performCalculations() const
+    {
+        ext::shared_ptr<FdmLinearOpComposite> op(
+            new FdmExtOUJumpOp(solverDesc_.mesher, process_.currentLink(), rTS_, solverDesc_.bcSet, 32));
+
+        solver_ = ext::make_shared<Fdm2DimSolver>(solverDesc_, schemeDesc_, op);
     }
-    
-    Real FdmExtOUJumpSolver::valueAt(Real x, Real y) const {
+
+    Real FdmExtOUJumpSolver::valueAt(Real x, Real y) const
+    {
         calculate();
         return solver_->interpolateAt(x, y);
     }
 }
-

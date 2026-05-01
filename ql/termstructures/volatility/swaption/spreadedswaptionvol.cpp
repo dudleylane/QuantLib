@@ -23,44 +23,38 @@
 #include <ql/termstructures/volatility/swaption/spreadedswaptionvol.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    SpreadedSwaptionVolatility::SpreadedSwaptionVolatility(
-        const Handle<SwaptionVolatilityStructure>& baseVol, Handle<Quote> spread)
-    : SwaptionVolatilityStructure(baseVol->businessDayConvention(), baseVol->dayCounter()),
-      baseVol_(baseVol), spread_(std::move(spread)) {
+    SpreadedSwaptionVolatility::SpreadedSwaptionVolatility(const Handle<SwaptionVolatilityStructure>& baseVol,
+                                                           Handle<Quote> spread)
+    : SwaptionVolatilityStructure(baseVol->businessDayConvention(), baseVol->dayCounter()), baseVol_(baseVol),
+      spread_(std::move(spread))
+    {
         enableExtrapolation(baseVol->allowsExtrapolation());
         registerWith(baseVol_);
         registerWith(spread_);
     }
 
-    ext::shared_ptr<SmileSection>
-    SpreadedSwaptionVolatility::smileSectionImpl(const Date& d,
-                                                 const Period& swapT) const {
-        ext::shared_ptr<SmileSection> baseSmile =
-            baseVol_->smileSection(d, swapT, true);
-        return ext::shared_ptr<SmileSection>(new
-            SpreadedSmileSection(baseSmile, spread_));
+    ext::shared_ptr<SmileSection> SpreadedSwaptionVolatility::smileSectionImpl(const Date& d, const Period& swapT) const
+    {
+        ext::shared_ptr<SmileSection> baseSmile = baseVol_->smileSection(d, swapT, true);
+        return ext::shared_ptr<SmileSection>(new SpreadedSmileSection(baseSmile, spread_));
     }
 
-    ext::shared_ptr<SmileSection>
-    SpreadedSwaptionVolatility::smileSectionImpl(Time optionTime,
-                                                 Time swapLength) const {
-        ext::shared_ptr<SmileSection> baseSmile =
-            baseVol_->smileSection(optionTime, swapLength, true);
-        return ext::shared_ptr<SmileSection>(new
-            SpreadedSmileSection(baseSmile, spread_));
+    ext::shared_ptr<SmileSection> SpreadedSwaptionVolatility::smileSectionImpl(Time optionTime, Time swapLength) const
+    {
+        ext::shared_ptr<SmileSection> baseSmile = baseVol_->smileSection(optionTime, swapLength, true);
+        return ext::shared_ptr<SmileSection>(new SpreadedSmileSection(baseSmile, spread_));
     }
 
-    Volatility SpreadedSwaptionVolatility::volatilityImpl(const Date& d,
-                                                          const Period& p,
-                                                          Rate strike) const {
+    Volatility SpreadedSwaptionVolatility::volatilityImpl(const Date& d, const Period& p, Rate strike) const
+    {
         return baseVol_->volatility(d, p, strike, true) + spread_->value();
     }
 
-    Volatility SpreadedSwaptionVolatility::volatilityImpl(Time t,
-                                                          Time l,
-                                                          Rate strike) const {
+    Volatility SpreadedSwaptionVolatility::volatilityImpl(Time t, Time l, Rate strike) const
+    {
         return baseVol_->volatility(t, l, strike, true) + spread_->value();
     }
 

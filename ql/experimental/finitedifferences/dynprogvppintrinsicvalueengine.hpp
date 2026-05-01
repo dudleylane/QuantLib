@@ -24,17 +24,17 @@
 #ifndef quantlib_dp_vpp_intrinsic_value_engine_hpp
 #define quantlib_dp_vpp_intrinsic_value_engine_hpp
 
-#include <ql/pricingengine.hpp>
 #include <ql/experimental/finitedifferences/vanillavppoption.hpp>
+#include <ql/pricingengine.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class YieldTermStructure;
 
-    class DynProgVPPIntrinsicValueEngine
-        : public GenericEngine<VanillaVPPOption::arguments,
-                               VanillaVPPOption::results> {
+    class DynProgVPPIntrinsicValueEngine : public GenericEngine<VanillaVPPOption::arguments, VanillaVPPOption::results>
+    {
       public:
         DynProgVPPIntrinsicValueEngine(std::vector<Real> fuelPrices,
                                        std::vector<Real> powerPrices,
@@ -52,4 +52,3 @@ namespace QuantLib {
 }
 
 #endif
-

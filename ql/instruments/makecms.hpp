@@ -28,7 +28,8 @@
 #include <ql/cashflows/couponpricer.hpp>
 #include <ql/pricingengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Swap;
     class IborIndex;
@@ -37,21 +38,22 @@ namespace QuantLib {
     /*! This class provides a more comfortable way
         to instantiate standard market constant maturity swap.
     */
-    class MakeCms {
+    class MakeCms
+    {
       public:
         MakeCms(const Period& swapTenor,
                 const ext::shared_ptr<SwapIndex>& swapIndex,
                 const ext::shared_ptr<IborIndex>& iborIndex,
                 Spread iborSpread = 0.0,
-                const Period& forwardStart = 0*Days);
+                const Period& forwardStart = 0 * Days);
 
         MakeCms(const Period& swapTenor,
                 const ext::shared_ptr<SwapIndex>& swapIndex,
                 Spread iborSpread = 0.0,
-                const Period& forwardStart = 0*Days);
+                const Period& forwardStart = 0 * Days);
 
         operator Swap() const;
-        operator ext::shared_ptr<Swap>() const ;
+        operator ext::shared_ptr<Swap>() const;
 
         MakeCms& receiveCms(bool flag = true);
         MakeCms& withNominal(Real n);
@@ -70,8 +72,7 @@ namespace QuantLib {
         MakeCms& withFloatingLegTenor(const Period& t);
         MakeCms& withFloatingLegCalendar(const Calendar& cal);
         MakeCms& withFloatingLegConvention(BusinessDayConvention bdc);
-        MakeCms& withFloatingLegTerminationDateConvention(
-                                                    BusinessDayConvention bdc);
+        MakeCms& withFloatingLegTerminationDateConvention(BusinessDayConvention bdc);
         MakeCms& withFloatingLegRule(DateGeneration::Rule r);
         MakeCms& withFloatingLegEndOfMonth(bool flag = true);
         MakeCms& withFloatingLegFirstDate(const Date& d);
@@ -80,10 +81,8 @@ namespace QuantLib {
 
         MakeCms& withAtmSpread(bool flag = true);
 
-        MakeCms& withDiscountingTermStructure(
-            const Handle<YieldTermStructure>& discountingTermStructure);
-        MakeCms& withCmsCouponPricer(
-            const ext::shared_ptr<CmsCouponPricer>& couponPricer);
+        MakeCms& withDiscountingTermStructure(const Handle<YieldTermStructure>& discountingTermStructure);
+        MakeCms& withCmsCouponPricer(const ext::shared_ptr<CmsCouponPricer>& couponPricer);
 
       private:
         Period swapTenor_;

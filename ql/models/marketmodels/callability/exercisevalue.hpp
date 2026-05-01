@@ -26,13 +26,15 @@
 #include <memory>
 #include <valarray>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class CurveState;
     class EvolutionDescription;
-    //struct MarketModelMultiProduct::CashFlow;
+    // struct MarketModelMultiProduct::CashFlow;
 
-    class MarketModelExerciseValue {
+    class MarketModelExerciseValue
+    {
       public:
         virtual ~MarketModelExerciseValue() = default;
         virtual Size numberOfExercises() const = 0;

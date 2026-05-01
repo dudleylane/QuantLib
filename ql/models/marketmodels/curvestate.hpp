@@ -23,10 +23,11 @@
 #define quantlib_curve_state_hpp
 
 #include <ql/math/array.hpp>
-#include <vector>
 #include <memory>
+#include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Curve state for market-model simulations
     /*! This class stores the state of the yield curve associated to the
@@ -38,17 +39,18 @@ namespace QuantLib {
         Many products will not need expired rates and others will only require
         the first rate.
     */
-    class CurveState {
-    /* There will n+1 rate times expressing payment and reset times
-        of forward rates.
+    class CurveState
+    {
+        /* There will n+1 rate times expressing payment and reset times
+            of forward rates.
 
-                |-----|-----|-----|-----|-----|      (size = 6)
-                t0    t1    t2    t3    t4    t5     rateTimes
-                f0    f1    f2    f3    f4           forwardRates
-                d0    d1    d2    d3    d4    d5     discountBonds
-                d0/d0 d1/d0 d2/d0 d3/d0 d4/d0 d5/d0  discountRatios
-                sr0   sr1   sr2   sr3   sr4          cotSwaps
-    */
+                    |-----|-----|-----|-----|-----|      (size = 6)
+                    t0    t1    t2    t3    t4    t5     rateTimes
+                    f0    f1    f2    f3    f4           forwardRates
+                    d0    d1    d2    d3    d4    d5     discountBonds
+                    d0/d0 d1/d0 d2/d0 d3/d0 d4/d0 d5/d0  discountRatios
+                    sr0   sr1   sr2   sr3   sr4          cotSwaps
+        */
       public:
         CurveState(const std::vector<Time>& rateTimes);
         virtual ~CurveState() = default;
@@ -60,23 +62,17 @@ namespace QuantLib {
         const std::vector<Time>& rateTimes() const { return rateTimes_; }
         const std::vector<Time>& rateTaus() const { return rateTaus_; }
 
-        virtual Real discountRatio(Size i,
-                                   Size j) const = 0;
+        virtual Real discountRatio(Size i, Size j) const = 0;
         virtual Rate forwardRate(Size i) const = 0;
-        virtual Rate coterminalSwapAnnuity(Size numeraire,
-                                           Size i) const = 0;
+        virtual Rate coterminalSwapAnnuity(Size numeraire, Size i) const = 0;
         virtual Rate coterminalSwapRate(Size i) const = 0;
-        virtual Rate cmSwapAnnuity(Size numeraire,
-                                   Size i,
-                                   Size spanningForwards) const = 0;
-        virtual Rate cmSwapRate(Size i,
-                                Size spanningForwards) const = 0;
+        virtual Rate cmSwapAnnuity(Size numeraire, Size i, Size spanningForwards) const = 0;
+        virtual Rate cmSwapRate(Size i, Size spanningForwards) const = 0;
 
         virtual const std::vector<Rate>& forwardRates() const = 0;
         virtual const std::vector<Rate>& coterminalSwapRates() const = 0;
         virtual const std::vector<Rate>& cmSwapRates(Size spanningForwards) const = 0;
-        Rate swapRate(Size begin,
-                      Size end) const;
+        Rate swapRate(Size begin, Size end) const;
 
         virtual std::unique_ptr<CurveState> clone() const = 0;
         //@}

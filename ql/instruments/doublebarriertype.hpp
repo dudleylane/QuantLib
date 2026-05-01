@@ -27,20 +27,22 @@
 #include <ql/qldefines.hpp>
 #include <ostream>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Placeholder for enumerated barrier types
-    struct DoubleBarrier {
-        enum Type {
-           KnockIn,
-           KnockOut,
-           KIKO,     //! lower barrier KI, upper KO
-           KOKI      //! lower barrier KO, upper KI
+    struct DoubleBarrier
+    {
+        enum Type
+        {
+            KnockIn,
+            KnockOut,
+            KIKO, //! lower barrier KI, upper KO
+            KOKI  //! lower barrier KO, upper KI
         };
     };
 
-    std::ostream& operator<<(std::ostream& out,
-                             DoubleBarrier::Type type);
+    std::ostream& operator<<(std::ostream& out, DoubleBarrier::Type type);
 
 }
 

@@ -24,24 +24,25 @@
 #ifndef quantlib_fdm_shout_log_inner_value_calculator_hpp
 #define quantlib_fdm_shout_log_inner_value_calculator_hpp
 
-#include <ql/methods/finitedifferences/utilities/fdminnervaluecalculator.hpp>
 #include <ql/methods/finitedifferences/utilities/escroweddividendadjustment.hpp>
+#include <ql/methods/finitedifferences/utilities/fdminnervaluecalculator.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class FdmMesher;
     class PlainVanillaPayoff;
     class BlackVolTermStructure;
 
-    class FdmShoutLogInnerValueCalculator: public FdmInnerValueCalculator {
+    class FdmShoutLogInnerValueCalculator : public FdmInnerValueCalculator
+    {
       public:
-        FdmShoutLogInnerValueCalculator(
-            Handle<BlackVolTermStructure> blackVolatility,
-            ext::shared_ptr<EscrowedDividendAdjustment> escrowedDividendAdj,
-            Time maturity,
-            ext::shared_ptr<PlainVanillaPayoff> payoff,
-            ext::shared_ptr<FdmMesher> mesher,
-            Size direction);
+        FdmShoutLogInnerValueCalculator(Handle<BlackVolTermStructure> blackVolatility,
+                                        ext::shared_ptr<EscrowedDividendAdjustment> escrowedDividendAdj,
+                                        Time maturity,
+                                        ext::shared_ptr<PlainVanillaPayoff> payoff,
+                                        ext::shared_ptr<FdmMesher> mesher,
+                                        Size direction);
 
         Real innerValue(const FdmLinearOpIterator& iter, Time t) override;
         Real avgInnerValue(const FdmLinearOpIterator& iter, Time t) override;

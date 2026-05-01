@@ -24,27 +24,28 @@
 #ifndef quantlib_exp_corr_flat_vol_hpp
 #define quantlib_exp_corr_flat_vol_hpp
 
-#include <ql/models/marketmodels/marketmodel.hpp>
-#include <ql/models/marketmodels/evolutiondescription.hpp>
-#include <ql/math/matrix.hpp>
-#include <ql/math/interpolation.hpp>
-#include <ql/termstructures/yieldtermstructure.hpp>
 #include <ql/handle.hpp>
+#include <ql/math/interpolation.hpp>
+#include <ql/math/matrix.hpp>
+#include <ql/models/marketmodels/evolutiondescription.hpp>
+#include <ql/models/marketmodels/marketmodel.hpp>
+#include <ql/termstructures/yieldtermstructure.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class PiecewiseConstantCorrelation;
 
-    class FlatVol : public MarketModel {
+    class FlatVol : public MarketModel
+    {
       public:
-        FlatVol(
-            const std::vector<Volatility>& volatilities,
-            const ext::shared_ptr<PiecewiseConstantCorrelation>& corr,
-            const EvolutionDescription& evolution,
-            Size numberOfFactors,
-            const std::vector<Rate>& initialRates,
-            const std::vector<Spread>& displacements);
+        FlatVol(const std::vector<Volatility>& volatilities,
+                const ext::shared_ptr<PiecewiseConstantCorrelation>& corr,
+                const EvolutionDescription& evolution,
+                Size numberOfFactors,
+                const std::vector<Rate>& initialRates,
+                const std::vector<Spread>& displacements);
         //! \name MarketModel interface
         //@{
         const std::vector<Rate>& initialRates() const override;
@@ -63,8 +64,8 @@ namespace QuantLib {
         std::vector<Matrix> pseudoRoots_;
     };
 
-    class FlatVolFactory : public MarketModelFactory,
-                                  public Observer {
+    class FlatVolFactory : public MarketModelFactory, public Observer
+    {
       public:
         FlatVolFactory(Real longTermCorrelation,
                        Real beta,
@@ -78,8 +79,7 @@ namespace QuantLib {
                        Handle<YieldTermStructure> yieldCurve,
                        // this might have a structure
                        Spread displacement);
-        ext::shared_ptr<MarketModel> create(const EvolutionDescription&,
-                                            Size numberOfFactors) const override;
+        ext::shared_ptr<MarketModel> create(const EvolutionDescription&, Size numberOfFactors) const override;
         void update() override;
 
       private:
@@ -96,34 +96,42 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline const std::vector<Rate>& FlatVol::initialRates() const {
+    inline const std::vector<Rate>& FlatVol::initialRates() const
+    {
         return initialRates_;
     }
 
-    inline const std::vector<Spread>& FlatVol::displacements() const {
+    inline const std::vector<Spread>& FlatVol::displacements() const
+    {
         return displacements_;
     }
 
-    inline const EvolutionDescription& FlatVol::evolution() const {
+    inline const EvolutionDescription& FlatVol::evolution() const
+    {
         return evolution_;
     }
 
-    inline Size FlatVol::numberOfRates() const {
+    inline Size FlatVol::numberOfRates() const
+    {
         return initialRates_.size();
     }
 
-    inline Size FlatVol::numberOfFactors() const {
+    inline Size FlatVol::numberOfFactors() const
+    {
         return numberOfFactors_;
     }
 
-    inline Size FlatVol::numberOfSteps() const {
+    inline Size FlatVol::numberOfSteps() const
+    {
         return numberOfSteps_;
     }
 
-    inline const Matrix& FlatVol::pseudoRoot(Size i) const {
-        QL_REQUIRE(i<numberOfSteps_,
-                   "the index " << i << " is invalid: it must be less than "
-                   "number of steps (" << numberOfSteps_ << ")");
+    inline const Matrix& FlatVol::pseudoRoot(Size i) const
+    {
+        QL_REQUIRE(i < numberOfSteps_, "the index " << i
+                                                    << " is invalid: it must be less than "
+                                                       "number of steps ("
+                                                    << numberOfSteps_ << ")");
         return pseudoRoots_[i];
     }
 }

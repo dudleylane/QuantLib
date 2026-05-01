@@ -28,13 +28,16 @@
 #include <ql/types.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Plackett copula
-    class PlackettCopula {
+    class PlackettCopula
+    {
       public:
         PlackettCopula(Real theta);
         Real operator()(Real x, Real y) const;
+
       private:
         Real theta_;
     };

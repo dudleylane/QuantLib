@@ -23,9 +23,11 @@
 
 #include <ql/models/marketmodels/products/multiproductonestep.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class OneStepForwards : public MultiProductOneStep {
+    class OneStepForwards : public MultiProductOneStep
+    {
       public:
         OneStepForwards(const std::vector<Time>& rateTimes,
                         std::vector<Real> accruals,
@@ -39,7 +41,7 @@ namespace QuantLib {
         void reset() override;
         bool nextTimeStep(const CurveState& currentState,
                           std::vector<Size>& numberCashFlowsThisStep,
-                          std::vector<std::vector<CashFlow> >& cashFlowsGenerated) override;
+                          std::vector<std::vector<CashFlow>>& cashFlowsGenerated) override;
         std::unique_ptr<MarketModelMultiProduct> clone() const override;
         //@}
       private:
@@ -50,23 +52,23 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline std::vector<Time>
-    OneStepForwards::possibleCashFlowTimes() const {
-      return paymentTimes_;
+    inline std::vector<Time> OneStepForwards::possibleCashFlowTimes() const
+    {
+        return paymentTimes_;
     }
 
-    inline Size
-    OneStepForwards::numberOfProducts() const {
+    inline Size OneStepForwards::numberOfProducts() const
+    {
         return strikes_.size();
     }
 
-    inline Size
-    OneStepForwards::maxNumberOfCashFlowsPerProductPerStep() const {
+    inline Size OneStepForwards::maxNumberOfCashFlowsPerProductPerStep() const
+    {
         return 1;
     }
 
-    inline void
-    OneStepForwards::reset() {
+    inline void OneStepForwards::reset()
+    {
         // nothing to do
     }
 
@@ -74,4 +76,3 @@ namespace QuantLib {
 
 
 #endif
-

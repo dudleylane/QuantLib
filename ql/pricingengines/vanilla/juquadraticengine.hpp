@@ -28,7 +28,8 @@
 #include <ql/instruments/vanillaoption.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Pricing engine for American options with Ju quadratic approximation
     /*! Reference:
@@ -49,8 +50,8 @@ namespace QuantLib {
         \test the correctness of the returned value is tested by
               reproducing results available in literature.
     */
-    class JuQuadraticApproximationEngine
-        : public VanillaOption::engine {
+    class JuQuadraticApproximationEngine : public VanillaOption::engine
+    {
       public:
         JuQuadraticApproximationEngine(ext::shared_ptr<GeneralizedBlackScholesProcess>);
         void calculate() const override;

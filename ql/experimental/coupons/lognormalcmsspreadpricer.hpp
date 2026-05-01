@@ -29,11 +29,12 @@
 #include <ql/cashflows/cmscoupon.hpp>
 #include <ql/experimental/coupons/cmsspreadcoupon.hpp>
 #include <ql/experimental/coupons/swapspreadindex.hpp>
-#include <ql/math/integrals/gaussianquadratures.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
+#include <ql/math/integrals/gaussianquadratures.hpp>
 #include <ql/optional.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class CmsSpreadCoupon;
     class YieldTermStructure;
@@ -57,17 +58,17 @@ namespace QuantLib {
         http://ssrn.com/abstract=2686998
     */
 
-    class LognormalCmsSpreadPricer : public CmsSpreadCouponPricer {
+    class LognormalCmsSpreadPricer : public CmsSpreadCouponPricer
+    {
 
       public:
-        LognormalCmsSpreadPricer(
-            const ext::shared_ptr<CmsCouponPricer>& cmsPricer,
-            const Handle<Quote>& correlation,
-            Handle<YieldTermStructure> couponDiscountCurve = Handle<YieldTermStructure>(),
-            Size IntegrationPoints = 16,
-            const ext::optional<VolatilityType>& volatilityType = ext::nullopt,
-            Real shift1 = Null<Real>(),
-            Real shift2 = Null<Real>());
+        LognormalCmsSpreadPricer(const ext::shared_ptr<CmsCouponPricer>& cmsPricer,
+                                 const Handle<Quote>& correlation,
+                                 Handle<YieldTermStructure> couponDiscountCurve = Handle<YieldTermStructure>(),
+                                 Size IntegrationPoints = 16,
+                                 const ext::optional<VolatilityType>& volatilityType = ext::nullopt,
+                                 Real shift1 = Null<Real>(),
+                                 Real shift2 = Null<Real>());
 
         /* */
         Real swapletPrice() const override;
@@ -90,7 +91,7 @@ namespace QuantLib {
 
         Handle<YieldTermStructure> couponDiscountCurve_;
 
-        const CmsSpreadCoupon *coupon_;
+        const CmsSpreadCoupon* coupon_;
 
         Date today_, fixingDate_, paymentDate_;
 

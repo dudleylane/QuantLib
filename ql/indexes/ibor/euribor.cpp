@@ -18,66 +18,78 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/currencies/europe.hpp>
 #include <ql/indexes/ibor/euribor.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
-#include <ql/currencies/europe.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
+    namespace
+    {
 
-        BusinessDayConvention euriborConvention(const Period& p) {
-            switch (p.units()) {
-              case Days:
-              case Weeks:
-                return Following;
-              case Months:
-              case Years:
-                return ModifiedFollowing;
-              default:
-                QL_FAIL("invalid time units");
+        BusinessDayConvention euriborConvention(const Period& p)
+        {
+            switch (p.units())
+            {
+                case Days:
+                case Weeks:
+                    return Following;
+                case Months:
+                case Years:
+                    return ModifiedFollowing;
+                default:
+                    QL_FAIL("invalid time units");
             }
         }
 
-        bool euriborEOM(const Period& p) {
-            switch (p.units()) {
-              case Days:
-              case Weeks:
-                return false;
-              case Months:
-              case Years:
-                return true;
-              default:
-                QL_FAIL("invalid time units");
+        bool euriborEOM(const Period& p)
+        {
+            switch (p.units())
+            {
+                case Days:
+                case Weeks:
+                    return false;
+                case Months:
+                case Years:
+                    return true;
+                default:
+                    QL_FAIL("invalid time units");
             }
         }
 
     }
 
-    Euribor::Euribor(const Period& tenor,
-                     const Handle<YieldTermStructure>& h)
-    : IborIndex("Euribor", tenor,
+    Euribor::Euribor(const Period& tenor, const Handle<YieldTermStructure>& h)
+    : IborIndex("Euribor",
+                tenor,
                 2, // settlement days
-                EURCurrency(), TARGET(),
-                euriborConvention(tenor), euriborEOM(tenor),
-                Actual360(), h) {
-        QL_REQUIRE(this->tenor().units()!=Days,
-                   "for daily tenors (" << this->tenor() <<
-                   ") dedicated DailyTenor constructor must be used");
+                EURCurrency(),
+                TARGET(),
+                euriborConvention(tenor),
+                euriborEOM(tenor),
+                Actual360(),
+                h)
+    {
+        QL_REQUIRE(this->tenor().units() != Days,
+                   "for daily tenors (" << this->tenor() << ") dedicated DailyTenor constructor must be used");
     }
 
-    Euribor365::Euribor365(const Period& tenor,
-                           const Handle<YieldTermStructure>& h)
-    : IborIndex("Euribor365", tenor,
+    Euribor365::Euribor365(const Period& tenor, const Handle<YieldTermStructure>& h)
+    : IborIndex("Euribor365",
+                tenor,
                 2, // settlement days
-                EURCurrency(), TARGET(),
-                euriborConvention(tenor), euriborEOM(tenor),
-                Actual365Fixed(), h) {
-        QL_REQUIRE(this->tenor().units()!=Days,
-                   "for daily tenors (" << this->tenor() <<
-                   ") dedicated DailyTenor constructor must be used");
+                EURCurrency(),
+                TARGET(),
+                euriborConvention(tenor),
+                euriborEOM(tenor),
+                Actual365Fixed(),
+                h)
+    {
+        QL_REQUIRE(this->tenor().units() != Days,
+                   "for daily tenors (" << this->tenor() << ") dedicated DailyTenor constructor must be used");
     }
 
 }

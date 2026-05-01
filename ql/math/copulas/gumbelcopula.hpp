@@ -27,17 +27,20 @@
 #include <ql/types.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Gumbel copula
-    class GumbelCopula {
+    class GumbelCopula
+    {
       public:
         GumbelCopula(Real theta);
         Real operator()(Real x, Real y) const;
+
       private:
         Real theta_;
     };
-    
+
 }
 
 #endif

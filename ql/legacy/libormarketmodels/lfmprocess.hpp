@@ -26,11 +26,12 @@
 
 #include <ql/cashflow.hpp>
 #include <ql/indexes/iborindex.hpp>
-#include <ql/termstructures/volatility/optionlet/optionletvolatilitystructure.hpp>
-#include <ql/stochasticprocess.hpp>
 #include <ql/legacy/libormarketmodels/lfmcovarparam.hpp>
+#include <ql/stochasticprocess.hpp>
+#include <ql/termstructures/volatility/optionlet/optionletvolatilitystructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! libor-forward-model process
     /*! stochastic process of a libor forward model using the
@@ -55,7 +56,8 @@ namespace QuantLib {
 
         \ingroup processes
     */
-    class LiborForwardModelProcess : public StochasticProcess {
+    class LiborForwardModelProcess : public StochasticProcess
+    {
       public:
         LiborForwardModelProcess(Size size, ext::shared_ptr<IborIndex> index);
 
@@ -72,22 +74,19 @@ namespace QuantLib {
         Size factors() const override;
 
         ext::shared_ptr<IborIndex> index() const;
-        Leg cashFlows(
-                                                     Real amount = 1.0) const;
+        Leg cashFlows(Real amount = 1.0) const;
 
-        void setCovarParam(
-               const ext::shared_ptr<LfmCovarianceParameterization>& param);
+        void setCovarParam(const ext::shared_ptr<LfmCovarianceParameterization>& param);
         ext::shared_ptr<LfmCovarianceParameterization> covarParam() const;
 
         // convenience support methods
         Size nextIndexReset(Time t) const;
-        const std::vector<Time> & fixingTimes() const;
-        const std::vector<Date> & fixingDates() const;
-        const std::vector<Time> & accrualStartTimes() const;
-        const std::vector<Time> & accrualEndTimes() const;
+        const std::vector<Time>& fixingTimes() const;
+        const std::vector<Date>& fixingDates() const;
+        const std::vector<Time>& accrualStartTimes() const;
+        const std::vector<Time>& accrualEndTimes() const;
 
-        std::vector<DiscountFactor> discountBond(
-                                       const std::vector<Rate> & rates) const;
+        std::vector<DiscountFactor> discountBond(const std::vector<Rate>& rates) const;
 
       private:
         Size size_;

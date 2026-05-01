@@ -20,7 +20,8 @@
 #include <ql/experimental/barrieroption/mcdoublebarrierengine.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     DoubleBarrierPathPricer::DoubleBarrierPathPricer(DoubleBarrier::Type barrierType,
                                                      Real barrierLow,
@@ -29,20 +30,19 @@ namespace QuantLib {
                                                      Option::Type type,
                                                      Real strike,
                                                      std::vector<DiscountFactor> discounts)
-    : barrierType_(barrierType), barrierLow_(barrierLow), barrierHigh_(barrierHigh),
-      rebate_(rebate), payoff_(type, strike), discounts_(std::move(discounts)) {
-        QL_REQUIRE(strike>=0.0,
-                   "strike less than zero not allowed");
-        QL_REQUIRE(barrierLow>0.0,
-                   "low barrier less/equal zero not allowed");
-        QL_REQUIRE(barrierHigh>0.0,
-                   "high barrier less/equal zero not allowed");
+    : barrierType_(barrierType), barrierLow_(barrierLow), barrierHigh_(barrierHigh), rebate_(rebate),
+      payoff_(type, strike), discounts_(std::move(discounts))
+    {
+        QL_REQUIRE(strike >= 0.0, "strike less than zero not allowed");
+        QL_REQUIRE(barrierLow > 0.0, "low barrier less/equal zero not allowed");
+        QL_REQUIRE(barrierHigh > 0.0, "high barrier less/equal zero not allowed");
     }
 
-    Real DoubleBarrierPathPricer::operator()(const Path& path) const {
+    Real DoubleBarrierPathPricer::operator()(const Path& path) const
+    {
         static Size null = Null<Size>();
         Size n = path.length();
-        QL_REQUIRE(n>1, "the path cannot be empty");
+        QL_REQUIRE(n > 1, "the path cannot be empty");
 
         bool isOptionActive = false;
         Size knockNode = null;
@@ -50,29 +50,34 @@ namespace QuantLib {
         Real new_asset_price;
         Size i;
 
-        switch (barrierType_) {
+        switch (barrierType_)
+        {
             case DoubleBarrier::KnockOut:
                 isOptionActive = true;
-                for (i = 0; i < n-1; i++) {
+                for (i = 0; i < n - 1; i++)
+                {
                     new_asset_price = path[i + 1];
 
-                    if (new_asset_price >= barrierHigh_ || new_asset_price <= barrierLow_){
+                    if (new_asset_price >= barrierHigh_ || new_asset_price <= barrierLow_)
+                    {
                         isOptionActive = false;
                         if (knockNode == null)
-                            knockNode = i+1;
+                            knockNode = i + 1;
                         break;
                     }
                 }
                 break;
             case DoubleBarrier::KnockIn:
                 isOptionActive = false;
-                for (i = 0; i < n-1; i++) {
+                for (i = 0; i < n - 1; i++)
+                {
                     new_asset_price = path[i + 1];
 
-                    if (new_asset_price >= barrierHigh_ || new_asset_price <= barrierLow_){
+                    if (new_asset_price >= barrierHigh_ || new_asset_price <= barrierLow_)
+                    {
                         isOptionActive = true;
                         if (knockNode == null)
-                            knockNode = i+1;
+                            knockNode = i + 1;
                         break;
                     }
                 }
@@ -81,14 +86,18 @@ namespace QuantLib {
                 QL_FAIL("unknown barrier type");
         }
 
-        if (isOptionActive) {
+        if (isOptionActive)
+        {
             return payoff_(terminal_price) * discounts_.back();
-        } else {
-            switch (barrierType_) {
+        }
+        else
+        {
+            switch (barrierType_)
+            {
                 case DoubleBarrier::KnockOut:
-                    return rebate_*discounts_[knockNode];
+                    return rebate_ * discounts_[knockNode];
                 case DoubleBarrier::KnockIn:
-                    return rebate_*discounts_.back();
+                    return rebate_ * discounts_.back();
                 default:
                     QL_FAIL("unknown barrier type");
             }

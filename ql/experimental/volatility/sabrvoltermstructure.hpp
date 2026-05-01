@@ -25,12 +25,14 @@
 #define quantlib_sabr_vol_termstructure_hpp
 
 
-#include <ql/termstructures/volatility/sabr.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvoltermstructure.hpp>
+#include <ql/termstructures/volatility/sabr.hpp>
 #include <ql/time/calendars/nullcalendar.hpp>
 
-namespace QuantLib {
-    class SABRVolTermStructure : public BlackVolatilityTermStructure {
+namespace QuantLib
+{
+    class SABRVolTermStructure : public BlackVolatilityTermStructure
+    {
       public:
         SABRVolTermStructure(Real alpha,
                              Real beta,
@@ -40,16 +42,19 @@ namespace QuantLib {
                              Real r,
                              const Date& referenceDate,
                              const DayCounter& dc)
-        : BlackVolatilityTermStructure(referenceDate, NullCalendar(), Following, dc), alpha_(alpha),
-          beta_(beta), gamma_(gamma), rho_(rho), s0_(s0), r_(r) {}
+        : BlackVolatilityTermStructure(referenceDate, NullCalendar(), Following, dc), alpha_(alpha), beta_(beta),
+          gamma_(gamma), rho_(rho), s0_(s0), r_(r)
+        {
+        }
 
         Date maxDate() const override { return Date::maxDate(); }
         Rate minStrike() const override { return 0.0; }
         Rate maxStrike() const override { return QL_MAX_REAL; }
 
       protected:
-        Volatility blackVolImpl(Time t, Real strike) const override {
-            const Real fwd = s0_*std::exp(r_*t);
+        Volatility blackVolImpl(Time t, Real strike) const override
+        {
+            const Real fwd = s0_ * std::exp(r_ * t);
             return sabrVolatility(strike, fwd, t, alpha_, beta_, gamma_, rho_);
         }
 

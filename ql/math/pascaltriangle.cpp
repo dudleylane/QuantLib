@@ -21,12 +21,15 @@
 #include <ql/math/pascaltriangle.hpp>
 #include <iterator>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    std::vector<std::vector<BigNatural> > PascalTriangle::coefficients_;
+    std::vector<std::vector<BigNatural>> PascalTriangle::coefficients_;
 
-    const std::vector<BigNatural>& PascalTriangle::get(Size order) {
-        if (coefficients_.empty()) {
+    const std::vector<BigNatural>& PascalTriangle::get(Size order)
+    {
+        if (coefficients_.empty())
+        {
             // order zero mandatory for bootstrap
             coefficients_.emplace_back(1, 1);
 
@@ -36,18 +39,20 @@ namespace QuantLib {
             coefficients_.emplace_back(4, 1);
             coefficients_[3][1] = coefficients_[3][2] = 3;
         }
-        while (coefficients_.size()<=order)
+        while (coefficients_.size() <= order)
             nextOrder();
         return coefficients_[order];
     }
 
-    void PascalTriangle::nextOrder() {
+    void PascalTriangle::nextOrder()
+    {
         Size order = coefficients_.size();
         coefficients_.emplace_back(order + 1);
         coefficients_[order][0] = coefficients_[order][order] = 1;
-        for (Size i=1; i<order/2+1; ++i) {
-            coefficients_[order][i] = coefficients_[order][order-i] =
-                coefficients_[order-1][i-1] + coefficients_[order-1][i];
+        for (Size i = 1; i < order / 2 + 1; ++i)
+        {
+            coefficients_[order][i] = coefficients_[order][order - i] =
+                coefficients_[order - 1][i - 1] + coefficients_[order - 1][i];
         }
     }
 

@@ -28,7 +28,8 @@
 #include <ql/models/equity/hestonmodel.hpp>
 #include <ql/pricingengines/genericmodelengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Analytic engine for arbitrary European payoffs under the Heston model
 
@@ -45,9 +46,8 @@ namespace QuantLib {
 
     */
     class AnalyticPDFHestonEngine
-       : public GenericModelEngine<HestonModel,
-                                   VanillaOption::arguments,
-                                   VanillaOption::results> {
+    : public GenericModelEngine<HestonModel, VanillaOption::arguments, VanillaOption::results>
+    {
       public:
         explicit AnalyticPDFHestonEngine(ext::shared_ptr<HestonModel> model,
                                          Real gaussLobattoEps = 1e-6,

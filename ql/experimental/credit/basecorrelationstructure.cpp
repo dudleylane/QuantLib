@@ -20,30 +20,27 @@
 #include <ql/experimental/credit/basecorrelationstructure.hpp>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    /* Default Factories for some specific two dimensional interpolations 
-    through template specialization. The signature of the 2D interpolator 
+    /* Default Factories for some specific two dimensional interpolations
+    through template specialization. The signature of the 2D interpolator
         constructor is not guaranteed.*/
-    template<>
-    void 
-    BaseCorrelationTermStructure<BilinearInterpolation>::setupInterpolation() {
-         interpolation_ =  
-             BilinearInterpolation(trancheTimes_.begin(), 
-            trancheTimes_.end(), lossLevel_.begin(), lossLevel_.end(), 
-            correlations_);
-     }
+    template <>
+    void BaseCorrelationTermStructure<BilinearInterpolation>::setupInterpolation()
+    {
+        interpolation_ = BilinearInterpolation(trancheTimes_.begin(), trancheTimes_.end(), lossLevel_.begin(),
+                                               lossLevel_.end(), correlations_);
+    }
 
-     /* Notice See that some interpolators might take you out of the [-1,1]
-     correlation domain.
-    */
-    template<>
-    void 
-    BaseCorrelationTermStructure<BicubicSpline>::setupInterpolation() {
-         interpolation_ =  
-             BicubicSpline(trancheTimes_.begin(), 
-            trancheTimes_.end(), lossLevel_.begin(), lossLevel_.end(), 
-            correlations_);
+    /* Notice See that some interpolators might take you out of the [-1,1]
+    correlation domain.
+   */
+    template <>
+    void BaseCorrelationTermStructure<BicubicSpline>::setupInterpolation()
+    {
+        interpolation_ = BicubicSpline(trancheTimes_.begin(), trancheTimes_.end(), lossLevel_.begin(), lossLevel_.end(),
+                                       correlations_);
     }
 
 }

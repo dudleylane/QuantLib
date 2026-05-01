@@ -25,17 +25,19 @@
 #ifndef quantlib_quote_hpp
 #define quantlib_quote_hpp
 
-#include <ql/handle.hpp>
 #include <ql/errors.hpp>
+#include <ql/handle.hpp>
 #include <ql/utilities/null.hpp>
 #include <variant>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! purely virtual base class for market observables
     /*! \test the observability of class instances is tested.
      */
-    class Quote : public virtual Observable {
+    class Quote : public virtual Observable
+    {
       public:
         ~Quote() override = default;
         //! returns the current value

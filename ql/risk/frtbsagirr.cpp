@@ -12,41 +12,34 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/risk/frtbsagirr.hpp>
 #include <ql/errors.hpp>
+#include <ql/risk/frtbsagirr.hpp>
 #include <algorithm>
 #include <cmath>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     FrtbSaGirrDelta::FrtbSaGirrDelta(std::vector<Real> tenors,
                                      std::vector<Real> sensitivities,
                                      std::vector<Real> riskWeights,
                                      Real theta,
                                      Real phiFloor)
-    : tenors_(std::move(tenors)),
-      theta_(theta), phiFloor_(phiFloor) {
+    : tenors_(std::move(tenors)), theta_(theta), phiFloor_(phiFloor)
+    {
 
-        QL_REQUIRE(!tenors_.empty(),
-                   "FrtbSaGirrDelta: need at least one tenor");
-        QL_REQUIRE(sensitivities.size() == tenors_.size(),
-                   "FrtbSaGirrDelta: sensitivities size "
-                   << sensitivities.size() << " != tenors size "
-                   << tenors_.size());
+        QL_REQUIRE(!tenors_.empty(), "FrtbSaGirrDelta: need at least one tenor");
+        QL_REQUIRE(sensitivities.size() == tenors_.size(), "FrtbSaGirrDelta: sensitivities size "
+                                                               << sensitivities.size() << " != tenors size "
+                                                               << tenors_.size());
         QL_REQUIRE(riskWeights.size() == tenors_.size(),
-                   "FrtbSaGirrDelta: risk-weights size "
-                   << riskWeights.size() << " != tenors size "
-                   << tenors_.size());
-        QL_REQUIRE(theta_ > 0.0,
-                   "FrtbSaGirrDelta: theta must be positive, got " << theta_);
-        QL_REQUIRE(phiFloor_ >= 0.0 && phiFloor_ <= 1.0,
-                   "FrtbSaGirrDelta: phiFloor outside [0, 1]: "
-                   << phiFloor_);
-        for (Size i = 0; i < tenors_.size(); ++i) {
-            QL_REQUIRE(tenors_[i] > 0.0,
-                       "FrtbSaGirrDelta: non-positive tenor at index "
-                       << i << ": " << tenors_[i]);
+                   "FrtbSaGirrDelta: risk-weights size " << riskWeights.size() << " != tenors size " << tenors_.size());
+        QL_REQUIRE(theta_ > 0.0, "FrtbSaGirrDelta: theta must be positive, got " << theta_);
+        QL_REQUIRE(phiFloor_ >= 0.0 && phiFloor_ <= 1.0, "FrtbSaGirrDelta: phiFloor outside [0, 1]: " << phiFloor_);
+        for (Size i = 0; i < tenors_.size(); ++i)
+        {
+            QL_REQUIRE(tenors_[i] > 0.0, "FrtbSaGirrDelta: non-positive tenor at index " << i << ": " << tenors_[i]);
         }
 
         ws_.resize(tenors_.size());
@@ -54,23 +47,29 @@ namespace QuantLib {
             ws_[i] = riskWeights[i] * sensitivities[i];
     }
 
-    Real FrtbSaGirrDelta::correlation(Size i, Size j) const {
-        if (i == j) return 1.0;
+    Real FrtbSaGirrDelta::correlation(Size i, Size j) const
+    {
+        if (i == j)
+            return 1.0;
         const Real minT = std::min(tenors_[i], tenors_[j]);
         const Real dT = std::fabs(tenors_[i] - tenors_[j]);
         Real rho = std::exp(-theta_ * dT / minT);
         return std::max(rho, phiFloor_);
     }
 
-    Real FrtbSaGirrDelta::bucketCharge() const {
+    Real FrtbSaGirrDelta::bucketCharge() const
+    {
         // K_b = sqrt( sum_i WS_i^2 + 2 * sum_{i<j} rho_{ij} * WS_i * WS_j )
         Real sumSq = 0.0;
-        for (Real w : ws_) sumSq += w * w;
+        for (Real w : ws_)
+            sumSq += w * w;
 
         Real cross = 0.0;
         const Size n = ws_.size();
-        for (Size i = 0; i < n; ++i) {
-            for (Size j = i + 1; j < n; ++j) {
+        for (Size i = 0; i < n; ++i)
+        {
+            for (Size j = i + 1; j < n; ++j)
+            {
                 cross += correlation(i, j) * ws_[i] * ws_[j];
             }
         }
@@ -81,11 +80,11 @@ namespace QuantLib {
         // capital charge — reject with a pointed message rather than
         // silently clamp, so the caller learns of the misconfiguration.
         Real inner = sumSq + 2.0 * cross;
-        QL_REQUIRE(inner >= 0.0,
-                   "FrtbSaGirrDelta: aggregated inner value " << inner
-                   << " is negative; correlation matrix likely not "
-                   "positive-semidefinite for the supplied theta / "
-                   "phiFloor / tenor combination");
+        QL_REQUIRE(inner >= 0.0, "FrtbSaGirrDelta: aggregated inner value "
+                                     << inner
+                                     << " is negative; correlation matrix likely not "
+                                        "positive-semidefinite for the supplied theta / "
+                                        "phiFloor / tenor combination");
         return std::sqrt(inner);
     }
 

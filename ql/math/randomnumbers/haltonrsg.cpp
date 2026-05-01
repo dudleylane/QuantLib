@@ -27,25 +27,23 @@
 // granted, provided that this notice is preserved.
 // ===========================================================================
 
+#include <ql/math/primenumbers.hpp>
 #include <ql/math/randomnumbers/haltonrsg.hpp>
 #include <ql/math/randomnumbers/rngtraits.hpp>
-#include <ql/math/primenumbers.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    HaltonRsg::HaltonRsg(Size dimensionality,
-                         unsigned long seed,
-                         bool randomStart,
-                         bool randomShift)
+    HaltonRsg::HaltonRsg(Size dimensionality, unsigned long seed, bool randomStart, bool randomShift)
     : dimensionality_(dimensionality), sequence_(std::vector<Real>(dimensionality), 1.0),
-      randomStart_(dimensionality, 0UL), randomShift_(dimensionality, 0.0) {
+      randomStart_(dimensionality, 0UL), randomShift_(dimensionality, 0.0)
+    {
 
-        QL_REQUIRE(dimensionality>0, 
-                   "dimensionality must be greater than 0");
+        QL_REQUIRE(dimensionality > 0, "dimensionality must be greater than 0");
 
-        if (randomStart || randomShift) {
-            RandomSequenceGenerator<MersenneTwisterUniformRng>
-                uniformRsg(dimensionality_, seed);
+        if (randomStart || randomShift)
+        {
+            RandomSequenceGenerator<MersenneTwisterUniformRng> uniformRsg(dimensionality_, seed);
             if (randomStart)
                 randomStart_ = uniformRsg.nextInt32Sequence();
             if (randomShift)
@@ -53,23 +51,25 @@ namespace QuantLib {
         }
     }
 
-    const HaltonRsg::sample_type& HaltonRsg::nextSequence() const {
+    const HaltonRsg::sample_type& HaltonRsg::nextSequence() const
+    {
         ++sequenceCounter_;
-        for (Size i=0; i<dimensionality_; ++i) {
+        for (Size i = 0; i < dimensionality_; ++i)
+        {
             double h = 0.0;
             unsigned long b = PrimeNumbers::get(i);
             double f = 1.0;
-            unsigned long k = sequenceCounter_+randomStart_[i];
-            while (k != 0U) {
+            unsigned long k = sequenceCounter_ + randomStart_[i];
+            while (k != 0U)
+            {
                 f /= b;
-                h += (k%b)*f;
+                h += (k % b) * f;
                 k /= b;
             }
-            sequence_.value[i] = h+randomShift_[i];
+            sequence_.value[i] = h + randomShift_[i];
             sequence_.value[i] -= long(sequence_.value[i]);
         }
         return sequence_;
     }
 
 }
-

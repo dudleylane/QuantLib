@@ -18,20 +18,22 @@
 */
 
 
-#include <ql/experimental/commodities/commoditysettings.hpp>
 #include <ql/currencies/america.hpp>
+#include <ql/experimental/commodities/commoditysettings.hpp>
 #include <ql/experimental/commodities/petroleumunitsofmeasure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    CommoditySettings::CommoditySettings()
-    : currency_(USDCurrency()), unitOfMeasure_(BarrelUnitOfMeasure()) {}
+    CommoditySettings::CommoditySettings() : currency_(USDCurrency()), unitOfMeasure_(BarrelUnitOfMeasure()) {}
 
-    Currency& CommoditySettings::currency() {
+    Currency& CommoditySettings::currency()
+    {
         return currency_;
     }
 
-    UnitOfMeasure& CommoditySettings::unitOfMeasure() {
+    UnitOfMeasure& CommoditySettings::unitOfMeasure()
+    {
         return unitOfMeasure_;
     }
 

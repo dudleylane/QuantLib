@@ -27,14 +27,15 @@
 
 #include <ql/termstructures/volatility/equityfx/localvoltermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class AndreasenHugeVolatilityInterpl;
 
-    class AndreasenHugeLocalVolAdapter : public LocalVolTermStructure {
+    class AndreasenHugeLocalVolAdapter : public LocalVolTermStructure
+    {
       public:
-        explicit AndreasenHugeLocalVolAdapter(
-            ext::shared_ptr<AndreasenHugeVolatilityInterpl> localVol);
+        explicit AndreasenHugeLocalVolAdapter(ext::shared_ptr<AndreasenHugeVolatilityInterpl> localVol);
 
         Date maxDate() const override;
         Real minStrike() const override;

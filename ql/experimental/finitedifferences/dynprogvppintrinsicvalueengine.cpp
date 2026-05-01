@@ -18,7 +18,7 @@
 */
 
 /*! \file dynprogvppintrinsicvalueengine.cpp
-*/
+ */
 
 #include <ql/experimental/finitedifferences/dynprogvppintrinsicvalueengine.hpp>
 #include <ql/experimental/finitedifferences/fdmvppstepconditionfactory.hpp>
@@ -30,25 +30,25 @@
 #include <utility>
 
 
-namespace QuantLib {
-    namespace {
-        class SparkSpreadPrice : public FdmInnerValueCalculator {
+namespace QuantLib
+{
+    namespace
+    {
+        class SparkSpreadPrice : public FdmInnerValueCalculator
+        {
           public:
-            SparkSpreadPrice(Real heatRate,
-                             const std::vector<Real>& fuelPrices,
-                             const std::vector<Real>& powerPrices)
-            : heatRate_(heatRate),
-              fuelPrices_(fuelPrices),
-              powerPrices_(powerPrices) {}
+            SparkSpreadPrice(Real heatRate, const std::vector<Real>& fuelPrices, const std::vector<Real>& powerPrices)
+            : heatRate_(heatRate), fuelPrices_(fuelPrices), powerPrices_(powerPrices)
+            {
+            }
 
-            Real innerValue(const FdmLinearOpIterator&, Time t) override {
-                Size i = (Size) t;
+            Real innerValue(const FdmLinearOpIterator&, Time t) override
+            {
+                Size i = (Size)t;
                 QL_REQUIRE(i < powerPrices_.size(), "invalid time");
-                return powerPrices_[i] - heatRate_*fuelPrices_[i];
+                return powerPrices_[i] - heatRate_ * fuelPrices_[i];
             }
-            Real avgInnerValue(const FdmLinearOpIterator& iter, Time t) override {
-                return innerValue(iter, t);
-            }
+            Real avgInnerValue(const FdmLinearOpIterator& iter, Time t) override { return innerValue(iter, t); }
 
           private:
             const Real heatRate_;
@@ -57,56 +57,54 @@ namespace QuantLib {
         };
 
 
-        class FuelPrice : public FdmInnerValueCalculator {
+        class FuelPrice : public FdmInnerValueCalculator
+        {
           public:
-            explicit FuelPrice(const std::vector<Real>& fuelPrices)
-            : fuelPrices_(fuelPrices) {}
+            explicit FuelPrice(const std::vector<Real>& fuelPrices) : fuelPrices_(fuelPrices) {}
 
-            Real innerValue(const FdmLinearOpIterator&, Time t) override {
-                Size i = (Size) t;
+            Real innerValue(const FdmLinearOpIterator&, Time t) override
+            {
+                Size i = (Size)t;
                 QL_REQUIRE(i < fuelPrices_.size(), "invalid time");
-                return fuelPrices_[(Size) t];
+                return fuelPrices_[(Size)t];
             }
-            Real avgInnerValue(const FdmLinearOpIterator& iter, Time t) override {
-                return innerValue(iter, t);
-            }
+            Real avgInnerValue(const FdmLinearOpIterator& iter, Time t) override { return innerValue(iter, t); }
 
           private:
             const std::vector<Real>& fuelPrices_;
         };
     }
 
-    DynProgVPPIntrinsicValueEngine::DynProgVPPIntrinsicValueEngine(
-        std::vector<Real> fuelPrices,
-        std::vector<Real> powerPrices,
-        Real fuelCostAddon,
-        ext::shared_ptr<YieldTermStructure> rTS)
-    : fuelPrices_(std::move(fuelPrices)), powerPrices_(std::move(powerPrices)),
-      fuelCostAddon_(fuelCostAddon), rTS_(std::move(rTS)) {}
+    DynProgVPPIntrinsicValueEngine::DynProgVPPIntrinsicValueEngine(std::vector<Real> fuelPrices,
+                                                                   std::vector<Real> powerPrices,
+                                                                   Real fuelCostAddon,
+                                                                   ext::shared_ptr<YieldTermStructure> rTS)
+    : fuelPrices_(std::move(fuelPrices)), powerPrices_(std::move(powerPrices)), fuelCostAddon_(fuelCostAddon),
+      rTS_(std::move(rTS))
+    {
+    }
 
-    void DynProgVPPIntrinsicValueEngine::calculate() const {
-        const ext::shared_ptr<FdmInnerValueCalculator> fuelPrice(
-            new FuelPrice(fuelPrices_));
+    void DynProgVPPIntrinsicValueEngine::calculate() const
+    {
+        const ext::shared_ptr<FdmInnerValueCalculator> fuelPrice(new FuelPrice(fuelPrices_));
         const ext::shared_ptr<FdmInnerValueCalculator> sparkSpreadPrice(
-            new SparkSpreadPrice(arguments_.heatRate,fuelPrices_,powerPrices_));
+            new SparkSpreadPrice(arguments_.heatRate, fuelPrices_, powerPrices_));
 
         const FdmVPPStepConditionFactory stepConditionFactory(arguments_);
 
-        const ext::shared_ptr<FdmMesher> mesher(
-            new FdmMesherComposite(stepConditionFactory.stateMesher()));
+        const ext::shared_ptr<FdmMesher> mesher(new FdmMesherComposite(stepConditionFactory.stateMesher()));
 
-        const FdmVPPStepConditionMesher mesh = { 0, mesher };
+        const FdmVPPStepConditionMesher mesh = {0, mesher};
 
         const ext::shared_ptr<FdmVPPStepCondition> stepCondition(
-            stepConditionFactory.build(mesh, fuelCostAddon_,
-                                       fuelPrice, sparkSpreadPrice));
+            stepConditionFactory.build(mesh, fuelCostAddon_, fuelPrice, sparkSpreadPrice));
 
         Array state(mesher->layout()->dim()[0], 0.0);
-        for (Size j=powerPrices_.size(); j > 0; --j) {
-            stepCondition->applyTo(state, (Time) j-1);
+        for (Size j = powerPrices_.size(); j > 0; --j)
+        {
+            stepCondition->applyTo(state, (Time)j - 1);
         }
 
         results_.value = stepCondition->maxValue(state);
     }
 }
-

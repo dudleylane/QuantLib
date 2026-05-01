@@ -31,14 +31,16 @@
 #include <ql/utilities/null.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! market quote whose value depends on another quote
     /*! \test the correctness of the returned values is tested by
               checking them against numerical calculations.
     */
     template <class UnaryFunction>
-    class DerivedQuote : public Quote, public Observer {
+    class DerivedQuote : public Quote, public Observer
+    {
       public:
         DerivedQuote(Handle<Quote> element, UnaryFunction f);
         //! \name Quote interface
@@ -58,21 +60,24 @@ namespace QuantLib {
 
     //! creator method
     template <class UnaryFunction>
-    DerivedQuote<UnaryFunction> makeDerivedQuote(Handle<Quote> element,
-                                                 UnaryFunction f) {
+    DerivedQuote<UnaryFunction> makeDerivedQuote(Handle<Quote> element, UnaryFunction f)
+    {
         return DerivedQuote<UnaryFunction>(std::move(element), std::move(f));
     }
 
     // inline definitions
     template <class UnaryFunction>
     inline DerivedQuote<UnaryFunction>::DerivedQuote(Handle<Quote> element, UnaryFunction f)
-    : element_(std::move(element)), f_(std::move(f)) {
+    : element_(std::move(element)), f_(std::move(f))
+    {
         registerWith(element_);
     }
 
     template <class UnaryFunction>
-    inline Real DerivedQuote<UnaryFunction>::value() const {
-        if (value_ == Null<Real>()) {
+    inline Real DerivedQuote<UnaryFunction>::value() const
+    {
+        if (value_ == Null<Real>())
+        {
             QL_ENSURE(isValid(), "invalid DerivedQuote");
             value_ = f_(element_->value());
         }
@@ -80,12 +85,14 @@ namespace QuantLib {
     }
 
     template <class UnaryFunction>
-    inline bool DerivedQuote<UnaryFunction>::isValid() const {
+    inline bool DerivedQuote<UnaryFunction>::isValid() const
+    {
         return !element_.empty() && element_->isValid();
     }
 
     template <class UnaryFunction>
-    inline void DerivedQuote<UnaryFunction>::update() {
+    inline void DerivedQuote<UnaryFunction>::update()
+    {
         value_ = Null<Real>();
         notifyObservers();
     }

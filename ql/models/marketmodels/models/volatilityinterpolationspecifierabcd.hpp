@@ -20,10 +20,10 @@
 #ifndef volatility_interpolation_specifier_abcd_hpp
 #define volatility_interpolation_specifier_abcd_hpp
 
-#include <ql/models/marketmodels/models/volatilityinterpolationspecifier.hpp>
 #include <ql/models/marketmodels/models/piecewiseconstantabcdvariance.hpp>
-#include <ql/types.hpp>
+#include <ql/models/marketmodels/models/volatilityinterpolationspecifier.hpp>
 #include <ql/shared_ptr.hpp>
+#include <ql/types.hpp>
 #include <vector>
 
 
@@ -31,23 +31,22 @@ namespace QuantLib
 {
     class VolatilityInterpolationSpecifierabcd : public VolatilityInterpolationSpecifier
     {
-    public:
-        VolatilityInterpolationSpecifierabcd(Size period,
-                                                                   Size offset,
-                                                                   const std::vector< PiecewiseConstantAbcdVariance>& originalVariances, // these should be associated with the long rates
-                                                                   const std::vector<Time>& timesForSmallRates, // these should be associated with the shorter rates
-                                                                   Real lastCapletVol=0.0
-                                                                   );
+      public:
+        VolatilityInterpolationSpecifierabcd(
+            Size period,
+            Size offset,
+            const std::vector<PiecewiseConstantAbcdVariance>&
+                originalVariances,                       // these should be associated with the long rates
+            const std::vector<Time>& timesForSmallRates, // these should be associated with the shorter rates
+            Real lastCapletVol = 0.0);
 
         ~VolatilityInterpolationSpecifierabcd() override = default;
         void setScalingFactors(const std::vector<Real>& scales) override;
         void setLastCapletVol(Real vol) override;
 
 
-        const std::vector<ext::shared_ptr<PiecewiseConstantVariance> >&
-        interpolatedVariances() const override;
-        const std::vector<ext::shared_ptr<PiecewiseConstantVariance> >&
-        originalVariances() const override;
+        const std::vector<ext::shared_ptr<PiecewiseConstantVariance>>& interpolatedVariances() const override;
+        const std::vector<ext::shared_ptr<PiecewiseConstantVariance>>& originalVariances() const override;
 
         Size getPeriod() const override;
         Size getOffset() const override;
@@ -58,19 +57,18 @@ namespace QuantLib
         Size period_;
         Size offset_;
 
-         std::vector<ext::shared_ptr<PiecewiseConstantVariance> > interpolatedVariances_;
-         std::vector<ext::shared_ptr<PiecewiseConstantVariance> > originalVariances_;
-         std::vector< PiecewiseConstantAbcdVariance> originalABCDVariances_;
-         std::vector< PiecewiseConstantAbcdVariance> originalABCDVariancesScaled_;
-         Real lastCapletVol_;
-         std::vector<Time> timesForSmallRates_;
-         std::vector<Real> scalingFactors_;
+        std::vector<ext::shared_ptr<PiecewiseConstantVariance>> interpolatedVariances_;
+        std::vector<ext::shared_ptr<PiecewiseConstantVariance>> originalVariances_;
+        std::vector<PiecewiseConstantAbcdVariance> originalABCDVariances_;
+        std::vector<PiecewiseConstantAbcdVariance> originalABCDVariancesScaled_;
+        Real lastCapletVol_;
+        std::vector<Time> timesForSmallRates_;
+        std::vector<Real> scalingFactors_;
 
-         Size noBigRates_;
-         Size noSmallRates_;
+        Size noBigRates_;
+        Size noSmallRates_;
 
-         void recompute();
-
+        void recompute();
     };
 }
 

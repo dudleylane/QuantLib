@@ -28,11 +28,10 @@
 #include <valarray>
 
 namespace QuantLib
-{   
+{
     class VolatilityBumpInstrumentJacobian
     {
-    public:
-
+      public:
         struct Swaption
         {
             Size startIndex_;
@@ -44,72 +43,64 @@ namespace QuantLib
             Size startIndex_;
             Size endIndex_;
             Real strike_;
-
         };
 
-    
+
         VolatilityBumpInstrumentJacobian(const VegaBumpCollection& bumps,
-            const std::vector<Swaption>& swaptions,
-            const std::vector<Cap>& caps);
+                                         const std::vector<Swaption>& swaptions,
+                                         const std::vector<Cap>& caps);
 
 
-        const VegaBumpCollection& getInputBumps() const
-        {
-            return bumps_;
-        }
+        const VegaBumpCollection& getInputBumps() const { return bumps_; }
 
         std::vector<Real> derivativesVolatility(Size j) const;
 
-        std::vector<Real> onePercentBump(
-            Size j) const; // vector of smallest size that changes instrument implied vol by 1
-                           // percent i.e. 0.01 v / <v,v> with v result of derivativesVolatility
+        std::vector<Real>
+        onePercentBump(Size j) const; // vector of smallest size that changes instrument implied vol by 1
+                                      // percent i.e. 0.01 v / <v,v> with v result of derivativesVolatility
 
         const Matrix& getAllOnePercentBumps() const;
 
-    private:
-         VegaBumpCollection bumps_;
-         std::vector<Swaption> swaptions_;
-         std::vector<Cap> caps_;
-         mutable std::valarray<bool> computed_;
-         mutable bool allComputed_;
-         mutable std::vector<std::vector<Real> > derivatives_;
-         
-         mutable std::vector<std::vector<Real> > onePercentBumps_;
-         mutable Matrix bumpMatrix_;
+      private:
+        VegaBumpCollection bumps_;
+        std::vector<Swaption> swaptions_;
+        std::vector<Cap> caps_;
+        mutable std::valarray<bool> computed_;
+        mutable bool allComputed_;
+        mutable std::vector<std::vector<Real>> derivatives_;
+
+        mutable std::vector<std::vector<Real>> onePercentBumps_;
+        mutable Matrix bumpMatrix_;
     };
 
     /*!
     Pass in a market model, a list of instruments, and possible bumps.
 
-    Get out pseudo-root bumps that shift each implied vol by one percent, and leave the other instruments fixed. 
+    Get out pseudo-root bumps that shift each implied vol by one percent, and leave the other instruments fixed.
 
-    If the contribution of an instrument is too correlated with other instruments used, discard it. 
+    If the contribution of an instrument is too correlated with other instruments used, discard it.
 
     */
 
     class OrthogonalizedBumpFinder
     {
-        public:
-            OrthogonalizedBumpFinder(const VegaBumpCollection& bumps,
-                                     const std::vector<VolatilityBumpInstrumentJacobian::Swaption>& swaptions,
-                                     const std::vector<VolatilityBumpInstrumentJacobian::Cap>& caps,
-                                     Real multiplierCutOff, // if vector length grows by more than this discard
-                                     Real tolerance);      // if vector projection before scaling less than this discard
+      public:
+        OrthogonalizedBumpFinder(const VegaBumpCollection& bumps,
+                                 const std::vector<VolatilityBumpInstrumentJacobian::Swaption>& swaptions,
+                                 const std::vector<VolatilityBumpInstrumentJacobian::Cap>& caps,
+                                 Real multiplierCutOff, // if vector length grows by more than this discard
+                                 Real tolerance);       // if vector projection before scaling less than this discard
 
-            void GetVegaBumps(std::vector<std::vector<Matrix> >& theBumps) const; // this is precisely the vector to pass into PathwiseVegasAccountingEngine
-             
-
-        private:
-
-            VolatilityBumpInstrumentJacobian derivativesProducer_;
-            Real multiplierCutOff_;
-            Real tolerance_;
+        void GetVegaBumps(std::vector<std::vector<Matrix>>& theBumps)
+            const; // this is precisely the vector to pass into PathwiseVegasAccountingEngine
 
 
+      private:
+        VolatilityBumpInstrumentJacobian derivativesProducer_;
+        Real multiplierCutOff_;
+        Real tolerance_;
     };
 
-
-  
 
 }
 

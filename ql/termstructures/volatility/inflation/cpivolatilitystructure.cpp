@@ -17,10 +17,11 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
  */
 
-#include <ql/termstructures/volatility/inflation/cpivolatilitystructure.hpp>
 #include <ql/termstructures/inflationtermstructure.hpp>
+#include <ql/termstructures/volatility/inflation/cpivolatilitystructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     CPIVolatilitySurface::CPIVolatilitySurface(Natural settlementDays,
                                                const Calendar& cal,
@@ -29,74 +30,75 @@ namespace QuantLib {
                                                const Period& observationLag,
                                                Frequency frequency,
                                                bool indexIsInterpolated)
-    : VolatilityTermStructure(settlementDays, cal, bdc, dc),
-      baseLevel_(Null<Volatility>()), observationLag_(observationLag),
-      frequency_(frequency), indexIsInterpolated_(indexIsInterpolated)
-    {}
+    : VolatilityTermStructure(settlementDays, cal, bdc, dc), baseLevel_(Null<Volatility>()),
+      observationLag_(observationLag), frequency_(frequency), indexIsInterpolated_(indexIsInterpolated)
+    {
+    }
 
 
-    Date CPIVolatilitySurface::baseDate() const {
+    Date CPIVolatilitySurface::baseDate() const
+    {
         // Depends on interpolation, or not, of observed index
         // and observation lag with which it was built.
         // We want this to work even if the index does not
         // have a term structure.
-        if (indexIsInterpolated()) {
+        if (indexIsInterpolated())
+        {
             return referenceDate() - observationLag();
-        } else {
-            return inflationPeriod(referenceDate() - observationLag(),
-                                   frequency()).first;
+        }
+        else
+        {
+            return inflationPeriod(referenceDate() - observationLag(), frequency()).first;
         }
     }
 
 
-    void CPIVolatilitySurface::checkRange(const Date& d, Rate strike,
-                                          bool extrapolate) const {
-        QL_REQUIRE(d >= baseDate(),
-                   "date (" << d << ") is before base date");
+    void CPIVolatilitySurface::checkRange(const Date& d, Rate strike, bool extrapolate) const
+    {
+        QL_REQUIRE(d >= baseDate(), "date (" << d << ") is before base date");
         QL_REQUIRE(extrapolate || allowsExtrapolation() || d <= maxDate(),
-                   "date (" << d << ") is past max curve date ("
-                   << maxDate() << ")");
-        QL_REQUIRE(extrapolate || allowsExtrapolation() ||
-                   (strike >= minStrike() && strike <= maxStrike()),
-                   "strike (" << strike << ") is outside the curve domain ["
-                   << minStrike() << "," << maxStrike()<< "]] at date = " << d);
+                   "date (" << d << ") is past max curve date (" << maxDate() << ")");
+        QL_REQUIRE(extrapolate || allowsExtrapolation() || (strike >= minStrike() && strike <= maxStrike()),
+                   "strike (" << strike << ") is outside the curve domain [" << minStrike() << "," << maxStrike()
+                              << "]] at date = " << d);
     }
 
 
-    void CPIVolatilitySurface::checkRange(Time t, Rate strike,
-                                          bool extrapolate) const {
-        QL_REQUIRE(t >= timeFromReference(baseDate()),
-                   "time (" << t << ") is before base date");
+    void CPIVolatilitySurface::checkRange(Time t, Rate strike, bool extrapolate) const
+    {
+        QL_REQUIRE(t >= timeFromReference(baseDate()), "time (" << t << ") is before base date");
         QL_REQUIRE(extrapolate || allowsExtrapolation() || t <= maxTime(),
-                   "time (" << t << ") is past max curve time ("
-                   << maxTime() << ")");
-        QL_REQUIRE(extrapolate || allowsExtrapolation() ||
-                   (strike >= minStrike() && strike <= maxStrike()),
-                   "strike (" << strike << ") is outside the curve domain ["
-                   << minStrike() << "," << maxStrike()<< "] at time = " << t);
+                   "time (" << t << ") is past max curve time (" << maxTime() << ")");
+        QL_REQUIRE(extrapolate || allowsExtrapolation() || (strike >= minStrike() && strike <= maxStrike()),
+                   "strike (" << strike << ") is outside the curve domain [" << minStrike() << "," << maxStrike()
+                              << "] at time = " << t);
     }
 
 
     Volatility CPIVolatilitySurface::volatility(const Date& maturityDate,
                                                 Rate strike,
                                                 const Period& obsLag,
-                                                bool extrapolate) const {
+                                                bool extrapolate) const
+    {
 
         Period useLag = obsLag;
-        if (obsLag==Period(-1,Days)) {
+        if (obsLag == Period(-1, Days))
+        {
             useLag = observationLag();
         }
 
-        if (indexIsInterpolated()) {
-            checkRange(maturityDate-useLag, strike, extrapolate);
-            Time t = timeFromReference(maturityDate-useLag);
-            return volatilityImpl(t,strike);
-        } else {
-            std::pair<Date,Date> dd =
-                inflationPeriod(maturityDate-useLag, frequency());
+        if (indexIsInterpolated())
+        {
+            checkRange(maturityDate - useLag, strike, extrapolate);
+            Time t = timeFromReference(maturityDate - useLag);
+            return volatilityImpl(t, strike);
+        }
+        else
+        {
+            std::pair<Date, Date> dd = inflationPeriod(maturityDate - useLag, frequency());
             checkRange(dd.first, strike, extrapolate);
             Time t = timeFromReference(dd.first);
-            return volatilityImpl(t,strike);
+            return volatilityImpl(t, strike);
         }
     }
 
@@ -104,29 +106,34 @@ namespace QuantLib {
     Volatility CPIVolatilitySurface::volatility(const Period& optionTenor,
                                                 Rate strike,
                                                 const Period& obsLag,
-                                                bool extrapolate) const {
+                                                bool extrapolate) const
+    {
         Date maturityDate = optionDateFromTenor(optionTenor);
         return volatility(maturityDate, strike, obsLag, extrapolate);
     }
 
-    Volatility CPIVolatilitySurface::volatility(Time time, Rate strike) const {
+    Volatility CPIVolatilitySurface::volatility(Time time, Rate strike) const
+    {
         return volatilityImpl(time, strike);
     }
 
     //! needed for total variance calculations
-    Time CPIVolatilitySurface::timeFromBase(const Date& maturityDate,
-                                            const Period& obsLag) const {
+    Time CPIVolatilitySurface::timeFromBase(const Date& maturityDate, const Period& obsLag) const
+    {
         Period useLag = obsLag;
-        if (obsLag==Period(-1,Days)) {
+        if (obsLag == Period(-1, Days))
+        {
             useLag = observationLag();
         }
 
         Date useDate;
-        if (indexIsInterpolated()) {
+        if (indexIsInterpolated())
+        {
             useDate = maturityDate - useLag;
-        } else {
-            useDate = inflationPeriod(maturityDate - useLag,
-                                      frequency()).first;
+        }
+        else
+        {
+            useDate = inflationPeriod(maturityDate - useLag, frequency()).first;
         }
 
         // This assumes that the inflation term structure starts
@@ -139,20 +146,19 @@ namespace QuantLib {
     Volatility CPIVolatilitySurface::totalVariance(const Date& maturityDate,
                                                    Rate strike,
                                                    const Period& obsLag,
-                                                   bool extrapolate) const {
+                                                   bool extrapolate) const
+    {
         Volatility vol = volatility(maturityDate, strike, obsLag, extrapolate);
         Time t = timeFromBase(maturityDate, obsLag);
-        return vol*vol*t;
+        return vol * vol * t;
     }
 
 
-    Volatility CPIVolatilitySurface::totalVariance(const Period& tenor,
-                                                   Rate strike,
-                                                   const Period& obsLag,
-                                                   bool extrap) const {
+    Volatility
+    CPIVolatilitySurface::totalVariance(const Period& tenor, Rate strike, const Period& obsLag, bool extrap) const
+    {
         Date maturityDate = optionDateFromTenor(tenor);
         return totalVariance(maturityDate, strike, obsLag, extrap);
     }
 
 }
-

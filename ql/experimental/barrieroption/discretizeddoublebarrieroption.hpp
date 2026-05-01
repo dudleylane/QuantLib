@@ -25,43 +25,42 @@
 #define quantlib_discretized_double_barrier_option_h
 
 #include <ql/discretizedasset.hpp>
-#include <ql/methods/lattices/bsmlattice.hpp>
 #include <ql/instruments/doublebarrieroption.hpp>
+#include <ql/methods/lattices/bsmlattice.hpp>
 #include <ql/pricingengines/vanilla/discretizedvanillaoption.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Standard discretized option helper class
     /*! This class is used with the BinomialDoubleBarrierEngine to
         implement a standard binomial algorithm for double barrier
         options
     */
-    class DiscretizedDoubleBarrierOption : public DiscretizedAsset {
+    class DiscretizedDoubleBarrierOption : public DiscretizedAsset
+    {
       public:
         DiscretizedDoubleBarrierOption(const DoubleBarrierOption::arguments&,
-                                 const StochasticProcess& process,
-                                 const TimeGrid& grid = TimeGrid());
+                                       const StochasticProcess& process,
+                                       const TimeGrid& grid = TimeGrid());
 
         void reset(Size size) override;
 
-        const Array& vanilla() const { 
-            return vanilla_.values(); 
-        }
+        const Array& vanilla() const { return vanilla_.values(); }
 
-        const DoubleBarrierOption::arguments& arguments() const {
-           return arguments_;
-        }
+        const DoubleBarrierOption::arguments& arguments() const { return arguments_; }
 
         std::vector<Time> mandatoryTimes() const override { return stoppingTimes_; }
 
-        void checkBarrier(Array &optvalues, const Array &grid) const;
+        void checkBarrier(Array& optvalues, const Array& grid) const;
+
       protected:
         void postAdjustValuesImpl() override;
 
       private:
         DoubleBarrierOption::arguments arguments_;
         std::vector<Time> stoppingTimes_;
-        DiscretizedVanillaOption vanilla_; 
+        DiscretizedVanillaOption vanilla_;
     };
 
     //! Derman-Kani-Ergener-Bardhan discretized option helper class
@@ -70,14 +69,15 @@ namespace QuantLib {
         D.Ergener, I.Bardhan ("Enhanced Numerical Methods for Options with
         Barriers", 1995)
 
-        \note This algorithm is only suitable if the payoff can be approximated 
+        \note This algorithm is only suitable if the payoff can be approximated
         linearly, e.g. is not usable for cash-or-nothing payoffs.
     */
-    class DiscretizedDermanKaniDoubleBarrierOption : public DiscretizedAsset {
+    class DiscretizedDermanKaniDoubleBarrierOption : public DiscretizedAsset
+    {
       public:
         DiscretizedDermanKaniDoubleBarrierOption(const DoubleBarrierOption::arguments&,
-                                 const StochasticProcess& process,
-                                 const TimeGrid& grid = TimeGrid());
+                                                 const StochasticProcess& process,
+                                                 const TimeGrid& grid = TimeGrid());
 
         void reset(Size size) override;
 
@@ -87,7 +87,7 @@ namespace QuantLib {
         void postAdjustValuesImpl() override;
 
       private:
-        void adjustBarrier(Array &optvalues, const Array &grid);
+        void adjustBarrier(Array& optvalues, const Array& grid);
         DiscretizedDoubleBarrierOption unenhanced_;
     };
 }

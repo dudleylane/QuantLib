@@ -26,7 +26,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %TARGET calendar
     /*! Holidays (see http://www.ecb.int):
@@ -47,13 +48,16 @@ namespace QuantLib {
         \test the correctness of the returned results is tested
               against a list of known holidays.
     */
-    class TARGET : public Calendar {
+    class TARGET : public Calendar
+    {
       private:
-        class Impl final : public Calendar::WesternImpl {
+        class Impl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "TARGET"; }
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
         TARGET();
     };

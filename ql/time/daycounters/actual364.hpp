@@ -26,23 +26,26 @@
 
 #include <ql/time/daycounter.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Actual/364 day count convention
     /*! \ingroup daycounters */
-    class Actual364 : public DayCounter {
+    class Actual364 : public DayCounter
+    {
       private:
-        class Impl final : public DayCounter::Impl {
+        class Impl final : public DayCounter::Impl
+        {
           public:
             std::string name() const override { return std::string("Actual/364"); }
-            Time
-            yearFraction(const Date& d1, const Date& d2, const Date&, const Date&) const override {
-                return daysBetween(d1,d2)/364.0;
+            Time yearFraction(const Date& d1, const Date& d2, const Date&, const Date&) const override
+            {
+                return daysBetween(d1, d2) / 364.0;
             }
         };
+
       public:
-        Actual364()
-        : DayCounter(ext::shared_ptr<DayCounter::Impl>(new Actual364::Impl)) {}
+        Actual364() : DayCounter(ext::shared_ptr<DayCounter::Impl>(new Actual364::Impl)) {}
     };
 
 }

@@ -22,20 +22,23 @@
 #include <ql/pricingengines/vanilla/mcdigitalengine.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     DigitalPathPricer::DigitalPathPricer(ext::shared_ptr<CashOrNothingPayoff> payoff,
                                          ext::shared_ptr<AmericanExercise> exercise,
                                          Handle<YieldTermStructure> discountTS,
                                          ext::shared_ptr<StochasticProcess1D> diffProcess,
                                          PseudoRandom::ursg_type sequenceGen)
-    : payoff_(std::move(payoff)), exercise_(std::move(exercise)),
-      diffProcess_(std::move(diffProcess)), sequenceGen_(std::move(sequenceGen)),
-      discountTS_(std::move(discountTS)) {}
+    : payoff_(std::move(payoff)), exercise_(std::move(exercise)), diffProcess_(std::move(diffProcess)),
+      sequenceGen_(std::move(sequenceGen)), discountTS_(std::move(discountTS))
+    {
+    }
 
-    Real DigitalPathPricer::operator()(const Path& path) const {
+    Real DigitalPathPricer::operator()(const Path& path) const
+    {
         Size n = path.length();
-        QL_REQUIRE(n>1, "the path cannot be empty");
+        QL_REQUIRE(n > 1, "the path cannot be empty");
 
         Real log_asset_price = std::log(path.front());
         Real x, y;
@@ -46,67 +49,69 @@ namespace QuantLib {
         Real log_strike = std::log(payoff_->strike());
 
         Size i;
-        switch (payoff_->optionType()) {
-          case Option::Call:
-            for (i=0; i<n-1; i++) {
-                x = std::log(path[i+1]/path[i]);
-                // terminal or initial vol?
-                vol = diffProcess_->diffusion(timeGrid[i+1],
-                                              std::exp(log_asset_price));
-                // vol = diffProcess_->diffusion(timeGrid[i+2],
-                //                               std::exp(log_asset_price+x));
-                dt = timeGrid.dt(i);
-                y = log_asset_price +
-                    0.5*(x + std::sqrt(x*x-2*vol*vol*dt*std::log((1-u[i]))));
-                // cross the strike
-                if (y >= log_strike) {
-                    if (exercise_->payoffAtExpiry()) {
-                        return payoff_->cashPayoff() *
-                            discountTS_->discount(path.timeGrid().back());
-                    } else {
-                        // the discount should be calculated at the exercise
-                        // time between path.timeGrid()[i+1] and
-                        // path.timeGrid()[i+2]
-                        return payoff_->cashPayoff() *
-                            discountTS_->discount(path.timeGrid()[i+1]);
+        switch (payoff_->optionType())
+        {
+            case Option::Call:
+                for (i = 0; i < n - 1; i++)
+                {
+                    x = std::log(path[i + 1] / path[i]);
+                    // terminal or initial vol?
+                    vol = diffProcess_->diffusion(timeGrid[i + 1], std::exp(log_asset_price));
+                    // vol = diffProcess_->diffusion(timeGrid[i+2],
+                    //                               std::exp(log_asset_price+x));
+                    dt = timeGrid.dt(i);
+                    y = log_asset_price + 0.5 * (x + std::sqrt(x * x - 2 * vol * vol * dt * std::log((1 - u[i]))));
+                    // cross the strike
+                    if (y >= log_strike)
+                    {
+                        if (exercise_->payoffAtExpiry())
+                        {
+                            return payoff_->cashPayoff() * discountTS_->discount(path.timeGrid().back());
+                        }
+                        else
+                        {
+                            // the discount should be calculated at the exercise
+                            // time between path.timeGrid()[i+1] and
+                            // path.timeGrid()[i+2]
+                            return payoff_->cashPayoff() * discountTS_->discount(path.timeGrid()[i + 1]);
+                        }
                     }
+                    log_asset_price += x;
                 }
-                log_asset_price += x;
-            }
-            break;
-          case Option::Put:
-            for (i=0; i<n-1; i++) {
-                x = std::log(path[i+1]/path[i]);
-                // terminal or initial vol?
-                // initial (timeGrid[i+1]) for the time being
-                vol = diffProcess_->diffusion(timeGrid[i+1],
-                                              std::exp(log_asset_price));
-                // vol = diffProcess_->diffusion(timeGrid[i+2],
-                //                               std::exp(log_asset_price+x));
-                dt = timeGrid.dt(i);
-                y = log_asset_price +
-                    0.5*(x - std::sqrt(x*x - 2*vol*vol*dt*std::log(u[i])));
-                if (y <= log_strike) {
-                    if (exercise_->payoffAtExpiry()) {
-                        return payoff_->cashPayoff() *
-                            discountTS_->discount(path.timeGrid().back());
-                    } else {
-                        // the discount should be calculated at the exercise
-                        // time between path.timeGrid()[i+1] and
-                        // path.timeGrid()[i+2]
-                        return payoff_->cashPayoff() *
-                            discountTS_->discount(path.timeGrid()[i+1]);
+                break;
+            case Option::Put:
+                for (i = 0; i < n - 1; i++)
+                {
+                    x = std::log(path[i + 1] / path[i]);
+                    // terminal or initial vol?
+                    // initial (timeGrid[i+1]) for the time being
+                    vol = diffProcess_->diffusion(timeGrid[i + 1], std::exp(log_asset_price));
+                    // vol = diffProcess_->diffusion(timeGrid[i+2],
+                    //                               std::exp(log_asset_price+x));
+                    dt = timeGrid.dt(i);
+                    y = log_asset_price + 0.5 * (x - std::sqrt(x * x - 2 * vol * vol * dt * std::log(u[i])));
+                    if (y <= log_strike)
+                    {
+                        if (exercise_->payoffAtExpiry())
+                        {
+                            return payoff_->cashPayoff() * discountTS_->discount(path.timeGrid().back());
+                        }
+                        else
+                        {
+                            // the discount should be calculated at the exercise
+                            // time between path.timeGrid()[i+1] and
+                            // path.timeGrid()[i+2]
+                            return payoff_->cashPayoff() * discountTS_->discount(path.timeGrid()[i + 1]);
+                        }
                     }
+                    log_asset_price += x;
                 }
-                log_asset_price += x;
-            }
-            break;
-          default:
-            QL_FAIL("unknown option type");
+                break;
+            default:
+                QL_FAIL("unknown option type");
         }
 
         return 0.0;
     }
 
 }
-

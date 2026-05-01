@@ -22,7 +22,8 @@
 #include <ql/patterns/visitor.hpp>
 #include <ql/time/daycounter.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     Coupon::Coupon(const Date& paymentDate,
                    Real nominal,
@@ -31,53 +32,60 @@ namespace QuantLib {
                    const Date& refPeriodStart,
                    const Date& refPeriodEnd,
                    const Date& exCouponDate)
-    : paymentDate_(paymentDate), nominal_(nominal), 
-      accrualStartDate_(accrualStartDate), accrualEndDate_(accrualEndDate),
-      refPeriodStart_(refPeriodStart), refPeriodEnd_(refPeriodEnd),
-      exCouponDate_(exCouponDate), accrualPeriod_(Null<Real>()) {
+    : paymentDate_(paymentDate), nominal_(nominal), accrualStartDate_(accrualStartDate),
+      accrualEndDate_(accrualEndDate), refPeriodStart_(refPeriodStart), refPeriodEnd_(refPeriodEnd),
+      exCouponDate_(exCouponDate), accrualPeriod_(Null<Real>())
+    {
         if (refPeriodStart_ == Date())
             refPeriodStart_ = accrualStartDate_;
         if (refPeriodEnd_ == Date())
             refPeriodEnd_ = accrualEndDate_;
     }
 
-    Time Coupon::accrualPeriod() const {
+    Time Coupon::accrualPeriod() const
+    {
         if (accrualPeriod_ == Null<Real>())
             accrualPeriod_ =
-                dayCounter().yearFraction(accrualStartDate_, accrualEndDate_,
-                                          refPeriodStart_, refPeriodEnd_);
+                dayCounter().yearFraction(accrualStartDate_, accrualEndDate_, refPeriodStart_, refPeriodEnd_);
         return accrualPeriod_;
     }
 
-    Date::serial_type Coupon::accrualDays() const {
-        return dayCounter().dayCount(accrualStartDate_,
-                                     accrualEndDate_);
+    Date::serial_type Coupon::accrualDays() const
+    {
+        return dayCounter().dayCount(accrualStartDate_, accrualEndDate_);
     }
 
-    Time Coupon::accruedPeriod(const Date& d) const {
-        if (d <= accrualStartDate_ || d > paymentDate_) {
+    Time Coupon::accruedPeriod(const Date& d) const
+    {
+        if (d <= accrualStartDate_ || d > paymentDate_)
+        {
             return 0.0;
-        } else if (tradingExCoupon(d)) {
-            return -dayCounter().yearFraction(d, std::max(d, accrualEndDate_),
-                                              refPeriodStart_, refPeriodEnd_);
-        } else {
-            return dayCounter().yearFraction(accrualStartDate_,
-                                             std::min(d, accrualEndDate_),
-                                             refPeriodStart_,
+        }
+        else if (tradingExCoupon(d))
+        {
+            return -dayCounter().yearFraction(d, std::max(d, accrualEndDate_), refPeriodStart_, refPeriodEnd_);
+        }
+        else
+        {
+            return dayCounter().yearFraction(accrualStartDate_, std::min(d, accrualEndDate_), refPeriodStart_,
                                              refPeriodEnd_);
         }
     }
 
-    Date::serial_type Coupon::accruedDays(const Date& d) const {
-        if (d <= accrualStartDate_ || d > paymentDate_) {
+    Date::serial_type Coupon::accruedDays(const Date& d) const
+    {
+        if (d <= accrualStartDate_ || d > paymentDate_)
+        {
             return 0;
-        } else {
-            return dayCounter().dayCount(accrualStartDate_,
-                                         std::min(d, accrualEndDate_));
+        }
+        else
+        {
+            return dayCounter().dayCount(accrualStartDate_, std::min(d, accrualEndDate_));
         }
     }
 
-    void Coupon::accept(AcyclicVisitor& v) {
+    void Coupon::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<Coupon>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);

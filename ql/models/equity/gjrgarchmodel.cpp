@@ -21,42 +21,39 @@
 #include <ql/quotes/simplequote.hpp>
 #include <ql/shared_ptr.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class GJRGARCHModel::VolatilityConstraint : public Constraint {
+    class GJRGARCHModel::VolatilityConstraint : public Constraint
+    {
       private:
-        class Impl final : public Constraint::Impl {
+        class Impl final : public Constraint::Impl
+        {
           public:
-            bool test(const Array& params) const override {
-                const Real beta  = params[2];
+            bool test(const Array& params) const override
+            {
+                const Real beta = params[2];
                 const Real gamma = params[3];
 
-                return (beta+gamma >= 0.0);
+                return (beta + gamma >= 0.0);
             }
         };
+
       public:
-        VolatilityConstraint()
-        : Constraint(ext::shared_ptr<Constraint::Impl>(
-                                           new VolatilityConstraint::Impl)) {}
+        VolatilityConstraint() : Constraint(ext::shared_ptr<Constraint::Impl>(new VolatilityConstraint::Impl)) {}
     };
 
-    GJRGARCHModel::GJRGARCHModel(
-                           const ext::shared_ptr<GJRGARCHProcess> & process)
-    : CalibratedModel(6), process_(process) {
-        arguments_[0] = ConstantParameter(process->omega(),
-                                          PositiveConstraint());
-        arguments_[1] = ConstantParameter(process->alpha(),
-                                          BoundaryConstraint( 0.0, 1.0));
-        arguments_[2] = ConstantParameter(process->beta(),
-                                          BoundaryConstraint( 0.0, 1.0));
-        arguments_[3] = ConstantParameter(process->gamma(),
-                                          BoundaryConstraint(-1.0, 1.0));
+    GJRGARCHModel::GJRGARCHModel(const ext::shared_ptr<GJRGARCHProcess>& process)
+    : CalibratedModel(6), process_(process)
+    {
+        arguments_[0] = ConstantParameter(process->omega(), PositiveConstraint());
+        arguments_[1] = ConstantParameter(process->alpha(), BoundaryConstraint(0.0, 1.0));
+        arguments_[2] = ConstantParameter(process->beta(), BoundaryConstraint(0.0, 1.0));
+        arguments_[3] = ConstantParameter(process->gamma(), BoundaryConstraint(-1.0, 1.0));
         arguments_[4] = ConstantParameter(process->lambda(), NoConstraint());
-        arguments_[5] = ConstantParameter(process->v0(),
-                                          PositiveConstraint());
+        arguments_[5] = ConstantParameter(process->v0(), PositiveConstraint());
 
-        constraint_ = ext::shared_ptr<Constraint>(
-            new CompositeConstraint(*constraint_, VolatilityConstraint()));
+        constraint_ = ext::shared_ptr<Constraint>(new CompositeConstraint(*constraint_, VolatilityConstraint()));
 
         GJRGARCHModel::generateArguments();
 
@@ -65,14 +62,10 @@ namespace QuantLib {
         registerWith(process_->s0());
     }
 
-    void GJRGARCHModel::generateArguments() {
-        process_ = ext::make_shared<GJRGARCHProcess>(process_->riskFreeRate(),
-                                           process_->dividendYield(),
-                                           process_->s0(),
-                                           v0(), omega(),
-                                           alpha(), beta(),
-                                           gamma(), lambda(),
-                                           process_->daysPerYear());
+    void GJRGARCHModel::generateArguments()
+    {
+        process_ =
+            ext::make_shared<GJRGARCHProcess>(process_->riskFreeRate(), process_->dividendYield(), process_->s0(), v0(),
+                                              omega(), alpha(), beta(), gamma(), lambda(), process_->daysPerYear());
     }
 }
-

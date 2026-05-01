@@ -18,46 +18,49 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/indexes/swap/gbpliborswap.hpp>
+#include <ql/currencies/europe.hpp>
 #include <ql/indexes/ibor/gbplibor.hpp>
+#include <ql/indexes/swap/gbpliborswap.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
-#include <ql/currencies/europe.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    GbpLiborSwapIsdaFix::GbpLiborSwapIsdaFix(
-                            const Period& tenor,
-                            const Handle<YieldTermStructure>& h)
+    GbpLiborSwapIsdaFix::GbpLiborSwapIsdaFix(const Period& tenor,
+                                             const Handle<YieldTermStructure>& h)
     : SwapIndex("GbpLiborSwapIsdaFix", // familyName
                 tenor,
                 0, // settlementDays
                 GBPCurrency(),
                 UnitedKingdom(UnitedKingdom::Exchange),
-                tenor > 1*Years ? // fixedLegTenor
-                    6*Months : 1*Years,
+                tenor > 1 * Years ? // fixedLegTenor
+                    6 * Months :
+                    1 * Years,
                 ModifiedFollowing, // fixedLegConvention
-                Actual365Fixed(), // fixedLegDaycounter
-                tenor > 1*Years ?
-                    ext::shared_ptr<IborIndex>(new GBPLibor(6*Months, h)) :
-                    ext::shared_ptr<IborIndex>(new GBPLibor(3*Months, h))) {}
+                Actual365Fixed(),  // fixedLegDaycounter
+                tenor > 1 * Years ? ext::shared_ptr<IborIndex>(new GBPLibor(6 * Months, h)) :
+                                    ext::shared_ptr<IborIndex>(new GBPLibor(3 * Months, h)))
+    {
+    }
 
-    GbpLiborSwapIsdaFix::GbpLiborSwapIsdaFix(
-                            const Period& tenor,
-                            const Handle<YieldTermStructure>& forwarding,
-                            const Handle<YieldTermStructure>& discounting)
+    GbpLiborSwapIsdaFix::GbpLiborSwapIsdaFix(const Period& tenor,
+                                             const Handle<YieldTermStructure>& forwarding,
+                                             const Handle<YieldTermStructure>& discounting)
     : SwapIndex("GbpLiborSwapIsdaFix", // familyName
                 tenor,
                 0, // settlementDays
                 GBPCurrency(),
                 UnitedKingdom(UnitedKingdom::Exchange),
-                tenor > 1*Years ? // fixedLegTenor
-                    6*Months : 1*Years,
+                tenor > 1 * Years ? // fixedLegTenor
+                    6 * Months :
+                    1 * Years,
                 ModifiedFollowing, // fixedLegConvention
-                Actual365Fixed(), // fixedLegDaycounter
-                tenor > 1*Years ?
-                    ext::shared_ptr<IborIndex>(new GBPLibor(6*Months, forwarding)) :
-                    ext::shared_ptr<IborIndex>(new GBPLibor(3*Months, forwarding)),
-                discounting) {}
+                Actual365Fixed(),  // fixedLegDaycounter
+                tenor > 1 * Years ? ext::shared_ptr<IborIndex>(new GBPLibor(6 * Months, forwarding)) :
+                                    ext::shared_ptr<IborIndex>(new GBPLibor(3 * Months, forwarding)),
+                discounting)
+    {
+    }
 
 }

@@ -26,7 +26,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! German calendars
     /*! Public holidays:
@@ -109,41 +110,49 @@ namespace QuantLib {
         \test the correctness of the returned results is tested
               against a list of known holidays.
     */
-    class Germany : public Calendar {
+    class Germany : public Calendar
+    {
       private:
-        class SettlementImpl final : public Calendar::WesternImpl {
+        class SettlementImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "German settlement"; }
             bool isBusinessDay(const Date&) const override;
         };
-        class FrankfurtStockExchangeImpl final : public Calendar::WesternImpl {
+        class FrankfurtStockExchangeImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "Frankfurt stock exchange"; }
             bool isBusinessDay(const Date&) const override;
         };
-        class XetraImpl final : public Calendar::WesternImpl {
+        class XetraImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "Xetra"; }
             bool isBusinessDay(const Date&) const override;
         };
-        class EurexImpl final : public Calendar::WesternImpl {
+        class EurexImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "Eurex"; }
             bool isBusinessDay(const Date&) const override;
         };
-        class EuwaxImpl final : public Calendar::WesternImpl {
-        public:
-          std::string name() const override { return "Euwax"; }
-          bool isBusinessDay(const Date&) const override;
+        class EuwaxImpl final : public Calendar::WesternImpl
+        {
+          public:
+            std::string name() const override { return "Euwax"; }
+            bool isBusinessDay(const Date&) const override;
         };
 
       public:
         //! German calendars
-        enum Market { Settlement,             //!< generic settlement calendar
-                      FrankfurtStockExchange, //!< Frankfurt stock-exchange
-                      Xetra,                  //!< Xetra
-                      Eurex,                  //!< Eurex
-                      Euwax                   //!< Euwax
+        enum Market
+        {
+            Settlement,             //!< generic settlement calendar
+            FrankfurtStockExchange, //!< Frankfurt stock-exchange
+            Xetra,                  //!< Xetra
+            Eurex,                  //!< Eurex
+            Euwax                   //!< Euwax
         };
         Germany(Market market = FrankfurtStockExchange);
     };

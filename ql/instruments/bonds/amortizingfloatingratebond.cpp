@@ -17,53 +17,51 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/instruments/bonds/amortizingfloatingratebond.hpp>
 #include <ql/cashflows/iborcoupon.hpp>
 #include <ql/cashflows/simplecashflow.hpp>
-#include <ql/time/schedule.hpp>
 #include <ql/indexes/iborindex.hpp>
+#include <ql/instruments/bonds/amortizingfloatingratebond.hpp>
+#include <ql/time/schedule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    AmortizingFloatingRateBond::AmortizingFloatingRateBond(
-                                    Natural settlementDays,
-                                    const std::vector<Real>& notionals,
-                                    Schedule schedule,
-                                    const ext::shared_ptr<IborIndex>& index,
-                                    const DayCounter& paymentDayCounter,
-                                    BusinessDayConvention paymentConvention,
-                                    Natural fixingDays,
-                                    const std::vector<Real>& gearings,
-                                    const std::vector<Spread>& spreads,
-                                    const std::vector<Rate>& caps,
-                                    const std::vector<Rate>& floors,
-                                    bool inArrears,
-                                    const Date& issueDate,
-                                    const Period& exCouponPeriod,
-                                    const Calendar& exCouponCalendar,
-                                    const BusinessDayConvention exCouponConvention,
-                                    bool exCouponEndOfMonth,
-                                    const std::vector<Real>& redemptions,
-                                    Integer paymentLag)
-    : Bond(settlementDays, schedule.calendar(), issueDate) {
+    AmortizingFloatingRateBond::AmortizingFloatingRateBond(Natural settlementDays,
+                                                           const std::vector<Real>& notionals,
+                                                           Schedule schedule,
+                                                           const ext::shared_ptr<IborIndex>& index,
+                                                           const DayCounter& paymentDayCounter,
+                                                           BusinessDayConvention paymentConvention,
+                                                           Natural fixingDays,
+                                                           const std::vector<Real>& gearings,
+                                                           const std::vector<Spread>& spreads,
+                                                           const std::vector<Rate>& caps,
+                                                           const std::vector<Rate>& floors,
+                                                           bool inArrears,
+                                                           const Date& issueDate,
+                                                           const Period& exCouponPeriod,
+                                                           const Calendar& exCouponCalendar,
+                                                           const BusinessDayConvention exCouponConvention,
+                                                           bool exCouponEndOfMonth,
+                                                           const std::vector<Real>& redemptions,
+                                                           Integer paymentLag)
+    : Bond(settlementDays, schedule.calendar(), issueDate)
+    {
 
         maturityDate_ = schedule.endDate();
 
         cashflows_ = IborLeg(std::move(schedule), index)
-            .withNotionals(notionals)
-            .withPaymentDayCounter(paymentDayCounter)
-            .withPaymentAdjustment(paymentConvention)
-            .withFixingDays(fixingDays)
-            .withPaymentLag(paymentLag)
-            .withGearings(gearings)
-            .withSpreads(spreads)
-            .withCaps(caps)
-            .withFloors(floors)
-            .withExCouponPeriod(exCouponPeriod,
-                                exCouponCalendar,
-                                exCouponConvention,
-                                exCouponEndOfMonth)
-            .inArrears(inArrears);
+                         .withNotionals(notionals)
+                         .withPaymentDayCounter(paymentDayCounter)
+                         .withPaymentAdjustment(paymentConvention)
+                         .withFixingDays(fixingDays)
+                         .withPaymentLag(paymentLag)
+                         .withGearings(gearings)
+                         .withSpreads(spreads)
+                         .withCaps(caps)
+                         .withFloors(floors)
+                         .withExCouponPeriod(exCouponPeriod, exCouponCalendar, exCouponConvention, exCouponEndOfMonth)
+                         .inArrears(inArrears);
 
         addRedemptionsToCashflows(redemptions);
 

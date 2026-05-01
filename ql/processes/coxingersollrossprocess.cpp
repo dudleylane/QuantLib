@@ -19,17 +19,17 @@
 
 #include <ql/processes/coxingersollrossprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    CoxIngersollRossProcess::CoxIngersollRossProcess(Real speed,
-                                                       Volatility vol,
-                                                       Real x0,
-                                                       Real level)
-    : x0_(x0), speed_(speed), level_(level), volatility_(vol) {
+    CoxIngersollRossProcess::CoxIngersollRossProcess(Real speed, Volatility vol, Real x0, Real level)
+    : x0_(x0), speed_(speed), level_(level), volatility_(vol)
+    {
         QL_REQUIRE(volatility_ >= 0.0, "negative volatility given");
     }
 
-    Real CoxIngersollRossProcess::variance(Time, Real, Time dt) const {
+    Real CoxIngersollRossProcess::variance(Time, Real, Time dt) const
+    {
         Real exponent1 = std::exp(-speed_ * dt);
         Real exponent2 = std::exp(-2 * speed_ * dt);
         Real fraction = (volatility_ * volatility_) / speed_;
@@ -38,4 +38,3 @@ namespace QuantLib {
     }
 
 }
-

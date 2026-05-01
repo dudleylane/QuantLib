@@ -32,18 +32,21 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #include <utility>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class TenorOptionletVTS : public OptionletVolatilityStructure {
+    class TenorOptionletVTS : public OptionletVolatilityStructure
+    {
 
       public:
         class CorrelationStructure; // declaration below
 
       protected:
-        class TenorOptionletSmileSection : public SmileSection {
+        class TenorOptionletSmileSection : public SmileSection
+        {
           protected:
             ext::shared_ptr<CorrelationStructure> correlation_;
-            std::vector<ext::shared_ptr<SmileSection> > baseSmileSection_;
+            std::vector<ext::shared_ptr<SmileSection>> baseSmileSection_;
             std::vector<Time> startTimeBase_; // for correlation parametrisation
             std::vector<Real> fraRateBase_;
             Real fraRateTarg_;
@@ -56,10 +59,12 @@ namespace QuantLib {
             TenorOptionletSmileSection(const TenorOptionletVTS& volTS, Time optionTime);
 
             // further SmileSection interface methods
-            Real minStrike() const override {
+            Real minStrike() const override
+            {
                 return baseSmileSection_[0]->minStrike() + fraRateTarg_ - fraRateBase_[0];
             }
-            Real maxStrike() const override {
+            Real maxStrike() const override
+            {
                 return baseSmileSection_[0]->maxStrike() + fraRateTarg_ - fraRateBase_[0];
             }
             Real atmLevel() const override { return fraRateTarg_; }
@@ -72,7 +77,8 @@ namespace QuantLib {
 
       public:
         // functor interface for parametric correlation
-        class CorrelationStructure {
+        class CorrelationStructure
+        {
           public:
             // return the correlation between two FRA rates starting at start1 and start2
             virtual Real operator()(const Time& start1, const Time& start2) const = 0;
@@ -81,16 +87,19 @@ namespace QuantLib {
         };
 
         // very basic choice for correlation structure
-        class TwoParameterCorrelation : public CorrelationStructure {
+        class TwoParameterCorrelation : public CorrelationStructure
+        {
           protected:
             ext::shared_ptr<Interpolation> rhoInf_;
             ext::shared_ptr<Interpolation> beta_;
 
           public:
-            TwoParameterCorrelation(ext::shared_ptr<Interpolation> rhoInf,
-                                    ext::shared_ptr<Interpolation> beta)
-            : rhoInf_(std::move(rhoInf)), beta_(std::move(beta)) {}
-            Real operator()(const Time& start1, const Time& start2) const override {
+            TwoParameterCorrelation(ext::shared_ptr<Interpolation> rhoInf, ext::shared_ptr<Interpolation> beta)
+            : rhoInf_(std::move(rhoInf)), beta_(std::move(beta))
+            {
+            }
+            Real operator()(const Time& start1, const Time& start2) const override
+            {
                 Real rhoInf = (*rhoInf_)(start1);
                 Real beta = (*beta_)(start1);
                 Real rho = rhoInf + (1.0 - rhoInf) * exp(-beta * fabs(start2 - start1));
@@ -112,11 +121,13 @@ namespace QuantLib {
         // VolatilityTermstructure interface
 
         //! implements the actual smile calculation in derived classes
-        ext::shared_ptr<SmileSection> smileSectionImpl(Time optionTime) const override {
+        ext::shared_ptr<SmileSection> smileSectionImpl(Time optionTime) const override
+        {
             return ext::shared_ptr<SmileSection>(new TenorOptionletSmileSection(*this, optionTime));
         }
         //! implements the actual volatility calculation in derived classes
-        Volatility volatilityImpl(Time optionTime, Rate strike) const override {
+        Volatility volatilityImpl(Time optionTime, Rate strike) const override
+        {
             return smileSection(optionTime)->volatility(strike);
         }
 

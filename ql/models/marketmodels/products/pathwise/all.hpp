@@ -7,4 +7,3 @@
 #include <ql/models/marketmodels/products/pathwise/pathwiseproductinversefloater.hpp>
 #include <ql/models/marketmodels/products/pathwise/pathwiseproductswap.hpp>
 #include <ql/models/marketmodels/products/pathwise/pathwiseproductswaption.hpp>
-

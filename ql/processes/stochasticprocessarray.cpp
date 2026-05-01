@@ -18,115 +18,116 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/processes/stochasticprocessarray.hpp>
 #include <ql/math/matrixutilities/pseudosqrt.hpp>
+#include <ql/processes/stochasticprocessarray.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    StochasticProcessArray::StochasticProcessArray(
-        const std::vector<ext::shared_ptr<StochasticProcess1D> >& processes,
-        const Matrix& correlation)
-    : processes_(processes),
-      sqrtCorrelation_(pseudoSqrt(correlation,SalvagingAlgorithm::Spectral)) {
+    StochasticProcessArray::StochasticProcessArray(const std::vector<ext::shared_ptr<StochasticProcess1D>>& processes,
+                                                   const Matrix& correlation)
+    : processes_(processes), sqrtCorrelation_(pseudoSqrt(correlation, SalvagingAlgorithm::Spectral))
+    {
 
         QL_REQUIRE(!processes.empty(), "no processes given");
-        QL_REQUIRE(correlation.rows() == processes.size(),
-                   "mismatch between number of processes "
-                   "and size of correlation matrix");
-        for (auto& process : processes_) {
+        QL_REQUIRE(correlation.rows() == processes.size(), "mismatch between number of processes "
+                                                           "and size of correlation matrix");
+        for (auto& process : processes_)
+        {
             QL_REQUIRE(process, "null 1-D stochastic process");
             registerWith(process);
         }
     }
 
-    Size StochasticProcessArray::size() const {
+    Size StochasticProcessArray::size() const
+    {
         return processes_.size();
     }
 
-    Array StochasticProcessArray::initialValues() const {
+    Array StochasticProcessArray::initialValues() const
+    {
         Array tmp(size());
-        for (Size i=0; i<size(); ++i)
+        for (Size i = 0; i < size(); ++i)
             tmp[i] = processes_[i]->x0();
         return tmp;
     }
 
-    Array StochasticProcessArray::drift(Time t,
-                                        const Array& x) const {
+    Array StochasticProcessArray::drift(Time t, const Array& x) const
+    {
         Array tmp(size());
-        for (Size i=0; i<size(); ++i)
+        for (Size i = 0; i < size(); ++i)
             tmp[i] = processes_[i]->drift(t, x[i]);
         return tmp;
     }
 
-    Matrix StochasticProcessArray::diffusion(Time t,
-                                             const Array& x) const {
+    Matrix StochasticProcessArray::diffusion(Time t, const Array& x) const
+    {
         Matrix tmp = sqrtCorrelation_;
-        for (Size i=0; i<size(); ++i) {
+        for (Size i = 0; i < size(); ++i)
+        {
             Real sigma = processes_[i]->diffusion(t, x[i]);
-            std::transform(tmp.row_begin(i), tmp.row_end(i),
-                           tmp.row_begin(i),
+            std::transform(tmp.row_begin(i), tmp.row_end(i), tmp.row_begin(i),
                            [=](Real x) -> Real { return x * sigma; });
         }
         return tmp;
     }
 
-    Array StochasticProcessArray::expectation(Time t0,
-                                              const Array& x0,
-                                              Time dt) const {
+    Array StochasticProcessArray::expectation(Time t0, const Array& x0, Time dt) const
+    {
         Array tmp(size());
-        for (Size i=0; i<size(); ++i)
+        for (Size i = 0; i < size(); ++i)
             tmp[i] = processes_[i]->expectation(t0, x0[i], dt);
         return tmp;
     }
 
-    Matrix StochasticProcessArray::stdDeviation(Time t0,
-                                                const Array& x0,
-                                                Time dt) const {
+    Matrix StochasticProcessArray::stdDeviation(Time t0, const Array& x0, Time dt) const
+    {
         Matrix tmp = sqrtCorrelation_;
-        for (Size i=0; i<size(); ++i) {
+        for (Size i = 0; i < size(); ++i)
+        {
             Real sigma = processes_[i]->stdDeviation(t0, x0[i], dt);
-            std::transform(tmp.row_begin(i), tmp.row_end(i),
-                           tmp.row_begin(i),
+            std::transform(tmp.row_begin(i), tmp.row_end(i), tmp.row_begin(i),
                            [=](Real x) -> Real { return x * sigma; });
         }
         return tmp;
     }
 
-    Matrix StochasticProcessArray::covariance(Time t0,
-                                              const Array& x0,
-                                              Time dt) const {
+    Matrix StochasticProcessArray::covariance(Time t0, const Array& x0, Time dt) const
+    {
         Matrix tmp = stdDeviation(t0, x0, dt);
-        return tmp*transpose(tmp);
+        return tmp * transpose(tmp);
     }
 
-    Array StochasticProcessArray::evolve(
-                  Time t0, const Array& x0, Time dt, const Array& dw) const {
+    Array StochasticProcessArray::evolve(Time t0, const Array& x0, Time dt, const Array& dw) const
+    {
         const Array dz = sqrtCorrelation_ * dw;
 
         Array tmp(size());
-        for (Size i=0; i<size(); ++i)
+        for (Size i = 0; i < size(); ++i)
             tmp[i] = processes_[i]->evolve(t0, x0[i], dt, dz[i]);
         return tmp;
     }
 
-    Array StochasticProcessArray::apply(const Array& x0,
-                                        const Array& dx) const {
+    Array StochasticProcessArray::apply(const Array& x0, const Array& dx) const
+    {
         Array tmp(size());
-        for (Size i=0; i<size(); ++i)
-            tmp[i] = processes_[i]->apply(x0[i],dx[i]);
+        for (Size i = 0; i < size(); ++i)
+            tmp[i] = processes_[i]->apply(x0[i], dx[i]);
         return tmp;
     }
 
-    Time StochasticProcessArray::time(const Date& d) const {
+    Time StochasticProcessArray::time(const Date& d) const
+    {
         return processes_[0]->time(d);
     }
 
-    const ext::shared_ptr<StochasticProcess1D>&
-    StochasticProcessArray::process(Size i) const {
+    const ext::shared_ptr<StochasticProcess1D>& StochasticProcessArray::process(Size i) const
+    {
         return processes_[i];
     }
 
-    Matrix StochasticProcessArray::correlation() const {
+    Matrix StochasticProcessArray::correlation() const
+    {
         return sqrtCorrelation_ * transpose(sqrtCorrelation_);
     }
 

@@ -21,10 +21,11 @@
 #ifndef quantlib_forward_rate_ipc_evolver_hpp
 #define quantlib_forward_rate_ipc_evolver_hpp
 
-#include <ql/models/marketmodels/evolver.hpp>
 #include <ql/models/marketmodels/curvestates/lmmcurvestate.hpp>
+#include <ql/models/marketmodels/evolver.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class MarketModel;
     class BrownianGenerator;
@@ -32,7 +33,8 @@ namespace QuantLib {
     class LMMDriftCalculator;
 
     //! Iterative Predictor-Corrector
-    class LogNormalFwdRateIpc : public MarketModelEvolver {
+    class LogNormalFwdRateIpc : public MarketModelEvolver
+    {
       public:
         LogNormalFwdRateIpc(const ext::shared_ptr<MarketModel>&,
                             const BrownianGeneratorFactory&,
@@ -55,8 +57,8 @@ namespace QuantLib {
         Size initialStep_;
         ext::shared_ptr<BrownianGenerator> generator_;
         // fixed variables
-        std::vector<std::vector<Real> > fixedDrifts_;
-         // working variables
+        std::vector<std::vector<Real>> fixedDrifts_;
+        // working variables
         Size numberOfRates_, numberOfFactors_;
         LMMCurveState curveState_;
         Size currentStep_;
@@ -65,8 +67,8 @@ namespace QuantLib {
         std::vector<Real> brownians_, correlatedBrownians_;
         std::vector<Time> rateTaus_;
         std::vector<Size> alive_;
-        //std::vector<Matrix> C_;
-        // helper classes
+        // std::vector<Matrix> C_;
+        //  helper classes
         std::vector<LMMDriftCalculator> calculators_;
     };
 

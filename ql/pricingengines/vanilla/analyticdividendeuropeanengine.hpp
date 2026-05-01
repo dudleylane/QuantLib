@@ -27,7 +27,8 @@
 #include <ql/instruments/vanillaoption.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Analytic pricing engine for European options with discrete dividends
     /*! \ingroup vanillaengines
@@ -35,12 +36,14 @@ namespace QuantLib {
         \test the correctness of the returned greeks is tested by
               reproducing numerical derivatives.
     */
-    class AnalyticDividendEuropeanEngine : public VanillaOption::engine {
+    class AnalyticDividendEuropeanEngine : public VanillaOption::engine
+    {
       public:
         AnalyticDividendEuropeanEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process,
                                        DividendSchedule dividends);
 
         void calculate() const override;
+
       private:
         ext::shared_ptr<GeneralizedBlackScholesProcess> process_;
         DividendSchedule dividends_;

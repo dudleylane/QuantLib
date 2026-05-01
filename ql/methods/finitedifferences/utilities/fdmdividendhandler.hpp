@@ -27,14 +27,16 @@
 #define quantlib_fdm_dividend_handler_hpp
 
 #include <ql/instruments/dividendschedule.hpp>
-#include <ql/methods/finitedifferences/stepcondition.hpp>
 #include <ql/methods/finitedifferences/meshers/fdmmesher.hpp>
+#include <ql/methods/finitedifferences/stepcondition.hpp>
 
-namespace QuantLib {
-    
+namespace QuantLib
+{
+
     class DayCounter;
-    
-    class FdmDividendHandler : public StepCondition<Array> {
+
+    class FdmDividendHandler : public StepCondition<Array>
+    {
       public:
         FdmDividendHandler(const DividendSchedule& schedule,
                            const ext::shared_ptr<FdmMesher>& mesher,
@@ -47,7 +49,7 @@ namespace QuantLib {
         const std::vector<Time>& dividendTimes() const;
         const std::vector<Date>& dividendDates() const;
         const std::vector<Real>& dividends() const;
-        
+
       private:
         Array x_; // grid-equity values in physical units
 

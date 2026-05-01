@@ -27,9 +27,11 @@
 
 #include <ql/termstructures/volatility/smilesection.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class AtmSmileSection : public SmileSection {
+    class AtmSmileSection : public SmileSection
+    {
 
       public:
         AtmSmileSection(const ext::shared_ptr<SmileSection>& source, Real atm = Null<Real>());
@@ -45,9 +47,7 @@ namespace QuantLib {
         Rate shift() const override { return source_->shift(); }
 
       protected:
-        Volatility volatilityImpl(Rate strike) const override {
-            return source_->volatility(strike);
-        }
+        Volatility volatilityImpl(Rate strike) const override { return source_->volatility(strike); }
         Real varianceImpl(Rate strike) const override { return source_->variance(strike); }
 
       private:

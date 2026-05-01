@@ -18,19 +18,21 @@
 */
 
 /*! \file qdfpamericanengine.hpp
-*/
+ */
 
 #ifndef quantlib_qd_fp_american_engine_hpp
 #define quantlib_qd_fp_american_engine_hpp
 
 #include <ql/pricingengines/vanilla/qdplusamericanengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Integrator;
 
     //! Iteration scheme for fixed-point QD American engine
-    class QdFpIterationScheme {
+    class QdFpIterationScheme
+    {
       public:
         virtual Size getNumberOfChebyshevInterpolationNodes() const = 0;
         virtual Size getNumberOfNaiveFixedPointSteps() const = 0;
@@ -50,7 +52,8 @@ namespace QuantLib {
         \param p  order of Gauss-Legendre integration in final conversion of the
                   exercise boundary into option prices
     */
-    class QdFpLegendreScheme: public QdFpIterationScheme {
+    class QdFpLegendreScheme : public QdFpIterationScheme
+    {
       public:
         QdFpLegendreScheme(Size l, Size m, Size n, Size p);
 
@@ -75,7 +78,8 @@ namespace QuantLib {
         \param eps  final conversion of the exercise boundary into option prices
                     is carried out by a tanh-sinh integration with accuracy eps
     */
-    class QdFpLegendreTanhSinhScheme: public QdFpLegendreScheme {
+    class QdFpLegendreTanhSinhScheme : public QdFpLegendreScheme
+    {
       public:
         QdFpLegendreTanhSinhScheme(Size l, Size m, Size n, Real eps);
 
@@ -91,7 +95,8 @@ namespace QuantLib {
         \param n    number of Chebyshev nodes to interpolate the exercise boundary
         \param eps  tanh-sinh integration precision
     */
-    class QdFpTanhSinhIterationScheme: public QdFpIterationScheme {
+    class QdFpTanhSinhIterationScheme : public QdFpIterationScheme
+    {
       public:
         QdFpTanhSinhIterationScheme(Size m, Size n, Real eps);
 
@@ -101,6 +106,7 @@ namespace QuantLib {
 
         ext::shared_ptr<Integrator> getFixedPointIntegrator() const override;
         ext::shared_ptr<Integrator> getExerciseBoundaryToPriceIntegrator() const override;
+
       private:
         const Size m_, n_;
         const ext::shared_ptr<Integrator> integrator_;
@@ -118,22 +124,26 @@ namespace QuantLib {
 
         https://onlinelibrary.wiley.com/doi/abs/10.1002/wilm.10969
     */
-    class QdFpAmericanEngine : public detail::QdPutCallParityEngine {
+    class QdFpAmericanEngine : public detail::QdPutCallParityEngine
+    {
       public:
-        enum FixedPointEquation { FP_A, FP_B, Auto };
+        enum FixedPointEquation
+        {
+            FP_A,
+            FP_B,
+            Auto
+        };
 
-        explicit QdFpAmericanEngine(
-          ext::shared_ptr<GeneralizedBlackScholesProcess> bsProcess,
-          ext::shared_ptr<QdFpIterationScheme> iterationScheme = accurateScheme(),
-          FixedPointEquation fpEquation = Auto);
+        explicit QdFpAmericanEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> bsProcess,
+                                    ext::shared_ptr<QdFpIterationScheme> iterationScheme = accurateScheme(),
+                                    FixedPointEquation fpEquation = Auto);
 
         static ext::shared_ptr<QdFpIterationScheme> fastScheme();
         static ext::shared_ptr<QdFpIterationScheme> accurateScheme();
         static ext::shared_ptr<QdFpIterationScheme> highPrecisionScheme();
 
       protected:
-        Real calculatePut(
-            Real S, Real K, Rate r, Rate q, Volatility vol, Time T) const override;
+        Real calculatePut(Real S, Real K, Rate r, Rate q, Volatility vol, Time T) const override;
 
       private:
         const ext::shared_ptr<QdFpIterationScheme> iterationScheme_;

@@ -30,7 +30,8 @@
 #include <ql/termstructures/yield/zeroyieldstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Ultimate forward term structure
 
@@ -75,7 +76,8 @@ namespace QuantLib {
         - rounding of output rate with predefined compounding.
     */
 
-    class UltimateForwardTermStructure : public ZeroYieldStructure {
+    class UltimateForwardTermStructure : public ZeroYieldStructure
+    {
       public:
         UltimateForwardTermStructure(Handle<YieldTermStructure>,
                                      Handle<Quote> lastLiquidForwardRate,
@@ -118,20 +120,19 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline UltimateForwardTermStructure::UltimateForwardTermStructure(
-        Handle<YieldTermStructure> h,
-        Handle<Quote> lastLiquidForwardRate,
-        Handle<Quote> ultimateForwardRate,
-        const Period& firstSmoothingPoint,
-        Real alpha,
-        const ext::optional<Integer>& roundingDigits,
-        Compounding compounding,
-        Frequency frequency)
-    : originalCurve_(std::move(h)), llfr_(std::move(lastLiquidForwardRate)),
-      ufr_(std::move(ultimateForwardRate)), fsp_(firstSmoothingPoint), alpha_(alpha),
-      roundingDigits_(roundingDigits), compounding_(compounding), frequency_(frequency) {
-        QL_REQUIRE(fsp_.length() > 0,
-                   "first smoothing point must be a period with positive length");
+    inline UltimateForwardTermStructure::UltimateForwardTermStructure(Handle<YieldTermStructure> h,
+                                                                      Handle<Quote> lastLiquidForwardRate,
+                                                                      Handle<Quote> ultimateForwardRate,
+                                                                      const Period& firstSmoothingPoint,
+                                                                      Real alpha,
+                                                                      const ext::optional<Integer>& roundingDigits,
+                                                                      Compounding compounding,
+                                                                      Frequency frequency)
+    : originalCurve_(std::move(h)), llfr_(std::move(lastLiquidForwardRate)), ufr_(std::move(ultimateForwardRate)),
+      fsp_(firstSmoothingPoint), alpha_(alpha), roundingDigits_(roundingDigits), compounding_(compounding),
+      frequency_(frequency)
+    {
+        QL_REQUIRE(fsp_.length() > 0, "first smoothing point must be a period with positive length");
         if (!originalCurve_.empty())
             enableExtrapolation(originalCurve_->allowsExtrapolation());
         registerWith(originalCurve_);
@@ -139,29 +140,40 @@ namespace QuantLib {
         registerWith(ufr_);
     }
 
-    inline DayCounter UltimateForwardTermStructure::dayCounter() const {
+    inline DayCounter UltimateForwardTermStructure::dayCounter() const
+    {
         return originalCurve_->dayCounter();
     }
 
-    inline Calendar UltimateForwardTermStructure::calendar() const {
+    inline Calendar UltimateForwardTermStructure::calendar() const
+    {
         return originalCurve_->calendar();
     }
 
-    inline Natural UltimateForwardTermStructure::settlementDays() const {
+    inline Natural UltimateForwardTermStructure::settlementDays() const
+    {
         return originalCurve_->settlementDays();
     }
 
-    inline const Date& UltimateForwardTermStructure::referenceDate() const {
+    inline const Date& UltimateForwardTermStructure::referenceDate() const
+    {
         return originalCurve_->referenceDate();
     }
 
-    inline Date UltimateForwardTermStructure::maxDate() const { return Date::maxDate(); }
+    inline Date UltimateForwardTermStructure::maxDate() const
+    {
+        return Date::maxDate();
+    }
 
-    inline void UltimateForwardTermStructure::update() {
-        if (!originalCurve_.empty()) {
+    inline void UltimateForwardTermStructure::update()
+    {
+        if (!originalCurve_.empty())
+        {
             YieldTermStructure::update();
             enableExtrapolation(originalCurve_->allowsExtrapolation());
-        } else {
+        }
+        else
+        {
             /* The implementation inherited from YieldTermStructure
                asks for our reference date, which we don't have since
                the original curve is still not set. Therefore, we skip
@@ -171,26 +183,28 @@ namespace QuantLib {
         }
     }
 
-    inline Rate UltimateForwardTermStructure::applyRounding(Rate r, Time t) const {
-        if (!roundingDigits_.has_value()) {
+    inline Rate UltimateForwardTermStructure::applyRounding(Rate r, Time t) const
+    {
+        if (!roundingDigits_.has_value())
+        {
             return r;
         }
         // Input rate is continuously compounded by definition.
         // Hence, in case this is also the selected compounding method for rounding,
         // it is not required to calculate equivalent rates, and rounding
         // may be applied directly.
-        Rate equivalentRate = compounding_ == Continuous ?
-                                  r :
-                                  InterestRate(r, dayCounter(), Continuous, NoFrequency)
-                                      .equivalentRate(compounding_, frequency_, t);
+        Rate equivalentRate =
+            compounding_ == Continuous ?
+                r :
+                InterestRate(r, dayCounter(), Continuous, NoFrequency).equivalentRate(compounding_, frequency_, t);
         Rate rounded = ClosestRounding(*roundingDigits_)(equivalentRate);
-        return compounding_ == Continuous ?
-                   rounded :
-                   InterestRate(rounded, dayCounter(), compounding_, frequency_)
-                       .equivalentRate(Continuous, NoFrequency, t);
+        return compounding_ == Continuous ? rounded :
+                                            InterestRate(rounded, dayCounter(), compounding_, frequency_)
+                                                .equivalentRate(Continuous, NoFrequency, t);
     }
 
-    inline Rate UltimateForwardTermStructure::zeroYieldImpl(Time t) const {
+    inline Rate UltimateForwardTermStructure::zeroYieldImpl(Time t) const
+    {
         Time cutOffTime = originalCurve_->timeFromReference(referenceDate() + fsp_);
         Time deltaT = t - cutOffTime;
         /* If time to maturity (T) exceeds the cut-off point (T_c),
@@ -204,7 +218,8 @@ namespace QuantLib {
            LLFR(t) - Last Liquid Forward Rate quote,
            B(t-T_c) = [1 - exp(-a * (T-T_c))] / [a * (T-T_c)],
            with a being the growth factor (alpha). */
-        if (deltaT > 0.0) {
+        if (deltaT > 0.0)
+        {
             InterestRate baseRate = originalCurve_->zeroRate(cutOffTime, Continuous, NoFrequency);
             Real beta = (1.0 - std::exp(-alpha_ * deltaT)) / (alpha_ * deltaT);
             Rate extrapolatedForward = ufr_->value() + (llfr_->value() - ufr_->value()) * beta;

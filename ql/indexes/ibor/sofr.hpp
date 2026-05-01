@@ -26,10 +26,12 @@
 
 #include <ql/indexes/iborindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Sofr (Secured Overnight Financing Rate) index.
-    class Sofr : public OvernightIndex {
+    class Sofr : public OvernightIndex
+    {
       public:
         explicit Sofr(const Handle<YieldTermStructure>& h = {});
     };

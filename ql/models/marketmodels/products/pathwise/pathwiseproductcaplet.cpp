@@ -23,7 +23,8 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #include <ql/models/marketmodels/utilities.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
 
     bool MarketModelPathwiseMultiCaplet::alreadyDeflated() const
@@ -32,67 +33,55 @@ namespace QuantLib {
     }
 
     MarketModelPathwiseMultiCaplet::MarketModelPathwiseMultiCaplet(const std::vector<Time>& rateTimes,
-        const std::vector<Real>& accruals,
-        const std::vector<Time>& paymentTimes,
-        const std::vector<Rate>& strikes)
-        : rateTimes_(rateTimes), 
-        accruals_(accruals),
-        paymentTimes_(paymentTimes), 
-        strikes_(strikes) ,
-        numberRates_(accruals_.size())
+                                                                   const std::vector<Real>& accruals,
+                                                                   const std::vector<Time>& paymentTimes,
+                                                                   const std::vector<Rate>& strikes)
+    : rateTimes_(rateTimes), accruals_(accruals), paymentTimes_(paymentTimes), strikes_(strikes),
+      numberRates_(accruals_.size())
     {
         checkIncreasingTimes(rateTimes);
         checkIncreasingTimes(paymentTimes);
         std::vector<Time> evolTimes(rateTimes_);
         evolTimes.pop_back();
 
-        QL_REQUIRE(evolTimes.size()==numberRates_,
-            "rateTimes.size()<> numberOfRates+1");
+        QL_REQUIRE(evolTimes.size() == numberRates_, "rateTimes.size()<> numberOfRates+1");
 
-        QL_REQUIRE(paymentTimes.size()==numberRates_,
-            "paymentTimes.size()<> numberOfRates");
+        QL_REQUIRE(paymentTimes.size() == numberRates_, "paymentTimes.size()<> numberOfRates");
 
-        QL_REQUIRE(accruals.size()==numberRates_,
-            "accruals.size()<> numberOfRates");
+        QL_REQUIRE(accruals.size() == numberRates_, "accruals.size()<> numberOfRates");
 
-        QL_REQUIRE(strikes.size()==numberRates_,
-            "strikes.size()<> numberOfRates");
+        QL_REQUIRE(strikes.size() == numberRates_, "strikes.size()<> numberOfRates");
 
 
-        evolution_ = EvolutionDescription(rateTimes,evolTimes);
-
+        evolution_ = EvolutionDescription(rateTimes, evolTimes);
     }
-
-   
 
 
     bool MarketModelPathwiseMultiCaplet::nextTimeStep(
         const CurveState& currentState,
         std::vector<Size>& numberCashFlowsThisStep,
-        std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow> >& cashFlowsGenerated) 
+        std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow>>& cashFlowsGenerated)
     {
         Rate liborRate = currentState.forwardRate(currentIndex_);
         cashFlowsGenerated[currentIndex_][0].timeIndex = currentIndex_;
         cashFlowsGenerated[currentIndex_][0].amount[0] =
-            (liborRate-strikes_[currentIndex_])*accruals_[currentIndex_];
+            (liborRate - strikes_[currentIndex_]) * accruals_[currentIndex_];
 
-        std::fill(numberCashFlowsThisStep.begin(),
-            numberCashFlowsThisStep.end(),0);
+        std::fill(numberCashFlowsThisStep.begin(), numberCashFlowsThisStep.end(), 0);
 
-        if (  cashFlowsGenerated[currentIndex_][0].amount[0]  >0)
+        if (cashFlowsGenerated[currentIndex_][0].amount[0] > 0)
         {
             numberCashFlowsThisStep[currentIndex_] = 1;
-            for (Size i=1; i <= numberRates_; ++i)
-                cashFlowsGenerated[currentIndex_][0].amount[i] =0;
+            for (Size i = 1; i <= numberRates_; ++i)
+                cashFlowsGenerated[currentIndex_][0].amount[i] = 0;
 
-            cashFlowsGenerated[currentIndex_][0].amount[currentIndex_+1]  = accruals_[currentIndex_];
+            cashFlowsGenerated[currentIndex_][0].amount[currentIndex_ + 1] = accruals_[currentIndex_];
         }
         ++currentIndex_;
         return (currentIndex_ == strikes_.size());
     }
 
-    std::unique_ptr<MarketModelPathwiseMultiProduct>
-    MarketModelPathwiseMultiCaplet::clone() const 
+    std::unique_ptr<MarketModelPathwiseMultiProduct> MarketModelPathwiseMultiCaplet::clone() const
     {
         return std::unique_ptr<MarketModelPathwiseMultiProduct>(new MarketModelPathwiseMultiCaplet(*this));
     }
@@ -100,8 +89,8 @@ namespace QuantLib {
     std::vector<Size> MarketModelPathwiseMultiCaplet::suggestedNumeraires() const
     {
         std::vector<Size> numeraires(numberRates_);
-        for (Size i=0; i < numberRates_; ++i)
-            numeraires[i] = i+1;
+        for (Size i = 0; i < numberRates_; ++i)
+            numeraires[i] = i + 1;
 
         return numeraires;
     }
@@ -124,12 +113,11 @@ namespace QuantLib {
     Size MarketModelPathwiseMultiCaplet::maxNumberOfCashFlowsPerProductPerStep() const
     {
         return 1;
-
     }
 
     void MarketModelPathwiseMultiCaplet::reset()
     {
-        currentIndex_=0;
+        currentIndex_ = 0;
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -141,105 +129,92 @@ namespace QuantLib {
     }
 
 
-    MarketModelPathwiseMultiDeflatedCaplet::MarketModelPathwiseMultiDeflatedCaplet(const std::vector<Time>& rateTimes,
+    MarketModelPathwiseMultiDeflatedCaplet::MarketModelPathwiseMultiDeflatedCaplet(
+        const std::vector<Time>& rateTimes,
         const std::vector<Real>& accruals,
         const std::vector<Time>& paymentTimes,
         const std::vector<Rate>& strikes)
-        : rateTimes_(rateTimes), 
-        accruals_(accruals),
-        paymentTimes_(paymentTimes), 
-        strikes_(strikes) ,
-        numberRates_(accruals_.size())
+    : rateTimes_(rateTimes), accruals_(accruals), paymentTimes_(paymentTimes), strikes_(strikes),
+      numberRates_(accruals_.size())
     {
         checkIncreasingTimes(rateTimes);
         checkIncreasingTimes(paymentTimes);
         std::vector<Time> evolTimes(rateTimes_);
         evolTimes.pop_back();
 
-        QL_REQUIRE(evolTimes.size()==numberRates_,
-            "rateTimes.size()<> numberOfRates+1");
+        QL_REQUIRE(evolTimes.size() == numberRates_, "rateTimes.size()<> numberOfRates+1");
 
-        QL_REQUIRE(paymentTimes.size()==numberRates_,
-            "paymentTimes.size()<> numberOfRates");
+        QL_REQUIRE(paymentTimes.size() == numberRates_, "paymentTimes.size()<> numberOfRates");
 
-        QL_REQUIRE(accruals.size()==numberRates_,
-            "accruals.size()<> numberOfRates");
+        QL_REQUIRE(accruals.size() == numberRates_, "accruals.size()<> numberOfRates");
 
-        QL_REQUIRE(strikes.size()==numberRates_,
-            "strikes.size()<> numberOfRates");
+        QL_REQUIRE(strikes.size() == numberRates_, "strikes.size()<> numberOfRates");
 
 
-        evolution_ = EvolutionDescription(rateTimes,evolTimes);
-
+        evolution_ = EvolutionDescription(rateTimes, evolTimes);
     }
 
-       MarketModelPathwiseMultiDeflatedCaplet::MarketModelPathwiseMultiDeflatedCaplet(const std::vector<Time>& rateTimes,
+    MarketModelPathwiseMultiDeflatedCaplet::MarketModelPathwiseMultiDeflatedCaplet(
+        const std::vector<Time>& rateTimes,
         const std::vector<Real>& accruals,
         const std::vector<Time>& paymentTimes,
         Rate strike)
-        : rateTimes_(rateTimes), 
-        accruals_(accruals),
-        paymentTimes_(paymentTimes), 
-        strikes_(accruals.size()) ,
-        numberRates_(accruals_.size())
+    : rateTimes_(rateTimes), accruals_(accruals), paymentTimes_(paymentTimes), strikes_(accruals.size()),
+      numberRates_(accruals_.size())
     {
         checkIncreasingTimes(rateTimes);
         checkIncreasingTimes(paymentTimes);
         std::vector<Time> evolTimes(rateTimes_);
         evolTimes.pop_back();
 
-        QL_REQUIRE(evolTimes.size()==numberRates_,
-            "rateTimes.size()<> numberOfRates+1");
+        QL_REQUIRE(evolTimes.size() == numberRates_, "rateTimes.size()<> numberOfRates+1");
 
-        QL_REQUIRE(paymentTimes.size()==numberRates_,
-            "paymentTimes.size()<> numberOfRates");
+        QL_REQUIRE(paymentTimes.size() == numberRates_, "paymentTimes.size()<> numberOfRates");
 
-        QL_REQUIRE(accruals.size()==numberRates_,
-            "accruals.size()<> numberOfRates");
-
-        
-        std::fill(strikes_.begin(), strikes_.end(),strike);
+        QL_REQUIRE(accruals.size() == numberRates_, "accruals.size()<> numberOfRates");
 
 
-        evolution_ = EvolutionDescription(rateTimes,evolTimes);
+        std::fill(strikes_.begin(), strikes_.end(), strike);
 
+
+        evolution_ = EvolutionDescription(rateTimes, evolTimes);
     }
 
 
     bool MarketModelPathwiseMultiDeflatedCaplet::nextTimeStep(
         const CurveState& currentState,
         std::vector<Size>& numberCashFlowsThisStep,
-        std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow> >& cashFlowsGenerated) 
+        std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow>>& cashFlowsGenerated)
     {
         Rate liborRate = currentState.forwardRate(currentIndex_);
         cashFlowsGenerated[currentIndex_][0].timeIndex = currentIndex_;
-        cashFlowsGenerated[currentIndex_][0].amount[0] =
-            (liborRate-strikes_[currentIndex_])*accruals_[currentIndex_]*currentState.discountRatio(currentIndex_+1,0);
+        cashFlowsGenerated[currentIndex_][0].amount[0] = (liborRate - strikes_[currentIndex_]) *
+                                                         accruals_[currentIndex_] *
+                                                         currentState.discountRatio(currentIndex_ + 1, 0);
 
-        std::fill(numberCashFlowsThisStep.begin(),
-            numberCashFlowsThisStep.end(),0);
+        std::fill(numberCashFlowsThisStep.begin(), numberCashFlowsThisStep.end(), 0);
 
-        if (  cashFlowsGenerated[currentIndex_][0].amount[0]  >0)
+        if (cashFlowsGenerated[currentIndex_][0].amount[0] > 0)
         {
             numberCashFlowsThisStep[currentIndex_] = 1;
-            for (Size i=1; i <= numberRates_; ++i)
-                cashFlowsGenerated[currentIndex_][0].amount[i] =0;
+            for (Size i = 1; i <= numberRates_; ++i)
+                cashFlowsGenerated[currentIndex_][0].amount[i] = 0;
 
-            cashFlowsGenerated[currentIndex_][0].amount[currentIndex_+1]  = accruals_[currentIndex_]*currentState.discountRatio(currentIndex_+1,0);
+            cashFlowsGenerated[currentIndex_][0].amount[currentIndex_ + 1] =
+                accruals_[currentIndex_] * currentState.discountRatio(currentIndex_ + 1, 0);
 
-            for (Size i=0; i <= currentIndex_; ++i)
+            for (Size i = 0; i <= currentIndex_; ++i)
             {
-                Real stepDF = currentState.discountRatio(i+1,i);
-                cashFlowsGenerated[currentIndex_][0].amount[i+1] -=   accruals_[i]*stepDF
-                    *cashFlowsGenerated[currentIndex_][0].amount[0];
+                Real stepDF = currentState.discountRatio(i + 1, i);
+                cashFlowsGenerated[currentIndex_][0].amount[i + 1] -=
+                    accruals_[i] * stepDF * cashFlowsGenerated[currentIndex_][0].amount[0];
             }
         }
         ++currentIndex_;
         return (currentIndex_ == strikes_.size());
     }
 
-    std::unique_ptr<MarketModelPathwiseMultiProduct>
-    MarketModelPathwiseMultiDeflatedCaplet::clone() const 
+    std::unique_ptr<MarketModelPathwiseMultiProduct> MarketModelPathwiseMultiDeflatedCaplet::clone() const
     {
         return std::unique_ptr<MarketModelPathwiseMultiProduct>(new MarketModelPathwiseMultiDeflatedCaplet(*this));
     }
@@ -247,7 +222,7 @@ namespace QuantLib {
     std::vector<Size> MarketModelPathwiseMultiDeflatedCaplet::suggestedNumeraires() const
     {
         std::vector<Size> numeraires(numberRates_);
-        for (Size i=0; i < numberRates_; ++i)
+        for (Size i = 0; i < numberRates_; ++i)
             numeraires[i] = i;
 
         return numeraires;
@@ -271,12 +246,11 @@ namespace QuantLib {
     Size MarketModelPathwiseMultiDeflatedCaplet::maxNumberOfCashFlowsPerProductPerStep() const
     {
         return 1;
-
     }
 
     void MarketModelPathwiseMultiDeflatedCaplet::reset()
     {
-        currentIndex_=0;
+        currentIndex_ = 0;
     }
 
     MarketModelPathwiseMultiDeflatedCap::MarketModelPathwiseMultiDeflatedCap(
@@ -284,21 +258,25 @@ namespace QuantLib {
         const std::vector<Real>& accruals,
         const std::vector<Time>& paymentTimes,
         Rate strike,
-        std::vector<std::pair<Size, Size> > startsAndEnds)
+        std::vector<std::pair<Size, Size>> startsAndEnds)
     : underlyingCaplets_(rateTimes, accruals, paymentTimes, strike), numberRates_(accruals.size()),
-      startsAndEnds_(std::move(startsAndEnds)) {
-        for (Size j=0; j < startsAndEnds_.size(); ++j)
+      startsAndEnds_(std::move(startsAndEnds))
+    {
+        for (Size j = 0; j < startsAndEnds_.size(); ++j)
         {
-            QL_REQUIRE(startsAndEnds_[j].first < startsAndEnds_[j].second,"a cap must start before it ends: " << j << startsAndEnds_[j].first << startsAndEnds_[j].second );
-            QL_REQUIRE(startsAndEnds_[j].second <= accruals.size() ,"a cap must end when the underlying caplets: " << j << startsAndEnds_[j].first << startsAndEnds_[j].second );
-           
+            QL_REQUIRE(startsAndEnds_[j].first < startsAndEnds_[j].second,
+                       "a cap must start before it ends: " << j << startsAndEnds_[j].first << startsAndEnds_[j].second);
+            QL_REQUIRE(startsAndEnds_[j].second <= accruals.size(),
+                       "a cap must end when the underlying caplets: " << j << startsAndEnds_[j].first
+                                                                      << startsAndEnds_[j].second);
         }
 
         innerCashFlowSizes_.resize(accruals.size());
         innerCashFlowsGenerated_.resize(accruals.size());
-        for (auto& i : innerCashFlowsGenerated_) {
+        for (auto& i : innerCashFlowsGenerated_)
+        {
             i.resize(underlyingCaplets_.maxNumberOfCashFlowsPerProductPerStep());
-            for (Size j=0; j < underlyingCaplets_.maxNumberOfCashFlowsPerProductPerStep(); ++j)
+            for (Size j = 0; j < underlyingCaplets_.maxNumberOfCashFlowsPerProductPerStep(); ++j)
                 i[j].amount.resize(accruals.size() + 1);
         }
     }
@@ -339,30 +317,30 @@ namespace QuantLib {
     void MarketModelPathwiseMultiDeflatedCap::reset()
     {
         underlyingCaplets_.reset();
-        currentIndex_=0;
+        currentIndex_ = 0;
     }
 
 
     bool MarketModelPathwiseMultiDeflatedCap::nextTimeStep(
         const CurveState& currentState,
         std::vector<Size>& numberCashFlowsThisStep,
-        std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow> >& cashFlowsGenerated)
+        std::vector<std::vector<MarketModelPathwiseMultiProduct::CashFlow>>& cashFlowsGenerated)
     {
 
         bool done = underlyingCaplets_.nextTimeStep(currentState, innerCashFlowSizes_, innerCashFlowsGenerated_);
-        
-        for (Size k=0; k < startsAndEnds_.size(); ++k)
-            numberCashFlowsThisStep[k]=0;
 
-        for (Size j=0; j < numberRates_; ++j)
+        for (Size k = 0; k < startsAndEnds_.size(); ++k)
+            numberCashFlowsThisStep[k] = 0;
+
+        for (Size j = 0; j < numberRates_; ++j)
         {
-            if (innerCashFlowSizes_[j]>0)
+            if (innerCashFlowSizes_[j] > 0)
             {
-                for (Size k=0; k < startsAndEnds_.size(); ++k)
+                for (Size k = 0; k < startsAndEnds_.size(); ++k)
                 {
                     if (startsAndEnds_[k].first <= j && j < startsAndEnds_[k].second)
                     {
-                        for (Size l=0; l < innerCashFlowSizes_[j]; ++l)
+                        for (Size l = 0; l < innerCashFlowSizes_[j]; ++l)
                             cashFlowsGenerated[k][numberCashFlowsThisStep[k]++] = innerCashFlowsGenerated_[j][l];
                     }
                 }
@@ -372,11 +350,9 @@ namespace QuantLib {
         return done;
     }
 
-    std::unique_ptr<MarketModelPathwiseMultiProduct>
-    MarketModelPathwiseMultiDeflatedCap::clone() const
+    std::unique_ptr<MarketModelPathwiseMultiProduct> MarketModelPathwiseMultiDeflatedCap::clone() const
     {
         return std::unique_ptr<MarketModelPathwiseMultiProduct>(new MarketModelPathwiseMultiDeflatedCap(*this));
     }
 
 }
-

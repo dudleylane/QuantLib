@@ -20,83 +20,84 @@
 #include <ql/errors.hpp>
 #include <stdexcept>
 
-namespace {
+namespace
+{
 
-    #if defined(_MSC_VER)
+#if defined(_MSC_VER)
     // allow Visual Studio integration
     std::string format_error(
-                       #ifdef QL_ERROR_LINES
-                       const std::string& file, long line,
-                       #else
-                       const std::string&, long,
-                       #endif
-                       #ifdef QL_ERROR_FUNCTIONS
-                       const std::string& function,
-                       #else
-                       const std::string&,
-                       #endif
-                       const std::string& message) {
+#    ifdef QL_ERROR_LINES
+        const std::string& file,
+        long line,
+#    else
+        const std::string&,
+        long,
+#    endif
+#    ifdef QL_ERROR_FUNCTIONS
+        const std::string& function,
+#    else
+        const std::string&,
+#    endif
+        const std::string& message)
+    {
         std::ostringstream msg;
-        #ifdef QL_ERROR_FUNCTIONS
+#    ifdef QL_ERROR_FUNCTIONS
         if (function != "(unknown)")
             msg << function << ": ";
-        #endif
-        #ifdef QL_ERROR_LINES
+#    endif
+#    ifdef QL_ERROR_LINES
         msg << "\n  " << file << "(" << line << "): \n";
-        #endif
+#    endif
         msg << message;
         return msg.str();
     }
-    #else
+#else
     // use gcc format (e.g. for integration with Emacs)
-    std::string format_error(const std::string& file, long line,
-                             const std::string& function,
-                             const std::string& message) {
+    std::string
+    format_error(const std::string& file, long line, const std::string& function, const std::string& message)
+    {
         std::ostringstream msg;
-        #ifdef QL_ERROR_LINES
+#    ifdef QL_ERROR_LINES
         msg << "\n" << file << ":" << line << ": ";
-        #endif
-        #ifdef QL_ERROR_FUNCTIONS
+#    endif
+#    ifdef QL_ERROR_FUNCTIONS
         if (function != "(unknown)")
             msg << "In function `" << function << "': \n";
-        #endif
+#    endif
         msg << message;
         return msg.str();
     }
-    #endif
+#endif
 
 }
 
-namespace boost {
+namespace boost
+{
 
     // must be defined by the user
-    void assertion_failed(char const * expr, char const * function,
-                          char const * file, long line) {
-        throw std::runtime_error(format_error(file, line, function,
-                                              "Boost assertion failed: " +
-                                              std::string(expr)));
+    void assertion_failed(char const* expr, char const* function, char const* file, long line)
+    {
+        throw std::runtime_error(format_error(file, line, function, "Boost assertion failed: " + std::string(expr)));
     }
 
-    void assertion_failed_msg(char const * expr, char const * msg,
-                              char const * function, char const * file,
-                              long line) {
-        throw std::runtime_error(format_error(file, line, function,
-                                              "Boost assertion failed: " +
-                                              std::string(expr) + ": " +
-                                              std::string(msg)));
+    void assertion_failed_msg(char const* expr, char const* msg, char const* function, char const* file, long line)
+    {
+        throw std::runtime_error(format_error(
+            file, line, function, "Boost assertion failed: " + std::string(expr) + ": " + std::string(msg)));
     }
 
 }
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Error::Error(const std::string& file, long line,
-                 const std::string& function,
-                 const std::string& message) {
-        message_ = ext::make_shared<std::string>(
-            format_error(file, line, function, message));
+    Error::Error(const std::string& file, long line, const std::string& function, const std::string& message)
+    {
+        message_ = ext::make_shared<std::string>(format_error(file, line, function, message));
     }
 
-    const char* Error::what() const noexcept { return message_->c_str(); }
+    const char* Error::what() const noexcept
+    {
+        return message_->c_str();
+    }
 }
-

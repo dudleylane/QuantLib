@@ -27,7 +27,8 @@
 #include <ql/instruments/twoassetbarrieroption.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Analytic engine for %barrier %option on two assets
     /*! The formulas by Heynen and Kat are taken from Haug, "Option
@@ -38,8 +39,8 @@ namespace QuantLib {
         \test the correctness of the returned value is tested by
               reproducing results available in literature.
      */
-    class AnalyticTwoAssetBarrierEngine
-        : public TwoAssetBarrierOption::engine {
+    class AnalyticTwoAssetBarrierEngine : public TwoAssetBarrierOption::engine
+    {
       public:
         AnalyticTwoAssetBarrierEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process1,
                                       ext::shared_ptr<GeneralizedBlackScholesProcess> process2,
@@ -90,7 +91,7 @@ namespace QuantLib {
         Real A(Real eta, Real phi) const;
         Real B(Real eta, Real phi) const;
 
-        Real M(Real m_a, Real m_b,Real rho) const;
+        Real M(Real m_a, Real m_b, Real rho) const;
     };
 
 }

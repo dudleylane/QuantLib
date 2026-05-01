@@ -17,16 +17,17 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/experimental/variancegamma/fftvanillaengine.hpp>
 #include <ql/exercise.hpp>
+#include <ql/experimental/variancegamma/fftvanillaengine.hpp>
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
 #include <complex>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    FFTVanillaEngine::FFTVanillaEngine(
-        const ext::shared_ptr<GeneralizedBlackScholesProcess>& process, Real logStrikeSpacing)
-        : FFTEngine(process, logStrikeSpacing)
+    FFTVanillaEngine::FFTVanillaEngine(const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
+                                       Real logStrikeSpacing)
+    : FFTEngine(process, logStrikeSpacing)
     {
     }
 
@@ -42,19 +43,17 @@ namespace QuantLib {
         ext::shared_ptr<GeneralizedBlackScholesProcess> process =
             ext::dynamic_pointer_cast<GeneralizedBlackScholesProcess>(process_);
 
-        dividendDiscount_ =
-            process->dividendYield()->discount(d);
-        riskFreeDiscount_ =
-            process->riskFreeRate()->discount(d);
+        dividendDiscount_ = process->dividendYield()->discount(d);
+        riskFreeDiscount_ = process->riskFreeRate()->discount(d);
 
-        DayCounter rfdc  = process->riskFreeRate()->dayCounter();
+        DayCounter rfdc = process->riskFreeRate()->dayCounter();
         t_ = rfdc.yearFraction(process->riskFreeRate()->referenceDate(), d);
 
-        ext::shared_ptr<BlackConstantVol> constVol = ext::dynamic_pointer_cast<BlackConstantVol>
-            (*(process->blackVolatility()));
+        ext::shared_ptr<BlackConstantVol> constVol =
+            ext::dynamic_pointer_cast<BlackConstantVol>(*(process->blackVolatility()));
         QL_REQUIRE(constVol, "Constant volatility required");
         Real vol = constVol->blackVol(0.0, 0.0);
-        var_ = vol*vol;
+        var_ = vol * vol;
     }
 
     std::complex<Real> FFTVanillaEngine::complexFourierTransform(std::complex<Real> u) const
@@ -63,9 +62,8 @@ namespace QuantLib {
 
         Real s = process_->x0();
 
-        std::complex<Real> phi = std::exp(i1 * u * (std::log(s) - (var_ * t_) / 2.0) 
-            - (var_ * u * u * t_) / 2.0); 
-        phi = phi * std::pow(dividendDiscount_/ riskFreeDiscount_, i1 * u);
+        std::complex<Real> phi = std::exp(i1 * u * (std::log(s) - (var_ * t_) / 2.0) - (var_ * u * u * t_) / 2.0);
+        phi = phi * std::pow(dividendDiscount_ / riskFreeDiscount_, i1 * u);
         return phi;
     }
 

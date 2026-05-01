@@ -24,24 +24,26 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #ifndef quantlib_nzocr_hpp
 #define quantlib_nzocr_hpp
 
+#include <ql/currencies/oceania.hpp>
 #include <ql/indexes/iborindex.hpp>
 #include <ql/time/calendars/newzealand.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
-#include <ql/currencies/oceania.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Nzocr index
     /*! %Nzocr (New Zealand official cash rate) rate fixed by the RBNZ.
 
         See <http://www.rbnz.govt.nz/monetary-policy/official-cash-rate-decisions>.
     */
-    class Nzocr : public OvernightIndex {
+    class Nzocr : public OvernightIndex
+    {
       public:
         explicit Nzocr(const Handle<YieldTermStructure>& h = {})
-        : OvernightIndex("Nzocr", 0, NZDCurrency(),
-                         NewZealand(),
-                         Actual365Fixed(), h) {}
+        : OvernightIndex("Nzocr", 0, NZDCurrency(), NewZealand(), Actual365Fixed(), h)
+        {
+        }
     };
 
 }

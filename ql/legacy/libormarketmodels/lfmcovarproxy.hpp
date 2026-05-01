@@ -25,19 +25,21 @@
 #define quantlib_libor_forward_market_covariance_proxy_hpp
 
 #include <ql/legacy/libormarketmodels/lfmcovarparam.hpp>
-#include <ql/legacy/libormarketmodels/lmvolmodel.hpp>
 #include <ql/legacy/libormarketmodels/lmcorrmodel.hpp>
+#include <ql/legacy/libormarketmodels/lmvolmodel.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! proxy for a libor forward model covariance parameterization
 
-    class LfmCovarianceProxy : public LfmCovarianceParameterization {
+    class LfmCovarianceProxy : public LfmCovarianceParameterization
+    {
       public:
         LfmCovarianceProxy(ext::shared_ptr<LmVolatilityModel> volaModel,
                            const ext::shared_ptr<LmCorrelationModel>& corrModel);
 
-        ext::shared_ptr<LmVolatilityModel>  volatilityModel() const;
+        ext::shared_ptr<LmVolatilityModel> volatilityModel() const;
         ext::shared_ptr<LmCorrelationModel> correlationModel() const;
 
         Matrix diffusion(Time t, const Array& x = {}) const override;
@@ -47,7 +49,7 @@ namespace QuantLib {
         virtual Real integratedCovariance(Size i, Size j, Time t, const Array& x = {}) const;
 
       protected:
-        const ext::shared_ptr<LmVolatilityModel>  volaModel_;
+        const ext::shared_ptr<LmVolatilityModel> volaModel_;
         const ext::shared_ptr<LmCorrelationModel> corrModel_;
 
       private:
@@ -58,4 +60,3 @@ namespace QuantLib {
 
 
 #endif
-

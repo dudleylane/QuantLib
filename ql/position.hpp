@@ -27,18 +27,22 @@
 #include <ql/qldefines.hpp>
 #include <iosfwd>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    struct Position {
-        enum Type { Long, Short };
+    struct Position
+    {
+        enum Type
+        {
+            Long,
+            Short
+        };
     };
 
     /*! \relates Position */
-    std::ostream& operator<<(std::ostream&,
-                             Position::Type);
+    std::ostream& operator<<(std::ostream&, Position::Type);
 
 }
 
 
 #endif
-

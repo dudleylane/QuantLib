@@ -22,7 +22,8 @@
 #define quantlib_experimental_zabr_interpolated_smile_section_hpp
 
 // Deprecated in version 1.42
-#pragma message("Warning: this file will disappear in a future release; include <ql/termstructures/volatility/zabrinterpolatedsmilesection.hpp> instead.")
+#pragma message( \
+    "Warning: this file will disappear in a future release; include <ql/termstructures/volatility/zabrinterpolatedsmilesection.hpp> instead.")
 
 #include <ql/termstructures/volatility/zabrinterpolatedsmilesection.hpp>
 

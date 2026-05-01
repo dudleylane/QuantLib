@@ -31,53 +31,53 @@
 #include <ql/math/array.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class BasketPayoff : public Payoff {
+    class BasketPayoff : public Payoff
+    {
       private:
         ext::shared_ptr<Payoff> basePayoff_;
+
       public:
         explicit BasketPayoff(ext::shared_ptr<Payoff> p) : basePayoff_(std::move(p)) {}
         ~BasketPayoff() override = default;
         std::string name() const override { return basePayoff_->name(); }
         std::string description() const override { return basePayoff_->description(); }
         Real operator()(Real price) const override { return (*basePayoff_)(price); }
-        virtual Real operator()(const Array &a) const {
-            return (*basePayoff_)(accumulate(a));
-        }
-        virtual Real accumulate(const Array &a) const = 0;
+        virtual Real operator()(const Array& a) const { return (*basePayoff_)(accumulate(a)); }
+        virtual Real accumulate(const Array& a) const = 0;
         ext::shared_ptr<Payoff> basePayoff() { return basePayoff_; }
     };
 
-    class MinBasketPayoff : public BasketPayoff {
+    class MinBasketPayoff : public BasketPayoff
+    {
       public:
-        explicit MinBasketPayoff(const ext::shared_ptr<Payoff> &p)
-        : BasketPayoff(p) {}
-        Real accumulate(const Array& a) const override {
-            return *std::min_element(a.begin(), a.end());
-        }
+        explicit MinBasketPayoff(const ext::shared_ptr<Payoff>& p) : BasketPayoff(p) {}
+        Real accumulate(const Array& a) const override { return *std::min_element(a.begin(), a.end()); }
     };
 
-    class MaxBasketPayoff : public BasketPayoff {
+    class MaxBasketPayoff : public BasketPayoff
+    {
       public:
-        explicit MaxBasketPayoff(const ext::shared_ptr<Payoff> &p)
-        : BasketPayoff(p) {}
-        Real accumulate(const Array& a) const override {
-            return *std::max_element(a.begin(), a.end());
-        }
+        explicit MaxBasketPayoff(const ext::shared_ptr<Payoff>& p) : BasketPayoff(p) {}
+        Real accumulate(const Array& a) const override { return *std::max_element(a.begin(), a.end()); }
     };
 
-    class AverageBasketPayoff : public BasketPayoff {
+    class AverageBasketPayoff : public BasketPayoff
+    {
       public:
         AverageBasketPayoff(const ext::shared_ptr<Payoff>& p, Array weights)
-        : BasketPayoff(p), weights_(std::move(weights)) {}
-        AverageBasketPayoff(const ext::shared_ptr<Payoff> &p,
-                            Size n)
-        : BasketPayoff(p), weights_(n, 1.0/static_cast<Real>(n)) {}
-        Real accumulate(const Array& a) const override {
-            return std::inner_product(weights_.begin(),
-                                      weights_.end(),
-                                      a.begin(), Real(0.0));
+        : BasketPayoff(p), weights_(std::move(weights))
+        {
+        }
+        AverageBasketPayoff(const ext::shared_ptr<Payoff>& p, Size n)
+        : BasketPayoff(p), weights_(n, 1.0 / static_cast<Real>(n))
+        {
+        }
+        Real accumulate(const Array& a) const override
+        {
+            return std::inner_product(weights_.begin(), weights_.end(), a.begin(), Real(0.0));
         }
 
         const Array& weights() const { return weights_; }
@@ -87,33 +87,32 @@ namespace QuantLib {
     };
 
 
-    class SpreadBasketPayoff : public BasketPayoff {
+    class SpreadBasketPayoff : public BasketPayoff
+    {
       public:
-        explicit SpreadBasketPayoff(const ext::shared_ptr<Payoff> &p)
-        : BasketPayoff(p) {}
-        Real accumulate(const Array& a) const override {
-            QL_REQUIRE(a.size() == 2, 
-                    "payoff is only defined for two underlyings");
-            return a[0]-a[1];
+        explicit SpreadBasketPayoff(const ext::shared_ptr<Payoff>& p) : BasketPayoff(p) {}
+        Real accumulate(const Array& a) const override
+        {
+            QL_REQUIRE(a.size() == 2, "payoff is only defined for two underlyings");
+            return a[0] - a[1];
         }
     };
-    
+
     //! Basket option on a number of assets
     /*! \ingroup instruments */
-    class BasketOption : public MultiAssetOption {
+    class BasketOption : public MultiAssetOption
+    {
       public:
         class engine;
-        BasketOption(const ext::shared_ptr<BasketPayoff>&,
-                     const ext::shared_ptr<Exercise>&);
+        BasketOption(const ext::shared_ptr<BasketPayoff>&, const ext::shared_ptr<Exercise>&);
     };
 
     //! %Basket-option %engine base class
-    class BasketOption::engine
-        : public GenericEngine<BasketOption::arguments,
-                               BasketOption::results> {};
+    class BasketOption::engine : public GenericEngine<BasketOption::arguments, BasketOption::results>
+    {
+    };
 
 }
 
 
 #endif
-

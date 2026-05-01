@@ -25,20 +25,21 @@
 #define quantlib_analytic_soft_barrier_engine_hpp
 
 #include <ql/instruments/softbarrieroption.hpp>
-#include <ql/processes/blackscholesprocess.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
+#include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Pricing engine for soft barrier european options using an analytical formula
     /*! Formulas are taken from "The complete guide to option pricing formulas 2nd Ed", E.G. Haug, p.165.
         Implements a closed form solution for soft barrier options originally introduced by Hart and Ross (1994).
     */
 
-    class AnalyticSoftBarrierEngine : public SoftBarrierOption::engine {
+    class AnalyticSoftBarrierEngine : public SoftBarrierOption::engine
+    {
       public:
-        explicit AnalyticSoftBarrierEngine(
-            ext::shared_ptr<GeneralizedBlackScholesProcess> process);
+        explicit AnalyticSoftBarrierEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process);
 
         void calculate() const override;
 
@@ -46,9 +47,16 @@ namespace QuantLib {
         ext::shared_ptr<GeneralizedBlackScholesProcess> process_;
         CumulativeNormalDistribution f_;
 
-        void validateInputs(Real S, Real X, Rate r, Rate q, Time T, Real U, Real L,
-                    Option::Type optionType, Barrier::Type barrierType,
-                    Real sigma) const;
+        void validateInputs(Real S,
+                            Real X,
+                            Rate r,
+                            Rate q,
+                            Time T,
+                            Real U,
+                            Real L,
+                            Option::Type optionType,
+                            Barrier::Type barrierType,
+                            Real sigma) const;
 
 
         // Helper methods to extract parameters
@@ -62,15 +70,23 @@ namespace QuantLib {
         Real stdDeviation() const;
         Rate riskFreeRate() const;
         DiscountFactor riskFreeDiscount() const;
-        Rate dividendYield() const; 
-        Rate costOfCarry() const;  
+        Rate dividendYield() const;
+        Rate costOfCarry() const;
         DiscountFactor dividendDiscount() const;
 
-        // Pricing helpers 
-        Real vanillaEquivalent() const;    // Computes the equivalent vanilla  option price (with no barriers)
+        // Pricing helpers
+        Real vanillaEquivalent() const;         // Computes the equivalent vanilla  option price (with no barriers)
         Real standardBarrierEquivalent() const; // for when U=L
-        Real knockInValue(Real S, Real X, Rate r, Volatility sigma, Time T, Real U, Real L, Real b, Option::Type optionType, Integer eta) const;
-
+        Real knockInValue(Real S,
+                          Real X,
+                          Rate r,
+                          Volatility sigma,
+                          Time T,
+                          Real U,
+                          Real L,
+                          Real b,
+                          Option::Type optionType,
+                          Integer eta) const;
     };
 
 }

@@ -29,30 +29,31 @@
 #include <ql/math/optimization/costfunction.hpp>
 #include <ql/math/optimization/projection.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Parameterized cost function
     /*! This class creates a proxy cost function which can depend
         on any arbitrary subset of parameters (the other being fixed)
     */
 
-    class ProjectedCostFunction : public CostFunction, public Projection {
-        public:
-            ProjectedCostFunction(const CostFunction& costFunction,
-                                 const Array& parameterValues,
-                                 const std::vector<bool>& fixParameters);
+    class ProjectedCostFunction : public CostFunction, public Projection
+    {
+      public:
+        ProjectedCostFunction(const CostFunction& costFunction,
+                              const Array& parameterValues,
+                              const std::vector<bool>& fixParameters);
 
-            ProjectedCostFunction(const CostFunction& costFunction,
-                                  const Projection& projection);
+        ProjectedCostFunction(const CostFunction& costFunction, const Projection& projection);
 
-            //! \name CostFunction interface
-            //@{
-            Real value(const Array& freeParameters) const override;
-            Array values(const Array& freeParameters) const override;
-            //@}
+        //! \name CostFunction interface
+        //@{
+        Real value(const Array& freeParameters) const override;
+        Array values(const Array& freeParameters) const override;
+        //@}
 
-        private:
-            const CostFunction& costFunction_;
+      private:
+        const CostFunction& costFunction_;
     };
 
 }

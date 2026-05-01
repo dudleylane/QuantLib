@@ -19,9 +19,11 @@
 
 #include <ql/instruments/compositeinstrument.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    void CompositeInstrument::add(const ext::shared_ptr<Instrument>& instrument, Real multiplier) {
+    void CompositeInstrument::add(const ext::shared_ptr<Instrument>& instrument, Real multiplier)
+    {
         QL_REQUIRE(instrument, "null instrument provided");
         components_.emplace_back(instrument, multiplier);
         registerWith(instrument);
@@ -37,32 +39,37 @@ namespace QuantLib {
         instrument->alwaysForwardNotifications();
     }
 
-    void CompositeInstrument::subtract(
-           const ext::shared_ptr<Instrument>& instrument, Real multiplier) {
+    void CompositeInstrument::subtract(const ext::shared_ptr<Instrument>& instrument, Real multiplier)
+    {
         add(instrument, -multiplier);
     }
 
-    bool CompositeInstrument::isExpired() const {
-        for (const auto& component : components_) {
+    bool CompositeInstrument::isExpired() const
+    {
+        for (const auto& component : components_)
+        {
             if (!component.first->isExpired())
                 return false;
         }
         return true;
     }
 
-    void CompositeInstrument::performCalculations() const {
+    void CompositeInstrument::performCalculations() const
+    {
         NPV_ = 0.0;
-        for (const auto& component : components_) {
+        for (const auto& component : components_)
+        {
             NPV_ += component.second * component.first->NPV();
         }
     }
 
-    void CompositeInstrument::deepUpdate() {
-        for (auto & component : components_) {
+    void CompositeInstrument::deepUpdate()
+    {
+        for (auto& component : components_)
+        {
             component.first->deepUpdate();
         }
         update();
     }
 
 }
-

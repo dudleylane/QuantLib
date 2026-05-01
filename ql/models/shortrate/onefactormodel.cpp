@@ -22,25 +22,29 @@
 #include <ql/stochasticprocess.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    //Private function used by solver to determine time-dependent parameter
-    class OneFactorModel::ShortRateTree::Helper {
+    // Private function used by solver to determine time-dependent parameter
+    class OneFactorModel::ShortRateTree::Helper
+    {
       public:
         Helper(Size i,
                Real discountBondPrice,
                ext::shared_ptr<TermStructureFittingParameter::NumericalImpl> theta,
                ShortRateTree& tree)
-        : size_(tree.size(i)), i_(i), statePrices_(tree.statePrices(i)),
-          discountBondPrice_(discountBondPrice), theta_(std::move(theta)), tree_(tree) {
+        : size_(tree.size(i)), i_(i), statePrices_(tree.statePrices(i)), discountBondPrice_(discountBondPrice),
+          theta_(std::move(theta)), tree_(tree)
+        {
             theta_->set(tree.timeGrid()[i], 0.0);
         }
 
-        Real operator()(Real theta) const {
+        Real operator()(Real theta) const
+        {
             Real value = discountBondPrice_;
             theta_->change(theta);
-            for (Size j=0; j<size_; j++)
-                value -= statePrices_[j]*tree_.discount(i_,j);
+            for (Size j = 0; j < size_; j++)
+                value -= statePrices_[j] * tree_.discount(i_, j);
             return value;
         }
 
@@ -59,14 +63,16 @@ namespace QuantLib {
         const ext::shared_ptr<TermStructureFittingParameter::NumericalImpl>& theta,
         const TimeGrid& timeGrid)
     : TreeLattice1D<OneFactorModel::ShortRateTree>(timeGrid, tree->size(1)), tree_(tree),
-      dynamics_(std::move(dynamics)), spread_(0.0) {
+      dynamics_(std::move(dynamics)), spread_(0.0)
+    {
 
         theta->reset();
         Real value = 1.0;
         Real vMin = -100.0;
         Real vMax = 100.0;
-        for (Size i=0; i<(timeGrid.size() - 1); i++) {
-            Real discountBond = theta->termStructure()->discount(t_[i+1]);
+        for (Size i = 0; i < (timeGrid.size() - 1); i++)
+        {
+            Real discountBond = theta->termStructure()->discount(t_[i + 1]);
             Helper finder(i, discountBond, theta, *this);
             Brent s1d;
             s1d.setMaxEvaluations(1000);
@@ -81,24 +87,23 @@ namespace QuantLib {
                                                  ext::shared_ptr<ShortRateDynamics> dynamics,
                                                  const TimeGrid& timeGrid)
     : TreeLattice1D<OneFactorModel::ShortRateTree>(timeGrid, tree->size(1)), tree_(tree),
-      dynamics_(std::move(dynamics)), spread_(0.0) {}
-
-    OneFactorModel::OneFactorModel(Size nArguments)
-    : ShortRateModel(nArguments) {}
-
-    ext::shared_ptr<Lattice>
-    OneFactorModel::tree(const TimeGrid& grid) const {
-        ext::shared_ptr<TrinomialTree> trinomial(
-                              new TrinomialTree(dynamics()->process(), grid));
-        return ext::shared_ptr<Lattice>(
-                              new ShortRateTree(trinomial, dynamics(), grid));
+      dynamics_(std::move(dynamics)), spread_(0.0)
+    {
     }
 
-    DiscountFactor OneFactorAffineModel::discount(Time t) const {
+    OneFactorModel::OneFactorModel(Size nArguments) : ShortRateModel(nArguments) {}
+
+    ext::shared_ptr<Lattice> OneFactorModel::tree(const TimeGrid& grid) const
+    {
+        ext::shared_ptr<TrinomialTree> trinomial(new TrinomialTree(dynamics()->process(), grid));
+        return ext::shared_ptr<Lattice>(new ShortRateTree(trinomial, dynamics(), grid));
+    }
+
+    DiscountFactor OneFactorAffineModel::discount(Time t) const
+    {
         Real x0 = dynamics()->process()->x0();
         Rate r0 = dynamics()->shortRate(0.0, x0);
         return discountBond(0.0, t, r0);
     }
 
 }
-

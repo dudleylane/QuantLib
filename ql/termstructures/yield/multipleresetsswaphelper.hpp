@@ -28,25 +28,26 @@
 #include <ql/instruments/multipleresetsswap.hpp>
 #include <ql/termstructures/yield/ratehelpers.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class IborIndex;
 
     //! Rate helper for bootstrapping from multiple-resets swap quotes
-    class MultipleResetsSwapRateHelper : public RelativeDateRateHelper {
+    class MultipleResetsSwapRateHelper : public RelativeDateRateHelper
+    {
       public:
-        MultipleResetsSwapRateHelper(
-            Natural settlementDays,
-            const Period& tenor,
-            const std::variant<Rate, Handle<Quote>>& fixedRate,
-            const ext::shared_ptr<IborIndex>& iborIndex,
-            Size resetsPerCoupon,
-            Handle<YieldTermStructure> discountingCurve = {},
-            RateAveraging::Type averagingMethod = RateAveraging::Compound,
-            Spread spread = 0.0,
-            Frequency fixedFrequency = NoFrequency,
-            const DayCounter& fixedDayCount = DayCounter(),
-            BusinessDayConvention fixedConvention = ModifiedFollowing);
+        MultipleResetsSwapRateHelper(Natural settlementDays,
+                                     const Period& tenor,
+                                     const std::variant<Rate, Handle<Quote>>& fixedRate,
+                                     const ext::shared_ptr<IborIndex>& iborIndex,
+                                     Size resetsPerCoupon,
+                                     Handle<YieldTermStructure> discountingCurve = {},
+                                     RateAveraging::Type averagingMethod = RateAveraging::Compound,
+                                     Spread spread = 0.0,
+                                     Frequency fixedFrequency = NoFrequency,
+                                     const DayCounter& fixedDayCount = DayCounter(),
+                                     BusinessDayConvention fixedConvention = ModifiedFollowing);
 
         Real impliedQuote() const override;
         void setTermStructure(YieldTermStructure*) override;

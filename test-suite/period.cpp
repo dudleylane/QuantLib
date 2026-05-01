@@ -28,7 +28,8 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(PeriodTests)
 
-BOOST_AUTO_TEST_CASE(testYearsMonthsAlgebra) {
+BOOST_AUTO_TEST_CASE(testYearsMonthsAlgebra)
+{
 
     BOOST_TEST_MESSAGE("Testing period algebra on years/months...");
 
@@ -37,51 +38,42 @@ BOOST_AUTO_TEST_CASE(testYearsMonthsAlgebra) {
     Period ThreeMonths(3, Months);
 
     Integer n = 4;
-    if (OneYear/n!=ThreeMonths)
-        BOOST_ERROR("division error: " << OneYear << "/" << n <<
-                    " not equal to " << ThreeMonths);
+    if (OneYear / n != ThreeMonths)
+        BOOST_ERROR("division error: " << OneYear << "/" << n << " not equal to " << ThreeMonths);
     n = 2;
-    if (OneYear/n!=SixMonths)
-        BOOST_ERROR("division error: " << OneYear << "/" << n <<
-                    " not equal to " << SixMonths);
+    if (OneYear / n != SixMonths)
+        BOOST_ERROR("division error: " << OneYear << "/" << n << " not equal to " << SixMonths);
 
-    Period sum=ThreeMonths;
-    sum+=SixMonths;
-    if (sum!=Period(9, Months))
-        BOOST_ERROR("sum error: " << ThreeMonths <<
-                    " + " << SixMonths <<
-                    " != " << Period(9, Months));
+    Period sum = ThreeMonths;
+    sum += SixMonths;
+    if (sum != Period(9, Months))
+        BOOST_ERROR("sum error: " << ThreeMonths << " + " << SixMonths << " != " << Period(9, Months));
 
-    sum+=OneYear;
-    if (sum!=Period(21, Months))
-        BOOST_ERROR("sum error: " << ThreeMonths <<
-                    " + " << SixMonths <<
-                    " + " << OneYear <<
-                    " != " << Period(21, Months));
+    sum += OneYear;
+    if (sum != Period(21, Months))
+        BOOST_ERROR("sum error: " << ThreeMonths << " + " << SixMonths << " + " << OneYear
+                                  << " != " << Period(21, Months));
 
     Period TwelveMonths(12, Months);
-    if (TwelveMonths.length()!=12)
-        BOOST_ERROR("normalization error: TwelveMonths.length()" <<
-                    " is " << TwelveMonths.length() <<
-                    " instead of 12");
-    if (TwelveMonths.units()!=Months)
-        BOOST_ERROR("normalization error: TwelveMonths.units()" <<
-                    " is " << TwelveMonths.units() <<
-                    " instead of " << Months);
+    if (TwelveMonths.length() != 12)
+        BOOST_ERROR("normalization error: TwelveMonths.length()" << " is " << TwelveMonths.length()
+                                                                 << " instead of 12");
+    if (TwelveMonths.units() != Months)
+        BOOST_ERROR("normalization error: TwelveMonths.units()" << " is " << TwelveMonths.units() << " instead of "
+                                                                << Months);
 
     Period NormalizedTwelveMonths(12, Months);
     NormalizedTwelveMonths.normalize();
-    if (NormalizedTwelveMonths.length()!=1)
-        BOOST_ERROR("normalization error: NormalizedTwelveMonths.length()" <<
-                    " is " << NormalizedTwelveMonths.length() <<
-                    " instead of 1");
-    if (NormalizedTwelveMonths.units()!=Years)
-        BOOST_ERROR("normalization error: NormalizedTwelveMonths.units()" <<
-                    " is " << NormalizedTwelveMonths.units() <<
-                    " instead of " << Years);
+    if (NormalizedTwelveMonths.length() != 1)
+        BOOST_ERROR("normalization error: NormalizedTwelveMonths.length()" << " is " << NormalizedTwelveMonths.length()
+                                                                           << " instead of 1");
+    if (NormalizedTwelveMonths.units() != Years)
+        BOOST_ERROR("normalization error: NormalizedTwelveMonths.units()" << " is " << NormalizedTwelveMonths.units()
+                                                                          << " instead of " << Years);
 }
 
-BOOST_AUTO_TEST_CASE(testWeeksDaysAlgebra) {
+BOOST_AUTO_TEST_CASE(testWeeksDaysAlgebra)
+{
 
     BOOST_TEST_MESSAGE("Testing period algebra on weeks/days...");
 
@@ -92,44 +84,34 @@ BOOST_AUTO_TEST_CASE(testWeeksDaysAlgebra) {
     Period ZeroDays(0, Days);
 
     Integer n = 2;
-    if (TwoWeeks/n!=OneWeek)
-        BOOST_ERROR("division error: " << TwoWeeks << "/" << n <<
-                    " not equal to " << OneWeek);
+    if (TwoWeeks / n != OneWeek)
+        BOOST_ERROR("division error: " << TwoWeeks << "/" << n << " not equal to " << OneWeek);
     n = 7;
-    if (OneWeek/n!=OneDay)
-        BOOST_ERROR("division error: " << OneWeek << "/" << n <<
-                    " not equal to " << OneDay);
+    if (OneWeek / n != OneDay)
+        BOOST_ERROR("division error: " << OneWeek << "/" << n << " not equal to " << OneDay);
 
-    Period sum=ThreeDays;
-    sum+=OneDay;
-    if (sum!=Period(4, Days))
-        BOOST_ERROR("sum error: " << ThreeDays <<
-                    " + " << OneDay <<
-                    " != " << Period(4, Days));
+    Period sum = ThreeDays;
+    sum += OneDay;
+    if (sum != Period(4, Days))
+        BOOST_ERROR("sum error: " << ThreeDays << " + " << OneDay << " != " << Period(4, Days));
 
-    sum+=OneWeek;
-    if (sum!=Period(11, Days))
-        BOOST_ERROR("sum error: " << ThreeDays <<
-                    " + " << OneDay <<
-                    " + " << OneWeek <<
-                    " != " << Period(11, Days));
+    sum += OneWeek;
+    if (sum != Period(11, Days))
+        BOOST_ERROR("sum error: " << ThreeDays << " + " << OneDay << " + " << OneWeek << " != " << Period(11, Days));
 
     BOOST_TEST((OneWeek + ZeroDays) == OneWeek);
-    BOOST_TEST((OneWeek + 3*OneDay) == Period(10, Days));
-    BOOST_TEST((OneWeek + 7*OneDay) == TwoWeeks);
+    BOOST_TEST((OneWeek + 3 * OneDay) == Period(10, Days));
+    BOOST_TEST((OneWeek + 7 * OneDay) == TwoWeeks);
 
     Period SevenDays(7, Days);
-    if (SevenDays.length()!=7)
-        BOOST_ERROR("normalization error: SevenDays.length()" <<
-                    " is " << SevenDays.length() <<
-                    " instead of 7");
-    if (SevenDays.units()!=Days)
-        BOOST_ERROR("normalization error: SevenDays.units()" <<
-                    " is " << SevenDays.units() <<
-                    " instead of " << Days);
+    if (SevenDays.length() != 7)
+        BOOST_ERROR("normalization error: SevenDays.length()" << " is " << SevenDays.length() << " instead of 7");
+    if (SevenDays.units() != Days)
+        BOOST_ERROR("normalization error: SevenDays.units()" << " is " << SevenDays.units() << " instead of " << Days);
 }
 
-BOOST_AUTO_TEST_CASE(testOperators) {
+BOOST_AUTO_TEST_CASE(testOperators)
+{
     BOOST_TEST_MESSAGE("Testing period operators...");
 
     Period p(3, Days);
@@ -140,7 +122,8 @@ BOOST_AUTO_TEST_CASE(testOperators) {
     BOOST_TEST(p == Period(4, Days));
 }
 
-BOOST_AUTO_TEST_CASE(testConvertToYears) {
+BOOST_AUTO_TEST_CASE(testConvertToYears)
+{
     BOOST_TEST_MESSAGE("Testing conversion of periods to years...");
 
     BOOST_TEST(years(Period(0, Years)) == 0);
@@ -148,13 +131,14 @@ BOOST_AUTO_TEST_CASE(testConvertToYears) {
     BOOST_TEST(years(Period(5, Years)) == 5);
 
     const auto tol = boost::test_tools::tolerance<Real>(1e-15);
-    BOOST_TEST(years(Period(1, Months)) == 1.0/12.0, tol);
-    BOOST_TEST(years(Period(8, Months)) == 8.0/12.0, tol);
+    BOOST_TEST(years(Period(1, Months)) == 1.0 / 12.0, tol);
+    BOOST_TEST(years(Period(8, Months)) == 8.0 / 12.0, tol);
     BOOST_TEST(years(Period(12, Months)) == 1);
     BOOST_TEST(years(Period(18, Months)) == 1.5, tol);
 }
 
-BOOST_AUTO_TEST_CASE(testConvertToMonths) {
+BOOST_AUTO_TEST_CASE(testConvertToMonths)
+{
     BOOST_TEST_MESSAGE("Testing conversion of periods to months...");
 
     BOOST_TEST(months(Period(0, Months)) == 0);
@@ -165,7 +149,8 @@ BOOST_AUTO_TEST_CASE(testConvertToMonths) {
     BOOST_TEST(months(Period(3, Years)) == 36);
 }
 
-BOOST_AUTO_TEST_CASE(testConvertToWeeks) {
+BOOST_AUTO_TEST_CASE(testConvertToWeeks)
+{
     BOOST_TEST_MESSAGE("Testing conversion of periods to weeks...");
 
     BOOST_TEST(weeks(Period(0, Weeks)) == 0);
@@ -173,82 +158,73 @@ BOOST_AUTO_TEST_CASE(testConvertToWeeks) {
     BOOST_TEST(weeks(Period(5, Weeks)) == 5);
 
     const auto tol = boost::test_tools::tolerance<Real>(1e-15);
-    BOOST_TEST(weeks(Period(1, Days)) == 1.0/7.0, tol);
-    BOOST_TEST(weeks(Period(3, Days)) == 3.0/7.0, tol);
-    BOOST_TEST(weeks(Period(11, Days)) == 11.0/7.0, tol);
+    BOOST_TEST(weeks(Period(1, Days)) == 1.0 / 7.0, tol);
+    BOOST_TEST(weeks(Period(3, Days)) == 3.0 / 7.0, tol);
+    BOOST_TEST(weeks(Period(11, Days)) == 11.0 / 7.0, tol);
 }
 
-BOOST_AUTO_TEST_CASE(testNormalization) {
+BOOST_AUTO_TEST_CASE(testNormalization)
+{
 
     BOOST_TEST_MESSAGE("Testing period normalization...");
 
-    Period test_values[] = {
-        0 * Days,
-        0 * Weeks,
-        0 * Months,
-        0 * Years,
-        3 * Days,
-        7 * Days,
-        14 * Days,
-        30 * Days,
-        60 * Days,
-        365 * Days,
-        1 * Weeks,
-        2 * Weeks,
-        4 * Weeks,
-        8 * Weeks,
-        52 * Weeks,
-        1 * Months,
-        2 * Months,
-        6 * Months,
-        12 * Months,
-        18 * Months,
-        24 * Months,
-        1 * Years,
-        2 * Years
-    };
+    Period test_values[] = {0 * Days,    0 * Weeks,   0 * Months,  0 * Years,  3 * Days,   7 * Days,
+                            14 * Days,   30 * Days,   60 * Days,   365 * Days, 1 * Weeks,  2 * Weeks,
+                            4 * Weeks,   8 * Weeks,   52 * Weeks,  1 * Months, 2 * Months, 6 * Months,
+                            12 * Months, 18 * Months, 24 * Months, 1 * Years,  2 * Years};
 
-    for (Period p1 : test_values) {
+    for (Period p1 : test_values)
+    {
         auto n1 = p1.normalized();
-        if (n1 != p1) {
+        if (n1 != p1)
+        {
             BOOST_ERROR("Normalizing " << p1 << " yields " << n1 << ", which compares different");
         }
 
-        for (Period p2 : test_values) {
+        for (Period p2 : test_values)
+        {
             auto n2 = p2.normalized();
             ext::optional<bool> comparison;
-            try {
+            try
+            {
                 comparison = (p1 == p2);
-            } catch (Error&) {
+            }
+            catch (Error&)
+            {
                 ;
             }
 
-            if (comparison && *comparison) {
+            if (comparison && *comparison)
+            {
                 // periods which compare equal must normalize to exactly the same period
-                if (n1.units() != n2.units() || n1.length() != n2.length()) {
-                    BOOST_ERROR(p1 << " and " << p2 << " compare equal, but normalize to "
-                                << n1 << " and " << n2 << " respectively");
+                if (n1.units() != n2.units() || n1.length() != n2.length())
+                {
+                    BOOST_ERROR(p1 << " and " << p2 << " compare equal, but normalize to " << n1 << " and " << n2
+                                   << " respectively");
                 }
             }
 
-            if (n1.units() == n2.units() && n1.length() == n2.length()) {
+            if (n1.units() == n2.units() && n1.length() == n2.length())
+            {
                 // periods normalizing to exactly the same period must compare equal
-                if (p1 != p2) {
-                    BOOST_ERROR(p1 << " and " << p2 << " compare different, but normalize to "
-                                << n1 << " and " << n2 << " respectively");
+                if (p1 != p2)
+                {
+                    BOOST_ERROR(p1 << " and " << p2 << " compare different, but normalize to " << n1 << " and " << n2
+                                   << " respectively");
                 }
             }
         }
     }
-
 }
 
-BOOST_AUTO_TEST_CASE(testFrequencyComputation) {
+BOOST_AUTO_TEST_CASE(testFrequencyComputation)
+{
     BOOST_TEST_MESSAGE("Testing computation of frequency from period...");
 
     // frequency -> period -> frequency == initial frequency?
-    for (const Frequency f : {NoFrequency, Once, Annual, Semiannual, EveryFourthMonth, Quarterly,
-                              Bimonthly, Monthly, EveryFourthWeek, Biweekly, Weekly, Daily}) {
+    for (const Frequency f : {NoFrequency, Once, Annual, Semiannual, EveryFourthMonth, Quarterly, Bimonthly, Monthly,
+                              EveryFourthWeek, Biweekly, Weekly, Daily})
+    {
         BOOST_TEST(Period(f).frequency() == f);
     }
     BOOST_CHECK_THROW(Period(OtherFrequency).frequency(), QuantLib::Error);

@@ -22,7 +22,8 @@ FOR A PARTICULAR PURPOSE.  See the license for more details.
 #include <ql/models/marketmodels/utilities.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     MultiStepInverseFloater::MultiStepInverseFloater(const std::vector<Time>& rateTimes,
                                                      std::vector<Real> fixedAccruals,
@@ -32,32 +33,38 @@ namespace QuantLib {
                                                      const std::vector<Real>& floatingSpreads,
                                                      const std::vector<Time>& paymentTimes,
                                                      bool payer)
-    : MultiProductMultiStep(rateTimes), fixedAccruals_(std::move(fixedAccruals)),
-      floatingAccruals_(floatingAccruals), fixedStrikes_(fixedStrikes),
-      fixedMultipliers_(fixedMultipliers), floatingSpreads_(floatingSpreads),
-      paymentTimes_(paymentTimes), multiplier_(payer ? -1.0 : 1.0),
-      lastIndex_(rateTimes.size() - 1) {
+    : MultiProductMultiStep(rateTimes), fixedAccruals_(std::move(fixedAccruals)), floatingAccruals_(floatingAccruals),
+      fixedStrikes_(fixedStrikes), fixedMultipliers_(fixedMultipliers), floatingSpreads_(floatingSpreads),
+      paymentTimes_(paymentTimes), multiplier_(payer ? -1.0 : 1.0), lastIndex_(rateTimes.size() - 1)
+    {
         checkIncreasingTimes(paymentTimes);
-        QL_REQUIRE(fixedAccruals_.size() == lastIndex_," Incorrect number of fixedAccruals given, should be " <<  lastIndex_ << " not " << fixedAccruals_.size() );
-        QL_REQUIRE(floatingAccruals.size() == lastIndex_," Incorrect number of floatingAccruals given, should be " <<  lastIndex_ << " not " << floatingAccruals.size() );
-        QL_REQUIRE(fixedStrikes.size() == lastIndex_," Incorrect number of fixedStrikes given, should be " <<  lastIndex_ << " not " << fixedStrikes.size() );
-        QL_REQUIRE(fixedMultipliers.size() == lastIndex_," Incorrect number of fixedMultipliers given, should be " <<  lastIndex_ << " not " << fixedMultipliers.size() );
-        QL_REQUIRE(floatingSpreads.size() == lastIndex_," Incorrect number of floatingSpreads given, should be " <<  lastIndex_ << " not " << floatingSpreads.size() );
-         QL_REQUIRE(paymentTimes.size() == lastIndex_," Incorrect number of paymentTimes given, should be " <<  lastIndex_ << " not " << paymentTimes.size() );
+        QL_REQUIRE(fixedAccruals_.size() == lastIndex_, " Incorrect number of fixedAccruals given, should be "
+                                                            << lastIndex_ << " not " << fixedAccruals_.size());
+        QL_REQUIRE(floatingAccruals.size() == lastIndex_, " Incorrect number of floatingAccruals given, should be "
+                                                              << lastIndex_ << " not " << floatingAccruals.size());
+        QL_REQUIRE(fixedStrikes.size() == lastIndex_, " Incorrect number of fixedStrikes given, should be "
+                                                          << lastIndex_ << " not " << fixedStrikes.size());
+        QL_REQUIRE(fixedMultipliers.size() == lastIndex_, " Incorrect number of fixedMultipliers given, should be "
+                                                              << lastIndex_ << " not " << fixedMultipliers.size());
+        QL_REQUIRE(floatingSpreads.size() == lastIndex_, " Incorrect number of floatingSpreads given, should be "
+                                                             << lastIndex_ << " not " << floatingSpreads.size());
+        QL_REQUIRE(paymentTimes.size() == lastIndex_, " Incorrect number of paymentTimes given, should be "
+                                                          << lastIndex_ << " not " << paymentTimes.size());
     }
 
-    bool MultiStepInverseFloater::nextTimeStep(
-        const CurveState& currentState,
-        std::vector<Size>& numberCashFlowsThisStep,
-        std::vector<std::vector<MarketModelMultiProduct::CashFlow> >&
-        genCashFlows)
+    bool
+    MultiStepInverseFloater::nextTimeStep(const CurveState& currentState,
+                                          std::vector<Size>& numberCashFlowsThisStep,
+                                          std::vector<std::vector<MarketModelMultiProduct::CashFlow>>& genCashFlows)
     {
-         Rate liborRate = currentState.forwardRate(currentIndex_);
-         Real inverseFloatingCoupon = std::max((fixedStrikes_[currentIndex_] - fixedMultipliers_[currentIndex_]*liborRate),0.0)*fixedAccruals_[currentIndex_] ;
-         Real floatingCoupon = (liborRate+floatingSpreads_[currentIndex_])*floatingAccruals_[currentIndex_];
+        Rate liborRate = currentState.forwardRate(currentIndex_);
+        Real inverseFloatingCoupon =
+            std::max((fixedStrikes_[currentIndex_] - fixedMultipliers_[currentIndex_] * liborRate), 0.0) *
+            fixedAccruals_[currentIndex_];
+        Real floatingCoupon = (liborRate + floatingSpreads_[currentIndex_]) * floatingAccruals_[currentIndex_];
 
         genCashFlows[0][0].timeIndex = currentIndex_;
-        genCashFlows[0][0].amount =multiplier_*(inverseFloatingCoupon - floatingCoupon);
+        genCashFlows[0][0].amount = multiplier_ * (inverseFloatingCoupon - floatingCoupon);
 
         numberCashFlowsThisStep[0] = 1;
         ++currentIndex_;
@@ -65,11 +72,9 @@ namespace QuantLib {
         return (currentIndex_ == lastIndex_);
     }
 
-    std::unique_ptr<MarketModelMultiProduct>
-    MultiStepInverseFloater::clone() const 
+    std::unique_ptr<MarketModelMultiProduct> MultiStepInverseFloater::clone() const
     {
         return std::unique_ptr<MarketModelMultiProduct>(new MultiStepInverseFloater(*this));
     }
 
 }
-

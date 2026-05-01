@@ -27,7 +27,8 @@
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     FdmQuantoHelper::FdmQuantoHelper(ext::shared_ptr<YieldTermStructure> rTS,
                                      ext::shared_ptr<YieldTermStructure> fTS,
@@ -35,30 +36,30 @@ namespace QuantLib {
                                      Real equityFxCorrelation,
                                      Real exchRateATMlevel)
     : rTS_(std::move(rTS)), fTS_(std::move(fTS)), fxVolTS_(std::move(fxVolTS)),
-      equityFxCorrelation_(equityFxCorrelation), exchRateATMlevel_(exchRateATMlevel) {}
-
-    Rate FdmQuantoHelper::quantoAdjustment(Volatility equityVol,
-                                                 Time t1, Time t2) const {
-        const Rate rDomestic = rTS_->forwardRate(t1, t2, Continuous).rate();
-        const Rate rForeign  = fTS_->forwardRate(t1, t2, Continuous).rate();
-        const Volatility fxVol
-            = fxVolTS_->blackForwardVol(t1, t2, exchRateATMlevel_);
-
-        return rDomestic - rForeign + equityVol*fxVol*equityFxCorrelation_;
+      equityFxCorrelation_(equityFxCorrelation), exchRateATMlevel_(exchRateATMlevel)
+    {
     }
 
-    Array FdmQuantoHelper::quantoAdjustment(
-        const Array& equityVol, Time t1, Time t2) const {
+    Rate FdmQuantoHelper::quantoAdjustment(Volatility equityVol, Time t1, Time t2) const
+    {
+        const Rate rDomestic = rTS_->forwardRate(t1, t2, Continuous).rate();
+        const Rate rForeign = fTS_->forwardRate(t1, t2, Continuous).rate();
+        const Volatility fxVol = fxVolTS_->blackForwardVol(t1, t2, exchRateATMlevel_);
+
+        return rDomestic - rForeign + equityVol * fxVol * equityFxCorrelation_;
+    }
+
+    Array FdmQuantoHelper::quantoAdjustment(const Array& equityVol, Time t1, Time t2) const
+    {
 
         const Rate rDomestic = rTS_->forwardRate(t1, t2, Continuous).rate();
-        const Rate rForeign  = fTS_->forwardRate(t1, t2, Continuous).rate();
-        const Volatility fxVol
-            = fxVolTS_->blackForwardVol(t1, t2, exchRateATMlevel_);
+        const Rate rForeign = fTS_->forwardRate(t1, t2, Continuous).rate();
+        const Volatility fxVol = fxVolTS_->blackForwardVol(t1, t2, exchRateATMlevel_);
 
         Array retVal(equityVol.size());
-        for (Size i=0; i < retVal.size(); ++i) {
-            retVal[i]
-                = rDomestic - rForeign + equityVol[i]*fxVol*equityFxCorrelation_;
+        for (Size i = 0; i < retVal.size(); ++i)
+        {
+            retVal[i] = rDomestic - rForeign + equityVol[i] * fxVol * equityFxCorrelation_;
         }
         return retVal;
     }

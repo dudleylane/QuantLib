@@ -31,7 +31,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! United States calendars
     /*! Public holidays (see https://www.opm.gov/policy-data-oversight/pay-leave/federal-holidays):
@@ -153,54 +154,63 @@ namespace QuantLib {
         \test the correctness of the returned results is tested
               against a list of known holidays.
     */
-    class UnitedStates : public Calendar {
+    class UnitedStates : public Calendar
+    {
       private:
-        class SettlementImpl : public Calendar::WesternImpl {
+        class SettlementImpl : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "US settlement"; }
             bool isBusinessDay(const Date&) const override;
         };
-        class LiborImpactImpl final : public SettlementImpl {
+        class LiborImpactImpl final : public SettlementImpl
+        {
           public:
             std::string name() const override { return "US with Libor impact"; }
             bool isBusinessDay(const Date&) const override;
         };
-        class NyseImpl final : public Calendar::WesternImpl {
+        class NyseImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "New York stock exchange"; }
             bool isBusinessDay(const Date&) const override;
         };
-        class GovernmentBondImpl : public Calendar::WesternImpl {
+        class GovernmentBondImpl : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "US government bond market"; }
             bool isBusinessDay(const Date&) const override;
         };
-        class SofrImpl final : public GovernmentBondImpl {
+        class SofrImpl final : public GovernmentBondImpl
+        {
           public:
             std::string name() const override { return "SOFR fixing calendar"; }
             bool isBusinessDay(const Date&) const override;
         };
-        class NercImpl final : public Calendar::WesternImpl {
+        class NercImpl final : public Calendar::WesternImpl
+        {
           public:
-            std::string name() const override {
-                return "North American Energy Reliability Council";
-            }
+            std::string name() const override { return "North American Energy Reliability Council"; }
             bool isBusinessDay(const Date&) const override;
         };
-        class FederalReserveImpl final : public Calendar::WesternImpl {
+        class FederalReserveImpl final : public Calendar::WesternImpl
+        {
           public:
             std::string name() const override { return "Federal Reserve Bankwire System"; }
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
         //! US calendars
-        enum Market { Settlement,     //!< generic settlement calendar
-                      NYSE,           //!< New York stock exchange calendar
-                      GovernmentBond, //!< government-bond calendar
-                      NERC,           //!< off-peak days for NERC
-                      LiborImpact,    //!< Libor impact calendar
-                      FederalReserve, //!< Federal Reserve Bankwire System
-                      SOFR            //!< SOFR fixing calendar
+        enum Market
+        {
+            Settlement,     //!< generic settlement calendar
+            NYSE,           //!< New York stock exchange calendar
+            GovernmentBond, //!< government-bond calendar
+            NERC,           //!< off-peak days for NERC
+            LiborImpact,    //!< Libor impact calendar
+            FederalReserve, //!< Federal Reserve Bankwire System
+            SOFR            //!< SOFR fixing calendar
         };
 
         explicit UnitedStates(Market market);

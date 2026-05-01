@@ -28,7 +28,8 @@
 #include <ql/instruments/vanillaoption.hpp>
 #include <ql/processes/merton76process.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Jump-diffusion engine for vanilla options
     /*! \ingroup vanillaengines
@@ -39,11 +40,10 @@ namespace QuantLib {
         - the correctness of the returned greeks is tested by
           reproducing numerical derivatives.
     */
-    class JumpDiffusionEngine : public VanillaOption::engine {
+    class JumpDiffusionEngine : public VanillaOption::engine
+    {
       public:
-        JumpDiffusionEngine(ext::shared_ptr<Merton76Process>,
-                            Real relativeAccuracy_ = 1e-4,
-                            Size maxIterations = 100);
+        JumpDiffusionEngine(ext::shared_ptr<Merton76Process>, Real relativeAccuracy_ = 1e-4, Size maxIterations = 100);
         void calculate() const override;
 
       private:
@@ -53,9 +53,6 @@ namespace QuantLib {
     };
 
 }
-
-
-
 
 
 #endif

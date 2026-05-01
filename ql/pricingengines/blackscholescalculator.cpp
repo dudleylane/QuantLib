@@ -19,36 +19,26 @@
 
 #include <ql/pricingengines/blackscholescalculator.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    BlackScholesCalculator::BlackScholesCalculator(
-                        const ext::shared_ptr<StrikedTypePayoff>& payoff,
-                        Real spot,
-                        DiscountFactor growth,
-                        Real stdDev,
-                        DiscountFactor discount)
-    : BlackCalculator(payoff, spot*growth/discount, stdDev, discount),
-      spot_(spot), growth_(growth)
-    {
-        QL_REQUIRE(spot_>0.0,
-                   "spot (" << spot_ << ") must be positive");
-        QL_REQUIRE(growth_>0.0,
-                   "growth (" << growth_ << ") must be positive");
-    }
-
-    BlackScholesCalculator::BlackScholesCalculator(Option::Type type,
-                                                   Real strike,
+    BlackScholesCalculator::BlackScholesCalculator(const ext::shared_ptr<StrikedTypePayoff>& payoff,
                                                    Real spot,
                                                    DiscountFactor growth,
                                                    Real stdDev,
                                                    DiscountFactor discount)
-    : BlackCalculator(type, strike, spot*growth/discount, stdDev, discount),
-      spot_(spot), growth_(growth)
+    : BlackCalculator(payoff, spot * growth / discount, stdDev, discount), spot_(spot), growth_(growth)
     {
-        QL_REQUIRE(spot_>0.0,
-                   "spot (" << spot_ << ") must be positive");
-        QL_REQUIRE(growth_>0.0,
-                   "growth (" << growth_ << ") must be positive");
+        QL_REQUIRE(spot_ > 0.0, "spot (" << spot_ << ") must be positive");
+        QL_REQUIRE(growth_ > 0.0, "growth (" << growth_ << ") must be positive");
+    }
+
+    BlackScholesCalculator::BlackScholesCalculator(
+        Option::Type type, Real strike, Real spot, DiscountFactor growth, Real stdDev, DiscountFactor discount)
+    : BlackCalculator(type, strike, spot * growth / discount, stdDev, discount), spot_(spot), growth_(growth)
+    {
+        QL_REQUIRE(spot_ > 0.0, "spot (" << spot_ << ") must be positive");
+        QL_REQUIRE(growth_ > 0.0, "growth (" << growth_ << ") must be positive");
     }
 
 }

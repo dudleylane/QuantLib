@@ -28,35 +28,28 @@
 #include <ql/methods/lattices/binomialtree.hpp>
 #include <ql/methods/lattices/lattice1d.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Simple binomial lattice approximating the Black-Scholes model
     /*! \ingroup lattices */
     template <class T>
-    class BlackScholesLattice : public TreeLattice1D<BlackScholesLattice<T> > {
+    class BlackScholesLattice : public TreeLattice1D<BlackScholesLattice<T>>
+    {
       public:
-        BlackScholesLattice(const ext::shared_ptr<T>& tree,
-                            Rate riskFreeRate,
-                            Time end,
-                            Size steps);
+        BlackScholesLattice(const ext::shared_ptr<T>& tree, Rate riskFreeRate, Time end, Size steps);
 
         Rate riskFreeRate() const { return riskFreeRate_; }
         Time dt() const { return dt_; }
         Size size(Size i) const { return tree_->size(i); }
-        DiscountFactor discount(Size,
-                                Size) const { return discount_; }
+        DiscountFactor discount(Size, Size) const { return discount_; }
 
         void stepback(Size i, const Array& values, Array& newValues) const;
 
-        Real underlying(Size i, Size index) const {
-            return tree_->underlying(i, index);
-        }
-        Size descendant(Size i, Size index, Size branch) const {
-            return tree_->descendant(i, index, branch);
-        }
-        Real probability(Size i, Size index, Size branch) const {
-            return tree_->probability(i, index, branch);
-        }
+        Real underlying(Size i, Size index) const { return tree_->underlying(i, index); }
+        Size descendant(Size i, Size index, Size branch) const { return tree_->descendant(i, index, branch); }
+        Real probability(Size i, Size index, Size branch) const { return tree_->probability(i, index, branch); }
+
       protected:
         ext::shared_ptr<T> tree_;
         Rate riskFreeRate_;
@@ -69,21 +62,18 @@ namespace QuantLib {
     // template definitions
 
     template <class T>
-    BlackScholesLattice<T>::BlackScholesLattice(
-                                            const ext::shared_ptr<T>& tree,
-                                            Rate riskFreeRate,
-                                            Time end,
-                                            Size steps)
-    : TreeLattice1D<BlackScholesLattice<T> >(TimeGrid(end, steps), 2),
-      tree_(tree), riskFreeRate_(riskFreeRate), dt_(end/steps),
-      discount_(std::exp(-riskFreeRate*(dt_))),
-      pd_(tree->probability(0, 0, 0)), pu_(tree->probability(0, 0, 1)) {}
+    BlackScholesLattice<T>::BlackScholesLattice(const ext::shared_ptr<T>& tree, Rate riskFreeRate, Time end, Size steps)
+    : TreeLattice1D<BlackScholesLattice<T>>(TimeGrid(end, steps), 2), tree_(tree), riskFreeRate_(riskFreeRate),
+      dt_(end / steps), discount_(std::exp(-riskFreeRate * (dt_))), pd_(tree->probability(0, 0, 0)),
+      pu_(tree->probability(0, 0, 1))
+    {
+    }
 
     template <class T>
-    void BlackScholesLattice<T>::stepback(Size i, const Array& values,
-                                          Array& newValues) const {
-        for (Size j=0; j<size(i); j++)
-            newValues[j] = (pd_*values[j] + pu_*values[j+1])*discount_;
+    void BlackScholesLattice<T>::stepback(Size i, const Array& values, Array& newValues) const
+    {
+        for (Size j = 0; j < size(i); j++)
+            newValues[j] = (pd_ * values[j] + pu_ * values[j + 1]) * discount_;
     }
 
 }

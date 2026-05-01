@@ -36,7 +36,8 @@
 #include <ql/time/schedule.hpp>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class OvernightIndexedCouponPricer;
     class CompoundingOvernightIndexedCouponPricer;
@@ -52,27 +53,27 @@ namespace QuantLib {
         rather by the OISRateHelper which is safe, since it reinitialises the
         instrument each time the evaluation date changes.
     */
-    class OvernightIndexedCoupon : public FloatingRateCoupon {
+    class OvernightIndexedCoupon : public FloatingRateCoupon
+    {
       public:
-        OvernightIndexedCoupon(
-                    const Date& paymentDate,
-                    Real nominal,
-                    const Date& startDate,
-                    const Date& endDate,
-                    const ext::shared_ptr<OvernightIndex>& overnightIndex,
-                    Real gearing = 1.0,
-                    Spread spread = 0.0,
-                    const Date& refPeriodStart = Date(),
-                    const Date& refPeriodEnd = Date(),
-                    const DayCounter& dayCounter = DayCounter(),
-                    bool telescopicValueDates = false,
-                    RateAveraging::Type averagingMethod = RateAveraging::Compound,
-                    Natural lookbackDays = Null<Natural>(),
-                    Natural lockoutDays = 0,
-                    bool applyObservationShift = false,
-                    bool compoundSpread = false,
-                    const Date& rateComputationStartDate = Date(),
-                    const Date& rateComputationEndDate = Date());
+        OvernightIndexedCoupon(const Date& paymentDate,
+                               Real nominal,
+                               const Date& startDate,
+                               const Date& endDate,
+                               const ext::shared_ptr<OvernightIndex>& overnightIndex,
+                               Real gearing = 1.0,
+                               Spread spread = 0.0,
+                               const Date& refPeriodStart = Date(),
+                               const Date& refPeriodEnd = Date(),
+                               const DayCounter& dayCounter = DayCounter(),
+                               bool telescopicValueDates = false,
+                               RateAveraging::Type averagingMethod = RateAveraging::Compound,
+                               Natural lookbackDays = Null<Natural>(),
+                               Natural lockoutDays = 0,
+                               bool applyObservationShift = false,
+                               bool compoundSpread = false,
+                               const Date& rateComputationStartDate = Date(),
+                               const Date& rateComputationEndDate = Date());
         //! \name Inspectors
         //@{
         //! fixing dates for the rates to be compounded
@@ -121,9 +122,9 @@ namespace QuantLib {
         //! Only when index fixing delay is 0 and observation shift is used,
         //! we can apply telescopic formula, when applying lookback period.
         //@{
-        bool canApplyTelescopicFormula() const {
-            return fixingDays_ == index_->fixingDays() ||
-                (applyObservationShift_ && index_->fixingDays() == 0);
+        bool canApplyTelescopicFormula() const
+        {
+            return fixingDays_ == index_->fixingDays() || (applyObservationShift_ && index_->fixingDays() == 0);
         }
         //@}
       private:
@@ -141,15 +142,16 @@ namespace QuantLib {
     };
 
     //! capped floored overnight indexed coupon
-    class CappedFlooredOvernightIndexedCoupon : public FloatingRateCoupon {
-    public:
+    class CappedFlooredOvernightIndexedCoupon : public FloatingRateCoupon
+    {
+      public:
         /*! capped / floored compounded, backward-looking on coupon.  The cap can be applied to the
             effective period rate (the default) or to the daily rates. */
         explicit CappedFlooredOvernightIndexedCoupon(const ext::shared_ptr<OvernightIndexedCoupon>& underlying,
-                                            Real cap = Null<Real>(),
-                                            Real floor = Null<Real>(), 
-                                            bool nakedOption = false,
-                                            bool dailyCapFloor = false);
+                                                     Real cap = Null<Real>(),
+                                                     Real floor = Null<Real>(),
+                                                     bool nakedOption = false,
+                                                     bool dailyCapFloor = false);
 
         //! \name Observer interface
         //@{
@@ -189,7 +191,7 @@ namespace QuantLib {
         bool isCapped() const { return cap_ != Null<Real>(); }
         bool isFloored() const { return floor_ != Null<Real>(); }
 
-        void setPricer(const ext::shared_ptr<FloatingRateCouponPricer>& pricer) override; 
+        void setPricer(const ext::shared_ptr<FloatingRateCouponPricer>& pricer) override;
 
         ext::shared_ptr<OvernightIndexedCoupon> underlying() const { return underlying_; }
         bool nakedOption() const { return nakedOption_; }
@@ -198,7 +200,7 @@ namespace QuantLib {
         //! averaging method
         RateAveraging::Type averagingMethod() const { return underlying_->averagingMethod(); }
 
-    protected:
+      protected:
         ext::shared_ptr<OvernightIndexedCoupon> underlying_;
         Rate cap_, floor_;
         bool nakedOption_;
@@ -208,9 +210,10 @@ namespace QuantLib {
     };
 
     //! helper class building a sequence of overnight coupons
-    class OvernightLeg {
+    class OvernightLeg
+    {
       public:
-        OvernightLeg(Schedule  schedule, const ext::shared_ptr<OvernightIndex>& overnightIndex);
+        OvernightLeg(Schedule schedule, const ext::shared_ptr<OvernightIndex>& overnightIndex);
         OvernightLeg& withNotionals(Real notional);
         OvernightLeg& withNotionals(const std::vector<Real>& notionals);
         OvernightLeg& withPaymentDayCounter(const DayCounter&);
@@ -241,6 +244,7 @@ namespace QuantLib {
         OvernightLeg& withCouponPricer(const ext::shared_ptr<OvernightIndexedCouponPricer>& couponPricer);
 
         operator Leg() const;
+
       private:
         Schedule schedule_;
         ext::shared_ptr<OvernightIndex> overnightIndex_;

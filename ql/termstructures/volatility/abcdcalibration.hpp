@@ -24,28 +24,30 @@
 #define quantlib_abcdcalibration_hpp
 
 
+#include <ql/math/array.hpp>
 #include <ql/math/optimization/endcriteria.hpp>
 #include <ql/math/optimization/projectedcostfunction.hpp>
-#include <ql/math/array.hpp>
-
 #include <ql/shared_ptr.hpp>
-
 #include <vector>
 
 
-namespace QuantLib {
-    
+namespace QuantLib
+{
+
     class Quote;
     class OptimizationMethod;
     class ParametersTransformation;
 
-    class AbcdCalibration {
+    class AbcdCalibration
+    {
       private:
-        class AbcdError : public CostFunction {
+        class AbcdError : public CostFunction
+        {
           public:
             AbcdError(AbcdCalibration* abcd) : abcd_(abcd) {}
 
-            Real value(const Array& x) const override {
+            Real value(const Array& x) const override
+            {
                 const Array y = abcd_->transformation_->direct(x);
                 abcd_->a_ = y[0];
                 abcd_->b_ = y[1];
@@ -53,7 +55,8 @@ namespace QuantLib {
                 abcd_->d_ = y[3];
                 return abcd_->error();
             }
-            Array values(const Array& x) const override {
+            Array values(const Array& x) const override
+            {
                 const Array y = abcd_->transformation_->direct(x);
                 abcd_->a_ = y[0];
                 abcd_->b_ = y[1];
@@ -66,7 +69,8 @@ namespace QuantLib {
             AbcdCalibration* abcd_;
         };
 
-        class AbcdParametersTransformation : public ParametersTransformation {
+        class AbcdParametersTransformation : public ParametersTransformation
+        {
           public:
             AbcdParametersTransformation() : y_(Array(4)) {}
             // to constrained <- from unconstrained
@@ -81,25 +85,23 @@ namespace QuantLib {
       public:
         AbcdCalibration() = default;
         ;
-        AbcdCalibration(
-            const std::vector<Real>& t,
-            const std::vector<Real>& blackVols,
-            Real aGuess = -0.06,
-            Real bGuess = 0.17,
-            Real cGuess = 0.54,
-            Real dGuess = 0.17,
-            bool aIsFixed = false,
-            bool bIsFixed = false,
-            bool cIsFixed = false,
-            bool dIsFixed = false,
-            bool vegaWeighted = false,
-            ext::shared_ptr<EndCriteria> endCriteria = ext::shared_ptr<EndCriteria>(),
-            ext::shared_ptr<OptimizationMethod> method = ext::shared_ptr<OptimizationMethod>());
+        AbcdCalibration(const std::vector<Real>& t,
+                        const std::vector<Real>& blackVols,
+                        Real aGuess = -0.06,
+                        Real bGuess = 0.17,
+                        Real cGuess = 0.54,
+                        Real dGuess = 0.17,
+                        bool aIsFixed = false,
+                        bool bIsFixed = false,
+                        bool cIsFixed = false,
+                        bool dIsFixed = false,
+                        bool vegaWeighted = false,
+                        ext::shared_ptr<EndCriteria> endCriteria = ext::shared_ptr<EndCriteria>(),
+                        ext::shared_ptr<OptimizationMethod> method = ext::shared_ptr<OptimizationMethod>());
         //! adjustment factors needed to match Black vols
-        std::vector<Real> k(const std::vector<Real>& t,
-                            const std::vector<Real>& blackVols) const;
+        std::vector<Real> k(const std::vector<Real>& t, const std::vector<Real>& blackVols) const;
         void compute();
-        //calibration results
+        // calibration results
         Real value(Real x) const;
         Real error() const;
         Real maxError() const;
@@ -112,6 +114,7 @@ namespace QuantLib {
         bool aIsFixed_, bIsFixed_, cIsFixed_, dIsFixed_;
         Real a_, b_, c_, d_;
         ext::shared_ptr<ParametersTransformation> transformation_;
+
       private:
         // optimization method used for fitting
         mutable EndCriteria::Type abcdEndCriteria_;

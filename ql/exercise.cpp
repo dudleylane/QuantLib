@@ -19,47 +19,47 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/exercise.hpp>
 #include <ql/errors.hpp>
+#include <ql/exercise.hpp>
 #include <algorithm>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Date Exercise::lastDate() const {
+    Date Exercise::lastDate() const
+    {
         QL_REQUIRE(!dates_.empty(), "no exercise date given");
         return dates_.back();
     }
 
-    AmericanExercise::AmericanExercise(const Date& earliest,
-                                       const Date& latest,
-                                       bool payoffAtExpiry)
-    : EarlyExercise(American, payoffAtExpiry) {
-        QL_REQUIRE(earliest<=latest,
-                   "earliest > latest exercise date");
+    AmericanExercise::AmericanExercise(const Date& earliest, const Date& latest, bool payoffAtExpiry)
+    : EarlyExercise(American, payoffAtExpiry)
+    {
+        QL_REQUIRE(earliest <= latest, "earliest > latest exercise date");
         dates_ = std::vector<Date>(2);
         dates_[0] = earliest;
         dates_[1] = latest;
     }
 
-    AmericanExercise::AmericanExercise(const Date& latest,
-                                       bool payoffAtExpiry)
-    : EarlyExercise(American, payoffAtExpiry) {
+    AmericanExercise::AmericanExercise(const Date& latest, bool payoffAtExpiry)
+    : EarlyExercise(American, payoffAtExpiry)
+    {
         dates_ = std::vector<Date>(2);
         dates_[0] = Date::minDate();
         dates_[1] = latest;
     }
 
-    BermudanExercise::BermudanExercise(const std::vector<Date>& dates,
-                                       bool payoffAtExpiry)
-    : EarlyExercise(Bermudan, payoffAtExpiry) {
+    BermudanExercise::BermudanExercise(const std::vector<Date>& dates, bool payoffAtExpiry)
+    : EarlyExercise(Bermudan, payoffAtExpiry)
+    {
         QL_REQUIRE(!dates.empty(), "no exercise date given");
         dates_ = dates;
         std::sort(dates_.begin(), dates_.end());
     }
 
-    EuropeanExercise::EuropeanExercise(const Date& date)
-    : Exercise(European) {
-        dates_ = std::vector<Date>(1,date);
+    EuropeanExercise::EuropeanExercise(const Date& date) : Exercise(European)
+    {
+        dates_ = std::vector<Date>(1, date);
     }
 
 }

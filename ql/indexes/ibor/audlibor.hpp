@@ -25,25 +25,24 @@
 #ifndef quantlib_aud_libor_hpp
 #define quantlib_aud_libor_hpp
 
+#include <ql/currencies/oceania.hpp>
 #include <ql/indexes/ibor/libor.hpp>
 #include <ql/time/calendars/australia.hpp>
 #include <ql/time/daycounters/actual360.hpp>
-#include <ql/currencies/oceania.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %AUD %LIBOR rate
     /*! Australian Dollar LIBOR discontinued as of 2013.
-    */
-    class AUDLibor : public Libor {
+     */
+    class AUDLibor : public Libor
+    {
       public:
-        AUDLibor(const Period& tenor,
-                 const Handle<YieldTermStructure>& h = {})
-        : Libor("AUDLibor", tenor,
-                2,
-                AUDCurrency(),
-                Australia(),
-                Actual360(), h) {}
+        AUDLibor(const Period& tenor, const Handle<YieldTermStructure>& h = {})
+        : Libor("AUDLibor", tenor, 2, AUDCurrency(), Australia(), Actual360(), h)
+        {
+        }
     };
 
 }

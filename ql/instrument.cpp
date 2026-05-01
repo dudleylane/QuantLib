@@ -21,10 +21,11 @@
 #include <ql/instrument.hpp>
 #include <ql/settings.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Instrument::Instrument()
-    : NPV_(Null<Real>()), errorEstimate_(Null<Real>()) {
+    Instrument::Instrument() : NPV_(Null<Real>()), errorEstimate_(Null<Real>())
+    {
         // this makes sense in general (if the evaluation date
         // changes, you probably want to recalculate) and can also
         // help avoid some edge cases when lazy objects only forward
@@ -32,7 +33,8 @@ namespace QuantLib {
         registerWith(Settings::instance().evaluationDate());
     }
 
-    void Instrument::setPricingEngine(const ext::shared_ptr<PricingEngine>& e) {
+    void Instrument::setPricingEngine(const ext::shared_ptr<PricingEngine>& e)
+    {
         if (engine_ != nullptr)
             unregisterWith(engine_);
         engine_ = e;
@@ -42,7 +44,8 @@ namespace QuantLib {
         update();
     }
 
-    void Instrument::setupArguments(PricingEngine::arguments*) const {
+    void Instrument::setupArguments(PricingEngine::arguments*) const
+    {
         QL_FAIL("Instrument::setupArguments() not implemented");
     }
 

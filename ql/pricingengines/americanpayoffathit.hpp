@@ -26,22 +26,24 @@
 
 #include <ql/instruments/payoffs.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Analytic formula for American exercise payoff at-hit options
     /*! \todo calculate greeks */
-    class AmericanPayoffAtHit {
+    class AmericanPayoffAtHit
+    {
       public:
-        AmericanPayoffAtHit(
-                          Real spot,
-                          DiscountFactor discount,
-                          DiscountFactor dividendDiscount,
-                          Real variance,
-                          const ext::shared_ptr<StrikedTypePayoff>& payoff);
+        AmericanPayoffAtHit(Real spot,
+                            DiscountFactor discount,
+                            DiscountFactor dividendDiscount,
+                            Real variance,
+                            const ext::shared_ptr<StrikedTypePayoff>& payoff);
         Real value() const;
         Real delta() const;
         Real gamma() const;
         Real rho(Time maturity) const;
+
       private:
         Real spot_;
         DiscountFactor discount_, dividendDiscount_;
@@ -63,7 +65,8 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline Real AmericanPayoffAtHit::value() const {
+    inline Real AmericanPayoffAtHit::value() const
+    {
         return K_ * (forward_ * alpha_ + X_ * beta_);
     }
 

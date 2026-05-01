@@ -22,7 +22,8 @@
 #include <ql/cashflows/capflooredcoupon.hpp>
 #include <ql/cashflows/couponpricer.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     CappedFlooredCoupon::CappedFlooredCoupon(const ext::shared_ptr<FloatingRateCoupon>& underlying,
                                              Rate cap,
@@ -41,100 +42,116 @@ namespace QuantLib {
                          underlying->isInArrears(),
                          underlying->exCouponDate(),
                          underlying->fixingConvention()),
-      underlying_(underlying) {
+      underlying_(underlying)
+    {
 
-        if (gearing_ > 0) {
-            if (cap != Null<Rate>()) {
+        if (gearing_ > 0)
+        {
+            if (cap != Null<Rate>())
+            {
                 isCapped_ = true;
                 cap_ = cap;
             }
-            if (floor != Null<Rate>()) {
+            if (floor != Null<Rate>())
+            {
                 floor_ = floor;
                 isFloored_ = true;
             }
-        } else {
-              if (cap != Null<Rate>()){
+        }
+        else
+        {
+            if (cap != Null<Rate>())
+            {
                 floor_ = cap;
                 isFloored_ = true;
-              }
-              if (floor != Null<Rate>()){
+            }
+            if (floor != Null<Rate>())
+            {
                 isCapped_ = true;
                 cap_ = floor;
-              }
+            }
         }
 
-        if (isCapped_ && isFloored_) {
-            QL_REQUIRE(cap >= floor,
-                       "cap level (" << cap <<
-                       ") less than floor level (" << floor << ")");
+        if (isCapped_ && isFloored_)
+        {
+            QL_REQUIRE(cap >= floor, "cap level (" << cap << ") less than floor level (" << floor << ")");
         }
 
         registerWith(underlying_);
     }
 
-    void CappedFlooredCoupon::setPricer(
-                 const ext::shared_ptr<FloatingRateCouponPricer>& pricer) {
+    void CappedFlooredCoupon::setPricer(const ext::shared_ptr<FloatingRateCouponPricer>& pricer)
+    {
         FloatingRateCoupon::setPricer(pricer);
         underlying_->setPricer(pricer);
     }
 
-    void CappedFlooredCoupon::deepUpdate() {
+    void CappedFlooredCoupon::deepUpdate()
+    {
         update();
         underlying_->deepUpdate();
     }
 
-    void CappedFlooredCoupon::performCalculations() const {
+    void CappedFlooredCoupon::performCalculations() const
+    {
         QL_REQUIRE(underlying_->pricer(), "pricer not set");
         Rate swapletRate = underlying_->rate();
         Rate floorletRate = 0.;
-        if(isFloored_)
+        if (isFloored_)
             floorletRate = underlying_->pricer()->floorletRate(effectiveFloor());
         Rate capletRate = 0.;
-        if(isCapped_)
+        if (isCapped_)
             capletRate = underlying_->pricer()->capletRate(effectiveCap());
-        rate_ =  swapletRate + floorletRate - capletRate;
+        rate_ = swapletRate + floorletRate - capletRate;
     }
 
-    Rate CappedFlooredCoupon::rate() const {
+    Rate CappedFlooredCoupon::rate() const
+    {
         calculate();
         return rate_;
     }
 
-    Rate CappedFlooredCoupon::convexityAdjustment() const {
+    Rate CappedFlooredCoupon::convexityAdjustment() const
+    {
         return underlying_->convexityAdjustment();
     }
 
-    Rate CappedFlooredCoupon::cap() const {
-        if ( (gearing_ > 0) && isCapped_)
-                return cap_;
-        if ( (gearing_ < 0) && isFloored_)
+    Rate CappedFlooredCoupon::cap() const
+    {
+        if ((gearing_ > 0) && isCapped_)
+            return cap_;
+        if ((gearing_ < 0) && isFloored_)
             return floor_;
         return Null<Rate>();
     }
 
-    Rate CappedFlooredCoupon::floor() const {
-        if ( (gearing_ > 0) && isFloored_)
+    Rate CappedFlooredCoupon::floor() const
+    {
+        if ((gearing_ > 0) && isFloored_)
             return floor_;
-        if ( (gearing_ < 0) && isCapped_)
+        if ((gearing_ < 0) && isCapped_)
             return cap_;
         return Null<Rate>();
     }
 
-    Rate CappedFlooredCoupon::effectiveCap() const {
+    Rate CappedFlooredCoupon::effectiveCap() const
+    {
         if (isCapped_)
-            return (cap_ - spread())/gearing();
+            return (cap_ - spread()) / gearing();
         else
             return Null<Rate>();
     }
 
-    Rate CappedFlooredCoupon::effectiveFloor() const {
+    Rate CappedFlooredCoupon::effectiveFloor() const
+    {
         if (isFloored_)
-            return (floor_ - spread())/gearing();
+            return (floor_ - spread()) / gearing();
         else
             return Null<Rate>();
     }
 
-    void CappedFlooredCoupon::accept(AcyclicVisitor& v) {
+    void CappedFlooredCoupon::accept(AcyclicVisitor& v)
+    {
         typedef FloatingRateCoupon super;
         auto* v1 = dynamic_cast<Visitor<CappedFlooredCoupon>*>(&v);
         if (v1 != nullptr)

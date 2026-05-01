@@ -28,23 +28,24 @@
 #include <ql/experimental/coupons/cmsspreadcoupon.hpp>
 #include <ql/time/schedule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Cms-spread-rate coupon with digital digital call/put option
-    class DigitalCmsSpreadCoupon : public DigitalCoupon {
+    class DigitalCmsSpreadCoupon : public DigitalCoupon
+    {
       public:
-        explicit DigitalCmsSpreadCoupon(
-            const ext::shared_ptr<CmsSpreadCoupon> &underlying,
-            Rate callStrike = Null<Rate>(),
-            Position::Type callPosition = Position::Long,
-            bool isCallATMIncluded = false,
-            Rate callDigitalPayoff = Null<Rate>(),
-            Rate putStrike = Null<Rate>(),
-            Position::Type putPosition = Position::Long,
-            bool isPutATMIncluded = false,
-            Rate putDigitalPayoff = Null<Rate>(),
-            const ext::shared_ptr<DigitalReplication> &replication = {},
-            bool nakedOption = false);
+        explicit DigitalCmsSpreadCoupon(const ext::shared_ptr<CmsSpreadCoupon>& underlying,
+                                        Rate callStrike = Null<Rate>(),
+                                        Position::Type callPosition = Position::Long,
+                                        bool isCallATMIncluded = false,
+                                        Rate callDigitalPayoff = Null<Rate>(),
+                                        Rate putStrike = Null<Rate>(),
+                                        Position::Type putPosition = Position::Long,
+                                        bool isPutATMIncluded = false,
+                                        Rate putDigitalPayoff = Null<Rate>(),
+                                        const ext::shared_ptr<DigitalReplication>& replication = {},
+                                        bool nakedOption = false);
 
         //! \name Visitability
         //@{
@@ -54,7 +55,8 @@ namespace QuantLib {
 
 
     //! helper class building a sequence of digital ibor-rate coupons
-    class DigitalCmsSpreadLeg {
+    class DigitalCmsSpreadLeg
+    {
       public:
         DigitalCmsSpreadLeg(Schedule schedule, ext::shared_ptr<SwapSpreadIndex> index);
         DigitalCmsSpreadLeg& withNotionals(Real notional);
@@ -84,6 +86,7 @@ namespace QuantLib {
         DigitalCmsSpreadLeg& withNakedOption(bool nakedOption = true);
 
         operator Leg() const;
+
       private:
         Schedule schedule_;
         ext::shared_ptr<SwapSpreadIndex> index_;

@@ -19,12 +19,12 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
-#include <ql/time/daycounters/actual360.hpp>
-#include <ql/instruments/simplechooseroption.hpp>
 #include <ql/instruments/complexchooseroption.hpp>
-#include <ql/pricingengines/exotic/analyticsimplechooserengine.hpp>
+#include <ql/instruments/simplechooseroption.hpp>
 #include <ql/pricingengines/exotic/analyticcomplexchooserengine.hpp>
+#include <ql/pricingengines/exotic/analyticsimplechooserengine.hpp>
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
+#include <ql/time/daycounters/actual360.hpp>
 #include <ql/utilities/dataformatters.hpp>
 
 using namespace QuantLib;
@@ -35,25 +35,21 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 BOOST_AUTO_TEST_SUITE(ChooserOptionTests)
 
 #undef REPORT_FAILURE
-#define REPORT_FAILURE(greekName, choosingDate, \
-                       exercise, s, q, r, today, v, \
-                       expected, calculated, tolerance) \
-    BOOST_ERROR( \
-        exerciseTypeToString(exercise) \
-        << " Chooser option with " \
-        << "    spot value: " << s << "\n" \
-        << "    dividend yield:   " << io::rate(q) << "\n" \
-        << "    risk-free rate:   " << io::rate(r) << "\n" \
-        << "    reference date:   " << today << "\n" \
-        << "    maturity:         " << exercise->lastDate() << "\n" \
-        << "    volatility:       " << io::volatility(v) << "\n\n" \
-        << "    expected   " << greekName << ": " << expected << "\n" \
-        << "    calculated " << greekName << ": " << calculated << "\n"\
-        << "    error:            " << std::fabs(expected-calculated) \
-        << "\n" \
-        << "    tolerance:        " << tolerance);
+#define REPORT_FAILURE(greekName, choosingDate, exercise, s, q, r, today, v, expected, calculated, tolerance)          \
+    BOOST_ERROR(exerciseTypeToString(exercise) << " Chooser option with "                                              \
+                                               << "    spot value: " << s << "\n"                                      \
+                                               << "    dividend yield:   " << io::rate(q) << "\n"                      \
+                                               << "    risk-free rate:   " << io::rate(r) << "\n"                      \
+                                               << "    reference date:   " << today << "\n"                            \
+                                               << "    maturity:         " << exercise->lastDate() << "\n"             \
+                                               << "    volatility:       " << io::volatility(v) << "\n\n"              \
+                                               << "    expected   " << greekName << ": " << expected << "\n"           \
+                                               << "    calculated " << greekName << ": " << calculated << "\n"         \
+                                               << "    error:            " << std::fabs(expected - calculated) << "\n" \
+                                               << "    tolerance:        " << tolerance);
 
-BOOST_AUTO_TEST_CASE(testAnalyticSimpleChooserEngine){
+BOOST_AUTO_TEST_CASE(testAnalyticSimpleChooserEngine)
+{
 
     BOOST_TEST_MESSAGE("Testing analytic simple chooser option...");
 
@@ -72,39 +68,33 @@ BOOST_AUTO_TEST_CASE(testAnalyticSimpleChooserEngine){
     ext::shared_ptr<SimpleQuote> vol = ext::make_shared<SimpleQuote>(0.25);
     ext::shared_ptr<BlackVolTermStructure> volTS = flatVol(today, vol, dc);
 
-    ext::shared_ptr<BlackScholesMertonProcess> stochProcess =
-        ext::make_shared<BlackScholesMertonProcess>(
-                                  Handle<Quote>(spot),
-                                  Handle<YieldTermStructure>(qTS),
-                                  Handle<YieldTermStructure>(rTS),
-                                  Handle<BlackVolTermStructure>(volTS));
+    ext::shared_ptr<BlackScholesMertonProcess> stochProcess = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot), Handle<YieldTermStructure>(qTS), Handle<YieldTermStructure>(rTS),
+        Handle<BlackVolTermStructure>(volTS));
 
-    ext::shared_ptr<PricingEngine> engine =
-        ext::make_shared<AnalyticSimpleChooserEngine>(stochProcess);
+    ext::shared_ptr<PricingEngine> engine = ext::make_shared<AnalyticSimpleChooserEngine>(stochProcess);
 
     Real strike = 50.0;
 
     Date exerciseDate = today + 180;
-    ext::shared_ptr<Exercise> exercise =
-        ext::make_shared<EuropeanExercise>(exerciseDate);
+    ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(exerciseDate);
 
     Date choosingDate = today + 90;
-    SimpleChooserOption option(choosingDate,strike,exercise);
+    SimpleChooserOption option(choosingDate, strike, exercise);
     option.setPricingEngine(engine);
 
     Real calculated = option.NPV();
     Real expected = 6.1071;
     Real tolerance = 3e-5;
-    if (std::fabs(calculated-expected) > tolerance) {
-        REPORT_FAILURE("value", choosingDate,
-                       exercise, spot->value(),
-                       qRate->value(), rRate->value(), today,
+    if (std::fabs(calculated - expected) > tolerance)
+    {
+        REPORT_FAILURE("value", choosingDate, exercise, spot->value(), qRate->value(), rRate->value(), today,
                        vol->value(), expected, calculated, tolerance);
     }
-
 }
 
-BOOST_AUTO_TEST_CASE(testAnalyticComplexChooserEngine){
+BOOST_AUTO_TEST_CASE(testAnalyticComplexChooserEngine)
+{
     BOOST_TEST_MESSAGE("Testing analytic complex chooser option...");
 
     /* The example below is from
@@ -121,15 +111,11 @@ BOOST_AUTO_TEST_CASE(testAnalyticComplexChooserEngine){
     ext::shared_ptr<SimpleQuote> vol = ext::make_shared<SimpleQuote>(0.35);
     ext::shared_ptr<BlackVolTermStructure> volTS = flatVol(today, vol, dc);
 
-    ext::shared_ptr<BlackScholesMertonProcess> stochProcess =
-        ext::make_shared<BlackScholesMertonProcess>(
-                                  Handle<Quote>(spot),
-                                  Handle<YieldTermStructure>(qTS),
-                                  Handle<YieldTermStructure>(rTS),
-                                  Handle<BlackVolTermStructure>(volTS));
+    ext::shared_ptr<BlackScholesMertonProcess> stochProcess = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot), Handle<YieldTermStructure>(qTS), Handle<YieldTermStructure>(rTS),
+        Handle<BlackVolTermStructure>(volTS));
 
-    ext::shared_ptr<PricingEngine> engine =
-        ext::make_shared<AnalyticComplexChooserEngine>(stochProcess);
+    ext::shared_ptr<PricingEngine> engine = ext::make_shared<AnalyticComplexChooserEngine>(stochProcess);
 
     Real callStrike = 55.0;
     Real putStrike = 48.0;
@@ -137,24 +123,21 @@ BOOST_AUTO_TEST_CASE(testAnalyticComplexChooserEngine){
     Date choosingDate = today + 90;
     Date callExerciseDate = choosingDate + 180;
     Date putExerciseDate = choosingDate + 210;
-    ext::shared_ptr<Exercise> callExercise =
-        ext::make_shared<EuropeanExercise>(callExerciseDate);
-    ext::shared_ptr<Exercise> putExercise =
-        ext::make_shared<EuropeanExercise>(putExerciseDate);
+    ext::shared_ptr<Exercise> callExercise = ext::make_shared<EuropeanExercise>(callExerciseDate);
+    ext::shared_ptr<Exercise> putExercise = ext::make_shared<EuropeanExercise>(putExerciseDate);
 
-    ComplexChooserOption option(choosingDate,callStrike,putStrike,
-                                callExercise,putExercise);
+    ComplexChooserOption option(choosingDate, callStrike, putStrike, callExercise, putExercise);
     option.setPricingEngine(engine);
 
     Real calculated = option.NPV();
     Real expected = 6.0508;
-    Real error = std::fabs(calculated-expected);
+    Real error = std::fabs(calculated - expected);
     Real tolerance = 1e-4;
-    if (error > tolerance) {
-        BOOST_ERROR("Failed to reproduce complex chooser option value"
-                    << "\n    expected:   " << expected
-                    << "\n    calculated: " << calculated
-                    << "\n    error:      " << error);
+    if (error > tolerance)
+    {
+        BOOST_ERROR("Failed to reproduce complex chooser option value" << "\n    expected:   " << expected
+                                                                       << "\n    calculated: " << calculated
+                                                                       << "\n    error:      " << error);
     }
 }
 

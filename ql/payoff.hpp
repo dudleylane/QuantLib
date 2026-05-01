@@ -25,15 +25,17 @@
 #ifndef quantlib_payoff_hpp
 #define quantlib_payoff_hpp
 
-#include <ql/types.hpp>
-#include <ql/patterns/visitor.hpp>
 #include <ql/errors.hpp>
+#include <ql/patterns/visitor.hpp>
+#include <ql/types.hpp>
 #include <functional>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Abstract base class for option payoffs
-    class Payoff {
+    class Payoff
+    {
       public:
         virtual ~Payoff() = default;
         //! \name Payoff interface
@@ -55,7 +57,8 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline void Payoff::accept(AcyclicVisitor& v) {
+    inline void Payoff::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<Payoff>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);

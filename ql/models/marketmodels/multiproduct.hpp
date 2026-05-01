@@ -22,10 +22,11 @@
 #define quantlib_market_model_multi_product_hpp
 
 #include <ql/types.hpp>
-#include <vector>
 #include <memory>
+#include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class EvolutionDescription;
     class CurveState;
@@ -47,9 +48,11 @@ namespace QuantLib {
 
     */
 
-    class MarketModelMultiProduct {
-     public:
-        struct CashFlow {
+    class MarketModelMultiProduct
+    {
+      public:
+        struct CashFlow
+        {
             Size timeIndex;
             Real amount;
         };
@@ -63,10 +66,9 @@ namespace QuantLib {
         //! during simulation put product at start of path
         virtual void reset() = 0;
         //! return value indicates whether path is finished, TRUE means done
-        virtual bool nextTimeStep(
-            const CurveState& currentState,
-            std::vector<Size>& numberCashFlowsThisStep,
-            std::vector<std::vector<CashFlow> >& cashFlowsGenerated) = 0;
+        virtual bool nextTimeStep(const CurveState& currentState,
+                                  std::vector<Size>& numberCashFlowsThisStep,
+                                  std::vector<std::vector<CashFlow>>& cashFlowsGenerated) = 0;
         //! returns a newly-allocated copy of itself
         virtual std::unique_ptr<MarketModelMultiProduct> clone() const = 0;
     };

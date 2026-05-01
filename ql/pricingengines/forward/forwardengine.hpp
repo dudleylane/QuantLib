@@ -34,7 +34,8 @@
 #include <ql/termstructures/yield/impliedtermstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! %Forward engine for vanilla options
     /*! \ingroup forwardengines
@@ -47,8 +48,8 @@ namespace QuantLib {
     */
     template <class Engine>
     class ForwardVanillaEngine
-        : public GenericEngine<ForwardOptionArguments<VanillaOption::arguments>,
-                               VanillaOption::results> {
+    : public GenericEngine<ForwardOptionArguments<VanillaOption::arguments>, VanillaOption::results>
+    {
       public:
         ForwardVanillaEngine(ext::shared_ptr<GeneralizedBlackScholesProcess>);
         void calculate() const override;
@@ -66,64 +67,50 @@ namespace QuantLib {
     // template definitions
 
     template <class Engine>
-    ForwardVanillaEngine<Engine>::ForwardVanillaEngine(
-        ext::shared_ptr<GeneralizedBlackScholesProcess> process)
-    : process_(std::move(process)) {
+    ForwardVanillaEngine<Engine>::ForwardVanillaEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process)
+    : process_(std::move(process))
+    {
         registerWith(process_);
     }
 
 
     template <class Engine>
-    void ForwardVanillaEngine<Engine>::setup() const {
+    void ForwardVanillaEngine<Engine>::setup() const
+    {
 
         ext::shared_ptr<StrikedTypePayoff> argumentsPayoff =
-            ext::dynamic_pointer_cast<StrikedTypePayoff>(
-                this->arguments_.payoff);
+            ext::dynamic_pointer_cast<StrikedTypePayoff>(this->arguments_.payoff);
         QL_REQUIRE(argumentsPayoff, "wrong payoff given");
 
         ext::shared_ptr<StrikedTypePayoff> payoff(
-                   new PlainVanillaPayoff(argumentsPayoff->optionType(),
-                                          this->arguments_.moneyness *
-                                          process_->x0()));
+            new PlainVanillaPayoff(argumentsPayoff->optionType(), this->arguments_.moneyness * process_->x0()));
 
         // maybe the forward value is "better", in some fashion
         // the right level is needed in order to interpolate
         // the vol
         Handle<Quote> spot = process_->stateVariable();
         QL_REQUIRE(spot->value() > 0.0, "negative or null underlying given");
-        Handle<YieldTermStructure> dividendYield(
-            ext::shared_ptr<YieldTermStructure>(
-               new ImpliedTermStructure(process_->dividendYield(),
-                                        this->arguments_.resetDate)));
-        Handle<YieldTermStructure> riskFreeRate(
-            ext::shared_ptr<YieldTermStructure>(
-               new ImpliedTermStructure(process_->riskFreeRate(),
-                                        this->arguments_.resetDate)));
+        Handle<YieldTermStructure> dividendYield(ext::shared_ptr<YieldTermStructure>(
+            new ImpliedTermStructure(process_->dividendYield(), this->arguments_.resetDate)));
+        Handle<YieldTermStructure> riskFreeRate(ext::shared_ptr<YieldTermStructure>(
+            new ImpliedTermStructure(process_->riskFreeRate(), this->arguments_.resetDate)));
         // The following approach is ok if the vol is at most
         // time-dependent. It is plain wrong if it is asset-dependent.
         // In the latter case the right solution would be stochastic
         // volatility or at least local volatility (which unfortunately
         // implies an unrealistic time-decreasing smile)
-        Handle<BlackVolTermStructure> blackVolatility(
-            ext::shared_ptr<BlackVolTermStructure>(
-                new ImpliedVolTermStructure(process_->blackVolatility(),
-                                            this->arguments_.resetDate)));
+        Handle<BlackVolTermStructure> blackVolatility(ext::shared_ptr<BlackVolTermStructure>(
+            new ImpliedVolTermStructure(process_->blackVolatility(), this->arguments_.resetDate)));
 
         ext::shared_ptr<GeneralizedBlackScholesProcess> fwdProcess(
-                       new GeneralizedBlackScholesProcess(spot, dividendYield,
-                                                          riskFreeRate,
-                                                          blackVolatility));
+            new GeneralizedBlackScholesProcess(spot, dividendYield, riskFreeRate, blackVolatility));
 
         originalEngine_ = ext::shared_ptr<Engine>(new Engine(fwdProcess));
         originalEngine_->reset();
 
-        originalArguments_ =
-            dynamic_cast<VanillaOption::arguments*>(
-                                             originalEngine_->getArguments());
+        originalArguments_ = dynamic_cast<VanillaOption::arguments*>(originalEngine_->getArguments());
         QL_REQUIRE(originalArguments_, "wrong engine type");
-        originalResults_ =
-            dynamic_cast<const VanillaOption::results*>(
-                                               originalEngine_->getResults());
+        originalResults_ = dynamic_cast<const VanillaOption::results*>(originalEngine_->getResults());
         QL_REQUIRE(originalResults_, "wrong engine type");
 
         originalArguments_->payoff = payoff;
@@ -133,42 +120,40 @@ namespace QuantLib {
     }
 
     template <class Engine>
-    void ForwardVanillaEngine<Engine>::calculate() const {
+    void ForwardVanillaEngine<Engine>::calculate() const
+    {
         setup();
         originalEngine_->calculate();
         getOriginalResults();
     }
 
     template <class Engine>
-    void ForwardVanillaEngine<Engine>::getOriginalResults() const {
+    void ForwardVanillaEngine<Engine>::getOriginalResults() const
+    {
 
         DayCounter rfdc = process_->riskFreeRate()->dayCounter();
         DayCounter divdc = process_->dividendYield()->dayCounter();
-        Time resetTime = rfdc.yearFraction(
-                                     process_->riskFreeRate()->referenceDate(),
-                                     this->arguments_.resetDate);
-        DiscountFactor discQ = process_->dividendYield()->discount(
-                                                  this->arguments_.resetDate);
+        Time resetTime = rfdc.yearFraction(process_->riskFreeRate()->referenceDate(), this->arguments_.resetDate);
+        DiscountFactor discQ = process_->dividendYield()->discount(this->arguments_.resetDate);
 
         this->results_.value = discQ * originalResults_->value;
         // I need the strike derivative here ...
-        if (originalResults_->delta != Null<Real>() &&
-            originalResults_->strikeSensitivity != Null<Real>()) {
-            this->results_.delta = discQ * (originalResults_->delta +
-                  this->arguments_.moneyness * 
-                        originalResults_->strikeSensitivity);
+        if (originalResults_->delta != Null<Real>() && originalResults_->strikeSensitivity != Null<Real>())
+        {
+            this->results_.delta =
+                discQ * (originalResults_->delta + this->arguments_.moneyness * originalResults_->strikeSensitivity);
         }
         this->results_.gamma = 0.0;
-        this->results_.theta = process_->dividendYield()->
-            zeroRate(this->arguments_.resetDate, divdc, Continuous, NoFrequency)
-            * this->results_.value;
+        this->results_.theta =
+            process_->dividendYield()->zeroRate(this->arguments_.resetDate, divdc, Continuous, NoFrequency) *
+            this->results_.value;
         if (originalResults_->vega != Null<Real>())
-            this->results_.vega  = discQ * originalResults_->vega;
+            this->results_.vega = discQ * originalResults_->vega;
         if (originalResults_->rho != Null<Real>())
-            this->results_.rho   = discQ *  originalResults_->rho;
-        if (originalResults_->dividendRho != Null<Real>()) {
-            this->results_.dividendRho = - resetTime * this->results_.value
-               + discQ * originalResults_->dividendRho;
+            this->results_.rho = discQ * originalResults_->rho;
+        if (originalResults_->dividendRho != Null<Real>())
+        {
+            this->results_.dividendRho = -resetTime * this->results_.value + discQ * originalResults_->dividendRho;
         }
     }
 

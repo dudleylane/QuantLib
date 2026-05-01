@@ -33,11 +33,13 @@
 #include <ql/processes/gsrprocesscore.hpp>
 #include <ql/time/daycounter.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! GSR stochastic process
     /*! \ingroup processes */
-    class GsrProcess : public ForwardMeasureProcess1D {
+    class GsrProcess : public ForwardMeasureProcess1D
+    {
       public:
         GsrProcess(Array times,
                    Array vols,
@@ -82,12 +84,14 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline void GsrProcess::setForwardMeasureTime(Time t) {
+    inline void GsrProcess::setForwardMeasureTime(Time t)
+    {
         flushCache();
         ForwardMeasureProcess1D::setForwardMeasureTime(t);
     }
 
-    inline void GsrProcess::flushCache() const {
+    inline void GsrProcess::flushCache() const
+    {
         core_.flushCache();
     }
 

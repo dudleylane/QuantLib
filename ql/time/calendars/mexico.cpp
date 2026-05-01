@@ -20,15 +20,18 @@
 
 #include <ql/time/calendars/mexico.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Mexico::Mexico(Market) {
+    Mexico::Mexico(Market)
+    {
         // all calendar instances share the same implementation instance
         static ext::shared_ptr<Calendar::Impl> impl(new Mexico::BmvImpl);
         impl_ = impl;
     }
 
-    bool Mexico::BmvImpl::isBusinessDay(const Date& date) const {
+    bool Mexico::BmvImpl::isBusinessDay(const Date& date) const
+    {
         Weekday w = date.weekday();
         Day d = date.dayOfMonth(), dd = date.dayOfYear();
         Month m = date.month();
@@ -38,15 +41,15 @@ namespace QuantLib {
             // New Year's Day
             || (d == 1 && m == January)
             // Constitution Day
-            || (y <= 2005 && d == 5 && m == February)
-            || (y >= 2006 && d <= 7 && w == Monday && m == February)
+            || (y <= 2005 && d == 5 && m == February) ||
+            (y >= 2006 && d <= 7 && w == Monday && m == February)
             // Birthday of Benito Juarez
-            || (y <= 2005 && d == 21 && m == March)
-            || (y >= 2006 && (d >= 15 && d <= 21) && w == Monday && m == March)
+            || (y <= 2005 && d == 21 && m == March) ||
+            (y >= 2006 && (d >= 15 && d <= 21) && w == Monday && m == March)
             // Holy Thursday
-            || (dd == em-4)
+            || (dd == em - 4)
             // Good Friday
-            || (dd == em-3)
+            || (dd == em - 3)
             // Labour Day
             || (d == 1 && m == May)
             // National Day
@@ -56,8 +59,8 @@ namespace QuantLib {
             // All Souls Day
             || (d == 2 && m == November)
             // Revolution Day
-            || (y <= 2005 && d == 20 && m == November)
-            || (y >= 2006 && (d >= 15 && d <= 21) && w == Monday && m == November)
+            || (y <= 2005 && d == 20 && m == November) ||
+            (y >= 2006 && (d >= 15 && d <= 21) && w == Monday && m == November)
             // Our Lady of Guadalupe
             || (d == 12 && m == December)
             // Christmas
@@ -67,4 +70,3 @@ namespace QuantLib {
     }
 
 }
-

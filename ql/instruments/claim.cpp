@@ -19,29 +19,25 @@
 
 #include <ql/instruments/claim.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Real FaceValueClaim::amount(const Date&,
-                                Real notional,
-                                Real recoveryRate) const {
-        return notional * (1.0-recoveryRate);
+    Real FaceValueClaim::amount(const Date&, Real notional, Real recoveryRate) const
+    {
+        return notional * (1.0 - recoveryRate);
     }
 
 
-
-    FaceValueAccrualClaim::FaceValueAccrualClaim(
-                          const ext::shared_ptr<Bond>& referenceSecurity)
-    : referenceSecurity_(referenceSecurity) {
+    FaceValueAccrualClaim::FaceValueAccrualClaim(const ext::shared_ptr<Bond>& referenceSecurity)
+    : referenceSecurity_(referenceSecurity)
+    {
         registerWith(referenceSecurity);
     }
 
-    Real FaceValueAccrualClaim::amount(const Date& d,
-                                       Real notional,
-                                       Real recoveryRate) const {
-        Real accrual = referenceSecurity_->accruedAmount(d)
-                     / referenceSecurity_->notional(d);
-        return notional * (1.0-recoveryRate-accrual);
+    Real FaceValueAccrualClaim::amount(const Date& d, Real notional, Real recoveryRate) const
+    {
+        Real accrual = referenceSecurity_->accruedAmount(d) / referenceSecurity_->notional(d);
+        return notional * (1.0 - recoveryRate - accrual);
     }
 
 }
-

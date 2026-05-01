@@ -29,7 +29,8 @@
 #include <ql/math/matrix.hpp>
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class CMSwapCurveState;
 
@@ -39,7 +40,8 @@ namespace QuantLib {
         Reduced Factor Libor Market Model</i>, Wilmott Magazine,
         May 2003.
     */
-    class CMSMMDriftCalculator {
+    class CMSMMDriftCalculator
+    {
       public:
         CMSMMDriftCalculator(const Matrix& pseudo,
                              const std::vector<Spread>& displacements,
@@ -48,8 +50,8 @@ namespace QuantLib {
                              Size alive,
                              Size spanningFwds);
         //! Computes the drifts
-        void compute(const CMSwapCurveState& cs,
-                     std::vector<Real>& drifts) const;
+        void compute(const CMSwapCurveState& cs, std::vector<Real>& drifts) const;
+
       private:
         Size numberOfRates_, numberOfFactors_;
         Size numeraire_, alive_;
@@ -59,8 +61,8 @@ namespace QuantLib {
         // temporary variables to be added later
         mutable std::vector<Real> tmp_;
         mutable Matrix PjPnWk_; // < Wk, P_{j}/P_n> (k, j)
-        mutable Matrix wkaj_;    // < Wk , Aj/Pn> (k, j)
-        mutable Matrix wkajN_;    // < Wk , Aj/PN> (k, j)
+        mutable Matrix wkaj_;   // < Wk , Aj/Pn> (k, j)
+        mutable Matrix wkajN_;  // < Wk , Aj/PN> (k, j)
 
         std::vector<Size> downs_, ups_;
         Size spanningFwds_;

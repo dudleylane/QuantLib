@@ -2,7 +2,7 @@
 
 /*
  Copyright (C) 2020 Jack Gillett
- 
+
  This file is part of QuantLib, a free-software/open-source library
  for financial quantitative analysts and developers - http://quantlib.org/
 
@@ -29,7 +29,8 @@
 #include <ql/processes/hestonprocess.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //!  Heston MC pricing engine for discrete geometric average price Asian
     /*!
@@ -43,14 +44,14 @@ namespace QuantLib {
          \test the correctness of the returned value is tested by
                reproducing results available in literature.
     */
-    template <class RNG = PseudoRandom,
-              class S = Statistics, class P = HestonProcess>
-    class MCDiscreteGeometricAPHestonEngine
-        : public MCDiscreteAveragingAsianEngineBase<MultiVariate,RNG,S> {
+    template <class RNG = PseudoRandom, class S = Statistics, class P = HestonProcess>
+    class MCDiscreteGeometricAPHestonEngine : public MCDiscreteAveragingAsianEngineBase<MultiVariate, RNG, S>
+    {
       public:
-        typedef typename MCDiscreteAveragingAsianEngineBase<MultiVariate,RNG,S>::path_generator_type path_generator_type;
-        typedef typename MCDiscreteAveragingAsianEngineBase<MultiVariate,RNG,S>::path_pricer_type path_pricer_type;
-        typedef typename MCDiscreteAveragingAsianEngineBase<MultiVariate,RNG,S>::stats_type stats_type;
+        typedef
+            typename MCDiscreteAveragingAsianEngineBase<MultiVariate, RNG, S>::path_generator_type path_generator_type;
+        typedef typename MCDiscreteAveragingAsianEngineBase<MultiVariate, RNG, S>::path_pricer_type path_pricer_type;
+        typedef typename MCDiscreteAveragingAsianEngineBase<MultiVariate, RNG, S>::stats_type stats_type;
         // constructor
         MCDiscreteGeometricAPHestonEngine(const ext::shared_ptr<P>& process,
                                           bool antitheticVariate,
@@ -60,14 +61,15 @@ namespace QuantLib {
                                           BigNatural seed,
                                           Size timeSteps = Null<Size>(),
                                           Size timeStepsPerYear = Null<Size>());
+
       protected:
         ext::shared_ptr<path_pricer_type> pathPricer() const override;
     };
 
 
-    template <class RNG = PseudoRandom,
-              class S = Statistics, class P = HestonProcess>
-    class MakeMCDiscreteGeometricAPHestonEngine {
+    template <class RNG = PseudoRandom, class S = Statistics, class P = HestonProcess>
+    class MakeMCDiscreteGeometricAPHestonEngine
+    {
       public:
         explicit MakeMCDiscreteGeometricAPHestonEngine(ext::shared_ptr<P> process);
         // named parameters
@@ -80,6 +82,7 @@ namespace QuantLib {
         MakeMCDiscreteGeometricAPHestonEngine& withStepsPerYear(Size steps);
         // conversion to pricing engine
         operator ext::shared_ptr<PricingEngine>() const;
+
       private:
         ext::shared_ptr<P> process_;
         bool antithetic_ = false;
@@ -88,7 +91,8 @@ namespace QuantLib {
         BigNatural seed_ = 0;
     };
 
-    class GeometricAPOHestonPathPricer : public PathPricer<MultiPath> {
+    class GeometricAPOHestonPathPricer : public PathPricer<MultiPath>
+    {
       public:
         GeometricAPOHestonPathPricer(Option::Type type,
                                      Real strike,
@@ -110,147 +114,137 @@ namespace QuantLib {
     // inline definitions
 
     template <class RNG, class S, class P>
-    inline
-    MCDiscreteGeometricAPHestonEngine<RNG,S,P>::MCDiscreteGeometricAPHestonEngine(
-             const ext::shared_ptr<P>& process,
-             bool antitheticVariate,
-             Size requiredSamples,
-             Real requiredTolerance,
-             Size maxSamples,
-             BigNatural seed,
-             Size timeSteps,
-             Size timeStepsPerYear)
-    : MCDiscreteAveragingAsianEngineBase<MultiVariate,RNG,S>(process,
-                                                             false,
-                                                             antitheticVariate,
-                                                             false,
-                                                             requiredSamples,
-                                                             requiredTolerance,
-                                                             maxSamples,
-                                                             seed,
-                                                             timeSteps,
-                                                             timeStepsPerYear) {
+    inline MCDiscreteGeometricAPHestonEngine<RNG, S, P>::MCDiscreteGeometricAPHestonEngine(
+        const ext::shared_ptr<P>& process,
+        bool antitheticVariate,
+        Size requiredSamples,
+        Real requiredTolerance,
+        Size maxSamples,
+        BigNatural seed,
+        Size timeSteps,
+        Size timeStepsPerYear)
+    : MCDiscreteAveragingAsianEngineBase<MultiVariate, RNG, S>(process,
+                                                               false,
+                                                               antitheticVariate,
+                                                               false,
+                                                               requiredSamples,
+                                                               requiredTolerance,
+                                                               maxSamples,
+                                                               seed,
+                                                               timeSteps,
+                                                               timeStepsPerYear)
+    {
         QL_REQUIRE(timeSteps == Null<Size>() || timeStepsPerYear == Null<Size>(),
                    "both time steps and time steps per year were provided");
     }
 
     template <class RNG, class S, class P>
-    inline ext::shared_ptr<
-            typename MCDiscreteGeometricAPHestonEngine<RNG,S,P>::path_pricer_type>
-        MCDiscreteGeometricAPHestonEngine<RNG,S,P>::pathPricer() const {
+    inline ext::shared_ptr<typename MCDiscreteGeometricAPHestonEngine<RNG, S, P>::path_pricer_type>
+    MCDiscreteGeometricAPHestonEngine<RNG, S, P>::pathPricer() const
+    {
 
         // Keep track of the fixing indices, the path pricer will need to sum only these
         TimeGrid timeGrid = this->timeGrid();
         std::vector<Time> fixingTimes = timeGrid.mandatoryTimes();
         std::vector<Size> fixingIndexes;
         fixingIndexes.reserve(fixingTimes.size());
-        for (Real fixingTime : fixingTimes) {
+        for (Real fixingTime : fixingTimes)
+        {
             fixingIndexes.push_back(timeGrid.closestIndex(fixingTime));
         }
 
         ext::shared_ptr<PlainVanillaPayoff> payoff =
-            ext::dynamic_pointer_cast<PlainVanillaPayoff>(
-                this->arguments_.payoff);
+            ext::dynamic_pointer_cast<PlainVanillaPayoff>(this->arguments_.payoff);
         QL_REQUIRE(payoff, "non-plain payoff given");
 
         ext::shared_ptr<EuropeanExercise> exercise =
-            ext::dynamic_pointer_cast<EuropeanExercise>(
-                this->arguments_.exercise);
+            ext::dynamic_pointer_cast<EuropeanExercise>(this->arguments_.exercise);
         QL_REQUIRE(exercise, "wrong exercise given");
 
-        ext::shared_ptr<P> process =
-            ext::dynamic_pointer_cast<P>(this->process_);
+        ext::shared_ptr<P> process = ext::dynamic_pointer_cast<P>(this->process_);
         QL_REQUIRE(process, "Heston like process required");
 
-        return ext::shared_ptr<typename
-            MCDiscreteGeometricAPHestonEngine<RNG,S,P>::path_pricer_type>(
-                new GeometricAPOHestonPathPricer(
-                    payoff->optionType(),
-                    payoff->strike(),
-                    process->riskFreeRate()->discount(exercise->lastDate()),
-                    fixingIndexes,
-                    this->arguments_.runningAccumulator,
-                    this->arguments_.pastFixings));
+        return ext::shared_ptr<typename MCDiscreteGeometricAPHestonEngine<RNG, S, P>::path_pricer_type>(
+            new GeometricAPOHestonPathPricer(payoff->optionType(), payoff->strike(),
+                                             process->riskFreeRate()->discount(exercise->lastDate()), fixingIndexes,
+                                             this->arguments_.runningAccumulator, this->arguments_.pastFixings));
     }
 
     template <class RNG, class S, class P>
     inline MakeMCDiscreteGeometricAPHestonEngine<RNG, S, P>::MakeMCDiscreteGeometricAPHestonEngine(
         ext::shared_ptr<P> process)
-    : process_(std::move(process)), samples_(Null<Size>()), maxSamples_(Null<Size>()),
-      steps_(Null<Size>()), stepsPerYear_(Null<Size>()), tolerance_(Null<Real>()) {}
+    : process_(std::move(process)), samples_(Null<Size>()), maxSamples_(Null<Size>()), steps_(Null<Size>()),
+      stepsPerYear_(Null<Size>()), tolerance_(Null<Real>())
+    {
+    }
 
-    template<class RNG, class S, class P>
-    inline MakeMCDiscreteGeometricAPHestonEngine<RNG,S,P>&
-    MakeMCDiscreteGeometricAPHestonEngine<RNG,S,P>::withSamples(Size samples) {
-        QL_REQUIRE(tolerance_ == Null<Real>(),
-                   "tolerance already set");
+    template <class RNG, class S, class P>
+    inline MakeMCDiscreteGeometricAPHestonEngine<RNG, S, P>&
+    MakeMCDiscreteGeometricAPHestonEngine<RNG, S, P>::withSamples(Size samples)
+    {
+        QL_REQUIRE(tolerance_ == Null<Real>(), "tolerance already set");
         samples_ = samples;
         return *this;
     }
 
     template <class RNG, class S, class P>
-    inline MakeMCDiscreteGeometricAPHestonEngine<RNG,S,P>&
-    MakeMCDiscreteGeometricAPHestonEngine<RNG,S,P>::withAbsoluteTolerance(
-                                                             Real tolerance) {
-        QL_REQUIRE(samples_ == Null<Size>(),
-                   "number of samples already set");
-        QL_REQUIRE(RNG::allowsErrorEstimate,
-                   "chosen random generator policy "
-                   "does not allow an error estimate");
+    inline MakeMCDiscreteGeometricAPHestonEngine<RNG, S, P>&
+    MakeMCDiscreteGeometricAPHestonEngine<RNG, S, P>::withAbsoluteTolerance(Real tolerance)
+    {
+        QL_REQUIRE(samples_ == Null<Size>(), "number of samples already set");
+        QL_REQUIRE(RNG::allowsErrorEstimate, "chosen random generator policy "
+                                             "does not allow an error estimate");
         tolerance_ = tolerance;
         return *this;
     }
 
     template <class RNG, class S, class P>
-    inline MakeMCDiscreteGeometricAPHestonEngine<RNG,S,P>&
-    MakeMCDiscreteGeometricAPHestonEngine<RNG,S,P>::withMaxSamples(Size samples) {
+    inline MakeMCDiscreteGeometricAPHestonEngine<RNG, S, P>&
+    MakeMCDiscreteGeometricAPHestonEngine<RNG, S, P>::withMaxSamples(Size samples)
+    {
         maxSamples_ = samples;
         return *this;
     }
 
     template <class RNG, class S, class P>
-    inline MakeMCDiscreteGeometricAPHestonEngine<RNG,S,P>&
-    MakeMCDiscreteGeometricAPHestonEngine<RNG,S,P>::withSeed(BigNatural seed) {
+    inline MakeMCDiscreteGeometricAPHestonEngine<RNG, S, P>&
+    MakeMCDiscreteGeometricAPHestonEngine<RNG, S, P>::withSeed(BigNatural seed)
+    {
         seed_ = seed;
         return *this;
     }
 
     template <class RNG, class S, class P>
-    inline MakeMCDiscreteGeometricAPHestonEngine<RNG,S,P>&
-    MakeMCDiscreteGeometricAPHestonEngine<RNG,S,P>::withAntitheticVariate(bool b) {
+    inline MakeMCDiscreteGeometricAPHestonEngine<RNG, S, P>&
+    MakeMCDiscreteGeometricAPHestonEngine<RNG, S, P>::withAntitheticVariate(bool b)
+    {
         antithetic_ = b;
         return *this;
     }
 
-    template<class RNG, class S, class P>
-    inline MakeMCDiscreteGeometricAPHestonEngine<RNG,S,P>&
-    MakeMCDiscreteGeometricAPHestonEngine<RNG,S,P>::withSteps(Size steps) {
-        QL_REQUIRE(stepsPerYear_ == Null<Size>(),
-                   "number of steps per year already set");
+    template <class RNG, class S, class P>
+    inline MakeMCDiscreteGeometricAPHestonEngine<RNG, S, P>&
+    MakeMCDiscreteGeometricAPHestonEngine<RNG, S, P>::withSteps(Size steps)
+    {
+        QL_REQUIRE(stepsPerYear_ == Null<Size>(), "number of steps per year already set");
         steps_ = steps;
         return *this;
     }
 
-    template<class RNG, class S, class P>
-    inline MakeMCDiscreteGeometricAPHestonEngine<RNG,S,P>&
-    MakeMCDiscreteGeometricAPHestonEngine<RNG,S,P>::withStepsPerYear(Size steps) {
-        QL_REQUIRE(steps_ == Null<Size>(),
-                   "number of steps already set");
+    template <class RNG, class S, class P>
+    inline MakeMCDiscreteGeometricAPHestonEngine<RNG, S, P>&
+    MakeMCDiscreteGeometricAPHestonEngine<RNG, S, P>::withStepsPerYear(Size steps)
+    {
+        QL_REQUIRE(steps_ == Null<Size>(), "number of steps already set");
         stepsPerYear_ = steps;
         return *this;
     }
 
     template <class RNG, class S, class P>
-    inline MakeMCDiscreteGeometricAPHestonEngine<RNG,S,P>::operator ext::shared_ptr<PricingEngine>() const {
-        return ext::shared_ptr<PricingEngine>(new
-            MCDiscreteGeometricAPHestonEngine<RNG,S,P>(process_,
-                                                       antithetic_,
-                                                       samples_,
-                                                       tolerance_,
-                                                       maxSamples_,
-                                                       seed_,
-                                                       steps_,
-                                                       stepsPerYear_));
+    inline MakeMCDiscreteGeometricAPHestonEngine<RNG, S, P>::operator ext::shared_ptr<PricingEngine>() const
+    {
+        return ext::shared_ptr<PricingEngine>(new MCDiscreteGeometricAPHestonEngine<RNG, S, P>(
+            process_, antithetic_, samples_, tolerance_, maxSamples_, seed_, steps_, stepsPerYear_));
     }
 }
 

@@ -24,19 +24,20 @@
 #ifndef quantlib_vanna_volga_barrier_engine_hpp
 #define quantlib_vanna_volga_barrier_engine_hpp
 
-#include <ql/processes/blackscholesprocess.hpp>
 #include <ql/instruments/barrieroption.hpp>
+#include <ql/processes/blackscholesprocess.hpp>
 #include <ql/quotes/deltavolquote.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Vanna/Volga barrier option engine
     /*!
         \ingroup barrierengines
     */
-    class VannaVolgaBarrierEngine : public BarrierOption::engine {
+    class VannaVolgaBarrierEngine : public BarrierOption::engine
+    {
       public:
-
         // Constructor
         VannaVolgaBarrierEngine(Handle<DeltaVolQuote> atmVol,
                                 Handle<DeltaVolQuote> vol25Put,
@@ -59,7 +60,6 @@ namespace QuantLib {
         const Handle<YieldTermStructure> foreignTS_;
         const bool adaptVanDelta_;
         const Real bsPriceWithSmile_;
-
     };
 
 

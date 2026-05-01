@@ -25,7 +25,8 @@
 #include <ql/instruments/overnightindexedswap.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     OvernightIndexedSwap::OvernightIndexedSwap(Type type,
                                                Real nominal,
@@ -56,7 +57,9 @@ namespace QuantLib {
                            averagingMethod,
                            lookbackDays,
                            lockoutDays,
-                           applyObservationShift) {}
+                           applyObservationShift)
+    {
+    }
 
     OvernightIndexedSwap::OvernightIndexedSwap(Type type,
                                                const std::vector<Real>& nominals,
@@ -86,10 +89,12 @@ namespace QuantLib {
                            paymentAdjustment,
                            paymentCalendar,
                            telescopicValueDates,
-                           averagingMethod, 
-                           lookbackDays, 
-                           lockoutDays, 
-                           applyObservationShift) {}
+                           averagingMethod,
+                           lookbackDays,
+                           lockoutDays,
+                           applyObservationShift)
+    {
+    }
 
     OvernightIndexedSwap::OvernightIndexedSwap(Type type,
                                                Real nominal,
@@ -123,7 +128,9 @@ namespace QuantLib {
                            averagingMethod,
                            lookbackDays,
                            lockoutDays,
-                           applyObservationShift) {}
+                           applyObservationShift)
+    {
+    }
 
     OvernightIndexedSwap::OvernightIndexedSwap(Type type,
                                                std::vector<Real> fixedNominals,
@@ -142,34 +149,40 @@ namespace QuantLib {
                                                Natural lookbackDays,
                                                Natural lockoutDays,
                                                bool applyObservationShift)
-    : FixedVsFloatingSwap(type, std::move(fixedNominals), std::move(fixedSchedule), fixedRate, std::move(fixedDC),
-                          overnightNominals, std::move(overnightSchedule), overnightIndex,
-                          spread, DayCounter(), ext::nullopt, paymentLag, paymentCalendar),
-                          overnightIndex_(overnightIndex),
-                          paymentLag_(paymentLag), paymentCalendar_(paymentCalendar),
-                          telescopicValueDates_(telescopicValueDates),
-                          averagingMethod_(averagingMethod),
-                          lookbackDays_(lookbackDays), lockoutDays_(lockoutDays),
-                          applyObservationShift_(applyObservationShift) {
-        legs_[1] =
-            OvernightLeg(floatingSchedule(), overnightIndex_)
-                .withNotionals(overnightNominals)
-                .withSpreads(spread)
-                .withTelescopicValueDates(telescopicValueDates)
-                .withPaymentLag(paymentLag)
-                .withPaymentAdjustment(paymentAdjustment)
-                .withPaymentCalendar(paymentCalendar.empty() ?
-                                     floatingSchedule().calendar() :
-                                     paymentCalendar)
-                .withAveragingMethod(averagingMethod_)
-                .withLookbackDays(lookbackDays_)
-                .withLockoutDays(lockoutDays_)
-                .withObservationShift(applyObservationShift_);
+    : FixedVsFloatingSwap(type,
+                          std::move(fixedNominals),
+                          std::move(fixedSchedule),
+                          fixedRate,
+                          std::move(fixedDC),
+                          overnightNominals,
+                          std::move(overnightSchedule),
+                          overnightIndex,
+                          spread,
+                          DayCounter(),
+                          ext::nullopt,
+                          paymentLag,
+                          paymentCalendar),
+      overnightIndex_(overnightIndex), paymentLag_(paymentLag), paymentCalendar_(paymentCalendar),
+      telescopicValueDates_(telescopicValueDates), averagingMethod_(averagingMethod), lookbackDays_(lookbackDays),
+      lockoutDays_(lockoutDays), applyObservationShift_(applyObservationShift)
+    {
+        legs_[1] = OvernightLeg(floatingSchedule(), overnightIndex_)
+                       .withNotionals(overnightNominals)
+                       .withSpreads(spread)
+                       .withTelescopicValueDates(telescopicValueDates)
+                       .withPaymentLag(paymentLag)
+                       .withPaymentAdjustment(paymentAdjustment)
+                       .withPaymentCalendar(paymentCalendar.empty() ? floatingSchedule().calendar() : paymentCalendar)
+                       .withAveragingMethod(averagingMethod_)
+                       .withLookbackDays(lookbackDays_)
+                       .withLockoutDays(lockoutDays_)
+                       .withObservationShift(applyObservationShift_);
         for (const auto& c : legs_[1])
             registerWith(c);
     }
 
-    void OvernightIndexedSwap::setupFloatingArguments(arguments* args) const {
+    void OvernightIndexedSwap::setupFloatingArguments(arguments* args) const
+    {
         const Leg& floatingCoupons = floatingLeg();
         Size n = floatingCoupons.size();
 
@@ -178,7 +191,8 @@ namespace QuantLib {
         args->floatingSpreads = std::vector<Spread>(n);
         args->floatingCoupons = args->floatingNominals = std::vector<Real>(n);
 
-        for (Size i=0; i<n; ++i) {
+        for (Size i = 0; i < n; ++i)
+        {
             auto coupon = ext::dynamic_pointer_cast<OvernightIndexedCoupon>(floatingCoupons[i]);
 
             args->floatingResetDates[i] = coupon->accrualStartDate();
@@ -188,9 +202,12 @@ namespace QuantLib {
             args->floatingFixingDates[i] = coupon->fixingDate();
             args->floatingAccrualTimes[i] = coupon->accrualPeriod();
             args->floatingSpreads[i] = coupon->spread();
-            try {
+            try
+            {
                 args->floatingCoupons[i] = coupon->amount();
-            } catch (Error&) {
+            }
+            catch (Error&)
+            {
                 args->floatingCoupons[i] = Null<Real>();
             }
         }

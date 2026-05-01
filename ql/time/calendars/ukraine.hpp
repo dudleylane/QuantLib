@@ -26,7 +26,8 @@
 
 #include <ql/time/calendar.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Ukrainian calendars
     /*! Holidays for the Ukrainian stock exchange
@@ -50,15 +51,20 @@ namespace QuantLib {
 
         \ingroup calendars
     */
-    class Ukraine : public Calendar {
+    class Ukraine : public Calendar
+    {
       private:
-        class UseImpl final : public Calendar::OrthodoxImpl {
+        class UseImpl final : public Calendar::OrthodoxImpl
+        {
           public:
             std::string name() const override { return "Ukrainian stock exchange"; }
             bool isBusinessDay(const Date&) const override;
         };
+
       public:
-        enum Market { USE    //!< Ukrainian stock exchange
+        enum Market
+        {
+            USE //!< Ukrainian stock exchange
         };
         Ukraine(Market m = USE);
     };

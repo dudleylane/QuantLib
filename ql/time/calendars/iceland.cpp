@@ -19,15 +19,18 @@
 
 #include <ql/time/calendars/iceland.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Iceland::Iceland(Market) {
+    Iceland::Iceland(Market)
+    {
         // all calendar instances share the same implementation instance
         static ext::shared_ptr<Calendar::Impl> impl(new Iceland::IcexImpl);
         impl_ = impl;
     }
 
-    bool Iceland::IcexImpl::isBusinessDay(const Date& date) const {
+    bool Iceland::IcexImpl::isBusinessDay(const Date& date) const
+    {
         Weekday w = date.weekday();
         Day d = date.dayOfMonth(), dd = date.dayOfYear();
         Month m = date.month();
@@ -37,17 +40,17 @@ namespace QuantLib {
             // New Year's Day
             || (d == 1 && m == January)
             // Holy Thursday
-            || (dd == em-4)
+            || (dd == em - 4)
             // Good Friday
-            || (dd == em-3)
+            || (dd == em - 3)
             // Easter Monday
             || (dd == em)
             // First day of Summer
             || (d >= 19 && d <= 25 && w == Thursday && m == April)
             // Ascension Thursday
-            || (dd == em+38)
+            || (dd == em + 38)
             // Pentecost Monday
-            || (dd == em+49)
+            || (dd == em + 49)
             // Labour Day
             || (d == 1 && m == May)
             // Independence Day
@@ -63,4 +66,3 @@ namespace QuantLib {
     }
 
 }
-

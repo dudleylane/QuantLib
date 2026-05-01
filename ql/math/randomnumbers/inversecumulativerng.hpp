@@ -27,7 +27,8 @@
 
 #include <ql/methods/montecarlo/sample.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Inverse cumulative random number generator
     /*! It uses a uniform deviate in (0, 1) as the source of cumulative
@@ -51,27 +52,30 @@ namespace QuantLib {
         \endcode
     */
     template <class RNG, class IC>
-    class InverseCumulativeRng {
+    class InverseCumulativeRng
+    {
       public:
         typedef Sample<Real> sample_type;
         typedef RNG urng_type;
         explicit InverseCumulativeRng(const RNG& uniformGenerator);
         //! returns a sample from a Gaussian distribution
         sample_type next() const;
+
       private:
         RNG uniformGenerator_;
         IC ICND_;
     };
 
     template <class RNG, class IC>
-    InverseCumulativeRng<RNG, IC>::InverseCumulativeRng(const RNG& ug)
-    : uniformGenerator_(ug) {}
+    InverseCumulativeRng<RNG, IC>::InverseCumulativeRng(const RNG& ug) : uniformGenerator_(ug)
+    {
+    }
 
     template <class RNG, class IC>
-    inline typename InverseCumulativeRng<RNG, IC>::sample_type
-    InverseCumulativeRng<RNG, IC>::next() const {
+    inline typename InverseCumulativeRng<RNG, IC>::sample_type InverseCumulativeRng<RNG, IC>::next() const
+    {
         typename RNG::sample_type sample = uniformGenerator_.next();
-        return sample_type(ICND_(sample.value),sample.weight);
+        return sample_type(ICND_(sample.value), sample.weight);
     }
 
 }

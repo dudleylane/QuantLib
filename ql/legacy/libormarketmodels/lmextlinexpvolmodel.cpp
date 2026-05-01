@@ -19,41 +19,42 @@
 
 #include <ql/legacy/libormarketmodels/lmextlinexpvolmodel.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     LmExtLinearExponentialVolModel::LmExtLinearExponentialVolModel(
-                                         const std::vector<Time>& fixingTimes,
-                                         Real a, Real b, Real c, Real d)
-    : LmLinearExponentialVolatilityModel(fixingTimes, a, b, c, d) {
+        const std::vector<Time>& fixingTimes, Real a, Real b, Real c, Real d)
+    : LmLinearExponentialVolatilityModel(fixingTimes, a, b, c, d)
+    {
 
-        arguments_.resize(4+size_);
-        for (Size i=0; i <size_; ++i) {
-            arguments_[i+4] = ConstantParameter(1.0, PositiveConstraint());
+        arguments_.resize(4 + size_);
+        for (Size i = 0; i < size_; ++i)
+        {
+            arguments_[i + 4] = ConstantParameter(1.0, PositiveConstraint());
         }
     }
 
 
-    Array LmExtLinearExponentialVolModel::volatility(
-                                               Time t, const Array& x) const {
+    Array LmExtLinearExponentialVolModel::volatility(Time t, const Array& x) const
+    {
         Array tmp = LmLinearExponentialVolatilityModel::volatility(t, x);
-        for (Size i=0; i<size_; ++i) {
-            tmp[i]*=arguments_[i+4](0.0);
+        for (Size i = 0; i < size_; ++i)
+        {
+            tmp[i] *= arguments_[i + 4](0.0);
         }
 
         return tmp;
     }
 
-    Volatility LmExtLinearExponentialVolModel::volatility(
-                                       Size i, Time t, const Array& x) const {
-        return arguments_[i+4](0.0)
-            *LmLinearExponentialVolatilityModel::volatility(i, t, x);
+    Volatility LmExtLinearExponentialVolModel::volatility(Size i, Time t, const Array& x) const
+    {
+        return arguments_[i + 4](0.0) * LmLinearExponentialVolatilityModel::volatility(i, t, x);
     }
 
-    Real LmExtLinearExponentialVolModel::integratedVariance(
-                               Size i, Size j, Time u, const Array& x) const {
-        return arguments_[i+4](0.0)*arguments_[j+4](0.0)
-            *LmLinearExponentialVolatilityModel::integratedVariance(i,j,u,x);
+    Real LmExtLinearExponentialVolModel::integratedVariance(Size i, Size j, Time u, const Array& x) const
+    {
+        return arguments_[i + 4](0.0) * arguments_[j + 4](0.0) *
+               LmLinearExponentialVolatilityModel::integratedVariance(i, j, u, x);
     }
 
 }
-

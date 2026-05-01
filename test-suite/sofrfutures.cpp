@@ -20,11 +20,11 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
-#include <ql/instruments/overnightindexfuture.hpp>
 #include <ql/indexes/ibor/sofr.hpp>
+#include <ql/instruments/overnightindexfuture.hpp>
 #include <ql/quotes/simplequote.hpp>
-#include <ql/termstructures/yield/piecewiseyieldcurve.hpp>
 #include <ql/termstructures/yield/overnightindexfutureratehelper.hpp>
+#include <ql/termstructures/yield/piecewiseyieldcurve.hpp>
 #include <iomanip>
 
 using namespace QuantLib;
@@ -34,7 +34,8 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(SofrFuturesTests)
 
-struct SofrQuotes {
+struct SofrQuotes
+{
     Frequency freq;
     Month month;
     Year year;
@@ -42,25 +43,18 @@ struct SofrQuotes {
 };
 
 
-BOOST_AUTO_TEST_CASE(testBootstrap) {
+BOOST_AUTO_TEST_CASE(testBootstrap)
+{
     BOOST_TEST_MESSAGE("Testing bootstrap over SOFR futures...");
 
     Date today = Date(26, October, 2018);
     Settings::instance().evaluationDate() = today;
 
     const SofrQuotes sofrQuotes[] = {
-        {Monthly, Oct, 2018, 97.8175},
-        {Monthly, Nov, 2018, 97.770},
-        {Monthly, Dec, 2018, 97.685},
-        {Monthly, Jan, 2019, 97.595},
-        {Monthly, Feb, 2019, 97.590},
-        {Monthly, Mar, 2019, 97.525},
-        {Quarterly, Mar, 2019, 97.440},
-        {Quarterly, Jun, 2019, 97.295},
-        {Quarterly, Sep, 2019, 97.220},
-        {Quarterly, Dec, 2019, 97.170},
-        {Quarterly, Mar, 2020, 97.160},
-        {Quarterly, Jun, 2020, 97.165},
+        {Monthly, Oct, 2018, 97.8175},  {Monthly, Nov, 2018, 97.770},   {Monthly, Dec, 2018, 97.685},
+        {Monthly, Jan, 2019, 97.595},   {Monthly, Feb, 2019, 97.590},   {Monthly, Mar, 2019, 97.525},
+        {Quarterly, Mar, 2019, 97.440}, {Quarterly, Jun, 2019, 97.295}, {Quarterly, Sep, 2019, 97.220},
+        {Quarterly, Dec, 2019, 97.170}, {Quarterly, Mar, 2020, 97.160}, {Quarterly, Jun, 2020, 97.165},
         {Quarterly, Sep, 2020, 97.175},
     };
 
@@ -84,53 +78,47 @@ BOOST_AUTO_TEST_CASE(testBootstrap) {
     index->addFixing(Date(24, October, 2018), 0.0218);
     index->addFixing(Date(25, October, 2018), 0.0219);
 
-    std::vector<ext::shared_ptr<RateHelper> > helpers;
-    for (const auto& sofrQuote : sofrQuotes) {
-        helpers.push_back(ext::make_shared<SofrFutureRateHelper>(
-            sofrQuote.price, sofrQuote.month, sofrQuote.year, sofrQuote.freq));
+    std::vector<ext::shared_ptr<RateHelper>> helpers;
+    for (const auto& sofrQuote : sofrQuotes)
+    {
+        helpers.push_back(
+            ext::make_shared<SofrFutureRateHelper>(sofrQuote.price, sofrQuote.month, sofrQuote.year, sofrQuote.freq));
     }
 
-    ext::shared_ptr<PiecewiseYieldCurve<Discount, Linear> > curve =
-        ext::make_shared<PiecewiseYieldCurve<Discount, Linear> >(today, helpers,
-                                                                 Actual365Fixed());
+    ext::shared_ptr<PiecewiseYieldCurve<Discount, Linear>> curve =
+        ext::make_shared<PiecewiseYieldCurve<Discount, Linear>>(today, helpers, Actual365Fixed());
 
     // test curve with one of the futures
-    ext::shared_ptr<OvernightIndex> sofr =
-        ext::make_shared<Sofr>(Handle<YieldTermStructure>(curve));
+    ext::shared_ptr<OvernightIndex> sofr = ext::make_shared<Sofr>(Handle<YieldTermStructure>(curve));
     auto convQuote = ext::make_shared<SimpleQuote>();
-    OvernightIndexFuture sf(sofr, Date(20, March, 2019), Date(19, June, 2019),
-                            Handle<Quote>(convQuote));
+    OvernightIndexFuture sf(sofr, Date(20, March, 2019), Date(19, June, 2019), Handle<Quote>(convQuote));
 
     Real tolerance = 1.0e-9;
-    for (auto convAdj : {0.0, 0.1}) {
+    for (auto convAdj : {0.0, 0.1})
+    {
         convQuote->setValue(convAdj);
         Real expected_price = 100.0 * (1 - (0.0256 + convAdj));
         Real error = std::fabs(sf.NPV() - expected_price);
-        if (error > tolerance) {
+        if (error > tolerance)
+        {
             BOOST_ERROR("sample futures:\n"
-                        << std::setprecision(8)
-                        << "\n estimated price: " << sf.NPV()
-                        << "\n expected price:  " << expected_price
-                        << "\n error:           " << error
-                        << "\n tolerance:       " << tolerance);
+                        << std::setprecision(8) << "\n estimated price: " << sf.NPV() << "\n expected price:  "
+                        << expected_price << "\n error:           " << error << "\n tolerance:       " << tolerance);
         }
     }
 }
 
 
-BOOST_AUTO_TEST_CASE(testBootstrapWithJuneteenth) {
-    BOOST_TEST_MESSAGE(
-        "Testing bootstrap over SOFR futures when third Wednesday falls on Juneteenth...");
+BOOST_AUTO_TEST_CASE(testBootstrapWithJuneteenth)
+{
+    BOOST_TEST_MESSAGE("Testing bootstrap over SOFR futures when third Wednesday falls on Juneteenth...");
 
     Date today = Date(27, June, 2024);
     Settings::instance().evaluationDate() = today;
 
     const SofrQuotes sofrQuotes[] = {
-        {Quarterly, Jun, 2024, 97.220},
-        {Quarterly, Sep, 2024, 97.170},
-        {Quarterly, Dec, 2024, 97.160},
-        {Quarterly, Mar, 2025, 97.165},
-        {Quarterly, Jun, 2025, 97.175},
+        {Quarterly, Jun, 2024, 97.220}, {Quarterly, Sep, 2024, 97.170}, {Quarterly, Dec, 2024, 97.160},
+        {Quarterly, Mar, 2025, 97.165}, {Quarterly, Jun, 2025, 97.175},
     };
 
     ext::shared_ptr<OvernightIndex> index = ext::make_shared<Sofr>();
@@ -142,35 +130,33 @@ BOOST_AUTO_TEST_CASE(testBootstrapWithJuneteenth) {
     index->addFixing(Date(26, June, 2024), 0.02);
     index->addFixing(Date(27, June, 2024), 0.02);
 
-    std::vector<ext::shared_ptr<RateHelper> > helpers;
-    for (const auto& sofrQuote : sofrQuotes) {
-        helpers.push_back(ext::make_shared<SofrFutureRateHelper>(
-            sofrQuote.price, sofrQuote.month, sofrQuote.year, sofrQuote.freq));
+    std::vector<ext::shared_ptr<RateHelper>> helpers;
+    for (const auto& sofrQuote : sofrQuotes)
+    {
+        helpers.push_back(
+            ext::make_shared<SofrFutureRateHelper>(sofrQuote.price, sofrQuote.month, sofrQuote.year, sofrQuote.freq));
     }
 
-    ext::shared_ptr<PiecewiseYieldCurve<Discount, Linear> > curve =
-        ext::make_shared<PiecewiseYieldCurve<Discount, Linear> >(today, helpers,
-                                                                 Actual365Fixed());
+    ext::shared_ptr<PiecewiseYieldCurve<Discount, Linear>> curve =
+        ext::make_shared<PiecewiseYieldCurve<Discount, Linear>>(today, helpers, Actual365Fixed());
 
-    ext::shared_ptr<OvernightIndex> sofr =
-        ext::make_shared<Sofr>(Handle<YieldTermStructure>(curve));
+    ext::shared_ptr<OvernightIndex> sofr = ext::make_shared<Sofr>(Handle<YieldTermStructure>(curve));
     OvernightIndexFuture sf(sofr, Date(19, June, 2024), Date(18, September, 2024));
 
     Real expected_price = 97.220;
     Real tolerance = 1.0e-9;
 
     Real error = std::fabs(sf.NPV() - expected_price);
-    if (error > tolerance) {
+    if (error > tolerance)
+    {
         BOOST_ERROR("sample futures:\n"
-                    << std::setprecision(8)
-                    << "\n estimated price: " << sf.NPV()
-                    << "\n expected price:  " << expected_price
-                    << "\n error:           " << error
-                    << "\n tolerance:       " << tolerance);
+                    << std::setprecision(8) << "\n estimated price: " << sf.NPV() << "\n expected price:  "
+                    << expected_price << "\n error:           " << error << "\n tolerance:       " << tolerance);
     }
 }
 
-BOOST_AUTO_TEST_CASE(testPillarDates) {
+BOOST_AUTO_TEST_CASE(testPillarDates)
+{
     BOOST_TEST_MESSAGE("Testing pillar date support in SOFR futures helpers...");
 
     Date today(15, March, 2024);
@@ -187,32 +173,25 @@ BOOST_AUTO_TEST_CASE(testPillarDates) {
     BOOST_CHECK_EQUAL(h1.pillarDate(), maturityDate);
 
     // maturity pillar
-    OvernightIndexFutureRateHelper h2(
-        price, valueDate, maturityDate, index,
-        {}, RateAveraging::Compound, Pillar::MaturityDate);
+    OvernightIndexFutureRateHelper h2(price, valueDate, maturityDate, index, {}, RateAveraging::Compound,
+                                      Pillar::MaturityDate);
     BOOST_CHECK_EQUAL(h2.pillarDate(), maturityDate);
 
     // Custom pillar
     Date custom(20, April, 2024);
-    OvernightIndexFutureRateHelper h3(
-        price, valueDate, maturityDate, index,
-        {}, RateAveraging::Compound, Pillar::CustomDate, custom);
+    OvernightIndexFutureRateHelper h3(price, valueDate, maturityDate, index, {}, RateAveraging::Compound,
+                                      Pillar::CustomDate, custom);
     BOOST_CHECK_EQUAL(h3.pillarDate(), custom);
-    
+
     // Invalid custom pillar (after maturity)
     Date badCustom(20, July, 2024);
-    BOOST_CHECK_EXCEPTION(
-        OvernightIndexFutureRateHelper(
-            price, valueDate, maturityDate, index,
-            {}, RateAveraging::Compound, Pillar::CustomDate, badCustom),
-        Error,
-        ExpectedErrorMessage("after end of reference period"));
+    BOOST_CHECK_EXCEPTION(OvernightIndexFutureRateHelper(price, valueDate, maturityDate, index, {},
+                                                         RateAveraging::Compound, Pillar::CustomDate, badCustom),
+                          Error, ExpectedErrorMessage("after end of reference period"));
 
     // SOFR helper custom pillar
     Date sofrCustom(15, July, 2024);
-    SofrFutureRateHelper sh(
-        price, June, 2024, Quarterly, {},
-        Pillar::CustomDate, sofrCustom);
+    SofrFutureRateHelper sh(price, June, 2024, Quarterly, {}, Pillar::CustomDate, sofrCustom);
     BOOST_CHECK_EQUAL(sh.pillarDate(), sofrCustom);
 }
 

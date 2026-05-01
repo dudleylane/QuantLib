@@ -21,13 +21,14 @@
 #include <ql/methods/lattices/trinomialtree.hpp>
 #include <ql/stochasticprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    TrinomialTree::TrinomialTree(
-                        const ext::shared_ptr<StochasticProcess1D>& process,
-                        const TimeGrid& timeGrid,
-                        bool isPositive)
-    : Tree<TrinomialTree>(timeGrid.size()), dx_(1, 0.0), timeGrid_(timeGrid) {
+    TrinomialTree::TrinomialTree(const ext::shared_ptr<StochasticProcess1D>& process,
+                                 const TimeGrid& timeGrid,
+                                 bool isPositive)
+    : Tree<TrinomialTree>(timeGrid.size()), dx_(1, 0.0), timeGrid_(timeGrid)
+    {
         x0_ = process->x0();
 
         Size nTimeSteps = timeGrid.size() - 1;
@@ -36,34 +37,38 @@ namespace QuantLib {
         Integer jMin = 0;
         Integer jMax = 0;
 
-        for (Size i=0; i<nTimeSteps; i++) {
+        for (Size i = 0; i < nTimeSteps; i++)
+        {
             Time t = timeGrid[i];
             Time dt = timeGrid.dt(i);
 
-            //Variance must be independent of x
+            // Variance must be independent of x
             Real v2 = process->variance(t, 0.0, dt);
             Volatility v = std::sqrt(v2);
-            dx_.push_back(v*std::sqrt(3.0));
+            dx_.push_back(v * std::sqrt(3.0));
 
             Branching branching;
-            for (Integer j=jMin; j<=jMax; j++) {
-                Real x = x0_ + j*dx_[i];
+            for (Integer j = jMin; j <= jMax; j++)
+            {
+                Real x = x0_ + j * dx_[i];
                 Real m = process->expectation(t, x, dt);
                 auto temp = Integer(std::floor((m - x0_) / dx_[i + 1] + 0.5));
 
-                if (isPositive) {
-                    while (x0_+(temp-1)*dx_[i+1]<=0) {
+                if (isPositive)
+                {
+                    while (x0_ + (temp - 1) * dx_[i + 1] <= 0)
+                    {
                         temp++;
                     }
                 }
 
-                Real e = m - (x0_ + temp*dx_[i+1]);
-                Real e2 = e*e;
-                Real e3 = e*std::sqrt(3.0);
+                Real e = m - (x0_ + temp * dx_[i + 1]);
+                Real e2 = e * e;
+                Real e3 = e * std::sqrt(3.0);
 
-                Real p1 = (1.0 + e2/v2 - e3/v)/6.0;
-                Real p2 = (2.0 - e2/v2)/3.0;
-                Real p3 = (1.0 + e2/v2 + e3/v)/6.0;
+                Real p1 = (1.0 + e2 / v2 - e3 / v) / 6.0;
+                Real p2 = (2.0 - e2 / v2) / 3.0;
+                Real p3 = (1.0 + e2 / v2 + e3 / v) / 6.0;
 
                 branching.add(temp, p1, p2, p3);
             }
@@ -75,4 +80,3 @@ namespace QuantLib {
     }
 
 }
-

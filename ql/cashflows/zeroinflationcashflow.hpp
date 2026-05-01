@@ -27,7 +27,8 @@
 #include <ql/cashflows/indexedcashflow.hpp>
 #include <ql/indexes/inflationindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Cash flow dependent on a zero inflation index ratio.
     /*! The ratio is taken between fixings observed at the start date
@@ -35,7 +36,8 @@ namespace QuantLib {
         and end dates are, e.g., in June and the observation lag is three
         months, the ratio will be taken between March fixings.
     */
-    class ZeroInflationCashFlow : public IndexedCashFlow {
+    class ZeroInflationCashFlow : public IndexedCashFlow
+    {
       public:
         /*! The fixings dates for the index are `startDate - observationLag` and
             `endDate - observationLag`.
@@ -51,12 +53,8 @@ namespace QuantLib {
 
         //! \name ZeroInflationCashFlow interface
         //@{
-        ext::shared_ptr<ZeroInflationIndex> zeroInflationIndex() const {
-            return zeroInflationIndex_;
-        }
-        CPI::InterpolationType observationInterpolation() const {
-            return interpolation_;
-        }
+        ext::shared_ptr<ZeroInflationIndex> zeroInflationIndex() const { return zeroInflationIndex_; }
+        CPI::InterpolationType observationInterpolation() const { return interpolation_; }
         //@}
 
         //! \name ZeroInflationCashFlow interface

@@ -17,25 +17,23 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/math/copulas/gumbelcopula.hpp>
 #include <ql/errors.hpp>
+#include <ql/math/copulas/gumbelcopula.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     GumbelCopula::GumbelCopula(Real theta) : theta_(theta)
     {
-        QL_REQUIRE(theta >= 1.0,
-                   "theta (" << theta << ") must be greater or equal to 1");
+        QL_REQUIRE(theta >= 1.0, "theta (" << theta << ") must be greater or equal to 1");
     }
-    
-    Real GumbelCopula::operator()(Real x, Real y) const 
+
+    Real GumbelCopula::operator()(Real x, Real y) const
     {
-        QL_REQUIRE(x >= 0.0 && x <=1.0 ,
-                   "1st argument (" << x << ") must be in [0,1]");
-        QL_REQUIRE(y >= 0.0 && y <=1.0 ,
-                   "2nd argument (" << y << ") must be in [0,1]");
+        QL_REQUIRE(x >= 0.0 && x <= 1.0, "1st argument (" << x << ") must be in [0,1]");
+        QL_REQUIRE(y >= 0.0 && y <= 1.0, "2nd argument (" << y << ") must be in [0,1]");
         using namespace std;
-        return exp(-pow( pow( -log(x), theta_)+pow( -log(y), theta_),1/theta_));
+        return exp(-pow(pow(-log(x), theta_) + pow(-log(y), theta_), 1 / theta_));
     }
 
 }

@@ -19,61 +19,63 @@
 
 #include <ql/experimental/volatility/equityfxvolsurface.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    EquityFXVolSurface::EquityFXVolSurface(BusinessDayConvention bdc,
-                                           const DayCounter& dc)
-    : BlackVolSurface(bdc, dc) {}
+    EquityFXVolSurface::EquityFXVolSurface(BusinessDayConvention bdc, const DayCounter& dc) : BlackVolSurface(bdc, dc)
+    {
+    }
 
     EquityFXVolSurface::EquityFXVolSurface(const Date& refDate,
                                            const Calendar& cal,
                                            BusinessDayConvention bdc,
                                            const DayCounter& dc)
-    : BlackVolSurface(refDate, cal, bdc, dc) {}
+    : BlackVolSurface(refDate, cal, bdc, dc)
+    {
+    }
 
     EquityFXVolSurface::EquityFXVolSurface(Natural settlDays,
                                            const Calendar& cal,
                                            BusinessDayConvention bdc,
                                            const DayCounter& dc)
-    : BlackVolSurface(settlDays, cal, bdc, dc) {}
+    : BlackVolSurface(settlDays, cal, bdc, dc)
+    {
+    }
 
-    Volatility EquityFXVolSurface::atmForwardVol(const Date& date1,
-                                                 const Date& date2,
-                                                 bool extrapolate) const {
-        QL_REQUIRE(date1<date2, "wrong dates");
+    Volatility EquityFXVolSurface::atmForwardVol(const Date& date1, const Date& date2, bool extrapolate) const
+    {
+        QL_REQUIRE(date1 < date2, "wrong dates");
         Time t1 = timeFromReference(date1);
         Time t2 = timeFromReference(date2);
         return atmForwardVol(t1, t2, extrapolate);
     }
 
-    Volatility EquityFXVolSurface::atmForwardVol(Time time1,
-                                                 Time time2,
-                                                 bool extrapolate) const {
+    Volatility EquityFXVolSurface::atmForwardVol(Time time1, Time time2, bool extrapolate) const
+    {
         Real fwdVariance = atmForwardVariance(time1, time2, extrapolate);
-        Time t = time2-time1;
-        return std::sqrt(fwdVariance/t);
+        Time t = time2 - time1;
+        return std::sqrt(fwdVariance / t);
     }
 
-    Real EquityFXVolSurface::atmForwardVariance(const Date& date1,
-                                                const Date& date2,
-                                                bool extrapolate) const {
-        QL_REQUIRE(date1<date2, "wrong dates");
+    Real EquityFXVolSurface::atmForwardVariance(const Date& date1, const Date& date2, bool extrapolate) const
+    {
+        QL_REQUIRE(date1 < date2, "wrong dates");
         Time t1 = timeFromReference(date1);
         Time t2 = timeFromReference(date2);
         return atmForwardVariance(t1, t2, extrapolate);
     }
 
-    Real EquityFXVolSurface::atmForwardVariance(Time time1,
-                                                Time time2,
-                                                bool extrapolate) const {
-        QL_REQUIRE(time1<time2, "wrong times");
+    Real EquityFXVolSurface::atmForwardVariance(Time time1, Time time2, bool extrapolate) const
+    {
+        QL_REQUIRE(time1 < time2, "wrong times");
         Real var1 = atmVariance(time1, extrapolate);
         Real var2 = atmVariance(time2, extrapolate);
-        QL_ENSURE(var1<var2, "non-increasing variances");
-        return var2-var1;
+        QL_ENSURE(var1 < var2, "non-increasing variances");
+        return var2 - var1;
     }
 
-    void EquityFXVolSurface::accept(AcyclicVisitor& v) {
+    void EquityFXVolSurface::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<EquityFXVolSurface>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);

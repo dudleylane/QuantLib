@@ -28,9 +28,11 @@
 #include <ql/processes/hestonprocess.hpp>
 #include <ql/termstructures/volatility/equityfx/localvoltermstructure.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class HestonSLVProcess : public StochasticProcess {
+    class HestonSLVProcess : public StochasticProcess
+    {
       public:
         HestonSLVProcess(const ext::shared_ptr<HestonProcess>& hestonProcess,
                          ext::shared_ptr<LocalVolTermStructure> leverageFct,
@@ -41,34 +43,24 @@ namespace QuantLib {
 
         void update() override;
 
-        Array initialValues() const override {
-            return hestonProcess_->initialValues();
-        }
-        Array apply(const Array& x0, const Array& dx) const override {
-            return hestonProcess_->apply(x0, dx);
-        }
+        Array initialValues() const override { return hestonProcess_->initialValues(); }
+        Array apply(const Array& x0, const Array& dx) const override { return hestonProcess_->apply(x0, dx); }
 
         Array drift(Time t, const Array& x) const override;
         Matrix diffusion(Time t, const Array& x) const override;
         Array evolve(Time t0, const Array& x0, Time dt, const Array& dw) const override;
 
-        Real v0()    const { return v0_; }
-        Real rho()   const { return rho_; }
+        Real v0() const { return v0_; }
+        Real rho() const { return rho_; }
         Real kappa() const { return kappa_; }
         Real theta() const { return theta_; }
         Real sigma() const { return sigma_; }
         Real mixingFactor() const { return mixingFactor_; }
-        ext::shared_ptr<LocalVolTermStructure> leverageFct() const {
-            return leverageFct_;
-        }
+        ext::shared_ptr<LocalVolTermStructure> leverageFct() const { return leverageFct_; }
 
         const Handle<Quote>& s0() const { return hestonProcess_->s0(); }
-        const Handle<YieldTermStructure>& dividendYield() const {
-            return hestonProcess_->dividendYield();
-        }
-        const Handle<YieldTermStructure>& riskFreeRate() const {
-            return hestonProcess_->riskFreeRate();
-        }
+        const Handle<YieldTermStructure>& dividendYield() const { return hestonProcess_->dividendYield(); }
+        const Handle<YieldTermStructure>& riskFreeRate() const { return hestonProcess_->riskFreeRate(); }
 
         Time time(const Date& d) const override { return hestonProcess_->time(d); }
 

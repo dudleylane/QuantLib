@@ -37,25 +37,29 @@
 #include <ql/termstructures/yieldtermstructure.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
-        class PriceAtBoundary {
+    namespace
+    {
+        class PriceAtBoundary
+        {
           public:
             PriceAtBoundary(Time maturityTime,
                             ext::shared_ptr<StrikedTypePayoff> payoff,
                             ext::shared_ptr<YieldTermStructure> rTS,
                             ext::shared_ptr<CEVCalculator> calculator)
-            : maturityTime_(maturityTime), payoff_(std::move(payoff)),
-              calculator_(std::move(calculator)), rTS_(std::move(rTS)) {}
+            : maturityTime_(maturityTime), payoff_(std::move(payoff)), calculator_(std::move(calculator)),
+              rTS_(std::move(rTS))
+            {
+            }
 
-            Real operator()(Real t) const {
-                const Time time2Expiry = std::max(1/365., maturityTime_ - t);
-                const DiscountFactor df =
-                    rTS_->discount(maturityTime_) / rTS_->discount(t);
+            Real operator()(Real t) const
+            {
+                const Time time2Expiry = std::max(1 / 365., maturityTime_ - t);
+                const DiscountFactor df = rTS_->discount(maturityTime_) / rTS_->discount(t);
 
-                return  df * calculator_->value(
-                    payoff_->optionType(), payoff_->strike(), time2Expiry);
+                return df * calculator_->value(payoff_->optionType(), payoff_->strike(), time2Expiry);
             }
 
           private:
@@ -76,21 +80,21 @@ namespace QuantLib {
                                            Real scalingFactor,
                                            Real eps,
                                            const FdmSchemeDesc& schemeDesc)
-    : f0_(f0), alpha_(alpha), beta_(beta), discountCurve_(std::move(discountCurve)), tGrid_(tGrid),
-      xGrid_(xGrid), dampingSteps_(dampingSteps), scalingFactor_(scalingFactor), eps_(eps),
-      schemeDesc_(schemeDesc) {
+    : f0_(f0), alpha_(alpha), beta_(beta), discountCurve_(std::move(discountCurve)), tGrid_(tGrid), xGrid_(xGrid),
+      dampingSteps_(dampingSteps), scalingFactor_(scalingFactor), eps_(eps), schemeDesc_(schemeDesc)
+    {
         registerWith(discountCurve_);
     }
 
-    void FdCEVVanillaEngine::calculate() const {
+    void FdCEVVanillaEngine::calculate() const
+    {
 
         // 1. Mesher
         const ext::shared_ptr<StrikedTypePayoff> payoff =
             ext::dynamic_pointer_cast<StrikedTypePayoff>(arguments_.payoff);
         QL_REQUIRE(payoff, "non-striked payoff given");
 
-        const ext::shared_ptr<YieldTermStructure> rTS =
-            discountCurve_.currentLink();
+        const ext::shared_ptr<YieldTermStructure> rTS = discountCurve_.currentLink();
 
         const DayCounter dc = rTS->dayCounter();
 
@@ -98,63 +102,48 @@ namespace QuantLib {
         const Date maturityDate = arguments_.exercise->lastDate();
         const Time maturityTime = dc.yearFraction(referenceDate, maturityDate);
 
-        const ext::shared_ptr<Fdm1dMesher> cevMesher =
-            ext::make_shared<FdmCEV1dMesher>(
-                xGrid_,
-                f0_, alpha_, beta_,
-                maturityTime, eps_, scalingFactor_,
-                std::make_pair(payoff->strike(), 0.1));
+        const ext::shared_ptr<Fdm1dMesher> cevMesher = ext::make_shared<FdmCEV1dMesher>(
+            xGrid_, f0_, alpha_, beta_, maturityTime, eps_, scalingFactor_, std::make_pair(payoff->strike(), 0.1));
 
         const Real lowerBound = cevMesher->locations().front();
         const Real upperBound = cevMesher->locations().back();
 
-        const ext::shared_ptr<FdmMesher> mesher =
-           ext::make_shared<FdmMesherComposite>(cevMesher);
+        const ext::shared_ptr<FdmMesher> mesher = ext::make_shared<FdmMesherComposite>(cevMesher);
 
         // 2. Calculator
         const ext::shared_ptr<FdmInnerValueCalculator> calculator =
             ext::make_shared<FdmCellAveragingInnerValue>(payoff, mesher, 0);
 
         // 3. Step conditions
-        const ext::shared_ptr<FdmStepConditionComposite> conditions =
-            FdmStepConditionComposite::vanillaComposite(
-                DividendSchedule(), arguments_.exercise,
-                mesher, calculator,
-                referenceDate, dc);
+        const ext::shared_ptr<FdmStepConditionComposite> conditions = FdmStepConditionComposite::vanillaComposite(
+            DividendSchedule(), arguments_.exercise, mesher, calculator, referenceDate, dc);
 
         // 4. Boundary conditions
         FdmBoundaryConditionSet boundaries;
 
-        const PriceAtBoundary upperBoundPrice(
-            maturityTime, payoff, rTS,
-            ext::make_shared<CEVCalculator>(upperBound, alpha_, beta_));
+        const PriceAtBoundary upperBoundPrice(maturityTime, payoff, rTS,
+                                              ext::make_shared<CEVCalculator>(upperBound, alpha_, beta_));
 
         boundaries.push_back(ext::make_shared<FdmTimeDepDirichletBoundary>(
-            mesher, std::function<Real (Real)>(upperBoundPrice),
-            0, FdmTimeDepDirichletBoundary::Upper));
+            mesher, std::function<Real(Real)>(upperBoundPrice), 0, FdmTimeDepDirichletBoundary::Upper));
 
-        const Real delta = (1-2*beta_)/(1-beta_);
-        if (delta < 2.0) {
+        const Real delta = (1 - 2 * beta_) / (1 - beta_);
+        if (delta < 2.0)
+        {
             const Real terminalCashFlow = (*payoff)(lowerBound);
 
-            boundaries.push_back(
-                ext::make_shared<FdmDiscountDirichletBoundary>(
-                    mesher, rTS, maturityTime, terminalCashFlow,
-                    0, FdmTimeDepDirichletBoundary::Lower));
+            boundaries.push_back(ext::make_shared<FdmDiscountDirichletBoundary>(
+                mesher, rTS, maturityTime, terminalCashFlow, 0, FdmTimeDepDirichletBoundary::Lower));
         }
 
         // 5. Solver
-        const FdmSolverDesc solverDesc = {
-            mesher, boundaries, conditions,
-            calculator, maturityTime, tGrid_, dampingSteps_
-        };
+        const FdmSolverDesc solverDesc = {mesher,       boundaries, conditions,   calculator,
+                                          maturityTime, tGrid_,     dampingSteps_};
 
         const ext::shared_ptr<FdmLinearOpComposite> op =
-            ext::make_shared<FdmCEVOp>(
-               mesher, discountCurve_.currentLink(), f0_, alpha_, beta_, 0);
+            ext::make_shared<FdmCEVOp>(mesher, discountCurve_.currentLink(), f0_, alpha_, beta_, 0);
 
-        const ext::shared_ptr<Fdm1DimSolver> solver =
-            ext::make_shared<Fdm1DimSolver>(solverDesc, schemeDesc_, op);
+        const ext::shared_ptr<Fdm1DimSolver> solver = ext::make_shared<Fdm1DimSolver>(solverDesc, schemeDesc_, op);
 
         results_.value = solver->interpolateAt(f0_);
         results_.delta = solver->derivativeX(f0_);

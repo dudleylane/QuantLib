@@ -26,12 +26,13 @@
 #ifndef quantlib_asset_swap_hpp
 #define quantlib_asset_swap_hpp
 
-#include <ql/instruments/swap.hpp>
 #include <ql/instruments/bond.hpp>
-#include <ql/time/schedule.hpp>
+#include <ql/instruments/swap.hpp>
 #include <ql/time/daycounter.hpp>
+#include <ql/time/schedule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class IborIndex;
 
@@ -48,7 +49,8 @@ namespace QuantLib {
         \bug fair prices are not calculated correctly when using
              indexed coupons.
     */
-    class AssetSwap : public Swap {
+    class AssetSwap : public Swap
+    {
       public:
         class arguments;
         class results;
@@ -103,7 +105,8 @@ namespace QuantLib {
 
 
     //! %Arguments for asset swap calculation
-    class AssetSwap::arguments : public Swap::arguments {
+    class AssetSwap::arguments : public Swap::arguments
+    {
       public:
         arguments() = default;
         std::vector<Date> fixedResetDates;
@@ -118,7 +121,8 @@ namespace QuantLib {
     };
 
     //! %Results from simple swap calculation
-    class AssetSwap::results : public Swap::results {
+    class AssetSwap::results : public Swap::results
+    {
       public:
         Spread fairSpread;
         Real fairCleanPrice, fairNonParRepayment;

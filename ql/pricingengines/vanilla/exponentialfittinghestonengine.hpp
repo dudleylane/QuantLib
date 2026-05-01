@@ -26,10 +26,10 @@
 
 #include <ql/instruments/vanillaoption.hpp>
 #include <ql/pricingengines/vanilla/analytichestonengine.hpp>
-
 #include <vector>
 
-namespace QuantLib {
+namespace QuantLib
+{
     class AnalyticHestonEngine;
 
     //! analytic Heston-model engine based on
@@ -46,17 +46,15 @@ namespace QuantLib {
 
 
     class ExponentialFittingHestonEngine
-        : public GenericModelEngine<HestonModel,
-                                    VanillaOption::arguments,
-                                    VanillaOption::results> {
+    : public GenericModelEngine<HestonModel, VanillaOption::arguments, VanillaOption::results>
+    {
       public:
         typedef AnalyticHestonEngine::ComplexLogFormula ControlVariate;
 
-        explicit ExponentialFittingHestonEngine(
-            const ext::shared_ptr<HestonModel>& model,
-            ControlVariate cv = ControlVariate::OptimalCV,
-            Real scaling = Null<Real>(),
-            Real alpha = -0.5);
+        explicit ExponentialFittingHestonEngine(const ext::shared_ptr<HestonModel>& model,
+                                                ControlVariate cv = ControlVariate::OptimalCV,
+                                                Real scaling = Null<Real>(),
+                                                Real alpha = -0.5);
 
         void calculate() const override;
 

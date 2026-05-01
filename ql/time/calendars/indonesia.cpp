@@ -17,27 +17,30 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/time/calendars/indonesia.hpp>
 #include <ql/errors.hpp>
+#include <ql/time/calendars/indonesia.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Indonesia::Indonesia(Market market) {
+    Indonesia::Indonesia(Market market)
+    {
         // all calendar instances share the same implementation instance
-        static ext::shared_ptr<Calendar::Impl> bejImpl(
-                                                      new Indonesia::BejImpl);
-        switch (market) {
-          case BEJ:
-          case JSX:
-          case IDX:
-            impl_ = bejImpl;
-            break;
-          default:
-            QL_FAIL("unknown market");
+        static ext::shared_ptr<Calendar::Impl> bejImpl(new Indonesia::BejImpl);
+        switch (market)
+        {
+            case BEJ:
+            case JSX:
+            case IDX:
+                impl_ = bejImpl;
+                break;
+            default:
+                QL_FAIL("unknown market");
         }
     }
 
-    bool Indonesia::BejImpl::isBusinessDay(const Date& date) const {
+    bool Indonesia::BejImpl::isBusinessDay(const Date& date) const
+    {
         Weekday w = date.weekday();
         Day d = date.dayOfMonth();
         Month m = date.month();
@@ -49,18 +52,18 @@ namespace QuantLib {
             // New Year's Day
             || (d == 1 && m == January)
             // Good Friday
-            || (dd == em-3)
+            || (dd == em - 3)
             // Ascension Thursday
-            || (dd == em+38)
+            || (dd == em + 38)
             // Independence Day
             || (d == 17 && m == August)
             // Christmas
-            || (d == 25 && m == December)
-            )
+            || (d == 25 && m == December))
             return false;
 
-        if (y == 2005) {
-            if (// Idul Adha
+        if (y == 2005)
+        {
+            if ( // Idul Adha
                 (d == 21 && m == January)
                 // Imlek
                 || (d == 9 && m == February)
@@ -77,14 +80,13 @@ namespace QuantLib {
                 // Idul Fitri
                 || ((d == 3 || d == 4) && m == November)
                 // National leaves
-                || ((d == 2 || d == 7 || d == 8) && m == November)
-                || (d == 26 && m == December)
-                )
+                || ((d == 2 || d == 7 || d == 8) && m == November) || (d == 26 && m == December))
                 return false;
         }
 
-        if (y == 2006) {
-            if (// Idul Adha
+        if (y == 2006)
+        {
+            if ( // Idul Adha
                 (d == 10 && m == January)
                 // Moslem's New Year Day
                 || (d == 31 && m == January)
@@ -97,28 +99,27 @@ namespace QuantLib {
                 // Idul Fitri
                 || ((d == 24 || d == 25) && m == October)
                 // National leaves
-                || ((d == 23 || d == 26 || d == 27) && m == October)
-                )
+                || ((d == 23 || d == 26 || d == 27) && m == October))
                 return false;
         }
 
-        if (y == 2007) {
-            if (// Nyepi
+        if (y == 2007)
+        {
+            if ( // Nyepi
                 (d == 19 && m == March)
                 // Waisak
                 || (d == 1 && m == June)
                 // Ied Adha
                 || (d == 20 && m == December)
                 // National leaves
-                || (d == 18 && m == May)
-                || ((d == 12 || d == 15 || d == 16) && m == October)
-                || ((d == 21 || d == 24) && m == October)
-                )
+                || (d == 18 && m == May) || ((d == 12 || d == 15 || d == 16) && m == October) ||
+                ((d == 21 || d == 24) && m == October))
                 return false;
         }
 
-        if (y == 2008) {
-            if (// Islamic New Year
+        if (y == 2008)
+        {
+            if ( // Islamic New Year
                 ((d == 10 || d == 11) && m == January)
                 // Chinese New Year
                 || ((d == 7 || d == 8) && m == February)
@@ -133,20 +134,20 @@ namespace QuantLib {
                 // National leave
                 || (d == 18 && m == August)
                 // Ied Fitr
-                || (d == 30 && m == September)
-                || ((d == 1 || d == 2 || d == 3) && m == October)
+                || (d == 30 && m == September) ||
+                ((d == 1 || d == 2 || d == 3) && m == October)
                 // Ied Adha
                 || (d == 8 && m == December)
                 // Islamic New Year
                 || (d == 29 && m == December)
                 // New Year's Eve
-                || (d == 31 && m == December)
-                )
+                || (d == 31 && m == December))
                 return false;
         }
 
-        if (y == 2009) {
-            if (// Public holiday
+        if (y == 2009)
+        {
+            if ( // Public holiday
                 (d == 2 && m == January)
                 // Chinese New Year
                 || (d == 26 && m == January)
@@ -167,14 +168,14 @@ namespace QuantLib {
                 // Public Holiday
                 || (d == 24 && m == December)
                 // Trading holiday
-                || (d == 31 && m == December)
-                )
+                || (d == 31 && m == December))
                 return false;
         }
 
-        if (y == 2010) {
-            if (// Birthday of the prophet Muhammad SAW
-                   (d == 26 && m == February)
+        if (y == 2010)
+        {
+            if ( // Birthday of the prophet Muhammad SAW
+                (d == 26 && m == February)
                 // Saka's New Year
                 || (d == 16 && m == March)
                 // Birth of Buddha
@@ -188,14 +189,14 @@ namespace QuantLib {
                 // Public Holiday
                 || (d == 24 && m == December)
                 // Trading holiday
-                || (d == 31 && m == December)
-                )
+                || (d == 31 && m == December))
                 return false;
         }
 
-        if (y == 2011) {
-            if (// Chinese New Year
-                   (d == 3 && m == February)
+        if (y == 2011)
+        {
+            if ( // Chinese New Year
+                (d == 3 && m == February)
                 // Birthday of the prophet Muhammad SAW
                 || (d == 15 && m == February)
                 // Birth of Buddha
@@ -203,16 +204,16 @@ namespace QuantLib {
                 // Isra' Mi'raj of the prophet Muhammad SAW
                 || (d == 29 && m == June)
                 // Ied Fitr
-                || (d >= 29 && m == August)
-                || (d <= 2 && m == September)
+                || (d >= 29 && m == August) ||
+                (d <= 2 && m == September)
                 // Public Holiday
-                || (d == 26 && m == December)
-                )
+                || (d == 26 && m == December))
                 return false;
         }
 
-        if (y == 2012) {
-            if (// Chinese New Year
+        if (y == 2012)
+        {
+            if ( // Chinese New Year
                 (d == 23 && m == January)
                 // Saka New Year
                 || (d == 23 && m == March)
@@ -225,13 +226,13 @@ namespace QuantLib {
                 // Public Holiday
                 || (d == 24 && m == December)
                 // Trading Holiday
-                || (d == 31 && m == December)
-                )
+                || (d == 31 && m == December))
                 return false;
         }
 
-        if (y == 2013) {
-            if (// Birthday of the prophet Muhammad SAW
+        if (y == 2013)
+        {
+            if ( // Birthday of the prophet Muhammad SAW
                 (d == 24 && m == January)
                 // Saka New Year
                 || (d == 12 && m == March)
@@ -246,13 +247,13 @@ namespace QuantLib {
                 // Public Holiday
                 || (d == 26 && m == December)
                 // Trading Holiday
-                || (d == 31 && m == December)
-                )
+                || (d == 31 && m == December))
                 return false;
         }
 
-        if (y == 2014) {
-            if (// Birthday of the prophet Muhammad SAW
+        if (y == 2014)
+        {
+            if ( // Birthday of the prophet Muhammad SAW
                 (d == 14 && m == January)
                 // Chinese New Year
                 || (d == 31 && m == January)
@@ -271,8 +272,7 @@ namespace QuantLib {
                 // Public Holiday
                 || (d == 26 && m == December)
                 // Trading Holiday
-                || (d == 31 && m == December)
-                )
+                || (d == 31 && m == December))
                 return false;
         }
 
@@ -280,4 +280,3 @@ namespace QuantLib {
     }
 
 }
-

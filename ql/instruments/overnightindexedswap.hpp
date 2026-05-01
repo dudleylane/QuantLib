@@ -34,12 +34,14 @@
 #include <ql/time/daycounter.hpp>
 #include <ql/time/schedule.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class OvernightIndex;
 
     //! Overnight indexed swap: fix vs compounded overnight rate
-    class OvernightIndexedSwap : public FixedVsFloatingSwap {
+    class OvernightIndexedSwap : public FixedVsFloatingSwap
+    {
       public:
         OvernightIndexedSwap(Type type,
                              Real nominal,
@@ -110,9 +112,9 @@ namespace QuantLib {
 
         //! \name Inspectors
         //@{
-        Frequency paymentFrequency() const {
-            return std::max(fixedSchedule().tenor().frequency(),
-                            floatingSchedule().tenor().frequency());
+        Frequency paymentFrequency() const
+        {
+            return std::max(fixedSchedule().tenor().frequency(), floatingSchedule().tenor().frequency());
         }
 
         const std::vector<Real>& overnightNominals() const { return floatingNominals(); }

@@ -21,58 +21,58 @@
 #include <ql/experimental/credit/issuer.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    namespace {
-        bool between(const ext::shared_ptr<DefaultEvent>& e,
-                     const Date& start,
-                     const Date& end,
-                     bool includeRefDate = false) {
-            return !e->hasOccurred(start, includeRefDate) &&
-                e->hasOccurred(end, includeRefDate);
+    namespace
+    {
+        bool
+        between(const ext::shared_ptr<DefaultEvent>& e, const Date& start, const Date& end, bool includeRefDate = false)
+        {
+            return !e->hasOccurred(start, includeRefDate) && e->hasOccurred(end, includeRefDate);
         }
     }
 
-    Issuer::Issuer(std::vector<std::pair<DefaultProbKey, Handle<DefaultProbabilityTermStructure> > >
-                       probabilities,
+    Issuer::Issuer(std::vector<std::pair<DefaultProbKey, Handle<DefaultProbabilityTermStructure>>> probabilities,
                    DefaultEventSet events)
-    : probabilities_(std::move(probabilities)), events_(std::move(events)) {}
+    : probabilities_(std::move(probabilities)), events_(std::move(events))
+    {
+    }
 
-    Issuer::Issuer(const std::vector<std::vector<ext::shared_ptr<DefaultType> > >& eventTypes,
+    Issuer::Issuer(const std::vector<std::vector<ext::shared_ptr<DefaultType>>>& eventTypes,
                    const std::vector<Currency>& currencies,
                    const std::vector<Seniority>& seniorities,
-                   const std::vector<Handle<DefaultProbabilityTermStructure> >& curves,
+                   const std::vector<Handle<DefaultProbabilityTermStructure>>& curves,
                    DefaultEventSet events)
-    : events_(std::move(events)) {
-        QL_REQUIRE((eventTypes.size() == curves.size()) &&
-            (curves.size()== currencies.size()) &&
-            (currencies.size() == seniorities.size()),
-            "Incompatible size of Issuer parameters.");
+    : events_(std::move(events))
+    {
+        QL_REQUIRE((eventTypes.size() == curves.size()) && (curves.size() == currencies.size()) &&
+                       (currencies.size() == seniorities.size()),
+                   "Incompatible size of Issuer parameters.");
 
-        for(Size i=0; i <eventTypes.size(); i++) {
-            DefaultProbKey keytmp(eventTypes[i], currencies[i],
-                seniorities[i]);
+        for (Size i = 0; i < eventTypes.size(); i++)
+        {
+            DefaultProbKey keytmp(eventTypes[i], currencies[i], seniorities[i]);
             probabilities_.emplace_back(keytmp, curves[i]);
         }
     }
 
-    const Handle<DefaultProbabilityTermStructure>&
-        Issuer::defaultProbability(const DefaultProbKey& key) const {
+    const Handle<DefaultProbabilityTermStructure>& Issuer::defaultProbability(const DefaultProbKey& key) const
+    {
         for (const auto& probabilitie : probabilities_)
             if (key == probabilitie.first)
                 return probabilitie.second;
         QL_FAIL("Probability curve not available.");
     }
 
-    ext::shared_ptr<DefaultEvent>
-    Issuer::defaultedBetween(const Date& start,
-                             const Date& end,
-                             const DefaultProbKey& contractKey,
-                             bool includeRefDate
-                             ) const
+    ext::shared_ptr<DefaultEvent> Issuer::defaultedBetween(const Date& start,
+                                                           const Date& end,
+                                                           const DefaultProbKey& contractKey,
+                                                           bool includeRefDate) const
     {
         // to do: the set is ordered, see how to use it to speed this up
-        for (const auto& event : events_) {
+        for (const auto& event : events_)
+        {
             if (event->matchesDefaultKey(contractKey) && between(event, start, end, includeRefDate))
                 return event;
         }
@@ -80,16 +80,15 @@ namespace QuantLib {
     }
 
 
-    std::vector<ext::shared_ptr<DefaultEvent> >
-    Issuer::defaultsBetween(const Date& start,
-                            const Date& end,
-                            const DefaultProbKey& contractKey,
-                            bool includeRefDate
-                            ) const
+    std::vector<ext::shared_ptr<DefaultEvent>> Issuer::defaultsBetween(const Date& start,
+                                                                       const Date& end,
+                                                                       const DefaultProbKey& contractKey,
+                                                                       bool includeRefDate) const
     {
-        std::vector<ext::shared_ptr<DefaultEvent> > defaults;
+        std::vector<ext::shared_ptr<DefaultEvent>> defaults;
         // to do: the set is ordered, see how to use it to speed this up
-        for (const auto& event : events_) {
+        for (const auto& event : events_)
+        {
             if (event->matchesDefaultKey(contractKey) && between(event, start, end, includeRefDate))
                 defaults.push_back(event);
         }

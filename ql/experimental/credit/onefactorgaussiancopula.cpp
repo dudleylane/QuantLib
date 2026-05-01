@@ -19,11 +19,13 @@
 
 #include <ql/experimental/credit/onefactorgaussiancopula.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //-----------------------------------------------------------------------
-    Real OneFactorGaussianCopula::testCumulativeY (Real y) const {
-    //-----------------------------------------------------------------------
+    Real OneFactorGaussianCopula::testCumulativeY(Real y) const
+    {
+        //-----------------------------------------------------------------------
         Real c = correlation_->value();
 
         if (c == 0)
@@ -41,21 +43,21 @@ namespace QuantLib {
 
         Real delta = (maximum - minimum) / steps;
         Real cumulated = 0;
-        if (c < 0.5) {
+        if (c < 0.5)
+        {
             // outer integral -> 1 for c -> 0
             // inner integral -> CumulativeNormal()(y) for c-> 0
             for (Real m = minimum; m < maximum; m += delta)
-                for (Real z = minimum; z < (y - std::sqrt(c) * m) / std::sqrt (1. - c);
-                     z += delta)
-                    cumulated += dm (m) * dz (z);
+                for (Real z = minimum; z < (y - std::sqrt(c) * m) / std::sqrt(1. - c); z += delta)
+                    cumulated += dm(m) * dz(z);
         }
-        else {
+        else
+        {
             // outer integral -> 1 for c -> 1
             // inner integral -> CumulativeNormal()(y) for c-> 1
             for (Real z = minimum; z < maximum; z += delta)
-                for (Real m = minimum; m < (y - std::sqrt(1.0 - c) * z) / std::sqrt(c);
-                     m += delta)
-                    cumulated += dm (m) * dz (z);
+                for (Real m = minimum; m < (y - std::sqrt(1.0 - c) * z) / std::sqrt(c); m += delta)
+                    cumulated += dm(m) * dz(z);
         }
         cumulated *= (delta * delta);
 
@@ -63,4 +65,3 @@ namespace QuantLib {
     }
 
 }
-

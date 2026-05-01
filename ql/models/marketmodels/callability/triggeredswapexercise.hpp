@@ -23,9 +23,11 @@
 #include <ql/models/marketmodels/callability/marketmodelparametricexercise.hpp>
 #include <ql/models/marketmodels/evolutiondescription.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class TriggeredSwapExercise : public MarketModelParametricExercise {
+    class TriggeredSwapExercise : public MarketModelParametricExercise
+    {
       public:
         TriggeredSwapExercise(const std::vector<Time>& rateTimes,
                               const std::vector<Time>& exerciseTimes,

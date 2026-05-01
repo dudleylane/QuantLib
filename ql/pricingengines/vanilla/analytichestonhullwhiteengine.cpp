@@ -21,55 +21,60 @@
 #include <ql/pricingengines/vanilla/analytichestonhullwhiteengine.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    AnalyticHestonHullWhiteEngine::AnalyticHestonHullWhiteEngine(
-        const ext::shared_ptr<HestonModel>& hestonModel,
-        ext::shared_ptr<HullWhite> hullWhiteModel,
-        Size integrationOrder)
-    : AnalyticHestonEngine(
-            hestonModel, AnalyticHestonEngine::Gatheral,
-            AnalyticHestonEngine::Integration::gaussLaguerre(integrationOrder)),
-      hullWhiteModel_(std::move(hullWhiteModel)) {
+    AnalyticHestonHullWhiteEngine::AnalyticHestonHullWhiteEngine(const ext::shared_ptr<HestonModel>& hestonModel,
+                                                                 ext::shared_ptr<HullWhite> hullWhiteModel,
+                                                                 Size integrationOrder)
+    : AnalyticHestonEngine(hestonModel,
+                           AnalyticHestonEngine::Gatheral,
+                           AnalyticHestonEngine::Integration::gaussLaguerre(integrationOrder)),
+      hullWhiteModel_(std::move(hullWhiteModel))
+    {
         setParameters();
         registerWith(hullWhiteModel_);
     }
 
-    AnalyticHestonHullWhiteEngine::AnalyticHestonHullWhiteEngine(
-        const ext::shared_ptr<HestonModel>& hestonModel,
-        ext::shared_ptr<HullWhite> hullWhiteModel,
-        Real relTolerance,
-        Size maxEvaluations)
-    : AnalyticHestonEngine(
-        hestonModel, AnalyticHestonEngine::Gatheral,
-        AnalyticHestonEngine::Integration::gaussLobatto(
-            relTolerance, Null<Real>(), maxEvaluations)),
-      hullWhiteModel_(std::move(hullWhiteModel)) {
+    AnalyticHestonHullWhiteEngine::AnalyticHestonHullWhiteEngine(const ext::shared_ptr<HestonModel>& hestonModel,
+                                                                 ext::shared_ptr<HullWhite> hullWhiteModel,
+                                                                 Real relTolerance,
+                                                                 Size maxEvaluations)
+    : AnalyticHestonEngine(hestonModel,
+                           AnalyticHestonEngine::Gatheral,
+                           AnalyticHestonEngine::Integration::gaussLobatto(relTolerance, Null<Real>(), maxEvaluations)),
+      hullWhiteModel_(std::move(hullWhiteModel))
+    {
         setParameters();
         registerWith(hullWhiteModel_);
     }
 
-    void AnalyticHestonHullWhiteEngine::update() {
+    void AnalyticHestonHullWhiteEngine::update()
+    {
         setParameters();
         AnalyticHestonEngine::update();
     }
 
-    void AnalyticHestonHullWhiteEngine::calculate() const {
+    void AnalyticHestonHullWhiteEngine::calculate() const
+    {
 
         const Real t = model_->process()->time(arguments_.exercise->lastDate());
-        if (a_*t > std::pow(QL_EPSILON, 0.25)) {
-            m_ = sigma_*sigma_/(2*a_*a_)
-                *(t+2/a_*std::exp(-a_*t)-1/(2*a_)*std::exp(-2*a_*t)-3/(2*a_));
+        if (a_ * t > std::pow(QL_EPSILON, 0.25))
+        {
+            m_ = sigma_ * sigma_ / (2 * a_ * a_) *
+                 (t + 2 / a_ * std::exp(-a_ * t) - 1 / (2 * a_) * std::exp(-2 * a_ * t) - 3 / (2 * a_));
         }
-        else {
+        else
+        {
             // low-a algebraic limit
-            m_ = 0.5*sigma_*sigma_*t*t*t*(1/3.0-0.25*a_*t+7/60.0*a_*a_*t*t);
+            m_ = 0.5 * sigma_ * sigma_ * t * t * t * (1 / 3.0 - 0.25 * a_ * t + 7 / 60.0 * a_ * a_ * t * t);
         }
 
         AnalyticHestonEngine::calculate();
     }
 
-    void AnalyticHestonHullWhiteEngine::setParameters() {
+    void AnalyticHestonHullWhiteEngine::setParameters()
+    {
         a_ = hullWhiteModel_->params()[0];
         sigma_ = hullWhiteModel_->params()[1];
     }

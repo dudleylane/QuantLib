@@ -19,33 +19,34 @@
 */
 
 
-#include <ql/models/marketmodels/models/piecewiseconstantvariance.hpp>
 #include <ql/errors.hpp>
+#include <ql/models/marketmodels/models/piecewiseconstantvariance.hpp>
 #include <numeric>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Real PiecewiseConstantVariance::variance(Size i) const {
-        QL_REQUIRE(i<variances().size(),
-                   "invalid step index");
+    Real PiecewiseConstantVariance::variance(Size i) const
+    {
+        QL_REQUIRE(i < variances().size(), "invalid step index");
         return variances()[i];
     }
 
-    Volatility PiecewiseConstantVariance::volatility(Size i) const {
-        QL_REQUIRE(i<volatilities().size(),
-                   "invalid step index");
+    Volatility PiecewiseConstantVariance::volatility(Size i) const
+    {
+        QL_REQUIRE(i < volatilities().size(), "invalid step index");
         return volatilities()[i];
     }
 
-    Real PiecewiseConstantVariance::totalVariance(Size i) const {
-        QL_REQUIRE(i<variances().size(),
-                   "invalid step index");
-        return std::accumulate(variances().begin(),
-                               variances().begin()+i+1, Real(0.0));
+    Real PiecewiseConstantVariance::totalVariance(Size i) const
+    {
+        QL_REQUIRE(i < variances().size(), "invalid step index");
+        return std::accumulate(variances().begin(), variances().begin() + i + 1, Real(0.0));
     }
 
-    Volatility PiecewiseConstantVariance::totalVolatility(Size i) const {
-        return std::sqrt(totalVariance(i)/rateTimes()[i]);
+    Volatility PiecewiseConstantVariance::totalVolatility(Size i) const
+    {
+        return std::sqrt(totalVariance(i) / rateTimes()[i]);
     }
 
 }

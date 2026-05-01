@@ -22,13 +22,15 @@
 
 #include <boost/test/unit_test.hpp>
 
-enum SpeedLevel {
-    Slow   = 0,
-    Fast   = 1,
+enum SpeedLevel
+{
+    Slow = 0,
+    Fast = 1,
     Faster = 2
 };
 
-struct if_speed {
+struct if_speed
+{
     SpeedLevel speed;
 
     if_speed(SpeedLevel speed);
@@ -36,8 +38,9 @@ struct if_speed {
     boost::test_tools::assertion_result operator()(boost::unit_test::test_unit_id);
 };
 
-struct usingAtParCoupons {
+struct usingAtParCoupons
+{
     boost::test_tools::assertion_result operator()(boost::unit_test::test_unit_id);
 };
 
-#endif //quantlib_test_preconditions_hpp
+#endif // quantlib_test_preconditions_hpp

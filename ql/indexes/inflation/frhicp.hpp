@@ -28,28 +28,28 @@
 #include <ql/currencies/europe.hpp>
 #include <ql/indexes/inflationindex.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! FR HICP index
-    class FRHICP : public ZeroInflationIndex {
+    class FRHICP : public ZeroInflationIndex
+    {
       public:
         explicit FRHICP(const Handle<ZeroInflationTermStructure>& ts = {})
-        : ZeroInflationIndex(
-              "HICP", FranceRegion(), false, Monthly, Period(1, Months), EURCurrency(), ts) {}
+        : ZeroInflationIndex("HICP", FranceRegion(), false, Monthly, Period(1, Months), EURCurrency(), ts)
+        {
+        }
     };
 
 
     //! Quoted year-on-year FR HICP (i.e. not a ratio)
-    class YYFRHICP : public YoYInflationIndex {
+    class YYFRHICP : public YoYInflationIndex
+    {
       public:
         explicit YYFRHICP(const Handle<YoYInflationTermStructure>& ts = {})
-        : YoYInflationIndex("YY_HICP",
-                            FranceRegion(),
-                            false,
-                            Monthly,
-                            Period(1, Months),
-                            EURCurrency(),
-                            ts) {}
+        : YoYInflationIndex("YY_HICP", FranceRegion(), false, Monthly, Period(1, Months), EURCurrency(), ts)
+        {
+        }
     };
 
 }

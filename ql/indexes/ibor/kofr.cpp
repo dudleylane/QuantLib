@@ -23,9 +23,11 @@
 #include <ql/time/calendars/southkorea.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
     Kofr::Kofr(const Handle<YieldTermStructure>& h)
-    : OvernightIndex(
-          "KOFR", 0, KRWCurrency(), SouthKorea(SouthKorea::Settlement), Actual365Fixed(), h) {}
+    : OvernightIndex("KOFR", 0, KRWCurrency(), SouthKorea(SouthKorea::Settlement), Actual365Fixed(), h)
+    {
+    }
 
 }

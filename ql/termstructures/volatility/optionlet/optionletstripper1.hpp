@@ -31,7 +31,8 @@
 
 #include <ql/termstructures/volatility/optionlet/optionletstripper.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class SimpleQuote;
     class CapFloor;
@@ -41,22 +42,22 @@ namespace QuantLib {
         (a.k.a. forward-forward volatilities) from the (cap/floor) term
         volatilities of a CapFloorTermVolSurface.
     */
-    class OptionletStripper1 : public OptionletStripper {
+    class OptionletStripper1 : public OptionletStripper
+    {
       public:
-        OptionletStripper1(
-            const ext::shared_ptr<CapFloorTermVolSurface>&,
-            const ext::shared_ptr<IborIndex>& index,
-            Rate switchStrikes = Null<Rate>(),
-            Real accuracy = 1.0e-6,
-            Natural maxIter = 100,
-            const Handle<YieldTermStructure>& discount = {},
-            VolatilityType type = ShiftedLognormal,
-            Real displacement = 0.0,
-            bool dontThrow = false,
-            ext::optional<Period> optionletFrequency = ext::nullopt);
+        OptionletStripper1(const ext::shared_ptr<CapFloorTermVolSurface>&,
+                           const ext::shared_ptr<IborIndex>& index,
+                           Rate switchStrikes = Null<Rate>(),
+                           Real accuracy = 1.0e-6,
+                           Natural maxIter = 100,
+                           const Handle<YieldTermStructure>& discount = {},
+                           VolatilityType type = ShiftedLognormal,
+                           Real displacement = 0.0,
+                           bool dontThrow = false,
+                           ext::optional<Period> optionletFrequency = ext::nullopt);
 
         const Matrix& capFloorPrices() const;
-        const Matrix &capletVols() const;
+        const Matrix& capletVols() const;
         const Matrix& capFloorVolatilities() const;
         const Matrix& optionletPrices() const;
         Rate switchStrike() const;

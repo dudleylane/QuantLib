@@ -25,40 +25,40 @@
 #include <boost/config.hpp>
 
 #ifdef _M_X64
-#  define QL_LIB_PLATFORM "-x64"
+#    define QL_LIB_PLATFORM "-x64"
 #else
-#  define QL_LIB_PLATFORM
+#    define QL_LIB_PLATFORM
 #endif
 
 /*** libraries to be linked ***/
 
 // select thread opt:
 #ifdef _MT
-#  define QL_LIB_THREAD_OPT "-mt"
+#    define QL_LIB_THREAD_OPT "-mt"
 #else
-#  define QL_LIB_THREAD_OPT
+#    define QL_LIB_THREAD_OPT
 #endif
 
 // select linkage opt:
 #ifdef _DLL
-#  if defined(_DEBUG)
-#    define QL_LIB_RT_OPT "-gd"
-#  else
-#    define QL_LIB_RT_OPT
-#  endif
+#    if defined(_DEBUG)
+#        define QL_LIB_RT_OPT "-gd"
+#    else
+#        define QL_LIB_RT_OPT
+#    endif
 #else
-#  if defined(_DEBUG)
-#    define QL_LIB_RT_OPT "-sgd"
-#  else
-#    define QL_LIB_RT_OPT "-s"
-#  endif
+#    if defined(_DEBUG)
+#        define QL_LIB_RT_OPT "-sgd"
+#    else
+#        define QL_LIB_RT_OPT "-s"
+#    endif
 #endif
 
 #define QL_LIB_NAME "QuantLib" QL_LIB_PLATFORM QL_LIB_THREAD_OPT QL_LIB_RT_OPT ".lib"
 
 #pragma comment(lib, QL_LIB_NAME)
 #ifdef BOOST_LIB_DIAGNOSTIC
-#  pragma message("Will (need to) link to lib file: " QL_LIB_NAME)
+#    pragma message("Will (need to) link to lib file: " QL_LIB_NAME)
 #endif
 
 #endif

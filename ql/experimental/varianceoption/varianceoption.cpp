@@ -21,16 +21,19 @@
 #include <ql/experimental/varianceoption/varianceoption.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     VarianceOption::VarianceOption(ext::shared_ptr<Payoff> payoff,
                                    Real notional,
                                    const Date& startDate,
                                    const Date& maturityDate)
-    : payoff_(std::move(payoff)), notional_(notional), startDate_(startDate),
-      maturityDate_(maturityDate) {}
+    : payoff_(std::move(payoff)), notional_(notional), startDate_(startDate), maturityDate_(maturityDate)
+    {
+    }
 
-    void VarianceOption::setupArguments(PricingEngine::arguments* args) const {
+    void VarianceOption::setupArguments(PricingEngine::arguments* args) const
+    {
         auto* arguments = dynamic_cast<VarianceOption::arguments*>(args);
         QL_REQUIRE(arguments != nullptr, "wrong argument type");
 
@@ -40,7 +43,8 @@ namespace QuantLib {
         arguments->maturityDate = maturityDate_;
     }
 
-    void VarianceOption::arguments::validate() const {
+    void VarianceOption::arguments::validate() const
+    {
         QL_REQUIRE(payoff, "no strike given");
         QL_REQUIRE(notional != Null<Real>(), "no notional given");
         QL_REQUIRE(notional > 0.0, "negative or null notional given");
@@ -48,7 +52,8 @@ namespace QuantLib {
         QL_REQUIRE(maturityDate != Date(), "null maturity date given");
     }
 
-    bool VarianceOption::isExpired() const {
+    bool VarianceOption::isExpired() const
+    {
         return detail::simple_event(maturityDate_).hasOccurred();
     }
 

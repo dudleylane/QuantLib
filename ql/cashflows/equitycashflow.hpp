@@ -24,18 +24,20 @@
 #ifndef quantlib_equity_cash_flow_hpp
 #define quantlib_equity_cash_flow_hpp
 
-#include <ql/termstructures/volatility/equityfx/blackvoltermstructure.hpp>
-#include <ql/termstructures/yield/zeroyieldstructure.hpp>
 #include <ql/cashflows/indexedcashflow.hpp>
 #include <ql/patterns/visitor.hpp>
+#include <ql/termstructures/volatility/equityfx/blackvoltermstructure.hpp>
+#include <ql/termstructures/yield/zeroyieldstructure.hpp>
 
-namespace QuantLib {
-    
+namespace QuantLib
+{
+
     class EquityIndex;
     class EquityCashFlowPricer;
-    
-    class EquityCashFlow : public IndexedCashFlow {
-       public:
+
+    class EquityCashFlow : public IndexedCashFlow
+    {
+      public:
         EquityCashFlow(Real notional,
                        ext::shared_ptr<EquityIndex> index,
                        const Date& baseDate,
@@ -57,7 +59,8 @@ namespace QuantLib {
         ext::shared_ptr<EquityCashFlowPricer> pricer_;
     };
 
-    inline void EquityCashFlow::accept(AcyclicVisitor& v) {
+    inline void EquityCashFlow::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<EquityCashFlow>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);
@@ -67,7 +70,8 @@ namespace QuantLib {
 
     void setCouponPricer(const Leg& leg, const ext::shared_ptr<EquityCashFlowPricer>&);
 
-    class EquityCashFlowPricer : public virtual Observer, public virtual Observable {
+    class EquityCashFlowPricer : public virtual Observer, public virtual Observable
+    {
       public:
         EquityCashFlowPricer() = default;
         //! \name Interface
@@ -86,7 +90,8 @@ namespace QuantLib {
         bool growthOnlyPayoff_;
     };
 
-    class EquityQuantoCashFlowPricer : public EquityCashFlowPricer {
+    class EquityQuantoCashFlowPricer : public EquityCashFlowPricer
+    {
       public:
         EquityQuantoCashFlowPricer(Handle<YieldTermStructure> quantoCurrencyTermStructure,
                                    Handle<BlackVolTermStructure> equityVolatility,

@@ -24,13 +24,15 @@
 #ifndef quantlib_method_of_lines_scheme_hpp
 #define quantlib_method_of_lines_scheme_hpp
 
-#include <ql/methods/finitedifferences/operatortraits.hpp>
 #include <ql/methods/finitedifferences/operators/fdmlinearopcomposite.hpp>
+#include <ql/methods/finitedifferences/operatortraits.hpp>
 #include <ql/methods/finitedifferences/schemes/boundaryconditionschemehelper.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    class MethodOfLinesScheme  {
+    class MethodOfLinesScheme
+    {
       public:
         // typedefs
         typedef OperatorTraits<FdmLinearOp> traits;
@@ -49,7 +51,7 @@ namespace QuantLib {
         void setStep(Time dt);
 
       protected:
-        //apply for QuantLib's Runge-Kutta implementation
+        // apply for QuantLib's Runge-Kutta implementation
         std::vector<Real> apply(Time, const std::vector<Real>&) const;
 
         Time dt_;

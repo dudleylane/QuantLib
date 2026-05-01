@@ -24,10 +24,11 @@
 #ifndef quantlib_comparison_hpp
 #define quantlib_comparison_hpp
 
-#include <ql/types.hpp>
 #include <ql/shared_ptr.hpp>
+#include <ql/types.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     /*! Follows somewhat the advice of Knuth on checking for floating-point
         equality. The closeness relationship is:
@@ -56,7 +57,8 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline bool close(Real x, Real y) {
+    inline bool close(Real x, Real y)
+    {
         // we're duplicating the code here instead of calling close(x,y,42)
         // for optimization; this allows us to make tolerance constexpr
         // and shave a few more cycles.
@@ -65,61 +67,59 @@ namespace QuantLib {
         if (x == y)
             return true;
 
-        Real diff = std::fabs(x-y);
+        Real diff = std::fabs(x - y);
         constexpr double tolerance = 42 * QL_EPSILON;
 
         if (x == 0.0 || y == 0.0)
             return diff < (tolerance * tolerance);
 
-        return diff <= tolerance*std::fabs(x) &&
-               diff <= tolerance*std::fabs(y);
+        return diff <= tolerance * std::fabs(x) && diff <= tolerance * std::fabs(y);
     }
 
-    inline bool close(Real x, Real y, Size n) {
+    inline bool close(Real x, Real y, Size n)
+    {
         // Deals with +infinity and -infinity representations etc.
         if (x == y)
             return true;
 
-        Real diff = std::fabs(x-y), tolerance = n * QL_EPSILON;
+        Real diff = std::fabs(x - y), tolerance = n * QL_EPSILON;
 
         if (x == 0.0 || y == 0.0)
             return diff < (tolerance * tolerance);
 
-        return diff <= tolerance*std::fabs(x) &&
-               diff <= tolerance*std::fabs(y);
+        return diff <= tolerance * std::fabs(x) && diff <= tolerance * std::fabs(y);
     }
 
-    inline bool close_enough(Real x, Real y) {
+    inline bool close_enough(Real x, Real y)
+    {
         // see close() for a note on duplication
 
         // Deals with +infinity and -infinity representations etc.
         if (x == y)
             return true;
 
-        Real diff = std::fabs(x-y);
+        Real diff = std::fabs(x - y);
         constexpr double tolerance = 42 * QL_EPSILON;
 
         if (x == 0.0 || y == 0.0) // x or y = 0.0
             return diff < (tolerance * tolerance);
 
-        return diff <= tolerance*std::fabs(x) ||
-               diff <= tolerance*std::fabs(y);
+        return diff <= tolerance * std::fabs(x) || diff <= tolerance * std::fabs(y);
     }
 
-    inline bool close_enough(Real x, Real y, Size n) {
+    inline bool close_enough(Real x, Real y, Size n)
+    {
         // Deals with +infinity and -infinity representations etc.
         if (x == y)
             return true;
 
-        Real diff = std::fabs(x-y), tolerance = n * QL_EPSILON;
+        Real diff = std::fabs(x - y), tolerance = n * QL_EPSILON;
 
         if (x == 0.0 || y == 0.0)
             return diff < (tolerance * tolerance);
 
-        return diff <= tolerance*std::fabs(x) ||
-               diff <= tolerance*std::fabs(y);
+        return diff <= tolerance * std::fabs(x) || diff <= tolerance * std::fabs(y);
     }
-
 
 
     //! compare two objects by date
@@ -127,15 +127,17 @@ namespace QuantLib {
         Template specializations will have to be defined for
         each needed type (see CashFlow for an example.)
     */
-    template <class T> struct earlier_than;
+    template <class T>
+    struct earlier_than;
 
     /* partial specialization for shared pointers, forwarding to their
        pointees. */
     template <class T>
-    struct earlier_than<ext::shared_ptr<T> > {
-        bool operator()(const ext::shared_ptr<T>& x,
-                        const ext::shared_ptr<T>& y) const {
-            return earlier_than<T>()(*x,*y);
+    struct earlier_than<ext::shared_ptr<T>>
+    {
+        bool operator()(const ext::shared_ptr<T>& x, const ext::shared_ptr<T>& y) const
+        {
+            return earlier_than<T>()(*x, *y);
         }
     };
 

@@ -18,16 +18,15 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/models/calibrationhelper.hpp>
 #include <ql/math/solvers1d/brent.hpp>
+#include <ql/models/calibrationhelper.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Volatility BlackCalibrationHelper::impliedVolatility(Real targetValue,
-                                                         Real accuracy,
-                                                         Size maxEvaluations,
-                                                         Volatility minVol,
-                                                         Volatility maxVol) const {
+    Volatility BlackCalibrationHelper::impliedVolatility(
+        Real targetValue, Real accuracy, Size maxEvaluations, Volatility minVol, Volatility maxVol) const
+    {
 
         auto error = [&](Volatility x) { return targetValue - blackPrice(x); };
         Brent solver;
@@ -35,39 +34,40 @@ namespace QuantLib {
         return solver.solve(error, accuracy, volatility_->value(), minVol, maxVol);
     }
 
-    Real BlackCalibrationHelper::calibrationError() {
+    Real BlackCalibrationHelper::calibrationError()
+    {
         Real error;
-        
-        switch (calibrationErrorType_) {
-          case RelativePriceError:
-            error = std::fabs(marketValue() - modelValue())/marketValue();
-            break;
-          case PriceError:
-            error = marketValue() - modelValue();
-            break;
-          case ImpliedVolError: 
-            {
-              Real minVol = volatilityType_ == ShiftedLognormal ? 0.0010 : 0.00005;
-              Real maxVol = volatilityType_ == ShiftedLognormal ? 10.0 : 0.50;
-              const Real lowerPrice = blackPrice(minVol);
-              const Real upperPrice = blackPrice(maxVol);
-              const Real modelPrice = modelValue();
 
-              Volatility implied;
-              if (modelPrice <= lowerPrice)
-                  implied = minVol;
-              else if (modelPrice >= upperPrice)
-                  implied = maxVol;
-              else
-                  implied = this->impliedVolatility(
-                                          modelPrice, 1e-12, 5000, minVol, maxVol);
-              error = implied - volatility_->value();
+        switch (calibrationErrorType_)
+        {
+            case RelativePriceError:
+                error = std::fabs(marketValue() - modelValue()) / marketValue();
+                break;
+            case PriceError:
+                error = marketValue() - modelValue();
+                break;
+            case ImpliedVolError:
+            {
+                Real minVol = volatilityType_ == ShiftedLognormal ? 0.0010 : 0.00005;
+                Real maxVol = volatilityType_ == ShiftedLognormal ? 10.0 : 0.50;
+                const Real lowerPrice = blackPrice(minVol);
+                const Real upperPrice = blackPrice(maxVol);
+                const Real modelPrice = modelValue();
+
+                Volatility implied;
+                if (modelPrice <= lowerPrice)
+                    implied = minVol;
+                else if (modelPrice >= upperPrice)
+                    implied = maxVol;
+                else
+                    implied = this->impliedVolatility(modelPrice, 1e-12, 5000, minVol, maxVol);
+                error = implied - volatility_->value();
             }
             break;
-          default:
-            QL_FAIL("unknown Calibration Error Type");
+            default:
+                QL_FAIL("unknown Calibration Error Type");
         }
-        
+
         return error;
     }
 }

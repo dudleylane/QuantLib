@@ -21,17 +21,19 @@
 #ifndef quantlib_multiproduct_multistep_hpp
 #define quantlib_multiproduct_multistep_hpp
 
-#include <ql/models/marketmodels/multiproduct.hpp>
 #include <ql/models/marketmodels/evolutiondescription.hpp>
+#include <ql/models/marketmodels/multiproduct.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Multiple-step market-model product
     /*! This is the abstract base class that encapsulates the notion
         of a MarketModelMultiProduct which can be evaluated in a more
         than one step (aka Rebonato's long jump).
     */
-    class MultiProductMultiStep : public MarketModelMultiProduct {
+    class MultiProductMultiStep : public MarketModelMultiProduct
+    {
       public:
         explicit MultiProductMultiStep(std::vector<Time> rateTimes);
         //! \name MarketModelMultiProduct interface

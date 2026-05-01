@@ -17,4 +17,3 @@
 #include <ql/math/matrixutilities/symmetricschurdecomposition.hpp>
 #include <ql/math/matrixutilities/tapcorrelations.hpp>
 #include <ql/math/matrixutilities/tqreigendecomposition.hpp>
-

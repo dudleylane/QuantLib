@@ -11,8 +11,10 @@
 #include <ql/instruments/bmaswap.hpp>
 #include <ql/instruments/bond.hpp>
 #include <ql/instruments/bondforward.hpp>
+#include <ql/instruments/bonds/all.hpp>
 #include <ql/instruments/callabilityschedule.hpp>
 #include <ql/instruments/capfloor.hpp>
+#include <ql/instruments/cdsoption.hpp>
 #include <ql/instruments/claim.hpp>
 #include <ql/instruments/cliquetoption.hpp>
 #include <ql/instruments/complexchooseroption.hpp>
@@ -21,7 +23,6 @@
 #include <ql/instruments/cpicapfloor.hpp>
 #include <ql/instruments/cpiswap.hpp>
 #include <ql/instruments/creditdefaultswap.hpp>
-#include <ql/instruments/cdsoption.hpp>
 #include <ql/instruments/dividendschedule.hpp>
 #include <ql/instruments/doublebarrieroption.hpp>
 #include <ql/instruments/doublebarriertype.hpp>
@@ -79,5 +80,3 @@
 #include <ql/instruments/yearonyearinflationswap.hpp>
 #include <ql/instruments/zerocouponinflationswap.hpp>
 #include <ql/instruments/zerocouponswap.hpp>
-
-#include <ql/instruments/bonds/all.hpp>

@@ -18,23 +18,25 @@
 */
 
 /*! \file fdmextoujumpsolver.hpp
-*/
+ */
 
 #ifndef quantlib_fdm_ext_ou_jump_solver_hpp
 #define quantlib_fdm_ext_ou_jump_solver_hpp
 
 #include <ql/handle.hpp>
-#include <ql/patterns/lazyobject.hpp>
-#include <ql/methods/finitedifferences/solvers/fdmsolverdesc.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
+#include <ql/methods/finitedifferences/solvers/fdmsolverdesc.hpp>
+#include <ql/patterns/lazyobject.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class Fdm2DimSolver;
     class ExtOUWithJumpsProcess;
     class YieldTermStructure;
 
-    class FdmExtOUJumpSolver : public LazyObject {
+    class FdmExtOUJumpSolver : public LazyObject
+    {
       public:
         FdmExtOUJumpSolver(Handle<ExtOUWithJumpsProcess> process,
                            ext::shared_ptr<YieldTermStructure> rTS,
@@ -42,7 +44,7 @@ namespace QuantLib {
                            const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Hundsdorfer());
 
         Real valueAt(Real x, Real y) const;
-        
+
       protected:
         void performCalculations() const override;
 

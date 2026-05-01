@@ -26,35 +26,39 @@
 
 #include <ql/math/matrixutilities/svd.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-/*! Reference:
-    http://de.mathworks.com/help/matlab/ref/pinv.html
-    https://en.wikipedia.org/wiki/Moore%E2%80%93Penrose_pseudoinverse */
+    /*! Reference:
+        http://de.mathworks.com/help/matlab/ref/pinv.html
+        https://en.wikipedia.org/wiki/Moore%E2%80%93Penrose_pseudoinverse */
 
-inline Matrix moorePenroseInverse(const Matrix &A,
-                                  const Real tol = Null<Real>()) {
+    inline Matrix moorePenroseInverse(const Matrix& A, const Real tol = Null<Real>())
+    {
 
-    Size m = A.rows();
-    Size n = A.columns();
+        Size m = A.rows();
+        Size n = A.columns();
 
-    SVD svd(A);
+        SVD svd(A);
 
-    Real tol0 = tol;
-    if (tol0 == Null<Real>()) {
-        tol0 = std::max(m, n) * QL_EPSILON * std::abs(svd.singularValues()[0]);
-    }
-
-    Matrix sp(n, n, 0.0);
-    for (Size i = 0; i < n; ++i) {
-        if (std::abs(svd.singularValues()[i]) > tol0) {
-            sp(i, i) = 1.0 / svd.singularValues()[i];
+        Real tol0 = tol;
+        if (tol0 == Null<Real>())
+        {
+            tol0 = std::max(m, n) * QL_EPSILON * std::abs(svd.singularValues()[0]);
         }
-    }
 
-    Matrix res = svd.V() * sp * transpose(svd.U());
-    return res;
-};
+        Matrix sp(n, n, 0.0);
+        for (Size i = 0; i < n; ++i)
+        {
+            if (std::abs(svd.singularValues()[i]) > tol0)
+            {
+                sp(i, i) = 1.0 / svd.singularValues()[i];
+            }
+        }
+
+        Matrix res = svd.V() * sp * transpose(svd.U());
+        return res;
+    };
 
 } // namespace QuantLib
 

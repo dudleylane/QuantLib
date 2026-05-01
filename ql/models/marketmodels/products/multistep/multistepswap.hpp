@@ -22,11 +22,13 @@
 
 #include <ql/models/marketmodels/products/multiproductmultistep.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     // TODO: add payer/receiver choice
 
-    class MultiStepSwap : public MultiProductMultiStep {
+    class MultiStepSwap : public MultiProductMultiStep
+    {
       public:
         MultiStepSwap(const std::vector<Time>& rateTimes,
                       std::vector<Real> fixedAccruals,
@@ -42,7 +44,7 @@ namespace QuantLib {
         void reset() override;
         bool nextTimeStep(const CurveState& currentState,
                           std::vector<Size>& numberCashFlowsThisStep,
-                          std::vector<std::vector<CashFlow> >& cashFlowsGenerated) override;
+                          std::vector<std::vector<CashFlow>>& cashFlowsGenerated) override;
         std::unique_ptr<MarketModelMultiProduct> clone() const override;
         //@}
       private:
@@ -58,22 +60,24 @@ namespace QuantLib {
 
     // inline definitions
 
-    inline std::vector<Time>
-    MultiStepSwap::possibleCashFlowTimes() const {
+    inline std::vector<Time> MultiStepSwap::possibleCashFlowTimes() const
+    {
         return paymentTimes_;
     }
 
-    inline Size MultiStepSwap::numberOfProducts() const {
+    inline Size MultiStepSwap::numberOfProducts() const
+    {
         return 1;
     }
 
-    inline Size
-    MultiStepSwap::maxNumberOfCashFlowsPerProductPerStep() const {
+    inline Size MultiStepSwap::maxNumberOfCashFlowsPerProductPerStep() const
+    {
         return 2;
     }
 
-    inline void MultiStepSwap::reset() {
-       currentIndex_=0;
+    inline void MultiStepSwap::reset()
+    {
+        currentIndex_ = 0;
     }
 
 }

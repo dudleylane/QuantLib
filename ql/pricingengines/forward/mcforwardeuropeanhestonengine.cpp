@@ -15,24 +15,23 @@
 
 #include <ql/pricingengines/forward/mcforwardeuropeanhestonengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    ForwardEuropeanHestonPathPricer::ForwardEuropeanHestonPathPricer(
-                                          Option::Type type,
-                                          Real moneyness,
-                                          Size resetIndex,
-                                          DiscountFactor discount)
-    : type_(type), moneyness_(moneyness), resetIndex_(resetIndex),
-      discount_(discount)
-       {
-        QL_REQUIRE(moneyness>=0.0,
-                   "moneyness less than zero not allowed");
+    ForwardEuropeanHestonPathPricer::ForwardEuropeanHestonPathPricer(Option::Type type,
+                                                                     Real moneyness,
+                                                                     Size resetIndex,
+                                                                     DiscountFactor discount)
+    : type_(type), moneyness_(moneyness), resetIndex_(resetIndex), discount_(discount)
+    {
+        QL_REQUIRE(moneyness >= 0.0, "moneyness less than zero not allowed");
     }
 
-    Real ForwardEuropeanHestonPathPricer::operator()(const MultiPath& multiPath) const {
+    Real ForwardEuropeanHestonPathPricer::operator()(const MultiPath& multiPath) const
+    {
         const Path& path = multiPath[0];
         const Size n = multiPath.pathSize();
-        QL_REQUIRE(n>0, "the path cannot be empty");
+        QL_REQUIRE(n > 0, "the path cannot be empty");
 
         const Real resetLevel = path[resetIndex_];
         const Real strike = resetLevel * moneyness_;

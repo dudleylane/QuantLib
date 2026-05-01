@@ -27,12 +27,13 @@
 #ifndef quantlib_instruments_capfloor_hpp
 #define quantlib_instruments_capfloor_hpp
 
-#include <ql/instrument.hpp>
 #include <ql/cashflows/iborcoupon.hpp>
 #include <ql/handle.hpp>
+#include <ql/instrument.hpp>
 #include <ql/termstructures/volatility/volatilitytype.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class YieldTermStructure;
 
@@ -52,15 +53,18 @@ namespace QuantLib {
         - the correctness of the returned value is tested by checking
           it against a known good value.
     */
-    class CapFloor : public Instrument {
+    class CapFloor : public Instrument
+    {
       public:
-        enum Type { Cap, Floor, Collar };
+        enum Type
+        {
+            Cap,
+            Floor,
+            Collar
+        };
         class arguments;
         class engine;
-        CapFloor(Type type,
-                 Leg floatingLeg,
-                 std::vector<Rate> capRates,
-                 std::vector<Rate> floorRates);
+        CapFloor(Type type, Leg floatingLeg, std::vector<Rate> capRates, std::vector<Rate> floorRates);
         CapFloor(Type type, Leg floatingLeg, const std::vector<Rate>& strikes);
         //! \name Observable interface
         //@{
@@ -86,16 +90,16 @@ namespace QuantLib {
         //@}
         Rate atmRate(const YieldTermStructure& discountCurve) const;
         //! implied term volatility
-        Volatility impliedVolatility(
-                                 Real price,
-                                 const Handle<YieldTermStructure>& disc,
-                                 Volatility guess,
-                                 Real accuracy = 1.0e-4,
-                                 Natural maxEvaluations = 100,
-                                 Volatility minVol = 1.0e-7,
-                                 Volatility maxVol = 4.0,
-                                 VolatilityType type = ShiftedLognormal,
-                                 Real displacement = 0.0) const;
+        Volatility impliedVolatility(Real price,
+                                     const Handle<YieldTermStructure>& disc,
+                                     Volatility guess,
+                                     Real accuracy = 1.0e-4,
+                                     Natural maxEvaluations = 100,
+                                     Volatility minVol = 1.0e-7,
+                                     Volatility maxVol = 4.0,
+                                     VolatilityType type = ShiftedLognormal,
+                                     Real displacement = 0.0) const;
+
       private:
         Type type_;
         Leg floatingLeg_;
@@ -105,37 +109,41 @@ namespace QuantLib {
 
     //! Concrete cap class
     /*! \ingroup instruments */
-    class Cap : public CapFloor {
+    class Cap : public CapFloor
+    {
       public:
-        Cap(const Leg& floatingLeg,
-            const std::vector<Rate>& exerciseRates)
-        : CapFloor(CapFloor::Cap, floatingLeg,
-                   exerciseRates, std::vector<Rate>()) {}
+        Cap(const Leg& floatingLeg, const std::vector<Rate>& exerciseRates)
+        : CapFloor(CapFloor::Cap, floatingLeg, exerciseRates, std::vector<Rate>())
+        {
+        }
     };
 
     //! Concrete floor class
     /*! \ingroup instruments */
-    class Floor : public CapFloor {
+    class Floor : public CapFloor
+    {
       public:
-        Floor(const Leg& floatingLeg,
-              const std::vector<Rate>& exerciseRates)
-        : CapFloor(CapFloor::Floor, floatingLeg,
-                   std::vector<Rate>(), exerciseRates) {}
+        Floor(const Leg& floatingLeg, const std::vector<Rate>& exerciseRates)
+        : CapFloor(CapFloor::Floor, floatingLeg, std::vector<Rate>(), exerciseRates)
+        {
+        }
     };
 
     //! Concrete collar class
     /*! \ingroup instruments */
-    class Collar : public CapFloor {
+    class Collar : public CapFloor
+    {
       public:
-        Collar(const Leg& floatingLeg,
-               const std::vector<Rate>& capRates,
-               const std::vector<Rate>& floorRates)
-        : CapFloor(CapFloor::Collar, floatingLeg, capRates, floorRates) {}
+        Collar(const Leg& floatingLeg, const std::vector<Rate>& capRates, const std::vector<Rate>& floorRates)
+        : CapFloor(CapFloor::Collar, floatingLeg, capRates, floorRates)
+        {
+        }
     };
 
 
     //! %Arguments for cap/floor calculation
-    class CapFloor::arguments : public virtual PricingEngine::arguments {
+    class CapFloor::arguments : public virtual PricingEngine::arguments
+    {
       public:
         arguments() : type(CapFloor::Type(-1)) {}
         CapFloor::Type type;
@@ -149,13 +157,14 @@ namespace QuantLib {
         std::vector<Real> gearings;
         std::vector<Real> spreads;
         std::vector<Real> nominals;
-        std::vector<ext::shared_ptr<InterestRateIndex> > indexes;
+        std::vector<ext::shared_ptr<InterestRateIndex>> indexes;
         void validate() const override;
     };
 
     //! base class for cap/floor engines
-    class CapFloor::engine
-        : public GenericEngine<CapFloor::arguments, CapFloor::results> {};
+    class CapFloor::engine : public GenericEngine<CapFloor::arguments, CapFloor::results>
+    {
+    };
 
     std::ostream& operator<<(std::ostream&, CapFloor::Type);
 

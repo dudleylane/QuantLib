@@ -19,21 +19,23 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/errors.hpp>
 #include <ql/instruments/averagetype.hpp>
 #include <ql/types.hpp>
-#include <ql/errors.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    std::ostream& operator<<(std::ostream& out,
-                             Average::Type type) {
-        switch (type) {
-          case Average::Arithmetic:
-            return out << "Arithmetic";
-          case Average::Geometric:
-            return out << "Geometric";
-          default:
-            QL_FAIL("unknown Average::Type (" << Integer(type) << ")");
+    std::ostream& operator<<(std::ostream& out, Average::Type type)
+    {
+        switch (type)
+        {
+            case Average::Arithmetic:
+                return out << "Arithmetic";
+            case Average::Geometric:
+                return out << "Geometric";
+            default:
+                QL_FAIL("unknown Average::Type (" << Integer(type) << ")");
         }
     }
 

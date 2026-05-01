@@ -25,20 +25,21 @@
 #ifndef quantlib_fd_simple_ext_ou_storage_engine_hpp
 #define quantlib_fd_simple_ext_ou_storage_engine_hpp
 
-#include <ql/pricingengine.hpp>
 #include <ql/instruments/vanillastorageoption.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
+#include <ql/pricingengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class ExtendedOrnsteinUhlenbeckProcess;
     class YieldTermStructure;
 
     class FdSimpleExtOUStorageEngine
-        : public GenericEngine<VanillaStorageOption::arguments,
-                               VanillaStorageOption::results> {
+    : public GenericEngine<VanillaStorageOption::arguments, VanillaStorageOption::results>
+    {
       public:
-        typedef std::vector<std::pair<Time, Real> > Shape;
+        typedef std::vector<std::pair<Time, Real>> Shape;
 
 
         FdSimpleExtOUStorageEngine(ext::shared_ptr<ExtendedOrnsteinUhlenbeckProcess> p,

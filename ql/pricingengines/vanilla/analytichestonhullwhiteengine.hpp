@@ -29,7 +29,8 @@
 #include <ql/models/shortrate/onefactormodels/hullwhite.hpp>
 #include <ql/pricingengines/vanilla/analytichestonengine.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Analytic Heston engine incl. stochastic interest rates
     /*! This class is pricing a european option under the following process
@@ -62,7 +63,8 @@ namespace QuantLib {
               against QuantLib's analytic Heston and
               Black-Scholes-Merton Hull-White engine
     */
-    class AnalyticHestonHullWhiteEngine : public AnalyticHestonEngine {
+    class AnalyticHestonHullWhiteEngine : public AnalyticHestonEngine
+    {
       public:
         // see AnalticHestonEninge for usage of different constructors
         AnalyticHestonHullWhiteEngine(const ext::shared_ptr<HestonModel>& hestonModel,
@@ -89,11 +91,9 @@ namespace QuantLib {
         mutable Real a_, sigma_;
     };
 
-    inline
-    std::complex<Real> AnalyticHestonHullWhiteEngine::addOnTerm(Real u,
-                                                                Time,
-                                                                Size j) const {
-        return std::complex<Real>(-m_*u*u, u*(m_-2*m_*(j-1)));
+    inline std::complex<Real> AnalyticHestonHullWhiteEngine::addOnTerm(Real u, Time, Size j) const
+    {
+        return std::complex<Real>(-m_ * u * u, u * (m_ - 2 * m_ * (j - 1)));
     }
 
 }

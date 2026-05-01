@@ -27,10 +27,12 @@
 #include <ql/instruments/simplechooseroption.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Pricing engine for European simple chooser option
-    class AnalyticSimpleChooserEngine : public SimpleChooserOption::engine {
+    class AnalyticSimpleChooserEngine : public SimpleChooserOption::engine
+    {
       public:
         explicit AnalyticSimpleChooserEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process);
         void calculate() const override;

@@ -18,15 +18,15 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include <ql/math/optimization/steepestdescent.hpp>
-#include <ql/math/optimization/problem.hpp>
 #include <ql/math/optimization/linesearch.hpp>
+#include <ql/math/optimization/problem.hpp>
+#include <ql/math/optimization/steepestdescent.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    Array SteepestDescent::getUpdatedDirection(const Problem&,
-                                               Real,
-                                               const Array&) {
+    Array SteepestDescent::getUpdatedDirection(const Problem&, Real, const Array&)
+    {
         return -lineSearch_->lastGradient();
     }
 

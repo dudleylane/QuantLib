@@ -19,11 +19,11 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
+#include <ql/math/randomnumbers/rngtraits.hpp>
 #include <ql/pricingengines/exotic/everestoption.hpp>
 #include <ql/pricingengines/exotic/mceverestengine.hpp>
-#include <ql/math/randomnumbers/rngtraits.hpp>
-#include <ql/time/daycounters/actual360.hpp>
 #include <ql/quotes/simplequote.hpp>
+#include <ql/time/daycounters/actual360.hpp>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -32,14 +32,15 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(EverestOptionTests)
 
-BOOST_AUTO_TEST_CASE(testCached) {
+BOOST_AUTO_TEST_CASE(testCached)
+{
 
     BOOST_TEST_MESSAGE("Testing Everest option against cached values...");
 
     Date today = Settings::instance().evaluationDate();
 
     DayCounter dc = Actual360();
-    Date exerciseDate = today+360;
+    Date exerciseDate = today + 360;
     ext::shared_ptr<Exercise> exercise(new EuropeanExercise(exerciseDate));
 
     Real notional = 1.0;
@@ -48,89 +49,68 @@ BOOST_AUTO_TEST_CASE(testCached) {
 
     Handle<YieldTermStructure> riskFreeRate(flatRate(today, 0.05, dc));
 
-    std::vector<ext::shared_ptr<StochasticProcess1D> > processes(4);
-    Handle<Quote> dummyUnderlying(ext::shared_ptr<Quote>(
-                                                       new SimpleQuote(1.0)));
+    std::vector<ext::shared_ptr<StochasticProcess1D>> processes(4);
+    Handle<Quote> dummyUnderlying(ext::shared_ptr<Quote>(new SimpleQuote(1.0)));
     processes[0] = ext::shared_ptr<StochasticProcess1D>(
-        new BlackScholesMertonProcess(
-                    dummyUnderlying,
-                    Handle<YieldTermStructure>(flatRate(today, 0.01, dc)),
-                    riskFreeRate,
-                    Handle<BlackVolTermStructure>(flatVol(today, 0.30, dc))));
+        new BlackScholesMertonProcess(dummyUnderlying, Handle<YieldTermStructure>(flatRate(today, 0.01, dc)),
+                                      riskFreeRate, Handle<BlackVolTermStructure>(flatVol(today, 0.30, dc))));
     processes[1] = ext::shared_ptr<StochasticProcess1D>(
-        new BlackScholesMertonProcess(
-                    dummyUnderlying,
-                    Handle<YieldTermStructure>(flatRate(today, 0.05, dc)),
-                    riskFreeRate,
-                    Handle<BlackVolTermStructure>(flatVol(today, 0.35, dc))));
+        new BlackScholesMertonProcess(dummyUnderlying, Handle<YieldTermStructure>(flatRate(today, 0.05, dc)),
+                                      riskFreeRate, Handle<BlackVolTermStructure>(flatVol(today, 0.35, dc))));
     processes[2] = ext::shared_ptr<StochasticProcess1D>(
-        new BlackScholesMertonProcess(
-                    dummyUnderlying,
-                    Handle<YieldTermStructure>(flatRate(today, 0.04, dc)),
-                    riskFreeRate,
-                    Handle<BlackVolTermStructure>(flatVol(today, 0.25, dc))));
+        new BlackScholesMertonProcess(dummyUnderlying, Handle<YieldTermStructure>(flatRate(today, 0.04, dc)),
+                                      riskFreeRate, Handle<BlackVolTermStructure>(flatVol(today, 0.25, dc))));
     processes[3] = ext::shared_ptr<StochasticProcess1D>(
-        new BlackScholesMertonProcess(
-                    dummyUnderlying,
-                    Handle<YieldTermStructure>(flatRate(today, 0.03, dc)),
-                    riskFreeRate,
-                    Handle<BlackVolTermStructure>(flatVol(today, 0.20, dc))));
+        new BlackScholesMertonProcess(dummyUnderlying, Handle<YieldTermStructure>(flatRate(today, 0.03, dc)),
+                                      riskFreeRate, Handle<BlackVolTermStructure>(flatVol(today, 0.20, dc))));
 
-    Matrix correlation(4,4);
+    Matrix correlation(4, 4);
     correlation[0][0] = 1.00;
-                    correlation[0][1] = 0.50;
-                                    correlation[0][2] = 0.30;
-                                                    correlation[0][3] = 0.10;
+    correlation[0][1] = 0.50;
+    correlation[0][2] = 0.30;
+    correlation[0][3] = 0.10;
     correlation[1][0] = 0.50;
-                    correlation[1][1] = 1.00;
-                                    correlation[1][2] = 0.20;
-                                                    correlation[1][3] = 0.40;
+    correlation[1][1] = 1.00;
+    correlation[1][2] = 0.20;
+    correlation[1][3] = 0.40;
     correlation[2][0] = 0.30;
-                    correlation[2][1] = 0.20;
-                                    correlation[2][2] = 1.00;
-                                                    correlation[2][3] = 0.60;
+    correlation[2][1] = 0.20;
+    correlation[2][2] = 1.00;
+    correlation[2][3] = 0.60;
     correlation[3][0] = 0.10;
-                    correlation[3][1] = 0.40;
-                                    correlation[3][2] = 0.60;
-                                                    correlation[3][3] = 1.00;
-
+    correlation[3][1] = 0.40;
+    correlation[3][2] = 0.60;
+    correlation[3][3] = 1.00;
 
 
     BigNatural seed = 86421;
     Size fixedSamples = 1023;
     Real minimumTol = 1.0e-2;
 
-    ext::shared_ptr<StochasticProcessArray> process(
-                          new StochasticProcessArray(processes, correlation));
+    ext::shared_ptr<StochasticProcessArray> process(new StochasticProcessArray(processes, correlation));
 
-    option.setPricingEngine(MakeMCEverestEngine<PseudoRandom>(process)
-                            .withStepsPerYear(1)
-                            .withSamples(fixedSamples)
-                            .withSeed(seed));
+    option.setPricingEngine(
+        MakeMCEverestEngine<PseudoRandom>(process).withStepsPerYear(1).withSamples(fixedSamples).withSeed(seed));
 
     Real value = option.NPV();
     Real storedValue = 0.75784944;
     Real tolerance = 1.0e-8;
 
-    if (std::fabs(value-storedValue) > tolerance)
-        BOOST_FAIL(std::setprecision(10)
-                   << "    calculated value: " << value << "\n"
-                   << "    expected:         " << storedValue);
+    if (std::fabs(value - storedValue) > tolerance)
+        BOOST_FAIL(std::setprecision(10) << "    calculated value: " << value << "\n"
+                                         << "    expected:         " << storedValue);
 
     tolerance = option.errorEstimate();
-    tolerance = std::min<Real>(tolerance/2.0, minimumTol*value);
+    tolerance = std::min<Real>(tolerance / 2.0, minimumTol * value);
 
-    option.setPricingEngine(MakeMCEverestEngine<PseudoRandom>(process)
-                            .withStepsPerYear(1)
-                            .withAbsoluteTolerance(tolerance)
-                            .withSeed(seed));
+    option.setPricingEngine(
+        MakeMCEverestEngine<PseudoRandom>(process).withStepsPerYear(1).withAbsoluteTolerance(tolerance).withSeed(seed));
 
     option.NPV();
     Real accuracy = option.errorEstimate();
     if (accuracy > tolerance)
-        BOOST_FAIL(std::setprecision(10)
-                   << "    reached accuracy: " << accuracy << "\n"
-                   << "    expected:         " << tolerance);
+        BOOST_FAIL(std::setprecision(10) << "    reached accuracy: " << accuracy << "\n"
+                                         << "    expected:         " << tolerance);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

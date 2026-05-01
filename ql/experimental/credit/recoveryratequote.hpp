@@ -20,24 +20,24 @@
 #ifndef quantlib_recoveryrate_quote_hpp
 #define quantlib_recoveryrate_quote_hpp
 
-#include <ql/quote.hpp>
 #include <ql/experimental/credit/defaulttype.hpp>
+#include <ql/quote.hpp>
 #include <map>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Stores a recovery rate market quote and the associated seniority.
-    class RecoveryRateQuote : public Quote {
+    class RecoveryRateQuote : public Quote
+    {
         friend std::map<Seniority, Real> makeIsdaConvMap();
-    public:
+
+      public:
         /*! Returns a map with the ISDA conventional (values by
             default) of the recovery rate per each ISDA seniority.
         */
-        static Real conventionalRecovery(Seniority sen) {
-            return IsdaConvRecoveries[sen];
-        }
-        RecoveryRateQuote(Real value = Null<Real>(),
-                          Seniority seniority = NoSeniority);
+        static Real conventionalRecovery(Seniority sen) { return IsdaConvRecoveries[sen]; }
+        RecoveryRateQuote(Real value = Null<Real>(), Seniority seniority = NoSeniority);
         //! \name Quote interface
         //@{
         Real value() const override;
@@ -67,19 +67,22 @@ namespace QuantLib {
         Real recoveryRate_;
     };
 
-    inline Seniority RecoveryRateQuote::seniority() const {
+    inline Seniority RecoveryRateQuote::seniority() const
+    {
         return seniority_;
     }
 
-    inline Real RecoveryRateQuote::value() const {
+    inline Real RecoveryRateQuote::value() const
+    {
         QL_ENSURE(isValid(), "invalid Recovery Quote");
         return recoveryRate_;
     }
 
-    inline bool RecoveryRateQuote::isValid() const {
+    inline bool RecoveryRateQuote::isValid() const
+    {
         // not to be consufed with proper initialization [0-1]
-        return recoveryRate_!=Null<Real>();/* &&
-            seniority_ != NoSeniority;*/
+        return recoveryRate_ != Null<Real>(); /* &&
+               seniority_ != NoSeniority;*/
     }
 
     //! Helper function for conventional recoveries. Returns the ISDA
@@ -91,11 +94,13 @@ namespace QuantLib {
 
     // helpers allow further automatic inclusion of seniorities
     template <Size N>
-    std::map<Seniority, Real> RecoveryRateQuote::makeIsdaMap(const Real (&(arrayIsdaRR))[N]) {
+    std::map<Seniority, Real> RecoveryRateQuote::makeIsdaMap(const Real (&(arrayIsdaRR))[N])
+    {
         // TO DO: include check on sizes... not to go beyond enum sizes.
         // TO DO: check Reals are valid, i.e. non Null and within [0-1] range
         std::map<Seniority, Real> isdaMap;
-        for(Size i=0; i<N; i++) {
+        for (Size i = 0; i < N; i++)
+        {
             auto isdaType = Seniority(i); // compiler dependent?
             isdaMap[isdaType] = arrayIsdaRR[i];
         }

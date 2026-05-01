@@ -25,48 +25,50 @@
 #include <ql/methods/finitedifferences/utilities/fdmdirichletboundary.hpp>
 #include <ql/methods/finitedifferences/utilities/fdmindicesonboundary.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    FdmDirichletBoundary::FdmDirichletBoundary(
-                            const ext::shared_ptr<FdmMesher>& mesher,
-                            Real valueOnBoundary, Size direction,
-                            FdmDirichletBoundary::Side side)
-    : side_(side),
-      valueOnBoundary_(valueOnBoundary),
-      indices_(FdmIndicesOnBoundary(mesher->layout(),
-                                    direction, side).getIndices()) {
+    FdmDirichletBoundary::FdmDirichletBoundary(const ext::shared_ptr<FdmMesher>& mesher,
+                                               Real valueOnBoundary,
+                                               Size direction,
+                                               FdmDirichletBoundary::Side side)
+    : side_(side), valueOnBoundary_(valueOnBoundary),
+      indices_(FdmIndicesOnBoundary(mesher->layout(), direction, side).getIndices())
+    {
 
-        if (side_ == Lower) {
+        if (side_ == Lower)
+        {
             xExtreme_ = mesher->locations(direction)[0];
         }
-        else if (side_ == Upper) {
-            xExtreme_ = mesher
-                ->locations(direction)[mesher->layout()->dim()[direction]-1];
+        else if (side_ == Upper)
+        {
+            xExtreme_ = mesher->locations(direction)[mesher->layout()->dim()[direction] - 1];
         }
-        else {
+        else
+        {
             QL_FAIL("internal error");
         }
     }
 
-    void FdmDirichletBoundary::applyBeforeApplying(operator_type&) const {
-    }
+    void FdmDirichletBoundary::applyBeforeApplying(operator_type&) const {}
 
-    void FdmDirichletBoundary::applyAfterApplying(Array& x) const {
-        for (unsigned long indice : indices_) {
+    void FdmDirichletBoundary::applyAfterApplying(Array& x) const
+    {
+        for (unsigned long indice : indices_)
+        {
             x[indice] = valueOnBoundary_;
         }
     }
-    
-    void FdmDirichletBoundary::applyBeforeSolving(operator_type&,
-                                                  array_type&) const {
-    }
 
-    void FdmDirichletBoundary::applyAfterSolving(Array& rhs) const {
+    void FdmDirichletBoundary::applyBeforeSolving(operator_type&, array_type&) const {}
+
+    void FdmDirichletBoundary::applyAfterSolving(Array& rhs) const
+    {
         this->applyAfterApplying(rhs);
     }
-    
-    Real FdmDirichletBoundary::applyAfterApplying(Real x, Real value) const {
-        return (   (side_ == Lower && x < xExtreme_) 
-                || (side_ == Upper && x > xExtreme_)) ? valueOnBoundary_ : value;
+
+    Real FdmDirichletBoundary::applyAfterApplying(Real x, Real value) const
+    {
+        return ((side_ == Lower && x < xExtreme_) || (side_ == Upper && x > xExtreme_)) ? valueOnBoundary_ : value;
     }
 }

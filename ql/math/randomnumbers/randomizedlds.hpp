@@ -28,7 +28,8 @@
 #include <ql/math/randomnumbers/randomsequencegenerator.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Randomized (random shift) low-discrepancy sequence
     /*! Random-shifts a uniform low-discrepancy sequence of dimension
@@ -54,28 +55,26 @@ namespace QuantLib {
 
         \test correct initialization is tested.
     */
-    template <class LDS,
-              class PRS = RandomSequenceGenerator<MersenneTwisterUniformRng> >
-    class RandomizedLDS {
+    template <class LDS, class PRS = RandomSequenceGenerator<MersenneTwisterUniformRng>>
+    class RandomizedLDS
+    {
       public:
-        typedef Sample<std::vector<Real> > sample_type;
+        typedef Sample<std::vector<Real>> sample_type;
         RandomizedLDS(const LDS& ldsg, PRS prsg);
         RandomizedLDS(const LDS& ldsg);
-        RandomizedLDS(Size dimensionality,
-                      BigNatural ldsSeed = 0,
-                      BigNatural prsSeed = 0);
+        RandomizedLDS(Size dimensionality, BigNatural ldsSeed = 0, BigNatural prsSeed = 0);
         //! returns next sample using a given randomizing vector
         const sample_type& nextSequence() const;
-        const sample_type& lastSequence() const {
-            return x;
-        }
+        const sample_type& lastSequence() const { return x; }
         /*! update the randomizing vector and re-initialize
             the low discrepancy generator */
-        void nextRandomizer() {
+        void nextRandomizer()
+        {
             randomizer_ = prsg_.nextSequence();
             ldsg_ = pristineldsg_;
         }
-        Size dimension() const {return dimension_;}
+        Size dimension() const { return dimension_; }
+
       private:
         mutable LDS ldsg_, pristineldsg_; // mutable because nextSequence is const
         PRS prsg_;
@@ -86,49 +85,47 @@ namespace QuantLib {
     template <class LDS, class PRS>
     RandomizedLDS<LDS, PRS>::RandomizedLDS(const LDS& ldsg, PRS prsg)
     : ldsg_(ldsg), pristineldsg_(ldsg), prsg_(std::move(prsg)), dimension_(ldsg_.dimension()),
-      x(std::vector<Real>(dimension_), 1.0), randomizer_(std::vector<Real>(dimension_), 1.0) {
+      x(std::vector<Real>(dimension_), 1.0), randomizer_(std::vector<Real>(dimension_), 1.0)
+    {
 
-        QL_REQUIRE(prsg_.dimension()==dimension_,
-                   "generator mismatch: "
-                   << dimension_ << "-dim low discrepancy "
-                   << "and " << prsg_.dimension() << "-dim pseudo random");
+        QL_REQUIRE(prsg_.dimension() == dimension_, "generator mismatch: " << dimension_ << "-dim low discrepancy "
+                                                                           << "and " << prsg_.dimension()
+                                                                           << "-dim pseudo random");
 
         randomizer_ = prsg_.nextSequence();
     }
 
     template <class LDS, class PRS>
     RandomizedLDS<LDS, PRS>::RandomizedLDS(const LDS& ldsg)
-    : ldsg_(ldsg), pristineldsg_(ldsg),
-      prsg_(ldsg_.dimension()), dimension_(ldsg_.dimension()),
-      x(std::vector<Real> (dimension_), 1.0), randomizer_(std::vector<Real> (dimension_), 1.0) {
-
-        randomizer_ = prsg_.nextSequence();
-
-    }
-
-    template <class LDS, class PRS>
-    RandomizedLDS<LDS, PRS>::RandomizedLDS(Size dimensionality,
-                                           BigNatural ldsSeed,
-                                           BigNatural prsSeed)
-    : ldsg_(dimensionality, ldsSeed), pristineldsg_(dimensionality, ldsSeed),
-      prsg_(dimensionality, prsSeed), dimension_(dimensionality),
-      x(std::vector<Real> (dimensionality), 1.0), randomizer_(std::vector<Real> (dimensionality), 1.0) {
+    : ldsg_(ldsg), pristineldsg_(ldsg), prsg_(ldsg_.dimension()), dimension_(ldsg_.dimension()),
+      x(std::vector<Real>(dimension_), 1.0), randomizer_(std::vector<Real>(dimension_), 1.0)
+    {
 
         randomizer_ = prsg_.nextSequence();
     }
 
     template <class LDS, class PRS>
-    inline const typename RandomizedLDS<LDS, PRS>::sample_type&
-    RandomizedLDS<LDS, PRS>::nextSequence() const {
-    typename LDS::sample_type sample =
-        ldsg_.nextSequence();
-    x.weight = randomizer_.weight * sample.weight;
-    for (Size i = 0; i < dimension_; i++) {
-        x.value[i] =  randomizer_.value[i] + sample.value[i];
-        if (x.value[i]>1.0)
-            x.value[i] -= 1.0;
+    RandomizedLDS<LDS, PRS>::RandomizedLDS(Size dimensionality, BigNatural ldsSeed, BigNatural prsSeed)
+    : ldsg_(dimensionality, ldsSeed), pristineldsg_(dimensionality, ldsSeed), prsg_(dimensionality, prsSeed),
+      dimension_(dimensionality), x(std::vector<Real>(dimensionality), 1.0),
+      randomizer_(std::vector<Real>(dimensionality), 1.0)
+    {
+
+        randomizer_ = prsg_.nextSequence();
     }
-    return x;
+
+    template <class LDS, class PRS>
+    inline const typename RandomizedLDS<LDS, PRS>::sample_type& RandomizedLDS<LDS, PRS>::nextSequence() const
+    {
+        typename LDS::sample_type sample = ldsg_.nextSequence();
+        x.weight = randomizer_.weight * sample.weight;
+        for (Size i = 0; i < dimension_; i++)
+        {
+            x.value[i] = randomizer_.value[i] + sample.value[i];
+            if (x.value[i] > 1.0)
+                x.value[i] -= 1.0;
+        }
+        return x;
     }
 
 }

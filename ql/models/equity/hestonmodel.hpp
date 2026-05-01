@@ -27,7 +27,8 @@
 #include <ql/models/model.hpp>
 #include <ql/processes/hestonprocess.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Heston model for the stochastic volatility of an asset
     /*! References:
@@ -39,7 +40,8 @@ namespace QuantLib {
 
         \test calibration is tested against known good values.
     */
-    class HestonModel : public CalibratedModel {
+    class HestonModel : public CalibratedModel
+    {
       public:
         explicit HestonModel(const ext::shared_ptr<HestonProcess>& process);
 
@@ -50,38 +52,40 @@ namespace QuantLib {
         // volatility of the volatility
         Real sigma() const { return arguments_[2](0.0); }
         // correlation
-        Real rho()   const { return arguments_[3](0.0); }
+        Real rho() const { return arguments_[3](0.0); }
         // spot variance
-        Real v0()    const { return arguments_[4](0.0); }
+        Real v0() const { return arguments_[4](0.0); }
 
         // underlying process
         ext::shared_ptr<HestonProcess> process() const { return process_; }
 
         class FellerConstraint;
+
       protected:
         void generateArguments() override;
         ext::shared_ptr<HestonProcess> process_;
     };
 
-    class HestonModel::FellerConstraint : public Constraint {
+    class HestonModel::FellerConstraint : public Constraint
+    {
       private:
-        class Impl final : public Constraint::Impl {
+        class Impl final : public Constraint::Impl
+        {
           public:
-            bool test(const Array& params) const override {
+            bool test(const Array& params) const override
+            {
                 const Real theta = params[0];
                 const Real kappa = params[1];
                 const Real sigma = params[2];
 
-                return (sigma >= 0.0 && sigma*sigma < 2.0*kappa*theta);
+                return (sigma >= 0.0 && sigma * sigma < 2.0 * kappa * theta);
             }
         };
+
       public:
-        FellerConstraint()
-        : Constraint(ext::shared_ptr<Constraint::Impl>(
-                                           new FellerConstraint::Impl)) {}
+        FellerConstraint() : Constraint(ext::shared_ptr<Constraint::Impl>(new FellerConstraint::Impl)) {}
     };
 }
 
 
 #endif
-

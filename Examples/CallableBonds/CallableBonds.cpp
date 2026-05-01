@@ -23,7 +23,7 @@
 
 #include <ql/qldefines.hpp>
 #if !defined(BOOST_ALL_NO_LIB) && defined(BOOST_MSVC)
-#  include <ql/auto_link.hpp>
+#    include <ql/auto_link.hpp>
 #endif
 #include <ql/experimental/callablebonds/callablebond.hpp>
 #include <ql/experimental/callablebonds/treecallablebondengine.hpp>
@@ -31,52 +31,41 @@
 #include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/time/calendars/unitedstates.hpp>
 #include <ql/time/daycounters/actualactual.hpp>
-
-#include <vector>
 #include <cmath>
 #include <iomanip>
 #include <iostream>
+#include <vector>
 
 using namespace std;
 using namespace QuantLib;
 
-ext::shared_ptr<YieldTermStructure>
-    flatRate(const Date& today,
-             const ext::shared_ptr<Quote>& forward,
-             const DayCounter& dc,
-             const Compounding& compounding,
-             const Frequency& frequency) {
-    return ext::make_shared<FlatForward>(today,
-                                         Handle<Quote>(forward),
-                                         dc,
-                                         compounding,
-                                         frequency);
-}
-
-
-ext::shared_ptr<YieldTermStructure>
-    flatRate(const Date& today,
-             Rate forward,
-             const DayCounter& dc,
-             const Compounding &compounding,
-             const Frequency &frequency) {
-    return flatRate(today,
-            ext::make_shared<SimpleQuote>(forward),
-            dc,
-            compounding,
-            frequency);
-}
-
-
-int main(int, char* [])
+ext::shared_ptr<YieldTermStructure> flatRate(const Date& today,
+                                             const ext::shared_ptr<Quote>& forward,
+                                             const DayCounter& dc,
+                                             const Compounding& compounding,
+                                             const Frequency& frequency)
 {
-    try {
+    return ext::make_shared<FlatForward>(today, Handle<Quote>(forward), dc, compounding, frequency);
+}
 
 
-        Date today = Date(16,October,2007);
+ext::shared_ptr<YieldTermStructure> flatRate(
+    const Date& today, Rate forward, const DayCounter& dc, const Compounding& compounding, const Frequency& frequency)
+{
+    return flatRate(today, ext::make_shared<SimpleQuote>(forward), dc, compounding, frequency);
+}
+
+
+int main(int, char*[])
+{
+    try
+    {
+
+
+        Date today = Date(16, October, 2007);
         Settings::instance().evaluationDate() = today;
 
-        cout <<  endl;
+        cout << endl;
         cout << "Pricing a callable fixed rate bond using" << endl;
         cout << "Hull White model w/ reversion parameter = 0.03" << endl;
         cout << "BAC4.65 09/15/12  ISIN: US06060WBJ36" << endl;
@@ -97,40 +86,34 @@ int main(int, char* [])
 
         Rate bbCurveRate = 0.055;
         DayCounter bbDayCounter = ActualActual(ActualActual::Bond);
-        InterestRate bbIR(bbCurveRate,bbDayCounter,Compounded,Semiannual);
+        InterestRate bbIR(bbCurveRate, bbDayCounter, Compounded, Semiannual);
 
-        Handle<YieldTermStructure> termStructure(flatRate(today,
-                                                          bbIR.rate(),
-                                                          bbIR.dayCounter(),
-                                                          bbIR.compounding(),
-                                                          bbIR.frequency()));
+        Handle<YieldTermStructure> termStructure(
+            flatRate(today, bbIR.rate(), bbIR.dayCounter(), bbIR.compounding(), bbIR.frequency()));
 
         // set up the call schedule
 
         CallabilitySchedule callSchedule;
         Real callPrice = 100.;
         Size numberOfCallDates = 24;
-        Date callDate = Date(15,September,2006);
+        Date callDate = Date(15, September, 2006);
 
-        for (Size i=0; i< numberOfCallDates; i++) {
+        for (Size i = 0; i < numberOfCallDates; i++)
+        {
             Calendar nullCalendar = NullCalendar();
 
             Bond::Price myPrice(callPrice, Bond::Price::Clean);
-            callSchedule.push_back(
-                ext::make_shared<Callability>(
-                                    myPrice,
-                                    Callability::Call,
-                                    callDate ));
+            callSchedule.push_back(ext::make_shared<Callability>(myPrice, Callability::Call, callDate));
             callDate = nullCalendar.advance(callDate, 3, Months);
         }
 
 
         // set up the callable bond
 
-        Date dated = Date(16,September,2004);
+        Date dated = Date(16, September, 2004);
         Date issue = dated;
-        Date maturity = Date(15,September,2012);
-        Natural settlementDays = 3;  // Bloomberg OAS1 settle is Oct 19, 2007
+        Date maturity = Date(15, September, 2012);
+        Natural settlementDays = 3; // Bloomberg OAS1 settle is Oct 19, 2007
         Calendar bondCalendar = UnitedStates(UnitedStates::GovernmentBond);
         Real coupon = .0465;
         Frequency frequency = Quarterly;
@@ -148,8 +131,7 @@ int main(int, char* [])
         BusinessDayConvention accrualConvention = Unadjusted;
         BusinessDayConvention paymentConvention = Unadjusted;
 
-        Schedule sch(dated, maturity, Period(frequency), bondCalendar,
-                     accrualConvention, accrualConvention,
+        Schedule sch(dated, maturity, Period(frequency), bondCalendar, accrualConvention, accrualConvention,
                      DateGeneration::Backward, false);
 
         Size maxIterations = 1000;
@@ -161,60 +143,39 @@ int main(int, char* [])
 
         Real sigma = QL_EPSILON; // core dumps if zero on Cygwin
 
-        auto hw0 = ext::make_shared<HullWhite>(termStructure,reversionParameter,sigma);
+        auto hw0 = ext::make_shared<HullWhite>(termStructure, reversionParameter, sigma);
 
-        auto engine0 = ext::make_shared<TreeCallableFixedRateBondEngine>(hw0,gridIntervals);
+        auto engine0 = ext::make_shared<TreeCallableFixedRateBondEngine>(hw0, gridIntervals);
 
-        CallableFixedRateBond callableBond(settlementDays, faceAmount, sch,
-                                           vector<Rate>(1, coupon),
-                                           bondDayCounter, paymentConvention,
-                                           redemption, issue, callSchedule);
+        CallableFixedRateBond callableBond(settlementDays, faceAmount, sch, vector<Rate>(1, coupon), bondDayCounter,
+                                           paymentConvention, redemption, issue, callSchedule);
         callableBond.setPricingEngine(engine0);
 
-        cout << setprecision(2)
-             << showpoint
-             << fixed
-             << "sigma/vol (%) = "
-             << 100.*sigma
-             << endl;
+        cout << setprecision(2) << showpoint << fixed << "sigma/vol (%) = " << 100. * sigma << endl;
 
         cout << "QuantLib price/yld (%)  ";
         cout << callableBond.cleanPrice() << " / "
-             << 100. * callableBond.yield(bondDayCounter,
-                                          Compounded,
-                                          frequency,
-                                          accuracy,
-                                          maxIterations)
-             << endl;
+             << 100. * callableBond.yield(bondDayCounter, Compounded, frequency, accuracy, maxIterations) << endl;
 
         cout << "Bloomberg price/yld (%) ";
-        cout << "96.50 / 5.47"
-             << endl
-             << endl;
+        cout << "96.50 / 5.47" << endl << endl;
 
         sigma = .01;
 
-        cout << "sigma/vol (%) = " << 100.*sigma << endl;
+        cout << "sigma/vol (%) = " << 100. * sigma << endl;
 
-        auto hw1 = ext::make_shared<HullWhite>(termStructure,reversionParameter,sigma);
+        auto hw1 = ext::make_shared<HullWhite>(termStructure, reversionParameter, sigma);
 
-        auto engine1 = ext::make_shared<TreeCallableFixedRateBondEngine>(hw1,gridIntervals);
+        auto engine1 = ext::make_shared<TreeCallableFixedRateBondEngine>(hw1, gridIntervals);
 
         callableBond.setPricingEngine(engine1);
 
         cout << "QuantLib price/yld (%)  ";
         cout << callableBond.cleanPrice() << " / "
-             << 100.* callableBond.yield(bondDayCounter,
-                                         Compounded,
-                                         frequency,
-                                         accuracy,
-                                         maxIterations)
-             << endl;
+             << 100. * callableBond.yield(bondDayCounter, Compounded, frequency, accuracy, maxIterations) << endl;
 
         cout << "Bloomberg price/yld (%) ";
-        cout << "95.68 / 5.66"
-             << endl
-             << endl;
+        cout << "95.68 / 5.66" << endl << endl;
 
         ////////////////////
 
@@ -222,27 +183,18 @@ int main(int, char* [])
 
         auto hw2 = ext::make_shared<HullWhite>(termStructure, reversionParameter, sigma);
 
-        auto engine2 = ext::make_shared<TreeCallableFixedRateBondEngine>(hw2,gridIntervals);
+        auto engine2 = ext::make_shared<TreeCallableFixedRateBondEngine>(hw2, gridIntervals);
 
         callableBond.setPricingEngine(engine2);
 
-        cout << "sigma/vol (%) = "
-             << 100.*sigma
-             << endl;
+        cout << "sigma/vol (%) = " << 100. * sigma << endl;
 
         cout << "QuantLib price/yld (%)  ";
         cout << callableBond.cleanPrice() << " / "
-             << 100. * callableBond.yield(bondDayCounter,
-                                          Compounded,
-                                          frequency,
-                                          accuracy,
-                                          maxIterations)
-             << endl;
+             << 100. * callableBond.yield(bondDayCounter, Compounded, frequency, accuracy, maxIterations) << endl;
 
         cout << "Bloomberg price/yld (%) ";
-        cout << "92.34 / 6.49"
-             << endl
-             << endl;
+        cout << "92.34 / 6.49" << endl << endl;
 
         ////////////////////////////
 
@@ -250,27 +202,18 @@ int main(int, char* [])
 
         auto hw3 = ext::make_shared<HullWhite>(termStructure, reversionParameter, sigma);
 
-        auto engine3 = ext::make_shared<TreeCallableFixedRateBondEngine>(hw3,gridIntervals);
+        auto engine3 = ext::make_shared<TreeCallableFixedRateBondEngine>(hw3, gridIntervals);
 
         callableBond.setPricingEngine(engine3);
 
-        cout << "sigma/vol (%) = "
-             << 100.*sigma
-             << endl;
+        cout << "sigma/vol (%) = " << 100. * sigma << endl;
 
         cout << "QuantLib price/yld (%)  ";
         cout << callableBond.cleanPrice() << " / "
-             << 100. * callableBond.yield(bondDayCounter,
-                                          Compounded,
-                                          frequency,
-                                          accuracy,
-                                          maxIterations)
-             << endl;
+             << 100. * callableBond.yield(bondDayCounter, Compounded, frequency, accuracy, maxIterations) << endl;
 
         cout << "Bloomberg price/yld (%) ";
-        cout << "87.16 / 7.83"
-             << endl
-             << endl;
+        cout << "87.16 / 7.83" << endl << endl;
 
         /////////////////////////
 
@@ -278,36 +221,29 @@ int main(int, char* [])
 
         auto hw4 = ext::make_shared<HullWhite>(termStructure, reversionParameter, sigma);
 
-        auto engine4 = ext::make_shared<TreeCallableFixedRateBondEngine>(hw4,gridIntervals);
+        auto engine4 = ext::make_shared<TreeCallableFixedRateBondEngine>(hw4, gridIntervals);
 
         callableBond.setPricingEngine(engine4);
 
-        cout << "sigma/vol (%) = "
-             << 100.*sigma
-             << endl;
+        cout << "sigma/vol (%) = " << 100. * sigma << endl;
 
         cout << "QuantLib price/yld (%)  ";
         cout << callableBond.cleanPrice() << " / "
-             << 100.* callableBond.yield(bondDayCounter,
-                                         Compounded,
-                                         frequency,
-                                         accuracy,
-                                         maxIterations)
-             << endl;
+             << 100. * callableBond.yield(bondDayCounter, Compounded, frequency, accuracy, maxIterations) << endl;
 
         cout << "Bloomberg price/yld (%) ";
-        cout << "77.31 / 10.65"
-             << endl
-             << endl;
+        cout << "77.31 / 10.65" << endl << endl;
 
         return 0;
-
-    } catch (std::exception& e) {
+    }
+    catch (std::exception& e)
+    {
         std::cerr << e.what() << std::endl;
         return 1;
-    } catch (...) {
+    }
+    catch (...)
+    {
         std::cerr << "unknown error" << std::endl;
         return 1;
     }
 }
-

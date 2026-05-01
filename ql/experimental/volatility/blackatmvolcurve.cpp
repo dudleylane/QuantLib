@@ -19,61 +19,68 @@
 
 #include <ql/experimental/volatility/blackatmvolcurve.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
-    BlackAtmVolCurve::BlackAtmVolCurve(BusinessDayConvention bdc,
-                                       const DayCounter& dc)
-    : VolatilityTermStructure(bdc, dc) {}
+    BlackAtmVolCurve::BlackAtmVolCurve(BusinessDayConvention bdc, const DayCounter& dc)
+    : VolatilityTermStructure(bdc, dc)
+    {
+    }
 
     BlackAtmVolCurve::BlackAtmVolCurve(const Date& refDate,
                                        const Calendar& cal,
                                        BusinessDayConvention bdc,
                                        const DayCounter& dc)
-    : VolatilityTermStructure(refDate, cal, bdc, dc) {}
+    : VolatilityTermStructure(refDate, cal, bdc, dc)
+    {
+    }
 
     BlackAtmVolCurve::BlackAtmVolCurve(Natural settlDays,
                                        const Calendar& cal,
                                        BusinessDayConvention bdc,
                                        const DayCounter& dc)
-    : VolatilityTermStructure(settlDays, cal, bdc, dc) {}
+    : VolatilityTermStructure(settlDays, cal, bdc, dc)
+    {
+    }
 
-    Volatility BlackAtmVolCurve::atmVol(const Period& optionTenor,
-                                        bool extrapolate) const {
+    Volatility BlackAtmVolCurve::atmVol(const Period& optionTenor, bool extrapolate) const
+    {
         Date d = optionDateFromTenor(optionTenor);
         return atmVol(d, extrapolate);
     }
 
-    Volatility BlackAtmVolCurve::atmVol(const Date& d,
-                                        bool extrapolate) const {
+    Volatility BlackAtmVolCurve::atmVol(const Date& d, bool extrapolate) const
+    {
         Time t = timeFromReference(d);
         return atmVol(t, extrapolate);
     }
 
-    Volatility BlackAtmVolCurve::atmVol(Time t,
-                                        bool extrapolate) const {
+    Volatility BlackAtmVolCurve::atmVol(Time t, bool extrapolate) const
+    {
         checkRange(t, extrapolate);
         return atmVolImpl(t);
     }
 
-    Real BlackAtmVolCurve::atmVariance(const Period& optionTenor,
-                                       bool extrapolate) const {
+    Real BlackAtmVolCurve::atmVariance(const Period& optionTenor, bool extrapolate) const
+    {
         Date d = optionDateFromTenor(optionTenor);
         return atmVariance(d, extrapolate);
     }
 
-    Real BlackAtmVolCurve::atmVariance(const Date& d,
-                                       bool extrapolate) const {
+    Real BlackAtmVolCurve::atmVariance(const Date& d, bool extrapolate) const
+    {
         Time t = timeFromReference(d);
         return atmVariance(t, extrapolate);
     }
 
-    Real BlackAtmVolCurve::atmVariance(Time t,
-                                       bool extrapolate) const {
+    Real BlackAtmVolCurve::atmVariance(Time t, bool extrapolate) const
+    {
         checkRange(t, extrapolate);
         return atmVarianceImpl(t);
     }
 
-    void BlackAtmVolCurve::accept(AcyclicVisitor& v) {
+    void BlackAtmVolCurve::accept(AcyclicVisitor& v)
+    {
         auto* v1 = dynamic_cast<Visitor<BlackAtmVolCurve>*>(&v);
         if (v1 != nullptr)
             v1->visit(*this);

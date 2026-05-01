@@ -25,12 +25,13 @@
 #include <utility>
 
 
-namespace QuantLib {
+namespace QuantLib
+{
 
 
-    InterpolatingCPICapFloorEngine::InterpolatingCPICapFloorEngine(
-        Handle<CPICapFloorTermPriceSurface> priceSurf)
-    : priceSurf_(std::move(priceSurf)) {
+    InterpolatingCPICapFloorEngine::InterpolatingCPICapFloorEngine(Handle<CPICapFloorTermPriceSurface> priceSurf)
+    : priceSurf_(std::move(priceSurf))
+    {
         registerWith(priceSurf_);
     }
 
@@ -45,7 +46,8 @@ namespace QuantLib {
         Period lagDiff = arguments_.observationLag - priceSurf_->observationLag();
         // next line will fail if units are different if Period() is not well written
         QL_REQUIRE(lagDiff >= Period(0, Months), "InterpolatingCPICapFloorEngine: "
-                   "lag difference must be non-negative: " << lagDiff);
+                                                 "lag difference must be non-negative: "
+                                                     << lagDiff);
 
         // we now need an effective maturity to use in the price surface because this uses
         // maturity of calibration instruments as its time axis, N.B. this must also
@@ -55,45 +57,56 @@ namespace QuantLib {
 
         // what interpolation do we use? Index / flat / linear
         QL_DEPRECATED_DISABLE_WARNING
-        if (arguments_.observationInterpolation == CPI::AsIndex) {
-        QL_DEPRECATED_ENABLE_WARNING
+        if (arguments_.observationInterpolation == CPI::AsIndex)
+        {
+            QL_DEPRECATED_ENABLE_WARNING
             // same as index means we can just use the price surface
             // since this uses the index
-            if (arguments_.type == Option::Call) {
+            if (arguments_.type == Option::Call)
+            {
                 npv = priceSurf_->capPrice(effectiveMaturity, arguments_.strike);
-            } else {
+            }
+            else
+            {
                 npv = priceSurf_->floorPrice(effectiveMaturity, arguments_.strike);
             }
-
-
-        } else {
-            std::pair<Date,Date> dd = inflationPeriod(effectiveMaturity, arguments_.index->frequency());
+        }
+        else
+        {
+            std::pair<Date, Date> dd = inflationPeriod(effectiveMaturity, arguments_.index->frequency());
             Real priceStart = 0.0;
 
-            if (arguments_.type == Option::Call) {
+            if (arguments_.type == Option::Call)
+            {
                 priceStart = priceSurf_->capPrice(dd.first, arguments_.strike);
-            } else {
+            }
+            else
+            {
                 priceStart = priceSurf_->floorPrice(dd.first, arguments_.strike);
             }
 
             // if we use a flat index vs the interpolated one ...
-            if (arguments_.observationInterpolation == CPI::Flat) {
+            if (arguments_.observationInterpolation == CPI::Flat)
+            {
                 // then use the price for the first day in the period because the value cannot change after then
                 npv = priceStart;
-
-            } else {
+            }
+            else
+            {
                 // linear interpolation will be very close
                 Real priceEnd = 0.0;
-                if (arguments_.type == Option::Call) {
-                    priceEnd = priceSurf_->capPrice((dd.second+Period(1,Days)), arguments_.strike);
-                } else {
-                    priceEnd = priceSurf_->floorPrice((dd.second+Period(1,Days)), arguments_.strike);
+                if (arguments_.type == Option::Call)
+                {
+                    priceEnd = priceSurf_->capPrice((dd.second + Period(1, Days)), arguments_.strike);
+                }
+                else
+                {
+                    priceEnd = priceSurf_->floorPrice((dd.second + Period(1, Days)), arguments_.strike);
                 }
 
-                npv = priceStart + (priceEnd - priceStart) * (effectiveMaturity - dd.first)
-                / ( (dd.second+Period(1,Days)) - dd.first); // can't get to next period'
+                npv = priceStart + (priceEnd - priceStart) * (effectiveMaturity - dd.first) /
+                                       ((dd.second + Period(1, Days)) - dd.first); // can't get to next period'
             }
-
         }
         results_.value = npv;
     }

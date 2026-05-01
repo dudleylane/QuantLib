@@ -25,14 +25,16 @@
 #ifndef quantlib_quanto_forward_vanilla_option_h
 #define quantlib_quanto_forward_vanilla_option_h
 
-#include <ql/instruments/quantovanillaoption.hpp>
 #include <ql/instruments/forwardvanillaoption.hpp>
+#include <ql/instruments/quantovanillaoption.hpp>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     //! Quanto version of a forward vanilla option
     /*! \ingroup instruments */
-    class QuantoForwardVanillaOption : public ForwardVanillaOption {
+    class QuantoForwardVanillaOption : public ForwardVanillaOption
+    {
       public:
         typedef ForwardVanillaOption::arguments arguments;
         typedef QuantoOptionResults<ForwardVanillaOption::results> results;
@@ -58,4 +60,3 @@ namespace QuantLib {
 
 
 #endif
-

@@ -33,37 +33,39 @@
 #include <ql/patterns/lazyobject.hpp>
 #include <utility>
 
-namespace QuantLib {
+namespace QuantLib
+{
 
     class ExtOUWithJumpsProcess;
     class ExtendedOrnsteinUhlenbeckProcess;
 
-    template <Size N=3>
-    class FdmKlugeExtOUSolver : public LazyObject {
+    template <Size N = 3>
+    class FdmKlugeExtOUSolver : public LazyObject
+    {
       public:
         FdmKlugeExtOUSolver(Handle<KlugeExtOUProcess> klugeOUProcess,
                             ext::shared_ptr<YieldTermStructure> rTS,
                             FdmSolverDesc solverDesc,
                             const FdmSchemeDesc& schemeDesc = FdmSchemeDesc::Hundsdorfer())
-        : klugeOUProcess_(std::move(klugeOUProcess)), rTS_(std::move(rTS)),
-          solverDesc_(std::move(solverDesc)), schemeDesc_(schemeDesc) {
+        : klugeOUProcess_(std::move(klugeOUProcess)), rTS_(std::move(rTS)), solverDesc_(std::move(solverDesc)),
+          schemeDesc_(schemeDesc)
+        {
             registerWith(klugeOUProcess_);
         }
 
-        Real valueAt(const std::vector<Real>& x) const {
+        Real valueAt(const std::vector<Real>& x) const
+        {
             calculate();
             return solver_->interpolateAt(x);
         }
 
       protected:
-        void performCalculations() const override {
-            ext::shared_ptr<FdmLinearOpComposite>op(
-                new FdmKlugeExtOUOp(solverDesc_.mesher,
-                                    klugeOUProcess_.currentLink(),
-                                    rTS_, solverDesc_.bcSet, 16));
+        void performCalculations() const override
+        {
+            ext::shared_ptr<FdmLinearOpComposite> op(
+                new FdmKlugeExtOUOp(solverDesc_.mesher, klugeOUProcess_.currentLink(), rTS_, solverDesc_.bcSet, 16));
 
-            solver_ = ext::shared_ptr<FdmNdimSolver<N> >(
-                          new FdmNdimSolver<N>(solverDesc_, schemeDesc_, op));
+            solver_ = ext::shared_ptr<FdmNdimSolver<N>>(new FdmNdimSolver<N>(solverDesc_, schemeDesc_, op));
         }
 
       private:
@@ -73,7 +75,7 @@ namespace QuantLib {
         const FdmSolverDesc solverDesc_;
         const FdmSchemeDesc schemeDesc_;
 
-        mutable ext::shared_ptr<FdmNdimSolver<N> > solver_;
+        mutable ext::shared_ptr<FdmNdimSolver<N>> solver_;
         BOOST_STATIC_ASSERT(N >= 3); // NOLINT(readability-simplify-boolean-expr)
                                      // KlugeExtOU solver can't be applied on meshes
                                      // with less than three dimensions
