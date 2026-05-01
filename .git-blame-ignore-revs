@@ -7,4 +7,4 @@
 # with a short comment.
 
 # Project-wide reformat: BSD/Allman braces, 120-column limit (clang-format).
-# TODO: replace with the actual commit SHA once the reformat lands.
+710698abd3b3af248f9b3ab3a1972db9f10e6b9e
