@@ -87,13 +87,15 @@ namespace QuantLib
     };
 
     // CRTP-ish for joining the integrations, class above to have the factory
+    // clang-format off
     template <class I_T>
     class IntegrationBase : public I_T, public LMIntegration
     { // diamond on 'integrate'
-        // this class template always to be fully specialized:
+      // this class template always to be fully specialized:
       private:
         IntegrationBase() = default;
     };
+    // clang-format on
     //@}
 
     // gcc reports value collision with heston engine (?!) thats why the name

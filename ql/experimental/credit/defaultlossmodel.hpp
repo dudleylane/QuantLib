@@ -46,7 +46,7 @@ namespace QuantLib
     not depending on the pricing order.
     */
     class DefaultLossModel : public Observable
-    {   // joint-? basket?-defaultLoss
+    { // joint-? basket?-defaultLoss
         /* Protection together with frienship to avoid the need of checking the
         basket-argument pointer integrity. It is the responsibility of the basket
         now; our only caller.

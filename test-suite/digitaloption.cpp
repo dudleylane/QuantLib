@@ -302,7 +302,7 @@ BOOST_AUTO_TEST_CASE(testAssetAtHitOrNothingAmericanValues)
                                    true}, // Haug value is wrong here, Haug VBA code is right
                                   {Option::Call, 100.00, 95.00, 0.00, 0.10, 0.5, 0.20, 77.7017, 1e-04,
                                    true}, // Haug value is wrong here, Haug VBA code is right
-                                  // data from Haug VBA code results
+                                          // data from Haug VBA code results
                                   {Option::Put, 100.00, 105.00, 0.01, 0.10, 0.5, 0.20, 65.7811, 1e-04, true},
                                   {Option::Call, 100.00, 95.00, 0.01, 0.10, 0.5, 0.20, 76.8858, 1e-04, true},
                                   // in the money options  (guaranteed immediate payoff = spot)
