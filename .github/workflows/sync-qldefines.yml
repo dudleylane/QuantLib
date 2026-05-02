@@ -5,6 +5,9 @@ on:
       - 'dependabot/**'
 jobs:
   sync-files:
+    # Auto-sync of qldefines.hpp.cfg runs only on upstream; on this fork it
+    # would actively fight QL_ENABLE_AAD / QL_ENABLE_JSON_MARKETDATA edits.
+    if: github.repository == 'lballabio/QuantLib'
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6

@@ -5,6 +5,8 @@ on:
       - 'dependabot/**'
 jobs:
   check:
+    # Auto-fix PR runs only on upstream; the fork lacks MACHINE_ACCOUNT_PAT.
+    if: github.repository == 'lballabio/QuantLib'
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
