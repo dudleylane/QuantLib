@@ -17,7 +17,7 @@ jobs:
     - name: Configure
       run: |
         ./autogen.sh
-        ./configure
+        ./configure --disable-json-marketdata
     - name: Check
       run: |
         ./tools/check_filelists.sh

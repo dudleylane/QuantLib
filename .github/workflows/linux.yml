@@ -112,6 +112,10 @@ jobs:
     container: ghcr.io/lballabio/quantlib-devenv:${{ matrix.tag }}
     steps:
     - uses: actions/checkout@v6
+    - name: Install fork-specific dependencies
+      run: |
+        apt-get update
+        apt-get install -y nlohmann-json3-dev
     - name: Cache
       uses: hendrikmuhs/ccache-action@v1.2
       with:
