@@ -9,6 +9,10 @@ env:
   ROLLING: questing
 jobs:
   docker-images:
+    # Upstream-only -- builds the lballabio/quantlib-devenv Ubuntu
+    # images.  The fork builds on EL10 (memory: project_supported_platforms.md)
+    # and doesn't consume these images.
+    if: github.repository == 'lballabio/QuantLib'
     runs-on: ubuntu-latest
     strategy:
       matrix:

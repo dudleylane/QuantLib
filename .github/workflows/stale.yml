@@ -4,6 +4,9 @@ on:
     - cron: '30 1 * * *'
 jobs:
   staleness-check:
+    # Upstream-only -- the fork manages issues differently and doesn't
+    # use this stale-bot policy.
+    if: github.repository == 'lballabio/QuantLib'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/stale@v10

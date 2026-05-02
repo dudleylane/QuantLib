@@ -5,8 +5,9 @@ on:
 
 jobs:
   increase-version:
+    # Upstream-only -- the fork doesn't auto-bump version on release.
+    if: ${{ github.repository == 'lballabio/QuantLib' && github.event.release.prerelease == false }}
     runs-on: ubuntu-latest
-    if: ${{ github.event.release.prerelease == false }}
     steps:
     - uses: actions/checkout@v6
       with:

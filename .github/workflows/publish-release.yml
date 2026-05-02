@@ -11,6 +11,9 @@ permissions:
 
 jobs:
   draft-release:
+    # Upstream-only -- the fork doesn't draft releases on the lballabio
+    # tag schema.
+    if: github.repository == 'lballabio/QuantLib'
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
@@ -59,6 +62,8 @@ jobs:
             tarballs/*.tar.gz tarballs/*.zip
 
   reference-manual:
+    # Upstream-only -- pushes to lballabio/quantlib.github.io.
+    if: github.repository == 'lballabio/QuantLib'
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v6

@@ -10,6 +10,8 @@ permissions:
 
 jobs:
   publish-rc:
+    # Upstream-only -- the fork doesn't publish RC releases.
+    if: github.repository == 'lballabio/QuantLib'
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6

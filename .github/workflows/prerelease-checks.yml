@@ -1,18 +1,18 @@
 name: Pre-release checks
+
+# Upstream-only orchestrator.  msvc-all-configs / msvc-nondefault /
+# macos-nondefault / cmake-latest-runners were removed on the fork
+# (memory: project_supported_platforms.md), so only the linux `uses:`
+# refs remain.  The fork doesn't run a pre-release pipeline -- guarded
+# with `if: lballabio/QuantLib` so this workflow no-ops on the fork.
+
 on:
   workflow_dispatch:
 
 jobs:
   full-linux-tests:
+    if: github.repository == 'lballabio/QuantLib'
     uses: ./.github/workflows/linux-full-tests.yml
-  full-msvc-tests:
-    uses: ./.github/workflows/msvc-all-configs.yml
   linux-alt-config:
+    if: github.repository == 'lballabio/QuantLib'
     uses: ./.github/workflows/linux-nondefault.yml
-  msvc-alt-config:
-    uses: ./.github/workflows/msvc-nondefault.yml
-  macos-alt-config:
-    uses: ./.github/workflows/macos-nondefault.yml
-  cmake-latest:
-    uses: ./.github/workflows/cmake-latest-runners.yml
-

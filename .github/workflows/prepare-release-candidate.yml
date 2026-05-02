@@ -4,6 +4,9 @@ on:
 
 jobs:
   update-for-rc:
+    # Upstream-only -- the fork has no MACHINE_ACCOUNT_PAT and curates
+    # releases out of FORK_CHANGES.md.
+    if: github.repository == 'lballabio/QuantLib'
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6

@@ -8,8 +8,9 @@ permissions:
 
 jobs:
   sync-org-repo:
+    # Upstream-only -- the fork doesn't mirror to the quantlib org.
+    if: ${{ github.repository == 'lballabio/QuantLib' && github.event.release.prerelease == false }}
     runs-on: ubuntu-latest
-    if: ${{ github.event.release.prerelease == false }}
     steps:
     - uses: actions/checkout@v6
       with:

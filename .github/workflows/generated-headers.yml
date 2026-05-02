@@ -5,6 +5,9 @@ on:
       - 'dependabot/**'
 jobs:
   generate-headers:
+    # Upstream-only -- generates a PR via MACHINE_ACCOUNT_PAT, and
+    # the fork hand-curates all.hpp files via FORK_CHANGES.md.
+    if: github.repository == 'lballabio/QuantLib'
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
