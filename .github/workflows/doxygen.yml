@@ -1,32 +1,68 @@
 name: Check doc generation
+
+# Fork-supported platform is RHEL/CentOS 10+ (memory:
+# project_supported_platforms.md).  Doxygen + graphviz from base/CRB.
+
 on:
   push:
     branches:
       - '**'
   pull_request:
+
 jobs:
   docs:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/centos/centos:stream10
+    env:
+      PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
+      CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+      CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
     steps:
-    - uses: actions/checkout@v6
-    - name: Setup
-      env:
-        HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: 1
-      run: |
-        brew install automake autoconf libtool boost doxygen graphviz
-        ./autogen.sh
-        ./configure --with-boost-include=$(brew --prefix)/include
-    - name: Doxygen version
-      run: |
-        doxygen --version
-    - name: Check
-      run: |
-        make docs
+      - uses: actions/checkout@v6
+
+      - name: Install build tools (dnf)
+        shell: bash
+        run: |
+          dnf install -y dnf-plugins-core epel-release
+          dnf config-manager --set-enabled crb
+          dnf install -y \
+            gcc-toolset-15 \
+            autoconf automake libtool make \
+            boost-devel \
+            doxygen graphviz \
+            git which
+
+      - name: Doxygen version
+        shell: bash
+        run: |
+          doxygen --version
+
+      - name: Configure
+        shell: bash
+        run: |
+          ./autogen.sh
+          ./configure --disable-json-marketdata
+
+      - name: Check
+        shell: bash
+        run: |
+          make docs
 
   header-docs:
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/centos/centos:stream10
     steps:
-    - uses: actions/checkout@v6
-    - name: Check
-      run: |
-        ./tools/check_all_header_docs.sh
+      - uses: actions/checkout@v6
+
+      - name: Install build tools (dnf)
+        shell: bash
+        run: |
+          dnf install -y git which findutils grep
+
+      - name: Check
+        shell: bash
+        run: |
+          ./tools/check_all_header_docs.sh

@@ -1,46 +1,81 @@
 name: Check test times
+
+# Fork-supported platform is RHEL/CentOS 10+ (memory:
+# project_supported_platforms.md).  Wall-clock numbers from a shared
+# CI runner are inherently noisy; tools/check_test_times.py treats
+# this as advisory regression-flagging, not a hard gate.
+
 on:
   push:
     branches:
       - '**'
   pull_request:
+
 jobs:
   check-test-times:
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/centos/centos:stream10
+    env:
+      PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
+      CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+      CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
     steps:
-    - uses: actions/checkout@v6
-    - name: Cache
-      uses: hendrikmuhs/ccache-action@v1.2
-      with:
-        key: linux-ci-test-times-${{ github.ref }}
-        restore-keys: |
-          linux-ci-test-times-${{ github.ref }}
-          linux-ci-test-times-refs/heads/master
-          linux-ci-test-times-
-    - name: Setup
-      run: |
-        sudo rm /etc/apt/sources.list.d/microsoft-prod.list
-        sudo apt update
-        sudo apt install -y libboost-dev autoconf automake libtool ccache
-    - name: Build
-      run: |
-        ./autogen.sh
-        ./configure --disable-static CC="ccache gcc" CXX="ccache g++" CXXFLAGS="-O2 -g0"
-        make -j 4
-    - name: Run faster tests
-      run: |
-        ./test-suite/quantlib-test-suite --logger=JUNIT,warning,faster.xml:HRF,message -- --faster
-    - name: Run fast tests
-      run: |
-        ./test-suite/quantlib-test-suite --logger=JUNIT,warning,fast.xml:HRF,message -- --fast
-    - name: Run all tests
-      run: |
-        ./test-suite/quantlib-test-suite --logger=JUNIT,warning,all.xml:HRF,message
-    - name: Save test times
-      uses: actions/upload-artifact@v7
-      with:
-        name: test-reports
-        path: ./*.xml
-    - name: Check test times
-      run: |
-        python ./tools/check_test_times.py
+      - uses: actions/checkout@v6
+
+      - name: Install build tools (dnf)
+        shell: bash
+        run: |
+          dnf install -y dnf-plugins-core epel-release
+          dnf config-manager --set-enabled crb
+          dnf install -y \
+            gcc-toolset-15 gcc-toolset-15-libatomic-devel \
+            autoconf automake libtool make \
+            boost-devel \
+            ccache \
+            python3 \
+            git which
+
+      - name: Cache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: linux-ci-test-times-${{ github.ref }}
+          restore-keys: |
+            linux-ci-test-times-${{ github.ref }}
+            linux-ci-test-times-refs/heads/master
+            linux-ci-test-times-
+
+      - name: Build
+        shell: bash
+        run: |
+          ./autogen.sh
+          ./configure --disable-static --disable-json-marketdata \
+            CC="ccache gcc" CXX="ccache g++" CXXFLAGS="-O2 -g0"
+          make -j"$(nproc)"
+
+      - name: Run faster tests
+        shell: bash
+        run: |
+          ./test-suite/quantlib-test-suite --logger=JUNIT,warning,faster.xml:HRF,message -- --faster
+
+      - name: Run fast tests
+        shell: bash
+        run: |
+          ./test-suite/quantlib-test-suite --logger=JUNIT,warning,fast.xml:HRF,message -- --fast
+
+      - name: Run all tests
+        shell: bash
+        run: |
+          ./test-suite/quantlib-test-suite --logger=JUNIT,warning,all.xml:HRF,message
+
+      - name: Save test times
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: ./*.xml
+
+      - name: Check test times
+        shell: bash
+        run: |
+          python3 ./tools/check_test_times.py

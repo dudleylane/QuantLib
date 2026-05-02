@@ -1,23 +1,47 @@
 name: Check CMake file list and VC++ projects
+
+# Fork-supported platform is RHEL/CentOS 10+ (memory:
+# project_supported_platforms.md).  Despite the name, the check only
+# diffs file lists -- no actual MSVC build.
+
 on:
   push:
     branches:
       - '**'
   pull_request:
+
 jobs:
   filelists:
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/centos/centos:stream10
+    env:
+      PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
+      CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+      CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
     steps:
-    - uses: actions/checkout@v6
-    - name: Setup
-      run: |
-        sudo rm /etc/apt/sources.list.d/microsoft-prod.list
-        sudo apt update
-        sudo apt install -y libboost-dev
-    - name: Configure
-      run: |
-        ./autogen.sh
-        ./configure
-    - name: Check
-      run: |
-        ./tools/check_filelists.sh
+      - uses: actions/checkout@v6
+
+      - name: Install build tools (dnf)
+        shell: bash
+        run: |
+          dnf install -y dnf-plugins-core epel-release
+          dnf config-manager --set-enabled crb
+          dnf install -y \
+            gcc-toolset-15 \
+            autoconf automake libtool make \
+            boost-devel \
+            python3 \
+            git which findutils grep diffutils tar gzip
+
+      - name: Configure
+        shell: bash
+        run: |
+          ./autogen.sh
+          ./configure --disable-json-marketdata
+
+      - name: Check
+        shell: bash
+        run: |
+          ./tools/check_filelists.sh
