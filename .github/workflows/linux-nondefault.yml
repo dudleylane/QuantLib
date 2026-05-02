@@ -1,91 +1,98 @@
 name: Linux build with non-default configuration
+
+# Fork-supported platform is RHEL/CentOS 10+ (memory:
+# project_supported_platforms.md).  Stacks every non-default
+# configureflag into a single configure invocation -- the matrix
+# axis is just the cxxflags / extra configureflags variant.
+
 on:
   schedule:
     - cron: '0 0 * * 0'
   workflow_dispatch:
   workflow_call:
+
 jobs:
   build:
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/centos/centos:stream10
+    env:
+      PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
+      CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+      CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
     strategy:
       fail-fast: false
       matrix:
         include:
-          # Fork floor is GCC >= 15.2.1 / C++23 (CLAUDE.md).  Sub-floor
-          # GCC and Clang entries were dropped along with the c++17 /
-          # c++20 modes when acinclude.m4 was hardened — those configs
-          # would have failed configure with the new floor check.
-          - name: "gcc 15.x"
-            shortname: gcc15
-            tag: questing
-            cc: gcc
-            cxx: g++
-          - name: "Clang 19 (Boost 1.89)"
-            shortname: clang19
-            tag: oracular
-            cc: clang
-            cxx: clang++
-          - name: "Clang 20"
-            shortname: clang20
-            tag: questing
-            cc: clang
-            cxx: clang++
-          - name: "Clang 21"
-            shortname: clang21
-            tag: resolute
-            cc: clang
-            cxx: clang++
-          - name: "C++23 mode"
-            shortname: c++23
-            tag: rolling
-            cc: gcc
-            cxx: g++
-            cxxflags: "-std=c++23"
+          - name: "Default (c++23, no extra flags)"
+            shortname: default
           - name: "C++26 mode"
             shortname: c++26
-            tag: rolling
-            cc: gcc
-            cxx: g++
             cxxflags: "-std=c++26"
           - name: "Unity build enabled"
             shortname: unity
-            tag: rolling
-            cc: gcc
-            cxx: g++
             configureflags: --enable-unity-build
           - name: "Standard Library classes enabled"
             shortname: stdclasses
-            tag: rolling
-            cc: gcc
-            cxx: g++
             configureflags: --enable-std-pointers --disable-std-any --disable-std-optional
           - name: "OpenMP enabled"
             shortname: openmp
-            tag: rolling
-            cc: gcc
-            cxx: g++
             configureflags: --enable-openmp
-    container: ghcr.io/lballabio/quantlib-devenv:${{ matrix.tag }}
     steps:
-    - uses: actions/checkout@v6
-    - name: Compiler version
-      run: |
-        ${{ matrix.cc }} --version
-    - name: Build
-      run: |
-        ./autogen.sh
-        ./configure --disable-static --enable-error-lines --enable-error-functions --enable-tracing --enable-indexed-coupons --enable-extra-safety-checks --enable-sessions --enable-thread-safe-observer-pattern --enable-intraday --disable-faster-lazy-objects --enable-throwing-in-cycles --enable-null-as-functions ${{ matrix.configureflags }} CC="${{ matrix.cc }}" CXX="${{ matrix.cxx }}" CPPFLAGS="-Wall -Wno-unknown-pragmas -Wno-array-bounds -Werror" CXXFLAGS="-O2 -g0 ${{ matrix.cxxflags }}"
-        cat ql/config.hpp
-        make -j 4
-    - name: Run tests
-      run: |
-        ./test-suite/quantlib-test-suite --log_level=message
-    - name: Run examples
-      run: |
-        make check-examples
-    - name: Check global header
-      run: |
-        echo "#include <ql/quantlib.hpp>" > test1.cpp && echo "int main() { return 0; }" >> test1.cpp
-        echo "#include <ql/quantlib.hpp>" > test2.cpp
-        make install
-        ${{ matrix.cxx }} -O2 -g0 -Wall -Wno-unknown-pragmas -Werror ${{ matrix.cxxflags }} `quantlib-config --cflags` test1.cpp test2.cpp `quantlib-config --libs`
+      - uses: actions/checkout@v6
+
+      - name: Install build tools (dnf)
+        shell: bash
+        run: |
+          dnf install -y dnf-plugins-core epel-release
+          dnf config-manager --set-enabled crb
+          dnf install -y \
+            gcc-toolset-15 gcc-toolset-15-libatomic-devel \
+            autoconf automake libtool make \
+            boost-devel \
+            nlohmann-json-devel \
+            git which
+
+      - name: Compiler version
+        shell: bash
+        run: |
+          gcc --version
+
+      - name: Build
+        shell: bash
+        run: |
+          ./autogen.sh
+          ./configure --disable-static \
+            --enable-error-lines --enable-error-functions --enable-tracing \
+            --enable-indexed-coupons --enable-extra-safety-checks \
+            --enable-sessions --enable-thread-safe-observer-pattern \
+            --enable-intraday --disable-faster-lazy-objects \
+            --enable-throwing-in-cycles --enable-null-as-functions \
+            ${{ matrix.configureflags }} \
+            CC="gcc" CXX="g++" \
+            CPPFLAGS="-Wall -Wno-unknown-pragmas -Wno-array-bounds -Werror" \
+            CXXFLAGS="-O2 -g0 ${{ matrix.cxxflags }}"
+          cat ql/config.hpp
+          make -j"$(nproc)"
+
+      - name: Run tests
+        shell: bash
+        run: |
+          ./test-suite/quantlib-test-suite --log_level=message
+
+      - name: Run examples
+        shell: bash
+        run: |
+          make check-examples
+
+      - name: Check global header
+        shell: bash
+        run: |
+          echo "#include <ql/quantlib.hpp>" > test1.cpp
+          echo "int main() { return 0; }" >> test1.cpp
+          echo "#include <ql/quantlib.hpp>" > test2.cpp
+          make install
+          g++ -O2 -g0 -Wall -Wno-unknown-pragmas -Werror ${{ matrix.cxxflags }} \
+            $(quantlib-config --cflags) test1.cpp test2.cpp $(quantlib-config --libs)
