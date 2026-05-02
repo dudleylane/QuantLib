@@ -32,8 +32,8 @@ EXTRA_DIST = CMakeLists.txt README.txt
 dist-hook:
 	for i in $(notdir $(EXAMPLES)); do \
 	    cp $(srcdir)/$$i/$$i.cpp $(distdir)/$$i/ && \
-	    cp $(srcdir)/$$i/$$i.vcxproj $(distdir)/$$i/ && \
-	    cp $(srcdir)/$$i/$$i.vcxproj.filters $(distdir)/$$i/ && \
+	    { [ ! -f $(srcdir)/$$i/$$i.vcxproj ] || cp $(srcdir)/$$i/$$i.vcxproj $(distdir)/$$i/; } && \
+	    { [ ! -f $(srcdir)/$$i/$$i.vcxproj.filters ] || cp $(srcdir)/$$i/$$i.vcxproj.filters $(distdir)/$$i/; } && \
 	    cp $(srcdir)/$$i/CMakeLists.txt $(distdir)/$$i/ \
 	; done
 
@@ -115,8 +115,8 @@ EXTRA_DIST = CMakeLists.txt README.txt
 
 dist-hook:
 	for i in $(notdir $(EXAMPLES)); do \
-	    cp $(srcdir)/$$i/$$i.vcxproj $(distdir)/$$i/ && \
-	    cp $(srcdir)/$$i/$$i.vcxproj.filters $(distdir)/$$i/ && \
+	    { [ ! -f $(srcdir)/$$i/$$i.vcxproj ] || cp $(srcdir)/$$i/$$i.vcxproj $(distdir)/$$i/; } && \
+	    { [ ! -f $(srcdir)/$$i/$$i.vcxproj.filters ] || cp $(srcdir)/$$i/$$i.vcxproj.filters $(distdir)/$$i/; } && \
 	    cp $(srcdir)/$$i/CMakeLists.txt $(distdir)/$$i/ \
 	; done
 

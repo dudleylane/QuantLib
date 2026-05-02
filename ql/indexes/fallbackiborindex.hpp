@@ -56,8 +56,6 @@ namespace QuantLib
         auto fallback = ext::make_shared<FallbackIborIndex>(
             usdLibor3M, sofr, cessation, isdaSpread);
         \endcode
-
-        \ingroup indexes
     */
     class FallbackIborIndex : public IborIndex
     {
