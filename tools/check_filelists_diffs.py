@@ -2,15 +2,16 @@
 
 import sys
 
+# MSVC drift-check entries removed -- the fork supports RHEL/CentOS 10+
+# only (memory: project_supported_platforms.md), so QuantLib.vcxproj
+# / testsuite.vcxproj are no longer maintained-in-lockstep upstream
+# artifacts.  The .vcxproj files remain in the tree for any future
+# upstream merge but are not gated on.
 inputs = [
     ("ql.dist.diff", "Some Makefile.am"),
     ("test-suite.dist.diff", "test-suite/Makefile.am"),
     ("ql.cmake.diff", "ql/CMakeLists.txt"),
     ("test-suite.cmake.diff", "test-suite/CMakeLists.txt"),
-    ("ql.vcx.diff", "QuantLib.vcxproj"),
-    ("ql.vcx.filters.diff", "QuantLib.vcxproj.filters"),
-    ("test-suite.vcx.diff", "test-suite/testsuite.vcxproj"),
-    ("test-suite.vcx.filters.diff", "test-suite/testsuite.vcxproj.filters"),
 ]
 
 result = 0
