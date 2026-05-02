@@ -7,17 +7,14 @@ on:
   workflow_dispatch:
 jobs:
   coverage:
-    runs-on: ubuntu-latest
-    # ubuntu-22.04 ships GCC 11/12 -- below the fork's C++23 / GCC >= 15.2.1
-    # floor (CLAUDE.md, acinclude.m4).  Use the lballabio devenv image which
-    # already provides a recent compiler, and add lcov + nlohmann-json on top.
-    container: ghcr.io/lballabio/quantlib-devenv:rolling
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v6
     - name: Setup
       run: |
-        apt-get update
-        apt-get install -y lcov nlohmann-json3-dev
+        sudo rm /etc/apt/sources.list.d/microsoft-prod.list
+        sudo apt update
+        sudo apt install -y lcov libboost-dev
     - name: Compile
       run: |
         ./autogen.sh

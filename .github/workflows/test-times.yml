@@ -25,7 +25,7 @@ jobs:
     - name: Build
       run: |
         ./autogen.sh
-        ./configure --disable-static --disable-json-marketdata CC="ccache gcc" CXX="ccache g++" CXXFLAGS="-O2 -g0"
+        ./configure --disable-static CC="ccache gcc" CXX="ccache g++" CXXFLAGS="-O2 -g0"
         make -j 4
     - name: Run faster tests
       run: |

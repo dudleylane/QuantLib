@@ -10,16 +10,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # macos-14 ships Apple-clang 15, which lacks <expected>; the fork's
-        # C++23 floor (CLAUDE.md) cannot be met there.  macos-15+ only.
-        os: [macos-15]
+        os: [macos-14, macos-15]
     steps:
     - uses: actions/checkout@v6
     - name: Setup
       env:
         HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: 1
       run: |
-        brew install automake autoconf libtool boost ccache nlohmann-json
+        brew install automake autoconf libtool boost ccache
     - name: Cache
       uses: hendrikmuhs/ccache-action@v1.2
       with:

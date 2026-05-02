@@ -16,7 +16,7 @@ jobs:
     - name: Configure
       run: |
         ./autogen.sh
-        ./configure --disable-json-marketdata
+        ./configure
     - name: Update headers
       run: |
         find ql -name *.am | xargs touch
