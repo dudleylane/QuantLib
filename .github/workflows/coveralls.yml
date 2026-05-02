@@ -48,7 +48,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p coverage tmp
-          lcov --no-external --capture --initial --directory . --output-file ./tmp/lcov_base.info
+          lcov --no-external --capture --initial --ignore-errors mismatch --directory . --output-file ./tmp/lcov_base.info
 
       - name: Run tests
         shell: bash
@@ -63,7 +63,7 @@ jobs:
       - name: Capture coverage
         shell: bash
         run: |
-          lcov --no-external --capture --directory . --output-file ./tmp/lcov_run.info
+          lcov --no-external --capture --ignore-errors mismatch --directory . --output-file ./tmp/lcov_run.info
           lcov --add-tracefile ./tmp/lcov_base.info --add-tracefile ./tmp/lcov_run.info --output-file ./tmp/lcov_total.info
           lcov --remove ./tmp/lcov_total.info "$PWD/Examples/*" "$PWD/test-suite/*" --output-file ./coverage/lcov.info
 

@@ -2460,10 +2460,10 @@ target_link_libraries(ql_library PUBLIC
     ${OpenMP_CXX_LIBRARIES})
 
 if (QL_ENABLE_JSON_MARKETDATA)
-    # PRIVATE: nlohmann/json is only #included from jsonquoteloader.cpp,
-    # not from any public header.  Linking PUBLIC drags it into the
-    # QuantLibTargets export set, which fails when the library was
-    # pulled in via FetchContent.
+    # PRIVATE: nlohmann/json is only #included from the JSON loader's
+    # implementation file, not from any public header.  Linking PUBLIC
+    # drags it into the QuantLibTargets export set, which fails when
+    # the library was pulled in via FetchContent.
     target_link_libraries(ql_library PRIVATE nlohmann_json::nlohmann_json)
 endif()
 

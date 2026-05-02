@@ -57,6 +57,9 @@ jobs:
           cat ql/config.hpp
           cmake --build . --verbose
           cmake --install .
+          # Refresh dynamic linker cache so the test binary can find
+          # libQuantLib.so.1 in /usr/local/lib.  Container runs as root.
+          echo "/usr/local/lib" > /etc/ld.so.conf.d/quantlib.conf
           ldconfig
 
       - name: Test
@@ -111,6 +114,8 @@ jobs:
           cat ql/config.hpp
           cmake --build . --verbose
           cmake --build . --target install
+          echo "/usr/local/lib" > /etc/ld.so.conf.d/quantlib.conf
+          ldconfig
 
       - name: Test
         shell: bash
