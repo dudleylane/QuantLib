@@ -537,6 +537,7 @@ AC_CONFIG_FILES([
     ql/math/randomnumbers/Makefile
     ql/math/solvers1d/Makefile
     ql/math/statistics/Makefile
+    ql/marketdata/Makefile
     ql/methods/Makefile
     ql/methods/finitedifferences/Makefile    
     ql/methods/finitedifferences/meshers/Makefile
@@ -571,6 +572,7 @@ AC_CONFIG_FILES([
     ql/patterns/Makefile
     ql/pricingengines/Makefile
     ql/pricingengines/asian/Makefile
+    ql/pricingengines/autocallable/Makefile
     ql/pricingengines/barrier/Makefile
     ql/pricingengines/basket/Makefile
     ql/pricingengines/bond/Makefile
@@ -588,6 +590,7 @@ AC_CONFIG_FILES([
     ql/pricingengines/vanilla/Makefile
     ql/processes/Makefile
     ql/quotes/Makefile
+    ql/risk/Makefile
     ql/termstructures/Makefile
     ql/termstructures/credit/Makefile
     ql/termstructures/inflation/Makefile
