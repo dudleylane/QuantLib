@@ -1,44 +1,126 @@
-name: Linux build with address sanitizer enabled
+name: Sanitizers
+
+# Fork-supported platform is RHEL/CentOS 10+ (memory:
+# project_supported_platforms.md).  Modeled on
+# ~/cayuga/.github/workflows/sanitizers.yml: ASan/TSan/UBSan are
+# separate matrix cells for clearer attribution; TSan is routed
+# through Clang to dodge gcc bug 93922 (atomic_thread_fence won't
+# compile under GCC's -fsanitize=thread).
+
 on:
   schedule:
     - cron: '0 0 * * 0'
   workflow_dispatch:
+
 jobs:
-  sanitize-address-undefined:
+  sanitizer:
+    name: ${{ matrix.sanitizer }}
     runs-on: ubuntu-latest
-    container: ghcr.io/lballabio/quantlib-devenv:rolling
+    container:
+      image: quay.io/centos/centos:stream10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ASan + leak detection.  Routed through gcc-toolset-15.
+          - sanitizer: asan
+            cc: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+            cxx: /opt/rh/gcc-toolset-15/root/usr/bin/g++
+            extra_path: /opt/rh/gcc-toolset-15/root/usr/bin
+            extra_ld: /opt/rh/gcc-toolset-15/root/usr/lib64
+            extra_cxxflags: ""
+            sanitizer_cxxflags: "-fsanitize=address -fno-sanitize-recover=all -fno-omit-frame-pointer"
+            configureflags: ""
+          # TSan.  Routed through Clang because GCC's TSan refuses to
+          # compile std::atomic_thread_fence (gcc bug 93922).  Pinned
+          # to system GCC 14's libstdc++ via --gcc-install-dir to
+          # prevent Clang from auto-detecting the gcc-toolset-15
+          # libstdc++-15 (constexpr/template-instantiation skew).
+          - sanitizer: tsan
+            cc: /usr/bin/clang
+            cxx: /usr/bin/clang++
+            extra_path: ""
+            extra_ld: ""
+            extra_cxxflags: "--gcc-install-dir=/usr/lib/gcc/x86_64-redhat-linux/14"
+            sanitizer_cxxflags: "-fsanitize=thread -fno-sanitize-recover=all"
+            configureflags: "--enable-sessions --enable-thread-safe-observer-pattern"
+          # UBSan.  Umbrella -fsanitize=undefined; gcc-toolset-15.
+          - sanitizer: ubsan
+            cc: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+            cxx: /opt/rh/gcc-toolset-15/root/usr/bin/g++
+            extra_path: /opt/rh/gcc-toolset-15/root/usr/bin
+            extra_ld: /opt/rh/gcc-toolset-15/root/usr/lib64
+            extra_cxxflags: ""
+            sanitizer_cxxflags: "-fsanitize=undefined -fno-sanitize-recover=all -fno-omit-frame-pointer"
+            configureflags: ""
     steps:
-    - uses: actions/checkout@v6
-    - name: Compiler version
-      run: |
-        gcc --version
-    - name: Build
-      run: |
-        ./autogen.sh
-        ./configure --disable-static CC="gcc" CXX="g++" CXXFLAGS="-O2 -g0 -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -Wall -Wno-unknown-pragmas -Werror"
-        make -j 4
-    - name: Run tests
-      run: |
-        LSAN_OPTIONS=suppressions=.lsan.txt ./test-suite/quantlib-test-suite --log_level=message
-    - name: Run examples
-      run: |
-        make check-examples
-  sanitize-thread:
-    runs-on: ubuntu-latest
-    container: ghcr.io/lballabio/quantlib-devenv:rolling
-    steps:
-    - uses: actions/checkout@v6
-    - name: Compiler version
-      run: |
-        gcc --version
-    - name: Build
-      run: |
-        ./autogen.sh
-        ./configure --disable-static --enable-sessions --enable-thread-safe-observer-pattern CC="gcc" CXX="g++" CXXFLAGS="-O2 -g0 -fsanitize=thread -fno-sanitize-recover=all -Wall -Wno-unknown-pragmas -Werror"
-        make -j 4
-    - name: Run tests
-      run: |
-        ./test-suite/quantlib-test-suite --log_level=message
-    - name: Run examples
-      run: |
-        make check-examples
+      - uses: actions/checkout@v6
+
+      - name: Install build tools (dnf)
+        # Sanitizer-runtime devel packages provide the static libs the
+        # autotools `configure` AC_TRY_LINK probes need.  Install both
+        # gcc-toolset-15 and Clang so the matrix can route tsan to
+        # Clang while asan/ubsan use GCC 15.
+        shell: bash
+        run: |
+          dnf install -y dnf-plugins-core epel-release
+          dnf config-manager --set-enabled crb
+          dnf install -y \
+            gcc-toolset-15 gcc-toolset-15-libatomic-devel \
+            gcc-toolset-15-libasan-devel \
+            gcc-toolset-15-libubsan-devel \
+            gcc-toolset-15-libtsan-devel \
+            clang \
+            autoconf automake libtool make \
+            boost-devel \
+            nlohmann-json-devel \
+            git which
+
+      - name: Compiler version
+        shell: bash
+        env:
+          CXX: ${{ matrix.cxx }}
+        run: |
+          if [ -n "${{ matrix.extra_path }}" ]; then
+            export PATH="${{ matrix.extra_path }}:$PATH"
+          fi
+          $CXX --version
+
+      - name: Build
+        shell: bash
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+        run: |
+          if [ -n "${{ matrix.extra_path }}" ]; then
+            export PATH="${{ matrix.extra_path }}:$PATH"
+          fi
+          if [ -n "${{ matrix.extra_ld }}" ]; then
+            export LD_LIBRARY_PATH="${{ matrix.extra_ld }}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          fi
+          ./autogen.sh
+          ./configure --disable-static ${{ matrix.configureflags }} \
+            CC="$CC" CXX="$CXX" \
+            CXXFLAGS="-O2 -g0 ${{ matrix.sanitizer_cxxflags }} ${{ matrix.extra_cxxflags }} -Wall -Wno-unknown-pragmas -Werror"
+          make -j"$(nproc)"
+
+      - name: Run tests
+        shell: bash
+        env:
+          ASAN_OPTIONS: "abort_on_error=1:halt_on_error=1:detect_leaks=1"
+          TSAN_OPTIONS: "halt_on_error=1:second_deadlock_stack=1"
+          UBSAN_OPTIONS: "halt_on_error=1:print_stacktrace=1"
+          LSAN_OPTIONS: "suppressions=.lsan.txt"
+        run: |
+          if [ -n "${{ matrix.extra_ld }}" ]; then
+            export LD_LIBRARY_PATH="${{ matrix.extra_ld }}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          fi
+          ./test-suite/quantlib-test-suite --log_level=message
+
+      - name: Run examples
+        shell: bash
+        run: |
+          if [ -n "${{ matrix.extra_ld }}" ]; then
+            export LD_LIBRARY_PATH="${{ matrix.extra_ld }}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          fi
+          make check-examples
