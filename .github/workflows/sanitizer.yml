@@ -41,7 +41,13 @@ jobs:
             cxx: /usr/bin/clang++
             extra_path: ""
             extra_ld: ""
-            extra_cxxflags: "--gcc-install-dir=/usr/lib/gcc/x86_64-redhat-linux/14"
+            # -Wno-deprecated-declarations: Clang 22 + Boost 1.83 ublas
+            # iterator headers use the deprecated std::iterator base
+            # class; with -Werror this turns into a compile error.  GCC
+            # tolerates it; Clang doesn't.  Boost >= 1.84 removes the
+            # use, so this flag becomes unneeded once EL10 ships a
+            # newer Boost.
+            extra_cxxflags: "--gcc-install-dir=/usr/lib/gcc/x86_64-redhat-linux/14 -Wno-deprecated-declarations"
             sanitizer_cxxflags: "-fsanitize=thread -fno-sanitize-recover=all"
             configureflags: "--enable-sessions --enable-thread-safe-observer-pattern"
           # UBSan.  Umbrella -fsanitize=undefined; gcc-toolset-15.
