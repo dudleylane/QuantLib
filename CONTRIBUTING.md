@@ -21,6 +21,44 @@
 
 ---
 
+## Formatting
+
+Project style is BSD/Allman braces, 120-column limit, 4-space indent
+(see `.clang-format`).  CI enforces it on every push and PR via
+`.github/workflows/format.yml` running `clang-format --dry-run -Werror`,
+so a PR with formatting drift will fail before review.
+
+- **Pinned to clang-format 22.x.**  CentOS Stream 10 ships
+  `clang-tools-extra` at LLVM 22.x natively, so `dnf install -y
+  clang-tools-extra` gives the right binary; do **not** use
+  `apt.llvm.org`, a self-built clang-format, or a different major
+  version — `BasedOnStyle: LLVM` defaults shift across them and
+  patch versions matter (we hit a 22.1.1 ↔ 22.1.3 skew when the
+  gate first ran).  To reformat locally before pushing:
+
+  ```bash
+  find ql test-suite Examples fuzz-test-suite \
+      -type f \( -name '*.hpp' -o -name '*.cpp' \) -print0 \
+    | xargs -0 clang-format -i
+  ```
+
+- **One-time `git blame` setup.**  The project-wide reformat sits
+  in commit `710698abd` and is recorded in `.git-blame-ignore-revs`.
+  Per-clone, run this once so `git blame` skips the mechanical
+  reformat:
+
+  ```bash
+  git config blame.ignoreRevsFile .git-blame-ignore-revs
+  ```
+
+- **clang-format oscillation escape hatch.**  If a future
+  contributor hits a block that clang-format can't format stably
+  (one such block exists in `ql/experimental/math/latentmodel.hpp`),
+  fence it with `// clang-format off` / `// clang-format on` rather
+  than reformatting around it.
+
+---
+
 ## Upstream contribution flow
 
 Thanks for considering a contribution!  We're looking forward to it.
