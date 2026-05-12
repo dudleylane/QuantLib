@@ -19,9 +19,7 @@ on:
 jobs:
   build:
     name: ${{ matrix.name }}
-    runs-on: ubuntu-latest
-    container:
-      image: quay.io/centos/centos:stream10
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
     # gcc-toolset-15 path/lib activation.  CentOS Stream 10 ships with
     # GCC 14 by default; the fork floor is GCC >= 15.2.1 (CLAUDE.md).
     env:
@@ -80,22 +78,6 @@ jobs:
             tests: true
     steps:
       - uses: actions/checkout@v6
-
-      - name: Install build tools (dnf)
-        # CRB enables -devel packages held back from base; EPEL ships
-        # ccache.  nlohmann-json-devel is required for the fork's
-        # default-ON QL_ENABLE_JSON_MARKETDATA.
-        shell: bash
-        run: |
-          dnf install -y dnf-plugins-core epel-release
-          dnf config-manager --set-enabled crb
-          dnf install -y \
-            gcc-toolset-15 gcc-toolset-15-libatomic-devel \
-            autoconf automake libtool make \
-            boost-devel \
-            nlohmann-json-devel \
-            ccache \
-            git which
 
       - name: Cache
         uses: hendrikmuhs/ccache-action@v1.2

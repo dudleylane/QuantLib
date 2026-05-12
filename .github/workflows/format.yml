@@ -15,17 +15,9 @@ on:
 
 jobs:
   clang-format:
-    runs-on: ubuntu-latest
-    container:
-      image: quay.io/centos/centos:stream10
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
     steps:
       - uses: actions/checkout@v6
-
-      - name: Install clang-format
-        shell: bash
-        run: |
-          dnf install -y clang-tools-extra git findutils
-          clang-format --version
 
       - name: Check formatting
         shell: bash

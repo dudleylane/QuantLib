@@ -15,9 +15,7 @@ on:
 jobs:
   sanitizer:
     name: ${{ matrix.sanitizer }}
-    runs-on: ubuntu-latest
-    container:
-      image: quay.io/centos/centos:stream10
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
     strategy:
       fail-fast: false
       matrix:
@@ -61,26 +59,6 @@ jobs:
             configureflags: ""
     steps:
       - uses: actions/checkout@v6
-
-      - name: Install build tools (dnf)
-        # Sanitizer-runtime devel packages provide the static libs the
-        # autotools `configure` AC_TRY_LINK probes need.  Install both
-        # gcc-toolset-15 and Clang so the matrix can route tsan to
-        # Clang while asan/ubsan use GCC 15.
-        shell: bash
-        run: |
-          dnf install -y dnf-plugins-core epel-release
-          dnf config-manager --set-enabled crb
-          dnf install -y \
-            gcc-toolset-15 gcc-toolset-15-libatomic-devel \
-            gcc-toolset-15-libasan-devel \
-            gcc-toolset-15-libubsan-devel \
-            gcc-toolset-15-libtsan-devel \
-            clang \
-            autoconf automake libtool make \
-            boost-devel \
-            nlohmann-json-devel \
-            git which
 
       - name: Compiler version
         shell: bash

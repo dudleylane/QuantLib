@@ -13,9 +13,7 @@ on:
 jobs:
   build:
     name: ${{ matrix.name }}
-    runs-on: ubuntu-latest
-    container:
-      image: quay.io/centos/centos:stream10
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
     env:
       PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
@@ -62,18 +60,6 @@ jobs:
             configureflags: --enable-null-as-functions
     steps:
       - uses: actions/checkout@v6
-
-      - name: Install build tools (dnf)
-        shell: bash
-        run: |
-          dnf install -y dnf-plugins-core epel-release
-          dnf config-manager --set-enabled crb
-          dnf install -y \
-            gcc-toolset-15 gcc-toolset-15-libatomic-devel \
-            autoconf automake libtool make \
-            boost-devel \
-            nlohmann-json-devel \
-            git which
 
       - name: Compiler version
         shell: bash
