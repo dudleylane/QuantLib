@@ -50,7 +50,9 @@ jobs:
         shell: bash
         run: |
           ./autogen.sh
-          ./configure --disable-static \
+          # --prefix into the workspace so the later `make install` step in
+          # "Check global header" doesn't need root to write to /usr/local.
+          ./configure --prefix="$GITHUB_WORKSPACE/install" --disable-static \
             --enable-error-lines --enable-error-functions --enable-tracing \
             --enable-indexed-coupons --enable-extra-safety-checks \
             --enable-sessions --enable-thread-safe-observer-pattern \
@@ -80,5 +82,6 @@ jobs:
           echo "int main() { return 0; }" >> test1.cpp
           echo "#include <ql/quantlib.hpp>" > test2.cpp
           make install
+          export PATH="$GITHUB_WORKSPACE/install/bin:$PATH"
           g++ -O2 -g0 -Wall -Wno-unknown-pragmas -Werror ${{ matrix.cxxflags }} \
             $(quantlib-config --cflags) test1.cpp test2.cpp $(quantlib-config --libs)
