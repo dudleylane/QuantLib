@@ -14,6 +14,7 @@ jobs:
   analyze:
     name: CodeQL analysis
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
+    timeout-minutes: 180
     env:
       PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
@@ -28,6 +29,7 @@ jobs:
       uses: github/codeql-action/init@v4
       with:
         languages: cpp
+        config-file: ./.github/codeql/codeql-config.yml
 
     - name: Build
       run: |
@@ -38,3 +40,6 @@ jobs:
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4
+      with:
+        ram: 10240
+        threads: 8
