@@ -102,6 +102,8 @@ Examples/MultidimIntegral/MultidimIntegral
 Examples/MulticurveBootstrapping/MulticurveBootstrapping
 Examples/Replication/Replication
 Examples/Repo/Repo
+Examples/AsianOption/AsianOption
+Examples/XvaSnapshot/XvaSnapshot
 test-suite/quantlib-test-suite
 test-suite/quantlib-benchmark
 test-suite/bin/*.exp
