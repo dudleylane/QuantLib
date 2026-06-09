@@ -13,40 +13,28 @@ on:
 jobs:
   analyze:
     name: CodeQL analysis
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
+    env:
+      PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
+      CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+      CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v6
 
-    # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v4
       with:
         languages: cpp
 
-    # Set up build environment
-    - name: Setup
+    - name: Build
       run: |
-        sudo rm /etc/apt/sources.list.d/microsoft-prod.list
-        sudo apt update
-        sudo apt install -y libboost-dev
-
-    # Autobuild attempts to build any compiled languages  (C/C++, C#, or Java).
-    # If this step fails, then you should remove it and run the build manually (see below)
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v4
-
-    # ℹ️ Command-line programs to run using the OS shell.
-    # 📚 https://git.io/JvXDl
-
-    # ✏️ If the Autobuild fails above, remove it and uncomment the following three lines
-    #    and modify them (or add more) to build your code if your project
-    #    uses a compiled language
-
-    #- run: |
-    #   make bootstrap
-    #   make release
+        ./autogen.sh
+        ./configure --disable-static CC="gcc" CXX="g++" \
+          CXXFLAGS="-O2 -g0 -Wall -Wno-unknown-pragmas"
+        make -j"$(nproc)"
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4
