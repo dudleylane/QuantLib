@@ -59,7 +59,7 @@ jobs:
             shortname: nullfunctions
             configureflags: --enable-null-as-functions
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Compiler version
         shell: bash

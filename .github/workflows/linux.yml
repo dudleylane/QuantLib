@@ -77,7 +77,7 @@ jobs:
             configureflags: --enable-null-as-functions
             tests: true
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Cache
         uses: hendrikmuhs/ccache-action@v1.2

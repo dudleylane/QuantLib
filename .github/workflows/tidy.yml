@@ -7,7 +7,7 @@ jobs:
   check:
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Setup
       run: |
         sudo apt-get update

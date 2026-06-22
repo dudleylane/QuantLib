@@ -12,7 +12,7 @@ jobs:
     if: ${{ github.repository == 'lballabio/QuantLib' && github.event.release.prerelease == false }}
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         repository: quantlib/QuantLib
         token: ${{ secrets.ORG_PUSH_PAT }}

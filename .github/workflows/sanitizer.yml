@@ -58,7 +58,7 @@ jobs:
             sanitizer_cxxflags: "-fsanitize=undefined -fno-sanitize-recover=all -fno-omit-frame-pointer"
             configureflags: ""
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Compiler version
         shell: bash
