@@ -2,11 +2,12 @@ name: Linux build with full test matrix
 
 # Fork-supported platform is RHEL/CentOS 10+ (memory:
 # project_supported_platforms.md).  Same EL10 / gcc-toolset-15
-# template as linux.yml; weekly cron + on-demand.
+# template as linux.yml; event-driven + on-demand.
 
 on:
-  schedule:
-    - cron: '0 0 * * 0'
+  push:
+    branches: [master]
+  pull_request:
   workflow_dispatch:
   workflow_call:
 
