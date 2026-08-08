@@ -11,6 +11,14 @@ on:
   pull_request:
   workflow_dispatch:
 
+concurrency:
+  # One in-flight run per workflow per ref: a new push supersedes the
+  # previous run instead of queueing behind it.  The dev host has a
+  # single quantlib-dev runner, and GitHub cancels runs that sit queued
+  # for 24 hours -- which is how master's post-merge validation was lost.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   coverage:
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
