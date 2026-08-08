@@ -19,9 +19,25 @@ on:
   pull_request:
   workflow_dispatch:
 
+concurrency:
+  # One in-flight run per workflow per ref: a new push supersedes the
+  # previous run instead of queueing behind it.  The dev host has a
+  # single quantlib-dev runner, and GitHub cancels runs that sit queued
+  # for 24 hours -- which is how master's post-merge validation was lost.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
+    # Same gcc-toolset-15 activation as linux.yml and sanitizer.yml.  Without
+    # it CMake picks Stream 10's default /usr/bin/g++ 14.4.1 and
+    # CMakeLists.txt:77 rejects it: "QuantLib requires GCC 15.2.1 or higher".
+    env:
+      PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
+      CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+      CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
     steps:
     - uses: actions/checkout@v6
 
