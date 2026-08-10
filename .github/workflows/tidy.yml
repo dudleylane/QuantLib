@@ -43,14 +43,22 @@ jobs:
 
     - name: Build with clang-tidy
       shell: bash
+      # No -DQL_CLANG_TIDY override any more: the preset used to hardcode
+      # clang-tidy-19, which does not exist on this host, and the override was
+      # a workaround for that.  The preset now says "clang-tidy" and resolves
+      # to whatever the host ships (22.x on Stream 10).
       run: |
-        cmake --preset linux-ci-build-with-clang-tidy -DQL_CLANG_TIDY=clang-tidy-22
+        cmake --preset linux-ci-build-with-clang-tidy
         cmake --build build/linux-ci-build-with-clang-tidy -j1
 
-    - name: Fail if clang-tidy applied fixes
+    - name: Fail if clang-tidy modified the tree
       shell: bash
+      # The preset now runs tidy with -quiet alone, so findings are reported
+      # and nothing is rewritten; this step should never fire.  Kept as a
+      # tripwire in case -fix is reintroduced -- silently rewritten sources
+      # are how this job came to compile code no one had reviewed.
       run: |
         if ! git diff --exit-code; then
-          echo "::error::clang-tidy applied fixes; the diff above needs committing."
+          echo "::error::clang-tidy modified tracked files; the preset should report, not fix."
           exit 1
         fi
