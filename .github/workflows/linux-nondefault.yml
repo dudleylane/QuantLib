@@ -4,20 +4,36 @@ name: Linux build with non-default configuration
 # project_supported_platforms.md).  Stacks every non-default
 # configureflag into a single configure invocation -- the matrix
 # axis is just the cxxflags / extra configureflags variant.
+#
+# Not run on pull requests.  Like linux-full-tests.yml this was a weekly cron
+# ('0 0 * * 0') until it was converted to push + pull_request, which removed
+# the cron but silently promoted a periodic sweep to a per-change gate.
+#
+# Unlike linux-full-tests.yml these five cells are *not* duplicates of
+# linux.yml -- they hardcode --enable-tracing, --enable-extra-safety-checks,
+# --enable-error-functions and friends, configurations nothing else builds.
+# The coverage is real; only the cadence was wrong.  master and
+# workflow_dispatch keep it.
 
 on:
   push:
     branches: [master]
-  pull_request:
   workflow_dispatch:
 
 concurrency:
-  # One in-flight run per workflow per ref: a new push supersedes the
-  # previous run instead of queueing behind it.  The dev host has a
-  # single quantlib-dev runner, and GitHub cancels runs that sit queued
-  # for 24 hours -- which is how master's post-merge validation was lost.
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Push runs are keyed by SHA so each merge commit lands in a group of its own
+  # and cannot be superseded.  cancel-in-progress: false is NOT sufficient for
+  # that: a group holds at most one running and one pending run, and a newer
+  # arrival cancels the pending one, so merging twice in quick succession
+  # silently drops the first commit's validation (hft-core lost two merge
+  # commits that way, 2026-08-08).  That matters more here now that master is
+  # the only branch this workflow runs on.
+  #
+  # Non-push runs (workflow_dispatch) keep ref-keying so a re-dispatch
+  # supersedes the previous one instead of queueing behind it -- the dev host
+  # has one quantlib-dev runner, and GitHub cancels runs queued for 24 hours.
+  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
 
 jobs:
   build:
