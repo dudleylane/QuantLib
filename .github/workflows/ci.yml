@@ -32,9 +32,28 @@ name: CI
 # a widening.
 
 on:
+  # Markdown cannot change what CI verifies.  Nothing in the build consumes it:
+  # doxygen's FILE_PATTERNS is `*.docs` over Docs/pages, not `*.md`; the three
+  # .md files in Makefile.am are EXTRA_DIST entries, which only affect
+  # `make dist`, and no job runs dist or distcheck; check_filelists.sh does not
+  # look at them.  Only four .md files are tracked, so the saving is modest --
+  # but a docs-only commit currently costs 31 jobs, including seventeen full
+  # library builds, on a runner shared with five other repositories.
+  #
+  # Docs/** is deliberately NOT ignored.  It holds quantlib.doxy, pages/,
+  # quantlibextra.css and quantlibfooter.html, which `make docs` consumes, so
+  # ignoring it would disable the only job that validates a doxygen change.
+  # That was in the first draft of this filter and was wrong.
+  #
+  # Safe here specifically because master has no branch protection -- the API
+  # returns "Branch not protected" -- so no required status check can be left
+  # permanently pending by a skipped run.  If protection is ever added, revisit
+  # this: a required check that never reports blocks the PR forever.
   push:
     branches: [master]
+    paths-ignore: ['**.md']
   pull_request:
+    paths-ignore: ['**.md']
   workflow_dispatch:
 
 concurrency:
