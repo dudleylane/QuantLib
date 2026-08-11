@@ -117,10 +117,62 @@ jobs:
         run: |
           ./tools/check_filelists.sh
 
+  # ===== tier-1 gating =====
+  # Nine of the last twelve merges to master touched only .github/, and each
+  # ran all 31 jobs -- seventeen full library builds -- to validate a change
+  # that cannot reach anything they compile.  This job decides whether the diff
+  # is CI-config-only; if it is, the sweep collapses to the two gates plus a
+  # single default-configuration build.
+  #
+  # Fail-safe by construction: an unknown base ref, a force-push, a
+  # workflow_dispatch, an empty diff or any git error all yield false, which
+  # runs the full sweep.  The classification is echoed into the log on every
+  # run so a wrong call is visible where it happened rather than inferred
+  # afterwards from what did not execute.
+  changes:
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
+    outputs:
+      ci_only: ${{ steps.classify.outputs.ci_only }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Classify the diff
+        id: classify
+        shell: bash
+        run: |
+          set -uo pipefail
+          case "${{ github.event_name }}" in
+            pull_request) base="${{ github.event.pull_request.base.sha }}" ;;
+            push)         base="${{ github.event.before }}" ;;
+            *)            base="" ;;
+          esac
+          head="${{ github.sha }}"
+          verdict=false
+          if [ -n "$base" ] && [ "$base" != "0000000000000000000000000000000000000000" ]; then
+            if files=$(git diff --name-only "$base" "$head" 2>/dev/null) && [ -n "$files" ]; then
+              verdict=true
+              while read -r f; do
+                [ -z "$f" ] && continue
+                case "$f" in .github/*) ;; *) verdict=false; break ;; esac
+              done <<< "$files"
+              echo "changed files ($(wc -l <<< "$files")):"
+              sed 's/^/  /' <<< "$files"
+            else
+              echo "no diff available for $base..$head -- running the full sweep"
+            fi
+          else
+            echo "no usable base ref for event ${{ github.event_name }} -- running the full sweep"
+          fi
+          echo "ci_only=$verdict" >> "$GITHUB_OUTPUT"
+          echo "::notice::tier $( [ "$verdict" = true ] && echo '1 (CI config only): gates + default build' || echo '3 (full): all 31 jobs' )"
+
   # ===== from headers.yml =====
 
   headers:
-    needs: [clang-format, filelists]
+    if: needs.changes.outputs.ci_only != 'true'
+    needs: [clang-format, filelists, changes]
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     env:
       PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -167,7 +219,7 @@ jobs:
   # axis is how a cell is declared build-only, and a future cell that cannot run
   # the suite (a cross-build, say) should be able to say so.
   linux:
-    needs: [clang-format, filelists]
+    needs: [clang-format, filelists, changes]
     name: linux / ${{ matrix.name }}
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     # gcc-toolset-15 path/lib activation.  CentOS Stream 10 ships with
@@ -181,53 +233,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: "Default (c++23, no extra flags)"
-            shortname: default
-            tests: true
-          - name: "C++26 mode"
-            shortname: c++26
-            cxxflags: "-std=c++26"
-            tests: true
-          - name: "Unity build enabled"
-            shortname: unity
-            configureflags: --enable-unity-build
-            tests: true
-          - name: "Intraday calculations enabled"
-            shortname: intraday
-            configureflags: --enable-intraday
-            tests: true
-          - name: "Throwing in cycles enabled"
-            shortname: cycles
-            configureflags: --enable-throwing-in-cycles --disable-faster-lazy-objects
-            tests: true
-          - name: "Indexed coupons enabled"
-            shortname: indexed
-            configureflags: --enable-indexed-coupons
-            tests: true
-          - name: "Standard Library classes enabled"
-            shortname: stdclasses
-            configureflags: --enable-std-classes
-            tests: true
-          - name: "Thread-safe observer enabled"
-            shortname: threadsafe
-            configureflags: --enable-thread-safe-observer-pattern
-            tests: true
-          - name: "Sessions enabled"
-            shortname: sessions
-            configureflags: --enable-sessions
-            tests: true
-          - name: "OpenMP enabled"
-            shortname: openmp
-            configureflags: --enable-openmp
-            tests: true
-          - name: "Parallel unit-test runner"
-            shortname: paralleltests
-            configureflags: --enable-parallel-unit-test-runner
-            tests: true
-          - name: "Null as function template"
-            shortname: nullfunctions
-            configureflags: --enable-null-as-functions
-            tests: true
+        include: >-
+          ${{ fromJSON(needs.changes.outputs.ci_only == 'true'
+          && '[{"name":"Default (c++23, no extra flags)","shortname":"default","tests":true}]'
+          || '[{"name":"Default (c++23, no extra flags)","shortname":"default","tests":true},{"name":"C++26 mode","shortname":"c++26","cxxflags":"-std=c++26","tests":true},{"name":"Unity build enabled","shortname":"unity","configureflags":"--enable-unity-build","tests":true},{"name":"Intraday calculations enabled","shortname":"intraday","configureflags":"--enable-intraday","tests":true},{"name":"Throwing in cycles enabled","shortname":"cycles","configureflags":"--enable-throwing-in-cycles --disable-faster-lazy-objects","tests":true},{"name":"Indexed coupons enabled","shortname":"indexed","configureflags":"--enable-indexed-coupons","tests":true},{"name":"Standard Library classes enabled","shortname":"stdclasses","configureflags":"--enable-std-classes","tests":true},{"name":"Thread-safe observer enabled","shortname":"threadsafe","configureflags":"--enable-thread-safe-observer-pattern","tests":true},{"name":"Sessions enabled","shortname":"sessions","configureflags":"--enable-sessions","tests":true},{"name":"OpenMP enabled","shortname":"openmp","configureflags":"--enable-openmp","tests":true},{"name":"Parallel unit-test runner","shortname":"paralleltests","configureflags":"--enable-parallel-unit-test-runner","tests":true},{"name":"Null as function template","shortname":"nullfunctions","configureflags":"--enable-null-as-functions","tests":true}]') }
     steps:
       - uses: actions/checkout@v7
 
@@ -299,8 +308,8 @@ jobs:
   # the deduplication that removed linux-full-tests.yml, whose twelve cells were
   # identical to linux.yml's in both name and flags.
   linux-nondefault:
-    if: github.event_name != 'pull_request'
-    needs: [clang-format, filelists]
+    if: github.event_name != 'pull_request' && needs.changes.outputs.ci_only != 'true'
+    needs: [clang-format, filelists, changes]
     name: nondefault / ${{ matrix.name }}
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     env:
@@ -382,7 +391,8 @@ jobs:
   # through Clang to dodge gcc bug 93922 (atomic_thread_fence won't
   # compile under GCC's -fsanitize=thread).
   sanitizer:
-    needs: [clang-format, filelists]
+    if: needs.changes.outputs.ci_only != 'true'
+    needs: [clang-format, filelists, changes]
     name: ${{ matrix.sanitizer }}
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     strategy:
@@ -484,7 +494,8 @@ jobs:
   # along with macos.yml / msvc*.yml / cmake-latest-runners.yml -- the
   # fork doesn't claim those targets.
   cmake-linux:
-    needs: [clang-format, filelists]
+    if: needs.changes.outputs.ci_only != 'true'
+    needs: [clang-format, filelists, changes]
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     env:
       PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -537,7 +548,8 @@ jobs:
           quantlib-benchmark --size=1
 
   cmake-linux-with-options:
-    needs: [clang-format, filelists]
+    if: needs.changes.outputs.ci_only != 'true'
+    needs: [clang-format, filelists, changes]
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     env:
       PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -579,7 +591,8 @@ jobs:
   # Fork-supported platform is RHEL/CentOS 10+ (memory:
   # project_supported_platforms.md).  Doxygen + graphviz from base/CRB.
   docs:
-    needs: [clang-format, filelists]
+    if: needs.changes.outputs.ci_only != 'true'
+    needs: [clang-format, filelists, changes]
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     env:
       PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -606,7 +619,8 @@ jobs:
           make docs
 
   header-docs:
-    needs: [clang-format, filelists]
+    if: needs.changes.outputs.ci_only != 'true'
+    needs: [clang-format, filelists, changes]
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     steps:
       - uses: actions/checkout@v7
@@ -621,7 +635,8 @@ jobs:
   # project_supported_platforms.md).  Runs inside CentOS Stream 10 with
   # gcc-toolset-15; lcov from EPEL.
   coverage:
-    needs: [clang-format, filelists]
+    if: needs.changes.outputs.ci_only != 'true'
+    needs: [clang-format, filelists, changes]
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     env:
       PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -673,7 +688,8 @@ jobs:
   # You may wish to alter this file to override the set of languages analyzed,
   # or to provide custom queries or build logic.
   analyze:
-    needs: [clang-format, filelists]
+    if: needs.changes.outputs.ci_only != 'true'
+    needs: [clang-format, filelists, changes]
     name: CodeQL analysis
     # This repo's default workflow permission is read-only, so GITHUB_TOKEN
     # could not upload the SARIF results and the job ended with "Resource not
@@ -721,7 +737,8 @@ jobs:
   # CI runner are inherently noisy; tools/check_test_times.py treats
   # this as advisory regression-flagging, not a hard gate.
   check-test-times:
-    needs: [clang-format, filelists]
+    if: needs.changes.outputs.ci_only != 'true'
+    needs: [clang-format, filelists, changes]
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     env:
       PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -788,7 +805,8 @@ jobs:
   # secrets.MACHINE_ACCOUNT_PAT and vars.MACHINE_ACCOUNT, neither of
   # which is set on this repo.
   check:
-    needs: [clang-format, filelists]
+    if: needs.changes.outputs.ci_only != 'true'
+    needs: [clang-format, filelists, changes]
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     # Same gcc-toolset-15 activation as linux.yml and sanitizer.yml.  Without
     # it CMake picks Stream 10's default /usr/bin/g++ 14.4.1 and
