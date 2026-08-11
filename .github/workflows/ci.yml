@@ -64,7 +64,7 @@ jobs:
   clang-format:
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Check formatting
         shell: bash
@@ -85,7 +85,7 @@ jobs:
       CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
       CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Configure
         shell: bash
@@ -109,7 +109,7 @@ jobs:
       CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
       CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Cache
       uses: hendrikmuhs/ccache-action@v1.2
       with:
@@ -210,7 +210,7 @@ jobs:
             configureflags: --enable-null-as-functions
             tests: true
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Cache
         uses: hendrikmuhs/ccache-action@v1.2
@@ -308,7 +308,7 @@ jobs:
             shortname: openmp
             configureflags: --enable-openmp
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Compiler version
         shell: bash
@@ -408,7 +408,7 @@ jobs:
             sanitizer_cxxflags: "-fsanitize=undefined -fno-sanitize-recover=all -fno-omit-frame-pointer"
             configureflags: ""
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Compiler version
         shell: bash
@@ -473,7 +473,7 @@ jobs:
       CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
       CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Cache
         uses: hendrikmuhs/ccache-action@v1.2
@@ -526,7 +526,7 @@ jobs:
       CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
       CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Cache
         uses: hendrikmuhs/ccache-action@v1.2
@@ -568,7 +568,7 @@ jobs:
       CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
       CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Doxygen version
         shell: bash
@@ -590,7 +590,7 @@ jobs:
     needs: [clang-format, filelists]
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Check
         shell: bash
@@ -610,7 +610,7 @@ jobs:
       CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
       CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Compile
         shell: bash
@@ -675,7 +675,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v4
@@ -710,7 +710,7 @@ jobs:
       CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
       CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Cache
         uses: hendrikmuhs/ccache-action@v1.2
@@ -780,7 +780,7 @@ jobs:
       CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
       CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: Build with clang-tidy
       shell: bash
