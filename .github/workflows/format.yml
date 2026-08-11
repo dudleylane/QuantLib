@@ -13,12 +13,22 @@ on:
       - '**'
 
 concurrency:
-  # One in-flight run per workflow per ref: a new push supersedes the
-  # previous run instead of queueing behind it.  The dev host has a
-  # single quantlib-dev runner, and GitHub cancels runs that sit queued
-  # for 24 hours -- which is how master's post-merge validation was lost.
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Push runs are keyed by SHA so each merge commit lands in a group of its own
+  # and cannot be superseded.  cancel-in-progress: false is NOT sufficient for
+  # that: a concurrency group holds at most one running and one pending run,
+  # and a newer arrival evicts the pending one, so two merges in quick
+  # succession silently drop the first commit's validation.
+  #
+  # Observed, not theoretical: merging #8 cancelled this workflow's pending
+  # master run outright, while linux-full-tests.yml and linux-nondefault.yml --
+  # already keyed by SHA in that PR -- kept theirs and ran both commits.
+  #
+  # Pull requests and workflow_dispatch keep ref-keying, so a new push to a
+  # branch supersedes its previous run instead of queueing behind it.  The dev
+  # host has one quantlib-dev runner shared with five other repos, and GitHub
+  # cancels runs that sit queued for 24 hours.
+  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
 
 jobs:
   clang-format:
