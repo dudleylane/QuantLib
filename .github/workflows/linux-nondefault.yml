@@ -5,15 +5,16 @@ name: Linux build with non-default configuration
 # configureflag into a single configure invocation -- the matrix
 # axis is just the cxxflags / extra configureflags variant.
 #
-# Not run on pull requests.  Like linux-full-tests.yml this was a weekly cron
-# ('0 0 * * 0') until it was converted to push + pull_request, which removed
-# the cron but silently promoted a periodic sweep to a per-change gate.
+# Not run on pull requests.  This was a weekly cron ('0 0 * * 0') until it was
+# converted to push + pull_request, which removed the cron but silently
+# promoted a periodic sweep to a per-change gate; #8 put it back on master and
+# workflow_dispatch only.
 #
-# Unlike linux-full-tests.yml these five cells are *not* duplicates of
-# linux.yml -- they hardcode --enable-tracing, --enable-extra-safety-checks,
-# --enable-error-functions and friends, configurations nothing else builds.
-# The coverage is real; only the cadence was wrong.  master and
-# workflow_dispatch keep it.
+# These five cells are *not* duplicates of linux.yml -- they hardcode
+# --enable-tracing, --enable-extra-safety-checks, --enable-error-functions and
+# friends, configurations nothing else builds.  That is why this file survived
+# the deduplication that removed linux-full-tests.yml, whose twelve cells were
+# identical to linux.yml's in both name and flags.
 
 on:
   push:

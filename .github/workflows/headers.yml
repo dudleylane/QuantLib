@@ -12,8 +12,8 @@ concurrency:
   # succession silently drop the first commit's validation.
   #
   # Observed, not theoretical: merging #8 cancelled this workflow's pending
-  # master run outright, while linux-full-tests.yml and linux-nondefault.yml --
-  # already keyed by SHA in that PR -- kept theirs and ran both commits.
+  # master run outright, while the two workflows that PR had already keyed by
+  # SHA kept theirs and ran both commits.
   #
   # Pull requests and workflow_dispatch keep ref-keying, so a new push to a
   # branch supersedes its previous run instead of queueing behind it.  The dev
