@@ -9,6 +9,19 @@ name: Linux build
 # The matrix exercises QuantLib's QL_*-driven config space.  Each
 # cell flips one configureflags / cxxflags axis; the default cell
 # (no flags) covers the baseline c++23 build.
+#
+# Every cell now carries tests: true.  linux-full-tests.yml used to run the
+# same twelve cells -- identical in name AND in configureflags/cxxflags, 0 of
+# 12 differing -- for no reason other than to run the test suite on the two
+# cells this file skipped (C++26 mode, Unity build enabled).  It paid twelve
+# uncached rebuilds for two cells' worth of extra testing, because it did not
+# use ccache.  Setting tests: true on those two here buys exactly the same
+# coverage inside the ccache'd build, so that file is gone and a push to
+# master costs 31 jobs instead of 43.
+#
+# The `if: ${{ matrix.tests }}` guards below are kept rather than deleted: the
+# axis is how a cell is declared build-only, and a future cell that cannot run
+# the suite (a cross-build, say) should be able to say so.
 
 on:
   push:
@@ -24,8 +37,8 @@ concurrency:
   # succession silently drop the first commit's validation.
   #
   # Observed, not theoretical: merging #8 cancelled this workflow's pending
-  # master run outright, while linux-full-tests.yml and linux-nondefault.yml --
-  # already keyed by SHA in that PR -- kept theirs and ran both commits.
+  # master run outright, while the two workflows that PR had already keyed by
+  # SHA kept theirs and ran both commits.
   #
   # Pull requests and workflow_dispatch keep ref-keying, so a new push to a
   # branch supersedes its previous run instead of queueing behind it.  The dev
@@ -55,9 +68,11 @@ jobs:
           - name: "C++26 mode"
             shortname: c++26
             cxxflags: "-std=c++26"
+            tests: true
           - name: "Unity build enabled"
             shortname: unity
             configureflags: --enable-unity-build
+            tests: true
           - name: "Intraday calculations enabled"
             shortname: intraday
             configureflags: --enable-intraday
