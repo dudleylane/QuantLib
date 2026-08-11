@@ -1,0 +1,805 @@
+name: CI
+
+# One workflow, one run per commit.
+#
+# This was thirteen separate workflow files.  That layout is right for
+# GitHub-hosted runners, where thirteen workflows mean thirteen machines
+# working in parallel.  This fork runs on a single self-hosted runner shared
+# with five other repositories, so they never ran in parallel -- they only
+# produced thirteen runs, thirteen concurrency groups and thirteen pending
+# entries per commit.  Merging #9 left 33 runs queued across three commits for
+# exactly that reason.
+#
+# Consolidating does not make a green push faster.  The same jobs still
+# execute one at a time on one runner.  What it buys is:
+#
+#   * one run and one concurrency group per commit instead of thirteen, so the
+#     per-SHA keying from #9 preserves one pending run per commit rather than
+#     thirteen;
+#   * `needs:` ordering, which cannot be expressed across separate workflows.
+#
+# clang-format and filelists are the gate.  Neither compiles anything and both
+# finish in seconds, so making the other twelve jobs wait on them costs
+# nothing when they pass and skips ~29 jobs when they do not.  Before this, a
+# formatting typo still burned the entire Linux matrix.
+#
+# Job-level `if:` preserves the per-workflow triggers that used to live in
+# separate `on:` blocks: linux-nondefault stays off pull requests, which is
+# what #8 established.
+#
+# Every original `on:` block was `push: branches: [master]` plus some subset of
+# pull_request / workflow_dispatch, so the union below is faithful rather than
+# a widening.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  # Push runs are keyed by SHA so each merge commit lands in a group of its own
+  # and cannot be superseded.  cancel-in-progress: false is NOT sufficient for
+  # that: a concurrency group holds at most one running and one pending run,
+  # and a newer arrival evicts the pending one, so two merges in quick
+  # succession silently drop the first commit's validation.
+  #
+  # Observed, not theoretical: merging #8 cancelled the then-ref-keyed Linux
+  # build's pending master run outright, while the two workflows that PR had
+  # already keyed by SHA kept theirs and ran both commits.
+  #
+  # Pull requests and workflow_dispatch keep ref-keying, so a new push to a
+  # branch supersedes its previous run instead of queueing behind it.  The dev
+  # host has one quantlib-dev runner shared with five other repos, and GitHub
+  # cancels runs that sit queued for 24 hours.
+  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
+
+jobs:
+  # ===== from format.yml =====
+  # Fork-supported platform is RHEL/CentOS 10+ (memory:
+  # project_supported_platforms.md).  Stream 10 ships clang-tools-extra
+  # at LLVM 22.x natively, so the gate uses dnf instead of pinning
+  # apt.llvm.org -- same approach as ~/cayuga/.github/workflows/format.yml.
+  clang-format:
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check formatting
+        shell: bash
+        run: |
+          mapfile -d '' files < <(find ql test-suite Examples fuzz-test-suite \
+              -type f \( -name '*.hpp' -o -name '*.cpp' \) -print0)
+          clang-format --dry-run -Werror "${files[@]}"
+
+  # ===== from filelists.yml =====
+  # Fork-supported platform is RHEL/CentOS 10+ (memory:
+  # project_supported_platforms.md).  Despite the name, the check only
+  # diffs file lists -- no actual MSVC build.
+  filelists:
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
+    env:
+      PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
+      CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+      CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Configure
+        shell: bash
+        run: |
+          ./autogen.sh
+          ./configure --disable-json-marketdata
+
+      - name: Check
+        shell: bash
+        run: |
+          ./tools/check_filelists.sh
+
+  # ===== from headers.yml =====
+
+  headers:
+    needs: [clang-format, filelists]
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
+    env:
+      PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
+      CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+      CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
+    steps:
+    - uses: actions/checkout@v6
+    - name: Cache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        key: single-headers-${{ github.ref }}
+        restore-keys: |
+          single-headers-${{ github.ref }}
+          single-headers-refs/heads/master
+          single-headers-
+    - name: Check
+      env:
+        CXX: ccache g++
+      run: |
+        ./tools/check_all_headers.sh
+
+  # ===== from linux.yml =====
+  # Fork-supported platform is RHEL/CentOS 10+ (memory:
+  # project_supported_platforms.md).  Builds run inside the public
+  # CentOS Stream 10 container; gcc-toolset-15 is activated via env
+  # vars so every step picks up GCC 15 without a per-step `scl enable`
+  # wrapper (matches the pattern in ~/cayuga/.github/workflows).
+  #
+  # The matrix exercises QuantLib's QL_*-driven config space.  Each
+  # cell flips one configureflags / cxxflags axis; the default cell
+  # (no flags) covers the baseline c++23 build.
+  #
+  # Every cell now carries tests: true.  linux-full-tests.yml used to run the
+  # same twelve cells -- identical in name AND in configureflags/cxxflags, 0 of
+  # 12 differing -- for no reason other than to run the test suite on the two
+  # cells this file skipped (C++26 mode, Unity build enabled).  It paid twelve
+  # uncached rebuilds for two cells' worth of extra testing, because it did not
+  # use ccache.  Setting tests: true on those two here buys exactly the same
+  # coverage inside the ccache'd build, so that file is gone and a push to
+  # master costs 31 jobs instead of 43.
+  #
+  # The `if: ${{ matrix.tests }}` guards below are kept rather than deleted: the
+  # axis is how a cell is declared build-only, and a future cell that cannot run
+  # the suite (a cross-build, say) should be able to say so.
+  linux:
+    needs: [clang-format, filelists]
+    name: ${{ matrix.name }}
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
+    # gcc-toolset-15 path/lib activation.  CentOS Stream 10 ships with
+    # GCC 14 by default; the fork floor is GCC >= 15.2.1 (CLAUDE.md).
+    env:
+      PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
+      CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+      CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "Default (c++23, no extra flags)"
+            shortname: default
+            tests: true
+          - name: "C++26 mode"
+            shortname: c++26
+            cxxflags: "-std=c++26"
+            tests: true
+          - name: "Unity build enabled"
+            shortname: unity
+            configureflags: --enable-unity-build
+            tests: true
+          - name: "Intraday calculations enabled"
+            shortname: intraday
+            configureflags: --enable-intraday
+            tests: true
+          - name: "Throwing in cycles enabled"
+            shortname: cycles
+            configureflags: --enable-throwing-in-cycles --disable-faster-lazy-objects
+            tests: true
+          - name: "Indexed coupons enabled"
+            shortname: indexed
+            configureflags: --enable-indexed-coupons
+            tests: true
+          - name: "Standard Library classes enabled"
+            shortname: stdclasses
+            configureflags: --enable-std-classes
+            tests: true
+          - name: "Thread-safe observer enabled"
+            shortname: threadsafe
+            configureflags: --enable-thread-safe-observer-pattern
+            tests: true
+          - name: "Sessions enabled"
+            shortname: sessions
+            configureflags: --enable-sessions
+            tests: true
+          - name: "OpenMP enabled"
+            shortname: openmp
+            configureflags: --enable-openmp
+            tests: true
+          - name: "Parallel unit-test runner"
+            shortname: paralleltests
+            configureflags: --enable-parallel-unit-test-runner
+            tests: true
+          - name: "Null as function template"
+            shortname: nullfunctions
+            configureflags: --enable-null-as-functions
+            tests: true
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Cache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: linux-ci-build-${{ matrix.shortname }}-${{ github.ref }}
+          restore-keys: |
+            linux-ci-build-${{ matrix.shortname }}-${{ github.ref }}
+            linux-ci-build-${{ matrix.shortname }}-refs/heads/master
+            linux-ci-build-${{ matrix.shortname }}-
+
+      - name: Compiler version
+        shell: bash
+        run: |
+          gcc --version
+
+      - name: Build
+        shell: bash
+        run: |
+          ./autogen.sh
+          # --prefix into the workspace so the later `make install` step in
+          # "Check global header" doesn't need root to write to /usr/local.
+          ./configure --prefix="$GITHUB_WORKSPACE/install" --disable-static ${{ matrix.configureflags }} \
+            CC="ccache gcc" CXX="ccache g++" \
+            CXXFLAGS="-O2 -g0 -Wall -Wno-unknown-pragmas -Werror ${{ matrix.cxxflags }}"
+          cat ql/config.hpp
+          make -j"$(nproc)"
+
+      - name: Run tests
+        if: ${{ matrix.tests }}
+        shell: bash
+        run: |
+          ./test-suite/quantlib-test-suite --log_level=message
+
+      - name: Run examples
+        if: ${{ matrix.tests }}
+        shell: bash
+        run: |
+          make check-examples
+
+      - name: Check global header
+        if: ${{ matrix.tests }}
+        shell: bash
+        run: |
+          echo "#include <ql/quantlib.hpp>" > test1.cpp
+          echo "int main() { return 0; }" >> test1.cpp
+          echo "#include <ql/quantlib.hpp>" > test2.cpp
+          make install
+          # quantlib-config landed in the workspace prefix (configured above).
+          export PATH="$GITHUB_WORKSPACE/install/bin:$PATH"
+          g++ -O2 -g0 -Wall -Wno-unknown-pragmas -Werror ${{ matrix.cxxflags }} \
+            $(quantlib-config --cflags) test1.cpp test2.cpp $(quantlib-config --libs)
+
+  # ===== from linux-nondefault.yml =====
+  # Fork-supported platform is RHEL/CentOS 10+ (memory:
+  # project_supported_platforms.md).  Stacks every non-default
+  # configureflag into a single configure invocation -- the matrix
+  # axis is just the cxxflags / extra configureflags variant.
+  #
+  # Not run on pull requests.  This was a weekly cron ('0 0 * * 0') until it was
+  # converted to push + pull_request, which removed the cron but silently
+  # promoted a periodic sweep to a per-change gate; #8 put it back on master and
+  # workflow_dispatch only.
+  #
+  # These five cells are *not* duplicates of linux.yml -- they hardcode
+  # --enable-tracing, --enable-extra-safety-checks, --enable-error-functions and
+  # friends, configurations nothing else builds.  That is why this file survived
+  # the deduplication that removed linux-full-tests.yml, whose twelve cells were
+  # identical to linux.yml's in both name and flags.
+  linux-nondefault:
+    if: github.event_name != 'pull_request'
+    needs: [clang-format, filelists]
+    name: ${{ matrix.name }}
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
+    env:
+      PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
+      CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+      CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "Default (c++23, no extra flags)"
+            shortname: default
+          - name: "C++26 mode"
+            shortname: c++26
+            cxxflags: "-std=c++26"
+          - name: "Unity build enabled"
+            shortname: unity
+            configureflags: --enable-unity-build
+          - name: "Standard Library classes enabled"
+            shortname: stdclasses
+            configureflags: --enable-std-pointers --disable-std-any --disable-std-optional
+          - name: "OpenMP enabled"
+            shortname: openmp
+            configureflags: --enable-openmp
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Compiler version
+        shell: bash
+        run: |
+          gcc --version
+
+      - name: Build
+        shell: bash
+        run: |
+          ./autogen.sh
+          # --prefix into the workspace so the later `make install` step in
+          # "Check global header" doesn't need root to write to /usr/local.
+          ./configure --prefix="$GITHUB_WORKSPACE/install" --disable-static \
+            --enable-error-lines --enable-error-functions --enable-tracing \
+            --enable-indexed-coupons --enable-extra-safety-checks \
+            --enable-sessions --enable-thread-safe-observer-pattern \
+            --enable-intraday --disable-faster-lazy-objects \
+            --enable-throwing-in-cycles --enable-null-as-functions \
+            ${{ matrix.configureflags }} \
+            CC="gcc" CXX="g++" \
+            CPPFLAGS="-Wall -Wno-unknown-pragmas -Wno-array-bounds -Werror" \
+            CXXFLAGS="-O2 -g0 ${{ matrix.cxxflags }}"
+          cat ql/config.hpp
+          make -j"$(nproc)"
+
+      - name: Run tests
+        shell: bash
+        run: |
+          ./test-suite/quantlib-test-suite --log_level=message
+
+      - name: Run examples
+        shell: bash
+        run: |
+          make check-examples
+
+      - name: Check global header
+        shell: bash
+        run: |
+          echo "#include <ql/quantlib.hpp>" > test1.cpp
+          echo "int main() { return 0; }" >> test1.cpp
+          echo "#include <ql/quantlib.hpp>" > test2.cpp
+          make install
+          export PATH="$GITHUB_WORKSPACE/install/bin:$PATH"
+          g++ -O2 -g0 -Wall -Wno-unknown-pragmas -Werror ${{ matrix.cxxflags }} \
+            $(quantlib-config --cflags) test1.cpp test2.cpp $(quantlib-config --libs)
+
+  # ===== from sanitizer.yml =====
+  # Fork-supported platform is RHEL/CentOS 10+ (memory:
+  # project_supported_platforms.md).  Modeled on
+  # ~/cayuga/.github/workflows/sanitizers.yml: ASan/TSan/UBSan are
+  # separate matrix cells for clearer attribution; TSan is routed
+  # through Clang to dodge gcc bug 93922 (atomic_thread_fence won't
+  # compile under GCC's -fsanitize=thread).
+  sanitizer:
+    needs: [clang-format, filelists]
+    name: ${{ matrix.sanitizer }}
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ASan + leak detection.  Routed through gcc-toolset-15.
+          - sanitizer: asan
+            cc: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+            cxx: /opt/rh/gcc-toolset-15/root/usr/bin/g++
+            extra_path: /opt/rh/gcc-toolset-15/root/usr/bin
+            extra_ld: /opt/rh/gcc-toolset-15/root/usr/lib64
+            extra_cxxflags: ""
+            sanitizer_cxxflags: "-fsanitize=address -fno-sanitize-recover=all -fno-omit-frame-pointer"
+            configureflags: ""
+          # TSan.  Routed through Clang because GCC's TSan refuses to
+          # compile std::atomic_thread_fence (gcc bug 93922).  Pinned
+          # to system GCC 14's libstdc++ via --gcc-install-dir to
+          # prevent Clang from auto-detecting the gcc-toolset-15
+          # libstdc++-15 (constexpr/template-instantiation skew).
+          - sanitizer: tsan
+            cc: /usr/bin/clang
+            cxx: /usr/bin/clang++
+            extra_path: ""
+            extra_ld: ""
+            # -Wno-deprecated-declarations: Clang 22 + Boost 1.83 ublas
+            # iterator headers use the deprecated std::iterator base
+            # class; with -Werror this turns into a compile error.  GCC
+            # tolerates it; Clang doesn't.  Boost >= 1.84 removes the
+            # use, so this flag becomes unneeded once EL10 ships a
+            # newer Boost.
+            extra_cxxflags: "--gcc-install-dir=/usr/lib/gcc/x86_64-redhat-linux/14 -Wno-deprecated-declarations"
+            sanitizer_cxxflags: "-fsanitize=thread -fno-sanitize-recover=all"
+            configureflags: "--enable-sessions --enable-thread-safe-observer-pattern"
+          # UBSan.  Umbrella -fsanitize=undefined; gcc-toolset-15.
+          - sanitizer: ubsan
+            cc: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+            cxx: /opt/rh/gcc-toolset-15/root/usr/bin/g++
+            extra_path: /opt/rh/gcc-toolset-15/root/usr/bin
+            extra_ld: /opt/rh/gcc-toolset-15/root/usr/lib64
+            extra_cxxflags: ""
+            sanitizer_cxxflags: "-fsanitize=undefined -fno-sanitize-recover=all -fno-omit-frame-pointer"
+            configureflags: ""
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Compiler version
+        shell: bash
+        env:
+          CXX: ${{ matrix.cxx }}
+        run: |
+          if [ -n "${{ matrix.extra_path }}" ]; then
+            export PATH="${{ matrix.extra_path }}:$PATH"
+          fi
+          $CXX --version
+
+      - name: Build
+        shell: bash
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+        run: |
+          if [ -n "${{ matrix.extra_path }}" ]; then
+            export PATH="${{ matrix.extra_path }}:$PATH"
+          fi
+          if [ -n "${{ matrix.extra_ld }}" ]; then
+            export LD_LIBRARY_PATH="${{ matrix.extra_ld }}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          fi
+          ./autogen.sh
+          ./configure --disable-static ${{ matrix.configureflags }} \
+            CC="$CC" CXX="$CXX" \
+            CXXFLAGS="-O2 -g0 ${{ matrix.sanitizer_cxxflags }} ${{ matrix.extra_cxxflags }} -Wall -Wno-unknown-pragmas -Werror"
+          make -j"$(nproc)"
+
+      - name: Run tests
+        shell: bash
+        env:
+          ASAN_OPTIONS: "abort_on_error=1:halt_on_error=1:detect_leaks=1"
+          TSAN_OPTIONS: "halt_on_error=1:second_deadlock_stack=1"
+          UBSAN_OPTIONS: "halt_on_error=1:print_stacktrace=1"
+          LSAN_OPTIONS: "suppressions=.lsan.txt"
+        run: |
+          if [ -n "${{ matrix.extra_ld }}" ]; then
+            export LD_LIBRARY_PATH="${{ matrix.extra_ld }}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          fi
+          ./test-suite/quantlib-test-suite --log_level=message
+
+      - name: Run examples
+        shell: bash
+        run: |
+          if [ -n "${{ matrix.extra_ld }}" ]; then
+            export LD_LIBRARY_PATH="${{ matrix.extra_ld }}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          fi
+          make check-examples
+
+  # ===== from cmake.yml =====
+  # Fork-supported platform is RHEL/CentOS 10+ (memory:
+  # project_supported_platforms.md).  Windows + macOS cells removed
+  # along with macos.yml / msvc*.yml / cmake-latest-runners.yml -- the
+  # fork doesn't claim those targets.
+  cmake-linux:
+    needs: [clang-format, filelists]
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
+    env:
+      PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
+      CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+      CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Cache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: cmake-linux-ci-build-${{ github.ref }}
+          restore-keys: |
+            cmake-linux-ci-build-${{ github.ref }}
+            cmake-linux-ci-build-refs/heads/master
+            cmake-linux-ci-build-
+
+      - name: Compile
+        shell: bash
+        run: |
+          mkdir build
+          cd build
+          # CMAKE_INSTALL_PREFIX points at the workspace so `cmake --install .`
+          # writes into ${GITHUB_WORKSPACE}/install (writable by the runner
+          # user) instead of /usr/local (root-owned on the dev host).
+          cmake .. -GNinja -DBOOST_ROOT=/usr -DCMAKE_BUILD_TYPE=Release \
+            -DQL_COMPILE_WARNING_AS_ERROR=ON \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install" \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -L
+          cat ql/config.hpp
+          cmake --build . --verbose
+          cmake --install .
+
+      - name: Test
+        shell: bash
+        run: |
+          # Workspace-local install: PATH for the test binary, LD_LIBRARY_PATH
+          # for libQuantLib.so.1.  Replaces the previous /etc/ld.so.conf.d/...
+          # + ldconfig dance that needed root.
+          export PATH="$GITHUB_WORKSPACE/install/bin:$PATH"
+          export LD_LIBRARY_PATH="$GITHUB_WORKSPACE/install/lib64:$GITHUB_WORKSPACE/install/lib:${LD_LIBRARY_PATH:-}"
+          quantlib-test-suite --log_level=message
+
+      - name: Run benchmark
+        shell: bash
+        run: |
+          export PATH="$GITHUB_WORKSPACE/install/bin:$PATH"
+          export LD_LIBRARY_PATH="$GITHUB_WORKSPACE/install/lib64:$GITHUB_WORKSPACE/install/lib:${LD_LIBRARY_PATH:-}"
+          quantlib-benchmark --size=1
+
+  cmake-linux-with-options:
+    needs: [clang-format, filelists]
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
+    env:
+      PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
+      CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+      CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Cache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: cmake-linux-ci-opts-${{ github.ref }}
+          restore-keys: |
+            cmake-linux-ci-opts-${{ github.ref }}
+            cmake-linux-ci-opts-refs/heads/master
+            cmake-linux-ci-opts-
+
+      - name: Compile
+        shell: bash
+        run: |
+          # Append -DCMAKE_INSTALL_PREFIX so the preset's install target lands
+          # in the workspace; root-only /usr/local writes are off the table.
+          cmake --preset linux-ci-build-with-nonstandard-options \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install" -L
+          cd build/linux-ci-build-with-nonstandard-options
+          cat ql/config.hpp
+          cmake --build . --verbose
+          cmake --build . --target install
+
+      - name: Test
+        shell: bash
+        run: |
+          export PATH="$GITHUB_WORKSPACE/install/bin:$PATH"
+          export LD_LIBRARY_PATH="$GITHUB_WORKSPACE/install/lib64:$GITHUB_WORKSPACE/install/lib:${LD_LIBRARY_PATH:-}"
+          quantlib-test-suite --log_level=message
+
+  # ===== from doxygen.yml =====
+  # Fork-supported platform is RHEL/CentOS 10+ (memory:
+  # project_supported_platforms.md).  Doxygen + graphviz from base/CRB.
+  docs:
+    needs: [clang-format, filelists]
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
+    env:
+      PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
+      CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+      CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Doxygen version
+        shell: bash
+        run: |
+          doxygen --version
+
+      - name: Configure
+        shell: bash
+        run: |
+          ./autogen.sh
+          ./configure --disable-json-marketdata
+
+      - name: Check
+        shell: bash
+        run: |
+          make docs
+
+  header-docs:
+    needs: [clang-format, filelists]
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check
+        shell: bash
+        run: |
+          ./tools/check_all_header_docs.sh
+
+  # ===== from coveralls.yml =====
+  # Fork-supported platform is RHEL/CentOS 10+ (memory:
+  # project_supported_platforms.md).  Runs inside CentOS Stream 10 with
+  # gcc-toolset-15; lcov from EPEL.
+  coverage:
+    needs: [clang-format, filelists]
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
+    env:
+      PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
+      CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+      CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Compile
+        shell: bash
+        run: |
+          ./autogen.sh
+          ./configure --disable-shared CXXFLAGS='-O1 -fprofile-arcs -ftest-coverage' LDFLAGS='-lgcov'
+          make -j"$(nproc)"
+
+      - name: Capture baseline
+        shell: bash
+        run: |
+          mkdir -p coverage tmp
+          lcov --no-external --capture --initial --ignore-errors mismatch --directory . --output-file ./tmp/lcov_base.info
+
+      - name: Run tests
+        shell: bash
+        run: |
+          ./test-suite/quantlib-test-suite --log_level=message
+
+      - name: Run examples
+        shell: bash
+        run: |
+          make -C Examples check-examples
+
+      - name: Capture coverage
+        shell: bash
+        run: |
+          lcov --no-external --capture --ignore-errors mismatch --directory . --output-file ./tmp/lcov_run.info
+          lcov --add-tracefile ./tmp/lcov_base.info --add-tracefile ./tmp/lcov_run.info --output-file ./tmp/lcov_total.info
+          lcov --remove ./tmp/lcov_total.info "$PWD/Examples/*" "$PWD/test-suite/*" --output-file ./coverage/lcov.info
+
+      - name: Upload coverage to Coveralls
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./coverage/lcov.info
+
+  # ===== from codeql-analysis.yml =====
+  # to commit it to your repository.
+  #
+  # You may wish to alter this file to override the set of languages analyzed,
+  # or to provide custom queries or build logic.
+  analyze:
+    needs: [clang-format, filelists]
+    name: CodeQL analysis
+    # This repo's default workflow permission is read-only, so GITHUB_TOKEN
+    # could not upload the SARIF results and the job ended with "Resource not
+    # accessible by integration -- CodeQL job status was configuration error",
+    # after the analysis itself had run to completion.  Granted here rather
+    # than by widening the repository-wide default.
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
+    timeout-minutes: 180
+    env:
+      PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
+      CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+      CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v4
+      with:
+        languages: cpp
+        config-file: ./.github/codeql/codeql-config.yml
+
+    - name: Build
+      run: |
+        ./autogen.sh
+        ./configure --disable-static CC="gcc" CXX="g++" \
+          CXXFLAGS="-O2 -g0 -Wall -Wno-unknown-pragmas"
+        make -j"$(nproc)"
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v4
+      with:
+        ram: 10240
+        threads: 8
+
+  # ===== from test-times.yml =====
+  # Fork-supported platform is RHEL/CentOS 10+ (memory:
+  # project_supported_platforms.md).  Wall-clock numbers from a shared
+  # CI runner are inherently noisy; tools/check_test_times.py treats
+  # this as advisory regression-flagging, not a hard gate.
+  check-test-times:
+    needs: [clang-format, filelists]
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
+    env:
+      PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
+      CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+      CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Cache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: linux-ci-test-times-${{ github.ref }}
+          restore-keys: |
+            linux-ci-test-times-${{ github.ref }}
+            linux-ci-test-times-refs/heads/master
+            linux-ci-test-times-
+
+      - name: Build
+        shell: bash
+        run: |
+          ./autogen.sh
+          ./configure --disable-static --disable-json-marketdata \
+            CC="ccache gcc" CXX="ccache g++" CXXFLAGS="-O2 -g0"
+          make -j"$(nproc)"
+
+      - name: Run faster tests
+        shell: bash
+        run: |
+          ./test-suite/quantlib-test-suite --logger=JUNIT,warning,faster.xml:HRF,message -- --faster
+
+      - name: Run fast tests
+        shell: bash
+        run: |
+          ./test-suite/quantlib-test-suite --logger=JUNIT,warning,fast.xml:HRF,message -- --fast
+
+      - name: Run all tests
+        shell: bash
+        run: |
+          ./test-suite/quantlib-test-suite --logger=JUNIT,warning,all.xml:HRF,message
+
+      - name: Save test times
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: ./*.xml
+
+      - name: Check test times
+        shell: bash
+        run: |
+          python3 ./tools/check_test_times.py
+
+  # ===== from tidy.yml =====
+  # Fork-supported platform is RHEL/CentOS 10+ (memory:
+  # project_supported_platforms.md).  Stream 10 ships clang-tidy at LLVM
+  # 22.x natively, so there is nothing to install -- the preset's
+  # clang-tidy-19 default is overridden on the command line rather than
+  # in CMakePresets.json, which upstream owns.
+  #
+  # Check-only, like format.yml and quickfix's format.yml: the preset
+  # runs clang-tidy with -fix, so any finding shows up as a dirty working
+  # tree and fails the job.  Upstream's create-pull-request step is gone
+  # with the rest of the lballabio[bot] automation -- it depended on
+  # secrets.MACHINE_ACCOUNT_PAT and vars.MACHINE_ACCOUNT, neither of
+  # which is set on this repo.
+  check:
+    needs: [clang-format, filelists]
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
+    # Same gcc-toolset-15 activation as linux.yml and sanitizer.yml.  Without
+    # it CMake picks Stream 10's default /usr/bin/g++ 14.4.1 and
+    # CMakeLists.txt:77 rejects it: "QuantLib requires GCC 15.2.1 or higher".
+    env:
+      PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
+      CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+      CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Build with clang-tidy
+      shell: bash
+      # No -DQL_CLANG_TIDY override any more: the preset used to hardcode
+      # clang-tidy-19, which does not exist on this host, and the override was
+      # a workaround for that.  The preset now says "clang-tidy" and resolves
+      # to whatever the host ships (22.x on Stream 10).
+      run: |
+        cmake --preset linux-ci-build-with-clang-tidy
+        cmake --build build/linux-ci-build-with-clang-tidy -j1
+
+    - name: Fail if clang-tidy modified the tree
+      shell: bash
+      # The preset now runs tidy with -quiet alone, so findings are reported
+      # and nothing is rewritten; this step should never fire.  Kept as a
+      # tripwire in case -fix is reintroduced -- silently rewritten sources
+      # are how this job came to compile code no one had reviewed.
+      run: |
+        if ! git diff --exit-code; then
+          echo "::error::clang-tidy modified tracked files; the preset should report, not fix."
+          exit 1
+        fi
