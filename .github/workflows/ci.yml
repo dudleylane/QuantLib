@@ -149,7 +149,7 @@ jobs:
   # the suite (a cross-build, say) should be able to say so.
   linux:
     needs: [clang-format, filelists]
-    name: ${{ matrix.name }}
+    name: linux / ${{ matrix.name }}
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     # gcc-toolset-15 path/lib activation.  CentOS Stream 10 ships with
     # GCC 14 by default; the fork floor is GCC >= 15.2.1 (CLAUDE.md).
@@ -282,7 +282,7 @@ jobs:
   linux-nondefault:
     if: github.event_name != 'pull_request'
     needs: [clang-format, filelists]
-    name: ${{ matrix.name }}
+    name: nondefault / ${{ matrix.name }}
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     env:
       PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
