@@ -123,3 +123,11 @@ nbproject
 .dir-locals.el
 Build.props
 Directory.Build.props
+
+# Agent guidance, deliberately not published.  This repository is public;
+# CLAUDE.md carries local workflow notes, host-specific paths and running
+# commentary on in-progress work, none of which belongs in a public fork of
+# an upstream project.  It was previously ignored only via .git/info/exclude,
+# which is per-clone and per-machine -- it protected this checkout and nobody
+# else's.  quickfix and OrderProcessor already carry this entry.
+CLAUDE.md
