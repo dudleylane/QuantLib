@@ -279,14 +279,56 @@ Caveats:
 - History rewrite (2026-04-20): the 79 MB `Examples/LatentModel/LatentModel`
   binary committed in upstream in 2014 has been purged via
   `git filter-repo`. Repository object-graph size dropped ~45% (90 MB → 45 MB).
+- CI consolidation (2026-08-07 → 2026-08-15): the thirteen workflow files
+  inherited from upstream became a single `.github/workflows/ci.yml`. That
+  layout suits GitHub-hosted runners, where thirteen workflows mean thirteen
+  machines; this fork runs on one self-hosted runner sharing four cores with
+  five other repositories, so they only produced thirteen runs and thirteen
+  concurrency groups per commit. Consolidating buys `needs:` ordering —
+  `clang-format` and `filelists` now gate the other twelve jobs — and one
+  run per commit.
+
+  Alongside it: push runs keyed by SHA so a merge commit's validation cannot
+  be evicted by a newer arrival; `linux-full-tests.yml` deleted as a
+  name-for-name duplicate of `linux.yml` (43 jobs per push → 31); the weekly
+  cron sweeps converted to event-driven; and path-based gating, so a commit
+  touching only `.github/`, `*.md` or git metadata costs 4 jobs instead of 32.
+
+  Two defects were fixed rather than worked around. The `clang-tidy` job had
+  never once completed a build: its preset ran tidy with `-fix`, so tidy
+  rewrote `std::unique` into `std::ranges::unique` mid-compile and the
+  compiler then failed on code nobody had written. It now reports. And
+  `check-test-times` is advisory: it compares absolute wall-clock against
+  fixed thresholds, and on this shared host the same commit measured 8.42 s
+  and 47.57 s for `BasketOptionTests.testBarraquandThreeValues` against a
+  30 s ceiling — it measures contention as much as test cost.
+- `.claude/` is gitignored (2026-08-15). It had been tracked, and served an
+  invoice and a receipt PDF publicly from master between 6f933450c and
+  fb4bb64a5. Untracked, not deleted; the blobs remain reachable by SHA in
+  history, so a purge would need `git filter-repo` plus GitHub Support.
+  `CLAUDE.md` is gitignored for the same reason — this repository is public.
 
 ## Sibling repositories
 
-- **[dudleylane/QuantLib-SWIG](https://github.com/dudleylane/QuantLib-SWIG)** —
-  fork of upstream SWIG bindings. `SWIG/dudleylane_fork.i` now ships
-  full Python bindings for `CsvQuoteLoader` and TODO scaffolds for the
-  other fork-specific classes. Remaining language-binding work lands
-  there, not here.
+- **dudleylane/QuantLib-SWIG — deleted 2026-08-15.** It was a real GitHub
+  fork of `lballabio/QuantLib-SWIG` (created 2026-04-21, 12 fork commits,
+  134 ahead / 12 behind upstream at deletion) and carried
+  `SWIG/dudleylane_fork.i`: full Python bindings for `CsvQuoteLoader` plus
+  TODO scaffolds for the other fork-specific classes.
+
+  **The language-binding work now has no home.** Anything targeting
+  `AutocallableNote`, `CdsOption`, `MCAutocallableNoteEngine`,
+  `BlackCdsOptionEngine`, `AADReal`, `CurveBucketer`, `XvaCalculator`,
+  `FrtbSaGirrDelta`, `CsvQuoteLoader` or `JsonQuoteLoader` needs a new
+  repository, or must move into this one.
+
+  A complete `git bundle` of the deleted repository was taken before
+  deletion, along with the text of its open issue #1 (`testLazyObject`
+  fails — `PiecewiseFlatForward` recalculate does not grow the curve span).
+  Both live under `/tmp`, which is **ephemeral**: if the bindings matter
+  they need moving somewhere durable before that directory is cleared.
+  The "SWIG interface-file updates" entry in the follow-up list below is
+  blocked on this.
 
 ## Explicit follow-up list
 
@@ -319,4 +361,7 @@ inline; the remaining bullets are still-pending work.
   ships full bindings for `CsvQuoteLoader` and TODO scaffolds for
   all other fork-specific classes. Remaining work is mechanical.
 - CI wiring (GitHub Actions matrix across GCC / Clang / C++23 /
-  nonstandard-options).
+  nonstandard-options): **addressed** — see the CI entry under
+  *Infrastructure*. The matrix runs twelve configuration cells plus five
+  non-default cells, three sanitizers, both build systems, clang-tidy and
+  CodeQL, all per-commit on master.
