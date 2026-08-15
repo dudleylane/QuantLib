@@ -322,13 +322,21 @@ Caveats:
   `FrtbSaGirrDelta`, `CsvQuoteLoader` or `JsonQuoteLoader` needs a new
   repository, or must move into this one.
 
-  A complete `git bundle` of the deleted repository was taken before
-  deletion, along with the text of its open issue #1 (`testLazyObject`
-  fails — `PiecewiseFlatForward` recalculate does not grow the curve span).
-  Both live under `/tmp`, which is **ephemeral**: if the bindings matter
-  they need moving somewhere durable before that directory is cleared.
-  The "SWIG interface-file updates" entry in the follow-up list below is
-  blocked on this.
+  This was a deliberate retirement, not an accident: the repository, its
+  self-hosted runner and service, the runner installation, and the local
+  working clone were all removed on 2026-08-15. The bindings work is not
+  being carried forward. A `git bundle` and the text of the repository's
+  open issue were taken under `/tmp` at the time, but `/tmp` is
+  disposable and they are not a preservation plan — treat the binding
+  code as gone.
+
+  One thing from it is worth keeping and is *not* a bindings problem: the
+  repository's open issue #1 reported that `PiecewiseFlatForward` fails
+  to extend its curve span on `recalculate()` once the evaluation date
+  comes within roughly thirty years of the longest pillar. That is a
+  library defect on this side, surfaced through the Python test
+  `test_termstructures.py::TermStructureTest::testLazyObject`. It has no
+  home now that the sibling is gone.
 
 ## Explicit follow-up list
 
@@ -357,9 +365,10 @@ inline; the remaining bullets are still-pending work.
   shipped alongside CSV. Arrow / Parquet, streaming (Kafka / ZeroMQ /
   WebSocket), and vendor formats (Bloomberg BVAL, Refinitiv, CME FIX,
   ICE) are pending.
-- SWIG interface-file updates: **partially addressed** — SWIG fork
-  ships full bindings for `CsvQuoteLoader` and TODO scaffolds for
-  all other fork-specific classes. Remaining work is mechanical.
+- SWIG interface-file updates: **dropped** — the sibling repository that
+  held them was retired on 2026-08-15 (see *Sibling repositories*). This
+  fork currently has no language bindings, and reviving them means
+  starting a new repository or bringing the interface files in here.
 - CI wiring (GitHub Actions matrix across GCC / Clang / C++23 /
   nonstandard-options): **addressed** — see the CI entry under
   *Infrastructure*. The matrix runs twelve configuration cells plus five
