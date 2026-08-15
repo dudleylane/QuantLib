@@ -131,3 +131,10 @@ Directory.Build.props
 # which is per-clone and per-machine -- it protected this checkout and nobody
 # else's.  quickfix and OrderProcessor already carry this entry.
 CLAUDE.md
+
+# Agent working directory.  Never publish: it accumulates scratch state and, in
+# this repository, had accumulated an invoice and a receipt PDF that were
+# committed in 6f933450c and served publicly from master until 2026-08-15.
+# Untracked here rather than deleted -- the files stay on disk, they simply
+# leave the repository.
+.claude/
