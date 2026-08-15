@@ -155,7 +155,12 @@ jobs:
               verdict=true
               while read -r f; do
                 [ -z "$f" ] && continue
-                case "$f" in .github/*) ;; *) verdict=false; break ;; esac
+                # Paths git itself consumes and no build step reads.  LICENSE is
+                # deliberately absent: tools/check_copyrights.sh reads it.
+                case "$f" in
+                  .github/*|.gitignore|.gitattributes|.git-blame-ignore-revs) ;;
+                  *) verdict=false; break ;;
+                esac
               done <<< "$files"
               echo "changed files ($(wc -l <<< "$files")):"
               sed 's/^/  /' <<< "$files"
