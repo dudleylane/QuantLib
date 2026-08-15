@@ -160,21 +160,32 @@ cut.
 - **`linux-ci-build-with-nonstandard-options` preset** (sessions on, thread-safe observer on, `QL_FASTER_LAZY_OBJECTS=OFF`, `QL_THROW_IN_CYCLES=ON`, high-res date on, indexed coupons, warnings-as-errors): 1280 cases, 0 failures (Phase-0 baseline)
 - **`QL_ENABLE_AAD=ON`** (GCC 15.2.1, CoDi-Pack v2.2.0 auto-fetched): `AadTests/*` pass end-to-end
 
-CI is not wired on this fork; all verification is local.
+CI runs on a self-hosted runner: a single `.github/workflows/ci.yml`
+covering twelve configuration cells, five non-default cells, three
+sanitizers, both build systems, single-header compilation, doxygen,
+coverage, CodeQL and clang-tidy — 31 jobs on a push to master. Commits
+touching only `.github/`, markdown or git metadata run a 4-job subset.
+`check-test-times` is advisory rather than gating: it compares absolute
+wall-clock against fixed thresholds, and the runner shares four cores
+with five other repositories.
 
 ### Language bindings
 
-Python / R / Java / .NET bindings for this fork live in the sibling
-repository **[dudleylane/QuantLib-SWIG](https://github.com/dudleylane/QuantLib-SWIG)**,
-which is itself a fork of upstream `lballabio/QuantLib-SWIG`. A
-`SWIG/dudleylane_fork.i` scaffold is already committed there with
-full Python bindings for `CsvQuoteLoader` and TODO markers for the
-remaining fork-specific classes: `FallbackIborIndex`, `CurveBucketer`,
+**There are currently no language bindings for this fork.** They lived in
+a sibling repository, `dudleylane/QuantLib-SWIG`, which was deleted on
+2026-08-15.
+
+That repository held a `SWIG/dudleylane_fork.i` scaffold with full Python
+bindings for `CsvQuoteLoader` and TODO markers for the remaining
+fork-specific classes: `FallbackIborIndex`, `CurveBucketer`,
 `XvaCalculator`, `AutocallableNote` + `MCAutocallableNoteEngine`,
-`FrtbSaGirrDelta`, `JsonQuoteLoader`, `blackFormulaT`, and the
-`aad.hpp` helpers (plus include-path adjustments for the promoted
-no-arb SABR + Heston Asian control variate + CDS option). Bindings
-work continues on that sibling, not here.
+`FrtbSaGirrDelta`, `JsonQuoteLoader`, `blackFormulaT` and the `aad.hpp`
+helpers, plus include-path adjustments for the promoted no-arb SABR,
+Heston Asian control variate and CDS option.
+
+Reviving that work means either a new bindings repository or moving it
+into this one. See *Sibling repositories* in `FORK_CHANGES.md` for what
+was preserved from the deleted repository and where.
 
 ## Build, test, run
 
