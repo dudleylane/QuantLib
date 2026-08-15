@@ -3,10 +3,10 @@ import sys
 import xml.etree.ElementTree as ET
 from collections import namedtuple, defaultdict
 
-regex1 = re.compile(".*test_case\(&(.*?)__(.*?)\)")
-regex2 = re.compile(".*ext__bind\(&(.*?)__(.*?)__.*\)\)")
-regex3 = re.compile(".*{_?([a-zA-Z]*Test)__([a-zA-Z]*?)\(")
-regex4 = re.compile("([^.]+)\.(.+)")
+regex1 = re.compile(r".*test_case\(&(.*?)__(.*?)\)")
+regex2 = re.compile(r".*ext__bind\(&(.*?)__(.*?)__.*\)\)")
+regex3 = re.compile(r".*{_?([a-zA-Z]*Test)__([a-zA-Z]*?)\(")
+regex4 = re.compile(r"([^.]+)\.(.+)")
 
 def parse_simple(t):
     # test names get mangled - here we extract class and method name
