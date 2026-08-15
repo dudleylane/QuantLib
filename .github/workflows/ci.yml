@@ -743,6 +743,27 @@ jobs:
   check-test-times:
     if: needs.changes.outputs.ci_only != 'true'
     needs: [clang-format, filelists, changes]
+    # Advisory, not gating.  tools/check_test_times.py compares absolute
+    # wall-clock seconds against fixed thresholds, and this host runs six
+    # self-hosted runners on four cores, so the numbers measure contention as
+    # much as the tests.  Same commit, two runs on 2026-08-12:
+    #
+    #   testBarraquandThreeValues   8.42 s -> 47.57 s   (ceiling 30 s)
+    #   testAllMultiStepProducts   16.96 s -> 31.71 s   (ceiling 30 s)
+    #   testPathwiseVegas           5.34 s -> 11.12 s   (Fast limit 8 s)
+    #
+    # 5.6x on identical code.  The tests are correctly tiered -- 8.42 s sits
+    # well inside Slow's ceiling -- so moving them, raising the thresholds or
+    # trimming their path counts would all have papered over a measurement
+    # error rather than a test problem.
+    #
+    # The findings stay visible in the log and the job still reports red; it
+    # just no longer fails the run.  cayuga reached the same conclusion for
+    # wall-clock assertions (CAYUGA_PERF_TIMING_RELIABLE) and hft-core for its
+    # latency tests (HFT_SKIP_UNLESS_TIMED_BUILD), both because the runner is
+    # shared.  To get a trustworthy reading, dispatch the workflow when the box
+    # is quiet and read this job's output.
+    continue-on-error: true
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     env:
       PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
