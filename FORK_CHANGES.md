@@ -335,8 +335,10 @@ Caveats:
   to extend its curve span on `recalculate()` once the evaluation date
   comes within roughly thirty years of the longest pillar. That is a
   library defect on this side, surfaced through the Python test
-  `test_termstructures.py::TermStructureTest::testLazyObject`. It has no
-  home now that the sibling is gone.
+  `test_termstructures.py::TermStructureTest::testLazyObject`. It is now
+  tracked as issue #23 on this repository. The Python reproduction is
+  gone with the bindings, so a C++ one has to be written before the bug
+  can be worked.
 
 ## Explicit follow-up list
 
