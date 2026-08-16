@@ -23,6 +23,7 @@
 #include <ql/indexes/iborindex.hpp>
 #include <ql/math/comparison.hpp>
 #include <ql/math/interpolation.hpp>
+#include <ql/math/interpolations/backwardflatinterpolation.hpp>
 #include <ql/math/interpolations/forwardflatinterpolation.hpp>
 #include <ql/termstructures/yield/compositezeroyieldstructure.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
@@ -569,6 +570,113 @@ BOOST_AUTO_TEST_CASE(testNullTimeToReference)
         BOOST_ERROR("unable to reproduce zero yield rate from curve\n"
                     << std::fixed << std::setprecision(10) << "    calculated: " << calculated << "\n"
                     << "    expected:   " << expected);
+}
+
+namespace
+{
+    // The instrument set CommonVars uses, returned so that the lazy-object tests below can bind it to curves
+    // whose reference dates behave differently.  These helpers are date-relative: their maturities track the
+    // evaluation date.
+    std::vector<ext::shared_ptr<RateHelper>> relativeDateInstruments(const Calendar& calendar, Natural settlementDays)
+    {
+        Datum depositData[] = {
+            {1, Months, 4.581}, {2, Months, 4.573}, {3, Months, 4.557}, {6, Months, 4.496}, {9, Months, 4.490}};
+        Datum swapData[] = {
+            {1, Years, 4.54}, {5, Years, 4.99}, {10, Years, 5.47}, {20, Years, 5.89}, {30, Years, 5.96}};
+
+        std::vector<ext::shared_ptr<RateHelper>> instruments;
+        for (const auto& d : depositData)
+            instruments.emplace_back(ext::make_shared<DepositRateHelper>(
+                d.rate / 100, d.n * d.units, settlementDays, calendar, ModifiedFollowing, true, Actual360()));
+
+        auto index = ext::make_shared<IborIndex>("dummy", 6 * Months, settlementDays, Currency(), calendar,
+                                                 ModifiedFollowing, false, Actual360());
+        for (const auto& s : swapData)
+            instruments.emplace_back(ext::make_shared<SwapRateHelper>(
+                s.rate / 100, s.n * s.units, calendar, Annual, Unadjusted, Thirty360(Thirty360::BondBasis), index));
+        return instruments;
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testLazyObject)
+{
+
+    BOOST_TEST_MESSAGE("Testing piecewise curve freeze and recalculation across an evaluation date change...");
+
+    Calendar calendar = TARGET();
+    Natural settlementDays = 2;
+    Date today = calendar.adjust(Date(13, May, 2026));
+    Settings::instance().evaluationDate() = today;
+
+    std::vector<ext::shared_ptr<RateHelper>> instruments = relativeDateInstruments(calendar, settlementDays);
+
+    // Moving reference date, which is the supported pairing for date-relative helpers: the curve tracks the
+    // evaluation date, so the bootstrap re-initialises and the pillars move along with the helpers.
+    auto curve = ext::make_shared<PiecewiseYieldCurve<ForwardRate, BackwardFlat>>(settlementDays, calendar, instruments,
+                                                                                  Actual360());
+    curve->discount(curve->referenceDate());
+    std::vector<Date> nodes = curve->dates();
+
+    curve->freeze();
+    Settings::instance().evaluationDate() = calendar.advance(today, 100, Days);
+
+    // While frozen nothing recomputes, so the nodes must be untouched.
+    if (curve->dates() != nodes)
+        BOOST_ERROR("frozen curve changed its nodes after the evaluation date moved");
+
+    curve->recalculate();
+
+    std::vector<Date> updated = curve->dates();
+    if (updated.size() != nodes.size())
+        BOOST_ERROR("node count changed after recalculation:\n"
+                    << "    before: " << nodes.size() << "\n"
+                    << "    after:  " << updated.size());
+
+    for (Size i = 0; i < nodes.size(); ++i)
+    {
+        if (updated[i] == nodes[i])
+            BOOST_ERROR("node " << i << " did not move after recalculation:\n"
+                                << "    date: " << updated[i]);
+    }
+
+    curve->unfreeze();
+}
+
+BOOST_AUTO_TEST_CASE(testLazyObjectWithFixedReferenceDate)
+{
+
+    BOOST_TEST_MESSAGE("Testing piecewise curve recalculation with a fixed reference date...");
+
+    Calendar calendar = TARGET();
+    Natural settlementDays = 2;
+    Date today = calendar.adjust(Date(13, May, 2026));
+    Settings::instance().evaluationDate() = today;
+    Date settlement = calendar.advance(today, settlementDays, Days);
+
+    std::vector<ext::shared_ptr<RateHelper>> instruments = relativeDateInstruments(calendar, settlementDays);
+
+    // Fixed reference date, so TermStructure::moving_ is false while the helpers above remain date-relative.
+    // IterativeBootstrap::calculate() re-runs initialize() only when !initialized_ || ts_->moving_, so once
+    // the curve has been bootstrapped its pillars no longer follow the helpers.  Advancing the evaluation
+    // date therefore leaves the curve spanning less time than its longest instrument now needs, and the
+    // bootstrap fails inside TermStructure::checkRange rather than repricing.
+    //
+    // This documents current behaviour, not desired behaviour -- see issue #23.  Should the bootstrap learn
+    // to re-initialise here, or to reject the combination with a diagnostic that names it, this test is the
+    // one that should be updated to say so.
+    auto curve = ext::make_shared<PiecewiseYieldCurve<ForwardRate, BackwardFlat>>(settlement, instruments, Actual360());
+    curve->discount(curve->referenceDate());
+    std::vector<Date> nodes = curve->dates();
+
+    curve->freeze();
+    Settings::instance().evaluationDate() = calendar.advance(today, 100, Days);
+
+    if (curve->dates() != nodes)
+        BOOST_ERROR("frozen curve changed its nodes after the evaluation date moved");
+
+    BOOST_CHECK_THROW(curve->recalculate(), Error);
+
+    curve->unfreeze();
 }
 
 BOOST_AUTO_TEST_SUITE_END()
