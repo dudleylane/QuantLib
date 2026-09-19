@@ -80,6 +80,10 @@ jobs:
   # project_supported_platforms.md).  Stream 10 ships clang-tools-extra
   # at LLVM 22.x natively, so the gate uses dnf instead of pinning
   # apt.llvm.org -- same approach as ~/cayuga/.github/workflows/format.yml.
+  # The binary is called by its versioned name because this job sets no PATH
+  # and inherits the runner's: an unversioned clang-format earlier on it (pip
+  # installs 23.x into ~/.local/bin) would win, and 23.1.0 reports 187
+  # violations on a tree that 22.x passes.
   clang-format:
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     steps:
@@ -90,7 +94,7 @@ jobs:
         run: |
           mapfile -d '' files < <(find ql test-suite Examples fuzz-test-suite \
               -type f \( -name '*.hpp' -o -name '*.cpp' \) -print0)
-          clang-format --dry-run -Werror "${files[@]}"
+          clang-format-22 --dry-run -Werror "${files[@]}"
 
   # ===== from filelists.yml =====
   # Fork-supported platform is RHEL/CentOS 10+ (memory:
