@@ -133,6 +133,14 @@ jobs:
   # runs the full sweep.  The classification is echoed into the log on every
   # run so a wrong call is visible where it happened rather than inferred
   # afterwards from what did not execute.
+  #
+  # A pull request is diffed against the first parent of github.sha.  That
+  # commit is the test merge GitHub built, and its first parent is the base
+  # tip it merged into.  The payload's pull_request.base.sha is not that tip.
+  # In #27's run 38628809009 it was 94bcae858, while the merge was built
+  # against 0dd2dad42, so master's own FORK_CHANGES.md edits counted as the
+  # pull request's and a .github-only change ran the full sweep.  A head that
+  # is not a merge commit falls back to the full sweep.
   changes:
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     outputs:
@@ -147,12 +155,20 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
+          head="${{ github.sha }}"
           case "${{ github.event_name }}" in
-            pull_request) base="${{ github.event.pull_request.base.sha }}" ;;
+            pull_request)
+              # The test merge's first parent is the base it merged into; the
+              # note above says why pull_request.base.sha is not used.
+              if git rev-parse -q --verify "$head^2" > /dev/null; then
+                base=$(git rev-parse -q --verify "$head^1") || base=""
+              else
+                echo "head $head is not a merge commit"
+                base=""
+              fi ;;
             push)         base="${{ github.event.before }}" ;;
             *)            base="" ;;
           esac
-          head="${{ github.sha }}"
           verdict=false
           if [ -n "$base" ] && [ "$base" != "0000000000000000000000000000000000000000" ]; then
             if files=$(git diff --name-only "$base" "$head" 2>/dev/null) && [ -n "$files" ]; then
