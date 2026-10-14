@@ -8,8 +8,8 @@
 >   the dual-license arrangement, the C++23 / GCC ≥ 15.2.1 toolchain,
 >   or the new modules under `ql/risk/`, `ql/marketdata/`,
 >   `ql/pricingengines/autocallable/`) — open a PR or issue at
->   <https://github.com/dudleylane/QuantLib>.  Please read `CLAUDE.md`
->   first for the Decision-Making Policy and pre-commit checklist.
+>   <https://github.com/dudleylane/QuantLib>.  Please work through the
+>   pre-commit checklist below before pushing.
 > - **Fixes for upstream QuantLib** (the original BSD-licensed library)
 >   — open against <https://github.com/lballabio/QuantLib> using the
 >   instructions below; the fix will be brought across the divergence
@@ -21,12 +21,47 @@
 
 ---
 
+## Pre-commit checklist
+
+Before pushing a change to code, build files, workflows or scripts:
+
+1. **Build and test.**  Build with GCC ≥ 15.2.1 (see *Build, test, run*
+   in `README.md`).  Run the suites the change touches, then the whole
+   suite.
+2. **Format** with `clang-format-22` (see *Formatting* below).
+3. **Keep both build systems in step.**  A file added, removed or
+   renamed goes in `ql/CMakeLists.txt` (or `test-suite/CMakeLists.txt`)
+   *and* in the directory's `Makefile.am`.  A header also goes in that
+   directory's tracked `all.hpp`, which the autotools build regenerates
+   from `Makefile.am`; that file is how `<ql/quantlib.hpp>` reaches the
+   header.  This runs the same check as CI's `filelists` gate:
+
+   ```bash
+   ./autogen.sh && ./configure --disable-json-marketdata && ./tools/check_filelists.sh
+   ```
+
+4. **Headers compile on their own**, as CI's `headers` job checks:
+   `echo ./ql/<dir>/<file>.hpp | python3 tools/check_header.py`.
+5. **Configuration-dependent code** (dates, lazy objects and
+   observers, coupons, `Settings`) must also pass under the
+   `linux-ci-build-with-nonstandard-options` CMake preset.
+6. **Licence and register.**  New files carry the AGPL-3.0+ header that
+   the fork's other new files use (for example
+   `ql/risk/curvebucketer.hpp`).  Upstream files keep their BSD-3-Clause
+   headers untouched.  Record a fork-visible change in `FORK_CHANGES.md`.
+
+Commit subjects follow the conventional-commit style of the log (`fix:`,
+`test:`, `ci:`, `docs(README):` …).  The body says what was wrong and
+where, how it was found, why this fix was chosen over the alternatives,
+and the evidence that it works.
+
 ## Formatting
 
 Project style is BSD/Allman braces, 120-column limit, 4-space indent
-(see `.clang-format`).  CI enforces it on every push and PR via
-`.github/workflows/format.yml` running `clang-format --dry-run -Werror`,
-so a PR with formatting drift will fail before review.
+(see `.clang-format`).  CI enforces it on every push and PR.  The
+`clang-format` job in `.github/workflows/ci.yml` runs
+`clang-format-22 --dry-run -Werror`, so a PR with formatting drift
+fails before review.
 
 - **Pinned to clang-format 22.x.**  CentOS Stream 10 ships
   `clang-tools-extra` at LLVM 22.x natively, so `dnf install -y
@@ -34,12 +69,15 @@ so a PR with formatting drift will fail before review.
   `apt.llvm.org`, a self-built clang-format, or a different major
   version — `BasedOnStyle: LLVM` defaults shift across them and
   patch versions matter (we hit a 22.1.1 ↔ 22.1.3 skew when the
-  gate first ran).  To reformat locally before pushing:
+  gate first ran).  Call it by its versioned name, as the gate does.
+  An unversioned `clang-format` that comes first on your path (pip
+  installs 23.x) reports violations that 22.x does not.  To reformat
+  locally before pushing:
 
   ```bash
   find ql test-suite Examples fuzz-test-suite \
       -type f \( -name '*.hpp' -o -name '*.cpp' \) -print0 \
-    | xargs -0 clang-format -i
+    | xargs -0 clang-format-22 -i
   ```
 
 - **One-time `git blame` setup.**  The project-wide reformat sits
