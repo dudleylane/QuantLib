@@ -129,7 +129,7 @@ cut.
   `{"id": value, …}` object and a `{"quotes": [{"id": …, "value": …}]}`
   array. Gated on CMake option **`QL_ENABLE_JSON_MARKETDATA`**
   (default `ON`) which either picks up an installed nlohmann/json or
-  pulls v3.11.3 via `FetchContent`. When the flag is off, the header
+  pulls v3.12.0 via `FetchContent`. When the flag is off, the header
   still compiles and the loader throws a clear message pointing at
   the flag. Follow-ups: Arrow/Parquet, multi-column quotes (bid/ask/
   mid + timestamps), streaming loaders, vendor formats.
@@ -158,7 +158,7 @@ cut.
 - **GCC 15.2.1 + C++23 + Boost 1.83** (default): 1304 cases, 0 failures
 - **Clang 21.1.6 + C++23 + Boost 1.83**: 1274 cases, 0 failures (taken at the Phase-0 baseline; new-module tests land on top)
 - **`linux-ci-build-with-nonstandard-options` preset** (sessions on, thread-safe observer on, `QL_FASTER_LAZY_OBJECTS=OFF`, `QL_THROW_IN_CYCLES=ON`, high-res date on, indexed coupons, warnings-as-errors): 1280 cases, 0 failures (Phase-0 baseline)
-- **`QL_ENABLE_AAD=ON`** (GCC 15.2.1, CoDi-Pack v2.2.0 auto-fetched): `AadTests/*` pass end-to-end
+- **`QL_ENABLE_AAD=ON`** (GCC 15.2.1, CoDi-Pack v2.2.0 auto-fetched): `AadTests/*` pass end-to-end. That run used v2.2.0. The pin moved to v3.1.0 in `d742765be`, and no build with AAD on has been verified since; no CI job builds one.
 
 CI runs on a self-hosted runner: a single `.github/workflows/ci.yml`
 covering twelve configuration cells, five non-default cells, three
@@ -166,8 +166,8 @@ sanitizers, both build systems, single-header compilation, doxygen,
 coverage, CodeQL and clang-tidy — 31 jobs on a push to master. Commits
 touching only `.github/`, markdown or git metadata run a 4-job subset.
 `check-test-times` is advisory rather than gating: it compares absolute
-wall-clock against fixed thresholds, and the runner shares four cores
-with five other repositories.
+wall-clock against fixed thresholds, and the runner shares its four cores
+with other repositories' CI runners.
 
 ### Language bindings
 
@@ -189,14 +189,39 @@ was preserved from the deleted repository and where.
 
 ## Build, test, run
 
-See `CLAUDE.md` in the repo root for the canonical build recipe (CMake
-preset + test-suite filter syntax). Quick reference:
+The compiler floor is GCC 15.2.1. On RHEL/CentOS Stream 10, whose
+default `g++` is GCC 14, configuration stops with "QuantLib requires
+GCC 15.2.1 or higher" unless gcc-toolset-15 comes first on the path.
+CI sets it the same way:
 
 ```bash
+export PATH=/opt/rh/gcc-toolset-15/root/usr/bin:$PATH
+export LD_LIBRARY_PATH=/opt/rh/gcc-toolset-15/root/usr/lib64
+export CC=/opt/rh/gcc-toolset-15/root/usr/bin/gcc
+export CXX=/opt/rh/gcc-toolset-15/root/usr/bin/g++
+
 cmake --preset linux-gcc-ninja-release
 cmake --build build/linux-gcc-ninja-release -j
 ./build/linux-gcc-ninja-release/test-suite/quantlib-test-suite --log_level=message
 ```
+
+The test suite is a single Boost.Test binary. Select a suite or a case
+with `--run_test`. QuantLib's own speed flags go after `--`:
+
+```bash
+T=./build/linux-gcc-ninja-release/test-suite/quantlib-test-suite
+$T --list_content                                        # every suite and case
+$T --run_test=QuantLibTests/CurveBucketerTests           # one suite
+$T --run_test=QuantLibTests/CurveBucketerTests/testBucketedDeltaSign
+$T --log_level=message -- --faster                       # skip cases tagged Slow or Fast
+```
+
+The `linux-ci-build-with-nonstandard-options` preset builds the stacked
+non-default configuration that CI tests. It turns on sessions,
+thread-safe observers, high-resolution dates and indexed coupons, among
+others. The autotools build (`./autogen.sh && ./configure && make`) is
+supported too, and most CI jobs use it. `CONTRIBUTING.md` has the checks
+to run before pushing.
 
 ## Issues and questions
 
@@ -230,8 +255,9 @@ distributed under the more restrictive of the two.
   `ql/pricingengines/vanilla/analyticeuropeanengine.cpp` into your own
   project), those files remain under BSD-3-Clause per their file header, and
   BSD terms continue to apply to your use of them in isolation.
-- **If you extract files that are new in this fork** (currently
-  `ql/indexes/fallbackiborindex.{hpp,cpp}`), they are AGPL-3.0+ only.
+- **If you extract files that are new in this fork**, they are AGPL-3.0+
+  only. Each one says so in its header, and
+  `git grep -l 'new in the dudleylane fork'` lists them.
 
 Upstream copyright holders are not altered by this fork. BSD-3-Clause and
 AGPL-3.0 are legally compatible in the BSD → AGPL direction, which is what
