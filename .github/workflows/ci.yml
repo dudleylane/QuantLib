@@ -4,8 +4,9 @@ name: CI
 #
 # This was thirteen separate workflow files.  That layout is right for
 # GitHub-hosted runners, where thirteen workflows mean thirteen machines
-# working in parallel.  This fork runs on a single self-hosted runner shared
-# with five other repositories, so they never ran in parallel -- they only
+# working in parallel.  This fork runs on a single self-hosted runner, on a
+# machine shared with other repositories' runners, so they never ran in
+# parallel -- they only
 # produced thirteen runs, thirteen concurrency groups and thirteen pending
 # entries per commit.  Merging #9 left 33 runs queued across three commits for
 # exactly that reason.
@@ -38,17 +39,18 @@ on:
   # `make dist`, and no job runs dist or distcheck; check_filelists.sh does not
   # look at them.  Only four .md files are tracked, so the saving is modest --
   # but a docs-only commit currently costs 31 jobs, including seventeen full
-  # library builds, on a runner shared with five other repositories.
+  # library builds, on a machine shared with other repositories' runners.
   #
   # Docs/** is deliberately NOT ignored.  It holds quantlib.doxy, pages/,
   # quantlibextra.css and quantlibfooter.html, which `make docs` consumes, so
   # ignoring it would disable the only job that validates a doxygen change.
   # That was in the first draft of this filter and was wrong.
   #
-  # Safe here specifically because master has no branch protection -- the API
-  # returns "Branch not protected" -- so no required status check can be left
-  # permanently pending by a skipped run.  If protection is ever added, revisit
-  # this: a required check that never reports blocks the PR forever.
+  # Safe here because master's protection (since 2026-10-14, #26) blocks only
+  # force pushes and deletion and requires no status check, so no required
+  # check can be left permanently pending by a skipped run.  If a required
+  # status check is ever added, revisit this: a required check that never
+  # reports blocks the PR forever.
   push:
     branches: [master]
     paths-ignore: ['**.md']
@@ -69,15 +71,15 @@ concurrency:
   #
   # Pull requests and workflow_dispatch keep ref-keying, so a new push to a
   # branch supersedes its previous run instead of queueing behind it.  The dev
-  # host has one quantlib-dev runner shared with five other repos, and GitHub
-  # cancels runs that sit queued for 24 hours.
+  # host has one quantlib-dev runner, beside other repositories' runners, and
+  # GitHub cancels runs that sit queued for 24 hours.
   group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.sha || github.ref }}
   cancel-in-progress: ${{ github.event_name != 'push' }}
 
 jobs:
   # ===== from format.yml =====
-  # Fork-supported platform is RHEL/CentOS 10+ (memory:
-  # project_supported_platforms.md).  Stream 10 ships clang-tools-extra
+  # Fork-supported platform is RHEL/CentOS 10+.
+  # Stream 10 ships clang-tools-extra
   # at LLVM 22.x natively, so the gate uses dnf instead of pinning
   # apt.llvm.org -- same approach as ~/cayuga/.github/workflows/format.yml.
   # The binary is called by its versioned name because this job sets no PATH
@@ -97,8 +99,8 @@ jobs:
           clang-format-22 --dry-run -Werror "${files[@]}"
 
   # ===== from filelists.yml =====
-  # Fork-supported platform is RHEL/CentOS 10+ (memory:
-  # project_supported_platforms.md).  Despite the name, the check only
+  # Fork-supported platform is RHEL/CentOS 10+.
+  # Despite the name, the check only
   # diffs file lists -- no actual MSVC build.
   filelists:
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
@@ -221,8 +223,8 @@ jobs:
         ./tools/check_all_headers.sh
 
   # ===== from linux.yml =====
-  # Fork-supported platform is RHEL/CentOS 10+ (memory:
-  # project_supported_platforms.md).  Builds run inside the public
+  # Fork-supported platform is RHEL/CentOS 10+.
+  # Builds run inside the public
   # CentOS Stream 10 container; gcc-toolset-15 is activated via env
   # vars so every step picks up GCC 15 without a per-step `scl enable`
   # wrapper (matches the pattern in ~/cayuga/.github/workflows).
@@ -248,7 +250,7 @@ jobs:
     name: linux / ${{ matrix.name }}
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     # gcc-toolset-15 path/lib activation.  CentOS Stream 10 ships with
-    # GCC 14 by default; the fork floor is GCC >= 15.2.1 (CLAUDE.md).
+    # GCC 14 by default; the fork floor is GCC >= 15.2.1 (CMakeLists.txt).
     env:
       PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
@@ -316,8 +318,8 @@ jobs:
             $(quantlib-config --cflags) test1.cpp test2.cpp $(quantlib-config --libs)
 
   # ===== from linux-nondefault.yml =====
-  # Fork-supported platform is RHEL/CentOS 10+ (memory:
-  # project_supported_platforms.md).  Stacks every non-default
+  # Fork-supported platform is RHEL/CentOS 10+.
+  # Stacks every non-default
   # configureflag into a single configure invocation -- the matrix
   # axis is just the cxxflags / extra configureflags variant.
   #
@@ -408,8 +410,8 @@ jobs:
             $(quantlib-config --cflags) test1.cpp test2.cpp $(quantlib-config --libs)
 
   # ===== from sanitizer.yml =====
-  # Fork-supported platform is RHEL/CentOS 10+ (memory:
-  # project_supported_platforms.md).  Modeled on
+  # Fork-supported platform is RHEL/CentOS 10+.
+  # Modeled on
   # ~/cayuga/.github/workflows/sanitizers.yml: ASan/TSan/UBSan are
   # separate matrix cells for clearer attribution; TSan is routed
   # through Clang to dodge gcc bug 93922 (atomic_thread_fence won't
@@ -513,8 +515,8 @@ jobs:
           make check-examples
 
   # ===== from cmake.yml =====
-  # Fork-supported platform is RHEL/CentOS 10+ (memory:
-  # project_supported_platforms.md).  Windows + macOS cells removed
+  # Fork-supported platform is RHEL/CentOS 10+.
+  # Windows + macOS cells removed
   # along with macos.yml / msvc*.yml / cmake-latest-runners.yml -- the
   # fork doesn't claim those targets.
   cmake-linux:
@@ -612,8 +614,8 @@ jobs:
           quantlib-test-suite --log_level=message
 
   # ===== from doxygen.yml =====
-  # Fork-supported platform is RHEL/CentOS 10+ (memory:
-  # project_supported_platforms.md).  Doxygen + graphviz from base/CRB.
+  # Fork-supported platform is RHEL/CentOS 10+.
+  # Doxygen + graphviz from base/CRB.
   docs:
     if: needs.changes.outputs.ci_only != 'true'
     needs: [clang-format, filelists, changes]
@@ -655,8 +657,8 @@ jobs:
           ./tools/check_all_header_docs.sh
 
   # ===== from coveralls.yml =====
-  # Fork-supported platform is RHEL/CentOS 10+ (memory:
-  # project_supported_platforms.md).  Runs inside CentOS Stream 10 with
+  # Fork-supported platform is RHEL/CentOS 10+.
+  # Runs inside CentOS Stream 10 with
   # gcc-toolset-15; lcov from EPEL.
   coverage:
     if: needs.changes.outputs.ci_only != 'true'
@@ -756,15 +758,15 @@ jobs:
         threads: 8
 
   # ===== from test-times.yml =====
-  # Fork-supported platform is RHEL/CentOS 10+ (memory:
-  # project_supported_platforms.md).  Wall-clock numbers from a shared
+  # Fork-supported platform is RHEL/CentOS 10+.
+  # Wall-clock numbers from a shared
   # CI runner are inherently noisy; tools/check_test_times.py treats
   # this as advisory regression-flagging, not a hard gate.
   check-test-times:
     if: needs.changes.outputs.ci_only != 'true'
     needs: [clang-format, filelists, changes]
     # Advisory, not gating.  tools/check_test_times.py compares absolute
-    # wall-clock seconds against fixed thresholds, and this host runs six
+    # wall-clock seconds against fixed thresholds, and the host then ran six
     # self-hosted runners on four cores, so the numbers measure contention as
     # much as the tests.  Same commit, two runs on 2026-08-12:
     #
@@ -837,18 +839,16 @@ jobs:
           python3 ./tools/check_test_times.py
 
   # ===== from tidy.yml =====
-  # Fork-supported platform is RHEL/CentOS 10+ (memory:
-  # project_supported_platforms.md).  Stream 10 ships clang-tidy at LLVM
-  # 22.x natively, so there is nothing to install -- the preset's
-  # clang-tidy-19 default is overridden on the command line rather than
-  # in CMakePresets.json, which upstream owns.
+  # Fork-supported platform is RHEL/CentOS 10+.  Stream 10 ships clang-tidy
+  # at LLVM 22.x natively, so there is nothing to install: the preset names
+  # plain clang-tidy, which resolves to it.
   #
-  # Check-only, like format.yml and quickfix's format.yml: the preset
-  # runs clang-tidy with -fix, so any finding shows up as a dirty working
-  # tree and fails the job.  Upstream's create-pull-request step is gone
-  # with the rest of the lballabio[bot] automation -- it depended on
-  # secrets.MACHINE_ACCOUNT_PAT and vars.MACHINE_ACCOUNT, neither of
-  # which is set on this repo.
+  # Report-only: the preset runs clang-tidy with -quiet, so findings appear
+  # in the log and nothing is rewritten, and the step after the build fails
+  # the job if anything rewrote the tree.  Upstream's create-pull-request
+  # step is gone with the rest of the lballabio[bot] automation -- it
+  # depended on secrets.MACHINE_ACCOUNT_PAT and vars.MACHINE_ACCOUNT,
+  # neither of which is set on this repo.
   check:
     if: needs.changes.outputs.ci_only != 'true'
     needs: [clang-format, filelists, changes]
