@@ -328,8 +328,9 @@ Caveats:
     repository, so its pull requests (#3, #4) pass the fork check and
     would otherwise run a new action release on the runner before
     review. The owner ruled on 2026-10-14 that they are refused. To take
-    a Dependabot update, read its diff and merge it; the push to
-    `master` runs CI on it. The hook's tracked copy,
+    a Dependabot update, review its diff and re-create it on a branch of
+    your own, as #13 did for Dependabot's #3. That pull request's jobs
+    run, and it merges on green like any other. The hook's tracked copy,
     `.github/runner/job-started.sh`, lands with the pull request linked
     from #26. GitHub's approval policy (`all_external_contributors`)
     remains the first gate.
