@@ -294,7 +294,9 @@ Caveats:
   be evicted by a newer arrival; `linux-full-tests.yml` deleted as a
   name-for-name duplicate of `linux.yml` (43 jobs per push → 31); the weekly
   cron sweeps converted to event-driven; and path-based gating, so a commit
-  touching only `.github/`, `*.md` or git metadata costs 4 jobs instead of 32.
+  touching only `.github/` or git metadata costs 4 jobs instead of 32, and a
+  markdown-only commit runs none. The classifier does not exempt markdown,
+  so a commit pairing a CI change with a markdown edit runs the full sweep.
 
   Two defects were fixed rather than worked around. The `clang-tidy` job had
   never once completed a build: its preset ran tidy with `-fix`, so tidy
@@ -331,9 +333,10 @@ Caveats:
     a Dependabot update, review its diff and re-create it on a branch of
     your own, as #13 did for Dependabot's #3. That pull request's jobs
     run, and it merges on green like any other. The hook's tracked copy,
-    `.github/runner/job-started.sh`, lands with the pull request linked
-    from #26. GitHub's approval policy (`all_external_contributors`)
-    remains the first gate.
+    `.github/runner/job-started.sh`, came with
+    [#27](https://github.com/dudleylane/QuantLib/pull/27) (`2fdf940c3`).
+    Its header has the install commands and the rollback. GitHub's
+    approval policy (`all_external_contributors`) remains the first gate.
 
   README's build section and CONTRIBUTING's pre-commit checklist are now
   self-contained. Both used to point at `CLAUDE.md`, which is gitignored.
@@ -351,6 +354,21 @@ Caveats:
     change. That held for only half of them: of the eight runs, three
     succeeded, one failed only on `check-test-times`, and four were
     cancelled.
+- Pull-request tiering fixed (2026-10-14,
+  [#28](https://github.com/dudleylane/QuantLib/pull/28), `ada0feb39`).
+  The `changes` job diffed a pull request's test merge against the
+  payload's `pull_request.base.sha`, which need not be the base GitHub
+  merged into. In #27's run 38628809009 it was `94bcae858`, while the
+  merge was built on `0dd2dad42`. So `master`'s own `FORK_CHANGES.md`
+  commits counted as #27's, and a `.github`-only change ran the full
+  sweep. The job now diffs against the test merge's first parent, which
+  is that base, and runs the full sweep when the head is not a merge
+  commit. Push runs are unchanged. The evidence is a local reproduction,
+  with the step taken from both versions of `ci.yml`: the old one
+  repeats the run's misclassification, and the new one calls the same
+  merge tier 1. No live run has yet tested the case it fixes. #27's
+  later run used the new step, but rebasing #27 had moved its base to
+  `master`'s tip, where the two versions agree.
 
 ## Sibling repositories
 
