@@ -25,8 +25,9 @@
 # fork check. Their jobs would run the updated dependencies on this machine, including a new
 # release of an action, before anyone has looked at them. So a job whose event Dependabot sent
 # is refused, whether a push or a pull request. A re-run is refused too, since it replays the
-# same payload. To take a Dependabot update, read the new version's diff and merge it. The push
-# to master is then sent by whoever merged it, so CI runs on it as usual.
+# same payload. To take a Dependabot update, review the new version's diff, then re-create the
+# change on a branch of your own, as #13 did for Dependabot's #3. That pull request's events
+# are yours, so its jobs run, and it merges on green like any other.
 #
 # This copy is the reference; the runner runs its own copy, which a pull request can't reach.
 # Install it in the runner's directory, outside _work, and restart the runner when it is
@@ -76,7 +77,7 @@ verdict=$(jq -e -r --slurp '
 echo "job-started hook (#26): ${GITHUB_EVENT_NAME:-unknown} event, $verdict"
 if [[ "$verdict" != "run: "* ]]; then
     if [[ "$verdict" == *"dependabot[bot]"* ]]; then
-        echo "Dependabot's jobs don't run on this self-hosted runner: review its update, then merge it (#26)." >&2
+        echo "Dependabot's jobs don't run on this self-hosted runner: review its update, then re-create it on your own branch (#26)." >&2
     else
         echo "A fork's pull request doesn't run on this self-hosted runner (#26)." >&2
     fi
