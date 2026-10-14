@@ -190,9 +190,11 @@ was preserved from the deleted repository and where.
 ## Build, test, run
 
 The compiler floor is GCC 15.2.1. On RHEL/CentOS Stream 10, whose
-default `g++` is GCC 14, configuration stops with "QuantLib requires
-GCC 15.2.1 or higher" unless gcc-toolset-15 comes first on the path.
-CI sets it the same way:
+default `g++` is GCC 14, CMake's configuration stops with "QuantLib
+requires GCC 15.2.1 or higher" unless gcc-toolset-15 comes first on the
+path. The autotools `./configure` does not check the compiler version
+and accepts GCC 14, so put the toolset first there too. CI sets it the
+same way:
 
 ```bash
 export PATH=/opt/rh/gcc-toolset-15/root/usr/bin:$PATH

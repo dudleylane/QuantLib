@@ -20,9 +20,13 @@ carry AGPL-3.0+ file-level copyright notices.
 
 ## Toolchain floor raised
 
-- **GCC ≥ 15.2.1**, **C++ ≥ 23**, **Boost ≥ 1.83.0** enforced in
-  `CMakeLists.txt` and `acinclude.m4`. Upstream still compiles on GCC
-  9 / C++17 / Boost 1.58.
+- **GCC ≥ 15.2.1**, **C++ ≥ 23**, **Boost ≥ 1.83.0**. `CMakeLists.txt`
+  enforces all three. `acinclude.m4` enforces C++23 and Boost 1.83 but
+  not the GCC version: `QL_CHECK_CPP23` compiles `std::expected`, which
+  g++ 14.4.1 accepts with `-std=c++23`. On 2026-10-14, `./configure`
+  with RHEL 10's default g++ 14.4.1 succeeded; whether the library then
+  builds was not tried. Upstream still compiles on GCC 9 / C++17 /
+  Boost 1.58.
 - The autotools floor check in `acinclude.m4` was hardened: the prior
   `QL_CHECK_CPP23` macro silently prepended `-std=c++23` to `CXXFLAGS`
   but lost to user-supplied `-std=c++17` via GCC's "last `-std=` wins"
