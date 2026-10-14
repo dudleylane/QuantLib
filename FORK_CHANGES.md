@@ -320,16 +320,36 @@ Caveats:
     `paths-ignore` filter cannot leave a required check pending.
   - **Private vulnerability reporting is on**, and `SECURITY.md` says
     what to report privately.
-  - **The runner refuses jobs from forks' pull requests.** It does so
-    through a job-started hook, ported from
-    dudleylane/OrderProcessor#143 with its decision logic unchanged,
-    installed on 2026-10-14. Its tracked copy,
+  - **The runner refuses jobs from forks' pull requests, and
+    Dependabot's.** It does so through a job-started hook installed on
+    2026-10-14, ported with its decision logic unchanged from
+    dudleylane/OrderProcessor#143 and the Dependabot clause of that
+    repository's #168. Dependabot pushes its branches into this
+    repository, so its pull requests (#3, #4) pass the fork check and
+    would otherwise run a new action release on the runner before
+    review. The owner ruled on 2026-10-14 that they are refused. To take
+    a Dependabot update, read its diff and merge it; the push to
+    `master` runs CI on it. The hook's tracked copy,
     `.github/runner/job-started.sh`, lands with the pull request linked
     from #26. GitHub's approval policy (`all_external_contributors`)
     remains the first gate.
 
   README's build section and CONTRIBUTING's pre-commit checklist are now
   self-contained. Both used to point at `CLAUDE.md`, which is gitignored.
+- Merging ahead of CI ended (2026-10-14). Each of the eight merges of
+  #14–#21 (2026-08-11 to 08-15) carries a `Deviation: merged ahead of CI`
+  trailer: the pull request merged before its own run finished, because
+  the single runner's queue was saturated. The owner ruled on 2026-10-14
+  to end the practice. Every pull request now waits for its own green
+  run, and an early merge is a deviation that needs its own
+  justification; "the queue is long" no longer serves. Two facts settled
+  it:
+  - The queue pressure has mostly gone. Markdown-only commits run no CI,
+    and CI-config-only diffs run 4 jobs.
+  - The trailers argued that `master`'s post-merge run would verify each
+    change. That held for only half of them: of the eight runs, three
+    succeeded, one failed only on `check-test-times`, and four were
+    cancelled.
 
 ## Sibling repositories
 
