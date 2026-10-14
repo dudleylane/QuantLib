@@ -40,16 +40,18 @@ carry AGPL-3.0+ file-level copyright notices.
 
 ## New build-time options
 
-- **`QL_ENABLE_AAD`** (default `OFF`) — when `ON`, pulls CoDi-Pack v2.2.0
-  via `FetchContent` (or picks up a locally-installed `codi.hpp`), sets
-  `QL_ENABLE_AAD` as a compile definition, and activates the reverse-
-  mode AAD utilities in `ql/math/aad.hpp`. Default builds unchanged.
+- **`QL_ENABLE_AAD`** (default `OFF`) — when `ON`, pulls CoDi-Pack v3.1.0
+  (v2.2.0 until `d742765be`) via `FetchContent`, or picks up a
+  locally-installed `codi.hpp`. It then sets `QL_ENABLE_AAD` as a
+  compile definition and activates the reverse-mode AAD utilities in
+  `ql/math/aad.hpp`. Default builds unchanged.
 - **`QL_ENABLE_JSON_MARKETDATA`** (default `ON`) — when `ON`, looks for
-  an installed `nlohmann_json` and falls back to `FetchContent` on
-  nlohmann/json v3.11.3 otherwise. Sets `QL_ENABLE_JSON_MARKETDATA` as
-  a compile definition and links `nlohmann_json::nlohmann_json` into
-  `ql_library`. When `OFF`, `ql/marketdata/jsonquoteloader.hpp` still
-  compiles but the constructor throws.
+  an installed `nlohmann_json` and otherwise falls back to
+  `FetchContent` on nlohmann/json v3.12.0 (v3.11.3 until `d742765be`).
+  Sets `QL_ENABLE_JSON_MARKETDATA` as a compile definition and links
+  `nlohmann_json::nlohmann_json` into `ql_library`. When `OFF`,
+  `ql/marketdata/jsonquoteloader.hpp` still compiles but the
+  constructor throws.
 
 ## New top-level subdirectories
 
@@ -307,6 +309,27 @@ Caveats:
   fb4bb64a5. Untracked, not deleted; the blobs remain reachable by SHA in
   history, so a purge would need `git filter-repo` plus GitHub Support.
   `CLAUDE.md` is gitignored for the same reason — this repository is public.
+- Repository hardening (2026-10-14,
+  [#26](https://github.com/dudleylane/QuantLib/issues/26)). The
+  repository is public, and every CI job runs on its self-hosted runner
+  as the maintainer's user. Three gaps that sibling repositories on the
+  same account had already closed are now closed here:
+  - **`master` is protected** against force pushes and deletion, with
+    no required status checks or reviews, the same settings as
+    quickfix. Direct documentation pushes still land, and `ci.yml`'s
+    `paths-ignore` filter cannot leave a required check pending.
+  - **Private vulnerability reporting is on**, and `SECURITY.md` says
+    what to report privately.
+  - **The runner refuses jobs from forks' pull requests.** It does so
+    through a job-started hook, ported from
+    dudleylane/OrderProcessor#143 with its decision logic unchanged,
+    installed on 2026-10-14. Its tracked copy,
+    `.github/runner/job-started.sh`, lands with the pull request linked
+    from #26. GitHub's approval policy (`all_external_contributors`)
+    remains the first gate.
+
+  README's build section and CONTRIBUTING's pre-commit checklist are now
+  self-contained. Both used to point at `CLAUDE.md`, which is gitignored.
 
 ## Sibling repositories
 
