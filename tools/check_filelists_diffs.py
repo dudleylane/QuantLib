@@ -3,7 +3,7 @@
 import sys
 
 # MSVC drift-check entries removed -- the fork supports RHEL/CentOS 10+
-# only (memory: project_supported_platforms.md), so QuantLib.vcxproj
+# only (README.md, "Supported platform"), so QuantLib.vcxproj
 # / testsuite.vcxproj are no longer maintained-in-lockstep upstream
 # artifacts.  The .vcxproj files remain in the tree for any future
 # upstream merge but are not gated on.

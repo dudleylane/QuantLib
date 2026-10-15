@@ -54,6 +54,16 @@ Enforced at configure time in `CMakeLists.txt` and `acinclude.m4`:
 Upstream still accepts GCC 9+, C++17, and Boost 1.58. This fork will
 refuse to configure on an older toolchain.
 
+### Supported platform
+
+RHEL/CentOS 10 and later is the only supported platform, and the only
+one CI builds. The Windows and macOS build files are upstream's:
+`QuantLib.sln`, the `*.vcxproj` files, and the `windows-*` and
+`apple-arm64-*` presets in `CMakePresets.json`. The project files stay
+in the tree for future merges from upstream, but the file-list gate
+(`tools/check_filelists_diffs.py`) no longer checks them, and no CI job
+builds any of them.
+
 ### Correctness fixes applied (not in upstream)
 
 | ID | File | Fix |
