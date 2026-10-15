@@ -1,11 +1,42 @@
 
+# QL_CHECK_GCC_VERSION
+# --------------------
+# Abort configure if the compiler is a GCC older than 15.2.1, the fork's
+# floor, with the message CMakeLists.txt gives.  Like CMake, it checks
+# GCC only: Clang defines __GNUC__ too (as 4.2.1), so it is excluded by
+# name, as is classic Intel C++.  The preprocessor decides; the
+# -dumpfullversion call only fills in the error message.
+AC_DEFUN([QL_CHECK_GCC_VERSION],
+[AC_MSG_CHECKING([for GCC version >= 15.2.1])
+ AC_COMPILE_IFELSE(
+    [AC_LANG_PROGRAM(
+        [[@%:@if !defined(__GNUC__) || defined(__clang__) || defined(__INTEL_COMPILER)
+          @%:@error not GCC
+          @%:@endif
+          ]],
+        [[]])],
+    [AC_COMPILE_IFELSE(
+        [AC_LANG_PROGRAM(
+            [[@%:@if __GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__ < 150201
+              @%:@error GCC older than 15.2.1
+              @%:@endif
+              ]],
+            [[]])],
+        [AC_MSG_RESULT([yes])],
+        [AC_MSG_RESULT([no])
+         ql_gcc_version=`$CXX -dumpfullversion 2>/dev/null`
+         AC_MSG_ERROR([QuantLib requires GCC 15.2.1 or higher; found ${ql_gcc_version:-an older version}])
+        ])],
+    [AC_MSG_RESULT([not GCC])])
+])
+
 # QL_CHECK_CPP23
 # --------------------
 # Check whether C++23 features are supported by default.  If not, retry
 # with -std=c++23 added; if that still fails, abort configure.  This fork
-# requires C++23 (GCC >= 15.2.1 floor stated in CLAUDE.md); silently
-# tolerating an older standard via flag prepend (which last -std= wins
-# over) hid a CI/floor divergence in the past.
+# requires C++23, and QL_CHECK_GCC_VERSION above enforces its GCC floor;
+# silently tolerating an older standard via flag prepend (which last
+# -std= wins over) hid a CI/floor divergence in the past.
 AC_DEFUN([QL_CHECK_CPP23],
 [AC_MSG_CHECKING([for C++23 support])
  AC_COMPILE_IFELSE(

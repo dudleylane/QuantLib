@@ -64,6 +64,10 @@ if test "$ql_openmp" = "yes" ; then
    AC_SUBST([CXXFLAGS],["${CXXFLAGS} ${OPENMP_CXXFLAGS}"])
 fi
 
+# Check the GCC floor, as CMakeLists.txt does.  Before the C++23 check, so
+# that a GCC too old for <expected> is told its version, not the standard.
+QL_CHECK_GCC_VERSION
+
 # Check for C++23 support
 QL_CHECK_CPP23
 
