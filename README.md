@@ -54,6 +54,16 @@ Enforced at configure time in `CMakeLists.txt` and `acinclude.m4`:
 Upstream still accepts GCC 9+, C++17, and Boost 1.58. This fork will
 refuse to configure on an older toolchain.
 
+### Supported platform
+
+RHEL/CentOS 10 and later is the only supported platform, and the only
+one CI builds. The Windows and macOS build files are upstream's:
+`QuantLib.sln`, the `*.vcxproj` files, and the `windows-*` and
+`apple-arm64-*` presets in `CMakePresets.json`. The project files stay
+in the tree for future merges from upstream, but the file-list gate
+(`tools/check_filelists_diffs.py`) no longer checks them, and no CI job
+builds any of them.
+
 ### Correctness fixes applied (not in upstream)
 
 | ID | File | Fix |
@@ -190,11 +200,9 @@ was preserved from the deleted repository and where.
 ## Build, test, run
 
 The compiler floor is GCC 15.2.1. On RHEL/CentOS Stream 10, whose
-default `g++` is GCC 14, CMake's configuration stops with "QuantLib
-requires GCC 15.2.1 or higher" unless gcc-toolset-15 comes first on the
-path. The autotools `./configure` does not check the compiler version
-and accepts GCC 14, so put the toolset first there too. CI sets it the
-same way:
+default `g++` is GCC 14, configuration stops with "QuantLib requires
+GCC 15.2.1 or higher", under CMake and autotools alike, unless
+gcc-toolset-15 comes first on the path. CI sets it the same way:
 
 ```bash
 export PATH=/opt/rh/gcc-toolset-15/root/usr/bin:$PATH

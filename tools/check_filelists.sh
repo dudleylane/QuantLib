@@ -29,7 +29,7 @@ cd ../..
 rm -rf dist-check
 
 # MSVC vcxproj drift checks removed -- the fork supports RHEL/CentOS 10+
-# only (memory: project_supported_platforms.md).
+# only (README.md, "Supported platform").
 
 # same with CMakelists
 
