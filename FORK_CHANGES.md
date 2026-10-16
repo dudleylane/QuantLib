@@ -23,8 +23,8 @@ carry AGPL-3.0+ file-level copyright notices.
 - **GCC ≥ 15.2.1**, **C++ ≥ 23**, **Boost ≥ 1.83.0**, enforced in
   `CMakeLists.txt` and `acinclude.m4`. Upstream still compiles on GCC
   9 / C++17 / Boost 1.58.
-- The autotools build has checked the GCC version since 2026-10-15
-  ([#29](https://github.com/dudleylane/QuantLib/pull/29)), through
+- The autotools build has checked the GCC version since 2026-10-16
+  ([#29](https://github.com/dudleylane/QuantLib/pull/29), `f9bb2ed25`), through
   `QL_CHECK_GCC_VERSION`. Until then `acinclude.m4` checked only for
   C++23: `QL_CHECK_CPP23` compiles `std::expected`, so `./configure`
   accepted RHEL 10's default g++ 14.4.1. Like CMake's, the check covers
