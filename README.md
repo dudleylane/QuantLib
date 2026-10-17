@@ -173,10 +173,13 @@ cut.
 CI runs on a self-hosted runner: a single `.github/workflows/ci.yml`
 covering twelve configuration cells, five non-default cells, three
 sanitizers, both build systems, single-header compilation, doxygen,
-coverage, CodeQL and clang-tidy — 31 jobs on a push to master. Commits
-touching only `.github/`, markdown or git metadata run a 4-job subset.
+coverage, CodeQL and clang-tidy — 32 jobs on a pull request that changes
+code. After it merges, master runs 6 of them: the format and file-list
+gates, the default build, CodeQL and coverage. Changes to `.github/` or
+git metadata alone run a 4-job subset, markdown-only commits run nothing,
+and `gh workflow run ci.yml --ref master` runs everything on demand.
 `check-test-times` is advisory rather than gating: it compares absolute
-wall-clock against fixed thresholds, and the runner shares its four cores
+wall-clock against fixed thresholds, and the runner shares the machine
 with other repositories' CI runners.
 
 ### Language bindings

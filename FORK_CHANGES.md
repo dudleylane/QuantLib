@@ -376,6 +376,45 @@ Caveats:
   merge tier 1. No live run has yet tested the case it fixes. #27's
   later run used the new step, but rebasing #27 had moved its base to
   `master`'s tip, where the two versions agree.
+- Full verification moved before the merge (2026-10-17,
+  [#30](https://github.com/dudleylane/QuantLib/pull/30), `fd1914290`).
+  This is quickfix's model, at the owner's choice. A merged code change
+  used to run the full sweep twice: 27 jobs on the pull request and 32
+  on `master`'s push. The second run repeated the first on the same tree
+  whenever `master` stayed put during review: #29's test merge and its
+  merge share tree `b4fe95156`. Only the five `linux-nondefault` cells,
+  kept off pull requests since #8, were new. That push run, 38855037743,
+  also ran into GitHub's 24-hour queue limit for self-hosted runners.
+  `linux / Sessions enabled` was cancelled unstarted exactly 24 hours
+  after it was queued. It had passed on #29's pull request on the same
+  tree, so it was not re-run.
+  - **Pull requests that change code run all 32 jobs**, the non-default
+    cells included, so that configuration is tested before it merges.
+  - **The push of a pull request's merge runs 6:** the gates, the
+    default build, CodeQL and coverage. The last two stay because code
+    scanning and Coveralls record `master`'s results only from runs on
+    `master`. The `changes` job recognises GitHub's merge commit by its
+    two parents, a first parent equal to the push's `before`, and the
+    subject "Merge pull request #N from". Anything else, a squash
+    included, runs the full sweep.
+  - **Unchanged:** a diff of CI config only runs 4 jobs, and a dispatch
+    runs everything.
+  - **Trade-offs.** If `master` moves while a pull request is under
+    review, its run tested a different tree from the one that lands, so
+    update the branch and wait for a new green run before merging.
+    Pull-request runs grow from 27 jobs to 32, so on a busy day they can
+    meet the 24-hour limit instead; `gh run rerun <id> --failed`
+    finishes them.
+  - **The compile cache is mostly cold.** In both of #29's runs every
+    job using ccache except `linux / Default` found no cache. GitHub
+    evicts entries unused for 7 days, and a pull request's entries are
+    invisible to other refs. Those jobs compiled from scratch, and that,
+    more than the other runners' load, is why they took two to four
+    times as long as in August. Test execution itself was 1.2–1.9×
+    slower. #29's merge commit put `check-test-times`' 49 minutes,
+    against 13, down to that load. Most of the difference was the cold
+    compile, though its slower test passes still support reading the
+    timing flags as contention.
 
 ## Sibling repositories
 
