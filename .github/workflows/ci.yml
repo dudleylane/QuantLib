@@ -78,6 +78,43 @@ concurrency:
   cancel-in-progress: ${{ github.event_name != 'push' }}
 
 jobs:
+  # ===== temporary files and the compile cache =====
+  # Every job starts with the same step.  It points TMPDIR at the runner's
+  # temporary directory and ccache at a persistent directory of QuantLib's own.
+  # It writes them to $GITHUB_ENV because job-level env can read neither the
+  # runner context nor $HOME.
+  #
+  # TMPDIR: gcc writes its intermediate files to $TMPDIR, else /tmp, and on the
+  # dev host /tmp is on the root filesystem, which other work on the host had
+  # filled to 847 MB free on 2026-10-17.  RUNNER_TEMP is under the runner's
+  # _work directory, on /home, and the runner empties it at the start and end
+  # of every job.  The mkstemp() templates in test-suite/csvquoteloader.cpp,
+  # test-suite/jsonquoteloader.cpp and Examples/XvaSnapshot name /tmp outright;
+  # they write a few hundred bytes each and are not changed here.
+  #
+  # ccache: hendrikmuhs/ccache-action kept the cache in GitHub's cache service,
+  # keyed by ref.  GitHub evicts entries unused for 7 days and a pull request's
+  # entries are invisible to every other ref, so in both of #29's runs every
+  # cached job except linux / Default started cold, at 0-0.5 % hits: 33-58
+  # minutes per linux cell against 12-18 warm.  The runner is one persistent
+  # machine, so the cache now stays on it (#31): one directory for every job,
+  # capped at 10 GB, with ccache's own locking and LRU cleanup.  The action also
+  # ran `ccache --set-config` without CCACHE_DIR, which rewrote the account's
+  # ~/.config/ccache/ccache.conf on every run.  With CCACHE_DIR set, ccache does
+  # not read that file.
+  #
+  # The ccache variables do nothing in a job whose compiler line does not name
+  # ccache.  CodeQL's must not: its tracer extracts each file by watching the
+  # compiler run, and a cache hit skips the compiler.  Coverage and clang-tidy
+  # are left out until they are checked separately.  Each job that uses ccache
+  # prints its own hits from CCACHE_STATSLOG, which lives in RUNNER_TEMP.
+  #
+  # Trust: a pull request's jobs now write objects that master's jobs read.
+  # That stays one trust domain only because the job-started hook
+  # (.github/runner/job-started.sh) refuses forks' and Dependabot's jobs, so
+  # revisit this if the hook ever admits them.  To empty the cache:
+  #   CCACHE_DIR=~/.cache/ccache-quantlib-ci ccache -C
+
   # ===== from format.yml =====
   # Fork-supported platform is RHEL/CentOS 10+.
   # Stream 10 ships clang-tools-extra
@@ -90,6 +127,16 @@ jobs:
   clang-format:
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     steps:
+      - name: Set temporary and cache directories
+        shell: bash
+        run: |
+          {
+            echo "TMPDIR=${RUNNER_TEMP:?}"
+            echo "CCACHE_DIR=${HOME:?}/.cache/ccache-quantlib-ci"
+            echo "CCACHE_MAXSIZE=10G"
+            echo "CCACHE_STATSLOG=$RUNNER_TEMP/ccache-stats.log"
+          } >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v7
 
       - name: Check formatting
@@ -111,6 +158,16 @@ jobs:
       CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
       CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
     steps:
+      - name: Set temporary and cache directories
+        shell: bash
+        run: |
+          {
+            echo "TMPDIR=${RUNNER_TEMP:?}"
+            echo "CCACHE_DIR=${HOME:?}/.cache/ccache-quantlib-ci"
+            echo "CCACHE_MAXSIZE=10G"
+            echo "CCACHE_STATSLOG=$RUNNER_TEMP/ccache-stats.log"
+          } >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v7
 
       - name: Configure
@@ -173,6 +230,16 @@ jobs:
       ci_only: ${{ steps.classify.outputs.ci_only }}
       light: ${{ steps.classify.outputs.light }}
     steps:
+      - name: Set temporary and cache directories
+        shell: bash
+        run: |
+          {
+            echo "TMPDIR=${RUNNER_TEMP:?}"
+            echo "CCACHE_DIR=${HOME:?}/.cache/ccache-quantlib-ci"
+            echo "CCACHE_MAXSIZE=10G"
+            echo "CCACHE_STATSLOG=$RUNNER_TEMP/ccache-stats.log"
+          } >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -244,7 +311,7 @@ jobs:
           elif [ "$merged" = true ]; then
             echo "::notice::tier 2 (pull-request merge): gates + default build + CodeQL + coverage"
           else
-            echo "::notice::tier 3 (full): all 31 jobs"
+            echo "::notice::tier 3 (full): all 32 jobs"
           fi
 
   # ===== from headers.yml =====
@@ -259,20 +326,29 @@ jobs:
       CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
       CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
     steps:
+    - name: Set temporary and cache directories
+      shell: bash
+      run: |
+        {
+          echo "TMPDIR=${RUNNER_TEMP:?}"
+          echo "CCACHE_DIR=${HOME:?}/.cache/ccache-quantlib-ci"
+          echo "CCACHE_MAXSIZE=10G"
+          echo "CCACHE_STATSLOG=$RUNNER_TEMP/ccache-stats.log"
+        } >> "$GITHUB_ENV"
     - uses: actions/checkout@v7
-    - name: Cache
-      uses: hendrikmuhs/ccache-action@v1.2
-      with:
-        key: single-headers-${{ github.ref }}
-        restore-keys: |
-          single-headers-${{ github.ref }}
-          single-headers-refs/heads/master
-          single-headers-
     - name: Check
       env:
         CXX: ccache g++
       run: |
         ./tools/check_all_headers.sh
+    - name: Show compile cache statistics
+      if: always()
+      shell: bash
+      run: |
+        stats=$(ccache --show-log-stats)
+        printf '%s\n' "$stats"
+        printf '### ccache\n\n~~~\n%s\n~~~\n' "$stats" >> "$GITHUB_STEP_SUMMARY"
+        if [ -d "$CCACHE_DIR" ]; then du -sh "$CCACHE_DIR"; fi
 
   # ===== from linux.yml =====
   # Fork-supported platform is RHEL/CentOS 10+.
@@ -316,16 +392,17 @@ jobs:
           && '[{"name":"Default (c++23, no extra flags)","shortname":"default","tests":true}]'
           || '[{"name":"Default (c++23, no extra flags)","shortname":"default","tests":true},{"name":"C++26 mode","shortname":"c++26","cxxflags":"-std=c++26","tests":true},{"name":"Unity build enabled","shortname":"unity","configureflags":"--enable-unity-build","tests":true},{"name":"Intraday calculations enabled","shortname":"intraday","configureflags":"--enable-intraday","tests":true},{"name":"Throwing in cycles enabled","shortname":"cycles","configureflags":"--enable-throwing-in-cycles --disable-faster-lazy-objects","tests":true},{"name":"Indexed coupons enabled","shortname":"indexed","configureflags":"--enable-indexed-coupons","tests":true},{"name":"Standard Library classes enabled","shortname":"stdclasses","configureflags":"--enable-std-classes","tests":true},{"name":"Thread-safe observer enabled","shortname":"threadsafe","configureflags":"--enable-thread-safe-observer-pattern","tests":true},{"name":"Sessions enabled","shortname":"sessions","configureflags":"--enable-sessions","tests":true},{"name":"OpenMP enabled","shortname":"openmp","configureflags":"--enable-openmp","tests":true},{"name":"Parallel unit-test runner","shortname":"paralleltests","configureflags":"--enable-parallel-unit-test-runner","tests":true},{"name":"Null as function template","shortname":"nullfunctions","configureflags":"--enable-null-as-functions","tests":true}]') }}
     steps:
-      - uses: actions/checkout@v7
+      - name: Set temporary and cache directories
+        shell: bash
+        run: |
+          {
+            echo "TMPDIR=${RUNNER_TEMP:?}"
+            echo "CCACHE_DIR=${HOME:?}/.cache/ccache-quantlib-ci"
+            echo "CCACHE_MAXSIZE=10G"
+            echo "CCACHE_STATSLOG=$RUNNER_TEMP/ccache-stats.log"
+          } >> "$GITHUB_ENV"
 
-      - name: Cache
-        uses: hendrikmuhs/ccache-action@v1.2
-        with:
-          key: linux-ci-build-${{ matrix.shortname }}-${{ github.ref }}
-          restore-keys: |
-            linux-ci-build-${{ matrix.shortname }}-${{ github.ref }}
-            linux-ci-build-${{ matrix.shortname }}-refs/heads/master
-            linux-ci-build-${{ matrix.shortname }}-
+      - uses: actions/checkout@v7
 
       - name: Compiler version
         shell: bash
@@ -343,6 +420,15 @@ jobs:
             CXXFLAGS="-O2 -g0 -Wall -Wno-unknown-pragmas -Werror ${{ matrix.cxxflags }}"
           cat ql/config.hpp
           make -j"$(nproc)"
+
+      - name: Show compile cache statistics
+        if: always()
+        shell: bash
+        run: |
+          stats=$(ccache --show-log-stats)
+          printf '%s\n' "$stats"
+          printf '### ccache\n\n~~~\n%s\n~~~\n' "$stats" >> "$GITHUB_STEP_SUMMARY"
+          if [ -d "$CCACHE_DIR" ]; then du -sh "$CCACHE_DIR"; fi
 
       - name: Run tests
         if: ${{ matrix.tests }}
@@ -417,6 +503,16 @@ jobs:
             shortname: openmp
             configureflags: --enable-openmp
     steps:
+      - name: Set temporary and cache directories
+        shell: bash
+        run: |
+          {
+            echo "TMPDIR=${RUNNER_TEMP:?}"
+            echo "CCACHE_DIR=${HOME:?}/.cache/ccache-quantlib-ci"
+            echo "CCACHE_MAXSIZE=10G"
+            echo "CCACHE_STATSLOG=$RUNNER_TEMP/ccache-stats.log"
+          } >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v7
 
       - name: Compiler version
@@ -437,11 +533,20 @@ jobs:
             --enable-intraday --disable-faster-lazy-objects \
             --enable-throwing-in-cycles --enable-null-as-functions \
             ${{ matrix.configureflags }} \
-            CC="gcc" CXX="g++" \
+            CC="ccache gcc" CXX="ccache g++" \
             CPPFLAGS="-Wall -Wno-unknown-pragmas -Wno-array-bounds -Werror" \
             CXXFLAGS="-O2 -g0 ${{ matrix.cxxflags }}"
           cat ql/config.hpp
           make -j"$(nproc)"
+
+      - name: Show compile cache statistics
+        if: always()
+        shell: bash
+        run: |
+          stats=$(ccache --show-log-stats)
+          printf '%s\n' "$stats"
+          printf '### ccache\n\n~~~\n%s\n~~~\n' "$stats" >> "$GITHUB_STEP_SUMMARY"
+          if [ -d "$CCACHE_DIR" ]; then du -sh "$CCACHE_DIR"; fi
 
       - name: Run tests
         shell: bash
@@ -518,6 +623,16 @@ jobs:
             sanitizer_cxxflags: "-fsanitize=undefined -fno-sanitize-recover=all -fno-omit-frame-pointer"
             configureflags: ""
     steps:
+      - name: Set temporary and cache directories
+        shell: bash
+        run: |
+          {
+            echo "TMPDIR=${RUNNER_TEMP:?}"
+            echo "CCACHE_DIR=${HOME:?}/.cache/ccache-quantlib-ci"
+            echo "CCACHE_MAXSIZE=10G"
+            echo "CCACHE_STATSLOG=$RUNNER_TEMP/ccache-stats.log"
+          } >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v7
 
       - name: Compiler version
@@ -544,9 +659,18 @@ jobs:
           fi
           ./autogen.sh
           ./configure --disable-static ${{ matrix.configureflags }} \
-            CC="$CC" CXX="$CXX" \
+            CC="ccache $CC" CXX="ccache $CXX" \
             CXXFLAGS="-O2 -g0 ${{ matrix.sanitizer_cxxflags }} ${{ matrix.extra_cxxflags }} -Wall -Wno-unknown-pragmas -Werror"
           make -j"$(nproc)"
+
+      - name: Show compile cache statistics
+        if: always()
+        shell: bash
+        run: |
+          stats=$(ccache --show-log-stats)
+          printf '%s\n' "$stats"
+          printf '### ccache\n\n~~~\n%s\n~~~\n' "$stats" >> "$GITHUB_STEP_SUMMARY"
+          if [ -d "$CCACHE_DIR" ]; then du -sh "$CCACHE_DIR"; fi
 
       - name: Run tests
         shell: bash
@@ -584,16 +708,17 @@ jobs:
       CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
       CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
     steps:
-      - uses: actions/checkout@v7
+      - name: Set temporary and cache directories
+        shell: bash
+        run: |
+          {
+            echo "TMPDIR=${RUNNER_TEMP:?}"
+            echo "CCACHE_DIR=${HOME:?}/.cache/ccache-quantlib-ci"
+            echo "CCACHE_MAXSIZE=10G"
+            echo "CCACHE_STATSLOG=$RUNNER_TEMP/ccache-stats.log"
+          } >> "$GITHUB_ENV"
 
-      - name: Cache
-        uses: hendrikmuhs/ccache-action@v1.2
-        with:
-          key: cmake-linux-ci-build-${{ github.ref }}
-          restore-keys: |
-            cmake-linux-ci-build-${{ github.ref }}
-            cmake-linux-ci-build-refs/heads/master
-            cmake-linux-ci-build-
+      - uses: actions/checkout@v7
 
       - name: Compile
         shell: bash
@@ -610,6 +735,15 @@ jobs:
           cat ql/config.hpp
           cmake --build . --verbose
           cmake --install .
+
+      - name: Show compile cache statistics
+        if: always()
+        shell: bash
+        run: |
+          stats=$(ccache --show-log-stats)
+          printf '%s\n' "$stats"
+          printf '### ccache\n\n~~~\n%s\n~~~\n' "$stats" >> "$GITHUB_STEP_SUMMARY"
+          if [ -d "$CCACHE_DIR" ]; then du -sh "$CCACHE_DIR"; fi
 
       - name: Test
         shell: bash
@@ -638,16 +772,17 @@ jobs:
       CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
       CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
     steps:
-      - uses: actions/checkout@v7
+      - name: Set temporary and cache directories
+        shell: bash
+        run: |
+          {
+            echo "TMPDIR=${RUNNER_TEMP:?}"
+            echo "CCACHE_DIR=${HOME:?}/.cache/ccache-quantlib-ci"
+            echo "CCACHE_MAXSIZE=10G"
+            echo "CCACHE_STATSLOG=$RUNNER_TEMP/ccache-stats.log"
+          } >> "$GITHUB_ENV"
 
-      - name: Cache
-        uses: hendrikmuhs/ccache-action@v1.2
-        with:
-          key: cmake-linux-ci-opts-${{ github.ref }}
-          restore-keys: |
-            cmake-linux-ci-opts-${{ github.ref }}
-            cmake-linux-ci-opts-refs/heads/master
-            cmake-linux-ci-opts-
+      - uses: actions/checkout@v7
 
       - name: Compile
         shell: bash
@@ -660,6 +795,15 @@ jobs:
           cat ql/config.hpp
           cmake --build . --verbose
           cmake --build . --target install
+
+      - name: Show compile cache statistics
+        if: always()
+        shell: bash
+        run: |
+          stats=$(ccache --show-log-stats)
+          printf '%s\n' "$stats"
+          printf '### ccache\n\n~~~\n%s\n~~~\n' "$stats" >> "$GITHUB_STEP_SUMMARY"
+          if [ -d "$CCACHE_DIR" ]; then du -sh "$CCACHE_DIR"; fi
 
       - name: Test
         shell: bash
@@ -681,6 +825,16 @@ jobs:
       CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
       CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
     steps:
+      - name: Set temporary and cache directories
+        shell: bash
+        run: |
+          {
+            echo "TMPDIR=${RUNNER_TEMP:?}"
+            echo "CCACHE_DIR=${HOME:?}/.cache/ccache-quantlib-ci"
+            echo "CCACHE_MAXSIZE=10G"
+            echo "CCACHE_STATSLOG=$RUNNER_TEMP/ccache-stats.log"
+          } >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v7
 
       - name: Doxygen version
@@ -704,6 +858,16 @@ jobs:
     needs: [clang-format, filelists, changes]
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     steps:
+      - name: Set temporary and cache directories
+        shell: bash
+        run: |
+          {
+            echo "TMPDIR=${RUNNER_TEMP:?}"
+            echo "CCACHE_DIR=${HOME:?}/.cache/ccache-quantlib-ci"
+            echo "CCACHE_MAXSIZE=10G"
+            echo "CCACHE_STATSLOG=$RUNNER_TEMP/ccache-stats.log"
+          } >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v7
 
       - name: Check
@@ -728,6 +892,16 @@ jobs:
       CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
       CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
     steps:
+      - name: Set temporary and cache directories
+        shell: bash
+        run: |
+          {
+            echo "TMPDIR=${RUNNER_TEMP:?}"
+            echo "CCACHE_DIR=${HOME:?}/.cache/ccache-quantlib-ci"
+            echo "CCACHE_MAXSIZE=10G"
+            echo "CCACHE_STATSLOG=$RUNNER_TEMP/ccache-stats.log"
+          } >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v7
 
       - name: Compile
@@ -797,6 +971,16 @@ jobs:
       CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
 
     steps:
+    - name: Set temporary and cache directories
+      shell: bash
+      run: |
+        {
+          echo "TMPDIR=${RUNNER_TEMP:?}"
+          echo "CCACHE_DIR=${HOME:?}/.cache/ccache-quantlib-ci"
+          echo "CCACHE_MAXSIZE=10G"
+          echo "CCACHE_STATSLOG=$RUNNER_TEMP/ccache-stats.log"
+        } >> "$GITHUB_ENV"
+
     - name: Checkout repository
       uses: actions/checkout@v7
 
@@ -806,6 +990,8 @@ jobs:
         languages: cpp
         config-file: ./.github/codeql/codeql-config.yml
 
+    # No ccache here: CodeQL's tracer extracts each file by watching the
+    # compiler run, and a cache hit skips the compiler.
     - name: Build
       run: |
         ./autogen.sh
@@ -855,16 +1041,17 @@ jobs:
       CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
       CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
     steps:
-      - uses: actions/checkout@v7
+      - name: Set temporary and cache directories
+        shell: bash
+        run: |
+          {
+            echo "TMPDIR=${RUNNER_TEMP:?}"
+            echo "CCACHE_DIR=${HOME:?}/.cache/ccache-quantlib-ci"
+            echo "CCACHE_MAXSIZE=10G"
+            echo "CCACHE_STATSLOG=$RUNNER_TEMP/ccache-stats.log"
+          } >> "$GITHUB_ENV"
 
-      - name: Cache
-        uses: hendrikmuhs/ccache-action@v1.2
-        with:
-          key: linux-ci-test-times-${{ github.ref }}
-          restore-keys: |
-            linux-ci-test-times-${{ github.ref }}
-            linux-ci-test-times-refs/heads/master
-            linux-ci-test-times-
+      - uses: actions/checkout@v7
 
       - name: Build
         shell: bash
@@ -873,6 +1060,15 @@ jobs:
           ./configure --disable-static --disable-json-marketdata \
             CC="ccache gcc" CXX="ccache g++" CXXFLAGS="-O2 -g0"
           make -j"$(nproc)"
+
+      - name: Show compile cache statistics
+        if: always()
+        shell: bash
+        run: |
+          stats=$(ccache --show-log-stats)
+          printf '%s\n' "$stats"
+          printf '### ccache\n\n~~~\n%s\n~~~\n' "$stats" >> "$GITHUB_STEP_SUMMARY"
+          if [ -d "$CCACHE_DIR" ]; then du -sh "$CCACHE_DIR"; fi
 
       - name: Run faster tests
         shell: bash
@@ -924,6 +1120,16 @@ jobs:
       CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
       CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
     steps:
+    - name: Set temporary and cache directories
+      shell: bash
+      run: |
+        {
+          echo "TMPDIR=${RUNNER_TEMP:?}"
+          echo "CCACHE_DIR=${HOME:?}/.cache/ccache-quantlib-ci"
+          echo "CCACHE_MAXSIZE=10G"
+          echo "CCACHE_STATSLOG=$RUNNER_TEMP/ccache-stats.log"
+        } >> "$GITHUB_ENV"
+
     - uses: actions/checkout@v7
 
     - name: Build with clang-tidy
