@@ -24,9 +24,10 @@ name: CI
 # nothing when they pass and skips ~29 jobs when they do not.  Before this, a
 # formatting typo still burned the entire Linux matrix.
 #
-# Job-level `if:` preserves the per-workflow triggers that used to live in
-# separate `on:` blocks: linux-nondefault stays off pull requests, which is
-# what #8 established.
+# Job-level `if:` carries the tiers chosen by the changes job below.  It used
+# to keep linux-nondefault off pull requests, as #8 established.  Since
+# 2026-10-17 pull requests run the full sweep, linux-nondefault included, and
+# the push of a pull request's merge runs a light tier 2 (quickfix's model).
 #
 # Every original `on:` block was `push: branches: [master]` plus some subset of
 # pull_request / workflow_dispatch, so the union below is faithful rather than
@@ -143,10 +144,34 @@ jobs:
   # against 0dd2dad42, so master's own FORK_CHANGES.md edits counted as the
   # pull request's and a .github-only change ran the full sweep.  A head that
   # is not a merge commit falls back to the full sweep.
+  #
+  # ===== tier-2 gating =====
+  # Tier 2 is the push of the merge commit GitHub creates for a pull request.
+  # The pull request's own run was the full sweep, on a test merge with the
+  # merge's own tree unless master moved during the review: #29's test merge
+  # 3243979b9 and its merge f9bb2ed25 share tree b4fe95156.  Repeating that
+  # sweep after the merge added only linux-nondefault, which now runs on pull
+  # requests, and on 2026-10-17 it outlasted GitHub's 24-hour queue limit,
+  # which cancelled its last queued jobs.  So the push runs what only a run on
+  # master can provide: the gates, the default build, CodeQL and coverage.
+  # The last two run there because code scanning and Coveralls record master's
+  # results only from runs on master.
+  #
+  # Detection needs all three of: a second parent, a first parent equal to the
+  # push's `before`, and GitHub's "Merge pull request #N from" subject.  A
+  # squash, a custom merge subject, a local merge or a push carrying more than
+  # the merge commit fails one of them and runs the full sweep.  A merge whose
+  # base moved during review has an untested tree; the Git Workflow is to
+  # update such a branch and wait for a new green run before merging.
+  #
+  # `light` is the output the jobs gate on: true for tiers 1 and 2.  CodeQL and
+  # coverage gate on `ci_only` instead, so they skip only tier 1.  Every gate
+  # tests `!= 'true'`, so a missing output runs the job.
   changes:
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     outputs:
       ci_only: ${{ steps.classify.outputs.ci_only }}
+      light: ${{ steps.classify.outputs.light }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -193,12 +218,39 @@ jobs:
             echo "no usable base ref for event ${{ github.event_name }} -- running the full sweep"
           fi
           echo "ci_only=$verdict" >> "$GITHUB_OUTPUT"
-          echo "::notice::tier $( [ "$verdict" = true ] && echo '1 (CI config only): gates + default build' || echo '3 (full): all 31 jobs' )"
+          # Tier 2: the push of a pull request's merge (the note above).
+          merged=false
+          if [ "${{ github.event_name }}" = push ]; then
+            before="${{ github.event.before }}"
+            first=$(git rev-parse -q --verify "$head^1") || first=""
+            subject=$(git log -1 --format=%s "$head" 2>/dev/null) || subject=""
+            re='^Merge pull request #[0-9]+ from '
+            if ! git rev-parse -q --verify "$head^2" > /dev/null; then
+              echo "push head $head has one parent: not a pull-request merge"
+            elif [ "$first" != "$before" ]; then
+              echo "push head's first parent ${first:-?} is not before $before: the push carries more than a merge"
+            elif ! [[ $subject =~ $re ]]; then
+              echo "push head's subject is not GitHub's \"Merge pull request #N from\": $subject"
+            else
+              merged=true
+            fi
+          fi
+          light=false
+          if [ "$verdict" = true ] || [ "$merged" = true ]; then light=true; fi
+          echo "ci_only=$verdict merged=$merged light=$light"
+          echo "light=$light" >> "$GITHUB_OUTPUT"
+          if [ "$verdict" = true ]; then
+            echo "::notice::tier 1 (CI config only): gates + default build"
+          elif [ "$merged" = true ]; then
+            echo "::notice::tier 2 (pull-request merge): gates + default build + CodeQL + coverage"
+          else
+            echo "::notice::tier 3 (full): all 31 jobs"
+          fi
 
   # ===== from headers.yml =====
 
   headers:
-    if: needs.changes.outputs.ci_only != 'true'
+    if: needs.changes.outputs.light != 'true'
     needs: [clang-format, filelists, changes]
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     env:
@@ -260,7 +312,7 @@ jobs:
       fail-fast: false
       matrix:
         include: >-
-          ${{ fromJSON(needs.changes.outputs.ci_only == 'true'
+          ${{ fromJSON(needs.changes.outputs.light == 'true'
           && '[{"name":"Default (c++23, no extra flags)","shortname":"default","tests":true}]'
           || '[{"name":"Default (c++23, no extra flags)","shortname":"default","tests":true},{"name":"C++26 mode","shortname":"c++26","cxxflags":"-std=c++26","tests":true},{"name":"Unity build enabled","shortname":"unity","configureflags":"--enable-unity-build","tests":true},{"name":"Intraday calculations enabled","shortname":"intraday","configureflags":"--enable-intraday","tests":true},{"name":"Throwing in cycles enabled","shortname":"cycles","configureflags":"--enable-throwing-in-cycles --disable-faster-lazy-objects","tests":true},{"name":"Indexed coupons enabled","shortname":"indexed","configureflags":"--enable-indexed-coupons","tests":true},{"name":"Standard Library classes enabled","shortname":"stdclasses","configureflags":"--enable-std-classes","tests":true},{"name":"Thread-safe observer enabled","shortname":"threadsafe","configureflags":"--enable-thread-safe-observer-pattern","tests":true},{"name":"Sessions enabled","shortname":"sessions","configureflags":"--enable-sessions","tests":true},{"name":"OpenMP enabled","shortname":"openmp","configureflags":"--enable-openmp","tests":true},{"name":"Parallel unit-test runner","shortname":"paralleltests","configureflags":"--enable-parallel-unit-test-runner","tests":true},{"name":"Null as function template","shortname":"nullfunctions","configureflags":"--enable-null-as-functions","tests":true}]') }}
     steps:
@@ -323,10 +375,13 @@ jobs:
   # configureflag into a single configure invocation -- the matrix
   # axis is just the cxxflags / extra configureflags variant.
   #
-  # Not run on pull requests.  This was a weekly cron ('0 0 * * 0') until it was
-  # converted to push + pull_request, which removed the cron but silently
-  # promoted a periodic sweep to a per-change gate; #8 put it back on master and
-  # workflow_dispatch only.
+  # Runs on pull requests again since 2026-10-17.  This was a weekly cron
+  # ('0 0 * * 0') until it was converted to push + pull_request, which removed
+  # the cron but silently promoted a periodic sweep to a per-change gate; #8
+  # put it back on master and workflow_dispatch only, when a pull request cost
+  # 43 jobs on four cores shared with five other runners.  With the full sweep
+  # moved before the merge (tier 2, at the changes job), these cells are what
+  # would otherwise be first tested after merging.
   #
   # These five cells are *not* duplicates of linux.yml -- they hardcode
   # --enable-tracing, --enable-extra-safety-checks, --enable-error-functions and
@@ -334,7 +389,7 @@ jobs:
   # the deduplication that removed linux-full-tests.yml, whose twelve cells were
   # identical to linux.yml's in both name and flags.
   linux-nondefault:
-    if: github.event_name != 'pull_request' && needs.changes.outputs.ci_only != 'true'
+    if: needs.changes.outputs.light != 'true'
     needs: [clang-format, filelists, changes]
     name: nondefault / ${{ matrix.name }}
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
@@ -417,7 +472,7 @@ jobs:
   # through Clang to dodge gcc bug 93922 (atomic_thread_fence won't
   # compile under GCC's -fsanitize=thread).
   sanitizer:
-    if: needs.changes.outputs.ci_only != 'true'
+    if: needs.changes.outputs.light != 'true'
     needs: [clang-format, filelists, changes]
     name: ${{ matrix.sanitizer }}
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
@@ -520,7 +575,7 @@ jobs:
   # along with macos.yml / msvc*.yml / cmake-latest-runners.yml -- the
   # fork doesn't claim those targets.
   cmake-linux:
-    if: needs.changes.outputs.ci_only != 'true'
+    if: needs.changes.outputs.light != 'true'
     needs: [clang-format, filelists, changes]
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     env:
@@ -574,7 +629,7 @@ jobs:
           quantlib-benchmark --size=1
 
   cmake-linux-with-options:
-    if: needs.changes.outputs.ci_only != 'true'
+    if: needs.changes.outputs.light != 'true'
     needs: [clang-format, filelists, changes]
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     env:
@@ -617,7 +672,7 @@ jobs:
   # Fork-supported platform is RHEL/CentOS 10+.
   # Doxygen + graphviz from base/CRB.
   docs:
-    if: needs.changes.outputs.ci_only != 'true'
+    if: needs.changes.outputs.light != 'true'
     needs: [clang-format, filelists, changes]
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     env:
@@ -645,7 +700,7 @@ jobs:
           make docs
 
   header-docs:
-    if: needs.changes.outputs.ci_only != 'true'
+    if: needs.changes.outputs.light != 'true'
     needs: [clang-format, filelists, changes]
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     steps:
@@ -660,6 +715,9 @@ jobs:
   # Fork-supported platform is RHEL/CentOS 10+.
   # Runs inside CentOS Stream 10 with
   # gcc-toolset-15; lcov from EPEL.
+  #
+  # Gated on ci_only, not light, so it also runs after a merge (tier 2):
+  # Coveralls keeps master's history only from runs on master.
   coverage:
     if: needs.changes.outputs.ci_only != 'true'
     needs: [clang-format, filelists, changes]
@@ -713,6 +771,10 @@ jobs:
   #
   # You may wish to alter this file to override the set of languages analyzed,
   # or to provide custom queries or build logic.
+  #
+  # Gated on ci_only, not light, so it also runs after a merge (tier 2): code
+  # scanning tracks master's alerts only from analyses of master, and a pull
+  # request's analysis does not count for it.
   analyze:
     if: needs.changes.outputs.ci_only != 'true'
     needs: [clang-format, filelists, changes]
@@ -763,7 +825,7 @@ jobs:
   # CI runner are inherently noisy; tools/check_test_times.py treats
   # this as advisory regression-flagging, not a hard gate.
   check-test-times:
-    if: needs.changes.outputs.ci_only != 'true'
+    if: needs.changes.outputs.light != 'true'
     needs: [clang-format, filelists, changes]
     # Advisory, not gating.  tools/check_test_times.py compares absolute
     # wall-clock seconds against fixed thresholds, and the host then ran six
@@ -850,7 +912,7 @@ jobs:
   # depended on secrets.MACHINE_ACCOUNT_PAT and vars.MACHINE_ACCOUNT,
   # neither of which is set on this repo.
   check:
-    if: needs.changes.outputs.ci_only != 'true'
+    if: needs.changes.outputs.light != 'true'
     needs: [clang-format, filelists, changes]
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     # Same gcc-toolset-15 activation as linux.yml and sanitizer.yml.  Without
