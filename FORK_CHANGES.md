@@ -483,4 +483,5 @@ inline; the remaining bullets are still-pending work.
   nonstandard-options): **addressed** — see the CI entry under
   *Infrastructure*. The matrix runs twelve configuration cells plus five
   non-default cells, three sanitizers, both build systems, clang-tidy and
-  CodeQL, all per-commit on master.
+  CodeQL on every pull request that changes code. Since #30, master runs
+  only the gates, the default build, CodeQL and coverage after a merge.
