@@ -415,6 +415,52 @@ Caveats:
     against 13, down to that load. Most of the difference was the cold
     compile, though its slower test passes still support reading the
     timing flags as contention.
+- Compile cache kept on the runner, and `TMPDIR` moved off the root
+  filesystem (2026-10-18,
+  [#32](https://github.com/dudleylane/QuantLib/pull/32), `483d48860`,
+  for [#31](https://github.com/dudleylane/QuantLib/issues/31)). The
+  runner is one persistent machine, so the cache now stays on it
+  instead of in GitHub's cache service, where it was mostly cold
+  (above). Every job's first step sets four variables for the rest of
+  the job: `CCACHE_DIR=~/.cache/ccache-quantlib-ci`, one directory for
+  all of this repository's CI; `CCACHE_MAXSIZE=10G`, enforced by
+  ccache's own cleanup; `CCACHE_STATSLOG`, so each job's new "Show
+  compile cache statistics" step prints that job's own hits; and
+  `TMPDIR`, the runner's per-job temporary directory.
+  - **More jobs are cached.** `linux-nondefault`'s five cells and the
+    three sanitizers now compile through ccache too, which makes 24
+    jobs from seven definitions. CodeQL stays out, because its tracer
+    extracts each file by watching the compiler run, and a cache hit
+    skips the compiler. Coverage and clang-tidy stay out until they are
+    checked separately.
+  - **`TMPDIR`.** gcc writes its intermediate files to `$TMPDIR`, else
+    `/tmp`, which is on the root filesystem here. That filesystem was
+    down to 847 MB free on 2026-10-17, and the runner's temporary
+    directory is on `/home`. The `mkstemp()` templates in two test files
+    and `Examples/XvaSnapshot` still name `/tmp`, for a few hundred
+    bytes each.
+  - **The old action had rewritten the account's ccache config.** It
+    ran `ccache --set-config` without `CCACHE_DIR`, so every run wrote
+    `~/.config/ccache/ccache.conf`. That pointed every other ccache use
+    on the account at this runner's workspace, capped at 500 MB and
+    wiped by each checkout. With `CCACHE_DIR` set, ccache ignores the
+    file. The file itself is host state, left for the owner.
+  - **Trust.** A pull request's jobs now write objects that `master`'s
+    jobs read. That is safe only while the job-started hook refuses
+    forks' and Dependabot's jobs. `ci.yml`'s note says so and gives the
+    command that empties the cache.
+  - **Measured.** In the full sweep dispatched before the merge, run
+    39063135539, `linux / Default` hit 1,214 of 1,214 compiles from the
+    objects the pull request's own run had written. GitHub's cache never
+    let one ref read another's entries like that. Its build took 3.3
+    minutes against 33.5 cold, and the job 17 minutes against 52. The
+    other configurations filled the cache in that sweep: Indexed coupons
+    hit 92.8 % through ccache's preprocessed mode, seven more cells hit
+    12–43 %, and the other 15 jobs that use ccache hit 0–6.7 %. The
+    directory then held 2.0 GB. `master`'s run for the merge,
+    39160881696, was tier 1, and its `linux / Default` hit 1,214 of
+    1,214 again, with a 1.5-minute build. The next full sweep is the
+    first warm one, and #31 stays open until it is measured.
 
 ## Sibling repositories
 
