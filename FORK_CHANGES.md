@@ -339,7 +339,9 @@ Caveats:
     review. The owner ruled on 2026-10-14 that they are refused. To take
     a Dependabot update, review its diff and re-create it on a branch of
     your own, as #13 did for Dependabot's #3. That pull request's jobs
-    run, and it merges on green like any other. The hook's tracked copy,
+    run, and it merges on green like any other. Since #33 (2026-10-19)
+    Dependabot is off and opens no pull requests here (below), but the
+    clause stays. The hook's tracked copy,
     `.github/runner/job-started.sh`, came with
     [#27](https://github.com/dudleylane/QuantLib/pull/27) (`2fdf940c3`).
     Its header has the install commands and the rollback. GitHub's
@@ -461,6 +463,27 @@ Caveats:
     39160881696, was tier 1, and its `linux / Default` hit 1,214 of
     1,214 again, with a 1.5-minute build. The next full sweep is the
     first warm one, and #31 stays open until it is measured.
+- Dependabot turned off (2026-10-19,
+  [#33](https://github.com/dudleylane/QuantLib/pull/33), `d8240276a`),
+  as in quickfix, at the owner's request. Upstream's
+  `.github/dependabot.yml`, which had Dependabot check the workflows'
+  actions every week, is deleted. Dependabot's alerts and security
+  updates were already disabled, so none of its features is on now.
+  - **Why.** Since #26 the runner refuses every job that Dependabot's
+    events start, so its pull requests could never pass CI or merge, and
+    each update had to be re-created by hand. In four months it opened
+    two: #3, re-created as #13, and #4, for an action the fork had
+    stopped using.
+  - **What stops.** Nothing announces a new major version of the four
+    actions `ci.yml` uses (`actions/checkout@v7`,
+    `actions/upload-artifact@v7`, `coverallsapp/github-action@v2`,
+    `github/codeql-action@v4`). Minor and patch releases still arrive
+    through those floating major tags. A new major is a manual bump, as
+    `741c59410` was.
+  - **What stays.** The hook's Dependabot clause. Security updates can
+    be switched on in the repository's settings without any
+    configuration file, and the clause keeps their jobs off the runner.
+    #32's trust argument (above) rests on it.
 
 ## Sibling repositories
 
