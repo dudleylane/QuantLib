@@ -522,12 +522,29 @@ Caveats:
   One thing from it is worth keeping and is *not* a bindings problem: the
   repository's open issue #1 reported that `PiecewiseFlatForward` fails
   to extend its curve span on `recalculate()` once the evaluation date
-  comes within roughly thirty years of the longest pillar. That is a
-  library defect on this side, surfaced through the Python test
-  `test_termstructures.py::TermStructureTest::testLazyObject`. It is now
-  tracked as issue #23 on this repository. The Python reproduction is
-  gone with the bindings, so a C++ one has to be written before the bug
-  can be worked.
+  comes within roughly thirty years of the longest pillar. It surfaced
+  through the Python test
+  `test_termstructures.py::TermStructureTest::testLazyObject` and was
+  carried over as [#23](https://github.com/dudleylane/QuantLib/issues/23).
+  - **Diagnosed.** The Python test was recovered from the bundle and is
+    preserved in #23, beside a C++ reproduction. The test built its curve
+    on a fixed reference date from tenor-based helpers.
+    `IterativeBootstrap::calculate()` re-initialises only when
+    `!initialized_ || ts_->moving_`, so the curve kept its pillars while
+    the helpers moved with the evaluation date. That guard is upstream's,
+    and its comment says the combination "makes little sense", so this is
+    upstream behaviour rather than a fork defect.
+  - **Tested.** [#24](https://github.com/dudleylane/QuantLib/pull/24)
+    (`bcd41138e`) ported the test to C++ as `testLazyObject`, built with
+    `settlementDays` so the curve moves. It also added
+    `testLazyObjectWithFixedReferenceDate`, which asserts that the
+    fixed-date curve still throws. If the bootstrap changes, for example
+    through an upstream rebase, that test fails and is the one to update.
+    Both skip under indexed coupons.
+  - **Closed** on 2026-10-20 with no library change, at the owner's
+    choice. A separate failure found while writing those tests, a moving
+    curve under indexed coupons, is
+    [#34](https://github.com/dudleylane/QuantLib/issues/34).
 
 ## Explicit follow-up list
 
