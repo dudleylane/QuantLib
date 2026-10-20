@@ -446,7 +446,9 @@ Caveats:
     `~/.config/ccache/ccache.conf`. That pointed every other ccache use
     on the account at this runner's workspace, capped at 500 MB and
     wiped by each checkout. With `CCACHE_DIR` set, ccache ignores the
-    file. The file itself is host state, left for the owner.
+    file. The file itself was host state, and the owner had it deleted
+    on 2026-10-20, so ccache outside CI now uses its defaults
+    (`~/.cache/ccache`, 5 GiB).
   - **Trust.** A pull request's jobs now write objects that `master`'s
     jobs read. That is safe only while the job-started hook refuses
     forks' and Dependabot's jobs. `ci.yml`'s note says so and gives the
@@ -461,8 +463,18 @@ Caveats:
     12–43 %, and the other 15 jobs that use ccache hit 0–6.7 %. The
     directory then held 2.0 GB. `master`'s run for the merge,
     39160881696, was tier 1, and its `linux / Default` hit 1,214 of
-    1,214 again, with a 1.5-minute build. The next full sweep is the
-    first warm one, and #31 stays open until it is measured.
+    1,214 again, with a 1.5-minute build.
+  - **Measured warm.** The first full sweep with a warm cache, run
+    39374746533, was dispatched on `master` (`a4fddb644`) on 2026-10-20
+    while the box was quiet. All 32 jobs succeeded, and all 24 that use
+    ccache hit 100 %. Their compile steps took 1.1–1.6 minutes, against
+    3.3–49.7 in the fill sweep. The run took 9 h 14 min, against 24
+    hours, and its jobs 553 minutes in all, against 1,446. Part of that
+    is the quiet box: CodeQL, coverage and clang-tidy, which use no
+    cache, were 28–42 % faster too. The directory stayed at 2.0 GB.
+    `check-test-times` passed, with test passes of 1.5, 3.2 and 6.6
+    minutes against August's quiet 1.6, 3.4 and 7.1. #31 is closed, and
+    its last comment has the per-job table.
 - Dependabot turned off (2026-10-19,
   [#33](https://github.com/dudleylane/QuantLib/pull/33), `d8240276a`),
   as in quickfix, at the owner's request. Upstream's
