@@ -12,8 +12,9 @@
 >   pre-commit checklist below before pushing.
 > - **Fixes for upstream QuantLib** (the original BSD-licensed library)
 >   — open against <https://github.com/lballabio/QuantLib> using the
->   instructions below; the fix will be brought across the divergence
->   point separately.
+>   instructions below.  This fork does not track upstream, so a fix
+>   merged there does not reach the fork; if the bug affects the fork
+>   too, open an issue here as well.
 > - **License note** — new files added to this fork are AGPL-3.0+;
 >   upstream files retain their BSD-3-Clause headers.  See
 >   `README.md`'s License section for the dual-license rules before

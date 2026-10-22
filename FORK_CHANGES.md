@@ -7,9 +7,19 @@ release-notes file (removed on this fork — it described upstream's
 messages. Entries are grouped by category and, within a category, most
 recent first.
 
-Divergence point: all commits from `51d4bb377` onwards have different
-SHAs on this fork due to the 2014 binary-blob history rewrite. Merging
-upstream into this fork requires rebase-across-divergence.
+Fork point: upstream's master at `98afd0b22436` (2026-04-19), whose
+tree is this fork's `e74ef42a7`. The fork does not track upstream
+(owner, 2026-10-21). Nothing upstream has merged since, including its
+1.43 and 1.44 releases, has been brought across, and no sync is
+planned. Where upstream has since fixed a bug that the fork shares, the
+fix here is the fork's own change and is recorded below like any other;
+[#36](https://github.com/dudleylane/QuantLib/issues/36) is the first
+case. The fork's version string, `1.43-dev`, is not upstream's 1.43.
+
+SHAs: master's history was rewritten in 2026-04 to remove a 79 MB
+binary committed in 2014. Every commit from upstream's `51d4bb377`
+(2014-04-11) on has a different SHA here, and `51d4bb377` itself does
+not resolve in this repository.
 
 License: the fork's aggregate distribution is **AGPL-3.0-or-later**
 (see `LICENSE`). Upstream files retain their original **BSD-3-Clause**

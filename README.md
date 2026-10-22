@@ -5,10 +5,12 @@
 [![Upstream BSD-3-Clause](https://img.shields.io/badge/Upstream-BSD--3--Clause-blue.svg)](https://github.com/dudleylane/QuantLib/blob/master/LICENSE.TXT)
 
 > **This is a personal fork of [lballabio/QuantLib](https://github.com/lballabio/QuantLib).**
-> Master history has been rewritten to remove a 79 MB legacy binary blob (2014)
-> and several correctness fixes have been applied that are **not** in upstream.
-> Commit SHAs diverge from upstream starting at `51d4bb377`, so syncing
-> upstream changes requires rebase-across-divergence rather than a clean pull.
+> It was taken from upstream's master on 2026-04-19 and does not track
+> upstream: nothing upstream has merged since, including its 1.43 and 1.44
+> releases, has come across. Several correctness fixes have been applied
+> that are **not** in upstream. Master history has been rewritten to remove a
+> 79 MB legacy binary blob (2014), so every commit from upstream's
+> `51d4bb377` on has a different SHA here.
 >
 > **License note:** this fork's *combined work* and all *new* files introduced in
 > the fork (e.g. `ql/indexes/fallbackiborindex.{hpp,cpp}`) are distributed under
@@ -60,9 +62,8 @@ RHEL/CentOS 10 and later is the only supported platform, and the only
 one CI builds. The Windows and macOS build files are upstream's:
 `QuantLib.sln`, the `*.vcxproj` files, and the `windows-*` and
 `apple-arm64-*` presets in `CMakePresets.json`. The project files stay
-in the tree for future merges from upstream, but the file-list gate
-(`tools/check_filelists_diffs.py`) no longer checks them, and no CI job
-builds any of them.
+in the tree, but the file-list gate (`tools/check_filelists_diffs.py`)
+no longer checks them, and no CI job builds any of them.
 
 ### Correctness fixes applied (not in upstream)
 
@@ -240,7 +241,7 @@ to run before pushing.
 
 - **Fork-specific issues, PRs, and discussions:** <https://github.com/dudleylane/QuantLib/issues>
 - **Upstream general questions / the wider QuantLib community:** [quantlib-users mailing list](https://www.quantlib.org/mailinglists.shtml) — maintained by the upstream project, not this fork.
-- **Upstream bugs / patches:** report to [lballabio/QuantLib/issues](https://github.com/lballabio/QuantLib/issues); anything merged there will need to be brought across the divergence point.
+- **Upstream bugs / patches:** report to [lballabio/QuantLib/issues](https://github.com/lballabio/QuantLib/issues). A fix merged there does not reach this fork, which does not track upstream, so if the bug affects the fork too, open an issue here as well.
 
 ## License
 
