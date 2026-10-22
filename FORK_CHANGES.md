@@ -450,6 +450,15 @@ Caveats:
     against 13, down to that load. Most of the difference was the cold
     compile, though its slower test passes still support reading the
     timing flags as contention.
+  - **First merge of a code change** (2026-10-22). #35 was the first
+    pull request since #30 to change code, so its merge's push, run
+    39705380139, was the first to take the 6-job path. `changes`
+    logged `ci_only=false merged=true light=true`, and all six jobs
+    succeeded. Code scanning recorded an analysis of the merge commit,
+    `a4799af5d`, with no new alert, and Coveralls received its
+    coverage. `linux / Default` hit all 1,214 compiles, because #35's
+    own run had cached that tree. The run took 1 h 46 min. Before #30,
+    `master` would have run the full sweep again.
 - Compile cache kept on the runner, and `TMPDIR` moved off the root
   filesystem (2026-10-18,
   [#32](https://github.com/dudleylane/QuantLib/pull/32), `483d48860`,
