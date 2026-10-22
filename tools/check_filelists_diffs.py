@@ -5,8 +5,8 @@ import sys
 # MSVC drift-check entries removed -- the fork supports RHEL/CentOS 10+
 # only (README.md, "Supported platform"), so QuantLib.vcxproj
 # / testsuite.vcxproj are no longer maintained-in-lockstep upstream
-# artifacts.  The .vcxproj files remain in the tree for any future
-# upstream merge but are not gated on.
+# artifacts.  The .vcxproj files remain in the tree but are not gated
+# on.
 inputs = [
     ("ql.dist.diff", "Some Makefile.am"),
     ("test-suite.dist.diff", "test-suite/Makefile.am"),

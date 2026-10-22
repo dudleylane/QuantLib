@@ -103,8 +103,8 @@ carry AGPL-3.0+ file-level copyright notices.
 
 ## Correctness fixes
 
-IDs reference the session-level audit. All have regression tests that
-accompany them on the same commit.
+IDs reference the session-level audit, or for later fixes the issue. All
+have regression tests that accompany them on the same commit.
 
 | ID | File | Fix |
 |---|---|---|
@@ -112,8 +112,9 @@ accompany them on the same commit.
 | F2 | `ql/processes/gsrprocesscore.cpp` | Out-of-range `time2()` validates `T_ ≥ times_.back()` only on the unsafe branch, preserving valid over-specified parameter sets for in-grid queries. |
 | F3 | `ql/models/volatility/garch.cpp` | Captures `EndCriteria::Type` from `minimize()`; rejects `None` and `Unknown`. |
 | FE1 | `ql/pricingengines/vanilla/baroneadesiwhaleyengine.cpp` | BAW Newton loop bounded at 100 iterations with explicit non-convergence error. |
-| FE2 | same | Rejects negative rates with a message pointing users to `BjerksundStenslandApproximationEngine` (which handles them natively). Test verifies both the rejection and that BS works on the same input. |
-| FE3 | same | T → 0⁺ short-circuit returns `max(european, immediate-exercise)` instead of running Newton on a near-degenerate variance. |
+| FE2 | same | The rejection of negative rates in `criticalPrice()` is upstream's (`c75a3fb7e`, lballabio/QuantLib#1291); FE2 rewrote its message to point users to `BjerksundStenslandApproximationEngine` (which handles them natively). Until #36, calls with r < q ≤ 0 never reached it and got the European value, which can fall below intrinsic, and puts reached it where the European value is exact. Since #36 only cases where early exercise can be optimal reach it. `testBaroneAdesiWhaleyNegativeRates` checks the rejection for BAW and Ju, and that BS prices the rejected cases. |
+| FE3 | same | T → 0⁺ short-circuit returns `max(european, immediate-exercise)` instead of running Newton on a near-degenerate variance. Since #36 it comes after the European shortcut, so it applies only where early exercise can be optimal. |
+| [#36](https://github.com/dudleylane/QuantLib/issues/36) (2026-10-22) | `ql/pricingengines/vanilla/baroneadesiwhaleyengine.cpp`, `juquadraticengine.cpp` | Both engines return the European value and Greeks wherever early exercise is never optimal: calls with q ≤ 0 and q ≤ r, puts with r ≤ 0 and r ≤ q. They tested only q ≤ 0, for calls, so calls with r < q ≤ 0 got the European value, which can fall below intrinsic (S = 100, K = 80, r = −5 %, q = 0, σ = 3 %, 3 years: 7.05 against 20); they now get FE2's error. Puts at negative rates threw, and Ju returned NaN for puts at r = 0. Ju also divided by α and h, both 0 at r = 0, so it returned NaN wherever early exercise can be optimal there; it now works with α/h, whose limit is 2/σ²T. At r > 0 BAW is unchanged and Ju moves by rounding only (at most 2.4e-13 over a 6,300-point grid). Both engines' test data give identical values, except BAW's put at r = q = 0, which moves 1.1e-7 onto the European value. Ju's values at r = 0 are the limit of those just above it, inaccuracy included: for puts with q = −1 %, σ = 40 % and 3 years they are up to 8.1 off a finite-difference price at r = 0, and up to 1.1 at r = 1e-4, where BAW is within 0.2. Upstream fixed the same defects in 1.44 (lballabio/QuantLib#2728, #2739, #2754); this is the fork's own change. Tests: `testBaroneAdesiWhaleyAndJuWhereEarlyExerciseIsNeverOptimal`, `testJuValuesAtZeroRate`, and a rewritten `testBaroneAdesiWhaleyNegativeRates`. |
 | FE6 | `ql/termstructures/volatility/sabr.hpp/.cpp` | Added public `sabrIsRiskyRegime()` detector for the Hagan 2002 unsafe-regime; documented `NoArbSabrSmileSection` as the arbitrage-free alternative. |
 | FE9 | *(withdrawn)* — binary-barrier KO Greeks returning `0` is mathematically correct under continuous monitoring; the audit finding was incorrect. |
 | FE11 | `ql/pricingengines/asian/mc_discr_arith_av_price_heston.hpp` | Include path updated after control-variate promotion; public MC engine no longer transitively imports experimental code. |

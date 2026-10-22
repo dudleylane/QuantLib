@@ -50,6 +50,10 @@ namespace QuantLib
         // iteration is numerically unstable: seed-value formulas can
         // produce negative Si, Su, or non-finite quantities. Bjerksund-
         // Stensland handles r < 0 natively; use that engine instead.
+        // This engine's calculate() and Ju's return the European value
+        // before calling this wherever early exercise is never optimal,
+        // which covers puts with r <= 0 and q >= r. So what reaches this
+        // check from them is r < 0 where early exercise can be optimal.
         QL_REQUIRE(riskFreeDiscount <= 1.0, "Barone-Adesi-Whaley approximation is not defined for "
                                             "negative interest rates (risk-free discount factor "
                                                 << riskFreeDiscount
@@ -167,18 +171,17 @@ namespace QuantLib
         Real forwardPrice = spot * dividendDiscount / riskFreeDiscount;
         BlackCalculator black(payoff, forwardPrice, std::sqrt(variance), riskFreeDiscount);
 
-        // At near-zero variance the Newton seed-value formulas below are
-        // numerically unstable (n = 2 log(.)/var, h ~ sqrt(var)). In that
-        // limit American and European prices coincide up to the intrinsic-
-        // exercise adjustment, so short-circuit to European + immediate
-        // exercise floor and skip the iterative branch.
-        if (variance < QL_EPSILON)
-        {
-            results_.value = std::max(black.value(), (*payoff)(spot));
-            return;
-        }
+        // Early exercise of a call is never optimal when q <= 0 and q <= r:
+        // in the money, holding is worth at least
+        // S*dividendDiscount - K*riskFreeDiscount >= S - K. The mirror image
+        // holds for a put when r <= 0 and r <= q. The European value is then
+        // exact, at any variance. The put half has to come before
+        // criticalPrice(), which rejects a risk-free discount factor above 1.
+        bool earlyExerciseNeverOptimal =
+            (payoff->optionType() == Option::Call && dividendDiscount >= 1.0 && dividendDiscount >= riskFreeDiscount) ||
+            (payoff->optionType() == Option::Put && riskFreeDiscount >= 1.0 && riskFreeDiscount >= dividendDiscount);
 
-        if (dividendDiscount >= 1.0 && payoff->optionType() == Option::Call)
+        if (earlyExerciseNeverOptimal)
         {
             // early exercise never optimal
             results_.value = black.value();
@@ -203,6 +206,15 @@ namespace QuantLib
 
             results_.strikeSensitivity = black.strikeSensitivity();
             results_.itmCashProbability = black.itmCashProbability();
+        }
+        else if (variance < QL_EPSILON)
+        {
+            // At near-zero variance the Newton seed-value formulas below are
+            // numerically unstable (n = 2 log(.)/var, h ~ sqrt(var)). In that
+            // limit American and European prices coincide up to the intrinsic-
+            // exercise adjustment, so short-circuit to European + immediate
+            // exercise floor and skip the iterative branch.
+            results_.value = std::max(black.value(), (*payoff)(spot));
         }
         else
         {

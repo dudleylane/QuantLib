@@ -67,7 +67,9 @@ needs the full menu.
 **What works today:**
 - Vanilla European, American (BAW + Bjerksund-Stensland, both with the
   fork's correctness fixes — BAW Newton now bounded; T→0⁺ short-
-  circuit; BS handles negative rates natively), Bermudan.
+  circuit; BAW and Ju exact where early exercise is never optimal,
+  and an error at r < 0 where it can be (#36); BS handles negative
+  rates natively), Bermudan.
 - Single + double barrier, Asian (discrete + continuous, geometric +
   arithmetic via Turnbull-Wakeman or MC), lookback, cliquet, chooser,
   compound, forward-start.
