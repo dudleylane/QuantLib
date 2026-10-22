@@ -17,7 +17,6 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include "preconditions.hpp"
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
 #include <ql/currency.hpp>
@@ -599,12 +598,7 @@ namespace
     }
 }
 
-// Both cases below are about par coupons.  With indexed coupons the 30Y swap's floating leg reaches two days
-// past the last pillar once the evaluation date has moved -- pillarDate() becomes October 4th where the swap
-// matures October 2nd -- and the bootstrap throws out of TermStructure::checkRange before any of this comes
-// into play.  That happens on a plain moving curve with no freeze() and no recalculate() at all, so it is a
-// property of the configuration rather than of lazy-object behaviour, and it is not what these tests are for.
-BOOST_AUTO_TEST_CASE(testLazyObject, *precondition(usingAtParCoupons()))
+BOOST_AUTO_TEST_CASE(testLazyObject)
 {
 
     BOOST_TEST_MESSAGE("Testing piecewise curve freeze and recalculation across an evaluation date change...");
@@ -648,7 +642,7 @@ BOOST_AUTO_TEST_CASE(testLazyObject, *precondition(usingAtParCoupons()))
     curve->unfreeze();
 }
 
-BOOST_AUTO_TEST_CASE(testLazyObjectWithFixedReferenceDate, *precondition(usingAtParCoupons()))
+BOOST_AUTO_TEST_CASE(testLazyObjectWithFixedReferenceDate)
 {
 
     BOOST_TEST_MESSAGE("Testing piecewise curve recalculation with a fixed reference date...");
@@ -662,14 +656,13 @@ BOOST_AUTO_TEST_CASE(testLazyObjectWithFixedReferenceDate, *precondition(usingAt
     std::vector<ext::shared_ptr<RateHelper>> instruments = relativeDateInstruments(calendar, settlementDays);
 
     // Fixed reference date, so TermStructure::moving_ is false while the helpers above remain date-relative.
-    // IterativeBootstrap::calculate() re-runs initialize() only when !initialized_ || ts_->moving_, so once
-    // the curve has been bootstrapped its pillars no longer follow the helpers.  Advancing the evaluation
-    // date therefore leaves the curve spanning less time than its longest instrument now needs, and the
-    // bootstrap fails inside TermStructure::checkRange rather than repricing.
+    // IterativeBootstrap::calculate() re-runs initialize() only when !initialized_ || ts_->moving_, so after the
+    // evaluation date moves, the first solve still uses the old pillars and fails: the 30Y swap now ends past
+    // them.  A failed solve on top of a previous valid curve makes the bootstrap discard that state, re-initialise
+    // and try again, and the pillars then move to the helpers' new dates.  The reference date stays put.
     //
-    // This documents current behaviour, not desired behaviour -- see issue #23.  Should the bootstrap learn
-    // to re-initialise here, or to reject the combination with a diagnostic that names it, this test is the
-    // one that should be updated to say so.
+    // This is the Python test recovered in #23, as upstream's bindings still run it.  Until #34 the fork's stale
+    // maxTime() cache made the retry fail too, and this case asserted that recalculate() threw.
     auto curve = ext::make_shared<PiecewiseYieldCurve<ForwardRate, BackwardFlat>>(settlement, instruments, Actual360());
     curve->discount(curve->referenceDate());
     std::vector<Date> nodes = curve->dates();
@@ -680,7 +673,117 @@ BOOST_AUTO_TEST_CASE(testLazyObjectWithFixedReferenceDate, *precondition(usingAt
     if (curve->dates() != nodes)
         BOOST_ERROR("frozen curve changed its nodes after the evaluation date moved");
 
-    BOOST_CHECK_THROW(curve->recalculate(), Error);
+    curve->recalculate();
+
+    std::vector<Date> updated = curve->dates();
+    if (updated.size() != nodes.size())
+    {
+        BOOST_ERROR("node count changed after recalculation:\n"
+                    << "    before: " << nodes.size() << "\n"
+                    << "    after:  " << updated.size());
+    }
+    else
+    {
+        if (updated[0] != nodes[0])
+            BOOST_ERROR("the fixed reference date moved after recalculation:\n"
+                        << "    before: " << nodes[0] << "\n"
+                        << "    after:  " << updated[0]);
+        for (Size i = 1; i < nodes.size(); ++i)
+        {
+            if (updated[i] == nodes[i])
+                BOOST_ERROR("node " << i << " did not move after recalculation:\n"
+                                    << "    date: " << updated[i]);
+        }
+    }
+
+    curve->unfreeze();
+}
+
+namespace
+{
+    // Builds a moving piecewise curve on the given date and uses it, then moves the evaluation date and checks
+    // that the range check follows the re-bootstrapped curve: a lookup at the new end succeeds, maxTime() agrees
+    // with maxDate(), and a time one day past the end is still rejected.
+    void checkRangeAfterEvaluationDateChange(const Date& start)
+    {
+        Calendar calendar = TARGET();
+        Natural settlementDays = 2;
+        Date today = calendar.adjust(start);
+        Settings::instance().evaluationDate() = today;
+
+        auto curve = ext::make_shared<PiecewiseYieldCurve<ForwardRate, BackwardFlat>>(
+            settlementDays, calendar, relativeDateInstruments(calendar, settlementDays), Actual360());
+        curve->discount(1.0); // bootstraps, and the range check reads maxTime()
+
+        Settings::instance().evaluationDate() = calendar.advance(today, 100, Days);
+
+        try
+        {
+            curve->discount(curve->maxDate());
+        }
+        catch (std::exception& e)
+        {
+            BOOST_ERROR("curve built on " << today << " failed after the evaluation date moved:\n    " << e.what());
+            return;
+        }
+
+        Time expected = curve->timeFromReference(curve->maxDate());
+        if (!close_enough(curve->maxTime(), expected))
+            BOOST_ERROR("maxTime() of the curve built on " << today << " did not follow the evaluation date:\n"
+                                                           << "    maxTime():                    " << curve->maxTime()
+                                                           << "\n"
+                                                           << "    timeFromReference(maxDate()): " << expected);
+
+        BOOST_CHECK_EXCEPTION(curve->discount(curve->timeFromReference(curve->maxDate() + 1)), Error,
+                              ExpectedErrorMessage("is past max curve time"));
+    }
+}
+
+// maxTime() is cached (issue #1), and PiecewiseYieldCurve::update() never calls TermStructure::update(), where
+// the cache used to be invalidated.  So until #34 the cache kept the value read on the curve's first use: once the
+// evaluation date moved and the curve re-bootstrapped, the range check still compared against the old span.  With
+// par coupons the two start dates below fail in opposite directions.  From January 5th, 2026 the 30Y span gains a
+// leap day, so the old value is too short and the bootstrap itself threw ("time (30.4389) is past max curve time
+// (30.4361)").  From March 24th, 2026 the old value is a day too long, so a lookup past the end went through
+// without extrapolation.  #34's own case, indexed coupons from May 13th, 2026, failed the first way.
+BOOST_AUTO_TEST_CASE(testRangeAfterEvaluationDateChange)
+{
+
+    BOOST_TEST_MESSAGE("Testing the range of a moving piecewise curve across an evaluation date change...");
+
+    checkRangeAfterEvaluationDateChange(Date(5, January, 2026));
+    checkRangeAfterEvaluationDateChange(Date(24, March, 2026));
+}
+
+// recalculate() re-bootstraps without a notification, so a cache that only update() invalidates keeps whatever it
+// read while the curve was frozen.  Until #34, maxTime() here still returned the value from before the evaluation
+// date moved, a day longer than the re-bootstrapped curve.
+BOOST_AUTO_TEST_CASE(testRangeAfterFrozenRecalculation)
+{
+
+    BOOST_TEST_MESSAGE("Testing the range of a frozen moving curve after recalculation...");
+
+    Calendar calendar = TARGET();
+    Natural settlementDays = 2;
+    Date today = calendar.adjust(Date(24, March, 2026));
+    Settings::instance().evaluationDate() = today;
+
+    auto curve = ext::make_shared<PiecewiseYieldCurve<ForwardRate, BackwardFlat>>(
+        settlementDays, calendar, relativeDateInstruments(calendar, settlementDays), Actual360());
+    curve->discount(1.0);
+
+    curve->freeze();
+    Settings::instance().evaluationDate() = calendar.advance(today, 100, Days);
+    // Frozen, the curve keeps its pillars while its reference date moves, and the range check reads maxTime()
+    // against both.
+    curve->discount(1.0);
+    curve->recalculate();
+
+    Time expected = curve->timeFromReference(curve->maxDate());
+    if (!close_enough(curve->maxTime(), expected))
+        BOOST_ERROR("maxTime() did not follow the curve through recalculate():\n"
+                    << "    maxTime():                    " << curve->maxTime() << "\n"
+                    << "    timeFromReference(maxDate()): " << expected);
 
     curve->unfreeze();
 }

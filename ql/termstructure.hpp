@@ -106,11 +106,17 @@ namespace QuantLib
         mutable Date referenceDate_;
         Natural settlementDays_;
         DayCounter dayCounter_;
-        // Cached result of timeFromReference(maxDate()).  Refreshed
-        // lazily by maxTime() and invalidated by update().  See issue
-        // #1: was 8.55% of self-time on the FD path because every
-        // bounds-check went through virtual yearFraction(refDate, maxDate).
+        // Cached result of timeFromReference(maxDate()), with the two
+        // dates it was computed from.  See issue #1: was 8.55% of
+        // self-time on the FD path because every bounds-check went through
+        // virtual yearFraction(refDate, maxDate).  maxTime() recomputes it
+        // whenever either date has changed, so it doesn't rely on update():
+        // PiecewiseYieldCurve and PiecewiseDefaultCurve never call
+        // TermStructure::update(), and recalculate() re-bootstraps without
+        // a notification (#34).  update() still invalidates it, which
+        // covers a change of day counter.
         mutable Time maxTime_ = 0.0;
+        mutable Date maxTimeReferenceDate_, maxTimeMaxDate_;
         mutable bool maxTimeUpdated_ = false;
     };
 
@@ -123,9 +129,15 @@ namespace QuantLib
 
     inline Time TermStructure::maxTime() const
     {
-        if (!maxTimeUpdated_)
+        // maxDate() first, as timeFromReference(maxDate()) evaluates it: a
+        // lazy curve can recalculate there and move its reference date.
+        Date currentMaxDate = maxDate();
+        Date currentReferenceDate = referenceDate();
+        if (!maxTimeUpdated_ || currentMaxDate != maxTimeMaxDate_ || currentReferenceDate != maxTimeReferenceDate_)
         {
-            maxTime_ = timeFromReference(maxDate());
+            maxTime_ = timeFromReference(currentMaxDate);
+            maxTimeMaxDate_ = currentMaxDate;
+            maxTimeReferenceDate_ = currentReferenceDate;
             maxTimeUpdated_ = true;
         }
         return maxTime_;

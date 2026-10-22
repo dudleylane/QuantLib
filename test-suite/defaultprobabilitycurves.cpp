@@ -21,6 +21,7 @@
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
 #include <ql/instruments/creditdefaultswap.hpp>
+#include <ql/math/comparison.hpp>
 #include <ql/math/interpolations/backwardflatinterpolation.hpp>
 #include <ql/math/interpolations/linearinterpolation.hpp>
 #include <ql/math/interpolations/loginterpolation.hpp>
@@ -441,6 +442,69 @@ BOOST_AUTO_TEST_CASE(testIterativeBootstrapRetries)
     IterativeBootstrap<SPCurve> ibNoThrow(Null<Real>(), Null<Real>(), Null<Real>(), 5, 1.0, 10.0, true, 2);
     dpts = ext::make_shared<SPCurve>(asof, instruments, tsDayCounter, ibNoThrow);
     BOOST_CHECK_NO_THROW(dpts->survivalProbability(testDate));
+}
+
+namespace
+{
+    // Builds a moving piecewise default curve on the given date and uses it, then moves the evaluation date and
+    // checks that the range check follows the re-bootstrapped curve, as the TermStructureTests case of the same
+    // name does for yield curves.
+    void checkRangeAfterEvaluationDateChange(const Date& start)
+    {
+        Calendar calendar = TARGET();
+        Date today = calendar.adjust(start);
+        Settings::instance().evaluationDate() = today;
+
+        Handle<YieldTermStructure> discountCurve(ext::make_shared<FlatForward>(0, calendar, 0.06, Actual360()));
+        Real quotes[] = {0.005, 0.006, 0.007, 0.009};
+        Integer years[] = {1, 2, 3, 5};
+        std::vector<ext::shared_ptr<DefaultProbabilityHelper>> helpers;
+        for (Size i = 0; i < std::size(quotes); ++i)
+            helpers.push_back(ext::make_shared<SpreadCdsHelper>(quotes[i], Period(years[i], Years), 1, calendar,
+                                                                Quarterly, Following, DateGeneration::TwentiethIMM,
+                                                                Thirty360(Thirty360::BondBasis), 0.4, discountCurve));
+
+        auto curve = ext::make_shared<PiecewiseDefaultCurve<HazardRate, BackwardFlat>>(0, calendar, helpers,
+                                                                                       Thirty360(Thirty360::BondBasis));
+        curve->survivalProbability(0.5); // bootstraps, and the range check reads maxTime()
+
+        Settings::instance().evaluationDate() = calendar.advance(today, 100, Days);
+
+        try
+        {
+            curve->survivalProbability(curve->maxDate());
+        }
+        catch (std::exception& e)
+        {
+            BOOST_ERROR("curve built on " << today << " failed after the evaluation date moved:\n    " << e.what());
+            return;
+        }
+
+        Time expected = curve->timeFromReference(curve->maxDate());
+        if (!close_enough(curve->maxTime(), expected))
+            BOOST_ERROR("maxTime() of the curve built on " << today << " did not follow the evaluation date:\n"
+                                                           << "    maxTime():                    " << curve->maxTime()
+                                                           << "\n"
+                                                           << "    timeFromReference(maxDate()): " << expected);
+
+        BOOST_CHECK_EXCEPTION(curve->survivalProbability(curve->timeFromReference(curve->maxDate() + 1)), Error,
+                              ExpectedErrorMessage("is past max curve time"));
+    }
+}
+
+// maxTime() is cached (issue #1), and PiecewiseDefaultCurve::update() never calls TermStructure::update(), where
+// the cache used to be invalidated.  So until #34 the range check of a moving default curve kept the span it had on
+// first use.  CDS maturities roll on IMM dates, so once the evaluation date moved the old span was well off.  From
+// February 2nd, 2026 it was too short and the bootstrap threw ("time (5.24167) is past max curve time
+// (5.13333)").  From December 22nd, 2026 it was too long, 5.25 against 5.0944, so lookups up to 0.156 years past
+// the end went through without extrapolation.
+BOOST_AUTO_TEST_CASE(testRangeAfterEvaluationDateChange)
+{
+
+    BOOST_TEST_MESSAGE("Testing the range of a moving piecewise default curve across an evaluation date change...");
+
+    checkRangeAfterEvaluationDateChange(Date(2, February, 2026));
+    checkRangeAfterEvaluationDateChange(Date(22, December, 2026));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
