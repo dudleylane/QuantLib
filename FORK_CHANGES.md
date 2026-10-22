@@ -215,13 +215,46 @@ independently measurable:
 | `33e4bdac2` | inline both `checkRange` overloads + extrapolate fast-path | moved `checkRange(Date,bool)` and `checkRange(Time,bool)` from `ql/termstructure.cpp` to the header as `inline`; added explicit early `return` after the first `QL_REQUIRE` when `extrapolate=true \|\| allowsExtrapolation()`, skipping the second `QL_REQUIRE`'s `maxTime()` lookup that all FD schemes (`extrapolate=true`) were paying for nothing | 3.18% |
 | `2fb438e6c` | apply the same inline + fast-path treatment to `InflationTermStructure::checkRange` | same idea, `ql/termstructures/inflationtermstructure.{hpp,cpp}`.  No separate baseline measurement for inflation — `maxTime()` cache is inherited from the `TermStructure` base | n/a (cold path; pre-emptive symmetry) |
 
-Subclasses overriding `TermStructure::update()` *must* call
-`TermStructure::update()` for the cache invalidation to fire;
-existing subclasses that bypass the base (e.g. some smile sections
-that call `notifyObservers()` directly) were already violating the
-observer contract and are not regressed.  Verified under
+The three commits were verified under
 `linux-ci-build-with-nonstandard-options` (sessions on, thread-safe
 observer on, `QL_THROW_IN_CYCLES=ON`, `QL_FASTER_LAZY_OBJECTS=OFF`).
+
+**Fix 1's cache was stale on moving piecewise curves until
+[#35](https://github.com/dudleylane/QuantLib/pull/35)** (`a4799af5d`,
+2026-10-22). This entry used to say that subclasses bypassing
+`TermStructure::update()` were already violating the observer contract
+and were not regressed. That was wrong.
+
+- `PiecewiseYieldCurve::update()` and `PiecewiseDefaultCurve::update()`
+  are upstream code that skip the base on purpose ("do not use
+  base_curve::update() as it would always notify observers"). So once
+  used, a moving curve of either kind went on checking its range against
+  its first span after the evaluation date moved. `recalculate()` had
+  the same hole on any lazy curve, because it re-bootstraps without a
+  notification.
+- It threw where the span had grown, and let lookups past its end
+  through without extrapolation where the span had shrunk. Over 84
+  start dates in 2026-2028, with the evaluation date advanced 100
+  business days, a moving yield curve threw on 16 with par coupons and
+  20 with indexed coupons, and a moving default curve on 48
+  ([#34](https://github.com/dudleylane/QuantLib/issues/34)). It also
+  broke the bootstrap's retry in #23's case
+  ([Sibling repositories](#sibling-repositories)).
+- The entry's example, smile sections, are not term structures and
+  never had the cache.
+- #35 keeps the reference date and max date the cache was computed
+  from, and `maxTime()` recomputes when either differs. `update()` still
+  invalidates it, which covers a change of day counter. The value is
+  what upstream's uncached `maxTime()` returns, whether or not a
+  subclass reaches the base.
+- The check makes two virtual calls that the old cache skipped, so part
+  of fix 1's gain goes back. On `AmericanOptionTests` it costs 7.8 %
+  more instructions than the stale cache did, where upstream's uncached
+  `maxTime()` costs 14.1 % more. Cycles came out at about +5.5 % against
+  +32 %, on a loaded box.
+- The tests are `TermStructureTests/testRangeAfterEvaluationDateChange`
+  and `testRangeAfterFrozenRecalculation`, and
+  `DefaultProbabilityCurveTests/testRangeAfterEvaluationDateChange`.
 
 ### Issue [#2](https://github.com/dudleylane/QuantLib/issues/2) — `Date::year/month/yearOffset/isLeap` (inflation pricing)
 
@@ -526,25 +559,37 @@ Caveats:
   through the Python test
   `test_termstructures.py::TermStructureTest::testLazyObject` and was
   carried over as [#23](https://github.com/dudleylane/QuantLib/issues/23).
-  - **Diagnosed.** The Python test was recovered from the bundle and is
-    preserved in #23, beside a C++ reproduction. The test built its curve
-    on a fixed reference date from tenor-based helpers.
+  - **Diagnosed, twice.** The Python test was recovered from the bundle
+    and is preserved in #23, beside a C++ reproduction. It builds its
+    curve on a fixed reference date from tenor-based helpers.
     `IterativeBootstrap::calculate()` re-initialises only when
-    `!initialized_ || ts_->moving_`, so the curve kept its pillars while
-    the helpers moved with the evaluation date. That guard is upstream's,
-    and its comment says the combination "makes little sense", so this is
-    upstream behaviour rather than a fork defect.
+    `!initialized_ || ts_->moving_`, so after the evaluation date moves,
+    the first solve uses the old pillars and fails.
+    - On 2026-10-20 the diagnosis stopped at that guard, which is
+      upstream's, and called the failure upstream behaviour. The owner
+      closed #23 on that diagnosis, with no library change.
+    - It is not the whole cause. A failed solve on top of a valid curve
+      makes the bootstrap re-initialise and retry
+      (`iterativebootstrap.hpp:355`), and upstream's retry succeeds with
+      the pillars moved. Upstream's QuantLib-SWIG still runs the Python
+      test, which asserts exactly that.
+    - Here the retry checked its range against the stale `maxTime()`
+      cache and failed too, so #23 is the same bug as
+      [#34](https://github.com/dudleylane/QuantLib/issues/34)
+      ([Performance optimizations](#performance-optimizations-2026-04-26),
+      issue #1). #23 was reopened with the correction on 2026-10-21.
   - **Tested.** [#24](https://github.com/dudleylane/QuantLib/pull/24)
     (`bcd41138e`) ported the test to C++ as `testLazyObject`, built with
     `settlementDays` so the curve moves. It also added
-    `testLazyObjectWithFixedReferenceDate`, which asserts that the
-    fixed-date curve still throws. If the bootstrap changes, for example
-    through an upstream rebase, that test fails and is the one to update.
-    Both skip under indexed coupons.
-  - **Closed** on 2026-10-20 with no library change, at the owner's
-    choice. A separate failure found while writing those tests, a moving
-    curve under indexed coupons, is
-    [#34](https://github.com/dudleylane/QuantLib/issues/34).
+    `testLazyObjectWithFixedReferenceDate`, which asserted that the
+    fixed-date curve throws.
+    - Since #35 that case asserts upstream's behaviour: the reference
+      date stays and every other node moves.
+    - `0965a969f` had made both cases skip under indexed coupons, on the
+      wrong root cause. #35 removed the guards, so both run in every
+      configuration.
+  - **Fixed** by [#35](https://github.com/dudleylane/QuantLib/pull/35)
+    (`a4799af5d`, 2026-10-22), which closed #23 and #34.
 
 ## Explicit follow-up list
 
