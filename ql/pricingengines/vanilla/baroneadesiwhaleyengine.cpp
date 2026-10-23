@@ -24,10 +24,58 @@
 #include <ql/pricingengines/blackcalculator.hpp>
 #include <ql/pricingengines/blackformula.hpp>
 #include <ql/pricingengines/vanilla/baroneadesiwhaleyengine.hpp>
+#include <cmath>
 #include <utility>
 
 namespace QuantLib
 {
+
+    namespace detail
+    {
+
+        // The American value at zero variance, where the underlying's path
+        // is deterministic, and its delta and gamma. With the flat rates
+        // these engines assume, exercising at time s*T, for s in [0, 1], is
+        // worth phi*(spot*dividendDiscount^s - K*riskFreeDiscount^s). The
+        // largest of that is at s = 1 (the European value), at s = 0 (the
+        // intrinsic value) or at its one stationary point, which exists when
+        // both rates are nonzero, of the same sign and different. Where that
+        // point is a minimum it is below both ends, so taking the largest of
+        // the three is right either way. The delta and gamma are those of the
+        // largest. At the stationary point the value does not move with s,
+        // so its delta is phi*dividendDiscount^s; its gamma comes from s
+        // moving with the spot, as ds/dspot = 1/(spot*(a - c)), with
+        // a = log(riskFreeDiscount) and c = log(dividendDiscount).
+        ZeroVarianceResults zeroVarianceResults(const StrikedTypePayoff& payoff,
+                                                Real spot,
+                                                DiscountFactor dividendDiscount,
+                                                DiscountFactor riskFreeDiscount,
+                                                const BlackCalculator& black)
+        {
+            Real phi = (payoff.optionType() == Option::Call) ? 1.0 : -1.0;
+            ZeroVarianceResults results = {black.value(), black.delta(spot), black.gamma(spot)};
+            Real intrinsic = payoff(spot);
+            if (intrinsic > results.value)
+                results = {intrinsic, intrinsic > 0.0 ? phi : 0.0, 0.0};
+            Real a = std::log(riskFreeDiscount), c = std::log(dividendDiscount);
+            if (a != c && a * c > 0.0)
+            {
+                Real s = std::log(c * spot / (a * payoff.strike())) / (a - c);
+                if (s > 0.0 && s < 1.0)
+                {
+                    Real value =
+                        phi * (spot * std::pow(dividendDiscount, s) - payoff.strike() * std::pow(riskFreeDiscount, s));
+                    if (value > results.value)
+                    {
+                        Real delta = phi * std::pow(dividendDiscount, s);
+                        results = {value, delta, delta * c / (spot * (a - c))};
+                    }
+                }
+            }
+            return results;
+        }
+
+    }
 
     BaroneAdesiWhaleyApproximationEngine::BaroneAdesiWhaleyApproximationEngine(
         ext::shared_ptr<GeneralizedBlackScholesProcess> process)
@@ -52,8 +100,10 @@ namespace QuantLib
         // Stensland handles r < 0 natively; use that engine instead.
         // This engine's calculate() and Ju's return the European value
         // before calling this wherever early exercise is never optimal,
-        // which covers puts with r <= 0 and q >= r. So what reaches this
-        // check from them is r < 0 where early exercise can be optimal.
+        // which covers puts with r <= 0 and q >= r, and the zero-variance
+        // value wherever the variance is below QL_EPSILON. So what reaches
+        // this check from them is r < 0 where early exercise can be optimal,
+        // at a nonzero variance.
         QL_REQUIRE(riskFreeDiscount <= 1.0, "Barone-Adesi-Whaley approximation is not defined for "
                                             "negative interest rates (risk-free discount factor "
                                                 << riskFreeDiscount
@@ -84,6 +134,18 @@ namespace QuantLib
             default:
                 QL_FAIL("unknown option type");
         }
+
+        // The seed belongs between Su, the perpetual critical price, and the
+        // strike. Where the carry works against early exercise (a put with
+        // r > q, a call with q > r), h grows like 2*b^2*T^2/variance as the
+        // variance vanishes, and the seed leaves that range: a put's goes
+        // above the strike, up to infinity, and a call's below it, down to
+        // minus infinity. The Newton step below then either throws in
+        // blackFormula or, from a huge finite put seed, loses the strike to
+        // cancellation. Su is finite there, and tends to the strike as the
+        // critical price does, so Newton starts from it instead.
+        if (payoff->optionType() == Option::Put ? !(Si <= payoff->strike()) : !(Si >= payoff->strike()))
+            Si = Su;
 
 
         // Newton Raphson algorithm for finding critical price Si
@@ -210,11 +272,11 @@ namespace QuantLib
         else if (variance < QL_EPSILON)
         {
             // At near-zero variance the Newton seed-value formulas below are
-            // numerically unstable (n = 2 log(.)/var, h ~ sqrt(var)). In that
-            // limit American and European prices coincide up to the intrinsic-
-            // exercise adjustment, so short-circuit to European + immediate
-            // exercise floor and skip the iterative branch.
-            results_.value = std::max(black.value(), (*payoff)(spot));
+            // numerically unstable (n = 2 log(.)/var, h ~ sqrt(var)). The path
+            // is then deterministic, so short-circuit to the value of the best
+            // exercise time and skip the iterative branch.
+            results_.value =
+                detail::zeroVarianceResults(*payoff, spot, dividendDiscount, riskFreeDiscount, black).value;
         }
         else
         {

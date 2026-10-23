@@ -100,6 +100,18 @@ namespace QuantLib
             results_.strikeSensitivity = black.strikeSensitivity();
             results_.itmCashProbability = black.itmCashProbability();
         }
+        else if (variance < QL_EPSILON)
+        {
+            // As in BaroneAdesiWhaleyApproximationEngine::calculate(): the
+            // critical-price seed is unstable at near-zero variance, and the
+            // path is deterministic, so this is the value of the best exercise
+            // time.
+            detail::ZeroVarianceResults zero =
+                detail::zeroVarianceResults(*payoff, spot, dividendDiscount, riskFreeDiscount, black);
+            results_.value = zero.value;
+            results_.delta = zero.delta;
+            results_.gamma = zero.gamma;
+        }
         else
         {
             // early exercise can be optimal

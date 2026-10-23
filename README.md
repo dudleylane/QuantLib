@@ -74,8 +74,9 @@ no longer checks them, and no CI job builds any of them.
 | F3 | `ql/models/volatility/garch.cpp` | GARCH(1,1) calibration now checks optimizer `EndCriteria::Type` |
 | FE1 | `ql/pricingengines/vanilla/baroneadesiwhaleyengine.cpp` | BAW Newton loop bounded (`maxIterations = 100`) — fixes infinite-loop on pathological inputs |
 | FE2 | `ql/pricingengines/vanilla/baroneadesiwhaleyengine.cpp` | BAW negative-rate error message now points users to `BjerksundStenslandApproximationEngine`, which handles negative rates natively |
-| FE3 | `ql/pricingengines/vanilla/baroneadesiwhaleyengine.cpp` | T → 0⁺ short-circuit to European + intrinsic |
+| FE3 | `ql/pricingengines/vanilla/baroneadesiwhaleyengine.cpp`, `juquadraticengine.cpp` | T → 0⁺ short-circuit to the value of the best deterministic exercise time; until #37 it was European + intrinsic, in BAW only |
 | #36 | `ql/pricingengines/vanilla/baroneadesiwhaleyengine.cpp`, `juquadraticengine.cpp` | BAW and Ju return the European value wherever early exercise is never optimal. Calls with r < q ≤ 0 no longer get the European value, which can fall below intrinsic (they get FE2's error), puts at negative rates no longer throw, and Ju no longer returns NaN at r = 0 |
+| #37 | `ql/pricingengines/vanilla/baroneadesiwhaleyengine.{hpp,cpp}`, `juquadraticengine.cpp` | BAW and Ju no longer throw at low volatility where the carry works against early exercise (puts with r > q, calls with q > r): the critical-price seed falls back to the perpetual critical price when it leaves its range. Ju no longer throws at zero volatility |
 | FE6 | `ql/termstructures/volatility/sabr.hpp` | Public `sabrIsRiskyRegime()` detector (Doust 2012 absorption threshold) + documentation pointing to `NoArbSabrSmileSection` for arbitrage-free pricing |
 | FE11 | `ql/pricingengines/asian/analytic_discr_geom_av_price_heston.{hpp,cpp}` | Moved out of `ql/experimental/`; the public Heston-Asian MC engine no longer transitively imports experimental code |
 
