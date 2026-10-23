@@ -516,6 +516,185 @@ BOOST_AUTO_TEST_CASE(testJuValuesAtZeroRate)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testBaroneAdesiWhaleyAndJuAtLowVolatility)
+{
+
+    BOOST_TEST_MESSAGE("Testing Barone-Adesi-Whaley and Ju approximations at low volatility...");
+
+    // Where the carry works against early exercise, for a put with r > q or
+    // a call with q > r, the critical-price seed overflowed as the volatility
+    // vanished, and both engines threw; Ju threw at zero volatility too (#37).
+    // The early-exercise premium vanishes with the volatility, so the value
+    // must tend to max(European, intrinsic), which is the exact
+    // zero-volatility value in these cases. Over this grid the largest
+    // premium at 0.1% volatility was 9.2e-4.
+
+    Date today(15, August, 2026);
+    Settings::instance().evaluationDate() = today;
+    DayCounter dc = Actual360();
+
+    auto spot = ext::make_shared<SimpleQuote>(100.0);
+    auto qRate = ext::make_shared<SimpleQuote>(0.0);
+    auto rRate = ext::make_shared<SimpleQuote>(0.0);
+    auto vol = ext::make_shared<SimpleQuote>(0.0);
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot), Handle<YieldTermStructure>(flatRate(today, qRate, dc)),
+        Handle<YieldTermStructure>(flatRate(today, rRate, dc)), Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+
+    auto europeanEngine = ext::make_shared<AnalyticEuropeanEngine>(process);
+    const std::pair<std::string, ext::shared_ptr<PricingEngine>> engines[] = {
+        {"Barone-Adesi-Whaley", ext::make_shared<BaroneAdesiWhaleyApproximationEngine>(process)},
+        {"Ju", ext::make_shared<JuQuadraticApproximationEngine>(process)}};
+
+    Real tolerance = 1.0e-10;
+    Real band = 1.0e-2;
+
+    struct Case
+    {
+        Option::Type type;
+        Rate r, q;
+    };
+    const Case cases[] = {{Option::Put, 0.05, 0.02},
+                          {Option::Put, 0.02, 0.0},
+                          {Option::Put, 0.0, -0.02},
+                          {Option::Call, 0.02, 0.04},
+                          {Option::Call, 0.0, 0.02}};
+
+    for (const auto& [type, r, q] : cases)
+    {
+        for (Integer days : {90, 360, 1080})
+        {
+            Date exDate = today + days;
+            auto american = ext::make_shared<AmericanExercise>(today, exDate);
+            auto european = ext::make_shared<EuropeanExercise>(exDate);
+            for (Real s : {85.0, 100.0, 115.0})
+            {
+                for (Volatility v : {0.0, 1.0e-4, 1.0e-3})
+                {
+                    spot->setValue(s);
+                    rRate->setValue(r);
+                    qRate->setValue(q);
+                    vol->setValue(v);
+                    auto payoff = ext::make_shared<PlainVanillaPayoff>(type, 100.0);
+
+                    VanillaOption reference(payoff, european);
+                    reference.setPricingEngine(europeanEngine);
+                    Real floor = std::max(reference.NPV(), (*payoff)(s));
+                    Real upper = floor + ((v == 0.0) ? tolerance : band);
+
+                    for (const auto& [name, engine] : engines)
+                    {
+                        VanillaOption option(payoff, american);
+                        option.setPricingEngine(engine);
+                        Real value = option.NPV();
+                        if (!(value >= floor - tolerance && value <= upper))
+                        {
+                            REPORT_FAILURE(name + " value", payoff, american, s, q, r, today, v, floor, value,
+                                           value - floor, upper - floor);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBaroneAdesiWhaleyAndJuAtZeroVolatility)
+{
+
+    BOOST_TEST_MESSAGE("Testing Barone-Adesi-Whaley and Ju approximations at zero volatility...");
+
+    // At zero volatility the underlying's path is deterministic, and with
+    // flat rates exercising at time t is worth phi*(S*exp(-q*t) - K*exp(-r*t)).
+    // For a call with r > q > 0 or a put with q > r > 0 that can peak inside
+    // the option's life, at t* = log(r*K/(q*S))/(r - q). Both engines used to
+    // return max(European, intrinsic) there, which misses the peak, or throw
+    // (#37). Ju also returns its delta there, phi*exp(-q*t*), and its gamma,
+    // which comes from t* moving with S: phi*q*exp(-q*t*)/(S*(r - q)).
+
+    Date today(15, August, 2026);
+    Settings::instance().evaluationDate() = today;
+    DayCounter dc = Actual360();
+
+    auto spot = ext::make_shared<SimpleQuote>(100.0);
+    auto qRate = ext::make_shared<SimpleQuote>(0.0);
+    auto rRate = ext::make_shared<SimpleQuote>(0.0);
+    auto vol = ext::make_shared<SimpleQuote>(0.0);
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot), Handle<YieldTermStructure>(flatRate(today, qRate, dc)),
+        Handle<YieldTermStructure>(flatRate(today, rRate, dc)), Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+
+    Date exDate = today + 1080;
+    Time maturity = dc.yearFraction(today, exDate);
+    auto american = ext::make_shared<AmericanExercise>(today, exDate);
+    auto european = ext::make_shared<EuropeanExercise>(exDate);
+    auto europeanEngine = ext::make_shared<AnalyticEuropeanEngine>(process);
+    auto ju = ext::make_shared<JuQuadraticApproximationEngine>(process);
+    const std::pair<std::string, ext::shared_ptr<PricingEngine>> engines[] = {
+        {"Barone-Adesi-Whaley", ext::make_shared<BaroneAdesiWhaleyApproximationEngine>(process)}, {"Ju", ju}};
+
+    Real strike = 100.0;
+    Real tolerance = 1.0e-10;
+
+    struct Case
+    {
+        Option::Type type;
+        Real s;
+        Rate r, q;
+    };
+    const Case cases[] = {{Option::Call, 240.0, 0.05, 0.02}, {Option::Put, 51.5, 0.02, 0.04}};
+
+    for (const auto& [type, s, r, q] : cases)
+    {
+        spot->setValue(s);
+        rRate->setValue(r);
+        qRate->setValue(q);
+        auto payoff = ext::make_shared<PlainVanillaPayoff>(type, strike);
+        Real phi = (type == Option::Call) ? 1.0 : -1.0;
+
+        Time tStar = std::log(r * strike / (q * s)) / (r - q);
+        BOOST_REQUIRE(tStar > 0.0 && tStar < maturity);
+        Real expected = phi * (s * std::exp(-q * tStar) - strike * std::exp(-r * tStar));
+
+        // the peak must stand clear of both ends, or the case tests nothing
+        VanillaOption reference(payoff, european);
+        reference.setPricingEngine(europeanEngine);
+        BOOST_REQUIRE(expected > std::max(reference.NPV(), (*payoff)(s)) + 0.01);
+
+        for (const auto& [name, engine] : engines)
+        {
+            VanillaOption option(payoff, american);
+            option.setPricingEngine(engine);
+            Real value = option.NPV();
+            Real error = std::fabs(value - expected);
+            if (!(error <= tolerance))
+            {
+                REPORT_FAILURE(name + " value", payoff, american, s, q, r, today, 0.0, expected, value, error,
+                               tolerance);
+            }
+            if (engine == ju)
+            {
+                Real expectedDelta = phi * std::exp(-q * tStar);
+                Real delta = option.delta();
+                error = std::fabs(delta - expectedDelta);
+                if (!(error <= tolerance))
+                {
+                    REPORT_FAILURE(name + " delta", payoff, american, s, q, r, today, 0.0, expectedDelta, delta, error,
+                                   tolerance);
+                }
+                Real expectedGamma = expectedDelta * q / (s * (r - q));
+                Real gamma = option.gamma();
+                error = std::fabs(gamma - expectedGamma);
+                if (!(error <= tolerance))
+                {
+                    REPORT_FAILURE(name + " gamma", payoff, american, s, q, r, today, 0.0, expectedGamma, gamma, error,
+                                   tolerance);
+                }
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testFdValues)
 {
 

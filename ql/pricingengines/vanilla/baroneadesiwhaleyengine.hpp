@@ -31,6 +31,30 @@
 namespace QuantLib
 {
 
+    class BlackCalculator;
+
+    namespace detail
+    {
+
+        // The American value at zero variance, and its delta and gamma: that
+        // of the best deterministic exercise time, under the flat rates the
+        // engine below and JuQuadraticApproximationEngine assume. Both use
+        // it, so it is declared here; two file-local copies would clash in a
+        // unity build, which compiles both files as one. The derivation is at
+        // its definition, in baroneadesiwhaleyengine.cpp.
+        struct ZeroVarianceResults
+        {
+            Real value, delta, gamma;
+        };
+
+        ZeroVarianceResults zeroVarianceResults(const StrikedTypePayoff& payoff,
+                                                Real spot,
+                                                DiscountFactor dividendDiscount,
+                                                DiscountFactor riskFreeDiscount,
+                                                const BlackCalculator& black);
+
+    }
+
     //! Barone-Adesi and Whaley pricing engine for American options (1987)
     /*! \ingroup vanillaengines
 
