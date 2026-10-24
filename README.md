@@ -79,6 +79,7 @@ no longer checks them, and no CI job builds any of them.
 | #37 | `ql/pricingengines/vanilla/baroneadesiwhaleyengine.{hpp,cpp}`, `juquadraticengine.cpp` | BAW and Ju no longer throw at low volatility where the carry works against early exercise (puts with r > q, calls with q > r): the critical-price seed falls back to the perpetual critical price when it leaves its range. Ju no longer throws at zero volatility |
 | FE6 | `ql/termstructures/volatility/sabr.hpp` | Public `sabrIsRiskyRegime()` detector (Doust 2012 absorption threshold) + documentation pointing to `NoArbSabrSmileSection` for arbitrage-free pricing |
 | FE11 | `ql/pricingengines/asian/analytic_discr_geom_av_price_heston.{hpp,cpp}` | Moved out of `ql/experimental/`; the public Heston-Asian MC engine no longer transitively imports experimental code |
+| #41 | `ql/time/date.cpp` | `Date::todaysDate()` is thread-safe: `localtime_r` replaces `std::localtime`, whose buffer every thread shared. A time-zone change made while the program runs now applies once the program calls `tzset()` |
 
 ### New in this fork
 

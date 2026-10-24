@@ -846,8 +846,14 @@ namespace QuantLib
 
         if (std::time(&t) == std::time_t(-1)) // -1 means time() didn't work
             return {};
-        std::tm* lt = std::localtime(&t);
-        return {Day(lt->tm_mday), Month(lt->tm_mon + 1), Year(lt->tm_year + 1900)};
+        // localtime_r writes to our own buffer, not to one that every thread
+        // shares as std::localtime's (#41).  It also skips localtime's implicit
+        // tzset(), so a time-zone change made while the program runs applies
+        // once the program calls tzset().
+        std::tm lt{};
+        if (localtime_r(&t, &lt) == nullptr) // the conversion failed
+            return {};
+        return {Day(lt.tm_mday), Month(lt.tm_mon + 1), Year(lt.tm_year + 1900)};
     }
 
     Date Date::nextWeekday(const Date& d, Weekday dayOfWeek)
