@@ -1,8 +1,0 @@
-queries:
-  - uses: security-extended
-
-paths-ignore:
-  - test-suite
-  - Examples
-  - fuzz-test-suite
-  - Docs

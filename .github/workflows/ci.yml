@@ -20,8 +20,8 @@ name: CI
 #   * `needs:` ordering, which cannot be expressed across separate workflows.
 #
 # clang-format and filelists are the gate.  Neither compiles anything and both
-# finish in seconds, so making the other twelve jobs wait on them costs
-# nothing when they pass and skips ~29 jobs when they do not.  Before this, a
+# finish in seconds, so making the other eleven jobs wait on them costs
+# nothing when they pass and skips ~28 jobs when they do not.  Before this, a
 # formatting typo still burned the entire Linux matrix.
 #
 # Job-level `if:` carries the tiers chosen by the changes job below.  It used
@@ -104,10 +104,9 @@ jobs:
   # not read that file.
   #
   # The ccache variables do nothing in a job whose compiler line does not name
-  # ccache.  CodeQL's must not: its tracer extracts each file by watching the
-  # compiler run, and a cache hit skips the compiler.  Coverage and clang-tidy
-  # are left out until they are checked separately.  Each job that uses ccache
-  # prints its own hits from CCACHE_STATSLOG, which lives in RUNNER_TEMP.
+  # ccache.  Coverage and clang-tidy are left out until they are checked
+  # separately.  Each job that uses ccache prints its own hits from
+  # CCACHE_STATSLOG, which lives in RUNNER_TEMP.
   #
   # Trust: a pull request's jobs now write objects that master's jobs read.
   # That stays one trust domain only because the job-started hook
@@ -210,9 +209,10 @@ jobs:
   # sweep after the merge added only linux-nondefault, which now runs on pull
   # requests, and on 2026-10-17 it outlasted GitHub's 24-hour queue limit,
   # which cancelled its last queued jobs.  So the push runs what only a run on
-  # master can provide: the gates, the default build, CodeQL and coverage.
-  # The last two run there because code scanning and Coveralls record master's
-  # results only from runs on master.
+  # master can provide: the gates, the default build and coverage.  Coverage
+  # runs there because Coveralls records master's results only from runs on
+  # master.  CodeQL ran there too, for the same reason, until the owner
+  # dropped it on 2026-10-24.
   #
   # Detection needs all three of: a second parent, a first parent equal to the
   # push's `before`, and GitHub's "Merge pull request #N from" subject.  A
@@ -221,9 +221,9 @@ jobs:
   # base moved during review has an untested tree; the Git Workflow is to
   # update such a branch and wait for a new green run before merging.
   #
-  # `light` is the output the jobs gate on: true for tiers 1 and 2.  CodeQL and
-  # coverage gate on `ci_only` instead, so they skip only tier 1.  Every gate
-  # tests `!= 'true'`, so a missing output runs the job.
+  # `light` is the output the jobs gate on: true for tiers 1 and 2.  Coverage
+  # gates on `ci_only` instead, so it skips only tier 1.  Every gate tests
+  # `!= 'true'`, so a missing output runs the job.
   changes:
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
     outputs:
@@ -309,9 +309,9 @@ jobs:
           if [ "$verdict" = true ]; then
             echo "::notice::tier 1 (CI config only): gates + default build"
           elif [ "$merged" = true ]; then
-            echo "::notice::tier 2 (pull-request merge): gates + default build + CodeQL + coverage"
+            echo "::notice::tier 2 (pull-request merge): gates + default build + coverage"
           else
-            echo "::notice::tier 3 (full): all 32 jobs"
+            echo "::notice::tier 3 (full): all 31 jobs"
           fi
 
   # ===== from headers.yml =====
@@ -939,71 +939,6 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           file: ./coverage/lcov.info
-
-  # ===== from codeql-analysis.yml =====
-  # to commit it to your repository.
-  #
-  # You may wish to alter this file to override the set of languages analyzed,
-  # or to provide custom queries or build logic.
-  #
-  # Gated on ci_only, not light, so it also runs after a merge (tier 2): code
-  # scanning tracks master's alerts only from analyses of master, and a pull
-  # request's analysis does not count for it.
-  analyze:
-    if: needs.changes.outputs.ci_only != 'true'
-    needs: [clang-format, filelists, changes]
-    name: CodeQL analysis
-    # This repo's default workflow permission is read-only, so GITHUB_TOKEN
-    # could not upload the SARIF results and the job ended with "Resource not
-    # accessible by integration -- CodeQL job status was configuration error",
-    # after the analysis itself had run to completion.  Granted here rather
-    # than by widening the repository-wide default.
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-    runs-on: [self-hosted, Linux, X64, quantlib-dev]
-    timeout-minutes: 180
-    env:
-      PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-      LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
-      CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
-      CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
-
-    steps:
-    - name: Set temporary and cache directories
-      shell: bash
-      run: |
-        {
-          echo "TMPDIR=${RUNNER_TEMP:?}"
-          echo "CCACHE_DIR=${HOME:?}/.cache/ccache-quantlib-ci"
-          echo "CCACHE_MAXSIZE=10G"
-          echo "CCACHE_STATSLOG=$RUNNER_TEMP/ccache-stats.log"
-        } >> "$GITHUB_ENV"
-
-    - name: Checkout repository
-      uses: actions/checkout@v7
-
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v4
-      with:
-        languages: cpp
-        config-file: ./.github/codeql/codeql-config.yml
-
-    # No ccache here: CodeQL's tracer extracts each file by watching the
-    # compiler run, and a cache hit skips the compiler.
-    - name: Build
-      run: |
-        ./autogen.sh
-        ./configure --disable-static CC="gcc" CXX="g++" \
-          CXXFLAGS="-O2 -g0 -Wall -Wno-unknown-pragmas"
-        make -j"$(nproc)"
-
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v4
-      with:
-        ram: 10240
-        threads: 8
 
   # ===== from test-times.yml =====
   # Fork-supported platform is RHEL/CentOS 10+.
