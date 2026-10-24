@@ -31,8 +31,12 @@
 #include <ql/time/imm.hpp>
 #include <ql/time/timeunit.hpp>
 #include <ql/utilities/dataparsers.hpp>
+#include <boost/date_time/gregorian/gregorian.hpp>
+#include <algorithm>
 #include <sstream>
+#include <thread>
 #include <unordered_set>
+#include <vector>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -522,6 +526,60 @@ BOOST_AUTO_TEST_CASE(nullDate)
 
     BOOST_CHECK_NO_THROW(null_date.serialNumber());
     BOOST_CHECK_NO_THROW(hasher(null_date));
+}
+
+BOOST_AUTO_TEST_CASE(todaysDate)
+{
+    BOOST_TEST_MESSAGE("Testing today's date...");
+
+    // Boost works out the local day with its own code.  Taking it between
+    // two of our calls keeps a midnight in between from failing the check.
+    const Date before = Date::todaysDate();
+    const boost::gregorian::date local = boost::gregorian::day_clock::local_day();
+    const Date after = Date::todaysDate();
+    const Date expected(Day(local.day()), Month(static_cast<Integer>(local.month())), Year(local.year()));
+
+    BOOST_REQUIRE_MESSAGE(before != Date(), "Date::todaysDate() returned a null date");
+    BOOST_CHECK_MESSAGE(before <= expected && expected <= after && after - before <= 1,
+                        "Date::todaysDate() returned " << before << " and " << after << ", but Boost's local day is "
+                                                       << expected);
+}
+
+BOOST_AUTO_TEST_CASE(todaysDateFromSeveralThreads)
+{
+    BOOST_TEST_MESSAGE("Testing today's date from several threads...");
+
+    // Each thread keeps the earliest and latest date it got, and the checks
+    // run here, because Boost.Test's checks aren't thread-safe.  Under the
+    // tsan cell this also catches a return to std::localtime, whose buffer
+    // the threads would share (#41).
+    constexpr Size nThreads = 8, nCalls = 2000;
+    const Date before = Date::todaysDate();
+    std::vector<Date> earliest(nThreads), latest(nThreads);
+    std::vector<std::thread> threads;
+    for (Size i = 0; i < nThreads; ++i)
+        threads.emplace_back(
+            [i, &earliest, &latest]
+            {
+                Date lo = Date::maxDate(), hi = Date::minDate();
+                for (Size k = 0; k < nCalls; ++k)
+                {
+                    const Date d = Date::todaysDate();
+                    lo = std::min(lo, d);
+                    hi = std::max(hi, d);
+                }
+                earliest[i] = lo;
+                latest[i] = hi;
+            });
+    for (auto& t : threads)
+        t.join();
+    const Date after = Date::todaysDate();
+
+    BOOST_REQUIRE_MESSAGE(before != Date(), "Date::todaysDate() returned a null date");
+    for (Size i = 0; i < nThreads; ++i)
+        BOOST_CHECK_MESSAGE(before <= earliest[i] && latest[i] <= after,
+                            "thread " << i << " got dates from " << earliest[i] << " to " << latest[i] << ", outside "
+                                      << before << " to " << after);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
