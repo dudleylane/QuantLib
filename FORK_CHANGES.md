@@ -435,15 +435,16 @@ Caveats:
   `linux / Sessions enabled` was cancelled unstarted exactly 24 hours
   after it was queued. It had passed on #29's pull request on the same
   tree, so it was not re-run.
-  - **Pull requests that change code run all 32 jobs**, the non-default
-    cells included, so that configuration is tested before it merges.
-  - **The push of a pull request's merge runs 6:** the gates, the
-    default build, CodeQL and coverage. The last two stay because code
-    scanning and Coveralls record `master`'s results only from runs on
-    `master`. The `changes` job recognises GitHub's merge commit by its
-    two parents, a first parent equal to the push's `before`, and the
-    subject "Merge pull request #N from". Anything else, a squash
-    included, runs the full sweep.
+  - **Pull requests that change code run all 32 jobs** (31 since #42,
+    below), the non-default cells included, so that configuration is
+    tested before it merges.
+  - **The push of a pull request's merge runs 6** (5 since #42): the
+    gates, the default build, CodeQL and coverage. The last two stay
+    because code scanning and Coveralls record `master`'s results only
+    from runs on `master`. The `changes` job recognises GitHub's merge
+    commit by its two parents, a first parent equal to the push's
+    `before`, and the subject "Merge pull request #N from". Anything
+    else, a squash included, runs the full sweep.
   - **Unchanged:** a diff of CI config only runs 4 jobs, and a dispatch
     runs everything.
   - **Trade-offs.** If `master` moves while a pull request is under
@@ -540,16 +541,57 @@ Caveats:
     each update had to be re-created by hand. In four months it opened
     two: #3, re-created as #13, and #4, for an action the fork had
     stopped using.
-  - **What stops.** Nothing announces a new major version of the four
-    actions `ci.yml` uses (`actions/checkout@v7`,
-    `actions/upload-artifact@v7`, `coverallsapp/github-action@v2`,
-    `github/codeql-action@v4`). Minor and patch releases still arrive
-    through those floating major tags. A new major is a manual bump, as
-    `741c59410` was.
+  - **What stops.** Nothing announces a new major version of the
+    actions `ci.yml` uses: `actions/checkout@v7`,
+    `actions/upload-artifact@v7` and `coverallsapp/github-action@v2`,
+    and `github/codeql-action@v4` until #42 removed it. Minor and patch
+    releases still arrive through those floating major tags. A new
+    major is a manual bump, as `741c59410` was.
   - **What stays.** The hook's Dependabot clause. Security updates can
     be switched on in the repository's settings without any
     configuration file, and the clause keeps their jobs off the runner.
     #32's trust argument (above) rests on it.
+- CodeQL dropped (2026-10-24,
+  [#42](https://github.com/dudleylane/QuantLib/pull/42), `9726112aa`), at
+  the owner's request. The `analyze` job, its `security-events: write`
+  permission and `.github/codeql/codeql-config.yml` are gone. A pull
+  request that changes code now runs 31 jobs, and a merge's push runs 5:
+  the gates, the default build and coverage.
+  - **Why.** It took 58–61 minutes of the one runner in each of the
+    eight runs from 2026-10-20 to 10-23, and 55–117 in the nine before.
+    Its tracer watches the compiler run, so it couldn't use the compile
+    cache. Every code change waited for it twice: on its pull request,
+    and again after its merge, where it took 59–61 of the run's 103–105
+    minutes. All 12 analyses of `master` since 2026-08-08 reported the
+    same six alerts, and no pull-request analysis reported more.
+    - Five were false positives in `test-suite/timegrid.cpp`. Boost.Test's
+      `report_assertion` takes a count before its variadic arguments, and
+      CodeQL read the trailing count of 0 as a terminator.
+    - The sixth, `std::localtime` in `Date::todaysDate()`, is real and
+      minor. [#41](https://github.com/dudleylane/QuantLib/issues/41)
+      records it.
+    - None of the six was triaged in two and a half months.
+  - **What stops.** Static analysis of the C++, on pull requests and on
+    `master`; it was CI's only static security analysis. The sanitizers
+    still run the whole suite on every pull request that changes code,
+    and clang-tidy still runs, report-only.
+  - **Code scanning.** The six alerts are still open. Deleting the
+    `ci.yml:analyze` configuration's nine analyses of `master`, as the
+    stale `codeql-analysis.yml` configuration's three were deleted
+    earlier that day, waits on the owner.
+    [#40](https://github.com/dudleylane/QuantLib/issues/40) removed that
+    stale configuration so that pull requests' `CodeQL` checks would stop
+    being neutral. With CodeQL gone there is no such check, so #40 closed
+    as superseded.
+  - **The runner.** The two CodeQL bundles in its tool cache, 2.27.2 and
+    2.27.3 at 1.4 GB each, were removed with the owner's OK. That emptied
+    `~/actions-runner-quantlib/_work/_tool`.
+  - **Untested until the next pull request that changes code.** #42
+    touched only `.github/`, so its run and its merge's push were both
+    tier 1. The next code pull request should run 31 jobs, and its
+    merge's push should log tier 2 with 5.
+  - For CodeQL only, this reverses the 2026-10-17 decision (#30, above)
+    that kept CodeQL and coverage in the run after a merge.
 
 ## Sibling repositories
 
@@ -646,6 +688,7 @@ inline; the remaining bullets are still-pending work.
 - CI wiring (GitHub Actions matrix across GCC / Clang / C++23 /
   nonstandard-options): **addressed** — see the CI entry under
   *Infrastructure*. The matrix runs twelve configuration cells plus five
-  non-default cells, three sanitizers, both build systems, clang-tidy and
-  CodeQL on every pull request that changes code. Since #30, master runs
-  only the gates, the default build, CodeQL and coverage after a merge.
+  non-default cells, three sanitizers, both build systems and clang-tidy
+  on every pull request that changes code. Since #30, master runs only
+  the gates, the default build and coverage after a merge, and CodeQL
+  until #42 dropped it.
