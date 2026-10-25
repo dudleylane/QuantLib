@@ -587,10 +587,16 @@ Caveats:
   - **The runner.** The two CodeQL bundles in its tool cache, 2.27.2 and
     2.27.3 at 1.4 GB each, were removed with the owner's OK. That emptied
     `~/actions-runner-quantlib/_work/_tool`.
-  - **Untested until the next pull request that changes code.** #42
-    touched only `.github/`, so its run and its merge's push were both
-    tier 1. The next code pull request should run 31 jobs, and its
-    merge's push should log tier 2 with 5.
+  - **Tested by #43** (2026-10-24), the first pull request since #42 to
+    change code. #42 touched only `.github/`, so its own run and its
+    merge's push were both tier 1. #43's run, 40100434340, logged
+    `ci_only=false merged=false light=false` and ran 31 jobs, all
+    green, in 9 h 12 min. Its merge's push, run 40142200854 on
+    `193d57fe7`, logged `ci_only=false merged=true light=true` and ran
+    5: the gates, `linux / Default` and coverage, with the other nine
+    job definitions skipped. Coveralls received its coverage. The run
+    took 44 minutes, against 1 h 43 min for each of #38's and #39's,
+    which ran CodeQL.
   - For CodeQL only, this reverses the 2026-10-17 decision (#30, above)
     that kept CodeQL and coverage in the run after a merge.
 
