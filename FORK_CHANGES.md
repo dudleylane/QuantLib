@@ -576,10 +576,14 @@ Caveats:
     `master`; it was CI's only static security analysis. The sanitizers
     still run the whole suite on every pull request that changes code,
     and clang-tidy still runs, report-only.
-  - **Code scanning.** The six alerts are still open. Deleting the
-    `ci.yml:analyze` configuration's nine analyses of `master`, as the
-    stale `codeql-analysis.yml` configuration's three were deleted
-    earlier that day, waits on the owner.
+  - **Code scanning.** No analysis of `master` will run again to close
+    the six alerts, so they were dismissed on 2026-10-25, at the owner's
+    choice: the five in `test-suite/timegrid.cpp` as false positives,
+    and `std::localtime` as "won't fix", with a comment that #43 fixed
+    it, since GitHub has no dismissal reason for fixed code. A dismissal
+    can be undone. The `ci.yml:analyze` configuration and its nine
+    analyses of `master` stay. The stale `codeql-analysis.yml`
+    configuration's three analyses were deleted on 2026-10-24.
     [#40](https://github.com/dudleylane/QuantLib/issues/40) removed that
     stale configuration so that pull requests' `CodeQL` checks would stop
     being neutral. With CodeQL gone there is no such check, so #40 closed
