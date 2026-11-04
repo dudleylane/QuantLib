@@ -582,6 +582,51 @@ BOOST_AUTO_TEST_CASE(todaysDateFromSeveralThreads)
                                       << before << " to " << after);
 }
 
+BOOST_AUTO_TEST_CASE(inspectorsFromSeveralThreads)
+{
+    BOOST_TEST_MESSAGE("Testing date inspectors from several threads...");
+
+    // Dates built from serial numbers, as date arithmetic builds them. The
+    // threads share these objects and nothing reads them first, so under the
+    // tsan cell this catches an inspector that writes to its Date, as the
+    // fork's (year, month, day) cache did (#45).
+    std::vector<Date> dates;
+    for (Date::serial_type s = Date::minDate().serialNumber(); s <= Date::maxDate().serialNumber(); s += 97)
+        dates.emplace_back(s);
+
+    constexpr Size nThreads = 8;
+    std::vector<std::vector<Integer>> seen(nThreads);
+    std::vector<std::thread> threads;
+    for (Size i = 0; i < nThreads; ++i)
+        threads.emplace_back(
+            [&dates, &out = seen[i]]
+            {
+                out.reserve(3 * dates.size());
+                for (const Date& d : dates)
+                {
+                    out.push_back(d.year());
+                    out.push_back(Integer(d.month()));
+                    out.push_back(d.dayOfMonth());
+                }
+            });
+    for (auto& t : threads)
+        t.join();
+
+    // The expected values come from fresh objects, so that a value the
+    // threads corrupted in a shared Date can't also be the reference.
+    std::vector<Integer> expected;
+    expected.reserve(3 * dates.size());
+    for (const Date& d : dates)
+    {
+        const Date fresh(d.serialNumber());
+        expected.push_back(fresh.year());
+        expected.push_back(Integer(fresh.month()));
+        expected.push_back(fresh.dayOfMonth());
+    }
+    for (Size i = 0; i < nThreads; ++i)
+        BOOST_CHECK_MESSAGE(seen[i] == expected, "thread " << i << " read values that differ from a fresh Date's");
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

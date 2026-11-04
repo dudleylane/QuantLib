@@ -72,7 +72,7 @@ namespace QuantLib
     // Date::Date(Day, Month, Year) moved to date.hpp as inline
     // (issue #2 fix path 2).
 
-    // Date::month() moved to date.hpp as inline (issue #2 fix path 3).
+    // Date::month() moved to date.hpp as inline (issue #2).
     // Date::year() moved to date.hpp as inline (issue #2 fix path 1).
 
     Date& Date::operator+=(Date::serial_type days)
@@ -80,14 +80,12 @@ namespace QuantLib
         Date::serial_type serial = serialNumber_ + days;
         checkSerialNumber(serial);
         serialNumber_ = serial;
-        cachedYear_ = 0; // invalidate (issue #2 fix path 3)
         return *this;
     }
 
     Date& Date::operator+=(const Period& p)
     {
         serialNumber_ = advance(*this, p.length(), p.units()).serialNumber();
-        cachedYear_ = 0;
         return *this;
     }
 
@@ -96,14 +94,12 @@ namespace QuantLib
         Date::serial_type serial = serialNumber_ - days;
         checkSerialNumber(serial);
         serialNumber_ = serial;
-        cachedYear_ = 0;
         return *this;
     }
 
     Date& Date::operator-=(const Period& p)
     {
         serialNumber_ = advance(*this, -p.length(), p.units()).serialNumber();
-        cachedYear_ = 0;
         return *this;
     }
 
@@ -112,7 +108,6 @@ namespace QuantLib
         Date::serial_type serial = serialNumber_ + 1;
         checkSerialNumber(serial);
         serialNumber_ = serial;
-        cachedYear_ = 0;
         return *this;
     }
 
@@ -121,7 +116,6 @@ namespace QuantLib
         Date::serial_type serial = serialNumber_ - 1;
         checkSerialNumber(serial);
         serialNumber_ = serial;
-        cachedYear_ = 0;
         return *this;
     }
 

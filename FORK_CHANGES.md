@@ -293,7 +293,8 @@ accounting (the cache-population work is now visible in the ctor's
 self-time instead of distributed across previously-out-of-line
 helpers); absolute work is similar.
 
-Caveats:
+Caveats, as written in April. The first two ended with
+[#45](https://github.com/dudleylane/QuantLib/issues/45), below:
 - `Date` is now **not thread-safe** (it never was, but the cache
   makes the data race more visible).  Concurrent `year()` / `month()`
   on the same `Date` race on the cache; both threads write the same
@@ -308,6 +309,62 @@ Caveats:
 - The high-resolution date branch (`QL_HIGH_RESOLUTION_DATE=ON`)
   was deliberately left untouched; its `Date` implementation is
   separate.  Verified under the strict preset.
+
+**Fix 3's cache was a data race until
+[#45](https://github.com/dudleylane/QuantLib/issues/45)** (2026-11-04),
+which removed it. The first caveat above called the race harmless on
+x86_64 because both threads write the same values. Under the C++ memory
+model a data race is undefined behaviour whatever the values, and
+nothing ordered the three stores that published the cache.
+
+- `year()`, `month()` and `dayOfMonth()` filled the cache on a `Date`'s
+  first read, and a `Date` made by arithmetic or changed by a mutator
+  starts with it empty. So threads sharing a `Date` that nobody had read
+  yet all wrote to it.
+- `Date` holds only its serial number again: 8 bytes, with nothing
+  mutable. `year()` reads the year-offset table as before. `month()` and
+  `dayOfMonth()` no longer search the month-offset table.
+  - They take the day of the year counted from March 1st, r, and read
+    both fields from n = 2141 r + 197913. The month is n >> 16, from 3
+    to 14 (January and February are 13 and 14), and the day is
+    (n & 0xFFFF) / 2141 + 1.
+  - That is Neri and Schneider, "Euclidean affine functions and
+    applications to calendar algorithms", arXiv:2102.06959.
+  - Over every valid serial, 367 to 109,574, it gives the same month and
+    day as the table search.
+- Dropping the cache with the table search kept was measured first. On
+  a quiet box it cost 10–22 % more cycles on the calendar, day-count,
+  date and inflation suites, and 43 % more per schedule build.
+- The closed form was measured against the cache on a quiet box, pinned
+  to one core, taking the median of 10 rounds.
+  - Fewer cycles: `CalendarTests` 13.2 %, `DayCounterTests` 11.0 %, the
+    seven inflation suites 4.0 %, `DateTests` 1.1 %.
+  - More cycles: `ScheduleTests` 0.6 %, within its 2.7 % spread.
+  - All five groups run fewer instructions.
+  - Per call:
+    - TARGET `advance` by two business days: 71 → 58 ns;
+    - 30/360 `yearFraction`: 39 → 33 ns;
+    - Act/Act ISDA: 53 → 42 ns;
+    - a 10-year semiannual `Schedule`: 3.16 → 3.10 µs, allocating 640
+      bytes instead of 1,144.
+- `sizeof(Date)` is 8 again. That changes the layout of everything that
+  holds a `Date`, so code compiled against the fork's earlier headers
+  must be rebuilt.
+- **A null `Date`** is where this differs from upstream.
+  - `month()` and `dayOfMonth()` now return meaningless values. Upstream's
+    throw, from `isLeap()`'s range check. The cache's `computeYMD()` ran
+    that check inside a `noexcept` function, so it terminated the
+    program, in `year()` too.
+  - `year()` returns 1899, as upstream's does.
+- `std::chrono::year_month_day` does the same conversion, but it would
+  put `<chrono>` into a header that nearly every file includes.
+- **The test** is `DateTests/inspectorsFromSeveralThreads`.
+  - Eight threads read the year, month and day of shared `Date`s that
+    nothing has read first. The results are checked against fresh
+    `Date`s.
+  - Built with the `tsan` cell's compiler setup against the cache, it
+    stopped on ThreadSanitizer's report of `year()`'s check racing with
+    the store that fills the cache. Against the closed form it is clean.
 
 ## New infrastructure from audit (2026-04-24)
 
