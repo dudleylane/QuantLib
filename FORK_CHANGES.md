@@ -311,8 +311,10 @@ Caveats, as written in April. The first two ended with
   separate.  Verified under the strict preset.
 
 **Fix 3's cache was a data race until
-[#45](https://github.com/dudleylane/QuantLib/issues/45)** (2026-11-04),
-which removed it. The first caveat above called the race harmless on
+[#106](https://github.com/dudleylane/QuantLib/pull/106)** (`7eebe7eab`,
+2026-11-05), the fix for
+[#45](https://github.com/dudleylane/QuantLib/issues/45), which removed
+it. The first caveat above called the race harmless on
 x86_64 because both threads write the same values. Under the C++ memory
 model a data race is undefined behaviour whatever the values, and
 nothing ordered the three stores that published the cache.
@@ -365,6 +367,12 @@ nothing ordered the three stores that published the cache.
   - Built with the `tsan` cell's compiler setup against the cache, it
     stopped on ThreadSanitizer's report of `year()`'s check racing with
     the store that fills the cache. Against the closed form it is clean.
+- **Verified in CI.** #106's run, 41806352468, ran all 31 jobs green in
+  14 h 26 min. The `tsan` cell, which halts on a report, ran the whole
+  suite with the new test and reported nothing, as `asan` and `ubsan`
+  did. `date.hpp` reaches most of the library: `linux / Default`
+  missed 882 of its 1,214 compiles. The merge's push, run 41982691183,
+  took the light tier, its five jobs green in 59 minutes.
 
 ## New infrastructure from audit (2026-04-24)
 
