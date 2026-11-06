@@ -46,11 +46,11 @@ namespace QuantLib
         dividendValues_ = Array(dividends_.size(), 0.0);
 
         Date settlementDate = process_->riskFreeRate()->referenceDate();
-        for (Size i = 0; i < dividends.size(); i++)
+        for (Size i = 0; i < dividends_.size(); i++)
         {
-            if (dividends[i]->date() >= settlementDate)
+            if (dividendDates_[i] >= settlementDate)
             {
-                dividendValues_[i] = dividends[i]->amount() * process_->riskFreeRate()->discount(dividends[i]->date());
+                dividendValues_[i] = dividends_[i]->amount() * process_->riskFreeRate()->discount(dividendDates_[i]);
             }
         }
 

@@ -22,6 +22,7 @@
 #include "utilities.hpp"
 #include <ql/cashflows/cashflows.hpp>
 #include <ql/cashflows/couponpricer.hpp>
+#include <ql/cashflows/simplecashflow.hpp>
 #include <ql/indexes/ibor/euribor.hpp>
 #include <ql/instruments/bonds/convertiblebonds.hpp>
 #include <ql/instruments/bonds/fixedratebond.hpp>
@@ -31,6 +32,7 @@
 #include <ql/math/interpolations/backwardflatinterpolation.hpp>
 #include <ql/pricingengines/bond/binomialconvertibleengine.hpp>
 #include <ql/pricingengines/bond/discountingbondengine.hpp>
+#include <ql/pricingengines/bond/discretizedconvertible.hpp>
 #include <ql/pricingengines/vanilla/binomialengine.hpp>
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
@@ -421,6 +423,37 @@ BOOST_AUTO_TEST_CASE(testRegression)
         // exception.  If something else is thrown, then there's
         // another problem and the test must fail.
     }
+}
+
+BOOST_AUTO_TEST_CASE(testDividendsSpanningSettlementDate)
+{
+    BOOST_TEST_MESSAGE("Testing convertible-bond dividend values spanning the settlement date...");
+
+    Settings::instance().evaluationDate() = Date(15, January, 2024);
+    CommonVars vars;
+
+    ConvertibleBond::arguments args;
+    args.exercise = ext::make_shared<EuropeanExercise>(vars.maturityDate);
+    args.conversionRatio = vars.conversionRatio;
+    args.cashflows.push_back(ext::make_shared<SimpleCashFlow>(vars.redemption, vars.maturityDate));
+    args.issueDate = vars.issueDate;
+    args.settlementDate = vars.calendar.advance(vars.today, vars.settlementDays, Days);
+    args.settlementDays = vars.settlementDays;
+    args.redemption = vars.redemption;
+
+    const Date beforeSettlement = vars.calendar.advance(vars.today, 1, Days);
+    const Date afterSettlement = vars.calendar.advance(args.settlementDate, 1, Years);
+    const DividendSchedule dividends = {ext::make_shared<FixedDividend>(1.0, beforeSettlement),
+                                        ext::make_shared<FixedDividend>(10.0, afterSettlement)};
+
+    DiscretizedConvertible convertible(args, vars.process, dividends, vars.creditSpread);
+
+    BOOST_CHECK_EQUAL(convertible.dividendValues().size(), 1U);
+    BOOST_CHECK_CLOSE(convertible.dividendValues()[0], 10.0 * vars.riskFreeRate->discount(afterSettlement), 1.0e-10);
+
+    // Nothing is left to index if the only dividend falls before settlement.
+    DiscretizedConvertible noneLeft(args, vars.process, {dividends.front()}, vars.creditSpread);
+    BOOST_CHECK_EQUAL(noneLeft.dividendValues().size(), 0U);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
