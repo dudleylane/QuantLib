@@ -50,6 +50,8 @@
 #include <ql/time/daycounters/actual360.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/utilities/dataformatters.hpp>
+#include <cmath>
+#include <limits>
 #include <map>
 
 using namespace QuantLib;
@@ -1952,6 +1954,133 @@ BOOST_AUTO_TEST_CASE(testLevyEngine)
                         << "\n    calculated:      " << calculated << "\n    error:           " << error);
         }
     }
+}
+
+BOOST_AUTO_TEST_CASE(testLevyEngineLowVolatility)
+{
+    BOOST_TEST_MESSAGE("Testing Levy engine at low volatility...");
+
+    const Date today(20, October, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual360();
+    const Rate rate = 0.05;
+    const Real runningAverage = 97.0;
+
+    const auto price = [&](Option::Type type, Real strike, Rate yield, Volatility vol, Integer days, Integer elapsed)
+    {
+        const auto process = ext::make_shared<BlackScholesMertonProcess>(
+            Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, yield, dc)),
+            Handle<YieldTermStructure>(flatRate(today, rate, dc)),
+            Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+        ContinuousAveragingAsianOption option(Average::Arithmetic, today - elapsed,
+                                              ext::make_shared<PlainVanillaPayoff>(type, strike),
+                                              ext::make_shared<EuropeanExercise>(today + days));
+        option.setPricingEngine(ext::make_shared<ContinuousArithmeticAsianLevyEngine>(
+            process, Handle<Quote>(ext::make_shared<SimpleQuote>(runningAverage))));
+        return option.NPV();
+    };
+
+    // The Levy formula at 200 digits, with the variance of the average as its second
+    // moment less its mean squared.
+    const struct
+    {
+        Option::Type type;
+        Real strike;
+        Rate yield;
+        Volatility vol;
+        Integer days, elapsed;
+        Real expected;
+    } cases[] = {// at the forward, with no carry
+                 {Option::Call, 100.0, 0.05, 1e-08, 360, 0, 2.1909613397998808e-7},
+                 {Option::Put, 100.0, 0.05, 1e-08, 360, 0, 2.1909613397998808e-7},
+                 {Option::Call, 100.0, 0.05, 1e-06, 360, 0, 2.1909613397999415e-5},
+                 {Option::Put, 100.0, 0.05, 1e-06, 360, 0, 2.1909613397999415e-5},
+                 {Option::Call, 100.0, 0.05, 0.0001, 360, 0, 0.0021909613404084812},
+                 {Option::Put, 100.0, 0.05, 0.0001, 360, 0, 0.0021909613404084812},
+                 // at the forward, already averaging
+                 {Option::Call, 99.0, 0.05, 1e-07, 360, 180, 1.4606408931999208e-6},
+                 {Option::Call, 100.01007545225968, 0.02, 1e-05, 360, 180, 0.00014883322570541661},
+                 {Option::Call, 98.00992544775961, 0.08, 0.001, 360, 180, 0.014335534827390018},
+                 // at the forward, with carry
+                 {Option::Call, 101.51511317838951, 0.02, 1e-06, 360, 0, 2.2324983859167442e-5},
+                 {Option::Put, 101.51511317838951, 0.02, 1e-06, 360, 0, 2.2324983853078358e-5},
+                 {Option::Call, 98.51488817163941, 0.08, 1e-06, 360, 0, 2.1503301638979408e-5},
+                 {Option::Put, 98.51488817163941, 0.08, 1e-06, 360, 0, 2.1503301641488545e-5},
+                 // in and out of the money
+                 {Option::Call, 95.0, 0.05, 1e-06, 360, 0, 4.75614712250357},
+                 {Option::Put, 95.0, 0.05, 1e-06, 360, 0, 0.0},
+                 {Option::Call, 105.0, 0.05, 0.001, 360, 0, 0.0},
+                 {Option::Put, 105.0, 0.05, 0.001, 360, 0, 4.75614712250357},
+                 // a carry of -vol^2 and of -vol^2 / 2, where the published form divides by zero
+                 {Option::Call, 100.0, 0.09000000000000001, 0.2, 360, 0, 3.4477433605728321},
+                 {Option::Put, 100.0, 0.09000000000000001, 0.2, 360, 180, 4.1361596454355052},
+                 {Option::Call, 100.0, 0.07, 0.2, 360, 0, 3.8979193402025997},
+                 {Option::Put, 100.0, 0.07, 0.2, 360, 180, 3.7828221576999984},
+                 {Option::Call, 100.0, 0.060000000000000005, 0.1, 360, 0, 1.9545414219716023},
+                 {Option::Put, 100.0, 0.060000000000000005, 0.1, 360, 180, 2.1863982974492689},
+                 {Option::Call, 100.0, 0.05500000000000001, 0.1, 360, 0, 2.0708107789060057},
+                 {Option::Put, 100.0, 0.05500000000000001, 0.1, 360, 180, 2.0901522160151582},
+                 // either side of the size where the series starts halving, and well beyond it
+                 {Option::Call, 100.0, 0.05, 0.7063993204979744, 360, 0, 15.688771120435772},
+                 {Option::Call, 100.0, 0.05, 0.7078135418272089, 360, 0, 15.721018241785484},
+                 {Option::Call, 100.0, 1.05, 0.7063993204979744, 360, 0, 1.368963703067961},
+                 {Option::Call, 100.0, 1.05, 0.7078135418272089, 360, 0, 1.3792855612771913},
+                 {Option::Call, 100.0, -0.95, 0.7063993204979744, 360, 0, 71.806222984174782},
+                 {Option::Call, 100.0, -0.95, 0.7078135418272089, 360, 0, 71.830200075288743},
+                 {Option::Call, 100.0, 0.05, 1.0, 3600, 0, 47.470921414283465},
+                 {Option::Put, 100.0, 0.05, 1.0, 3600, 0, 47.470921414283465},
+                 // a very long and a very short average
+                 {Option::Call, 65.93670447326677, 0.08, 0.001, 10800, 0, 0.016508652616527219},
+                 {Option::Call, 162.1781234618833, 0.020000000000000004, 0.001, 10800, 0, 0.050736315380048788},
+                 {Option::Call, 99.99583344907167, 0.08, 0.001, 1, 0, 0.0012137108938385315},
+                 {Option::Call, 100.00416678240983, 0.020000000000000004, 0.001, 1, 0, 0.001213837328640876}};
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.type << ", strike " << c.strike << ", yield " << c.yield << ", volatility " << c.vol
+                                  << ", " << c.days << " days, " << c.elapsed << " elapsed")
+        {
+            BOOST_CHECK_SMALL(price(c.type, c.strike, c.yield, c.vol, c.days, c.elapsed) - c.expected, 1.0e-11);
+        }
+    }
+
+    // With no volatility the average is known, and a strike of 30 is covered by the fixings so far
+    // once half of them are in.  So is that strike at any volatility.
+    const auto knownValue = [&](Option::Type type, Real strike, Rate yield, Integer elapsed)
+    {
+        const Real carry = rate - yield;
+        const Real remaining = 100.0 * (carry == 0.0 ? 1.0 : std::expm1(carry) / carry);
+        const Real weight = elapsed / 360.0;
+        const Real average = (runningAverage * weight + remaining) / (1.0 + weight);
+        return std::exp(-rate) * PlainVanillaPayoff(type, strike)(average);
+    };
+    for (Option::Type type : {Option::Call, Option::Put})
+    {
+        for (Integer elapsed : {0, 180})
+        {
+            for (Real strike : {30.0, 90.0, 100.0, 110.0})
+            {
+                for (Rate yield : {0.05, 0.02, 0.08})
+                {
+                    BOOST_TEST_CONTEXT(type << ", strike " << strike << ", yield " << yield << ", " << elapsed
+                                            << " elapsed")
+                    {
+                        BOOST_CHECK_SMALL(price(type, strike, yield, 0.0, 360, elapsed) -
+                                              knownValue(type, strike, yield, elapsed),
+                                          1.0e-12);
+                    }
+                }
+            }
+        }
+        BOOST_TEST_CONTEXT(type << ", covered strike")
+        {
+            BOOST_CHECK_SMALL(price(type, 30.0, 0.05, 0.2, 360, 180) - knownValue(type, 30.0, 0.05, 180), 1.0e-12);
+        }
+    }
+
+    // An infinite variance is refused.  It would never come within reach of the series.
+    BOOST_CHECK_EXCEPTION(price(Option::Call, 100.0, 0.05, std::numeric_limits<Real>::infinity(), 360, 0), Error,
+                          ExpectedErrorMessage("the carry and the variance must be finite"));
 }
 
 BOOST_AUTO_TEST_CASE(testVecerEngine)
