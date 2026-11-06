@@ -3137,6 +3137,31 @@ BOOST_AUTO_TEST_CASE(testLagrangeInterpolationAroundASupportPointAtZero)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testKrugerZeroSlope)
+{
+    BOOST_TEST_MESSAGE("Testing Kruger interpolation next to zero slopes...");
+
+    const Real x[5] = {0.0, 1.0, 2.0, 3.0, 4.0};
+    // A flat segment, a -0 slope next to a +0 one, and opposite slopes whose product underflows.
+    const Real y[][5] = {{1.0, 1.0, 1.0, 2.0, 3.0}, {0.0, -0.0, 0.0, 1.0, 2.0}, {0.0, 1e-200, 0.0, 1.0, 2.0}};
+
+    for (const auto& yi : y)
+    {
+        Interpolation f = KrugerCubic(std::begin(x), std::end(x), std::begin(yi));
+        BOOST_TEST_CONTEXT("y[1] = " << yi[1])
+        {
+            for (Size k = 0; k <= 40; ++k)
+            {
+                const Real xk = k * 0.1;
+                BOOST_CHECK_MESSAGE(std::isfinite(f(xk)), "value " << f(xk) << " at x = " << xk);
+                BOOST_CHECK_MESSAGE(std::isfinite(f.derivative(xk)),
+                                    "derivative " << f.derivative(xk) << " at x = " << xk);
+            }
+            BOOST_CHECK_EQUAL(f.derivative(1.0), 0.0);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -650,8 +650,8 @@ namespace QuantLib
                                 // intermediate points
                                 for (Size i = 1; i < n_ - 1; ++i)
                                 {
-                                    if (S_[i - 1] * S_[i] < 0.0)
-                                        // slope changes sign at point
+                                    if (S_[i - 1] * S_[i] <= 0.0)
+                                        // slope changes sign at point, or is zero on one side
                                         tmp_[i] = 0.0;
                                     else
                                         // slope will be between the slopes of the adjacent
