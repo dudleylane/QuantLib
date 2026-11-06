@@ -43,6 +43,7 @@
 #include <ql/indexes/ibor/tibor.hpp>
 #include <ql/indexes/ibor/tonar.hpp>
 #include <ql/instruments/makeois.hpp>
+#include <ql/instruments/nonstandardswap.hpp>
 #include <ql/pricingengines/swap/discountingswapengine.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/termstructures/yield/oisratehelper.hpp>
@@ -969,6 +970,33 @@ BOOST_AUTO_TEST_CASE(testPaymentAdjustmentOnBothLegs)
 
     BOOST_CHECK_EQUAL(swap.overnightLeg().back()->date(), Date(2, July, 2029));
     BOOST_CHECK_EQUAL(swap.fixedLeg().back()->date(), Date(2, July, 2029));
+}
+
+BOOST_AUTO_TEST_CASE(testNonstandardCopyKeepsNominals)
+{
+    BOOST_TEST_MESSAGE("Testing that a nonstandard swap keeps the nominals of the swap it copies...");
+
+    Date today(25, June, 2026);
+    Settings::instance().evaluationDate() = today;
+    auto index = ext::make_shared<Sofr>(Handle<YieldTermStructure>(flatRate(today, 0.03, Actual365Fixed())));
+
+    Schedule schedule(Date(28, June, 2027), Date(28, June, 2030), 1 * Years, index->fixingCalendar(), ModifiedFollowing,
+                      ModifiedFollowing, DateGeneration::Forward, false);
+
+    // Shorter than the schedule, so that the legs repeat the last one.
+    OvernightIndexedSwap original(Swap::Payer, std::vector<Real>{1000000.0, 800000.0}, schedule, 0.035, Actual360(),
+                                  index);
+    NonstandardSwap copy(original);
+
+    const std::vector<Real> expected = {1000000.0, 800000.0, 800000.0};
+    BOOST_TEST(copy.fixedNominal() == expected, boost::test_tools::per_element());
+    BOOST_TEST(copy.floatingNominal() == expected, boost::test_tools::per_element());
+    for (Size leg : {0U, 1U})
+    {
+        BOOST_REQUIRE_EQUAL(copy.leg(leg).size(), expected.size());
+        for (Size i = 0; i < expected.size(); ++i)
+            BOOST_CHECK_EQUAL(ext::dynamic_pointer_cast<Coupon>(copy.leg(leg)[i])->nominal(), expected[i]);
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
