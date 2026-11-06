@@ -60,7 +60,10 @@ namespace QuantLib
             startDate = cal.advance(startDate, forwardStart_, forwardStart_.length() < 0 ? Preceding : Following);
         }
 
-        Date endDate = terminationDate_ != Date() ? terminationDate_ : cal.advance(startDate, tenor_, bdc);
+        // Unadjusted, since the schedules adjust it themselves.  Generating
+        // backwards from an adjusted date would shift all the other dates and
+        // add a stub at the start whenever the maturity falls on a holiday.
+        Date endDate = terminationDate_ != Date() ? terminationDate_ : startDate + tenor_;
 
         Period resetTenor = iborIndex_->tenor();
         Frequency fixedFreq = fixedFrequency_;
