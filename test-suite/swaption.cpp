@@ -1147,6 +1147,22 @@ BOOST_AUTO_TEST_CASE(testMakeSwaptionWithExerciseCalendar)
     BOOST_CHECK_EQUAL(explicitSwaption.exercise()->dates().front(), explicitDate);
 }
 
+BOOST_AUTO_TEST_CASE(testMakeSwaptionNominalFromFixingDate)
+{
+    BOOST_TEST_MESSAGE("Testing the nominal of a swaption made from a fixing date...");
+
+    const Date today(9, October, 2015);
+    Settings::instance().evaluationDate() = today;
+    Handle<YieldTermStructure> curve(flatRate(today, 0.05, Actual365Fixed()));
+    auto index = ext::make_shared<EuriborSwapIsdaFixA>(10 * Years, curve);
+
+    ext::shared_ptr<Swaption> byDefault = MakeSwaption(index, Date(9, October, 2020), 0.03);
+    BOOST_CHECK_EQUAL(byDefault->underlying()->nominal(), 1.0);
+
+    ext::shared_ptr<Swaption> given = MakeSwaption(index, Date(9, October, 2020), 0.03).withNominal(100.0);
+    BOOST_CHECK_EQUAL(given->underlying()->nominal(), 100.0);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
