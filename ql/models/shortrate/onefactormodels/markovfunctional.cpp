@@ -997,8 +997,7 @@ namespace QuantLib
         {
             if ((modelSettings_.adjustments_ & ModelSettings::ExtrapolatePayoffFlat) != 0)
             {
-                price += gaussianShiftedPolynomialIntegral(0.0, 0.0, 0.0, 0.0, p[z.size() - 2], z[z.size() - 2],
-                                                           z[z.size() - 1], 100.0);
+                price += gaussianShiftedPolynomialIntegral(0.0, 0.0, 0.0, 0.0, p.back(), z.back(), z.back(), 100.0);
                 price += gaussianShiftedPolynomialIntegral(0.0, 0.0, 0.0, 0.0, p[0], z[0], -100.0, z[0]);
             }
             else
@@ -1065,8 +1064,7 @@ namespace QuantLib
         {
             if ((modelSettings_.adjustments_ & ModelSettings::ExtrapolatePayoffFlat) != 0)
             {
-                price += gaussianShiftedPolynomialIntegral(0.0, 0.0, 0.0, 0.0, p[z.size() - 2], z[z.size() - 2],
-                                                           z[z.size() - 1], 100.0);
+                price += gaussianShiftedPolynomialIntegral(0.0, 0.0, 0.0, 0.0, p.back(), z.back(), z.back(), 100.0);
                 price += gaussianShiftedPolynomialIntegral(0.0, 0.0, 0.0, 0.0, p[0], z[0], -100.0, z[0]);
             }
             else

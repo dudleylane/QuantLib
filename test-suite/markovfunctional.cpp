@@ -26,6 +26,7 @@
 #include <ql/instruments/makecapfloor.hpp>
 #include <ql/instruments/makeswaption.hpp>
 #include <ql/instruments/makevanillaswap.hpp>
+#include <ql/math/interpolations/cubicinterpolation.hpp>
 #include <ql/models/shortrate/calibrationhelpers/caphelper.hpp>
 #include <ql/models/shortrate/calibrationhelpers/swaptionhelper.hpp>
 #include <ql/models/shortrate/onefactormodels/markovfunctional.hpp>
@@ -1460,6 +1461,68 @@ BOOST_AUTO_TEST_CASE(testBermudanSwaption)
     Real npv = bermudanSwaption.NPV();
     if (fabs(npv - cachedValue) > tol0)
         BOOST_ERROR("Bermudan swaption value (" << npv << ") deviates from cached value (" << cachedValue << ")");
+}
+
+BOOST_AUTO_TEST_CASE(testFlatPayoffExtrapolationFromLastGridPoint)
+{
+    BOOST_TEST_MESSAGE("Testing flat payoff extrapolation from the last grid point...");
+
+    const Date referenceDate(14, November, 2012);
+    Settings::instance().evaluationDate() = referenceDate;
+
+    auto yts = flatYts();
+    auto iborIndex = ext::make_shared<Euribor>(6 * Months);
+    const Size gridPoints = 16;
+    const Real yStdDevs = 1.0;
+
+    MarkovFunctional::ModelSettings settings;
+    settings.withYGridPoints(gridPoints)
+        .withYStdDevs(yStdDevs)
+        .withAdjustments(MarkovFunctional::ModelSettings::ExtrapolatePayoffFlat)
+        .withSmileMoneynessCheckpoints({0.1, 0.25, 0.50, 0.75, 1.0, 1.25, 1.50, 2.0, 5.0});
+
+    const Date expiry = TARGET().advance(referenceDate, 18 * Months);
+    auto model = ext::make_shared<MarkovFunctional>(yts, 0.01, std::vector<Date>(), std::vector<Real>{1.0},
+                                                    flatOptionletVts(), std::vector<Date>{expiry}, iborIndex, settings);
+    const auto& outputs = model->modelOutputs();
+
+    // The caplet's price, as the model works it out on its grid.
+    const Real strike = outputs.smileStrikes_.front().front();
+    const Time fixingTime = yts->timeFromReference(expiry);
+    const Array z = model->yGrid(yStdDevs, gridPoints);
+    const Array yg = model->yGrid(yStdDevs, gridPoints, fixingTime);
+    Array p(yg.size());
+
+    const Date valueDate = iborIndex->valueDate(expiry);
+    const Date endDate = iborIndex->fixingCalendar().advance(
+        valueDate, iborIndex->tenor(), iborIndex->businessDayConvention(), iborIndex->endOfMonth());
+    const Real accrual = iborIndex->dayCounter().yearFraction(expiry, endDate);
+
+    for (Size i = 0; i < yg.size(); ++i)
+    {
+        const Real annuity = model->zerobond(endDate, expiry, yg[i]) * accrual;
+        const Rate forward = (model->zerobond(expiry, expiry, yg[i]) - model->zerobond(endDate, expiry, yg[i])) /
+                             (accrual * model->zerobond(endDate, expiry, yg[i]));
+        p[i] = annuity * std::max(forward - strike, 0.0) / model->numeraire(fixingTime, yg[i]);
+    }
+
+    CubicInterpolation payoff(z.begin(), z.end(), p.begin(), CubicInterpolation::Spline, true,
+                              CubicInterpolation::Lagrange, 0.0, CubicInterpolation::Lagrange, 0.0);
+
+    Real expected = 0.0;
+    for (Size i = 0; i < z.size() - 1; ++i)
+        expected += Gaussian1dModel::gaussianShiftedPolynomialIntegral(
+            0.0, payoff.cCoefficients()[i], payoff.bCoefficients()[i], payoff.aCoefficients()[i], p[i], z[i], z[i],
+            z[i + 1]);
+
+    // The value past the last point is the last point's, and not the one before it.
+    expected +=
+        Gaussian1dModel::gaussianShiftedPolynomialIntegral(0.0, 0.0, 0.0, 0.0, p.back(), z.back(), z.back(), 100.0);
+    expected +=
+        Gaussian1dModel::gaussianShiftedPolynomialIntegral(0.0, 0.0, 0.0, 0.0, p.front(), z.front(), -100.0, z.front());
+    expected *= model->numeraire(0.0);
+
+    BOOST_CHECK_SMALL(outputs.modelCallPremium_.front().front() - expected, 1.0e-12);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
