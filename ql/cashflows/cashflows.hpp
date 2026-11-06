@@ -202,6 +202,13 @@ namespace QuantLib
         //! \name Yield (a.k.a. Internal Rate of Return, i.e. IRR) functions
         /*! The IRR is the interest rate at which the NPV of the cash
             flows equals the dirty price.
+
+            These functions discount one interval between cash flows
+            at a time.  SimpleThenCompounded and CompoundedThenSimple
+            go by the position of the interval here, rather than by
+            its length as a lone InterestRate does: the first interval
+            is simple under the former and the final one under the
+            latter, and the others are compounded.
         */
         //@{
         //! NPV of the cash flows.

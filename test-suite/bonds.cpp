@@ -46,6 +46,7 @@
 #include <ql/time/calendars/unitedkingdom.hpp>
 #include <ql/time/calendars/unitedstates.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/time/daycounters/actualactual.hpp>
 #include <ql/time/daycounters/business252.hpp>
 #include <ql/time/daycounters/thirty360.hpp>
@@ -1651,6 +1652,226 @@ BOOST_AUTO_TEST_CASE(testFixingConvention)
 
     BOOST_CHECK_EQUAL(couponP->fixingDate(), expectedPreceding);
     BOOST_CHECK_EQUAL(couponF->fixingDate(), expectedFollowing);
+}
+
+BOOST_AUTO_TEST_CASE(testMixedCompoundingInLastPeriods)
+{
+    BOOST_TEST_MESSAGE("Testing mixed compounding rules in the last periods of a bond...");
+
+    // 2.125% semiannual, with 94 of the 182 days of its last period run.
+    Date issue(1, June, 2016), maturity(1, June, 2026), settlement(5, March, 2026);
+    Settings::instance().evaluationDate() = settlement;
+
+    DayCounter dayCounter = ActualActual(ActualActual::ISMA);
+    Schedule schedule(issue, maturity, Period(Semiannual), NullCalendar(), Unadjusted, Unadjusted,
+                      DateGeneration::Backward, false);
+    FixedRateBond bond(0, 100.0, schedule, std::vector<Rate>(1, 0.02125), dayCounter, Unadjusted, 100.0, issue);
+
+    const Real coupon = 100.0 * 0.02125 / 2.0;
+    const Real cleanPrice = 100.185;
+    const Real dirtyPrice = cleanPrice + coupon * 94.0 / 182.0;
+    const Time t = 0.5 * 88.0 / 182.0;
+
+    // One interval is left, which is both the first and the final one, so the
+    // rules agree on discounting it simply.
+    const Rate simpleYield = ((100.0 + coupon) / dirtyPrice - 1.0) / t;
+    for (Compounding rule : {SimpleThenCompounded, CompoundedThenSimple})
+    {
+        Rate calculated =
+            BondFunctions::yield(bond, {cleanPrice, Bond::Price::Clean}, dayCounter, rule, Semiannual, settlement);
+        ASSERT_CLOSE("yield in the last period under " << rule, settlement, calculated, simpleYield, 1.0e-9);
+    }
+
+    // With the redemption three days after the last coupon, two intervals are
+    // left and each rule discounts a different one simply.
+    Leg leg = FixedRateLeg(schedule)
+                  .withNotionals(100.0)
+                  .withCouponRates(0.02125, dayCounter)
+                  .withPaymentAdjustment(Unadjusted);
+    Date redemptionDate = maturity + 3;
+    leg.push_back(ext::make_shared<Redemption>(100.0, redemptionDate));
+    Bond lateRedemption(0, NullCalendar(), 100.0, redemptionDate, issue, leg);
+
+    const Rate y = 0.05;
+    const Time t2 = 3.0 / 365.0;
+    const Real expectedFirstSimple = (coupon + 100.0 * std::pow(1.0 + y / 2.0, -2.0 * t2)) / (1.0 + y * t);
+    const Real expectedFinalSimple = std::pow(1.0 + y / 2.0, -2.0 * t) * (coupon + 100.0 / (1.0 + y * t2));
+    Real firstSimple = BondFunctions::dirtyPrice(
+        lateRedemption, InterestRate(y, dayCounter, SimpleThenCompounded, Semiannual), settlement);
+    Real finalSimple = BondFunctions::dirtyPrice(
+        lateRedemption, InterestRate(y, dayCounter, CompoundedThenSimple, Semiannual), settlement);
+    ASSERT_CLOSE("price under SimpleThenCompounded", settlement, firstSimple, expectedFirstSimple, 1.0e-9);
+    ASSERT_CLOSE("price under CompoundedThenSimple", settlement, finalSimple, expectedFinalSimple, 1.0e-9);
+
+    // Solved from the same closed forms.
+    Rate firstSimpleYield = BondFunctions::yield(lateRedemption, {cleanPrice, Bond::Price::Clean}, dayCounter,
+                                                 SimpleThenCompounded, Semiannual, settlement);
+    Rate finalSimpleYield = BondFunctions::yield(lateRedemption, {cleanPrice, Bond::Price::Clean}, dayCounter,
+                                                 CompoundedThenSimple, Semiannual, settlement);
+    ASSERT_CLOSE("yield under SimpleThenCompounded", settlement, firstSimpleYield, 0.013059382713, 1.0e-9);
+    ASSERT_CLOSE("yield under CompoundedThenSimple", settlement, finalSimpleYield, 0.013079316928, 1.0e-9);
+
+    // After the last coupon only the redemption is left, two days away.
+    Date afterLastCoupon(2, June, 2026);
+    const Rate lastYield = (100.0 / 99.99 - 1.0) / (2.0 / 365.0);
+    for (Compounding rule : {SimpleThenCompounded, CompoundedThenSimple})
+    {
+        Rate calculated = BondFunctions::yield(lateRedemption, {99.99, Bond::Price::Clean}, dayCounter, rule,
+                                               Semiannual, afterLastCoupon);
+        ASSERT_CLOSE("yield after the last coupon under " << rule, afterLastCoupon, calculated, lastYield, 1.0e-9);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testMixedCompoundingWithLongFirstCoupon)
+{
+    BOOST_TEST_MESSAGE("Testing mixed compounding rules on a bond with a long first coupon...");
+
+    // A year to the first coupon and semiannual after that, with a 5% coupon.
+    // At a 5% yield what's left at the first coupon date is worth exactly 105
+    // there, so each rule comes down to one step over the time to that date.
+    Date issue(1, January, 2026);
+    Settings::instance().evaluationDate() = issue;
+
+    const std::vector<Date> dates = {Date(1, January, 2026), Date(1, January, 2027), Date(1, July, 2027),
+                                     Date(1, January, 2028), Date(1, July, 2028),    Date(1, January, 2029)};
+    const Rate y = 0.05;
+
+    auto check =
+        [&](const Schedule& schedule, const DayCounter& dayCounter, const Date& settlement, Time t, Real accrued)
+    {
+        FixedRateBond bond(0, 100.0, schedule, std::vector<Rate>(1, y), dayCounter, Unadjusted, 100.0, issue);
+        Real calculatedAccrued = BondFunctions::accruedAmount(bond, settlement);
+        ASSERT_CLOSE("accrued amount", settlement, calculatedAccrued, accrued, 1.0e-9);
+
+        const std::pair<Compounding, Real> cases[] = {
+            {SimpleThenCompounded, 105.0 / (1.0 + y * t) - accrued},
+            {CompoundedThenSimple, 105.0 * std::pow(1.0 + y / 2.0, -2.0 * t) - accrued},
+        };
+        for (const auto& [rule, expected] : cases)
+        {
+            Real price = BondFunctions::cleanPrice(bond, InterestRate(y, dayCounter, rule, Semiannual), settlement);
+            ASSERT_CLOSE("clean price under " << rule, settlement, price, expected, 1.0e-9);
+
+            // The guess is off the root, so that the solver has to get there.
+            Rate calculated = BondFunctions::yield(bond, {expected, Bond::Price::Clean}, dayCounter, rule, Semiannual,
+                                                   settlement, 1.0e-10, 100, 0.02);
+            ASSERT_CLOSE("yield under " << rule, settlement, calculated, y, 1.0e-9);
+        }
+    };
+
+    // From bare dates, the day counter has no quasi-coupon periods to go by.
+    Schedule bareDates(dates);
+    DayCounter plain = ActualActual(ActualActual::ISMA);
+    check(bareDates, plain, issue, 1.0, 0.0);
+    check(bareDates, plain, Date(1, April, 2026), 275.0 / 365.0, 100.0 * y * 90.0 / 365.0);
+
+    // With them, 90 of the 181 days of the first half-year have run.
+    Schedule tagged(dates, NullCalendar(), Unadjusted, Unadjusted, Period(Semiannual), DateGeneration::Backward, false,
+                    std::vector<bool>{false, true, true, true, true});
+    check(tagged, ActualActual(ActualActual::ISMA, tagged), Date(1, April, 2026), 1.0 - 90.0 / 362.0,
+          100.0 * y * 90.0 / 362.0);
+}
+
+BOOST_AUTO_TEST_CASE(testYieldSensitivitiesAreThoseOfTheNpv)
+{
+    BOOST_TEST_MESSAGE("Testing that yield-based sensitivities are those of the NPV...");
+
+    Date issue(1, January, 2026);
+    Settings::instance().evaluationDate() = issue;
+
+    const Compounding rules[] = {Simple, Compounded, Continuous, SimpleThenCompounded, CompoundedThenSimple};
+    const Rate r = 0.04;
+    const Real h = 1.0e-4;
+
+    auto checkDerivatives = [&](const Leg& leg, const DayCounter& dayCounter, const Date& settlement)
+    {
+        for (Compounding rule : rules)
+        {
+            auto npv = [&](Rate y)
+            { return CashFlows::npv(leg, InterestRate(y, dayCounter, rule, Semiannual), false, settlement); };
+            const Real P = npv(r), up = npv(r + h), down = npv(r - h);
+            const Real expectedDuration = -(up - down) / (2.0 * h * P);
+            const Real expectedConvexity = (up - 2.0 * P + down) / (h * h * P);
+
+            const InterestRate y(r, dayCounter, rule, Semiannual);
+            Real duration = CashFlows::duration(leg, y, Duration::Modified, false, settlement);
+            Real convexity = CashFlows::convexity(leg, y, false, settlement);
+            ASSERT_CLOSE("modified duration under " << rule, settlement, duration, expectedDuration, 1.0e-6);
+            ASSERT_CLOSE("convexity under " << rule, settlement, convexity, expectedConvexity, 1.0e-5);
+        }
+    };
+
+    // A long first coupon, then a late redemption in the last period.
+    const std::vector<Date> dates = {Date(1, January, 2026), Date(1, January, 2027), Date(1, July, 2027),
+                                     Date(1, January, 2028), Date(1, July, 2028),    Date(1, January, 2029)};
+    DayCounter isma = ActualActual(ActualActual::ISMA);
+    Leg longFirst = FixedRateLeg(Schedule(dates))
+                        .withNotionals(100.0)
+                        .withCouponRates(0.05, isma)
+                        .withPaymentAdjustment(Unadjusted);
+    checkDerivatives(longFirst, isma, issue);
+
+    Schedule regular(Date(1, June, 2016), Date(1, June, 2026), Period(Semiannual), NullCalendar(), Unadjusted,
+                     Unadjusted, DateGeneration::Backward, false);
+    Leg lateRedemption =
+        FixedRateLeg(regular).withNotionals(100.0).withCouponRates(0.02125, isma).withPaymentAdjustment(Unadjusted);
+    lateRedemption.push_back(ext::make_shared<Redemption>(100.0, Date(4, June, 2026)));
+    checkDerivatives(lateRedemption, isma, Date(5, March, 2026));
+
+    // A coupon-rate bump moves the npv by what bps says, whatever the flows
+    // around the coupons and whichever date the npv is at.
+    DayCounter thirty = Thirty360(Thirty360::BondBasis);
+    Schedule schedule(Date(15, June, 2026), Date(15, June, 2031), Period(Semiannual), NullCalendar(), Unadjusted,
+                      Unadjusted, DateGeneration::Backward, false);
+    auto bondLeg = [&](Rate coupon, bool exCoupon, bool leadingFlow)
+    {
+        FixedRateLeg maker(schedule);
+        maker.withNotionals(100.0).withCouponRates(coupon, thirty).withPaymentAdjustment(Unadjusted);
+        if (exCoupon)
+            maker.withExCouponPeriod(10 * Days, NullCalendar(), Unadjusted);
+        Leg coupons = maker;
+        Leg result;
+        if (leadingFlow)
+            result.push_back(ext::make_shared<SimpleCashFlow>(5.0, Date(1, September, 2026)));
+        result.insert(result.end(), coupons.begin(), coupons.end());
+        return result;
+    };
+
+    struct BpsCase
+    {
+        bool exCoupon, leadingFlow;
+        Date settlement, npvDate;
+    };
+    const BpsCase bpsCases[] = {
+        {false, false, Date(15, August, 2026), Date()},
+        {true, false, Date(10, December, 2026), Date()},
+        {false, true, Date(15, August, 2026), Date()},
+        {false, false, Date(15, August, 2026), Date(1, July, 2026)},
+    };
+    for (const auto& c : bpsCases)
+    {
+        for (Compounding rule : rules)
+        {
+            const InterestRate y(r, thirty, rule, Semiannual);
+            Real bps = CashFlows::bps(bondLeg(0.03, c.exCoupon, c.leadingFlow), y, false, c.settlement, c.npvDate);
+            Real bumped =
+                CashFlows::npv(bondLeg(0.03 + 1.0e-4, c.exCoupon, c.leadingFlow), y, false, c.settlement, c.npvDate);
+            Real base = CashFlows::npv(bondLeg(0.03, c.exCoupon, c.leadingFlow), y, false, c.settlement, c.npvDate);
+            Real expected = bumped - base;
+            ASSERT_CLOSE("bps under " << rule, c.settlement, bps, expected, 1.0e-10);
+        }
+    }
+
+    // Two flows a year apart, by hand: the simple duration weights the time
+    // of each with the discount the npv gives it.
+    Leg twoFlows = {ext::make_shared<SimpleCashFlow>(10.0, Date(1, January, 2027)),
+                    ext::make_shared<SimpleCashFlow>(110.0, Date(1, January, 2028))};
+    DayCounter act365 = Actual365Fixed();
+    const DiscountFactor d1 = 1.0 / (1.0 + r), d2 = d1 * d1;
+    const Time expectedSimpleDuration = (1.0 * 10.0 * d1 + 2.0 * 110.0 * d2) / (10.0 * d1 + 110.0 * d2);
+    Time simpleDuration =
+        CashFlows::duration(twoFlows, InterestRate(r, act365, Simple, NoFrequency), Duration::Simple, false, issue);
+    ASSERT_CLOSE("simple duration under Simple", issue, simpleDuration, expectedSimpleDuration, 1.0e-12);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
