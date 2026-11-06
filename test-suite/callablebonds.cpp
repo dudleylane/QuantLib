@@ -1050,6 +1050,50 @@ BOOST_AUTO_TEST_CASE(testCallabilityTypeAfterSettledCallability)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testEffectiveDurationAndConvexity)
+{
+    BOOST_TEST_MESSAGE("Testing effective duration and convexity of a callable bond against its dirty price...");
+
+    // Midway through a coupon, so that the accrued amount matters.
+    Settings::instance().evaluationDate() = Date(1, March, 2024);
+
+    Date effectiveDate(20, May, 2021), maturityDate(1, June, 2029), firstCouponDate(1, December, 2021);
+    Calendar calendar = UnitedStates(UnitedStates::GovernmentBond);
+    DayCounter dayCount = Thirty360(Thirty360::ISDA);
+    Schedule schedule(effectiveDate, maturityDate, 6 * Months, calendar, Unadjusted, Unadjusted,
+                      DateGeneration::Backward, true, firstCouponDate);
+
+    CallabilitySchedule calls;
+    calls.push_back(ext::make_shared<Callability>(Bond::Price(102.438, Bond::Price::Clean), Callability::Call,
+                                                  Date(1, June, 2024)));
+    calls.push_back(ext::make_shared<Callability>(Bond::Price(101.219, Bond::Price::Clean), Callability::Call,
+                                                  Date(1, June, 2025)));
+    calls.push_back(
+        ext::make_shared<Callability>(Bond::Price(100.0, Bond::Price::Clean), Callability::Call, Date(1, June, 2026)));
+
+    CallableFixedRateBond bond(2, 100.0, schedule, std::vector<Rate>(1, 0.04875), dayCount, Unadjusted, 100.0,
+                               effectiveDate, calls);
+
+    Handle<YieldTermStructure> curve(ext::make_shared<FlatForward>(2, calendar, 0.05, dayCount));
+    auto model = ext::make_shared<HullWhite>(curve, 0.03, 0.012);
+    bond.setPricingEngine(ext::make_shared<TreeCallableFixedRateBondEngine>(model, 100));
+
+    const Spread oas = 0.01;
+    const Real bump = 0.001;
+    const Real accrued = bond.accruedAmount();
+    BOOST_TEST(accrued > 1.0);
+
+    const Real clean = bond.cleanPriceOAS(oas, curve, dayCount, Compounded, Semiannual);
+    const Real up = bond.cleanPriceOAS(oas + bump, curve, dayCount, Compounded, Semiannual);
+    const Real down = bond.cleanPriceOAS(oas - bump, curve, dayCount, Compounded, Semiannual);
+    const Real dirty = clean + accrued;
+
+    BOOST_CHECK_CLOSE(bond.effectiveDuration(oas, curve, dayCount, Compounded, Semiannual, bump),
+                      (down - up) / (2.0 * dirty * bump), 1.0e-6);
+    BOOST_CHECK_CLOSE(bond.effectiveConvexity(oas, curve, dayCount, Compounded, Semiannual, bump),
+                      (up + down - 2.0 * clean) / (bump * bump * dirty), 1.0e-6);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
