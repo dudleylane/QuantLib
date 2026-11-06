@@ -43,6 +43,9 @@
 #include <ql/time/schedule.hpp>
 #include <cmath>
 #include <iomanip>
+#include <thread>
+#include <utility>
+#include <vector>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -664,6 +667,48 @@ BOOST_AUTO_TEST_CASE(testBusiness252)
                                 << "    expected:   " << expected[i - 1]);
         }
     }
+}
+
+BOOST_AUTO_TEST_CASE(testBusiness252FromSeveralThreads)
+{
+    BOOST_TEST_MESSAGE("Testing business/252 day counter from several threads...");
+
+    // Spans across months and across years, in years no other case reaches, so
+    // that the threads are the ones filling both caches.  Each thread has its
+    // own day counter, as threads pricing their own object graphs would.  Under
+    // the tsan cell this catches caches the threads share (#87).
+    std::vector<std::pair<Date, Date>> spans;
+    for (Year y = 2100; y < 2110; ++y)
+        for (Integer m = 1; m <= 12; ++m)
+        {
+            const Date start(15, Month(m), y);
+            spans.emplace_back(start, start + 5 * Months);
+            spans.emplace_back(start, start + 3 * Years);
+        }
+
+    constexpr Size nThreads = 8;
+    std::vector<std::vector<Date::serial_type>> seen(nThreads);
+    std::vector<std::thread> threads;
+    for (Size i = 0; i < nThreads; ++i)
+        threads.emplace_back(
+            [&spans, &out = seen[i]]
+            {
+                const DayCounter dayCounter = Business252(Brazil());
+                out.reserve(spans.size());
+                for (const auto& [d1, d2] : spans)
+                    out.push_back(dayCounter.dayCount(d1, d2));
+            });
+    for (auto& t : threads)
+        t.join();
+
+    // The calendar walks each span day by day, using neither cache.
+    const Calendar calendar = Brazil();
+    std::vector<Date::serial_type> expected;
+    expected.reserve(spans.size());
+    for (const auto& [d1, d2] : spans)
+        expected.push_back(calendar.businessDaysBetween(d1, d2));
+    for (Size i = 0; i < nThreads; ++i)
+        BOOST_CHECK_MESSAGE(seen[i] == expected, "thread " << i << " got day counts that differ from the calendar's");
 }
 
 BOOST_AUTO_TEST_CASE(testThirty365)
