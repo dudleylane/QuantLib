@@ -44,8 +44,10 @@
 #include <ql/pricingengines/blackformula.hpp>
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvariancecurve.hpp>
+#include <ql/termstructures/volatility/equityfx/blackvariancesurface.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/termstructures/yield/zerocurve.hpp>
+#include <ql/time/calendars/nullcalendar.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
@@ -2765,6 +2767,272 @@ BOOST_AUTO_TEST_CASE(testChoiAsianEngineSpecialCases)
     if (diff > tol)
         REPORT_FAILURE("value", Average::Arithmetic, runningAccumulator, pastFixingsCount, fixingDates, payoff,
                        exercise, process->x0(), 0.075, 0.2, today, 0.5, expected, calculated, tol);
+}
+
+BOOST_AUTO_TEST_CASE(testChoiAsianEngineKnownAverage)
+{
+    BOOST_TEST_MESSAGE("Testing ChoiAsianEngine when the average is known...");
+
+    const Date today(20, October, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Real spot = 100.0;
+    const auto rTS = flatRate(today, 0.03, dc);
+    const auto qTS = flatRate(today, 0.01, dc);
+
+    const std::vector<Date> fixingDates = {today + 30, today + 60};
+    const auto exercise = ext::make_shared<EuropeanExercise>(today + 60);
+    const DiscountFactor discount = rTS->discount(exercise->lastDate());
+
+    Real average = 0.0;
+    for (const Date& d : fixingDates)
+        average += spot * qTS->discount(d) / rTS->discount(d) / 2.0;
+    const Real sensitivity = discount * average / spot;
+
+    // Below a standard deviation of QL_EPSILON, the volatility is as good as none.
+    for (Volatility vol : {0.0, 1e-300, 1e-100, 1e-40, 1e-30, 1e-20, 1e-16})
+    {
+        const auto process = ext::make_shared<BlackScholesMertonProcess>(
+            Handle<Quote>(ext::make_shared<SimpleQuote>(spot)), Handle<YieldTermStructure>(qTS),
+            Handle<YieldTermStructure>(rTS), Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+        for (Option::Type type : {Option::Call, Option::Put})
+        {
+            for (Real strike : {90.0, average, 110.0})
+            {
+                BOOST_TEST_CONTEXT(type << ", strike " << strike << ", volatility " << vol)
+                {
+                    const auto payoff = ext::make_shared<PlainVanillaPayoff>(type, strike);
+                    DiscreteAveragingAsianOption option(Average::Arithmetic, 0.0, 0, fixingDates, payoff, exercise);
+                    option.setPricingEngine(ext::make_shared<ChoiAsianEngine>(process));
+                    DiscreteAveragingAsianOption other(Average::Arithmetic, 0.0, 0, fixingDates, payoff, exercise);
+                    other.setPricingEngine(ext::make_shared<TurnbullWakemanAsianEngine>(process));
+
+                    const Real expected = discount * (*payoff)(average);
+                    Real expectedDelta = 0.5 * int(type) * sensitivity;
+                    if (strike != average)
+                        expectedDelta = expected > 0.0 ? Real(int(type) * sensitivity) : 0.0;
+                    BOOST_CHECK_SMALL(option.NPV() - expected, 1.0e-12);
+                    BOOST_CHECK_SMALL(option.delta() - expectedDelta, 1.0e-12);
+                    BOOST_CHECK_EQUAL(option.gamma(), 0.0);
+                    BOOST_CHECK_SMALL(option.NPV() - other.NPV(), 1.0e-12);
+                    BOOST_CHECK_SMALL(option.delta() - other.delta(), 1.0e-12);
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testChoiAsianEngineLowVolatility)
+{
+    BOOST_TEST_MESSAGE("Testing ChoiAsianEngine at low volatility...");
+
+    const Date today(20, October, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const auto rTS = flatRate(today, 0.03, dc);
+    const auto qTS = flatRate(today, 0.01, dc);
+
+    const std::vector<Date> fixingDates = {today + 30, today + 60, today + 90};
+    const auto exercise = ext::make_shared<EuropeanExercise>(today + 90);
+
+    Real average = 0.0;
+    for (const Date& d : fixingDates)
+        average += 100.0 * qTS->discount(d) / rTS->discount(d) / 3.0;
+
+    // Moment matching is exact to first order in the volatility, so it's the reference here.  The
+    // first two have some fixings or all of them below a standard deviation of QL_EPSILON.
+    for (Volatility vol : {6.5e-16, 1.0e-15, 1.0e-14, 2.0e-13, 1.0e-12, 1.0e-10, 1.0e-8, 1.0e-6, 1.0e-4})
+    {
+        const auto process = ext::make_shared<BlackScholesMertonProcess>(
+            Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(qTS),
+            Handle<YieldTermStructure>(rTS), Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+        for (Option::Type type : {Option::Call, Option::Put})
+        {
+            for (Real strike : {average, 0.99 * average, 1.01 * average})
+            {
+                BOOST_TEST_CONTEXT(type << ", strike " << strike << ", volatility " << vol)
+                {
+                    const auto payoff = ext::make_shared<PlainVanillaPayoff>(type, strike);
+                    DiscreteAveragingAsianOption option(Average::Arithmetic, 0.0, 0, fixingDates, payoff, exercise);
+                    option.setPricingEngine(ext::make_shared<ChoiAsianEngine>(process));
+                    DiscreteAveragingAsianOption other(Average::Arithmetic, 0.0, 0, fixingDates, payoff, exercise);
+                    other.setPricingEngine(ext::make_shared<TurnbullWakemanAsianEngine>(process));
+                    BOOST_CHECK_SMALL(option.NPV() - other.NPV(), 1.0e-12);
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testChoiAsianEngineFixingsKnownToday)
+{
+    BOOST_TEST_MESSAGE("Testing ChoiAsianEngine with its fixings known today...");
+
+    const Date today(20, October, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const auto rTS = flatRate(today, 0.03, dc);
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.01, dc)),
+        Handle<YieldTermStructure>(rTS), Handle<BlackVolTermStructure>(flatVol(today, 0.25, dc)));
+    const auto engine = ext::make_shared<ChoiAsianEngine>(process);
+    const auto exercise = ext::make_shared<EuropeanExercise>(today + 14);
+    const DiscountFactor discount = rTS->discount(exercise->lastDate());
+
+    for (Option::Type type : {Option::Call, Option::Put})
+    {
+        for (Real strike : {95.0, 100.0, 105.0})
+        {
+            BOOST_TEST_CONTEXT(type << ", strike " << strike)
+            {
+                const auto payoff = ext::make_shared<PlainVanillaPayoff>(type, strike);
+                const Real expected = discount * (*payoff)(100.0);
+
+                // With every fixing past, nothing moves with the spot.
+                DiscreteAveragingAsianOption past(Average::Arithmetic, 600.0, 6, std::vector<Date>(), payoff, exercise);
+                past.setPricingEngine(engine);
+                BOOST_CHECK_SMALL(past.NPV() - expected, 1.0e-12);
+                BOOST_CHECK_EQUAL(past.delta(), 0.0);
+                BOOST_CHECK_EQUAL(past.gamma(), 0.0);
+
+                // With the last one today, a sixth of the average does.
+                Real expectedDelta = 0.5 * int(type) * discount / 6.0;
+                if (strike != 100.0)
+                    expectedDelta = expected > 0.0 ? Real(int(type) * discount / 6.0) : 0.0;
+                DiscreteAveragingAsianOption lastToday(Average::Arithmetic, 500.0, 5, {today}, payoff, exercise);
+                lastToday.setPricingEngine(engine);
+                BOOST_CHECK_SMALL(lastToday.NPV() - expected, 1.0e-12);
+                BOOST_CHECK_SMALL(lastToday.delta() - expectedDelta, 1.0e-12);
+                BOOST_CHECK_EQUAL(lastToday.gamma(), 0.0);
+            }
+        }
+    }
+
+    DiscreteAveragingAsianOption noFixings(Average::Arithmetic, 0.0, 0, std::vector<Date>(),
+                                           ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0), exercise);
+    noFixings.setPricingEngine(engine);
+    BOOST_CHECK_EXCEPTION(noFixings.NPV(), Error, ExpectedErrorMessage("no past fixings given"));
+}
+
+BOOST_AUTO_TEST_CASE(testChoiAsianEngineCoveredStrike)
+{
+    BOOST_TEST_MESSAGE("Testing ChoiAsianEngine with its strike covered by known fixings...");
+
+    const Date today(20, October, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const auto rTS = flatRate(today, 0.03, dc);
+    const auto qTS = flatRate(today, 0.01, dc);
+    const Date expiry = today + 60;
+    const DiscountFactor discount = rTS->discount(expiry);
+    const auto exercise = ext::make_shared<EuropeanExercise>(expiry);
+
+    // A surface with a strike range refuses the effective strike, so this also
+    // shows that it isn't read.
+    const auto surface =
+        ext::make_shared<BlackVarianceSurface>(today, NullCalendar(), std::vector<Date>{today + 30, today + 90},
+                                               std::vector<Real>{40.0, 160.0}, Matrix(2, 2, 0.25), dc);
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(qTS),
+        Handle<YieldTermStructure>(rTS), Handle<BlackVolTermStructure>(surface));
+    const auto engine = ext::make_shared<ChoiAsianEngine>(process);
+
+    Real forwards = 0.0;
+    std::vector<Date> fixingDates = {today + 30, today + 60};
+    for (const Date& d : fixingDates)
+        forwards += 100.0 * qTS->discount(d) / rTS->discount(d) / 3.0;
+
+    // One past fixing of 150 makes an effective strike of 0 with the strike at 50, and 200 a negative one.
+    for (Real pastFixing : {150.0, 200.0})
+    {
+        const Real expectedAverage = pastFixing / 3.0 + forwards;
+        for (Option::Type type : {Option::Call, Option::Put})
+        {
+            BOOST_TEST_CONTEXT(type << ", past fixing " << pastFixing)
+            {
+                DiscreteAveragingAsianOption option(Average::Arithmetic, pastFixing, 1, fixingDates,
+                                                    ext::make_shared<PlainVanillaPayoff>(type, 50.0), exercise);
+                option.setPricingEngine(engine);
+                BOOST_CHECK_SMALL(
+                    option.NPV() - (type == Option::Call ? Real(discount * (expectedAverage - 50.0)) : 0.0), 1.0e-12);
+                BOOST_CHECK_SMALL(option.delta() - (type == Option::Call ? Real(discount * forwards / 100.0) : 0.0),
+                                  1.0e-12);
+                BOOST_CHECK_EQUAL(option.gamma(), 0.0);
+            }
+        }
+    }
+
+    // A fixing today counts as known, but it still moves with the spot.
+    DiscreteAveragingAsianOption fixingToday(Average::Arithmetic, 0.0, 0, {today, today + 60},
+                                             ext::make_shared<PlainVanillaPayoff>(Option::Call, 40.0), exercise);
+    fixingToday.setPricingEngine(engine);
+    const Real forward = 100.0 * qTS->discount(expiry) / rTS->discount(expiry);
+    const Real average = (100.0 + forward) / 2.0;
+    BOOST_CHECK_SMALL(fixingToday.NPV() - discount * (average - 40.0), 1.0e-12);
+    BOOST_CHECK_SMALL(fixingToday.delta() - discount * average / 100.0, 1.0e-12);
+}
+
+BOOST_AUTO_TEST_CASE(testChoiAsianEngineFixingsWithNoVariance)
+{
+    BOOST_TEST_MESSAGE("Testing ChoiAsianEngine with some fixings having no variance...");
+
+    const Date today(20, October, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const auto rTS = flatRate(today, 0.03, dc);
+    const auto qTS = flatRate(today, 0.01, dc);
+
+    // No volatility up to the first fixing.
+    const std::vector<Date> dates = {today + 30, today + 60, today + 90};
+    const auto curve = ext::make_shared<BlackVarianceCurve>(today, dates, std::vector<Volatility>{0.0, 0.20, 0.25}, dc);
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(qTS),
+        Handle<YieldTermStructure>(rTS), Handle<BlackVolTermStructure>(curve));
+    const auto engine = ext::make_shared<ChoiAsianEngine>(process);
+
+    std::vector<Real> forwards;
+    for (const Date& d : dates)
+        forwards.push_back(100.0 * qTS->discount(d) / rTS->discount(d));
+
+    for (Option::Type type : {Option::Call, Option::Put})
+    {
+        for (Real strike : {45.0, 90.0, 110.0})
+        {
+            BOOST_TEST_CONTEXT(type << ", strike " << strike)
+            {
+                const auto payoff = ext::make_shared<PlainVanillaPayoff>(type, strike);
+
+                // With one fixing left in the basket, it's Black's formula.
+                const auto oneLeft = ext::make_shared<EuropeanExercise>(dates[1]);
+                const DiscountFactor discount = rTS->discount(dates[1]);
+                DiscreteAveragingAsianOption option(Average::Arithmetic, 0.0, 0, {dates[0], dates[1]}, payoff, oneLeft);
+                option.setPricingEngine(engine);
+                const Real residualStrike = strike - forwards[0] / 2.0;
+                Real expected = 0.0;
+                if (residualStrike > 0.0)
+                {
+                    expected = blackFormula(type, residualStrike, forwards[1] / 2.0,
+                                            std::sqrt(curve->blackVariance(dates[1], strike)), discount);
+                }
+                else if (type == Option::Call)
+                {
+                    expected = discount * ((forwards[0] + forwards[1]) / 2.0 - strike);
+                    BOOST_CHECK_SMALL(option.delta() - discount * (forwards[0] + forwards[1]) / 200.0, 1.0e-12);
+                }
+                BOOST_CHECK_SMALL(option.NPV() - expected, 1.0e-12);
+
+                // With two, it's the same basket as with that fixing past, at its forward.
+                const auto twoLeft = ext::make_shared<EuropeanExercise>(dates[2]);
+                DiscreteAveragingAsianOption basket(Average::Arithmetic, 0.0, 0, dates, payoff, twoLeft);
+                basket.setPricingEngine(engine);
+                DiscreteAveragingAsianOption reference(Average::Arithmetic, forwards[0], 1, {dates[1], dates[2]},
+                                                       payoff, twoLeft);
+                reference.setPricingEngine(engine);
+                BOOST_CHECK_SMALL(basket.NPV() - reference.NPV(), 1.0e-12);
+                BOOST_TEST(basket.NPV() >= 0.0);
+            }
+        }
+    }
 }
 
 BOOST_AUTO_TEST_CASE(testContinuousSeasonedAsianOptions)
