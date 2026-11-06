@@ -27,6 +27,7 @@
 #include <ql/pricingengines/blackcalculator.hpp>
 #include <ql/pricingengines/vanilla/baroneadesiwhaleyengine.hpp>
 #include <ql/pricingengines/vanilla/bjerksundstenslandengine.hpp>
+#include <algorithm>
 #include <cmath>
 #include <utility>
 
@@ -102,6 +103,69 @@ namespace QuantLib
             Real reflected =
                 (std::isfinite(power) && tail > 0.0) ? power * tail : 0.5 * powTimesErfc(I / S, kappa, -d2 / M_SQRT2);
             return std::exp(lambda) * (cumNormalDist(d) - reflected);
+        }
+
+        // the value of exercising the first time the spot reaches the flat trigger I
+        Real flatTriggerValue(Real S, Real X, Real I, Real beta, Real rT, Real bT, Real variance)
+        {
+            if (S >= I)
+                return S - X;
+            return (I - X) * std::pow(S / I, beta) * (1 - phi(S, beta, I, I, rT, bT, variance)) +
+                   S * phi(S, 1.0, I, I, rT, bT, variance) - S * phi(S, 1.0, X, I, rT, bT, variance) -
+                   X * phi(S, 0.0, I, I, rT, bT, variance) + X * phi(S, 0.0, X, I, rT, bT, variance);
+        }
+
+        // The flat trigger between lower and upper with the largest value.  The
+        // value can peak just above lower and fall to a plateau, which a golden
+        // section over the whole range can step past, so this walks up from lower
+        // until the value falls and searches the bracket that gives.  It works in
+        // log(I), to 1e-6: first-order Greeks hold the trigger fixed, and are
+        // wrong in proportion to its error.
+        Real bestFlatTrigger(Real S, Real X, Real lower, Real upper, Real beta, Real rT, Real bT, Real variance)
+        {
+            const auto value = [&](Real logI)
+            { return flatTriggerValue(S, X, std::exp(logI), beta, rT, bT, variance); };
+
+            const Real logUpper = std::log(upper);
+            Real step = 0.01;
+            Real a = std::log(lower);
+            Real m = std::min(a + step, logUpper);
+            Real b = std::min(m + 2.0 * step, logUpper);
+            Real valueAtM = value(m), valueAtB = value(b);
+            while (valueAtB > valueAtM && b < logUpper)
+            {
+                a = m;
+                m = b;
+                valueAtM = valueAtB;
+                step *= 2.0;
+                b = std::min(m + 2.0 * step, logUpper);
+                valueAtB = value(b);
+            }
+
+            const Real ratio = (std::sqrt(5.0) - 1.0) / 2.0;
+            Real c = b - ratio * (b - a);
+            Real d = a + ratio * (b - a);
+            Real valueAtC = value(c), valueAtD = value(d);
+            while (b - a > 1.0e-6)
+            {
+                if (valueAtC >= valueAtD)
+                {
+                    b = d;
+                    d = c;
+                    valueAtD = valueAtC;
+                    c = b - ratio * (b - a);
+                    valueAtC = value(c);
+                }
+                else
+                {
+                    a = c;
+                    c = d;
+                    valueAtC = valueAtD;
+                    d = a + ratio * (b - a);
+                    valueAtD = value(d);
+                }
+            }
+            return std::exp(valueAtC >= valueAtD ? c : d);
         }
 
         Real phi_S(Real S, Real gamma, Real H, Real I, Real rT, Real bT, Real v)
@@ -370,7 +434,8 @@ namespace QuantLib
         const Real betaMinusOne = shift > 0.0 ? radicandTerm / (root + shift) : root - shift;
         const Real beta = 1.0 + betaMinusOne;
 
-        const Real BInfinity = beta / betaMinusOne * X;
+        // betaMinusOne is -0 at dD = 1, so that BInfinity is +inf as it should be
+        const Real BInfinity = beta / std::fabs(betaMinusOne) * X;
         const Real B0 = (bT == rT) ? X : std::max(X, rT / (rT - bT) * X);
         const Real a = (bT + 2.0 * std::sqrt(variance)) * B0;
         const Real ht = -a / (BInfinity - B0);
@@ -378,10 +443,30 @@ namespace QuantLib
         // This is B0 + (BInfinity - B0) * (1 - exp(ht)), in a form that holds
         // as beta tends to 1: with q = 0 and -variance / 2 <= r < 0 beta is 1,
         // BInfinity is infinite, and I is B0 + a.
-        const Real I = B0 + a * expm1Ratio(ht);
+        Real I = B0 + a * expm1Ratio(ht);
 
+        // The published trigger is a heuristic, and every flat trigger gives a
+        // lower bound.  Where the value still rises above it, which is mostly for
+        // negative carry and long expiries, the best one replaces it; BInfinity is
+        // as high as an exercise boundary goes.  The threshold stops rounding error
+        // in a flat value from starting a search that gains nothing.
+        bool bestTrigger = false;
+        const Real lowestTrigger = std::max(I, S);
+        if (lowestTrigger < BInfinity)
+        {
+            const Real rise = flatTriggerValue(S, X, lowestTrigger * (1.0 + 1.0e-6), beta, rT, bT, variance) -
+                              flatTriggerValue(S, X, lowestTrigger, beta, rT, bT, variance);
+            if (rise > 1.0e-14 * std::max(S, X))
+            {
+                I = bestFlatTrigger(S, X, lowestTrigger, BInfinity, beta, rT, bT, variance);
+                bestTrigger = true;
+            }
+        }
+
+        // The spot can reach the trigger early on even when the forward ends far
+        // below it, so the trigger is out of reach only if it's far from both.
         const Real fwd = S * dD / rfD;
-        const Real q = std::log(I / fwd) / std::sqrt(variance);
+        const Real q = std::log(I / std::max(S, fwd)) / std::sqrt(variance);
 
         if (S >= I)
         {
@@ -436,6 +521,9 @@ namespace QuantLib
                                              Real(w / squared(betaMinusOne));
             const auto dI = [&](Real dB0, Real dA, Real dBeta)
             {
+                // the value is stationary in the best trigger
+                if (bestTrigger)
+                    return Real(0.0);
                 return dB0 + std::exp(ht) * (dA * B0 + (bT + 2.0 * std::sqrt(variance)) * dB0) - X * dBeta * wOverBeta -
                        dB0 * w;
             };
@@ -529,6 +617,20 @@ namespace QuantLib
                 - 2 * phi_S_S_1_X_I_rT_bT_v - S * phi_SS(S, 1.0, X, I, rT, bT, variance)
 
                 - X * phi_SS(S, 0.0, I, I, rT, bT, variance) + X * phi_SS(S, 0.0, X, I, rT, bT, variance);
+
+            // The best trigger moves with the spot, by -V_SI / V_II.  Delta doesn't
+            // see that, since the value is stationary in I, and gamma does.
+            if (bestTrigger)
+            {
+                const auto value = [&](Real s, Real i) { return flatTriggerValue(s, X, i, beta, rT, bT, variance); };
+                const Real h = 1.0e-4 * S, k = 1.0e-4 * I;
+                const Real vII = (value(S, I + k) - 2.0 * value(S, I) + value(S, I - k)) / (k * k);
+                const Real vSI =
+                    (value(S + h, I + k) - value(S + h, I - k) - value(S - h, I + k) + value(S - h, I - k)) /
+                    (4.0 * h * k);
+                if (vII < 0.0)
+                    results.gamma -= vSI * vSI / vII;
+            }
 
             const Volatility vol = std::sqrt(variance / tv);
 

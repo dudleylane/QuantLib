@@ -280,8 +280,10 @@ BOOST_AUTO_TEST_CASE(testBjerksundStenslandValues)
                                    // ITM option with a very small volatility
                                    {Option::Call, 100, 110, 0.05, 0.05, 1.0, 0.0001, 10.0},
                                    {Option::Put, 110, 100, 0.05, 0.05, 1.0, 0.0001, 10.0},
-                                   // ATM option with a very large volatility
-                                   {Option::Put, 100, 110, 0.05, 0.05, 1.0, 10, 95.12289}};
+                                   // ATM option with a very large volatility, reference value from
+                                   // QdFpAmericanEngine; CRR with 4001 steps gives 99.20338. The
+                                   // paper's flat trigger gives 95.12289 here.
+                                   {Option::Put, 100, 110, 0.05, 0.05, 1.0, 10, 99.20350}};
 
     Date today = Date::todaysDate();
     DayCounter dc = Actual360();
@@ -1702,6 +1704,199 @@ BOOST_AUTO_TEST_CASE(testBjerksundStenslandAtZeroVolatility)
         check("gamma now", payoff, s, r, q, 0.0, option.gamma());
         check("rho now", payoff, s, r, q, 0.0, option.rho());
         check("dividend rho now", payoff, s, r, q, 0.0, option.dividendRho());
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBjerksundStenslandUnderNegativeCarry)
+{
+
+    BOOST_TEST_MESSAGE("Testing Bjerksund-Stensland approximation under negative carry...");
+
+    // In the engine's terms, where a put is a call with the spot and the strike
+    // swapped and r and q swapped, negative carry is q > r. The paper's flat
+    // trigger falls towards the strike there as the expiry grows or the
+    // volatility falls, and the engine's guard against a trigger out of reach
+    // measured it from the forward alone, which lies far below the spot. Either
+    // way the value collapsed to the European one and fell with maturity (#128):
+    // the third case read 0.806 at three years and 0.002 at ten. The value must
+    // be close to the reference, and must not fall with maturity.
+
+    Date today(15, August, 2026);
+    Settings::instance().evaluationDate() = today;
+    DayCounter dc = Actual365Fixed();
+
+    auto spot = ext::make_shared<SimpleQuote>(100.0);
+    auto qRate = ext::make_shared<SimpleQuote>(0.0);
+    auto rRate = ext::make_shared<SimpleQuote>(0.0);
+    auto vol = ext::make_shared<SimpleQuote>(0.0);
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot), Handle<YieldTermStructure>(flatRate(today, qRate, dc)),
+        Handle<YieldTermStructure>(flatRate(today, rRate, dc)), Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+
+    auto referenceEngine = ext::make_shared<QdFpAmericanEngine>(process, QdFpAmericanEngine::highPrecisionScheme());
+    auto engine = ext::make_shared<BjerksundStenslandApproximationEngine>(process);
+
+    Real tolerance = 2.0e-3;
+
+    struct Case
+    {
+        Option::Type type;
+        Real s, k;
+        Rate r, q;
+        Volatility v;
+        std::vector<Integer> days;
+    };
+    const Case cases[] = {{Option::Call, 100.0, 100.0, 0.02, 0.07, 0.01, {365}},
+                          {Option::Call, 100.0, 100.0, 0.02, 0.07, 0.02, {365, 1095}},
+                          {Option::Call, 100.0, 100.0, 0.02, 0.07, 0.05, {1095, 3650}},
+                          {Option::Put, 100.0, 100.0, 0.40, 0.05, 0.15, {120, 182, 220, 250, 268, 365}},
+                          {Option::Call, 100.0, 100.0, 0.05, 0.40, 0.15, {120, 182, 220, 250, 268, 365}},
+                          {Option::Put, 100.0, 100.0, 0.0768, 0.0075, 0.0231, {91, 120, 140, 155, 160, 182}},
+                          // the forward is far below the trigger, and the spot isn't
+                          {Option::Call, 100.0, 100.0, 0.005, 0.40, 0.10, {365, 1825, 3650}},
+                          {Option::Call, 121.511, 120.0, 0.003, 0.40, 0.10, {1825, 3650}}};
+
+    for (const auto& [type, s, k, r, q, v, days] : cases)
+    {
+        spot->setValue(s);
+        rRate->setValue(r);
+        qRate->setValue(q);
+        vol->setValue(v);
+        auto payoff = ext::make_shared<PlainVanillaPayoff>(type, k);
+
+        Real previous = 0.0;
+        for (Integer d : days)
+        {
+            auto american = ext::make_shared<AmericanExercise>(today, today + d);
+            VanillaOption option(payoff, american);
+            option.setPricingEngine(referenceEngine);
+            Real expected = option.NPV();
+            option.setPricingEngine(engine);
+            Real value = option.NPV();
+            Real error = std::fabs(value - expected);
+            if (!(error <= tolerance))
+            {
+                REPORT_FAILURE("value", payoff, american, s, q, r, today, v, expected, value, error, tolerance);
+            }
+            if (value < previous)
+            {
+                REPORT_FAILURE("value against the shorter maturity", payoff, american, s, q, r, today, v, previous,
+                               value, previous - value, 0.0);
+            }
+            previous = value;
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBjerksundStenslandGreeksAtItsBestTrigger)
+{
+
+    BOOST_TEST_MESSAGE("Testing Bjerksund-Stensland greeks at its best flat trigger...");
+
+    // The value is stationary in the best trigger, so the first-order greeks
+    // hold it fixed, and gamma picks up its moving with the spot (#128). They
+    // must all agree with bumps. Inputs with a bump that exercises at once are
+    // left out, since there is a kink between the bumps. About a fifth of the
+    // inputs left are on the best trigger, and the rest stay on the paper's.
+
+    Date today(15, August, 2026);
+    Settings::instance().evaluationDate() = today;
+    DayCounter dc = Actual365Fixed();
+
+    auto spot = ext::make_shared<SimpleQuote>(100.0);
+    auto qRate = ext::make_shared<SimpleQuote>(0.0);
+    auto rRate = ext::make_shared<SimpleQuote>(0.0);
+    auto vol = ext::make_shared<SimpleQuote>(0.0);
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot), Handle<YieldTermStructure>(flatRate(qRate, dc)),
+        Handle<YieldTermStructure>(flatRate(rRate, dc)), Handle<BlackVolTermStructure>(flatVol(vol, dc)));
+    auto engine = ext::make_shared<BjerksundStenslandApproximationEngine>(process);
+
+    Real greekTolerance = 1.0e-3;
+    Real thetaTolerance = 1.0e-2;
+
+    const auto npvAt = [](VanillaOption& option, const ext::shared_ptr<SimpleQuote>& quote, Real value)
+    {
+        const Real original = quote->value();
+        quote->setValue(value);
+        const Real npv = option.NPV();
+        quote->setValue(original);
+        return npv;
+    };
+    const auto npvOn = [&](VanillaOption& option, const Date& date)
+    {
+        Settings::instance().evaluationDate() = date;
+        const Real npv = option.NPV();
+        Settings::instance().evaluationDate() = today;
+        return npv;
+    };
+
+    // r and q as for a call: a put gets them swapped
+    const Rate rates[][2] = {{0.0031, 0.0237}, {0.0031, 0.1031}, {0.0533, 0.0237}, {0.0533, 0.1031}};
+
+    for (Option::Type type : {Option::Call, Option::Put})
+    {
+        auto payoff = ext::make_shared<PlainVanillaPayoff>(type, 100.0);
+        for (const auto& [r0, q0] : rates)
+        {
+            const Rate r = (type == Option::Call) ? r0 : q0;
+            const Rate q = (type == Option::Call) ? q0 : r0;
+            rRate->setValue(r);
+            qRate->setValue(q);
+            for (Volatility v : {0.053, 0.23, 0.41})
+            {
+                vol->setValue(v);
+                for (Integer days : {91, 1095})
+                {
+                    auto american = ext::make_shared<AmericanExercise>(today - 7, today + days);
+                    VanillaOption option(payoff, american);
+                    option.setPricingEngine(engine);
+                    for (Real s : {83.7, 97.1, 103.3, 121.9})
+                    {
+                        spot->setValue(s);
+                        const Real up = npvAt(option, spot, s * 1.0001);
+                        const Real down = npvAt(option, spot, s * 0.9999);
+                        const Real value = option.NPV();
+                        const Real bound = 1.0e-9;
+                        if (value <= (*payoff)(s) + bound || up <= (*payoff)(s * 1.0001) + bound ||
+                            down <= (*payoff)(s * 0.9999) + bound)
+                            continue;
+
+                        const std::pair<std::string, std::pair<Real, Real>> greeks[] = {
+                            {"delta", {option.delta(), (up - down) / (2.0e-4 * s)}},
+                            {"gamma", {option.gamma(), (up - 2.0 * value + down) / squared(1.0e-4 * s)}},
+                            {"vega",
+                             {option.vega(),
+                              (npvAt(option, vol, v + 1.0e-4) - npvAt(option, vol, v - 1.0e-4)) / 2.0e-4}},
+                            {"rho",
+                             {option.rho(),
+                              (npvAt(option, rRate, r + 1.0e-5) - npvAt(option, rRate, r - 1.0e-5)) / 2.0e-5}},
+                            {"dividend rho",
+                             {option.dividendRho(),
+                              (npvAt(option, qRate, q + 1.0e-5) - npvAt(option, qRate, q - 1.0e-5)) / 2.0e-5}}};
+                        for (const auto& [name, greek] : greeks)
+                        {
+                            const Real error = std::fabs(greek.first - greek.second);
+                            const Real allowed = greekTolerance * std::max(std::fabs(greek.second), 1.0e-2);
+                            if (!(error <= allowed))
+                            {
+                                REPORT_FAILURE(name, payoff, american, s, q, r, today, v, greek.second, greek.first,
+                                               error, allowed);
+                            }
+                        }
+
+                        const Real theta = option.theta();
+                        const Real bumped = (npvOn(option, today + 1) - npvOn(option, today - 1)) * 365.0 / 2.0;
+                        const Real error = std::fabs(theta - bumped);
+                        const Real allowed = thetaTolerance * std::max(std::fabs(bumped), 1.0e-2);
+                        if (!(error <= allowed))
+                        {
+                            REPORT_FAILURE("theta", payoff, american, s, q, r, today, v, bumped, theta, error, allowed);
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
