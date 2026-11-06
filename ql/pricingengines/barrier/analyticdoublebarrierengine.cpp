@@ -180,6 +180,10 @@ namespace QuantLib
 
     Real AnalyticDoubleBarrierEngine::callKO() const
     {
+        if (strike() >= barrierHi())
+            return 0.0;
+        // The integral runs over the terminal spots inside the barriers that pay.
+        const Real bound = std::max(strike(), barrierLo());
         // N.B. for flat barriers mu3=mu1 and mu2=0
         Real mu1 = 2 * costOfCarry() / volatilitySquared() + 1;
         Real bsigma = (costOfCarry() + volatilitySquared() / 2.0) * residualTime() / stdDeviation();
@@ -190,10 +194,10 @@ namespace QuantLib
         {
             Real L2n = std::pow(barrierLo(), 2 * n);
             Real U2n = std::pow(barrierHi(), 2 * n);
-            Real d1 = std::log(underlying() * U2n / (strike() * L2n)) / stdDeviation() + bsigma;
+            Real d1 = std::log(underlying() * U2n / (bound * L2n)) / stdDeviation() + bsigma;
             Real d2 = std::log(underlying() * U2n / (barrierHi() * L2n)) / stdDeviation() + bsigma;
             Real d3 =
-                std::log(std::pow(barrierLo(), 2 * n + 2) / (strike() * underlying() * U2n)) / stdDeviation() + bsigma;
+                std::log(std::pow(barrierLo(), 2 * n + 2) / (bound * underlying() * U2n)) / stdDeviation() + bsigma;
             Real d4 = std::log(std::pow(barrierLo(), 2 * n + 2) / (barrierHi() * underlying() * U2n)) / stdDeviation() +
                       bsigma;
 
@@ -220,6 +224,10 @@ namespace QuantLib
 
     Real AnalyticDoubleBarrierEngine::putKO() const
     {
+        if (strike() <= barrierLo())
+            return 0.0;
+        // The integral runs over the terminal spots inside the barriers that pay.
+        const Real bound = std::min(strike(), barrierHi());
         Real mu1 = 2 * costOfCarry() / volatilitySquared() + 1;
         Real bsigma = (costOfCarry() + volatilitySquared() / 2.0) * residualTime() / stdDeviation();
 
@@ -230,11 +238,11 @@ namespace QuantLib
             Real L2n = std::pow(barrierLo(), 2 * n);
             Real U2n = std::pow(barrierHi(), 2 * n);
             Real y1 = std::log(underlying() * U2n / (std::pow(barrierLo(), 2 * n + 1))) / stdDeviation() + bsigma;
-            Real y2 = std::log(underlying() * U2n / (strike() * L2n)) / stdDeviation() + bsigma;
+            Real y2 = std::log(underlying() * U2n / (bound * L2n)) / stdDeviation() + bsigma;
             Real y3 = std::log(std::pow(barrierLo(), 2 * n + 2) / (barrierLo() * underlying() * U2n)) / stdDeviation() +
                       bsigma;
             Real y4 =
-                std::log(std::pow(barrierLo(), 2 * n + 2) / (strike() * underlying() * U2n)) / stdDeviation() + bsigma;
+                std::log(std::pow(barrierLo(), 2 * n + 2) / (bound * underlying() * U2n)) / stdDeviation() + bsigma;
 
             acc1 += std::pow(std::pow(barrierHi(), n) / std::pow(barrierLo(), n), mu1 - 2) *
                         (f_(y1 - stdDeviation()) - f_(y2 - stdDeviation())) -

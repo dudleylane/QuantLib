@@ -30,6 +30,7 @@
 #include <ql/math/functional.hpp>
 #include <ql/math/interpolations/bicubicsplineinterpolation.hpp>
 #include <ql/models/equity/hestonmodel.hpp>
+#include <ql/pricingengines/barrier/analyticdoublebarrierbinaryengine.hpp>
 #include <ql/pricingengines/barrier/analyticdoublebarrierengine.hpp>
 #include <ql/pricingengines/barrier/fdhestondoublebarrierengine.hpp>
 #include <ql/pricingengines/blackformula.hpp>
@@ -700,6 +701,92 @@ BOOST_AUTO_TEST_CASE(testBinomialGreeksWithCoincidentNodes)
     BOOST_CHECK_CLOSE(option.NPV(), 80.0, 1.0e-10);
     BOOST_CHECK_EXCEPTION(option.delta(), Error, ExpectedErrorMessage("delta not provided"));
     BOOST_CHECK_EXCEPTION(option.gamma(), Error, ExpectedErrorMessage("gamma not provided"));
+}
+
+BOOST_AUTO_TEST_CASE(testStrikesOutsideCorridor)
+{
+    BOOST_TEST_MESSAGE("Testing double-barrier options with strikes outside the corridor...");
+
+    const Date today(1, January, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.04, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.08, dc)), Handle<BlackVolTermStructure>(flatVol(today, 0.25, dc)));
+    const auto engine = ext::make_shared<AnalyticDoubleBarrierEngine>(process);
+    const Real lower = 80.0, upper = 120.0;
+
+    const struct
+    {
+        Option::Type type;
+        Real strike;
+        Integer days;
+    } cases[] = {{Option::Call, 70.0, 365},  {Option::Call, 72.0, 182},  {Option::Put, 132.0, 182},
+                 {Option::Put, 130.0, 365},  {Option::Call, 132.0, 365}, {Option::Put, 70.0, 365},
+                 {Option::Call, 120.0, 365}, {Option::Put, 80.0, 365}};
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.type << " at " << c.strike << ", " << c.days << " days")
+        {
+            const ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(today + c.days);
+            const auto payoff = ext::make_shared<PlainVanillaPayoff>(c.type, c.strike);
+
+            Real expected = 0.0;
+            if ((c.type == Option::Call && c.strike < lower) || (c.type == Option::Put && c.strike > upper))
+            {
+                // On survival, the terminal spot is inside the corridor, so a call struck below
+                // it pays what one struck at the lower barrier does, plus a fixed amount.
+                const Real boundary = c.type == Option::Call ? lower : upper;
+                DoubleBarrierOption atBoundary(DoubleBarrier::KnockOut, lower, upper, 0.0,
+                                               ext::make_shared<PlainVanillaPayoff>(c.type, boundary), exercise);
+                atBoundary.setPricingEngine(engine);
+                DoubleBarrierOption noTouch(DoubleBarrier::KnockOut, lower, upper, 0.0,
+                                            ext::make_shared<CashOrNothingPayoff>(Option::Call, 0.0, 1.0), exercise);
+                noTouch.setPricingEngine(ext::make_shared<AnalyticDoubleBarrierBinaryEngine>(process));
+                expected = atBoundary.NPV() + std::fabs(c.strike - boundary) * noTouch.NPV();
+            }
+
+            DoubleBarrierOption knockOut(DoubleBarrier::KnockOut, lower, upper, 0.0, payoff, exercise);
+            knockOut.setPricingEngine(engine);
+            BOOST_CHECK_SMALL(knockOut.NPV() - expected, 1.0e-10);
+
+            VanillaOption vanilla(payoff, exercise);
+            vanilla.setPricingEngine(ext::make_shared<AnalyticEuropeanEngine>(process));
+            DoubleBarrierOption knockIn(DoubleBarrier::KnockIn, lower, upper, 0.0, payoff, exercise);
+            knockIn.setPricingEngine(engine);
+            BOOST_CHECK_SMALL(knockIn.NPV() - (vanilla.NPV() - expected), 1.0e-10);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testLowVolatility)
+{
+    BOOST_TEST_MESSAGE("Testing double-barrier options with low volatility...");
+
+    const Date today(1, January, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(today + 365);
+    for (auto type : {Option::Call, Option::Put})
+    {
+        BOOST_TEST_CONTEXT(type)
+        {
+            const Rate rate = type == Option::Call ? 0.05 : -0.05;
+            const auto process =
+                ext::make_shared<BlackScholesMertonProcess>(Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)),
+                                                            Handle<YieldTermStructure>(flatRate(today, 0.0, dc)),
+                                                            Handle<YieldTermStructure>(flatRate(today, rate, dc)),
+                                                            Handle<BlackVolTermStructure>(flatVol(today, 0.01, dc)));
+            const auto payoff = ext::make_shared<PlainVanillaPayoff>(type, 100.0);
+            DoubleBarrierOption option(DoubleBarrier::KnockOut, 80.0, 120.0, 0.0, payoff, exercise);
+            option.setPricingEngine(ext::make_shared<AnalyticDoubleBarrierEngine>(process, 1));
+            VanillaOption vanilla(payoff, exercise);
+            vanilla.setPricingEngine(ext::make_shared<AnalyticEuropeanEngine>(process));
+            // The chance of touching a barrier is negligible at this volatility, so the vanilla is a reference.
+            BOOST_CHECK_SMALL(option.NPV() - vanilla.NPV(), 1.0e-10);
+        }
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
