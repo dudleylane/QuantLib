@@ -111,6 +111,7 @@ namespace QuantLib
         void initialize(const ext::shared_ptr<StrikedTypePayoff>& p);
 
         //! Member variables
+        Option::Type type_;
         Real strike_, forward_, stdDev_, discount_, variance_;
         Real d_;                                 // Single d parameter for Bachelier model
         Real alpha_, beta_, DalphaDd_, DbetaDd_; // Simplified derivative names
@@ -130,12 +131,12 @@ namespace QuantLib
         // Call ITM probability: P(F > K) = N(d) where d = (F-K)/σ
         // Put ITM probability:  P(F < K) = N(-d) = 1 - N(d) where d = (F-K)/σ
 
-        if (alpha_ >= 0)
-        {                  // Call option (alpha_ = N(d) >= 0)
+        if (type_ == Option::Call)
+        {
             return cum_d_; // N(d)
         }
         else
-        {                        // Put option (alpha_ = N(d) - 1 < 0)
+        {
             return 1.0 - cum_d_; // N(-d) = 1 - N(d)
         }
     }
@@ -147,12 +148,12 @@ namespace QuantLib
         // Call ITM probability: P(F > K) = N(d) where d = (F-K)/σ
         // Put ITM probability:  P(F < K) = N(-d) = 1 - N(d) where d = (F-K)/σ
 
-        if (alpha_ >= 0)
-        {                  // Call option
+        if (type_ == Option::Call)
+        {
             return cum_d_; // N(d)
         }
         else
-        {                        // Put option
+        {
             return 1.0 - cum_d_; // N(-d) = 1 - N(d)
         }
     }

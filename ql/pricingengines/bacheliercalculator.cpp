@@ -64,6 +64,9 @@ namespace QuantLib
         QL_REQUIRE(stdDev_ >= 0.0, "stdDev (" << stdDev_ << ") must be non-negative");
         QL_REQUIRE(discount_ > 0.0, "discount (" << discount_ << ") must be positive");
 
+        // alpha_ can't tell them apart: an out-of-the-money put's is 0 at zero volatility.
+        type_ = p->optionType();
+
         // For Bachelier model, we use d = (F - K) / σ instead of the Black-Scholes d1, d2
         if (stdDev_ >= QL_EPSILON)
         {
@@ -200,9 +203,9 @@ namespace QuantLib
         }
 
         Real result;
-        if (alpha_ >= 0) // Call option (alpha_ = N(d) >= 0)
+        if (type_ == Option::Call)
             result = intrinsic * cum_d_ + timeValue;
-        else // Put option (alpha_ = N(d) - 1 < 0)
+        else
             result = -intrinsic * (1.0 - cum_d_) + timeValue;
 
         return discount_ * std::max(result, 0.0);
@@ -228,12 +231,12 @@ namespace QuantLib
         // Delta_Forward = dV/dF = N(d) for calls, -N(-d) for puts
         // where d = (F-K)/σ
 
-        if (alpha_ >= 0)
-        {                              // Call option
+        if (type_ == Option::Call)
+        {
             return discount_ * cum_d_; // N(d)
         }
         else
-        {                                      // Put option
+        {
             return discount_ * (cum_d_ - 1.0); // N(d) - 1 = -N(-d)
         }
     }
@@ -354,7 +357,7 @@ namespace QuantLib
         // Dividend rho = -T * discount * delta_forward * forward
         // where delta_forward = N(d) for calls, N(d)-1 for puts
 
-        Real deltaFwd = (alpha_ >= 0) ? cum_d_ : (cum_d_ - 1.0);
+        Real deltaFwd = (type_ == Option::Call) ? cum_d_ : (cum_d_ - 1.0);
 
         return -maturity * discount_ * deltaFwd * forward_;
     }
@@ -365,12 +368,12 @@ namespace QuantLib
         // dV/dK = -N(d) for calls, N(-d) for puts
         // where d = (F-K)/σ, so dd/dK = -1/σ
 
-        if (alpha_ >= 0)
-        {                               // Call option
+        if (type_ == Option::Call)
+        {
             return -discount_ * cum_d_; // -N(d)
         }
         else
-        {                                      // Put option
+        {
             return discount_ * (1.0 - cum_d_); // N(-d) = 1 - N(d)
         }
     }
