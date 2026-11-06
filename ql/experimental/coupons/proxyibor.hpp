@@ -48,6 +48,10 @@ namespace QuantLib
       private:
         // overload
         Rate forecastFixing(const Date& fixingDate) const override;
+        // What a coupon on this index calls.  This index has no curve of its
+        // own and the proxied index forecasts over its own period, so the
+        // coupon's end date doesn't enter.
+        Rate forecastFixing(const Date& valueDate, const Date& endDate, Time t) const override;
 
         Handle<Quote> gearing_;
         ext::shared_ptr<IborIndex> iborIndex_;
@@ -58,6 +62,11 @@ namespace QuantLib
     {
         Rate proxy = iborIndex_->fixing(fixingDate);
         return gearing_->value() * proxy * spread_->value();
+    }
+
+    inline Rate ProxyIbor::forecastFixing(const Date& valueDate, const Date&, Time) const
+    {
+        return forecastFixing(fixingDate(valueDate));
     }
 
 }

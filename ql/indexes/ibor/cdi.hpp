@@ -25,7 +25,12 @@ namespace QuantLib
 {
 
     //! BRL-CDI Index: relevant for https://en.wikipedia.org/wiki/Brazilian_Swap
-
+    /*! Its fixings are annualised by compounding, as CDI accrues, so
+        OvernightIndexedCoupon is the coupon for it.  An IborCoupon accrues
+        simply, so a par one on this index has to forecast the simple rate to
+        replicate the curve.  That is why the three-argument forecastFixing()
+        isn't overridden here, unlike forecastFixing(const Date&) (#125).
+    */
     class Cdi : public OvernightIndex
     {
       public:

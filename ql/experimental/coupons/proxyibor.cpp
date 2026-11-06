@@ -37,6 +37,8 @@ namespace QuantLib
     : IborIndex(familyName, tenor, settlementDays, currency, fixingCalendar, convention, endOfMonth, dayCounter),
       gearing_(std::move(gearing)), iborIndex_(std::move(iborIndex)), spread_(std::move(spread))
     {
+        registerWith(gearing_);
         registerWith(iborIndex_);
+        registerWith(spread_);
     }
 }
