@@ -1272,6 +1272,35 @@ BOOST_AUTO_TEST_CASE(testBackwardRegularFirstPeriodWithFirstDate)
                         "Period ending at off-grid nextToLastDate should be irregular");
 }
 
+BOOST_AUTO_TEST_CASE(testThirdWednesdayInclusiveWithStubDates)
+{
+    BOOST_TEST_MESSAGE("Testing ThirdWednesdayInclusive schedules with first and next-to-last dates...");
+
+    Date effectiveDate(15, January, 2025), terminationDate(17, December, 2025);
+    Date thirdWednesday(19, March, 2025);
+
+    Schedule withFirstDate(effectiveDate, terminationDate, 3 * Months, TARGET(), Following, Following,
+                           DateGeneration::ThirdWednesdayInclusive, false, thirdWednesday);
+    Schedule withNextToLastDate(effectiveDate, terminationDate, 3 * Months, TARGET(), Following, Following,
+                                DateGeneration::ThirdWednesdayInclusive, false, Date(), thirdWednesday);
+
+    for (const auto& schedule : {withFirstDate, withNextToLastDate})
+    {
+        BOOST_TEST(schedule.dates().front() == effectiveDate);
+        BOOST_TEST(schedule.dates().back() == terminationDate);
+        for (const auto& d : schedule.dates())
+            BOOST_CHECK_MESSAGE(d == Date::nthWeekday(3, Wednesday, d.month(), d.year()),
+                                d << " is not a third Wednesday");
+    }
+
+    BOOST_CHECK_EXCEPTION(Schedule(effectiveDate, terminationDate, 3 * Months, TARGET(), Following, Following,
+                                   DateGeneration::ThirdWednesdayInclusive, false, Date(20, March, 2025)),
+                          Error, ExpectedErrorMessage("is not an IMM date"));
+    BOOST_CHECK_EXCEPTION(Schedule(effectiveDate, terminationDate, 3 * Months, TARGET(), Following, Following,
+                                   DateGeneration::ThirdWednesdayInclusive, false, Date(), Date(20, March, 2025)),
+                          Error, ExpectedErrorMessage("is not an IMM date"));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

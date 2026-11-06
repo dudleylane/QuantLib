@@ -137,6 +137,7 @@ namespace QuantLib
                     // verified after adjustment
                     break;
                 case DateGeneration::ThirdWednesday:
+                case DateGeneration::ThirdWednesdayInclusive:
                     QL_REQUIRE(IMM::isIMMdate(firstDate_, false),
                                "first date (" << firstDate_ << ") is not an IMM date");
                     break;
@@ -164,6 +165,7 @@ namespace QuantLib
                     // verified after adjustment
                     break;
                 case DateGeneration::ThirdWednesday:
+                case DateGeneration::ThirdWednesdayInclusive:
                     QL_REQUIRE(IMM::isIMMdate(nextToLastDate_, false),
                                "next-to-last date (" << nextToLastDate_ << ") is not an IMM date");
                     break;
