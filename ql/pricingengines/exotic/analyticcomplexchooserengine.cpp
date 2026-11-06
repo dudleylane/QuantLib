@@ -20,6 +20,7 @@
 #include <ql/exercise.hpp>
 #include <ql/math/distributions/bivariatenormaldistribution.hpp>
 #include <ql/pricingengines/exotic/analyticcomplexchooserengine.hpp>
+#include <algorithm>
 #include <utility>
 
 using std::pow;
@@ -39,75 +40,60 @@ namespace QuantLib
     void AnalyticComplexChooserEngine::calculate() const
     {
         Real S = process_->x0();
-        Real b;
-        Real v;
         Real Xc = arguments_.strikeCall;
         Real Xp = arguments_.strikePut;
         Time T = choosingTime();
         Time Tc = callMaturity();
         Time Tp = putMaturity();
 
+        Real varianceT = variance(T);
+        Real varianceTc = variance(Tc);
+        Real varianceTp = variance(Tp);
+
+        const auto forward = [&](Time t) { return S * dividendDiscount(t) / riskFreeDiscount(t); };
+
+        // With no variance to speak of before the choosing date, the spot there is known, and so is the choice.
+        if (varianceT < QL_EPSILON * QL_EPSILON)
+        {
+            results_.value = riskFreeDiscount(T) * std::max(bsCalculator(forward(T), Option::Call).value(),
+                                                            bsCalculator(forward(T), Option::Put).value());
+            return;
+        }
+
         Real i = criticalValue();
 
-        b = riskFreeRate(T) - dividendYield(T);
-        v = volatility(T);
-        Real d1 = (log(S / i) + (b + pow(v, 2) / 2) * T) / (v * sqrt(T));
-        Real d2 = d1 - v * sqrt(T);
+        Real sT = sqrt(varianceT);
+        Real d1 = log(forward(T) / i) / sT + sT / 2;
+        Real d2 = d1 - sT;
 
-        b = riskFreeRate(Tc) - dividendYield(Tc);
-        v = volatility(Tc);
-        Real y1 = (log(S / Xc) + (b + pow(v, 2) / 2) * Tc) / (v * sqrt(Tc));
+        Real sc = sqrt(varianceTc);
+        Real y1 = log(forward(Tc) / Xc) / sc + sc / 2;
 
-        b = riskFreeRate(Tp) - dividendYield(Tp);
-        v = volatility(Tp);
-        Real y2 = (log(S / Xp) + (b + pow(v, 2) / 2) * Tp) / (v * sqrt(Tp));
+        Real sp = sqrt(varianceTp);
+        Real y2 = log(forward(Tp) / Xp) / sp + sp / 2;
 
-        Real rho1 = sqrt(T / Tc);
-        Real rho2 = sqrt(T / Tp);
-        b = riskFreeRate(Tc) - dividendYield(Tc);
-        Real r = riskFreeRate(Tc);
+        // In variance rather than in time, since the one needn't grow in proportion to the other.
+        Real rho1 = sqrt(varianceT / varianceTc);
+        Real rho2 = sqrt(varianceT / varianceTp);
+
         Real ComplexChooser =
-            S * exp((b - r) * Tc) * BivariateCumulativeNormalDistributionWe04DP(rho1)(d1, y1) -
-            Xc * exp(-r * Tc) * BivariateCumulativeNormalDistributionWe04DP(rho1)(d2, y1 - v * sqrt(Tc));
-        b = riskFreeRate(Tp) - dividendYield(Tp);
-        r = riskFreeRate(Tp);
-        ComplexChooser -= S * exp((b - r) * Tp) * BivariateCumulativeNormalDistributionWe04DP(rho2)(-d1, -y2);
-        ComplexChooser +=
-            Xp * exp(-r * Tp) * BivariateCumulativeNormalDistributionWe04DP(rho2)(-d2, -y2 + v * sqrt(Tp));
+            S * dividendDiscount(Tc) * BivariateCumulativeNormalDistributionWe04DP(rho1)(d1, y1) -
+            Xc * riskFreeDiscount(Tc) * BivariateCumulativeNormalDistributionWe04DP(rho1)(d2, y1 - sc);
+        ComplexChooser -= S * dividendDiscount(Tp) * BivariateCumulativeNormalDistributionWe04DP(rho2)(-d1, -y2);
+        ComplexChooser += Xp * riskFreeDiscount(Tp) * BivariateCumulativeNormalDistributionWe04DP(rho2)(-d2, -y2 + sp);
 
         results_.value = ComplexChooser;
     }
 
     BlackScholesCalculator AnalyticComplexChooserEngine::bsCalculator(Real spot, Option::Type optionType) const
     {
-        Real vol;
-        DiscountFactor growth;
-        DiscountFactor discount;
         Time T = choosingTime();
+        Time t = optionType == Option::Call ? callMaturity() : putMaturity();
 
-        // payoff
-        ext::shared_ptr<PlainVanillaPayoff> vanillaPayoff;
-        if (optionType == Option::Call)
-        {
-            // TC-T
-            Time t = callMaturity() - T;
-            vanillaPayoff = ext::make_shared<PlainVanillaPayoff>(Option::Call, strike(Option::Call));
-            // QuantLib requires sigma * sqrt(t) rather than just sigma/volatility
-            vol = volatility(t) * std::sqrt(t);
-            growth = dividendDiscount(t);
-            discount = riskFreeDiscount(t);
-        }
-        else
-        {
-            Time t = putMaturity() - T;
-            vanillaPayoff = ext::make_shared<PlainVanillaPayoff>(Option::Put, strike(Option::Put));
-            vol = volatility(t) * std::sqrt(t);
-            growth = dividendDiscount(t);
-            discount = riskFreeDiscount(t);
-        }
-
-        BlackScholesCalculator bs(vanillaPayoff, spot, growth, vol, discount);
-        return bs;
+        // What's left after the choosing date, forward from there.
+        return {ext::make_shared<PlainVanillaPayoff>(optionType, strike(optionType)), spot,
+                dividendDiscount(t) / dividendDiscount(T), std::sqrt(variance(t) - variance(T)),
+                riskFreeDiscount(t) / riskFreeDiscount(T)};
     }
 
     Real AnalyticComplexChooserEngine::criticalValue() const
@@ -170,24 +156,14 @@ namespace QuantLib
         return process_->time(arguments_.exerciseCall->lastDate());
     }
 
-    Volatility AnalyticComplexChooserEngine::volatility(Time t) const
+    Real AnalyticComplexChooserEngine::variance(Time t) const
     {
-        return process_->blackVolatility()->blackVol(t, arguments_.strikeCall);
-    }
-
-    Rate AnalyticComplexChooserEngine::dividendYield(Time t) const
-    {
-        return process_->dividendYield()->zeroRate(t, Continuous, NoFrequency);
+        return process_->blackVolatility()->blackVariance(t, arguments_.strikeCall);
     }
 
     DiscountFactor AnalyticComplexChooserEngine::dividendDiscount(Time t) const
     {
         return process_->dividendYield()->discount(t);
-    }
-
-    Rate AnalyticComplexChooserEngine::riskFreeRate(Time t) const
-    {
-        return process_->riskFreeRate()->zeroRate(t, Continuous, NoFrequency);
     }
 
     DiscountFactor AnalyticComplexChooserEngine::riskFreeDiscount(Time t) const

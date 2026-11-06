@@ -21,13 +21,18 @@
 #include "utilities.hpp"
 #include <ql/instruments/complexchooseroption.hpp>
 #include <ql/instruments/simplechooseroption.hpp>
+#include <ql/pricingengines/blackformula.hpp>
 #include <ql/pricingengines/exotic/analyticcomplexchooserengine.hpp>
 #include <ql/pricingengines/exotic/analyticsimplechooserengine.hpp>
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
+#include <ql/termstructures/volatility/equityfx/blackvariancecurve.hpp>
+#include <ql/termstructures/yield/zerocurve.hpp>
 #include <ql/time/daycounters/actual360.hpp>
 #include <ql/utilities/dataformatters.hpp>
 #include <algorithm>
 #include <cmath>
+#include <map>
+#include <vector>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -301,12 +306,128 @@ BOOST_AUTO_TEST_CASE(testComplexChooserAtLowVolatility)
     Real limit = std::exp(-r * t) * std::max({call, put, 0.0});
     BOOST_REQUIRE(limit > 1.0);
 
-    for (Volatility v : {1e-3, 1e-4, 1e-6, 1e-8, 1e-10, 1e-12, 1e-14})
+    for (Volatility v : {1e-3, 1e-4, 1e-6, 1e-8, 1e-10, 1e-12, 1e-14, 1e-16, 1e-158})
     {
         BOOST_TEST_CONTEXT("vol " << v)
         {
             BOOST_CHECK_SMALL(complexChooserValue(spot, callStrike, putStrike, r, q, v, 90, 180, 210) - limit,
                               100.0 * v + 1e-12);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testComplexChooserOnCurvesThatAreNotFlat)
+{
+    BOOST_TEST_MESSAGE("Testing complex chooser on curves that aren't flat...");
+
+    DayCounter dc = Actual360();
+    Date today(20, October, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    // The definition again, integrated to 30 digits.  Each term structure is given by
+    // its values at the choosing date and at the call's and the put's exercise dates.
+    struct Case
+    {
+        Real spot, callStrike, putStrike;
+        Integer choosingDays, callDays, putDays;
+        Rate r[3], q[3];
+        Volatility v[3];
+        Real expected;
+    };
+    Case cases[] = {
+        {100.0, 90.0, 110.0, 90, 180, 210, {0.01, 0.03, 0.06}, {0.02, 0.02, 0.02}, {0.3, 0.3, 0.3}, 21.748752329969933},
+        {100.0, 90.0, 110.0, 90, 180, 210, {0.05, 0.05, 0.05}, {0.0, 0.02, 0.05}, {0.3, 0.3, 0.3}, 23.070184470805145},
+        {120.0, 110.0, 90.0, 90, 365, 180, {0.05, 0.05, 0.05}, {0.02, 0.02, 0.02}, {0.2, 0.3, 0.4}, 20.866000123710984},
+        {120.0, 110.0, 90.0, 90, 365, 180, {0.01, 0.03, 0.06}, {0.0, 0.02, 0.05}, {0.2, 0.3, 0.4}, 19.634950628294550},
+        {100.0, 100.0, 100.0, 30, 120, 365, {0.01, 0.03, 0.06}, {0.0, 0.02, 0.05}, {0.2, 0.3, 0.4}, 14.890963450200926},
+        {80.0, 110.0, 90.0, 30, 120, 365, {0.05, 0.05, 0.05}, {0.02, 0.02, 0.02}, {0.2, 0.3, 0.4}, 16.963759012985078},
+        {120.0,
+         100.0,
+         100.0,
+         90,
+         365,
+         180,
+         {0.01, 0.03, 0.06},
+         {0.02, 0.02, 0.02},
+         {0.3, 0.3, 0.3},
+         26.067866584340237},
+        {80.0, 90.0, 110.0, 90, 180, 210, {0.01, 0.03, 0.06}, {0.0, 0.02, 0.05}, {0.2, 0.3, 0.4}, 30.735611585957665},
+    };
+
+    for (const Case& c : cases)
+    {
+        const Integer days[] = {c.choosingDays, c.callDays, c.putDays};
+        std::map<Integer, Size> nodes;
+        for (Size i = 0; i < 3; ++i)
+            nodes[days[i]] = i;
+
+        std::vector<Date> dates = {today};
+        std::vector<Date> volDates;
+        std::vector<Rate> r = {c.r[nodes.begin()->second]};
+        std::vector<Rate> q = {c.q[nodes.begin()->second]};
+        std::vector<Volatility> v;
+        for (const auto& [day, i] : nodes)
+        {
+            dates.push_back(today + day);
+            volDates.push_back(today + day);
+            r.push_back(c.r[i]);
+            q.push_back(c.q[i]);
+            v.push_back(c.v[i]);
+        }
+
+        auto process = ext::make_shared<BlackScholesMertonProcess>(
+            Handle<Quote>(ext::make_shared<SimpleQuote>(c.spot)),
+            Handle<YieldTermStructure>(ext::make_shared<ZeroCurve>(dates, q, dc)),
+            Handle<YieldTermStructure>(ext::make_shared<ZeroCurve>(dates, r, dc)),
+            Handle<BlackVolTermStructure>(ext::make_shared<BlackVarianceCurve>(today, volDates, v, dc)));
+        ComplexChooserOption option(today + c.choosingDays, c.callStrike, c.putStrike,
+                                    ext::make_shared<EuropeanExercise>(today + c.callDays),
+                                    ext::make_shared<EuropeanExercise>(today + c.putDays));
+        option.setPricingEngine(ext::make_shared<AnalyticComplexChooserEngine>(process));
+
+        BOOST_TEST_CONTEXT("spot " << c.spot << ", strikes " << c.callStrike << " and " << c.putStrike << ", days "
+                                   << c.choosingDays << ", " << c.callDays << ", " << c.putDays << ", r " << c.r[0]
+                                   << ", q " << c.q[0] << ", vol " << c.v[0])
+        {
+            BOOST_CHECK_SMALL(option.NPV() - c.expected, 1e-11);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testComplexChooserWithNoVarianceBeforeChoosing)
+{
+    BOOST_TEST_MESSAGE("Testing complex chooser with no variance before the choosing date...");
+
+    Settings::instance().evaluationDate() = Date(20, October, 2026);
+
+    Real callStrike = 100.0, putStrike = 90.0;
+    Rate r = 0.06, q = 0.03;
+    Integer callDays = 180, putDays = 210;
+    Time tc = callDays / 360.0, tp = putDays / 360.0;
+
+    // A put chosen, neither worth anything, and a call chosen twice.
+    for (Real spot : {60.0, 93.0, 100.0, 140.0})
+    {
+        BOOST_TEST_CONTEXT("spot " << spot)
+        {
+            // With no volatility, the spot at the choosing date is its forward.
+            Time t = 90.0 / 360.0;
+            Real forward = spot * std::exp((r - q) * t);
+            Real call = forward * std::exp(-q * (tc - t)) - callStrike * std::exp(-r * (tc - t));
+            Real put = putStrike * std::exp(-r * (tp - t)) - forward * std::exp(-q * (tp - t));
+            Real expected = std::exp(-r * t) * std::max({call, put, 0.0});
+            BOOST_CHECK_SMALL(
+                complexChooserValue(spot, callStrike, putStrike, r, q, 0.0, 90, callDays, putDays) - expected, 1e-12);
+
+            // Choosing today, it's the better of the two as they stand.
+            Volatility v = 0.25;
+            call = blackFormula(Option::Call, callStrike, spot * std::exp((r - q) * tc), v * std::sqrt(tc),
+                                std::exp(-r * tc));
+            put = blackFormula(Option::Put, putStrike, spot * std::exp((r - q) * tp), v * std::sqrt(tp),
+                               std::exp(-r * tp));
+            BOOST_CHECK_SMALL(complexChooserValue(spot, callStrike, putStrike, r, q, v, 0, callDays, putDays) -
+                                  std::max(call, put),
+                              1e-12);
         }
     }
 }
