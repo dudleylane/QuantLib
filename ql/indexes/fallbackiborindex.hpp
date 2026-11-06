@@ -36,6 +36,9 @@ namespace QuantLib
         legacy index's tenor, plus a fixed spread adjustment per the ISDA
         2020 IBOR Fallbacks Protocol.
 
+        A coupon on this index forecasts the same way over its own
+        estimation period, which for a par coupon need not be the tenor.
+
         The compounding is computed from the RFR's discount curve:
 
             compoundedRate = (df(startDate) / df(endDate) - 1) / tau
@@ -85,6 +88,8 @@ namespace QuantLib
         Date cessationDate_;
         Spread spreadAdjustment_;
 
+        // What a coupon on this index calls, with its cached dates.
+        Rate forecastFixing(const Date& valueDate, const Date& endDate, Time t) const override;
         Rate compoundedRfrRate(const Date& startDate, const Date& endDate) const;
     };
 

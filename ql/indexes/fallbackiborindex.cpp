@@ -86,6 +86,16 @@ namespace QuantLib
         return compoundedRfrRate(valueDt, maturityDt) + spreadAdjustment_;
     }
 
+    Rate FallbackIborIndex::forecastFixing(const Date& valueDate, const Date& endDate, Time t) const
+    {
+        // Keep the coupon's dates in both regimes: a par coupon's end date
+        // isn't the index's maturity.  Before cessation the base class reads
+        // termStructure_, which the constructor took from the legacy index.
+        if (fixingDate(valueDate) < cessationDate_)
+            return IborIndex::forecastFixing(valueDate, endDate, t);
+        return compoundedRfrRate(valueDate, endDate) + spreadAdjustment_;
+    }
+
     Rate FallbackIborIndex::compoundedRfrRate(const Date& startDate, const Date& endDate) const
     {
         QL_REQUIRE(endDate > startDate, "FallbackIborIndex::compoundedRfrRate: end date ("

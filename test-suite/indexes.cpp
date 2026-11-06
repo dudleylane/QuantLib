@@ -19,6 +19,8 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
+#include <ql/cashflows/couponpricer.hpp>
+#include <ql/cashflows/iborcoupon.hpp>
 #include <ql/indexes/bmaindex.hpp>
 #include <ql/indexes/fallbackiborindex.hpp>
 #include <ql/indexes/ibor/cdi.hpp>
@@ -26,6 +28,8 @@
 #include <ql/indexes/ibor/euribor.hpp>
 #include <ql/indexes/ibor/sofr.hpp>
 #include <ql/indexes/ibor/usdlibor.hpp>
+#include <ql/instruments/swap.hpp>
+#include <ql/pricingengines/swap/discountingswapengine.hpp>
 #include <ql/quotes/lastfixingquote.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
@@ -33,6 +37,7 @@
 #include <ql/time/calendars/brazil.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/schedule.hpp>
 #include <ql/utilities/dataformatters.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
 
@@ -317,6 +322,65 @@ BOOST_AUTO_TEST_CASE(testFallbackIborIndex)
     usdLibor->addFixing(histFixing, publishedRate, /*forceOverwrite*/ true);
     BOOST_CHECK_CLOSE(usdLibor->fixing(histFixing), publishedRate, 1e-12);
     IndexManager::instance().clearHistories();
+}
+
+BOOST_AUTO_TEST_CASE(testFallbackIborIndexInCoupons)
+{
+    BOOST_TEST_MESSAGE("Testing that coupons on a FallbackIborIndex reach the fallback...");
+
+    // IborCoupon doesn't call forecastFixing(const Date&), so coupons on this
+    // index used to read the legacy curve with no spread, after cessation too,
+    // and so did the legs, swaps and bonds built from them (#84).
+    const Date today(15, June, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual360();
+    const Handle<YieldTermStructure> legacyCurve(ext::make_shared<FlatForward>(today, 0.05, dc));
+    const Handle<YieldTermStructure> rfrCurve(ext::make_shared<FlatForward>(today, 0.03, dc));
+    const Spread spread = 0.0026161;
+    // The second coupon fixes on this date, on which the fallback applies.
+    const Date cessation(11, June, 2027);
+    auto fallback = ext::make_shared<FallbackIborIndex>(ext::make_shared<USDLibor>(3 * Months, legacyCurve),
+                                                        ext::make_shared<Sofr>(rfrCurve), cessation, spread);
+
+    // Semiannual on a 3-month index, so a par coupon's estimation period isn't
+    // the index's tenor, while an indexed coupon's is.
+    const Schedule schedule = MakeSchedule()
+                                  .from(Date(15, December, 2026))
+                                  .to(Date(15, December, 2028))
+                                  .withFrequency(Semiannual)
+                                  .withCalendar(fallback->fixingCalendar())
+                                  .withConvention(fallback->businessDayConvention());
+
+    for (bool indexed : {false, true})
+    {
+        const Leg leg = IborLeg(schedule, fallback).withNotionals(100.0).withIndexedCoupons(indexed);
+        BOOST_REQUIRE(ext::dynamic_pointer_cast<IborCoupon>(leg.at(0))->fixingDate() < cessation);
+        BOOST_REQUIRE(ext::dynamic_pointer_cast<IborCoupon>(leg.at(1))->fixingDate() == cessation);
+
+        Real expectedNpv = 0.0;
+        for (const auto& cashFlow : leg)
+        {
+            const auto coupon = ext::dynamic_pointer_cast<IborCoupon>(cashFlow);
+            BOOST_REQUIRE(coupon);
+            BOOST_REQUIRE(indexed == (coupon->fixingEndDate() == fallback->maturityDate(coupon->fixingValueDate())));
+
+            const bool ceased = coupon->fixingDate() >= cessation;
+            const Handle<YieldTermStructure>& curve = ceased ? rfrCurve : legacyCurve;
+            const Rate expected =
+                (curve->discount(coupon->fixingValueDate()) / curve->discount(coupon->fixingEndDate()) - 1.0) /
+                    coupon->spanningTime() +
+                (ceased ? spread : 0.0);
+            BOOST_CHECK_SMALL(coupon->indexFixing() - expected, 1.0e-12);
+            BOOST_CHECK_SMALL(coupon->rate() - expected, 1.0e-12);
+            if (indexed)
+                BOOST_CHECK_SMALL(coupon->indexFixing() - fallback->fixing(coupon->fixingDate()), 1.0e-12);
+            expectedNpv += 100.0 * expected * coupon->accrualPeriod() * rfrCurve->discount(coupon->date());
+        }
+
+        Swap swap(Leg(), leg);
+        swap.setPricingEngine(ext::make_shared<DiscountingSwapEngine>(rfrCurve));
+        BOOST_CHECK_SMALL(swap.legNPV(1) - expectedNpv, 1.0e-8);
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
