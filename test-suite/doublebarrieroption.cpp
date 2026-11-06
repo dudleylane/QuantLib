@@ -789,6 +789,158 @@ BOOST_AUTO_TEST_CASE(testLowVolatility)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testLowVolatilityDefaultSeries)
+{
+    BOOST_TEST_MESSAGE("Testing double-barrier options with low volatility and the default series...");
+
+    const Date today(1, January, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(today + 365);
+
+    // The expected knock-outs were computed at high precision, from the series and from
+    // the eigenfunction expansion of a Brownian motion between absorbing barriers.
+    const struct
+    {
+        Option::Type type;
+        Real strike, lower, upper;
+        Rate rate, yield;
+        Volatility vol;
+        Real expected;
+    } cases[] = {{Option::Call, 100.0, 80.0, 120.0, 0.05, 0.0, 0.015, 4.877221511864799},
+                 {Option::Call, 100.0, 80.0, 120.0, 0.05, 0.0, 0.01, 4.877057602069671},
+                 {Option::Call, 100.0, 80.0, 120.0, 0.05, 0.0, 0.001, 4.877057549928599},
+                 {Option::Put, 100.0, 80.0, 120.0, -0.05, 0.0, 0.015, 5.127282006046837},
+                 {Option::Put, 100.0, 80.0, 120.0, -0.05, 0.0, 0.005, 5.127109637602404},
+                 // strikes outside the corridor
+                 {Option::Put, 125.0, 80.0, 120.0, -0.05, 0.0, 0.01, 31.40888704700301},
+                 {Option::Call, 75.0, 80.0, 120.0, 0.05, 0.0, 0.01, 28.65779316244645},
+                 // the forward, 105.13 or 95.12, within a few standard deviations of a barrier
+                 {Option::Call, 100.0, 90.0, 106.0, 0.05, 0.0, 0.02, 2.159501345126396},
+                 {Option::Call, 105.68, 90.0, 106.18, 0.05, 0.0, 0.02, 0.007076524762800735},
+                 {Option::Call, 105.5, 90.0, 106.0, 0.05, 0.0, 0.02, 0.007165793285474151},
+                 {Option::Call, 85.0, 90.0, 105.39, 0.05, 0.0, 0.005, 12.74427820748627},
+                 {Option::Call, 85.0, 90.0, 105.2, 0.05, 0.0, 0.001, 14.38350500240597},
+                 {Option::Put, 115.0, 95.0, 110.0, -0.05, 0.0, 0.01, 10.276478844482},
+                 {Option::Put, 100.0, 95.05, 110.0, -0.05, 0.0, 0.001, 3.945584826693297},
+                 {Option::Put, 100.0, 94.5, 110.0, -0.05, 0.0, 0.02, 2.078889037029212},
+                 // the forward just outside the corridor
+                 {Option::Call, 100.0, 95.0, 105.0, 0.05, 0.0, 0.01, 1.632298530490283},
+                 // a carry that comes from the dividend yield
+                 {Option::Call, 90.0, 80.0, 120.0, 0.03, 0.08, 0.01, 4.971536621664699},
+                 {Option::Put, 100.0, 80.0, 120.0, 0.03, 0.08, 0.01, 4.73291876678731}};
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.type << " at " << c.strike << ", corridor " << c.lower << "-" << c.upper << ", rate "
+                                  << c.rate << ", yield " << c.yield << ", volatility " << c.vol)
+        {
+            const auto process =
+                ext::make_shared<BlackScholesMertonProcess>(Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)),
+                                                            Handle<YieldTermStructure>(flatRate(today, c.yield, dc)),
+                                                            Handle<YieldTermStructure>(flatRate(today, c.rate, dc)),
+                                                            Handle<BlackVolTermStructure>(flatVol(today, c.vol, dc)));
+            const auto engine = ext::make_shared<AnalyticDoubleBarrierEngine>(process);
+            const auto payoff = ext::make_shared<PlainVanillaPayoff>(c.type, c.strike);
+
+            DoubleBarrierOption knockOut(DoubleBarrier::KnockOut, c.lower, c.upper, 0.0, payoff, exercise);
+            knockOut.setPricingEngine(engine);
+            BOOST_CHECK_SMALL(knockOut.NPV() - c.expected, 1.0e-10);
+
+            VanillaOption vanilla(payoff, exercise);
+            vanilla.setPricingEngine(ext::make_shared<AnalyticEuropeanEngine>(process));
+            DoubleBarrierOption knockIn(DoubleBarrier::KnockIn, c.lower, c.upper, 0.0, payoff, exercise);
+            knockIn.setPricingEngine(engine);
+            BOOST_CHECK_SMALL(knockIn.NPV() - (vanilla.NPV() - c.expected), 1.0e-10);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testZeroVolatility)
+{
+    BOOST_TEST_MESSAGE("Testing double-barrier options with zero volatility...");
+
+    const Date today(1, January, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Real spot = 100.0;
+    const ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(today + 365);
+
+    const struct
+    {
+        Option::Type type;
+        Real strike, lower, upper;
+        Rate rate, yield;
+    } cases[] = {{Option::Call, 100.0, 80.0, 120.0, 0.05, 0.0}, {Option::Call, 100.0, 80.0, 105.0, 0.05, 0.0},
+                 {Option::Put, 100.0, 80.0, 120.0, -0.05, 0.0}, {Option::Put, 100.0, 96.0, 120.0, -0.05, 0.0},
+                 {Option::Put, 110.0, 80.0, 120.0, 0.05, 0.0},  {Option::Call, 130.0, 80.0, 120.0, 0.05, 0.0},
+                 {Option::Call, 90.0, 80.0, 120.0, 0.03, 0.03}, {Option::Put, 105.0, 80.0, 120.0, 0.03, 0.03},
+                 {Option::Put, 125.0, 80.0, 120.0, 0.03, 0.08}, {Option::Put, 125.0, 96.0, 120.0, 0.03, 0.08},
+                 {Option::Call, 75.0, 80.0, 120.0, 0.08, 0.03}};
+
+    // The last volatility goes through the series, and shows that the limit is reached.
+    for (Volatility vol : {0.0, 1.0e-9, 1.0e-7})
+    {
+        for (const auto& c : cases)
+        {
+            BOOST_TEST_CONTEXT(c.type << " at " << c.strike << ", corridor " << c.lower << "-" << c.upper << ", rate "
+                                      << c.rate << ", yield " << c.yield << ", volatility " << vol)
+            {
+                const auto process = ext::make_shared<BlackScholesMertonProcess>(
+                    Handle<Quote>(ext::make_shared<SimpleQuote>(spot)),
+                    Handle<YieldTermStructure>(flatRate(today, c.yield, dc)),
+                    Handle<YieldTermStructure>(flatRate(today, c.rate, dc)),
+                    Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+                const auto engine = ext::make_shared<AnalyticDoubleBarrierEngine>(process);
+                const auto payoff = ext::make_shared<PlainVanillaPayoff>(c.type, c.strike);
+
+                const Real forward = spot * std::exp(c.rate - c.yield);
+                const Real atExpiry = std::exp(-c.rate) * (*payoff)(forward);
+                const bool hit = forward <= c.lower || forward >= c.upper;
+
+                DoubleBarrierOption knockOut(DoubleBarrier::KnockOut, c.lower, c.upper, 0.0, payoff, exercise);
+                knockOut.setPricingEngine(engine);
+                BOOST_CHECK_SMALL(knockOut.NPV() - (hit ? 0.0 : atExpiry), 1.0e-10);
+
+                DoubleBarrierOption knockIn(DoubleBarrier::KnockIn, c.lower, c.upper, 0.0, payoff, exercise);
+                knockIn.setPricingEngine(engine);
+                BOOST_CHECK_SMALL(knockIn.NPV() - (hit ? atExpiry : 0.0), 1.0e-10);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testManySeriesTerms)
+{
+    BOOST_TEST_MESSAGE("Testing double-barrier options with many terms of the series...");
+
+    const Date today(1, January, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.0, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.05, dc)), Handle<BlackVolTermStructure>(flatVol(today, 0.2, dc)));
+    const ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(today + 365);
+
+    for (auto type : {Option::Call, Option::Put})
+    {
+        BOOST_TEST_CONTEXT(type)
+        {
+            DoubleBarrierOption option(DoubleBarrier::KnockOut, 80.0, 120.0, 0.0,
+                                       ext::make_shared<PlainVanillaPayoff>(type, 100.0), exercise);
+            option.setPricingEngine(ext::make_shared<AnalyticDoubleBarrierEngine>(process));
+            const Real converged = option.NPV();
+            BOOST_CHECK_GT(converged, 1.0);
+            // The series has long converged, and powers of the barriers overflow on the way.
+            for (int series : {20, 100, 1000})
+            {
+                option.setPricingEngine(ext::make_shared<AnalyticDoubleBarrierEngine>(process, series));
+                BOOST_CHECK_SMALL(option.NPV() - converged, 1.0e-12);
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
