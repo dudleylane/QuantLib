@@ -1276,7 +1276,7 @@ BOOST_AUTO_TEST_CASE(testPerturbative)
     option.setPricingEngine(engine);
 
     calculated = option.NPV();
-    expected = 0.8943769;
+    expected = 0.8943754;
     if (std::fabs(calculated-expected) > tolerance) {
         BOOST_ERROR("Failed to reproduce expected value"
                     << "\n  calculated: " << std::setprecision(8) << calculated
@@ -1678,6 +1678,38 @@ BOOST_AUTO_TEST_CASE(testBinomialGreeksWithCoincidentNodes)
     BOOST_CHECK_CLOSE(option.NPV(), 80.0, 1.0e-10);
     BOOST_CHECK_EXCEPTION(option.delta(), Error, ExpectedErrorMessage("delta not provided"));
     BOOST_CHECK_EXCEPTION(option.gamma(), Error, ExpectedErrorMessage("gamma not provided"));
+}
+
+BOOST_AUTO_TEST_CASE(testTrivariateNormalInPerturbativeEngine)
+{
+    BOOST_TEST_MESSAGE("Testing the perturbative engine's trivariate normal distribution...");
+
+    // The expected values come from integrating the conditional bivariate normal
+    // distribution, in the form with Owen's T function, by adaptive quadrature.
+    struct Case
+    {
+        Real h1, h2, h3, r21, r31, r32, expected;
+    };
+    const Case cases[] = {{1.0, 1.0, 1.0, 0.5, 0.5, 0.5, 0.67777953297041},
+                          {-1.0, -1.0, -1.0, 0.5, 0.5, 0.5, 0.033796989364212},
+                          {-1.0, 0.5, 2.0, -0.5, 0.3, 0.1, 0.061064466760885},
+                          {2.0, -2.0, 1.0, 0.3, -0.3, 0.2, 0.021181906494869},
+                          {3.0, 3.0, 3.0, -0.2, -0.2, -0.2, 0.99595069815636},
+                          {-3.0, -3.0, -3.0, 0.9, 0.9, 0.9, 0.00040880688852035},
+                          {0.5, -0.5, 0.2, 0.99, 0.98, 0.97, 0.30847665986883},
+                          // With an argument this far out, the integrand is negligible over part of the range.
+                          {12.0, -1.0, 0.0, 0.5, 0.5, 0.5, 0.12739820657663},
+                          {20.0, 20.0, -2.0, 0.5, 0.3, 0.2, 0.022750131948179},
+                          {-12.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.0}};
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT("limits " << c.h1 << ", " << c.h2 << ", " << c.h3)
+        {
+            const Real calculated = detail::trivariateCumulativeNormal(c.h1, c.h2, c.h3, c.r21, c.r31, c.r32);
+            BOOST_CHECK_SMALL(calculated - c.expected, 1.0e-9);
+        }
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

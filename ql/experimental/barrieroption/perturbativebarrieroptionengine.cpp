@@ -1306,7 +1306,7 @@ namespace QuantLib
             if (DT > 0)
             {
                 BT = (BC * RR + BA * (R * RB - RA) + BB * (R * RA - RB)) / std::pow(DT, 0.5);
-                FT = std::pow((BA - R * BB), 0.5) / RR + BB * BB;
+                FT = (BA - R * BB) * (BA - R * BB) / RR + BB * BB;
                 if (NUC < 1)
                 {
                     if ((BT > -10) && (FT < 100))
@@ -1315,11 +1315,11 @@ namespace QuantLib
                         if (BT < 10)
                             result = result * PHID(BT);
                     }
-                    else
-                    {
-                        FT = std::pow((1 + FT / NUC), 0.5);
-                        result = STUDNT(NUC, BT / FT) / std::pow(FT, NUC);
-                    }
+                }
+                else
+                {
+                    FT = std::pow((1 + FT / NUC), 0.5);
+                    result = STUDNT(NUC, BT / FT) / std::pow(FT, NUC);
                 }
             }
             return (result);
@@ -1580,6 +1580,14 @@ namespace QuantLib
             Real operator()(Real t1, Real t2) const { return v->blackForwardVariance(t1, t2, s, true); }
         };
 
+    }
+
+
+    Real detail::trivariateCumulativeNormal(Real h1, Real h2, Real h3, Real r21, Real r31, Real r32)
+    {
+        const Real limit[4] = {0.0, h1, h2, h3};
+        const Real sigmarho[4] = {0.0, r21, r31, r32};
+        return tvtl(0, limit, sigmarho, 1.e-12);
     }
 
 

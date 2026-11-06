@@ -30,6 +30,12 @@
 namespace QuantLib
 {
 
+    namespace detail
+    {
+        //! the probability that X1 < h1, X2 < h2 and X3 < h3, for standard normal variables with the given correlations
+        Real trivariateCumulativeNormal(Real h1, Real h2, Real h3, Real r21, Real r31, Real r32);
+    }
+
     //! perturbative barrier-option engine
     /*! This engine implements the approach described in
         <http://www.econ.univpm.it/recchioni/finance/w3/>.
