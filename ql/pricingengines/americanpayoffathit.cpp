@@ -18,6 +18,7 @@
 */
 
 #include <ql/math/distributions/normaldistribution.hpp>
+#include <ql/mathconstants.hpp>
 #include <ql/pricingengines/americanpayoffathit.hpp>
 
 namespace QuantLib
@@ -47,7 +48,7 @@ namespace QuantLib
 
         log_H_S_ = std::log(strike_ / spot_);
 
-        Real n_d1, n_d2;
+        Real n_d1, n_d2, cum_minus_d1, cum_minus_d2;
         if (variance_ >= QL_EPSILON)
         {
             if (discount_ == 0.0 && dividendDiscount_ == 0.0)
@@ -69,26 +70,18 @@ namespace QuantLib
             CumulativeNormalDistribution f;
             cum_d1_ = f(D1_);
             cum_d2_ = f(D2_);
+            // N(-d) directly, since 1 - N(d) loses the tail to cancellation.
+            cum_minus_d1 = f(-D1_);
+            cum_minus_d2 = f(-D2_);
             n_d1 = f.derivative(D1_);
             n_d2 = f.derivative(D2_);
         }
         else
         {
-            // not tested yet
-            mu_ = std::log(dividendDiscount_ / discount_) / variance_ - 0.5;
-            lambda_ = std::sqrt(mu_ * mu_ - 2.0 * std::log(discount_) / variance_);
-            if (log_H_S_ > 0)
-            {
-                cum_d1_ = 1.0;
-                cum_d2_ = 1.0;
-            }
-            else
-            {
-                cum_d1_ = 0.0;
-                cum_d2_ = 0.0;
-            }
-            n_d1 = 0.0;
-            n_d2 = 0.0;
+            // The value below doesn't need any of these.
+            mu_ = lambda_ = D1_ = D2_ = 0.0;
+            cum_d1_ = cum_d2_ = cum_minus_d1 = cum_minus_d2 = 0.0;
+            n_d1 = n_d2 = 0.0;
         }
 
 
@@ -99,10 +92,10 @@ namespace QuantLib
             case Option::Call:
                 if (strike_ > spot_)
                 {
-                    alpha_ = 1.0 - cum_d1_; //  N(-d1)
-                    DalphaDd1_ = -n_d1;     // -n( d1)
-                    beta_ = 1.0 - cum_d2_;  //  N(-d2)
-                    DbetaDd2_ = -n_d2;      // -n( d2)
+                    alpha_ = cum_minus_d1; //  N(-d1)
+                    DalphaDd1_ = -n_d1;    // -n( d1)
+                    beta_ = cum_minus_d2;  //  N(-d2)
+                    DbetaDd2_ = -n_d2;     // -n( d2)
                 }
                 else
                 {
@@ -137,6 +130,16 @@ namespace QuantLib
 
         muPlusLambda_ = mu_ + lambda_;
         muMinusLambda_ = mu_ - lambda_;
+        if (variance_ >= QL_EPSILON)
+        {
+            // These multiply to 2 log(discount) / variance.  Getting the smaller one from
+            // that keeps it from cancelling at low variance.
+            const Real product = 2.0 * std::log(discount_) / variance_;
+            if (mu_ < 0.0)
+                muPlusLambda_ = product / muMinusLambda_;
+            else if (muPlusLambda_ != 0.0)
+                muMinusLambda_ = product / muPlusLambda_;
+        }
         inTheMoney_ = (type == Option::Call && strike_ < spot_) || (type == Option::Put && strike_ > spot_);
 
         if (inTheMoney_)
@@ -145,11 +148,41 @@ namespace QuantLib
             X_ = 1.0;
             DXDstrike_ = 0.0;
         }
-        else
+        else if (variance_ >= QL_EPSILON)
         {
             forward_ = std::pow(strike_ / spot_, muPlusLambda_);
             X_ = std::pow(strike_ / spot_, muMinusLambda_);
             //            DXDstrike_ = ......;
+
+            // At small variance a power can overflow while the probability it multiplies
+            // underflows, and their product is still finite.
+            CumulativeNormalDistribution f;
+            const Real sign = type == Option::Call ? -1.0 : 1.0;
+            if (!std::isfinite(forward_) || alpha_ == 0.0)
+            {
+                const Real logPower = muPlusLambda_ * log_H_S_;
+                alpha_ = std::exp(logPower + f.logValue(sign * D1_));
+                DalphaDd1_ = sign * std::exp(logPower - 0.5 * D1_ * D1_ - 0.5 * std::log(M_TWOPI));
+                forward_ = 1.0;
+            }
+            if (!std::isfinite(X_) || beta_ == 0.0)
+            {
+                const Real logPower = muMinusLambda_ * log_H_S_;
+                beta_ = std::exp(logPower + f.logValue(sign * D2_));
+                DbetaDd2_ = sign * std::exp(logPower - 0.5 * D2_ * D2_ - 0.5 * std::log(M_TWOPI));
+                X_ = 1.0;
+            }
+        }
+        else
+        {
+            // The underlying follows its forward, and the payoff comes when the forward
+            // reaches the strike, if it does before maturity.
+            const Real timeToStrike = log_H_S_ == 0.0 ? 0.0 : log_H_S_ / std::log(dividendDiscount_ / discount_);
+            alpha_ = 1.0;
+            beta_ = 0.0;
+            X_ = 0.0;
+            forward_ =
+                (timeToStrike >= 0.0 && timeToStrike <= 1.0) ? std::exp(timeToStrike * std::log(discount_)) : 0.0;
         }
 
 
