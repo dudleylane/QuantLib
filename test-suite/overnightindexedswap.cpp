@@ -953,6 +953,24 @@ BOOST_AUTO_TEST_CASE(testSettlementDaysEffectiveDateConflict)
     BOOST_CHECK(swap3->startDate() != Date());
 }
 
+BOOST_AUTO_TEST_CASE(testPaymentAdjustmentOnBothLegs)
+{
+    BOOST_TEST_MESSAGE("Testing that an overnight indexed swap adjusts the payments of both legs...");
+
+    Date today(25, June, 2026);
+    Settings::instance().evaluationDate() = today;
+    auto index = ext::make_shared<Sofr>(Handle<YieldTermStructure>(flatRate(today, 0.03, Actual365Fixed())));
+
+    // June 30th, 2029 is a Saturday, and the schedule leaves it there.
+    Schedule schedule(Date(30, June, 2028), Date(30, June, 2029), 1 * Years, index->fixingCalendar(), Unadjusted,
+                      Unadjusted, DateGeneration::Backward, false);
+
+    OvernightIndexedSwap swap(Swap::Payer, 1000000.0, schedule, 0.035, Actual360(), index, 0.0, 0, Following);
+
+    BOOST_CHECK_EQUAL(swap.overnightLeg().back()->date(), Date(2, July, 2029));
+    BOOST_CHECK_EQUAL(swap.fixedLeg().back()->date(), Date(2, July, 2029));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
