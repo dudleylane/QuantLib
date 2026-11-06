@@ -204,7 +204,7 @@ namespace QuantLib
     void DiscretizedCallableFixedRateBond::applyCallability(Size i)
     {
         Size j;
-        switch (arguments_.putCallSchedule[i]->type())
+        switch (arguments_.callabilityTypes[i])
         {
             case Callability::Call:
                 for (j = 0; j < values_.size(); j++)
