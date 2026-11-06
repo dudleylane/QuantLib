@@ -99,13 +99,13 @@ namespace QuantLib
 
         Real _a = a();
         Real v;
-        if (_a < std::sqrt(QL_EPSILON))
+        if (_a < QL_EPSILON)
         {
             v = sigma() * B(maturity, bondMaturity) * std::sqrt(maturity);
         }
         else
         {
-            v = sigma() * B(maturity, bondMaturity) * std::sqrt(0.5 * (1.0 - std::exp(-2.0 * _a * maturity)) / _a);
+            v = sigma() * B(maturity, bondMaturity) * std::sqrt(-0.5 * std::expm1(-2.0 * _a * maturity) / _a);
         }
         Real f = termStructure()->discount(bondMaturity);
         Real k = termStructure()->discount(maturity) * strike;
@@ -119,32 +119,24 @@ namespace QuantLib
 
         Real _a = a();
         Real v;
-        if (_a < std::sqrt(QL_EPSILON))
+        if (_a < QL_EPSILON)
         {
             v = sigma() * B(bondStart, bondMaturity) * std::sqrt(maturity);
         }
         else
         {
-            // Numerically stable form for the integrated bond-option
-            // variance in the Hull-White model (Brigo & Mercurio,
-            // "Interest Rate Models - Theory and Practice", 2nd ed., ch. 3).
+            // The variance of the bond option in the Hull-White model
+            // (Brigo & Mercurio, "Interest Rate Models - Theory and Practice",
+            // 2nd ed., ch. 3) is, with T the option's maturity and S and U the
+            // bond's start and maturity,
             //
-            // Letting u = exp(-a*bondStart), v = exp(-a*bondMaturity),
-            // w = exp(-a*maturity), the original expansion
+            //   sigma^2 / (2 a^3) * expm1(2 a T) * (exp(-a S) - exp(-a U))^2
             //
-            //   c = u^2/w^2 - u^2 - 2*(u*v/w^2 - u*v) + v^2/w^2 - v^2
-            //
-            // is algebraically equivalent to
-            //
-            //   c = (u - v)^2 * expm1(2 * a * maturity)
-            //
-            // which is non-negative by construction (u > v since
-            // bondMaturity > bondStart, and expm1(x) >= 0 for x >= 0),
-            // so no flooring is needed and no catastrophic cancellation
-            // occurs in long-maturity / high-reversion regimes.
-            Real du = std::exp(-_a * bondStart) - std::exp(-_a * bondMaturity);
-            Real c = du * du * std::expm1(2.0 * _a * maturity);
-            v = sigma() / (_a * std::sqrt(2.0 * _a)) * std::sqrt(c);
+            // That difference of exponentials cancels for small a.  Factored, this
+            // is the volatility of the spot-start option times exp(-a (S - T)),
+            // which is non-negative by construction and doesn't cancel.
+            v = sigma() * std::exp(-_a * (bondStart - maturity)) * B(bondStart, bondMaturity) *
+                std::sqrt(-0.5 * std::expm1(-2.0 * _a * maturity) / _a);
         }
         Real f = termStructure()->discount(bondMaturity);
         Real k = termStructure()->discount(bondStart) * strike;

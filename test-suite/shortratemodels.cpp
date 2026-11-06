@@ -550,6 +550,45 @@ BOOST_AUTO_TEST_CASE(testVasicekBondOptionForSmallMeanReversion)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testHullWhiteBondOptionsForSmallMeanReversion)
+{
+    BOOST_TEST_MESSAGE("Testing Hull-White's bond options with mean reversion close to zero...");
+
+    // A flat 3% curve and sigma = 1%; calls struck at 0.9, with a 5-year maturity, on a
+    // zero-coupon bond running from 5 to 10 years, and from 7 to 10 years for the forward start.
+    const Date today(6, October, 2026);
+    const Handle<YieldTermStructure> curve(flatRate(today, 0.03, Actual365Fixed()));
+    const Volatility sigma = 0.01;
+
+    struct Case
+    {
+        Real a, spotStart, forwardStart;
+    };
+
+    // The model's closed form, evaluated in 120-digit arithmetic.
+    const Case cases[] = {
+        {1e-16, 0.019523877439481272, 0.025830331691153781}, {1e-12, 0.019523877439325531, 0.025830331691038868},
+        {1e-10, 0.019523877423905679, 0.025830331679661309}, {1e-08, 0.019523875881920469, 0.025830330541905427},
+        {1e-07, 0.019523861863878036, 0.025830320198673814}, {1e-06, 0.019523721683941603, 0.025830216766722602},
+        {1e-05, 0.01952231993336683, 0.025829182483700516},  {0.0001, 0.019508307305488621, 0.025818843301606947},
+        {0.001, 0.019368667730306146, 0.025715815418306644}, {0.01, 0.018019878169050826, 0.024721072199122754},
+        {0.1, 0.0083936019065510994, 0.017614510032769543},
+    };
+
+    const Real tolerance = 1.0e-13;
+    for (const auto& c : cases)
+    {
+        const HullWhite model(curve, c.a, sigma);
+        const Real spotStart = model.discountBondOption(Option::Call, 0.9, 5.0, 10.0);
+        const Real forwardStart = model.discountBondOption(Option::Call, 0.9, 5.0, 7.0, 10.0);
+        if (std::fabs(spotStart - c.spotStart) > tolerance || std::fabs(forwardStart - c.forwardStart) > tolerance)
+            BOOST_ERROR("failed to reproduce the bond options:" << "\n  a:             " << c.a << std::setprecision(17)
+                                                                << "\n  spot start:    " << spotStart << " against "
+                                                                << c.spotStart << "\n  forward start: " << forwardStart
+                                                                << " against " << c.forwardStart);
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
