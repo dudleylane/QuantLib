@@ -121,7 +121,9 @@ namespace QuantLib
     //  erfc(0) = 1, erfc(inf) = 0, erfc(-inf) = 2,
     //      erfc/erf(NaN) is NaN
 
-    const Real ErrorFunction::tiny = QL_EPSILON,
+    // tiny is as in fdlibm: it has to be below half an ulp of 1, for one - tiny, the
+    // value returned for |x| >= 6, to be exactly 1.
+    const Real ErrorFunction::tiny = 1e-300,
                ErrorFunction::one = 1.00000000000000000000e+00, /* 0x3FF00000, 0x00000000 */
         /* c = (float)0.84506291151 */
         ErrorFunction::erx = 8.45062911510467529297e-01, /* 0x3FEB0AC1, 0x60000000 */

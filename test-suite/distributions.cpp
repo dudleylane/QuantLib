@@ -31,6 +31,7 @@
 #include <ql/math/distributions/chisquaredistribution.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/math/distributions/poissondistribution.hpp>
+#include <ql/math/errorfunction.hpp>
 #include <ql/math/randomnumbers/stochasticcollocationinvcdf.hpp>
 #include <boost/math/distributions/non_central_chi_squared.hpp>
 #include <iomanip>
@@ -761,6 +762,45 @@ BOOST_AUTO_TEST_CASE(testLogCumulativeNormal)
                 BOOST_CHECK_SMALL(f.logValue(c.x) - std::log(value), 1.0e-7);
         }
     }
+}
+
+BOOST_AUTO_TEST_CASE(testErrorFunctionAndCumulativeNormalWhereTheySaturate)
+{
+    BOOST_TEST_MESSAGE("Testing the error function and cumulative normal where they saturate...");
+
+    // erfc(6) is about 2e-17, so erf rounds to exactly 1 from there on.
+    const ErrorFunction erf;
+    for (Real x : {6.0, 6.5, 7.0, 10.0, 28.0, 100.0})
+    {
+        BOOST_CHECK_EQUAL(erf(x), 1.0);
+        BOOST_CHECK_EQUAL(erf(-x), -1.0);
+    }
+
+    Size decreases = 0;
+    Real previous = erf(5.5);
+    for (Size i = 1; i <= 1000; ++i)
+    {
+        const Real y = erf(5.5 + i * 0.001);
+        if (y < previous || y > 1.0)
+            ++decreases;
+        previous = y;
+    }
+    BOOST_CHECK_EQUAL(decreases, 0U);
+
+    const CumulativeNormalDistribution cumulative;
+    for (Real z : {8.5, 9.0, 10.0, 20.0, 40.0})
+        BOOST_CHECK_EQUAL(cumulative(z), 1.0);
+
+    decreases = 0;
+    previous = cumulative(7.0);
+    for (Size i = 1; i <= 3000; ++i)
+    {
+        const Real p = cumulative(7.0 + i * 0.001);
+        if (p < previous || p > 1.0)
+            ++decreases;
+        previous = p;
+    }
+    BOOST_CHECK_EQUAL(decreases, 0U);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
