@@ -695,6 +695,415 @@ BOOST_AUTO_TEST_CASE(testBaroneAdesiWhaleyAndJuAtZeroVolatility)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testBaroneAdesiWhaleyAndJuAgainstLowerBounds)
+{
+
+    BOOST_TEST_MESSAGE("Testing Barone-Adesi-Whaley and Ju approximations against lower bounds...");
+
+    // An American option is worth at least what exercising at any fixed time
+    // is worth, which includes its intrinsic value, and at least its European
+    // value. Ju's correction could land below all of these, and
+    // Barone-Adesi-Whaley's just below the European value (#46). The rows
+    // below failed, the last for Barone-Adesi-Whaley and the others for Ju.
+
+    Date today(15, August, 2026);
+    Settings::instance().evaluationDate() = today;
+    DayCounter dc = Actual365Fixed();
+
+    auto spot = ext::make_shared<SimpleQuote>(100.0);
+    auto qRate = ext::make_shared<SimpleQuote>(0.0);
+    auto rRate = ext::make_shared<SimpleQuote>(0.0);
+    auto vol = ext::make_shared<SimpleQuote>(0.0);
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot), Handle<YieldTermStructure>(flatRate(today, qRate, dc)),
+        Handle<YieldTermStructure>(flatRate(today, rRate, dc)), Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+
+    auto europeanEngine = ext::make_shared<AnalyticEuropeanEngine>(process);
+    const std::pair<std::string, ext::shared_ptr<PricingEngine>> engines[] = {
+        {"Barone-Adesi-Whaley", ext::make_shared<BaroneAdesiWhaleyApproximationEngine>(process)},
+        {"Ju", ext::make_shared<JuQuadraticApproximationEngine>(process)}};
+
+    Real tolerance = 1.0e-10;
+
+    const auto check = [&](Option::Type type, Real k, Rate r, Rate q, Volatility v, Integer days)
+    {
+        rRate->setValue(r);
+        qRate->setValue(q);
+        vol->setValue(v);
+        Date exDate = today + days;
+        Time maturity = dc.yearFraction(today, exDate);
+        auto payoff = ext::make_shared<PlainVanillaPayoff>(type, k);
+        auto american = ext::make_shared<AmericanExercise>(today, exDate);
+
+        VanillaOption reference(payoff, ext::make_shared<EuropeanExercise>(exDate));
+        reference.setPricingEngine(europeanEngine);
+        Real bound = reference.NPV();
+        Real phi = (type == Option::Call) ? 1.0 : -1.0;
+        for (Size i = 0; i <= 20; ++i)
+        {
+            Time t = maturity * Real(i) / 20.0;
+            bound = std::max(bound, phi * (spot->value() * std::exp(-q * t) - k * std::exp(-r * t)));
+        }
+
+        for (const auto& [name, engine] : engines)
+        {
+            VanillaOption option(payoff, american);
+            option.setPricingEngine(engine);
+            Real value = option.NPV();
+            if (!(value >= bound - tolerance))
+            {
+                REPORT_FAILURE(name + " value against its lower bound", payoff, american, spot->value(), q, r, today, v,
+                               bound, value, bound - value, tolerance);
+            }
+        }
+    };
+
+    struct Case
+    {
+        Option::Type type;
+        Real k;
+        Rate r, q;
+        Volatility v;
+        Integer days;
+    };
+    const Case cases[] = {{Option::Call, 60.0, 0.03, 0.02, 0.10, 1095}, {Option::Call, 60.0, 0.06, 0.04, 0.10, 3650},
+                          {Option::Put, 140.0, 0.03, 0.04, 0.03, 3650}, {Option::Put, 110.0, 0.02, 0.0, 0.80, 3},
+                          {Option::Put, 100.0, 0.05, 0.03, 1.20, 1},    {Option::Call, 90.0, 0.01, 0.03, 1.20, 3},
+                          {Option::Put, 120.0, 1.0e-4, 1.0e-4, 0.80, 1}};
+    for (const auto& [type, k, r, q, v, days] : cases)
+    {
+        check(type, k, r, q, v, days);
+    }
+
+    for (auto type : {Option::Call, Option::Put})
+    {
+        for (Rate r : {0.0, 1.0e-4, 0.005, 0.02, 0.05, 0.10})
+        {
+            for (Rate q : {-0.10, -0.02, -0.005, 0.0, 0.005, 0.02, 0.05, 0.10})
+            {
+                for (Volatility v : {0.03, 0.10, 0.40, 0.80, 1.20})
+                {
+                    for (Integer days : {1, 30, 365, 1825, 3650})
+                    {
+                        for (Real k : {50.0, 80.0, 100.0, 120.0, 200.0})
+                        {
+                            check(type, k, r, q, v, days);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testJuWhereItsCorrectionHasAPole)
+{
+
+    BOOST_TEST_MESSAGE("Testing Ju approximation where its correction has a pole...");
+
+    // Ju's correction divides by 1 - chi, and chi can reach 1, mostly for puts
+    // with r near 0 and q < 0. As published, the formula returned 90.24 for the
+    // first row, worth 6.28, and -136.9 for the second, worth 20.16; in the
+    // others, which are #46's, it was off by up to 29. Past the correction's
+    // pole the engine's chi saturates, which leaves it within this tolerance
+    // of the QD fixed-point engine.
+
+    Date today(15, August, 2026);
+    Settings::instance().evaluationDate() = today;
+    DayCounter dc = Actual365Fixed();
+
+    auto spot = ext::make_shared<SimpleQuote>(100.0);
+    auto qRate = ext::make_shared<SimpleQuote>(0.0);
+    auto rRate = ext::make_shared<SimpleQuote>(0.0);
+    auto vol = ext::make_shared<SimpleQuote>(0.0);
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot), Handle<YieldTermStructure>(flatRate(today, qRate, dc)),
+        Handle<YieldTermStructure>(flatRate(today, rRate, dc)), Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+
+    auto engine = ext::make_shared<JuQuadraticApproximationEngine>(process);
+    auto referenceEngine = ext::make_shared<QdFpAmericanEngine>(process, QdFpAmericanEngine::highPrecisionScheme());
+
+    Real tolerance = 0.15;
+
+    struct Case
+    {
+        Real k;
+        Rate r, q;
+        Volatility v;
+        Integer days;
+    };
+    std::vector<Case> cases = {{80.0, 0.001, -0.005, 0.80, 90}, {50.0, 1.0e-4, -0.10, 0.80, 1825}};
+    for (Rate r : {0.0, 1.0e-4})
+    {
+        for (Real k : {60.0, 80.0, 100.0, 120.0, 140.0, 200.0})
+        {
+            cases.push_back({k, r, -0.01, 0.40, 1095});
+        }
+    }
+
+    for (const auto& [k, r, q, v, days] : cases)
+    {
+        rRate->setValue(r);
+        qRate->setValue(q);
+        vol->setValue(v);
+        auto payoff = ext::make_shared<PlainVanillaPayoff>(Option::Put, k);
+        auto american = ext::make_shared<AmericanExercise>(today, today + days);
+        VanillaOption option(payoff, american);
+        option.setPricingEngine(engine);
+        Real value = option.NPV();
+        option.setPricingEngine(referenceEngine);
+        Real expected = option.NPV();
+        Real error = std::fabs(value - expected);
+        if (!(error <= tolerance))
+        {
+            REPORT_FAILURE("value", payoff, american, spot->value(), q, r, today, v, expected, value, error, tolerance);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testJuGreeksWhereItsCorrectionSaturates)
+{
+
+    BOOST_TEST_MESSAGE("Testing Ju approximation Greeks where its correction saturates...");
+
+    // In each row chi crosses the value where it starts to saturate, between
+    // the two spots given (#46). The delta and gamma must be the derivatives
+    // of the value on both sides, and the delta must not jump where chi starts
+    // to saturate, as it does with chi simply held; only the gamma does.
+
+    Date today(15, August, 2026);
+    Settings::instance().evaluationDate() = today;
+    DayCounter dc = Actual365Fixed();
+
+    auto spot = ext::make_shared<SimpleQuote>(100.0);
+    auto qRate = ext::make_shared<SimpleQuote>(0.0);
+    auto rRate = ext::make_shared<SimpleQuote>(0.0);
+    auto vol = ext::make_shared<SimpleQuote>(0.0);
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot), Handle<YieldTermStructure>(flatRate(today, qRate, dc)),
+        Handle<YieldTermStructure>(flatRate(today, rRate, dc)), Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+
+    auto engine = ext::make_shared<JuQuadraticApproximationEngine>(process);
+
+    struct Case
+    {
+        Real k;
+        Rate r, q;
+        Volatility v;
+        Integer days;
+        Real low, high;
+    };
+    const Case cases[] = {{105.0, 0.005, 0.001, 0.40, 90, 90.0, 110.0},
+                          {90.0, 1.0e-4, -0.10, 1.20, 90, 30.0, 50.0},
+                          {110.0, 0.0, -0.02, 0.40, 3650, 30.0, 50.0}};
+
+    Real h = 1.0e-3, step = 0.01;
+
+    for (const auto& [k, r, q, v, days, low, high] : cases)
+    {
+        rRate->setValue(r);
+        qRate->setValue(q);
+        vol->setValue(v);
+        auto payoff = ext::make_shared<PlainVanillaPayoff>(Option::Put, k);
+        auto american = ext::make_shared<AmericanExercise>(today, today + days);
+        VanillaOption option(payoff, american);
+        option.setPricingEngine(engine);
+
+        Real previousDelta = Null<Real>(), previousGamma = Null<Real>();
+        for (Real s = low; s <= high; s += step)
+        {
+            spot->setValue(s);
+            Real delta = option.delta(), gamma = option.gamma();
+            if (previousDelta != Null<Real>())
+            {
+                Real tolerance = 1.5 * std::max(gamma, previousGamma) * step;
+                Real jump = std::fabs(delta - previousDelta);
+                if (!(jump <= tolerance))
+                {
+                    REPORT_FAILURE("delta's step", payoff, american, s, q, r, today, v, 0.0, jump, jump, tolerance);
+                }
+            }
+            previousDelta = delta;
+            previousGamma = gamma;
+        }
+
+        for (Real s : {low + 0.003, (low + high) / 2.0 + 0.003, high + 0.003})
+        {
+            spot->setValue(s);
+            Real value = option.NPV(), delta = option.delta(), gamma = option.gamma();
+            spot->setValue(s + h);
+            Real up = option.NPV();
+            spot->setValue(s - h);
+            Real down = option.NPV();
+            Real expectedDelta = (up - down) / (2.0 * h), expectedGamma = (up - 2.0 * value + down) / (h * h);
+            Real error = std::fabs(delta - expectedDelta);
+            if (!(error <= 1.0e-6))
+            {
+                REPORT_FAILURE("delta", payoff, american, s, q, r, today, v, expectedDelta, delta, error, 1.0e-6);
+            }
+            error = std::fabs(gamma - expectedGamma);
+            if (!(error <= 1.0e-4))
+            {
+                REPORT_FAILURE("gamma", payoff, american, s, q, r, today, v, expectedGamma, gamma, error, 1.0e-4);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testJuAtItsLowerBound)
+{
+
+    BOOST_TEST_MESSAGE("Testing Ju approximation Greeks where its lower bound holds it...");
+
+    // Where the correction lands below the bound, the value and its delta and
+    // gamma are the bound's (#46). In the first two rows that is the value
+    // of exercising at a time t* inside the option's life, as for the
+    // zero-volatility cases above, and in the last it's the intrinsic value.
+
+    Date today(15, August, 2026);
+    Settings::instance().evaluationDate() = today;
+    DayCounter dc = Actual365Fixed();
+
+    auto spot = ext::make_shared<SimpleQuote>(100.0);
+    auto qRate = ext::make_shared<SimpleQuote>(0.0);
+    auto rRate = ext::make_shared<SimpleQuote>(0.0);
+    auto vol = ext::make_shared<SimpleQuote>(0.0);
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot), Handle<YieldTermStructure>(flatRate(today, qRate, dc)),
+        Handle<YieldTermStructure>(flatRate(today, rRate, dc)), Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+
+    auto engine = ext::make_shared<JuQuadraticApproximationEngine>(process);
+
+    Real tolerance = 1.0e-10;
+
+    const auto check = [&](const std::string& name, const ext::shared_ptr<StrikedTypePayoff>& payoff,
+                           const ext::shared_ptr<Exercise>& exercise, Real s, Rate r, Rate q, Volatility v,
+                           Real expected, Real calculated)
+    {
+        Real error = std::fabs(calculated - expected);
+        if (!(error <= tolerance))
+        {
+            REPORT_FAILURE(name, payoff, exercise, s, q, r, today, v, expected, calculated, error, tolerance);
+        }
+    };
+
+    struct Case
+    {
+        Option::Type type;
+        Real s, k;
+        Rate r, q;
+        Volatility v;
+        Integer days;
+    };
+    const Case interior[] = {{Option::Call, 240.0, 100.0, 0.05, 0.02, 0.01, 3650},
+                             {Option::Put, 51.5, 100.0, 0.05, 0.10, 0.01, 1095}};
+
+    for (const auto& [type, s, k, r, q, v, days] : interior)
+    {
+        spot->setValue(s);
+        rRate->setValue(r);
+        qRate->setValue(q);
+        vol->setValue(v);
+        auto payoff = ext::make_shared<PlainVanillaPayoff>(type, k);
+        auto american = ext::make_shared<AmericanExercise>(today, today + days);
+        VanillaOption option(payoff, american);
+        option.setPricingEngine(engine);
+
+        Real phi = (type == Option::Call) ? 1.0 : -1.0;
+        Time tStar = std::log(r * k / (q * s)) / (r - q);
+        BOOST_REQUIRE(tStar > 0.0 && tStar < dc.yearFraction(today, today + days));
+        Real expectedDelta = phi * std::exp(-q * tStar);
+        check("value", payoff, american, s, r, q, v, phi * (s * std::exp(-q * tStar) - k * std::exp(-r * tStar)),
+              option.NPV());
+        check("delta", payoff, american, s, r, q, v, expectedDelta, option.delta());
+        check("gamma", payoff, american, s, r, q, v, expectedDelta * q / (s * (r - q)), option.gamma());
+    }
+
+    {
+        Real s = 100.0, k = 60.0;
+        Rate r = 0.03, q = 0.02;
+        Volatility v = 0.10;
+        spot->setValue(s);
+        rRate->setValue(r);
+        qRate->setValue(q);
+        vol->setValue(v);
+        auto payoff = ext::make_shared<PlainVanillaPayoff>(Option::Call, k);
+        auto american = ext::make_shared<AmericanExercise>(today, today + 1095);
+        VanillaOption option(payoff, american);
+        option.setPricingEngine(engine);
+        check("value", payoff, american, s, r, q, v, s - k, option.NPV());
+        check("delta", payoff, american, s, r, q, v, 1.0, option.delta());
+        check("gamma", payoff, american, s, r, q, v, 0.0, option.gamma());
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBaroneAdesiWhaleyAndJuCriticalPriceSeed)
+{
+
+    BOOST_TEST_MESSAGE("Testing Barone-Adesi-Whaley and Ju approximations with a seed past the strike...");
+
+    // At these inputs the formula for the seed of criticalPrice()'s Newton
+    // iteration lands outside the range between the strike and the perpetual
+    // critical price. They have worked since #37 made it fall back to the
+    // perpetual one, which is what this guards. The tolerance is the
+    // approximations' own error at these volatilities.
+
+    Date today(15, August, 2026);
+    Settings::instance().evaluationDate() = today;
+    DayCounter dc = Actual365Fixed();
+
+    auto spot = ext::make_shared<SimpleQuote>(100.0);
+    auto qRate = ext::make_shared<SimpleQuote>(0.0);
+    auto rRate = ext::make_shared<SimpleQuote>(0.0);
+    auto vol = ext::make_shared<SimpleQuote>(0.0);
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot), Handle<YieldTermStructure>(flatRate(today, qRate, dc)),
+        Handle<YieldTermStructure>(flatRate(today, rRate, dc)), Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+
+    const std::pair<std::string, ext::shared_ptr<PricingEngine>> engines[] = {
+        {"Barone-Adesi-Whaley", ext::make_shared<BaroneAdesiWhaleyApproximationEngine>(process)},
+        {"Ju", ext::make_shared<JuQuadraticApproximationEngine>(process)}};
+    auto referenceEngine = ext::make_shared<QdFpAmericanEngine>(process, QdFpAmericanEngine::highPrecisionScheme());
+
+    Real tolerance = 7.0e-3;
+
+    struct Case
+    {
+        Option::Type type;
+        Real k;
+        Rate r, q;
+        Volatility v;
+        Integer days;
+    };
+    const Case cases[] = {{Option::Call, 100.0, 0.0257, 0.0571, 0.0166, 1095},
+                          {Option::Call, 100.0, 0.0257, 0.0571, 0.01, 1095},
+                          {Option::Put, 100.0, 0.0647, 0.0234, 0.0089, 1095},
+                          {Option::Put, 120.0, 0.1077, 0.0329, 0.0149, 3650}};
+
+    for (const auto& [type, k, r, q, v, days] : cases)
+    {
+        rRate->setValue(r);
+        qRate->setValue(q);
+        vol->setValue(v);
+        auto payoff = ext::make_shared<PlainVanillaPayoff>(type, k);
+        auto american = ext::make_shared<AmericanExercise>(today, today + days);
+        VanillaOption option(payoff, american);
+        option.setPricingEngine(referenceEngine);
+        Real expected = option.NPV();
+        for (const auto& [name, engine] : engines)
+        {
+            option.setPricingEngine(engine);
+            Real value = option.NPV();
+            Real error = std::fabs(value - expected);
+            if (!(error <= tolerance))
+            {
+                REPORT_FAILURE(name + " value", payoff, american, spot->value(), q, r, today, v, expected, value, error,
+                               tolerance);
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testBjerksundStenslandAtUnitBeta)
 {
 

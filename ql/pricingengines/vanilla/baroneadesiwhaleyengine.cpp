@@ -33,27 +33,31 @@ namespace QuantLib
     namespace detail
     {
 
-        // The American value at zero variance, where the underlying's path
-        // is deterministic, and its delta and gamma. With the flat rates
-        // these engines assume, exercising at time s*T, for s in [0, 1], is
-        // worth phi*(spot*dividendDiscount^s - K*riskFreeDiscount^s). The
-        // largest of that is at s = 1 (the European value), at s = 0 (the
-        // intrinsic value) or at its one stationary point, which exists when
-        // both rates are nonzero, of the same sign and different. Where that
-        // point is a minimum it is below both ends, so taking the largest of
-        // the three is right either way. The delta and gamma are those of the
-        // largest. At the stationary point the value does not move with s,
-        // so its delta is phi*dividendDiscount^s; its gamma comes from s
-        // moving with the spot, as ds/dspot = 1/(spot*(a - c)), with
+        // The value of exercising at the best fixed time, and its delta and
+        // gamma. With the flat rates these engines assume, exercising at time
+        // s*T, for s in [0, 1], is worth phi*(spot*dividendDiscount^s -
+        // K*riskFreeDiscount^s) on average, at any variance. The holder can
+        // do at least that, and can also hold to expiry for the European
+        // value. So the largest of these is a lower bound on the American
+        // value at any variance, and at zero variance, where the underlying's
+        // path is deterministic, it is that value. Over s, the largest is at
+        // s = 1 (the European value), at s = 0 (the intrinsic value) or at
+        // the formula's one stationary point, which exists when both rates
+        // are nonzero, of the same sign and different. Where that point is a
+        // minimum it is below both ends, so taking the largest of the three
+        // is right either way. The delta and gamma are those of the largest.
+        // At the stationary point the value does not move with s, so its
+        // delta is phi*dividendDiscount^s; its gamma comes from s moving with
+        // the spot, as ds/dspot = 1/(spot*(a - c)), with
         // a = log(riskFreeDiscount) and c = log(dividendDiscount).
-        ZeroVarianceResults zeroVarianceResults(const StrikedTypePayoff& payoff,
-                                                Real spot,
-                                                DiscountFactor dividendDiscount,
-                                                DiscountFactor riskFreeDiscount,
-                                                const BlackCalculator& black)
+        FixedExerciseResults bestFixedExercise(const StrikedTypePayoff& payoff,
+                                               Real spot,
+                                               DiscountFactor dividendDiscount,
+                                               DiscountFactor riskFreeDiscount,
+                                               const BlackCalculator& black)
         {
             Real phi = (payoff.optionType() == Option::Call) ? 1.0 : -1.0;
-            ZeroVarianceResults results = {black.value(), black.delta(spot), black.gamma(spot), 1.0};
+            FixedExerciseResults results = {black.value(), black.delta(spot), black.gamma(spot), 1.0};
             Real intrinsic = payoff(spot);
             if (intrinsic > results.value)
                 results = {intrinsic, intrinsic > 0.0 ? phi : 0.0, 0.0, 0.0};
@@ -275,8 +279,7 @@ namespace QuantLib
             // numerically unstable (n = 2 log(.)/var, h ~ sqrt(var)). The path
             // is then deterministic, so short-circuit to the value of the best
             // exercise time and skip the iterative branch.
-            results_.value =
-                detail::zeroVarianceResults(*payoff, spot, dividendDiscount, riskFreeDiscount, black).value;
+            results_.value = detail::bestFixedExercise(*payoff, spot, dividendDiscount, riskFreeDiscount, black).value;
         }
         else
         {
@@ -320,6 +323,10 @@ namespace QuantLib
                 default:
                     QL_FAIL("unknown option type");
             }
+            // the approximation can land just below the European value
+            results_.value =
+                std::max(results_.value,
+                         detail::bestFixedExercise(*payoff, spot, dividendDiscount, riskFreeDiscount, black).value);
         } // end of "early exercise can be optimal"
     }
 

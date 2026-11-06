@@ -316,7 +316,7 @@ namespace QuantLib
     {
         const PlainVanillaPayoff payoff(Option::Call, X);
         const BlackCalculator black(Option::Call, X, S * dD / rfD, std::sqrt(variance), rfD);
-        const detail::ZeroVarianceResults best = detail::zeroVarianceResults(payoff, S, dD, rfD, black);
+        const detail::FixedExerciseResults best = detail::bestFixedExercise(payoff, S, dD, rfD, black);
 
         if (best.exerciseFraction == 1.0)
             return europeanCallResults(S, X, rfD, dD, variance);
