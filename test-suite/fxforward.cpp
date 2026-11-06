@@ -203,19 +203,23 @@ BOOST_AUTO_TEST_CASE(testFairForwardRate)
 
     fwd.setPricingEngine(engine);
 
-    // Fair forward rate = Spot * (DFforeign / DFdomestic)
-    // The engine calculates discount factors from settlement date to maturity
-    // With USD as source currency (domestic) and SGD as target currency (foreign):
-    // F = S * (DF_SGD / DF_USD)
+    // Fair forward rate = Spot * (DFsource / DFtarget), the rate at which the
+    // NPV is zero.  The engine calculates discount factors from settlement date
+    // to maturity.  With USD as source currency and SGD as target currency:
+    // F = S * (DF_USD / DF_SGD)
     Date settlementDate = fwd.settlementDate();
     Real spotFx = vars.spotFxHandle->value();
     Real dfUsd = vars.usdCurveHandle->discount(vars.maturityDate) / vars.usdCurveHandle->discount(settlementDate);
     Real dfSgd = vars.sgdCurveHandle->discount(vars.maturityDate) / vars.sgdCurveHandle->discount(settlementDate);
-    Real expectedFairRate = spotFx * dfSgd / dfUsd;
+    Real expectedFairRate = spotFx * dfUsd / dfSgd;
 
     Real calculatedFairRate = fwd.fairForwardRate();
 
     QL_CHECK_CLOSE(calculatedFairRate, expectedFairRate, 1.0e-4); // 0.0001% tolerance
+
+    FxForward atFairRate(usdNominal, vars.usd, vars.sgd, calculatedFairRate, vars.maturityDate, true);
+    atFairRate.setPricingEngine(engine);
+    QL_CHECK_SMALL(atFairRate.NPV(), 1.0e-6);
 }
 
 
