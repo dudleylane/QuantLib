@@ -145,6 +145,21 @@ jobs:
               -type f \( -name '*.hpp' -o -name '*.cpp' \) -print0)
           clang-format-22 --dry-run -Werror "${files[@]}"
 
+      # Duplicate keys and unclosed expressions reached master before and were
+      # found only when Actions refused the file (2d9bc6e3c, 1e4617f7d).  The
+      # image is OrderProcessor's (#174) and carries shellcheck: pinned by
+      # digest, reading the workflow on stdin, so nothing is mounted, with no
+      # network.  Only this runner's own label is ignored, so a mistyped one
+      # still fails.  A hung pull would hold the only runner, hence the limit.
+      - name: Lint the workflow
+        shell: bash
+        timeout-minutes: 10
+        run: |
+          podman run --rm -i --network=none \
+            docker.io/rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
+            -ignore 'label "quantlib-dev" is unknown' \
+            -stdin-filename ci.yml - < .github/workflows/ci.yml
+
   # ===== from filelists.yml =====
   # Fork-supported platform is RHEL/CentOS 10+.
   # Despite the name, the check only
@@ -277,7 +292,7 @@ jobs:
                 esac
               done <<< "$files"
               echo "changed files ($(wc -l <<< "$files")):"
-              sed 's/^/  /' <<< "$files"
+              while read -r f; do echo "  $f"; done <<< "$files"
             else
               echo "no diff available for $base..$head -- running the full sweep"
             fi
@@ -452,6 +467,8 @@ jobs:
           make install
           # quantlib-config landed in the workspace prefix (configured above).
           export PATH="$GITHUB_WORKSPACE/install/bin:$PATH"
+          # Unquoted on purpose: quantlib-config prints several words.
+          # shellcheck disable=SC2046
           g++ -O2 -g0 -Wall -Wno-unknown-pragmas -Werror ${{ matrix.cxxflags }} \
             $(quantlib-config --cflags) test1.cpp test2.cpp $(quantlib-config --libs)
 
@@ -566,6 +583,8 @@ jobs:
           echo "#include <ql/quantlib.hpp>" > test2.cpp
           make install
           export PATH="$GITHUB_WORKSPACE/install/bin:$PATH"
+          # Unquoted on purpose: quantlib-config prints several words.
+          # shellcheck disable=SC2046
           g++ -O2 -g0 -Wall -Wno-unknown-pragmas -Werror ${{ matrix.cxxflags }} \
             $(quantlib-config --cflags) test1.cpp test2.cpp $(quantlib-config --libs)
 
