@@ -130,10 +130,16 @@ namespace QuantLib
         Real s2m = lattice->underlying(2, 1); // middle price
         Real s2d = lattice->underlying(2, 0); // down (low) price
 
-        // calculate gamma by taking the first derivate of the two deltas
-        Real delta2u = (p2u - p2m) / (s2u - s2m);
-        Real delta2d = (p2m - p2d) / (s2m - s2d);
-        Real gamma = (delta2u - delta2d) / ((s2u - s2d) / 2);
+        // Over moves too small to register, all the nodes of a step round to one price
+        // and these differences are 0/0.  The value is still good; the Greeks aren't there.
+        Real gamma = Null<Real>();
+        if (s2u > s2m && s2m > s2d)
+        {
+            // calculate gamma by taking the first derivate of the two deltas
+            Real delta2u = (p2u - p2m) / (s2u - s2m);
+            Real delta2d = (p2m - p2d) / (s2m - s2d);
+            gamma = (delta2u - delta2d) / ((s2u - s2d) / 2);
+        }
 
         // Rollback to second-last step, and get option values (p1) at
         // this point
@@ -145,7 +151,7 @@ namespace QuantLib
         Real s1u = lattice->underlying(1, 1); // up (high) price
         Real s1d = lattice->underlying(1, 0); // down (low) price
 
-        Real delta = (p1u - p1d) / (s1u - s1d);
+        Real delta = s1u > s1d ? (p1u - p1d) / (s1u - s1d) : Null<Real>();
 
         // Finally, rollback to t=0
         option.rollback(0.0);
@@ -155,7 +161,9 @@ namespace QuantLib
         results_.value = p0;
         results_.delta = delta;
         results_.gamma = gamma;
-        results_.theta = blackScholesTheta(process_, results_.value, results_.delta, results_.gamma);
+        results_.theta = delta != Null<Real>() && gamma != Null<Real>() ?
+                             blackScholesTheta(process_, results_.value, results_.delta, results_.gamma) :
+                             Null<Real>();
     }
 
 }

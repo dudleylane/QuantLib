@@ -1867,6 +1867,43 @@ BOOST_AUTO_TEST_CASE(testAdditiveEQPWithLargeDrift)
     BOOST_CHECK_EXCEPTION(option.NPV(), Error, ExpectedErrorMessage("more steps are needed"));
 }
 
+BOOST_AUTO_TEST_CASE(testBinomialGreeksWithCoincidentNodes)
+{
+    BOOST_TEST_MESSAGE("Testing binomial Greeks when a tree collapses to one price...");
+
+    const Date today(15, August, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+
+    // The moves are too small to register, so all the nodes of a step round to one
+    // price.  That's enough for the value, but it leaves nothing to take differences of.
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.0, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.0, dc)),
+        Handle<BlackVolTermStructure>(flatVol(today, 1.0e-17, dc)));
+    VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, 20.0),
+                         ext::make_shared<EuropeanExercise>(today + 365));
+
+    const std::pair<std::string, ext::shared_ptr<PricingEngine>> engines[] = {
+        {"CRR", ext::make_shared<BinomialVanillaEngine<CoxRossRubinstein>>(process, 101)},
+        {"JR", ext::make_shared<BinomialVanillaEngine<JarrowRudd>>(process, 101)},
+        {"EQP", ext::make_shared<BinomialVanillaEngine<AdditiveEQPBinomialTree>>(process, 101)},
+        {"Trigeorgis", ext::make_shared<BinomialVanillaEngine<Trigeorgis>>(process, 101)},
+        {"extended CRR", ext::make_shared<BinomialVanillaEngine<ExtendedCoxRossRubinstein>>(process, 101)}};
+
+    for (const auto& engine : engines)
+    {
+        BOOST_TEST_CONTEXT(engine.first << " tree")
+        {
+            option.setPricingEngine(engine.second);
+            BOOST_CHECK_CLOSE(option.NPV(), 80.0, 1.0e-10);
+            BOOST_CHECK_EXCEPTION(option.delta(), Error, ExpectedErrorMessage("delta not provided"));
+            BOOST_CHECK_EXCEPTION(option.gamma(), Error, ExpectedErrorMessage("gamma not provided"));
+            BOOST_CHECK_EXCEPTION(option.theta(), Error, ExpectedErrorMessage("theta not provided"));
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

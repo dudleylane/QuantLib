@@ -678,6 +678,30 @@ BOOST_AUTO_TEST_CASE(testBinomialExerciseAtMaturity)
     BOOST_CHECK_SMALL(american.NPV() - vanilla.NPV(), 1.0e-10);
 }
 
+BOOST_AUTO_TEST_CASE(testBinomialGreeksWithCoincidentNodes)
+{
+    BOOST_TEST_MESSAGE("Testing binomial double barrier Greeks when a tree collapses to one price...");
+
+    const Date today(15, August, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+
+    // The moves are too small to register, so all the nodes of a step round to one price.
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.0, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.0, dc)),
+        Handle<BlackVolTermStructure>(flatVol(today, 1.0e-17, dc)));
+    DoubleBarrierOption option(DoubleBarrier::KnockOut, 50.0, 200.0, 0.0,
+                               ext::make_shared<PlainVanillaPayoff>(Option::Call, 20.0),
+                               ext::make_shared<EuropeanExercise>(today + 365));
+    option.setPricingEngine(
+        ext::make_shared<BinomialDoubleBarrierEngine<CoxRossRubinstein, DiscretizedDoubleBarrierOption>>(process, 101));
+
+    BOOST_CHECK_CLOSE(option.NPV(), 80.0, 1.0e-10);
+    BOOST_CHECK_EXCEPTION(option.delta(), Error, ExpectedErrorMessage("delta not provided"));
+    BOOST_CHECK_EXCEPTION(option.gamma(), Error, ExpectedErrorMessage("gamma not provided"));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
