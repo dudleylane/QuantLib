@@ -1700,6 +1700,154 @@ BOOST_AUTO_TEST_CASE(testAllFixingsInThePast)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testTurnbullWakemanEveryFixingKnown)
+{
+    BOOST_TEST_MESSAGE("Testing Turnbull-Wakeman engine with every fixing known...");
+
+    const Date today(20, October, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const auto riskFree = flatRate(today, 0.03, dc);
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.01, dc)),
+        Handle<YieldTermStructure>(riskFree), Handle<BlackVolTermStructure>(flatVol(today, 0.25, dc)));
+    const auto engine = ext::make_shared<TurnbullWakemanAsianEngine>(process);
+
+    std::vector<Date> pastDates;
+    for (Integer i = 12; i > 0; --i)
+        pastDates.push_back(today - 30 * i);
+    const ext::shared_ptr<Exercise> laterExercise = ext::make_shared<EuropeanExercise>(today + 14);
+    const DiscountFactor laterDiscount = riskFree->discount(laterExercise->lastDate());
+
+    for (Option::Type type : {Option::Call, Option::Put})
+    {
+        for (Real strike : {95.0, 100.0, 105.0})
+        {
+            BOOST_TEST_CONTEXT(type << ", strike " << strike << ", every fixing past")
+            {
+                const auto payoff = ext::make_shared<PlainVanillaPayoff>(type, strike);
+                DiscreteAveragingAsianOption option(Average::Arithmetic, pastDates, payoff, laterExercise,
+                                                    std::vector<Real>(12, 100.0));
+                option.setPricingEngine(engine);
+                BOOST_CHECK_SMALL(option.NPV() - laterDiscount * (*payoff)(100.0), 1.0e-12);
+                BOOST_CHECK_EQUAL(option.delta(), 0.0);
+                BOOST_CHECK_EQUAL(option.gamma(), 0.0);
+            }
+        }
+    }
+
+    // Today's fixing is the spot, so it's known too, though the option still moves with it.
+    std::vector<Date> datesUntilToday(pastDates.end() - 5, pastDates.end());
+    datesUntilToday.push_back(today);
+    const ext::shared_ptr<Exercise> soonExercise = ext::make_shared<EuropeanExercise>(today + 2);
+    const DiscountFactor soonDiscount = riskFree->discount(soonExercise->lastDate());
+
+    for (Option::Type type : {Option::Call, Option::Put})
+    {
+        for (Real strike : {95.0, 105.0})
+        {
+            BOOST_TEST_CONTEXT(type << ", strike " << strike << ", last fixing today")
+            {
+                const auto payoff = ext::make_shared<PlainVanillaPayoff>(type, strike);
+                DiscreteAveragingAsianOption option(Average::Arithmetic, datesUntilToday, payoff, soonExercise,
+                                                    std::vector<Real>(5, 100.0));
+                option.setPricingEngine(engine);
+                const Real expected = soonDiscount * (*payoff)(100.0);
+                BOOST_CHECK_SMALL(option.NPV() - expected, 1.0e-12);
+                BOOST_CHECK_SMALL(option.delta() - (expected > 0.0 ? int(type) * soonDiscount / 6.0 : 0.0), 1.0e-12);
+                BOOST_CHECK_EQUAL(option.gamma(), 0.0);
+                BOOST_CHECK_EQUAL(option.result<Real>("sigma"), 0.0);
+                const auto spotVols = option.result<std::vector<Real>>("spotVols");
+                BOOST_REQUIRE_EQUAL(spotVols.size(), 1U);
+                BOOST_CHECK_SMALL(spotVols.front() - 0.25, 1.0e-12);
+            }
+        }
+    }
+
+    DiscreteAveragingAsianOption noFixings(Average::Arithmetic, 0.0, 0, std::vector<Date>(),
+                                           ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0), laterExercise);
+    noFixings.setPricingEngine(engine);
+    BOOST_CHECK_EXCEPTION(noFixings.NPV(), Error, ExpectedErrorMessage("no fixings given"));
+}
+
+BOOST_AUTO_TEST_CASE(testTurnbullWakemanLowVolatility)
+{
+    BOOST_TEST_MESSAGE("Testing Turnbull-Wakeman engine at low volatility...");
+
+    const Date today(20, October, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+
+    std::vector<Date> fixingDates;
+    for (Integer i = 1; i <= 12; ++i)
+        fixingDates.push_back(today + 30 * i);
+    const ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(today + 370);
+
+    // The approximation at 200 digits, with past fixings of 100.  The first groups are
+    // struck at the forward, where the value is all in the variance of the average.
+    const struct
+    {
+        Option::Type type;
+        Real strike;
+        Size pastFixings;
+        Rate yield;
+        Volatility vol;
+        Real expected;
+    } cases[] = {{Option::Call, 100.0, 0, 0.03, 0.0, 0.0},
+                 {Option::Call, 100.0, 0, 0.03, 1e-08, 2.3571780135560013e-7},
+                 {Option::Put, 100.0, 0, 0.03, 1e-08, 2.3571780135560013e-7},
+                 {Option::Call, 100.0, 0, 0.03, 1e-06, 2.3571780135560502e-5},
+                 {Option::Call, 100.0, 0, 0.03, 0.0001, 0.0023571780140470352},
+                 {Option::Call, 100.0, 5, 0.03, 1e-08, 1.6638903625101185e-7},
+                 {Option::Put, 100.0, 5, 0.03, 1e-06, 1.6638903625101531e-5},
+                 {Option::Call, 100.0, 5, 0.03, 0.0001, 0.0016638903628567307},
+                 {Option::Put, 101.07584928597844, 0, 0.01, 0.0, 3.4091532110404864e-15},
+                 {Option::Call, 101.07584928597844, 0, 0.01, 1e-08, 2.3877087780495098e-7},
+                 {Option::Put, 101.07584928597844, 0, 0.01, 1e-08, 2.3877088121410419e-7},
+                 {Option::Call, 101.07584928597844, 0, 0.01, 1e-06, 2.3877087949248675e-5},
+                 {Option::Put, 101.07584928597844, 0, 0.01, 0.0001, 0.0023877087955924816},
+                 {Option::Call, 100.75942302539653, 5, 0.01, 0.0, 1.0567839308680046e-14},
+                 {Option::Put, 100.75942302539653, 5, 0.01, 1e-08, 1.6854414495809985e-7},
+                 {Option::Call, 100.75942302539653, 5, 0.01, 1e-06, 1.6854415029486213e-5},
+                 {Option::Call, 100.75942302539653, 5, 0.01, 0.0001, 0.001685441502775244},
+                 {Option::Call, 95.0, 0, 0.03, 0.0, 4.8502340112612151},
+                 {Option::Put, 95.0, 0, 0.03, 0.0, 0.0},
+                 {Option::Call, 95.0, 0, 0.03, 1e-06, 4.8502340112612151},
+                 {Option::Put, 95.0, 0, 0.03, 1e-06, 0.0},
+                 {Option::Call, 96.02205682167951, 0, 0.01, 0.0, 4.9024152192396494},
+                 {Option::Put, 96.02205682167951, 0, 0.01, 0.0, 0.0}};
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.type << ", strike " << c.strike << ", " << c.pastFixings << " past, yield " << c.yield
+                                  << ", volatility " << c.vol)
+        {
+            const auto process =
+                ext::make_shared<BlackScholesMertonProcess>(Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)),
+                                                            Handle<YieldTermStructure>(flatRate(today, c.yield, dc)),
+                                                            Handle<YieldTermStructure>(flatRate(today, 0.03, dc)),
+                                                            Handle<BlackVolTermStructure>(flatVol(today, c.vol, dc)));
+            DiscreteAveragingAsianOption option(Average::Arithmetic, 100.0 * c.pastFixings, c.pastFixings, fixingDates,
+                                                ext::make_shared<PlainVanillaPayoff>(c.type, c.strike), exercise);
+            option.setPricingEngine(ext::make_shared<TurnbullWakemanAsianEngine>(process));
+            BOOST_CHECK_SMALL(option.NPV() - c.expected, 1.0e-12);
+        }
+    }
+
+    // With one fixing to come, a sixth of a lognormal forward of 100, the second moment is known.
+    const Volatility vol = 0.25;
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.03, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.03, dc)), Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+    const Date lastFixing = today + 360;
+    DiscreteAveragingAsianOption option(Average::Arithmetic, 500.0, 5, {lastFixing},
+                                        ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0), exercise);
+    option.setPricingEngine(ext::make_shared<TurnbullWakemanAsianEngine>(process));
+    const Real expectedSecondMoment =
+        (100.0 / 6.0) * (100.0 / 6.0) * std::exp(vol * vol * dc.yearFraction(today, lastFixing));
+    BOOST_CHECK_SMALL(option.result<Real>("exp_A_2") - expectedSecondMoment, 1.0e-10);
+}
+
 BOOST_AUTO_TEST_CASE(testTurnbullWakemanAsianEngine)
 {
 
