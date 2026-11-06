@@ -20,6 +20,7 @@
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
 #include <ql/indexes/ibor/euribor.hpp>
+#include <ql/indexes/ibor/usdlibor.hpp>
 #include <ql/indexes/swap/euriborswap.hpp>
 #include <ql/instruments/makevanillaswap.hpp>
 #include <ql/instruments/nonstandardswap.hpp>
@@ -366,6 +367,29 @@ BOOST_AUTO_TEST_CASE(testGsrModelQuoteUpdate)
 
     Real after = stdswaption->NPV();
     BOOST_CHECK(std::fabs(before - after) > 0.01);
+}
+
+BOOST_AUTO_TEST_CASE(testForwardRateEndsOnTheIndexMaturity)
+{
+    BOOST_TEST_MESSAGE("Testing that a Gaussian1d forward rate ends on the index's maturity date...");
+
+    const Date today(19, May, 2026);
+    Settings::instance().evaluationDate() = today;
+    Handle<YieldTermStructure> curve(flatRate(today, 0.03, Actual365Fixed()));
+    auto model =
+        ext::make_shared<Gsr>(curve, std::vector<Date>(), std::vector<Real>(1, 0.01), std::vector<Real>(1, 0.01), 60.0);
+    auto libor = ext::make_shared<USDLibor>(6 * Months, curve);
+
+    // Libor's maturity follows its own rule; the fixing calendar alone would
+    // give January 17th, 2028, Martin Luther King's birthday in the United States.
+    const Date fixing(13, July, 2027);
+    const Date value = libor->valueDate(fixing);
+    const Date end = libor->maturityDate(value);
+    BOOST_CHECK_EQUAL(end, Date(18, January, 2028));
+
+    const Real accrual = libor->dayCounter().yearFraction(value, end);
+    const Real expected = (curve->discount(value) / curve->discount(end) - 1.0) / accrual;
+    BOOST_CHECK_SMALL(model->forwardRate(fixing, Date(), 0.0, libor) - expected, 1.0e-12);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
