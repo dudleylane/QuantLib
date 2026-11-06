@@ -297,6 +297,20 @@ BOOST_AUTO_TEST_CASE(testTRSNPV)
     checkNPVCalculation(Swap::Receiver, Date(31, January, 2023), Date(30, April, 2023), true, -0.005, 1.0, 2);
 }
 
+BOOST_AUTO_TEST_CASE(testFairMarginWithZeroBps)
+{
+    BOOST_TEST_MESSAGE("Testing the fair margin when the interest-rate leg has no BPS...");
+
+    CommonVars vars;
+
+    auto trs = vars.createTRS(Swap::Receiver, Date(5, January, 2023), Date(5, April, 2023), false, 0.0, 0.0);
+
+    BOOST_CHECK(!trs->isExpired());
+    BOOST_CHECK_EQUAL(trs->legBPS(1), 0.0);
+
+    BOOST_CHECK_EXCEPTION(trs->fairMargin(), Error, ExpectedErrorMessage("result not available"));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

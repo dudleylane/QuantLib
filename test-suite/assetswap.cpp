@@ -3227,6 +3227,26 @@ BOOST_AUTO_TEST_CASE(testSpecializedBondVsGenericBondUsingAsw)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testFairSpreadWithZeroBps)
+{
+    BOOST_TEST_MESSAGE("Testing an asset swap's fair spread when its floating leg has no BPS...");
+
+    CommonVars vars;
+
+    const Schedule schedule(Date(25, June, 2007), Date(25, June, 2012), 1 * Years, TARGET(), Following, Following,
+                            DateGeneration::Backward, false);
+    auto bond = ext::make_shared<FixedRateBond>(2, 0.0, schedule, std::vector<Rate>{0.04}, Actual360());
+    bond->setPricingEngine(ext::make_shared<DiscountingBondEngine>(vars.termStructure));
+
+    AssetSwap swap(true, bond, 100.0, vars.iborIndex, vars.spread, Schedule(), Actual360(), true);
+    swap.setPricingEngine(ext::make_shared<DiscountingSwapEngine>(vars.termStructure));
+
+    BOOST_CHECK(!swap.isExpired());
+    BOOST_CHECK_EQUAL(swap.floatingLegBPS(), 0.0);
+
+    BOOST_CHECK_EXCEPTION(swap.fairSpread(), Error, ExpectedErrorMessage("fair spread not available"));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

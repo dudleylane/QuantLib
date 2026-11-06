@@ -24,9 +24,12 @@
 #include <ql/cashflows/couponpricer.hpp>
 #include <ql/cashflows/iborcoupon.hpp>
 #include <ql/currencies/europe.hpp>
+#include <ql/indexes/bmaindex.hpp>
 #include <ql/indexes/ibor/bbsw.hpp>
 #include <ql/indexes/ibor/euribor.hpp>
 #include <ql/indexes/ibor/gbplibor.hpp>
+#include <ql/indexes/ibor/usdlibor.hpp>
+#include <ql/instruments/bmaswap.hpp>
 #include <ql/instruments/makevanillaswap.hpp>
 #include <ql/instruments/vanillaswap.hpp>
 #include <ql/pricingengines/swap/discountingswapengine.hpp>
@@ -554,6 +557,48 @@ BOOST_AUTO_TEST_CASE(testSpotDateOnTheIndexCalendar)
     ext::shared_ptr<VanillaSwap> overHolidays =
         MakeVanillaSwap(1 * Years, euribor, 0.03).withFloatingLegCalendar(Japan()).withFixedLegCalendar(Japan());
     BOOST_CHECK_EQUAL(overHolidays->startDate(), Japan().adjust(euribor->valueDate(today)));
+}
+
+BOOST_AUTO_TEST_CASE(testFairRateAndSpreadWithZeroBps)
+{
+    BOOST_TEST_MESSAGE("Testing a swap's fair rate and spread when its legs have no BPS...");
+
+    CommonVars vars;
+    vars.nominal = 0.0;
+    ext::shared_ptr<VanillaSwap> swap = vars.makeSwap(10, 0.0, 0.0);
+
+    BOOST_CHECK(!swap->isExpired());
+    BOOST_CHECK_EQUAL(swap->fixedLegBPS(), 0.0);
+    BOOST_CHECK_EQUAL(swap->floatingLegBPS(), 0.0);
+
+    BOOST_CHECK_EXCEPTION(swap->fairRate(), Error, ExpectedErrorMessage("result not available"));
+    BOOST_CHECK_EXCEPTION(swap->fairSpread(), Error, ExpectedErrorMessage("result not available"));
+}
+
+BOOST_AUTO_TEST_CASE(testBmaSwapFairSpreadWithZeroBps)
+{
+    BOOST_TEST_MESSAGE("Testing a BMA swap's fair spread when its Libor leg has no BPS...");
+
+    const Date today(25, June, 2026);
+    Settings::instance().evaluationDate() = today;
+    Handle<YieldTermStructure> curve(flatRate(today, 0.03, Actual365Fixed()));
+    auto libor = ext::make_shared<USDLibor>(3 * Months, curve);
+    auto bma = ext::make_shared<BMAIndex>(curve);
+    for (Date d = today - 30; d <= today; ++d)
+        if (bma->isValidFixingDate(d))
+            bma->addFixing(d, 0.03);
+
+    const Schedule schedule(Date(29, June, 2026), Date(29, June, 2031), 3 * Months,
+                            UnitedStates(UnitedStates::Settlement), Following, Following, DateGeneration::Backward,
+                            false);
+
+    BMASwap swap(BMASwap::Payer, 0.0, schedule, 0.65, 0.0, libor, Actual360(), schedule, bma, Actual360());
+    swap.setPricingEngine(ext::make_shared<DiscountingSwapEngine>(curve));
+
+    BOOST_CHECK(!swap.isExpired());
+    BOOST_CHECK_EQUAL(swap.liborLegBPS(), 0.0);
+
+    BOOST_CHECK_EXCEPTION(swap.fairLiborSpread(), Error, ExpectedErrorMessage("result not available"));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -18,6 +18,7 @@
  */
 
 #include "toplevelfixture.hpp"
+#include "utilities.hpp"
 #include <ql/cashflows/cpicoupon.hpp>
 #include <ql/cashflows/cpicouponpricer.hpp>
 #include <ql/cashflows/iborcoupon.hpp>
@@ -473,6 +474,31 @@ BOOST_AUTO_TEST_CASE(cpibondconsistency)
     cpiB.setPricingEngine(dbe);
 
     QL_REQUIRE(fabs(cpiB.NPV() - zisV.legNPV(0)) < 1e-5, "cpi bond does not equal equivalent cpi swap leg");
+}
+
+BOOST_AUTO_TEST_CASE(testFairRateAndSpreadWithZeroBps)
+{
+    BOOST_TEST_MESSAGE("Testing a CPI swap's fair rate and spread when its legs have no BPS...");
+
+    CommonVars common;
+
+    const Date endDate(25, November, 2059);
+    const Calendar calendar = UnitedKingdom();
+    const Period observationLag(2, Months);
+    const std::vector<Date> dates = {endDate};
+    const Schedule oneDate(dates, calendar, ModifiedFollowing);
+    const Real baseCPI = CPI::laggedFixing(common.ii, common.evaluationDate, observationLag, CPI::Flat);
+
+    CPISwap swap(Swap::Payer, 0.0, true, 0.0, DayCounter(), oneDate, ModifiedFollowing, 0, ext::shared_ptr<IborIndex>(),
+                 0.1, baseCPI, DayCounter(), oneDate, ModifiedFollowing, observationLag, common.ii, CPI::Flat);
+    swap.setPricingEngine(ext::make_shared<DiscountingSwapEngine>(common.nominalTS));
+
+    BOOST_CHECK(!swap.isExpired());
+    BOOST_CHECK_EQUAL(swap.legBPS(0), 0.0);
+    BOOST_CHECK_EQUAL(swap.legBPS(1), 0.0);
+
+    BOOST_CHECK_EXCEPTION(swap.fairRate(), Error, ExpectedErrorMessage("result not available"));
+    BOOST_CHECK_EXCEPTION(swap.fairSpread(), Error, ExpectedErrorMessage("result not available"));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
