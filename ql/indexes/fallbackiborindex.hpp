@@ -76,6 +76,17 @@ namespace QuantLib
         Spread spreadAdjustment() const { return spreadAdjustment_; }
         //@}
 
+        //! \name InterestRateIndex interface
+        /*! These forward to the legacy index, which may override them: a
+            Libor, for one, avoids its financial centre's holidays as well
+            as those of its fixing calendar.
+        */
+        //@{
+        Date fixingDate(const Date& valueDate) const override;
+        Date valueDate(const Date& fixingDate) const override;
+        Date maturityDate(const Date& valueDate) const override;
+        //@}
+
         //! \name IborIndex interface
         //@{
         Rate forecastFixing(const Date& fixingDate) const override;

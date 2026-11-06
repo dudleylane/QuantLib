@@ -21,6 +21,7 @@
 #include "utilities.hpp"
 #include <ql/cashflows/couponpricer.hpp>
 #include <ql/cashflows/iborcoupon.hpp>
+#include <ql/currencies/america.hpp>
 #include <ql/indexes/bmaindex.hpp>
 #include <ql/indexes/fallbackiborindex.hpp>
 #include <ql/indexes/ibor/cdi.hpp>
@@ -36,6 +37,8 @@
 #include <ql/time/calendars/bespokecalendar.hpp>
 #include <ql/time/calendars/brazil.hpp>
 #include <ql/time/calendars/target.hpp>
+#include <ql/time/calendars/unitedkingdom.hpp>
+#include <ql/time/calendars/unitedstates.hpp>
 #include <ql/time/daycounters/actual360.hpp>
 #include <ql/time/schedule.hpp>
 #include <ql/utilities/dataformatters.hpp>
@@ -322,6 +325,48 @@ BOOST_AUTO_TEST_CASE(testFallbackIborIndex)
     usdLibor->addFixing(histFixing, publishedRate, /*forceOverwrite*/ true);
     BOOST_CHECK_CLOSE(usdLibor->fixing(histFixing), publishedRate, 1e-12);
     IndexManager::instance().clearHistories();
+}
+
+BOOST_AUTO_TEST_CASE(testFallbackIborIndexDates)
+{
+    BOOST_TEST_MESSAGE("Testing that a FallbackIborIndex uses the dates of the index it wraps...");
+
+    // Libor avoids its financial centre's holidays as well as its fixing
+    // calendar's, and CustomIborIndex has a calendar for each date (#126).
+    const Date today(15, June, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual360();
+    const Handle<YieldTermStructure> rfrCurve(ext::make_shared<FlatForward>(today, 0.03, dc));
+    const auto sofr = ext::make_shared<Sofr>(rfrCurve);
+
+    const std::vector<ext::shared_ptr<IborIndex>> legacyIndexes = {
+        ext::make_shared<USDLibor>(3 * Months),
+        ext::make_shared<CustomIborIndex>(
+            "Custom", 3 * Months, 2, USDCurrency(), UnitedKingdom(UnitedKingdom::Exchange),
+            UnitedStates(UnitedStates::GovernmentBond), TARGET(), ModifiedFollowing, true, dc)};
+
+    for (const auto& legacy : legacyIndexes)
+    {
+        const auto fallback = ext::make_shared<FallbackIborIndex>(legacy, sofr, today, 0.0);
+        Size differFromFixingCalendar = 0;
+        for (Date d = today + 1; d < today + 365; ++d)
+        {
+            if (!legacy->isValidFixingDate(d))
+                continue;
+            const Date value = legacy->valueDate(d);
+            const Date maturity = legacy->maturityDate(value);
+            BOOST_CHECK_EQUAL(fallback->valueDate(d), value);
+            BOOST_CHECK_EQUAL(fallback->maturityDate(value), maturity);
+            BOOST_CHECK_EQUAL(fallback->fixingDate(value), legacy->fixingDate(value));
+            const Rate expected =
+                (rfrCurve->discount(value) / rfrCurve->discount(maturity) - 1.0) / dc.yearFraction(value, maturity);
+            BOOST_CHECK_SMALL(fallback->fixing(d) - expected, 1.0e-12);
+            if (value != legacy->fixingCalendar().advance(d, legacy->fixingDays(), Days))
+                ++differFromFixingCalendar;
+        }
+        // Without such dates this would show nothing.
+        BOOST_REQUIRE(differFromFixingCalendar > 0);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(testFallbackIborIndexInCoupons)
