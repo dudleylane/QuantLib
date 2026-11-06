@@ -171,13 +171,13 @@ BOOST_AUTO_TEST_CASE(testEuroExchangeTwoAssets)
                                       {22.0, 20.0, 1, 1, 0.06, 0.04, 0.10, 0.50, 0.20, 0.25, 0.50, 2.374, 0.707, -0.659,
                                        0.090, 0.109, -0.741, 0.0, 1.0e-3},
 
-                                      // Quantity tests from Excel calcuations
+                                      // Quantity tests: the rows above with each spot divided by its quantity
                                       {22.0, 10.0, 1, 2, 0.06, 0.04, 0.10, 0.50, 0.20, 0.15, 0.50, 2.138, 0.746, -1.426,
-                                       0.106, 0.255, -0.987, 0.0, 1.0e-3},
+                                       0.106, 0.511, -0.416, 0.0, 1.0e-3},
                                       {11.0, 20.0, 2, 1, 0.06, 0.04, 0.10, 0.50, 0.20, 0.20, 0.50, 2.231, 1.455, -0.689,
-                                       0.198, 0.120, 0.410, 0.0, 1.0e-3},
+                                       0.397, 0.120, -0.550, 0.0, 1.0e-3},
                                       {11.0, 10.0, 2, 2, 0.06, 0.04, 0.10, 0.50, 0.20, 0.25, 0.50, 2.374, 1.413, -1.317,
-                                       0.181, 0.219, -0.336, 0.0, 1.0e-3}};
+                                       0.361, 0.437, -0.741, 0.0, 1.0e-3}};
 
     DayCounter dc = Actual360();
     Date today = Settings::instance().evaluationDate();
@@ -573,6 +573,64 @@ BOOST_AUTO_TEST_CASE(testAmericanExchangeTwoAssets)
         }
     }
 }
+BOOST_AUTO_TEST_CASE(testGreeksWithQuantities)
+{
+    BOOST_TEST_MESSAGE("Testing analytic European exchange option greeks with quantities...");
+
+    const DayCounter dc = Actual360();
+    const Date today(20, October, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    const auto spot1 = ext::make_shared<SimpleQuote>(22.0);
+    const auto spot2 = ext::make_shared<SimpleQuote>(10.0);
+    const auto rTS = Handle<YieldTermStructure>(flatRate(ext::make_shared<SimpleQuote>(0.10), dc));
+    const auto process1 = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot1), Handle<YieldTermStructure>(flatRate(ext::make_shared<SimpleQuote>(0.06), dc)), rTS,
+        Handle<BlackVolTermStructure>(flatVol(ext::make_shared<SimpleQuote>(0.20), dc)));
+    const auto process2 = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot2), Handle<YieldTermStructure>(flatRate(ext::make_shared<SimpleQuote>(0.04), dc)), rTS,
+        Handle<BlackVolTermStructure>(flatVol(ext::make_shared<SimpleQuote>(0.15), dc)));
+    const auto engine = ext::make_shared<AnalyticEuropeanMargrabeEngine>(process1, process2, 0.5);
+    const auto exercise = ext::make_shared<EuropeanExercise>(today + 180);
+
+    const std::pair<Integer, Integer> quantities[] = {{1, 1}, {1, 2}, {2, 1}, {2, 2}, {3, 7}};
+    for (const auto& [q1, q2] : quantities)
+    {
+        BOOST_TEST_CONTEXT("quantities " << q1 << " and " << q2)
+        {
+            MargrabeOption option(q1, q2, exercise);
+            option.setPricingEngine(engine);
+            const Real delta1 = option.delta1(), delta2 = option.delta2();
+            const Real gamma1 = option.gamma1(), gamma2 = option.gamma2();
+            const Real theta = option.theta();
+
+            const Real du1 = 22.0 * 1.0e-4, du2 = 10.0 * 1.0e-4;
+            spot1->setValue(22.0 + du1);
+            const Real delta1Up = option.delta1(), value1Up = option.NPV();
+            spot1->setValue(22.0 - du1);
+            const Real delta1Down = option.delta1(), value1Down = option.NPV();
+            spot1->setValue(22.0);
+            spot2->setValue(10.0 + du2);
+            const Real delta2Up = option.delta2(), value2Up = option.NPV();
+            spot2->setValue(10.0 - du2);
+            const Real delta2Down = option.delta2(), value2Down = option.NPV();
+            spot2->setValue(10.0);
+            BOOST_CHECK_SMALL(delta1 - (value1Up - value1Down) / (2.0 * du1), 1.0e-6);
+            BOOST_CHECK_SMALL(delta2 - (value2Up - value2Down) / (2.0 * du2), 1.0e-6);
+            BOOST_CHECK_SMALL(gamma1 - (delta1Up - delta1Down) / (2.0 * du1), 1.0e-6);
+            BOOST_CHECK_SMALL(gamma2 - (delta2Up - delta2Down) / (2.0 * du2), 1.0e-6);
+
+            // The curves and volatilities move with the evaluation date.
+            Settings::instance().evaluationDate() = today - 1;
+            const Real valueBefore = option.NPV();
+            Settings::instance().evaluationDate() = today + 1;
+            const Real valueAfter = option.NPV();
+            Settings::instance().evaluationDate() = today;
+            BOOST_CHECK_SMALL(theta - (valueAfter - valueBefore) / dc.yearFraction(today - 1, today + 1), 1.0e-4);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
