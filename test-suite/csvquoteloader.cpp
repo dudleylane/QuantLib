@@ -16,6 +16,7 @@
 #include "utilities.hpp"
 #include <ql/marketdata/csvquoteloader.hpp>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <string>
 
@@ -33,10 +34,9 @@ namespace
     // Caller is responsible for std::remove()-ing it.
     std::string writeTempCsv(const std::string& body)
     {
-        char tmpl[] = "/tmp/ql_csv_test_XXXXXX";
-        int fd = mkstemp(tmpl);
+        std::string path = (std::filesystem::temp_directory_path() / "ql_csv_test_XXXXXX").string();
+        int fd = mkstemp(path.data());
         QL_REQUIRE(fd != -1, "mkstemp failed");
-        std::string path(tmpl);
         close(fd);
         std::ofstream out(path);
         out << body;
