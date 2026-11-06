@@ -30,6 +30,7 @@
 #include <ql/utilities/observablevalue.hpp>
 #include <algorithm>
 #include <cctype>
+#include <utility>
 
 namespace QuantLib
 {
@@ -64,7 +65,8 @@ namespace QuantLib
             }
         };
 
-        mutable std::map<std::string, TimeSeries<Real>, CaseInsensitiveCompare> data_;
+        // Not mutable: fixings are read while pricing, so a lookup must not be able to write (#86).
+        std::map<std::string, TimeSeries<Real>, CaseInsensitiveCompare> data_;
         mutable std::map<std::string, ext::shared_ptr<Observable>> notifiers_;
 
         //! add a fixing
@@ -87,7 +89,8 @@ namespace QuantLib
             while (dBegin != dEnd)
             {
                 bool validFixing = isValidFixingDate ? isValidFixingDate(*dBegin) : true;
-                Real currentValue = h[*dBegin];
+                // A read, so that a date rejected below leaves no entry.
+                Real currentValue = std::as_const(h)[*dBegin];
                 bool missingFixing = forceOverwrite || currentValue == nullValue;
                 if (validFixing)
                 {

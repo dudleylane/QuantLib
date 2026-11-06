@@ -70,6 +70,10 @@ namespace QuantLib
         */
         virtual Real pastFixing(const Date& fixingDate) const;
         //! returns the fixing TimeSeries
+        /*! \warning an index with no fixings gets a shared empty series,
+                     which won't show fixings added later.  Call this again
+                     after adding them.
+        */
         const TimeSeries<Real>& timeSeries() const
         {
             QL_DEPRECATED_DISABLE_WARNING
