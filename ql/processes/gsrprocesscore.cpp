@@ -52,6 +52,12 @@ namespace QuantLib::detail
         checkTimesVolsReversions();
     }
 
+    void GsrProcessCore::setForwardMeasureTime(Time T)
+    {
+        T_ = T;
+        flushCache();
+    }
+
     void GsrProcessCore::checkTimesVolsReversions() const
     {
         QL_REQUIRE(times_.size() == vols_.size() - 1, "number of volatilities ("

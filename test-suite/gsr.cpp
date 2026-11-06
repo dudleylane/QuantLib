@@ -392,6 +392,24 @@ BOOST_AUTO_TEST_CASE(testForwardRateEndsOnTheIndexMaturity)
     BOOST_CHECK_SMALL(model->forwardRate(fixing, Date(), 0.0, libor) - expected, 1.0e-12);
 }
 
+BOOST_AUTO_TEST_CASE(testProcessFollowsTheForwardMeasureTime)
+{
+    BOOST_TEST_MESSAGE("Testing that a GSR process follows a new forward measure time...");
+
+    const Array times(1, 1.0), vols(2, 0.01), reversions(1, 0.05);
+
+    GsrProcess moved(times, vols, reversions, 60.0);
+    moved.setForwardMeasureTime(30.0);
+    const GsrProcess fresh(times, vols, reversions, 30.0);
+
+    BOOST_CHECK_EQUAL(moved.getForwardMeasureTime(), 30.0);
+    for (Time t : {0.0, 0.5, 2.0, 10.0})
+    {
+        BOOST_CHECK_SMALL(moved.expectation(t, 0.01, 1.0) - fresh.expectation(t, 0.01, 1.0), 1.0e-14);
+        BOOST_CHECK_SMALL(moved.variance(t, 0.01, 1.0) - fresh.variance(t, 0.01, 1.0), 1.0e-14);
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

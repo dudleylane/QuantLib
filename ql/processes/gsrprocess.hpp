@@ -86,7 +86,7 @@ namespace QuantLib
 
     inline void GsrProcess::setForwardMeasureTime(Time t)
     {
-        flushCache();
+        core_.setForwardMeasureTime(t);
         ForwardMeasureProcess1D::setForwardMeasureTime(t);
     }
 
