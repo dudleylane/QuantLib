@@ -56,7 +56,6 @@ namespace bp = boost::process;
 #define BOOST_TEST_NO_MAIN 1
 #include <boost/test/included/unit_test.hpp>
 #include <chrono>
-#include <cstring>
 #include <fstream>
 #include <limits>
 #include <list>
@@ -366,7 +365,7 @@ int main(int argc, char* argv[])
 
             results_reporter::make_report();
 
-            RuntimeLog log;
+            RuntimeLog log{};
             for (unsigned i = 0; i < ids.size(); ++i)
             {
                 lq.receive(&log, sizeof(RuntimeLog), recvd_size, priority);
@@ -444,15 +443,15 @@ int main(int argc, char* argv[])
             output_logstream(log_stream(), oldBuf, logBuf);
             log_stream().rdbuf(oldBuf);
 
-            RuntimeLog log;
-            log.testCaseName[sizeof(log.testCaseName) - 1] = '\0';
+            RuntimeLog log{};
 
             message_queue lq(open_only, testRuntimeLogName);
             for (run_time_list_type::const_iterator iter = runTimeLogs.begin(); iter != runTimeLogs.end(); ++iter)
             {
                 log.time = iter->second;
 
-                std::strncpy(log.testCaseName, iter->first.c_str(), sizeof(log.testCaseName) - 1);
+                const std::string::size_type n = iter->first.copy(log.testCaseName, sizeof(log.testCaseName) - 1);
+                log.testCaseName[n] = '\0';
 
                 lq.send(&log, sizeof(RuntimeLog), 0);
             }
