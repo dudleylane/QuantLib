@@ -19,7 +19,11 @@
 
 #include <ql/exercise.hpp>
 #include <ql/math/distributions/bivariatenormaldistribution.hpp>
+#include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/pricingengines/exotic/analyticholderextensibleoptionengine.hpp>
+#include <algorithm>
+#include <cmath>
+#include <limits>
 #include <utility>
 
 using std::pow;
@@ -39,7 +43,12 @@ namespace QuantLib
 
     void AnalyticHolderExtensibleOptionEngine::calculate() const
     {
-        // Spot
+        ext::shared_ptr<PlainVanillaPayoff> payoff = ext::dynamic_pointer_cast<PlainVanillaPayoff>(arguments_.payoff);
+        QL_REQUIRE(payoff, "non-plain payoff given");
+        const Option::Type type = payoff->optionType();
+        const Real eta = Real(type);
+        const Real infinity = std::numeric_limits<Real>::infinity();
+
         Real S = process_->x0();
         Real r = riskFreeRate();
         Real b = r - dividendYield();
@@ -48,200 +57,96 @@ namespace QuantLib
         Time T2 = secondExpiryTime();
         Time t1 = firstExpiryTime();
         Real A = arguments_.premium;
-
-
-        Real z1 = this->z1();
-
-        Real z2 = this->z2();
-
         Real rho = sqrt(t1 / T2);
-
-
-        ext::shared_ptr<PlainVanillaPayoff> payoff = ext::dynamic_pointer_cast<PlainVanillaPayoff>(arguments_.payoff);
-
-        // QuantLib requires sigma * sqrt(T) rather than just sigma/volatility
         Real vol = volatility();
+        Real s1 = vol * sqrt(t1);
+        Real s2 = vol * sqrt(T2);
+        Real z1 = (log(S / X2) + (b + pow(vol, 2) / 2) * T2) / s2;
 
         // calculate dividend discount factor assuming continuous compounding (e^-rt)
         DiscountFactor growth = dividendDiscount(t1);
         // calculate payoff discount factor assuming continuous compounding
         DiscountFactor discount = riskFreeDiscount(t1);
-        Real result = 0;
-        constexpr double minusInf = -std::numeric_limits<double>::infinity();
 
-        Real y1 = this->y1(payoff->optionType()), y2 = this->y2(payoff->optionType());
-        if (payoff->optionType() == Option::Call)
+        const auto y = [&](Real x) { return (log(S / x) + (b + pow(vol, 2) / 2) * t1) / s1; };
+
+        // What extending adds to the option for first expiry spots between two levels: the extended
+        // option less the premium, and less what exercising the option would have paid there.
+        const auto gain = [&](Real lower, Real upper)
         {
-            // instantiate payoff function for a call
-            ext::shared_ptr<PlainVanillaPayoff> vanillaCallPayoff =
-                ext::make_shared<PlainVanillaPayoff>(Option::Call, X1);
-            Real BSM = BlackScholesCalculator(vanillaCallPayoff, S, growth, vol * sqrt(t1), discount).value();
-            result =
-                BSM + S * exp((b - r) * T2) * M2(y1, y2, minusInf, z1, rho) -
-                X2 * exp(-r * T2) * M2(y1 - vol * sqrt(t1), y2 - vol * sqrt(t1), minusInf, z1 - vol * sqrt(T2), rho) -
-                S * exp((b - r) * t1) * N2(y1, z2) + X1 * exp(-r * t1) * N2(y1 - vol * sqrt(t1), z2 - vol * sqrt(t1)) -
-                A * exp(-r * t1) * N2(y1 - vol * sqrt(t1), y2 - vol * sqrt(t1));
-        }
-        else
+            Real yl = y(lower), yu = y(upper);
+            Real extended = eta * (S * exp((b - r) * T2) * M2(yu, yl, eta * z1, eta * rho) -
+                                   X2 * exp(-r * T2) * M2(yu - s1, yl - s1, eta * (z1 - s2), eta * rho));
+            Real ye = y(X1);
+            Real ya = type == Option::Call ? std::min(yl, ye) : yl;
+            Real yb = type == Option::Call ? yu : std::max(yu, ye);
+            Real exercised = eta * (S * growth * N2(yb, ya) - X1 * discount * N2(yb - s1, ya - s1));
+            return extended - A * discount * N2(yu - s1, yl - s1) - exercised;
+        };
+
+        Real result = BlackScholesCalculator(payoff, S, growth, s1, discount).value();
+
+        // Beyond the first strike, in the option's money, extending competes with exercising.  Their
+        // difference is convex in the spot, and this is its limit at the far end.
+        DiscountFactor dq = dividendDiscount(T2 - t1), dr = riskFreeDiscount(T2 - t1);
+        Real farEnd =
+            type == Option::Call ? (dq < 1.0 ? -infinity : (dq > 1.0 ? infinity : X1 - X2 * dr - A)) : X2 * dr - A - X1;
+        Real atStrike = bsCalculator(X1, type).value() - A;
+
+        // The difference falls all the way to the far end, unless a negative dividend yield turns it back up.
+        Real lowest = farEnd;
+        if (dq > 1.0)
         {
-            // instantiate payoff function for a call
-            ext::shared_ptr<PlainVanillaPayoff> vanillaPutPayoff =
-                ext::make_shared<PlainVanillaPayoff>(Option::Put, X1);
-            result =
-                BlackScholesCalculator(vanillaPutPayoff, S, growth, vol * sqrt(t1), discount).value() -
-                S * exp((b - r) * T2) * M2(y1, y2, minusInf, -z1, rho) +
-                X2 * exp(-r * T2) * M2(y1 - vol * sqrt(t1), y2 - vol * sqrt(t1), minusInf, -z1 + vol * sqrt(T2), rho) +
-                S * exp((b - r) * t1) * N2(z2, y2) - X1 * exp(-r * t1) * N2(z2 - vol * sqrt(t1), y2 - vol * sqrt(t1)) -
-                A * exp(-r * t1) * N2(y1 - vol * sqrt(t1), y2 - vol * sqrt(t1));
+            Real d1 = eta * InverseCumulativeNormal()(1.0 / dq);
+            Real s = vol * sqrt(T2 - t1);
+            Real turningPoint = X2 * dr / dq * exp(d1 * s - s * s / 2);
+            lowest = eta * (turningPoint - X1) > 0.0 ?
+                         bsCalculator(turningPoint, type).value() - A - eta * (turningPoint - X1) :
+                         atStrike;
         }
-        this->results_.value = result;
+
+        // Extending beats lapsing up to the first strike only if it's worth the premium at the strike.
+        if (atStrike > 0.0)
+        {
+            Real againstLapsing = criticalPrice(X1, type, 0.0);
+            Real againstExercising =
+                lowest >= 0.0 ? (type == Option::Call ? infinity : 0.0) : criticalPrice(X1, type, eta);
+            result += type == Option::Call ? gain(againstLapsing, againstExercising) :
+                                             gain(againstExercising, againstLapsing);
+        }
+
+        // Once the difference has turned back up, extending beats exercising again.  The value of
+        // the option has a floor in its forward, which is linear, and that gives a starting point.
+        if (farEnd > 0.0 && lowest < 0.0)
+        {
+            result += type == Option::Call ? gain(criticalPrice((X2 * dr + A - X1) / (dq - 1.0), type, eta), infinity) :
+                                             gain(0.0, criticalPrice(farEnd / (dq - 1.0), type, eta));
+        }
+
+        results_.value = result;
     }
 
-    Real AnalyticHolderExtensibleOptionEngine::I1Call() const
+    Real AnalyticHolderExtensibleOptionEngine::criticalPrice(Real start, Option::Type type, Real exerciseWeight) const
     {
-        Real Sv = process_->x0();
-        Real A = arguments_.premium;
-
-        if (A == 0)
-        {
-            return 0;
-        }
-        else
-        {
-            BlackScholesCalculator bs = bsCalculator(Sv, Option::Call);
-            Real ci = bs.value();
-            Real dc = bs.delta();
-
-            Real yi = ci - A;
-            // da/ds = 0
-            Real di = dc - 0;
-            Real epsilon = 0.001;
-
-            // Newton-Raphson process
-            while (std::fabs(yi) > epsilon)
-            {
-                Sv = Sv - yi / di;
-
-                bs = bsCalculator(Sv, Option::Call);
-                ci = bs.value();
-                dc = bs.delta();
-
-                yi = ci - A;
-                di = dc - 0;
-            }
-            return Sv;
-        }
-    }
-
-    Real AnalyticHolderExtensibleOptionEngine::I2Call() const
-    {
-        Real Sv = process_->x0();
         Real X1 = strike();
         Real X2 = arguments_.secondStrike;
         Real A = arguments_.premium;
-        Time T2 = secondExpiryTime();
-        Time t1 = firstExpiryTime();
-        Real r = riskFreeRate();
 
-        Real val = X1 - X2 * std::exp(-r * (T2 - t1));
-        if (A < val)
+        // Newton-Raphson process: the function is convex and the start is where it's positive
+        // and on the root's side of any minimum, so that it never overshoots.
+        Real Sv = start;
+        for (Size iteration = 0; iteration < 1000; ++iteration)
         {
-            return std::numeric_limits<Real>::infinity();
+            BlackScholesCalculator bs = bsCalculator(Sv, type);
+            Real yi = bs.value() - A - exerciseWeight * (Sv - X1);
+            Real di = bs.delta() - exerciseWeight;
+            // Relative to the sizes involved, since the rounding of values that size can exceed anything less.
+            if (std::fabs(yi) <= 1.0e-12 * (Sv + X1 + X2) || di == 0.0)
+                return Sv;
+            Sv -= yi / di;
         }
-        else
-        {
-            BlackScholesCalculator bs = bsCalculator(Sv, Option::Call);
-            Real ci = bs.value();
-            Real dc = bs.delta();
-
-            Real yi = ci - A - Sv + X1;
-            // da/ds = 1
-            Real di = dc - 1;
-            Real epsilon = 0.001;
-
-            // Newton-Raphson process
-            while (std::fabs(yi) > epsilon)
-            {
-                Sv = Sv - yi / di;
-
-                bs = bsCalculator(Sv, Option::Call);
-                ci = bs.value();
-                dc = bs.delta();
-
-                yi = ci - A - Sv + X1;
-                di = dc - 1;
-            }
-            return Sv;
-        }
+        QL_FAIL("no critical price found for the holder-extensible option");
     }
-
-    Real AnalyticHolderExtensibleOptionEngine::I1Put() const
-    {
-        Real Sv = process_->x0();
-        // Srtike
-        Real X1 = strike();
-        // Premium
-        Real A = arguments_.premium;
-
-        BlackScholesCalculator bs = bsCalculator(Sv, Option::Put);
-        Real pi = bs.value();
-        Real dc = bs.delta();
-
-        Real yi = pi - A + Sv - X1;
-        // da/ds = 1
-        Real di = dc - 1;
-        Real epsilon = 0.001;
-
-        // Newton-Raphson prosess
-        while (std::fabs(yi) > epsilon)
-        {
-            Sv = Sv - yi / di;
-
-            bs = bsCalculator(Sv, Option::Put);
-            pi = bs.value();
-            dc = bs.delta();
-
-            yi = pi - A + Sv - X1;
-            di = dc - 1;
-        }
-        return Sv;
-    }
-
-    Real AnalyticHolderExtensibleOptionEngine::I2Put() const
-    {
-        Real Sv = process_->x0();
-        Real A = arguments_.premium;
-        if (A == 0)
-        {
-            return std::numeric_limits<Real>::infinity();
-        }
-        else
-        {
-            BlackScholesCalculator bs = bsCalculator(Sv, Option::Put);
-            Real pi = bs.value();
-            Real dc = bs.delta();
-
-            Real yi = pi - A;
-            // da/ds = 0
-            Real di = dc - 0;
-            Real epsilon = 0.001;
-
-            // Newton-Raphson prosess
-            while (std::fabs(yi) > epsilon)
-            {
-                Sv = Sv - yi / di;
-
-                bs = bsCalculator(Sv, Option::Put);
-                pi = bs.value();
-                dc = bs.delta();
-
-                yi = pi - A;
-                di = dc - 0;
-            }
-            return Sv;
-        }
-    }
-
 
     BlackScholesCalculator AnalyticHolderExtensibleOptionEngine::bsCalculator(Real spot, Option::Type optionType) const
     {
@@ -268,10 +173,14 @@ namespace QuantLib
         return bs;
     }
 
-    Real AnalyticHolderExtensibleOptionEngine::M2(Real a, Real b, Real c, Real d, Real rho) const
+    Real AnalyticHolderExtensibleOptionEngine::M2(Real a, Real b, Real d, Real rho) const
     {
-        BivariateCumulativeNormalDistributionDr78 CmlNormDist(rho);
-        return CmlNormDist(b, d) - CmlNormDist(a, d) - CmlNormDist(b, c) + CmlNormDist(a, c);
+        // a is -inf with no upper level and b is +inf with no lower one, and the
+        // bivariate distribution can't take an infinite argument.
+        BivariateCumulativeNormalDistributionWe04DP M(rho);
+        Real upper = std::isinf(b) ? CumulativeNormalDistribution()(d) : M(b, d);
+        Real lower = std::isinf(a) ? 0.0 : M(a, d);
+        return upper - lower;
     }
 
     Real AnalyticHolderExtensibleOptionEngine::N2(Real a, Real b) const
@@ -318,53 +227,6 @@ namespace QuantLib
     DiscountFactor AnalyticHolderExtensibleOptionEngine::riskFreeDiscount(Time t) const
     {
         return process_->riskFreeRate()->discount(t);
-    }
-
-    Real AnalyticHolderExtensibleOptionEngine::y1(Option::Type type) const
-    {
-        Real S = process_->x0();
-        Real I2 = (type == Option::Call) ? I2Call() : I2Put();
-
-        Real b = riskFreeRate() - dividendYield();
-        Real vol = volatility();
-        Time t1 = firstExpiryTime();
-
-        return (log(S / I2) + (b + pow(vol, 2) / 2) * t1) / (vol * sqrt(t1));
-    }
-
-    Real AnalyticHolderExtensibleOptionEngine::y2(Option::Type type) const
-    {
-        Real S = process_->x0();
-        Real I1 = (type == Option::Call) ? I1Call() : I1Put();
-
-        Real b = riskFreeRate() - dividendYield();
-        Real vol = volatility();
-        Time t1 = firstExpiryTime();
-
-        return (log(S / I1) + (b + pow(vol, 2) / 2) * t1) / (vol * sqrt(t1));
-    }
-
-    Real AnalyticHolderExtensibleOptionEngine::z1() const
-    {
-        Real S = process_->x0();
-        Real X2 = arguments_.secondStrike;
-        Real b = riskFreeRate() - dividendYield();
-        Real vol = volatility();
-        Time T2 = secondExpiryTime();
-
-        return (log(S / X2) + (b + pow(vol, 2) / 2) * T2) / (vol * sqrt(T2));
-    }
-
-    Real AnalyticHolderExtensibleOptionEngine::z2() const
-    {
-        Real S = process_->x0();
-        Real X1 = strike();
-
-        Real b = riskFreeRate() - dividendYield();
-        Real vol = volatility();
-        Time t1 = firstExpiryTime();
-
-        return (log(S / X1) + (b + pow(vol, 2) / 2) * t1) / (vol * sqrt(t1));
     }
 
 }
