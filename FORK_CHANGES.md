@@ -668,6 +668,22 @@ nothing ordered the three stores that published the cache.
     which ran CodeQL.
   - For CodeQL only, this reverses the 2026-10-17 decision (#30, above)
     that kept CodeQL and coverage in the run after a merge.
+- Workflow lint added to the `clang-format` gate (2026-11-06,
+  [#107](https://github.com/dudleylane/QuantLib/pull/107), `6e28a984b`,
+  for [#76](https://github.com/dudleylane/QuantLib/issues/76)).
+  `actionlint` exited 1 on `master` with five shellcheck findings and no
+  job ran it, so a new finding hid among the five. They are now cleared
+  or marked as intended, and a "Lint the workflow" step fails the gate.
+  It uses the image OrderProcessor's lint job uses, pinned by digest,
+  with no network and no mount. It ignores only the label `quantlib-dev`,
+  so a mistyped label fails. The tiers stay at 4, 5 and 31 jobs.
+  - **Verified.** Run 42179777926 ran the step on the runner, all 4 jobs
+    green in 34 minutes. Locally it exits 0 on the file and 1 on each of
+    a planted unquoted `$(ls)`, duplicate key, unclosed expression and
+    mistyped label.
+  - **New risk.** The gate now depends on podman: if it or the pull
+    fails, the gate fails and skips the rest of the run. The step is
+    limited to 10 minutes, because a hung pull would hold the only runner.
 
 ## Sibling repositories
 
