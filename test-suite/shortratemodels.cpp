@@ -26,14 +26,18 @@
 #include <ql/cashflows/iborcoupon.hpp>
 #include <ql/indexes/ibor/euribor.hpp>
 #include <ql/indexes/indexmanager.hpp>
+#include <ql/indexes/swap/euriborswap.hpp>
+#include <ql/instruments/makeswaption.hpp>
 #include <ql/math/optimization/levenbergmarquardt.hpp>
 #include <ql/math/optimization/simplex.hpp>
 #include <ql/models/shortrate/calibrationhelpers/swaptionhelper.hpp>
 #include <ql/models/shortrate/onefactormodels/extendedcoxingersollross.hpp>
 #include <ql/models/shortrate/onefactormodels/hullwhite.hpp>
 #include <ql/models/shortrate/onefactormodels/vasicek.hpp>
+#include <ql/models/shortrate/twofactormodels/g2.hpp>
 #include <ql/pricingengines/swap/discountingswapengine.hpp>
 #include <ql/pricingengines/swap/treeswapengine.hpp>
+#include <ql/pricingengines/swaption/g2swaptionengine.hpp>
 #include <ql/pricingengines/swaption/jamshidianswaptionengine.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/termstructures/yield/discountcurve.hpp>
@@ -586,6 +590,119 @@ BOOST_AUTO_TEST_CASE(testHullWhiteBondOptionsForSmallMeanReversion)
                                                                 << "\n  spot start:    " << spotStart << " against "
                                                                 << c.spotStart << "\n  forward start: " << forwardStart
                                                                 << " against " << c.forwardStart);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testG2DiscountBondForSmallMeanReversion)
+{
+    BOOST_TEST_MESSAGE("Testing G2's discount bonds with mean reversion close to zero...");
+
+    struct Case
+    {
+        Rate r;
+        Real a;
+        Volatility sigma;
+        Real b;
+        Volatility eta;
+        Real rho;
+        Time t, T;
+        Real x, y, expected;
+    };
+
+    // The model's closed form, evaluated in 120-digit arithmetic.
+    const Case cases[] = {
+        {0.03, 1e-12, 0.01, 0.1, 0.005, -0.5, 1.0, 5.0, 0.01, -0.01, 0.88003659065225545},
+        {0.03, 1e-09, 0.01, 0.1, 0.005, -0.5, 1.0, 5.0, 0.01, -0.01, 0.88003659072582035},
+        {0.03, 1e-07, 0.01, 0.1, 0.005, -0.5, 1.0, 5.0, 0.01, -0.01, 0.88003659801603423},
+        {0.03, 1e-05, 0.01, 0.1, 0.005, -0.5, 1.0, 5.0, 0.01, -0.01, 0.88003732702749102},
+        {0.03, 0.001, 0.01, 0.1, 0.005, -0.5, 1.0, 5.0, 0.01, -0.01, 0.88011012895729353},
+        {0.03, 0.1, 0.01, 1e-09, 0.005, -0.5, 1.0, 5.0, 0.01, -0.01, 0.89274066161481982},
+        {0.03, 0.1, 0.01, 1e-05, 0.005, -0.5, 1.0, 5.0, 0.01, -0.01, 0.89273994952677022},
+        {0.03, 1e-07, 0.01, 2e-07, 0.005, -0.5, 1.0, 5.0, 0.01, -0.01, 0.88625548898935952},
+        {0.03, 1e-06, 0.01, 1e-06, 0.005, -0.5, 1.0, 5.0, 0.01, -0.01, 0.8862554988312159},
+        {0.03, 0.2, 0.01, 0.3, 0.005, -0.5, 1.0, 5.0, 0.01, -0.01, 0.88288328570041449},
+        {0.03, 0.45, 0.01, 0.04, 0.005, -0.5, 1.0, 5.0, 0.01, -0.01, 0.90323235067173138},
+        {0.03, 1.0, 0.01, 0.03, 0.005, -0.5, 1.0, 5.0, 0.01, -0.01, 0.91184613030830664},
+        {0.03, 3.0, 0.01, 5.0, 0.005, -0.5, 1.0, 5.0, 0.01, -0.01, 0.88573682792113109},
+        {0.05, 1e-06, 0.02, 0.05, 0.01, 0.8, 0.5, 10.0, -0.02, 0.015, 0.6600529015892483},
+        {0.05, 0.03, 0.02, 1e-07, 0.01, -0.9, 2.0, 30.0, 0.0, 0.0, 0.23888590049897576},
+    };
+
+    const Date today(19, May, 2026);
+    const Real tolerance = 1.0e-14;
+    for (const auto& c : cases)
+    {
+        const Handle<YieldTermStructure> curve(flatRate(today, c.r, Actual365Fixed()));
+        const G2 model(curve, c.a, c.sigma, c.b, c.eta, c.rho);
+        const Real calculated = model.discountBond(c.t, c.T, c.x, c.y);
+        const Real error = std::fabs(calculated / c.expected - 1.0);
+        if (error > tolerance)
+            BOOST_ERROR("failed to reproduce the discount bond:" << "\n  a, b:       " << c.a << ", " << c.b
+                                                                 << std::setprecision(17) << "\n  calculated: "
+                                                                 << calculated << "\n  expected:   " << c.expected);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testG2BondOptionForSmallMeanReversion)
+{
+    BOOST_TEST_MESSAGE("Testing G2's bond options with mean reversion close to zero...");
+
+    struct Case
+    {
+        Real a, b, call;
+    };
+
+    // The model's closed form, evaluated in 120-digit arithmetic.
+    const Case cases[] = {
+        {1e-12, 0.1, 0.0071177351427567712}, {1e-09, 0.1, 0.0071177350835808549},   {1e-07, 0.1, 0.0071177292193028407},
+        {0.1, 1e-09, 0.0031411825321220064}, {1e-08, 1e-08, 0.0069013899019556634}, {0.05, 0.1, 0.0046187790906571704},
+    };
+
+    const Date today(19, May, 2026);
+    const Handle<YieldTermStructure> curve(flatRate(today, 0.03, Actual365Fixed()));
+    const Real tolerance = 1.0e-13;
+    for (const auto& c : cases)
+    {
+        const G2 model(curve, c.a, 0.01, c.b, 0.005, -0.5);
+        const Real calculated = model.discountBondOption(Option::Call, 0.9, 2.0, 7.0);
+        if (std::fabs(calculated - c.call) > tolerance)
+            BOOST_ERROR("failed to reproduce the bond option:" << "\n  a, b:       " << c.a << ", " << c.b
+                                                               << std::setprecision(17) << "\n  calculated: "
+                                                               << calculated << "\n  expected:   " << c.call);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testG2SwaptionForSmallMeanReversion)
+{
+    BOOST_TEST_MESSAGE("Testing G2's swaptions with mean reversion close to zero...");
+
+    const Date today(19, May, 2026);
+    Settings::instance().evaluationDate() = today;
+    const Handle<YieldTermStructure> curve(flatRate(today, 0.03, Actual365Fixed()));
+    const auto swapIndex = ext::make_shared<EuriborSwapIsdaFixA>(5 * Years, curve);
+
+    const auto npv = [&](Real a)
+    {
+        const auto model = ext::make_shared<G2>(curve, a, 0.01, 0.1, 0.005, -0.5);
+        const ext::shared_ptr<Swaption> swaption =
+            MakeSwaption(swapIndex, 2 * Years, 0.03)
+                .withPricingEngine(ext::make_shared<G2SwaptionEngine>(model, 6.0, 64));
+        return swaption->NPV();
+    };
+
+    // The usual expressions of the swaption's terms don't cancel at this reversion,
+    // and this is what they give.
+    BOOST_CHECK_SMALL(npv(0.05) - 0.019439987717127, 1.0e-12);
+
+    // The price moves smoothly towards its limit, by about 0.08 per unit of a.
+    const Real limit = npv(1.0e-12);
+    for (Real a : {1.0e-10, 1.0e-9, 1.0e-8, 1.0e-7, 1.0e-6, 1.0e-5})
+    {
+        const Real calculated = npv(a);
+        if (std::fabs(calculated - limit) > 0.1 * a + 1.0e-9)
+            BOOST_ERROR("swaption price not converging as the reversion goes to zero:"
+                        << "\n  a:          " << a << std::setprecision(17) << "\n  calculated: " << calculated
+                        << "\n  limit:      " << limit);
     }
 }
 
