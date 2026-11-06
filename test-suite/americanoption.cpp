@@ -44,7 +44,9 @@
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/time/daycounters/thirty360.hpp>
+#include <ql/timegrid.hpp>
 #include <ql/utilities/dataformatters.hpp>
 #include <map>
 #include <vector>
@@ -3724,6 +3726,38 @@ BOOST_AUTO_TEST_CASE(testBaroneAdesiWhaleyNegativeRates)
     itmCall.setPricingEngine(bs);
     BOOST_CHECK_MESSAGE(itmCall.NPV() >= 20.0 - 1.0e-8,
                         "BS American call NPV " << itmCall.NPV() << " below intrinsic 20.0");
+}
+
+BOOST_AUTO_TEST_CASE(testBinomialExerciseAtMaturity)
+{
+    BOOST_TEST_MESSAGE("Testing a binomial American option's exercise at maturity...");
+
+    const Date today(21, September, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Date maturity = today + 91;
+    const Size steps = 51;
+
+    // The last point of this grid rounds below the option's maturity.
+    const Time T = dc.yearFraction(today, maturity);
+    BOOST_REQUIRE(TimeGrid(T, steps).back() < T);
+
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.0, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.05, dc)), Handle<BlackVolTermStructure>(flatVol(today, 0.15, dc)));
+    auto payoff = ext::make_shared<PlainVanillaPayoff>(Option::Call, 85.0);
+    auto engine = ext::make_shared<BinomialVanillaEngine<CoxRossRubinstein>>(process, steps);
+
+    VanillaOption european(payoff, ext::make_shared<EuropeanExercise>(maturity));
+    VanillaOption american(payoff, ext::make_shared<AmericanExercise>(today, maturity));
+    VanillaOption onlyAtMaturity(payoff, ext::make_shared<AmericanExercise>(maturity, maturity));
+    european.setPricingEngine(engine);
+    american.setPricingEngine(engine);
+    onlyAtMaturity.setPricingEngine(engine);
+
+    // A call on a stock paying no dividends isn't exercised early.
+    BOOST_CHECK_SMALL(american.NPV() - european.NPV(), 1.0e-10);
+    BOOST_CHECK_SMALL(onlyAtMaturity.NPV() - european.NPV(), 1.0e-10);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

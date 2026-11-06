@@ -34,6 +34,7 @@
 #include <ql/pricingengines/barrier/fdhestondoublebarrierengine.hpp>
 #include <ql/pricingengines/blackformula.hpp>
 #include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
+#include <ql/pricingengines/vanilla/binomialengine.hpp>
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvariancecurve.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvariancesurface.hpp>
@@ -42,6 +43,8 @@
 #include <ql/time/calendars/nullcalendar.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
+#include <ql/timegrid.hpp>
 #include <ql/utilities/dataformatters.hpp>
 
 using namespace QuantLib;
@@ -638,6 +641,41 @@ BOOST_AUTO_TEST_CASE(testMonteCarloDoubleBarrierWithAnalytical, *precondition(if
     {
         REPORT_FAILURE_DOUBLE_BARRIER_MC(analytical, monteCarlo, diff);
     }
+}
+
+BOOST_AUTO_TEST_CASE(testBinomialExerciseAtMaturity)
+{
+    BOOST_TEST_MESSAGE("Testing a binomial American double barrier option's exercise at maturity...");
+
+    const Date today(21, September, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Date maturity = today + 91;
+    const Size steps = 51;
+
+    // The last point of this grid rounds below the option's maturity.
+    const Time T = dc.yearFraction(today, maturity);
+    BOOST_REQUIRE(TimeGrid(T, steps).back() < T);
+
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.0, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.05, dc)), Handle<BlackVolTermStructure>(flatVol(today, 0.15, dc)));
+    auto payoff = ext::make_shared<PlainVanillaPayoff>(Option::Call, 85.0);
+    auto europeanExercise = ext::make_shared<EuropeanExercise>(maturity);
+
+    VanillaOption vanilla(payoff, europeanExercise);
+    vanilla.setPricingEngine(ext::make_shared<BinomialVanillaEngine<CoxRossRubinstein>>(process, steps));
+
+    // The tree's nodes are between 58 and 171, so these barriers are never hit.
+    auto engine = ext::make_shared<BinomialDoubleBarrierEngine<CoxRossRubinstein, DiscretizedDoubleBarrierOption>>(
+        process, steps);
+    DoubleBarrierOption european(DoubleBarrier::KnockOut, 1.0, 1000.0, 0.0, payoff, europeanExercise);
+    DoubleBarrierOption american(DoubleBarrier::KnockOut, 1.0, 1000.0, 0.0, payoff,
+                                 ext::make_shared<AmericanExercise>(today, maturity));
+    european.setPricingEngine(engine);
+    american.setPricingEngine(engine);
+    BOOST_CHECK_SMALL(european.NPV() - vanilla.NPV(), 1.0e-10);
+    BOOST_CHECK_SMALL(american.NPV() - vanilla.NPV(), 1.0e-10);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

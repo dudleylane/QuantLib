@@ -38,10 +38,13 @@
 #include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/termstructures/yield/forwardcurve.hpp>
 #include <ql/termstructures/yield/forwardspreadedtermstructure.hpp>
+#include <ql/time/calendars/nullcalendar.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/calendars/unitedstates.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/time/daycounters/thirty360.hpp>
+#include <ql/timegrid.hpp>
 #include <ql/utilities/dataformatters.hpp>
 
 using namespace QuantLib;
@@ -517,6 +520,45 @@ BOOST_AUTO_TEST_CASE(testSpotAtSettlementDate)
                         << std::setprecision(10) << "\n    calculated: " << drop
                         << "\n    expected:   " << expectedDrop);
     }
+}
+
+BOOST_AUTO_TEST_CASE(testBinomialConversionAtMaturity)
+{
+    BOOST_TEST_MESSAGE("Testing a binomial convertible bond's conversion at maturity...");
+
+    const Date today(21, September, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Date maturity = today + 91;
+    const Size steps = 51;
+
+    // The last point of this grid rounds below the bond's maturity.
+    const Time T = dc.yearFraction(today, maturity);
+    BOOST_REQUIRE(TimeGrid(T, steps).back() < T);
+
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.0, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.05, dc)), Handle<BlackVolTermStructure>(flatVol(today, 0.15, dc)));
+    auto engine = ext::make_shared<BinomialConvertibleEngine<CoxRossRubinstein>>(
+        process, steps, Handle<Quote>(ext::make_shared<SimpleQuote>(0.0)));
+
+    const Schedule schedule = MakeSchedule()
+                                  .from(today)
+                                  .to(maturity)
+                                  .withFrequency(Once)
+                                  .withCalendar(NullCalendar())
+                                  .withConvention(Unadjusted);
+    const Real conversionRatio = 2.0, redemption = 100.0;
+    ConvertibleZeroCouponBond european(ext::make_shared<EuropeanExercise>(maturity), conversionRatio,
+                                       CallabilitySchedule(), today, 0, dc, schedule, redemption);
+    ConvertibleZeroCouponBond american(ext::make_shared<AmericanExercise>(maturity, maturity), conversionRatio,
+                                       CallabilitySchedule(), today, 0, dc, schedule, redemption);
+    european.setPricingEngine(engine);
+    american.setPricingEngine(engine);
+
+    // At a spot of 100 the bond is well in the money for conversion.
+    BOOST_CHECK_GT(european.NPV(), 1.5 * redemption);
+    BOOST_CHECK_SMALL(american.NPV() - european.NPV(), 1.0e-10);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
