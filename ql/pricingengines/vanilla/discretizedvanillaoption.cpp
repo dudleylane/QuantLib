@@ -18,6 +18,7 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/exercise.hpp>
 #include <ql/pricingengines/vanilla/discretizedvanillaoption.hpp>
 #include <vector>
 
@@ -29,6 +30,10 @@ namespace QuantLib
                                                        const TimeGrid& grid)
     : arguments_(args)
     {
+        // the exercise condition below is the value paid at once, undiscounted
+        const auto earlyExercise = ext::dynamic_pointer_cast<EarlyExercise>(args.exercise);
+        QL_REQUIRE(earlyExercise == nullptr || !earlyExercise->payoffAtExpiry(), "payoff at expiry not handled");
+
         stoppingTimes_.resize(args.exercise->dates().size());
         for (Size i = 0; i < stoppingTimes_.size(); ++i)
         {

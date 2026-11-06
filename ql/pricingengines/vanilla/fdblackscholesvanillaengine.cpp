@@ -196,11 +196,11 @@ namespace QuantLib
         // The step condition enforces exercise on the grid's nodes, but the
         // interpolant between them can undershoot the payoff, and
         // VanillaOption::impliedVolatility can't invert a price below it. So
-        // where the option can be exercised today and pays at once, the value
-        // is at least the payoff. The undershoot is local, so the Greeks stay
-        // on the interpolant, which is what bumping the spot would see.
+        // where the option can be exercised today, the value is at least the
+        // payoff. The undershoot is local, so the Greeks stay on the interpolant,
+        // which is what bumping the spot would see.
         const auto earlyExercise = ext::dynamic_pointer_cast<EarlyExercise>(arguments_.exercise);
-        if (earlyExercise != nullptr && !earlyExercise->payoffAtExpiry())
+        if (earlyExercise != nullptr)
         {
             const std::vector<Date>& dates = earlyExercise->dates();
             const bool exercisable = (earlyExercise->type() == Exercise::American) ?

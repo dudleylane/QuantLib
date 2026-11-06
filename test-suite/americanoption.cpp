@@ -30,11 +30,14 @@
 #include <ql/math/integrals/integral.hpp>
 #include <ql/math/randomnumbers/rngtraits.hpp>
 #include <ql/math/statistics/incrementalstatistics.hpp>
+#include <ql/methods/lattices/binomialtree.hpp>
 #include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
 #include <ql/pricingengines/vanilla/baroneadesiwhaleyengine.hpp>
+#include <ql/pricingengines/vanilla/binomialengine.hpp>
 #include <ql/pricingengines/vanilla/bjerksundstenslandengine.hpp>
 #include <ql/pricingengines/vanilla/fdblackscholesshoutengine.hpp>
 #include <ql/pricingengines/vanilla/fdblackscholesvanillaengine.hpp>
+#include <ql/pricingengines/vanilla/fdcevvanillaengine.hpp>
 #include <ql/pricingengines/vanilla/juquadraticengine.hpp>
 #include <ql/pricingengines/vanilla/qdfpamericanengine.hpp>
 #include <ql/pricingengines/vanilla/qdplusamericanengine.hpp>
@@ -44,6 +47,7 @@
 #include <ql/time/daycounters/thirty360.hpp>
 #include <ql/utilities/dataformatters.hpp>
 #include <map>
+#include <vector>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -1897,6 +1901,48 @@ BOOST_AUTO_TEST_CASE(testBjerksundStenslandGreeksAtItsBestTrigger)
                 }
             }
         }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testEnginesThatExerciseAtOnceRefusePayoffAtExpiry)
+{
+
+    BOOST_TEST_MESSAGE("Testing engines that exercise at once with a payoff at expiry...");
+
+    // These engines exercise at the value paid at once, and they ignored the
+    // flag (#129): this put read 20.00 either way, where exercising today pays 20
+    // in two years, worth about 16.4 now. So they must refuse it.
+
+    Date today(15, August, 2026);
+    Settings::instance().evaluationDate() = today;
+    DayCounter dc = Actual365Fixed();
+
+    const Handle<Quote> spot(ext::make_shared<SimpleQuote>(80.0));
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.10, dc));
+    auto process =
+        ext::make_shared<BlackScholesMertonProcess>(spot, Handle<YieldTermStructure>(flatRate(today, 0.0, dc)), rTS,
+                                                    Handle<BlackVolTermStructure>(flatVol(today, 0.20, dc)));
+
+    const Date exDate = today + 730;
+    auto payoff = ext::make_shared<PlainVanillaPayoff>(Option::Put, 100.0);
+    const ext::shared_ptr<Exercise> american = ext::make_shared<AmericanExercise>(today, exDate, true);
+    const ext::shared_ptr<Exercise> bermudan =
+        ext::make_shared<BermudanExercise>(std::vector<Date>{today + 365, exDate}, true);
+
+    const std::pair<ext::shared_ptr<PricingEngine>, ext::shared_ptr<Exercise>> cases[] = {
+        {ext::make_shared<FdBlackScholesVanillaEngine>(process, 25, 50), american},
+        {ext::make_shared<FdBlackScholesVanillaEngine>(process, 25, 50), bermudan},
+        {ext::make_shared<FdCEVVanillaEngine>(80.0, 0.20, 0.9, rTS, 25, 50), american},
+        {ext::make_shared<BinomialVanillaEngine<CoxRossRubinstein>>(process, 50), american},
+        {ext::make_shared<BinomialVanillaEngine<CoxRossRubinstein>>(process, 50), bermudan},
+        {ext::make_shared<QdPlusAmericanEngine>(process), american},
+        {ext::make_shared<QdFpAmericanEngine>(process), american}};
+
+    for (const auto& [engine, exercise] : cases)
+    {
+        VanillaOption option(payoff, exercise);
+        option.setPricingEngine(engine);
+        BOOST_CHECK_EXCEPTION(option.NPV(), Error, ExpectedErrorMessage("payoff at expiry not handled"));
     }
 }
 
