@@ -23,11 +23,13 @@
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
 #include <ql/instruments/lookbackoption.hpp>
+#include <ql/instruments/vanillaoption.hpp>
 #include <ql/pricingengines/lookback/analyticcontinuousfixedlookback.hpp>
 #include <ql/pricingengines/lookback/analyticcontinuousfloatinglookback.hpp>
 #include <ql/pricingengines/lookback/analyticcontinuouspartialfixedlookback.hpp>
 #include <ql/pricingengines/lookback/analyticcontinuouspartialfloatinglookback.hpp>
 #include <ql/pricingengines/lookback/mclookbackengine.hpp>
+#include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
@@ -715,6 +717,166 @@ BOOST_AUTO_TEST_CASE(testAnalyticContinuousLookbackZeroCarry)
 
     // A long, volatile option is the most sensitive to where the switch is.
     BOOST_CHECK_SMALL(price(fixedCall, 0.05, 0.05 - 3.0e-8, 1.0, 1800) - 267.86549772391974, 1.0e-6);
+}
+
+BOOST_AUTO_TEST_CASE(testAnalyticContinuousPartialLookbackZeroCarry)
+{
+    BOOST_TEST_MESSAGE("Testing analytic continuous partial lookback options with no carry...");
+
+    const Date today(20, October, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual360();
+
+    struct Contract
+    {
+        bool floating;
+        Option::Type type;
+        // the strike of a fixed contract and the extremum so far of a floating one
+        Real level, lambda;
+        Volatility vol;
+        Integer days, boundary;
+    };
+
+    const auto makeProcess = [&](Rate rate, Rate yield, Volatility vol)
+    {
+        return ext::make_shared<BlackScholesMertonProcess>(Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)),
+                                                           Handle<YieldTermStructure>(flatRate(today, yield, dc)),
+                                                           Handle<YieldTermStructure>(flatRate(today, rate, dc)),
+                                                           Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+    };
+
+    const auto price = [&](const Contract& c, Rate rate, Rate yield)
+    {
+        const auto process = makeProcess(rate, yield, c.vol);
+        const ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(today + c.days);
+        if (c.floating)
+        {
+            ContinuousPartialFloatingLookbackOption option(c.level, c.lambda, today + c.boundary,
+                                                           ext::make_shared<FloatingTypePayoff>(c.type), exercise);
+            option.setPricingEngine(ext::make_shared<AnalyticContinuousPartialFloatingLookbackEngine>(process));
+            return option.NPV();
+        }
+        ContinuousPartialFixedLookbackOption option(today + c.boundary,
+                                                    ext::make_shared<PlainVanillaPayoff>(c.type, c.level), exercise);
+        option.setPricingEngine(ext::make_shared<AnalyticContinuousPartialFixedLookbackEngine>(process));
+        return option.NPV();
+    };
+
+    // The published formulas at 40 digits, the mean of their values at carries of
+    // +1e-14 and -1e-14.  The last two of each kind look back over the whole period.
+    const struct
+    {
+        Contract contract;
+        Real expected;
+    } zeroCarry[] = {{{false, Option::Call, 100.0, 1.0, 0.2, 360, 180}, 13.591379866472034},
+                     {{false, Option::Put, 100.0, 1.0, 0.2, 360, 180}, 12.337868766797148},
+                     {{false, Option::Call, 90.0, 1.0, 0.3, 360, 90}, 31.368195271767632},
+                     {{false, Option::Put, 110.0, 1.0, 0.1, 360, 270}, 13.515472652626215},
+                     {{false, Option::Call, 100.0, 1.0, 0.3, 360, 360}, 11.342020640681279},
+                     {{false, Option::Put, 100.0, 1.0, 0.3, 360, 360}, 11.342020640681279},
+                     {{true, Option::Call, 100.0, 1.0, 0.2, 360, 180}, 12.337868766797148},
+                     {{true, Option::Put, 100.0, 1.0, 0.2, 360, 180}, 13.591379866472034},
+                     {{true, Option::Call, 90.0, 1.1, 0.3, 360, 90}, 13.05103336696893},
+                     {{true, Option::Put, 110.0, 0.9, 0.1, 360, 270}, 3.396700226620335},
+                     {{true, Option::Call, 90.0, 1.1, 0.3, 360, 360}, 15.416494830702391},
+                     {{true, Option::Put, 110.0, 0.9, 0.3, 360, 360}, 15.747852094781578}};
+
+    for (const auto& c : zeroCarry)
+    {
+        BOOST_TEST_CONTEXT((c.contract.floating ? "floating " : "fixed ")
+                           << c.contract.type << ", level " << c.contract.level << ", lambda " << c.contract.lambda
+                           << ", volatility " << c.contract.vol << ", boundary after " << c.contract.boundary
+                           << " days")
+        {
+            BOOST_CHECK_SMALL(price(c.contract, 0.05, 0.05) - c.expected, 1.0e-12);
+        }
+    }
+
+    // Around zero, on both sides of the switch to the limit.  A tiny carry used
+    // to lose its digits to the cancellation in the ratio.
+    const Contract fixedCall = {false, Option::Call, 100.0, 1.0, 0.3, 360, 180};
+    const Contract fixedPut = {false, Option::Put, 100.0, 1.0, 0.3, 360, 180};
+    const Contract floatingCall = {true, Option::Call, 90.0, 1.1, 0.3, 360, 180};
+    const Contract floatingPut = {true, Option::Put, 110.0, 0.9, 0.3, 360, 180};
+    const struct
+    {
+        Rate carry;
+        Real fixedCall, fixedPut, floatingCall, floatingPut;
+    } smallCarry[] = {{1.0e-12, 20.871743755150182, 18.052757719952714, 14.2026795105722, 14.169221518894742},
+                      {-1.0e-12, 20.871743755014562, 18.052757720041314, 14.20267951045812, 14.16922151897838},
+                      {1.0e-10, 20.871743761863363, 18.052757715567016, 14.202679516219149, 14.169221514754692},
+                      {-1.0e-10, 20.871743748301382, 18.052757724427013, 14.20267950481117, 14.16922152311843},
+                      {1.0e-9, 20.87174382289228, 18.052757675697031, 14.202679567555058, 14.16922147711787},
+                      {-1.0e-9, 20.871743687272465, 18.052757764296998, 14.202679453475262, 14.169221560755252}};
+
+    for (const auto& c : smallCarry)
+    {
+        BOOST_TEST_CONTEXT("carry " << c.carry)
+        {
+            const Rate rate = 0.05, yield = rate - c.carry;
+            BOOST_CHECK_SMALL(price(fixedCall, rate, yield) - c.fixedCall, 1.0e-6);
+            BOOST_CHECK_SMALL(price(fixedPut, rate, yield) - c.fixedPut, 1.0e-6);
+            BOOST_CHECK_SMALL(price(floatingCall, rate, yield) - c.floatingCall, 1.0e-6);
+            BOOST_CHECK_SMALL(price(floatingPut, rate, yield) - c.floatingPut, 1.0e-6);
+        }
+    }
+
+    // A long and volatile option moves most with the carry, and shows the size of the switch.
+    const Contract longFixed = {false, Option::Call, 100.0, 1.0, 1.0, 1800, 900};
+    const Contract longFloating = {true, Option::Put, 110.0, 0.9, 1.0, 1800, 900};
+    const struct
+    {
+        Rate carry;
+        Real fixedCall, floatingPut;
+    } longOption[] = {{3.0e-9, 188.93398614369479, 167.51787262972205},
+                      {-3.0e-9, 188.93398116816085, 167.51787206281983},
+                      {3.0e-8, 188.93400853359913, 167.51787518078202},
+                      {-3.0e-8, 188.93395877825973, 167.51786951175987}};
+
+    for (const auto& c : longOption)
+    {
+        BOOST_TEST_CONTEXT("long option, carry " << c.carry)
+        {
+            const Rate rate = 0.05, yield = rate - c.carry;
+            BOOST_CHECK_SMALL(price(longFixed, rate, yield) - c.fixedCall, 2.0e-6);
+            BOOST_CHECK_SMALL(price(longFloating, rate, yield) - c.floatingPut, 2.0e-6);
+        }
+    }
+
+    // Looking back over the whole period, a partial lookback is the contract it generalizes.
+    for (Rate rate : {0.05, 0.0})
+    {
+        const auto process = makeProcess(rate, rate, 0.2);
+        const ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(today + 360);
+        for (Option::Type type : {Option::Call, Option::Put})
+        {
+            BOOST_TEST_CONTEXT(type << ", rate " << rate)
+            {
+                const Contract fixed = {false, type, 105.0, 1.0, 0.2, 360, 360};
+                VanillaOption vanilla(ext::make_shared<PlainVanillaPayoff>(type, 105.0), exercise);
+                vanilla.setPricingEngine(ext::make_shared<AnalyticEuropeanEngine>(process));
+                BOOST_CHECK_SMALL(price(fixed, rate, rate) - vanilla.NPV(), 1.0e-12);
+
+                const Real extremum = type == Option::Call ? 90.0 : 110.0;
+                const Contract floating = {true, type, extremum, 1.0, 0.2, 360, 360};
+                ContinuousFloatingLookbackOption full(extremum, ext::make_shared<FloatingTypePayoff>(type), exercise);
+                full.setPricingEngine(ext::make_shared<AnalyticContinuousFloatingLookbackEngine>(process));
+                BOOST_CHECK_SMALL(price(floating, rate, rate) - full.NPV(), 1.0e-12);
+
+                // Looking back from today, or only at today, gives the other two the other way round.
+                const Contract fromToday = {false, type, 105.0, 1.0, 0.2, 360, 0};
+                ContinuousFixedLookbackOption fullFixed(100.0, ext::make_shared<PlainVanillaPayoff>(type, 105.0),
+                                                        exercise);
+                fullFixed.setPricingEngine(ext::make_shared<AnalyticContinuousFixedLookbackEngine>(process));
+                BOOST_CHECK_SMALL(price(fromToday, rate, rate) - fullFixed.NPV(), 1.0e-12);
+
+                const Contract untilToday = {true, type, extremum, 1.0, 0.2, 360, 0};
+                VanillaOption atExtremum(ext::make_shared<PlainVanillaPayoff>(type, extremum), exercise);
+                atExtremum.setPricingEngine(ext::make_shared<AnalyticEuropeanEngine>(process));
+                BOOST_CHECK_SMALL(price(untilToday, rate, rate) - atExtremum.NPV(), 1.0e-12);
+            }
+        }
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
