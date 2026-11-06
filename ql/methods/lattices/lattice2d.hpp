@@ -132,7 +132,9 @@ namespace QuantLib
         Real prob1 = tree1_->probability(i, index1, branch1);
         Real prob2 = tree2_->probability(i, index2, branch2);
         // does the 36 below depend on T::branches?
-        return prob1 * prob2 + rho_ * (m_[branch1][branch2]) / 36.0;
+        // This term adds the covariance, which goes as the product of the spacings, so a
+        // widened spacing would inflate it.
+        return prob1 * prob2 + rho_ * (m_[branch1][branch2]) / (36.0 * tree1_->widening(i) * tree2_->widening(i));
     }
 
 }

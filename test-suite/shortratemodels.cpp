@@ -24,13 +24,17 @@
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
 #include <ql/cashflows/iborcoupon.hpp>
+#include <ql/discretizedasset.hpp>
 #include <ql/indexes/ibor/euribor.hpp>
 #include <ql/indexes/indexmanager.hpp>
 #include <ql/indexes/swap/euriborswap.hpp>
 #include <ql/instruments/makeswaption.hpp>
 #include <ql/math/optimization/levenbergmarquardt.hpp>
 #include <ql/math/optimization/simplex.hpp>
+#include <ql/methods/lattices/trinomialtree.hpp>
 #include <ql/models/shortrate/calibrationhelpers/swaptionhelper.hpp>
+#include <ql/models/shortrate/onefactormodels/blackkarasinski.hpp>
+#include <ql/models/shortrate/onefactormodels/coxingersollross.hpp>
 #include <ql/models/shortrate/onefactormodels/extendedcoxingersollross.hpp>
 #include <ql/models/shortrate/onefactormodels/hullwhite.hpp>
 #include <ql/models/shortrate/onefactormodels/vasicek.hpp>
@@ -39,14 +43,19 @@
 #include <ql/pricingengines/swap/treeswapengine.hpp>
 #include <ql/pricingengines/swaption/g2swaptionengine.hpp>
 #include <ql/pricingengines/swaption/jamshidianswaptionengine.hpp>
+#include <ql/processes/ornsteinuhlenbeckprocess.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/termstructures/yield/discountcurve.hpp>
 #include <ql/termstructures/yield/piecewiseyieldcurve.hpp>
 #include <ql/termstructures/yield/ratehelpers.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/time/daycounters/thirty360.hpp>
 #include <ql/time/schedule.hpp>
+#include <algorithm>
+#include <cmath>
+#include <vector>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -723,6 +732,159 @@ BOOST_AUTO_TEST_CASE(testExtendedCoxIngersollRossObservesTheCurve)
     curve.linkTo(flatRate(today, 0.05, Actual365Fixed()));
 
     BOOST_CHECK(flag.isUp());
+}
+
+class DiscountBondOption : public DiscretizedDiscountBond
+{
+  public:
+    void exercise(Real strike)
+    {
+        for (Size i = 0; i < values_.size(); ++i)
+            values_[i] = std::max(values_[i] - strike, 0.0);
+    }
+};
+
+Real bondOptionOnTree(
+    const ShortRateModel& model, const std::vector<Time>& times, Time expiry, Time maturity, Real strike)
+{
+    DiscountBondOption option;
+    option.initialize(model.tree(TimeGrid(times.begin(), times.end())), maturity);
+    option.rollback(expiry);
+    option.exercise(strike);
+    option.rollback(0.0);
+    return option.presentValue();
+}
+
+BOOST_AUTO_TEST_CASE(testTrinomialTreeOverShortSteps)
+{
+    BOOST_TEST_MESSAGE("Testing that a trinomial tree's nodes don't multiply over short steps...");
+
+    const auto process = ext::make_shared<OrnsteinUhlenbeckProcess>(0.1, 0.01);
+
+    for (Real gap : {1.0e-3, 1.0e-5, 1.0e-7})
+    {
+        BOOST_TEST_CONTEXT("gap of " << gap)
+        {
+            const std::vector<Time> times = {1.0, 1.0 + gap, 2.0 + gap, 3.0 + gap};
+            const TrinomialTree tree(process, TimeGrid(times.begin(), times.end()));
+
+            // Each step adds no more than a node at each end.
+            for (Size i = 0; i < times.size() + 1; ++i)
+                BOOST_CHECK_LE(tree.size(i), 2 * i + 1);
+
+            // The second step keeps the first one's spacing.
+            BOOST_CHECK_EQUAL(tree.dx(2), tree.dx(1));
+            BOOST_CHECK_CLOSE(tree.widening(1), tree.dx(2) / (std::sqrt(3.0 * process->variance(1.0, 0.0, gap))),
+                              1.0e-6);
+
+            // It has to diffuse by just as much, around the expected value.
+            const Real v2 = process->variance(1.0, 0.0, gap);
+            for (Size j = 0; j < tree.size(1); ++j)
+            {
+                Real total = 0.0, mean = 0.0, variance = 0.0;
+                const Real x = tree.underlying(1, j);
+                const Real expected = process->expectation(1.0, x, gap);
+                for (Size b = 0; b < 3; ++b)
+                {
+                    const Real p = tree.probability(1, j, b);
+                    const Real next = tree.underlying(2, tree.descendant(1, j, b));
+                    total += p;
+                    mean += p * next;
+                    variance += p * (next - expected) * (next - expected);
+                }
+                BOOST_CHECK_CLOSE(total, 1.0, 1.0e-10);
+                BOOST_CHECK_SMALL(mean - expected, 1.0e-14);
+                BOOST_CHECK_CLOSE(variance, v2, 1.0e-6);
+            }
+        }
+    }
+
+    // This one is short, but not that short, so nothing changes.
+    const std::vector<Time> times = {1.0, 1.02, 2.02};
+    const TrinomialTree tree(process, TimeGrid(times.begin(), times.end()));
+    BOOST_CHECK_CLOSE(tree.dx(2), std::sqrt(3.0 * process->variance(1.0, 0.0, 0.02)), 1.0e-10);
+    BOOST_CHECK_EQUAL(tree.widening(1), 1.0);
+}
+
+BOOST_AUTO_TEST_CASE(testTrinomialTreeKeepsItsNodesOverLongStretches)
+{
+    BOOST_TEST_MESSAGE("Testing that a trinomial tree refines its nodes over a long stretch of short steps...");
+
+    const Date today(15, August, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> curve(flatRate(today, 0.03, dc));
+    const HullWhite model(curve, 0.1, 0.01);
+    const auto process = ext::make_shared<OrnsteinUhlenbeckProcess>(0.1, 0.01);
+
+    // Each of these steps diffuses over less than a tenth of the spacing the first one
+    // sets, but all of them together don't, so the option's kink at their end is resolved.
+    std::vector<Time> times = {1.0};
+    for (Size i = 1; i <= 100; ++i)
+        times.push_back(1.0 + i * 0.001);
+    times.push_back(2.1);
+
+    const TrinomialTree tree(process, TimeGrid(times.begin(), times.end()));
+    BOOST_CHECK_CLOSE(tree.dx(2), std::sqrt(3.0 * process->variance(1.0, 0.0, 0.001)), 1.0e-6);
+
+    const Real strike = curve->discount(2.1) / curve->discount(1.1);
+    const Real expected = model.discountBondOption(Option::Call, strike, 1.1, 2.1);
+    BOOST_CHECK_SMALL(bondOptionOnTree(model, times, 1.1, 2.1, strike) / expected - 1.0, 0.06);
+
+    // A long stretch before a long step doesn't come into it either.
+    times.clear();
+    for (Size i = 1; i <= 1000; ++i)
+        times.push_back(i * 0.001);
+    times.push_back(3.0);
+    const TrinomialTree tree2(process, TimeGrid(times.begin(), times.end()));
+    for (Size i = 1; i < 1000; ++i)
+        BOOST_CHECK_EQUAL(tree2.widening(i), 1.0);
+    const Real strike2 = curve->discount(3.0) / curve->discount(1.0);
+    const Real expected2 = model.discountBondOption(Option::Call, strike2, 1.0, 3.0);
+    BOOST_CHECK_SMALL(bondOptionOnTree(model, times, 1.0, 3.0, strike2) / expected2 - 1.0, 0.11);
+}
+
+BOOST_AUTO_TEST_CASE(testShortRateTreesOverShortSteps)
+{
+    BOOST_TEST_MESSAGE("Testing that short-rate trees give the same values with or without a short step...");
+
+    const Date today(15, August, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> curve(flatRate(today, 0.03, dc));
+
+    const std::pair<std::string, ext::shared_ptr<ShortRateModel>> models[] = {
+        {"Hull-White", ext::make_shared<HullWhite>(curve, 0.1, 0.01)},
+        {"Black-Karasinski", ext::make_shared<BlackKarasinski>(curve, 0.1, 0.1)},
+        {"Cox-Ingersoll-Ross", ext::make_shared<CoxIngersollRoss>(0.03, 0.03, 0.5, 0.08)},
+        {"G2", ext::make_shared<G2>(curve, 0.1, 0.01, 0.2, 0.008, -0.75)},
+        {"G2 with a positive correlation", ext::make_shared<G2>(curve, 0.1, 0.01, 0.2, 0.008, 0.75)}};
+
+    const Real strike = curve->discount(3.0) / curve->discount(2.0);
+
+    for (const auto& [name, model] : models)
+    {
+        // The long steps have different lengths, so that the spacing kept isn't the widest.
+        const Real expected = bondOptionOnTree(*model, {0.5, 1.0, 2.0, 3.0}, 2.0, 3.0, strike);
+
+        for (Real gap : {1.0 / 365.0, 1.0e-4})
+        {
+            BOOST_TEST_CONTEXT(name << ", gap of " << gap)
+            {
+                const Real calculated = bondOptionOnTree(*model, {0.5, 1.0, 1.0 + gap, 2.0, 3.0}, 2.0, 3.0, strike);
+                BOOST_CHECK_SMALL(calculated / expected - 1.0, 1.0e-3);
+            }
+        }
+    }
+
+    // A two-factor lattice has the product of its trees' nodes.
+    const std::vector<Time> times = {0.5, 1.0, 1.0001, 2.0, 3.0};
+    const G2 g2(curve, 0.1, 0.01, 0.2, 0.008, -0.75);
+    const auto lattice =
+        ext::dynamic_pointer_cast<TwoFactorModel::ShortRateTree>(g2.tree(TimeGrid(times.begin(), times.end())));
+    BOOST_REQUIRE(lattice);
+    for (Size i = 0; i < times.size() + 1; ++i)
+        BOOST_CHECK_LE(lattice->size(i), (2 * i + 1) * (2 * i + 1));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
