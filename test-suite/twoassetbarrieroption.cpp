@@ -20,7 +20,9 @@
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
 #include <ql/instruments/twoassetbarrieroption.hpp>
+#include <ql/instruments/vanillaoption.hpp>
 #include <ql/pricingengines/barrier/analytictwoassetbarrierengine.hpp>
+#include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
@@ -126,6 +128,74 @@ BOOST_AUTO_TEST_CASE(testHaugValues)
             BOOST_ERROR("failed to reproduce expected price"
                         << "\n    expected:   " << expected << "\n    calculated: " << calculated
                         << "\n    tolerance:  " << tolerance << "\n    error:      " << error);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testInOutParityWithDividends)
+{
+    BOOST_TEST_MESSAGE("Testing two-asset barrier in-out parity with dividends...");
+
+    const DayCounter dc = Actual360();
+    const Date today(15, January, 2026);
+    Settings::instance().evaluationDate() = today;
+    const ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(today + 365);
+
+    const auto q1 = ext::make_shared<SimpleQuote>();
+    const auto rho = ext::make_shared<SimpleQuote>();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.05, dc));
+
+    const auto process1 = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, q1, dc)), rTS,
+        Handle<BlackVolTermStructure>(flatVol(today, 0.2, dc)));
+    const auto process2 = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.02, dc)), rTS,
+        Handle<BlackVolTermStructure>(flatVol(today, 0.3, dc)));
+
+    const auto engine = ext::make_shared<AnalyticTwoAssetBarrierEngine>(process1, process2, Handle<Quote>(rho));
+    const auto europeanEngine = ext::make_shared<AnalyticEuropeanEngine>(process1);
+
+    const struct
+    {
+        Barrier::Type in, out;
+        Real barrier;
+    } barriers[] = {{Barrier::DownIn, Barrier::DownOut, 90.0}, {Barrier::UpIn, Barrier::UpOut, 110.0}};
+
+    for (const auto& b : barriers)
+    {
+        for (auto type : {Option::Call, Option::Put})
+        {
+            for (Real strike : {90.0, 110.0})
+            {
+                for (Rate q : {0.0, 0.04})
+                {
+                    for (Real correlation : {-0.5, 0.5})
+                    {
+                        q1->setValue(q);
+                        rho->setValue(correlation);
+                        const auto payoff = ext::make_shared<PlainVanillaPayoff>(type, strike);
+
+                        TwoAssetBarrierOption knockIn(b.in, b.barrier, payoff, exercise);
+                        knockIn.setPricingEngine(engine);
+                        TwoAssetBarrierOption knockOut(b.out, b.barrier, payoff, exercise);
+                        knockOut.setPricingEngine(engine);
+                        VanillaOption vanilla(payoff, exercise);
+                        vanilla.setPricingEngine(europeanEngine);
+
+                        BOOST_TEST_CONTEXT(b.in << " at " << b.barrier << ", " << type << " at " << strike
+                                                << ", dividend yield " << q << ", correlation " << correlation)
+                        {
+                            BOOST_CHECK_SMALL(knockIn.NPV() + knockOut.NPV() - vanilla.NPV(), 1.0e-10);
+
+                            // With a barrier out of reach, the knock-out is the vanilla option on its own.
+                            TwoAssetBarrierOption farOut(b.out, b.in == Barrier::DownIn ? 1.0 : 1.0e4, payoff,
+                                                         exercise);
+                            farOut.setPricingEngine(engine);
+                            BOOST_CHECK_SMALL(farOut.NPV() - vanilla.NPV(), 1.0e-8);
+                        }
+                    }
+                }
+            }
         }
     }
 }
