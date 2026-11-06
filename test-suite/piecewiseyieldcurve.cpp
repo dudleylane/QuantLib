@@ -2060,6 +2060,42 @@ BOOST_AUTO_TEST_CASE(testDatedSwapHelpers)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testHelpersAfterTheirFixingDate)
+{
+    BOOST_TEST_MESSAGE("Testing deposit and indexed FRA helpers after their fixing date...");
+
+    // Fixed on Friday for value on Tuesday, and still quoted on Monday.
+    const Date fixingDate(9, October, 2026), valueDate(13, October, 2026), today(12, October, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    auto index = ext::make_shared<IborIndex>("fixed-helper", 6 * Months, 2, Currency(), TARGET(), ModifiedFollowing,
+                                             false, Actual360());
+    const Rate quote = 0.022;
+
+    const std::vector<ext::shared_ptr<RateHelper>> helpers = {
+        ext::make_shared<DepositRateHelper>(quote, fixingDate, index),
+        ext::make_shared<FraRateHelper>(quote, valueDate, index->maturityDate(valueDate), index,
+                                        Pillar::LastRelevantDate, Date(), true)};
+
+    for (const auto& helper : helpers)
+    {
+        BOOST_CHECK_EQUAL(helper->earliestDate(), valueDate);
+
+        // Whether or not the fixing is known, the helper has to forecast it
+        // from the curve being bootstrapped, or the quote wouldn't be repriced.
+        index->clearFixings();
+        PiecewiseYieldCurve<Discount, LogLinear> withoutFixing(today, {helper}, Actual365Fixed());
+        const DiscountFactor discount = withoutFixing.discount(index->maturityDate(valueDate));
+        BOOST_CHECK_SMALL(helper->quoteError(), 1.0e-10);
+
+        index->addFixing(fixingDate, 0.08);
+        PiecewiseYieldCurve<Discount, LogLinear> withFixing(today, {helper}, Actual365Fixed());
+        BOOST_CHECK_SMALL(withFixing.discount(index->maturityDate(valueDate)) - discount, 1.0e-12);
+        BOOST_CHECK_SMALL(helper->quoteError(), 1.0e-10);
+    }
+    index->clearFixings();
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
