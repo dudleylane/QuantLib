@@ -930,6 +930,68 @@ BOOST_AUTO_TEST_CASE(testOasContinuityThroughExCouponWindow)
                     << "    (sweep from " << io::iso_date(sweepStart) << " to " << io::iso_date(sweepEnd) << ")");
 }
 
+BOOST_AUTO_TEST_CASE(testUnexercisableCallability)
+{
+    BOOST_TEST_MESSAGE("Testing that an unexercisable callability leaves the price alone...");
+
+    Globals vars;
+
+    vars.today = Date(3, June, 2004);
+    Settings::instance().evaluationDate() = vars.today;
+    vars.settlement = vars.calendar.advance(vars.today, 3, Days);
+
+    vars.termStructure.linkTo(vars.makeFlatCurve(0.032));
+    vars.model.linkTo(ext::make_shared<HullWhite>(vars.termStructure));
+
+    Schedule schedule = MakeSchedule()
+                            .from(vars.issueDate())
+                            .to(vars.maturityDate())
+                            .withCalendar(vars.calendar)
+                            .withFrequency(Semiannual)
+                            .withConvention(vars.rollingConvention)
+                            .withRule(DateGeneration::Backward);
+
+    auto engine = ext::make_shared<TreeCallableFixedRateBondEngine>(*(vars.model), 240, vars.termStructure);
+
+    auto price = [&](const CallabilitySchedule& exercises)
+    {
+        CallableFixedRateBond bond(3, 10000.0, schedule, std::vector<Rate>(1, 0.05), Thirty360(Thirty360::BondBasis),
+                                   vars.rollingConvention, 100.0, vars.issueDate(), exercises);
+        bond.setPricingEngine(engine);
+        return bond.cleanPrice();
+    };
+
+    Date couponDate = schedule.date(8);
+    for (auto type : {Callability::Call, Callability::Put})
+    {
+        Real strike = (type == Callability::Call) ? 100.0 : 110.0;
+        Real unreachable = (type == Callability::Call) ? 200.0 : 0.0;
+
+        CallabilitySchedule onCouponDate;
+        onCouponDate.push_back(
+            ext::make_shared<Callability>(Bond::Price(strike, Bond::Price::Clean), type, couponDate));
+
+        Real expected = price(onCouponDate);
+
+        // Snapping the earlier one to the coupon date moves the coupon ahead of
+        // the later one, whose price must then pay that coupon too.
+        for (Integer days = 1; days <= 7; ++days)
+        {
+            CallabilitySchedule exercises;
+            exercises.push_back(
+                ext::make_shared<Callability>(Bond::Price(unreachable, Bond::Price::Dirty), type, couponDate - days));
+            exercises.push_back(onCouponDate.front());
+
+            Real calculated = price(exercises);
+            if (std::fabs(calculated - expected) > 1.0e-10)
+                BOOST_ERROR("unexercisable " << ((type == Callability::Call) ? "call" : "put") << " on "
+                                             << io::iso_date(couponDate - days) << " changed the price:\n"
+                                             << std::setprecision(12) << "    calculated: " << calculated << "\n"
+                                             << "    expected:   " << expected);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
