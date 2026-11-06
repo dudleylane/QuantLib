@@ -222,6 +222,32 @@ BOOST_AUTO_TEST_CASE(testTodaysFixingWithHolidayMaturity)
     BOOST_CHECK_SMALL(future.NPV() - 100.0 * (1.0 - rate), 1.0e-10);
 }
 
+BOOST_AUTO_TEST_CASE(testHelperNotNotifiedByItsOwnBootstrap)
+{
+    BOOST_TEST_MESSAGE("Testing that a future's rate helper isn't notified when it bootstraps a curve...");
+
+    const Date today(26, October, 2018);
+    Settings::instance().evaluationDate() = today;
+
+    auto price = ext::make_shared<SimpleQuote>(97.52);
+    auto helper = ext::make_shared<OvernightIndexFutureRateHelper>(Handle<Quote>(price), Date(20, March, 2019),
+                                                                   Date(19, June, 2019), ext::make_shared<Sofr>());
+    auto curve = ext::make_shared<PiecewiseYieldCurve<Discount, LogLinear>>(
+        today, std::vector<ext::shared_ptr<RateHelper>>{helper}, Actual360());
+
+    Flag flag;
+    flag.registerWith(helper);
+
+    curve->nodes();
+    BOOST_CHECK(!flag.isUp());
+
+    // It still hears about what it depends on, and the curve still reprices it.
+    price->setValue(97.60);
+    BOOST_CHECK(flag.isUp());
+    curve->nodes();
+    BOOST_CHECK_SMALL(helper->quoteError(), 1.0e-10);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
