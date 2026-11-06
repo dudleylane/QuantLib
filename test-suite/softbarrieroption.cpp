@@ -20,7 +20,9 @@
 #include "preconditions.hpp"
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
+#include <ql/instruments/barrieroption.hpp>
 #include <ql/instruments/softbarrieroption.hpp>
+#include <ql/pricingengines/barrier/analyticbarrierengine.hpp>
 #include <ql/pricingengines/barrier/analyticsoftbarrierengine.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/time/daycounters/actual360.hpp>
@@ -191,6 +193,71 @@ BOOST_AUTO_TEST_CASE(testSoftBarrierHaug)
         {
             REPORT_FAILURE("Soft barrier option value", value.barrierType, value.U, value.L, payoff, exercise, value.s,
                            value.q, value.r, value.t, value.v, value.result, calculated, error, value.tol);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testSoftBarrierDirection)
+{
+    BOOST_TEST_MESSAGE("Testing soft barrier options against averaged single-barrier options...");
+
+    const DayCounter dc = Actual360();
+    const Date today(8, August, 2025);
+    Settings::instance().evaluationDate() = today;
+
+    const auto process = ext::make_shared<GeneralizedBlackScholesProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.04, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.08, dc)), Handle<BlackVolTermStructure>(flatVol(today, 0.25, dc)));
+
+    const ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(today + 360);
+
+    // A soft barrier option is the average of the single-barrier options with
+    // barriers in [L, U].  This takes that average by Simpson's rule.
+    auto averaged = [&](Barrier::Type barrierType, const ext::shared_ptr<StrikedTypePayoff>& payoff, Real L, Real U)
+    {
+        const Size n = 128;
+        const Real h = (U - L) / n;
+        Real sum = 0.0;
+        for (Size i = 0; i <= n; ++i)
+        {
+            BarrierOption option(barrierType, L + i * h, 0.0, payoff, exercise);
+            option.setPricingEngine(ext::make_shared<AnalyticBarrierEngine>(process));
+            const Real weight = (i == 0 || i == n) ? 1.0 : (i % 2 == 1 ? 4.0 : 2.0);
+            sum += weight * option.NPV();
+        }
+        return sum * h / 3.0 / (U - L);
+    };
+
+    const struct
+    {
+        Barrier::Type barrierType;
+        Real L, U;
+    } cases[] = {{Barrier::DownIn, 80.0, 90.0},
+                 {Barrier::DownOut, 80.0, 90.0},
+                 {Barrier::UpIn, 110.0, 120.0},
+                 {Barrier::UpOut, 110.0, 120.0}};
+
+    for (const auto& c : cases)
+    {
+        const bool isDown = c.barrierType == Barrier::DownIn || c.barrierType == Barrier::DownOut;
+        for (auto type : {Option::Call, Option::Put})
+        {
+            BOOST_TEST_CONTEXT(c.barrierType << " " << type)
+            {
+                const ext::shared_ptr<StrikedTypePayoff> payoff = ext::make_shared<PlainVanillaPayoff>(type, 100.0);
+                SoftBarrierOption option(c.barrierType, c.L, c.U, payoff, exercise);
+                option.setPricingEngine(ext::make_shared<AnalyticSoftBarrierEngine>(process));
+
+                if ((type == Option::Call) == isDown)
+                {
+                    BOOST_CHECK_SMALL(option.NPV() - averaged(c.barrierType, payoff, c.L, c.U), 1.0e-6);
+                }
+                else
+                {
+                    BOOST_CHECK_EXCEPTION(option.NPV(), Error,
+                                          ExpectedErrorMessage("soft-barrier formula not available"));
+                }
+            }
         }
     }
 }
