@@ -65,7 +65,7 @@ namespace QuantLib
                 switch (barrierRange)
                 {
                     case PartialBarrier::Start:
-                        return CIA(1, barrier, strike, r, q);
+                        return CIA(1, barrier, strike, r, q, payoff, process);
                     case PartialBarrier::EndB1:
                     case PartialBarrier::EndB2:
                         QL_FAIL("Down-and-in partial-time end barrier is not implemented");
@@ -92,7 +92,7 @@ namespace QuantLib
                 switch (barrierRange)
                 {
                     case PartialBarrier::Start:
-                        return CIA(-1, barrier, strike, r, q);
+                        return CIA(-1, barrier, strike, r, q, payoff, process);
                     case PartialBarrier::EndB1:
                     case PartialBarrier::EndB2:
                         QL_FAIL("Up-and-in partial-time end barrier is not implemented");
@@ -238,15 +238,21 @@ namespace QuantLib
 
     // eta = -1: Up-and-In Call
     // eta =  1: Down-and-In Call
-    Real AnalyticPartialTimeBarrierOptionEngine::CIA(Integer eta, Real barrier, Real strike, Rate r, Rate q) const
+    // A put comes here as the equivalent call, whose payoff and process these are.
+    Real
+    AnalyticPartialTimeBarrierOptionEngine::CIA(Integer eta,
+                                                Real barrier,
+                                                Real strike,
+                                                Rate r,
+                                                Rate q,
+                                                const ext::shared_ptr<PlainVanillaPayoff>& payoff,
+                                                const ext::shared_ptr<GeneralizedBlackScholesProcess>& process) const
     {
         ext::shared_ptr<EuropeanExercise> exercise = ext::dynamic_pointer_cast<EuropeanExercise>(arguments_.exercise);
 
-        ext::shared_ptr<PlainVanillaPayoff> payoff = ext::dynamic_pointer_cast<PlainVanillaPayoff>(arguments_.payoff);
-
         VanillaOption europeanOption(payoff, exercise);
 
-        europeanOption.setPricingEngine(ext::make_shared<AnalyticEuropeanEngine>(process_));
+        europeanOption.setPricingEngine(ext::make_shared<AnalyticEuropeanEngine>(process));
 
         return europeanOption.NPV() - CA(eta, barrier, strike, r, q);
     }
