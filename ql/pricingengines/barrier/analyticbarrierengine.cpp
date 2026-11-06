@@ -64,6 +64,33 @@ namespace QuantLib
 
         Barrier::Type barrierType = arguments_.barrierType;
 
+        Real variance = process_->blackVolatility()->blackVariance(arguments_.exercise->lastDate(), strike);
+        if (variance < QL_EPSILON)
+        {
+            // The underlying follows its forward, and hits the barrier, if at all, when
+            // the forward reaches it.  A spot on the barrier hits it now.
+            Real forward = spot * dividendDiscount() / riskFreeDiscount();
+            bool down = barrierType == Barrier::DownIn || barrierType == Barrier::DownOut;
+            bool hit = spot == barrier() || (down ? forward <= barrier() : forward >= barrier());
+            Real vanilla = riskFreeDiscount() * (*payoff)(forward);
+            if (barrierType == Barrier::DownIn || barrierType == Barrier::UpIn)
+            {
+                results_.value = hit ? vanilla : Real(rebate() * riskFreeDiscount());
+            }
+            else if (hit)
+            {
+                // A knock-out's rebate is paid when the barrier is hit.
+                Real logHS = std::log(barrier() / spot);
+                Time hitTime = logHS == 0.0 ? 0.0 : logHS / (riskFreeRate() - dividendYield());
+                results_.value = rebate() * std::exp(-riskFreeRate() * hitTime);
+            }
+            else
+            {
+                results_.value = vanilla;
+            }
+            return;
+        }
+
         switch (payoff->optionType())
         {
             case Option::Call:

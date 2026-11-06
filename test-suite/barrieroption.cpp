@@ -1826,6 +1826,60 @@ BOOST_AUTO_TEST_CASE(testLowVolatilityLargeCarry)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testZeroVolatility)
+{
+    BOOST_TEST_MESSAGE("Testing barrier options with zero volatility...");
+
+    const DayCounter dc = Actual365Fixed();
+    const Date today(11, February, 2018);
+    Settings::instance().evaluationDate() = today;
+    const Date maturity = today + Period(1, Years);
+
+    const auto q = ext::make_shared<SimpleQuote>();
+    const auto r = ext::make_shared<SimpleQuote>();
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, q, dc)),
+        Handle<YieldTermStructure>(flatRate(today, r, dc)), Handle<BlackVolTermStructure>(flatVol(today, 0.0, dc)));
+    const auto engine = ext::make_shared<AnalyticBarrierEngine>(process);
+
+    // The underlying follows its forward.  A knock-out's rebate is paid when the forward
+    // reaches the barrier, and a knock-in's at maturity.
+    const struct
+    {
+        Real strike;
+        Option::Type type;
+        Real barrier;
+        Barrier::Type barrierType;
+        Real rebate;
+        Rate r, q;
+        Real expected;
+    } cases[] = {
+        {105.0, Option::Put, 107.0, Barrier::UpOut, 4.0, 0.03, 0.01, 2.891797647676558},  // not hit
+        {105.0, Option::Put, 101.0, Barrier::UpOut, 4.0, 0.03, 0.01, 3.940741347366294},  // hit after 0.4975 years
+        {100.0, Option::Call, 101.0, Barrier::UpIn, 4.0, 0.03, 0.0, 2.955446645149196},   // hit
+        {105.0, Option::Call, 107.0, Barrier::UpIn, 4.0, 0.03, 0.0, 3.881782134194033},   // not hit
+        {91.0, Option::Call, 93.0, Barrier::DownOut, 4.0, 0.01, 0.03, 6.950018483676519}, // not hit
+        {101.0, Option::Put, 99.0, Barrier::DownOut, 4.0, 0.01, 0.03, 3.979949748426480}, // hit after 0.5025 years
+        {100.0, Option::Put, 99.0, Barrier::DownIn, 4.0, 0.01, 0.04, 2.926039459684483},  // hit
+        {91.0, Option::Call, 93.0, Barrier::DownIn, 4.0, 0.01, 0.04, 3.960199334996672},  // not hit
+        {95.0, Option::Call, 100.0, Barrier::DownOut, 4.0, 0.03, 0.0, 4.0},               // spot on the barrier
+    };
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.barrierType << " " << c.type << " at " << c.strike << ", barrier " << c.barrier)
+        {
+            r->setValue(c.r);
+            q->setValue(c.q);
+            BarrierOption option(c.barrierType, c.barrier, c.rebate,
+                                 ext::make_shared<PlainVanillaPayoff>(c.type, c.strike),
+                                 ext::make_shared<EuropeanExercise>(maturity));
+            option.setPricingEngine(engine);
+            BOOST_CHECK_SMALL(option.NPV() - c.expected, 1.0e-10);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
