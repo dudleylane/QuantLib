@@ -265,7 +265,7 @@ void testBootstrapFromUpfront()
 
             CreditDefaultSwap cds(Protection::Buyer, notional, quote[i], fixedRate, schedule, convention, dayCounter,
                                   true, true, protectionStart, upfrontDate, ext::shared_ptr<Claim>(), Actual360(true),
-                                  true, today);
+                                  true);
             cds.setPricingEngine(ext::shared_ptr<PricingEngine>(
                 new MidPointCdsEngine(piecewiseCurve, recoveryRate, discountCurve, true)));
 
@@ -505,6 +505,43 @@ BOOST_AUTO_TEST_CASE(testRangeAfterEvaluationDateChange)
 
     checkRangeAfterEvaluationDateChange(Date(2, February, 2026));
     checkRangeAfterEvaluationDateChange(Date(22, December, 2026));
+}
+
+BOOST_AUTO_TEST_CASE(testHelperTradeDate)
+{
+    BOOST_TEST_MESSAGE("Testing the trade date of an upfront CDS helper...");
+
+    const Calendar calendar = TARGET();
+    const Date today(15, March, 2022);
+    Settings::instance().evaluationDate() = today;
+
+    Handle<YieldTermStructure> discountCurve(flatRate(today, 0.03, Actual360()));
+
+    const Real upfront = 0.02, recoveryRate = 0.4;
+    const Rate running = 0.05;
+    const Integer settlementDays = 1, upfrontSettlementDays = 3;
+    const Date protectionStart = today + settlementDays;
+    const Date upfrontDate = calendar.advance(today, upfrontSettlementDays, Days, Following);
+    const Schedule schedule(protectionStart, cdsMaturity(today, 5 * Years, DateGeneration::CDS), 3 * Months, calendar,
+                            Following, Unadjusted, DateGeneration::CDS, false);
+
+    // A helper left to deduce its trade date agrees with a CDS doing the same,
+    // and one that's given a date agrees with a CDS given the same one.
+    for (const Date& tradeDate : {Date(), today})
+    {
+        std::vector<ext::shared_ptr<DefaultProbabilityHelper>> helpers = {ext::make_shared<UpfrontCdsHelper>(
+            upfront, running, 5 * Years, settlementDays, calendar, Quarterly, Following, DateGeneration::CDS,
+            Actual360(), recoveryRate, discountCurve, upfrontSettlementDays, true, true, Date(), Actual360(true), true,
+            CreditDefaultSwap::Midpoint, tradeDate)};
+        Handle<DefaultProbabilityTermStructure> curve(ext::make_shared<PiecewiseDefaultCurve<HazardRate, BackwardFlat>>(
+            today, helpers, Thirty360(Thirty360::BondBasis)));
+
+        CreditDefaultSwap cds(Protection::Buyer, 100.0, upfront, running, schedule, Following, Actual360(), true, true,
+                              protectionStart, upfrontDate, ext::shared_ptr<Claim>(), Actual360(true), true, tradeDate);
+        cds.setPricingEngine(ext::make_shared<MidPointCdsEngine>(curve, recoveryRate, discountCurve));
+
+        BOOST_CHECK_SMALL(cds.NPV(), 1.0e-8);
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
