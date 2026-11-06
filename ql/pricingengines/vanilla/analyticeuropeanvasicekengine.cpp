@@ -18,8 +18,8 @@
 */
 
 #include <ql/exercise.hpp>
-#include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/math/integrals/simpsonintegral.hpp>
+#include <ql/pricingengines/blackcalculator.hpp>
 #include <ql/pricingengines/vanilla/analyticeuropeanvasicekengine.hpp>
 #include <utility>
 
@@ -31,7 +31,7 @@ namespace QuantLib
 
         Real g_k(Real t, Real kappa)
         {
-            return (1 - std::exp(-kappa * t)) / kappa;
+            return -std::expm1(-kappa * t) / kappa;
         }
 
         class integrand_vasicek
@@ -76,27 +76,24 @@ namespace QuantLib
 
         QL_REQUIRE(payoff, "non-striked payoff given");
 
-        CumulativeNormalDistribution f;
-
         Real t = 0;
+        Date maturity = arguments_.exercise->lastDate();
         Real T = blackProcess_->riskFreeRate()->dayCounter().yearFraction(
-            blackProcess_->riskFreeRate().currentLink()->referenceDate(), arguments_.exercise->lastDate());
+            blackProcess_->riskFreeRate().currentLink()->referenceDate(), maturity);
         Real kappa = vasicekProcess_->a();
-        Real S_t = blackProcess_->x0();
+        // Net of the dividends paid until maturity.
+        Real S_t = blackProcess_->x0() * blackProcess_->dividendYield()->discount(maturity);
         Real K = payoff->strike();
-        Real sigma_s = blackProcess_->blackVolatility()->blackVol(t, K);
+        // As a variance, for the stock's part of the total to be the term structure's on any day counter.
+        Real sigma_s = std::sqrt(blackProcess_->blackVolatility()->blackVariance(maturity, K) / T);
         Real sigma_r = vasicekProcess_->sigma();
         Real r_t = vasicekProcess_->r0();
 
         Real zcb = vasicekProcess_->discountBond(t, T, r_t);
-        Real epsilon = payoff->optionType() == Option::Call ? 1 : -1;
         Real upsilon = (*simpsonIntegral_)(integrand_vasicek(sigma_s, sigma_r, correlation_, kappa, T), t, T);
-        Real d_positive = (std::log((S_t / K) / zcb) + upsilon / 2) / std::sqrt(upsilon);
-        Real d_negative = (std::log((S_t / K) / zcb) - upsilon / 2) / std::sqrt(upsilon);
-        Real n_d1 = f(epsilon * d_positive);
-        Real n_d2 = f(epsilon * d_negative);
 
-        results_.value = epsilon * ((S_t * n_d1) - (zcb * K * n_d2));
+        // Under the measure with the bond as numeraire, the forward is lognormal with that variance.
+        results_.value = BlackCalculator(payoff, S_t / zcb, std::sqrt(upsilon), zcb).value();
     }
 
 }

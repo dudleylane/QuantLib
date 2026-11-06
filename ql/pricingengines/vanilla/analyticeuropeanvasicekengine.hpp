@@ -34,6 +34,10 @@ namespace QuantLib
      * Analytical solution is based on following research paper:
      *
      * http://hsrm-mathematik.de/WS201516/master/option-pricing/Black-Scholes-Vasicek-Model.pdf
+     *
+     * The paper's volatility is constant. A term structure enters through its variance to
+     * the maturity, which is exact with no correlation; with one, the term between the two
+     * volatilities takes the volatility as flat up to the maturity.
      */
 
     class AnalyticBlackVasicekEngine : public VanillaOption::engine
