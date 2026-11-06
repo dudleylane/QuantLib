@@ -44,9 +44,7 @@ namespace QuantLib
         Real strike() const;
         Time firstExpiryTime() const;
         Time secondExpiryTime() const;
-        Volatility volatility() const;
-        Rate riskFreeRate() const;
-        Rate dividendYield() const;
+        Real variance(Time t) const;
         DiscountFactor dividendDiscount(Time t) const;
         DiscountFactor riskFreeDiscount(Time t) const;
         Real criticalPrice(Real start, Option::Type type, Real exerciseWeight) const;

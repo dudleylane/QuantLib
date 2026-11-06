@@ -59,38 +59,38 @@ namespace QuantLib
         Real spot = process_->stateVariable()->value();
 
         // For the B&S formulae:
-        DayCounter dividendDC = process_->dividendYield()->dayCounter();
-        Rate dividend = process_->dividendYield()->zeroRate(exercise1->lastDate(), dividendDC, Continuous, NoFrequency);
+        const Date date1 = exercise1->lastDate();
+        const Date date2 = exercise2->lastDate();
+        const DiscountFactor discount1 = process_->riskFreeRate()->discount(date1);
+        const DiscountFactor discount2 = process_->riskFreeRate()->discount(date2);
+        const Real growth2 = process_->dividendYield()->discount(date2);
+        const Real forward1 = spot * process_->dividendYield()->discount(date1) / discount1;
+        const Real forward2 = spot * growth2 / discount2;
+        const Real variance1 = process_->blackVolatility()->blackVariance(date1, payoff1->strike());
+        const Real variance2 = process_->blackVolatility()->blackVariance(date2, payoff1->strike());
 
-        DayCounter riskFreeDC = process_->riskFreeRate()->dayCounter();
-        Rate riskFree = process_->riskFreeRate()->zeroRate(exercise1->lastDate(), riskFreeDC, Continuous, NoFrequency);
+        // With no variance to speak of before the first expiry, the spot there is
+        // known: it's either exercised then, or extended into an option with its forward.
+        if (variance1 < QL_EPSILON * QL_EPSILON)
+        {
+            results_.value = (*payoff1)(forward1) > 0.0 ? Real(discount1 * (*payoff1)(forward1)) :
+                                                          blackFormula(type, payoff2->strike(), forward2,
+                                                                       std::sqrt(variance2 - variance1), discount2);
+            return;
+        }
 
-        // The time to maturity:
-        Time t1 = riskFreeDC.yearFraction(process_->riskFreeRate()->referenceDate(), arguments_.exercise->lastDate());
-        Time t2 = riskFreeDC.yearFraction(process_->riskFreeRate()->referenceDate(), arguments_.exercise2->lastDate());
-
-        // b = r-q:
-        Real b = riskFree - dividend;
-
-        Real forwardPrice = spot * std::exp(b * t1);
-
-        Volatility volatility = process_->blackVolatility()->blackVol(exercise1->lastDate(), payoff1->strike());
-
-        Real stdDev = volatility * std::sqrt(t1);
-
-        Real discount = std::exp(-riskFree * t1);
+        const Real stdDev1 = std::sqrt(variance1);
+        const Real stdDev2 = std::sqrt(variance2);
 
         // Call the B&S method:
-        Real black = blackFormula(type, payoff1->strike(), forwardPrice, stdDev, discount);
+        Real black = blackFormula(type, payoff1->strike(), forward1, stdDev1, discount1);
 
         // STEP 2:
 
         // Standard bivariate normal distribution:
-        Real ro = std::sqrt(t1 / t2);
-        Real z1 = (std::log(spot / payoff2->strike()) + (b + std::pow(volatility, 2) / 2) * t2) /
-                  (volatility * std::sqrt(t2));
-        Real z2 = (std::log(spot / payoff1->strike()) + (b + std::pow(volatility, 2) / 2) * t1) /
-                  (volatility * std::sqrt(t1));
+        Real ro = std::sqrt(variance1 / variance2);
+        Real z1 = std::log(forward2 / payoff2->strike()) / stdDev2 + stdDev2 / 2;
+        Real z2 = std::log(forward1 / payoff1->strike()) / stdDev1 + stdDev1 / 2;
 
         // Call the bivariate method:
         BivariateCumulativeNormalDistributionWe04DP biv(-ro);
@@ -105,17 +105,15 @@ namespace QuantLib
         {
             // Call case:
             bivariate1 = biv(z1, -z2);
-            bivariate2 = biv(z1 - volatility * std::sqrt(t2), -z2 + volatility * std::sqrt(t1));
-            result = black + spot * std::exp((b - riskFree) * t2) * bivariate1 -
-                     payoff2->strike() * std::exp((-riskFree) * t2) * bivariate2;
+            bivariate2 = biv(z1 - stdDev2, -z2 + stdDev1);
+            result = black + spot * growth2 * bivariate1 - payoff2->strike() * discount2 * bivariate2;
         }
         else
         {
             // Put case:
             bivariate1 = biv(-z1, z2);
-            bivariate2 = biv(-z1 + volatility * std::sqrt(t2), z2 - volatility * std::sqrt(t1));
-            result = black - spot * std::exp((b - riskFree) * t2) * bivariate1 +
-                     payoff2->strike() * std::exp((-riskFree) * t2) * bivariate2;
+            bivariate2 = biv(-z1 + stdDev2, z2 - stdDev1);
+            result = black - spot * growth2 * bivariate1 + payoff2->strike() * discount2 * bivariate2;
         }
 
         // Save the result:
