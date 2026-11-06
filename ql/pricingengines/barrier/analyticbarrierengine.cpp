@@ -23,10 +23,24 @@
 
 #include <ql/exercise.hpp>
 #include <ql/pricingengines/barrier/analyticbarrierengine.hpp>
+#include <cmath>
 #include <utility>
 
 namespace QuantLib
 {
+
+    namespace
+    {
+
+        // power * N(y), where power = exp(logPower).  At low volatility and large carry the
+        // power can overflow while N(y) underflows, and their product is still finite.
+        Real powerTimesCumulative(const CumulativeNormalDistribution& f, Real power, Real logPower, Real y)
+        {
+            const Real n = f(y);
+            return (n > 0.0 && std::isfinite(power)) ? Real(power * n) : Real(std::exp(logPower + f.logValue(y)));
+        }
+
+    }
 
     AnalyticBarrierEngine::AnalyticBarrierEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process)
     : process_(std::move(process))
@@ -204,12 +218,10 @@ namespace QuantLib
         Real powHS0 = std::pow(HS, 2 * mu());
         Real powHS1 = powHS0 * HS * HS;
         Real y1 = std::log(barrier() * HS / strike()) / stdDeviation() + muSigma();
-        Real N1 = f_(eta * y1);
-        Real N2 = f_(eta * (y1 - stdDeviation()));
-        // when N1 or N2 are zero, the corresponding powHS might
-        // be infinity, resulting in a NaN for their products.  The limit should be 0.
-        return phi * (underlying() * dividendDiscount() * (N1 == 0.0 ? Real(0.0) : Real(powHS1 * N1)) -
-                      strike() * riskFreeDiscount() * (N2 == 0.0 ? Real(0.0) : Real(powHS0 * N2)));
+        Real logHS = std::log(HS);
+        Real term1 = powerTimesCumulative(f_, powHS1, (2 * mu() + 2) * logHS, eta * y1);
+        Real term2 = powerTimesCumulative(f_, powHS0, 2 * mu() * logHS, eta * (y1 - stdDeviation()));
+        return phi * (underlying() * dividendDiscount() * term1 - strike() * riskFreeDiscount() * term2);
     }
 
     Real AnalyticBarrierEngine::D(Real eta, Real phi) const
@@ -218,26 +230,23 @@ namespace QuantLib
         Real powHS0 = std::pow(HS, 2 * mu());
         Real powHS1 = powHS0 * HS * HS;
         Real y2 = std::log(barrier() / underlying()) / stdDeviation() + muSigma();
-        Real N1 = f_(eta * y2);
-        Real N2 = f_(eta * (y2 - stdDeviation()));
-        // when N1 or N2 are zero, the corresponding powHS might
-        // be infinity, resulting in a NaN for their products.  The limit should be 0.
-        return phi * (underlying() * dividendDiscount() * (N1 == 0.0 ? Real(0.0) : Real(powHS1 * N1)) -
-                      strike() * riskFreeDiscount() * (N2 == 0.0 ? Real(0.0) : Real(powHS0 * N2)));
+        Real logHS = std::log(HS);
+        Real term1 = powerTimesCumulative(f_, powHS1, (2 * mu() + 2) * logHS, eta * y2);
+        Real term2 = powerTimesCumulative(f_, powHS0, 2 * mu() * logHS, eta * (y2 - stdDeviation()));
+        return phi * (underlying() * dividendDiscount() * term1 - strike() * riskFreeDiscount() * term2);
     }
 
     Real AnalyticBarrierEngine::E(Real eta) const
     {
         if (rebate() > 0)
         {
-            Real powHS0 = std::pow(barrier() / underlying(), 2 * mu());
+            Real HS = barrier() / underlying();
+            Real powHS0 = std::pow(HS, 2 * mu());
             Real x2 = std::log(underlying() / barrier()) / stdDeviation() + muSigma();
             Real y2 = std::log(barrier() / underlying()) / stdDeviation() + muSigma();
             Real N1 = f_(eta * (x2 - stdDeviation()));
-            Real N2 = f_(eta * (y2 - stdDeviation()));
-            // when N2 is zero, powHS0 might be infinity, resulting in
-            // a NaN for their product.  The limit should be 0.
-            return rebate() * riskFreeDiscount() * (N1 - (N2 == 0.0 ? Real(0.0) : Real(powHS0 * N2)));
+            Real term2 = powerTimesCumulative(f_, powHS0, 2 * mu() * std::log(HS), eta * (y2 - stdDeviation()));
+            return rebate() * riskFreeDiscount() * (N1 - term2);
         }
         else
         {
@@ -251,20 +260,26 @@ namespace QuantLib
         {
             Rate m = mu();
             Volatility vol = volatility();
-            Real lambda = std::sqrt(m * m + 2.0 * riskFreeRate() / (vol * vol));
+            Real twoRateOverVariance = 2.0 * riskFreeRate() / (vol * vol);
+            Real lambda = std::sqrt(m * m + twoRateOverVariance);
+            // The exponents multiply to -2r/vol^2.  Getting the smaller one from that
+            // keeps it from cancelling at low volatility.
+            Real larger = m >= 0.0 ? Real(m + lambda) : Real(m - lambda);
+            Real smaller = larger == 0.0 ? Real(0.0) : Real(-twoRateOverVariance / larger);
+            Real mPlusLambda = m >= 0.0 ? larger : smaller;
+            Real mMinusLambda = m >= 0.0 ? smaller : larger;
             Real HS = barrier() / underlying();
-            Real powHSplus = std::pow(HS, m + lambda);
-            Real powHSminus = std::pow(HS, m - lambda);
+            Real powHSplus = std::pow(HS, mPlusLambda);
+            Real powHSminus = std::pow(HS, mMinusLambda);
 
             Real sigmaSqrtT = stdDeviation();
             Real z = std::log(barrier() / underlying()) / sigmaSqrtT + lambda * sigmaSqrtT;
 
-            Real N1 = f_(eta * z);
-            Real N2 = f_(eta * (z - 2.0 * lambda * sigmaSqrtT));
-            // when N1 or N2 are zero, the corresponding powHS might
-            // be infinity, resulting in a NaN for their product.  The limit should be 0.
-            return rebate() *
-                   ((N1 == 0.0 ? Real(0.0) : Real(powHSplus * N1)) + (N2 == 0.0 ? Real(0.0) : Real(powHSminus * N2)));
+            Real logHS = std::log(HS);
+            Real term1 = powerTimesCumulative(f_, powHSplus, mPlusLambda * logHS, eta * z);
+            Real term2 =
+                powerTimesCumulative(f_, powHSminus, mMinusLambda * logHS, eta * (z - 2.0 * lambda * sigmaSqrtT));
+            return rebate() * (term1 + term2);
         }
         else
         {

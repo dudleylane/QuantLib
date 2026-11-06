@@ -727,6 +727,42 @@ BOOST_AUTO_TEST_CASE(testPeizerPrattInversion)
     BOOST_CHECK_EXCEPTION(PeizerPrattMethod2Inversion(1.0, 4), Error, ExpectedErrorMessage("n must be an odd number"));
 }
 
+BOOST_AUTO_TEST_CASE(testLogCumulativeNormal)
+{
+    BOOST_TEST_MESSAGE("Testing the logarithm of the cumulative normal distribution...");
+
+    // Calculated with 60 digits as log(erfc(-z / sqrt(2)) / 2).
+    const struct
+    {
+        Real x, average, sigma, expected;
+    } cases[] = {{0.0, 0.0, 1.0, -0.69314718055994530942},    {3.0, 0.0, 1.0, -0.0013508099647481937988},
+                 {10.0, 0.0, 1.0, -7.619853024160526066e-24}, {-1.0, 0.0, 1.0, -1.8410216450092635058},
+                 {-5.0, 0.0, 1.0, -15.064998393988725736},    {-5.6, 0.0, 1.0, -18.351379495909332066},
+                 {-6.0, 0.0, 1.0, -20.736768949974705655},    {-10.0, 0.0, 1.0, -53.231285150512470578},
+                 {-36.9, 0.0, 1.0, -685.33288316535061216},   {-37.0, 0.0, 1.0, -689.0305855768905936},
+                 {-37.1, 0.0, 1.0, -692.73828071562329266},   {-37.5, 0.0, 1.0, -707.66898931750719107},
+                 {-38.0, 0.0, 1.0, -726.5572160188201301},    {-39.0, 0.0, 1.0, -765.0831565643775444},
+                 {-40.0, 0.0, 1.0, -804.60844201375378817},   {-100.0, 0.0, 1.0, -5005.5242086942050886},
+                 {-1000.0, 0.0, 1.0, -500007.82669481218431}, {-1.0e5, 0.0, 1.0, -5000000012.4318639983},
+                 {0.0, 1.0, 2.0, -1.1759117615936186089},     {-79.0, 1.0, 2.0, -804.60844201375378817},
+                 {-1000.0, 5.0, 0.5, -2020058.5248287817763}};
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT("x " << c.x << ", average " << c.average << ", sigma " << c.sigma)
+        {
+            const CumulativeNormalDistribution f(c.average, c.sigma);
+            const Real scale = std::max(std::fabs(c.expected), Real(1.0));
+            BOOST_CHECK_SMALL((f.logValue(c.x) - c.expected) / scale, 1.0e-14);
+
+            // Where the value hasn't underflowed, it agrees with the operator.
+            const Real value = f(c.x);
+            if (value > 0.0)
+                BOOST_CHECK_SMALL(f.logValue(c.x) - std::log(value), 1.0e-7);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
