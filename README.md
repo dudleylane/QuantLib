@@ -169,9 +169,11 @@ cut.
 
 ### Verified on this fork
 
-- **GCC 15.2.1 + C++23 + Boost 1.83** (default): 1304 cases, 0 failures
-- **Clang 21.1.6 + C++23 + Boost 1.83**: 1274 cases, 0 failures (taken at the Phase-0 baseline; new-module tests land on top)
-- **`linux-ci-build-with-nonstandard-options` preset** (sessions on, thread-safe observer on, `QL_FASTER_LAZY_OBJECTS=OFF`, `QL_THROW_IN_CYCLES=ON`, high-res date on, indexed coupons, warnings-as-errors): 1280 cases, 0 failures (Phase-0 baseline)
+The three case counts are from CI's full run 41806352468 on 2026-11-04, with no failures. They grow as tests are added, so CI's latest full run on a pull request has the current figures.
+
+- **GCC 15.2.1 + C++23 + Boost 1.83** (`linux / Default`): 1,331 cases
+- **Clang 22.1.8 + C++23 + Boost 1.83** (the `tsan` job, CI's only Clang build, with sessions and the thread-safe observer on): 1,333 cases
+- **`linux-ci-build-with-nonstandard-options` preset** (`cmake-linux-with-options`: sessions on, thread-safe observer on, `QL_FASTER_LAZY_OBJECTS=OFF`, `QL_THROW_IN_CYCLES=ON`, high-res date on, indexed coupons, warnings-as-errors): 1,337 cases
 - **`QL_ENABLE_AAD=ON`** (GCC 15.2.1, CoDi-Pack v2.2.0 auto-fetched): `AadTests/*` pass end-to-end. That run used v2.2.0. The pin moved to v3.1.0 in `d742765be`, and no build with AAD on has been verified since; no CI job builds one.
 
 CI runs on a self-hosted runner: a single `.github/workflows/ci.yml`
