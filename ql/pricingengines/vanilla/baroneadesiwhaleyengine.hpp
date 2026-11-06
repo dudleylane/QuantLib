@@ -38,13 +38,16 @@ namespace QuantLib
 
         // The American value at zero variance, and its delta and gamma: that
         // of the best deterministic exercise time, under the flat rates the
-        // engine below and JuQuadraticApproximationEngine assume. Both use
-        // it, so it is declared here; two file-local copies would clash in a
-        // unity build, which compiles both files as one. The derivation is at
+        // engine below, JuQuadraticApproximationEngine and
+        // BjerksundStenslandApproximationEngine assume. All three use it, so
+        // it is declared here; file-local copies would clash in a unity
+        // build, which compiles the three files as one. The derivation is at
         // its definition, in baroneadesiwhaleyengine.cpp.
         struct ZeroVarianceResults
         {
             Real value, delta, gamma;
+            // when to exercise, as a fraction of the time to expiry
+            Real exerciseFraction;
         };
 
         ZeroVarianceResults zeroVarianceResults(const StrikedTypePayoff& payoff,

@@ -53,10 +53,10 @@ namespace QuantLib
                                                 const BlackCalculator& black)
         {
             Real phi = (payoff.optionType() == Option::Call) ? 1.0 : -1.0;
-            ZeroVarianceResults results = {black.value(), black.delta(spot), black.gamma(spot)};
+            ZeroVarianceResults results = {black.value(), black.delta(spot), black.gamma(spot), 1.0};
             Real intrinsic = payoff(spot);
             if (intrinsic > results.value)
-                results = {intrinsic, intrinsic > 0.0 ? phi : 0.0, 0.0};
+                results = {intrinsic, intrinsic > 0.0 ? phi : 0.0, 0.0, 0.0};
             Real a = std::log(riskFreeDiscount), c = std::log(dividendDiscount);
             if (a != c && a * c > 0.0)
             {
@@ -68,7 +68,7 @@ namespace QuantLib
                     if (value > results.value)
                     {
                         Real delta = phi * std::pow(dividendDiscount, s);
-                        results = {value, delta, delta * c / (spot * (a - c))};
+                        results = {value, delta, delta * c / (spot * (a - c)), s};
                     }
                 }
             }

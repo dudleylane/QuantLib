@@ -695,6 +695,422 @@ BOOST_AUTO_TEST_CASE(testBaroneAdesiWhaleyAndJuAtZeroVolatility)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testBjerksundStenslandAtUnitBeta)
+{
+
+    BOOST_TEST_MESSAGE("Testing Bjerksund-Stensland approximation where beta is one...");
+
+    // In the engine's terms, where a put is a call with the spot and the
+    // strike swapped and r and q swapped, beta is exactly one for q = 0 and
+    // -sigma^2/2 <= r < 0. That takes in ordinary inputs such as r = -0.5% and
+    // sigma = 20%. BInfinity is infinite there, and the engine returned NaN
+    // (#47). Its flat trigger has a limit, though, so the value must be a lower
+    // bound for the American price, close to it, and what the engine gives as
+    // q leaves zero. The greeks must agree with bumps. Those can only go up for
+    // the rate that is zero, since the engine throws below it.
+
+    Date today(15, August, 2026);
+    Settings::instance().evaluationDate() = today;
+    DayCounter dc = Actual360();
+
+    auto spot = ext::make_shared<SimpleQuote>(100.0);
+    auto qRate = ext::make_shared<SimpleQuote>(0.0);
+    auto rRate = ext::make_shared<SimpleQuote>(0.0);
+    auto vol = ext::make_shared<SimpleQuote>(0.0);
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot), Handle<YieldTermStructure>(flatRate(today, qRate, dc)),
+        Handle<YieldTermStructure>(flatRate(today, rRate, dc)), Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+
+    auto europeanEngine = ext::make_shared<AnalyticEuropeanEngine>(process);
+    auto referenceEngine = ext::make_shared<QdFpAmericanEngine>(process);
+    auto engine = ext::make_shared<BjerksundStenslandApproximationEngine>(process);
+
+    Real tolerance = 1.0e-10;
+    Real band = 0.02;
+    Real greekTolerance = 2.0e-3;
+    Real leavingZero = 1.0e-10;
+    Real leavingZeroTolerance = 1.0e-6;
+
+    struct Case
+    {
+        Option::Type type;
+        Rate r, q;
+        Volatility v;
+    };
+
+    const auto npvAt = [](VanillaOption& option, const ext::shared_ptr<SimpleQuote>& quote, Real value)
+    {
+        const Real original = quote->value();
+        quote->setValue(value);
+        const Real npv = option.NPV();
+        quote->setValue(original);
+        return npv;
+    };
+    const auto closeTo = [&](Real calculated, Real expected)
+    { return std::fabs(calculated - expected) <= greekTolerance * std::max(std::fabs(expected), 1.0e-2); };
+
+    const Case cases[] = {{Option::Call, -0.005, 0.0, 0.2},
+                          {Option::Put, 0.0, -0.005, 0.2},
+                          {Option::Call, -0.02, 0.0, 0.4},
+                          {Option::Put, 0.0, -0.05, 0.4}};
+
+    for (const auto& [type, r, q, v] : cases)
+    {
+        spot->setValue(100.0);
+        rRate->setValue(r);
+        qRate->setValue(q);
+        vol->setValue(v);
+        auto payoff = ext::make_shared<PlainVanillaPayoff>(type, 100.0);
+        const auto& nonZeroRate = (type == Option::Call) ? rRate : qRate;
+        const auto& zeroRate = (type == Option::Call) ? qRate : rRate;
+
+        for (Integer days : {90, 360, 1080})
+        {
+            Date exDate = today + days;
+            auto american = ext::make_shared<AmericanExercise>(today, exDate);
+            auto european = ext::make_shared<EuropeanExercise>(exDate);
+            for (Real s : {80.0, 95.0, 100.0, 105.0, 120.0})
+            {
+                spot->setValue(s);
+
+                VanillaOption reference(payoff, european);
+                reference.setPricingEngine(europeanEngine);
+                Real floor = std::max(reference.NPV(), (*payoff)(s));
+
+                VanillaOption option(payoff, american);
+                option.setPricingEngine(referenceEngine);
+                Real upper = option.NPV();
+                option.setPricingEngine(engine);
+                Real value = option.NPV();
+                if (!(value >= floor - tolerance && value <= upper && value >= upper * (1.0 - band)))
+                {
+                    REPORT_FAILURE("value", payoff, american, s, q, r, today, v, upper, value, upper - value,
+                                   upper * band);
+                }
+
+                Real calculated = npvAt(option, zeroRate, leavingZero);
+                Real error = std::fabs(calculated - value);
+                if (!(error <= leavingZeroTolerance))
+                {
+                    REPORT_FAILURE("value as q leaves zero", payoff, american, s, q, r, today, v, value, calculated,
+                                   error, leavingZeroTolerance);
+                }
+
+                const std::pair<std::string, std::pair<Real, Real>> greeks[] = {
+                    {"delta",
+                     {option.delta(), (npvAt(option, spot, s * 1.001) - npvAt(option, spot, s * 0.999)) / (0.002 * s)}},
+                    {"gamma",
+                     {option.gamma(), (npvAt(option, spot, s * 1.001) - 2.0 * value + npvAt(option, spot, s * 0.999)) /
+                                          squared(0.001 * s)}},
+                    {"vega",
+                     {option.vega(), (npvAt(option, vol, v + 1.0e-4) - npvAt(option, vol, v - 1.0e-4)) / 2.0e-4}},
+                    {"rho on the non-zero rate",
+                     {(type == Option::Call) ? option.rho() : option.dividendRho(),
+                      (npvAt(option, nonZeroRate, nonZeroRate->value() + 1.0e-6) -
+                       npvAt(option, nonZeroRate, nonZeroRate->value() - 1.0e-6)) /
+                          2.0e-6}},
+                    {"rho on the zero rate",
+                     {(type == Option::Call) ? option.dividendRho() : option.rho(),
+                      (npvAt(option, zeroRate, 1.0e-7) - value) / 1.0e-7}}};
+                for (const auto& [name, greek] : greeks)
+                {
+                    if (!closeTo(greek.first, greek.second))
+                    {
+                        REPORT_FAILURE(name, payoff, american, s, q, r, today, v, greek.second, greek.first,
+                                       std::fabs(greek.first - greek.second), greekTolerance);
+                    }
+                }
+            }
+        }
+    }
+
+    // At r = -sigma^2/2 the square root in beta vanishes: beta has a kink in r
+    // and sigma and a vertical tangent in q. So the analytic derivatives with
+    // respect to r and sigma must be those of one side or the other, and which
+    // side is left to rounding, while the one with respect to q can only be
+    // required to be a number.
+    const Case kinks[] = {{Option::Call, -0.02, 0.0, 0.2},
+                          {Option::Put, 0.0, -0.02, 0.2},
+                          {Option::Call, -0.005, 0.0, 0.1},
+                          {Option::Put, 0.0, -0.005, 0.1}};
+
+    for (const auto& [type, r, q, v] : kinks)
+    {
+        spot->setValue(100.0);
+        rRate->setValue(r);
+        qRate->setValue(q);
+        vol->setValue(v);
+        auto payoff = ext::make_shared<PlainVanillaPayoff>(type, 100.0);
+        const auto& nonZeroRate = (type == Option::Call) ? rRate : qRate;
+
+        for (Integer days : {360, 1800})
+        {
+            auto american = ext::make_shared<AmericanExercise>(today, today + days);
+            for (Real s : {80.0, 95.0, 110.0})
+            {
+                spot->setValue(s);
+                VanillaOption option(payoff, american);
+                option.setPricingEngine(engine);
+                Real value = option.NPV();
+                Real rateRho = (type == Option::Call) ? option.rho() : option.dividendRho();
+                Real otherRho = (type == Option::Call) ? option.dividendRho() : option.rho();
+                Real vega = option.vega();
+                Real rate = nonZeroRate->value();
+                Real h = 1.0e-6;
+                if (!closeTo(rateRho, (npvAt(option, nonZeroRate, rate + h) - value) / h) &&
+                    !closeTo(rateRho, (value - npvAt(option, nonZeroRate, rate - h)) / h))
+                {
+                    BOOST_ERROR("rate derivative " << rateRho << " at the kink for " << type << ", s = " << s << ", "
+                                                   << days << " days, r = " << r << ", q = " << q << ", v = " << v
+                                                   << " is that of neither side");
+                }
+                if (!closeTo(vega, (npvAt(option, vol, v + h) - value) / h) &&
+                    !closeTo(vega, (value - npvAt(option, vol, v - h)) / h))
+                {
+                    BOOST_ERROR("vega " << vega << " at the kink for " << type << ", s = " << s << ", " << days
+                                        << " days, r = " << r << ", q = " << q << ", v = " << v
+                                        << " is that of neither side");
+                }
+                BOOST_CHECK(std::isfinite(value));
+                BOOST_CHECK(std::isfinite(otherRho));
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBjerksundStenslandAtLowVolatility)
+{
+
+    BOOST_TEST_MESSAGE("Testing Bjerksund-Stensland approximation at low volatility...");
+
+    // At low variance the powers of I/S in the engine's phi functions overflow
+    // where the normal tail they multiply, or the exponential they divide by,
+    // is out of range too, and the engine returned NaN (#47). These are inputs
+    // that did. The results are small, so the value must be right, and none of
+    // the greeks may be NaN.
+
+    Date today(15, August, 2026);
+    Settings::instance().evaluationDate() = today;
+    DayCounter dc = Actual365Fixed();
+
+    auto spot = ext::make_shared<SimpleQuote>(100.0);
+    auto qRate = ext::make_shared<SimpleQuote>(0.0);
+    auto rRate = ext::make_shared<SimpleQuote>(0.0);
+    auto vol = ext::make_shared<SimpleQuote>(0.0);
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot), Handle<YieldTermStructure>(flatRate(today, qRate, dc)),
+        Handle<YieldTermStructure>(flatRate(today, rRate, dc)), Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+
+    auto referenceEngine = ext::make_shared<QdFpAmericanEngine>(process);
+    auto engine = ext::make_shared<BjerksundStenslandApproximationEngine>(process);
+    auto american = ext::make_shared<AmericanExercise>(today, today + 3650);
+
+    Real tolerance = 1.0e-5;
+
+    struct Case
+    {
+        Option::Type type;
+        Real s;
+        Rate r, q;
+        Volatility v;
+    };
+    const Case cases[] = {{Option::Put, 100.0, 0.05, 0.1, 0.005},   {Option::Put, 80.0, 0.05, 0.1, 0.005},
+                          {Option::Call, 100.0, 0.1, 0.05, 0.005},  {Option::Call, 120.0, 0.1, 0.05, 0.005},
+                          {Option::Put, 105.0, 0.05, 0.1, 0.01},    {Option::Put, 120.0, 0.05, 0.1, 0.01},
+                          {Option::Call, 95.0, 0.1, 0.05, 0.01},    {Option::Call, 200.0, 0.1, 0.02, 0.01},
+                          {Option::Put, 80.0, 0.05, 0.1, 0.001},    {Option::Put, 50.0, 0.02, 0.05, 0.001},
+                          {Option::Call, 200.0, 0.05, 0.02, 0.001}, {Option::Call, 200.0, 0.05, 0.02, 1.0e-4},
+                          {Option::Put, 100.0, 0.05, 0.1, 1.0e-6},  {Option::Call, 100.0, 0.1, 0.05, 1.0e-6},
+                          {Option::Put, 100.0, 0.05, 0.1, 1.0e-8},  {Option::Call, 100.0, 0.1, 0.05, 1.0e-8}};
+
+    for (const auto& [type, s, r, q, v] : cases)
+    {
+        spot->setValue(s);
+        rRate->setValue(r);
+        qRate->setValue(q);
+        vol->setValue(v);
+        auto payoff = ext::make_shared<PlainVanillaPayoff>(type, 100.0);
+
+        VanillaOption option(payoff, american);
+        option.setPricingEngine(referenceEngine);
+        Real expected = option.NPV();
+        option.setPricingEngine(engine);
+        Real value = option.NPV();
+        Real error = std::fabs(value - expected);
+        if (!(error <= tolerance))
+        {
+            REPORT_FAILURE("value", payoff, american, s, q, r, today, v, expected, value, error, tolerance);
+        }
+
+        const std::pair<std::string, Real> greeks[] = {{"delta", option.delta()},
+                                                       {"gamma", option.gamma()},
+                                                       {"vega", option.vega()},
+                                                       {"rho", option.rho()},
+                                                       {"dividend rho", option.dividendRho()},
+                                                       {"theta", option.theta()},
+                                                       {"strike sensitivity", option.strikeSensitivity()}};
+        for (const auto& [name, greek] : greeks)
+        {
+            if (!std::isfinite(greek))
+            {
+                REPORT_FAILURE(name, payoff, american, s, q, r, today, v, 0.0, greek, greek, 0.0);
+            }
+        }
+    }
+
+    // Lower still, the value must be that of zero volatility, where the path is
+    // deterministic. It went astray here with beta - 1 lost to rounding: one of
+    // these read 412.94, 405.56, 402.76 and 405.20 as the volatility rose from
+    // 1e-8 to 3e-7, for a value of 405.20.
+    auto call = ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0);
+    const Rate rates[][2] = {{0.07, 0.01}, {0.1, 0.01}, {0.07, 0.02}, {0.05, 0.02}};
+    for (const auto& [r, q] : rates)
+    {
+        rRate->setValue(r);
+        qRate->setValue(q);
+        for (Real s : {150.0, 200.0, 300.0, 500.0})
+        {
+            spot->setValue(s);
+            vol->setValue(0.0);
+            VanillaOption option(call, american);
+            option.setPricingEngine(engine);
+            Real expected = option.NPV();
+            for (Volatility v : {1.0e-8, 3.0e-8, 1.0e-7, 3.0e-7, 1.0e-6, 1.0e-5})
+            {
+                vol->setValue(v);
+                Real value = option.NPV();
+                Real error = std::fabs(value - expected);
+                if (!(error <= tolerance))
+                {
+                    REPORT_FAILURE("value", call, american, s, q, r, today, v, expected, value, error, tolerance);
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBjerksundStenslandAtZeroVolatility)
+{
+
+    BOOST_TEST_MESSAGE("Testing Bjerksund-Stensland approximation at zero volatility...");
+
+    // At zero volatility the path is deterministic and the value is that of
+    // the best exercise time, as for Barone-Adesi-Whaley and Ju above. The
+    // engine returned NaN wherever it ran its approximation (#47). For a call
+    // with r < q < 0 it threw, as it doesn't cover the double boundary, but
+    // that takes a nonzero volatility. Where the value peaks inside the
+    // option's life, at t*, it is stationary in t*: so the rhos are those of
+    // exercising at t*, and the delta and gamma come out as for Ju. Vega and
+    // theta are zero, since a later expiry doesn't move t*.
+
+    Date today(15, August, 2026);
+    Settings::instance().evaluationDate() = today;
+    DayCounter dc = Actual360();
+
+    auto spot = ext::make_shared<SimpleQuote>(100.0);
+    auto qRate = ext::make_shared<SimpleQuote>(0.0);
+    auto rRate = ext::make_shared<SimpleQuote>(0.0);
+    auto vol = ext::make_shared<SimpleQuote>(0.0);
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot), Handle<YieldTermStructure>(flatRate(today, qRate, dc)),
+        Handle<YieldTermStructure>(flatRate(today, rRate, dc)), Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+
+    Date exDate = today + 1080;
+    Time maturity = dc.yearFraction(today, exDate);
+    auto american = ext::make_shared<AmericanExercise>(today, exDate);
+    auto european = ext::make_shared<EuropeanExercise>(exDate);
+    auto europeanEngine = ext::make_shared<AnalyticEuropeanEngine>(process);
+    auto engine = ext::make_shared<BjerksundStenslandApproximationEngine>(process);
+
+    Real strike = 100.0;
+    Real tolerance = 1.0e-10;
+
+    struct Case
+    {
+        Option::Type type;
+        Real s;
+        Rate r, q;
+    };
+
+    const auto check = [&](const std::string& name, const ext::shared_ptr<StrikedTypePayoff>& payoff, Real s, Rate r,
+                           Rate q, Real expected, Real calculated)
+    {
+        Real error = std::fabs(calculated - expected);
+        if (!(error <= tolerance))
+        {
+            REPORT_FAILURE(name, payoff, american, s, q, r, today, 0.0, expected, calculated, error, tolerance);
+        }
+    };
+
+    const Case interior[] = {{Option::Call, 240.0, 0.05, 0.02},
+                             {Option::Put, 51.5, 0.02, 0.04},
+                             {Option::Call, 205.0, -0.04, -0.02},
+                             {Option::Put, 49.0, -0.02, -0.04}};
+
+    for (const auto& [type, s, r, q] : interior)
+    {
+        spot->setValue(s);
+        rRate->setValue(r);
+        qRate->setValue(q);
+        auto payoff = ext::make_shared<PlainVanillaPayoff>(type, strike);
+        Real phi = (type == Option::Call) ? 1.0 : -1.0;
+
+        Time tStar = std::log(r * strike / (q * s)) / (r - q);
+        BOOST_REQUIRE(tStar > 0.0 && tStar < maturity);
+        Real expected = phi * (s * std::exp(-q * tStar) - strike * std::exp(-r * tStar));
+
+        // the peak must stand clear of both ends, or the case tests nothing
+        VanillaOption reference(payoff, european);
+        reference.setPricingEngine(europeanEngine);
+        BOOST_REQUIRE(expected > std::max(reference.NPV(), (*payoff)(s)) + 0.01);
+
+        VanillaOption option(payoff, american);
+        option.setPricingEngine(engine);
+        check("value", payoff, s, r, q, expected, option.NPV());
+        Real expectedDelta = phi * std::exp(-q * tStar);
+        check("delta", payoff, s, r, q, expectedDelta, option.delta());
+        check("gamma", payoff, s, r, q, expectedDelta * q / (s * (r - q)), option.gamma());
+        check("rho", payoff, s, r, q, phi * strike * tStar * std::exp(-r * tStar), option.rho());
+        check("dividend rho", payoff, s, r, q, -phi * s * tStar * std::exp(-q * tStar), option.dividendRho());
+        check("vega", payoff, s, r, q, 0.0, option.vega());
+        check("theta", payoff, s, r, q, 0.0, option.theta());
+    }
+
+    // The two ends: exercising at expiry is the European option, and exercising
+    // now is the intrinsic value with nothing else moving it.
+    {
+        Real s = 110.0;
+        Rate r = 0.05, q = 0.01;
+        spot->setValue(s);
+        rRate->setValue(r);
+        qRate->setValue(q);
+        auto payoff = ext::make_shared<PlainVanillaPayoff>(Option::Call, strike);
+        VanillaOption reference(payoff, european);
+        reference.setPricingEngine(europeanEngine);
+        VanillaOption option(payoff, american);
+        option.setPricingEngine(engine);
+        check("value at expiry", payoff, s, r, q, reference.NPV(), option.NPV());
+        check("delta at expiry", payoff, s, r, q, reference.delta(), option.delta());
+        check("rho at expiry", payoff, s, r, q, reference.rho(), option.rho());
+        check("dividend rho at expiry", payoff, s, r, q, reference.dividendRho(), option.dividendRho());
+    }
+    {
+        Real s = 50.0;
+        Rate r = 0.05, q = 0.01;
+        spot->setValue(s);
+        rRate->setValue(r);
+        qRate->setValue(q);
+        auto payoff = ext::make_shared<PlainVanillaPayoff>(Option::Put, strike);
+        VanillaOption option(payoff, american);
+        option.setPricingEngine(engine);
+        check("value now", payoff, s, r, q, strike - s, option.NPV());
+        check("delta now", payoff, s, r, q, -1.0, option.delta());
+        check("gamma now", payoff, s, r, q, 0.0, option.gamma());
+        check("rho now", payoff, s, r, q, 0.0, option.rho());
+        check("dividend rho now", payoff, s, r, q, 0.0, option.dividendRho());
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testFdValues)
 {
 
