@@ -30,6 +30,7 @@
 #include <ql/utilities/observablevalue.hpp>
 #include <algorithm>
 #include <cctype>
+#include <mutex>
 #include <utility>
 
 namespace QuantLib
@@ -67,7 +68,9 @@ namespace QuantLib
 
         // Not mutable: fixings are read while pricing, so a lookup must not be able to write (#86).
         std::map<std::string, TimeSeries<Real>, CaseInsensitiveCompare> data_;
-        mutable std::map<std::string, ext::shared_ptr<Observable>> notifiers_;
+        // Index constructors ask for notifiers, so any thread sharing the manager can insert here (#123).
+        mutable std::map<std::string, ext::shared_ptr<Observable>, CaseInsensitiveCompare> notifiers_;
+        mutable std::mutex notifiersMutex_;
 
         //! add a fixing
         void addFixing(const std::string& name, const Date& fixingDate, Real fixing, bool forceOverwrite = false);

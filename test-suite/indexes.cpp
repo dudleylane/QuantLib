@@ -45,6 +45,11 @@
 #include <ql/time/schedule.hpp>
 #include <ql/utilities/dataformatters.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
+#include <algorithm>
+#include <barrier>
+#include <string>
+#include <thread>
+#include <vector>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -171,6 +176,104 @@ BOOST_AUTO_TEST_CASE(testFixingLookupsStoreNothing)
     BOOST_CHECK_THROW(index->addFixing(saturday, 0.02), Error);
     BOOST_CHECK_EQUAL(index->timeSeries().size(), 1U);
     BOOST_CHECK_EQUAL(index->timeSeries().lastDate(), lastFixing);
+}
+
+BOOST_AUTO_TEST_CASE(testNotifiersFromSeveralThreads)
+{
+    BOOST_TEST_MESSAGE("Testing index notifiers asked for from several threads...");
+
+    struct Probe : Index
+    {
+        explicit Probe(std::string name) : name_(std::move(name)) {}
+        std::string name() const override { return name_; }
+        Calendar fixingCalendar() const override { return TARGET(); }
+        bool isValidFixingDate(const Date&) const override { return true; }
+        Real fixing(const Date&, bool) const override { return Null<Real>(); }
+        using Index::notifier;
+        std::string name_;
+    };
+
+    // Index constructors ask for notifiers, so threads building indexes share
+    // the map holding them.  In each round the threads ask for one new name at
+    // the same moment.  Without a lock two of them can miss it and each insert
+    // one, and an index holding the loser never hears of a fixing (#123).
+    constexpr Size nThreads = 8, nRounds = 2000;
+    std::vector<std::vector<ext::shared_ptr<Observable>>> seen(nThreads);
+    std::barrier<> start(nThreads);
+    std::vector<std::thread> threads;
+    for (Size i = 0; i < nThreads; ++i)
+        threads.emplace_back(
+            [&start, &out = seen[i]]
+            {
+                out.reserve(nRounds);
+                for (Size round = 0; round < nRounds; ++round)
+                {
+                    const Probe probe("notifier probe " + std::to_string(round));
+                    start.arrive_and_wait();
+                    out.push_back(probe.notifier());
+                }
+            });
+    for (auto& t : threads)
+        t.join();
+
+    Size roundsWithSeveralNotifiers = 0;
+    for (Size round = 0; round < nRounds; ++round)
+        if (!std::all_of(seen.begin(), seen.end(), [&](const auto& out) { return out[round] == seen[0][round]; }))
+            ++roundsWithSeveralNotifiers;
+
+#ifdef QL_ENABLE_SESSIONS
+    // Each thread has a manager of its own, so nothing is shared to begin with.
+    BOOST_CHECK_EQUAL(roundsWithSeveralNotifiers, nRounds);
+#else
+    BOOST_CHECK_EQUAL(roundsWithSeveralNotifiers, 0U);
+#endif
+}
+
+BOOST_AUTO_TEST_CASE(testFixingsNotifyWhateverTheNamesCase)
+{
+    BOOST_TEST_MESSAGE("Testing that fixings notify indexes named in another case...");
+
+    const Date lastFixing(12, June, 2026);
+    Settings::instance().evaluationDate() = Date(15, June, 2026);
+    auto makeIndex = [](const std::string& family)
+    {
+        return ext::make_shared<IborIndex>(family, 3 * Months, 2, USDCurrency(), TARGET(), ModifiedFollowing, false,
+                                           Actual360());
+    };
+    auto lowerCase = makeIndex("notifier probe");
+    auto upperCase = makeIndex("NOTIFIER PROBE");
+
+    // Fixings are stored whatever the case of the name, so each index reads
+    // the other's, and its observers have to hear about them too (#123).
+    Flag flag;
+    flag.registerWith(lowerCase);
+    upperCase->addFixing(lastFixing, 0.01);
+    BOOST_CHECK(lowerCase->hasHistoricalFixing(lastFixing));
+    BOOST_CHECK(flag.isUp());
+}
+
+BOOST_AUTO_TEST_CASE(testObserverOfFixingsBuildingAnIndex)
+{
+    BOOST_TEST_MESSAGE("Testing an observer of fixings that builds an index...");
+
+    // It asks for a notifier while the fixing's notifier is notifying, so a
+    // lock held across the notification would hang here (#123).
+    struct Builder : Observer
+    {
+        bool built = false;
+        void update() override
+        {
+            const Euribor6M index;
+            built = true;
+        }
+    };
+
+    Settings::instance().evaluationDate() = Date(15, June, 2026);
+    auto euribor = ext::make_shared<Euribor3M>();
+    Builder builder;
+    builder.registerWith(euribor);
+    euribor->addFixing(Date(12, June, 2026), 0.01);
+    BOOST_CHECK(builder.built);
 }
 
 BOOST_AUTO_TEST_CASE(testTenorNormalization)
