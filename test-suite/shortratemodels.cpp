@@ -31,6 +31,7 @@
 #include <ql/models/shortrate/calibrationhelpers/swaptionhelper.hpp>
 #include <ql/models/shortrate/onefactormodels/extendedcoxingersollross.hpp>
 #include <ql/models/shortrate/onefactormodels/hullwhite.hpp>
+#include <ql/models/shortrate/onefactormodels/vasicek.hpp>
 #include <ql/pricingengines/swap/discountingswapengine.hpp>
 #include <ql/pricingengines/swap/treeswapengine.hpp>
 #include <ql/pricingengines/swaption/jamshidianswaptionengine.hpp>
@@ -458,6 +459,95 @@ BOOST_AUTO_TEST_CASE(testHullWhiteLeavesItsCurveLazy)
 
     quote->setValue(0.04);
     BOOST_CHECK_SMALL(model.r0() - curve->forwardRate(0.0, 0.0, Continuous, NoFrequency), 1.0e-12);
+}
+
+BOOST_AUTO_TEST_CASE(testVasicekDiscountBondForSmallMeanReversion)
+{
+    BOOST_TEST_MESSAGE("Testing Vasicek's discount bonds with mean reversion close to zero...");
+
+    struct Case
+    {
+        Rate r0;
+        Real a, b;
+        Volatility sigma;
+        Real lambda;
+        Time maturity;
+        Real expected;
+    };
+
+    // The model's closed form, evaluated in 120-digit arithmetic.
+    const Case cases[] = {
+        {0.03, 1e-12, 0.03, 0.01, 0.0, 5.0, 0.86250298719625288},
+        {0.03, 1e-09, 0.03, 0.01, 0.0, 5.0, 0.86250298718952131},
+        {0.03, 1.5e-08, 0.03, 0.01, 0.0, 5.0, 0.86250298709518505},
+        {0.03, 2e-08, 0.03, 0.01, 0.0, 5.0, 0.86250298706149353},
+        {0.03, 1e-07, 0.03, 0.01, 0.0, 5.0, 0.86250298652242932},
+        {0.03, 1e-06, 0.03, 0.01, 0.0, 5.0, 0.86250298045797078},
+        {0.03, 1e-05, 0.03, 0.01, 0.0, 5.0, 0.86250291981478862},
+        {0.03, 0.0001, 0.03, 0.01, 0.0, 5.0, 0.862502313523263},
+        {0.03, 0.001, 0.03, 0.01, 0.0, 5.0, 0.86249626461254694},
+        {0.03, 0.05, 0.03, 0.01, 0.0, 5.0, 0.8622021651453047},
+        {0.03, 0.4, 0.03, 0.01, 0.0, 5.0, 0.86122019135105516},
+        {0.03, 2.0, 0.03, 0.01, 0.0, 5.0, 0.8607537032393716},
+        {0.05, 1e-12, 0.04, 0.02, -0.3, 10.0, 0.87517331904207225},
+        {0.05, 1e-09, 0.04, 0.02, -0.3, 10.0, 0.87517331816777411},
+        {0.05, 1.5e-08, 0.04, 0.02, -0.3, 10.0, 0.87517330591534836},
+        {0.05, 2e-08, 0.04, 0.02, -0.3, 10.0, 0.87517330153948233},
+        {0.05, 1e-07, 0.04, 0.02, -0.3, 10.0, 0.87517323152564761},
+        {0.05, 1e-06, 0.04, 0.02, -0.3, 10.0, 0.87517244387283734},
+        {0.05, 1e-05, 0.04, 0.02, -0.3, 10.0, 0.87516456763064294},
+        {0.05, 0.0001, 0.04, 0.02, -0.3, 10.0, 0.87508583378979537},
+        {0.05, 0.001, 0.04, 0.02, -0.3, 10.0, 0.87430134378833068},
+        {0.05, 0.05, 0.04, 0.02, -0.3, 10.0, 0.83826103733717051},
+        {0.05, 0.4, 0.04, 0.02, -0.3, 10.0, 0.73828243526215487},
+        {0.05, 2.0, 0.04, 0.02, -0.3, 10.0, 0.68657658594684234},
+    };
+
+    const Real tolerance = 1.0e-14;
+    for (const auto& c : cases)
+    {
+        const Vasicek model(c.r0, c.a, c.b, c.sigma, c.lambda);
+        const Real calculated = model.discountBond(0.0, c.maturity, c.r0);
+        const Real error = std::fabs(calculated / c.expected - 1.0);
+        if (error > tolerance)
+            BOOST_ERROR("failed to reproduce the discount bond:"
+                        << "\n  a:          " << c.a << "\n  maturity:   " << c.maturity << std::setprecision(17)
+                        << "\n  calculated: " << calculated << "\n  expected:   " << c.expected);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testVasicekBondOptionForSmallMeanReversion)
+{
+    BOOST_TEST_MESSAGE("Testing Vasicek's bond options with mean reversion close to zero...");
+
+    const Rate r0 = 0.05;
+    const Real b = 0.05, lambda = 0.1, strike = 0.9;
+    const Volatility sigma = 0.02;
+    const Time maturity = 2.0, bondMaturity = 7.0;
+
+    struct Case
+    {
+        Real a, call, put;
+    };
+
+    // The model's closed form, evaluated in 120-digit arithmetic.
+    const Case cases[] = {
+        {1e-12, 0.006120869238960353, 0.13114554827073832}, {1e-09, 0.0061208691653279077, 0.13114554820253985},
+        {1e-07, 0.0061208618684224447, 0.1311455414441356}, {1e-05, 0.006120132213223885, 0.13114486562595755},
+        {0.1, 0.001556016960097005, 0.12618440799746223},
+    };
+
+    const Real tolerance = 1.0e-13;
+    for (const auto& c : cases)
+    {
+        const Vasicek model(r0, c.a, b, sigma, lambda);
+        const Real call = model.discountBondOption(Option::Call, strike, maturity, bondMaturity);
+        const Real put = model.discountBondOption(Option::Put, strike, maturity, bondMaturity);
+        if (std::fabs(call - c.call) > tolerance || std::fabs(put - c.put) > tolerance)
+            BOOST_ERROR("failed to reproduce the bond options:" << "\n  a:    " << c.a << std::setprecision(17)
+                                                                << "\n  call: " << call << " against " << c.call
+                                                                << "\n  put:  " << put << " against " << c.put);
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
