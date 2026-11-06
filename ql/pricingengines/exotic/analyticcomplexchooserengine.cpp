@@ -44,8 +44,8 @@ namespace QuantLib
         Real Xc = arguments_.strikeCall;
         Real Xp = arguments_.strikePut;
         Time T = choosingTime();
-        Time Tc = callMaturity() - T;
-        Time Tp = putMaturity() - T;
+        Time Tc = callMaturity();
+        Time Tp = putMaturity();
 
         Real i = criticalValue();
 
@@ -54,25 +54,26 @@ namespace QuantLib
         Real d1 = (log(S / i) + (b + pow(v, 2) / 2) * T) / (v * sqrt(T));
         Real d2 = d1 - v * sqrt(T);
 
-        b = riskFreeRate(T + Tc) - dividendYield(T + Tc);
+        b = riskFreeRate(Tc) - dividendYield(Tc);
         v = volatility(Tc);
         Real y1 = (log(S / Xc) + (b + pow(v, 2) / 2) * Tc) / (v * sqrt(Tc));
 
-        b = riskFreeRate(T + Tp) - dividendYield(T + Tp);
+        b = riskFreeRate(Tp) - dividendYield(Tp);
         v = volatility(Tp);
         Real y2 = (log(S / Xp) + (b + pow(v, 2) / 2) * Tp) / (v * sqrt(Tp));
 
         Real rho1 = sqrt(T / Tc);
         Real rho2 = sqrt(T / Tp);
-        b = riskFreeRate(T + Tc) - dividendYield(T + Tc);
-        Real r = riskFreeRate(T + Tc);
+        b = riskFreeRate(Tc) - dividendYield(Tc);
+        Real r = riskFreeRate(Tc);
         Real ComplexChooser =
-            S * exp((b - r) * Tc) * BivariateCumulativeNormalDistributionDr78(rho1)(d1, y1) -
-            Xc * exp(-r * Tc) * BivariateCumulativeNormalDistributionDr78(rho1)(d2, y1 - v * sqrt(Tc));
-        b = riskFreeRate(T + Tp) - dividendYield(T + Tp);
-        r = riskFreeRate(T + Tp);
-        ComplexChooser -= S * exp((b - r) * Tp) * BivariateCumulativeNormalDistributionDr78(rho2)(-d1, -y2);
-        ComplexChooser += Xp * exp(-r * Tp) * BivariateCumulativeNormalDistributionDr78(rho2)(-d2, -y2 + v * sqrt(Tp));
+            S * exp((b - r) * Tc) * BivariateCumulativeNormalDistributionWe04DP(rho1)(d1, y1) -
+            Xc * exp(-r * Tc) * BivariateCumulativeNormalDistributionWe04DP(rho1)(d2, y1 - v * sqrt(Tc));
+        b = riskFreeRate(Tp) - dividendYield(Tp);
+        r = riskFreeRate(Tp);
+        ComplexChooser -= S * exp((b - r) * Tp) * BivariateCumulativeNormalDistributionWe04DP(rho2)(-d1, -y2);
+        ComplexChooser +=
+            Xp * exp(-r * Tp) * BivariateCumulativeNormalDistributionWe04DP(rho2)(-d2, -y2 + v * sqrt(Tp));
 
         results_.value = ComplexChooser;
     }
@@ -89,7 +90,7 @@ namespace QuantLib
         if (optionType == Option::Call)
         {
             // TC-T
-            Time t = callMaturity() - 2 * T;
+            Time t = callMaturity() - T;
             vanillaPayoff = ext::make_shared<PlainVanillaPayoff>(Option::Call, strike(Option::Call));
             // QuantLib requires sigma * sqrt(t) rather than just sigma/volatility
             vol = volatility(t) * std::sqrt(t);
@@ -98,7 +99,7 @@ namespace QuantLib
         }
         else
         {
-            Time t = putMaturity() - 2 * T;
+            Time t = putMaturity() - T;
             vanillaPayoff = ext::make_shared<PlainVanillaPayoff>(Option::Put, strike(Option::Put));
             vol = volatility(t) * std::sqrt(t);
             growth = dividendDiscount(t);
@@ -123,7 +124,8 @@ namespace QuantLib
 
         Real yi = ci - Pi;
         Real di = dc - dp;
-        Real epsilon = 0.001;
+        // Relative to the strikes, since the rounding of a value that size can exceed anything less.
+        Real epsilon = 1.0e-12 * (strike(Option::Call) + strike(Option::Put));
 
         // Newton-Raphson process
         while (std::fabs(yi) > epsilon)
