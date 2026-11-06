@@ -36,6 +36,8 @@
 #include <ql/pricingengines/swaption/jamshidianswaptionengine.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/termstructures/yield/discountcurve.hpp>
+#include <ql/termstructures/yield/piecewiseyieldcurve.hpp>
+#include <ql/termstructures/yield/ratehelpers.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
 #include <ql/time/daycounters/thirty360.hpp>
@@ -415,6 +417,49 @@ BOOST_AUTO_TEST_CASE(testExtendedCoxIngersollRossDiscountFactor)
                                                             << "\n  difference: " << diff << "\n  tolerance : " << tol);
     }
 }
+BOOST_AUTO_TEST_CASE(testHullWhiteR0FollowsTheCurve)
+{
+    BOOST_TEST_MESSAGE("Testing Hull-White's r0 when the term structure is relinked...");
+
+    const Date today(19, May, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    RelinkableHandle<YieldTermStructure> curve;
+    curve.linkTo(flatRate(today, 0.02, Actual365Fixed()));
+    const HullWhite model(curve);
+
+    curve.linkTo(flatRate(today, 0.05, Actual365Fixed()));
+
+    const Rate expected = curve->forwardRate(0.0, 0.0, Continuous, NoFrequency);
+    BOOST_CHECK_SMALL(model.r0() - expected, 1.0e-12);
+    BOOST_CHECK_SMALL(static_cast<const Vasicek&>(model).r0() - expected, 1.0e-12);
+}
+
+BOOST_AUTO_TEST_CASE(testHullWhiteLeavesItsCurveLazy)
+{
+    BOOST_TEST_MESSAGE("Testing that a Hull-White model doesn't recalculate its curve when notified...");
+
+    const Date today(19, May, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    auto quote = ext::make_shared<SimpleQuote>(0.03);
+    std::vector<ext::shared_ptr<RateHelper>> helpers;
+    for (Integer months : {1, 6, 12})
+        helpers.push_back(ext::make_shared<DepositRateHelper>(Handle<Quote>(quote), months * Months, 2, TARGET(),
+                                                              ModifiedFollowing, false, Actual360()));
+    Handle<YieldTermStructure> curve(
+        ext::make_shared<PiecewiseYieldCurve<Discount, LogLinear>>(today, helpers, Actual365Fixed()));
+    const HullWhite model(curve);
+
+    // A curve can't be bootstrapped from this, which is news for whoever asks
+    // for it next, and not for whoever happens to set the quote.
+    BOOST_CHECK_NO_THROW(quote->setValue(-500.0));
+    BOOST_CHECK_THROW(model.r0(), Error);
+
+    quote->setValue(0.04);
+    BOOST_CHECK_SMALL(model.r0() - curve->forwardRate(0.0, 0.0, Continuous, NoFrequency), 1.0e-12);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

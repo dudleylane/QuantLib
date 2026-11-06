@@ -81,6 +81,14 @@ namespace QuantLib
         return std::exp(value) * discount2 / discount1;
     }
 
+    Real HullWhite::r0() const
+    {
+        // Read on demand rather than in generateArguments().  That runs on every
+        // notification from the curve, which would then have to recalculate for
+        // each quote that changes, and throw at whoever set it if it couldn't.
+        return termStructure()->forwardRate(0.0, 0.0, Continuous, NoFrequency);
+    }
+
     void HullWhite::generateArguments()
     {
         phi_ = FittingParameter(termStructure(), a(), sigma());
