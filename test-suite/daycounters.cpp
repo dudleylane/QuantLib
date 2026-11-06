@@ -27,6 +27,7 @@
 #include <ql/time/calendars/brazil.hpp>
 #include <ql/time/calendars/canada.hpp>
 #include <ql/time/calendars/china.hpp>
+#include <ql/time/calendars/nullcalendar.hpp>
 #include <ql/time/calendars/unitedstates.hpp>
 #include <ql/time/daycounters/actual360.hpp>
 #include <ql/time/daycounters/actual364.hpp>
@@ -564,6 +565,40 @@ BOOST_AUTO_TEST_CASE(testActualActualWithSchedule)
         BOOST_ERROR("Failed to reproduce expected time:\n"
                     << std::setprecision(10) << "    calculated: " << t_total << "\n"
                     << "    expected:   " << t_no_reference + t2);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testActualActualWithLongFirstAndIrregularLastCoupon)
+{
+    BOOST_TEST_MESSAGE("Testing actual/actual (ISMA) with a long first and an irregular last coupon...");
+
+    // A semiannual schedule whose first coupon runs for seven months, ending in
+    // a short or a long last coupon.  Each period's fraction depends only on its
+    // own dates and those of its notional periods.
+    const Date issue(15, January, 2020), firstCoupon(15, August, 2020), nextToLast(15, February, 2023);
+    const Real longFirst = 1.0 / 2.0 + 31.0 / (2 * 184);
+    const std::vector<std::pair<Date, Real>> lastCoupons = {
+        // 89 days of the notional period up to 15 August 2023, which has 181
+        {Date(15, May, 2023), 89.0 / (2 * 181)},
+        // that whole period, and 61 days of the next, which has 184
+        {Date(15, October, 2023), 1.0 / 2.0 + 61.0 / (2 * 184)}};
+
+    for (const auto& [maturity, lastFraction] : lastCoupons)
+    {
+        const Schedule schedule(issue, maturity, 6 * Months, NullCalendar(), Unadjusted, Unadjusted,
+                                DateGeneration::Forward, false, firstCoupon, nextToLast);
+        const DayCounter dayCounter = ActualActual(ActualActual::ISMA, schedule);
+
+        for (Size i = 0; i + 1 < schedule.size(); ++i)
+        {
+            const Real expected = i == 0 ? longFirst : i + 2 == schedule.size() ? lastFraction : 0.5;
+            const Real calculated = dayCounter.yearFraction(schedule[i], schedule[i + 1]);
+            if (std::fabs(calculated - expected) > 1.0e-12)
+                BOOST_ERROR("wrong year fraction from " << schedule[i] << " to " << schedule[i + 1]
+                                                        << " on a schedule ending on " << maturity
+                                                        << std::setprecision(12) << "\n    calculated: " << calculated
+                                                        << "\n    expected:   " << expected);
+        }
     }
 }
 
