@@ -460,6 +460,32 @@ BOOST_AUTO_TEST_CASE(testSettlementDaysWithCalendar)
 }
 
 
+BOOST_AUTO_TEST_CASE(testNpvAtTheCurvesReferenceDate)
+{
+    BOOST_TEST_MESSAGE("Testing that an FX forward's NPV is as of the curves' reference date...");
+
+    CommonVars vars;
+
+    const Real usdNominal = 1000000.0, sgdNominal = 1400000.0;
+
+    // A long settlement lag, so that the discounting to settlement shows.
+    FxForward fwd(usdNominal, vars.usd, sgdNominal, vars.sgd, vars.maturityDate, true, 30, TARGET());
+    fwd.setPricingEngine(
+        ext::make_shared<DiscountingFxForwardEngine>(vars.usdCurveHandle, vars.sgdCurveHandle, vars.spotFxHandle));
+
+    // Each leg's value today, with the SGD one converted at today's spot.  The
+    // quoted spot is for delivery on the settlement date.
+    const Date settlement = fwd.settlementDate();
+    const Real usdLeg = usdNominal * vars.usdCurveHandle->discount(vars.maturityDate);
+    const Real sgdLeg = sgdNominal * vars.sgdCurveHandle->discount(vars.maturityDate);
+    const Real spotToday = vars.spotFxHandle->value() * vars.sgdCurveHandle->discount(settlement) /
+                           vars.usdCurveHandle->discount(settlement);
+
+    QL_CHECK_CLOSE(fwd.NPV(), sgdLeg / spotToday - usdLeg, 1.0e-8);
+    QL_CHECK_CLOSE(fwd.npvSourceCurrency(), sgdLeg / spotToday - usdLeg, 1.0e-8);
+    QL_CHECK_CLOSE(fwd.npvTargetCurrency(), sgdLeg - usdLeg * spotToday, 1.0e-8);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
