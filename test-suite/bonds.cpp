@@ -1560,6 +1560,7 @@ BOOST_AUTO_TEST_CASE(testBasisPointValue)
     Bond::Price cleanPrice(102.890625, Bond::Price::Clean);
 
     Real tolerance = 1e-6;
+    Real repriceTolerance = 1e-3;
 
     Real yield = BondFunctions::yield(fixedRateBond, cleanPrice, dayCounter, compounding, frequency);
     ASSERT_CLOSE("yield", defaultSettlement, yield, 0.041301, tolerance);
@@ -1571,9 +1572,9 @@ BOOST_AUTO_TEST_CASE(testBasisPointValue)
         Real yvbp;
     };
     test_case cases[] = {
-        {Date(), -795.459834, -0.0012571287},
-        {defaultSettlement, -795.459834, -0.0012571287},
-        {Date(12, February, 2024), -793.149033, -0.0012607913},
+        {Date(), -795.098043, -0.0012571287},
+        {defaultSettlement, -795.098043, -0.0012571287},
+        {Date(12, February, 2024), -792.789400, -0.0012607913},
     };
 
     for (auto& i : cases)
@@ -1584,6 +1585,12 @@ BOOST_AUTO_TEST_CASE(testBasisPointValue)
         Real bvp2 = BondFunctions::basisPointValue(
             fixedRateBond, InterestRate(yield, dayCounter, compounding, frequency), i.settlement);
         ASSERT_CLOSE("basisPointValue from InterestRate", i.settlement, bvp2, i.bpv, tolerance);
+
+        Real price = BondFunctions::cleanPrice(fixedRateBond, yield, dayCounter, compounding, frequency, i.settlement);
+        Real bumpedPrice =
+            BondFunctions::cleanPrice(fixedRateBond, yield + 0.0001, dayCounter, compounding, frequency, i.settlement);
+        Real reprice = (bumpedPrice - price) * vars.faceAmount / 100.0;
+        ASSERT_CLOSE("basisPointValue against a 1bp reprice", i.settlement, bvp1, reprice, repriceTolerance);
 
         Real yvbp1 =
             BondFunctions::yieldValueBasisPoint(fixedRateBond, yield, dayCounter, compounding, frequency, i.settlement);

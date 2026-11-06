@@ -1159,7 +1159,7 @@ namespace QuantLib
             CashFlows::duration(leg, y, Duration::Modified, includeSettlementDateFlows, settlementDate, npvDate);
         Real convexity = CashFlows::convexity(leg, y, includeSettlementDateFlows, settlementDate, npvDate);
         Real delta = -modifiedDuration * npv;
-        Real gamma = (convexity / 100.0) * npv;
+        Real gamma = convexity * npv;
 
         Real shift = 0.0001;
         delta *= shift;
