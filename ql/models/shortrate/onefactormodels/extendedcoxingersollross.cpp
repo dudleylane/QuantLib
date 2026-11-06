@@ -34,6 +34,8 @@ namespace QuantLib
     : CoxIngersollRoss(x0, theta, k, sigma, withFellerConstraint), TermStructureConsistentModel(termStructure)
     {
         ExtendedCoxIngersollRoss::generateArguments();
+
+        registerWith(termStructure);
     }
 
     ext::shared_ptr<Lattice> ExtendedCoxIngersollRoss::tree(const TimeGrid& grid) const

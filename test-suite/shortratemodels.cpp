@@ -706,6 +706,25 @@ BOOST_AUTO_TEST_CASE(testG2SwaptionForSmallMeanReversion)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testExtendedCoxIngersollRossObservesTheCurve)
+{
+    BOOST_TEST_MESSAGE("Testing that the extended CIR model hears about its term structure...");
+
+    const Date today(19, May, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    RelinkableHandle<YieldTermStructure> curve;
+    curve.linkTo(flatRate(today, 0.02, Actual365Fixed()));
+    auto model = ext::make_shared<ExtendedCoxIngersollRoss>(curve, 0.02, 1.0, 1.0e-4, 0.02);
+
+    Flag flag;
+    flag.registerWith(model);
+
+    curve.linkTo(flatRate(today, 0.05, Actual365Fixed()));
+
+    BOOST_CHECK(flag.isUp());
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
