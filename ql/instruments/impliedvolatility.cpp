@@ -20,6 +20,7 @@
 #include <ql/instruments/impliedvolatility.hpp>
 #include <ql/math/solvers1d/brent.hpp>
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
+#include <algorithm>
 
 namespace QuantLib
 {
@@ -74,10 +75,24 @@ namespace QuantLib
             engine.getArguments()->validate();
 
             PriceError f(engine, volQuote, targetValue);
+
+            // An American option at its exercise value is flat in the
+            // volatility. A price there is that value plus the numerical
+            // method's own noise, which on a finite-difference engine's default
+            // grid can leave the price at minVol above the target (by 1.2e-8 of
+            // it, on the grid this was measured on), and the root unbracketed.
+            // No lower price exists in the bracket, so minVol is the answer. The
+            // solver would start with this evaluation anyway, so it gets to
+            // reuse it.
+            const Real lowerError = f(minVol);
+            if (lowerError >= 0.0 && lowerError <= 1.0e-7 * std::max(std::fabs(targetValue), 1.0))
+                return minVol;
+
             Brent solver;
             solver.setMaxEvaluations(maxEvaluations);
             Volatility guess = (minVol + maxVol) / 2.0;
-            Volatility result = solver.solve(f, accuracy, guess, minVol, maxVol);
+            Volatility result = solver.solve([&](Volatility x) { return x == minVol ? lowerError : f(x); }, accuracy,
+                                             guess, minVol, maxVol);
             return result;
         }
 

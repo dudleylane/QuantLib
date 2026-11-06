@@ -31,6 +31,7 @@
 #include <ql/methods/finitedifferences/utilities/fdmquantohelper.hpp>
 #include <ql/pricingengines/vanilla/fdblackscholesvanillaengine.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
+#include <algorithm>
 
 namespace QuantLib
 {
@@ -144,6 +145,7 @@ namespace QuantLib
         // 1. Mesher
         const ext::shared_ptr<StrikedTypePayoff> payoff =
             ext::dynamic_pointer_cast<StrikedTypePayoff>(arguments_.payoff);
+        QL_REQUIRE(payoff, "non-striked payoff given");
 
         const ext::shared_ptr<Fdm1dMesher> equityMesher = ext::make_shared<FdmBlackScholesMesher>(
             xGrid_, process_, maturity, payoff->strike(), Null<Real>(), Null<Real>(), 0.0001, 1.5,
@@ -190,6 +192,23 @@ namespace QuantLib
         results_.delta = solver->deltaAt(spot);
         results_.gamma = solver->gammaAt(spot);
         results_.theta = solver->thetaAt(spot);
+
+        // The step condition enforces exercise on the grid's nodes, but the
+        // interpolant between them can undershoot the payoff, and
+        // VanillaOption::impliedVolatility can't invert a price below it. So
+        // where the option can be exercised today and pays at once, the value
+        // is at least the payoff. The undershoot is local, so the Greeks stay
+        // on the interpolant, which is what bumping the spot would see.
+        const auto earlyExercise = ext::dynamic_pointer_cast<EarlyExercise>(arguments_.exercise);
+        if (earlyExercise != nullptr && !earlyExercise->payoffAtExpiry())
+        {
+            const std::vector<Date>& dates = earlyExercise->dates();
+            const bool exercisable = (earlyExercise->type() == Exercise::American) ?
+                                         (dates.front() <= settlementDate && settlementDate <= dates.back()) :
+                                         std::find(dates.begin(), dates.end(), settlementDate) != dates.end();
+            if (exercisable)
+                results_.value = std::max(results_.value, (*payoff)(process_->x0()));
+        }
     }
 
     MakeFdBlackScholesVanillaEngine::MakeFdBlackScholesVanillaEngine(

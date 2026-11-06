@@ -199,6 +199,9 @@ namespace QuantLib
             results_.value = calculatePutWithEdgeCases(K, S, q, r, vol, T);
         else
             QL_FAIL("unknown option type");
+
+        // the holder can always exercise, and the integral's error can land below that
+        results_.value = std::max(results_.value, (*payoff)(S));
     }
 
     Real detail::QdPutCallParityEngine::calculatePutWithEdgeCases(

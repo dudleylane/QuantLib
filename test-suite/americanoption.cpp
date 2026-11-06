@@ -1104,6 +1104,191 @@ BOOST_AUTO_TEST_CASE(testBaroneAdesiWhaleyAndJuCriticalPriceSeed)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testQdEnginesAgainstExerciseValue)
+{
+
+    BOOST_TEST_MESSAGE("Testing QD+ and QD fixed-point engines against the exercise value...");
+
+    // The holder can always exercise, but the integral's error can land the
+    // value below that (#108). Over a grid of 327,184 inputs QD+ did so 2,681
+    // times, by up to 0.07 (the fourth row), and QD fixed-point 3,082 times, by
+    // up to 1.10 (the fifth).
+
+    Date today(15, August, 2026);
+    Settings::instance().evaluationDate() = today;
+    DayCounter dc = Actual365Fixed();
+
+    auto spot = ext::make_shared<SimpleQuote>(100.0);
+    auto qRate = ext::make_shared<SimpleQuote>(0.0);
+    auto rRate = ext::make_shared<SimpleQuote>(0.0);
+    auto vol = ext::make_shared<SimpleQuote>(0.0);
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot), Handle<YieldTermStructure>(flatRate(today, qRate, dc)),
+        Handle<YieldTermStructure>(flatRate(today, rRate, dc)), Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+
+    const std::pair<std::string, ext::shared_ptr<PricingEngine>> engines[] = {
+        {"QD+", ext::make_shared<QdPlusAmericanEngine>(process)},
+        {"QD fixed-point", ext::make_shared<QdFpAmericanEngine>(process)}};
+
+    struct Case
+    {
+        Option::Type type;
+        Real k;
+        Rate r, q;
+        Volatility v;
+    };
+    const Case cases[] = {{Option::Call, 60.0, -0.10, 0.06, 0.40},
+                          {Option::Call, 80.0, -0.05, 0.06, 0.20},
+                          {Option::Put, 140.0, 0.06, 0.0, 0.20},
+                          {Option::Put, 200.0, 0.10, -0.05, 0.40},
+                          {Option::Put, 200.0, 0.001, 1.0e-4, 0.001}};
+
+    auto american = ext::make_shared<AmericanExercise>(today, today + 3650);
+
+    for (const auto& [type, k, r, q, v] : cases)
+    {
+        rRate->setValue(r);
+        qRate->setValue(q);
+        vol->setValue(v);
+        auto payoff = ext::make_shared<PlainVanillaPayoff>(type, k);
+        Real exerciseValue = (*payoff)(spot->value());
+        for (const auto& [name, engine] : engines)
+        {
+            VanillaOption option(payoff, american);
+            option.setPricingEngine(engine);
+            Real value = option.NPV();
+            if (!(value >= exerciseValue))
+            {
+                REPORT_FAILURE(name + " value", payoff, american, spot->value(), q, r, today, v, exerciseValue, value,
+                               exerciseValue - value, 0.0);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testFdAgainstExerciseValue)
+{
+
+    BOOST_TEST_MESSAGE("Testing finite-difference engine against the exercise value...");
+
+    // The step condition enforces exercise on the grid's nodes, but the
+    // interpolant between them can undershoot the payoff: the first row read
+    // 9.9999974 on the default grid, and implied volatility then threw on the
+    // engine's own price, as the price at every volatility was above it. It
+    // could throw at the exact payoff too, as in the second row, where the price
+    // at the lowest volatility tried is 3.7e-7 above it (#108).
+
+    Date today(15, October, 2026);
+    Settings::instance().evaluationDate() = today;
+    DayCounter dc = Actual365Fixed();
+
+    auto spot = ext::make_shared<SimpleQuote>(100.0);
+    auto qRate = ext::make_shared<SimpleQuote>(0.0);
+    auto rRate = ext::make_shared<SimpleQuote>(0.0);
+    auto vol = ext::make_shared<SimpleQuote>(0.0);
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot), Handle<YieldTermStructure>(flatRate(today, qRate, dc)),
+        Handle<YieldTermStructure>(flatRate(today, rRate, dc)), Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+
+    auto engine = ext::make_shared<FdBlackScholesVanillaEngine>(process);
+
+    struct Case
+    {
+        Option::Type type;
+        Real s;
+        Rate r, q;
+        Volatility v;
+        Integer days;
+    };
+    const Case cases[] = {{Option::Call, 110.0, 0.0, 0.02, 0.10, 90},
+                          {Option::Call, 130.0, 0.0, 0.10, 0.10, 1095},
+                          {Option::Call, 150.0, 0.05, 0.10, 0.35, 1095},
+                          {Option::Put, 70.0, 0.10, 0.0, 0.20, 365}};
+
+    for (const auto& [type, s, r, q, v, days] : cases)
+    {
+        spot->setValue(s);
+        rRate->setValue(r);
+        qRate->setValue(q);
+        vol->setValue(v);
+        auto payoff = ext::make_shared<PlainVanillaPayoff>(type, 100.0);
+        auto american = ext::make_shared<AmericanExercise>(today, today + days);
+        VanillaOption option(payoff, american);
+        option.setPricingEngine(engine);
+
+        Real exerciseValue = (*payoff)(s);
+        Real value = option.NPV();
+        if (!(value >= exerciseValue))
+        {
+            REPORT_FAILURE("value", payoff, american, s, q, r, today, v, exerciseValue, value, exerciseValue - value,
+                           0.0);
+        }
+
+        Volatility implied = option.impliedVolatility(value, process, 1.0e-8, 200);
+        vol->setValue(implied);
+        Real repriced = option.NPV();
+        Real error = std::fabs(repriced - value);
+        if (!(error <= 1.0e-6))
+        {
+            REPORT_FAILURE("value at the implied volatility", payoff, american, s, q, r, today, implied, value,
+                           repriced, error, 1.0e-6);
+        }
+    }
+
+    // Where the holder can't exercise today, the option can be worth less than
+    // the payoff, and the floor mustn't apply.
+    Real s = 110.0;
+    Rate r = 0.0, q = 0.02;
+    Volatility v = 0.10;
+    spot->setValue(s);
+    rRate->setValue(r);
+    qRate->setValue(q);
+    vol->setValue(v);
+    auto payoff = ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0);
+    Real exerciseValue = (*payoff)(s);
+
+    const std::pair<std::string, ext::shared_ptr<Exercise>> unfloored[] = {
+        {"European", ext::make_shared<EuropeanExercise>(today + 90)},
+        {"deferred American", ext::make_shared<AmericanExercise>(today + 30, today + 90)},
+        {"Bermudan", ext::make_shared<BermudanExercise>(std::vector<Date>{today + 30, today + 60, today + 90})}};
+    for (const auto& [name, exercise] : unfloored)
+    {
+        VanillaOption option(payoff, exercise);
+        option.setPricingEngine(engine);
+        Real value = option.NPV();
+        if (!(value < exerciseValue - 0.05))
+        {
+            REPORT_FAILURE(name + " value", payoff, exercise, s, q, r, today, v, exerciseValue - 0.05, value,
+                           value - (exerciseValue - 0.05), 0.0);
+        }
+    }
+
+    // A Bermudan option that can be exercised today is floored like an American one.
+    auto bermudan = ext::make_shared<BermudanExercise>(std::vector<Date>{today, today + 30, today + 60, today + 90});
+    VanillaOption bermudanOption(payoff, bermudan);
+    bermudanOption.setPricingEngine(engine);
+    Real value = bermudanOption.NPV();
+    if (!(value >= exerciseValue))
+    {
+        REPORT_FAILURE("Bermudan value", payoff, bermudan, s, q, r, today, v, exerciseValue, value,
+                       exerciseValue - value, 0.0);
+    }
+
+    // With escrowed dividends the solver's spot is below the real one, and the
+    // exercise value is the real one's.
+    auto american = ext::make_shared<AmericanExercise>(today, today + 365);
+    VanillaOption escrowed(ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0), american);
+    escrowed.setPricingEngine(MakeFdBlackScholesVanillaEngine(process)
+                                  .withCashDividends({today + 30}, {5.0})
+                                  .withCashDividendModel(FdBlackScholesVanillaEngine::Escrowed));
+    value = escrowed.NPV();
+    if (!(value >= exerciseValue))
+    {
+        REPORT_FAILURE("escrowed value", payoff, american, s, q, r, today, v, exerciseValue, value,
+                       exerciseValue - value, 0.0);
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testBjerksundStenslandAtUnitBeta)
 {
 
