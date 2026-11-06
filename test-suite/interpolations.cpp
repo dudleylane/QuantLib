@@ -3110,6 +3110,33 @@ BOOST_AUTO_TEST_CASE(testSabrNegativeVolatilities)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testLagrangeInterpolationAroundASupportPointAtZero)
+{
+    BOOST_TEST_MESSAGE("Testing Lagrange interpolation around a supporting point at zero...");
+
+    const std::vector<std::vector<Real>> grids = {
+        {0.0, 0.2, 0.4, 0.6, 0.8}, {-0.4, -0.2, 0.0, 0.2, 0.4}, {-0.8, -0.6, -0.4, -0.2, 0.0}};
+
+    for (const auto& grid : grids)
+    {
+        Array x(grid.begin(), grid.end()), y(grid.size());
+        for (Size i = 0; i < x.size(); ++i)
+            y[i] = 1.0 / (2.0 - x[i]);
+        const LagrangeInterpolation interpolation(x.begin(), x.end(), y.begin());
+        const Array updatedY = y * 2.0;
+
+        // The smallest of these give an overflow in the barycentric formula.
+        for (Real z : {0.0, -0.0, 1e-320, -1e-320, 1e-310, -1e-310, 1e-305, -1e-305, 1e-40, -1e-40})
+        {
+            BOOST_TEST_CONTEXT("first node " << grid.front() << ", x " << z)
+            {
+                BOOST_CHECK_SMALL(interpolation(z, true) - 0.5, 1e-15);
+                BOOST_CHECK_SMALL(interpolation.value(updatedY, z) - 1.0, 1e-15);
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
