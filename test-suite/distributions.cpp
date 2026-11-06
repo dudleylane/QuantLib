@@ -25,6 +25,7 @@
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
 #include <ql/math/comparison.hpp>
+#include <ql/math/distributions/binomialdistribution.hpp>
 #include <ql/math/distributions/bivariatenormaldistribution.hpp>
 #include <ql/math/distributions/bivariatestudenttdistribution.hpp>
 #include <ql/math/distributions/chisquaredistribution.hpp>
@@ -32,6 +33,7 @@
 #include <ql/math/distributions/poissondistribution.hpp>
 #include <ql/math/randomnumbers/stochasticcollocationinvcdf.hpp>
 #include <boost/math/distributions/non_central_chi_squared.hpp>
+#include <iomanip>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -682,6 +684,47 @@ BOOST_AUTO_TEST_CASE(testSankaranApproximation)
             }
         }
     }
+}
+
+BOOST_AUTO_TEST_CASE(testPeizerPrattInversion)
+{
+    BOOST_TEST_MESSAGE("Testing the Peizer-Pratt method 2 inversion...");
+
+    struct Case
+    {
+        Real z;
+        BigNatural n;
+        Real expected;
+    };
+
+    // These were evaluated from the definition with 120 digits.
+    const Case cases[] = {{0.0, 5, 0.5},
+                          {1.0, 5, 0.7031970887828103},
+                          {-1.0, 5, 0.29680291121718977},
+                          {5.0, 101, 0.7336195122592148},
+                          {-5.0, 101, 0.26638048774078515},
+                          {-20.0, 101, 0.004882000575164496},
+                          {-40.0, 101, 3.5650828031884475e-08},
+                          {205.0, 801, 1.0},
+                          {-205.0, 801, 4.232649749828366e-24},
+                          {-400.0, 801, 5.030718277654203e-88},
+                          {0.001, 101, 0.5000496286192958},
+                          {-0.001, 101, 0.4999503713807042},
+                          {1.0e-9, 801, 0.5000000000176611},
+                          {-1.0e-9, 801, 0.4999999999823389}};
+
+    for (const auto& c : cases)
+    {
+        const Real calculated = PeizerPrattMethod2Inversion(c.z, c.n);
+        if (!(std::fabs(calculated - c.expected) <= 1.0e-13 * c.expected))
+            BOOST_ERROR("Peizer-Pratt inversion at z = " << c.z << " with n = " << c.n << "\n"
+                                                         << std::setprecision(17) << "    calculated: " << calculated
+                                                         << "\n    expected:   " << c.expected);
+    }
+
+    BOOST_CHECK_EQUAL(PeizerPrattMethod2Inversion(1.0e4, 5), 1.0);
+    BOOST_CHECK_EQUAL(PeizerPrattMethod2Inversion(-1.0e4, 5), 0.0);
+    BOOST_CHECK_EXCEPTION(PeizerPrattMethod2Inversion(1.0, 4), Error, ExpectedErrorMessage("n must be an odd number"));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

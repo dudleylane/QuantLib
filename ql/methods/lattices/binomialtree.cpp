@@ -22,9 +22,48 @@
 #include <ql/math/distributions/binomialdistribution.hpp>
 #include <ql/methods/lattices/binomialtree.hpp>
 #include <ql/stochasticprocess.hpp>
+#include <cmath>
+#include <tuple>
 
 namespace QuantLib
 {
+
+    namespace
+    {
+
+        // PeizerPrattMethod2Inversion(z + shift, n) / PeizerPrattMethod2Inversion(z, n)
+        Real peizerPrattRatio(Real z, Real shift, BigNatural n)
+        {
+            const Real p = PeizerPrattMethod2Inversion(z, n);
+            const Real shifted = PeizerPrattMethod2Inversion(z + shift, n);
+            if (p > QL_MIN_POSITIVE_REAL && shifted > QL_MIN_POSITIVE_REAL)
+                return shifted / p;
+
+            // So far into the tail, the inversion is exp(-c z^2) / 4.
+            const Real denominator = n + 1.0 / 3.0 + 0.1 / (n + 1.0);
+            const Real c = (n + 1.0 / 6.0) / (denominator * denominator);
+            return std::exp(-c * shift * (2.0 * z + shift));
+        }
+
+    }
+
+    namespace detail
+    {
+
+        std::pair<Real, Real> leisenReimerMoves(Real d2, Real width, Real growth, BigNatural oddSteps)
+        {
+            // The usual down move, (growth - pu up) / (1 - pu), loses its digits as pu
+            // nears 1 and is 0/0 once it gets there.  1 - pu is the same inversion at
+            // -d2, and this is the same expression written with it.
+            QL_REQUIRE(width > 0.0, "a Leisen-Reimer tree needs a positive variance");
+            const Real up = growth * peizerPrattRatio(d2, width, oddSteps);
+            const Real down = growth * peizerPrattRatio(-d2, -width, oddSteps);
+            QL_REQUIRE(std::isfinite(up) && std::isfinite(down) && up > 0.0 && down > 0.0,
+                       "invalid Leisen-Reimer moves: up " << up << ", down " << down);
+            return {up, down};
+        }
+
+    }
 
     JarrowRudd::JarrowRudd(const ext::shared_ptr<StochasticProcess1D>& process, Time end, Size steps, Real)
     : EqualProbabilitiesBinomialTree<JarrowRudd>(process, end, steps)
@@ -57,8 +96,9 @@ namespace QuantLib
                                                      Real)
     : EqualProbabilitiesBinomialTree<AdditiveEQPBinomialTree>(process, end, steps)
     {
-        up_ = -0.5 * driftPerStep_ +
-              0.5 * std::sqrt(4.0 * process->variance(0.0, x0_, dt_) - 3.0 * driftPerStep_ * driftPerStep_);
+        Real radicand = 4.0 * process->variance(0.0, x0_, dt_) - 3.0 * driftPerStep_ * driftPerStep_;
+        QL_REQUIRE(radicand >= 0.0, "drift per step too large for the additive EQP tree: more steps are needed");
+        up_ = -0.5 * driftPerStep_ + 0.5 * std::sqrt(radicand);
     }
 
 
@@ -106,12 +146,11 @@ namespace QuantLib
         Size oddSteps = ((steps % 2) != 0U ? steps : (steps + 1));
         Real variance = process->variance(0.0, x0_, end);
         Real ermqdt = std::exp(driftPerStep_ + 0.5 * variance / oddSteps);
-        Real d2 = (std::log(x0_ / strike) + driftPerStep_ * oddSteps) / std::sqrt(variance);
+        Real width = std::sqrt(variance);
+        Real d2 = (std::log(x0_ / strike) + driftPerStep_ * oddSteps) / width;
         pu_ = PeizerPrattMethod2Inversion(d2, oddSteps);
-        pd_ = 1.0 - pu_;
-        Real pdash = PeizerPrattMethod2Inversion(d2 + std::sqrt(variance), oddSteps);
-        up_ = ermqdt * pdash / pu_;
-        down_ = (ermqdt - pu_ * up_) / (1.0 - pu_);
+        pd_ = PeizerPrattMethod2Inversion(-d2, oddSteps);
+        std::tie(up_, down_) = detail::leisenReimerMoves(d2, width, ermqdt, oddSteps);
     }
 
     Real Joshi4::computeUpProb(Real k, Real dj) const
@@ -146,6 +185,11 @@ namespace QuantLib
         pu_ = computeUpProb((oddSteps - 1.0) / 2.0, d2);
         pd_ = 1.0 - pu_;
         Real pdash = computeUpProb((oddSteps - 1.0) / 2.0, d2 + std::sqrt(variance));
+        // The probabilities come from a series that is good near the money.  Further out
+        // it turns around and then diverges, which gives inverted moves or negative ones.
+        QL_REQUIRE(pu_ > 0.0 && pu_ < pdash && pdash < 1.0,
+                   "the strike is too far from the money for a Joshi tree: up probabilities " << pu_ << " and "
+                                                                                              << pdash);
         up_ = ermqdt * pdash / pu_;
         down_ = (ermqdt - pu_ * up_) / (1.0 - pu_);
     }
