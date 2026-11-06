@@ -3077,6 +3077,39 @@ BOOST_AUTO_TEST_CASE(testFlatExtrapolation)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testSabrNegativeVolatilities)
+{
+    BOOST_TEST_MESSAGE("Testing that Sabr interpolation rejects negative volatilities...");
+
+    const std::vector<Real> strikes = {0.03, 0.04, 0.05, 0.06};
+    std::vector<Real> vols = {0.20, 0.18, 0.19, 0.185};
+    // Named, since the interpolation keeps a reference to it.
+    const Real forward = 0.04;
+
+    for (bool vegaWeighted : {false, true})
+    {
+        for (bool isFixed : {true, false})
+        {
+            vols[0] = 0.20;
+            SABRInterpolation sabr(strikes.begin(), strikes.end(), vols.begin(), 1.0, forward, 0.2, 1.0, 0.1, 0.0,
+                                   isFixed, isFixed, isFixed, isFixed, vegaWeighted);
+            BOOST_CHECK_NO_THROW(sabr.update());
+
+            // The interpolation refers to the data, so a change shows up at the next recalibration.
+            // A zero is allowed. It's tried with nothing to fit, so as not to depend on where a fit to it goes.
+            if (isFixed)
+            {
+                vols[0] = 0.0;
+                BOOST_CHECK_NO_THROW(sabr.update());
+            }
+
+            vols[0] = -0.20;
+            BOOST_CHECK_EXCEPTION(sabr.update(), Error,
+                                  ExpectedErrorMessage("negative volatility (-0.2) given at strike 0.03"));
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
