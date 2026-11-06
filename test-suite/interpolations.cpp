@@ -899,6 +899,39 @@ BOOST_AUTO_TEST_CASE(testFritschButland)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testCubicSchemesWithFewPoints)
+{
+    BOOST_TEST_MESSAGE("Testing cubic schemes that need more than two points...");
+
+    using CI = CubicInterpolation;
+    const std::vector<Real> x = {0.0, 1.0, 2.0, 3.0}, y = {1.0, 2.0, 0.5, 1.5};
+    const auto reproducesKnots = [&](const CI& f, Size n)
+    {
+        for (Size i = 0; i < n; ++i)
+            BOOST_CHECK_SMALL(f(x[i]) - y[i], 1.0e-12);
+    };
+    const auto spline = [&](Size n, CI::BoundaryCondition left, CI::BoundaryCondition right)
+    { return CI(x.begin(), x.begin() + n, y.begin(), CI::Spline, false, left, 0.0, right, 0.0); };
+
+    // The first three used to read past the end of the slopes.  The last reads
+    // nothing out of bounds, but its system is singular.
+    BOOST_CHECK_EXCEPTION(AkimaCubicInterpolation(x.begin(), x.begin() + 3, y.begin()), Error,
+                          ExpectedErrorMessage("Akima approximation requires 2 points or at least 4"));
+    BOOST_CHECK_EXCEPTION(spline(2, CI::SecondDerivative, CI::NotAKnot), Error,
+                          ExpectedErrorMessage("not-a-knot boundary condition requires at least 3 points"));
+    BOOST_CHECK_EXCEPTION(spline(2, CI::NotAKnot, CI::SecondDerivative), Error,
+                          ExpectedErrorMessage("not-a-knot boundary condition requires at least 3 points"));
+    BOOST_CHECK_EXCEPTION(spline(3, CI::NotAKnot, CI::NotAKnot), Error,
+                          ExpectedErrorMessage("not-a-knot boundary condition requires at least 4 points"));
+
+    // The smallest sizes that work.
+    reproducesKnots(AkimaCubicInterpolation(x.begin(), x.begin() + 2, y.begin()), 2);
+    reproducesKnots(AkimaCubicInterpolation(x.begin(), x.begin() + 4, y.begin()), 4);
+    reproducesKnots(spline(3, CI::NotAKnot, CI::SecondDerivative), 3);
+    reproducesKnots(spline(3, CI::SecondDerivative, CI::NotAKnot), 3);
+    reproducesKnots(spline(4, CI::NotAKnot, CI::NotAKnot), 4);
+}
+
 BOOST_AUTO_TEST_CASE(testBackwardFlat)
 {
 
@@ -1111,6 +1144,29 @@ BOOST_AUTO_TEST_CASE(testMixedLinearCubicMatchDerivatives)
         BOOST_ERROR("derivatives at the switch point do not match"
                     << std::fixed << "\n    left side:  " << leftSide << "\n    right side: " << rightSide
                     << std::scientific << "\n    error:      " << std::fabs(leftSide - rightSide));
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testMixedLinearCubicSwitchPoint)
+{
+    BOOST_TEST_MESSAGE("Testing the switch point of a mixed linear/cubic interpolation...");
+
+    const Size n = 5;
+    const std::vector<Real> x = xRange(-2.0, 2.0, n);
+    const std::vector<Real> y = parabolic(x);
+
+    // A switch point one past the last point used to be dereferenced.
+    BOOST_CHECK_EXCEPTION(MixedLinearCubicNaturalSpline(x.begin(), x.end(), y.begin(), n), Error,
+                          ExpectedErrorMessage("n is too large"));
+
+    // The last point still works.  With split ranges the second interpolation
+    // needs a point of its own after the switch.
+    const MixedLinearCubicNaturalSpline shared(x.begin(), x.end(), y.begin(), n - 1);
+    const MixedLinearCubicNaturalSpline split(x.begin(), x.end(), y.begin(), n - 2, MixedInterpolation::SplitRanges);
+    for (Size i = 0; i < n; ++i)
+    {
+        BOOST_CHECK_SMALL(shared(x[i]) - y[i], 1.0e-12);
+        BOOST_CHECK_SMALL(split(x[i]) - y[i], 1.0e-12);
     }
 }
 

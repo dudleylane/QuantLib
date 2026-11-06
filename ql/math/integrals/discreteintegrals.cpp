@@ -28,6 +28,9 @@ namespace QuantLib
         const Size n = f.size();
         QL_REQUIRE(n == x.size(), "inconsistent size");
 
+        if (n < 2)
+            return 0.0;
+
         Real sum = 0.0;
 
         for (Size i = 0; i < n - 1; ++i)
@@ -43,6 +46,9 @@ namespace QuantLib
 
         const Size n = f.size();
         QL_REQUIRE(n == x.size(), "inconsistent size");
+
+        if (n < 2)
+            return 0.0;
 
         Real sum = 0.0;
 

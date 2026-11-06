@@ -53,6 +53,25 @@ BOOST_AUTO_TEST_CASE(testSimple)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testOrderZero)
+{
+    BOOST_TEST_MESSAGE("Testing FFT of a single element...");
+
+    // min_order(1) is 0, and the constructor used to write before the start of
+    // its empty vectors.
+    BOOST_CHECK_EQUAL(FastFourierTransform::min_order(1), std::size_t(0));
+
+    const FastFourierTransform fft(0);
+    BOOST_CHECK_EQUAL(fft.output_size(), std::size_t(1));
+
+    const std::complex<Real> input(2.5, -1.5);
+    std::complex<Real> output;
+    fft.transform(&input, &input + 1, &output);
+    BOOST_CHECK_EQUAL(output, input);
+    fft.inverse_transform(&input, &input + 1, &output);
+    BOOST_CHECK_EQUAL(output, input);
+}
+
 BOOST_AUTO_TEST_CASE(testInverse)
 {
     BOOST_TEST_MESSAGE("Testing convolution via inverse FFT...");

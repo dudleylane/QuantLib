@@ -368,6 +368,23 @@ namespace QuantLib
                                                      "4 points ("
                                                          << (xEnd - xBegin) << " are given)");
                 }
+                if (da_ == CubicInterpolation::Spline &&
+                    (leftType_ == CubicInterpolation::NotAKnot || rightType_ == CubicInterpolation::NotAKnot))
+                {
+                    // Each condition reads a second interval, and with three
+                    // points the two conditions constrain the same knot.
+                    const Size required = leftType_ == rightType_ ? 4 : 3;
+                    QL_REQUIRE(Size(xEnd - xBegin) >= required, "not-a-knot boundary condition requires at least "
+                                                                    << required << " points (" << (xEnd - xBegin)
+                                                                    << " are given)");
+                }
+                if (da_ == CubicInterpolation::Akima)
+                {
+                    // Its end slopes read a third interval.  Two points are a
+                    // straight line, as for the other local schemes.
+                    QL_REQUIRE((xEnd - xBegin) != 3, "Akima approximation requires 2 points or at least 4 ("
+                                                         << (xEnd - xBegin) << " are given)");
+                }
             }
 
             void update() override

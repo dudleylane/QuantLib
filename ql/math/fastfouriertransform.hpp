@@ -47,6 +47,9 @@ namespace QuantLib
 
         FastFourierTransform(std::size_t order) : cs_(order), sn_(order)
         {
+            // A transform of one element is a copy, and has no twiddle factors.
+            if (order == 0)
+                return;
             std::size_t m = static_cast<std::size_t>(1) << order;
             cs_[order - 1] = std::cos(2 * M_PI / m);
             sn_[order - 1] = std::sin(2 * M_PI / m);
