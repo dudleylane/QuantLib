@@ -26,6 +26,7 @@
 #include <ql/cashflows/couponpricer.hpp>
 #include <ql/indexes/ibor/euribor.hpp>
 #include <ql/instruments/capfloor.hpp>
+#include <ql/instruments/makecapfloor.hpp>
 #include <ql/instruments/vanillaswap.hpp>
 #include <ql/math/matrix.hpp>
 #include <ql/models/marketmodels/correlations/expcorrelations.hpp>
@@ -843,6 +844,24 @@ BOOST_AUTO_TEST_CASE(testBachelierOptionLetsDelta)
                         << std::setprecision(12) << "    finite difference: " << floorletFDDelta[n] << "\n"
                         << "    analytical value:   " << floorletAnalyticDelta[n] << "\n"
                         << "    resulting ratio: " << floorletFDDelta[n] / floorletAnalyticDelta[n]);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testMakeCapFloorAtmStrike)
+{
+    BOOST_TEST_MESSAGE("Testing MakeCapFloor's ATM strike with each engine that can find it...");
+
+    CommonVars vars;
+    vars.termStructure.linkTo(flatRate(vars.settlement, 0.05, ActualActual(ActualActual::ISDA)));
+
+    const std::vector<ext::shared_ptr<PricingEngine>> engines = {
+        ext::make_shared<BlackCapFloorEngine>(vars.termStructure, 0.2),
+        ext::make_shared<BachelierCapFloorEngine>(vars.termStructure, 0.01)};
+    for (const auto& engine : engines)
+    {
+        ext::shared_ptr<CapFloor> cap =
+            MakeCapFloor(CapFloor::Cap, 5 * Years, vars.index, Null<Rate>()).withPricingEngine(engine);
+        BOOST_CHECK_CLOSE(cap->capRates()[0], cap->atmRate(**vars.termStructure), 1.0e-8);
     }
 }
 

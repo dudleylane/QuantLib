@@ -20,6 +20,7 @@
 
 #include <ql/cashflows/cashflows.hpp>
 #include <ql/instruments/makecapfloor.hpp>
+#include <ql/pricingengines/capfloor/bacheliercapfloorengine.hpp>
 #include <ql/pricingengines/capfloor/blackcapfloorengine.hpp>
 
 namespace QuantLib
@@ -68,9 +69,13 @@ namespace QuantLib
 
             // temporary patch...
             // should be fixed for every CapFloor::Engine
-            ext::shared_ptr<BlackCapFloorEngine> temp = ext::dynamic_pointer_cast<BlackCapFloorEngine>(engine_);
-            QL_REQUIRE(temp, "cannot calculate ATM without a BlackCapFloorEngine");
-            Handle<YieldTermStructure> discountCurve = temp->termStructure();
+            Handle<YieldTermStructure> discountCurve;
+            if (auto black = ext::dynamic_pointer_cast<BlackCapFloorEngine>(engine_))
+                discountCurve = black->termStructure();
+            else if (auto bachelier = ext::dynamic_pointer_cast<BachelierCapFloorEngine>(engine_))
+                discountCurve = bachelier->termStructure();
+            else
+                QL_FAIL("cannot calculate ATM without a BlackCapFloorEngine or a BachelierCapFloorEngine");
             strikeVector[0] = CashFlows::atmRate(leg, **discountCurve, false, discountCurve->referenceDate());
         }
 
