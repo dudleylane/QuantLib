@@ -875,7 +875,8 @@ namespace QuantLib
     Real CashFlows::IrrFinder::derivative(Rate y) const
     {
         InterestRate yield(y, dayCounter_, compounding_, frequency_);
-        return modifiedDuration(leg_, yield, includeSettlementDateFlows_, settlementDate_, npvDate_);
+        // operator() is npv_ minus the npv at the yield.
+        return -npvAndDerivative(leg_, yield, includeSettlementDateFlows_, settlementDate_, npvDate_).second;
     }
 
     void CashFlows::IrrFinder::checkSign() const

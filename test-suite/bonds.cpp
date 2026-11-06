@@ -1874,6 +1874,51 @@ BOOST_AUTO_TEST_CASE(testYieldSensitivitiesAreThoseOfTheNpv)
     ASSERT_CLOSE("simple duration under Simple", issue, simpleDuration, expectedSimpleDuration, 1.0e-12);
 }
 
+// CashFlows::yield takes any solver, which is the way to the private function
+// it solves for.  This one checks the slope that function reports instead.
+struct SlopeCheckingSolver
+{
+    template <class F>
+    Real solve(const F& f, Real, Real guess, Real) const
+    {
+        const Real h = 1.0e-5;
+        const Real expected = (f(guess + h) - f(guess - h)) / (2.0 * h);
+        const Real calculated = f.derivative(guess);
+        BOOST_CHECK_MESSAGE(std::fabs(calculated - expected) <= 1.0e-4 * std::fabs(expected),
+                            "slope at " << guess << ": " << calculated << " against a finite difference of "
+                                        << expected);
+        return guess;
+    }
+};
+
+BOOST_AUTO_TEST_CASE(testYieldSolverSlope)
+{
+    BOOST_TEST_MESSAGE("Testing the slope of the function solved for a yield...");
+
+    Date settlement(15, June, 2026);
+    Settings::instance().evaluationDate() = settlement;
+
+    DayCounter dayCounter = Thirty360(Thirty360::BondBasis);
+    Schedule schedule(settlement, Date(15, June, 2036), Period(Semiannual), NullCalendar(), Unadjusted, Unadjusted,
+                      DateGeneration::Backward, false);
+    FixedRateBond bond(0, 100.0, schedule, std::vector<Rate>(1, 0.05), dayCounter);
+    const Leg& leg = bond.cashflows();
+
+    for (Compounding rule : {Simple, Compounded, Continuous, SimpleThenCompounded, CompoundedThenSimple})
+    {
+        for (Real price : {90.0, 100.0, 120.0})
+        {
+            for (Rate guess : {0.02, 0.04, 0.08})
+                CashFlows::yield(SlopeCheckingSolver(), leg, price, dayCounter, rule, Semiannual, false, settlement,
+                                 settlement, 1.0e-10, guess);
+
+            // With the right slope Newton's steps converge in a few evaluations.
+            BOOST_CHECK_NO_THROW(CashFlows::yield(leg, price, dayCounter, rule, Semiannual, false, settlement,
+                                                  settlement, 1.0e-10, 10, 0.04));
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
