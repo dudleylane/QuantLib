@@ -89,17 +89,12 @@ namespace QuantLib
 
     Time AbcdMathFunction::maximumLocation() const
     {
-        if (b_ == 0.0)
-        {
-            if (a_ >= 0.0)
-                return 0.0;
-            else
-                return QL_MAX_REAL;
-        }
+        // With b not positive, the only stationary point is a minimum if it's there at all,
+        // so the maximum is at one of the two ends: a + d now, or d in the limit at infinity.
+        if (b_ <= 0.0)
+            return a_ >= 0.0 ? 0.0 : QL_MAX_REAL;
 
-        // stationary point
-        // TODO check if minimum
-        // TODO check if maximum at +inf
+        // Otherwise the stationary point is a maximum, and the function falls after it.
         Real zeroFirstDerivative = 1.0 / c_ - a_ / b_;
         return (zeroFirstDerivative > 0.0 ? zeroFirstDerivative : 0.0);
     }

@@ -21,6 +21,7 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
+#include <ql/math/abcdmathfunction.hpp>
 #include <ql/math/comparison.hpp>
 #include <ql/math/distributions/gammadistribution.hpp>
 #include <ql/math/expm1.hpp>
@@ -303,6 +304,50 @@ BOOST_AUTO_TEST_CASE(testLog1p)
     const Real tol = std::max(2.2e-14, 100 * QL_EPSILON);
     QL_CHECK_CLOSE_FRACTION(calculated.real(), expected.real(), tol);
     QL_CHECK_CLOSE_FRACTION(calculated.imag(), expected.imag(), tol);
+}
+
+BOOST_AUTO_TEST_CASE(testAbcdMaximum)
+{
+    BOOST_TEST_MESSAGE("Testing the maximum of the abcd function...");
+
+    Size checked = 0;
+    for (Real a : {-0.06, -0.01, 0.0, 0.01, 0.2})
+    {
+        for (Real b : {-0.5, -0.1, -0.01, 0.0, 0.01, 0.17})
+        {
+            for (Real c : {0.5, 2.0})
+            {
+                for (Real d : {0.06, 0.17})
+                {
+                    try
+                    {
+                        AbcdMathFunction::validate(a, b, c, d);
+                    }
+                    catch (const Error&)
+                    {
+                        // Not every combination is a function that stays positive.
+                        continue;
+                    }
+                    ++checked;
+
+                    AbcdMathFunction f(a, b, c, d);
+
+                    // The limit at infinity, and the rest on a grid.
+                    Real expected = d;
+                    for (Size i = 0; i <= 5000; ++i)
+                        expected = std::max(expected, f(i * 0.01));
+
+                    Time location = f.maximumLocation();
+                    BOOST_TEST_CONTEXT("a " << a << ", b " << b << ", c " << c << ", d " << d)
+                    {
+                        BOOST_CHECK_SMALL(f.maximumValue() - expected, 1e-5);
+                        BOOST_CHECK_SMALL((location == QL_MAX_REAL ? d : f(location)) - expected, 1e-5);
+                    }
+                }
+            }
+        }
+    }
+    BOOST_TEST(checked > 100U);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

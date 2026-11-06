@@ -43,7 +43,7 @@ namespace QuantLib
         //! function value at time t: \f[ f(t) \f]
         Real operator()(Time t) const;
 
-        //! time at which the function reaches maximum (if any)
+        //! time at which the function reaches its maximum, or QL_MAX_REAL if only in the limit
         Time maximumLocation() const;
 
         //! maximum value of the function
@@ -117,9 +117,8 @@ namespace QuantLib
 
     inline Real AbcdMathFunction::maximumValue() const
     {
-        if (b_ == 0.0 || a_ <= 0.0)
-            return d_;
-        return (*this)(maximumLocation());
+        Time location = maximumLocation();
+        return location == QL_MAX_REAL ? d_ : (*this)(location);
     }
 
 }
