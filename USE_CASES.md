@@ -276,8 +276,9 @@ on top of QuantLib's primitives.
 
 **Latency profile:**
 - QuantLib is **header-heavy and template-heavy**. Compile times are
-  significant; binary sizes are large; inlining choices cross
-  translation-unit boundaries.
+  significant and binary sizes are large. In the default shared build,
+  nothing defined in a `.cpp` file inlines into another file or into
+  your application (#103).
 - The observer graph (`Observable` / `LazyObject`) incurs per-update
   cache-invalidation dispatches that are cheap individually but add up
   under intraday re-quote churn. `QL_FASTER_LAZY_OBJECTS=ON` (default)
@@ -285,6 +286,22 @@ on top of QuantLib's primitives.
 - Pricing kernels are written for numerical clarity, not cache-locality
   or SIMD. Hot-loop profiling on a Heston MC run will not show you the
   same access patterns as a hand-tuned quant kernel.
+
+**Measured:** a quote tick to a new price, on one pinned core of an idle
+machine, at `812c0337a` (#65 has the method and every path):
+
+| Tick → price | Allocations per tick | p50 | p99 |
+|---|---|---|---|
+| `blackFormula`, called directly | 0 | 64 ns | 69 ns |
+| American, Barone-Adesi-Whaley | 0 | 1.22 µs | 1.31 µs |
+| European, `AnalyticEuropeanEngine` | 11 | 1.48 µs | 1.62 µs |
+| 10y fixed bond, flat curve | 0 | 2.97 µs | 3.20 µs |
+| American, Bjerksund-Stensland | 10 | 4.85 µs | 7.50 µs |
+| 5y seasoned swap, flat curve | 1 | 6.84 µs | 10.2 µs |
+| 5y swap, 9-pillar bootstrap, one quote ticking | 38 | 207 µs | 288 µs |
+
+The p99.9 of any path of a microsecond or more was 14–34 µs. That machine
+reserves no cores, so a run on an isolated core would have to settle it.
 
 **What works today:**
 - End-of-day batch pricing of book-sized portfolios is fine on modern
@@ -295,12 +312,37 @@ on top of QuantLib's primitives.
   pool objects where warranted.
 
 **What you should not expect:**
-- Sub-millisecond option pricing in a tight quote-streaming loop.
-  QuantLib isn't built for that; a hand-written closed-form or a
-  SIMD-vectorised pricer is the right tool.
+- A tick path through the object model that never allocates and has a
+  bounded tail. Only a few paths come close, as the table shows. For a
+  hard target, call a closed form directly or write a separate pricer.
+- A live bootstrapped curve on the tick path. Bootstrap off the tick
+  thread instead (#92).
 - Lock-free multi-threaded hot paths. `QL_ENABLE_THREAD_SAFE_OBSERVER_PATTERN`
   uses `recursive_mutex` + proxy-pointer deactivation — correct but
   not optimised for contention.
+
+**Configuration that rules out low-latency use:**
+- **An unset evaluation date.** With no date set, every read of
+  `Settings::instance().evaluationDate()` calls `Date::todaysDate()`, and
+  so `std::time` and `localtime_r`. The date is read per coupon, per rate
+  helper and per expiry check. Set it, or call `anchorEvaluationDate()`.
+- **`QL_ENABLE_THREAD_SAFE_OBSERVER_PATTERN`** (off by default). Every
+  notification hop takes a `std::recursive_mutex` and then Boost.Signals2's
+  own lock. Every `Observable` constructed also allocates its signal,
+  including the `Event` that each `isExpired()` builds (#96).
+- **`QL_ENABLE_SESSIONS`** (off by default). Every singleton `instance()`
+  is a `thread_local` lookup, and under `-fPIC` that's a call to
+  `__tls_get_addr` per access.
+
+**What an application can do now, with no library change:**
+- Price hot vanillas with `blackFormula`, or with `BlackCalculator` on a
+  stored payoff.
+- Cache Barone-Adesi-Whaley's critical price between vol and rate ticks.
+- Bootstrap off the tick thread and publish an immutable curve.
+- Set or anchor the evaluation date.
+- Keep one object graph per thread, and leave the thread-safe observer
+  off.
+- Link statically.
 
 **What you need to build for intraday use:**
 - Hot-path profiling (perf + flamegraphs) on your specific trade
