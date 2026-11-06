@@ -69,16 +69,21 @@ namespace QuantLib
         else
         {
             Date refDate = Settings::instance().evaluationDate();
-            // if the evaluation date is not a business day
-            // then move to the next business day
-            refDate = floatCalendar_.adjust(refDate);
             // use index valueDate interface wherever possible to estimate spot date.
             // Unless we pass an explicit settlementDays_ which does not match the index-defined number of fixing days.
             Date spotDate;
+            // Either way, if the evaluation date is not a business day, move to
+            // the next one on the calendar that counts the settlement days.
             if (settlementDays_ == Null<Natural>())
+            {
+                refDate = iborIndex_->fixingCalendar().adjust(refDate);
                 spotDate = iborIndex_->valueDate(refDate);
+            }
             else
+            {
+                refDate = floatCalendar_.adjust(refDate);
                 spotDate = floatCalendar_.advance(refDate, settlementDays_ * Days);
+            }
             startDate = spotDate + forwardStart_;
             if (forwardStart_.length() < 0)
                 startDate = floatCalendar_.adjust(startDate, Preceding);
