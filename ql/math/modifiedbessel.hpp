@@ -35,6 +35,9 @@ namespace QuantLib
         Based on series expansion outlined in e.g.
         http://www.mhtlab.uwaterloo.ca/courses/me755/web_chap4.pdf
 
+        K_nv of a real argument comes from Boost.Math.  It's infinite at
+        zero, and a negative argument needs the complex version.
+
         The exponentially weighted versions return the function value
         times exp(-x) resp exp(-z)
      */
