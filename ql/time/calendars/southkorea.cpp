@@ -149,6 +149,7 @@ namespace QuantLib
             || (d == 9 && m == March && y == 2022)     // Presidency
             || (d == 1 && m == June && y == 2022)      // Local election
             || (d == 10 && m == April && y == 2024)    // National Assembly
+            || (d == 3 && m == June && y == 2025)      // Presidency
             // Buddha's birthday
             || (d == 26 && m == May && y == 2004) || (d == 15 && m == May && y == 2005) ||
             (d == 5 && m == May && y == 2006) || (d == 24 && m == May && y == 2007) ||
@@ -182,7 +183,8 @@ namespace QuantLib
             || (d == 14 && m == August && y == 2015)
             // Special temporary holiday
             || (d == 17 && m == August && y == 2020) || (d == 2 && m == October && y == 2023) ||
-            (d == 1 && m == October && y == 2024)
+            (d == 1 && m == October && y == 2024) ||
+            (d == 27 && m == January && y == 2025)
 
             // Harvest Moon Day
             || ((d == 27 || d == 28 || d == 29) && m == September && y == 2004) ||
