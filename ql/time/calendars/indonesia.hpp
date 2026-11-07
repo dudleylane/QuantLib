@@ -38,12 +38,14 @@ namespace QuantLib
         <li>New Year's Day, January 1st</li>
         <li>Good Friday</li>
         <li>Ascension of Jesus Christ</li>
+        <li>Labour Day, May 1st (since 2014)</li>
+        <li>Pancasila Day, June 1st (since 2017)</li>
         <li>Independence Day, August 17th</li>
         <li>Christmas, December 25th</li>
         </ul>
 
         Other holidays for which no rule is given
-        (data available for 2005-2014 only:)
+        (data available for 2005-2026 only:)
         <ul>
         <li>Idul Adha</li>
         <li>Ied Adha</li>
@@ -56,6 +58,7 @@ namespace QuantLib
         <li>Ascension of Prophet Muhammad SAW</li>
         <li>Idul Fitri</li>
         <li>Ied Fitri</li>
+        <li>Elections</li>
         <li>Other national leaves</li>
         </ul>
         \ingroup calendars

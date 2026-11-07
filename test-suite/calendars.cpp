@@ -39,6 +39,7 @@
 #include <ql/time/calendars/france.hpp>
 #include <ql/time/calendars/germany.hpp>
 #include <ql/time/calendars/hongkong.hpp>
+#include <ql/time/calendars/indonesia.hpp>
 #include <ql/time/calendars/israel.hpp>
 #include <ql/time/calendars/italy.hpp>
 #include <ql/time/calendars/japan.hpp>
@@ -4294,6 +4295,91 @@ BOOST_AUTO_TEST_CASE(testSaudiArabiaAgainstReportedTradingDays)
                                     << c.businessDaysBetween(p.from, p.to, true, true) << ", reported "
                                     << p.tradingDays);
     }
+}
+
+BOOST_AUTO_TEST_CASE(testIndonesiaExchangeAgainstItsSessions)
+{
+    BOOST_TEST_MESSAGE("Testing Indonesia's holidays against the sessions the exchange held...");
+
+    const Calendar c = Indonesia();
+
+    // the weekdays with no session, year by year: until November 2025 the weekdays on which four
+    // banks' shares didn't trade, less days missing from that data; after that the exchange's calendar
+    const std::vector<std::vector<Date>> closures = {
+        {Date(1, January, 2015), Date(19, February, 2015), Date(3, April, 2015), Date(1, May, 2015),
+         Date(14, May, 2015), Date(2, June, 2015), Date(16, July, 2015), Date(17, July, 2015), Date(20, July, 2015),
+         Date(21, July, 2015), Date(17, August, 2015), Date(24, September, 2015), Date(14, October, 2015),
+         Date(9, December, 2015), Date(24, December, 2015), Date(25, December, 2015), Date(31, December, 2015)},
+        {Date(1, January, 2016), Date(8, February, 2016), Date(9, March, 2016), Date(25, March, 2016),
+         Date(5, May, 2016), Date(6, May, 2016), Date(4, July, 2016), Date(5, July, 2016), Date(6, July, 2016),
+         Date(7, July, 2016), Date(8, July, 2016), Date(17, August, 2016), Date(12, September, 2016),
+         Date(12, December, 2016), Date(26, December, 2016)},
+        {Date(2, January, 2017),   Date(15, February, 2017), Date(28, March, 2017),     Date(14, April, 2017),
+         Date(19, April, 2017),    Date(24, April, 2017),    Date(1, May, 2017),        Date(11, May, 2017),
+         Date(25, May, 2017),      Date(1, June, 2017),      Date(23, June, 2017),      Date(26, June, 2017),
+         Date(27, June, 2017),     Date(28, June, 2017),     Date(29, June, 2017),      Date(30, June, 2017),
+         Date(17, August, 2017),   Date(1, September, 2017), Date(21, September, 2017), Date(1, December, 2017),
+         Date(25, December, 2017), Date(26, December, 2017)},
+        {Date(1, January, 2018),    Date(16, February, 2018), Date(30, March, 2018),    Date(1, May, 2018),
+         Date(10, May, 2018),       Date(29, May, 2018),      Date(1, June, 2018),      Date(11, June, 2018),
+         Date(12, June, 2018),      Date(13, June, 2018),     Date(14, June, 2018),     Date(15, June, 2018),
+         Date(18, June, 2018),      Date(19, June, 2018),     Date(17, August, 2018),   Date(22, August, 2018),
+         Date(11, September, 2018), Date(20, November, 2018), Date(24, December, 2018), Date(25, December, 2018),
+         Date(31, December, 2018)},
+        {Date(1, January, 2019), Date(5, February, 2019), Date(7, March, 2019), Date(3, April, 2019),
+         Date(17, April, 2019), Date(19, April, 2019), Date(1, May, 2019), Date(30, May, 2019), Date(3, June, 2019),
+         Date(4, June, 2019), Date(5, June, 2019), Date(6, June, 2019), Date(7, June, 2019), Date(24, December, 2019),
+         Date(25, December, 2019), Date(31, December, 2019)},
+        {Date(1, January, 2020),  Date(25, March, 2020),    Date(10, April, 2020),    Date(1, May, 2020),
+         Date(7, May, 2020),      Date(21, May, 2020),      Date(22, May, 2020),      Date(25, May, 2020),
+         Date(1, June, 2020),     Date(31, July, 2020),     Date(17, August, 2020),   Date(20, August, 2020),
+         Date(21, August, 2020),  Date(28, October, 2020),  Date(29, October, 2020),  Date(30, October, 2020),
+         Date(9, December, 2020), Date(24, December, 2020), Date(25, December, 2020), Date(31, December, 2020)},
+        {Date(1, January, 2021), Date(12, February, 2021), Date(11, March, 2021), Date(2, April, 2021),
+         Date(12, May, 2021), Date(13, May, 2021), Date(14, May, 2021), Date(26, May, 2021), Date(1, June, 2021),
+         Date(20, July, 2021), Date(11, August, 2021), Date(17, August, 2021), Date(20, October, 2021),
+         Date(31, December, 2021)},
+        {Date(1, February, 2022), Date(28, February, 2022), Date(3, March, 2022), Date(15, April, 2022),
+         Date(29, April, 2022), Date(2, May, 2022), Date(3, May, 2022), Date(4, May, 2022), Date(5, May, 2022),
+         Date(6, May, 2022), Date(16, May, 2022), Date(26, May, 2022), Date(1, June, 2022), Date(17, August, 2022)},
+        {Date(23, January, 2023), Date(22, March, 2023),  Date(23, March, 2023),     Date(7, April, 2023),
+         Date(19, April, 2023),   Date(20, April, 2023),  Date(21, April, 2023),     Date(24, April, 2023),
+         Date(25, April, 2023),   Date(1, May, 2023),     Date(18, May, 2023),       Date(1, June, 2023),
+         Date(2, June, 2023),     Date(28, June, 2023),   Date(29, June, 2023),      Date(30, June, 2023),
+         Date(19, July, 2023),    Date(17, August, 2023), Date(28, September, 2023), Date(25, December, 2023),
+         Date(26, December, 2023)},
+        {Date(1, January, 2024),    Date(8, February, 2024),  Date(9, February, 2024),  Date(14, February, 2024),
+         Date(11, March, 2024),     Date(12, March, 2024),    Date(29, March, 2024),    Date(8, April, 2024),
+         Date(9, April, 2024),      Date(10, April, 2024),    Date(11, April, 2024),    Date(12, April, 2024),
+         Date(15, April, 2024),     Date(1, May, 2024),       Date(9, May, 2024),       Date(10, May, 2024),
+         Date(23, May, 2024),       Date(24, May, 2024),      Date(17, June, 2024),     Date(18, June, 2024),
+         Date(16, September, 2024), Date(27, November, 2024), Date(25, December, 2024), Date(26, December, 2024),
+         Date(31, December, 2024)},
+        {Date(1, January, 2025),  Date(27, January, 2025),  Date(28, January, 2025),  Date(29, January, 2025),
+         Date(28, March, 2025),   Date(31, March, 2025),    Date(1, April, 2025),     Date(2, April, 2025),
+         Date(3, April, 2025),    Date(4, April, 2025),     Date(7, April, 2025),     Date(18, April, 2025),
+         Date(1, May, 2025),      Date(12, May, 2025),      Date(13, May, 2025),      Date(29, May, 2025),
+         Date(30, May, 2025),     Date(6, June, 2025),      Date(9, June, 2025),      Date(27, June, 2025),
+         Date(18, August, 2025),  Date(5, September, 2025), Date(25, December, 2025), Date(26, December, 2025),
+         Date(31, December, 2025)},
+        {Date(1, January, 2026),   Date(16, January, 2026), Date(16, February, 2026), Date(17, February, 2026),
+         Date(18, March, 2026),    Date(19, March, 2026),   Date(20, March, 2026),    Date(23, March, 2026),
+         Date(24, March, 2026),    Date(3, April, 2026),    Date(1, May, 2026),       Date(14, May, 2026),
+         Date(15, May, 2026),      Date(27, May, 2026),     Date(28, May, 2026),      Date(1, June, 2026),
+         Date(16, June, 2026),     Date(17, August, 2026),  Date(25, August, 2026),   Date(24, December, 2026),
+         Date(25, December, 2026), Date(31, December, 2026)},
+    };
+    for (const std::vector<Date>& days : closures)
+    {
+        const Year y = days.front().year();
+        checkHolidays(c.holidayList(Date(1, January, y), Date(31, December, y)), days);
+    }
+
+    // Labour Day has been a holiday since 2014 and Pancasila Day since 2017, and both are rules from then on
+    BOOST_CHECK(c.isBusinessDay(Date(1, May, 2013)));
+    BOOST_CHECK(c.isBusinessDay(Date(1, June, 2016)));
+    BOOST_CHECK(c.isHoliday(Date(1, May, 2029)));
+    BOOST_CHECK(c.isHoliday(Date(1, June, 2029)));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
