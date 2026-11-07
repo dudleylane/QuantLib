@@ -130,14 +130,6 @@ namespace QuantLib
             return conditionalDefaultProbabilityInvP(inverseCumulativeY(prob, iName), iName, mktFactors);
         }
 
-      protected:
-        void update() override
-        {
-            if (basket_ != nullptr)
-                basket_->notifyObservers();
-            LatentModel<copulaPolicy>::update();
-        }
-
       public: // open since users access it for performance on joint integrations.
         /*! Returns the probability of default of a given name conditional on
         the realization of a given set of values of the model independent

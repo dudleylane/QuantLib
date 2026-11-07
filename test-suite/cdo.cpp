@@ -783,6 +783,83 @@ BOOST_AUTO_TEST_CASE(testBasketRefusedByASharedModel)
     BOOST_CHECK_SMALL(tranche->fairPremium() - premium, 1.0e-12);
 }
 
+BOOST_AUTO_TEST_CASE(testCorrelationMoveOnOneBasket)
+{
+    BOOST_TEST_MESSAGE("Testing that a move in the correlation reaches a tranche, for every model...");
+
+    for (const auto& model : everyLossModel())
+    {
+        if (!model.followsCorrelationQuote)
+            continue;
+        BOOST_TEST_CONTEXT(model.name)
+        {
+            SharedModelVars vars(0.3);
+            Settings::instance().evaluationDate() = vars.today;
+            auto basket = vars.basket(0.0, 0.2);
+            basket->setLossModel((vars.*model.factory)());
+            auto tranche = vars.cdo(basket);
+            const Real before = tranche->fairPremium();
+
+            Flag flag;
+            flag.registerWith(tranche);
+            vars.correlation->setValue(0.6);
+
+            BOOST_CHECK(flag.isUp());
+            const Real after = tranche->fairPremium();
+            BOOST_CHECK_SMALL(after - premiumOnNewModel(model.factory, 0.6, 0.01, 0.0, 0.2), 1.0e-12);
+            BOOST_CHECK_GT(std::fabs(after - before), 1.0e-4);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testCorrelationMoveAfterABasketHasGone)
+{
+    BOOST_TEST_MESSAGE("Testing a move in the correlation when the basket a loss model last held has gone...");
+
+    // Reading the basket that has gone would show under a sanitizer, not in the values.
+    for (const auto& model : everyLossModel())
+    {
+        if (!model.followsCorrelationQuote)
+            continue;
+        BOOST_TEST_CONTEXT(model.name)
+        {
+            SharedModelVars vars(0.3);
+            Settings::instance().evaluationDate() = vars.today;
+            auto staying = vars.basket(0.0, 0.2);
+            auto shared = (vars.*model.factory)();
+            staying->setLossModel(shared);
+            auto tranche = vars.cdo(staying);
+            tranche->fairPremium();
+            {
+                auto going = vars.basket(0.1, 0.3);
+                going->setLossModel(shared);
+                vars.cdo(going)->fairPremium();
+            }
+
+            vars.correlation->setValue(0.6);
+
+            BOOST_CHECK_SMALL(tranche->fairPremium() - premiumOnNewModel(model.factory, 0.6, 0.01, 0.0, 0.2), 1.0e-12);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBaseCorrelationModelBeforeItsFirstBasket)
+{
+    BOOST_TEST_MESSAGE("Testing a base-correlation model told of a move before any basket has taken it...");
+
+    SharedModelVars vars(0.3);
+    Settings::instance().evaluationDate() = vars.today;
+    auto model = vars.baseCorrelationModel();
+
+    BOOST_CHECK_NO_THROW(vars.correlation->setValue(0.6));
+
+    auto basket = vars.basket(0.0, 0.2);
+    basket->setLossModel(model);
+    BOOST_CHECK_SMALL(vars.cdo(basket)->fairPremium() -
+                          premiumOnNewModel(&SharedModelVars::baseCorrelationModel, 0.6, 0.01, 0.0, 0.2),
+                      1.0e-12);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

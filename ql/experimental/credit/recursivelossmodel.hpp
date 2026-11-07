@@ -45,7 +45,7 @@ namespace QuantLib
         performance instead of calling the copula inversion with the same vals.
     */
     template <class copulaPolicy>
-    class RecursiveLossModel : public DefaultLossModel
+    class RecursiveLossModel : public DefaultLossModel, public Observer
     {
       public:
         explicit RecursiveLossModel(const ext::shared_ptr<ConstantLossLatentmodel<copulaPolicy>>& m,
@@ -53,9 +53,12 @@ namespace QuantLib
                                     Size nbuckets = 1)
         : copula_(m), nBuckets_(nbuckets)
         {
+            registerWith(copula_);
         }
 
       private:
+        // what the latent model says goes on to the baskets
+        void update() override { notifyObservers(); }
         /*!
         @param pDefDate Vector of unconditional default probabilities for each
         live name (at the current evaluation date). This is passed instead of

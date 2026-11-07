@@ -98,10 +98,17 @@ namespace QuantLib
     a check that: copula_->basketSize() EQUALS remainingBasket_.size()
     */
     template <class CP>
-    class SaddlePointLossModel : public DefaultLossModel
+    class SaddlePointLossModel : public DefaultLossModel, public Observer
     {
       public:
-        explicit SaddlePointLossModel(const ext::shared_ptr<ConstantLossLatentmodel<CP>>& m) : copula_(m) {}
+        explicit SaddlePointLossModel(const ext::shared_ptr<ConstantLossLatentmodel<CP>>& m) : copula_(m)
+        {
+            registerWith(copula_);
+        }
+
+      private:
+        // what the latent model says goes on to the baskets
+        void update() override { notifyObservers(); }
 
       protected:
         // ----------- Cumulants and derivatives auxiliary functions ---------

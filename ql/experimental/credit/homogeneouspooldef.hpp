@@ -41,10 +41,12 @@ namespace QuantLib
     \todo Extend to the multifactor case for a generic LM
     */
     template <class copulaPolicy>
-    class HomogeneousPoolLossModel : public DefaultLossModel
+    class HomogeneousPoolLossModel : public DefaultLossModel, public Observer
     {
       private:
         void resetModel() override;
+        // what the latent model says goes on to the baskets
+        void update() override { notifyObservers(); }
 
       public:
         HomogeneousPoolLossModel(const ext::shared_ptr<ConstantLossLatentmodel<copulaPolicy>>& copula,
@@ -55,6 +57,7 @@ namespace QuantLib
         : copula_(copula), nBuckets_(nBuckets), max_(max), min_(min), nSteps_(nSteps), delta_((max - min) / nSteps)
         {
             QL_REQUIRE(copula->numFactors() == 1, "Inhomogeneous model not implemented for multifactor");
+            registerWith(copula_);
         }
 
       protected:

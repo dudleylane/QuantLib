@@ -59,13 +59,15 @@ namespace QuantLib
     the cumulative functions.
     */
     template <class LLM>
-    class BinomialLossModel : public DefaultLossModel
+    class BinomialLossModel : public DefaultLossModel, public Observer
     {
       public:
         typedef typename LLM::copulaType copulaType;
-        explicit BinomialLossModel(ext::shared_ptr<LLM> copula) : copula_(std::move(copula)) {}
+        explicit BinomialLossModel(ext::shared_ptr<LLM> copula) : copula_(std::move(copula)) { registerWith(copula_); }
 
       private:
+        // what the latent model says goes on to the baskets
+        void update() override { notifyObservers(); }
         void resetModel() override
         {
             /* say there are defaults and these havent settled... and this is

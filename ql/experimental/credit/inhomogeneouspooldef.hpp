@@ -44,10 +44,12 @@ namespace QuantLib
     distribution object?
     */
     template <class copulaPolicy>
-    class InhomogeneousPoolLossModel : public DefaultLossModel
+    class InhomogeneousPoolLossModel : public DefaultLossModel, public Observer
     {
       private:
         void resetModel() override;
+        // what the latent model says goes on to the baskets
+        void update() override { notifyObservers(); }
 
       public:
         // allow base correlations:
@@ -63,6 +65,7 @@ namespace QuantLib
         : copula_(copula), nBuckets_(nBuckets), max_(max), min_(min), nSteps_(nSteps), delta_((max - min) / nSteps)
         {
             QL_REQUIRE(copula->numFactors() == 1, "Inhomogeneous model not implemented for multifactor");
+            registerWith(copula_);
         }
         // Write another constructor sending the LM factors and recoveries.
       protected:

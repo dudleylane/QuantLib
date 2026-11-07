@@ -110,10 +110,9 @@ namespace QuantLib
         // react to base correl surface notifications (quotes or reference date)
         void update() override
         {
-            setupModels();
-            // tell basket to notify instruments, etc, we are invalid
-            if (!basket_.empty())
-                basket_->notifyObservers();
+            // tell the baskets to notify instruments, etc, we are invalid; a basket
+            // sets the models up again as it takes this one back
+            notifyObservers();
         }
 
         /* Update model caches after basket assignement. */

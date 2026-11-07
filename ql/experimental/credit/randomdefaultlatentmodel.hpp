@@ -110,9 +110,7 @@ namespace QuantLib
         void update() override
         {
             simsBuffer_.clear();
-            // tell basket to notify instruments, etc, we are invalid
-            if (!basket_.empty())
-                basket_->notifyObservers();
+            // tells the baskets to notify instruments, etc, we are invalid
             LazyObject::update();
         }
 
