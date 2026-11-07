@@ -1948,11 +1948,11 @@ BOOST_AUTO_TEST_CASE(testNoArbSabrInterpolation, *precondition(if_speed(Fast)))
     strikes[30] = 0.09;
     // input volatilities for noarb sabr (other than above
     // alpha is 0.2 here due to the restriction sigmaI <= 1.0 !)
-    volatilities[0] = 0.773729077752926;
-    volatilities[1] = 0.763916242454194;
-    volatilities[2] = 0.754773878663612;
-    volatilities[3] = 0.746222305031368;
-    volatilities[4] = 0.738193023523582;
+    volatilities[0] = 0.773728861889259;
+    volatilities[1] = 0.763915877592688;
+    volatilities[2] = 0.754773877383662;
+    volatilities[3] = 0.746221968756199;
+    volatilities[4] = 0.738192814268275;
     volatilities[5] = 0.730629785825930;
     volatilities[6] = 0.723484825471685;
     volatilities[7] = 0.716716812668892;

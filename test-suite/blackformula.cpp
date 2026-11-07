@@ -1028,6 +1028,33 @@ BOOST_AUTO_TEST_CASE(testImpliedStdDevLiRSGuess)
     BOOST_CHECK_EQUAL(blackFormulaImpliedStdDevLiRS(Option::Call, 1.0, 1.0, 1.0e-100), 0.0);
 }
 
+BOOST_AUTO_TEST_CASE(testImpliedStdDevBelowTheForward)
+{
+    BOOST_TEST_MESSAGE("Testing implied standard deviations at strikes below the forward...");
+
+    // Below the forward it solves for a put, whichever type is asked for, and it should converge
+    // as it does for a call above the forward: well beyond the accuracy, in a few evaluations.
+    const Real forward = 1.0, accuracy = 1.0e-6;
+    const Natural maxEvaluations = 10;
+
+    for (Real strike : {0.8, 0.9, 0.99, 1.01, 1.1, 1.2})
+    {
+        for (Real stdDev : {0.2, 0.5, 1.0})
+        {
+            for (Option::Type type : {Option::Call, Option::Put})
+            {
+                BOOST_TEST_CONTEXT(type << ", strike " << strike << ", standard deviation " << stdDev)
+                {
+                    const Real price = blackFormula(type, strike, forward, stdDev);
+                    const Real implied = blackFormulaImpliedStdDev(type, strike, forward, price, 1.0, 0.0, Null<Real>(),
+                                                                   accuracy, maxEvaluations);
+                    BOOST_CHECK_SMALL(implied - stdDev, 1.0e-9);
+                }
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -354,7 +354,7 @@ namespace QuantLib
             QL_REQUIRE(stdDev >= 0.0, "stdDev (" << stdDev << ") must be non-negative");
 #endif
             Real signedD1 = signedMoneyness_ / stdDev + halfOptionType_ * stdDev;
-            return signedForward_ * N_.derivative(signedD1);
+            return std::fabs(signedForward_) * N_.derivative(signedD1);
         }
 
       private:
