@@ -69,7 +69,7 @@ no longer checks them, and no CI job builds any of them.
 
 | ID | File | Fix |
 |---|---|---|
-| F1 | `ql/models/shortrate/onefactormodels/hullwhite.cpp` | Bond-option variance rewritten in numerically stable form `(u-v)² · expm1(2am)` (Brigo-Mercurio) — no more flooring at 0 |
+| F1 | `ql/models/shortrate/onefactormodels/hullwhite.cpp` | Bond-option volatility in a numerically stable factored form, the spot-start volatility times `e^{-a(S-M)}` (Brigo-Mercurio; factored by #113) — no more flooring at 0 |
 | F2 | `ql/processes/gsrprocesscore.cpp` | Out-of-range `time2()` now validates `T_ ≥ times_.back()` on demand |
 | F3 | `ql/models/volatility/garch.cpp` | GARCH(1,1) calibration now checks optimizer `EndCriteria::Type` |
 | FE1 | `ql/pricingengines/vanilla/baroneadesiwhaleyengine.cpp` | BAW Newton loop bounded (`maxIterations = 100`) — fixes infinite-loop on pathological inputs |
@@ -80,6 +80,12 @@ no longer checks them, and no CI job builds any of them.
 | FE6 | `ql/termstructures/volatility/sabr.hpp` | Public `sabrIsRiskyRegime()` detector (Doust 2012 absorption threshold) + documentation pointing to `NoArbSabrSmileSection` for arbitrage-free pricing |
 | FE11 | `ql/pricingengines/asian/analytic_discr_geom_av_price_heston.{hpp,cpp}` | Moved out of `ql/experimental/`; the public Heston-Asian MC engine no longer transitively imports experimental code |
 | #41 | `ql/time/date.cpp` | `Date::todaysDate()` is thread-safe: `localtime_r` replaces `std::localtime`, whose buffer every thread shared. A time-zone change made while the program runs now applies once the program calls `tzset()` |
+| #84, #125, #126 | `ql/indexes/iborindex.hpp`, `ql/indexes/fallbackiborindex.{hpp,cpp}`, `ql/experimental/coupons/proxyibor.{hpp,cpp}` | Coupons on a `FallbackIborIndex` use the fallback, where after cessation they priced off the legacy curve with no spread, and coupons on a `ProxyIbor` forecast through the proxied index, where they threw. `IborIndex`'s three-argument `forecastFixing` is protected and virtual now, which changes its ABI |
+| #85 | `ql/pricingengines/blackformulatemplate.hpp` | `blackFormulaT<T>` computes as `blackFormula` does, with no subtraction of normal tails, so a put no longer cancels, down to a negative price, once N(d) nears 1 |
+| #46, #47, #108, #128 | `ql/pricingengines/vanilla/` | BAW and Ju are floored at the European value, the intrinsic value and the value of exercising at any fixed time, and Ju's correction saturates rather than reaching its pole, so Ju departs from the published formula there. The QD engines are floored at intrinsic, and FD at the payoff where the option can be exercised today. Bjerksund-Stensland no longer returns NaN, and takes the best flat trigger where the value still rises above the 1993 paper's, where it collapsed to the European value under negative carry |
+| #114 | `ql/cashflows/cashflows.{hpp,cpp}`, `ql/time/daycounters/actualactual.cpp`, `ql/interestrate.cpp`, `ql/time/period.cpp`, `ql/time/schedule.cpp` | `modifiedDuration`, `simpleDuration` and `convexity` at a yield are the npv's derivatives under every compounding rule, which changes them for plain `Simple` on any leg of more than one flow. `BondFunctions::yield` costs 75.5 % fewer instructions, `basisPointValue`'s second-order term is the right size, and Act/Act ISMA keeps its dates on a long first coupon with an irregular last one |
+| #86, #87, #123 | `ql/indexes/indexmanager.{hpp,cpp}`, `ql/index.hpp`, `ql/time/daycounters/business252.cpp` | Threads pricing their own graphs no longer race on `IndexManager`, whose fixing lookups stop writing to it and whose notifier map takes a lock, or on `Business252`'s caches. Writes of fixings still need the caller to serialize them, and building one index from several threads still needs thread-safe observers |
+| #109–#113, #115–#118, #129, #138, #141, #142 | see `FORK_CHANGES.md` | Barrier, digital, lookback, Asian and exotic engines, trees, short-rate models, swaps, FX forwards, convertible and callable bonds, and out-of-bounds accesses. Upstream also fixed most of these after the fork point; each is the fork's own fix, written against a case that fails here. `FORK_CHANGES.md` says what changes in each, values included |
 
 ### New in this fork
 

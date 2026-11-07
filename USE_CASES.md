@@ -70,8 +70,11 @@ needs the full menu.
   circuit, exact at zero volatility in BAW and Ju (#37); BAW and Ju
   exact where early exercise is never optimal, and an error at r < 0
   where it can be, above zero volatility (#36); BAW and Ju price low
-  volatilities that used to throw (#37); BS handles negative rates
-  natively), Bermudan.
+  volatilities that used to throw (#37), and never below the European
+  value, the intrinsic value or the value of exercising at any fixed
+  time (#46); BS handles negative rates natively, without NaN (#47) or
+  collapsing to the European value under negative carry (#128)),
+  Bermudan.
 - Single + double barrier, Asian (discrete + continuous, geometric +
   arithmetic via Turnbull-Wakeman or MC), lookback, cliquet, chooser,
   compound, forward-start.
@@ -302,6 +305,9 @@ machine, at `812c0337a` (#65 has the method and every path):
 
 The p99.9 of any path of a microsecond or more was 14–34 µs. That machine
 reserves no cores, so a run on an isolated core would have to settle it.
+Since that commit, #46 has added 3.6 % in instructions to a
+Barone-Adesi-Whaley price, and #128 12–18 % to a Bjerksund-Stensland one
+where its search doesn't run and 3.9 times where it does.
 
 **What works today:**
 - End-of-day batch pricing of book-sized portfolios is fine on modern
