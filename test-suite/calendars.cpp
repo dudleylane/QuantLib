@@ -47,6 +47,7 @@
 #include <ql/time/calendars/newzealand.hpp>
 #include <ql/time/calendars/romania.hpp>
 #include <ql/time/calendars/russia.hpp>
+#include <ql/time/calendars/saudiarabia.hpp>
 #include <ql/time/calendars/singapore.hpp>
 #include <ql/time/calendars/southafrica.hpp>
 #include <ql/time/calendars/southkorea.hpp>
@@ -4141,6 +4142,78 @@ BOOST_AUTO_TEST_CASE(testTaiwanMovesHolidaysOffWeekends)
     for (const Date& date : notMoved)
         BOOST_CHECK_MESSAGE(c.isBusinessDay(date), date << " should be a business day");
     BOOST_CHECK(c.isHoliday(Date(27, February, 2032)));
+}
+
+BOOST_AUTO_TEST_CASE(testSaudiArabiaAgainstTheExchangesNotices)
+{
+    BOOST_TEST_MESSAGE("Testing Saudi Arabia's Eid holidays and Founding Day against the exchange's notices...");
+
+    const Calendar c = SaudiArabia();
+
+    // what the notices close between January and National Day, year by year; the last session
+    // before a holiday and the first one after it stay open
+    const std::vector<std::vector<Date>> closures = {
+        {Date(3, July, 2016), Date(4, July, 2016), Date(5, July, 2016), Date(6, July, 2016), Date(7, July, 2016),
+         Date(11, September, 2016), Date(12, September, 2016), Date(13, September, 2016), Date(14, September, 2016),
+         Date(15, September, 2016)},
+        {Date(25, June, 2017), Date(26, June, 2017), Date(27, June, 2017), Date(28, June, 2017), Date(29, June, 2017),
+         Date(30, August, 2017), Date(31, August, 2017), Date(3, September, 2017), Date(4, September, 2017),
+         Date(5, September, 2017)},
+        {Date(13, June, 2018), Date(14, June, 2018), Date(17, June, 2018), Date(18, June, 2018), Date(19, June, 2018),
+         Date(19, August, 2018), Date(20, August, 2018), Date(21, August, 2018), Date(22, August, 2018),
+         Date(23, August, 2018)},
+        {Date(2, June, 2019), Date(3, June, 2019), Date(4, June, 2019), Date(5, June, 2019), Date(6, June, 2019),
+         Date(11, August, 2019), Date(12, August, 2019), Date(13, August, 2019), Date(14, August, 2019),
+         Date(15, August, 2019)},
+        {Date(24, May, 2020), Date(25, May, 2020), Date(26, May, 2020), Date(27, May, 2020), Date(28, May, 2020),
+         Date(29, July, 2020), Date(30, July, 2020), Date(2, August, 2020), Date(3, August, 2020),
+         Date(4, August, 2020)},
+        {Date(11, May, 2021), Date(12, May, 2021), Date(13, May, 2021), Date(16, May, 2021), Date(18, July, 2021),
+         Date(19, July, 2021), Date(20, July, 2021), Date(21, July, 2021), Date(22, July, 2021)},
+        {Date(22, February, 2022), Date(1, May, 2022), Date(2, May, 2022), Date(3, May, 2022), Date(4, May, 2022),
+         Date(5, May, 2022), Date(7, July, 2022), Date(10, July, 2022), Date(11, July, 2022), Date(12, July, 2022)},
+        {Date(22, February, 2023), Date(18, April, 2023), Date(19, April, 2023), Date(20, April, 2023),
+         Date(23, April, 2023), Date(24, April, 2023), Date(25, June, 2023), Date(26, June, 2023), Date(27, June, 2023),
+         Date(28, June, 2023), Date(29, June, 2023)},
+        {Date(22, February, 2024), Date(7, April, 2024), Date(8, April, 2024), Date(9, April, 2024),
+         Date(10, April, 2024), Date(11, April, 2024), Date(16, June, 2024), Date(17, June, 2024), Date(18, June, 2024),
+         Date(19, June, 2024), Date(20, June, 2024)},
+        {Date(23, February, 2025), Date(30, March, 2025), Date(31, March, 2025), Date(1, April, 2025),
+         Date(2, April, 2025), Date(5, June, 2025), Date(8, June, 2025), Date(9, June, 2025), Date(10, June, 2025)},
+        {Date(22, February, 2026), Date(17, March, 2026), Date(18, March, 2026), Date(19, March, 2026),
+         Date(22, March, 2026), Date(23, March, 2026), Date(24, May, 2026), Date(25, May, 2026), Date(26, May, 2026),
+         Date(27, May, 2026), Date(28, May, 2026)},
+        {Date(22, February, 2027), Date(7, March, 2027), Date(8, March, 2027), Date(9, March, 2027),
+         Date(10, March, 2027), Date(11, March, 2027), Date(16, May, 2027), Date(17, May, 2027), Date(18, May, 2027),
+         Date(19, May, 2027), Date(20, May, 2027)},
+        {Date(22, February, 2028), Date(27, February, 2028), Date(28, February, 2028), Date(29, February, 2028),
+         Date(1, March, 2028), Date(2, March, 2028), Date(3, May, 2028), Date(4, May, 2028), Date(7, May, 2028),
+         Date(8, May, 2028), Date(9, May, 2028)},
+        {Date(12, February, 2029), Date(13, February, 2029), Date(14, February, 2029), Date(15, February, 2029),
+         Date(18, February, 2029), Date(22, February, 2029), Date(22, April, 2029), Date(23, April, 2029),
+         Date(24, April, 2029), Date(25, April, 2029), Date(26, April, 2029)},
+    };
+    for (const std::vector<Date>& days : closures)
+    {
+        const Year y = days.front().year();
+        checkHolidays(c.holidayList(Date(1, January, y), Date(20, September, y)), days);
+    }
+
+    // Founding Day goes to the Thursday before a Friday and the Sunday after a Saturday
+    BOOST_CHECK(c.isHoliday(Date(21, February, 2030)));
+    BOOST_CHECK(c.isBusinessDay(Date(24, February, 2030)));
+    BOOST_CHECK(c.isHoliday(Date(23, February, 2031)));
+    BOOST_CHECK(c.isBusinessDay(Date(20, February, 2031)));
+    // and it starts in 2022: these are a Monday, the Thursday before a Friday, and the Sunday after a Saturday
+    BOOST_CHECK(c.isBusinessDay(Date(22, February, 2021)));
+    BOOST_CHECK(c.isBusinessDay(Date(21, February, 2019)));
+    BOOST_CHECK(c.isBusinessDay(Date(23, February, 2020)));
+
+    // before 2016 a holiday still goes by its Eid date, which fits the notice of 2015
+    BOOST_CHECK(c.isBusinessDay(Date(15, July, 2015)));
+    BOOST_CHECK(c.isHoliday(Date(16, July, 2015)));
+    BOOST_CHECK(c.isHoliday(Date(21, July, 2015)));
+    BOOST_CHECK(c.isBusinessDay(Date(22, July, 2015)));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

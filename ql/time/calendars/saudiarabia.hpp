@@ -32,15 +32,18 @@ namespace QuantLib
 
     //! Saudi Arabian calendar
     /*! Holidays for the Tadawul financial market
-        (data from <http://www.tadawul.com.sa>):
+        (data from <https://www.saudiexchange.sa>):
         <ul>
-        <li>Thursdays</li>
-        <li>Fridays</li>
+        <li>Thursdays and Fridays, until June 28th, 2013</li>
+        <li>Fridays and Saturdays, from June 29th, 2013</li>
+        <li>Founding Day, February 22nd, since 2022 (moved to the Thursday
+        before a Friday, or to the Sunday after a Saturday)</li>
         <li>National Day of Saudi Arabia, September 23rd</li>
         </ul>
 
-        Other holidays for which no rule is given
-        (data available sparsely for 2004-2011 only:)
+        Other holidays for which no rule is given (data available for
+        2001-2029 only; from 2027 on these are the exchange's current calendar,
+        which follows the Umm al-Qura calendar, so they can still move:)
         <ul>
         <li>Eid Al-Adha</li>
         <li>Eid Al-Fitr</li>
