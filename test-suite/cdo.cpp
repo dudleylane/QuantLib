@@ -21,6 +21,8 @@
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
 #include <ql/currencies/europe.hpp>
+#include <ql/experimental/credit/basecorrelationlossmodel.hpp>
+#include <ql/experimental/credit/basecorrelationstructure.hpp>
 #include <ql/experimental/credit/binomiallossmodel.hpp>
 #include <ql/experimental/credit/cdo.hpp>
 #include <ql/experimental/credit/defaultevent.hpp>
@@ -31,11 +33,16 @@
 #include <ql/experimental/credit/midpointcdoengine.hpp>
 #include <ql/experimental/credit/pool.hpp>
 #include <ql/experimental/credit/randomdefaultlatentmodel.hpp>
+#include <ql/experimental/credit/randomlosslatentmodel.hpp>
+#include <ql/experimental/credit/recursivelossmodel.hpp>
+#include <ql/experimental/credit/saddlepointlossmodel.hpp>
+#include <ql/experimental/credit/spotlosslatentmodel.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/termstructures/credit/flathazardrate.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/time/daycounters/actualactual.hpp>
 #include <boost/mpl/vector.hpp>
 #include <iomanip>
@@ -371,20 +378,20 @@ struct SharedModelVars
     static constexpr Real recovery = 0.4;
 
     Date today{31, August, 2006};
-    ext::shared_ptr<SimpleQuote> correlation;
+    ext::shared_ptr<SimpleQuote> correlation, hazard;
     Handle<Quote> hCorrelation;
     ext::shared_ptr<Pool> pool;
     std::vector<std::string> names;
     Handle<YieldTermStructure> discountCurve;
     Schedule schedule;
 
-    explicit SharedModelVars(Real correlationValue, const Date& defaultDate = Date())
-    : correlation(ext::make_shared<SimpleQuote>(correlationValue)), hCorrelation(correlation),
-      pool(ext::make_shared<Pool>()), discountCurve(ext::make_shared<FlatForward>(today, 0.05, Actual360(), Continuous))
+    explicit SharedModelVars(Real correlationValue, const Date& defaultDate = Date(), Real hazardValue = 0.01)
+    : correlation(ext::make_shared<SimpleQuote>(correlationValue)), hazard(ext::make_shared<SimpleQuote>(hazardValue)),
+      hCorrelation(correlation), pool(ext::make_shared<Pool>()),
+      discountCurve(ext::make_shared<FlatForward>(today, 0.05, Actual360(), Continuous))
     {
-        Handle<Quote> hazardRate(ext::make_shared<SimpleQuote>(0.01));
         Handle<DefaultProbabilityTermStructure> hazardCurve(
-            ext::make_shared<FlatHazardRate>(today, hazardRate, ActualActual(ActualActual::ISDA)));
+            ext::make_shared<FlatHazardRate>(today, Handle<Quote>(hazard), ActualActual(ActualActual::ISDA)));
         for (Size i = 0; i < poolSize; ++i)
         {
             names.push_back("issuer-" + std::to_string(i));
@@ -422,9 +429,24 @@ struct SharedModelVars
         return ext::make_shared<HomogGaussPoolLossModel>(latentModel(), 100, 5., -5., 15);
     }
 
+    ext::shared_ptr<DefaultLossModel> inhomogeneousModel() const
+    {
+        return ext::make_shared<IHGaussPoolLossModel>(latentModel(), 100, 5., -5., 15);
+    }
+
     ext::shared_ptr<DefaultLossModel> binomialModel() const
     {
         return ext::make_shared<GaussianBinomialLossModel>(latentModel());
+    }
+
+    ext::shared_ptr<DefaultLossModel> recursiveModel() const
+    {
+        return ext::make_shared<RecursiveGaussLossModel>(latentModel());
+    }
+
+    ext::shared_ptr<DefaultLossModel> saddlePointModel() const
+    {
+        return ext::make_shared<SaddlePointLossModel<GaussianCopulaPolicy>>(latentModel());
     }
 
     ext::shared_ptr<DefaultLossModel> randomDefaultModel() const
@@ -432,9 +454,36 @@ struct SharedModelVars
         return ext::make_shared<RandomDefaultLM<GaussianCopulaPolicy>>(latentModel(), 2000);
     }
 
+    ext::shared_ptr<DefaultLossModel> randomLossModel() const
+    {
+        const std::vector<std::vector<Real>> weights(2 * poolSize,
+                                                     std::vector<Real>(1, std::sqrt(correlation->value())));
+        auto latent = ext::make_shared<GaussianSpotLossLM>(weights, std::vector<Real>(poolSize, recovery), 2.2,
+                                                           LatentModelIntegrationType::GaussianQuadrature,
+                                                           GaussianCopulaPolicy::initTraits());
+        return ext::make_shared<RandomLossLM<GaussianCopulaPolicy>>(latent, 2000, 1.0e-6, 2863311530UL);
+    }
+
+    ext::shared_ptr<DefaultLossModel> baseCorrelationModel() const
+    {
+        const std::vector<std::vector<Handle<Quote>>> quotes(2, std::vector<Handle<Quote>>(2, hCorrelation));
+        auto surface = ext::make_shared<BaseCorrelationTermStructure<BilinearInterpolation>>(
+            0, TARGET(), Unadjusted, std::vector<Period>{Period(1, Years), Period(10, Years)},
+            std::vector<Real>{0.03, 0.5}, quotes, Actual365Fixed());
+        surface->enableExtrapolation();
+        return ext::make_shared<GaussianLHPFlatBCLM>(
+            Handle<BaseCorrelationTermStructure<BilinearInterpolation>>(surface), std::vector<Real>(poolSize, recovery),
+            GaussianCopulaPolicy::initTraits());
+    }
+
     ext::shared_ptr<Basket> basket(Real attachment, Real detachment) const
     {
-        return ext::make_shared<Basket>(today, names, std::vector<Real>(poolSize, 100.0), pool, attachment, detachment);
+        return basket(attachment, detachment, std::vector<Real>(poolSize, 100.0));
+    }
+
+    ext::shared_ptr<Basket> basket(Real attachment, Real detachment, const std::vector<Real>& notionals) const
+    {
+        return ext::make_shared<Basket>(today, names, notionals, pool, attachment, detachment);
     }
 
     ext::shared_ptr<SyntheticCDO> cdo(const ext::shared_ptr<Basket>& onBasket) const
@@ -445,6 +494,36 @@ struct SharedModelVars
         return tranche;
     }
 };
+
+using LossModelFactory = ext::shared_ptr<DefaultLossModel> (SharedModelVars::*)() const;
+
+struct LossModelCase
+{
+    std::string name;
+    LossModelFactory factory;
+    bool followsCorrelationQuote;
+};
+
+std::vector<LossModelCase> everyLossModel()
+{
+    return {{"LHP", &SharedModelVars::lhpModel, true},
+            {"homogeneous", &SharedModelVars::homogeneousModel, true},
+            {"inhomogeneous", &SharedModelVars::inhomogeneousModel, true},
+            {"binomial", &SharedModelVars::binomialModel, true},
+            {"recursive", &SharedModelVars::recursiveModel, true},
+            {"saddle point", &SharedModelVars::saddlePointModel, true},
+            {"random default", &SharedModelVars::randomDefaultModel, true},
+            {"random loss", &SharedModelVars::randomLossModel, false},
+            {"base correlation", &SharedModelVars::baseCorrelationModel, true}};
+}
+
+Real premiumOnNewModel(LossModelFactory factory, Real correlation, Real hazard, Real attachment, Real detachment)
+{
+    SharedModelVars vars(correlation, Date(), hazard);
+    auto basket = vars.basket(attachment, detachment);
+    basket->setLossModel((vars.*factory)());
+    return vars.cdo(basket)->fairPremium();
+}
 
 BOOST_AUTO_TEST_CASE(testRandomDefaultModelOnTwoTranches)
 {
@@ -522,7 +601,10 @@ BOOST_AUTO_TEST_CASE(testLossModelsAfterANameDefaults)
         {"LHP", &SharedModelVars::lhpModel},
         {"homogeneous", &SharedModelVars::homogeneousModel},
         {"binomial", &SharedModelVars::binomialModel},
-        {"random default", &SharedModelVars::randomDefaultModel}};
+        {"recursive", &SharedModelVars::recursiveModel},
+        {"saddle point", &SharedModelVars::saddlePointModel},
+        {"random default", &SharedModelVars::randomDefaultModel},
+        {"random loss", &SharedModelVars::randomLossModel}};
 
     for (const auto& model : models)
     {
@@ -545,6 +627,160 @@ BOOST_AUTO_TEST_CASE(testLossModelsAfterANameDefaults)
             BOOST_CHECK_GT(std::fabs(after - before), 1.0e-4);
         }
     }
+}
+
+BOOST_AUTO_TEST_CASE(testEveryLossModelOnTwoTranches)
+{
+    BOOST_TEST_MESSAGE("Testing two tranches on one loss model, for every model...");
+
+    const Real tolerance = 1.0e-12;
+
+    for (const auto& model : everyLossModel())
+    {
+        BOOST_TEST_CONTEXT(model.name)
+        {
+            SharedModelVars vars(0.3);
+            Settings::instance().evaluationDate() = vars.today;
+            auto first = vars.basket(0.0, 0.1);
+            auto second = vars.basket(0.1, 0.3);
+            auto shared = (vars.*model.factory)();
+            first->setLossModel(shared);
+            second->setLossModel(shared);
+            auto firstTranche = vars.cdo(first);
+            auto secondTranche = vars.cdo(second);
+
+            const Real firstPremium = premiumOnNewModel(model.factory, 0.3, 0.01, 0.0, 0.1);
+            const Real secondPremium = premiumOnNewModel(model.factory, 0.3, 0.01, 0.1, 0.3);
+            BOOST_CHECK_SMALL(firstTranche->fairPremium() - firstPremium, tolerance);
+            BOOST_CHECK_SMALL(secondTranche->fairPremium() - secondPremium, tolerance);
+
+            // The second tranche has the model now, so the first has to take it back.
+            firstTranche->setPricingEngine(ext::make_shared<MidPointCDOEngine>(vars.discountCurve));
+            BOOST_CHECK_SMALL(firstTranche->fairPremium() - firstPremium, tolerance);
+            secondTranche->setPricingEngine(ext::make_shared<MidPointCDOEngine>(vars.discountCurve));
+            BOOST_CHECK_SMALL(secondTranche->fairPremium() - secondPremium, tolerance);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testCorrelationMoveOnModelSharedByTwoTranches)
+{
+    BOOST_TEST_MESSAGE("Testing a move in the correlation on two tranches sharing a loss model...");
+
+    for (const auto& model : everyLossModel())
+    {
+        if (!model.followsCorrelationQuote)
+            continue;
+        BOOST_TEST_CONTEXT(model.name)
+        {
+            SharedModelVars vars(0.3);
+            Settings::instance().evaluationDate() = vars.today;
+            auto first = vars.basket(0.0, 0.1);
+            auto second = vars.basket(0.1, 0.3);
+            auto shared = (vars.*model.factory)();
+            first->setLossModel(shared);
+            second->setLossModel(shared);
+            auto firstTranche = vars.cdo(first);
+            auto secondTranche = vars.cdo(second);
+            firstTranche->fairPremium();
+            secondTranche->fairPremium();
+
+            vars.correlation->setValue(0.6);
+
+            BOOST_CHECK_SMALL(firstTranche->fairPremium() - premiumOnNewModel(model.factory, 0.6, 0.01, 0.0, 0.1),
+                              1.0e-12);
+            BOOST_CHECK_SMALL(secondTranche->fairPremium() - premiumOnNewModel(model.factory, 0.6, 0.01, 0.1, 0.3),
+                              1.0e-12);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testEveryLossModelOnTwoPools)
+{
+    BOOST_TEST_MESSAGE("Testing baskets on two pools sharing a loss model, for every model...");
+
+    const Real tolerance = 1.0e-12;
+
+    for (const auto& model : everyLossModel())
+    {
+        BOOST_TEST_CONTEXT(model.name)
+        {
+            SharedModelVars safer(0.3, Date(), 0.01);
+            SharedModelVars riskier(0.3, Date(), 0.03);
+            Settings::instance().evaluationDate() = safer.today;
+            auto saferBasket = safer.basket(0.0, 0.2);
+            auto riskierBasket = riskier.basket(0.0, 0.2);
+            auto shared = (safer.*model.factory)();
+            saferBasket->setLossModel(shared);
+            riskierBasket->setLossModel(shared);
+            auto saferTranche = safer.cdo(saferBasket);
+            auto riskierTranche = riskier.cdo(riskierBasket);
+
+            const Real saferPremium = premiumOnNewModel(model.factory, 0.3, 0.01, 0.0, 0.2);
+            BOOST_CHECK_SMALL(saferTranche->fairPremium() - saferPremium, tolerance);
+            BOOST_CHECK_SMALL(riskierTranche->fairPremium() - premiumOnNewModel(model.factory, 0.3, 0.03, 0.0, 0.2),
+                              tolerance);
+
+            saferTranche->setPricingEngine(ext::make_shared<MidPointCDOEngine>(safer.discountCurve));
+            BOOST_CHECK_SMALL(saferTranche->fairPremium() - saferPremium, tolerance);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testEveryLossModelOnTwoSetsOfNotionals)
+{
+    BOOST_TEST_MESSAGE("Testing baskets with different notionals sharing a loss model, for every model...");
+
+    std::vector<Real> notionals;
+    for (Size i = 0; i < SharedModelVars::poolSize; ++i)
+        notionals.push_back(50.0 + 15.0 * i);
+
+    for (const auto& model : everyLossModel())
+    {
+        BOOST_TEST_CONTEXT(model.name)
+        {
+            SharedModelVars vars(0.3);
+            Settings::instance().evaluationDate() = vars.today;
+            auto equal = vars.basket(0.0, 0.2);
+            auto different = vars.basket(0.0, 0.2, notionals);
+            auto shared = (vars.*model.factory)();
+            equal->setLossModel(shared);
+            different->setLossModel(shared);
+            vars.cdo(equal)->fairPremium();
+            const Real premium = vars.cdo(different)->fairPremium();
+
+            SharedModelVars freshVars(0.3);
+            auto freshBasket = freshVars.basket(0.0, 0.2, notionals);
+            freshBasket->setLossModel((freshVars.*model.factory)());
+            BOOST_CHECK_SMALL(premium - freshVars.cdo(freshBasket)->fairPremium(), 1.0e-12);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBasketRefusedByASharedModel)
+{
+    BOOST_TEST_MESSAGE("Testing that a model refusing a basket leaves the other baskets to take it back...");
+
+    SharedModelVars vars(0.3);
+    Settings::instance().evaluationDate() = vars.today;
+    auto basket = vars.basket(0.0, 0.2);
+    auto shared = vars.binomialModel();
+    basket->setLossModel(shared);
+    auto tranche = vars.cdo(basket);
+    const Real premium = tranche->fairPremium();
+
+    auto smallerPool = ext::make_shared<Pool>();
+    const std::vector<std::string> smallerNames(vars.names.begin(), vars.names.begin() + 10);
+    for (const auto& name : smallerNames)
+        smallerPool->add(name, vars.pool->get(name), vars.pool->defaultKey(name));
+    auto smaller =
+        ext::make_shared<Basket>(vars.today, smallerNames, std::vector<Real>(10, 100.0), smallerPool, 0.0, 0.2);
+    smaller->setLossModel(shared);
+    BOOST_CHECK_EXCEPTION(smaller->expectedTrancheLoss(vars.schedule.dates().back()), Error,
+                          ExpectedErrorMessage("Incompatible new basket and model sizes"));
+
+    tranche->setPricingEngine(ext::make_shared<MidPointCDOEngine>(vars.discountCurve));
+    BOOST_CHECK_SMALL(tranche->fairPremium() - premium, 1.0e-12);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

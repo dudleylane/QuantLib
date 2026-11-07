@@ -117,6 +117,7 @@ namespace QuantLib
             Date today = Settings::instance().evaluationDate();
             Date maxHorizonDate = today + Period(this->maxHorizon_, Days);
 
+            horizonDefaultPs_.clear();
             const ext::shared_ptr<Pool>& pool = this->basket_->pool();
             for (Size iName = 0; iName < this->basket_->size(); ++iName) // use'live'
                 horizonDefaultPs_.push_back(pool->get(pool->names()[iName])

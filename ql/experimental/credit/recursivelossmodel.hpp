@@ -204,6 +204,7 @@ namespace QuantLib
         ///////////////std::remove(lgds.begin(), lgds.end(), 0.);
         lgds.erase(std::remove(lgds.begin(), lgds.end(), 0.), lgds.end());
         lossUnit_ = *(std::min_element(lgds.begin(), lgds.end())) / nBuckets_;
+        wk_.clear();
         for (Size i = 0; i < remainingBsktSize_; ++i)
             wk_.push_back(std::floor(lgdsTmp[i] / lossUnit_ + .5));
     }
