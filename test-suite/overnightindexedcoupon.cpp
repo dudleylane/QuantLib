@@ -1124,6 +1124,64 @@ BOOST_AUTO_TEST_CASE(testOvernightIndexedCouponPaymentBeforeAccrualEnd)
     BOOST_CHECK_THROW(OvernightIndexedCoupon(paymentDate, 1.0, accrualStart, accrualEnd, estr), Error);
 }
 
+BOOST_AUTO_TEST_CASE(testArithmeticAveragedConvexityForSmallMeanReversion)
+{
+    BOOST_TEST_MESSAGE("Testing the arithmetic averaging pricer's convexity adjustment at small mean reversions...");
+
+    // A flat 3% curve and a volatility of 1%, for a 3-month SOFR coupon starting a year out.
+    const Date today(9, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const Handle<YieldTermStructure> curve(flatRate(today, 0.03, Actual365Fixed()));
+    const auto index = ext::make_shared<Sofr>(curve);
+    const Date start(9, November, 2027), end(9, February, 2028);
+
+    const auto rate = [&](Real meanReversion, Volatility volatility, bool byApprox)
+    {
+        OvernightIndexedCoupon coupon(end, 1.0, start, end, index, 1.0, 0.0, Date(), Date(), DayCounter(), false,
+                                      RateAveraging::Simple);
+        coupon.setPricer(
+            ext::make_shared<ArithmeticAveragedOvernightIndexedCouponPricer>(meanReversion, volatility, byApprox));
+        return coupon.rate();
+    };
+
+    struct Case
+    {
+        // what the adjustment adds to the rate, with the approximation and without it
+        Real meanReversion, approximated, exact;
+    };
+
+    // The closed forms as they stood, in 400-digit arithmetic, with a zero standing for its limit. Without the
+    // approximation, they're evaluated at the pricer's own forecasts.
+    const Case cases[] = {
+        {0.0, -1.3474454843875727e-05, -1.3135918970300649e-05},
+        {1e-12, -1.3474454843859966e-05, -1.3135918970285237e-05},
+        {1e-10, -1.3474454842299668e-05, -1.3135918968759429e-05},
+        {1e-09, -1.3474454828115136e-05, -1.3135918954888446e-05},
+        {1e-08, -1.3474454686269811e-05, -1.313591881617861e-05},
+        {1e-07, -1.3474453267816676e-05, -1.3135917429080368e-05},
+        {1e-06, -1.3474439083295923e-05, -1.3135903558108304e-05},
+        {1e-05, -1.3474297239149018e-05, -1.3135764849424972e-05},
+        {0.0001, -1.3472878903735099e-05, -1.3134377866315593e-05},
+        {0.001, -1.3458706149109488e-05, -1.3120518401747693e-05},
+        {0.01, -1.3318032580964994e-05, -1.2982954567398401e-05},
+        {0.03, -1.3012170755952631e-05, -1.2683854993383518e-05},
+        {0.5, -7.8873106630049586e-06, -7.672619778088567e-06},
+        {-0.01, -1.3633257904520307e-05, -1.3291211838484178e-05},
+    };
+
+    const Rate approximated = rate(0.03, 0.0, true), exact = rate(0.03, 0.0, false);
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT("mean reversion = " << c.meanReversion)
+        {
+            BOOST_CHECK_SMALL((rate(c.meanReversion, 0.01, true) - approximated) / c.approximated - 1.0, 1.0e-11);
+            // Without the approximation, each of the 62 fixings' terms ends by subtracting one, which can leave up
+            // to 2e-9 of the adjustment in rounding.
+            BOOST_CHECK_SMALL((rate(c.meanReversion, 0.01, false) - exact) / c.exact - 1.0, 1.0e-8);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

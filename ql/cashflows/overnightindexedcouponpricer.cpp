@@ -23,6 +23,7 @@
 */
 
 #include <ql/cashflows/overnightindexedcouponpricer.hpp>
+#include <ql/math/expm1.hpp>
 #include <utility>
 
 namespace QuantLib
@@ -386,8 +387,11 @@ namespace QuantLib
                 Time ti2 = curve->timeFromReference(dates[i + 1]);
                 /*convexity adjustment due to payment dalay of each
                 overnight fixing, supposing an Hull-White short rate model*/
-                Real convAdj = exp(0.5 * pow(vol_, 2.0) / pow(mrs_, 3.0) * (exp(2 * mrs_ * ti1) - 1) *
-                                   (exp(-mrs_ * ti2) - exp(-mrs_ * te)) * (exp(-mrs_ * ti2) - exp(-mrs_ * ti1)));
+                // exp(vol^2 / (2 a^3) (exp(2 a ti1) - 1) (exp(-a ti2) - exp(-a te)) (exp(-a ti2) - exp(-a ti1))),
+                // whose differences cancel at small a, written without them
+                Real convAdj = std::exp(-vol_ * vol_ * detail::decayIntegral(2.0 * mrs_, ti1) *
+                                        detail::decayIntegral(mrs_, te - ti2) * detail::decayIntegral(mrs_, ti2 - ti1) *
+                                        std::exp(-mrs_ * (ti2 - ti1)));
                 accumulatedRate += convAdj * (1 + forecastFixing * dt[i]) - 1;
                 ++i;
             }
@@ -399,14 +403,19 @@ namespace QuantLib
 
     Real ArithmeticAveragedOvernightIndexedCouponPricer::convAdj1(Time ts, Time te) const
     {
-        return vol_ * vol_ / (4.0 * pow(mrs_, 3.0)) * (1.0 - exp(-2.0 * mrs_ * ts)) *
-               pow((1.0 - exp(-mrs_ * (te - ts))), 2.0);
+        // vol^2 / (4 a^3) (1 - exp(-2 a ts)) (1 - exp(-a (te - ts)))^2, whose differences cancel at small a
+        const Real B = detail::decayIntegral(mrs_, te - ts);
+        return 0.5 * vol_ * vol_ * detail::decayIntegral(2.0 * mrs_, ts) * B * B;
     }
 
     Real ArithmeticAveragedOvernightIndexedCouponPricer::convAdj2(Time ts, Time te) const
     {
-        return vol_ * vol_ / (2.0 * pow(mrs_, 2.0)) *
-               ((te - ts) - pow(1.0 - exp(-mrs_ * (te - ts)), 2.0) / mrs_ -
-                (1.0 - exp(-2.0 * mrs_ * (te - ts))) / (2.0 * mrs_));
+        // vol^2 / (2 a^2) (d - (1 - exp(-a d))^2 / a - (1 - exp(-2 a d)) / (2 a)) with d = te - ts, which
+        // subtracts terms of order one and divides what's left by a^3, is vol^2 d^3 h(a d) / 4 with h as in
+        // the Vasicek model
+        const Time d = te - ts;
+        Real phi, h;
+        detail::decayPhiAndH(mrs_ * d, phi, h);
+        return 0.25 * vol_ * vol_ * d * d * d * h;
     }
 }
