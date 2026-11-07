@@ -26,6 +26,7 @@
 #include <ql/indexes/ibor/euribor.hpp>
 #include <ql/indexes/ibor/sofr.hpp>
 #include <ql/indexes/ibor/usdlibor.hpp>
+#include <ql/quotes/lastfixingquote.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/time/calendars/bespokecalendar.hpp>
@@ -121,6 +122,45 @@ BOOST_AUTO_TEST_CASE(testFixingHasHistoricalFixing)
     name = euribor6M->name();
     testCase(name, fixingNotFound, euribor6M->hasHistoricalFixing(today));
     testCase(name, fixingNotFound, euribor6M_a->hasHistoricalFixing(today));
+}
+
+BOOST_AUTO_TEST_CASE(testFixingLookupsStoreNothing)
+{
+    BOOST_TEST_MESSAGE("Testing that looking up fixings stores nothing...");
+
+    // The repository of fixings is read while pricing, so a lookup that writes
+    // races with every thread sharing it (#86).  It also changes what later
+    // readers see: the quote below relies on the last date being a real fixing.
+    const Date today(15, June, 2026);
+    Settings::instance().evaluationDate() = today;
+    const Date lastFixing(12, June, 2026);
+    const Date saturday(13, June, 2026);
+
+    const auto& manager = IndexManager::instance();
+    const std::vector<std::string> before = manager.histories();
+    auto index = ext::make_shared<Euribor3M>();
+
+    // A name with no history stays without one.
+    BOOST_CHECK(index->timeSeries().empty());
+    BOOST_CHECK(!index->hasHistoricalFixing(today));
+    BOOST_CHECK(index->pastFixing(today) == Null<Real>());
+    BOOST_CHECK(manager.histories() == before);
+
+    // A history doesn't gain the dates looked up in it.
+    index->addFixing(lastFixing, 0.01);
+    BOOST_CHECK(!index->hasHistoricalFixing(today));
+    BOOST_CHECK(index->pastFixing(today) == Null<Real>());
+    BOOST_CHECK_EQUAL(index->timeSeries().size(), 1U);
+    BOOST_CHECK_EQUAL(index->timeSeries().lastDate(), lastFixing);
+
+    LastFixingQuote quote(index);
+    BOOST_CHECK_EQUAL(quote.referenceDate(), lastFixing);
+    BOOST_CHECK_EQUAL(quote.value(), 0.01);
+
+    // A rejected fixing leaves no entry either.
+    BOOST_CHECK_THROW(index->addFixing(saturday, 0.02), Error);
+    BOOST_CHECK_EQUAL(index->timeSeries().size(), 1U);
+    BOOST_CHECK_EQUAL(index->timeSeries().lastDate(), lastFixing);
 }
 
 BOOST_AUTO_TEST_CASE(testTenorNormalization)

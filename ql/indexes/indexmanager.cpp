@@ -29,7 +29,11 @@ namespace QuantLib
 
     const TimeSeries<Real>& IndexManager::getHistory(const std::string& name) const
     {
-        return data_[name];
+        auto history = data_.find(name);
+        if (history != data_.end())
+            return history->second;
+        static const TimeSeries<Real> noHistory;
+        return noHistory;
     }
 
     void IndexManager::setHistory(const std::string& name, TimeSeries<Real> history)
