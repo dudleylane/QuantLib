@@ -2272,6 +2272,83 @@ BOOST_AUTO_TEST_CASE(testFdmAmericanBasketOptions)
                    << expected << "\n    diff:        " << diff << "\n    tolerance:   " << tol);
 }
 
+BOOST_AUTO_TEST_CASE(testChoiBasketEngineWithoutVolatility)
+{
+    BOOST_TEST_MESSAGE("Testing the Choi basket engine with no volatility...");
+
+    const Date today(20, October, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Date maturity = today + 365;
+    const ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(maturity);
+
+    const Rate rate = 0.03;
+    const DiscountFactor discount = flatRate(today, rate, dc)->discount(maturity);
+
+    const Matrix rho = {{1.0, 0.5}, {0.5, 1.0}};
+
+    const struct
+    {
+        Real spot1, spot2, weight1, weight2;
+        Rate yield;
+    } baskets[] = {{100.0, 100.0, 0.5, 0.5, 0.01}, {100.0, 100.0, 0.5, 0.5, rate}, {130.0, 90.0, 1.0, -1.0, 0.01}};
+
+    for (const auto& b : baskets)
+    {
+        const Real forward1 = b.spot1 * flatRate(today, b.yield, dc)->discount(maturity) / discount;
+        const Real forward2 = b.spot2 * flatRate(today, b.yield, dc)->discount(maturity) / discount;
+        const Real forward = b.weight1 * forward1 + b.weight2 * forward2;
+
+        // in the money, at it and out of it
+        for (Real strike : {forward - 5.0, forward, forward + 5.0})
+        {
+            for (Option::Type type : {Option::Call, Option::Put})
+            {
+                const Real cp = type == Option::Call ? 1.0 : -1.0;
+                const Real value = discount * std::max(cp * (forward - strike), 0.0);
+                const Real inTheMoney = strike == forward ? 0.5 : cp * (forward - strike) > 0.0 ? 1.0 : 0.0;
+
+                for (Volatility vol : {0.0, 1.0e-40, 1.0e-28, 1.0e-26})
+                {
+                    const auto makeProcess = [&](Real spot)
+                    {
+                        return ext::make_shared<BlackScholesMertonProcess>(
+                            Handle<Quote>(ext::make_shared<SimpleQuote>(spot)),
+                            Handle<YieldTermStructure>(flatRate(today, b.yield, dc)),
+                            Handle<YieldTermStructure>(flatRate(today, rate, dc)),
+                            Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+                    };
+                    const std::vector<ext::shared_ptr<GeneralizedBlackScholesProcess>> processes = {
+                        makeProcess(b.spot1), makeProcess(b.spot2)};
+
+                    for (bool controlVariate : {false, true})
+                    {
+                        BOOST_TEST_CONTEXT("weights " << b.weight1 << " and " << b.weight2 << ", yield " << b.yield
+                                                      << ", " << type << ", strike " << strike << ", volatility " << vol
+                                                      << ", control variate " << controlVariate)
+                        {
+                            BasketOption option(
+                                ext::make_shared<AverageBasketPayoff>(
+                                    ext::make_shared<PlainVanillaPayoff>(type, strike), Array({b.weight1, b.weight2})),
+                                exercise);
+                            option.setPricingEngine(ext::make_shared<ChoiBasketEngine>(
+                                processes, rho, 10.0, std::numeric_limits<Size>::max(), true, controlVariate));
+
+                            BOOST_CHECK_SMALL(option.NPV() - value, 1.0e-11);
+                            BOOST_CHECK_SMALL(option.result<Real>("forwardDelta 0") -
+                                                  cp * inTheMoney * discount * b.weight1,
+                                              1.0e-11);
+                            BOOST_CHECK_SMALL(option.result<Real>("forwardDelta 1") -
+                                                  cp * inTheMoney * discount * b.weight2,
+                                              1.0e-11);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testAccurateAmericanBasketOptions)
 {
     BOOST_TEST_MESSAGE("Testing high precision American Options Pricing using multi-dim FDM...");

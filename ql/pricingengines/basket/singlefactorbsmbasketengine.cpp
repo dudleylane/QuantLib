@@ -158,7 +158,12 @@ namespace QuantLib
         // first check if all vols are zero -> intrinsic case
         if (std::all_of(stdDev.begin(), stdDev.end(), [](Real x) -> bool { return close_enough(x, 0.0); }))
         {
-            results_.value = dr0 * payoff->operator()(std::accumulate(fwdBasket.begin(), fwdBasket.end(), Real(0.0)));
+            const Real forward = std::accumulate(fwdBasket.begin(), fwdBasket.end(), Real(0.0));
+            results_.value = dr0 * payoff->operator()(forward);
+
+            // what d below tends to as the volatilities go to zero
+            results_.additionalResults["d"] =
+                forward == strike ? Real(0.0) : std::copysign(std::numeric_limits<Real>::infinity(), forward - strike);
         }
         else
         {
