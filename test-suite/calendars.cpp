@@ -4216,6 +4216,86 @@ BOOST_AUTO_TEST_CASE(testSaudiArabiaAgainstTheExchangesNotices)
     BOOST_CHECK(c.isBusinessDay(Date(22, July, 2015)));
 }
 
+BOOST_AUTO_TEST_CASE(testSaudiArabiaNationalDayOffWeekends)
+{
+    BOOST_TEST_MESSAGE("Testing that Saudi Arabia's National Day moves off a weekend...");
+
+    const Calendar c = SaudiArabia();
+
+    // on a Friday it goes to the Thursday before
+    for (Year y : {2016, 2022, 2033})
+    {
+        BOOST_CHECK(c.isHoliday(Date(22, September, y)));
+        BOOST_CHECK(c.isBusinessDay(Date(25, September, y)));
+    }
+    // on a Saturday it goes to the Sunday after
+    for (Year y : {2017, 2023, 2028})
+    {
+        BOOST_CHECK(c.isBusinessDay(Date(21, September, y)));
+        BOOST_CHECK(c.isHoliday(Date(24, September, y)));
+        BOOST_CHECK(c.isBusinessDay(Date(25, September, y)));
+    }
+    // on any other day it stays where it is
+    BOOST_CHECK(c.isBusinessDay(Date(22, September, 2024)));
+    BOOST_CHECK(c.isHoliday(Date(23, September, 2024)));
+    BOOST_CHECK(c.isBusinessDay(Date(24, September, 2024)));
+
+    // in the old week a Saturday was a working day, so the Saturday of 2006 moved nothing...
+    BOOST_CHECK(c.isHoliday(Date(23, September, 2006)));
+    BOOST_CHECK(c.isBusinessDay(Date(24, September, 2006)));
+    // ...and the Thursday of 2010 was part of the weekend, so it was kept on the day before
+    BOOST_CHECK(c.isBusinessDay(Date(21, September, 2010)));
+    BOOST_CHECK(c.isHoliday(Date(22, September, 2010)));
+    BOOST_CHECK(c.isBusinessDay(Date(25, September, 2010)));
+
+    // extended by royal order
+    BOOST_CHECK(c.isHoliday(Date(23, September, 2018)));
+    BOOST_CHECK(c.isHoliday(Date(24, September, 2018)));
+    BOOST_CHECK(c.isBusinessDay(Date(25, September, 2018)));
+
+    // declared by royal order after the World Cup match against Argentina
+    BOOST_CHECK(c.isBusinessDay(Date(22, November, 2022)));
+    BOOST_CHECK(c.isHoliday(Date(23, November, 2022)));
+    BOOST_CHECK(c.isBusinessDay(Date(24, November, 2022)));
+}
+
+BOOST_AUTO_TEST_CASE(testSaudiArabiaAgainstReportedTradingDays)
+{
+    BOOST_TEST_MESSAGE("Testing Saudi Arabia's calendar against the exchange's reported trading days...");
+
+    const Calendar c = SaudiArabia();
+
+    struct Period
+    {
+        Date from, to;
+        Date::serial_type tradingDays;
+    };
+    // the exchange's annual and interim statistical reports; none found for the whole of 2018 or 2023
+    const Period periods[] = {
+        {Date(1, January, 2016), Date(31, December, 2016), 249},
+        {Date(1, January, 2017), Date(31, December, 2017), 250},
+        {Date(1, January, 2019), Date(31, December, 2019), 250},
+        {Date(1, January, 2020), Date(31, December, 2020), 251},
+        {Date(1, January, 2021), Date(31, December, 2021), 250},
+        {Date(1, January, 2022), Date(31, December, 2022), 248},
+        {Date(1, January, 2024), Date(31, December, 2024), 250},
+        {Date(1, January, 2025), Date(31, December, 2025), 251},
+        {Date(1, January, 2023), Date(30, September, 2023), 183},
+        {Date(1, January, 2024), Date(30, September, 2024), 184},
+        {Date(1, January, 2020), Date(31, March, 2020), 65},
+        {Date(1, January, 2021), Date(31, March, 2021), 64},
+        {Date(1, January, 2020), Date(30, June, 2020), 125},
+        {Date(1, January, 2021), Date(30, June, 2021), 125},
+    };
+    for (const Period& p : periods)
+    {
+        BOOST_CHECK_MESSAGE(c.businessDaysBetween(p.from, p.to, true, true) == p.tradingDays,
+                            "from " << p.from << " to " << p.to << ": calculated "
+                                    << c.businessDaysBetween(p.from, p.to, true, true) << ", reported "
+                                    << p.tradingDays);
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

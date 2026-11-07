@@ -150,10 +150,19 @@ namespace QuantLib
             isEidAlFitr(date)
             // National Day
             || (d == 23 && m == September)
+            // moved to the Thursday before a Friday or the Sunday after a Saturday, since 2016
+            || (((d == 22 && w == Thursday) || (d == 24 && w == Sunday)) && m == September && y >= 2016)
             // Founding Day (since 2022, moved to the Thursday before a Friday or the Sunday after a Saturday)
             || ((d == 22 || (d == 21 && w == Thursday) || (d == 23 && w == Sunday)) && m == February && y >= 2022)
             // other one-shot holidays
-            || (d == 26 && m == February && y == 2011) || (d == 19 && m == March && y == 2011))
+            || (d == 26 && m == February && y == 2011) ||
+            (d == 19 && m == March && y == 2011)
+            // National Day, moved off the Thursday of the old weekend
+            || (d == 22 && m == September && y == 2010)
+            // National Day, extended by royal order
+            || (d == 24 && m == September && y == 2018)
+            // declared by royal order after the World Cup match against Argentina
+            || (d == 23 && m == November && y == 2022))
             return false; // NOLINT(readability-simplify-boolean-expr)
         return true;
     }

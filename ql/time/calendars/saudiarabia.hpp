@@ -38,7 +38,8 @@ namespace QuantLib
         <li>Fridays and Saturdays, from June 29th, 2013</li>
         <li>Founding Day, February 22nd, since 2022 (moved to the Thursday
         before a Friday, or to the Sunday after a Saturday)</li>
-        <li>National Day of Saudi Arabia, September 23rd</li>
+        <li>National Day of Saudi Arabia, September 23rd (moved likewise
+        since 2016)</li>
         </ul>
 
         Other holidays for which no rule is given (data available for
