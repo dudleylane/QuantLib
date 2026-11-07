@@ -72,6 +72,15 @@ namespace QuantLib
         algorithms) but less efficient beacuse it does not reuse
         precedently computed points during computation steps.
 
+        The tolerance is halved along with the interval, so the
+        integration can fail on an integrand whose error doesn't fall
+        as fast, such as a singular one or one so large that the
+        tolerance is beyond the rule's precision.  It then throws,
+        once it has no interval left to split.  Without a limit on the
+        function evaluations, an integrand may otherwise take up to
+        about two billion of them, so give one if it could be costly
+        or very rough.
+
         References:
 
         Gauss-Kronrod Integration

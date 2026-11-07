@@ -281,6 +281,7 @@ namespace QuantLib
     Real
     GaussKronrodAdaptive::integrateRecursively(const std::function<Real(Real)>& f, Real a, Real b, Real tolerance) const
     {
+        QL_REQUIRE(numberOfEvaluations() + 15 <= maxEvaluations(), "maximum number of function evaluations exceeded");
 
         Real halflength = (b - a) / 2;
         Real center = (a + b) / 2;
@@ -327,8 +328,10 @@ namespace QuantLib
         }
         else
         {
-            QL_REQUIRE(numberOfEvaluations() + 30 <= maxEvaluations(), "maximum number of function evaluations "
-                                                                       "exceeded");
+            // The tolerance halves with the interval, so a singularity or the rule's own precision can
+            // keep the error above it however narrow the interval gets.  This also bounds the recursion.
+            QL_REQUIRE(a < center && center < b, "cannot reach the required accuracy: the interval at x = "
+                                                     << center << " can't be split further");
             return integrateRecursively(f, a, center, tolerance / 2) +
                    integrateRecursively(f, center, b, tolerance / 2);
         }
