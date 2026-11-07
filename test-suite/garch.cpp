@@ -20,11 +20,14 @@
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
 #include <ql/math/distributions/normaldistribution.hpp>
+#include <ql/math/optimization/constraint.hpp>
 #include <ql/math/optimization/levenbergmarquardt.hpp>
+#include <ql/math/optimization/simplex.hpp>
 #include <ql/math/randomnumbers/inversecumulativerng.hpp>
 #include <ql/math/randomnumbers/mt19937uniformrng.hpp>
 #include <ql/models/volatility/garch.hpp>
 #include <ql/time/calendars/target.hpp>
+#include <algorithm>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -183,6 +186,168 @@ BOOST_AUTO_TEST_CASE(testCalculation)
 
     TimeSeries<Volatility> tsout = garch.calculate(ts);
     std::for_each(tsout.cbegin(), tsout.cend(), check_ts);
+}
+
+namespace
+{
+    TimeSeries<Volatility> garchSample(Size size, unsigned long seed)
+    {
+        Date d(7, July, 1962);
+        TimeSeries<Volatility> ts;
+        Garch11 garch(0.2, 0.3, 0.4);
+        GaussianGenerator rng{MersenneTwisterUniformRng(seed)};
+
+        Volatility r = 0.0, v = 0.0;
+        for (Size i = 0; i < size; ++i, d += 1)
+        {
+            v = garch.forecast(r, v);
+            r = rng.next().value * std::sqrt(v);
+            ts[d] = r;
+        }
+        return ts;
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testCalibrationFromGuessStoppedAtItsLimit)
+{
+    BOOST_TEST_MESSAGE("Testing that a GARCH calibration from a guess refuses to stop at its iteration limit...");
+
+    TimeSeries<Volatility> ts = garchSample(5000, 48);
+
+    const Array guess = {0.3, 0.25, 0.25};
+    Simplex simplex(0.001);
+    const EndCriteria tooFew(3, 2, 1e-8, 1e-8, 1e-8);
+    const EndCriteria enough(100000, 500, 1e-7, 1e-7, 1e-7);
+    const ExpectedErrorMessage stopped("stopped at its iteration limit");
+
+    Garch11 garch(0.2, 0.3, 0.4);
+    BOOST_CHECK_EXCEPTION(garch.calibrate(ts, simplex, tooFew, guess), Error, stopped);
+
+    // A refused calibration leaves the model as it was.
+    BOOST_CHECK_SMALL(garch.alpha() - 0.2, 1e-14);
+    BOOST_CHECK_SMALL(garch.beta() - 0.3, 1e-14);
+    BOOST_CHECK_SMALL(garch.omega() - 0.2, 1e-14);
+
+    // The same refusal from the functions that calibrate() goes through.
+    std::vector<Volatility> r2;
+    const std::vector<Volatility> values = ts.values();
+    const Real mean = Garch11::to_r2(values.cbegin(), values.cend(), r2);
+    Real alpha = 0.0, beta = 0.0, omega = 0.0;
+    BOOST_CHECK_EXCEPTION(Garch11::calibrate_r2(r2, simplex, tooFew, guess, alpha, beta, omega), Error, stopped);
+    BOOST_CHECK_EXCEPTION(Garch11::calibrate_r2(r2, mean, simplex, tooFew, guess, alpha, beta, omega), Error, stopped);
+
+    PositiveConstraint positive;
+    BOOST_CHECK_EXCEPTION(Garch11::calibrate_r2(r2, simplex, positive, tooFew, guess, alpha, beta, omega), Error,
+                          stopped);
+    BOOST_CHECK_EXCEPTION(Garch11::calibrate_r2(r2, mean, simplex, positive, tooFew, guess, alpha, beta, omega), Error,
+                          stopped);
+    BOOST_TEST(alpha == 0.0);
+    BOOST_TEST(beta == 0.0);
+    BOOST_TEST(omega == 0.0);
+
+    // With enough iterations it comes to where the default calibration does.
+    garch.calibrate(ts, simplex, enough, guess);
+    Garch11 byDefault(ts);
+    BOOST_CHECK_SMALL(garch.alpha() - byDefault.alpha(), 1e-3);
+    BOOST_CHECK_SMALL(garch.beta() - byDefault.beta(), 1e-3);
+    BOOST_CHECK_SMALL(garch.omega() - byDefault.omega(), 1e-3);
+}
+
+BOOST_AUTO_TEST_CASE(testCalibrationFromModeStoppedAtItsLimit)
+{
+    BOOST_TEST_MESSAGE("Testing that a GARCH calibration from a mode keeps its point at the iteration limit...");
+
+    const std::vector<Garch11::Mode> modes = {Garch11::MomentMatchingGuess, Garch11::GammaGuess, Garch11::BestOfTwo,
+                                              Garch11::DoubleOptimization};
+
+    // A limit of 20 is too few on all of these, and the point it reaches still beats the guess.
+    // The default limit needn't be enough either: on series this short the simplex can use up any
+    // limit at its optimum, as it stops shrinking at about the square root of machine precision
+    // with all its vertices equal, and that optimum mustn't be swapped for the guess.
+    const std::vector<std::pair<Size, unsigned long>> samples = {{5000, 48}, {20, 50}, {50, 1}, {100, 3}};
+
+    for (const auto& sample : samples)
+    {
+        TimeSeries<Volatility> ts = garchSample(sample.first, sample.second);
+        std::vector<Real> atLimitByMode;
+
+        for (Garch11::Mode mode : modes)
+        {
+            BOOST_TEST_CONTEXT("series of " << sample.first << ", seed " << sample.second << ", mode " << Integer(mode))
+            {
+                Garch11 atGuess(ts, mode);
+                DummyOptimizationMethod noOptimization;
+                atGuess.calibrate(ts, noOptimization, EndCriteria(3, 2, 0.0, 0.0, 0.0));
+
+                Simplex simplex(0.001);
+                Garch11 atLimit(ts, mode);
+                atLimit.calibrate(ts, simplex, EndCriteria(20, 10, 1e-8, 1e-8, 1e-8));
+                BOOST_CHECK(atLimit.logLikelihood() > atGuess.logLikelihood());
+                atLimitByMode.push_back(atLimit.logLikelihood());
+
+                Garch11 byDefault(ts, mode);
+                BOOST_CHECK(byDefault.logLikelihood() > atGuess.logLikelihood());
+                BOOST_CHECK(byDefault.logLikelihood() >= atLimit.logLikelihood());
+            }
+        }
+
+        // Double optimization takes the better of the first two, each from where it stopped.
+        BOOST_TEST_CONTEXT("series of " << sample.first << ", seed " << sample.second)
+        {
+            BOOST_CHECK_SMALL(atLimitByMode[3] - std::max(atLimitByMode[0], atLimitByMode[1]), 1e-12);
+        }
+    }
+}
+
+namespace
+{
+    class StopsWith : public OptimizationMethod
+    {
+      public:
+        explicit StopsWith(EndCriteria::Type type) : type_(type) {}
+        EndCriteria::Type minimize(Problem& P, const EndCriteria&) override
+        {
+            P.setFunctionValue(P.value(P.currentValue()));
+            return type_;
+        }
+
+      private:
+        EndCriteria::Type type_;
+    };
+}
+
+BOOST_AUTO_TEST_CASE(testCalibrationFromGuessByEndCriteria)
+{
+    BOOST_TEST_MESSAGE("Testing what a GARCH calibration from a guess accepts from its optimizer...");
+
+    TimeSeries<Volatility> ts = garchSample(100, 3);
+
+    const Array guess = {0.3, 0.25, 0.25};
+    const EndCriteria criteria(3, 2, 0.0, 0.0, 0.0);
+
+    for (EndCriteria::Type type : {EndCriteria::None, EndCriteria::Unknown})
+    {
+        Garch11 garch(0.2, 0.3, 0.4);
+        StopsWith method(type);
+        BOOST_CHECK_EXCEPTION(garch.calibrate(ts, method, criteria, guess), Error,
+                              ExpectedErrorMessage("failed to run"));
+    }
+
+    // Stopping for any of these reasons means it got as far as it could.
+    for (EndCriteria::Type type :
+         {EndCriteria::StationaryPoint, EndCriteria::StationaryFunctionValue, EndCriteria::StationaryFunctionAccuracy,
+          EndCriteria::ZeroGradientNorm, EndCriteria::FunctionEpsilonTooSmall})
+    {
+        BOOST_TEST_CONTEXT("end criterion " << type)
+        {
+            Garch11 garch(0.2, 0.3, 0.4);
+            StopsWith method(type);
+            BOOST_CHECK_NO_THROW(garch.calibrate(ts, method, criteria, guess));
+            BOOST_CHECK_SMALL(garch.alpha() - 0.25, 1e-14);
+            BOOST_CHECK_SMALL(garch.beta() - 0.25, 1e-14);
+            BOOST_CHECK_SMALL(garch.omega() - 0.3, 1e-14);
+        }
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

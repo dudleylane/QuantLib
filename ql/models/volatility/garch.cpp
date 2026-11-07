@@ -410,6 +410,32 @@ namespace QuantLib
             return gammaLower;
         }
 
+        // A run that never happened is refused whoever asks.  Whether one that stopped
+        // at its iteration limit will do is for the caller to say.
+        ext::shared_ptr<Problem> minimizeFromGuess(const std::vector<Volatility>& r2,
+                                                   OptimizationMethod& method,
+                                                   Constraint& constraints,
+                                                   const EndCriteria& endCriteria,
+                                                   const Array& initGuess,
+                                                   bool acceptIterationLimit,
+                                                   Real& alpha,
+                                                   Real& beta,
+                                                   Real& omega)
+        {
+            Garch11CostFunction cost(r2);
+            ext::shared_ptr<Problem> problem(new Problem(cost, constraints, initGuess));
+            EndCriteria::Type ret = method.minimize(*problem, endCriteria);
+            QL_REQUIRE(ret != EndCriteria::None && ret != EndCriteria::Unknown,
+                       "GARCH(1,1) calibration failed to run (EndCriteria=" << ret << ")");
+            QL_REQUIRE(acceptIterationLimit || ret != EndCriteria::MaxIterations,
+                       "GARCH(1,1) calibration stopped at its iteration limit");
+            const Array& optimum = problem->currentValue();
+            alpha = optimum[1];
+            beta = optimum[2];
+            omega = optimum[0];
+            return problem;
+        }
+
     }
 
     Garch11::time_series Garch11::calculate(const time_series& quoteSeries, Real alpha, Real beta, Real omega)
@@ -487,13 +513,16 @@ namespace QuantLib
 
         Garch11Constraint constraints(gammaLower, 1.0 - tol_level);
 
+        // These fall back to a guess if the optimizer fails, but not if it stops at its
+        // limit. The simplex can use up any limit at its optimum, where it stops shrinking
+        // at about the square root of machine precision with its vertices all equal.
         ext::shared_ptr<Problem> ret;
         if (mode != DoubleOptimization)
         {
             try
             {
-                ret = calibrate_r2(r2, method, constraints, endCriteria, fCost1 <= fCost2 ? opt1 : opt2, alpha, beta,
-                                   omega);
+                ret = minimizeFromGuess(r2, method, constraints, endCriteria, fCost1 <= fCost2 ? opt1 : opt2, true,
+                                        alpha, beta, omega);
             }
             catch (const std::exception&)
             {
@@ -516,7 +545,7 @@ namespace QuantLib
             ext::shared_ptr<Problem> ret1, ret2;
             try
             {
-                ret1 = calibrate_r2(r2, method, constraints, endCriteria, opt1, alpha, beta, omega);
+                ret1 = minimizeFromGuess(r2, method, constraints, endCriteria, opt1, true, alpha, beta, omega);
                 opt1[1] = alpha;
                 opt1[2] = beta;
                 opt1[0] = omega;
@@ -530,7 +559,7 @@ namespace QuantLib
 
             try
             {
-                ret2 = calibrate_r2(r2, method, constraints, endCriteria, opt2, alpha, beta, omega);
+                ret2 = minimizeFromGuess(r2, method, constraints, endCriteria, opt2, true, alpha, beta, omega);
                 opt2[1] = alpha;
                 opt2[2] = beta;
                 opt2[0] = omega;
@@ -595,17 +624,7 @@ namespace QuantLib
                                                    Real& beta,
                                                    Real& omega)
     {
-        Garch11CostFunction cost(r2);
-        ext::shared_ptr<Problem> problem(new Problem(cost, constraints, initGuess));
-        EndCriteria::Type ret = method.minimize(*problem, endCriteria);
-        QL_REQUIRE(ret != EndCriteria::None && ret != EndCriteria::Unknown, "GARCH(1,1) calibration failed to run "
-                                                                            "(EndCriteria="
-                                                                                << ret << ")");
-        const Array& optimum = problem->currentValue();
-        alpha = optimum[1];
-        beta = optimum[2];
-        omega = optimum[0];
-        return problem;
+        return minimizeFromGuess(r2, method, constraints, endCriteria, initGuess, false, alpha, beta, omega);
     }
 
     ext::shared_ptr<Problem> Garch11::calibrate_r2(const std::vector<Volatility>& r2,

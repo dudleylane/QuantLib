@@ -95,12 +95,14 @@ namespace QuantLib
         //@{
         static time_series calculate(const time_series& quoteSeries, Real alpha, Real beta, Real omega);
 
+        /*! If the optimizer stops at its iteration limit, this keeps the point it reached. */
         void calibrate(const time_series& quoteSeries, OptimizationMethod& method, const EndCriteria& endCriteria)
         {
             const auto values = quoteSeries.values();
             calibrate(values.cbegin(), values.cend(), method, endCriteria);
         }
 
+        /*! This throws if the optimizer stops at its iteration limit. */
         void calibrate(const time_series& quoteSeries,
                        OptimizationMethod& method,
                        const EndCriteria& endCriteria,
