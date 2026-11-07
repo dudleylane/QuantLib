@@ -50,6 +50,7 @@
 #include <ql/time/calendars/singapore.hpp>
 #include <ql/time/calendars/southafrica.hpp>
 #include <ql/time/calendars/southkorea.hpp>
+#include <ql/time/calendars/taiwan.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/calendars/unitedkingdom.hpp>
 #include <ql/time/calendars/unitedstates.hpp>
@@ -4092,6 +4093,54 @@ BOOST_AUTO_TEST_CASE(testItalyExchangeAgainstItsCalendars)
     };
     const Calendar c = Italy(Italy::Exchange);
     checkHolidays(c.holidayList(Date(1, January, 2024), Date(31, December, 2027)), expected);
+}
+
+BOOST_AUTO_TEST_CASE(testTaiwanExchangeIn2025And2026)
+{
+    BOOST_TEST_MESSAGE("Testing the Taiwan Stock Exchange's holidays of 2025 and 2026...");
+
+    // from TWSE's holiday schedule, with the two days before each Lunar New Year when it settles but doesn't trade
+    const std::vector<Date> expected = {
+        {1, January, 2025},   {23, January, 2025},  {24, January, 2025},  {27, January, 2025},   {28, January, 2025},
+        {29, January, 2025},  {30, January, 2025},  {31, January, 2025},  {28, February, 2025},  {3, April, 2025},
+        {4, April, 2025},     {1, May, 2025},       {30, May, 2025},      {29, September, 2025}, {6, October, 2025},
+        {10, October, 2025},  {24, October, 2025},  {25, December, 2025},
+
+        {1, January, 2026},   {12, February, 2026}, {13, February, 2026}, {16, February, 2026},  {17, February, 2026},
+        {18, February, 2026}, {19, February, 2026}, {20, February, 2026}, {27, February, 2026},  {3, April, 2026},
+        {6, April, 2026},     {1, May, 2026},       {19, June, 2026},     {25, September, 2026}, {28, September, 2026},
+        {9, October, 2026},   {26, October, 2026},  {25, December, 2026},
+    };
+    const Calendar c = Taiwan();
+    checkHolidays(c.holidayList(Date(1, January, 2025), Date(31, December, 2026)), expected);
+}
+
+BOOST_AUTO_TEST_CASE(testTaiwanMovesHolidaysOffWeekends)
+{
+    BOOST_TEST_MESSAGE("Testing that Taiwan moves its fixed holidays off weekends since 2015...");
+
+    const Calendar c = Taiwan();
+
+    // on a Saturday to Friday, and on a Sunday to Monday
+    const std::vector<Date> moved = {
+        {27, February, 2015}, {9, October, 2015},   {29, February, 2016},  {2, May, 2016},      {2, January, 2017},
+        {9, October, 2020},   {1, March, 2021},     {30, April, 2021},     {11, October, 2021}, {31, December, 2021},
+        {2, May, 2022},       {2, January, 2023},   {29, September, 2025}, {24, October, 2025}, {27, February, 2026},
+        {9, October, 2026},   {26, October, 2026},  {1, March, 2027},      {30, April, 2027},   {11, October, 2027},
+        {24, December, 2027}, {31, December, 2027},
+    };
+    for (const Date& date : moved)
+        BOOST_CHECK_MESSAGE(c.isHoliday(date), date << " should be a holiday");
+
+    const std::vector<Date> notMoved = {
+        {27, February, 2009}, // before 2015
+        {1, March, 2032},     // February has a 29th, and the 28th is a Saturday, so it's the Friday before
+        {24, December, 2021}, // Constitution Day is a holiday only from 2025
+        {25, December, 2024},
+    };
+    for (const Date& date : notMoved)
+        BOOST_CHECK_MESSAGE(c.isBusinessDay(date), date << " should be a business day");
+    BOOST_CHECK(c.isHoliday(Date(27, February, 2032)));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
