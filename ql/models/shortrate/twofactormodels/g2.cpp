@@ -20,6 +20,7 @@
 */
 
 #include <ql/math/distributions/normaldistribution.hpp>
+#include <ql/math/expm1.hpp>
 #include <ql/math/integrals/segmentintegral.hpp>
 #include <ql/math/solvers1d/brent.hpp>
 #include <ql/models/shortrate/twofactormodels/g2.hpp>
@@ -33,37 +34,6 @@ namespace QuantLib
     namespace
     {
 
-        // f(x) = (1 - exp(-x)) / x
-        Real decayRatio(Real x)
-        {
-            return x == 0.0 ? 1.0 : -std::expm1(-x) / x;
-        }
-
-        // (f(u) - f(u+v)) / v, which is also the integral of w exp(-u w) f(v w)
-        // between 0 and 1.  The difference cancels for small u and v.
-        Real decayRatioDifference(Real u, Real v)
-        {
-            const Real s = u + v;
-            if (s > 2.0)
-                return (decayRatio(u) - std::exp(-u) * decayRatio(v)) / s;
-
-            // sum_(k>=1) (-1)^(k+1) R_k / (k+1)!, where R_k = ((u+v)^k - u^k) / v,
-            // so that R_1 = 1 and R_(k+1) = (u+v) R_k + u^k
-            Real R = 1.0, uPower = u, factorial = 2.0, sign = 1.0, sum = 0.0;
-            for (Size k = 1; k < 60; ++k)
-            {
-                const Real term = sign * R / factorial;
-                sum += term;
-                if (std::fabs(term) < 0.01 * QL_EPSILON * std::fabs(sum))
-                    break;
-                R = s * R + uPower;
-                uPower *= u;
-                factorial *= k + 2;
-                sign = -sign;
-            }
-            return sum;
-        }
-
         // The integral of w^2 f(u w) f(v w) between 0 and 1.  Its closed form,
         // (1 - f(u) - f(v) + f(u+v)) / (u v), subtracts terms of order 1 to get
         // one of order u v, and then divides by it.
@@ -75,7 +45,7 @@ namespace QuantLib
             const Real s = u + v;
             // Here u > 1, and the closed form's two differences don't cancel each other.
             if (s > 2.0)
-                return (decayRatioDifference(0.0, v) - decayRatioDifference(u, v)) / u;
+                return (detail::decayRatioDifference(0.0, v) - detail::decayRatioDifference(u, v)) / u;
 
             // sum_(k>=2) (-1)^k P_k / (k+1)!, where P_k = ((u+v)^k - u^k - v^k) / (u v),
             // so that P_2 = 2 and P_(k+1) = (u+v) P_k + u^(k-1) + v^(k-1)
@@ -130,8 +100,9 @@ namespace QuantLib
         Real Bb = B(b(), s - t);
         Real sigma2 = sigma() * sigma();
         Real eta2 = eta() * eta();
-        Real value = sigma2 * Ba * Ba * decayRatio(2.0 * a() * t) + eta2 * Bb * Bb * decayRatio(2.0 * b() * t) +
-                     2.0 * rho() * sigma() * eta() * Ba * Bb * decayRatio((a() + b()) * t);
+        Real value = sigma2 * Ba * Ba * detail::decayRatio(2.0 * a() * t) +
+                     eta2 * Bb * Bb * detail::decayRatio(2.0 * b() * t) +
+                     2.0 * rho() * sigma() * eta() * Ba * Bb * detail::decayRatio((a() + b()) * t);
         return std::sqrt(t * value);
     }
 
@@ -169,7 +140,7 @@ namespace QuantLib
 
     Real G2::B(Real x, Time t) const
     {
-        return t * decayRatio(x * t);
+        return t * detail::decayRatio(x * t);
     }
 
     class G2::SwaptionPricingFunction
@@ -190,17 +161,17 @@ namespace QuantLib
         {
 
 
-            sigmax_ = sigma_ * std::sqrt(T_ * decayRatio(2.0 * a_ * T_));
-            sigmay_ = eta_ * std::sqrt(T_ * decayRatio(2.0 * b_ * T_));
-            rhoxy_ = rho_ * eta_ * sigma_ * T_ * decayRatio((a_ + b_) * T_) / (sigmax_ * sigmay_);
+            sigmax_ = sigma_ * std::sqrt(T_ * detail::decayRatio(2.0 * a_ * T_));
+            sigmay_ = eta_ * std::sqrt(T_ * detail::decayRatio(2.0 * b_ * T_));
+            rhoxy_ = rho_ * eta_ * sigma_ * T_ * detail::decayRatio((a_ + b_) * T_) / (sigmax_ * sigmay_);
 
             // Their usual expressions, in terms of exp(-a T), exp(-2 a T) and
             // exp(-(a + b) T), divide by a^2 and b^2 terms of those that nearly cancel.
-            Real Bx = T_ * decayRatio(a_ * T_);
-            Real By = T_ * decayRatio(b_ * T_);
+            Real Bx = T_ * detail::decayRatio(a_ * T_);
+            Real By = T_ * detail::decayRatio(b_ * T_);
             Real cross = rho_ * sigma_ * eta_ * T_ * T_;
-            mux_ = -(0.5 * sigma_ * sigma_ * Bx * Bx + cross * decayRatioDifference(a_ * T_, b_ * T_));
-            muy_ = -(0.5 * eta_ * eta_ * By * By + cross * decayRatioDifference(b_ * T_, a_ * T_));
+            mux_ = -(0.5 * sigma_ * sigma_ * Bx * Bx + cross * detail::decayRatioDifference(a_ * T_, b_ * T_));
+            muy_ = -(0.5 * eta_ * eta_ * By * By + cross * detail::decayRatioDifference(b_ * T_, a_ * T_));
 
             for (Size i = 0; i < size_; i++)
             {

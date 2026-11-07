@@ -18,56 +18,12 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/math/expm1.hpp>
 #include <ql/models/shortrate/onefactormodels/vasicek.hpp>
 #include <ql/pricingengines/blackformula.hpp>
 
 namespace QuantLib
 {
-
-    namespace
-    {
-
-        // (1 - exp(-x)) / x, accurate for small x as well
-        Real oneMinusExpOverX(Real x)
-        {
-            return x == 0.0 ? 1.0 : -std::expm1(-x) / x;
-        }
-
-        // The exponent of A is written in terms of
-        //     phi(x) = (exp(-x) - 1 + x) / x^2
-        //     h(x)   = (4 exp(-x) - exp(-2x) - 3 + 2x) / x^3
-        // and these closed forms cancel catastrophically for small x.  There we
-        // sum their Taylor series, in terms of p_k = (-x)^k / (k+3)!:
-        //     phi(x) = sum_k (k+3) p_k
-        //     h(x)   = sum_k (2^(k+3) - 4) p_k
-        void phiAndH(Real x, Real& phi, Real& h)
-        {
-            if (std::fabs(x) < 1.0)
-            {
-                Real p = 1.0 / 6.0;
-                Real twoPower = 8.0;
-                phi = h = 0.0;
-                for (Size k = 0; k < 40; ++k)
-                {
-                    const Real hTerm = (twoPower - 4.0) * p;
-                    phi += (k + 3.0) * p;
-                    h += hTerm;
-                    if (std::fabs(hTerm) <= QL_EPSILON * std::fabs(h))
-                        break;
-                    p *= -x / (k + 4.0);
-                    twoPower *= 2.0;
-                }
-            }
-            else
-            {
-                const Real e1 = std::expm1(-x);
-                const Real e2 = std::expm1(-2.0 * x);
-                phi = (e1 + x) / (x * x);
-                h = (4.0 * e1 - e2 + 2.0 * x) / (x * x * x);
-            }
-        }
-
-    }
 
     Vasicek::Vasicek(Rate r0, Real a, Real b, Real sigma, Real lambda)
     : OneFactorAffineModel(4), r0_(r0), a_(arguments_[0]), b_(arguments_[1]), sigma_(arguments_[2]),
@@ -88,14 +44,14 @@ namespace QuantLib
         const Time tau = T - t;
         const Real sigma2 = sigma() * sigma();
         Real phi, h;
-        phiAndH(a() * tau, phi, h);
+        detail::decayPhiAndH(a() * tau, phi, h);
         return std::exp(-(a() * b() + lambda() * sigma()) * tau * tau * phi + 0.25 * sigma2 * tau * tau * tau * h);
     }
 
     Real Vasicek::B(Time t, Time T) const
     {
         const Time tau = T - t;
-        return tau * oneMinusExpOverX(a() * tau);
+        return tau * detail::decayRatio(a() * tau);
     }
 
     Real Vasicek::discountBondOption(Option::Type type, Real strike, Time maturity, Time bondMaturity) const
@@ -109,7 +65,7 @@ namespace QuantLib
         else
         {
             // 0.5 * (1 - exp(-2 a maturity)) / a
-            const Real variance = maturity * oneMinusExpOverX(2.0 * a() * maturity);
+            const Real variance = maturity * detail::decayRatio(2.0 * a() * maturity);
             v = sigma() * B(maturity, bondMaturity) * std::sqrt(variance);
         }
         Real f = discountBond(0.0, bondMaturity, r0_);
