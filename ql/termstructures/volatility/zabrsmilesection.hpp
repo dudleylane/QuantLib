@@ -187,6 +187,8 @@ namespace QuantLib
             {
                 if (!firstStrike)
                 {
+                    // The call prices are interpolated over these, which needs them in order.
+                    QL_REQUIRE(f > lastF, "strikes must be strictly ascending (" << lastF << "," << f << ")");
                     for (Size j = 1; j <= fdRefinement_; ++j)
                     {
                         strikes_.push_back(lastF + ((double)j) * (f - lastF) / (fdRefinement_ + 1));
