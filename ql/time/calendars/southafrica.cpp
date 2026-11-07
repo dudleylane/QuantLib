@@ -76,7 +76,9 @@ namespace QuantLib
             // one-shot: Special holiday to celebrate winning of Rugby World Cup 2023
             || (d == 15 && m == December && y == 2023)
             // one-shot: Election day 2024
-            || (d == 29 && m == May && y == 2024))
+            || (d == 29 && m == May && y == 2024)
+            // one-shot: Election day 2026
+            || (d == 4 && m == November && y == 2026))
             return false; // NOLINT(readability-simplify-boolean-expr)
         return true;
     }

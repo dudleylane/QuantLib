@@ -438,6 +438,22 @@ namespace QuantLib
                 return false;
         }
 
+        // data from HKEX's circular CT/075/25
+        if (y == 2026)
+        {
+            if ( // Lunar New Year
+                ((d >= 17 && d <= 19) && m == February)
+                // The day following Easter Monday
+                || (d == 7 && m == April)
+                // The day following Buddha's birthday
+                || (d == 25 && m == May)
+                // Tuen Ng festival
+                || (d == 19 && m == June)
+                // The day following Chung Yeung festival
+                || (d == 19 && m == October))
+                return false;
+        }
+
         return true;
     }
 

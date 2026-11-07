@@ -36,6 +36,7 @@
 #include <ql/time/calendars/china.hpp>
 #include <ql/time/calendars/denmark.hpp>
 #include <ql/time/calendars/germany.hpp>
+#include <ql/time/calendars/hongkong.hpp>
 #include <ql/time/calendars/israel.hpp>
 #include <ql/time/calendars/italy.hpp>
 #include <ql/time/calendars/japan.hpp>
@@ -43,6 +44,8 @@
 #include <ql/time/calendars/mexico.hpp>
 #include <ql/time/calendars/newzealand.hpp>
 #include <ql/time/calendars/russia.hpp>
+#include <ql/time/calendars/singapore.hpp>
+#include <ql/time/calendars/southafrica.hpp>
 #include <ql/time/calendars/southkorea.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/calendars/unitedkingdom.hpp>
@@ -3890,6 +3893,50 @@ BOOST_AUTO_TEST_CASE(testDayLists)
             BOOST_FAIL("Date " << d << "is neither holiday nor business day.");
         }
     }
+}
+
+BOOST_AUTO_TEST_CASE(testHongKongExchangeIn2026)
+{
+    BOOST_TEST_MESSAGE("Testing the Hong Kong exchange's holidays in 2026...");
+
+    // HKEX's circular CT/075/25
+    const std::vector<Date> expected = {
+        {1, January, 2026}, {17, February, 2026}, {18, February, 2026}, {19, February, 2026}, {3, April, 2026},
+        {6, April, 2026},   {7, April, 2026},     {1, May, 2026},       {25, May, 2026},      {19, June, 2026},
+        {1, July, 2026},    {1, October, 2026},   {19, October, 2026},  {25, December, 2026},
+    };
+
+    const Calendar c = HongKong(HongKong::HKEx);
+    checkHolidays(c.holidayList(Date(1, January, 2026), Date(31, December, 2026)), expected);
+}
+
+BOOST_AUTO_TEST_CASE(testSingaporeExchangeIn2027)
+{
+    BOOST_TEST_MESSAGE("Testing the Singapore exchange's holidays in 2027...");
+
+    // from the public holidays the Ministry of Manpower gives for that year, on weekdays
+    const std::vector<Date> expected = {
+        {1, January, 2027}, {8, February, 2027}, {10, March, 2027}, {26, March, 2027},
+        {17, May, 2027},    {20, May, 2027},     {9, August, 2027}, {28, October, 2027},
+    };
+
+    const Calendar c = Singapore(Singapore::SGX);
+    checkHolidays(c.holidayList(Date(1, January, 2027), Date(31, December, 2027)), expected);
+}
+
+BOOST_AUTO_TEST_CASE(testSouthAfricaIn2026)
+{
+    BOOST_TEST_MESSAGE("Testing South Africa's holidays in 2026...");
+
+    const std::vector<Date> expected = {
+        {1, January, 2026},   {3, April, 2026},     {6, April, 2026},      {27, April, 2026},   {1, May, 2026},
+        {16, June, 2026},     {10, August, 2026},   {24, September, 2026}, {4, November, 2026}, // local elections
+        {16, December, 2026}, {25, December, 2026},
+    };
+
+    const Calendar c = SouthAfrica();
+    checkHolidays(c.holidayList(Date(1, January, 2026), Date(31, December, 2026)), expected);
+    BOOST_CHECK(c.isBusinessDay(Date(4, November, 2025)));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
