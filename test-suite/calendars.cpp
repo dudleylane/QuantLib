@@ -4695,16 +4695,76 @@ BOOST_AUTO_TEST_CASE(testIsraelElectionDays)
 {
     BOOST_TEST_MESSAGE("Testing Israel's election days...");
 
-    const Calendar tase = Israel(Israel::TASE);
+    const Calendar tase = Israel(Israel::TASE), settlement = Israel(Israel::Settlement);
     const std::vector<Date> elections = {
         Date(9, April, 2019),    Date(17, September, 2019), Date(2, March, 2020),    Date(23, March, 2021),
         Date(1, November, 2022), Date(27, February, 2024),  Date(27, October, 2026),
     };
+    // the Bank of Israel's lists, from 2023, have the last two for settlement; the others follow them by assumption
     for (const Date& d : elections)
+    {
         BOOST_CHECK_MESSAGE(tase.isHoliday(d), d << " should be a holiday for TASE");
+        BOOST_CHECK_MESSAGE(settlement.isHoliday(d), d << " should be a holiday for settlement");
+    }
 
     // the municipal elections of October 31st, 2023 moved to February 2024, though TASE's schedule still has them
     BOOST_CHECK(tase.isBusinessDay(Date(31, October, 2023)));
+}
+
+BOOST_AUTO_TEST_CASE(testIsraelSettlementAgainstZahav)
+{
+    BOOST_TEST_MESSAGE("Testing Israel's settlement calendar against the Bank of Israel's lists...");
+
+    const Calendar c = Israel();
+    BOOST_CHECK(c == Israel(Israel::Settlement));
+    BOOST_CHECK(c != Israel(Israel::TASE));
+
+    // the Bank of Israel's "ZAHAV RTGS system" lists of operating or business days, leaving out Saturdays; its short
+    // days and holidays' eves are open
+    const std::vector<Date> expected2023 = {
+        Date(7, March, 2023),      Date(6, April, 2023),      Date(12, April, 2023),
+        Date(26, April, 2023),     Date(26, May, 2023),       Date(27, July, 2023),
+        Date(17, September, 2023), Date(24, September, 2023), Date(25, September, 2023),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2023), Date(31, December, 2023)), expected2023);
+
+    const std::vector<Date> expected2024 = {
+        Date(27, February, 2024), Date(24, March, 2024),   Date(23, April, 2024),   Date(29, April, 2024),
+        Date(14, May, 2024),      Date(12, June, 2024),    Date(13, August, 2024),  Date(3, October, 2024),
+        Date(4, October, 2024),   Date(11, October, 2024), Date(17, October, 2024), Date(24, October, 2024),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2024), Date(31, December, 2024)), expected2024);
+
+    const std::vector<Date> expected2025 = {
+        Date(14, March, 2025),  Date(13, April, 2025),     Date(1, May, 2025),        Date(2, June, 2025),
+        Date(3, August, 2025),  Date(23, September, 2025), Date(24, September, 2025), Date(1, October, 2025),
+        Date(2, October, 2025), Date(7, October, 2025),    Date(14, October, 2025),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2025), Date(31, December, 2025)), expected2025);
+
+    const std::vector<Date> expected2026 = {
+        Date(3, March, 2026),      Date(2, April, 2026),    Date(8, April, 2026),      Date(22, April, 2026),
+        Date(22, May, 2026),       Date(23, July, 2026),    Date(13, September, 2026), Date(20, September, 2026),
+        Date(21, September, 2026), Date(27, October, 2026),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2026), Date(31, December, 2026)), expected2026);
+
+    const std::vector<Date> expected2027 = {
+        Date(23, March, 2027),  Date(22, April, 2027),   Date(28, April, 2027),
+        Date(12, May, 2027),    Date(11, June, 2027),    Date(12, August, 2027),
+        Date(3, October, 2027), Date(10, October, 2027), Date(11, October, 2027),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2027), Date(31, December, 2027)), expected2027);
+
+    // Sundays and Fridays are open whichever week the exchange trades
+    BOOST_CHECK(c.isBusinessDay(Date(1, June, 2025)));
+    BOOST_CHECK(c.isBusinessDay(Date(6, June, 2025)));
+    BOOST_CHECK(c.isBusinessDay(Date(4, January, 2026)));
+    BOOST_CHECK(c.isBusinessDay(Date(9, January, 2026)));
+    BOOST_CHECK(c.isHoliday(Date(10, January, 2026)));
+    BOOST_CHECK(c.isWeekend(Saturday));
+    BOOST_CHECK(!c.isWeekend(Friday));
+    BOOST_CHECK(!c.isWeekend(Sunday));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

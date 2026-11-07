@@ -31,10 +31,10 @@ namespace QuantLib
 {
 
     //! Israel calendar
-    /*! Due to the lack of reliable sources, the settlement calendar keeps
-        the rules this class had for the exchange until 2026: Friday and Saturday,
-        the holidays below, and their eves with those of Passover and Shavuot only
-        until 2020 and that of the new year only until 2019.
+    /*! The settlement calendar follows the Bank of Israel's Zahav RTGS system
+        (data from <https://www.boi.org.il>), which runs from Sunday to Friday
+        and is closed on the holidays below but not on their eves, Yom Kippur's
+        apart, nor on Memorial Day.
 
         Holidays for the Tel-Aviv Stock Exchange
         (data from <http://www.tase.co.il>):
