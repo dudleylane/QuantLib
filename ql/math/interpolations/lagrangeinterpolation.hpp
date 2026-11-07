@@ -77,30 +77,34 @@ namespace QuantLib
 
             Real derivative(Real x) const override
             {
-                Real n = 0.0, d = 0.0, nd = 0.0, dd = 0.0;
-                for (Size i = 0; i < n_; ++i)
+                // With alpha_i = lambda_i / (x - x_i), p(x) satisfies sum(alpha_i * (p(x) - y_i)) = 0, and
+                // differentiating that gives p'(x) = sum(alpha_i / (x - x_i) * (p(x) - y_i)) / sum(alpha_i). Near a
+                // node both sums are large and cancel, so this takes the nearest node's term from the differences
+                // y_j - y_k, and multiplies through by h = x - x_k. Then nothing cancels or divides by h.
+                const Size k =
+                    std::distance(this->xBegin_, std::min_element(this->xBegin_, this->xEnd_, [x](Real a, Real b)
+                                                                  { return std::abs(x - a) < std::abs(x - b); }));
+                const Real h = x - this->xBegin_[k];
+
+                Real s = 0.0, d = 0.0, a = 0.0, b = 0.0;
+                for (Size j = 0; j < n_; ++j)
                 {
-                    const Real x_i = this->xBegin_[i];
+                    if (j == k)
+                        continue;
 
-                    if (close_enough(x, x_i))
-                    {
-                        Real p = 0.0;
-                        for (Size j = 0; j < n_; ++j)
-                            if (i != j)
-                            {
-                                p += lambda_[j] / (x - this->xBegin_[j]) * (this->yBegin_[j] - this->yBegin_[i]);
-                            }
-                        return p / lambda_[i];
-                    }
-
-                    const Real alpha = lambda_[i] / (x - x_i);
-                    const Real alphad = -alpha / (x - x_i);
-                    n += alpha * this->yBegin_[i];
+                    const Real dx = x - this->xBegin_[j];
+                    const Real dy = this->yBegin_[j] - this->yBegin_[k];
+                    const Real alpha = lambda_[j] / dx;
+                    const Real alphad = alpha / dx;
+                    s += alpha * dy;
                     d += alpha;
-                    nd += alphad * this->yBegin_[i];
-                    dd += alphad;
+                    a += alphad;
+                    b += alphad * dy;
                 }
-                return (nd * d - n * dd) / (d * d);
+
+                const Real hd = lambda_[k] + h * d;
+                const Real q = s / hd;
+                return (lambda_[k] * q + h * (h * q * a - b)) / hd;
             }
 
             Real primitive(Real) const override { QL_FAIL("LagrangeInterpolation primitive is not implemented"); }

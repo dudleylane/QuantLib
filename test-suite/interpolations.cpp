@@ -3166,6 +3166,70 @@ BOOST_AUTO_TEST_CASE(testXabrInterpolationsKeepTheirForward)
     BOOST_CHECK_EQUAL(fromFactory(strike, true), sabr(strike, true));
 }
 
+BOOST_AUTO_TEST_CASE(testLagrangeInterpolationDerivativeAroundASupportPoint)
+{
+    BOOST_TEST_MESSAGE("Testing Lagrange interpolation derivatives around supporting points...");
+
+    const auto f = [](Real x) { return 1.0 / (2.0 - x); };
+
+    for (const std::vector<Real>& x :
+         {std::vector<Real>{0.1, 0.2, 0.4, 0.6, 0.8}, std::vector<Real>{0.0, 0.2, 0.4, 0.6, 0.8}})
+    {
+        std::vector<Real> y(x.size());
+        std::transform(x.begin(), x.end(), y.begin(), f);
+        const LagrangeInterpolation interpolation(x.begin(), x.end(), y.begin());
+
+        // The derivative of the polynomial through the points, as a sum over products of its factors,
+        // so that nothing is divided by the distance from a node.
+        const auto expected = [&](Real z)
+        {
+            Real result = 0.0;
+            for (Size i = 0; i < x.size(); ++i)
+            {
+                Real numerator = 0.0, denominator = 1.0;
+                for (Size j = 0; j < x.size(); ++j)
+                {
+                    if (j == i)
+                        continue;
+                    denominator *= x[i] - x[j];
+                    Real product = 1.0;
+                    for (Size m = 0; m < x.size(); ++m)
+                    {
+                        if (m != i && m != j)
+                            product *= z - x[m];
+                    }
+                    numerator += product;
+                }
+                result += y[i] * numerator / denominator;
+            }
+            return result;
+        };
+
+        const auto check = [&](Real z)
+        {
+            BOOST_TEST_CONTEXT("first node " << x.front() << ", x " << z)
+            {
+                BOOST_CHECK_SMALL(interpolation.derivative(z, true) - expected(z), 1.0e-13);
+            }
+        };
+
+        for (Real node : x)
+        {
+            check(node);
+            for (Real distance :
+                 {1.0e-20, 1.0e-16, 4.0e-15, 1.0e-14, 1.0e-13, 1.0e-12, 1.0e-11, 1.0e-10, 1.0e-8, 1.0e-4})
+            {
+                check(node - distance);
+                check(node + distance);
+            }
+        }
+
+        // and away from them
+        for (Real z : {0.15, 0.3, 0.5, 0.7, 0.85})
+            check(z);
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testLagrangeInterpolationAroundASupportPointAtZero)
 {
     BOOST_TEST_MESSAGE("Testing Lagrange interpolation around a supporting point at zero...");
