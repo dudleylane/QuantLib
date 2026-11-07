@@ -522,7 +522,9 @@ namespace QuantLib
         {
             vk = vkp1;
             const Real alphaK = (1 + w) / (1 + phi(x, vk));
-            vkp1 = alphaK * G(vk, x, cs, w) + (1 - alphaK) * vk;
+            // alphaK can reach the billions. As alphaK * G + (1 - alphaK) * vk, the step would be what's left of two
+            // large numbers, with more rounding than the step needs, of a size that depends on the compiler's flags.
+            vkp1 = vk + alphaK * (G(vk, x, cs, w) - vk);
             dv = std::fabs(vkp1 - vk);
         } while (dv > accuracy && ++nIter < maxIterations);
 
