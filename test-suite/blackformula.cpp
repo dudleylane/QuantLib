@@ -821,6 +821,213 @@ BOOST_AUTO_TEST_CASE(testImpliedStdDevApproximationRSAtItsLimits)
     BOOST_CHECK(std::isinf(blackFormulaImpliedStdDevApproximationRS(Option::Call, 2.6881171418161356e+43, 1.0, 1.5)));
 }
 
+BOOST_AUTO_TEST_CASE(testImpliedStdDevAtIntrinsic)
+{
+    BOOST_TEST_MESSAGE("Testing implied standard deviations for prices at intrinsic value...");
+
+    const auto liRS = [](Option::Type type, Real strike, Real forward, Real price, Real discount, Real displacement)
+    { return blackFormulaImpliedStdDevLiRS(type, strike, forward, price, discount, displacement); };
+    const auto newton = [](Option::Type type, Real strike, Real forward, Real price, Real discount, Real displacement)
+    { return blackFormulaImpliedStdDev(type, strike, forward, price, discount, displacement); };
+
+    // These strikes and displacements add up exactly, so the intrinsic value holds no rounding of its own.
+    const Real forward = 1.0;
+    for (Real discount : {1.0, 0.95, 0.5})
+    {
+        for (Real displacement : {0.0, 0.5})
+        {
+            for (Real strike : {0.25, 0.5, 0.75, 0.875, 1.125, 1.25, 1.5, 2.0, 4.0})
+            {
+                const Option::Type type = strike < forward ? Option::Call : Option::Put;
+                const Real intrinsic = Integer(type) * (forward - strike);
+
+                BOOST_TEST_CONTEXT("strike " << strike << ", discount " << discount << ", displacement "
+                                             << displacement)
+                {
+                    // Below it by what rounding can explain.
+                    for (Real ulps : {4.0, 16.0})
+                    {
+                        const Real price = intrinsic * (1.0 - ulps * QL_EPSILON) * discount;
+                        BOOST_CHECK_EQUAL(liRS(type, strike, forward, price, discount, displacement), 0.0);
+                        BOOST_CHECK_EQUAL(newton(type, strike, forward, price, discount, displacement), 0.0);
+                    }
+
+                    // Further below than that, there's no standard deviation to find.
+                    const Real price = (intrinsic - 1.0e-12) * discount;
+                    BOOST_CHECK_EXCEPTION(liRS(type, strike, forward, price, discount, displacement), Error,
+                                          ExpectedErrorMessage("below its intrinsic value"));
+                    BOOST_CHECK_EXCEPTION(newton(type, strike, forward, price, discount, displacement), Error,
+                                          ExpectedErrorMessage("implied by put-call parity"));
+                }
+
+                if (discount == 1.0)
+                {
+                    BOOST_TEST_CONTEXT("strike " << strike << ", displacement " << displacement)
+                    {
+                        BOOST_CHECK_EQUAL(liRS(type, strike, forward, intrinsic, 1.0, displacement), 0.0);
+                        BOOST_CHECK_EQUAL(newton(type, strike, forward, intrinsic, 1.0, displacement), 0.0);
+                    }
+                }
+            }
+        }
+    }
+
+    // Rounding goes with the forward and the strike, whatever the distance
+    // between them: the next Real below a forward of 100 is 1.4e-14 away.
+    const Real price = std::nextafter(100.0, 0.0) - 99.99;
+    BOOST_CHECK_EQUAL(liRS(Option::Call, 99.99, 100.0, price, 1.0, 0.0), 0.0);
+    BOOST_CHECK_EQUAL(newton(Option::Call, 99.99, 100.0, price, 1.0, 0.0), 0.0);
+
+    // With a displacement, it goes with the sums, whatever the forward and the strike are themselves.
+    const Real displaced = 0.001 - 1.0e-12;
+    BOOST_CHECK_EQUAL(liRS(Option::Put, 0.002, 0.001, displaced, 1.0, 1000.0), 0.0);
+    BOOST_CHECK_EQUAL(newton(Option::Put, 0.002, 0.001, displaced, 1.0, 1000.0), 0.0);
+
+    // With a discount, it goes down with the price.
+    BOOST_CHECK_EXCEPTION(newton(Option::Call, 0.5, 1.0, 0.005 - 1.0e-15, 0.01, 0.0), Error,
+                          ExpectedErrorMessage("implied by put-call parity"));
+
+    // No price at all, out of the money or on it.
+    for (Real strike : {1.5, 1.0, 0.5})
+    {
+        const Option::Type type = strike >= forward ? Option::Call : Option::Put;
+        BOOST_CHECK_EQUAL(liRS(type, strike, forward, 0.0, 1.0, 0.0), 0.0);
+    }
+
+    // In the money at low volatility, rounding puts the price on either side of its intrinsic value.
+    for (Real ratio : {1.0001, 1.01, 1.5, 2.0, 5.0, 10.0})
+    {
+        for (Real stdDev : {1.0e-8, 1.0e-7, 1.0e-4, 0.01})
+        {
+            for (Real discount : {1.0, 0.95})
+            {
+                for (Real displacement : {0.0, 0.5})
+                {
+                    const Real low = (forward + displacement) / ratio - displacement;
+                    const Real high = (forward + displacement) * ratio - displacement;
+                    BOOST_TEST_CONTEXT("ratio " << ratio << ", stdDev " << stdDev << ", discount " << discount
+                                                << ", displacement " << displacement)
+                    {
+                        const Real call = blackFormula(Option::Call, low, forward, stdDev, discount, displacement);
+                        BOOST_CHECK_GE(liRS(Option::Call, low, forward, call, discount, displacement), 0.0);
+                        BOOST_CHECK_GE(newton(Option::Call, low, forward, call, discount, displacement), 0.0);
+                        const Real put = blackFormula(Option::Put, high, forward, stdDev, discount, displacement);
+                        BOOST_CHECK_GE(liRS(Option::Put, high, forward, put, discount, displacement), 0.0);
+                        BOOST_CHECK_GE(newton(Option::Put, high, forward, put, discount, displacement), 0.0);
+                    }
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testImpliedStdDevLiRSAcrossMoneyness)
+{
+    BOOST_TEST_MESSAGE("Testing Li-RS implied standard deviation near and away from the money...");
+
+    for (Real forward : {1.0, 100.0, 0.03})
+    {
+        for (Real displacement : {0.0, 0.5})
+        {
+            for (Real discount : {1.0, 0.95})
+            {
+                for (Real stdDev : {1.0e-8, 1.0e-6, 1.0e-4, 1.0e-2, 0.1, 0.5})
+                {
+                    for (Real distance :
+                         {30.0, 10.0, 3.0, 1.0, 0.3, 1.0e-3, 0.0, -1.0e-3, -0.3, -1.0, -3.0, -10.0, -30.0})
+                    {
+                        const Real logMoneyness = distance * stdDev;
+                        const Real strike = (forward + displacement) * std::exp(-logMoneyness) - displacement;
+                        for (auto type : {Option::Call, Option::Put})
+                        {
+                            // Further in the money, the price doesn't say what the standard deviation is.
+                            if (Integer(type) * distance > 1.0)
+                                continue;
+
+                            BOOST_TEST_CONTEXT("type " << type << ", strike " << strike << ", forward " << forward
+                                                       << ", stdDev " << stdDev << ", discount " << discount
+                                                       << ", displacement " << displacement)
+                            {
+                                const Real price = blackFormula(type, strike, forward, stdDev, discount, displacement);
+                                const Real calculated =
+                                    blackFormulaImpliedStdDevLiRS(type, strike, forward, price, discount, displacement,
+                                                                  Null<Real>(), 1.0, 1.0e-6 * stdDev, 100);
+                                BOOST_CHECK_SMALL(calculated / stdDev - 1.0, 1.0e-5);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testImpliedStdDevLiRSGuess)
+{
+    BOOST_TEST_MESSAGE("Testing the first guess of the Li-RS implied standard deviation...");
+
+    // With an accuracy nothing can miss, the result is its first guess: RS's approximation, with the
+    // same displacement it would get if called on its own.
+    const Real strike = 1.1, forward = 1.0, discount = 0.95, stdDev = 0.3;
+    for (Real displacement : {0.0, 0.5, 2.0})
+    {
+        const Real price = blackFormula(Option::Call, strike, forward, stdDev, discount, displacement);
+        BOOST_TEST_CONTEXT("displacement " << displacement)
+        {
+            BOOST_CHECK_EQUAL(
+                blackFormulaImpliedStdDevLiRS(Option::Call, strike, forward, price, discount, displacement,
+                                              Null<Real>(), 1.0, 10.0, 1),
+                blackFormulaImpliedStdDevApproximationRS(Option::Call, strike, forward, price, discount, displacement));
+
+            // One of the caller's own is taken, and it comes to the same place.
+            BOOST_CHECK_EQUAL(blackFormulaImpliedStdDevLiRS(Option::Call, strike, forward, price, discount,
+                                                            displacement, 0.1, 1.0, 10.0, 1),
+                              0.1);
+            BOOST_CHECK_SMALL(blackFormulaImpliedStdDevLiRS(Option::Call, strike, forward, price, discount,
+                                                            displacement, 0.1, 1.0, 1.0e-10, 100) -
+                                  stdDev,
+                              1.0e-8);
+
+            // The iteration can't start from 0.
+            BOOST_CHECK_EXCEPTION(
+                blackFormulaImpliedStdDevLiRS(Option::Call, strike, forward, price, discount, displacement, 0.0), Error,
+                ExpectedErrorMessage("must be positive"));
+        }
+    }
+
+    // No finite standard deviation gives the most an option can be worth, or more, whatever the guess.
+    for (Real guess : {Real(Null<Real>()), 0.5})
+    {
+        for (Real discount : {1.0, 0.5})
+        {
+            BOOST_TEST_CONTEXT("guess " << guess << ", discount " << discount)
+            {
+                for (Real ratio : {1.0, 1.5})
+                {
+                    BOOST_CHECK_EXCEPTION(
+                        blackFormulaImpliedStdDevLiRS(Option::Call, 1.5, 1.0, ratio * discount, discount, 0.0, guess),
+                        Error, ExpectedErrorMessage("the most the option can be worth"));
+                    BOOST_CHECK_EXCEPTION(
+                        blackFormulaImpliedStdDevLiRS(Option::Put, 1.0, 1.5, ratio * discount, discount, 0.0, guess),
+                        Error, ExpectedErrorMessage("the most the option can be worth"));
+                }
+            }
+        }
+    }
+
+    // At intrinsic, though, there's nothing to iterate on and it doesn't matter.
+    BOOST_CHECK_EQUAL(blackFormulaImpliedStdDevLiRS(Option::Call, 0.5, 1.0, 0.5, 1.0, 0.0, 0.0), 0.0);
+
+    // A step below the accuracy ends the iteration on its guess, which holds its digits at prices that
+    // blackFormula can't tell from 0. Below what the guess can tell from 0, the answer is 0.
+    for (Real low : {1.0e-16, 1.0e-30, 1.0e-70})
+    {
+        const Real price = low * M_SQRT1_2 * M_1_SQRTPI;
+        BOOST_CHECK_SMALL(blackFormulaImpliedStdDevLiRS(Option::Call, 1.0, 1.0, price) / low - 1.0, 1.0e-13);
+    }
+    BOOST_CHECK_EQUAL(blackFormulaImpliedStdDevLiRS(Option::Call, 1.0, 1.0, 1.0e-100), 0.0);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

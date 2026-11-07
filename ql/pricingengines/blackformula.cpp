@@ -382,6 +382,9 @@ namespace QuantLib
         QL_REQUIRE(blackPrice >= 0.0, "option price (" << blackPrice << ") must be non-negative");
         // check the price of the "other" option implied by put-call paity
         Real otherOptionPrice = blackPrice - Integer(optionType) * (forward - strike) * discount;
+        if (otherOptionPrice < 0.0 &&
+            otherOptionPrice >= -discount * roundingOfIntrinsicValue(strike + displacement, forward + displacement))
+            otherOptionPrice = 0.0;
         QL_REQUIRE(otherOptionPrice >= 0.0, "negative "
                                                 << Option::Type(-1 * optionType) << " price (" << otherOptionPrice
                                                 << ") implied by put-call parity. No solution exists for " << optionType
@@ -461,8 +464,10 @@ namespace QuantLib
             // does not provide enough accuracy. But both together are
             // slower than the boost replacement.
             const Real k = MaddockInverseCumulativeNormal()(q);
+            const Real root = std::sqrt(k * k + 2 * std::fabs(x));
 
-            return k + std::sqrt(k * k + 2 * std::fabs(x));
+            // k + root cancels for k well below 0.
+            return k >= 0.0 ? Real(k + root) : Real(2 * std::fabs(x) / (root - k));
         }
     }
 
@@ -485,29 +490,30 @@ namespace QuantLib
         strike = strike + displacement;
         forward = forward + displacement;
 
+        const Real timeValue = blackPrice / discount - std::max(Integer(optionType) * (forward - strike), 0.0);
+        QL_REQUIRE(timeValue >= -roundingOfIntrinsicValue(strike, forward),
+                   "option price (" << blackPrice << ") is below its intrinsic value");
+        if (timeValue <= 0.0)
+            return 0.0;
+
         if (guess == Null<Real>())
         {
-            guess = blackFormulaImpliedStdDevApproximationRS(optionType, strike, forward, blackPrice, discount,
-                                                             displacement);
+            // The strike and the forward already have their displacement.
+            guess = blackFormulaImpliedStdDevApproximationRS(optionType, strike, forward, blackPrice, discount);
+            // Too low to tell from no variance, and the iteration can't start from it.
+            if (guess == 0.0)
+                return 0.0;
         }
         else
         {
-            QL_REQUIRE(guess >= 0.0, "stdDev guess (" << guess << ") must be non-negative");
+            QL_REQUIRE(guess > 0.0, "stdDev guess (" << guess << ") must be positive");
         }
 
-        Real x = std::log(forward / strike);
-        Real cs = (optionType == Option::Call) ? Real(blackPrice / (forward * discount)) :
-                                                 (blackPrice / (forward * discount) + 1.0 - strike / forward);
-
-        QL_REQUIRE(cs >= 0.0, "normalized call price (" << cs << ") must be positive");
-
-        if (x > 0)
-        {
-            // use in-out duality
-            cs = forward / strike * cs + 1.0 - forward / strike;
-            QL_REQUIRE(cs >= 0.0, "negative option price from in-out duality");
-            x = -x;
-        }
+        // By in-out duality, this is the out-of-the-money option's price over the
+        // lower of the forward and the strike, with x below 0 whichever it is.
+        const Real x = -std::fabs(std::log(forward / strike));
+        const Real cs = timeValue / std::min(forward, strike);
+        QL_REQUIRE(cs < 1.0, "option price (" << blackPrice << ") is at or above the most the option can be worth");
 
         Size nIter = 0;
         Real dv, vk, vkp1 = guess;
