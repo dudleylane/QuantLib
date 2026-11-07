@@ -4422,6 +4422,36 @@ BOOST_AUTO_TEST_CASE(testIndiaClearingHolidaysIn2026)
     checkHolidays(c.holidayList(Date(1, January, 2026), Date(31, December, 2026)), expected);
 }
 
+BOOST_AUTO_TEST_CASE(testIndiaClearingHolidaysIn2024And2025)
+{
+    BOOST_TEST_MESSAGE("Testing India's clearing holidays for 2024 and 2025 against NSE Clearing's notices...");
+
+    const Calendar c = India();
+
+    // NCL/CMPT/59922, with the closures declared later: January 22nd, May 20th (NSE/CMTR/61518), November 20th
+    // (NSE/CMTR/64960) and September 18th. The public holiday moved from the 16th to the 18th, but NCL/CMPT/63950
+    // kept the 16th as a settlement holiday as well.
+    const std::vector<Date> expected2024 = {
+        Date(22, January, 2024),   Date(26, January, 2024),   Date(19, February, 2024), Date(8, March, 2024),
+        Date(25, March, 2024),     Date(29, March, 2024),     Date(1, April, 2024),     Date(9, April, 2024),
+        Date(11, April, 2024),     Date(17, April, 2024),     Date(1, May, 2024),       Date(20, May, 2024),
+        Date(23, May, 2024),       Date(17, June, 2024),      Date(17, July, 2024),     Date(15, August, 2024),
+        Date(16, September, 2024), Date(18, September, 2024), Date(2, October, 2024),   Date(1, November, 2024),
+        Date(15, November, 2024),  Date(20, November, 2024),  Date(25, December, 2024),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2024), Date(31, December, 2024)), expected2024);
+
+    // NCL/CMPT/65916, with September 8th from NCL/CMPT/70039, which kept the 5th as well
+    const std::vector<Date> expected2025 = {
+        Date(19, February, 2025), Date(26, February, 2025), Date(14, March, 2025),    Date(31, March, 2025),
+        Date(1, April, 2025),     Date(10, April, 2025),    Date(14, April, 2025),    Date(18, April, 2025),
+        Date(1, May, 2025),       Date(12, May, 2025),      Date(15, August, 2025),   Date(27, August, 2025),
+        Date(5, September, 2025), Date(8, September, 2025), Date(2, October, 2025),   Date(21, October, 2025),
+        Date(22, October, 2025),  Date(5, November, 2025),  Date(25, December, 2025),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2025), Date(31, December, 2025)), expected2025);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
