@@ -43,10 +43,21 @@ Before pushing a change to code, build files, workflows or scripts:
 
 4. **Headers compile on their own**, as CI's `headers` job checks:
    `echo ./ql/<dir>/<file>.hpp | python3 tools/check_header.py`.
-5. **Configuration-dependent code** (dates, lazy objects and
+5. **File-local names stay unique in their directory.**  CI's Unity
+   cells compile each `ql/` directory as one file, and the test suite
+   as another, so a name in a `.cpp` file's anonymous namespace, or a
+   `static` one, can't also appear in another file there.  A CMake
+   build doesn't show a clash: its unity build batches eight sources at
+   a time.  To check a directory, in a tree where autotools may write:
+
+   ```bash
+   ./autogen.sh && ./configure --disable-static --enable-unity-build && make -C ql/<dir>
+   ```
+
+6. **Configuration-dependent code** (dates, lazy objects and
    observers, coupons, `Settings`) must also pass under the
    `linux-ci-build-with-nonstandard-options` CMake preset.
-6. **Licence and register.**  New files carry the AGPL-3.0+ header that
+7. **Licence and register.**  New files carry the AGPL-3.0+ header that
    the fork's other new files use (for example
    `ql/risk/curvebucketer.hpp`).  Upstream files keep their BSD-3-Clause
    headers untouched.  Record a fork-visible change in `FORK_CHANGES.md`.
