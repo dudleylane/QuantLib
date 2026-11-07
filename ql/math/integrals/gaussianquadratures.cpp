@@ -31,6 +31,33 @@
 namespace QuantLib
 {
 
+    namespace
+    {
+        // log(p_0(x)^2 + ... + p_{n-1}(x)^2), with p_k the recurrence's orthonormal polynomials and
+        // p_0 = 1.  They can grow past what a double holds, so the sum is scaled down as it grows.
+        Real logSumOfSquaredPolynomials(Real x, const Array& alpha, const Array& sqrtBeta)
+        {
+            const Real scale = 1e100;
+            Real previous = 0.0, current = 1.0, sum = 1.0, logScaling = 0.0;
+            for (Size k = 0; k < sqrtBeta.size(); ++k)
+            {
+                const Real next =
+                    ((x - alpha[k]) * current - (k > 0 ? Real(sqrtBeta[k - 1] * previous) : Real(0.0))) / sqrtBeta[k];
+                previous = current;
+                current = next;
+                sum += current * current;
+                if (sum > scale * scale)
+                {
+                    previous /= scale;
+                    current /= scale;
+                    sum /= scale * scale;
+                    logScaling += 2 * std::log(scale);
+                }
+            }
+            return std::log(sum) + logScaling;
+        }
+    }
+
     GaussianQuadrature::GaussianQuadrature(Size n, const GaussianOrthogonalPolynomial& orthPoly) : x_(n), w_(n)
     {
 
@@ -44,6 +71,7 @@ namespace QuantLib
             e[i - 1] = std::sqrt(orthPoly.beta(i));
         }
         x_[0] = orthPoly.alpha(0);
+        const Array alpha = x_;
 
         TqrEigenDecomposition tqr(x_, e, TqrEigenDecomposition::OnlyFirstRowEigenVector,
                                   TqrEigenDecomposition::Overrelaxation);
@@ -51,10 +79,18 @@ namespace QuantLib
         x_ = tqr.eigenvalues();
         const Matrix& ev = tqr.eigenvectors();
 
+        // The eigenvectors' first row has absolute precision at best: where an element should
+        // be 1e-150 it can come out at 1e-17, or underflow.  The polynomials give those weights
+        // instead, since mu_0 / sum_k p_k(x)^2 is the same weight, and in logs, since w(x) can
+        // underflow where the weight itself doesn't.
+        const Real smallestElement = std::sqrt(QL_EPSILON);
         Real mu_0 = orthPoly.mu_0();
         for (i = 0; i < n; ++i)
         {
-            w_[i] = mu_0 * ev[0][i] * ev[0][i] / orthPoly.w(x_[i]);
+            if (std::fabs(ev[0][i]) > smallestElement)
+                w_[i] = mu_0 * ev[0][i] * ev[0][i] / orthPoly.w(x_[i]);
+            else
+                w_[i] = std::exp(std::log(mu_0) - logSumOfSquaredPolynomials(x_[i], alpha, e) - orthPoly.logW(x_[i]));
         }
     }
 

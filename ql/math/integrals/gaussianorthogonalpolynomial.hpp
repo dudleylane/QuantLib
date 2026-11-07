@@ -56,6 +56,11 @@ namespace QuantLib
         virtual Real alpha(Size i) const = 0;
         virtual Real beta(Size i) const = 0;
         virtual Real w(Real x) const = 0;
+        //! log(w(x))
+        /*! The default forwards to w(x), so it can't go beyond where w(x) underflows.  The
+            classes whose nodes reach that far override it.
+        */
+        virtual Real logW(Real x) const;
 
         Real value(Size i, Real x) const;
         Real weightedValue(Size i, Real x) const;
@@ -71,6 +76,7 @@ namespace QuantLib
         Real alpha(Size i) const override;
         Real beta(Size i) const override;
         Real w(Real x) const override;
+        Real logW(Real x) const override;
 
       private:
         const Real s_;
@@ -86,6 +92,7 @@ namespace QuantLib
         Real alpha(Size i) const override;
         Real beta(Size i) const override;
         Real w(Real x) const override;
+        Real logW(Real x) const override;
 
       private:
         const Real mu_;
@@ -143,6 +150,7 @@ namespace QuantLib
         Real alpha(Size i) const override;
         Real beta(Size i) const override;
         Real w(Real x) const override;
+        Real logW(Real x) const override;
     };
 
 }

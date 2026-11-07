@@ -450,6 +450,159 @@ BOOST_AUTO_TEST_CASE(testJacobiRecurrenceNearRemovableSingularities)
     BOOST_CHECK_CLOSE(firstMoment, p3.mu_0() * -0.30000000000000002498, 1e-8);
 }
 
+void checkOutermostWeight(GaussianQuadrature rule, const std::string& tag, Size i, Real expected)
+{
+    BOOST_TEST_CONTEXT(tag << " of order " << rule.order() << ", weight " << i)
+    {
+        BOOST_CHECK_SMALL(rule.weights()[i] / expected - 1.0, 1e-11);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testWeightsAtOutermostNodes)
+{
+    BOOST_TEST_MESSAGE("Testing Gauss weights at the outermost nodes...");
+
+    // From the recurrence's polynomials at 60 digits, at nodes solved at 60 digits.  These
+    // are the weights divided by w(x), so they're about the spacing of the nodes there.
+
+    // w(x) subnormal or zero, and the eigenvector's element subnormal or zero.
+    checkOutermostWeight(GaussLaguerreIntegration(192), "Laguerre", 0, 29.06462660358607644319);
+    checkOutermostWeight(GaussLaguerreIntegration(200), "Laguerre", 0, 29.47615809012518755906);
+    checkOutermostWeight(GaussLaguerreIntegration(200), "Laguerre", 1, 22.17180934283598679925);
+    checkOutermostWeight(GaussLaguerreIntegration(400), "Laguerre", 0, 37.36445005600186383036);
+    checkOutermostWeight(GaussLaguerreIntegration(400), "Laguerre", 1, 28.24824698712899783148);
+    checkOutermostWeight(GaussLaguerreIntegration(400), "Laguerre", 3, 21.67597013882301521147);
+    checkOutermostWeight(GaussLaguerreIntegration(500), "Laguerre", 0, 40.30760586638187670701);
+    checkOutermostWeight(GaussLaguerreIntegration(300, 0.5), "Laguerre, s = 0.5", 0, 33.88302940824677870193);
+
+    // The eigenvector's element, about 1e-17 where it should be far smaller, swamps these.
+    checkOutermostWeight(GaussHermiteIntegration(48), "Hermite", 0, 0.7668763684952382747464);
+    checkOutermostWeight(GaussHermiteIntegration(64), "Hermite", 0, 0.7289272086904484277421);
+    checkOutermostWeight(GaussHermiteIntegration(128), "Hermite", 0, 0.6461910523324689081628);
+    checkOutermostWeight(GaussHermiteIntegration(368), "Hermite", 0, 0.5395610833771907419823);
+    checkOutermostWeight(GaussHermiteIntegration(400), "Hermite", 0, 0.5319914447749765434198);
+    checkOutermostWeight(GaussHermiteIntegration(500), "Hermite", 0, 0.5122820090549542695078);
+    checkOutermostWeight(GaussHermiteIntegration(128, 0.5), "Hermite, mu = 0.5", 0, 0.6457557386166697057286);
+    checkOutermostWeight(GaussHermiteIntegration(400, 0.5), "Hermite, mu = 0.5", 0, 0.5318787903434990044248);
+    checkOutermostWeight(GaussHyperbolicIntegration(32), "hyperbolic", 0, 15.17568887357144891249);
+    checkOutermostWeight(GaussHyperbolicIntegration(64), "hyperbolic", 0, 19.54308387526667472721);
+    checkOutermostWeight(GaussHyperbolicIntegration(128), "hyperbolic", 0, 24.96276698863168448828);
+    checkOutermostWeight(GaussHyperbolicIntegration(200), "hyperbolic", 0, 29.14137780384266234157);
+    checkOutermostWeight(GaussHyperbolicIntegration(256), "hyperbolic", 0, 31.72426990941596923171);
+    checkOutermostWeight(GaussHyperbolicIntegration(500), "hyperbolic", 0, 39.86680921400362637881);
+
+    // Further in, where the element is about 1e-14 and the same noise moves the weight by 12 to 23 %.
+    checkOutermostWeight(GaussHermiteIntegration(368), "Hermite", 117, 0.1208222198846529959514);
+    checkOutermostWeight(GaussHyperbolicIntegration(300), "hyperbolic", 121, 2.919906888434212445108);
+}
+
+BOOST_AUTO_TEST_CASE(testHighOrdersOnFunctionsDecayingLikeTheWeight)
+{
+    BOOST_TEST_MESSAGE("Testing high-order Gauss rules on functions decaying like their weights...");
+
+    // A single NaN weight is enough to make these NaN, whatever the function at that node.
+    for (Size n : {184, 192, 200, 232, 256, 300, 368, 400, 500})
+    {
+        BOOST_TEST_CONTEXT("order " << n)
+        {
+            const GaussLaguerreIntegration laguerre(n);
+            BOOST_CHECK_SMALL(laguerre([](Real x) { return std::exp(-x); }) - 1.0, 1e-12);
+            BOOST_CHECK_SMALL(laguerre([](Real x) { return std::pow(x, 8) * std::exp(-x); }) / 40320.0 - 1.0, 1e-12);
+
+            const GaussHermiteIntegration hermite(n);
+            BOOST_CHECK_SMALL(hermite([](Real x) { return std::exp(-x * x); }) - std::sqrt(M_PI), 1e-12);
+
+            const GaussHyperbolicIntegration hyperbolic(n);
+            BOOST_CHECK_SMALL(hyperbolic([](Real x) { return 1 / std::cosh(x); }) - M_PI, 1e-12);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testFunctionsDecayingSlowerThanTheWeight)
+{
+    BOOST_TEST_MESSAGE("Testing Gauss rules on functions decaying slower than their weights...");
+
+    // These are what the outermost weights matter for: the function doesn't make up for a
+    // wrong weight by vanishing there.  The bounds on the slowest functions are the rules' own
+    // errors, which fall about as 1/n, with exact weights.
+    const auto lorentzian = [](Real x) { return 1 / (1 + x * x); };
+
+    for (Size n : {32, 48, 64, 80, 96, 128, 192, 256, 368, 400, 500})
+    {
+        BOOST_TEST_CONTEXT("Hermite of order " << n)
+        {
+            const GaussHermiteIntegration rule(n);
+            BOOST_CHECK_SMALL(rule([](Real x) { return std::exp(-x * x / 2); }) - std::sqrt(2 * M_PI), 1e-12);
+            BOOST_CHECK_SMALL(rule(lorentzian) - M_PI, 0.3);
+        }
+    }
+
+    for (Size n : {32, 48, 64, 128, 192, 256, 300, 400, 500})
+    {
+        BOOST_TEST_CONTEXT("hyperbolic of order " << n)
+        {
+            const GaussHyperbolicIntegration rule(n);
+            BOOST_CHECK_SMALL(rule(lorentzian) - M_PI, 0.2);
+            BOOST_CHECK_SMALL(rule([](Real x) { return 1 / (std::cosh(x) * std::cosh(x)); }) - 2.0, 0.07);
+        }
+    }
+
+    for (Size n : {64, 128, 192, 200, 300, 400, 500})
+    {
+        BOOST_TEST_CONTEXT("Laguerre of order " << n)
+        {
+            const GaussLaguerreIntegration rule(n);
+            BOOST_CHECK_SMALL(rule([](Real x) { return std::exp(-x / 2); }) - 2.0, 1e-12);
+            BOOST_CHECK_SMALL(rule([](Real x) { return 1 / ((1 + x) * (1 + x)); }) - 1.0, 0.01);
+        }
+    }
+
+    // Slow enough for the outermost nodes of these to count: leaving out those whose
+    // eigenvector elements underflow gets the second wrong by 3.3e-6.
+    const auto slowExponential = [](Real x) { return std::exp(-x / 100); };
+    BOOST_CHECK_SMALL(GaussLaguerreIntegration(400)(slowExponential) / 100.0 - 1.0, 1e-6);
+    BOOST_CHECK_SMALL(GaussLaguerreIntegration(500)(slowExponential) / 100.0 - 1.0, 1e-7);
+}
+
+BOOST_AUTO_TEST_CASE(testLogWeightFunctions)
+{
+    BOOST_TEST_MESSAGE("Testing the logarithms of the Gauss weight functions...");
+
+    const GaussLaguerrePolynomial laguerre, laguerreWithS(0.5);
+    const GaussHermitePolynomial hermite, hermiteWithMu(0.5);
+    const GaussHyperbolicPolynomial hyperbolic;
+    const GaussLegendrePolynomial legendre;
+
+    // Where w(x) can still be told from zero.
+    for (Real x : {0.25, 1.0, 5.0, 20.0})
+    {
+        BOOST_TEST_CONTEXT("x = " << x)
+        {
+            BOOST_CHECK_SMALL(laguerre.logW(x) - std::log(laguerre.w(x)), 1e-12);
+            BOOST_CHECK_SMALL(laguerreWithS.logW(x) - std::log(laguerreWithS.w(x)), 1e-12);
+            BOOST_CHECK_SMALL(hermite.logW(x) - std::log(hermite.w(x)), 1e-12);
+            BOOST_CHECK_SMALL(hermite.logW(-x) - std::log(hermite.w(-x)), 1e-12);
+            BOOST_CHECK_SMALL(hermiteWithMu.logW(-x) - std::log(hermiteWithMu.w(-x)), 1e-12);
+            BOOST_CHECK_SMALL(hyperbolic.logW(x) - std::log(hyperbolic.w(x)), 1e-12);
+            BOOST_CHECK_SMALL(hyperbolic.logW(-x) - std::log(hyperbolic.w(-x)), 1e-12);
+        }
+    }
+    BOOST_CHECK_SMALL(legendre.logW(0.5), 1e-15);
+
+    // w(0) is 1 for these, and a parameter of zero mustn't multiply the log of zero.
+    BOOST_CHECK_EQUAL(laguerre.logW(0.0), 0.0);
+    BOOST_CHECK_EQUAL(hermite.logW(0.0), 0.0);
+    BOOST_CHECK_EQUAL(hyperbolic.logW(0.0), 0.0);
+
+    // Where w(x) has underflowed.
+    BOOST_CHECK_CLOSE(laguerre.logW(2000.0), -2000.0, 1e-12);
+    BOOST_CHECK_CLOSE(laguerreWithS.logW(2000.0), 0.5 * std::log(2000.0) - 2000.0, 1e-12);
+    BOOST_CHECK_CLOSE(hermite.logW(40.0), -1600.0, 1e-12);
+    BOOST_CHECK_CLOSE(hermiteWithMu.logW(40.0), std::log(40.0) - 1600.0, 1e-12);
+    BOOST_CHECK_CLOSE(hyperbolic.logW(2000.0), M_LN2 - 2000.0, 1e-12);
+    BOOST_CHECK_CLOSE(hyperbolic.logW(-2000.0), M_LN2 - 2000.0, 1e-12);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
