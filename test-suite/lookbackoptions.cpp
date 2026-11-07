@@ -879,6 +879,90 @@ BOOST_AUTO_TEST_CASE(testAnalyticContinuousPartialLookbackZeroCarry)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testAnalyticContinuousPartialLookbackFromToday)
+{
+    BOOST_TEST_MESSAGE("Testing analytic continuous partial lookback options with their boundary today...");
+
+    const Date today(20, October, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual360();
+    const ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(today + 360);
+    const Real spot = 100.0;
+
+    const auto makeProcess = [&](Rate rate, Rate yield)
+    {
+        return ext::make_shared<BlackScholesMertonProcess>(Handle<Quote>(ext::make_shared<SimpleQuote>(spot)),
+                                                           Handle<YieldTermStructure>(flatRate(today, yield, dc)),
+                                                           Handle<YieldTermStructure>(flatRate(today, rate, dc)),
+                                                           Handle<BlackVolTermStructure>(flatVol(today, 0.2, dc)));
+    };
+
+    const struct
+    {
+        Rate rate, yield;
+    } carries[] = {{0.05, 0.02}, {0.02, 0.05}, {0.05, 0.05}, {0.0, 0.0}};
+
+    for (const auto& c : carries)
+    {
+        const auto process = makeProcess(c.rate, c.yield);
+        const auto fixedEngine = ext::make_shared<AnalyticContinuousPartialFixedLookbackEngine>(process);
+        const auto floatingEngine = ext::make_shared<AnalyticContinuousPartialFloatingLookbackEngine>(process);
+
+        for (Option::Type type : {Option::Call, Option::Put})
+        {
+            // Looking back from today is the full contract, with the spot as its extremum so far.
+            for (Real strike : {90.0, 100.0, 110.0})
+            {
+                BOOST_TEST_CONTEXT("rate " << c.rate << ", yield " << c.yield << ", " << type << ", strike " << strike)
+                {
+                    const auto payoff = ext::make_shared<PlainVanillaPayoff>(type, strike);
+                    ContinuousPartialFixedLookbackOption partial(today, payoff, exercise);
+                    partial.setPricingEngine(fixedEngine);
+                    ContinuousFixedLookbackOption full(spot, payoff, exercise);
+                    full.setPricingEngine(ext::make_shared<AnalyticContinuousFixedLookbackEngine>(process));
+                    BOOST_CHECK_SMALL(partial.NPV() - full.NPV(), 1.0e-12);
+                }
+            }
+
+            // Looking back only at today leaves the extremum so far, so it's a vanilla.
+            const Real lambda = type == Option::Call ? 1.1 : 0.9;
+            const Real other = type == Option::Call ? 90.0 : 110.0;
+            for (Real extremum : {spot, other})
+            {
+                for (Real factor : {1.0, lambda})
+                {
+                    BOOST_TEST_CONTEXT("rate " << c.rate << ", yield " << c.yield << ", " << type << ", extremum "
+                                               << extremum << ", lambda " << factor)
+                    {
+                        ContinuousPartialFloatingLookbackOption partial(
+                            extremum, factor, today, ext::make_shared<FloatingTypePayoff>(type), exercise);
+                        partial.setPricingEngine(floatingEngine);
+                        VanillaOption vanilla(ext::make_shared<PlainVanillaPayoff>(type, factor * extremum), exercise);
+                        vanilla.setPricingEngine(ext::make_shared<AnalyticEuropeanEngine>(process));
+                        BOOST_CHECK_SMALL(partial.NPV() - vanilla.NPV(), 1.0e-12);
+                    }
+                }
+            }
+
+            // A boundary in the past isn't a contract these formulas price.
+            for (Real level : {spot, 110.0})
+            {
+                ContinuousPartialFixedLookbackOption fixed(today - 30,
+                                                           ext::make_shared<PlainVanillaPayoff>(type, level), exercise);
+                fixed.setPricingEngine(fixedEngine);
+                BOOST_CHECK_EXCEPTION(fixed.NPV(), Error,
+                                      ExpectedErrorMessage("lookback start date must not be in the past"));
+
+                ContinuousPartialFloatingLookbackOption floating(level, 1.0, today - 30,
+                                                                 ext::make_shared<FloatingTypePayoff>(type), exercise);
+                floating.setPricingEngine(floatingEngine);
+                BOOST_CHECK_EXCEPTION(floating.NPV(), Error,
+                                      ExpectedErrorMessage("lookback end date must not be in the past"));
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

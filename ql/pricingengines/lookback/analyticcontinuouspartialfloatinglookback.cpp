@@ -39,6 +39,7 @@ namespace QuantLib
         QL_REQUIRE(payoff, "Non-floating payoff given");
 
         QL_REQUIRE(process_->x0() > 0.0, "negative or null underlying");
+        QL_REQUIRE(lookbackPeriodEndTime() >= 0.0, "lookback end date must not be in the past");
 
         switch (payoff->optionType())
         {
@@ -129,7 +130,13 @@ namespace QuantLib
             e2 = e1 - vol * std::sqrt(residualTime() - lookbackPeriodEndTime());
         }
 
-        Real f1 = (ls + (carry + vol * vol / 2) * lookbackPeriodEndTime()) / (vol * std::sqrt(lookbackPeriodEndTime()));
+        // With the boundary today and the extremum at the spot this is 0/0. Its limit is 0, and there the value
+        // doesn't depend on it, as it cancels between the terms.
+        Real f1 = 0.0;
+        if (lookbackPeriodEndTime() > 0.0 || ls != 0.0)
+        {
+            f1 = (ls + (carry + vol * vol / 2) * lookbackPeriodEndTime()) / (vol * std::sqrt(lookbackPeriodEndTime()));
+        }
         Real f2 = f1 - vol * std::sqrt(lookbackPeriodEndTime());
 
         Real l1 = std::log(lambda()) / vol;
