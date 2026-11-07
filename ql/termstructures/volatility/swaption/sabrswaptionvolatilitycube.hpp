@@ -805,7 +805,10 @@ namespace QuantLib
             {
                 for (Size j = 0; j < 2; j++)
                 {
-                    strikes[i][j] = (atmForwards[i][j] + atmShifts[i][j]) / moneyness - atmShifts[i][j];
+                    // A normal smile goes with K - F, and a lognormal one with K / F.
+                    strikes[i][j] = volatilityType_ == VolatilityType::Normal ?
+                                        Real(atmForwards[i][j] + strike - atmForward) :
+                                        Real((atmForwards[i][j] + atmShifts[i][j]) / moneyness - atmShifts[i][j]);
                     spreadVols[i][j] = smiles[i][j]->volatility(strikes[i][j]) - atmVols[i][j];
                 }
             }

@@ -31,6 +31,7 @@
 #include <ql/termstructures/volatility/swaption/spreadedswaptionvol.hpp>
 #include <ql/termstructures/volatility/swaption/zabrswaptionvolatilitycube.hpp>
 #include <ql/termstructures/volatility/zabrsmilesection.hpp>
+#include <ql/termstructures/yield/zerocurve.hpp>
 #include <ql/utilities/dataformatters.hpp>
 
 using namespace QuantLib;
@@ -900,6 +901,105 @@ BOOST_AUTO_TEST_CASE(testZabrObservability)
     }
 
     Settings::instance().evaluationDate() = referenceDate;
+}
+
+BOOST_AUTO_TEST_CASE(testSabrSecondPassMoneyness)
+{
+    BOOST_TEST_MESSAGE("Testing the moneyness at which a SABR cube's second pass interpolates...");
+
+    Settings::instance().evaluationDate() = Date(15, January, 2026);
+    CommonVars vars;
+
+    // Sections have to differ in their forwards for moneyness to matter.
+    const Date today = Settings::instance().evaluationDate();
+    const Calendar calendar = vars.conventions.calendar;
+    vars.termStructure.linkTo(ext::make_shared<ZeroCurve>(
+        std::vector<Date>{today, calendar.advance(today, 1 * Years), calendar.advance(today, 5 * Years),
+                          calendar.advance(today, 15 * Years), calendar.advance(today, 70 * Years)},
+        std::vector<Rate>{0.01, 0.015, 0.025, 0.035, 0.045}, Actual365Fixed(), calendar));
+
+    const std::vector<Spread>& spreads = vars.cube.strikeSpreads;
+    const Size sections = vars.cube.tenors.options.size() * vars.cube.tenors.swaps.size();
+
+    const auto check = [&](VolatilityType type, Real atmScale, Real spreadScale, Real alphaGuess)
+    {
+        const Matrix vols = atmScale * vars.atm.vols;
+        Handle<SwaptionVolatilityStructure> atmVols(ext::make_shared<SwaptionVolatilityMatrix>(
+            calendar, vars.conventions.optionBdc, vars.atm.tenors.options, vars.atm.tenors.swaps, vols,
+            vars.conventions.dayCounter, false, type));
+
+        std::vector<std::vector<Handle<Quote>>> volSpreads(sections), guess(sections);
+        for (Size i = 0; i < sections; ++i)
+        {
+            for (Size k = 0; k < spreads.size(); ++k)
+                volSpreads[i].emplace_back(ext::make_shared<SimpleQuote>(spreadScale * vars.cube.volSpreads[i][k]));
+            for (Real g : {alphaGuess, 0.5, 0.4, 0.0})
+                guess[i].emplace_back(ext::make_shared<SimpleQuote>(g));
+        }
+
+        SabrSwaptionVolatilityCube cube(atmVols, vars.cube.tenors.options, vars.cube.tenors.swaps, spreads, volSpreads,
+                                        vars.swapIndexBase, vars.shortSwapIndexBase, false, guess,
+                                        {false, true, false, false}, true);
+
+        const Matrix sparse = cube.sparseSabrParameters();
+        const Matrix dense = cube.volCubeAtmCalibrated();
+
+        const auto rowOf = [](const Matrix& m, Time optionTime, Time swapLength)
+        {
+            for (Size row = 0; row < m.rows(); ++row)
+            {
+                if (close_enough(m[row][0], swapLength) && close_enough(m[row][1], optionTime))
+                    return row;
+            }
+            QL_FAIL("no row at option time " << optionTime << " and swap length " << swapLength);
+        };
+
+        const auto optionTime = [&](const Period& p)
+        { return atmVols->timeFromReference(atmVols->optionDateFromTenor(p)); };
+
+        // These sections aren't quoted in the sparse cube, and these are the quoted ones around them.
+        const Time t0 = optionTime(1 * Years), t1 = optionTime(10 * Years);
+        const Time l0 = atmVols->swapLength(2 * Years), l1 = atmVols->swapLength(10 * Years);
+
+        for (const auto& [option, swap] : std::vector<std::pair<Period, Period>>{
+                 {5 * Years, 5 * Years}, {5 * Years, 10 * Years}, {1 * Years, 5 * Years}})
+        {
+            const Time t = optionTime(option), l = atmVols->swapLength(swap);
+            const Rate forward = cube.atmStrike(option, swap);
+            const Real wt = (t - t0) / (t1 - t0), wl = (l - l0) / (l1 - l0);
+
+            for (Size k = 0; k < spreads.size(); ++k)
+            {
+                Real expected = atmVols->volatility(t, l, forward, true);
+                for (Size i = 0; i < 2; ++i)
+                {
+                    for (Size j = 0; j < 2; ++j)
+                    {
+                        const Time cornerTime = i == 0 ? t0 : t1, cornerLength = j == 0 ? l0 : l1;
+                        const Size row = rowOf(sparse, cornerTime, cornerLength);
+                        const Rate cornerForward = sparse[row][6];
+                        const SabrSmileSection smile(cornerTime, cornerForward,
+                                                     {sparse[row][2], sparse[row][3], sparse[row][4], sparse[row][5]},
+                                                     0.0, type);
+                        const Rate cornerStrike = type == VolatilityType::Normal ?
+                                                      Rate(cornerForward + spreads[k]) :
+                                                      Rate(cornerForward * (forward + spreads[k]) / forward);
+                        const Real cornerSpread = smile.volatility(cornerStrike) -
+                                                  atmVols->volatility(cornerTime, cornerLength, cornerForward, true);
+                        expected += (i == 0 ? 1.0 - wt : wt) * (j == 0 ? 1.0 - wl : wl) * cornerSpread;
+                    }
+                }
+
+                BOOST_TEST_CONTEXT("option " << option << ", swap " << swap << ", spread " << spreads[k])
+                {
+                    BOOST_CHECK_SMALL(dense[rowOf(dense, t, l)][2 + k] - expected, 1e-12);
+                }
+            }
+        }
+    };
+
+    check(VolatilityType::Normal, 0.05, 0.03, 0.05);
+    check(VolatilityType::ShiftedLognormal, 1.0, 1.0, 0.2);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
