@@ -25,6 +25,8 @@
 #include "utilities.hpp"
 #include <ql/cashflows/iborcoupon.hpp>
 #include <ql/discretizedasset.hpp>
+#include <ql/experimental/shortrate/generalizedhullwhite.hpp>
+#include <ql/experimental/shortrate/generalizedornsteinuhlenbeckprocess.hpp>
 #include <ql/indexes/ibor/euribor.hpp>
 #include <ql/indexes/indexmanager.hpp>
 #include <ql/indexes/swap/euriborswap.hpp>
@@ -43,6 +45,7 @@
 #include <ql/pricingengines/swap/treeswapengine.hpp>
 #include <ql/pricingengines/swaption/g2swaptionengine.hpp>
 #include <ql/pricingengines/swaption/jamshidianswaptionengine.hpp>
+#include <ql/processes/hullwhiteprocess.hpp>
 #include <ql/processes/ornsteinuhlenbeckprocess.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/termstructures/yield/discountcurve.hpp>
@@ -712,6 +715,149 @@ BOOST_AUTO_TEST_CASE(testG2SwaptionForSmallMeanReversion)
             BOOST_ERROR("swaption price not converging as the reversion goes to zero:"
                         << "\n  a:          " << a << std::setprecision(17) << "\n  calculated: " << calculated
                         << "\n  limit:      " << limit);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testHullWhiteProcessesForSmallMeanReversion)
+{
+    BOOST_TEST_MESSAGE("Testing the Hull-White processes with mean reversion close to zero...");
+
+    // A flat 3% curve and sigma = 1%, stepping from 1 to 2 years under the 10-year forward measure.
+    const Date today(6, October, 2026);
+    const Handle<YieldTermStructure> curve(flatRate(today, 0.03, Actual365Fixed()));
+    const Volatility sigma = 0.01;
+    const Time T = 10.0;
+
+    struct Case
+    {
+        // B(2,10); what alpha adds to the forward at 1 and 2; M_T(1,2,10); what the drift adds at 2; a year's variance
+        Real a, B, A1, A2, M, D, variance;
+    };
+
+    // The closed forms, evaluated in 120-digit arithmetic.
+    const Case cases[] = {
+        {0.0, 8, 5.0000000000000002e-05, 0.00020000000000000001, 0.00084999999999999995, 0.00020000000000000001,
+         0.0001},
+        {1e-16, 7.9999999999999964, 4.9999999999999996e-05, 0.00019999999999999996, 0.00084999999999999963,
+         0.00019999999999999996, 9.9999999999999991e-05},
+        {1e-15, 7.999999999999968, 4.9999999999999948e-05, 0.0001999999999999996, 0.00084999999999999594,
+         0.0001999999999999996, 9.9999999999999896e-05},
+        {1e-14, 7.9999999999996803, 4.9999999999999501e-05, 0.000199999999999996, 0.00084999999999995951,
+         0.000199999999999996, 9.9999999999999002e-05},
+        {1e-13, 7.9999999999967999, 4.9999999999995002e-05, 0.00019999999999996, 0.000849999999999595,
+         0.00019999999999996, 9.9999999999990003e-05},
+        {1e-12, 7.9999999999679998, 4.999999999995e-05, 0.00019999999999959999, 0.00084999999999595002,
+         0.00019999999999959999, 9.9999999999900001e-05},
+        {1e-11, 7.99999999968, 4.9999999999500002e-05, 0.00019999999999600001, 0.00084999999995950001,
+         0.00019999999999600001, 9.9999999999000004e-05},
+        {1e-10, 7.9999999967999997, 4.9999999995000001e-05, 0.00019999999996, 0.00084999999959500003, 0.00019999999996,
+         9.9999999990000002e-05},
+        {1e-09, 7.999999968, 4.999999995e-05, 0.00019999999959999999, 0.00084999999595000003, 0.00019999999959999999,
+         9.99999999e-05},
+        {1e-08, 7.9999996800000082, 4.9999999500000004e-05, 0.00019999999600000005, 0.0008499999595000012,
+         0.00019999999600000005, 9.9999999000000009e-05},
+        {1e-07, 7.9999968000008534, 4.9999995000000293e-05, 0.00019999996000000467, 0.000849999595000123,
+         0.00019999996000000535, 9.9999990000000668e-05},
+        {1e-06, 7.9999680000853335, 4.9999950000029164e-05, 0.00019999960000046668, 0.00084999595001229581,
+         0.00019999960000053333, 9.9999900000066663e-05},
+        {1e-05, 7.9996800085331623, 4.9999500002916654e-05, 0.00019999600004666626, 0.00084995950122955532,
+         0.0001999960000533328, 9.999900000666664e-05},
+        {0.0001, 7.9968008531626937, 4.9995000291654164e-05, 0.0001999600046662667, 0.00084959512293032594,
+         0.00019996000533280004, 9.999000066663333e-05},
+        {0.01, 7.6883653613364213, 4.9502904209597538e-05, 0.00019604626940630251, 0.0008107020754938416,
+         0.00019605280423838395, 9.9006633466223494e-05},
+        {0.1, 5.5067103588277844, 4.5279585030313559e-05, 0.00016429269939837791, 0.00054437820491150788,
+         0.00016483997698218034, 9.063462346100907e-05},
+        {1.0, 0.99966453737209748, 1.9978820044686403e-05, 3.7382253620775439e-05, 6.3197552747948769e-05,
+         4.9084218055563291e-05, 4.3233235838169365e-05},
+        {-1e-12, 8.0000000000319993, 5.0000000000049998e-05, 0.0002000000000004, 0.00085000000000404999,
+         0.0002000000000004, 0.0001000000000001},
+        {-1e-08, 8.0000003200000087, 5.00000005e-05, 0.00020000000400000005, 0.0008500000405000012,
+         0.00020000000400000005, 0.000100000001},
+        {-0.0001, 8.003200853504028, 5.000500029167917e-05, 0.00020004000466706669, 0.00085040512298635096,
+         0.00020004000533386672, 0.0001000100006667},
+        {-0.1, 12.255409284924676, 5.5304610044372925e-05, 0.00024509590660465325, 0.0014119953190764119,
+         0.00024591234882063518, 0.00011070137908008492},
+    };
+
+    const Real f1 = curve->forwardRate(1.0, 1.0, Continuous, NoFrequency);
+    const Real f2 = curve->forwardRate(2.0, 2.0, Continuous, NoFrequency);
+    // the processes differentiate the forward over this step, and its rounding is in their drift
+    const Real shift = 0.0001;
+    const Real fPrime = (curve->forwardRate(2.0 + shift, 2.0 + shift, Continuous, NoFrequency) - f2) / shift;
+
+    const Real relative = 1.0e-13, absolute = 1.0e-15;
+    const Real x0 = 0.031, x = 0.029;
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT("a = " << c.a)
+        {
+            const Real decay = std::exp(-c.a);
+            const Real common = x0 * decay + (f2 + c.A2) - (f1 + c.A1) * decay;
+            const Real drift = c.a * (f2 - x) + c.D + fPrime;
+
+            HullWhiteForwardProcess forward(curve, c.a, sigma);
+            forward.setForwardMeasureTime(T);
+            BOOST_CHECK_SMALL(forward.B(2.0, T) / c.B - 1.0, relative);
+            BOOST_CHECK_SMALL(forward.M_T(1.0, 2.0, T) / c.M - 1.0, relative);
+            BOOST_CHECK_SMALL((forward.alpha(2.0) - f2) / c.A2 - 1.0, relative);
+            BOOST_CHECK_SMALL(forward.expectation(1.0, x0, 1.0) - (common - c.M), absolute);
+            BOOST_CHECK_SMALL(forward.drift(2.0, x) - (drift - c.B * sigma * sigma), absolute);
+
+            BOOST_CHECK_SMALL(OrnsteinUhlenbeckProcess(c.a, sigma).variance(0.0, 0.0, 1.0) / c.variance - 1.0,
+                              relative);
+            const GeneralizedOrnsteinUhlenbeckProcess generalized([&](Time) { return c.a; },
+                                                                  [&](Time) { return sigma; });
+            BOOST_CHECK_SMALL(generalized.variance(0.0, 0.0, 1.0) / c.variance - 1.0, relative);
+
+            const GeneralizedHullWhite model(curve, c.a, sigma);
+            BOOST_CHECK_SMALL((model.HWdynamics()->shortRate(2.0, 0.0) - f2) / c.A2 - 1.0, relative);
+
+            // HullWhiteProcess refuses a negative mean reversion.
+            if (c.a >= 0.0)
+            {
+                HullWhiteProcess spot(curve, c.a, sigma);
+                BOOST_CHECK_SMALL((spot.alpha(2.0) - f2) / c.A2 - 1.0, relative);
+                BOOST_CHECK_SMALL(spot.expectation(1.0, x0, 1.0) - common, absolute);
+                BOOST_CHECK_SMALL(spot.drift(2.0, x) - drift, absolute);
+            }
+
+            // These two refuse anything but a positive one.  With eta = sigma, b = a and rho = -1/2,
+            // G2's fitting parameter adds just what Hull-White's does.
+            if (c.a > 0.0)
+            {
+                const HullWhite hullWhite(curve, c.a, sigma);
+                BOOST_CHECK_SMALL((hullWhite.dynamics()->shortRate(2.0, 0.0) - f2) / c.A2 - 1.0, relative);
+
+                const G2 g2(curve, c.a, sigma, c.a, sigma, -0.5);
+                BOOST_CHECK_SMALL((g2.dynamics()->shortRate(2.0, 0.0, 0.0) - f2) / c.A2 - 1.0, relative);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testFuturesConvexityBiasForSmallMeanReversion)
+{
+    BOOST_TEST_MESSAGE("Testing Hull-White's futures convexity bias with mean reversion close to zero...");
+
+    // The closed form at a futures price of 94 from 5 to 5.25 years, evaluated in 120-digit arithmetic.
+    const std::tuple<Real, Volatility, Rate> cases[] = {
+        {0.0, 0.015, 0.0031389422057161594},    {1e-16, 0.015, 0.0031389422057161581},
+        {1e-15, 0.015, 0.0031389422057161434},  {1e-14, 0.015, 0.0031389422057159985},
+        {1e-12, 0.015, 0.003138942205700043},   {1e-10, 0.015, 0.0031389422041045081},
+        {1e-08, 0.015, 0.00313894204455102},    {1e-06, 0.015, 0.0031389260892502229},
+        {0.0001, 0.015, 0.0031373310391677677}, {0.03, 0.015, 0.0026963448010039874},
+        {0.03, 1e-06, 1.1987735785397523e-11},  {1e-10, 1e-06, 1.3956249992807574e-11},
+        {0.0, 1e-07, 1.3956249999999759e-13},
+    };
+
+    for (const auto& [a, sigma, expected] : cases)
+    {
+        BOOST_TEST_CONTEXT("a = " << a << ", sigma = " << sigma)
+        {
+            BOOST_CHECK_SMALL(HullWhite::convexityBias(94.0, 5.0, 5.25, sigma, a) / expected - 1.0, 1.0e-13);
+        }
     }
 }
 

@@ -19,6 +19,7 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/math/expm1.hpp>
 #include <ql/processes/ornsteinuhlenbeckprocess.hpp>
 
 namespace QuantLib
@@ -32,15 +33,7 @@ namespace QuantLib
 
     Real OrnsteinUhlenbeckProcess::variance(Time, Real, Time dt) const
     {
-        if (std::fabs(speed_) < std::sqrt(QL_EPSILON))
-        {
-            // algebraic limit for small speed
-            return volatility_ * volatility_ * dt;
-        }
-        else
-        {
-            return 0.5 * volatility_ * volatility_ / speed_ * (1.0 - std::exp(-2.0 * speed_ * dt));
-        }
+        return volatility_ * volatility_ * detail::decayIntegral(2.0 * speed_, dt);
     }
 
 }

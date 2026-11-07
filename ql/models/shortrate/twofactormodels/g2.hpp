@@ -26,6 +26,7 @@
 #define quantlib_two_factor_models_g2_h
 
 #include <ql/instruments/swaption.hpp>
+#include <ql/math/expm1.hpp>
 #include <ql/models/shortrate/twofactormodel.hpp>
 #include <ql/processes/ornsteinuhlenbeckprocess.hpp>
 #include <utility>
@@ -149,8 +150,8 @@ namespace QuantLib
             Real value(const Array&, Time t) const override
             {
                 Rate forward = termStructure_->forwardRate(t, t, Continuous, NoFrequency);
-                Real temp1 = sigma_ * (1.0 - std::exp(-a_ * t)) / a_;
-                Real temp2 = eta_ * (1.0 - std::exp(-b_ * t)) / b_;
+                Real temp1 = sigma_ * detail::decayIntegral(a_, t);
+                Real temp2 = eta_ * detail::decayIntegral(b_, t);
                 Real value = 0.5 * temp1 * temp1 + 0.5 * temp2 * temp2 + rho_ * temp1 * temp2 + forward;
                 return value;
             }
