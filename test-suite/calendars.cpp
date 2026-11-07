@@ -4452,6 +4452,151 @@ BOOST_AUTO_TEST_CASE(testIndiaClearingHolidaysIn2024And2025)
     checkHolidays(c.holidayList(Date(1, January, 2025), Date(31, December, 2025)), expected2025);
 }
 
+BOOST_AUTO_TEST_CASE(testIndiaAgainstNseSettlementHolidayLists)
+{
+    BOOST_TEST_MESSAGE("Testing India's holidays against NSE Clearing's yearly lists...");
+
+    const Calendar c = India();
+
+    // the weekdays of NSE Clearing's "CM - Settlement Holidays for the Calendar Year" circulars
+    // NSE/CMPT/19701
+    const std::vector<Date> expected2012 = {
+        Date(26, January, 2012),  Date(20, February, 2012), Date(8, March, 2012),     Date(23, March, 2012),
+        Date(2, April, 2012),     Date(5, April, 2012),     Date(6, April, 2012),     Date(1, May, 2012),
+        Date(2, July, 2012),      Date(15, August, 2012),   Date(20, August, 2012),   Date(19, September, 2012),
+        Date(2, October, 2012),   Date(24, October, 2012),  Date(13, November, 2012), Date(14, November, 2012),
+        Date(28, November, 2012), Date(25, December, 2012),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2012), Date(31, December, 2012)), expected2012);
+
+    // NSE/CMPT/22402; trading moved from November 14th to the 15th, and neither settled (NSE/CMPT/24989)
+    const std::vector<Date> expected2013 = {
+        Date(25, January, 2013),  Date(19, February, 2013),  Date(27, March, 2013),    Date(29, March, 2013),
+        Date(1, April, 2013),     Date(11, April, 2013),     Date(19, April, 2013),    Date(24, April, 2013),
+        Date(1, May, 2013),       Date(1, July, 2013),       Date(9, August, 2013),    Date(15, August, 2013),
+        Date(9, September, 2013), Date(30, September, 2013), Date(2, October, 2013),   Date(16, October, 2013),
+        Date(4, November, 2013),  Date(14, November, 2013),  Date(15, November, 2013), Date(25, December, 2013),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2013), Date(31, December, 2013)), expected2013);
+
+    // NSE/CMPT/25348, with the election days of April 24th (NSE/CMPT/26402) and October 15th (NSE/CMPT/27816)
+    const std::vector<Date> expected2014 = {
+        Date(14, January, 2014), Date(19, February, 2014), Date(27, February, 2014), Date(17, March, 2014),
+        Date(31, March, 2014),   Date(1, April, 2014),     Date(8, April, 2014),     Date(14, April, 2014),
+        Date(18, April, 2014),   Date(24, April, 2014),    Date(1, May, 2014),       Date(14, May, 2014),
+        Date(1, July, 2014),     Date(29, July, 2014),     Date(15, August, 2014),   Date(18, August, 2014),
+        Date(29, August, 2014),  Date(2, October, 2014),   Date(3, October, 2014),   Date(6, October, 2014),
+        Date(15, October, 2014), Date(23, October, 2014),  Date(24, October, 2014),  Date(4, November, 2014),
+        Date(6, November, 2014), Date(25, December, 2014),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2014), Date(31, December, 2014)), expected2014);
+
+    // NSE/CMPT/28438
+    const std::vector<Date> expected2015 = {
+        Date(26, January, 2015),   Date(17, February, 2015),  Date(19, February, 2015), Date(6, March, 2015),
+        Date(1, April, 2015),      Date(2, April, 2015),      Date(3, April, 2015),     Date(14, April, 2015),
+        Date(1, May, 2015),        Date(4, May, 2015),        Date(1, July, 2015),      Date(18, August, 2015),
+        Date(17, September, 2015), Date(25, September, 2015), Date(2, October, 2015),   Date(22, October, 2015),
+        Date(11, November, 2015),  Date(12, November, 2015),  Date(25, November, 2015), Date(24, December, 2015),
+        Date(25, December, 2015),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2015), Date(31, December, 2015)), expected2015);
+
+    // NSE/CMPT/31421
+    const std::vector<Date> expected2016 = {
+        Date(26, January, 2016), Date(19, February, 2016), Date(7, March, 2016),      Date(24, March, 2016),
+        Date(25, March, 2016),   Date(1, April, 2016),     Date(8, April, 2016),      Date(14, April, 2016),
+        Date(15, April, 2016),   Date(19, April, 2016),    Date(6, July, 2016),       Date(15, August, 2016),
+        Date(17, August, 2016),  Date(5, September, 2016), Date(13, September, 2016), Date(11, October, 2016),
+        Date(12, October, 2016), Date(31, October, 2016),  Date(14, November, 2016),  Date(12, December, 2016),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2016), Date(31, December, 2016)), expected2016);
+
+    // NSCCL/CMPT/33820, with no settlement on February 21st (NSCCL/CMPT/34182)
+    const std::vector<Date> expected2017 = {
+        Date(26, January, 2017), Date(21, February, 2017), Date(24, February, 2017), Date(13, March, 2017),
+        Date(28, March, 2017),   Date(4, April, 2017),     Date(14, April, 2017),    Date(1, May, 2017),
+        Date(10, May, 2017),     Date(26, June, 2017),     Date(15, August, 2017),   Date(17, August, 2017),
+        Date(25, August, 2017),  Date(2, October, 2017),   Date(19, October, 2017),  Date(20, October, 2017),
+        Date(1, December, 2017), Date(25, December, 2017),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2017), Date(31, December, 2017)), expected2017);
+
+    // NSCCL/CMPT/36634, which revised NSCCL/CMPT/36595
+    const std::vector<Date> expected2018 = {
+        Date(26, January, 2018),   Date(13, February, 2018), Date(19, February, 2018), Date(2, March, 2018),
+        Date(29, March, 2018),     Date(30, March, 2018),    Date(30, April, 2018),    Date(1, May, 2018),
+        Date(15, August, 2018),    Date(17, August, 2018),   Date(22, August, 2018),   Date(13, September, 2018),
+        Date(20, September, 2018), Date(2, October, 2018),   Date(18, October, 2018),  Date(7, November, 2018),
+        Date(8, November, 2018),   Date(21, November, 2018), Date(23, November, 2018), Date(25, December, 2018),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2018), Date(31, December, 2018)), expected2018);
+
+    // NCL/CMPT/39791, with the election days of April 29th and October 21st
+    const std::vector<Date> expected2019 = {
+        Date(19, February, 2019),  Date(4, March, 2019),     Date(21, March, 2019),    Date(1, April, 2019),
+        Date(17, April, 2019),     Date(19, April, 2019),    Date(29, April, 2019),    Date(1, May, 2019),
+        Date(5, June, 2019),       Date(12, August, 2019),   Date(15, August, 2019),   Date(2, September, 2019),
+        Date(10, September, 2019), Date(2, October, 2019),   Date(8, October, 2019),   Date(21, October, 2019),
+        Date(28, October, 2019),   Date(12, November, 2019), Date(25, December, 2019),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2019), Date(31, December, 2019)), expected2019);
+
+    // NCL/CMPT/42962
+    const std::vector<Date> expected2020 = {
+        Date(19, February, 2020), Date(21, February, 2020), Date(10, March, 2020),    Date(25, March, 2020),
+        Date(1, April, 2020),     Date(2, April, 2020),     Date(6, April, 2020),     Date(10, April, 2020),
+        Date(14, April, 2020),    Date(1, May, 2020),       Date(7, May, 2020),       Date(25, May, 2020),
+        Date(2, October, 2020),   Date(30, October, 2020),  Date(16, November, 2020), Date(30, November, 2020),
+        Date(25, December, 2020),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2020), Date(31, December, 2020)), expected2020);
+
+    // NCL/CMPT/46687
+    const std::vector<Date> expected2021 = {
+        Date(26, January, 2021), Date(19, February, 2021), Date(11, March, 2021),     Date(29, March, 2021),
+        Date(1, April, 2021),    Date(2, April, 2021),     Date(13, April, 2021),     Date(14, April, 2021),
+        Date(21, April, 2021),   Date(13, May, 2021),      Date(26, May, 2021),       Date(21, July, 2021),
+        Date(16, August, 2021),  Date(19, August, 2021),   Date(10, September, 2021), Date(15, October, 2021),
+        Date(19, October, 2021), Date(4, November, 2021),  Date(5, November, 2021),   Date(19, November, 2021),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2021), Date(31, December, 2021)), expected2021);
+
+    // NCL/CMPT/50630
+    const std::vector<Date> expected2022 = {
+        Date(26, January, 2022), Date(1, March, 2022),    Date(18, March, 2022),   Date(1, April, 2022),
+        Date(14, April, 2022),   Date(15, April, 2022),   Date(3, May, 2022),      Date(16, May, 2022),
+        Date(9, August, 2022),   Date(15, August, 2022),  Date(16, August, 2022),  Date(31, August, 2022),
+        Date(5, October, 2022),  Date(24, October, 2022), Date(26, October, 2022), Date(8, November, 2022),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2022), Date(31, December, 2022)), expected2022);
+
+    // NCL/CMPT/54855, with June 28th moved to the 29th (NCL/CMPT/57291) and September 28th to the 29th (NCL/CMPT/58636)
+    const std::vector<Date> expected2023 = {
+        Date(26, January, 2023),   Date(7, March, 2023),      Date(22, March, 2023),    Date(30, March, 2023),
+        Date(4, April, 2023),      Date(7, April, 2023),      Date(14, April, 2023),    Date(1, May, 2023),
+        Date(5, May, 2023),        Date(29, June, 2023),      Date(15, August, 2023),   Date(16, August, 2023),
+        Date(19, September, 2023), Date(29, September, 2023), Date(2, October, 2023),   Date(24, October, 2023),
+        Date(14, November, 2023),  Date(27, November, 2023),  Date(25, December, 2023),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2023), Date(31, December, 2023)), expected2023);
+}
+
+BOOST_AUTO_TEST_CASE(testIndiaClosuresBefore2012)
+{
+    BOOST_TEST_MESSAGE("Testing India's closures before 2012...");
+
+    const Calendar c = India();
+
+    // the exchanges closed on these: rain in Mumbai, Ramzan Id, the attacks on Mumbai and polling days
+    const std::vector<Date> closed = {
+        Date(28, July, 2005),  Date(4, November, 2005), Date(27, November, 2008),
+        Date(30, April, 2009), Date(13, October, 2009),
+    };
+    for (const Date& d : closed)
+        BOOST_CHECK_MESSAGE(c.isHoliday(d), d << " should be a holiday");
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

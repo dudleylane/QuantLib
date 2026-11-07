@@ -46,8 +46,14 @@ namespace QuantLib
         </ul>
 
         Other holidays for which no rule is given
-        (data available for 2005-2014, 2019-2026 only:)
+        (data available for 2005-2026 only:)
         <ul>
+        <li>Chatrapati Shivaji Jayanti</li>
+        <li>Annual Bank Closing</li>
+        <li>Annual Closing of RBI</li>
+        <li>Half Yearly Bank Closing</li>
+        <li>Gudi Padwa</li>
+        <li>Parsi New Year</li>
         <li>Bakri Id</li>
         <li>Moharram</li>
         <li>Mahashivratri</li>
@@ -63,6 +69,7 @@ namespace QuantLib
         <li>Bhaubeej</li>
         <li>Ramzan Id</li>
         <li>Guru Nanak Jayanti</li>
+        <li>Election days and other one-off closures</li>
         </ul>
 
         \ingroup calendars
