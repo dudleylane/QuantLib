@@ -20,6 +20,7 @@
 */
 
 #include <ql/math/distributions/chisquaredistribution.hpp>
+#include <ql/math/distributions/gammadistribution.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/math/functional.hpp>
 #include <ql/math/integrals/gausslobattointegral.hpp>
@@ -71,6 +72,17 @@ namespace QuantLib
                                  (squared(mixedSigma) * (1 - std::exp(-process->kappa() * t))) * process->v0();
                 const Real k = squared(mixedSigma) * (1 - std::exp(-process->kappa() * t)) / (4 * process->kappa());
 
+                // A narrow distribution's quantiles form a separate cluster for each step, and the
+                // gaps between the clusters don't close as the grid gets finer, so prices stop
+                // converging.  The default mesh takes over where the first term of the distribution's
+                // series at twice its mean is below what a Real can hold.  The point isn't special
+                // for the mesh, but the distribution used to be 0 from there on, which made the
+                // inverse below fail, so it's where the default mesh has always taken over.
+                const Real mean = df + ncp;
+                const Real logFirstTerm = 0.5 * df * std::log(mean) - mean - GammaFunction().logValue(0.5 * df + 1.0);
+                QL_REQUIRE(logFirstTerm >= std::log(QL_MIN_POSITIVE_REAL),
+                           "distribution too narrow for a mesh of its quantiles");
+
                 const Real qMin = 0.0; // v_min = 0.0;
                 const Real qMax =
                     std::max(process->v0(),
@@ -108,6 +120,9 @@ namespace QuantLib
                     pGrid[i] += tp[j].second / (e - b);
                 }
             }
+
+            // The variance can drift so far from v0 that the quantiles of every step stay below it.
+            QL_REQUIRE(vGrid.back() >= process->v0(), "variance grid doesn't contain v0");
         }
         catch (const Error&)
         {

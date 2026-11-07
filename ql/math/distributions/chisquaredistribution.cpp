@@ -23,6 +23,7 @@
 #include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/math/functional.hpp>
 #include <ql/math/solvers1d/brent.hpp>
+#include <boost/math/special_functions/log1p.hpp>
 
 namespace QuantLib
 {
@@ -32,67 +33,102 @@ namespace QuantLib
         return CumulativeGammaDistribution(0.5 * df_)(0.5 * x);
     }
 
+    namespace
+    {
+        // log(y^a exp(-y) / Gamma(a + 1)).  For large a the terms of the plain expression are
+        // huge and nearly cancel, and logValue is only good to about 1e-10, so this goes through
+        // Stirling's series and log1p(r) - r, in which nothing large is subtracted (Loader, 2000).
+        Real logPoissonWeight(Real a, Real y)
+        {
+            if (a < 10.0)
+                return a * std::log(y) - y - GammaFunction().logValue(a + 1.0);
+
+            const Real r = (y - a) / a;
+            const Real s = 1.0 / (a * a);
+            const Real stirling =
+                (1.0 / 12 -
+                 s * (1.0 / 360 - s * (1.0 / 1260 - s * (1.0 / 1680 - s * (1.0 / 1188 - s * 691.0 / 360360))))) /
+                a;
+            return (r > -0.9 ? a * boost::math::log1pmx(r) : a * (std::log(y / a) - r)) -
+                   0.5 * std::log(2.0 * M_PI * a) - stirling;
+        }
+    }
+
     Real NonCentralCumulativeChiSquareDistribution::operator()(Real x) const
     {
         if (x <= 0.0)
             return 0.0;
 
         const Real errmax = 1e-12;
-        const Size itrmax = 10000;
-        Real lam = 0.5 * ncp_;
+        const Size itrmax = 1000000;
+        const Real minLog = std::log(QL_MIN_POSITIVE_REAL);
+        const Real lam = 0.5 * ncp_;
+        const Real x2 = 0.5 * x;
+        const Real f2 = 0.5 * df_;
 
+        // The series sums v(n) t(n), where v(n) is the probability of at most n for a Poisson
+        // variable of mean lam and t(n) = x2^(f2 + n) exp(-x2) / Gamma(f2 + n + 1).  Far from
+        // their means the first of these underflow and the sum would stay at zero, so it starts
+        // further on.  A Poisson variable is d below its mean with probability at most
+        // exp(-d^2 / (2 mean)), so what comes before 10 standard deviations is below exp(-50).
+        Real logT = logPoissonWeight(f2, x2);
+        if (logT < minLog && x > df_ + ncp_)
+        {
+            // Chernoff's bound on the upper tail, which saves walking up to terms that can be
+            // far away only to find that they sum to 1.
+            const Real w = (df_ + std::sqrt(df_ * df_ + 4.0 * x * ncp_)) / (2.0 * x);
+            const Real logBound = -0.5 * (1.0 - w) * x - 0.5 * df_ * std::log(w) + 0.5 * ncp_ * (1.0 - w) / w;
+            if (logBound < std::log(errmax))
+                return 1.0;
+        }
+
+        Size n = 0;
         Real u = std::exp(-lam);
+        if (-lam < minLog)
+        {
+            QL_REQUIRE(lam < QL_MAX_INTEGER, "non-centrality parameter too large");
+            n = Size(lam - 10.0 * std::sqrt(lam));
+            u = std::exp(logPoissonWeight(Real(n), lam));
+            logT = logPoissonWeight(f2 + n, x2);
+        }
         Real v = u;
-        Real x2 = 0.5 * x;
-        Real f2 = 0.5 * df_;
-        Real f_x_2n = df_ - x;
 
-        Real t = 0.0;
-        if (f2 * QL_EPSILON > 0.125 && std::fabs(x2 - f2) < std::sqrt(QL_EPSILON) * f2)
+        if (logT < minLog && x2 - f2 > n)
         {
-            t = std::exp((1 - t) * (2 - t / (f2 + 1))) / std::sqrt(2.0 * M_PI * (f2 + 1.0));
-        }
-        else
-        {
-            t = std::exp(f2 * std::log(x2) - x2 - GammaFunction().logValue(f2 + 1));
-        }
-
-        Real ans = v * t;
-
-        bool flag = false;
-        Size n = 1;
-        Real f_2n = df_ + 2.0;
-        f_x_2n += 2.0;
-
-        Real bound;
-        for (;;)
-        {
-            if (f_x_2n > 0)
+            const Real first = x2 - f2 - 10.0 * std::sqrt(x2);
+            QL_REQUIRE(first - n <= itrmax, "didn't converge");
+            for (const Size last = Size(first); n < last;)
             {
-                flag = true;
-                goto L10;
-            }
-            for (;;)
-            {
+                ++n;
                 u *= lam / n;
                 v += u;
-                t *= x / f_2n;
-                ans += v * t;
-                n++;
-                f_2n += 2.0;
-                f_x_2n += 2.0;
-                if (!flag && n <= itrmax)
-                    break;
-            L10:
-                bound = t * x / f_x_2n;
-                if (bound <= errmax || n > itrmax)
-                    goto L_End;
             }
+            logT = logPoissonWeight(f2 + n, x2);
         }
-    L_End:
-        if (bound > errmax)
-            QL_FAIL("didn't converge");
-        return (ans);
+
+        Real t = std::exp(logT);
+        Real ans = v * t;
+
+        ++n;
+        const Size nMax = n + itrmax;
+        Real f_2n = df_ + 2.0 * n;
+        Real f_x_2n = df_ - x + 2.0 * n;
+
+        for (;;)
+        {
+            // Beyond the peak of t(n), what's left of the sum is below a geometric series.
+            if (f_x_2n > 0.0 && t * x / f_x_2n <= errmax)
+                return ans;
+            QL_REQUIRE(n <= nMax, "didn't converge");
+
+            u *= lam / n;
+            v += u;
+            t *= x / f_2n;
+            ans += v * t;
+            n++;
+            f_2n += 2.0;
+            f_x_2n += 2.0;
+        }
     }
 
     Real NonCentralCumulativeChiSquareSankaranApprox::operator()(Real x) const

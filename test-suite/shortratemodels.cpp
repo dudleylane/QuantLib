@@ -887,6 +887,83 @@ BOOST_AUTO_TEST_CASE(testShortRateTreesOverShortSteps)
         BOOST_CHECK_LE(lattice->size(i), (2 * i + 1) * (2 * i + 1));
 }
 
+BOOST_AUTO_TEST_CASE(testCoxIngersollRossShortExpiryBondOptions)
+{
+    BOOST_TEST_MESSAGE("Testing short-expiry bond options in the Cox-Ingersoll-Ross model...");
+
+    const CoxIngersollRoss model(0.03, 0.04, 0.3, 0.1);
+    const Time bondMaturity = 1.0;
+
+    // The closed formula, with the distribution's series summed at 50 digits.
+    struct Case
+    {
+        Time expiry;
+        Real strike, call, put;
+    };
+    const Case cases[] = {
+        {1.0 / 52, 0.9, 0.06968543429919652, 0.0},
+        {1.0 / 52, 0.95, 0.01971429978338451, 8.330985234252416e-22},
+        {1.0 / 52, 0.97, 0.000654330058501688, 0.0009284840814420261},
+        {1.0 / 52, 0.98, 5.972335615126306e-13, 0.010268380926699997},
+        {1.0 / 365, 0.9, 0.06923983527536709, 0.0},
+        {1.0 / 365, 0.95, 0.019243945258231213, 0.0},
+        {1.0 / 365, 0.97, 6.19091004229057e-05, 0.0008163198490460851},
+        {1.0 / 365, 0.98, 0.0, 0.010753588752050375},
+        {1.0 / 3650, 0.9, 0.0691732529150161, 0.0},
+        {1.0 / 3650, 0.95, 0.01917366387786073, 0.0},
+        {1.0 / 3650, 0.97, 1.5354938358444237e-08, 0.0008261870919398224},
+        {1.0 / 3650, 0.98, 0.0, 0.01082608954443256},
+    };
+
+    // Each of the two distributions in the formula stops within 1e-12.
+    const Real tolerance = 3e-12;
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT("expiry: " << c.expiry << ", strike: " << c.strike)
+        {
+            BOOST_CHECK_SMALL(model.discountBondOption(Option::Call, c.strike, c.expiry, bondMaturity) - c.call,
+                              tolerance);
+            BOOST_CHECK_SMALL(model.discountBondOption(Option::Put, c.strike, c.expiry, bondMaturity) - c.put,
+                              tolerance);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testExtendedCoxIngersollRossShortExpiryBondOptions)
+{
+    BOOST_TEST_MESSAGE("Testing short-expiry bond options in the extended Cox-Ingersoll-Ross model...");
+
+    const Date today(15, May, 2026);
+    Settings::instance().evaluationDate() = today;
+    const Handle<YieldTermStructure> curve(flatRate(today, 0.04, Actual365Fixed()));
+    const ExtendedCoxIngersollRoss model(curve, 0.04, 0.3, 0.1, 0.03);
+
+    const Time expiry = 1.0 / 365, bondMaturity = 1.0;
+    const Real forward = curve->discount(bondMaturity), discount = curve->discount(expiry);
+
+    // Far enough from the money for the options to be worth their intrinsic values.
+    for (Real strike : {0.90, 0.92})
+    {
+        BOOST_TEST_CONTEXT("strike: " << strike)
+        {
+            BOOST_CHECK_SMALL(model.discountBondOption(Option::Call, strike, expiry, bondMaturity) -
+                                  (forward - strike * discount),
+                              3e-12);
+            BOOST_CHECK_SMALL(model.discountBondOption(Option::Put, strike, expiry, bondMaturity), 3e-12);
+        }
+    }
+    for (Real strike : {1.0, 1.02})
+    {
+        BOOST_TEST_CONTEXT("strike: " << strike)
+        {
+            BOOST_CHECK_SMALL(model.discountBondOption(Option::Call, strike, expiry, bondMaturity), 3e-12);
+            BOOST_CHECK_SMALL(model.discountBondOption(Option::Put, strike, expiry, bondMaturity) -
+                                  (strike * discount - forward),
+                              3e-12);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
