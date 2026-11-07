@@ -507,6 +507,147 @@ BOOST_AUTO_TEST_CASE(testItmProbabilitiesWithZeroVolatility)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testBachelierImpliedVolAtIntrinsic)
+{
+    BOOST_TEST_MESSAGE("Testing Bachelier implied volatility for prices at intrinsic value...");
+
+    // Far enough in the money, a price is its intrinsic value up to rounding, to either side of it.
+    const Real tte = 0.01;
+    const Real vol = 1.0e-5;
+
+    for (Real forward : {-0.01, 0.005, 0.05, 1.0})
+    {
+        for (Real offset : {0.01, 0.03, 0.07})
+        {
+            for (auto type : {Option::Call, Option::Put})
+            {
+                const Real strike = (type == Option::Call) ? forward - offset : forward + offset;
+                const Real intrinsic = Integer(type) * (forward - strike);
+
+                for (Real discount : {1.0, 0.95, 0.5})
+                {
+                    BOOST_TEST_CONTEXT("type " << type << ", strike " << strike << ", forward " << forward
+                                               << ", discount " << discount)
+                    {
+                        const Real price = bachelierBlackFormula(type, strike, forward, vol * std::sqrt(tte), discount);
+                        BOOST_CHECK_GE(bachelierBlackFormulaImpliedVol(type, strike, forward, tte, price, discount),
+                                       0.0);
+
+                        for (Real ulps : {4.0, 16.0})
+                        {
+                            const Real below = intrinsic * (1.0 - ulps * QL_EPSILON) * discount;
+                            BOOST_CHECK_EQUAL(
+                                bachelierBlackFormulaImpliedVol(type, strike, forward, tte, below, discount), 0.0);
+                        }
+                    }
+                }
+
+                BOOST_TEST_CONTEXT("type " << type << ", strike " << strike << ", forward " << forward)
+                {
+                    BOOST_CHECK_EQUAL(bachelierBlackFormulaImpliedVol(type, strike, forward, tte, intrinsic), 0.0);
+                    BOOST_CHECK_EQUAL(
+                        bachelierBlackFormulaImpliedVol(type, strike, forward, tte, intrinsic * (1.0 - QL_EPSILON)),
+                        0.0);
+
+                    // Further below than rounding can explain, there's no volatility to find.
+                    BOOST_CHECK_EXCEPTION(
+                        bachelierBlackFormulaImpliedVol(type, strike, forward, tte, intrinsic - 1.0e-12), Error,
+                        ExpectedErrorMessage("negative time value"));
+                }
+            }
+        }
+    }
+
+    // Rounding goes with the forward and the strike, whatever the distance
+    // between them: the next Real below a forward of 100 is 1.4e-14 away.
+    const Real strike = 99.99, forward = 100.0;
+    const Real price = std::nextafter(forward, 0.0) - strike;
+    BOOST_CHECK_EQUAL(bachelierBlackFormulaImpliedVol(Option::Call, strike, forward, tte, price), 0.0);
+}
+
+BOOST_AUTO_TEST_CASE(testBachelierImpliedVolJustAboveIntrinsic)
+{
+    BOOST_TEST_MESSAGE("Testing Bachelier implied volatility for prices just above intrinsic value...");
+
+    const Real tte = 1.0;
+    const Real vol = 1.0;
+    const Real stdDev = vol * std::sqrt(tte);
+    const Real forward = 0.0;
+
+    // Time values here are near the rounding of the price, and the
+    // implied volatility moves much less than they do: at 7.6, they're
+    // about 4e-15 on a price of 7.6, and the implied volatility is within 2%.
+    Size inverted = 0;
+    for (Size i = 0; i <= 12; ++i)
+    {
+        const Real distance = 7.0 + i * 0.05;
+        for (auto type : {Option::Call, Option::Put})
+        {
+            const Real strike = (type == Option::Call) ? forward - distance : forward + distance;
+            for (Real discount : {1.0, 0.99, 0.95, 0.9})
+            {
+                BOOST_TEST_CONTEXT("type " << type << ", distance " << distance << ", discount " << discount)
+                {
+                    const Real price = bachelierBlackFormula(type, strike, forward, stdDev, discount);
+                    const Real implied = bachelierBlackFormulaImpliedVol(type, strike, forward, tte, price, discount);
+                    if (price / discount > distance)
+                    {
+                        BOOST_CHECK_SMALL(implied / vol - 1.0, 0.03);
+                        ++inverted;
+                    }
+                    else
+                    {
+                        BOOST_CHECK_EQUAL(implied, 0.0);
+                    }
+                }
+            }
+        }
+    }
+    BOOST_CHECK_GT(inverted, Size(0));
+}
+
+BOOST_AUTO_TEST_CASE(testBachelierImpliedVolFarOutOfTheMoney)
+{
+    BOOST_TEST_MESSAGE("Testing Bachelier implied volatility for very low prices...");
+
+    // However low, the price of an out-of-the-money option says what its volatility is.
+    for (Real forward : {-0.01, 0.05, 1.0})
+    {
+        for (Real tte : {0.01, 1.0})
+        {
+            for (Real vol : {1.0e-5, 0.01})
+            {
+                for (Real distance : {10.0, 15.0, 20.0, 30.0, 35.0})
+                {
+                    for (auto type : {Option::Call, Option::Put})
+                    {
+                        const Real stdDev = vol * std::sqrt(tte);
+                        const Real strike = forward + Integer(type) * distance * stdDev;
+                        for (Real discount : {1.0, 0.95})
+                        {
+                            BOOST_TEST_CONTEXT("type " << type << ", strike " << strike << ", forward " << forward
+                                                       << ", stdDev " << stdDev << ", discount " << discount)
+                            {
+                                const Real price = bachelierBlackFormula(type, strike, forward, stdDev, discount);
+                                BOOST_CHECK_SMALL(
+                                    bachelierBlackFormulaImpliedVol(type, strike, forward, tte, price, discount) / vol -
+                                        1.0,
+                                    1.0e-9);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // No price at all is no volatility, and neither is one that's a rounding below it.
+    BOOST_CHECK_EQUAL(bachelierBlackFormulaImpliedVol(Option::Call, 1.01, 1.0, 1.0, 0.0), 0.0);
+    BOOST_CHECK_EQUAL(bachelierBlackFormulaImpliedVol(Option::Call, 1.01, 1.0, 1.0, -1.0e-20), 0.0);
+    BOOST_CHECK_EXCEPTION(bachelierBlackFormulaImpliedVol(Option::Call, 1.01, 1.0, 1.0, -1.0e-12), Error,
+                          ExpectedErrorMessage("negative time value"));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -46,6 +46,13 @@ namespace
         QL_REQUIRE(forward + displacement > 0.0,
                    "forward + displacement (" << forward << " + " << displacement << ") must be positive");
     }
+
+    // How far rounding can put a price on its intrinsic value below it. That goes
+    // with the forward and the strike, however close they are to each other.
+    QuantLib::Real roundingOfIntrinsicValue(QuantLib::Real strike, QuantLib::Real forward)
+    {
+        return 42 * QL_EPSILON * std::max(std::fabs(strike), std::fabs(forward));
+    }
 }
 
 namespace QuantLib
@@ -796,7 +803,7 @@ namespace QuantLib
 
         Real timeValue = bachelierPrice - std::max(theta * (forward - strike), 0.0);
 
-        if (close_enough(timeValue, 0.0))
+        if (timeValue <= 0.0 && timeValue >= -roundingOfIntrinsicValue(strike, forward))
             return 0.0;
 
         QL_REQUIRE(timeValue > 0.0, "bachelierBlackFormulaImpliedVolExact(theta="
