@@ -42,6 +42,7 @@ namespace QuantLib
         <li>Labour Day, May 1st</li>
         <li>Republic Day, June 2nd (since 2000)</li>
         <li>Assumption, August 15th</li>
+        <li>Saint Francis of Assisi, October 4th (since 2026)</li>
         <li>All Saint's Day, November 1st</li>
         <li>Immaculate Conception Day, December 8th</li>
         <li>Christmas Day, December 25th</li>

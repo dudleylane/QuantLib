@@ -4034,6 +4034,24 @@ BOOST_AUTO_TEST_CASE(testBotswanaPublicHolidaysAct)
     BOOST_CHECK(c.isBusinessDay(Date(15, May, 2025)));
 }
 
+BOOST_AUTO_TEST_CASE(testItalySettlementOnSaintFrancis)
+{
+    BOOST_TEST_MESSAGE("Testing Italy's national holiday of Saint Francis...");
+
+    const Calendar c = Italy(Italy::Settlement);
+
+    // law 151 of 2025 applies from 2026, when October 4th is a Sunday
+    BOOST_CHECK(c.isBusinessDay(Date(4, October, 2024)));
+    BOOST_CHECK(c.isHoliday(Date(4, October, 2027)));
+    BOOST_CHECK(c.isHoliday(Date(4, October, 2028)));
+
+    const std::vector<Date> expected2027 = {
+        {1, January, 2027}, {6, January, 2027},  {29, March, 2027},   {2, June, 2027},
+        {4, October, 2027}, {1, November, 2027}, {8, December, 2027},
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2027), Date(31, December, 2027)), expected2027);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

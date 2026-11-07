@@ -65,6 +65,8 @@ namespace QuantLib
             || (d == 2 && m == June && y >= 2000)
             // Assumption
             || (d == 15 && m == August)
+            // Saint Francis of Assisi
+            || (d == 4 && m == October && y >= 2026)
             // All Saints' Day
             || (d == 1 && m == November)
             // Immaculate Conception
