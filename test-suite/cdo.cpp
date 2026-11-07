@@ -45,6 +45,7 @@
 #include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/time/daycounters/actualactual.hpp>
 #include <boost/mpl/vector.hpp>
+#include <functional>
 #include <iomanip>
 #include <iostream>
 #include <numeric>
@@ -1023,13 +1024,18 @@ struct NamesAroundADefault
             factors, recoveries, LatentModelIntegrationType::GaussianQuadrature, GaussianCopulaPolicy::initTraits());
     }
 
-    // Under a T copula each name has a distribution of its own, where the Gaussian one is shared.
-    ext::shared_ptr<TConstantLossLM> tLatentModel() const
+    static TCopulaPolicy::initTraits tTraits()
     {
         TCopulaPolicy::initTraits traits;
         traits.tOrders = std::vector<Integer>(2, 3);
+        return traits;
+    }
+
+    // Under a T copula each name has a distribution of its own, where the Gaussian one is shared.
+    ext::shared_ptr<TConstantLossLM> tLatentModel() const
+    {
         return ext::make_shared<TConstantLossLM>(factors, recoveries, LatentModelIntegrationType::GaussianQuadrature,
-                                                 traits);
+                                                 tTraits());
     }
 
     ext::shared_ptr<DefaultLossModel> lhpModel() const
@@ -1104,6 +1110,44 @@ struct NamesAroundADefault
         return ext::make_shared<SaddlePointLossModel<TCopulaPolicy>>(tLatentModel());
     }
 
+    // By default correlation goes up with the loss level, so that the levels a model reads show
+    // in what it says.
+    template <class Model>
+    ext::shared_ptr<DefaultLossModel> baseCorrelationModel(const typename Model::copulaType::initTraits& traits,
+                                                           Real atLowLevel = 0.2,
+                                                           Real atHighLevel = 0.4) const
+    {
+        const Handle<Quote> low = makeQuoteHandle(atLowLevel);
+        const Handle<Quote> high = makeQuoteHandle(atHighLevel);
+        const std::vector<std::vector<Handle<Quote>>> quotes = {{low, low}, {high, high}};
+        auto surface = ext::make_shared<BaseCorrelationTermStructure<BilinearInterpolation>>(
+            0, TARGET(), Unadjusted, std::vector<Period>{Period(1, Years), Period(10, Years)},
+            std::vector<Real>{0.03, 0.5}, quotes, Actual365Fixed());
+        surface->enableExtrapolation();
+        return ext::make_shared<BaseCorrelationLossModel<Model, BilinearInterpolation>>(
+            Handle<BaseCorrelationTermStructure<BilinearInterpolation>>(surface), recoveries, traits);
+    }
+
+    ext::shared_ptr<DefaultLossModel> baseCorrelationOnLhp() const
+    {
+        return baseCorrelationModel<GaussianLHPLossModel>(GaussianCopulaPolicy::initTraits());
+    }
+
+    ext::shared_ptr<DefaultLossModel> baseCorrelationOnBinomial() const
+    {
+        return baseCorrelationModel<GaussianBinomialLossModel>(GaussianCopulaPolicy::initTraits());
+    }
+
+    ext::shared_ptr<DefaultLossModel> baseCorrelationOnTBinomial() const
+    {
+        return baseCorrelationModel<TBinomialLossModel>(tTraits());
+    }
+
+    ext::shared_ptr<DefaultLossModel> baseCorrelationOnInhomogeneous() const
+    {
+        return baseCorrelationModel<IHGaussPoolLossModel>(GaussianCopulaPolicy::initTraits());
+    }
+
     ext::shared_ptr<Basket> basket(Real attachment, Real detachment) const
     {
         return ext::make_shared<Basket>(inception, names, notionals, pool, attachment, detachment);
@@ -1136,6 +1180,15 @@ std::vector<ModelAroundADefault> modelsAroundADefault()
             {"T recursive", &NamesAroundADefault::tRecursiveModel, false},
             {"T saddle point", &NamesAroundADefault::tSaddlePointModel, false},
             {"T inhomogeneous", &NamesAroundADefault::tInhomogeneousModel, false}};
+}
+
+// These have no percentile or shortfall to ask for.
+std::vector<ModelAroundADefault> baseCorrelationModels()
+{
+    return {{"base correlation on LHP", &NamesAroundADefault::baseCorrelationOnLhp, false},
+            {"base correlation on binomial", &NamesAroundADefault::baseCorrelationOnBinomial, false},
+            {"base correlation on T binomial", &NamesAroundADefault::baseCorrelationOnTBinomial, false},
+            {"base correlation on inhomogeneous", &NamesAroundADefault::baseCorrelationOnInhomogeneous, false}};
 }
 
 BOOST_AUTO_TEST_CASE(testBasketDataOnTheNamesLeftAfterADefault)
@@ -1466,8 +1519,10 @@ BOOST_AUTO_TEST_CASE(testCdoAfterADefault)
         ext::make_shared<FlatForward>(Date(31, August, 2006), 0.05, Actual360(), Continuous));
 
     using Factory = ext::shared_ptr<DefaultLossModel> (NamesAroundADefault::*)() const;
-    const std::vector<std::pair<std::string, Factory>> models = {{"LHP", &NamesAroundADefault::lhpModel},
-                                                                 {"binomial", &NamesAroundADefault::binomialModel}};
+    const std::vector<std::pair<std::string, Factory>> models = {
+        {"LHP", &NamesAroundADefault::lhpModel},
+        {"binomial", &NamesAroundADefault::binomialModel},
+        {"base correlation", &NamesAroundADefault::baseCorrelationOnLhp}};
     const auto price = [&](const ext::shared_ptr<Basket>& basket, const ext::shared_ptr<PricingEngine>& engine)
     {
         auto tranche =
@@ -1549,7 +1604,11 @@ BOOST_AUTO_TEST_CASE(testTopTrancheAfterADefault)
         {"LHP", &NamesAroundADefault::lhpModel},
         {"binomial", &NamesAroundADefault::binomialModel},
         {"recursive", &NamesAroundADefault::recursiveModel},
-        {"saddle point", &NamesAroundADefault::saddlePointModel}};
+        {"saddle point", &NamesAroundADefault::saddlePointModel},
+        {"base correlation on LHP", &NamesAroundADefault::baseCorrelationOnLhp},
+        {"base correlation on binomial", &NamesAroundADefault::baseCorrelationOnBinomial},
+        {"base correlation on T binomial", &NamesAroundADefault::baseCorrelationOnTBinomial},
+        {"base correlation on inhomogeneous", &NamesAroundADefault::baseCorrelationOnInhomogeneous}};
     for (const auto& model : models)
     {
         BOOST_TEST_CONTEXT(model.first)
@@ -1568,6 +1627,12 @@ BOOST_AUTO_TEST_CASE(testTopTrancheAfterADefault)
 
             BOOST_CHECK_SMALL(basket->expectedTrancheLoss(all.horizon) - reference->expectedTrancheLoss(all.horizon),
                               1.0e-9);
+
+            // 1980 to 2000, less the 60, starts above the 1900 left, so it can't lose anything.
+            const auto beyond = all.basket(0.99, 1.0);
+            BOOST_CHECK_SMALL(beyond->remainingAttachmentAmount() - 1920.0, 1.0e-9);
+            beyond->setLossModel((all.*model.second)());
+            BOOST_CHECK_SMALL(beyond->expectedTrancheLoss(all.horizon), 1.0e-9);
         }
     }
 }
@@ -1599,6 +1664,8 @@ BOOST_AUTO_TEST_CASE(testTrancheWithNoNamesLeft)
     std::vector<ModelAroundADefault> models = modelsAroundADefault();
     models.push_back({"random default", &NamesAroundADefault::randomDefaultModel, false});
     models.push_back({"random loss", &NamesAroundADefault::randomLossModel, false});
+    for (const auto& model : baseCorrelationModels())
+        models.push_back(model);
     for (const auto& model : models)
     {
         for (const auto& tranche : tranches)
@@ -1731,6 +1798,154 @@ BOOST_AUTO_TEST_CASE(testRandomLossModelsAfterADefault)
                     BOOST_REQUIRE_EQUAL(split.size(), live.size());
                     for (Size i = 0; i < live.size(); ++i)
                         BOOST_CHECK_SMALL(split[i] - expected[live[i]], tolerance);
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBaseCorrelationAfterADefault)
+{
+    BOOST_TEST_MESSAGE("Testing base correlation models on what a default leaves of a tranche...");
+
+    const Real tolerance = 1.0e-9;
+    for (const auto& model : baseCorrelationModels())
+    {
+        for (bool sameLoss : {true, false})
+        {
+            for (const auto& tranche : tranchesAfterADefault(sameLoss))
+            {
+                BOOST_TEST_CONTEXT(model.name << (sameLoss ? ", the same loss on default" : ", different names")
+                                              << ", tranche " << tranche.attachment << " to " << tranche.detachment)
+                {
+                    const NamesAroundADefault all(sameLoss, false);
+                    const NamesAroundADefault left(sameLoss, true);
+                    Settings::instance().evaluationDate() = all.afterTheDefault;
+
+                    const auto basket = all.basket(tranche.attachment, tranche.detachment);
+                    basket->setLossModel((all.*model.factory)());
+                    const auto reference = whatIsLeftOf(tranche, left);
+                    if (reference != nullptr)
+                        reference->setLossModel((left.*model.factory)());
+
+                    // At the second date, as an engine asks for a coupon that started before the default.
+                    for (const Date& d : {all.horizon, all.beforeTheDefault})
+                    {
+                        const Real onNamesLeft = reference != nullptr ? reference->expectedTrancheLoss(d) : 0.0;
+                        BOOST_CHECK_SMALL(basket->expectedTrancheLoss(d) - tranche.realized - onNamesLeft, tolerance);
+                    }
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBaseCorrelationAsANameDefaults)
+{
+    BOOST_TEST_MESSAGE("Testing base correlation models when a name defaults under them...");
+
+    const Real tolerance = 1.0e-9;
+    for (const auto& model : baseCorrelationModels())
+    {
+        for (bool sameLoss : {true, false})
+        {
+            for (const auto& tranche : tranchesAfterADefault(sameLoss))
+            {
+                BOOST_TEST_CONTEXT(model.name << (sameLoss ? ", the same loss on default" : ", different names")
+                                              << ", tranche " << tranche.attachment << " to " << tranche.detachment)
+                {
+                    const NamesAroundADefault all(sameLoss, false);
+                    const NamesAroundADefault left(sameLoss, true);
+
+                    // The model sets its own models up on all twenty, and then again on the names left.
+                    Settings::instance().evaluationDate() = all.inception;
+                    const auto basket = all.basket(tranche.attachment, tranche.detachment);
+                    basket->setLossModel((all.*model.factory)());
+                    BOOST_CHECK_GE(basket->expectedTrancheLoss(all.horizon), 0.0);
+
+                    Settings::instance().evaluationDate() = all.afterTheDefault;
+                    const auto reference = whatIsLeftOf(tranche, left);
+                    if (reference != nullptr)
+                        reference->setLossModel((left.*model.factory)());
+                    const Real onNamesLeft = reference != nullptr ? reference->expectedTrancheLoss(all.horizon) : 0.0;
+                    BOOST_CHECK_SMALL(basket->expectedTrancheLoss(all.horizon) - tranche.realized - onNamesLeft,
+                                      tolerance);
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBaseCorrelationOnAFlatSurface)
+{
+    BOOST_TEST_MESSAGE("Testing base correlation models against the models under them on a flat surface...");
+
+    using Factory = std::function<ext::shared_ptr<DefaultLossModel>(const NamesAroundADefault&)>;
+    const Handle<Quote> correlation = makeQuoteHandle(0.3);
+    const auto integration = LatentModelIntegrationType::GaussianQuadrature;
+    const GaussianCopulaPolicy::initTraits gaussian{};
+    const TCopulaPolicy::initTraits t = NamesAroundADefault::tTraits();
+
+    struct FlatCase
+    {
+        std::string name;
+        Factory onSurface, onItsOwn;
+    };
+    const std::vector<FlatCase> models = {
+        {"LHP", [&](const NamesAroundADefault& names)
+         { return names.baseCorrelationModel<GaussianLHPLossModel>(gaussian, 0.3, 0.3); },
+         [&](const NamesAroundADefault& names) -> ext::shared_ptr<DefaultLossModel>
+         { return ext::make_shared<GaussianLHPLossModel>(correlation, names.recoveries); }},
+        {"binomial", [&](const NamesAroundADefault& names)
+         { return names.baseCorrelationModel<GaussianBinomialLossModel>(gaussian, 0.3, 0.3); },
+         [&](const NamesAroundADefault& names) -> ext::shared_ptr<DefaultLossModel>
+         {
+             return ext::make_shared<GaussianBinomialLossModel>(ext::make_shared<GaussianConstantLossLM>(
+                 correlation, names.recoveries, integration, names.recoveries.size(), gaussian));
+         }},
+        {"T binomial",
+         [&](const NamesAroundADefault& names) { return names.baseCorrelationModel<TBinomialLossModel>(t, 0.3, 0.3); },
+         [&](const NamesAroundADefault& names) -> ext::shared_ptr<DefaultLossModel>
+         {
+             return ext::make_shared<TBinomialLossModel>(ext::make_shared<TConstantLossLM>(
+                 correlation, names.recoveries, integration, names.recoveries.size(), t));
+         }},
+        {"inhomogeneous", [&](const NamesAroundADefault& names)
+         { return names.baseCorrelationModel<IHGaussPoolLossModel>(gaussian, 0.3, 0.3); },
+         [&](const NamesAroundADefault& names) -> ext::shared_ptr<DefaultLossModel>
+         {
+             return ext::make_shared<IHGaussPoolLossModel>(
+                 ext::make_shared<GaussianConstantLossLM>(correlation, names.recoveries, integration,
+                                                          names.recoveries.size(), gaussian),
+                 500);
+         }}};
+    const std::vector<std::pair<Real, Real>> tranches = {{0.0, 0.03}, {0.0, 0.1}, {0.03, 0.1}, {0.1, 0.3}, {0.0, 1.0}};
+
+    for (const auto& model : models)
+    {
+        for (bool sameLoss : {true, false})
+        {
+            for (const auto& tranche : tranches)
+            {
+                BOOST_TEST_CONTEXT(model.name << (sameLoss ? ", the same loss on default" : ", different names")
+                                              << ", tranche " << tranche.first << " to " << tranche.second)
+                {
+                    const NamesAroundADefault names(sameLoss, false, NamesAroundADefault::noName);
+                    Settings::instance().evaluationDate() = names.afterTheDefault;
+
+                    const auto basket = names.basket(tranche.first, tranche.second);
+                    basket->setLossModel(model.onSurface(names));
+
+                    // What base correlation is: the difference of two tranches from zero.
+                    const auto expectedOnFirstLoss = [&](Real detachment)
+                    {
+                        const auto firstLoss = names.basket(0.0, detachment);
+                        firstLoss->setLossModel(model.onItsOwn(names));
+                        return firstLoss->expectedTrancheLoss(names.horizon);
+                    };
+                    const Real expected = expectedOnFirstLoss(tranche.second) -
+                                          (tranche.first > 0.0 ? expectedOnFirstLoss(tranche.first) : 0.0);
+                    BOOST_CHECK_SMALL(basket->expectedTrancheLoss(names.horizon) - expected, 1.0e-9);
                 }
             }
         }

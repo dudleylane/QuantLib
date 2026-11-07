@@ -31,6 +31,7 @@
 #include <ql/experimental/credit/binomiallossmodel.hpp>
 #include <ql/experimental/credit/gaussianlhplossmodel.hpp>
 #include <ql/experimental/credit/inhomogeneouspooldef.hpp>
+#include <algorithm>
 #include <utility>
 
 namespace QuantLib
@@ -119,15 +120,28 @@ namespace QuantLib
         void resetModel() override
         {
             remainingNotional_ = basket_->remainingNotional();
-            attachRatio_ = basket_->remainingAttachmentAmount() / remainingNotional_;
-            detachRatio_ = basket_->remainingDetachmentAmount() / remainingNotional_;
+            // with no name left a basket doesn't come to a model for a loss
+            if (remainingNotional_ == 0.)
+                return;
+            // a tranche can reach beyond what's left once names have defaulted
+            attachRatio_ = std::min(basket_->remainingAttachmentAmount() / remainingNotional_, 1.);
+            detachRatio_ = std::min(basket_->remainingDetachmentAmount() / remainingNotional_, 1.);
+
+            // the models under this one work on the names left, each with its own data
+            const ext::shared_ptr<Pool>& pool = basket_->pool();
+            auto remainingPool = ext::make_shared<Pool>();
+            for (const std::string& name : basket_->remainingNames())
+                remainingPool->add(name, pool->get(name), pool->defaultKey(name));
+            remainingRecoveries_.clear();
+            for (Size iName : basket_->liveList())
+                remainingRecoveries_.push_back(recoveries_[iName]);
 
             basketAttach_ =
                 ext::make_shared<Basket>(basket_->refDate(), basket_->remainingNames(), basket_->remainingNotionals(),
-                                         basket_->pool(), 0.0, attachRatio_, basket_->claim());
+                                         remainingPool, 0.0, attachRatio_, basket_->claim());
             basketDetach_ =
                 ext::make_shared<Basket>(basket_->refDate(), basket_->remainingNames(), basket_->remainingNotionals(),
-                                         basket_->pool(), 0.0, detachRatio_, basket_->claim());
+                                         remainingPool, 0.0, detachRatio_, basket_->claim());
             setupModels();
         }
         /* Most of the statistics are not implemented, not impossible but
@@ -151,6 +165,7 @@ namespace QuantLib
         mutable ext::shared_ptr<Basket> basketAttach_, basketDetach_;
         // just cached for the update method
         mutable std::vector<Real> recoveries_;
+        std::vector<Real> remainingRecoveries_;
         Handle<BaseCorrelationTermStructure<Corr2DInt_T>> correlTS_;
         // Initialization parameters for models copula
         mutable typename BaseModel_T::copulaType::initTraits copulaTraits_;
@@ -193,9 +208,9 @@ namespace QuantLib
         // on this assignment any previous registration with the attach and
         //   detach baskets should be removed
         scalarCorrelModelAttach_ =
-            ext::make_shared<GaussianLHPLossModel>(Handle<Quote>(localCorrelationAttach_), recoveries_);
+            ext::make_shared<GaussianLHPLossModel>(Handle<Quote>(localCorrelationAttach_), remainingRecoveries_);
         scalarCorrelModelDetach_ =
-            ext::make_shared<GaussianLHPLossModel>(Handle<Quote>(localCorrelationDetach_), recoveries_);
+            ext::make_shared<GaussianLHPLossModel>(Handle<Quote>(localCorrelationDetach_), remainingRecoveries_);
 
         basketAttach_->setLossModel(scalarCorrelModelAttach_);
         basketDetach_->setLossModel(scalarCorrelModelDetach_);
@@ -205,11 +220,11 @@ namespace QuantLib
     inline void BaseCorrelationLossModel<GaussianBinomialLossModel, BilinearInterpolation>::setupModels() const
     {
         ext::shared_ptr<GaussianConstantLossLM> lmA = ext::make_shared<GaussianConstantLossLM>(
-            Handle<Quote>(localCorrelationAttach_), recoveries_, LatentModelIntegrationType::GaussianQuadrature,
-            recoveries_.size(), copulaTraits_);
+            Handle<Quote>(localCorrelationAttach_), remainingRecoveries_,
+            LatentModelIntegrationType::GaussianQuadrature, remainingRecoveries_.size(), copulaTraits_);
         ext::shared_ptr<GaussianConstantLossLM> lmD = ext::make_shared<GaussianConstantLossLM>(
-            Handle<Quote>(localCorrelationDetach_), recoveries_, LatentModelIntegrationType::GaussianQuadrature,
-            recoveries_.size(), copulaTraits_);
+            Handle<Quote>(localCorrelationDetach_), remainingRecoveries_,
+            LatentModelIntegrationType::GaussianQuadrature, remainingRecoveries_.size(), copulaTraits_);
         scalarCorrelModelAttach_ = ext::make_shared<GaussianBinomialLossModel>(lmA);
         scalarCorrelModelDetach_ = ext::make_shared<GaussianBinomialLossModel>(lmD);
 
@@ -221,11 +236,11 @@ namespace QuantLib
     inline void BaseCorrelationLossModel<TBinomialLossModel, BilinearInterpolation>::setupModels() const
     {
         ext::shared_ptr<TConstantLossLM> lmA = ext::make_shared<TConstantLossLM>(
-            Handle<Quote>(localCorrelationAttach_), recoveries_, LatentModelIntegrationType::GaussianQuadrature,
-            recoveries_.size(), copulaTraits_);
+            Handle<Quote>(localCorrelationAttach_), remainingRecoveries_,
+            LatentModelIntegrationType::GaussianQuadrature, remainingRecoveries_.size(), copulaTraits_);
         ext::shared_ptr<TConstantLossLM> lmD = ext::make_shared<TConstantLossLM>(
-            Handle<Quote>(localCorrelationDetach_), recoveries_, LatentModelIntegrationType::GaussianQuadrature,
-            recoveries_.size(), copulaTraits_);
+            Handle<Quote>(localCorrelationDetach_), remainingRecoveries_,
+            LatentModelIntegrationType::GaussianQuadrature, remainingRecoveries_.size(), copulaTraits_);
 
         scalarCorrelModelAttach_ = ext::make_shared<TBinomialLossModel>(lmA);
         scalarCorrelModelDetach_ = ext::make_shared<TBinomialLossModel>(lmD);
@@ -234,18 +249,15 @@ namespace QuantLib
         basketDetach_->setLossModel(scalarCorrelModelDetach_);
     }
 
-    /* \todo Fix this model, is failing for equity tranches at least, the
-    base model works all right, its the link here.
-    */
     template <>
     inline void BaseCorrelationLossModel<IHGaussPoolLossModel, BilinearInterpolation>::setupModels() const
     {
         ext::shared_ptr<GaussianConstantLossLM> lmA = ext::make_shared<GaussianConstantLossLM>(
-            Handle<Quote>(localCorrelationAttach_), recoveries_, LatentModelIntegrationType::GaussianQuadrature,
-            recoveries_.size(), copulaTraits_);
+            Handle<Quote>(localCorrelationAttach_), remainingRecoveries_,
+            LatentModelIntegrationType::GaussianQuadrature, remainingRecoveries_.size(), copulaTraits_);
         ext::shared_ptr<GaussianConstantLossLM> lmD = ext::make_shared<GaussianConstantLossLM>(
-            Handle<Quote>(localCorrelationDetach_), recoveries_, LatentModelIntegrationType::GaussianQuadrature,
-            recoveries_.size(), copulaTraits_);
+            Handle<Quote>(localCorrelationDetach_), remainingRecoveries_,
+            LatentModelIntegrationType::GaussianQuadrature, remainingRecoveries_.size(), copulaTraits_);
 
         // \todo Allow the sending specific model params, as the number of
         //   buckets here.
