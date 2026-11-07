@@ -49,6 +49,14 @@ namespace QuantLib
         arguments->startDate = issueDate();
     }
 
+    void CatBond::setupExpired() const
+    {
+        Bond::setupExpired();
+        lossProbability_ = 0.0;
+        exhaustionProbability_ = 0.0;
+        expectedLoss_ = 0.0;
+    }
+
     void CatBond::fetchResults(const PricingEngine::results* r) const
     {
         Bond::fetchResults(r);

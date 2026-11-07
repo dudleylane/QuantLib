@@ -658,6 +658,81 @@ BOOST_AUTO_TEST_CASE(testEventSetTooShortForOnePath)
     BOOST_CHECK_EXCEPTION(bond->cleanPrice(), Error, noPaths);
 }
 
+BOOST_AUTO_TEST_CASE(testLossFiguresPriceTheBond)
+{
+    BOOST_TEST_MESSAGE("Testing that a cat bond's loss figures don't rely on it being priced first...");
+
+    CommonVars vars;
+
+    Date today(22, November, 2004);
+    Settings::instance().evaluationDate() = today;
+
+    Handle<YieldTermStructure> riskFreeRate(flatRate(today, 0.025, Actual360()));
+    Handle<YieldTermStructure> discountCurve(flatRate(today, 0.03, Actual360()));
+    auto index = ext::make_shared<USDLibor>(6 * Months, riskFreeRate);
+    auto pricer = ext::make_shared<BlackIborCouponPricer>(Handle<OptionletVolatilityStructure>());
+
+    Schedule sch(Date(30, November, 2004), Date(30, November, 2008), Period(Semiannual),
+                 UnitedStates(UnitedStates::GovernmentBond), ModifiedFollowing, ModifiedFollowing,
+                 DateGeneration::Backward, false);
+
+    auto events = ext::make_shared<std::vector<std::pair<Date, Real>>>();
+    auto noRisk = ext::make_shared<MonteCarloCatBondEngine>(
+        ext::make_shared<EventSet>(events, Date(30, November, 2004), Date(30, November, 2008)), discountCurve);
+    auto tooShort = ext::make_shared<MonteCarloCatBondEngine>(
+        ext::make_shared<EventSet>(events, Date(30, November, 2004), Date(30, November, 2007)), discountCurve);
+    auto doomEvents = ext::make_shared<std::vector<std::pair<Date, Real>>>();
+    doomEvents->emplace_back(Date(30, November, 2004), 1000);
+    auto doom = ext::make_shared<MonteCarloCatBondEngine>(
+        ext::make_shared<EventSet>(doomEvents, Date(30, November, 2004), Date(30, November, 2008)), discountCurve);
+
+    FloatingCatBond catBond(1, vars.faceAmount, sch, index, ActualActual(ActualActual::ISMA),
+                            ext::make_shared<DigitalNotionalRisk>(ext::make_shared<NoOffset>(), 100), ModifiedFollowing,
+                            1, std::vector<Rate>(), std::vector<Spread>(), std::vector<Rate>(), std::vector<Rate>(),
+                            false, 100.0, Date(30, November, 2004));
+    setCouponPricer(catBond.cashflows(), pricer);
+
+    const Real tolerance = 1.0e-14;
+
+    // Nothing has priced the bond before any of these reads.
+    catBond.setPricingEngine(doom);
+    BOOST_CHECK_SMALL(catBond.lossProbability() - 1.0, tolerance);
+    catBond.setPricingEngine(noRisk);
+    BOOST_CHECK_SMALL(catBond.lossProbability(), tolerance);
+    catBond.setPricingEngine(doom);
+    BOOST_CHECK_SMALL(catBond.exhaustionProbability() - 1.0, tolerance);
+    catBond.setPricingEngine(noRisk);
+    BOOST_CHECK_SMALL(catBond.exhaustionProbability(), tolerance);
+    catBond.setPricingEngine(doom);
+    BOOST_CHECK_SMALL(catBond.expectedLoss() - 1.0, tolerance);
+    catBond.setPricingEngine(noRisk);
+    BOOST_CHECK_SMALL(catBond.expectedLoss(), tolerance);
+
+    catBond.setPricingEngine(tooShort);
+    const ExpectedErrorMessage noPaths("no Monte Carlo paths were generated");
+    BOOST_CHECK_EXCEPTION(catBond.lossProbability(), Error, noPaths);
+    BOOST_CHECK_EXCEPTION(catBond.exhaustionProbability(), Error, noPaths);
+    BOOST_CHECK_EXCEPTION(catBond.expectedLoss(), Error, noPaths);
+
+    // An expired bond has no loss left, and is worth nothing.
+    const Date afterMaturity(1, December, 2008);
+    catBond.setPricingEngine(doom);
+    BOOST_CHECK_SMALL(catBond.lossProbability() - 1.0, tolerance);
+    Settings::instance().evaluationDate() = afterMaturity;
+    BOOST_TEST(catBond.isExpired());
+    BOOST_CHECK_SMALL(catBond.lossProbability(), tolerance);
+    BOOST_CHECK_SMALL(catBond.exhaustionProbability(), tolerance);
+    BOOST_CHECK_SMALL(catBond.expectedLoss(), tolerance);
+
+    Settings::instance().evaluationDate() = today;
+    catBond.setPricingEngine(noRisk);
+    BOOST_CHECK_GT(catBond.NPV(), 0.0);
+    BOOST_CHECK_GT(catBond.settlementValue(), 0.0);
+    Settings::instance().evaluationDate() = afterMaturity;
+    BOOST_CHECK_SMALL(catBond.NPV(), tolerance);
+    BOOST_CHECK_SMALL(catBond.settlementValue(), tolerance);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
