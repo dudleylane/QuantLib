@@ -847,6 +847,44 @@ BOOST_AUTO_TEST_CASE(testBachelierOptionLetsDelta)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testOptionLetsDeltaWithZeroVolatility)
+{
+
+    BOOST_TEST_MESSAGE("Testing caplet/floorlet delta coefficients with zero volatility...");
+
+    CommonVars vars;
+
+    Date startDate = vars.termStructure->referenceDate();
+    Leg leg = vars.makeLeg(startDate, 5);
+
+    // Forwards are about 5%, and the first optionlet has already fixed.
+    const Rate lowStrike = 0.01, highStrike = 0.20;
+
+    for (bool isLogNormal : {true, false})
+    {
+        const auto delta = [&](CapFloor::Type type, Rate strike)
+        {
+            return vars.makeCapFloor(type, leg, strike, 0.0, isLogNormal)->result<std::vector<Real>>("optionletsDelta");
+        };
+
+        const std::vector<Real> inTheMoneyCap = delta(CapFloor::Cap, lowStrike);
+        const std::vector<Real> outOfTheMoneyCap = delta(CapFloor::Cap, highStrike);
+        const std::vector<Real> inTheMoneyFloor = delta(CapFloor::Floor, highStrike);
+        const std::vector<Real> outOfTheMoneyFloor = delta(CapFloor::Floor, lowStrike);
+
+        for (Size i = 1; i < inTheMoneyCap.size(); ++i)
+        {
+            BOOST_TEST_CONTEXT((isLogNormal ? "Black" : "Bachelier") << ", optionlet " << i)
+            {
+                BOOST_CHECK_SMALL(inTheMoneyCap[i] - 1.0, 1.0e-12);
+                BOOST_CHECK_SMALL(outOfTheMoneyCap[i], 1.0e-12);
+                BOOST_CHECK_SMALL(inTheMoneyFloor[i] + 1.0, 1.0e-12);
+                BOOST_CHECK_SMALL(outOfTheMoneyFloor[i], 1.0e-12);
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testMakeCapFloorAtmStrike)
 {
     BOOST_TEST_MESSAGE("Testing MakeCapFloor's ATM strike with each engine that can find it...");

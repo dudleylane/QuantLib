@@ -456,6 +456,57 @@ BOOST_AUTO_TEST_CASE(testDeepInTheMoneyPricesAreNotBelowIntrinsic)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testItmProbabilitiesWithZeroVolatility)
+{
+    BOOST_TEST_MESSAGE("Testing in-the-money probabilities with zero volatility...");
+
+    // Without variance these are the limits of the formulas: 1 in the money and 0 out of it.
+    struct Case
+    {
+        Option::Type type;
+        Real strike, forward, displacement;
+    };
+    const Case cases[] = {{Option::Call, 0.03, 0.05, 0.0},   {Option::Call, 0.05, 0.03, 0.0},
+                          {Option::Put, 0.03, 0.05, 0.0},    {Option::Put, 0.05, 0.03, 0.0},
+                          {Option::Call, 90.0, 100.0, 0.0},  {Option::Put, 90.0, 100.0, 0.0},
+                          {Option::Call, -0.01, 0.01, 0.02}, {Option::Put, -0.01, 0.01, 0.02}};
+
+    const Real tinyStdDev = 1.0e-8;
+    const Real tolerance = 1.0e-12;
+    for (const Case& c : cases)
+    {
+        const Real expected = Integer(c.type) * (c.forward - c.strike) > 0.0 ? 1.0 : 0.0;
+        BOOST_TEST_CONTEXT("type " << c.type << ", strike " << c.strike << ", forward " << c.forward)
+        {
+            BOOST_CHECK_SMALL(
+                blackFormulaCashItmProbability(c.type, c.strike, c.forward, 0.0, c.displacement) - expected, tolerance);
+            BOOST_CHECK_SMALL(blackFormulaAssetItmProbability(c.type, c.strike, c.forward, 0.0, c.displacement) -
+                                  expected,
+                              tolerance);
+            BOOST_CHECK_SMALL(bachelierBlackFormulaAssetItmProbability(c.type, c.strike, c.forward, 0.0) - expected,
+                              tolerance);
+
+            BOOST_CHECK_SMALL(blackFormulaCashItmProbability(c.type, c.strike, c.forward, tinyStdDev, c.displacement) -
+                                  expected,
+                              tolerance);
+            BOOST_CHECK_SMALL(blackFormulaAssetItmProbability(c.type, c.strike, c.forward, tinyStdDev, c.displacement) -
+                                  expected,
+                              tolerance);
+            BOOST_CHECK_SMALL(bachelierBlackFormulaAssetItmProbability(c.type, c.strike, c.forward, tinyStdDev) -
+                                  expected,
+                              tolerance);
+        }
+    }
+
+    // On the strike, all three take it as out of the money.
+    for (auto type : {Option::Call, Option::Put})
+    {
+        BOOST_CHECK_EQUAL(blackFormulaCashItmProbability(type, 0.05, 0.05, 0.0), 0.0);
+        BOOST_CHECK_EQUAL(blackFormulaAssetItmProbability(type, 0.05, 0.05, 0.0), 0.0);
+        BOOST_CHECK_EQUAL(bachelierBlackFormulaAssetItmProbability(type, 0.05, 0.05, 0.0), 0.0);
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
