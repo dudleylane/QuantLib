@@ -615,6 +615,49 @@ BOOST_AUTO_TEST_CASE(testStubDateRefusedByItsRule)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testEventSetTooShortForOnePath)
+{
+    BOOST_TEST_MESSAGE("Testing a cat bond whose event set is too short for a single path...");
+
+    CommonVars vars;
+
+    Date today(22, November, 2004);
+    Settings::instance().evaluationDate() = today;
+
+    Handle<YieldTermStructure> riskFreeRate(flatRate(today, 0.025, Actual360()));
+    Handle<YieldTermStructure> discountCurve(flatRate(today, 0.03, Actual360()));
+    auto index = ext::make_shared<USDLibor>(6 * Months, riskFreeRate);
+    auto pricer = ext::make_shared<BlackIborCouponPricer>(Handle<OptionletVolatilityStructure>());
+
+    Schedule sch(Date(30, November, 2004), Date(30, November, 2008), Period(Semiannual),
+                 UnitedStates(UnitedStates::GovernmentBond), ModifiedFollowing, ModifiedFollowing,
+                 DateGeneration::Backward, false);
+
+    auto bondWithEventsUntil = [&](const Date& eventsUntil)
+    {
+        auto events = ext::make_shared<std::vector<std::pair<Date, Real>>>();
+        auto catRisk = ext::make_shared<EventSet>(events, Date(30, November, 2004), eventsUntil);
+        auto notionalRisk = ext::make_shared<DigitalNotionalRisk>(ext::make_shared<NoOffset>(), 100);
+        auto bond = ext::make_shared<FloatingCatBond>(1, vars.faceAmount, sch, index, ActualActual(ActualActual::ISMA),
+                                                      notionalRisk, ModifiedFollowing, 1, std::vector<Rate>(),
+                                                      std::vector<Spread>(), std::vector<Rate>(), std::vector<Rate>(),
+                                                      false, 100.0, Date(30, November, 2004));
+        bond->setPricingEngine(ext::make_shared<MonteCarloCatBondEngine>(catRisk, discountCurve));
+        setCouponPricer(bond->cashflows(), pricer);
+        return bond;
+    };
+
+    // The last payment is on November 28th, 2008, so that's where the first path ends.
+    auto bond = bondWithEventsUntil(Date(28, November, 2008));
+    BOOST_CHECK_GT(bond->NPV(), 0.0);
+    BOOST_CHECK_SMALL(bond->lossProbability(), 1.0e-16);
+
+    bond = bondWithEventsUntil(Date(27, November, 2008));
+    const ExpectedErrorMessage noPaths("no Monte Carlo paths were generated");
+    BOOST_CHECK_EXCEPTION(bond->NPV(), Error, noPaths);
+    BOOST_CHECK_EXCEPTION(bond->cleanPrice(), Error, noPaths);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
