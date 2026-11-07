@@ -1330,6 +1330,65 @@ BOOST_AUTO_TEST_CASE(testH1HWPricingEngine)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testEvolveForSmallMeanReversion)
+{
+    BOOST_TEST_MESSAGE("Testing the hybrid Heston Hull-White process with mean reversion close to zero...");
+
+    // Flat curves at 3% and 1%, and one step from 1 to 2 years under the 10-year forward
+    // measure, from a spot of 100 and a rate of 3%, with one standard deviation on the equity.
+    const Date today(6, October, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dayCounter = Actual365Fixed();
+    const Handle<YieldTermStructure> rates(flatRate(today, 0.03, dayCounter));
+    const Handle<YieldTermStructure> dividends(flatRate(today, 0.01, dayCounter));
+    const Handle<Quote> spot(ext::make_shared<SimpleQuote>(100.0));
+    const auto heston = ext::make_shared<HestonProcess>(rates, dividends, spot, 0.04, 1.0, 0.04, 0.1, -0.5);
+
+    struct Case
+    {
+        Real a, euler, bsm, rate;
+    };
+
+    // The closed forms as they stood, with their differences of exponentials, in 160 digits.
+    const Case cases[] = {
+        {1e-16, 122.71977685873105, 122.54542767887339, 0.026530311393158559},
+        {1e-14, 122.71977685873102, 122.54542767887337, 0.026530311393158607},
+        {1e-12, 122.71977685872862, 122.54542767887102, 0.026530311393163572},
+        {1e-10, 122.71977685848822, 122.54542767863632, 0.026530311393660067},
+        {1e-08, 122.71977683444787, 122.5454276551647, 0.026530311443309508},
+        {1e-07, 122.71977661589936, 122.54542744178644, 0.026530311894667948},
+        {1e-06, 122.71977443042032, 122.54542530801005, 0.02653031640824139},
+        {1e-05, 122.7197525762403, 122.54540397085444, 0.02653036154288042},
+        {0.0001, 122.71953409546933, 122.54519066012546, 0.026530812779756895},
+        {0.001, 122.71735537772764, 122.54306362262315, 0.026535314221789341},
+        {0.01, 122.69616446724683, 122.52238751900217, 0.026579260174526029},
+        {0.1, 122.53305767737461, 122.3642485270874, 0.026932220274221041},
+        {1.0, 122.2111540487704, 122.08113582451379, 0.028160754935159859},
+    };
+
+    const Array x0 = {100.0, 0.04, 0.03};
+    const Array dw = {1.0, 0.0, 0.0};
+    // The forward rate of a curve, numerically differentiated as it is, has rounding of about 1e-12.
+    const Real tolerance = 1.0e-10;
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT("a = " << c.a)
+        {
+            const auto hullWhite = ext::make_shared<HullWhiteForwardProcess>(rates, c.a, 0.01);
+            hullWhite->setForwardMeasureTime(10.0);
+
+            const HybridHestonHullWhiteProcess euler(heston, hullWhite, -0.3, HybridHestonHullWhiteProcess::Euler);
+            BOOST_CHECK_SMALL(euler.evolve(1.0, x0, 1.0, dw)[0] / c.euler - 1.0, tolerance);
+
+            const HybridHestonHullWhiteProcess bsm(heston, hullWhite, -0.3, HybridHestonHullWhiteProcess::BSMHullWhite);
+            const Array end = bsm.evolve(1.0, x0, 1.0, dw);
+            BOOST_CHECK_SMALL(end[0] / c.bsm - 1.0, tolerance);
+            BOOST_CHECK_SMALL(end[2] - c.rate, tolerance);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

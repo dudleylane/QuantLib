@@ -22,6 +22,7 @@
            with stochastic interest rates (hull white model)
 */
 
+#include <ql/math/expm1.hpp>
 #include <ql/processes/hybridhestonhullwhiteprocess.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
 
@@ -114,23 +115,25 @@ namespace QuantLib
         const Real df =
             std::log(hestonProcess_->riskFreeRate()->discount(t) / hestonProcess_->riskFreeRate()->discount(s));
 
-        const Real eaT = std::exp(-a * T);
-        const Real eat = std::exp(-a * t);
-        const Real eas = std::exp(-a * s);
-        const Real iat = 1.0 / eat;
-        const Real ias = 1.0 / eas;
+        // In terms of exponentials, these moments subtract terms of low order in a and divide what's
+        // left by up to a^3, which leaves mostly rounding at small a.  Written this way, they don't.
+        Real phi, h;
+        detail::decayPhiAndH(a * dt, phi, h);
+        const Real Bs = hullWhiteProcess_->B(0.0, s);
+        const Real Bt = hullWhiteProcess_->B(0.0, t);
+        const Real Bdt = hullWhiteProcess_->B(s, t);
+        const Real BT = hullWhiteProcess_->B(t, T);
+        const Real integratedRateVariance = 0.5 * sigma * sigma * dt * dt * dt * h;
 
         const Real m1 = -(dy + 0.5 * eta * eta) * dt - df;
 
-        const Real m2 = -rho * sigma * eta / a * (dt - 1 / a * eaT * (iat - ias));
+        const Real m2 = -rho * sigma * eta * (dt * dt * phi + BT * Bdt);
 
-        const Real m3 = (r - hullWhiteProcess_->alpha(s)) * hullWhiteProcess_->B(s, t);
+        const Real m3 = (r - hullWhiteProcess_->alpha(s)) * Bdt;
 
-        const Real m4 =
-            sigma * sigma / (2 * a * a) * (dt + 2 / a * (eat - eas) - 1 / (2 * a) * (eat * eat - eas * eas));
+        const Real m4 = 0.5 * integratedRateVariance + 0.25 * sigma * sigma * Bs * Bdt * (Bs + Bdt + Bt);
 
-        const Real m5 = -sigma * sigma / (a * a) *
-                        (dt - 1 / a * (1 - eat * ias) - 1 / (2 * a) * eaT * (iat - 2 * ias + eat * ias * ias));
+        const Real m5 = -integratedRateVariance - 0.5 * sigma * sigma * Bdt * Bdt * BT;
 
         const Real mu = m1 + m2 + m3 + m4 + m5;
 
@@ -143,13 +146,9 @@ namespace QuantLib
 
         if (discretization_ == BSMHullWhite)
         {
-            const Real v1 =
-                eta * eta * dt +
-                sigma * sigma / (a * a) * (dt - 2 / a * (1 - eat * ias) + 1 / (2 * a) * (1 - eat * eat * ias * ias)) +
-                2 * sigma * eta / a * rho * (dt - 1 / a * (1 - eat * ias));
+            const Real v1 = eta * eta * dt + integratedRateVariance + 2 * rho * sigma * eta * dt * dt * phi;
             const Real v2 = hullWhiteProcess_->variance(t0, r, dt);
-            const Real v12 = (1 - eat * ias) * (sigma * eta / a * rho + sigma * sigma / (a * a)) -
-                             sigma * sigma / (2 * a * a) * (1 - eat * eat * ias * ias);
+            const Real v12 = rho * sigma * eta * Bdt + 0.5 * sigma * sigma * Bdt * Bdt;
 
             QL_REQUIRE(v1 > 0.0 && v2 > 0.0, "zero or negative variance given");
 
