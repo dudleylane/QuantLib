@@ -39,6 +39,7 @@
 #include <ql/time/calendars/france.hpp>
 #include <ql/time/calendars/germany.hpp>
 #include <ql/time/calendars/hongkong.hpp>
+#include <ql/time/calendars/india.hpp>
 #include <ql/time/calendars/indonesia.hpp>
 #include <ql/time/calendars/israel.hpp>
 #include <ql/time/calendars/italy.hpp>
@@ -4400,6 +4401,25 @@ BOOST_AUTO_TEST_CASE(testIndonesiaClosuresBefore2015)
 
     // and it traded on this one, a Wednesday, which the block for 2007 had closed in place of December 24th
     BOOST_CHECK(c.isBusinessDay(Date(24, October, 2007)));
+}
+
+BOOST_AUTO_TEST_CASE(testIndiaClearingHolidaysIn2026)
+{
+    BOOST_TEST_MESSAGE("Testing India's clearing holidays for 2026 against NSE Clearing's notices...");
+
+    // NCL/CMPT/71904 with January 15th from NCL/CMPT/72278. The settlement calendars NSE Clearing issued for each
+    // month of the year leave out exactly these weekdays. February 19th, March 19th, April 1st and August 26th are
+    // trade dates in those calendars: the exchange trades on them, but this calendar is the clearing one.
+    const std::vector<Date> expected = {
+        Date(15, January, 2026), Date(26, January, 2026),  Date(19, February, 2026),  Date(3, March, 2026),
+        Date(19, March, 2026),   Date(26, March, 2026),    Date(31, March, 2026),     Date(1, April, 2026),
+        Date(3, April, 2026),    Date(14, April, 2026),    Date(1, May, 2026),        Date(28, May, 2026),
+        Date(26, June, 2026),    Date(26, August, 2026),   Date(14, September, 2026), Date(2, October, 2026),
+        Date(20, October, 2026), Date(10, November, 2026), Date(24, November, 2026),  Date(25, December, 2026),
+    };
+
+    const Calendar c = India();
+    checkHolidays(c.holidayList(Date(1, January, 2026), Date(31, December, 2026)), expected);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

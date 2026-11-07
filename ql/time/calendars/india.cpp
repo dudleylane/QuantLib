@@ -492,6 +492,39 @@ namespace QuantLib
                 return false;
         }
 
+        if (y == 2026)
+        {
+            if ( // Municipal Corporation Elections in Maharashtra
+                (d == 15 && m == January)
+                // Chatrapati Shivaji Jayanti
+                || (d == 19 && m == February)
+                // Holi
+                || (d == 3 && m == March)
+                // Gudi Padwa
+                || (d == 19 && m == March)
+                // Ram Navami
+                || (d == 26 && m == March)
+                // Mahavir Jayanti
+                || (d == 31 && m == March)
+                // Annual Bank Closing
+                || (d == 1 && m == April)
+                // Bakri Id
+                || (d == 28 && m == May)
+                // Moharram
+                || (d == 26 && m == June)
+                // Id-E-Milad
+                || (d == 26 && m == August)
+                // Ganesh Chaturthi
+                || (d == 14 && m == September)
+                // Dasera
+                || (d == 20 && m == October)
+                // Diwali - Balipratipada
+                || (d == 10 && m == November)
+                // Gurunank Jayanti
+                || (d == 24 && m == November))
+                return false;
+        }
+
         return true;
     }
 
