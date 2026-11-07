@@ -49,7 +49,7 @@ namespace QuantLib
         <li>St. Stephen's Day, December 26th</li>
         </ul>
 
-        Holidays for the stock exchange (data from http://www.borsaitalia.it):
+        Holidays for the stock exchange (data from https://www.borsaitaliana.it):
         <ul>
         <li>Saturdays</li>
         <li>Sundays</li>
@@ -58,10 +58,10 @@ namespace QuantLib
         <li>Easter Monday</li>
         <li>Labour Day, May 1st</li>
         <li>Assumption, August 15th</li>
-        <li>Christmas' Eve, December 24th</li>
+        <li>Christmas' Eve, December 24th (until 2026; half a day from 2027)</li>
         <li>Christmas, December 25th</li>
         <li>St. Stephen, December 26th</li>
-        <li>New Year's Eve, December 31st</li>
+        <li>New Year's Eve, December 31st (until 2026; half a day from 2027)</li>
         </ul>
 
         \ingroup calendars

@@ -4052,6 +4052,48 @@ BOOST_AUTO_TEST_CASE(testItalySettlementOnSaintFrancis)
     checkHolidays(c.holidayList(Date(1, January, 2027), Date(31, December, 2027)), expected2027);
 }
 
+BOOST_AUTO_TEST_CASE(testItalyExchangeAgainstItsCalendars)
+{
+    BOOST_TEST_MESSAGE("Testing the Milan Stock Exchange against its published calendars...");
+
+    const std::vector<Date> expected = {
+        {1, January, 2024},
+        {29, March, 2024},
+        {1, April, 2024},
+        {1, May, 2024},
+        {15, August, 2024},
+        {24, December, 2024},
+        {25, December, 2024},
+        {26, December, 2024},
+        {31, December, 2024},
+
+        {1, January, 2025},
+        {18, April, 2025},
+        {21, April, 2025},
+        {1, May, 2025},
+        {15, August, 2025},
+        {24, December, 2025},
+        {25, December, 2025},
+        {26, December, 2025},
+        {31, December, 2025},
+
+        {1, January, 2026},
+        {3, April, 2026},
+        {6, April, 2026},
+        {1, May, 2026},
+        {24, December, 2026},
+        {25, December, 2026},
+        {31, December, 2026},
+
+        // December 24th and 31st are half days from here on
+        {1, January, 2027},
+        {26, March, 2027},
+        {29, March, 2027},
+    };
+    const Calendar c = Italy(Italy::Exchange);
+    checkHolidays(c.holidayList(Date(1, January, 2024), Date(31, December, 2027)), expected);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
