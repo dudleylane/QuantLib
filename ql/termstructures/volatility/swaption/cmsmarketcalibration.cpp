@@ -203,7 +203,7 @@ namespace
                 j = CmsMarketCalibration::betaTransformDirect(j);
             volCubeBySabr->recalibration(swapLengths, beta, swapTenors[i]);
         }
-        Real meanReversion = CmsMarketCalibration::reversionTransformDirect(x[nSwapLengths + nSwapTenors]);
+        Real meanReversion = CmsMarketCalibration::reversionTransformDirect(x[nSwapLengths * nSwapTenors]);
         cmsMarket_->reprice(volCube_, meanReversion);
     }
 
@@ -275,7 +275,7 @@ namespace
         const std::vector<Period>& swapLengths = cmsMarket_->swapLengths();
         Size nSwapTenors = swapTenors.size();
         Size nSwapLengths = swapLengths.size();
-        QL_REQUIRE((3 * nSwapTenors) == x.size(), "bad calibration guess (3*nSwapTenors) != x.size()");
+        QL_REQUIRE((3 * nSwapTenors) + 1 == x.size(), "bad calibration guess (3*nSwapTenors)+1 != x.size()");
         const ext::shared_ptr<SabrSwaptionVolatilityCube> volCubeBySabr =
             ext::dynamic_pointer_cast<SabrSwaptionVolatilityCube>(*volCube_);
         for (Size i = 0; i < nSwapTenors; ++i)
@@ -340,7 +340,7 @@ namespace QuantLib
             Real fixedMeanReversion = isMeanReversionGiven ? guess[nBeta] : Null<Real>();
             Array betasGuess(nBeta);
             for (Size i = 0; i < nBeta; ++i)
-                betasGuess[i] = guess[i];
+                betasGuess[i] = betaTransformInverse(guess[i]);
             ObjectiveFunction2 costFunction(this, fixedMeanReversion == Null<Real>() ?
                                                       Null<Real>() :
                                                       reversionTransformInverse(fixedMeanReversion));
@@ -480,7 +480,6 @@ namespace QuantLib
     {
 
         Size nSwapTenors = cmsMarket_->swapTenors().size();
-        Size nSwapLengths = cmsMarket_->swapLengths().size();
         QL_REQUIRE(isMeanReversionFixed || meanReversionGuess != Null<Real>(),
                    "if mean reversion is not fixed, a guess must be provided");
         QL_REQUIRE(nSwapTenors == guess.columns(), "number of swap tenors ("
@@ -497,7 +496,7 @@ namespace QuantLib
             Array betasGuess(nParams);
             for (Size i = 0; i < nSwapTenors; ++i)
             {
-                for (Size j = 0; j < nParams; ++j)
+                for (Size j = 0; j < 3; ++j)
                 {
                     betasGuess[i * 3 + j] =
                         (j == 0 || j == 1) ? betaTransformInverse(guess[j][i]) : std::sqrt(guess[j][i]);
@@ -521,7 +520,7 @@ namespace QuantLib
             }
             if (meanReversionGuess != Null<Real>())
             {
-                for (Size j = 0; j < nSwapLengths; ++j)
+                for (Size j = 0; j < 3; ++j)
                 {
                     result[j][nSwapTenors] = meanReversionGuess;
                 }
@@ -533,9 +532,9 @@ namespace QuantLib
             Array betasReversionGuess(nParams + 1);
             for (Size i = 0; i < nSwapTenors; ++i)
             {
-                for (Size j = 0; j < nParams; ++j)
+                for (Size j = 0; j < 3; ++j)
                 {
-                    betasReversionGuess[i * nSwapLengths + j] =
+                    betasReversionGuess[i * 3 + j] =
                         (j == 0 || j == 1) ? betaTransformInverse(guess[j][i]) : std::sqrt(guess[j][i]);
                 }
             }
@@ -550,11 +549,11 @@ namespace QuantLib
             {
                 for (Size j = 0; j < 3; ++j)
                 {
-                    result[j][i] = (j == 0 || j == 1) ? betaTransformDirect(tmp[i * nSwapLengths + j]) :
-                                                        tmp[i * 3 + j] * tmp[i * 3 + j];
+                    result[j][i] =
+                        (j == 0 || j == 1) ? betaTransformDirect(tmp[i * 3 + j]) : tmp[i * 3 + j] * tmp[i * 3 + j];
                 }
             }
-            for (Size j = 0; j < nSwapLengths; ++j)
+            for (Size j = 0; j < 3; ++j)
             {
                 result[j][nSwapTenors] = reversionTransformDirect(tmp[nParams]);
             }
