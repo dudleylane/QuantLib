@@ -34,6 +34,7 @@
 #include <ql/methods/montecarlo/multipathgenerator.hpp>
 #include <ql/models/equity/hestonmodelhelper.hpp>
 #include <ql/models/shortrate/onefactormodels/hullwhite.hpp>
+#include <ql/pricingengines/blackformula.hpp>
 #include <ql/pricingengines/vanilla/analyticbsmhullwhiteengine.hpp>
 #include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
 #include <ql/pricingengines/vanilla/analytich1hwengine.hpp>
@@ -1385,6 +1386,52 @@ BOOST_AUTO_TEST_CASE(testEvolveForSmallMeanReversion)
             const Array end = bsm.evolve(1.0, x0, 1.0, dw);
             BOOST_CHECK_SMALL(end[0] / c.bsm - 1.0, tolerance);
             BOOST_CHECK_SMALL(end[2] - c.rate, tolerance);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBsmHullWhiteEngineForSmallMeanReversion)
+{
+    BOOST_TEST_MESSAGE("Testing the BSM Hull-White engine with mean reversion close to zero...");
+
+    // A 5-year at-the-money call on 100, with curves at 3% and 1%, a volatility of 20%, Hull-White's sigma at 1% and
+    // a correlation of -0.3.
+    const Date today(9, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rates(flatRate(today, 0.03, dc));
+    const Handle<YieldTermStructure> dividends(flatRate(today, 0.01, dc));
+    const auto process =
+        ext::make_shared<BlackScholesMertonProcess>(Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), dividends,
+                                                    rates, Handle<BlackVolTermStructure>(flatVol(today, 0.2, dc)));
+    const Date expiry = today + 1827;
+    const Time t = dc.yearFraction(today, expiry);
+    VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0),
+                         ext::make_shared<EuropeanExercise>(expiry));
+
+    struct Case
+    {
+        Real a, offset;
+    };
+
+    // The variance the rates add, from the closed form as it stood, in 300-digit arithmetic.
+    const Case cases[] = {
+        {1e-12, -0.010852514412471301}, {1e-08, -0.010852514318593928},  {1e-06, -0.010852505023799355},
+        {1e-05, -0.010852420525192965}, {2e-05, -0.01085232663685118},   {2.5e-05, -0.010852279692285078},
+        {3e-05, -0.010852232747455538}, {0.0001, -0.010851575492195231}, {0.001, -0.010843120499127803},
+        {0.01, -0.010758133934490264},  {0.1, -0.0098889118117976033},   {1.0, -0.0044627307702243503},
+    };
+
+    const DiscountFactor discount = rates->discount(expiry);
+    const Real forward = 100.0 * dividends->discount(expiry) / discount;
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT("a = " << c.a)
+        {
+            option.setPricingEngine(ext::make_shared<AnalyticBSMHullWhiteEngine>(
+                -0.3, process, ext::make_shared<HullWhite>(rates, c.a, 0.01)));
+            const Real expected = blackFormula(Option::Call, 100.0, forward, std::sqrt(0.04 * t + c.offset), discount);
+            BOOST_CHECK_SMALL(option.NPV() / expected - 1.0, 1.0e-12);
         }
     }
 }

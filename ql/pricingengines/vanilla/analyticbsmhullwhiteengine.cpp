@@ -21,6 +21,7 @@
     \brief analytic Black-Scholes engines including stochastic interest rates
 */
 
+#include <ql/math/expm1.hpp>
 #include <ql/pricingengines/vanilla/analyticbsmhullwhiteengine.hpp>
 #include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvoltermstructure.hpp>
@@ -92,23 +93,13 @@ namespace QuantLib
         const Real sigma = model_->params()[1];
         const Real eta = process_->blackVolatility()->blackVol(exercise->lastDate(), payoff->strike());
 
-        Real varianceOffset;
-        if (a * t > std::pow(QL_EPSILON, 0.25))
-        {
-            const Real v = sigma * sigma / (a * a) *
-                           (t + 2 / a * std::exp(-a * t) - 1 / (2 * a) * std::exp(-2 * a * t) - 3 / (2 * a));
-            const Real mu = 2 * rho_ * sigma * eta / a * (t - 1 / a * (1 - std::exp(-a * t)));
-
-            varianceOffset = v + mu;
-        }
-        else
-        {
-            // low-a algebraic limit
-            const Real v = sigma * sigma * t * t * t * (1 / 3.0 - 0.25 * a * t + 7 / 60.0 * a * a * t * t);
-            const Real mu = rho_ * sigma * eta * t * t * (1 - a * t / 3.0 + a * a * t * t / 12.0);
-
-            varianceOffset = v + mu;
-        }
+        // sigma^2 / a^2 (t + 2 / a exp(-a t) - 1 / (2 a) exp(-2 a t) - 3 / (2 a)) and
+        // 2 rho sigma eta / a (t - (1 - exp(-a t)) / a) subtract terms of order one and divide what's left by up
+        // to a^3.  With phi and h as in the Vasicek model, they're sigma^2 t^3 h(a t) / 2 and
+        // 2 rho sigma eta t^2 phi(a t), which keep their digits, and their limits, at small a t.
+        Real phi, h;
+        detail::decayPhiAndH(a * t, phi, h);
+        const Real varianceOffset = 0.5 * sigma * sigma * t * t * t * h + 2.0 * rho_ * sigma * eta * t * t * phi;
 
         Handle<BlackVolTermStructure> volTS(ext::shared_ptr<BlackVolTermStructure>(
             new ShiftedBlackVolTermStructure(varianceOffset, process_->blackVolatility())));
