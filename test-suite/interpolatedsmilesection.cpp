@@ -18,6 +18,7 @@
 */
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
+#include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/math/interpolations/linearinterpolation.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/termstructures/volatility/interpolatedsmilesection.hpp>
@@ -193,6 +194,191 @@ BOOST_AUTO_TEST_CASE(testErrorThrowingWhenNonSortedStrikes)
     BOOST_CHECK_THROW(auto section =
                           ext::make_shared<InterpolatedSmileSection<Linear>>(expiry, strikes, stdDevs, atmLevel),
                       QuantLib::Error);
+}
+
+BOOST_AUTO_TEST_CASE(testDigitalOptionPriceAtLargeLevels)
+{
+    BOOST_TEST_MESSAGE("Testing smile-section digitals at levels that a fixed gap is too small for...");
+
+    const CumulativeNormalDistribution N;
+
+    for (Real forward : {1.0e2, 1.0e3, 1.0e6, 1.0e8, 1.0e11})
+    {
+        for (Real stdDev : {0.001, 0.2, 1.0, 4.0})
+        {
+            const InterpolatedSmileSection<Linear> smile(1.0, {forward * 1e-6, forward, forward * 1e3},
+                                                         {stdDev, stdDev, stdDev}, forward);
+            for (Real moneyness : {0.1, 0.5, 0.9, 1.0, 1.1, 2.0, 10.0})
+            {
+                const Real strike = moneyness * forward;
+                const Real d2 = -std::log(moneyness) / stdDev - 0.5 * stdDev;
+                BOOST_TEST_CONTEXT("forward " << forward << ", standard deviation " << stdDev << ", moneyness "
+                                              << moneyness)
+                {
+                    BOOST_CHECK_SMALL(smile.digitalOptionPrice(strike, Option::Call) - N(d2), 2e-9);
+                    BOOST_CHECK_SMALL(smile.digitalOptionPrice(strike, Option::Put) - N(-d2), 2e-9);
+                    BOOST_CHECK_SMALL(smile.digitalOptionPrice(strike, Option::Call, 0.9) - 0.9 * N(d2), 2e-9);
+                }
+            }
+        }
+    }
+
+    // Normal volatilities, with both signs of the forward, and a shift.
+    for (Real forward : {1.0e6, -1.0e6, 1.0e11, -1.0e11})
+    {
+        const Real level = std::fabs(forward);
+        const Real stdDev = 0.2 * level;
+        const InterpolatedSmileSection<Linear> smile(1.0, {forward - level, forward, forward + level},
+                                                     {stdDev, stdDev, stdDev}, forward, Linear(), Actual365Fixed(),
+                                                     VolatilityType::Normal);
+        for (Real spread : {-0.5, -0.1, 0.0, 0.1, 0.5})
+        {
+            const Real strike = forward + spread * level;
+            BOOST_TEST_CONTEXT("normal, forward " << forward << ", spread " << spread)
+            {
+                BOOST_CHECK_SMALL(smile.digitalOptionPrice(strike) - N((forward - strike) / stdDev), 2e-9);
+            }
+        }
+    }
+
+    // A strike or a forward far larger than the other, with either sign, sets the level.
+    for (const auto& [forward, strike] : std::vector<std::pair<Real, Real>>{{0.0, -1.0e8}, {-1.0e8, -1.0e3}})
+    {
+        const Real stdDev = 1.0e8;
+        const InterpolatedSmileSection<Linear> smile(1.0, {forward - stdDev, forward, forward + stdDev},
+                                                     {stdDev, stdDev, stdDev}, forward, Linear(), Actual365Fixed(),
+                                                     VolatilityType::Normal);
+        BOOST_TEST_CONTEXT("normal, forward " << forward << ", strike " << strike)
+        {
+            BOOST_CHECK_SMALL(smile.digitalOptionPrice(strike) - N((forward - strike) / stdDev), 2e-9);
+        }
+    }
+
+    const Real forward = 1.0e6, shift = 1.0e5, stdDev = 0.2;
+    const InterpolatedSmileSection<Linear> smile(1.0, {forward * 1e-3, forward, forward * 1e3},
+                                                 {stdDev, stdDev, stdDev}, forward, Linear(), Actual365Fixed(),
+                                                 VolatilityType::ShiftedLognormal, shift);
+    const Real strike = 1.1 * forward;
+    const Real d2 = std::log((forward + shift) / (strike + shift)) / stdDev - 0.5 * stdDev;
+    BOOST_CHECK_SMALL(smile.digitalOptionPrice(strike) - N(d2), 2e-9);
+}
+
+BOOST_AUTO_TEST_CASE(testDensityAtLargeLevels)
+{
+    BOOST_TEST_MESSAGE("Testing smile-section densities at levels that a fixed gap is too small for...");
+
+    const NormalDistribution n;
+
+    for (Real forward : {1.0e2, 2.5e3, 5.0e3, 3.8e4, 1.0e6, 1.0e8, 1.0e11})
+    {
+        for (Real stdDev : {0.001, 0.2, 1.0, 4.0})
+        {
+            const InterpolatedSmileSection<Linear> smile(1.0, {forward * 1e-6, forward, forward * 1e3},
+                                                         {stdDev, stdDev, stdDev}, forward);
+            const Real peak = n(0.0) / (forward * stdDev);
+            for (Real moneyness : {0.1, 0.5, 0.9, 1.0, 1.1, 2.0, 10.0})
+            {
+                const Real strike = moneyness * forward;
+                const Real d2 = -std::log(moneyness) / stdDev - 0.5 * stdDev;
+                const Real expected = n(d2) / (strike * stdDev);
+                BOOST_TEST_CONTEXT("forward " << forward << ", standard deviation " << stdDev << ", moneyness "
+                                              << moneyness)
+                {
+                    BOOST_CHECK_SMALL((smile.density(strike) - expected) / peak, 1e-4);
+                    BOOST_CHECK_SMALL((smile.density(strike, 0.9) - 0.9 * expected) / peak, 1e-4);
+                }
+            }
+        }
+    }
+
+    for (Real forward : {1.0e6, -1.0e6, 1.0e11, -1.0e11})
+    {
+        const Real level = std::fabs(forward);
+        const Real stdDev = 0.2 * level;
+        const InterpolatedSmileSection<Linear> smile(1.0, {forward - level, forward, forward + level},
+                                                     {stdDev, stdDev, stdDev}, forward, Linear(), Actual365Fixed(),
+                                                     VolatilityType::Normal);
+        const Real peak = n(0.0) / stdDev;
+        for (Real spread : {-0.5, -0.1, 0.0, 0.1, 0.5})
+        {
+            const Real strike = forward + spread * level;
+            BOOST_TEST_CONTEXT("normal, forward " << forward << ", spread " << spread)
+            {
+                BOOST_CHECK_SMALL((smile.density(strike) - n((forward - strike) / stdDev) / stdDev) / peak, 1e-4);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testGapsAtRateLevels)
+{
+    BOOST_TEST_MESSAGE("Testing that smile-section gaps stay the caller's at rate levels...");
+
+    const Real digitalGap = 1e-5, densityGap = 1e-4;
+
+    for (Real forward : {0.03, 1.0, 9.0})
+    {
+        const Real stdDev = 0.2;
+        const InterpolatedSmileSection<Linear> smile(1.0, {forward * 1e-6, forward, forward * 1e3},
+                                                     {stdDev, stdDev, stdDev}, forward);
+        const auto digital = [&](Real strike, Real gap)
+        {
+            const Real kl = strike - gap / 2.0;
+            return (smile.optionPrice(kl) - smile.optionPrice(kl + gap)) / gap;
+        };
+        for (Real moneyness : {0.5, 1.0, 1.1})
+        {
+            const Real strike = moneyness * forward;
+            const Real kl = strike - densityGap / 2.0;
+            BOOST_TEST_CONTEXT("forward " << forward << ", moneyness " << moneyness)
+            {
+                BOOST_CHECK_EQUAL(smile.digitalOptionPrice(strike), digital(strike, digitalGap));
+                BOOST_CHECK_EQUAL(smile.density(strike),
+                                  (digital(kl, densityGap) - digital(kl + densityGap, densityGap)) / densityGap);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testLargerGapsAreKept)
+{
+    BOOST_TEST_MESSAGE("Testing that smile-section gaps above the floors are kept...");
+
+    const Real forward = 1.0e11, gap = 1.0e10, stdDev = 0.2;
+    const InterpolatedSmileSection<Linear> smile(1.0, {forward * 1e-6, forward, forward * 1e3},
+                                                 {stdDev, stdDev, stdDev}, forward);
+
+    const Real low = smile.optionPrice(forward - gap), at = smile.optionPrice(forward),
+               high = smile.optionPrice(forward + gap);
+
+    BOOST_CHECK_SMALL(smile.density(forward, 1.0, gap) * gap * gap / (low - 2.0 * at + high) - 1.0, 1e-8);
+
+    const Real expected = (smile.optionPrice(forward - gap / 2.0) - smile.optionPrice(forward + gap / 2.0)) / gap;
+    BOOST_CHECK_SMALL(smile.digitalOptionPrice(forward, Option::Call, 1.0, gap) - expected, 1e-14);
+}
+
+BOOST_AUTO_TEST_CASE(testGapsWithoutAtmLevel)
+{
+    BOOST_TEST_MESSAGE("Testing smile-section gaps where the section has no ATM level...");
+
+    // Its prices need no ATM level, so a missing one must not reach the gaps either.
+    class SectionWithoutAtmLevel : public SmileSection
+    {
+      public:
+        SectionWithoutAtmLevel() : SmileSection(1.0, Actual365Fixed()) {}
+        Real minStrike() const override { return 0.0; }
+        Real maxStrike() const override { return QL_MAX_REAL; }
+        Real atmLevel() const override { return Null<Real>(); }
+        Real optionPrice(Rate strike, Option::Type, Real) const override { return strike * strike; }
+
+      protected:
+        Volatility volatilityImpl(Rate) const override { return 0.2; }
+    };
+
+    const SectionWithoutAtmLevel section;
+
+    BOOST_CHECK_SMALL(section.digitalOptionPrice(0.5) + 1.0, 1e-9);
+    BOOST_CHECK_SMALL(section.density(0.5) - 2.0, 1e-6);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
