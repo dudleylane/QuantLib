@@ -896,6 +896,116 @@ BOOST_AUTO_TEST_CASE(testKlugeExtOUMatrixDecomposition)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testExtendedOrnsteinUhlenbeckForSmallSpeeds)
+{
+    BOOST_TEST_MESSAGE("Testing the extended Ornstein-Uhlenbeck process's trapezoidal mean at small speeds...");
+
+    // b(t) = 1 + t, from 0.5 over a year from t = 1.
+    const std::function<Real(Real)> b = [](Real t) { return 1.0 + t; };
+
+    struct Case
+    {
+        Real speed, expected;
+    };
+
+    // The closed form as it stood, in 120-digit arithmetic, with a zero speed standing for its limit.
+    const Case cases[] = {
+        {0.0, 0.5},
+        {1e-16, 0.50000000000000022},
+        {1e-15, 0.500000000000002},
+        {1e-14, 0.50000000000001998},
+        {1e-12, 0.50000000000199996},
+        {1e-10, 0.50000000020000002},
+        {1e-08, 0.50000001999999988},
+        {1e-06, 0.50000199999908335},
+        {0.0001, 0.50019999083362499},
+        {0.01, 0.51990862429305329},
+        {0.1, 0.69111805330565634},
+        {1.0, 1.8160602794142788},
+        {10.0, 2.8999364400983327},
+    };
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT("speed = " << c.speed)
+        {
+            const ExtendedOrnsteinUhlenbeckProcess process(c.speed, 0.01, 0.5, b,
+                                                           ExtendedOrnsteinUhlenbeckProcess::Trapezodial);
+            BOOST_CHECK_SMALL(process.expectation(1.0, 0.5, 1.0) / c.expected - 1.0, 1.0e-14);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testGemanRoncoroniForSmallParameters)
+{
+    BOOST_TEST_MESSAGE("Testing the Geman-Roncoroni process at small mean reversions and jump decays...");
+
+    // Above mu + d, a step returns x0 less the jump.
+    const Real x0 = 10.0, alpha = 3.4, d = 0.5, k = 1.0, tau = 0.5, sig2 = 10.0, psi = 2.0;
+    const auto process = [&](Real theta1, Real theta3)
+    {
+        return GemanRoncoroniProcess(x0, alpha, 0.0, 0.0, 0.0, 0.0, 0.0, d, k, tau, sig2, 0.0, 0.0, theta1, 1.0, theta3,
+                                     psi);
+    };
+
+    struct DeviationCase
+    {
+        Real theta1, dt, expected;
+    };
+
+    // The closed forms as they stood, in 120-digit arithmetic, with a zero standing for its limit.
+    const DeviationCase deviations[] = {
+        {0.0, 0.0027397260273972603, 0.16552117772047359},    {0.0, 1.0, 3.1622776601683795},
+        {1e-16, 0.0027397260273972603, 0.16552117772047359},  {1e-16, 1.0, 3.1622776601683791},
+        {1e-14, 0.0027397260273972603, 0.16552117772047359},  {1e-14, 1.0, 3.1622776601683635},
+        {1e-12, 0.0027397260273972603, 0.16552117772047337},  {1e-12, 1.0, 3.1622776601667981},
+        {1e-10, 0.0027397260273972603, 0.16552117772045091},  {1e-10, 1.0, 3.1622776600102656},
+        {1e-08, 0.0027397260273972603, 0.16552117771820618},  {1e-08, 1.0, 3.1622776443569909},
+        {1e-06, 0.0027397260273972603, 0.16552117749373224},  {1e-06, 1.0, 3.162276079030208},
+        {0.0001, 0.0027397260273972603, 0.16552115504634224}, {0.0001, 1.0, 3.1621195528732517},
+        {0.01, 0.0027397260273972603, 0.16551891033296365},   {0.01, 1.0, 3.1465319554427458},
+        {1.0, 0.0027397260273972603, 0.16529469500566082},    {1.0, 1.0, 2.0792603453672984},
+        {100.0, 0.0027397260273972603, 0.14523488862575618},  {100.0, 1.0, 0.22360679774997896},
+    };
+
+    for (const auto& c : deviations)
+    {
+        BOOST_TEST_CONTEXT("theta1 = " << c.theta1 << ", dt = " << c.dt)
+        {
+            BOOST_CHECK_SMALL(process(c.theta1, 1.0).stdDeviation(0.25, x0, c.dt) / c.expected - 1.0, 1.0e-14);
+        }
+    }
+
+    struct JumpCase
+    {
+        Real theta3, expected;
+    };
+
+    // The jump for a uniform draw of 0.5.
+    const JumpCase jumps[] = {
+        {0.0, 1},
+        {1e-16, 1},
+        {1e-14, 0.999999999999995},
+        {1e-12, 0.99999999999949996},
+        {1e-10, 0.99999999995},
+        {1e-08, 0.99999999500000003},
+        {1e-06, 0.99999950000000004},
+        {0.0001, 0.99995000000008338},
+        {0.01, 0.99500008333111123},
+        {1.0, 0.56621916951697282},
+        {10.0, 0.069314717849879165},
+    };
+
+    Array du(3, 0.5);
+    for (const auto& c : jumps)
+    {
+        BOOST_TEST_CONTEXT("theta3 = " << c.theta3)
+        {
+            BOOST_CHECK_SMALL(process(1.0, c.theta3).evolve(0.25, x0, 1.0 / 365, 0.0, du) - (x0 - c.expected), 1.0e-14);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
