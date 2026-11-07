@@ -803,6 +803,69 @@ BOOST_AUTO_TEST_CASE(testErrorFunctionAndCumulativeNormalWhereTheySaturate)
     BOOST_CHECK_EQUAL(decreases, 0U);
 }
 
+BOOST_AUTO_TEST_CASE(testBivariateDr78AtDegenerateCorrelations)
+{
+    BOOST_TEST_MESSAGE("Testing Drezner's bivariate normal at degenerate correlations...");
+
+    const Real arguments[][2] = {{0.1, 0.0},  {-0.5, 0.3}, {0.5, 0.5}, {-0.5, -0.5},     {0.0, 0.0},
+                                 {0.5, -0.5}, {0.3, 0.5},  {0.5, 0.3}, {5.6e-17, 0.766}, {-0.766, -1e-9}};
+    const CumulativeNormalDistribution normal;
+    for (Real rho : {-1.0, 1.0})
+    {
+        const BivariateCumulativeNormalDistributionDr78 drezner(rho);
+        for (const auto& pair : arguments)
+        {
+            const Real a = pair[0], b = pair[1];
+            BOOST_TEST_CONTEXT("a = " << a << ", b = " << b << ", rho = " << rho)
+            {
+                // At rho = 1, Y = X, and at rho = -1, Y = -X.
+                const Real expected =
+                    rho == 1.0 ? normal(std::min(a, b)) : std::max<Real>(0.0, normal(a) + normal(b) - 1.0);
+                BOOST_CHECK_SMALL(drezner(a, b) - expected, 1e-15);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBivariateDr78NearDegenerateInputs)
+{
+    BOOST_TEST_MESSAGE("Testing Drezner's bivariate normal near zero and near degenerate correlations...");
+
+    // Drezner's quadrature is only good to about 1e-6.
+    const Real tolerance = 1e-6;
+    const Real nearOne = std::nextafter(Real(1.0), Real(0.0));
+    const std::vector<Real> rhos = {nearOne, 1.0 - 1e-12, 1.0 - 1e-6, 0.999, 0.707, 0.5, 1e-9};
+    // The smallest of these make a * b * rho underflow.
+    const std::vector<Real> sizes = {1e-300, 1e-100, 5.6e-17, 1e-9, 3e-9, 1e-4, 0.5, 0.766, 1.0};
+
+    for (Real r : rhos)
+    {
+        for (Real rho : {-r, r})
+        {
+            const BivariateCumulativeNormalDistributionDr78 drezner(rho);
+            const BivariateCumulativeNormalDistributionWe04DP west(rho);
+            for (Real h : sizes)
+            {
+                for (Real k : sizes)
+                {
+                    for (Real a : {-h, h})
+                    {
+                        for (Real b : {-k, k})
+                        {
+                            BOOST_TEST_CONTEXT("a = " << a << ", b = " << b << ", rho = " << rho)
+                            {
+                                Real calculated = Null<Real>();
+                                BOOST_CHECK_NO_THROW(calculated = drezner(a, b));
+                                BOOST_CHECK_SMALL(calculated - west(a, b), tolerance);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

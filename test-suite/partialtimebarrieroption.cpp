@@ -24,6 +24,8 @@
 #include <ql/pricingengines/barrier/analyticpartialtimebarrieroptionengine.hpp>
 #include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
 #include <ql/quotes/simplequote.hpp>
+#include <ql/termstructures/volatility/equityfx/blackvariancecurve.hpp>
+#include <ql/termstructures/yield/forwardcurve.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
@@ -304,6 +306,60 @@ BOOST_AUTO_TEST_CASE(testInOutParity)
                 {
                     BOOST_CHECK_SMALL(knockIn.NPV() + knockOut.NPV() - vanilla.NPV(), 1.0e-10);
                 }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testAnalyticEngineNearZeroD2)
+{
+    BOOST_TEST_MESSAGE("Testing that partial-time barrier prices stay finite with d2 near zero...");
+
+    const Date today(1, January, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Integer pillars[] = {91, 182, 365, 730, 1095};
+    const Rate rates[] = {0.01, 0.03, 0.05, 0.02, 0.04};
+    const Volatility instantVols[] = {0.30, 0.22, 0.20, 0.25, 0.20};
+    std::vector<Date> dates = {today}, volDates;
+    std::vector<Rate> forwards = {rates[0]};
+    std::vector<Rate> yields = {rates[0] - 0.5 * instantVols[0] * instantVols[0]};
+    std::vector<Volatility> blackVols;
+    Real variance = 0.0;
+    Time previous = 0.0;
+    for (Size i = 0; i < std::size(pillars); ++i)
+    {
+        const Date date = today + pillars[i];
+        const Time t = dc.yearFraction(today, date);
+        variance += instantVols[i] * instantVols[i] * (t - previous);
+        previous = t;
+        dates.push_back(date);
+        volDates.push_back(date);
+        forwards.push_back(rates[i]);
+        // The carry is half the variance rate, so that d2 cancels to near zero.
+        yields.push_back(rates[i] - 0.5 * instantVols[i] * instantVols[i]);
+        blackVols.push_back(std::sqrt(variance / t));
+    }
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)),
+        Handle<YieldTermStructure>(ext::make_shared<ForwardCurve>(dates, yields, dc)),
+        Handle<YieldTermStructure>(ext::make_shared<ForwardCurve>(dates, forwards, dc)),
+        Handle<BlackVolTermStructure>(ext::make_shared<BlackVarianceCurve>(today, volDates, blackVols, dc, false)));
+    auto engine = ext::make_shared<AnalyticPartialTimeBarrierOptionEngine>(process);
+    auto payoff = ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0);
+    auto exercise = ext::make_shared<EuropeanExercise>(today + 548);
+
+    for (Barrier::Type type : {Barrier::DownOut, Barrier::DownIn})
+    {
+        for (PartialBarrier::Range range : {PartialBarrier::Start, PartialBarrier::EndB1})
+        {
+            if (type == Barrier::DownIn && range == PartialBarrier::EndB1)
+                continue;
+            PartialTimeBarrierOption option(type, range, 85.0, 0.0, today + 274, payoff, exercise);
+            option.setPricingEngine(engine);
+            BOOST_TEST_CONTEXT("type " << type << ", range " << Integer(range))
+            {
+                BOOST_CHECK(std::isfinite(option.NPV()));
             }
         }
     }
