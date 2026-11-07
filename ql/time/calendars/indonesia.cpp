@@ -84,7 +84,7 @@ namespace QuantLib
                 // Idul Fitri
                 || ((d == 3 || d == 4) && m == November)
                 // National leaves
-                || ((d == 2 || d == 7 || d == 8) && m == November) || (d == 26 && m == December))
+                || ((d == 2 || d == 7 || d == 8) && m == November) || ((d == 26 || d == 30) && m == December))
                 return false;
         }
 
@@ -95,7 +95,7 @@ namespace QuantLib
                 // Moslem's New Year Day
                 || (d == 31 && m == January)
                 // Nyepi
-                || (d == 30 && m == March)
+                || ((d == 30 || d == 31) && m == March)
                 // Birthday of Prophet Muhammad SAW
                 || (d == 10 && m == April)
                 // Ascension of Prophet Muhammad SAW
@@ -103,7 +103,8 @@ namespace QuantLib
                 // Idul Fitri
                 || ((d == 24 || d == 25) && m == October)
                 // National leaves
-                || ((d == 23 || d == 26 || d == 27) && m == October))
+                || (d == 26 && m == May) || (d == 18 && m == August) ||
+                ((d == 23 || d == 26 || d == 27) && m == October))
                 return false;
         }
 
@@ -117,7 +118,9 @@ namespace QuantLib
                 || (d == 20 && m == December)
                 // National leaves
                 || (d == 18 && m == May) || ((d == 12 || d == 15 || d == 16) && m == October) ||
-                ((d == 21 || d == 24) && m == October))
+                ((d == 21 || d == 24) && m == December)
+                // New Year's Eve
+                || (d == 31 && m == December))
                 return false;
         }
 
@@ -140,6 +143,8 @@ namespace QuantLib
                 // Ied Fitr
                 || (d == 30 && m == September) ||
                 ((d == 1 || d == 2 || d == 3) && m == October)
+                // Trading suspension
+                || ((d == 9 || d == 10) && m == October)
                 // Ied Adha
                 || (d == 8 && m == December)
                 // Islamic New Year
@@ -161,6 +166,8 @@ namespace QuantLib
                 || (d == 26 && m == March)
                 // National leave
                 || (d == 9 && m == April)
+                // Presidential election
+                || (d == 8 && m == July)
                 // Isra' Mi'raj of the prophet Muhammad SAW
                 || (d == 20 && m == July)
                 // Ied Fitr
@@ -221,6 +228,8 @@ namespace QuantLib
                 (d == 23 && m == January)
                 // Saka New Year
                 || (d == 23 && m == March)
+                // National leave
+                || (d == 18 && m == May)
                 // Ied ul-Fitr
                 || (d >= 20 && d <= 22 && m == August)
                 // Eid ul-Adha
@@ -263,12 +272,16 @@ namespace QuantLib
                 || (d == 31 && m == January)
                 // Saka New Year
                 || (d == 31 && m == March)
+                // Legislative election
+                || (d == 9 && m == April)
                 // Birth of Buddha
                 || (d == 15 && m == May)
                 // Isra' Mi'raj of the prophet Muhammad SAW
                 || (d == 27 && m == May)
                 // Ascension Day of Jesus Christ
                 || (d == 29 && m == May)
+                // Presidential election
+                || (d == 9 && m == July)
                 // Ied ul-Fitr
                 || ((d >= 28 && m == July) || (d == 1 && m == August))
                 // Public Holiday

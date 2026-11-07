@@ -4382,6 +4382,26 @@ BOOST_AUTO_TEST_CASE(testIndonesiaExchangeAgainstItsSessions)
     BOOST_CHECK(c.isHoliday(Date(1, June, 2029)));
 }
 
+BOOST_AUTO_TEST_CASE(testIndonesiaClosuresBefore2015)
+{
+    BOOST_TEST_MESSAGE("Testing Indonesia's closures before 2015...");
+
+    const Calendar c = Indonesia();
+
+    // the exchange closed on these: common leave, the suspension of October 2008, and elections
+    const std::vector<Date> closed = {
+        Date(30, December, 2005), Date(31, March, 2006),    Date(26, May, 2006),      Date(18, August, 2006),
+        Date(21, December, 2007), Date(24, December, 2007), Date(31, December, 2007), Date(9, October, 2008),
+        Date(10, October, 2008),  Date(8, July, 2009),      Date(18, May, 2012),      Date(9, April, 2014),
+        Date(9, July, 2014),
+    };
+    for (const Date& d : closed)
+        BOOST_CHECK_MESSAGE(c.isHoliday(d), d << " should be a holiday");
+
+    // and it traded on this one, a Wednesday, which the block for 2007 had closed in place of December 24th
+    BOOST_CHECK(c.isBusinessDay(Date(24, October, 2007)));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
