@@ -19,6 +19,8 @@
 
 #include <ql/math/quadratic.hpp>
 #include <ql/models/marketmodels/models/alphafinder.hpp>
+#include <algorithm>
+#include <cmath>
 #include <utility>
 
 namespace QuantLib
@@ -27,9 +29,18 @@ namespace QuantLib
     namespace
     {
 
+        // An interval can't close to less than the spacing of the Reals in it, so a search would
+        // never end on a tolerance below that.
+        Real reachableTolerance(Real tolerance, Real low, Real high)
+        {
+            return std::max(tolerance, 4.0 * QL_EPSILON * std::max(std::fabs(low), std::fabs(high)));
+        }
+
         template <class T>
         Real Bisection(Real target, Real low, Real high, Real tolerance, T& theObject, Real (T::*Value)(Real))
         {
+
+            tolerance = reachableTolerance(tolerance, low, high);
 
             Real x = 0.5 * (low + high);
             Real y = (theObject.*Value)(x);
@@ -40,6 +51,8 @@ namespace QuantLib
                     low = x;
                 else if (y > target)
                     high = x;
+                else
+                    return x;
 
                 x = 0.5 * (low + high);
                 y = (theObject.*Value)(x);
@@ -51,6 +64,8 @@ namespace QuantLib
         template <class T>
         Real FindHighestOK(Real low, Real high, Real tolerance, T& theObject, bool (T::*Value)(Real))
         {
+
+            tolerance = reachableTolerance(tolerance, low, high);
 
             Real x = 0.5 * (low + high);
             bool ok = (theObject.*Value)(x);
@@ -72,6 +87,8 @@ namespace QuantLib
         template <class T>
         Real FindLowestOK(Real low, Real high, Real tolerance, T& theObject, bool (T::*Value)(Real))
         {
+
+            tolerance = reachableTolerance(tolerance, low, high);
 
             Real x = 0.5 * (low + high);
             bool ok = (theObject.*Value)(x);
@@ -107,6 +124,8 @@ namespace QuantLib
             Real x = W * low + (1 - W) * high;
             Real midValue = (theObject.*Value)(x);
 
+            tolerance = reachableTolerance(tolerance, low, high);
+
             failed = true;
 
             while (high - low > tolerance)
@@ -115,8 +134,7 @@ namespace QuantLib
                 if (x - low > high - x) // left interval is bigger
                 {
                     Real tentativeNewMid = W * low + (1 - W) * x;
-                    Real tentativeNewMidValue = (theObject.*Value)(tentativeNewMid);
-                    bool conditioner = (theObject.*Condition)(tentativeNewMidValue);
+                    bool conditioner = (theObject.*Condition)(tentativeNewMid);
                     if (!conditioner)
                     {
                         if ((theObject.*Condition)(x))
@@ -127,6 +145,7 @@ namespace QuantLib
                             return high;
                     }
 
+                    Real tentativeNewMidValue = (theObject.*Value)(tentativeNewMid);
                     if (tentativeNewMidValue < midValue) // go left
                     {
                         high = x;
@@ -143,8 +162,7 @@ namespace QuantLib
                 else
                 {
                     Real tentativeNewMid = W * x + (1 - W) * high;
-                    Real tentativeNewMidValue = (theObject.*Value)(tentativeNewMid);
-                    bool conditioner = (theObject.*Condition)(tentativeNewMidValue);
+                    bool conditioner = (theObject.*Condition)(tentativeNewMid);
                     if (!conditioner)
                     {
                         if ((theObject.*Condition)(x))
@@ -155,6 +173,7 @@ namespace QuantLib
                             return high;
                     }
 
+                    Real tentativeNewMidValue = (theObject.*Value)(tentativeNewMid);
                     if (tentativeNewMidValue < midValue) // go right
                     {
                         low = x;
@@ -325,9 +344,8 @@ namespace QuantLib
 
         if (valueAtTP <= targetVariance)
         {
-            finalPart(alpha0, stepindex, ratetwohomogeneousvols, quadraticPart_, linearPart_, constantPart_, alpha, a,
-                      b, ratetwovols);
-            return true;
+            return finalPart(alpha0, stepindex, ratetwohomogeneousvols, quadraticPart_, linearPart_, constantPart_,
+                             alpha, a, b, ratetwovols);
         }
 
         // we now have to solve
@@ -356,7 +374,7 @@ namespace QuantLib
         {
             // see if if ok at some intermediate point by stepping through
             Integer i = 1;
-            while (i < steps && topValue > targetVariance)
+            while (i < steps && bottomValue > targetVariance)
             {
                 bottomAlpha = alpha0 + (alphaMin - alpha0) * (i + 0.0) / (steps + 0.0);
                 bottomValue = valueAtTurningPoint(bottomAlpha);
@@ -383,9 +401,8 @@ namespace QuantLib
             alpha = Bisection<AlphaFinder>(-targetVariance, bilimit, topAlpha, tolerance, *this,
                                            &AlphaFinder::minusValueAtTurningPoint);
         }
-        finalPart(alpha, stepindex, ratetwohomogeneousvols, quadraticPart_, linearPart_, constantPart_, alpha, a, b,
-                  ratetwovols);
-        return true;
+        return finalPart(alpha, stepindex, ratetwohomogeneousvols, quadraticPart_, linearPart_, constantPart_, alpha, a,
+                         b, ratetwovols);
     }
 
     bool AlphaFinder::solveWithMaxHomogeneity(Real alpha0,
@@ -471,13 +488,14 @@ namespace QuantLib
             bool foundUpOK = false;
             bool foundDownOK = false;
             Real alphaUp = alpha0, alphaDown = alpha0;
-            Real stepSize = (alphaMax - alpha0) / steps;
+            Real stepUp = (alphaMax - alpha0) / steps;
+            Real stepDown = (alpha0 - alphaMin) / steps;
 
             for (Size j = 0; j < static_cast<Size>(steps) && !foundUpOK && !foundDownOK; ++j)
             {
-                alphaUp = alpha0 + j * stepSize;
+                alphaUp = alpha0 + j * stepUp;
                 foundUpOK = testIfSolutionExists(alphaUp);
-                alphaDown = alpha0 - j * stepSize;
+                alphaDown = alpha0 - j * stepDown;
                 foundDownOK = testIfSolutionExists(alphaDown);
             }
             foundOKPoint = foundUpOK || foundDownOK;
@@ -504,10 +522,7 @@ namespace QuantLib
         alpha = Minimize<AlphaFinder>(alpha1, alpha2, tolerance, *this, &AlphaFinder::homogeneityfailure,
                                       &AlphaFinder::testIfSolutionExists, failed);
 
-        finalPart(alpha, stepindex, ratetwohomogeneousvols, computeQuadraticPart(alpha), computeLinearPart(alpha),
-                  constantPart_, alpha, a, b, ratetwovols);
-
-        return true;
-        ;
+        return finalPart(alpha, stepindex, ratetwohomogeneousvols, computeQuadraticPart(alpha),
+                         computeLinearPart(alpha), constantPart_, alpha, a, b, ratetwovols);
     }
 }

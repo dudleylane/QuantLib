@@ -39,6 +39,8 @@
 #include <ql/models/marketmodels/evolvers/lognormalcotswapratepc.hpp>
 #include <ql/models/marketmodels/evolvers/lognormalfwdratepc.hpp>
 #include <ql/models/marketmodels/models/abcdvol.hpp>
+#include <ql/models/marketmodels/models/alphafinder.hpp>
+#include <ql/models/marketmodels/models/alphaformconcrete.hpp>
 #include <ql/models/marketmodels/models/capletcoterminalalphacalibration.hpp>
 #include <ql/models/marketmodels/models/capletcoterminalswaptioncalibration.hpp>
 #include <ql/models/marketmodels/models/cotswaptofwdadapter.hpp>
@@ -57,6 +59,7 @@
 #include <ql/time/daycounters/simpledaycounter.hpp>
 #include <ql/time/schedule.hpp>
 #include <ql/utilities/dataformatters.hpp>
+#include <cmath>
 #include <sstream>
 
 using namespace QuantLib;
@@ -216,7 +219,7 @@ enum EvolverType
 };
 
 
-BOOST_AUTO_TEST_CASE(testFunction)
+void testAlphaCalibration(bool maximizeHomogeneity)
 {
 
     BOOST_TEST_MESSAGE("Testing alpha caplet calibration "
@@ -248,7 +251,6 @@ BOOST_AUTO_TEST_CASE(testFunction)
     std::vector<Real> alphaInitial(numberOfRates, alpha_);
     std::vector<Real> alphaMax(numberOfRates, 1.0);
     std::vector<Real> alphaMin(numberOfRates, -1.0);
-    bool maximizeHomogeneity = false; //?
     if (printReport_)
     {
         BOOST_TEST_MESSAGE("caplet market vols: " << std::fixed << std::setprecision(4) << io::sequence(capletVols_));
@@ -332,6 +334,268 @@ BOOST_AUTO_TEST_CASE(testFunction)
                         << "\n percentage error: " << error / capletVols_[i] << "\n error:            " << error
                         << "\n tolerance:        " << capletTolerance);
     }
+}
+
+namespace
+{
+    // The form is 1 for the first index and a polynomial in alpha for the others.  A search that
+    // would never end throws here instead.
+    class PolynomialAlphaForm : public AlphaForm
+    {
+      public:
+        PolynomialAlphaForm(Real c0, Real c1, Real c2 = 0.0) : c0_(c0), c1_(c1), c2_(c2) {}
+
+        Real operator()(Integer index) const override { return index == 0 ? 1.0 : c0_ + alpha_ * (c1_ + alpha_ * c2_); }
+
+        void setAlpha(Real alpha) override
+        {
+            QL_REQUIRE(++evaluations_ <= 10000, "alpha evaluation limit exceeded");
+            alpha_ = alpha;
+        }
+
+      private:
+        Real c0_, c1_, c2_, alpha_ = 0.0;
+        Size evaluations_ = 0;
+    };
+
+    // The form is low around the center and high elsewhere, so the solutions are a window around it.
+    ext::shared_ptr<AlphaForm> windowForm(Real center)
+    {
+        return ext::make_shared<PolynomialAlphaForm>(0.2 + 4.0 * center * center, -8.0 * center, 4.0);
+    }
+
+    // With these inputs the value at the turning point is f^2 / (1 + f^2) for f = form(1), so a
+    // target of 0.3 means f^2 = 3 / 7.
+    const Real windowHalfWidth = 0.5 * std::sqrt(std::sqrt(3.0 / 7.0) - 0.2);
+
+    struct AlphaSolution
+    {
+        bool success = false;
+        Real alpha = 0.0, a = 0.0, b = 0.0;
+        std::vector<Volatility> vols;
+    };
+
+    AlphaSolution solveForAlpha(const ext::shared_ptr<AlphaForm>& form,
+                                bool maximizeHomogeneity,
+                                Real alpha0,
+                                Real target,
+                                Real tolerance,
+                                Real alphaMax,
+                                Real alphaMin)
+    {
+        AlphaFinder finder(form);
+        AlphaSolution s;
+        s.vols.resize(3);
+        s.success =
+            maximizeHomogeneity ?
+                finder.solveWithMaxHomogeneity(alpha0, 1, {1.0, 0.0}, {1.0, 1.0, 1.0}, {-1.0, 0.0}, 1.0, 1.0, target,
+                                               tolerance, alphaMax, alphaMin, 100, s.alpha, s.a, s.b, s.vols) :
+                finder.solve(alpha0, 1, {1.0, 0.0}, {1.0, 1.0, 1.0}, {-1.0, 0.0}, 1.0, 1.0, target, tolerance, alphaMax,
+                             alphaMin, 100, s.alpha, s.a, s.b, s.vols);
+        return s;
+    }
+
+    // What the solution has to keep: the swap rate's total variance, and the caplet's.
+    void checkVariances(const AlphaSolution& s, Real target, Real tolerance)
+    {
+        const std::vector<Volatility>& v = s.vols;
+        BOOST_CHECK_SMALL(v[0] * v[0] + v[1] * v[1] + v[2] * v[2] - 3.0, tolerance);
+        BOOST_CHECK_SMALL((1.0 - v[0]) * (1.0 - v[0]) + v[1] * v[1] - target, tolerance);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testFunction)
+{
+    testAlphaCalibration(false);
+}
+
+BOOST_AUTO_TEST_CASE(testMaximumHomogeneityCalibration)
+{
+    testAlphaCalibration(true);
+}
+
+BOOST_AUTO_TEST_CASE(testAlphaFinderExactBisectionRoot)
+{
+    BOOST_TEST_MESSAGE("Testing AlphaFinder when a bisection lands on the root...");
+
+    // The first midpoint gives a form of exactly 0.5, and the value there is exactly this target.
+    for (bool increasing : {false, true})
+    {
+        BOOST_TEST_CONTEXT("increasing: " << increasing)
+        {
+            const auto form = ext::make_shared<PolynomialAlphaForm>(increasing ? 0.0 : 1.0, increasing ? 1.0 : -1.0);
+            AlphaSolution s;
+            BOOST_REQUIRE_NO_THROW(s = solveForAlpha(form, false, increasing ? 1.0 : 0.0, 1.0 - 0.8, 1e-12, 1.0, 0.0));
+            BOOST_REQUIRE(s.success);
+            BOOST_CHECK_SMALL(s.alpha - 0.5, 1e-12);
+            BOOST_CHECK_SMALL(s.vols[0] - 0.8, 1e-12);
+            BOOST_CHECK_SMALL(s.vols[1] - 0.4, 1e-12);
+            BOOST_CHECK_SMALL(s.vols[2] - std::sqrt(2.2), 1e-12);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testAlphaFinderBelowTheSpacingOfReals)
+{
+    BOOST_TEST_MESSAGE("Testing AlphaFinder with a tolerance its searches can't reach...");
+
+    for (bool increasing : {false, true})
+    {
+        BOOST_TEST_CONTEXT("bisection, increasing: " << increasing)
+        {
+            const auto form = ext::make_shared<PolynomialAlphaForm>(increasing ? 0.0 : 1.0, increasing ? 1.0 : -1.0);
+            AlphaSolution s;
+            BOOST_REQUIRE_NO_THROW(s = solveForAlpha(form, false, increasing ? 1.0 : 0.0, 0.3, 1e-20, 1.0, 0.0));
+            BOOST_REQUIRE(s.success);
+            const Real root = std::sqrt(3.0 / 7.0);
+            BOOST_CHECK_SMALL(s.alpha - (increasing ? root : 1.0 - root), 1e-12);
+            checkVariances(s, 0.3, 1e-12);
+        }
+    }
+
+    // These go through the searches for the ends of the window, and then the minimization.
+    for (Real center : {-0.5, 0.5})
+    {
+        BOOST_TEST_CONTEXT("maximum homogeneity, center: " << center)
+        {
+            AlphaSolution s;
+            BOOST_REQUIRE_NO_THROW(s = solveForAlpha(windowForm(center), true, 0.0, 0.3, 1e-20, 1.0, -1.0));
+            BOOST_REQUIRE(s.success);
+            BOOST_CHECK_LE(std::fabs(s.alpha - center), windowHalfWidth + 1e-12);
+            checkVariances(s, 0.3, 1e-10);
+        }
+    }
+
+    // And this one has its minimum inside the interval, so the minimization runs to the tolerance.
+    const auto form = ext::make_shared<PolynomialAlphaForm>(0.0, -1.0);
+    AlphaFinder finder(form);
+    std::vector<Volatility> vols(3);
+    Real alpha, a, b;
+    BOOST_REQUIRE_NO_THROW(finder.solveWithMaxHomogeneity(-1.4, 1, {2.0, 1.0}, {1.0, 1.0, 1.0}, {1.0, 1.0}, 1.0, -1.0,
+                                                          1.0, 1e-20, -0.5, -1.5, 100, alpha, a, b, vols));
+    BOOST_CHECK_SMALL(alpha + 1.0, 1e-6);
+}
+
+BOOST_AUTO_TEST_CASE(testAlphaFinderMaximumHomogeneity)
+{
+    BOOST_TEST_MESSAGE("Testing AlphaFinder at maximum homogeneity...");
+
+    struct Case
+    {
+        bool increasing;
+        Real initial, minimum, maximum;
+    };
+    const Case cases[] = {{false, -1.0, -1.5, -0.5}, {true, -1.0, -1.5, -0.5}, {true, -1.0, -1.2, -0.8},
+                          {false, -1.4, -1.5, -0.5}, {true, -0.6, -1.5, -0.5}, {true, -0.75, -1.0, -0.5},
+                          {false, -1.25, -1.5, -1.0}};
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT("increasing: " << c.increasing << ", initial: " << c.initial << ", bounds: [" << c.minimum
+                                          << ", " << c.maximum << "]")
+        {
+            const auto form =
+                ext::make_shared<PolynomialAlphaForm>(c.increasing ? 2.0 : 0.0, c.increasing ? 1.0 : -1.0);
+            AlphaFinder finder(form);
+            std::vector<Volatility> vols(3);
+            Real alpha, a, b;
+            BOOST_REQUIRE(finder.solveWithMaxHomogeneity(c.initial, 1, {2.0, 1.0}, {1.0, 1.0, 1.0}, {1.0, 1.0}, 1.0,
+                                                         -1.0, 1.0, 1e-10, c.maximum, c.minimum, 100, alpha, a, b,
+                                                         vols));
+            BOOST_CHECK_GE(alpha, c.minimum);
+            BOOST_CHECK_LE(alpha, c.maximum);
+            BOOST_CHECK_SMALL(alpha + 1.0, 1e-6);
+            BOOST_CHECK_SMALL(a - 1.0, 1e-6);
+            BOOST_CHECK_SMALL(b - 1.0, 1e-6);
+            for (Volatility v : vols)
+                BOOST_CHECK_SMALL(v - 1.0, 1e-6);
+            BOOST_CHECK_SMALL((2.0 - vols[0]) * (2.0 - vols[0]) + (1.0 - vols[1]) * (1.0 - vols[1]) - 1.0, 1e-10);
+            BOOST_CHECK_SMALL(vols[0] * vols[0] + vols[1] * vols[1] + vols[2] * vols[2] - 3.0, 1e-10);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testAlphaFinderWindowInsideItsBounds)
+{
+    BOOST_TEST_MESSAGE("Testing AlphaFinder with solutions only inside its bounds...");
+
+    // Neither bound nor the initial value is a solution, so these have to step to the window.
+    struct Case
+    {
+        Real center;
+        bool maximizeHomogeneity;
+    };
+    const Case cases[] = {{-0.5, false}, {0.5, false}, {-0.5, true}, {0.5, true}};
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT("center: " << c.center << ", maximum homogeneity: " << c.maximizeHomogeneity)
+        {
+            const auto s = solveForAlpha(windowForm(c.center), c.maximizeHomogeneity, 0.0, 0.3, 1e-10, 1.0, -1.0);
+            BOOST_REQUIRE(s.success);
+            BOOST_CHECK_LE(std::fabs(s.alpha - c.center), windowHalfWidth + 1e-8);
+            // The nearest end of the window, since it's the root that the search brackets.
+            if (!c.maximizeHomogeneity)
+                BOOST_CHECK_SMALL(s.alpha - (c.center - (c.center > 0.0 ? 1.0 : -1.0) * windowHalfWidth), 1e-8);
+            checkVariances(s, 0.3, 1e-8);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testAlphaFinderStepsOverItsWholeRange)
+{
+    BOOST_TEST_MESSAGE("Testing AlphaFinder's steps towards each of its bounds...");
+
+    // The initial value is close to one bound, so the steps have to depend on which one they go to:
+    // one size for both can't reach the window from above, and from below it leaves the bounds.
+    auto s = solveForAlpha(windowForm(-0.5), true, 0.9, 0.3, 1e-10, 1.0, -1.0);
+    BOOST_REQUIRE(s.success);
+    BOOST_CHECK_LE(std::fabs(s.alpha + 0.5), windowHalfWidth + 1e-8);
+    checkVariances(s, 0.3, 1e-8);
+
+    s = solveForAlpha(windowForm(0.5), true, -0.9, 0.3, 1e-10, 1.0, -1.0);
+    BOOST_REQUIRE(s.success);
+    BOOST_CHECK_LE(std::fabs(s.alpha - 0.5), windowHalfWidth + 1e-8);
+    checkVariances(s, 0.3, 1e-8);
+
+    // The window is below the lower bound here, so there's no solution inside them.
+    BOOST_CHECK(!solveForAlpha(windowForm(-1.5), true, -0.9, 0.3, 1e-10, 1.0, -1.0).success);
+    BOOST_CHECK(!solveForAlpha(windowForm(-1.5), false, -0.9, 0.3, 1e-10, 1.0, -1.0).success);
+}
+
+BOOST_AUTO_TEST_CASE(testAlphaFinderRejectsNegativeRemainingVariance)
+{
+    BOOST_TEST_MESSAGE("Testing that AlphaFinder rejects a negative remaining variance...");
+
+    const auto form = ext::make_shared<AlphaFormInverseLinear>(std::vector<Time>{1.0, 2.0});
+    AlphaFinder finder(form);
+    const std::vector<Volatility> firstVols = {1.0};
+    const std::vector<Volatility> homogeneousVols = {0.1, 0.1};
+    const std::vector<Real> correlations = {-1.0};
+    std::vector<Volatility> vols(2);
+    Real alpha, a, b;
+    BOOST_CHECK(!finder.solve(0.0, 0, firstVols, homogeneousVols, correlations, 1.0, 1.0, 0.25, 1e-10, 1.0, -0.5, 100,
+                              alpha, a, b, vols));
+    BOOST_CHECK(!finder.solveWithMaxHomogeneity(0.0, 0, firstVols, homogeneousVols, correlations, 1.0, 1.0, 0.25, 1e-10,
+                                                1.0, -0.5, 100, alpha, a, b, vols));
+
+    // Here the initial value isn't a solution, and the variance goes negative at the root.
+    AlphaFinder other(ext::make_shared<PolynomialAlphaForm>(0.0, 1.0));
+    std::vector<Volatility> otherVols(3);
+    BOOST_CHECK(!other.solve(1.0, 1, {1.0, 0.0}, {0.1, 0.1, 0.1}, {-1.0, 0.0}, 1.0, 1.0, 0.3, 1e-10, 1.0, 0.0, 100,
+                             alpha, a, b, otherVols));
+}
+
+BOOST_AUTO_TEST_CASE(testAlphaFinderNoRealSolution)
+{
+    BOOST_TEST_MESSAGE("Testing AlphaFinder when no real solution exists...");
+
+    const auto form = ext::make_shared<AlphaFormInverseLinear>(std::vector<Time>{1.0, 2.0});
+    AlphaFinder finder(form);
+    std::vector<Volatility> vols(2);
+    Real alpha, a, b;
+    BOOST_CHECK(
+        !finder.solve(0.0, 0, {1.0}, {1.0, 1.0}, {0.0}, 1.0, 1.0, 0.5, 1e-10, 1.0, -0.5, 100, alpha, a, b, vols));
+    BOOST_CHECK(!finder.solveWithMaxHomogeneity(0.0, 0, {1.0}, {1.0, 1.0}, {0.0}, 1.0, 1.0, 0.5, 1e-10, 1.0, -0.5, 100,
+                                                alpha, a, b, vols));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
