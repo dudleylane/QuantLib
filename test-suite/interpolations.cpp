@@ -26,6 +26,7 @@
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
 #include <ql/experimental/math/laplaceinterpolation.hpp>
+#include <ql/experimental/volatility/sviinterpolation.hpp>
 #include <ql/math/bspline.hpp>
 #include <ql/math/functional.hpp>
 #include <ql/math/integrals/simpsonintegral.hpp>
@@ -42,6 +43,7 @@
 #include <ql/math/interpolations/mixedinterpolation.hpp>
 #include <ql/math/interpolations/multicubicspline.hpp>
 #include <ql/math/interpolations/sabrinterpolation.hpp>
+#include <ql/math/interpolations/zabrinterpolation.hpp>
 #include <ql/math/kernelfunctions.hpp>
 #include <ql/math/optimization/levenbergmarquardt.hpp>
 #include <ql/math/randomnumbers/sobolrsg.hpp>
@@ -3083,7 +3085,6 @@ BOOST_AUTO_TEST_CASE(testSabrNegativeVolatilities)
 
     const std::vector<Real> strikes = {0.03, 0.04, 0.05, 0.06};
     std::vector<Real> vols = {0.20, 0.18, 0.19, 0.185};
-    // Named, since the interpolation keeps a reference to it.
     const Real forward = 0.04;
 
     for (bool vegaWeighted : {false, true})
@@ -3108,6 +3109,61 @@ BOOST_AUTO_TEST_CASE(testSabrNegativeVolatilities)
                                   ExpectedErrorMessage("negative volatility (-0.2) given at strike 0.03"));
         }
     }
+}
+
+BOOST_AUTO_TEST_CASE(testXabrInterpolationsKeepTheirForward)
+{
+    BOOST_TEST_MESSAGE("Testing that SABR-like interpolations keep the forward they were given...");
+
+    const std::vector<Real> strikes = {0.03, 0.04, 0.05, 0.06};
+    const std::vector<Real> vols = {0.20, 0.18, 0.19, 0.185};
+    const Real given = 0.04, later = 0.08, strike = 0.045;
+
+    // With everything fixed there's nothing to calibrate, so an update can change a value only through the forward.
+    const auto check = [&](auto& interpolation, Real& forward, const std::string& name)
+    {
+        BOOST_TEST_CONTEXT(name)
+        {
+            interpolation.update();
+            const Real expected = interpolation(strike, true);
+            forward = later;
+            interpolation.update();
+            BOOST_CHECK_EQUAL(interpolation.forward(), given);
+            BOOST_CHECK_EQUAL(interpolation(strike, true), expected);
+        }
+    };
+
+    Real forward = given;
+    SABRInterpolation sabr(strikes.begin(), strikes.end(), vols.begin(), 1.0, forward, 0.2, 1.0, 0.1, 0.0, true, true,
+                           true, true);
+    check(sabr, forward, "SABR");
+
+    forward = given;
+    NoArbSabrInterpolation noArbSabr(strikes.begin(), strikes.end(), vols.begin(), 1.0, forward, 0.2, 0.5, 0.1, 0.0,
+                                     true, true, true, true);
+    check(noArbSabr, forward, "no-arbitrage SABR");
+
+    forward = given;
+    ZabrInterpolation<ZabrShortMaturityLognormal> zabr(strikes.begin(), strikes.end(), vols.begin(), 1.0, forward, 0.2,
+                                                       1.0, 0.1, 0.0, 1.0, true, true, true, true, true);
+    check(zabr, forward, "ZABR");
+
+    forward = given;
+    SviInterpolation svi(strikes.begin(), strikes.end(), vols.begin(), 1.0, forward, 0.03, 0.1, 0.1, 0.0, 0.0, true,
+                         true, true, true, true);
+    check(svi, forward, "SVI");
+
+    // Neither of these has a forward left to refer to once its statement ends.
+    SABRInterpolation fromLiteral(strikes.begin(), strikes.end(), vols.begin(), 1.0, 0.04, 0.2, 1.0, 0.1, 0.0, true,
+                                  true, true, true);
+    fromLiteral.update();
+    BOOST_CHECK_EQUAL(fromLiteral.forward(), given);
+    BOOST_CHECK_EQUAL(fromLiteral(strike, true), sabr(strike, true));
+
+    Interpolation fromFactory = SABR(1.0, given, 0.2, 1.0, 0.1, 0.0, true, true, true, true)
+                                    .interpolate(strikes.begin(), strikes.end(), vols.begin());
+    fromFactory.update();
+    BOOST_CHECK_EQUAL(fromFactory(strike, true), sabr(strike, true));
 }
 
 BOOST_AUTO_TEST_CASE(testLagrangeInterpolationAroundASupportPointAtZero)
