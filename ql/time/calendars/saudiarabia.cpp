@@ -37,24 +37,15 @@ namespace QuantLib
             return (d < Date(29, June, 2013)) ? (w == Thursday || w == Friday) : (w == Friday || w == Saturday);
         }
 
-        // In 2015 and 2014, the Eid holidays of the Tadawul Exchange
-        // have been from Eid-1 to Eid+4
-        // Sometimes, slightly longer holidays are observed
-        // But conservatively, we take Eid-1 to Eid+4 as the holiday
+        // From 2008 on the holidays go by the last session before them and the first one after.
+        // From 2016 on those are in the exchange's notices, and from 2027 on in its current
+        // calendar, which follows the Umm al-Qura calendar, so they can still move. From 2008 to
+        // 2015 they come from daily data: the trades of every share and the TASI index, which
+        // agree with each other and with the two notices found, and give the trading days the
+        // exchange reports for 2012 to 2015.
 
-        // Eid Date    Holiday     Offset    Remarks
-        // 2015-09-23    22-27     -1,+4     later extended to 22-28 or -1+5
-        // 2015-07-17    18-21     -1,+4
-        // 2014-10-05    03-11     -1,+4     because of weekend 03-11 is same as 04-09
-        // 2014-07-28    25-03     -1,+4     because of weekend 25-03 is same as 27-01
-        // 2013-10-15    11-19     -2,+4     because of weekend 11-19 is same as 13-19
-        // 2013-08-08    06-12     -2,+4
-        // 2012-10-26    25-03     -1,+5     because of weekend 25-03 is same as 25-31
-        // 2012-08-19    16-24     -1,+4     because of weekend 16-24 is same as 18-23
-
-        // From 2016 on the holidays follow the exchange's notices, which name the last session
-        // before a holiday and the first one after it. Those from 2027 on are in its current
-        // calendar, which follows the Umm al-Qura calendar, so they can still move.
+        // Before 2008 there's only one such series, so a holiday goes by its Eid date, from Eid-1
+        // to Eid+4. That can be some days off (#171).
 
         bool isBetweenSessions(Date d, const std::vector<std::pair<Date, Date>>& sessions)
         {
@@ -67,13 +58,19 @@ namespace QuantLib
             // Eid al Adha dates taken from:
             // https://en.wikipedia.org/wiki/Eid_al-Adha#Eid_al-Adha_in_the_Gregorian_calendar
             static std::vector<Date> EidAlAdha = {
-                Date(7, April, 1998),     Date(27, March, 1999),    Date(16, March, 2000),    Date(5, March, 2001),
-                Date(23, February, 2002), Date(12, February, 2003), Date(1, February, 2004),  Date(21, January, 2005),
-                Date(10, January, 2006),  Date(31, December, 2006), Date(20, December, 2007), Date(8, December, 2008),
-                Date(27, November, 2009), Date(16, November, 2010), Date(6, November, 2011),  Date(26, October, 2012),
-                Date(15, October, 2013),  Date(4, October, 2014),   Date(24, September, 2015)};
+                Date(7, April, 1998),     Date(27, March, 1999),    Date(16, March, 2000),   Date(5, March, 2001),
+                Date(23, February, 2002), Date(12, February, 2003), Date(1, February, 2004), Date(21, January, 2005),
+                Date(10, January, 2006),  Date(31, December, 2006), Date(20, December, 2007)};
 
             static std::vector<std::pair<Date, Date>> sessions = {
+                {Date(3, December, 2008), Date(13, December, 2008)},
+                {Date(25, November, 2009), Date(5, December, 2009)},
+                {Date(10, November, 2010), Date(20, November, 2010)},
+                {Date(2, November, 2011), Date(12, November, 2011)},
+                {Date(24, October, 2012), Date(3, November, 2012)},
+                {Date(10, October, 2013), Date(20, October, 2013)},
+                {Date(2, October, 2014), Date(12, October, 2014)},
+                {Date(21, September, 2015), Date(29, September, 2015)},
                 {Date(8, September, 2016), Date(18, September, 2016)},
                 {Date(29, August, 2017), Date(6, September, 2017)},
                 {Date(16, August, 2018), Date(26, August, 2018)},
@@ -98,20 +95,33 @@ namespace QuantLib
         {
             // Eid al Fitr dates taken from:
             // https://en.wikipedia.org/wiki/Eid_al-Fitr#In_the_Gregorian_calendar
-            static std::vector<Date> EidAlFitr = {Date(16, Dec, 2001), Date(5, Dec, 2002),  Date(25, Nov, 2003),
-                                                  Date(13, Nov, 2004), Date(3, Nov, 2005),  Date(23, Oct, 2006),
-                                                  Date(12, Oct, 2007), Date(30, Sep, 2008), Date(20, Sep, 2009),
-                                                  Date(10, Sep, 2010), Date(30, Aug, 2011), Date(19, Aug, 2012),
-                                                  Date(8, Aug, 2013),  Date(28, Jul, 2014), Date(17, Jul, 2015)};
+            static std::vector<Date> EidAlFitr = {Date(16, Dec, 2001), Date(5, Dec, 2002), Date(25, Nov, 2003),
+                                                  Date(13, Nov, 2004), Date(3, Nov, 2005), Date(23, Oct, 2006),
+                                                  Date(12, Oct, 2007)};
 
             static std::vector<std::pair<Date, Date>> sessions = {
-                {Date(30, June, 2016), Date(10, July, 2016)},     {Date(22, June, 2017), Date(2, July, 2017)},
-                {Date(12, June, 2018), Date(20, June, 2018)},     {Date(30, May, 2019), Date(9, June, 2019)},
-                {Date(21, May, 2020), Date(31, May, 2020)},       {Date(10, May, 2021), Date(17, May, 2021)},
-                {Date(28, April, 2022), Date(8, May, 2022)},      {Date(17, April, 2023), Date(25, April, 2023)},
-                {Date(4, April, 2024), Date(14, April, 2024)},    {Date(27, March, 2025), Date(3, April, 2025)},
-                {Date(16, March, 2026), Date(24, March, 2026)},   {Date(4, March, 2027), Date(14, March, 2027)},
-                {Date(24, February, 2028), Date(5, March, 2028)}, {Date(11, February, 2029), Date(19, February, 2029)},
+                {Date(28, September, 2008), Date(6, October, 2008)},
+                {Date(16, September, 2009), Date(26, September, 2009)},
+                {Date(6, September, 2010), Date(14, September, 2010)},
+                {Date(24, August, 2011), Date(3, September, 2011)},
+                {Date(15, August, 2012), Date(25, August, 2012)},
+                {Date(5, August, 2013), Date(13, August, 2013)},
+                {Date(24, July, 2014), Date(3, August, 2014)},
+                {Date(15, July, 2015), Date(22, July, 2015)},
+                {Date(30, June, 2016), Date(10, July, 2016)},
+                {Date(22, June, 2017), Date(2, July, 2017)},
+                {Date(12, June, 2018), Date(20, June, 2018)},
+                {Date(30, May, 2019), Date(9, June, 2019)},
+                {Date(21, May, 2020), Date(31, May, 2020)},
+                {Date(10, May, 2021), Date(17, May, 2021)},
+                {Date(28, April, 2022), Date(8, May, 2022)},
+                {Date(17, April, 2023), Date(25, April, 2023)},
+                {Date(4, April, 2024), Date(14, April, 2024)},
+                {Date(27, March, 2025), Date(3, April, 2025)},
+                {Date(16, March, 2026), Date(24, March, 2026)},
+                {Date(4, March, 2027), Date(14, March, 2027)},
+                {Date(24, February, 2028), Date(5, March, 2028)},
+                {Date(11, February, 2029), Date(19, February, 2029)},
             };
 
             return std::any_of(EidAlFitr.begin(), EidAlFitr.end(), [=](Date p) { return d >= p - 1 && d <= p + 4; }) ||
@@ -159,6 +169,12 @@ namespace QuantLib
             (d == 19 && m == March && y == 2011)
             // National Day, moved off the Thursday of the old weekend
             || (d == 22 && m == September && y == 2010)
+            // and off its Friday, going by the daily data, as no notice was found
+            || (d == 24 && m == September && y == 2011)
+            // no sessions in the daily data and none in the trading days reported, though no notice
+            // was found: the day before National Day, and the Sunday after King Abdullah's death
+            || (d == 22 && m == September && y == 2013) ||
+            (d == 25 && m == January && y == 2015)
             // National Day, extended by royal order
             || (d == 24 && m == September && y == 2018)
             // declared by royal order after the World Cup match against Argentina

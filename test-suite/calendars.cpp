@@ -4223,7 +4223,11 @@ BOOST_AUTO_TEST_CASE(testSaudiArabiaAgainstTheExchangesNotices)
     BOOST_CHECK(c.isBusinessDay(Date(21, February, 2019)));
     BOOST_CHECK(c.isBusinessDay(Date(23, February, 2020)));
 
-    // before 2016 a holiday still goes by its Eid date, which fits the notice of 2015
+    // the only notices found before 2016 are for Eid Al-Adha of 2012 and Eid Al-Fitr of 2015
+    BOOST_CHECK(c.isBusinessDay(Date(24, October, 2012)));
+    BOOST_CHECK(c.isHoliday(Date(27, October, 2012)));
+    BOOST_CHECK(c.isHoliday(Date(31, October, 2012)));
+    BOOST_CHECK(c.isBusinessDay(Date(3, November, 2012)));
     BOOST_CHECK(c.isBusinessDay(Date(15, July, 2015)));
     BOOST_CHECK(c.isHoliday(Date(16, July, 2015)));
     BOOST_CHECK(c.isHoliday(Date(21, July, 2015)));
@@ -4286,6 +4290,14 @@ BOOST_AUTO_TEST_CASE(testSaudiArabiaAgainstReportedTradingDays)
     };
     // the exchange's annual and interim statistical reports; none found for the whole of 2018 or 2023
     const Period periods[] = {
+        {Date(1, January, 2012), Date(31, December, 2012), 251},
+        {Date(1, January, 2013), Date(31, December, 2013), 248},
+        {Date(1, January, 2014), Date(31, December, 2014), 250},
+        {Date(1, January, 2015), Date(31, December, 2015), 251},
+        {Date(1, January, 2013), Date(31, March, 2013), 64},
+        {Date(1, April, 2013), Date(30, June, 2013), 64},
+        {Date(1, July, 2013), Date(30, September, 2013), 59},
+        {Date(1, October, 2013), Date(31, December, 2013), 61},
         {Date(1, January, 2016), Date(31, December, 2016), 249},
         {Date(1, January, 2017), Date(31, December, 2017), 250},
         {Date(1, January, 2019), Date(31, December, 2019), 250},
@@ -4765,6 +4777,49 @@ BOOST_AUTO_TEST_CASE(testIsraelSettlementAgainstZahav)
     BOOST_CHECK(c.isWeekend(Saturday));
     BOOST_CHECK(!c.isWeekend(Friday));
     BOOST_CHECK(!c.isWeekend(Sunday));
+}
+
+
+BOOST_AUTO_TEST_CASE(testSaudiArabiaAgainstDailySessionsFrom2008To2015)
+{
+    BOOST_TEST_MESSAGE("Testing Saudi Arabia's calendar against the sessions held from 2008 to 2015...");
+
+    const Calendar c = SaudiArabia();
+
+    // the days of the trading week with no trades in any of 199 shares and no level of the TASI index; the two agree on
+    // every day from February 2nd, 2008, where TASI's series starts, and no holiday falls before that in 2008
+    const std::vector<Date> closures = {
+        Date(23, September, 2008), Date(29, September, 2008), Date(30, September, 2008), Date(1, October, 2008),
+        Date(4, October, 2008),    Date(5, October, 2008),    Date(6, December, 2008),   Date(7, December, 2008),
+        Date(8, December, 2008),   Date(9, December, 2008),   Date(10, December, 2008),  Date(19, September, 2009),
+        Date(20, September, 2009), Date(21, September, 2009), Date(22, September, 2009), Date(23, September, 2009),
+        Date(28, November, 2009),  Date(29, November, 2009),  Date(30, November, 2009),  Date(1, December, 2009),
+        Date(2, December, 2009),   Date(7, September, 2010),  Date(8, September, 2010),  Date(11, September, 2010),
+        Date(12, September, 2010), Date(13, September, 2010), Date(22, September, 2010), Date(13, November, 2010),
+        Date(14, November, 2010),  Date(15, November, 2010),  Date(16, November, 2010),  Date(17, November, 2010),
+        Date(26, February, 2011),  Date(19, March, 2011),     Date(27, August, 2011),    Date(28, August, 2011),
+        Date(29, August, 2011),    Date(30, August, 2011),    Date(31, August, 2011),    Date(24, September, 2011),
+        Date(5, November, 2011),   Date(6, November, 2011),   Date(7, November, 2011),   Date(8, November, 2011),
+        Date(9, November, 2011),   Date(18, August, 2012),    Date(19, August, 2012),    Date(20, August, 2012),
+        Date(21, August, 2012),    Date(22, August, 2012),    Date(23, September, 2012), Date(27, October, 2012),
+        Date(28, October, 2012),   Date(29, October, 2012),   Date(30, October, 2012),   Date(31, October, 2012),
+        Date(6, August, 2013),     Date(7, August, 2013),     Date(8, August, 2013),     Date(11, August, 2013),
+        Date(12, August, 2013),    Date(22, September, 2013), Date(23, September, 2013), Date(13, October, 2013),
+        Date(14, October, 2013),   Date(15, October, 2013),   Date(16, October, 2013),   Date(17, October, 2013),
+        Date(27, July, 2014),      Date(28, July, 2014),      Date(29, July, 2014),      Date(30, July, 2014),
+        Date(31, July, 2014),      Date(23, September, 2014), Date(5, October, 2014),    Date(6, October, 2014),
+        Date(7, October, 2014),    Date(8, October, 2014),    Date(9, October, 2014),    Date(25, January, 2015),
+        Date(16, July, 2015),      Date(19, July, 2015),      Date(20, July, 2015),      Date(21, July, 2015),
+        Date(22, September, 2015), Date(23, September, 2015), Date(24, September, 2015), Date(27, September, 2015),
+        Date(28, September, 2015),
+    };
+    for (Date d(1, January, 2008); d <= Date(31, December, 2015); ++d)
+    {
+        const Weekday w = d.weekday();
+        const bool weekend = d < Date(29, June, 2013) ? (w == Thursday || w == Friday) : (w == Friday || w == Saturday);
+        const bool closed = weekend || std::find(closures.begin(), closures.end(), d) != closures.end();
+        BOOST_CHECK_MESSAGE(c.isHoliday(d) == closed, d << (closed ? " had no session" : " had a session"));
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

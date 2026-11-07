@@ -50,6 +50,11 @@ namespace QuantLib
         <li>Eid Al-Fitr</li>
         </ul>
 
+        From 2016 on these follow the exchange's notices, and from 2008 to
+        2015 the sessions in daily trading data. Before 2008 they go by a rule,
+        and the weekend and National Day may not hold either, so treat those
+        years as an approximation.
+
         \ingroup calendars
     */
     class SaudiArabia : public Calendar
