@@ -370,11 +370,13 @@ int main(int, char*[])
         std::cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
         std::cout << "Hybrid Simulated Annealing Test" << std::endl;
         std::cout << "----------------------------------------------------------------" << std::endl;
-        testGaussianSA(3, 500, 200, 100.0, 0.1, GaussianSimulatedAnnealing::ResetToBestPoint, 150,
+        // The temperature falls as 100 * 0.95^k, so this final temperature leaves all 500 steps to the
+        // search.  A final temperature of 0.1 would end it after about 135 of them.
+        testGaussianSA(3, 500, 200, 100.0, 1e-10, GaussianSimulatedAnnealing::ResetToBestPoint, 150,
                        GaussianSimulatedAnnealing::EveryNewPoint);
-        testGaussianSA(10, 500, 200, 100.0, 0.1, GaussianSimulatedAnnealing::ResetToBestPoint, 150,
+        testGaussianSA(10, 500, 200, 100.0, 1e-10, GaussianSimulatedAnnealing::ResetToBestPoint, 150,
                        GaussianSimulatedAnnealing::EveryNewPoint);
-        testGaussianSA(30, 500, 200, 100.0, 0.1, GaussianSimulatedAnnealing::ResetToBestPoint, 150,
+        testGaussianSA(30, 500, 200, 100.0, 1e-10, GaussianSimulatedAnnealing::ResetToBestPoint, 150,
                        GaussianSimulatedAnnealing::EveryNewPoint);
 
 
