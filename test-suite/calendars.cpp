@@ -1702,7 +1702,9 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(1, May, 2026);
     expectedHol.emplace_back(5, May, 2026);
     expectedHol.emplace_back(25, May, 2026);
+    expectedHol.emplace_back(3, June, 2026);
     // expectedHol.emplace_back(6, June, 2026);    // Saturday
+    expectedHol.emplace_back(17, July, 2026);
     expectedHol.emplace_back(17, August, 2026);
     expectedHol.emplace_back(24, September, 2026);
     expectedHol.emplace_back(25, September, 2026);
@@ -1719,6 +1721,8 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2027);
     expectedHol.emplace_back(13, May, 2027);
     // expectedHol.emplace_back(6, June, 2027);    // Sunday
+    // expectedHol.emplace_back(17, July, 2027);    // Saturday
+    expectedHol.emplace_back(19, July, 2027);
     expectedHol.emplace_back(16, August, 2027);
     expectedHol.emplace_back(14, September, 2027);
     expectedHol.emplace_back(15, September, 2027);
@@ -1735,6 +1739,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(2, May, 2028);
     expectedHol.emplace_back(5, May, 2028);
     expectedHol.emplace_back(6, June, 2028);
+    expectedHol.emplace_back(17, July, 2028);
     expectedHol.emplace_back(15, August, 2028);
     expectedHol.emplace_back(2, October, 2028);
     expectedHol.emplace_back(3, October, 2028);
@@ -1751,6 +1756,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(7, May, 2029);
     expectedHol.emplace_back(21, May, 2029);
     expectedHol.emplace_back(6, June, 2029);
+    expectedHol.emplace_back(17, July, 2029);
     expectedHol.emplace_back(15, August, 2029);
     expectedHol.emplace_back(21, September, 2029);
     // expectedHol.emplace_back(22, September, 2029);    // Saturday
@@ -1767,6 +1773,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(6, May, 2030);
     expectedHol.emplace_back(9, May, 2030);
     expectedHol.emplace_back(6, June, 2030);
+    expectedHol.emplace_back(17, July, 2030);
     expectedHol.emplace_back(15, August, 2030);
     expectedHol.emplace_back(11, September, 2030);
     expectedHol.emplace_back(12, September, 2030);
@@ -1783,6 +1790,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2031);
     expectedHol.emplace_back(28, May, 2031);
     expectedHol.emplace_back(6, June, 2031);
+    expectedHol.emplace_back(17, July, 2031);
     expectedHol.emplace_back(15, August, 2031);
     expectedHol.emplace_back(30, September, 2031);
     expectedHol.emplace_back(1, October, 2031);
@@ -1799,6 +1807,8 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2032);
     expectedHol.emplace_back(17, May, 2032);
     // expectedHol.emplace_back(6, June, 2032);    // Sunday
+    // expectedHol.emplace_back(17, July, 2032);    // Saturday
+    expectedHol.emplace_back(19, July, 2032);
     expectedHol.emplace_back(16, August, 2032);
     // expectedHol.emplace_back(18, September, 2032);    // Saturday
     expectedHol.emplace_back(20, September, 2032);
@@ -1815,6 +1825,8 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2033);
     expectedHol.emplace_back(6, May, 2033);
     expectedHol.emplace_back(6, June, 2033);
+    // expectedHol.emplace_back(17, July, 2033);    // Sunday
+    expectedHol.emplace_back(18, July, 2033);
     expectedHol.emplace_back(15, August, 2033);
     expectedHol.emplace_back(7, September, 2033);
     expectedHol.emplace_back(8, September, 2033);
@@ -1831,6 +1843,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2034);
     expectedHol.emplace_back(25, May, 2034);
     expectedHol.emplace_back(6, June, 2034);
+    expectedHol.emplace_back(17, July, 2034);
     expectedHol.emplace_back(15, August, 2034);
     expectedHol.emplace_back(26, September, 2034);
     expectedHol.emplace_back(27, September, 2034);
@@ -1847,6 +1860,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(7, May, 2035);
     expectedHol.emplace_back(15, May, 2035);
     expectedHol.emplace_back(6, June, 2035);
+    expectedHol.emplace_back(17, July, 2035);
     expectedHol.emplace_back(15, August, 2035);
     // expectedHol.emplace_back(15, September, 2035);    // Saturday
     expectedHol.emplace_back(17, September, 2035);
@@ -1863,6 +1877,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2036);
     expectedHol.emplace_back(6, May, 2036);
     expectedHol.emplace_back(6, June, 2036);
+    expectedHol.emplace_back(17, July, 2036);
     expectedHol.emplace_back(15, August, 2036);
     expectedHol.emplace_back(3, October, 2036);
     // expectedHol.emplace_back(4, October, 2036);    // Saturday
@@ -1879,6 +1894,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2037);
     expectedHol.emplace_back(22, May, 2037);
     // expectedHol.emplace_back(6, June, 2037);    // Saturday
+    expectedHol.emplace_back(17, July, 2037);
     expectedHol.emplace_back(17, August, 2037);
     expectedHol.emplace_back(23, September, 2037);
     expectedHol.emplace_back(24, September, 2037);
@@ -1895,6 +1911,8 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2038);
     expectedHol.emplace_back(11, May, 2038);
     // expectedHol.emplace_back(6, June, 2038);    // Sunday
+    // expectedHol.emplace_back(17, July, 2038);    // Saturday
+    expectedHol.emplace_back(19, July, 2038);
     expectedHol.emplace_back(16, August, 2038);
     expectedHol.emplace_back(13, September, 2038);
     expectedHol.emplace_back(14, September, 2038);
@@ -1911,6 +1929,8 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(2, May, 2039);
     expectedHol.emplace_back(5, May, 2039);
     expectedHol.emplace_back(6, June, 2039);
+    // expectedHol.emplace_back(17, July, 2039);    // Sunday
+    expectedHol.emplace_back(18, July, 2039);
     expectedHol.emplace_back(15, August, 2039);
     // expectedHol.emplace_back(1, October, 2039);    // Saturday
     expectedHol.emplace_back(3, October, 2039);
@@ -1927,6 +1947,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(7, May, 2040);
     expectedHol.emplace_back(18, May, 2040);
     expectedHol.emplace_back(6, June, 2040);
+    expectedHol.emplace_back(17, July, 2040);
     expectedHol.emplace_back(15, August, 2040);
     expectedHol.emplace_back(20, September, 2040);
     expectedHol.emplace_back(21, September, 2040);
@@ -1943,6 +1964,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(6, May, 2041);
     expectedHol.emplace_back(7, May, 2041);
     expectedHol.emplace_back(6, June, 2041);
+    expectedHol.emplace_back(17, July, 2041);
     expectedHol.emplace_back(15, August, 2041);
     expectedHol.emplace_back(9, September, 2041);
     expectedHol.emplace_back(10, September, 2041);
@@ -1959,6 +1981,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2042);
     expectedHol.emplace_back(26, May, 2042);
     expectedHol.emplace_back(6, June, 2042);
+    expectedHol.emplace_back(17, July, 2042);
     expectedHol.emplace_back(15, August, 2042);
     // expectedHol.emplace_back(27, September, 2042);    // Saturday
     expectedHol.emplace_back(29, September, 2042);
@@ -1975,6 +1998,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2043);
     expectedHol.emplace_back(18, May, 2043);
     // expectedHol.emplace_back(6, June, 2043);    // Saturday
+    expectedHol.emplace_back(17, July, 2043);
     expectedHol.emplace_back(17, August, 2043);
     expectedHol.emplace_back(16, September, 2043);
     expectedHol.emplace_back(17, September, 2043);
@@ -1991,6 +2015,8 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2044);
     expectedHol.emplace_back(6, May, 2044);
     expectedHol.emplace_back(6, June, 2044);
+    // expectedHol.emplace_back(17, July, 2044);    // Sunday
+    expectedHol.emplace_back(18, July, 2044);
     expectedHol.emplace_back(15, August, 2044);
     expectedHol.emplace_back(3, October, 2044);
     expectedHol.emplace_back(4, October, 2044);
@@ -2007,6 +2033,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2045);
     expectedHol.emplace_back(24, May, 2045);
     expectedHol.emplace_back(6, June, 2045);
+    expectedHol.emplace_back(17, July, 2045);
     expectedHol.emplace_back(15, August, 2045);
     expectedHol.emplace_back(25, September, 2045);
     expectedHol.emplace_back(26, September, 2045);
@@ -2023,6 +2050,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(7, May, 2046);
     expectedHol.emplace_back(14, May, 2046);
     expectedHol.emplace_back(6, June, 2046);
+    expectedHol.emplace_back(17, July, 2046);
     expectedHol.emplace_back(15, August, 2046);
     expectedHol.emplace_back(14, September, 2046);
     // expectedHol.emplace_back(15, September, 2046);    // Saturday
@@ -2039,6 +2067,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(2, May, 2047);
     expectedHol.emplace_back(6, May, 2047);
     expectedHol.emplace_back(6, June, 2047);
+    expectedHol.emplace_back(17, July, 2047);
     expectedHol.emplace_back(15, August, 2047);
     expectedHol.emplace_back(3, October, 2047);
     expectedHol.emplace_back(4, October, 2047);
@@ -2055,6 +2084,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2048);
     expectedHol.emplace_back(20, May, 2048);
     // expectedHol.emplace_back(6, June, 2048);    // Saturday
+    expectedHol.emplace_back(17, July, 2048);
     expectedHol.emplace_back(17, August, 2048);
     expectedHol.emplace_back(21, September, 2048);
     expectedHol.emplace_back(22, September, 2048);
@@ -2071,6 +2101,8 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2049);
     expectedHol.emplace_back(10, May, 2049);
     // expectedHol.emplace_back(6, June, 2049);    // Sunday
+    // expectedHol.emplace_back(17, July, 2049);    // Saturday
+    expectedHol.emplace_back(19, July, 2049);
     expectedHol.emplace_back(16, August, 2049);
     expectedHol.emplace_back(10, September, 2049);
     // expectedHol.emplace_back(11, September, 2049);    // Saturday
@@ -2087,6 +2119,8 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2050);
     expectedHol.emplace_back(30, May, 2050);
     expectedHol.emplace_back(6, June, 2050);
+    // expectedHol.emplace_back(17, July, 2050);    // Sunday
+    expectedHol.emplace_back(18, July, 2050);
     expectedHol.emplace_back(15, August, 2050);
     expectedHol.emplace_back(29, September, 2050);
     expectedHol.emplace_back(30, September, 2050);
@@ -2447,7 +2481,9 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(1, May, 2026);
     expectedHol.emplace_back(5, May, 2026);
     expectedHol.emplace_back(25, May, 2026);
+    expectedHol.emplace_back(3, June, 2026);
     // expectedHol.emplace_back(6, June, 2026);    // Saturday
+    expectedHol.emplace_back(17, July, 2026);
     expectedHol.emplace_back(17, August, 2026);
     expectedHol.emplace_back(24, September, 2026);
     expectedHol.emplace_back(25, September, 2026);
@@ -2465,6 +2501,8 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2027);
     expectedHol.emplace_back(13, May, 2027);
     // expectedHol.emplace_back(6, June, 2027);    // Sunday
+    // expectedHol.emplace_back(17, July, 2027);    // Saturday
+    expectedHol.emplace_back(19, July, 2027);
     expectedHol.emplace_back(16, August, 2027);
     expectedHol.emplace_back(14, September, 2027);
     expectedHol.emplace_back(15, September, 2027);
@@ -2482,6 +2520,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(2, May, 2028);
     expectedHol.emplace_back(5, May, 2028);
     expectedHol.emplace_back(6, June, 2028);
+    expectedHol.emplace_back(17, July, 2028);
     expectedHol.emplace_back(15, August, 2028);
     expectedHol.emplace_back(2, October, 2028);
     expectedHol.emplace_back(3, October, 2028);
@@ -2499,6 +2538,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(7, May, 2029);
     expectedHol.emplace_back(21, May, 2029);
     expectedHol.emplace_back(6, June, 2029);
+    expectedHol.emplace_back(17, July, 2029);
     expectedHol.emplace_back(15, August, 2029);
     expectedHol.emplace_back(21, September, 2029);
     // expectedHol.emplace_back(22, September, 2029);    // Saturday
@@ -2516,6 +2556,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(6, May, 2030);
     expectedHol.emplace_back(9, May, 2030);
     expectedHol.emplace_back(6, June, 2030);
+    expectedHol.emplace_back(17, July, 2030);
     expectedHol.emplace_back(15, August, 2030);
     expectedHol.emplace_back(11, September, 2030);
     expectedHol.emplace_back(12, September, 2030);
@@ -2533,6 +2574,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2031);
     expectedHol.emplace_back(28, May, 2031);
     expectedHol.emplace_back(6, June, 2031);
+    expectedHol.emplace_back(17, July, 2031);
     expectedHol.emplace_back(15, August, 2031);
     expectedHol.emplace_back(30, September, 2031);
     expectedHol.emplace_back(1, October, 2031);
@@ -2550,6 +2592,8 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2032);
     expectedHol.emplace_back(17, May, 2032);
     // expectedHol.emplace_back(6, June, 2032);    // Sunday
+    // expectedHol.emplace_back(17, July, 2032);    // Saturday
+    expectedHol.emplace_back(19, July, 2032);
     expectedHol.emplace_back(16, August, 2032);
     // expectedHol.emplace_back(18, September, 2032);    // Saturday
     expectedHol.emplace_back(20, September, 2032);
@@ -2567,6 +2611,8 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2033);
     expectedHol.emplace_back(6, May, 2033);
     expectedHol.emplace_back(6, June, 2033);
+    // expectedHol.emplace_back(17, July, 2033);    // Sunday
+    expectedHol.emplace_back(18, July, 2033);
     expectedHol.emplace_back(15, August, 2033);
     expectedHol.emplace_back(7, September, 2033);
     expectedHol.emplace_back(8, September, 2033);
@@ -2584,6 +2630,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2034);
     expectedHol.emplace_back(25, May, 2034);
     expectedHol.emplace_back(6, June, 2034);
+    expectedHol.emplace_back(17, July, 2034);
     expectedHol.emplace_back(15, August, 2034);
     expectedHol.emplace_back(26, September, 2034);
     expectedHol.emplace_back(27, September, 2034);
@@ -2601,6 +2648,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(7, May, 2035);
     expectedHol.emplace_back(15, May, 2035);
     expectedHol.emplace_back(6, June, 2035);
+    expectedHol.emplace_back(17, July, 2035);
     expectedHol.emplace_back(15, August, 2035);
     // expectedHol.emplace_back(15, September, 2035);    // Saturday
     expectedHol.emplace_back(17, September, 2035);
@@ -2618,6 +2666,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2036);
     expectedHol.emplace_back(6, May, 2036);
     expectedHol.emplace_back(6, June, 2036);
+    expectedHol.emplace_back(17, July, 2036);
     expectedHol.emplace_back(15, August, 2036);
     expectedHol.emplace_back(3, October, 2036);
     // expectedHol.emplace_back(4, October, 2036);    // Saturday
@@ -2635,6 +2684,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2037);
     expectedHol.emplace_back(22, May, 2037);
     // expectedHol.emplace_back(6, June, 2037);    // Saturday
+    expectedHol.emplace_back(17, July, 2037);
     expectedHol.emplace_back(17, August, 2037);
     expectedHol.emplace_back(23, September, 2037);
     expectedHol.emplace_back(24, September, 2037);
@@ -2652,6 +2702,8 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2038);
     expectedHol.emplace_back(11, May, 2038);
     // expectedHol.emplace_back(6, June, 2038);    // Sunday
+    // expectedHol.emplace_back(17, July, 2038);    // Saturday
+    expectedHol.emplace_back(19, July, 2038);
     expectedHol.emplace_back(16, August, 2038);
     expectedHol.emplace_back(13, September, 2038);
     expectedHol.emplace_back(14, September, 2038);
@@ -2669,6 +2721,8 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(2, May, 2039);
     expectedHol.emplace_back(5, May, 2039);
     expectedHol.emplace_back(6, June, 2039);
+    // expectedHol.emplace_back(17, July, 2039);    // Sunday
+    expectedHol.emplace_back(18, July, 2039);
     expectedHol.emplace_back(15, August, 2039);
     // expectedHol.emplace_back(1, October, 2039);    // Saturday
     expectedHol.emplace_back(3, October, 2039);
@@ -2686,6 +2740,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(7, May, 2040);
     expectedHol.emplace_back(18, May, 2040);
     expectedHol.emplace_back(6, June, 2040);
+    expectedHol.emplace_back(17, July, 2040);
     expectedHol.emplace_back(15, August, 2040);
     expectedHol.emplace_back(20, September, 2040);
     expectedHol.emplace_back(21, September, 2040);
@@ -2703,6 +2758,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(6, May, 2041);
     expectedHol.emplace_back(7, May, 2041);
     expectedHol.emplace_back(6, June, 2041);
+    expectedHol.emplace_back(17, July, 2041);
     expectedHol.emplace_back(15, August, 2041);
     expectedHol.emplace_back(9, September, 2041);
     expectedHol.emplace_back(10, September, 2041);
@@ -2720,6 +2776,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2042);
     expectedHol.emplace_back(26, May, 2042);
     expectedHol.emplace_back(6, June, 2042);
+    expectedHol.emplace_back(17, July, 2042);
     expectedHol.emplace_back(15, August, 2042);
     // expectedHol.emplace_back(27, September, 2042);    // Saturday
     expectedHol.emplace_back(29, September, 2042);
@@ -2737,6 +2794,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2043);
     expectedHol.emplace_back(18, May, 2043);
     // expectedHol.emplace_back(6, June, 2043);    // Saturday
+    expectedHol.emplace_back(17, July, 2043);
     expectedHol.emplace_back(17, August, 2043);
     expectedHol.emplace_back(16, September, 2043);
     expectedHol.emplace_back(17, September, 2043);
@@ -2754,6 +2812,8 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2044);
     expectedHol.emplace_back(6, May, 2044);
     expectedHol.emplace_back(6, June, 2044);
+    // expectedHol.emplace_back(17, July, 2044);    // Sunday
+    expectedHol.emplace_back(18, July, 2044);
     expectedHol.emplace_back(15, August, 2044);
     expectedHol.emplace_back(3, October, 2044);
     expectedHol.emplace_back(4, October, 2044);
@@ -2771,6 +2831,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2045);
     expectedHol.emplace_back(24, May, 2045);
     expectedHol.emplace_back(6, June, 2045);
+    expectedHol.emplace_back(17, July, 2045);
     expectedHol.emplace_back(15, August, 2045);
     expectedHol.emplace_back(25, September, 2045);
     expectedHol.emplace_back(26, September, 2045);
@@ -2788,6 +2849,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(7, May, 2046);
     expectedHol.emplace_back(14, May, 2046);
     expectedHol.emplace_back(6, June, 2046);
+    expectedHol.emplace_back(17, July, 2046);
     expectedHol.emplace_back(15, August, 2046);
     expectedHol.emplace_back(14, September, 2046);
     // expectedHol.emplace_back(15, September, 2046);    // Saturday
@@ -2805,6 +2867,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(2, May, 2047);
     expectedHol.emplace_back(6, May, 2047);
     expectedHol.emplace_back(6, June, 2047);
+    expectedHol.emplace_back(17, July, 2047);
     expectedHol.emplace_back(15, August, 2047);
     expectedHol.emplace_back(3, October, 2047);
     expectedHol.emplace_back(4, October, 2047);
@@ -2822,6 +2885,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2048);
     expectedHol.emplace_back(20, May, 2048);
     // expectedHol.emplace_back(6, June, 2048);    // Saturday
+    expectedHol.emplace_back(17, July, 2048);
     expectedHol.emplace_back(17, August, 2048);
     expectedHol.emplace_back(21, September, 2048);
     expectedHol.emplace_back(22, September, 2048);
@@ -2839,6 +2903,8 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2049);
     expectedHol.emplace_back(10, May, 2049);
     // expectedHol.emplace_back(6, June, 2049);    // Sunday
+    // expectedHol.emplace_back(17, July, 2049);    // Saturday
+    expectedHol.emplace_back(19, July, 2049);
     expectedHol.emplace_back(16, August, 2049);
     expectedHol.emplace_back(10, September, 2049);
     // expectedHol.emplace_back(11, September, 2049);    // Saturday
@@ -2856,6 +2922,8 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2050);
     expectedHol.emplace_back(30, May, 2050);
     expectedHol.emplace_back(6, June, 2050);
+    // expectedHol.emplace_back(17, July, 2050);    // Sunday
+    expectedHol.emplace_back(18, July, 2050);
     expectedHol.emplace_back(15, August, 2050);
     expectedHol.emplace_back(29, September, 2050);
     expectedHol.emplace_back(30, September, 2050);
