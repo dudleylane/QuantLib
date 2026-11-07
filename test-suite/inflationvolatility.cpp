@@ -31,7 +31,10 @@
 #include <ql/math/interpolations/bicubicsplineinterpolation.hpp>
 #include <ql/math/interpolations/cubicinterpolation.hpp>
 #include <ql/pricingengines/inflation/inflationcapfloorengines.hpp>
+#include <ql/quotes/simplequote.hpp>
 #include <ql/termstructures/inflation/interpolatedyoyinflationcurve.hpp>
+#include <ql/termstructures/volatility/inflation/constantcpivolatility.hpp>
+#include <ql/termstructures/volatility/inflation/yoyinflationoptionletvolatilitystructure.hpp>
 #include <ql/termstructures/yield/zerocurve.hpp>
 
 using namespace QuantLib;
@@ -368,6 +371,34 @@ BOOST_AUTO_TEST_CASE(testYoYPriceSurfaceToATM)
                                                           << ayoy[i] << " at " << yyATMd.first[i]);
     }
     reset();
+}
+
+BOOST_AUTO_TEST_CASE(testConstantVolatilityQuoteIsObserved)
+{
+    BOOST_TEST_MESSAGE("Testing that constant inflation volatility surfaces observe their quote...");
+
+    Settings::instance().evaluationDate() = Date(13, August, 2007);
+
+    auto quote = ext::make_shared<SimpleQuote>(0.01);
+    Handle<Quote> handle(quote);
+
+    auto cpi = ext::make_shared<ConstantCPIVolatility>(handle, 0, TARGET(), Following, Actual365Fixed(),
+                                                       Period(3, Months), Monthly, false);
+    auto yoy = ext::make_shared<ConstantYoYOptionletVolatility>(handle, 0, TARGET(), Following, Actual365Fixed(),
+                                                                Period(3, Months), Monthly, false);
+
+    Flag cpiFlag, yoyFlag;
+    cpiFlag.registerWith(cpi);
+    yoyFlag.registerWith(yoy);
+
+    quote->setValue(0.02);
+
+    BOOST_CHECK_MESSAGE(cpiFlag.isUp(), "ConstantCPIVolatility did not notify when its quote moved");
+    BOOST_CHECK_MESSAGE(yoyFlag.isUp(), "ConstantYoYOptionletVolatility did not notify when its quote moved");
+
+    // These read the quote on every call, so they pass either way.
+    BOOST_CHECK_SMALL(cpi->volatility(1.0, 0.02) - 0.02, 1e-14);
+    BOOST_CHECK_SMALL(yoy->volatility(1.0, 0.02) - 0.02, 1e-14);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

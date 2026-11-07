@@ -592,6 +592,37 @@ BOOST_AUTO_TEST_CASE(testTimeValueNearVolatilityBaseDate)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testVolatilityQuoteObservability)
+{
+    BOOST_TEST_MESSAGE("Testing a YoY inflation cap's repricing when its volatility quote moves...");
+
+    CommonVars vars;
+
+    auto quote = ext::make_shared<SimpleQuote>(0.01);
+    Handle<YoYOptionletVolatilitySurface> volatility(ext::make_shared<ConstantYoYOptionletVolatility>(
+        Handle<Quote>(quote), vars.settlementDays, vars.calendar, vars.convention, vars.dc, vars.observationLag,
+        vars.frequency, false));
+
+    Leg leg = vars.makeYoYLeg(vars.evaluationDate, 2);
+    auto cap = ext::make_shared<YoYInflationCap>(leg, std::vector<Rate>(1, 0.0295));
+    cap->setPricingEngine(ext::make_shared<YoYInflationBlackCapFloorEngine>(vars.iir, volatility, vars.nominalTS));
+
+    const Real atFirstQuote = cap->NPV();
+    quote->setValue(0.02);
+    const Real atSecondQuote = cap->NPV();
+
+    BOOST_CHECK_GT(atSecondQuote, atFirstQuote);
+
+    Leg sameLeg = vars.makeYoYLeg(vars.evaluationDate, 2);
+    auto sameCap = ext::make_shared<YoYInflationCap>(sameLeg, std::vector<Rate>(1, 0.0295));
+    sameCap->setPricingEngine(vars.makeEngine(0.02, 0));
+
+    BOOST_CHECK_SMALL(atSecondQuote / sameCap->NPV() - 1.0, 1e-10);
+
+    // remove circular reference
+    vars.hy.reset();
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
