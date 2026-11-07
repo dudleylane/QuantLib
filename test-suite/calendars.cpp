@@ -35,6 +35,7 @@
 #include <ql/time/calendars/brazil.hpp>
 #include <ql/time/calendars/china.hpp>
 #include <ql/time/calendars/denmark.hpp>
+#include <ql/time/calendars/france.hpp>
 #include <ql/time/calendars/germany.hpp>
 #include <ql/time/calendars/hongkong.hpp>
 #include <ql/time/calendars/israel.hpp>
@@ -3937,6 +3938,25 @@ BOOST_AUTO_TEST_CASE(testSouthAfricaIn2026)
     const Calendar c = SouthAfrica();
     checkHolidays(c.holidayList(Date(1, January, 2026), Date(31, December, 2026)), expected);
     BOOST_CHECK(c.isBusinessDay(Date(4, November, 2025)));
+}
+
+BOOST_AUTO_TEST_CASE(testFranceSettlementMovesWithEaster)
+{
+    BOOST_TEST_MESSAGE("Testing that France's Ascension and Whit Monday move with Easter...");
+
+    const Calendar c = France(France::Settlement);
+
+    const std::vector<Date> expected2024 = {
+        {1, January, 2024}, {1, April, 2024},   {1, May, 2024},      {8, May, 2024},       {9, May, 2024},
+        {20, May, 2024},    {15, August, 2024}, {1, November, 2024}, {11, November, 2024}, {25, December, 2024},
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2024), Date(31, December, 2024)), expected2024);
+
+    const std::vector<Date> expected2025 = {
+        {1, January, 2025}, {21, April, 2025}, {1, May, 2025},     {8, May, 2025},       {29, May, 2025},
+        {9, June, 2025},    {14, July, 2025},  {15, August, 2025}, {11, November, 2025}, {25, December, 2025},
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2025), Date(31, December, 2025)), expected2025);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
