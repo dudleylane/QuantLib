@@ -58,17 +58,22 @@ namespace QuantLib
         Real decayRatioDifference(Real u, Real v)
         {
             const Real s = u + v;
-            if (s > 2.0)
+            if (std::fabs(s) > 2.0)
                 return (decayRatio(u) - std::exp(-u) * decayRatio(v)) / s;
+            // Here u and u + v are too far apart for the difference to cancel, and a large u would
+            // take the series below too many terms.  This needs u and v of opposite signs.
+            if (std::fabs(v) > 2.0)
+                return (decayRatio(u) - decayRatio(s)) / v;
 
             // sum_(k>=1) (-1)^(k+1) R_k / (k+1)!, where R_k = ((u+v)^k - u^k) / v,
             // so that R_1 = 1 and R_(k+1) = (u+v) R_k + u^k
             Real R = 1.0, uPower = u, factorial = 2.0, sign = 1.0, sum = 0.0;
             for (Size k = 1; k < 60; ++k)
             {
-                const Real term = sign * R / factorial;
-                sum += term;
-                if (std::fabs(term) < 0.01 * QL_EPSILON * std::fabs(sum))
+                sum += sign * R / factorial;
+                // At u + v = -u, every R_k with k even vanishes, so one small term doesn't end the series:
+                // this looks at what the next one is made of as well.
+                if ((std::fabs(R) + std::fabs(uPower)) / factorial < 0.01 * QL_EPSILON * std::fabs(sum))
                     break;
                 R = s * R + uPower;
                 uPower *= u;

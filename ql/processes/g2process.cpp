@@ -17,11 +17,29 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/math/expm1.hpp>
 #include <ql/processes/eulerdiscretization.hpp>
 #include <ql/processes/g2process.hpp>
 
 namespace QuantLib
 {
+
+    namespace
+    {
+
+        // What a factor's mean moves by under the forward measure over a step dt, with tau left to the measure's
+        // time.  a and sigma are the factor's own, and b the other's.  In terms of exponentials this subtracts
+        // terms of order one and a, and divides what's left by a^2 and a b.  Written this way, there's no
+        // difference to take.
+        Real forwardMeasureShift(Real a, Real sigma, Real b, Real rhoSigmaEta, Time dt, Time tau)
+        {
+            const Real B = detail::decayIntegral(a, dt);
+            return sigma * sigma * B * (detail::decayIntegral(a, tau) + 0.5 * B * std::exp(-a * tau)) +
+                   rhoSigmaEta * (detail::decayIntegral(b, tau) * detail::decayIntegral(a + b, dt) +
+                                  dt * dt * detail::decayRatioDifference(a * dt, b * dt));
+        }
+
+    }
 
     G2Process::G2Process(Real a, Real sigma, Real b, Real eta, Real rho)
     : a_(a), sigma_(sigma), b_(b), eta_(eta), rho_(rho),
@@ -81,10 +99,8 @@ namespace QuantLib
         Matrix tmp(2, 2);
         Real sigma1 = xProcess_->stdDeviation(t0, x0[0], dt);
         Real sigma2 = yProcess_->stdDeviation(t0, x0[1], dt);
-        Real expa = std::exp(-a_ * dt), expb = std::exp(-b_ * dt);
-        Real H = (rho_ * sigma_ * eta_) / (a_ + b_) * (1 - expa * expb);
-        Real den = (0.5 * sigma_ * eta_) * std::sqrt((1 - expa * expa) * (1 - expb * expb) / (a_ * b_));
-        Real newRho = H / den;
+        Real newRho = rho_ * detail::decayRatio((a_ + b_) * dt) /
+                      std::sqrt(detail::decayRatio(2.0 * a_ * dt) * detail::decayRatio(2.0 * b_ * dt));
         tmp[0][0] = sigma1;
         tmp[0][1] = 0.0;
         tmp[1][0] = newRho * sigma2;
@@ -180,10 +196,8 @@ namespace QuantLib
         Matrix tmp(2, 2);
         Real sigma1 = xProcess_->stdDeviation(t0, x0[0], dt);
         Real sigma2 = yProcess_->stdDeviation(t0, x0[1], dt);
-        Real expa = std::exp(-a_ * dt), expb = std::exp(-b_ * dt);
-        Real H = (rho_ * sigma_ * eta_) / (a_ + b_) * (1 - expa * expb);
-        Real den = (0.5 * sigma_ * eta_) * std::sqrt((1 - expa * expa) * (1 - expb * expb) / (a_ * b_));
-        Real newRho = H / den;
+        Real newRho = rho_ * detail::decayRatio((a_ + b_) * dt) /
+                      std::sqrt(detail::decayRatio(2.0 * a_ * dt) * detail::decayRatio(2.0 * b_ * dt));
         tmp[0][0] = sigma1;
         tmp[0][1] = 0.0;
         tmp[1][0] = newRho * sigma2;
@@ -200,38 +214,24 @@ namespace QuantLib
 
     Real G2ForwardProcess::xForwardDrift(Time t, Time T) const
     {
-        Real expatT = std::exp(-a_ * (T - t));
-        Real expbtT = std::exp(-b_ * (T - t));
-
-        return -(sigma_ * sigma_ / a_) * (1 - expatT) - (rho_ * sigma_ * eta_ / b_) * (1 - expbtT);
+        return -sigma_ * sigma_ * detail::decayIntegral(a_, T - t) -
+               rho_ * sigma_ * eta_ * detail::decayIntegral(b_, T - t);
     }
 
     Real G2ForwardProcess::yForwardDrift(Time t, Time T) const
     {
-        Real expatT = std::exp(-a_ * (T - t));
-        Real expbtT = std::exp(-b_ * (T - t));
-
-        return -(eta_ * eta_ / b_) * (1 - expbtT) - (rho_ * sigma_ * eta_ / a_) * (1 - expatT);
+        return -eta_ * eta_ * detail::decayIntegral(b_, T - t) -
+               rho_ * sigma_ * eta_ * detail::decayIntegral(a_, T - t);
     }
 
     Real G2ForwardProcess::Mx_T(Real s, Real t, Real T) const
     {
-        Real M;
-        M = ((sigma_ * sigma_) / (a_ * a_) + (rho_ * sigma_ * eta_) / (a_ * b_)) * (1 - std::exp(-a_ * (t - s)));
-        M += -(sigma_ * sigma_) / (2 * a_ * a_) * (std::exp(-a_ * (T - t)) - std::exp(-a_ * (T + t - 2 * s)));
-        M += -(rho_ * sigma_ * eta_) / (b_ * (a_ + b_)) *
-             (std::exp(-b_ * (T - t)) - std::exp(-b_ * T - a_ * t + (a_ + b_) * s));
-        return M;
+        return forwardMeasureShift(a_, sigma_, b_, rho_ * sigma_ * eta_, t - s, T - t);
     }
 
     Real G2ForwardProcess::My_T(Real s, Real t, Real T) const
     {
-        Real M;
-        M = ((eta_ * eta_) / (b_ * b_) + (rho_ * sigma_ * eta_) / (a_ * b_)) * (1 - std::exp(-b_ * (t - s)));
-        M += -(eta_ * eta_) / (2 * b_ * b_) * (std::exp(-b_ * (T - t)) - std::exp(-b_ * (T + t - 2 * s)));
-        M += -(rho_ * sigma_ * eta_) / (a_ * (a_ + b_)) *
-             (std::exp(-a_ * (T - t)) - std::exp(-a_ * T - b_ * t + (a_ + b_) * s));
-        return M;
+        return forwardMeasureShift(b_, eta_, a_, rho_ * sigma_ * eta_, t - s, T - t);
     }
 
 }
