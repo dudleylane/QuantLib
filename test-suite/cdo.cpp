@@ -21,7 +21,9 @@
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
 #include <ql/currencies/europe.hpp>
+#include <ql/experimental/credit/binomiallossmodel.hpp>
 #include <ql/experimental/credit/cdo.hpp>
+#include <ql/experimental/credit/defaultevent.hpp>
 #include <ql/experimental/credit/gaussianlhplossmodel.hpp>
 #include <ql/experimental/credit/homogeneouspooldef.hpp>
 #include <ql/experimental/credit/inhomogeneouspooldef.hpp>
@@ -362,6 +364,188 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(testHW, T, dataSets)
     }
 }
 #endif
+
+struct SharedModelVars
+{
+    static constexpr Size poolSize = 20;
+    static constexpr Real recovery = 0.4;
+
+    Date today{31, August, 2006};
+    ext::shared_ptr<SimpleQuote> correlation;
+    Handle<Quote> hCorrelation;
+    ext::shared_ptr<Pool> pool;
+    std::vector<std::string> names;
+    Handle<YieldTermStructure> discountCurve;
+    Schedule schedule;
+
+    explicit SharedModelVars(Real correlationValue, const Date& defaultDate = Date())
+    : correlation(ext::make_shared<SimpleQuote>(correlationValue)), hCorrelation(correlation),
+      pool(ext::make_shared<Pool>()), discountCurve(ext::make_shared<FlatForward>(today, 0.05, Actual360(), Continuous))
+    {
+        Handle<Quote> hazardRate(ext::make_shared<SimpleQuote>(0.01));
+        Handle<DefaultProbabilityTermStructure> hazardCurve(
+            ext::make_shared<FlatHazardRate>(today, hazardRate, ActualActual(ActualActual::ISDA)));
+        for (Size i = 0; i < poolSize; ++i)
+        {
+            names.push_back("issuer-" + std::to_string(i));
+            std::vector<std::pair<DefaultProbKey, Handle<DefaultProbabilityTermStructure>>> probabilities;
+            probabilities.emplace_back(NorthAmericaCorpDefaultKey(EURCurrency(), SeniorSec, Period(0, Weeks), 10.),
+                                       hazardCurve);
+            DefaultEventSet events;
+            if (i == 3 && defaultDate != Date())
+                events.insert(ext::make_shared<FailureToPayEvent>(defaultDate, EURCurrency(), SeniorSec, 10.0,
+                                                                  defaultDate + 5, recovery));
+            pool->add(names.back(), Issuer(probabilities, events),
+                      NorthAmericaCorpDefaultKey(EURCurrency(), SeniorSec, Period(), 1.));
+        }
+        schedule = MakeSchedule()
+                       .from(Date(1, September, 2006))
+                       .to(Date(1, September, 2011))
+                       .withTenor(Period(3, Months))
+                       .withCalendar(TARGET());
+    }
+
+    ext::shared_ptr<GaussianConstantLossLM> latentModel() const
+    {
+        return ext::make_shared<GaussianConstantLossLM>(hCorrelation, std::vector<Real>(poolSize, recovery),
+                                                        LatentModelIntegrationType::GaussianQuadrature, poolSize,
+                                                        GaussianCopulaPolicy::initTraits());
+    }
+
+    ext::shared_ptr<DefaultLossModel> lhpModel() const
+    {
+        return ext::make_shared<GaussianLHPLossModel>(hCorrelation, std::vector<Real>(poolSize, recovery));
+    }
+
+    ext::shared_ptr<DefaultLossModel> homogeneousModel() const
+    {
+        return ext::make_shared<HomogGaussPoolLossModel>(latentModel(), 100, 5., -5., 15);
+    }
+
+    ext::shared_ptr<DefaultLossModel> binomialModel() const
+    {
+        return ext::make_shared<GaussianBinomialLossModel>(latentModel());
+    }
+
+    ext::shared_ptr<DefaultLossModel> randomDefaultModel() const
+    {
+        return ext::make_shared<RandomDefaultLM<GaussianCopulaPolicy>>(latentModel(), 2000);
+    }
+
+    ext::shared_ptr<Basket> basket(Real attachment, Real detachment) const
+    {
+        return ext::make_shared<Basket>(today, names, std::vector<Real>(poolSize, 100.0), pool, attachment, detachment);
+    }
+
+    ext::shared_ptr<SyntheticCDO> cdo(const ext::shared_ptr<Basket>& onBasket) const
+    {
+        auto tranche =
+            ext::make_shared<SyntheticCDO>(onBasket, Protection::Seller, schedule, 0.0, 0.02, Actual360(), Following);
+        tranche->setPricingEngine(ext::make_shared<MidPointCDOEngine>(discountCurve));
+        return tranche;
+    }
+};
+
+BOOST_AUTO_TEST_CASE(testRandomDefaultModelOnTwoTranches)
+{
+    BOOST_TEST_MESSAGE("Testing two tranches on one random-default loss model...");
+
+    SharedModelVars vars(0.3);
+    Settings::instance().evaluationDate() = vars.today;
+
+    auto first = vars.basket(0.0, 0.1);
+    auto second = vars.basket(0.1, 0.3);
+    auto model = vars.randomDefaultModel();
+    first->setLossModel(model);
+    second->setLossModel(model);
+    auto firstTranche = vars.cdo(first);
+    auto secondTranche = vars.cdo(second);
+
+    auto premiumOnItsOwnModel = [](const SharedModelVars& onVars, Real attachment, Real detachment)
+    {
+        auto basket = onVars.basket(attachment, detachment);
+        basket->setLossModel(onVars.randomDefaultModel());
+        return onVars.cdo(basket)->fairPremium();
+    };
+
+    const Real tolerance = 1.0e-12;
+
+    const Real firstPremium = firstTranche->fairPremium();
+    const Real secondPremium = secondTranche->fairPremium();
+    BOOST_CHECK_SMALL(firstPremium - premiumOnItsOwnModel(vars, 0.0, 0.1), tolerance);
+    BOOST_CHECK_SMALL(secondPremium - premiumOnItsOwnModel(vars, 0.1, 0.3), tolerance);
+
+    // The second tranche has the model now, so the first has to take it back.
+    firstTranche->setPricingEngine(ext::make_shared<MidPointCDOEngine>(vars.discountCurve));
+    BOOST_CHECK_SMALL(firstTranche->fairPremium() - firstPremium, tolerance);
+    secondTranche->setPricingEngine(ext::make_shared<MidPointCDOEngine>(vars.discountCurve));
+    BOOST_CHECK_SMALL(secondTranche->fairPremium() - secondPremium, tolerance);
+
+    // A move in the correlation has to reach both of them, whichever has the model.
+    vars.correlation->setValue(0.6);
+    SharedModelVars moved(0.6);
+    BOOST_CHECK_SMALL(firstTranche->fairPremium() - premiumOnItsOwnModel(moved, 0.0, 0.1), tolerance);
+    BOOST_CHECK_SMALL(secondTranche->fairPremium() - premiumOnItsOwnModel(moved, 0.1, 0.3), tolerance);
+}
+
+BOOST_AUTO_TEST_CASE(testBasketDoesNotInvalidateItselfTakingItsModel)
+{
+    BOOST_TEST_MESSAGE("Testing that a basket isn't invalidated by taking its loss model...");
+
+    SharedModelVars vars(0.3);
+    Settings::instance().evaluationDate() = vars.today;
+
+    auto basket = vars.basket(0.0, 0.2);
+    auto model = vars.randomDefaultModel();
+    basket->setLossModel(model);
+    auto tranche = vars.cdo(basket);
+    const Real premium = tranche->fairPremium();
+
+    // The model is calculated and the basket isn't, so the model tells its baskets as it resets.
+    basket->setLossModel(model);
+    Flag flag;
+    flag.registerWith(basket);
+
+    BOOST_CHECK_SMALL(tranche->fairPremium() - premium, 1.0e-12);
+    BOOST_CHECK(!flag.isUp());
+}
+
+BOOST_AUTO_TEST_CASE(testLossModelsAfterANameDefaults)
+{
+    BOOST_TEST_MESSAGE("Testing that loss models follow their basket when a name defaults...");
+
+    const Date defaultDate(15, September, 2006);
+    const Date afterDefault(1, November, 2006);
+
+    using ModelFactory = ext::shared_ptr<DefaultLossModel> (SharedModelVars::*)() const;
+    const std::vector<std::pair<std::string, ModelFactory>> models = {
+        {"LHP", &SharedModelVars::lhpModel},
+        {"homogeneous", &SharedModelVars::homogeneousModel},
+        {"binomial", &SharedModelVars::binomialModel},
+        {"random default", &SharedModelVars::randomDefaultModel}};
+
+    for (const auto& model : models)
+    {
+        BOOST_TEST_CONTEXT(model.first)
+        {
+            SharedModelVars vars(0.3, defaultDate);
+            Settings::instance().evaluationDate() = vars.today;
+            auto basket = vars.basket(0.0, 0.2);
+            basket->setLossModel((vars.*model.second)());
+            auto tranche = vars.cdo(basket);
+            const Real before = tranche->fairPremium();
+
+            Settings::instance().evaluationDate() = afterDefault;
+            const Real after = tranche->fairPremium();
+
+            SharedModelVars freshVars(0.3, defaultDate);
+            auto freshBasket = freshVars.basket(0.0, 0.2);
+            freshBasket->setLossModel((freshVars.*model.second)());
+            BOOST_CHECK_SMALL(after - freshVars.cdo(freshBasket)->fairPremium(), 1.0e-12);
+            BOOST_CHECK_GT(std::fabs(after - before), 1.0e-4);
+        }
+    }
+}
 
 BOOST_AUTO_TEST_SUITE_END()
 

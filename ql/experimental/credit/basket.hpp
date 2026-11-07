@@ -71,6 +71,9 @@ namespace QuantLib
                ext::shared_ptr<Claim> claim = ext::shared_ptr<Claim>(new FaceValueClaim()));
         void update() override
         {
+            // What the model says as it takes this basket is for its other baskets.
+            if (takingLossModel_)
+                return;
             computeBasket();
             LazyObject::update();
         }
@@ -309,6 +312,7 @@ namespace QuantLib
           case (and that is true in a single thread environment only).
         */
         ext::shared_ptr<DefaultLossModel> lossModel_;
+        mutable bool takingLossModel_ = false;
     };
 
     // ------------ Inlines -------------------------------------------------

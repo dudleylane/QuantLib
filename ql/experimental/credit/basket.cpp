@@ -102,7 +102,17 @@ namespace QuantLib
         two tranches on the same basket; e,g, recursive model) so it might be
         more efficient sending the pool only; however the modtionals and other
         basket info are still used.*/
-        lossModel_->setBasket(const_cast<Basket*>(this));
+        takingLossModel_ = true;
+        try
+        {
+            lossModel_->setBasket(const_cast<Basket*>(this));
+        }
+        catch (...)
+        {
+            takingLossModel_ = false;
+            throw;
+        }
+        takingLossModel_ = false;
     }
 
     Real Basket::notional() const

@@ -45,7 +45,7 @@ namespace QuantLib
     basket loss models, which might require recalculations (of the basket) or
     not depending on the pricing order.
     */
-    class DefaultLossModel : public Observable
+    class DefaultLossModel : public virtual Observable
     { // joint-? basket?-defaultLoss
         /* Protection together with frienship to avoid the need of checking the
         basket-argument pointer integrity. It is the responsibility of the basket
