@@ -233,16 +233,19 @@ namespace QuantLib
             of a model assigned to the basket.
         */
         //@{
+        /*! What the tranche will have lost by the date: what the defaults so
+            far have cost it, and what the model expects of the names left.
+        */
         Real expectedTrancheLoss(const Date& d) const;
         /*! The lossFraction is the fraction of losses expressed in
             inception (no losses) tranche units (e.g. 'attach level'=0%,
             'detach level'=100%)
         */
         Probability probOverLoss(const Date& d, Real lossFraction) const;
-        /*!
+        /*! Of what the tranche can still lose, leaving out what it has lost.
          */
         Real percentile(const Date& d, Probability prob) const;
-        /*! ESF
+        /*! ESF of what the tranche can still lose, leaving out what it has lost.
          */
         Real expectedShortfall(const Date& d, Probability prob) const;
         /* Split a portfolio loss along counterparties. Typically loss
@@ -274,6 +277,8 @@ namespace QuantLib
         Real recoveryRate(const Date& d, Size iName) const;
         //@}
       private:
+        // Whether a default among the names left can still reach the tranche.
+        bool canStillLose() const;
         // LazyObject interface
         void performCalculations() const override;
 

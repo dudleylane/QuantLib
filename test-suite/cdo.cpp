@@ -47,6 +47,7 @@
 #include <boost/mpl/vector.hpp>
 #include <iomanip>
 #include <iostream>
+#include <numeric>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -961,9 +962,9 @@ BOOST_AUTO_TEST_CASE(testHazardMoveOfAPoolALossModelHasLeft)
     }
 }
 
-// Twenty names, or the nineteen left once name 3 has defaulted, as a pool on its own. They differ
-// in what a model reads per name, so that reading one name's data for another's shows. The
-// homogeneous models need every name to lose the same on default.
+// Twenty names, or the nineteen left once name 3 has defaulted, as a pool on its own, or all twenty
+// defaulted. They differ in what a model reads per name, so that reading one name's data for
+// another's shows. The homogeneous models need every name to lose the same on default.
 struct NamesAroundADefault
 {
     static constexpr Size poolSize = 20;
@@ -981,7 +982,7 @@ struct NamesAroundADefault
     std::vector<Real> notionals, hazards, recoveries;
     std::vector<std::vector<Real>> factors;
 
-    NamesAroundADefault(bool sameLossOnDefault, bool onlyWhatIsLeft)
+    NamesAroundADefault(bool sameLossOnDefault, bool onlyWhatIsLeft, bool everyNameDefaults = false)
     : correlation(ext::make_shared<SimpleQuote>(0.3)), pool(ext::make_shared<Pool>())
     {
         const NorthAmericaCorpDefaultKey curveKey(EURCurrency(), SeniorSec, Period(0, Weeks), 10.);
@@ -1001,7 +1002,7 @@ struct NamesAroundADefault
                 curveKey, Handle<DefaultProbabilityTermStructure>(ext::make_shared<FlatHazardRate>(
                               inception, makeQuoteHandle(hazards.back()), ActualActual(ActualActual::ISDA))));
             DefaultEventSet events;
-            if (i == defaultedName)
+            if (i == defaultedName || everyNameDefaults)
                 events.insert(ext::make_shared<FailureToPayEvent>(defaultDate, EURCurrency(), SeniorSec, 10.0,
                                                                   defaultDate + 5, recoveries.back()));
             pool->add(names.back(), Issuer(probabilities, events), poolKey);
@@ -1089,8 +1090,29 @@ struct NamesAroundADefault
 // What a model expects a basket to lose, leaving out what it has lost already.
 Real lossOnLiveNames(const Basket& basket, const Date& d)
 {
-    const Real total = basket.expectedTrancheLoss(d);
-    return total - basket.cumulatedLoss();
+    return basket.expectedTrancheLoss(d) - (basket.trancheNotional() - basket.remainingTrancheNotional());
+}
+
+struct ModelAroundADefault
+{
+    std::string name;
+    ext::shared_ptr<DefaultLossModel> (NamesAroundADefault::*factory)() const;
+    bool needsTheSameLossOnDefault;
+};
+
+std::vector<ModelAroundADefault> modelsAroundADefault()
+{
+    return {{"LHP", &NamesAroundADefault::lhpModel, false},
+            {"homogeneous", &NamesAroundADefault::homogeneousModel, true},
+            {"binomial", &NamesAroundADefault::binomialModel, false},
+            {"recursive", &NamesAroundADefault::recursiveModel, false},
+            {"saddle point", &NamesAroundADefault::saddlePointModel, false},
+            {"inhomogeneous", &NamesAroundADefault::inhomogeneousModel, false},
+            {"T homogeneous", &NamesAroundADefault::tHomogeneousModel, true},
+            {"T binomial", &NamesAroundADefault::tBinomialModel, false},
+            {"T recursive", &NamesAroundADefault::tRecursiveModel, false},
+            {"T saddle point", &NamesAroundADefault::tSaddlePointModel, false},
+            {"T inhomogeneous", &NamesAroundADefault::tInhomogeneousModel, false}};
 }
 
 BOOST_AUTO_TEST_CASE(testBasketDataOnTheNamesLeftAfterADefault)
@@ -1126,25 +1148,7 @@ BOOST_AUTO_TEST_CASE(testLossModelsOnTheNamesLeftAfterADefault)
 {
     BOOST_TEST_MESSAGE("Testing loss models on the names left after a default...");
 
-    using Factory = ext::shared_ptr<DefaultLossModel> (NamesAroundADefault::*)() const;
-    const struct
-    {
-        std::string name;
-        Factory factory;
-        bool needsTheSameLossOnDefault;
-    } models[] = {{"LHP", &NamesAroundADefault::lhpModel, false},
-                  {"homogeneous", &NamesAroundADefault::homogeneousModel, true},
-                  {"binomial", &NamesAroundADefault::binomialModel, false},
-                  {"recursive", &NamesAroundADefault::recursiveModel, false},
-                  {"saddle point", &NamesAroundADefault::saddlePointModel, false},
-                  {"inhomogeneous", &NamesAroundADefault::inhomogeneousModel, false},
-                  {"T homogeneous", &NamesAroundADefault::tHomogeneousModel, true},
-                  {"T binomial", &NamesAroundADefault::tBinomialModel, false},
-                  {"T recursive", &NamesAroundADefault::tRecursiveModel, false},
-                  {"T saddle point", &NamesAroundADefault::tSaddlePointModel, false},
-                  {"T inhomogeneous", &NamesAroundADefault::tInhomogeneousModel, false}};
-
-    for (const auto& model : models)
+    for (const auto& model : modelsAroundADefault())
     {
         for (bool sameLoss : {true, false})
         {
@@ -1253,6 +1257,376 @@ BOOST_AUTO_TEST_CASE(testLhpProbabilityOverALossBeforeADefaultStillToCome)
 
     const Date horizon = programmed.schedule.endDate();
     BOOST_CHECK_SMALL(withEvent->probOverLoss(horizon, 0.5) - withoutEvent->probOverLoss(horizon, 0.5), 1.0e-12);
+}
+
+// A tranche of NamesAroundADefault's basket, with what the default leaves it worked out by
+// hand. Name 3 of 20 costs 100 * (1 - 0.4) = 60 of 2000 with the same loss on default, and
+// 124 * (1 - 0.275) = 89.9 of 3520 with different names.
+struct TrancheAfterADefault
+{
+    Real attachment, detachment;
+    Real remainingAttachment, remainingDetachment, realized;
+};
+
+std::vector<TrancheAfterADefault> tranchesAfterADefault(bool sameLossOnDefault)
+{
+    if (sameLossOnDefault)
+        return {{0.0, 0.02, 0.0, 0.0, 40.0},   // wiped out
+                {0.0, 0.1, 0.0, 140.0, 60.0},  // the first to lose
+                {0.02, 0.1, 0.0, 140.0, 20.0}, // the default reaches into it
+                {0.05, 0.1, 40.0, 140.0, 0.0}, // the default falls short of it
+                {0.1, 0.3, 140.0, 540.0, 0.0}};
+    return {{0.0, 0.02, 0.0, 0.0, 70.4},
+            {0.0, 0.1, 0.0, 262.1, 89.9},
+            {0.02, 0.1, 0.0, 262.1, 19.5},
+            {0.05, 0.1, 86.1, 262.1, 0.0},
+            {0.1, 0.3, 262.1, 966.1, 0.0}};
+}
+
+// The tranche as it stands on the names left, with no default among them. Null if it's wiped out.
+ext::shared_ptr<Basket> whatIsLeftOf(const TrancheAfterADefault& tranche, const NamesAroundADefault& left)
+{
+    if (tranche.remainingDetachment == 0.0)
+        return nullptr;
+    const Real notional = std::accumulate(left.notionals.begin(), left.notionals.end(), Real(0.0));
+    return left.basket(tranche.remainingAttachment / notional, tranche.remainingDetachment / notional);
+}
+
+BOOST_AUTO_TEST_CASE(testBasketAmountsAfterADefault)
+{
+    BOOST_TEST_MESSAGE("Testing the amounts a default leaves a tranche...");
+
+    const Real tolerance = 1.0e-9;
+    for (bool sameLoss : {true, false})
+    {
+        const NamesAroundADefault all(sameLoss, false);
+        const Date today = all.afterTheDefault;
+        Settings::instance().evaluationDate() = today;
+        for (const auto& tranche : tranchesAfterADefault(sameLoss))
+        {
+            BOOST_TEST_CONTEXT((sameLoss ? "the same loss on default" : "different names")
+                               << ", tranche " << tranche.attachment << " to " << tranche.detachment)
+            {
+                const auto basket = all.basket(tranche.attachment, tranche.detachment);
+
+                // Before anything is calculated, with no model.
+                BOOST_CHECK_SMALL(basket->remainingAttachmentAmount() - tranche.remainingAttachment, tolerance);
+                BOOST_CHECK_SMALL(basket->remainingDetachmentAmount() - tranche.remainingDetachment, tolerance);
+
+                BOOST_CHECK_SMALL(basket->remainingAttachmentAmount(today) - tranche.remainingAttachment, tolerance);
+                BOOST_CHECK_SMALL(basket->remainingDetachmentAmount(today) - tranche.remainingDetachment, tolerance);
+
+                // Nothing was lost before the default.
+                BOOST_CHECK_EQUAL(basket->remainingAttachmentAmount(all.beforeTheDefault), basket->attachmentAmount());
+                BOOST_CHECK_EQUAL(basket->remainingDetachmentAmount(all.beforeTheDefault), basket->detachmentAmount());
+
+                basket->setLossModel(all.lhpModel());
+                BOOST_CHECK_SMALL(basket->remainingTrancheNotional() -
+                                      (tranche.remainingDetachment - tranche.remainingAttachment),
+                                  tolerance);
+                BOOST_CHECK_SMALL(basket->trancheNotional() - basket->remainingTrancheNotional() - tranche.realized,
+                                  tolerance);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testExpectedTrancheLossAfterADefault)
+{
+    BOOST_TEST_MESSAGE("Testing what loss models expect a tranche to lose after a default...");
+
+    const Real tolerance = 1.0e-9;
+    for (const auto& model : modelsAroundADefault())
+    {
+        for (bool sameLoss : {true, false})
+        {
+            if (model.needsTheSameLossOnDefault && !sameLoss)
+                continue;
+            for (const auto& tranche : tranchesAfterADefault(sameLoss))
+            {
+                BOOST_TEST_CONTEXT(model.name << (sameLoss ? ", the same loss on default" : ", different names")
+                                              << ", tranche " << tranche.attachment << " to " << tranche.detachment)
+                {
+                    const NamesAroundADefault all(sameLoss, false);
+                    const NamesAroundADefault left(sameLoss, true);
+                    Settings::instance().evaluationDate() = all.afterTheDefault;
+
+                    const auto basket = all.basket(tranche.attachment, tranche.detachment);
+                    basket->setLossModel((all.*model.factory)());
+                    const auto reference = whatIsLeftOf(tranche, left);
+                    if (reference != nullptr)
+                        reference->setLossModel((left.*model.factory)());
+
+                    // At the second date, as an engine asks for a coupon that started before the default.
+                    for (const Date& d : {all.horizon, all.beforeTheDefault})
+                    {
+                        const Real onNamesLeft = reference != nullptr ? reference->expectedTrancheLoss(d) : 0.0;
+                        BOOST_CHECK_SMALL(basket->expectedTrancheLoss(d) - tranche.realized - onNamesLeft, tolerance);
+                    }
+
+                    // These are of what the tranche can still lose.
+                    const Real percentile = reference != nullptr ? reference->percentile(all.horizon, 0.95) : 0.0;
+                    BOOST_CHECK_SMALL(basket->percentile(all.horizon, 0.95) - percentile, tolerance);
+                    if (reference == nullptr)
+                        BOOST_CHECK_EQUAL(basket->expectedShortfall(all.horizon, 0.95), 0.0);
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testProbabilityOverALossAfterADefault)
+{
+    BOOST_TEST_MESSAGE("Testing the probability of a tranche losing an amount after a default...");
+
+    using Factory = ext::shared_ptr<DefaultLossModel> (NamesAroundADefault::*)() const;
+    const std::vector<std::pair<std::string, Factory>> models = {
+        {"LHP", &NamesAroundADefault::lhpModel}, {"saddle point", &NamesAroundADefault::saddlePointModel}};
+    for (const auto& model : models)
+    {
+        for (bool sameLoss : {true, false})
+        {
+            const Real settledLoss = sameLoss ? 60.0 : 89.9;
+            for (const auto& tranche : tranchesAfterADefault(sameLoss))
+            {
+                for (Real fraction : {0.0, 0.1, 0.25, 0.5, 0.75, 1.0})
+                {
+                    BOOST_TEST_CONTEXT(model.first << (sameLoss ? ", the same loss on default" : ", different names")
+                                                   << ", tranche " << tranche.attachment << " to " << tranche.detachment
+                                                   << ", a fraction " << fraction << " of it")
+                    {
+                        const NamesAroundADefault all(sameLoss, false);
+                        const NamesAroundADefault left(sameLoss, true);
+                        Settings::instance().evaluationDate() = all.afterTheDefault;
+
+                        const auto basket = all.basket(tranche.attachment, tranche.detachment);
+                        basket->setLossModel((all.*model.second)());
+
+                        const Real level = basket->attachmentAmount() +
+                                           fraction * (basket->detachmentAmount() - basket->attachmentAmount());
+                        Probability expected = 1.0;
+                        if (level > settledLoss)
+                        {
+                            const auto reference = whatIsLeftOf(tranche, left);
+                            reference->setLossModel((left.*model.second)());
+                            expected = reference->probOverLoss(
+                                all.horizon, (level - settledLoss - tranche.remainingAttachment) /
+                                                 (tranche.remainingDetachment - tranche.remainingAttachment));
+                        }
+                        // Saddle point's answer can be far above 1 at a low level, and
+                        // its rounding with it (#160).
+                        BOOST_CHECK_SMALL(basket->probOverLoss(all.horizon, fraction) - expected,
+                                          1.0e-9 * std::max(1.0, std::fabs(expected)));
+                    }
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testCdoAfterADefault)
+{
+    BOOST_TEST_MESSAGE("Testing a CDO tranche after a default...");
+
+    const Date firstCouponStillToPay(1, November, 2006);
+    const Date firstCouponPaid(15, January, 2007);
+    const Real tolerance = 1.0e-8;
+
+    const Schedule schedule = MakeSchedule()
+                                  .from(Date(1, September, 2006))
+                                  .to(Date(1, September, 2011))
+                                  .withFrequency(Quarterly)
+                                  .withCalendar(TARGET())
+                                  .withConvention(Following)
+                                  .withRule(DateGeneration::Backward);
+    const Handle<YieldTermStructure> discountCurve(
+        ext::make_shared<FlatForward>(Date(31, August, 2006), 0.05, Actual360(), Continuous));
+
+    using Factory = ext::shared_ptr<DefaultLossModel> (NamesAroundADefault::*)() const;
+    const std::vector<std::pair<std::string, Factory>> models = {{"LHP", &NamesAroundADefault::lhpModel},
+                                                                 {"binomial", &NamesAroundADefault::binomialModel}};
+    const auto price = [&](const ext::shared_ptr<Basket>& basket, const ext::shared_ptr<PricingEngine>& engine)
+    {
+        auto tranche =
+            ext::make_shared<SyntheticCDO>(basket, Protection::Seller, schedule, 0.02, 0.05, Actual360(), Following);
+        tranche->setPricingEngine(engine);
+        return tranche;
+    };
+
+    for (const auto& model : models)
+    {
+        for (bool sameLoss : {true, false})
+        {
+            for (const auto& tranche : tranchesAfterADefault(sameLoss))
+            {
+                for (const Date& today : {firstCouponStillToPay, firstCouponPaid})
+                {
+                    for (bool midPoint : {true, false})
+                    {
+                        BOOST_TEST_CONTEXT(model.first
+                                           << (sameLoss ? ", the same loss on default" : ", different names")
+                                           << ", tranche " << tranche.attachment << " to " << tranche.detachment
+                                           << ", today " << today << (midPoint ? ", mid-point" : ", integral")
+                                           << " engine")
+                        {
+                            const NamesAroundADefault all(sameLoss, false);
+                            const NamesAroundADefault left(sameLoss, true);
+                            Settings::instance().evaluationDate() = today;
+
+                            ext::shared_ptr<PricingEngine> engine;
+                            if (midPoint)
+                                engine = ext::make_shared<MidPointCDOEngine>(discountCurve);
+                            else
+                                engine = ext::make_shared<IntegralCDOEngine>(discountCurve);
+
+                            const auto basket = all.basket(tranche.attachment, tranche.detachment);
+                            basket->setLossModel((all.*model.second)());
+                            const auto cdo = price(basket, engine);
+
+                            BOOST_CHECK_SMALL(cdo->remainingNotional() -
+                                                  (tranche.remainingDetachment - tranche.remainingAttachment),
+                                              tolerance);
+                            if (today == firstCouponPaid)
+                                BOOST_CHECK_SMALL(cdo->expectedTrancheLoss().front() - tranche.realized, tolerance);
+
+                            const auto reference = whatIsLeftOf(tranche, left);
+                            if (reference == nullptr)
+                            {
+                                BOOST_CHECK_EQUAL(cdo->premiumValue(), 0.0);
+                                BOOST_CHECK_EQUAL(cdo->protectionValue(), 0.0);
+                                BOOST_CHECK_EQUAL(cdo->NPV(), 0.0);
+                                BOOST_CHECK_EXCEPTION(cdo->fairUpfrontPremium(), Error,
+                                                      ExpectedErrorMessage("no remaining notional"));
+                            }
+                            else
+                            {
+                                reference->setLossModel((left.*model.second)());
+                                const auto expected = price(reference, engine);
+                                BOOST_CHECK_SMALL(cdo->premiumValue() - expected->premiumValue(), tolerance);
+                                BOOST_CHECK_SMALL(cdo->protectionValue() - expected->protectionValue(), tolerance);
+                                BOOST_CHECK_SMALL(cdo->NPV() - expected->NPV(), tolerance);
+                                BOOST_CHECK_SMALL(cdo->fairPremium() - expected->fairPremium(), tolerance);
+                                BOOST_CHECK_SMALL(cdo->fairUpfrontPremium() - expected->fairUpfrontPremium(),
+                                                  tolerance);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testTopTrancheAfterADefault)
+{
+    BOOST_TEST_MESSAGE("Testing a tranche reaching beyond what's left of the basket after a default...");
+
+    using Factory = ext::shared_ptr<DefaultLossModel> (NamesAroundADefault::*)() const;
+    const std::vector<std::pair<std::string, Factory>> models = {
+        {"LHP", &NamesAroundADefault::lhpModel},
+        {"binomial", &NamesAroundADefault::binomialModel},
+        {"recursive", &NamesAroundADefault::recursiveModel},
+        {"saddle point", &NamesAroundADefault::saddlePointModel}};
+    for (const auto& model : models)
+    {
+        BOOST_TEST_CONTEXT(model.first)
+        {
+            const NamesAroundADefault all(true, false);
+            const NamesAroundADefault left(true, true);
+            Settings::instance().evaluationDate() = all.afterTheDefault;
+
+            // 600 to 2000, less the 60 lost, on the 1900 left. No loss on those can reach 1900.
+            const auto basket = all.basket(0.3, 1.0);
+            BOOST_CHECK_SMALL(basket->remainingAttachmentAmount() - 540.0, 1.0e-9);
+            BOOST_CHECK_SMALL(basket->remainingDetachmentAmount() - 1940.0, 1.0e-9);
+            basket->setLossModel((all.*model.second)());
+            const auto reference = left.basket(540.0 / 1900.0, 1.0);
+            reference->setLossModel((left.*model.second)());
+
+            BOOST_CHECK_SMALL(basket->expectedTrancheLoss(all.horizon) - reference->expectedTrancheLoss(all.horizon),
+                              1.0e-9);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testTrancheWithNoNamesLeft)
+{
+    BOOST_TEST_MESSAGE("Testing a tranche once every name in its basket has defaulted...");
+
+    struct NoNamesLeft
+    {
+        Real attachment, detachment, remaining, realized;
+    };
+    // Each name has cost 60 of its 100, so the basket has lost 1200 of 2000.
+    const Real settledLoss = 1200.0;
+    const std::vector<NoNamesLeft> tranches = {
+        {0.0, 0.1, 0.0, 200.0}, {0.5, 1.0, 800.0, 200.0}, {0.7, 1.0, 600.0, 0.0}};
+    const Real tolerance = 1.0e-9;
+
+    const Schedule schedule = MakeSchedule()
+                                  .from(Date(1, September, 2006))
+                                  .to(Date(1, September, 2011))
+                                  .withFrequency(Quarterly)
+                                  .withCalendar(TARGET())
+                                  .withConvention(Following)
+                                  .withRule(DateGeneration::Backward);
+    const Handle<YieldTermStructure> discountCurve(
+        ext::make_shared<FlatForward>(Date(31, August, 2006), 0.05, Actual360(), Continuous));
+
+    for (const auto& model : modelsAroundADefault())
+    {
+        for (const auto& tranche : tranches)
+        {
+            BOOST_TEST_CONTEXT(model.name << ", tranche " << tranche.attachment << " to " << tranche.detachment)
+            {
+                const NamesAroundADefault all(true, false, true);
+                const Date today = all.afterTheDefault;
+                Settings::instance().evaluationDate() = today;
+
+                const auto basket = all.basket(tranche.attachment, tranche.detachment);
+                basket->setLossModel((all.*model.factory)());
+
+                BOOST_CHECK_EQUAL(basket->remainingSize(), Size(0));
+                BOOST_CHECK_EQUAL(basket->remainingNotional(), 0.0);
+                BOOST_CHECK_SMALL(basket->remainingTrancheNotional() - tranche.remaining, tolerance);
+                BOOST_CHECK_SMALL(basket->expectedTrancheLoss(all.horizon) - tranche.realized, tolerance);
+                BOOST_CHECK_EQUAL(basket->percentile(all.horizon, 0.95), 0.0);
+                BOOST_CHECK_EQUAL(basket->expectedShortfall(all.horizon, 0.95), 0.0);
+                for (Real fraction : {0.0, 0.25, 0.5, 0.75, 1.0})
+                {
+                    const Real level = basket->attachmentAmount() +
+                                       fraction * (basket->detachmentAmount() - basket->attachmentAmount());
+                    BOOST_CHECK_EQUAL(basket->probOverLoss(all.horizon, fraction), level <= settledLoss ? 1.0 : 0.0);
+                }
+
+                Real annuity = 0.0;
+                for (Size i = 1; i < schedule.size(); ++i)
+                    if (schedule[i] > today)
+                        annuity += Actual360().yearFraction(schedule[i - 1], schedule[i]) *
+                                   discountCurve->discount(schedule[i]);
+                const Real upfront = tranche.remaining * 0.02 * discountCurve->discount(schedule[0]);
+
+                for (bool midPoint : {true, false})
+                {
+                    ext::shared_ptr<PricingEngine> engine;
+                    if (midPoint)
+                        engine = ext::make_shared<MidPointCDOEngine>(discountCurve);
+                    else
+                        engine = ext::make_shared<IntegralCDOEngine>(discountCurve);
+                    const auto cdo = ext::make_shared<SyntheticCDO>(basket, Protection::Seller, schedule, 0.02, 0.05,
+                                                                    Actual360(), Following);
+                    cdo->setPricingEngine(engine);
+
+                    // the integral engine discounts each step of a coupon by itself
+                    const Real premiumTolerance = midPoint ? tolerance : 0.01;
+                    BOOST_CHECK_SMALL(cdo->remainingNotional() - tranche.remaining, tolerance);
+                    BOOST_CHECK_SMALL(cdo->protectionValue(), tolerance);
+                    BOOST_CHECK_SMALL(cdo->premiumValue() - tranche.remaining * 0.05 * annuity, premiumTolerance);
+                    BOOST_CHECK_SMALL(cdo->NPV() - (tranche.remaining * 0.05 * annuity + upfront), premiumTolerance);
+                }
+            }
+        }
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
