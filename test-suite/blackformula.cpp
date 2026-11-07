@@ -1055,6 +1055,57 @@ BOOST_AUTO_TEST_CASE(testImpliedStdDevBelowTheForward)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testImpliedStdDevAtVerySmallPrices)
+{
+    BOOST_TEST_MESSAGE("Testing implied standard deviations at very small prices...");
+
+    // A solver takes a bound whose value is within 8.7e-29 of zero for a root, and that's where
+    // these prices are, whatever they say about the standard deviation.
+    const Real accuracy = 1.0e-10;
+
+    for (Real forward : {1.0, 100.0, 1.0e-40})
+    {
+        for (Real stdDev : {1.0e-4, 1.0e-3, 1.0e-2, 0.1, 0.5})
+        {
+            for (Real distance : {14.0, 16.0, 20.0, 30.0})
+            {
+                for (Option::Type type : {Option::Call, Option::Put})
+                {
+                    const Real strike = forward * std::exp(Integer(type) * distance * stdDev);
+                    const Real price = blackFormula(type, strike, forward, stdDev);
+                    BOOST_REQUIRE(price < 8.0e-29);
+
+                    BOOST_TEST_CONTEXT("forward " << forward << ", standard deviation " << stdDev << ", " << distance
+                                                  << " of them away, " << type)
+                    {
+                        const Real implied =
+                            blackFormulaImpliedStdDev(type, strike, forward, price, 1.0, 0.0, Null<Real>(), accuracy);
+                        BOOST_CHECK_SMALL(implied / stdDev - 1.0, 1.0e-6);
+                    }
+                }
+            }
+        }
+    }
+
+    // The issue's case: a forward of 1, a strike ten standard deviations of 1e-4 away.
+    const Real strike = 1.0010005001667084;
+    const Real price = blackFormula(Option::Call, strike, 1.0, 1.0e-4);
+    BOOST_REQUIRE(price < 8.0e-29);
+    BOOST_CHECK_SMALL(
+        blackFormulaImpliedStdDev(Option::Call, strike, 1.0, price, 1.0, 0.0, Null<Real>(), accuracy) / 1.0e-4 - 1.0,
+        1.0e-6);
+
+    // No price at all, and the smallest there is, where nothing can be said but nothing should fail.
+    BOOST_CHECK_EQUAL(blackFormulaImpliedStdDev(Option::Call, 1.1, 1.0, 0.0), 0.0);
+    for (Real forward : {1.0, 1.0e100})
+    {
+        const Real implied =
+            blackFormulaImpliedStdDev(Option::Call, 1.1 * forward, forward, std::numeric_limits<Real>::denorm_min());
+        BOOST_CHECK(implied >= 0.0);
+        BOOST_CHECK(implied < 24.0);
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

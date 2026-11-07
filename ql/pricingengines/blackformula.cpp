@@ -331,6 +331,12 @@ namespace QuantLib
             QL_REQUIRE(undiscountedBlackPrice >= 0.0,
                        "undiscounted Black price (" << undiscountedBlackPrice << ") must be non-negative");
             signedMoneyness_ = Integer(optionType) * std::log((forward + displacement) / (strike + displacement));
+            // A solver takes a bound whose value is close to zero for a root, so from a lower bound of 0 it would stop
+            // at any price that's close to zero. A power of two moves the price away from there and leaves every step
+            // of the solver as it is. It stops where the forward would overflow, and no price that small is reachable.
+            if (undiscountedBlackPrice > 0.0 && close(undiscountedBlackPrice, 0.0))
+                scale_ = std::ldexp(
+                    1.0, std::min(-std::ilogb(undiscountedBlackPrice), 1000 - std::ilogb(forward + displacement)));
         }
 
         Real operator()(Real stdDev) const
@@ -339,14 +345,14 @@ namespace QuantLib
             QL_REQUIRE(stdDev >= 0.0, "stdDev (" << stdDev << ") must be non-negative");
 #endif
             if (stdDev == 0.0)
-                return std::max(signedForward_ - signedStrike_, Real(0.0)) - undiscountedBlackPrice_;
+                return (std::max(signedForward_ - signedStrike_, Real(0.0)) - undiscountedBlackPrice_) * scale_;
             Real temp = halfOptionType_ * stdDev;
             Real d = signedMoneyness_ / stdDev;
             Real signedD1 = d + temp;
             Real signedD2 = d - temp;
             Real result = signedForward_ * N_(signedD1) - signedStrike_ * N_(signedD2);
             // numerical inaccuracies can yield a negative answer
-            return std::max(Real(0.0), result) - undiscountedBlackPrice_;
+            return (std::max(Real(0.0), result) - undiscountedBlackPrice_) * scale_;
         }
         Real derivative(Real stdDev) const
         {
@@ -354,13 +360,14 @@ namespace QuantLib
             QL_REQUIRE(stdDev >= 0.0, "stdDev (" << stdDev << ") must be non-negative");
 #endif
             Real signedD1 = signedMoneyness_ / stdDev + halfOptionType_ * stdDev;
-            return std::fabs(signedForward_) * N_.derivative(signedD1);
+            return std::fabs(signedForward_) * N_.derivative(signedD1) * scale_;
         }
 
       private:
         Real halfOptionType_;
         Real signedStrike_, signedForward_;
         Real undiscountedBlackPrice_, signedMoneyness_;
+        Real scale_ = 1.0;
         CumulativeNormalDistribution N_;
     };
 
