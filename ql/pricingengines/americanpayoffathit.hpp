@@ -29,6 +29,29 @@
 namespace QuantLib
 {
 
+    namespace detail
+    {
+
+        // What 1 paid when the underlying first reaches a barrier is worth, if that happens by
+        // expiry, and its derivatives.  Time is measured by the variance s that has elapsed: the
+        // log of the underlying moves by mu s plus a standard Brownian motion in s, the payment
+        // is discounted at rho per unit of s, and the barrier is at a log distance b from the
+        // spot, to be reached by s = variance.  AmericanPayoffAtHit and AnalyticBarrierEngine's
+        // rebate have this in closed form in lambda = sqrt(mu^2 + 2 rho), which takes N at
+        // complex arguments where a negative rate makes mu^2 + 2 rho negative.  This integrates
+        // the first-passage density instead, which holds at any sign, and both use it there.
+        struct UnitPayoffAtHitResults
+        {
+            Real value;
+            // with respect to b, mu and rho
+            Real dValueDb, d2ValueDb2, dValueDMu, dValueDRho;
+        };
+
+        // Without derivatives, they are left null, and the value takes half the time.
+        UnitPayoffAtHitResults unitPayoffAtHit(Real b, Real mu, Real rho, Real variance, bool derivatives = true);
+
+    }
+
     //! Analytic formula for American exercise payoff at-hit options
     /*! \todo calculate greeks */
     class AmericanPayoffAtHit
@@ -60,6 +83,10 @@ namespace QuantLib
 
         bool inTheMoney_;
         Real forward_, X_, DXDstrike_;
+
+        // where the value and its derivatives come from detail::unitPayoffAtHit
+        bool integrated_ = false;
+        detail::UnitPayoffAtHitResults atHit_ = {};
     };
 
 

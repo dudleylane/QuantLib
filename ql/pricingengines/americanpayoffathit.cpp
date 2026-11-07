@@ -18,11 +18,82 @@
 */
 
 #include <ql/math/distributions/normaldistribution.hpp>
+#include <ql/math/integrals/tanhsinhintegral.hpp>
 #include <ql/mathconstants.hpp>
 #include <ql/pricingengines/americanpayoffathit.hpp>
 
 namespace QuantLib
 {
+
+    namespace detail
+    {
+
+        UnitPayoffAtHitResults unitPayoffAtHit(Real b, Real mu, Real rho, Real variance, bool derivatives)
+        {
+            const Real lambdaSquared = mu * mu + 2.0 * rho;
+            if (b == 0.0)
+            {
+                // The barrier is hit now.  These derivatives are the ones the closed form gives at
+                // b = 0, the means of their limits from either side, so that they don't jump where
+                // lambda^2 changes sign.
+                return {1.0, mu, mu * mu + lambdaSquared, 0.0, 0.0};
+            }
+
+            // The variance s at which the barrier is first reached has the density
+            //     |b| / sqrt(2 pi s^3) exp(-(b - mu s)^2 / (2 s)),
+            // and the value is its integral, discounted by exp(-rho s), over (0, variance].  With
+            // s = b^2 / w^2, w0 = |b| / sqrt(variance) and c = -lambda^2 variance / 2, that's P J, with
+            //     P = sqrt(2 / pi) exp(-(b - mu variance)^2 / (2 variance) - rho variance),
+            //     J = integral from w0 to infinity of exp(-(w^2 - w0^2) / 2 - c (1 - w0^2 / w^2)) dw,
+            // whose integrand is at most 1 where lambda^2 <= 0.  Differentiating under the integral in
+            // b, mu and rho takes one more integral, G, of the same integrand over w^2.  Without its
+            // drift, exp(-b mu) P J is an expected discount at the time a Brownian motion reaches b,
+            // so half its second derivative in b is its derivative in the variance plus lambda^2 / 2
+            // times itself; and that derivative in the variance is the discounted density above at
+            // s = variance, times exp(-b mu).  That gives the second derivative in b.
+            const Real stdDev = std::sqrt(variance);
+            const Real driftedDistance = b - mu * variance;
+            const Real P =
+                M_SQRT2 * M_1_SQRTPI * std::exp(-0.5 * driftedDistance * driftedDistance / variance - rho * variance);
+            if (P == 0.0)
+                return {0.0, 0.0, 0.0, 0.0, 0.0};
+
+            // In t = log(w / w0), both integrands change on the scale of their range: for w0 near 0,
+            // with the spot almost on the barrier, and for large w0, where the range shrinks as
+            // 1 / w0^2.  Past tMax, exp(-(w^2 - w0^2) / 2) is below exp(-50).  With u = w^2 / w0^2 - 1,
+            // the integrand above is exp(-w0^2 u / 2 - c u / (1 + u)), and dw = w0 sqrt(1 + u) dt.
+            const Real w0 = std::fabs(b) / stdDev;
+            const Real c = -0.5 * lambdaSquared * variance;
+            const auto shape = [w0, c](Real u) { return std::exp(-0.5 * w0 * w0 * u - c * u / (1.0 + u)); };
+            const auto forJ = [&shape](Real t)
+            {
+                const Real u = std::expm1(2.0 * t);
+                return shape(u) * std::sqrt(1.0 + u);
+            };
+            const auto forG = [&shape](Real t)
+            {
+                const Real u = std::expm1(2.0 * t);
+                return shape(u) / std::sqrt(1.0 + u);
+            };
+            const Real tMax = 0.5 * std::log1p(100.0 / (w0 * w0));
+            const TanhSinhIntegral integral(1.0e-12);
+            const Real J = w0 * integral(forJ, 0.0, tMax);
+            UnitPayoffAtHitResults results = {P * J, Null<Real>(), Null<Real>(), Null<Real>(), Null<Real>()};
+            if (!derivatives)
+                return results;
+
+            const Real G = integral(forG, 0.0, tMax) / w0;
+            const Real sign = b > 0.0 ? 1.0 : -1.0;
+            results.dValueDb = P * (mu * J - sign / stdDev - lambdaSquared * b * G);
+            results.d2ValueDb2 =
+                P * ((mu * mu + lambdaSquared) * J - 2.0 * mu * (sign / stdDev + lambdaSquared * b * G) +
+                     std::fabs(b) / (variance * stdDev));
+            results.dValueDMu = P * (b * J - mu * b * b * G);
+            results.dValueDRho = -P * b * b * G;
+            return results;
+        }
+
+    }
 
     AmericanPayoffAtHit::AmericanPayoffAtHit(Real spot,
                                              DiscountFactor discount,
@@ -49,12 +120,14 @@ namespace QuantLib
         log_H_S_ = std::log(strike_ / spot_);
 
         Real n_d1, n_d2, cum_minus_d1, cum_minus_d2;
+        Real lambdaSquared = 0.0;
+        mu_ = 0.0;
         if (variance_ >= QL_EPSILON)
         {
             if (discount_ == 0.0 && dividendDiscount_ == 0.0)
             {
                 mu_ = -0.5;
-                lambda_ = 0.5;
+                lambdaSquared = 0.25;
             }
             else if (discount_ == 0.0)
             {
@@ -63,8 +136,16 @@ namespace QuantLib
             else
             {
                 mu_ = std::log(dividendDiscount_ / discount_) / variance_ - 0.5;
-                lambda_ = std::sqrt(mu_ * mu_ - 2.0 * std::log(discount_) / variance_);
+                lambdaSquared = mu_ * mu_ - 2.0 * std::log(discount_) / variance_;
             }
+            // A negative rate can make lambda^2 negative, and the closed form below would then take
+            // N at complex arguments; at lambda = 0, rho() would divide by it.  The value and its
+            // derivatives come from detail::unitPayoffAtHit there.
+            integrated_ = lambdaSquared <= 0.0;
+        }
+        if (variance_ >= QL_EPSILON && !integrated_)
+        {
+            lambda_ = std::sqrt(lambdaSquared);
             D1_ = log_H_S_ / stdDev_ + lambda_ * stdDev_;
             D2_ = D1_ - 2.0 * lambda_ * stdDev_;
             CumulativeNormalDistribution f;
@@ -79,7 +160,7 @@ namespace QuantLib
         else
         {
             // The value below doesn't need any of these.
-            mu_ = lambda_ = D1_ = D2_ = 0.0;
+            lambda_ = D1_ = D2_ = 0.0;
             cum_d1_ = cum_d2_ = cum_minus_d1 = cum_minus_d2 = 0.0;
             n_d1 = n_d2 = 0.0;
         }
@@ -130,7 +211,7 @@ namespace QuantLib
 
         muPlusLambda_ = mu_ + lambda_;
         muMinusLambda_ = mu_ - lambda_;
-        if (variance_ >= QL_EPSILON)
+        if (variance_ >= QL_EPSILON && !integrated_)
         {
             // These multiply to 2 log(discount) / variance.  Getting the smaller one from
             // that keeps it from cancelling at low variance.
@@ -147,6 +228,15 @@ namespace QuantLib
             forward_ = 1.0;
             X_ = 1.0;
             DXDstrike_ = 0.0;
+        }
+        else if (integrated_)
+        {
+            // The discount rate per unit of variance is -log(discount) / variance.
+            atHit_ = detail::unitPayoffAtHit(log_H_S_, mu_, -std::log(discount_) / variance_, variance_);
+            forward_ = 1.0;
+            alpha_ = atHit_.value;
+            X_ = 0.0;
+            beta_ = 0.0;
         }
         else if (variance_ >= QL_EPSILON)
         {
@@ -214,6 +304,11 @@ namespace QuantLib
 
     Real AmericanPayoffAtHit::delta() const
     {
+        // b = log(strike / spot) moves by -1 / spot per unit of spot.  In the money the value
+        // doesn't move, and atHit_ holds zeros.
+        if (integrated_)
+            return -K_ * atHit_.dValueDb / spot_;
+
         Real tempDelta = -spot_ * stdDev_;
         Real DalphaDs = DalphaDd1_ / tempDelta;
         Real DbetaDs = DbetaDd2_ / tempDelta;
@@ -236,6 +331,9 @@ namespace QuantLib
 
     Real AmericanPayoffAtHit::gamma() const
     {
+        if (integrated_)
+            return K_ * (atHit_.dValueDb + atHit_.d2ValueDb2) / (spot_ * spot_);
+
         Real tempDelta = -spot_ * stdDev_;
         Real DalphaDs = DalphaDd1_ / tempDelta;
         Real DbetaDs = DbetaDd2_ / tempDelta;
@@ -266,6 +364,11 @@ namespace QuantLib
     Real AmericanPayoffAtHit::rho(Time maturity) const
     {
         QL_REQUIRE(maturity >= 0.0, "negative maturity not allowed");
+
+        // mu and the discount rate per unit of variance both move by maturity / variance per unit
+        // of rate.
+        if (integrated_)
+            return maturity * K_ * (atHit_.dValueDMu + atHit_.dValueDRho) / variance_;
 
         // actually D.Dr / T
         Real DalphaDr = -DalphaDd1_ / (lambda_ * stdDev_) * (1.0 + mu_);

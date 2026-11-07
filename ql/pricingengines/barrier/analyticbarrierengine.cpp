@@ -22,6 +22,7 @@
 */
 
 #include <ql/exercise.hpp>
+#include <ql/pricingengines/americanpayoffathit.hpp>
 #include <ql/pricingengines/barrier/analyticbarrierengine.hpp>
 #include <cmath>
 #include <utility>
@@ -288,7 +289,17 @@ namespace QuantLib
             Rate m = mu();
             Volatility vol = volatility();
             Real twoRateOverVariance = 2.0 * riskFreeRate() / (vol * vol);
-            Real lambda = std::sqrt(m * m + twoRateOverVariance);
+            Real lambdaSquared = m * m + twoRateOverVariance;
+            if (lambdaSquared < 0.0)
+            {
+                // A negative rate can make lambda imaginary, and the closed form below would then
+                // take N at complex arguments.
+                Real variance = stdDeviation() * stdDeviation();
+                return rebate() * detail::unitPayoffAtHit(std::log(barrier() / underlying()), m,
+                                                          0.5 * twoRateOverVariance, variance, false)
+                                      .value;
+            }
+            Real lambda = std::sqrt(lambdaSquared);
             // The exponents multiply to -2r/vol^2.  Getting the smaller one from that
             // keeps it from cancelling at low volatility.
             Real larger = m >= 0.0 ? Real(m + lambda) : Real(m - lambda);

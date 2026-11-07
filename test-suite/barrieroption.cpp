@@ -35,6 +35,7 @@
 #include <ql/pricingengines/barrier/fdhestonbarrierengine.hpp>
 #include <ql/pricingengines/barrier/mcbarrierengine.hpp>
 #include <ql/pricingengines/blackformula.hpp>
+#include <ql/pricingengines/vanilla/analyticdigitalamericanengine.hpp>
 #include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
 #include <ql/pricingengines/vanilla/binomialengine.hpp>
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
@@ -1876,6 +1877,74 @@ BOOST_AUTO_TEST_CASE(testZeroVolatility)
                                  ext::make_shared<EuropeanExercise>(maturity));
             option.setPricingEngine(engine);
             BOOST_CHECK_SMALL(option.NPV() - c.expected, 1.0e-10);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testRebateWithNegativeRates)
+{
+    BOOST_TEST_MESSAGE("Testing analytic barrier engine's rebate with negative rates...");
+
+    // With mu = (r - q) / vol^2 - 1/2, a negative rate can make mu^2 + 2 r / vol^2 negative.  A
+    // knock-out's rebate, paid when the barrier is hit, would then take N at complex arguments in
+    // closed form, and the engine integrates the first-passage density instead.  The expected
+    // values are that integral in 50-digit arithmetic.  The last four rows put mu^2 + 2 r / vol^2
+    // at -1e-6 and 1e-6, either side of the switch.
+    const struct
+    {
+        Barrier::Type barrierType;
+        Option::Type type;
+        Real barrier;
+        Rate r, q;
+        Volatility vol;
+        Real rebateValue;
+    } cases[] = {
+        {Barrier::DownOut, Option::Call, 90.0, -0.03, -0.03, 0.2, 3.1799794784456705},
+        {Barrier::DownOut, Option::Call, 90.0, -0.01, -0.01, 0.2, 3.1587521587603871},
+        {Barrier::DownOut, Option::Call, 90.0, -0.03, -0.08, 0.2, 2.7817449916537169},
+        {Barrier::DownOut, Option::Call, 90.0, -0.03, -0.03, 0.1, 1.5635311365304024},
+        {Barrier::DownOut, Option::Put, 90.0, -0.03, -0.03, 0.2, 3.1799794784456705},
+        {Barrier::UpOut, Option::Put, 110.0, -0.03, -0.03, 0.2, 3.0444087352893308},
+        {Barrier::UpOut, Option::Call, 110.0, -0.03, -0.03, 0.2, 3.0444087352893308},
+        {Barrier::DownOut, Option::Call, 100.0, -0.03, -0.03, 0.2, 5.0},
+        {Barrier::DownOut, Option::Call, 90.0, -0.03, -0.03, 0.4898969687636779, 4.3729838350748418},
+        {Barrier::UpOut, Option::Put, 110.0, -0.03, -0.03, 0.4898969687636779, 4.0319268244535495},
+        {Barrier::DownOut, Option::Call, 90.0, -0.03, -0.03, 0.4898989283554721, 4.3729872064255521},
+        {Barrier::UpOut, Option::Put, 110.0, -0.03, -0.03, 0.4898989283554721, 4.0319295914162751},
+    };
+
+    const DayCounter dc = Actual360();
+    const Date today(15, October, 2026);
+    Settings::instance().evaluationDate() = today;
+    const Date maturity = today + 360;
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.barrierType << " " << c.type << ", barrier " << c.barrier << ", r " << c.r << ", q " << c.q
+                                         << ", volatility " << c.vol)
+        {
+            const auto process =
+                ext::make_shared<BlackScholesMertonProcess>(Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)),
+                                                            Handle<YieldTermStructure>(flatRate(today, c.q, dc)),
+                                                            Handle<YieldTermStructure>(flatRate(today, c.r, dc)),
+                                                            Handle<BlackVolTermStructure>(flatVol(today, c.vol, dc)));
+            const auto engine = ext::make_shared<AnalyticBarrierEngine>(process);
+            const auto payoff = ext::make_shared<PlainVanillaPayoff>(c.type, 100.0);
+            const auto exercise = ext::make_shared<EuropeanExercise>(maturity);
+
+            BarrierOption withRebate(c.barrierType, c.barrier, 5.0, payoff, exercise);
+            withRebate.setPricingEngine(engine);
+            BarrierOption withoutRebate(c.barrierType, c.barrier, 0.0, payoff, exercise);
+            withoutRebate.setPricingEngine(engine);
+            const Real rebateValue = withRebate.NPV() - withoutRebate.NPV();
+            BOOST_CHECK_SMALL(rebateValue - c.rebateValue, 1.0e-12);
+
+            // The rebate is a cash-at-hit digital on the barrier.
+            VanillaOption digital(ext::make_shared<CashOrNothingPayoff>(
+                                      c.barrierType == Barrier::DownOut ? Option::Put : Option::Call, c.barrier, 5.0),
+                                  ext::make_shared<AmericanExercise>(today, maturity));
+            digital.setPricingEngine(ext::make_shared<AnalyticDigitalAmericanEngine>(process));
+            BOOST_CHECK_SMALL(digital.NPV() - rebateValue, 1.0e-12);
         }
     }
 }
