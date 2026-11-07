@@ -108,7 +108,7 @@ namespace QuantLib
         //! Underlying pool
         const ext::shared_ptr<Pool>& pool() const;
         //! The keys each counterparty enters the basket with (sensitive to)
-        std::vector<DefaultProbKey> defaultKeys() const;
+        const std::vector<DefaultProbKey>& defaultKeys() const;
         /*! Loss Given Default for all issuers/notionals based on
             expected recovery rates for the respective issuers.
         */
@@ -332,7 +332,7 @@ namespace QuantLib
         return notionals_;
     }
 
-    inline std::vector<DefaultProbKey> Basket::defaultKeys() const
+    inline const std::vector<DefaultProbKey>& Basket::defaultKeys() const
     {
         return pool_->defaultKeys();
     }

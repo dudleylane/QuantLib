@@ -991,11 +991,15 @@ struct NamesAroundADefault
     std::vector<Real> notionals, hazards, recoveries;
     std::vector<std::vector<Real>> factors;
 
-    NamesAroundADefault(bool sameLossOnDefault, bool onlyWhatIsLeft, Defaults defaults = oneName)
+    // Under twoKeys every third name is on a key of its own, with a far-off curve under the other one.
+    // Names here don't sort as they're added: "issuer-10" comes before "issuer-2".
+    NamesAroundADefault(bool sameLossOnDefault, bool onlyWhatIsLeft, Defaults defaults = oneName, bool twoKeys = false)
     : correlation(ext::make_shared<SimpleQuote>(0.3)), pool(ext::make_shared<Pool>())
     {
         const NorthAmericaCorpDefaultKey curveKey(EURCurrency(), SeniorSec, Period(0, Weeks), 10.);
         const NorthAmericaCorpDefaultKey poolKey(EURCurrency(), SeniorSec, Period(), 1.);
+        const NorthAmericaCorpDefaultKey otherCurveKey(EURCurrency(), SubUpperTier2, Period(0, Weeks), 10.);
+        const NorthAmericaCorpDefaultKey otherPoolKey(EURCurrency(), SubUpperTier2, Period(), 1.);
         for (Size i = 0; i < poolSize; ++i)
         {
             if (onlyWhatIsLeft && i == defaultedName)
@@ -1006,15 +1010,22 @@ struct NamesAroundADefault
             recoveries.push_back(sameLossOnDefault ? 0.4 : 0.2 + 0.025 * i);
             factors.emplace_back(1, std::sqrt(0.05 + 0.04 * i));
 
+            const bool onTheOtherKey = twoKeys && i % 3 == 0;
             std::vector<std::pair<DefaultProbKey, Handle<DefaultProbabilityTermStructure>>> probabilities;
             probabilities.emplace_back(
-                curveKey, Handle<DefaultProbabilityTermStructure>(ext::make_shared<FlatHazardRate>(
-                              inception, makeQuoteHandle(hazards.back()), ActualActual(ActualActual::ISDA))));
+                onTheOtherKey ? otherCurveKey : curveKey,
+                Handle<DefaultProbabilityTermStructure>(ext::make_shared<FlatHazardRate>(
+                    inception, makeQuoteHandle(hazards.back()), ActualActual(ActualActual::ISDA))));
+            if (twoKeys)
+                probabilities.emplace_back(onTheOtherKey ? curveKey : otherCurveKey,
+                                           Handle<DefaultProbabilityTermStructure>(ext::make_shared<FlatHazardRate>(
+                                               inception, makeQuoteHandle(0.5), ActualActual(ActualActual::ISDA))));
             DefaultEventSet events;
             if ((i == defaultedName && defaults == oneName) || defaults == everyName)
-                events.insert(ext::make_shared<FailureToPayEvent>(defaultDate, EURCurrency(), SeniorSec, 10.0,
+                events.insert(ext::make_shared<FailureToPayEvent>(defaultDate, EURCurrency(),
+                                                                  onTheOtherKey ? SubUpperTier2 : SeniorSec, 10.0,
                                                                   defaultDate + 5, recoveries.back()));
-            pool->add(names.back(), Issuer(probabilities, events), poolKey);
+            pool->add(names.back(), Issuer(probabilities, events), onTheOtherKey ? otherPoolKey : poolKey);
         }
     }
 
@@ -1948,6 +1959,147 @@ BOOST_AUTO_TEST_CASE(testBaseCorrelationOnAFlatSurface)
                     BOOST_CHECK_SMALL(basket->expectedTrancheLoss(names.horizon) - expected, 1.0e-9);
                 }
             }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testPoolKeysInTheOrderOfItsNames)
+{
+    BOOST_TEST_MESSAGE("Testing that a pool's keys come in the order of its names...");
+
+    const NorthAmericaCorpDefaultKey senior(EURCurrency(), SeniorSec, Period(), 1.);
+    const NorthAmericaCorpDefaultKey subordinated(EURCurrency(), SubUpperTier2, Period(), 1.);
+
+    Pool pool;
+    pool.add("zeta", Issuer(), senior);
+    pool.add("alpha", Issuer(), subordinated);
+    pool.add("mike", Issuer(), senior);
+    // a name that's already there keeps its key
+    pool.add("alpha", Issuer(), senior);
+
+    BOOST_REQUIRE_EQUAL(pool.defaultKeys().size(), pool.names().size());
+    BOOST_CHECK(pool.defaultKeys()[0] == senior);
+    BOOST_CHECK(pool.defaultKeys()[1] == subordinated);
+    BOOST_CHECK(pool.defaultKeys()[2] == senior);
+    for (Size i = 0; i < pool.size(); ++i)
+        BOOST_CHECK(pool.defaultKeys()[i] == pool.defaultKey(pool.names()[i]));
+
+    pool.clear();
+    BOOST_CHECK(pool.defaultKeys().empty());
+
+    pool.add("beta", Issuer(), subordinated);
+    BOOST_REQUIRE_EQUAL(pool.defaultKeys().size(), Size(1));
+    BOOST_CHECK(pool.defaultKeys()[0] == subordinated);
+}
+
+BOOST_AUTO_TEST_CASE(testBasketOnKeysThatDiffer)
+{
+    BOOST_TEST_MESSAGE("Testing that a basket reads each name on its own key...");
+
+    const NamesAroundADefault onOneKey(false, false);
+    const NamesAroundADefault onTwoKeys(false, false, NamesAroundADefault::oneName, true);
+    Settings::instance().evaluationDate() = onOneKey.afterTheDefault;
+
+    const auto basket = onTwoKeys.basket(0.0, 0.1);
+    const auto reference = onOneKey.basket(0.0, 0.1);
+
+    BOOST_CHECK_EQUAL(basket->remainingSize(), Size(NamesAroundADefault::poolSize - 1));
+    BOOST_CHECK(basket->liveList() == reference->liveList());
+    BOOST_CHECK_EQUAL(basket->settledLoss(), reference->settledLoss());
+    BOOST_CHECK_EQUAL(basket->remainingNotional(), reference->remainingNotional());
+
+    const std::vector<Probability> probabilities = basket->probabilities(onOneKey.horizon);
+    const std::vector<Probability> expected = reference->probabilities(onOneKey.horizon);
+    const std::vector<Probability> left = basket->remainingProbabilities(onOneKey.horizon);
+    const std::vector<Probability> expectedLeft = reference->remainingProbabilities(onOneKey.horizon);
+    BOOST_REQUIRE_EQUAL(probabilities.size(), expected.size());
+    BOOST_REQUIRE_EQUAL(left.size(), expectedLeft.size());
+    for (Size i = 0; i < probabilities.size(); ++i)
+        BOOST_CHECK_EQUAL(probabilities[i], expected[i]);
+    for (Size i = 0; i < left.size(); ++i)
+        BOOST_CHECK_EQUAL(left[i], expectedLeft[i]);
+}
+
+BOOST_AUTO_TEST_CASE(testEveryLossModelOnKeysThatDiffer)
+{
+    BOOST_TEST_MESSAGE("Testing that every loss model reads each name on its own key...");
+
+    std::vector<ModelAroundADefault> models = modelsAroundADefault();
+    const std::vector<ModelAroundADefault> onSurfaces = baseCorrelationModels();
+    models.insert(models.end(), onSurfaces.begin(), onSurfaces.end());
+    models.push_back({"random default", &NamesAroundADefault::randomDefaultModel, false});
+    models.push_back({"random loss", &NamesAroundADefault::randomLossModel, false});
+
+    for (const auto& model : models)
+    {
+        for (bool sameLoss : {true, false})
+        {
+            if (model.needsTheSameLossOnDefault && !sameLoss)
+                continue;
+            for (auto defaults : {NamesAroundADefault::noName, NamesAroundADefault::oneName})
+            {
+                BOOST_TEST_CONTEXT(model.name << (sameLoss ? ", the same loss on default" : ", different names")
+                                              << (defaults == NamesAroundADefault::oneName ? ", one default" : ""))
+                {
+                    const NamesAroundADefault onOneKey(sameLoss, false, defaults);
+                    const NamesAroundADefault onTwoKeys(sameLoss, false, defaults, true);
+                    Settings::instance().evaluationDate() = onOneKey.afterTheDefault;
+
+                    const auto basket = onTwoKeys.basket(0.0, 0.1);
+                    basket->setLossModel((onTwoKeys.*model.factory)());
+                    const auto reference = onOneKey.basket(0.0, 0.1);
+                    reference->setLossModel((onOneKey.*model.factory)());
+
+                    BOOST_CHECK_SMALL(basket->expectedTrancheLoss(onOneKey.horizon) -
+                                          reference->expectedTrancheLoss(onOneKey.horizon),
+                                      1.0e-9);
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testCdoObservesEachNameOnItsOwnKey)
+{
+    BOOST_TEST_MESSAGE("Testing that a CDO tranche observes each name's curve on its own key...");
+
+    const NamesAroundADefault all(false, false, NamesAroundADefault::noName, true);
+    Settings::instance().evaluationDate() = all.inception;
+
+    const NorthAmericaCorpDefaultKey senior(EURCurrency(), SeniorSec, Period(), 1.);
+    const NorthAmericaCorpDefaultKey subordinated(EURCurrency(), SubUpperTier2, Period(), 1.);
+
+    const Schedule schedule = MakeSchedule()
+                                  .from(Date(1, September, 2006))
+                                  .to(Date(1, September, 2011))
+                                  .withFrequency(Quarterly)
+                                  .withCalendar(TARGET())
+                                  .withConvention(Following)
+                                  .withRule(DateGeneration::Backward);
+    const auto basket = all.basket(0.0, 0.1);
+    basket->setLossModel(all.lhpModel());
+    auto cdo = ext::make_shared<SyntheticCDO>(basket, Protection::Seller, schedule, 0.02, 0.05, Actual360(), Following);
+    cdo->setPricingEngine(ext::make_shared<MidPointCDOEngine>(
+        Handle<YieldTermStructure>(ext::make_shared<FlatForward>(all.inception, 0.05, Actual360(), Continuous))));
+
+    Flag priceMayHaveMoved;
+    priceMayHaveMoved.registerWith(cdo);
+    for (const std::string& name : all.names)
+    {
+        BOOST_TEST_CONTEXT("name " << name)
+        {
+            const Issuer& issuer = all.pool->get(name);
+            const DefaultProbKey& own = all.pool->defaultKey(name);
+
+            cdo->NPV();
+            priceMayHaveMoved.lower();
+            issuer.defaultProbability(own)->update();
+            BOOST_CHECK(priceMayHaveMoved.isUp());
+
+            cdo->NPV();
+            priceMayHaveMoved.lower();
+            issuer.defaultProbability(own == senior ? subordinated : senior)->update();
+            BOOST_CHECK(!priceMayHaveMoved.isUp());
         }
     }
 }
