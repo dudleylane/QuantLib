@@ -32,6 +32,7 @@
 #include <ql/indexes/ibor/sofr.hpp>
 #include <ql/time/calendar.hpp>
 #include <ql/time/calendars/bespokecalendar.hpp>
+#include <ql/time/calendars/botswana.hpp>
 #include <ql/time/calendars/brazil.hpp>
 #include <ql/time/calendars/china.hpp>
 #include <ql/time/calendars/denmark.hpp>
@@ -3992,6 +3993,45 @@ BOOST_AUTO_TEST_CASE(testRomaniaPublicHolidaysFromWhenTheyWereAdded)
     BOOST_CHECK(c.isBusinessDay(Date(7, January, 2022)));
     BOOST_CHECK(c.isHoliday(Date(6, January, 2025)));
     BOOST_CHECK(c.isHoliday(Date(7, January, 2025)));
+}
+
+BOOST_AUTO_TEST_CASE(testBotswanaPublicHolidaysAct)
+{
+    BOOST_TEST_MESSAGE("Testing Botswana's calendar against its Public Holidays Act...");
+
+    const Calendar c = Botswana();
+
+    // from the Botswana Stock Exchange's list of market holidays
+    const std::vector<Date> expected2026 = {
+        {1, January, 2026},    {2, January, 2026}, {3, April, 2026},     {6, April, 2026}, {1, May, 2026},
+        {14, May, 2026},       {15, May, 2026},    {1, July, 2026},      {20, July, 2026}, {21, July, 2026},
+        {30, September, 2026}, {1, October, 2026}, {25, December, 2026},
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2026), Date(31, December, 2026)), expected2026);
+
+    // the provisos of the Act: a holiday on a Sunday moves to Monday, and January 2nd, October 1st or
+    // Boxing Day on a Monday brings the following Tuesday
+    BOOST_CHECK(c.isHoliday(Date(3, January, 2022))); // January 2nd on a Sunday
+    BOOST_CHECK(c.isBusinessDay(Date(4, January, 2022)));
+    BOOST_CHECK(c.isHoliday(Date(3, January, 2023))); // January 2nd on a Monday
+    BOOST_CHECK(c.isBusinessDay(Date(4, January, 2023)));
+    BOOST_CHECK(c.isHoliday(Date(1, October, 2018))); // September 30th on a Sunday, and October 1st on a Monday
+    BOOST_CHECK(c.isHoliday(Date(2, October, 2018)));
+    BOOST_CHECK(c.isBusinessDay(Date(3, October, 2018)));
+    BOOST_CHECK(c.isHoliday(Date(2, October, 2023))); // September 30th on a Saturday, and October 1st on a Sunday
+    BOOST_CHECK(c.isBusinessDay(Date(3, October, 2023)));
+    BOOST_CHECK(c.isHoliday(Date(27, December, 2021))); // Boxing Day on a Sunday
+    BOOST_CHECK(c.isBusinessDay(Date(28, December, 2021)));
+    BOOST_CHECK(c.isHoliday(Date(26, December, 2022))); // Christmas on a Sunday, and Boxing Day on a Monday
+    BOOST_CHECK(c.isHoliday(Date(27, December, 2022)));
+    BOOST_CHECK(c.isBusinessDay(Date(28, December, 2022)));
+
+    // the second day and the Tuesday are in every year, and the holiday for President Mogae in only one
+    BOOST_CHECK(c.isHoliday(Date(2, January, 2025)));
+    BOOST_CHECK(c.isBusinessDay(Date(3, January, 2025)));
+    BOOST_CHECK(c.isHoliday(Date(22, July, 2025)));
+    BOOST_CHECK(c.isBusinessDay(Date(23, July, 2025)));
+    BOOST_CHECK(c.isBusinessDay(Date(15, May, 2025)));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

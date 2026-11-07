@@ -32,27 +32,31 @@ namespace QuantLib
 
     //! Botswana calendar
     /*! Holidays:
-    From the Botswana <a href="http://www.ilo.org/dyn/travail/docs/1766/Public%20Holidays%20Act.pdf">Public Holidays
-    Act</a> The days named in the Schedule shall be public holidays within Botswana: Provided that <ul> <li>when any of
-    the said days fall on a Sunday the following Monday shall be observed as a public holiday;</li> <li>if 2nd January,
-    1st October or Boxing Day falls on a Monday, the following Tuesday shall be observed as a public holiday;</li>
-    <li>when Botswana Day referred to in the Schedule falls on a Saturday, the next following Monday shall be observed
-    as a public holiday.</li>
+    From the Botswana
+    <a
+    href="https://e-laws.botswanalaws.com/PDF/StatutesActpdf/2006Actpdf/PUBLIC%20HOLIDAYS%20ACT,%2017%20OF%202006.pdf">Public
+    Holidays Act</a> The days named in the Schedule shall be public holidays within Botswana: Provided that <ul>
+    <li>when any of the said days fall on a Sunday the following Monday shall be observed as a public holiday;</li>
+    <li>if 2nd January, 1st October or Boxing Day falls on a Monday, the following Tuesday shall be observed as a public
+    holiday;</li> <li>when Botswana Day referred to in the Schedule falls on a Saturday, the next following Monday shall
+    be observed as a public holiday.</li>
     </ul>
     <ul>
     <li>Saturdays</li>
     <li>Sundays</li>
     <li>New Year's Day, January 1st</li>
+    <li>January 2nd</li>
     <li>Good Friday</li>
     <li>Easter Monday</li>
     <li>Labour Day, May 1st</li>
     <li>Ascension</li>
     <li>Sir Seretse Khama Day, July 1st</li>
-    <li>Presidents' Day</li>
-    <li>Independence Day, September 30th</li>
-    <li>Botswana Day, October 1st</li>
+    <li>Presidents' Day, third Monday of July, and the following Tuesday</li>
+    <li>Botswana Day, September 30th</li>
+    <li>October 1st</li>
     <li>Christmas, December 25th </li>
     <li>Boxing Day, December 26th</li>
+    <li>Public holiday in honour of former President Festus Mogae, May 15th, 2026</li>
     </ul>
 
     \ingroup calendars
