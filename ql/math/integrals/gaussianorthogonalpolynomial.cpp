@@ -117,6 +117,10 @@ namespace QuantLib
 
     Real GaussJacobiPolynomial::alpha(Size i) const
     {
+        // The general form below has a removable singularity here, at alpha + beta = 0.
+        if (i == 0)
+            return (beta_ - alpha_) / (alpha_ + beta_ + 2.0);
+
         Real num = beta_ * beta_ - alpha_ * alpha_;
         Real denom = (2.0 * i + alpha_ + beta_) * (2.0 * i + alpha_ + beta_ + 2);
 
@@ -141,6 +145,13 @@ namespace QuantLib
 
     Real GaussJacobiPolynomial::beta(Size i) const
     {
+        // The general form below has a removable singularity here, at alpha + beta = -1.
+        if (i == 1)
+        {
+            const Real s = 2.0 + alpha_ + beta_;
+            return 4.0 * (1.0 + alpha_) * (1.0 + beta_) / (s * s * (s + 1.0));
+        }
+
         Real num = 4.0 * i * (i + alpha_) * (i + beta_) * (i + alpha_ + beta_);
         Real denom = (2.0 * i + alpha_ + beta_) * (2.0 * i + alpha_ + beta_) *
                      ((2.0 * i + alpha_ + beta_) * (2.0 * i + alpha_ + beta_) - 1);

@@ -420,6 +420,36 @@ BOOST_AUTO_TEST_CASE(testMultiDimensionalGaussIntegration)
 }
 
 
+BOOST_AUTO_TEST_CASE(testJacobiRecurrenceNearRemovableSingularities)
+{
+    BOOST_TEST_MESSAGE("Testing the Gauss-Jacobi recurrence near its removable singularities...");
+
+    // The expected values are a_0 = (beta - alpha) / (alpha + beta + 2) and
+    // b_1 = 4 (1 + alpha) (1 + beta) / ((2 + alpha + beta)^2 (3 + alpha + beta)), at 40 digits.
+    const Real tolerance = 1e-10; // percentage
+
+    // With alpha + beta at -1, the general form of b_1 is 0 / 0, and it used to throw.
+    const GaussJacobiPolynomial p1(-0.9999999998999999, -1.0e-10);
+    BOOST_CHECK_CLOSE(p1.beta(1), 2.0000023857267904134e-10, tolerance);
+    BOOST_CHECK_NO_THROW(GaussJacobiIntegration(10, -0.9999999998999999, -1.0e-10));
+
+    // And near it, it lost its accuracy without saying so.
+    const GaussJacobiPolynomial p2(-0.3, -0.6999999999999);
+    BOOST_CHECK_CLOSE(p2.beta(1), 0.42000000000003498257, tolerance);
+
+    // With alpha + beta at 0, the same goes for a_0.
+    const GaussJacobiPolynomial p3(0.3, -0.30000000000000004);
+    BOOST_CHECK_CLOSE(p3.alpha(0), -0.30000000000000002498, tolerance);
+
+    const GaussJacobiPolynomial p4(0.3, -0.2999999999999);
+    BOOST_CHECK_CLOSE(p4.alpha(0), -0.29999999999993500477, tolerance);
+
+    // a_0 is also the first moment of the weight, which the quadrature should reproduce.
+    const GaussJacobiIntegration integration(10, 0.3, -0.30000000000000004);
+    const Real firstMoment = integration([&](Real x) { return x * p3.w(x); });
+    BOOST_CHECK_CLOSE(firstMoment, p3.mu_0() * -0.30000000000000002498, 1e-8);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
