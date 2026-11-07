@@ -962,13 +962,21 @@ BOOST_AUTO_TEST_CASE(testHazardMoveOfAPoolALossModelHasLeft)
     }
 }
 
-// Twenty names, or the nineteen left once name 3 has defaulted, as a pool on its own, or all twenty
-// defaulted. They differ in what a model reads per name, so that reading one name's data for
-// another's shows. The homogeneous models need every name to lose the same on default.
+// Twenty names, or the nineteen left once name 3 has defaulted, as a pool on its own. Name 3 can
+// also be joined by all the others, or not default at all. They differ in what a model reads per
+// name, so that reading one name's data for another's shows. The homogeneous models need every
+// name to lose the same on default.
 struct NamesAroundADefault
 {
     static constexpr Size poolSize = 20;
     static constexpr Size defaultedName = 3;
+
+    enum Defaults
+    {
+        oneName,
+        everyName,
+        noName
+    };
 
     Date inception{31, August, 2006};
     Date beforeTheDefault{1, September, 2006};
@@ -982,7 +990,7 @@ struct NamesAroundADefault
     std::vector<Real> notionals, hazards, recoveries;
     std::vector<std::vector<Real>> factors;
 
-    NamesAroundADefault(bool sameLossOnDefault, bool onlyWhatIsLeft, bool everyNameDefaults = false)
+    NamesAroundADefault(bool sameLossOnDefault, bool onlyWhatIsLeft, Defaults defaults = oneName)
     : correlation(ext::make_shared<SimpleQuote>(0.3)), pool(ext::make_shared<Pool>())
     {
         const NorthAmericaCorpDefaultKey curveKey(EURCurrency(), SeniorSec, Period(0, Weeks), 10.);
@@ -1002,7 +1010,7 @@ struct NamesAroundADefault
                 curveKey, Handle<DefaultProbabilityTermStructure>(ext::make_shared<FlatHazardRate>(
                               inception, makeQuoteHandle(hazards.back()), ActualActual(ActualActual::ISDA))));
             DefaultEventSet events;
-            if (i == defaultedName || everyNameDefaults)
+            if ((i == defaultedName && defaults == oneName) || defaults == everyName)
                 events.insert(ext::make_shared<FailureToPayEvent>(defaultDate, EURCurrency(), SeniorSec, 10.0,
                                                                   defaultDate + 5, recoveries.back()));
             pool->add(names.back(), Issuer(probabilities, events), poolKey);
@@ -1064,6 +1072,21 @@ struct NamesAroundADefault
     ext::shared_ptr<DefaultLossModel> tInhomogeneousModel() const
     {
         return ext::make_shared<IHStudentPoolLossModel>(tLatentModel(), 101, 5., -5., 15);
+    }
+
+    ext::shared_ptr<DefaultLossModel> randomDefaultModel() const
+    {
+        return ext::make_shared<RandomDefaultLM<GaussianCopulaPolicy>>(latentModel(), 2000);
+    }
+
+    ext::shared_ptr<DefaultLossModel> randomLossModel() const
+    {
+        std::vector<std::vector<Real>> doubled(factors);
+        doubled.insert(doubled.end(), factors.begin(), factors.end());
+        const auto latent = ext::make_shared<GaussianSpotLossLM>(doubled, recoveries, 2.2,
+                                                                 LatentModelIntegrationType::GaussianQuadrature,
+                                                                 GaussianCopulaPolicy::initTraits());
+        return ext::make_shared<RandomLossLM<GaussianCopulaPolicy>>(latent, 2000, 1.0e-6, 2863311530UL);
     }
 
     ext::shared_ptr<DefaultLossModel> tBinomialModel() const
@@ -1573,13 +1596,16 @@ BOOST_AUTO_TEST_CASE(testTrancheWithNoNamesLeft)
     const Handle<YieldTermStructure> discountCurve(
         ext::make_shared<FlatForward>(Date(31, August, 2006), 0.05, Actual360(), Continuous));
 
-    for (const auto& model : modelsAroundADefault())
+    std::vector<ModelAroundADefault> models = modelsAroundADefault();
+    models.push_back({"random default", &NamesAroundADefault::randomDefaultModel, false});
+    models.push_back({"random loss", &NamesAroundADefault::randomLossModel, false});
+    for (const auto& model : models)
     {
         for (const auto& tranche : tranches)
         {
             BOOST_TEST_CONTEXT(model.name << ", tranche " << tranche.attachment << " to " << tranche.detachment)
             {
-                const NamesAroundADefault all(true, false, true);
+                const NamesAroundADefault all(true, false, NamesAroundADefault::everyName);
                 const Date today = all.afterTheDefault;
                 Settings::instance().evaluationDate() = today;
 
@@ -1623,6 +1649,88 @@ BOOST_AUTO_TEST_CASE(testTrancheWithNoNamesLeft)
                     BOOST_CHECK_SMALL(cdo->protectionValue(), tolerance);
                     BOOST_CHECK_SMALL(cdo->premiumValue() - tranche.remaining * 0.05 * annuity, premiumTolerance);
                     BOOST_CHECK_SMALL(cdo->NPV() - (tranche.remaining * 0.05 * annuity + upfront), premiumTolerance);
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testRandomLossModelsAfterADefault)
+{
+    BOOST_TEST_MESSAGE("Testing random loss models on what a default leaves of a tranche...");
+
+    using Factory = ext::shared_ptr<DefaultLossModel> (NamesAroundADefault::*)() const;
+    const std::vector<std::pair<std::string, Factory>> models = {
+        {"random default", &NamesAroundADefault::randomDefaultModel},
+        {"random loss", &NamesAroundADefault::randomLossModel}};
+    const Real tolerance = 1.0e-9;
+
+    for (const auto& model : models)
+    {
+        for (bool sameLoss : {true, false})
+        {
+            for (const auto& tranche : tranchesAfterADefault(sameLoss))
+            {
+                BOOST_TEST_CONTEXT(model.first << (sameLoss ? ", the same loss on default" : ", different names")
+                                               << ", tranche " << tranche.attachment << " to " << tranche.detachment)
+                {
+                    const NamesAroundADefault all(sameLoss, false);
+                    const Date horizon = all.horizon;
+                    Settings::instance().evaluationDate() = all.afterTheDefault;
+
+                    const auto basket = all.basket(tranche.attachment, tranche.detachment);
+                    basket->setLossModel((all.*model.second)());
+
+                    // Second to default among all twenty is the first among the names left, and
+                    // the one gone can't be that.
+                    BOOST_CHECK_EQUAL(basket->probsBeingNthEvent(2, horizon)[NamesAroundADefault::defaultedName], 0.0);
+
+                    if (tranche.remainingDetachment <= tranche.remainingAttachment)
+                    {
+                        BOOST_CHECK_SMALL(basket->expectedTrancheLoss(horizon) - tranche.realized, tolerance);
+                        BOOST_CHECK_EQUAL(basket->percentile(horizon, 0.95), 0.0);
+                        BOOST_CHECK_EQUAL(basket->expectedShortfall(horizon, 0.95), 0.0);
+                        continue;
+                    }
+
+                    // The same draws on the same twenty names, with none defaulted and nothing
+                    // to lose on the one that did.
+                    const NamesAroundADefault noDefault(sameLoss, false, NamesAroundADefault::noName);
+                    std::vector<Real> notionals = noDefault.notionals;
+                    notionals[NamesAroundADefault::defaultedName] = 0.0;
+                    const Real left = std::accumulate(notionals.begin(), notionals.end(), Real(0.0));
+                    const auto reference = ext::make_shared<Basket>(noDefault.inception, noDefault.names, notionals,
+                                                                    noDefault.pool, tranche.remainingAttachment / left,
+                                                                    tranche.remainingDetachment / left);
+                    reference->setLossModel((noDefault.*model.second)());
+
+                    BOOST_CHECK_SMALL(basket->expectedTrancheLoss(horizon) - tranche.realized -
+                                          reference->expectedTrancheLoss(horizon),
+                                      tolerance);
+                    BOOST_CHECK_SMALL(basket->percentile(horizon, 0.95) - reference->percentile(horizon, 0.95),
+                                      tolerance);
+                    BOOST_CHECK_SMALL(basket->expectedShortfall(horizon, 0.95) -
+                                          reference->expectedShortfall(horizon, 0.95),
+                                      tolerance);
+
+                    const auto distribution = basket->lossDistribution(horizon);
+                    const auto expectedDistribution = reference->lossDistribution(horizon);
+                    BOOST_REQUIRE_EQUAL(distribution.size(), expectedDistribution.size());
+                    auto expectedPoint = expectedDistribution.begin();
+                    for (const auto& point : distribution)
+                    {
+                        BOOST_CHECK_SMALL(point.first - expectedPoint->first, tolerance);
+                        BOOST_CHECK_SMALL(point.second - expectedPoint->second, tolerance);
+                        ++expectedPoint;
+                    }
+
+                    // The split comes as fractions of the level, so a level of 0 would say nothing.
+                    const std::vector<Real> split = basket->splitVaRLevel(horizon, 1.0);
+                    const std::vector<Real> expected = reference->splitVaRLevel(horizon, 1.0);
+                    const std::vector<Size>& live = basket->liveList();
+                    BOOST_REQUIRE_EQUAL(split.size(), live.size());
+                    for (Size i = 0; i < live.size(); ++i)
+                        BOOST_CHECK_SMALL(split[i] - expected[live[i]], tolerance);
                 }
             }
         }

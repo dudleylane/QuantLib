@@ -361,8 +361,8 @@ namespace QuantLib
         Date today = Settings::instance().evaluationDate();
         Date::serial_type val = d.serialNumber() - today.serialNumber();
 
-        Real attachAmount = basket_->attachmentAmount();
-        Real detachAmount = basket_->detachmentAmount();
+        Real attachAmount = basket_->remainingAttachmentAmount();
+        Real detachAmount = basket_->remainingDetachmentAmount();
 
         // Real trancheLoss= 0.;
         GeneralStatistics lossStats;
@@ -383,8 +383,7 @@ namespace QuantLib
                                     (1. - getEventRecovery(events[iEvt]));
                 }
             }
-            lossStats.add( // d  ates? current losses? realized defaults, not yet
-                std::min(std::max(portfSimLoss - attachAmount, 0.), detachAmount - attachAmount));
+            lossStats.add(std::min(std::max(portfSimLoss - attachAmount, 0.), detachAmount - attachAmount));
         }
         return std::make_pair(lossStats.mean(), lossStats.errorEstimate() * InverseCumulativeNormal::standard_value(
                                                                                 0.5 * (1. + confidencePerc)));
@@ -422,8 +421,8 @@ namespace QuantLib
         QL_REQUIRE(d >= today, "Requested percentile date must lie after computation date.");
         calculate();
 
-        Real attachAmount = basket_->attachmentAmount();
-        Real detachAmount = basket_->detachmentAmount();
+        Real attachAmount = basket_->remainingAttachmentAmount();
+        Real detachAmount = basket_->remainingDetachmentAmount();
 
         for (Size iSim = 0; iSim < nSims_; iSim++)
         {
@@ -459,8 +458,8 @@ namespace QuantLib
         QL_REQUIRE(d >= today, "Requested percentile date must lie after computation date.");
         calculate();
 
-        Real attachAmount = basket_->attachmentAmount();
-        Real detachAmount = basket_->detachmentAmount();
+        Real attachAmount = basket_->remainingAttachmentAmount();
+        Real detachAmount = basket_->remainingDetachmentAmount();
 
         Date::serial_type val = d.serialNumber() - today.serialNumber();
         if (val <= 0)
@@ -551,8 +550,8 @@ namespace QuantLib
         QL_REQUIRE(percentile >= 0. && percentile <= 1., "Incorrect percentile");
         calculate();
 
-        Real attachAmount = basket_->attachmentAmount();
-        Real detachAmount = basket_->detachmentAmount();
+        Real attachAmount = basket_->remainingAttachmentAmount();
+        Real detachAmount = basket_->remainingDetachmentAmount();
 
         std::vector<Real> rankLosses;
         Date today = Settings::instance().evaluationDate();
@@ -642,9 +641,15 @@ namespace QuantLib
             have been done basket...)*/
         calculate();
 
-        Real attachAmount = basket_->attachmentAmount();
-        Real detachAmount = basket_->detachmentAmount();
+        Real attachAmount = basket_->remainingAttachmentAmount();
+        Real detachAmount = basket_->remainingDetachmentAmount();
         Size numLiveNames = basket_->remainingSize();
+
+        // the results go by the names left, the events by all of them
+        std::vector<Size> livePosition(basket_->size());
+        const std::vector<Size>& live = basket_->liveList();
+        for (Size i = 0; i < numLiveNames; i++)
+            livePosition[live[i]] = i;
 
         std::vector<Real> split(numLiveNames, 0.);
         std::vector<GeneralStatistics> splitStats(numLiveNames, GeneralStatistics());
@@ -700,7 +705,7 @@ namespace QuantLib
                     Real tranchedLossAfter =
                         std::min(std::max(ptflCumulLoss - attachAmount, 0.), detachAmount - attachAmount);
                     // assign new losses:
-                    split[iName] += tranchedLossAfter - tranchedLossBefore;
+                    split[livePosition[iName]] += tranchedLossAfter - tranchedLossBefore;
                 }
                 for (Size iName = 0; iName < numLiveNames; iName++)
                 {
@@ -922,7 +927,8 @@ namespace QuantLib
         // starts with no events
         this->simsBuffer_.push_back(std::vector<defaultSimEvent>());
 
-        for (Size iName = 0; iName < model_->size(); iName++)
+        // a name that has defaulted can't again; it's in what the basket has lost
+        for (Size iName : this->basket_->liveList())
         {
             Real latentVarSample = model_->latentVarValue(values, iName);
             Probability simDefaultProb = model_->cumulativeY(latentVarSample, iName);

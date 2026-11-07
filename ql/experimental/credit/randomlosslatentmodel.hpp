@@ -165,7 +165,8 @@ namespace QuantLib
         this->simsBuffer_.push_back(std::vector<defaultSimEvent>());
 
         // half the model is defaults, the other half are RRs...
-        for (Size iName = 0; iName < copula_->size() / 2; iName++)
+        // a name that has defaulted can't again; it's in what the basket has lost
+        for (Size iName : this->basket_->liveList())
         {
             // ...but samples must be full
             /* This is really a trick, we are passing a longer than
