@@ -29,6 +29,7 @@
 #include <ql/termstructures/volatility/swaption/interpolatedswaptionvolatilitycube.hpp>
 #include <ql/termstructures/volatility/swaption/sabrswaptionvolatilitycube.hpp>
 #include <ql/termstructures/volatility/swaption/spreadedswaptionvol.hpp>
+#include <ql/termstructures/volatility/swaption/swaptionconstantvol.hpp>
 #include <ql/termstructures/volatility/swaption/zabrswaptionvolatilitycube.hpp>
 #include <ql/termstructures/volatility/zabrsmilesection.hpp>
 #include <ql/termstructures/yield/zerocurve.hpp>
@@ -1000,6 +1001,30 @@ BOOST_AUTO_TEST_CASE(testSabrSecondPassMoneyness)
 
     check(VolatilityType::Normal, 0.05, 0.03, 0.05);
     check(VolatilityType::ShiftedLognormal, 1.0, 1.0, 0.2);
+}
+
+BOOST_AUTO_TEST_CASE(testAtmCalibrationOnSurfaceWithoutNodes)
+{
+    BOOST_TEST_MESSAGE("Testing that an ATM-calibrated SABR cube refuses a surface with no nodes...");
+
+    CommonVars vars;
+
+    Handle<SwaptionVolatilityStructure> atmVols(ext::make_shared<ConstantSwaptionVolatility>(
+        0, vars.conventions.calendar, vars.conventions.optionBdc, 0.2, vars.conventions.dayCounter));
+
+    const Size sections = vars.cube.tenors.options.size() * vars.cube.tenors.swaps.size();
+    std::vector<std::vector<Handle<Quote>>> guess(sections);
+    for (auto& section : guess)
+    {
+        for (Real g : {0.2, 0.5, 0.4, 0.0})
+            section.emplace_back(ext::make_shared<SimpleQuote>(g));
+    }
+
+    SabrSwaptionVolatilityCube cube(atmVols, vars.cube.tenors.options, vars.cube.tenors.swaps, vars.cube.strikeSpreads,
+                                    vars.cube.volSpreadsHandle, vars.swapIndexBase, vars.shortSwapIndexBase, false,
+                                    guess, {false, false, false, false}, true);
+
+    BOOST_CHECK_EXCEPTION(cube.denseSabrParameters(), Error, ExpectedErrorMessage("discrete nodes"));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -623,6 +623,8 @@ namespace QuantLib
 
         const ext::shared_ptr<SwaptionVolatilityDiscrete> atmVolStructure =
             ext::dynamic_pointer_cast<SwaptionVolatilityDiscrete>(*atmVol_);
+        QL_REQUIRE(atmVolStructure, "an ATM-calibrated cube needs an ATM volatility structure with discrete nodes, "
+                                    "such as a SwaptionVolatilityMatrix");
 
         std::vector<Time> atmOptionTimes(atmVolStructure->optionTimes());
         std::vector<Time> optionTimes(volCubeAtmCalibrated_.optionTimes());
