@@ -29,12 +29,17 @@
 #include <ql/quotes/simplequote.hpp>
 #include <ql/termstructures/credit/defaultprobabilityhelpers.hpp>
 #include <ql/termstructures/credit/flathazardrate.hpp>
+#include <ql/termstructures/credit/interpolatedhazardratecurve.hpp>
 #include <ql/termstructures/credit/piecewisedefaultcurve.hpp>
+#include <ql/termstructures/credit/survivalprobabilitystructure.hpp>
 #include <ql/termstructures/yield/discountcurve.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
+#include <ql/termstructures/yield/zerocurve.hpp>
+#include <ql/time/calendars/nullcalendar.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/calendars/weekendsonly.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/time/daycounters/thirty360.hpp>
 #include <ql/utilities/dataformatters.hpp>
 #include <iomanip>
@@ -542,6 +547,123 @@ BOOST_AUTO_TEST_CASE(testHelperTradeDate)
 
         BOOST_CHECK_SMALL(cds.NPV(), 1.0e-8);
     }
+}
+
+BOOST_AUTO_TEST_CASE(testJumps)
+{
+    BOOST_TEST_MESSAGE("Testing that credit-curve jumps behave like yield-curve jumps...");
+
+    const Date today(15, June, 2024);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+
+    const std::vector<Date> dates = {today, today + 10 * 365};
+    const std::vector<Rate> rates = {0.02, 0.02};
+
+    // With a flat rate the jump factor is discount(t) / exp(-0.02 t), and survival should match it.
+    const auto jumpFactors = [&](const std::vector<Handle<Quote>>& jumps, const std::vector<Date>& jumpDates, Time t)
+    {
+        const InterpolatedZeroCurve<Linear> yield(dates, rates, dc, Calendar(), jumps, jumpDates);
+        const InterpolatedHazardRateCurve<Linear> credit(dates, rates, dc, Calendar(), jumps, jumpDates);
+        const Real bare = std::exp(-0.02 * t);
+        return std::make_pair(yield.discount(t) / bare, credit.survivalProbability(t) / bare);
+    };
+    const auto check =
+        [&](const std::vector<Handle<Quote>>& jumps, const std::vector<Date>& jumpDates, Time t, Real expected)
+    {
+        const auto [yield, credit] = jumpFactors(jumps, jumpDates, t);
+        BOOST_CHECK_SMALL(yield - expected, 1e-14);
+        BOOST_CHECK_SMALL(credit - expected, 1e-14);
+    };
+
+    const Handle<Quote> jump(ext::make_shared<SimpleQuote>(0.99));
+    const Handle<Quote> first(ext::make_shared<SimpleQuote>(0.90));
+    const Handle<Quote> second(ext::make_shared<SimpleQuote>(0.95));
+
+    // already past, and on the reference date
+    check({jump}, {today - 30}, 1.0, 1.0);
+    check({jump}, {today}, 1.0, 1.0);
+    // inside the interval, and at its end, where it doesn't count yet
+    check({jump}, {today + 180}, 1.0, 0.99);
+    check({jump}, {today + 365}, 1.0, 1.0);
+    // not in order: the one before t applies and the one after doesn't
+    check({first, second}, {today + 5 * 365, today + 365}, 2.0, 0.95);
+    check({first, second}, {today + 365, today + 5 * 365}, 2.0, 0.90);
+    check({first, second}, {today + 5 * 365, today + 365}, 6.0, 0.90 * 0.95);
+    // past ones ahead of one that counts
+    check({first, second}, {today - 30, today + 365}, 2.0, 0.95);
+}
+
+BOOST_AUTO_TEST_CASE(testJumpsAreRefusedOnlyWhereTheyCount)
+{
+    BOOST_TEST_MESSAGE("Testing the refusal of credit-curve jumps out of range...");
+
+    const Date today(15, June, 2024);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const std::vector<Date> dates = {today, today + 10 * 365};
+    const std::vector<Rate> rates = {0.02, 0.02};
+    const Handle<Quote> tooLarge(ext::make_shared<SimpleQuote>(1.5));
+    const Handle<Quote> zero(ext::make_shared<SimpleQuote>(0.0));
+    const Handle<Quote> invalid(ext::make_shared<SimpleQuote>());
+
+    {
+        const InterpolatedHazardRateCurve<Linear> credit(dates, rates, dc, Calendar(), {tooLarge}, {today + 365});
+        BOOST_CHECK_SMALL(credit.survivalProbability(0.5) - std::exp(-0.02 * 0.5), 1e-14);
+        ExpectedErrorMessage expected("invalid 1st jump value: 1.5");
+        BOOST_CHECK_EXCEPTION(credit.survivalProbability(2.0), Error, expected);
+    }
+    {
+        const InterpolatedHazardRateCurve<Linear> credit(dates, rates, dc, Calendar(), {zero}, {today + 365});
+        ExpectedErrorMessage expected("invalid 1st jump value: 0");
+        BOOST_CHECK_EXCEPTION(credit.survivalProbability(2.0), Error, expected);
+    }
+    {
+        const InterpolatedHazardRateCurve<Linear> credit(dates, rates, dc, Calendar(), {invalid}, {today + 365});
+        ExpectedErrorMessage expected("invalid 1st jump quote");
+        BOOST_CHECK_EXCEPTION(credit.survivalProbability(2.0), Error, expected);
+    }
+    {
+        // Past, so it doesn't count at all.
+        const InterpolatedHazardRateCurve<Linear> credit(dates, rates, dc, Calendar(), {tooLarge}, {today - 30});
+        BOOST_CHECK_SMALL(credit.survivalProbability(2.0) - std::exp(-0.02 * 2.0), 1e-14);
+    }
+}
+
+// Moves with the evaluation date, unlike the curves in the tests above.
+class MovingSurvivalCurve : public SurvivalProbabilityStructure
+{
+  public:
+    MovingSurvivalCurve(const std::vector<Handle<Quote>>& jumps, const std::vector<Date>& jumpDates)
+    : SurvivalProbabilityStructure(0, NullCalendar(), Actual365Fixed(), jumps, jumpDates)
+    {
+    }
+    Date maxDate() const override { return Date::maxDate(); }
+
+  protected:
+    Probability survivalProbabilityImpl(Time) const override { return 1.0; }
+};
+
+BOOST_AUTO_TEST_CASE(testJumpPassedByMovingCurve)
+{
+    BOOST_TEST_MESSAGE("Testing a jump that the evaluation date moves past...");
+
+    const Date today(15, June, 2024);
+    Settings::instance().evaluationDate() = today;
+    const Date jumpDate = today + 30;
+    const MovingSurvivalCurve curve({Handle<Quote>(ext::make_shared<SimpleQuote>(0.99))}, {jumpDate});
+
+    BOOST_CHECK_SMALL(curve.survivalProbability(today + 10) - 1.0, 1e-14);
+    BOOST_CHECK_SMALL(curve.survivalProbability(today + 365) - 0.99, 1e-14);
+
+    Settings::instance().evaluationDate() = jumpDate - 1;
+    BOOST_CHECK_SMALL(curve.survivalProbability(jumpDate + 365) - 0.99, 1e-14);
+
+    Settings::instance().evaluationDate() = jumpDate;
+    BOOST_CHECK_SMALL(curve.survivalProbability(jumpDate + 365) - 1.0, 1e-14);
+
+    Settings::instance().evaluationDate() = jumpDate + 30;
+    BOOST_CHECK_SMALL(curve.survivalProbability(jumpDate + 365) - 1.0, 1e-14);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
