@@ -378,7 +378,7 @@ struct SharedModelVars
     static constexpr Real recovery = 0.4;
 
     Date today{31, August, 2006};
-    ext::shared_ptr<SimpleQuote> correlation, hazard;
+    ext::shared_ptr<SimpleQuote> correlation, hazard, lastNameHazard;
     Handle<Quote> hCorrelation;
     ext::shared_ptr<Pool> pool;
     std::vector<std::string> names;
@@ -387,17 +387,19 @@ struct SharedModelVars
 
     explicit SharedModelVars(Real correlationValue, const Date& defaultDate = Date(), Real hazardValue = 0.01)
     : correlation(ext::make_shared<SimpleQuote>(correlationValue)), hazard(ext::make_shared<SimpleQuote>(hazardValue)),
-      hCorrelation(correlation), pool(ext::make_shared<Pool>()),
-      discountCurve(ext::make_shared<FlatForward>(today, 0.05, Actual360(), Continuous))
+      lastNameHazard(ext::make_shared<SimpleQuote>(hazardValue)), hCorrelation(correlation),
+      pool(ext::make_shared<Pool>()), discountCurve(ext::make_shared<FlatForward>(today, 0.05, Actual360(), Continuous))
     {
         Handle<DefaultProbabilityTermStructure> hazardCurve(
             ext::make_shared<FlatHazardRate>(today, Handle<Quote>(hazard), ActualActual(ActualActual::ISDA)));
+        Handle<DefaultProbabilityTermStructure> lastNameCurve(
+            ext::make_shared<FlatHazardRate>(today, Handle<Quote>(lastNameHazard), ActualActual(ActualActual::ISDA)));
         for (Size i = 0; i < poolSize; ++i)
         {
             names.push_back("issuer-" + std::to_string(i));
             std::vector<std::pair<DefaultProbKey, Handle<DefaultProbabilityTermStructure>>> probabilities;
             probabilities.emplace_back(NorthAmericaCorpDefaultKey(EURCurrency(), SeniorSec, Period(0, Weeks), 10.),
-                                       hazardCurve);
+                                       i + 1 == poolSize ? lastNameCurve : hazardCurve);
             DefaultEventSet events;
             if (i == 3 && defaultDate != Date())
                 events.insert(ext::make_shared<FailureToPayEvent>(defaultDate, EURCurrency(), SeniorSec, 10.0,
@@ -410,6 +412,12 @@ struct SharedModelVars
                        .to(Date(1, September, 2011))
                        .withTenor(Period(3, Months))
                        .withCalendar(TARGET());
+    }
+
+    void moveHazard(Real value) const
+    {
+        hazard->setValue(value);
+        lastNameHazard->setValue(value);
     }
 
     ext::shared_ptr<GaussianConstantLossLM> latentModel() const
@@ -858,6 +866,93 @@ BOOST_AUTO_TEST_CASE(testBaseCorrelationModelBeforeItsFirstBasket)
     BOOST_CHECK_SMALL(vars.cdo(basket)->fairPremium() -
                           premiumOnNewModel(&SharedModelVars::baseCorrelationModel, 0.6, 0.01, 0.0, 0.2),
                       1.0e-12);
+}
+
+BOOST_AUTO_TEST_CASE(testHazardMoveOnEveryLossModel)
+{
+    BOOST_TEST_MESSAGE("Testing a move in the credit curves on every loss model...");
+
+    for (const auto& model : everyLossModel())
+    {
+        for (Real hazard : {0.03, 0.004})
+        {
+            BOOST_TEST_CONTEXT(model.name << " moving to a hazard rate of " << hazard)
+            {
+                SharedModelVars vars(0.3);
+                Settings::instance().evaluationDate() = vars.today;
+                auto basket = vars.basket(0.0, 0.2);
+                basket->setLossModel((vars.*model.factory)());
+                auto tranche = vars.cdo(basket);
+                const Real before = tranche->fairPremium();
+
+                vars.moveHazard(hazard);
+
+                const Real after = tranche->fairPremium();
+                BOOST_CHECK_SMALL(after - premiumOnNewModel(model.factory, 0.3, hazard, 0.0, 0.2), 1.0e-12);
+                BOOST_CHECK_GT(std::fabs(after - before), 1.0e-4);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testHazardMoveOfOneNameOnEveryLossModel)
+{
+    BOOST_TEST_MESSAGE("Testing a move in the credit curve of one name on every loss model...");
+
+    for (const auto& model : everyLossModel())
+    {
+        BOOST_TEST_CONTEXT(model.name)
+        {
+            SharedModelVars vars(0.3);
+            Settings::instance().evaluationDate() = vars.today;
+            auto basket = vars.basket(0.0, 0.2);
+            basket->setLossModel((vars.*model.factory)());
+            auto tranche = vars.cdo(basket);
+            const Real before = tranche->fairPremium();
+
+            vars.lastNameHazard->setValue(0.2);
+
+            SharedModelVars freshVars(0.3);
+            freshVars.lastNameHazard->setValue(0.2);
+            auto freshBasket = freshVars.basket(0.0, 0.2);
+            freshBasket->setLossModel((freshVars.*model.factory)());
+
+            const Real after = tranche->fairPremium();
+            BOOST_CHECK_SMALL(after - freshVars.cdo(freshBasket)->fairPremium(), 1.0e-12);
+            BOOST_CHECK_GT(std::fabs(after - before), 1.0e-4);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testHazardMoveOfAPoolALossModelHasLeft)
+{
+    BOOST_TEST_MESSAGE("Testing a move in the credit curves of a pool a loss model has left...");
+
+    for (const auto& model : everyLossModel())
+    {
+        BOOST_TEST_CONTEXT(model.name)
+        {
+            SharedModelVars left(0.3, Date(), 0.01);
+            SharedModelVars holding(0.3, Date(), 0.03);
+            Settings::instance().evaluationDate() = left.today;
+            auto shared = (left.*model.factory)();
+            auto leftBasket = left.basket(0.0, 0.2);
+            auto holdingBasket = holding.basket(0.0, 0.2);
+            leftBasket->setLossModel(shared);
+            holdingBasket->setLossModel(shared);
+            auto leftTranche = left.cdo(leftBasket);
+            auto holdingTranche = holding.cdo(holdingBasket);
+            leftTranche->fairPremium();
+            const Real held = holdingTranche->fairPremium();
+
+            left.moveHazard(0.004);
+
+            BOOST_CHECK_SMALL(holdingTranche->fairPremium() - held, 1.0e-12);
+            BOOST_CHECK_SMALL(leftTranche->fairPremium() - premiumOnNewModel(model.factory, 0.3, 0.004, 0.0, 0.2),
+                              1.0e-12);
+            BOOST_CHECK_SMALL(holdingTranche->fairPremium() - held, 1.0e-12);
+        }
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -114,6 +114,18 @@ namespace QuantLib
             LazyObject::update();
         }
 
+        /* What's simulated depends on the credit curves of the basket's names. A
+        curve stays registered when the basket leaves, at the cost of a simulation
+        if it moves: this can run as a curve notifies, and unregistering then could
+        erase from the set it's going through.
+        */
+        void registerWithCurves()
+        {
+            const ext::shared_ptr<Pool>& pool = basket_->pool();
+            for (const std::string& name : pool->names())
+                registerWith(pool->get(name).defaultProbability(pool->defaultKey(name)));
+        }
+
         void performCalculations() const override
         {
             static_cast<const derivedRandomLM<copulaPolicy, USNG>*>(this)->initDates(); // in update?
@@ -890,6 +902,7 @@ namespace QuantLib
 
             QL_REQUIRE(this->basket_->size() == model_->size(), "Incompatible basket and model sizes.");
             QL_REQUIRE(recoveries_.size() == this->basket_->size(), "Incompatible basket and recovery sizes.");
+            this->registerWithCurves();
             // invalidate current calculations if any and notify observers
             // NOLINTNEXTLINE(bugprone-parent-virtual-call)
             LazyObject::update();

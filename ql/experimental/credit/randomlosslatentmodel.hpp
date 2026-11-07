@@ -144,6 +144,7 @@ namespace QuantLib
             copula_->resetBasket(this->basket_.currentLink());
 
             QL_REQUIRE(2 * this->basket_->size() == copula_->size(), "Incompatible basket and model sizes.");
+            this->registerWithCurves();
             // invalidate current calculations if any and notify observers
             // NOLINTNEXTLINE(bugprone-parent-virtual-call)
             LazyObject::update();
