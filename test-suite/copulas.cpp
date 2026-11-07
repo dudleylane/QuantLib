@@ -91,7 +91,7 @@ BOOST_AUTO_TEST_CASE(testClaytonCopulaRng)
 {
     BOOST_TEST_MESSAGE("Testing the Clayton copula's random-number generator...");
 
-    for (Real theta : {0.5, 2.0, 5.0})
+    for (Real theta : {-1.0, -0.9, -0.5, -0.25, -0.1, 0.5, 2.0, 5.0})
     {
         BOOST_TEST_CONTEXT("theta = " << theta)
         {
@@ -113,6 +113,41 @@ BOOST_AUTO_TEST_CASE(testFrankCopulaRng)
             checkSamples(generator, FrankCopula(theta));
         }
     }
+}
+
+BOOST_AUTO_TEST_CASE(testClaytonCopulaAtNegativeTheta)
+{
+    BOOST_TEST_MESSAGE("Testing the Clayton copula at negative theta...");
+
+    // Below the curve x^-theta + y^-theta = 1 the copula is 0.  There, the power of a negative
+    // number would give a NaN, or a positive number when the power is an even integer.
+    for (Real theta : {-0.9, -0.5, -0.25, -0.1})
+    {
+        const ClaytonCopula copula(theta);
+        for (Real x : {1e-9, 1e-6})
+        {
+            for (Real y : {1e-9, 1e-6})
+            {
+                BOOST_TEST_CONTEXT("theta = " << theta << ", x = " << x << ", y = " << y)
+                {
+                    BOOST_CHECK_EQUAL(copula(x, y), 0.0);
+                }
+            }
+        }
+    }
+
+    // Above it, the formula holds, and the marginals are uniform.
+    const ClaytonCopula copula(-0.5);
+    BOOST_CHECK_SMALL(copula(0.5, 0.75) - std::pow(std::sqrt(0.5) + std::sqrt(0.75) - 1.0, 2.0), 1e-15);
+    BOOST_CHECK_SMALL(copula(0.2, 1.0) - 0.2, 1e-15);
+    BOOST_CHECK_SMALL(copula(1.0, 0.2) - 0.2, 1e-15);
+
+    // The two limits of the range, where the power is 1 and where the base can't be negative.
+    const ClaytonCopula lowerBound(-1.0), positive(2.0);
+    BOOST_CHECK_EQUAL(lowerBound(0.25, 0.5), 0.0);
+    BOOST_CHECK_SMALL(lowerBound(0.75, 0.5) - 0.25, 1e-15);
+    BOOST_CHECK_SMALL(positive(0.5, 0.5) - 1.0 / std::sqrt(7.0), 1e-15);
+    BOOST_CHECK_EQUAL(positive(0.0, 0.5), 0.0);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
