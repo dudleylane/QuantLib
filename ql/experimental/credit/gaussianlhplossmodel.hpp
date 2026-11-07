@@ -93,8 +93,7 @@ namespace QuantLib
       public:
         Real expectedTrancheLoss(const Date& d) const override
         {
-            // can calls to Basket::remainingNotional(d) be cached?<<<<<<<<<<<<<
-            const Real remainingfullNot = basket_->remainingNotional(d);
+            const Real remainingfullNot = basket_->remainingNotional();
             Real averageRR = averageRecovery(d);
             Probability prob = averageProb(d);
             Real remainingAttachAmount = basket_->remainingAttachmentAmount();
@@ -139,7 +138,7 @@ namespace QuantLib
         // same as percentilePortfolio but tranched
         Real percentile(const Date& d, Real perctl) const override
         {
-            const Real remainingNot = basket_->remainingNotional(d);
+            const Real remainingNot = basket_->remainingNotional();
             Real remainingAttachAmount = basket_->remainingAttachmentAmount();
             Real remainingDetachAmount = basket_->remainingDetachmentAmount();
             const Real attach = std::min(remainingAttachAmount / remainingNot, 1.);
@@ -152,9 +151,9 @@ namespace QuantLib
         { // not an overload of Deflossmodel ???<<<<<???
             // weighted average by programmed exposure.
             const std::vector<Probability> probs = basket_->remainingProbabilities(d); // use remaining basket
-            const std::vector<Real> remainingNots = basket_->remainingNotionals(d);
+            const std::vector<Real>& remainingNots = basket_->remainingNotionals();
             return std::inner_product(probs.begin(), probs.end(), remainingNots.begin(), Real(0.)) /
-                   basket_->remainingNotional(d);
+                   basket_->remainingNotional();
         }
 
         /* One could define the average recovery without the probability
@@ -168,11 +167,12 @@ namespace QuantLib
         Real averageRecovery(const Date& d) const // no explicit time dependence in this model
         {
             const std::vector<Probability> probs = basket_->remainingProbabilities(d);
+            const std::vector<Size>& live = basket_->liveList();
             std::vector<Real> recoveries;
-            recoveries.reserve(basket_->remainingSize());
-            for (Size i = 0; i < basket_->remainingSize(); i++)
+            recoveries.reserve(live.size());
+            for (Size i : live)
                 recoveries.push_back(rrQuotes_[i]->value());
-            std::vector<Real> notionals = basket_->remainingNotionals(d);
+            std::vector<Real> notionals = basket_->remainingNotionals();
             Real denominator = std::inner_product(notionals.begin(), notionals.end(), probs.begin(), Real(0.));
             if (denominator == 0.)
                 return 0.;

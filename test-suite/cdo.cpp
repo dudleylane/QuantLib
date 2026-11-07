@@ -385,7 +385,10 @@ struct SharedModelVars
     Handle<YieldTermStructure> discountCurve;
     Schedule schedule;
 
-    explicit SharedModelVars(Real correlationValue, const Date& defaultDate = Date(), Real hazardValue = 0.01)
+    explicit SharedModelVars(Real correlationValue,
+                             const Date& defaultDate = Date(),
+                             Real hazardValue = 0.01,
+                             bool bankruptcy = false)
     : correlation(ext::make_shared<SimpleQuote>(correlationValue)), hazard(ext::make_shared<SimpleQuote>(hazardValue)),
       lastNameHazard(ext::make_shared<SimpleQuote>(hazardValue)), hCorrelation(correlation),
       pool(ext::make_shared<Pool>()), discountCurve(ext::make_shared<FlatForward>(today, 0.05, Actual360(), Continuous))
@@ -401,7 +404,10 @@ struct SharedModelVars
             probabilities.emplace_back(NorthAmericaCorpDefaultKey(EURCurrency(), SeniorSec, Period(0, Weeks), 10.),
                                        i + 1 == poolSize ? lastNameCurve : hazardCurve);
             DefaultEventSet events;
-            if (i == 3 && defaultDate != Date())
+            if (i == 3 && defaultDate != Date() && bankruptcy)
+                events.insert(ext::make_shared<BankruptcyEvent>(defaultDate, EURCurrency(), SeniorSec, defaultDate + 5,
+                                                                recovery));
+            else if (i == 3 && defaultDate != Date())
                 events.insert(ext::make_shared<FailureToPayEvent>(defaultDate, EURCurrency(), SeniorSec, 10.0,
                                                                   defaultDate + 5, recovery));
             pool->add(names.back(), Issuer(probabilities, events),
@@ -953,6 +959,300 @@ BOOST_AUTO_TEST_CASE(testHazardMoveOfAPoolALossModelHasLeft)
             BOOST_CHECK_SMALL(holdingTranche->fairPremium() - held, 1.0e-12);
         }
     }
+}
+
+// Twenty names, or the nineteen left once name 3 has defaulted, as a pool on its own. They differ
+// in what a model reads per name, so that reading one name's data for another's shows. The
+// homogeneous models need every name to lose the same on default.
+struct NamesAroundADefault
+{
+    static constexpr Size poolSize = 20;
+    static constexpr Size defaultedName = 3;
+
+    Date inception{31, August, 2006};
+    Date beforeTheDefault{1, September, 2006};
+    Date defaultDate{15, September, 2006};
+    Date afterTheDefault{1, November, 2006};
+    Date horizon{1, September, 2011};
+
+    Handle<Quote> correlation;
+    ext::shared_ptr<Pool> pool;
+    std::vector<std::string> names;
+    std::vector<Real> notionals, hazards, recoveries;
+    std::vector<std::vector<Real>> factors;
+
+    NamesAroundADefault(bool sameLossOnDefault, bool onlyWhatIsLeft)
+    : correlation(ext::make_shared<SimpleQuote>(0.3)), pool(ext::make_shared<Pool>())
+    {
+        const NorthAmericaCorpDefaultKey curveKey(EURCurrency(), SeniorSec, Period(0, Weeks), 10.);
+        const NorthAmericaCorpDefaultKey poolKey(EURCurrency(), SeniorSec, Period(), 1.);
+        for (Size i = 0; i < poolSize; ++i)
+        {
+            if (onlyWhatIsLeft && i == defaultedName)
+                continue;
+            names.push_back("issuer-" + std::to_string(i));
+            notionals.push_back(sameLossOnDefault ? 100.0 : 100.0 + 8.0 * i);
+            hazards.push_back(0.004 + 0.002 * i);
+            recoveries.push_back(sameLossOnDefault ? 0.4 : 0.2 + 0.025 * i);
+            factors.emplace_back(1, std::sqrt(0.05 + 0.04 * i));
+
+            std::vector<std::pair<DefaultProbKey, Handle<DefaultProbabilityTermStructure>>> probabilities;
+            probabilities.emplace_back(
+                curveKey, Handle<DefaultProbabilityTermStructure>(ext::make_shared<FlatHazardRate>(
+                              inception, makeQuoteHandle(hazards.back()), ActualActual(ActualActual::ISDA))));
+            DefaultEventSet events;
+            if (i == defaultedName)
+                events.insert(ext::make_shared<FailureToPayEvent>(defaultDate, EURCurrency(), SeniorSec, 10.0,
+                                                                  defaultDate + 5, recoveries.back()));
+            pool->add(names.back(), Issuer(probabilities, events), poolKey);
+        }
+    }
+
+    ext::shared_ptr<GaussianConstantLossLM> latentModel() const
+    {
+        return ext::make_shared<GaussianConstantLossLM>(
+            factors, recoveries, LatentModelIntegrationType::GaussianQuadrature, GaussianCopulaPolicy::initTraits());
+    }
+
+    // Under a T copula each name has a distribution of its own, where the Gaussian one is shared.
+    ext::shared_ptr<TConstantLossLM> tLatentModel() const
+    {
+        TCopulaPolicy::initTraits traits;
+        traits.tOrders = std::vector<Integer>(2, 3);
+        return ext::make_shared<TConstantLossLM>(factors, recoveries, LatentModelIntegrationType::GaussianQuadrature,
+                                                 traits);
+    }
+
+    ext::shared_ptr<DefaultLossModel> lhpModel() const
+    {
+        return ext::make_shared<GaussianLHPLossModel>(correlation, recoveries);
+    }
+
+    // With an odd number of buckets, so that no tranche limit used here falls on an edge
+    // between two, where the last bit of the limit would decide the bucket.
+    ext::shared_ptr<DefaultLossModel> homogeneousModel() const
+    {
+        return ext::make_shared<HomogGaussPoolLossModel>(latentModel(), 101, 5., -5., 15);
+    }
+
+    ext::shared_ptr<DefaultLossModel> inhomogeneousModel() const
+    {
+        return ext::make_shared<IHGaussPoolLossModel>(latentModel(), 101, 5., -5., 15);
+    }
+
+    ext::shared_ptr<DefaultLossModel> binomialModel() const
+    {
+        return ext::make_shared<GaussianBinomialLossModel>(latentModel());
+    }
+
+    ext::shared_ptr<DefaultLossModel> recursiveModel() const
+    {
+        return ext::make_shared<RecursiveGaussLossModel>(latentModel(), 4);
+    }
+
+    ext::shared_ptr<DefaultLossModel> saddlePointModel() const
+    {
+        return ext::make_shared<SaddlePointLossModel<GaussianCopulaPolicy>>(latentModel());
+    }
+
+    ext::shared_ptr<DefaultLossModel> tHomogeneousModel() const
+    {
+        return ext::make_shared<HomogTPoolLossModel>(tLatentModel(), 101, 5., -5., 15);
+    }
+
+    ext::shared_ptr<DefaultLossModel> tInhomogeneousModel() const
+    {
+        return ext::make_shared<IHStudentPoolLossModel>(tLatentModel(), 101, 5., -5., 15);
+    }
+
+    ext::shared_ptr<DefaultLossModel> tBinomialModel() const
+    {
+        return ext::make_shared<TBinomialLossModel>(tLatentModel());
+    }
+
+    ext::shared_ptr<DefaultLossModel> tRecursiveModel() const
+    {
+        return ext::make_shared<RecursiveLossModel<TCopulaPolicy>>(tLatentModel(), 4);
+    }
+
+    ext::shared_ptr<DefaultLossModel> tSaddlePointModel() const
+    {
+        return ext::make_shared<SaddlePointLossModel<TCopulaPolicy>>(tLatentModel());
+    }
+
+    ext::shared_ptr<Basket> basket(Real attachment, Real detachment) const
+    {
+        return ext::make_shared<Basket>(inception, names, notionals, pool, attachment, detachment);
+    }
+};
+
+// What a model expects a basket to lose, leaving out what it has lost already.
+Real lossOnLiveNames(const Basket& basket, const Date& d)
+{
+    const Real total = basket.expectedTrancheLoss(d);
+    return total - basket.cumulatedLoss();
+}
+
+BOOST_AUTO_TEST_CASE(testBasketDataOnTheNamesLeftAfterADefault)
+{
+    BOOST_TEST_MESSAGE("Testing what a basket says about the names left after a default...");
+
+    const NamesAroundADefault all(false, false);
+    const NamesAroundADefault left(false, true);
+    Settings::instance().evaluationDate() = all.afterTheDefault;
+
+    const auto basket = all.basket(0.0, 0.1);
+    const std::vector<Real> notionals = basket->remainingNotionals(all.afterTheDefault);
+    const std::vector<Probability> probabilities = basket->remainingProbabilities(all.horizon);
+
+    BOOST_REQUIRE_EQUAL(notionals.size(), left.notionals.size());
+    BOOST_REQUIRE_EQUAL(probabilities.size(), left.notionals.size());
+    for (Size i = 0; i < notionals.size(); ++i)
+    {
+        BOOST_TEST_CONTEXT("name " << left.names[i])
+        {
+            BOOST_CHECK_EQUAL(basket->remainingNames(all.afterTheDefault)[i], left.names[i]);
+            BOOST_CHECK_EQUAL(basket->remainingNotionals()[i], left.notionals[i]);
+            BOOST_CHECK_EQUAL(notionals[i], left.notionals[i]);
+            const Probability expected = left.pool->get(left.names[i])
+                                             .defaultProbability(left.pool->defaultKey(left.names[i]))
+                                             ->defaultProbability(all.horizon, true);
+            BOOST_CHECK_EQUAL(probabilities[i], expected);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testLossModelsOnTheNamesLeftAfterADefault)
+{
+    BOOST_TEST_MESSAGE("Testing loss models on the names left after a default...");
+
+    using Factory = ext::shared_ptr<DefaultLossModel> (NamesAroundADefault::*)() const;
+    const struct
+    {
+        std::string name;
+        Factory factory;
+        bool needsTheSameLossOnDefault;
+    } models[] = {{"LHP", &NamesAroundADefault::lhpModel, false},
+                  {"homogeneous", &NamesAroundADefault::homogeneousModel, true},
+                  {"binomial", &NamesAroundADefault::binomialModel, false},
+                  {"recursive", &NamesAroundADefault::recursiveModel, false},
+                  {"saddle point", &NamesAroundADefault::saddlePointModel, false},
+                  {"inhomogeneous", &NamesAroundADefault::inhomogeneousModel, false},
+                  {"T homogeneous", &NamesAroundADefault::tHomogeneousModel, true},
+                  {"T binomial", &NamesAroundADefault::tBinomialModel, false},
+                  {"T recursive", &NamesAroundADefault::tRecursiveModel, false},
+                  {"T saddle point", &NamesAroundADefault::tSaddlePointModel, false},
+                  {"T inhomogeneous", &NamesAroundADefault::tInhomogeneousModel, false}};
+
+    for (const auto& model : models)
+    {
+        for (bool sameLoss : {true, false})
+        {
+            if (model.needsTheSameLossOnDefault && !sameLoss)
+                continue;
+            for (auto tranche : {std::make_pair(0.0, 0.1), std::make_pair(0.1, 0.3)})
+            {
+                BOOST_TEST_CONTEXT(model.name << (sameLoss ? ", the same loss on default" : ", different names")
+                                              << ", tranche " << tranche.first << " to " << tranche.second)
+                {
+                    const NamesAroundADefault all(sameLoss, false);
+                    const NamesAroundADefault left(sameLoss, true);
+                    Settings::instance().evaluationDate() = all.afterTheDefault;
+
+                    const auto basket = all.basket(tranche.first, tranche.second);
+                    const Date today = all.afterTheDefault;
+                    const Real notional = basket->remainingNotional(today);
+                    const auto reference = left.basket(basket->remainingAttachmentAmount(today) / notional,
+                                                       basket->remainingDetachmentAmount(today) / notional);
+
+                    basket->setLossModel((all.*model.factory)());
+                    reference->setLossModel((left.*model.factory)());
+
+                    const Real tolerance = 1.0e-9;
+                    BOOST_CHECK_SMALL(lossOnLiveNames(*basket, all.horizon) - lossOnLiveNames(*reference, all.horizon),
+                                      tolerance);
+                    // What an engine asks for a coupon that started before the default.
+                    BOOST_CHECK_SMALL(lossOnLiveNames(*basket, all.beforeTheDefault) -
+                                          lossOnLiveNames(*reference, all.beforeTheDefault),
+                                      tolerance);
+                    BOOST_CHECK_SMALL(basket->percentile(all.horizon, 0.95) - reference->percentile(all.horizon, 0.95),
+                                      tolerance);
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testLossModelsBeforeADefaultStillToCome)
+{
+    BOOST_TEST_MESSAGE("Testing loss models with a default dated after the evaluation date...");
+
+    // A failure to pay doesn't match a key until it has happened, so a bankruptcy shows this.
+    const Date defaultDate(15, September, 2006);
+
+    for (const auto& model : everyLossModel())
+    {
+        BOOST_TEST_CONTEXT(model.name)
+        {
+            SharedModelVars programmed(0.3, defaultDate, 0.01, true);
+            SharedModelVars none(0.3);
+            Settings::instance().evaluationDate() = none.today;
+
+            auto withEvent = programmed.basket(0.0, 0.2);
+            withEvent->setLossModel((programmed.*model.factory)());
+            auto withoutEvent = none.basket(0.0, 0.2);
+            withoutEvent->setLossModel((none.*model.factory)());
+
+            BOOST_CHECK_EQUAL(withEvent->remainingSize(programmed.schedule.endDate()), Size(19));
+            BOOST_CHECK_SMALL(programmed.cdo(withEvent)->fairPremium() - none.cdo(withoutEvent)->fairPremium(),
+                              1.0e-12);
+        }
+    }
+
+    using Factory = ext::shared_ptr<DefaultLossModel> (SharedModelVars::*)() const;
+    const std::vector<std::pair<std::string, Factory>> withStatistics = {
+        {"LHP", &SharedModelVars::lhpModel},
+        {"homogeneous", &SharedModelVars::homogeneousModel},
+        {"inhomogeneous", &SharedModelVars::inhomogeneousModel},
+        {"binomial", &SharedModelVars::binomialModel},
+        {"recursive", &SharedModelVars::recursiveModel},
+        {"saddle point", &SharedModelVars::saddlePointModel}};
+    for (const auto& model : withStatistics)
+    {
+        BOOST_TEST_CONTEXT(model.first)
+        {
+            SharedModelVars programmed(0.3, defaultDate, 0.01, true);
+            SharedModelVars none(0.3);
+            Settings::instance().evaluationDate() = none.today;
+
+            auto withEvent = programmed.basket(0.0, 0.2);
+            withEvent->setLossModel((programmed.*model.second)());
+            auto withoutEvent = none.basket(0.0, 0.2);
+            withoutEvent->setLossModel((none.*model.second)());
+
+            const Date horizon = programmed.schedule.endDate();
+            BOOST_CHECK_SMALL(withEvent->percentile(horizon, 0.95) - withoutEvent->percentile(horizon, 0.95), 1.0e-9);
+            BOOST_CHECK_SMALL(
+                withEvent->expectedShortfall(horizon, 0.95) - withoutEvent->expectedShortfall(horizon, 0.95), 1.0e-9);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testLhpProbabilityOverALossBeforeADefaultStillToCome)
+{
+    BOOST_TEST_MESSAGE("Testing the LHP model's probability of a loss with a default still to come...");
+
+    SharedModelVars programmed(0.3, Date(15, September, 2006), 0.01, true);
+    SharedModelVars none(0.3);
+    Settings::instance().evaluationDate() = none.today;
+
+    auto withEvent = programmed.basket(0.0, 0.2);
+    withEvent->setLossModel(programmed.lhpModel());
+    auto withoutEvent = none.basket(0.0, 0.2);
+    withoutEvent->setLossModel(none.lhpModel());
+
+    const Date horizon = programmed.schedule.endDate();
+    BOOST_CHECK_SMALL(withEvent->probOverLoss(horizon, 0.5) - withoutEvent->probOverLoss(horizon, 0.5), 1.0e-12);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

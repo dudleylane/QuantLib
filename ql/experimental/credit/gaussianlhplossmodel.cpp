@@ -112,7 +112,7 @@ namespace QuantLib
         Real remainingDetachAmount = basket_->remainingDetachmentAmount();
         // live unerlying portfolio loss fraction (remaining portf fraction)
 
-        const Real remainingBasktNot = basket_->remainingNotional(d);
+        const Real remainingBasktNot = basket_->remainingNotional();
         const Real attach = std::min(remainingAttachAmount / remainingBasktNot, 1.);
         const Real detach = std::min(remainingDetachAmount / remainingBasktNot, 1.);
 
@@ -145,7 +145,7 @@ namespace QuantLib
         Real remainingAttachAmount = basket_->remainingAttachmentAmount();
         Real remainingDetachAmount = basket_->remainingDetachmentAmount();
 
-        const Real remainingNot = basket_->remainingNotional(d);
+        const Real remainingNot = basket_->remainingNotional();
         const Real attach = std::min(remainingAttachAmount / remainingNot, 1.);
         const Real detach = std::min(remainingDetachAmount / remainingNot, 1.);
 

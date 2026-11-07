@@ -168,9 +168,10 @@ namespace QuantLib
                     */
 
         std::vector<Probability> uncDefProb = basket_->remainingProbabilities(date);
+        const std::vector<Size>& live = basket_->liveList();
         std::vector<Real> invProb;
         for (Size i = 0; i < uncDefProb.size(); ++i)
-            invProb.push_back(copula_->inverseCumulativeY(uncDefProb[i], i));
+            invProb.push_back(copula_->inverseCumulativeY(uncDefProb[i], live[i]));
         ///  invProb.push_back(CP::inverseCumulativeY(uncDefProb[i], i));//<-static call
         return copula_->integratedExpectedValue([&](const std::vector<Real>& v1)
                                                 { return expectedConditionalLossInvP(invProb, v1); });
@@ -200,9 +201,10 @@ namespace QuantLib
 
         copula_->resetBasket(basket_.currentLink());
 
+        const std::vector<Size>& live = basket_->liveList();
         std::vector<Real> lgdsTmp, lgds;
         for (Size i = 0; i < remainingBsktSize_; ++i)
-            lgds.push_back(notionals_[i] * (1. - copula_->recoveries()[i]));
+            lgds.push_back(notionals_[i] * (1. - copula_->recoveries()[live[i]]));
         lgdsTmp = lgds;
         ///////////////std::remove(lgds.begin(), lgds.end(), 0.);
         lgds.erase(std::remove(lgds.begin(), lgds.end(), 0.), lgds.end());
@@ -308,13 +310,14 @@ namespace QuantLib
         // eq. 10 p.68
         // attainable losses distribution, recursive algorithm
         const std::vector<Probability>& uncDefProb = pDefDate; // alias, remove
+        const std::vector<Size>& live = basket_->liveList();
 
         std::map<Real, Probability> pIndepDistrib;
         ////////  K=0
         pIndepDistrib.insert(std::make_pair(0., 1.));
         for (Size iName = 0; iName < remainingBsktSize_; ++iName)
         {
-            Probability pDef = copula_->conditionalDefaultProbability(uncDefProb[iName], iName, mktFactor);
+            Probability pDef = copula_->conditionalDefaultProbability(uncDefProb[iName], live[iName], mktFactor);
             ////// iterate on all possible losses in the distribution:
             std::map<Real, Probability> pDistTemp;
             auto distIt = pIndepDistrib.begin();
@@ -359,13 +362,14 @@ namespace QuantLib
     {
         // eq. 10 p.68
         // attainable losses distribution, recursive algorithm
+        const std::vector<Size>& live = basket_->liveList();
 
         std::map<Real, Probability> pIndepDistrib;
         // K=0
         pIndepDistrib.insert(std::make_pair(0., 1.));
         for (Size iName = 0; iName < remainingBsktSize_; ++iName)
         {
-            Probability pDef = copula_->conditionalDefaultProbabilityInvP(invpDefDate[iName], iName, mktFactor);
+            Probability pDef = copula_->conditionalDefaultProbabilityInvP(invpDefDate[iName], live[iName], mktFactor);
 
             // iterate on all possible losses in the distribution:
             std::map<Real, Probability> pDistTemp;
