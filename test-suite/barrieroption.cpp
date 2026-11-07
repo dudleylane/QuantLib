@@ -36,6 +36,7 @@
 #include <ql/pricingengines/barrier/mcbarrierengine.hpp>
 #include <ql/pricingengines/blackformula.hpp>
 #include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
+#include <ql/pricingengines/vanilla/binomialengine.hpp>
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvariancecurve.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvariancesurface.hpp>
@@ -44,7 +45,9 @@
 #include <ql/time/calendars/nullcalendar.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/time/daycounters/business252.hpp>
+#include <ql/timegrid.hpp>
 #include <ql/utilities/dataformatters.hpp>
 
 using namespace QuantLib;
@@ -1273,7 +1276,7 @@ BOOST_AUTO_TEST_CASE(testPerturbative)
     option.setPricingEngine(engine);
 
     calculated = option.NPV();
-    expected = 0.8943769;
+    expected = 0.8943754;
     if (std::fabs(calculated-expected) > tolerance) {
         BOOST_ERROR("Failed to reproduce expected value"
                     << "\n  calculated: " << std::setprecision(8) << calculated
@@ -1610,6 +1613,269 @@ BOOST_AUTO_TEST_CASE(testVannaVolgaSimpleBarrierValues)
             REPORT_FX_FAILURE("value", value.barrierType, value.barrier, value.rebate, payoff, exercise, value.s,
                               value.q, value.r, today, value.vol25Put, value.volAtm, value.vol25Call, value.v, expected,
                               calculated, error, value.tol);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBinomialExerciseAtMaturity)
+{
+    BOOST_TEST_MESSAGE("Testing a binomial American barrier option's exercise at maturity...");
+
+    const Date today(21, September, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Date maturity = today + 91;
+    const Size steps = 51;
+
+    // The last point of this grid rounds below the option's maturity.
+    const Time T = dc.yearFraction(today, maturity);
+    BOOST_REQUIRE(TimeGrid(T, steps).back() < T);
+
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.0, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.05, dc)), Handle<BlackVolTermStructure>(flatVol(today, 0.15, dc)));
+    auto payoff = ext::make_shared<PlainVanillaPayoff>(Option::Call, 85.0);
+    auto europeanExercise = ext::make_shared<EuropeanExercise>(maturity);
+    auto americanExercise = ext::make_shared<AmericanExercise>(today, maturity);
+
+    VanillaOption vanilla(payoff, europeanExercise);
+    vanilla.setPricingEngine(ext::make_shared<BinomialVanillaEngine<CoxRossRubinstein>>(process, steps));
+
+    // Giving the number of steps as the maximum keeps the vanilla's tree, and
+    // the tree's nodes are between 58 and 171, so these barriers are never hit.
+    auto engine =
+        ext::make_shared<BinomialBarrierEngine<CoxRossRubinstein, DiscretizedBarrierOption>>(process, steps, steps);
+    for (const auto& [type, barrier] : {std::make_pair(Barrier::DownOut, 1.0), std::make_pair(Barrier::UpOut, 1000.0)})
+    {
+        BarrierOption european(type, barrier, 0.0, payoff, europeanExercise);
+        BarrierOption american(type, barrier, 0.0, payoff, americanExercise);
+        european.setPricingEngine(engine);
+        american.setPricingEngine(engine);
+        BOOST_CHECK_SMALL(european.NPV() - vanilla.NPV(), 1.0e-10);
+        BOOST_CHECK_SMALL(american.NPV() - vanilla.NPV(), 1.0e-10);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBinomialGreeksWithCoincidentNodes)
+{
+    BOOST_TEST_MESSAGE("Testing binomial barrier Greeks when a tree collapses to one price...");
+
+    const Date today(15, August, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Size steps = 101;
+
+    // The moves are too small to register, so all the nodes of a step round to one price.
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.0, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.0, dc)),
+        Handle<BlackVolTermStructure>(flatVol(today, 1.0e-17, dc)));
+    BarrierOption option(Barrier::DownOut, 50.0, 0.0, ext::make_shared<PlainVanillaPayoff>(Option::Call, 20.0),
+                         ext::make_shared<EuropeanExercise>(today + 365));
+    option.setPricingEngine(
+        ext::make_shared<BinomialBarrierEngine<CoxRossRubinstein, DiscretizedBarrierOption>>(process, steps, steps));
+
+    BOOST_CHECK_CLOSE(option.NPV(), 80.0, 1.0e-10);
+    BOOST_CHECK_EXCEPTION(option.delta(), Error, ExpectedErrorMessage("delta not provided"));
+    BOOST_CHECK_EXCEPTION(option.gamma(), Error, ExpectedErrorMessage("gamma not provided"));
+}
+
+BOOST_AUTO_TEST_CASE(testTrivariateNormalInPerturbativeEngine)
+{
+    BOOST_TEST_MESSAGE("Testing the perturbative engine's trivariate normal distribution...");
+
+    // The expected values come from integrating the conditional bivariate normal
+    // distribution, in the form with Owen's T function, by adaptive quadrature.
+    struct Case
+    {
+        Real h1, h2, h3, r21, r31, r32, expected;
+    };
+    const Case cases[] = {{1.0, 1.0, 1.0, 0.5, 0.5, 0.5, 0.67777953297041},
+                          {-1.0, -1.0, -1.0, 0.5, 0.5, 0.5, 0.033796989364212},
+                          {-1.0, 0.5, 2.0, -0.5, 0.3, 0.1, 0.061064466760885},
+                          {2.0, -2.0, 1.0, 0.3, -0.3, 0.2, 0.021181906494869},
+                          {3.0, 3.0, 3.0, -0.2, -0.2, -0.2, 0.99595069815636},
+                          {-3.0, -3.0, -3.0, 0.9, 0.9, 0.9, 0.00040880688852035},
+                          {0.5, -0.5, 0.2, 0.99, 0.98, 0.97, 0.30847665986883},
+                          // With an argument this far out, the integrand is negligible over part of the range.
+                          {12.0, -1.0, 0.0, 0.5, 0.5, 0.5, 0.12739820657663},
+                          {20.0, 20.0, -2.0, 0.5, 0.3, 0.2, 0.022750131948179},
+                          {-12.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.0}};
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT("limits " << c.h1 << ", " << c.h2 << ", " << c.h3)
+        {
+            const Real calculated = detail::trivariateCumulativeNormal(c.h1, c.h2, c.h3, c.r21, c.r31, c.r32);
+            BOOST_CHECK_SMALL(calculated - c.expected, 1.0e-9);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testLowVolatilityLargeCarry)
+{
+    BOOST_TEST_MESSAGE("Testing analytic barrier engine with low volatility and large carry...");
+
+    // Where the forward is near the barrier at low volatility, (H/S)^(2 mu) overflows and N(y)
+    // underflows, while their product is finite and not negligible.  The expected values are
+    // the engine's closed forms, evaluated in 200-digit arithmetic on the same binary inputs.
+
+    const DayCounter dc = Actual365Fixed();
+    const Date today(15, October, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    const struct
+    {
+        Barrier::Type type;
+        Option::Type optionType;
+        Real spot, strike, barrier, rebate;
+        Rate r, q;
+        Volatility vol;
+        Integer days;
+        Real expected;
+    } cases[] = {
+        {Barrier::DownOut, Option::Put, 40.809474692328266, 100.0, 26.788905850262115, 0.0, 0.04943364523655579,
+         0.27314598534530515, 0.005, 747, 7.6135719504503223e-6},
+        {Barrier::DownOut, Option::Put, 40.809474692328266, 100.0, 26.788905850262115, 0.0, 0.04943364523655579,
+         0.27314598534530515, 0.01, 747, 0.30397185187568111},
+        {Barrier::DownOut, Option::Put, 40.809474692328266, 100.0, 26.788905850262115, 0.0, 0.04943364523655579,
+         0.27314598534530515, 0.012985838614515886, 747, 1.4378677391320085},
+        {Barrier::DownOut, Option::Put, 40.809474692328266, 100.0, 26.788905850262115, 0.0, 0.04943364523655579,
+         0.27314598534530515, 0.016, 747, 3.2549740062727869},
+        {Barrier::DownOut, Option::Put, 40.809474692328266, 100.0, 26.788905850262115, 0.0, 0.04943364523655579,
+         0.27314598534530515, 0.02, 747, 5.9549948957634315},
+        {Barrier::DownOut, Option::Put, 40.809474692328266, 100.0, 26.788905850262115, 2.0, 0.04943364523655579,
+         0.27314598534530515, 0.005, 747, 1.8223841335261903},
+        {Barrier::DownOut, Option::Put, 40.809474692328266, 100.0, 26.788905850262115, 2.0, 0.04943364523655579,
+         0.27314598534530515, 0.01, 747, 2.1180735128774331},
+        {Barrier::DownOut, Option::Put, 40.809474692328266, 100.0, 26.788905850262115, 2.0, 0.04943364523655579,
+         0.27314598534530515, 0.012985838614515886, 747, 3.220988434074213},
+        {Barrier::DownOut, Option::Put, 40.809474692328266, 100.0, 26.788905850262115, 2.0, 0.04943364523655579,
+         0.27314598534530515, 0.016, 747, 4.9884026997480601},
+        {Barrier::DownOut, Option::Put, 40.809474692328266, 100.0, 26.788905850262115, 2.0, 0.04943364523655579,
+         0.27314598534530515, 0.02, 747, 7.6145160525959926},
+        {Barrier::DownIn, Option::Put, 40.809474692328266, 100.0, 26.788905850262115, 0.0, 0.04943364523655579,
+         0.27314598534530515, 0.005, 747, 67.044217762067952},
+        {Barrier::DownIn, Option::Put, 40.809474692328266, 100.0, 26.788905850262115, 0.0, 0.04943364523655579,
+         0.27314598534530515, 0.01, 747, 66.740253523764222},
+        {Barrier::DownIn, Option::Put, 40.809474692328266, 100.0, 26.788905850262115, 0.0, 0.04943364523655579,
+         0.27314598534530515, 0.012985838614515886, 747, 65.606357636507894},
+        {Barrier::DownIn, Option::Put, 40.809474692328266, 100.0, 26.788905850262115, 0.0, 0.04943364523655579,
+         0.27314598534530515, 0.016, 747, 63.789251369367116},
+        {Barrier::DownIn, Option::Put, 40.809474692328266, 100.0, 26.788905850262115, 0.0, 0.04943364523655579,
+         0.27314598534530515, 0.02, 747, 61.089230479876471},
+        {Barrier::DownIn, Option::Put, 40.809474692328266, 100.0, 26.788905850262115, 2.0, 0.04943364523655579,
+         0.27314598534530515, 0.005, 747, 67.044217970160664},
+        {Barrier::DownIn, Option::Put, 40.809474692328266, 100.0, 26.788905850262115, 2.0, 0.04943364523655579,
+         0.27314598534530515, 0.01, 747, 66.74857193361007},
+        {Barrier::DownIn, Option::Put, 40.809474692328266, 100.0, 26.788905850262115, 2.0, 0.04943364523655579,
+         0.27314598534530515, 0.012985838614515886, 747, 65.645743358757572},
+        {Barrier::DownIn, Option::Put, 40.809474692328266, 100.0, 26.788905850262115, 2.0, 0.04943364523655579,
+         0.27314598534530515, 0.016, 747, 63.878505578488262},
+        {Barrier::DownIn, Option::Put, 40.809474692328266, 100.0, 26.788905850262115, 2.0, 0.04943364523655579,
+         0.27314598534530515, 0.02, 747, 61.252770544422279},
+        {Barrier::UpOut, Option::Call, 40.809474692328266, 16.65413224663781, 62.168019626209784, 0.0,
+         0.27314598534530515, 0.04943364523655579, 0.005, 747, 3.1070587183012954e-6},
+        {Barrier::UpOut, Option::Call, 40.809474692328266, 16.65413224663781, 62.168019626209784, 0.0,
+         0.27314598534530515, 0.04943364523655579, 0.01, 747, 0.12404931596300838},
+        {Barrier::UpOut, Option::Call, 40.809474692328266, 16.65413224663781, 62.168019626209784, 0.0,
+         0.27314598534530515, 0.04943364523655579, 0.016, 747, 1.32833779333176},
+        {Barrier::UpOut, Option::Call, 40.809474692328266, 16.65413224663781, 62.168019626209784, 2.0,
+         0.27314598534530515, 0.04943364523655579, 0.005, 747, 1.1962810151877336},
+        {Barrier::UpOut, Option::Call, 40.809474692328266, 16.65413224663781, 62.168019626209784, 2.0,
+         0.27314598534530515, 0.04943364523655579, 0.01, 747, 1.3148952890065159},
+        {Barrier::UpOut, Option::Call, 40.809474692328266, 16.65413224663781, 62.168019626209784, 2.0,
+         0.27314598534530515, 0.04943364523655579, 0.016, 747, 2.4662269334823813},
+        {Barrier::UpIn, Option::Call, 40.809474692328266, 16.65413224663781, 62.168019626209784, 0.0,
+         0.27314598534530515, 0.04943364523655579, 0.005, 747, 27.360393080280573},
+        {Barrier::UpIn, Option::Call, 40.809474692328266, 16.65413224663781, 62.168019626209784, 0.0,
+         0.27314598534530515, 0.04943364523655579, 0.01, 747, 27.236346871376283},
+        {Barrier::UpIn, Option::Call, 40.809474692328266, 16.65413224663781, 62.168019626209784, 0.0,
+         0.27314598534530515, 0.04943364523655579, 0.016, 747, 26.032058394007532},
+        {Barrier::UpIn, Option::Call, 40.809474692328266, 16.65413224663781, 62.168019626209784, 2.0,
+         0.27314598534530515, 0.04943364523655579, 0.005, 747, 27.360393217065653},
+        {Barrier::UpIn, Option::Call, 40.809474692328266, 16.65413224663781, 62.168019626209784, 2.0,
+         0.27314598534530515, 0.04943364523655579, 0.01, 747, 27.241833275759614},
+        {Barrier::UpIn, Option::Call, 40.809474692328266, 16.65413224663781, 62.168019626209784, 2.0,
+         0.27314598534530515, 0.04943364523655579, 0.016, 747, 26.09124741611036},
+        {Barrier::DownOut, Option::Put, 100.0, 110.0, 95.12299001155453, 4.0, 0.03, 0.08, 1e-07, 365,
+         3.8817863244756615},
+        {Barrier::DownOut, Option::Call, 100.0, 90.0, 95.1234180659727, 4.0, 0.03, 0.08, 1e-06, 365,
+         3.8817940920599493},
+        {Barrier::UpOut, Option::Call, 100.0, 90.0, 105.2, 4.0, 0.08, 0.03, 1e-05, 365, 13.964082180053597},
+        {Barrier::UpOut, Option::Put, 100.0, 110.0, 105.0, 4.0, 0.08, 0.03, 1e-05, 365, 3.6996199512480566},
+    };
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.type << " " << c.optionType << " at " << c.strike << ", barrier " << c.barrier
+                                  << ", rebate " << c.rebate << ", volatility " << c.vol)
+        {
+            const auto process =
+                ext::make_shared<BlackScholesMertonProcess>(Handle<Quote>(ext::make_shared<SimpleQuote>(c.spot)),
+                                                            Handle<YieldTermStructure>(flatRate(today, c.q, dc)),
+                                                            Handle<YieldTermStructure>(flatRate(today, c.r, dc)),
+                                                            Handle<BlackVolTermStructure>(flatVol(today, c.vol, dc)));
+            BarrierOption option(c.type, c.barrier, c.rebate,
+                                 ext::make_shared<PlainVanillaPayoff>(c.optionType, c.strike),
+                                 ext::make_shared<EuropeanExercise>(today + c.days));
+            option.setPricingEngine(ext::make_shared<AnalyticBarrierEngine>(process));
+            // The error is relative to the price, but absolute for prices below 1.
+            BOOST_CHECK_SMALL((option.NPV() - c.expected) / std::max(c.expected, Real(1.0)), 1.0e-10);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testZeroVolatility)
+{
+    BOOST_TEST_MESSAGE("Testing barrier options with zero volatility...");
+
+    const DayCounter dc = Actual365Fixed();
+    const Date today(11, February, 2018);
+    Settings::instance().evaluationDate() = today;
+    const Date maturity = today + Period(1, Years);
+
+    const auto q = ext::make_shared<SimpleQuote>();
+    const auto r = ext::make_shared<SimpleQuote>();
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, q, dc)),
+        Handle<YieldTermStructure>(flatRate(today, r, dc)), Handle<BlackVolTermStructure>(flatVol(today, 0.0, dc)));
+    const auto engine = ext::make_shared<AnalyticBarrierEngine>(process);
+
+    // The underlying follows its forward.  A knock-out's rebate is paid when the forward
+    // reaches the barrier, and a knock-in's at maturity.
+    const struct
+    {
+        Real strike;
+        Option::Type type;
+        Real barrier;
+        Barrier::Type barrierType;
+        Real rebate;
+        Rate r, q;
+        Real expected;
+    } cases[] = {
+        {105.0, Option::Put, 107.0, Barrier::UpOut, 4.0, 0.03, 0.01, 2.891797647676558},  // not hit
+        {105.0, Option::Put, 101.0, Barrier::UpOut, 4.0, 0.03, 0.01, 3.940741347366294},  // hit after 0.4975 years
+        {100.0, Option::Call, 101.0, Barrier::UpIn, 4.0, 0.03, 0.0, 2.955446645149196},   // hit
+        {105.0, Option::Call, 107.0, Barrier::UpIn, 4.0, 0.03, 0.0, 3.881782134194033},   // not hit
+        {91.0, Option::Call, 93.0, Barrier::DownOut, 4.0, 0.01, 0.03, 6.950018483676519}, // not hit
+        {101.0, Option::Put, 99.0, Barrier::DownOut, 4.0, 0.01, 0.03, 3.979949748426480}, // hit after 0.5025 years
+        {100.0, Option::Put, 99.0, Barrier::DownIn, 4.0, 0.01, 0.04, 2.926039459684483},  // hit
+        {91.0, Option::Call, 93.0, Barrier::DownIn, 4.0, 0.01, 0.04, 3.960199334996672},  // not hit
+        {95.0, Option::Call, 100.0, Barrier::DownOut, 4.0, 0.03, 0.0, 4.0},               // spot on the barrier
+    };
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.barrierType << " " << c.type << " at " << c.strike << ", barrier " << c.barrier)
+        {
+            r->setValue(c.r);
+            q->setValue(c.q);
+            BarrierOption option(c.barrierType, c.barrier, c.rebate,
+                                 ext::make_shared<PlainVanillaPayoff>(c.type, c.strike),
+                                 ext::make_shared<EuropeanExercise>(maturity));
+            option.setPricingEngine(engine);
+            BOOST_CHECK_SMALL(option.NPV() - c.expected, 1.0e-10);
         }
     }
 }

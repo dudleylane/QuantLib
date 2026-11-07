@@ -21,25 +21,34 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
+#include <ql/experimental/lattices/extendedbinomialtree.hpp>
 #include <ql/experimental/variancegamma/fftvanillaengine.hpp>
 #include <ql/instruments/europeanoption.hpp>
 #include <ql/math/interpolations/bicubicsplineinterpolation.hpp>
 #include <ql/math/interpolations/bilinearinterpolation.hpp>
 #include <ql/math/randomnumbers/rngtraits.hpp>
+#include <ql/pricingengines/blackformula.hpp>
 #include <ql/pricingengines/vanilla/analyticdividendeuropeanengine.hpp>
 #include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
+#include <ql/pricingengines/vanilla/analyticeuropeanvasicekengine.hpp>
 #include <ql/pricingengines/vanilla/binomialengine.hpp>
 #include <ql/pricingengines/vanilla/fdblackscholesvanillaengine.hpp>
+#include <ql/pricingengines/vanilla/fdcirvanillaengine.hpp>
+#include <ql/pricingengines/vanilla/fdhestonvanillaengine.hpp>
 #include <ql/pricingengines/vanilla/integralengine.hpp>
 #include <ql/pricingengines/vanilla/mceuropeanengine.hpp>
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
+#include <ql/termstructures/volatility/equityfx/blackvariancecurve.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvariancesurface.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/termstructures/yield/forwardcurve.hpp>
 #include <ql/termstructures/yield/zerocurve.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/utilities/dataformatters.hpp>
+#include <algorithm>
+#include <iomanip>
 #include <map>
 
 using namespace QuantLib;
@@ -1641,6 +1650,464 @@ BOOST_AUTO_TEST_CASE(testFFTEngines)
     std::map<std::string, Real> relativeTol;
     relativeTol["value"] = 0.01;
     testEngineConsistency(engine, steps, samples, relativeTol);
+}
+
+BOOST_AUTO_TEST_CASE(testFdEnginesWithNonStrikedPayoff)
+{
+
+    BOOST_TEST_MESSAGE("Testing FD vanilla engines with a non-striked payoff...");
+
+    // Each of them used the strike without checking that the payoff had one, so
+    // they failed on a null pointer: "px != 0" from Boost's, and undefined
+    // behaviour from the standard library's (#108).
+
+    class CappedCallPayoff : public Payoff
+    {
+      public:
+        std::string name() const override { return "CappedCall"; }
+        std::string description() const override { return name(); }
+        Real operator()(Real s) const override { return std::min(std::max(s - 100.0, 0.0), 20.0); }
+    };
+
+    Date today(15, May, 2026);
+    Settings::instance().evaluationDate() = today;
+    DayCounter dc = Actual360();
+
+    Handle<Quote> spot(ext::make_shared<SimpleQuote>(100.0));
+    Handle<YieldTermStructure> rTS(flatRate(today, 0.03, dc));
+    Handle<YieldTermStructure> qTS(flatRate(today, 0.0, dc));
+    auto bsProcess = ext::make_shared<BlackScholesMertonProcess>(
+        spot, qTS, rTS, Handle<BlackVolTermStructure>(flatVol(today, 0.2, dc)));
+    auto hestonModel =
+        ext::make_shared<HestonModel>(ext::make_shared<HestonProcess>(rTS, qTS, spot, 0.04, 1.0, 0.04, 0.5, -0.7));
+    auto cirProcess = ext::make_shared<CoxIngersollRossProcess>(1.0, 0.02, 0.03, 0.03);
+
+    OneAssetOption option(ext::make_shared<CappedCallPayoff>(), ext::make_shared<EuropeanExercise>(today + 1 * Years));
+
+    const ext::shared_ptr<PricingEngine> engines[] = {ext::make_shared<FdBlackScholesVanillaEngine>(bsProcess),
+                                                      ext::make_shared<FdHestonVanillaEngine>(hestonModel),
+                                                      MakeFdCIRVanillaEngine(cirProcess, bsProcess, 0.0)};
+    for (const auto& engine : engines)
+    {
+        option.setPricingEngine(engine);
+        BOOST_CHECK_EXCEPTION(option.NPV(), Error, ExpectedErrorMessage("non-striked payoff given"));
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testLeisenReimerFarFromTheMoney)
+{
+    BOOST_TEST_MESSAGE("Testing Leisen-Reimer engines far from the money...");
+
+    const Date today(15, August, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+
+    const auto makeProcess = [&](Rate r, Rate q, Volatility vol)
+    {
+        return ext::make_shared<BlackScholesMertonProcess>(
+            Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, q, dc)),
+            Handle<YieldTermStructure>(flatRate(today, r, dc)), Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+    };
+
+    struct Case
+    {
+        Option::Type type;
+        Real strike;
+        Volatility vol;
+        Integer days;
+        Rate r, q;
+    };
+
+    // The up probability is 1 up to the last digits, or the digits are all gone, or the
+    // probabilities underflow altogether with a strike of 1e6.
+    const Case cases[] = {{Option::Put, 500.0, 0.15, 1, 0.03, 0.01},   {Option::Put, 1.0e6, 0.15, 1, 0.03, 0.01},
+                          {Option::Call, 500.0, 0.15, 1, 0.03, 0.01},  {Option::Call, 20.0, 0.15, 1, 0.03, 0.01},
+                          {Option::Call, 1.0e-4, 0.15, 1, 0.03, 0.01}, {Option::Put, 20.0, 0.15, 1, 0.03, 0.01},
+                          {Option::Call, 20.0, 0.01, 365, 0.0, 0.0},   {Option::Put, 150.0, 0.05, 1, 0.03, 0.01},
+                          {Option::Call, 90.0, 0.05, 1, 0.01, 0.05},   {Option::Put, 200.0, 0.01, 30, 0.01, 0.05}};
+
+    for (const auto& c : cases)
+    {
+        const auto process = makeProcess(c.r, c.q, c.vol);
+        VanillaOption option(ext::make_shared<PlainVanillaPayoff>(c.type, c.strike),
+                             ext::make_shared<EuropeanExercise>(today + c.days));
+
+        option.setPricingEngine(ext::make_shared<AnalyticEuropeanEngine>(process));
+        const Real npv = option.NPV();
+        const Real delta = option.delta();
+        const Real gamma = option.gamma();
+        const Real theta = option.theta();
+
+        const auto check = [&](const std::string& tree, const ext::shared_ptr<PricingEngine>& engine)
+        {
+            option.setPricingEngine(engine);
+            // The delta and theta of a tree are taken a couple of steps into it,
+            // which is what most of these tolerances allow for.
+            if (!(std::fabs(option.NPV() - npv) <= 1.0e-9 * std::max(1.0, std::fabs(npv))) ||
+                !(std::fabs(option.delta() - delta) <= 1.0e-4) || !(std::fabs(option.gamma() - gamma) <= 1.0e-8) ||
+                !(std::fabs(option.theta() - theta) <= 1.0e-3))
+                BOOST_ERROR(tree << " tree, strike " << c.strike << ", volatility " << c.vol << ", " << c.days
+                                 << " days:\n"
+                                 << std::setprecision(12) << "    value: " << option.NPV() << " against " << npv
+                                 << "\n    delta: " << option.delta() << " against " << delta
+                                 << "\n    gamma: " << option.gamma() << " against " << gamma
+                                 << "\n    theta: " << option.theta() << " against " << theta);
+        };
+
+        check("Leisen-Reimer", ext::make_shared<BinomialVanillaEngine<LeisenReimer>>(process, 801));
+        check("extended Leisen-Reimer", ext::make_shared<BinomialVanillaEngine<ExtendedLeisenReimer>>(process, 51));
+    }
+
+    // With r < q, this put is never worth exercising early.
+    const auto process = makeProcess(0.01, 0.05, 0.01);
+    const auto payoff = ext::make_shared<PlainVanillaPayoff>(Option::Put, 200.0);
+    const Date maturity = today + 30;
+    VanillaOption european(payoff, ext::make_shared<EuropeanExercise>(maturity));
+    european.setPricingEngine(ext::make_shared<AnalyticEuropeanEngine>(process));
+    VanillaOption american(payoff, ext::make_shared<AmericanExercise>(today, maturity));
+    american.setPricingEngine(ext::make_shared<BinomialVanillaEngine<LeisenReimer>>(process, 801));
+    BOOST_CHECK_CLOSE(american.NPV(), european.NPV(), 1.0e-9);
+
+    // There's no tree to build without a variance.
+    const auto flat = makeProcess(0.0, 0.0, 0.0);
+    VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Put, 120.0),
+                         ext::make_shared<EuropeanExercise>(today + 365));
+    option.setPricingEngine(ext::make_shared<BinomialVanillaEngine<LeisenReimer>>(flat, 101));
+    BOOST_CHECK_EXCEPTION(option.NPV(), Error, ExpectedErrorMessage("positive variance"));
+    option.setPricingEngine(ext::make_shared<BinomialVanillaEngine<ExtendedLeisenReimer>>(flat, 101));
+    BOOST_CHECK_EXCEPTION(option.NPV(), Error, ExpectedErrorMessage("positive variance"));
+}
+
+BOOST_AUTO_TEST_CASE(testJoshiFarFromTheMoney)
+{
+    BOOST_TEST_MESSAGE("Testing that Joshi engines refuse strikes too far from the money...");
+
+    const Date today(15, August, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+
+    struct Case
+    {
+        Real strike;
+        Volatility vol;
+        Integer days;
+        Rate r, q;
+        Size steps;
+    };
+
+    // The first has probabilities in the thousands.  The other two have them in range,
+    // but the series has turned around: they'd price at 440.5 and 100.309, against the
+    // right values of 400.0 and 100.246.
+    const Case cases[] = {
+        {500.0, 0.15, 1, 0.03, 0.01, 801}, {500.0, 0.10, 1825, 0.0, 0.0, 11}, {200.0, 0.10, 30, 0.01, 0.05, 101}};
+
+    for (const auto& c : cases)
+    {
+        const auto process = ext::make_shared<BlackScholesMertonProcess>(
+            Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, c.q, dc)),
+            Handle<YieldTermStructure>(flatRate(today, c.r, dc)),
+            Handle<BlackVolTermStructure>(flatVol(today, c.vol, dc)));
+        VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Put, c.strike),
+                             ext::make_shared<EuropeanExercise>(today + c.days));
+
+        option.setPricingEngine(ext::make_shared<BinomialVanillaEngine<Joshi4>>(process, c.steps));
+        BOOST_CHECK_EXCEPTION(option.NPV(), Error, ExpectedErrorMessage("too far from the money"));
+        option.setPricingEngine(ext::make_shared<BinomialVanillaEngine<ExtendedJoshi4>>(process, c.steps));
+        BOOST_CHECK_EXCEPTION(option.NPV(), Error, ExpectedErrorMessage("too far from the money"));
+    }
+
+    // Still in range: the check only refuses trees whose moves make no sense.
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.01, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.03, dc)), Handle<BlackVolTermStructure>(flatVol(today, 0.15, dc)));
+    VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Put, 105.0),
+                         ext::make_shared<EuropeanExercise>(today + 30));
+    option.setPricingEngine(ext::make_shared<AnalyticEuropeanEngine>(process));
+    const Real expected = option.NPV();
+    option.setPricingEngine(ext::make_shared<BinomialVanillaEngine<Joshi4>>(process, 101));
+    BOOST_CHECK_CLOSE(option.NPV(), expected, 1.0e-3);
+    option.setPricingEngine(ext::make_shared<BinomialVanillaEngine<ExtendedJoshi4>>(process, 101));
+    BOOST_CHECK_CLOSE(option.NPV(), expected, 1.0e-3);
+}
+
+BOOST_AUTO_TEST_CASE(testAdditiveEQPWithLargeDrift)
+{
+    BOOST_TEST_MESSAGE("Testing additive EQP engines with a large drift per step...");
+
+    const Date today(15, August, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<Quote> spot(ext::make_shared<SimpleQuote>(100.0));
+    const Handle<YieldTermStructure> dividends(flatRate(today, 0.0, dc));
+    const Handle<BlackVolTermStructure> vol(flatVol(today, 0.02, dc));
+
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        spot, dividends, Handle<YieldTermStructure>(flatRate(today, 0.10, dc)), vol);
+    VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0),
+                         ext::make_shared<EuropeanExercise>(today + Period(1, Years)));
+
+    option.setPricingEngine(ext::make_shared<AnalyticEuropeanEngine>(process));
+    const Real expected = option.NPV();
+
+    // Over ten steps, the moves would be the square root of a negative number.
+    option.setPricingEngine(ext::make_shared<BinomialVanillaEngine<AdditiveEQPBinomialTree>>(process, 10));
+    BOOST_CHECK_EXCEPTION(option.NPV(), Error, ExpectedErrorMessage("more steps are needed"));
+    option.setPricingEngine(ext::make_shared<BinomialVanillaEngine<ExtendedAdditiveEQPBinomialTree>>(process, 10));
+    BOOST_CHECK_EXCEPTION(option.NPV(), Error, ExpectedErrorMessage("more steps are needed"));
+
+    option.setPricingEngine(ext::make_shared<BinomialVanillaEngine<AdditiveEQPBinomialTree>>(process, 501));
+    BOOST_CHECK_CLOSE(option.NPV(), expected, 0.1);
+    option.setPricingEngine(ext::make_shared<BinomialVanillaEngine<ExtendedAdditiveEQPBinomialTree>>(process, 501));
+    BOOST_CHECK_CLOSE(option.NPV(), expected, 0.1);
+
+    // The extended tree works its moves out step by step, so here it can start
+    // fine and only then run into a forward rate of 100%.
+    const std::vector<Date> dates = {today, today + Period(6, Months), today + Period(5, Years)};
+    const std::vector<Rate> forwards = {0.01, 0.01, 1.00};
+    const auto steep = ext::make_shared<BlackScholesMertonProcess>(
+        spot, dividends, Handle<YieldTermStructure>(ext::make_shared<ForwardCurve>(dates, forwards, dc)), vol);
+    option.setPricingEngine(ext::make_shared<BinomialVanillaEngine<ExtendedAdditiveEQPBinomialTree>>(steep, 10));
+    BOOST_CHECK_EXCEPTION(option.NPV(), Error, ExpectedErrorMessage("more steps are needed"));
+}
+
+BOOST_AUTO_TEST_CASE(testBinomialGreeksWithCoincidentNodes)
+{
+    BOOST_TEST_MESSAGE("Testing binomial Greeks when a tree collapses to one price...");
+
+    const Date today(15, August, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+
+    // The moves are too small to register, so all the nodes of a step round to one
+    // price.  That's enough for the value, but it leaves nothing to take differences of.
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.0, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.0, dc)),
+        Handle<BlackVolTermStructure>(flatVol(today, 1.0e-17, dc)));
+    VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, 20.0),
+                         ext::make_shared<EuropeanExercise>(today + 365));
+
+    const std::pair<std::string, ext::shared_ptr<PricingEngine>> engines[] = {
+        {"CRR", ext::make_shared<BinomialVanillaEngine<CoxRossRubinstein>>(process, 101)},
+        {"JR", ext::make_shared<BinomialVanillaEngine<JarrowRudd>>(process, 101)},
+        {"EQP", ext::make_shared<BinomialVanillaEngine<AdditiveEQPBinomialTree>>(process, 101)},
+        {"Trigeorgis", ext::make_shared<BinomialVanillaEngine<Trigeorgis>>(process, 101)},
+        {"extended CRR", ext::make_shared<BinomialVanillaEngine<ExtendedCoxRossRubinstein>>(process, 101)}};
+
+    for (const auto& engine : engines)
+    {
+        BOOST_TEST_CONTEXT(engine.first << " tree")
+        {
+            option.setPricingEngine(engine.second);
+            BOOST_CHECK_CLOSE(option.NPV(), 80.0, 1.0e-10);
+            BOOST_CHECK_EXCEPTION(option.delta(), Error, ExpectedErrorMessage("delta not provided"));
+            BOOST_CHECK_EXCEPTION(option.gamma(), Error, ExpectedErrorMessage("gamma not provided"));
+            BOOST_CHECK_EXCEPTION(option.theta(), Error, ExpectedErrorMessage("theta not provided"));
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBlackVasicekEngineWithDeterministicRates)
+{
+    BOOST_TEST_MESSAGE("Testing Black-Vasicek engine with deterministic rates...");
+
+    // With a vanishing short-rate volatility and a long-term mean equal to the initial
+    // rate, the rate stays where it is and the price is the Black-Scholes one, whatever
+    // the payoff, the dividends, and the term structure and day counter of the volatility.
+    DayCounter dc = Actual365Fixed();
+    Date today(20, October, 2026);
+    Settings::instance().evaluationDate() = today;
+    Date maturity = today + 1 * Years;
+
+    Rate r = 0.05;
+    Handle<Quote> spot(ext::make_shared<SimpleQuote>(100.0));
+    auto qRate = ext::make_shared<SimpleQuote>(0.0);
+    Handle<YieldTermStructure> qTS(flatRate(today, qRate, dc));
+    Handle<YieldTermStructure> rTS(flatRate(today, r, dc));
+    auto vasicek = ext::make_shared<Vasicek>(r, 0.3, r, 1.0e-10);
+
+    std::vector<Handle<BlackVolTermStructure>> volCurves = {
+        Handle<BlackVolTermStructure>(flatVol(today, 0.20, dc)),
+        Handle<BlackVolTermStructure>(flatVol(today, 0.20, Actual360())),
+        Handle<BlackVolTermStructure>(ext::make_shared<BlackVarianceCurve>(
+            today, std::vector<Date>{today + 3 * Months, maturity}, std::vector<Volatility>{0.10, 0.20}, dc))};
+
+    for (Size i = 0; i < volCurves.size(); ++i)
+    {
+        auto process = ext::make_shared<BlackScholesMertonProcess>(spot, qTS, rTS, volCurves[i]);
+        auto vasicekEngine = ext::make_shared<AnalyticBlackVasicekEngine>(process, vasicek, 0.0);
+        auto blackEngine = ext::make_shared<AnalyticEuropeanEngine>(process);
+        auto exercise = ext::make_shared<EuropeanExercise>(maturity);
+
+        for (Option::Type type : {Option::Call, Option::Put})
+        {
+            for (Real strike : {80.0, 100.0, 120.0})
+            {
+                std::vector<ext::shared_ptr<StrikedTypePayoff>> payoffs = {
+                    ext::make_shared<PlainVanillaPayoff>(type, strike),
+                    ext::make_shared<CashOrNothingPayoff>(type, strike, 10.0),
+                    ext::make_shared<AssetOrNothingPayoff>(type, strike)};
+
+                for (const auto& payoff : payoffs)
+                {
+                    VanillaOption option(payoff, exercise);
+                    option.setPricingEngine(vasicekEngine);
+                    VanillaOption reference(payoff, exercise);
+                    reference.setPricingEngine(blackEngine);
+
+                    // Changing the dividend yield after the first
+                    // pricing also checks that the engine hears about it.
+                    for (Rate q : {0.0, 0.03})
+                    {
+                        qRate->setValue(q);
+                        BOOST_TEST_CONTEXT("volatility " << i << ", " << type << ", strike " << strike << ", payoff "
+                                                         << payoffTypeToString(payoff) << ", dividend yield " << q)
+                        {
+                            BOOST_CHECK_SMALL(option.NPV() - reference.NPV(), 1e-8);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBlackVasicekEngineWithStochasticRates)
+{
+    BOOST_TEST_MESSAGE("Testing Black-Vasicek engine against the closed-form total variance...");
+
+    DayCounter dc = Actual365Fixed();
+    Date today(20, October, 2026);
+    Settings::instance().evaluationDate() = today;
+    Date maturity = today + 2 * Years;
+
+    Real s0 = 100.0;
+    Volatility sigmaS = 0.25;
+    Rate r0 = 0.03;
+    Real b = 0.04, sigmaR = 0.015;
+
+    Time T = dc.yearFraction(today, maturity);
+
+    // The engine integrates the variance to a tolerance of 1e-5, and
+    // at a mean reversion of 5 that shows at about 3e-8 in the value.
+    for (Real a : {0.4, 5.0})
+    {
+        auto vasicek = ext::make_shared<Vasicek>(r0, a, b, sigmaR);
+        DiscountFactor zcb = vasicek->discountBond(0.0, T, r0);
+        Real g = (1.0 - std::exp(-a * T)) / a;
+
+        for (Rate q : {0.0, 0.02})
+        {
+            auto process = ext::make_shared<BlackScholesMertonProcess>(
+                Handle<Quote>(ext::make_shared<SimpleQuote>(s0)), Handle<YieldTermStructure>(flatRate(today, q, dc)),
+                Handle<YieldTermStructure>(flatRate(today, r0, dc)),
+                Handle<BlackVolTermStructure>(flatVol(today, sigmaS, dc)));
+            Real forward = s0 * std::exp(-q * T) / zcb;
+
+            for (Real rho : {-0.5, 0.0, 0.5})
+            {
+                // The integral over [0, T] of sigmaS^2 + 2 rho sigmaS sigmaR g(u) + sigmaR^2 g(u)^2,
+                // with g(u) = (1 - exp(-a u)) / a.
+                Real variance = sigmaS * sigmaS * T + 2.0 * rho * sigmaS * sigmaR * (T - g) / a +
+                                sigmaR * sigmaR * (T - 2.0 * g + (1.0 - std::exp(-2.0 * a * T)) / (2.0 * a)) / (a * a);
+
+                auto engine = ext::make_shared<AnalyticBlackVasicekEngine>(process, vasicek, rho);
+
+                for (Option::Type type : {Option::Call, Option::Put})
+                {
+                    for (Real strike : {80.0, 100.0, 120.0})
+                    {
+                        VanillaOption option(ext::make_shared<PlainVanillaPayoff>(type, strike),
+                                             ext::make_shared<EuropeanExercise>(maturity));
+                        option.setPricingEngine(engine);
+                        BOOST_TEST_CONTEXT("mean reversion " << a << ", dividend yield " << q << ", correlation " << rho
+                                                             << ", " << type << ", strike " << strike)
+                        {
+                            BOOST_CHECK_SMALL(
+                                option.NPV() - blackFormula(type, strike, forward, std::sqrt(variance), zcb), 1e-7);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBlackVasicekEngineWithSmallMeanReversion)
+{
+    BOOST_TEST_MESSAGE("Testing Black-Vasicek engine with mean reversion close to zero...");
+
+    DayCounter dc = Actual365Fixed();
+    Date today(20, October, 2026);
+    Settings::instance().evaluationDate() = today;
+    Date maturity = today + 2 * Years;
+
+    Real s0 = 100.0;
+    Volatility sigmaS = 0.25;
+    Rate r0 = 0.03;
+    Real sigmaR = 0.15, rho = 0.5;
+
+    Time T = dc.yearFraction(today, maturity);
+
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(s0)), Handle<YieldTermStructure>(flatRate(today, 0.0, dc)),
+        Handle<YieldTermStructure>(flatRate(today, r0, dc)), Handle<BlackVolTermStructure>(flatVol(today, sigmaS, dc)));
+
+    // The limit of the variance for no mean reversion, which is off by something of the order of a.
+    Real variance = sigmaS * sigmaS * T + rho * sigmaS * sigmaR * T * T + sigmaR * sigmaR * T * T * T / 3.0;
+
+    for (Real a : {1e-10, 1e-12, 1e-14, 1e-16})
+    {
+        auto vasicek = ext::make_shared<Vasicek>(r0, a, r0, sigmaR);
+        DiscountFactor zcb = vasicek->discountBond(0.0, T, r0);
+        auto engine = ext::make_shared<AnalyticBlackVasicekEngine>(process, vasicek, rho);
+
+        for (Option::Type type : {Option::Call, Option::Put})
+        {
+            VanillaOption option(ext::make_shared<PlainVanillaPayoff>(type, 100.0),
+                                 ext::make_shared<EuropeanExercise>(maturity));
+            option.setPricingEngine(engine);
+            BOOST_TEST_CONTEXT("mean reversion " << a << ", " << type)
+            {
+                BOOST_CHECK_SMALL(option.NPV() - blackFormula(type, 100.0, s0 / zcb, std::sqrt(variance), zcb), 1e-8);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBlackVasicekEngineWithNoVariance)
+{
+    BOOST_TEST_MESSAGE("Testing Black-Vasicek engine with no variance...");
+
+    DayCounter dc = Actual365Fixed();
+    Date today(20, October, 2026);
+    Settings::instance().evaluationDate() = today;
+    Settings::instance().includeReferenceDateEvents() = true;
+
+    // No rates, no dividends, no volatility of either kind: the spot stays where it is.
+    Real spot = 100.0;
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(spot)), Handle<YieldTermStructure>(flatRate(today, 0.0, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.0, dc)), Handle<BlackVolTermStructure>(flatVol(today, 0.0, dc)));
+    auto vasicek = ext::make_shared<Vasicek>(0.0, 0.3, 0.0, 1e-200);
+    auto engine = ext::make_shared<AnalyticBlackVasicekEngine>(process, vasicek, 0.5);
+
+    for (Date maturity : {today, today + 1 * Years})
+    {
+        for (Option::Type type : {Option::Call, Option::Put})
+        {
+            for (Real strike : {80.0, 100.0, 120.0})
+            {
+                VanillaOption option(ext::make_shared<PlainVanillaPayoff>(type, strike),
+                                     ext::make_shared<EuropeanExercise>(maturity));
+                option.setPricingEngine(engine);
+                BOOST_TEST_CONTEXT("maturity " << maturity << ", " << type << ", strike " << strike)
+                {
+                    BOOST_CHECK_SMALL(option.NPV() - std::max(Real(type) * (spot - strike), 0.0), 1e-14);
+                }
+            }
+        }
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

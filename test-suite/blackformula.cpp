@@ -424,6 +424,38 @@ BOOST_AUTO_TEST_CASE(testBachelierBlackFormulaForwardDerivativeWithZeroVolatilit
     assertBachelierBlackFormulaForwardDerivative(Option::Put, strikes, vol);
 }
 
+BOOST_AUTO_TEST_CASE(testDeepInTheMoneyPricesAreNotBelowIntrinsic)
+{
+    BOOST_TEST_MESSAGE("Testing that deep in-the-money Black and Bachelier prices are not below intrinsic...");
+
+    struct Case
+    {
+        Option::Type type;
+        Real strike, forward;
+    };
+    const Case cases[] = {{Option::Call, 50.0, 100.0}, {Option::Put, 100.0, 50.0},     {Option::Call, 0.03, 0.05},
+                          {Option::Put, 0.05, 0.03},   {Option::Call, 1000.0, 1234.5}, {Option::Put, 1234.5, 1000.0}};
+
+    for (const Case& c : cases)
+    {
+        const Real moneyness = Integer(c.type) * (c.forward - c.strike);
+        for (Real discount : {1.0, 0.97})
+        {
+            const Real intrinsic = discount * moneyness;
+
+            // With both d1 and d2 above 20 in the first, and (forward - strike) / stdDev at 20 in the second.
+            const Real black = blackFormula(c.type, c.strike, c.forward, 0.01, discount);
+            const Real bachelier = bachelierBlackFormula(c.type, c.strike, c.forward, moneyness / 20.0, discount);
+            BOOST_TEST_CONTEXT("strike " << c.strike << ", forward " << c.forward << ", discount " << discount)
+            {
+                BOOST_CHECK_MESSAGE(black >= intrinsic, "Black is below intrinsic by " << intrinsic - black);
+                BOOST_CHECK_MESSAGE(bachelier >= intrinsic,
+                                    "Bachelier is below intrinsic by " << intrinsic - bachelier);
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

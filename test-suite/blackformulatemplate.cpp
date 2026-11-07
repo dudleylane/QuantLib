@@ -45,6 +45,34 @@ BOOST_AUTO_TEST_CASE(testRealInstantiationMatchesBlackFormula)
     BOOST_CHECK_SMALL(std::fabs(putT - putRef), 1.0e-12);
 }
 
+BOOST_AUTO_TEST_CASE(testDeepOutOfTheMoneyMatchesBlackFormula)
+{
+    BOOST_TEST_MESSAGE("blackFormulaT<Real> matches blackFormula() deep "
+                       "out of the money...");
+
+    // A put built on 1 - N(d) loses its relative precision once N(d) is close
+    // to 1, and went negative at strike 20 (#85).  The tolerance allows for
+    // rounding: the two can contract their products into FMAs differently.
+    const Real forward = 100.0;
+    const Real stddev = 0.20;
+    const DiscountFactor df = 0.97;
+
+    for (Real strike : {90.0, 50.0, 30.0, 25.0, 20.0, 10.0})
+    {
+        const Real put = blackFormulaT<Real>(Option::Put, strike, forward, stddev, df);
+        const Real ref = blackFormula(Option::Put, strike, forward, stddev, df);
+        BOOST_CHECK_GT(put, 0.0);
+        BOOST_CHECK_SMALL((put - ref) / ref, 1.0e-14);
+    }
+    for (Real strike : {110.0, 200.0, 400.0, 800.0})
+    {
+        const Real call = blackFormulaT<Real>(Option::Call, strike, forward, stddev, df);
+        const Real ref = blackFormula(Option::Call, strike, forward, stddev, df);
+        BOOST_CHECK_GT(call, 0.0);
+        BOOST_CHECK_SMALL((call - ref) / ref, 1.0e-14);
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testPutCallParity)
 {
     BOOST_TEST_MESSAGE("blackFormulaT respects put-call parity for "
@@ -177,6 +205,38 @@ BOOST_AUTO_TEST_CASE(testAadDeltaMatchesAnalyticDelta)
     Real analyticDelta = df * N(d1);
 
     BOOST_CHECK_SMALL(std::fabs(aadDelta - analyticDelta), 1.0e-10);
+}
+
+BOOST_AUTO_TEST_CASE(testAadDeepOutOfTheMoneyDeltas)
+{
+    BOOST_TEST_MESSAGE("blackFormulaT<AADReal> keeps value and delta deep "
+                       "out of the money...");
+
+    // N(x) as 0.5*(1 + erf(x/sqrt(2))) cancels for large negative x: at these
+    // points the value came out as 0 and the delta with the wrong sign (#85).
+    const Real forward = 100.0;
+    const Real stddev = 0.20;
+    const DiscountFactor df = 0.97;
+    const Real invSqrt2 = 0.7071067811865475;
+
+    const auto check = [&](Option::Type type, Real strike)
+    {
+        const Real sign = Integer(type);
+        const auto pricer = [&](AADReal F)
+        {
+            AADReal sd = stddev;
+            AADReal d = df;
+            return blackFormulaT<AADReal>(type, strike, F, sd, d);
+        };
+        const Real d1 = std::log(forward / strike) / stddev + 0.5 * stddev;
+        const Real analyticDelta = df * sign * 0.5 * std::erfc(-sign * d1 * invSqrt2);
+        BOOST_CHECK_SMALL((aadDerivative(pricer, forward) - analyticDelta) / analyticDelta, 1.0e-10);
+        AADReal F = forward;
+        BOOST_CHECK_GT(codi::RealTraits::getPassiveValue(pricer(F)), 0.0);
+    };
+    check(Option::Put, 20.0);
+    check(Option::Put, 10.0);
+    check(Option::Call, 800.0);
 }
 
 #endif // QL_ENABLE_AAD

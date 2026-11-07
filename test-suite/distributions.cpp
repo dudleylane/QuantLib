@@ -25,13 +25,16 @@
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
 #include <ql/math/comparison.hpp>
+#include <ql/math/distributions/binomialdistribution.hpp>
 #include <ql/math/distributions/bivariatenormaldistribution.hpp>
 #include <ql/math/distributions/bivariatestudenttdistribution.hpp>
 #include <ql/math/distributions/chisquaredistribution.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/math/distributions/poissondistribution.hpp>
+#include <ql/math/errorfunction.hpp>
 #include <ql/math/randomnumbers/stochasticcollocationinvcdf.hpp>
 #include <boost/math/distributions/non_central_chi_squared.hpp>
+#include <iomanip>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -682,6 +685,122 @@ BOOST_AUTO_TEST_CASE(testSankaranApproximation)
             }
         }
     }
+}
+
+BOOST_AUTO_TEST_CASE(testPeizerPrattInversion)
+{
+    BOOST_TEST_MESSAGE("Testing the Peizer-Pratt method 2 inversion...");
+
+    struct Case
+    {
+        Real z;
+        BigNatural n;
+        Real expected;
+    };
+
+    // These were evaluated from the definition with 120 digits.
+    const Case cases[] = {{0.0, 5, 0.5},
+                          {1.0, 5, 0.7031970887828103},
+                          {-1.0, 5, 0.29680291121718977},
+                          {5.0, 101, 0.7336195122592148},
+                          {-5.0, 101, 0.26638048774078515},
+                          {-20.0, 101, 0.004882000575164496},
+                          {-40.0, 101, 3.5650828031884475e-08},
+                          {205.0, 801, 1.0},
+                          {-205.0, 801, 4.232649749828366e-24},
+                          {-400.0, 801, 5.030718277654203e-88},
+                          {0.001, 101, 0.5000496286192958},
+                          {-0.001, 101, 0.4999503713807042},
+                          {1.0e-9, 801, 0.5000000000176611},
+                          {-1.0e-9, 801, 0.4999999999823389}};
+
+    for (const auto& c : cases)
+    {
+        const Real calculated = PeizerPrattMethod2Inversion(c.z, c.n);
+        if (!(std::fabs(calculated - c.expected) <= 1.0e-13 * c.expected))
+            BOOST_ERROR("Peizer-Pratt inversion at z = " << c.z << " with n = " << c.n << "\n"
+                                                         << std::setprecision(17) << "    calculated: " << calculated
+                                                         << "\n    expected:   " << c.expected);
+    }
+
+    BOOST_CHECK_EQUAL(PeizerPrattMethod2Inversion(1.0e4, 5), 1.0);
+    BOOST_CHECK_EQUAL(PeizerPrattMethod2Inversion(-1.0e4, 5), 0.0);
+    BOOST_CHECK_EXCEPTION(PeizerPrattMethod2Inversion(1.0, 4), Error, ExpectedErrorMessage("n must be an odd number"));
+}
+
+BOOST_AUTO_TEST_CASE(testLogCumulativeNormal)
+{
+    BOOST_TEST_MESSAGE("Testing the logarithm of the cumulative normal distribution...");
+
+    // Calculated with 60 digits as log(erfc(-z / sqrt(2)) / 2).
+    const struct
+    {
+        Real x, average, sigma, expected;
+    } cases[] = {{0.0, 0.0, 1.0, -0.69314718055994530942},    {3.0, 0.0, 1.0, -0.0013508099647481937988},
+                 {10.0, 0.0, 1.0, -7.619853024160526066e-24}, {-1.0, 0.0, 1.0, -1.8410216450092635058},
+                 {-5.0, 0.0, 1.0, -15.064998393988725736},    {-5.6, 0.0, 1.0, -18.351379495909332066},
+                 {-6.0, 0.0, 1.0, -20.736768949974705655},    {-10.0, 0.0, 1.0, -53.231285150512470578},
+                 {-36.9, 0.0, 1.0, -685.33288316535061216},   {-37.0, 0.0, 1.0, -689.0305855768905936},
+                 {-37.1, 0.0, 1.0, -692.73828071562329266},   {-37.5, 0.0, 1.0, -707.66898931750719107},
+                 {-38.0, 0.0, 1.0, -726.5572160188201301},    {-39.0, 0.0, 1.0, -765.0831565643775444},
+                 {-40.0, 0.0, 1.0, -804.60844201375378817},   {-100.0, 0.0, 1.0, -5005.5242086942050886},
+                 {-1000.0, 0.0, 1.0, -500007.82669481218431}, {-1.0e5, 0.0, 1.0, -5000000012.4318639983},
+                 {0.0, 1.0, 2.0, -1.1759117615936186089},     {-79.0, 1.0, 2.0, -804.60844201375378817},
+                 {-1000.0, 5.0, 0.5, -2020058.5248287817763}};
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT("x " << c.x << ", average " << c.average << ", sigma " << c.sigma)
+        {
+            const CumulativeNormalDistribution f(c.average, c.sigma);
+            const Real scale = std::max(std::fabs(c.expected), Real(1.0));
+            BOOST_CHECK_SMALL((f.logValue(c.x) - c.expected) / scale, 1.0e-14);
+
+            // Where the value hasn't underflowed, it agrees with the operator.
+            const Real value = f(c.x);
+            if (value > 0.0)
+                BOOST_CHECK_SMALL(f.logValue(c.x) - std::log(value), 1.0e-7);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testErrorFunctionAndCumulativeNormalWhereTheySaturate)
+{
+    BOOST_TEST_MESSAGE("Testing the error function and cumulative normal where they saturate...");
+
+    // erfc(6) is about 2e-17, so erf rounds to exactly 1 from there on.
+    const ErrorFunction erf;
+    for (Real x : {6.0, 6.5, 7.0, 10.0, 28.0, 100.0})
+    {
+        BOOST_CHECK_EQUAL(erf(x), 1.0);
+        BOOST_CHECK_EQUAL(erf(-x), -1.0);
+    }
+
+    Size decreases = 0;
+    Real previous = erf(5.5);
+    for (Size i = 1; i <= 1000; ++i)
+    {
+        const Real y = erf(5.5 + i * 0.001);
+        if (y < previous || y > 1.0)
+            ++decreases;
+        previous = y;
+    }
+    BOOST_CHECK_EQUAL(decreases, 0U);
+
+    const CumulativeNormalDistribution cumulative;
+    for (Real z : {8.5, 9.0, 10.0, 20.0, 40.0})
+        BOOST_CHECK_EQUAL(cumulative(z), 1.0);
+
+    decreases = 0;
+    previous = cumulative(7.0);
+    for (Size i = 1; i <= 3000; ++i)
+    {
+        const Real p = cumulative(7.0 + i * 0.001);
+        if (p < previous || p > 1.0)
+            ++decreases;
+        previous = p;
+    }
+    BOOST_CHECK_EQUAL(decreases, 0U);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

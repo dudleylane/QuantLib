@@ -197,6 +197,7 @@ namespace QuantLib
         // fair margin = - [NPV Equity Leg + NPV Floating Leg] / BPS * 10000
         const Spread basisPoint = 1.0e-4;
         Real interestLegBps = legBPS(1) / basisPoint;
+        QL_REQUIRE(interestLegBps != 0.0, "result not available (null interest-rate leg BPS)");
         Real exMarginInterestLegNpv = interestRateLegNPV() - margin() * interestLegBps;
         return -(equityLegNPV() + exMarginInterestLegNpv) / interestLegBps;
     }

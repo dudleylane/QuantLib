@@ -24,15 +24,22 @@
 #include <ql/cashflows/couponpricer.hpp>
 #include <ql/cashflows/iborcoupon.hpp>
 #include <ql/currencies/europe.hpp>
+#include <ql/indexes/bmaindex.hpp>
 #include <ql/indexes/ibor/bbsw.hpp>
 #include <ql/indexes/ibor/euribor.hpp>
 #include <ql/indexes/ibor/gbplibor.hpp>
+#include <ql/indexes/ibor/usdlibor.hpp>
+#include <ql/instruments/bmaswap.hpp>
 #include <ql/instruments/makevanillaswap.hpp>
 #include <ql/instruments/vanillaswap.hpp>
 #include <ql/pricingengines/swap/discountingswapengine.hpp>
 #include <ql/termstructures/volatility/optionlet/constantoptionletvol.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
+#include <ql/time/calendars/japan.hpp>
+#include <ql/time/calendars/jointcalendar.hpp>
 #include <ql/time/calendars/nullcalendar.hpp>
+#include <ql/time/calendars/target.hpp>
+#include <ql/time/calendars/unitedstates.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/time/daycounters/simpledaycounter.hpp>
 #include <ql/time/daycounters/thirty360.hpp>
@@ -519,6 +526,79 @@ BOOST_AUTO_TEST_CASE(testSettlementDaysEffectiveDateConflict)
     // neither set (constructor defaults) works
     ext::shared_ptr<VanillaSwap> swap3 = MakeVanillaSwap(5 * Years, index, 0.03);
     BOOST_CHECK(swap3->startDate() != Date());
+}
+
+BOOST_AUTO_TEST_CASE(testSpotDateOnTheIndexCalendar)
+{
+    BOOST_TEST_MESSAGE("Testing that a swap's default spot date comes from the index alone...");
+
+    Handle<YieldTermStructure> curve(flatRate(Date(19, January, 2026), 0.03, Actual365Fixed()));
+    auto euribor = ext::make_shared<Euribor6M>(curve);
+
+    // Martin Luther King's birthday: TARGET is open and the US aren't, so moving
+    // to the leg's next business day first would start the swap a day late.
+    Settings::instance().evaluationDate() = Date(19, January, 2026);
+    Calendar joint = JointCalendar(TARGET(), UnitedStates(UnitedStates::FederalReserve));
+    ext::shared_ptr<VanillaSwap> swap =
+        MakeVanillaSwap(1 * Years, euribor, 0.03).withFloatingLegCalendar(joint).withFixedLegCalendar(joint);
+    BOOST_CHECK_EQUAL(swap->startDate(), Date(21, January, 2026));
+
+    // With explicit settlement days, it's still the leg's calendar that counts.
+    ext::shared_ptr<VanillaSwap> withDays = MakeVanillaSwap(1 * Years, euribor, 0.03)
+                                                .withSettlementDays(2)
+                                                .withFloatingLegCalendar(joint)
+                                                .withFixedLegCalendar(joint);
+    BOOST_CHECK_EQUAL(withDays->startDate(), Date(22, January, 2026));
+
+    // Japan is closed on April 30th, 2018 and TARGET on May 1st, so the leg's
+    // next business day isn't a day the index fixes on.
+    const Date today(30, April, 2018);
+    Settings::instance().evaluationDate() = today;
+    ext::shared_ptr<VanillaSwap> overHolidays =
+        MakeVanillaSwap(1 * Years, euribor, 0.03).withFloatingLegCalendar(Japan()).withFixedLegCalendar(Japan());
+    BOOST_CHECK_EQUAL(overHolidays->startDate(), Japan().adjust(euribor->valueDate(today)));
+}
+
+BOOST_AUTO_TEST_CASE(testFairRateAndSpreadWithZeroBps)
+{
+    BOOST_TEST_MESSAGE("Testing a swap's fair rate and spread when its legs have no BPS...");
+
+    CommonVars vars;
+    vars.nominal = 0.0;
+    ext::shared_ptr<VanillaSwap> swap = vars.makeSwap(10, 0.0, 0.0);
+
+    BOOST_CHECK(!swap->isExpired());
+    BOOST_CHECK_EQUAL(swap->fixedLegBPS(), 0.0);
+    BOOST_CHECK_EQUAL(swap->floatingLegBPS(), 0.0);
+
+    BOOST_CHECK_EXCEPTION(swap->fairRate(), Error, ExpectedErrorMessage("result not available"));
+    BOOST_CHECK_EXCEPTION(swap->fairSpread(), Error, ExpectedErrorMessage("result not available"));
+}
+
+BOOST_AUTO_TEST_CASE(testBmaSwapFairSpreadWithZeroBps)
+{
+    BOOST_TEST_MESSAGE("Testing a BMA swap's fair spread when its Libor leg has no BPS...");
+
+    const Date today(25, June, 2026);
+    Settings::instance().evaluationDate() = today;
+    Handle<YieldTermStructure> curve(flatRate(today, 0.03, Actual365Fixed()));
+    auto libor = ext::make_shared<USDLibor>(3 * Months, curve);
+    auto bma = ext::make_shared<BMAIndex>(curve);
+    for (Date d = today - 30; d <= today; ++d)
+        if (bma->isValidFixingDate(d))
+            bma->addFixing(d, 0.03);
+
+    const Schedule schedule(Date(29, June, 2026), Date(29, June, 2031), 3 * Months,
+                            UnitedStates(UnitedStates::Settlement), Following, Following, DateGeneration::Backward,
+                            false);
+
+    BMASwap swap(BMASwap::Payer, 0.0, schedule, 0.65, 0.0, libor, Actual360(), schedule, bma, Actual360());
+    swap.setPricingEngine(ext::make_shared<DiscountingSwapEngine>(curve));
+
+    BOOST_CHECK(!swap.isExpired());
+    BOOST_CHECK_EQUAL(swap.liborLegBPS(), 0.0);
+
+    BOOST_CHECK_EXCEPTION(swap.fairLiborSpread(), Error, ExpectedErrorMessage("result not available"));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -21,12 +21,74 @@
 #include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/pricingengines/asian/continuousarithmeticasianlevyengine.hpp>
 #include <ql/pricingengines/blackcalculator.hpp>
+#include <algorithm>
+#include <cmath>
 #include <utility>
 
 using namespace std;
 
 namespace QuantLib
 {
+
+    namespace
+    {
+        Real expm1OverX(Real x)
+        {
+            return x == 0.0 ? 1.0 : std::expm1(x) / x;
+        }
+
+        // The variance of the integral over (0, 1) of exp(x t) times a martingale whose
+        // log has variance w t, which is 2 int_0^1 int_0^t exp(x (s + t)) expm1(w s) ds dt.
+        // Its second moment less its mean squared would cancel at low volatility.
+        Real levyVariance(Real x, Real w)
+        {
+            // The halving below wouldn't end.
+            QL_REQUIRE(std::isfinite(x) && std::isfinite(w), "the carry and the variance must be finite");
+
+            Size doublings = 0;
+            while (std::fabs(x) + w > 0.5)
+            {
+                x *= 0.5;
+                w *= 0.5;
+                ++doublings;
+            }
+
+            // With phi(x) = expm1(x) / x, the integral is the divided difference
+            // 2 w phi[x, 2 x, 2 x + w].  This sums its complete homogeneous polynomials,
+            // which subtract nothing.  All three nodes are at most 1 in size, so 20 terms
+            // leave less than a rounding error.  The covariance is phi(x + w) - phi(x),
+            // and the doubling needs it for the part across the two halves.
+            Real covariance = 0.0, variance = 0.0;
+            Real power = 1.0, covariancePolynomial = 1.0, momentPolynomial = 1.0, variancePolynomial = 1.0;
+            Real factorial = 2.0;
+            for (Size k = 0; k < 20; ++k)
+            {
+                covariance += covariancePolynomial / factorial;
+                variance += variancePolynomial / (factorial * (k + 3));
+                power *= x;
+                covariancePolynomial = (x + w) * covariancePolynomial + power;
+                momentPolynomial = 2.0 * x * momentPolynomial + power;
+                variancePolynomial = (2.0 * x + w) * variancePolynomial + momentPolynomial;
+                factorial *= k + 3;
+            }
+            covariance *= w;
+            variance *= 2.0 * w;
+
+            // Doubling the interval splits the integral into two triangles and a
+            // rectangle, all of them positive, whatever the sign of the carry.
+            for (Size i = 0; i < doublings; ++i)
+            {
+                const Real mean = expm1OverX(x);
+                const Real e = std::exp(x), ew = std::exp(w), em1 = std::expm1(w);
+                variance =
+                    0.25 * ((1.0 + e * e * ew) * variance + e * e * em1 * mean * mean + 2.0 * e * mean * covariance);
+                covariance = 0.5 * ((1.0 + e * ew) * covariance + e * em1 * mean);
+                x *= 2.0;
+                w *= 2.0;
+            }
+            return variance;
+        }
+    }
 
     ContinuousArithmeticAsianLevyEngine::ContinuousArithmeticAsianLevyEngine(
         ext::shared_ptr<GeneralizedBlackScholesProcess> process, Handle<Quote> currentAverage)
@@ -81,9 +143,10 @@ namespace QuantLib
         Rate dividendYield = process_->dividendYield()->zeroRate(maturity, divdc, Continuous, NoFrequency);
         Real b = riskFreeRate - dividendYield;
 
-        Real Se = (std::fabs(b) > 1000 * QL_EPSILON) ?
-                      Real((spot / (T * b)) * (exp((b - riskFreeRate) * T2) - exp(-riskFreeRate * T2))) :
-                      Real(spot * T2 / T * std::exp(-riskFreeRate * T2));
+        const Real meanFactor = expm1OverX(b * T2);
+        const Real mean = spot * T2 / T * meanFactor;
+        const DiscountFactor discount = std::exp(-riskFreeRate * T2);
+        const Real Se = mean * discount;
 
         Real X;
         if (T2 < T)
@@ -97,22 +160,19 @@ namespace QuantLib
             X = strike;
         }
 
-        Real m = (std::fabs(b) > 1000 * QL_EPSILON) ? ((exp(b * T2) - 1) / b) : T2;
+        // With a strike already covered by the fixings so far, the payoff is sure.
+        const Real variance = X > 0.0 ? levyVariance(b * T2, volatility * volatility * T2) : 0.0;
+        const Real stdDev = std::sqrt(std::log1p(variance / (meanFactor * meanFactor)));
+        const Real eta = Real(payoff->optionType());
+        if (stdDev == 0.0)
+        {
+            results_.value = std::max(eta * (Se - X * discount), 0.0);
+            return;
+        }
 
-        Real M = (2 * spot * spot / (b + volatility * volatility)) *
-                 (((exp((2 * b + volatility * volatility) * T2) - 1) / (2 * b + volatility * volatility)) - m);
-
-        Real D = M / (T * T);
-
-        Real V = log(D) - 2 * (riskFreeRate * T2 + log(Se));
-
-        Real d1 = (1 / sqrt(V)) * ((log(D) / 2) - log(X));
-        Real d2 = d1 - sqrt(V);
-
-        if (payoff->optionType() == Option::Call)
-            results_.value = Se * N(d1) - X * exp(-riskFreeRate * T2) * N(d2);
-        else
-            results_.value = Se * N(d1) - X * exp(-riskFreeRate * T2) * N(d2) - Se + X * exp(-riskFreeRate * T2);
+        const Real d1 = std::log(mean / X) / stdDev + 0.5 * stdDev;
+        const Real d2 = d1 - stdDev;
+        results_.value = eta * (Se * N(eta * d1) - X * discount * N(eta * d2));
     }
 
 }

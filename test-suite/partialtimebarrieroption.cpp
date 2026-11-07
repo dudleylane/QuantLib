@@ -20,10 +20,13 @@
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
 #include <ql/instruments/partialtimebarrieroption.hpp>
+#include <ql/instruments/vanillaoption.hpp>
 #include <ql/pricingengines/barrier/analyticpartialtimebarrieroptionengine.hpp>
+#include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/utilities/dataformatters.hpp>
 
 using namespace QuantLib;
@@ -256,6 +259,53 @@ BOOST_AUTO_TEST_CASE(testPutCallSymmetry)
         if (error > tolerance)
             BOOST_ERROR("Failed to reproduce the put-call symmetry for the partial-time barrier options "
                         << "\n    error:      " << error);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testInOutParity)
+{
+    BOOST_TEST_MESSAGE("Testing in-out parity for partial-time barrier options...");
+
+    const Date today(1, January, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const ext::shared_ptr<EuropeanExercise> exercise = ext::make_shared<EuropeanExercise>(today + 182);
+    const Date coverEventDate = today + 91;
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.04, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.08, dc)), Handle<BlackVolTermStructure>(flatVol(today, 0.25, dc)));
+    const auto barrierEngine = ext::make_shared<AnalyticPartialTimeBarrierOptionEngine>(process);
+    const auto vanillaEngine = ext::make_shared<AnalyticEuropeanEngine>(process);
+
+    const struct
+    {
+        Barrier::Type knockIn, knockOut;
+        Real barrier;
+    } cases[] = {{Barrier::DownIn, Barrier::DownOut, 85.0}, {Barrier::UpIn, Barrier::UpOut, 115.0}};
+
+    for (auto type : {Option::Put, Option::Call})
+    {
+        for (Real strike : {80.0, 100.0, 130.0})
+        {
+            const auto payoff = ext::make_shared<PlainVanillaPayoff>(type, strike);
+            VanillaOption vanilla(payoff, exercise);
+            vanilla.setPricingEngine(vanillaEngine);
+
+            for (const auto& c : cases)
+            {
+                PartialTimeBarrierOption knockIn(c.knockIn, PartialBarrier::Start, c.barrier, 0.0, coverEventDate,
+                                                 payoff, exercise);
+                PartialTimeBarrierOption knockOut(c.knockOut, PartialBarrier::Start, c.barrier, 0.0, coverEventDate,
+                                                  payoff, exercise);
+                knockIn.setPricingEngine(barrierEngine);
+                knockOut.setPricingEngine(barrierEngine);
+
+                BOOST_TEST_CONTEXT(c.knockIn << " at " << c.barrier << ", " << type << " at " << strike)
+                {
+                    BOOST_CHECK_SMALL(knockIn.NPV() + knockOut.NPV() - vanilla.NPV(), 1.0e-10);
+                }
+            }
+        }
     }
 }
 

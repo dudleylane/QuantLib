@@ -68,7 +68,8 @@ namespace QuantLib
         switch (arguments_.exercise->type())
         {
             case Exercise::American:
-                if (now <= stoppingTimes_[1] && now >= stoppingTimes_[0])
+                if ((now <= stoppingTimes_[1] || isOnTime(stoppingTimes_[1])) &&
+                    (now >= stoppingTimes_[0] || isOnTime(stoppingTimes_[0])))
                     stoppingTime = true;
                 break;
             case Exercise::European:

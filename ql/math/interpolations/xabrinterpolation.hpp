@@ -136,7 +136,13 @@ namespace QuantLib::detail
         {
             this->updateModelInstance();
 
-            // we should also check that y contains positive values only
+            // Here rather than in the constructor, since the data can change before each recalibration.
+            {
+                I1 x = this->xBegin_;
+                I2 y = this->yBegin_;
+                for (; x != this->xEnd_; ++x, ++y)
+                    QL_REQUIRE(*y >= 0.0, "negative volatility (" << *y << ") given at strike " << *x);
+            }
 
             // we must update weights if it is vegaWeighted
             if (vegaWeighted_)

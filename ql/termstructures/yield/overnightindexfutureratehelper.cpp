@@ -62,6 +62,10 @@ namespace QuantLib
     {
         ext::shared_ptr<OvernightIndex> index =
             ext::dynamic_pointer_cast<OvernightIndex>(overnightIndex->clone(termStructureHandle_));
+        // We want to be notified of changes of fixings, but we don't
+        // want notifications from termStructureHandle_ (they would
+        // interfere with bootstrapping.)
+        index->unregisterWith(termStructureHandle_);
         future_ = ext::make_shared<OvernightIndexFuture>(index, valueDate, maturityDate, convexityAdjustment,
                                                          averagingMethod);
         registerWithObservables(future_);

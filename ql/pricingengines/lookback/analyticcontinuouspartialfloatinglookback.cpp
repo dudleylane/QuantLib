@@ -167,21 +167,54 @@ namespace QuantLib
         Real pow_s = std::pow(s, -x);
         Real pow_l = std::pow(lambda(), x);
 
-        if (!fullLookbackPeriod)
+        Real carryDiscount = std::exp(-carry * (residualTime() - lookbackPeriodEndTime()));
+
+        // The terms divided by x cancel at no carry, where this takes the limit of their ratio:
+        // the derivative of their combined numerator with respect to x at zero.
+        Real ratio;
+        if (std::fabs(x) < 1.0e-8)
         {
-            return eta * (underlying() * dividendDiscount() * n1 - lambda() * minmax() * riskFreeDiscount() * n2 +
-                          underlying() * riskFreeDiscount() * lambda() / x *
-                              (pow_s * n3 - dividendDiscount() / riskFreeDiscount() * pow_l * n4) +
-                          underlying() * dividendDiscount() * n5 + riskFreeDiscount() * lambda() * minmax() * n6 -
-                          std::exp(-carry * (residualTime() - lookbackPeriodEndTime())) * dividendDiscount() *
-                              (1 + 0.5 * vol * vol / carry) * lambda() * underlying() * n7 * n8);
+            // The derivative of a bivariate normal probability M(h, k; rho) along (dh, dk).
+            const auto derivative = [this](Real h, Real k, Real dh, Real dk, Real rho)
+            {
+                if (rho == 1.0)
+                    return h < k ? Real(f_.derivative(h) * dh) : Real(f_.derivative(k) * dk);
+                if (rho == -1.0)
+                    return h + k > 0.0 ? Real(f_.derivative(h) * dh + f_.derivative(k) * dk) : Real(0.0);
+                // With the boundary today an argument can be infinite, and then rho is 0.
+                if (rho == 0.0)
+                    return f_.derivative(h) * f_(k) * dh + f_.derivative(k) * f_(h) * dk;
+                const Real z = std::sqrt((1.0 - rho) * (1.0 + rho));
+                return f_.derivative(h) * f_((k - rho * h) / z) * dh + f_.derivative(k) * f_((h - rho * k) / z) * dk;
+            };
+            const Real a = stdDeviation();
+            const Real u = vol * std::sqrt(lookbackPeriodEndTime());
+            const Real v = vol * std::sqrt(residualTime() - lookbackPeriodEndTime());
+            const Real dn3 = derivative(-eta * f1, eta * (-d1 - g1), eta * u / 2.0, eta * a / 2.0, u / a);
+            ratio = -ls * n3 + dn3 - (a * a / 2.0 + std::log(lambda())) * n4;
+            if (fullLookbackPeriod)
+            {
+                ratio -= -eta * a / 2.0 * f_.derivative(d1 + g1);
+            }
+            else
+            {
+                const Real g2 = l1 / std::sqrt(residualTime() - lookbackPeriodEndTime());
+                const Real dn7 = eta * v / 2.0 * f_.derivative(e2 - g2);
+                const Real dn8 = -eta * u / 2.0 * f_.derivative(f1);
+                ratio -= derivative(-eta * (d1 + g1), eta * (e1 + g2), -eta * a / 2.0, eta * v / 2.0, -v / a);
+                ratio -= u * u / 2.0 * n7 * n8 + dn7 * n8 + n7 * dn8;
+            }
         }
         else
         {
-            // Simpler calculation
-            return eta * (underlying() * dividendDiscount() * n1 - lambda() * minmax() * riskFreeDiscount() * n2 +
-                          underlying() * riskFreeDiscount() * lambda() / x *
-                              (pow_s * n3 - dividendDiscount() / riskFreeDiscount() * pow_l * n4));
+            const Real carryFactor = dividendDiscount() / riskFreeDiscount();
+            ratio = (pow_s * n3 - carryFactor * pow_l * n4 - carryDiscount * carryFactor * n7 * n8) / x;
         }
+
+        // Over the full period n5, n6 and n7 are 0.
+        return eta * (underlying() * dividendDiscount() * n1 - lambda() * minmax() * riskFreeDiscount() * n2 +
+                      underlying() * riskFreeDiscount() * lambda() * ratio + underlying() * dividendDiscount() * n5 +
+                      riskFreeDiscount() * lambda() * minmax() * n6 -
+                      carryDiscount * dividendDiscount() * lambda() * underlying() * n7 * n8);
     }
 }

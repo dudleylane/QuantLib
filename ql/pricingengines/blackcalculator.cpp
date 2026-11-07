@@ -221,46 +221,8 @@ namespace QuantLib
         // Handle zero volatility case
         if (stdDev_ <= QL_EPSILON)
         {
-            // For zero volatility, delta is:
-            // ITM Call: 1.0, OTM Call: 0.0, ATM Call: 0.5
-            // ITM Put: -1.0, OTM Put: 0.0, ATM Put: -0.5
-            Real DforwardDs = forward_ / spot;
-            if (close(forward_, strike_))
-            {
-                // ATM case
-                if (alpha_ >= 0)
-                { // Call
-                    return discount_ * 0.5 * DforwardDs;
-                }
-                else
-                { // Put
-                    return discount_ * (-0.5) * DforwardDs;
-                }
-            }
-            else if (forward_ > strike_)
-            {
-                // ITM Call, OTM Put
-                if (alpha_ >= 0)
-                { // Call
-                    return discount_ * 1.0 * DforwardDs;
-                }
-                else
-                { // Put
-                    return 0.0;
-                }
-            }
-            else
-            {
-                // OTM Call, ITM Put
-                if (alpha_ >= 0)
-                { // Call
-                    return 0.0;
-                }
-                else
-                { // Put
-                    return discount_ * (-1.0) * DforwardDs;
-                }
-            }
+            // Away from the strike alpha and beta don't move with the forward.
+            return discount_ * alpha_ * forward_ / spot;
         }
 
         Real DforwardDs = forward_ / spot;
@@ -279,45 +241,8 @@ namespace QuantLib
         // Handle zero volatility case
         if (stdDev_ <= QL_EPSILON)
         {
-            // For zero volatility, forward delta is:
-            // ITM Call: 1.0, OTM Call: 0.0, ATM Call: 0.5
-            // ITM Put: -1.0, OTM Put: 0.0, ATM Put: -0.5
-            if (close(forward_, strike_))
-            {
-                // ATM case
-                if (alpha_ >= 0)
-                { // Call
-                    return discount_ * 0.5;
-                }
-                else
-                { // Put
-                    return discount_ * (-0.5);
-                }
-            }
-            else if (forward_ > strike_)
-            {
-                // ITM Call, OTM Put
-                if (alpha_ >= 0)
-                { // Call
-                    return discount_ * 1.0;
-                }
-                else
-                { // Put
-                    return 0.0;
-                }
-            }
-            else
-            {
-                // OTM Call, ITM Put
-                if (alpha_ >= 0)
-                { // Call
-                    return 0.0;
-                }
-                else
-                { // Put
-                    return discount_ * (-1.0);
-                }
-            }
+            // Away from the strike alpha and beta don't move with the forward.
+            return discount_ * alpha_;
         }
 
         Real temp = stdDev_ * forward_;
@@ -482,45 +407,8 @@ namespace QuantLib
         // Handle zero volatility case
         if (stdDev_ <= QL_EPSILON)
         {
-            // For zero volatility, strike sensitivity is:
-            // Call: -N(d2) where d2 -> 1 (ITM), 0 (OTM), 0.5 (ATM)
-            // Put: N(-d2) = 1 - N(d2)
-            if (close(forward_, strike_))
-            {
-                // ATM case
-                if (alpha_ >= 0)
-                { // Call
-                    return -discount_ * 0.5;
-                }
-                else
-                { // Put
-                    return discount_ * 0.5;
-                }
-            }
-            else if (forward_ > strike_)
-            {
-                // ITM Call, OTM Put
-                if (alpha_ >= 0)
-                { // Call
-                    return -discount_ * 1.0;
-                }
-                else
-                { // Put
-                    return discount_ * 0.0;
-                }
-            }
-            else
-            {
-                // OTM Call, ITM Put
-                if (alpha_ >= 0)
-                { // Call
-                    return -discount_ * 0.0;
-                }
-                else
-                { // Put
-                    return discount_ * 1.0;
-                }
-            }
+            // Away from the strike alpha and beta don't move with it.
+            return discount_ * beta_ * DxDstrike_;
         }
 
         Real temp = stdDev_ * strike_;

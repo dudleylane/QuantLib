@@ -242,6 +242,47 @@ BOOST_AUTO_TEST_CASE(testFrequencyComputation)
     BOOST_TEST(Period(1, Days).frequency() == Daily);
 }
 
+BOOST_AUTO_TEST_CASE(testNegativePeriodComparison)
+{
+    BOOST_TEST_MESSAGE("Testing that negating two periods reverses their order...");
+
+    const Period periods[] = {1 * Days,   27 * Days,  28 * Days,  31 * Days,   32 * Days, 365 * Days,
+                              366 * Days, 367 * Days, 1 * Weeks,  4 * Weeks,   5 * Weeks, 52 * Weeks,
+                              53 * Weeks, 1 * Months, 2 * Months, 12 * Months, 1 * Years, 2 * Years};
+
+    // 1 and 0 for an answer, -1 for an undecidable comparison.
+    auto lessThan = [](const Period& a, const Period& b)
+    {
+        try
+        {
+            return a < b ? 1 : 0;
+        }
+        catch (const Error&)
+        {
+            return -1;
+        }
+    };
+
+    for (const auto& a : periods)
+    {
+        for (const auto& b : periods)
+        {
+            BOOST_CHECK_MESSAGE(lessThan(a, b) == lessThan(-b, -a), a << " < " << b << " gives " << lessThan(a, b)
+                                                                      << " but " << -b << " < " << -a << " gives "
+                                                                      << lessThan(-b, -a));
+        }
+    }
+
+    // A month is between 28 and 31 days, so these can't be told apart.
+    BOOST_CHECK_THROW((void)(-1 * Months < -28 * Days), Error);
+    BOOST_CHECK_THROW((void)(-1 * Years < -365 * Days), Error);
+    // And these can.
+    BOOST_CHECK(-1 * Months < -27 * Days);
+    BOOST_CHECK(-32 * Days < -1 * Months);
+    BOOST_CHECK(-1 * Years < -364 * Days);
+    BOOST_CHECK(-367 * Days < -1 * Years);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -22,6 +22,7 @@
 #include "utilities.hpp"
 #include <ql/cashflows/cashflows.hpp>
 #include <ql/cashflows/couponpricer.hpp>
+#include <ql/cashflows/simplecashflow.hpp>
 #include <ql/indexes/ibor/euribor.hpp>
 #include <ql/instruments/bonds/convertiblebonds.hpp>
 #include <ql/instruments/bonds/fixedratebond.hpp>
@@ -31,15 +32,19 @@
 #include <ql/math/interpolations/backwardflatinterpolation.hpp>
 #include <ql/pricingengines/bond/binomialconvertibleengine.hpp>
 #include <ql/pricingengines/bond/discountingbondengine.hpp>
+#include <ql/pricingengines/bond/discretizedconvertible.hpp>
 #include <ql/pricingengines/vanilla/binomialengine.hpp>
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/termstructures/yield/forwardcurve.hpp>
 #include <ql/termstructures/yield/forwardspreadedtermstructure.hpp>
+#include <ql/time/calendars/nullcalendar.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/calendars/unitedstates.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/time/daycounters/thirty360.hpp>
+#include <ql/timegrid.hpp>
 #include <ql/utilities/dataformatters.hpp>
 
 using namespace QuantLib;
@@ -421,6 +426,139 @@ BOOST_AUTO_TEST_CASE(testRegression)
         // exception.  If something else is thrown, then there's
         // another problem and the test must fail.
     }
+}
+
+BOOST_AUTO_TEST_CASE(testDividendsSpanningSettlementDate)
+{
+    BOOST_TEST_MESSAGE("Testing convertible-bond dividend values spanning the settlement date...");
+
+    Settings::instance().evaluationDate() = Date(15, January, 2024);
+    CommonVars vars;
+
+    ConvertibleBond::arguments args;
+    args.exercise = ext::make_shared<EuropeanExercise>(vars.maturityDate);
+    args.conversionRatio = vars.conversionRatio;
+    args.cashflows.push_back(ext::make_shared<SimpleCashFlow>(vars.redemption, vars.maturityDate));
+    args.issueDate = vars.issueDate;
+    args.settlementDate = vars.calendar.advance(vars.today, vars.settlementDays, Days);
+    args.settlementDays = vars.settlementDays;
+    args.redemption = vars.redemption;
+
+    const Date beforeSettlement = vars.calendar.advance(vars.today, 1, Days);
+    const Date afterSettlement = vars.calendar.advance(args.settlementDate, 1, Years);
+    const DividendSchedule dividends = {ext::make_shared<FixedDividend>(1.0, beforeSettlement),
+                                        ext::make_shared<FixedDividend>(10.0, afterSettlement)};
+
+    DiscretizedConvertible convertible(args, vars.process, dividends, vars.creditSpread);
+
+    BOOST_CHECK_EQUAL(convertible.dividendValues().size(), 1U);
+    BOOST_CHECK_CLOSE(convertible.dividendValues()[0], 10.0 * vars.riskFreeRate->discount(afterSettlement), 1.0e-10);
+
+    // Nothing is left to index if the only dividend falls before settlement.
+    DiscretizedConvertible noneLeft(args, vars.process, {dividends.front()}, vars.creditSpread);
+    BOOST_CHECK_EQUAL(noneLeft.dividendValues().size(), 0U);
+}
+
+BOOST_AUTO_TEST_CASE(testSpotAtSettlementDate)
+{
+    BOOST_TEST_MESSAGE("Testing the spot a convertible bond's tree starts from...");
+
+    Date today(15, January, 2024);
+    Settings::instance().evaluationDate() = today;
+
+    Calendar calendar = TARGET();
+    DayCounter dayCounter = Actual360();
+    Natural settlementDays = 3;
+    Date settlement = calendar.advance(today, settlementDays, Days);
+    Date maturity = calendar.advance(today, 2, Years);
+    Time toSettlement = dayCounter.yearFraction(today, settlement),
+         toMaturity = dayCounter.yearFraction(today, maturity);
+
+    const Real spot = 50.0, redemption = 100.0;
+    // With a conversion price far under the spot, conversion is certain and
+    // the bond at settlement is worth this many forwards of the stock.
+    const Real conversionRatio = 50.0;
+    const Rate r = 0.05;
+    // The lattice discounts each step by 1/(1 + r dt), which leaves 801 steps up
+    // to 0.015 high here.  That halves when the steps double.
+    const Real tolerance = 0.02;
+
+    Schedule schedule(maturity - 1 * Years, maturity, Period(Annual), calendar, Unadjusted, Unadjusted,
+                      DateGeneration::Backward, false);
+    auto exercise = ext::make_shared<EuropeanExercise>(maturity);
+    ConvertibleZeroCouponBond bond(exercise, conversionRatio, CallabilitySchedule(), today, settlementDays, dayCounter,
+                                   schedule, redemption);
+    Handle<Quote> noSpread(ext::make_shared<SimpleQuote>(0.0));
+
+    for (Rate q : {0.0, 0.04})
+    {
+        auto process = ext::make_shared<BlackScholesMertonProcess>(
+            Handle<Quote>(ext::make_shared<SimpleQuote>(spot)),
+            Handle<YieldTermStructure>(flatRate(today, q, dayCounter)),
+            Handle<YieldTermStructure>(flatRate(today, r, dayCounter)),
+            Handle<BlackVolTermStructure>(flatVol(today, 0.20, dayCounter)));
+        const Real expected = conversionRatio * spot * std::exp(-q * toMaturity + r * toSettlement);
+        bond.setPricingEngine(
+            ext::make_shared<BinomialConvertibleEngine<CoxRossRubinstein>>(process, 801, noSpread, DividendSchedule()));
+        Real calculated = bond.NPV();
+        if (std::fabs(calculated - expected) > tolerance)
+            BOOST_ERROR("failed to reproduce the forward at settlement with a "
+                        << q << " dividend yield:" << std::setprecision(10) << "\n    calculated: " << calculated
+                        << "\n    expected:   " << expected);
+
+        // A dividend inside the settlement lag has gone by the time the tree
+        // starts: it comes off the stock and is never added back.
+        const Date exDate = calendar.advance(today, 1, Days);
+        const Real dividend = 2.0;
+        const Real expectedDrop = conversionRatio * dividend * std::exp(-r * dayCounter.yearFraction(today, exDate)) *
+                                  std::exp(-q * toMaturity + r * toSettlement);
+        bond.setPricingEngine(ext::make_shared<BinomialConvertibleEngine<CoxRossRubinstein>>(
+            process, 801, noSpread, DividendSchedule{ext::make_shared<FixedDividend>(dividend, exDate)}));
+        Real drop = calculated - bond.NPV();
+        if (std::fabs(drop - expectedDrop) > tolerance)
+            BOOST_ERROR("failed to reproduce the drop of a dividend inside the settlement lag:"
+                        << std::setprecision(10) << "\n    calculated: " << drop
+                        << "\n    expected:   " << expectedDrop);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBinomialConversionAtMaturity)
+{
+    BOOST_TEST_MESSAGE("Testing a binomial convertible bond's conversion at maturity...");
+
+    const Date today(21, September, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Date maturity = today + 91;
+    const Size steps = 51;
+
+    // The last point of this grid rounds below the bond's maturity.
+    const Time T = dc.yearFraction(today, maturity);
+    BOOST_REQUIRE(TimeGrid(T, steps).back() < T);
+
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.0, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.05, dc)), Handle<BlackVolTermStructure>(flatVol(today, 0.15, dc)));
+    auto engine = ext::make_shared<BinomialConvertibleEngine<CoxRossRubinstein>>(
+        process, steps, Handle<Quote>(ext::make_shared<SimpleQuote>(0.0)));
+
+    const Schedule schedule = MakeSchedule()
+                                  .from(today)
+                                  .to(maturity)
+                                  .withFrequency(Once)
+                                  .withCalendar(NullCalendar())
+                                  .withConvention(Unadjusted);
+    const Real conversionRatio = 2.0, redemption = 100.0;
+    ConvertibleZeroCouponBond european(ext::make_shared<EuropeanExercise>(maturity), conversionRatio,
+                                       CallabilitySchedule(), today, 0, dc, schedule, redemption);
+    ConvertibleZeroCouponBond american(ext::make_shared<AmericanExercise>(maturity, maturity), conversionRatio,
+                                       CallabilitySchedule(), today, 0, dc, schedule, redemption);
+    european.setPricingEngine(engine);
+    american.setPricingEngine(engine);
+
+    // At a spot of 100 the bond is well in the money for conversion.
+    BOOST_CHECK_GT(european.NPV(), 1.5 * redemption);
+    BOOST_CHECK_SMALL(american.NPV() - european.NPV(), 1.0e-10);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

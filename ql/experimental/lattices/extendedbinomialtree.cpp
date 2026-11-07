@@ -22,6 +22,8 @@
 
 #include <ql/experimental/lattices/extendedbinomialtree.hpp>
 #include <ql/math/distributions/binomialdistribution.hpp>
+#include <ql/methods/lattices/binomialtree.hpp>
+#include <tuple>
 
 namespace QuantLib
 {
@@ -68,20 +70,30 @@ namespace QuantLib
     }
 
 
+    namespace
+    {
+
+        Real additiveEQPUpStep(Real drift, Real variance)
+        {
+            const Real radicand = 4.0 * variance - 3.0 * drift * drift;
+            QL_REQUIRE(radicand >= 0.0, "drift per step too large for the additive EQP tree: more steps are needed");
+            return -0.5 * drift + 0.5 * std::sqrt(radicand);
+        }
+
+    }
+
+
     ExtendedAdditiveEQPBinomialTree::ExtendedAdditiveEQPBinomialTree(
         const ext::shared_ptr<StochasticProcess1D>& process, Time end, Size steps, Real)
     : ExtendedEqualProbabilitiesBinomialTree<ExtendedAdditiveEQPBinomialTree>(process, end, steps)
     {
 
-        up_ = -0.5 * this->driftStep(0.0) + 0.5 * std::sqrt(4.0 * process->variance(0.0, x0_, dt_) -
-                                                            3.0 * this->driftStep(0.0) * this->driftStep(0.0));
+        up_ = additiveEQPUpStep(this->driftStep(0.0), process->variance(0.0, x0_, dt_));
     }
 
     Real ExtendedAdditiveEQPBinomialTree::upStep(Time stepTime) const
     {
-        return (-0.5 * this->driftStep(stepTime) +
-                0.5 * std::sqrt(4.0 * this->treeProcess_->variance(stepTime, x0_, dt_) -
-                                3.0 * this->driftStep(stepTime) * this->driftStep(stepTime)));
+        return additiveEQPUpStep(this->driftStep(stepTime), this->treeProcess_->variance(stepTime, x0_, dt_));
     }
 
 
@@ -174,13 +186,12 @@ namespace QuantLib
         Real variance = process->variance(0.0, x0_, end);
 
         Real ermqdt = std::exp(this->driftStep(0.0) + 0.5 * variance / oddSteps_);
-        Real d2 = (std::log(x0_ / strike) + this->driftStep(0.0) * oddSteps_) / std::sqrt(variance);
+        Real width = std::sqrt(variance);
+        Real d2 = (std::log(x0_ / strike) + this->driftStep(0.0) * oddSteps_) / width;
 
         pu_ = PeizerPrattMethod2Inversion(d2, oddSteps_);
-        pd_ = 1.0 - pu_;
-        Real pdash = PeizerPrattMethod2Inversion(d2 + std::sqrt(variance), oddSteps_);
-        up_ = ermqdt * pdash / pu_;
-        down_ = (ermqdt - pu_ * up_) / (1.0 - pu_);
+        pd_ = PeizerPrattMethod2Inversion(-d2, oddSteps_);
+        std::tie(up_, down_) = detail::leisenReimerMoves(d2, width, ermqdt, oddSteps_);
     }
 
     Real ExtendedLeisenReimer::underlying(Size i, Size index) const
@@ -188,12 +199,10 @@ namespace QuantLib
         Time stepTime = i * this->dt_;
         Real variance = this->treeProcess_->variance(stepTime, x0_, end_);
         Real ermqdt = std::exp(this->driftStep(stepTime) + 0.5 * variance / oddSteps_);
-        Real d2 = (std::log(x0_ / strike_) + this->driftStep(stepTime) * oddSteps_) / std::sqrt(variance);
+        Real width = std::sqrt(variance);
+        Real d2 = (std::log(x0_ / strike_) + this->driftStep(stepTime) * oddSteps_) / width;
 
-        Real pu = PeizerPrattMethod2Inversion(d2, oddSteps_);
-        Real pdash = PeizerPrattMethod2Inversion(d2 + std::sqrt(variance), oddSteps_);
-        Real up = ermqdt * pdash / pu;
-        Real down = (ermqdt - pu * up) / (1.0 - pu);
+        const auto [up, down] = detail::leisenReimerMoves(d2, width, ermqdt, oddSteps_);
 
         return x0_ * std::pow(down, Real(BigInteger(i) - BigInteger(index))) * std::pow(up, Real(index));
     }
@@ -204,10 +213,8 @@ namespace QuantLib
         Real variance = this->treeProcess_->variance(stepTime, x0_, end_);
         Real d2 = (std::log(x0_ / strike_) + this->driftStep(stepTime) * oddSteps_) / std::sqrt(variance);
 
-        Real pu = PeizerPrattMethod2Inversion(d2, oddSteps_);
-        Real pd = 1.0 - pu;
-
-        return (branch == 1 ? pu : pd);
+        // 1 - pu is the same inversion at -d2.
+        return PeizerPrattMethod2Inversion(branch == 1 ? d2 : -d2, oddSteps_);
     }
 
 
@@ -248,6 +255,11 @@ namespace QuantLib
         pu_ = computeUpProb((oddSteps_ - 1.0) / 2.0, d2);
         pd_ = 1.0 - pu_;
         Real pdash = computeUpProb((oddSteps_ - 1.0) / 2.0, d2 + std::sqrt(variance));
+        // The probabilities come from a series that is good near the money.  Further out
+        // it turns around and then diverges, which gives inverted moves or negative ones.
+        QL_REQUIRE(pu_ > 0.0 && pu_ < pdash && pdash < 1.0,
+                   "the strike is too far from the money for a Joshi tree: up probabilities " << pu_ << " and "
+                                                                                              << pdash);
         up_ = ermqdt * pdash / pu_;
         down_ = (ermqdt - pu_ * up_) / (1.0 - pu_);
     }

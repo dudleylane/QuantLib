@@ -175,6 +175,10 @@ namespace QuantLib
     {
         QL_REQUIRE(arguments_.exercise->type() == Exercise::American, "not an American option");
 
+        const auto exercise = ext::dynamic_pointer_cast<AmericanExercise>(arguments_.exercise);
+        QL_REQUIRE(exercise, "non-American exercise given");
+        QL_REQUIRE(!exercise->payoffAtExpiry(), "payoff at expiry not handled");
+
         const auto payoff = ext::dynamic_pointer_cast<StrikedTypePayoff>(arguments_.payoff);
         QL_REQUIRE(payoff, "non-striked payoff given");
 
@@ -199,6 +203,9 @@ namespace QuantLib
             results_.value = calculatePutWithEdgeCases(K, S, q, r, vol, T);
         else
             QL_FAIL("unknown option type");
+
+        // the holder can always exercise, and the integral's error can land below that
+        results_.value = std::max(results_.value, (*payoff)(S));
     }
 
     Real detail::QdPutCallParityEngine::calculatePutWithEdgeCases(

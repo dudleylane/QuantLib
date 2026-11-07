@@ -65,6 +65,8 @@ namespace QuantLib
 
         QL_REQUIRE(callabilityDates.size() == callabilityPrices.size(),
                    "different number of callability dates and prices");
+        QL_REQUIRE(callabilityDates.size() == callabilityTypes.size(),
+                   "different number of callability dates and types");
         QL_REQUIRE(couponDates.size() == couponAmounts.size(), "different number of coupon dates and amounts");
     }
 
@@ -307,11 +309,13 @@ namespace QuantLib
         Real Ppp = cleanPriceOAS(oas + bump, engineTS, dayCounter, compounding, frequency);
         Real Pmm = cleanPriceOAS(oas - bump, engineTS, dayCounter, compounding, frequency);
 
-        if (P == 0.0)
+        Real dirtyP = P + accruedAmount();
+
+        if (dirtyP == 0.0)
             return 0;
         else
         {
-            return (Pmm - Ppp) / (2 * P * bump);
+            return (Pmm - Ppp) / (2 * dirtyP * bump);
         }
     }
 
@@ -327,11 +331,13 @@ namespace QuantLib
         Real Ppp = cleanPriceOAS(oas + bump, engineTS, dayCounter, compounding, frequency);
         Real Pmm = cleanPriceOAS(oas - bump, engineTS, dayCounter, compounding, frequency);
 
-        if (P == 0.0)
+        Real dirtyP = P + accruedAmount();
+
+        if (dirtyP == 0.0)
             return 0;
         else
         {
-            return (Ppp + Pmm - 2 * P) / (std::pow(bump, 2) * P);
+            return (Ppp + Pmm - 2 * P) / (std::pow(bump, 2) * dirtyP);
         }
     }
 
@@ -369,8 +375,10 @@ namespace QuantLib
 
         arguments->callabilityPrices.clear();
         arguments->callabilityDates.clear();
+        arguments->callabilityTypes.clear();
         arguments->callabilityPrices.reserve(putCallSchedule_.size());
         arguments->callabilityDates.reserve(putCallSchedule_.size());
+        arguments->callabilityTypes.reserve(putCallSchedule_.size());
 
         arguments->paymentDayCounter = paymentDayCounter_;
         arguments->frequency = frequency_;
@@ -381,6 +389,7 @@ namespace QuantLib
             if (!i->hasOccurred(settlement, false))
             {
                 arguments->callabilityDates.push_back(i->date());
+                arguments->callabilityTypes.push_back(i->type());
                 arguments->callabilityPrices.push_back(i->price().amount());
 
                 if (i->price().type() == Bond::Price::Clean)

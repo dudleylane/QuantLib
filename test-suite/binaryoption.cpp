@@ -20,9 +20,11 @@
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
 #include <ql/instruments/barrieroption.hpp>
+#include <ql/instruments/vanillaoption.hpp>
 #include <ql/math/interpolations/bicubicsplineinterpolation.hpp>
 #include <ql/models/equity/hestonmodel.hpp>
 #include <ql/pricingengines/barrier/analyticbinarybarrierengine.hpp>
+#include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvariancecurve.hpp>
 #include <ql/termstructures/volatility/equityfx/blackvariancesurface.hpp>
@@ -31,6 +33,7 @@
 #include <ql/time/calendars/nullcalendar.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/utilities/dataformatters.hpp>
 
 using namespace QuantLib;
@@ -241,6 +244,146 @@ BOOST_AUTO_TEST_CASE(testAssetOrNothingHaugValues)
         {
             REPORT_FAILURE("value", payoff, amExercise, value.barrierType, value.barrier, value.s, value.q, value.r,
                            today, value.v, value.result, calculated, error, value.tol);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testCashOrNothingLowVolatility)
+{
+    BOOST_TEST_MESSAGE("Testing cash-or-nothing barrier options at low volatility...");
+
+    // (H/S)^(2 mu) overflows in all of these.  With the forward on the barrier, in the
+    // later ones, its product with N(y) is finite and not negligible.  The expected values
+    // are the engine's closed forms in 200-digit arithmetic.
+    const BinaryOptionData values[] = {
+        {Barrier::DownOut, 90.0, 10.0, Option::Call, 95.0, 100.0, 0.03, -0.02, 1.0, 0.003, 6.7971526491613168, 1e-10},
+        {Barrier::UpOut, 110.0, 10.0, Option::Put, 105.0, 100.0, 0.0, 0.03, 1.0, 0.001, 9.7044553354850818, 1e-10},
+        {Barrier::DownOut, 90.0, 10.0, Option::Call, 100.0, 100.0, 0.0, -0.02, 1.0, 0.001, 0.0, 1e-10},
+        {Barrier::DownOut, 95.1229424500714, 10.0, Option::Call, 94.0, 100.0, 0.0, -0.05, 1.0, 0.001,
+         5.2123232582574269, 1e-10},
+        {Barrier::DownOut, 95.1229424500714, 10.0, Option::Put, 96.0, 100.0, 0.0, -0.05, 1.0, 0.001, 5.2123232582574269,
+         1e-10},
+        {Barrier::UpOut, 105.12710963760242, 10.0, Option::Call, 104.0, 100.0, 0.0, 0.05, 1.0, 0.001,
+         4.7200995957991069, 1e-10},
+        {Barrier::UpOut, 105.12710963760242, 10.0, Option::Put, 106.0, 100.0, 0.0, 0.05, 1.0, 0.001, 4.7200995957991069,
+         1e-10},
+        {Barrier::DownOut, 95.1229424500714, 10.0, Option::Call, 94.0, 100.0, 0.0, -0.05, 1.0, 1e-5, 5.2559151155478595,
+         1e-8},
+        {Barrier::UpOut, 105.12710963760242, 10.0, Option::Put, 106.0, 100.0, 0.0, 0.05, 1.0, 1e-5, 4.755786611195961,
+         1e-8},
+        // Here the power is still finite, at about exp(700), and N(y) is already 0.
+        {Barrier::UpOut, 105.12710963760242, 10.0, Option::Call, 104.0, 100.0, 0.0, 0.05, 1.0, 0.00267,
+         4.6597003968250541, 1e-10},
+        {Barrier::DownOut, 95.1229424500714, 10.0, Option::Call, 94.0, 100.0, 0.0, -0.05, 1.0, 0.00267,
+         5.1388614189735295, 1e-10},
+    };
+
+    const DayCounter dc = Actual360();
+    const Date today(15, October, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    for (const auto& value : values)
+    {
+        BOOST_TEST_CONTEXT(value.barrierType << " at " << value.barrier << ", " << value.type << " at " << value.strike
+                                             << ", r " << value.r << ", volatility " << value.v)
+        {
+            const auto process =
+                ext::make_shared<BlackScholesMertonProcess>(Handle<Quote>(ext::make_shared<SimpleQuote>(value.s)),
+                                                            Handle<YieldTermStructure>(flatRate(today, value.q, dc)),
+                                                            Handle<YieldTermStructure>(flatRate(today, value.r, dc)),
+                                                            Handle<BlackVolTermStructure>(flatVol(today, value.v, dc)));
+            const auto engine = ext::make_shared<AnalyticBinaryBarrierEngine>(process);
+
+            const ext::shared_ptr<StrikedTypePayoff> payoff =
+                ext::make_shared<CashOrNothingPayoff>(value.type, value.strike, value.cash);
+            const Date exDate = today + timeToDays(value.t);
+            const ext::shared_ptr<Exercise> exercise = ext::make_shared<AmericanExercise>(today, exDate, true);
+
+            BarrierOption knockOut(value.barrierType, value.barrier, 0.0, payoff, exercise);
+            knockOut.setPricingEngine(engine);
+            BOOST_CHECK_SMALL(knockOut.NPV() - value.result, value.tol);
+
+            // A knock-in and a knock-out add up to the European option.
+            BarrierOption knockIn(value.barrierType == Barrier::DownOut ? Barrier::DownIn : Barrier::UpIn,
+                                  value.barrier, 0.0, payoff, exercise);
+            knockIn.setPricingEngine(engine);
+            VanillaOption european(payoff, ext::make_shared<EuropeanExercise>(exDate));
+            european.setPricingEngine(ext::make_shared<AnalyticEuropeanEngine>(process));
+            BOOST_CHECK_SMALL(knockIn.NPV() + knockOut.NPV() - european.NPV(), value.tol);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testZeroVolatility)
+{
+    BOOST_TEST_MESSAGE("Testing cash-or-nothing and asset-or-nothing barrier options at zero volatility...");
+
+    const DayCounter dc = Actual365Fixed();
+    const Date today(15, October, 2026);
+    Settings::instance().evaluationDate() = today;
+    const Date exDate = today + 365;
+    const ext::shared_ptr<Exercise> exercise = ext::make_shared<AmericanExercise>(today, exDate, true);
+
+    // The spot is 100 and the only carry is the rate, so the forward is 105.13 at 5% and 95.12
+    // at -5%.  The underlying follows it, and the options pay if the barrier and strike say so.
+    // A cash option that pays is worth 10 discounted, and an asset option the spot.
+    const struct
+    {
+        Barrier::Type barrierType;
+        Option::Type type;
+        Real strike, barrier;
+        Rate r;
+        bool pays;
+    } cases[] = {
+        {Barrier::UpOut, Option::Put, 108.0, 110.0, 0.05, true},
+        {Barrier::UpOut, Option::Put, 108.0, 103.0, 0.05, false},
+        {Barrier::UpOut, Option::Put, 104.0, 110.0, 0.05, false},
+        {Barrier::UpOut, Option::Call, 104.0, 110.0, 0.05, true},
+        {Barrier::UpOut, Option::Call, 106.0, 110.0, 0.05, false},
+        {Barrier::UpOut, Option::Call, 104.0, 103.0, 0.05, false},
+        {Barrier::UpIn, Option::Call, 104.0, 103.0, 0.05, true},
+        {Barrier::UpIn, Option::Call, 106.0, 103.0, 0.05, false},
+        {Barrier::UpIn, Option::Call, 104.0, 110.0, 0.05, false},
+        {Barrier::UpIn, Option::Put, 108.0, 103.0, 0.05, true},
+        {Barrier::UpIn, Option::Put, 102.0, 103.0, 0.05, false},
+        {Barrier::DownOut, Option::Call, 104.0, 90.0, 0.05, true},
+        {Barrier::DownIn, Option::Put, 104.0, 90.0, 0.05, false},
+        {Barrier::DownOut, Option::Put, 96.0, 90.0, -0.05, true},
+        {Barrier::DownOut, Option::Put, 96.0, 97.0, -0.05, false},
+        {Barrier::DownOut, Option::Put, 94.0, 90.0, -0.05, false},
+        {Barrier::DownOut, Option::Call, 94.0, 90.0, -0.05, true},
+        {Barrier::DownOut, Option::Call, 94.0, 97.0, -0.05, false},
+        {Barrier::DownIn, Option::Put, 96.0, 97.0, -0.05, true},
+        {Barrier::DownIn, Option::Put, 94.0, 97.0, -0.05, false},
+        {Barrier::DownIn, Option::Call, 94.0, 97.0, -0.05, true},
+        {Barrier::DownIn, Option::Call, 96.0, 97.0, -0.05, false},
+    };
+
+    // Below the threshold where the engine stops dividing by the variance, and above it.
+    for (Volatility vol : {0.0, 1.0e-9, 1.0e-6})
+    {
+        for (const auto& c : cases)
+        {
+            BOOST_TEST_CONTEXT(c.barrierType << " at " << c.barrier << ", " << c.type << " at " << c.strike << ", r "
+                                             << c.r << ", volatility " << vol)
+            {
+                const auto process =
+                    ext::make_shared<BlackScholesMertonProcess>(Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)),
+                                                                Handle<YieldTermStructure>(flatRate(today, 0.0, dc)),
+                                                                Handle<YieldTermStructure>(flatRate(today, c.r, dc)),
+                                                                Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+                const auto engine = ext::make_shared<AnalyticBinaryBarrierEngine>(process);
+
+                BarrierOption cash(c.barrierType, c.barrier, 0.0,
+                                   ext::make_shared<CashOrNothingPayoff>(c.type, c.strike, 10.0), exercise);
+                cash.setPricingEngine(engine);
+                BOOST_CHECK_SMALL(cash.NPV() - (c.pays ? 10.0 * std::exp(-c.r) : 0.0), 1.0e-10);
+
+                BarrierOption asset(c.barrierType, c.barrier, 0.0,
+                                    ext::make_shared<AssetOrNothingPayoff>(c.type, c.strike), exercise);
+                asset.setPricingEngine(engine);
+                BOOST_CHECK_SMALL(asset.NPV() - (c.pays ? 100.0 : 0.0), 1.0e-10);
+            }
         }
     }
 }

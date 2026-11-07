@@ -18,8 +18,10 @@
 */
 
 #include <ql/exercise.hpp>
-#include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/pricingengines/asian/analytic_discr_geom_av_strike.hpp>
+#include <ql/pricingengines/blackcalculator.hpp>
+#include <cmath>
+#include <numeric>
 #include <utility>
 
 namespace QuantLib
@@ -48,19 +50,23 @@ namespace QuantLib
         ext::shared_ptr<PlainVanillaPayoff> payoff = ext::dynamic_pointer_cast<PlainVanillaPayoff>(arguments_.payoff);
         QL_REQUIRE(payoff, "non-plain payoff given");
 
-        DayCounter rfdc = process_->riskFreeRate()->dayCounter();
-        DayCounter divdc = process_->dividendYield()->dayCounter();
+        Date referenceDate = process_->riskFreeRate()->referenceDate();
+        Date volReferenceDate = process_->blackVolatility()->referenceDate();
         DayCounter voldc = process_->blackVolatility()->dayCounter();
 
         std::vector<Time> fixingTimes;
+        Real driftSum = 0.0;
         for (auto& fixingDate : arguments_.fixingDates)
         {
-            if (fixingDate >= arguments_.fixingDates[0])
+            if (fixingDate >= referenceDate)
             {
-                Time t = voldc.yearFraction(arguments_.fixingDates[0], fixingDate);
+                Time t = voldc.yearFraction(volReferenceDate, fixingDate);
                 fixingTimes.push_back(t);
+                driftSum += std::log(process_->dividendYield()->discount(fixingDate) /
+                                     process_->riskFreeRate()->discount(fixingDate));
             }
         }
+        QL_REQUIRE(!fixingTimes.empty(), "no future fixings");
 
         Size remainingFixings = fixingTimes.size();
         Size numberOfFixings = pastFixings + remainingFixings;
@@ -71,7 +77,8 @@ namespace QuantLib
 
         Time timeSum = std::accumulate(fixingTimes.begin(), fixingTimes.end(), Real(0.0));
 
-        Time residualTime = rfdc.yearFraction(arguments_.fixingDates[pastFixings], arguments_.exercise->lastDate());
+        Time residualTime = voldc.yearFraction(volReferenceDate, arguments_.exercise->lastDate());
+        QL_REQUIRE(fixingTimes.back() <= residualTime, "last fixing date must be before exercise date");
 
 
         Real underlying = process_->stateVariable()->value();
@@ -80,44 +87,35 @@ namespace QuantLib
         Volatility volatility = process_->blackVolatility()->blackVol(arguments_.exercise->lastDate(), underlying);
 
         Date exDate = arguments_.exercise->lastDate();
-        Rate dividendRate = process_->dividendYield()->zeroRate(exDate, divdc, Continuous, NoFrequency);
-
-        Rate riskFreeRate = process_->riskFreeRate()->zeroRate(exDate, rfdc, Continuous, NoFrequency);
-
-        Rate nu = riskFreeRate - dividendRate - 0.5 * volatility * volatility;
+        DiscountFactor dividendDiscount = process_->dividendYield()->discount(exDate);
+        DiscountFactor riskFreeDiscount = process_->riskFreeRate()->discount(exDate);
 
         Real temp = 0.0;
         for (Size i = pastFixings + 1; i < numberOfFixings; i++)
             temp += fixingTimes[i - pastFixings - 1] * (N - i);
         Real variance = volatility * volatility / N / N * (timeSum + 2.0 * temp);
-        Real covarianceTerm = volatility * volatility / N * timeSum;
-        Real sigmaSum_2 = variance + volatility * volatility * residualTime - 2.0 * covarianceTerm;
+
+        // The variance of log(S_T/G), where a Brownian increment between the i-th and the
+        // (i+1)-th fixing has a weight of i/N, and after the last one a weight of 1.  As
+        // Var[log S_T] + Var[log G] - 2 Cov[log S_T, log G] it would cancel, and go negative.
+        Real sigmaSum_2 = residualTime - fixingTimes.back();
+        for (Size i = 1; i < remainingFixings; i++)
+        {
+            Real weight = static_cast<Real>(i) / N;
+            sigmaSum_2 += weight * weight * (fixingTimes[i] - fixingTimes[i - 1]);
+        }
+        sigmaSum_2 *= volatility * volatility;
 
         Size M = (pastFixings == 0 ? 1 : pastFixings);
         Real runningLogAverage = runningLog / M;
 
-        Real muG = pastWeight * runningLogAverage + futureWeight * std::log(underlying) + nu * timeSum / N;
+        Real muG = pastWeight * runningLogAverage + futureWeight * std::log(underlying) +
+                   (driftSum - 0.5 * volatility * volatility * timeSum) / N;
 
-        CumulativeNormalDistribution f;
-
-        Real y1 = (std::log(underlying) + (riskFreeRate - dividendRate) * residualTime - muG - variance / 2.0 +
-                   sigmaSum_2 / 2.0) /
-                  std::sqrt(sigmaSum_2);
-        Real y2 = y1 - std::sqrt(sigmaSum_2);
-
-        switch (payoff->optionType())
-        {
-            case Option::Call:
-                results_.value = underlying * std::exp(-dividendRate * residualTime) * f(y1) -
-                                 std::exp(muG + variance / 2.0 - riskFreeRate * residualTime) * f(y2);
-                break;
-            case Option::Put:
-                results_.value = -underlying * std::exp(-dividendRate * residualTime) * f(-y1) +
-                                 std::exp(muG + variance / 2.0 - riskFreeRate * residualTime) * f(-y2);
-                break;
-            default:
-                QL_FAIL("invalid option type");
-        }
+        Real forward = underlying * dividendDiscount / riskFreeDiscount;
+        Real forwardAverage = std::exp(muG + variance / 2.0);
+        BlackCalculator black(payoff->optionType(), forwardAverage, forward, std::sqrt(sigmaSum_2), riskFreeDiscount);
+        results_.value = black.value();
     }
 
 }

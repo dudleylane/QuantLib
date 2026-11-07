@@ -1950,6 +1950,47 @@ BOOST_AUTO_TEST_CASE(testPillarCollisionWithDifferentMonthLengths)
     BOOST_CHECK_EQUAL(failureCount, (Size)0);
 }
 
+BOOST_AUTO_TEST_CASE(testYoYSwapFairRateAndSpreadWithZeroBps)
+{
+    BOOST_TEST_MESSAGE("Testing a year-on-year swap's fair rate and spread when its legs have no BPS...");
+
+    const Calendar calendar = UnitedKingdom();
+    const Date today = calendar.adjust(Date(13, August, 2007));
+    Settings::instance().evaluationDate() = today;
+
+    const Date maturity(13, August, 2012);
+    const DayCounter dayCounter = Thirty360(Thirty360::BondBasis);
+
+    RelinkableHandle<YoYInflationTermStructure> yoyCurve;
+    auto yoyIndex = ext::make_shared<YoYInflationIndex>(ext::make_shared<UKRPI>(), yoyCurve);
+    auto flatCurve = ext::make_shared<InterpolatedYoYInflationCurve<Linear>>(
+        today, std::vector<Date>{today, maturity}, std::vector<Rate>{0.03, 0.03}, yoyIndex->frequency(), dayCounter);
+    flatCurve->enableExtrapolation();
+    yoyCurve.linkTo(flatCurve);
+
+    Handle<YieldTermStructure> nominalCurve(nominalTermStructure());
+    const Schedule schedule = MakeSchedule()
+                                  .from(nominalCurve->referenceDate())
+                                  .to(maturity)
+                                  .withConvention(Unadjusted)
+                                  .withCalendar(calendar)
+                                  .withTenor(1 * Years)
+                                  .backwards();
+
+    YearOnYearInflationSwap swap(Swap::Payer, 0.0, schedule, 0.03, dayCounter, schedule, yoyIndex, Period(2, Months),
+                                 CPI::Flat, 0.0, dayCounter, calendar);
+    swap.setPricingEngine(ext::make_shared<DiscountingSwapEngine>(nominalCurve));
+
+    BOOST_CHECK(!swap.isExpired());
+    BOOST_CHECK_EQUAL(swap.legBPS(0), 0.0);
+    BOOST_CHECK_EQUAL(swap.legBPS(1), 0.0);
+
+    BOOST_CHECK_EXCEPTION(swap.fairRate(), Error, ExpectedErrorMessage("result not available"));
+    BOOST_CHECK_EXCEPTION(swap.fairSpread(), Error, ExpectedErrorMessage("result not available"));
+
+    yoyCurve.reset();
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

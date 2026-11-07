@@ -38,6 +38,7 @@
 #include <ql/methods/finitedifferences/meshers/uniform1dmesher.hpp>
 #include <ql/methods/finitedifferences/meshers/uniformgridmesher.hpp>
 #include <ql/methods/finitedifferences/operators/fdmblackscholesop.hpp>
+#include <ql/methods/finitedifferences/operators/fdmcevop.hpp>
 #include <ql/methods/finitedifferences/operators/fdmhestonhullwhiteop.hpp>
 #include <ql/methods/finitedifferences/operators/fdmhestonop.hpp>
 #include <ql/methods/finitedifferences/operators/fdmlinearop.hpp>
@@ -48,8 +49,10 @@
 #include <ql/methods/finitedifferences/operators/secondderivativeop.hpp>
 #include <ql/methods/finitedifferences/operators/secondordermixedderivativeop.hpp>
 #include <ql/methods/finitedifferences/schemes/craigsneydscheme.hpp>
+#include <ql/methods/finitedifferences/schemes/cranknicolsonscheme.hpp>
 #include <ql/methods/finitedifferences/schemes/douglasscheme.hpp>
 #include <ql/methods/finitedifferences/schemes/hundsdorferscheme.hpp>
+#include <ql/methods/finitedifferences/schemes/trbdf2scheme.hpp>
 #include <ql/methods/finitedifferences/solvers/fdm3dimsolver.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmbackwardsolver.hpp>
 #include <ql/methods/finitedifferences/solvers/fdmhestonsolver.hpp>
@@ -1436,6 +1439,38 @@ BOOST_AUTO_TEST_CASE(testSparseMatrixZeroAssignment)
     {
         BOOST_FAIL("three elements expected");
     }
+}
+
+BOOST_AUTO_TEST_CASE(testCevOpAndTrBDF2SchemeKeepTheirArguments)
+{
+    BOOST_TEST_MESSAGE("Testing that the CEV operator and TR-BDF2 scheme keep their arguments...");
+
+    // Both used to hold a reference to a constructor argument, so that each of
+    // these temporaries was gone by the first use.
+    const Size size = 11;
+    const Rate r = 0.05;
+    const auto mesher = ext::make_shared<FdmMesherComposite>(ext::make_shared<Uniform1dMesher>(0.5, 1.5, size));
+    const auto op =
+        ext::make_shared<FdmCEVOp>(mesher, flatRate(Date(15, September, 2026), r, Actual365Fixed()), 1.0, 0.2, 0.9, 0);
+    op->setTime(0.0, 1.0);
+
+    // A constant has no second derivative, which leaves the discounting.
+    const Array discounting = op->apply(Array(size, 1.0));
+    for (Real d : discounting)
+        BOOST_CHECK_SMALL(d + r, 1.0e-10);
+
+    const Real alpha = 2.0 - M_SQRT2;
+    const auto trapezoidal = ext::make_shared<CrankNicolsonScheme>(0.5, op);
+    TrBDF2Scheme<CrankNicolsonScheme> fromLvalue(alpha, op, trapezoidal);
+    TrBDF2Scheme<CrankNicolsonScheme> fromTemporary(alpha, op, ext::make_shared<CrankNicolsonScheme>(0.5, op));
+    fromLvalue.setStep(0.1);
+    fromTemporary.setStep(0.1);
+
+    Array expected(size, 1.0), calculated(size, 1.0);
+    fromLvalue.step(expected, 1.0);
+    fromTemporary.step(calculated, 1.0);
+    for (Size i = 0; i < size; ++i)
+        BOOST_CHECK_EQUAL(calculated[i], expected[i]);
 }
 
 BOOST_AUTO_TEST_CASE(testFdmMesherIntegral)

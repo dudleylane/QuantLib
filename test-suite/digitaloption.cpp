@@ -31,6 +31,7 @@
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/utilities/dataformatters.hpp>
 #include <map>
 
@@ -705,6 +706,243 @@ BOOST_AUTO_TEST_CASE(testMCCashAtHit)
         {
             REPORT_FAILURE("value", payoff, amExercise, value.s, value.q, value.r, today, value.v, value.result,
                            calculated, error, value.tol, value.knockin);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testCashAtHitOrNothingAmericanLowVolatility)
+{
+    BOOST_TEST_MESSAGE("Testing American cash-(at-hit)-or-nothing digital option at low volatility...");
+
+    // At low volatility a power of H/S can overflow while the probability it multiplies
+    // underflows, and their product is finite.  The expected values are the closed form in
+    // 200-digit arithmetic.
+    const DigitalOptionData values[] = {
+        {Option::Call, 105.0, 100.0, 0.03, 0.08, 1.0, 0.01, 5.4765152014571274, 1e-10, true},
+        {Option::Call, 105.0, 100.0, 0.03, 0.08, 1.0, 0.003, 6.1874883269953051, 1e-10, true},
+        {Option::Call, 103.0454533953517, 100.0, 0.0, 0.03, 1.0, 0.001, 4.9186702646932065, 1e-10, true},
+        {Option::Put, 99.0, 100.0, 0.03, -0.02, 1.0, 0.0001, 10.040282256787277, 1e-10, true},
+        // The forward on the barrier: here the power is still finite, at about exp(700), and N(y) is already 0.
+        {Option::Call, 105.12710963760242, 100.0, 0.0, 0.05, 1.0, 0.00267, 4.8624601470182828, 1e-10, true},
+        {Option::Put, 95.1229424500714, 100.0, 0.0, -0.05, 1.0, 0.00267, 5.3626596277116115, 1e-10, true},
+        // Lower still, where m + lambda or m - lambda would cancel.
+        {Option::Call, 105.12710963760242, 100.0, 0.0, 0.05, 1.0, 1e-5, 4.7565455823743784, 1e-9, true},
+        {Option::Put, 95.1229424500714, 100.0, 0.0, -0.05, 1.0, 1e-6, 5.2563953247838838, 1e-8, true},
+        {Option::Call, 103.0, 100.0, 0.0, 0.05, 1.0, 1e-6, 9.7087378640776699, 1e-10, true},
+        {Option::Put, 97.0, 100.0, 0.08, 0.03, 1.0, 1e-5, 9.8189046024500073, 1e-10, true},
+    };
+
+    const DayCounter dc = Actual360();
+    const Date today(15, October, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    const auto spot = ext::make_shared<SimpleQuote>(0.0);
+    const auto qRate = ext::make_shared<SimpleQuote>(0.0);
+    const auto rRate = ext::make_shared<SimpleQuote>(0.0);
+    const auto vol = ext::make_shared<SimpleQuote>(0.0);
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot), Handle<YieldTermStructure>(flatRate(today, qRate, dc)),
+        Handle<YieldTermStructure>(flatRate(today, rRate, dc)), Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+    const auto engine = ext::make_shared<AnalyticDigitalAmericanEngine>(process);
+
+    for (const auto& value : values)
+    {
+        BOOST_TEST_CONTEXT(value.type << " at " << value.strike << ", r " << value.r << ", q " << value.q
+                                      << ", volatility " << value.v)
+        {
+            spot->setValue(value.s);
+            qRate->setValue(value.q);
+            rRate->setValue(value.r);
+            vol->setValue(value.v);
+
+            VanillaOption option(ext::make_shared<CashOrNothingPayoff>(value.type, value.strike, 10.0),
+                                 ext::make_shared<AmericanExercise>(today, today + timeToDays(value.t)));
+            option.setPricingEngine(engine);
+            BOOST_CHECK_SMALL(option.NPV() - value.result, value.tol);
+
+            // The bumps stay small against a standard deviation.
+            const Real ds = std::min(1.0e-4, 1.0e-2 * value.s * value.v);
+            const Rate dr = std::min(1.0e-7, 1.0e-2 * value.v);
+            spot->setValue(value.s + ds);
+            Real up = option.NPV();
+            spot->setValue(value.s - ds);
+            Real down = option.NPV();
+            spot->setValue(value.s);
+            const Real expectedDelta = (up - down) / (2.0 * ds);
+            rRate->setValue(value.r + dr);
+            up = option.NPV();
+            rRate->setValue(value.r - dr);
+            down = option.NPV();
+            rRate->setValue(value.r);
+            const Real expectedRho = (up - down) / (2.0 * dr);
+
+            BOOST_CHECK_SMALL((option.delta() - expectedDelta) / std::max(1.0, std::fabs(expectedDelta)), 1.0e-4);
+            BOOST_CHECK_SMALL((option.rho() - expectedRho) / std::max(1.0, std::fabs(expectedRho)), 1.0e-4);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testCashAtHitOrNothingAmericanZeroVolatility)
+{
+    BOOST_TEST_MESSAGE("Testing American cash-(at-hit)-or-nothing digital option at zero volatility...");
+
+    const DayCounter dc = Actual365Fixed();
+    const Date today(15, October, 2026);
+    Settings::instance().evaluationDate() = today;
+    const ext::shared_ptr<Exercise> exercise = ext::make_shared<AmericanExercise>(today, today + 365);
+
+    // The underlying follows its forward, and the payoff comes when the forward reaches the
+    // strike, if it does before maturity.  An asset option pays the strike then.
+    const struct
+    {
+        Option::Type type;
+        Real strike;
+        Rate r, q;
+        Real cashValue, assetValue;
+    } cases[] = {
+        {Option::Call, 103.0, 0.05, 0.0, 10.0 / 1.03, 100.0},
+        {Option::Call, 110.0, 0.05, 0.0, 0.0, 0.0},
+        {Option::Put, 96.0, -0.05, 0.0, 10.0 / 0.96, 100.0},
+        {Option::Put, 95.0, -0.05, 0.0, 0.0, 0.0},
+        {Option::Call, 101.0, 0.03, 0.01, 10.0 * std::exp(-0.03 * std::log(1.01) / 0.02),
+         101.0 * std::exp(-0.03 * std::log(1.01) / 0.02)},
+        {Option::Call, 101.0, 0.03, 0.03, 0.0, 0.0},
+        {Option::Call, 101.0, 0.01, 0.03, 0.0, 0.0},
+        {Option::Call, 95.0, 0.05, 0.0, 10.0, 100.0},
+        {Option::Put, 105.0, 0.05, 0.0, 10.0, 100.0},
+        {Option::Call, 100.0, 0.05, 0.0, 10.0, 100.0},
+    };
+
+    // Below the threshold where the formula stops dividing by the variance, and above it.
+    for (Volatility vol : {0.0, 1.0e-9, 1.0e-6})
+    {
+        for (const auto& c : cases)
+        {
+            BOOST_TEST_CONTEXT(c.type << " at " << c.strike << ", r " << c.r << ", q " << c.q << ", volatility " << vol)
+            {
+                const auto process =
+                    ext::make_shared<BlackScholesMertonProcess>(Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)),
+                                                                Handle<YieldTermStructure>(flatRate(today, c.q, dc)),
+                                                                Handle<YieldTermStructure>(flatRate(today, c.r, dc)),
+                                                                Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+                const auto engine = ext::make_shared<AnalyticDigitalAmericanEngine>(process);
+
+                VanillaOption cash(ext::make_shared<CashOrNothingPayoff>(c.type, c.strike, 10.0), exercise);
+                cash.setPricingEngine(engine);
+                BOOST_CHECK_SMALL(cash.NPV() - c.cashValue, 1.0e-8);
+
+                VanillaOption asset(ext::make_shared<AssetOrNothingPayoff>(c.type, c.strike), exercise);
+                asset.setPricingEngine(engine);
+                BOOST_CHECK_SMALL(asset.NPV() - c.assetValue, 1.0e-8);
+
+                if (vol == 0.0)
+                    BOOST_CHECK_EXCEPTION(cash.delta(), Error, ExpectedErrorMessage("delta not provided"));
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testCashAtExpiryOrNothingAmericanLowVolatility)
+{
+    BOOST_TEST_MESSAGE("Testing American cash-(at-expiry)-or-nothing digital option at low volatility...");
+
+    // The expected values are the closed form in 200-digit arithmetic.
+    const DigitalOptionData values[] = {
+        {Option::Call, 105.0, 100.0, 0.03, 0.08, 1.0, 0.001, 8.2035184454191516, 1e-10, true},
+        {Option::Put, 95.0, 100.0, 0.03, -0.02, 1.0, 0.001, 1.0176365525852889, 1e-10, true},
+        {Option::Call, 115.0, 100.0, 0.0, 0.03, 5.0, 0.003, 8.0820190229249983, 1e-10, true},
+        {Option::Put, 85.0, 100.0, 0.03, 0.0, 5.0, 0.003, 0.3275072301893173, 1e-10, true},
+        // The forward on the barrier: here the power is still finite, at about exp(700), and N(y) is already 0.
+        {Option::Call, 105.12710963760242, 100.0, 0.0, 0.05, 1.0, 0.00267, 4.8523350913440141, 1e-10, true},
+        {Option::Put, 95.1229424500714, 100.0, 0.0, -0.05, 1.0, 0.00267, 5.3738495447867109, 1e-10, true},
+        {Option::Call, 105.12710963760242, 100.0, 0.0, 0.05, 1.0, 1e-5, 4.7565076338111791, 1e-9, true},
+        {Option::Put, 95.1229424500714, 100.0, 0.0, -0.05, 1.0, 1e-6, 5.2563995187487688, 1e-8, true},
+    };
+
+    const DayCounter dc = Actual360();
+    const Date today(15, October, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    for (const auto& value : values)
+    {
+        BOOST_TEST_CONTEXT(value.type << " at " << value.strike << ", r " << value.r << ", q " << value.q
+                                      << ", volatility " << value.v)
+        {
+            const auto process =
+                ext::make_shared<BlackScholesMertonProcess>(Handle<Quote>(ext::make_shared<SimpleQuote>(value.s)),
+                                                            Handle<YieldTermStructure>(flatRate(today, value.q, dc)),
+                                                            Handle<YieldTermStructure>(flatRate(today, value.r, dc)),
+                                                            Handle<BlackVolTermStructure>(flatVol(today, value.v, dc)));
+            const auto payoff = ext::make_shared<CashOrNothingPayoff>(value.type, value.strike, 10.0);
+            const Date exDate = today + timeToDays(value.t);
+            const ext::shared_ptr<Exercise> exercise = ext::make_shared<AmericanExercise>(today, exDate, true);
+
+            VanillaOption knockIn(payoff, exercise);
+            knockIn.setPricingEngine(ext::make_shared<AnalyticDigitalAmericanEngine>(process));
+            BOOST_CHECK_SMALL(knockIn.NPV() - value.result, value.tol);
+
+            // A knock-in and a knock-out add up to the discounted cash.
+            VanillaOption knockOut(payoff, exercise);
+            knockOut.setPricingEngine(ext::make_shared<AnalyticDigitalAmericanKOEngine>(process));
+            const Real cash = 10.0 * process->riskFreeRate()->discount(exDate);
+            BOOST_CHECK_SMALL(knockIn.NPV() + knockOut.NPV() - cash, value.tol);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testCashAtExpiryOrNothingAmericanZeroVolatility)
+{
+    BOOST_TEST_MESSAGE("Testing American cash-(at-expiry)-or-nothing digital option at zero volatility...");
+
+    const DayCounter dc = Actual365Fixed();
+    const Date today(15, October, 2026);
+    Settings::instance().evaluationDate() = today;
+    const ext::shared_ptr<Exercise> exercise = ext::make_shared<AmericanExercise>(today, today + 365, true);
+
+    // The underlying follows its forward, which is 105.13 at a rate of 5% and 95.12 at -5%.
+    // A knock-in pays if the forward reaches the strike, and a knock-out pays if it doesn't.
+    // A cash option that pays is worth 10 discounted, and an asset option the spot.
+    const struct
+    {
+        Option::Type type;
+        Real strike;
+        Rate r;
+        bool reached;
+    } cases[] = {
+        {Option::Call, 103.0, 0.05, true}, {Option::Call, 110.0, 0.05, false}, {Option::Put, 95.0, 0.05, false},
+        {Option::Put, 96.0, -0.05, true},  {Option::Put, 94.0, -0.05, false},  {Option::Call, 103.0, -0.05, false},
+        {Option::Call, 95.0, 0.05, true},  {Option::Put, 105.0, 0.05, true},   {Option::Call, 100.0, 0.05, true},
+        {Option::Put, 100.0, 0.05, true},
+    };
+
+    // Below the threshold where the formula stops dividing by the variance, and above it.
+    for (Volatility vol : {0.0, 1.0e-9, 1.0e-6})
+    {
+        for (const auto& c : cases)
+        {
+            BOOST_TEST_CONTEXT(c.type << " at " << c.strike << ", r " << c.r << ", volatility " << vol)
+            {
+                const auto process =
+                    ext::make_shared<BlackScholesMertonProcess>(Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)),
+                                                                Handle<YieldTermStructure>(flatRate(today, 0.0, dc)),
+                                                                Handle<YieldTermStructure>(flatRate(today, c.r, dc)),
+                                                                Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+                const auto knockInEngine = ext::make_shared<AnalyticDigitalAmericanEngine>(process);
+                const auto knockOutEngine = ext::make_shared<AnalyticDigitalAmericanKOEngine>(process);
+                const Real cashValue = 10.0 * std::exp(-c.r);
+
+                VanillaOption cash(ext::make_shared<CashOrNothingPayoff>(c.type, c.strike, 10.0), exercise);
+                cash.setPricingEngine(knockInEngine);
+                BOOST_CHECK_SMALL(cash.NPV() - (c.reached ? cashValue : 0.0), 1.0e-10);
+                cash.setPricingEngine(knockOutEngine);
+                BOOST_CHECK_SMALL(cash.NPV() - (c.reached ? 0.0 : cashValue), 1.0e-10);
+
+                VanillaOption asset(ext::make_shared<AssetOrNothingPayoff>(c.type, c.strike), exercise);
+                asset.setPricingEngine(knockInEngine);
+                BOOST_CHECK_SMALL(asset.NPV() - (c.reached ? 100.0 : 0.0), 1.0e-10);
+                asset.setPricingEngine(knockOutEngine);
+                BOOST_CHECK_SMALL(asset.NPV() - (c.reached ? 0.0 : 100.0), 1.0e-10);
+            }
         }
     }
 }

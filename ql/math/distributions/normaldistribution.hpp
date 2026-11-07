@@ -73,6 +73,8 @@ namespace QuantLib
         // function
         Real operator()(Real x) const;
         Real derivative(Real x) const;
+        //! the logarithm of the value, which stays finite where the value itself underflows to 0
+        Real logValue(Real x) const;
 
       private:
         Real average_, sigma_;

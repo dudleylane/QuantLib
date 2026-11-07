@@ -20,9 +20,11 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
+#include <ql/experimental/volatility/extendedblackvariancesurface.hpp>
 #include <ql/experimental/volatility/sabrvoltermstructure.hpp>
 #include <ql/experimental/volatility/svismilesection.hpp>
 #include <ql/instruments/vanillaoption.hpp>
+#include <ql/math/functional.hpp>
 #include <ql/math/interpolations/linearinterpolation.hpp>
 #include <ql/math/matrix.hpp>
 #include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
@@ -37,6 +39,7 @@
 #include <ql/termstructures/volatility/interpolatedsmilesection.hpp>
 #include <ql/termstructures/volatility/sabrsmilesection.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
+#include <ql/time/calendars/nullcalendar.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
 #include <cmath>
 #include <iomanip>
@@ -623,6 +626,34 @@ BOOST_AUTO_TEST_CASE(testZeroTimeVariance)
     if (calculated != 0.0)
         BOOST_FAIL("blackVariance at t=0 should be exactly 0.0" << "\n    calculated: " << std::setprecision(16)
                                                                 << std::scientific << calculated);
+}
+
+BOOST_AUTO_TEST_CASE(testExtendedBlackVarianceSurfaceAtItsNodes)
+{
+    BOOST_TEST_MESSAGE("Testing ExtendedBlackVarianceSurface at its nodes...");
+
+    // setVariances used to read past the end of the quotes and of the matrix
+    // on any surface, and to leave most of the zero-time column uninitialised.
+    const Date today(15, September, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dayCounter = Actual365Fixed();
+    const std::vector<Date> dates = {today + 1 * Years, today + 2 * Years};
+    const std::vector<Real> strikes = {90.0, 100.0, 110.0};
+    const auto volatility = [](Size strike, Size date) { return 0.10 + 0.10 * strike + 0.01 * date; };
+
+    std::vector<Handle<Quote>> quotes;
+    for (Size i = 0; i < strikes.size(); ++i)
+        for (Size j = 0; j < dates.size(); ++j)
+            quotes.emplace_back(ext::make_shared<SimpleQuote>(volatility(i, j)));
+
+    const ExtendedBlackVarianceSurface surface(today, NullCalendar(), dates, strikes, quotes, dayCounter);
+
+    for (Size i = 0; i < strikes.size(); ++i)
+        for (Size j = 0; j < dates.size(); ++j)
+        {
+            const Time t = dayCounter.yearFraction(today, dates[j]);
+            BOOST_CHECK_SMALL(surface.blackVariance(dates[j], strikes[i]) - t * squared(volatility(i, j)), 1.0e-12);
+        }
 }
 
 BOOST_AUTO_TEST_CASE(testSingleTenorSurface)

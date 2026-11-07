@@ -16,6 +16,7 @@
 #include "utilities.hpp"
 #include <ql/marketdata/jsonquoteloader.hpp>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 
 using namespace QuantLib;
@@ -29,10 +30,9 @@ namespace
 {
     std::string writeTemp(const std::string& body)
     {
-        char tmpl[] = "/tmp/ql_json_test_XXXXXX";
-        int fd = mkstemp(tmpl);
+        std::string path = (std::filesystem::temp_directory_path() / "ql_json_test_XXXXXX").string();
+        int fd = mkstemp(path.data());
         QL_REQUIRE(fd != -1, "mkstemp failed");
-        std::string path(tmpl);
         close(fd);
         std::ofstream out(path);
         out << body;

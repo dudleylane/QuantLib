@@ -302,12 +302,8 @@ namespace QuantLib
                                    SwitchFn switchFn)
             : Interpolation::templateImpl<I1, I2>(xBegin, xEnd, yBegin, 1), switchFn_(std::move(switchFn))
             {
-                Size maxN = static_cast<Size>(xEnd - xBegin);
-                // SplitRanges needs xBegin2_+1 to be valid
-                if (behavior == MixedInterpolation::SplitRanges)
-                {
-                    --maxN;
-                }
+                // Both behaviours dereference xBegin2_, so it must be a point.
+                Size maxN = static_cast<Size>(xEnd - xBegin) - 1;
                 // This only checks that we pass valid iterators into interpolate()
                 // calls below. The calls themselves check requiredPoints for each
                 // of the segments.

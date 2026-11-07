@@ -621,6 +621,40 @@ BOOST_AUTO_TEST_CASE(testBachelierVsBlackConvergence)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testBachelierCalculatorZeroVolatilityLimit)
+{
+    BOOST_TEST_MESSAGE("Testing BachelierCalculator at zero volatility against a tiny one...");
+
+    const Real spot = 100.0, strike = 100.0, discount = 0.9, tiny = 1.0e-9;
+    const Time maturity = 1.0;
+
+    for (Option::Type type : {Option::Call, Option::Put})
+    {
+        for (Real forward : {120.0, 100.0, 80.0})
+        {
+            const BachelierCalculator zero(type, strike, forward, 0.0, discount);
+            const BachelierCalculator limit(type, strike, forward, tiny, discount);
+            BOOST_TEST_CONTEXT(type << ", forward " << forward)
+            {
+                BOOST_CHECK_SMALL(zero.value() - limit.value(), 1.0e-9);
+                BOOST_CHECK_SMALL(zero.delta(spot) - limit.delta(spot), 1.0e-9);
+                BOOST_CHECK_SMALL(zero.deltaForward() - limit.deltaForward(), 1.0e-9);
+                BOOST_CHECK_SMALL(zero.strikeSensitivity() - limit.strikeSensitivity(), 1.0e-9);
+                BOOST_CHECK_SMALL(zero.rho(maturity) - limit.rho(maturity), 1.0e-7);
+                BOOST_CHECK_SMALL(zero.dividendRho(maturity) - limit.dividendRho(maturity), 1.0e-7);
+                BOOST_CHECK_SMALL(zero.itmCashProbability() - limit.itmCashProbability(), 1.0e-9);
+                BOOST_CHECK_SMALL(zero.itmAssetProbability() - limit.itmAssetProbability(), 1.0e-9);
+            }
+        }
+    }
+
+    // An out-of-the-money put is worth nothing, and it isn't a call.
+    const BachelierCalculator put(Option::Put, strike, 120.0, 0.0, discount);
+    BOOST_CHECK_EQUAL(put.value(), 0.0);
+    BOOST_CHECK_EQUAL(put.deltaForward(), 0.0);
+    BOOST_CHECK_EQUAL(put.itmCashProbability(), 0.0);
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()
 

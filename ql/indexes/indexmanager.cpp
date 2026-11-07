@@ -49,6 +49,9 @@ namespace QuantLib
 
     ext::shared_ptr<Observable> IndexManager::notifier(const std::string& name) const
     {
+        // Released on return, before the caller notifies anyone: an observer
+        // may build an index, which asks for a notifier in turn.
+        std::lock_guard<std::mutex> lock(notifiersMutex_);
         auto n = notifiers_.find(name);
         if (n != notifiers_.end())
             return n->second;

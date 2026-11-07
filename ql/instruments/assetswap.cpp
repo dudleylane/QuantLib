@@ -241,7 +241,7 @@ namespace QuantLib
         {
             return fairSpread_;
         }
-        else if (legBPS_.size() > 1 && legBPS_[1] != Null<Spread>())
+        else if (legBPS_.size() > 1 && legBPS_[1] != Null<Spread>() && legBPS_[1] != 0.0)
         {
             fairSpread_ = spread_ - NPV_ / legBPS_[1] * basisPoint;
             return fairSpread_;

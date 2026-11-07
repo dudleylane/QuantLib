@@ -106,8 +106,8 @@ namespace QuantLib
             // critical-price seed is unstable at near-zero variance, and the
             // path is deterministic, so this is the value of the best exercise
             // time.
-            detail::ZeroVarianceResults zero =
-                detail::zeroVarianceResults(*payoff, spot, dividendDiscount, riskFreeDiscount, black);
+            detail::FixedExerciseResults zero =
+                detail::bestFixedExercise(*payoff, spot, dividendDiscount, riskFreeDiscount, black);
             results_.value = zero.value;
             results_.delta = zero.delta;
             results_.gamma = zero.gamma;
@@ -169,12 +169,31 @@ namespace QuantLib
             Real temp_spot_ratio = std::log(spot / Sk);
             Real chi = temp_spot_ratio * (b * temp_spot_ratio + c);
 
+            // The correction below divides by 1 - chi, and chi can reach 1, mostly
+            // for puts with r near 0 and q < 0. The formula as published then
+            // gives any number at all: 90.24 for a put with K = 80, r = 0.1%,
+            // q = -0.5%, vol = 80% and 90 days to expiry, worth 6.28, with chi
+            // at 0.99999. So above chiStart chi saturates at chiLimit, which keeps
+            // the value and the delta continuous; below chiStart this is the
+            // published formula. Against QD fixed-point prices the error is flat
+            // for a limit between 0.4 and 0.6 and grows on either side (#46).
+            const Real chiStart = 0.4, chiLimit = 0.6;
+            Real chiSlope = 1.0, chiCurvature = 0.0;
+            if (chi > chiStart)
+            {
+                chiSlope = std::exp((chiStart - chi) / (chiLimit - chiStart));
+                chiCurvature = -chiSlope / (chiLimit - chiStart);
+                chi = chiLimit - (chiLimit - chiStart) * chiSlope;
+            }
+
             if (phi * (Sk - spot) > 0)
             {
                 results_.value = black.value() + hA * std::pow((spot / Sk), lambda) / (1 - chi);
                 Real temp_chi_prime = (2 * b / spot) * std::log(spot / Sk);
-                Real chi_prime = temp_chi_prime + c / spot;
-                Real chi_double_prime = 2 * b / (spot * spot) - temp_chi_prime / spot - c / (spot * spot);
+                Real published_chi_prime = temp_chi_prime + c / spot;
+                Real chi_prime = chiSlope * published_chi_prime;
+                Real chi_double_prime = chiSlope * (2 * b / (spot * spot) - temp_chi_prime / spot - c / (spot * spot)) +
+                                        chiCurvature * published_chi_prime * published_chi_prime;
                 Real d1_S = (std::log(forwardPrice / payoff->strike()) + 0.5 * variance) / std::sqrt(variance);
                 // There is a typo in the original paper from Ju-Zhong
                 // the first term is the Black-Scholes delta/gamma.
@@ -196,6 +215,16 @@ namespace QuantLib
                 results_.gamma = 0;
             }
 
+            // an American option is worth at least this, and the correction can
+            // land below it
+            detail::FixedExerciseResults bound =
+                detail::bestFixedExercise(*payoff, spot, dividendDiscount, riskFreeDiscount, black);
+            if (results_.value < bound.value)
+            {
+                results_.value = bound.value;
+                results_.delta = bound.delta;
+                results_.gamma = bound.gamma;
+            }
         } // end of "early exercise can be optimal"
     }
 

@@ -60,10 +60,13 @@ namespace QuantLib
         approximation; same displaced-lognormal handling; same `stddev==0`
         short-circuit). For `T = AADReal`, the returned value is
         differentiable via the active CoDi tape. The AAD branch uses
-        `std::erf` (CoDi provides an overload) rather than
+        `std::erfc` (CoDi provides an overload) rather than
         `CumulativeNormalDistribution`, which is not tape-aware; the
         Real branch uses `CumulativeNormalDistribution` to match
-        `blackFormula()` bit-for-bit.
+        `blackFormula()` to within a few ulps.  They run the same
+        expressions, but GCC contracts their products into FMAs only
+        from -O2, so code built at another level than the library can
+        round differently.
 
         Inputs:
           optionType   : Option::Call or Option::Put
@@ -122,29 +125,30 @@ namespace QuantLib
         T d1 = log(forward_adj / strike_adj) / stddev + 0.5 * stddev;
         T d2 = d1 - stddev;
 
-        T N1, N2;
+        // As in blackFormula(): evaluate N at sign*d directly, because
+        // 1 - N(d) cancels once N(d) is close to 1 (#85).
+        const Real sign = Integer(optionType);
+        T nd1, nd2;
         if constexpr (std::is_same_v<T, Real>)
         {
             // Real path: match blackFormula()'s CumulativeNormalDistribution
-            // approximation bit-for-bit.
+            // approximation.
             CumulativeNormalDistribution N;
-            N1 = N(d1);
-            N2 = N(d2);
+            nd1 = N(sign * d1);
+            nd2 = N(sign * d2);
         }
         else
         {
-            // AAD path: inline 0.5*(1 + erf(x/sqrt(2))) so std::erf's CoDi
-            // overload propagates derivatives through the tape.
-            using std::erf;
+            // AAD path: inline N(x) = 0.5*erfc(-x/sqrt(2)) so std::erfc's CoDi
+            // overload propagates derivatives through the tape.  erf would
+            // cancel in 1 + erf(x) for large negative x.
+            using std::erfc;
             const Real invSqrt2 = 0.7071067811865475;
-            N1 = 0.5 * (1.0 + erf(d1 * invSqrt2));
-            N2 = 0.5 * (1.0 + erf(d2 * invSqrt2));
+            nd1 = 0.5 * erfc(-sign * d1 * invSqrt2);
+            nd2 = 0.5 * erfc(-sign * d2 * invSqrt2);
         }
 
-        if (optionType == Option::Call)
-            return discount * (forward_adj * N1 - strike_adj * N2);
-        else
-            return discount * (strike_adj * (T(1.0) - N2) - forward_adj * (T(1.0) - N1));
+        return discount * sign * (forward_adj * nd1 - strike_adj * nd2);
     }
 
 }

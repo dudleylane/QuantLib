@@ -221,9 +221,9 @@ namespace QuantLib
     Real DepositRateHelper::impliedQuote() const
     {
         QL_REQUIRE(termStructure_ != nullptr, "term structure not set");
-        // the forecast fixing flag is set to true because
-        // we do not want to take fixing into account
-        return iborIndex_->fixing(fixingDate_, true);
+        // This has to come from the curve being bootstrapped, even if the
+        // fixing date has passed and the fixing is known.
+        return iborIndex_->forecastFixing(fixingDate_);
     }
 
     void DepositRateHelper::setTermStructure(YieldTermStructure* t)
@@ -389,7 +389,8 @@ namespace QuantLib
     {
         QL_REQUIRE(termStructure_ != nullptr, "term structure not set");
         if (useIndexedCoupon_)
-            return iborIndex_->fixing(fixingDate_, true);
+            // As for a deposit: from the curve, whether or not the fixing is known.
+            return iborIndex_->forecastFixing(fixingDate_);
         else
             return (termStructure_->discount(earliestDate_) / termStructure_->discount(maturityDate_) - 1.0) /
                    spanningTime_;

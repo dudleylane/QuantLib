@@ -62,12 +62,17 @@ namespace QuantLib
         {
             AmericanPayoffAtHit pricer(spot, riskFreeDiscount, dividendDiscount, variance, payoff);
             results_.value = pricer.value();
-            results_.delta = pricer.delta();
-            results_.gamma = pricer.gamma();
+            // With no variance the value has a step where the forward meets the
+            // strike, and the Greeks divide by the standard deviation.
+            if (variance >= QL_EPSILON)
+            {
+                results_.delta = pricer.delta();
+                results_.gamma = pricer.gamma();
 
-            DayCounter rfdc = process_->riskFreeRate()->dayCounter();
-            Time t = rfdc.yearFraction(process_->riskFreeRate()->referenceDate(), arguments_.exercise->lastDate());
-            results_.rho = pricer.rho(t);
+                DayCounter rfdc = process_->riskFreeRate()->dayCounter();
+                Time t = rfdc.yearFraction(process_->riskFreeRate()->referenceDate(), arguments_.exercise->lastDate());
+                results_.rho = pricer.rho(t);
+            }
         }
     }
 

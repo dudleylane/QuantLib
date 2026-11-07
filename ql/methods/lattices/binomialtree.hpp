@@ -30,6 +30,7 @@
 #include <ql/instruments/dividendschedule.hpp>
 #include <ql/methods/lattices/tree.hpp>
 #include <ql/stochasticprocess.hpp>
+#include <utility>
 
 namespace QuantLib
 {
@@ -155,6 +156,19 @@ namespace QuantLib
       protected:
         Real up_, down_, pu_, pd_;
     };
+
+    namespace detail
+    {
+
+        //! The up and down moves of a Leisen-Reimer tree.
+        /*! \param d2 the distance from the strike, in standard deviations
+            \param width the standard deviation of the log of the underlying at maturity
+            \param growth the expected growth of the underlying over a step
+            \param oddSteps the number of steps of the tree
+        */
+        std::pair<Real, Real> leisenReimerMoves(Real d2, Real width, Real growth, BigNatural oddSteps);
+
+    }
 
     //! Leisen & Reimer tree: multiplicative approach
     /*! \ingroup lattices */

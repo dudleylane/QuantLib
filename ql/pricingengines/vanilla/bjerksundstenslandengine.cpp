@@ -25,7 +25,9 @@
 #include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/math/functional.hpp>
 #include <ql/pricingengines/blackcalculator.hpp>
+#include <ql/pricingengines/vanilla/baroneadesiwhaleyengine.hpp>
 #include <ql/pricingengines/vanilla/bjerksundstenslandengine.hpp>
+#include <algorithm>
 #include <cmath>
 #include <utility>
 
@@ -36,15 +38,134 @@ namespace QuantLib
     {
 
         CumulativeNormalDistribution cumNormalDist;
+
+        // At low variance the powers of I / S below overflow where the normal
+        // tail they multiply, or the exponential they divide by, is out of
+        // range too.  The result is small, but inf * 0 and inf / inf are NaN,
+        // so those two cases go through logarithms.  Elsewhere these are the
+        // plain expressions.
+        Real logErfc(Real x)
+        {
+            if (x < 26.0)
+                return std::log(std::erfc(x));
+            // erfc(x) has underflowed, or nearly: use its asymptotic series
+            const Real t = 0.5 / (x * x);
+            return -x * x - std::log(x * M_SQRTPI) + std::log1p(t * (-1.0 + t * (3.0 - 15.0 * t)));
+        }
+
+        // pow(base, p) * erfc(x)
+        Real powTimesErfc(Real base, Real p, Real x)
+        {
+            const Real power = std::pow(base, p);
+            const Real tail = std::erfc(x);
+            if (std::isfinite(power) && tail > 1.0e-300)
+                return power * tail;
+            return std::exp(p * std::log(base) + logErfc(x));
+        }
+
+        // pow(base, p) / exp(z)
+        Real powOverExp(Real base, Real p, Real z)
+        {
+            const Real power = std::pow(base, p);
+            const Real divisor = std::exp(z);
+            if (std::isfinite(power) && std::isfinite(divisor))
+                return power / divisor;
+            return std::exp(p * std::log(base) - z);
+        }
+
+        // expm1(x) / x, with its limits
+        Real expm1Ratio(Real x)
+        {
+            if (x == 0.0)
+                return 1.0;
+            if (std::isinf(x))
+                return x > 0.0 ? x : 0.0;
+            return std::expm1(x) / x;
+        }
+
+        // (x * exp(x) - expm1(x)) / x^2, with its limit at 0
+        Real boundaryWeight(Real x)
+        {
+            if (std::fabs(x) < 1.0e-3)
+                return 0.5 + x * (1.0 / 3.0 + x * (0.125 + x / 30.0));
+            return (x * std::exp(x) - std::expm1(x)) / (x * x);
+        }
+
         Real phi(Real S, Real gamma, Real H, Real I, Real rT, Real bT, Real variance)
         {
 
             Real lambda = (-rT + gamma * bT + 0.5 * gamma * (gamma - 1.0) * variance);
             Real d = -(std::log(S / H) + (bT + (gamma - 0.5) * variance)) / std::sqrt(variance);
             Real kappa = 2.0 * bT / variance + (2.0 * gamma - 1.0);
-            return std::exp(lambda) *
-                   (cumNormalDist(d) -
-                    std::pow((I / S), kappa) * cumNormalDist(d - 2.0 * std::log(I / S) / std::sqrt(variance)));
+            Real d2 = d - 2.0 * std::log(I / S) / std::sqrt(variance);
+            Real power = std::pow(I / S, kappa);
+            Real tail = cumNormalDist(d2);
+            Real reflected =
+                (std::isfinite(power) && tail > 0.0) ? power * tail : 0.5 * powTimesErfc(I / S, kappa, -d2 / M_SQRT2);
+            return std::exp(lambda) * (cumNormalDist(d) - reflected);
+        }
+
+        // the value of exercising the first time the spot reaches the flat trigger I
+        Real flatTriggerValue(Real S, Real X, Real I, Real beta, Real rT, Real bT, Real variance)
+        {
+            if (S >= I)
+                return S - X;
+            return (I - X) * std::pow(S / I, beta) * (1 - phi(S, beta, I, I, rT, bT, variance)) +
+                   S * phi(S, 1.0, I, I, rT, bT, variance) - S * phi(S, 1.0, X, I, rT, bT, variance) -
+                   X * phi(S, 0.0, I, I, rT, bT, variance) + X * phi(S, 0.0, X, I, rT, bT, variance);
+        }
+
+        // The flat trigger between lower and upper with the largest value.  The
+        // value can peak just above lower and fall to a plateau, which a golden
+        // section over the whole range can step past, so this walks up from lower
+        // until the value falls and searches the bracket that gives.  It works in
+        // log(I), to 1e-6: first-order Greeks hold the trigger fixed, and are
+        // wrong in proportion to its error.
+        Real bestFlatTrigger(Real S, Real X, Real lower, Real upper, Real beta, Real rT, Real bT, Real variance)
+        {
+            const auto value = [&](Real logI)
+            { return flatTriggerValue(S, X, std::exp(logI), beta, rT, bT, variance); };
+
+            const Real logUpper = std::log(upper);
+            Real step = 0.01;
+            Real a = std::log(lower);
+            Real m = std::min(a + step, logUpper);
+            Real b = std::min(m + 2.0 * step, logUpper);
+            Real valueAtM = value(m), valueAtB = value(b);
+            while (valueAtB > valueAtM && b < logUpper)
+            {
+                a = m;
+                m = b;
+                valueAtM = valueAtB;
+                step *= 2.0;
+                b = std::min(m + 2.0 * step, logUpper);
+                valueAtB = value(b);
+            }
+
+            const Real ratio = (std::sqrt(5.0) - 1.0) / 2.0;
+            Real c = b - ratio * (b - a);
+            Real d = a + ratio * (b - a);
+            Real valueAtC = value(c), valueAtD = value(d);
+            while (b - a > 1.0e-6)
+            {
+                if (valueAtC >= valueAtD)
+                {
+                    b = d;
+                    d = c;
+                    valueAtD = valueAtC;
+                    c = b - ratio * (b - a);
+                    valueAtC = value(c);
+                }
+                else
+                {
+                    a = c;
+                    c = d;
+                    valueAtC = valueAtD;
+                    d = a + ratio * (b - a);
+                    valueAtD = value(d);
+                }
+            }
+            return std::exp(valueAtC >= valueAtD ? c : d);
         }
 
         Real phi_S(Real S, Real gamma, Real H, Real I, Real rT, Real bT, Real v)
@@ -54,12 +175,14 @@ namespace QuantLib
             const Real sv = std::sqrt(v);
 
             return std::exp(bT * gamma - rT + ((-1 + gamma) * gamma * v) / 2.) *
-                   ((-(std::pow(I / S, 2 * (gamma + bT / v)) /
-                       (std::exp(squared(2 * bT - v + 2 * gamma * v + 4 * lis + 2 * lsh) / (8. * v)) * I)) -
+                   ((-(powOverExp(I / S, 2 * (gamma + bT / v),
+                                  squared(2 * bT - v + 2 * gamma * v + 4 * lis + 2 * lsh) / (8. * v)) /
+                       I) -
                      1 / (std::exp(squared(2 * bT - v + 2 * gamma * v + 2 * lsh) / (8. * v)) * S)) /
                         (M_SQRT2 * M_SQRTPI * sv) +
-                    (std::pow(I / S, 2 * (gamma + bT / v)) * (2 * bT + (-1 + 2 * gamma) * v) *
-                     std::erfc((2 * bT - v + 2 * gamma * v + 4 * lis + 2 * lsh) / (2. * M_SQRT2 * sv))) /
+                    (powTimesErfc(I / S, 2 * (gamma + bT / v),
+                                  (2 * bT - v + 2 * gamma * v + 4 * lis + 2 * lsh) / (2. * M_SQRT2 * sv)) *
+                     (2 * bT + (-1 + 2 * gamma) * v)) /
                         (2. * I * v));
         }
 
@@ -68,20 +191,19 @@ namespace QuantLib
             const Real lsh = std::log(S / H);
             const Real lis = std::log(I / S);
             const Real sv = std::sqrt(v);
-            const Real ex = std::exp(squared(2 * bT - v + 2 * gamma * v + 4 * lis + 2 * lsh) / (8. * v));
+            const Real powerOverEx = powOverExp(I / S, 2 * (gamma + bT / v),
+                                                squared(2 * bT - v + 2 * gamma * v + 4 * lis + 2 * lsh) / (8. * v));
             const Real ey = std::exp(squared(2 * bT + (-1 + 2 * gamma) * v + 2 * lsh) / (8. * v));
 
             return (std::exp(bT * gamma - rT + ((-1 + gamma) * gamma * v) / 2.) *
                     ((M_SQRT2 * I * v * sv) / ey +
-                     (2 * M_SQRT2 * std::pow(I / S, 2 * (gamma + bT / v)) * S * sv * (2 * bT + (-1 + 2 * gamma) * v)) /
-                         ex -
-                     2 * std::sqrt(M_PI) * std::pow(I / S, 2 * (gamma + bT / v)) * S * (bT + gamma * v) *
-                         (2 * bT + (-1 + 2 * gamma) * v) *
-                         std::erfc((2 * bT - v + 2 * gamma * v + 4 * lis + 2 * lsh) / (2. * M_SQRT2 * sv)) +
+                     2 * M_SQRT2 * powerOverEx * S * sv * (2 * bT + (-1 + 2 * gamma) * v) -
+                     2 * std::sqrt(M_PI) *
+                         powTimesErfc(I / S, 2 * (gamma + bT / v),
+                                      (2 * bT - v + 2 * gamma * v + 4 * lis + 2 * lsh) / (2. * M_SQRT2 * sv)) *
+                         S * (bT + gamma * v) * (2 * bT + (-1 + 2 * gamma) * v) +
                      (M_SQRT2 * I * sv * (bT + (-0.5 + gamma) * v + lsh)) / ey -
-                     (std::pow(I / S, 2 * (gamma + bT / v)) * S * sv *
-                      (2 * bT - 3 * v + 2 * gamma * v + 4 * lis + 2 * lsh)) /
-                         (M_SQRT2 * ex))) /
+                     powerOverEx * S * sv * (2 * bT - 3 * v + 2 * gamma * v + 4 * lis + 2 * lsh) / M_SQRT2)) /
                    (2. * I * M_SQRTPI * squared(S * v));
         }
 
@@ -93,15 +215,15 @@ namespace QuantLib
 
             return std::exp(bT * gamma - rT + ((-1 + gamma) * gamma * v) / 2) *
                    (((-std::exp(-squared(2 * bT - v + 2 * gamma * v + 2 * lsh) / (8 * v)) +
-                      std::pow(I / S, -1 + 2 * gamma + (2 * bT) / v) /
-                          std::exp(squared(2 * bT - v + 2 * gamma * v + 4 * lis + 2 * lsh) / (8 * v))) *
+                      powOverExp(I / S, -1 + 2 * gamma + (2 * bT) / v,
+                                 squared(2 * bT - v + 2 * gamma * v + 4 * lis + 2 * lsh) / (8 * v))) *
                      sv) /
                         (M_SQRT2 * M_SQRTPI) +
                     ((2 * bT + (-1 + 2 * gamma) * v) *
                      std::erfc((2 * bT + (-1 + 2 * gamma) * v + 2 * lsh) / (2. * M_SQRT2 * sv))) /
                         4. -
-                    (std::pow(I / S, -1 + 2 * gamma + (2 * bT) / v) *
-                     std::erfc((2 * bT - v + 2 * gamma * v + 4 * lis + 2 * lsh) / (2. * M_SQRT2 * sv)) *
+                    (powTimesErfc(I / S, -1 + 2 * gamma + (2 * bT) / v,
+                                  (2 * bT - v + 2 * gamma * v + 4 * lis + 2 * lsh) / (2. * M_SQRT2 * sv)) *
                      (2 * bT + (-1 + 2 * gamma) * v + 4 * lis)) /
                         4.);
         }
@@ -112,8 +234,9 @@ namespace QuantLib
 
             return (std::exp(bT * gamma - rT + ((-1 + gamma) * gamma * v) / 2.) *
                     (I / std::exp(squared(2 * bT - v + 2 * gamma * v + 2 * lsh) / (8. * v)) -
-                     (std::pow(I / S, 2 * (gamma + bT / v)) * S) /
-                         std::exp(squared(2 * bT - v + 2 * gamma * v + 4 * std::log(I / S) + 2 * lsh) / (8. * v)))) /
+                     powOverExp(I / S, 2 * (gamma + bT / v),
+                                squared(2 * bT - v + 2 * gamma * v + 4 * std::log(I / S) + 2 * lsh) / (8. * v)) *
+                         S)) /
                    (H * I * std::sqrt(2 * M_PI) * std::sqrt(v));
         }
 
@@ -123,12 +246,14 @@ namespace QuantLib
             const Real lis = std::log(I / S);
             const Real sv = std::sqrt(v);
 
-            return (std::exp(bT * gamma - rT + ((-1 + gamma) * gamma * v) / 2.) *
-                    std::pow(I / S, 2 * (gamma + bT / v)) * S *
-                    ((2 * std::sqrt(2 / M_PI)) /
-                         (std::exp(squared(2 * bT - v + 2 * gamma * v + 4 * lis + 2 * lsh) / (8. * v)) * sv) +
+            return (std::exp(bT * gamma - rT + ((-1 + gamma) * gamma * v) / 2.) * S *
+                    ((2 * std::sqrt(2 / M_PI)) *
+                         powOverExp(I / S, 2 * (gamma + bT / v),
+                                    squared(2 * bT - v + 2 * gamma * v + 4 * lis + 2 * lsh) / (8. * v)) /
+                         sv +
                      (1 - 2 * gamma - (2 * bT) / v) *
-                         std::erfc((2 * bT - v + 2 * gamma * v + 4 * lis + 2 * lsh) / (2. * M_SQRT2 * sv)))) /
+                         powTimesErfc(I / S, 2 * (gamma + bT / v),
+                                      (2 * bT - v + 2 * gamma * v + 4 * lis + 2 * lsh) / (2. * M_SQRT2 * sv)))) /
                    (2. * I * I);
         }
 
@@ -137,9 +262,10 @@ namespace QuantLib
             const Real lsh = std::log(S / H);
             return (std::exp(bT * gamma - rT + ((-1 + gamma) * gamma * v) / 2.) *
                     (-(I * std::erfc((2 * bT - v + 2 * gamma * v + 2 * lsh) / (2. * std::sqrt(2 * v)))) +
-                     std::pow(I / S, 2 * (gamma + bT / v)) * S *
-                         std::erfc((2 * bT - v + 2 * gamma * v + 4 * std::log(I / S) + 2 * lsh) /
-                                   (2. * std::sqrt(2 * v))))) /
+                     powTimesErfc(I / S, 2 * (gamma + bT / v),
+                                  (2 * bT - v + 2 * gamma * v + 4 * std::log(I / S) + 2 * lsh) /
+                                      (2. * std::sqrt(2 * v))) *
+                         S)) /
                    (2. * I);
         }
 
@@ -152,14 +278,16 @@ namespace QuantLib
             return (std::exp(bT * gamma - rT + ((-1 + gamma) * gamma * v) / 2.) *
                     (M_SQRT2 *
                          (-(I / std::exp(squared(2 * bT - v + 2 * gamma * v + 2 * lsh) / (8. * v))) +
-                          (std::pow(I / S, 2 * (gamma + bT / v)) * S) /
-                              std::exp(squared(2 * bT - v + 2 * gamma * v + 4 * lis + 2 * lsh) / (8. * v))) *
+                          powOverExp(I / S, 2 * (gamma + bT / v),
+                                     squared(2 * bT - v + 2 * gamma * v + 4 * lis + 2 * lsh) / (8. * v)) *
+                              S) *
                          sv +
                      gamma * I * std::sqrt(M_PI) * v *
                          std::erfc((2 * bT - v + 2 * gamma * v + 2 * lsh) / (2. * M_SQRT2 * sv)) -
-                     M_SQRTPI * std::pow(I / S, 2 * (gamma + bT / v)) * S *
-                         std::erfc((2 * bT - v + 2 * gamma * v + 4 * lis + 2 * lsh) / (2. * M_SQRT2 * sv)) *
-                         (gamma * v + 2 * lis))) /
+                     M_SQRTPI *
+                         powTimesErfc(I / S, 2 * (gamma + bT / v),
+                                      (2 * bT - v + 2 * gamma * v + 4 * lis + 2 * lsh) / (2. * M_SQRT2 * sv)) *
+                         S * (gamma * v + 2 * lis))) /
                    (2. * I * std::sqrt(M_PI) * v);
         }
 
@@ -168,21 +296,21 @@ namespace QuantLib
             const Real lsh = std::log(S / H);
             const Real lis = std::log(I / S);
             const Real sv = std::sqrt(v);
-            const Real er = std::erfc((2 * bT - v + 2 * gamma * v + 4 * lis + 2 * lsh) / (2. * M_SQRT2 * sv));
+            const Real x = (2 * bT - v + 2 * gamma * v + 4 * lis + 2 * lsh) / (2. * M_SQRT2 * sv);
 
             return (std::exp(bT * gamma - rT + ((-1 + gamma) * gamma * v) / 2.) *
                     (((-1 + gamma) * gamma *
                       (I * std::erfc((2 * bT - v + 2 * gamma * v + 2 * lsh) / (2. * M_SQRT2 * sv)) -
-                       std::pow(I / S, 2 * (gamma + bT / v)) * S * er)) /
+                       powTimesErfc(I / S, 2 * (gamma + bT / v), x) * S)) /
                          (2. * I) +
-                     (2 * bT * std::pow(I / S, -1 + 2 * gamma + (2 * bT) / v) * er * lis) / (v * v) +
+                     (2 * bT * powTimesErfc(I / S, -1 + 2 * gamma + (2 * bT) / v, x) * lis) / (v * v) +
                      (2 * bT + v - 2 * gamma * v + 2 * lsh) /
                          (2. * std::exp(std::pow(2 * bT + (-1 + 2 * gamma) * v + 2 * lsh, 2) / (8. * v)) * M_SQRT2 *
                           M_SQRTPI * v * sv) -
-                     (std::pow(I / S, -1 + 2 * gamma + (2 * bT) / v) *
+                     (powOverExp(I / S, -1 + 2 * gamma + (2 * bT) / v,
+                                 squared(2 * bT - v + 2 * gamma * v + 4 * lis + 2 * lsh) / (8. * v)) *
                       (2 * bT + v - 2 * gamma * v + 4 * lis + 2 * lsh)) /
-                         (2. * std::exp(squared(2 * bT - v + 2 * gamma * v + 4 * lis + 2 * lsh) / (8. * v)) * M_SQRT2 *
-                          M_SQRTPI * v * sv))) /
+                         (2. * M_SQRT2 * M_SQRTPI * v * sv))) /
                    2.;
         }
     }
@@ -247,6 +375,42 @@ namespace QuantLib
         return results;
     }
 
+    OneAssetOption::results BjerksundStenslandApproximationEngine::zeroVarianceCallResults(
+        Real S, Real X, Real rfD, Real dD, Real variance) const
+    {
+        const PlainVanillaPayoff payoff(Option::Call, X);
+        const BlackCalculator black(Option::Call, X, S * dD / rfD, std::sqrt(variance), rfD);
+        const detail::FixedExerciseResults best = detail::bestFixedExercise(payoff, S, dD, rfD, black);
+
+        if (best.exerciseFraction == 1.0)
+            return europeanCallResults(S, X, rfD, dD, variance);
+        if (best.exerciseFraction == 0.0)
+            return immediateExercise(S, X);
+
+        // Exercise at a known time before expiry, which moves with the spot
+        // and the strike but not with the volatility or the expiry.
+        const Date refDate = process_->riskFreeRate()->referenceDate();
+        const Date exerciseDate = arguments_.exercise->lastDate();
+        const Time tr = process_->riskFreeRate()->dayCounter().yearFraction(refDate, exerciseDate);
+        const Time tq = process_->dividendYield()->dayCounter().yearFraction(refDate, exerciseDate);
+        const Real s = best.exerciseFraction;
+
+        OneAssetOption::results results;
+        results.value = best.value;
+        results.delta = best.delta;
+        results.gamma = best.gamma;
+        results.rho = X * s * tr * std::pow(rfD, s);
+        results.dividendRho = -S * s * tq * std::pow(dD, s);
+        results.vega = 0.0;
+        results.theta = 0.0;
+        results.thetaPerDay = 0.0;
+        results.strikeSensitivity = -std::pow(rfD, s);
+        results.additionalResults["strikeGamma"] = Real(results.gamma * squared(S / X));
+        results.additionalResults["exerciseType"] = std::string("American");
+
+        return results;
+    }
+
     OneAssetOption::results BjerksundStenslandApproximationEngine::americanCallApproximation(
         Real S, Real X, Real rfD, Real dD, Real variance) const
     {
@@ -258,16 +422,51 @@ namespace QuantLib
         const Real bT = std::log(dD / rfD);
         const Real rT = std::log(1.0 / rfD);
 
-        const Real beta = (0.5 - bT / variance) + std::sqrt(squared(bT / variance - 0.5) + 2.0 * rT / variance);
+        // This is (0.5 - bT / v) + sqrt((bT / v - 0.5)^2 + 2 rT / v), arranged so
+        // that nothing cancels.  dD <= 1 here, so the radicand is a sum of two
+        // terms that aren't negative, and beta is never below 1.  With q = 0 the
+        // second term is zero and beta is exactly 1 for r >= -variance / 2.  At
+        // low variance it is lost beside the first, so beta - 1 divides by the
+        // conjugate root + shift instead of subtracting.
+        const Real shift = bT / variance + 0.5;
+        const Real radicandTerm = -2.0 * std::log(dD) / variance;
+        const Real root = std::sqrt(squared(shift) + radicandTerm);
+        const Real betaMinusOne = shift > 0.0 ? radicandTerm / (root + shift) : root - shift;
+        const Real beta = 1.0 + betaMinusOne;
 
-        const Real BInfinity = beta / (beta - 1.0) * X;
+        // betaMinusOne is -0 at dD = 1, so that BInfinity is +inf as it should be
+        const Real BInfinity = beta / std::fabs(betaMinusOne) * X;
         const Real B0 = (bT == rT) ? X : std::max(X, rT / (rT - bT) * X);
-        const Real ht = -(bT + 2.0 * std::sqrt(variance)) * B0 / (BInfinity - B0);
+        const Real a = (bT + 2.0 * std::sqrt(variance)) * B0;
+        const Real ht = -a / (BInfinity - B0);
 
-        const Real I = B0 + (BInfinity - B0) * (1 - std::exp(ht));
+        // This is B0 + (BInfinity - B0) * (1 - exp(ht)), in a form that holds
+        // as beta tends to 1: with q = 0 and -variance / 2 <= r < 0 beta is 1,
+        // BInfinity is infinite, and I is B0 + a.
+        Real I = B0 + a * expm1Ratio(ht);
 
+        // The published trigger is a heuristic, and every flat trigger gives a
+        // lower bound.  Where the value still rises above it, which is mostly for
+        // negative carry and long expiries, the best one replaces it; BInfinity is
+        // as high as an exercise boundary goes.  The threshold stops rounding error
+        // in a flat value from starting a search that gains nothing.
+        bool bestTrigger = false;
+        const Real lowestTrigger = std::max(I, S);
+        if (lowestTrigger < BInfinity)
+        {
+            const Real rise = flatTriggerValue(S, X, lowestTrigger * (1.0 + 1.0e-6), beta, rT, bT, variance) -
+                              flatTriggerValue(S, X, lowestTrigger, beta, rT, bT, variance);
+            if (rise > 1.0e-14 * std::max(S, X))
+            {
+                I = bestFlatTrigger(S, X, lowestTrigger, BInfinity, beta, rT, bT, variance);
+                bestTrigger = true;
+            }
+        }
+
+        // The spot can reach the trigger early on even when the forward ends far
+        // below it, so the trigger is out of reach only if it's far from both.
         const Real fwd = S * dD / rfD;
-        const Real q = std::log(I / fwd) / std::sqrt(variance);
+        const Real q = std::log(I / std::max(S, fwd)) / std::sqrt(variance);
 
         if (S >= I)
         {
@@ -301,16 +500,38 @@ namespace QuantLib
             const DayCounter qdc = process_->dividendYield()->dayCounter();
             const Time tq = qdc.yearFraction(refDate, exerciseDate);
 
-            const Real betaDq =
-                tq * (1 / variance - 1 / (2 * std::sqrt(squared(bT / variance - 0.5) + 2.0 * rT / variance)) * 2 *
-                                         (bT / variance - 0.5) / variance);
-            const Real BInfinityDq = -X / squared(beta - 1.0) * betaDq;
+            // beta's derivatives divide by the root, which vanishes only at q = 0
+            // and r = -variance / 2.  There beta has a kink in r and in the
+            // volatility, where the ratio below takes the side with beta = 1, and
+            // a vertical tangent in q, where betaDq is merely very large.
+            const Real betaRoot = std::max(root, QL_EPSILON);
+            const Real betaRatio = root > 0.0 ? Real(betaMinusOne / root) : Real(0.0);
+
+            // The derivative of I with respect to a parameter, from those of
+            // B0, A = bT + 2 sqrt(v) and beta:
+            //     dB0 + exp(ht) * (dA * B0 + A * dB0) + (dBInfinity - dB0) * w,
+            // with w = ht * exp(ht) - expm1(ht).  As beta tends to 1, dBInfinity
+            // = -X * dBeta / (beta - 1)^2 diverges and w vanishes, so their
+            // product uses ht / (beta - 1) = -a / (beta * X - B0 * (beta - 1)),
+            // which stays finite.
+            const bool smallHt = std::fabs(ht) < 1.0;
+            const Real w = smallHt ? Real(squared(ht) * boundaryWeight(ht)) :
+                                     (ht < -700.0 ? Real(1.0) : Real(ht * std::exp(ht) - std::expm1(ht)));
+            const Real wOverBeta = smallHt ? Real(squared(a / (beta * X - B0 * betaMinusOne)) * boundaryWeight(ht)) :
+                                             Real(w / squared(betaMinusOne));
+            const auto dI = [&](Real dB0, Real dA, Real dBeta)
+            {
+                // the value is stationary in the best trigger
+                if (bestTrigger)
+                    return Real(0.0);
+                return dB0 + std::exp(ht) * (dA * B0 + (bT + 2.0 * std::sqrt(variance)) * dB0) - X * dBeta * wOverBeta -
+                       dB0 * w;
+            };
+
+            const Real betaDq = tq * beta / (variance * betaRoot);
             const Real B0Dq = (dD <= rfD) ? Real(0.0) : Real(X * std::log(rfD) / squared(std::log(dD)) * tq);
 
-            const Real htDq = tq * B0 / (BInfinity - B0) - (bT + 2.0 * std::sqrt(variance)) *
-                                                               (B0Dq * (BInfinity - B0) - B0 * (BInfinityDq - B0Dq)) /
-                                                               squared(BInfinity - B0);
-            const Real IDq = B0Dq + (BInfinityDq - B0Dq) * (1 - std::exp(ht)) - (BInfinity - B0) * std::exp(ht) * htDq;
+            const Real IDq = dI(B0Dq, -tq, betaDq);
 
             const Real phi_H_S_beta_I_I_rT_bT_v = phi_H(S, beta, I, I, rT, bT, variance);
             const Real phi_I_S_beta_I_I_rT_bT_v = phi_I(S, beta, I, I, rT, bT, variance);
@@ -342,15 +563,10 @@ namespace QuantLib
             const DayCounter rdc = process_->riskFreeRate()->dayCounter();
             const Time tr = rdc.yearFraction(refDate, exerciseDate);
 
-            const Real betaDr =
-                tr * (-1 / variance + 1 / (2 * std::sqrt(squared(bT / variance - 0.5) + 2.0 * rT / variance)) * 2 *
-                                          ((bT / variance - 0.5) / variance + 1 / variance));
-            const Real BInfinityDr = -X / squared(beta - 1.0) * betaDr;
+            const Real betaDr = -tr * betaRatio / variance;
             const Real B0Dr = (dD <= rfD) ? Real(0) : Real(-X * tr / std::log(dD));
-            const Real htDr = -tr * B0 / (BInfinity - B0) - (bT + 2.0 * std::sqrt(variance)) *
-                                                                (B0Dr * (BInfinity - B0) - B0 * (BInfinityDr - B0Dr)) /
-                                                                squared(BInfinity - B0);
-            const Real IDr = B0Dr + (BInfinityDr - B0Dr) * (1 - std::exp(ht)) - (BInfinity - B0) * std::exp(ht) * htDr;
+
+            const Real IDr = dI(B0Dr, tr, betaDr);
 
             results.rho = (IDr * std::pow(S / I, beta) +
                            (I - X) * std::pow(S / I, beta) * (betaDr * std::log(S / I) - beta / I * IDr)) *
@@ -368,21 +584,14 @@ namespace QuantLib
                           X * (phi_I_S_0_X_I_rT_bT_v * IDr + phi_rt(S, 0.0, X, I, rT, bT, variance) * tr +
                                phi_bt_S_0_X_I_rT_bT_v * tr);
 
-            const Real beta = (0.5 - bT / variance) + std::sqrt(squared(bT / variance - 0.5) + 2.0 * rT / variance);
-
             const DayCounter vdc = process_->blackVolatility()->dayCounter();
             const Time tv = vdc.yearFraction(refDate, exerciseDate);
             const Real varianceDv = 2 * std::sqrt(variance * tv);
 
-            const Real betaDv = bT / squared(variance) * varianceDv +
-                                -1 / (2 * std::sqrt(squared(bT / variance - 0.5) + 2.0 * rT / variance)) *
-                                    (2 * (bT / variance - 0.5) * bT * varianceDv / squared(variance) +
-                                     2 * rT / squared(variance) * varianceDv);
-            const Real BInfinityDv = -X / squared(beta - 1.0) * betaDv;
-            const Real htDv = -1 / std::sqrt(variance) * varianceDv * B0 / (BInfinity - B0) +
-                              (bT + 2 * std::sqrt(variance)) * B0 / squared(BInfinity - B0) * BInfinityDv;
+            const Real betaDv =
+                varianceDv / variance * (bT / variance * betaRatio + std::log(dD) / (variance * betaRoot));
 
-            const Real IDv = BInfinityDv * (1 - std::exp(ht)) - (BInfinity - B0) * std::exp(ht) * htDv;
+            const Real IDv = dI(0.0, varianceDv / std::sqrt(variance), betaDv);
 
             results.vega =
                 (IDv * std::pow(S / I, beta) +
@@ -408,6 +617,20 @@ namespace QuantLib
                 - 2 * phi_S_S_1_X_I_rT_bT_v - S * phi_SS(S, 1.0, X, I, rT, bT, variance)
 
                 - X * phi_SS(S, 0.0, I, I, rT, bT, variance) + X * phi_SS(S, 0.0, X, I, rT, bT, variance);
+
+            // The best trigger moves with the spot, by -V_SI / V_II.  Delta doesn't
+            // see that, since the value is stationary in I, and gamma does.
+            if (bestTrigger)
+            {
+                const auto value = [&](Real s, Real i) { return flatTriggerValue(s, X, i, beta, rT, bT, variance); };
+                const Real h = 1.0e-4 * S, k = 1.0e-4 * I;
+                const Real vII = (value(S, I + k) - 2.0 * value(S, I) + value(S, I - k)) / (k * k);
+                const Real vSI =
+                    (value(S + h, I + k) - value(S + h, I - k) - value(S - h, I + k) + value(S - h, I - k)) /
+                    (4.0 * h * k);
+                if (vII < 0.0)
+                    results.gamma -= vSI * vSI / vII;
+            }
 
             const Volatility vol = std::sqrt(variance / tv);
 
@@ -463,11 +686,15 @@ namespace QuantLib
             payoff = ext::make_shared<PlainVanillaPayoff>(Option::Call, strike);
         }
 
-        if (dividendDiscount > 1.0 && riskFreeDiscount > dividendDiscount)
+        if (variance < QL_EPSILON)
+        {
+            results_ = zeroVarianceCallResults(spot, strike, riskFreeDiscount, dividendDiscount, variance);
+        }
+        else if (dividendDiscount > 1.0 && riskFreeDiscount > dividendDiscount)
+        {
             QL_FAIL("double-boundary case r<q<0 for a call given");
-
-
-        if (dividendDiscount >= 1.0 && dividendDiscount >= riskFreeDiscount)
+        }
+        else if (dividendDiscount >= 1.0 && dividendDiscount >= riskFreeDiscount)
         {
             results_ = europeanCallResults(spot, strike, riskFreeDiscount, dividendDiscount, variance);
         }

@@ -82,6 +82,7 @@ namespace QuantLib
             void setTimes(Array times);
             void setVols(Array vols);
             void setReversions(Array reversions);
+            void setForwardMeasureTime(Time T);
             void checkTimesVolsReversions() const;
             int lowerIndex(Time t) const;
             int upperIndex(Time t) const;

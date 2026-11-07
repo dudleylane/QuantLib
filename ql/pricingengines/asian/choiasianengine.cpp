@@ -19,6 +19,7 @@
 
 #include <ql/exercise.hpp>
 #include <ql/instruments/basketoption.hpp>
+#include <ql/math/comparison.hpp>
 #include <ql/pricingengines/asian/choiasianengine.hpp>
 #include <ql/pricingengines/basket/choibasketengine.hpp>
 #include <ql/pricingengines/blackformula.hpp>
@@ -56,6 +57,10 @@ namespace QuantLib
 
         const Date exerciseDate = arguments_.exercise->lastDate();
         const Handle<YieldTermStructure> rTS = process_->riskFreeRate();
+        const DiscountFactor discount = rTS->discount(exerciseDate);
+
+        // A fixing today is known, but it's the spot itself: it still moves with it.
+        Real spotInAccrued = 0.0;
 
         if (futureFixings > 0 && process_->time(fixingDates.front()) == Time(0))
         {
@@ -64,12 +69,26 @@ namespace QuantLib
             futureFixings--;
             pastFixings++;
             runningAccumulator += process_->x0();
+            spotInAccrued = process_->x0() / (pastFixings + futureFixings);
         }
+
+        // With the average certain, or certain to pay off, only the discounting is left, and
+        // delta comes from the part of the average that moves with the spot.  At the strike
+        // it takes the half that BlackCalculator gives there.
+        const auto setResultsForKnownAverage = [&](Real average, Real movingWithSpot)
+        {
+            const Real sign = Real(payoff->optionType());
+            const Real k = payoff->strike();
+            const Real side = close(average, k) ? 0.5 * sign : (sign * (average - k) > 0.0 ? sign : 0.0);
+            results_.value = discount * (*payoff)(average);
+            results_.delta = side * discount * movingWithSpot / process_->x0();
+            results_.gamma = 0.0;
+        };
 
         if (futureFixings == 0)
         {
             QL_REQUIRE(pastFixings > 0, "no past fixings given");
-            results_.value = (*payoff)(runningAccumulator / pastFixings) * rTS->discount(exerciseDate);
+            setResultsForKnownAverage(runningAccumulator / pastFixings, spotInAccrued);
 
             return;
         }
@@ -83,24 +102,51 @@ namespace QuantLib
         const Real accruedAverage = (pastFixings != 0) ? Real(runningAccumulator / (pastFixings + futureFixings)) : 0.0;
 
         const Real strike = payoff->strike() - accruedAverage;
-        QL_REQUIRE(strike >= 0.0, "effective strike should to be positive");
 
         const Handle<YieldTermStructure> qTS = process_->dividendYield();
         const Handle<BlackVolTermStructure> volTS = process_->blackVolatility();
         const Date volRefDate = volTS->referenceDate();
         const DayCounter volDc = volTS->dayCounter();
+        const Real weight = 1.0 / (pastFixings + futureFixings);
 
-        if (futureFixings > 1)
+        // A fixing with no variance is its forward, which comes off the strike: in the basket,
+        // its correlations would be 0/0.  Below QL_EPSILON, a standard deviation is worth less
+        // than the rounding of the forward.  With the strike already covered nothing else
+        // matters, since no fixing can go negative.
+        Real deterministicForwards = 0.0;
+        Real stochasticForwards = 0.0;
+        std::vector<Date> stochasticDates;
+        std::vector<Time> fixingTimes;
+        std::vector<Real> variances;
+        for (const Date& fixingDate : fixingDates)
         {
-            std::vector<Time> fixingTimes(futureFixings), variances(futureFixings);
-            for (Size i = 0; i < futureFixings; ++i)
+            const Real forward = weight * process_->x0() * qTS->discount(fixingDate) / rTS->discount(fixingDate);
+            const Real variance = strike > 0.0 ? Real(volTS->blackVariance(fixingDate, strike)) : 0.0;
+            if (variance < QL_EPSILON * QL_EPSILON)
             {
-                const Date& fixingDate = fixingDates[i];
-                fixingTimes[i] = volDc.yearFraction(volRefDate, fixingDate);
-                variances[i] = process_->blackVolatility()->blackVariance(fixingDate, strike);
+                deterministicForwards += forward;
             }
+            else
+            {
+                stochasticForwards += forward;
+                stochasticDates.push_back(fixingDate);
+                fixingTimes.push_back(volDc.yearFraction(volRefDate, fixingDate));
+                variances.push_back(variance);
+            }
+        }
 
-            Matrix rho(futureFixings, futureFixings);
+        const Real residualStrike = strike - deterministicForwards;
+        if (variances.empty() || residualStrike <= 0.0)
+        {
+            const Real forwards = deterministicForwards + stochasticForwards;
+            setResultsForKnownAverage(accruedAverage + forwards, forwards + spotInAccrued);
+
+            return;
+        }
+
+        if (variances.size() > 1)
+        {
+            Matrix rho(variances.size(), variances.size());
             for (Size i = 0; i < rho.rows(); ++i)
                 for (Size j = i; j < rho.columns(); ++j)
                     rho[i][j] = rho[j][i] = variances[std::min(i, j)] / std::sqrt(variances[i] * variances[j]);
@@ -109,10 +155,10 @@ namespace QuantLib
                 ext::make_shared<FlatForward>(rTS->referenceDate(), 0.0, rTS->dayCounter()));
 
             std::vector<ext::shared_ptr<GeneralizedBlackScholesProcess>> processes;
-            processes.reserve(futureFixings);
-            for (Size i = 0; i < futureFixings; ++i)
+            processes.reserve(variances.size());
+            for (Size i = 0; i < variances.size(); ++i)
             {
-                const Date& fixingDate = fixingDates[i];
+                const Date& fixingDate = stochasticDates[i];
                 const Volatility sig =
                     volTS->blackVol(fixingDate, payoff->strike()) * std::sqrt(fixingTimes[i] / fixingTimes.back());
 
@@ -125,21 +171,18 @@ namespace QuantLib
             }
 
             BasketOption basketOption(ext::make_shared<AverageBasketPayoff>(
-                                          ext::make_shared<PlainVanillaPayoff>(payoff->optionType(), strike),
-                                          Array(futureFixings, 1.0 / (futureFixings + pastFixings))),
-                                      ext::make_shared<EuropeanExercise>(fixingDates.back()));
+                                          ext::make_shared<PlainVanillaPayoff>(payoff->optionType(), residualStrike),
+                                          Array(variances.size(), weight)),
+                                      ext::make_shared<EuropeanExercise>(stochasticDates.back()));
             basketOption.setPricingEngine(
                 ext::make_shared<ChoiBasketEngine>(processes, rho, lambda_, maxNrIntegrationSteps_));
 
-            results_.value = basketOption.NPV() * rTS->discount(exerciseDate);
+            results_.value = basketOption.NPV() * discount;
         }
-        else if (futureFixings == 1)
+        else
         {
-            results_.value =
-                blackFormula(payoff->optionType(), strike,
-                             process_->x0() / (pastFixings + futureFixings) * qTS->discount(fixingDates.back()) /
-                                 rTS->discount(fixingDates.back()),
-                             std::sqrt(volTS->blackVariance(fixingDates.back(), strike)), rTS->discount(exerciseDate));
+            results_.value = blackFormula(payoff->optionType(), residualStrike, stochasticForwards,
+                                          std::sqrt(variances.back()), discount);
         }
     }
 }

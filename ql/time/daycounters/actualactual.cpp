@@ -80,7 +80,8 @@ namespace QuantLib
                     schedule.calendar().advance(schedule.date(schedule.size() - 2), schedule.tenor(),
                                                 schedule.businessDayConvention(), schedule.endOfMonth());
 
-                newDates[schedule.size() - 1] = notionalLastCoupon;
+                // A long first coupon has added a date at the front by now.
+                newDates.back() = notionalLastCoupon;
 
                 if (notionalLastCoupon < schedule.endDate())
                 {

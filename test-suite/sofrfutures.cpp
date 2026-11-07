@@ -23,8 +23,10 @@
 #include <ql/indexes/ibor/sofr.hpp>
 #include <ql/instruments/overnightindexfuture.hpp>
 #include <ql/quotes/simplequote.hpp>
+#include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/termstructures/yield/overnightindexfutureratehelper.hpp>
 #include <ql/termstructures/yield/piecewiseyieldcurve.hpp>
+#include <ql/time/daycounters/actual360.hpp>
 #include <iomanip>
 
 using namespace QuantLib;
@@ -193,6 +195,57 @@ BOOST_AUTO_TEST_CASE(testPillarDates)
     Date sofrCustom(15, July, 2024);
     SofrFutureRateHelper sh(price, June, 2024, Quarterly, {}, Pillar::CustomDate, sofrCustom);
     BOOST_CHECK_EQUAL(sh.pillarDate(), sofrCustom);
+}
+
+BOOST_AUTO_TEST_CASE(testTodaysFixingWithHolidayMaturity)
+{
+    BOOST_TEST_MESSAGE("Testing today's fixing in a future maturing on a holiday...");
+
+    // Juneteenth is the day after today, so the next business day is past the
+    // maturity, and today's fixing has to stop accruing at the maturity.
+    const Date today(18, June, 2024), valueDate(17, June, 2024), maturity(19, June, 2024);
+    Settings::instance().evaluationDate() = today;
+
+    Handle<YieldTermStructure> curve(ext::make_shared<FlatForward>(today, 0.0, Actual360()));
+    auto sofr = ext::make_shared<Sofr>(curve);
+    const Rate previous = 0.03, todays = 0.09;
+    sofr->addFixing(valueDate, previous);
+    sofr->addFixing(today, todays);
+
+    OvernightIndexFuture future(sofr, valueDate, maturity);
+
+    const DayCounter dayCounter = sofr->dayCounter();
+    const Real growth = (1.0 + previous * dayCounter.yearFraction(valueDate, today)) *
+                        (1.0 + todays * dayCounter.yearFraction(today, maturity));
+    const Rate rate = (growth - 1.0) / dayCounter.yearFraction(valueDate, maturity);
+
+    BOOST_CHECK_SMALL(future.NPV() - 100.0 * (1.0 - rate), 1.0e-10);
+}
+
+BOOST_AUTO_TEST_CASE(testHelperNotNotifiedByItsOwnBootstrap)
+{
+    BOOST_TEST_MESSAGE("Testing that a future's rate helper isn't notified when it bootstraps a curve...");
+
+    const Date today(26, October, 2018);
+    Settings::instance().evaluationDate() = today;
+
+    auto price = ext::make_shared<SimpleQuote>(97.52);
+    auto helper = ext::make_shared<OvernightIndexFutureRateHelper>(Handle<Quote>(price), Date(20, March, 2019),
+                                                                   Date(19, June, 2019), ext::make_shared<Sofr>());
+    auto curve = ext::make_shared<PiecewiseYieldCurve<Discount, LogLinear>>(
+        today, std::vector<ext::shared_ptr<RateHelper>>{helper}, Actual360());
+
+    Flag flag;
+    flag.registerWith(helper);
+
+    curve->nodes();
+    BOOST_CHECK(!flag.isUp());
+
+    // It still hears about what it depends on, and the curve still reprices it.
+    price->setValue(97.60);
+    BOOST_CHECK(flag.isUp());
+    curve->nodes();
+    BOOST_CHECK_SMALL(helper->quoteError(), 1.0e-10);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

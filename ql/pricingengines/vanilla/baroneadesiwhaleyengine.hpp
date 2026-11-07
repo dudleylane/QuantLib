@@ -36,27 +36,42 @@ namespace QuantLib
     namespace detail
     {
 
-        // The American value at zero variance, and its delta and gamma: that
-        // of the best deterministic exercise time, under the flat rates the
-        // engine below and JuQuadraticApproximationEngine assume. Both use
-        // it, so it is declared here; two file-local copies would clash in a
-        // unity build, which compiles both files as one. The derivation is at
-        // its definition, in baroneadesiwhaleyengine.cpp.
-        struct ZeroVarianceResults
+        // The value of exercising at the best fixed time, and its delta and
+        // gamma, under the flat rates the engine below,
+        // JuQuadraticApproximationEngine and
+        // BjerksundStenslandApproximationEngine assume. It is the American
+        // value at zero variance and a lower bound on it at any other. All
+        // three use it, so it is declared here; file-local copies would clash
+        // in a unity build, which compiles the three files as one. The
+        // derivation is at its definition, in baroneadesiwhaleyengine.cpp.
+        struct FixedExerciseResults
         {
             Real value, delta, gamma;
+            // when to exercise, as a fraction of the time to expiry
+            Real exerciseFraction;
         };
 
-        ZeroVarianceResults zeroVarianceResults(const StrikedTypePayoff& payoff,
-                                                Real spot,
-                                                DiscountFactor dividendDiscount,
-                                                DiscountFactor riskFreeDiscount,
-                                                const BlackCalculator& black);
+        FixedExerciseResults bestFixedExercise(const StrikedTypePayoff& payoff,
+                                               Real spot,
+                                               DiscountFactor dividendDiscount,
+                                               DiscountFactor riskFreeDiscount,
+                                               const BlackCalculator& black);
 
     }
 
     //! Barone-Adesi and Whaley pricing engine for American options (1987)
     /*! \ingroup vanillaengines
+
+        \warning The value isn't reliable for low volatilities with long
+                 expiries, where it can sit above the exact value and no
+                 simple bound catches it. For a call with S = 500,
+                 K = 100, r = 7%, q = 1%, 10 years to expiry and any
+                 volatility up to 1%, it is about 411.8, and the exact
+                 value about 405.2. At zero volatility the engine returns
+                 the exact value, so it jumps there.
+                 QdFpAmericanEngine is closer in that region, and over a
+                 wide grid of inputs this engine was within 5.25 above and
+                 1.90 below it, at S = 100.
 
         \test the correctness of the returned value is tested by
               reproducing results available in literature.

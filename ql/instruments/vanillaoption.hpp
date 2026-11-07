@@ -49,15 +49,15 @@ namespace QuantLib
                      with any other methods (such as jump-diffusion
                      models.)
 
-            \warning options with a gamma that changes sign (e.g.,
-                     binary options) have values that are <b>not</b>
-                     monotonic in the volatility. In these cases, the
-                     calculation can fail and the result (if any) is
-                     almost meaningless.  Another possible source of
-                     failure is to have a target value that is not
-                     attainable with any volatility, e.g., a target
-                     value lower than the intrinsic value in the case
-                     of American options.
+            \warning options with a gamma that changes sign (e.g., binary options) have values
+                     that are <b>not</b> monotonic in the volatility. In these cases, the
+                     calculation can fail and the result (if any) is almost meaningless.
+                     Another possible source of failure is to have a target value that is not
+                     attainable with any volatility, e.g., a target value lower than the
+                     intrinsic value in the case of American options.  A finite-difference
+                     engine's own price can be one, when the option is so deep in the money
+                     that the value hardly depends on the volatility: the error of the grid at
+                     minVol can put it above the target, and the volatility isn't identifiable.
         */
         //@{
         Volatility impliedVolatility(Real price,

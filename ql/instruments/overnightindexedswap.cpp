@@ -159,7 +159,7 @@ namespace QuantLib
                           overnightIndex,
                           spread,
                           DayCounter(),
-                          ext::nullopt,
+                          paymentAdjustment,
                           paymentLag,
                           paymentCalendar),
       overnightIndex_(overnightIndex), paymentLag_(paymentLag), paymentCalendar_(paymentCalendar),

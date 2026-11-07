@@ -97,6 +97,13 @@ namespace QuantLib
         }
         QL_REQUIRE(s0 > 0.0, "negative value after subtracting dividends");
 
+        // The tree starts at the settlement date, so it needs the stock's
+        // forward for that date.  A dividend due before then has come off the
+        // stock above and isn't added back, since the stock has gone ex by then.
+        if (arguments_.settlementDate > referenceDate)
+            s0 *= process_->dividendYield()->discount(arguments_.settlementDate) /
+                  process_->riskFreeRate()->discount(arguments_.settlementDate);
+
         // binomial trees with constant coefficient
         Handle<Quote> underlying(ext::shared_ptr<Quote>(new SimpleQuote(s0)));
         Handle<YieldTermStructure> flatRiskFree(

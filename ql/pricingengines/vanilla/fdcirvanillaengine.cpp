@@ -68,6 +68,7 @@ namespace QuantLib
 
         const ext::shared_ptr<StrikedTypePayoff> payoff =
             ext::dynamic_pointer_cast<StrikedTypePayoff>(arguments_.payoff);
+        QL_REQUIRE(payoff, "non-striked payoff given");
         const Time maturity = bsProcess_->time(arguments_.exercise->lastDate());
 
         // The short rate mesher
@@ -102,6 +103,7 @@ namespace QuantLib
     {
         const ext::shared_ptr<StrikedTypePayoff> payoff =
             ext::dynamic_pointer_cast<StrikedTypePayoff>(arguments_.payoff);
+        QL_REQUIRE(payoff, "non-striked payoff given");
 
         ext::shared_ptr<FdmCIRSolver> solver(new FdmCIRSolver(Handle<CoxIngersollRossProcess>(cirProcess_),
                                                               Handle<GeneralizedBlackScholesProcess>(bsProcess_),

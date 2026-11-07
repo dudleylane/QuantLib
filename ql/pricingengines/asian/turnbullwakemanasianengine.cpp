@@ -18,6 +18,7 @@
 #include <ql/exercise.hpp>
 #include <ql/pricingengines/asian/turnbullwakemanasianengine.hpp>
 #include <ql/pricingengines/blackcalculator.hpp>
+#include <cmath>
 
 using namespace QuantLib;
 
@@ -48,6 +49,16 @@ void TurnbullWakemanAsianEngine::calculate() const
     Real effectiveStrike = payoff->strike() - accruedAverage;
     results_.additionalResults["strike"] = payoff->strike();
     results_.additionalResults["effective_strike"] = effectiveStrike;
+
+    // With every fixing known, only the discounting is left.
+    if (futureFixings == 0)
+    {
+        QL_REQUIRE(pastFixings > 0, "no fixings given");
+        results_.value = discount * (*payoff)(accruedAverage);
+        results_.delta = 0.0;
+        results_.gamma = 0.0;
+        return;
+    }
 
     // If the effective strike is negative, exercise resp. permanent OTM is guaranteed and the
     // valuation is made easy
@@ -97,33 +108,37 @@ void TurnbullWakemanAsianEngine::calculate() const
         times.push_back(process_->blackVolatility()->timeFromReference(fd));
 
         spotVars.push_back(process_->blackVolatility()->blackVariance(times.back(), effectiveStrike));
-        spotVolsVec.push_back(std::sqrt(spotVars.back() / times.back()));
+        spotVolsVec.push_back(process_->blackVolatility()->blackVol(times.back(), effectiveStrike));
 
         EA += forwards.back();
     }
     EA /= m;
 
-    // Expected value of A^2.
-    Real EA2 = 0.0;
+    // Variance of A, term by term.  As the difference between E[A^2] and E[A]^2, it would
+    // cancel at low volatility.
+    Real varA = 0.0;
     Size n = forwards.size();
 
     for (Size i = 0; i < n; ++i)
     {
-        EA2 += forwards[i] * forwards[i] * exp(spotVars[i]);
+        varA += forwards[i] * forwards[i] * std::expm1(spotVars[i]);
         for (Size j = 0; j < i; ++j)
         {
-            EA2 += 2 * forwards[i] * forwards[j] * exp(spotVars[j]);
+            varA += 2 * forwards[i] * forwards[j] * std::expm1(spotVars[j]);
         }
     }
 
-    EA2 /= m * m;
+    varA /= m * m;
+    Real EA2 = EA * EA + varA;
 
     // Calculate value
     Real tn = times.back();
-    Real sigma = sqrt(log(EA2 / (EA * EA)) / tn);
+    Real stdDev = std::sqrt(std::log1p(varA / (EA * EA)));
+    // With the last fixing today, the variance is 0 and there's no time to divide it by.
+    Real sigma = tn > 0.0 ? Real(stdDev / std::sqrt(tn)) : Real(0.0);
 
     // Populate results
-    BlackCalculator black(payoff->optionType(), effectiveStrike, EA, sigma * sqrt(tn), discount);
+    BlackCalculator black(payoff->optionType(), effectiveStrike, EA, stdDev, discount);
 
     results_.value = black.value();
     results_.delta = black.delta(spot);

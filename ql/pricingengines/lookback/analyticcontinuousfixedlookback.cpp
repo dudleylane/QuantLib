@@ -127,9 +127,11 @@ namespace QuantLib
         Real N3 = f_(eta * (d1 - lambda * stdDeviation()));
         Real N4 = f_(eta * d1);
         Real powss = std::pow(ss, -lambda);
+        // With no carry the ratio is 0/0, and this is its limit.
+        Real ratio = std::fabs(lambda) < 1.0e-8 ? Real(-stdDeviation() * (d1 * N4 + eta * f_.derivative(d1))) :
+                                                  (powss * N3 - dividendDiscount() * N4 / riskFreeDiscount()) / lambda;
         return eta * (underlying() * dividendDiscount() * N1 - minmax() * riskFreeDiscount() * N2 -
-                      underlying() * riskFreeDiscount() * (powss * N3 - dividendDiscount() * N4 / riskFreeDiscount()) /
-                          lambda);
+                      underlying() * riskFreeDiscount() * ratio);
     }
 
     Real AnalyticContinuousFixedLookbackEngine::B(Real eta) const
@@ -143,9 +145,11 @@ namespace QuantLib
         Real N3 = f_(eta * (d1 - lambda * stdDeviation()));
         Real N4 = f_(eta * d1);
         Real powss = std::pow(ss, -lambda);
+        // With no carry the ratio is 0/0, and this is its limit.
+        Real ratio = std::fabs(lambda) < 1.0e-8 ? Real(-stdDeviation() * (d1 * N4 + eta * f_.derivative(d1))) :
+                                                  (powss * N3 - dividendDiscount() * N4 / riskFreeDiscount()) / lambda;
         return eta * (underlying() * dividendDiscount() * N1 - strike() * riskFreeDiscount() * N2 -
-                      underlying() * riskFreeDiscount() * (powss * N3 - dividendDiscount() * N4 / riskFreeDiscount()) /
-                          lambda);
+                      underlying() * riskFreeDiscount() * ratio);
     }
 
     Real AnalyticContinuousFixedLookbackEngine::C(Real eta) const

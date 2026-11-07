@@ -32,7 +32,20 @@ namespace QuantLib
 {
 
     //! Bjerksund and Stensland pricing engine for American options (1993)
-    /*! \ingroup vanillaengines
+    /*! This departs from the 1993 paper where the value still rises above the
+        paper's flat exercise trigger, which is mostly for negative carry and long
+        expiries.  There it uses the flat trigger that maximises the value, so its
+        results differ from the published ones and cost several times as much.  Any
+        flat trigger gives a lower bound, so these are never below the paper's.
+
+        \warning For a call with q = 0 and r = -sigma^2/2, such as r = -0.5% and
+                 sigma = 10%, the approximation's value has a vertical tangent in
+                 q, so the dividend rho returned is a very large number that
+                 means little.  Its rho and vega there are the derivatives on one
+                 side or the other of a kink.  A put with r = 0 and
+                 q = -sigma^2/2 is the same, with rho and dividend rho swapped.
+
+        \ingroup vanillaengines
 
         \test the correctness of the returned value is tested by
               reproducing results available in literature.
@@ -47,6 +60,7 @@ namespace QuantLib
         OneAssetOption::results americanCallApproximation(Real S, Real X, Real rfD, Real dD, Real variance) const;
         OneAssetOption::results europeanCallResults(Real S, Real X, Real rfD, Real dD, Real variance) const;
         OneAssetOption::results immediateExercise(Real S, Real X) const;
+        OneAssetOption::results zeroVarianceCallResults(Real S, Real X, Real rfD, Real dD, Real variance) const;
 
 
         ext::shared_ptr<GeneralizedBlackScholesProcess> process_;

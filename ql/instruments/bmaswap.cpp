@@ -137,7 +137,9 @@ namespace QuantLib
     {
         static Spread basisPoint = 1.0e-4;
 
-        return liborSpread_ - NPV() / (liborLegBPS() / basisPoint);
+        Real bps = liborLegBPS();
+        QL_REQUIRE(bps != 0.0, "result not available (null libor BPS)");
+        return liborSpread_ - NPV() / (bps / basisPoint);
     }
 
     Real BMASwap::bmaLegBPS() const

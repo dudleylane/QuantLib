@@ -899,6 +899,39 @@ BOOST_AUTO_TEST_CASE(testFritschButland)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testCubicSchemesWithFewPoints)
+{
+    BOOST_TEST_MESSAGE("Testing cubic schemes that need more than two points...");
+
+    using CI = CubicInterpolation;
+    const std::vector<Real> x = {0.0, 1.0, 2.0, 3.0}, y = {1.0, 2.0, 0.5, 1.5};
+    const auto reproducesKnots = [&](const CI& f, Size n)
+    {
+        for (Size i = 0; i < n; ++i)
+            BOOST_CHECK_SMALL(f(x[i]) - y[i], 1.0e-12);
+    };
+    const auto spline = [&](Size n, CI::BoundaryCondition left, CI::BoundaryCondition right)
+    { return CI(x.begin(), x.begin() + n, y.begin(), CI::Spline, false, left, 0.0, right, 0.0); };
+
+    // The first three used to read past the end of the slopes.  The last reads
+    // nothing out of bounds, but its system is singular.
+    BOOST_CHECK_EXCEPTION(AkimaCubicInterpolation(x.begin(), x.begin() + 3, y.begin()), Error,
+                          ExpectedErrorMessage("Akima approximation requires 2 points or at least 4"));
+    BOOST_CHECK_EXCEPTION(spline(2, CI::SecondDerivative, CI::NotAKnot), Error,
+                          ExpectedErrorMessage("not-a-knot boundary condition requires at least 3 points"));
+    BOOST_CHECK_EXCEPTION(spline(2, CI::NotAKnot, CI::SecondDerivative), Error,
+                          ExpectedErrorMessage("not-a-knot boundary condition requires at least 3 points"));
+    BOOST_CHECK_EXCEPTION(spline(3, CI::NotAKnot, CI::NotAKnot), Error,
+                          ExpectedErrorMessage("not-a-knot boundary condition requires at least 4 points"));
+
+    // The smallest sizes that work.
+    reproducesKnots(AkimaCubicInterpolation(x.begin(), x.begin() + 2, y.begin()), 2);
+    reproducesKnots(AkimaCubicInterpolation(x.begin(), x.begin() + 4, y.begin()), 4);
+    reproducesKnots(spline(3, CI::NotAKnot, CI::SecondDerivative), 3);
+    reproducesKnots(spline(3, CI::SecondDerivative, CI::NotAKnot), 3);
+    reproducesKnots(spline(4, CI::NotAKnot, CI::NotAKnot), 4);
+}
+
 BOOST_AUTO_TEST_CASE(testBackwardFlat)
 {
 
@@ -1111,6 +1144,29 @@ BOOST_AUTO_TEST_CASE(testMixedLinearCubicMatchDerivatives)
         BOOST_ERROR("derivatives at the switch point do not match"
                     << std::fixed << "\n    left side:  " << leftSide << "\n    right side: " << rightSide
                     << std::scientific << "\n    error:      " << std::fabs(leftSide - rightSide));
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testMixedLinearCubicSwitchPoint)
+{
+    BOOST_TEST_MESSAGE("Testing the switch point of a mixed linear/cubic interpolation...");
+
+    const Size n = 5;
+    const std::vector<Real> x = xRange(-2.0, 2.0, n);
+    const std::vector<Real> y = parabolic(x);
+
+    // A switch point one past the last point used to be dereferenced.
+    BOOST_CHECK_EXCEPTION(MixedLinearCubicNaturalSpline(x.begin(), x.end(), y.begin(), n), Error,
+                          ExpectedErrorMessage("n is too large"));
+
+    // The last point still works.  With split ranges the second interpolation
+    // needs a point of its own after the switch.
+    const MixedLinearCubicNaturalSpline shared(x.begin(), x.end(), y.begin(), n - 1);
+    const MixedLinearCubicNaturalSpline split(x.begin(), x.end(), y.begin(), n - 2, MixedInterpolation::SplitRanges);
+    for (Size i = 0; i < n; ++i)
+    {
+        BOOST_CHECK_SMALL(shared(x[i]) - y[i], 1.0e-12);
+        BOOST_CHECK_SMALL(split(x[i]) - y[i], 1.0e-12);
     }
 }
 
@@ -3018,6 +3074,91 @@ BOOST_AUTO_TEST_CASE(testFlatExtrapolation)
             BOOST_ERROR("mismatch after update at x=2.0" << std::fixed << "\n    expected:   " << expected
                                                          << "\n    calculated: " << calculated << std::scientific
                                                          << "\n    error:      " << std::fabs(calculated - expected));
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testSabrNegativeVolatilities)
+{
+    BOOST_TEST_MESSAGE("Testing that Sabr interpolation rejects negative volatilities...");
+
+    const std::vector<Real> strikes = {0.03, 0.04, 0.05, 0.06};
+    std::vector<Real> vols = {0.20, 0.18, 0.19, 0.185};
+    // Named, since the interpolation keeps a reference to it.
+    const Real forward = 0.04;
+
+    for (bool vegaWeighted : {false, true})
+    {
+        for (bool isFixed : {true, false})
+        {
+            vols[0] = 0.20;
+            SABRInterpolation sabr(strikes.begin(), strikes.end(), vols.begin(), 1.0, forward, 0.2, 1.0, 0.1, 0.0,
+                                   isFixed, isFixed, isFixed, isFixed, vegaWeighted);
+            BOOST_CHECK_NO_THROW(sabr.update());
+
+            // The interpolation refers to the data, so a change shows up at the next recalibration.
+            // A zero is allowed. It's tried with nothing to fit, so as not to depend on where a fit to it goes.
+            if (isFixed)
+            {
+                vols[0] = 0.0;
+                BOOST_CHECK_NO_THROW(sabr.update());
+            }
+
+            vols[0] = -0.20;
+            BOOST_CHECK_EXCEPTION(sabr.update(), Error,
+                                  ExpectedErrorMessage("negative volatility (-0.2) given at strike 0.03"));
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testLagrangeInterpolationAroundASupportPointAtZero)
+{
+    BOOST_TEST_MESSAGE("Testing Lagrange interpolation around a supporting point at zero...");
+
+    const std::vector<std::vector<Real>> grids = {
+        {0.0, 0.2, 0.4, 0.6, 0.8}, {-0.4, -0.2, 0.0, 0.2, 0.4}, {-0.8, -0.6, -0.4, -0.2, 0.0}};
+
+    for (const auto& grid : grids)
+    {
+        Array x(grid.begin(), grid.end()), y(grid.size());
+        for (Size i = 0; i < x.size(); ++i)
+            y[i] = 1.0 / (2.0 - x[i]);
+        const LagrangeInterpolation interpolation(x.begin(), x.end(), y.begin());
+        const Array updatedY = y * 2.0;
+
+        // The smallest of these give an overflow in the barycentric formula.
+        for (Real z : {0.0, -0.0, 1e-320, -1e-320, 1e-310, -1e-310, 1e-305, -1e-305, 1e-40, -1e-40})
+        {
+            BOOST_TEST_CONTEXT("first node " << grid.front() << ", x " << z)
+            {
+                BOOST_CHECK_SMALL(interpolation(z, true) - 0.5, 1e-15);
+                BOOST_CHECK_SMALL(interpolation.value(updatedY, z) - 1.0, 1e-15);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testKrugerZeroSlope)
+{
+    BOOST_TEST_MESSAGE("Testing Kruger interpolation next to zero slopes...");
+
+    const Real x[5] = {0.0, 1.0, 2.0, 3.0, 4.0};
+    // A flat segment, a -0 slope next to a +0 one, and opposite slopes whose product underflows.
+    const Real y[][5] = {{1.0, 1.0, 1.0, 2.0, 3.0}, {0.0, -0.0, 0.0, 1.0, 2.0}, {0.0, 1e-200, 0.0, 1.0, 2.0}};
+
+    for (const auto& yi : y)
+    {
+        Interpolation f = KrugerCubic(std::begin(x), std::end(x), std::begin(yi));
+        BOOST_TEST_CONTEXT("y[1] = " << yi[1])
+        {
+            for (Size k = 0; k <= 40; ++k)
+            {
+                const Real xk = k * 0.1;
+                BOOST_CHECK_MESSAGE(std::isfinite(f(xk)), "value " << f(xk) << " at x = " << xk);
+                BOOST_CHECK_MESSAGE(std::isfinite(f.derivative(xk)),
+                                    "derivative " << f.derivative(xk) << " at x = " << xk);
+            }
+            BOOST_CHECK_EQUAL(f.derivative(1.0), 0.0);
+        }
     }
 }
 

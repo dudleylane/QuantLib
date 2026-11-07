@@ -121,6 +121,9 @@ namespace QuantLib
         QL_REQUIRE(exercise->type() == Exercise::American || exercise->type() == Exercise::European ||
                        exercise->type() == Exercise::Bermudan,
                    "exercise type is not supported");
+        // the conditions below exercise at the value paid at once, undiscounted
+        const auto earlyExercise = ext::dynamic_pointer_cast<EarlyExercise>(exercise);
+        QL_REQUIRE(earlyExercise == nullptr || !earlyExercise->payoffAtExpiry(), "payoff at expiry not handled");
         if (exercise->type() == Exercise::American)
         {
             const Time exerciseStart = dayCounter.yearFraction(refDate, exercise->date(0));

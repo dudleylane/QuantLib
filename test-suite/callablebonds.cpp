@@ -930,6 +930,170 @@ BOOST_AUTO_TEST_CASE(testOasContinuityThroughExCouponWindow)
                     << "    (sweep from " << io::iso_date(sweepStart) << " to " << io::iso_date(sweepEnd) << ")");
 }
 
+BOOST_AUTO_TEST_CASE(testUnexercisableCallability)
+{
+    BOOST_TEST_MESSAGE("Testing that an unexercisable callability leaves the price alone...");
+
+    Globals vars;
+
+    vars.today = Date(3, June, 2004);
+    Settings::instance().evaluationDate() = vars.today;
+    vars.settlement = vars.calendar.advance(vars.today, 3, Days);
+
+    vars.termStructure.linkTo(vars.makeFlatCurve(0.032));
+    vars.model.linkTo(ext::make_shared<HullWhite>(vars.termStructure));
+
+    Schedule schedule = MakeSchedule()
+                            .from(vars.issueDate())
+                            .to(vars.maturityDate())
+                            .withCalendar(vars.calendar)
+                            .withFrequency(Semiannual)
+                            .withConvention(vars.rollingConvention)
+                            .withRule(DateGeneration::Backward);
+
+    auto engine = ext::make_shared<TreeCallableFixedRateBondEngine>(*(vars.model), 240, vars.termStructure);
+
+    auto price = [&](const CallabilitySchedule& exercises)
+    {
+        CallableFixedRateBond bond(3, 10000.0, schedule, std::vector<Rate>(1, 0.05), Thirty360(Thirty360::BondBasis),
+                                   vars.rollingConvention, 100.0, vars.issueDate(), exercises);
+        bond.setPricingEngine(engine);
+        return bond.cleanPrice();
+    };
+
+    Date couponDate = schedule.date(8);
+    for (auto type : {Callability::Call, Callability::Put})
+    {
+        Real strike = (type == Callability::Call) ? 100.0 : 110.0;
+        Real unreachable = (type == Callability::Call) ? 200.0 : 0.0;
+
+        CallabilitySchedule onCouponDate;
+        onCouponDate.push_back(
+            ext::make_shared<Callability>(Bond::Price(strike, Bond::Price::Clean), type, couponDate));
+
+        Real expected = price(onCouponDate);
+
+        // Snapping the earlier one to the coupon date moves the coupon ahead of
+        // the later one, whose price must then pay that coupon too.
+        for (Integer days = 1; days <= 7; ++days)
+        {
+            CallabilitySchedule exercises;
+            exercises.push_back(
+                ext::make_shared<Callability>(Bond::Price(unreachable, Bond::Price::Dirty), type, couponDate - days));
+            exercises.push_back(onCouponDate.front());
+
+            Real calculated = price(exercises);
+            if (std::fabs(calculated - expected) > 1.0e-10)
+                BOOST_ERROR("unexercisable " << ((type == Callability::Call) ? "call" : "put") << " on "
+                                             << io::iso_date(couponDate - days) << " changed the price:\n"
+                                             << std::setprecision(12) << "    calculated: " << calculated << "\n"
+                                             << "    expected:   " << expected);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testCallabilityTypeAfterSettledCallability)
+{
+    BOOST_TEST_MESSAGE("Testing callability types after a settled callability...");
+
+    Globals vars;
+
+    vars.today = Date(3, June, 2004);
+    Settings::instance().evaluationDate() = vars.today;
+    vars.settlement = vars.calendar.advance(vars.today, 3, Days);
+
+    vars.termStructure.linkTo(vars.makeFlatCurve(0.032));
+    vars.model.linkTo(ext::make_shared<HullWhite>(vars.termStructure));
+
+    Schedule schedule = MakeSchedule()
+                            .from(vars.issueDate())
+                            .to(vars.maturityDate())
+                            .withCalendar(vars.calendar)
+                            .withFrequency(Semiannual)
+                            .withConvention(vars.rollingConvention)
+                            .withRule(DateGeneration::Backward);
+
+    auto engine = ext::make_shared<TreeCallableFixedRateBondEngine>(*(vars.model), 240, vars.termStructure);
+
+    auto price = [&](const CallabilitySchedule& exercises)
+    {
+        CallableFixedRateBond bond(3, 10000.0, schedule, std::vector<Rate>(1, 0.05), Thirty360(Thirty360::BondBasis),
+                                   vars.rollingConvention, 100.0, vars.issueDate(), exercises);
+        bond.setPricingEngine(engine);
+        return bond.cleanPrice();
+    };
+
+    for (auto type : {Callability::Call, Callability::Put})
+    {
+        auto settledType = (type == Callability::Call) ? Callability::Put : Callability::Call;
+
+        CallabilitySchedule live;
+        for (Size i : {4, 8})
+            live.push_back(
+                ext::make_shared<Callability>(Bond::Price(100.0, Bond::Price::Clean), type, schedule.date(i)));
+
+        // One on the settlement date has already occurred, and must not shift
+        // the type read for the others.
+        CallabilitySchedule exercises;
+        exercises.push_back(
+            ext::make_shared<Callability>(Bond::Price(100.0, Bond::Price::Clean), settledType, vars.settlement));
+        exercises.insert(exercises.end(), live.begin(), live.end());
+
+        Real expected = price(live);
+        Real calculated = price(exercises);
+        if (std::fabs(calculated - expected) > 1.0e-10)
+            BOOST_ERROR("settled " << ((settledType == Callability::Call) ? "call" : "put")
+                                   << " changed the price of a bond with later "
+                                   << ((type == Callability::Call) ? "calls" : "puts") << ":\n"
+                                   << std::setprecision(12) << "    calculated: " << calculated << "\n"
+                                   << "    expected:   " << expected);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testEffectiveDurationAndConvexity)
+{
+    BOOST_TEST_MESSAGE("Testing effective duration and convexity of a callable bond against its dirty price...");
+
+    // Midway through a coupon, so that the accrued amount matters.
+    Settings::instance().evaluationDate() = Date(1, March, 2024);
+
+    Date effectiveDate(20, May, 2021), maturityDate(1, June, 2029), firstCouponDate(1, December, 2021);
+    Calendar calendar = UnitedStates(UnitedStates::GovernmentBond);
+    DayCounter dayCount = Thirty360(Thirty360::ISDA);
+    Schedule schedule(effectiveDate, maturityDate, 6 * Months, calendar, Unadjusted, Unadjusted,
+                      DateGeneration::Backward, true, firstCouponDate);
+
+    CallabilitySchedule calls;
+    calls.push_back(ext::make_shared<Callability>(Bond::Price(102.438, Bond::Price::Clean), Callability::Call,
+                                                  Date(1, June, 2024)));
+    calls.push_back(ext::make_shared<Callability>(Bond::Price(101.219, Bond::Price::Clean), Callability::Call,
+                                                  Date(1, June, 2025)));
+    calls.push_back(
+        ext::make_shared<Callability>(Bond::Price(100.0, Bond::Price::Clean), Callability::Call, Date(1, June, 2026)));
+
+    CallableFixedRateBond bond(2, 100.0, schedule, std::vector<Rate>(1, 0.04875), dayCount, Unadjusted, 100.0,
+                               effectiveDate, calls);
+
+    Handle<YieldTermStructure> curve(ext::make_shared<FlatForward>(2, calendar, 0.05, dayCount));
+    auto model = ext::make_shared<HullWhite>(curve, 0.03, 0.012);
+    bond.setPricingEngine(ext::make_shared<TreeCallableFixedRateBondEngine>(model, 100));
+
+    const Spread oas = 0.01;
+    const Real bump = 0.001;
+    const Real accrued = bond.accruedAmount();
+    BOOST_TEST(accrued > 1.0);
+
+    const Real clean = bond.cleanPriceOAS(oas, curve, dayCount, Compounded, Semiannual);
+    const Real up = bond.cleanPriceOAS(oas + bump, curve, dayCount, Compounded, Semiannual);
+    const Real down = bond.cleanPriceOAS(oas - bump, curve, dayCount, Compounded, Semiannual);
+    const Real dirty = clean + accrued;
+
+    BOOST_CHECK_CLOSE(bond.effectiveDuration(oas, curve, dayCount, Compounded, Semiannual, bump),
+                      (down - up) / (2.0 * dirty * bump), 1.0e-6);
+    BOOST_CHECK_CLOSE(bond.effectiveConvexity(oas, curve, dayCount, Compounded, Semiannual, bump),
+                      (up + down - 2.0 * clean) / (bump * bump * dirty), 1.0e-6);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

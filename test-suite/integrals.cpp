@@ -335,6 +335,19 @@ BOOST_AUTO_TEST_CASE(testDiscreteIntegrals)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testDiscreteIntegralsOnFewPoints)
+{
+    BOOST_TEST_MESSAGE("Testing discrete integrals on fewer than two points...");
+
+    // There's no interval to integrate, but the loops' unsigned bounds wrapped.
+    for (Size n = 0; n < 2; ++n)
+    {
+        const Array x(n, 0.0), f(n, 1.0);
+        BOOST_CHECK_EQUAL(DiscreteTrapezoidIntegral()(x, f), 0.0);
+        BOOST_CHECK_EQUAL(DiscreteSimpsonIntegral()(x, f), 0.0);
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testDiscreteIntegrator)
 {
     BOOST_TEST_MESSAGE("Testing discrete integrator formulae...");

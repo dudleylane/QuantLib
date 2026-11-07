@@ -44,12 +44,9 @@ namespace QuantLib
         Time choosingTime() const;
         Time putMaturity() const;
         Time callMaturity() const;
-        Volatility volatility(Time t) const;
+        Real variance(Time t) const;
 
-        Rate dividendYield(Time t) const;
         DiscountFactor dividendDiscount(Time t) const;
-
-        Rate riskFreeRate(Time t) const;
         DiscountFactor riskFreeDiscount(Time t) const;
 
         BlackScholesCalculator bsCalculator(Real spot, Option::Type optionType) const;

@@ -145,11 +145,13 @@ namespace QuantLib
 
         QL_REQUIRE(n % 2 == 1, "n must be an odd number: " << n << " not allowed");
 
-        Real result = (z / (n + 1.0 / 3.0 + 0.1 / (n + 1.0)));
-        result *= result;
-        result = std::exp(-result * (n + 1.0 / 6.0));
-        result = 0.5 + (z > 0 ? 1 : -1) * std::sqrt((0.25 * (1.0 - result)));
-        return result;
+        Real exponent = z / (n + 1.0 / 3.0 + 0.1 / (n + 1.0));
+        exponent *= exponent * (n + 1.0 / 6.0);
+        const Real root = std::sqrt(-std::expm1(-exponent));
+        // The result is 0.5 * (1 + root) for z > 0, and 0.5 * (1 - root) otherwise.  The
+        // latter loses its digits as root nears 1, so it's multiplied through by 1 + root,
+        // given that (1 - root) * (1 + root) = exp(-exponent).
+        return z > 0.0 ? 0.5 * (1.0 + root) : 0.5 * std::exp(-exponent) / (1.0 + root);
     }
 
 }

@@ -180,25 +180,25 @@ namespace QuantLib
             cum_x2 = f(x2);
             cum_y1 = f(y1);
             cum_y2 = f(y2);
+
+            // At small variance the power can overflow while N(y) underflows,
+            // and their product is still finite.
+            if (!std::isfinite(H_S_2mu) || cum_y1 == 0.0 || cum_y2 == 0.0)
+            {
+                cum_y1 = std::exp(2.0 * mu * log_H_S + f.logValue(y1));
+                cum_y2 = std::exp(2.0 * mu * log_H_S + f.logValue(y2));
+                H_S_2mu = 1.0;
+            }
         }
         else
         {
-            if (log_S_X > 0)
-                cum_x1 = 1.0;
-            else
-                cum_x1 = 0.0;
-            if (log_S_H > 0)
-                cum_x2 = 1.0;
-            else
-                cum_x2 = 0.0;
-            if (log_H2_SX > 0)
-                cum_y1 = 1.0;
-            else
-                cum_y1 = 0.0;
-            if (log_H_S > 0)
-                cum_y2 = 1.0;
-            else
-                cum_y2 = 0.0;
+            // The underlying follows its forward, and the reflected terms vanish.
+            Real log_F_S = std::log(dividendDiscount / discount);
+            cum_x1 = phi * (log_S_X + log_F_S) > 0.0 ? 1.0 : 0.0;
+            cum_x2 = phi * (log_S_H + log_F_S) > 0.0 ? 1.0 : 0.0;
+            cum_y1 = 0.0;
+            cum_y2 = 0.0;
+            H_S_2mu = 0.0;
         }
 
         Real alpha = 0;

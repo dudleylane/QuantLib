@@ -72,6 +72,21 @@ namespace QuantLib
         registerWith(rfrIndex_);
     }
 
+    Date FallbackIborIndex::fixingDate(const Date& valueDate) const
+    {
+        return legacyIndex_->fixingDate(valueDate);
+    }
+
+    Date FallbackIborIndex::valueDate(const Date& fixingDate) const
+    {
+        return legacyIndex_->valueDate(fixingDate);
+    }
+
+    Date FallbackIborIndex::maturityDate(const Date& valueDate) const
+    {
+        return legacyIndex_->maturityDate(valueDate);
+    }
+
     Rate FallbackIborIndex::forecastFixing(const Date& fixingDate) const
     {
         if (fixingDate < cessationDate_)
@@ -84,6 +99,19 @@ namespace QuantLib
         Date valueDt = valueDate(fixingDate);
         Date maturityDt = maturityDate(valueDt);
         return compoundedRfrRate(valueDt, maturityDt) + spreadAdjustment_;
+    }
+
+    Rate FallbackIborIndex::forecastFixing(const Date& valueDate, const Date& endDate, Time t) const
+    {
+        // Keep the coupon's dates in both regimes: a par coupon's end date
+        // isn't the index's maturity.  Before cessation the base class reads
+        // termStructure_, which the constructor took from the legacy index.
+        // A coupon takes its value date from the fixing calendar alone, so
+        // the base class's fixingDate() gets its fixing date back, whichever
+        // dates the legacy index uses.
+        if (InterestRateIndex::fixingDate(valueDate) < cessationDate_)
+            return IborIndex::forecastFixing(valueDate, endDate, t);
+        return compoundedRfrRate(valueDate, endDate) + spreadAdjustment_;
     }
 
     Rate FallbackIborIndex::compoundedRfrRate(const Date& startDate, const Date& endDate) const

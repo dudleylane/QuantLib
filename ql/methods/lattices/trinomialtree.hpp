@@ -37,6 +37,12 @@ namespace QuantLib
         \warning The diffusion term of the SDE must be independent of the
                  underlying process.
 
+        The nodes after a step are normally spaced by sqrt(3) times the step's
+        standard deviation.  A stretch of steps that diffuses over less than a tenth
+        of the current spacing keeps that spacing instead.  Its own nodes would be no
+        use, since the next long step would merge them, and their number would grow
+        as the stretch got shorter.
+
         \ingroup lattices
     */
     class TrinomialTree : public Tree<TrinomialTree>
@@ -53,6 +59,8 @@ namespace QuantLib
                       bool isPositive = false);
         Real dx(Size i) const { return dx_[i]; }
         const TimeGrid& timeGrid() const { return timeGrid_; }
+        //! the spacing of the nodes after step i, over the normal one
+        Real widening(Size i) const { return widening_[i]; }
 
         Size size(Size i) const;
         Real underlying(Size i, Size index) const;
@@ -64,6 +72,7 @@ namespace QuantLib
         Real x0_;
         std::vector<Real> dx_;
         TimeGrid timeGrid_;
+        std::vector<Real> widening_;
 
       private:
         /* Branching scheme for a trinomial node.  Each node has three

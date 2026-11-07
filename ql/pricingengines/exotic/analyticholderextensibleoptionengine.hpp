@@ -44,22 +44,13 @@ namespace QuantLib
         Real strike() const;
         Time firstExpiryTime() const;
         Time secondExpiryTime() const;
-        Volatility volatility() const;
-        Rate riskFreeRate() const;
-        Rate dividendYield() const;
+        Real variance(Time t) const;
         DiscountFactor dividendDiscount(Time t) const;
         DiscountFactor riskFreeDiscount(Time t) const;
-        Real I1Call() const;
-        Real I2Call() const;
-        Real I1Put() const;
-        Real I2Put() const;
+        Real criticalPrice(Real start, Option::Type type, Real exerciseWeight) const;
         BlackScholesCalculator bsCalculator(Real spot, Option::Type optionType) const;
-        Real M2(Real a, Real b, Real c, Real d, Real rho) const;
+        Real M2(Real a, Real b, Real d, Real rho) const;
         Real N2(Real a, Real b) const;
-        Real y1(Option::Type) const;
-        Real y2(Option::Type) const;
-        Real z1() const;
-        Real z2() const;
     };
 
 }

@@ -33,6 +33,26 @@ BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
 BOOST_AUTO_TEST_SUITE(InterestRateTests)
 
+BOOST_AUTO_TEST_CASE(testNullInterestRate)
+{
+    BOOST_TEST_MESSAGE("Testing the inspectors and calculations of a null interest rate...");
+
+    const InterestRate nullRate;
+    BOOST_CHECK(nullRate.rate() == Null<Rate>());
+    BOOST_CHECK_EQUAL(nullRate.compounding(), Simple);
+    BOOST_CHECK_EQUAL(nullRate.frequency(), NoFrequency);
+
+    BOOST_CHECK_EXCEPTION(nullRate.discountFactor(1.0), Error, ExpectedErrorMessage("null interest rate"));
+    BOOST_CHECK_EXCEPTION(nullRate.compoundFactor(1.0), Error, ExpectedErrorMessage("null interest rate"));
+
+    const InterestRate withDayCounter(Null<Rate>(), Actual360(), Simple, NoFrequency);
+    const Date start(1, January, 2024), end(1, January, 2025);
+    BOOST_CHECK_EXCEPTION(withDayCounter.discountFactor(start, end), Error, ExpectedErrorMessage("null interest rate"));
+    BOOST_CHECK_EXCEPTION(withDayCounter.compoundFactor(start, end), Error, ExpectedErrorMessage("null interest rate"));
+    BOOST_CHECK_EXCEPTION(withDayCounter.equivalentRate(Actual360(), Simple, Annual, start, end), Error,
+                          ExpectedErrorMessage("null interest rate"));
+}
+
 struct InterestRateData
 {
     Rate r;

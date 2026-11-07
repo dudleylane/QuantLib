@@ -27,18 +27,14 @@
 namespace QuantLib
 {
 
-    Real CumulativeNormalDistribution::operator()(Real z) const
+    namespace
     {
-        // QL_REQUIRE(!(z >= average_ && 2.0*average_-z > average_),
-        //            "not a real number. ");
-        z = (z - average_) / sigma_;
 
-        Real result = 0.5 * (1.0 + errorFunction_(z * M_SQRT_2));
-        if (result <= 1e-8)
-        { // todo: investigate the threshold level
-            // Asymptotic expansion for very negative z following (26.2.12)
-            // on page 408 in M. Abramowitz and A. Stegun,
-            // Pocketbook of Mathematical Functions, ISBN 3-87144818-4.
+        // The sum in the asymptotic expansion N(z) = -phi(z) / z * sum for very negative z,
+        // following (26.2.12) on page 408 in M. Abramowitz and A. Stegun,
+        // Pocketbook of Mathematical Functions, ISBN 3-87144818-4.
+        Real normalTailSum(Real z)
+        {
             Real sum = 1.0, zsqr = z * z, i = 1.0, g = 1.0, x, y, a = QL_MAX_REAL, lasta;
             do
             {
@@ -51,9 +47,32 @@ namespace QuantLib
                 ++i;
                 a = std::fabs(a);
             } while (lasta > a && a >= std::fabs(sum * QL_EPSILON));
-            result = -gaussian_(z) / z * sum;
+            return sum;
+        }
+
+    }
+
+    Real CumulativeNormalDistribution::operator()(Real z) const
+    {
+        // QL_REQUIRE(!(z >= average_ && 2.0*average_-z > average_),
+        //            "not a real number. ");
+        z = (z - average_) / sigma_;
+
+        Real result = 0.5 * (1.0 + errorFunction_(z * M_SQRT_2));
+        if (result <= 1e-8)
+        { // todo: investigate the threshold level
+            result = -gaussian_(z) / z * normalTailSum(z);
         }
         return result;
+    }
+
+    Real CumulativeNormalDistribution::logValue(Real x) const
+    {
+        const Real z = (x - average_) / sigma_;
+        // operator() has only absolute accuracy above its tail, and returns 0 below z = -37.15.
+        if (z > -37.0)
+            return std::log(0.5 * std::erfc(-z * M_SQRT_2));
+        return -0.5 * z * z - 0.5 * std::log(M_TWOPI) - std::log(-z) + std::log(normalTailSum(z));
     }
 
 #if !defined(QL_PATCH_SOLARIS)

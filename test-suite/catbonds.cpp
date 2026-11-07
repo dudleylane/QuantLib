@@ -596,6 +596,25 @@ BOOST_AUTO_TEST_CASE(testCatBondWithGeneratedEventsProportional)
     BOOST_CHECK_LT(riskFreeYield, yield);
 }
 
+BOOST_AUTO_TEST_CASE(testStubDateRefusedByItsRule)
+{
+    BOOST_TEST_MESSAGE("Testing the refusal of stub dates by date-generation rules...");
+
+    Date start(15, January, 2025), maturity(17, December, 2025), stub(19, March, 2025);
+    for (DateGeneration::Rule rule :
+         {DateGeneration::Zero, DateGeneration::ThirdWednesday, DateGeneration::ThirdWednesdayInclusive,
+          DateGeneration::Twentieth, DateGeneration::TwentiethIMM, DateGeneration::OldCDS, DateGeneration::CDS,
+          DateGeneration::CDS2015})
+    {
+        BOOST_CHECK_EXCEPTION(
+            FloatingCatBond(0, 100.0, start, maturity, Quarterly, TARGET(), ext::shared_ptr<IborIndex>(), Actual360(),
+                            ext::shared_ptr<NotionalRisk>(), Following, Following, Null<Natural>(),
+                            std::vector<Real>(1, 1.0), std::vector<Spread>(1, 0.0), std::vector<Rate>(),
+                            std::vector<Rate>(), false, 100.0, Date(), stub, rule),
+            Error, ExpectedErrorMessage("not allowed with"));
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -19,8 +19,6 @@
 
 /*! \file analyticdoublebarrierengine.hpp
     \brief Analytic double barrier european option engines
-
-  ! Valid only if strike is in barrier range
 */
 
 #ifndef quantlib_analytic_double_barrier_engine_hpp
@@ -41,8 +39,6 @@ namespace QuantLib
          This code handles only flat barriers
 
         \ingroup barrierengines
-
-        \note the formula holds only when strike is in the barrier range
 
         \test the correctness of the returned value is tested by
               reproducing results available in literature.

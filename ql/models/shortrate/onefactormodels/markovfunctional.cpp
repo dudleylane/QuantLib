@@ -45,10 +45,12 @@ namespace QuantLib
     : Gaussian1dModel(termStructure), CalibratedModel(1), modelSettings_(std::move(modelSettings)),
       capletCalibrated_(false), reversion_(ConstantParameter(reversion, NoConstraint())), sigma_(arguments_[0]),
       volstepdates_(std::move(volstepdates)), volatilities_(std::move(volatilities)), swaptionVol_(swaptionVol),
-      swaptionExpiries_(swaptionExpiries), swaptionTenors_(swaptionTenors), swapIndexBase_(swapIndexBase),
-      iborIndex_(swapIndexBase->iborIndex())
+      swaptionExpiries_(swaptionExpiries), swaptionTenors_(swaptionTenors), swapIndexBase_(swapIndexBase)
     {
 
+        QL_REQUIRE(swapIndexBase_, "null swap index");
+        iborIndex_ = swapIndexBase_->iborIndex();
+        QL_REQUIRE(iborIndex_, "null ibor index");
         QL_REQUIRE(swaptionExpiries.size() == swaptionTenors.size(),
                    "number of swaption expiries (" << swaptionExpiries.size()
                                                    << ") is differnt from number of swaption tenors ("
@@ -74,6 +76,7 @@ namespace QuantLib
       capletExpiries_(capletExpiries), iborIndex_(std::move(iborIndex))
     {
 
+        QL_REQUIRE(iborIndex_, "null ibor index");
         QL_REQUIRE(!capletExpiries.empty(), "need at least one caplet expiry to calibrate numeraire");
         QL_REQUIRE(!termStructure.empty(), "yield term structure handle is empty");
         QL_REQUIRE(!capletVol.empty(), "caplet volatility structure is empty");
@@ -411,8 +414,7 @@ namespace QuantLib
                     modelSettings_.lowerRateBound_ - i->second.smileSection_->shift(), Option::Call, i->second.annuity_,
                     modelSettings_.digitalGap_);
                 i->second.maxRateDigital_ = i->second.smileSection_->digitalOptionPrice(
-                    modelSettings_.upperRateBound_ - i->second.smileSection_->shift(), Option::Call, i->second.annuity_,
-                    modelSettings_.digitalGap_);
+                    modelSettings_.upperRateBound_, Option::Call, i->second.annuity_, modelSettings_.digitalGap_);
             }
 
             ++pointIndex;
@@ -581,10 +583,10 @@ namespace QuantLib
     const MarkovFunctional::ModelOutputs& MarkovFunctional::modelOutputs() const
     {
 
+        calculate();
+
         if (modelOutputs_.dirty_)
         {
-
-            calculate();
 
             // yield term structure
             modelOutputs_.marketZerorate_.clear();
@@ -600,6 +602,8 @@ namespace QuantLib
             }
 
             // volatility surface
+            modelOutputs_.atm_.clear();
+            modelOutputs_.annuity_.clear();
             modelOutputs_.smileStrikes_.clear();
             modelOutputs_.marketCallPremium_.clear();
             modelOutputs_.marketPutPremium_.clear();
@@ -738,6 +742,8 @@ namespace QuantLib
 
     Real MarkovFunctional::numeraireImpl(const Time t, const Real y, const Handle<YieldTermStructure>& yts) const
     {
+
+        calculate();
 
         if (t == 0)
             return yts.empty() ? this->termStructure()->discount(numeraireTime(), true) :
@@ -997,8 +1003,7 @@ namespace QuantLib
         {
             if ((modelSettings_.adjustments_ & ModelSettings::ExtrapolatePayoffFlat) != 0)
             {
-                price += gaussianShiftedPolynomialIntegral(0.0, 0.0, 0.0, 0.0, p[z.size() - 2], z[z.size() - 2],
-                                                           z[z.size() - 1], 100.0);
+                price += gaussianShiftedPolynomialIntegral(0.0, 0.0, 0.0, 0.0, p.back(), z.back(), z.back(), 100.0);
                 price += gaussianShiftedPolynomialIntegral(0.0, 0.0, 0.0, 0.0, p[0], z[0], -100.0, z[0]);
             }
             else
@@ -1065,8 +1070,7 @@ namespace QuantLib
         {
             if ((modelSettings_.adjustments_ & ModelSettings::ExtrapolatePayoffFlat) != 0)
             {
-                price += gaussianShiftedPolynomialIntegral(0.0, 0.0, 0.0, 0.0, p[z.size() - 2], z[z.size() - 2],
-                                                           z[z.size() - 1], 100.0);
+                price += gaussianShiftedPolynomialIntegral(0.0, 0.0, 0.0, 0.0, p.back(), z.back(), z.back(), 100.0);
                 price += gaussianShiftedPolynomialIntegral(0.0, 0.0, 0.0, 0.0, p[0], z[0], -100.0, z[0]);
             }
             else

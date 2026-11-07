@@ -45,6 +45,7 @@
 #include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/time/schedule.hpp>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -58,10 +59,9 @@ namespace
     // in a real flow the path would come from a config file.
     std::string writeSnapshot()
     {
-        char tmpl[] = "/tmp/xva_snapshot_XXXXXX";
-        int fd = mkstemp(tmpl);
+        std::string path = (std::filesystem::temp_directory_path() / "xva_snapshot_XXXXXX").string();
+        int fd = mkstemp(path.data());
         QL_REQUIRE(fd != -1, "mkstemp failed");
-        std::string path(tmpl);
         close(fd);
         std::ofstream out(path);
         out << "# toy market snapshot\n"

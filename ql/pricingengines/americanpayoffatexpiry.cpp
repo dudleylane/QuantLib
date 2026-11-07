@@ -119,14 +119,11 @@ namespace QuantLib
         }
         else
         {
-            if (log_S_H_ * phi > 0)
-                cum_d1_ = 1.0;
-            else
-                cum_d1_ = 0.0;
-            if (log_H_S_ * eta > 0)
-                cum_d2_ = 1.0;
-            else
-                cum_d2_ = 0.0;
+            // The underlying follows its forward, and the reflected term vanishes.
+            // A knock-in pays and a knock-out doesn't if the forward just reaches the strike.
+            const Real x = phi * std::log(forward_ / strike_);
+            cum_d1_ = (knock_in_ ? x >= 0.0 : x > 0.0) ? 1.0 : 0.0;
+            cum_d2_ = 0.0;
             n_d1_ = 0.0;
             n_d2_ = 0.0;
         }
@@ -190,10 +187,18 @@ namespace QuantLib
         else
         {
             X_ = 1.0;
-            if (cum_d2_ == 0.0)
+            Y_ = std::pow(Real(strike_ / spot_), Real(2.0 * mu_));
+            // At small variance the power can overflow while N(D2) underflows, and their
+            // product is still finite.  With the spot at the strike there's no such term.
+            if (variance_ >= QL_EPSILON && strike_ != spot_ && (cum_d2_ == 0.0 || !std::isfinite(Y_)))
+            {
+                cum_d2_ = std::exp(2.0 * mu_ * log_H_S_ + CumulativeNormalDistribution().logValue(D2_));
+                Y_ = 1.0;
+            }
+            else if (cum_d2_ == 0.0)
+            {
                 Y_ = 0.0; // check needed on some extreme cases
-            else
-                Y_ = std::pow(Real(strike_ / spot_), Real(2.0 * mu_));
+            }
         }
         if (!knock_in_)
             Y_ *= -1.0;

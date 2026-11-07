@@ -45,6 +45,29 @@ namespace QuantLib
                  solution.  The method of BAW gives answers to the
                  same accuracy as in Ju (1999).
 
+        \warning This engine departs from the published formula in two
+                 ways. The formula's correction divides by 1 - chi, and
+                 chi can reach 1, mostly for puts with r near 0 and q < 0,
+                 where the formula returns any number at all. So above
+                 chi = 0.4, chi saturates smoothly at 0.6. That leaves the
+                 value and delta continuous, and the gamma jumps where it
+                 starts. And the value is floored at the best fixed
+                 exercise, the largest of the European value, the
+                 intrinsic value and the value of exercising at any fixed
+                 time, which the correction could land below. Where the
+                 floor binds, the delta and gamma are its own.
+
+        \warning The value isn't reliable for low volatilities with long
+                 expiries, where it can sit above the exact value and no
+                 simple bound catches it. For a call with S = 500,
+                 K = 100, r = 7%, q = 1%, 10 years to expiry and any
+                 volatility up to 1%, it is about 407.0, and the exact
+                 value about 405.2. At zero volatility the engine returns
+                 the exact value, so it jumps there.
+                 QdFpAmericanEngine is closer in that region, and over a
+                 wide grid of inputs this engine was within 1.63 above and
+                 0.56 below it, at S = 100.
+
         \ingroup vanillaengines
 
         \test the correctness of the returned value is tested by

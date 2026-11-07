@@ -30,8 +30,10 @@ namespace QuantLib
         typedef std::map<Year, std::map<Month, Date::serial_type>> Cache;
         typedef std::map<Year, Date::serial_type> OuterCache;
 
-        std::map<std::string, Cache> monthlyFigures_;
-        std::map<std::string, OuterCache> yearlyFigures_;
+        // Per thread, because a day count across months writes to these even
+        // when each thread has its own day counter (#87).
+        thread_local std::map<std::string, Cache> monthlyFigures_;
+        thread_local std::map<std::string, OuterCache> yearlyFigures_;
 
         bool sameYear(const Date& d1, const Date& d2)
         {

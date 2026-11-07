@@ -513,6 +513,45 @@ BOOST_AUTO_TEST_CASE(testBlackCalculatorZeroVolatilityGreeks)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testBlackCalculatorZeroVolatilityLimit)
+{
+    BOOST_TEST_MESSAGE("Testing BlackCalculator at zero volatility against a tiny one...");
+
+    const Real spot = 100.0, strike = 100.0, discount = 0.9, tiny = 1.0e-9;
+    const Time maturity = 1.0;
+
+    const auto check = [&](const ext::shared_ptr<StrikedTypePayoff>& payoff, Real forward, Real tolerance)
+    {
+        const BlackCalculator zero(payoff, forward, 0.0, discount);
+        const BlackCalculator limit(payoff, forward, tiny, discount);
+        BOOST_TEST_CONTEXT(payoff->name() << " " << payoff->optionType() << ", forward " << forward)
+        {
+            BOOST_CHECK_SMALL(zero.value() - limit.value(), tolerance);
+            BOOST_CHECK_SMALL(zero.delta(spot) - limit.delta(spot), tolerance);
+            BOOST_CHECK_SMALL(zero.deltaForward() - limit.deltaForward(), tolerance);
+            BOOST_CHECK_SMALL(zero.strikeSensitivity() - limit.strikeSensitivity(), tolerance);
+            BOOST_CHECK_SMALL(zero.rho(maturity) - limit.rho(maturity), tolerance);
+            BOOST_CHECK_SMALL(zero.dividendRho(maturity) - limit.dividendRho(maturity), tolerance);
+            BOOST_CHECK_SMALL(zero.theta(spot, maturity) - limit.theta(spot, maturity), tolerance);
+        }
+    };
+
+    for (Option::Type type : {Option::Call, Option::Put})
+    {
+        const ext::shared_ptr<StrikedTypePayoff> payoffs[] = {ext::make_shared<PlainVanillaPayoff>(type, strike),
+                                                              ext::make_shared<CashOrNothingPayoff>(type, strike, 10.0),
+                                                              ext::make_shared<AssetOrNothingPayoff>(type, strike),
+                                                              ext::make_shared<GapPayoff>(type, strike, 90.0)};
+        for (const auto& payoff : payoffs)
+        {
+            check(payoff, 120.0, 1.0e-10);
+            check(payoff, 80.0, 1.0e-10);
+        }
+        // At the money the value differs by about 0.4 tiny, and rho by rounding over tiny.
+        check(payoffs[0], strike, 1.0e-5);
+    }
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()
 

@@ -161,9 +161,14 @@ namespace QuantLib
             optionsValue += option.NPV() * weight;
         }
 
+        // By the date, for its day counter's sake, as the options read it.
+        DiscountFactor dividendDiscount = process_->dividendYield()->discount(arguments_.maturityDate);
+        // The carry, and the forward in the replication of the log contract, are net of the dividends.
+        Real forward = underlying() * dividendDiscount / riskFreeDiscount();
         Real f = optionWeights.front().first->strike();
-        return 2.0 * riskFreeRate() -
-               2.0 / residualTime() * (((underlying() / riskFreeDiscount() - f) / f) + std::log(f / underlying())) +
+        return 2.0 * riskFreeRate() +
+               2.0 / residualTime() *
+                   (std::log(dividendDiscount) - (((forward - f) / f) + std::log(f / underlying()))) +
                optionsValue / riskFreeDiscount();
     }
 

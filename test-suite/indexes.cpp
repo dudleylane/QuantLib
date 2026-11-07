@@ -19,6 +19,11 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
+#include <ql/cashflows/couponpricer.hpp>
+#include <ql/cashflows/iborcoupon.hpp>
+#include <ql/currencies/america.hpp>
+#include <ql/currencies/europe.hpp>
+#include <ql/experimental/coupons/proxyibor.hpp>
 #include <ql/indexes/bmaindex.hpp>
 #include <ql/indexes/fallbackiborindex.hpp>
 #include <ql/indexes/ibor/cdi.hpp>
@@ -26,15 +31,25 @@
 #include <ql/indexes/ibor/euribor.hpp>
 #include <ql/indexes/ibor/sofr.hpp>
 #include <ql/indexes/ibor/usdlibor.hpp>
+#include <ql/instruments/swap.hpp>
+#include <ql/pricingengines/swap/discountingswapengine.hpp>
 #include <ql/quotes/lastfixingquote.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/time/calendars/bespokecalendar.hpp>
 #include <ql/time/calendars/brazil.hpp>
 #include <ql/time/calendars/target.hpp>
+#include <ql/time/calendars/unitedkingdom.hpp>
+#include <ql/time/calendars/unitedstates.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/schedule.hpp>
 #include <ql/utilities/dataformatters.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
+#include <algorithm>
+#include <barrier>
+#include <string>
+#include <thread>
+#include <vector>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -163,6 +178,104 @@ BOOST_AUTO_TEST_CASE(testFixingLookupsStoreNothing)
     BOOST_CHECK_EQUAL(index->timeSeries().lastDate(), lastFixing);
 }
 
+BOOST_AUTO_TEST_CASE(testNotifiersFromSeveralThreads)
+{
+    BOOST_TEST_MESSAGE("Testing index notifiers asked for from several threads...");
+
+    struct Probe : Index
+    {
+        explicit Probe(std::string name) : name_(std::move(name)) {}
+        std::string name() const override { return name_; }
+        Calendar fixingCalendar() const override { return TARGET(); }
+        bool isValidFixingDate(const Date&) const override { return true; }
+        Real fixing(const Date&, bool) const override { return Null<Real>(); }
+        using Index::notifier;
+        std::string name_;
+    };
+
+    // Index constructors ask for notifiers, so threads building indexes share
+    // the map holding them.  In each round the threads ask for one new name at
+    // the same moment.  Without a lock two of them can miss it and each insert
+    // one, and an index holding the loser never hears of a fixing (#123).
+    constexpr Size nThreads = 8, nRounds = 2000;
+    std::vector<std::vector<ext::shared_ptr<Observable>>> seen(nThreads);
+    std::barrier<> start(nThreads);
+    std::vector<std::thread> threads;
+    for (Size i = 0; i < nThreads; ++i)
+        threads.emplace_back(
+            [&start, &out = seen[i]]
+            {
+                out.reserve(nRounds);
+                for (Size round = 0; round < nRounds; ++round)
+                {
+                    const Probe probe("notifier probe " + std::to_string(round));
+                    start.arrive_and_wait();
+                    out.push_back(probe.notifier());
+                }
+            });
+    for (auto& t : threads)
+        t.join();
+
+    Size roundsWithSeveralNotifiers = 0;
+    for (Size round = 0; round < nRounds; ++round)
+        if (!std::all_of(seen.begin(), seen.end(), [&](const auto& out) { return out[round] == seen[0][round]; }))
+            ++roundsWithSeveralNotifiers;
+
+#ifdef QL_ENABLE_SESSIONS
+    // Each thread has a manager of its own, so nothing is shared to begin with.
+    BOOST_CHECK_EQUAL(roundsWithSeveralNotifiers, nRounds);
+#else
+    BOOST_CHECK_EQUAL(roundsWithSeveralNotifiers, 0U);
+#endif
+}
+
+BOOST_AUTO_TEST_CASE(testFixingsNotifyWhateverTheNamesCase)
+{
+    BOOST_TEST_MESSAGE("Testing that fixings notify indexes named in another case...");
+
+    const Date lastFixing(12, June, 2026);
+    Settings::instance().evaluationDate() = Date(15, June, 2026);
+    auto makeIndex = [](const std::string& family)
+    {
+        return ext::make_shared<IborIndex>(family, 3 * Months, 2, USDCurrency(), TARGET(), ModifiedFollowing, false,
+                                           Actual360());
+    };
+    auto lowerCase = makeIndex("notifier probe");
+    auto upperCase = makeIndex("NOTIFIER PROBE");
+
+    // Fixings are stored whatever the case of the name, so each index reads
+    // the other's, and its observers have to hear about them too (#123).
+    Flag flag;
+    flag.registerWith(lowerCase);
+    upperCase->addFixing(lastFixing, 0.01);
+    BOOST_CHECK(lowerCase->hasHistoricalFixing(lastFixing));
+    BOOST_CHECK(flag.isUp());
+}
+
+BOOST_AUTO_TEST_CASE(testObserverOfFixingsBuildingAnIndex)
+{
+    BOOST_TEST_MESSAGE("Testing an observer of fixings that builds an index...");
+
+    // It asks for a notifier while the fixing's notifier is notifying, so a
+    // lock held across the notification would hang here (#123).
+    struct Builder : Observer
+    {
+        bool built = false;
+        void update() override
+        {
+            const Euribor6M index;
+            built = true;
+        }
+    };
+
+    Settings::instance().evaluationDate() = Date(15, June, 2026);
+    auto euribor = ext::make_shared<Euribor3M>();
+    Builder builder;
+    builder.registerWith(euribor);
+    euribor->addFixing(Date(12, June, 2026), 0.01);
+    BOOST_CHECK(builder.built);
+}
+
 BOOST_AUTO_TEST_CASE(testTenorNormalization)
 {
     BOOST_TEST_MESSAGE("Testing that interest-rate index tenor is normalized correctly...");
@@ -253,6 +366,30 @@ BOOST_AUTO_TEST_CASE(testCdiIndex)
     QL_ASSERT(std::fabs(approx - forecast) < 1e-6, "discrepancy in fixing forecast computation with approximation\n");
 }
 
+BOOST_AUTO_TEST_CASE(testCdiCouponsReplicateTheCurve)
+{
+    BOOST_TEST_MESSAGE("Testing that par coupons on Cdi replicate the curve...");
+
+    // Cdi's fixings compound while an IborCoupon accrues simply, so the coupon
+    // has to forecast the simple rate, not what fixing() returns (#125).
+    const Date today(15, June, 2026);
+    Settings::instance().evaluationDate() = today;
+    const Handle<YieldTermStructure> curve(ext::make_shared<FlatForward>(today, 0.12, Business252()));
+    const auto cdi = ext::make_shared<Cdi>(curve);
+    const auto pricer =
+        ext::make_shared<BlackIborCouponPricer>(Handle<OptionletVolatilityStructure>(), BlackIborCouponPricer::Black76,
+                                                Handle<Quote>(ext::make_shared<SimpleQuote>(1.0)), false);
+
+    const Date start(15, December, 2026);
+    for (const Period& period : {1 * Days, 6 * Months, 5 * Years})
+    {
+        const Date end = cdi->fixingCalendar().advance(start, period);
+        IborCoupon coupon(end, 1.0, start, end, 0, cdi);
+        coupon.setPricer(pricer);
+        BOOST_CHECK_SMALL(coupon.amount() - (curve->discount(start) / curve->discount(end) - 1.0), 1.0e-12);
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testFallbackIborIndex)
 {
     BOOST_TEST_MESSAGE("Testing FallbackIborIndex pre- and post-cessation behavior...");
@@ -317,6 +454,157 @@ BOOST_AUTO_TEST_CASE(testFallbackIborIndex)
     usdLibor->addFixing(histFixing, publishedRate, /*forceOverwrite*/ true);
     BOOST_CHECK_CLOSE(usdLibor->fixing(histFixing), publishedRate, 1e-12);
     IndexManager::instance().clearHistories();
+}
+
+BOOST_AUTO_TEST_CASE(testFallbackIborIndexDates)
+{
+    BOOST_TEST_MESSAGE("Testing that a FallbackIborIndex uses the dates of the index it wraps...");
+
+    // Libor avoids its financial centre's holidays as well as its fixing
+    // calendar's, and CustomIborIndex has a calendar for each date (#126).
+    const Date today(15, June, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual360();
+    const Handle<YieldTermStructure> rfrCurve(ext::make_shared<FlatForward>(today, 0.03, dc));
+    const auto sofr = ext::make_shared<Sofr>(rfrCurve);
+
+    const std::vector<ext::shared_ptr<IborIndex>> legacyIndexes = {
+        ext::make_shared<USDLibor>(3 * Months),
+        ext::make_shared<CustomIborIndex>(
+            "Custom", 3 * Months, 2, USDCurrency(), UnitedKingdom(UnitedKingdom::Exchange),
+            UnitedStates(UnitedStates::GovernmentBond), TARGET(), ModifiedFollowing, true, dc)};
+
+    for (const auto& legacy : legacyIndexes)
+    {
+        const auto fallback = ext::make_shared<FallbackIborIndex>(legacy, sofr, today, 0.0);
+        Size differFromFixingCalendar = 0;
+        for (Date d = today + 1; d < today + 365; ++d)
+        {
+            if (!legacy->isValidFixingDate(d))
+                continue;
+            const Date value = legacy->valueDate(d);
+            const Date maturity = legacy->maturityDate(value);
+            BOOST_CHECK_EQUAL(fallback->valueDate(d), value);
+            BOOST_CHECK_EQUAL(fallback->maturityDate(value), maturity);
+            BOOST_CHECK_EQUAL(fallback->fixingDate(value), legacy->fixingDate(value));
+            const Rate expected =
+                (rfrCurve->discount(value) / rfrCurve->discount(maturity) - 1.0) / dc.yearFraction(value, maturity);
+            BOOST_CHECK_SMALL(fallback->fixing(d) - expected, 1.0e-12);
+            if (value != legacy->fixingCalendar().advance(d, legacy->fixingDays(), Days))
+                ++differFromFixingCalendar;
+        }
+        // Without such dates this would show nothing.
+        BOOST_REQUIRE(differFromFixingCalendar > 0);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testFallbackIborIndexInCoupons)
+{
+    BOOST_TEST_MESSAGE("Testing that coupons on a FallbackIborIndex reach the fallback...");
+
+    // IborCoupon doesn't call forecastFixing(const Date&), so coupons on this
+    // index used to read the legacy curve with no spread, after cessation too,
+    // and so did the legs, swaps and bonds built from them (#84).
+    const Date today(15, June, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual360();
+    const Handle<YieldTermStructure> legacyCurve(ext::make_shared<FlatForward>(today, 0.05, dc));
+    const Handle<YieldTermStructure> rfrCurve(ext::make_shared<FlatForward>(today, 0.03, dc));
+    const Spread spread = 0.0026161;
+    // The second coupon fixes on this date, on which the fallback applies.
+    const Date cessation(11, June, 2027);
+    auto fallback = ext::make_shared<FallbackIborIndex>(ext::make_shared<USDLibor>(3 * Months, legacyCurve),
+                                                        ext::make_shared<Sofr>(rfrCurve), cessation, spread);
+
+    // Semiannual on a 3-month index, so a par coupon's estimation period isn't
+    // the index's tenor, while an indexed coupon's is.
+    const Schedule schedule = MakeSchedule()
+                                  .from(Date(15, December, 2026))
+                                  .to(Date(15, December, 2028))
+                                  .withFrequency(Semiannual)
+                                  .withCalendar(fallback->fixingCalendar())
+                                  .withConvention(fallback->businessDayConvention());
+
+    for (bool indexed : {false, true})
+    {
+        const Leg leg = IborLeg(schedule, fallback).withNotionals(100.0).withIndexedCoupons(indexed);
+        BOOST_REQUIRE(ext::dynamic_pointer_cast<IborCoupon>(leg.at(0))->fixingDate() < cessation);
+        BOOST_REQUIRE(ext::dynamic_pointer_cast<IborCoupon>(leg.at(1))->fixingDate() == cessation);
+
+        Real expectedNpv = 0.0;
+        for (const auto& cashFlow : leg)
+        {
+            const auto coupon = ext::dynamic_pointer_cast<IborCoupon>(cashFlow);
+            BOOST_REQUIRE(coupon);
+            BOOST_REQUIRE(indexed == (coupon->fixingEndDate() == fallback->maturityDate(coupon->fixingValueDate())));
+
+            const bool ceased = coupon->fixingDate() >= cessation;
+            const Handle<YieldTermStructure>& curve = ceased ? rfrCurve : legacyCurve;
+            const Rate expected =
+                (curve->discount(coupon->fixingValueDate()) / curve->discount(coupon->fixingEndDate()) - 1.0) /
+                    coupon->spanningTime() +
+                (ceased ? spread : 0.0);
+            BOOST_CHECK_SMALL(coupon->indexFixing() - expected, 1.0e-12);
+            BOOST_CHECK_SMALL(coupon->rate() - expected, 1.0e-12);
+            if (indexed)
+                BOOST_CHECK_SMALL(coupon->indexFixing() - fallback->fixing(coupon->fixingDate()), 1.0e-12);
+            expectedNpv += 100.0 * expected * coupon->accrualPeriod() * rfrCurve->discount(coupon->date());
+        }
+
+        Swap swap(Leg(), leg);
+        swap.setPricingEngine(ext::make_shared<DiscountingSwapEngine>(rfrCurve));
+        BOOST_CHECK_SMALL(swap.legNPV(1) - expectedNpv, 1.0e-8);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testProxyIborInCoupons)
+{
+    BOOST_TEST_MESSAGE("Testing coupons on a ProxyIbor...");
+
+    // It has no curve of its own, so a coupon on it used to throw (#125).
+    const Date today(15, June, 2026);
+    Settings::instance().evaluationDate() = today;
+    const Handle<YieldTermStructure> curve(ext::make_shared<FlatForward>(today, 0.05, Actual360()));
+    const auto gearing = ext::make_shared<SimpleQuote>(1.5);
+    const auto spread = ext::make_shared<SimpleQuote>(0.5);
+    const auto proxy = ext::make_shared<ProxyIbor>("proxy", 3 * Months, 2, EURCurrency(), TARGET(), ModifiedFollowing,
+                                                   true, Actual360(), Handle<Quote>(gearing),
+                                                   ext::make_shared<Euribor3M>(curve), Handle<Quote>(spread));
+
+    const Schedule schedule = MakeSchedule()
+                                  .from(Date(15, December, 2026))
+                                  .to(Date(15, December, 2028))
+                                  .withFrequency(Semiannual)
+                                  .withCalendar(TARGET())
+                                  .withConvention(ModifiedFollowing);
+
+    for (bool indexed : {false, true})
+    {
+        const Leg leg = IborLeg(schedule, proxy).withNotionals(100.0).withIndexedCoupons(indexed);
+        Real expectedNpv = 0.0;
+        for (const auto& cashFlow : leg)
+        {
+            const auto coupon = ext::dynamic_pointer_cast<IborCoupon>(cashFlow);
+            BOOST_REQUIRE(coupon);
+            const Rate expected = proxy->fixing(coupon->fixingDate());
+            BOOST_CHECK_SMALL(coupon->indexFixing() - expected, 1.0e-12);
+            BOOST_CHECK_SMALL(coupon->rate() - expected, 1.0e-12);
+            expectedNpv += 100.0 * expected * coupon->accrualPeriod() * curve->discount(coupon->date());
+        }
+
+        Swap swap(Leg(), leg);
+        swap.setPricingEngine(ext::make_shared<DiscountingSwapEngine>(curve));
+        BOOST_CHECK_SMALL(swap.legNPV(1) - expectedNpv, 1.0e-8);
+    }
+
+    // Both quotes enter the forecast, so they have to notify as the proxied index does.
+    Flag flag;
+    flag.registerWith(proxy);
+    gearing->setValue(2.0);
+    BOOST_CHECK(flag.isUp());
+    flag.lower();
+    spread->setValue(1.0);
+    BOOST_CHECK(flag.isUp());
 }
 
 BOOST_AUTO_TEST_SUITE_END()
