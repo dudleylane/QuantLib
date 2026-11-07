@@ -44,6 +44,7 @@
 #include <ql/time/calendars/jointcalendar.hpp>
 #include <ql/time/calendars/mexico.hpp>
 #include <ql/time/calendars/newzealand.hpp>
+#include <ql/time/calendars/romania.hpp>
 #include <ql/time/calendars/russia.hpp>
 #include <ql/time/calendars/singapore.hpp>
 #include <ql/time/calendars/southafrica.hpp>
@@ -3957,6 +3958,40 @@ BOOST_AUTO_TEST_CASE(testFranceSettlementMovesWithEaster)
         {9, June, 2025},    {14, July, 2025},  {15, August, 2025}, {11, November, 2025}, {25, December, 2025},
     };
     checkHolidays(c.holidayList(Date(1, January, 2025), Date(31, December, 2025)), expected2025);
+}
+
+BOOST_AUTO_TEST_CASE(testRomaniaExchangeIn2026)
+{
+    BOOST_TEST_MESSAGE("Testing the Bucharest Stock Exchange's holidays of 2026...");
+
+    // from BVB's schedule of trading sessions
+    const std::vector<Date> expected = {
+        {1, January, 2026},   {2, January, 2026},  {6, January, 2026},   {7, January, 2026},
+        {10, April, 2026},    {13, April, 2026},   {1, May, 2026},       {1, June, 2026},
+        {30, November, 2026}, {1, December, 2026}, {25, December, 2026},
+    };
+    const Calendar c = Romania(Romania::BVB);
+    checkHolidays(c.holidayList(Date(1, January, 2026), Date(31, December, 2026)), expected);
+}
+
+BOOST_AUTO_TEST_CASE(testRomaniaPublicHolidaysFromWhenTheyWereAdded)
+{
+    BOOST_TEST_MESSAGE("Testing the years from which Romania's newer public holidays apply...");
+
+    const Calendar c = Romania(Romania::Public);
+
+    // Good Friday, the last Friday before Orthodox Easter, from 2018
+    BOOST_CHECK(c.isBusinessDay(Date(14, April, 2017)));
+    BOOST_CHECK(c.isHoliday(Date(6, April, 2018)));
+    BOOST_CHECK(c.isHoliday(Date(18, April, 2025)));
+    // and not the Western one, a week before it in 2026
+    BOOST_CHECK(c.isBusinessDay(Date(3, April, 2026)));
+
+    // Epiphany and St John the Baptist, added in 2023 and first on weekdays since then in 2025
+    BOOST_CHECK(c.isBusinessDay(Date(6, January, 2022)));
+    BOOST_CHECK(c.isBusinessDay(Date(7, January, 2022)));
+    BOOST_CHECK(c.isHoliday(Date(6, January, 2025)));
+    BOOST_CHECK(c.isHoliday(Date(7, January, 2025)));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

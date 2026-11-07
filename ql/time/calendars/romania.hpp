@@ -38,7 +38,10 @@ namespace QuantLib
         <li>Sundays</li>
         <li>New Year's Day, January 1st</li>
         <li> Day after New Year's Day, January 2nd</li>
+        <li>Epiphany, January 6th (since 2024)</li>
+        <li>St John the Baptist, January 7th (since 2024)</li>
         <li>Unification Day, January 24th</li>
+        <li>Orthodox Good Friday (since 2018)</li>
         <li>Orthodox Easter (only Sunday and Monday)</li>
         <li>Labour Day, May 1st</li>
         <li>Pentecost with Monday (50th and 51st days after the
@@ -52,7 +55,7 @@ namespace QuantLib
         </ul>
 
         Holidays for the Bucharest stock exchange
-        (data from <http://www.bvb.ro/Marketplace/TradingCalendar/index.aspx>):
+        (data from <https://bvb.ro/TradingAndStatistics/TradingSessionSchedule>):
         all public holidays, plus a few one-off closing days (2014 only).
 
         \ingroup calendars
