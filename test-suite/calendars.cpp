@@ -57,6 +57,7 @@
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/calendars/unitedkingdom.hpp>
 #include <ql/time/calendars/unitedstates.hpp>
+#include <algorithm>
 #include <fstream>
 
 using namespace QuantLib;
@@ -3478,6 +3479,18 @@ BOOST_AUTO_TEST_CASE(testTASECalendar)
 {
     BOOST_TEST_MESSAGE("Testing TASE calendar...");
 
+    auto c = Israel(Israel::TASE);
+
+    // its weekend in these years was Friday and Saturday, where Calendar::isWeekend answers for the week since 2026
+    const auto holidays = [&c](Year y)
+    {
+        std::vector<Date> result = c.holidayList(Date(1, January, y), Date(31, December, y), true);
+        result.erase(std::remove_if(result.begin(), result.end(),
+                                    [](const Date& d) { return d.weekday() == Friday || d.weekday() == Saturday; }),
+                     result.end());
+        return result;
+    };
+
     std::vector<Date> expected2013 = {
         {24, February, 2013},  {25, March, 2013},     {26, March, 2013},     {31, March, 2013},
         {1, April, 2013},      {15, April, 2013},     {16, April, 2013},     {14, May, 2013},
@@ -3485,16 +3498,15 @@ BOOST_AUTO_TEST_CASE(testTASECalendar)
         {18, September, 2013}, {19, September, 2013}, {25, September, 2013}, {26, September, 2013},
     };
 
-    auto c = Israel();
-    checkHolidays(c.holidayList(Date(1, January, 2013), Date(31, December, 2013)), expected2013);
+    checkHolidays(holidays(2013), expected2013);
 
     std::vector<Date> expected2025 = {
-        {13, April, 2025},     {30, April, 2025},     {1, May, 2025},      {2, June, 2025},    {3, August, 2025},
-        {23, September, 2025}, {24, September, 2025}, {1, October, 2025},  {2, October, 2025}, {6, October, 2025},
-        {7, October, 2025},    {13, October, 2025},   {14, October, 2025},
+        {13, April, 2025},  {30, April, 2025},     {1, May, 2025},        {1, June, 2025},       {2, June, 2025},
+        {3, August, 2025},  {22, September, 2025}, {23, September, 2025}, {24, September, 2025}, {1, October, 2025},
+        {2, October, 2025}, {6, October, 2025},    {7, October, 2025},    {13, October, 2025},   {14, October, 2025},
     };
 
-    checkHolidays(c.holidayList(Date(1, January, 2025), Date(31, December, 2025)), expected2025);
+    checkHolidays(holidays(2025), expected2025);
 }
 
 BOOST_AUTO_TEST_CASE(testSHIRCalendar)
@@ -4595,6 +4607,104 @@ BOOST_AUTO_TEST_CASE(testIndiaClosuresBefore2012)
     };
     for (const Date& d : closed)
         BOOST_CHECK_MESSAGE(c.isHoliday(d), d << " should be a holiday");
+}
+
+BOOST_AUTO_TEST_CASE(testTASETradingDaysAgainstItsReports)
+{
+    BOOST_TEST_MESSAGE("Testing TASE's calendar against the trading days it reports...");
+
+    // The exchange's results releases give its trading days per quarter: 2021's are the releases of that year, 2022 to
+    // 2024 the fourth quarter's of 2023 and 2024, 2025 and 2026 the second quarter's of 2026. The first quarter of 2021
+    // is the nine months' 179 less the other two, and the third and fourth quarters of 2026 are as scheduled.
+    struct Reported
+    {
+        Year year;
+        Date::serial_type days[4];
+    };
+    const std::vector<Reported> reported = {
+        {2021, {62, 61, 56, 65}}, {2022, {64, 61, 61, 58}}, {2023, {64, 58, 61, 66}},
+        {2024, {63, 57, 65, 60}}, {2025, {64, 60, 62, 60}}, {2026, {62, 57, 61, 64}},
+    };
+
+    const Calendar c = Israel(Israel::TASE);
+    for (const Reported& r : reported)
+    {
+        for (Size q = 0; q < 4; ++q)
+        {
+            const Date from(1, Month(3 * q + 1), r.year);
+            const Date to = from + 3 * Months;
+            BOOST_CHECK_MESSAGE(c.businessDaysBetween(from, to) == r.days[q],
+                                "quarter " << q + 1 << " of " << r.year << ": " << c.businessDaysBetween(from, to)
+                                           << " trading days, " << r.days[q] << " reported");
+        }
+    }
+
+    // And 2019 and 2020 from the releases of 2020 and 2021. The second quarter of 2020 is left out: it reports 57 where
+    // the calendar has 58, and nothing here says which day that was.
+    BOOST_CHECK_EQUAL(c.businessDaysBetween(Date(1, January, 2019), Date(1, April, 2019)), 63);
+    BOOST_CHECK_EQUAL(c.businessDaysBetween(Date(1, April, 2019), Date(1, July, 2019)), 60);
+    BOOST_CHECK_EQUAL(c.businessDaysBetween(Date(1, January, 2020), Date(1, April, 2020)), 63);
+    BOOST_CHECK_EQUAL(c.businessDaysBetween(Date(1, July, 2020), Date(1, October, 2020)), 62);
+    BOOST_CHECK_EQUAL(c.businessDaysBetween(Date(1, October, 2020), Date(1, January, 2021)), 66);
+}
+
+BOOST_AUTO_TEST_CASE(testTASEWeekFrom2026)
+{
+    BOOST_TEST_MESSAGE("Testing TASE's move to a Monday to Friday week...");
+
+    const Calendar c = Israel(Israel::TASE);
+
+    // Thursday the 1st was the old week's last session and Monday the 5th the new week's first
+    BOOST_CHECK(c.isBusinessDay(Date(1, January, 2026)));
+    BOOST_CHECK(c.isHoliday(Date(2, January, 2026)));
+    BOOST_CHECK(c.isHoliday(Date(4, January, 2026)));
+    BOOST_CHECK(c.isBusinessDay(Date(5, January, 2026)));
+    BOOST_CHECK(c.isBusinessDay(Date(9, January, 2026)));
+    BOOST_CHECK(c.isHoliday(Date(11, January, 2026)));
+    // and the old week before that
+    BOOST_CHECK(c.isBusinessDay(Date(28, December, 2025)));
+    BOOST_CHECK(c.isHoliday(Date(26, December, 2025)));
+
+    // No session on a Friday before a Sunday that's a holiday or a holiday's eve: Yom Kippur's eve in 2026 and Purim in
+    // 2028. The exchange's schedule has these as non-trading days.
+    BOOST_CHECK(c.isHoliday(Date(18, September, 2026)));
+    BOOST_CHECK(c.isHoliday(Date(10, March, 2028)));
+
+    // isWeekend has only the weekday to go on, so it answers for the week as it is now
+    BOOST_CHECK(c.isWeekend(Saturday));
+    BOOST_CHECK(c.isWeekend(Sunday));
+    BOOST_CHECK(!c.isWeekend(Friday));
+    // so a list of holidays is exact from the switch on, Friday the 2nd being the old week's weekend
+    const std::vector<Date> expected2026 = {
+        Date(2, January, 2026),    Date(3, March, 2026),      Date(1, April, 2026),      Date(2, April, 2026),
+        Date(7, April, 2026),      Date(8, April, 2026),      Date(21, April, 2026),     Date(22, April, 2026),
+        Date(21, May, 2026),       Date(22, May, 2026),       Date(23, July, 2026),      Date(11, September, 2026),
+        Date(18, September, 2026), Date(21, September, 2026), Date(25, September, 2026), Date(2, October, 2026),
+        Date(27, October, 2026),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2026), Date(31, December, 2026)), expected2026);
+    // and before it lists each Friday and leaves out holidays on a Sunday, which needs includeWeekEnds to see
+    const std::vector<Date> list2025 = c.holidayList(Date(1, June, 2025), Date(7, June, 2025));
+    BOOST_CHECK_MESSAGE(std::find(list2025.begin(), list2025.end(), Date(6, June, 2025)) != list2025.end(),
+                        "Friday, June 6th, 2025 should be listed");
+    BOOST_CHECK_MESSAGE(std::find(list2025.begin(), list2025.end(), Date(1, June, 2025)) == list2025.end(),
+                        "Sunday, June 1st, 2025 shouldn't be listed");
+}
+
+BOOST_AUTO_TEST_CASE(testIsraelElectionDays)
+{
+    BOOST_TEST_MESSAGE("Testing Israel's election days...");
+
+    const Calendar tase = Israel(Israel::TASE);
+    const std::vector<Date> elections = {
+        Date(9, April, 2019),    Date(17, September, 2019), Date(2, March, 2020),    Date(23, March, 2021),
+        Date(1, November, 2022), Date(27, February, 2024),  Date(27, October, 2026),
+    };
+    for (const Date& d : elections)
+        BOOST_CHECK_MESSAGE(tase.isHoliday(d), d << " should be a holiday for TASE");
+
+    // the municipal elections of October 31st, 2023 moved to February 2024, though TASE's schedule still has them
+    BOOST_CHECK(tase.isBusinessDay(Date(31, October, 2023)));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

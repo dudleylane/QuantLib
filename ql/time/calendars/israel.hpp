@@ -31,14 +31,19 @@ namespace QuantLib
 {
 
     //! Israel calendar
-    /*! Due to the lack of reliable sources, the settlement calendar
-        has the same holidays as the Tel Aviv stock-exchange.
+    /*! Due to the lack of reliable sources, the settlement calendar keeps
+        the rules this class had for the exchange until 2026: Friday and Saturday,
+        the holidays below, and their eves with those of Passover and Shavuot only
+        until 2020 and that of the new year only until 2019.
 
         Holidays for the Tel-Aviv Stock Exchange
         (data from <http://www.tase.co.il>):
         <ul>
-        <li>Friday</li>
-        <li>Saturday</li>
+        <li>Friday and Saturday until January 3rd, 2026</li>
+        <li>Saturday and Sunday from January 4th, 2026</li>
+        <li>From then on, a Friday before a Sunday on which it's closed</li>
+        <li>The eve of each holiday below that isn't on a weekend</li>
+        <li>Election days, from 2019</li>
         </ul>
         Other holidays for wich no rule is given
         (data available for 2013-2044 only:)
@@ -56,12 +61,18 @@ namespace QuantLib
         <li>Simchat Tora, Tishrei 22nd (between Sep 26th & Oct 26th)</li>
         </ul>
 
+        \note Calendar::isWeekend takes only a weekday, so the exchange's answers
+               for its week since 2026. Whether a date is a business day doesn't
+               depend on it, but Calendar::holidayList does, unless asked to include
+               weekends: for a date before 2026 it lists each Friday and leaves out
+               a holiday on a Sunday.
 
         \ingroup calendars
     */
     class Israel : public Calendar
     {
       private:
+        class SettlementImpl;
         class TelAvivImpl;
         class ShirImpl;
 
