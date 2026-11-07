@@ -134,6 +134,10 @@ namespace QuantLib
         for (auto i = strikes.begin() + 1; i != strikes.end(); ++i)
             QL_REQUIRE(*i > *(i - 1), "strikes must be strictly ascending (" << *(i - 1) << "," << *i << ")");
 
+        // The grid starts next to zero, and that start acts as a boundary. A strike below it would need a grid
+        // that goes further, and what that gives depends on how far, and changes the prices of the other strikes.
+        QL_REQUIRE(strikes.front() >= 0.0, "fdPrice doesn't price negative strikes (" << strikes.front() << ")");
+
         // TODO put these parameters somewhere
         const Real start = std::min(0.00001, strikes.front() * 0.5); // lowest strike for grid
         const Real end = std::max(0.10, strikes.back() * 1.5);       // highest strike for grid

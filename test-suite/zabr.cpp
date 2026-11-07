@@ -124,6 +124,24 @@ BOOST_AUTO_TEST_CASE(testEmptyStrikesAreRefused)
                           ExpectedErrorMessage("no strikes given"));
 }
 
+BOOST_AUTO_TEST_CASE(testNegativeStrikesAreRefusedByFdPrice)
+{
+    BOOST_TEST_MESSAGE("Testing that ZABR's finite-difference price refuses negative strikes...");
+
+    ZabrModel model(1.0, 0.03, 0.08, 0.7, 0.2, -0.3, 0.8);
+
+    const ExpectedErrorMessage negative("fdPrice doesn't price negative strikes");
+    BOOST_CHECK_EXCEPTION(model.fdPrice(-0.01), Error, negative);
+    BOOST_CHECK_EXCEPTION(model.fdPrice(std::vector<Real>{-0.01, 0.05}), Error, negative);
+
+    // A strike of zero is on the grid, and is worth the forward at this beta.
+    BOOST_CHECK_SMALL(model.fdPrice(0.0) - 0.03, 1.0e-12);
+
+    // The rest of the model still takes them.
+    BOOST_CHECK(model.normalVolatility(-0.01) > 0.0);
+    BOOST_CHECK(model.localVolatility(-0.01) > 0.0);
+}
+
 BOOST_AUTO_TEST_CASE(testUnorderedStrikesAreRefused)
 {
     BOOST_TEST_MESSAGE("Testing that ZABR refuses strikes out of order...");
