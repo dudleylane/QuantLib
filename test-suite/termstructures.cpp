@@ -788,6 +788,17 @@ BOOST_AUTO_TEST_CASE(testRangeAfterFrozenRecalculation)
     curve->unfreeze();
 }
 
+BOOST_AUTO_TEST_CASE(testForwardRateRefusalNamesBothTimes)
+{
+    BOOST_TEST_MESSAGE("Testing that a forward rate's refusal names both of its times...");
+
+    const Date today(15, June, 2026);
+    Settings::instance().evaluationDate() = today;
+    auto curve = flatRate(today, 0.03, Actual360());
+
+    BOOST_CHECK_EXCEPTION(curve->forwardRate(2.0, 1.0, Continuous), Error, ExpectedErrorMessage("t1 (2) >= t2 (1)"));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
