@@ -846,12 +846,15 @@ BOOST_AUTO_TEST_CASE(testCashAtHitOrNothingAmericanNegativeRates)
 {
     BOOST_TEST_MESSAGE("Testing American cash-(at-hit)-or-nothing digital option with negative rates...");
 
-    // With mu = (r - q) / vol^2 - 1/2, a negative rate can make mu^2 + 2 r / vol^2 negative.  The
-    // closed form would then take N at complex arguments, and the engine integrates the
-    // first-passage density instead.  The expected values are that integral in 50-digit
+    // With mu = (r - q) / vol^2 - 1/2, a negative rate can make lambda^2 = mu^2 + 2 r / vol^2
+    // negative.  The closed form would then take N at complex arguments, and the engine
+    // integrates the first-passage density instead.  It does the same where lambda is below
+    // |1 + mu| / 100, since the closed form's rho cancels there.  At r = 0 and q = -vol^2 / 2,
+    // lambda is 0 but for rounding.  The expected values are that integral in 50-digit
     // arithmetic, with the Greeks differentiated under it.  At the strike the payoff is due now,
-    // and the expected Greeks are the closed form's there, at either sign.  The last two rows put
-    // mu^2 + 2 r / vol^2 at -1e-6 and 1e-6, either side of the switch.
+    // and the expected Greeks are the closed form's there, at either sign.  The last seven rows
+    // put lambda^2 at -1e-6 and 1e-6, at 0 but for rounding, and at 2.4e-5 and 2.6e-5, either
+    // side of the switch at mu = -1/2.
     const struct
     {
         Option::Type type;
@@ -884,6 +887,16 @@ BOOST_AUTO_TEST_CASE(testCashAtHitOrNothingAmericanNegativeRates)
          0.00040353429527062846, 2.6288315116348002},
         {Option::Call, 110.0, -0.03, -0.03, 0.4898989283554721, 1.0, 8.0638591828325502, 0.19269588297479171,
          0.00040352845454633638, 2.6288098304759226},
+        {Option::Call, 110.0, 0.0, -0.02, 0.2, 1.0, 6.336819546383456, 0.35611950620179863, 0.0049242584799622154,
+         13.144000372942422},
+        {Option::Put, 90.0, 0.0, -0.02, 0.2, 1.0, 5.983306922708716, -0.34725391904983878, 0.012619252184321408,
+         -17.758299705244225},
+        {Option::Call, 110.0, 0.0, -0.10125, 0.45, 1.0, 8.3226275678565431, 0.17337499068944336,
+         -0.00091773007794707587, 2.638098767653234},
+        {Option::Call, 110.0, -0.03, -0.03, 0.4899214653513891, 1.0, 8.0639228245102009, 0.19268970077283289,
+         0.00040346128835124709, 2.6285604960693449},
+        {Option::Call, 110.0, -0.03, -0.03, 0.48992342523715887, 1.0, 8.0639283587026087, 0.19268916317609378,
+         0.00040345544799813638, 2.6285388147227318},
     };
 
     const DayCounter dc = Actual360();
@@ -904,14 +917,13 @@ BOOST_AUTO_TEST_CASE(testCashAtHitOrNothingAmericanNegativeRates)
                                  ext::make_shared<AmericanExercise>(today, today + timeToDays(c.t)));
             option.setPricingEngine(ext::make_shared<AnalyticDigitalAmericanEngine>(process));
 
-            // The error is relative, but absolute below 1.  In the last row the closed form's rho
-            // loses digits to cancellation as lambda goes to 0, and is good to about 3e-13.
+            // The error is relative, but absolute below 1.
             const auto error = [](Real calculated, Real expected)
             { return (calculated - expected) / std::max(std::fabs(expected), Real(1.0)); };
             BOOST_CHECK_SMALL(error(option.NPV(), c.value), 1.0e-12);
             BOOST_CHECK_SMALL(error(option.delta(), c.delta), 1.0e-12);
             BOOST_CHECK_SMALL(error(option.gamma(), c.gamma), 1.0e-12);
-            BOOST_CHECK_SMALL(error(option.rho(), c.rho), 1.0e-11);
+            BOOST_CHECK_SMALL(error(option.rho(), c.rho), 1.0e-12);
         }
     }
 }

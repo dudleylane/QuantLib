@@ -139,9 +139,11 @@ namespace QuantLib
                 lambdaSquared = mu_ * mu_ - 2.0 * std::log(discount_) / variance_;
             }
             // A negative rate can make lambda^2 negative, and the closed form below would then take
-            // N at complex arguments; at lambda = 0, rho() would divide by it.  The value and its
-            // derivatives come from detail::unitPayoffAtHit there.
-            integrated_ = lambdaSquared <= 0.0;
+            // N at complex arguments.  Just above 0, the terms of rho() in (1 + mu) / lambda cancel,
+            // and at r = 0 and q = -vol^2 / 2, where rounding leaves lambda^2 near 1e-30, they leave
+            // nothing right.  Where lambda < |1 + mu| / 100, the value and its derivatives come from
+            // detail::unitPayoffAtHit.  Above that, the closed form's rho is as good as anywhere.
+            integrated_ = lambdaSquared <= 0.0 || 1.0e4 * lambdaSquared < (1.0 + mu_) * (1.0 + mu_);
         }
         if (variance_ >= QL_EPSILON && !integrated_)
         {

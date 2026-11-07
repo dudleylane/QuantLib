@@ -40,6 +40,7 @@ namespace QuantLib
         // rebate have this in closed form in lambda = sqrt(mu^2 + 2 rho), which takes N at
         // complex arguments where a negative rate makes mu^2 + 2 rho negative.  This integrates
         // the first-passage density instead, which holds at any sign, and both use it there.
+        // AmericanPayoffAtHit also uses it where lambda is small, since its rho cancels there.
         struct UnitPayoffAtHitResults
         {
             Real value;
