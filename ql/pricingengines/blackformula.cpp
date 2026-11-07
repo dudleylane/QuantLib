@@ -245,20 +245,46 @@ namespace QuantLib
         K = K + displacement;
 
         const Real ey = F / K;
-        const Real ey2 = ey * ey;
         const Real y = std::log(ey);
         const Real alpha = marketValue / (K * df);
-        const Real R = 2 * alpha + ((type == Option::Call) ? Real(-ey + 1.0) : ey - 1.0);
-        const Real R2 = R * R;
+        // The other option's value by put-call parity, on the same scale.
+        const Real other = (marketValue / df - Integer(type) * (F - K)) / K;
 
-        const Real a = std::exp((1.0 - M_2_PI) * y);
-        const Real A = squared(a - 1.0 / a);
-        const Real b = std::exp(M_2_PI * y);
-        const Real B = 4.0 * (b + 1 / b) - 2 * K / F * (a + 1.0 / a) * (ey2 + 1 - R2);
-        const Real C = (R2 - squared(ey - 1)) * (squared(ey + 1) - R2) / ey2;
+        // In the formula, R = alpha + other, and R^2 - (ey - 1)^2 is 4 alpha other. In
+        // those terms none of its A, B, C or E cancels, however small or large they are.
+        const Real w = alpha * other / ey;
 
-        const Real beta = 2 * C / (B + std::sqrt(B * B + 4 * A * C));
-        const Real gamma = -M_PI_2 * std::log(beta);
+        // No time value in the money, or too little on it to hold, where what follows is 0 / 0.
+        if (w <= 0.0)
+            return 0.0;
+
+        const Real c = 1.0 - M_2_PI;
+        const Real sinhA = std::sinh(c * y);
+        const Real A = 4.0 * sinhA * sinhA;
+        const Real B = 16.0 * (std::sinh(0.5 * y) * std::sinh((0.5 - c) * y) + std::cosh(c * y) * w);
+        // (ey + 1)^2 - R^2 has as a factor how far the undiscounted price is from the most it can be.
+        const Real toMost = ((type == Option::Call) ? F : K) - marketValue / df;
+        const Real C = std::max(0.0, 8.0 * w * toMost * (ey + 1.0 + alpha + other) / F);
+
+        const Real D = std::sqrt(B * B + 4 * A * C);
+        const Real beta = 2 * C / (B + D);
+        Real gamma;
+        if (beta < 0.5)
+        {
+            gamma = -M_PI_2 * std::log(beta);
+        }
+        else
+        {
+            // Here 2 C >= B, and 1 - beta is (B + D - 2 C) / (B + D). Its numerator is
+            // 4 C (A + B - C) / (D + 2 C - B), and E is A + B - C without cancelling.
+            // C E can underflow where the two quotients don't.
+            const Real E = 16.0 * (squared(squared(std::sinh(0.5 * c * y)) + w) + squared(std::sinh(M_1_PI * y)));
+            gamma = -M_PI_2 * std::log1p(-4.0 * (C / (D + 2.0 * C - B)) * (E / (B + D)));
+        }
+
+        // gamma >= |y| but for rounding.
+        const Real rootPlus = std::sqrt(gamma + std::fabs(y));
+        const Real rootMinus = std::sqrt(std::max(gamma - std::fabs(y), 0.0));
 
         if (y >= 0.0)
         {
@@ -267,9 +293,9 @@ namespace QuantLib
                 ((type == Option::Call) ? Real(ey * Af(std::sqrt(2 * y)) - 0.5) : 0.5 - ey * Af(-std::sqrt(2 * y)));
 
             if (marketValue <= M0)
-                return std::sqrt(gamma + y) - std::sqrt(gamma - y);
+                return 2.0 * y / (rootPlus + rootMinus);
             else
-                return std::sqrt(gamma + y) + std::sqrt(gamma - y);
+                return rootPlus + rootMinus;
         }
         else
         {
@@ -278,9 +304,9 @@ namespace QuantLib
                 ((type == Option::Call) ? Real(0.5 * ey - Af(-std::sqrt(-2 * y))) : Af(std::sqrt(-2 * y)) - 0.5 * ey);
 
             if (marketValue <= M0)
-                return std::sqrt(gamma - y) - std::sqrt(gamma + y);
+                return -2.0 * y / (rootPlus + rootMinus);
             else
-                return std::sqrt(gamma + y) + std::sqrt(gamma - y);
+                return rootPlus + rootMinus;
         }
     }
 

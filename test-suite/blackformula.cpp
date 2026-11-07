@@ -648,6 +648,179 @@ BOOST_AUTO_TEST_CASE(testBachelierImpliedVolFarOutOfTheMoney)
                           ExpectedErrorMessage("negative time value"));
 }
 
+BOOST_AUTO_TEST_CASE(testImpliedStdDevApproximationRSAgainstItsFormula)
+{
+    BOOST_TEST_MESSAGE("Testing the RS implied-standard-deviation approximation against its formula...");
+
+    // The formula evaluated at 700 digits on these same doubles.
+    struct Case
+    {
+        Option::Type type;
+        Real strike, forward, price, discount, displacement, expected;
+    };
+    const Case cases[] = {
+        {Option::Call, 1, 1, 3.9894228040143267e-09, 1, 0, 1e-08},
+        {Option::Put, 1, 1, 3.9894228040143267e-09, 1, 0, 1e-08},
+        {Option::Call, 1, 1, 3.9894228023520673e-05, 1, 0, 9.9999999998122072e-05},
+        {Option::Call, 1, 1, 0.039877611676744924, 1, 0, 0.099998122259636515},
+        {Option::Call, 1, 1, 0.51940803048395034, 0.94999999999999996, 0, 1.4938077345206533},
+        {Option::Call, 1, 1, 0.98758066934844768, 1, 0, 4.822627038476881},
+        {Option::Call, 0.99999999999900002, 1, 3.9899228128977036e-09, 1, 0, 9.9999999977465832e-09},
+        {Option::Put, 0.99999999999900002, 1, 3.9889228350194237e-09, 1, 0, 9.9999999977465832e-09},
+        {Option::Call, 1.0000000000010001, 1, 3.9893727997707974e-08, 1, 0, 9.9999999999774605e-08},
+        {Option::Put, 0.99999999989999999, 1, 3.9889228237204362e-07, 1, 0, 9.999999997746462e-07},
+        {Option::Call, 1.0000100000500001, 1, 7.4745976348756754e-31, 1, 0, 1.0741889306204562e-06},
+        {Option::Call, 1.0001000050001667, 1, 7.4749339915241401e-30, 1, 0, 1.0741889306209454e-05},
+        {Option::Put, 0.99990000499983334, 1, 7.4741865358177424e-30, 1, 0, 1.0741889306209151e-05},
+        {Option::Call, 1.2840254166877414, 1, 1.3810607788827693e-141, 1, 0, 0.011143868220185562},
+        {Option::Call, 2.7182818284590451, 1, 1.1290332270977463e-91, 1, 0, 0.055425652303931372},
+        {Option::Call, 7.3890560989306504, 1, 3.7194507268047054e-91, 1, 0, 0.11084895914816804},
+        {Option::Call, 20.085536923187668, 1, 7.3048061017546562e-200, 1, 0, 0.11179083744794927},
+        {Option::Put, 0.049787068367863944, 1, 3.6024422405362772e-16, 1, 0, 0.42003994631215757},
+        {Option::Put, -0.42531939744820407, 1, 5.4552732120310238e-201, 1, 0.5, 0.11179083744794927},
+        {Option::Call, 0.36787944117144233, 1, 0.74998615718412287, 1, 0, 1.4799190359623655},
+        {Option::Put, 0.36787944117144233, 1, 0.022082291977311399, 0.94999999999999996, 0, 0.77385818023638275},
+        {Option::Call, 0.77880078307140488, 1, 0.27773748538173915, 1, 0, 0.39639866572116245},
+        {Option::Put, 1.2840254166877414, 1, 0.29545084173928648, 1, 0, 0.19352225332913914},
+        {Option::Call, 0.9999850000749998, 1, 0.00060594028638469267, 1, 0.5, 0.00099999774460664574},
+        {Option::Call, 148.4131591025766, 1, 2.9548333577107236e-139, 1, 0, 0.22285180839078805},
+        {Option::Call, 0.90483741803595952, 1, 0.98818827348728866, 1, 0, 4.8226256040435693},
+        {Option::Put, 0.99900049983337502, 1, 7.4708238994857728e-29, 1, 0, 0.00010741889305968087},
+        {Option::Call, 1.0000010000005, 1, 7.4745640208128288e-32, 1, 0, 1.0741889306184211e-07},
+        {Option::Put, 0.99999900000050002, 1, 7.4745565293961694e-32, 1, 0, 1.0741889306200149e-07},
+        // Very low prices on the money, where C E as a product underflows.
+        {Option::Call, 1, 1, 3.9894228040143267e-61, 1, 0, 9.9999999999999997e-61},
+        {Option::Put, 1, 1, 1.9947114020071634e-61, 0.5, 0, 9.9999999999999997e-61},
+        {Option::Call, 1, 1, 3.9894228040143273e-71, 1, 0, 1.0000000000000002e-70},
+        // The strike very far from the forward.
+        {Option::Put, 2.0611536224385579e-09, 1, 7.7816898215502792e-117, 1, 0, 0.9924524989068878},
+        {Option::Call, 485165195.40979028, 1, 3.7754050628908155e-108, 1, 0, 0.9924524989068878},
+        {Option::Call, 10686474581524.463, 1, 2.2528111029279398e-160, 1, 0, 1.2197974543496031},
+        {Option::Put, 4.2483542552915889e-18, 1, 6.0513847385228145e-230, 1, 0, 1.4110861237036965},
+        {Option::Put, 3.9754497359086468e-31, 1, 4.7216512379786153e-114, 1, 0, 3.6670204038622751},
+        {Option::Put, 3.7200759760208361e-44, 1, 1.2806657287815413e-161, 1, 0, 4.3944003680537742},
+        {Option::Put, 1.3838965267367376e-87, 1, 7.0319292613061161e-100, 1, 0, 14.527690442609073},
+        {Option::Put, 9.9295903962649796e-153, 1, 2.7757353114609385e-173, 1, 0, 19.292964757078},
+    };
+    // Where the two branches meet, gamma - |y| is nearly 0, so gamma's rounding shows through its square root.
+    const Case atTheSwitch[] = {
+        {Option::Call, 100.00000120874823, 100, 0.0062022700721393598, 1, 0, 0.00015548300342851077},
+        {Option::Put, 0.99999969560725488, 1, 0.00031112134099592348, 1, 0, 0.0007802471255113515},
+        {Option::Put, 1.0000000001, 1, 5.3598487656668984e-06, 0.94999999999999996, 0, 1.4142136208418913e-05},
+        {Option::Call, 1.00000000015, 1, 8.039630648488557e-06, 0.94999999999999996, 0.5, 1.4142136208418913e-05},
+        {Option::Put, 0.99999999984999999, 1, 8.0396306480865721e-06, 0.94999999999999996, 0.5, 1.4142136209126019e-05},
+    };
+
+    const auto check = [](const Case& c, Real tolerance)
+    {
+        BOOST_TEST_CONTEXT("type " << c.type << ", strike " << c.strike << ", forward " << c.forward << ", price "
+                                   << c.price << ", discount " << c.discount << ", displacement " << c.displacement)
+        {
+            const Real approx = blackFormulaImpliedStdDevApproximationRS(c.type, c.strike, c.forward, c.price,
+                                                                         c.discount, c.displacement);
+            BOOST_CHECK_SMALL(approx / c.expected - 1.0, tolerance);
+        }
+    };
+    for (const Case& c : cases)
+        check(c, 1.0e-9);
+    for (const Case& c : atTheSwitch)
+        check(c, 1.0e-7);
+}
+
+BOOST_AUTO_TEST_CASE(testImpliedStdDevApproximationRSAcrossMoneyness)
+{
+    BOOST_TEST_MESSAGE("Testing the RS implied-standard-deviation approximation near and away from the money...");
+
+    // The approximation's own error goes up to 12% far out of the money, and it holds that at any scale.
+    for (Real forward : {1.0, 100.0, 0.03})
+    {
+        for (Real displacement : {0.0, 0.5})
+        {
+            for (Real discount : {1.0, 0.95})
+            {
+                for (Real stdDev : {1.0e-8, 1.0e-6, 1.0e-4, 1.0e-2, 0.1, 0.5})
+                {
+                    for (Real distance :
+                         {30.0, 10.0, 3.0, 1.0, 0.3, 1.0e-3, 0.0, -1.0e-3, -0.3, -1.0, -3.0, -10.0, -30.0})
+                    {
+                        const Real logMoneyness = distance * stdDev;
+                        const Real strike = (forward + displacement) * std::exp(-logMoneyness) - displacement;
+                        for (auto type : {Option::Call, Option::Put})
+                        {
+                            // Further in the money, the price doesn't say what the standard deviation is.
+                            if (Integer(type) * distance > 1.0)
+                                continue;
+
+                            BOOST_TEST_CONTEXT("type " << type << ", strike " << strike << ", forward " << forward
+                                                       << ", stdDev " << stdDev << ", discount " << discount
+                                                       << ", displacement " << displacement)
+                            {
+                                const Real price = blackFormula(type, strike, forward, stdDev, discount, displacement);
+                                const Real approx = blackFormulaImpliedStdDevApproximationRS(
+                                    type, strike, forward, price, discount, displacement);
+                                BOOST_CHECK_SMALL(approx / stdDev - 1.0, 0.12);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testImpliedStdDevApproximationRSAtItsLimits)
+{
+    BOOST_TEST_MESSAGE("Testing the RS implied-standard-deviation approximation at the ends of its range...");
+
+    // In the money with a time value lost to rounding, and everywhere from far to near the strike.
+    for (Real ratio : {1.0001, 1.01, 1.1, 1.5, 2.0, 3.0, 5.0, 10.0})
+    {
+        for (Real stdDev : {1.0e-8, 1.0e-4, 0.01, 0.05, 0.1, 0.2, 0.4, 0.8, 1.5})
+        {
+            for (auto type : {Option::Call, Option::Put})
+            {
+                for (Real strike : {1.0 / ratio, 1.0 * ratio})
+                {
+                    BOOST_TEST_CONTEXT("type " << type << ", strike " << strike << ", stdDev " << stdDev)
+                    {
+                        const Real price = blackFormula(type, strike, 1.0, stdDev);
+                        const Real approx = blackFormulaImpliedStdDevApproximationRS(type, strike, 1.0, price);
+                        BOOST_CHECK(std::isfinite(approx));
+                        BOOST_CHECK_GE(approx, 0.0);
+                    }
+                }
+            }
+        }
+    }
+
+    for (auto type : {Option::Call, Option::Put})
+    {
+        // No price, on the money or off it, is no variance.
+        BOOST_CHECK_EQUAL(blackFormulaImpliedStdDevApproximationRS(type, 1.0, 1.0, 0.0), 0.0);
+        BOOST_CHECK_EQUAL(blackFormulaImpliedStdDevApproximationRS(type, 1.0 + 0.2 * Integer(type), 1.0, 0.0), 0.0);
+
+        // So is an intrinsic value, or anything below it.
+        const Real strike = 1.0 - 0.2 * Integer(type);
+        const Real intrinsic = Integer(type) * (1.0 - strike);
+        BOOST_CHECK_EQUAL(blackFormulaImpliedStdDevApproximationRS(type, strike, 1.0, intrinsic), 0.0);
+        BOOST_CHECK_EQUAL(blackFormulaImpliedStdDevApproximationRS(type, strike, 1.0, 0.75 * intrinsic), 0.0);
+        BOOST_CHECK_EQUAL(blackFormulaImpliedStdDevApproximationRS(type, strike, 1.0, 0.5 * intrinsic), 0.0);
+        BOOST_CHECK_EQUAL(blackFormulaImpliedStdDevApproximationRS(type, strike, 1.0, 0.0), 0.0);
+    }
+
+    // A price too low to carry through the formula's squares is no variance, not a NaN.
+    BOOST_CHECK_EQUAL(blackFormulaImpliedStdDevApproximationRS(Option::Call, 1.0, 1.0, 4.0e-101), 0.0);
+    BOOST_CHECK_EQUAL(blackFormulaImpliedStdDevApproximationRS(Option::Call, 1.0, 1.0, 4.0e-201), 0.0);
+
+    // The most an option can be worth takes an infinite standard deviation, and so does anything above that.
+    BOOST_CHECK(std::isinf(blackFormulaImpliedStdDevApproximationRS(Option::Call, 1.0, 1.0, 1.0)));
+    BOOST_CHECK(std::isinf(blackFormulaImpliedStdDevApproximationRS(Option::Call, 1.0, 1.0, 1.5)));
+    BOOST_CHECK(std::isinf(blackFormulaImpliedStdDevApproximationRS(Option::Put, 1.0, 1.0, 1.0)));
+    BOOST_CHECK(std::isinf(blackFormulaImpliedStdDevApproximationRS(Option::Put, 2.0611536224385579e-09, 1.0, 1.0e-5)));
+    BOOST_CHECK(std::isinf(blackFormulaImpliedStdDevApproximationRS(Option::Call, 485165195.40979028, 1.0, 1.5)));
+    BOOST_CHECK(std::isinf(blackFormulaImpliedStdDevApproximationRS(Option::Call, 2.6881171418161356e+43, 1.0, 1.5)));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
