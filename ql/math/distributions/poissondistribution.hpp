@@ -27,6 +27,7 @@
 
 #include <ql/math/factorial.hpp>
 #include <ql/math/incompletegamma.hpp>
+#include <limits>
 
 namespace QuantLib
 {
@@ -126,20 +127,63 @@ namespace QuantLib
         if (x == 1.0)
             return QL_MAX_REAL;
 
-        Real sum = 0.0;
-        BigNatural index = 0;
-        while (x > sum)
+        if (x <= std::exp(-lambda_))
+            return 0.0;
+
+        QL_REQUIRE(lambda_ < Real((std::numeric_limits<Natural>::max)()),
+                   "lambda (" << lambda_ << ") exceeds the supported range");
+
+        // Starting from the mode, since the terms at zero underflow for large means, and each
+        // term follows from the one beside it, since their powers and factorials overflow.
+        BigNatural index = static_cast<BigNatural>(lambda_);
+        Real term = calcSummand(index);
+
+        if (x > 0.5)
         {
-            sum += calcSummand(index);
-            index++;
+            // Summing what's to the right, since 1 - x is exact where a sum up to x wouldn't be.
+            // Above the mode, a geometric series bounds what's further right still.
+            const Real tail = 1.0 - x;
+            while (term / (1.0 - lambda_ / (index + 1.0)) > tail * QL_EPSILON)
+                term *= lambda_ / ++index;
+
+            Real sum = 0.0;
+            while (index > 0)
+            {
+                sum += term;
+                if (sum > tail)
+                    return Real(index);
+                term *= index / lambda_;
+                --index;
+            }
+            return 0.0;
         }
 
-        return Real(index - 1);
+        // Likewise below the mode, for what's further left.  Terms this small would lose their
+        // precision to the multiplications, and could stay stuck at the smallest subnormal.
+        const Real smallTerm = 1e-280;
+        while (index > 0)
+        {
+            const Real previous = term > smallTerm ? Real(term * index / lambda_) : calcSummand(index - 1);
+            if (previous / (1.0 - (index - 1.0) / lambda_) <= x * QL_EPSILON)
+                break;
+            term = previous;
+            --index;
+        }
+
+        Real sum = term;
+        while (x > sum)
+        {
+            ++index;
+            term = term > smallTerm ? Real(term * lambda_ / index) : calcSummand(index);
+            sum += term;
+        }
+
+        return Real(index);
     }
 
     inline Real InverseCumulativePoisson::calcSummand(BigNatural index) const
     {
-        return std::exp(-lambda_) * std::pow(lambda_, Integer(index)) / Factorial::get(index);
+        return std::exp(index * std::log(lambda_) - Factorial::ln(Natural(index)) - lambda_);
     }
 
 }

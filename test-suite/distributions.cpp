@@ -866,6 +866,109 @@ BOOST_AUTO_TEST_CASE(testBivariateDr78NearDegenerateInputs)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testInverseCumulativePoissonAgainstExactQuantiles)
+{
+    BOOST_TEST_MESSAGE("Testing inverse cumulative Poisson distribution against exact quantiles...");
+
+    const Real aboveHalf = std::nextafter(0.5, 1.0), belowOne = std::nextafter(1.0, 0.0);
+
+    // The smallest k with P(N <= k) >= p, from the terms of the sum at 80 digits.
+    const struct
+    {
+        Real lambda, probability;
+        BigNatural expected;
+    } cases[] = {
+        {0.05, 0.001, 0},        {0.05, 0.96, 1},
+        {0.05, 0.999, 2},        {0.05, 1.0 - 1e-12, 6},
+        {0.05, belowOne, 8},     {1.0, 0.3, 0},
+        {1.0, 0.5, 1},           {1.0, aboveHalf, 1},
+        {1.0, 0.9, 2},           {1.0, 1.0 - 1e-12, 14},
+        {1.0, belowOne, 17},     {4.0, 0.3, 3},
+        {4.0, 0.5, 4},           {4.0, 0.9, 7},
+        {4.0, 0.999999999, 21},  {4.0, 1.0 - 1e-12, 25},
+        {4.0, belowOne, 29},     {5.0, 0.3, 4},
+        {20.0, 0.01, 10},        {20.0, 0.5, 20},
+        {20.0, 0.999, 35},       {20.0, 1.0 - 1e-12, 59},
+        {20.0, belowOne, 67},    {100.0, 1e-30, 10},
+        {100.0, 0.5, 100},       {100.0, 0.999999999, 166},
+        {100.0, belowOne, 193},  {130.0, 0.5, 130},
+        {130.0, 0.999, 167},     {150.0, 0.3, 143},
+        {150.0, 0.5, 150},       {150.0, aboveHalf, 150},
+        {150.0, 0.9, 166},       {200.0, 0.001, 158},
+        {200.0, 0.5, 200},       {200.0, 0.9, 218},
+        {500.0, 1e-10, 365},     {500.0, 0.5, 500},
+        {745.0, 1e-100, 246},    {745.0, 0.5, 745},
+        {746.0, 1e-320, 2},      {746.0, 1e-308, 7},
+        {746.0, 1e-300, 11},     {746.0, 1e-100, 247},
+        {746.0, 0.5, 746},       {746.0, belowOne, 981},
+        {800.0, 1e-300, 26},     {800.0, 0.5, 800},
+        {1000.0, 1e-320, 74},    {1000.0, 1e-310, 83},
+        {1000.0, 1e-308, 85},    {1000.0, 1e-300, 93},
+        {1000.0, 1e-30, 660},    {1000.0, 1e-10, 806},
+        {1000.0, 0.5, 1000},     {1000.0, aboveHalf, 1000},
+        {1000.0, 0.9, 1041},     {1000.0, belowOne, 1270},
+        {10000.0, 1e-100, 7949}, {10000.0, 0.5, 10000},
+        {10000.0, 0.999, 10310}, {100000.0, 1e-100, 93348},
+        {100000.0, 0.5, 100000}, {100000.0, belowOne, 102607},
+        {1e+06, 1e-320, 961976}, {1e+06, 1e-308, 962695},
+        {1e+06, 1e-300, 963182}, {1e+06, 1e-10, 993645},
+        {1e+06, 0.5, 1000000},   {1e+06, belowOne, 1008221},
+        {4e+07, 0.5, 40000000},
+    };
+
+    for (const auto& data : cases)
+    {
+        BOOST_TEST_CONTEXT("lambda = " << data.lambda << ", p = " << std::setprecision(17) << data.probability)
+        {
+            BOOST_CHECK_EQUAL(InverseCumulativePoisson(data.lambda)(data.probability), Real(data.expected));
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testInverseCumulativePoissonAtTheProbabilityOfZero)
+{
+    BOOST_TEST_MESSAGE("Testing inverse cumulative Poisson distribution at the probability of zero...");
+
+    for (Real lambda : {1e-3, 0.5, 1.0, 4.0, 100.0, 745.0, 746.0, 1000.0, 1e6})
+    {
+        BOOST_TEST_CONTEXT("lambda = " << lambda)
+        {
+            const InverseCumulativePoisson inverse(lambda);
+            BOOST_CHECK_EQUAL(inverse(0.0), 0.0);
+            if (lambda < 745.0)
+            {
+                BOOST_CHECK_EQUAL(inverse(std::exp(-lambda)), 0.0);
+                BOOST_CHECK_EQUAL(inverse(std::nextafter(std::exp(-lambda), 1.0)), 1.0);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testInverseCumulativePoissonAtTheLimitsOfItsRange)
+{
+    BOOST_TEST_MESSAGE("Testing inverse cumulative Poisson distribution at the limits of its range...");
+
+    const Real naturalMax = Real((std::numeric_limits<Natural>::max)());
+
+    for (Real lambda : {naturalMax, std::ldexp(1.0, 64), 1e300, std::numeric_limits<Real>::infinity()})
+    {
+        BOOST_TEST_CONTEXT("lambda = " << lambda)
+        {
+            const InverseCumulativePoisson inverse(lambda);
+            BOOST_CHECK_EXCEPTION(inverse(0.9), Error, ExpectedErrorMessage("exceeds the supported range"));
+            BOOST_CHECK_EQUAL(inverse(0.0), 0.0);
+        }
+    }
+
+    // The term at the mode comes from logs, which are good to about a part in 1e5 here,
+    // so a few steps out of a standard deviation of 65,536.
+    const InverseCumulativePoisson inverse(naturalMax - 1.0);
+    BOOST_CHECK_SMALL(inverse(1e-10) - 4294550404.0, 16.0);
+    BOOST_CHECK_SMALL(inverse(0.5) - 4294967294.0, 16.0);
+    BOOST_CHECK_SMALL(inverse(1.0 - 1e-12) - 4295428314.0, 16.0);
+    BOOST_CHECK_SMALL(inverse(std::nextafter(1.0, 0.0)) - 4295505325.0, 16.0);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
