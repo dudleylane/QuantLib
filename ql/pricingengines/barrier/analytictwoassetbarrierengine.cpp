@@ -289,16 +289,16 @@ namespace QuantLib
         return f(m_a, m_b);
     }
 
-    // exp(logPower) * M(a, b; rho). M's error is absolute, up to about 1e-15 where it takes N from the cumulative
-    // normal's lower tail (#179): within 1e-14 of M where M is 0.1 or more, and the product's error is the power times
-    // it. logValue is within about 1e-14 of M however small M is, at about 30 times its cost. So where M is below 0.1
-    // and the power above 10, which takes a low volatility or a distant barrier, the product goes through logs, and it
-    // stays finite where the power overflows and M underflows.
+    // exp(logPower) * M(a, b; rho). logValue is within about 1e-14 of M however small M is, at about 30 times its cost.
+    // Where M is 0.1 or more, M itself is that close. Below 0.1 its absolute error is at most about 1e-16, and the
+    // product's error is the power times it, so up to a power of 100 the product is within about 1e-14 of the term's
+    // prefactor. So where M is below 0.1 and the power above 100, which takes a low volatility or a distant barrier,
+    // the product goes through logs, and it stays finite where the power overflows and M underflows.
     Real AnalyticTwoAssetBarrierEngine::powerTimesM(Real logPower, Real a, Real b, Real rho) const
     {
         BivariateCumulativeNormalDistribution f(rho);
         Real power = std::exp(logPower), m = f(a, b);
-        return power <= 10.0 || m >= 0.1 ? Real(power * m) : Real(std::exp(logPower + f.logValue(a, b)));
+        return power <= 100.0 || m >= 0.1 ? Real(power * m) : Real(std::exp(logPower + f.logValue(a, b)));
     }
 
 }
