@@ -581,6 +581,37 @@ BOOST_AUTO_TEST_CASE(testSpotPastBarrier)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testCoverDateInThePast)
+{
+    BOOST_TEST_MESSAGE("Testing that partial-time barrier options refuse a cover date in the past...");
+
+    const Date today(7, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+
+    // Part of the window would be in the past, where the engine can't know the path. At 20% volatility the engine threw
+    // on the volatility's negative time; at zero volatility it priced the options from the forward, read backwards.
+    const auto vol = ext::make_shared<SimpleQuote>(0.20);
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.01, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.05, dc)), Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+    for (Volatility v : {0.20, 0.0})
+    {
+        vol->setValue(v);
+        for (PartialBarrier::Range range : {PartialBarrier::Start, PartialBarrier::EndB1, PartialBarrier::EndB2})
+        {
+            PartialTimeBarrierOption option(Barrier::DownOut, range, 95.0, 0.0, today - 30,
+                                            ext::make_shared<PlainVanillaPayoff>(Option::Call, 90.0),
+                                            ext::make_shared<EuropeanExercise>(today + 365));
+            option.setPricingEngine(ext::make_shared<AnalyticPartialTimeBarrierOptionEngine>(process));
+            BOOST_TEST_CONTEXT("range " << Integer(range) << ", volatility " << v)
+            {
+                BOOST_CHECK_EXCEPTION(option.NPV(), Error, ExpectedErrorMessage("cover event date has passed"));
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

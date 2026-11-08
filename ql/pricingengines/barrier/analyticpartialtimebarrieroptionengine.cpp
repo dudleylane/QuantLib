@@ -113,6 +113,8 @@ namespace QuantLib
 
         Real spot = process_->x0();
         QL_REQUIRE(spot > 0.0, "negative or null underlying given");
+        // Part of a window would be in the past, where the engine can't know the path.
+        QL_REQUIRE(coverEventTime() >= 0.0, "cover event date has passed");
         // A Start window watches the underlying from today, so a spot past the barrier has hit it already. As in
         // AnalyticBarrierEngine, a spot on the barrier passes, and a knock-out there is worth 0.
         if (arguments_.barrierRange == PartialBarrier::Start)

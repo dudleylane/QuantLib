@@ -40,6 +40,9 @@ namespace QuantLib
         A start window watches the underlying from today, so a
         spot already past the barrier is refused with "barrier
         touched", as in AnalyticBarrierEngine.
+
+        A cover date before the evaluation date is refused, since
+        part of the window would be in the past.
     */
     class AnalyticPartialTimeBarrierOptionEngine : public PartialTimeBarrierOption::engine
     {
