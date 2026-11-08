@@ -36,8 +36,15 @@ namespace QuantLib
      * http://hsrm-mathematik.de/WS201516/master/option-pricing/Black-Scholes-Vasicek-Model.pdf
      *
      * The paper's volatility is constant. A term structure enters through its variance to
-     * the maturity, which is exact with no correlation; with one, the term between the two
-     * volatilities takes the volatility as flat up to the maturity.
+     * the maturity and, with a correlation, through its forward variance over each day up
+     * to the maturity, as the volatility's instantaneous value over that day. That's exact
+     * for a term structure linear in variance between dates, as BlackVarianceCurve and
+     * BlackVarianceSurface are by default, and its cost grows with the days to maturity
+     * unless the volatility is a BlackConstantVol on the rate curve's day counter and
+     * reference date. Where the variance is smooth between dates instead, the day's average
+     * leaves an error, up to 8.5e-7 of the value on a cubic variance curve with a steep
+     * short end. A variance that falls between two dates has no instantaneous volatility,
+     * and with a correlation the engine refuses it.
      */
 
     class AnalyticBlackVasicekEngine : public VanillaOption::engine
@@ -51,7 +58,6 @@ namespace QuantLib
       private:
         ext::shared_ptr<GeneralizedBlackScholesProcess> blackProcess_;
         ext::shared_ptr<Vasicek> vasicekProcess_;
-        ext::shared_ptr<Integrator> simpsonIntegral_;
         Real correlation_;
     };
 
