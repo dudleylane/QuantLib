@@ -623,6 +623,8 @@ namespace QuantLib
 
         const ext::shared_ptr<SwaptionVolatilityDiscrete> atmVolStructure =
             ext::dynamic_pointer_cast<SwaptionVolatilityDiscrete>(*atmVol_);
+        QL_REQUIRE(atmVolStructure, "an ATM-calibrated cube needs an ATM volatility structure with discrete nodes, "
+                                    "such as a SwaptionVolatilityMatrix");
 
         std::vector<Time> atmOptionTimes(atmVolStructure->optionTimes());
         std::vector<Time> optionTimes(volCubeAtmCalibrated_.optionTimes());
@@ -805,7 +807,10 @@ namespace QuantLib
             {
                 for (Size j = 0; j < 2; j++)
                 {
-                    strikes[i][j] = (atmForwards[i][j] + atmShifts[i][j]) / moneyness - atmShifts[i][j];
+                    // A normal smile goes with K - F, and a lognormal one with K / F.
+                    strikes[i][j] = volatilityType_ == VolatilityType::Normal ?
+                                        Real(atmForwards[i][j] + strike - atmForward) :
+                                        Real((atmForwards[i][j] + atmShifts[i][j]) / moneyness - atmShifts[i][j]);
                     spreadVols[i][j] = smiles[i][j]->volatility(strikes[i][j]) - atmVols[i][j];
                 }
             }
@@ -883,6 +888,8 @@ namespace QuantLib
     template <class Model>
     void XabrSwaptionVolatilityCube<Model>::recalibration(const std::vector<Real>& beta, const Period& swapTenor)
     {
+
+        calculate();
 
         QL_REQUIRE(beta.size() == nOptionTenors_, "beta size (" << beta.size()
                                                                 << ") must be equal to number of option tenors ("

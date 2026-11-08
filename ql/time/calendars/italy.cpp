@@ -65,6 +65,8 @@ namespace QuantLib
             || (d == 2 && m == June && y >= 2000)
             // Assumption
             || (d == 15 && m == August)
+            // Saint Francis of Assisi
+            || (d == 4 && m == October && y >= 2026)
             // All Saints' Day
             || (d == 1 && m == November)
             // Immaculate Conception
@@ -98,14 +100,14 @@ namespace QuantLib
             || (d == 1 && m == May)
             // Assumption
             || (d == 15 && m == August)
-            // Christmas' Eve
-            || (d == 24 && m == December)
+            // Christmas' Eve (half a day from 2027)
+            || (d == 24 && m == December && y <= 2026)
             // Christmas
             || (d == 25 && m == December)
             // St. Stephen
             || (d == 26 && m == December)
-            // New Year's Eve
-            || (d == 31 && m == December))
+            // New Year's Eve (half a day from 2027)
+            || (d == 31 && m == December && y <= 2026))
             return false; // NOLINT(readability-simplify-boolean-expr)
         return true;
     }

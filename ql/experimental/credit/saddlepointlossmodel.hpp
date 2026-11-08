@@ -98,10 +98,17 @@ namespace QuantLib
     a check that: copula_->basketSize() EQUALS remainingBasket_.size()
     */
     template <class CP>
-    class SaddlePointLossModel : public DefaultLossModel
+    class SaddlePointLossModel : public DefaultLossModel, public Observer
     {
       public:
-        explicit SaddlePointLossModel(const ext::shared_ptr<ConstantLossLatentmodel<CP>>& m) : copula_(m) {}
+        explicit SaddlePointLossModel(const ext::shared_ptr<ConstantLossLatentmodel<CP>>& m) : copula_(m)
+        {
+            registerWith(copula_);
+        }
+
+      private:
+        // what the latent model says goes on to the baskets
+        void update() override { notifyObservers(); }
 
       protected:
         // ----------- Cumulants and derivatives auxiliary functions ---------
@@ -323,6 +330,7 @@ namespace QuantLib
         void resetModel() override
         {
             remainingNotionals_ = basket_->remainingNotionals();
+            liveNames_ = basket_->liveList();
             remainingNotional_ = basket_->remainingNotional();
             attachRatio_ = std::min(basket_->remainingAttachmentAmount() / basket_->remainingNotional(), 1.);
             detachRatio_ = std::min(basket_->remainingDetachmentAmount() / basket_->remainingNotional(), 1.);
@@ -333,6 +341,8 @@ namespace QuantLib
         // cached todays arguments values
         mutable Size remainingSize_;
         mutable std::vector<Real> remainingNotionals_;
+        // where each of those names is in the latent model, which has them all
+        mutable std::vector<Size> liveNames_;
         mutable Real remainingNotional_;
         // remaining basket levels:
         mutable Real attachRatio_, detachRatio_;
@@ -372,7 +382,7 @@ namespace QuantLib
     {
         std::vector<Real> invUncondProbs = basket_->remainingProbabilities(date);
         for (Size i = 0; i < invUncondProbs.size(); i++)
-            invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], i);
+            invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], liveNames_[i]);
 
         return copula_->integratedExpectedValue([&](const std::vector<Real>& v1)
                                                 { return CumulantGeneratingCond(invUncondProbs, s, v1); });
@@ -383,7 +393,7 @@ namespace QuantLib
     {
         std::vector<Real> invUncondProbs = basket_->remainingProbabilities(date);
         for (Size i = 0; i < invUncondProbs.size(); i++)
-            invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], i);
+            invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], liveNames_[i]);
 
         return copula_->integratedExpectedValue([&](const std::vector<Real>& v1)
                                                 { return CumGen1stDerivativeCond(invUncondProbs, s, v1); });
@@ -394,7 +404,7 @@ namespace QuantLib
     {
         std::vector<Real> invUncondProbs = basket_->remainingProbabilities(date);
         for (Size i = 0; i < invUncondProbs.size(); i++)
-            invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], i);
+            invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], liveNames_[i]);
 
         return copula_->integratedExpectedValue([&](const std::vector<Real>& v1)
                                                 { return CumGen2ndDerivativeCond(invUncondProbs, s, v1); });
@@ -405,7 +415,7 @@ namespace QuantLib
     {
         std::vector<Real> invUncondProbs = basket_->remainingProbabilities(date);
         for (Size i = 0; i < invUncondProbs.size(); i++)
-            invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], i);
+            invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], liveNames_[i]);
 
         return copula_->integratedExpectedValue([&](const std::vector<Real>& v1)
                                                 { return CumGen3rdDerivativeCond(invUncondProbs, s, v1); });
@@ -416,7 +426,7 @@ namespace QuantLib
     {
         std::vector<Real> invUncondProbs = basket_->remainingProbabilities(date);
         for (Size i = 0; i < invUncondProbs.size(); i++)
-            invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], i);
+            invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], liveNames_[i]);
 
         return copula_->integratedExpectedValue([&](const std::vector<Real>& v1)
                                                 { return CumGen4thDerivativeCond(invUncondProbs, s, v1); });
@@ -433,7 +443,7 @@ namespace QuantLib
 
         std::vector<Real> invUncondProbs = basket_->remainingProbabilities(d);
         for (Size i = 0; i < invUncondProbs.size(); i++)
-            invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], i);
+            invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], liveNames_[i]);
 
         return copula_->integratedExpectedValue([&](const std::vector<Real>& v1)
                                                 { return probOverLossCond(invUncondProbs, trancheLossFract, v1); });
@@ -444,7 +454,7 @@ namespace QuantLib
     {
         std::vector<Probability> invUncondProbs = basket_->remainingProbabilities(d);
         for (Size i = 0; i < invUncondProbs.size(); i++)
-            invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], i);
+            invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], liveNames_[i]);
 
         return copula_->integratedExpectedValue([&](const std::vector<Real>& v1)
                                                 { return probOverLossPortfCond(invUncondProbs, loss, v1); });
@@ -455,7 +465,7 @@ namespace QuantLib
     {
         std::vector<Real> invUncondProbs = basket_->remainingProbabilities(d);
         for (Size i = 0; i < invUncondProbs.size(); i++)
-            invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], i);
+            invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], liveNames_[i]);
 
         return copula_->integratedExpectedValue([&](const std::vector<Real>& v1)
                                                 { return conditionalExpectedTrancheLoss(invUncondProbs, v1); });
@@ -466,7 +476,7 @@ namespace QuantLib
     {
         std::vector<Real> invUncondProbs = basket_->remainingProbabilities(d);
         for (Size i = 0; i < invUncondProbs.size(); i++)
-            invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], i);
+            invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], liveNames_[i]);
 
         return copula_->integratedExpectedValue([&](const std::vector<Real>& v1)
                                                 { return probDensityCond(invUncondProbs, loss, v1); });
@@ -477,7 +487,7 @@ namespace QuantLib
     {
         std::vector<Real> invUncondProbs = basket_->remainingProbabilities(date);
         for (Size i = 0; i < invUncondProbs.size(); i++)
-            invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], i);
+            invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], liveNames_[i]);
 
         return copula_->integratedExpectedValueV([&](const std::vector<Real>& v1)
                                                  { return splitLossCond(invUncondProbs, s, v1); });
@@ -503,12 +513,13 @@ namespace QuantLib
 
         for (Size iName = 0; iName < nNames; iName++)
         {
-            Probability pBuffer = copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], iName, mktFactor);
-            sum += std::log(
-                1. - pBuffer +
-                pBuffer * std::exp(remainingNotionals_[iName] *
-                                   (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], iName, mktFactor)) *
-                                   lossFraction / remainingNotional_));
+            Probability pBuffer =
+                copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], liveNames_[iName], mktFactor);
+            sum += std::log(1. - pBuffer +
+                            pBuffer * std::exp(remainingNotionals_[iName] *
+                                               (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName],
+                                                                                      liveNames_[iName], mktFactor)) *
+                                               lossFraction / remainingNotional_));
         }
         return sum;
     }
@@ -523,11 +534,13 @@ namespace QuantLib
 
         for (Size iName = 0; iName < nNames; iName++)
         {
-            Probability pBuffer = copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], iName, mktFactor);
+            Probability pBuffer =
+                copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], liveNames_[iName], mktFactor);
             // loss in fractional units
-            Real lossInDef = remainingNotionals_[iName] *
-                             (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], iName, mktFactor)) /
-                             remainingNotional_;
+            Real lossInDef =
+                remainingNotionals_[iName] *
+                (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor)) /
+                remainingNotional_;
             Real midFactor = pBuffer * std::exp(lossInDef * saddle);
             sum += lossInDef * midFactor / (1. - pBuffer + midFactor);
         }
@@ -544,11 +557,13 @@ namespace QuantLib
 
         for (Size iName = 0; iName < nNames; iName++)
         {
-            Probability pBuffer = copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], iName, mktFactor);
+            Probability pBuffer =
+                copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], liveNames_[iName], mktFactor);
             // loss in fractional units
-            Real lossInDef = remainingNotionals_[iName] *
-                             (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], iName, mktFactor)) /
-                             remainingNotional_;
+            Real lossInDef =
+                remainingNotionals_[iName] *
+                (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor)) /
+                remainingNotional_;
             Real midFactor = pBuffer * std::exp(lossInDef * saddle);
             Real denominator = 1. - pBuffer + midFactor;
             sum += lossInDef * lossInDef * midFactor / denominator - std::pow(lossInDef * midFactor / denominator, 2.);
@@ -566,10 +581,12 @@ namespace QuantLib
 
         for (Size iName = 0; iName < nNames; iName++)
         {
-            Probability pBuffer = copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], iName, mktFactor);
-            Real lossInDef = remainingNotionals_[iName] *
-                             (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], iName, mktFactor)) /
-                             remainingNotional_;
+            Probability pBuffer =
+                copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], liveNames_[iName], mktFactor);
+            Real lossInDef =
+                remainingNotionals_[iName] *
+                (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor)) /
+                remainingNotional_;
 
             const Real midFactor = pBuffer * std::exp(lossInDef * saddle);
             const Real denominator = 1. - pBuffer + midFactor;
@@ -594,10 +611,12 @@ namespace QuantLib
 
         for (Size iName = 0; iName < nNames; iName++)
         {
-            Probability pBuffer = copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], iName, mktFactor);
-            Real lossInDef = remainingNotionals_[iName] *
-                             (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], iName, mktFactor)) /
-                             remainingNotional_;
+            Probability pBuffer =
+                copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], liveNames_[iName], mktFactor);
+            Real lossInDef =
+                remainingNotionals_[iName] *
+                (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor)) /
+                remainingNotional_;
 
             Real midFactor = pBuffer * std::exp(lossInDef * saddle);
             Real denominator = 1. - pBuffer + midFactor;
@@ -626,10 +645,12 @@ namespace QuantLib
             deriv2 = 0., deriv3 = 0., deriv4 = 0.;
         for (Size iName = 0; iName < nNames; iName++)
         {
-            Probability pBuffer = copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], iName, mktFactor);
-            Real lossInDef = remainingNotionals_[iName] *
-                             (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], iName, mktFactor)) /
-                             remainingNotional_;
+            Probability pBuffer =
+                copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], liveNames_[iName], mktFactor);
+            Real lossInDef =
+                remainingNotionals_[iName] *
+                (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor)) /
+                remainingNotional_;
 
             Real midFactor = pBuffer * std::exp(lossInDef * saddle);
             Real denominator = 1. - pBuffer + midFactor;
@@ -664,10 +685,12 @@ namespace QuantLib
             deriv2 = 0.;
         for (Size iName = 0; iName < nNames; iName++)
         {
-            Probability pBuffer = copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], iName, mktFactor);
-            Real lossInDef = remainingNotionals_[iName] *
-                             (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], iName, mktFactor)) /
-                             remainingNotional_;
+            Probability pBuffer =
+                copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], liveNames_[iName], mktFactor);
+            Real lossInDef =
+                remainingNotionals_[iName] *
+                (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor)) /
+                remainingNotional_;
 
             Real midFactor = pBuffer * std::exp(lossInDef * saddle);
             Real denominator = 1. - pBuffer + midFactor;
@@ -702,7 +725,7 @@ namespace QuantLib
         std::vector<Real> lgds;
         for (Size iName = 0; iName < nNames; iName++)
             lgds.push_back(remainingNotionals_[iName] *
-                           (1. - copula_->conditionalRecoveryInvP(invUncondPs[iName], iName, mktFactor)));
+                           (1. - copula_->conditionalRecoveryInvP(invUncondPs[iName], liveNames_[iName], mktFactor)));
 
         // computed limits:
         // position of the name with the largest relative exposure loss (i.e.:
@@ -712,7 +735,8 @@ namespace QuantLib
         //   inversion:
         static const Real deltaMin = 1.e-5;
         //
-        Probability pMaxName = copula_->conditionalDefaultProbabilityInvP(invUncondPs[iNamMax], iNamMax, mktFactor);
+        Probability pMaxName =
+            copula_->conditionalDefaultProbabilityInvP(invUncondPs[iNamMax], liveNames_[iNamMax], mktFactor);
         // approximates the  saddle pt corresponding to this minimum; finds
         //   it by using only the smallest logistic term and thus this is
         //   smaller than the true value:
@@ -793,9 +817,7 @@ namespace QuantLib
         //   losses (since this method returns prob of losing more or
         //   equal to)
         ////////////////---       if(trancheLossFract <= QL_EPSILON) return 1.;
-        return probOverLossPortfCond(invUncondPs,
-                                     // below; should substract realized loses. Use remaining amounts??
-                                     portfFract * basket_->basketNotional(), mktFactor);
+        return probOverLossPortfCond(invUncondPs, portfFract * remainingNotional_, mktFactor);
     }
 
     template <class CP>
@@ -842,7 +864,7 @@ namespace QuantLib
 
         Real averageRecovery_ = 0.;
         for (Size iName = 0; iName < nNames; iName++)
-            averageRecovery_ += copula_->conditionalRecoveryInvP(invUncondProbs[iName], iName, mktFactor);
+            averageRecovery_ += copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor);
         averageRecovery_ = averageRecovery_ / nNames;
 
         Real maxAttLossFract = 1. - averageRecovery_;
@@ -928,7 +950,7 @@ namespace QuantLib
         // only true for constant recovery models......?
         Real averageRecovery_ = 0.;
         for (Size iName = 0; iName < nNames; iName++)
-            averageRecovery_ += copula_->conditionalRecoveryInvP(invUncondPs[iName], iName, mktFactor);
+            averageRecovery_ += copula_->conditionalRecoveryInvP(invUncondPs[iName], liveNames_[iName], mktFactor);
         averageRecovery_ = averageRecovery_ / nNames;
 
         Real maxAttLossFract = 1. - averageRecovery_;
@@ -1030,9 +1052,11 @@ namespace QuantLib
 
         for (Size iName = 0; iName < nNames; iName++)
         {
-            Probability pBuffer = copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], iName, mktFactor);
-            Real lossInDef = remainingNotionals_[iName] *
-                             (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], iName, mktFactor));
+            Probability pBuffer =
+                copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], liveNames_[iName], mktFactor);
+            Real lossInDef =
+                remainingNotionals_[iName] *
+                (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor));
             Real midFactor = pBuffer * std::exp(lossInDef * saddlePt / remainingNotional_);
             Real denominator = 1. - pBuffer + midFactor;
 
@@ -1050,9 +1074,10 @@ namespace QuantLib
         /// USE STL.....-------------------
         for (Size iName = 0; iName < nNames; iName++)
         {
-            Probability pBuffer = copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], iName, mktFactor);
+            Probability pBuffer =
+                copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], liveNames_[iName], mktFactor);
             eloss += pBuffer * remainingNotionals_[iName] *
-                     (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], iName, mktFactor));
+                     (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor));
         }
         return eloss;
     }
@@ -1066,9 +1091,10 @@ namespace QuantLib
         /// USE STL.....-------------------
         for (Size iName = 0; iName < nNames; iName++)
         {
-            Probability pBuffer = copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], iName, mktFactor);
+            Probability pBuffer =
+                copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], liveNames_[iName], mktFactor);
             eloss += pBuffer * remainingNotionals_[iName] *
-                     (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], iName, mktFactor));
+                     (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor));
         }
         return std::min(std::max(eloss - attachRatio_ * remainingNotional_, 0.),
                         (detachRatio_ - attachRatio_) * remainingNotional_);
@@ -1082,13 +1108,15 @@ namespace QuantLib
         const Size nNames = remainingNotionals_.size();
         std::vector<Real> lgds;
         for (Size iName = 0; iName < nNames; iName++)
-            lgds.push_back(remainingNotionals_[iName] *
-                           (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], iName, mktFactor)));
+            lgds.push_back(
+                remainingNotionals_[iName] *
+                (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor)));
         std::vector<Real> vola(nNames, 0.), mu(nNames, 0.);
         Real volaTot = 0., muTot = 0.;
         for (Size iName = 0; iName < nNames; iName++)
         {
-            Probability pBuffer = copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], iName, mktFactor);
+            Probability pBuffer =
+                copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], liveNames_[iName], mktFactor);
             mu[iName] = lgds[iName] * pBuffer / remainingNotionals_[iName];
             muTot += lgds[iName] * pBuffer;
             vola[iName] = lgds[iName] * lgds[iName] * pBuffer * (1. - pBuffer) / remainingNotionals_[iName];
@@ -1160,9 +1188,10 @@ namespace QuantLib
         /// use stl algorthms
         for (Size iName = 0; iName < nNames; iName++)
         {
-            Probability pBuffer = copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], iName, mktFactor);
+            Probability pBuffer =
+                copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], liveNames_[iName], mktFactor);
             elCond += pBuffer * remainingNotionals_[iName] *
-                      (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], iName, mktFactor));
+                      (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor));
         }
         Real saddlePt = findSaddle(invUncondProbs, lossPercRatio, mktFactor);
 
@@ -1217,7 +1246,7 @@ namespace QuantLib
         // SHOULD CHECK NOW THE OPPOSITE LIMIT ("zero" losses)....
         std::vector<Real> invUncondProbs = basket_->remainingProbabilities(d);
         for (Size i = 0; i < invUncondProbs.size(); i++)
-            invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], i);
+            invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], liveNames_[i]);
 
         // Integrate with the tranche or the portfolio according to the limits.
         return copula_->integratedExpectedValue(

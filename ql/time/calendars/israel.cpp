@@ -159,7 +159,39 @@ namespace QuantLib
             return isSukkot(d - 7);
         }
 
+        bool isElectionDay(const Date& d)
+        {
+            static std::set<Date> knownDates = {
+                {9, April, 2019},    {17, September, 2019}, {2, March, 2020},    {23, March, 2021},
+                {1, November, 2022}, {27, February, 2024},  {27, October, 2026},
+            };
+            return knownDates.find(d) != knownDates.end();
+        }
+
+        // the holidays and holidays' eves on which the exchange doesn't trade, whatever its week
+        bool isTradingHoliday(const Date& date)
+        {
+            return isPurim(date) || isPassover1st(date + 1)                                 // Eve of Passover
+                   || isPassover1st(date) || isPassover1st(date - 5)                        // Eve of Passover VII
+                   || isPassover1st(date - 6)                                               // Passover VII
+                   || isMemorialDay(date) || isIndependenceDay(date) || isShavuot(date + 1) // Eve of Shavuot
+                   || isShavuot(date) || isFastDay(date) || isNewYearsDay(date + 1)         // Eve of new year
+                   || isNewYearsDay(date) || isNewYearsDay(date - 1)                        // 2nd day of new year
+                   || isYomKippur(date + 1)                                                 // Eve of Yom Kippur
+                   || isYomKippur(date) || isSukkot(date + 1)                               // Eve of Sukkot
+                   || isSukkot(date) || isSimchatTorah(date + 1)                            // Eve of Simchat Torah
+                   || isSimchatTorah(date) || isElectionDay(date);
+        }
+
     }
+
+    class Israel::SettlementImpl final : public Calendar::Impl
+    {
+      public:
+        std::string name() const override { return "Israeli settlement"; }
+        bool isWeekend(Weekday) const override;
+        bool isBusinessDay(const Date&) const override;
+    };
 
 
     class Israel::TelAvivImpl final : public Calendar::Impl
@@ -180,11 +212,14 @@ namespace QuantLib
     Israel::Israel(Israel::Market market)
     {
         // all calendar instances share the same implementation instance
+        static auto settlementImpl = ext::make_shared<Israel::SettlementImpl>();
         static auto telAvivImpl = ext::make_shared<Israel::TelAvivImpl>();
         static auto shirImpl = ext::make_shared<Israel::ShirImpl>();
         switch (market)
         {
             case Settlement:
+                impl_ = settlementImpl;
+                break;
             case TASE:
                 impl_ = telAvivImpl;
                 break;
@@ -196,31 +231,41 @@ namespace QuantLib
         }
     }
 
+    bool Israel::SettlementImpl::isWeekend(Weekday w) const
+    {
+        return w == Saturday;
+    }
+
+    bool Israel::SettlementImpl::isBusinessDay(const Date& date) const
+    {
+        Weekday w = date.weekday();
+
+        if (isWeekend(w) || isPurim(date) || isPassover1st(date) || isPassover1st(date - 6) // Passover VII
+            || isIndependenceDay(date) || isShavuot(date) || isFastDay(date) || isNewYearsDay(date) ||
+            isNewYearsDay(date - 1)  // 2nd day of new year
+            || isYomKippur(date + 1) // Eve of Yom Kippur
+            || isYomKippur(date) || isSukkot(date) || isSimchatTorah(date) || isElectionDay(date))
+            return false; // NOLINT(readability-simplify-boolean-expr)
+
+        return true;
+    }
+
     bool Israel::TelAvivImpl::isWeekend(Weekday w) const
     {
-        return w == Friday || w == Saturday;
+        // this has only the weekday to go on, so it answers for the week as it is now
+        return w == Saturday || w == Sunday;
     }
 
     bool Israel::TelAvivImpl::isBusinessDay(const Date& date) const
     {
         Weekday w = date.weekday();
-        Year y = date.year();
 
-        if (isWeekend(w) || isPurim(date) || (y <= 2020 && isPassover1st(date + 1)) // Eve of Passover, until 2020
-            || isPassover1st(date) || isPassover1st(date - 5)                       // Eve of Passover VII, until 2020
-            || isPassover1st(date - 6)                                              // Passover VII
-            || isMemorialDay(date) || isIndependenceDay(date) ||
-            (y <= 2020 && isShavuot(date + 1)) // Eve of Shavuot, until 2020
-            || isShavuot(date) || isFastDay(date) ||
-            (y <= 2019 && isNewYearsDay(date + 1))            // Eve of new year, until 2019
-            || isNewYearsDay(date) || isNewYearsDay(date - 1) // 2nd day of new year
-            || isYomKippur(date + 1)                          // Eve of Yom Kippur
-            || isYomKippur(date) || isSukkot(date + 1)        // Eve of Sukkot
-            || isSukkot(date) || isSimchatTorah(date + 1)     // Eve of Simchat Torah
-            || isSimchatTorah(date))
-            return false; // NOLINT(readability-simplify-boolean-expr)
+        // Sunday to Thursday up to here, and Monday to Friday from the first Sunday of 2026, which had no session
+        if (date < Date(4, January, 2026))
+            return w != Friday && w != Saturday && !isTradingHoliday(date);
 
-        return true;
+        // no session on a Friday before a Sunday that's a holiday or a holiday's eve
+        return !isWeekend(w) && !isTradingHoliday(date) && !(w == Friday && isTradingHoliday(date + 2));
     }
 
     bool Israel::ShirImpl::isBusinessDay(const Date& date) const

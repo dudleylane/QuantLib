@@ -53,8 +53,6 @@ namespace QuantLib
         registerWith(Settings::instance().evaluationDate());
         registerWith(claim_);
 
-        computeBasket();
-
         // At this point Issuers in the pool might or might not have
         //   probability term structures for the defultKeys(eventType+
         //   currency+seniority) entering in this basket. This is not
@@ -66,6 +64,8 @@ namespace QuantLib
             detachmentAmount_ += notional * detachmentRatio_;
         }
         trancheNotional_ = detachmentAmount_ - attachmentAmount_;
+
+        computeBasket();
     }
 
     /*\todo Alternatively send a relinkable handle so it can be changed from
@@ -102,7 +102,22 @@ namespace QuantLib
         two tranches on the same basket; e,g, recursive model) so it might be
         more efficient sending the pool only; however the modtionals and other
         basket info are still used.*/
-        lossModel_->setBasket(const_cast<Basket*>(this));
+        takingLossModel_ = true;
+        try
+        {
+            lossModel_->setBasket(const_cast<Basket*>(this));
+        }
+        catch (...)
+        {
+            takingLossModel_ = false;
+            throw;
+        }
+        takingLossModel_ = false;
+    }
+
+    bool Basket::canStillLose() const
+    {
+        return evalDateRemainingNot_ > 0. && evalDateDetachAmmount_ > evalDateAttachAmount_;
     }
 
     Real Basket::notional() const
@@ -203,7 +218,7 @@ namespace QuantLib
         std::vector<Real> calcBufferNotionals;
         const std::vector<Size>& alive = liveList(endDate);
         calcBufferNotionals.reserve(alive.size());
-        for (Size i = 0; i < alive.size(); i++)
+        for (Size i : alive)
             calcBufferNotionals.push_back(exposure(pool_->names()[i], endDate)); // some better way to trim it?
         return calcBufferNotionals;
     }
@@ -215,7 +230,7 @@ namespace QuantLib
         const std::vector<Size>& alive = liveList();
 
         prob.reserve(alive.size());
-        for (Size i = 0; i < alive.size(); i++)
+        for (Size i : alive)
             prob.push_back(
                 pool_->get(pool_->names()[i]).defaultProbability(pool_->defaultKeys()[i])->defaultProbability(d, true));
         return prob;
@@ -288,47 +303,48 @@ namespace QuantLib
     Real Basket::remainingDetachmentAmount(const Date& endDate) const
     {
         QL_REQUIRE(endDate >= refDate_, "Target date lies before basket inception");
-        return detachmentAmount_;
+        return std::max(0.0, detachmentAmount_ - settledLoss(endDate));
     }
 
     Real Basket::remainingAttachmentAmount(const Date& endDate) const
     {
-        // maybe return zero directly instead?:
         QL_REQUIRE(endDate >= refDate_, "Target date lies before basket inception");
-        Real loss = settledLoss(endDate);
-        return std::min(detachmentAmount_, attachmentAmount_ + std::max(0.0, loss - attachmentAmount_));
+        return std::max(0.0, attachmentAmount_ - settledLoss(endDate));
     }
 
     Probability Basket::probOverLoss(const Date& d, Real lossFraction) const
     {
         // convert initial basket fraction to remaining basket fraction
         calculate();
-        // if eaten up all the tranche the prob of losing any amount is 1
-        //  (we have already lost it)
-        if (evalDateRemainingNot_ == 0.)
+        Real xPtfl = attachmentAmount_ + (detachmentAmount_ - attachmentAmount_) * lossFraction;
+        // if the level falls within realized losses the prob is 1.
+        if (xPtfl <= evalDateSettledLoss_)
             return 1.;
+        // and if there's nothing left to lose it won't get there
+        if (!canStillLose())
+            return 0.;
 
         // Turn to live (remaining) tranche units to feed into the model request
-        Real xPtfl = attachmentAmount_ + (detachmentAmount_ - attachmentAmount_) * lossFraction;
-        Real xPrim = (xPtfl - evalDateAttachAmount_) / (detachmentAmount_ - evalDateAttachAmount_);
-        // in live tranche fractional units
-        // if the level falls within realized losses the prob is 1.
-        if (xPtfl < 0.)
-            return 1.;
-
+        Real xPrim =
+            (xPtfl - evalDateSettledLoss_ - evalDateAttachAmount_) / (evalDateDetachAmmount_ - evalDateAttachAmount_);
         return lossModel_->probOverLoss(d, xPrim);
     }
 
     Real Basket::percentile(const Date& d, Probability prob) const
     {
         calculate();
+        if (!canStillLose())
+            return 0.;
         return lossModel_->percentile(d, prob);
     }
 
     Real Basket::expectedTrancheLoss(const Date& d) const
     {
         calculate();
-        return cumulatedLoss() + lossModel_->expectedTrancheLoss(d);
+        const Real realizedLoss = trancheNotional_ - remainingTrancheNotional();
+        if (!canStillLose())
+            return realizedLoss;
+        return realizedLoss + lossModel_->expectedTrancheLoss(d);
     }
 
     std::vector<Real> Basket::splitVaRLevel(const Date& date, Real loss) const
@@ -340,6 +356,8 @@ namespace QuantLib
     Real Basket::expectedShortfall(const Date& d, Probability prob) const
     {
         calculate();
+        if (!canStillLose())
+            return 0.;
         return lossModel_->expectedShortfall(d, prob);
     }
 

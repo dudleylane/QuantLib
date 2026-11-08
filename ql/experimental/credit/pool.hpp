@@ -46,7 +46,8 @@ namespace QuantLib
         void setTime(const std::string& name, Real time);
         Real getTime(const std::string& name) const;
         const std::vector<std::string>& names() const;
-        std::vector<DefaultProbKey> defaultKeys() const;
+        //! One for each of names(), in the same order.
+        const std::vector<DefaultProbKey>& defaultKeys() const;
 
       private:
         // \todo: needs to cehck all defaul TS have the same ref date? here or
@@ -57,6 +58,8 @@ namespace QuantLib
         /*! default events seniority and currency this name enters the basket
         with. Determines to which event/probability this pool referes to. */
         std::map<std::string, DefaultProbKey> defaultKeys_;
+        // the same keys, in the order of names_
+        std::vector<DefaultProbKey> keysOfNames_;
     };
 
 }

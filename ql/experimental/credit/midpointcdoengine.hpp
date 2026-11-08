@@ -42,7 +42,7 @@ namespace QuantLib
     realized losses (between cdo inception and calculation time) .... what if
     basket inception is not the same as CDO's ?????
 
-    \todo non tested under realized defaults. JTD metrics might be invalid
+    \todo JTD metrics might be invalid
     */
     class MidPointCDOEngine : public SyntheticCDO::engine
     {

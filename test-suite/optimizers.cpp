@@ -24,6 +24,7 @@
 #include "preconditions.hpp"
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
+#include <ql/experimental/math/hybridsimulatedannealing.hpp>
 #include <ql/math/optimization/bfgs.hpp>
 #include <ql/math/optimization/conjugategradient.hpp>
 #include <ql/math/optimization/constraint.hpp>
@@ -505,6 +506,95 @@ BOOST_AUTO_TEST_CASE(testDifferentialEvolution)
             }
         }
     }
+}
+
+namespace
+{
+    struct StationarySampler
+    {
+        void operator()(Array& newPoint, const Array& currentPoint, const Array&) const { newPoint = currentPoint; }
+    };
+
+    struct ImprovingSampler
+    {
+        void operator()(Array& newPoint, const Array& currentPoint, const Array&) const
+        {
+            newPoint = currentPoint / 2.0;
+        }
+    };
+
+    struct RejectAllMoves
+    {
+        bool operator()(Real, Real, const Array&) const { return false; }
+    };
+
+    struct AcceptAllMoves
+    {
+        bool operator()(Real, Real, const Array&) const { return true; }
+    };
+
+    // The first dimension cools at once, and the second, which sits at the end temperature at
+    // first, only after the second iteration.
+    struct StagedCooling
+    {
+        void operator()(Array& newTemperature, const Array&, const Array& steps) const
+        {
+            newTemperature[0] = 0.0;
+            newTemperature[1] = steps[0] <= 2.0 ? 0.5 : 0.0;
+        }
+    };
+
+    struct ConstantTemperature
+    {
+        void operator()(Array& newTemperature, const Array& currentTemperature, const Array&) const
+        {
+            newTemperature = currentTemperature;
+        }
+    };
+
+    template <class Sampler, class Probability, class Temperature>
+    std::pair<EndCriteria::Type, Size> runHybridAnnealing(const Sampler& sampler,
+                                                          const Probability& probability,
+                                                          const Temperature& temperature,
+                                                          Size maxIterations,
+                                                          Size maxStationaryStateIterations)
+    {
+        FirstDeJong costFunction;
+        NoConstraint constraint;
+        Problem problem(costFunction, constraint, Array(2, 1.0));
+        const EndCriteria endCriteria(maxIterations, maxStationaryStateIterations, 1e-8, 1e-8, 1e-8);
+
+        using Annealing = HybridSimulatedAnnealing<Sampler, Probability, Temperature>;
+        Annealing annealing(sampler, probability, temperature, ReannealingTrivial(), 1.0, 0.5, 0,
+                            Annealing::NoResetScheme, 0, nullptr, Annealing::NoLocalOptimize);
+
+        const EndCriteria::Type result = annealing.minimize(problem, endCriteria);
+        return {result, problem.functionEvaluation()};
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testHybridSimulatedAnnealingEndsAtItsEndTemperature)
+{
+    BOOST_TEST_MESSAGE("Testing that hybrid simulated annealing ends once all its temperatures are below the end...");
+
+    // The start, and two iterations: it goes on while one dimension isn't below the end temperature.
+    const auto result = runHybridAnnealing(StationarySampler(), RejectAllMoves(), StagedCooling(), 100, 50);
+
+    BOOST_CHECK_EQUAL(result.first, EndCriteria::None);
+    BOOST_CHECK_EQUAL(result.second, Size(3));
+}
+
+BOOST_AUTO_TEST_CASE(testHybridSimulatedAnnealingOtherEndCriteria)
+{
+    BOOST_TEST_MESSAGE("Testing hybrid simulated annealing's other end criteria...");
+
+    const auto iterations = runHybridAnnealing(ImprovingSampler(), AcceptAllMoves(), ConstantTemperature(), 3, 2);
+    BOOST_CHECK_EQUAL(iterations.first, EndCriteria::MaxIterations);
+    BOOST_CHECK_EQUAL(iterations.second, Size(4));
+
+    const auto stationary = runHybridAnnealing(StationarySampler(), RejectAllMoves(), ConstantTemperature(), 100, 2);
+    BOOST_CHECK_EQUAL(stationary.first, EndCriteria::StationaryPoint);
+    BOOST_CHECK_EQUAL(stationary.second, Size(3));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

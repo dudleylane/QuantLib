@@ -22,6 +22,8 @@
 
 #include <ql/math/distributions/bivariatenormaldistribution.hpp>
 #include <ql/math/integrals/gaussianquadratures.hpp>
+#include <algorithm>
+#include <cmath>
 
 namespace QuantLib
 {
@@ -51,6 +53,13 @@ namespace QuantLib
         Real MaxCumNormDistAB = std::max(CumNormDistA, CumNormDistB);
         Real MinCumNormDistAB = std::min(CumNormDistA, CumNormDistB);
 
+        // Y = X and Y = -X, where the formulas below would divide by sqrt(1 - rho^2).
+        if (rho_ == 1.0)
+            return MinCumNormDistAB;
+
+        if (rho_ == -1.0)
+            return std::max<Real>(0.0, CumNormDistA + CumNormDistB - 1.0);
+
         if (1.0 - MaxCumNormDistAB < 1e-15)
             return MinCumNormDistAB;
 
@@ -61,6 +70,7 @@ namespace QuantLib
         Real b1 = b / std::sqrt(2.0 * (1.0 - rho2_));
 
         Real result = -1.0;
+        const Real signA = a > 0.0 ? 1.0 : -1.0, signB = b > 0.0 ? 1.0 : -1.0;
 
         if (a <= 0.0 && b <= 0 && rho_ <= 0)
         {
@@ -90,15 +100,19 @@ namespace QuantLib
         {
             result = CumNormDistA + CumNormDistB - 1.0 + (*this)(-a, -b);
         }
-        else if (a * b * rho_ > 0.0)
+        // By their signs, since a * b * rho can underflow to zero.
+        else if (signA * signB * rho_ > 0.0)
         {
-            Real rho1 = (rho_ * a - b) * (a > 0.0 ? 1.0 : -1.0) / std::sqrt(a * a - 2.0 * rho_ * a * b + b * b);
+            // D^2 = (rho a - b)^2 + a^2 (1 - rho^2), and likewise for b. These forms don't
+            // cancel near |rho| = 1, and the results can't round past 1 either.
+            const Real sqrtOneMinusRho2 = std::sqrt((1.0 - rho_) * (1.0 + rho_));
+            Real rho1 = (rho_ * a - b) * signA / std::hypot(rho_ * a - b, a * sqrtOneMinusRho2);
             BivariateCumulativeNormalDistributionDr78 bivCumNormalDist(rho1);
 
-            Real rho2 = (rho_ * b - a) * (b > 0.0 ? 1.0 : -1.0) / std::sqrt(a * a - 2.0 * rho_ * a * b + b * b);
+            Real rho2 = (rho_ * b - a) * signB / std::hypot(rho_ * b - a, b * sqrtOneMinusRho2);
             BivariateCumulativeNormalDistributionDr78 CBND2(rho2);
 
-            Real delta = (1.0 - (a > 0.0 ? 1.0 : -1.0) * (b > 0.0 ? 1.0 : -1.0)) / 4.0;
+            Real delta = (1.0 - signA * signB) / 4.0;
 
             result = bivCumNormalDist(a, 0.0) + CBND2(b, 0.0) - delta;
         }

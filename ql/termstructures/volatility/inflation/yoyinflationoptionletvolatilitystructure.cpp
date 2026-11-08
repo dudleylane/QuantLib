@@ -216,6 +216,7 @@ namespace QuantLib
           settlementDays, cal, bdc, dc, observationLag, frequency, indexIsInterpolated, volType, displacement),
       volatility_(std::move(v)), minStrike_(minStrike), maxStrike_(maxStrike)
     {
+        registerWith(volatility_);
     }
 
     Volatility ConstantYoYOptionletVolatility::volatilityImpl(Time, Rate) const

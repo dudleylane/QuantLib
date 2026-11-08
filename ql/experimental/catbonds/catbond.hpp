@@ -54,11 +54,25 @@ namespace QuantLib
         void setupArguments(PricingEngine::arguments*) const override;
         void fetchResults(const PricingEngine::results*) const override;
 
-        Real lossProbability() const { return lossProbability_; }
-        Real expectedLoss() const { return expectedLoss_; }
-        Real exhaustionProbability() const { return exhaustionProbability_; }
+        Real lossProbability() const
+        {
+            calculate();
+            return lossProbability_;
+        }
+        Real expectedLoss() const
+        {
+            calculate();
+            return expectedLoss_;
+        }
+        Real exhaustionProbability() const
+        {
+            calculate();
+            return exhaustionProbability_;
+        }
 
       protected:
+        void setupExpired() const override;
+
         ext::shared_ptr<NotionalRisk> notionalRisk_;
 
         mutable Real lossProbability_;

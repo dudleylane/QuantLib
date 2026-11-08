@@ -49,6 +49,11 @@ namespace QuantLib
         return std::sqrt(w(x)) * value(n, x);
     }
 
+    Real GaussianOrthogonalPolynomial::logW(Real x) const
+    {
+        return std::log(w(x));
+    }
+
 
     GaussLaguerrePolynomial::GaussLaguerrePolynomial(Real s) : s_(s)
     {
@@ -73,6 +78,11 @@ namespace QuantLib
     Real GaussLaguerrePolynomial::w(Real x) const
     {
         return std::pow(x, s_) * std::exp(-x);
+    }
+
+    Real GaussLaguerrePolynomial::logW(Real x) const
+    {
+        return (s_ != 0.0 ? Real(s_ * std::log(x)) : Real(0.0)) - x;
     }
 
 
@@ -101,6 +111,11 @@ namespace QuantLib
         return std::pow(std::fabs(x), 2 * mu_) * std::exp(-x * x);
     }
 
+    Real GaussHermitePolynomial::logW(Real x) const
+    {
+        return (mu_ != 0.0 ? Real(2 * mu_ * std::log(std::fabs(x))) : Real(0.0)) - x * x;
+    }
+
     GaussJacobiPolynomial::GaussJacobiPolynomial(Real alpha, Real beta) : alpha_(alpha), beta_(beta)
     {
         QL_REQUIRE(alpha_ + beta_ > -2.0, "alpha+beta must be bigger than -2");
@@ -117,6 +132,10 @@ namespace QuantLib
 
     Real GaussJacobiPolynomial::alpha(Size i) const
     {
+        // The general form below has a removable singularity here, at alpha + beta = 0.
+        if (i == 0)
+            return (beta_ - alpha_) / (alpha_ + beta_ + 2.0);
+
         Real num = beta_ * beta_ - alpha_ * alpha_;
         Real denom = (2.0 * i + alpha_ + beta_) * (2.0 * i + alpha_ + beta_ + 2);
 
@@ -141,6 +160,13 @@ namespace QuantLib
 
     Real GaussJacobiPolynomial::beta(Size i) const
     {
+        // The general form below has a removable singularity here, at alpha + beta = -1.
+        if (i == 1)
+        {
+            const Real s = 2.0 + alpha_ + beta_;
+            return 4.0 * (1.0 + alpha_) * (1.0 + beta_) / (s * s * (s + 1.0));
+        }
+
         Real num = 4.0 * i * (i + alpha_) * (i + beta_) * (i + alpha_ + beta_);
         Real denom = (2.0 * i + alpha_ + beta_) * (2.0 * i + alpha_ + beta_) *
                      ((2.0 * i + alpha_ + beta_) * (2.0 * i + alpha_ + beta_) - 1);
@@ -198,6 +224,13 @@ namespace QuantLib
     Real GaussHyperbolicPolynomial::w(Real x) const
     {
         return 1 / std::cosh(x);
+    }
+
+    Real GaussHyperbolicPolynomial::logW(Real x) const
+    {
+        // cosh(x) = exp(|x|) (1 + exp(-2|x|)) / 2, which itself overflows above |x| of about 710.
+        const Real absX = std::fabs(x);
+        return M_LN2 - absX - std::log1p(std::exp(-2 * absX));
     }
 
 }

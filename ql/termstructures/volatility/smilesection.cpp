@@ -22,12 +22,24 @@
 #include <ql/pricingengines/blackformula.hpp>
 #include <ql/settings.hpp>
 #include <ql/termstructures/volatility/smilesection.hpp>
+#include <algorithm>
+#include <cmath>
 #include <utility>
 
 using std::sqrt;
 
 namespace QuantLib
 {
+
+    namespace
+    {
+        // Prices round in proportion to the larger of the strike and the forward,
+        // so a gap too small beside it would difference nothing but their rounding.
+        Real priceLevel(Rate strike, Real atm)
+        {
+            return atm != Null<Real>() ? std::max(std::fabs(strike), std::fabs(atm)) : std::fabs(strike);
+        }
+    }
 
     void SmileSection::update()
     {
@@ -85,20 +97,22 @@ namespace QuantLib
     Real SmileSection::digitalOptionPrice(Rate strike, Option::Type type, Real discount, Real gap) const
     {
         Real m = volatilityType() == ShiftedLognormal ? Real(-shift()) : -QL_MAX_REAL;
-        Real kl = std::max(strike - gap / 2.0, m);
-        Real kr = kl + gap;
+        Real g = std::max(gap, 1.0e-6 * priceLevel(strike, atmLevel()));
+        Real kl = std::max(strike - g / 2.0, m);
+        Real kr = kl + g;
         return (type == Option::Call ? 1.0 : -1.0) *
-               (optionPrice(kl, type, discount) - optionPrice(kr, type, discount)) / gap;
+               (optionPrice(kl, type, discount) - optionPrice(kr, type, discount)) / g;
     }
 
     Real SmileSection::density(Rate strike, Real discount, Real gap) const
     {
         Real m = volatilityType() == ShiftedLognormal ? Real(-shift()) : -QL_MAX_REAL;
-        Real kl = std::max(strike - gap / 2.0, m);
-        Real kr = kl + gap;
-        return (digitalOptionPrice(kl, Option::Call, discount, gap) -
-                digitalOptionPrice(kr, Option::Call, discount, gap)) /
-               gap;
+        // A second difference, whose rounding goes as the square of the level over the gap.
+        Real g = std::max(gap, 1.0e-5 * priceLevel(strike, atmLevel()));
+        Real kl = std::max(strike - g / 2.0, m);
+        Real kr = kl + g;
+        return (digitalOptionPrice(kl, Option::Call, discount, g) - digitalOptionPrice(kr, Option::Call, discount, g)) /
+               g;
     }
 
     Real SmileSection::vega(Rate strike, Real discount) const

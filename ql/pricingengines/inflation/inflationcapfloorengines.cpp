@@ -87,7 +87,7 @@ namespace QuantLib
                 Time sqrtTime = 0.0;
                 if (fixingDate > volatility_->baseDate())
                 {
-                    sqrtTime = std::sqrt(volatility_->timeFromBase(fixingDate));
+                    sqrtTime = std::sqrt(volatility_->timeFromBase(fixingDate, Period(0, Days)));
                 }
 
                 if (type == YoYInflationCapFloor::Cap || type == YoYInflationCapFloor::Collar)

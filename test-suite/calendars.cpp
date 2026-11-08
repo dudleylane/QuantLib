@@ -32,21 +32,32 @@
 #include <ql/indexes/ibor/sofr.hpp>
 #include <ql/time/calendar.hpp>
 #include <ql/time/calendars/bespokecalendar.hpp>
+#include <ql/time/calendars/botswana.hpp>
 #include <ql/time/calendars/brazil.hpp>
 #include <ql/time/calendars/china.hpp>
 #include <ql/time/calendars/denmark.hpp>
+#include <ql/time/calendars/france.hpp>
 #include <ql/time/calendars/germany.hpp>
+#include <ql/time/calendars/hongkong.hpp>
+#include <ql/time/calendars/india.hpp>
+#include <ql/time/calendars/indonesia.hpp>
 #include <ql/time/calendars/israel.hpp>
 #include <ql/time/calendars/italy.hpp>
 #include <ql/time/calendars/japan.hpp>
 #include <ql/time/calendars/jointcalendar.hpp>
 #include <ql/time/calendars/mexico.hpp>
 #include <ql/time/calendars/newzealand.hpp>
+#include <ql/time/calendars/romania.hpp>
 #include <ql/time/calendars/russia.hpp>
+#include <ql/time/calendars/saudiarabia.hpp>
+#include <ql/time/calendars/singapore.hpp>
+#include <ql/time/calendars/southafrica.hpp>
 #include <ql/time/calendars/southkorea.hpp>
+#include <ql/time/calendars/taiwan.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/calendars/unitedkingdom.hpp>
 #include <ql/time/calendars/unitedstates.hpp>
+#include <algorithm>
 #include <fstream>
 
 using namespace QuantLib;
@@ -1677,6 +1688,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(9, October, 2024);
     expectedHol.emplace_back(25, December, 2024);
     expectedHol.emplace_back(1, January, 2025);
+    expectedHol.emplace_back(27, January, 2025);
     expectedHol.emplace_back(28, January, 2025);
     expectedHol.emplace_back(29, January, 2025);
     expectedHol.emplace_back(30, January, 2025);
@@ -1684,6 +1696,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(1, May, 2025);
     expectedHol.emplace_back(5, May, 2025);
     expectedHol.emplace_back(6, May, 2025);
+    expectedHol.emplace_back(3, June, 2025);
     expectedHol.emplace_back(6, June, 2025);
     expectedHol.emplace_back(15, August, 2025);
     expectedHol.emplace_back(3, October, 2025);
@@ -1700,7 +1713,9 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(1, May, 2026);
     expectedHol.emplace_back(5, May, 2026);
     expectedHol.emplace_back(25, May, 2026);
+    expectedHol.emplace_back(3, June, 2026);
     // expectedHol.emplace_back(6, June, 2026);    // Saturday
+    expectedHol.emplace_back(17, July, 2026);
     expectedHol.emplace_back(17, August, 2026);
     expectedHol.emplace_back(24, September, 2026);
     expectedHol.emplace_back(25, September, 2026);
@@ -1717,6 +1732,8 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2027);
     expectedHol.emplace_back(13, May, 2027);
     // expectedHol.emplace_back(6, June, 2027);    // Sunday
+    // expectedHol.emplace_back(17, July, 2027);    // Saturday
+    expectedHol.emplace_back(19, July, 2027);
     expectedHol.emplace_back(16, August, 2027);
     expectedHol.emplace_back(14, September, 2027);
     expectedHol.emplace_back(15, September, 2027);
@@ -1733,6 +1750,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(2, May, 2028);
     expectedHol.emplace_back(5, May, 2028);
     expectedHol.emplace_back(6, June, 2028);
+    expectedHol.emplace_back(17, July, 2028);
     expectedHol.emplace_back(15, August, 2028);
     expectedHol.emplace_back(2, October, 2028);
     expectedHol.emplace_back(3, October, 2028);
@@ -1749,6 +1767,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(7, May, 2029);
     expectedHol.emplace_back(21, May, 2029);
     expectedHol.emplace_back(6, June, 2029);
+    expectedHol.emplace_back(17, July, 2029);
     expectedHol.emplace_back(15, August, 2029);
     expectedHol.emplace_back(21, September, 2029);
     // expectedHol.emplace_back(22, September, 2029);    // Saturday
@@ -1765,6 +1784,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(6, May, 2030);
     expectedHol.emplace_back(9, May, 2030);
     expectedHol.emplace_back(6, June, 2030);
+    expectedHol.emplace_back(17, July, 2030);
     expectedHol.emplace_back(15, August, 2030);
     expectedHol.emplace_back(11, September, 2030);
     expectedHol.emplace_back(12, September, 2030);
@@ -1781,6 +1801,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2031);
     expectedHol.emplace_back(28, May, 2031);
     expectedHol.emplace_back(6, June, 2031);
+    expectedHol.emplace_back(17, July, 2031);
     expectedHol.emplace_back(15, August, 2031);
     expectedHol.emplace_back(30, September, 2031);
     expectedHol.emplace_back(1, October, 2031);
@@ -1797,6 +1818,8 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2032);
     expectedHol.emplace_back(17, May, 2032);
     // expectedHol.emplace_back(6, June, 2032);    // Sunday
+    // expectedHol.emplace_back(17, July, 2032);    // Saturday
+    expectedHol.emplace_back(19, July, 2032);
     expectedHol.emplace_back(16, August, 2032);
     // expectedHol.emplace_back(18, September, 2032);    // Saturday
     expectedHol.emplace_back(20, September, 2032);
@@ -1813,6 +1836,8 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2033);
     expectedHol.emplace_back(6, May, 2033);
     expectedHol.emplace_back(6, June, 2033);
+    // expectedHol.emplace_back(17, July, 2033);    // Sunday
+    expectedHol.emplace_back(18, July, 2033);
     expectedHol.emplace_back(15, August, 2033);
     expectedHol.emplace_back(7, September, 2033);
     expectedHol.emplace_back(8, September, 2033);
@@ -1829,6 +1854,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2034);
     expectedHol.emplace_back(25, May, 2034);
     expectedHol.emplace_back(6, June, 2034);
+    expectedHol.emplace_back(17, July, 2034);
     expectedHol.emplace_back(15, August, 2034);
     expectedHol.emplace_back(26, September, 2034);
     expectedHol.emplace_back(27, September, 2034);
@@ -1845,6 +1871,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(7, May, 2035);
     expectedHol.emplace_back(15, May, 2035);
     expectedHol.emplace_back(6, June, 2035);
+    expectedHol.emplace_back(17, July, 2035);
     expectedHol.emplace_back(15, August, 2035);
     // expectedHol.emplace_back(15, September, 2035);    // Saturday
     expectedHol.emplace_back(17, September, 2035);
@@ -1861,6 +1888,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2036);
     expectedHol.emplace_back(6, May, 2036);
     expectedHol.emplace_back(6, June, 2036);
+    expectedHol.emplace_back(17, July, 2036);
     expectedHol.emplace_back(15, August, 2036);
     expectedHol.emplace_back(3, October, 2036);
     // expectedHol.emplace_back(4, October, 2036);    // Saturday
@@ -1877,6 +1905,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2037);
     expectedHol.emplace_back(22, May, 2037);
     // expectedHol.emplace_back(6, June, 2037);    // Saturday
+    expectedHol.emplace_back(17, July, 2037);
     expectedHol.emplace_back(17, August, 2037);
     expectedHol.emplace_back(23, September, 2037);
     expectedHol.emplace_back(24, September, 2037);
@@ -1893,6 +1922,8 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2038);
     expectedHol.emplace_back(11, May, 2038);
     // expectedHol.emplace_back(6, June, 2038);    // Sunday
+    // expectedHol.emplace_back(17, July, 2038);    // Saturday
+    expectedHol.emplace_back(19, July, 2038);
     expectedHol.emplace_back(16, August, 2038);
     expectedHol.emplace_back(13, September, 2038);
     expectedHol.emplace_back(14, September, 2038);
@@ -1909,6 +1940,8 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(2, May, 2039);
     expectedHol.emplace_back(5, May, 2039);
     expectedHol.emplace_back(6, June, 2039);
+    // expectedHol.emplace_back(17, July, 2039);    // Sunday
+    expectedHol.emplace_back(18, July, 2039);
     expectedHol.emplace_back(15, August, 2039);
     // expectedHol.emplace_back(1, October, 2039);    // Saturday
     expectedHol.emplace_back(3, October, 2039);
@@ -1925,6 +1958,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(7, May, 2040);
     expectedHol.emplace_back(18, May, 2040);
     expectedHol.emplace_back(6, June, 2040);
+    expectedHol.emplace_back(17, July, 2040);
     expectedHol.emplace_back(15, August, 2040);
     expectedHol.emplace_back(20, September, 2040);
     expectedHol.emplace_back(21, September, 2040);
@@ -1941,6 +1975,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(6, May, 2041);
     expectedHol.emplace_back(7, May, 2041);
     expectedHol.emplace_back(6, June, 2041);
+    expectedHol.emplace_back(17, July, 2041);
     expectedHol.emplace_back(15, August, 2041);
     expectedHol.emplace_back(9, September, 2041);
     expectedHol.emplace_back(10, September, 2041);
@@ -1957,6 +1992,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2042);
     expectedHol.emplace_back(26, May, 2042);
     expectedHol.emplace_back(6, June, 2042);
+    expectedHol.emplace_back(17, July, 2042);
     expectedHol.emplace_back(15, August, 2042);
     // expectedHol.emplace_back(27, September, 2042);    // Saturday
     expectedHol.emplace_back(29, September, 2042);
@@ -1973,6 +2009,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2043);
     expectedHol.emplace_back(18, May, 2043);
     // expectedHol.emplace_back(6, June, 2043);    // Saturday
+    expectedHol.emplace_back(17, July, 2043);
     expectedHol.emplace_back(17, August, 2043);
     expectedHol.emplace_back(16, September, 2043);
     expectedHol.emplace_back(17, September, 2043);
@@ -1989,6 +2026,8 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2044);
     expectedHol.emplace_back(6, May, 2044);
     expectedHol.emplace_back(6, June, 2044);
+    // expectedHol.emplace_back(17, July, 2044);    // Sunday
+    expectedHol.emplace_back(18, July, 2044);
     expectedHol.emplace_back(15, August, 2044);
     expectedHol.emplace_back(3, October, 2044);
     expectedHol.emplace_back(4, October, 2044);
@@ -2005,6 +2044,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2045);
     expectedHol.emplace_back(24, May, 2045);
     expectedHol.emplace_back(6, June, 2045);
+    expectedHol.emplace_back(17, July, 2045);
     expectedHol.emplace_back(15, August, 2045);
     expectedHol.emplace_back(25, September, 2045);
     expectedHol.emplace_back(26, September, 2045);
@@ -2021,6 +2061,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(7, May, 2046);
     expectedHol.emplace_back(14, May, 2046);
     expectedHol.emplace_back(6, June, 2046);
+    expectedHol.emplace_back(17, July, 2046);
     expectedHol.emplace_back(15, August, 2046);
     expectedHol.emplace_back(14, September, 2046);
     // expectedHol.emplace_back(15, September, 2046);    // Saturday
@@ -2037,6 +2078,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(2, May, 2047);
     expectedHol.emplace_back(6, May, 2047);
     expectedHol.emplace_back(6, June, 2047);
+    expectedHol.emplace_back(17, July, 2047);
     expectedHol.emplace_back(15, August, 2047);
     expectedHol.emplace_back(3, October, 2047);
     expectedHol.emplace_back(4, October, 2047);
@@ -2053,6 +2095,7 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2048);
     expectedHol.emplace_back(20, May, 2048);
     // expectedHol.emplace_back(6, June, 2048);    // Saturday
+    expectedHol.emplace_back(17, July, 2048);
     expectedHol.emplace_back(17, August, 2048);
     expectedHol.emplace_back(21, September, 2048);
     expectedHol.emplace_back(22, September, 2048);
@@ -2069,6 +2112,8 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2049);
     expectedHol.emplace_back(10, May, 2049);
     // expectedHol.emplace_back(6, June, 2049);    // Sunday
+    // expectedHol.emplace_back(17, July, 2049);    // Saturday
+    expectedHol.emplace_back(19, July, 2049);
     expectedHol.emplace_back(16, August, 2049);
     expectedHol.emplace_back(10, September, 2049);
     // expectedHol.emplace_back(11, September, 2049);    // Saturday
@@ -2085,6 +2130,8 @@ BOOST_AUTO_TEST_CASE(testSouthKoreanSettlement)
     expectedHol.emplace_back(5, May, 2050);
     expectedHol.emplace_back(30, May, 2050);
     expectedHol.emplace_back(6, June, 2050);
+    // expectedHol.emplace_back(17, July, 2050);    // Sunday
+    expectedHol.emplace_back(18, July, 2050);
     expectedHol.emplace_back(15, August, 2050);
     expectedHol.emplace_back(29, September, 2050);
     expectedHol.emplace_back(30, September, 2050);
@@ -2419,6 +2466,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(25, December, 2024);
     expectedHol.emplace_back(31, December, 2024);
     expectedHol.emplace_back(1, January, 2025);
+    expectedHol.emplace_back(27, January, 2025);
     expectedHol.emplace_back(28, January, 2025);
     expectedHol.emplace_back(29, January, 2025);
     expectedHol.emplace_back(30, January, 2025);
@@ -2426,6 +2474,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(1, May, 2025);
     expectedHol.emplace_back(5, May, 2025);
     expectedHol.emplace_back(6, May, 2025);
+    expectedHol.emplace_back(3, June, 2025);
     expectedHol.emplace_back(6, June, 2025);
     expectedHol.emplace_back(15, August, 2025);
     expectedHol.emplace_back(3, October, 2025);
@@ -2443,7 +2492,9 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(1, May, 2026);
     expectedHol.emplace_back(5, May, 2026);
     expectedHol.emplace_back(25, May, 2026);
+    expectedHol.emplace_back(3, June, 2026);
     // expectedHol.emplace_back(6, June, 2026);    // Saturday
+    expectedHol.emplace_back(17, July, 2026);
     expectedHol.emplace_back(17, August, 2026);
     expectedHol.emplace_back(24, September, 2026);
     expectedHol.emplace_back(25, September, 2026);
@@ -2461,6 +2512,8 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2027);
     expectedHol.emplace_back(13, May, 2027);
     // expectedHol.emplace_back(6, June, 2027);    // Sunday
+    // expectedHol.emplace_back(17, July, 2027);    // Saturday
+    expectedHol.emplace_back(19, July, 2027);
     expectedHol.emplace_back(16, August, 2027);
     expectedHol.emplace_back(14, September, 2027);
     expectedHol.emplace_back(15, September, 2027);
@@ -2478,6 +2531,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(2, May, 2028);
     expectedHol.emplace_back(5, May, 2028);
     expectedHol.emplace_back(6, June, 2028);
+    expectedHol.emplace_back(17, July, 2028);
     expectedHol.emplace_back(15, August, 2028);
     expectedHol.emplace_back(2, October, 2028);
     expectedHol.emplace_back(3, October, 2028);
@@ -2495,6 +2549,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(7, May, 2029);
     expectedHol.emplace_back(21, May, 2029);
     expectedHol.emplace_back(6, June, 2029);
+    expectedHol.emplace_back(17, July, 2029);
     expectedHol.emplace_back(15, August, 2029);
     expectedHol.emplace_back(21, September, 2029);
     // expectedHol.emplace_back(22, September, 2029);    // Saturday
@@ -2512,6 +2567,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(6, May, 2030);
     expectedHol.emplace_back(9, May, 2030);
     expectedHol.emplace_back(6, June, 2030);
+    expectedHol.emplace_back(17, July, 2030);
     expectedHol.emplace_back(15, August, 2030);
     expectedHol.emplace_back(11, September, 2030);
     expectedHol.emplace_back(12, September, 2030);
@@ -2529,6 +2585,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2031);
     expectedHol.emplace_back(28, May, 2031);
     expectedHol.emplace_back(6, June, 2031);
+    expectedHol.emplace_back(17, July, 2031);
     expectedHol.emplace_back(15, August, 2031);
     expectedHol.emplace_back(30, September, 2031);
     expectedHol.emplace_back(1, October, 2031);
@@ -2546,6 +2603,8 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2032);
     expectedHol.emplace_back(17, May, 2032);
     // expectedHol.emplace_back(6, June, 2032);    // Sunday
+    // expectedHol.emplace_back(17, July, 2032);    // Saturday
+    expectedHol.emplace_back(19, July, 2032);
     expectedHol.emplace_back(16, August, 2032);
     // expectedHol.emplace_back(18, September, 2032);    // Saturday
     expectedHol.emplace_back(20, September, 2032);
@@ -2563,6 +2622,8 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2033);
     expectedHol.emplace_back(6, May, 2033);
     expectedHol.emplace_back(6, June, 2033);
+    // expectedHol.emplace_back(17, July, 2033);    // Sunday
+    expectedHol.emplace_back(18, July, 2033);
     expectedHol.emplace_back(15, August, 2033);
     expectedHol.emplace_back(7, September, 2033);
     expectedHol.emplace_back(8, September, 2033);
@@ -2580,6 +2641,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2034);
     expectedHol.emplace_back(25, May, 2034);
     expectedHol.emplace_back(6, June, 2034);
+    expectedHol.emplace_back(17, July, 2034);
     expectedHol.emplace_back(15, August, 2034);
     expectedHol.emplace_back(26, September, 2034);
     expectedHol.emplace_back(27, September, 2034);
@@ -2597,6 +2659,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(7, May, 2035);
     expectedHol.emplace_back(15, May, 2035);
     expectedHol.emplace_back(6, June, 2035);
+    expectedHol.emplace_back(17, July, 2035);
     expectedHol.emplace_back(15, August, 2035);
     // expectedHol.emplace_back(15, September, 2035);    // Saturday
     expectedHol.emplace_back(17, September, 2035);
@@ -2614,6 +2677,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2036);
     expectedHol.emplace_back(6, May, 2036);
     expectedHol.emplace_back(6, June, 2036);
+    expectedHol.emplace_back(17, July, 2036);
     expectedHol.emplace_back(15, August, 2036);
     expectedHol.emplace_back(3, October, 2036);
     // expectedHol.emplace_back(4, October, 2036);    // Saturday
@@ -2631,6 +2695,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2037);
     expectedHol.emplace_back(22, May, 2037);
     // expectedHol.emplace_back(6, June, 2037);    // Saturday
+    expectedHol.emplace_back(17, July, 2037);
     expectedHol.emplace_back(17, August, 2037);
     expectedHol.emplace_back(23, September, 2037);
     expectedHol.emplace_back(24, September, 2037);
@@ -2648,6 +2713,8 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2038);
     expectedHol.emplace_back(11, May, 2038);
     // expectedHol.emplace_back(6, June, 2038);    // Sunday
+    // expectedHol.emplace_back(17, July, 2038);    // Saturday
+    expectedHol.emplace_back(19, July, 2038);
     expectedHol.emplace_back(16, August, 2038);
     expectedHol.emplace_back(13, September, 2038);
     expectedHol.emplace_back(14, September, 2038);
@@ -2665,6 +2732,8 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(2, May, 2039);
     expectedHol.emplace_back(5, May, 2039);
     expectedHol.emplace_back(6, June, 2039);
+    // expectedHol.emplace_back(17, July, 2039);    // Sunday
+    expectedHol.emplace_back(18, July, 2039);
     expectedHol.emplace_back(15, August, 2039);
     // expectedHol.emplace_back(1, October, 2039);    // Saturday
     expectedHol.emplace_back(3, October, 2039);
@@ -2682,6 +2751,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(7, May, 2040);
     expectedHol.emplace_back(18, May, 2040);
     expectedHol.emplace_back(6, June, 2040);
+    expectedHol.emplace_back(17, July, 2040);
     expectedHol.emplace_back(15, August, 2040);
     expectedHol.emplace_back(20, September, 2040);
     expectedHol.emplace_back(21, September, 2040);
@@ -2699,6 +2769,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(6, May, 2041);
     expectedHol.emplace_back(7, May, 2041);
     expectedHol.emplace_back(6, June, 2041);
+    expectedHol.emplace_back(17, July, 2041);
     expectedHol.emplace_back(15, August, 2041);
     expectedHol.emplace_back(9, September, 2041);
     expectedHol.emplace_back(10, September, 2041);
@@ -2716,6 +2787,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2042);
     expectedHol.emplace_back(26, May, 2042);
     expectedHol.emplace_back(6, June, 2042);
+    expectedHol.emplace_back(17, July, 2042);
     expectedHol.emplace_back(15, August, 2042);
     // expectedHol.emplace_back(27, September, 2042);    // Saturday
     expectedHol.emplace_back(29, September, 2042);
@@ -2733,6 +2805,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2043);
     expectedHol.emplace_back(18, May, 2043);
     // expectedHol.emplace_back(6, June, 2043);    // Saturday
+    expectedHol.emplace_back(17, July, 2043);
     expectedHol.emplace_back(17, August, 2043);
     expectedHol.emplace_back(16, September, 2043);
     expectedHol.emplace_back(17, September, 2043);
@@ -2750,6 +2823,8 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2044);
     expectedHol.emplace_back(6, May, 2044);
     expectedHol.emplace_back(6, June, 2044);
+    // expectedHol.emplace_back(17, July, 2044);    // Sunday
+    expectedHol.emplace_back(18, July, 2044);
     expectedHol.emplace_back(15, August, 2044);
     expectedHol.emplace_back(3, October, 2044);
     expectedHol.emplace_back(4, October, 2044);
@@ -2767,6 +2842,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2045);
     expectedHol.emplace_back(24, May, 2045);
     expectedHol.emplace_back(6, June, 2045);
+    expectedHol.emplace_back(17, July, 2045);
     expectedHol.emplace_back(15, August, 2045);
     expectedHol.emplace_back(25, September, 2045);
     expectedHol.emplace_back(26, September, 2045);
@@ -2784,6 +2860,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(7, May, 2046);
     expectedHol.emplace_back(14, May, 2046);
     expectedHol.emplace_back(6, June, 2046);
+    expectedHol.emplace_back(17, July, 2046);
     expectedHol.emplace_back(15, August, 2046);
     expectedHol.emplace_back(14, September, 2046);
     // expectedHol.emplace_back(15, September, 2046);    // Saturday
@@ -2801,6 +2878,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(2, May, 2047);
     expectedHol.emplace_back(6, May, 2047);
     expectedHol.emplace_back(6, June, 2047);
+    expectedHol.emplace_back(17, July, 2047);
     expectedHol.emplace_back(15, August, 2047);
     expectedHol.emplace_back(3, October, 2047);
     expectedHol.emplace_back(4, October, 2047);
@@ -2818,6 +2896,7 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2048);
     expectedHol.emplace_back(20, May, 2048);
     // expectedHol.emplace_back(6, June, 2048);    // Saturday
+    expectedHol.emplace_back(17, July, 2048);
     expectedHol.emplace_back(17, August, 2048);
     expectedHol.emplace_back(21, September, 2048);
     expectedHol.emplace_back(22, September, 2048);
@@ -2835,6 +2914,8 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2049);
     expectedHol.emplace_back(10, May, 2049);
     // expectedHol.emplace_back(6, June, 2049);    // Sunday
+    // expectedHol.emplace_back(17, July, 2049);    // Saturday
+    expectedHol.emplace_back(19, July, 2049);
     expectedHol.emplace_back(16, August, 2049);
     expectedHol.emplace_back(10, September, 2049);
     // expectedHol.emplace_back(11, September, 2049);    // Saturday
@@ -2852,6 +2933,8 @@ BOOST_AUTO_TEST_CASE(testKoreaStockExchange)
     expectedHol.emplace_back(5, May, 2050);
     expectedHol.emplace_back(30, May, 2050);
     expectedHol.emplace_back(6, June, 2050);
+    // expectedHol.emplace_back(17, July, 2050);    // Sunday
+    expectedHol.emplace_back(18, July, 2050);
     expectedHol.emplace_back(15, August, 2050);
     expectedHol.emplace_back(29, September, 2050);
     expectedHol.emplace_back(30, September, 2050);
@@ -3396,6 +3479,18 @@ BOOST_AUTO_TEST_CASE(testTASECalendar)
 {
     BOOST_TEST_MESSAGE("Testing TASE calendar...");
 
+    auto c = Israel(Israel::TASE);
+
+    // its weekend in these years was Friday and Saturday, where Calendar::isWeekend answers for the week since 2026
+    const auto holidays = [&c](Year y)
+    {
+        std::vector<Date> result = c.holidayList(Date(1, January, y), Date(31, December, y), true);
+        result.erase(std::remove_if(result.begin(), result.end(),
+                                    [](const Date& d) { return d.weekday() == Friday || d.weekday() == Saturday; }),
+                     result.end());
+        return result;
+    };
+
     std::vector<Date> expected2013 = {
         {24, February, 2013},  {25, March, 2013},     {26, March, 2013},     {31, March, 2013},
         {1, April, 2013},      {15, April, 2013},     {16, April, 2013},     {14, May, 2013},
@@ -3403,16 +3498,15 @@ BOOST_AUTO_TEST_CASE(testTASECalendar)
         {18, September, 2013}, {19, September, 2013}, {25, September, 2013}, {26, September, 2013},
     };
 
-    auto c = Israel();
-    checkHolidays(c.holidayList(Date(1, January, 2013), Date(31, December, 2013)), expected2013);
+    checkHolidays(holidays(2013), expected2013);
 
     std::vector<Date> expected2025 = {
-        {13, April, 2025},     {30, April, 2025},     {1, May, 2025},      {2, June, 2025},    {3, August, 2025},
-        {23, September, 2025}, {24, September, 2025}, {1, October, 2025},  {2, October, 2025}, {6, October, 2025},
-        {7, October, 2025},    {13, October, 2025},   {14, October, 2025},
+        {13, April, 2025},  {30, April, 2025},     {1, May, 2025},        {1, June, 2025},       {2, June, 2025},
+        {3, August, 2025},  {22, September, 2025}, {23, September, 2025}, {24, September, 2025}, {1, October, 2025},
+        {2, October, 2025}, {6, October, 2025},    {7, October, 2025},    {13, October, 2025},   {14, October, 2025},
     };
 
-    checkHolidays(c.holidayList(Date(1, January, 2025), Date(31, December, 2025)), expected2025);
+    checkHolidays(holidays(2025), expected2025);
 }
 
 BOOST_AUTO_TEST_CASE(testSHIRCalendar)
@@ -3817,6 +3911,914 @@ BOOST_AUTO_TEST_CASE(testDayLists)
         {
             BOOST_FAIL("Date " << d << "is neither holiday nor business day.");
         }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testHongKongExchangeIn2026)
+{
+    BOOST_TEST_MESSAGE("Testing the Hong Kong exchange's holidays in 2026...");
+
+    // HKEX's circular CT/075/25
+    const std::vector<Date> expected = {
+        {1, January, 2026}, {17, February, 2026}, {18, February, 2026}, {19, February, 2026}, {3, April, 2026},
+        {6, April, 2026},   {7, April, 2026},     {1, May, 2026},       {25, May, 2026},      {19, June, 2026},
+        {1, July, 2026},    {1, October, 2026},   {19, October, 2026},  {25, December, 2026},
+    };
+
+    const Calendar c = HongKong(HongKong::HKEx);
+    checkHolidays(c.holidayList(Date(1, January, 2026), Date(31, December, 2026)), expected);
+}
+
+BOOST_AUTO_TEST_CASE(testSingaporeExchangeIn2027)
+{
+    BOOST_TEST_MESSAGE("Testing the Singapore exchange's holidays in 2027...");
+
+    // from the public holidays the Ministry of Manpower gives for that year, on weekdays
+    const std::vector<Date> expected = {
+        {1, January, 2027}, {8, February, 2027}, {10, March, 2027}, {26, March, 2027},
+        {17, May, 2027},    {20, May, 2027},     {9, August, 2027}, {28, October, 2027},
+    };
+
+    const Calendar c = Singapore(Singapore::SGX);
+    checkHolidays(c.holidayList(Date(1, January, 2027), Date(31, December, 2027)), expected);
+}
+
+BOOST_AUTO_TEST_CASE(testSouthAfricaIn2026)
+{
+    BOOST_TEST_MESSAGE("Testing South Africa's holidays in 2026...");
+
+    const std::vector<Date> expected = {
+        {1, January, 2026},   {3, April, 2026},     {6, April, 2026},      {27, April, 2026},   {1, May, 2026},
+        {16, June, 2026},     {10, August, 2026},   {24, September, 2026}, {4, November, 2026}, // local elections
+        {16, December, 2026}, {25, December, 2026},
+    };
+
+    const Calendar c = SouthAfrica();
+    checkHolidays(c.holidayList(Date(1, January, 2026), Date(31, December, 2026)), expected);
+    BOOST_CHECK(c.isBusinessDay(Date(4, November, 2025)));
+}
+
+BOOST_AUTO_TEST_CASE(testFranceSettlementMovesWithEaster)
+{
+    BOOST_TEST_MESSAGE("Testing that France's Ascension and Whit Monday move with Easter...");
+
+    const Calendar c = France(France::Settlement);
+
+    const std::vector<Date> expected2024 = {
+        {1, January, 2024}, {1, April, 2024},   {1, May, 2024},      {8, May, 2024},       {9, May, 2024},
+        {20, May, 2024},    {15, August, 2024}, {1, November, 2024}, {11, November, 2024}, {25, December, 2024},
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2024), Date(31, December, 2024)), expected2024);
+
+    const std::vector<Date> expected2025 = {
+        {1, January, 2025}, {21, April, 2025}, {1, May, 2025},     {8, May, 2025},       {29, May, 2025},
+        {9, June, 2025},    {14, July, 2025},  {15, August, 2025}, {11, November, 2025}, {25, December, 2025},
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2025), Date(31, December, 2025)), expected2025);
+}
+
+BOOST_AUTO_TEST_CASE(testRomaniaExchangeIn2026)
+{
+    BOOST_TEST_MESSAGE("Testing the Bucharest Stock Exchange's holidays of 2026...");
+
+    // from BVB's schedule of trading sessions
+    const std::vector<Date> expected = {
+        {1, January, 2026},   {2, January, 2026},  {6, January, 2026},   {7, January, 2026},
+        {10, April, 2026},    {13, April, 2026},   {1, May, 2026},       {1, June, 2026},
+        {30, November, 2026}, {1, December, 2026}, {25, December, 2026},
+    };
+    const Calendar c = Romania(Romania::BVB);
+    checkHolidays(c.holidayList(Date(1, January, 2026), Date(31, December, 2026)), expected);
+}
+
+BOOST_AUTO_TEST_CASE(testRomaniaPublicHolidaysFromWhenTheyWereAdded)
+{
+    BOOST_TEST_MESSAGE("Testing the years from which Romania's newer public holidays apply...");
+
+    const Calendar c = Romania(Romania::Public);
+
+    // Good Friday, the last Friday before Orthodox Easter, from 2018
+    BOOST_CHECK(c.isBusinessDay(Date(14, April, 2017)));
+    BOOST_CHECK(c.isHoliday(Date(6, April, 2018)));
+    BOOST_CHECK(c.isHoliday(Date(18, April, 2025)));
+    // and not the Western one, a week before it in 2026
+    BOOST_CHECK(c.isBusinessDay(Date(3, April, 2026)));
+
+    // Epiphany and St John the Baptist, added in 2023 and first on weekdays since then in 2025
+    BOOST_CHECK(c.isBusinessDay(Date(6, January, 2022)));
+    BOOST_CHECK(c.isBusinessDay(Date(7, January, 2022)));
+    BOOST_CHECK(c.isHoliday(Date(6, January, 2025)));
+    BOOST_CHECK(c.isHoliday(Date(7, January, 2025)));
+}
+
+BOOST_AUTO_TEST_CASE(testBotswanaPublicHolidaysAct)
+{
+    BOOST_TEST_MESSAGE("Testing Botswana's calendar against its Public Holidays Act...");
+
+    const Calendar c = Botswana();
+
+    // from the Botswana Stock Exchange's list of market holidays
+    const std::vector<Date> expected2026 = {
+        {1, January, 2026},    {2, January, 2026}, {3, April, 2026},     {6, April, 2026}, {1, May, 2026},
+        {14, May, 2026},       {15, May, 2026},    {1, July, 2026},      {20, July, 2026}, {21, July, 2026},
+        {30, September, 2026}, {1, October, 2026}, {25, December, 2026},
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2026), Date(31, December, 2026)), expected2026);
+
+    // the provisos of the Act: a holiday on a Sunday moves to Monday, and January 2nd, October 1st or
+    // Boxing Day on a Monday brings the following Tuesday
+    BOOST_CHECK(c.isHoliday(Date(3, January, 2022))); // January 2nd on a Sunday
+    BOOST_CHECK(c.isBusinessDay(Date(4, January, 2022)));
+    BOOST_CHECK(c.isHoliday(Date(3, January, 2023))); // January 2nd on a Monday
+    BOOST_CHECK(c.isBusinessDay(Date(4, January, 2023)));
+    BOOST_CHECK(c.isHoliday(Date(1, October, 2018))); // September 30th on a Sunday, and October 1st on a Monday
+    BOOST_CHECK(c.isHoliday(Date(2, October, 2018)));
+    BOOST_CHECK(c.isBusinessDay(Date(3, October, 2018)));
+    BOOST_CHECK(c.isHoliday(Date(2, October, 2023))); // September 30th on a Saturday, and October 1st on a Sunday
+    BOOST_CHECK(c.isBusinessDay(Date(3, October, 2023)));
+    BOOST_CHECK(c.isHoliday(Date(27, December, 2021))); // Boxing Day on a Sunday
+    BOOST_CHECK(c.isBusinessDay(Date(28, December, 2021)));
+    BOOST_CHECK(c.isHoliday(Date(26, December, 2022))); // Christmas on a Sunday, and Boxing Day on a Monday
+    BOOST_CHECK(c.isHoliday(Date(27, December, 2022)));
+    BOOST_CHECK(c.isBusinessDay(Date(28, December, 2022)));
+
+    // the second day and the Tuesday are in every year, and the holiday for President Mogae in only one
+    BOOST_CHECK(c.isHoliday(Date(2, January, 2025)));
+    BOOST_CHECK(c.isBusinessDay(Date(3, January, 2025)));
+    BOOST_CHECK(c.isHoliday(Date(22, July, 2025)));
+    BOOST_CHECK(c.isBusinessDay(Date(23, July, 2025)));
+    BOOST_CHECK(c.isBusinessDay(Date(15, May, 2025)));
+}
+
+BOOST_AUTO_TEST_CASE(testItalySettlementOnSaintFrancis)
+{
+    BOOST_TEST_MESSAGE("Testing Italy's national holiday of Saint Francis...");
+
+    const Calendar c = Italy(Italy::Settlement);
+
+    // law 151 of 2025 applies from 2026, when October 4th is a Sunday
+    BOOST_CHECK(c.isBusinessDay(Date(4, October, 2024)));
+    BOOST_CHECK(c.isHoliday(Date(4, October, 2027)));
+    BOOST_CHECK(c.isHoliday(Date(4, October, 2028)));
+
+    const std::vector<Date> expected2027 = {
+        {1, January, 2027}, {6, January, 2027},  {29, March, 2027},   {2, June, 2027},
+        {4, October, 2027}, {1, November, 2027}, {8, December, 2027},
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2027), Date(31, December, 2027)), expected2027);
+}
+
+BOOST_AUTO_TEST_CASE(testItalyExchangeAgainstItsCalendars)
+{
+    BOOST_TEST_MESSAGE("Testing the Milan Stock Exchange against its published calendars...");
+
+    const std::vector<Date> expected = {
+        {1, January, 2024},
+        {29, March, 2024},
+        {1, April, 2024},
+        {1, May, 2024},
+        {15, August, 2024},
+        {24, December, 2024},
+        {25, December, 2024},
+        {26, December, 2024},
+        {31, December, 2024},
+
+        {1, January, 2025},
+        {18, April, 2025},
+        {21, April, 2025},
+        {1, May, 2025},
+        {15, August, 2025},
+        {24, December, 2025},
+        {25, December, 2025},
+        {26, December, 2025},
+        {31, December, 2025},
+
+        {1, January, 2026},
+        {3, April, 2026},
+        {6, April, 2026},
+        {1, May, 2026},
+        {24, December, 2026},
+        {25, December, 2026},
+        {31, December, 2026},
+
+        // December 24th and 31st are half days from here on
+        {1, January, 2027},
+        {26, March, 2027},
+        {29, March, 2027},
+    };
+    const Calendar c = Italy(Italy::Exchange);
+    checkHolidays(c.holidayList(Date(1, January, 2024), Date(31, December, 2027)), expected);
+}
+
+BOOST_AUTO_TEST_CASE(testTaiwanExchangeIn2025And2026)
+{
+    BOOST_TEST_MESSAGE("Testing the Taiwan Stock Exchange's holidays of 2025 and 2026...");
+
+    // from TWSE's holiday schedule, with the two days before each Lunar New Year when it settles but doesn't trade
+    const std::vector<Date> expected = {
+        {1, January, 2025},   {23, January, 2025},  {24, January, 2025},  {27, January, 2025},   {28, January, 2025},
+        {29, January, 2025},  {30, January, 2025},  {31, January, 2025},  {28, February, 2025},  {3, April, 2025},
+        {4, April, 2025},     {1, May, 2025},       {30, May, 2025},      {29, September, 2025}, {6, October, 2025},
+        {10, October, 2025},  {24, October, 2025},  {25, December, 2025},
+
+        {1, January, 2026},   {12, February, 2026}, {13, February, 2026}, {16, February, 2026},  {17, February, 2026},
+        {18, February, 2026}, {19, February, 2026}, {20, February, 2026}, {27, February, 2026},  {3, April, 2026},
+        {6, April, 2026},     {1, May, 2026},       {19, June, 2026},     {25, September, 2026}, {28, September, 2026},
+        {9, October, 2026},   {26, October, 2026},  {25, December, 2026},
+    };
+    const Calendar c = Taiwan();
+    checkHolidays(c.holidayList(Date(1, January, 2025), Date(31, December, 2026)), expected);
+}
+
+BOOST_AUTO_TEST_CASE(testTaiwanMovesHolidaysOffWeekends)
+{
+    BOOST_TEST_MESSAGE("Testing that Taiwan moves its fixed holidays off weekends since 2015...");
+
+    const Calendar c = Taiwan();
+
+    // on a Saturday to Friday, and on a Sunday to Monday
+    const std::vector<Date> moved = {
+        {27, February, 2015}, {9, October, 2015},   {29, February, 2016},  {2, May, 2016},      {2, January, 2017},
+        {9, October, 2020},   {1, March, 2021},     {30, April, 2021},     {11, October, 2021}, {31, December, 2021},
+        {2, May, 2022},       {2, January, 2023},   {29, September, 2025}, {24, October, 2025}, {27, February, 2026},
+        {9, October, 2026},   {26, October, 2026},  {1, March, 2027},      {30, April, 2027},   {11, October, 2027},
+        {24, December, 2027}, {31, December, 2027},
+    };
+    for (const Date& date : moved)
+        BOOST_CHECK_MESSAGE(c.isHoliday(date), date << " should be a holiday");
+
+    const std::vector<Date> notMoved = {
+        {27, February, 2009}, // before 2015
+        {1, March, 2032},     // February has a 29th, and the 28th is a Saturday, so it's the Friday before
+        {24, December, 2021}, // Constitution Day is a holiday only from 2025
+        {25, December, 2024},
+    };
+    for (const Date& date : notMoved)
+        BOOST_CHECK_MESSAGE(c.isBusinessDay(date), date << " should be a business day");
+    BOOST_CHECK(c.isHoliday(Date(27, February, 2032)));
+}
+
+BOOST_AUTO_TEST_CASE(testSaudiArabiaAgainstTheExchangesNotices)
+{
+    BOOST_TEST_MESSAGE("Testing Saudi Arabia's Eid holidays and Founding Day against the exchange's notices...");
+
+    const Calendar c = SaudiArabia();
+
+    // what the notices close between January and National Day, year by year; the last session
+    // before a holiday and the first one after it stay open
+    const std::vector<std::vector<Date>> closures = {
+        {Date(3, July, 2016), Date(4, July, 2016), Date(5, July, 2016), Date(6, July, 2016), Date(7, July, 2016),
+         Date(11, September, 2016), Date(12, September, 2016), Date(13, September, 2016), Date(14, September, 2016),
+         Date(15, September, 2016)},
+        {Date(25, June, 2017), Date(26, June, 2017), Date(27, June, 2017), Date(28, June, 2017), Date(29, June, 2017),
+         Date(30, August, 2017), Date(31, August, 2017), Date(3, September, 2017), Date(4, September, 2017),
+         Date(5, September, 2017)},
+        {Date(13, June, 2018), Date(14, June, 2018), Date(17, June, 2018), Date(18, June, 2018), Date(19, June, 2018),
+         Date(19, August, 2018), Date(20, August, 2018), Date(21, August, 2018), Date(22, August, 2018),
+         Date(23, August, 2018)},
+        {Date(2, June, 2019), Date(3, June, 2019), Date(4, June, 2019), Date(5, June, 2019), Date(6, June, 2019),
+         Date(11, August, 2019), Date(12, August, 2019), Date(13, August, 2019), Date(14, August, 2019),
+         Date(15, August, 2019)},
+        {Date(24, May, 2020), Date(25, May, 2020), Date(26, May, 2020), Date(27, May, 2020), Date(28, May, 2020),
+         Date(29, July, 2020), Date(30, July, 2020), Date(2, August, 2020), Date(3, August, 2020),
+         Date(4, August, 2020)},
+        {Date(11, May, 2021), Date(12, May, 2021), Date(13, May, 2021), Date(16, May, 2021), Date(18, July, 2021),
+         Date(19, July, 2021), Date(20, July, 2021), Date(21, July, 2021), Date(22, July, 2021)},
+        {Date(22, February, 2022), Date(1, May, 2022), Date(2, May, 2022), Date(3, May, 2022), Date(4, May, 2022),
+         Date(5, May, 2022), Date(7, July, 2022), Date(10, July, 2022), Date(11, July, 2022), Date(12, July, 2022)},
+        {Date(22, February, 2023), Date(18, April, 2023), Date(19, April, 2023), Date(20, April, 2023),
+         Date(23, April, 2023), Date(24, April, 2023), Date(25, June, 2023), Date(26, June, 2023), Date(27, June, 2023),
+         Date(28, June, 2023), Date(29, June, 2023)},
+        {Date(22, February, 2024), Date(7, April, 2024), Date(8, April, 2024), Date(9, April, 2024),
+         Date(10, April, 2024), Date(11, April, 2024), Date(16, June, 2024), Date(17, June, 2024), Date(18, June, 2024),
+         Date(19, June, 2024), Date(20, June, 2024)},
+        {Date(23, February, 2025), Date(30, March, 2025), Date(31, March, 2025), Date(1, April, 2025),
+         Date(2, April, 2025), Date(5, June, 2025), Date(8, June, 2025), Date(9, June, 2025), Date(10, June, 2025)},
+        {Date(22, February, 2026), Date(17, March, 2026), Date(18, March, 2026), Date(19, March, 2026),
+         Date(22, March, 2026), Date(23, March, 2026), Date(24, May, 2026), Date(25, May, 2026), Date(26, May, 2026),
+         Date(27, May, 2026), Date(28, May, 2026)},
+        {Date(22, February, 2027), Date(7, March, 2027), Date(8, March, 2027), Date(9, March, 2027),
+         Date(10, March, 2027), Date(11, March, 2027), Date(16, May, 2027), Date(17, May, 2027), Date(18, May, 2027),
+         Date(19, May, 2027), Date(20, May, 2027)},
+        {Date(22, February, 2028), Date(27, February, 2028), Date(28, February, 2028), Date(29, February, 2028),
+         Date(1, March, 2028), Date(2, March, 2028), Date(3, May, 2028), Date(4, May, 2028), Date(7, May, 2028),
+         Date(8, May, 2028), Date(9, May, 2028)},
+        {Date(12, February, 2029), Date(13, February, 2029), Date(14, February, 2029), Date(15, February, 2029),
+         Date(18, February, 2029), Date(22, February, 2029), Date(22, April, 2029), Date(23, April, 2029),
+         Date(24, April, 2029), Date(25, April, 2029), Date(26, April, 2029)},
+    };
+    for (const std::vector<Date>& days : closures)
+    {
+        const Year y = days.front().year();
+        checkHolidays(c.holidayList(Date(1, January, y), Date(20, September, y)), days);
+    }
+
+    // Founding Day goes to the Thursday before a Friday and the Sunday after a Saturday
+    BOOST_CHECK(c.isHoliday(Date(21, February, 2030)));
+    BOOST_CHECK(c.isBusinessDay(Date(24, February, 2030)));
+    BOOST_CHECK(c.isHoliday(Date(23, February, 2031)));
+    BOOST_CHECK(c.isBusinessDay(Date(20, February, 2031)));
+    // and it starts in 2022: these are a Monday, the Thursday before a Friday, and the Sunday after a Saturday
+    BOOST_CHECK(c.isBusinessDay(Date(22, February, 2021)));
+    BOOST_CHECK(c.isBusinessDay(Date(21, February, 2019)));
+    BOOST_CHECK(c.isBusinessDay(Date(23, February, 2020)));
+
+    // the only notices found before 2016 are for Eid Al-Adha of 2012 and Eid Al-Fitr of 2015
+    BOOST_CHECK(c.isBusinessDay(Date(24, October, 2012)));
+    BOOST_CHECK(c.isHoliday(Date(27, October, 2012)));
+    BOOST_CHECK(c.isHoliday(Date(31, October, 2012)));
+    BOOST_CHECK(c.isBusinessDay(Date(3, November, 2012)));
+    BOOST_CHECK(c.isBusinessDay(Date(15, July, 2015)));
+    BOOST_CHECK(c.isHoliday(Date(16, July, 2015)));
+    BOOST_CHECK(c.isHoliday(Date(21, July, 2015)));
+    BOOST_CHECK(c.isBusinessDay(Date(22, July, 2015)));
+}
+
+BOOST_AUTO_TEST_CASE(testSaudiArabiaNationalDayOffWeekends)
+{
+    BOOST_TEST_MESSAGE("Testing that Saudi Arabia's National Day moves off a weekend...");
+
+    const Calendar c = SaudiArabia();
+
+    // on a Friday it goes to the Thursday before
+    for (Year y : {2016, 2022, 2033})
+    {
+        BOOST_CHECK(c.isHoliday(Date(22, September, y)));
+        BOOST_CHECK(c.isBusinessDay(Date(25, September, y)));
+    }
+    // on a Saturday it goes to the Sunday after
+    for (Year y : {2017, 2023, 2028})
+    {
+        BOOST_CHECK(c.isBusinessDay(Date(21, September, y)));
+        BOOST_CHECK(c.isHoliday(Date(24, September, y)));
+        BOOST_CHECK(c.isBusinessDay(Date(25, September, y)));
+    }
+    // on any other day it stays where it is
+    BOOST_CHECK(c.isBusinessDay(Date(22, September, 2024)));
+    BOOST_CHECK(c.isHoliday(Date(23, September, 2024)));
+    BOOST_CHECK(c.isBusinessDay(Date(24, September, 2024)));
+
+    // in the old week a Saturday was a working day, so the Saturday of 2006 moved nothing...
+    BOOST_CHECK(c.isHoliday(Date(23, September, 2006)));
+    BOOST_CHECK(c.isBusinessDay(Date(24, September, 2006)));
+    // ...and the Thursday of 2010 was part of the weekend, so it was kept on the day before
+    BOOST_CHECK(c.isBusinessDay(Date(21, September, 2010)));
+    BOOST_CHECK(c.isHoliday(Date(22, September, 2010)));
+    BOOST_CHECK(c.isBusinessDay(Date(25, September, 2010)));
+
+    // extended by royal order
+    BOOST_CHECK(c.isHoliday(Date(23, September, 2018)));
+    BOOST_CHECK(c.isHoliday(Date(24, September, 2018)));
+    BOOST_CHECK(c.isBusinessDay(Date(25, September, 2018)));
+
+    // declared by royal order after the World Cup match against Argentina
+    BOOST_CHECK(c.isBusinessDay(Date(22, November, 2022)));
+    BOOST_CHECK(c.isHoliday(Date(23, November, 2022)));
+    BOOST_CHECK(c.isBusinessDay(Date(24, November, 2022)));
+}
+
+BOOST_AUTO_TEST_CASE(testSaudiArabiaAgainstReportedTradingDays)
+{
+    BOOST_TEST_MESSAGE("Testing Saudi Arabia's calendar against the exchange's reported trading days...");
+
+    const Calendar c = SaudiArabia();
+
+    struct Period
+    {
+        Date from, to;
+        Date::serial_type tradingDays;
+    };
+    // the exchange's annual and interim statistical reports; none found for the whole of 2018 or 2023
+    const Period periods[] = {
+        {Date(1, January, 2012), Date(31, December, 2012), 251},
+        {Date(1, January, 2013), Date(31, December, 2013), 248},
+        {Date(1, January, 2014), Date(31, December, 2014), 250},
+        {Date(1, January, 2015), Date(31, December, 2015), 251},
+        {Date(1, January, 2013), Date(31, March, 2013), 64},
+        {Date(1, April, 2013), Date(30, June, 2013), 64},
+        {Date(1, July, 2013), Date(30, September, 2013), 59},
+        {Date(1, October, 2013), Date(31, December, 2013), 61},
+        {Date(1, January, 2016), Date(31, December, 2016), 249},
+        {Date(1, January, 2017), Date(31, December, 2017), 250},
+        {Date(1, January, 2019), Date(31, December, 2019), 250},
+        {Date(1, January, 2020), Date(31, December, 2020), 251},
+        {Date(1, January, 2021), Date(31, December, 2021), 250},
+        {Date(1, January, 2022), Date(31, December, 2022), 248},
+        {Date(1, January, 2024), Date(31, December, 2024), 250},
+        {Date(1, January, 2025), Date(31, December, 2025), 251},
+        {Date(1, January, 2023), Date(30, September, 2023), 183},
+        {Date(1, January, 2024), Date(30, September, 2024), 184},
+        {Date(1, January, 2020), Date(31, March, 2020), 65},
+        {Date(1, January, 2021), Date(31, March, 2021), 64},
+        {Date(1, January, 2020), Date(30, June, 2020), 125},
+        {Date(1, January, 2021), Date(30, June, 2021), 125},
+    };
+    for (const Period& p : periods)
+    {
+        BOOST_CHECK_MESSAGE(c.businessDaysBetween(p.from, p.to, true, true) == p.tradingDays,
+                            "from " << p.from << " to " << p.to << ": calculated "
+                                    << c.businessDaysBetween(p.from, p.to, true, true) << ", reported "
+                                    << p.tradingDays);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testIndonesiaExchangeAgainstItsSessions)
+{
+    BOOST_TEST_MESSAGE("Testing Indonesia's holidays against the sessions the exchange held...");
+
+    const Calendar c = Indonesia();
+
+    // the weekdays with no session, year by year: until November 2025 the weekdays on which four
+    // banks' shares didn't trade, less days missing from that data; after that the exchange's calendar
+    const std::vector<std::vector<Date>> closures = {
+        {Date(1, January, 2015), Date(19, February, 2015), Date(3, April, 2015), Date(1, May, 2015),
+         Date(14, May, 2015), Date(2, June, 2015), Date(16, July, 2015), Date(17, July, 2015), Date(20, July, 2015),
+         Date(21, July, 2015), Date(17, August, 2015), Date(24, September, 2015), Date(14, October, 2015),
+         Date(9, December, 2015), Date(24, December, 2015), Date(25, December, 2015), Date(31, December, 2015)},
+        {Date(1, January, 2016), Date(8, February, 2016), Date(9, March, 2016), Date(25, March, 2016),
+         Date(5, May, 2016), Date(6, May, 2016), Date(4, July, 2016), Date(5, July, 2016), Date(6, July, 2016),
+         Date(7, July, 2016), Date(8, July, 2016), Date(17, August, 2016), Date(12, September, 2016),
+         Date(12, December, 2016), Date(26, December, 2016)},
+        {Date(2, January, 2017),   Date(15, February, 2017), Date(28, March, 2017),     Date(14, April, 2017),
+         Date(19, April, 2017),    Date(24, April, 2017),    Date(1, May, 2017),        Date(11, May, 2017),
+         Date(25, May, 2017),      Date(1, June, 2017),      Date(23, June, 2017),      Date(26, June, 2017),
+         Date(27, June, 2017),     Date(28, June, 2017),     Date(29, June, 2017),      Date(30, June, 2017),
+         Date(17, August, 2017),   Date(1, September, 2017), Date(21, September, 2017), Date(1, December, 2017),
+         Date(25, December, 2017), Date(26, December, 2017)},
+        {Date(1, January, 2018),    Date(16, February, 2018), Date(30, March, 2018),    Date(1, May, 2018),
+         Date(10, May, 2018),       Date(29, May, 2018),      Date(1, June, 2018),      Date(11, June, 2018),
+         Date(12, June, 2018),      Date(13, June, 2018),     Date(14, June, 2018),     Date(15, June, 2018),
+         Date(18, June, 2018),      Date(19, June, 2018),     Date(17, August, 2018),   Date(22, August, 2018),
+         Date(11, September, 2018), Date(20, November, 2018), Date(24, December, 2018), Date(25, December, 2018),
+         Date(31, December, 2018)},
+        {Date(1, January, 2019), Date(5, February, 2019), Date(7, March, 2019), Date(3, April, 2019),
+         Date(17, April, 2019), Date(19, April, 2019), Date(1, May, 2019), Date(30, May, 2019), Date(3, June, 2019),
+         Date(4, June, 2019), Date(5, June, 2019), Date(6, June, 2019), Date(7, June, 2019), Date(24, December, 2019),
+         Date(25, December, 2019), Date(31, December, 2019)},
+        {Date(1, January, 2020),  Date(25, March, 2020),    Date(10, April, 2020),    Date(1, May, 2020),
+         Date(7, May, 2020),      Date(21, May, 2020),      Date(22, May, 2020),      Date(25, May, 2020),
+         Date(1, June, 2020),     Date(31, July, 2020),     Date(17, August, 2020),   Date(20, August, 2020),
+         Date(21, August, 2020),  Date(28, October, 2020),  Date(29, October, 2020),  Date(30, October, 2020),
+         Date(9, December, 2020), Date(24, December, 2020), Date(25, December, 2020), Date(31, December, 2020)},
+        {Date(1, January, 2021), Date(12, February, 2021), Date(11, March, 2021), Date(2, April, 2021),
+         Date(12, May, 2021), Date(13, May, 2021), Date(14, May, 2021), Date(26, May, 2021), Date(1, June, 2021),
+         Date(20, July, 2021), Date(11, August, 2021), Date(17, August, 2021), Date(20, October, 2021),
+         Date(31, December, 2021)},
+        {Date(1, February, 2022), Date(28, February, 2022), Date(3, March, 2022), Date(15, April, 2022),
+         Date(29, April, 2022), Date(2, May, 2022), Date(3, May, 2022), Date(4, May, 2022), Date(5, May, 2022),
+         Date(6, May, 2022), Date(16, May, 2022), Date(26, May, 2022), Date(1, June, 2022), Date(17, August, 2022)},
+        {Date(23, January, 2023), Date(22, March, 2023),  Date(23, March, 2023),     Date(7, April, 2023),
+         Date(19, April, 2023),   Date(20, April, 2023),  Date(21, April, 2023),     Date(24, April, 2023),
+         Date(25, April, 2023),   Date(1, May, 2023),     Date(18, May, 2023),       Date(1, June, 2023),
+         Date(2, June, 2023),     Date(28, June, 2023),   Date(29, June, 2023),      Date(30, June, 2023),
+         Date(19, July, 2023),    Date(17, August, 2023), Date(28, September, 2023), Date(25, December, 2023),
+         Date(26, December, 2023)},
+        {Date(1, January, 2024),    Date(8, February, 2024),  Date(9, February, 2024),  Date(14, February, 2024),
+         Date(11, March, 2024),     Date(12, March, 2024),    Date(29, March, 2024),    Date(8, April, 2024),
+         Date(9, April, 2024),      Date(10, April, 2024),    Date(11, April, 2024),    Date(12, April, 2024),
+         Date(15, April, 2024),     Date(1, May, 2024),       Date(9, May, 2024),       Date(10, May, 2024),
+         Date(23, May, 2024),       Date(24, May, 2024),      Date(17, June, 2024),     Date(18, June, 2024),
+         Date(16, September, 2024), Date(27, November, 2024), Date(25, December, 2024), Date(26, December, 2024),
+         Date(31, December, 2024)},
+        {Date(1, January, 2025),  Date(27, January, 2025),  Date(28, January, 2025),  Date(29, January, 2025),
+         Date(28, March, 2025),   Date(31, March, 2025),    Date(1, April, 2025),     Date(2, April, 2025),
+         Date(3, April, 2025),    Date(4, April, 2025),     Date(7, April, 2025),     Date(18, April, 2025),
+         Date(1, May, 2025),      Date(12, May, 2025),      Date(13, May, 2025),      Date(29, May, 2025),
+         Date(30, May, 2025),     Date(6, June, 2025),      Date(9, June, 2025),      Date(27, June, 2025),
+         Date(18, August, 2025),  Date(5, September, 2025), Date(25, December, 2025), Date(26, December, 2025),
+         Date(31, December, 2025)},
+        {Date(1, January, 2026),   Date(16, January, 2026), Date(16, February, 2026), Date(17, February, 2026),
+         Date(18, March, 2026),    Date(19, March, 2026),   Date(20, March, 2026),    Date(23, March, 2026),
+         Date(24, March, 2026),    Date(3, April, 2026),    Date(1, May, 2026),       Date(14, May, 2026),
+         Date(15, May, 2026),      Date(27, May, 2026),     Date(28, May, 2026),      Date(1, June, 2026),
+         Date(16, June, 2026),     Date(17, August, 2026),  Date(25, August, 2026),   Date(24, December, 2026),
+         Date(25, December, 2026), Date(31, December, 2026)},
+    };
+    for (const std::vector<Date>& days : closures)
+    {
+        const Year y = days.front().year();
+        checkHolidays(c.holidayList(Date(1, January, y), Date(31, December, y)), days);
+    }
+
+    // Labour Day has been a holiday since 2014 and Pancasila Day since 2017, and both are rules from then on
+    BOOST_CHECK(c.isBusinessDay(Date(1, May, 2013)));
+    BOOST_CHECK(c.isBusinessDay(Date(1, June, 2016)));
+    BOOST_CHECK(c.isHoliday(Date(1, May, 2029)));
+    BOOST_CHECK(c.isHoliday(Date(1, June, 2029)));
+}
+
+BOOST_AUTO_TEST_CASE(testIndonesiaClosuresBefore2015)
+{
+    BOOST_TEST_MESSAGE("Testing Indonesia's closures before 2015...");
+
+    const Calendar c = Indonesia();
+
+    // the exchange closed on these: common leave, the suspension of October 2008, and elections
+    const std::vector<Date> closed = {
+        Date(30, December, 2005), Date(31, March, 2006),    Date(26, May, 2006),      Date(18, August, 2006),
+        Date(21, December, 2007), Date(24, December, 2007), Date(31, December, 2007), Date(9, October, 2008),
+        Date(10, October, 2008),  Date(8, July, 2009),      Date(18, May, 2012),      Date(9, April, 2014),
+        Date(9, July, 2014),
+    };
+    for (const Date& d : closed)
+        BOOST_CHECK_MESSAGE(c.isHoliday(d), d << " should be a holiday");
+
+    // and it traded on this one, a Wednesday, which the block for 2007 had closed in place of December 24th
+    BOOST_CHECK(c.isBusinessDay(Date(24, October, 2007)));
+}
+
+BOOST_AUTO_TEST_CASE(testIndiaClearingHolidaysIn2026)
+{
+    BOOST_TEST_MESSAGE("Testing India's clearing holidays for 2026 against NSE Clearing's notices...");
+
+    // NCL/CMPT/71904 with January 15th from NCL/CMPT/72278. The settlement calendars NSE Clearing issued for each
+    // month of the year leave out exactly these weekdays. February 19th, March 19th, April 1st and August 26th are
+    // trade dates in those calendars: the exchange trades on them, but this calendar is the clearing one.
+    const std::vector<Date> expected = {
+        Date(15, January, 2026), Date(26, January, 2026),  Date(19, February, 2026),  Date(3, March, 2026),
+        Date(19, March, 2026),   Date(26, March, 2026),    Date(31, March, 2026),     Date(1, April, 2026),
+        Date(3, April, 2026),    Date(14, April, 2026),    Date(1, May, 2026),        Date(28, May, 2026),
+        Date(26, June, 2026),    Date(26, August, 2026),   Date(14, September, 2026), Date(2, October, 2026),
+        Date(20, October, 2026), Date(10, November, 2026), Date(24, November, 2026),  Date(25, December, 2026),
+    };
+
+    const Calendar c = India();
+    checkHolidays(c.holidayList(Date(1, January, 2026), Date(31, December, 2026)), expected);
+}
+
+BOOST_AUTO_TEST_CASE(testIndiaClearingHolidaysIn2024And2025)
+{
+    BOOST_TEST_MESSAGE("Testing India's clearing holidays for 2024 and 2025 against NSE Clearing's notices...");
+
+    const Calendar c = India();
+
+    // NCL/CMPT/59922, with the closures declared later: January 22nd, May 20th (NSE/CMTR/61518), November 20th
+    // (NSE/CMTR/64960) and September 18th. The public holiday moved from the 16th to the 18th, but NCL/CMPT/63950
+    // kept the 16th as a settlement holiday as well.
+    const std::vector<Date> expected2024 = {
+        Date(22, January, 2024),   Date(26, January, 2024),   Date(19, February, 2024), Date(8, March, 2024),
+        Date(25, March, 2024),     Date(29, March, 2024),     Date(1, April, 2024),     Date(9, April, 2024),
+        Date(11, April, 2024),     Date(17, April, 2024),     Date(1, May, 2024),       Date(20, May, 2024),
+        Date(23, May, 2024),       Date(17, June, 2024),      Date(17, July, 2024),     Date(15, August, 2024),
+        Date(16, September, 2024), Date(18, September, 2024), Date(2, October, 2024),   Date(1, November, 2024),
+        Date(15, November, 2024),  Date(20, November, 2024),  Date(25, December, 2024),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2024), Date(31, December, 2024)), expected2024);
+
+    // NCL/CMPT/65916, with September 8th from NCL/CMPT/70039, which kept the 5th as well
+    const std::vector<Date> expected2025 = {
+        Date(19, February, 2025), Date(26, February, 2025), Date(14, March, 2025),    Date(31, March, 2025),
+        Date(1, April, 2025),     Date(10, April, 2025),    Date(14, April, 2025),    Date(18, April, 2025),
+        Date(1, May, 2025),       Date(12, May, 2025),      Date(15, August, 2025),   Date(27, August, 2025),
+        Date(5, September, 2025), Date(8, September, 2025), Date(2, October, 2025),   Date(21, October, 2025),
+        Date(22, October, 2025),  Date(5, November, 2025),  Date(25, December, 2025),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2025), Date(31, December, 2025)), expected2025);
+}
+
+BOOST_AUTO_TEST_CASE(testIndiaAgainstNseSettlementHolidayLists)
+{
+    BOOST_TEST_MESSAGE("Testing India's holidays against NSE Clearing's yearly lists...");
+
+    const Calendar c = India();
+
+    // the weekdays of NSE Clearing's "CM - Settlement Holidays for the Calendar Year" circulars
+    // NSE/CMPT/19701
+    const std::vector<Date> expected2012 = {
+        Date(26, January, 2012),  Date(20, February, 2012), Date(8, March, 2012),     Date(23, March, 2012),
+        Date(2, April, 2012),     Date(5, April, 2012),     Date(6, April, 2012),     Date(1, May, 2012),
+        Date(2, July, 2012),      Date(15, August, 2012),   Date(20, August, 2012),   Date(19, September, 2012),
+        Date(2, October, 2012),   Date(24, October, 2012),  Date(13, November, 2012), Date(14, November, 2012),
+        Date(28, November, 2012), Date(25, December, 2012),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2012), Date(31, December, 2012)), expected2012);
+
+    // NSE/CMPT/22402; trading moved from November 14th to the 15th, and neither settled (NSE/CMPT/24989)
+    const std::vector<Date> expected2013 = {
+        Date(25, January, 2013),  Date(19, February, 2013),  Date(27, March, 2013),    Date(29, March, 2013),
+        Date(1, April, 2013),     Date(11, April, 2013),     Date(19, April, 2013),    Date(24, April, 2013),
+        Date(1, May, 2013),       Date(1, July, 2013),       Date(9, August, 2013),    Date(15, August, 2013),
+        Date(9, September, 2013), Date(30, September, 2013), Date(2, October, 2013),   Date(16, October, 2013),
+        Date(4, November, 2013),  Date(14, November, 2013),  Date(15, November, 2013), Date(25, December, 2013),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2013), Date(31, December, 2013)), expected2013);
+
+    // NSE/CMPT/25348, with the election days of April 24th (NSE/CMPT/26402) and October 15th (NSE/CMPT/27816)
+    const std::vector<Date> expected2014 = {
+        Date(14, January, 2014), Date(19, February, 2014), Date(27, February, 2014), Date(17, March, 2014),
+        Date(31, March, 2014),   Date(1, April, 2014),     Date(8, April, 2014),     Date(14, April, 2014),
+        Date(18, April, 2014),   Date(24, April, 2014),    Date(1, May, 2014),       Date(14, May, 2014),
+        Date(1, July, 2014),     Date(29, July, 2014),     Date(15, August, 2014),   Date(18, August, 2014),
+        Date(29, August, 2014),  Date(2, October, 2014),   Date(3, October, 2014),   Date(6, October, 2014),
+        Date(15, October, 2014), Date(23, October, 2014),  Date(24, October, 2014),  Date(4, November, 2014),
+        Date(6, November, 2014), Date(25, December, 2014),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2014), Date(31, December, 2014)), expected2014);
+
+    // NSE/CMPT/28438
+    const std::vector<Date> expected2015 = {
+        Date(26, January, 2015),   Date(17, February, 2015),  Date(19, February, 2015), Date(6, March, 2015),
+        Date(1, April, 2015),      Date(2, April, 2015),      Date(3, April, 2015),     Date(14, April, 2015),
+        Date(1, May, 2015),        Date(4, May, 2015),        Date(1, July, 2015),      Date(18, August, 2015),
+        Date(17, September, 2015), Date(25, September, 2015), Date(2, October, 2015),   Date(22, October, 2015),
+        Date(11, November, 2015),  Date(12, November, 2015),  Date(25, November, 2015), Date(24, December, 2015),
+        Date(25, December, 2015),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2015), Date(31, December, 2015)), expected2015);
+
+    // NSE/CMPT/31421
+    const std::vector<Date> expected2016 = {
+        Date(26, January, 2016), Date(19, February, 2016), Date(7, March, 2016),      Date(24, March, 2016),
+        Date(25, March, 2016),   Date(1, April, 2016),     Date(8, April, 2016),      Date(14, April, 2016),
+        Date(15, April, 2016),   Date(19, April, 2016),    Date(6, July, 2016),       Date(15, August, 2016),
+        Date(17, August, 2016),  Date(5, September, 2016), Date(13, September, 2016), Date(11, October, 2016),
+        Date(12, October, 2016), Date(31, October, 2016),  Date(14, November, 2016),  Date(12, December, 2016),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2016), Date(31, December, 2016)), expected2016);
+
+    // NSCCL/CMPT/33820, with no settlement on February 21st (NSCCL/CMPT/34182)
+    const std::vector<Date> expected2017 = {
+        Date(26, January, 2017), Date(21, February, 2017), Date(24, February, 2017), Date(13, March, 2017),
+        Date(28, March, 2017),   Date(4, April, 2017),     Date(14, April, 2017),    Date(1, May, 2017),
+        Date(10, May, 2017),     Date(26, June, 2017),     Date(15, August, 2017),   Date(17, August, 2017),
+        Date(25, August, 2017),  Date(2, October, 2017),   Date(19, October, 2017),  Date(20, October, 2017),
+        Date(1, December, 2017), Date(25, December, 2017),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2017), Date(31, December, 2017)), expected2017);
+
+    // NSCCL/CMPT/36634, which revised NSCCL/CMPT/36595
+    const std::vector<Date> expected2018 = {
+        Date(26, January, 2018),   Date(13, February, 2018), Date(19, February, 2018), Date(2, March, 2018),
+        Date(29, March, 2018),     Date(30, March, 2018),    Date(30, April, 2018),    Date(1, May, 2018),
+        Date(15, August, 2018),    Date(17, August, 2018),   Date(22, August, 2018),   Date(13, September, 2018),
+        Date(20, September, 2018), Date(2, October, 2018),   Date(18, October, 2018),  Date(7, November, 2018),
+        Date(8, November, 2018),   Date(21, November, 2018), Date(23, November, 2018), Date(25, December, 2018),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2018), Date(31, December, 2018)), expected2018);
+
+    // NCL/CMPT/39791, with the election days of April 29th and October 21st
+    const std::vector<Date> expected2019 = {
+        Date(19, February, 2019),  Date(4, March, 2019),     Date(21, March, 2019),    Date(1, April, 2019),
+        Date(17, April, 2019),     Date(19, April, 2019),    Date(29, April, 2019),    Date(1, May, 2019),
+        Date(5, June, 2019),       Date(12, August, 2019),   Date(15, August, 2019),   Date(2, September, 2019),
+        Date(10, September, 2019), Date(2, October, 2019),   Date(8, October, 2019),   Date(21, October, 2019),
+        Date(28, October, 2019),   Date(12, November, 2019), Date(25, December, 2019),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2019), Date(31, December, 2019)), expected2019);
+
+    // NCL/CMPT/42962
+    const std::vector<Date> expected2020 = {
+        Date(19, February, 2020), Date(21, February, 2020), Date(10, March, 2020),    Date(25, March, 2020),
+        Date(1, April, 2020),     Date(2, April, 2020),     Date(6, April, 2020),     Date(10, April, 2020),
+        Date(14, April, 2020),    Date(1, May, 2020),       Date(7, May, 2020),       Date(25, May, 2020),
+        Date(2, October, 2020),   Date(30, October, 2020),  Date(16, November, 2020), Date(30, November, 2020),
+        Date(25, December, 2020),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2020), Date(31, December, 2020)), expected2020);
+
+    // NCL/CMPT/46687
+    const std::vector<Date> expected2021 = {
+        Date(26, January, 2021), Date(19, February, 2021), Date(11, March, 2021),     Date(29, March, 2021),
+        Date(1, April, 2021),    Date(2, April, 2021),     Date(13, April, 2021),     Date(14, April, 2021),
+        Date(21, April, 2021),   Date(13, May, 2021),      Date(26, May, 2021),       Date(21, July, 2021),
+        Date(16, August, 2021),  Date(19, August, 2021),   Date(10, September, 2021), Date(15, October, 2021),
+        Date(19, October, 2021), Date(4, November, 2021),  Date(5, November, 2021),   Date(19, November, 2021),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2021), Date(31, December, 2021)), expected2021);
+
+    // NCL/CMPT/50630
+    const std::vector<Date> expected2022 = {
+        Date(26, January, 2022), Date(1, March, 2022),    Date(18, March, 2022),   Date(1, April, 2022),
+        Date(14, April, 2022),   Date(15, April, 2022),   Date(3, May, 2022),      Date(16, May, 2022),
+        Date(9, August, 2022),   Date(15, August, 2022),  Date(16, August, 2022),  Date(31, August, 2022),
+        Date(5, October, 2022),  Date(24, October, 2022), Date(26, October, 2022), Date(8, November, 2022),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2022), Date(31, December, 2022)), expected2022);
+
+    // NCL/CMPT/54855, with June 28th moved to the 29th (NCL/CMPT/57291) and September 28th to the 29th (NCL/CMPT/58636)
+    const std::vector<Date> expected2023 = {
+        Date(26, January, 2023),   Date(7, March, 2023),      Date(22, March, 2023),    Date(30, March, 2023),
+        Date(4, April, 2023),      Date(7, April, 2023),      Date(14, April, 2023),    Date(1, May, 2023),
+        Date(5, May, 2023),        Date(29, June, 2023),      Date(15, August, 2023),   Date(16, August, 2023),
+        Date(19, September, 2023), Date(29, September, 2023), Date(2, October, 2023),   Date(24, October, 2023),
+        Date(14, November, 2023),  Date(27, November, 2023),  Date(25, December, 2023),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2023), Date(31, December, 2023)), expected2023);
+}
+
+BOOST_AUTO_TEST_CASE(testIndiaClosuresBefore2012)
+{
+    BOOST_TEST_MESSAGE("Testing India's closures before 2012...");
+
+    const Calendar c = India();
+
+    // the exchanges closed on these: rain in Mumbai, Ramzan Id, the attacks on Mumbai and polling days
+    const std::vector<Date> closed = {
+        Date(28, July, 2005),  Date(4, November, 2005), Date(27, November, 2008),
+        Date(30, April, 2009), Date(13, October, 2009),
+    };
+    for (const Date& d : closed)
+        BOOST_CHECK_MESSAGE(c.isHoliday(d), d << " should be a holiday");
+}
+
+BOOST_AUTO_TEST_CASE(testTASETradingDaysAgainstItsReports)
+{
+    BOOST_TEST_MESSAGE("Testing TASE's calendar against the trading days it reports...");
+
+    // The exchange's results releases give its trading days per quarter: 2021's are the releases of that year, 2022 to
+    // 2024 the fourth quarter's of 2023 and 2024, 2025 and 2026 the second quarter's of 2026. The first quarter of 2021
+    // is the nine months' 179 less the other two, and the third and fourth quarters of 2026 are as scheduled.
+    struct Reported
+    {
+        Year year;
+        Date::serial_type days[4];
+    };
+    const std::vector<Reported> reported = {
+        {2021, {62, 61, 56, 65}}, {2022, {64, 61, 61, 58}}, {2023, {64, 58, 61, 66}},
+        {2024, {63, 57, 65, 60}}, {2025, {64, 60, 62, 60}}, {2026, {62, 57, 61, 64}},
+    };
+
+    const Calendar c = Israel(Israel::TASE);
+    for (const Reported& r : reported)
+    {
+        for (Size q = 0; q < 4; ++q)
+        {
+            const Date from(1, Month(3 * q + 1), r.year);
+            const Date to = from + 3 * Months;
+            BOOST_CHECK_MESSAGE(c.businessDaysBetween(from, to) == r.days[q],
+                                "quarter " << q + 1 << " of " << r.year << ": " << c.businessDaysBetween(from, to)
+                                           << " trading days, " << r.days[q] << " reported");
+        }
+    }
+
+    // And 2019 and 2020 from the releases of 2020 and 2021. The second quarter of 2020 is left out: it reports 57 where
+    // the calendar has 58, and nothing here says which day that was.
+    BOOST_CHECK_EQUAL(c.businessDaysBetween(Date(1, January, 2019), Date(1, April, 2019)), 63);
+    BOOST_CHECK_EQUAL(c.businessDaysBetween(Date(1, April, 2019), Date(1, July, 2019)), 60);
+    BOOST_CHECK_EQUAL(c.businessDaysBetween(Date(1, January, 2020), Date(1, April, 2020)), 63);
+    BOOST_CHECK_EQUAL(c.businessDaysBetween(Date(1, July, 2020), Date(1, October, 2020)), 62);
+    BOOST_CHECK_EQUAL(c.businessDaysBetween(Date(1, October, 2020), Date(1, January, 2021)), 66);
+}
+
+BOOST_AUTO_TEST_CASE(testTASEWeekFrom2026)
+{
+    BOOST_TEST_MESSAGE("Testing TASE's move to a Monday to Friday week...");
+
+    const Calendar c = Israel(Israel::TASE);
+
+    // Thursday the 1st was the old week's last session and Monday the 5th the new week's first
+    BOOST_CHECK(c.isBusinessDay(Date(1, January, 2026)));
+    BOOST_CHECK(c.isHoliday(Date(2, January, 2026)));
+    BOOST_CHECK(c.isHoliday(Date(4, January, 2026)));
+    BOOST_CHECK(c.isBusinessDay(Date(5, January, 2026)));
+    BOOST_CHECK(c.isBusinessDay(Date(9, January, 2026)));
+    BOOST_CHECK(c.isHoliday(Date(11, January, 2026)));
+    // and the old week before that
+    BOOST_CHECK(c.isBusinessDay(Date(28, December, 2025)));
+    BOOST_CHECK(c.isHoliday(Date(26, December, 2025)));
+
+    // No session on a Friday before a Sunday that's a holiday or a holiday's eve: Yom Kippur's eve in 2026 and Purim in
+    // 2028. The exchange's schedule has these as non-trading days.
+    BOOST_CHECK(c.isHoliday(Date(18, September, 2026)));
+    BOOST_CHECK(c.isHoliday(Date(10, March, 2028)));
+
+    // isWeekend has only the weekday to go on, so it answers for the week as it is now
+    BOOST_CHECK(c.isWeekend(Saturday));
+    BOOST_CHECK(c.isWeekend(Sunday));
+    BOOST_CHECK(!c.isWeekend(Friday));
+    // so a list of holidays is exact from the switch on, Friday the 2nd being the old week's weekend
+    const std::vector<Date> expected2026 = {
+        Date(2, January, 2026),    Date(3, March, 2026),      Date(1, April, 2026),      Date(2, April, 2026),
+        Date(7, April, 2026),      Date(8, April, 2026),      Date(21, April, 2026),     Date(22, April, 2026),
+        Date(21, May, 2026),       Date(22, May, 2026),       Date(23, July, 2026),      Date(11, September, 2026),
+        Date(18, September, 2026), Date(21, September, 2026), Date(25, September, 2026), Date(2, October, 2026),
+        Date(27, October, 2026),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2026), Date(31, December, 2026)), expected2026);
+    // and before it lists each Friday and leaves out holidays on a Sunday, which needs includeWeekEnds to see
+    const std::vector<Date> list2025 = c.holidayList(Date(1, June, 2025), Date(7, June, 2025));
+    BOOST_CHECK_MESSAGE(std::find(list2025.begin(), list2025.end(), Date(6, June, 2025)) != list2025.end(),
+                        "Friday, June 6th, 2025 should be listed");
+    BOOST_CHECK_MESSAGE(std::find(list2025.begin(), list2025.end(), Date(1, June, 2025)) == list2025.end(),
+                        "Sunday, June 1st, 2025 shouldn't be listed");
+}
+
+BOOST_AUTO_TEST_CASE(testIsraelElectionDays)
+{
+    BOOST_TEST_MESSAGE("Testing Israel's election days...");
+
+    const Calendar tase = Israel(Israel::TASE), settlement = Israel(Israel::Settlement);
+    const std::vector<Date> elections = {
+        Date(9, April, 2019),    Date(17, September, 2019), Date(2, March, 2020),    Date(23, March, 2021),
+        Date(1, November, 2022), Date(27, February, 2024),  Date(27, October, 2026),
+    };
+    // the Bank of Israel's lists, from 2023, have the last two for settlement; the others follow them by assumption
+    for (const Date& d : elections)
+    {
+        BOOST_CHECK_MESSAGE(tase.isHoliday(d), d << " should be a holiday for TASE");
+        BOOST_CHECK_MESSAGE(settlement.isHoliday(d), d << " should be a holiday for settlement");
+    }
+
+    // the municipal elections of October 31st, 2023 moved to February 2024, though TASE's schedule still has them
+    BOOST_CHECK(tase.isBusinessDay(Date(31, October, 2023)));
+}
+
+BOOST_AUTO_TEST_CASE(testIsraelSettlementAgainstZahav)
+{
+    BOOST_TEST_MESSAGE("Testing Israel's settlement calendar against the Bank of Israel's lists...");
+
+    const Calendar c = Israel();
+    BOOST_CHECK(c == Israel(Israel::Settlement));
+    BOOST_CHECK(c != Israel(Israel::TASE));
+
+    // the Bank of Israel's "ZAHAV RTGS system" lists of operating or business days, leaving out Saturdays; its short
+    // days and holidays' eves are open
+    const std::vector<Date> expected2023 = {
+        Date(7, March, 2023),      Date(6, April, 2023),      Date(12, April, 2023),
+        Date(26, April, 2023),     Date(26, May, 2023),       Date(27, July, 2023),
+        Date(17, September, 2023), Date(24, September, 2023), Date(25, September, 2023),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2023), Date(31, December, 2023)), expected2023);
+
+    const std::vector<Date> expected2024 = {
+        Date(27, February, 2024), Date(24, March, 2024),   Date(23, April, 2024),   Date(29, April, 2024),
+        Date(14, May, 2024),      Date(12, June, 2024),    Date(13, August, 2024),  Date(3, October, 2024),
+        Date(4, October, 2024),   Date(11, October, 2024), Date(17, October, 2024), Date(24, October, 2024),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2024), Date(31, December, 2024)), expected2024);
+
+    const std::vector<Date> expected2025 = {
+        Date(14, March, 2025),  Date(13, April, 2025),     Date(1, May, 2025),        Date(2, June, 2025),
+        Date(3, August, 2025),  Date(23, September, 2025), Date(24, September, 2025), Date(1, October, 2025),
+        Date(2, October, 2025), Date(7, October, 2025),    Date(14, October, 2025),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2025), Date(31, December, 2025)), expected2025);
+
+    const std::vector<Date> expected2026 = {
+        Date(3, March, 2026),      Date(2, April, 2026),    Date(8, April, 2026),      Date(22, April, 2026),
+        Date(22, May, 2026),       Date(23, July, 2026),    Date(13, September, 2026), Date(20, September, 2026),
+        Date(21, September, 2026), Date(27, October, 2026),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2026), Date(31, December, 2026)), expected2026);
+
+    const std::vector<Date> expected2027 = {
+        Date(23, March, 2027),  Date(22, April, 2027),   Date(28, April, 2027),
+        Date(12, May, 2027),    Date(11, June, 2027),    Date(12, August, 2027),
+        Date(3, October, 2027), Date(10, October, 2027), Date(11, October, 2027),
+    };
+    checkHolidays(c.holidayList(Date(1, January, 2027), Date(31, December, 2027)), expected2027);
+
+    // Sundays and Fridays are open whichever week the exchange trades
+    BOOST_CHECK(c.isBusinessDay(Date(1, June, 2025)));
+    BOOST_CHECK(c.isBusinessDay(Date(6, June, 2025)));
+    BOOST_CHECK(c.isBusinessDay(Date(4, January, 2026)));
+    BOOST_CHECK(c.isBusinessDay(Date(9, January, 2026)));
+    BOOST_CHECK(c.isHoliday(Date(10, January, 2026)));
+    BOOST_CHECK(c.isWeekend(Saturday));
+    BOOST_CHECK(!c.isWeekend(Friday));
+    BOOST_CHECK(!c.isWeekend(Sunday));
+}
+
+
+BOOST_AUTO_TEST_CASE(testSaudiArabiaAgainstDailySessionsFrom2008To2015)
+{
+    BOOST_TEST_MESSAGE("Testing Saudi Arabia's calendar against the sessions held from 2008 to 2015...");
+
+    const Calendar c = SaudiArabia();
+
+    // the days of the trading week with no trades in any of 199 shares and no level of the TASI index; the two agree on
+    // every day from February 2nd, 2008, where TASI's series starts, and no holiday falls before that in 2008
+    const std::vector<Date> closures = {
+        Date(23, September, 2008), Date(29, September, 2008), Date(30, September, 2008), Date(1, October, 2008),
+        Date(4, October, 2008),    Date(5, October, 2008),    Date(6, December, 2008),   Date(7, December, 2008),
+        Date(8, December, 2008),   Date(9, December, 2008),   Date(10, December, 2008),  Date(19, September, 2009),
+        Date(20, September, 2009), Date(21, September, 2009), Date(22, September, 2009), Date(23, September, 2009),
+        Date(28, November, 2009),  Date(29, November, 2009),  Date(30, November, 2009),  Date(1, December, 2009),
+        Date(2, December, 2009),   Date(7, September, 2010),  Date(8, September, 2010),  Date(11, September, 2010),
+        Date(12, September, 2010), Date(13, September, 2010), Date(22, September, 2010), Date(13, November, 2010),
+        Date(14, November, 2010),  Date(15, November, 2010),  Date(16, November, 2010),  Date(17, November, 2010),
+        Date(26, February, 2011),  Date(19, March, 2011),     Date(27, August, 2011),    Date(28, August, 2011),
+        Date(29, August, 2011),    Date(30, August, 2011),    Date(31, August, 2011),    Date(24, September, 2011),
+        Date(5, November, 2011),   Date(6, November, 2011),   Date(7, November, 2011),   Date(8, November, 2011),
+        Date(9, November, 2011),   Date(18, August, 2012),    Date(19, August, 2012),    Date(20, August, 2012),
+        Date(21, August, 2012),    Date(22, August, 2012),    Date(23, September, 2012), Date(27, October, 2012),
+        Date(28, October, 2012),   Date(29, October, 2012),   Date(30, October, 2012),   Date(31, October, 2012),
+        Date(6, August, 2013),     Date(7, August, 2013),     Date(8, August, 2013),     Date(11, August, 2013),
+        Date(12, August, 2013),    Date(22, September, 2013), Date(23, September, 2013), Date(13, October, 2013),
+        Date(14, October, 2013),   Date(15, October, 2013),   Date(16, October, 2013),   Date(17, October, 2013),
+        Date(27, July, 2014),      Date(28, July, 2014),      Date(29, July, 2014),      Date(30, July, 2014),
+        Date(31, July, 2014),      Date(23, September, 2014), Date(5, October, 2014),    Date(6, October, 2014),
+        Date(7, October, 2014),    Date(8, October, 2014),    Date(9, October, 2014),    Date(25, January, 2015),
+        Date(16, July, 2015),      Date(19, July, 2015),      Date(20, July, 2015),      Date(21, July, 2015),
+        Date(22, September, 2015), Date(23, September, 2015), Date(24, September, 2015), Date(27, September, 2015),
+        Date(28, September, 2015),
+    };
+    for (Date d(1, January, 2008); d <= Date(31, December, 2015); ++d)
+    {
+        const Weekday w = d.weekday();
+        const bool weekend = d < Date(29, June, 2013) ? (w == Thursday || w == Friday) : (w == Friday || w == Saturday);
+        const bool closed = weekend || std::find(closures.begin(), closures.end(), d) != closures.end();
+        BOOST_CHECK_MESSAGE(c.isHoliday(d) == closed, d << (closed ? " had no session" : " had a session"));
     }
 }
 

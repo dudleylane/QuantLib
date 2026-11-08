@@ -44,10 +44,12 @@ namespace QuantLib
     distribution object?
     */
     template <class copulaPolicy>
-    class InhomogeneousPoolLossModel : public DefaultLossModel
+    class InhomogeneousPoolLossModel : public DefaultLossModel, public Observer
     {
       private:
         void resetModel() override;
+        // what the latent model says goes on to the baskets
+        void update() override { notifyObservers(); }
 
       public:
         // allow base correlations:
@@ -63,6 +65,7 @@ namespace QuantLib
         : copula_(copula), nBuckets_(nBuckets), max_(max), min_(min), nSteps_(nSteps), delta_((max - min) / nSteps)
         {
             QL_REQUIRE(copula->numFactors() == 1, "Inhomogeneous model not implemented for multifactor");
+            registerWith(copula_);
         }
         // Write another constructor sending the LM factors and recoveries.
       protected:
@@ -132,14 +135,15 @@ namespace QuantLib
     {
         LossDistBucketing bucktLDistBuff(nBuckets_, detachAmount_);
 
+        // these go by the names left in the basket, the latent model by all of them
+        const std::vector<Size>& live = basket_->liveList();
         std::vector<Real> lgd; // switch to a mutable cache member
-        std::vector<Real> recoveries = copula_->recoveries();
-        std::transform(recoveries.begin(), recoveries.end(), std::back_inserter(lgd),
-                       [](Real x) -> Real { return 1.0 - x; });
-        std::transform(lgd.begin(), lgd.end(), notionals_.begin(), lgd.begin(), std::multiplies<>());
+        lgd.reserve(live.size());
+        for (Size iName = 0; iName < live.size(); iName++)
+            lgd.push_back(notionals_[iName] * (1.0 - copula_->recoveries()[live[iName]]));
         std::vector<Real> prob = basket_->remainingProbabilities(d);
         for (Size iName = 0; iName < prob.size(); iName++)
-            prob[iName] = copula_->inverseCumulativeY(prob[iName], iName);
+            prob[iName] = copula_->inverseCumulativeY(prob[iName], live[iName]);
 
         // integrate locally (1 factor).
         // use explicitly a 1D latent model object?
@@ -152,7 +156,7 @@ namespace QuantLib
             std::vector<Real> conditionalProbs;
             conditionalProbs.reserve(notionals_.size());
             for (Size iName = 0; iName < notionals_.size(); iName++)
-                conditionalProbs.push_back(copula_->conditionalDefaultProbabilityInvP(prob[iName], iName, mkft));
+                conditionalProbs.push_back(copula_->conditionalDefaultProbabilityInvP(prob[iName], live[iName], mkft));
             Distribution bld = bucktLDistBuff(lgd, conditionalProbs);
             Real densitydm = delta_ * copula_->density(mkft);
             // also, instead of calling the static method it could be wrapped

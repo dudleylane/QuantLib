@@ -126,6 +126,16 @@ BOOST_AUTO_TEST_CASE(testDirect)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testCommodityTypeNameAndCode)
+{
+    BOOST_TEST_MESSAGE("Testing a commodity type's name and code...");
+
+    CommodityType commodityType("Heating Oil", "HO");
+
+    BOOST_CHECK_EQUAL(commodityType.name(), "Heating Oil");
+    BOOST_CHECK_EQUAL(commodityType.code(), "HO");
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

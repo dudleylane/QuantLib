@@ -117,6 +117,7 @@ namespace QuantLib
             Date today = Settings::instance().evaluationDate();
             Date maxHorizonDate = today + Period(this->maxHorizon_, Days);
 
+            horizonDefaultPs_.clear();
             const ext::shared_ptr<Pool>& pool = this->basket_->pool();
             for (Size iName = 0; iName < this->basket_->size(); ++iName) // use'live'
                 horizonDefaultPs_.push_back(pool->get(pool->names()[iName])
@@ -143,6 +144,7 @@ namespace QuantLib
             copula_->resetBasket(this->basket_.currentLink());
 
             QL_REQUIRE(2 * this->basket_->size() == copula_->size(), "Incompatible basket and model sizes.");
+            this->registerWithCurves();
             // invalidate current calculations if any and notify observers
             // NOLINTNEXTLINE(bugprone-parent-virtual-call)
             LazyObject::update();
@@ -163,7 +165,8 @@ namespace QuantLib
         this->simsBuffer_.push_back(std::vector<defaultSimEvent>());
 
         // half the model is defaults, the other half are RRs...
-        for (Size iName = 0; iName < copula_->size() / 2; iName++)
+        // a name that has defaulted can't again; it's in what the basket has lost
+        for (Size iName : this->basket_->liveList())
         {
             // ...but samples must be full
             /* This is really a trick, we are passing a longer than

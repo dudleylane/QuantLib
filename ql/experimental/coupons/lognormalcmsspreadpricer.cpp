@@ -238,7 +238,8 @@ namespace QuantLib
         if (volType_ == ShiftedLognormal)
         {
             // (shifted) lognormal volatility
-            if (strike >= 0.0)
+            const Real displacedStrike = strike + gearing1_ * shift1_ + gearing2_ * shift2_;
+            if (displacedStrike >= 0.0)
             {
                 a_ = gearing1_;
                 b_ = gearing2_;
@@ -248,19 +249,19 @@ namespace QuantLib
                 m2_ = mu2_;
                 v1_ = vol1_;
                 v2_ = vol2_;
-                k_ = strike + gearing1_ * shift1_ + gearing2_ * shift2_;
+                k_ = displacedStrike;
             }
             else
             {
                 a_ = -gearing2_;
                 b_ = -gearing1_;
-                s1_ = swapRate2_ + shift1_;
-                s2_ = swapRate1_ + shift2_;
+                s1_ = swapRate2_ + shift2_;
+                s2_ = swapRate1_ + shift1_;
                 m1_ = mu2_;
                 m2_ = mu1_;
                 v1_ = vol2_;
                 v2_ = vol1_;
-                k_ = -strike - gearing1_ * shift1_ - gearing2_ * shift2_;
+                k_ = -displacedStrike;
                 res += phi_ * (gearing1_ * adjustedRate1_ + gearing2_ * adjustedRate2_ - strike);
             }
             res += 1.0 / M_SQRTPI * (*integrator_)(integrand_f(this));

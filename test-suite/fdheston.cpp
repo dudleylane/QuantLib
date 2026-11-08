@@ -40,6 +40,8 @@
 #include <ql/time/daycounters/actual360.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/time/daycounters/actualactual.hpp>
+#include <algorithm>
+#include <cmath>
 #include <tuple>
 
 using namespace QuantLib;
@@ -964,6 +966,88 @@ BOOST_AUTO_TEST_CASE(testAmericanCallPutParity)
                        << "\n    difference: " << diff << "\n    tolerance : " << tol);
         }
     }
+}
+
+namespace
+{
+    Real errorOfFdHeston(
+        Real v0, Real kappa, Real theta, Real sigma, Natural days, Real strike, Size tGrid, Size xGrid, Size vGrid)
+    {
+        const Date today(15, May, 2026);
+        Settings::instance().evaluationDate() = today;
+        const DayCounter dc = Actual365Fixed();
+        const auto model = ext::make_shared<HestonModel>(ext::make_shared<HestonProcess>(
+            Handle<YieldTermStructure>(flatRate(today, 0.03, dc)),
+            Handle<YieldTermStructure>(flatRate(today, 0.01, dc)), Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)),
+            v0, kappa, theta, sigma, -0.5));
+
+        VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, strike),
+                             ext::make_shared<EuropeanExercise>(today + days));
+        option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(model, 192));
+        const Real expected = option.NPV();
+        option.setPricingEngine(ext::make_shared<FdHestonVanillaEngine>(model, tGrid, xGrid, vGrid, 0));
+        return option.NPV() - expected;
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testFdHestonWithV0AboveTheQuantiles)
+{
+    BOOST_TEST_MESSAGE("Testing FD Heston where the variance drifts away from v0...");
+
+    // By the first step the variance has fallen so far below v0 that no quantile reaches it.
+    BOOST_CHECK_SMALL(errorOfFdHeston(0.25, 0.5, 0.09, 0.03, 1825, 85.0, 50, 100, 51), 0.1);
+    BOOST_CHECK_SMALL(errorOfFdHeston(0.25, 2.0, 0.04, 0.1, 1825, 85.0, 50, 100, 51), 0.1);
+
+    // The mesher itself used to throw here.
+    const Date today(15, May, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const auto process = ext::make_shared<HestonProcess>(
+        Handle<YieldTermStructure>(flatRate(today, 0.03, dc)), Handle<YieldTermStructure>(flatRate(today, 0.01, dc)),
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), 1.0, 20.0, 0.002, 0.03, -0.5);
+    const FdmHestonVarianceMesher mesher(201, process, 30.0);
+    const std::vector<Real>& locations = mesher.locations();
+    BOOST_CHECK(std::find(locations.begin(), locations.end(), 1.0) != locations.end());
+    BOOST_CHECK(std::isfinite(mesher.volaEstimate()));
+}
+
+BOOST_AUTO_TEST_CASE(testFdHestonVarianceMeshChoice)
+{
+    BOOST_TEST_MESSAGE("Testing the choice of variance mesh for FD Heston...");
+
+    const Date today(15, May, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const auto meshLocations = [&](Real sigma)
+    {
+        const auto process = ext::make_shared<HestonProcess>(Handle<YieldTermStructure>(flatRate(today, 0.03, dc)),
+                                                             Handle<YieldTermStructure>(flatRate(today, 0.01, dc)),
+                                                             Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), 0.04,
+                                                             1.0, 0.04, sigma, -0.5);
+        return FdmHestonVarianceMesher(51, process, 1.0).locations();
+    };
+    const auto evenlySpaced = [](const std::vector<Real>& v)
+    { return std::fabs((v[v.size() - 1] - v[v.size() - 2]) / (v[1] - v[0]) - 1.0) < 1e-10; };
+
+    // The distribution of the first step reaches the limit between these, where it always has.
+    // The default mesh is evenly spaced and the mesh of the quantiles isn't.
+    BOOST_CHECK(evenlySpaced(meshLocations(0.042)));
+    BOOST_CHECK(!evenlySpaced(meshLocations(0.046)));
+}
+
+BOOST_AUTO_TEST_CASE(testFdHestonAtSmallVolOfVol)
+{
+    BOOST_TEST_MESSAGE("Testing FD Heston at a small vol of vol...");
+
+    // With v0 far from theta and a narrow distribution, a mesh of the quantiles has a gap
+    // around v0 that doesn't close as the grid gets finer, and is 0.11 off on both of these.
+    BOOST_CHECK_SMALL(errorOfFdHeston(0.01, 0.5, 0.09, 0.001, 1825, 115.0, 50, 100, 51), 0.025);
+    BOOST_CHECK_SMALL(errorOfFdHeston(0.01, 0.5, 0.09, 0.001, 1825, 115.0, 100, 200, 101), 0.006);
+
+    // The variance falls towards theta instead.
+    BOOST_CHECK_SMALL(errorOfFdHeston(0.25, 0.5, 0.09, 0.001, 1825, 85.0, 50, 100, 51), 0.1);
+    // No drift.
+    BOOST_CHECK_SMALL(errorOfFdHeston(0.04, 2.0, 0.04, 0.001, 365, 100.0, 50, 100, 51), 0.05);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -31,14 +31,19 @@ namespace QuantLib
 {
 
     //! Israel calendar
-    /*! Due to the lack of reliable sources, the settlement calendar
-        has the same holidays as the Tel Aviv stock-exchange.
+    /*! The settlement calendar follows the Bank of Israel's Zahav RTGS system
+        (data from <https://www.boi.org.il>), which runs from Sunday to Friday
+        and is closed on the holidays below but not on their eves, Yom Kippur's
+        apart, nor on Memorial Day.
 
         Holidays for the Tel-Aviv Stock Exchange
         (data from <http://www.tase.co.il>):
         <ul>
-        <li>Friday</li>
-        <li>Saturday</li>
+        <li>Friday and Saturday until January 3rd, 2026</li>
+        <li>Saturday and Sunday from January 4th, 2026</li>
+        <li>From then on, a Friday before a Sunday on which it's closed</li>
+        <li>The eve of each holiday below that isn't on a weekend</li>
+        <li>Election days, from 2019</li>
         </ul>
         Other holidays for wich no rule is given
         (data available for 2013-2044 only:)
@@ -56,12 +61,18 @@ namespace QuantLib
         <li>Simchat Tora, Tishrei 22nd (between Sep 26th & Oct 26th)</li>
         </ul>
 
+        \note Calendar::isWeekend takes only a weekday, so the exchange's answers
+               for its week since 2026. Whether a date is a business day doesn't
+               depend on it, but Calendar::holidayList does, unless asked to include
+               weekends: for a date before 2026 it lists each Friday and leaves out
+               a holiday on a Sunday.
 
         \ingroup calendars
     */
     class Israel : public Calendar
     {
       private:
+        class SettlementImpl;
         class TelAvivImpl;
         class ShirImpl;
 

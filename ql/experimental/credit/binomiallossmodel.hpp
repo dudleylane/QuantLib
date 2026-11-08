@@ -59,13 +59,15 @@ namespace QuantLib
     the cumulative functions.
     */
     template <class LLM>
-    class BinomialLossModel : public DefaultLossModel
+    class BinomialLossModel : public DefaultLossModel, public Observer
     {
       public:
         typedef typename LLM::copulaType copulaType;
-        explicit BinomialLossModel(ext::shared_ptr<LLM> copula) : copula_(std::move(copula)) {}
+        explicit BinomialLossModel(ext::shared_ptr<LLM> copula) : copula_(std::move(copula)) { registerWith(copula_); }
 
       private:
+        // what the latent model says goes on to the baskets
+        void update() override { notifyObservers(); }
         void resetModel() override
         {
             /* say there are defaults and these havent settled... and this is
@@ -83,10 +85,11 @@ namespace QuantLib
         std::vector<Real> expectedDistribution(const Date& date) const
         {
             // precal date conditional magnitudes:
-            std::vector<Real> notionals = basket_->remainingNotionals(date);
+            const std::vector<Real>& notionals = basket_->remainingNotionals();
+            const std::vector<Size>& live = basket_->liveList();
             std::vector<Probability> invProbs = basket_->remainingProbabilities(date);
             for (Size iName = 0; iName < invProbs.size(); iName++)
-                invProbs[iName] = copula_->inverseCumulativeY(invProbs[iName], iName);
+                invProbs[iName] = copula_->inverseCumulativeY(invProbs[iName], live[iName]);
 
             return copula_->integratedExpectedValueV([&](const std::vector<Real>& v1)
                                                      { return lossProbability(date, notionals, invProbs, v1); });
@@ -165,9 +168,10 @@ namespace QuantLib
                        std::multiplies<>());
         Real avgLgd = std::accumulate(lgdsLeft.begin(), lgdsLeft.end(), Real(0.)) / bsktSize;
 
+        const std::vector<Size>& live = basket_->liveList();
         std::vector<Probability> condDefProb(bsktSize, 0.);
         for (Size j = 0; j < bsktSize; j++) // transform
-            condDefProb[j] = copula_->conditionalDefaultProbabilityInvP(uncondDefProbInv[j], j, mktFactors);
+            condDefProb[j] = copula_->conditionalDefaultProbabilityInvP(uncondDefProbInv[j], live[j], mktFactors);
         // of full portfolio:
         Real avgProb = avgLgd <= QL_EPSILON ? Real(0.) : // only if all are 0
                            std::inner_product(condDefProb.begin(), condDefProb.end(), lgdsLeft.begin(), Real(0.)) /
@@ -254,7 +258,7 @@ namespace QuantLib
     template <class LLM>
     std::vector<Real> BinomialLossModel<LLM>::lossPoints(const Date& d) const
     {
-        std::vector<Real> notionals = basket_->remainingNotionals(d);
+        const std::vector<Real>& notionals = basket_->remainingNotionals();
 
         Real aveLossFrct = copula_->integratedExpectedValue([&](const std::vector<Real>& v1)
                                                             { return averageLoss(d, notionals, v1); });
@@ -263,7 +267,7 @@ namespace QuantLib
         Size dataSize = basket_->remainingSize() + 1;
         data.reserve(dataSize);
         // use std::algorithm
-        Real outsNot = basket_->remainingNotional(d);
+        Real outsNot = basket_->remainingNotional();
         for (Size i = 0; i < dataSize; i++)
             data.push_back(i * aveLossFrct * outsNot);
         return data;
@@ -291,10 +295,11 @@ namespace QuantLib
     Real BinomialLossModel<LLM>::expectedTrancheLoss(const Date& d) const
     {
         std::vector<Real> lossVals = lossPoints(d);
-        std::vector<Real> notionals = basket_->remainingNotionals(d);
+        const std::vector<Real>& notionals = basket_->remainingNotionals();
+        const std::vector<Size>& live = basket_->liveList();
         std::vector<Probability> invProbs = basket_->remainingProbabilities(d);
         for (Size iName = 0; iName < invProbs.size(); iName++)
-            invProbs[iName] = copula_->inverseCumulativeY(invProbs[iName], iName);
+            invProbs[iName] = copula_->inverseCumulativeY(invProbs[iName], live[iName]);
 
         return copula_->integratedExpectedValue([&](const std::vector<Real>& v1)
                                                 { return condTrancheLoss(d, lossVals, notionals, invProbs, v1); });

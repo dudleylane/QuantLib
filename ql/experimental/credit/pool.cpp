@@ -39,6 +39,8 @@ namespace QuantLib
         data_.clear();
         time_.clear();
         names_.clear();
+        defaultKeys_.clear();
+        keysOfNames_.clear();
     }
 
     bool Pool::has(const std::string& name) const
@@ -54,6 +56,7 @@ namespace QuantLib
             time_[name] = 0.0;
             names_.push_back(name);
             defaultKeys_[name] = contractTrigger;
+            keysOfNames_.push_back(contractTrigger);
         }
     }
 
@@ -85,13 +88,9 @@ namespace QuantLib
         return names_;
     }
 
-    std::vector<DefaultProbKey> Pool::defaultKeys() const
+    const std::vector<DefaultProbKey>& Pool::defaultKeys() const
     {
-        std::vector<DefaultProbKey> defaultKeys;
-        defaultKeys.reserve(defaultKeys_.size());
-        for (const auto& i : defaultKeys_)
-            defaultKeys.push_back(i.second);
-        return defaultKeys;
+        return keysOfNames_;
     }
 
 }

@@ -749,6 +749,106 @@ BOOST_AUTO_TEST_CASE(testExponentialIntegralLimits)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testGaussKronrodAdaptiveWhereTheAccuracyCantBeReached)
+{
+    BOOST_TEST_MESSAGE("Testing adaptive Gauss-Kronrod integration where the accuracy can't be reached...");
+
+    struct Case
+    {
+        std::string name;
+        std::function<Real(Real)> f;
+        Real a, b, tolerance;
+        Size maxEvaluationsNeeded;
+    };
+
+    // The rule's error doesn't fall as fast as the tolerance on any of these, however narrow the
+    // interval.  With no limit given, only running out of doubles to split at stops them.
+    const Case cases[] = {
+        {"singular at zero", [](Real x) { return 1.0 / std::sqrt(x); }, 0.0, 1.0, 1e-8, 20000},
+        {"singular at zero, more strongly", [](Real x) { return 1.0 / x; }, 0.0, 1.0, 1e-8, 20000},
+        {"logarithmic at zero", [](Real x) { return std::log(x); }, 0.0, 1.0, 1e-10, 20000},
+        {"singular at the lower end", [](Real x) { return 1.0 / std::sqrt(x - 1.0); }, 1.0, 2.0, 1e-8, 1000},
+        {"singular at the upper end", [](Real x) { return 1.0 / std::sqrt(2.0 - x); }, 1.0, 2.0, 1e-2, 100000},
+        {"not a number", [](Real) { return std::nan(""); }, 1.0, 2.0, 1e-8, 1000},
+        // The rule's own precision: these ask for hundreds of times what it can give at this size.
+        {"smooth but large", [](Real x) { return 1e6 * std::exp(x); }, 0.0, 1.0, 1e-11, 20000},
+        {"smooth but large, away from zero", [](Real x) { return 1e6 * std::exp(x); }, 1.0, 2.0, 1e-11, 1000},
+        {"smooth but large, on a longer interval", [](Real x) { return 1e3 * std::cos(x); }, 0.0, 10.0, 1e-13, 20000},
+    };
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.name)
+        {
+            const GaussKronrodAdaptive integrator(c.tolerance);
+            BOOST_CHECK_EXCEPTION(integrator(c.f, c.a, c.b), Error,
+                                  ExpectedErrorMessage("cannot reach the required accuracy"));
+            BOOST_CHECK_LE(integrator.numberOfEvaluations(), c.maxEvaluationsNeeded);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testGaussKronrodAdaptiveWhereTheAccuracyCanBeReached)
+{
+    BOOST_TEST_MESSAGE("Testing adaptive Gauss-Kronrod integration where the accuracy can be reached...");
+
+    // An isolated point, which the first split lands on and the halves then ignore.
+    const GaussKronrodAdaptive limited(1e-8, 100);
+    BOOST_CHECK_EQUAL(limited([](Real x) { return x == 0.5 ? 1e8 : 0.0; }, 0.0, 1.0), 0.0);
+    BOOST_CHECK_EQUAL(limited.numberOfEvaluations(), Size(45));
+
+    // Close to what the rule's precision allows.
+    const GaussKronrodAdaptive coarse(1e-8), fine(1e-9);
+    BOOST_CHECK_SMALL(coarse([](Real x) { return 1e5 * std::exp(x); }, 0.0, 1.0) - 1e5 * std::expm1(1.0), 1e-8);
+    BOOST_CHECK_SMALL(fine([](Real x) { return 100.0 * std::cos(x); }, 0.0, 10.0) - 100.0 * std::sin(10.0), 1e-9);
+
+    // This converges only some 400 splits into the interval at zero.
+    const GaussKronrodAdaptive deep(1e-10);
+    BOOST_CHECK_SMALL(deep([](Real x) { return std::pow(x, 0.05); }, 0.0, 1.0) - 1.0 / 1.05, 1e-10);
+    BOOST_CHECK_GT(deep.numberOfEvaluations(), Size(256 * 30));
+
+    // With no limit given, an integrand may take what it needs.
+    const GaussKronrodAdaptive unlimited(1e-8);
+    const Real frequency = 3e5;
+    BOOST_CHECK_SMALL(unlimited([=](Real x) { return std::sin(frequency * x); }, 0.0, 1.0) -
+                          (1.0 - std::cos(frequency)) / frequency,
+                      1e-8);
+    BOOST_CHECK_GT(unlimited.numberOfEvaluations(), Size(1000000));
+}
+
+BOOST_AUTO_TEST_CASE(testGaussKronrodAdaptiveEvaluationLimit)
+{
+    BOOST_TEST_MESSAGE("Testing the evaluation limit of adaptive Gauss-Kronrod integration...");
+
+    const std::function<Real(Real)> functions[] = {[](Real x) { return std::sqrt(x); },
+                                                   [](Real x) { return x < 1.0 / 3.0 ? 0.0 : 1.0; },
+                                                   [](Real x) { return std::sin(40.0 * x); }};
+
+    for (const auto& f : functions)
+    {
+        const GaussKronrodAdaptive unlimited(1e-10);
+        const Real expected = unlimited(f, 0.0, 1.0);
+        const Size needed = unlimited.numberOfEvaluations();
+
+        // Every limit below what's needed throws, however late in the integration it's reached.
+        for (Size limit = 15; limit < needed; limit += 15)
+        {
+            BOOST_TEST_CONTEXT("limit = " << limit)
+            {
+                const GaussKronrodAdaptive integrator(1e-10, limit);
+                BOOST_CHECK_EXCEPTION(integrator(f, 0.0, 1.0), Error,
+                                      ExpectedErrorMessage("maximum number of function evaluations exceeded"));
+                BOOST_CHECK_LE(integrator.numberOfEvaluations(), limit);
+            }
+        }
+
+        const GaussKronrodAdaptive justEnough(1e-10, needed);
+        BOOST_CHECK_EQUAL(justEnough(f, 0.0, 1.0), expected);
+        BOOST_CHECK_EQUAL(justEnough.numberOfEvaluations(), needed);
+        BOOST_CHECK(justEnough.integrationSuccess());
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

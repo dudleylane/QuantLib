@@ -37,20 +37,20 @@ namespace QuantLib
         results_.upfrontPremiumValue = 0.0;
         results_.error = 0;
         results_.expectedTrancheLoss.clear();
-        // todo Should be remaining when considering realized loses
         results_.xMin = arguments_.basket->attachmentAmount();
         results_.xMax = arguments_.basket->detachmentAmount();
-        results_.remainingNotional = results_.xMax - results_.xMin;
+        results_.remainingNotional = arguments_.basket->remainingTrancheNotional();
         const Real inceptionTrancheNotional = arguments_.basket->trancheNotional();
 
-        // compute expected loss at the beginning of first relevant period
-        Real e1 = 0;
+        // compute expected loss at the beginning of first relevant period;
+        // what's lost already is in every later one, and is no flow to come
+        Real e1 = inceptionTrancheNotional - results_.remainingNotional;
         // todo add includeSettlement date flows variable to engine.
         if (!arguments_.normalizedLeg[0]->hasOccurred(today))
             // cast to fixed rate coupon?
             e1 = arguments_.basket->expectedTrancheLoss(
                 ext::dynamic_pointer_cast<Coupon>(arguments_.normalizedLeg[0])->accrualStartDate());
-        results_.expectedTrancheLoss.push_back(e1); // zero or realized losses?
+        results_.expectedTrancheLoss.push_back(e1);
 
         for (auto& i : arguments_.normalizedLeg)
         {
@@ -76,10 +76,8 @@ namespace QuantLib
 
                 e2 = arguments_.basket->expectedTrancheLoss(d);
 
-                results_.premiumValue
-                    // ..check for e2 including past/realized losses
-                    += (inceptionTrancheNotional - e2) * arguments_.runningRate *
-                       arguments_.dayCounter.yearFraction(d0, d) * discountCurve_->discount(d);
+                results_.premiumValue += (inceptionTrancheNotional - e2) * arguments_.runningRate *
+                                         arguments_.dayCounter.yearFraction(d0, d) * discountCurve_->discount(d);
 
                 // TO DO: Addd default coupon accrual value here-----
 
@@ -97,7 +95,7 @@ namespace QuantLib
         // add includeSettlement date flows variable to engine.
         if (!arguments_.normalizedLeg[0]->hasOccurred(today))
             results_.upfrontPremiumValue =
-                inceptionTrancheNotional * arguments_.upfrontRate *
+                results_.remainingNotional * arguments_.upfrontRate *
                 discountCurve_->discount(
                     ext::dynamic_pointer_cast<Coupon>(arguments_.normalizedLeg[0])->accrualStartDate());
 

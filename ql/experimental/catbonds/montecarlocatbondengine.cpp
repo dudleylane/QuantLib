@@ -116,6 +116,7 @@ namespace QuantLib
             }
             pathCount++;
         }
+        QL_REQUIRE(pathCount > 0, "no Monte Carlo paths were generated");
         lossProbability /= pathCount;
         exhaustionProbability /= pathCount;
         expectedLoss /= pathCount;

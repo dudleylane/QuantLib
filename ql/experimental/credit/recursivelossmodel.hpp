@@ -45,7 +45,7 @@ namespace QuantLib
         performance instead of calling the copula inversion with the same vals.
     */
     template <class copulaPolicy>
-    class RecursiveLossModel : public DefaultLossModel
+    class RecursiveLossModel : public DefaultLossModel, public Observer
     {
       public:
         explicit RecursiveLossModel(const ext::shared_ptr<ConstantLossLatentmodel<copulaPolicy>>& m,
@@ -53,9 +53,12 @@ namespace QuantLib
                                     Size nbuckets = 1)
         : copula_(m), nBuckets_(nbuckets)
         {
+            registerWith(copula_);
         }
 
       private:
+        // what the latent model says goes on to the baskets
+        void update() override { notifyObservers(); }
         /*!
         @param pDefDate Vector of unconditional default probabilities for each
         live name (at the current evaluation date). This is passed instead of
@@ -165,9 +168,10 @@ namespace QuantLib
                     */
 
         std::vector<Probability> uncDefProb = basket_->remainingProbabilities(date);
+        const std::vector<Size>& live = basket_->liveList();
         std::vector<Real> invProb;
         for (Size i = 0; i < uncDefProb.size(); ++i)
-            invProb.push_back(copula_->inverseCumulativeY(uncDefProb[i], i));
+            invProb.push_back(copula_->inverseCumulativeY(uncDefProb[i], live[i]));
         ///  invProb.push_back(CP::inverseCumulativeY(uncDefProb[i], i));//<-static call
         return copula_->integratedExpectedValue([&](const std::vector<Real>& v1)
                                                 { return expectedConditionalLossInvP(invProb, v1); });
@@ -197,13 +201,16 @@ namespace QuantLib
 
         copula_->resetBasket(basket_.currentLink());
 
+        const std::vector<Size>& live = basket_->liveList();
         std::vector<Real> lgdsTmp, lgds;
         for (Size i = 0; i < remainingBsktSize_; ++i)
-            lgds.push_back(notionals_[i] * (1. - copula_->recoveries()[i]));
+            lgds.push_back(notionals_[i] * (1. - copula_->recoveries()[live[i]]));
         lgdsTmp = lgds;
         ///////////////std::remove(lgds.begin(), lgds.end(), 0.);
         lgds.erase(std::remove(lgds.begin(), lgds.end(), 0.), lgds.end());
-        lossUnit_ = *(std::min_element(lgds.begin(), lgds.end())) / nBuckets_;
+        // no name left that can lose anything means nothing to measure losses in
+        lossUnit_ = lgds.empty() ? 1. : *(std::min_element(lgds.begin(), lgds.end())) / nBuckets_;
+        wk_.clear();
         for (Size i = 0; i < remainingBsktSize_; ++i)
             wk_.push_back(std::floor(lgdsTmp[i] / lossUnit_ + .5));
     }
@@ -304,13 +311,14 @@ namespace QuantLib
         // eq. 10 p.68
         // attainable losses distribution, recursive algorithm
         const std::vector<Probability>& uncDefProb = pDefDate; // alias, remove
+        const std::vector<Size>& live = basket_->liveList();
 
         std::map<Real, Probability> pIndepDistrib;
         ////////  K=0
         pIndepDistrib.insert(std::make_pair(0., 1.));
         for (Size iName = 0; iName < remainingBsktSize_; ++iName)
         {
-            Probability pDef = copula_->conditionalDefaultProbability(uncDefProb[iName], iName, mktFactor);
+            Probability pDef = copula_->conditionalDefaultProbability(uncDefProb[iName], live[iName], mktFactor);
             ////// iterate on all possible losses in the distribution:
             std::map<Real, Probability> pDistTemp;
             auto distIt = pIndepDistrib.begin();
@@ -355,13 +363,14 @@ namespace QuantLib
     {
         // eq. 10 p.68
         // attainable losses distribution, recursive algorithm
+        const std::vector<Size>& live = basket_->liveList();
 
         std::map<Real, Probability> pIndepDistrib;
         // K=0
         pIndepDistrib.insert(std::make_pair(0., 1.));
         for (Size iName = 0; iName < remainingBsktSize_; ++iName)
         {
-            Probability pDef = copula_->conditionalDefaultProbabilityInvP(invpDefDate[iName], iName, mktFactor);
+            Probability pDef = copula_->conditionalDefaultProbabilityInvP(invpDefDate[iName], live[iName], mktFactor);
 
             // iterate on all possible losses in the distribution:
             std::map<Real, Probability> pDistTemp;

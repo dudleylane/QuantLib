@@ -20,6 +20,7 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include "preconditions.hpp"
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
 #include <ql/cashflows/capflooredcoupon.hpp>
@@ -30,8 +31,13 @@
 #include <ql/indexes/swap/euriborswap.hpp>
 #include <ql/instruments/makecms.hpp>
 #include <ql/instruments/swap.hpp>
+#include <ql/math/optimization/endcriteria.hpp>
+#include <ql/math/optimization/levenbergmarquardt.hpp>
+#include <ql/math/optimization/simplex.hpp>
 #include <ql/pricingengines/swap/discountingswapengine.hpp>
 #include <ql/quotes/simplequote.hpp>
+#include <ql/termstructures/volatility/swaption/cmsmarket.hpp>
+#include <ql/termstructures/volatility/swaption/cmsmarketcalibration.hpp>
 #include <ql/termstructures/volatility/swaption/interpolatedswaptionvolatilitycube.hpp>
 #include <ql/termstructures/volatility/swaption/sabrswaptionvolatilitycube.hpp>
 #include <ql/termstructures/volatility/swaption/swaptionvolmatrix.hpp>
@@ -410,6 +416,331 @@ BOOST_AUTO_TEST_CASE(testParity)
             }
         }
     }
+}
+
+// Leaves a problem where it started, so that a calibration should report its own guess.
+class StayAtGuess : public OptimizationMethod
+{
+  public:
+    EndCriteria::Type minimize(Problem&, const EndCriteria&) override { return EndCriteria::None; }
+};
+
+// A CMS market on two of the cube's swap tenors.
+struct CmsCalibrationVars
+{
+    CommonVars vars;
+    std::vector<Period> swapLengths = {1 * Years, 5 * Years, 10 * Years, 20 * Years};
+    std::vector<Period> swapTenors = {2 * Years, 10 * Years};
+    ext::shared_ptr<CmsMarket> market;
+    Matrix weights = Matrix(4, 2, 1.0);
+    ext::shared_ptr<EndCriteria> endCriteria = ext::make_shared<EndCriteria>(20, 10, 1e-6, 1e-6, 1e-6);
+    ext::shared_ptr<OptimizationMethod> stay = ext::make_shared<StayAtGuess>();
+
+    CmsCalibrationVars()
+    {
+        // Calculated first, so that these tests don't depend on what
+        // testSabrCubeRecalibrationBeforeFirstUse checks.
+        vars.SabrVolCube1->volatility(1 * Years, 2 * Years, 0.05);
+
+        std::vector<ext::shared_ptr<SwapIndex>> swapIndexes;
+        std::vector<ext::shared_ptr<CmsCouponPricer>> pricers;
+        for (const Period& tenor : swapTenors)
+        {
+            swapIndexes.push_back(ext::make_shared<EuriborSwapIsdaFixA>(tenor, vars.termStructure));
+            // The one of the four that reads the mean reversion.
+            pricers.push_back(vars.analyticPricers[3]);
+        }
+        std::vector<std::vector<Handle<Quote>>> bidAskSpreads(swapLengths.size());
+        for (Size i = 0; i < swapLengths.size(); ++i)
+        {
+            for (Size j = 0; j < swapTenors.size(); ++j)
+            {
+                const Real spread = 0.01 + 0.002 * i + 0.001 * j;
+                bidAskSpreads[i].emplace_back(ext::make_shared<SimpleQuote>(spread));
+                bidAskSpreads[i].emplace_back(ext::make_shared<SimpleQuote>(spread + 0.001));
+            }
+        }
+        market = ext::make_shared<CmsMarket>(swapLengths, swapIndexes, vars.iborIndex, bidAskSpreads, pricers,
+                                             vars.termStructure);
+    }
+
+    // The market's error with these betas: one row per swap tenor, one column per swap length.
+    Real errorAt(const std::vector<std::vector<Real>>& betas, Real meanReversion)
+    {
+        const auto cube = ext::dynamic_pointer_cast<SabrSwaptionVolatilityCube>(*vars.SabrVolCube1);
+        for (Size i = 0; i < swapTenors.size(); ++i)
+            cube->recalibration(swapLengths, betas[i], swapTenors[i]);
+        market->reprice(vars.SabrVolCube1, meanReversion);
+        return market->weightedSpreadError(weights);
+    }
+
+    // The same, with a beta term structure as a calibration reports it.
+    Real errorAtTermStructure(const Matrix& parameters, Real meanReversion)
+    {
+        std::vector<std::vector<Real>> betas(swapTenors.size(), std::vector<Real>(swapLengths.size()));
+        for (Size i = 0; i < swapTenors.size(); ++i)
+        {
+            for (Size j = 0; j < swapLengths.size(); ++j)
+                betas[i][j] = parameters[j][i];
+        }
+        return errorAt(betas, meanReversion);
+    }
+
+    // The same, with a parametric beta term structure: betaInf, beta0 and decay per swap tenor.
+    Real errorAtParametric(const Matrix& parameters, Real meanReversion)
+    {
+        const Handle<SwaptionVolatilityStructure>& cube = vars.SabrVolCube1;
+        std::vector<std::vector<Real>> betas(swapTenors.size());
+        for (Size i = 0; i < swapTenors.size(); ++i)
+        {
+            for (const Period& length : swapLengths)
+            {
+                const Time t = cube->timeFromReference(cube->optionDateFromTenor(length));
+                betas[i].push_back(parameters[0][i] +
+                                   (parameters[1][i] - parameters[0][i]) * std::exp(-parameters[2][i] * t));
+            }
+        }
+        return errorAt(betas, meanReversion);
+    }
+};
+
+BOOST_AUTO_TEST_CASE(testCmsCalibrationOnConstantBetaFromItsGuess)
+{
+    BOOST_TEST_MESSAGE("Testing that a CMS market calibration on constant betas starts from its guess...");
+
+    CmsCalibrationVars data;
+    CmsMarketCalibration calibration(data.vars.SabrVolCube1, data.market, data.weights, CmsMarketCalibration::OnSpread);
+
+    const std::vector<std::vector<Real>> betas = {std::vector<Real>(4, 0.4), std::vector<Real>(4, 0.6)};
+
+    for (bool isReversionFixed : {true, false})
+    {
+        BOOST_TEST_CONTEXT("mean reversion " << (isReversionFixed ? "fixed" : "free"))
+        {
+            Array guess(3);
+            guess[0] = 0.4;
+            guess[1] = 0.6;
+            guess[2] = 0.01;
+            const Array result = calibration.compute(data.endCriteria, data.stay, guess, isReversionFixed);
+            BOOST_REQUIRE_EQUAL(result.size(), Size(3));
+            for (Size i = 0; i < 3; ++i)
+                BOOST_CHECK_SMALL(result[i] - guess[i], 1e-14);
+            BOOST_CHECK_SMALL(data.errorAt(betas, 0.01) - calibration.error(), 1e-10);
+        }
+    }
+
+    Array guess(2);
+    guess[0] = 0.4;
+    guess[1] = 0.6;
+    const Array result = calibration.compute(data.endCriteria, data.stay, guess, true);
+    BOOST_REQUIRE_EQUAL(result.size(), Size(2));
+    BOOST_CHECK_SMALL(result[0] - 0.4, 1e-14);
+    BOOST_CHECK_SMALL(result[1] - 0.6, 1e-14);
+    BOOST_CHECK_SMALL(data.errorAt(betas, Null<Real>()) - calibration.error(), 1e-10);
+}
+
+BOOST_AUTO_TEST_CASE(testCmsCalibrationOnBetaTermStructureFromItsGuess)
+{
+    BOOST_TEST_MESSAGE("Testing that a CMS market calibration on a beta term structure starts from its guess...");
+
+    CmsCalibrationVars data;
+    CmsMarketCalibration calibration(data.vars.SabrVolCube1, data.market, data.weights, CmsMarketCalibration::OnSpread);
+
+    Matrix guess(4, 2);
+    for (Size j = 0; j < 4; ++j)
+    {
+        guess[j][0] = 0.3 + 0.05 * j;
+        guess[j][1] = 0.5 + 0.05 * j;
+    }
+
+    for (bool isReversionFixed : {true, false})
+    {
+        BOOST_TEST_CONTEXT("mean reversion " << (isReversionFixed ? "fixed" : "free"))
+        {
+            const Matrix result = calibration.compute(data.endCriteria, data.stay, guess, isReversionFixed, 0.01);
+            BOOST_REQUIRE_EQUAL(result.rows(), Size(4));
+            BOOST_REQUIRE_EQUAL(result.columns(), Size(3));
+            for (Size j = 0; j < 4; ++j)
+            {
+                BOOST_CHECK_SMALL(result[j][0] - guess[j][0], 1e-14);
+                BOOST_CHECK_SMALL(result[j][1] - guess[j][1], 1e-14);
+                BOOST_CHECK_SMALL(result[j][2] - 0.01, 1e-14);
+            }
+            BOOST_CHECK_SMALL(data.errorAtTermStructure(guess, 0.01) - calibration.error(), 1e-10);
+        }
+    }
+
+    const Matrix result = calibration.compute(data.endCriteria, data.stay, guess, true, Null<Real>());
+    BOOST_REQUIRE_EQUAL(result.columns(), Size(2));
+    BOOST_CHECK_SMALL(data.errorAtTermStructure(guess, Null<Real>()) - calibration.error(), 1e-10);
+}
+
+BOOST_AUTO_TEST_CASE(testCmsCalibrationOnParametricBetaFromItsGuess)
+{
+    BOOST_TEST_MESSAGE("Testing that a CMS market calibration on a parametric beta starts from its guess...");
+
+    CmsCalibrationVars data;
+    CmsMarketCalibration calibration(data.vars.SabrVolCube1, data.market, data.weights, CmsMarketCalibration::OnSpread);
+
+    Matrix guess(3, 2);
+    guess[0][0] = 0.3;
+    guess[1][0] = 0.4;
+    guess[2][0] = 0.1;
+    guess[0][1] = 0.5;
+    guess[1][1] = 0.6;
+    guess[2][1] = 0.2;
+
+    for (bool isReversionFixed : {true, false})
+    {
+        BOOST_TEST_CONTEXT("mean reversion " << (isReversionFixed ? "fixed" : "free"))
+        {
+            const Matrix result =
+                calibration.computeParametric(data.endCriteria, data.stay, guess, isReversionFixed, 0.01);
+            BOOST_REQUIRE_EQUAL(result.rows(), Size(3));
+            BOOST_REQUIRE_EQUAL(result.columns(), Size(3));
+            for (Size j = 0; j < 3; ++j)
+            {
+                BOOST_CHECK_SMALL(result[j][0] - guess[j][0], 1e-14);
+                BOOST_CHECK_SMALL(result[j][1] - guess[j][1], 1e-14);
+                BOOST_CHECK_SMALL(result[j][2] - 0.01, 1e-14);
+            }
+            BOOST_CHECK_SMALL(data.errorAtParametric(guess, 0.01) - calibration.error(), 1e-10);
+        }
+    }
+
+    const Matrix result = calibration.computeParametric(data.endCriteria, data.stay, guess, true, Null<Real>());
+    BOOST_REQUIRE_EQUAL(result.columns(), Size(2));
+    BOOST_CHECK_SMALL(data.errorAtParametric(guess, Null<Real>()) - calibration.error(), 1e-10);
+}
+
+BOOST_AUTO_TEST_CASE(testCmsCalibrationImprovesOnItsGuess, *precondition(if_speed(Fast)))
+{
+    BOOST_TEST_MESSAGE("Testing that a CMS market calibration improves on its guess...");
+
+    CmsCalibrationVars data;
+    CmsMarketCalibration calibration(data.vars.SabrVolCube1, data.market, data.weights, CmsMarketCalibration::OnSpread);
+
+    ext::shared_ptr<OptimizationMethod> levenbergMarquardt = ext::make_shared<LevenbergMarquardt>(1e-8, 1e-8, 1e-8);
+    // With a free mean reversion, a beta per quote leaves one variable more than errors.
+    ext::shared_ptr<OptimizationMethod> simplex = ext::make_shared<Simplex>(0.1);
+
+    const Matrix guess(4, 2, 0.5);
+    calibration.compute(data.endCriteria, data.stay, guess, true, 0.01);
+    const Real errorAtGuess = calibration.error();
+
+    const Matrix fixedResult = calibration.compute(data.endCriteria, levenbergMarquardt, guess, true, 0.01);
+    BOOST_CHECK_LT(calibration.error(), errorAtGuess);
+    BOOST_CHECK_SMALL(data.errorAtTermStructure(fixedResult, 0.01) - calibration.error(), 1e-10);
+
+    const Matrix freeResult = calibration.compute(data.endCriteria, simplex, guess, false, 0.01);
+    BOOST_CHECK_LT(calibration.error(), errorAtGuess);
+    BOOST_CHECK_SMALL(data.errorAtTermStructure(freeResult, freeResult[0][2]) - calibration.error(), 1e-10);
+
+    Matrix parametricGuess(3, 2, 0.5);
+    parametricGuess[2][0] = parametricGuess[2][1] = 0.1;
+    calibration.computeParametric(data.endCriteria, data.stay, parametricGuess, true, 0.01);
+    const Real errorAtParametricGuess = calibration.error();
+
+    const Matrix fixedParametric =
+        calibration.computeParametric(data.endCriteria, levenbergMarquardt, parametricGuess, true, 0.01);
+    BOOST_CHECK_LT(calibration.error(), errorAtParametricGuess);
+    BOOST_CHECK_SMALL(data.errorAtParametric(fixedParametric, 0.01) - calibration.error(), 1e-10);
+
+    const Matrix freeParametric =
+        calibration.computeParametric(data.endCriteria, levenbergMarquardt, parametricGuess, false, 0.01);
+    BOOST_CHECK_LT(calibration.error(), errorAtParametricGuess);
+    BOOST_CHECK_SMALL(data.errorAtParametric(freeParametric, freeParametric[0][2]) - calibration.error(), 1e-10);
+}
+
+BOOST_AUTO_TEST_CASE(testCmsCalibrationTypes)
+{
+    BOOST_TEST_MESSAGE("Testing the errors a CMS market calibration can work on...");
+
+    CmsCalibrationVars data;
+
+    Array guess(3);
+    guess[0] = 0.4;
+    guess[1] = 0.6;
+    guess[2] = 0.01;
+
+    const std::vector<std::vector<Real>> betas = {std::vector<Real>(4, 0.4), std::vector<Real>(4, 0.6)};
+
+    for (CmsMarketCalibration::CalibrationType type :
+         {CmsMarketCalibration::OnSpread, CmsMarketCalibration::OnPrice, CmsMarketCalibration::OnForwardCmsPrice})
+    {
+        CmsMarketCalibration calibration(data.vars.SabrVolCube1, data.market, data.weights, type);
+        calibration.compute(data.endCriteria, data.stay, guess, false);
+        data.errorAt(betas, 0.01);
+        const Real expected = type == CmsMarketCalibration::OnSpread ? data.market->weightedSpreadError(data.weights) :
+                              type == CmsMarketCalibration::OnPrice  ? data.market->weightedSpotNpvError(data.weights) :
+                                                                       data.market->weightedFwdNpvError(data.weights);
+        BOOST_CHECK_SMALL(calibration.error() - expected, 1e-10);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testCmsCalibrationRefusals)
+{
+    BOOST_TEST_MESSAGE("Testing what a CMS market calibration refuses...");
+
+    CmsCalibrationVars data;
+    Handle<SwaptionVolatilityStructure>& cube = data.vars.SabrVolCube1;
+
+    {
+        ExpectedErrorMessage expected("weights number of rows");
+        BOOST_CHECK_EXCEPTION(
+            CmsMarketCalibration(cube, data.market, Matrix(3, 2, 1.0), CmsMarketCalibration::OnSpread), Error,
+            expected);
+    }
+    {
+        ExpectedErrorMessage expected("weights number of columns");
+        BOOST_CHECK_EXCEPTION(
+            CmsMarketCalibration(cube, data.market, Matrix(4, 1, 1.0), CmsMarketCalibration::OnSpread), Error,
+            expected);
+    }
+
+    CmsMarketCalibration calibration(cube, data.market, data.weights, CmsMarketCalibration::OnSpread);
+    {
+        ExpectedErrorMessage expected("if mean reversion is not fixed, a guess must be provided");
+        BOOST_CHECK_EXCEPTION(calibration.compute(data.endCriteria, data.stay, Array(2, 0.5), false), Error, expected);
+        BOOST_CHECK_EXCEPTION(calibration.compute(data.endCriteria, data.stay, Matrix(4, 2, 0.5), false, Null<Real>()),
+                              Error, expected);
+        BOOST_CHECK_EXCEPTION(
+            calibration.computeParametric(data.endCriteria, data.stay, Matrix(3, 2, 0.5), false, Null<Real>()), Error,
+            expected);
+    }
+    {
+        ExpectedErrorMessage expected("guess size (1)");
+        BOOST_CHECK_EXCEPTION(calibration.compute(data.endCriteria, data.stay, Array(1, 0.5), true), Error, expected);
+    }
+    {
+        ExpectedErrorMessage expected("number of swap lengths (4)");
+        BOOST_CHECK_EXCEPTION(calibration.compute(data.endCriteria, data.stay, Matrix(5, 2, 0.5), true, 0.01), Error,
+                              expected);
+    }
+    {
+        ExpectedErrorMessage expected("number of swap tenors (2)");
+        BOOST_CHECK_EXCEPTION(calibration.compute(data.endCriteria, data.stay, Matrix(4, 1, 0.5), true, 0.01), Error,
+                              expected);
+        BOOST_CHECK_EXCEPTION(calibration.computeParametric(data.endCriteria, data.stay, Matrix(3, 1, 0.5), true, 0.01),
+                              Error, expected);
+    }
+    {
+        ExpectedErrorMessage expected("number of parameters (3)");
+        BOOST_CHECK_EXCEPTION(calibration.computeParametric(data.endCriteria, data.stay, Matrix(2, 2, 0.5), true, 0.01),
+                              Error, expected);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testSabrCubeRecalibrationBeforeFirstUse)
+{
+    BOOST_TEST_MESSAGE("Testing a SABR cube's recalibration before anything has calculated it...");
+
+    CommonVars vars;
+    const auto cube = ext::dynamic_pointer_cast<SabrSwaptionVolatilityCube>(*vars.SabrVolCube1);
+
+    cube->recalibration(std::vector<Real>(cube->optionTenors().size(), 0.5), cube->swapTenors().front());
+
+    BOOST_CHECK(std::isfinite(cube->volatility(1 * Years, cube->swapTenors().front(), 0.05)));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

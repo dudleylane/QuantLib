@@ -226,6 +226,22 @@ namespace QuantLib
                 || (d == 9 && m == November))
                 return false;
         }
+
+        // https://www.mom.gov.sg/employment-practices/public-holidays
+        if (y == 2027)
+        {
+            if ( // Chinese New Year (Saturday Feb 6th and Sunday Feb 7th, observed Monday Feb 8th)
+                (d == 8 && m == February)
+                // Hari Raya Puasa
+                || (d == 10 && m == March)
+                // Hari Raya Haji
+                || (d == 17 && m == May)
+                // Vesak Day
+                || (d == 20 && m == May)
+                // Deepavali
+                || (d == 28 && m == October))
+                return false;
+        }
         return true;
     }
 

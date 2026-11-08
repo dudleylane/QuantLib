@@ -130,8 +130,10 @@ namespace QuantLib
 
     std::vector<Real> ZabrModel::fdPrice(const std::vector<Real>& strikes) const
     {
+        QL_REQUIRE(!strikes.empty(), "no strikes given");
+        for (auto i = strikes.begin() + 1; i != strikes.end(); ++i)
+            QL_REQUIRE(*i > *(i - 1), "strikes must be strictly ascending (" << *(i - 1) << "," << *i << ")");
 
-        // TODO check strikes to be increasing
         // TODO put these parameters somewhere
         const Real start = std::min(0.00001, strikes.front() * 0.5); // lowest strike for grid
         const Real end = std::max(0.10, strikes.back() * 1.5);       // highest strike for grid
@@ -310,7 +312,7 @@ namespace QuantLib
 
     std::vector<Real> ZabrModel::x(const std::vector<Real>& strikes) const
     {
-
+        QL_REQUIRE(!strikes.empty(), "no strikes given");
         QL_REQUIRE(strikes[0] > 0.0 || beta_ < 1.0, "strikes must be positive (" << strikes[0] << ") if beta = 1");
         for (auto i = strikes.begin() + 1; i != strikes.end(); ++i)
             QL_REQUIRE(*i > *(i - 1), "strikes must be strictly ascending (" << *(i - 1) << "," << *i << ")");

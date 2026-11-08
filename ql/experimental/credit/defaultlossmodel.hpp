@@ -45,7 +45,7 @@ namespace QuantLib
     basket loss models, which might require recalculations (of the basket) or
     not depending on the pricing order.
     */
-    class DefaultLossModel : public Observable
+    class DefaultLossModel : public virtual Observable
     { // joint-? basket?-defaultLoss
         /* Protection together with frienship to avoid the need of checking the
         basket-argument pointer integrity. It is the responsibility of the basket
@@ -150,16 +150,13 @@ namespace QuantLib
       private: // can only be called from Basket
         void setBasket(Basket* bskt)
         {
-            /* After this; if the model modifies its internal status/caches (if
-            any) it should notify the  prior basket to recognise that basket is
-            not in a calculated=true state. Since we dont know at this level if
-            the model keeps caches it is the children responsibility. Typically
-            this is done at the first call to calculate to the loss model, there
-            it notifies the basket. The old basket is still registered with us
-            until the basket takes in a new model....
-            ..alternatively both old basket and model could be forced reset here
+            /* The model reads its arguments from one basket at a time, so its
+            other baskets aren't calculated any more, and have to take it back.
+            They hear before the reset, which can refuse the new basket with the
+            model already moved. The basket taking the model ignores this.
             */
             basket_.linkTo(ext::shared_ptr<Basket>(bskt, null_deleter()), false);
+            notifyObservers();
             resetModel(); // or rename to setBasketImpl(...)
         }
         // the call order matters, which is the reason for the parent to be the

@@ -37,11 +37,14 @@
 #include <ql/pricingengines/swap/discountingswapengine.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/termstructures/inflation/inflationhelpers.hpp>
+#include <ql/termstructures/inflation/interpolatedyoyinflationcurve.hpp>
 #include <ql/termstructures/inflation/piecewiseyoyinflationcurve.hpp>
 #include <ql/termstructures/volatility/inflation/yoyinflationoptionletvolatilitystructure.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
+#include <ql/time/calendars/nullcalendar.hpp>
 #include <ql/time/calendars/unitedkingdom.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/time/daycounters/actualactual.hpp>
 #include <ql/time/daycounters/thirty360.hpp>
 #include <ql/time/schedule.hpp>
@@ -512,6 +515,111 @@ BOOST_AUTO_TEST_CASE(testCachedValue)
                                                       << " diff was " << (fabs(floor->NPV() - cachedFloorNPVbac)));
 
     // remove circular refernce
+    vars.hy.reset();
+}
+
+BOOST_AUTO_TEST_CASE(testTimeValueNearVolatilityBaseDate)
+{
+    BOOST_TEST_MESSAGE("Testing yoy inflation optionlets fixing within a lag of the volatility base date...");
+
+    Date today(21, September, 2026);
+    Settings::instance().evaluationDate() = today;
+    DayCounter dc = Actual365Fixed();
+    Period observationLag(3, Months);
+    Handle<YieldTermStructure> discountCurve(ext::make_shared<FlatForward>(today, 0.03, dc));
+    Rate forward = 0.024, strike = 0.0225;
+    Handle<YoYInflationTermStructure> yoyCurve(
+        ext::make_shared<YoYInflationCurve>(today, std::vector<Date>{Date(1, July, 2026), Date(1, July, 2027)},
+                                            std::vector<Rate>(2, forward), Monthly, dc));
+    auto index = ext::make_shared<YoYInflationIndex>(ext::make_shared<EUHICP>(), yoyCurve);
+    auto coupon =
+        ext::make_shared<YoYInflationCoupon>(Date(15, November, 2026), 1000000.0, Date(15, November, 2025),
+                                             Date(15, November, 2026), 0, index, observationLag, CPI::Flat, dc);
+    Leg leg{coupon};
+    Date fixingDate = coupon->fixingDate();
+    Real discount = coupon->nominal() * coupon->accrualPeriod() * discountCurve->discount(coupon->date());
+    Volatility vol = 0.40;
+    const char* engineNames[] = {"Black", "unit-displaced Black", "Bachelier"};
+
+    for (bool interpolated : {false, true})
+    {
+        Handle<YoYOptionletVolatilitySurface> volatility(ext::make_shared<ConstantYoYOptionletVolatility>(
+            vol, 0, NullCalendar(), Unadjusted, dc, observationLag, Monthly, interpolated));
+
+        BOOST_REQUIRE(fixingDate > volatility->baseDate());
+        BOOST_REQUIRE(fixingDate < volatility->baseDate() + observationLag);
+        BOOST_REQUIRE(volatility->timeFromBase(fixingDate) < 0.0);
+
+        // Flat observations use August 1; interpolated observations use August 15.
+        Date observationDate = interpolated ? fixingDate : Date(1, August, 2026);
+        Time time = dc.yearFraction(volatility->baseDate(), observationDate);
+        Real variance = volatility->totalVariance(fixingDate, strike, Period(0, Days));
+        BOOST_REQUIRE(variance > 0.0);
+        BOOST_CHECK_SMALL(variance - vol * vol * time, 1.0e-14);
+        Real stdDev = std::sqrt(variance);
+
+        std::vector<ext::shared_ptr<PricingEngine>> engines = {
+            ext::make_shared<YoYInflationBlackCapFloorEngine>(index, volatility, discountCurve),
+            ext::make_shared<YoYInflationUnitDisplacedBlackCapFloorEngine>(index, volatility, discountCurve),
+            ext::make_shared<YoYInflationBachelierCapFloorEngine>(index, volatility, discountCurve)};
+
+        for (Size which = 0; which < engines.size(); ++which)
+        {
+            for (auto type : {YoYInflationCapFloor::Cap, YoYInflationCapFloor::Floor})
+            {
+                BOOST_TEST_CONTEXT(engineNames[which] << ", " << type << ", interpolated=" << interpolated)
+                {
+                    YoYInflationCapFloor option(type, leg, std::vector<Rate>(1, strike));
+                    option.setPricingEngine(engines[which]);
+                    Option::Type optionType = type == YoYInflationCapFloor::Cap ? Option::Call : Option::Put;
+                    Real expected;
+                    if (which == 2)
+                    {
+                        expected = bachelierBlackFormula(optionType, strike, forward, stdDev, discount);
+                    }
+                    else
+                    {
+                        Real displacement = which == 1 ? 1.0 : 0.0;
+                        expected = blackFormula(optionType, strike, forward, stdDev, discount, displacement);
+                    }
+                    BOOST_CHECK_SMALL(option.NPV() - expected, 1.0e-8);
+                    const auto& stdDevs = option.result<std::vector<Real>>("optionletsStdDev");
+                    BOOST_REQUIRE_EQUAL(stdDevs.size(), Size(1));
+                    BOOST_CHECK_SMALL(stdDevs[0] - stdDev, 1.0e-14);
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testVolatilityQuoteObservability)
+{
+    BOOST_TEST_MESSAGE("Testing a YoY inflation cap's repricing when its volatility quote moves...");
+
+    CommonVars vars;
+
+    auto quote = ext::make_shared<SimpleQuote>(0.01);
+    Handle<YoYOptionletVolatilitySurface> volatility(ext::make_shared<ConstantYoYOptionletVolatility>(
+        Handle<Quote>(quote), vars.settlementDays, vars.calendar, vars.convention, vars.dc, vars.observationLag,
+        vars.frequency, false));
+
+    Leg leg = vars.makeYoYLeg(vars.evaluationDate, 2);
+    auto cap = ext::make_shared<YoYInflationCap>(leg, std::vector<Rate>(1, 0.0295));
+    cap->setPricingEngine(ext::make_shared<YoYInflationBlackCapFloorEngine>(vars.iir, volatility, vars.nominalTS));
+
+    const Real atFirstQuote = cap->NPV();
+    quote->setValue(0.02);
+    const Real atSecondQuote = cap->NPV();
+
+    BOOST_CHECK_GT(atSecondQuote, atFirstQuote);
+
+    Leg sameLeg = vars.makeYoYLeg(vars.evaluationDate, 2);
+    auto sameCap = ext::make_shared<YoYInflationCap>(sameLeg, std::vector<Rate>(1, 0.0295));
+    sameCap->setPricingEngine(vars.makeEngine(0.02, 0));
+
+    BOOST_CHECK_SMALL(atSecondQuote / sameCap->NPV() - 1.0, 1e-10);
+
+    // remove circular reference
     vars.hy.reset();
 }
 

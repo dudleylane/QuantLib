@@ -2903,6 +2903,49 @@ BOOST_AUTO_TEST_CASE(testOptimalAlphaKmax)
     alphaStar = AnalyticHestonEngine::OptimalAlpha(T, engine.get()).alphaGreaterZero(strike).first;
     QL_CHECK_SMALL(alphaStar - 0.28006, 1e-4);
 }
+BOOST_AUTO_TEST_CASE(testNonCentralChiSquareVarianceOverShortSteps)
+{
+    BOOST_TEST_MESSAGE("Testing Heston's non-central chi-square variance over short steps...");
+
+    const Date today(15, May, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.01, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+
+    // The scale of the distribution times its quantile, from the extended-precision series.
+    struct Case
+    {
+        Real sigma;
+        Time dt;
+        Real dw, expected;
+    };
+    const Case cases[] = {
+        {0.5, 1.0 / 3650, -1.0, 0.03834530539131428}, {0.5, 1.0 / 3650, 0.0, 0.03998288018144979},
+        {0.5, 1.0 / 3650, 1.0, 0.041654694608660565}, {0.3, 1.0 / 3650, -1.0, 0.03900711522144514},
+        {0.3, 1.0 / 3650, 0.0, 0.039993837146795816}, {0.3, 1.0 / 3650, 1.0, 0.040992884778603675},
+        {0.1, 1.0 / 365, -1.0, 0.038955344256327344}, {0.1, 1.0 / 365, 0.0, 0.0399931692270607},
+        {0.1, 1.0 / 365, 1.0, 0.041044655744592144},  {0.03, 1.0 / 52, -1.0, 0.0391798296111755},
+        {0.03, 1.0 / 52, 0.0, 0.039995755318154226},  {0.03, 1.0 / 52, 1.0, 0.04082017039141387},
+    };
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT("sigma: " << c.sigma << ", dt: " << c.dt << ", dw: " << c.dw)
+        {
+            const HestonProcess process(rTS, qTS, s0, 0.04, 1.5, 0.04, c.sigma, -0.5,
+                                        HestonProcess::NonCentralChiSquareVariance);
+            Array x0(2), dw(2);
+            x0[0] = 100.0;
+            x0[1] = 0.04;
+            dw[0] = 0.1;
+            dw[1] = c.dw;
+            BOOST_CHECK_SMALL(process.evolve(0.0, x0, c.dt, dw)[1] - c.expected, 1e-10);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE(HestonModelExperimentalTest)

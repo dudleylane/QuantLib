@@ -44,14 +44,25 @@ namespace QuantLib
         Year y = date.year();
 
         if (isWeekend(w)
-            // New Year's Day
-            || (d == 1 && m == January)
-            // Peace Memorial Day
-            || (d == 28 && m == February)
-            // Labor Day
-            || (d == 1 && m == May)
-            // Double Tenth
-            || (d == 10 && m == October))
+            // New Year's Day (possibly moved to Friday or Monday since 2015)
+            || ((d == 1 || (d == 2 && w == Monday && y >= 2015)) && m == January) ||
+            (d == 31 && w == Friday && m == December && y >= 2015)
+            // Peace Memorial Day (possibly moved to Friday or Monday since 2015)
+            || ((d == 28 || (d == 27 && w == Friday && y >= 2015) || (d == 29 && w == Monday && y >= 2015)) &&
+                m == February) ||
+            (d == 1 && w == Monday && m == March && !Date::isLeap(y) && y >= 2015)
+            // Labor Day (possibly moved to Friday or Monday since 2015)
+            || ((d == 1 || (d == 2 && w == Monday && y >= 2015)) && m == May) ||
+            (d == 30 && w == Friday && m == April && y >= 2015)
+            // Teachers' Day (since 2025, possibly moved to Friday or Monday)
+            || ((d == 28 || (d == 27 && w == Friday) || (d == 29 && w == Monday)) && m == September && y >= 2025)
+            // Double Tenth (possibly moved to Friday or Monday since 2015)
+            ||
+            ((d == 10 || (d == 9 && w == Friday && y >= 2015) || (d == 11 && w == Monday && y >= 2015)) && m == October)
+            // Taiwan Retrocession Day (since 2025, possibly moved to Friday or Monday)
+            || ((d == 25 || (d == 24 && w == Friday) || (d == 26 && w == Monday)) && m == October && y >= 2025)
+            // Constitution Day (since 2025, possibly moved to Friday or Monday)
+            || ((d == 25 || (d == 24 && w == Friday) || (d == 26 && w == Monday)) && m == December && y >= 2025))
             return false;
 
         if (y == 2002)
@@ -248,17 +259,13 @@ namespace QuantLib
                 // Lunar New Year
                 || (d >= 18 && d <= 23 && m == February)
                 // adjusted holidays
-                || (d == 27 && m == February)
-                // adjusted holidays
                 || (d == 3 && m == April)
                 // adjusted holidays
                 || (d == 6 && m == April)
                 // adjusted holidays
                 || (d == 19 && m == June)
                 // adjusted holidays
-                || (d == 28 && m == September)
-                // adjusted holidays
-                || (d == 9 && m == October))
+                || (d == 28 && m == September))
                 return false;
         }
 
@@ -266,14 +273,10 @@ namespace QuantLib
         {
             if ( // Lunar New Year
                 (d >= 8 && d <= 12 && m == February)
-                // adjusted holidays
-                || (d == 29 && m == February)
                 // Children's Day
                 || (d == 4 && m == April)
                 // adjusted holidays
                 || (d == 5 && m == April)
-                // adjusted holidays
-                || (d == 2 && m == May)
                 // Dragon Boat Festival
                 || (d == 9 && m == June)
                 // adjusted holidays
@@ -287,10 +290,8 @@ namespace QuantLib
 
         if (y == 2017)
         {
-            if ( // adjusted holidays
-                (d == 2 && m == January)
-                // Lunar New Year
-                || ((d >= 27 && m == January) || (d == 1 && m == February))
+            if ( // Lunar New Year
+                ((d >= 27 && m == January) || (d == 1 && m == February))
                 // adjusted holidays
                 || (d == 27 && m == February)
                 // adjusted holidays
@@ -363,9 +364,7 @@ namespace QuantLib
                 // Mid-Autumn Festival
                 || (d == 1 && m == October)
                 // adjusted holiday
-                || (d == 2 && m == October)
-                // adjusted holiday
-                || (d == 9 && m == October))
+                || (d == 2 && m == October))
                 return false;
         }
 
@@ -376,24 +375,16 @@ namespace QuantLib
                 (d == 10 && m == February)
                 // Lunar New Year
                 || (d >= 11 && d <= 16 && m == February)
-                // adjusted holiday
-                || (d == 1 && m == March)
                 // Children's Day
                 || (d == 2 && m == April)
                 // adjusted holiday
                 || (d == 5 && m == April)
-                // adjusted holiday
-                || (d == 30 && m == April)
                 // Dragon Boat Festival
                 || (d == 14 && m == June)
                 // adjusted holiday
                 || (d == 20 && m == September)
                 // Mid-Autumn Festival
-                || (d == 21 && m == September)
-                // adjusted holiday
-                || (d == 11 && m == October)
-                // adjusted holiday
-                || (d == 31 && m == December))
+                || (d == 21 && m == September))
                 return false;
         }
 
@@ -406,8 +397,6 @@ namespace QuantLib
                 || (d == 4 && m == April)
                 // Tomb Sweeping Day
                 || (d == 5 && m == April)
-                // adjusted holiday
-                || (d == 2 && m == May)
                 // Dragon Boat Festival
                 || (d == 3 && m == June)
                 // adjusted holiday
@@ -418,9 +407,7 @@ namespace QuantLib
         if (y == 2023)
         {
             if ( // adjusted holiday
-                (d == 2 && m == January)
-                // adjusted holiday
-                || (d == 20 && m == January)
+                (d == 20 && m == January)
                 // Lunar New Year
                 || (d >= 21 && d <= 24 && m == January)
                 // adjusted holiday
@@ -487,8 +474,6 @@ namespace QuantLib
                 (d >= 12 && d <= 13 && m == February)
                 // Lunar New Year
                 || (d >= 16 && d <= 20 && m == February)
-                // adjusted holiday (Peace Memorial Day falls on Saturday)
-                || (d == 27 && m == February)
                 // adjusted holiday
                 || (d == 3 && m == April)
                 // adjusted holiday (Tomb-sweeping Day falls on Sunday)
@@ -496,9 +481,7 @@ namespace QuantLib
                 // Dragon Boat Festival
                 || (d == 19 && m == June)
                 // Mid-Autumn Festival
-                || (d == 25 && m == September)
-                // adjusted holiday (National Day falls on Saturday)
-                || (d == 9 && m == October))
+                || (d == 25 && m == September))
                 return false;
         }
 

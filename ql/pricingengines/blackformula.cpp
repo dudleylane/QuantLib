@@ -46,6 +46,13 @@ namespace
         QL_REQUIRE(forward + displacement > 0.0,
                    "forward + displacement (" << forward << " + " << displacement << ") must be positive");
     }
+
+    // How far rounding can put a price on its intrinsic value below it. That goes
+    // with the forward and the strike, however close they are to each other.
+    QuantLib::Real roundingOfIntrinsicValue(QuantLib::Real strike, QuantLib::Real forward)
+    {
+        return 42 * QL_EPSILON * std::max(std::fabs(strike), std::fabs(forward));
+    }
 }
 
 namespace QuantLib
@@ -238,20 +245,46 @@ namespace QuantLib
         K = K + displacement;
 
         const Real ey = F / K;
-        const Real ey2 = ey * ey;
         const Real y = std::log(ey);
         const Real alpha = marketValue / (K * df);
-        const Real R = 2 * alpha + ((type == Option::Call) ? Real(-ey + 1.0) : ey - 1.0);
-        const Real R2 = R * R;
+        // The other option's value by put-call parity, on the same scale.
+        const Real other = (marketValue / df - Integer(type) * (F - K)) / K;
 
-        const Real a = std::exp((1.0 - M_2_PI) * y);
-        const Real A = squared(a - 1.0 / a);
-        const Real b = std::exp(M_2_PI * y);
-        const Real B = 4.0 * (b + 1 / b) - 2 * K / F * (a + 1.0 / a) * (ey2 + 1 - R2);
-        const Real C = (R2 - squared(ey - 1)) * (squared(ey + 1) - R2) / ey2;
+        // In the formula, R = alpha + other, and R^2 - (ey - 1)^2 is 4 alpha other. In
+        // those terms none of its A, B, C or E cancels, however small or large they are.
+        const Real w = alpha * other / ey;
 
-        const Real beta = 2 * C / (B + std::sqrt(B * B + 4 * A * C));
-        const Real gamma = -M_PI_2 * std::log(beta);
+        // No time value in the money, or too little on it to hold, where what follows is 0 / 0.
+        if (w <= 0.0)
+            return 0.0;
+
+        const Real c = 1.0 - M_2_PI;
+        const Real sinhA = std::sinh(c * y);
+        const Real A = 4.0 * sinhA * sinhA;
+        const Real B = 16.0 * (std::sinh(0.5 * y) * std::sinh((0.5 - c) * y) + std::cosh(c * y) * w);
+        // (ey + 1)^2 - R^2 has as a factor how far the undiscounted price is from the most it can be.
+        const Real toMost = ((type == Option::Call) ? F : K) - marketValue / df;
+        const Real C = std::max(0.0, 8.0 * w * toMost * (ey + 1.0 + alpha + other) / F);
+
+        const Real D = std::sqrt(B * B + 4 * A * C);
+        const Real beta = 2 * C / (B + D);
+        Real gamma;
+        if (beta < 0.5)
+        {
+            gamma = -M_PI_2 * std::log(beta);
+        }
+        else
+        {
+            // Here 2 C >= B, and 1 - beta is (B + D - 2 C) / (B + D). Its numerator is
+            // 4 C (A + B - C) / (D + 2 C - B), and E is A + B - C without cancelling.
+            // C E can underflow where the two quotients don't.
+            const Real E = 16.0 * (squared(squared(std::sinh(0.5 * c * y)) + w) + squared(std::sinh(M_1_PI * y)));
+            gamma = -M_PI_2 * std::log1p(-4.0 * (C / (D + 2.0 * C - B)) * (E / (B + D)));
+        }
+
+        // gamma >= |y| but for rounding.
+        const Real rootPlus = std::sqrt(gamma + std::fabs(y));
+        const Real rootMinus = std::sqrt(std::max(gamma - std::fabs(y), 0.0));
 
         if (y >= 0.0)
         {
@@ -260,9 +293,9 @@ namespace QuantLib
                 ((type == Option::Call) ? Real(ey * Af(std::sqrt(2 * y)) - 0.5) : 0.5 - ey * Af(-std::sqrt(2 * y)));
 
             if (marketValue <= M0)
-                return std::sqrt(gamma + y) - std::sqrt(gamma - y);
+                return 2.0 * y / (rootPlus + rootMinus);
             else
-                return std::sqrt(gamma + y) + std::sqrt(gamma - y);
+                return rootPlus + rootMinus;
         }
         else
         {
@@ -271,9 +304,9 @@ namespace QuantLib
                 ((type == Option::Call) ? Real(0.5 * ey - Af(-std::sqrt(-2 * y))) : Af(std::sqrt(-2 * y)) - 0.5 * ey);
 
             if (marketValue <= M0)
-                return std::sqrt(gamma - y) - std::sqrt(gamma + y);
+                return -2.0 * y / (rootPlus + rootMinus);
             else
-                return std::sqrt(gamma + y) + std::sqrt(gamma - y);
+                return rootPlus + rootMinus;
         }
     }
 
@@ -349,6 +382,9 @@ namespace QuantLib
         QL_REQUIRE(blackPrice >= 0.0, "option price (" << blackPrice << ") must be non-negative");
         // check the price of the "other" option implied by put-call paity
         Real otherOptionPrice = blackPrice - Integer(optionType) * (forward - strike) * discount;
+        if (otherOptionPrice < 0.0 &&
+            otherOptionPrice >= -discount * roundingOfIntrinsicValue(strike + displacement, forward + displacement))
+            otherOptionPrice = 0.0;
         QL_REQUIRE(otherOptionPrice >= 0.0, "negative "
                                                 << Option::Type(-1 * optionType) << " price (" << otherOptionPrice
                                                 << ") implied by put-call parity. No solution exists for " << optionType
@@ -428,8 +464,10 @@ namespace QuantLib
             // does not provide enough accuracy. But both together are
             // slower than the boost replacement.
             const Real k = MaddockInverseCumulativeNormal()(q);
+            const Real root = std::sqrt(k * k + 2 * std::fabs(x));
 
-            return k + std::sqrt(k * k + 2 * std::fabs(x));
+            // k + root cancels for k well below 0.
+            return k >= 0.0 ? Real(k + root) : Real(2 * std::fabs(x) / (root - k));
         }
     }
 
@@ -452,29 +490,30 @@ namespace QuantLib
         strike = strike + displacement;
         forward = forward + displacement;
 
+        const Real timeValue = blackPrice / discount - std::max(Integer(optionType) * (forward - strike), 0.0);
+        QL_REQUIRE(timeValue >= -roundingOfIntrinsicValue(strike, forward),
+                   "option price (" << blackPrice << ") is below its intrinsic value");
+        if (timeValue <= 0.0)
+            return 0.0;
+
         if (guess == Null<Real>())
         {
-            guess = blackFormulaImpliedStdDevApproximationRS(optionType, strike, forward, blackPrice, discount,
-                                                             displacement);
+            // The strike and the forward already have their displacement.
+            guess = blackFormulaImpliedStdDevApproximationRS(optionType, strike, forward, blackPrice, discount);
+            // Too low to tell from no variance, and the iteration can't start from it.
+            if (guess == 0.0)
+                return 0.0;
         }
         else
         {
-            QL_REQUIRE(guess >= 0.0, "stdDev guess (" << guess << ") must be non-negative");
+            QL_REQUIRE(guess > 0.0, "stdDev guess (" << guess << ") must be positive");
         }
 
-        Real x = std::log(forward / strike);
-        Real cs = (optionType == Option::Call) ? Real(blackPrice / (forward * discount)) :
-                                                 (blackPrice / (forward * discount) + 1.0 - strike / forward);
-
-        QL_REQUIRE(cs >= 0.0, "normalized call price (" << cs << ") must be positive");
-
-        if (x > 0)
-        {
-            // use in-out duality
-            cs = forward / strike * cs + 1.0 - forward / strike;
-            QL_REQUIRE(cs >= 0.0, "negative option price from in-out duality");
-            x = -x;
-        }
+        // By in-out duality, this is the out-of-the-money option's price over the
+        // lower of the forward and the strike, with x below 0 whichever it is.
+        const Real x = -std::fabs(std::log(forward / strike));
+        const Real cs = timeValue / std::min(forward, strike);
+        QL_REQUIRE(cs < 1.0, "option price (" << blackPrice << ") is at or above the most the option can be worth");
 
         Size nIter = 0;
         Real dv, vk, vkp1 = guess;
@@ -483,7 +522,9 @@ namespace QuantLib
         {
             vk = vkp1;
             const Real alphaK = (1 + w) / (1 + phi(x, vk));
-            vkp1 = alphaK * G(vk, x, cs, w) + (1 - alphaK) * vk;
+            // alphaK can reach the billions. As alphaK * G + (1 - alphaK) * vk, the step would be what's left of two
+            // large numbers, with more rounding than the step needs, of a size that depends on the compiler's flags.
+            vkp1 = vk + alphaK * (G(vk, x, cs, w) - vk);
             dv = std::fabs(vkp1 - vk);
         } while (dv > accuracy && ++nIter < maxIterations);
 
@@ -544,7 +585,7 @@ namespace QuantLib
         auto sign = Integer(optionType);
 
         if (stdDev == 0.0)
-            return (forward * sign < strike * sign ? 1.0 : 0.0);
+            return (forward * sign > strike * sign ? 1.0 : 0.0);
 
         forward = forward + displacement;
         strike = strike + displacement;
@@ -796,7 +837,7 @@ namespace QuantLib
 
         Real timeValue = bachelierPrice - std::max(theta * (forward - strike), 0.0);
 
-        if (close_enough(timeValue, 0.0))
+        if (timeValue <= 0.0 && timeValue >= -roundingOfIntrinsicValue(strike, forward))
             return 0.0;
 
         QL_REQUIRE(timeValue > 0.0, "bachelierBlackFormulaImpliedVolExact(theta="
@@ -834,11 +875,11 @@ namespace QuantLib
     Real bachelierBlackFormulaAssetItmProbability(Option::Type optionType, Real strike, Real forward, Real stdDev)
     {
         QL_REQUIRE(stdDev >= 0.0, "stdDev (" << stdDev << ") must be non-negative");
-        Real d = (forward - strike) * Integer(optionType), h = d / stdDev;
+        Real d = (forward - strike) * Integer(optionType);
         if (stdDev == 0.0)
-            return std::max(d, 0.0);
+            return (d > 0.0 ? 1.0 : 0.0);
         CumulativeNormalDistribution phi;
-        Real result = phi(h);
+        Real result = phi(d / stdDev);
         return result;
     }
 

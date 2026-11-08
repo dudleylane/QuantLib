@@ -125,6 +125,7 @@ namespace QuantLib
     Rate SyntheticCDO::fairUpfrontPremium() const
     {
         calculate();
+        QL_REQUIRE(remainingNotional_ != 0, "no remaining notional to calculate a syntheticCDO upfront premium on.");
         return (protectionValue_ - premiumValue_) / remainingNotional_;
     }
 
