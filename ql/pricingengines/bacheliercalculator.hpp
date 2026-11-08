@@ -31,6 +31,12 @@ namespace QuantLib
 {
 
     //! Bachelier calculator class
+    /*! Values plain-vanilla, cash-or-nothing, asset-or-nothing and gap payoffs on a forward that is normal at
+        expiry, with standard deviation \p stdDev.
+
+        At zero standard deviation, the Greeks of a payoff that jumps at the strike leave the jump out.  With
+        the forward at the strike, its term in the delta would be infinite.
+    */
     class BachelierCalculator
     {
       private:
@@ -98,10 +104,10 @@ namespace QuantLib
         /*! gamma w.r.t. strike. */
         Real strikeGamma() const;
 
-        /*! Sensitivity of vega to spot (Vanna) */
+        /*! Sensitivity of vega to the forward (Vanna) */
         Real vanna(Time maturity) const;
 
-        /*! Sensitivity of volga to volatility (Volga) */
+        /*! Sensitivity of vega to volatility (Volga) */
         Real volga(Time maturity) const;
 
         Real alpha() const;
@@ -117,6 +123,9 @@ namespace QuantLib
         Real alpha_, beta_, DalphaDd_, DbetaDd_; // Simplified derivative names
         Real n_d_, cum_d_;                       // Single normal distribution values
         Real x_, DxDs_, DxDstrike_;
+        // In the money the payoff is slope_ * F_T + intercept_, and jump_ is what it pays at the strike.
+        Real slope_, intercept_, DinterceptDstrike_, jump_;
+        bool vanilla_;
     };
 
     // inline
