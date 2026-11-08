@@ -38,6 +38,13 @@ namespace QuantLib
          Curved Boundaries" Mathematical Finance 2/1992").
          This code handles only flat barriers
 
+         The series sums images of the spot in the barriers, \p series of them on each side.  Where
+         \f$ \sigma \sqrt{T} \f$ is above half of \f$ \ln(U/L) \f$, the engine sums the eigenfunction
+         expansion of the density between the barriers instead, to convergence.  There the images would
+         need more terms the wider the volatility is against the corridor, and they are of the order of
+         the spot while the value falls far below it.  Below that, the default \p series leaves out
+         terms below \f$ e^{-240} \f$ of the leading ones.
+
         \ingroup barrierengines
 
         \test the correctness of the returned value is tested by
