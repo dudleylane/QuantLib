@@ -29,6 +29,7 @@ Copyright (C) 2015 Thema Consulting SA
 #include <ql/time/calendars/nullcalendar.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/utilities/dataformatters.hpp>
 
 using namespace QuantLib;
@@ -306,6 +307,157 @@ BOOST_AUTO_TEST_CASE(testPdeDoubleBarrierWithAnalytical)
                         << "\n diff               : " << diff << "\n tolerance          : " << tol);
         }
     }
+}
+
+// Options paying a cash of 10, against references to 20 digits: sums over images of the no-touch probability and of
+// the exit time's density, the latter with each image's value up to expiry in closed form, at complex arguments where
+// a negative rate makes its exponent imaginary; Hui's series, with the KIKO's part that doesn't depend on expiry
+// summed in closed form; and, for KIKO and KOKI options, quadrature of the discounted density of the exit time.  The
+// tolerance is relative to the cash for knock-outs and knock-ins, whose error is absolute, and to the value for KIKO
+// and KOKI options.
+struct DoubleBinaryReferenceData
+{
+    DoubleBarrier::Type barrierType;
+    Real s, barrier_lo, barrier_hi;
+    Rate r, q;
+    Volatility v;
+    Integer days;
+    Real value, tolerance;
+};
+
+void checkDoubleBinaryReferences(const std::vector<DoubleBinaryReferenceData>& cases)
+{
+    const Date today(7, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Real cash = 10.0;
+
+    for (const auto& c : cases)
+    {
+        const bool atHit = c.barrierType == DoubleBarrier::KIKO || c.barrierType == DoubleBarrier::KOKI;
+        ext::shared_ptr<Exercise> exercise;
+        if (atHit)
+            exercise = ext::make_shared<AmericanExercise>(today, today + c.days);
+        else
+            exercise = ext::make_shared<EuropeanExercise>(today + c.days);
+        const auto process = ext::make_shared<BlackScholesMertonProcess>(
+            Handle<Quote>(ext::make_shared<SimpleQuote>(c.s)), Handle<YieldTermStructure>(flatRate(today, c.q, dc)),
+            Handle<YieldTermStructure>(flatRate(today, c.r, dc)),
+            Handle<BlackVolTermStructure>(flatVol(today, c.v, dc)));
+        DoubleBarrierOption option(c.barrierType, c.barrier_lo, c.barrier_hi, 0.0,
+                                   ext::make_shared<CashOrNothingPayoff>(Option::Call, 0.0, cash), exercise);
+        option.setPricingEngine(ext::make_shared<AnalyticDoubleBarrierBinaryEngine>(process));
+
+        BOOST_TEST_CONTEXT(c.barrierType << " between " << c.barrier_lo << " and " << c.barrier_hi << ", spot " << c.s
+                                         << ", r " << c.r << ", q " << c.q << ", volatility " << c.v << ", " << c.days
+                                         << " days")
+        {
+            BOOST_CHECK_SMALL(option.NPV() - c.value, c.tolerance * (atHit ? std::fabs(c.value) : cash));
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testLowVolatility)
+{
+    BOOST_TEST_MESSAGE("Testing cash-or-nothing double barrier options at low volatility...");
+
+    // Hui's series threw below about 1% volatility for double knock-outs and knock-ins, and below about 2% for KIKO
+    // and KOKI options, and at 2% the knock-out was off by 4.4e-8 (#136).  Far in the tail the value is sensitive to
+    // its inputs: the zero rate a flat curve gives back is off by about 1e-15 of itself, which moves the KOKI at 0.5%
+    // volatility by about 4e-13 of its value.
+    const std::vector<DoubleBinaryReferenceData> cases = {
+        //    barrierType,          spot, lo,  hi,    r,     q,  vol, days,                   value, tolerance
+        {DoubleBarrier::KnockOut, 100.0, 80.0, 120.0, 0.05, 0.0, 0.0, 365, 9.5122942450071401, 1e-14},
+        {DoubleBarrier::KnockOut, 100.0, 80.0, 120.0, 0.05, 0.0, 1e-9, 365, 9.5122942450071401, 1e-14},
+        {DoubleBarrier::KnockOut, 100.0, 80.0, 120.0, 0.05, 0.0, 1e-5, 365, 9.5122942450071401, 1e-14},
+        {DoubleBarrier::KnockOut, 100.0, 80.0, 120.0, 0.05, 0.0, 0.001, 365, 9.5122942450071401, 1e-14},
+        {DoubleBarrier::KnockOut, 100.0, 80.0, 120.0, 0.05, 0.0, 0.01, 365, 9.5122942450071401, 1e-14},
+        {DoubleBarrier::KnockOut, 100.0, 80.0, 120.0, 0.05, 0.0, 0.02, 365, 9.5122942447482304, 1e-14},
+        {DoubleBarrier::KnockIn, 100.0, 80.0, 120.0, 0.05, 0.0, 0.0, 365, 0.0, 1e-14},
+        {DoubleBarrier::KnockIn, 100.0, 80.0, 120.0, 0.05, 0.0, 0.01, 365, 0.0, 1e-14},
+        {DoubleBarrier::KnockIn, 100.0, 80.0, 120.0, 0.05, 0.0, 0.02, 365, 2.5890968930245181e-10, 1e-14},
+        // the forward leaves the corridor
+        {DoubleBarrier::KnockOut, 100.0, 80.0, 120.0, 0.05, 0.3, 0.01, 365, 0.031770632074513120, 1e-14},
+        {DoubleBarrier::KnockIn, 100.0, 80.0, 120.0, 0.05, 0.3, 0.01, 365, 9.4805236129326270, 1e-14},
+        // the forward stays inside
+        {DoubleBarrier::KIKO, 100.0, 80.0, 120.0, 0.05, 0.0, 0.0, 365, 0.0, 1e-13},
+        {DoubleBarrier::KIKO, 100.0, 80.0, 120.0, 0.05, 0.0, 0.001, 365, 0.0, 1e-13},
+        {DoubleBarrier::KIKO, 100.0, 80.0, 120.0, 0.05, 0.0, 0.01, 365, 4.0211538240753469e-163, 3e-12},
+        {DoubleBarrier::KIKO, 100.0, 80.0, 120.0, 0.05, 0.0, 0.02, 365, 2.5598106963112008e-41, 3e-12},
+        {DoubleBarrier::KIKO, 100.0, 80.0, 120.0, 0.05, 0.0, 0.05, 365, 6.4392207767861097e-7, 1e-13},
+        {DoubleBarrier::KOKI, 100.0, 80.0, 120.0, 0.05, 0.0, 0.0, 365, 0.0, 1e-13},
+        {DoubleBarrier::KOKI, 100.0, 80.0, 120.0, 0.05, 0.0, 0.005, 365, 1.7455677222221416e-153, 3e-12},
+        {DoubleBarrier::KOKI, 100.0, 80.0, 120.0, 0.05, 0.0, 0.01, 365, 4.0043076617499302e-39, 3e-12},
+        {DoubleBarrier::KOKI, 100.0, 80.0, 120.0, 0.05, 0.0, 0.02, 365, 2.5922457350895970e-10, 1e-13},
+        {DoubleBarrier::KOKI, 100.0, 80.0, 120.0, 0.05, 0.0, 0.05, 365, 0.058464987286955278, 1e-13},
+        // the forward reaches the knock-in barrier before expiry
+        {DoubleBarrier::KIKO, 100.0, 80.0, 120.0, 0.05, 0.3, 0.0, 365, 9.5635249979003699, 1e-13},
+        {DoubleBarrier::KIKO, 100.0, 80.0, 120.0, 0.05, 0.3, 1e-7, 365, 9.5635249979003801, 1e-13},
+        {DoubleBarrier::KIKO, 100.0, 80.0, 120.0, 0.05, 0.3, 1e-5, 365, 9.5635249980028037, 1e-13},
+        {DoubleBarrier::KIKO, 100.0, 80.0, 120.0, 0.05, 0.3, 1e-4, 365, 9.5635250081437564, 1e-13},
+        {DoubleBarrier::KIKO, 100.0, 80.0, 120.0, 0.05, 0.3, 0.001, 365, 9.5635260222362435, 1e-13},
+        {DoubleBarrier::KOKI, 100.0, 80.0, 120.0, 0.05, -0.3, 0.0, 365, 9.7429033291279402, 1e-13},
+        {DoubleBarrier::KOKI, 100.0, 80.0, 120.0, 0.05, -0.3, 1e-7, 365, 9.7429033291279371, 1e-13},
+        {DoubleBarrier::KOKI, 100.0, 80.0, 120.0, 0.05, -0.3, 1e-5, 365, 9.7429033290968672, 1e-13},
+        {DoubleBarrier::KOKI, 100.0, 80.0, 120.0, 0.05, -0.3, 1e-4, 365, 9.7429033260206376, 1e-13},
+        {DoubleBarrier::KOKI, 100.0, 80.0, 120.0, 0.05, -0.3, 0.001, 365, 9.7429030183973711, 1e-13}};
+
+    checkDoubleBinaryReferences(cases);
+}
+
+BOOST_AUTO_TEST_CASE(testHitOptionsAgainstReferences)
+{
+    BOOST_TEST_MESSAGE("Testing KIKO and KOKI cash-or-nothing double barrier options against reference values...");
+
+    // Hui's KIKO and KOKI series converge only like 1 / i^3, and the engine stopped at 1,000 terms: at 5% volatility
+    // the KOKI was off by 2.4e-7, and with negative rates the values were off by 1e-11 to 3e-10 (#187).  In the rows
+    // with r = q < 0, and in the KIKO and KOKI at 50% volatility, rho^2 = mu^2 + 2 r vol^2 is negative, so the time
+    // to the hit has an imaginary transform.  The former sum images, the latter Hui's series, whose closed form is
+    // then a ratio of sines.
+    const std::vector<DoubleBinaryReferenceData> cases = {
+        //    barrierType,      spot, lo,   hi,     r,      q,   vol, days,                  value, tolerance
+        {DoubleBarrier::KIKO, 100.0, 80.0, 120.0, 0.05, 0.0, 0.1, 365, 0.083580724255796744, 1e-13},
+        {DoubleBarrier::KIKO, 100.0, 80.0, 120.0, 0.05, 0.0, 0.2, 365, 2.1359358579319222, 1e-13},
+        {DoubleBarrier::KIKO, 100.0, 80.0, 120.0, 0.05, 0.0, 0.5, 365, 4.7534077139350090, 1e-13},
+        {DoubleBarrier::KOKI, 100.0, 80.0, 120.0, 0.05, 0.0, 0.1, 365, 1.3915142538024981, 1e-13},
+        {DoubleBarrier::KOKI, 100.0, 80.0, 120.0, 0.05, 0.0, 0.2, 365, 4.0084439625835162, 1e-13},
+        {DoubleBarrier::KOKI, 100.0, 80.0, 120.0, 0.05, 0.0, 0.5, 365, 5.1590334697004016, 1e-13},
+        {DoubleBarrier::KIKO, 100.0, 80.0, 120.0, -0.005, -0.005, 0.05, 365, 9.0804037067037583e-5, 1e-13},
+        {DoubleBarrier::KIKO, 100.0, 80.0, 120.0, -0.005, -0.005, 0.1, 365, 0.28763843767613530, 1e-13},
+        {DoubleBarrier::KOKI, 100.0, 80.0, 120.0, -0.005, -0.005, 0.1, 365, 0.62490670083292046, 1e-13},
+        {DoubleBarrier::KIKO, 100.0, 90.0, 110.0, -0.01, -0.01, 0.03, 1825, 1.2669954821627723, 1e-13},
+        {DoubleBarrier::KOKI, 100.0, 90.0, 110.0, -0.01, -0.01, 0.03, 1825, 1.5291330811159960, 1e-13},
+        {DoubleBarrier::KIKO, 100.0, 80.0, 120.0, -0.01, -0.135, 0.5, 365, 4.5009755155416425, 1e-13},
+        {DoubleBarrier::KOKI, 100.0, 80.0, 120.0, -0.01, -0.135, 0.5, 365, 5.5083161257577621, 1e-13},
+        {DoubleBarrier::KnockOut, 100.0, 80.0, 120.0, -0.005, -0.005, 0.1, 365, 9.1363811172903737, 1e-14},
+        {DoubleBarrier::KnockOut, 100.0, 90.0, 110.0, -0.01, -0.01, 0.03, 1825, 7.6680908342903726, 1e-14},
+        {DoubleBarrier::KnockOut, 100.0, 80.0, 120.0, -0.01, -0.135, 0.5, 365, 0.0069948564530145912, 1e-14}};
+
+    checkDoubleBinaryReferences(cases);
+}
+
+BOOST_AUTO_TEST_CASE(testAcrossSeriesSwitches)
+{
+    BOOST_TEST_MESSAGE("Testing cash-or-nothing double barrier options on either side of the engine's switches...");
+
+    // Images give the no-touch probability up to vol sqrt(T) = ln(U / L) / 2, here at a volatility of 0.20273, and the
+    // value paid at a hit up to vol sqrt(T) = ln(U / L), at 0.40547; Hui's series give them above.
+    const std::vector<DoubleBinaryReferenceData> cases = {
+        //    barrierType,          spot, lo,  hi,    r,    q,    vol, days,                value, tolerance
+        {DoubleBarrier::KnockOut, 100.0, 80.0, 120.0, 0.05, 0.0, 0.2027, 365, 3.4063642950964111, 1e-14},
+        {DoubleBarrier::KnockOut, 100.0, 80.0, 120.0, 0.05, 0.0, 0.2028, 365, 3.4023563500806989, 1e-14},
+        {DoubleBarrier::KnockIn, 100.0, 80.0, 120.0, 0.05, 0.0, 0.2027, 365, 6.1059299499107290, 1e-14},
+        {DoubleBarrier::KnockIn, 100.0, 80.0, 120.0, 0.05, 0.0, 0.2028, 365, 6.1099378949264412, 1e-14},
+        {DoubleBarrier::KnockOut, 100.0, 80.0, 120.0, 0.05, 0.3, 0.2027, 365, 1.9196026167920524, 1e-14},
+        {DoubleBarrier::KnockOut, 100.0, 80.0, 120.0, 0.05, 0.3, 0.2028, 365, 1.9179395211125049, 1e-14},
+        {DoubleBarrier::KIKO, 100.0, 80.0, 120.0, 0.05, 0.0, 0.405, 365, 4.5861909058194026, 1e-13},
+        {DoubleBarrier::KIKO, 100.0, 80.0, 120.0, 0.05, 0.0, 0.406, 365, 4.5890472593615990, 1e-13},
+        {DoubleBarrier::KOKI, 100.0, 80.0, 120.0, 0.05, 0.0, 0.405, 365, 5.2046004307494607, 1e-13},
+        {DoubleBarrier::KOKI, 100.0, 80.0, 120.0, 0.05, 0.0, 0.406, 365, 5.2044132334877143, 1e-13},
+        {DoubleBarrier::KIKO, 100.0, 80.0, 120.0, 0.05, 0.3, 0.405, 365, 6.3473407461132950, 1e-13},
+        {DoubleBarrier::KIKO, 100.0, 80.0, 120.0, 0.05, 0.3, 0.406, 365, 6.3421364296929152, 1e-13}};
+
+    checkDoubleBinaryReferences(cases);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
