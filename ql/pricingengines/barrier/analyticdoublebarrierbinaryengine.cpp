@@ -300,12 +300,13 @@ namespace QuantLib
             case DoubleBarrier::KnockIn:
                 if (spot <= barrier_lo || spot >= barrier_hi)
                 {
-                    // knocked in - pays
-                    results_.value = payoff->cashPayoff();
+                    // knocked in, pays at expiry
+                    const Date& expiry = arguments_.exercise->lastDate();
+                    results_.value = payoff->cashPayoff() * process_->riskFreeRate()->discount(expiry);
                     results_.delta = 0;
                     results_.gamma = 0;
                     results_.vega = 0;
-                    results_.rho = 0;
+                    results_.rho = -process_->time(expiry) * results_.value;
                     return;
                 }
                 break;

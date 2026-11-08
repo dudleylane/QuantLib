@@ -169,8 +169,8 @@ BOOST_AUTO_TEST_CASE(testHaugValues)
         // degenerate cases
         {DoubleBarrier::KnockOut, 95.00, 105.00, 10.00, 80.00, 0.02, 0.05, 0.25, 0.10, 0.0000, 1e-4},
         {DoubleBarrier::KnockOut, 95.00, 105.00, 10.00, 110.00, 0.02, 0.05, 0.25, 0.10, 0.0000, 1e-4},
-        {DoubleBarrier::KnockIn, 95.00, 105.00, 10.00, 80.00, 0.02, 0.05, 0.25, 0.10, 10.0000, 1e-4},
-        {DoubleBarrier::KnockIn, 95.00, 105.00, 10.00, 110.00, 0.02, 0.05, 0.25, 0.10, 10.0000, 1e-4},
+        {DoubleBarrier::KnockIn, 95.00, 105.00, 10.00, 80.00, 0.02, 0.05, 0.25, 0.10, 9.8758, 1e-4},
+        {DoubleBarrier::KnockIn, 95.00, 105.00, 10.00, 110.00, 0.02, 0.05, 0.25, 0.10, 9.8758, 1e-4},
         {DoubleBarrier::KIKO, 95.00, 105.00, 10.00, 80.00, 0.02, 0.05, 0.25, 0.10, 10.0000, 1e-4},
         {DoubleBarrier::KIKO, 95.00, 105.00, 10.00, 110.00, 0.02, 0.05, 0.25, 0.10, 0.0000, 1e-4},
         {DoubleBarrier::KOKI, 95.00, 105.00, 10.00, 80.00, 0.02, 0.05, 0.25, 0.10, 0.0000, 1e-4},
@@ -458,6 +458,59 @@ BOOST_AUTO_TEST_CASE(testAcrossSeriesSwitches)
         {DoubleBarrier::KIKO, 100.0, 80.0, 120.0, 0.05, 0.3, 0.406, 365, 6.3421364296929152, 1e-13}};
 
     checkDoubleBinaryReferences(cases);
+}
+
+BOOST_AUTO_TEST_CASE(testKnockedInDoubleKnockIn)
+{
+    BOOST_TEST_MESSAGE("Testing knocked-in double knock-in cash-or-nothing options...");
+
+    // A double knock-in pays at expiry, but with the spot at or past a barrier the engine valued it at the cash itself,
+    // so its value jumped by cash (1 - discount) at each barrier, here by 0.124 (#189).
+    const Date today(7, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual360();
+    const Real cash = 10.0;
+    const Rate r = 0.05;
+    const Date expiry = today + 90;
+
+    const auto spot = ext::make_shared<SimpleQuote>(100.0);
+    const auto rate = ext::make_shared<SimpleQuote>(r);
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot), Handle<YieldTermStructure>(flatRate(today, 0.02, dc)),
+        Handle<YieldTermStructure>(flatRate(today, rate, dc)), Handle<BlackVolTermStructure>(flatVol(today, 0.10, dc)));
+    DoubleBarrierOption option(DoubleBarrier::KnockIn, 95.0, 105.0, 0.0,
+                               ext::make_shared<CashOrNothingPayoff>(Option::Call, 0.0, cash),
+                               ext::make_shared<EuropeanExercise>(expiry));
+    option.setPricingEngine(ext::make_shared<AnalyticDoubleBarrierBinaryEngine>(process));
+
+    const Real discounted = cash * std::exp(-r * 90.0 / 360.0);
+    const Real h = 1e-5;
+    for (Real s : {80.0, 95.0, 105.0, 110.0})
+    {
+        BOOST_TEST_CONTEXT("spot " << s)
+        {
+            spot->setValue(s);
+            rate->setValue(r);
+            BOOST_CHECK_SMALL(option.NPV() - discounted, 1e-14);
+            const Real rho = option.rho();
+            rate->setValue(r + h);
+            const Real up = option.NPV();
+            rate->setValue(r - h);
+            const Real down = option.NPV();
+            BOOST_CHECK_SMALL(rho - (up - down) / (2.0 * h), 1e-8);
+        }
+    }
+
+    // Just inside a barrier the knock-in is all but certain, so its value meets the knocked-in one.
+    rate->setValue(r);
+    for (Real s : {95.0 * (1.0 + 1e-9), 105.0 * (1.0 - 1e-9)})
+    {
+        BOOST_TEST_CONTEXT("spot " << s)
+        {
+            spot->setValue(s);
+            BOOST_CHECK_SMALL(option.NPV() - discounted, 1e-6);
+        }
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
