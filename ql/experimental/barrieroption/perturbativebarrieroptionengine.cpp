@@ -54,9 +54,6 @@ namespace QuantLib
 
         Real ND2(Real a, Real b, Real rho);
 
-        Real H1, H2, H3, R23, RUA, RUB, AR, RUC;
-        int NUC;
-
         // standard normal cumulative distribution function
         Real PHID(Real Z);
 
@@ -95,7 +92,7 @@ namespace QuantLib
             Real sigmat = 0.0, disc = 0.0, d1 = 0.0, d2 = 0.0, d3 = 0.0, d4 = 0.0;
             Real et = 0.0, tt = 0.0, dt = 0.0, p = 0.0;
             int npoint, npoint2;
-            static double pi = 3.14159265358979324;
+            const double pi = 3.14159265358979324;
             Real dsqpi;
             Real caux = 0.0, ccaux = 0.0;
             Real auxnew = 0.0;
@@ -634,10 +631,10 @@ namespace QuantLib
         */
         Real ddll(Real s, Real p, Real tt, Real ax, Real bx, Real c, Real gm)
         {
-            static Real result;
-            static Real aa, caux, caux1;
-            static Real sigmarho[4], limit[4];
-            static int idx;
+            Real result;
+            Real aa, caux, caux1;
+            Real sigmarho[4], limit[4];
+            int idx;
             Real epsi;
 
             epsi = 1.e-12;
@@ -697,11 +694,11 @@ namespace QuantLib
         */
         Real ddvv(Real s, Real p, Real tt, Real a, Real b, Real gm)
         {
-            static Real result;
-            static Real aa, caux, caux1, caux2, caux6;
-            static Real caux3, caux4, caux5, aux;
-            static Real xx, yy, rho;
-            static double ppi = 3.14159265358979324;
+            Real result;
+            Real aa, caux, caux1, caux2, caux6;
+            Real caux3, caux4, caux5, aux;
+            Real xx, yy, rho;
+            const double ppi = 3.14159265358979324;
 
             aa = (a * p + b * (tt - p)) / std::pow(2.0 * p * tt * (tt - p), 0.5);
             caux = PHID(aa);
@@ -762,10 +759,10 @@ namespace QuantLib
         */
         Real derivn3(Real limit[4], Real sigmarho[4], int idx)
         {
-            static Real aa;
-            static Real xx, yy, rho, sc;
-            static double ppi = 3.14159265358979324;
-            static Real deriv;
+            Real aa;
+            Real xx, yy, rho, sc;
+            const double ppi = 3.14159265358979324;
+            Real deriv;
             sc = std::pow(2.0 * ppi, 0.5);
 
             if (idx == 1)
@@ -806,11 +803,21 @@ namespace QuantLib
 
         Real BVTL(int NU, Real DH, Real DK, Real RRR);
         Real TVTMFN(Real X, Real H1, Real H2, Real H3, Real R23, Real RUA, Real RUB, Real AR, Real RUC, int NUC);
-        Real ADONET(Real ZRO,
-                    Real ONE,
-                    Real EPS,
-                    Real (*TVTMFN)(
-                        Real X, Real H1, Real H2, Real H3, Real R23, Real RUA, Real RUB, Real AR, Real RUC, int NUC));
+
+        // What tvtl passes on to TVTMFN, besides the point X, through ADONET and KRNRDT.  These were
+        // file-scope variables, which made the engine unsafe to use from several threads (#134).
+        struct PlackettIntegrandArguments
+        {
+            Real H1, H2, H3, R23, RUA, RUB, AR, RUC;
+            int NUC;
+        };
+
+        Real ADONET(
+            Real ZRO,
+            Real ONE,
+            Real EPS,
+            Real (*TVTMFN)(Real X, Real H1, Real H2, Real H3, Real R23, Real RUA, Real RUB, Real AR, Real RUC, int NUC),
+            const PlackettIntegrandArguments& arguments);
 
         Real tvtl(int NU, const Real limit[4], const Real sigmarho[4], Real epsi)
         {
@@ -852,14 +859,15 @@ namespace QuantLib
 
             */
 
-            static Real result;
-            static Real ONE = 1.0, ZRO = 0.0, EPS, TVT;
-            static Real PT, R12, R13;
-            static double ppi = 3.14159265358979324;
+            Real result;
+            const Real ONE = 1.0, ZRO = 0.0;
+            Real EPS, TVT;
+            Real PT, R12, R13;
+            Real H1, H2, H3, R23;
+            const double ppi = 3.14159265358979324;
             EPS = max(1.e-14, epsi);
             PT = ppi / 2.0;
 
-            NUC = NU;
             H1 = limit[1];
             H2 = limit[2];
             H3 = limit[3];
@@ -924,11 +932,12 @@ namespace QuantLib
                  *        Use numerical integration to compute probability
                  *
                  */
-                RUA = asin(R12);
-                RUB = asin(R13);
-                AR = asin(R23);
-                RUC = SIGN(PT, AR) - AR;
-                TVT = TVT + ADONET(ZRO, ONE, EPS, TVTMFN) / (4.0 * PT);
+                const Real RUA = asin(R12);
+                const Real RUB = asin(R13);
+                const Real AR = asin(R23);
+                const Real RUC = SIGN(PT, AR) - AR;
+                const PlackettIntegrandArguments arguments = {H1, H2, H3, R23, RUA, RUB, AR, RUC, NU};
+                TVT = TVT + ADONET(ZRO, ONE, EPS, TVTMFN, arguments) / (4.0 * PT);
             }
             result = max(ZRO, min(TVT, ONE));
 
@@ -944,7 +953,7 @@ namespace QuantLib
               Computes Plackett formula integrands
             */
 
-            static Real R12 = 0.0, RR2 = 0, R13 = 0.0, RR3 = 0.0, R = 0.0, RR = 0.0;
+            Real R12 = 0.0, RR2 = 0, R13 = 0.0, RR3 = 0.0, R = 0.0, RR = 0.0;
             const Real ZRO = 0.0;
             Real result = 0.0;
 
@@ -970,7 +979,7 @@ namespace QuantLib
             /*
               Computes SIN(X), COS(X)^2, with series approx. for |X| near PI/2
             */
-            static Real PT, EE;
+            Real PT, EE;
             PT = 1.57079632679489661923132169163975;
             EE = std::pow((PT - fabs(X)), 2);
 
@@ -987,20 +996,25 @@ namespace QuantLib
         }
         //
 
-        Real KRNRDT(Real, Real, Real (*TVTMFN)(Real, Real, Real, Real, Real, Real, Real, Real, Real, int), Real&);
+        Real KRNRDT(Real,
+                    Real,
+                    Real (*TVTMFN)(Real, Real, Real, Real, Real, Real, Real, Real, Real, int),
+                    const PlackettIntegrandArguments&,
+                    Real&);
 
         Real ADONET(
             Real A,
             Real B,
             Real TOL,
-            Real (*TVTMFN)(Real X, Real H1, Real H2, Real H3, Real R23, Real RUA, Real RUB, Real AR, Real RUC, int NUC))
+            Real (*TVTMFN)(Real X, Real H1, Real H2, Real H3, Real R23, Real RUA, Real RUB, Real AR, Real RUC, int NUC),
+            const PlackettIntegrandArguments& arguments)
         {
             //
             //     One Dimensional Globally Adaptive Integration Function
             //
             int NL = 100, I, IM, IP;
-            static Real EI[101], AI[101], BI[101], FI[101], FIN;
-            static Real result, ERR;
+            Real EI[101], AI[101], BI[101], FI[101], FIN = 0.0;
+            Real result, ERR;
 
 
             AI[1] = A;
@@ -1014,8 +1028,8 @@ namespace QuantLib
                 BI[IM] = BI[IP];
                 AI[IM] = (AI[IP] + BI[IP]) / 2.0;
                 BI[IP] = AI[IM];
-                FI[IP] = KRNRDT(AI[IP], BI[IP], *TVTMFN, EI[IP]);
-                FI[IM] = KRNRDT(AI[IM], BI[IM], *TVTMFN, EI[IM]);
+                FI[IP] = KRNRDT(AI[IP], BI[IP], *TVTMFN, arguments, EI[IP]);
+                FI[IM] = KRNRDT(AI[IM], BI[IM], *TVTMFN, arguments, EI[IM]);
 
                 ERR = 0.0;
                 FIN = 0.0;
@@ -1038,15 +1052,17 @@ namespace QuantLib
             Real A,
             Real B,
             Real (*TVTMFN)(Real X, Real H1, Real H2, Real H3, Real R23, Real RUA, Real RUB, Real AR, Real RUC, int NUC),
+            const PlackettIntegrandArguments& arguments,
             Real& ERR)
         {
 
             //
             //     Kronrod Rule
             //
-            static Real T, CEN, FC, WID, RESG, RESK;
+            Real T, CEN, FC, WID, RESG, RESK;
+            const auto [H1, H2, H3, R23, RUA, RUB, AR, RUC, NUC] = arguments;
 
-            static Real result;
+            Real result;
             //
             //        The abscissae and weights are given for the interval (-1,1);
             //        only positive abscissae and corresponding weights are given.
@@ -1059,7 +1075,7 @@ namespace QuantLib
             //
             int J, N = 11;
 
-            static Real WG[7], WGK[13], XGK[13];
+            Real WG[7], WGK[13], XGK[13];
 
             WG[1] = 0.2729250867779007;
             WG[2] = 0.05566856711617449;
@@ -1131,10 +1147,10 @@ namespace QuantLib
             /*
               Student t Distribution Function
             */
-            static int J;
-            static Real ZRO = 0.0, ONE = 1.0;
-            static Real CSSTHE, SNTHE, POLYN, TT, TS, RN;
-            static Real result;
+            int J;
+            const Real ZRO = 0.0, ONE = 1.0;
+            Real CSSTHE, SNTHE, POLYN, TT, TS, RN;
+            Real result;
 
 
             if (NU < 1)
@@ -1198,11 +1214,11 @@ namespace QuantLib
               DK 2nd lower integration limit
               R   correlation coefficient
             */
-            static int J, HS, KS;
-            static Real TPI, ORS, HRK, KRH, BVT, SNU;
-            static Real GMPH, GMPK, XNKH, XNHK, QHRK, HKN, HPK, HKRN;
-            static Real BTNCKH, BTNCHK, BTPDKH, BTPDHK, ONE, EPS;
-            static Real result;
+            int J, HS, KS;
+            Real TPI, ORS, HRK, KRH, BVT, SNU;
+            Real GMPH, GMPK, XNKH, XNHK, QHRK, HKN, HPK, HKRN;
+            Real BTNCKH, BTNCHK, BTPDKH, BTPDHK, ONE, EPS;
+            Real result;
             ONE = 1;
             EPS = 1e-15;
             if (NU < 1)
@@ -1299,7 +1315,7 @@ namespace QuantLib
             /*
               Computes Plackett formula integrand
             */
-            static Real DT, FT, BT, result;
+            Real DT, FT, BT, result;
 
             result = 0.0;
             DT = RR * (RR - std::pow((RA - RB), 2) - 2 * RA * RB * (1 - R));
@@ -1356,12 +1372,12 @@ namespace QuantLib
              *   DK  DOUBLE PRECISION, integration limit
              *   R   DOUBLE PRECISION, correlation coefficient
              */
-            static double TWOPI = 6.283185307179586;
-            static Real result, DK, DH, R;
-            static int I, IS, LG, NG;
+            const double TWOPI = 6.283185307179586;
+            Real result, DK, DH, R;
+            int I, IS, LG, NG;
 
-            static Real XL[11][4], WL[11][4], AS, AA, BB, C, D, RS, XS, BVN;
-            static Real SN, ASR, H, K, BS, HS, HK;
+            Real XL[11][4], WL[11][4], AS, AA, BB, C, D, RS, XS, BVN;
+            Real SN, ASR, H, K, BS, HS, HK;
             //  Gauss Legendre Points and Weights, N =  6
             //  DATA ( W(I,1), X(I,1), I = 1,3) /
             WL[1][1] = 0.1713244923791705;
