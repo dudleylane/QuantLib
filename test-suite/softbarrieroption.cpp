@@ -26,6 +26,7 @@
 #include <ql/pricingengines/barrier/analyticsoftbarrierengine.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/types.hpp>
 #include <iostream>
 
@@ -142,9 +143,9 @@ BOOST_AUTO_TEST_CASE(testSoftBarrierHaug)
         {Barrier::DownOut, Option::Call, 100, 100, 95, 50, 0.05, 0.1, 1.0, 0.2, 9.4698, 1e-4},
 
         {Barrier::DownOut, Option::Call, 100, 100, 95, 95, 0.05, 0.1, 1.0, 0.3, 5.2300, 1e-4},
-        // { Barrier::DownOut, Option::Call, 100, 100, 95, 90, 0.05, 0.1, 1.0, 0.3, 7.2046, 1e-4 }, // this test case
-        // has an error of c0.0003 -> // not sure why, but most likely due to tight barriers and high volatility leading
-        // to small numerical differences
+        // The book has 7.2046 here.  The average of the single-barrier options, which is what a soft barrier is,
+        // gives 7.204364.
+        {Barrier::DownOut, Option::Call, 100, 100, 95, 90, 0.05, 0.1, 1.0, 0.3, 7.2044, 1e-4},
         {Barrier::DownOut, Option::Call, 100, 100, 95, 85, 0.05, 0.1, 1.0, 0.3, 8.7092, 1e-4},
         {Barrier::DownOut, Option::Call, 100, 100, 95, 80, 0.05, 0.1, 1.0, 0.3, 9.8118, 1e-4},
         {Barrier::DownOut, Option::Call, 100, 100, 95, 75, 0.05, 0.1, 1.0, 0.3, 10.5964, 1e-4},
@@ -257,6 +258,168 @@ BOOST_AUTO_TEST_CASE(testSoftBarrierDirection)
                     BOOST_CHECK_EXCEPTION(option.NPV(), Error,
                                           ExpectedErrorMessage("soft-barrier formula not available"));
                 }
+            }
+        }
+    }
+}
+
+namespace
+{
+    // A down barrier for a call and an up barrier for a put, one year out on Act/365 curves.
+    struct SoftBarrierCase
+    {
+        Option::Type type;
+        Real s, strike, L, U;
+        Rate r, q;
+        Volatility v;
+    };
+
+    Real softBarrierValue(const SoftBarrierCase& c, bool knockIn)
+    {
+        const DayCounter dc = Actual365Fixed();
+        const Date today = Settings::instance().evaluationDate();
+        const auto process = ext::make_shared<GeneralizedBlackScholesProcess>(
+            Handle<Quote>(ext::make_shared<SimpleQuote>(c.s)), Handle<YieldTermStructure>(flatRate(today, c.q, dc)),
+            Handle<YieldTermStructure>(flatRate(today, c.r, dc)),
+            Handle<BlackVolTermStructure>(flatVol(today, c.v, dc)));
+        const bool isCall = c.type == Option::Call;
+        const Barrier::Type barrierType =
+            knockIn ? (isCall ? Barrier::DownIn : Barrier::UpIn) : (isCall ? Barrier::DownOut : Barrier::UpOut);
+        SoftBarrierOption option(barrierType, c.L, c.U, ext::make_shared<PlainVanillaPayoff>(c.type, c.strike),
+                                 ext::make_shared<EuropeanExercise>(today + 365));
+        option.setPricingEngine(ext::make_shared<AnalyticSoftBarrierEngine>(process));
+        return option.NPV();
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testSoftBarrierAgainstDefinition)
+{
+    BOOST_TEST_MESSAGE("Testing soft barrier options with the spot or the strike inside the barrier range...");
+
+    Settings::instance().evaluationDate() = Date(7, November, 2026);
+
+    // Knock-in values from the definition, the average over [L, U] of single-barrier knock-ins, integrated at
+    // 80 digits.  Past the spot the average takes the vanilla, short of the strike Reiner and Rubinstein's C,
+    // and between the two A - B + D.
+    const struct
+    {
+        SoftBarrierCase c;
+        Real knockIn;
+    } cases[] = {// the whole range short of the spot and the strike, where Haug's formula holds
+                 {{Option::Call, 100, 100, 80, 90, 0.05, 0.0, 0.2}, 0.6463869226285},
+                 {{Option::Put, 100, 100, 105, 110, 0.05, 0.0, 0.2}, 2.081218270259},
+                 // the strike inside the range, or past it
+                 {{Option::Call, 100, 85, 80, 90, 0.05, 0.0, 0.2}, 2.455280167321},
+                 {{Option::Call, 100, 75, 80, 90, 0.05, 0.0, 0.2}, 5.003753910257},
+                 {{Option::Put, 100, 107, 105, 110, 0.05, 0.0, 0.2}, 3.889980769772},
+                 {{Option::Put, 100, 115, 105, 110, 0.05, 0.0, 0.2}, 6.933416479895},
+                 // the spot inside the range
+                 {{Option::Call, 85, 100, 80, 90, 0.05, 0.0, 0.2}, 2.549204233456},
+                 {{Option::Call, 88, 80, 80, 90, 0.05, 0.0, 0.2}, 9.431250527125},
+                 {{Option::Put, 107, 100, 105, 110, 0.05, 0.0, 0.2}, 3.096612712331},
+                 // b = 0 and b = -vol^2, where Haug's formula divides by zero
+                 {{Option::Call, 100, 100, 80, 90, 0.03, 0.03, 0.2}, 0.5380047245289},
+                 {{Option::Put, 100, 100, 105, 115, 0.03, 0.03, 0.2}, 1.942648643101},
+                 {{Option::Call, 100, 100, 80, 90, 0.01, 0.05, 0.2}, 0.4507517399407},
+                 {{Option::Put, 100, 100, 105, 110, 0.01, 0.05, 0.2}, 3.272342469076},
+                 // a strike short of the range, where the knock-in needs A - B + D at every volatility
+                 {{Option::Call, 100, 70, 80, 90, 0.01, 0.15, 0.2}, 7.085646728501},
+                 {{Option::Call, 100, 70, 80, 90, 0.01, 0.15, 0.01}, 5.115348376711},
+                 {{Option::Put, 100, 130, 110, 120, 0.08, -0.06, 0.01}, 6.883478283537}};
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.c.type << " with spot " << c.c.s << ", strike " << c.c.strike << ", barriers " << c.c.L
+                                    << "-" << c.c.U << ", r " << c.c.r << ", q " << c.c.q << ", vol " << c.c.v)
+        {
+            BOOST_CHECK_SMALL(softBarrierValue(c.c, true) - c.knockIn, 1.0e-9);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testSoftBarrierLowVolatility)
+{
+    BOOST_TEST_MESSAGE("Testing soft barrier options at low and zero volatility...");
+
+    Settings::instance().evaluationDate() = Date(7, November, 2026);
+
+    // From the definition, as above; at zero volatility, the vanilla times the part of [L, U] that the forward
+    // crosses.
+    const struct
+    {
+        SoftBarrierCase c;
+        bool knockIn;
+        Real value;
+    } cases[] = {{{Option::Call, 100, 100, 80, 90, 0.05, 0.0, 0.0}, false, 4.877057549929},
+                 {{Option::Call, 100, 100, 80, 90, 0.05, 0.0, 0.005}, false, 4.877057549929},
+                 {{Option::Call, 100, 100, 80, 90, 0.05, 0.0, 0.01}, false, 4.87705760207},
+                 {{Option::Call, 100, 100, 80, 90, 0.05, 0.0, 0.02}, false, 4.880966697013},
+                 {{Option::Call, 100, 70, 80, 90, 0.01, 0.15, 0.0}, true, 5.137799439551},
+                 {{Option::Call, 100, 70, 80, 90, 0.01, 0.15, 2.0e-8}, true, 5.137799439551},
+                 {{Option::Call, 100, 70, 80, 90, 0.01, 0.15, 0.001}, true, 5.137571797314},
+                 {{Option::Put, 100, 130, 110, 120, 0.08, -0.06, 0.0}, true, 6.948578215804},
+                 {{Option::Put, 100, 130, 110, 120, 0.08, -0.06, 0.001}, true, 6.947924641918}};
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.c.type << (c.knockIn ? " knock-in" : " knock-out") << " with strike " << c.c.strike
+                                    << ", barriers " << c.c.L << "-" << c.c.U << ", vol " << c.c.v)
+        {
+            BOOST_CHECK_SMALL(softBarrierValue(c.c, c.knockIn) - c.value, 1.0e-9);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testSoftBarrierNarrowRange)
+{
+    BOOST_TEST_MESSAGE("Testing soft barrier options with narrow barrier ranges...");
+
+    const Date today(7, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const auto process = ext::make_shared<GeneralizedBlackScholesProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.02, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.05, dc)), Handle<BlackVolTermStructure>(flatVol(today, 0.2, dc)));
+    const ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(today + 365);
+
+    // Knock-in values from the definition as U - L shrinks towards the single barrier at L.
+    const struct
+    {
+        Option::Type type;
+        Real L, width, knockIn;
+    } cases[] = {{Option::Call, 90.0, 1.0e-3, 1.64023253511787},    {Option::Call, 90.0, 1.0001e-4, 1.64006963897484},
+                 {Option::Call, 90.0, 0.9999e-4, 1.64006963535507}, {Option::Call, 90.0, 1.0e-6, 1.64005171940409},
+                 {Option::Call, 90.0, 1.0e-9, 1.64005153859862},    {Option::Call, 90.0, 0.0, 1.64005153841763},
+                 {Option::Put, 110.0, 1.0e-3, 1.51440537756762},    {Option::Put, 110.0, 1.0001e-4, 1.51451877411819},
+                 {Option::Put, 110.0, 0.9999e-4, 1.51451877663825}, {Option::Put, 110.0, 1.0e-6, 1.51453124971494},
+                 {Option::Put, 110.0, 1.0e-9, 1.51453137559292},    {Option::Put, 110.0, 0.0, 1.51453137571893}};
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.type << " with barriers " << c.L << "-" << c.L + c.width)
+        {
+            const auto payoff = ext::make_shared<PlainVanillaPayoff>(c.type, 100.0);
+            SoftBarrierOption option(c.type == Option::Call ? Barrier::DownIn : Barrier::UpIn, c.L, c.L + c.width,
+                                     payoff, exercise);
+            option.setPricingEngine(ext::make_shared<AnalyticSoftBarrierEngine>(process));
+            BOOST_CHECK_SMALL(option.NPV() - c.knockIn, 1.0e-11);
+        }
+    }
+
+    // With U = L the option is a single-barrier option, also in the directions the soft formula doesn't cover.
+    for (auto barrierType : {Barrier::DownIn, Barrier::DownOut, Barrier::UpIn, Barrier::UpOut})
+    {
+        for (auto type : {Option::Call, Option::Put})
+        {
+            BOOST_TEST_CONTEXT(barrierType << " " << type)
+            {
+                const Real barrier = barrierType == Barrier::DownIn || barrierType == Barrier::DownOut ? 90.0 : 110.0;
+                const auto payoff = ext::make_shared<PlainVanillaPayoff>(type, 100.0);
+                SoftBarrierOption soft(barrierType, barrier, barrier, payoff, exercise);
+                soft.setPricingEngine(ext::make_shared<AnalyticSoftBarrierEngine>(process));
+                BarrierOption single(barrierType, barrier, 0.0, payoff, exercise);
+                single.setPricingEngine(ext::make_shared<AnalyticBarrierEngine>(process));
+                BOOST_CHECK_SMALL(soft.NPV() - single.NPV(), 1.0e-12);
             }
         }
     }

@@ -32,11 +32,20 @@ namespace QuantLib
 {
 
     //! Pricing engine for soft barrier european options using an analytical formula
-    /*! Formulas are taken from "The complete guide to option pricing formulas 2nd Ed", E.G. Haug, p.165.
-        Implements a closed form solution for soft barrier options originally introduced by Hart and Ross (1994).
+    /*! A soft barrier option, introduced by Hart and Ross (1994), knocks in or out in proportion to how far into the
+        range [L, U] the underlying goes: its knock-in value is the average, over barriers H from L to U, of
+        single-barrier knock-ins ("The complete guide to option pricing formulas 2nd Ed", E.G. Haug, p.165).  This
+        engine integrates Reiner and Rubinstein's single-barrier formulas over that range in closed form, taking the
+        vanilla where H is past the spot and their C or A - B + D on either side of the strike.  Haug's formula
+        integrates C alone, so it agrees with this engine only where the whole range is at or short of both the spot
+        and the strike.
 
-        The formula covers down-and-in and down-and-out calls, and up-and-in and up-and-out puts.  Other
-        combinations of barrier and option type raise an error.
+        The formulas cover down-and-in and down-and-out calls, and up-and-in and up-and-out puts.  Other
+        combinations of barrier and option type raise an error, except with U = L, where the option is a
+        single-barrier option and is priced as one.
+
+        Below a variance of QL_EPSILON the underlying is taken to follow its forward, as in AnalyticBarrierEngine.
+        At the money that moves the value by up to about 0.4 F sqrt(QL_EPSILON), with F = S exp(-qT).
     */
 
     class AnalyticSoftBarrierEngine : public SoftBarrierOption::engine
@@ -48,7 +57,6 @@ namespace QuantLib
 
       private:
         ext::shared_ptr<GeneralizedBlackScholesProcess> process_;
-        CumulativeNormalDistribution f_;
 
         void validateInputs(Real S,
                             Real X,
@@ -78,18 +86,7 @@ namespace QuantLib
         DiscountFactor dividendDiscount() const;
 
         // Pricing helpers
-        Real vanillaEquivalent() const;         // Computes the equivalent vanilla  option price (with no barriers)
-        Real standardBarrierEquivalent() const; // for when U=L
-        Real knockInValue(Real S,
-                          Real X,
-                          Rate r,
-                          Volatility sigma,
-                          Time T,
-                          Real U,
-                          Real L,
-                          Real b,
-                          Option::Type optionType,
-                          Integer eta) const;
+        Real vanillaEquivalent() const; // Computes the equivalent vanilla  option price (with no barriers)
     };
 
 }
