@@ -58,13 +58,16 @@ namespace QuantLib
 
 
     //! Cumulative normal distribution function
-    /*! Given x it provides an approximation to the
-        integral of the gaussian normal distribution:
-        formula here ...
+    /*! Given x it provides the integral of the gaussian normal
+        distribution up to x, as
+        \f$ \frac{1}{2} \mathrm{erfc}(-(x - \mu) / (\sigma \sqrt{2})) \f$,
+        which keeps its relative accuracy in the lower tail.  It is 0
+        where its derivative is, more than about 37.15 standard
+        deviations below the mean, so it never goes subnormal.
 
-        For this implementation see M. Abramowitz and I. Stegun,
-        Handbook of Mathematical Functions,
-        Dover Publications, New York (1972)
+        logValue() carries on below that with the asymptotic expansion
+        26.2.12 in M. Abramowitz and I. Stegun, Handbook of Mathematical
+        Functions, Dover Publications, New York (1972).
     */
     class CumulativeNormalDistribution
     {
@@ -79,7 +82,6 @@ namespace QuantLib
       private:
         Real average_, sigma_;
         NormalDistribution gaussian_;
-        ErrorFunction errorFunction_;
     };
 
 
@@ -281,7 +283,8 @@ namespace QuantLib
     {
         Real deltax = x - average_;
         Real exponent = -(deltax * deltax) / denominator_;
-        // debian alpha had some strange problem in the very-low range
+        // debian alpha had some strange problem in the very-low range.  Below the mean,
+        // CumulativeNormalDistribution is 0 where this is, so change the cut in both.
         return exponent <= -690.0 ? 0.0 : // exp(x) < 1.0e-300 anyway
                                     Real(normalizationFactor_ * std::exp(exponent));
     }

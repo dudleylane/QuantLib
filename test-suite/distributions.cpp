@@ -804,6 +804,49 @@ BOOST_AUTO_TEST_CASE(testErrorFunctionAndCumulativeNormalWhereTheySaturate)
     BOOST_CHECK_EQUAL(decreases, 0U);
 }
 
+BOOST_AUTO_TEST_CASE(testCumulativeNormalInItsLowerTail)
+{
+    BOOST_TEST_MESSAGE("Testing the cumulative normal's relative accuracy in its lower tail...");
+
+    // #179: 1 + erf(z / sqrt(2)) kept only absolute accuracy as the value fell, and the asymptotic series that took
+    // over below 1e-8 was off by up to 1.2e-7 of the value, at z = -5.62.  Calculated with 40 digits.  The value's
+    // relative condition number in z is about z^2, and erfc's argument is z / sqrt(2) rounded, so the tolerance
+    // grows with z^2.  The last case sits just above the cut to 0, at z^2 / 2 = 690.
+    const struct
+    {
+        Real z, expected;
+    } cases[] = {{0.0, 0.5},
+                 {3.0, 0.9986501019683699},
+                 {-1.0, 0.15865525393145705},
+                 {-3.0, 0.0013498980316300946},
+                 {-4.99, 3.0189646252084845e-07},
+                 {-5.62, 9.547872947704268e-09},
+                 {-6.0, 9.86587645037698e-10},
+                 {-7.0, 1.279812543885835e-12},
+                 {-8.0, 6.220960574271784e-16},
+                 {-10.0, 7.619853024160525e-24},
+                 {-20.0, 2.7536241186062337e-89},
+                 {-30.0, 4.906713927148187e-198},
+                 {-37.0, 5.725571222524577e-300},
+                 {-37.148, 2.3612101754822334e-302}};
+
+    const CumulativeNormalDistribution cumulative;
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT("z " << c.z)
+        {
+            BOOST_CHECK_SMALL((cumulative(c.z) - c.expected) / c.expected, 1.0e-15 * std::max(Real(1.0), c.z * c.z));
+        }
+    }
+
+    // Below the cut the value and its derivative are both 0.  erfc alone would leave the value subnormal down to
+    // -38.48, with few correct bits and a derivative of 0.
+    BOOST_CHECK(cumulative.derivative(-37.148) > 0.0);
+    BOOST_CHECK_EQUAL(cumulative(-37.1484), 0.0);
+    BOOST_CHECK_EQUAL(cumulative.derivative(-37.1484), 0.0);
+    BOOST_CHECK_EQUAL(cumulative(-38.4), 0.0);
+}
+
 BOOST_AUTO_TEST_CASE(testBivariateDr78AtDegenerateCorrelations)
 {
     BOOST_TEST_MESSAGE("Testing Drezner's bivariate normal at degenerate correlations...");
