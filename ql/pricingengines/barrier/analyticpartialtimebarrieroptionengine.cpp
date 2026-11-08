@@ -113,6 +113,13 @@ namespace QuantLib
 
         Real spot = process_->x0();
         QL_REQUIRE(spot > 0.0, "negative or null underlying given");
+        // A Start window watches the underlying from today, so a spot past the barrier has hit it already. As in
+        // AnalyticBarrierEngine, a spot on the barrier passes, and a knock-out there is worth 0.
+        if (arguments_.barrierRange == PartialBarrier::Start)
+        {
+            bool down = arguments_.barrierType == Barrier::DownIn || arguments_.barrierType == Barrier::DownOut;
+            QL_REQUIRE(down ? spot >= arguments_.barrier : spot <= arguments_.barrier, "barrier touched");
+        }
 
         auto getSymmetricBarrierType = [](Barrier::Type barrierType) -> Barrier::Type
         {

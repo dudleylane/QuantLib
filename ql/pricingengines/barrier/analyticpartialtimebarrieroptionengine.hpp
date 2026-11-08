@@ -36,6 +36,10 @@ namespace QuantLib
 
         It doesn't currently cover the case of knock-in
         partial-time end options.
+
+        A start window watches the underlying from today, so a
+        spot already past the barrier is refused with "barrier
+        touched", as in AnalyticBarrierEngine.
     */
     class AnalyticPartialTimeBarrierOptionEngine : public PartialTimeBarrierOption::engine
     {

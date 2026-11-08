@@ -504,6 +504,83 @@ BOOST_AUTO_TEST_CASE(testPutWithStrikeOnBarrier)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testSpotPastBarrier)
+{
+    BOOST_TEST_MESSAGE("Testing partial-time barrier options with the spot past the barrier...");
+
+    const Date today(7, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+
+    const auto vol = ext::make_shared<SimpleQuote>(0.20);
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.01, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.05, dc)), Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+    const auto engine = ext::make_shared<AnalyticPartialTimeBarrierOptionEngine>(process);
+    auto price =
+        [&](Option::Type type, Barrier::Type barrierType, PartialBarrier::Range range, Real strike, Real barrier)
+    {
+        PartialTimeBarrierOption option(barrierType, range, barrier, 0.0, today + 182,
+                                        ext::make_shared<PlainVanillaPayoff>(type, strike),
+                                        ext::make_shared<EuropeanExercise>(today + 365));
+        option.setPricingEngine(engine);
+        return option.NPV();
+    };
+
+    // A Start window watches the spot from today, so with the spot past the barrier a knock-out is already dead and a
+    // knock-in already in. The engine refuses it at any volatility, as AnalyticBarrierEngine does; at 20% the formulas
+    // gave -9.999 for the first case and 22.63 for the second. A spot on the barrier hits it, so a knock-out there is
+    // worth 0.
+    const struct
+    {
+        Option::Type type;
+        Barrier::Type barrierType;
+        Real strike, barrier;
+    } startCases[] = {{Option::Call, Barrier::DownOut, 95, 105}, {Option::Call, Barrier::DownIn, 95, 105},
+                      {Option::Call, Barrier::UpOut, 95, 95},    {Option::Call, Barrier::UpIn, 95, 95},
+                      {Option::Put, Barrier::DownOut, 105, 105}, {Option::Put, Barrier::UpOut, 105, 95}};
+    for (Volatility v : {0.20, 0.0})
+    {
+        vol->setValue(v);
+        for (const auto& c : startCases)
+        {
+            BOOST_TEST_CONTEXT(c.type << " " << c.barrierType << " at " << c.barrier << ", strike " << c.strike
+                                      << ", volatility " << v)
+            {
+                BOOST_CHECK_EXCEPTION(price(c.type, c.barrierType, PartialBarrier::Start, c.strike, c.barrier), Error,
+                                      ExpectedErrorMessage("barrier touched"));
+                if (c.barrierType == Barrier::DownOut || c.barrierType == Barrier::UpOut)
+                    BOOST_CHECK_SMALL(price(c.type, c.barrierType, PartialBarrier::Start, c.strike, 100.0), 1.0e-12);
+            }
+        }
+    }
+
+    // The End windows start watching at the cover date, so today's spot can be on either side of the barrier. Values
+    // from the definition, as in testAnalyticEngineAgainstDefinition. The two EndB2 options have today's spot where,
+    // from the cover date, it would knock them out.
+    vol->setValue(0.20);
+    const struct
+    {
+        Option::Type type;
+        Barrier::Type barrierType;
+        PartialBarrier::Range range;
+        Real strike, barrier, value;
+    } endCases[] = {{Option::Call, Barrier::DownOut, PartialBarrier::EndB1, 95, 105, 6.715029217737929},
+                    {Option::Call, Barrier::UpOut, PartialBarrier::EndB1, 95, 95, 10.32745322844149},
+                    {Option::Put, Barrier::DownOut, PartialBarrier::EndB1, 105, 105, 6.396213073906356},
+                    {Option::Put, Barrier::UpOut, PartialBarrier::EndB1, 105, 95, 3.780991933731649},
+                    {Option::Call, Barrier::DownOut, PartialBarrier::EndB2, 95, 105, 6.563376024817099},
+                    {Option::Put, Barrier::UpOut, PartialBarrier::EndB2, 105, 95, 3.620020939775625}};
+    for (const auto& c : endCases)
+    {
+        BOOST_TEST_CONTEXT(c.type << " " << c.barrierType << " at " << c.barrier << ", range " << Integer(c.range)
+                                  << ", strike " << c.strike)
+        {
+            BOOST_CHECK_SMALL(price(c.type, c.barrierType, c.range, c.strike, c.barrier) - c.value, 1.0e-10);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
