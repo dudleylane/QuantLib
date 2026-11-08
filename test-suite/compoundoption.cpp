@@ -29,6 +29,7 @@
 #include <ql/time/calendars/nullcalendar.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/utilities/dataformatters.hpp>
 
 using namespace QuantLib;
@@ -330,6 +331,50 @@ BOOST_AUTO_TEST_CASE(testValues)
         {
             REPORT_FAILURE("theta", payoffMother, payoffDaughter, exerciseMother, exerciseDaughter, value.s, value.q,
                            value.r, todaysDate, value.v, value.theta, calculated, error, tolerance);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testAgainstDefinition)
+{
+    BOOST_TEST_MESSAGE("Testing compound options against their definition...");
+
+    const Date today(7, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+
+    // Values from the definition, integrated in mpmath at 40 digits over the spot at the mother's expiry: the mother's
+    // payoff on the daughter's Black-Scholes value there. With Drezner's six-decimal bivariate normal, the engine
+    // missed them by 7e-7 to 8.2e-6.
+    const struct
+    {
+        Option::Type typeMother, typeDaughter;
+        Real strikeMother, strikeDaughter;
+        Rate r, q;
+        Volatility vol;
+        Integer daysMother, daysDaughter;
+        Real value;
+    } cases[] = {{Option::Call, Option::Call, 5, 100, 0.05, 0.01, 0.2, 182, 365, 6.011025521920},
+                 {Option::Call, Option::Put, 5, 100, 0.05, 0.01, 0.2, 182, 365, 2.693314135442},
+                 {Option::Put, Option::Call, 2, 95, 0.05, 0.01, 0.3, 91, 365, 0.009672355748556},
+                 {Option::Put, Option::Put, 2, 105, 0.01, 0.05, 0.25, 182, 730, 0.0007917069755117}};
+
+    for (const auto& c : cases)
+    {
+        const auto process = ext::make_shared<BlackScholesMertonProcess>(
+            Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, c.q, dc)),
+            Handle<YieldTermStructure>(flatRate(today, c.r, dc)),
+            Handle<BlackVolTermStructure>(flatVol(today, c.vol, dc)));
+        CompoundOption option(ext::make_shared<PlainVanillaPayoff>(c.typeMother, c.strikeMother),
+                              ext::make_shared<EuropeanExercise>(today + c.daysMother),
+                              ext::make_shared<PlainVanillaPayoff>(c.typeDaughter, c.strikeDaughter),
+                              ext::make_shared<EuropeanExercise>(today + c.daysDaughter));
+        option.setPricingEngine(ext::make_shared<AnalyticCompoundOptionEngine>(process));
+
+        BOOST_TEST_CONTEXT(c.typeMother << " on a " << c.typeDaughter << ", strikes " << c.strikeMother << " and "
+                                        << c.strikeDaughter)
+        {
+            BOOST_CHECK_SMALL(option.NPV() - c.value, 1.0e-10);
         }
     }
 }

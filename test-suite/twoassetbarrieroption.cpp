@@ -26,6 +26,7 @@
 #include <ql/quotes/simplequote.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -196,6 +197,55 @@ BOOST_AUTO_TEST_CASE(testInOutParityWithDividends)
                     }
                 }
             }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testAgainstDefinition)
+{
+    BOOST_TEST_MESSAGE("Testing two-asset barrier options against their definition...");
+
+    const Date today(7, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+
+    // Values from the definition, integrated in mpmath at 40 digits over the second asset's value at expiry: the
+    // probability that its Brownian bridge misses the barrier, times the first asset's conditional Black-Scholes
+    // value. With Drezner's six-decimal bivariate normal, the engine missed them by 1.5e-6 to 3.3e-5.
+    const struct
+    {
+        Option::Type type;
+        Barrier::Type barrierType;
+        Real strike, barrier;
+        Rate r, q1, q2;
+        Volatility vol1, vol2;
+        Real rho;
+        Integer days;
+        Real value;
+    } cases[] = {{Option::Call, Barrier::DownOut, 95, 80, 0.05, 0.01, 0.02, 0.2, 0.3, 0.5, 365, 9.003144146795},
+                 {Option::Call, Barrier::UpOut, 95, 120, 0.05, 0.01, 0.02, 0.2, 0.3, -0.5, 365, 8.288752087467},
+                 {Option::Put, Barrier::DownOut, 105, 80, 0.05, 0.01, 0.02, 0.2, 0.3, 0.5, 365, 2.732187961970},
+                 {Option::Put, Barrier::UpIn, 105, 120, 0.05, 0.01, 0.02, 0.25, 0.2, 0.7, 183, 0.3773214516479},
+                 {Option::Call, Barrier::DownIn, 95, 90, 0.03, 0.0, 0.03, 0.3, 0.15, -0.8, 730, 20.32738570722}};
+
+    for (const auto& c : cases)
+    {
+        const Handle<YieldTermStructure> rTS(flatRate(today, c.r, dc));
+        const auto process1 = ext::make_shared<BlackScholesMertonProcess>(
+            Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, c.q1, dc)),
+            rTS, Handle<BlackVolTermStructure>(flatVol(today, c.vol1, dc)));
+        const auto process2 = ext::make_shared<BlackScholesMertonProcess>(
+            Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, c.q2, dc)),
+            rTS, Handle<BlackVolTermStructure>(flatVol(today, c.vol2, dc)));
+        TwoAssetBarrierOption option(c.barrierType, c.barrier, ext::make_shared<PlainVanillaPayoff>(c.type, c.strike),
+                                     ext::make_shared<EuropeanExercise>(today + c.days));
+        option.setPricingEngine(ext::make_shared<AnalyticTwoAssetBarrierEngine>(
+            process1, process2, Handle<Quote>(ext::make_shared<SimpleQuote>(c.rho))));
+
+        BOOST_TEST_CONTEXT(c.type << " " << c.barrierType << " at " << c.barrier << ", strike " << c.strike
+                                  << ", correlation " << c.rho)
+        {
+            BOOST_CHECK_SMALL(option.NPV() - c.value, 1.0e-10);
         }
     }
 }

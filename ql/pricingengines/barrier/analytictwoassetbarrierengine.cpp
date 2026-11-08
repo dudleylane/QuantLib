@@ -265,7 +265,7 @@ namespace QuantLib
 
     Real AnalyticTwoAssetBarrierEngine::M(Real m_a, Real m_b, Real rho) const
     {
-        BivariateCumulativeNormalDistributionDr78 f(rho);
+        BivariateCumulativeNormalDistribution f(rho);
         return f(m_a, m_b);
     }
 

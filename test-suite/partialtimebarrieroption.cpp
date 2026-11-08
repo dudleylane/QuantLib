@@ -365,6 +365,57 @@ BOOST_AUTO_TEST_CASE(testAnalyticEngineNearZeroD2)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testAnalyticEngineAgainstDefinition)
+{
+    BOOST_TEST_MESSAGE("Testing partial-time barrier options against their definition...");
+
+    const Date today(7, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+
+    // Values from the definition, integrated in mpmath at 40 digits by conditioning on the spot at the cover date: the
+    // no-hit density on [0, t1] times the vanilla from there for Start, and the density of the spot times a
+    // single-barrier knock-out on [t1, T] for EndB1 and EndB2. With Drezner's six-decimal bivariate normal, the
+    // engine missed them by 1e-5 to 1.2e-4.
+    const struct
+    {
+        Option::Type type;
+        Barrier::Type barrierType;
+        PartialBarrier::Range range;
+        Real strike, barrier;
+        Rate r, q;
+        Volatility vol;
+        Integer coverDays, days;
+        Real value;
+    } cases[] = {
+        {Option::Call, Barrier::UpIn, PartialBarrier::Start, 110, 110, 0.03, 0.03, 0.10, 46, 183, 0.01885093984689},
+        {Option::Call, Barrier::UpOut, PartialBarrier::Start, 110, 120, 0.05, 0.01, 0.25, 182, 365, 2.219124627834},
+        {Option::Put, Barrier::DownOut, PartialBarrier::Start, 110, 95, 0.02, 0.04, 0.10, 91, 365, 6.703830930539},
+        {Option::Put, Barrier::DownIn, PartialBarrier::Start, 90, 90, 0.02, 0.04, 0.10, 91, 365, 0.1758179450867},
+        {Option::Call, Barrier::UpOut, PartialBarrier::EndB1, 90, 120, 0.05, 0.01, 0.25, 182, 365, 6.274896049660},
+        {Option::Put, Barrier::UpOut, PartialBarrier::EndB1, 110, 105, 0.05, 0.01, 0.25, 182, 365, 9.328861863291},
+        {Option::Call, Barrier::DownOut, PartialBarrier::EndB2, 90, 95, 0.05, 0.01, 0.25, 182, 365, 13.11315486649},
+        {Option::Put, Barrier::UpOut, PartialBarrier::EndB2, 110, 105, 0.05, 0.01, 0.25, 182, 365, 9.322155342781}};
+
+    for (const auto& c : cases)
+    {
+        const auto process = ext::make_shared<BlackScholesMertonProcess>(
+            Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, c.q, dc)),
+            Handle<YieldTermStructure>(flatRate(today, c.r, dc)),
+            Handle<BlackVolTermStructure>(flatVol(today, c.vol, dc)));
+        PartialTimeBarrierOption option(c.barrierType, c.range, c.barrier, 0.0, today + c.coverDays,
+                                        ext::make_shared<PlainVanillaPayoff>(c.type, c.strike),
+                                        ext::make_shared<EuropeanExercise>(today + c.days));
+        option.setPricingEngine(ext::make_shared<AnalyticPartialTimeBarrierOptionEngine>(process));
+
+        BOOST_TEST_CONTEXT(c.type << " " << c.barrierType << " at " << c.barrier << ", range " << Integer(c.range)
+                                  << ", strike " << c.strike << ", r " << c.r << ", q " << c.q << ", vol " << c.vol)
+        {
+            BOOST_CHECK_SMALL(option.NPV() - c.value, 1.0e-10);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

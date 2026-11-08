@@ -317,7 +317,7 @@ namespace QuantLib
 
     Real AnalyticPartialTimeBarrierOptionEngine::M(Real a, Real b, Real rho) const
     {
-        BivariateCumulativeNormalDistributionDr78 CmlNormDist(rho);
+        BivariateCumulativeNormalDistribution CmlNormDist(rho);
         return CmlNormDist(a, b);
     }
 

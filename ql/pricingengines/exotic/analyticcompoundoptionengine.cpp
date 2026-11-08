@@ -102,7 +102,7 @@ namespace QuantLib
         Real w = typeMother();     // -1 or 1
 
         Real rho = std::sqrt(residualTimeMother() / residualTimeDaughter());
-        BivariateCumulativeNormalDistributionDr78 N2(w * rho);
+        BivariateCumulativeNormalDistribution N2(w * rho);
 
         DiscountFactor ddD = dividendDiscountDaughter();
         DiscountFactor rdD = riskFreeDiscountDaughter();
