@@ -115,9 +115,11 @@ namespace QuantLib
         QL_REQUIRE(spot > 0.0, "negative or null underlying given");
         // Part of a window would be in the past, where the engine can't know the path.
         QL_REQUIRE(coverEventTime() >= 0.0, "cover event date has passed");
-        // A Start window watches the underlying from today, so a spot past the barrier has hit it already. As in
-        // AnalyticBarrierEngine, a spot on the barrier passes, and a knock-out there is worth 0.
-        if (arguments_.barrierRange == PartialBarrier::Start)
+        // A window that starts today watches today's spot, so a spot past the barrier has hit it already: the Start
+        // window, and EndB2 with the cover date today. EndB1 is hit from either side, so only by a spot on the barrier.
+        // As in AnalyticBarrierEngine, a spot on the barrier passes, and a knock-out there is worth 0.
+        if (arguments_.barrierRange == PartialBarrier::Start ||
+            (arguments_.barrierRange == PartialBarrier::EndB2 && coverEventTime() == 0.0))
         {
             bool down = arguments_.barrierType == Barrier::DownIn || arguments_.barrierType == Barrier::DownOut;
             QL_REQUIRE(down ? spot >= arguments_.barrier : spot <= arguments_.barrier, "barrier touched");
@@ -168,6 +170,10 @@ namespace QuantLib
             return hit ? 0.0 : vanillaAtZeroVariance(strike, r, q);
         }
 
+        // With the cover date today, a spot on the barrier hits it now. The e terms would be 0 / 0.
+        if (coverEventTime() == 0.0 && underlying() == barrier)
+            return 0.0;
+
         Real result = 0.0;
         Real T = residualTime();
         Real S = underlying();
@@ -216,6 +222,10 @@ namespace QuantLib
             auto [low, high] = forwardRange(coverEventTime(), residualTime(), b);
             return low <= barrier && barrier <= high ? 0.0 : vanillaAtZeroVariance(strike, r, q);
         }
+
+        // With the cover date today, a spot on the barrier hits it now. The e terms would be 0 / 0.
+        if (coverEventTime() == 0.0 && underlying() == barrier)
+            return 0.0;
 
         Real result = 0.0;
         Real T = residualTime();
@@ -290,6 +300,10 @@ namespace QuantLib
             bool hit = eta == 1 ? low <= barrier : high >= barrier;
             return hit ? 0.0 : vanillaAtZeroVariance(strike, r, q);
         }
+
+        // With the cover date today, a spot on the barrier hits it now. The e terms would be 0 / 0.
+        if (coverEventTime() == 0.0 && underlying() == barrier)
+            return 0.0;
 
         Real rho_ = rho();
         Real T = residualTime();
@@ -394,7 +408,8 @@ namespace QuantLib
     {
         Time T1 = coverEventTime();
         Real vol = volatility(T1, strike);
-        return e1(barrier, strike, b) + (2 * std::log(barrier / underlying()) / (vol * std::sqrt(T1)));
+        // e1 + 2 ln(H/S) / (vol sqrt(T1)), with the logarithms added first: at T1 = 0 both terms are infinite.
+        return (std::log(barrier / underlying()) + (b + vol * vol / 2) * T1) / (std::sqrt(T1) * vol);
     }
 
     Real AnalyticPartialTimeBarrierOptionEngine::e4(Real barrier, Real strike, Rate b) const

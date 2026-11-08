@@ -37,9 +37,10 @@ namespace QuantLib
         It doesn't currently cover the case of knock-in
         partial-time end options.
 
-        A start window watches the underlying from today, so a
-        spot already past the barrier is refused with "barrier
-        touched", as in AnalyticBarrierEngine.
+        A start window watches the underlying from today, and so
+        does an end window of type B2 whose cover date is today.
+        A spot already past the barrier is then refused with
+        "barrier touched", as in AnalyticBarrierEngine.
 
         A cover date before the evaluation date is refused, since
         part of the window would be in the past.

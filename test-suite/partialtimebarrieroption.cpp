@@ -612,6 +612,72 @@ BOOST_AUTO_TEST_CASE(testCoverDateInThePast)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testAnalyticEngineWithCoverDateToday)
+{
+    BOOST_TEST_MESSAGE("Testing partial-time barrier options with the cover date today...");
+
+    const Date today(7, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.01, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.05, dc)), Handle<BlackVolTermStructure>(flatVol(today, 0.20, dc)));
+    const auto engine = ext::make_shared<AnalyticPartialTimeBarrierOptionEngine>(process);
+    auto price =
+        [&](Option::Type type, Barrier::Type barrierType, PartialBarrier::Range range, Real strike, Real barrier)
+    {
+        PartialTimeBarrierOption option(barrierType, range, barrier, 0.0, today,
+                                        ext::make_shared<PlainVanillaPayoff>(type, strike),
+                                        ext::make_shared<EuropeanExercise>(today + 365));
+        option.setPricingEngine(engine);
+        return option.NPV();
+    };
+
+    // With the cover date today, a Start window watches only today's spot: a knock-out is the vanilla and a knock-in
+    // nothing, unless the spot is on the barrier, which hits it. The End windows watch all of [0, T], so they are
+    // single-barrier knock-outs, EndB1 of the type today's spot gives it and EndB2 of its own, and a spot on the
+    // barrier hits them too. Values from AnalyticEuropeanEngine and AnalyticBarrierEngine; the engine returned NaN for
+    // them all.
+    const struct
+    {
+        Option::Type type;
+        Barrier::Type barrierType;
+        PartialBarrier::Range range;
+        Real strike, barrier, value;
+    } cases[] = {{Option::Call, Barrier::DownOut, PartialBarrier::Start, 90, 80, 15.90062408568442},
+                 {Option::Call, Barrier::DownIn, PartialBarrier::Start, 90, 80, 0.0},
+                 {Option::Call, Barrier::UpOut, PartialBarrier::Start, 110, 120, 5.6024865456755082},
+                 {Option::Call, Barrier::DownOut, PartialBarrier::Start, 90, 100, 0.0},
+                 {Option::Call, Barrier::DownIn, PartialBarrier::Start, 90, 100, 15.90062408568442},
+                 {Option::Call, Barrier::DownOut, PartialBarrier::EndB1, 90, 80, 15.560130539087725},
+                 {Option::Call, Barrier::UpOut, PartialBarrier::EndB1, 90, 120, 3.6440509417988145},
+                 {Option::Call, Barrier::DownOut, PartialBarrier::EndB1, 90, 100, 0.0},
+                 {Option::Call, Barrier::UpOut, PartialBarrier::EndB2, 90, 120, 3.6440509417988145},
+                 {Option::Call, Barrier::DownOut, PartialBarrier::EndB2, 90, 100, 0.0},
+                 {Option::Put, Barrier::DownOut, PartialBarrier::Start, 110, 80, 11.232739865837233},
+                 {Option::Put, Barrier::UpIn, PartialBarrier::Start, 110, 120, 0.0},
+                 {Option::Put, Barrier::UpIn, PartialBarrier::Start, 110, 100, 11.232739865837233},
+                 {Option::Put, Barrier::UpOut, PartialBarrier::EndB1, 110, 120, 10.463827574754459},
+                 {Option::Put, Barrier::DownOut, PartialBarrier::EndB2, 110, 80, 4.7930889025533263},
+                 {Option::Put, Barrier::UpOut, PartialBarrier::EndB2, 110, 100, 0.0}};
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.type << " " << c.barrierType << " at " << c.barrier << ", range " << Integer(c.range)
+                                  << ", strike " << c.strike)
+        {
+            BOOST_CHECK_SMALL(price(c.type, c.barrierType, c.range, c.strike, c.barrier) - c.value, 1.0e-12);
+        }
+    }
+
+    // An EndB2 window that starts today with the spot past the barrier has been knocked out already. It is refused, as
+    // a Start window is and as AnalyticBarrierEngine refuses a single-barrier option.
+    BOOST_CHECK_EXCEPTION(price(Option::Call, Barrier::DownOut, PartialBarrier::EndB2, 90, 120), Error,
+                          ExpectedErrorMessage("barrier touched"));
+    BOOST_CHECK_EXCEPTION(price(Option::Put, Barrier::UpOut, PartialBarrier::EndB2, 110, 80), Error,
+                          ExpectedErrorMessage("barrier touched"));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
