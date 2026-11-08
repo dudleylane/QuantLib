@@ -21,6 +21,7 @@
 #include <ql/math/distributions/bivariatenormaldistribution.hpp>
 #include <ql/pricingengines/barrier/analyticpartialtimebarrieroptionengine.hpp>
 #include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
+#include <cmath>
 #include <utility>
 
 namespace QuantLib
@@ -189,23 +190,27 @@ namespace QuantLib
         Real rho_ = rho();
         Real HSMu = HS(S, barrier, 2 * mu_);
         Real HSMu1 = HS(S, barrier, 2 * (mu_ + 1));
+        Real logHS = std::log(barrier / S);
+        auto imageMu = [&](Real x, Real y, Real corr) { return powerTimesM(HSMu, 2 * mu_ * logHS, x, y, corr); };
+        auto imageMu1 = [&](Real x, Real y, Real corr)
+        { return powerTimesM(HSMu1, 2 * (mu_ + 1) * logHS, x, y, corr); };
         Real X1 = strike * std::exp(-r * T);
 
         switch (barrierType)
         {
             case Barrier::DownOut:
                 result = S * std::exp((b - r) * T);
-                result *= (M(g1_, e1_, rho_) - HSMu1 * M(g3_, -e3_, -rho_));
-                result -= X1 * (M(g2_, e2_, rho_) - HSMu * M(g4_, -e4_, -rho_));
+                result *= (M(g1_, e1_, rho_) - imageMu1(g3_, -e3_, -rho_));
+                result -= X1 * (M(g2_, e2_, rho_) - imageMu(g4_, -e4_, -rho_));
                 return result;
 
             case Barrier::UpOut:
                 result = S * std::exp((b - r) * T);
-                result *= (M(-g1_, -e1_, rho_) - HSMu1 * M(-g3_, e3_, -rho_));
-                result -= X1 * (M(-g2_, -e2_, rho_) - HSMu * M(-g4_, e4_, -rho_));
+                result *= (M(-g1_, -e1_, rho_) - imageMu1(-g3_, e3_, -rho_));
+                result -= X1 * (M(-g2_, -e2_, rho_) - imageMu(-g4_, e4_, -rho_));
                 result -= S * std::exp((b - r) * T) *
-                          (M(-d1(strike, b), -e1_, rho_) - HSMu1 * M(e3_, -f1(barrier, strike, b), -rho_));
-                result += X1 * (M(-d2(strike, b), -e2_, rho_) - HSMu * M(e4_, -f2(barrier, strike, b), -rho_));
+                          (M(-d1(strike, b), -e1_, rho_) - imageMu1(e3_, -f1(barrier, strike, b), -rho_));
+                result += X1 * (M(-d2(strike, b), -e2_, rho_) - imageMu(e4_, -f2(barrier, strike, b), -rho_));
                 return result;
 
             default:
@@ -242,25 +247,29 @@ namespace QuantLib
         Real rho_ = rho();
         Real HSMu = HS(S, barrier, 2 * mu_);
         Real HSMu1 = HS(S, barrier, 2 * (mu_ + 1));
+        Real logHS = std::log(barrier / S);
+        auto imageMu = [&](Real x, Real y, Real corr) { return powerTimesM(HSMu, 2 * mu_ * logHS, x, y, corr); };
+        auto imageMu1 = [&](Real x, Real y, Real corr)
+        { return powerTimesM(HSMu1, 2 * (mu_ + 1) * logHS, x, y, corr); };
         Real X1 = strike * std::exp(-r * T);
 
         if (strike > barrier)
         {
             result = S * std::exp((b - r) * T);
-            result *= (M(d1(strike, b), e1_, rho_) - HSMu1 * M(f1(barrier, strike, b), -e3_, -rho_));
-            result -= X1 * (M(d2(strike, b), e2_, rho_) - HSMu * M(f2(barrier, strike, b), -e4_, -rho_));
+            result *= (M(d1(strike, b), e1_, rho_) - imageMu1(f1(barrier, strike, b), -e3_, -rho_));
+            result -= X1 * (M(d2(strike, b), e2_, rho_) - imageMu(f2(barrier, strike, b), -e4_, -rho_));
             return result;
         }
         else
         {
             Real S1 = S * std::exp((b - r) * T);
             result = S1;
-            result *= (M(-g1_, -e1_, rho_) - HSMu1 * M(-g3_, e3_, -rho_));
-            result -= X1 * (M(-g2_, -e2_, rho_) - HSMu * M(-g4_, e4_, -rho_));
-            result -= S1 * (M(-d1(strike, b), -e1_, rho_) - HSMu1 * M(-f1(barrier, strike, b), e3_, -rho_));
-            result += X1 * (M(-d2(strike, b), -e2_, rho_) - HSMu * M(-f2(barrier, strike, b), e4_, -rho_));
-            result += S1 * (M(g1_, e1_, rho_) - HSMu1 * M(g3_, -e3_, -rho_));
-            result -= X1 * (M(g2_, e2_, rho_) - HSMu * M(g4_, -e4_, -rho_));
+            result *= (M(-g1_, -e1_, rho_) - imageMu1(-g3_, e3_, -rho_));
+            result -= X1 * (M(-g2_, -e2_, rho_) - imageMu(-g4_, e4_, -rho_));
+            result -= S1 * (M(-d1(strike, b), -e1_, rho_) - imageMu1(-f1(barrier, strike, b), e3_, -rho_));
+            result += X1 * (M(-d2(strike, b), -e2_, rho_) - imageMu(-f2(barrier, strike, b), e4_, -rho_));
+            result += S1 * (M(g1_, e1_, rho_) - imageMu1(g3_, -e3_, -rho_));
+            result -= X1 * (M(g2_, e2_, rho_) - imageMu(g4_, -e4_, -rho_));
             return result;
         }
     }
@@ -315,12 +324,16 @@ namespace QuantLib
         Real e4_ = e4(barrier, strike, b);
         Real HSMu = HS(S, barrier, 2 * mu_);
         Real HSMu1 = HS(S, barrier, 2 * (mu_ + 1));
+        Real logHS = std::log(barrier / S);
+        auto imageMu = [&](Real x, Real y, Real corr) { return powerTimesM(HSMu, 2 * mu_ * logHS, x, y, corr); };
+        auto imageMu1 = [&](Real x, Real y, Real corr)
+        { return powerTimesM(HSMu1, 2 * (mu_ + 1) * logHS, x, y, corr); };
 
         Real result;
         result = S * std::exp((b - r) * T);
-        result *= (M(d1(strike, b), eta * e1_, eta * rho_) - HSMu1 * M(f1(barrier, strike, b), eta * e3_, eta * rho_));
+        result *= (M(d1(strike, b), eta * e1_, eta * rho_) - imageMu1(f1(barrier, strike, b), eta * e3_, eta * rho_));
         result -= (strike * std::exp(-r * T) *
-                   (M(d2(strike, b), eta * e2_, eta * rho_) - HSMu * M(f2(barrier, strike, b), eta * e4_, eta * rho_)));
+                   (M(d2(strike, b), eta * e2_, eta * rho_) - imageMu(f2(barrier, strike, b), eta * e4_, eta * rho_)));
         return result;
     }
 
@@ -363,6 +376,18 @@ namespace QuantLib
     {
         BivariateCumulativeNormalDistribution CmlNormDist(rho);
         return CmlNormDist(a, b);
+    }
+
+    // power * M(a, b; rho), where power = exp(logPower). M's error is absolute, up to about 1e-15 where it takes N from
+    // the cumulative normal's lower tail (#179): within 1e-14 of M where M is 0.1 or more, and the product's error is
+    // the power times it. logValue is within about 1e-14 of M however small M is, at about 30 times its cost. So where
+    // M is below 0.1 and the power above 10, which takes a low volatility or a distant barrier, the product goes
+    // through logs, and it stays finite where the power overflows and M underflows.
+    Real AnalyticPartialTimeBarrierOptionEngine::powerTimesM(Real power, Real logPower, Real a, Real b, Real rho) const
+    {
+        BivariateCumulativeNormalDistribution f(rho);
+        Real m = f(a, b);
+        return power <= 10.0 || m >= 0.1 ? Real(power * m) : Real(std::exp(logPower + f.logValue(a, b)));
     }
 
     Real AnalyticPartialTimeBarrierOptionEngine::rho() const

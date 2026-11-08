@@ -477,6 +477,65 @@ BOOST_AUTO_TEST_CASE(testAnalyticEngineAtZeroVolatility)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testAnalyticEngineAtLowVolatility)
+{
+    BOOST_TEST_MESSAGE("Testing partial-time barrier options at low volatility...");
+
+    const Date today(7, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+
+    // Values from the definition, as in testAnalyticEngineAgainstDefinition, with the differences of normal
+    // distributions taken from their tails. The image terms multiply powers of H / S, whose exponents grow as
+    // 1 / sigma^2, by bivariate normals. The first seven cases were NaN, where the power overflowed and the bivariate
+    // normal underflowed, and the last four were off by 2e-11 to 1e-10, where the power multiplied the bivariate
+    // normal's absolute error.
+    const struct
+    {
+        Option::Type type;
+        Barrier::Type barrierType;
+        PartialBarrier::Range range;
+        Real strike, barrier;
+        Rate r, q;
+        Volatility vol;
+        Integer coverDays;
+        Real value;
+    } cases[] = {
+        // #136's: the forward stays below the barrier, so the option is worth the vanilla
+        {Option::Call, Barrier::UpOut, PartialBarrier::Start, 100, 120, 0.05, 0.0, 0.005, 182, 4.8770575499285994},
+        {Option::Call, Barrier::UpOut, PartialBarrier::EndB1, 100, 120, 0.05, 0.0, 0.005, 182, 4.8770575499285994},
+        {Option::Call, Barrier::DownOut, PartialBarrier::Start, 90, 80, 0.01, 0.05, 0.005, 182, 6.0184574126462758},
+        {Option::Put, Barrier::DownOut, PartialBarrier::EndB1, 110, 80, 0.01, 0.05, 0.003, 182, 13.782539262337085},
+        {Option::Put, Barrier::DownOut, PartialBarrier::EndB2, 110, 80, 0.01, 0.05, 0.005, 182, 13.782539262337085},
+        {Option::Call, Barrier::UpIn, PartialBarrier::Start, 90, 120, 0.05, 0.01, 0.005, 182, 0.0},
+        {Option::Put, Barrier::DownIn, PartialBarrier::Start, 110, 80, 0.01, 0.05, 0.003, 182, 0.0},
+        // the forward ends just below the barrier, so this one is worth well under the vanilla's 13.394
+        {Option::Call, Barrier::UpOut, PartialBarrier::EndB1, 90, 105, 0.05, 0.01, 0.005, 1, 12.760001615804285},
+        {Option::Put, Barrier::DownOut, PartialBarrier::EndB1, 110, 95, 0.01, 0.05, 0.02, 1, 8.1081720009354941},
+        {Option::Call, Barrier::DownOut, PartialBarrier::EndB1, 90, 95, 0.01, 0.05, 0.02, 182, 4.5563978823115077},
+        {Option::Put, Barrier::UpOut, PartialBarrier::EndB2, 110, 105, 0.05, 0.01, 0.02, 1, 4.1070509318425685},
+        {Option::Call, Barrier::UpOut, PartialBarrier::Start, 110, 105, 0.05, 0.01, 0.02, 182, 0.00048555527733394633}};
+
+    for (const auto& c : cases)
+    {
+        const auto process = ext::make_shared<BlackScholesMertonProcess>(
+            Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, c.q, dc)),
+            Handle<YieldTermStructure>(flatRate(today, c.r, dc)),
+            Handle<BlackVolTermStructure>(flatVol(today, c.vol, dc)));
+        PartialTimeBarrierOption option(c.barrierType, c.range, c.barrier, 0.0, today + c.coverDays,
+                                        ext::make_shared<PlainVanillaPayoff>(c.type, c.strike),
+                                        ext::make_shared<EuropeanExercise>(today + 365));
+        option.setPricingEngine(ext::make_shared<AnalyticPartialTimeBarrierOptionEngine>(process));
+
+        BOOST_TEST_CONTEXT(c.type << " " << c.barrierType << " at " << c.barrier << ", range " << Integer(c.range)
+                                  << ", strike " << c.strike << ", r " << c.r << ", q " << c.q << ", vol " << c.vol
+                                  << ", cover in " << c.coverDays << " days")
+        {
+            BOOST_CHECK_SMALL(option.NPV() - c.value, 1.0e-12);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testPutWithStrikeOnBarrier)
 {
     BOOST_TEST_MESSAGE("Testing partial-time puts with the strike on the barrier...");

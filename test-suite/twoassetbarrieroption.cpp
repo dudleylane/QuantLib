@@ -308,6 +308,58 @@ BOOST_AUTO_TEST_CASE(testZeroVariance)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testLowVolatility)
+{
+    BOOST_TEST_MESSAGE("Testing two-asset barrier options at low volatility...");
+
+    const Date today(7, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+
+    // Values from the definition, as in testAgainstDefinition. The image terms multiply exponentials of terms that grow
+    // as 1 / sigma2^2 by bivariate normals, and all these were NaN, where the exponential overflowed and the bivariate
+    // normal underflowed.
+    const struct
+    {
+        Option::Type type;
+        Barrier::Type barrierType;
+        Real strike, barrier;
+        Rate r, q1, q2;
+        Volatility vol1, vol2;
+        Real rho;
+        Integer days;
+        Real value;
+    } cases[] = {
+        // the second asset's forward stays below the barrier, so these two are worth the vanilla; the first is #136's
+        {Option::Call, Barrier::UpOut, 100, 120, 0.05, 0.0, 0.0, 0.005, 0.005, 0.5, 365, 4.8770575499285994},
+        {Option::Call, Barrier::UpOut, 95, 120, 0.05, 0.01, 0.02, 1e-5, 1e-5, 0.5, 365, 8.6381880473489747},
+        {Option::Call, Barrier::UpOut, 105, 120, 0.05, 0.01, 0.02, 0.003, 0.003, 0.5, 365, 0.00014564398588913934},
+        {Option::Call, Barrier::DownOut, 95, 80, 0.01, 0.05, 0.04, 0.003, 0.003, 0.5, 365, 1.0682138598098806},
+        {Option::Put, Barrier::DownOut, 95, 80, 0.01, 0.05, 0.04, 0.003, 0.003, 0.5, 365, 5.6159094450606410e-6},
+        {Option::Put, Barrier::UpOut, 105, 120, 0.05, 0.01, 0.02, 0.003, 0.003, -1.0, 365, 0.87425184164405448}};
+
+    for (const auto& c : cases)
+    {
+        const Handle<YieldTermStructure> rTS(flatRate(today, c.r, dc));
+        const auto process1 = ext::make_shared<BlackScholesMertonProcess>(
+            Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, c.q1, dc)),
+            rTS, Handle<BlackVolTermStructure>(flatVol(today, c.vol1, dc)));
+        const auto process2 = ext::make_shared<BlackScholesMertonProcess>(
+            Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, c.q2, dc)),
+            rTS, Handle<BlackVolTermStructure>(flatVol(today, c.vol2, dc)));
+        TwoAssetBarrierOption option(c.barrierType, c.barrier, ext::make_shared<PlainVanillaPayoff>(c.type, c.strike),
+                                     ext::make_shared<EuropeanExercise>(today + c.days));
+        option.setPricingEngine(ext::make_shared<AnalyticTwoAssetBarrierEngine>(
+            process1, process2, Handle<Quote>(ext::make_shared<SimpleQuote>(c.rho))));
+
+        BOOST_TEST_CONTEXT(c.type << " " << c.barrierType << " at " << c.barrier << ", strike " << c.strike
+                                  << ", volatilities " << c.vol1 << " and " << c.vol2 << ", correlation " << c.rho)
+        {
+            BOOST_CHECK_SMALL(option.NPV() - c.value, 1.0e-12);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

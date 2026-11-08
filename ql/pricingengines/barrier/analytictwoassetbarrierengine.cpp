@@ -22,6 +22,7 @@
 #include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/pricingengines/barrier/analytictwoassetbarrierengine.hpp>
 #include <ql/pricingengines/blackformula.hpp>
+#include <cmath>
 #include <utility>
 
 namespace QuantLib
@@ -264,15 +265,15 @@ namespace QuantLib
         Real e3 = e1 - (2 * std::log(H / S2)) / (sigma2 * std::sqrt(T));
         Real e4 = e2 - (2 * std::log(H / S2)) / (sigma2 * std::sqrt(T));
 
-        Real w = eta * S1 * std::exp((b1 - r) * T) *
-                     (M(eta * d1, phi * e1, -eta * phi * rho) -
-                      std::exp((2 * (mu2 + rho * sigma1 * sigma2) * std::log(H / S2)) / (sigma2 * sigma2)) *
-                          M(eta * d3, phi * e3, -eta * phi * rho))
+        Real logPower1 = (2 * (mu2 + rho * sigma1 * sigma2) * std::log(H / S2)) / (sigma2 * sigma2);
+        Real logPower2 = (2 * mu2 * std::log(H / S2)) / (sigma2 * sigma2);
+        Real w =
+            eta * S1 * std::exp((b1 - r) * T) *
+                (M(eta * d1, phi * e1, -eta * phi * rho) - powerTimesM(logPower1, eta * d3, phi * e3, -eta * phi * rho))
 
-                 - eta * X * std::exp(-r * T) *
-                       (M(eta * d2, phi * e2, -eta * phi * rho) -
-                        std::exp((2 * mu2 * std::log(H / S2)) / (sigma2 * sigma2)) *
-                            M(eta * d4, phi * e4, -eta * phi * rho));
+            - eta * X * std::exp(-r * T) *
+                  (M(eta * d2, phi * e2, -eta * phi * rho) -
+                   powerTimesM(logPower2, eta * d4, phi * e4, -eta * phi * rho));
 
         return w;
     }
@@ -286,6 +287,18 @@ namespace QuantLib
     {
         BivariateCumulativeNormalDistribution f(rho);
         return f(m_a, m_b);
+    }
+
+    // exp(logPower) * M(a, b; rho). M's error is absolute, up to about 1e-15 where it takes N from the cumulative
+    // normal's lower tail (#179): within 1e-14 of M where M is 0.1 or more, and the product's error is the power times
+    // it. logValue is within about 1e-14 of M however small M is, at about 30 times its cost. So where M is below 0.1
+    // and the power above 10, which takes a low volatility or a distant barrier, the product goes through logs, and it
+    // stays finite where the power overflows and M underflows.
+    Real AnalyticTwoAssetBarrierEngine::powerTimesM(Real logPower, Real a, Real b, Real rho) const
+    {
+        BivariateCumulativeNormalDistribution f(rho);
+        Real power = std::exp(logPower), m = f(a, b);
+        return power <= 10.0 || m >= 0.1 ? Real(power * m) : Real(std::exp(logPower + f.logValue(a, b)));
     }
 
 }

@@ -92,6 +92,11 @@ namespace QuantLib
           an infinite one, it returns the limit, which is exact there
           in double precision
 
+        Its accuracy is absolute, so a value far into the lower tails
+        has few correct digits, or is 0. logValue() returns the
+        logarithm with relative accuracy there too, by a quadrature
+        of the distribution's integral over one variable.
+
         \test the correctness of the returned value is tested by
               checking it against known good results.
     */
@@ -101,6 +106,8 @@ namespace QuantLib
         BivariateCumulativeNormalDistributionWe04DP(Real rho);
         // function
         Real operator()(Real a, Real b) const;
+        //! the logarithm of the value, with relative accuracy however small the value
+        Real logValue(Real a, Real b) const;
 
       private:
         Real correlation_;

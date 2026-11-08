@@ -61,6 +61,7 @@ namespace QuantLib
         Time coverEventTime() const;
         Volatility volatility(Time t, Real strike) const;
         Real M(Real a, Real b, Real rho) const;
+        Real powerTimesM(Real power, Real logPower, Real a, Real b, Real rho) const;
         Real d1(Real strike, Rate b) const;
         Real d2(Real strike, Rate b) const;
         Real e1(Real barrier, Real strike, Rate b) const;

@@ -903,6 +903,98 @@ BOOST_AUTO_TEST_CASE(testBivariateWe04DPAtExtremeArguments)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testBivariateWe04DPLogValue)
+{
+    BOOST_TEST_MESSAGE("Testing the logarithm of West's bivariate normal...");
+
+    // Calculated in mpmath at 50 digits as the log of the integral of phi(u) N((b - rho u) / sqrt(1 - rho^2)) over u
+    // up to a, with breakpoints at the integrand's maximum and at the step that N makes when rho is near 1 or -1. The
+    // operator gives few of these digits, or 0.
+    const struct
+    {
+        Real a, b, rho, expected;
+    } cases[] = {{-40.0, -40.0, 0.5, -1074.9303321285275722},
+                 {-45.0, 3.0, -0.5, -1275.0153740166007300},
+                 {-30.0, -35.0, 0.95, -616.97510126192251347},
+                 {-5.7, 1.4, -0.5, -22.178572785302949354},
+                 {-38.0, -38.0, -0.5, -2898.3560794189151660},
+                 {-1000.0, -1000.0, 0.3, -769245.85073768206964},
+                 {-3.0, -2.0, -0.999999, -6250024.8651182869376},
+                 {-0.5, 3.5, -0.999999, -1.1766660193159196118},
+                 {-10.0, -10.0, 0.99999, -53.249464157333573486},
+                 {-10.0, -10.0, 0.999999999, -53.231465329256310293},
+                 {-3.0, -3.0, 0.999999999, -6.6077847977798980739},
+                 {-1.0e7, 2.0, 0.7, -50000000000017.037034},
+                 {-1.0e6, -1.0e6, -0.5, -2000000000030.7113515},
+                 {-8.0, 25.0, -0.9, -35.013437159914549896},
+                 {2.0, -50.0, 0.6, -1254.8313611394199013},
+                 {-1.5, -60.0, -0.3, -2017.9830037478039099},
+                 // N's step is crossed on the way out from the maximum, or met on the way in
+                 {3.0, 0.05, 0.999999999, -0.65404415541167856734},
+                 {0.5, 0.5, -0.9999999, -0.95991633369562231933},
+                 {0.5, 3e-5, 0.999999999999, -0.69312324430959913996},
+                 {3.0, 5.4e-4, 0.999999999, -0.69271641571055261740}};
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT("a " << c.a << ", b " << c.b << ", rho " << c.rho)
+        {
+            const BivariateCumulativeNormalDistributionWe04DP west(c.rho);
+            const Real scale = std::max(std::fabs(c.expected), Real(1.0));
+            BOOST_CHECK_SMALL((west.logValue(c.a, c.b) - c.expected) / scale, 1.0e-14);
+        }
+    }
+
+    // Its exponential agrees with the operator to the operator's absolute accuracy.
+    const Real arguments[] = {-8.0, -3.0, -1.0, -0.2, 0.0, 0.5, 2.0, 6.0};
+    for (Real rho : {-0.999999, -0.9, -0.5, -0.1, 0.1, 0.5, 0.9, 0.999999})
+    {
+        const BivariateCumulativeNormalDistributionWe04DP west(rho);
+        for (Real a : arguments)
+        {
+            for (Real b : arguments)
+            {
+                BOOST_TEST_CONTEXT("a " << a << ", b " << b << ", rho " << rho)
+                {
+                    BOOST_CHECK_SMALL(std::exp(west.logValue(a, b)) - west(a, b), 1.0e-14);
+                }
+            }
+        }
+    }
+
+    // At zero and degenerate correlations, and at infinite arguments, the univariate limits: at rho = -1, Y = -X, so
+    // the value is N(a) - N(-b) where a + b > 0, and 0 otherwise.
+    const CumulativeNormalDistribution normal;
+    const Real infinity = std::numeric_limits<Real>::infinity();
+    const BivariateCumulativeNormalDistributionWe04DP independent(0.0), equal(1.0), opposite(-1.0), some(0.5);
+    for (Real a : {-30.0, -3.0, -0.4, 0.0, 1.2, 6.0})
+    {
+        for (Real b : {-30.0, -3.0, -0.4, 0.0, 1.2, 6.0})
+        {
+            BOOST_TEST_CONTEXT("a " << a << ", b " << b)
+            {
+                const Real logA = normal.logValue(a), logB = normal.logValue(b);
+                const Real scale = std::max({std::fabs(logA), std::fabs(logB), Real(1.0)});
+                BOOST_CHECK_SMALL((independent.logValue(a, b) - (logA + logB)) / scale, 1.0e-14);
+                BOOST_CHECK_SMALL((equal.logValue(a, b) - std::min(logA, logB)) / scale, 1.0e-14);
+                // N(a) - N(-b) = N(b) - N(-a), from whichever has the smaller terms
+                if (a + b > 0.0)
+                    BOOST_CHECK_SMALL(opposite.logValue(a, b) -
+                                          std::log(a <= b ? normal(a) - normal(-b) : normal(b) - normal(-a)),
+                                      1.0e-14);
+                else
+                    BOOST_CHECK_EQUAL(opposite.logValue(a, b), -infinity);
+                BOOST_CHECK_EQUAL(some.logValue(-infinity, b), -infinity);
+                BOOST_CHECK_SMALL((some.logValue(infinity, b) - logB) / scale, 1.0e-14);
+                BOOST_CHECK_SMALL((some.logValue(a, infinity) - logA) / scale, 1.0e-14);
+                // past the largest finite arguments, the same limits
+                BOOST_CHECK_EQUAL(some.logValue(-QL_MAX_REAL, b), -infinity);
+                BOOST_CHECK_SMALL((some.logValue(QL_MAX_REAL, b) - logB) / scale, 1.0e-14);
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testInverseCumulativePoissonAgainstExactQuantiles)
 {
     BOOST_TEST_MESSAGE("Testing inverse cumulative Poisson distribution against exact quantiles...");
