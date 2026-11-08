@@ -180,7 +180,7 @@ BOOST_AUTO_TEST_CASE(testFdmHestonVarianceMesher)
     }
 }
 
-BOOST_AUTO_TEST_CASE(testFdmHestonBarrierVsBlackScholes, *precondition(if_speed(Fast)))
+BOOST_AUTO_TEST_CASE(testFdmHestonBarrierVsBlackScholes)
 {
 
     BOOST_TEST_MESSAGE("Testing FDM with barrier option in Heston model...");
