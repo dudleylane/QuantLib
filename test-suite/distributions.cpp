@@ -35,6 +35,7 @@
 #include <ql/math/randomnumbers/stochasticcollocationinvcdf.hpp>
 #include <boost/math/distributions/non_central_chi_squared.hpp>
 #include <iomanip>
+#include <limits>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -859,6 +860,42 @@ BOOST_AUTO_TEST_CASE(testBivariateDr78NearDegenerateInputs)
                                 BOOST_CHECK_SMALL(calculated - west(a, b), tolerance);
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBivariateWe04DPAtExtremeArguments)
+{
+    BOOST_TEST_MESSAGE("Testing West's bivariate normal at infinite and very large arguments...");
+
+    // A normal tail past 40 holds less than 1e-349, so the limits are the values in double precision.
+    const Real infinity = std::numeric_limits<Real>::infinity();
+    const std::vector<Real> large = {41.0, 1e77, 1e155, 1e308, QL_MAX_REAL, infinity};
+    std::vector<Real> others = {-2.0, 0.3, 7.0};
+    for (Real k : large)
+    {
+        others.push_back(-k);
+        others.push_back(k);
+    }
+    const CumulativeNormalDistribution normal;
+
+    for (Real rho : {-1.0, -0.99, -0.95, -0.5, 0.0, 0.5, 0.95, 0.99, 1.0})
+    {
+        const BivariateCumulativeNormalDistributionWe04DP west(rho);
+        for (Real h : large)
+        {
+            for (Real a : {-h, h})
+            {
+                for (Real b : others)
+                {
+                    BOOST_TEST_CONTEXT("a = " << a << ", b = " << b << ", rho = " << rho)
+                    {
+                        const Real expected = (a < 0.0 || b < -40.0) ? 0.0 : normal(b);
+                        BOOST_CHECK_SMALL(west(a, b) - expected, 1e-15);
+                        BOOST_CHECK_SMALL(west(b, a) - expected, 1e-15);
                     }
                 }
             }

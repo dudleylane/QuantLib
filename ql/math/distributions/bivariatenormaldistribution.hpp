@@ -84,10 +84,13 @@ namespace QuantLib
         www.sci.wsu.edu/math/faculty/henz/homepage)
 
         The QuantLib implementation mainly differs from the original
-        code in two regards;
+        code in three regards;
         - The implementation of the cumulative normal distribution is
           QuantLib::CumulativeNormalDistribution
         - The arrays XX and W are zero-based
+        - Where an argument is beyond 40 in either direction, including
+          an infinite one, it returns the limit, which is exact there
+          in double precision
 
         \test the correctness of the returned value is tested by
               checking it against known good results.

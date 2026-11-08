@@ -183,6 +183,14 @@ namespace QuantLib
 
     Real BivariateCumulativeNormalDistributionWe04DP::operator()(Real x, Real y) const
     {
+        // A normal tail past 40 holds less than 1e-349, under the smallest double, so the limits are exact there. The
+        // formulas below would take infinity from infinity, or overflow, at infinite or very large arguments.
+        if (x < -40.0 || y < -40.0)
+            return 0.0;
+        if (x > 40.0)
+            return cumnorm_(y);
+        if (y > 40.0)
+            return cumnorm_(x);
 
         /* The implementation is described at section 2.4 "Hybrid
            Numerical Integration Algorithms" of "Numerical Computation
