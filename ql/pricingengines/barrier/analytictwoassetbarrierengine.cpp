@@ -21,6 +21,7 @@
 #include <ql/math/distributions/bivariatenormaldistribution.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/pricingengines/barrier/analytictwoassetbarrierengine.hpp>
+#include <ql/pricingengines/blackformula.hpp>
 #include <utility>
 
 namespace QuantLib
@@ -49,6 +50,24 @@ namespace QuantLib
         QL_REQUIRE(!triggered(spot2), "barrier touched");
 
         Barrier::Type barrierType = arguments_.barrierType;
+
+        Time T = residualTime();
+        if (process2_->blackVolatility()->blackVariance(T, payoff->strike()) < QL_EPSILON)
+        {
+            // The second asset follows its forward, which is monotonic, so it hits the barrier, if at all, now or at
+            // expiry. A spot past the barrier was refused above, and one on it hits it now. The first asset's payoff is
+            // worth its Black-Scholes value.
+            Real forward2 = spot2 * std::exp(costOfCarry2() * T);
+            bool down = barrierType == Barrier::DownIn || barrierType == Barrier::DownOut;
+            bool hit = spot2 == barrier() || (down ? forward2 <= barrier() : forward2 >= barrier());
+            bool knockIn = barrierType == Barrier::DownIn || barrierType == Barrier::UpIn;
+            Real vanilla =
+                blackFormula(payoff->optionType(), payoff->strike(), underlying1() * std::exp(costOfCarry1() * T),
+                             std::sqrt(process1_->blackVolatility()->blackVariance(T, payoff->strike())),
+                             std::exp(-riskFreeRate() * T));
+            results_.value = hit == knockIn ? vanilla : 0.0;
+            return;
+        }
 
         switch (payoff->optionType())
         {

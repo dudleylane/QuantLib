@@ -26,6 +26,7 @@
 
 #include <ql/instruments/partialtimebarrieroption.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
+#include <utility>
 
 namespace QuantLib
 {
@@ -77,6 +78,9 @@ namespace QuantLib
         Real g3(Real barrier, Real strike, Rate b) const;
         Real g4(Real barrier, Real strike, Rate b) const;
         Real HS(Real S, Real H, Real power) const;
+        bool zeroVariance(Real strike) const;
+        std::pair<Real, Real> forwardRange(Time from, Time to, Rate b) const;
+        Real vanillaAtZeroVariance(Real strike, Rate r, Rate q) const;
     };
 
 }

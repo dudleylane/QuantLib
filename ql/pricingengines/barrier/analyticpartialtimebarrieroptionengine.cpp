@@ -128,12 +128,13 @@ namespace QuantLib
         auto tmp_arguments_ = arguments_;
         if (payoff->optionType() == Option::Put)
         {
-            Real spotSq = spot * spot;
-            Real callStrike = spotSq / payoff->strike();
+            // S (S / H) rather than S^2 / H, which can round away from S: a spot on the barrier must stay on it. The
+            // strike goes through the same expression, so that rounding can't move it past the barrier or off it.
+            Real callStrike = spot * (spot / payoff->strike());
             ext::shared_ptr<PlainVanillaPayoff> callPayoff =
                 ext::make_shared<PlainVanillaPayoff>(Option::Call, callStrike);
             tmp_arguments_.barrierType = getSymmetricBarrierType(arguments_.barrierType);
-            tmp_arguments_.barrier = spotSq / arguments_.barrier;
+            tmp_arguments_.barrier = spot * (spot / arguments_.barrier);
             tmp_arguments_.payoff = callPayoff;
             auto callProcess = ext::make_shared<GeneralizedBlackScholesProcess>(
                 process_->stateVariable(), process_->riskFreeRate(), process_->dividendYield(),
@@ -148,8 +149,17 @@ namespace QuantLib
     Real AnalyticPartialTimeBarrierOptionEngine::CoB2(
         Barrier::Type barrierType, Real barrier, Real strike, Rate r, Rate q) const
     {
-        Real result = 0.0;
+        QL_REQUIRE(strike < barrier, "case of strike>barrier is not implemented for OutEnd B2 type");
+
         Real b = r - q;
+        if (zeroVariance(strike))
+        {
+            auto [low, high] = forwardRange(coverEventTime(), residualTime(), b);
+            bool hit = barrierType == Barrier::DownOut ? low <= barrier : high >= barrier;
+            return hit ? 0.0 : vanillaAtZeroVariance(strike, r, q);
+        }
+
+        Real result = 0.0;
         Real T = residualTime();
         Real S = underlying();
         Real mu_ = mu(strike, b);
@@ -166,39 +176,39 @@ namespace QuantLib
         Real HSMu1 = HS(S, barrier, 2 * (mu_ + 1));
         Real X1 = strike * std::exp(-r * T);
 
-        if (strike < barrier)
+        switch (barrierType)
         {
-            switch (barrierType)
-            {
-                case Barrier::DownOut:
-                    result = S * std::exp((b - r) * T);
-                    result *= (M(g1_, e1_, rho_) - HSMu1 * M(g3_, -e3_, -rho_));
-                    result -= X1 * (M(g2_, e2_, rho_) - HSMu * M(g4_, -e4_, -rho_));
-                    return result;
+            case Barrier::DownOut:
+                result = S * std::exp((b - r) * T);
+                result *= (M(g1_, e1_, rho_) - HSMu1 * M(g3_, -e3_, -rho_));
+                result -= X1 * (M(g2_, e2_, rho_) - HSMu * M(g4_, -e4_, -rho_));
+                return result;
 
-                case Barrier::UpOut:
-                    result = S * std::exp((b - r) * T);
-                    result *= (M(-g1_, -e1_, rho_) - HSMu1 * M(-g3_, e3_, -rho_));
-                    result -= X1 * (M(-g2_, -e2_, rho_) - HSMu * M(-g4_, e4_, -rho_));
-                    result -= S * std::exp((b - r) * T) *
-                              (M(-d1(strike, b), -e1_, rho_) - HSMu1 * M(e3_, -f1(barrier, strike, b), -rho_));
-                    result += X1 * (M(-d2(strike, b), -e2_, rho_) - HSMu * M(e4_, -f2(barrier, strike, b), -rho_));
-                    return result;
+            case Barrier::UpOut:
+                result = S * std::exp((b - r) * T);
+                result *= (M(-g1_, -e1_, rho_) - HSMu1 * M(-g3_, e3_, -rho_));
+                result -= X1 * (M(-g2_, -e2_, rho_) - HSMu * M(-g4_, e4_, -rho_));
+                result -= S * std::exp((b - r) * T) *
+                          (M(-d1(strike, b), -e1_, rho_) - HSMu1 * M(e3_, -f1(barrier, strike, b), -rho_));
+                result += X1 * (M(-d2(strike, b), -e2_, rho_) - HSMu * M(e4_, -f2(barrier, strike, b), -rho_));
+                return result;
 
-                default:
-                    QL_FAIL("invalid barrier type");
-            }
-        }
-        else
-        {
-            QL_FAIL("case of strike>barrier is not implemented for OutEnd B2 type");
+            default:
+                QL_FAIL("invalid barrier type");
         }
     }
 
     Real AnalyticPartialTimeBarrierOptionEngine::CoB1(Real barrier, Real strike, Rate r, Rate q) const
     {
-        Real result = 0.0;
         Rate b = r - q;
+        if (zeroVariance(strike))
+        {
+            // B1 is knocked out by a hit from either side.
+            auto [low, high] = forwardRange(coverEventTime(), residualTime(), b);
+            return low <= barrier && barrier <= high ? 0.0 : vanillaAtZeroVariance(strike, r, q);
+        }
+
+        Real result = 0.0;
         Real T = residualTime();
         Real S = underlying();
         Real mu_ = mu(strike, b);
@@ -248,6 +258,10 @@ namespace QuantLib
                                                 const ext::shared_ptr<PlainVanillaPayoff>& payoff,
                                                 const ext::shared_ptr<GeneralizedBlackScholesProcess>& process) const
     {
+        // The same vanilla as CA's, so that a knock-in that isn't hit is worth 0 exactly.
+        if (zeroVariance(strike))
+            return vanillaAtZeroVariance(strike, r, q) - CA(eta, barrier, strike, r, q);
+
         ext::shared_ptr<EuropeanExercise> exercise = ext::dynamic_pointer_cast<EuropeanExercise>(arguments_.exercise);
 
         VanillaOption europeanOption(payoff, exercise);
@@ -261,6 +275,13 @@ namespace QuantLib
     {
         // Partial-Time-Start- OUT  Call Option calculation
         Real b = r - q;
+        if (zeroVariance(strike))
+        {
+            auto [low, high] = forwardRange(0.0, coverEventTime(), b);
+            bool hit = eta == 1 ? low <= barrier : high >= barrier;
+            return hit ? 0.0 : vanillaAtZeroVariance(strike, r, q);
+        }
+
         Real rho_ = rho();
         Real T = residualTime();
         Real S = underlying();
@@ -404,6 +425,25 @@ namespace QuantLib
     Real AnalyticPartialTimeBarrierOptionEngine::HS(Real S, Real H, Real power) const
     {
         return std::pow((H / S), power);
+    }
+
+    // The formulas divide by the volatility. Without any, the underlying follows its forward.
+    bool AnalyticPartialTimeBarrierOptionEngine::zeroVariance(Real strike) const
+    {
+        return process_->blackVolatility()->blackVariance(residualTime(), strike) < QL_EPSILON;
+    }
+
+    // The forward is monotonic, so over [from, to] it is lowest and highest at the ends.
+    std::pair<Real, Real> AnalyticPartialTimeBarrierOptionEngine::forwardRange(Time from, Time to, Rate b) const
+    {
+        Real first = underlying() * std::exp(b * from), last = underlying() * std::exp(b * to);
+        return {std::min(first, last), std::max(first, last)};
+    }
+
+    Real AnalyticPartialTimeBarrierOptionEngine::vanillaAtZeroVariance(Real strike, Rate r, Rate q) const
+    {
+        Time T = residualTime();
+        return std::exp(-r * T) * std::max(underlying() * std::exp((r - q) * T) - strike, Real(0.0));
     }
 
 }
