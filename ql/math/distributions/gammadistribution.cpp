@@ -18,6 +18,7 @@
 */
 
 #include <ql/math/distributions/gammadistribution.hpp>
+#include <cmath>
 
 namespace QuantLib
 {
@@ -69,27 +70,12 @@ namespace QuantLib
         QL_FAIL("too few iterations");
     }
 
-    const Real GammaFunction::c1_ = 76.18009172947146;
-    const Real GammaFunction::c2_ = -86.50532032941677;
-    const Real GammaFunction::c3_ = 24.01409824083091;
-    const Real GammaFunction::c4_ = -1.231739572450155;
-    const Real GammaFunction::c5_ = 0.1208650973866179e-2;
-    const Real GammaFunction::c6_ = -0.5395239384953e-5;
-
     Real GammaFunction::logValue(Real x) const
     {
         QL_REQUIRE(x > 0.0, "positive argument required");
-        Real temp = x + 5.5;
-        temp -= (x + 0.5) * std::log(temp);
-        Real ser = 1.000000000190015;
-        ser += c1_ / (x + 1.0);
-        ser += c2_ / (x + 2.0);
-        ser += c3_ / (x + 3.0);
-        ser += c4_ / (x + 4.0);
-        ser += c5_ / (x + 5.0);
-        ser += c6_ / (x + 6.0);
-
-        return -temp + std::log(2.5066282746310005 * ser / x);
+        // The reentrant lgamma: std::lgamma also writes the global signgam, so two threads calling it race.
+        int sign;
+        return lgamma_r(x, &sign);
     }
 
     Real GammaFunction::value(Real x) const

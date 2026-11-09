@@ -51,7 +51,9 @@ BOOST_AUTO_TEST_CASE(testFactorial)
     {
         expected *= i;
         calculated = Factorial::get(i);
-        if (std::fabs(calculated - expected) / expected > 1.0e-9)
+        // Above 27, get(i) is exp(logValue(i + 1)), whose relative error grows with ln i!, and the running product's
+        // roundings add up to i eps / 2.
+        if (std::fabs(calculated - expected) / expected > (4 * std::log(expected) + i) * QL_EPSILON)
             BOOST_FAIL("Factorial(" << i << ")" << std::setprecision(16) << std::scientific
                                     << "\n calculated: " << calculated << "\n   expected: " << expected
                                     << "\n rel. error: " << std::fabs(calculated - expected) / expected);
@@ -109,6 +111,45 @@ BOOST_AUTO_TEST_CASE(testGammaValues)
                                          << "\n"
                                          << "    expected:   " << expected << "\n"
                                          << "    rel. error: " << std::fabs(calculated - expected) / expected);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testLogGammaReferenceValues)
+{
+    BOOST_TEST_MESSAGE("Testing ln Gamma against reference values...");
+
+    // ln Gamma(x) at 50 digits (mpmath), rounded to the nearest double, on both sides of its zeros at 1 and 2 and on
+    // the points of #150.  The six-term fit logValue() used before was off by 8.8e-13 at 11 and 1.9e-10 at 10001.
+    const Real logGammas[][2] = {
+        {1e-10, 23.025850929882736},     {0.001, 6.907178885383853},      {0.1, 2.252712651734206},
+        {0.5, 0.5723649429247001},       {0.9, 0.06637623973474295},      {0.999, 0.0005780385328913802},
+        {1.001, -0.0005763935982833062}, {1.1, -0.049872441259839764},    {1.5, -0.12078223763524522},
+        {1.9, -0.03898427592308336},     {1.999, -0.0004224618006921073}, {2.001, 0.000423106734800117},
+        {2.1, 0.04543773854448518},      {2.5, 0.2846828704729192},       {3.7, 1.428072326665388},
+        {6.0, 4.787491742782046},        {8.5, 9.549267257300997},        {11.0, 15.104412573075516},
+        {13.0, 19.987214495661885},      {16.0, 27.89927138384089},       {21.0, 42.335616460753485},
+        {31.0, 74.65823634883016},       {51.0, 148.47776695177302},      {101.0, 363.73937555556347},
+        {501.0, 2611.330458460156},      {10001.0, 82108.92783681436},    {100001.0, 1051299.2218991218},
+        {1000001.0, 12815518.384658169}, {1e10, 220258509288.81058},      {1e100, 2.2925850929940456e+102},
+        {1e300, 6.897755278982137e+302}};
+    for (const auto& [x, expected] : logGammas)
+    {
+        BOOST_TEST_CONTEXT("ln Gamma(" << x << ")")
+        {
+            BOOST_CHECK_SMALL(GammaFunction().logValue(x) - expected,
+                              4 * QL_EPSILON * std::max(1.0, std::fabs(expected)));
+        }
+    }
+
+    // Gamma(x) at 50 digits.  value() is exp(logValue(x)) here, so its relative error grows with ln Gamma(x).
+    const Real gammas[][2] = {
+        {30.5, 4.822696933490909e+31}, {100.5, 9.320963104082716e+156}, {170.5, 5.56209241456e+305}};
+    for (const auto& [x, expected] : gammas)
+    {
+        BOOST_TEST_CONTEXT("Gamma(" << x << ")")
+        {
+            BOOST_CHECK_SMALL(GammaFunction().value(x) / expected - 1.0, 4 * QL_EPSILON * std::log(expected));
         }
     }
 }
