@@ -762,18 +762,20 @@ BOOST_AUTO_TEST_CASE(testGaussKronrodAdaptiveWhereTheAccuracyCantBeReached)
     };
 
     // The rule's error doesn't fall as fast as the tolerance on any of these, however narrow the
-    // interval.  With no limit given, only running out of doubles to split at stops them.
+    // interval.  With no limit given, they stop where an interval can't be split, or where its
+    // tolerance is below the precision of its value.
     const Case cases[] = {
         {"singular at zero", [](Real x) { return 1.0 / std::sqrt(x); }, 0.0, 1.0, 1e-8, 20000},
         {"singular at zero, more strongly", [](Real x) { return 1.0 / x; }, 0.0, 1.0, 1e-8, 20000},
         {"logarithmic at zero", [](Real x) { return std::log(x); }, 0.0, 1.0, 1e-10, 20000},
         {"singular at the lower end", [](Real x) { return 1.0 / std::sqrt(x - 1.0); }, 1.0, 2.0, 1e-8, 1000},
         {"singular at the upper end", [](Real x) { return 1.0 / std::sqrt(2.0 - x); }, 1.0, 2.0, 1e-2, 100000},
-        {"not a number", [](Real) { return std::nan(""); }, 1.0, 2.0, 1e-8, 1000},
-        // The rule's own precision: these ask for hundreds of times what it can give at this size.
-        {"smooth but large", [](Real x) { return 1e6 * std::exp(x); }, 0.0, 1.0, 1e-11, 20000},
-        {"smooth but large, away from zero", [](Real x) { return 1e6 * std::exp(x); }, 1.0, 2.0, 1e-11, 1000},
-        {"smooth but large, on a longer interval", [](Real x) { return 1e3 * std::cos(x); }, 0.0, 10.0, 1e-13, 20000},
+        {"not a number", [](Real) { return std::nan(""); }, 1.0, 2.0, 1e-8, 15},
+        // The value's precision: these ask for a tolerance below half the spacing of doubles at the
+        // value, on the whole interval or, for the last, on its first half, and stop there.
+        {"smooth but large", [](Real x) { return 1e6 * std::exp(x); }, 0.0, 1.0, 1e-11, 15},
+        {"smooth but large, away from zero", [](Real x) { return 1e6 * std::exp(x); }, 1.0, 2.0, 1e-11, 15},
+        {"smooth but large, on a longer interval", [](Real x) { return 1e3 * std::cos(x); }, 0.0, 10.0, 1e-13, 30},
     };
 
     for (const auto& c : cases)
@@ -801,6 +803,24 @@ BOOST_AUTO_TEST_CASE(testGaussKronrodAdaptiveWhereTheAccuracyCanBeReached)
     const GaussKronrodAdaptive coarse(1e-8), fine(1e-9);
     BOOST_CHECK_SMALL(coarse([](Real x) { return 1e5 * std::exp(x); }, 0.0, 1.0) - 1e5 * std::expm1(1.0), 1e-8);
     BOOST_CHECK_SMALL(fine([](Real x) { return 100.0 * std::cos(x); }, 0.0, 10.0) - 100.0 * std::sin(10.0), 1e-9);
+
+    // The rule's weights and abscissae are exact to the last bit, so a constant comes out exact, and
+    // the Gauss rule's monomials exact to rounding, at the first interval.  With 15 digits the G7
+    // and K15 weights summed to 2 only within 7e-15, and none of these converged.
+    const GaussKronrodAdaptive withinAnUlp(2.3e-16), monomials(1e-15);
+    BOOST_CHECK_EQUAL(withinAnUlp([](Real) { return 1.0; }, 0.0, 1.0), 1.0);
+    BOOST_CHECK_EQUAL(withinAnUlp.numberOfEvaluations(), Size(15));
+    for (Integer k = 0; k <= 13; ++k)
+    {
+        BOOST_TEST_CONTEXT("x^" << k)
+        {
+            BOOST_CHECK_SMALL(monomials([k](Real x) { return std::pow(x, k); }, 0.0, 1.0) - 1.0 / (k + 1),
+                              8 * QL_EPSILON / (k + 1));
+            BOOST_CHECK_EQUAL(monomials.numberOfEvaluations(), Size(15));
+        }
+    }
+    const GaussKronrodAdaptive large(1e-11);
+    BOOST_CHECK_SMALL(large([](Real x) { return 1e3 * std::cos(x); }, 0.0, 10.0) - 1e3 * std::sin(10.0), 1e-11);
 
     // This converges only some 400 splits into the interval at zero.
     const GaussKronrodAdaptive deep(1e-10);

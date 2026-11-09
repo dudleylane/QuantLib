@@ -269,14 +269,19 @@ namespace QuantLib
 
     // weights for 7-point Gauss-Legendre integration
     // (only 4 values out of 7 are given as they are symmetric)
-    static const Real g7w[] = {0.417959183673469, 0.381830050505119, 0.279705391489277, 0.129484966168870};
+    static const Real g7w[] = {0.417959183673469387755102040816327, 0.381830050505118944950369775488975,
+                               0.279705391489276667901467771423780, 0.129484966168869693270611432679082};
     // weights for 15-point Gauss-Kronrod integration
-    static const Real k15w[] = {0.209482141084728, 0.204432940075298, 0.190350578064785, 0.169004726639267,
-                                0.140653259715525, 0.104790010322250, 0.063092092629979, 0.022935322010529};
+    static const Real k15w[] = {0.209482141084727828012999174891714, 0.204432940075298892414161999234649,
+                                0.190350578064785409913256402421014, 0.169004726639267902826583426598550,
+                                0.140653259715525918745189590510238, 0.104790010322250183839876322541518,
+                                0.063092092629978553290700663189204, 0.022935322010529224963732008058970};
     // abscissae (evaluation points)
     // for 15-point Gauss-Kronrod integration
-    static const Real k15t[] = {0.000000000000000, 0.207784955007898, 0.405845151377397, 0.586087235467691,
-                                0.741531185599394, 0.864864423359769, 0.949107912342758, 0.991455371120813};
+    static const Real k15t[] = {0.000000000000000000000000000000000, 0.207784955007898467600689403773245,
+                                0.405845151377397166906606412076961, 0.586087235467691130294144838258730,
+                                0.741531185599394439863864773280788, 0.864864423359769072789712788640926,
+                                0.949107912342758524526189684047851, 0.991455371120812639206854697526329};
 
     Real
     GaussKronrodAdaptive::integrateRecursively(const std::function<Real(Real)>& f, Real a, Real b, Real tolerance) const
@@ -319,6 +324,15 @@ namespace QuantLib
         // 15 more function evaluations have been used
         increaseNumberOfEvaluations(15);
 
+        // Below half the spacing of doubles at the value, the error can be within the tolerance only
+        // where k15 and g7 agree to the last bit, which depends on how the sums were rounded, and one
+        // half of the interval keeps at least half the value with half the tolerance.  A NaN or an
+        // infinite value fails here too.
+        QL_REQUIRE(tolerance >= std::fabs(k15) * QL_EPSILON / 2,
+                   "cannot reach the required accuracy: the interval at x = "
+                       << center << " of width " << b - a << " has a tolerance of " << tolerance
+                       << ", below the precision of its value, " << k15);
+
         // error is <= k15 - g7
         // if error is larger than tolerance then split the interval
         // in two and integrate recursively
@@ -328,8 +342,9 @@ namespace QuantLib
         }
         else
         {
-            // The tolerance halves with the interval, so a singularity or the rule's own precision can
-            // keep the error above it however narrow the interval gets.  This also bounds the recursion.
+            // The tolerance halves with the interval, so a singularity, or rounding just above the
+            // value's precision, can keep the error above it however narrow the interval gets.  This
+            // also bounds the recursion.
             QL_REQUIRE(a < center && center < b, "cannot reach the required accuracy: the interval at x = "
                                                      << center << " can't be split further");
             return integrateRecursively(f, a, center, tolerance / 2) +

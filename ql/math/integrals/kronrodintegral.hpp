@@ -74,12 +74,14 @@ namespace QuantLib
 
         The tolerance is halved along with the interval, so the
         integration can fail on an integrand whose error doesn't fall
-        as fast, such as a singular one or one so large that the
-        tolerance is beyond the rule's precision.  It then throws,
-        once it has no interval left to split.  Without a limit on the
-        function evaluations, an integrand may otherwise take up to
-        about two billion of them, so give one if it could be costly
-        or very rough.
+        as fast, such as a singular one.  It then throws, once it has
+        no interval left to split.  It also throws as soon as an
+        interval's tolerance is below half the spacing of doubles at
+        its value, where only the two rules agreeing to the last bit
+        could meet it, and so on a NaN or infinite value.  Without a
+        limit on the function evaluations, an integrand may otherwise
+        take up to about two billion of them, so give one if it could
+        be costly or very rough.
 
         References:
 
