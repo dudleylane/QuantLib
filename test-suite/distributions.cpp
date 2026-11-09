@@ -1114,6 +1114,20 @@ BOOST_AUTO_TEST_CASE(testInverseCumulativePoissonAtTheProbabilityOfZero)
             }
         }
     }
+
+    // Just above exp(-lambda) the quantile is one, though the sums reach the probability at zero only to within their
+    // rounding.
+    Size wrong = 0;
+    Real first = 0.0;
+    for (Size i = 1; i <= 24800; ++i)
+    {
+        const Real lambda = 0.03 * i;
+        if (InverseCumulativePoisson(lambda)(std::nextafter(std::exp(-lambda), 1.0)) != 1.0 && wrong++ == 0)
+            first = lambda;
+    }
+    BOOST_CHECK_MESSAGE(wrong == 0, wrong << " of 24800 lambdas from 0.03 to 744 give other than 1 just above "
+                                             "exp(-lambda), the first "
+                                          << first);
 }
 
 BOOST_AUTO_TEST_CASE(testInverseCumulativePoissonAtTheLimitsOfItsRange)

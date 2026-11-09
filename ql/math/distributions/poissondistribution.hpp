@@ -155,7 +155,8 @@ namespace QuantLib
                 term *= index / lambda_;
                 --index;
             }
-            return 0.0;
+            // x is above exp(-lambda), so the terms from one up fell short of 1 - x only through their rounding.
+            return 1.0;
         }
 
         // Likewise below the mode, for what's further left.  Terms this small would lose their
@@ -169,6 +170,10 @@ namespace QuantLib
             term = previous;
             --index;
         }
+        // At zero, the term the multiplications reach can be a few ulps above exp(-lambda), the probability x was
+        // checked against above, and x just above it would then stop the sum at zero.
+        if (index == 0)
+            term = std::exp(-lambda_);
 
         Real sum = term;
         while (x > sum)
