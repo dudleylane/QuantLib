@@ -35,6 +35,7 @@
 #include <ql/pricingengines/barrier/fdhestonbarrierengine.hpp>
 #include <ql/pricingengines/barrier/mcbarrierengine.hpp>
 #include <ql/pricingengines/blackformula.hpp>
+#include <ql/pricingengines/vanilla/analyticdigitalamericanengine.hpp>
 #include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
 #include <ql/pricingengines/vanilla/binomialengine.hpp>
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
@@ -49,6 +50,7 @@
 #include <ql/time/daycounters/business252.hpp>
 #include <ql/timegrid.hpp>
 #include <ql/utilities/dataformatters.hpp>
+#include <thread>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -1712,6 +1714,77 @@ BOOST_AUTO_TEST_CASE(testTrivariateNormalInPerturbativeEngine)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testPerturbativeEngineFromSeveralThreads)
+{
+    BOOST_TEST_MESSAGE("Testing the perturbative engine from several threads...");
+
+    // The engine kept its working variables in statics, so threads pricing at the same time
+    // could get each other's numbers, even on separate options (#134).  Each thread here has
+    // its own process, option and engine, with inputs that differ from the other threads', and
+    // it also evaluates the trivariate normal that order 2 spends its time in; order 2 itself
+    // is too slow to price here.  The threads call the engine's calculate() directly: under
+    // QL_ENABLE_SESSIONS the evaluation date belongs to the thread that set it, and NPV()
+    // would test the option's expiry against an unset one.
+    const Date today(15, October, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual360();
+    const Real trivariate[][6] = {{1.0, 1.0, 1.0, 0.5, 0.5, 0.5},
+                                  {-1.0, 0.5, 2.0, -0.5, 0.3, 0.1},
+                                  {2.0, -2.0, 1.0, 0.3, -0.3, 0.2},
+                                  {0.5, -0.5, 0.2, 0.99, 0.98, 0.97}};
+
+    constexpr Size nThreads = 4, nRounds = 4;
+    std::vector<ext::shared_ptr<PerturbativeBarrierOptionEngine>> engines;
+    for (Size i = 0; i < nThreads; ++i)
+    {
+        const auto process = ext::make_shared<BlackScholesMertonProcess>(
+            Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.02, dc)),
+            Handle<YieldTermStructure>(flatRate(today, 0.03, dc)),
+            Handle<BlackVolTermStructure>(flatVol(today, 0.1 + 0.02 * i, dc)));
+        const BarrierOption option(Barrier::UpOut, 102.0 + 2.0 * i, 0.0,
+                                   ext::make_shared<PlainVanillaPayoff>(Option::Put, 101.0),
+                                   ext::make_shared<EuropeanExercise>(today + 180));
+        engines.push_back(ext::make_shared<PerturbativeBarrierOptionEngine>(process, 1, false));
+        option.setupArguments(engines.back()->getArguments());
+    }
+
+    // Thread i starts at its own trivariate case, so that the threads differ there too.
+    auto results = [&engines, &trivariate](Size i)
+    {
+        std::vector<Real> out;
+        engines[i]->calculate();
+        out.push_back(dynamic_cast<const Instrument::results*>(engines[i]->getResults())->value);
+        for (Size k = 0; k < std::size(trivariate); ++k)
+        {
+            const Real* c = trivariate[(i + k) % std::size(trivariate)];
+            out.push_back(detail::trivariateCumulativeNormal(c[0], c[1], c[2], c[3], c[4], c[5]));
+        }
+        return out;
+    };
+
+    std::vector<std::vector<Real>> expected;
+    for (Size i = 0; i < nThreads; ++i)
+        expected.push_back(results(i));
+
+    std::vector<std::vector<std::vector<Real>>> seen(nThreads);
+    std::vector<std::thread> threads;
+    for (Size i = 0; i < nThreads; ++i)
+        threads.emplace_back(
+            [&results, &out = seen[i], i]
+            {
+                for (Size round = 0; round < nRounds; ++round)
+                    out.push_back(results(i));
+            });
+    for (auto& t : threads)
+        t.join();
+
+    for (Size i = 0; i < nThreads; ++i)
+        for (Size round = 0; round < nRounds; ++round)
+            BOOST_CHECK_MESSAGE(seen[i][round] == expected[i],
+                                "thread " << i << " got results in round " << round
+                                          << " that differ from the same calculation on one thread");
+}
+
 BOOST_AUTO_TEST_CASE(testLowVolatilityLargeCarry)
 {
     BOOST_TEST_MESSAGE("Testing analytic barrier engine with low volatility and large carry...");
@@ -1876,6 +1949,74 @@ BOOST_AUTO_TEST_CASE(testZeroVolatility)
                                  ext::make_shared<EuropeanExercise>(maturity));
             option.setPricingEngine(engine);
             BOOST_CHECK_SMALL(option.NPV() - c.expected, 1.0e-10);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testRebateWithNegativeRates)
+{
+    BOOST_TEST_MESSAGE("Testing analytic barrier engine's rebate with negative rates...");
+
+    // With mu = (r - q) / vol^2 - 1/2, a negative rate can make mu^2 + 2 r / vol^2 negative.  A
+    // knock-out's rebate, paid when the barrier is hit, would then take N at complex arguments in
+    // closed form, and the engine integrates the first-passage density instead.  The expected
+    // values are that integral in 50-digit arithmetic.  The last four rows put mu^2 + 2 r / vol^2
+    // at -1e-6 and 1e-6, either side of the switch.
+    const struct
+    {
+        Barrier::Type barrierType;
+        Option::Type type;
+        Real barrier;
+        Rate r, q;
+        Volatility vol;
+        Real rebateValue;
+    } cases[] = {
+        {Barrier::DownOut, Option::Call, 90.0, -0.03, -0.03, 0.2, 3.1799794784456705},
+        {Barrier::DownOut, Option::Call, 90.0, -0.01, -0.01, 0.2, 3.1587521587603871},
+        {Barrier::DownOut, Option::Call, 90.0, -0.03, -0.08, 0.2, 2.7817449916537169},
+        {Barrier::DownOut, Option::Call, 90.0, -0.03, -0.03, 0.1, 1.5635311365304024},
+        {Barrier::DownOut, Option::Put, 90.0, -0.03, -0.03, 0.2, 3.1799794784456705},
+        {Barrier::UpOut, Option::Put, 110.0, -0.03, -0.03, 0.2, 3.0444087352893308},
+        {Barrier::UpOut, Option::Call, 110.0, -0.03, -0.03, 0.2, 3.0444087352893308},
+        {Barrier::DownOut, Option::Call, 100.0, -0.03, -0.03, 0.2, 5.0},
+        {Barrier::DownOut, Option::Call, 90.0, -0.03, -0.03, 0.4898969687636779, 4.3729838350748418},
+        {Barrier::UpOut, Option::Put, 110.0, -0.03, -0.03, 0.4898969687636779, 4.0319268244535495},
+        {Barrier::DownOut, Option::Call, 90.0, -0.03, -0.03, 0.4898989283554721, 4.3729872064255521},
+        {Barrier::UpOut, Option::Put, 110.0, -0.03, -0.03, 0.4898989283554721, 4.0319295914162751},
+    };
+
+    const DayCounter dc = Actual360();
+    const Date today(15, October, 2026);
+    Settings::instance().evaluationDate() = today;
+    const Date maturity = today + 360;
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.barrierType << " " << c.type << ", barrier " << c.barrier << ", r " << c.r << ", q " << c.q
+                                         << ", volatility " << c.vol)
+        {
+            const auto process =
+                ext::make_shared<BlackScholesMertonProcess>(Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)),
+                                                            Handle<YieldTermStructure>(flatRate(today, c.q, dc)),
+                                                            Handle<YieldTermStructure>(flatRate(today, c.r, dc)),
+                                                            Handle<BlackVolTermStructure>(flatVol(today, c.vol, dc)));
+            const auto engine = ext::make_shared<AnalyticBarrierEngine>(process);
+            const auto payoff = ext::make_shared<PlainVanillaPayoff>(c.type, 100.0);
+            const auto exercise = ext::make_shared<EuropeanExercise>(maturity);
+
+            BarrierOption withRebate(c.barrierType, c.barrier, 5.0, payoff, exercise);
+            withRebate.setPricingEngine(engine);
+            BarrierOption withoutRebate(c.barrierType, c.barrier, 0.0, payoff, exercise);
+            withoutRebate.setPricingEngine(engine);
+            const Real rebateValue = withRebate.NPV() - withoutRebate.NPV();
+            BOOST_CHECK_SMALL(rebateValue - c.rebateValue, 1.0e-12);
+
+            // The rebate is a cash-at-hit digital on the barrier.
+            VanillaOption digital(ext::make_shared<CashOrNothingPayoff>(
+                                      c.barrierType == Barrier::DownOut ? Option::Put : Option::Call, c.barrier, 5.0),
+                                  ext::make_shared<AmericanExercise>(today, maturity));
+            digital.setPricingEngine(ext::make_shared<AnalyticDigitalAmericanEngine>(process));
+            BOOST_CHECK_SMALL(digital.NPV() - rebateValue, 1.0e-12);
         }
     }
 }

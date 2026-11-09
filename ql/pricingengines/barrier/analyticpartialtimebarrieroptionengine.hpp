@@ -26,6 +26,7 @@
 
 #include <ql/instruments/partialtimebarrieroption.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
+#include <utility>
 
 namespace QuantLib
 {
@@ -35,6 +36,14 @@ namespace QuantLib
 
         It doesn't currently cover the case of knock-in
         partial-time end options.
+
+        A start window watches the underlying from today, and so
+        does an end window of type B2 whose cover date is today.
+        A spot already past the barrier is then refused with
+        "barrier touched", as in AnalyticBarrierEngine.
+
+        A cover date before the evaluation date is refused, since
+        part of the window would be in the past.
     */
     class AnalyticPartialTimeBarrierOptionEngine : public PartialTimeBarrierOption::engine
     {
@@ -52,6 +61,7 @@ namespace QuantLib
         Time coverEventTime() const;
         Volatility volatility(Time t, Real strike) const;
         Real M(Real a, Real b, Real rho) const;
+        Real powerTimesM(Real power, Real logPower, Real a, Real b, Real rho) const;
         Real d1(Real strike, Rate b) const;
         Real d2(Real strike, Rate b) const;
         Real e1(Real barrier, Real strike, Rate b) const;
@@ -77,6 +87,9 @@ namespace QuantLib
         Real g3(Real barrier, Real strike, Rate b) const;
         Real g4(Real barrier, Real strike, Rate b) const;
         Real HS(Real S, Real H, Real power) const;
+        bool zeroVariance(Real strike) const;
+        std::pair<Real, Real> forwardRange(Time from, Time to, Rate b) const;
+        Real vanillaAtZeroVariance(Real strike, Rate r, Rate q) const;
     };
 
 }

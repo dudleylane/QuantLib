@@ -55,7 +55,7 @@ using namespace boost::unit_test_framework;
 
 BOOST_FIXTURE_TEST_SUITE(QuantLibTests, TopLevelFixture)
 
-BOOST_AUTO_TEST_SUITE(CdoTests, *precondition(if_speed(Slow)))
+BOOST_AUTO_TEST_SUITE(CdoTests)
 
 #ifndef QL_PATCH_SOLARIS
 
@@ -119,13 +119,8 @@ struct dataSetFive
     static const int dataset{4};
 };
 
-using dataSets = boost::mpl::vector<dataSetOne, dataSetTwo, dataSetThree, dataSetFour, dataSetFive>;
-
-BOOST_AUTO_TEST_CASE_TEMPLATE(testHW, T, dataSets)
+void testHullWhiteValues(const int dataSet)
 {
-
-    const int dataSet = T::dataset;
-
     BOOST_TEST_MESSAGE("Testing CDO premiums against Hull-White values"
                        " for data set "
                        << dataSet << "...");
@@ -371,6 +366,22 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(testHW, T, dataSets)
                   relativeTolerancePeriod[im]);
         }
     }
+}
+
+// The Gaussian data sets take about 2 s each, and those with a Student t factor about 10 s.
+using gaussianDataSets = boost::mpl::vector<dataSetOne, dataSetTwo>;
+using studentTDataSets = boost::mpl::vector<dataSetThree, dataSetFour, dataSetFive>;
+
+BOOST_TEST_DECORATOR(*precondition(if_speed(Fast)))
+BOOST_AUTO_TEST_CASE_TEMPLATE(testHW, T, gaussianDataSets)
+{
+    testHullWhiteValues(T::dataset);
+}
+
+BOOST_TEST_DECORATOR(*precondition(if_speed(Slow)))
+BOOST_AUTO_TEST_CASE_TEMPLATE(testHWStudentT, T, studentTDataSets)
+{
+    testHullWhiteValues(T::dataset);
 }
 #endif
 

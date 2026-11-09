@@ -28,6 +28,7 @@
 #include <ql/indexes/iborindex.hpp>
 #include <ql/instruments/overnightindexedswap.hpp>
 #include <ql/instruments/vanillaswap.hpp>
+#include <ql/math/expm1.hpp>
 #include <ql/math/integrals/kronrodintegral.hpp>
 #include <ql/math/solvers1d/brent.hpp>
 #include <ql/pricingengines/blackformula.hpp>
@@ -72,10 +73,8 @@ namespace QuantLib
     {
 
         Real yf = volDayCounter_.yearFraction(fixingDate_, d);
-        if (std::fabs(meanReversion_->value()) < 1.0E-4)
-            return yf;
-        else
-            return (1.0 - std::exp(-meanReversion_->value() * yf)) / meanReversion_->value();
+        // (1 - exp(-m yf)) / m, which keeps its digits, and its limit, at small m
+        return detail::decayIntegral(meanReversion_->value(), yf);
     }
 
     Real LinearTsrPricer::singularTerms(const Option::Type type, const Real strike) const

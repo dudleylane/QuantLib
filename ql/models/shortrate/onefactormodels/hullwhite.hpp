@@ -26,6 +26,7 @@
 #ifndef quantlib_hull_white_hpp
 #define quantlib_hull_white_hpp
 
+#include <ql/math/expm1.hpp>
 #include <ql/models/shortrate/onefactormodels/vasicek.hpp>
 #include <utility>
 
@@ -137,8 +138,7 @@ namespace QuantLib
             Real value(const Array&, Time t) const override
             {
                 Rate forwardRate = termStructure_->forwardRate(t, t, Continuous, NoFrequency);
-                Real temp =
-                    a_ < std::sqrt(QL_EPSILON) ? Real(sigma_ * t) : Real(sigma_ * (1.0 - std::exp(-a_ * t)) / a_);
+                Real temp = sigma_ * detail::decayIntegral(a_, t);
                 return (forwardRate + 0.5 * temp * temp);
             }
 

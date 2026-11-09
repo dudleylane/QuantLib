@@ -82,7 +82,7 @@ namespace QuantLib::detail
 
         /*! Expiry, Forward */
         Real t_;
-        const Real& forward_;
+        Real forward_;
         /*! Parameters */
         std::vector<Real> params_;
         std::vector<bool> paramIsFixed_;

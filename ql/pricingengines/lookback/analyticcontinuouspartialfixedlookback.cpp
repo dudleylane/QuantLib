@@ -39,6 +39,7 @@ namespace QuantLib
         QL_REQUIRE(payoff, "Non-plain payoff given");
 
         QL_REQUIRE(process_->x0() > 0.0, "negative or null underlying");
+        QL_REQUIRE(lookbackPeriodStartTime() >= 0.0, "lookback start date must not be in the past");
 
         switch (payoff->optionType())
         {
@@ -128,8 +129,14 @@ namespace QuantLib
             e2 = e1 - vol * std::sqrt(residualTime() - lookbackPeriodStartTime());
         }
 
-        Real f1 =
-            (ls + (carry + vol * vol / 2) * lookbackPeriodStartTime()) / (vol * std::sqrt(lookbackPeriodStartTime()));
+        // With the boundary today and the strike at the spot this is 0/0. Its limit is 0, and there the value
+        // doesn't depend on it, as it cancels between the terms.
+        Real f1 = 0.0;
+        if (lookbackPeriodStartTime() > 0.0 || ls != 0.0)
+        {
+            f1 = (ls + (carry + vol * vol / 2) * lookbackPeriodStartTime()) /
+                 (vol * std::sqrt(lookbackPeriodStartTime()));
+        }
         Real f2 = f1 - vol * std::sqrt(lookbackPeriodStartTime());
 
         Real n1 = f_(eta * d1);

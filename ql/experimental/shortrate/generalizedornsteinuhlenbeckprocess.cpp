@@ -19,6 +19,7 @@
 */
 
 #include <ql/experimental/shortrate/generalizedornsteinuhlenbeckprocess.hpp>
+#include <ql/math/expm1.hpp>
 #include <utility>
 
 namespace QuantLib
@@ -66,15 +67,7 @@ namespace QuantLib
         Real speed = speed_(t);
         Volatility vol = volatility_(t);
 
-        if (speed < std::sqrt(QL_EPSILON))
-        {
-            // algebraic limit for small speed
-            return vol * vol * dt;
-        }
-        else
-        {
-            return 0.5 * vol * vol / speed * (1.0 - std::exp(-2.0 * speed * dt));
-        }
+        return vol * vol * detail::decayIntegral(2.0 * speed, dt);
     }
 
 

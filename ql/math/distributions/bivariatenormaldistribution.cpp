@@ -24,6 +24,7 @@
 #include <ql/math/integrals/gaussianquadratures.hpp>
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace QuantLib
 {
@@ -183,6 +184,14 @@ namespace QuantLib
 
     Real BivariateCumulativeNormalDistributionWe04DP::operator()(Real x, Real y) const
     {
+        // A normal tail past 40 holds less than 1e-349, under the smallest double, so the limits are exact there. The
+        // formulas below would take infinity from infinity, or overflow, at infinite or very large arguments.
+        if (x < -40.0 || y < -40.0)
+            return 0.0;
+        if (x > 40.0)
+            return cumnorm_(y);
+        if (y > 40.0)
+            return cumnorm_(x);
 
         /* The implementation is described at section 2.4 "Hybrid
            Numerical Integration Algorithms" of "Numerical Computation
@@ -280,6 +289,193 @@ namespace QuantLib
             }
         }
         return BVN;
+    }
+
+    namespace
+    {
+
+        // log(N(b) - N(a)) for a < b, from whichever tails keep the difference's digits.
+        Real logNormalInterval(const CumulativeNormalDistribution& f, Real a, Real b)
+        {
+            if (a >= 0.0)
+                return f.logValue(-a) + std::log1p(-std::exp(f.logValue(-b) - f.logValue(-a)));
+            if (b <= 0.0)
+                return f.logValue(b) + std::log1p(-std::exp(f.logValue(a) - f.logValue(b)));
+            return std::log1p(-(f(a) + f(-b)));
+        }
+
+        // 1 - 1/z^2 + 3/z^4 - ..., so that N(z) = phi(z) / (-z) times it, for z below -37, where
+        // CumulativeNormalDistribution::logValue takes N from the same series ((26.2.12) in Abramowitz and Stegun).
+        Real normalTailSeries(Real z)
+        {
+            Real sum = 1.0, term = 1.0, zsqr = z * z;
+            for (int i = 1; i < 30 && std::fabs(term) >= 1e-17 * sum; ++i)
+            {
+                term *= -(2.0 * i - 1.0) / zsqr;
+                sum += term;
+            }
+            return sum;
+        }
+
+        // phi(z) / N(z). Below -37 from the series: the quotient of the exponentials would lose the digits of z^2 / 2.
+        Real inverseMillsRatio(const CumulativeNormalDistribution& f, Real z)
+        {
+            if (z > -37.0)
+                return std::exp(-0.5 * z * z - 0.5 * std::log(M_TWOPI) - f.logValue(z));
+            return -z / normalTailSeries(z);
+        }
+
+        // log N(z + d) - log N(z), keeping its digits where both logarithms are large.
+        Real logNormalStep(const CumulativeNormalDistribution& f, Real z, Real d)
+        {
+            Real z1 = z + d;
+            if (z < -37.0 && z1 < -37.0)
+                return -d * (z + 0.5 * d) - std::log1p(d / z) + std::log(normalTailSeries(z1) / normalTailSeries(z));
+            return f.logValue(z1) - f.logValue(z);
+        }
+
+    }
+
+    Real BivariateCumulativeNormalDistributionWe04DP::logValue(Real x, Real y) const
+    {
+        const Real inf = std::numeric_limits<Real>::infinity();
+        const CumulativeNormalDistribution& f = cumnorm_;
+        // M is at most N(x) and N(y), so where the logarithm of either is out of range, so is M's.
+        const Real logNx = f.logValue(x), logNy = f.logValue(y);
+        if (logNx == -inf || logNy == -inf)
+            return -inf;
+        if (x == inf)
+            return logNy;
+        if (y == inf)
+            return logNx;
+        if (correlation_ == 1.0)
+            return std::min(logNx, logNy);
+        if (correlation_ == -1.0)
+            return x + y > 0.0 ? logNormalInterval(f, -y, x) : -inf;
+        if (correlation_ == 0.0)
+            return logNx + logNy;
+        // M = N(y) - P(X > x, Y <= y), and the latter is at most N(-x): where that's below 1e-17 N(y), M is N(y).
+        if (x > 0.0 && f.logValue(-x) < logNy - 39.0)
+            return logNy;
+        if (y > 0.0 && f.logValue(-y) < logNx - 39.0)
+            return logNx;
+
+        // M = int_{-inf}^{x} phi(u) N((y - rho u) / s) du, s = sqrt(1 - rho^2), with every term of the integrand
+        // positive, so a quadrature of it keeps relative accuracy. Its log is concave, with curvature
+        // 1 + k^2 kappa(z), k = rho / s and kappa = lambda (z + lambda) in (0, 1), monotonic in z: it has one maximum
+        // on (-inf, x], and from there it falls off at least as fast as a Gaussian.
+        const Real rho = correlation_, s = std::sqrt((1.0 - rho) * (1.0 + rho)), k = rho / s;
+        // the log's slope at u, given z there, and its curvature through c
+        auto slopeAt = [&](Real u, Real z, Real& c)
+        {
+            Real lambda = inverseMillsRatio(f, z);
+            c = 1.0 + k * k * std::min(std::max(lambda * (z + lambda), Real(0.0)), Real(1.0));
+            return -u - k * lambda;
+        };
+        auto slope = [&](Real u, Real& c) { return slopeAt(u, (y - rho * u) / s, c); };
+
+        Real c, mode = x;
+        if (Real g = slope(x, c); g < 0.0)
+        {
+            // The slope falls by between 1 and 1 / s^2 per unit, so the maximum is in [x + g, x + s^2 g]. Rounding can
+            // move those ends past it; check them.
+            Real lo = x + g, hi = x + s * s * g;
+            if (!(hi < x) || slope(hi, c) > 0.0)
+                hi = x;
+            for (Real step = -2.0 * g; slope(lo, c) < 0.0; step *= 2.0)
+                lo = x - step;
+            // Newton's method, kept inside the bracket, until the step is negligible against the integrand's width
+            Real u = hi;
+            for (int i = 0; i < 200; ++i)
+            {
+                Real gu = slope(u, c);
+                if (gu > 0.0)
+                    lo = u;
+                else
+                    hi = u;
+                Real next = u + gu / c;
+                if (!(next > lo && next < hi))
+                    next = lo + 0.5 * (hi - lo);
+                bool done = std::fabs(next - u) * std::sqrt(c) < 1e-9 || !(hi - lo > 4e-16 * std::fabs(u));
+                u = next;
+                if (done)
+                    break;
+            }
+            mode = u;
+        }
+
+        // From here on in offsets t from the maximum, so that the log's differences keep their digits however large
+        // the arguments are.
+        const Real z0 = (y - rho * mode) / s, logMax = -0.5 * mode * mode + f.logValue(z0);
+        if (logMax == -inf)
+            return -inf;
+        auto logRatio = [&](Real t) { return -t * (mode + 0.5 * t) + logNormalStep(f, z0, -k * t); };
+        auto slopeT = [&](Real t, Real& c) { return slopeAt(mode + t, z0 - k * t, c); };
+
+        // From the maximum outwards, in panels over which the log falls by about delta, until the tail beyond, at most
+        // the integrand over its log's slope since the log is concave, is negligible. Over a panel the curvature is
+        // largest at one of its ends, so the log falls by at most |slope(a)| h + max(c(a), c(b)) h^2 / 2.
+        const Real delta = 8.0;
+        const TabulatedGaussLegendre gaussLegendre(20);
+        Real sum = 0.0;
+        auto march = [&](Real end, int dir)
+        {
+            Real a = 0.0, ca, ga = slopeT(0.0, ca);
+            auto width = [&](Real cmax)
+            {
+                Real gs = std::fabs(ga);
+                return 2.0 * delta / (gs + std::sqrt(gs * gs + 2.0 * cmax * delta));
+            };
+            auto fall = [&](Real h, Real cb) { return std::fabs(ga) * h + std::max(ca, cb) * h * h / 2; };
+            for (int n = 0; n < 400; ++n)
+            {
+                Real h = width(ca);
+                // Where N goes from 0 to 1, for |z| up to 10, the integrand changes on a scale of 1 in z, which the
+                // curvature at a panel's ends can miss when k is large. So a panel in that region spans at most 4 in
+                // z, and one heading into it stops at its edge, or spans 4 if that is further.
+                Real za = z0 - k * a, outside = std::max(std::fabs(za) - 10.0, Real(0.0));
+                if (outside == 0.0 || (za > 0.0) != (k * dir < 0.0))
+                    h = std::min(h, std::max(outside, Real(4.0)) / std::fabs(k));
+                bool last = dir > 0 && a + h >= end;
+                if (last)
+                    h = end - a;
+                Real b = a + dir * h, cb, gb = slopeT(b, cb);
+                if (fall(h, cb) > delta * (1.0 + 1e-9))
+                {
+                    // Too steep at the far end. The width for the curvature there passes; find the widest that does.
+                    last = false;
+                    Real passes = width(std::max(ca, cb)), fails = h;
+                    b = a + dir * passes;
+                    gb = slopeT(b, cb);
+                    while (fails > 1.25 * passes)
+                    {
+                        Real mid = std::sqrt(passes * fails), cm, gm = slopeT(a + dir * mid, cm);
+                        if (fall(mid, cm) <= delta)
+                        {
+                            passes = mid;
+                            b = a + dir * mid;
+                            gb = gm;
+                            cb = cm;
+                        }
+                        else
+                        {
+                            fails = mid;
+                        }
+                    }
+                }
+                Real centre = 0.5 * (a + b), half = 0.5 * (b - a);
+                sum += std::fabs(half) * gaussLegendre([&](Real t) { return std::exp(logRatio(centre + half * t)); });
+                if (last || (dir * gb < 0.0 && std::exp(logRatio(b)) < 1e-17 * sum * std::fabs(gb)))
+                    break;
+                a = b;
+                ga = gb;
+                ca = cb;
+            }
+        };
+        if (mode < x)
+            march(x - mode, 1);
+        march(-inf, -1);
+        return logMax + std::log(sum) - 0.5 * std::log(M_TWOPI);
     }
 
 }

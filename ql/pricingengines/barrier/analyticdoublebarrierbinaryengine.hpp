@@ -41,6 +41,17 @@ namespace QuantLib
         This engine thus requires European esercise for Double Knock options,
         and American exercise for KIKO/KOKI.
 
+        Hui's series converge ever more slowly as the volatility falls, and
+        their terms grow while the value doesn't. So where the volatility to
+        expiry, vol sqrt(T), is at most half of ln(U/L) for Double Knock
+        options, and at most ln(U/L) for KIKO/KOKI, the engine sums images of
+        the spot in the barriers instead. Above that, it sums the part of the
+        KIKO/KOKI series that doesn't depend on expiry in closed form, since
+        that part's terms fall only like 1/i^3. At zero volatility the
+        underlying follows its forward. The Knock In is worth the discounted
+        cash less the Knock Out, so its error is absolute, and a small
+        Knock In loses its relative accuracy.
+
         \ingroup barrierengines
 
         greeks are calculated by simple numeric derivation

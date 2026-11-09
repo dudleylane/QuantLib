@@ -26,6 +26,7 @@
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
 #include <ql/experimental/math/laplaceinterpolation.hpp>
+#include <ql/experimental/volatility/sviinterpolation.hpp>
 #include <ql/math/bspline.hpp>
 #include <ql/math/functional.hpp>
 #include <ql/math/integrals/simpsonintegral.hpp>
@@ -42,6 +43,7 @@
 #include <ql/math/interpolations/mixedinterpolation.hpp>
 #include <ql/math/interpolations/multicubicspline.hpp>
 #include <ql/math/interpolations/sabrinterpolation.hpp>
+#include <ql/math/interpolations/zabrinterpolation.hpp>
 #include <ql/math/kernelfunctions.hpp>
 #include <ql/math/optimization/levenbergmarquardt.hpp>
 #include <ql/math/randomnumbers/sobolrsg.hpp>
@@ -1946,11 +1948,11 @@ BOOST_AUTO_TEST_CASE(testNoArbSabrInterpolation, *precondition(if_speed(Fast)))
     strikes[30] = 0.09;
     // input volatilities for noarb sabr (other than above
     // alpha is 0.2 here due to the restriction sigmaI <= 1.0 !)
-    volatilities[0] = 0.773729077752926;
-    volatilities[1] = 0.763916242454194;
-    volatilities[2] = 0.754773878663612;
-    volatilities[3] = 0.746222305031368;
-    volatilities[4] = 0.738193023523582;
+    volatilities[0] = 0.773728861889259;
+    volatilities[1] = 0.763915877592688;
+    volatilities[2] = 0.754773877383662;
+    volatilities[3] = 0.746221968756199;
+    volatilities[4] = 0.738192814268275;
     volatilities[5] = 0.730629785825930;
     volatilities[6] = 0.723484825471685;
     volatilities[7] = 0.716716812668892;
@@ -3083,7 +3085,6 @@ BOOST_AUTO_TEST_CASE(testSabrNegativeVolatilities)
 
     const std::vector<Real> strikes = {0.03, 0.04, 0.05, 0.06};
     std::vector<Real> vols = {0.20, 0.18, 0.19, 0.185};
-    // Named, since the interpolation keeps a reference to it.
     const Real forward = 0.04;
 
     for (bool vegaWeighted : {false, true})
@@ -3107,6 +3108,125 @@ BOOST_AUTO_TEST_CASE(testSabrNegativeVolatilities)
             BOOST_CHECK_EXCEPTION(sabr.update(), Error,
                                   ExpectedErrorMessage("negative volatility (-0.2) given at strike 0.03"));
         }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testXabrInterpolationsKeepTheirForward)
+{
+    BOOST_TEST_MESSAGE("Testing that SABR-like interpolations keep the forward they were given...");
+
+    const std::vector<Real> strikes = {0.03, 0.04, 0.05, 0.06};
+    const std::vector<Real> vols = {0.20, 0.18, 0.19, 0.185};
+    const Real given = 0.04, later = 0.08, strike = 0.045;
+
+    // With everything fixed there's nothing to calibrate, so an update can change a value only through the forward.
+    const auto check = [&](auto& interpolation, Real& forward, const std::string& name)
+    {
+        BOOST_TEST_CONTEXT(name)
+        {
+            interpolation.update();
+            const Real expected = interpolation(strike, true);
+            forward = later;
+            interpolation.update();
+            BOOST_CHECK_EQUAL(interpolation.forward(), given);
+            BOOST_CHECK_EQUAL(interpolation(strike, true), expected);
+        }
+    };
+
+    Real forward = given;
+    SABRInterpolation sabr(strikes.begin(), strikes.end(), vols.begin(), 1.0, forward, 0.2, 1.0, 0.1, 0.0, true, true,
+                           true, true);
+    check(sabr, forward, "SABR");
+
+    forward = given;
+    NoArbSabrInterpolation noArbSabr(strikes.begin(), strikes.end(), vols.begin(), 1.0, forward, 0.2, 0.5, 0.1, 0.0,
+                                     true, true, true, true);
+    check(noArbSabr, forward, "no-arbitrage SABR");
+
+    forward = given;
+    ZabrInterpolation<ZabrShortMaturityLognormal> zabr(strikes.begin(), strikes.end(), vols.begin(), 1.0, forward, 0.2,
+                                                       1.0, 0.1, 0.0, 1.0, true, true, true, true, true);
+    check(zabr, forward, "ZABR");
+
+    forward = given;
+    SviInterpolation svi(strikes.begin(), strikes.end(), vols.begin(), 1.0, forward, 0.03, 0.1, 0.1, 0.0, 0.0, true,
+                         true, true, true, true);
+    check(svi, forward, "SVI");
+
+    // Neither of these has a forward left to refer to once its statement ends.
+    SABRInterpolation fromLiteral(strikes.begin(), strikes.end(), vols.begin(), 1.0, 0.04, 0.2, 1.0, 0.1, 0.0, true,
+                                  true, true, true);
+    fromLiteral.update();
+    BOOST_CHECK_EQUAL(fromLiteral.forward(), given);
+    BOOST_CHECK_EQUAL(fromLiteral(strike, true), sabr(strike, true));
+
+    Interpolation fromFactory = SABR(1.0, given, 0.2, 1.0, 0.1, 0.0, true, true, true, true)
+                                    .interpolate(strikes.begin(), strikes.end(), vols.begin());
+    fromFactory.update();
+    BOOST_CHECK_EQUAL(fromFactory(strike, true), sabr(strike, true));
+}
+
+BOOST_AUTO_TEST_CASE(testLagrangeInterpolationDerivativeAroundASupportPoint)
+{
+    BOOST_TEST_MESSAGE("Testing Lagrange interpolation derivatives around supporting points...");
+
+    const auto f = [](Real x) { return 1.0 / (2.0 - x); };
+
+    for (const std::vector<Real>& x :
+         {std::vector<Real>{0.1, 0.2, 0.4, 0.6, 0.8}, std::vector<Real>{0.0, 0.2, 0.4, 0.6, 0.8}})
+    {
+        std::vector<Real> y(x.size());
+        std::transform(x.begin(), x.end(), y.begin(), f);
+        const LagrangeInterpolation interpolation(x.begin(), x.end(), y.begin());
+
+        // The derivative of the polynomial through the points, as a sum over products of its factors,
+        // so that nothing is divided by the distance from a node.
+        const auto expected = [&](Real z)
+        {
+            Real result = 0.0;
+            for (Size i = 0; i < x.size(); ++i)
+            {
+                Real numerator = 0.0, denominator = 1.0;
+                for (Size j = 0; j < x.size(); ++j)
+                {
+                    if (j == i)
+                        continue;
+                    denominator *= x[i] - x[j];
+                    Real product = 1.0;
+                    for (Size m = 0; m < x.size(); ++m)
+                    {
+                        if (m != i && m != j)
+                            product *= z - x[m];
+                    }
+                    numerator += product;
+                }
+                result += y[i] * numerator / denominator;
+            }
+            return result;
+        };
+
+        const auto check = [&](Real z)
+        {
+            BOOST_TEST_CONTEXT("first node " << x.front() << ", x " << z)
+            {
+                BOOST_CHECK_SMALL(interpolation.derivative(z, true) - expected(z), 1.0e-13);
+            }
+        };
+
+        for (Real node : x)
+        {
+            check(node);
+            for (Real distance :
+                 {1.0e-20, 1.0e-16, 4.0e-15, 1.0e-14, 1.0e-13, 1.0e-12, 1.0e-11, 1.0e-10, 1.0e-8, 1.0e-4})
+            {
+                check(node - distance);
+                check(node + distance);
+            }
+        }
+
+        // and away from them
+        for (Real z : {0.15, 0.3, 0.5, 0.7, 0.85})
+            check(z);
     }
 }
 

@@ -365,6 +365,378 @@ BOOST_AUTO_TEST_CASE(testAnalyticEngineNearZeroD2)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testAnalyticEngineAgainstDefinition)
+{
+    BOOST_TEST_MESSAGE("Testing partial-time barrier options against their definition...");
+
+    const Date today(7, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+
+    // Values from the definition, integrated in mpmath at 40 digits by conditioning on the spot at the cover date: the
+    // no-hit density on [0, t1] times the vanilla from there for Start, and the density of the spot times a
+    // single-barrier knock-out on [t1, T] for EndB1 and EndB2. With Drezner's six-decimal bivariate normal, the
+    // engine missed them by 1e-5 to 1.2e-4.
+    const struct
+    {
+        Option::Type type;
+        Barrier::Type barrierType;
+        PartialBarrier::Range range;
+        Real strike, barrier;
+        Rate r, q;
+        Volatility vol;
+        Integer coverDays, days;
+        Real value;
+    } cases[] = {
+        {Option::Call, Barrier::UpIn, PartialBarrier::Start, 110, 110, 0.03, 0.03, 0.10, 46, 183, 0.01885093984689},
+        {Option::Call, Barrier::UpOut, PartialBarrier::Start, 110, 120, 0.05, 0.01, 0.25, 182, 365, 2.219124627834},
+        {Option::Put, Barrier::DownOut, PartialBarrier::Start, 110, 95, 0.02, 0.04, 0.10, 91, 365, 6.703830930539},
+        {Option::Put, Barrier::DownIn, PartialBarrier::Start, 90, 90, 0.02, 0.04, 0.10, 91, 365, 0.1758179450867},
+        {Option::Call, Barrier::UpOut, PartialBarrier::EndB1, 90, 120, 0.05, 0.01, 0.25, 182, 365, 6.274896049660},
+        {Option::Put, Barrier::UpOut, PartialBarrier::EndB1, 110, 105, 0.05, 0.01, 0.25, 182, 365, 9.328861863291},
+        {Option::Call, Barrier::DownOut, PartialBarrier::EndB2, 90, 95, 0.05, 0.01, 0.25, 182, 365, 13.11315486649},
+        {Option::Put, Barrier::UpOut, PartialBarrier::EndB2, 110, 105, 0.05, 0.01, 0.25, 182, 365, 9.322155342781}};
+
+    for (const auto& c : cases)
+    {
+        const auto process = ext::make_shared<BlackScholesMertonProcess>(
+            Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, c.q, dc)),
+            Handle<YieldTermStructure>(flatRate(today, c.r, dc)),
+            Handle<BlackVolTermStructure>(flatVol(today, c.vol, dc)));
+        PartialTimeBarrierOption option(c.barrierType, c.range, c.barrier, 0.0, today + c.coverDays,
+                                        ext::make_shared<PlainVanillaPayoff>(c.type, c.strike),
+                                        ext::make_shared<EuropeanExercise>(today + c.days));
+        option.setPricingEngine(ext::make_shared<AnalyticPartialTimeBarrierOptionEngine>(process));
+
+        BOOST_TEST_CONTEXT(c.type << " " << c.barrierType << " at " << c.barrier << ", range " << Integer(c.range)
+                                  << ", strike " << c.strike << ", r " << c.r << ", q " << c.q << ", vol " << c.vol)
+        {
+            BOOST_CHECK_SMALL(option.NPV() - c.value, 1.0e-10);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testAnalyticEngineAtZeroVolatility)
+{
+    BOOST_TEST_MESSAGE("Testing partial-time barrier options at zero volatility...");
+
+    const Date today(7, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+
+    // The underlying follows its forward, S exp((r - q) t): from a spot of 100, 102.01 at the cover date and 104.08 at
+    // expiry where r is 5% and q 1%, and 98.03 and 96.08 the other way round. A knock-out that isn't hit, or a knock-in
+    // that is, pays the discounted payoff at the forward.
+    const struct
+    {
+        Option::Type type;
+        Barrier::Type barrierType;
+        PartialBarrier::Range range;
+        Real spot, strike, barrier;
+        Rate r, q;
+        Real value;
+    } cases[] = {
+        {Option::Call, Barrier::UpOut, PartialBarrier::Start, 100, 95, 103, 0.05, 0.01, 8.638188047348976},   // not hit
+        {Option::Call, Barrier::UpOut, PartialBarrier::Start, 100, 95, 101, 0.05, 0.01, 0.0},                 // hit
+        {Option::Call, Barrier::UpIn, PartialBarrier::Start, 100, 95, 101, 0.05, 0.01, 8.638188047348976},    // hit
+        {Option::Call, Barrier::UpIn, PartialBarrier::Start, 100, 95, 103, 0.05, 0.01, 0.0},                  // not hit
+        {Option::Put, Barrier::DownOut, PartialBarrier::Start, 100, 105, 99, 0.05, 0.01, 0.8741061976581647}, // not hit
+        {Option::Put, Barrier::DownOut, PartialBarrier::Start, 100, 105, 99, 0.01, 0.05, 0.0},                // hit
+        {Option::Put, Barrier::DownIn, PartialBarrier::Start, 100, 105, 99, 0.01, 0.05, 8.83229009359125},    // hit
+        {Option::Call, Barrier::DownOut, PartialBarrier::EndB1, 100, 95, 105, 0.05, 0.01, 8.638188047348976}, // below
+        {Option::Call, Barrier::UpOut, PartialBarrier::EndB1, 100, 95, 103, 0.05, 0.01, 0.0},                 // crosses
+        {Option::Put, Barrier::DownOut, PartialBarrier::EndB1, 100, 105, 97, 0.01, 0.05, 0.0},                // crosses
+        {Option::Call, Barrier::DownOut, PartialBarrier::EndB2, 100, 95, 105, 0.05, 0.01, 0.0},               // below
+        {Option::Call, Barrier::DownOut, PartialBarrier::EndB2, 100, 95, 101, 0.05, 0.01, 8.638188047348976}, // not hit
+        {Option::Put, Barrier::UpOut, PartialBarrier::EndB2, 100, 110, 105, 0.05, 0.01, 5.630253320161735},   // not hit
+        {Option::Put, Barrier::UpOut, PartialBarrier::EndB2, 100, 110, 103, 0.05, 0.01, 0.0},                 // hit
+        // A spot on the barrier hits it. A put's barrier is reflected in the spot, and must stay on it there, though
+        // 101.3 * 101.3 / 101.3 and 7.7 * 7.7 / 7.7 aren't 101.3 and 7.7 in floating point.
+        {Option::Call, Barrier::DownOut, PartialBarrier::Start, 100, 95, 100, 0.05, 0.01, 0.0},
+        {Option::Put, Barrier::UpOut, PartialBarrier::Start, 101.3, 105, 101.3, 0.01, 0.05, 0.0},
+        {Option::Put, Barrier::UpIn, PartialBarrier::Start, 101.3, 105, 101.3, 0.01, 0.05, 7.5956918417403285},
+        {Option::Put, Barrier::DownOut, PartialBarrier::Start, 7.7, 9, 7.7, 0.05, 0.01, 0.0},
+        {Option::Put, Barrier::DownIn, PartialBarrier::Start, 7.7, 9, 7.7, 0.05, 0.01, 0.9376811006378315}};
+
+    for (const auto& c : cases)
+    {
+        const auto process = ext::make_shared<BlackScholesMertonProcess>(
+            Handle<Quote>(ext::make_shared<SimpleQuote>(c.spot)), Handle<YieldTermStructure>(flatRate(today, c.q, dc)),
+            Handle<YieldTermStructure>(flatRate(today, c.r, dc)),
+            Handle<BlackVolTermStructure>(flatVol(today, 0.0, dc)));
+        PartialTimeBarrierOption option(c.barrierType, c.range, c.barrier, 0.0, today + 182,
+                                        ext::make_shared<PlainVanillaPayoff>(c.type, c.strike),
+                                        ext::make_shared<EuropeanExercise>(today + 365));
+        option.setPricingEngine(ext::make_shared<AnalyticPartialTimeBarrierOptionEngine>(process));
+
+        BOOST_TEST_CONTEXT(c.type << " " << c.barrierType << " at " << c.barrier << ", range " << Integer(c.range)
+                                  << ", spot " << c.spot << ", strike " << c.strike << ", r " << c.r << ", q " << c.q)
+        {
+            BOOST_CHECK_SMALL(option.NPV() - c.value, 1.0e-12);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testAnalyticEngineAtLowVolatility)
+{
+    BOOST_TEST_MESSAGE("Testing partial-time barrier options at low volatility...");
+
+    const Date today(7, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+
+    // Values from the definition, as in testAnalyticEngineAgainstDefinition, with the differences of normal
+    // distributions taken from their tails. The image terms multiply powers of H / S, whose exponents grow as
+    // 1 / sigma^2, by bivariate normals. The first seven cases were NaN, where the power overflowed and the bivariate
+    // normal underflowed, and the last four were off by 2e-11 to 1e-10, where the power multiplied the bivariate
+    // normal's absolute error.
+    const struct
+    {
+        Option::Type type;
+        Barrier::Type barrierType;
+        PartialBarrier::Range range;
+        Real strike, barrier;
+        Rate r, q;
+        Volatility vol;
+        Integer coverDays;
+        Real value;
+    } cases[] = {
+        // #136's: the forward stays below the barrier, so the option is worth the vanilla
+        {Option::Call, Barrier::UpOut, PartialBarrier::Start, 100, 120, 0.05, 0.0, 0.005, 182, 4.8770575499285994},
+        {Option::Call, Barrier::UpOut, PartialBarrier::EndB1, 100, 120, 0.05, 0.0, 0.005, 182, 4.8770575499285994},
+        {Option::Call, Barrier::DownOut, PartialBarrier::Start, 90, 80, 0.01, 0.05, 0.005, 182, 6.0184574126462758},
+        {Option::Put, Barrier::DownOut, PartialBarrier::EndB1, 110, 80, 0.01, 0.05, 0.003, 182, 13.782539262337085},
+        {Option::Put, Barrier::DownOut, PartialBarrier::EndB2, 110, 80, 0.01, 0.05, 0.005, 182, 13.782539262337085},
+        {Option::Call, Barrier::UpIn, PartialBarrier::Start, 90, 120, 0.05, 0.01, 0.005, 182, 0.0},
+        {Option::Put, Barrier::DownIn, PartialBarrier::Start, 110, 80, 0.01, 0.05, 0.003, 182, 0.0},
+        // the forward ends just below the barrier, so this one is worth well under the vanilla's 13.394
+        {Option::Call, Barrier::UpOut, PartialBarrier::EndB1, 90, 105, 0.05, 0.01, 0.005, 1, 12.760001615804285},
+        {Option::Put, Barrier::DownOut, PartialBarrier::EndB1, 110, 95, 0.01, 0.05, 0.02, 1, 8.1081720009354941},
+        {Option::Call, Barrier::DownOut, PartialBarrier::EndB1, 90, 95, 0.01, 0.05, 0.02, 182, 4.5563978823115077},
+        {Option::Put, Barrier::UpOut, PartialBarrier::EndB2, 110, 105, 0.05, 0.01, 0.02, 1, 4.1070509318425685},
+        {Option::Call, Barrier::UpOut, PartialBarrier::Start, 110, 105, 0.05, 0.01, 0.02, 182, 0.00048555527733394633}};
+
+    for (const auto& c : cases)
+    {
+        const auto process = ext::make_shared<BlackScholesMertonProcess>(
+            Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, c.q, dc)),
+            Handle<YieldTermStructure>(flatRate(today, c.r, dc)),
+            Handle<BlackVolTermStructure>(flatVol(today, c.vol, dc)));
+        PartialTimeBarrierOption option(c.barrierType, c.range, c.barrier, 0.0, today + c.coverDays,
+                                        ext::make_shared<PlainVanillaPayoff>(c.type, c.strike),
+                                        ext::make_shared<EuropeanExercise>(today + 365));
+        option.setPricingEngine(ext::make_shared<AnalyticPartialTimeBarrierOptionEngine>(process));
+
+        BOOST_TEST_CONTEXT(c.type << " " << c.barrierType << " at " << c.barrier << ", range " << Integer(c.range)
+                                  << ", strike " << c.strike << ", r " << c.r << ", q " << c.q << ", vol " << c.vol
+                                  << ", cover in " << c.coverDays << " days")
+        {
+            BOOST_CHECK_SMALL(option.NPV() - c.value, 1.0e-12);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testPutWithStrikeOnBarrier)
+{
+    BOOST_TEST_MESSAGE("Testing partial-time puts with the strike on the barrier...");
+
+    const Date today(7, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+
+    // A put is priced as a call, with its strike and barrier reflected in the spot. EndB2 implements only call strikes
+    // below the barrier, so a put with its strike on the barrier is a case it doesn't implement, whatever the spot.
+    // Reflected by different expressions, a strike and barrier of 60 at a spot of 50 came apart, and the puts priced.
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(50.0)), Handle<YieldTermStructure>(flatRate(today, 0.01, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.05, dc)), Handle<BlackVolTermStructure>(flatVol(today, 0.20, dc)));
+    for (Barrier::Type barrierType : {Barrier::DownOut, Barrier::UpOut})
+    {
+        PartialTimeBarrierOption option(barrierType, PartialBarrier::EndB2, 60.0, 0.0, today + 182,
+                                        ext::make_shared<PlainVanillaPayoff>(Option::Put, 60.0),
+                                        ext::make_shared<EuropeanExercise>(today + 365));
+        option.setPricingEngine(ext::make_shared<AnalyticPartialTimeBarrierOptionEngine>(process));
+        BOOST_TEST_CONTEXT(barrierType)
+        {
+            BOOST_CHECK_EXCEPTION(option.NPV(), Error, ExpectedErrorMessage("not implemented for OutEnd B2 type"));
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testSpotPastBarrier)
+{
+    BOOST_TEST_MESSAGE("Testing partial-time barrier options with the spot past the barrier...");
+
+    const Date today(7, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+
+    const auto vol = ext::make_shared<SimpleQuote>(0.20);
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.01, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.05, dc)), Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+    const auto engine = ext::make_shared<AnalyticPartialTimeBarrierOptionEngine>(process);
+    auto price =
+        [&](Option::Type type, Barrier::Type barrierType, PartialBarrier::Range range, Real strike, Real barrier)
+    {
+        PartialTimeBarrierOption option(barrierType, range, barrier, 0.0, today + 182,
+                                        ext::make_shared<PlainVanillaPayoff>(type, strike),
+                                        ext::make_shared<EuropeanExercise>(today + 365));
+        option.setPricingEngine(engine);
+        return option.NPV();
+    };
+
+    // A Start window watches the spot from today, so with the spot past the barrier a knock-out is already dead and a
+    // knock-in already in. The engine refuses it at any volatility, as AnalyticBarrierEngine does; at 20% the formulas
+    // gave -9.999 for the first case and 22.63 for the second. A spot on the barrier hits it, so a knock-out there is
+    // worth 0.
+    const struct
+    {
+        Option::Type type;
+        Barrier::Type barrierType;
+        Real strike, barrier;
+    } startCases[] = {{Option::Call, Barrier::DownOut, 95, 105}, {Option::Call, Barrier::DownIn, 95, 105},
+                      {Option::Call, Barrier::UpOut, 95, 95},    {Option::Call, Barrier::UpIn, 95, 95},
+                      {Option::Put, Barrier::DownOut, 105, 105}, {Option::Put, Barrier::UpOut, 105, 95}};
+    for (Volatility v : {0.20, 0.0})
+    {
+        vol->setValue(v);
+        for (const auto& c : startCases)
+        {
+            BOOST_TEST_CONTEXT(c.type << " " << c.barrierType << " at " << c.barrier << ", strike " << c.strike
+                                      << ", volatility " << v)
+            {
+                BOOST_CHECK_EXCEPTION(price(c.type, c.barrierType, PartialBarrier::Start, c.strike, c.barrier), Error,
+                                      ExpectedErrorMessage("barrier touched"));
+                if (c.barrierType == Barrier::DownOut || c.barrierType == Barrier::UpOut)
+                    BOOST_CHECK_SMALL(price(c.type, c.barrierType, PartialBarrier::Start, c.strike, 100.0), 1.0e-12);
+            }
+        }
+    }
+
+    // The End windows start watching at the cover date, so today's spot can be on either side of the barrier. Values
+    // from the definition, as in testAnalyticEngineAgainstDefinition. The two EndB2 options have today's spot where,
+    // from the cover date, it would knock them out.
+    vol->setValue(0.20);
+    const struct
+    {
+        Option::Type type;
+        Barrier::Type barrierType;
+        PartialBarrier::Range range;
+        Real strike, barrier, value;
+    } endCases[] = {{Option::Call, Barrier::DownOut, PartialBarrier::EndB1, 95, 105, 6.715029217737929},
+                    {Option::Call, Barrier::UpOut, PartialBarrier::EndB1, 95, 95, 10.32745322844149},
+                    {Option::Put, Barrier::DownOut, PartialBarrier::EndB1, 105, 105, 6.396213073906356},
+                    {Option::Put, Barrier::UpOut, PartialBarrier::EndB1, 105, 95, 3.780991933731649},
+                    {Option::Call, Barrier::DownOut, PartialBarrier::EndB2, 95, 105, 6.563376024817099},
+                    {Option::Put, Barrier::UpOut, PartialBarrier::EndB2, 105, 95, 3.620020939775625}};
+    for (const auto& c : endCases)
+    {
+        BOOST_TEST_CONTEXT(c.type << " " << c.barrierType << " at " << c.barrier << ", range " << Integer(c.range)
+                                  << ", strike " << c.strike)
+        {
+            BOOST_CHECK_SMALL(price(c.type, c.barrierType, c.range, c.strike, c.barrier) - c.value, 1.0e-10);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testCoverDateInThePast)
+{
+    BOOST_TEST_MESSAGE("Testing that partial-time barrier options refuse a cover date in the past...");
+
+    const Date today(7, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+
+    // Part of the window would be in the past, where the engine can't know the path. At 20% volatility the engine threw
+    // on the volatility's negative time; at zero volatility it priced the options from the forward, read backwards.
+    const auto vol = ext::make_shared<SimpleQuote>(0.20);
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.01, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.05, dc)), Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+    for (Volatility v : {0.20, 0.0})
+    {
+        vol->setValue(v);
+        for (PartialBarrier::Range range : {PartialBarrier::Start, PartialBarrier::EndB1, PartialBarrier::EndB2})
+        {
+            PartialTimeBarrierOption option(Barrier::DownOut, range, 95.0, 0.0, today - 30,
+                                            ext::make_shared<PlainVanillaPayoff>(Option::Call, 90.0),
+                                            ext::make_shared<EuropeanExercise>(today + 365));
+            option.setPricingEngine(ext::make_shared<AnalyticPartialTimeBarrierOptionEngine>(process));
+            BOOST_TEST_CONTEXT("range " << Integer(range) << ", volatility " << v)
+            {
+                BOOST_CHECK_EXCEPTION(option.NPV(), Error, ExpectedErrorMessage("cover event date has passed"));
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testAnalyticEngineWithCoverDateToday)
+{
+    BOOST_TEST_MESSAGE("Testing partial-time barrier options with the cover date today...");
+
+    const Date today(7, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.01, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.05, dc)), Handle<BlackVolTermStructure>(flatVol(today, 0.20, dc)));
+    const auto engine = ext::make_shared<AnalyticPartialTimeBarrierOptionEngine>(process);
+    auto price =
+        [&](Option::Type type, Barrier::Type barrierType, PartialBarrier::Range range, Real strike, Real barrier)
+    {
+        PartialTimeBarrierOption option(barrierType, range, barrier, 0.0, today,
+                                        ext::make_shared<PlainVanillaPayoff>(type, strike),
+                                        ext::make_shared<EuropeanExercise>(today + 365));
+        option.setPricingEngine(engine);
+        return option.NPV();
+    };
+
+    // With the cover date today, a Start window watches only today's spot: a knock-out is the vanilla and a knock-in
+    // nothing, unless the spot is on the barrier, which hits it. The End windows watch all of [0, T], so they are
+    // single-barrier knock-outs, EndB1 of the type today's spot gives it and EndB2 of its own, and a spot on the
+    // barrier hits them too. Values from AnalyticEuropeanEngine and AnalyticBarrierEngine; the engine returned NaN for
+    // them all.
+    const struct
+    {
+        Option::Type type;
+        Barrier::Type barrierType;
+        PartialBarrier::Range range;
+        Real strike, barrier, value;
+    } cases[] = {{Option::Call, Barrier::DownOut, PartialBarrier::Start, 90, 80, 15.90062408568442},
+                 {Option::Call, Barrier::DownIn, PartialBarrier::Start, 90, 80, 0.0},
+                 {Option::Call, Barrier::UpOut, PartialBarrier::Start, 110, 120, 5.6024865456755082},
+                 {Option::Call, Barrier::DownOut, PartialBarrier::Start, 90, 100, 0.0},
+                 {Option::Call, Barrier::DownIn, PartialBarrier::Start, 90, 100, 15.90062408568442},
+                 {Option::Call, Barrier::DownOut, PartialBarrier::EndB1, 90, 80, 15.560130539087725},
+                 {Option::Call, Barrier::UpOut, PartialBarrier::EndB1, 90, 120, 3.6440509417988145},
+                 {Option::Call, Barrier::DownOut, PartialBarrier::EndB1, 90, 100, 0.0},
+                 {Option::Call, Barrier::UpOut, PartialBarrier::EndB2, 90, 120, 3.6440509417988145},
+                 {Option::Call, Barrier::DownOut, PartialBarrier::EndB2, 90, 100, 0.0},
+                 {Option::Put, Barrier::DownOut, PartialBarrier::Start, 110, 80, 11.232739865837233},
+                 {Option::Put, Barrier::UpIn, PartialBarrier::Start, 110, 120, 0.0},
+                 {Option::Put, Barrier::UpIn, PartialBarrier::Start, 110, 100, 11.232739865837233},
+                 {Option::Put, Barrier::UpOut, PartialBarrier::EndB1, 110, 120, 10.463827574754459},
+                 {Option::Put, Barrier::DownOut, PartialBarrier::EndB2, 110, 80, 4.7930889025533263},
+                 {Option::Put, Barrier::UpOut, PartialBarrier::EndB2, 110, 100, 0.0}};
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.type << " " << c.barrierType << " at " << c.barrier << ", range " << Integer(c.range)
+                                  << ", strike " << c.strike)
+        {
+            BOOST_CHECK_SMALL(price(c.type, c.barrierType, c.range, c.strike, c.barrier) - c.value, 1.0e-12);
+        }
+    }
+
+    // An EndB2 window that starts today with the spot past the barrier has been knocked out already. It is refused, as
+    // a Start window is and as AnalyticBarrierEngine refuses a single-barrier option.
+    BOOST_CHECK_EXCEPTION(price(Option::Call, Barrier::DownOut, PartialBarrier::EndB2, 90, 120), Error,
+                          ExpectedErrorMessage("barrier touched"));
+    BOOST_CHECK_EXCEPTION(price(Option::Put, Barrier::UpOut, PartialBarrier::EndB2, 110, 80), Error,
+                          ExpectedErrorMessage("barrier touched"));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

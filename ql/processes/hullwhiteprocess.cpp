@@ -17,6 +17,7 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/math/expm1.hpp>
 #include <ql/processes/hullwhiteprocess.hpp>
 
 namespace QuantLib
@@ -37,7 +38,7 @@ namespace QuantLib
 
     Real HullWhiteProcess::drift(Time t, Real x) const
     {
-        Real alpha_drift = sigma_ * sigma_ / (2 * a_) * (1 - std::exp(-2 * a_ * t));
+        Real alpha_drift = sigma_ * sigma_ * detail::decayIntegral(2 * a_, t);
         Real shift = 0.0001;
         Real f = h_->forwardRate(t, t, Continuous, NoFrequency);
         Real fup = h_->forwardRate(t + shift, t + shift, Continuous, NoFrequency);
@@ -68,7 +69,7 @@ namespace QuantLib
 
     Real HullWhiteProcess::alpha(Time t) const
     {
-        Real alfa = a_ > QL_EPSILON ? Real((sigma_ / a_) * (1 - std::exp(-a_ * t))) : sigma_ * t;
+        Real alfa = sigma_ * detail::decayIntegral(a_, t);
         alfa *= 0.5 * alfa;
         alfa += h_->forwardRate(t, t, Continuous, NoFrequency);
         return alfa;
@@ -97,7 +98,7 @@ namespace QuantLib
 
     Real HullWhiteForwardProcess::drift(Time t, Real x) const
     {
-        Real alpha_drift = sigma_ * sigma_ / (2 * a_) * (1 - std::exp(-2 * a_ * t));
+        Real alpha_drift = sigma_ * sigma_ * detail::decayIntegral(2 * a_, t);
         Real shift = 0.0001;
         Real f = h_->forwardRate(t, t, Continuous, NoFrequency);
         Real fup = h_->forwardRate(t + shift, t + shift, Continuous, NoFrequency);
@@ -129,7 +130,7 @@ namespace QuantLib
 
     Real HullWhiteForwardProcess::alpha(Time t) const
     {
-        Real alfa = a_ > QL_EPSILON ? Real((sigma_ / a_) * (1 - std::exp(-a_ * t))) : sigma_ * t;
+        Real alfa = sigma_ * detail::decayIntegral(a_, t);
         alfa *= 0.5 * alfa;
         alfa += h_->forwardRate(t, t, Continuous, NoFrequency);
 
@@ -138,25 +139,16 @@ namespace QuantLib
 
     Real HullWhiteForwardProcess::M_T(Real s, Real t, Real T) const
     {
-        if (a_ > QL_EPSILON)
-        {
-            Real coeff = (sigma_ * sigma_) / (a_ * a_);
-            Real exp1 = std::exp(-a_ * (t - s));
-            Real exp2 = std::exp(-a_ * (T - t));
-            Real exp3 = std::exp(-a_ * (T + t - 2.0 * s));
-            return coeff * (1 - exp1) - 0.5 * coeff * (exp2 - exp3);
-        }
-        else
-        {
-            // low-a algebraic limit
-            Real coeff = (sigma_ * sigma_) / 2.0;
-            return coeff * (t - s) * (2.0 * T - t - s);
-        }
+        // sigma^2 / a^2 * (1 - exp(-a (t-s)) - (exp(-a (T-t)) - exp(-a (T+t-2s))) / 2) subtracts terms of
+        // order one and a, and divides what's left by a^2.  Written this way, there's no difference to take.
+        const Real B1 = detail::decayIntegral(a_, t - s);
+        const Real B2 = detail::decayIntegral(a_, T - t);
+        return sigma_ * sigma_ * B1 * (B2 + 0.5 * B1 * std::exp(-a_ * (T - t)));
     }
 
     Real HullWhiteForwardProcess::B(Time t, Time T) const
     {
-        return a_ > QL_EPSILON ? Real(1 / a_ * (1 - std::exp(-a_ * (T - t)))) : T - t;
+        return detail::decayIntegral(a_, T - t);
     }
 
     Real HullWhiteForwardProcess::a() const

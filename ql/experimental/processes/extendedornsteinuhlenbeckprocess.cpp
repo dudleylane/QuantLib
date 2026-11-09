@@ -18,6 +18,7 @@
 */
 
 #include <ql/experimental/processes/extendedornsteinuhlenbeckprocess.hpp>
+#include <ql/math/expm1.hpp>
 #include <ql/math/integrals/gausslobattointegral.hpp>
 #include <ql/processes/ornsteinuhlenbeckprocess.hpp>
 #include <utility>
@@ -98,7 +99,8 @@ namespace QuantLib
                 const Real bu = b_(u);
                 const Real ex = std::exp(-speed_ * dt);
 
-                return ouProcess_->expectation(t0, x0, dt) + bt - ex * bu - (bt - bu) / (speed_ * dt) * (1 - ex);
+                // (1 - ex) / (speed dt) as a ratio that keeps its digits, and its limit, at small speeds
+                return ouProcess_->expectation(t0, x0, dt) + bt - ex * bu - (bt - bu) * detail::decayRatio(speed_ * dt);
             }
             case GaussLobatto:
                 return ouProcess_->expectation(t0, x0, dt) +

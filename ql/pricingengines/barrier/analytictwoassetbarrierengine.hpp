@@ -92,6 +92,7 @@ namespace QuantLib
         Real B(Real eta, Real phi) const;
 
         Real M(Real m_a, Real m_b, Real rho) const;
+        Real powerTimesM(Real logPower, Real a, Real b, Real rho) const;
     };
 
 }

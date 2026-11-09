@@ -842,6 +842,92 @@ BOOST_AUTO_TEST_CASE(testCashAtHitOrNothingAmericanZeroVolatility)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testCashAtHitOrNothingAmericanNegativeRates)
+{
+    BOOST_TEST_MESSAGE("Testing American cash-(at-hit)-or-nothing digital option with negative rates...");
+
+    // With mu = (r - q) / vol^2 - 1/2, a negative rate can make lambda^2 = mu^2 + 2 r / vol^2
+    // negative.  The closed form would then take N at complex arguments, and the engine
+    // integrates the first-passage density instead.  It does the same where lambda is below
+    // |1 + mu| / 100, since the closed form's rho cancels there.  At r = 0 and q = -vol^2 / 2,
+    // lambda is 0 but for rounding.  The expected values are that integral in 50-digit
+    // arithmetic, with the Greeks differentiated under it.  At the strike the payoff is due now,
+    // and the expected Greeks are the closed form's there, at either sign.  The last seven rows
+    // put lambda^2 at -1e-6 and 1e-6, at 0 but for rounding, and at 2.4e-5 and 2.6e-5, either
+    // side of the switch at mu = -1/2.
+    const struct
+    {
+        Option::Type type;
+        Real strike;
+        Rate r, q;
+        Volatility vol;
+        Time t;
+        Real value, delta, gamma, rho;
+    } cases[] = {
+        {Option::Call, 110.0, -0.03, -0.03, 0.2, 1.0, 6.0888174705786616, 0.36868328467983525, 0.0073820534493988355,
+         13.564291632072978},
+        {Option::Call, 110.0, -0.01, -0.01, 0.2, 1.0, 6.0512526067329478, 0.36954412230552514, 0.0078285539880438774,
+         13.484251345244579},
+        {Option::Call, 110.0, -0.03, -0.08, 0.2, 1.0, 6.8459352891004656, 0.33006223118685099, 8.279142856857146e-6,
+         12.602391508135078},
+        {Option::Call, 110.0, -0.03, -0.03, 0.1, 1.0, 3.2949012374576558, 0.50344536032244349, 0.045404881692003936,
+         30.561551835878825},
+        {Option::Put, 90.0, -0.03, -0.03, 0.2, 1.0, 6.359958956891341, -0.33337822340373149, 0.0089315634914966164,
+         -17.819098918427761},
+        {Option::Put, 90.0, -0.02, -0.01, 0.15, 5.0, 8.413964846973719, -0.16588546923881427, -0.00050818885758786037,
+         -39.915407565552525},
+        {Option::Call, 150.0, -0.01, -0.01, 0.05, 10.0, 0.091316967371345233, 0.017045076739810933,
+         0.0026750491112480538, 14.438203296145558},
+        {Option::Call, 100.01, -0.03, -0.03, 0.2, 1.0, 9.9956110944925355, 0.43889801397024786, -0.0014891166491499625,
+         0.022977769652113631},
+        {Option::Put, 99.99, -0.03, -0.03, 0.2, 1.0, 9.9966103166261839, -0.3389758020946481, -0.0014892644872627408,
+         -0.027003186084196699},
+        {Option::Call, 100.0, -0.03, -0.03, 0.2, 1.0, 10.0, 0.05, -0.0015, 0.0},
+        {Option::Call, 110.0, -0.03, -0.03, 0.4898969687636779, 1.0, 8.0638536489070991, 0.19269642054361134,
+         0.00040353429527062846, 2.6288315116348002},
+        {Option::Call, 110.0, -0.03, -0.03, 0.4898989283554721, 1.0, 8.0638591828325502, 0.19269588297479171,
+         0.00040352845454633638, 2.6288098304759226},
+        {Option::Call, 110.0, 0.0, -0.02, 0.2, 1.0, 6.336819546383456, 0.35611950620179863, 0.0049242584799622154,
+         13.144000372942422},
+        {Option::Put, 90.0, 0.0, -0.02, 0.2, 1.0, 5.983306922708716, -0.34725391904983878, 0.012619252184321408,
+         -17.758299705244225},
+        {Option::Call, 110.0, 0.0, -0.10125, 0.45, 1.0, 8.3226275678565431, 0.17337499068944336,
+         -0.00091773007794707587, 2.638098767653234},
+        {Option::Call, 110.0, -0.03, -0.03, 0.4899214653513891, 1.0, 8.0639228245102009, 0.19268970077283289,
+         0.00040346128835124709, 2.6285604960693449},
+        {Option::Call, 110.0, -0.03, -0.03, 0.48992342523715887, 1.0, 8.0639283587026087, 0.19268916317609378,
+         0.00040345544799813638, 2.6285388147227318},
+    };
+
+    const DayCounter dc = Actual360();
+    const Date today(15, October, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.type << " at " << c.strike << ", r " << c.r << ", q " << c.q << ", volatility " << c.vol
+                                  << ", " << c.t << " years")
+        {
+            const auto process =
+                ext::make_shared<BlackScholesMertonProcess>(Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)),
+                                                            Handle<YieldTermStructure>(flatRate(today, c.q, dc)),
+                                                            Handle<YieldTermStructure>(flatRate(today, c.r, dc)),
+                                                            Handle<BlackVolTermStructure>(flatVol(today, c.vol, dc)));
+            VanillaOption option(ext::make_shared<CashOrNothingPayoff>(c.type, c.strike, 10.0),
+                                 ext::make_shared<AmericanExercise>(today, today + timeToDays(c.t)));
+            option.setPricingEngine(ext::make_shared<AnalyticDigitalAmericanEngine>(process));
+
+            // The error is relative, but absolute below 1.
+            const auto error = [](Real calculated, Real expected)
+            { return (calculated - expected) / std::max(std::fabs(expected), Real(1.0)); };
+            BOOST_CHECK_SMALL(error(option.NPV(), c.value), 1.0e-12);
+            BOOST_CHECK_SMALL(error(option.delta(), c.delta), 1.0e-12);
+            BOOST_CHECK_SMALL(error(option.gamma(), c.gamma), 1.0e-12);
+            BOOST_CHECK_SMALL(error(option.rho(), c.rho), 1.0e-12);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testCashAtExpiryOrNothingAmericanLowVolatility)
 {
     BOOST_TEST_MESSAGE("Testing American cash-(at-expiry)-or-nothing digital option at low volatility...");

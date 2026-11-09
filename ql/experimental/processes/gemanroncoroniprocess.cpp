@@ -22,6 +22,7 @@
 */
 
 #include <ql/experimental/processes/gemanroncoroniprocess.hpp>
+#include <ql/math/expm1.hpp>
 #include <ql/math/functional.hpp>
 #include <ql/processes/eulerdiscretization.hpp>
 
@@ -76,7 +77,8 @@ namespace QuantLib
     {
         const Volatility sig2t = sig2_ + a_ * squared(std::cos(M_PI * t0 + b_));
 
-        return std::sqrt(sig2t / (2 * theta1_) * (1.0 - std::exp(-2 * theta1_ * dt)));
+        // sig2t (1 - exp(-2 theta1 dt)) / (2 theta1), which cancels at small theta1
+        return std::sqrt(sig2t * detail::decayIntegral(2 * theta1_, dt));
     }
 
     Real GemanRoncoroniProcess::evolve(Time t0, Real x0, Time dt, Real dw) const
@@ -101,7 +103,9 @@ namespace QuantLib
         const Real mu =
             alpha_ + beta_ * t + gamma_ * std::cos(eps_ + 2 * M_PI * t) + delta_ * std::cos(zeta_ + 4 * M_PI * t);
 
-        const Real j = -1.0 / theta3_ * std::log(1.0 + du[1] * (std::exp(-theta3_ * psi_) - 1.0));
+        // -log(1 + du (exp(-theta3 psi) - 1)) / theta3, which cancels at small theta3, and is du psi at zero
+        const Real j =
+            theta3_ * psi_ == 0.0 ? du[1] * psi_ : -std::log1p(du[1] * std::expm1(-theta3_ * psi_)) / theta3_;
 
         if (x0 <= mu + d_)
         {

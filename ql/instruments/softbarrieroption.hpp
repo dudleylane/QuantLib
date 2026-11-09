@@ -53,13 +53,12 @@ namespace QuantLib
 
         void setupArguments(PricingEngine::arguments*) const override;
 
-        Volatility impliedVolatility(
-            Real price,
-            const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
-            Real accuracy = 1.0e-4,
-            Size maxEvaluations = 100,
-            Volatility minVol = 1e-6, // 0 vol values can make the soft barrier formula produce NaN results
-            Volatility maxVol = 4.0) const;
+        Volatility impliedVolatility(Real price,
+                                     const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,
+                                     Real accuracy = 1.0e-4,
+                                     Size maxEvaluations = 100,
+                                     Volatility minVol = 1e-6,
+                                     Volatility maxVol = 4.0) const;
 
       private:
         Barrier::Type barrierType_;

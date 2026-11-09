@@ -19,6 +19,7 @@
 #include <ql/math/copulas/claytoncopula.hpp>
 #include <ql/math/copulas/farliegumbelmorgensterncopula.hpp>
 #include <ql/math/copulas/frankcopula.hpp>
+#include <ql/math/copulas/gaussiancopula.hpp>
 #include <ql/math/randomnumbers/mt19937uniformrng.hpp>
 #include <cmath>
 #include <vector>
@@ -148,6 +149,28 @@ BOOST_AUTO_TEST_CASE(testClaytonCopulaAtNegativeTheta)
     BOOST_CHECK_SMALL(lowerBound(0.75, 0.5) - 0.25, 1e-15);
     BOOST_CHECK_SMALL(positive(0.5, 0.5) - 1.0 / std::sqrt(7.0), 1e-15);
     BOOST_CHECK_EQUAL(positive(0.0, 0.5), 0.0);
+}
+
+BOOST_AUTO_TEST_CASE(testGaussianCopulaOnBoundary)
+{
+    BOOST_TEST_MESSAGE("Testing the Gaussian copula on the boundary of the unit square...");
+
+    // C(0, v) = C(v, 0) = 0, and C(1, v) = C(v, 1) = v. The inverse normal takes 0 and 1 to -QL_MAX_REAL and
+    // QL_MAX_REAL, and is accurate to about 1e-9 in between.
+    for (Real rho : {-0.99, -0.5, 0.0, 0.5, 0.95, 0.99})
+    {
+        const GaussianCopula copula(rho);
+        for (Real v : {0.0, 0.3, 1.0})
+        {
+            BOOST_TEST_CONTEXT("rho = " << rho << ", v = " << v)
+            {
+                BOOST_CHECK_SMALL(copula(0.0, v), 1e-15);
+                BOOST_CHECK_SMALL(copula(v, 0.0), 1e-15);
+                BOOST_CHECK_SMALL(copula(1.0, v) - v, 1e-9);
+                BOOST_CHECK_SMALL(copula(v, 1.0) - v, 1e-9);
+            }
+        }
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

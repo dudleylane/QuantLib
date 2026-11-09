@@ -25,6 +25,7 @@
 #include "utilities.hpp"
 #include <ql/cashflows/capflooredcoupon.hpp>
 #include <ql/cashflows/cashflowvectors.hpp>
+#include <ql/cashflows/cmscoupon.hpp>
 #include <ql/cashflows/conundrumpricer.hpp>
 #include <ql/cashflows/lineartsrpricer.hpp>
 #include <ql/indexes/ibor/euribor.hpp>
@@ -40,6 +41,7 @@
 #include <ql/termstructures/volatility/swaption/cmsmarketcalibration.hpp>
 #include <ql/termstructures/volatility/swaption/interpolatedswaptionvolatilitycube.hpp>
 #include <ql/termstructures/volatility/swaption/sabrswaptionvolatilitycube.hpp>
+#include <ql/termstructures/volatility/swaption/swaptionconstantvol.hpp>
 #include <ql/termstructures/volatility/swaption/swaptionvolmatrix.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/thirty360.hpp>
@@ -741,6 +743,42 @@ BOOST_AUTO_TEST_CASE(testSabrCubeRecalibrationBeforeFirstUse)
     cube->recalibration(std::vector<Real>(cube->optionTenors().size(), 0.5), cube->swapTenors().front());
 
     BOOST_CHECK(std::isfinite(cube->volatility(1 * Years, cube->swapTenors().front(), 0.05)));
+}
+
+BOOST_AUTO_TEST_CASE(testLinearTsrPricerForSmallMeanReversion)
+{
+    BOOST_TEST_MESSAGE("Testing the linear TSR pricer with mean reversion close to zero...");
+
+    // Coupons on the 10-year swap rate fixing in 10 and 20 years, on a flat 5% curve with a 20% swaption volatility.
+    const Date today(9, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const Handle<YieldTermStructure> curve(flatRate(today, 0.05, Actual365Fixed()));
+    const Handle<SwaptionVolatilityStructure> volatility(
+        ext::make_shared<ConstantSwaptionVolatility>(today, TARGET(), Following, 0.2, Actual365Fixed()));
+    const auto index = ext::make_shared<EuriborSwapIsdaFixA>(10 * Years, curve);
+
+    for (Integer years : {10, 20})
+    {
+        BOOST_TEST_CONTEXT("fixing in " << years << " years")
+        {
+            const Date start = TARGET().advance(today, years * Years);
+            const Date end = TARGET().advance(start, 6 * Months);
+            const auto rate = [&](Real meanReversion)
+            {
+                CmsCoupon coupon(end, 1.0, start, end, 2, index);
+                coupon.setPricer(ext::make_shared<LinearTsrPricer>(
+                    volatility, Handle<Quote>(ext::make_shared<SimpleQuote>(meanReversion))));
+                return coupon.rate();
+            };
+
+            // The rate is smooth in the mean reversion, including across 1e-4, below which the pricer used to
+            // ignore it. Here, its second difference over 1e-6 is about 3e-14 at most, and halfway between 0 and
+            // 1e-4 it's within 4e-11 of the mean of the two.
+            const Real h = 1.0e-6;
+            BOOST_CHECK_SMALL(rate(1.0e-4 - h) - 2.0 * rate(1.0e-4) + rate(1.0e-4 + h), 1.0e-12);
+            BOOST_CHECK_SMALL(rate(5.0e-5) - 0.5 * (rate(0.0) + rate(1.0e-4)), 1.0e-9);
+        }
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

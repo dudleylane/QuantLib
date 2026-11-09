@@ -40,7 +40,7 @@ namespace QuantLib
 
     void AnalyticTwoAssetCorrelationEngine::calculate() const
     {
-        BivariateCumulativeNormalDistributionDr78 M(correlation_->value());
+        BivariateCumulativeNormalDistribution M(correlation_->value());
 
         const ext::shared_ptr<PlainVanillaPayoff> payoff =
             ext::dynamic_pointer_cast<PlainVanillaPayoff>(arguments_.payoff);
