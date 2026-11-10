@@ -4678,8 +4678,9 @@ BOOST_AUTO_TEST_CASE(testTASETradingDaysAgainstItsReports)
     BOOST_TEST_MESSAGE("Testing TASE's calendar against the trading days it reports...");
 
     // The exchange's results releases give its trading days per quarter: 2021's are the releases of that year, 2022 to
-    // 2024 the fourth quarter's of 2023 and 2024, 2025 and 2026 the second quarter's of 2026. The first quarter of 2021
-    // is the nine months' 179 less the other two, and the third and fourth quarters of 2026 are as scheduled.
+    // 2024 the fourth quarter's of 2023 and 2024, 2025 and 2026 the third quarter's of 2026. The first quarter of 2021
+    // is the nine months' 179 less the other two, and the fourth quarter of 2026 is as scheduled. The 61 of the third
+    // quarter of 2026 needs Friday, September 18th closed, before the eve of Yom Kippur on the Sunday.
     struct Reported
     {
         Year year;
