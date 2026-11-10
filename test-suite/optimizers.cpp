@@ -597,6 +597,39 @@ BOOST_AUTO_TEST_CASE(testHybridSimulatedAnnealingOtherEndCriteria)
     BOOST_CHECK_EQUAL(stationary.second, Size(3));
 }
 
+BOOST_AUTO_TEST_CASE(testSimplexOnAFlatBottom)
+{
+    BOOST_TEST_MESSAGE("Testing that the simplex method stops on a cost with a flat bottom...");
+
+    // Within 1e-3 of the origin every point costs the same, so a simplex that has shrunk inside
+    // that ball reflects and expands to points that cost no less.  It used to stay as it was then,
+    // and go round until the iteration limit.
+    class FlatBottom : public CostFunction
+    {
+      public:
+        Real value(const Array& x) const override { return std::max(DotProduct(x, x), 1e-6); }
+        Array values(const Array& x) const override { return Array(1, value(x)); }
+    };
+
+    FlatBottom costFunction;
+    NoConstraint constraint;
+    for (Size dimension : {1, 2, 5})
+    {
+        Array start(dimension, 1.0);
+        start[0] = -3.0;
+        Problem problem(costFunction, constraint, start);
+        Simplex simplex(0.1);
+        const EndCriteria::Type result = simplex.minimize(problem, EndCriteria(10000, 100, 1e-8, 1e-8, 1e-8));
+
+        BOOST_TEST_CONTEXT("dimension: " << dimension)
+        {
+            BOOST_CHECK_EQUAL(result, EndCriteria::StationaryPoint);
+            BOOST_CHECK_EQUAL(problem.functionValue(), 1e-6);
+            BOOST_CHECK_LT(problem.functionEvaluation(), 2000);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
