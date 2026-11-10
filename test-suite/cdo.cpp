@@ -1511,15 +1511,59 @@ BOOST_AUTO_TEST_CASE(testProbabilityOverALossAfterADefault)
                                 all.horizon, (level - settledLoss - tranche.remainingAttachment) /
                                                  (tranche.remainingDetachment - tranche.remainingAttachment));
                         }
-                        // Saddle point's answer can be far above 1 at a low level, and
-                        // its rounding with it (#160).
-                        BOOST_CHECK_SMALL(basket->probOverLoss(all.horizon, fraction) - expected,
-                                          1.0e-9 * std::max(1.0, std::fabs(expected)));
+                        BOOST_CHECK_SMALL(basket->probOverLoss(all.horizon, fraction) - expected, 1.0e-9);
                     }
                 }
             }
         }
     }
+}
+
+BOOST_AUTO_TEST_CASE(testSaddlePointProbabilityOverALossOnNamesThatDiffer)
+{
+    BOOST_TEST_MESSAGE("Testing the saddle point's probability of a loss on names that differ...");
+
+    // Before #160 the saddle point's search was bracketed by bounds worked out from the name
+    // with the largest loss alone, which aren't bounds where names differ: on the 19 names left
+    // after a default, which lose 80 to 99 each, the probability of a loss on 0 to 10 % came
+    // out at up to 1.88e7, and the percentile at 0.3 at 87.45. Up to the smallest loss, the
+    // loss reaches a level if any name defaults, so the probability is exact there.
+    const NamesAroundADefault left(false, true);
+    Settings::instance().evaluationDate() = left.afterTheDefault;
+    const auto basket = left.basket(0.0, 0.1);
+    basket->setLossModel(left.saddlePointModel());
+
+    const auto latent = left.latentModel();
+    std::vector<Real> inverse = basket->remainingProbabilities(left.horizon);
+    for (Size i = 0; i < inverse.size(); ++i)
+        inverse[i] = latent->inverseCumulativeY(inverse[i], i);
+    const Probability anyLoss = latent->integratedExpectedValue(
+        [&](const std::vector<Real>& factor)
+        {
+            Probability none = 1.0;
+            for (Size i = 0; i < inverse.size(); ++i)
+                none *= 1.0 - latent->conditionalDefaultProbabilityInvP(inverse[i], i, factor);
+            return 1.0 - none;
+        });
+    Real smallestLoss = QL_MAX_REAL;
+    for (Size i = 0; i < left.notionals.size(); ++i)
+        smallestLoss = std::min(smallestLoss, left.notionals[i] * (1.0 - left.recoveries[i]));
+
+    Probability previous = 1.0;
+    for (Real fraction : {0.0025, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 1.0})
+    {
+        BOOST_TEST_CONTEXT("a fraction " << fraction << " of the tranche")
+        {
+            const Probability probability = basket->probOverLoss(left.horizon, fraction);
+            BOOST_CHECK_GE(probability, 0.0);
+            BOOST_CHECK_LE(probability, previous);
+            if (fraction * basket->remainingDetachmentAmount() <= smallestLoss)
+                BOOST_CHECK_CLOSE_FRACTION(probability, anyLoss, 1.0e-12);
+            previous = probability;
+        }
+    }
+    // the probability of no loss is 1 - anyLoss, about 0.45
+    BOOST_CHECK_EQUAL(basket->percentile(left.horizon, 0.3), 0.0);
 }
 
 BOOST_AUTO_TEST_CASE(testCdoAfterADefault)
@@ -2163,8 +2207,9 @@ BOOST_AUTO_TEST_CASE(testExpectedShortfallBetweenPercentileAndTranche)
     // and it can't fall as the level rises. Before #159 the saddle point returned 80 above a
     // percentile of 400 and 117 on a tranche of 100, and the binomial and recursive models read
     // before their first point below the probability of no loss, 3307 on a tranche of 400.
-    // The saddle point's percentile doesn't solve below about 0.26 on an equity tranche, and
-    // isn't monotone just above it (#160), so the levels start at 0.3.
+    // Before #160 the saddle point's percentile didn't solve below about 0.26 on an equity
+    // tranche. Its shortfall still falls a little where the level crosses the loss of one
+    // default, by 0.22 between 0.6 and 0.605 on 0 to 10 % (#205), which the rise to 0.8 covers.
     SharedModelVars vars(0.3);
     Settings::instance().evaluationDate() = vars.today;
     const Date horizon = vars.schedule.endDate();
@@ -2175,7 +2220,7 @@ BOOST_AUTO_TEST_CASE(testExpectedShortfallBetweenPercentileAndTranche)
                                                                  {"saddle point", &SharedModelVars::saddlePointModel}};
     const std::vector<std::pair<Real, Real>> tranches = {{0.0, 0.03}, {0.0, 0.1}, {0.05, 0.1}, {0.0, 0.2},
                                                          {0.1, 0.3},  {0.3, 0.6}, {0.5, 1.0}};
-    const std::vector<Real> levels = {0.3, 0.5, 0.6, 0.8, 0.9, 0.95, 0.975, 0.99, 0.999, 1.0};
+    const std::vector<Real> levels = {0.05, 0.1, 0.2, 0.3, 0.5, 0.6, 0.8, 0.9, 0.95, 0.975, 0.99, 0.999, 1.0};
     const Real tolerance = 1.0e-9;
     for (const auto& model : models)
     {
