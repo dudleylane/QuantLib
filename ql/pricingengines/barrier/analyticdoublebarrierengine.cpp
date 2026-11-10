@@ -47,6 +47,49 @@ namespace QuantLib
             return std::exp(logWeight + f.logValue(a)) - std::exp(logWeight + f.logValue(b));
         }
 
+        /* A double knock-out's value before discounting, by the eigenfunction expansion of the log of the underlying
+           between the barriers.  With x = ln(S / L), Z = ln(U / L), y = ln(S_T / L), V = vol^2 T and the drift
+           mu = r - q - vol^2 / 2, the density of y at T, killed on leaving (0, Z), is the sum over i of
+           2 / Z sin(w x) sin(w y) exp(-w^2 V / 2) exp(k (y - x) - k^2 V / 2), with w = i pi / Z and k = mu / vol^2.
+           Against the payoff, each term is an integral of exp(a y) sin(w y) over the range that pays, in closed form.
+           The terms fall like exp(-w^2 V / 2), so where sqrt(V) > Z / 2 a few of them suffice.  None of them is of
+           the order of the spot where the value is small, as the images are there. */
+        Real knockOutByEigenfunctions(
+            Option::Type type, Real spot, Real strike, Real lower, Real upper, Real muT, Real variance)
+        {
+            const Real x = std::log(spot / lower), Z = std::log(upper / lower), k = muT / variance;
+            // The range that pays, [yLo, yHi], ends at a barrier or at the strike.
+            const bool strikeBelow = type == Option::Call && strike > lower;
+            const bool strikeAbove = type == Option::Put && strike < upper;
+            const Real yLo = strikeBelow ? std::log(strike / lower) : 0.0;
+            const Real yHi = strikeAbove ? std::log(strike / lower) : Z;
+            // exp(k (y - x) - k^2 V / 2) at the ends.  It is at most exp((y - x)^2 / (2V)), below e^2 here.
+            const Real eLo = std::exp(-muT * (muT + 2.0 * (x - yLo)) / (2.0 * variance));
+            const Real eHi = std::exp(-muT * (muT + 2.0 * (x - yHi)) / (2.0 * variance));
+            // Terms after the J-th are at most j^2 exp(-(j^2 - 1) pi^2 V / (2 Z^2)) of the first, where j = J + 1.
+            // With this J that is below 1e-18; J is 6 at sqrt(V) = Z / 2, and 1 from sqrt(V) = 2Z.
+            const Real c = 0.5 * M_PI * M_PI * variance / (Z * Z);
+            int J = 1;
+            while ((J + 1.0) * (J + 1.0) * std::exp(-((J + 1.0) * (J + 1.0) - 1.0) * c) >= 1.0e-18)
+                ++J;
+            const Real twoKPlusOne = 2.0 * k + 1.0;
+            Real sum = 0.0;
+            for (int i = 1; i <= J; ++i)
+            {
+                // lo and hi are the antiderivative of exp(k y) sin(w y) (L e^y - K) at the two ends, over exp(k y)
+                // and times (k^2 + w^2) ((k + 1)^2 + w^2), with L e^y = K at the strike and sin(w y) = 0 at a barrier.
+                // So arranged, its parts of the order of the strike over k don't cancel where k is large.
+                const Real w = i * M_PI / Z, dK = k * k + w * w, dA = dK + twoKPlusOne;
+                const auto atStrike = [&](Real y)
+                { return strike * (std::sin(w * y) * (w * w - k * k - k) + w * std::cos(w * y) * twoKPlusOne); };
+                const Real lo = strikeBelow ? atStrike(yLo) : w * ((strike - lower) * dK + strike * twoKPlusOne);
+                const Real hi = strikeAbove ? atStrike(yHi) :
+                                              (i % 2 == 0 ? w : -w) * ((strike - upper) * dK + strike * twoKPlusOne);
+                sum += std::exp(-0.5 * w * w * variance) * std::sin(w * x) * (eHi * hi - eLo * lo) / (dA * dK);
+            }
+            return (type == Option::Call ? 2.0 : -2.0) / Z * sum;
+        }
+
     }
 
     AnalyticDoubleBarrierEngine::AnalyticDoubleBarrierEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process,
@@ -220,13 +263,22 @@ namespace QuantLib
     {
         if (strike() >= barrierHi())
             return 0.0;
+        const Real stdDev = stdDeviation();
+        // Where the volatility is wide against the corridor, the images below need more terms the wider it is, of the
+        // order of the spot, which cancel as the value falls.  The eigenfunction expansion needs a few there.
+        if (stdDev > 0.5 * std::log(barrierHi() / barrierLo()))
+        {
+            const Real variance = stdDev * stdDev, muT = costOfCarry() * residualTime() - 0.5 * variance;
+            const Real value =
+                knockOutByEigenfunctions(Option::Call, underlying(), strike(), barrierLo(), barrierHi(), muT, variance);
+            return std::max(0.0, riskFreeDiscount() * value);
+        }
         // The integral runs over the terminal spots inside the barriers that pay.
         const Real bound = std::max(strike(), barrierLo());
         // N.B. for flat barriers mu3=mu1 and mu2=0
         Real mu1 = 2 * costOfCarry() / volatilitySquared() + 1;
-        Real bsigma = (costOfCarry() + volatilitySquared() / 2.0) * residualTime() / stdDeviation();
+        Real bsigma = (costOfCarry() + volatilitySquared() / 2.0) * residualTime() / stdDev;
 
-        const Real stdDev = stdDeviation();
         const Real logLo = std::log(barrierLo()), logHi = std::log(barrierHi());
         const Real logSpot = std::log(underlying()), logBound = std::log(bound);
 
@@ -262,12 +314,20 @@ namespace QuantLib
     {
         if (strike() <= barrierLo())
             return 0.0;
+        const Real stdDev = stdDeviation();
+        // As in callKO.
+        if (stdDev > 0.5 * std::log(barrierHi() / barrierLo()))
+        {
+            const Real variance = stdDev * stdDev, muT = costOfCarry() * residualTime() - 0.5 * variance;
+            const Real value =
+                knockOutByEigenfunctions(Option::Put, underlying(), strike(), barrierLo(), barrierHi(), muT, variance);
+            return std::max(0.0, riskFreeDiscount() * value);
+        }
         // The integral runs over the terminal spots inside the barriers that pay.
         const Real bound = std::min(strike(), barrierHi());
         Real mu1 = 2 * costOfCarry() / volatilitySquared() + 1;
-        Real bsigma = (costOfCarry() + volatilitySquared() / 2.0) * residualTime() / stdDeviation();
+        Real bsigma = (costOfCarry() + volatilitySquared() / 2.0) * residualTime() / stdDev;
 
-        const Real stdDev = stdDeviation();
         const Real logLo = std::log(barrierLo()), logHi = std::log(barrierHi());
         const Real logSpot = std::log(underlying()), logBound = std::log(bound);
 

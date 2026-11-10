@@ -941,6 +941,99 @@ BOOST_AUTO_TEST_CASE(testManySeriesTerms)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testVolatilityWideAgainstCorridor)
+{
+    BOOST_TEST_MESSAGE("Testing double-barrier options with a volatility wide against the corridor...");
+
+    // The engine summed five images on each side whatever the volatility, and the ones it left out grow with
+    // vol sqrt(T) / ln(U/L).  At three, a knock-out worth 5.8e-20 came out at 1.9e-4 (#188).
+    const Date today(7, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+
+    // The expected knock-outs were computed at 50 digits from the eigenfunction expansion of a Brownian motion between
+    // absorbing barriers, and agree with the images summed to convergence.
+    const struct
+    {
+        Option::Type type;
+        Real strike, lower, upper;
+        Rate rate, yield;
+        Volatility vol;
+        Integer days;
+        Real expected;
+    } cases[] = {{Option::Call, 100.0, 95.0, 105.0, 0.05, 0.0, 0.20, 365, 2.895955618685644e-9},
+                 {Option::Put, 100.0, 95.0, 105.0, 0.05, 0.0, 0.20, 365, 3.1136335531010289e-9},
+                 {Option::Call, 100.0, 95.0, 105.0, 0.05, 0.0, 0.30, 365, 5.7677750380529312e-20},
+                 {Option::Call, 100.0, 90.0, 110.0, 0.05, 0.0, 0.40, 365, 5.9031691682024408e-9},
+                 // prices that matter, the first two just above the switch, where the expansion takes the most terms
+                 {Option::Call, 100.0, 80.0, 120.0, 0.05, 0.0, 0.205, 365, 1.0420037113477526},
+                 {Option::Put, 100.0, 80.0, 120.0, 0.05, 0.0, 0.205, 365, 1.3863814120032144},
+                 {Option::Call, 100.0, 80.0, 120.0, 0.05, 0.0, 0.30, 365, 0.23218752955068753},
+                 {Option::Put, 100.0, 80.0, 120.0, 0.05, 0.0, 0.30, 365, 0.36003905325934824},
+                 {Option::Call, 105.0, 90.0, 110.0, 0.03, 0.08, 0.25, 182, 0.0051770602150516141},
+                 {Option::Put, 95.0, 90.0, 110.0, 0.03, 0.08, 0.30, 182, 0.0015814529248605193},
+                 // strikes outside the corridor
+                 {Option::Call, 75.0, 80.0, 120.0, 0.05, 0.0, 0.35, 365, 0.70570055675003369},
+                 {Option::Put, 125.0, 80.0, 120.0, -0.01, 0.02, 0.35, 365, 0.85968578746806998}};
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.type << " at " << c.strike << ", corridor " << c.lower << "-" << c.upper << ", rate "
+                                  << c.rate << ", yield " << c.yield << ", volatility " << c.vol << ", " << c.days
+                                  << " days")
+        {
+            const auto process =
+                ext::make_shared<BlackScholesMertonProcess>(Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)),
+                                                            Handle<YieldTermStructure>(flatRate(today, c.yield, dc)),
+                                                            Handle<YieldTermStructure>(flatRate(today, c.rate, dc)),
+                                                            Handle<BlackVolTermStructure>(flatVol(today, c.vol, dc)));
+            const auto engine = ext::make_shared<AnalyticDoubleBarrierEngine>(process);
+            const auto payoff = ext::make_shared<PlainVanillaPayoff>(c.type, c.strike);
+            const ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(today + c.days);
+
+            DoubleBarrierOption knockOut(DoubleBarrier::KnockOut, c.lower, c.upper, 0.0, payoff, exercise);
+            knockOut.setPricingEngine(engine);
+            BOOST_CHECK_CLOSE_FRACTION(knockOut.NPV(), c.expected, 1.0e-11);
+
+            VanillaOption vanilla(payoff, exercise);
+            vanilla.setPricingEngine(ext::make_shared<AnalyticEuropeanEngine>(process));
+            DoubleBarrierOption knockIn(DoubleBarrier::KnockIn, c.lower, c.upper, 0.0, payoff, exercise);
+            knockIn.setPricingEngine(engine);
+            BOOST_CHECK_SMALL(knockIn.NPV() - (vanilla.NPV() - c.expected), 1.0e-12);
+        }
+    }
+
+    // The engine moves from the images to the eigenfunction expansion above vol sqrt(T) = ln(U/L) / 2, and the two
+    // agree there: a year out, between one volatility and the next above it.
+    const Volatility atSwitch = 0.5 * std::log(120.0 / 80.0);
+    const ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(today + 365);
+    for (auto type : {Option::Call, Option::Put})
+    {
+        for (Real strike : {85.0, 100.0, 115.0})
+        {
+            BOOST_TEST_CONTEXT(type << " at " << strike)
+            {
+                Real values[2];
+                for (Size i = 0; i < 2; ++i)
+                {
+                    const Volatility vol = i == 0 ? atSwitch : std::nextafter(atSwitch, 1.0);
+                    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+                        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)),
+                        Handle<YieldTermStructure>(flatRate(today, 0.0, dc)),
+                        Handle<YieldTermStructure>(flatRate(today, 0.05, dc)),
+                        Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+                    DoubleBarrierOption option(DoubleBarrier::KnockOut, 80.0, 120.0, 0.0,
+                                               ext::make_shared<PlainVanillaPayoff>(type, strike), exercise);
+                    option.setPricingEngine(ext::make_shared<AnalyticDoubleBarrierEngine>(process));
+                    values[i] = option.NPV();
+                }
+                BOOST_CHECK_GT(values[0], 0.01);
+                BOOST_CHECK_SMALL(values[1] - values[0], 1.0e-12);
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

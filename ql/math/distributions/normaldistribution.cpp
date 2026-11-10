@@ -58,18 +58,18 @@ namespace QuantLib
         //            "not a real number. ");
         z = (z - average_) / sigma_;
 
-        Real result = 0.5 * (1.0 + errorFunction_(z * M_SQRT_2));
-        if (result <= 1e-8)
-        { // todo: investigate the threshold level
-            result = -gaussian_(z) / z * normalTailSum(z);
-        }
-        return result;
+        // 0 where the derivative is, below z = -37.15 (NormalDistribution cuts its exponent at -690), so that
+        // the two vanish together and the value never goes subnormal.
+        if (z < -37.0 && 0.5 * z * z >= 690.0)
+            return 0.0;
+        // erfc keeps the value's relative accuracy as it falls, which 1 + erf(z / sqrt(2)) doesn't.
+        return 0.5 * std::erfc(-z * M_SQRT_2);
     }
 
     Real CumulativeNormalDistribution::logValue(Real x) const
     {
         const Real z = (x - average_) / sigma_;
-        // operator() has only absolute accuracy above its tail, and returns 0 below z = -37.15.
+        // operator() is 0 below z = -37.15, so from -37 down the expansion carries on.
         if (z > -37.0)
             return std::log(0.5 * std::erfc(-z * M_SQRT_2));
         return -0.5 * z * z - 0.5 * std::log(M_TWOPI) - std::log(-z) + std::log(normalTailSum(z));

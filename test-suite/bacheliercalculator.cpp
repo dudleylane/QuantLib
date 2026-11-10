@@ -127,7 +127,8 @@ BOOST_AUTO_TEST_CASE(testBachelierCalculatorGreeks)
     Real refDeltaFwd = 0.38122899060122245;
     Real refGamma = 0.019124047842706517;
     Real refGammaFwd = 0.018366735548135338;
-    Real refTheta = -4.3159316452046594;
+    // #139: theta takes the forward's gamma, not the spot's, and vanna the discount factor.
+    Real refTheta = -4.1644691862904235;
     Real refVega = 0.36733471096270676;
     Real refRho = 32.682349793874224;
     Real refElasticity = 7.0071783554334042;
@@ -137,7 +138,7 @@ BOOST_AUTO_TEST_CASE(testBachelierCalculatorGreeks)
     Real refDividendRho = -38.122899060122243;
     Real refStrikeSensitivity = -0.38122899060122245;
     Real refStrikeGamma = 0.018366735548135338;
-    Real refVanna = 0.0048333514600356151;
+    Real refVanna = 0.0045916838870338345;
     Real refVolga = 0.0011479209717584586;
 
     BachelierCalculator calc(Option::Call, strike, forward, stdDev, discount);
@@ -415,10 +416,10 @@ BOOST_AUTO_TEST_CASE(testBachelierCalculatorNumericalDerivatives)
                                                                         << " error=" << (vanna - vannaFD));
     }
 
-    // Finite difference for volga: dVega/dVol
+    // Finite difference for volga: dVega/dVol, as the standard deviation is vol * sqrt(T)
     Real vegaVolUp = calcVolUp.vega(maturity);
     Real vegaVolDown = calcVolDown.vega(maturity);
-    Real volgaFD = (vegaVolUp - vegaVolDown) / (2.0 * bump);
+    Real volgaFD = (vegaVolUp - vegaVolDown) / (2.0 * bump) * std::sqrt(maturity);
 
     if (std::fabs(volga - volgaFD) > tolerance)
     {
@@ -653,6 +654,204 @@ BOOST_AUTO_TEST_CASE(testBachelierCalculatorZeroVolatilityLimit)
     BOOST_CHECK_EQUAL(put.value(), 0.0);
     BOOST_CHECK_EQUAL(put.deltaForward(), 0.0);
     BOOST_CHECK_EQUAL(put.itmCashProbability(), 0.0);
+}
+
+BOOST_AUTO_TEST_CASE(testDigitalPayoffValues)
+{
+    BOOST_TEST_MESSAGE("Testing BachelierCalculator values of digital and gap payoffs...");
+
+    // #139: every payoff was valued as the vanilla option, 10.042454 in the first four rows.  The references
+    // integrate the payoff against the normal density.
+    struct Case
+    {
+        ext::shared_ptr<StrikedTypePayoff> payoff;
+        Real forward, stdDev, discount, expected;
+    };
+    const Case cases[] = {
+        {ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0), 110.0, 5.0, 1.0, 10.042453513084148},
+        {ext::make_shared<CashOrNothingPayoff>(Option::Call, 100.0, 10.0), 110.0, 5.0, 1.0, 9.7724986805182079},
+        {ext::make_shared<AssetOrNothingPayoff>(Option::Call, 100.0), 110.0, 5.0, 1.0, 107.76744031826623},
+        {ext::make_shared<GapPayoff>(Option::Call, 100.0, 90.0), 110.0, 5.0, 1.0, 19.814952193602356},
+        {ext::make_shared<CashOrNothingPayoff>(Option::Put, 100.0, 10.0), 110.0, 5.0, 0.9, 0.20475118753361286},
+        {ext::make_shared<AssetOrNothingPayoff>(Option::Put, 100.0), 110.0, 5.0, 0.9, 2.0093037135603953},
+        {ext::make_shared<GapPayoff>(Option::Put, 100.0, 105.0), 95.0, 5.0, 0.9, 8.6609709749530316},
+        // Worth less than nothing: the asset-or-nothing put pays the forward where it is negative, and the gap call
+        // pays it less 110 where it is between 100 and 110.
+        {ext::make_shared<AssetOrNothingPayoff>(Option::Put, 0.0), 10.0, 20.0, 0.9, -3.5603380332235085},
+        {ext::make_shared<GapPayoff>(Option::Call, 100.0, 110.0), 100.0, 5.0, 0.9, -2.7047597381935529}};
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.payoff->description() << ", forward " << c.forward)
+        {
+            const BachelierCalculator calculator(c.payoff, c.forward, c.stdDev, c.discount);
+            // A put takes N(-d) as 1 - N(d): at d = 2, the last bit of N(2), which compilers can round apart,
+            // moves it by 5e-15.
+            BOOST_CHECK_CLOSE_FRACTION(calculator.value(), c.expected, 1.0e-13);
+        }
+    }
+
+    // A call and a put on the same strike pay the cash, or the forward, whatever happens.
+    for (Real forward : {-20.0, 95.0, 130.0})
+    {
+        for (Real stdDev : {1.0, 20.0})
+        {
+            BOOST_TEST_CONTEXT("forward " << forward << ", standard deviation " << stdDev)
+            {
+                const Real discount = 0.9, strike = 100.0, cash = 10.0;
+                const auto value = [&](const ext::shared_ptr<StrikedTypePayoff>& payoff)
+                { return BachelierCalculator(payoff, forward, stdDev, discount).value(); };
+                BOOST_CHECK_CLOSE_FRACTION(value(ext::make_shared<CashOrNothingPayoff>(Option::Call, strike, cash)) +
+                                               value(ext::make_shared<CashOrNothingPayoff>(Option::Put, strike, cash)),
+                                           discount * cash, 1.0e-14);
+                BOOST_CHECK_CLOSE_FRACTION(value(ext::make_shared<AssetOrNothingPayoff>(Option::Call, strike)) +
+                                               value(ext::make_shared<AssetOrNothingPayoff>(Option::Put, strike)),
+                                           discount * forward, 1.0e-14);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testDigitalPayoffGreeks)
+{
+    BOOST_TEST_MESSAGE("Testing BachelierCalculator Greeks of every payoff against finite differences...");
+
+    // #139: every payoff took the vanilla option's Greeks.  The spot and forward are apart, the discount factor
+    // isn't one, and the expiry isn't a year, so that vanna's discounting, volga's sqrt(T) and theta's gamma show.
+    const Real spot = 98.0, r = 0.03, q = 0.01, vol = 20.0, h = 1.0e-3, hRate = 1.0e-5, hTime = 1.0e-5;
+    const Time maturity = 0.5;
+
+    const auto payoff = [](int kind, Option::Type type, Real strike) -> ext::shared_ptr<StrikedTypePayoff>
+    {
+        switch (kind)
+        {
+            case 0:
+                return ext::make_shared<PlainVanillaPayoff>(type, strike);
+            case 1:
+                return ext::make_shared<CashOrNothingPayoff>(type, strike, 10.0);
+            case 2:
+                return ext::make_shared<AssetOrNothingPayoff>(type, strike);
+            default:
+                return ext::make_shared<GapPayoff>(type, strike, 95.0);
+        }
+    };
+
+    for (int kind = 0; kind < 4; ++kind)
+    {
+        for (Option::Type type : {Option::Call, Option::Put})
+        {
+            for (Real strike : {90.0, 105.0})
+            {
+                // A calculator from the market: the volatility is the forward's, normal.
+                const auto at = [&](Real s, Real rate, Real dividend, Real v, Time t, Real k)
+                {
+                    return BachelierCalculator(payoff(kind, type, k), s * std::exp((rate - dividend) * t),
+                                               v * std::sqrt(t), std::exp(-rate * t));
+                };
+                const BachelierCalculator c = at(spot, r, q, vol, maturity, strike);
+                const BachelierCalculator spotUp = at(spot + h, r, q, vol, maturity, strike),
+                                          spotDown = at(spot - h, r, q, vol, maturity, strike),
+                                          volUp = at(spot, r, q, vol + h, maturity, strike),
+                                          volDown = at(spot, r, q, vol - h, maturity, strike),
+                                          strikeUp = at(spot, r, q, vol, maturity, strike + h),
+                                          strikeDown = at(spot, r, q, vol, maturity, strike - h);
+                // The forward moves at the same discount factor and standard deviation.
+                const Real forward = spot * std::exp((r - q) * maturity), discount = std::exp(-r * maturity),
+                           stdDev = vol * std::sqrt(maturity);
+                const BachelierCalculator forwardUp(payoff(kind, type, strike), forward + h, stdDev, discount),
+                    forwardDown(payoff(kind, type, strike), forward - h, stdDev, discount);
+
+                const auto check = [](const std::string& greek, Real analytic, Real numeric)
+                {
+                    BOOST_TEST_CONTEXT(greek)
+                    {
+                        BOOST_CHECK_SMALL(analytic - numeric, 1.0e-6 * std::fabs(numeric) + 1.0e-9);
+                    }
+                };
+                BOOST_TEST_CONTEXT(payoff(kind, type, strike)->description())
+                {
+                    check("deltaForward", c.deltaForward(), (forwardUp.value() - forwardDown.value()) / (2 * h));
+                    check("gammaForward", c.gammaForward(),
+                          (forwardUp.deltaForward() - forwardDown.deltaForward()) / (2 * h));
+                    check("vanna", c.vanna(maturity),
+                          (forwardUp.vega(maturity) - forwardDown.vega(maturity)) / (2 * h));
+                    check("delta", c.delta(spot), (spotUp.value() - spotDown.value()) / (2 * h));
+                    check("gamma", c.gamma(spot), (spotUp.delta(spot + h) - spotDown.delta(spot - h)) / (2 * h));
+                    check("vega", c.vega(maturity), (volUp.value() - volDown.value()) / (2 * h));
+                    check("volga", c.volga(maturity), (volUp.vega(maturity) - volDown.vega(maturity)) / (2 * h));
+                    check("theta", c.theta(spot, maturity),
+                          -(at(spot, r, q, vol, maturity + hTime, strike).value() -
+                            at(spot, r, q, vol, maturity - hTime, strike).value()) /
+                              (2 * hTime));
+                    check("rho", c.rho(maturity),
+                          (at(spot, r + hRate, q, vol, maturity, strike).value() -
+                           at(spot, r - hRate, q, vol, maturity, strike).value()) /
+                              (2 * hRate));
+                    check("dividendRho", c.dividendRho(maturity),
+                          (at(spot, r, q + hRate, vol, maturity, strike).value() -
+                           at(spot, r, q - hRate, vol, maturity, strike).value()) /
+                              (2 * hRate));
+                    check("strikeSensitivity", c.strikeSensitivity(),
+                          (strikeUp.value() - strikeDown.value()) / (2 * h));
+                    check("strikeGamma", c.strikeGamma(),
+                          (strikeUp.strikeSensitivity() - strikeDown.strikeSensitivity()) / (2 * h));
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testDigitalPayoffsAtZeroVolatility)
+{
+    BOOST_TEST_MESSAGE("Testing BachelierCalculator digital and gap payoffs at zero volatility...");
+
+    const Real spot = 100.0, strike = 100.0, discount = 0.9, tiny = 1.0e-9;
+    const Time maturity = 1.0;
+
+    // With the forward at the strike, the value takes N(0) = 1/2, and the Greeks leave out the payoff's jump
+    // there, which would put an infinite term in the delta.  So the forward delta is the discount factor times the
+    // payoff's slope, over two.
+    struct Case
+    {
+        ext::shared_ptr<StrikedTypePayoff> payoff;
+        Real valueAtStrike, deltaForwardAtStrike;
+    };
+    const Case cases[] = {{ext::make_shared<CashOrNothingPayoff>(Option::Call, strike, 10.0), 4.5, 0.0},
+                          {ext::make_shared<CashOrNothingPayoff>(Option::Put, strike, 10.0), 4.5, 0.0},
+                          {ext::make_shared<AssetOrNothingPayoff>(Option::Call, strike), 45.0, 0.45},
+                          {ext::make_shared<AssetOrNothingPayoff>(Option::Put, strike), 45.0, 0.45},
+                          {ext::make_shared<GapPayoff>(Option::Call, strike, 90.0), 4.5, 0.45},
+                          {ext::make_shared<GapPayoff>(Option::Put, strike, 110.0), 4.5, -0.45}};
+
+    for (const auto& c : cases)
+    {
+        // Away from the strike, as with a tiny volatility.
+        for (Real forward : {120.0, 80.0})
+        {
+            const BachelierCalculator zero(c.payoff, forward, 0.0, discount), limit(c.payoff, forward, tiny, discount);
+            BOOST_TEST_CONTEXT(c.payoff->description() << ", forward " << forward)
+            {
+                BOOST_CHECK_SMALL(zero.value() - limit.value(), 1.0e-9);
+                BOOST_CHECK_SMALL(zero.delta(spot) - limit.delta(spot), 1.0e-9);
+                BOOST_CHECK_SMALL(zero.deltaForward() - limit.deltaForward(), 1.0e-9);
+                BOOST_CHECK_SMALL(zero.gammaForward() - limit.gammaForward(), 1.0e-9);
+                BOOST_CHECK_SMALL(zero.vega(maturity) - limit.vega(maturity), 1.0e-9);
+                BOOST_CHECK_SMALL(zero.strikeSensitivity() - limit.strikeSensitivity(), 1.0e-9);
+                BOOST_CHECK_SMALL(zero.rho(maturity) - limit.rho(maturity), 1.0e-7);
+                BOOST_CHECK_SMALL(zero.dividendRho(maturity) - limit.dividendRho(maturity), 1.0e-7);
+            }
+        }
+
+        const BachelierCalculator atStrike(c.payoff, strike, 0.0, discount);
+        BOOST_TEST_CONTEXT(c.payoff->description() << ", forward at the strike")
+        {
+            BOOST_CHECK_CLOSE_FRACTION(atStrike.value(), c.valueAtStrike, 1.0e-14);
+            BOOST_CHECK_SMALL(atStrike.deltaForward() - c.deltaForwardAtStrike, 1.0e-15);
+            BOOST_CHECK_EQUAL(atStrike.gammaForward(), 0.0);
+            BOOST_CHECK_EQUAL(atStrike.vega(maturity), 0.0);
+            BOOST_CHECK_EQUAL(atStrike.strikeGamma(), 0.0);
+        }
+    }
 }
 
 
