@@ -3537,6 +3537,32 @@ BOOST_AUTO_TEST_CASE(testSHIRCalendar)
     checkHolidays(c.holidayList(Date(5, May, 2022), Date(31, December, 2025)), expected);
 }
 
+BOOST_AUTO_TEST_CASE(testSHIRAgainstBankOfIsraelList)
+{
+    BOOST_TEST_MESSAGE("Testing SHIR's calendar against the Bank of Israel's list for 2026 and 2027...");
+
+    // "The dates in 2026-2027, when SHIR will not be published - (Aside from Saturdays and Sundays)", from the Bank of
+    // Israel's Market Operation Department, July 2nd, 2026. Its list for 2027 has no holidays abroad yet, so only its
+    // own days are checked for that year.
+    const std::vector<Date> expected2026 = {
+        Date(1, January, 2026),    Date(3, March, 2026),      Date(4, March, 2026),    Date(1, April, 2026),
+        Date(2, April, 2026),      Date(3, April, 2026),      Date(6, April, 2026),    Date(8, April, 2026),
+        Date(22, April, 2026),     Date(22, May, 2026),       Date(25, May, 2026),     Date(23, July, 2026),
+        Date(11, September, 2026), Date(21, September, 2026), Date(27, October, 2026), Date(25, December, 2026),
+        Date(28, December, 2026),
+    };
+    const std::vector<Date> listed2027 = {
+        Date(23, March, 2027),  Date(24, March, 2027),   Date(21, April, 2027), Date(22, April, 2027),
+        Date(28, April, 2027),  Date(12, May, 2027),     Date(11, June, 2027),  Date(12, August, 2027),
+        Date(1, October, 2027), Date(11, October, 2027),
+    };
+
+    const Calendar c = Israel(Israel::SHIR);
+    checkHolidays(c.holidayList(Date(1, January, 2026), Date(31, December, 2026)), expected2026);
+    for (const Date& d : listed2027)
+        BOOST_CHECK_MESSAGE(c.isHoliday(d), d << " should be a holiday");
+}
+
 BOOST_AUTO_TEST_CASE(testStartOfMonth)
 {
     BOOST_TEST_MESSAGE("Testing start-of-month calculation...");

@@ -295,17 +295,17 @@ namespace QuantLib
             || isYomKippur(date) || isSukkot(date) ||
             isSimchatTorah(date)
             // one-off closings
-            || (d == 27 && m == February && y == 2024) // Municipal elections
+            || isElectionDay(date)
             // holidays abroad
             || (d == 1 && m == January)                                         // Western New Year's day
             || dd == easterMonday(y) - 3                                        // Good Friday
+            || (dd == easterMonday(y) && (y == 2023 || y == 2026))              // Easter Monday, not in 2024 and 2025
             || (d >= 25 && w == Monday && m == May && y != 2022)                // Spring Bank Holiday
             || (d == 3 && m == June && y == 2022) || (d == 25 && m == December) // Christmas
             || (d == 26 && m == December)                                       // Boxing day
+            || (d == 28 && m == December && y == 2026)                          // after Boxing Day on a Saturday
             // other days when fixings were not published
-            || (d == 1 && m == November && y == 2022) // no idea why
-            || (d == 2 && m == January && y == 2023)  // Maybe New Year's Day is adjusted to Monday?
-            || (d == 10 && m == April && y == 2023)   // Easter Monday, not a holiday in 2024 and 2025
+            || (d == 2 && m == January && y == 2023) // Maybe New Year's Day is adjusted to Monday?
         )
             return false; // NOLINT(readability-simplify-boolean-expr)
 
