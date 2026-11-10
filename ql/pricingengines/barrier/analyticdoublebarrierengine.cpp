@@ -26,12 +26,12 @@
 namespace QuantLib
 {
 
-    namespace
+    namespace detail
     {
 
         // exp(logWeight) * (N(a) - N(b)).  At low volatility the weight can be huge while the
         // difference cancels or underflows, and their product is still finite.
-        Real weightedDifference(const CumulativeNormalDistribution& f, Real logWeight, Real a, Real b)
+        Real doubleBarrierWeightedDifference(const CumulativeNormalDistribution& f, Real logWeight, Real a, Real b)
         {
             // Above the median, N(a) - N(b) = N(-b) - N(-a) keeps its digits.
             if (a > 0.0 && b > 0.0)
@@ -54,7 +54,7 @@ namespace QuantLib
            Against the payoff, each term is an integral of exp(a y) sin(w y) over the range that pays, in closed form.
            The terms fall like exp(-w^2 V / 2), so where sqrt(V) > Z / 2 a few of them suffice.  None of them is of
            the order of the spot where the value is small, as the images are there. */
-        Real knockOutByEigenfunctions(
+        Real doubleKnockOutByEigenfunctions(
             Option::Type type, Real spot, Real strike, Real lower, Real upper, Real muT, Real variance)
         {
             const Real x = std::log(spot / lower), Z = std::log(upper / lower), k = muT / variance;
@@ -269,8 +269,8 @@ namespace QuantLib
         if (stdDev > 0.5 * std::log(barrierHi() / barrierLo()))
         {
             const Real variance = stdDev * stdDev, muT = costOfCarry() * residualTime() - 0.5 * variance;
-            const Real value =
-                knockOutByEigenfunctions(Option::Call, underlying(), strike(), barrierLo(), barrierHi(), muT, variance);
+            const Real value = detail::doubleKnockOutByEigenfunctions(Option::Call, underlying(), strike(), barrierLo(),
+                                                                      barrierHi(), muT, variance);
             return std::max(0.0, riskFreeDiscount() * value);
         }
         // The integral runs over the terminal spots inside the barriers that pay.
@@ -293,10 +293,11 @@ namespace QuantLib
             const Real d3 = (logSpot + 2.0 * logImage - logBound) / stdDev + bsigma;
             const Real d4 = (logSpot + 2.0 * logImage - logHi) / stdDev + bsigma;
 
-            acc1 += weightedDifference(f_, mu1 * logRatio, d1, d2) - weightedDifference(f_, mu1 * logImage, d3, d4);
+            acc1 += detail::doubleBarrierWeightedDifference(f_, mu1 * logRatio, d1, d2) -
+                    detail::doubleBarrierWeightedDifference(f_, mu1 * logImage, d3, d4);
 
-            acc2 += weightedDifference(f_, (mu1 - 2) * logRatio, d1 - stdDev, d2 - stdDev) -
-                    weightedDifference(f_, (mu1 - 2) * logImage, d3 - stdDev, d4 - stdDev);
+            acc2 += detail::doubleBarrierWeightedDifference(f_, (mu1 - 2) * logRatio, d1 - stdDev, d2 - stdDev) -
+                    detail::doubleBarrierWeightedDifference(f_, (mu1 - 2) * logImage, d3 - stdDev, d4 - stdDev);
         }
 
         Real rend = std::exp(-dividendYield() * residualTime());
@@ -319,8 +320,8 @@ namespace QuantLib
         if (stdDev > 0.5 * std::log(barrierHi() / barrierLo()))
         {
             const Real variance = stdDev * stdDev, muT = costOfCarry() * residualTime() - 0.5 * variance;
-            const Real value =
-                knockOutByEigenfunctions(Option::Put, underlying(), strike(), barrierLo(), barrierHi(), muT, variance);
+            const Real value = detail::doubleKnockOutByEigenfunctions(Option::Put, underlying(), strike(), barrierLo(),
+                                                                      barrierHi(), muT, variance);
             return std::max(0.0, riskFreeDiscount() * value);
         }
         // The integral runs over the terminal spots inside the barriers that pay.
@@ -342,10 +343,11 @@ namespace QuantLib
             const Real y3 = (logSpot + 2.0 * logImage - logLo) / stdDev + bsigma;
             const Real y4 = (logSpot + 2.0 * logImage - logBound) / stdDev + bsigma;
 
-            acc1 += weightedDifference(f_, (mu1 - 2) * logRatio, y1 - stdDev, y2 - stdDev) -
-                    weightedDifference(f_, (mu1 - 2) * logImage, y3 - stdDev, y4 - stdDev);
+            acc1 += detail::doubleBarrierWeightedDifference(f_, (mu1 - 2) * logRatio, y1 - stdDev, y2 - stdDev) -
+                    detail::doubleBarrierWeightedDifference(f_, (mu1 - 2) * logImage, y3 - stdDev, y4 - stdDev);
 
-            acc2 += weightedDifference(f_, mu1 * logRatio, y1, y2) - weightedDifference(f_, mu1 * logImage, y3, y4);
+            acc2 += detail::doubleBarrierWeightedDifference(f_, mu1 * logRatio, y1, y2) -
+                    detail::doubleBarrierWeightedDifference(f_, mu1 * logImage, y3, y4);
         }
 
         Real rend = std::exp(-dividendYield() * residualTime());
