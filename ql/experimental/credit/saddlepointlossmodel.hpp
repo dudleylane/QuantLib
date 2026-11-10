@@ -74,6 +74,14 @@ namespace QuantLib
         search for the point does not convege in extreme cases; e.g. very high
         value of all the factors; factors for each variable not ordered from
         high to low,...
+    \warning The expected shortfall is the percentile plus the expected
+        excess of the tranche's loss over it. Given the factor, the excess
+        comes from two of the expansions, which aren't consistent with each
+        other where the level is far above the losses the factor makes
+        likely. There it can come out negative, and is taken as zero, so the
+        shortfall of a senior tranche is low. On 20 names that each lose 60
+        of 100, with a correlation of 0.3, it is half the exact value on 50%
+        to 100% of the basket.
     */
 
     /* The treatment of recovery wont work with random recoveries, they should
@@ -90,7 +98,6 @@ namespace QuantLib
     - Silly bug when calling some methods on todays date (zero time).
             ProbDef = 0 there
     - VaR <- tranched?????!
-    - ESF <- tranched????!!
     - VaR split
     - ESF split?
 
@@ -297,9 +304,13 @@ namespace QuantLib
         Real expectedShortfallFullPortfolioCond(const std::vector<Real>& invUncondProbs,
                                                 Real lossPerc,
                                                 const std::vector<Real>& mktFactor) const;
+        /*! What the tranche loses beyond the given portfolio loss on
+            average, conditional on the market factor: the conditional
+            expected excess of the tranche's loss over the level's, with the
+            level in absolute value.
+        */
         Real expectedShortfallTrancheCond(const std::vector<Real>& invUncondProbs,
-                                          Real lossPerc,
-                                          Probability percentile,
+                                          Real lossLevel,
                                           const std::vector<Real>& mktFactor) const;
         std::vector<Real> expectedShortfallSplitCond(const std::vector<Real>& invUncondProbs,
                                                      Real lossPerc,
@@ -791,8 +802,11 @@ namespace QuantLib
         //   associated to the tranche limits:
         if (percentile <= 1. - probOverLoss(d, 0.))
             return 0.;
+        // the fraction solved for is of the tranche between the remaining
+        //   ratios, whose detachment is no more than the remaining notional
+        Real trancheAmount = (detachRatio_ - attachRatio_) * remainingNotional_;
         if (percentile >= 1. - probOverLoss(d, 1.))
-            return basket_->remainingTrancheNotional();
+            return trancheAmount;
 
         SaddlePercObjFunction f(*this, percentile, d);
         Brent solver;
@@ -803,7 +817,7 @@ namespace QuantLib
         Real guess = 0.5;
 
         Real solut = solver.solve(f, 1.e-4, guess, minVal, maxVal);
-        return basket_->remainingTrancheNotional() * solut;
+        return trancheAmount * solut;
     }
 
     template <class CP>
@@ -1137,38 +1151,20 @@ namespace QuantLib
 
     template <class CP>
     Real SaddlePointLossModel<CP>::expectedShortfallTrancheCond(const std::vector<Real>& invUncondProbs,
-                                                                Real lossPerc, // value
-                                                                Probability percentile,
+                                                                Real lossLevel,
                                                                 const std::vector<Real>& mktFactor) const
     {
-        /* TO DO: this is too crude, a general expression valid for all
-        situations is possible (with no extra cost as long as the loss limits
-        are checked).
-        */
-        // tranche correction term:
-        Real correctionTerm = 0.;
-        Real probLOver = probOverLossPortfCond(invUncondProbs, basket_->detachmentAmount(), mktFactor);
-        if (basket_->attachmentAmount() > QL_EPSILON)
-        {
-            if (lossPerc < basket_->attachmentAmount())
-            {
-                correctionTerm = ((basket_->detachmentAmount() - 2. * basket_->attachmentAmount()) *
-                                      probOverLossPortfCond(invUncondProbs, lossPerc, mktFactor) +
-                                  basket_->attachmentAmount() * probLOver) /
-                                 (1. - percentile);
-            }
-            else
-            {
-                correctionTerm =
-                    ((percentile - 1) * basket_->attachmentAmount() + basket_->detachmentAmount() * probLOver) /
-                    (1. - percentile);
-            }
-        }
-
-        return expectedShortfallFullPortfolioCond(invUncondProbs, std::max(lossPerc, basket_->attachmentAmount()),
-                                                  mktFactor) +
-               expectedShortfallFullPortfolioCond(invUncondProbs, basket_->detachmentAmount(), mktFactor) -
-               correctionTerm;
+        // E[(L - x)^+] = E[L 1{L >= x}] - x P(L >= x) at the level and at the detachment, whose
+        //   difference is what the tranche loses beyond the level.
+        Real detachAmount = detachRatio_ * remainingNotional_;
+        Real excess = expectedShortfallFullPortfolioCond(invUncondProbs, lossLevel, mktFactor) -
+                      lossLevel * probOverLossPortfCond(invUncondProbs, lossLevel, mktFactor) -
+                      (expectedShortfallFullPortfolioCond(invUncondProbs, detachAmount, mktFactor) -
+                       detachAmount * probOverLossPortfCond(invUncondProbs, detachAmount, mktFactor));
+        // It can't be negative, but the two expansions aren't consistent with
+        //   each other where the level is far above the losses the factor
+        //   makes likely, and there it can come out so.
+        return std::max(excess, 0.);
     }
 
     template <class CP>
@@ -1234,25 +1230,26 @@ namespace QuantLib
     template <class CP>
     Real SaddlePointLossModel<CP>::expectedShortfall(const Date& d, Probability percProb) const
     {
-        // assuming I have the tranched one.
+        // as for the percentile, nothing more is lost by today
+        if (d <= Settings::instance().evaluationDate())
+            return 0.;
         Real lossPerc = percentile(d, percProb);
 
         // check the trivial case when the loss is over the detachment limit
         //   to avoid computation:
-        Real trancheAmount = basket_->trancheNotional() * (detachRatio_ - attachRatio_);
-        // assumed the amount includes the realized loses
+        Real trancheAmount = (detachRatio_ - attachRatio_) * remainingNotional_;
         if (lossPerc >= trancheAmount)
             return trancheAmount;
-        // SHOULD CHECK NOW THE OPPOSITE LIMIT ("zero" losses)....
         std::vector<Real> invUncondProbs = basket_->remainingProbabilities(d);
         for (Size i = 0; i < invUncondProbs.size(); i++)
             invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], liveNames_[i]);
 
-        // Integrate with the tranche or the portfolio according to the limits.
-        return copula_->integratedExpectedValue(
-                   [&](const std::vector<Real>& v1)
-                   { return expectedShortfallFullPortfolioCond(invUncondProbs, lossPerc, v1); }) /
-               (1. - percProb);
+        // The percentile, and what the tranche loses beyond it on average
+        //   over the probability of getting there (Rockafellar and Uryasev).
+        Real lossLevel = attachRatio_ * remainingNotional_ + lossPerc;
+        Real excess = copula_->integratedExpectedValue(
+            [&](const std::vector<Real>& v1) { return expectedShortfallTrancheCond(invUncondProbs, lossLevel, v1); });
+        return std::min(lossPerc + excess / (1. - percProb), trancheAmount);
 
         /* test:?
             return std::inner_product(integrESFPartition.begin(),
