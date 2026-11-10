@@ -25,6 +25,16 @@
 namespace QuantLib
 {
 
+    namespace
+    {
+        // initialize() takes d1 and d2 as infinite at a strike this close to zero, where the option can't end out of
+        // the money. The densities vanish there, and the Greeks leave their terms out, as at zero volatility.
+        bool zeroStrike(Real strike)
+        {
+            return close(strike, 0.0);
+        }
+    }
+
     class BlackCalculator::Calculator : public AcyclicVisitor,
                                         public Visitor<Payoff>,
                                         public Visitor<PlainVanillaPayoff>,
@@ -71,7 +81,7 @@ namespace QuantLib
 
         if (stdDev_ >= QL_EPSILON)
         {
-            if (close(strike_, 0.0))
+            if (zeroStrike(strike_))
             {
                 d1_ = QL_MAX_REAL;
                 d2_ = QL_MAX_REAL;
@@ -294,10 +304,10 @@ namespace QuantLib
 
         QL_REQUIRE(spot > 0.0, "positive spot value required: " << spot << " not allowed");
 
-        // Handle zero volatility case
-        if (stdDev_ <= QL_EPSILON)
+        // Handle zero volatility case, and a zero strike, where the densities vanish too
+        if (stdDev_ <= QL_EPSILON || zeroStrike(strike_))
         {
-            // For zero volatility, gamma is always 0 (no convexity)
+            // With no volatility, or no strike, gamma is 0 (no convexity)
             return 0.0;
         }
 
@@ -318,10 +328,10 @@ namespace QuantLib
     Real BlackCalculator::gammaForward() const
     {
 
-        // Handle zero volatility case
-        if (stdDev_ <= QL_EPSILON)
+        // Handle zero volatility case, and a zero strike, where the densities vanish too
+        if (stdDev_ <= QL_EPSILON || zeroStrike(strike_))
         {
-            // For zero volatility, gamma is always 0 (no convexity)
+            // With no volatility, or no strike, gamma is 0 (no convexity)
             return 0.0;
         }
 
@@ -352,8 +362,8 @@ namespace QuantLib
     {
         QL_REQUIRE(maturity >= 0.0, "negative maturity not allowed");
 
-        // Handle zero volatility case
-        if (stdDev_ <= QL_EPSILON)
+        // Handle zero volatility case, and a zero strike, where the densities vanish too
+        if (stdDev_ <= QL_EPSILON || zeroStrike(strike_))
         {
             return 0.0;
         }
@@ -412,8 +422,8 @@ namespace QuantLib
     Real BlackCalculator::strikeSensitivity() const
     {
 
-        // Handle zero volatility case
-        if (stdDev_ <= QL_EPSILON)
+        // Handle zero volatility case, and a zero strike, where the densities vanish too
+        if (stdDev_ <= QL_EPSILON || zeroStrike(strike_))
         {
             // Away from the strike alpha and beta don't move with it.
             return discount_ * beta_ * DxDstrike_;
@@ -432,10 +442,10 @@ namespace QuantLib
     Real BlackCalculator::strikeGamma() const
     {
 
-        // Handle zero volatility case
-        if (stdDev_ <= QL_EPSILON)
+        // Handle zero volatility case, and a zero strike, where the densities vanish too
+        if (stdDev_ <= QL_EPSILON || zeroStrike(strike_))
         {
-            // For zero volatility, strike gamma is 0 (no convexity)
+            // With no volatility, or no strike, strike gamma is 0 (no convexity)
             return 0.0;
         }
 
@@ -457,7 +467,8 @@ namespace QuantLib
         QL_REQUIRE(spot > 0.0, "positive spot value required: " << spot << " not allowed");
         QL_REQUIRE(maturity >= 0.0, "negative maturity not allowed");
 
-        if (stdDev_ <= QL_EPSILON)
+        // Handle zero volatility case, and a zero strike, where the densities vanish too
+        if (stdDev_ <= QL_EPSILON || zeroStrike(strike_))
         {
             return 0.0;
         }
@@ -473,7 +484,8 @@ namespace QuantLib
     {
         QL_REQUIRE(maturity >= 0.0, "negative maturity not allowed");
 
-        if (stdDev_ <= QL_EPSILON)
+        // Handle zero volatility case, and a zero strike, where the densities vanish too
+        if (stdDev_ <= QL_EPSILON || zeroStrike(strike_))
         {
             return 0.0;
         }
