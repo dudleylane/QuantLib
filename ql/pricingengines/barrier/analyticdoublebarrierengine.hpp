@@ -45,6 +45,10 @@ namespace QuantLib
          the spot while the value falls far below it.  Below that, the default \p series leaves out
          terms below \f$ e^{-240} \f$ of the leading ones.
 
+         A rebate is paid at the first touch of either barrier for a knock-out, and at expiry if
+         neither is touched for a knock-in, as BinomialDoubleBarrierEngine and MCDoubleBarrierEngine
+         pay it.  Its value comes from AnalyticDoubleBarrierBinaryEngine's sums.
+
         \ingroup barrierengines
 
         \test the correctness of the returned value is tested by

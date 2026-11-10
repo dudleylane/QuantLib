@@ -79,6 +79,23 @@ namespace QuantLib
         // How it's summed is at its definition, in analyticdoublebarrierbinaryengine.cpp.
         Real doubleBarrierNoTouchProbability(Real spot, Real lower, Real upper, Real carry, Time T, Real variance);
 
+        // A double-barrier option's rebate, paid when DiscretizedDoubleBarrierOption and MCDoubleBarrierEngine pay it:
+        // for a knock-out at the first touch of either barrier, if one comes by T, and for a knock-in at T, if neither
+        // barrier is touched.  The first is the sum of what the engine above pays at a touch for KIKO and KOKI options,
+        // with r the risk-free rate, flat to T, that discounts from the touch; the second is rebate * discount times
+        // the probability above.  The other arguments are the probability's.  AnalyticDoubleBarrierEngine and
+        // SuoWangDoubleBarrierEngine add it to their values, and VannaVolgaDoubleBarrierEngine to its own.
+        Real doubleBarrierRebate(DoubleBarrier::Type type,
+                                 Real rebate,
+                                 Real spot,
+                                 Real lower,
+                                 Real upper,
+                                 Rate r,
+                                 Real carry,
+                                 Time T,
+                                 Real variance,
+                                 DiscountFactor discount);
+
     }
 
 }

@@ -18,6 +18,7 @@
 */
 
 #include <ql/exercise.hpp>
+#include <ql/pricingengines/barrier/analyticdoublebarrierbinaryengine.hpp>
 #include <ql/pricingengines/barrier/analyticdoublebarrierengine.hpp>
 #include <ql/pricingengines/blackcalculator.hpp>
 #include <cmath>
@@ -116,6 +117,16 @@ namespace QuantLib
 
         DoubleBarrier::Type barrierType = arguments_.barrierType;
 
+        // The rebate, which the formulas below leave out: paid at the first touch for a knock-out, and at expiry if
+        // neither barrier is touched for a knock-in, as the lattice and Monte Carlo engines pay it.  It's added only
+        // where there is one, so that a value without it costs nothing more.
+        const auto rebateValue = [&](Real variance)
+        {
+            return detail::doubleBarrierRebate(barrierType, arguments_.rebate, spot, barrierLo(), barrierHi(),
+                                               riskFreeRate(), costOfCarry(), residualTime(), variance,
+                                               riskFreeDiscount());
+        };
+
         if (barrierType == DoubleBarrier::KnockIn || barrierType == DoubleBarrier::KnockOut)
         {
             Real variance = process_->blackVolatility()->blackVariance(arguments_.exercise->lastDate(), strike);
@@ -126,6 +137,8 @@ namespace QuantLib
                 bool hit = forward <= barrierLo() || forward >= barrierHi();
                 results_.value =
                     hit == (barrierType == DoubleBarrier::KnockIn) ? riskFreeDiscount() * (*payoff)(forward) : 0.0;
+                if (arguments_.rebate != 0.0)
+                    results_.value += rebateValue(variance);
                 return;
             }
         }
@@ -175,6 +188,11 @@ namespace QuantLib
                     break;
                 default:
                     QL_FAIL("unknown type");
+            }
+            if (arguments_.rebate != 0.0)
+            {
+                const Real stdDev = stdDeviation();
+                results_.value += rebateValue(stdDev * stdDev);
             }
         }
     }

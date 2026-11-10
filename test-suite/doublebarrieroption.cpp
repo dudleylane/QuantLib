@@ -1141,6 +1141,265 @@ BOOST_AUTO_TEST_CASE(testVannaVolgaVolatilityWideAgainstCorridor)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testRebate)
+{
+    BOOST_TEST_MESSAGE("Testing double-barrier options' rebates in the closed-form engines...");
+
+    // The lattice and Monte Carlo engines pay a rebate at the first touch of either barrier for a knock-out, and at
+    // expiry if neither barrier is touched for a knock-in.  The closed-form engines left it out of their values (#210):
+    // the knock-out call below came out at 1.114682 with a rebate of 5, where the lattice gives 4.187953.
+    const Date today(10, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const auto rRate = ext::make_shared<SimpleQuote>(0.05), qRate = ext::make_shared<SimpleQuote>(0.0);
+    const auto vol = ext::make_shared<SimpleQuote>(0.20);
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, qRate, dc)),
+        Handle<YieldTermStructure>(flatRate(today, rRate, dc)), Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+    const auto engines = analyticDoubleBarrierEngines(process);
+    const ext::shared_ptr<Exercise> inAYear = ext::make_shared<EuropeanExercise>(today + 365);
+
+    // the value with the rebate, less the value without
+    const auto rebatePart = [](const ext::shared_ptr<PricingEngine>& engine, DoubleBarrier::Type type,
+                               Option::Type optionType, Real lower, Real upper, Real rebate,
+                               const ext::shared_ptr<Exercise>& exercise)
+    {
+        const auto payoff = ext::make_shared<PlainVanillaPayoff>(optionType, 100.0);
+        DoubleBarrierOption with(type, lower, upper, rebate, payoff, exercise);
+        DoubleBarrierOption without(type, lower, upper, 0.0, payoff, exercise);
+        with.setPricingEngine(engine);
+        without.setPricingEngine(engine);
+        return with.NPV() - without.NPV();
+    };
+
+    // The issue's case, against the lattice at 2,000 steps, which is within 2.1e-3 of the closed forms here.
+    const auto lattice =
+        ext::make_shared<BinomialDoubleBarrierEngine<CoxRossRubinstein, DiscretizedDermanKaniDoubleBarrierOption>>(
+            process, 2000);
+    for (Option::Type optionType : {Option::Call, Option::Put})
+    {
+        for (DoubleBarrier::Type type : {DoubleBarrier::KnockOut, DoubleBarrier::KnockIn})
+        {
+            BOOST_TEST_CONTEXT(optionType << " " << type)
+            {
+                DoubleBarrierOption option(type, 80.0, 120.0, 5.0,
+                                           ext::make_shared<PlainVanillaPayoff>(optionType, 100.0), inAYear);
+                option.setPricingEngine(lattice);
+                const Real expected = option.NPV();
+                for (const auto& [name, e] : engines)
+                {
+                    BOOST_TEST_CONTEXT(name)
+                    {
+                        option.setPricingEngine(e);
+                        BOOST_CHECK_SMALL(option.NPV() - expected, 3.0e-3);
+                    }
+                }
+            }
+        }
+    }
+
+    // The implied volatility inverts the value with the rebate in it, where that value rises with the volatility.
+    {
+        DoubleBarrierOption knockIn(DoubleBarrier::KnockIn, 80.0, 120.0, 5.0,
+                                    ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0), inAYear);
+        knockIn.setPricingEngine(engines.front().second);
+        BOOST_CHECK_SMALL(knockIn.impliedVolatility(knockIn.NPV(), process, 1.0e-8) - 0.20, 1.0e-6);
+    }
+
+    // The rebate's part against the lattice's, at a negative rate too, and on a corridor off the spot's centre: within
+    // 1.1e-3 at 2,000 steps.
+    const struct
+    {
+        Rate r, q;
+        Real lower, upper;
+    } markets[] = {{0.05, 0.0, 80.0, 120.0}, {-0.03, 0.0, 80.0, 120.0}, {-0.03, 0.04, 90.0, 125.0}};
+    for (const auto& m : markets)
+    {
+        for (DoubleBarrier::Type type : {DoubleBarrier::KnockOut, DoubleBarrier::KnockIn})
+        {
+            BOOST_TEST_CONTEXT(type << ", rate " << m.r << ", yield " << m.q << ", corridor " << m.lower << "-"
+                                    << m.upper)
+            {
+                rRate->setValue(m.r);
+                qRate->setValue(m.q);
+                const Real expected = rebatePart(lattice, type, Option::Call, m.lower, m.upper, 5.0, inAYear);
+                for (const auto& [name, e] : engines)
+                {
+                    BOOST_TEST_CONTEXT(name)
+                    {
+                        BOOST_CHECK_SMALL(rebatePart(e, type, Option::Call, m.lower, m.upper, 5.0, inAYear) - expected,
+                                          2.0e-3);
+                    }
+                }
+            }
+        }
+    }
+
+    // Over a grid, negative rates included, a rebate's part is finite, and between 0 and the rebate where rates aren't
+    // negative.  A knock-out's is what AnalyticDoubleBarrierBinaryEngine pays at a touch for KIKO and KOKI options
+    // together.  At r = 0 nothing is discounted, and a touch by expiry or none is certain, so a knock-out's part and a
+    // knock-in's add up to the rebate.
+    const Real rebate = 3.0;
+    const std::pair<Real, Real> corridors[] = {{80.0, 120.0}, {95.0, 105.0}, {99.0, 130.0}};
+    for (Rate r : {-0.03, 0.0, 0.02, 0.08})
+    {
+        for (Rate q : {0.0, 0.04, -0.02})
+        {
+            for (Volatility v : {0.002, 0.05, 0.2, 0.6})
+            {
+                for (Integer days : {7, 182, 1826})
+                {
+                    for (const auto& [lower, upper] : corridors)
+                    {
+                        BOOST_TEST_CONTEXT("rate " << r << ", yield " << q << ", volatility " << v << ", " << days
+                                                   << " days, corridor " << lower << "-" << upper)
+                        {
+                            rRate->setValue(r);
+                            qRate->setValue(q);
+                            vol->setValue(v);
+                            const ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(today + days);
+                            Real atTouch = 0.0;
+                            for (DoubleBarrier::Type binaryType : {DoubleBarrier::KIKO, DoubleBarrier::KOKI})
+                            {
+                                DoubleBarrierOption binary(
+                                    binaryType, lower, upper, 0.0,
+                                    ext::make_shared<CashOrNothingPayoff>(Option::Call, 0.0, 1.0),
+                                    ext::make_shared<AmericanExercise>(today, today + days));
+                                binary.setPricingEngine(ext::make_shared<AnalyticDoubleBarrierBinaryEngine>(process));
+                                atTouch += binary.NPV();
+                            }
+                            for (const auto& [name, e] : engines)
+                            {
+                                BOOST_TEST_CONTEXT(name)
+                                {
+                                    const Real knockOut = rebatePart(e, DoubleBarrier::KnockOut, Option::Call, lower,
+                                                                     upper, rebate, exercise);
+                                    const Real knockIn = rebatePart(e, DoubleBarrier::KnockIn, Option::Put, lower,
+                                                                    upper, rebate, exercise);
+                                    BOOST_REQUIRE(std::isfinite(knockOut) && std::isfinite(knockIn));
+                                    BOOST_CHECK_SMALL(knockOut - rebate * atTouch, 1.0e-12 * rebate);
+                                    if (r >= 0.0)
+                                    {
+                                        BOOST_CHECK(knockOut > -1.0e-12 && knockOut < rebate * (1.0 + 1.0e-12));
+                                        BOOST_CHECK(knockIn > -1.0e-12 && knockIn < rebate * (1.0 + 1.0e-12));
+                                    }
+                                    if (r == 0.0)
+                                        BOOST_CHECK_SMALL(knockOut + knockIn - rebate, 1.0e-12 * rebate);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // At zero volatility the underlying follows its forward, 100 exp((r - q) t).  A knock-out's rebate is paid when
+    // the forward reaches a barrier, if it does within the year, and a knock-in's at expiry if it doesn't.  The last
+    // volatility goes through the series, and shows that the limit is reached.
+    const struct
+    {
+        Rate r, q;
+        Real lower, upper;
+    } forwards[] = {{0.01, 0.10, 95.0, 120.0}, {0.10, 0.01, 80.0, 105.0}, {0.03, 0.03, 95.0, 105.0},
+                    {-0.05, 0.0, 96.0, 120.0}, {-0.05, 0.0, 90.0, 120.0}, {0.0, 0.08, 95.0, 120.0}};
+    for (Volatility v : {0.0, 1.0e-9, 1.0e-7})
+    {
+        for (const auto& c : forwards)
+        {
+            BOOST_TEST_CONTEXT("rate " << c.r << ", yield " << c.q << ", corridor " << c.lower << "-" << c.upper
+                                       << ", volatility " << v)
+            {
+                rRate->setValue(c.r);
+                qRate->setValue(c.q);
+                vol->setValue(v);
+                const Rate drift = c.r - c.q;
+                const bool down = drift < 0.0 && std::log(c.lower / 100.0) >= drift;
+                const bool up = drift > 0.0 && std::log(c.upper / 100.0) <= drift;
+                const Time hit = down ? std::log(c.lower / 100.0) / drift :
+                                 up   ? std::log(c.upper / 100.0) / drift :
+                                        0.0;
+                const Real knockOut = down || up ? rebate * std::exp(-c.r * hit) : 0.0;
+                const Real knockIn = down || up ? 0.0 : rebate * std::exp(-c.r);
+                for (const auto& [name, e] : engines)
+                {
+                    BOOST_TEST_CONTEXT(name)
+                    {
+                        BOOST_CHECK_SMALL(
+                            rebatePart(e, DoubleBarrier::KnockOut, Option::Call, c.lower, c.upper, rebate, inAYear) -
+                                knockOut,
+                            1.0e-10);
+                        BOOST_CHECK_SMALL(
+                            rebatePart(e, DoubleBarrier::KnockIn, Option::Call, c.lower, c.upper, rebate, inAYear) -
+                                knockIn,
+                            1.0e-10);
+                    }
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testVannaVolgaRebate)
+{
+    BOOST_TEST_MESSAGE("Testing the Vanna/Volga double-barrier engine's rebate...");
+
+    // The engine passed the rebate to the engine it wraps, which left it out (#210).  It now prices the option there
+    // without it, so that its caps and its knock-in as vanilla less knock-out still hold, and adds the rebate's value
+    // at the ATM volatility, as AnalyticDoubleBarrierEngine gives it.  The market is
+    // testVannaVolgaDoubleBarrierValues', with its curves on Actual360: the exercise date, 365 days on, is then at
+    // 365/360 on them, where the quotes' maturity is 1, and the rebate is timed to the exercise date.
+    const Date today(10, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Time t = 1.0;
+    const ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(today + 365);
+    const Volatility atmVol = 0.08925;
+    const Handle<Quote> spot(ext::make_shared<SimpleQuote>(1.30265));
+    const Handle<DeltaVolQuote> atm(ext::make_shared<DeltaVolQuote>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(atmVol)), DeltaVolQuote::Fwd, t, DeltaVolQuote::AtmDeltaNeutral));
+    const Handle<DeltaVolQuote> put25(ext::make_shared<DeltaVolQuote>(
+        -0.25, Handle<Quote>(ext::make_shared<SimpleQuote>(0.10087)), t, DeltaVolQuote::Fwd));
+    const Handle<DeltaVolQuote> call25(ext::make_shared<DeltaVolQuote>(
+        0.25, Handle<Quote>(ext::make_shared<SimpleQuote>(0.08463)), t, DeltaVolQuote::Fwd));
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.0033871, Actual360())),
+        qTS(flatRate(today, 0.0003541, Actual360()));
+    const auto analytic = ext::make_shared<AnalyticDoubleBarrierEngine>(ext::make_shared<BlackScholesMertonProcess>(
+        spot, qTS, rTS, Handle<BlackVolTermStructure>(flatVol(today, atmVol, dc))));
+    const std::pair<std::string, ext::shared_ptr<PricingEngine>> engines[] = {
+        {"Ikeda-Kunitomo", ext::make_shared<VannaVolgaDoubleBarrierEngine<AnalyticDoubleBarrierEngine>>(
+                               atm, put25, call25, spot, rTS, qTS)},
+        {"Suo-Wang", ext::make_shared<VannaVolgaDoubleBarrierEngine<SuoWangDoubleBarrierEngine>>(atm, put25, call25,
+                                                                                                 spot, rTS, qTS)}};
+
+    const Real rebate = 0.01;
+    for (DoubleBarrier::Type type : {DoubleBarrier::KnockOut, DoubleBarrier::KnockIn})
+    {
+        for (Real strike : {1.13321, 1.31179, 1.46047})
+        {
+            BOOST_TEST_CONTEXT(type << " call struck at " << strike)
+            {
+                const auto payoff = ext::make_shared<PlainVanillaPayoff>(Option::Call, strike);
+                DoubleBarrierOption with(type, 1.1, 1.5, rebate, payoff, exercise);
+                DoubleBarrierOption without(type, 1.1, 1.5, 0.0, payoff, exercise);
+                with.setPricingEngine(analytic);
+                without.setPricingEngine(analytic);
+                const Real expected = with.NPV() - without.NPV();
+                for (const auto& [name, e] : engines)
+                {
+                    BOOST_TEST_CONTEXT(name)
+                    {
+                        with.setPricingEngine(e);
+                        without.setPricingEngine(e);
+                        BOOST_CHECK_CLOSE_FRACTION(with.result<Real>("RebatePrice"), expected, 1.0e-12);
+                        BOOST_CHECK_CLOSE_FRACTION(with.NPV() - without.NPV(), expected, 1.0e-12);
+                    }
+                }
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

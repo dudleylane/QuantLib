@@ -24,6 +24,7 @@
 #ifndef quantlib_vanna_volga_double_barrier_engine_hpp
 #define quantlib_vanna_volga_double_barrier_engine_hpp
 
+#include <ql/exercise.hpp>
 #include <ql/experimental/barrieroption/vannavolgainterpolation.hpp>
 #include <ql/instruments/doublebarrieroption.hpp>
 #include <ql/math/matrix.hpp>
@@ -46,6 +47,11 @@ namespace QuantLib
     /*! The smile adjustment is weighted by the probability of no touch at the ATM volatility, to the
         quotes' maturity, which AnalyticDoubleBarrierBinaryEngine's sums give at any volatility.
         \p series goes to the \p DoubleBarrierEngine.
+
+        The smile adjustment covers the option only.  A rebate is valued at the ATM volatility, to
+        the exercise date, and paid at the first touch of either barrier for a knock-out and at
+        expiry if neither is touched for a knock-in, as AnalyticDoubleBarrierEngine values it.  The
+        additional result "RebatePrice" is its part of the value.
 
         \ingroup barrierengines
     */
@@ -173,11 +179,11 @@ namespace QuantLib
                 // set up BS barrier option pricing
                 // only calculate out barrier option price
                 // in barrier price = vanilla - out barrier
+                // The rebate is left out here, so that this parity and the caps below hold, and added at the end.
                 ext::shared_ptr<StrikedTypePayoff> payoff =
                     ext::static_pointer_cast<StrikedTypePayoff>(arguments_.payoff);
                 DoubleBarrierOption doubleBarrierOption(DoubleBarrier::KnockOut, arguments_.barrier_lo,
-                                                        arguments_.barrier_hi, arguments_.rebate, payoff,
-                                                        arguments_.exercise);
+                                                        arguments_.barrier_hi, 0.0, payoff, arguments_.exercise);
 
                 doubleBarrierOption.setPricingEngine(engineBS);
 
@@ -350,13 +356,29 @@ namespace QuantLib
                     inPrice = vanillaOption - outPrice;
                 }
 
+                // The rebate, at the ATM volatility to the exercise date on the curves the BS engine prices with: paid
+                // at the first touch for a knock-out, and at expiry if neither barrier is touched for a knock-in.
+                Real rebate = 0.0;
+                if (arguments_.rebate != 0.0)
+                {
+                    const Time t = stochProcess->time(arguments_.exercise->lastDate());
+                    const Rate r = domesticTS_->zeroRate(t, Continuous).rate();
+                    const Rate q = foreignTS_->zeroRate(t, Continuous).rate();
+                    rebate = detail::doubleBarrierRebate(arguments_.barrierType, arguments_.rebate, x0Quote->value(),
+                                                         arguments_.barrier_lo, arguments_.barrier_hi, r, r - q, t,
+                                                         atmVolatility * atmVolatility * t, domesticTS_->discount(t));
+                }
+
                 if (arguments_.barrierType == DoubleBarrier::KnockOut)
                     results_.value = outPrice;
                 else
                     results_.value = inPrice;
+                if (rebate != 0.0)
+                    results_.value += rebate;
                 results_.additionalResults["VanillaPrice"] = vanillaOption;
                 results_.additionalResults["BarrierInPrice"] = inPrice;
                 results_.additionalResults["BarrierOutPrice"] = outPrice;
+                results_.additionalResults["RebatePrice"] = rebate;
                 results_.additionalResults["lambda"] = lambda;
             }
         }

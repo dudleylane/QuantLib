@@ -41,6 +41,11 @@ namespace QuantLib
          the paper's formulas are used only below that.  At zero volatility the underlying follows its
          forward.
 
+         A rebate is paid at the first touch of either barrier for a knock-out, and at expiry if
+         neither is touched for a knock-in, as BinomialDoubleBarrierEngine and MCDoubleBarrierEngine
+         pay it.  Its value comes from AnalyticDoubleBarrierBinaryEngine's sums, and the additional
+         result "rebate" is its part of the value.
+
         \ingroup barrierengines
 
         \test the correctness of the returned value is tested by
@@ -64,7 +69,6 @@ namespace QuantLib
         DiscountFactor riskFreeDiscount() const;
         Rate dividendYield() const;
         DiscountFactor dividendDiscount() const;
-        Real D(Real X, Real lambda, Real sigma, Real T) const;
     };
 
 }
