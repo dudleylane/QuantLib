@@ -26,6 +26,7 @@
 #include <ql/quotes/simplequote.hpp>
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
 #include <ql/time/calendars/nullcalendar.hpp>
+#include <cmath>
 #include <utility>
 
 using std::pow;
@@ -315,14 +316,23 @@ namespace QuantLib
                       pow(atmVol_->value(), 2.0) / 2.0;
             Real h2 = (log(arguments_.barrier / x0Quote->value()) + mu * T_) / (atmVol_->value() * sqrt(T_));
             Real h2Prime = (log(x0Quote->value() / arguments_.barrier) + mu * T_) / (atmVol_->value() * sqrt(T_));
+            // N(x) + (B/S)^(2 mu / vol^2) N(y).  At low volatility, with the drift toward the barrier, the power
+            // overflows while N(y) underflows, though their product is finite.  There, and wherever N(y) is 0, the
+            // product is taken as a log, as AnalyticBarrierEngine takes it.
+            const Real exponent = 2.0 * mu / pow(atmVol_->value(), 2.0);
+            const Real power = pow(arguments_.barrier / x0Quote->value(), exponent);
+            const auto touchProbability = [&](Real x, Real y)
+            {
+                const Real n = cnd(y);
+                if (n > 0.0 && std::isfinite(power))
+                    return Real(cnd(x) + power * n);
+                return Real(cnd(x) + std::exp(exponent * log(arguments_.barrier / x0Quote->value()) + cnd.logValue(y)));
+            };
             Real probTouch = 0.0;
             if (arguments_.barrierType == Barrier::UpIn || arguments_.barrierType == Barrier::UpOut)
-                probTouch =
-                    cnd(h2Prime) +
-                    pow(arguments_.barrier / x0Quote->value(), 2.0 * mu / pow(atmVol_->value(), 2.0)) * cnd(-h2);
+                probTouch = touchProbability(h2Prime, -h2);
             else
-                probTouch = cnd(-h2Prime) +
-                            pow(arguments_.barrier / x0Quote->value(), 2.0 * mu / pow(atmVol_->value(), 2.0)) * cnd(h2);
+                probTouch = touchProbability(-h2Prime, h2);
             Real p_survival = 1.0 - probTouch;
 
             Real lambda = p_survival;
