@@ -4799,6 +4799,19 @@ BOOST_AUTO_TEST_CASE(testIsraelHolidaysOf2001And2038)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testTASEGeneralStrikeOf2012)
+{
+    BOOST_TEST_MESSAGE("Testing TASE's closure for the general strike of 2012...");
+
+    // The Histadrut's general strike closed the exchange on Wednesday and Thursday, February 8th and 9th, 2012, and a
+    // daily series of its index has a session on the Tuesday before and the Monday after
+    const Calendar c = Israel(Israel::TASE);
+    BOOST_CHECK(c.isBusinessDay(Date(7, February, 2012)));
+    BOOST_CHECK(c.isHoliday(Date(8, February, 2012)));
+    BOOST_CHECK(c.isHoliday(Date(9, February, 2012)));
+    BOOST_CHECK(c.isBusinessDay(Date(13, February, 2012)));
+}
+
 BOOST_AUTO_TEST_CASE(testIsraelSettlementAgainstZahav)
 {
     BOOST_TEST_MESSAGE("Testing Israel's settlement calendar against the Bank of Israel's lists...");

@@ -266,7 +266,12 @@ namespace QuantLib
 
         // Sunday to Thursday up to here, and Monday to Friday from the first Sunday of 2026, which had no session
         if (date < Date(4, January, 2026))
+        {
+            // no session on the days of the general strike of 2012
+            if (date == Date(8, February, 2012) || date == Date(9, February, 2012))
+                return false;
             return w != Friday && w != Saturday && !isTradingHoliday(date);
+        }
 
         // no session on a Friday before a Sunday that's a holiday or a holiday's eve
         return !isWeekend(w) && !isTradingHoliday(date) && !(w == Friday && isTradingHoliday(date + 2));
