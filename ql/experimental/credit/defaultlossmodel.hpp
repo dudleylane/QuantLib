@@ -133,6 +133,9 @@ namespace QuantLib
         }
         /*! Returns the probaility of having a given or larger number of
         defaults in the basket portfolio at a given time.
+
+        The defaults are counted among the names left at the evaluation
+        date; Basket::probAtLeastNEvents adds those before it.
         */
         virtual Probability probAtLeastNEvents(Size n, const Date& d) const
         {

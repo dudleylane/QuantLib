@@ -390,7 +390,11 @@ namespace QuantLib
     Probability Basket::probAtLeastNEvents(Size n, const Date& d) const
     {
         calculate();
-        return lossModel_->probAtLeastNEvents(n, d);
+        // the defaults so far count, and the model counts among the names left
+        Size alreadyDefaulted = pool_->size() - remainingNames().size();
+        if (alreadyDefaulted >= n)
+            return 1.;
+        return lossModel_->probAtLeastNEvents(n - alreadyDefaulted, d);
     }
 
     Real Basket::recoveryRate(const Date& d, Size iName) const

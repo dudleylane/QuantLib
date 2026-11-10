@@ -65,6 +65,10 @@ namespace QuantLib
         Default correlation is modeled using a one-factor Gaussian copula
         approach.
 
+        Once the defaults in the basket before the evaluation date reach
+        the contract's rank, it has been triggered: no premium or protection
+        is left to value, and there's no fair premium.
+
         The class is tested against data in Hull-White (see reference
         above.)
     */
