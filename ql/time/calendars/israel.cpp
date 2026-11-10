@@ -159,11 +159,15 @@ namespace QuantLib
             return isSukkot(d - 7);
         }
 
+        // Knesset elections, days of rest by law (Basic Law: The Knesset, s. 10), and municipal elections, days off
+        // from 2018
         bool isElectionDay(const Date& d)
         {
             static std::set<Date> knownDates = {
-                {9, April, 2019},    {17, September, 2019}, {2, March, 2020},    {23, March, 2021},
-                {1, November, 2022}, {27, February, 2024},  {27, October, 2026},
+                {28, January, 2003}, {28, March, 2006},   {10, February, 2009}, {22, January, 2013},
+                {17, March, 2015},   {30, October, 2018}, {9, April, 2019},     {17, September, 2019},
+                {2, March, 2020},    {23, March, 2021},   {1, November, 2022},  {27, February, 2024},
+                {27, October, 2026},
             };
             return knownDates.find(d) != knownDates.end();
         }

@@ -3491,11 +3491,13 @@ BOOST_AUTO_TEST_CASE(testTASECalendar)
         return result;
     };
 
+    // with the Knesset election of January 22nd, a day of rest by law, on which the exchange had no session
     std::vector<Date> expected2013 = {
-        {24, February, 2013},  {25, March, 2013},     {26, March, 2013},     {31, March, 2013},
-        {1, April, 2013},      {15, April, 2013},     {16, April, 2013},     {14, May, 2013},
-        {15, May, 2013},       {16, July, 2013},      {4, September, 2013},  {5, September, 2013},
-        {18, September, 2013}, {19, September, 2013}, {25, September, 2013}, {26, September, 2013},
+        {22, January, 2013},   {24, February, 2013},  {25, March, 2013},     {26, March, 2013},
+        {31, March, 2013},     {1, April, 2013},      {15, April, 2013},     {16, April, 2013},
+        {14, May, 2013},       {15, May, 2013},       {16, July, 2013},      {4, September, 2013},
+        {5, September, 2013},  {18, September, 2013}, {19, September, 2013}, {25, September, 2013},
+        {26, September, 2013},
     };
 
     checkHolidays(holidays(2013), expected2013);
@@ -4733,14 +4735,25 @@ BOOST_AUTO_TEST_CASE(testIsraelElectionDays)
 
     const Calendar tase = Israel(Israel::TASE), settlement = Israel(Israel::Settlement);
     const std::vector<Date> elections = {
-        Date(9, April, 2019),    Date(17, September, 2019), Date(2, March, 2020),    Date(23, March, 2021),
-        Date(1, November, 2022), Date(27, February, 2024),  Date(27, October, 2026),
+        Date(28, January, 2003), Date(28, March, 2006),   Date(10, February, 2009), Date(22, January, 2013),
+        Date(17, March, 2015),   Date(30, October, 2018), Date(9, April, 2019),     Date(17, September, 2019),
+        Date(2, March, 2020),    Date(23, March, 2021),   Date(1, November, 2022),  Date(27, February, 2024),
+        Date(27, October, 2026),
     };
-    // the Bank of Israel's lists, from 2023, have the last two for settlement; the others follow them by assumption
+    // Knesset elections are days of rest by law, and municipal ones days off from 2018, and a daily series of the
+    // exchange's index has no session on any of those before 2019. The Bank of Israel's lists, from 2023, have the last
+    // two for settlement; the others follow them by assumption.
     for (const Date& d : elections)
     {
         BOOST_CHECK_MESSAGE(tase.isHoliday(d), d << " should be a holiday for TASE");
         BOOST_CHECK_MESSAGE(settlement.isHoliday(d), d << " should be a holiday for settlement");
+    }
+
+    // municipal elections before 2018 weren't days off, and the series has a session on each
+    for (const Date& d : {Date(28, October, 2003), Date(11, November, 2008), Date(22, October, 2013)})
+    {
+        BOOST_CHECK_MESSAGE(tase.isBusinessDay(d), d << " should be a business day for TASE");
+        BOOST_CHECK_MESSAGE(settlement.isBusinessDay(d), d << " should be a business day for settlement");
     }
 
     // the municipal elections of October 31st, 2023 moved to February 2024, though TASE's schedule still has them

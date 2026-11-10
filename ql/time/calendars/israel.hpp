@@ -43,7 +43,7 @@ namespace QuantLib
         <li>Saturday and Sunday from January 4th, 2026</li>
         <li>From then on, a Friday before a Sunday on which it's closed</li>
         <li>The eve of each holiday below that isn't on a weekend</li>
-        <li>Election days, from 2019</li>
+        <li>Election days: Knesset elections from 2003, and municipal ones from 2018</li>
         </ul>
         Other holidays for wich no rule is given
         (data available for 2013-2044 only:)
