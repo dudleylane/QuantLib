@@ -535,8 +535,8 @@ BOOST_AUTO_TEST_CASE(testModifiedBesselFunctionKOnComplexArguments)
         }
     };
 
-    // From mpmath at 80 digits: integer orders, then arguments past the switch in the
-    // functions of the first kind.
+    // From mpmath at 80 digits: integer orders, then arguments past |z| = 13, where the
+    // functions used to switch to their large-argument expansions.
     const ComplexCase ordinary[] = {
         {0.0, {2.0, 1.0}, {0.037987722915986459, -0.10171357546139087}},
         {0.0, {1.5, 0.3}, {0.19631123266108719, -0.080286163745902481}},
@@ -636,8 +636,9 @@ BOOST_AUTO_TEST_CASE(testModifiedBesselFunctionKOnComplexArguments)
     for (const auto& c : ordinary)
         check(c, 1e-12);
 
-    // Close to an integer order the rule is either the quotient, whose rounding grows as it
-    // nears the integer, or the integer order itself, which is off by the distance.
+    // Close to an integer order, where this used to take either the quotient, whose rounding
+    // grows as it nears the integer, or the integer order itself, which is off by the distance.
+    // Temme's series takes the distance as it is.
     const ComplexCase nearInteger[] = {
         {1.000000000001, {5.0, 5.0}, {2.1595269238119622e-3, 2.4903134910426084e-3}},
         {1.000000000001, {0.0, 5.0}, {0.51456010606336940, 0.23226288250718930}},
@@ -657,17 +658,17 @@ BOOST_AUTO_TEST_CASE(testModifiedBesselFunctionKOnComplexArguments)
         {1.001, {0.5, 12.0}, {0.21415945534612881, -0.049982693150032062}},
     };
     for (const auto& c : nearInteger)
-        check(c, 1e-6);
+        check(c, 1e-13);
 
-    // Where the function of the first kind is largest against this one, nothing here is good
-    // to more than about 1e-4.
+    // Where the function of the first kind is largest against this one, just below the old
+    // switch, which cost the quotient up to 1e-4.
     const ComplexCase nearTheSwitch[] = {
         {1.001, {12.0, 1.0}, {1.1496563486432280e-6, -1.9765014323790261e-6}},
         {5.000001, {12.0, 1.0}, {2.5713078039449610e-6, -5.2863219374721001e-6}},
         {2.0, {12.0, 1.0}, {1.2737998551066956e-6, -2.2386739555421913e-6}},
     };
     for (const auto& c : nearTheSwitch)
-        check(c, 1e-3);
+        check(c, 1e-13);
 
     BOOST_CHECK_EQUAL(std::abs(modifiedBesselFunction_k(1.0, std::complex<Real>(1000.0, 1.0))), 0.0);
 }
@@ -697,6 +698,191 @@ BOOST_AUTO_TEST_CASE(testModifiedBesselFunctionIAtNegativeIntegerOrders)
     // I_1(2) and I_2(12), so that these aren't only the same as each other.
     BOOST_CHECK_SMALL(modifiedBesselFunction_i(-1.0, 2.0) / 1.5906368546373291 - 1.0, 1e-14);
     BOOST_CHECK_SMALL(modifiedBesselFunction_i(-2.0, 12.0) / 15925.367219023170 - 1.0, 1e-14);
+}
+
+BOOST_AUTO_TEST_CASE(testModifiedBesselFunctionIOnRealArguments)
+{
+    BOOST_TEST_MESSAGE("Testing the modified Bessel function of the first kind on real arguments...");
+
+    // From mpmath at 50 digits: I, its condition number |x I'(x) / I(x)|, the weighted function
+    // and its own, |x I'(x) / I(x) - x|.  A relative error of a few QL_EPSILON in x moves a value
+    // by its condition number times as much, so the tolerance scales with it.  Large orders,
+    // arguments around 13, where this used to switch to 30 terms of the large-argument
+    // expansion, and around 710, where exp(x) overflows.
+    struct RealCase
+    {
+        Real nu, x, expected, kappa, weighted, kappaWeighted;
+    };
+    const RealCase cases[] = {
+        {20.0, 13.0, 0.05128416382353676, 23.7, 1.1591910360277408e-7, 10.7},
+        {50.0, 13.0, 3.308021124332481e-24, 51.6, 7.4772174262432373e-30, 38.6},
+        {300.0, 30.0, 4.6324735572700024e-262, 301.0, 4.3348940962054524e-275, 271.0},
+        {0.5, 710.0, 3.3447452278080108e+306, 710.0, 0.014972036991629623, 0.5},
+        {0.5, 712.0, 2.4679774324006396e+307, 711.0, 0.014950994062057319, 0.5},
+        {1.25, 13.00005, 46447.830880079822, 12.6, 0.10498214879005776, 0.445},
+        {1.0, 13.07, 50819.251331365566, 12.6, 0.10710244474845591, 0.469},
+        {-5.5, 14.0, 42835.295462249717, 14.6, 0.035618778368147381, 0.606},
+        {100.25, 19.0, 8.5419014963444419e-61, 102.0, 4.7858535273512894e-69, 83.0},
+        {2.0, 18.5, 9.0478142781912922e+6, 18.1, 0.083578728945650874, 0.393},
+        {10.0, 30.0, 1.4583180997596712e+11, 31.2, 0.013646390946186457, 1.17},
+        {50.0, 705.0, 3.8393112690991032e+303, 706.0, 0.0025506072030961704, 1.27},
+        {-1.5, 5.0, 21.181557144697875, 4.75, 0.14272020939907438, 0.249},
+        {0.31, 2.7, 3.7385437595285818, 2.17, 0.25125075025911004, 0.531},
+        {3.7, 18.5, 6.9200423182771508e+6, 18.4, 0.063923542573791478, 0.12},
+        {15.3, 50.0, 2.8080520080193178e+19, 51.8, 0.0054160298835420332, 1.83},
+        {-50.5, 200.0, 3.534736512027489e+82, 206.0, 4.8917095819243722e-5, 5.81},
+    };
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT("order: " << c.nu << ", argument: " << c.x)
+        {
+            BOOST_CHECK_SMALL(modifiedBesselFunction_i(c.nu, c.x) / c.expected - 1.0,
+                              32 * QL_EPSILON * std::max(1.0, c.kappa));
+            BOOST_CHECK_SMALL(modifiedBesselFunction_i_exponentiallyWeighted(c.nu, c.x) / c.weighted - 1.0,
+                              32 * QL_EPSILON * std::max(1.0, c.kappaWeighted));
+        }
+    }
+
+    // Too large to hold, though I_300(1000) exp(-1000) isn't: it's 4.91e-22, with a condition
+    // number of 43.6.
+    BOOST_CHECK_EQUAL(modifiedBesselFunction_i(0.5, 720.0), std::numeric_limits<Real>::infinity());
+    BOOST_CHECK_EQUAL(modifiedBesselFunction_i(300.0, 1000.0), std::numeric_limits<Real>::infinity());
+    BOOST_CHECK_SMALL(modifiedBesselFunction_i_exponentiallyWeighted(300.0, 1000.0) / 4.9103801083448402e-22 - 1.0,
+                      32 * QL_EPSILON * 43.6);
+}
+
+BOOST_AUTO_TEST_CASE(testModifiedBesselFunctionsOnComplexArguments)
+{
+    BOOST_TEST_MESSAGE("Testing modified Bessel functions on complex arguments...");
+
+    // From mpmath at 50 digits, as in the real case: each function with its condition number
+    // |z f'(z) / f(z)|, and the weighted one with its own, |z f'(z) / f(z) - z|.  Large orders,
+    // all four quadrants, and arguments around |z| = 13, where both functions used to switch to
+    // 30 terms of their expansions, I's in the form of DLMF 10.40.5 that holds only for
+    // arg z > -pi/2.  Then arguments by the imaginary axis past |z| = 18, where which side of it
+    // z is on decides the form, and Re z past 700, where exp(z) overflows.
+    struct ComplexCase
+    {
+        Real nu;
+        std::complex<Real> z, expected;
+        Real kappa;
+    };
+    using Function = std::complex<Real> (*)(Real, const std::complex<Real>&);
+
+    const auto check = [](const ComplexCase& c, Function f, const char* name)
+    {
+        BOOST_TEST_CONTEXT(name << ", order: " << c.nu << ", argument: " << c.z)
+        {
+            BOOST_CHECK_SMALL(std::abs(f(c.nu, c.z) / c.expected - 1.0), 32 * QL_EPSILON * std::max(1.0, c.kappa));
+        }
+    };
+
+    const ComplexCase firstKind[] = {
+        {0.308, {-9.2, -9.2}, {20.607851161286335, 1099.0458560923659}, 12.7},
+        {1.2, {-20.0, -10.0}, {3.8479871480491503e+7, -1.0754179214184416e+7}, 21.9},
+        {1.2, {-9.0, -9.0}, {139.65611965061516, -865.53605926544816}, 12.4},
+        {0.0, {-0.5, -14.1}, {0.17560402855156822, 0.077735862335457476}, 13.6},
+        {5.5, {-13.0, -1.0}, {-13119.50416184314, 7479.7370008323305}, 13.7},
+        {20.0, {13.0, -2.0}, {-0.055280258195098022, 0.028979040218085241}, 23.7},
+        {50.0, {13.0, 1.0}, {-2.5962873330280546e-24, -2.7964286781354417e-24}, 51.6},
+        {50.0, {-13.0, 1.0}, {-2.5962873330280546e-24, 2.7964286781354417e-24}, 51.6},
+        {100.25, {0.0, 200.0}, {-0.0059875475660258376, -0.0024801234072019167}, 1610.0},
+        {300.0, {30.0, 30.0}, {-2.3820861055423661e-218, -3.1364042362621443e-217}, 300.0},
+        {300.0, {10.0, -1000.0}, {3.1111085659523954, -179.4723468498017}, 954.0},
+        {-20.3, {20.0, -20.0}, {150354.2565969619, 82205.398805330718}, 29.6},
+        {-50.5, {5.0, 5.0}, {-1.6490566842453159e+35, -2.1908879777673575e+35}, 50.5},
+        {2.3, {-300.0, 50.0}, {1.2248536999902771e+128, 4.2335880363504181e+128}, 304.0},
+        {0.5, {712.0, 10.0}, {-2.0800838686729353e+307, -1.3279921110147033e+307}, 712.0},
+        {10.0, {0.1, 12.0}, {-0.3009269285645271, -0.001998028121609178}, 0.872},
+        {-0.92, {0.001, 0.002}, {22.708024112303317, -36.852880482618591}, 0.92},
+        {1.25, {3.0, -0.03}, {3.5359235662253477, -0.10000376013153796}, 2.83},
+        {15.3, {-0.17, -17.0}, {0.12197541429838729, 0.23250289888223008}, 1.33},
+        {0.25, {40.0, -200.0}, {-1.166182288378588e+15, 6.4716598432473947e+15}, 204.0},
+        {1.2, {0.0, -21.0}, {-0.047464159650143458, -0.14607966276110449}, 10.7},
+        {0.308, {1.0, -25.0}, {0.1248329251480539, 0.14232958558478734}, 32.3},
+        {20.0, {0.5, 17.5}, {0.048358194734768456, -0.015503445713481198}, 10.9},
+    };
+    for (const auto& c : firstKind)
+        check(c, modifiedBesselFunction_i, "I");
+
+    const ComplexCase firstKindWeighted[] = {
+        {0.308, {-9.2, -9.2}, {-2.6232901609951945e+6, -1.0558302413420938e+7}, 25.7},
+        {1.2, {-20.0, -10.0}, {-1.8503164785691383e+16, -5.7784808967310682e+15}, 44.3},
+        {1.2, {-9.0, -9.0}, {1.8593214250171552e+6, 6.85659434512987e+6}, 25.1},
+        {0.0, {-0.5, -14.1}, {-0.1173180842073394, 0.29408454570582999}, 25.9},
+        {5.5, {-13.0, -1.0}, {-5.9205883750187022e+9, -3.0961694860961257e+9}, 26.8},
+        {20.0, {13.0, -2.0}, {-7.5627505659143858e-9, -1.4087668585478495e-7}, 10.7},
+        {50.0, {13.0, 1.0}, {-8.4895568133960193e-30, 1.5229728759237594e-30}, 38.6},
+        {50.0, {-13.0, 1.0}, {4.2044029426386135e-19, 1.6349905949751391e-18}, 64.6},
+        {100.25, {0.0, 200.0}, {-7.5117430941938786e-4, -0.0064371946628357514}, 1620.0},
+        {300.0, {30.0, 30.0}, {2.8654188286810093e-230, -6.7295583379679299e-231}, 271.0},
+        {300.0, {10.0, -1000.0}, {0.006816873640179106, -0.0044654908116374622}, 46.1},
+        {-20.3, {20.0, -20.0}, {-2.8221631556699611e-5, 3.5206926370568769e-4}, 6.95},
+        {-50.5, {5.0, 5.0}, {1.1003880328524273e+33, -1.4842299497003928e+33}, 55.8},
+        {2.3, {-300.0, 50.0}, {1.3821367780837142e+257, 8.5595727704387371e+258}, 608.0},
+        {0.5, {712.0, 10.0}, {0.014949888256194791, -1.0497999349362228e-4}, 0.5},
+        {10.0, {0.1, 12.0}, {-0.22880288292350713, -0.14762900600836089}, 11.7},
+        {-0.92, {0.001, 0.002}, {22.611650024822773, -36.861343014997843}, 0.921},
+        {1.25, {3.0, -0.03}, {0.17611339922300028, 3.0385218257081062e-4}, 0.173},
+        {15.3, {-0.17, -17.0}, {0.22516589283396906, -0.21482836260938323}, 17.6},
+        {0.25, {40.0, -200.0}, {0.02159665080230617, 0.01772131624472476}, 0.5},
+        {1.2, {0.0, -21.0}, {0.14821588257686325, 0.040300948818282294}, 23.6},
+        {0.308, {1.0, -25.0}, {0.052449423996463647, 0.045821455312616973}, 7.57},
+        {20.0, {0.5, 17.5}, {0.015610452623733634, 0.026552357625086146}, 19.8},
+    };
+    for (const auto& c : firstKindWeighted)
+        check(c, modifiedBesselFunction_i_exponentiallyWeighted, "weighted I");
+
+    const ComplexCase secondKind[] = {
+        {0.308, {-9.2, -9.2}, {-2011.9570913352437, -2806.7299870291373}, 12.7},
+        {1.2, {-20.0, -10.0}, {4.3723389770802385e+7, -1.1765898433347662e+8}, 21.9},
+        {20.0, {13.0, -2.0}, {-0.29033683441397753, -0.16961563274020324}, 24.0},
+        {50.0, {13.0, 1.0}, {-1.7168838562742504e+21, 1.8674048139425367e+21}, 51.7},
+        {50.0, {-13.0, 1.0}, {-1.7168838562742504e+21, -1.8674048139425367e+21}, 51.7},
+        {100.25, {0.0, 200.0}, {0.091410145557475725, -0.026844424058020578}, 173.0},
+        {300.0, {30.0, 30.0}, {-3.4839472161040884e+212, 5.2866835348181729e+213}, 300.0},
+        {-20.3, {20.0, -20.0}, {9.7172970708086883e-8, 4.5720296358019716e-9}, 30.4},
+        {2.3, {-300.0, 50.0}, {4.7045763205381687e+128, -1.302188775647013e+129}, 304.0},
+        {5.0, {0.1, 1.9}, {4.5619500713125384, -18.935948712459042}, 4.51},
+        {170.5, {1.0, -13.0}, {-5.1501792205856873e+166, -1.5963313807460768e+166}, 170.0},
+        {-0.92, {0.001, 0.002}, {143.42377721134094, -232.78400328156401}, 0.92},
+        {0.25, {-2.0, 0.5}, {-2.3418204422679146, -6.3889250596823436}, 1.55},
+        {30.5, {21.0, -21.0}, {1.8275209173433474e-5, -4.9236713651972516e-6}, 36.1},
+        {2.0, {-0.02, 2.1}, {-0.89803358791478727, 0.60385502758685857}, 1.63},
+        {300.0, {-5.0, -500.0}, {-3.4131179787612059, -0.24163173482180953}, 400.0},
+        {1.2, {-0.5, 21.0}, {-0.44469171728658363, -0.074286939149452362}, 21.0},
+        {0.308, {-1.0, -25.0}, {0.53408592179114564, 0.42273736180288781}, 25.0},
+    };
+    for (const auto& c : secondKind)
+        check(c, modifiedBesselFunction_k, "K");
+
+    const ComplexCase secondKindWeighted[] = {
+        {0.308, {-9.2, -9.2}, {2.5603232953709337e+7, 2.2641443239009755e+7}, 25.7},
+        {1.2, {-20.0, -10.0}, {-4.8854205614946829e+16, 3.635723994733228e+16}, 44.3},
+        {20.0, {13.0, -2.0}, {6.2171222332487377e-7, -4.3718732512434067e-7}, 37.1},
+        {50.0, {13.0, 1.0}, {1.4550433440710404e+15, 5.5461048888249194e+15}, 64.7},
+        {50.0, {-13.0, 1.0}, {-1.1055925152138414e+27, 1.9277934491833467e+26}, 38.7},
+        {100.25, {0.0, 200.0}, {0.067977059261334292, 0.066749960509552204}, 373.0},
+        {300.0, {30.0, 30.0}, {-4.9381588564637506e+200, 4.4098134902144919e+199}, 332.0},
+        {-20.3, {20.0, -20.0}, {7.3130830143181977e-17, 1.866979870866165e-16}, 58.3},
+        {2.3, {-300.0, 50.0}, {1.5454667415971053e+259, -2.2010248821833865e+259}, 608.0},
+        {5.0, {0.1, 1.9}, {-17.548345212902575, 1.6330694875995621}, 5.01},
+        {170.5, {1.0, -13.0}, {-1.4725433138181354e+166, -1.3289723228858461e+166}, 172.0},
+        {-0.92, {0.001, 0.002}, {142.81503620017088, -232.83743118818394}, 0.921},
+        {0.25, {-2.0, 0.5}, {-37.818331617960427, -33.133123805661884}, 3.6},
+        {30.5, {21.0, -21.0}, {-4.4664688454948443e-15, 1.3638672336491452e-14}, 64.5},
+        {2.0, {-0.02, 2.1}, {0.99431074649556714, 0.47983858685134243}, 3.57},
+        {300.0, {-5.0, -500.0}, {430.94036406598567, 268.6465762063222}, 900.0},
+        {1.2, {-0.5, 21.0}, {0.29910784545371435, 0.68049810226956891}, 42.0},
+        {0.308, {-1.0, -25.0}, {1.5911122819435362, 0.94686252142259891}, 50.0},
+    };
+    for (const auto& c : secondKindWeighted)
+        check(c, modifiedBesselFunction_k_exponentiallyWeighted, "weighted K");
+
+    // Too large to hold: infinite, though not with the value's phase
+    BOOST_CHECK(std::isinf(std::abs(modifiedBesselFunction_i(0.5, std::complex<Real>(720.0, 1.0)))));
+    BOOST_CHECK(std::isinf(std::abs(modifiedBesselFunction_k(0.5, std::complex<Real>(-720.0, 1.0)))));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

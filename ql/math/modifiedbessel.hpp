@@ -32,8 +32,24 @@ namespace QuantLib
 
     /*  Compute modified Bessel functions I_nv(x) and K_nv(x)
 
-        Based on series expansion outlined in e.g.
-        http://www.mhtlab.uwaterloo.ca/courses/me755/web_chap4.pdf
+        I_nv comes from its power series while |z|^2 <= 4 (|nv| + 1), and
+        otherwise from the large-argument expansions (DLMF 10.40.2 and
+        10.40.5) where they converge cleanly.  Failing that, I_nv of a real
+        argument comes from Boost.Math, and a complex argument goes to
+        Thompson and Barnett's algorithm (J. Comput. Phys. 64, 490, 1986):
+        K at nv's distance from the nearest integer from Temme's series or
+        Steed's continued fraction, K's recurrence up to nv, and I_nv from
+        the continued fraction for I_nv+1 / I_nv and the Wronskian, all
+        scaled by exp(z) so that nothing overflows early.  K_nv of a complex
+        argument comes from the expansion or the same algorithm.  On the
+        left half-plane both come from their values at -z (DLMF 10.34.1
+        and 10.34.2), on the side of the cut that the sign of Im z gives.
+
+        Measured against mpmath at orders -50.5 to 300 and |z| from 1e-3
+        to 1000, the relative error is within 22 QL_EPSILON times the
+        condition number max(1, |z f'(z) / f(z)|), and within 6.1 times it
+        away from Thompson and Barnett's algorithm.  A real value too large
+        to hold is infinite, and a complex one has an infinite modulus.
 
         K_nv of a real argument comes from Boost.Math.  It's infinite at
         zero, and a negative argument needs the complex version.
