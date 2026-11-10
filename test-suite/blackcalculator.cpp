@@ -552,6 +552,75 @@ BOOST_AUTO_TEST_CASE(testBlackCalculatorZeroVolatilityLimit)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testBlackCalculatorVannaAndVolgaOfEveryPayoff)
+{
+    BOOST_TEST_MESSAGE("Testing BlackCalculator vanna and volga of every payoff...");
+
+    // #193: every payoff took the vanilla option's vanna and volga, and volga was the derivative of vega in the
+    // standard deviation, off by sqrt(T). The references differentiate the value numerically at 50 digits (mpmath),
+    // with the spot at 98, r 3 %, q 1 %, a volatility of 20 %, a strike of 105, a cash payoff of 10 and, for the gap
+    // option, a second strike of 95.
+    const Real spot = 98.0, r = 0.03, q = 0.01, vol = 0.20, strike = 105.0;
+
+    const auto payoff = [&](int kind, Option::Type type) -> ext::shared_ptr<StrikedTypePayoff>
+    {
+        switch (kind)
+        {
+            case 0:
+                return ext::make_shared<PlainVanillaPayoff>(type, strike);
+            case 1:
+                return ext::make_shared<CashOrNothingPayoff>(type, strike, 10.0);
+            case 2:
+                return ext::make_shared<AssetOrNothingPayoff>(type, strike);
+            default:
+                return ext::make_shared<GapPayoff>(type, strike, 95.0);
+        }
+    };
+
+    // The calls' values. A put's are the same for a vanilla or gap option, whose call less put is a forward, and the
+    // opposite for a digital one, whose call and put add up to a certain payment.
+    struct Reference
+    {
+        int kind;
+        Time maturity;
+        Real vanna, volga;
+    };
+    const Reference references[] = {
+        {0, 0.25, 1.1535272664931643054, 33.344444036573564081},
+        {0, 1.0, 0.67413685999881116858, 9.5771300398156322677},
+        {0, 2.0, 0.47656763695992381716, -2.5703642003370959040},
+        {0, 10.0, 0.17169004440697774126, -27.847008010781431753},
+        {1, 0.25, -0.94424049664847642690, -81.125966989411471049},
+        {1, 1.0, -0.88404569593266916028, -44.018921526154388396},
+        {1, 2.0, -0.66410109407338786254, -18.657998474950035381},
+        {1, 10.0, -0.25053287408792578972, 32.622599880157448719},
+        {2, 0.25, -8.7609979483158381771, -818.47820935224688193},
+        {2, 1.0, -8.6083429472942150144, -452.62154598480544589},
+        {2, 2.0, -6.4964938508106487395, -198.47934818731246741},
+        {2, 10.0, -2.4589051335162430508, 314.69029073087177980},
+        {3, 0.25, 0.20928676984468787846, -47.781522952837906968},
+        {3, 1.0, -0.20990883593385799170, -34.441791486338756128},
+        {3, 2.0, -0.18753345711346404538, -21.228362675287131285},
+        {3, 10.0, -0.078842829680948048458, 4.7755918693760169663},
+    };
+
+    for (const auto& reference : references)
+    {
+        for (Option::Type type : {Option::Call, Option::Put})
+        {
+            const Real sign = type == Option::Put && (reference.kind == 1 || reference.kind == 2) ? -1.0 : 1.0;
+            const Time t = reference.maturity;
+            const BlackCalculator calc(payoff(reference.kind, type), spot * std::exp((r - q) * t), vol * std::sqrt(t),
+                                       std::exp(-r * t));
+            BOOST_TEST_CONTEXT(payoff(reference.kind, type)->description() << ", T = " << t)
+            {
+                BOOST_CHECK_SMALL(calc.vanna(spot, t) / (sign * reference.vanna) - 1.0, 1.0e-12);
+                BOOST_CHECK_SMALL(calc.volga(t) / (sign * reference.volga) - 1.0, 1.0e-12);
+            }
+        }
+    }
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()
 

@@ -129,6 +129,9 @@ namespace QuantLib
         // super-share will be properly handled
         DxDs_ = 0.0;
 
+        // A vanilla option pays nothing at the strike.
+        jump_ = 0.0;
+
         // this part is always executed.
         // in case of plain-vanilla payoffs, it is also the only part
         // which is executed.
@@ -173,10 +176,12 @@ namespace QuantLib
             case Option::Call:
                 black_.beta_ = black_.cum_d2_;
                 black_.DbetaDd2_ = black_.n_d2_;
+                black_.jump_ = payoff.cashPayoff();
                 break;
             case Option::Put:
                 black_.beta_ = 1.0 - black_.cum_d2_;
                 black_.DbetaDd2_ = -black_.n_d2_;
+                black_.jump_ = -payoff.cashPayoff();
                 break;
             default:
                 QL_FAIL("invalid option type");
@@ -191,10 +196,12 @@ namespace QuantLib
             case Option::Call:
                 black_.alpha_ = black_.cum_d1_;
                 black_.DalphaDd1_ = black_.n_d1_;
+                black_.jump_ = black_.strike_;
                 break;
             case Option::Put:
                 black_.alpha_ = 1.0 - black_.cum_d1_;
                 black_.DalphaDd1_ = -black_.n_d1_;
+                black_.jump_ = -black_.strike_;
                 break;
             default:
                 QL_FAIL("invalid option type");
@@ -205,6 +212,7 @@ namespace QuantLib
     {
         black_.x_ = payoff.secondStrike();
         black_.DxDstrike_ = 0.0;
+        black_.jump_ = black_.strike_ - payoff.secondStrike();
     }
 
     Real BlackCalculator::value() const
@@ -454,12 +462,10 @@ namespace QuantLib
             return 0.0;
         }
 
-        // Calculate Vega
-        Real vega = this->vega(maturity);
-
-        // d2 = d1 - stdDev_
-        // Vanna = -d2 / (spot * stdDev_) * Vega
-        return -d2_ / (spot * stdDev_) * vega;
+        // Vega is -D sqrt(T) / s (F alpha' d2 + x beta' d1), and d1 and d2 move with the spot by 1 / (S s). Writing
+        // F alpha' + x beta' as jump_ n(d2) leaves a vanilla option's -d2 / (S s) vega exact.
+        const Real a = forward_ * DalphaDd1_, j = jump_ * n_d2_;
+        return -discount_ * std::sqrt(maturity) / (spot * stdDev_) * (a * d2_ + j * (1.0 - d1_ * d2_) / stdDev_);
     }
 
     //! Sensitivity of vega to volatility (Volga/Vomma)
@@ -472,10 +478,9 @@ namespace QuantLib
             return 0.0;
         }
 
-        // Calculate Vega
-        Real vega = this->vega(maturity);
-
-        // Volga = Vega * d1 * d2 / stdDev_
-        return vega * d1_ * d2_ / stdDev_;
+        // The derivative of vega in the volatility, so sqrt(T) times its derivative in s, in which d1 and d2 move by
+        // -d2 / s and -d1 / s. For a vanilla option it is vega d1 d2 / sigma.
+        const Real a = forward_ * DalphaDd1_, j = jump_ * n_d2_;
+        return discount_ * maturity / stdDev_ * (a * d1_ * d2_ - j * (d1_ * d1_ * d2_ - d1_ - d2_) / stdDev_);
     }
 }
