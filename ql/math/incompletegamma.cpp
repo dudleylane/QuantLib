@@ -18,35 +18,40 @@
 */
 
 /*
-    The implementation of the algorithm was inspired by
+    The series and the continued fraction were inspired by
     "Numerical Recipes in C", 2nd edition,
     Press, Teukolsky, Vetterling, Flannery, chapter 6
 */
 
 #include <ql/math/distributions/gammadistribution.hpp>
 #include <ql/math/incompletegamma.hpp>
+#include <boost/math/special_functions/gamma.hpp>
 
 namespace QuantLib
 {
 
 
-    Real incompleteGammaFunction(Real a, Real x, Real accuracy, Integer maxIteration)
+    // Boost's default policy works in long double. Its double-precision one is about as fast as the series and the
+    // continued fraction below, but already off by 7e-13 at a = 1e4.
+    Real incompleteGammaFunction(Real a, Real x, Real, Integer)
     {
 
         QL_REQUIRE(a > 0.0, "non-positive a is not allowed");
 
         QL_REQUIRE(x >= 0.0, "negative x non allowed");
 
-        if (x < (a + 1.0))
-        {
-            // Use the series representation
-            return incompleteGammaFunctionSeriesRepr(a, x, accuracy, maxIteration);
-        }
-        else
-        {
-            // Use the continued fraction representation
-            return 1.0 - incompleteGammaFunctionContinuedFractionRepr(a, x, accuracy, maxIteration);
-        }
+        return boost::math::gamma_p(a, x);
+    }
+
+
+    Real incompleteGammaFunctionComplement(Real a, Real x)
+    {
+
+        QL_REQUIRE(a > 0.0, "non-positive a is not allowed");
+
+        QL_REQUIRE(x >= 0.0, "negative x non allowed");
+
+        return boost::math::gamma_q(a, x);
     }
 
 

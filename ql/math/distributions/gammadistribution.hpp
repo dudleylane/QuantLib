@@ -31,6 +31,10 @@
 namespace QuantLib
 {
 
+    //! Cumulative gamma distribution function
+    /*! The distribution of shape \f$ a \f$ and unit scale: the regularized incomplete gamma function
+        \f$ P(a, x) \f$ (incompleteGammaFunction), and zero for \f$ x \le 0 \f$.
+    */
     class CumulativeGammaDistribution
     {
       public:

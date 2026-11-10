@@ -29,9 +29,11 @@
 #include <ql/math/distributions/bivariatenormaldistribution.hpp>
 #include <ql/math/distributions/bivariatestudenttdistribution.hpp>
 #include <ql/math/distributions/chisquaredistribution.hpp>
+#include <ql/math/distributions/gammadistribution.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/math/distributions/poissondistribution.hpp>
 #include <ql/math/errorfunction.hpp>
+#include <ql/math/incompletegamma.hpp>
 #include <ql/math/randomnumbers/stochasticcollocationinvcdf.hpp>
 #include <boost/math/distributions/non_central_chi_squared.hpp>
 #include <iomanip>
@@ -1153,6 +1155,80 @@ BOOST_AUTO_TEST_CASE(testInverseCumulativePoissonAtTheLimitsOfItsRange)
     BOOST_CHECK_SMALL(inverse(0.5) - 4294967294.0, 16.0);
     BOOST_CHECK_SMALL(inverse(1.0 - 1e-12) - 4295428314.0, 16.0);
     BOOST_CHECK_SMALL(inverse(std::nextafter(1.0, 0.0)) - 4295505325.0, 16.0);
+}
+
+BOOST_AUTO_TEST_CASE(testIncompleteGamma)
+{
+    BOOST_TEST_MESSAGE("Testing the incomplete gamma function and the gamma, chi-square and Poisson distributions...");
+
+    // P(a, x) and Q(a, x) to 20 digits, from their series and continued fraction at 60, with no limit on the terms,
+    // and mpmath's gammainc agreeing to 45. Near x = a the terms fall off only over about sqrt(a) of them.
+    struct Case
+    {
+        Real a, x, P, Q;
+    };
+    const Case cases[] = {
+        {0.25, 0.01, 0.34818645276048404784, 0.65181354723951595216},
+        {0.75, 0.9, 0.70798780163360632713, 0.29201219836639367287},
+        {0.96, 0.05, 0.055916475733923162263, 0.94408352426607683774},
+        {0.96, 1.0, 0.64941228738002895507, 0.35058771261997104493},
+        {0.96, 30.0, 0.99999999999992040058, 7.9599416462803605160e-14},
+        {10.0, 9.95, 0.53579935493576277049, 0.46420064506423722951},
+        {156.0, 155.844, 0.50566486700476579000, 0.49433513299523421000},
+        {1000.0, 900.0, 5.4990226571178292301e-4, 0.99945009773428821708},
+        {1000.0, 1000.0, 0.50420524418021550850, 0.49579475581978449150},
+        {10000.0, 9900.0, 0.15865119219356465696, 0.84134880780643534304},
+        {10000.0, 10100.0, 0.84134875044717962240, 0.15865124955282037760},
+    };
+
+    // Where a call throws, NaN fails the check.
+    const auto value = [](const auto& f)
+    {
+        try
+        {
+            return f();
+        }
+        catch (std::exception&)
+        {
+            return std::numeric_limits<Real>::quiet_NaN();
+        }
+    };
+
+    const Real tolerance = 1e-15;
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT("a = " << c.a << ", x = " << c.x)
+        {
+            BOOST_CHECK_SMALL(value([&] { return incompleteGammaFunction(c.a, c.x); }) / c.P - 1.0, tolerance);
+            BOOST_CHECK_SMALL(value([&] { return incompleteGammaFunctionComplement(c.a, c.x); }) / c.Q - 1.0,
+                              tolerance);
+            BOOST_CHECK_SMALL(value([&] { return CumulativeGammaDistribution(c.a)(c.x); }) / c.P - 1.0, tolerance);
+            BOOST_CHECK_SMALL(value([&] { return CumulativeChiSquareDistribution(2.0 * c.a)(2.0 * c.x); }) / c.P - 1.0,
+                              tolerance);
+        }
+    }
+
+    // At most k events: Q(k + 1, mean), also checked against the sum of the probabilities. Relative, as some are tiny.
+    struct PoissonCase
+    {
+        Real mean;
+        BigNatural k;
+        Real expected;
+    };
+    const PoissonCase poissonCases[] = {
+        {0.5, 3, 0.99824837744370917635},       {10.0, 2, 0.0027693957155115759437},
+        {10.0, 10, 0.58303975019298550730},     {50.0, 0, 1.9287498479639177830e-22},
+        {100.0, 20, 1.9055587420300119432e-22}, {100.0, 50, 2.4015922356168156169e-8},
+        {159.0, 159, 0.52107517974191856625},   {1000.0, 1000, 0.50840936716850599121},
+    };
+    for (const auto& c : poissonCases)
+    {
+        BOOST_TEST_CONTEXT("mean = " << c.mean << ", k = " << c.k)
+        {
+            BOOST_CHECK_SMALL(value([&] { return CumulativePoissonDistribution(c.mean)(c.k); }) / c.expected - 1.0,
+                              tolerance);
+        }
+    }
 }
 
 BOOST_AUTO_TEST_CASE(testNonCentralChiSquareLargeArguments)
