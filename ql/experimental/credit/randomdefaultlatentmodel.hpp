@@ -174,6 +174,9 @@ namespace QuantLib
         Probability probAtLeastNEvents(Size n, const Date& d) const override;
         /*! Order of results refers to the simulated (super)pool not the
         basket's pool.
+        Defaults are simulated to the day: where the nth default falls among
+        names defaulting on the same day, each takes an equal share of the
+        path, and the entries add up to probAtLeastNEvents(n, d).
         Notice that this statistic suffers from heavy dispersion. To see
         techniques to improve it (not implemented here) see:
         Joshi, M., D. Kainth. 2004. Rapid and accurate development of prices
@@ -278,25 +281,31 @@ namespace QuantLib
         Natural val = d.serialNumber() - today.serialNumber();
 
         std::vector<Probability> hitsByDate(basketSize, 0.);
+        // (day, name) of each default within the time horizon
+        std::vector<std::pair<Size, Size>> namesDefaulting;
         for (Size iSim = 0; iSim < nSims_; iSim++)
         {
             const std::vector<simEvent<D<C, URNG>>>& events = getSim(iSim);
-            std::map<unsigned short, unsigned short> namesDefaulting;
+            namesDefaulting.clear();
             for (Size iEvt = 0; iEvt < events.size(); iEvt++)
             {
-                // if event is within time horizon...
                 if (val > events[iEvt].dayFromRef)
-                    //...count it. notice insertion sorts by date.
-                    namesDefaulting.insert(
-                        std::make_pair<unsigned short, unsigned short>(events[iEvt].dayFromRef, events[iEvt].nameIdx));
+                    namesDefaulting.emplace_back(Size(events[iEvt].dayFromRef), Size(events[iEvt].nameIdx));
             }
             if (namesDefaulting.size() >= n)
             {
-                auto itdefs = namesDefaulting.begin();
-                // locate nth default in time:
-                std::advance(itdefs, n - 1);
-                // update statistic:
-                hitsByDate[itdefs->second]++;
+                std::sort(namesDefaulting.begin(), namesDefaulting.end());
+                /* The defaults are simulated to the day, so nothing orders
+                names defaulting on the same day: where the nth default falls
+                among them, each is the nth in an equal share of the orders. */
+                const Size day = namesDefaulting[n - 1].first;
+                Size first = n - 1, last = n;
+                while (first > 0 && namesDefaulting[first - 1].first == day)
+                    --first;
+                while (last < namesDefaulting.size() && namesDefaulting[last].first == day)
+                    ++last;
+                for (Size i = first; i < last; i++)
+                    hitsByDate[namesDefaulting[i].second] += 1. / Real(last - first);
             }
         }
         std::transform(hitsByDate.begin(), hitsByDate.end(), hitsByDate.begin(), [this](Real x) { return x / nSims_; });

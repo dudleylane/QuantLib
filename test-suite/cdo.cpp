@@ -1910,6 +1910,50 @@ BOOST_AUTO_TEST_CASE(testRandomLossModelsAfterADefault)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testRandomModelsNthDefaultOnTheSameDay)
+{
+    BOOST_TEST_MESSAGE("Testing the random models' nth default where names default on the same day...");
+
+    // Before #162 a path's defaults were kept in a map keyed by the day, so a second name
+    // defaulting on a day was dropped and every later default moved up a place. At a
+    // correlation of 0.9 the twenty names often default together: on RandomDefaultLM's paths
+    // the probabilities of each being the 20th to default added up to 0.0057, where twenty
+    // defaults have a probability of 0.0102. Every path with n defaults or more now counts once
+    // across the names, in equal shares where the nth falls on a day with others.
+    const NamesAroundADefault all(true, false, NamesAroundADefault::noName);
+    Settings::instance().evaluationDate() = all.afterTheDefault;
+    const Size names = NamesAroundADefault::poolSize;
+    const std::vector<std::vector<Real>> weights(names, std::vector<Real>(1, std::sqrt(0.9)));
+    const std::vector<std::vector<Real>> doubled(2 * names, std::vector<Real>(1, std::sqrt(0.9)));
+    const std::vector<std::pair<std::string, ext::shared_ptr<DefaultLossModel>>> models = {
+        {"random default", ext::make_shared<RandomDefaultLM<GaussianCopulaPolicy>>(
+                               ext::make_shared<GaussianConstantLossLM>(weights, all.recoveries,
+                                                                        LatentModelIntegrationType::GaussianQuadrature,
+                                                                        GaussianCopulaPolicy::initTraits()),
+                               20000)},
+        {"random loss", ext::make_shared<RandomLossLM<GaussianCopulaPolicy>>(
+                            ext::make_shared<GaussianSpotLossLM>(doubled, all.recoveries, 2.2,
+                                                                 LatentModelIntegrationType::GaussianQuadrature,
+                                                                 GaussianCopulaPolicy::initTraits()),
+                            20000, 1.0e-6, 2863311530UL)}};
+
+    for (const auto& model : models)
+    {
+        const auto basket = all.basket(0.0, 0.1);
+        basket->setLossModel(model.second);
+        for (Size n : {2, 5, 12, 20})
+        {
+            BOOST_TEST_CONTEXT(model.first << ", n = " << n)
+            {
+                const std::vector<Probability> nth = basket->probsBeingNthEvent(n, all.horizon);
+                BOOST_CHECK_SMALL(std::accumulate(nth.begin(), nth.end(), Real(0.0)) -
+                                      basket->probAtLeastNEvents(n, all.horizon),
+                                  1.0e-12);
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testBaseCorrelationAfterADefault)
 {
     BOOST_TEST_MESSAGE("Testing base correlation models on what a default leaves of a tranche...");
