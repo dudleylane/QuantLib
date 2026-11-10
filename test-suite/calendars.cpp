@@ -4265,6 +4265,30 @@ BOOST_AUTO_TEST_CASE(testSaudiArabiaNationalDayOffWeekends)
     BOOST_CHECK(c.isBusinessDay(Date(21, September, 2010)));
     BOOST_CHECK(c.isHoliday(Date(22, September, 2010)));
     BOOST_CHECK(c.isBusinessDay(Date(25, September, 2010)));
+    // on the Friday of 2005 and of 2011 it went to the Saturday after, by royal decree
+    BOOST_CHECK(c.isHoliday(Date(24, September, 2005)));
+    BOOST_CHECK(c.isBusinessDay(Date(25, September, 2005)));
+    BOOST_CHECK(c.isHoliday(Date(24, September, 2011)));
+
+    // it has been a public holiday since 2005, and the market traded on it before, on a Thursday in 2004
+    for (Year y : {2002, 2003, 2004})
+        BOOST_CHECK(c.isBusinessDay(Date(23, September, y)));
+}
+
+BOOST_AUTO_TEST_CASE(testSaudiArabiaThursdaySessions)
+{
+    BOOST_TEST_MESSAGE("Testing that Saudi Arabia's exchange held Thursday sessions from 1994 to 2006...");
+
+    const Calendar c = SaudiArabia();
+
+    // added from May 28th, 1994, by the CMA's history of the market...
+    BOOST_CHECK(c.isHoliday(Date(26, May, 1994)));
+    BOOST_CHECK(c.isBusinessDay(Date(2, June, 1994)));
+    BOOST_CHECK(c.isBusinessDay(Date(1, June, 2000)));
+    // ...and cancelled from June 15th, 2006, by its notice; Fridays stayed closed throughout
+    BOOST_CHECK(c.isBusinessDay(Date(8, June, 2006)));
+    BOOST_CHECK(c.isHoliday(Date(9, June, 2006)));
+    BOOST_CHECK(c.isHoliday(Date(15, June, 2006)));
 
     // extended by royal order
     BOOST_CHECK(c.isHoliday(Date(23, September, 2018)));
@@ -4817,6 +4841,48 @@ BOOST_AUTO_TEST_CASE(testSaudiArabiaAgainstDailySessionsFrom2008To2015)
     {
         const Weekday w = d.weekday();
         const bool weekend = d < Date(29, June, 2013) ? (w == Thursday || w == Friday) : (w == Friday || w == Saturday);
+        const bool closed = weekend || std::find(closures.begin(), closures.end(), d) != closures.end();
+        BOOST_CHECK_MESSAGE(c.isHoliday(d) == closed, d << (closed ? " had no session" : " had a session"));
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testSaudiArabiaAgainstDailySessionsFrom2002To2007)
+{
+    BOOST_TEST_MESSAGE("Testing Saudi Arabia's calendar against the sessions held from 2002 to 2007...");
+
+    const Calendar c = SaudiArabia();
+
+    // the days of the trading week with no trades in any of 199 shares, from the first day of the series, the only one
+    // found that reaches these years; besides the Eid holidays they are National Day from 2005, the Saturday after it
+    // in 2005, and the four Thursdays the market was suspended for the share split of 2006
+    const std::vector<Date> closures = {
+        Date(20, February, 2002),  Date(21, February, 2002),  Date(23, February, 2002), Date(24, February, 2002),
+        Date(25, February, 2002),  Date(4, December, 2002),   Date(5, December, 2002),  Date(7, December, 2002),
+        Date(8, December, 2002),   Date(9, December, 2002),   Date(6, February, 2003),  Date(8, February, 2003),
+        Date(9, February, 2003),   Date(10, February, 2003),  Date(11, February, 2003), Date(12, February, 2003),
+        Date(13, February, 2003),  Date(22, November, 2003),  Date(23, November, 2003), Date(24, November, 2003),
+        Date(25, November, 2003),  Date(26, November, 2003),  Date(27, November, 2003), Date(29, January, 2004),
+        Date(31, January, 2004),   Date(1, February, 2004),   Date(2, February, 2004),  Date(3, February, 2004),
+        Date(4, February, 2004),   Date(5, February, 2004),   Date(11, November, 2004), Date(13, November, 2004),
+        Date(14, November, 2004),  Date(15, November, 2004),  Date(16, November, 2004), Date(17, November, 2004),
+        Date(18, November, 2004),  Date(20, January, 2005),   Date(22, January, 2005),  Date(23, January, 2005),
+        Date(24, January, 2005),   Date(25, January, 2005),   Date(26, January, 2005),  Date(27, January, 2005),
+        Date(24, September, 2005), Date(1, November, 2005),   Date(2, November, 2005),  Date(3, November, 2005),
+        Date(5, November, 2005),   Date(6, November, 2005),   Date(7, November, 2005),  Date(9, January, 2006),
+        Date(10, January, 2006),   Date(11, January, 2006),   Date(12, January, 2006),  Date(14, January, 2006),
+        Date(15, January, 2006),   Date(30, March, 2006),     Date(6, April, 2006),     Date(13, April, 2006),
+        Date(20, April, 2006),     Date(23, September, 2006), Date(21, October, 2006),  Date(22, October, 2006),
+        Date(23, October, 2006),   Date(24, October, 2006),   Date(25, October, 2006),  Date(30, December, 2006),
+        Date(31, December, 2006),  Date(1, January, 2007),    Date(2, January, 2007),   Date(3, January, 2007),
+        Date(23, September, 2007), Date(13, October, 2007),   Date(14, October, 2007),  Date(15, October, 2007),
+        Date(16, October, 2007),   Date(17, October, 2007),   Date(18, December, 2007), Date(19, December, 2007),
+        Date(22, December, 2007),  Date(23, December, 2007),
+    };
+    for (Date d(31, December, 2001); d <= Date(31, December, 2007); ++d)
+    {
+        const Weekday w = d.weekday();
+        // Thursdays had a session until June 8th, 2006
+        const bool weekend = w == Friday || (w == Thursday && d >= Date(15, June, 2006));
         const bool closed = weekend || std::find(closures.begin(), closures.end(), d) != closures.end();
         BOOST_CHECK_MESSAGE(c.isHoliday(d) == closed, d << (closed ? " had no session" : " had a session"));
     }
