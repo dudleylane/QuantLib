@@ -46,12 +46,12 @@ namespace QuantLib
         <li>Election days: Knesset elections from 2003, and municipal ones from 2018</li>
         </ul>
         Other holidays for wich no rule is given
-        (data available for 2013-2044 only:)
+        (data available for 2000-2050 only:)
         <ul>
         <li>Purim, Adar 14th (between Feb 24th & Mar 26th)</li>
         <li>Passover I, Nisan 15th (between Mar 26th & Apr 25th)</li>
         <li>Passover VII, Nisan 21st (between Apr 1st & May 1st)</li>
-        <li>Memorial Day, Nisan 27th (between Apr 7th & May 7th)</li>
+        <li>Memorial Day, the day before Independence Day (between Apr 14th & May 14th)</li>
         <li>Indipendence Day, Iyar 5th (between Apr 15th & May 15th)</li>
         <li>Pentecost (Shavuot), Sivan 6th (between May 15th & June 14th)</li>
         <li>Fast Day</li>

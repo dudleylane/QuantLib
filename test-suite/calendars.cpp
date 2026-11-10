@@ -4760,6 +4760,45 @@ BOOST_AUTO_TEST_CASE(testIsraelElectionDays)
     BOOST_CHECK(tase.isBusinessDay(Date(31, October, 2023)));
 }
 
+BOOST_AUTO_TEST_CASE(testIsraelHolidaysOf2001And2038)
+{
+    BOOST_TEST_MESSAGE("Testing Israel's Tishrei holidays of 2001 and Independence Day of 2038...");
+
+    // Rosh Hashana 5762 fell on Tuesday, September 18th, 2001, and Yom Kippur, Sukkot and Simchat Torah follow from it.
+    // Iyar 5th, 5798 falls on Monday, May 10th, 2038, which moves Independence Day to the Tuesday and Memorial Day to
+    // the Monday. In 2001 TASE traded Sunday to Thursday, and in 2038 it trades Monday to Friday.
+    struct Expected
+    {
+        Israel::Market market;
+        std::vector<Date> closed, open;
+    };
+    const std::vector<Expected> expected = {
+        {Israel::TASE,
+         {Date(17, September, 2001), Date(18, September, 2001), Date(19, September, 2001), Date(26, September, 2001),
+          Date(27, September, 2001), Date(1, October, 2001), Date(2, October, 2001), Date(8, October, 2001),
+          Date(9, October, 2001), Date(10, May, 2038), Date(11, May, 2038)},
+         {Date(16, September, 2001), Date(25, September, 2001), Date(30, September, 2001), Date(7, October, 2001),
+          Date(7, May, 2038)}},
+        {Israel::Settlement,
+         {Date(18, September, 2001), Date(19, September, 2001), Date(26, September, 2001), Date(27, September, 2001),
+          Date(2, October, 2001), Date(9, October, 2001), Date(11, May, 2038)},
+         {Date(17, September, 2001), Date(25, September, 2001), Date(1, October, 2001), Date(8, October, 2001),
+          Date(10, May, 2038)}},
+        {Israel::SHIR,
+         {Date(17, September, 2001), Date(18, September, 2001), Date(19, September, 2001), Date(26, September, 2001),
+          Date(27, September, 2001), Date(2, October, 2001), Date(9, October, 2001), Date(11, May, 2038)},
+         {Date(25, September, 2001), Date(1, October, 2001), Date(8, October, 2001), Date(10, May, 2038)}},
+    };
+    for (const Expected& e : expected)
+    {
+        const Calendar c = Israel(e.market);
+        for (const Date& d : e.closed)
+            BOOST_CHECK_MESSAGE(c.isHoliday(d), d << " should be a holiday for " << c.name());
+        for (const Date& d : e.open)
+            BOOST_CHECK_MESSAGE(c.isBusinessDay(d), d << " should be a business day for " << c.name());
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testIsraelSettlementAgainstZahav)
 {
     BOOST_TEST_MESSAGE("Testing Israel's settlement calendar against the Bank of Israel's lists...");

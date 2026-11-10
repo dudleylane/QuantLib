@@ -75,7 +75,7 @@ namespace QuantLib
                 {29, April, 2020}, {15, April, 2021}, {5, May, 2022},    {26, April, 2023}, {14, May, 2024},
                 {1, May, 2025},    {22, April, 2026}, {12, May, 2027},   {2, May, 2028},    {19, April, 2029},
                 {8, May, 2030},    {29, April, 2031}, {15, April, 2032}, {4, May, 2033},    {25, April, 2034},
-                {15, May, 2035},   {1, May, 2036},    {21, April, 2037}, {10, May, 2038},   {28, April, 2039},
+                {15, May, 2035},   {1, May, 2036},    {21, April, 2037}, {11, May, 2038},   {28, April, 2039},
                 {18, April, 2040}, {7, May, 2041},    {24, April, 2042}, {14, May, 2043},   {3, May, 2044},
                 {20, April, 2045}, {10, May, 2046},   {1, May, 2047},    {16, April, 2048}, {6, May, 2049},
                 {27, April, 2050},
@@ -127,7 +127,7 @@ namespace QuantLib
         bool isNewYearsDay(const Date& d)
         {
             static std::set<Date> knownDates = {
-                {30, September, 2000}, {17, September, 2001}, {7, September, 2002},  {27, September, 2003},
+                {30, September, 2000}, {18, September, 2001}, {7, September, 2002},  {27, September, 2003},
                 {16, September, 2004}, {4, October, 2005},    {23, September, 2006}, {13, September, 2007},
                 {30, September, 2008}, {19, September, 2009}, {9, September, 2010},  {29, September, 2011},
                 {17, September, 2012}, {5, September, 2013},  {25, September, 2014}, {14, September, 2015},
