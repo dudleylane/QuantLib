@@ -1083,6 +1083,64 @@ BOOST_AUTO_TEST_CASE(testVolatilityWideAgainstCorridor)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testVannaVolgaVolatilityWideAgainstCorridor)
+{
+    BOOST_TEST_MESSAGE("Testing the Vanna/Volga double-barrier engine's no-touch probability with a volatility wide "
+                       "against the corridor...");
+
+    // The engine weights its smile adjustment by the probability of no touch at the ATM volatility, its "lambda"
+    // result.  It summed ten images of the spot in the barriers, and the ones it left out grow with
+    // vol sqrt(T) / ln(U/L): at three, it came out at 1.05e-3 where it's 7.05e-20 (#192).
+    const Date today(7, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Time t = 1.0;
+    const ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(today + 365);
+
+    // The expected probabilities, from a spot of 100 over a year, were computed at 50 digits from the eigenfunction
+    // expansion, and agree with the images summed to convergence.
+    const struct
+    {
+        Real lower, upper;
+        Rate rate, yield;
+        Volatility vol;
+        Real expected;
+    } cases[] = {
+        {80.0, 120.0, 0.05, 0.0, 0.10, 0.84709795307854111},    {80.0, 120.0, 0.05, 0.0, 0.20, 0.36957633485842937},
+        {95.0, 105.0, 0.05, 0.0, 0.10, 0.0083302228618299781},  {95.0, 105.0, 0.05, 0.0, 0.20, 3.4753710877833915e-9},
+        {95.0, 105.0, 0.05, 0.0, 0.30, 7.0505631931950004e-20}, {90.0, 110.0, 0.03, 0.01, 0.40, 3.8382603877726967e-9}};
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT("corridor " << c.lower << "-" << c.upper << ", rate " << c.rate << ", yield " << c.yield
+                                       << ", volatility " << c.vol)
+        {
+            // lambda depends on the ATM volatility only, so the smile is flat
+            const Handle<Quote> spot(ext::make_shared<SimpleQuote>(100.0)), vol(ext::make_shared<SimpleQuote>(c.vol));
+            const Handle<DeltaVolQuote> atm(
+                ext::make_shared<DeltaVolQuote>(vol, DeltaVolQuote::Fwd, t, DeltaVolQuote::AtmDeltaNeutral));
+            const Handle<DeltaVolQuote> put25(ext::make_shared<DeltaVolQuote>(-0.25, vol, t, DeltaVolQuote::Fwd));
+            const Handle<DeltaVolQuote> call25(ext::make_shared<DeltaVolQuote>(0.25, vol, t, DeltaVolQuote::Fwd));
+            const Handle<YieldTermStructure> rTS(flatRate(today, c.rate, dc)), qTS(flatRate(today, c.yield, dc));
+            const std::pair<std::string, ext::shared_ptr<PricingEngine>> engines[] = {
+                {"Ikeda-Kunitomo", ext::make_shared<VannaVolgaDoubleBarrierEngine<AnalyticDoubleBarrierEngine>>(
+                                       atm, put25, call25, spot, rTS, qTS)},
+                {"Suo-Wang", ext::make_shared<VannaVolgaDoubleBarrierEngine<SuoWangDoubleBarrierEngine>>(
+                                 atm, put25, call25, spot, rTS, qTS)}};
+            for (const auto& [name, e] : engines)
+            {
+                BOOST_TEST_CONTEXT(name)
+                {
+                    DoubleBarrierOption option(DoubleBarrier::KnockOut, c.lower, c.upper, 0.0,
+                                               ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0), exercise);
+                    option.setPricingEngine(e);
+                    BOOST_CHECK_CLOSE_FRACTION(option.result<Real>("lambda"), c.expected, 1.0e-12);
+                }
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

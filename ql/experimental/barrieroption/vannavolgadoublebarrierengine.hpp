@@ -28,6 +28,7 @@
 #include <ql/instruments/doublebarrieroption.hpp>
 #include <ql/math/matrix.hpp>
 #include <ql/pricingengines/barrier/analyticbarrierengine.hpp>
+#include <ql/pricingengines/barrier/analyticdoublebarrierbinaryengine.hpp>
 #include <ql/pricingengines/blackdeltacalculator.hpp>
 #include <ql/pricingengines/blackformula.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
@@ -42,7 +43,10 @@ namespace QuantLib
 
     //! Vanna Volga double-barrier option engine
 
-    /*!
+    /*! The smile adjustment is weighted by the probability of no touch at the ATM volatility, to the
+        quotes' maturity, which AnalyticDoubleBarrierBinaryEngine's sums give at any volatility.
+        \p series goes to the \p DoubleBarrierEngine.
+
         \ingroup barrierengines
     */
     template <class DoubleBarrierEngine>
@@ -319,30 +323,13 @@ namespace QuantLib
                 b[2] = volgaBarBS;
                 Array q = inverse(A) * b;
 
-                Real H = arguments_.barrier_hi;
-                Real L = arguments_.barrier_lo;
-                Real theta_tilt_minus =
-                    ((domesticTS_->zeroRate(T_, Continuous).rate() - foreignTS_->zeroRate(T_, Continuous).rate()) /
-                         atmVol_->value() -
-                     atmVol_->value() / 2.0) *
-                    std::sqrt(T_);
-                Real h = 1.0 / atmVol_->value() * std::log(H / x0Quote->value()) / std::sqrt(T_);
-                Real l = 1.0 / atmVol_->value() * std::log(L / x0Quote->value()) / std::sqrt(T_);
-                CumulativeNormalDistribution cnd;
-
-                Real doubleNoTouch = 0.0;
-                for (int j = -series_; j < series_; j++)
-                {
-                    Real e_minus = 2 * j * (h - l) - theta_tilt_minus;
-                    doubleNoTouch +=
-                        std::exp(-2.0 * j * theta_tilt_minus * (h - l)) * (cnd(h + e_minus) - cnd(l + e_minus)) -
-                        std::exp(-2.0 * j * theta_tilt_minus * (h - l) + 2.0 * theta_tilt_minus * h) *
-                            (cnd(h - 2.0 * h + e_minus) - cnd(l - 2.0 * h + e_minus));
-                }
-
-                Real p_survival = doubleNoTouch;
-
-                Real lambda = p_survival;
+                // The probability of no touch at the ATM volatility, to T_ as the rest of the adjustment is.  Images
+                // alone would need ever more terms, which cancel, as the volatility widens against the corridor.
+                const Real atmVolatility = atmVol_->value();
+                Real lambda = detail::doubleBarrierNoTouchProbability(
+                    x0Quote->value(), arguments_.barrier_lo, arguments_.barrier_hi,
+                    domesticTS_->zeroRate(T_, Continuous).rate() - foreignTS_->zeroRate(T_, Continuous).rate(), T_,
+                    atmVolatility * atmVolatility * T_);
                 Real adjust = q[0] * (priceAtmCallMkt - priceAtmCallBS) + q[1] * (price25CallMkt - price25CallBS) +
                               q[2] * (price25PutMkt - price25PutBS);
                 Real outPrice = priceBS + lambda * adjust; //
