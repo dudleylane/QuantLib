@@ -69,7 +69,7 @@ namespace QuantLib
         Time tenor_, resetTime_;
         Handle<Quote>& s0_;
         bool P1_;
-        Real logK_, phiRightLimit_, nuRightLimit_;
+        Real logK_, phiRightLimit_, nuLeftLimit_, nuRightLimit_;
         const AnalyticHestonForwardEuropeanEngine* const parent_;
         GaussLegendreIntegration innerIntegrator_;
 
@@ -81,16 +81,17 @@ namespace QuantLib
                         bool P1, // true for P1, false for P2
                         const AnalyticHestonForwardEuropeanEngine* const parent,
                         Real phiRightLimit,
+                        Real nuLeftLimit,
                         Real nuRightLimit)
         : tenor_(tenor), resetTime_(resetTime), s0_(s0), P1_(P1), logK_(logK), phiRightLimit_(phiRightLimit),
-          nuRightLimit_(nuRightLimit), parent_(parent), innerIntegrator_(128)
+          nuLeftLimit_(nuLeftLimit), nuRightLimit_(nuRightLimit), parent_(parent), innerIntegrator_(128)
         {
         }
         Real operator()(Real nu) const
         {
 
-            // Rescale nu to [-1, 1]
-            Real nuDash = nuRightLimit_ * (0.5 * nu + 0.5 + 1e-8);
+            // Rescale nu from [-1, 1] to [nuLeftLimit, nuRightLimit]
+            Real nuDash = nuLeftLimit_ + (nuRightLimit_ - nuLeftLimit_) * (0.5 * nu + 0.5 + 1e-8);
 
             // Calculate the chF from var(t) to expiry
             ext::shared_ptr<AnalyticHestonEngine> engine = parent_->forwardChF(s0_, nuDash);
@@ -163,6 +164,20 @@ namespace QuantLib
         Real nuRightLimit =
             std::max(2.0, 10.0 * (1 + std::max(0.0, rho_)) * sigma_ * std::sqrt(resetTime * std::max(v0_, theta_)));
 
+        // The variance at the reset is then integrated where its density is, from its mean and standard deviation,
+        // both in closed form for the square-root process that the propagator describes.  The range above is
+        // orders of magnitude wider than the density at short resets, which then falls between the nodes, and
+        // above a variance of 2 it can leave the density out.  So the range starts at the mean less 20 standard
+        // deviations, floored at zero, and ends at the mean plus 20.  Where the range above ends between 10 and 20
+        // standard deviations above the mean it keeps that end, since widening it would only make the rule coarser
+        // where the density is, and where it ends below 10 the range ends at 10.
+        Real e = std::exp(-kappaHat_ * resetTime);
+        Real meanVariance = v0_ * e + thetaHat_ * (1 - e);
+        Real stdDevVariance = std::sqrt(sigma_ * sigma_ * (1 - e) * (v0_ * e + 0.5 * thetaHat_ * (1 - e)) / kappaHat_);
+        Real nuLeftLimit = std::max(0.0, meanVariance - 20.0 * stdDevVariance);
+        nuRightLimit = std::min(meanVariance + 20.0 * stdDevVariance,
+                                std::max(nuRightLimit, meanVariance + 10.0 * stdDevVariance));
+
         // do the 2D integral calculation. For very short times, we just fall back on the standard
         // calculation, both for accuracy and because tStar==0 causes some numerical issues...
         std::pair<Real, Real> P1HatP2Hat;
@@ -173,8 +188,8 @@ namespace QuantLib
         }
         else
         {
-            P1HatP2Hat =
-                calculateP1P2Hat(tenor, resetTime, moneyness, expiryRatio / resetRatio, phiRightLimit, nuRightLimit);
+            P1HatP2Hat = calculateP1P2Hat(tenor, resetTime, moneyness, expiryRatio / resetRatio, phiRightLimit,
+                                          nuLeftLimit, nuRightLimit);
         }
 
         // Apply the payoff functions
@@ -207,12 +222,18 @@ namespace QuantLib
         results_.additionalResults["P1Hat"] = P1HatP2Hat.first;
         results_.additionalResults["P2Hat"] = P1HatP2Hat.second;
         results_.additionalResults["phiRightLimit"] = phiRightLimit;
+        results_.additionalResults["nuLeftLimit"] = nuLeftLimit;
         results_.additionalResults["nuRightLimit"] = nuRightLimit;
     }
 
 
-    std::pair<Real, Real> AnalyticHestonForwardEuropeanEngine::calculateP1P2Hat(
-        Time tenor, Time resetTime, Real moneyness, Real ratio, Real phiRightLimit, Real nuRightLimit) const
+    std::pair<Real, Real> AnalyticHestonForwardEuropeanEngine::calculateP1P2Hat(Time tenor,
+                                                                                Time resetTime,
+                                                                                Real moneyness,
+                                                                                Real ratio,
+                                                                                Real phiRightLimit,
+                                                                                Real nuLeftLimit,
+                                                                                Real nuRightLimit) const
     {
 
         Handle<Quote> unitQuote(ext::shared_ptr<Quote>(new SimpleQuote(1.0)));
@@ -222,12 +243,12 @@ namespace QuantLib
         Real logMoneyness = std::log(moneyness * ratio);
 
         P12HatIntegrand p1HatIntegrand(tenor, resetTime, unitQuote, logMoneyness, true, this, phiRightLimit,
-                                       nuRightLimit);
+                                       nuLeftLimit, nuRightLimit);
         P12HatIntegrand p2HatIntegrand(tenor, resetTime, unitQuote, logMoneyness, false, this, phiRightLimit,
-                                       nuRightLimit);
+                                       nuLeftLimit, nuRightLimit);
 
-        Real p1HatIntegral = 0.5 * nuRightLimit * outerIntegrator_(p1HatIntegrand);
-        Real p2HatIntegral = 0.5 * nuRightLimit * outerIntegrator_(p2HatIntegrand);
+        Real p1HatIntegral = 0.5 * (nuRightLimit - nuLeftLimit) * outerIntegrator_(p1HatIntegrand);
+        Real p2HatIntegral = 0.5 * (nuRightLimit - nuLeftLimit) * outerIntegrator_(p2HatIntegrand);
 
         std::pair<Real, Real> P1HatP2Hat(p1HatIntegral, p2HatIntegral);
 
@@ -237,17 +258,22 @@ namespace QuantLib
 
     Real AnalyticHestonForwardEuropeanEngine::propagator(Time resetTime, Real varReset) const
     {
-        Real B, Lambda, term1, term2, term3;
+        Real B = 4 * kappaHat_ / (sigma_ * sigma_ * (1 - std::exp(-kappaHat_ * resetTime)));
+        Real Lambda = B * std::exp(-kappaHat_ * resetTime) * v0_;
+        Real x = B * varReset;
+        Real nu = R_ / 2 - 1;
 
-        B = 4 * kappaHat_ / (sigma_ * sigma_ * (1 - std::exp(-kappaHat_ * resetTime)));
-        Lambda = B * std::exp(-kappaHat_ * resetTime) * v0_;
-
-        // Now construct equation (18) from the paper term-by-term
-        term1 = std::exp(-0.5 * (B * varReset + Lambda)) * B / 2;
-        term2 = std::pow(B * varReset / Lambda, 0.5 * (R_ / 2 - 1));
-        term3 = modifiedBesselFunction_i(Real(R_ / 2 - 1), Real(std::sqrt(Lambda * B * varReset)));
-
-        return term1 * term2 * term3;
+        // Equation (18) from the paper: B times the density of x = B v, noncentral chi-squared with R degrees of
+        // freedom and noncentrality Lambda,
+        //     exp(-(x + Lambda) / 2) B / 2 * (x / Lambda)^(nu / 2) * I_nu(sqrt(Lambda x)).
+        // The exponential underflows where the Bessel function overflows, at short resets near the density's peak
+        // too, so it's taken in logs and with the exponentially weighted Bessel function, as
+        //     exp(-(x + Lambda) / 2) I_nu(z) = exp(-(sqrt(x) - sqrt(Lambda))^2 / 2) e^-z I_nu(z),  z = sqrt(Lambda x).
+        // A power of zero is kept at zero, so that the density at v = 0 stays finite at R = 2.
+        Real d = std::sqrt(x) - std::sqrt(Lambda);
+        Real power = nu == 0.0 ? 0.0 : 0.5 * nu * std::log(x / Lambda);
+        return std::exp(std::log(0.5 * B) - 0.5 * d * d + power +
+                        std::log(modifiedBesselFunction_i_exponentiallyWeighted(nu, std::sqrt(Lambda * x))));
     }
 
     ext::shared_ptr<AnalyticHestonEngine> AnalyticHestonForwardEuropeanEngine::forwardChF(Handle<Quote>& spotReset,

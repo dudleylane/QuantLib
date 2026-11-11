@@ -34,6 +34,7 @@
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/utilities/dataformatters.hpp>
 #include <map>
 
@@ -811,6 +812,64 @@ BOOST_AUTO_TEST_CASE(testHestonAnalyticalVsMCPrices, *precondition(if_speed(Fast
                 REPORT_FAILURE("testHestonMCControlVariateVsAnalyticPrices", payoff, exercise, s, q, r, today, vol, m,
                                reset, analyticPrice, mcPrice, errorCv, tolerance);
             }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testHestonAnalyticShortResets, *precondition(if_speed(Fast)))
+{
+    BOOST_TEST_MESSAGE("Testing the analytic Heston forward-start engine at resets within days...");
+
+    // Forward-start options with a year to expiry.  The expected values are
+    //     S0 e^{-qt} \int p(v) h(v) dv,
+    // with p the density of the variance at the reset under the share measure, from Boost's noncentral
+    // chi-squared distribution, and h the Heston price at the reset with that variance, from
+    // AnalyticHestonEngine, integrated by adaptive Gauss-Kronrod.  The engine maps its inner integral's
+    // nodes with an extra 1e-8, which leaves it 9e-7 to 3e-6 below them, and 6.5e-5 at the last row; without
+    // that it agrees to 4e-14.  It priced all but the last row at NaN, and its outer integral, on a range of
+    // at least [0, 2], put the density between its nodes at the shortest resets: with the density finite, a
+    // day's reset priced up to 64 % high (#202).  At the last row the variance is above 2, and the old range
+    // left most of the density out: 77.5 % low.
+    const DayCounter dc = Actual365Fixed();
+    const Date today(15, May, 2026);
+    Settings::instance().evaluationDate() = today;
+    const Handle<Quote> spot(ext::make_shared<SimpleQuote>(100.0));
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.005, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.03, dc));
+    const auto exercise = ext::make_shared<EuropeanExercise>(today + 1 * Years);
+
+    const struct
+    {
+        Real v0, kappa, theta, sigma, rho;
+        Integer days;
+        Real moneyness;
+        Option::Type type;
+        Real expected, tolerance;
+    } cases[] = {
+        {0.04, 2.0, 0.04, 0.2, -0.7, 1, 1.0, Option::Call, 6.37672584286359, 1.0e-5},
+        {0.04, 2.0, 0.04, 0.2, -0.7, 3, 1.0, Option::Call, 6.36015556997376, 1.0e-5},
+        {0.04, 2.0, 0.04, 0.2, -0.7, 3, 1.0, Option::Put, 8.79640677290727, 1.0e-5},
+        {0.04, 2.0, 0.04, 0.2, -0.7, 3, 0.8, Option::Call, 19.2453373103248, 1.0e-5},
+        {0.04, 2.0, 0.04, 0.2, -0.7, 3, 1.2, Option::Call, 1.07750216474642, 1.0e-5},
+        {0.04, 2.0, 0.04, 0.11, -0.7, 1, 1.0, Option::Call, 6.52586851216565, 1.0e-5},
+        {0.04, 2.0, 0.04, 0.11, -0.7, 14, 1.0, Option::Call, 6.42099974973167, 1.0e-5},
+        {0.04, 2.0, 0.04, 0.11, -0.7, 14, 1.0, Option::Put, 8.78232788954574, 1.0e-5},
+        {0.04, 2.0, 0.04, 0.11, -0.7, 30, 1.0, Option::Call, 6.28913326811781, 1.0e-5},
+        {0.09, 11.35, 0.022, 0.618, -0.5, 1, 1.0, Option::Call, 5.17099230135497, 1.0e-5},
+        {2.25, 2.0, 2.25, 1.0, -0.5, 7, 1.0, Option::Call, 50.1241177524065, 5.0e-4},
+    };
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT("v0 " << c.v0 << ", sigma " << c.sigma << ", reset in " << c.days << " days, " << c.type
+                                 << " at " << c.moneyness)
+        {
+            const auto process =
+                ext::make_shared<HestonProcess>(rTS, qTS, spot, c.v0, c.kappa, c.theta, c.sigma, c.rho);
+            ForwardVanillaOption option(c.moneyness, today + c.days, ext::make_shared<PlainVanillaPayoff>(c.type, 0.0),
+                                        exercise);
+            option.setPricingEngine(ext::make_shared<AnalyticHestonForwardEuropeanEngine>(process));
+            BOOST_CHECK_SMALL(option.NPV() - c.expected, c.tolerance);
         }
     }
 }
