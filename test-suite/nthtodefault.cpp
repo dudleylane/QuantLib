@@ -34,6 +34,7 @@
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
 #include <ql/time/daycounters/actualactual.hpp>
+#include <cmath>
 #include <iostream>
 #include <string>
 
@@ -382,6 +383,9 @@ struct EightNames
     std::vector<Real> recoveries = std::vector<Real>(8, 0.4);
     Real correlation = 0.3;
     LatentModelIntegrationType::LatentModelIntegrationType integration = LatentModelIntegrationType::GaussianQuadrature;
+    Date curveDate = inception();
+    // on that many paths of RandomDefaultLM over the latent model, or on ConstantLossModel if none
+    Size paths = 0;
 };
 
 ext::shared_ptr<Basket> eightNames(const EightNames& spec = {})
@@ -400,7 +404,7 @@ ext::shared_ptr<Basket> eightNames(const EightNames& spec = {})
         std::vector<std::pair<DefaultProbKey, Handle<DefaultProbabilityTermStructure>>> probabilities;
         probabilities.emplace_back(
             curveKey, Handle<DefaultProbabilityTermStructure>(ext::make_shared<FlatHazardRate>(
-                          inception(), makeQuoteHandle(spec.hazards[i]), ActualActual(ActualActual::ISDA))));
+                          spec.curveDate, makeQuoteHandle(spec.hazards[i]), ActualActual(ActualActual::ISDA))));
         DefaultEventSet events;
         if (i == spec.which && spec.oneName == OneName::defaulted)
             events.insert(ext::make_shared<FailureToPayEvent>(Date(15, September, 2006), EURCurrency(), SeniorSec, 10.0,
@@ -409,9 +413,13 @@ ext::shared_ptr<Basket> eightNames(const EightNames& spec = {})
     }
     const auto basket =
         ext::make_shared<Basket>(inception(), names, std::vector<Real>(names.size(), 100.0), pool, 0.0, 1.0);
-    basket->setLossModel(ext::make_shared<ConstantLossModel<GaussianCopulaPolicy>>(
+    const auto latentModel = ext::make_shared<ConstantLossModel<GaussianCopulaPolicy>>(
         makeQuoteHandle(spec.correlation), recoveries, spec.integration, names.size(),
-        GaussianCopulaPolicy::initTraits()));
+        GaussianCopulaPolicy::initTraits());
+    if (spec.paths == 0)
+        basket->setLossModel(latentModel);
+    else
+        basket->setLossModel(ext::make_shared<RandomDefaultLM<GaussianCopulaPolicy>>(latentModel, spec.paths));
     return basket;
 }
 
@@ -773,6 +781,75 @@ BOOST_AUTO_TEST_CASE(testRecoveriesThatDifferWithoutVectorIntegration)
     const auto basket =
         eightNames({.recoveries = risingRecoveries(), .integration = LatentModelIntegrationType::Trapezoid});
     BOOST_CHECK_THROW(nthToDefault(basket, 1, 0.0, 100.0, flatCurveFrom(inception()))->NPV(), Error);
+}
+
+BOOST_AUTO_TEST_CASE(testRandomDefaultModelUpToToday)
+{
+    BOOST_TEST_MESSAGE("Testing the random default model's nth-default statistics up to today...");
+
+    // On or before today no name left has defaulted on the model's paths, so the probability of
+    // at least n defaults is 1 up to the defaults so far and 0 above, and each name's of being
+    // the nth is 0. Before #207 the model threw at any of these dates ("Date for statistic must
+    // be in the future.") and gave these values only from the day after today. A rank above the
+    // basket's eight names still throws.
+    const Date today(1, November, 2006);
+    Settings::instance().evaluationDate() = today;
+    for (OneName oneName : {OneName::alive, OneName::defaulted})
+    {
+        const auto basket = eightNames({.oneName = oneName, .curveDate = today, .paths = 2000});
+        const Size soFar = oneName == OneName::defaulted ? 1 : 0;
+        for (const Date& d : {today, today - 1 * Days, inception()})
+        {
+            for (Size n = 1; n <= 8; ++n)
+            {
+                BOOST_TEST_CONTEXT(soFar << " defaults so far, at " << d << ", n = " << n)
+                {
+                    BOOST_CHECK_EQUAL(basket->probAtLeastNEvents(n, d), n <= soFar ? 1.0 : 0.0);
+                    const std::vector<Probability> nth = basket->probsBeingNthEvent(n, d);
+                    // after a default its length depends on n (#233)
+                    if (soFar == 0)
+                        BOOST_CHECK_EQUAL(nth.size(), 8U);
+                    for (Probability p : nth)
+                        BOOST_CHECK_EQUAL(p, 0.0);
+                }
+            }
+            if (soFar == 0)
+                BOOST_CHECK_THROW(basket->probsBeingNthEvent(9, d), Error);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testRandomDefaultModelInsideACoupon)
+{
+    BOOST_TEST_MESSAGE("Testing an nth to default on the random default model inside a coupon...");
+
+    // Inside a coupon the engine asks for the probability of the nth default at the coupon's start
+    // or at the discount curve's reference date, whichever is later: today, on a curve as of
+    // today. Before #207 the random default model threw there, so an nth to default priced on it
+    // only on a coupon's first day. Its paths count each default's day from its curve's date, and
+    // its statistics from today (#232), so the default curves here start today, where it gives
+    // ConstantLossModel's values within its Monte Carlo error. Each path's protection lies between
+    // -60 and 0, and its premium between 0 and the coupons' sum, 10.14, so on 20,000 paths their
+    // standard errors are at most 0.212 and 0.036; the checks allow three of them.
+    const Date today(1, November, 2006);
+    Settings::instance().evaluationDate() = today;
+    const auto curve = flatCurveFrom(today);
+    const Size paths = 20000;
+    const auto random = eightNames({.curveDate = today, .paths = paths});
+    const auto latent = eightNames({.curveDate = today});
+    const Real coupons = 0.02 * 100.0 * Actual360().yearFraction(Date(1, September, 2006), Date(1, September, 2011));
+    for (Size rank = 1; rank <= 3; ++rank)
+    {
+        BOOST_TEST_CONTEXT("rank " << rank)
+        {
+            const auto priced = nthToDefault(random, rank, 0.0, 100.0, curve);
+            const auto reference = nthToDefault(latent, rank, 0.0, 100.0, curve);
+            BOOST_CHECK_SMALL(priced->protectionLegNPV() - reference->protectionLegNPV(),
+                              3.0 * 60.0 / (2.0 * std::sqrt(Real(paths))));
+            BOOST_CHECK_SMALL(priced->premiumLegNPV() - reference->premiumLegNPV(),
+                              3.0 * coupons / (2.0 * std::sqrt(Real(paths))));
+        }
+    }
 }
 
 #endif

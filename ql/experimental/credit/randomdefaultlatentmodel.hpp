@@ -278,13 +278,18 @@ namespace QuantLib
         //@{
         /*! Returns the probaility of having a given or larger number of
         defaults in the basket portfolio at a given time.
+
+        For n > 0 it's 0 on or before today, as the statistics count the
+        days of the paths' defaults from today (#207). The paths draw them
+        from each default curve's reference date (#232).
         */
         Probability probAtLeastNEvents(Size n, const Date& d) const override;
         /*! Order of results refers to the simulated (super)pool not the
         basket's pool.
         Defaults are simulated to the day: where the nth default falls among
         names defaulting on the same day, each takes an equal share of the
-        path, and the entries add up to probAtLeastNEvents(n, d).
+        path, and the entries add up to probAtLeastNEvents(n, d), so they're
+        all 0 on or before today.
         Notice that this statistic suffers from heavy dispersion. To see
         techniques to improve it (not implemented here) see:
         Joshi, M., D. Kainth. 2004. Rapid and accurate development of prices
@@ -358,12 +363,13 @@ namespace QuantLib
         calculate();
         Date today = Settings::instance().evaluationDate();
 
-        QL_REQUIRE(d > today, "Date for statistic must be in the future.");
-        // casted to natural to avoid warning, we have just checked the sign
-        Natural val = d.serialNumber() - today.serialNumber();
-
         if (n == 0)
             return 1.;
+        // the statistics read the paths' days as from today (#232): no default by it (#207)
+        if (d <= today)
+            return 0.;
+        // casted to natural to avoid warning, d being after today
+        Natural val = d.serialNumber() - today.serialNumber();
 
         Real counts = 0.;
         for (Size iSim = 0; iSim < nSims_; iSim++)
@@ -390,8 +396,10 @@ namespace QuantLib
         QL_REQUIRE(n > 0 && n <= basketSize, "Impossible number of defaults.");
         Date today = Settings::instance().evaluationDate();
 
-        QL_REQUIRE(d > today, "Date for statistic must be in the future.");
-        // casted to natural to avoid warning, we have just checked the sign
+        // the statistics read the paths' days as from today (#232): no default by it (#207)
+        if (d <= today)
+            return std::vector<Probability>(basketSize, 0.);
+        // casted to natural to avoid warning, d being after today
         Natural val = d.serialNumber() - today.serialNumber();
 
         std::vector<Probability> hitsByDate(basketSize, 0.);
