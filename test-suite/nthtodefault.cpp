@@ -350,9 +350,10 @@ BOOST_AUTO_TEST_CASE(testStudent, *precondition(if_speed(Slow)))
     // END
 }
 
-// Eight names of 100 from 31 August 2006, with flat hazard rates of 1 % + 0.5 % i, recoveries of 40 % and a
-// correlation of 0.3. The fourth failed to pay on 15 September 2006, or isn't in the basket.
-enum class FourthName
+// Eight names of 100 from 31 August 2006, with flat hazard rates, recoveries and a correlation: by
+// default 1 % + 0.5 % i, 40 % and 0.3. One of them, the fourth by default, failed to pay on
+// 15 September 2006, or isn't in the basket.
+enum class OneName
 {
     alive,
     defaulted,
@@ -365,24 +366,43 @@ Date inception()
     return {31, August, 2006};
 }
 
-ext::shared_ptr<Basket> eightNames(FourthName fourthName)
+std::vector<Real> risingHazards()
 {
-    const Size fourth = 3;
+    std::vector<Real> hazards;
+    for (Size i = 0; i < 8; ++i)
+        hazards.push_back(0.01 + 0.005 * i);
+    return hazards;
+}
+
+struct EightNames
+{
+    OneName oneName = OneName::alive;
+    Size which = 3;
+    std::vector<Real> hazards = risingHazards();
+    std::vector<Real> recoveries = std::vector<Real>(8, 0.4);
+    Real correlation = 0.3;
+    LatentModelIntegrationType::LatentModelIntegrationType integration = LatentModelIntegrationType::GaussianQuadrature;
+};
+
+ext::shared_ptr<Basket> eightNames(const EightNames& spec = {})
+{
     const NorthAmericaCorpDefaultKey curveKey(EURCurrency(), SeniorSec, Period(0, Weeks), 10.);
     const NorthAmericaCorpDefaultKey poolKey(EURCurrency(), SeniorSec, Period(), 1.);
     const auto pool = ext::make_shared<Pool>();
     std::vector<std::string> names;
+    std::vector<Real> recoveries;
     for (Size i = 0; i < 8; ++i)
     {
-        if (i == fourth && fourthName == FourthName::gone)
+        if (i == spec.which && spec.oneName == OneName::gone)
             continue;
         names.push_back("issuer-" + std::to_string(i));
+        recoveries.push_back(spec.recoveries[i]);
         std::vector<std::pair<DefaultProbKey, Handle<DefaultProbabilityTermStructure>>> probabilities;
         probabilities.emplace_back(
             curveKey, Handle<DefaultProbabilityTermStructure>(ext::make_shared<FlatHazardRate>(
-                          inception(), makeQuoteHandle(0.01 + 0.005 * i), ActualActual(ActualActual::ISDA))));
+                          inception(), makeQuoteHandle(spec.hazards[i]), ActualActual(ActualActual::ISDA))));
         DefaultEventSet events;
-        if (i == fourth && fourthName == FourthName::defaulted)
+        if (i == spec.which && spec.oneName == OneName::defaulted)
             events.insert(ext::make_shared<FailureToPayEvent>(Date(15, September, 2006), EURCurrency(), SeniorSec, 10.0,
                                                               Date(20, September, 2006), 0.4));
         pool->add(names.back(), Issuer(probabilities, events), poolKey);
@@ -390,18 +410,19 @@ ext::shared_ptr<Basket> eightNames(FourthName fourthName)
     const auto basket =
         ext::make_shared<Basket>(inception(), names, std::vector<Real>(names.size(), 100.0), pool, 0.0, 1.0);
     basket->setLossModel(ext::make_shared<ConstantLossModel<GaussianCopulaPolicy>>(
-        makeQuoteHandle(0.3), std::vector<Real>(names.size(), 0.4), LatentModelIntegrationType::GaussianQuadrature,
-        names.size(), GaussianCopulaPolicy::initTraits()));
+        makeQuoteHandle(spec.correlation), recoveries, spec.integration, names.size(),
+        GaussianCopulaPolicy::initTraits()));
     return basket;
 }
 
 // Protection sold on the nth default, for 2 % a year paid quarterly from 1 September 2006 to 1 September 2011, and
-// valued on a flat 5 % curve.
+// valued on a flat 5 % curve, integrated in steps of three months unless given.
 ext::shared_ptr<NthToDefault> nthToDefault(const ext::shared_ptr<Basket>& basket,
                                            Size rank,
                                            Rate upfront,
                                            Real nominal,
-                                           const Handle<YieldTermStructure>& discountCurve)
+                                           const Handle<YieldTermStructure>& discountCurve,
+                                           const Period& step = 3 * Months)
 {
     const Schedule schedule = MakeSchedule()
                                   .from(Date(1, September, 2006))
@@ -412,7 +433,7 @@ ext::shared_ptr<NthToDefault> nthToDefault(const ext::shared_ptr<Basket>& basket
                                   .withRule(DateGeneration::Backward);
     auto contract = ext::make_shared<NthToDefault>(basket, rank, Protection::Seller, schedule, upfront, 0.02,
                                                    Actual360(), nominal, true);
-    contract->setPricingEngine(ext::make_shared<IntegralNtdEngine>(3 * Months, discountCurve));
+    contract->setPricingEngine(ext::make_shared<IntegralNtdEngine>(step, discountCurve));
     return contract;
 }
 
@@ -435,8 +456,8 @@ BOOST_AUTO_TEST_CASE(testAfterADefault)
     const Date horizon(1, September, 2011);
     Settings::instance().evaluationDate() = today;
 
-    const auto all = eightNames(FourthName::defaulted);
-    const auto left = eightNames(FourthName::gone);
+    const auto all = eightNames({.oneName = OneName::defaulted});
+    const auto left = eightNames({.oneName = OneName::gone});
     BOOST_REQUIRE_EQUAL(all->remainingSize(), left->remainingSize());
 
     BOOST_CHECK_EQUAL(all->probAtLeastNEvents(1, horizon), 1.0);
@@ -486,7 +507,7 @@ BOOST_AUTO_TEST_CASE(testUpfront)
     const Date insideTheFirstCoupon(1, November, 2006);
     const Date afterTheFirstPayment(4, December, 2006);
     const Rate upfront = 0.01;
-    const auto basket = eightNames(FourthName::alive);
+    const auto basket = eightNames();
 
     struct Valuation
     {
@@ -529,6 +550,229 @@ BOOST_AUTO_TEST_CASE(testUpfront)
         nthToDefault(basket, 1, 0.0, 100.0, fromInception)->premiumLegNPV() /
             fromInception->discount(insideTheFirstCoupon),
         1.0e-12);
+}
+
+// Recoveries of 20 % + 5 % i, by name.
+std::vector<Real> risingRecoveries()
+{
+    std::vector<Real> recoveries;
+    for (Size i = 0; i < 8; ++i)
+        recoveries.push_back(0.2 + 0.05 * i);
+    return recoveries;
+}
+
+BOOST_AUTO_TEST_CASE(testNamesAlikeButForTheirRecoveries)
+{
+    BOOST_TEST_MESSAGE("Testing an nth to default on names alike but for their recoveries...");
+
+    // With the same hazard rate each name is as likely as any other to be the nth default, so the
+    // protection is the one at their mean recovery, 37.5 % here, whatever the rank and the
+    // correlation. Before #208 the engine paid every trigger at the first name's recovery, 20 %,
+    // so the protection was 28 % high. The premium, and its accrual on default, don't depend on
+    // the recoveries.
+    Settings::instance().evaluationDate() = inception();
+    const auto curve = flatCurveFrom(inception());
+    const std::vector<Real> hazards(8, 0.02);
+    for (Real correlation : {0.0, 0.3})
+    {
+        const auto differing =
+            eightNames({.hazards = hazards, .recoveries = risingRecoveries(), .correlation = correlation});
+        const auto atTheMean =
+            eightNames({.hazards = hazards, .recoveries = std::vector<Real>(8, 0.375), .correlation = correlation});
+        for (Size rank : {1, 2, 3, 8})
+        {
+            BOOST_TEST_CONTEXT("correlation " << correlation << ", rank " << rank)
+            {
+                const auto priced = nthToDefault(differing, rank, 0.0, 100.0, curve);
+                const auto reference = nthToDefault(atTheMean, rank, 0.0, 100.0, curve);
+                BOOST_CHECK_CLOSE_FRACTION(priced->protectionLegNPV(), reference->protectionLegNPV(), 1.0e-12);
+                BOOST_CHECK_EQUAL(priced->premiumLegNPV(), reference->premiumLegNPV());
+                BOOST_CHECK_SMALL((priced->NPV() - priced->premiumLegNPV() - priced->protectionLegNPV()) -
+                                      (reference->NPV() - reference->premiumLegNPV() - reference->protectionLegNPV()),
+                                  1.0e-12);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testFirstToDefaultWithoutCorrelation)
+{
+    BOOST_TEST_MESSAGE("Testing a first to default on uncorrelated names whose recoveries differ...");
+
+    // Without correlation, on flat hazard rates, a name is the first to default with a probability
+    // in proportion to its hazard rate, whenever the first default comes. So the protection is the
+    // one on a loss of the whole notional, times each name's loss in proportion to its hazard rate:
+    // 0.6 here, against the first name's 0.8 the engine paid before #208. The engine splits each
+    // step's probability of the first default among the names by their probabilities at the step's
+    // two ends, which is exact to second order in the step.
+    Settings::instance().evaluationDate() = inception();
+    const auto curve = flatCurveFrom(inception());
+    const std::vector<Real> hazards = risingHazards(), recoveries = risingRecoveries();
+    Real sumOfHazards = 0.0, loss = 0.0;
+    for (Real h : hazards)
+        sumOfHazards += h;
+    for (Size i = 0; i < 8; ++i)
+        loss += hazards[i] / sumOfHazards * (1.0 - recoveries[i]);
+    const auto differing = eightNames({.recoveries = recoveries, .correlation = 0.0});
+    const auto wholeLoss = eightNames({.recoveries = std::vector<Real>(8, 0.0), .correlation = 0.0});
+    BOOST_CHECK_CLOSE_FRACTION(nthToDefault(differing, 1, 0.0, 100.0, curve)->protectionLegNPV(),
+                               loss * nthToDefault(wholeLoss, 1, 0.0, 100.0, curve)->protectionLegNPV(), 2.0e-5);
+}
+
+BOOST_AUTO_TEST_CASE(testTwoNamesWithoutCorrelation)
+{
+    BOOST_TEST_MESSAGE("Testing an nth to default on two uncorrelated names that can default...");
+
+    // Two of the eight can default, at 2 % and 4 % a year, and without correlation. Each day, the
+    // first of them defaults with a probability in proportion to its hazard rate, and the second
+    // is the one whose default follows the other's:
+    //     P(i is the first, on (t0, t1]) = h_i / H (e^{-H t0} - e^{-H t1}),
+    //     P(i is the second, on (t0, t1]) = e^{-h_i t0} - e^{-h_i t1} - h_i / H (e^{-H t0} - e^{-H t1}),
+    // with H the two hazard rates' sum. Before #208 the engine paid every trigger at the first
+    // name's recovery, 20 %, where these two have 30 % and 50 %.
+    Settings::instance().evaluationDate() = inception();
+    const auto curve = flatCurveFrom(inception());
+    std::vector<Real> hazards(8, 0.0);
+    hazards[2] = 0.02;
+    hazards[6] = 0.04;
+    const std::vector<Real> recoveries = risingRecoveries();
+    const auto basket = eightNames({.hazards = hazards, .recoveries = recoveries, .correlation = 0.0});
+
+    // The engine integrates in steps of a day from 1 September 2006 to 1 September 2011.
+    const DayCounter dayCounter = ActualActual(ActualActual::ISDA);
+    const Real H = hazards[2] + hazards[6];
+    Real first = 0.0, second = 0.0;
+    for (Date d = Date(1, September, 2006) + 1; d <= Date(1, September, 2011); ++d)
+    {
+        const Time t0 = dayCounter.yearFraction(inception(), d - 1), t1 = dayCounter.yearFraction(inception(), d);
+        const Real eitherFirst = std::exp(-H * t0) - std::exp(-H * t1);
+        for (Size i : {2, 6})
+        {
+            const Real discountedLoss = 100.0 * (1.0 - recoveries[i]) * curve->discount(d);
+            first += discountedLoss * hazards[i] / H * eitherFirst;
+            second += discountedLoss *
+                      (std::exp(-hazards[i] * t0) - std::exp(-hazards[i] * t1) - hazards[i] / H * eitherFirst);
+        }
+    }
+    BOOST_CHECK_CLOSE_FRACTION(-nthToDefault(basket, 1, 0.0, 100.0, curve, 1 * Days)->protectionLegNPV(), first,
+                               1.0e-8);
+    BOOST_CHECK_CLOSE_FRACTION(-nthToDefault(basket, 2, 0.0, 100.0, curve, 1 * Days)->protectionLegNPV(), second,
+                               1.0e-8);
+    BOOST_CHECK_EQUAL(nthToDefault(basket, 3, 0.0, 100.0, curve)->protectionLegNPV(), 0.0);
+}
+
+BOOST_AUTO_TEST_CASE(testEachNameOverAllRanks)
+{
+    BOOST_TEST_MESSAGE("Testing nth to defaults of every rank against each name on its own...");
+
+    // A name that defaults triggers exactly one nth to default, whatever its rank turns out to be.
+    // So the eight ranks' protection together is each name's own: a first to default on a basket
+    // where only that name can default, and every name recovers what it does. The engine splits
+    // each step's probability of the nth default among the names to second order in the step, so
+    // on steps of three months the two agree to a few parts in a million where the recoveries
+    // differ, and to the last bits where they don't. Before #208 every trigger paid the first
+    // name's recovery.
+    Settings::instance().evaluationDate() = inception();
+    const auto curve = flatCurveFrom(inception());
+    const std::vector<Real> hazards = risingHazards();
+    for (const std::vector<Real>& recoveries : {std::vector<Real>(8, 0.4), risingRecoveries()})
+    {
+        BOOST_TEST_CONTEXT("recoveries from " << recoveries.front() << " to " << recoveries.back())
+        {
+            const auto basket = eightNames({.recoveries = recoveries});
+            Real ranks = 0.0, names = 0.0;
+            for (Size rank = 1; rank <= 8; ++rank)
+                ranks += nthToDefault(basket, rank, 0.0, 100.0, curve)->protectionLegNPV();
+            for (Size i = 0; i < 8; ++i)
+            {
+                std::vector<Real> alone(8, 0.0);
+                alone[i] = hazards[i];
+                const std::vector<Real> itsOwn(8, recoveries[i]);
+                names += nthToDefault(eightNames({.hazards = alone, .recoveries = itsOwn}), 1, 0.0, 100.0, curve)
+                             ->protectionLegNPV();
+            }
+            BOOST_CHECK_CLOSE_FRACTION(ranks, names, recoveries.front() == recoveries.back() ? 1.0e-12 : 1.0e-5);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testRecoveriesApartByTheirLastBit)
+{
+    BOOST_TEST_MESSAGE("Testing an nth to default on recoveries apart by their last bit...");
+
+    // Where one recovery differs from the others by its last bit, the engine takes each name's
+    // probability of being the nth default; where they're the same, the probability of the nth
+    // default. The two have to agree, at every rank.
+    Settings::instance().evaluationDate() = inception();
+    const auto curve = flatCurveFrom(inception());
+    std::vector<Real> recoveries(8, 0.4);
+    recoveries[5] = std::nextafter(0.4, 1.0);
+    const auto apart = eightNames({.recoveries = recoveries});
+    const auto same = eightNames();
+    for (Size rank = 1; rank <= 8; ++rank)
+    {
+        BOOST_TEST_CONTEXT("rank " << rank)
+        {
+            BOOST_CHECK_CLOSE_FRACTION(nthToDefault(apart, rank, 0.0, 100.0, curve)->protectionLegNPV(),
+                                       nthToDefault(same, rank, 0.0, 100.0, curve)->protectionLegNPV(), 1.0e-12);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testAfterADefaultOnRecoveriesThatDiffer)
+{
+    BOOST_TEST_MESSAGE("Testing an nth to default after a default, on recoveries that differ...");
+
+    // As in testAfterADefault, the nth to default on eight names, one of which has defaulted, is
+    // the one before it on the seven left; here with recoveries that differ. The defaulted name's
+    // recovery doesn't count, and the names left keep theirs, whatever their places in the pool.
+    // Before #208 the engine paid every trigger at the first name's recovery even once it had
+    // defaulted: at 10 % against the others' 40 %, the protection was 50 % high.
+    const Date today(1, November, 2006);
+    Settings::instance().evaluationDate() = today;
+    const auto curve = flatCurveFrom(today);
+    std::vector<Real> firstApart(8, 0.4);
+    firstApart[0] = 0.1;
+    struct Case
+    {
+        const char* description;
+        Size defaulted;
+        std::vector<Real> recoveries;
+    };
+    const Case cases[] = {{"the fourth defaulted, recoveries of 20 % + 5 % i", 3, risingRecoveries()},
+                          {"the first defaulted at 10 %, the others at 40 %", 0, firstApart}};
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.description)
+        {
+            const auto all =
+                eightNames({.oneName = OneName::defaulted, .which = c.defaulted, .recoveries = c.recoveries});
+            const auto left = eightNames({.oneName = OneName::gone, .which = c.defaulted, .recoveries = c.recoveries});
+            for (Size rank = 2; rank <= 4; ++rank)
+            {
+                BOOST_TEST_CONTEXT("rank " << rank)
+                {
+                    BOOST_CHECK_CLOSE_FRACTION(nthToDefault(all, rank, 0.0, 100.0, curve)->protectionLegNPV(),
+                                               nthToDefault(left, rank - 1, 0.0, 100.0, curve)->protectionLegNPV(),
+                                               1.0e-12);
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testRecoveriesThatDifferWithoutVectorIntegration)
+{
+    BOOST_TEST_MESSAGE("Testing an nth to default on recoveries that differ, on a model without vector "
+                       "integration...");
+
+    // Each name's probability of being the nth default comes from integrating a vector over the
+    // latent factor, which the trapezoid integration can't do, so the engine refuses. Before #208
+    // it priced at the first name's recovery instead.
+    Settings::instance().evaluationDate() = inception();
+    const auto basket =
+        eightNames({.recoveries = risingRecoveries(), .integration = LatentModelIntegrationType::Trapezoid});
+    BOOST_CHECK_THROW(nthToDefault(basket, 1, 0.0, 100.0, flatCurveFrom(inception()))->NPV(), Error);
 }
 
 #endif

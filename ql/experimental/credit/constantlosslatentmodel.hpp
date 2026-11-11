@@ -139,6 +139,10 @@ namespace QuantLib
         {
             return ConstantLossLatentmodel<copulaPolicy>::probAtLeastNEvents(n, d);
         }
+        std::vector<Probability> probsBeingNthEventBetween(Size n, const Date& d0, const Date& d) const override
+        {
+            return ConstantLossLatentmodel<copulaPolicy>::probsBeingNthEventBetween(n, d0, d);
+        }
         Real expectedRecovery(const Date& d, Size iName, const DefaultProbKey& k) const override
         {
             return ConstantLossLatentmodel<copulaPolicy>::expectedRecovery(d, iName, k);

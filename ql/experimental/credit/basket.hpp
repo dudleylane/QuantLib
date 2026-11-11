@@ -266,6 +266,14 @@ namespace QuantLib
         ---------TO DO: Perform check the name is alive---------------------
         */
         std::vector<Probability> probsBeingNthEvent(Size n, const Date& d) const;
+        /*! The probability of each name being the nth default, the defaults
+          before the evaluation date counted, and defaulting after d0 and by
+          d. One per name, in the pool's order: 0 for the names that defaulted
+          before the evaluation date, and for all of them once those defaults
+          reach n. Their sum is probAtLeastNEvents(n, d) less
+          probAtLeastNEvents(n, d0).
+        */
+        std::vector<Probability> probsBeingNthEventBetween(Size n, const Date& d0, const Date& d) const;
         /*! Returns the probaility of having a given or larger number of
         defaults in the basket portfolio at a given time.
 

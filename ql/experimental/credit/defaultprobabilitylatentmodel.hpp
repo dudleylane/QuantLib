@@ -231,6 +231,20 @@ namespace QuantLib
             return integratedExpectedValue([&](const std::vector<Real>& v1)
                                            { return conditionalProbAtLeastNEvents(n, date, v1); });
         }
+        /*! The probability of each name being the nth default among the names
+        left at the evaluation date, and defaulting after d0 and by d. One per
+        name, in the pool's order, and 0 for the names that defaulted before
+        the evaluation date. Their sum is probAtLeastNEvents(n, d) less
+        probAtLeastNEvents(n, d0).
+
+        Given the factors the names default independently. The probability of
+        the nth default in the period is exact, and its split among the names
+        is approximate, as in detail::conditionalProbsBeingNthEventBetween.
+
+        \warning The integration has to integrate vectors, as
+            GaussianQuadrature does and Trapezoid doesn't.
+        */
+        std::vector<Probability> probsBeingNthEventBetween(Size n, const Date& d0, const Date& d) const;
     };
 
 
@@ -331,6 +345,141 @@ namespace QuantLib
             increaseMask();
         }
         return probNEventsOrMore;
+    }
+
+
+    namespace detail
+    {
+        /* For names defaulting independently, each with the given probability
+        of defaulting by a period's start and by its end: the probability of
+        each being the nth to default and defaulting in the period. Their sum
+        is the probability of the nth default falling in the period, exactly.
+        It is split among the names in proportion to each one's probability of
+        defaulting in the period times the mean, at the period's two ends, of
+        the probability of exactly n - 1 defaults among the others, which is
+        exact to second order in the period's length. Where that leaves
+        nothing to split by, as where every name is certain to default in the
+        period, the split goes by the probability of defaulting in it.
+        */
+        inline std::vector<Probability> conditionalProbsBeingNthEventBetween(Size n,
+                                                                             const std::vector<Probability>& atStart,
+                                                                             const std::vector<Probability>& atEnd)
+        {
+            QL_REQUIRE(n >= 1, "the rank of a default has to be at least 1");
+            const Size size = atStart.size();
+            const Size width = n + 1;
+            /* The number of defaults among the names before the kth, at
+            [k * width + j]: the probability of j defaults for j up to n - 1,
+            and of n or more at j = n.
+            */
+            auto countsBefore = [&](const std::vector<Probability>& p)
+            {
+                std::vector<Probability> counts((size + 1) * width, 0.);
+                counts[0] = 1.;
+                for (Size k = 0; k < size; ++k)
+                {
+                    const Probability* last = &counts[k * width];
+                    Probability* next = &counts[(k + 1) * width];
+                    next[n] = last[n] + last[n - 1] * p[k];
+                    for (Size j = n - 1; j > 0; --j)
+                        next[j] = last[j] * (1. - p[k]) + last[j - 1] * p[k];
+                    next[0] = last[0] * (1. - p[k]);
+                }
+                return counts;
+            };
+            // The number among the kth and the names after it, up to n - 1.
+            auto countsFrom = [&](const std::vector<Probability>& p)
+            {
+                std::vector<Probability> counts((size + 1) * width, 0.);
+                counts[size * width] = 1.;
+                for (Size k = size; k > 0; --k)
+                {
+                    const Probability* last = &counts[k * width];
+                    Probability* next = &counts[(k - 1) * width];
+                    for (Size j = n - 1; j > 0; --j)
+                        next[j] = last[j] * (1. - p[k - 1]) + last[j - 1] * p[k - 1];
+                    next[0] = last[0] * (1. - p[k - 1]);
+                }
+                return counts;
+            };
+            const std::vector<Probability> beforeStart = countsBefore(atStart), beforeEnd = countsBefore(atEnd);
+            const std::vector<Probability> fromStart = countsFrom(atStart), fromEnd = countsFrom(atEnd);
+            // exactly n - 1 defaults among the names other than the kth
+            auto othersAtRank =
+                [n, width](const std::vector<Probability>& before, const std::vector<Probability>& after, Size k)
+            {
+                Probability sum = 0.;
+                for (Size j = 0; j < n; ++j)
+                    sum += before[k * width + j] * after[(k + 1) * width + n - 1 - j];
+                return sum;
+            };
+            std::vector<Real> shares(size), inPeriod(size);
+            Real sumShares = 0., sumInPeriod = 0.;
+            for (Size k = 0; k < size; ++k)
+            {
+                inPeriod[k] = std::max(atEnd[k] - atStart[k], Real(0.));
+                shares[k] =
+                    inPeriod[k] * 0.5 * (othersAtRank(beforeStart, fromStart, k) + othersAtRank(beforeEnd, fromEnd, k));
+                sumShares += shares[k];
+                sumInPeriod += inPeriod[k];
+            }
+            const Probability total = std::max(beforeEnd[size * width + n] - beforeStart[size * width + n], Real(0.));
+            const std::vector<Real>& by = sumShares > 0. ? shares : inPeriod;
+            const Real sumBy = sumShares > 0. ? sumShares : sumInPeriod;
+            std::vector<Probability> result(size, 0.);
+            if (sumBy > 0.)
+                for (Size k = 0; k < size; ++k)
+                    result[k] = total * (by[k] / sumBy);
+            return result;
+        }
+    }
+
+
+    template <class CP>
+    std::vector<Probability>
+    DefaultLatentModel<CP>::probsBeingNthEventBetween(Size n, const Date& d0, const Date& d) const
+    {
+        QL_REQUIRE(basket_, "No portfolio basket set.");
+        QL_REQUIRE(n >= 1, "the rank of a default has to be at least 1");
+        QL_REQUIRE(d0 <= d, "the period's start, " << d0 << ", is after its end, " << d);
+        const std::vector<Size>& alive = basket_->liveList();
+        const Size liveSize = alive.size();
+        std::vector<Probability> probs(basket_->size(), 0.);
+        if (n > liveSize)
+            return probs;
+        const ext::shared_ptr<Pool>& pool = basket_->pool();
+        /* Each name's probability at both dates, inverted here once rather
+        than at each point of the integration. Below 1.e-10 the conditional
+        probability is 0, as in conditionalDefaultProbability.
+        */
+        std::vector<Probability> p0(liveSize), p1(liveSize);
+        std::vector<Real> inverse0(liveSize, 0.), inverse1(liveSize, 0.);
+        for (Size k = 0; k < liveSize; ++k)
+        {
+            const Size i = alive[k];
+            const Handle<DefaultProbabilityTermStructure>& curve =
+                pool->get(pool->names()[i]).defaultProbability(basket_->defaultKeys()[i]);
+            p0[k] = curve->defaultProbability(d0);
+            p1[k] = curve->defaultProbability(d);
+            if (p0[k] >= 1.e-10)
+                inverse0[k] = inverseCumulativeY(p0[k], i);
+            if (p1[k] >= 1.e-10)
+                inverse1[k] = inverseCumulativeY(p1[k], i);
+        }
+        const std::vector<Real> integrated = this->integratedExpectedValueV(
+            [&](const std::vector<Real>& m)
+            {
+                std::vector<Probability> q0(liveSize), q1(liveSize);
+                for (Size k = 0; k < liveSize; ++k)
+                {
+                    q0[k] = p0[k] < 1.e-10 ? 0. : conditionalDefaultProbabilityInvP(inverse0[k], alive[k], m);
+                    q1[k] = p1[k] < 1.e-10 ? 0. : conditionalDefaultProbabilityInvP(inverse1[k], alive[k], m);
+                }
+                return detail::conditionalProbsBeingNthEventBetween(n, q0, q1);
+            });
+        for (Size k = 0; k < liveSize; ++k)
+            probs[alive[k]] = integrated[k];
+        return probs;
     }
 
 

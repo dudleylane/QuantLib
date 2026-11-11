@@ -21,7 +21,7 @@
 #include <ql/experimental/credit/basket.hpp>
 #include <ql/experimental/credit/integralntdengine.hpp>
 #include <ql/termstructures/yieldtermstructure.hpp>
-#include <numeric>
+#include <algorithm>
 
 namespace QuantLib
 {
@@ -37,15 +37,8 @@ namespace QuantLib
         Real accrualValue = 0.0;
         Real claimValue = 0.0;
         Date d0;
-        /* Given the expense of probsBeingNthEvent both in integrable and
-        monte carlo algorithms this engine tests who to call.
-        Warning: This is not entirely a basket property but of the model too.
-        The basket has to have all notionals equal but it is the model which
-        determines the recovery; having all the market recoveries equal is not
-        enough since we might be using a loss model which is stochastic in the
-        recovery rates.
-        */
-        bool basketIsHomogeneous = true; // hardcoded by now
+        const ext::shared_ptr<Basket>& basket = arguments_.basket;
+        const Size n = arguments_.ntdOrder;
 
         for (auto& i : arguments_.premiumLeg)
         {
@@ -64,7 +57,7 @@ namespace QuantLib
 
 */
                 // prob of contract not having been triggered by date of payment
-                Probability probNonTriggered = 1. - arguments_.basket->probAtLeastNEvents(arguments_.ntdOrder, d);
+                Probability probNonTriggered = 1. - basket->probAtLeastNEvents(n, d);
 
                 results_.premiumValue += i->amount() * discountCurve_->discount(d) * probNonTriggered;
                 ////   * (1.0 - defaultProb);
@@ -86,51 +79,45 @@ namespace QuantLib
                                 ///OVERKILL????
                                     probsTriggering.end(), Real(0.));
                 */
-                Probability defProb0 = arguments_.basket->probAtLeastNEvents(arguments_.ntdOrder, d0);
-                std::vector<Probability> probsTriggering, probsTriggering1;
+                Probability defProb0 = basket->probAtLeastNEvents(n, d0);
+                // the names left at the evaluation date, by their place in the pool
+                const std::vector<Size> alive = basket->liveList();
                 do
                 {
                     DiscountFactor disc = discountCurve_->discount(d);
 
-                    Probability defProb1;
-                    if (basketIsHomogeneous)
-                    { // take test out of the while loop
-                        defProb1 = arguments_.basket->probAtLeastNEvents(arguments_.ntdOrder, d);
-                        claimValue -= (defProb1 - defProb0) *
-                                      arguments_.basket->claim()->amount(d, arguments_.notional,
-                                                                         arguments_.basket->recoveryRate(d, 0)) *
-                                      disc;
-                    }
-                    else
+                    Probability defProb1 = basket->probAtLeastNEvents(n, d);
+                    Probability dcfdd = defProb1 - defProb0;
+
+                    /* The protection pays the claim on whichever name is the
+                    nth to default, at that name's expected recovery (#208).
+                    Where the names left share theirs, it's the claim at that
+                    recovery on the probability of the nth default in the
+                    step; otherwise it takes each name's probability of being
+                    the one. On a loss model whose recoveries are stochastic,
+                    the expected recovery given the default isn't the one
+                    given the trigger.
+                    */
+                    if (!alive.empty())
                     {
-                        probsTriggering1 = arguments_.basket->probsBeingNthEvent(arguments_.ntdOrder, d);
-                        defProb1 = std::accumulate(probsTriggering1.begin(), probsTriggering1.end(), Real(0.));
-                        /*Recoveries might differ along names, depending on
-                        which name is triggering the contract the loss will be
-                        different
-                        There is an issue here; MC engines can still be used
-                        since the prob of triggering the contract can be
-                        extracted from the simulation from the
-                        probsBeingNthEvent statistic. Yet, when the RR is
-                        stochastic the realized value of the RR is the expected
-                        one subject/conditional to the contract being triggered;
-                        not simply the expected value. For this reason the MC
-                        can not be used through the statistic but has to consume
-                        the simulations directly.
-                        */
-                        for (Size iName = 0; iName < arguments_.basket->remainingSize(); iName++)
+                        const Real recovery = basket->recoveryRate(d, alive[0]);
+                        if (std::all_of(alive.begin() + 1, alive.end(),
+                                        [&](Size iName) { return basket->recoveryRate(d, iName) == recovery; }))
                         {
-                            claimValue -=
-                                (probsTriggering1[iName] - probsTriggering[iName]) *
-                                arguments_.basket->claim()->amount(d,
-                                                                   arguments_.notional, // [iName]!
-                                                                   arguments_.basket->recoveryRate(d, iName)) *
-                                disc;
+                            claimValue -= dcfdd * basket->claim()->amount(d, arguments_.notional, recovery) * disc;
                         }
-                        probsTriggering = probsTriggering1;
+                        else
+                        {
+                            const std::vector<Probability> probsTriggering =
+                                basket->probsBeingNthEventBetween(n, d0, d);
+                            for (Size iName : alive)
+                                claimValue -=
+                                    probsTriggering[iName] *
+                                    basket->claim()->amount(d, arguments_.notional, basket->recoveryRate(d, iName)) *
+                                    disc;
+                        }
                     }
 
-                    Probability dcfdd = defProb1 - defProb0;
                     defProb0 = defProb1;
 
                     if (arguments_.settlePremiumAccrual)
