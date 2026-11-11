@@ -607,6 +607,55 @@ BOOST_AUTO_TEST_CASE(testProxyIborInCoupons)
     BOOST_CHECK(flag.isUp());
 }
 
+BOOST_AUTO_TEST_CASE(testProxyIborFixing)
+{
+    BOOST_TEST_MESSAGE("Testing a ProxyIbor's fixing...");
+
+    // The forecast is gearing * proxied fixing * spread, so the spread is a factor (#127), and
+    // the index's own stored fixings come first, as for any index.
+    const Date today(15, June, 2026);
+    Settings::instance().evaluationDate() = today;
+    const Handle<YieldTermStructure> curve(ext::make_shared<FlatForward>(today, 0.05, Actual360()));
+    const auto gearing = ext::make_shared<SimpleQuote>(1.5);
+    const auto spread = ext::make_shared<SimpleQuote>(0.5);
+    const auto euribor = ext::make_shared<Euribor3M>(curve);
+    const auto proxy =
+        ext::make_shared<ProxyIbor>("proxy", 3 * Months, 2, EURCurrency(), TARGET(), ModifiedFollowing, true,
+                                    Actual360(), Handle<Quote>(gearing), euribor, Handle<Quote>(spread));
+
+    for (const Date& d : {today, Date(15, September, 2026), Date(15, December, 2027)})
+    {
+        BOOST_TEST_CONTEXT("forecast for " << d)
+        {
+            BOOST_CHECK_CLOSE_FRACTION(proxy->fixing(d), 1.5 * euribor->fixing(d) * 0.5, 1.0e-15);
+        }
+    }
+    const Date d(15, September, 2026);
+    spread->setValue(0.0);
+    BOOST_CHECK_EQUAL(proxy->fixing(d), 0.0);
+    gearing->setValue(1.0);
+    spread->setValue(1.0);
+    BOOST_CHECK_CLOSE_FRACTION(proxy->fixing(d), euribor->fixing(d), 1.0e-15);
+    gearing->setValue(1.5);
+    spread->setValue(0.5);
+
+    // The proxied index's stored fixing for today enters the formula.
+    euribor->addFixing(today, 0.045);
+    BOOST_CHECK_CLOSE_FRACTION(proxy->fixing(today), 1.5 * 0.045 * 0.5, 1.0e-15);
+
+    // A past date needs the index's own fixing; the proxied index's history isn't used.
+    const Date past(12, June, 2026);
+    euribor->addFixing(past, 0.04);
+    BOOST_CHECK_THROW(proxy->fixing(past), Error);
+    proxy->addFixing(past, 0.07);
+    BOOST_CHECK_EQUAL(proxy->fixing(past), 0.07);
+
+    // Its own fixing for today comes first too, unless today's fixing is forecast.
+    proxy->addFixing(today, 0.08);
+    BOOST_CHECK_EQUAL(proxy->fixing(today), 0.08);
+    BOOST_CHECK_CLOSE_FRACTION(proxy->fixing(today, true), 1.5 * 0.045 * 0.5, 1.0e-15);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
