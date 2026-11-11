@@ -148,12 +148,16 @@ namespace QuantLib
             }
         }
 
-        // The upfront might be due before the curve ref date...
-        if (!arguments_.premiumLeg[0]->hasOccurred(today))
+        // The upfront is taken as paid on the first coupon's accrual start, on
+        //   the contract's notional, as the premium and the protection are. It
+        //   counts until the first coupon is paid, and not at all if it falls
+        //   before the discount curve's reference date, where CDO doesn't
+        //   count it either (#206).
+        const Date upfrontDate =
+            ext::dynamic_pointer_cast<FixedRateCoupon>(arguments_.premiumLeg[0])->accrualStartDate();
+        if (!arguments_.premiumLeg[0]->hasOccurred(today) && upfrontDate >= discountCurve_->referenceDate())
             results_.upfrontPremiumValue =
-                arguments_.basket->remainingNotional() * arguments_.upfrontRate *
-                discountCurve_->discount(
-                    ext::dynamic_pointer_cast<FixedRateCoupon>(arguments_.premiumLeg[0])->accrualStartDate());
+                arguments_.notional * arguments_.upfrontRate * discountCurve_->discount(upfrontDate);
         if (arguments_.side == Protection::Buyer)
         {
             results_.premiumValue *= -1;

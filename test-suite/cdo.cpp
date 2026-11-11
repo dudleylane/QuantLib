@@ -1661,6 +1661,95 @@ BOOST_AUTO_TEST_CASE(testCdoAfterADefault)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testUpfront)
+{
+    BOOST_TEST_MESSAGE("Testing a CDO tranche's upfront...");
+
+    // The engines take the upfront as paid on the first coupon's accrual start, on the tranche's
+    // remaining notional, and count it until that coupon is paid, unless it falls before the
+    // discount curve's reference date. Before #206, inside the first coupon on a discount curve
+    // as of today, they discounted the upfront from before the curve's reference date, and
+    // threw. They still throw there on default curves as of today (#228).
+    const Date accrualStart(1, September, 2006);
+    const Date insideTheFirstCoupon(1, November, 2006);
+    const Date afterTheFirstPayment(4, December, 2006);
+    const Rate upfront = 0.02;
+    const NamesAroundADefault names(true, false, NamesAroundADefault::noName);
+
+    const Schedule schedule = MakeSchedule()
+                                  .from(accrualStart)
+                                  .to(names.horizon)
+                                  .withFrequency(Quarterly)
+                                  .withCalendar(TARGET())
+                                  .withConvention(Following)
+                                  .withRule(DateGeneration::Backward);
+    const auto curveFrom = [](const Date& referenceDate)
+    { return Handle<YieldTermStructure>(ext::make_shared<FlatForward>(referenceDate, 0.05, Actual360(), Continuous)); };
+    const auto price = [&](Rate upfrontRate, const Handle<YieldTermStructure>& discountCurve, bool midPoint)
+    {
+        const auto basket = names.basket(0.0, 0.1);
+        basket->setLossModel(names.lhpModel());
+        auto tranche = ext::make_shared<SyntheticCDO>(basket, Protection::Seller, schedule, upfrontRate, 0.05,
+                                                      Actual360(), Following);
+        if (midPoint)
+            tranche->setPricingEngine(ext::make_shared<MidPointCDOEngine>(discountCurve));
+        else
+            tranche->setPricingEngine(ext::make_shared<IntegralCDOEngine>(discountCurve));
+        return tranche;
+    };
+
+    struct Valuation
+    {
+        Date today, curveDate;
+        bool upfrontCounts;
+    };
+    // Inside the first coupon, on a curve from inception, the upfront still counts though it has
+    // been paid: #206 changed only what threw (#227).
+    const Valuation valuations[] = {
+        {names.inception, names.inception, true},       {accrualStart, accrualStart, true},
+        {insideTheFirstCoupon, names.inception, true},  {insideTheFirstCoupon, insideTheFirstCoupon, false},
+        {afterTheFirstPayment, names.inception, false}, {afterTheFirstPayment, afterTheFirstPayment, false}};
+    for (const auto& valuation : valuations)
+    {
+        for (bool midPoint : {true, false})
+        {
+            BOOST_TEST_CONTEXT("today " << valuation.today << ", curve from " << valuation.curveDate
+                                        << (midPoint ? ", mid-point" : ", integral") << " engine")
+            {
+                Settings::instance().evaluationDate() = valuation.today;
+                const auto curve = curveFrom(valuation.curveDate);
+                const auto with = price(upfront, curve, midPoint);
+                const auto without = price(0.0, curve, midPoint);
+                if (valuation.upfrontCounts)
+                    BOOST_CHECK_CLOSE_FRACTION(with->NPV() - without->NPV(),
+                                               200.0 * upfront * curve->discount(accrualStart), 1.0e-12);
+                else
+                    BOOST_CHECK_EQUAL(with->NPV(), without->NPV());
+            }
+        }
+    }
+
+    // Inside the first coupon, the premium on a discount curve as of today is the one on a curve
+    // from inception, carried forward to today, and so is all of the integral engine's value, which
+    // takes the same dates on either curve; the mid-point engine takes its first period's
+    // losses as of the middle of what's left of it after the curve's reference date.
+    Settings::instance().evaluationDate() = insideTheFirstCoupon;
+    const auto fromInception = curveFrom(names.inception);
+    const auto asOfToday = curveFrom(insideTheFirstCoupon);
+    for (bool midPoint : {true, false})
+    {
+        BOOST_TEST_CONTEXT((midPoint ? "mid-point" : "integral") << " engine")
+        {
+            const auto today = price(upfront, asOfToday, midPoint);
+            const auto reference = price(0.0, fromInception, midPoint);
+            const DiscountFactor carry = fromInception->discount(insideTheFirstCoupon);
+            BOOST_CHECK_CLOSE_FRACTION(today->premiumValue(), reference->premiumValue() / carry, 1.0e-12);
+            if (!midPoint)
+                BOOST_CHECK_CLOSE_FRACTION(today->NPV(), reference->NPV() / carry, 1.0e-12);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testTopTrancheAfterADefault)
 {
     BOOST_TEST_MESSAGE("Testing a tranche reaching beyond what's left of the basket after a default...");

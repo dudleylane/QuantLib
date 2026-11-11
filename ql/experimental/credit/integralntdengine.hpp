@@ -29,6 +29,23 @@ namespace QuantLib
     class YieldTermStructure;
 
     // Varying recoveries allowed, allow now for heterogeneous notionals
+    //! Nth to default engine integrating the trigger probability over each coupon
+    /*! Coupons paid after the discount curve's reference date count in
+        full, with protection from the later of their accrual start and that
+        date. The upfront is taken as paid on the first coupon's accrual
+        start, on the contract's notional. It counts until the first coupon
+        is paid, and not at all if it falls before the curve's reference
+        date (#206).
+
+        \warning Inside a coupon, on a discount curve as of today, the
+            premium for the part of the coupon that has passed is in the
+            premium leg, but its protection isn't, so the fair premium dips
+            until the coupon is paid (#228).
+        \warning On a discount curve dated on or before the first coupon's
+            accrual start, the upfront still counts after that date, until
+            the first coupon is paid, and then drops out with nothing paid
+            (#227).
+    */
     class IntegralNtdEngine : public NthToDefault::engine
     {
       public:
