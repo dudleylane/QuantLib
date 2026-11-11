@@ -24,7 +24,9 @@
 #include <ql/experimental/barrieroption/binomialdoublebarrierengine.hpp>
 #include <ql/experimental/barrieroption/mcdoublebarrierengine.hpp>
 #include <ql/experimental/barrieroption/suowangdoublebarrierengine.hpp>
+#include <ql/experimental/barrieroption/vannavolgabarrierengine.hpp>
 #include <ql/experimental/barrieroption/vannavolgadoublebarrierengine.hpp>
+#include <ql/instruments/barrieroption.hpp>
 #include <ql/instruments/doublebarrieroption.hpp>
 #include <ql/instruments/vanillaoption.hpp>
 #include <ql/math/functional.hpp>
@@ -428,8 +430,13 @@ BOOST_AUTO_TEST_CASE(testVannaVolgaDoubleBarrierValues)
         //            BarrierType, barr.1, barr.2, rebate,         type,    strike,          s,         q,         r, t,
         //            vol25Put,    volAtm,vol25Call,      vol,    result,   tol
 
+        // The values are the engine's own, to five decimals.  Five moved when its smile took the forward
+        // rather than the spot (#212), each by lambda times the change in the vanilla at the strike: the
+        // knock-outs at 1.13321, the one-year put at 1.46047, and the two-year call at 1.06145 and put at
+        // 1.56345, which were 0.14413, 0.00017, 0.11103, 0.19981 and 0.17704.
+
         {DoubleBarrier::KnockOut, 1.1, 1.5, 0.0, Option::Call, 1.13321, 1.30265, 0.0003541, 0.0033871, 1.0, 0.10087,
-         0.08925, 0.08463, 0.11638, 0.14413, 1.0e-4},
+         0.08925, 0.08463, 0.11638, 0.14417, 1.0e-4},
         {DoubleBarrier::KnockOut, 1.1, 1.5, 0.0, Option::Call, 1.22687, 1.30265, 0.0003541, 0.0033871, 1.0, 0.10087,
          0.08925, 0.08463, 0.10088, 0.07456, 1.0e-4},
         {DoubleBarrier::KnockOut, 1.1, 1.5, 0.0, Option::Call, 1.31179, 1.30265, 0.0003541, 0.0033871, 1.0, 0.10087,
@@ -440,7 +447,7 @@ BOOST_AUTO_TEST_CASE(testVannaVolgaDoubleBarrierValues)
          0.08925, 0.08463, 0.08412, 0.00013, 1.0e-4},
 
         {DoubleBarrier::KnockOut, 1.1, 1.5, 0.0, Option::Put, 1.13321, 1.30265, 0.0003541, 0.0033871, 1.0, 0.10087,
-         0.08925, 0.08463, 0.11638, 0.00017, 1.0e-4},
+         0.08925, 0.08463, 0.11638, 0.00021, 1.0e-4},
         {DoubleBarrier::KnockOut, 1.1, 1.5, 0.0, Option::Put, 1.22687, 1.30265, 0.0003541, 0.0033871, 1.0, 0.10087,
          0.08925, 0.08463, 0.10088, 0.00353, 1.0e-4},
         {DoubleBarrier::KnockOut, 1.1, 1.5, 0.0, Option::Put, 1.31179, 1.30265, 0.0003541, 0.0033871, 1.0, 0.10087,
@@ -448,10 +455,10 @@ BOOST_AUTO_TEST_CASE(testVannaVolgaDoubleBarrierValues)
         {DoubleBarrier::KnockOut, 1.1, 1.5, 0.0, Option::Put, 1.38843, 1.30265, 0.0003541, 0.0033871, 1.0, 0.10087,
          0.08925, 0.08463, 0.08463, 0.06049, 1.0e-4},
         {DoubleBarrier::KnockOut, 1.1, 1.5, 0.0, Option::Put, 1.46047, 1.30265, 0.0003541, 0.0033871, 1.0, 0.10087,
-         0.08925, 0.08463, 0.08412, 0.11103, 1.0e-4},
+         0.08925, 0.08463, 0.08412, 0.11102, 1.0e-4},
 
         {DoubleBarrier::KnockOut, 1.0, 1.6, 0.0, Option::Call, 1.06145, 1.30265, 0.0009418, 0.0039788, 2.0, 0.10891,
-         0.09525, 0.09197, 0.12511, 0.19981, 1.0e-4},
+         0.09525, 0.09197, 0.12511, 0.19992, 1.0e-4},
         {DoubleBarrier::KnockOut, 1.0, 1.6, 0.0, Option::Call, 1.19545, 1.30265, 0.0009418, 0.0039788, 2.0, 0.10891,
          0.09525, 0.09197, 0.10890, 0.10389, 1.0e-4},
         {DoubleBarrier::KnockOut, 1.0, 1.6, 0.0, Option::Call, 1.32238, 1.30265, 0.0009418, 0.0039788, 2.0, 0.10891,
@@ -470,7 +477,7 @@ BOOST_AUTO_TEST_CASE(testVannaVolgaDoubleBarrierValues)
         {DoubleBarrier::KnockOut, 1.0, 1.6, 0.0, Option::Put, 1.44298, 1.30265, 0.0009418, 0.0039788, 2.0, 0.10891,
          0.09525, 0.09197, 0.09197, 0.09346, 1.0e-4},
         {DoubleBarrier::KnockOut, 1.0, 1.6, 0.0, Option::Put, 1.56345, 1.30265, 0.0009418, 0.0039788, 2.0, 0.10891,
-         0.09525, 0.09197, 0.09261, 0.17704, 1.0e-4}
+         0.09525, 0.09197, 0.09261, 0.17703, 1.0e-4}
 
     };
 
@@ -1396,6 +1403,67 @@ BOOST_AUTO_TEST_CASE(testVannaVolgaRebate)
                     }
                 }
             }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testVannaVolgaSmileForward)
+{
+    BOOST_TEST_MESSAGE("Testing the Vanna/Volga double-barrier engine's smile at the strike...");
+
+    // The engine reads the smile at the strike through VannaVolga, whose forward is spot times the
+    // foreign discount over the domestic one, and prices the vanilla there: "VanillaPrice", which
+    // caps the knock-out, makes the knock-in, and enters the price under adaptVanDelta.  The
+    // expected values are Castagna and Mercurio's Vanna-Volga price at the strike, from the three
+    // pillars at their forward-delta strikes, its implied volatility, and the vanilla there, in
+    // 60-digit arithmetic.  The engine inverts the price with NewtonSafe to 1e-6 in standard
+    // deviation, which moves a vanilla by at most the discounted forward times 0.4e-6, 4.0e-5 here.
+    const DayCounter dc = Actual365Fixed();
+    const Date today(5, March, 2013);
+    Settings::instance().evaluationDate() = today;
+    const auto spot = ext::make_shared<SimpleQuote>(100.0);
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.05, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.0, dc));
+    const Handle<DeltaVolQuote> atm(ext::make_shared<DeltaVolQuote>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(0.10)), DeltaVolQuote::Fwd, 1.0, DeltaVolQuote::AtmDeltaNeutral));
+    const Handle<DeltaVolQuote> put25(ext::make_shared<DeltaVolQuote>(
+        -0.25, Handle<Quote>(ext::make_shared<SimpleQuote>(0.12)), 1.0, DeltaVolQuote::Fwd));
+    const Handle<DeltaVolQuote> call25(ext::make_shared<DeltaVolQuote>(
+        0.25, Handle<Quote>(ext::make_shared<SimpleQuote>(0.11)), 1.0, DeltaVolQuote::Fwd));
+    const auto exercise = ext::make_shared<EuropeanExercise>(today + 365);
+
+    const struct
+    {
+        Real strike;
+        Option::Type type;
+        Real expected;
+    } cases[] = {
+        {80.0, Option::Call, 24.092501877835453},  {80.0, Option::Put, 0.19085583789256529},
+        {100.0, Option::Call, 7.1891950774350199}, {100.0, Option::Put, 2.3121375275064104},
+        {120.0, Option::Call, 1.0790830779175948}, {120.0, Option::Put, 15.226614018003263},
+    };
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.type << " at " << c.strike)
+        {
+            const auto payoff = ext::make_shared<PlainVanillaPayoff>(c.type, c.strike);
+            DoubleBarrierOption option(DoubleBarrier::KnockOut, 60.0, 160.0, 0.0, payoff, exercise);
+            option.setPricingEngine(ext::make_shared<VannaVolgaDoubleBarrierEngine<SuoWangDoubleBarrierEngine>>(
+                atm, put25, call25, Handle<Quote>(spot), rTS, qTS));
+            const Real suoWang = option.result<Real>("VanillaPrice");
+            option.setPricingEngine(ext::make_shared<VannaVolgaDoubleBarrierEngine<AnalyticDoubleBarrierEngine>>(
+                atm, put25, call25, Handle<Quote>(spot), rTS, qTS));
+            const Real analytic = option.result<Real>("VanillaPrice");
+            BOOST_CHECK_SMALL(suoWang - c.expected, 1.0e-4);
+            BOOST_CHECK_SMALL(analytic - c.expected, 1.0e-4);
+
+            // The single-barrier engine reads the same smile, the same way.
+            BarrierOption single(Barrier::UpOut, 160.0, 0.0, payoff, exercise);
+            single.setPricingEngine(
+                ext::make_shared<VannaVolgaBarrierEngine>(atm, put25, call25, Handle<Quote>(spot), rTS, qTS));
+            BOOST_CHECK_CLOSE_FRACTION(suoWang, single.result<Real>("VanillaPrice"), 1.0e-12);
+            BOOST_CHECK_CLOSE_FRACTION(analytic, single.result<Real>("VanillaPrice"), 1.0e-12);
         }
     }
 }
