@@ -20,6 +20,7 @@
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
 #include <ql/experimental/math/gaussiannoncentralchisquaredpolynomial.hpp>
+#include <ql/experimental/math/multidimquadrature.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/math/integrals/gaussianquadratures.hpp>
 #include <ql/math/integrals/gausslaguerrecosinepolynomial.hpp>
@@ -650,6 +651,44 @@ BOOST_AUTO_TEST_CASE(testLogWeightFunctions)
     BOOST_CHECK_CLOSE(hermiteWithMu.logW(40.0), std::log(40.0) - 1600.0, 1e-12);
     BOOST_CHECK_CLOSE(hyperbolic.logW(2000.0), M_LN2 - 2000.0, 1e-12);
     BOOST_CHECK_CLOSE(hyperbolic.logW(-2000.0), M_LN2 - 2000.0, 1e-12);
+}
+
+BOOST_AUTO_TEST_CASE(testMultidimensionalHermiteOnVectors)
+{
+    BOOST_TEST_MESSAGE("Testing the multidimensional Gauss-Hermite integration of vectors...");
+
+    // Each component of a vector's integral is the integral of that component. Until #229 the
+    // vector integration summed its first node, -6.164 at order 25, with weight 1 rather than
+    // 0.8624, at every level, so on these functions, which aren't small out there, each
+    // component was off by about 1e-3.
+    const auto f = [](const std::vector<Real>& x)
+    {
+        std::vector<Real> values(2, 1.0);
+        for (Real xi : x)
+        {
+            values[0] /= 1.0 + xi * xi;
+            values[1] /= 1.0 + (xi - 1.0) * (xi - 1.0);
+        }
+        return values;
+    };
+    for (Size dimension : {1, 2})
+    {
+        BOOST_TEST_CONTEXT(dimension << " dimension(s)")
+        {
+            const GaussianQuadMultidimIntegrator quadrature(dimension, 25);
+            const std::vector<Real> integrals = quadrature.integrate<std::vector<Real>>(f);
+            BOOST_REQUIRE_EQUAL(integrals.size(), 2U);
+            for (Size j = 0; j < 2; ++j)
+            {
+                BOOST_TEST_CONTEXT("component " << j)
+                {
+                    BOOST_CHECK_CLOSE_FRACTION(
+                        integrals[j], quadrature.integrate<Real>([&](const std::vector<Real>& x) { return f(x)[j]; }),
+                        1e-14);
+                }
+            }
+        }
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
