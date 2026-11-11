@@ -1511,15 +1511,59 @@ BOOST_AUTO_TEST_CASE(testProbabilityOverALossAfterADefault)
                                 all.horizon, (level - settledLoss - tranche.remainingAttachment) /
                                                  (tranche.remainingDetachment - tranche.remainingAttachment));
                         }
-                        // Saddle point's answer can be far above 1 at a low level, and
-                        // its rounding with it (#160).
-                        BOOST_CHECK_SMALL(basket->probOverLoss(all.horizon, fraction) - expected,
-                                          1.0e-9 * std::max(1.0, std::fabs(expected)));
+                        BOOST_CHECK_SMALL(basket->probOverLoss(all.horizon, fraction) - expected, 1.0e-9);
                     }
                 }
             }
         }
     }
+}
+
+BOOST_AUTO_TEST_CASE(testSaddlePointProbabilityOverALossOnNamesThatDiffer)
+{
+    BOOST_TEST_MESSAGE("Testing the saddle point's probability of a loss on names that differ...");
+
+    // Before #160 the saddle point's search was bracketed by bounds worked out from the name
+    // with the largest loss alone, which aren't bounds where names differ: on the 19 names left
+    // after a default, which lose 80 to 99 each, the probability of a loss on 0 to 10 % came
+    // out at up to 1.88e7, and the percentile at 0.3 at 87.45. Up to the smallest loss, the
+    // loss reaches a level if any name defaults, so the probability is exact there.
+    const NamesAroundADefault left(false, true);
+    Settings::instance().evaluationDate() = left.afterTheDefault;
+    const auto basket = left.basket(0.0, 0.1);
+    basket->setLossModel(left.saddlePointModel());
+
+    const auto latent = left.latentModel();
+    std::vector<Real> inverse = basket->remainingProbabilities(left.horizon);
+    for (Size i = 0; i < inverse.size(); ++i)
+        inverse[i] = latent->inverseCumulativeY(inverse[i], i);
+    const Probability anyLoss = latent->integratedExpectedValue(
+        [&](const std::vector<Real>& factor)
+        {
+            Probability none = 1.0;
+            for (Size i = 0; i < inverse.size(); ++i)
+                none *= 1.0 - latent->conditionalDefaultProbabilityInvP(inverse[i], i, factor);
+            return 1.0 - none;
+        });
+    Real smallestLoss = QL_MAX_REAL;
+    for (Size i = 0; i < left.notionals.size(); ++i)
+        smallestLoss = std::min(smallestLoss, left.notionals[i] * (1.0 - left.recoveries[i]));
+
+    Probability previous = 1.0;
+    for (Real fraction : {0.0025, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 1.0})
+    {
+        BOOST_TEST_CONTEXT("a fraction " << fraction << " of the tranche")
+        {
+            const Probability probability = basket->probOverLoss(left.horizon, fraction);
+            BOOST_CHECK_GE(probability, 0.0);
+            BOOST_CHECK_LE(probability, previous);
+            if (fraction * basket->remainingDetachmentAmount() <= smallestLoss)
+                BOOST_CHECK_CLOSE_FRACTION(probability, anyLoss, 1.0e-12);
+            previous = probability;
+        }
+    }
+    // the probability of no loss is 1 - anyLoss, about 0.45
+    BOOST_CHECK_EQUAL(basket->percentile(left.horizon, 0.3), 0.0);
 }
 
 BOOST_AUTO_TEST_CASE(testCdoAfterADefault)
@@ -1655,6 +1699,46 @@ BOOST_AUTO_TEST_CASE(testTopTrancheAfterADefault)
             BOOST_CHECK_SMALL(beyond->remainingAttachmentAmount() - 1920.0, 1.0e-9);
             beyond->setLossModel((all.*model.second)());
             BOOST_CHECK_SMALL(beyond->expectedTrancheLoss(all.horizon), 1.0e-9);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testTopTranchePercentileAfterADefault)
+{
+    BOOST_TEST_MESSAGE("Testing the percentile of a tranche reaching beyond what's left of the basket...");
+
+    using Factory = ext::shared_ptr<DefaultLossModel> (NamesAroundADefault::*)() const;
+    const std::vector<std::pair<std::string, Factory>> models = {
+        {"LHP", &NamesAroundADefault::lhpModel},
+        {"binomial", &NamesAroundADefault::binomialModel},
+        {"recursive", &NamesAroundADefault::recursiveModel},
+        {"saddle point", &NamesAroundADefault::saddlePointModel}};
+    for (const auto& model : models)
+    {
+        BOOST_TEST_CONTEXT(model.first)
+        {
+            const NamesAroundADefault all(true, false);
+            const NamesAroundADefault left(true, true);
+            Settings::instance().evaluationDate() = all.afterTheDefault;
+
+            // 540 to 1940 on the 1900 left loses what 540 to 1900 does, as in testTopTrancheAfterADefault.
+            // The saddle point took the percentile as a fraction of the first and returned it of the
+            // second (#159).
+            const auto basket = all.basket(0.3, 1.0);
+            basket->setLossModel((all.*model.second)());
+            const auto reference = left.basket(540.0 / 1900.0, 1.0);
+            reference->setLossModel((left.*model.second)());
+            for (Real level : {0.999, 0.9999})
+            {
+                BOOST_TEST_CONTEXT("level " << level)
+                {
+                    BOOST_CHECK_SMALL(
+                        basket->percentile(all.horizon, level) - reference->percentile(all.horizon, level), 1.0e-9);
+                    BOOST_CHECK_SMALL(basket->expectedShortfall(all.horizon, level) -
+                                          reference->expectedShortfall(all.horizon, level),
+                                      1.0e-9);
+                }
+            }
         }
     }
 }
@@ -1821,6 +1905,50 @@ BOOST_AUTO_TEST_CASE(testRandomLossModelsAfterADefault)
                     for (Size i = 0; i < live.size(); ++i)
                         BOOST_CHECK_SMALL(split[i] - expected[live[i]], tolerance);
                 }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testRandomModelsNthDefaultOnTheSameDay)
+{
+    BOOST_TEST_MESSAGE("Testing the random models' nth default where names default on the same day...");
+
+    // Before #162 a path's defaults were kept in a map keyed by the day, so a second name
+    // defaulting on a day was dropped and every later default moved up a place. At a
+    // correlation of 0.9 the twenty names often default together: on RandomDefaultLM's paths
+    // the probabilities of each being the 20th to default added up to 0.0057, where twenty
+    // defaults have a probability of 0.0102. Every path with n defaults or more now counts once
+    // across the names, in equal shares where the nth falls on a day with others.
+    const NamesAroundADefault all(true, false, NamesAroundADefault::noName);
+    Settings::instance().evaluationDate() = all.afterTheDefault;
+    const Size names = NamesAroundADefault::poolSize;
+    const std::vector<std::vector<Real>> weights(names, std::vector<Real>(1, std::sqrt(0.9)));
+    const std::vector<std::vector<Real>> doubled(2 * names, std::vector<Real>(1, std::sqrt(0.9)));
+    const std::vector<std::pair<std::string, ext::shared_ptr<DefaultLossModel>>> models = {
+        {"random default", ext::make_shared<RandomDefaultLM<GaussianCopulaPolicy>>(
+                               ext::make_shared<GaussianConstantLossLM>(weights, all.recoveries,
+                                                                        LatentModelIntegrationType::GaussianQuadrature,
+                                                                        GaussianCopulaPolicy::initTraits()),
+                               20000)},
+        {"random loss", ext::make_shared<RandomLossLM<GaussianCopulaPolicy>>(
+                            ext::make_shared<GaussianSpotLossLM>(doubled, all.recoveries, 2.2,
+                                                                 LatentModelIntegrationType::GaussianQuadrature,
+                                                                 GaussianCopulaPolicy::initTraits()),
+                            20000, 1.0e-6, 2863311530UL)}};
+
+    for (const auto& model : models)
+    {
+        const auto basket = all.basket(0.0, 0.1);
+        basket->setLossModel(model.second);
+        for (Size n : {2, 5, 12, 20})
+        {
+            BOOST_TEST_CONTEXT(model.first << ", n = " << n)
+            {
+                const std::vector<Probability> nth = basket->probsBeingNthEvent(n, all.horizon);
+                BOOST_CHECK_SMALL(std::accumulate(nth.begin(), nth.end(), Real(0.0)) -
+                                      basket->probAtLeastNEvents(n, all.horizon),
+                                  1.0e-12);
             }
         }
     }
@@ -2111,6 +2239,128 @@ BOOST_AUTO_TEST_CASE(testCdoObservesEachNameOnItsOwnKey)
             priceMayHaveMoved.lower();
             issuer.defaultProbability(own == senior ? subordinated : senior)->update();
             BOOST_CHECK(!priceMayHaveMoved.isUp());
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testExpectedShortfallBetweenPercentileAndTranche)
+{
+    BOOST_TEST_MESSAGE("Testing that expected shortfall lies between the percentile and the tranche...");
+
+    // The mean of the losses beyond a level is at least the level's and at most the tranche,
+    // and it can't fall as the level rises. Before #159 the saddle point returned 80 above a
+    // percentile of 400 and 117 on a tranche of 100, and the binomial and recursive models read
+    // before their first point below the probability of no loss, 3307 on a tranche of 400.
+    // Before #160 the saddle point's percentile didn't solve below about 0.26 on an equity
+    // tranche. Its shortfall still falls a little where the level crosses the loss of one
+    // default, by 0.22 between 0.6 and 0.605 on 0 to 10 % (#205), which the rise to 0.8 covers.
+    SharedModelVars vars(0.3);
+    Settings::instance().evaluationDate() = vars.today;
+    const Date horizon = vars.schedule.endDate();
+
+    using Factory = ext::shared_ptr<DefaultLossModel> (SharedModelVars::*)() const;
+    const std::vector<std::pair<std::string, Factory>> models = {{"binomial", &SharedModelVars::binomialModel},
+                                                                 {"recursive", &SharedModelVars::recursiveModel},
+                                                                 {"saddle point", &SharedModelVars::saddlePointModel}};
+    const std::vector<std::pair<Real, Real>> tranches = {{0.0, 0.03}, {0.0, 0.1}, {0.05, 0.1}, {0.0, 0.2},
+                                                         {0.1, 0.3},  {0.3, 0.6}, {0.5, 1.0}};
+    const std::vector<Real> levels = {0.05, 0.1, 0.2, 0.3, 0.5, 0.6, 0.8, 0.9, 0.95, 0.975, 0.99, 0.999, 1.0};
+    const Real tolerance = 1.0e-9;
+    for (const auto& model : models)
+    {
+        for (const auto& tranche : tranches)
+        {
+            const auto basket = vars.basket(tranche.first, tranche.second);
+            basket->setLossModel((vars.*model.second)());
+            const Real trancheAmount = basket->remainingTrancheNotional();
+            Real previous = 0.0;
+            for (Real level : levels)
+            {
+                BOOST_TEST_CONTEXT(model.first << ", tranche " << tranche.first << " to " << tranche.second
+                                               << ", level " << level)
+                {
+                    const Real percentile = basket->percentile(horizon, level);
+                    const Real shortfall = basket->expectedShortfall(horizon, level);
+                    BOOST_CHECK_GE(shortfall, percentile - tolerance);
+                    BOOST_CHECK_LE(shortfall, trancheAmount + tolerance);
+                    BOOST_CHECK_GE(shortfall, previous - tolerance);
+                    previous = shortfall;
+                }
+            }
+            // nothing more is lost by today
+            BOOST_TEST_CONTEXT(model.first << ", tranche " << tranche.first << " to " << tranche.second)
+            {
+                BOOST_CHECK_EQUAL(basket->expectedShortfall(vars.today, 0.95), 0.0);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testExpectedShortfallOfALossDistribution)
+{
+    BOOST_TEST_MESSAGE("Testing expected shortfall against the mean of the percentiles beyond it...");
+
+    // The binomial and recursive models give the tranche's loss at a level from points of the
+    // portfolio's loss distribution, linear in the probability in between. Their shortfall is
+    // the mean of that above the level, taken here on a fine grid. Before #159 it drew a chord
+    // where the portfolio's loss crosses the attachment or the detachment, and the recursive
+    // model's percentile returned probabilities at levels 0 and 1, and the binomial model's the
+    // portfolio's loss at 1.
+    SharedModelVars vars(0.3);
+    Settings::instance().evaluationDate() = vars.today;
+    const Date horizon = vars.schedule.endDate();
+
+    using Factory = ext::shared_ptr<DefaultLossModel> (SharedModelVars::*)() const;
+    const std::vector<std::pair<std::string, Factory>> models = {{"binomial", &SharedModelVars::binomialModel},
+                                                                 {"recursive", &SharedModelVars::recursiveModel}};
+    const std::vector<std::pair<Real, Real>> tranches = {{0.0, 0.1}, {0.05, 0.1}, {0.0, 0.2}, {0.1, 0.3}};
+    for (const auto& model : models)
+    {
+        for (const auto& tranche : tranches)
+        {
+            BOOST_TEST_CONTEXT(model.first << ", tranche " << tranche.first << " to " << tranche.second)
+            {
+                const auto basket = vars.basket(tranche.first, tranche.second);
+                basket->setLossModel((vars.*model.second)());
+                const Real attachment = basket->remainingAttachmentAmount();
+                const Real detachment = basket->remainingDetachmentAmount();
+                auto trancheLoss = [&](Real loss)
+                { return std::min(std::max(loss - attachment, 0.0), detachment - attachment); };
+
+                std::vector<std::pair<Probability, Real>> points;
+                for (const auto& point : basket->lossDistribution(horizon))
+                    points.emplace_back(std::min(point.second, 1.0), point.first);
+                auto lossAt = [&](Probability level)
+                {
+                    if (level <= points.front().first)
+                        return trancheLoss(points.front().second);
+                    for (Size i = 1; i < points.size(); ++i)
+                    {
+                        if (points[i].first > level)
+                            return trancheLoss(points[i - 1].second + (points[i].second - points[i - 1].second) *
+                                                                          (level - points[i - 1].first) /
+                                                                          (points[i].first - points[i - 1].first));
+                    }
+                    return trancheLoss(points.back().second);
+                };
+
+                BOOST_CHECK_EQUAL(basket->percentile(horizon, 0.0), trancheLoss(points.front().second));
+                BOOST_CHECK_EQUAL(basket->percentile(horizon, 1.0), trancheLoss(points.back().second));
+                for (Real level : {0.3, 0.5, 0.9, 0.95, 0.99})
+                {
+                    BOOST_TEST_CONTEXT("level " << level)
+                    {
+                        BOOST_CHECK_SMALL(basket->percentile(horizon, level) - lossAt(level), 1.0e-9);
+
+                        const Size steps = 100000;
+                        Real mean = 0.0;
+                        for (Size i = 0; i < steps; ++i)
+                            mean += lossAt(level + (i + 0.5) * (1.0 - level) / steps);
+                        mean /= steps;
+                        BOOST_CHECK_SMALL(basket->expectedShortfall(horizon, level) - mean, 1.0e-5);
+                    }
+                }
+            }
         }
     }
 }

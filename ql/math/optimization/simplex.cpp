@@ -170,29 +170,36 @@ namespace QuantLib
                 return ecType;
             }
             // If end criteria is not met, continue
+            Real highest = values_[iHighest];
             Real factor = -1.0;
             Real vTry = extrapolate(P, iHighest, factor);
+            bool contract = false;
             if ((vTry <= values_[iLowest]) && (factor == -1.0))
             {
                 factor = 2.0;
                 extrapolate(P, iHighest, factor);
+                // If neither point replaced the worst vertex, every vertex costs the same as the reflection.
+                // The simplex hasn't moved then, and would take the same steps again until the iteration
+                // limit: contract it instead.
+                contract = values_[iHighest] >= highest;
             }
             else if (std::fabs(factor) > QL_EPSILON)
             {
-                if (vTry >= values_[iNextHighest])
+                contract = vTry >= values_[iNextHighest];
+            }
+            if (contract)
+            {
+                Real vSave = values_[iHighest];
+                factor = 0.5;
+                vTry = extrapolate(P, iHighest, factor);
+                if (vTry >= vSave && std::fabs(factor) > QL_EPSILON)
                 {
-                    Real vSave = values_[iHighest];
-                    factor = 0.5;
-                    vTry = extrapolate(P, iHighest, factor);
-                    if (vTry >= vSave && std::fabs(factor) > QL_EPSILON)
+                    for (Size i = 0; i <= n; i++)
                     {
-                        for (Size i = 0; i <= n; i++)
+                        if (i != iLowest)
                         {
-                            if (i != iLowest)
-                            {
-                                vertices_[i] = 0.5 * (vertices_[i] + vertices_[iLowest]);
-                                values_[i] = P.value(vertices_[i]);
-                            }
+                            vertices_[i] = 0.5 * (vertices_[i] + vertices_[iLowest]);
+                            values_[i] = P.value(vertices_[i]);
                         }
                     }
                 }

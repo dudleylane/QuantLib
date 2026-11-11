@@ -70,7 +70,10 @@ namespace QuantLib
         @param integralType Integration type.
         @param ini Copula initialization if any.
 
-        \warning Baskets with realized defaults not tested/WIP.
+        \warning On a basket with defaults before the evaluation date, the
+            statistics of one name or a pair, such as probOfDefault and
+            defaultCorrelation, take a defaulted name's curve as if it
+            hadn't defaulted. probAtLeastNEvents counts only the names left.
         */
         DefaultLatentModel(const std::vector<std::vector<Real>>& factorWeights,
                            LatentModelIntegrationType::LatentModelIntegrationType integralType,
@@ -185,8 +188,7 @@ namespace QuantLib
             return conditionalDefaultProbabilityInvP(invCumYProb1, iName1, mktFactors) *
                    conditionalDefaultProbabilityInvP(invCumYProb2, iName2, mktFactors);
         }
-        //! Conditional probability of n default events or more.
-        // \todo: check the issuer has not defaulted.
+        //! Conditional probability of n default events or more among the names left.
         Real conditionalProbAtLeastNEvents(Size n, const Date& date, const std::vector<Real>& mktFactors) const;
         //! access to integration:
         const ext::shared_ptr<LMIntegration>& integration() const override { return integration_; }
@@ -220,6 +222,9 @@ namespace QuantLib
 
         /*! Returns the probaility of having a given or larger number of
         defaults in the basket portfolio at a given time.
+
+        The defaults are counted among the names left at the evaluation
+        date; Basket::probAtLeastNEvents adds those before it.
         */
         Probability probAtLeastNEvents(Size n, const Date& date) const
         {
@@ -275,15 +280,16 @@ namespace QuantLib
         See integration in O'Kane for homogeneous ntds.
         */
         // first position with as many defaults as desired:
-        Size poolSize = basket_->size(); // move to 'livesize'
+        const std::vector<Size>& alive = basket_->liveList();
+        Size liveSize = alive.size();
         const ext::shared_ptr<Pool>& pool = basket_->pool();
 
-        auto limit = static_cast<BigNatural>(std::pow(2., (int)(poolSize)));
+        auto limit = static_cast<BigNatural>(std::pow(2., (int)(liveSize)));
 
-        // Precalc conditional probabilities
+        // Precalc conditional probabilities, each name's by its place in the pool
         std::vector<Probability> pDefCond;
-        pDefCond.reserve(poolSize);
-        for (Size i = 0; i < poolSize; i++)
+        pDefCond.reserve(liveSize);
+        for (Size i : alive)
             pDefCond.push_back(conditionalDefaultProbability(
                 pool->get(pool->names()[i]).defaultProbability(basket_->defaultKeys()[i])->defaultProbability(date), i,
                 mktFactors));
@@ -292,7 +298,7 @@ namespace QuantLib
         // cheap permutations
         // dynamic_bitset (std::vector) memory manipulations moved out of the hot loop
         auto mask = static_cast<BigNatural>((1 << (int)(n)) - 1);
-        boost::dynamic_bitset<> bsetMask(poolSize, mask);
+        boost::dynamic_bitset<> bsetMask(liveSize, mask);
         auto bits_set = bsetMask.count();
         auto increaseMask = [&]()
         {

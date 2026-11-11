@@ -268,6 +268,10 @@ namespace QuantLib
         std::vector<Probability> probsBeingNthEvent(Size n, const Date& d) const;
         /*! Returns the probaility of having a given or larger number of
         defaults in the basket portfolio at a given time.
+
+        The defaults before the evaluation date count: up to their number
+        this is 1, and above it the loss model gives the probability of the
+        rest among the names left.
         */
         Probability probAtLeastNEvents(Size n, const Date& d) const;
         /*! Expected recovery rate of the underlying position as a fraction of

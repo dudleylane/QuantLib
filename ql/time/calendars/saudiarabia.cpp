@@ -32,20 +32,28 @@ namespace QuantLib
 
         bool isTrueWeekend(Date d)
         {
-            // The Saudi weekend was changed from 29th June 2013
+            // The Saudi weekend was changed from 29th June 2013. Before that it was Thursday and
+            // Friday, but the exchange held a Thursday session from 28th May 1994, by the CMA's
+            // history of the market, until the CMA cancelled it from 15th June 2006.
             Weekday w = d.weekday();
-            return (d < Date(29, June, 2013)) ? (w == Thursday || w == Friday) : (w == Friday || w == Saturday);
+            if (d >= Date(29, June, 2013))
+                return w == Friday || w == Saturday;
+            const bool thursdaySession = d >= Date(28, May, 1994) && d < Date(15, June, 2006);
+            return w == Friday || (w == Thursday && !thursdaySession);
         }
 
-        // From 2008 on the holidays go by the last session before them and the first one after.
+        // From 2002 on the holidays go by the last session before them and the first one after.
         // From 2016 on those are in the exchange's notices, and from 2027 on in its current
         // calendar, which follows the Umm al-Qura calendar, so they can still move. From 2008 to
         // 2015 they come from daily data: the trades of every share and the TASI index, which
         // agree with each other and with the two notices found, and give the trading days the
         // exchange reports for 2012 to 2015.
 
-        // Before 2008 there's only one such series, so a holiday goes by its Eid date, from Eid-1
-        // to Eid+4. That can be some days off (#171).
+        // From 2002 to 2007 they come from the trades alone, as TASI's series starts in 2008. The
+        // one report found, for Eid Al-Fitr of 2005, agrees, and in those years the trades leave
+        // no day without a session but these holidays and the closures below, so they show no
+        // holes (#171). Before 2002 a holiday goes by its Eid date, from Eid-1 to Eid+4. That can
+        // be some days off, more so while Thursdays had a session (#214).
 
         bool isBetweenSessions(Date d, const std::vector<std::pair<Date, Date>>& sessions)
         {
@@ -57,12 +65,17 @@ namespace QuantLib
         {
             // Eid al Adha dates taken from:
             // https://en.wikipedia.org/wiki/Eid_al-Adha#Eid_al-Adha_in_the_Gregorian_calendar
-            static std::vector<Date> EidAlAdha = {
-                Date(7, April, 1998),     Date(27, March, 1999),    Date(16, March, 2000),   Date(5, March, 2001),
-                Date(23, February, 2002), Date(12, February, 2003), Date(1, February, 2004), Date(21, January, 2005),
-                Date(10, January, 2006),  Date(31, December, 2006), Date(20, December, 2007)};
+            static std::vector<Date> EidAlAdha = {Date(7, April, 1998), Date(27, March, 1999), Date(16, March, 2000),
+                                                  Date(5, March, 2001)};
 
             static std::vector<std::pair<Date, Date>> sessions = {
+                {Date(19, February, 2002), Date(26, February, 2002)},
+                {Date(5, February, 2003), Date(15, February, 2003)},
+                {Date(28, January, 2004), Date(7, February, 2004)},
+                {Date(19, January, 2005), Date(29, January, 2005)},
+                {Date(8, January, 2006), Date(16, January, 2006)},
+                {Date(27, December, 2006), Date(6, January, 2007)},
+                {Date(17, December, 2007), Date(24, December, 2007)},
                 {Date(3, December, 2008), Date(13, December, 2008)},
                 {Date(25, November, 2009), Date(5, December, 2009)},
                 {Date(10, November, 2010), Date(20, November, 2010)},
@@ -95,11 +108,15 @@ namespace QuantLib
         {
             // Eid al Fitr dates taken from:
             // https://en.wikipedia.org/wiki/Eid_al-Fitr#In_the_Gregorian_calendar
-            static std::vector<Date> EidAlFitr = {Date(16, Dec, 2001), Date(5, Dec, 2002), Date(25, Nov, 2003),
-                                                  Date(13, Nov, 2004), Date(3, Nov, 2005), Date(23, Oct, 2006),
-                                                  Date(12, Oct, 2007)};
+            static std::vector<Date> EidAlFitr = {Date(16, Dec, 2001)};
 
             static std::vector<std::pair<Date, Date>> sessions = {
+                {Date(3, December, 2002), Date(10, December, 2002)},
+                {Date(20, November, 2003), Date(29, November, 2003)},
+                {Date(10, November, 2004), Date(20, November, 2004)},
+                {Date(31, October, 2005), Date(8, November, 2005)},
+                {Date(18, October, 2006), Date(28, October, 2006)},
+                {Date(10, October, 2007), Date(20, October, 2007)},
                 {Date(28, September, 2008), Date(6, October, 2008)},
                 {Date(16, September, 2009), Date(26, September, 2009)},
                 {Date(6, September, 2010), Date(14, September, 2010)},
@@ -158,8 +175,8 @@ namespace QuantLib
 
         if (isTrueWeekend(date) || isEidAlAdha(date) ||
             isEidAlFitr(date)
-            // National Day
-            || (d == 23 && m == September)
+            // National Day, a public holiday since 2005
+            || (d == 23 && m == September && y >= 2005)
             // moved to the Thursday before a Friday or the Sunday after a Saturday, since 2016
             || (((d == 22 && w == Thursday) || (d == 24 && w == Sunday)) && m == September && y >= 2016)
             // Founding Day (since 2022, moved to the Thursday before a Friday or the Sunday after a Saturday)
@@ -169,8 +186,11 @@ namespace QuantLib
             (d == 19 && m == March && y == 2011)
             // National Day, moved off the Thursday of the old weekend
             || (d == 22 && m == September && y == 2010)
-            // and off its Friday, going by the daily data, as no notice was found
-            || (d == 24 && m == September && y == 2011)
+            // and off its Friday to the Saturday after, by the royal decree reported in 2005
+            || (d == 24 && m == September && (y == 2005 || y == 2011))
+            // the market suspended for the four stages of the share split of 2006
+            || (d == 30 && m == March && y == 2006) ||
+            ((d == 6 || d == 13 || d == 20) && m == April && y == 2006)
             // no sessions in the daily data and none in the trading days reported, though no notice
             // was found: the day before National Day, and the Sunday after King Abdullah's death
             || (d == 22 && m == September && y == 2013) ||

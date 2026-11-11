@@ -33,6 +33,7 @@
 #include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/daycounters/actualactual.hpp>
 #include <iostream>
 #include <string>
 
@@ -347,6 +348,93 @@ BOOST_AUTO_TEST_CASE(testStudent, *precondition(if_speed(Slow)))
                                          << "|" << hwDataDist[i].spread[3]);
     }
     // END
+}
+
+BOOST_AUTO_TEST_CASE(testAfterADefault)
+{
+    BOOST_TEST_MESSAGE("Testing an nth to default on a basket with a default...");
+
+    // Eight names, the fourth of which has failed to pay, against the seven left as a pool of
+    // their own. Before #161 the basket asked its model for the nth default without taking off
+    // the one so far, and the model still counted the defaulted name as one that could default:
+    // a second to default on the eight priced at 0.0353, where as a first to default on the
+    // seven it's 0.0836, and a first to default, already triggered, at 0.0908.
+    const Date inception(31, August, 2006);
+    const Date horizon(1, September, 2011);
+    const Size defaultedName = 3;
+    Settings::instance().evaluationDate() = Date(1, November, 2006);
+
+    const auto basketOf = [&](bool withTheDefaultedName)
+    {
+        const NorthAmericaCorpDefaultKey curveKey(EURCurrency(), SeniorSec, Period(0, Weeks), 10.);
+        const NorthAmericaCorpDefaultKey poolKey(EURCurrency(), SeniorSec, Period(), 1.);
+        const auto pool = ext::make_shared<Pool>();
+        std::vector<std::string> names;
+        for (Size i = 0; i < 8; ++i)
+        {
+            if (i == defaultedName && !withTheDefaultedName)
+                continue;
+            names.push_back("issuer-" + std::to_string(i));
+            std::vector<std::pair<DefaultProbKey, Handle<DefaultProbabilityTermStructure>>> probabilities;
+            probabilities.emplace_back(
+                curveKey, Handle<DefaultProbabilityTermStructure>(ext::make_shared<FlatHazardRate>(
+                              inception, makeQuoteHandle(0.01 + 0.005 * i), ActualActual(ActualActual::ISDA))));
+            DefaultEventSet events;
+            if (i == defaultedName)
+                events.insert(ext::make_shared<FailureToPayEvent>(Date(15, September, 2006), EURCurrency(), SeniorSec,
+                                                                  10.0, Date(20, September, 2006), 0.4));
+            pool->add(names.back(), Issuer(probabilities, events), poolKey);
+        }
+        const auto basket =
+            ext::make_shared<Basket>(inception, names, std::vector<Real>(names.size(), 100.0), pool, 0.0, 1.0);
+        basket->setLossModel(ext::make_shared<ConstantLossModel<GaussianCopulaPolicy>>(
+            makeQuoteHandle(0.3), std::vector<Real>(names.size(), 0.4), LatentModelIntegrationType::GaussianQuadrature,
+            names.size(), GaussianCopulaPolicy::initTraits()));
+        return basket;
+    };
+    const auto all = basketOf(true);
+    const auto left = basketOf(false);
+    BOOST_REQUIRE_EQUAL(all->remainingSize(), left->remainingSize());
+
+    BOOST_CHECK_EQUAL(all->probAtLeastNEvents(1, horizon), 1.0);
+    for (Size n = 2; n <= 4; ++n)
+    {
+        BOOST_TEST_CONTEXT("at least " << n << " defaults")
+        {
+            BOOST_CHECK_CLOSE_FRACTION(all->probAtLeastNEvents(n, horizon), left->probAtLeastNEvents(n - 1, horizon),
+                                       1.0e-12);
+        }
+    }
+
+    const Schedule schedule = MakeSchedule()
+                                  .from(Date(1, September, 2006))
+                                  .to(horizon)
+                                  .withFrequency(Quarterly)
+                                  .withCalendar(TARGET())
+                                  .withConvention(Following)
+                                  .withRule(DateGeneration::Backward);
+    const auto engine = ext::make_shared<IntegralNtdEngine>(
+        3 * Months, Handle<YieldTermStructure>(ext::make_shared<FlatForward>(inception, 0.05, Actual360())));
+    const auto ntd = [&](const ext::shared_ptr<Basket>& basket, Size rank)
+    {
+        const auto contract = ext::make_shared<NthToDefault>(basket, rank, Protection::Seller, schedule, 0.0, 0.02,
+                                                             Actual360(), 100.0, true);
+        contract->setPricingEngine(engine);
+        return contract;
+    };
+    for (Size rank = 2; rank <= 4; ++rank)
+    {
+        BOOST_TEST_CONTEXT("rank " << rank)
+        {
+            BOOST_CHECK_CLOSE_FRACTION(ntd(all, rank)->fairPremium(), ntd(left, rank - 1)->fairPremium(), 1.0e-12);
+        }
+    }
+
+    // The default so far has triggered a first to default, which has nothing left to pay.
+    const auto triggered = ntd(all, 1);
+    BOOST_CHECK_EQUAL(triggered->premiumLegNPV(), 0.0);
+    BOOST_CHECK_EQUAL(triggered->protectionLegNPV(), 0.0);
+    BOOST_CHECK_THROW(triggered->fairPremium(), Error);
 }
 
 #endif

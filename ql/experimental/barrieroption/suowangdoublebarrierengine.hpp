@@ -35,6 +35,12 @@ namespace QuantLib
     /*! The formulas are taken from "Barrier Option Pricing",
          Wulin Suo, Yong Wang.
 
+         They sum images of the spot in the barriers, from -\p series to \p series - 1.  Where
+         \f$ \sigma \sqrt{T} \f$ is above half of \f$ \ln(U/L) \f$, the engine sums the eigenfunction
+         expansion of the density between the barriers instead, as AnalyticDoubleBarrierEngine does, so
+         the paper's formulas are used only below that.  At zero volatility the underlying follows its
+         forward.
+
         \ingroup barrierengines
 
         \test the correctness of the returned value is tested by

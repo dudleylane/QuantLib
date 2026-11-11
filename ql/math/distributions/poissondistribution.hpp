@@ -52,12 +52,8 @@ namespace QuantLib
 
 
     //! Cumulative Poisson distribution function
-    /*! This function provides an approximation of the
-        integral of the Poisson distribution.
-
-        For this implementation see
-        "Numerical Recipes in C", 2nd edition,
-        Press, Teukolsky, Vetterling, Flannery, chapter 6
+    /*! The probability of at most \f$ k \f$ events, which is \f$ Q(k + 1, \mu) \f$, the complementary incomplete
+        gamma function (incompleteGammaFunctionComplement). So it keeps its relative accuracy where it is small.
 
         \test the correctness of the returned value is tested by
               checking it against known good results.
@@ -66,7 +62,7 @@ namespace QuantLib
     {
       public:
         CumulativePoissonDistribution(Real mu) : mu_(mu) {}
-        Real operator()(BigNatural k) const { return 1.0 - incompleteGammaFunction(k + 1, mu_); }
+        Real operator()(BigNatural k) const { return incompleteGammaFunctionComplement(k + 1, mu_); }
 
       private:
         Real mu_;
@@ -155,7 +151,8 @@ namespace QuantLib
                 term *= index / lambda_;
                 --index;
             }
-            return 0.0;
+            // x is above exp(-lambda), so the terms from one up fell short of 1 - x only through their rounding.
+            return 1.0;
         }
 
         // Likewise below the mode, for what's further left.  Terms this small would lose their
@@ -169,6 +166,10 @@ namespace QuantLib
             term = previous;
             --index;
         }
+        // At zero, the term the multiplications reach can be a few ulps above exp(-lambda), the probability x was
+        // checked against above, and x just above it would then stop the sum at zero.
+        if (index == 0)
+            term = std::exp(-lambda_);
 
         Real sum = term;
         while (x > sum)

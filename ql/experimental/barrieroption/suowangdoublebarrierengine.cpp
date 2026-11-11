@@ -20,7 +20,9 @@
 #include <ql/exercise.hpp>
 #include <ql/experimental/barrieroption/suowangdoublebarrierengine.hpp>
 #include <ql/instruments/europeanoption.hpp>
+#include <ql/pricingengines/barrier/analyticdoublebarrierengine.hpp>
 #include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
+#include <cmath>
 #include <utility>
 
 namespace QuantLib
@@ -71,50 +73,75 @@ namespace QuantLib
         europeanOption.setPricingEngine(analyticEuropeanEngine);
         Real european = europeanOption.NPV();
 
+        const Real variance = vol * vol * T, stdDev = vol * std::sqrt(T);
+        const Option::Type type = payoff->optionType();
+        QL_REQUIRE(type == Option::Call || type == Option::Put, "option type not recognized");
         Real barrierOut = 0;
+        if (variance < QL_EPSILON)
+        {
+            // The underlying follows its forward, and leaves the corridor if the forward does.
+            const Real forward = S * df / dd;
+            if (forward > L && forward < H)
+                barrierOut = dd * (*payoff)(forward);
+        }
+        else if ((type == Option::Call && K >= H) || (type == Option::Put && K <= L))
+        {
+            // Nothing that survives pays.
+        }
+        else if (stdDev > 0.5 * std::log(H / L))
+        {
+            // Where the volatility is wide against the corridor, the images below need more terms the wider it is, of
+            // the order of the spot, which cancel as the value falls.  The eigenfunction expansion needs a few there.
+            barrierOut = dd * detail::doubleKnockOutByEigenfunctions(type, S, K, L, H, mu * T, variance);
+        }
+        else
+        {
+            // The images, with their weights as logs: at low volatility the weights overflow while the differences
+            // of f they multiply underflow or cancel, and their products are still finite.
+            const Real logRatio = std::log(L / H), logHS = std::log(H / S), k = 2.0 * mu / (vol * vol);
+            const Real logHSWeight = k * logHS, HHoverS = H * H / S;
+            const auto d = [&](Real logX) { return (logX + (vol * vol + mu) * T) / stdDev; };
+            for (int n = -series_; n < series_; n++)
+            {
+                // the logs of (L/H)^(2n mu/vol^2) and (L/H)^(2n)
+                const Real logW = n * k * logRatio, logR = 2.0 * n * logRatio;
+                if (type == Option::Call)
+                {
+                    const Real d1 = d(-logHS + logR), d1_down = d(std::log(S / K_down) + logR);
+                    const Real k1 = d(std::log(L / S) + logR - logRatio);
+                    const Real k1_down = d(std::log(H / K_down) + logHS + logR);
+                    barrierOut +=
+                        df * S * detail::doubleBarrierWeightedDifference(f_, logW + logR, d1_down, d1) -
+                        dd * K * detail::doubleBarrierWeightedDifference(f_, logW, d1_down - stdDev, d1 - stdDev) -
+                        df * HHoverS *
+                            detail::doubleBarrierWeightedDifference(f_, logW + logR + logHSWeight, k1_down, k1) +
+                        dd * K *
+                            detail::doubleBarrierWeightedDifference(f_, logW + logHSWeight, k1_down - stdDev,
+                                                                    k1 - stdDev);
+                }
+                else
+                {
+                    const Real h1 = d(-logHS + logR - logRatio), d1_up = d(std::log(S / K_up) + logR);
+                    const Real g1 = d(logHS + logR - logRatio);
+                    const Real k1_up = d(std::log(H / K_up) + logHS + logR);
+                    barrierOut +=
+                        dd * K * detail::doubleBarrierWeightedDifference(f_, logW, h1 - stdDev, d1_up - stdDev) -
+                        df * S * detail::doubleBarrierWeightedDifference(f_, logW + logR, h1, d1_up) -
+                        dd * K *
+                            detail::doubleBarrierWeightedDifference(f_, logW + logHSWeight, g1 - stdDev,
+                                                                    k1_up - stdDev) +
+                        df * HHoverS *
+                            detail::doubleBarrierWeightedDifference(f_, logW + logR + logHSWeight, g1, k1_up);
+                }
+            }
+        }
+        barrierOut = std::max(0.0, barrierOut);
+        const Real barrierIn = std::max(0.0, european - barrierOut);
+
+        // An additional result only: the value doesn't use the rebate.
         Real rebateIn = 0;
         for (int n = -series_; n < series_; n++)
         {
-            Real d1 = D(S / H * std::pow(L / H, 2.0 * n), vol * vol + mu, vol, T);
-            Real d2 = d1 - vol * std::sqrt(T);
-            Real g1 = D(H / S * std::pow(L / H, 2.0 * n - 1.0), vol * vol + mu, vol, T);
-            Real g2 = g1 - vol * std::sqrt(T);
-            Real h1 = D(S / H * std::pow(L / H, 2.0 * n - 1.0), vol * vol + mu, vol, T);
-            Real h2 = h1 - vol * std::sqrt(T);
-            Real k1 = D(L / S * std::pow(L / H, 2.0 * n - 1.0), vol * vol + mu, vol, T);
-            Real k2 = k1 - vol * std::sqrt(T);
-            Real d1_down = D(S / K_down * std::pow(L / H, 2.0 * n), vol * vol + mu, vol, T);
-            Real d2_down = d1_down - vol * std::sqrt(T);
-            Real d1_up = D(S / K_up * std::pow(L / H, 2.0 * n), vol * vol + mu, vol, T);
-            Real d2_up = d1_up - vol * std::sqrt(T);
-            Real k1_down = D((H * H) / (K_down * S) * std::pow(L / H, 2.0 * n), vol * vol + mu, vol, T);
-            Real k2_down = k1_down - vol * std::sqrt(T);
-            Real k1_up = D((H * H) / (K_up * S) * std::pow(L / H, 2.0 * n), vol * vol + mu, vol, T);
-            Real k2_up = k1_up - vol * std::sqrt(T);
-
-            if (payoff->optionType() == Option::Call)
-            {
-                barrierOut +=
-                    std::pow(L / H, 2.0 * n * mu / (vol * vol)) *
-                    (df * S * std::pow(L / H, 2.0 * n) * (f_(d1_down) - f_(d1)) - dd * K * (f_(d2_down) - f_(d2)) -
-                     df * std::pow(L / H, 2.0 * n) * H * H / S * std::pow(H / S, 2.0 * mu / (vol * vol)) *
-                         (f_(k1_down) - f_(k1)) +
-                     dd * K * std::pow(H / S, 2.0 * mu / (vol * vol)) * (f_(k2_down) - f_(k2)));
-            }
-            else if (payoff->optionType() == Option::Put)
-            {
-                barrierOut +=
-                    std::pow(L / H, 2.0 * n * mu / (vol * vol)) *
-                    (dd * K * (f_(h2) - f_(d2_up)) - df * S * std::pow(L / H, 2.0 * n) * (f_(h1) - f_(d1_up)) -
-                     dd * K * std::pow(H / S, 2.0 * mu / (vol * vol)) * (f_(g2) - f_(k2_up)) +
-                     df * std::pow(L / H, 2.0 * n) * H * H / S * std::pow(H / S, 2.0 * mu / (vol * vol)) *
-                         (f_(g1) - f_(k1_up)));
-            }
-            else
-            {
-                QL_FAIL("option type not recognized");
-            }
-
             Real v1 = D(H / S * std::pow(H / L, 2.0 * n), -mu, vol, T);
             Real v2 = D(H / S * std::pow(H / L, 2.0 * n), mu, vol, T);
             Real v3 = D(S / L * std::pow(H / L, 2.0 * n), -mu, vol, T);
@@ -131,10 +158,10 @@ namespace QuantLib
         if (barrierType == DoubleBarrier::KnockOut)
             results_.value = barrierOut;
         else
-            results_.value = european - barrierOut;
+            results_.value = barrierIn;
         results_.additionalResults["vanilla"] = european;
         results_.additionalResults["barrierOut"] = barrierOut;
-        results_.additionalResults["barrierIn"] = Real(european - barrierOut);
+        results_.additionalResults["barrierIn"] = barrierIn;
         results_.additionalResults["rebateIn"] = rebateIn;
     }
 

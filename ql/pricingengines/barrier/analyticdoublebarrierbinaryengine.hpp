@@ -70,6 +70,17 @@ namespace QuantLib
         ext::shared_ptr<GeneralizedBlackScholesProcess> process_;
     };
 
+    namespace detail
+    {
+
+        // The probability that the underlying stays inside (lower, upper) up to T, from spot, with its log moving by
+        // (carry - vol^2 / 2) t + vol W_t and variance = vol^2 T; 0 at or outside the barriers.  The engine above
+        // prices Double Knock options with it, and VannaVolgaDoubleBarrierEngine weights its smile adjustment by it.
+        // How it's summed is at its definition, in analyticdoublebarrierbinaryengine.cpp.
+        Real doubleBarrierNoTouchProbability(Real spot, Real lower, Real upper, Real carry, Time T, Real variance);
+
+    }
+
 }
 
 

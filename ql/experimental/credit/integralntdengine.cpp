@@ -164,11 +164,16 @@ namespace QuantLib
 
         results_.value = results_.premiumValue + accrualValue + claimValue + results_.upfrontPremiumValue;
 
-        results_.fairPremium = -arguments_.premiumRate * claimValue / (results_.premiumValue + accrualValue);
+        // Where no premium is left to pay, as once the defaults so far reach
+        //   the contract's rank, there's no fair premium.
+        if (results_.premiumValue + accrualValue != 0.)
+        {
+            results_.fairPremium = -arguments_.premiumRate * claimValue / (results_.premiumValue + accrualValue);
+            results_.additionalResults["fairPremium"] = results_.fairPremium;
+        }
         // alternatively use results buffers and omit locals.
         results_.protectionValue = claimValue;
 
-        results_.additionalResults["fairPremium"] = results_.fairPremium;
         results_.additionalResults["premiumLegNPV"] = Real(results_.premiumValue + results_.upfrontPremiumValue);
         results_.additionalResults["protectionLegNPV"] = results_.protectionValue;
     }

@@ -153,8 +153,16 @@ BOOST_AUTO_TEST_CASE(testFlatExtrapolation)
         bond->setPricingEngine(engine2);
         modelPrices2.emplace_back(bond->cleanPrice(), Bond::Price::Clean);
     }
-    BOOST_CHECK_EQUAL(curve1->fitResults().errorCode(), EndCriteria::MaxIterations);
-    BOOST_CHECK_EQUAL(curve2->fitResults().errorCode(), EndCriteria::MaxIterations);
+
+    // From this guess each fit ends at its iteration limit, or at a stationary point where the simplex comes to rest
+    // with every vertex at the same cost (#154); which one depends on the build's rounding. Built with -O1 for
+    // coverage, the second fit stops there, at the cost and parameters where it used to stay until the limit.
+    for (const auto& curve : {curve1, curve2})
+    {
+        const EndCriteria::Type errorCode = curve->fitResults().errorCode();
+        BOOST_CHECK_MESSAGE(errorCode == EndCriteria::MaxIterations || errorCode == EndCriteria::StationaryPoint,
+                            "fit ended at " << errorCode);
+    }
 
     // the resulting cost values are similar for both approaches
     // i.e. the fit has a similar quality, I get for example:

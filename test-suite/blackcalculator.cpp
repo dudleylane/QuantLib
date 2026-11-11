@@ -18,9 +18,16 @@
 
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
+#include <ql/exercise.hpp>
 #include <ql/instruments/payoffs.hpp>
+#include <ql/instruments/vanillaoption.hpp>
 #include <ql/math/comparison.hpp>
 #include <ql/pricingengines/blackcalculator.hpp>
+#include <ql/pricingengines/blackscholescalculator.hpp>
+#include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
+#include <ql/processes/blackscholesprocess.hpp>
+#include <ql/quotes/simplequote.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
 #include <cmath>
 
 using namespace QuantLib;
@@ -552,6 +559,151 @@ BOOST_AUTO_TEST_CASE(testBlackCalculatorZeroVolatilityLimit)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testBlackCalculatorVannaAndVolgaOfEveryPayoff)
+{
+    BOOST_TEST_MESSAGE("Testing BlackCalculator vanna and volga of every payoff...");
+
+    // #193: every payoff took the vanilla option's vanna and volga, and volga was the derivative of vega in the
+    // standard deviation, off by sqrt(T). The references differentiate the value numerically at 50 digits (mpmath),
+    // with the spot at 98, r 3 %, q 1 %, a volatility of 20 %, a strike of 105, a cash payoff of 10 and, for the gap
+    // option, a second strike of 95.
+    const Real spot = 98.0, r = 0.03, q = 0.01, vol = 0.20, strike = 105.0;
+
+    const auto payoff = [&](int kind, Option::Type type) -> ext::shared_ptr<StrikedTypePayoff>
+    {
+        switch (kind)
+        {
+            case 0:
+                return ext::make_shared<PlainVanillaPayoff>(type, strike);
+            case 1:
+                return ext::make_shared<CashOrNothingPayoff>(type, strike, 10.0);
+            case 2:
+                return ext::make_shared<AssetOrNothingPayoff>(type, strike);
+            default:
+                return ext::make_shared<GapPayoff>(type, strike, 95.0);
+        }
+    };
+
+    // The calls' values. A put's are the same for a vanilla or gap option, whose call less put is a forward, and the
+    // opposite for a digital one, whose call and put add up to a certain payment.
+    struct Reference
+    {
+        int kind;
+        Time maturity;
+        Real vanna, volga;
+    };
+    const Reference references[] = {
+        {0, 0.25, 1.1535272664931643054, 33.344444036573564081},
+        {0, 1.0, 0.67413685999881116858, 9.5771300398156322677},
+        {0, 2.0, 0.47656763695992381716, -2.5703642003370959040},
+        {0, 10.0, 0.17169004440697774126, -27.847008010781431753},
+        {1, 0.25, -0.94424049664847642690, -81.125966989411471049},
+        {1, 1.0, -0.88404569593266916028, -44.018921526154388396},
+        {1, 2.0, -0.66410109407338786254, -18.657998474950035381},
+        {1, 10.0, -0.25053287408792578972, 32.622599880157448719},
+        {2, 0.25, -8.7609979483158381771, -818.47820935224688193},
+        {2, 1.0, -8.6083429472942150144, -452.62154598480544589},
+        {2, 2.0, -6.4964938508106487395, -198.47934818731246741},
+        {2, 10.0, -2.4589051335162430508, 314.69029073087177980},
+        {3, 0.25, 0.20928676984468787846, -47.781522952837906968},
+        {3, 1.0, -0.20990883593385799170, -34.441791486338756128},
+        {3, 2.0, -0.18753345711346404538, -21.228362675287131285},
+        {3, 10.0, -0.078842829680948048458, 4.7755918693760169663},
+    };
+
+    for (const auto& reference : references)
+    {
+        for (Option::Type type : {Option::Call, Option::Put})
+        {
+            const Real sign = type == Option::Put && (reference.kind == 1 || reference.kind == 2) ? -1.0 : 1.0;
+            const Time t = reference.maturity;
+            const BlackCalculator calc(payoff(reference.kind, type), spot * std::exp((r - q) * t), vol * std::sqrt(t),
+                                       std::exp(-r * t));
+            BOOST_TEST_CONTEXT(payoff(reference.kind, type)->description() << ", T = " << t)
+            {
+                BOOST_CHECK_SMALL(calc.vanna(spot, t) / (sign * reference.vanna) - 1.0, 1.0e-12);
+                BOOST_CHECK_SMALL(calc.volga(t) / (sign * reference.volga) - 1.0, 1.0e-12);
+            }
+        }
+    }
+}
+
+
+BOOST_AUTO_TEST_CASE(testBlackCalculatorGreeksAtAZeroStrike)
+{
+    BOOST_TEST_MESSAGE("Testing BlackCalculator Greeks at a zero strike...");
+
+    // #201: at a strike that close() takes for zero, initialize() takes d1 and d2 as infinite and the densities as
+    // zero, and eight Greeks multiplied those zeros by something infinite. Such an option can't end out of the money.
+    // A vanilla or asset-or-nothing call is worth S e^(-qT), a cash-or-nothing call its cash discounted, a gap call
+    // the difference, and a put nothing; theta is minus their derivatives in the expiry.
+    const Real spot = 100.0, r = 0.03, q = 0.01, vol = 0.20, cash = 10.0, secondStrike = 95.0;
+    const Time maturity = 1.0;
+    const Real forward = spot * std::exp((r - q) * maturity), discount = std::exp(-r * maturity);
+    const Real asset = spot * std::exp(-q * maturity);
+
+    // Two strikes inside close()'s band, and one outside it, whose densities underflow without its help.
+    for (Real strike : {0.0, 1.0e-30, 1.0e-20})
+    {
+        for (Option::Type type : {Option::Call, Option::Put})
+        {
+            const Real call = type == Option::Call ? 1.0 : 0.0;
+            struct Case
+            {
+                ext::shared_ptr<StrikedTypePayoff> payoff;
+                Real value, theta, strikeSensitivity;
+            };
+            const Case cases[] = {
+                {ext::make_shared<PlainVanillaPayoff>(type, strike), call * asset, call * q * asset, -call * discount},
+                {ext::make_shared<CashOrNothingPayoff>(type, strike, cash), call * cash * discount,
+                 call * r * cash * discount, 0.0},
+                {ext::make_shared<AssetOrNothingPayoff>(type, strike), call * asset, call * q * asset, 0.0},
+                {ext::make_shared<GapPayoff>(type, strike, secondStrike), call * (asset - secondStrike * discount),
+                 call * (q * asset - r * secondStrike * discount), 0.0}};
+
+            for (const auto& c : cases)
+            {
+                const BlackCalculator calc(c.payoff, forward, vol * std::sqrt(maturity), discount);
+                BOOST_TEST_CONTEXT(c.payoff->description())
+                {
+                    BOOST_CHECK_SMALL(calc.value() - c.value, 1.0e-12);
+                    BOOST_CHECK_SMALL(calc.theta(spot, maturity) - c.theta, 1.0e-12);
+                    BOOST_CHECK_SMALL(calc.strikeSensitivity() - c.strikeSensitivity, 1.0e-12);
+                    BOOST_CHECK_SMALL(calc.gamma(spot), 1.0e-12);
+                    BOOST_CHECK_SMALL(calc.gammaForward(), 1.0e-12);
+                    BOOST_CHECK_SMALL(calc.vega(maturity), 1.0e-12);
+                    BOOST_CHECK_SMALL(calc.strikeGamma(), 1.0e-12);
+                    BOOST_CHECK_SMALL(calc.vanna(spot, maturity), 1.0e-12);
+                    BOOST_CHECK_SMALL(calc.volga(maturity), 1.0e-12);
+                }
+            }
+        }
+    }
+
+    // BlackScholesCalculator takes them from BlackCalculator.
+    const BlackScholesCalculator bs(Option::Call, 0.0, spot, std::exp(-q * maturity), vol * std::sqrt(maturity),
+                                    discount);
+    BOOST_CHECK_SMALL(bs.gamma(), 1.0e-12);
+    BOOST_CHECK_SMALL(bs.theta(maturity) - q * asset, 1.0e-12);
+    BOOST_CHECK_SMALL(bs.vega(maturity), 1.0e-12);
+
+    // And so does the engine through which a call struck at zero is usually priced.
+    const Date today(9, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dayCounter = Actual365Fixed();
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(spot)), Handle<YieldTermStructure>(flatRate(today, q, dayCounter)),
+        Handle<YieldTermStructure>(flatRate(today, r, dayCounter)),
+        Handle<BlackVolTermStructure>(flatVol(today, vol, dayCounter)));
+    VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, 0.0),
+                         ext::make_shared<EuropeanExercise>(today + 365));
+    option.setPricingEngine(ext::make_shared<AnalyticEuropeanEngine>(process));
+    BOOST_CHECK_SMALL(option.NPV() - asset, 1.0e-12);
+    BOOST_CHECK_SMALL(option.gamma(), 1.0e-12);
+    BOOST_CHECK_SMALL(option.vega(), 1.0e-12);
+    BOOST_CHECK_SMALL(option.theta() - q * asset, 1.0e-12);
+    BOOST_CHECK_SMALL(option.strikeSensitivity() + discount, 1.0e-12);
+}
 
 BOOST_AUTO_TEST_SUITE_END()
 

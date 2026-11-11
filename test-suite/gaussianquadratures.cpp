@@ -197,12 +197,61 @@ BOOST_AUTO_TEST_CASE(testHyperbolic)
 
 BOOST_AUTO_TEST_CASE(testTabulated)
 {
-    BOOST_TEST_MESSAGE("Testing tabulated Gauss-Laguerre integration...");
+    BOOST_TEST_MESSAGE("Testing tabulated Gauss-Legendre integration...");
 
     testSingleTabulated([](Real x) -> Real { return x; }, "f(x) = x", 0.0, 1.0e-13);
     testSingleTabulated([](Real x) -> Real { return x * x; }, "f(x) = x^2", (2.0 / 3.0), 1.0e-13);
     testSingleTabulated([](Real x) -> Real { return x * x * x; }, "f(x) = x^3", 0.0, 1.0e-13);
     testSingleTabulated([](Real x) -> Real { return x * x * x * x; }, "f(x) = x^4", (2.0 / 5.0), 1.0e-13);
+}
+
+BOOST_AUTO_TEST_CASE(testTabulatedNodesAndWeights)
+{
+    BOOST_TEST_MESSAGE("Testing the tabulated Gauss-Legendre nodes and weights...");
+
+    // An n-point Gauss-Legendre rule integrates x^k over [-1, 1] exactly for k < 2n. Tables rounded to the nearest
+    // double miss that only through their roundings, by at most the budget below. The moments are summed in long
+    // double, with 64 bits of mantissa on the supported platform, so that their own rounding isn't charged to the
+    // tables. Abramowitz and Stegun's 15 decimals, which the tables had before, missed it by up to 11 times the budget.
+    for (Size n : {6, 7, 12, 20})
+    {
+        BOOST_TEST_CONTEXT("order " << n)
+        {
+            // The tables are private, so read them through the rule: the nodes as it calls the function, and each
+            // weight as the integral of a function that is one at that node and zero at the others.
+            const TabulatedGaussLegendre rule(n);
+            std::vector<Real> nodes, weights;
+            rule(
+                [&](Real x)
+                {
+                    nodes.push_back(x);
+                    return 0.0;
+                });
+            for (Real node : nodes)
+                weights.push_back(rule([&](Real x) { return x == node ? 1.0 : 0.0; }));
+            BOOST_REQUIRE_EQUAL(nodes.size(), n);
+
+            for (Size k = 0; k < 2 * n; ++k)
+            {
+                long double moment = 0.0L, budget = 0.0L;
+                for (Size i = 0; i < n; ++i)
+                {
+                    const Real x = std::fabs(nodes[i]), w = weights[i];
+                    const long double halfUlpX = (std::nextafter(x, 2.0) - x) / 2.0L;
+                    const long double halfUlpW = (std::nextafter(w, 2.0) - w) / 2.0L;
+                    moment += w * std::pow(static_cast<long double>(nodes[i]), k);
+                    budget += halfUlpW * std::pow(static_cast<long double>(x), k);
+                    if (k > 0)
+                        budget += w * k * std::pow(static_cast<long double>(x), k - 1) * halfUlpX;
+                }
+                const long double exact = k % 2 == 1 ? 0.0L : 2.0L / (k + 1);
+                BOOST_TEST_CONTEXT("x^" << k)
+                {
+                    BOOST_CHECK_SMALL(moment - exact, budget);
+                }
+            }
+        }
+    }
 }
 
 BOOST_AUTO_TEST_CASE(testMomentBasedGaussianPolynomial)

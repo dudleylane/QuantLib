@@ -75,7 +75,7 @@ namespace QuantLib
                 {29, April, 2020}, {15, April, 2021}, {5, May, 2022},    {26, April, 2023}, {14, May, 2024},
                 {1, May, 2025},    {22, April, 2026}, {12, May, 2027},   {2, May, 2028},    {19, April, 2029},
                 {8, May, 2030},    {29, April, 2031}, {15, April, 2032}, {4, May, 2033},    {25, April, 2034},
-                {15, May, 2035},   {1, May, 2036},    {21, April, 2037}, {10, May, 2038},   {28, April, 2039},
+                {15, May, 2035},   {1, May, 2036},    {21, April, 2037}, {11, May, 2038},   {28, April, 2039},
                 {18, April, 2040}, {7, May, 2041},    {24, April, 2042}, {14, May, 2043},   {3, May, 2044},
                 {20, April, 2045}, {10, May, 2046},   {1, May, 2047},    {16, April, 2048}, {6, May, 2049},
                 {27, April, 2050},
@@ -127,7 +127,7 @@ namespace QuantLib
         bool isNewYearsDay(const Date& d)
         {
             static std::set<Date> knownDates = {
-                {30, September, 2000}, {17, September, 2001}, {7, September, 2002},  {27, September, 2003},
+                {30, September, 2000}, {18, September, 2001}, {7, September, 2002},  {27, September, 2003},
                 {16, September, 2004}, {4, October, 2005},    {23, September, 2006}, {13, September, 2007},
                 {30, September, 2008}, {19, September, 2009}, {9, September, 2010},  {29, September, 2011},
                 {17, September, 2012}, {5, September, 2013},  {25, September, 2014}, {14, September, 2015},
@@ -159,11 +159,15 @@ namespace QuantLib
             return isSukkot(d - 7);
         }
 
+        // Knesset elections, days of rest by law (Basic Law: The Knesset, s. 10), and municipal elections, days off
+        // from 2018
         bool isElectionDay(const Date& d)
         {
             static std::set<Date> knownDates = {
-                {9, April, 2019},    {17, September, 2019}, {2, March, 2020},    {23, March, 2021},
-                {1, November, 2022}, {27, February, 2024},  {27, October, 2026},
+                {28, January, 2003}, {28, March, 2006},   {10, February, 2009}, {22, January, 2013},
+                {17, March, 2015},   {30, October, 2018}, {9, April, 2019},     {17, September, 2019},
+                {2, March, 2020},    {23, March, 2021},   {1, November, 2022},  {27, February, 2024},
+                {27, October, 2026},
             };
             return knownDates.find(d) != knownDates.end();
         }
@@ -262,7 +266,12 @@ namespace QuantLib
 
         // Sunday to Thursday up to here, and Monday to Friday from the first Sunday of 2026, which had no session
         if (date < Date(4, January, 2026))
+        {
+            // no session on the days of the general strike of 2012
+            if (date == Date(8, February, 2012) || date == Date(9, February, 2012))
+                return false;
             return w != Friday && w != Saturday && !isTradingHoliday(date);
+        }
 
         // no session on a Friday before a Sunday that's a holiday or a holiday's eve
         return !isWeekend(w) && !isTradingHoliday(date) && !(w == Friday && isTradingHoliday(date + 2));
@@ -286,17 +295,17 @@ namespace QuantLib
             || isYomKippur(date) || isSukkot(date) ||
             isSimchatTorah(date)
             // one-off closings
-            || (d == 27 && m == February && y == 2024) // Municipal elections
+            || isElectionDay(date)
             // holidays abroad
             || (d == 1 && m == January)                                         // Western New Year's day
             || dd == easterMonday(y) - 3                                        // Good Friday
+            || (dd == easterMonday(y) && (y == 2023 || y == 2026))              // Easter Monday, not in 2024 and 2025
             || (d >= 25 && w == Monday && m == May && y != 2022)                // Spring Bank Holiday
             || (d == 3 && m == June && y == 2022) || (d == 25 && m == December) // Christmas
             || (d == 26 && m == December)                                       // Boxing day
+            || (d == 28 && m == December && y == 2026)                          // after Boxing Day on a Saturday
             // other days when fixings were not published
-            || (d == 1 && m == November && y == 2022) // no idea why
-            || (d == 2 && m == January && y == 2023)  // Maybe New Year's Day is adjusted to Monday?
-            || (d == 10 && m == April && y == 2023)   // Easter Monday, not a holiday in 2024 and 2025
+            || (d == 2 && m == January && y == 2023) // Maybe New Year's Day is adjusted to Monday?
         )
             return false; // NOLINT(readability-simplify-boolean-expr)
 

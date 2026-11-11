@@ -236,33 +236,7 @@ namespace QuantLib
     template <class CP>
     Real RecursiveLossModel<CP>::percentile(const Date& d, Real percentile) const
     {
-        std::map<Real, Probability> dist = lossDistribution(d);
-
-        if (dist.begin()->second >= 1.)
-            return dist.begin()->first;
-
-        // deterministic case (e.g. date requested is todays date)
-        if (dist.size() == 1)
-            return dist.begin()->first;
-
-        if (percentile == 1.)
-            return dist.rbegin()->second;
-        if (percentile == 0.)
-            return dist.begin()->second;
-        std::map<Real, Probability>::const_iterator itdist = dist.begin();
-        while (itdist->second <= percentile)
-            ++itdist;
-        Real valPlus = itdist->second;
-        Real xPlus = itdist->first;
-        --itdist; // we're never 1st or last, because of tests above
-        Real valMin = itdist->second;
-        Real xMin = itdist->first;
-
-        // return xPlus-(xPlus-xMin)*(valPlus-percentile)/(valPlus-valMin);
-        Real portfLoss = xPlus - (xPlus - xMin) * (valPlus - percentile) / (valPlus - valMin);
-        return // remainingNotional_ *
-            std::min(std::max(portfLoss - attachAmount_, 0.),
-                     detachAmount_ - attachAmount_); /////(detach_ - attach_);
+        return detail::trancheLossPercentile(lossDistribution(d), attachAmount_, detachAmount_, percentile);
     }
 
     template <class CP>
@@ -270,37 +244,7 @@ namespace QuantLib
     {
         if (d == Settings::instance().evaluationDate())
             return 0.;
-        std::map<Real, Probability> distrib = lossDistribution(d);
-
-        std::map<Real, Probability>::iterator itNxt, itDist = distrib.begin();
-        for (; itDist != distrib.end(); ++itDist)
-            if (itDist->second >= perctl)
-                break;
-        itNxt = itDist;
-        --itDist; // what if we are on the first one?!!!
-
-        // One could linearly triangulate the exact point and get extra
-        // precission on the first(broken) period.
-        if (itNxt != distrib.end())
-        {
-            Real lossNxt = std::min(std::max(itNxt->first - attachAmount_, 0.), detachAmount_ - attachAmount_);
-            Real lossHere = std::min(std::max(itDist->first - attachAmount_, 0.), detachAmount_ - attachAmount_);
-
-            Real val = lossNxt - (itNxt->second - perctl) * (lossNxt - lossHere) / (itNxt->second - itDist->second);
-            Real suma = (itNxt->second - perctl) * (lossNxt + val) * .5;
-            ++itDist;
-            ++itNxt;
-            do
-            {
-                lossNxt = std::min(std::max(itNxt->first - attachAmount_, 0.), detachAmount_ - attachAmount_);
-                lossHere = std::min(std::max(itDist->first - attachAmount_, 0.), detachAmount_ - attachAmount_);
-                suma += .5 * (lossHere + lossNxt) * (itNxt->second - itDist->second);
-                ++itDist;
-                ++itNxt;
-            } while (itNxt != distrib.end());
-            return suma / (1. - perctl);
-        }
-        return 0.; // well, we are in error....  fix: FAIL
+        return detail::trancheLossExpectedShortfall(lossDistribution(d), attachAmount_, detachAmount_, perctl);
     }
 
     template <class CP>

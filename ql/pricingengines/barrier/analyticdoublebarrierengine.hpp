@@ -81,6 +81,26 @@ namespace QuantLib
         Real putKI() const;
     };
 
+    namespace detail
+    {
+
+        // The engine above and SuoWangDoubleBarrierEngine both use these, so they are declared here; file-local
+        // copies would leave two to keep in step.  Their derivations are at their definitions, in
+        // analyticdoublebarrierengine.cpp.
+
+        // exp(logWeight) * (N(a) - N(b)), with N the cumulative normal f, keeping its digits where the weight
+        // overflows and the difference underflows or cancels, as the images do at low volatility.
+        Real doubleBarrierWeightedDifference(const CumulativeNormalDistribution& f, Real logWeight, Real a, Real b);
+
+        // A double knock-out's value before discounting, by the eigenfunction expansion of the density between the
+        // barriers, with muT = (r - q - vol^2 / 2) T and variance = vol^2 T.  It takes a few terms where
+        // vol sqrt(T) is above half of ln(U/L), where the images would need more and cancel.  Some of the corridor
+        // must pay: a call struck below the upper barrier, a put struck above the lower.
+        Real doubleKnockOutByEigenfunctions(
+            Option::Type type, Real spot, Real strike, Real lower, Real upper, Real muT, Real variance);
+
+    }
+
 }
 
 

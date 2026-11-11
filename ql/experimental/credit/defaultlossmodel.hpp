@@ -25,6 +25,8 @@
 #include <ql/experimental/credit/defaultprobabilitykey.hpp>
 #include <ql/instruments/claim.hpp>
 #include <ql/utilities/null_deleter.hpp>
+#include <algorithm>
+#include <map>
 
 /* Intended to replace LossDistribution in
     ql/experimental/credit/lossdistribution, not sure its covering all the
@@ -131,6 +133,9 @@ namespace QuantLib
         }
         /*! Returns the probaility of having a given or larger number of
         defaults in the basket portfolio at a given time.
+
+        The defaults are counted among the names left at the evaluation
+        date; Basket::probAtLeastNEvents adds those before it.
         */
         virtual Probability probAtLeastNEvents(Size n, const Date& d) const
         {
@@ -164,6 +169,82 @@ namespace QuantLib
         //! Concrete models do now any updates/inits they need on basket reset
         virtual void resetModel() = 0;
     };
+
+    namespace detail
+    {
+        /* The percentile and the expected shortfall of what a tranche loses, from a portfolio
+        loss distribution given as losses and the probability of losing each or less. Between
+        two losses the portfolio's loss is linear in the probability; below the first loss's
+        probability it is the first loss, and above the last's the last loss. Probabilities
+        above 1 are taken as 1.
+        */
+        inline Real trancheLossPercentile(const std::map<Real, Probability>& distribution,
+                                          Real attachment,
+                                          Real detachment,
+                                          Probability level)
+        {
+            auto trancheLoss = [&](Real loss)
+            { return std::min(std::max(loss - attachment, 0.), detachment - attachment); };
+            auto point = distribution.begin();
+            if (std::min(point->second, 1.) >= level)
+                return trancheLoss(point->first);
+            while (point != distribution.end() && std::min(point->second, 1.) <= level)
+                ++point;
+            if (point == distribution.end())
+                return trancheLoss(distribution.rbegin()->first);
+            Real valPlus = std::min(point->second, 1.);
+            Real xPlus = point->first;
+            --point; // not the first, which is at or below the level
+            Real valMin = point->second;
+            Real xMin = point->first;
+            return trancheLoss(xPlus - (xPlus - xMin) * (valPlus - level) / (valPlus - valMin));
+        }
+
+        /* The mean of trancheLossPercentile over the levels above the given one. Between two
+        losses it's linear in the probability except where the portfolio's loss crosses the
+        attachment or the detachment, and the integral is split there.
+        */
+        inline Real trancheLossExpectedShortfall(const std::map<Real, Probability>& distribution,
+                                                 Real attachment,
+                                                 Real detachment,
+                                                 Probability level)
+        {
+            if (level >= 1.)
+                return trancheLossPercentile(distribution, attachment, detachment, 1.);
+            auto trancheLoss = [&](Real loss)
+            { return std::min(std::max(loss - attachment, 0.), detachment - attachment); };
+            auto point = distribution.begin();
+            Probability valMin = std::min(point->second, 1.);
+            Real xMin = point->first;
+            Real sum = valMin > level ? (valMin - level) * trancheLoss(xMin) : 0.;
+            for (++point; point != distribution.end(); ++point)
+            {
+                Probability valPlus = std::min(point->second, 1.);
+                Real xPlus = point->first;
+                if (valPlus > level && valPlus > valMin)
+                {
+                    Probability from = std::max(valMin, level);
+                    Real xFrom = from > valMin ? xPlus - (xPlus - xMin) * (valPlus - from) / (valPlus - valMin) : xMin;
+                    for (Real limit : {attachment, detachment})
+                    {
+                        if (xFrom < limit && limit < xPlus)
+                        {
+                            Probability to = from + (limit - xFrom) / (xPlus - xFrom) * (valPlus - from);
+                            sum += .5 * (trancheLoss(xFrom) + trancheLoss(limit)) * (to - from);
+                            from = to;
+                            xFrom = limit;
+                        }
+                    }
+                    sum += .5 * (trancheLoss(xFrom) + trancheLoss(xPlus)) * (valPlus - from);
+                }
+                valMin = valPlus;
+                xMin = xPlus;
+            }
+            if (valMin < 1.)
+                sum += (1. - std::max(valMin, level)) * trancheLoss(xMin);
+            return sum / (1. - level);
+        }
+    }
 
 }
 

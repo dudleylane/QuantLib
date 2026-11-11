@@ -115,6 +115,9 @@ namespace QuantLib
         Real alpha_, beta_, DalphaDd1_, DbetaDd2_;
         Real n_d1_, cum_d1_, n_d2_, cum_d2_;
         Real x_, DxDs_, DxDstrike_;
+        // The payoff's jump as the asset rises through the strike, so that F alpha' + x beta' = jump_ n(d2): zero for a
+        // vanilla option.
+        Real jump_;
     };
 
     // inline

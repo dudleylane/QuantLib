@@ -31,6 +31,10 @@
 namespace QuantLib
 {
 
+    //! Cumulative gamma distribution function
+    /*! The distribution of shape \f$ a \f$ and unit scale: the regularized incomplete gamma function
+        \f$ P(a, x) \f$ (incompleteGammaFunction), and zero for \f$ x \le 0 \f$.
+    */
     class CumulativeGammaDistribution
     {
       public:
@@ -47,9 +51,9 @@ namespace QuantLib
             \Gamma(z) = \int_0^{\infty}t^{z-1}e^{-t}dt
         \f]
 
-        The implementation of the algorithm was inspired by
-        "Numerical Recipes in C", 2nd edition,
-        Press, Teukolsky, Vetterling, Flannery, chapter 6
+        logValue() is the C library's \c lgamma_r, within a few units in the last place of \f$ \ln\Gamma(x) \f$.
+        value() is its exponential from \f$ x = 1 \f$, so its relative error grows with \f$ |\ln\Gamma(x)| \f$, to
+        about 1.2e-13 below 171.6, past which \f$ \Gamma(x) \f$ overflows.
 
         \test the correctness of the returned value is tested by
               checking it against known good results.
@@ -59,9 +63,6 @@ namespace QuantLib
       public:
         Real value(Real x) const;
         Real logValue(Real x) const;
-
-      private:
-        static const Real c1_, c2_, c3_, c4_, c5_, c6_;
     };
 
 }

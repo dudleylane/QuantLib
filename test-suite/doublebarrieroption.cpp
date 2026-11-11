@@ -144,6 +144,16 @@ struct DoubleBarrierFxOptionData
     Real tol;             // tolerance
 };
 
+// The engines that price double knock-outs and knock-ins in closed form, which the cases below hold to the same values.
+// Before #191 Suo and Wang's gave NaN at low and zero volatility and with many terms, priced knock-outs struck beyond
+// the far barrier below zero, and left out images where the volatility is wide against the corridor.
+std::vector<std::pair<std::string, ext::shared_ptr<PricingEngine>>>
+analyticDoubleBarrierEngines(const ext::shared_ptr<GeneralizedBlackScholesProcess>& process, int series = 5)
+{
+    return {{"Ikeda-Kunitomo", ext::make_shared<AnalyticDoubleBarrierEngine>(process, series)},
+            {"Suo-Wang", ext::make_shared<SuoWangDoubleBarrierEngine>(process, series)}};
+}
+
 
 BOOST_AUTO_TEST_CASE(testEuropeanHaugValues)
 {
@@ -747,15 +757,21 @@ BOOST_AUTO_TEST_CASE(testStrikesOutsideCorridor)
                 expected = atBoundary.NPV() + std::fabs(c.strike - boundary) * noTouch.NPV();
             }
 
-            DoubleBarrierOption knockOut(DoubleBarrier::KnockOut, lower, upper, 0.0, payoff, exercise);
-            knockOut.setPricingEngine(engine);
-            BOOST_CHECK_SMALL(knockOut.NPV() - expected, 1.0e-10);
-
             VanillaOption vanilla(payoff, exercise);
             vanilla.setPricingEngine(ext::make_shared<AnalyticEuropeanEngine>(process));
-            DoubleBarrierOption knockIn(DoubleBarrier::KnockIn, lower, upper, 0.0, payoff, exercise);
-            knockIn.setPricingEngine(engine);
-            BOOST_CHECK_SMALL(knockIn.NPV() - (vanilla.NPV() - expected), 1.0e-10);
+            for (const auto& [name, e] : analyticDoubleBarrierEngines(process))
+            {
+                BOOST_TEST_CONTEXT(name)
+                {
+                    DoubleBarrierOption knockOut(DoubleBarrier::KnockOut, lower, upper, 0.0, payoff, exercise);
+                    knockOut.setPricingEngine(e);
+                    BOOST_CHECK_SMALL(knockOut.NPV() - expected, 1.0e-10);
+
+                    DoubleBarrierOption knockIn(DoubleBarrier::KnockIn, lower, upper, 0.0, payoff, exercise);
+                    knockIn.setPricingEngine(e);
+                    BOOST_CHECK_SMALL(knockIn.NPV() - (vanilla.NPV() - expected), 1.0e-10);
+                }
+            }
         }
     }
 }
@@ -779,12 +795,19 @@ BOOST_AUTO_TEST_CASE(testLowVolatility)
                                                             Handle<YieldTermStructure>(flatRate(today, rate, dc)),
                                                             Handle<BlackVolTermStructure>(flatVol(today, 0.01, dc)));
             const auto payoff = ext::make_shared<PlainVanillaPayoff>(type, 100.0);
-            DoubleBarrierOption option(DoubleBarrier::KnockOut, 80.0, 120.0, 0.0, payoff, exercise);
-            option.setPricingEngine(ext::make_shared<AnalyticDoubleBarrierEngine>(process, 1));
             VanillaOption vanilla(payoff, exercise);
             vanilla.setPricingEngine(ext::make_shared<AnalyticEuropeanEngine>(process));
-            // The chance of touching a barrier is negligible at this volatility, so the vanilla is a reference.
-            BOOST_CHECK_SMALL(option.NPV() - vanilla.NPV(), 1.0e-10);
+            // The chance of touching a barrier is negligible at this volatility, so the vanilla is a reference.  A
+            // series of 1 is the images n = -1 to 1 for Ikeda and Kunitomo's, and n = -1 and 0 for Suo and Wang's.
+            for (const auto& [name, e] : analyticDoubleBarrierEngines(process, 1))
+            {
+                BOOST_TEST_CONTEXT(name)
+                {
+                    DoubleBarrierOption option(DoubleBarrier::KnockOut, 80.0, 120.0, 0.0, payoff, exercise);
+                    option.setPricingEngine(e);
+                    BOOST_CHECK_SMALL(option.NPV() - vanilla.NPV(), 1.0e-10);
+                }
+            }
         }
     }
 }
@@ -840,18 +863,23 @@ BOOST_AUTO_TEST_CASE(testLowVolatilityDefaultSeries)
                                                             Handle<YieldTermStructure>(flatRate(today, c.yield, dc)),
                                                             Handle<YieldTermStructure>(flatRate(today, c.rate, dc)),
                                                             Handle<BlackVolTermStructure>(flatVol(today, c.vol, dc)));
-            const auto engine = ext::make_shared<AnalyticDoubleBarrierEngine>(process);
             const auto payoff = ext::make_shared<PlainVanillaPayoff>(c.type, c.strike);
-
-            DoubleBarrierOption knockOut(DoubleBarrier::KnockOut, c.lower, c.upper, 0.0, payoff, exercise);
-            knockOut.setPricingEngine(engine);
-            BOOST_CHECK_SMALL(knockOut.NPV() - c.expected, 1.0e-10);
-
             VanillaOption vanilla(payoff, exercise);
             vanilla.setPricingEngine(ext::make_shared<AnalyticEuropeanEngine>(process));
-            DoubleBarrierOption knockIn(DoubleBarrier::KnockIn, c.lower, c.upper, 0.0, payoff, exercise);
-            knockIn.setPricingEngine(engine);
-            BOOST_CHECK_SMALL(knockIn.NPV() - (vanilla.NPV() - c.expected), 1.0e-10);
+
+            for (const auto& [name, e] : analyticDoubleBarrierEngines(process))
+            {
+                BOOST_TEST_CONTEXT(name)
+                {
+                    DoubleBarrierOption knockOut(DoubleBarrier::KnockOut, c.lower, c.upper, 0.0, payoff, exercise);
+                    knockOut.setPricingEngine(e);
+                    BOOST_CHECK_SMALL(knockOut.NPV() - c.expected, 1.0e-10);
+
+                    DoubleBarrierOption knockIn(DoubleBarrier::KnockIn, c.lower, c.upper, 0.0, payoff, exercise);
+                    knockIn.setPricingEngine(e);
+                    BOOST_CHECK_SMALL(knockIn.NPV() - (vanilla.NPV() - c.expected), 1.0e-10);
+                }
+            }
         }
     }
 }
@@ -891,20 +919,25 @@ BOOST_AUTO_TEST_CASE(testZeroVolatility)
                     Handle<YieldTermStructure>(flatRate(today, c.yield, dc)),
                     Handle<YieldTermStructure>(flatRate(today, c.rate, dc)),
                     Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
-                const auto engine = ext::make_shared<AnalyticDoubleBarrierEngine>(process);
                 const auto payoff = ext::make_shared<PlainVanillaPayoff>(c.type, c.strike);
 
                 const Real forward = spot * std::exp(c.rate - c.yield);
                 const Real atExpiry = std::exp(-c.rate) * (*payoff)(forward);
                 const bool hit = forward <= c.lower || forward >= c.upper;
 
-                DoubleBarrierOption knockOut(DoubleBarrier::KnockOut, c.lower, c.upper, 0.0, payoff, exercise);
-                knockOut.setPricingEngine(engine);
-                BOOST_CHECK_SMALL(knockOut.NPV() - (hit ? 0.0 : atExpiry), 1.0e-10);
+                for (const auto& [name, e] : analyticDoubleBarrierEngines(process))
+                {
+                    BOOST_TEST_CONTEXT(name)
+                    {
+                        DoubleBarrierOption knockOut(DoubleBarrier::KnockOut, c.lower, c.upper, 0.0, payoff, exercise);
+                        knockOut.setPricingEngine(e);
+                        BOOST_CHECK_SMALL(knockOut.NPV() - (hit ? 0.0 : atExpiry), 1.0e-10);
 
-                DoubleBarrierOption knockIn(DoubleBarrier::KnockIn, c.lower, c.upper, 0.0, payoff, exercise);
-                knockIn.setPricingEngine(engine);
-                BOOST_CHECK_SMALL(knockIn.NPV() - (hit ? atExpiry : 0.0), 1.0e-10);
+                        DoubleBarrierOption knockIn(DoubleBarrier::KnockIn, c.lower, c.upper, 0.0, payoff, exercise);
+                        knockIn.setPricingEngine(e);
+                        BOOST_CHECK_SMALL(knockIn.NPV() - (hit ? atExpiry : 0.0), 1.0e-10);
+                    }
+                }
             }
         }
     }
@@ -922,20 +955,24 @@ BOOST_AUTO_TEST_CASE(testManySeriesTerms)
         Handle<YieldTermStructure>(flatRate(today, 0.05, dc)), Handle<BlackVolTermStructure>(flatVol(today, 0.2, dc)));
     const ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(today + 365);
 
+    const auto byDefault = analyticDoubleBarrierEngines(process);
     for (auto type : {Option::Call, Option::Put})
     {
-        BOOST_TEST_CONTEXT(type)
+        for (Size i = 0; i < byDefault.size(); ++i)
         {
-            DoubleBarrierOption option(DoubleBarrier::KnockOut, 80.0, 120.0, 0.0,
-                                       ext::make_shared<PlainVanillaPayoff>(type, 100.0), exercise);
-            option.setPricingEngine(ext::make_shared<AnalyticDoubleBarrierEngine>(process));
-            const Real converged = option.NPV();
-            BOOST_CHECK_GT(converged, 1.0);
-            // The series has long converged, and powers of the barriers overflow on the way.
-            for (int series : {20, 100, 1000})
+            BOOST_TEST_CONTEXT(type << ", " << byDefault[i].first)
             {
-                option.setPricingEngine(ext::make_shared<AnalyticDoubleBarrierEngine>(process, series));
-                BOOST_CHECK_SMALL(option.NPV() - converged, 1.0e-12);
+                DoubleBarrierOption option(DoubleBarrier::KnockOut, 80.0, 120.0, 0.0,
+                                           ext::make_shared<PlainVanillaPayoff>(type, 100.0), exercise);
+                option.setPricingEngine(byDefault[i].second);
+                const Real converged = option.NPV();
+                BOOST_CHECK_GT(converged, 1.0);
+                // The series has long converged, and powers of the barriers overflow on the way.
+                for (int series : {20, 100, 1000})
+                {
+                    option.setPricingEngine(analyticDoubleBarrierEngines(process, series)[i].second);
+                    BOOST_CHECK_SMALL(option.NPV() - converged, 1.0e-12);
+                }
             }
         }
     }
@@ -946,7 +983,8 @@ BOOST_AUTO_TEST_CASE(testVolatilityWideAgainstCorridor)
     BOOST_TEST_MESSAGE("Testing double-barrier options with a volatility wide against the corridor...");
 
     // The engine summed five images on each side whatever the volatility, and the ones it left out grow with
-    // vol sqrt(T) / ln(U/L).  At three, a knock-out worth 5.8e-20 came out at 1.9e-4 (#188).
+    // vol sqrt(T) / ln(U/L).  At three, a knock-out worth 5.8e-20 came out at 1.9e-4 (#188), and at 8.1e-4 from Suo
+    // and Wang's ten (#191).
     const Date today(7, November, 2026);
     Settings::instance().evaluationDate() = today;
     const DayCounter dc = Actual365Fixed();
@@ -987,33 +1025,39 @@ BOOST_AUTO_TEST_CASE(testVolatilityWideAgainstCorridor)
                                                             Handle<YieldTermStructure>(flatRate(today, c.yield, dc)),
                                                             Handle<YieldTermStructure>(flatRate(today, c.rate, dc)),
                                                             Handle<BlackVolTermStructure>(flatVol(today, c.vol, dc)));
-            const auto engine = ext::make_shared<AnalyticDoubleBarrierEngine>(process);
             const auto payoff = ext::make_shared<PlainVanillaPayoff>(c.type, c.strike);
             const ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(today + c.days);
-
-            DoubleBarrierOption knockOut(DoubleBarrier::KnockOut, c.lower, c.upper, 0.0, payoff, exercise);
-            knockOut.setPricingEngine(engine);
-            BOOST_CHECK_CLOSE_FRACTION(knockOut.NPV(), c.expected, 1.0e-11);
-
             VanillaOption vanilla(payoff, exercise);
             vanilla.setPricingEngine(ext::make_shared<AnalyticEuropeanEngine>(process));
-            DoubleBarrierOption knockIn(DoubleBarrier::KnockIn, c.lower, c.upper, 0.0, payoff, exercise);
-            knockIn.setPricingEngine(engine);
-            BOOST_CHECK_SMALL(knockIn.NPV() - (vanilla.NPV() - c.expected), 1.0e-12);
+
+            for (const auto& [name, e] : analyticDoubleBarrierEngines(process))
+            {
+                BOOST_TEST_CONTEXT(name)
+                {
+                    DoubleBarrierOption knockOut(DoubleBarrier::KnockOut, c.lower, c.upper, 0.0, payoff, exercise);
+                    knockOut.setPricingEngine(e);
+                    BOOST_CHECK_CLOSE_FRACTION(knockOut.NPV(), c.expected, 1.0e-11);
+
+                    DoubleBarrierOption knockIn(DoubleBarrier::KnockIn, c.lower, c.upper, 0.0, payoff, exercise);
+                    knockIn.setPricingEngine(e);
+                    BOOST_CHECK_SMALL(knockIn.NPV() - (vanilla.NPV() - c.expected), 1.0e-12);
+                }
+            }
         }
     }
 
-    // The engine moves from the images to the eigenfunction expansion above vol sqrt(T) = ln(U/L) / 2, and the two
+    // The engines move from the images to the eigenfunction expansion above vol sqrt(T) = ln(U/L) / 2, and the two
     // agree there: a year out, between one volatility and the next above it.
     const Volatility atSwitch = 0.5 * std::log(120.0 / 80.0);
     const ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(today + 365);
-    for (auto type : {Option::Call, Option::Put})
+    for (Size engine = 0; engine < 2; ++engine)
     {
-        for (Real strike : {85.0, 100.0, 115.0})
+        for (auto type : {Option::Call, Option::Put})
         {
-            BOOST_TEST_CONTEXT(type << " at " << strike)
+            for (Real strike : {85.0, 100.0, 115.0})
             {
                 Real values[2];
+                std::string name;
                 for (Size i = 0; i < 2; ++i)
                 {
                     const Volatility vol = i == 0 ? atSwitch : std::nextafter(atSwitch, 1.0);
@@ -1024,11 +1068,74 @@ BOOST_AUTO_TEST_CASE(testVolatilityWideAgainstCorridor)
                         Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
                     DoubleBarrierOption option(DoubleBarrier::KnockOut, 80.0, 120.0, 0.0,
                                                ext::make_shared<PlainVanillaPayoff>(type, strike), exercise);
-                    option.setPricingEngine(ext::make_shared<AnalyticDoubleBarrierEngine>(process));
+                    const auto e = analyticDoubleBarrierEngines(process)[engine];
+                    name = e.first;
+                    option.setPricingEngine(e.second);
                     values[i] = option.NPV();
                 }
-                BOOST_CHECK_GT(values[0], 0.01);
-                BOOST_CHECK_SMALL(values[1] - values[0], 1.0e-12);
+                BOOST_TEST_CONTEXT(name << ", " << type << " at " << strike)
+                {
+                    BOOST_CHECK_GT(values[0], 0.01);
+                    BOOST_CHECK_SMALL(values[1] - values[0], 1.0e-12);
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testVannaVolgaVolatilityWideAgainstCorridor)
+{
+    BOOST_TEST_MESSAGE("Testing the Vanna/Volga double-barrier engine's no-touch probability with a volatility wide "
+                       "against the corridor...");
+
+    // The engine weights its smile adjustment by the probability of no touch at the ATM volatility, its "lambda"
+    // result.  It summed ten images of the spot in the barriers, and the ones it left out grow with
+    // vol sqrt(T) / ln(U/L): at three, it came out at 1.05e-3 where it's 7.05e-20 (#192).
+    const Date today(7, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Time t = 1.0;
+    const ext::shared_ptr<Exercise> exercise = ext::make_shared<EuropeanExercise>(today + 365);
+
+    // The expected probabilities, from a spot of 100 over a year, were computed at 50 digits from the eigenfunction
+    // expansion, and agree with the images summed to convergence.
+    const struct
+    {
+        Real lower, upper;
+        Rate rate, yield;
+        Volatility vol;
+        Real expected;
+    } cases[] = {
+        {80.0, 120.0, 0.05, 0.0, 0.10, 0.84709795307854111},    {80.0, 120.0, 0.05, 0.0, 0.20, 0.36957633485842937},
+        {95.0, 105.0, 0.05, 0.0, 0.10, 0.0083302228618299781},  {95.0, 105.0, 0.05, 0.0, 0.20, 3.4753710877833915e-9},
+        {95.0, 105.0, 0.05, 0.0, 0.30, 7.0505631931950004e-20}, {90.0, 110.0, 0.03, 0.01, 0.40, 3.8382603877726967e-9}};
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT("corridor " << c.lower << "-" << c.upper << ", rate " << c.rate << ", yield " << c.yield
+                                       << ", volatility " << c.vol)
+        {
+            // lambda depends on the ATM volatility only, so the smile is flat
+            const Handle<Quote> spot(ext::make_shared<SimpleQuote>(100.0)), vol(ext::make_shared<SimpleQuote>(c.vol));
+            const Handle<DeltaVolQuote> atm(
+                ext::make_shared<DeltaVolQuote>(vol, DeltaVolQuote::Fwd, t, DeltaVolQuote::AtmDeltaNeutral));
+            const Handle<DeltaVolQuote> put25(ext::make_shared<DeltaVolQuote>(-0.25, vol, t, DeltaVolQuote::Fwd));
+            const Handle<DeltaVolQuote> call25(ext::make_shared<DeltaVolQuote>(0.25, vol, t, DeltaVolQuote::Fwd));
+            const Handle<YieldTermStructure> rTS(flatRate(today, c.rate, dc)), qTS(flatRate(today, c.yield, dc));
+            const std::pair<std::string, ext::shared_ptr<PricingEngine>> engines[] = {
+                {"Ikeda-Kunitomo", ext::make_shared<VannaVolgaDoubleBarrierEngine<AnalyticDoubleBarrierEngine>>(
+                                       atm, put25, call25, spot, rTS, qTS)},
+                {"Suo-Wang", ext::make_shared<VannaVolgaDoubleBarrierEngine<SuoWangDoubleBarrierEngine>>(
+                                 atm, put25, call25, spot, rTS, qTS)}};
+            for (const auto& [name, e] : engines)
+            {
+                BOOST_TEST_CONTEXT(name)
+                {
+                    DoubleBarrierOption option(DoubleBarrier::KnockOut, c.lower, c.upper, 0.0,
+                                               ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0), exercise);
+                    option.setPricingEngine(e);
+                    BOOST_CHECK_CLOSE_FRACTION(option.result<Real>("lambda"), c.expected, 1.0e-12);
+                }
             }
         }
     }

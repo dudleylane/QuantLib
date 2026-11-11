@@ -242,6 +242,35 @@ namespace QuantLib
 
     }
 
+    namespace detail
+    {
+
+        // By images up to sqrt(V) = Z / 2, and by Hui's series above, as said at the top of this file.
+        Real doubleBarrierNoTouchProbability(Real spot, Real lower, Real upper, Real carry, Time T, Real variance)
+        {
+            if (spot <= lower || spot >= upper)
+                return 0.0;
+            const Real x = std::log(spot / lower), Z = std::log(upper / lower);
+            Real noTouch;
+            if (variance < QL_EPSILON)
+            {
+                // The underlying follows its forward, and stays inside if the forward does.
+                Real forward = x + carry * T;
+                noTouch = forward > 0.0 && forward < Z ? 1.0 : 0.0;
+            }
+            else if (std::sqrt(variance) <= 0.5 * Z)
+            {
+                noTouch = binaryNoTouchByImages(x, Z, carry - 0.5 * variance / T, T, variance);
+            }
+            else
+            {
+                noTouch = binaryNoTouchByFourier(x, Z, carry - 0.5 * variance / T, T, variance);
+            }
+            return std::min(std::max(noTouch, 0.0), 1.0);
+        }
+
+    }
+
     AnalyticDoubleBarrierBinaryEngine::AnalyticDoubleBarrierBinaryEngine(
         ext::shared_ptr<GeneralizedBlackScholesProcess> process)
     : process_(std::move(process))
@@ -375,22 +404,8 @@ namespace QuantLib
             {
                 DiscountFactor discount = process_->riskFreeRate()->discount(arguments_.exercise->lastDate());
                 QL_REQUIRE(discount > 0.0, "positive discount required");
-                Real noTouch;
-                if (variance < QL_EPSILON)
-                {
-                    // The underlying follows its forward, and stays inside if the forward does.
-                    Real forward = x + (r - q) * residualTime;
-                    noTouch = forward > 0.0 && forward < Z ? 1.0 : 0.0;
-                }
-                else if (std::sqrt(variance) <= 0.5 * Z)
-                {
-                    noTouch = binaryNoTouchByImages(x, Z, mu, residualTime, variance);
-                }
-                else
-                {
-                    noTouch = binaryNoTouchByFourier(x, Z, mu, residualTime, variance);
-                }
-                noTouch = std::min(std::max(noTouch, 0.0), 1.0);
+                Real noTouch = detail::doubleBarrierNoTouchProbability(spot, barrier_lo, barrier_hi, r - q,
+                                                                       residualTime, variance);
                 // The probability's error is absolute, and so is the knock-in's: a small knock-in loses its relative
                 // accuracy.  With the spot at 100, barriers at 80 and 120, r at 5% and 2% volatility a year from
                 // expiry, the knock-in is worth about 2.6e-11 of the cash.

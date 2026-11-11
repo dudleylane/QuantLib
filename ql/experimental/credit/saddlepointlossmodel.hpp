@@ -70,10 +70,21 @@ namespace QuantLib
     \todo Methods here are calling and integrating using the unconditional
         probabilities without inverting them first; quite a lot of calls to
         the copula inversion can be avoided; this should improve performance.
-    \todo Revise the model for stability of the saddle point calculation. The
-        search for the point does not convege in extreme cases; e.g. very high
-        value of all the factors; factors for each variable not ordered from
-        high to low,...
+    \warning The expected shortfall is the percentile plus the expected
+        excess of the tranche's loss over it. Given the factor, the excess
+        comes from two of the expansions, which aren't consistent with each
+        other where the level is far above the losses the factor makes
+        likely. There it can come out negative, and is taken as zero, so the
+        shortfall of a senior tranche is low. On 20 names that each lose 60
+        of 100, with a correlation of 0.3, it is half the exact value on 50%
+        to 100% of the basket.
+    \warning Given the factor, the loss distribution is exact up to the
+        smallest loss one default causes and above the total loss less
+        that, and comes from the expansions in between. The two don't meet
+        at the smallest loss, so the expected shortfall can fall a little as
+        the level crosses it: on 19 names that lose 80 to 99 each, by 3% of
+        the tranche under a Gaussian copula and 4% under a T copula of
+        order 3.
     */
 
     /* The treatment of recovery wont work with random recoveries, they should
@@ -82,15 +93,11 @@ namespace QuantLib
 
     /*
     TO DO:
-    -> Failing when the tranche upper loss limit goes over the max attainable
-        loss.
-
     - With 15 quadrature points things are OK but 25 gives me -1#IND000 errors
             (over region around the EL I think)
     - Silly bug when calling some methods on todays date (zero time).
             ProbDef = 0 there
     - VaR <- tranched?????!
-    - ESF <- tranched????!!
     - VaR split
     - ESF split?
 
@@ -198,6 +205,34 @@ namespace QuantLib
             Real derivative(Real x) const { return me_.CumGen2ndDerivativeCond(invUncondProbs_, x, mktFactor_); }
         };
 
+        //! Where the loss distribution is known without a saddle point
+        struct LossLimits
+        {
+            Real smallest;    //!< the least loss one default causes, as a fraction of the remaining notional
+            Real total;       //!< the loss if every name defaults, as a fraction of the remaining notional
+            Probability none; //!< the probability that no name defaults
+            Probability all;  //!< the probability that every name defaults
+        };
+        //! Conditional on the market factor
+        LossLimits lossLimitsCond(const std::vector<Real>& invUncondProbs, const std::vector<Real>& mktFactor) const
+        {
+            LossLimits limits = {QL_MAX_REAL, 0., 1., 1.};
+            for (Size iName = 0; iName < remainingNotionals_.size(); iName++)
+            {
+                Real loss =
+                    remainingNotionals_[iName] *
+                    (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor)) /
+                    remainingNotional_;
+                Probability p =
+                    copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], liveNames_[iName], mktFactor);
+                limits.smallest = std::min(limits.smallest, loss);
+                limits.total += loss;
+                limits.none *= 1. - p;
+                limits.all *= p;
+            }
+            return limits;
+        }
+
         /*! Calculates the mkt-fct-conditional saddle point for the loss level
             given and the probability passed.
             The date is implicitly given through the probability. Performance
@@ -297,9 +332,13 @@ namespace QuantLib
         Real expectedShortfallFullPortfolioCond(const std::vector<Real>& invUncondProbs,
                                                 Real lossPerc,
                                                 const std::vector<Real>& mktFactor) const;
+        /*! What the tranche loses beyond the given portfolio loss on
+            average, conditional on the market factor: the conditional
+            expected excess of the tranche's loss over the level's, with the
+            level in absolute value.
+        */
         Real expectedShortfallTrancheCond(const std::vector<Real>& invUncondProbs,
-                                          Real lossPerc,
-                                          Probability percentile,
+                                          Real lossLevel,
                                           const std::vector<Real>& mktFactor) const;
         std::vector<Real> expectedShortfallSplitCond(const std::vector<Real>& invUncondProbs,
                                                      Real lossPerc,
@@ -716,60 +755,51 @@ namespace QuantLib
                                               Real accuracy,
                                               Natural maxEvaluations) const
     {
-        // \to do:
-        // REQUIRE that loss level is below the max loss attainable in
-        //   the portfolio, otherwise theres no solution...
         SaddleObjectiveFunction f(*this, lossLevel, invUncondPs, mktFactor);
 
-        Size nNames = remainingNotionals_.size();
-        std::vector<Real> lgds;
-        for (Size iName = 0; iName < nNames; iName++)
-            lgds.push_back(remainingNotionals_[iName] *
-                           (1. - copula_->conditionalRecoveryInvP(invUncondPs[iName], liveNames_[iName], mktFactor)));
-
-        // computed limits:
-        // position of the name with the largest relative exposure loss (i.e.:
-        //   largest: N_i LGD_i / N_{total})
-        Size iNamMax = std::distance(lgds.begin(), std::max_element(lgds.begin(), lgds.end()));
-        // gap to be considered zero at the negative side of the logistic
-        //   inversion:
-        static const Real deltaMin = 1.e-5;
-        //
-        Probability pMaxName =
-            copula_->conditionalDefaultProbabilityInvP(invUncondPs[iNamMax], liveNames_[iNamMax], mktFactor);
-        // approximates the  saddle pt corresponding to this minimum; finds
-        //   it by using only the smallest logistic term and thus this is
-        //   smaller than the true value:
-        Real saddleMin = 1. / (lgds[iNamMax] / remainingNotional_) *
-                         std::log(deltaMin * (1. - pMaxName) /
-                                  (pMaxName * lgds[iNamMax] / remainingNotional_ - pMaxName * deltaMin));
-        // and the associated minimum loss is approximately: (this is thence
-        //   the minimum loss we can resolve/invert)
-        Real minLoss = CumGen1stDerivativeCond(invUncondPs, saddleMin, mktFactor);
-
-        // If we are below the loss resolution it returns approximating
-        //  by the minimum/maximum attainable point. Typically the functionals
-        //  to integrate will have a low dependency on this point.
-        if (lossLevel < minLoss)
-            return saddleMin;
-
-        Real saddleMax =
-            1. / (lgds[iNamMax] / remainingNotional_) *
-            std::log((lgds[iNamMax] / remainingNotional_ - deltaMin) * (1. - pMaxName) / (pMaxName * deltaMin));
-        Real maxLoss = CumGen1stDerivativeCond(invUncondPs, saddleMax, mktFactor);
-        if (lossLevel > maxLoss)
-            return saddleMax;
+        // K'(s) rises with s, and K'(0) is the expected loss, so a bracket
+        //   widened from s = 0 until K' crosses the level holds the saddle
+        //   point. Past |s| = 700 over the largest loss of a name the
+        //   exponentials in K overflow. A level K' hasn't crossed by then is
+        //   above every loss the factor makes possible, and QL_MAX_REAL is
+        //   returned, or below the losses it makes certain, and -QL_MAX_REAL.
+        Real largestLoss = 0.;
+        for (Size iName = 0; iName < remainingNotionals_.size(); iName++)
+            largestLoss =
+                std::max(largestLoss,
+                         remainingNotionals_[iName] *
+                             (1. - copula_->conditionalRecoveryInvP(invUncondPs[iName], liveNames_[iName], mktFactor)) /
+                             remainingNotional_);
+        if (largestLoss == 0.)
+            return QL_MAX_REAL;
+        const Real widest = 700. / largestLoss;
+        Real lower = 0., upper = 0., step = 1.;
+        if (f(0.) < 0.)
+        {
+            do
+            {
+                if (upper == widest)
+                    return QL_MAX_REAL;
+                lower = upper;
+                upper = std::min(upper + step, widest);
+                step *= 2.;
+            } while (f(upper) < 0.);
+        }
+        else
+        {
+            do
+            {
+                if (lower == -widest)
+                    return -QL_MAX_REAL;
+                upper = lower;
+                lower = std::max(lower - step, -widest);
+                step *= 2.;
+            } while (f(lower) > 0.);
+        }
 
         Brent solverBrent;
-        Real guess = (saddleMin + saddleMax) / 2.;
-        /*
-            (lossLevel -
-                CumGen1stDerivativeCond(invUncondPs, lossLevel, mktFactor))
-                /CumGen2ndDerivativeCond(invUncondPs, lossLevel, mktFactor);
-        if(guess > saddleMax) guess = (saddleMin+saddleMax)/2.;
-        */
         solverBrent.setMaxEvaluations(maxEvaluations);
-        return solverBrent.solve(f, accuracy, guess, saddleMin, saddleMax);
+        return solverBrent.solve(f, accuracy, (lower + upper) / 2., lower, upper);
     }
 
 
@@ -788,11 +818,16 @@ namespace QuantLib
             return 0.;
 
         // Trivial cases when the percentile is outside the prob range
-        //   associated to the tranche limits:
-        if (percentile <= 1. - probOverLoss(d, 0.))
+        //   associated to the tranche limits. The lower one is the
+        //   probability of any loss, taken at the least fraction the solver
+        //   below takes; at 0 it would be 1.
+        if (percentile <= 1. - probOverLoss(d, QL_EPSILON))
             return 0.;
+        // the fraction solved for is of the tranche between the remaining
+        //   ratios, whose detachment is no more than the remaining notional
+        Real trancheAmount = (detachRatio_ - attachRatio_) * remainingNotional_;
         if (percentile >= 1. - probOverLoss(d, 1.))
-            return basket_->remainingTrancheNotional();
+            return trancheAmount;
 
         SaddlePercObjFunction f(*this, percentile, d);
         Brent solver;
@@ -803,7 +838,7 @@ namespace QuantLib
         Real guess = 0.5;
 
         Real solut = solver.solve(f, 1.e-4, guess, minVal, maxVal);
-        return basket_->remainingTrancheNotional() * solut;
+        return trancheAmount * solut;
     }
 
     template <class CP>
@@ -857,21 +892,23 @@ namespace QuantLib
             return 1.;
 
         Real relativeLoss = loss / remainingNotional_;
-        if (relativeLoss >= 1. - QL_EPSILON)
+        // Every set of defaults short of all of them loses at most the total
+        //   less the smallest loss of a name, and any default at least that
+        //   smallest loss. So above the first the level is reached only if
+        //   every name defaults, and up to the second if any name does.
+        LossLimits limits = lossLimitsCond(invUncondProbs, mktFactor);
+        if (relativeLoss > limits.total)
             return 0.;
-
-        const Size nNames = remainingNotionals_.size();
-
-        Real averageRecovery_ = 0.;
-        for (Size iName = 0; iName < nNames; iName++)
-            averageRecovery_ += copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor);
-        averageRecovery_ = averageRecovery_ / nNames;
-
-        Real maxAttLossFract = 1. - averageRecovery_;
-        if (relativeLoss > maxAttLossFract)
-            return 0.;
+        if (relativeLoss > limits.total - limits.smallest)
+            return limits.all;
+        if (relativeLoss <= limits.smallest)
+            return 1. - limits.none;
 
         Real saddlePt = findSaddle(invUncondProbs, relativeLoss, mktFactor);
+        if (saddlePt == QL_MAX_REAL)
+            return 0.;
+        if (saddlePt == -QL_MAX_REAL)
+            return 1.;
 
         std::tuple<Real, Real, Real, Real> cumulants = CumGen0234DerivCond(invUncondProbs, saddlePt, mktFactor);
         Real baseVal = std::get<0>(cumulants);
@@ -913,6 +950,9 @@ namespace QuantLib
         else
         { // <->(loss < condEL)
             Real exponent = baseVal - relativeLoss * saddlePt + .5 * saddleTo2 * secondVal;
+            // the term taken from 1 vanishes
+            if (exponent < -700.)
+                return 1.;
             if (std::abs(exponent) > 700.)
                 return 0.;
             return 1. -
@@ -958,6 +998,10 @@ namespace QuantLib
             return 0.;
 
         Real saddlePt = findSaddle(invUncondPs, relativeLoss, mktFactor);
+        if (saddlePt == QL_MAX_REAL)
+            return 0.;
+        if (saddlePt == -QL_MAX_REAL)
+            return 1.;
 
         std::tuple<Real, Real> cumulants = CumGen02DerivCond(invUncondPs, saddlePt, mktFactor);
         Real baseVal = std::get<0>(cumulants);
@@ -984,6 +1028,9 @@ namespace QuantLib
         else
         { // <->(loss < condEL)
             Real exponent = baseVal - relativeLoss * saddlePt + .5 * saddleTo2 * secondVal;
+            // the term taken from 1 vanishes
+            if (exponent < -700.)
+                return 1.;
             if (std::abs(exponent) > 700.)
                 return 0.;
 
@@ -1011,7 +1058,15 @@ namespace QuantLib
             return 0.;
 
         Real relativeLoss = loss / remainingNotional_;
+        // No set of defaults loses more than nothing but less than the
+        //   smallest loss of a name, nor more than the total less that loss
+        //   but less than the total.
+        LossLimits limits = lossLimitsCond(invUncondPs, mktFactor);
+        if (relativeLoss < limits.smallest || relativeLoss > limits.total - limits.smallest)
+            return 0.;
         Real saddlePt = findSaddle(invUncondPs, relativeLoss, mktFactor);
+        if (std::abs(saddlePt) == QL_MAX_REAL)
+            return 0.;
 
         std::tuple<Real, Real, Real, Real> cumulants = CumGen0234DerivCond(invUncondPs, saddlePt, mktFactor);
         /// access them directly rather than through this copy
@@ -1057,6 +1112,14 @@ namespace QuantLib
             Real lossInDef =
                 remainingNotionals_[iName] *
                 (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor));
+            // At a level above every loss the factor makes possible, each
+            //   name that can default does; below the losses it makes
+            //   certain, only the names certain to.
+            if (std::abs(saddlePt) == QL_MAX_REAL)
+            {
+                condContrib[iName] = (saddlePt > 0. ? pBuffer > 0. : pBuffer == 1.) ? lossInDef : 0.;
+                continue;
+            }
             Real midFactor = pBuffer * std::exp(lossInDef * saddlePt / remainingNotional_);
             Real denominator = 1. - pBuffer + midFactor;
 
@@ -1137,38 +1200,20 @@ namespace QuantLib
 
     template <class CP>
     Real SaddlePointLossModel<CP>::expectedShortfallTrancheCond(const std::vector<Real>& invUncondProbs,
-                                                                Real lossPerc, // value
-                                                                Probability percentile,
+                                                                Real lossLevel,
                                                                 const std::vector<Real>& mktFactor) const
     {
-        /* TO DO: this is too crude, a general expression valid for all
-        situations is possible (with no extra cost as long as the loss limits
-        are checked).
-        */
-        // tranche correction term:
-        Real correctionTerm = 0.;
-        Real probLOver = probOverLossPortfCond(invUncondProbs, basket_->detachmentAmount(), mktFactor);
-        if (basket_->attachmentAmount() > QL_EPSILON)
-        {
-            if (lossPerc < basket_->attachmentAmount())
-            {
-                correctionTerm = ((basket_->detachmentAmount() - 2. * basket_->attachmentAmount()) *
-                                      probOverLossPortfCond(invUncondProbs, lossPerc, mktFactor) +
-                                  basket_->attachmentAmount() * probLOver) /
-                                 (1. - percentile);
-            }
-            else
-            {
-                correctionTerm =
-                    ((percentile - 1) * basket_->attachmentAmount() + basket_->detachmentAmount() * probLOver) /
-                    (1. - percentile);
-            }
-        }
-
-        return expectedShortfallFullPortfolioCond(invUncondProbs, std::max(lossPerc, basket_->attachmentAmount()),
-                                                  mktFactor) +
-               expectedShortfallFullPortfolioCond(invUncondProbs, basket_->detachmentAmount(), mktFactor) -
-               correctionTerm;
+        // E[(L - x)^+] = E[L 1{L >= x}] - x P(L >= x) at the level and at the detachment, whose
+        //   difference is what the tranche loses beyond the level.
+        Real detachAmount = detachRatio_ * remainingNotional_;
+        Real excess = expectedShortfallFullPortfolioCond(invUncondProbs, lossLevel, mktFactor) -
+                      lossLevel * probOverLossPortfCond(invUncondProbs, lossLevel, mktFactor) -
+                      (expectedShortfallFullPortfolioCond(invUncondProbs, detachAmount, mktFactor) -
+                       detachAmount * probOverLossPortfCond(invUncondProbs, detachAmount, mktFactor));
+        // It can't be negative, but the two expansions aren't consistent with
+        //   each other where the level is far above the losses the factor
+        //   makes likely, and there it can come out so.
+        return std::max(excess, 0.);
     }
 
     template <class CP>
@@ -1193,7 +1238,19 @@ namespace QuantLib
             elCond += pBuffer * remainingNotionals_[iName] *
                       (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor));
         }
+        // where the probability of reaching the level is exact, so is this
+        LossLimits limits = lossLimitsCond(invUncondProbs, mktFactor);
+        if (lossPercRatio > limits.total)
+            return 0.;
+        if (lossPercRatio > limits.total - limits.smallest)
+            return limits.total * remainingNotional_ * limits.all;
+        if (lossPercRatio <= limits.smallest)
+            return elCond;
         Real saddlePt = findSaddle(invUncondProbs, lossPercRatio, mktFactor);
+        if (saddlePt == QL_MAX_REAL)
+            return 0.;
+        if (saddlePt == -QL_MAX_REAL)
+            return elCond;
 
         // Martin 2006:
         return elCond * probOverLossPortfCond(invUncondProbs, lossPerc, mktFactor) +
@@ -1234,25 +1291,26 @@ namespace QuantLib
     template <class CP>
     Real SaddlePointLossModel<CP>::expectedShortfall(const Date& d, Probability percProb) const
     {
-        // assuming I have the tranched one.
+        // as for the percentile, nothing more is lost by today
+        if (d <= Settings::instance().evaluationDate())
+            return 0.;
         Real lossPerc = percentile(d, percProb);
 
         // check the trivial case when the loss is over the detachment limit
         //   to avoid computation:
-        Real trancheAmount = basket_->trancheNotional() * (detachRatio_ - attachRatio_);
-        // assumed the amount includes the realized loses
+        Real trancheAmount = (detachRatio_ - attachRatio_) * remainingNotional_;
         if (lossPerc >= trancheAmount)
             return trancheAmount;
-        // SHOULD CHECK NOW THE OPPOSITE LIMIT ("zero" losses)....
         std::vector<Real> invUncondProbs = basket_->remainingProbabilities(d);
         for (Size i = 0; i < invUncondProbs.size(); i++)
             invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], liveNames_[i]);
 
-        // Integrate with the tranche or the portfolio according to the limits.
-        return copula_->integratedExpectedValue(
-                   [&](const std::vector<Real>& v1)
-                   { return expectedShortfallFullPortfolioCond(invUncondProbs, lossPerc, v1); }) /
-               (1. - percProb);
+        // The percentile, and what the tranche loses beyond it on average
+        //   over the probability of getting there (Rockafellar and Uryasev).
+        Real lossLevel = attachRatio_ * remainingNotional_ + lossPerc;
+        Real excess = copula_->integratedExpectedValue(
+            [&](const std::vector<Real>& v1) { return expectedShortfallTrancheCond(invUncondProbs, lossLevel, v1); });
+        return std::min(lossPerc + excess / (1. - percProb), trancheAmount);
 
         /* test:?
             return std::inner_product(integrESFPartition.begin(),

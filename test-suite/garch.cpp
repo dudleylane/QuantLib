@@ -261,9 +261,8 @@ BOOST_AUTO_TEST_CASE(testCalibrationFromModeStoppedAtItsLimit)
                                               Garch11::DoubleOptimization};
 
     // A limit of 20 is too few on all of these, and the point it reaches still beats the guess.
-    // The default limit needn't be enough either: on series this short the simplex can use up any
-    // limit at its optimum, as it stops shrinking at about the square root of machine precision
-    // with all its vertices equal, and that optimum mustn't be swapped for the guess.
+    // Short series are where the simplex used to go round at its optimum, with all its vertices at
+    // the same cost, until it had used up even the default limit (#154).
     const std::vector<std::pair<Size, unsigned long>> samples = {{5000, 48}, {20, 50}, {50, 1}, {100, 3}};
 
     for (const auto& sample : samples)
