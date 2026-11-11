@@ -24,12 +24,15 @@
 
 #include <ql/errors.hpp>
 #include <ql/time/calendar.hpp>
+#include <atomic>
 
 namespace QuantLib
 {
 
     namespace
     {
+
+        std::atomic<unsigned long long> calendarChanges(0);
 
         // Requires: from < to.
         Date::serial_type
@@ -41,6 +44,21 @@ namespace QuantLib
                 res += static_cast<Date::serial_type>(cal.isBusinessDay(d));
             }
             return res;
+        }
+
+    }
+
+    namespace detail
+    {
+
+        unsigned long long calendarChangeCount()
+        {
+            return calendarChanges.load();
+        }
+
+        void recordCalendarChange()
+        {
+            ++calendarChanges;
         }
 
     }
@@ -61,6 +79,7 @@ namespace QuantLib
         // Otherwise, add it.
         if (impl_->isBusinessDay(_d))
             impl_->addedHolidays.insert(_d);
+        detail::recordCalendarChange();
     }
 
     void Calendar::removeHoliday(const Date& d)
@@ -79,12 +98,14 @@ namespace QuantLib
         // Otherwise, add it.
         if (!impl_->isBusinessDay(_d))
             impl_->removedHolidays.insert(_d);
+        detail::recordCalendarChange();
     }
 
     void Calendar::resetAddedAndRemovedHolidays()
     {
         impl_->addedHolidays.clear();
         impl_->removedHolidays.clear();
+        detail::recordCalendarChange();
     }
 
     Date Calendar::adjust(const Date& d, BusinessDayConvention c) const

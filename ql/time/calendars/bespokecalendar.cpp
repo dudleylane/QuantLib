@@ -56,6 +56,7 @@ namespace QuantLib
     void BespokeCalendar::addWeekend(Weekday w)
     {
         bespokeImpl_->addWeekend(w);
+        detail::recordCalendarChange();
     }
 
 }

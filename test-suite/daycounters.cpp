@@ -24,9 +24,11 @@
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
 #include <ql/math/comparison.hpp>
+#include <ql/time/calendars/bespokecalendar.hpp>
 #include <ql/time/calendars/brazil.hpp>
 #include <ql/time/calendars/canada.hpp>
 #include <ql/time/calendars/china.hpp>
+#include <ql/time/calendars/jointcalendar.hpp>
 #include <ql/time/calendars/nullcalendar.hpp>
 #include <ql/time/calendars/unitedstates.hpp>
 #include <ql/time/daycounters/actual360.hpp>
@@ -744,6 +746,110 @@ BOOST_AUTO_TEST_CASE(testBusiness252FromSeveralThreads)
         expected.push_back(calendar.businessDaysBetween(d1, d2));
     for (Size i = 0; i < nThreads; ++i)
         BOOST_CHECK_MESSAGE(seen[i] == expected, "thread " << i << " got day counts that differ from the calendar's");
+}
+
+// Spans across months and across years, so that Business252 counts them
+// from its figures for whole months and whole years, against the calendar's
+// own walk, which uses neither.
+void checkBusiness252AgainstCalendar(const Calendar& calendar, const std::string& when)
+{
+    const DayCounter dayCounter = Business252(calendar);
+    const std::vector<std::pair<Date, Date>> spans = {{Date(15, January, 2030), Date(15, June, 2030)},
+                                                      {Date(15, January, 2030), Date(15, June, 2032)},
+                                                      {Date(3, November, 2029), Date(20, February, 2031)}};
+    for (const auto& [d1, d2] : spans)
+    {
+        const Date::serial_type counted = dayCounter.dayCount(d1, d2);
+        const Date::serial_type walked = calendar.businessDaysBetween(d1, d2);
+        BOOST_CHECK_MESSAGE(counted == walked, calendar.name() << ", " << when << ", from " << d1 << " to " << d2
+                                                               << ": Business252 counts " << counted
+                                                               << " business days, the calendar " << walked);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBusiness252AfterHolidayChanges)
+{
+    BOOST_TEST_MESSAGE("Testing business/252 day counter after a calendar's holidays change...");
+
+    // Each change comes after the figures for the months and years it
+    // touches have been filled (#122).  15 March 2030 and 14 March 2031 are
+    // Fridays, 16 March 2030 a Saturday; 2031 is a whole year inside the
+    // second span.
+    BespokeCalendar calendar("Business252 holiday changes");
+    calendar.addWeekend(Saturday);
+    calendar.addWeekend(Sunday);
+    checkBusiness252AgainstCalendar(calendar, "before any change");
+    calendar.addHoliday(Date(15, March, 2030));
+    checkBusiness252AgainstCalendar(calendar, "after adding a holiday");
+    calendar.addHoliday(Date(14, March, 2031));
+    checkBusiness252AgainstCalendar(calendar, "after adding a holiday in a whole year");
+    calendar.removeHoliday(Date(15, March, 2030));
+    checkBusiness252AgainstCalendar(calendar, "after removing an added holiday");
+    calendar.removeHoliday(Date(16, March, 2030));
+    checkBusiness252AgainstCalendar(calendar, "after removing a weekend day");
+    calendar.resetAddedAndRemovedHolidays();
+    checkBusiness252AgainstCalendar(calendar, "after resetting its holidays");
+    calendar.addWeekend(Friday);
+    checkBusiness252AgainstCalendar(calendar, "after adding a weekend day");
+}
+
+BOOST_AUTO_TEST_CASE(testBusiness252WithCalendarsOfTheSameName)
+{
+    BOOST_TEST_MESSAGE("Testing business/252 day counter with two calendars of the same name...");
+
+    // Both are set up before either is used, so nothing changes once the
+    // figures are filled, and only the calendars' identities tell their
+    // figures apart (#122, which measured 113 business days against 130
+    // from 15 January to 15 June 2030 on the second).
+    BespokeCalendar fiveDays("Business252 same name"), sixDays("Business252 same name");
+    fiveDays.addWeekend(Saturday);
+    fiveDays.addWeekend(Sunday);
+    sixDays.addWeekend(Sunday);
+    checkBusiness252AgainstCalendar(fiveDays, "five-day week");
+    checkBusiness252AgainstCalendar(sixDays, "six-day week");
+    checkBusiness252AgainstCalendar(fiveDays, "five-day week, again");
+}
+
+BOOST_AUTO_TEST_CASE(testBusiness252AfterJointCalendarComponentsChange)
+{
+    BOOST_TEST_MESSAGE("Testing business/252 day counter after a joint calendar's components change...");
+
+    // The joint calendar's own holidays don't change; its components' do,
+    // and each change is a holiday of the joint calendar.
+    BespokeCalendar fiveDays("Business252 component, five days"), sixDays("Business252 component, six days");
+    fiveDays.addWeekend(Saturday);
+    fiveDays.addWeekend(Sunday);
+    sixDays.addWeekend(Sunday);
+    const JointCalendar joint(fiveDays, sixDays);
+    checkBusiness252AgainstCalendar(joint, "before any change");
+    sixDays.addHoliday(Date(15, March, 2030));
+    checkBusiness252AgainstCalendar(joint, "after a component's holiday");
+    fiveDays.addHoliday(Date(14, March, 2031));
+    checkBusiness252AgainstCalendar(joint, "after a component's holiday in a whole year");
+    sixDays.addWeekend(Monday);
+    checkBusiness252AgainstCalendar(joint, "after a component's weekend day");
+}
+
+BOOST_AUTO_TEST_CASE(testBusiness252WithShortLivedCalendars)
+{
+    BOOST_TEST_MESSAGE("Testing business/252 day counter with short-lived calendars...");
+
+    // Each pass builds a joint calendar, and day counters on it, and drops
+    // them.  The joint calendars share a name, their business days alternate,
+    // and building them changes no calendar's holidays.  So their figures
+    // are told apart only by the calendars' identities, and a calendar
+    // dropped while its figures are kept mustn't lend its address to the
+    // next (#122).  The passes outnumber the calendars kept per thread.
+    BespokeCalendar fiveDays("Business252 short-lived"), sixDays("Business252 short-lived"),
+        noWeekend("Business252 short-lived, no weekend");
+    fiveDays.addWeekend(Saturday);
+    fiveDays.addWeekend(Sunday);
+    sixDays.addWeekend(Sunday);
+    for (Size i = 0; i < 20; ++i)
+    {
+        const JointCalendar joint(i % 2 == 0 ? fiveDays : sixDays, noWeekend);
+        checkBusiness252AgainstCalendar(joint, "pass " + std::to_string(i));
+    }
 }
 
 BOOST_AUTO_TEST_CASE(testThirty365)

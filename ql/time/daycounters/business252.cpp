@@ -19,7 +19,9 @@
 */
 
 #include <ql/time/daycounters/business252.hpp>
+#include <algorithm>
 #include <map>
+#include <vector>
 
 namespace QuantLib
 {
@@ -30,10 +32,60 @@ namespace QuantLib
         typedef std::map<Year, std::map<Month, Date::serial_type>> Cache;
         typedef std::map<Year, Date::serial_type> OuterCache;
 
+        // One calendar's business days in whole months and in whole years.
+        // Calendars are told apart by their implementation, since two can
+        // share a name (#122).  The copy of the calendar keeps that
+        // implementation alive, so that no other calendar can be given its
+        // address while the figures are kept.
+        struct CalendarFigures
+        {
+            const void* implementation;
+            Calendar calendar;
+            unsigned long long changes; // detail::calendarChangeCount() when filled
+            Cache monthly;
+            OuterCache yearly;
+        };
+
+        // A calendar's added holidays are kept in its implementation, and
+        // Calendar has no other public handle on it.
+        const void* implementationOf(const Calendar& calendar)
+        {
+            return &calendar.addedHolidays();
+        }
+
         // Per thread, because a day count across months writes to these even
-        // when each thread has its own day counter (#87).
-        thread_local std::map<std::string, Cache> monthlyFigures_;
-        thread_local std::map<std::string, OuterCache> yearlyFigures_;
+        // when each thread has its own day counter (#87).  Most recently used
+        // first, for at most this many calendars.
+        constexpr std::size_t maxCalendarFigures = 8;
+        thread_local std::vector<CalendarFigures> calendarFigures_;
+
+        CalendarFigures& figuresFor(const Calendar& calendar)
+        {
+            const void* implementation = implementationOf(calendar);
+            const unsigned long long changes = detail::calendarChangeCount();
+            auto i =
+                std::find_if(calendarFigures_.begin(), calendarFigures_.end(),
+                             [implementation](const CalendarFigures& f) { return f.implementation == implementation; });
+            if (i == calendarFigures_.end())
+            {
+                if (calendarFigures_.size() == maxCalendarFigures)
+                    calendarFigures_.pop_back();
+                calendarFigures_.insert(calendarFigures_.begin(),
+                                        CalendarFigures{implementation, calendar, changes, {}, {}});
+                return calendarFigures_.front();
+            }
+            std::rotate(calendarFigures_.begin(), i, i + 1);
+            CalendarFigures& figures = calendarFigures_.front();
+            if (figures.changes != changes)
+            {
+                // some calendar's holidays or weekend changed since these were
+                // filled, possibly a calendar this one is joined with.
+                figures.monthly.clear();
+                figures.yearly.clear();
+                figures.changes = changes;
+            }
+            return figures;
+        }
 
         bool sameYear(const Date& d1, const Date& d2)
         {
@@ -93,7 +145,7 @@ namespace QuantLib
         }
         else if (sameYear(d1, d2))
         {
-            Cache& cache = monthlyFigures_[calendar_.name()];
+            Cache& cache = figuresFor(calendar_).monthly;
             Date::serial_type total = 0;
             Date d;
             // first, we get to the beginning of next month.
@@ -112,8 +164,9 @@ namespace QuantLib
         }
         else
         {
-            Cache& cache = monthlyFigures_[calendar_.name()];
-            OuterCache& outerCache = yearlyFigures_[calendar_.name()];
+            CalendarFigures& figures = figuresFor(calendar_);
+            Cache& cache = figures.monthly;
+            OuterCache& outerCache = figures.yearly;
             Date::serial_type total = 0;
             Date d;
             // first, we get to the beginning of next year.

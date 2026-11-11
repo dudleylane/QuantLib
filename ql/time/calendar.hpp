@@ -202,6 +202,27 @@ namespace QuantLib
     /*! \relates Calendar */
     std::ostream& operator<<(std::ostream&, const Calendar&);
 
+    namespace detail
+    {
+
+        //! the number of changes made so far to any calendar's holidays or weekend
+        /*! Calendar::addHoliday, Calendar::removeHoliday,
+            Calendar::resetAddedAndRemovedHolidays and
+            BespokeCalendar::addWeekend record one each.  Caches of business
+            days, such as Business252's, compare it with the number they
+            were filled under.
+        */
+        unsigned long long calendarChangeCount();
+
+        //! records a change to a calendar's holidays or weekend
+        /*! A calendar implementation whose business days change other than
+            through the methods above should call it, so that such caches
+            are dropped.
+        */
+        void recordCalendarChange();
+
+    }
+
 
     // inline definitions
 
