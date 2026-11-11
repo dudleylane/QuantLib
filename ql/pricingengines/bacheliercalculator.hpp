@@ -92,9 +92,15 @@ namespace QuantLib
         */
         Real itmCashProbability() const;
 
-        /*! Probability of being in the money in the asset martingale
-            measure, i.e. N(d).
-            It is a risk-neutral probability, not the real world one.
+        /*! The asset-or-nothing option's value over the discounted
+            forward, E[F_T 1{in the money}] / F: N(d) + s n(d) / F for a
+            call and N(-d) - s n(d) / F for a put, s being the standard
+            deviation.  For a call, that is what BlackCalculator's gives,
+            where it is the probability of being in the money in the asset
+            martingale measure; BlackCalculator's gives a put the call's
+            (#235).  A normal forward can be negative, so there is no such
+            measure here, and this isn't a probability: it can lie outside
+            [0, 1].  The forward can't be 0 (#195).
         */
         Real itmAssetProbability() const;
 
@@ -152,19 +158,12 @@ namespace QuantLib
 
     inline Real BachelierCalculator::itmAssetProbability() const
     {
-        // In Bachelier model, asset probability is the same as cash probability
-        // since there's no drift adjustment like in Black-Scholes
-        // Call ITM probability: P(F > K) = N(d) where d = (F-K)/σ
-        // Put ITM probability:  P(F < K) = N(-d) = 1 - N(d) where d = (F-K)/σ
-
-        if (type_ == Option::Call)
-        {
-            return cum_d_; // N(d)
-        }
-        else
-        {
-            return 1.0 - cum_d_; // N(-d) = 1 - N(d)
-        }
+        // E[F_T 1{w F_T > w K}] / F, with w = 1 for a call and -1 for a put: an asset-or-nothing
+        // option's value, D [F N(w d) + w s n(d)] as value() takes it, over D F (#195).
+        QL_REQUIRE(forward_ != 0.0, "the asset probability isn't defined at a forward of 0");
+        const Real w = (type_ == Option::Call) ? 1.0 : -1.0;
+        const Real timeValue = (stdDev_ > QL_EPSILON) ? stdDev_ * n_d_ : 0.0;
+        return itmCashProbability() + w * timeValue / forward_;
     }
 
     inline Real BachelierCalculator::alpha() const

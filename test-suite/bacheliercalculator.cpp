@@ -134,7 +134,8 @@ BOOST_AUTO_TEST_CASE(testBachelierCalculatorGreeks)
     Real refElasticity = 7.0071783554334042;
     Real refElasticityFwd = 7.0071783554334051;
     Real refItmCashProb = 0.4012936743170763;
-    Real refItmAssetProb = 0.4012936743170763;
+    // #195: N(d) + s n(d) / F, the asset-or-nothing value over D F, where it was the cash probability.
+    Real refItmAssetProb = 0.4786272976776461;
     Real refDividendRho = -38.122899060122243;
     Real refStrikeSensitivity = -0.38122899060122245;
     Real refStrikeGamma = 0.018366735548135338;
@@ -852,6 +853,61 @@ BOOST_AUTO_TEST_CASE(testDigitalPayoffsAtZeroVolatility)
             BOOST_CHECK_EQUAL(atStrike.strikeGamma(), 0.0);
         }
     }
+}
+
+BOOST_AUTO_TEST_CASE(testItmAssetProbability)
+{
+    BOOST_TEST_MESSAGE("Testing BachelierCalculator's asset probability...");
+
+    // It's E[F_T 1{in the money}] / F, the asset-or-nothing value over D F, as BlackCalculator's is
+    // for a call (BlackCalculator's gives a put the call's, #235); it was the cash probability
+    // (#195).  The forward is normal, so it needn't lie in [0, 1].
+    const Real discount = 0.95;
+    for (Option::Type type : {Option::Call, Option::Put})
+    {
+        for (Real forward : {100.0, 1.0, -10.0, 0.5})
+        {
+            for (Real strike : {105.0, 95.0, 0.0, -20.0})
+            {
+                for (Real stdDev : {20.0, 1.0, 0.5, 0.0})
+                {
+                    BOOST_TEST_CONTEXT(type << ", forward " << forward << ", strike " << strike << ", stdDev "
+                                            << stdDev)
+                    {
+                        const BachelierCalculator calc(type, strike, forward, stdDev, discount);
+                        const BachelierCalculator assetOrNothing(ext::make_shared<AssetOrNothingPayoff>(type, strike),
+                                                                 forward, stdDev, discount);
+                        BOOST_CHECK_SMALL(calc.itmAssetProbability() * discount * forward - assetOrNothing.value(),
+                                          1.0e-14 * discount * (std::fabs(forward) + stdDev));
+                        // An asset-or-nothing call and put together pay F_T.
+                        const Option::Type other = type == Option::Call ? Option::Put : Option::Call;
+                        const BachelierCalculator otherCalc(other, strike, forward, stdDev, discount);
+                        BOOST_CHECK_SMALL(calc.itmAssetProbability() + otherCalc.itmAssetProbability() - 1.0,
+                                          1.0e-14 * (1.0 + stdDev / std::fabs(forward)));
+                        // At zero volatility it's the cash probability.
+                        if (stdDev == 0.0)
+                            BOOST_CHECK_EQUAL(calc.itmAssetProbability(), calc.itmCashProbability());
+                    }
+                }
+            }
+        }
+    }
+
+    // #195's case: the spot at 98, r 3 %, q 1 %, a normal volatility of 20, a strike of 105 and
+    // a year, against 60-digit references.
+    const Real forward = 98.0 * std::exp(0.02);
+    const BachelierCalculator call(Option::Call, 105.0, forward, 20.0, std::exp(-0.03));
+    BOOST_CHECK_SMALL(call.itmCashProbability() - 0.40090186145520748, 1.0e-14);
+    BOOST_CHECK_SMALL(call.itmAssetProbability() - 0.47823152816738486, 1.0e-14);
+
+    // Not a probability: above 1 for a call and below 0 for a put, with F 1, K 0 and s 20.
+    BOOST_CHECK_CLOSE_FRACTION(BachelierCalculator(Option::Call, 0.0, 1.0, 20.0).itmAssetProbability(),
+                               8.48881708773365, 1.0e-14);
+    BOOST_CHECK_CLOSE_FRACTION(BachelierCalculator(Option::Put, 0.0, 1.0, 20.0).itmAssetProbability(),
+                               -7.48881708773365, 1.0e-14);
+
+    // No asset measure at all at a forward of 0.
+    BOOST_CHECK_THROW(BachelierCalculator(Option::Call, 0.0, 0.0, 20.0).itmAssetProbability(), Error);
 }
 
 
