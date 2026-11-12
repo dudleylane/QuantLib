@@ -127,6 +127,9 @@ no longer checks them, and no CI job builds any of them.
 | #209 | `ql/experimental/credit/randomdefaultlatentmodel.hpp` | The random models' loss split gives names defaulting on the same day their part of a tranche's loss averaged over their orders, not in whatever order the standard library's sort leaves them, which moved a name's split by up to 5 % |
 | #207 | `ql/experimental/credit/randomdefaultlatentmodel.hpp` | An nth to default prices on the random default model inside a coupon, where it threw; on default curves dated before today its values carry the shift of #232 |
 | #195 | `ql/pricingengines/bacheliercalculator.hpp` | `BachelierCalculator::itmAssetProbability` gives the asset-or-nothing value over the discounted forward, as `BlackCalculator`'s does for a call, where it gave the cash probability |
+| #225 | `ql/experimental/forward/analytichestonforwardeuropeanengine.cpp` | The analytic Heston forward-start engine integrates P1 and P2 out to where they decay, where it cut them at phi = 100 and priced resets near expiry up to 43 % low; at rho = -1 or 1 it throws at the forward and on one side of it, where the integrand doesn't decay (#238) |
+| #224 | `ql/experimental/forward/analytichestonforwardeuropeanengine.cpp` | The analytic Heston forward-start engine integrates the variance's density where the Feller condition fails, where it was up to 14.8 % off |
+| #223, #237 | `ql/experimental/forward/analytichestonforwardeuropeanengine.cpp` | The analytic Heston forward-start engine prices at v0 = 0, at kappa - rho sigma = 0, at a vol of vol at or below 0.1, at long resets where the density's Bessel function underflowed, and resets within hours through its integral, where it returned NaN or 0, threw, or priced a vanilla option; it refuses the band of resets where the density still underflows (#237) |
 
 ### New in this fork
 
