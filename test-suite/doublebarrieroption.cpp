@@ -1205,6 +1205,24 @@ BOOST_AUTO_TEST_CASE(testRebate)
         }
     }
 
+    // A negative rebate, which the Derman-Kani lattice floored at 0 next to the barriers (#241).  Its part of the value
+    // there is within 6.9e-4 of the closed forms', where the parent's was 0.04 to 2.9 off.  The part doesn't depend on
+    // the payoff.
+    for (DoubleBarrier::Type type : {DoubleBarrier::KnockOut, DoubleBarrier::KnockIn})
+    {
+        BOOST_TEST_CONTEXT(type << ", rebate -5")
+        {
+            const Real expected = rebatePart(lattice, type, Option::Call, 80.0, 120.0, -5.0, inAYear);
+            for (const auto& [name, e] : engines)
+            {
+                BOOST_TEST_CONTEXT(name)
+                {
+                    BOOST_CHECK_SMALL(rebatePart(e, type, Option::Call, 80.0, 120.0, -5.0, inAYear) - expected, 1.5e-3);
+                }
+            }
+        }
+    }
+
     // The implied volatility inverts the value with the rebate in it, where that value rises with the volatility.
     {
         DoubleBarrierOption knockIn(DoubleBarrier::KnockIn, 80.0, 120.0, 5.0,

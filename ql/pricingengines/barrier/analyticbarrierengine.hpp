@@ -39,6 +39,9 @@ namespace QuantLib
     /*! The formulas are taken from "Option pricing formulas",
          E.G. Haug, McGraw-Hill, p.69 and following.
 
+        A rebate, of either sign, is paid at the touch for a knock-out, and at expiry, if the
+        barrier isn't touched, for a knock-in.
+
         \ingroup barrierengines
 
         \test the correctness of the returned value is tested by

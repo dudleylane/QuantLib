@@ -2022,6 +2022,128 @@ BOOST_AUTO_TEST_CASE(testRebateWithNegativeRates)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testNegativeRebate)
+{
+    BOOST_TEST_MESSAGE("Testing barrier options with a negative rebate...");
+
+    // AnalyticBarrierEngine paid a rebate only if it was positive, and the Derman-Kani lattice floored
+    // its values next to the barrier at 0, so a negative rebate dropped out of the one and was partly
+    // lost in the other (#241).  The rebate's part of the value, the value less the value without it,
+    // is linear in the rebate, as the plain lattice, the Monte Carlo and finite-difference engines and
+    // the double-barrier engines pay it, and as the engine's zero-variance branch did.
+
+    const DayCounter dc = Actual365Fixed();
+    const Date today(10, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const auto exercise = ext::make_shared<EuropeanExercise>(today + 365);
+    const auto r = ext::make_shared<SimpleQuote>(0.05);
+    const auto q = ext::make_shared<SimpleQuote>(0.0);
+    const auto vol = ext::make_shared<SimpleQuote>(0.20);
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, q, dc)),
+        Handle<YieldTermStructure>(flatRate(today, r, dc)), Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+    const auto analytic = ext::make_shared<AnalyticBarrierEngine>(process);
+
+    const auto npv = [&](const ext::shared_ptr<PricingEngine>& engine, Barrier::Type type, Real barrier, Real rebate,
+                         Option::Type optionType, Real strike)
+    {
+        BarrierOption option(type, barrier, rebate, ext::make_shared<PlainVanillaPayoff>(optionType, strike), exercise);
+        option.setPricingEngine(engine);
+        return option.NPV();
+    };
+    const auto rebatePart = [&](const ext::shared_ptr<PricingEngine>& engine, Barrier::Type type, Real barrier,
+                                Real rebate, Option::Type optionType, Real strike)
+    {
+        return npv(engine, type, barrier, rebate, optionType, strike) -
+               npv(engine, type, barrier, 0.0, optionType, strike);
+    };
+
+    const std::pair<Barrier::Type, Real> barriers[] = {
+        {Barrier::UpOut, 120.0}, {Barrier::UpIn, 120.0}, {Barrier::DownOut, 85.0}, {Barrier::DownIn, 85.0}};
+
+    // A rebate of -3 is worth minus a rebate of 3.  A call struck above an up-and-out barrier, and a
+    // put struck below a down-and-out one, can pay only the rebate, so with -3 they're worth less than
+    // nothing.  The parent gave the value without the rebate.
+    for (Volatility v : {0.20, 0.01})
+    {
+        vol->setValue(v);
+        for (const auto& [type, barrier] : barriers)
+        {
+            for (Option::Type optionType : {Option::Call, Option::Put})
+            {
+                for (Real strike : {80.0, 100.0, 130.0})
+                {
+                    BOOST_TEST_CONTEXT(type << " " << optionType << " at " << strike << ", barrier " << barrier
+                                            << ", volatility " << v)
+                    {
+                        BOOST_CHECK_SMALL(rebatePart(analytic, type, barrier, -3.0, optionType, strike) +
+                                              rebatePart(analytic, type, barrier, 3.0, optionType, strike),
+                                          1.0e-12);
+                    }
+                }
+            }
+        }
+    }
+
+    // As the volatility falls, the value tends to the zero-variance branch's, which pays a negative
+    // rebate: the parent's lost it at any positive volatility, and jumped by it at 0.  These are
+    // testZeroVolatility's markets.  At a volatility of 1e-5, a variance of 1e-10, the knock-outs that
+    // hit along the forward are within 7.6e-11 of the limit, as the hitting time's spread goes as the
+    // volatility squared, and the others within rounding.
+    {
+        const struct
+        {
+            Real strike;
+            Option::Type type;
+            Real barrier;
+            Barrier::Type barrierType;
+            Rate r, q;
+        } cases[] = {
+            {105.0, Option::Put, 107.0, Barrier::UpOut, 0.03, 0.01},  // not hit
+            {105.0, Option::Put, 101.0, Barrier::UpOut, 0.03, 0.01},  // hit after 0.4975 years
+            {100.0, Option::Call, 101.0, Barrier::UpIn, 0.03, 0.0},   // hit
+            {105.0, Option::Call, 107.0, Barrier::UpIn, 0.03, 0.0},   // not hit
+            {91.0, Option::Call, 93.0, Barrier::DownOut, 0.01, 0.03}, // not hit
+            {101.0, Option::Put, 99.0, Barrier::DownOut, 0.01, 0.03}, // hit after 0.5025 years
+            {100.0, Option::Put, 99.0, Barrier::DownIn, 0.01, 0.04},  // hit
+            {91.0, Option::Call, 93.0, Barrier::DownIn, 0.01, 0.04},  // not hit
+        };
+        for (const auto& c : cases)
+        {
+            BOOST_TEST_CONTEXT(c.barrierType << " " << c.type << " at " << c.strike << ", barrier " << c.barrier)
+            {
+                r->setValue(c.r);
+                q->setValue(c.q);
+                vol->setValue(0.0);
+                const Real limit = npv(analytic, c.barrierType, c.barrier, -4.0, c.type, c.strike);
+                vol->setValue(1.0e-5);
+                BOOST_CHECK_SMALL(npv(analytic, c.barrierType, c.barrier, -4.0, c.type, c.strike) - limit, 1.0e-9);
+            }
+        }
+    }
+
+    // The lattices pay it as the closed form does.  At 2,000 steps the rebate's part is within 3e-4 of
+    // the closed form's for both lattices here, as for a positive rebate.  The parent's Derman-Kani
+    // lattice was 0.96 to 1.16 off for the knock-outs, and its closed form had no rebate at all.  The
+    // part doesn't depend on the payoff.
+    r->setValue(0.05);
+    q->setValue(0.0);
+    vol->setValue(0.20);
+    const auto dermanKani =
+        ext::make_shared<BinomialBarrierEngine<CoxRossRubinstein, DiscretizedDermanKaniBarrierOption>>(process, 2000);
+    const auto plain =
+        ext::make_shared<BinomialBarrierEngine<CoxRossRubinstein, DiscretizedBarrierOption>>(process, 2000);
+    for (const auto& [type, barrier] : barriers)
+    {
+        BOOST_TEST_CONTEXT(type << " call at 100, barrier " << barrier)
+        {
+            const Real expected = rebatePart(analytic, type, barrier, -3.0, Option::Call, 100.0);
+            BOOST_CHECK_SMALL(rebatePart(dermanKani, type, barrier, -3.0, Option::Call, 100.0) - expected, 1.0e-3);
+            BOOST_CHECK_SMALL(rebatePart(plain, type, barrier, -3.0, Option::Call, 100.0) - expected, 1.0e-3);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testVannaVolgaLowVolatility)
 {
     BOOST_TEST_MESSAGE("Testing Vanna/Volga barrier engine at low volatility...");
@@ -2179,14 +2301,26 @@ BOOST_AUTO_TEST_CASE(testVannaVolgaRebate)
             {Barrier::UpIn, 120.0}, {Barrier::UpOut, 120.0}, {Barrier::DownIn, 85.0}, {Barrier::DownOut, 85.0}};
         for (const auto& [type, barrier] : options)
         {
-            BOOST_TEST_CONTEXT(type << " call at 100, barrier " << barrier << ", rebate 3, flat smile")
+            BOOST_TEST_CONTEXT(type << " call at 100, barrier " << barrier << ", flat smile")
             {
-                BarrierOption option(type, barrier, 3.0, ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0),
-                                     exercise);
-                option.setPricingEngine(analytic);
-                const Real expected = option.NPV();
-                option.setPricingEngine(vannaVolga);
-                BOOST_CHECK_CLOSE_FRACTION(option.NPV(), expected, 1.0e-12);
+                Real rebatePrice[2];
+                for (Size i = 0; i < 2; ++i)
+                {
+                    const Real rebate = i == 0 ? 3.0 : -3.0;
+                    BOOST_TEST_CONTEXT("rebate " << rebate)
+                    {
+                        BarrierOption option(type, barrier, rebate,
+                                             ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0), exercise);
+                        option.setPricingEngine(analytic);
+                        const Real expected = option.NPV();
+                        option.setPricingEngine(vannaVolga);
+                        BOOST_CHECK_CLOSE_FRACTION(option.NPV(), expected, 1.0e-12);
+                        rebatePrice[i] = option.result<Real>("RebatePrice");
+                    }
+                }
+                // A negative rebate is paid as AnalyticBarrierEngine pays it since #241: its part of the value is a
+                // positive one's, negated.  The parent gave 0 for it, as AnalyticBarrierEngine did.
+                BOOST_CHECK_SMALL(rebatePrice[0] + rebatePrice[1], 1.0e-13);
             }
         }
     }
