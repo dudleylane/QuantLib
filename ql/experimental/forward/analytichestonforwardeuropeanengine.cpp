@@ -134,6 +134,14 @@ namespace QuantLib
             return Brent().solve(f, QL_EPSILON * hi, 0.5 * (lo + hi), lo, hi);
         }
 
+        // log psi(z), from what AnalyticHestonEngine::chF takes psi from: lnChF, except where sigma is at most 1e-6
+        // and kappa at least 1e-8, where chF takes an expansion in sigma instead.
+        std::complex<Real> forwardHestonLogChF(
+            const AnalyticHestonEngine& engine, const std::complex<Real>& z, Time tau, Real kappa, Real sigma)
+        {
+            return sigma > 1e-6 || kappa < 1e-8 ? engine.lnChF(z, tau) : std::log(engine.chF(z, tau));
+        }
+
         /* P1 and P2 of the Heston model over the tenor tau from the variance v, for k = log(K / F) with F the
            forward at expiry: P2 is the probability that the spot ends above K, and P1 that under the share
            measure.  Gil-Pelaez on the real line needs the characteristic function psi(u) out to where it has
@@ -198,7 +206,8 @@ namespace QuantLib
             if (tanPhi != 0.0)
                 U = std::max(forwardHestonDecayLimit(cEff, U), forwardHestonDecayLimit(std::fabs(k * tanPhi), U));
 
-            const Real phase = std::fabs(std::imag(engine.lnChF(std::complex<Real>(U, U * tanPhi - 0.5), tau)));
+            const Real phase = std::fabs(
+                std::imag(forwardHestonLogChF(engine, std::complex<Real>(U, U * tanPhi - 0.5), tau, kappa, sigma)));
             const Real turns = (std::fabs(k) * U + phase) / (2.0 * M_PI);
             const Real firstWidth =
                 std::min(forwardHestonFirstPanel / s, forwardHestonFirstPanelVolOfVol / (sigma * tau));
@@ -227,8 +236,8 @@ namespace QuantLib
                     const Real u = a + half * (1.0 + x[j]);
                     const std::complex<Real> z(u, u * tanPhi - 0.5);
                     const std::complex<Real> e = -i * z * k;
-                    const std::complex<Real> h =
-                        dz * (std::exp(engine.lnChF(z, tau) + e) - std::exp(e - 0.5 * s2 * (z * z + i * z)));
+                    const std::complex<Real> h = dz * (std::exp(forwardHestonLogChF(engine, z, tau, kappa, sigma) + e) -
+                                                       std::exp(e - 0.5 * s2 * (z * z + i * z)));
                     p1 += w[j] * std::real(h / (i * (z + i)));
                     p2 += w[j] * std::real(h / (i * z));
                 }
@@ -257,9 +266,7 @@ namespace QuantLib
         sigma_ = process_->sigma();
         s0_ = process_->s0();
 
-        QL_REQUIRE(sigma_ > 0.1, "Very low values (<~10%) for Heston Vol-of-Vol cause numerical issues"
-                                 "in this implementation of the propagator function, try using"
-                                 "MCForwardEuropeanHestonEngine Monte-Carlo engine instead");
+        QL_REQUIRE(sigma_ > 0.0, "sigma (" << sigma_ << ") must be positive");
 
         riskFreeRate_ = process_->riskFreeRate();
         dividendYield_ = process_->dividendYield();

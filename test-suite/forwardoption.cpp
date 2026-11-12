@@ -1100,6 +1100,36 @@ BOOST_AUTO_TEST_CASE(testHestonAnalyticVarianceDensity)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testHestonAnalyticSmallSigma)
+{
+    BOOST_TEST_MESSAGE("Testing the analytic Heston forward-start engine at a small vol of vol...");
+
+    // The engine refused sigma at or below 0.1, which nothing had measured (#223).  It prices these down to sigma
+    // 0.01, where R = 4 kappa theta / sigma^2 is 3200.
+    const ForwardHestonCase cases[] = {
+        {0.04, 2.0, 0.04, 0.1, -0.7, 182, 365, 1.0, Option::Call, 4.81545420549318},
+        {0.04, 2.0, 0.04, 0.05, -0.7, 30, 365, 1.0, Option::Call, 6.36879857771811},
+        {0.04, 2.0, 0.04, 0.05, -0.7, 182, 365, 1.0, Option::Call, 4.87591853658243},
+        {0.04, 2.0, 0.04, 0.02, -0.7, 182, 365, 1.0, Option::Call, 4.90538183376543},
+        {0.04, 2.0, 0.04, 0.01, -0.7, 30, 365, 1.0, Option::Call, 6.410802504424},
+        {0.04, 2.0, 0.04, 0.01, -0.7, 182, 365, 1.0, Option::Call, 4.91405131898079},
+    };
+    for (const auto& c : cases)
+        checkForwardHestonCase(c);
+
+    // At longer resets, as R grows, the density's Bessel function underflows (#237), and the engine throws: at
+    // sigma 0.01 a year away, where the density is 0 at the variance's mean, and at sigma 0.02 three years away,
+    // where it doesn't integrate to 1.
+    const Date today(15, May, 2026);
+    Settings::instance().evaluationDate() = today;
+    BOOST_CHECK_THROW(forwardHestonNpv(today, Actual365Fixed(), 0.04, 2.0, 0.04, 0.01, -0.7, today + 365, today + 730,
+                                       1.0, Option::Call),
+                      Error);
+    BOOST_CHECK_THROW(forwardHestonNpv(today, Actual365Fixed(), 0.04, 2.0, 0.04, 0.02, -0.7, today + 1095, today + 1460,
+                                       1.0, Option::Call),
+                      Error);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
