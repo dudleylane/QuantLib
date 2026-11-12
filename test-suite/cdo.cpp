@@ -2605,6 +2605,59 @@ BOOST_AUTO_TEST_CASE(testSpotRecoveryMeanGivenADefault)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testSpotRecoveryExpectedGivenTheFactors)
+{
+    BOOST_TEST_MESSAGE("Testing the spot recovery model's expected recovery given the factors...");
+
+    // expCondRecoveryInvPinvRR(x, invRR, i, m) is the expected spot recovery of a default at the latent value x,
+    // given the factors m (Li's eq. 44): the mean of conditionalRecoveryAtDefault over the recovery variable Y,
+    // which given m is normal with mean bl . m and variance 1 - bl . bl, and independent of the default variable.
+    // Before #254 its mean came from the default variable's loadings, bd . m; with bd^2 = 0.3 and bl^2 = 0.1, at x =
+    // -2 and m = 2, the member gave 0.639 where the mean is 0.563, and it was off in all eight points at m = 2 or -2
+    // where the loadings differ. They're the same in the first case, which passed before too, as did m = 0.
+    struct Case
+    {
+        const char* description;
+        std::vector<Real> defaultLoadings, recoveryLoadings;
+    };
+    const std::vector<Case> cases = {{"one factor, the same loadings", {std::sqrt(0.3)}, {std::sqrt(0.3)}},
+                                     {"one factor, loadings that differ", {std::sqrt(0.3)}, {std::sqrt(0.1)}},
+                                     {"two factors, loadings that differ", {0.5, 0.2}, {0.3, -0.4}}};
+    const Real recovery = 0.4;
+    const GaussHermiteIntegration hermite(64);
+    for (const auto& c : cases)
+    {
+        const GaussianSpotLossLM model({c.defaultLoadings, c.recoveryLoadings}, {recovery}, 2.2,
+                                       LatentModelIntegrationType::GaussianQuadrature,
+                                       GaussianCopulaPolicy::initTraits());
+        const Real invRR = model.inverseCumulativeY(recovery, 1);
+        const Real spread = std::sqrt(1.0 - std::inner_product(c.recoveryLoadings.begin(), c.recoveryLoadings.end(),
+                                                               c.recoveryLoadings.begin(), Real(0.0)));
+        for (Real m : {-2.0, 0.0, 2.0})
+        {
+            const std::vector<Real> factors(c.defaultLoadings.size(), m);
+            const Real mean =
+                std::inner_product(c.recoveryLoadings.begin(), c.recoveryLoadings.end(), factors.begin(), Real(0.0));
+            for (Real x : {-2.0, 0.0})
+            {
+                BOOST_TEST_CONTEXT(c.description << ", factors at " << m << ", a default at " << x)
+                {
+                    // the rule integrates f over the line, from nodes and weights for exp(-t^2)
+                    const Real expected =
+                        hermite(
+                            [&](Real t)
+                            {
+                                return model.conditionalRecoveryAtDefault(mean + spread * M_SQRT2 * t, 0, x) *
+                                       std::exp(-t * t);
+                            }) /
+                        M_SQRTPI;
+                    BOOST_CHECK_SMALL(model.expCondRecoveryInvPinvRR(x, invRR, 0, factors) - expected, 1.0e-12);
+                }
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testBaseCorrelationAfterADefault)
 {
     BOOST_TEST_MESSAGE("Testing base correlation models on what a default leaves of a tranche...");

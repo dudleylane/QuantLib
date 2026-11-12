@@ -225,7 +225,10 @@ namespace QuantLib
     {
         const std::vector<std::vector<Real>>& fctrs_ = factorWeights();
         // Size iRR = iName + basket_->size();// should be live pool
-        const Real sumMs = std::inner_product(fctrs_[iName].begin(), fctrs_[iName].end(), mktFactors.begin(), Real(0.));
+        // given the factors, the recovery variable's mean, from its own loadings, where it took the default
+        // variable's until #254
+        const Real sumMs = std::inner_product(fctrs_[iName + numNames_].begin(), fctrs_[iName + numNames_].end(),
+                                              mktFactors.begin(), Real(0.));
         const Real sumBetaLoss = std::inner_product(fctrs_[iName + numNames_].begin(), fctrs_[iName + numNames_].end(),
                                                     fctrs_[iName + numNames_].begin(), Real(0.));
         const Real rho = crossIdiosyncFctrs_[iName];
