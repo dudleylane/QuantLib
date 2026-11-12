@@ -36,7 +36,7 @@
 namespace QuantLib
 {
 
-    //! Analytic Heston engine incl. stochastic interest rates
+    //! Analytic Heston engine for forward-starting european options
     /*! This class is pricing a european option under the following process
 
         \f[
@@ -52,6 +52,30 @@ namespace QuantLib
         Implements the analytical solution for forward-starting
         strike-reset options descriped in "On the Pricing of Forward
         Starting Options under Stochastic Volatility", S. Kruse (2003)
+
+        The price integrates, over the variance at the reset, that
+        variance's density times the probabilities P1 and P2 of a
+        vanilla option from the reset to the expiry.
+        - P1 and P2 are taken at each variance by Gil-Pelaez, along
+          the line on which AnalyticHestonEngine's AngledContour
+          control variate prices a call, less a Black-Scholes control
+          variate, with 256 Gauss-Legendre nodes out to where the
+          integrand, and where it decays slowly what it leaves
+          beyond, have decayed to 1e-17.  The range is split into
+          panels, the first 16 / s wide, with s^2 the variance
+          expected over the tenor, or 512 / (sigma tau) where that
+          is narrower, and each twice as wide as the one before, up
+          to 64 turns of the integrand.  Where that would take more
+          than 192 panels, as at rho very near -1 or 1, or away from
+          the forward at tenors under a second, the engine throws.
+        - At rho = -1 or 1 the characteristic function doesn't decay
+          along an untilted line, and the engine throws where it
+          would need one: at the forward, and on one side of it,
+          above it at rho = -1 and below it at rho = 1, except far
+          from it.
+
+        The integration order is used only by forwardChF(); the
+        engine's own integrations don't depend on it.
 
         \ingroup forwardengines
 
@@ -91,24 +115,21 @@ namespace QuantLib
         // Some intermediate calculation constant parameters
         Real kappaHat_, thetaHat_, R_;
 
-        // The integrator for nu. This pricer needs to perform nested integrations, the outer
-        // integrator should be non-adaptive as this can cause very long runtimes. Gaussian
-        // Quadrature has been found to work well.
-        GaussLegendreIntegration outerIntegrator_;
+        // The nodes and weights of the fixed Gauss rules on [-1, 1]: the inner rule's, over the characteristic
+        // function, and the outer rule's, over the variance at the reset.  This pricer needs to perform nested
+        // integrations, and an adaptive outer integrator can cause very long runtimes.
+        Array innerX_, innerW_, outerX_, outerW_;
 
         // Integrate over characteristic function to generate P1, P2 (fall back on this
         // when reset time is very close, to avoid numerical issues with tReset=0s)
-        std::pair<Real, Real>
-        calculateP1P2(Time t, Handle<Quote>& St, Real K, Real ratio, Real phiRightLimit = 100) const;
+        std::pair<Real, Real> calculateP1P2(Time t, Handle<Quote>& St, Real K, Real ratio) const;
 
         // Integrate P1, P2 over te propagator function to calculate forward-start price
-        std::pair<Real, Real> calculateP1P2Hat(Time tenor,
-                                               Time resetTime,
-                                               Real K,
-                                               Real ratio,
-                                               Real phiRightLimit,
-                                               Real nuLeftLimit,
-                                               Real nuRightLimit) const;
+        std::pair<Real, Real>
+        calculateP1P2Hat(Time tenor, Time resetTime, Real K, Real ratio, Real nuLeftLimit, Real nuRightLimit) const;
+
+        // An engine for the characteristic function at a variance at the reset
+        ext::shared_ptr<AnalyticHestonEngine> nodeEngine(Real varReset) const;
     };
 }
 
