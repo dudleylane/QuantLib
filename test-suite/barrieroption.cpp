@@ -2139,6 +2139,105 @@ BOOST_AUTO_TEST_CASE(testVannaVolgaLowVolatility)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testVannaVolgaRebate)
+{
+    BOOST_TEST_MESSAGE("Testing Vanna/Volga barrier engine's rebate...");
+
+    // The engine priced the knock-out with the rebate, capped it at the vanilla, and priced a knock-in
+    // as the vanilla less that (#221): a knock-in lost the knock-out's rebate and never took its own,
+    // and a knock-out whose rebate lifts it above the vanilla was capped.  It now prices the knock-out
+    // without the rebate, and adds the rebate's value at the ATM volatility, as AnalyticBarrierEngine
+    // gives it.
+
+    // On a flat smile the adjustment is 0, so the engine gives AnalyticBarrierEngine's values, rebate
+    // included.  The curves are on Actual365Fixed, so that the exercise date, 365 days on, is the
+    // quotes' maturity: the engine prices the vanilla at the one and the barrier option at the other
+    // (#211).  The parent gave 8.0665, 2.3841, 0 and 10.4506 here, against 10.9505, 2.3841, 2.3084
+    // and 11.0247.
+    {
+        const DayCounter dc = Actual365Fixed();
+        const Date today(10, November, 2026);
+        Settings::instance().evaluationDate() = today;
+        const auto exercise = ext::make_shared<EuropeanExercise>(today + 365);
+        const auto spot = ext::make_shared<SimpleQuote>(100.0);
+        const auto vol = ext::make_shared<SimpleQuote>(0.20);
+        const Handle<YieldTermStructure> rTS(flatRate(today, 0.05, dc));
+        const Handle<YieldTermStructure> qTS(flatRate(today, 0.0, dc));
+        const auto analytic = ext::make_shared<AnalyticBarrierEngine>(ext::make_shared<BlackScholesMertonProcess>(
+            Handle<Quote>(spot), qTS, rTS, Handle<BlackVolTermStructure>(flatVol(today, vol, dc))));
+        const Handle<DeltaVolQuote> atm(ext::make_shared<DeltaVolQuote>(Handle<Quote>(vol), DeltaVolQuote::Fwd, 1.0,
+                                                                        DeltaVolQuote::AtmDeltaNeutral));
+        const Handle<DeltaVolQuote> put25(
+            ext::make_shared<DeltaVolQuote>(-0.25, Handle<Quote>(vol), 1.0, DeltaVolQuote::Fwd));
+        const Handle<DeltaVolQuote> call25(
+            ext::make_shared<DeltaVolQuote>(0.25, Handle<Quote>(vol), 1.0, DeltaVolQuote::Fwd));
+        const auto vannaVolga =
+            ext::make_shared<VannaVolgaBarrierEngine>(atm, put25, call25, Handle<Quote>(spot), rTS, qTS);
+
+        const std::pair<Barrier::Type, Real> options[] = {
+            {Barrier::UpIn, 120.0}, {Barrier::UpOut, 120.0}, {Barrier::DownIn, 85.0}, {Barrier::DownOut, 85.0}};
+        for (const auto& [type, barrier] : options)
+        {
+            BOOST_TEST_CONTEXT(type << " call at 100, barrier " << barrier << ", rebate 3, flat smile")
+            {
+                BarrierOption option(type, barrier, 3.0, ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0),
+                                     exercise);
+                option.setPricingEngine(analytic);
+                const Real expected = option.NPV();
+                option.setPricingEngine(vannaVolga);
+                BOOST_CHECK_CLOSE_FRACTION(option.NPV(), expected, 1.0e-12);
+            }
+        }
+    }
+
+    // On testVannaVolgaSimpleBarrierValues' market, but with the curves on Actual360: the exercise
+    // date is then at 365/360 on them, where the quotes' maturity is 1, and the rebate is timed to
+    // the exercise date, as the barrier option at the ATM volatility is.
+    {
+        const DayCounter dc = Actual365Fixed();
+        const Date today(10, November, 2026);
+        Settings::instance().evaluationDate() = today;
+        const auto exercise = ext::make_shared<EuropeanExercise>(today + 365);
+        const Volatility atmVol = 0.08925;
+        const Handle<Quote> spot(ext::make_shared<SimpleQuote>(1.30265));
+        const Handle<DeltaVolQuote> atm(
+            ext::make_shared<DeltaVolQuote>(Handle<Quote>(ext::make_shared<SimpleQuote>(atmVol)), DeltaVolQuote::Fwd,
+                                            1.0, DeltaVolQuote::AtmDeltaNeutral));
+        const Handle<DeltaVolQuote> put25(ext::make_shared<DeltaVolQuote>(
+            -0.25, Handle<Quote>(ext::make_shared<SimpleQuote>(0.10087)), 1.0, DeltaVolQuote::Fwd));
+        const Handle<DeltaVolQuote> call25(ext::make_shared<DeltaVolQuote>(
+            0.25, Handle<Quote>(ext::make_shared<SimpleQuote>(0.08463)), 1.0, DeltaVolQuote::Fwd));
+        const Handle<YieldTermStructure> rTS(flatRate(today, 0.0033871, Actual360())),
+            qTS(flatRate(today, 0.0003541, Actual360()));
+        const auto analytic = ext::make_shared<AnalyticBarrierEngine>(ext::make_shared<BlackScholesMertonProcess>(
+            spot, qTS, rTS, Handle<BlackVolTermStructure>(flatVol(today, atmVol, dc))));
+        const auto vannaVolga = ext::make_shared<VannaVolgaBarrierEngine>(atm, put25, call25, spot, rTS, qTS);
+
+        const Real rebate = 0.01;
+        const std::pair<Barrier::Type, Real> options[] = {
+            {Barrier::UpIn, 1.5}, {Barrier::UpOut, 1.5}, {Barrier::DownIn, 1.1}, {Barrier::DownOut, 1.1}};
+        for (const auto& [type, barrier] : options)
+        {
+            for (Real strike : {1.13321, 1.31179, 1.46047})
+            {
+                BOOST_TEST_CONTEXT(type << " call struck at " << strike << ", barrier " << barrier)
+                {
+                    const auto payoff = ext::make_shared<PlainVanillaPayoff>(Option::Call, strike);
+                    BarrierOption with(type, barrier, rebate, payoff, exercise);
+                    BarrierOption without(type, barrier, 0.0, payoff, exercise);
+                    with.setPricingEngine(analytic);
+                    without.setPricingEngine(analytic);
+                    const Real expected = with.NPV() - without.NPV();
+                    with.setPricingEngine(vannaVolga);
+                    without.setPricingEngine(vannaVolga);
+                    BOOST_CHECK_CLOSE_FRACTION(with.NPV() - without.NPV(), expected, 1.0e-12);
+                    BOOST_CHECK_CLOSE_FRACTION(with.result<Real>("RebatePrice"), expected, 1.0e-12);
+                }
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

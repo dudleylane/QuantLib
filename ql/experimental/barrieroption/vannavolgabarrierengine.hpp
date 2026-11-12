@@ -32,7 +32,13 @@ namespace QuantLib
 {
 
     //! Vanna/Volga barrier option engine
-    /*!
+    /*! The smile adjustment is weighted by the probability of no touch at the ATM volatility, to the
+        quotes' maturity, and covers the option only.  A rebate is valued at the ATM volatility, to
+        the exercise date, and paid at the touch for a knock-out and at expiry if the barrier isn't
+        touched for a knock-in, as AnalyticBarrierEngine values it.  The additional result
+        "RebatePrice" is its part of the value.  Where the spot is already at or beyond the barrier,
+        a knock-out is worth 0 and a knock-in the vanilla, with no rebate.
+
         \ingroup barrierengines
     */
     class VannaVolgaBarrierEngine : public BarrierOption::engine
