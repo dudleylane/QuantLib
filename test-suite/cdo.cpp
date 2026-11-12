@@ -2202,6 +2202,111 @@ BOOST_AUTO_TEST_CASE(testSameDayTrancheLosses)
     }
 }
 
+// Names of 100 on flat hazard rates from their own curves' dates, at recoveries of 40 %, for the random models' days
+// and records (#232, #244-#247). Each name's default, and its recovery under RandomLossLM, takes one factor of
+// sqrt(0.05 + 0.04 (i % 8)), as NamesAroundADefault's do, and ConstantLossModel on the same factors gives the
+// probabilities the random models' paths should show.
+struct NamesOnCurves
+{
+    ext::shared_ptr<Pool> pool = ext::make_shared<Pool>();
+    std::vector<std::string> names;
+    std::vector<Handle<DefaultProbabilityTermStructure>> curves;
+    std::vector<std::vector<Real>> factors;
+
+    NamesOnCurves(const std::vector<Date>& curveDates, Real hazard)
+    {
+        const NorthAmericaCorpDefaultKey curveKey(EURCurrency(), SeniorSec, Period(0, Weeks), 10.);
+        const NorthAmericaCorpDefaultKey poolKey(EURCurrency(), SeniorSec, Period(), 1.);
+        for (const Date& curveDate : curveDates)
+        {
+            const Size i = names.size();
+            names.push_back("issuer-" + std::to_string(i));
+            factors.emplace_back(1, std::sqrt(0.05 + 0.04 * Real(i % 8)));
+            curves.emplace_back(
+                ext::make_shared<FlatHazardRate>(curveDate, makeQuoteHandle(hazard), ActualActual(ActualActual::ISDA)));
+            std::vector<std::pair<DefaultProbKey, Handle<DefaultProbabilityTermStructure>>> probabilities;
+            probabilities.emplace_back(curveKey, curves.back());
+            pool->add(names.back(), Issuer(probabilities, DefaultEventSet()), poolKey);
+        }
+    }
+
+    ext::shared_ptr<Basket> basket(const Date& inception,
+                                   const ext::shared_ptr<DefaultLossModel>& model = nullptr) const
+    {
+        auto basket =
+            ext::make_shared<Basket>(inception, names, std::vector<Real>(names.size(), 100.0), pool, 0.0, 1.0);
+        if (model)
+            basket->setLossModel(model);
+        return basket;
+    }
+
+    ext::shared_ptr<ConstantLossModel<GaussianCopulaPolicy>> latentModel() const
+    {
+        return ext::make_shared<ConstantLossModel<GaussianCopulaPolicy>>(factors, std::vector<Real>(names.size(), 0.4),
+                                                                         LatentModelIntegrationType::GaussianQuadrature,
+                                                                         GaussianCopulaPolicy::initTraits());
+    }
+
+    ext::shared_ptr<DefaultLossModel> randomDefaultModel(Size paths) const
+    {
+        return ext::make_shared<RandomDefaultLM<GaussianCopulaPolicy>>(latentModel(), paths);
+    }
+
+    ext::shared_ptr<GaussianSpotLossLM> spotLossModel(Real recovery = 0.4) const
+    {
+        std::vector<std::vector<Real>> doubled(factors);
+        doubled.insert(doubled.end(), factors.begin(), factors.end());
+        return ext::make_shared<GaussianSpotLossLM>(doubled, std::vector<Real>(names.size(), recovery), 2.2,
+                                                    LatentModelIntegrationType::GaussianQuadrature,
+                                                    GaussianCopulaPolicy::initTraits());
+    }
+
+    ext::shared_ptr<DefaultLossModel> randomLossModel(Size paths, Real recovery = 0.4) const
+    {
+        return ext::make_shared<RandomLossLM<GaussianCopulaPolicy>>(spotLossModel(recovery), paths);
+    }
+
+    // RandomDefaultLM's and RandomLossLM's baskets, both on that many paths
+    std::vector<std::pair<std::string, ext::shared_ptr<Basket>>> randomModels(const Date& inception, Size paths) const
+    {
+        return {{"random default", basket(inception, randomDefaultModel(paths))},
+                {"random loss", basket(inception, randomLossModel(paths))}};
+    }
+};
+
+// A probability on the paths, within three binomial standard errors of the expected one.
+void checkOnPaths(Probability onPaths, Probability expected, Size paths)
+{
+    BOOST_CHECK_SMALL(onPaths - expected, 3.0 * std::sqrt(expected * (1.0 - expected) / Real(paths)));
+}
+
+BOOST_AUTO_TEST_CASE(testRandomModelsOnTheirFirstDays)
+{
+    BOOST_TEST_MESSAGE("Testing the random models' defaults over their first days...");
+
+    // A path's default falls on the day k after its curve's date with P(k) <= p < P(k + 1), where P(k) is the
+    // probability of a default within k days and p the path's draw. Before #247 Brent's solver looked for P(t) = p
+    // on P read at whole days, a step function, and recorded about half of each day's defaults on the next: at a
+    // hazard rate of 1 on 20,000 paths, both models gave a probability of 0.0107 of a default within a day, against
+    // ConstantLossModel's 0.0210, 10.2 standard errors low, and within two days 6.4 low. They now find k itself.
+    const Date today(31, August, 2006);
+    Settings::instance().evaluationDate() = today;
+    const Size paths = 20000;
+    const NamesOnCurves names(std::vector<Date>(8, today), 1.0);
+    const auto latent = names.basket(today, names.latentModel());
+    for (const auto& [model, random] : names.randomModels(today, paths))
+    {
+        for (Integer days : {1, 2, 7, 30})
+        {
+            BOOST_TEST_CONTEXT(model << ", " << days << " days on")
+            {
+                checkOnPaths(random->probAtLeastNEvents(1, today + days), latent->probAtLeastNEvents(1, today + days),
+                             paths);
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testBaseCorrelationAfterADefault)
 {
     BOOST_TEST_MESSAGE("Testing base correlation models on what a default leaves of a tranche...");

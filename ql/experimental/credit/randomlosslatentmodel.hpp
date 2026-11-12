@@ -79,17 +79,18 @@ namespace QuantLib
         typedef simEvent<RandomLossLM> defaultSimEvent;
 
         const ext::shared_ptr<SpotRecoveryLatentModel<copulaPolicy>> copula_;
-        // for time inversion:
-        Real accuracy_;
 
       public:
+        /*! \c accuracy is unused: a default's day is found among whole days,
+            exactly (#247).
+        */
         explicit RandomLossLM(const ext::shared_ptr<SpotRecoveryLatentModel<copulaPolicy>>& copula,
                               Size nSims = 0,
-                              Real accuracy = 1.e-6,
+                              [[maybe_unused]] Real accuracy = 1.e-6,
                               BigNatural seed = 2863311530UL)
         : RandomLM<::QuantLib::RandomLossLM, copulaPolicy, USNG>(
               copula->numFactors(), copula->size(), copula->copula(), nSims, seed),
-          copula_(copula), accuracy_(accuracy)
+          copula_(copula)
         {
             // redundant through basket?
             this->registerWith(Settings::instance().evaluationDate());
@@ -185,10 +186,10 @@ namespace QuantLib
                     pool->get(pool->names()[iName])
                         . // use 'live' names
                     defaultProbability(this->basket_->defaultKeys()[iName]);
-                // compute and store default time with respect to the
-                //  curve ref date:
-                Size dateSTride = static_cast<Size>(Brent().solve( // casted from Real:
-                    detail::Root(dfts, simDefaultProb), accuracy_, 0., 1.));
+                // the default's day from its curve's reference date (#247), up to the paths' last date
+                const Date curveDate = dfts->referenceDate();
+                const Date lastDate = Date(Settings::instance().evaluationDate()) + Period(this->maxHorizon_, Days);
+                const Size dateSTride = detail::defaultDay(**dfts, simDefaultProb, Size(lastDate - curveDate));
                 /*
                 // value if one approximates to a flat HR;
                 //   faster (>x2) but it introduces an error:..

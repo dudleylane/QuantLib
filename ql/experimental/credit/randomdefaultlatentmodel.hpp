@@ -887,51 +887,33 @@ namespace QuantLib
     }
 
 
-    // --------- Time inversion solver target function: -----------------------
+    // --------- The day of a simulated default: ------------------------------
 
-    /* It could be argued that this concept is part of the copula (more generic)
-    In general when the modelled magnitude is parametric one can solve for
-    inversion to get the parameter value for a given magnitude value (provided
-    the modelled variable dependence in invertible). In this particular problem
-    the parameter is Time and it is solved here where we are alredy in the
-    context of default
-    See default transition models for another instance of this inversion.
-    Alternatively use the faster trick (flat HR) mentioned in the code or make
-    the algorithm parametric on the type of interpolation in the default TS.
-    */
     namespace detail
-    { // not template dependent .....move it
-        //! Utility for the numerical time solver
-        class Root
+    {
+        /*! The day of a default drawn at probability \f$ p \f$ on a default
+        curve: the \f$ k \f$, counted from the curve's reference date, with
+        \f$ P(k) \le p < P(k + 1) \f$, where \f$ P(k) \f$ is the probability
+        of default within \f$ k \f$ days of it; at most \c lastDay. A binary
+        search over whole days. Before #247 Brent solved \f$ P(t) = p \f$
+        on the curve read at whole days, a step function, and recorded about
+        half of each day's defaults on the next day.
+        */
+        inline Size defaultDay(const DefaultProbabilityTermStructure& curve, Probability p, Size lastDay)
         {
-          public:
-            /* See a faster algorithm (neeeds to locate the points) in
-            D.O'KANE p.249 sect 13.5 */
-            Root(const Handle<DefaultProbabilityTermStructure>& dts, Real pd)
-            : dts_(dts), pd_(pd), curveRef_(dts->referenceDate())
+            const Date reference = curve.referenceDate();
+            // P(lo) <= p, and either hi == lastDay or p < P(hi + 1)
+            Size lo = 0, hi = lastDay;
+            while (lo < hi)
             {
+                const Size mid = lo + (hi - lo + 1) / 2;
+                if (curve.defaultProbability(reference + Period(static_cast<Integer>(mid), Days), true) <= p)
+                    lo = mid;
+                else
+                    hi = mid - 1;
             }
-            /* The cast I am forcing here comes from the requirement of 1D
-            solvers to take in a target (cost) function of Real domain. It could
-            be possible to change the template arg F in the 1D solvers to a
-            boost function and then use the (template arg) domain argument type
-            of the function for use with the 'guess' and operator() ?
-             */
-            Real operator()(Real t) const
-            {
-                QL_REQUIRE(t >= 0.0, "t < 0");
-                /* As long as this doesnt involve modifying a mutable member
-                it should be thread safe (they are const methods and access is
-                read only)
-                */
-                return dts_->defaultProbability(curveRef_ + Period(static_cast<Integer>(t), Days), true) - pd_;
-            }
-
-          private:
-            const Handle<DefaultProbabilityTermStructure> dts_;
-            Real pd_;
-            const Date curveRef_;
-        };
+            return lo;
+        }
     }
 
     /*
@@ -970,32 +952,33 @@ namespace QuantLib
         // \todo Consider this to be only a ConstantLossLM instead
         const ext::shared_ptr<DefaultLatentModel<copulaPolicy>> model_;
         const std::vector<Real> recoveries_;
-        // for time inversion:
-        Real accuracy_;
 
       public:
+        /*! \c accuracy is unused: a default's day is found among whole days,
+            exactly (#247).
+        */
         // \todo: Allow a constructor building its own default latent model.
         explicit RandomDefaultLM(const ext::shared_ptr<DefaultLatentModel<copulaPolicy>>& model,
                                  const std::vector<Real>& recoveries = std::vector<Real>(),
                                  Size nSims = 0, // stats will crash on div by zero, FIX ME.
-                                 Real accuracy = 1.e-6,
+                                 [[maybe_unused]] Real accuracy = 1.e-6,
                                  BigNatural seed = 2863311530UL)
         : RandomLM<::QuantLib::RandomDefaultLM, copulaPolicy, USNG>(
               model->numFactors(), model->size(), model->copula(), nSims, seed),
-          model_(model), recoveries_(recoveries.empty() ? std::vector<Real>(model->size(), 0.) : recoveries),
-          accuracy_(accuracy)
+          model_(model), recoveries_(recoveries.empty() ? std::vector<Real>(model->size(), 0.) : recoveries)
         {
             // redundant through basket?
             this->registerWith(Settings::instance().evaluationDate());
             this->registerWith(model_);
         }
+        //! \c accuracy is unused (#247).
         explicit RandomDefaultLM(const ext::shared_ptr<ConstantLossLatentmodel<copulaPolicy>>& model,
                                  Size nSims = 0, // stats will crash on div by zero, FIX ME.
-                                 Real accuracy = 1.e-6,
+                                 [[maybe_unused]] Real accuracy = 1.e-6,
                                  BigNatural seed = 2863311530UL)
         : RandomLM<::QuantLib::RandomDefaultLM, copulaPolicy, USNG>(
               model->numFactors(), model->size(), model->copula(), nSims, seed),
-          model_(model), recoveries_(model->recoveries()), accuracy_(accuracy)
+          model_(model), recoveries_(model->recoveries())
         {
             // redundant through basket?
             this->registerWith(Settings::instance().evaluationDate());
@@ -1091,10 +1074,10 @@ namespace QuantLib
                     pool->get(pool->names()[iName])
                         . // use 'live' names
                     defaultProbability(this->basket_->defaultKeys()[iName]);
-                // compute and store default time with respect to the
-                //  curve ref date:
-                Size dateSTride = static_cast<Size>(Brent().solve( // casted from Real:
-                    detail::Root(dfts, simDefaultProb), accuracy_, 0., 1.));
+                // the default's day from its curve's reference date (#247), up to the paths' last date
+                const Date curveDate = dfts->referenceDate();
+                const Date lastDate = Date(Settings::instance().evaluationDate()) + Period(this->maxHorizon_, Days);
+                const Size dateSTride = detail::defaultDay(**dfts, simDefaultProb, Size(lastDate - curveDate));
                 /*
                 // value if one approximates to a flat HR;
                 //   faster (>x2) but it introduces an error:..
