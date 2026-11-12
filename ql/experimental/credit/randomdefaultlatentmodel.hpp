@@ -316,6 +316,18 @@ namespace QuantLib
         Operations Research Vol. 56, No. 2, March/April 2008, pp. 286-303
         */
         std::vector<Probability> probsBeingNthEvent(Size n, const Date& d) const override;
+        /*! The probability of each name being the nth default among the
+        names left, and defaulting after d0 and by d. It comes from the paths
+        probsBeingNthEvent counts, split the same way among names defaulting
+        on the same day, so name by name it's probsBeingNthEvent(n, d) less
+        probsBeingNthEvent(n, d0), but for rounding, and the entries add up
+        to probAtLeastNEvents(n, d) less probAtLeastNEvents(n, d0). One per
+        name, in the pool's order; all 0 for n above the names left, and for
+        a period that ends on or before the earliest reference date of their
+        default curves. Before #231 the model didn't give it, so
+        IntegralNtdEngine threw on it where the names' recoveries differ.
+        */
+        std::vector<Probability> probsBeingNthEventBetween(Size n, const Date& d0, const Date& d) const override;
         //! Pearsons' default probability correlation.
         Real defaultCorrelation(const Date& d, Size iName, Size jName) const override;
         Real expectedTrancheLoss(const Date& d) const override;
@@ -370,6 +382,11 @@ namespace QuantLib
         as is the last date the paths reach, maxHorizon_ days after today. */
         mutable Date origin_, horizon_;
 
+        /* Each name's share of the paths whose nth default falls on a day k,
+        counted from origin_, with from <= k < to, the names defaulting on
+        that day sharing it equally; in the pool's order. */
+        std::vector<Probability> nthEventShares(Size n, Natural from, Natural to) const;
+
         // Maximum time inversion horizon
         static const Size maxHorizon_ = 4050; // over 11 years
         // Inversion probability limits are computed by children in initdates()
@@ -408,19 +425,9 @@ namespace QuantLib
     }
 
     template <template <class, class> class D, class C, class URNG>
-    std::vector<Probability> RandomLM<D, C, URNG>::probsBeingNthEvent(Size n, const Date& d) const
+    std::vector<Probability> RandomLM<D, C, URNG>::nthEventShares(Size n, Natural from, Natural to) const
     {
-        calculate();
         Size basketSize = basket_->size();
-
-        QL_REQUIRE(n > 0 && n <= basketSize, "Impossible number of defaults.");
-
-        // the paths' days count from origin_ (#232): no default on or before it (#207)
-        if (d <= origin_)
-            return std::vector<Probability>(basketSize, 0.);
-        // casted to natural to avoid warning, d being after origin_
-        Natural val = d.serialNumber() - origin_.serialNumber();
-
         std::vector<Probability> hitsByDate(basketSize, 0.);
         // (day, name) of each default within the time horizon
         std::vector<std::pair<Size, Size>> namesDefaulting;
@@ -430,7 +437,7 @@ namespace QuantLib
             namesDefaulting.clear();
             for (Size iEvt = 0; iEvt < events.size(); iEvt++)
             {
-                if (val > events[iEvt].dayFromRef)
+                if (to > events[iEvt].dayFromRef)
                     namesDefaulting.emplace_back(Size(events[iEvt].dayFromRef), Size(events[iEvt].nameIdx));
             }
             if (namesDefaulting.size() >= n)
@@ -440,6 +447,8 @@ namespace QuantLib
                 names defaulting on the same day: where the nth default falls
                 among them, each is the nth in an equal share of the orders. */
                 const Size day = namesDefaulting[n - 1].first;
+                if (day < from)
+                    continue;
                 Size first = n - 1, last = n;
                 while (first > 0 && namesDefaulting[first - 1].first == day)
                     --first;
@@ -451,7 +460,37 @@ namespace QuantLib
         }
         std::transform(hitsByDate.begin(), hitsByDate.end(), hitsByDate.begin(), [this](Real x) { return x / nSims_; });
         return hitsByDate;
+    }
+
+    template <template <class, class> class D, class C, class URNG>
+    std::vector<Probability> RandomLM<D, C, URNG>::probsBeingNthEvent(Size n, const Date& d) const
+    {
+        calculate();
+        Size basketSize = basket_->size();
+
+        QL_REQUIRE(n > 0 && n <= basketSize, "Impossible number of defaults.");
+
+        // the paths' days count from origin_ (#232): no default on or before it (#207)
+        if (d <= origin_)
+            return std::vector<Probability>(basketSize, 0.);
+        // casted to natural to avoid warning, d being after origin_
+        return nthEventShares(n, 0, d.serialNumber() - origin_.serialNumber());
         // \todo Provide confidence interval
+    }
+
+    template <template <class, class> class D, class C, class URNG>
+    std::vector<Probability>
+    RandomLM<D, C, URNG>::probsBeingNthEventBetween(Size n, const Date& d0, const Date& d) const
+    {
+        QL_REQUIRE(n >= 1, "the rank of a default has to be at least 1");
+        QL_REQUIRE(d0 <= d, "the period's start, " << d0 << ", is after its end, " << d);
+        calculate();
+        // the paths' days count from origin_ (#232), with no default on or before it, so a period from before it
+        // counts from it
+        if (n > basket_->liveList().size() || d <= origin_)
+            return std::vector<Probability>(basket_->size(), 0.);
+        const Natural from = d0 <= origin_ ? 0 : d0.serialNumber() - origin_.serialNumber();
+        return nthEventShares(n, from, d.serialNumber() - origin_.serialNumber());
     }
 
 

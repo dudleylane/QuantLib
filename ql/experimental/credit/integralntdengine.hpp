@@ -43,8 +43,8 @@ namespace QuantLib
         each name being the nth to default in each step,
         DefaultLossModel::probsBeingNthEventBetween. ConstantLossModel gives
         it where its integration integrates vectors, as GaussianQuadrature
-        does and Trapezoid doesn't (#208). The other models don't, so the
-        engine throws on them there, the Monte Carlo ones included (#231).
+        does and Trapezoid doesn't (#208), and RandomDefaultLM from its paths
+        (#231). The other models don't, so the engine throws on them there.
 
         \warning Inside a coupon, on a discount curve as of today, the
             premium for the part of the coupon that has passed is in the
