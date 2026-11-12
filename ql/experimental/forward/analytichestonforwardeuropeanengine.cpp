@@ -18,6 +18,7 @@
 */
 
 #include <ql/experimental/forward/analytichestonforwardeuropeanengine.hpp>
+#include <ql/math/distributions/gammadistribution.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/math/solvers1d/brent.hpp>
 #include <complex>
@@ -50,6 +51,9 @@ namespace QuantLib
 
         // The outer range ends where the variance density has less than this of its mass beyond it.
         constexpr Real forwardHestonTailMass = 1e-14;
+
+        // A variance density whose integral over the outer range is further than this from 1 is refused.
+        constexpr Real forwardHestonMassTolerance = 1e-8;
 
         /* The x beyond which a noncentral chi-squared variable with R degrees of freedom and noncentrality Lambda
            has probability below eps: the Chernoff bound P(X > x) <= e^{-sx} E[e^{sX}], 0 < s < 1/2, with
@@ -84,6 +88,20 @@ namespace QuantLib
                 }
             }
             return std::min(fc, fd);
+        }
+
+        /* The outer rule's integral of the variance density over [a, b], which holds all but 1e-14 of its mass, is
+           1 to within 3.1e-12 wherever the density is right (measured on every row tried).  Where its Bessel
+           function underflows, as it does in a band of resets once the order R / 2 - 1 is above about 350, the
+           density is 0 at some nodes, and the integral is short by about as much as the price. */
+        void forwardHestonCheckMass(Real mass, Real a, Real b, Real R)
+        {
+            QL_REQUIRE(std::fabs(mass - 1.0) <= forwardHestonMassTolerance,
+                       "the density of the variance at the reset doesn't integrate to 1 over ["
+                           << a << ", " << b << "]: it misses by " << mass - 1.0
+                           << " (its Bessel function, of order R/2 - 1 = " << 0.5 * R - 1.0
+                           << ", underflows where that order is in the hundreds, as where sigma is small against"
+                              " kappa theta)");
         }
 
         /* For a decay at the rate c > 0, the u beyond which both e^{-cu} / u and its integral from u on, at most
@@ -333,6 +351,13 @@ namespace QuantLib
         }
         else
         {
+            // Where the density underflows at large orders, each of its values costs a Bessel function of that
+            // order, so the density at the variance's mean, which is then 0 too, is checked before all of them.
+            QL_REQUIRE(propagator(resetTime, meanVariance) > 0.0,
+                       "the density of the variance at the reset is 0 at its mean, "
+                           << meanVariance << " (its Bessel function, of order R/2 - 1 = " << 0.5 * R_ - 1.0
+                           << ", underflows where that order is in the hundreds, as where sigma is small against"
+                              " kappa theta)");
             P1HatP2Hat =
                 calculateP1P2Hat(tenor, resetTime, moneyness, expiryRatio / resetRatio, nuLeftLimit, nuRightLimit);
         }
@@ -389,7 +414,10 @@ namespace QuantLib
         const Array& w = sqrtV ? jacobiW_ : outerW_;
         const Real scale = sqrtV ? 0.5 * std::sqrt(nuRightLimit) : 0.5 * (nuRightLimit - nuLeftLimit);
 
+        // The nodes and their weights, the density included, first: a density that doesn't integrate to 1 is
+        // refused before any inner integral is taken.
         Array v(x.size()), weight(x.size());
+        Real mass = 0.0;
         for (Size j = 0; j < x.size(); ++j)
         {
             if (sqrtV)
@@ -403,7 +431,9 @@ namespace QuantLib
                 v[j] = nuLeftLimit + scale * (1.0 + x[j]);
                 weight[j] = w[j] * propagator(resetTime, v[j]);
             }
+            mass += weight[j];
         }
+        forwardHestonCheckMass(scale * mass, nuLeftLimit, nuRightLimit, R_);
 
         Real p1Hat = 0.0, p2Hat = 0.0;
         for (Size j = 0; j < x.size(); ++j)
@@ -426,6 +456,27 @@ namespace QuantLib
         Real Lambda = B * std::exp(-kappaHat_ * resetTime) * v0_;
         Real x = B * varReset;
         Real nu = R_ / 2 - 1;
+
+        // From I_nu's power series, the density is also the central chi-squared density times a series in
+        // y = Lambda x / 4,
+        //     B (x / 2)^nu e^{-x / 2} / (2 Gamma(nu + 1)) e^{-Lambda / 2} S,   S = sum_k y^k / (k! (nu + 1)_k),
+        // which has no Bessel function to underflow: I_nu(sqrt(Lambda x)) is below the smallest double where
+        // Lambda x is small against nu, as at long resets, where Lambda is small.  Up to y = nu + 1 the terms of S
+        // are positive and fall at least as 1 / k!, so a few dozen reach QL_EPSILON.  At v0 = 0, where Lambda is
+        // zero, S is 1 and the density the central one.
+        const Real y = 0.25 * Lambda * x;
+        if (y <= nu + 1.0)
+        {
+            Real S = 1.0, term = 1.0;
+            for (Size k = 1; term > QL_EPSILON * S; ++k)
+            {
+                term *= y / (k * (nu + k));
+                S += term;
+            }
+            Real power = nu == 0.0 ? 0.0 : nu * std::log(0.5 * x);
+            return std::exp(std::log(0.5 * B) + power - 0.5 * x - GammaFunction().logValue(nu + 1) - 0.5 * Lambda +
+                            std::log(S));
+        }
 
         // Equation (18) from the paper: B times the density of x = B v, noncentral chi-squared with R degrees of
         // freedom and noncentrality Lambda,

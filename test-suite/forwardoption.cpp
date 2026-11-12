@@ -1063,6 +1063,43 @@ BOOST_AUTO_TEST_CASE(testHestonAnalyticZeroKappaHat)
     BOOST_CHECK_CLOSE_FRACTION(npv(0.1 - 1e-9), atZero, 1e-8);
 }
 
+BOOST_AUTO_TEST_CASE(testHestonAnalyticVarianceDensity)
+{
+    BOOST_TEST_MESSAGE("Testing the analytic Heston forward-start engine's density of the variance at the reset...");
+
+    // The density of the variance at the reset is noncentral chi-squared, which the engine took from its Bessel
+    // function, I_nu with nu = R/2 - 1.  At v0 = 0 its noncentrality is zero and that form is 0/0: the engine priced
+    // NaN (#223).  At long resets the noncentrality is small, I_nu underflows where nu is moderately large, and the
+    // engine priced the call five years away, at R 138.9, at 0, and the put at 2.11 (#237).
+    const ForwardHestonCase cases[] = {
+        {0.0, 2.0, 0.04, 0.2, -0.7, 14, 365, 1.0, Option::Call, 4.53631526640341},
+        {0.0, 2.0, 0.04, 0.2, -0.7, 91, 365, 1.0, Option::Call, 4.49572993793561},
+        {0.0, 2.0, 0.04, 0.2, -0.7, 182, 365, 1.0, Option::Call, 4.02801361659341},
+        {0.1, 5.0, 0.1, 0.12, -0.7, 1825, 2190, 1.0, Option::Call, 9.52429297081378},
+        {0.1, 5.0, 0.1, 0.12, -0.7, 1825, 2190, 1.0, Option::Put, 11.6387895780479},
+        {0.1, 5.0, 0.1, 0.12, -0.7, 1825, 2190, 0.8, Option::Call, 18.9098184144192},
+        {0.25, 10.0, 0.25, 0.11, -0.7, 170, 535, 1.0, Option::Call, 17.8958818909176},
+        {0.25, 10.0, 0.25, 0.11, -0.7, 260, 625, 1.0, Option::Call, 17.7639303437161},
+    };
+    for (const auto& c : cases)
+        checkForwardHestonCase(c);
+
+    // At R 826, between the last two rows, I_nu also underflows over the density's bulk, for resets from 184 to 227
+    // days, where nu is 412 and the noncentrality a few units.  The engine priced up to 100 % low there (#237).  It
+    // now throws: at 200 days the density is 0 at the variance's mean, and at 220 it doesn't integrate to 1.
+    const Date today(15, May, 2026);
+    Settings::instance().evaluationDate() = today;
+    for (Integer reset : {200, 220})
+    {
+        BOOST_TEST_CONTEXT("reset in " << reset << " days")
+        {
+            BOOST_CHECK_THROW(forwardHestonNpv(today, Actual365Fixed(), 0.25, 10.0, 0.25, 0.11, -0.7, today + reset,
+                                               today + reset + 365, 1.0, Option::Call),
+                              Error);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

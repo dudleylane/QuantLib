@@ -75,6 +75,14 @@ namespace QuantLib
           runs from 20 standard deviations below the mean, floored at
           zero, to at least 10 above it, and on to where at most
           1e-14 of the density's mass lies beyond it.
+        - The density of the variance at the reset is noncentral
+          chi-squared.  It's summed from its power series, which has
+          no Bessel function to underflow, except where the series'
+          terms grow at first; there it's taken from its Bessel
+          function.  Where R is in the hundreds or more, that
+          function underflows over a band of resets, and the engine
+          throws rather than integrate a density that misses 1 by
+          more than 1e-8 over the range.
         - At rho = -1 or 1 the characteristic function doesn't decay
           along an untilted line, and the engine throws where it
           would need one: at the forward, and on one side of it,
