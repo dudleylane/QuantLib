@@ -2492,6 +2492,67 @@ BOOST_AUTO_TEST_CASE(testRandomLossModelRecordOfADefault)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testRandomLossModelRecoveriesAtTheirDefaults)
+{
+    BOOST_TEST_MESSAGE("Testing the random loss model's recoveries at their defaults...");
+
+    // A default's recovery is the spot recovery model's at the default's own probability, which the path draws.
+    // Before #246 the model read that probability on the curve at the default's day, at its start, so a default on
+    // the curve's first day had none, and a recovery of 0. At a hazard rate of 3 on 20,000 paths the first day's
+    // defaults lost 6.555, 67 % more than the 3.929 their probabilities give at recoveries of 40 %. At recoveries of
+    // 98 % such a default lost 50 times its share, and a year's defaults at hazard rates of 20 % lost 14 % more than
+    // their probabilities give.
+    const Date today(31, August, 2006);
+    Settings::instance().evaluationDate() = today;
+    const Size paths = 20000;
+    struct Case
+    {
+        Real hazard, recovery;
+        Date d;
+    };
+    for (const Case& c : {Case{3.0, 0.4, today + 1}, Case{0.2, 0.98, today + 365}})
+    {
+        BOOST_TEST_CONTEXT("hazard rate " << c.hazard << ", recoveries " << c.recovery << ", at " << c.d)
+        {
+            const NamesOnCurves names(std::vector<Date>(8, today), c.hazard);
+            const auto random = names.basket(today, names.randomLossModel(paths, c.recovery));
+            Real expected = 0.0;
+            for (const auto& curve : names.curves)
+                expected += 100.0 * curve->defaultProbability(c.d, true) * (1.0 - c.recovery);
+            BOOST_CHECK_SMALL(random->expectedTrancheLoss(c.d) / expected - 1.0, 0.05);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testSpotRecoveryAtADate)
+{
+    BOOST_TEST_MESSAGE("Testing the spot recovery model's recovery at a date...");
+
+    // conditionalRecovery reads a default's probability on its curve at a date. At the curve's own date no default
+    // has one, and before #246 it returned a recovery of 0 there, which isn't the formula's limit; it now refuses
+    // the date. After it, it's conditionalRecoveryAtDefault at the latent value of that probability, as RandomLossLM
+    // takes it from its path.
+    const Date today(31, August, 2006);
+    Settings::instance().evaluationDate() = today;
+    const NamesOnCurves names(std::vector<Date>(8, today), 0.2);
+    const auto spot = names.spotLossModel();
+    spot->resetBasket(names.basket(today));
+    for (Size i : {0, 7})
+    {
+        for (Real y : {-1.0, 0.0, 1.0})
+        {
+            BOOST_TEST_CONTEXT("name " << i << ", latent value " << y)
+            {
+                BOOST_CHECK_EXCEPTION(spot->conditionalRecovery(y, i, today), Error,
+                                      ExpectedErrorMessage("so no recovery from one"));
+                const Probability p = names.curves[i]->defaultProbability(today + 1, true);
+                BOOST_CHECK_EQUAL(spot->conditionalRecovery(y, i, today + 1),
+                                  spot->conditionalRecoveryAtDefault(y, i, spot->inverseCumulativeY(p, i)));
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testBaseCorrelationAfterADefault)
 {
     BOOST_TEST_MESSAGE("Testing base correlation models on what a default leaves of a tranche...");

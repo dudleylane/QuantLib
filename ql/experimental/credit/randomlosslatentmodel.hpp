@@ -152,8 +152,6 @@ namespace QuantLib
             return copula_->latentVarValue(factorsSample, iVar);
         }
         Size basketSize() const { return this->basket_->size(); }
-        // conditional to default, defined as spot-recovery.
-        Real conditionalRecovery(Real latentVarSample, Size iName, const Date& d) const;
 
       private:
         void resetModel() override
@@ -219,10 +217,12 @@ namespace QuantLib
                                     std::log(1.-simDefaultProb)
                 /std::log(1.-data_.horizonDefaultPs_[iName])));
                 */
-                // the recovery on the default's day, a date of its curve (#232)
+                /* The recovery at the default's own probability, from its
+                latent sample. Read at the day's date, it would be the day's
+                start's, and on the curve's reference date there's no default
+                to recover from (#246). */
                 Real latentRRVarSample = copula_->latentRRVarValue(values, iName);
-                Real recovery = copula_->conditionalRecovery(latentRRVarSample, iName,
-                                                             curveDate + Period(static_cast<Integer>(day), Days));
+                Real recovery = copula_->conditionalRecoveryAtDefault(latentRRVarSample, iName, latentVarSample);
                 this->simsBuffer_.back().push_back(
                     defaultSimEvent(iName, Size(curveDate - this->origin_) + day, recovery));
                 // emplace_back
