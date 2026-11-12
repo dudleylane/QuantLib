@@ -266,7 +266,7 @@ namespace QuantLib
 
     Real AnalyticBarrierEngine::E(Real eta) const
     {
-        if (rebate() > 0)
+        if (rebate() != 0.0)
         {
             Real HS = barrier() / underlying();
             Real powHS0 = std::pow(HS, 2 * mu());
@@ -284,7 +284,7 @@ namespace QuantLib
 
     Real AnalyticBarrierEngine::F(Real eta) const
     {
-        if (rebate() > 0)
+        if (rebate() != 0.0)
         {
             Rate m = mu();
             Volatility vol = volatility();
