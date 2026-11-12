@@ -2307,6 +2307,111 @@ BOOST_AUTO_TEST_CASE(testRandomModelsOnTheirFirstDays)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testRandomModelsOnCurvesOfTwoDates)
+{
+    BOOST_TEST_MESSAGE("Testing the random models on default curves of two dates...");
+
+    // The paths count each default's day from its curve's date, and ConstantLossModel counts the probability of a
+    // default by a date from it too. Before #232 the statistics read the paths' days as from today: on curves of
+    // September 30th and October 15th, with today November 1st, they gave no default by today, where
+    // ConstantLossModel gives 0.0954, and 0.114 by December 1st against 0.192. They now read them from the earliest
+    // curve date, with each name's offset from it; without the offsets they'd be 6.4 to 11.9 standard errors high.
+    const Date today(1, November, 2006);
+    Settings::instance().evaluationDate() = today;
+    const Size paths = 20000;
+    std::vector<Date> curveDates(4, Date(30, September, 2006));
+    curveDates.insert(curveDates.end(), 4, Date(15, October, 2006));
+    const NamesOnCurves names(curveDates, 0.2);
+    const auto latent = names.basket(curveDates.front(), names.latentModel());
+    for (const auto& [model, random] : names.randomModels(curveDates.front(), paths))
+    {
+        for (const Date& d : {today, today + 30})
+        {
+            for (Size n : {1, 2})
+            {
+                BOOST_TEST_CONTEXT(model << ", at " << d << ", n = " << n)
+                {
+                    checkOnPaths(random->probAtLeastNEvents(n, d), latent->probAtLeastNEvents(n, d), paths);
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testRandomModelsAsTodayMoves)
+{
+    BOOST_TEST_MESSAGE("Testing the random models' statistics as today moves...");
+
+    // With no default between, moving today on from the curves' date leaves what the names can lose by a later date
+    // as it was, and so every statistic there, on the same paths. Before #232 the statistics read the paths' days,
+    // counted from the curves' date, as from today: a month on, 31 of RandomDefaultLM's 42 values here moved, by up
+    // to 60, and 33 of RandomLossLM's.
+    const Date curveDate(31, August, 2006);
+    const NamesOnCurves names(std::vector<Date>(8, curveDate), 0.05);
+    const std::vector<Date> dates = {Date(1, December, 2006), Date(1, March, 2007), Date(1, September, 2011)};
+    for (Integer daysOn : {31})
+    {
+        for (bool loss : {false, true})
+        {
+            BOOST_TEST_CONTEXT((loss ? "random loss" : "random default") << ", today " << daysOn << " days on")
+            {
+                std::vector<Real> values[2];
+                for (Integer k : {0, 1})
+                {
+                    Settings::instance().evaluationDate() = curveDate + k * daysOn;
+                    const auto basket =
+                        names.basket(curveDate, loss ? names.randomLossModel(2000) : names.randomDefaultModel(2000));
+                    for (const Date& d : dates)
+                    {
+                        values[k].push_back(basket->probAtLeastNEvents(1, d));
+                        values[k].push_back(basket->probAtLeastNEvents(3, d));
+                        values[k].push_back(basket->expectedTrancheLoss(d));
+                        values[k].push_back(basket->percentile(d, 0.99));
+                        values[k].push_back(basket->expectedShortfall(d, 0.99));
+                        const std::vector<Probability> second = basket->probsBeingNthEvent(2, d);
+                        values[k].insert(values[k].end(), second.begin(), second.end());
+                        values[k].push_back(basket->defaultCorrelation(d, 0, 7));
+                    }
+                }
+                BOOST_REQUIRE_EQUAL(values[0].size(), values[1].size());
+                for (Size i = 0; i < values[0].size(); ++i)
+                    BOOST_CHECK_EQUAL(values[0][i], values[1][i]);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testRandomModelsOnCurvesFromAfterToday)
+{
+    BOOST_TEST_MESSAGE("Testing the random models on default curves starting after today...");
+
+    // On curves from two days after today, no name defaults on or before then. Before #232 the statistics read the
+    // paths' days as from today, so the curves' first day's defaults came by tomorrow: RandomDefaultLM gave a
+    // probability of 0.0038 of a default by then, and 0.0083 by the curves' date. Both models now give none by
+    // that date, and ConstantLossModel's probabilities after it.
+    const Date today(31, August, 2006), curveDate = today + 2;
+    Settings::instance().evaluationDate() = today;
+    const Size paths = 20000;
+    const NamesOnCurves names(std::vector<Date>(8, curveDate), 0.2);
+    const auto latent = names.basket(today, names.latentModel());
+    for (const auto& [model, random] : names.randomModels(today, paths))
+    {
+        for (const Date& d : {today + 1, curveDate})
+        {
+            BOOST_TEST_CONTEXT(model << ", at " << d)
+            {
+                BOOST_CHECK_EQUAL(random->probAtLeastNEvents(1, d), 0.0);
+                BOOST_CHECK_EQUAL(random->expectedTrancheLoss(d), 0.0);
+            }
+        }
+        BOOST_TEST_CONTEXT(model << ", a week after the curves' date")
+        {
+            checkOnPaths(random->probAtLeastNEvents(1, curveDate + 7), latent->probAtLeastNEvents(1, curveDate + 7),
+                         paths);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testBaseCorrelationAfterADefault)
 {
     BOOST_TEST_MESSAGE("Testing base correlation models on what a default leaves of a tranche...");

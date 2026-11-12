@@ -787,11 +787,12 @@ BOOST_AUTO_TEST_CASE(testRandomDefaultModelUpToToday)
 {
     BOOST_TEST_MESSAGE("Testing the random default model's nth-default statistics up to today...");
 
-    // On or before today no name left has defaulted on the model's paths, so the probability of
-    // at least n defaults is 1 up to the defaults so far and 0 above, and each name's of being
-    // the nth is 0. Before #207 the model threw at any of these dates ("Date for statistic must
-    // be in the future.") and gave these values only from the day after today. A rank above the
-    // basket's eight names still throws.
+    // The default curves here are dated today, so on or before today no name left has defaulted
+    // on the model's paths, and the probability of at least n defaults is 1 up to the defaults so
+    // far and 0 above, and each name's of being the nth is 0. On older curves the paths have
+    // defaults before today, and since #232 the statistics count them. Before #207 the model threw
+    // at any of these dates ("Date for statistic must be in the future.") and gave these values
+    // only from the day after today. A rank above the basket's eight names still throws.
     const Date today(1, November, 2006);
     Settings::instance().evaluationDate() = today;
     for (OneName oneName : {OneName::alive, OneName::defaulted})
@@ -826,17 +827,20 @@ BOOST_AUTO_TEST_CASE(testRandomDefaultModelInsideACoupon)
     // Inside a coupon the engine asks for the probability of the nth default at the coupon's start
     // or at the discount curve's reference date, whichever is later: today, on a curve as of
     // today. Before #207 the random default model threw there, so an nth to default priced on it
-    // only on a coupon's first day. Its paths count each default's day from its curve's date, and
-    // its statistics from today (#232), so the default curves here start today, where it gives
-    // ConstantLossModel's values within its Monte Carlo error. Each path's protection lies between
-    // -60 and 0, and its premium between 0 and the coupons' sum, 10.14, so on 20,000 paths their
-    // standard errors are at most 0.212 and 0.036; the checks allow three of them.
+    // only on a coupon's first day. The default curves here start at the basket's inception, two
+    // months before today. The model's paths count each default's day from its curve's date, as
+    // ConstantLossModel's probabilities do, and since #232 so do its statistics, so it gives
+    // ConstantLossModel's values within its Monte Carlo error. Before #232 they counted from
+    // today, and its first-to-default protection leg came out at -28.06 against
+    // ConstantLossModel's -26.88. Each path's protection lies between -60 and 0, and its premium
+    // between 0 and the coupons' sum, 10.14, so on 20,000 paths their standard errors are at most
+    // 0.212 and 0.036; the checks allow three of them.
     const Date today(1, November, 2006);
     Settings::instance().evaluationDate() = today;
     const auto curve = flatCurveFrom(today);
     const Size paths = 20000;
-    const auto random = eightNames({.curveDate = today, .paths = paths});
-    const auto latent = eightNames({.curveDate = today});
+    const auto random = eightNames({.paths = paths});
+    const auto latent = eightNames();
     const Real coupons = 0.02 * 100.0 * Actual360().yearFraction(Date(1, September, 2006), Date(1, September, 2011));
     for (Size rank = 1; rank <= 3; ++rank)
     {

@@ -236,6 +236,21 @@ namespace QuantLib
 
         void performCalculations() const override
         {
+            /* Each name's days count from its default curve's reference date, stored as from the earliest of them
+            among the names left, so that a day is the same date for every name (#232). */
+            const Date today = Settings::instance().evaluationDate();
+            horizon_ = today + Period(maxHorizon_, Days);
+            origin_ = today;
+            const ext::shared_ptr<Pool>& pool = basket_->pool();
+            const std::vector<Size>& live = basket_->liveList();
+            for (Size i = 0; i < live.size(); i++)
+            {
+                const Date curveDate = pool->get(pool->names()[live[i]])
+                                           .defaultProbability(basket_->defaultKeys()[live[i]])
+                                           ->referenceDate();
+                if (i == 0 || curveDate < origin_)
+                    origin_ = curveDate;
+            }
             static_cast<const derivedRandomLM<copulaPolicy, USNG>*>(this)->initDates(); // in update?
             copulasRng_ = ext::make_shared<copulaRNG_type>(copula_, seed_);
             simsBuffer_.clear();
@@ -279,9 +294,9 @@ namespace QuantLib
         /*! Returns the probaility of having a given or larger number of
         defaults in the basket portfolio at a given time.
 
-        For n > 0 it's 0 on or before today, as the statistics count the
-        days of the paths' defaults from today (#207). The paths draw them
-        from each default curve's reference date (#232).
+        The paths count each default from its curve's reference date, as the
+        latent models do (#232), so for n > 0 it's 0 on or before the
+        earliest of those dates among the names left (#207).
         */
         Probability probAtLeastNEvents(Size n, const Date& d) const override;
         /*! Order of results refers to the simulated (super)pool not the
@@ -289,7 +304,8 @@ namespace QuantLib
         Defaults are simulated to the day: where the nth default falls among
         names defaulting on the same day, each takes an equal share of the
         path, and the entries add up to probAtLeastNEvents(n, d), so they're
-        all 0 on or before today.
+        all 0 on or before the earliest reference date of the default curves
+        of the names left.
         Notice that this statistic suffers from heavy dispersion. To see
         techniques to improve it (not implemented here) see:
         Joshi, M., D. Kainth. 2004. Rapid and accurate development of prices
@@ -349,6 +365,11 @@ namespace QuantLib
         mutable copulaPolicy copula_;
         mutable ext::shared_ptr<copulaRNG_type> copulasRng_;
 
+        /* The date the paths' days count from: the earliest reference date of
+        the default curves of the names left (#232). Set by each simulation,
+        as is the last date the paths reach, maxHorizon_ days after today. */
+        mutable Date origin_, horizon_;
+
         // Maximum time inversion horizon
         static const Size maxHorizon_ = 4050; // over 11 years
         // Inversion probability limits are computed by children in initdates()
@@ -361,15 +382,14 @@ namespace QuantLib
     Probability RandomLM<D, C, URNG>::probAtLeastNEvents(Size n, const Date& d) const
     {
         calculate();
-        Date today = Settings::instance().evaluationDate();
 
         if (n == 0)
             return 1.;
-        // the statistics read the paths' days as from today (#232): no default by it (#207)
-        if (d <= today)
+        // the paths' days count from origin_ (#232): no default on or before it (#207)
+        if (d <= origin_)
             return 0.;
-        // casted to natural to avoid warning, d being after today
-        Natural val = d.serialNumber() - today.serialNumber();
+        // casted to natural to avoid warning, d being after origin_
+        Natural val = d.serialNumber() - origin_.serialNumber();
 
         Real counts = 0.;
         for (Size iSim = 0; iSim < nSims_; iSim++)
@@ -394,13 +414,12 @@ namespace QuantLib
         Size basketSize = basket_->size();
 
         QL_REQUIRE(n > 0 && n <= basketSize, "Impossible number of defaults.");
-        Date today = Settings::instance().evaluationDate();
 
-        // the statistics read the paths' days as from today (#232): no default by it (#207)
-        if (d <= today)
+        // the paths' days count from origin_ (#232): no default on or before it (#207)
+        if (d <= origin_)
             return std::vector<Probability>(basketSize, 0.);
-        // casted to natural to avoid warning, d being after today
-        Natural val = d.serialNumber() - today.serialNumber();
+        // casted to natural to avoid warning, d being after origin_
+        Natural val = d.serialNumber() - origin_.serialNumber();
 
         std::vector<Probability> hitsByDate(basketSize, 0.);
         // (day, name) of each default within the time horizon
@@ -444,8 +463,8 @@ namespace QuantLib
         Date today = Settings::instance().evaluationDate();
 
         QL_REQUIRE(d > today, "Date for statistic must be in the future.");
-        // casted to natural to avoid warning, we have just checked the sign
-        Natural val = d.serialNumber() - today.serialNumber();
+        // the paths' days count from origin_ (#232), which can be after today
+        const Date::serial_type val = d.serialNumber() - origin_.serialNumber();
 
         Real expectedDefiDefj = 0.; // E[1_i 1_j]
         // the rest of magnitudes have known values (probabilities) but that
@@ -489,8 +508,8 @@ namespace QuantLib
                                                                             Probability confidencePerc) const
     {
         calculate();
-        Date today = Settings::instance().evaluationDate();
-        Date::serial_type val = d.serialNumber() - today.serialNumber();
+        // the paths' days count from origin_ (#232)
+        Date::serial_type val = d.serialNumber() - origin_.serialNumber();
 
         Real attachAmount = basket_->remainingAttachmentAmount();
         Real detachAmount = basket_->remainingDetachmentAmount();
@@ -510,7 +529,7 @@ namespace QuantLib
                     Size iName = events[iEvt].nameIdx;
                     // ...and is contained in the basket.
                     portfSimLoss += basket_->exposure(basket_->names()[iName],
-                                                      Date(events[iEvt].dayFromRef + today.serialNumber())) *
+                                                      Date(events[iEvt].dayFromRef + origin_.serialNumber())) *
                                     (1. - getEventRecovery(events[iEvt]));
                 }
             }
@@ -547,10 +566,11 @@ namespace QuantLib
         std::set<Real> keys; // attainable loss values
         keys.insert(0.);
         Date today = Settings::instance().evaluationDate();
-        Date::serial_type val = d.serialNumber() - today.serialNumber();
         // redundant test? should have been tested by the basket caller?
         QL_REQUIRE(d >= today, "Requested percentile date must lie after computation date.");
         calculate();
+        // the paths' days count from origin_ (#232)
+        Date::serial_type val = d.serialNumber() - origin_.serialNumber();
 
         Real attachAmount = basket_->remainingAttachmentAmount();
         Real detachAmount = basket_->remainingDetachmentAmount();
@@ -568,7 +588,7 @@ namespace QuantLib
                     // test needed (here and the others) to reuse simulations:
                     //          if(basket_->pool()->has(copula_->pool()->names()[iName]))
                     portfSimLoss += basket_->exposure(basket_->names()[iName],
-                                                      Date(events[iEvt].dayFromRef + today.serialNumber())) *
+                                                      Date(events[iEvt].dayFromRef + origin_.serialNumber())) *
                                     (1. - getEventRecovery(events[iEvt]));
                 }
             }
@@ -592,7 +612,8 @@ namespace QuantLib
         Real attachAmount = basket_->remainingAttachmentAmount();
         Real detachAmount = basket_->remainingDetachmentAmount();
 
-        Date::serial_type val = d.serialNumber() - today.serialNumber();
+        // the paths' days count from origin_ (#232)
+        Date::serial_type val = d.serialNumber() - origin_.serialNumber();
         if (val <= 0)
             return 0.; // plus basket realized losses
 
@@ -610,7 +631,7 @@ namespace QuantLib
                     // ...and is contained in the basket.
                     // if(basket_->pool()->has(copula_->pool()->names()[iName]))
                     portfSimLoss += basket_->exposure(basket_->names()[iName],
-                                                      Date(events[iEvt].dayFromRef + today.serialNumber())) *
+                                                      Date(events[iEvt].dayFromRef + origin_.serialNumber())) *
                                     (1. - getEventRecovery(events[iEvt]));
                 }
             }
@@ -685,8 +706,8 @@ namespace QuantLib
         Real detachAmount = basket_->remainingDetachmentAmount();
 
         std::vector<Real> rankLosses;
-        Date today = Settings::instance().evaluationDate();
-        Date::serial_type val = d.serialNumber() - today.serialNumber();
+        // the paths' days count from origin_ (#232)
+        Date::serial_type val = d.serialNumber() - origin_.serialNumber();
         for (Size iSim = 0; iSim < nSims_; iSim++)
         {
             const std::vector<simEvent<D<C, URNG>>>& events = getSim(iSim);
@@ -698,7 +719,7 @@ namespace QuantLib
                     Size iName = events[iEvt].nameIdx;
                     //   if(basket_->pool()->has(copula_->pool()->names()[iName]))
                     portfSimLoss += basket_->exposure(basket_->names()[iName],
-                                                      Date(events[iEvt].dayFromRef + today.serialNumber())) *
+                                                      Date(events[iEvt].dayFromRef + origin_.serialNumber())) *
                                     (1. - getEventRecovery(events[iEvt]));
                 }
             }
@@ -785,8 +806,8 @@ namespace QuantLib
         std::vector<Real> split(numLiveNames, 0.);
         std::vector<Real> dayLosses, dayShares;
         std::vector<GeneralStatistics> splitStats(numLiveNames, GeneralStatistics());
-        Date today = Settings::instance().evaluationDate();
-        Date::serial_type val = date.serialNumber() - today.serialNumber();
+        // the paths' days count from origin_ (#232)
+        Date::serial_type val = date.serialNumber() - origin_.serialNumber();
 
         for (Size iSim = 0; iSim < nSims_; iSim++)
         {
@@ -802,7 +823,7 @@ namespace QuantLib
                     Size iName = events[iEvt].nameIdx;
                     // if(basket_->pool()->has(copula_->pool()->names()[iName])) {
                     portfSimLoss += basket_->exposure(basket_->names()[iName],
-                                                      Date(events[iEvt].dayFromRef + today.serialNumber())) *
+                                                      Date(events[iEvt].dayFromRef + origin_.serialNumber())) *
                                     (1. - getEventRecovery(events[iEvt]));
                     // and will sort later if buffer applies:
                     splitEventsBuffer.push_back(events[iEvt]);
@@ -836,7 +857,7 @@ namespace QuantLib
                             // basket_->remainingNotionals(Date(simsBuffer_[i].dayFromRef +
                             //      today.serialNumber()))[iName] *
                             basket_->exposure(basket_->names()[splitEventsBuffer[i].nameIdx],
-                                              Date(splitEventsBuffer[i].dayFromRef + today.serialNumber())) *
+                                              Date(splitEventsBuffer[i].dayFromRef + origin_.serialNumber())) *
                             (1. - getEventRecovery(splitEventsBuffer[i])));
                     if (last - first == 1)
                     {
@@ -1074,10 +1095,9 @@ namespace QuantLib
                     pool->get(pool->names()[iName])
                         . // use 'live' names
                     defaultProbability(this->basket_->defaultKeys()[iName]);
-                // the default's day from its curve's reference date (#247), up to the paths' last date
+                // the default's day from its curve's reference date (#247), stored as from origin_ (#232)
                 const Date curveDate = dfts->referenceDate();
-                const Date lastDate = Date(Settings::instance().evaluationDate()) + Period(this->maxHorizon_, Days);
-                const Size dateSTride = detail::defaultDay(**dfts, simDefaultProb, Size(lastDate - curveDate));
+                const Size day = detail::defaultDay(**dfts, simDefaultProb, Size(this->horizon_ - curveDate));
                 /*
                 // value if one approximates to a flat HR;
                 //   faster (>x2) but it introduces an error:..
@@ -1088,7 +1108,7 @@ namespace QuantLib
                                      std::log(1.-simDefaultProb)
                  /std::log(1.-data_.horizonDefaultPs_[iName])));
                 */
-                this->simsBuffer_.back().push_back(defaultSimEvent(iName, dateSTride));
+                this->simsBuffer_.back().push_back(defaultSimEvent(iName, Size(curveDate - this->origin_) + day));
                 // emplace_back
             }
             /* Used to remove sims with no events. Uses less memory, faster

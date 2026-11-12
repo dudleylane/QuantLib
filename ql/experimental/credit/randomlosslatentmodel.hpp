@@ -186,10 +186,9 @@ namespace QuantLib
                     pool->get(pool->names()[iName])
                         . // use 'live' names
                     defaultProbability(this->basket_->defaultKeys()[iName]);
-                // the default's day from its curve's reference date (#247), up to the paths' last date
+                // the default's day from its curve's reference date (#247), stored as from origin_ (#232)
                 const Date curveDate = dfts->referenceDate();
-                const Date lastDate = Date(Settings::instance().evaluationDate()) + Period(this->maxHorizon_, Days);
-                const Size dateSTride = detail::defaultDay(**dfts, simDefaultProb, Size(lastDate - curveDate));
+                const Size day = detail::defaultDay(**dfts, simDefaultProb, Size(this->horizon_ - curveDate));
                 /*
                 // value if one approximates to a flat HR;
                 //   faster (>x2) but it introduces an error:..
@@ -200,21 +199,12 @@ namespace QuantLib
                                     std::log(1.-simDefaultProb)
                 /std::log(1.-data_.horizonDefaultPs_[iName])));
                 */
-                // Determine the realized recovery rate:
-                /* For this; 'conditionalRecovery' needs to compute the pdef on
-                the realized def event date from the simulation. Yet, this might
-                have fallen between todays date and the default TS reference
-                date(usually a two day gap) To avoid requesting a negative time
-                probability the date is moved to the TS date
-                Unless the gap is ridiculous this has no practical effect for
-                the RR value*/
-                Date today = Settings::instance().evaluationDate();
-                Date eventDate = today + Period(static_cast<Integer>(dateSTride), Days);
-                if (eventDate < dfts->referenceDate())
-                    eventDate = dfts->referenceDate();
+                // the recovery on the default's day, a date of its curve (#232)
                 Real latentRRVarSample = copula_->latentRRVarValue(values, iName);
-                Real recovery = copula_->conditionalRecovery(latentRRVarSample, iName, eventDate);
-                this->simsBuffer_.back().push_back(defaultSimEvent(iName, dateSTride, recovery));
+                Real recovery = copula_->conditionalRecovery(latentRRVarSample, iName,
+                                                             curveDate + Period(static_cast<Integer>(day), Days));
+                this->simsBuffer_.back().push_back(
+                    defaultSimEvent(iName, Size(curveDate - this->origin_) + day, recovery));
                 // emplace_back
             }
             /* Used to remove sims with no events. Uses less memory, faster
