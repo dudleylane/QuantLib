@@ -38,19 +38,20 @@ namespace QuantLib
     template <class copulaPolicy, class USNG>
     struct simEvent<RandomLossLM<copulaPolicy, USNG>>
     {
+        // RandomLossLM checks that its names and days fit (#244), in 32 bits with the recovery
+        static constexpr unsigned int nameBits = 11, dayBits = 13;
         simEvent(unsigned int n, unsigned int d, Real r)
         : nameIdx(n), dayFromRef(d),
-          // truncates the value:
-          compactRR(std::lround(r / rrGranular))
+          // to the nearest 1/256, at most 255/256 (#245)
+          compactRR(static_cast<unsigned int>(std::min(std::lround(r / rrGranular), 255L)))
         {
         }
-        unsigned int nameIdx : 12;    // can index up to 4095 names
-        unsigned int dayFromRef : 12; // can index up to 4095 days = 11 yrs
+        unsigned int nameIdx : nameBits;   // can index up to 2047 names
+        unsigned int dayFromRef : dayBits; // up to 8191 days ~22 years from origin_
       private:
         unsigned int compactRR : 8;
 
       public:
-        // ..............still one bit left
         bool operator<(const simEvent& evt) const { return dayFromRef < evt.dayFromRef; }
         Real recovery() const
         {
@@ -71,7 +72,16 @@ namespace QuantLib
 #endif
 
     /*! Random spot recovery rate loss model simulation for an arbitrary copula.
-     */
+
+        Each default is recorded in 32 bits: its name in 11, its day in 13,
+        counted from the earliest reference date of the default curves of the
+        names left, and its recovery in 8, to the nearest 1/256 up to 255/256.
+        The paths reach 4050 days after today, so the model refuses a basket
+        of over 2048 names, or one whose curves start over 4141 days before
+        today (#244). Before #244 the name took 12 bits and the day 12,
+        unchecked: a basket of 2049 to 4096 names fitted then, and a day past
+        4095 wrapped round to an early one.
+    */
     template <class copulaPolicy, class USNG = SobolRsg>
     class RandomLossLM : public RandomLM<RandomLossLM, copulaPolicy, USNG>
     {
@@ -115,6 +125,16 @@ namespace QuantLib
               determine if the default took place and subsequently compute its
               event time)
             */
+            QL_REQUIRE(this->basket_->size() <= (Size(1) << defaultSimEvent::nameBits),
+                       "RandomLossLM records up to " << (Size(1) << defaultSimEvent::nameBits) << " names, not "
+                                                     << this->basket_->size());
+            QL_REQUIRE(this->horizon_ - this->origin_ < (Date::serial_type(1) << defaultSimEvent::dayBits),
+                       "RandomLossLM records a default's day in "
+                           << defaultSimEvent::dayBits << " bits, up to "
+                           << (Date::serial_type(1) << defaultSimEvent::dayBits) - 1
+                           << " days after the earliest reference date of the default curves of the names left, "
+                           << this->origin_ << "; its paths reach " << this->horizon_ << ", "
+                           << this->horizon_ - this->origin_ << " days after it");
             Date today = Settings::instance().evaluationDate();
             Date maxHorizonDate = today + Period(this->maxHorizon_, Days);
 

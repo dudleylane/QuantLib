@@ -2346,10 +2346,12 @@ BOOST_AUTO_TEST_CASE(testRandomModelsAsTodayMoves)
     // as it was, and so every statistic there, on the same paths. Before #232 the statistics read the paths' days,
     // counted from the curves' date, as from today: a month on, 31 of RandomDefaultLM's 42 values here moved, by up
     // to 60, and 33 of RandomLossLM's.
+    // RandomLossLM's paths reach 4050 days after today, so 4112 days after the curves' date two months on: before
+    // #244 a default after its 4095th day there wrapped round to an early one, and 28 of its values moved.
     const Date curveDate(31, August, 2006);
     const NamesOnCurves names(std::vector<Date>(8, curveDate), 0.05);
     const std::vector<Date> dates = {Date(1, December, 2006), Date(1, March, 2007), Date(1, September, 2011)};
-    for (Integer daysOn : {31})
+    for (Integer daysOn : {31, 62})
     {
         for (bool loss : {false, true})
         {
@@ -2408,6 +2410,84 @@ BOOST_AUTO_TEST_CASE(testRandomModelsOnCurvesFromAfterToday)
         {
             checkOnPaths(random->probAtLeastNEvents(1, curveDate + 7), latent->probAtLeastNEvents(1, curveDate + 7),
                          paths);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testRandomModelsRefuseWhatTheirRecordsCannotHold)
+{
+    BOOST_TEST_MESSAGE("Testing that the random models refuse what their records of a default can't hold...");
+
+    // RandomLossLM records a default's name in 11 bits and its day in 13, counted from the earliest reference date of
+    // the default curves of the names left, and its paths reach 4050 days after today. RandomDefaultLM takes 16
+    // bits for each. Before #244 RandomLossLM took 12 for each, unchecked, so a day past the 4095th wrapped round to
+    // an early one. Each model now refuses, as it simulates, a basket whose names or days it can't record.
+    const Date today(1, November, 2006);
+    Settings::instance().evaluationDate() = today;
+    for (Size n : {2048, 2049})
+    {
+        BOOST_TEST_CONTEXT(n << " names")
+        {
+            const NamesOnCurves names(std::vector<Date>(n, today), 0.01);
+            const auto basket = names.basket(today, names.randomLossModel(10));
+            if (n == 2048)
+                BOOST_CHECK_NO_THROW(basket->expectedTrancheLoss(today + 365));
+            else
+                BOOST_CHECK_EXCEPTION(basket->expectedTrancheLoss(today + 365), Error,
+                                      ExpectedErrorMessage("RandomLossLM records up to 2048 names, not 2049"));
+        }
+    }
+    for (Integer age : {4141, 4142})
+    {
+        BOOST_TEST_CONTEXT("curves " << age << " days before today")
+        {
+            const NamesOnCurves names(std::vector<Date>(8, today - age), 0.01);
+            BOOST_CHECK_NO_THROW(
+                names.basket(today - age, names.randomDefaultModel(10))->expectedTrancheLoss(today + 365));
+            const auto basket = names.basket(today - age, names.randomLossModel(10));
+            if (age == 4141)
+                BOOST_CHECK_NO_THROW(basket->expectedTrancheLoss(today + 365));
+            else
+                BOOST_CHECK_EXCEPTION(basket->expectedTrancheLoss(today + 365), Error,
+                                      ExpectedErrorMessage("RandomLossLM records a default's day in 13 bits"));
+        }
+    }
+    // RandomDefaultLM's days reach 65535 days after the earliest curve date, so curves up to 61485 days old.
+    const Date farOff(1, January, 2180);
+    Settings::instance().evaluationDate() = farOff;
+    for (Integer age : {61485, 61486})
+    {
+        BOOST_TEST_CONTEXT("today " << farOff << ", curves " << age << " days before")
+        {
+            const NamesOnCurves names(std::vector<Date>(8, farOff - age), 0.01);
+            const auto basket = names.basket(farOff - age, names.randomDefaultModel(10));
+            if (age == 61485)
+                BOOST_CHECK_NO_THROW(basket->expectedTrancheLoss(farOff + 365));
+            else
+                BOOST_CHECK_EXCEPTION(basket->expectedTrancheLoss(farOff + 365), Error,
+                                      ExpectedErrorMessage("RandomDefaultLM records a default's day in 16 bits"));
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testRandomLossModelRecordOfADefault)
+{
+    BOOST_TEST_MESSAGE("Testing the random loss model's record of a default...");
+
+    // A default's name, day and recovery share 32 bits, 11, 13 and 8 of them. Before #244 the day took 12, and the
+    // 8191st day came back as the 4095th. The recovery is kept to the nearest 1/256, at most 255/256: before #245 one
+    // above 255.5/256 overflowed its 8 bits and came back as 0, a total loss.
+    using Event = simEvent<RandomLossLM<GaussianCopulaPolicy>>;
+    BOOST_CHECK_EQUAL(sizeof(Event), 4U);
+    const Event last(2047, 8191, 0.5);
+    BOOST_CHECK_EQUAL(unsigned(last.nameIdx), 2047U);
+    BOOST_CHECK_EQUAL(unsigned(last.dayFromRef), 8191U);
+    BOOST_CHECK_EQUAL(last.recovery(), 0.5);
+    for (Real recovery : {0.4, 0.998, 0.999, 1.0})
+    {
+        BOOST_TEST_CONTEXT("recovery " << recovery)
+        {
+            BOOST_CHECK_EQUAL(Event(0, 0, recovery).recovery(), std::min(std::round(256.0 * recovery), 255.0) / 256.0);
         }
     }
 }

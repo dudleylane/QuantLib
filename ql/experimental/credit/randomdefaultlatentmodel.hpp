@@ -955,14 +955,22 @@ namespace QuantLib
     template <class copulaPolicy, class USNG>
     struct simEvent<RandomDefaultLM<copulaPolicy, USNG>>
     {
+        // RandomDefaultLM checks that its names and days fit (#244)
+        static constexpr unsigned int nameBits = 16, dayBits = 16;
         simEvent(unsigned int n, unsigned int d) : nameIdx(n), dayFromRef(d) {}
-        unsigned int nameIdx : 16;    // can index up to 65535 names
-        unsigned int dayFromRef : 16; // indexes up to 65535 days ~179 years
+        unsigned int nameIdx : nameBits;   // can index up to 65535 names
+        unsigned int dayFromRef : dayBits; // up to 65535 days ~179 years from origin_
         bool operator<(const simEvent& evt) const { return dayFromRef < evt.dayFromRef; }
     };
 
     /*! Default only latent model simulation with trivially fixed recovery
         amounts.
+
+        Each default is recorded with its name in 16 bits and its day in 16,
+        counted from the earliest reference date of the default curves of the
+        names left. The paths reach 4050 days after today, so the model
+        refuses a basket of over 65536 names, or one whose curves start over
+        61485 days before today (#244).
     */
     template <class copulaPolicy, class USNG = SobolRsg>
     class RandomDefaultLM : public RandomLM<RandomDefaultLM, copulaPolicy, USNG>
@@ -1027,6 +1035,16 @@ namespace QuantLib
               determine if the default took place and subsequently compute its
               event time)
             */
+            QL_REQUIRE(this->basket_->size() <= (Size(1) << defaultSimEvent::nameBits),
+                       "RandomDefaultLM records up to " << (Size(1) << defaultSimEvent::nameBits) << " names, not "
+                                                        << this->basket_->size());
+            QL_REQUIRE(this->horizon_ - this->origin_ < (Date::serial_type(1) << defaultSimEvent::dayBits),
+                       "RandomDefaultLM records a default's day in "
+                           << defaultSimEvent::dayBits << " bits, up to "
+                           << (Date::serial_type(1) << defaultSimEvent::dayBits) - 1
+                           << " days after the earliest reference date of the default curves of the names left, "
+                           << this->origin_ << "; its paths reach " << this->horizon_ << ", "
+                           << this->horizon_ - this->origin_ << " days after it");
             Date today = Settings::instance().evaluationDate();
             Date maxHorizonDate = today + Period(this->maxHorizon_, Days);
 
