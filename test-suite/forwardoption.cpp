@@ -721,7 +721,7 @@ BOOST_AUTO_TEST_CASE(testHestonAnalyticalVsMCPrices, *precondition(if_speed(Fast
     Real tol[][6] = {{0.002,   // Call, moneyness=0.8, CV:false
                       0.002,   // Call, moneyness=0.8, CV:true
                       0.001,   // Call, moneyness=1.0, CV:false
-                      0.001,   // Call, moneyness=1.8, CV:true
+                      0.001,   // Call, moneyness=1.0, CV:true
                       0.001,   // Call, moneyness=1.2, CV:false
                       0.001},  // Call, moneyness=1.2, CV:true
                      {0.001,   // Put, moneyness=0.8, CV:false
@@ -782,10 +782,10 @@ BOOST_AUTO_TEST_CASE(testHestonAnalyticalVsMCPrices, *precondition(if_speed(Fast
 
         Real moneyness[] = {0.8, 1.0, 1.2};
 
-        for (Size tol_2nd_index = 0; tol_2nd_index < std::size(moneyness); ++tol_2nd_index)
+        for (Size moneyness_index = 0; moneyness_index < std::size(moneyness); ++moneyness_index)
         {
 
-            auto m = moneyness[tol_2nd_index];
+            auto m = moneyness[moneyness_index];
             ForwardVanillaOption option(m, reset, payoff, exercise);
 
             option.setPricingEngine(analyticEngine);
@@ -795,7 +795,7 @@ BOOST_AUTO_TEST_CASE(testHestonAnalyticalVsMCPrices, *precondition(if_speed(Fast
             Real mcPrice = option.NPV();
             Real error = relativeError(analyticPrice, mcPrice, s);
 
-            auto tolerance = tol[option_type_index][tol_2nd_index];
+            auto tolerance = tol[option_type_index][2 * moneyness_index];
             if (error > tolerance)
             {
                 REPORT_FAILURE("testHestonMCVsAnalyticPrices", payoff, exercise, s, q, r, today, vol, m, reset,
@@ -806,11 +806,11 @@ BOOST_AUTO_TEST_CASE(testHestonAnalyticalVsMCPrices, *precondition(if_speed(Fast
             Real mcPriceCv = option.NPV();
 
             Real errorCv = relativeError(analyticPrice, mcPriceCv, s);
-            tolerance = tol[option_type_index][++tol_2nd_index];
+            tolerance = tol[option_type_index][2 * moneyness_index + 1];
             if (errorCv > tolerance)
             {
                 REPORT_FAILURE("testHestonMCControlVariateVsAnalyticPrices", payoff, exercise, s, q, r, today, vol, m,
-                               reset, analyticPrice, mcPrice, errorCv, tolerance);
+                               reset, analyticPrice, mcPriceCv, errorCv, tolerance);
             }
         }
     }
