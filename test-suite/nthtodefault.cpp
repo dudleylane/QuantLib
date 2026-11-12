@@ -1005,6 +1005,30 @@ BOOST_AUTO_TEST_CASE(testRandomModelsNthEventsInAPeriod)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testRandomLossModelGivesNoExpectedRecovery)
+{
+    BOOST_TEST_MESSAGE("Testing an nth to default on the random loss model...");
+
+    // The engine pays a trigger at the loss model's expected recovery for its name. The random
+    // loss model draws a recovery with each default, and a trigger pays at the one its default
+    // drew; the expected recovery given a name's default isn't the one given that it's the
+    // trigger. So since #234 the model gives none, with a message that says why, and the engine
+    // throws it. Before, both threw DefaultLossModel's "expected recovery Not implemented for this
+    // model.", before the first coupon and inside it alike.
+    const ExpectedErrorMessage why("draws a recovery with each default");
+    for (const Date& today : {inception(), Date(1, November, 2006)})
+    {
+        BOOST_TEST_CONTEXT("today " << today)
+        {
+            Settings::instance().evaluationDate() = today;
+            const auto basket = eightNames();
+            basket->setLossModel(randomLossModel(2000));
+            BOOST_CHECK_EXCEPTION(nthToDefault(basket, 1, 0.0, 100.0, flatCurveFrom(today))->NPV(), Error, why);
+            BOOST_CHECK_EXCEPTION(basket->recoveryRate(today + 1 * Years, 0), Error, why);
+        }
+    }
+}
+
 #endif
 
 BOOST_AUTO_TEST_SUITE_END()

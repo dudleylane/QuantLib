@@ -45,6 +45,8 @@ namespace QuantLib
         it where its integration integrates vectors, as GaussianQuadrature
         does and Trapezoid doesn't (#208), and RandomDefaultLM from its paths
         (#231). The other models don't, so the engine throws on them there.
+        RandomLossLM gives no expected recovery, since it draws one with each
+        default, so the engine throws on it whatever the recoveries (#234).
 
         \warning Inside a coupon, on a discount curve as of today, the
             premium for the part of the coupon that has passed is in the
