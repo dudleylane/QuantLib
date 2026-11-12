@@ -223,7 +223,8 @@ The three case counts are from CI's full run 41806352468 on 2026-11-04, with no 
 - **`linux-ci-build-with-nonstandard-options` preset** (`cmake-linux-with-options`: sessions on, thread-safe observer on, `QL_FASTER_LAZY_OBJECTS=OFF`, `QL_THROW_IN_CYCLES=ON`, high-res date on, indexed coupons, warnings-as-errors): 1,337 cases
 - **`QL_ENABLE_AAD=ON`** (GCC 15.2.1, CoDi-Pack v2.2.0 auto-fetched): `AadTests/*` pass end-to-end. That run used v2.2.0. The pin moved to v3.1.0 in `d742765be`, and no build with AAD on has been verified since; no CI job builds one.
 
-CI runs on a self-hosted runner: a single `.github/workflows/ci.yml`
+CI runs on four self-hosted runners on one machine, which take a run's
+jobs as each comes free: a single `.github/workflows/ci.yml`
 covering twelve configuration cells, five non-default cells, three
 sanitizers, both build systems, single-header compilation, doxygen,
 coverage and clang-tidy — 31 jobs on a pull request that changes
@@ -232,8 +233,8 @@ gates, the default build and coverage. Changes to `.github/` or
 git metadata alone run a 4-job subset, markdown-only commits run nothing,
 and `gh workflow run ci.yml --ref master` runs everything on demand.
 `check-test-times` is advisory rather than gating: it compares absolute
-wall-clock against fixed thresholds, and the runner shares the machine
-with other repositories' CI runners.
+wall-clock against fixed thresholds, and the runners share the machine
+with each other and with other repositories' CI runners.
 
 ### Language bindings
 

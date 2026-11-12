@@ -793,6 +793,31 @@ nothing ordered the three stores that published the cache.
   `testHW` (Gaussian, Fast) and `testHWStudentT` (Slow), and the FD
   Heston case loses its Fast precondition. `check-test-times` passed in
   #190's own run, 42476494791.
+- Four runners (2026-11-11, for
+  [#73](https://github.com/dudleylane/QuantLib/issues/73)). At the
+  owner's request, `quantlib-localhost-2` to `-4` joined
+  `quantlib-localhost` on the same machine, all labelled `quantlib-dev`,
+  so GitHub hands a run's queued jobs to whichever runner is idle.
+  `ci.yml` doesn't change, and no job runs faster alone. Each runner has
+  its own directory, user unit and copy of the job-started hook, since
+  the hook refuses a payload outside its own runner's `_work`; each copy
+  was checked on five payloads before its runner started. A QuantLib run
+  starts only while the machine's other projects are idle (owner,
+  2026-11-11).
+  - **Measured.** #236's run, 43038316532, the first on four runners,
+    took 8 h 19 min for 31 jobs. #106's, which edited a header about as
+    widely included, took 14 h 26 min on one runner. The jobs ran 3.90
+    at a time on average and took 1,948 minutes in all, against #106's
+    865, since four jobs each run `make -j"$(nproc)"` on 8 threads.
+    MemAvailable never fell below 9.73 GB
+    ([#73](https://github.com/dudleylane/QuantLib/issues/73#issuecomment-6809263828)).
+  - **New risk.** Memory: the machine has no OOM policy, and four
+    compiles at once are measured on one run only. `check-test-times`
+    reads wall-clock under more load, so it fails more often. A flag
+    from a parallel run is no reason by itself to re-tier a case: the
+    flagged cases' instruction counts against `master`'s say whether
+    load explains it. The tracked hook's header gives runner 1's
+    install commands only.
 
 ## Sibling repositories
 
