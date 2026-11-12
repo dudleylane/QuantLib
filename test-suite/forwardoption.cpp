@@ -1130,6 +1130,40 @@ BOOST_AUTO_TEST_CASE(testHestonAnalyticSmallSigma)
                       Error);
 }
 
+BOOST_AUTO_TEST_CASE(testHestonAnalyticResetsNearToday)
+{
+    BOOST_TEST_MESSAGE("Testing the analytic Heston forward-start engine at resets within hours...");
+
+    // The engine priced resets within 1e-3 years, about nine hours, as vanilla options over the tenor from v0, which
+    // leaves out how the variance moves until the reset (#223): there the price moved with the reset time at -2.61
+    // a year, where it moves at -3.02.  That fallback now covers 1e-11 years.  Up to 2e-3 years the price is smooth
+    // in the reset time, and departs from the line through its values at 0 and 2e-3 by about 0.066 t (2e-3 - t),
+    // relative, at most 6.6e-8, where the old fallback departed from it by 6.4e-6 at 1e-4 years.  A year from today
+    // to the expiry.
+    const Date today(15, May, 2026);
+    Settings::instance().evaluationDate() = today;
+    const auto npv = [&](Real v0, Time t)
+    {
+        return forwardHestonNpv(today, ForwardHestonDayCounter(today, t, 1.0), v0, 2.0, 0.04, 0.2, -0.7, today + 1,
+                                today + 2, 1.0, Option::Call);
+    };
+    const Real atToday = npv(0.04, 0.0), at2e3 = npv(0.04, 2e-3);
+    for (Time t : {1e-8, 1e-4, 5e-4})
+    {
+        BOOST_TEST_CONTEXT("reset in " << t << " years")
+        {
+            BOOST_CHECK_CLOSE_FRACTION(npv(0.04, t), atToday + (at2e3 - atToday) * t / 2e-3, 1e-6);
+        }
+    }
+
+    // At v0 = 0 the vanilla option can't be priced from v0, and the old fallback threw; now only resets within 1e-11
+    // years do.  From 1e-8 years on the price is smooth in the reset time again, and departs from the line through
+    // its values at 1e-8 and 2e-3 years by 2.2e-7, relative, at 1e-4 years.
+    BOOST_CHECK_THROW(npv(0.0, 0.0), Error);
+    const Real at1e8 = npv(0.0, 1e-8), at2e3Zero = npv(0.0, 2e-3);
+    BOOST_CHECK_CLOSE_FRACTION(npv(0.0, 1e-4), at1e8 + (at2e3Zero - at1e8) * (1e-4 - 1e-8) / (2e-3 - 1e-8), 1e-6);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

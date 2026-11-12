@@ -83,6 +83,8 @@ namespace QuantLib
           function underflows over a band of resets, and the engine
           throws rather than integrate a density that misses 1 by
           more than 1e-8 over the range.
+        - A reset within 1e-11 years of today is priced as a vanilla
+          option from v0, which must then be positive.
         - At rho = -1 or 1 the characteristic function doesn't decay
           along an untilted line, and the engine throws where it
           would need one: at the forward, and on one side of it,

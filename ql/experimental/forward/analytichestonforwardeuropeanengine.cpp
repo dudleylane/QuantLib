@@ -37,6 +37,9 @@ namespace QuantLib
         // Below this R, and where the outer range starts at zero, the outer nodes are Gauss-Jacobi's.
         constexpr Real forwardHestonJacobiMaxR = 8.0;
 
+        // Resets this close fall back on the vanilla price over the tenor from today's variance.
+        constexpr Time forwardHestonFallbackTime = 1e-11;
+
         // The inner range is split into panels, the first this many multiples of 1 / s wide, s^2 being the
         // integrated variance expected over the tenor, or this many multiples of 1 / (sigma tau) where that is
         // narrower, each twice as wide as the one before but at most this many turns of the integrand, and at most
@@ -351,8 +354,12 @@ namespace QuantLib
         // do the 2D integral calculation. For very short times, we just fall back on the standard
         // calculation, both for accuracy and because tStar==0 causes some numerical issues...
         std::pair<Real, Real> P1HatP2Hat;
-        if (resetTime <= 1e-3)
+        if (resetTime <= forwardHestonFallbackTime)
         {
+            QL_REQUIRE(v0_ > 0.0, "a reset within " << forwardHestonFallbackTime
+                                                    << " years is priced as a vanilla option from v0, which must"
+                                                       " then be positive (v0 = "
+                                                    << v0_ << ")");
             Handle<Quote> tempQuote(ext::shared_ptr<Quote>(new SimpleQuote(s0_->value())));
             P1HatP2Hat = calculateP1P2(tenor, tempQuote, moneyness * s0_->value(), expiryRatio);
         }
