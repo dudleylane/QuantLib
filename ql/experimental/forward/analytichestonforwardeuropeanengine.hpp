@@ -68,6 +68,13 @@ namespace QuantLib
           to 64 turns of the integrand.  Where that would take more
           than 192 panels, as at rho very near -1 or 1, or away from
           the forward at tenors under a second, the engine throws.
+        - The variance at the reset is integrated with 128
+          Gauss-Jacobi nodes in its square root where its range
+          starts at zero and R = 4 kappa theta / sigma^2 is below 8,
+          and with 128 Gauss-Legendre nodes otherwise.  The range
+          runs from 20 standard deviations below the mean, floored at
+          zero, to at least 10 above it, and on to where at most
+          1e-14 of the density's mass lies beyond it.
         - At rho = -1 or 1 the characteristic function doesn't decay
           along an untilted line, and the engine throws where it
           would need one: at the forward, and on one side of it,
@@ -113,12 +120,13 @@ namespace QuantLib
         Handle<Quote> s0_;
 
         // Some intermediate calculation constant parameters
-        Real kappaHat_, thetaHat_, R_;
+        Real kappaHat_, R_;
 
         // The nodes and weights of the fixed Gauss rules on [-1, 1]: the inner rule's, over the characteristic
-        // function, and the outer rule's, over the variance at the reset.  This pricer needs to perform nested
-        // integrations, and an adaptive outer integrator can cause very long runtimes.
-        Array innerX_, innerW_, outerX_, outerW_;
+        // function, and the outer rules', over the variance at the reset, Gauss-Legendre's and, where R is small,
+        // Gauss-Jacobi's in its square root.  This pricer needs to perform nested integrations, and an adaptive
+        // outer integrator can cause very long runtimes.
+        Array innerX_, innerW_, outerX_, outerW_, jacobiX_, jacobiW_;
 
         // Integrate over characteristic function to generate P1, P2 (fall back on this
         // when reset time is very close, to avoid numerical issues with tReset=0s)

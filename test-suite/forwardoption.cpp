@@ -846,9 +846,9 @@ Real forwardHestonNpv(const Date& today,
 // with p the density of the variance at the reset under the share measure, from Boost's noncentral chi-squared
 // distribution, and h the Heston price at the reset with that variance, from AnalyticHestonEngine (adaptive
 // Gauss-Lobatto at 1e-12), integrated by tanh-sinh, then by Gauss-Kronrod in the tail.  Where rho is near -1 or 1,
-// that h loses accuracy or fails, and those rows say what they take instead, two ways that agree to 1e-14.  The
-// rows are checked to 1e-9 relative: the engine agrees with every one of them to 1e-12, and the old engine, where it
-// priced at all, was 8e-8 or more off.
+// or R small, that h loses accuracy or fails, and those rows say what they take instead, two ways that agree to
+// 1e-14.  The rows are checked to 1e-9 relative: the engine agrees with every one of them to 1e-12, and the old
+// engine, where it priced at all, was 8e-8 or more off.
 struct ForwardHestonCase
 {
     Real v0, kappa, theta, sigma, rho;
@@ -1001,6 +1001,66 @@ BOOST_AUTO_TEST_CASE(testHestonAnalyticCorrelationNearOne)
     BOOST_CHECK_THROW(npv(-1.0, 1.2), Error);
     BOOST_CHECK_THROW(npv(1.0, 0.8), Error);
     BOOST_CHECK_THROW(npv(-0.99999999, 1.0), Error);
+}
+
+BOOST_AUTO_TEST_CASE(testHestonAnalyticFellerConditionViolated)
+{
+    BOOST_TEST_MESSAGE("Testing the analytic Heston forward-start engine where the Feller condition fails...");
+
+    // Where R = 4 kappa theta / sigma^2 is below 2, the density of the variance at the reset goes to infinity at
+    // zero, as v^(R/2 - 1), and just above 2 its derivative does (#224).  The engine integrated it with 128
+    // Gauss-Legendre nodes, which can't follow either: with the inner integral right (#225), these rows were 2.5e-6
+    // to 14.8 % off.  R is 0.96, 0.156, 1.14, 1.78, 2.6, 0.64 and, at the forward, 0.016 below; that row's reference
+    // takes h by exp-sinh and by Gil-Pelaez on the untilted line, as Gauss-Lobatto is noisy below v = 1e-13.
+    const ForwardHestonCase cases[] = {
+        {0.04, 1.5, 0.04, 0.5, -0.7, 182, 365, 1.0, Option::Call, 3.7396721130103},
+        {0.1, 0.5, 0.05, 0.8, -0.9, 91, 365, 1.0, Option::Call, 4.75612539170697},
+        {0.1, 0.5, 0.05, 0.8, -0.9, 182, 365, 1.0, Option::Call, 3.31478037300948},
+        {0.1, 0.5, 0.05, 0.8, -0.9, 182, 365, 1.0, Option::Put, 4.53881588967316},
+        {0.36, 4.0, 0.16, 1.5, -0.8, 182, 365, 1.0, Option::Call, 8.42434642589705},
+        {0.04, 1.0, 0.04, 0.3, -0.7, 182, 365, 1.0, Option::Call, 4.16719596717314},
+        {0.09, 11.35, 0.022, 0.618, -0.5, 182, 365, 1.0, Option::Call, 3.31310543670044},
+        {0.09, 11.35, 0.022, 0.618, -0.5, 182, 365, 1.0, Option::Put, 4.53714095336412},
+        {0.09, 11.35, 0.022, 0.618, -0.5, 364, 365, 1.0, Option::Call, 0.267165861660158},
+        {0.09, 11.35, 0.022, 0.618, -0.5, 364, 365, 1.0, Option::Put, 0.273812976514576},
+        {0.04, 1.0, 0.04, 0.5, 0.5, 364, 365, 1.0, Option::Call, 0.322306139942502},
+        {0.04, 0.1, 0.04, 1.0, -0.7, 182, 365, 0.9875439799154531, Option::Call, 1.49325621847104},
+    };
+    for (const auto& c : cases)
+        checkForwardHestonCase(c);
+
+    // At R = 1.6e-4, over a tenor of 1e-5 years, five minutes: most of the density's mass lies within 1e-16 of zero,
+    // where the inner integrand's decay rate, (v + kappa theta tau) / sigma, is 4e-10, and the call at the forward
+    // takes its value from kappa theta tau.  The engine priced it 87 % low.  Its reference takes h by exp-sinh and by
+    // Gil-Pelaez on the untilted line, which agree to 2e-15.  The 128 nodes of the outer rule leave 4.5e-9 of it
+    // (6e-12 with 512), hence the tolerance.
+    const Date today(15, May, 2026);
+    Settings::instance().evaluationDate() = today;
+    const Time t = 0.5, tau = 1e-5;
+    BOOST_CHECK_CLOSE_FRACTION(forwardHestonNpv(today, ForwardHestonDayCounter(today, t, t + tau), 0.04, 0.001, 0.04,
+                                                1.0, -0.999, today + 1, today + 2, std::exp(-0.025 * tau),
+                                                Option::Call),
+                               0.0058514120171337, 1e-7);
+}
+
+BOOST_AUTO_TEST_CASE(testHestonAnalyticZeroKappaHat)
+{
+    BOOST_TEST_MESSAGE("Testing the analytic Heston forward-start engine at kappa = rho sigma...");
+
+    // kappaHat = kappa - rho sigma, the variance's rate of mean reversion under the share measure, is zero here: 0.1
+    // - 0.5 * 0.2 is exactly 0 in floating point.  The engine divided by it and threw (#223).  The density's scale
+    // and moments go as (1 - e^{-kappaHat t}) / kappaHat, which is t at zero, and the price is continuous there.
+    const Date today(15, May, 2026);
+    Settings::instance().evaluationDate() = today;
+    const auto npv = [&](Real kappa)
+    {
+        return forwardHestonNpv(today, Actual365Fixed(), 0.04, kappa, 0.04, 0.2, 0.5, today + 91, today + 365, 1.0,
+                                Option::Call);
+    };
+    const Real atZero = npv(0.1);
+    BOOST_CHECK_CLOSE_FRACTION(atZero, 5.71318979573601, 1e-9);
+    BOOST_CHECK_CLOSE_FRACTION(npv(0.1 + 1e-9), atZero, 1e-8);
+    BOOST_CHECK_CLOSE_FRACTION(npv(0.1 - 1e-9), atZero, 1e-8);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

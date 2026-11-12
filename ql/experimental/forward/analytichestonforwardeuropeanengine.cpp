@@ -33,6 +33,9 @@ namespace QuantLib
         constexpr Size forwardHestonInnerOrder = 256;
         constexpr Size forwardHestonOuterOrder = 128;
 
+        // Below this R, and where the outer range starts at zero, the outer nodes are Gauss-Jacobi's.
+        constexpr Real forwardHestonJacobiMaxR = 8.0;
+
         // The inner range is split into panels, the first this many multiples of 1 / s wide, s^2 being the
         // integrated variance expected over the tenor, or this many multiples of 1 / (sigma tau) where that is
         // narrower, each twice as wide as the one before but at most this many turns of the integrand, and at most
@@ -44,6 +47,44 @@ namespace QuantLib
 
         // The inner range ends where the integrand, and what it has left beyond, have decayed to this.
         constexpr Real forwardHestonInnerEps = 1e-17;
+
+        // The outer range ends where the variance density has less than this of its mass beyond it.
+        constexpr Real forwardHestonTailMass = 1e-14;
+
+        /* The x beyond which a noncentral chi-squared variable with R degrees of freedom and noncentrality Lambda
+           has probability below eps: the Chernoff bound P(X > x) <= e^{-sx} E[e^{sX}], 0 < s < 1/2, with
+           E[e^{sX}] = (1 - 2s)^{-R/2} e^{Lambda s / (1 - 2s)}, solved for x and minimized over s.  The bound holds at
+           every s, and is unimodal in s, so a golden-section search finds its least value. */
+        Real forwardHestonChiSquaredTail(Real R, Real Lambda, Real eps)
+        {
+            const Real L = -std::log(eps);
+            const auto bound = [&](Real s)
+            { return (L - 0.5 * R * std::log1p(-2.0 * s) + Lambda * s / (1.0 - 2.0 * s)) / s; };
+            const Real g = 0.5 * (std::sqrt(5.0) - 1.0);
+            Real a = 0.0, b = 0.5;
+            Real c = b - g * (b - a), d = a + g * (b - a);
+            Real fc = bound(c), fd = bound(d);
+            for (Size i = 0; i < 60; ++i)
+            {
+                if (fc < fd)
+                {
+                    b = d;
+                    d = c;
+                    fd = fc;
+                    c = b - g * (b - a);
+                    fc = bound(c);
+                }
+                else
+                {
+                    a = c;
+                    c = d;
+                    fc = fd;
+                    d = a + g * (b - a);
+                    fd = bound(d);
+                }
+            }
+            return std::min(fc, fd);
+        }
 
         /* For a decay at the rate c > 0, the u beyond which both e^{-cu} / u and its integral from u on, at most
            e^{-cu} / (cu), are below forwardHestonInnerEps, or uMax where that lies beyond uMax: the root of
@@ -205,10 +246,13 @@ namespace QuantLib
         riskFreeRate_ = process_->riskFreeRate();
         dividendYield_ = process_->dividendYield();
 
-        // Some of the required constant intermediate variables can be calculated now
+        // Some of the required constant intermediate variables can be calculated now.  R = 4 kappaHat thetaHat /
+        // sigma^2 with thetaHat = kappa theta / kappaHat, taken without the division so that kappaHat = 0 works.
         kappaHat_ = kappa_ - rho_ * sigma_;
-        thetaHat_ = kappa_ * theta_ / kappaHat_;
-        R_ = 4 * kappaHat_ * thetaHat_ / (sigma_ * sigma_);
+        R_ = 4 * kappa_ * theta_ / (sigma_ * sigma_);
+        QL_REQUIRE(R_ > 0.0, "4 kappa theta / sigma^2 (" << R_
+                                                         << ") must be positive: at zero, the variance at the reset"
+                                                            " has an atom at zero, which this engine can't integrate");
 
         GaussLegendreIntegration inner(forwardHestonInnerOrder);
         innerX_ = inner.x();
@@ -216,6 +260,12 @@ namespace QuantLib
         GaussLegendreIntegration outer(forwardHestonOuterOrder);
         outerX_ = outer.x();
         outerW_ = outer.weights();
+        if (R_ < forwardHestonJacobiMaxR)
+        {
+            GaussJacobiIntegration jacobi(forwardHestonOuterOrder, 0.0, R_ - 1.0);
+            jacobiX_ = jacobi.x();
+            jacobiW_ = jacobi.weights();
+        }
     }
 
 
@@ -256,13 +306,22 @@ namespace QuantLib
         // above a variance of 2 it can leave the density out.  So the range starts at the mean less 20 standard
         // deviations, floored at zero, and ends at the mean plus 20.  Where the range above ends between 10 and 20
         // standard deviations above the mean it keeps that end, since widening it would only make the rule coarser
-        // where the density is, and where it ends below 10 the range ends at 10.
+        // where the density is, and where it ends below 10 the range ends at 10.  With f = (1 - e^{-kappaHat t}) /
+        // kappaHat, which is t at kappaHat = 0, the mean is v0 e^{-kappaHat t} + kappa theta f and the variance
+        // sigma^2 f (v0 e^{-kappaHat t} + kappa theta f / 2).
         Real e = std::exp(-kappaHat_ * resetTime);
-        Real meanVariance = v0_ * e + thetaHat_ * (1 - e);
-        Real stdDevVariance = std::sqrt(sigma_ * sigma_ * (1 - e) * (v0_ * e + 0.5 * thetaHat_ * (1 - e)) / kappaHat_);
+        Real f = kappaHat_ == 0.0 ? resetTime : Real(-std::expm1(-kappaHat_ * resetTime) / kappaHat_);
+        Real meanVariance = v0_ * e + kappa_ * theta_ * f;
+        Real stdDevVariance = std::sqrt(sigma_ * sigma_ * f * (v0_ * e + 0.5 * kappa_ * theta_ * f));
         Real nuLeftLimit = std::max(0.0, meanVariance - 20.0 * stdDevVariance);
         nuRightLimit = std::min(meanVariance + 20.0 * stdDevVariance,
                                 std::max(nuRightLimit, meanVariance + 10.0 * stdDevVariance));
+        if (resetTime > 0.0)
+        {
+            Real B = 4.0 / (sigma_ * sigma_ * f);
+            nuRightLimit =
+                std::max(nuRightLimit, forwardHestonChiSquaredTail(R_, B * e * v0_, forwardHestonTailMass) / B);
+        }
 
         // do the 2D integral calculation. For very short times, we just fall back on the standard
         // calculation, both for accuracy and because tStar==0 causes some numerical issues...
@@ -320,15 +379,30 @@ namespace QuantLib
         // our pricing calculation we need to compare it to the future at expiry)
         Real logMoneyness = std::log(moneyness * ratio);
 
-        const Array& x = outerX_;
-        const Array& w = outerW_;
-        const Real scale = 0.5 * (nuRightLimit - nuLeftLimit);
+        // The density of the variance at the reset goes as v^(R/2 - 1) at zero, which Gauss-Legendre nodes can't
+        // integrate where R is small.  Where the range starts at zero, it's integrated in y = sqrt(v), where the
+        // density goes as y^(R - 2) and dv = 2y dy, by Gauss-Jacobi nodes for the weight (1 + x)^(R - 1): they
+        // integrate a polynomial times that power, and so follow both the density and the inner integrals, which
+        // go as sqrt(v) near zero at short tenors.
+        const bool sqrtV = nuLeftLimit == 0.0 && !jacobiX_.empty();
+        const Array& x = sqrtV ? jacobiX_ : outerX_;
+        const Array& w = sqrtV ? jacobiW_ : outerW_;
+        const Real scale = sqrtV ? 0.5 * std::sqrt(nuRightLimit) : 0.5 * (nuRightLimit - nuLeftLimit);
 
         Array v(x.size()), weight(x.size());
         for (Size j = 0; j < x.size(); ++j)
         {
-            v[j] = nuLeftLimit + scale * (1.0 + x[j]);
-            weight[j] = w[j] * propagator(resetTime, v[j]);
+            if (sqrtV)
+            {
+                const Real y = scale * (1.0 + x[j]);
+                v[j] = y * y;
+                weight[j] = w[j] * 2.0 * y * propagator(resetTime, v[j]);
+            }
+            else
+            {
+                v[j] = nuLeftLimit + scale * (1.0 + x[j]);
+                weight[j] = w[j] * propagator(resetTime, v[j]);
+            }
         }
 
         Real p1Hat = 0.0, p2Hat = 0.0;
@@ -345,7 +419,10 @@ namespace QuantLib
 
     Real AnalyticHestonForwardEuropeanEngine::propagator(Time resetTime, Real varReset) const
     {
-        Real B = 4 * kappaHat_ / (sigma_ * sigma_ * (1 - std::exp(-kappaHat_ * resetTime)));
+        // B = 4 kappaHat / (sigma^2 (1 - e^{-kappaHat t})) = 4 / (sigma^2 f), with f = (1 - e^{-kappaHat t}) /
+        // kappaHat, which is t at kappaHat = 0.
+        Real f = kappaHat_ == 0.0 ? resetTime : Real(-std::expm1(-kappaHat_ * resetTime) / kappaHat_);
+        Real B = 4 / (sigma_ * sigma_ * f);
         Real Lambda = B * std::exp(-kappaHat_ * resetTime) * v0_;
         Real x = B * varReset;
         Real nu = R_ / 2 - 1;
