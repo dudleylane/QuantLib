@@ -2658,6 +2658,141 @@ BOOST_AUTO_TEST_CASE(testSpotRecoveryExpectedGivenTheFactors)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testSpotRecoveryExpectedLoss)
+{
+    BOOST_TEST_MESSAGE("Testing the spot recovery model's expected loss...");
+
+    /* Given the factors m, a default by the date at the latent value x <= invP loses 1 - E[R | X = x, m] (#248). X and
+       Y are independent given m, so that's the paths' recovery averaged over Y given m, and the loss is its integral
+       over X given m below invP. The default and recovery variables' loadings differ. */
+    const Real recovery = 0.4;
+    const GaussHermiteIntegration hermite(64);
+    const GaussLegendreIntegration legendre(200);
+    const NormalDistribution phi;
+    const auto norm2 = [](const std::vector<Real>& b)
+    { return std::inner_product(b.begin(), b.end(), b.begin(), Real(0.0)); };
+    struct Case
+    {
+        const char* description;
+        std::vector<Real> defaultLoadings, recoveryLoadings;
+    };
+    const std::vector<Case> cases = {
+        {"one factor, loadings that differ", {std::sqrt(0.3)}, {std::sqrt(0.1)}},
+        {"one factor, loadings of opposite signs", {std::sqrt(0.3)}, {-std::sqrt(0.2)}},
+        {"one factor, a small idiosyncratic default part", {std::sqrt(0.99)}, {std::sqrt(0.5)}},
+        {"two factors, loadings that differ", {0.5, 0.2}, {0.3, -0.4}}};
+    for (const auto& c : cases)
+    {
+        const GaussianSpotLossLM model({c.defaultLoadings, c.recoveryLoadings}, {recovery}, 2.2,
+                                       LatentModelIntegrationType::GaussianQuadrature,
+                                       GaussianCopulaPolicy::initTraits());
+        const Real invRR = model.inverseCumulativeY(recovery, 1);
+        const Real defaultSpread = std::sqrt(1.0 - norm2(c.defaultLoadings));
+        const Real recoverySpread = std::sqrt(1.0 - norm2(c.recoveryLoadings));
+        for (Real m : {-2.0, 0.0, 2.0})
+        {
+            const std::vector<Real> factors(c.defaultLoadings.size(), m);
+            const Real defaultMean =
+                std::inner_product(c.defaultLoadings.begin(), c.defaultLoadings.end(), factors.begin(), Real(0.0));
+            const Real recoveryMean =
+                std::inner_product(c.recoveryLoadings.begin(), c.recoveryLoadings.end(), factors.begin(), Real(0.0));
+            // 1 - E[R | X = x, m]; the rule integrates f over the line, from nodes and weights for exp(-t^2)
+            const auto lossAt = [&](Real x)
+            {
+                return 1.0 - hermite(
+                                 [&](Real t)
+                                 {
+                                     return model.conditionalRecoveryAtDefault(
+                                                recoveryMean + recoverySpread * M_SQRT2 * t, 0, x) *
+                                            std::exp(-t * t);
+                                 }) /
+                                 M_SQRTPI;
+            };
+            for (Probability p : {0.001, 0.05, 0.3})
+            {
+                BOOST_TEST_CONTEXT(c.description << ", factors at " << m << ", default probability " << p)
+                {
+                    const Real invP = model.inverseCumulativeY(p, 0);
+                    // over x <= invP against X's density given m, from where that's negligible
+                    const Real from = std::min(defaultMean - 12.0 * defaultSpread, invP - 1.0);
+                    const Real expected =
+                        legendre(
+                            [&](Real u)
+                            {
+                                const Real x = from + (invP - from) * (u + 1.0) / 2.0;
+                                return lossAt(x) * phi((x - defaultMean) / defaultSpread) / defaultSpread;
+                            }) *
+                        (invP - from) / 2.0;
+                    // to 1e-12 relative, and 1e-15 absolute where the factors leave next to no default
+                    BOOST_CHECK_SMALL(model.conditionalExpLossRRInv(invP, invRR, 0, factors) - expected,
+                                      std::max(1.0e-12 * expected, 1.0e-15));
+                }
+            }
+        }
+    }
+
+    /* The factors integrated out, a name's expected loss is the single name loss p (1 - Rbar), on one factor and on
+       two, the two with recovery loadings that differ from the default ones. */
+    const Date today(31, August, 2006);
+    Settings::instance().evaluationDate() = today;
+    std::vector<std::vector<Real>> twoFactors(8, std::vector<Real>{0.5, 0.2});
+    twoFactors.resize(16, std::vector<Real>{0.3, -0.4});
+    for (Real hazard : {0.004, 0.018, 0.2})
+    {
+        const NamesOnCurves names(std::vector<Date>(8, today), hazard);
+        const auto basket = names.basket(today);
+        const auto oneFactor = names.spotLossModel(recovery);
+        oneFactor->resetBasket(basket);
+        const auto twoFactor = ext::make_shared<GaussianSpotLossLM>(twoFactors, std::vector<Real>(8, recovery), 2.2,
+                                                                    LatentModelIntegrationType::GaussianQuadrature,
+                                                                    GaussianCopulaPolicy::initTraits());
+        twoFactor->resetBasket(basket);
+        for (Size i : {0, 7})
+        {
+            for (Integer days : {1, 7, 30, 365})
+            {
+                const Date d = today + days;
+                const Probability p = names.curves[i]->defaultProbability(d, true);
+                const Real single = p * (1.0 - recovery);
+                for (const auto& model : {oneFactor, twoFactor})
+                {
+                    BOOST_TEST_CONTEXT("hazard " << hazard << ", name " << i << ", " << days << " days, "
+                                                 << (model == oneFactor ? "one factor" : "two factors"))
+                    {
+                        // the factors' 25-point Gauss-Hermite rule gives it to 5e-8 here
+                        BOOST_CHECK_SMALL(model->expectedLoss(d, i) / single - 1.0, 1.0e-6);
+                        // given the factors, the loss from the date's default probability and the recovery
+                        const std::vector<Real> factors(model->numFactors(), -1.0);
+                        BOOST_CHECK_CLOSE_FRACTION(
+                            model->conditionalExpLossRR(d, i, factors),
+                            model->conditionalExpLossRRInv(model->inverseCumulativeY(p, i),
+                                                           model->inverseCumulativeY(recovery, i + 8), i, factors),
+                            1.0e-14);
+                    }
+                }
+            }
+            // on the curves' reference date there's no default, so no loss
+            BOOST_CHECK_EQUAL(oneFactor->expectedLoss(today, i), 0.0);
+            BOOST_CHECK_EQUAL(oneFactor->conditionalExpLossRR(today, i, std::vector<Real>(1, -2.0)), 0.0);
+        }
+    }
+
+    /* On the T copula the model's recovery given a default doesn't average the name's expected recovery (#255), and
+       the expected loss is refused. */
+    const NamesOnCurves names(std::vector<Date>(8, today), 0.2);
+    TCopulaPolicy::initTraits orders;
+    orders.tOrders = std::vector<Integer>(2, 3);
+    std::vector<std::vector<Real>> doubled(names.factors);
+    doubled.insert(doubled.end(), names.factors.begin(), names.factors.end());
+    const auto tModel = ext::make_shared<TSpotLossLM>(doubled, std::vector<Real>(8, recovery), 2.2,
+                                                      LatentModelIntegrationType::GaussianQuadrature, orders);
+    tModel->resetBasket(names.basket(today));
+    BOOST_CHECK_EXCEPTION(tModel->expectedLoss(today + 365, 0), Error,
+                          ExpectedErrorMessage("expected loss on the Gaussian copula only"));
+    BOOST_CHECK_EXCEPTION(tModel->conditionalExpLossRR(today + 365, 0, std::vector<Real>(1, 0.0)), Error,
+                          ExpectedErrorMessage("expected loss on the Gaussian copula only"));
+}
+
 BOOST_AUTO_TEST_CASE(testBaseCorrelationAfterADefault)
 {
     BOOST_TEST_MESSAGE("Testing base correlation models on what a default leaves of a tranche...");
