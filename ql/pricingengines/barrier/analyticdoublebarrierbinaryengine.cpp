@@ -229,6 +229,13 @@ namespace QuantLib
             return noExpiry - std::exp(-muT * (2.0 * x + muT) / (2.0 * V) - r * T) * afterExpiry;
         }
 
+        // At zero variance the underlying follows its forward, whose log moves by drift t from x.  1 paid when it
+        // reaches 0, if it does so by T, is worth exp(-r t) at that t.
+        Real binaryLowerHitAtZeroVariance(Real x, Real drift, Real r, Real T)
+        {
+            return drift < 0.0 && x + drift * T <= 0.0 ? Real(std::exp(r * x / drift)) : Real(0.0);
+        }
+
         Real binaryLowerHit(Real x, Real Z, Real mu, Real r, Real T, Real V)
         {
             // Hui's series needs u finite, short of the resonance at kappa Z / vol^2 = pi.  Up to pi / 2, its f stays
@@ -267,6 +274,40 @@ namespace QuantLib
                 noTouch = binaryNoTouchByFourier(x, Z, carry - 0.5 * variance / T, T, variance);
             }
             return std::min(std::max(noTouch, 0.0), 1.0);
+        }
+
+        Real doubleBarrierRebate(DoubleBarrier::Type type,
+                                 Real rebate,
+                                 Real spot,
+                                 Real lower,
+                                 Real upper,
+                                 Rate r,
+                                 Real carry,
+                                 Time T,
+                                 Real variance,
+                                 DiscountFactor discount)
+        {
+            switch (type)
+            {
+                case DoubleBarrier::KnockIn:
+                    return rebate * discount * doubleBarrierNoTouchProbability(spot, lower, upper, carry, T, variance);
+                case DoubleBarrier::KnockOut:
+                {
+                    if (spot <= lower || spot >= upper)
+                        return rebate;
+                    // The first touch is of the lower barrier before the upper, as a KIKO pays, or of the upper before
+                    // the lower, as a KOKI does: a KIKO on ln(U / S_t), whose drift is -mu.
+                    const Real x = std::log(spot / lower), Z = std::log(upper / lower);
+                    if (variance < QL_EPSILON)
+                        return rebate * (binaryLowerHitAtZeroVariance(x, carry, r, T) +
+                                         binaryLowerHitAtZeroVariance(Z - x, -carry, r, T));
+                    const Real mu = carry - 0.5 * variance / T;
+                    return rebate * (std::max(binaryLowerHit(x, Z, mu, r, T, variance), 0.0) +
+                                     std::max(binaryLowerHit(Z - x, Z, -mu, r, T, variance), 0.0));
+                }
+                default:
+                    QL_FAIL("a rebate is valued for a knock-in or a knock-out, not a " << type);
+            }
         }
 
     }
@@ -423,10 +464,8 @@ namespace QuantLib
                 {
                     // The underlying follows its forward, and pays when the forward reaches the knock-in barrier,
                     // if it does by expiry.
-                    Real drift = reflected ? q - r : r - q;
-                    results_.value = drift < 0.0 && distance + drift * residualTime <= 0.0 ?
-                                         Real(cash * std::exp(r * distance / drift)) :
-                                         Real(0.0);
+                    results_.value =
+                        cash * binaryLowerHitAtZeroVariance(distance, reflected ? q - r : r - q, r, residualTime);
                 }
                 else
                 {

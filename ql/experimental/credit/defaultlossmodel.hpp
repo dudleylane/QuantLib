@@ -126,6 +126,18 @@ namespace QuantLib
         {
             QL_FAIL("probsBeingNthEvent Not implemented for this model.");
         }
+        /*! The probability of each name being the nth default among the
+        names left at the evaluation date, and defaulting after d0 and by d.
+        One per name, in the pool's order, and 0 for the names that defaulted
+        before the evaluation date. Their sum is the probability of the nth
+        default falling in the period. For pricing where the loss depends on
+        which name defaults (e.g. NTDs on names whose recoveries differ).
+        */
+        virtual std::vector<Probability> probsBeingNthEventBetween(Size n, const Date& d0, const Date& d) const
+        {
+            QL_FAIL("probsBeingNthEventBetween, the probability of each name being the nth default in a "
+                    "period, is not implemented for this model.");
+        }
         //! Pearsons' default probability correlation.
         virtual Real defaultCorrelation(const Date& d, Size iName, Size jName) const
         {

@@ -34,6 +34,24 @@ namespace QuantLib
     class YieldTermStructure;
 
     //! CDO base engine taking schedule steps
+    /*! Coupons not paid by the evaluation date count in full, and each
+        coupon's losses are discounted from the middle of what's left of it
+        after the discount curve's reference date. The protection starts
+        from the expected tranche loss on the first coupon's accrual start
+        while that coupon is unpaid, and from the losses realised so far
+        once it's paid. The upfront is taken as paid on the first coupon's
+        accrual start, on the tranche's remaining notional. It counts until
+        the first coupon is paid, and not at all if it falls before the
+        discount curve's reference date (#206).
+
+        \warning Inside the first coupon, the protection over the part of it
+            that has passed still counts, and on default curves dated after
+            the coupon's accrual start the engine throws (#228).
+        \warning On a discount curve dated on or before the first coupon's
+            accrual start, the upfront still counts after that date, until
+            the first coupon is paid, and then drops out with nothing paid
+            (#227).
+    */
 
     /* The engine obtains the cdo reference basket from its arguments and it
     is expecting it to have a default model assigned.

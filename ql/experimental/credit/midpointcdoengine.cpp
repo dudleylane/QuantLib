@@ -89,11 +89,14 @@ namespace QuantLib
 
         //\todo treat upfron tnow as in the new CDS (see March 2014)
         // add includeSettlement date flows variable to engine ?
-        if (!arguments_.normalizedLeg[0]->hasOccurred(today))
+        // The upfront is taken as paid on the first coupon's accrual start. It
+        //   counts until the first coupon is paid, and not at all if it falls
+        //   before the discount curve's reference date, where CDO doesn't
+        //   count it either (#206).
+        const Date upfrontDate = ext::dynamic_pointer_cast<Coupon>(arguments_.normalizedLeg[0])->accrualStartDate();
+        if (!arguments_.normalizedLeg[0]->hasOccurred(today) && upfrontDate >= discountCurve_->referenceDate())
             results_.upfrontPremiumValue =
-                results_.remainingNotional * arguments_.upfrontRate *
-                discountCurve_->discount(
-                    ext::dynamic_pointer_cast<Coupon>(arguments_.normalizedLeg[0])->accrualStartDate());
+                results_.remainingNotional * arguments_.upfrontRate * discountCurve_->discount(upfrontDate);
         /* use it in a future version for coherence with the integral engine
             arguments_.leverageFactor * ;
         */

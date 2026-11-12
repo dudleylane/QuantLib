@@ -20,6 +20,7 @@
 #include <ql/exercise.hpp>
 #include <ql/experimental/barrieroption/suowangdoublebarrierengine.hpp>
 #include <ql/instruments/europeanoption.hpp>
+#include <ql/pricingengines/barrier/analyticdoublebarrierbinaryengine.hpp>
 #include <ql/pricingengines/barrier/analyticdoublebarrierengine.hpp>
 #include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
 #include <cmath>
@@ -62,10 +63,6 @@ namespace QuantLib
         Real df = dividendDiscount();
         Real vol = volatility();
         Real mu = rd - rf - vol * vol / 2.0;
-        Real sgn = mu > 0 ? 1.0 : (mu < 0 ? -1.0 : 0.0);
-        // rebate
-        Real R_L = arguments_.rebate;
-        Real R_H = arguments_.rebate;
 
         // european option
         EuropeanOption europeanOption(payoff, arguments_.exercise);
@@ -138,31 +135,22 @@ namespace QuantLib
         barrierOut = std::max(0.0, barrierOut);
         const Real barrierIn = std::max(0.0, european - barrierOut);
 
-        // An additional result only: the value doesn't use the rebate.
-        Real rebateIn = 0;
-        for (int n = -series_; n < series_; n++)
-        {
-            Real v1 = D(H / S * std::pow(H / L, 2.0 * n), -mu, vol, T);
-            Real v2 = D(H / S * std::pow(H / L, 2.0 * n), mu, vol, T);
-            Real v3 = D(S / L * std::pow(H / L, 2.0 * n), -mu, vol, T);
-            Real v4 = D(S / L * std::pow(H / L, 2.0 * n), mu, vol, T);
-            rebateIn += dd * R_H * sgn *
-                            (std::pow(L / H, 2.0 * n * mu / (vol * vol)) * f_(sgn * v1) -
-                             std::pow(H / S, 2.0 * mu / (vol * vol)) * f_(-sgn * v2)) +
-                        dd * R_L * sgn *
-                            (std::pow(L / S, 2.0 * mu / (vol * vol)) * f_(-sgn * v3) -
-                             std::pow(H / L, 2.0 * n * mu / (vol * vol)) * f_(sgn * v4));
-        }
+        // The rebate, which the images leave out: paid at the first touch for a knock-out, and at expiry if neither
+        // barrier is touched for a knock-in, as the lattice and Monte Carlo engines pay it.
+        const Real rebate = arguments_.rebate == 0.0 ? 0.0 :
+                                                       detail::doubleBarrierRebate(barrierType, arguments_.rebate, S, L,
+                                                                                   H, rd, rd - rf, T, variance, dd);
 
-        // rebate paid at maturity
         if (barrierType == DoubleBarrier::KnockOut)
             results_.value = barrierOut;
         else
             results_.value = barrierIn;
+        if (rebate != 0.0)
+            results_.value += rebate;
         results_.additionalResults["vanilla"] = european;
         results_.additionalResults["barrierOut"] = barrierOut;
         results_.additionalResults["barrierIn"] = barrierIn;
-        results_.additionalResults["rebateIn"] = rebateIn;
+        results_.additionalResults["rebate"] = rebate;
     }
 
 
@@ -201,11 +189,6 @@ namespace QuantLib
     DiscountFactor SuoWangDoubleBarrierEngine::dividendDiscount() const
     {
         return process_->dividendYield()->discount(residualTime());
-    }
-
-    Real SuoWangDoubleBarrierEngine::D(Real X, Real lambda, Real sigma, Real T) const
-    {
-        return (std::log(X) + lambda * T) / (sigma * std::sqrt(T));
     }
 
 }

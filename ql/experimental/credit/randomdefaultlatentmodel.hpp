@@ -33,8 +33,11 @@
 #include <ql/math/solvers1d/brent.hpp>
 #include <ql/math/statistics/histogram.hpp>
 #include <ql/math/statistics/riskstatistics.hpp>
+#include <algorithm>
+#include <bit>
 #include <tuple>
 #include <utility>
+#include <vector>
 
 /* Intended to replace
     ql\experimental\credit\randomdefaultmodel.Xpp
@@ -68,6 +71,111 @@ namespace QuantLib
     // replaces class Loss
     template <class simEventOwner>
     struct simEvent;
+
+    namespace detail
+    {
+        //! The most names whose shares of a tranche's loss are averaged over their orders
+        constexpr Size maxSameDayNamesToAverage = 16;
+
+        /*! What names defaulting on the same day each add to a tranche's
+            loss, from the portfolio's loss before that day, into \c shares.
+
+            The tranche's loss is the part of the portfolio's loss over the
+            attachment, up to the detachment. Defaults are simulated to the
+            day, so nothing orders the day's defaults, and each name takes its
+            increment averaged over their orders: its Shapley value in the
+            tranche's loss. Where the day's losses take the portfolio's loss
+            across neither the attachment nor the detachment, every order
+            gives each name the same increment, and the names take theirs in
+            turn. Names with no loss take nothing, and names with the same
+            loss share equally. Past maxSameDayNamesToAverage names whose
+            losses differ, the subsets to average over get too many, and the
+            names share in proportion to their losses (#209).
+        */
+        inline void sameDayTrancheLosses(Real lossBefore,
+                                         const std::vector<Real>& losses,
+                                         Real attachment,
+                                         Real detachment,
+                                         std::vector<Real>& shares)
+        {
+            const auto tranched = [=](Real portfolioLoss)
+            { return std::min(std::max(portfolioLoss - attachment, 0.0), detachment - attachment); };
+
+            shares.resize(losses.size());
+            Real total = 0.0;
+            Size names = 0;
+            for (Real loss : losses)
+            {
+                if (loss != 0.0)
+                {
+                    total += loss;
+                    ++names;
+                }
+            }
+            const Real lossAfter = lossBefore + total;
+            const bool acrossTheAttachment = lossBefore < attachment && attachment < lossAfter;
+            const bool acrossTheDetachment = lossBefore < detachment && detachment < lossAfter;
+            if (names < 2 || (!acrossTheAttachment && !acrossTheDetachment))
+            {
+                Real portfolioLoss = lossBefore;
+                for (Size i = 0; i < losses.size(); ++i)
+                {
+                    const Real before = tranched(portfolioLoss);
+                    portfolioLoss += losses[i];
+                    shares[i] = tranched(portfolioLoss) - before;
+                }
+                return;
+            }
+
+            shares.assign(losses.size(), 0.0);
+            std::vector<Size> losing;
+            for (Size i = 0; i < losses.size(); ++i)
+            {
+                if (losses[i] != 0.0)
+                    losing.push_back(i);
+            }
+            const Real increment = tranched(lossAfter) - tranched(lossBefore);
+            const bool alike =
+                std::all_of(losing.begin(), losing.end(), [&](Size i) { return losses[i] == losses[losing.front()]; });
+            if (alike || names > maxSameDayNamesToAverage)
+            {
+                for (Size i : losing)
+                    shares[i] = alike ? increment / Real(names) : increment * losses[i] / total;
+                return;
+            }
+
+            // the tranche's loss once each subset of the names has defaulted
+            const Size subsets = Size(1) << names;
+            std::vector<Real> tranchedLoss(subsets);
+            tranchedLoss[0] = lossBefore;
+            for (Size subset = 1; subset < subsets; ++subset)
+            {
+                const Size lowest = subset & (~subset + 1);
+                tranchedLoss[subset] = tranchedLoss[subset ^ lowest] + losses[losing[Size(std::countr_zero(lowest))]];
+            }
+            for (Real& loss : tranchedLoss)
+                loss = tranched(loss);
+
+            // the share of the orders in which a name follows a given s of the others: s! (n - 1 - s)! / n!
+            std::vector<Real> weight(names);
+            weight[0] = 1.0 / Real(names);
+            for (Size s = 1; s < names; ++s)
+                weight[s] = weight[s - 1] * Real(s) / Real(names - s);
+
+            for (Size j = 0; j < names; ++j)
+            {
+                const Size name = Size(1) << j;
+                Real share = 0.0;
+                for (Size subset = 0; subset < subsets; ++subset)
+                {
+                    if ((subset & name) == 0)
+                        share +=
+                            weight[Size(std::popcount(subset))] * (tranchedLoss[subset | name] - tranchedLoss[subset]);
+                }
+                shares[losing[j]] = share;
+            }
+        }
+    }
 
 
     /*! Base class for latent model monte carlo simulation. Independent of the
@@ -170,13 +278,18 @@ namespace QuantLib
         //@{
         /*! Returns the probaility of having a given or larger number of
         defaults in the basket portfolio at a given time.
+
+        For n > 0 it's 0 on or before today, as the statistics count the
+        days of the paths' defaults from today (#207). The paths draw them
+        from each default curve's reference date (#232).
         */
         Probability probAtLeastNEvents(Size n, const Date& d) const override;
         /*! Order of results refers to the simulated (super)pool not the
         basket's pool.
         Defaults are simulated to the day: where the nth default falls among
         names defaulting on the same day, each takes an equal share of the
-        path, and the entries add up to probAtLeastNEvents(n, d).
+        path, and the entries add up to probAtLeastNEvents(n, d), so they're
+        all 0 on or before today.
         Notice that this statistic suffers from heavy dispersion. To see
         techniques to improve it (not implemented here) see:
         Joshi, M., D. Kainth. 2004. Rapid and accurate development of prices
@@ -200,10 +313,16 @@ namespace QuantLib
         virtual std::tuple<Real, Real, Real> percentileAndInterval(const Date& d, Real percentile) const;
         /*! Distributes the total VaR amount along the portfolio counterparties.
             The passed loss amount is in loss units.
+
+            On each path whose tranche loss is over the amount, each name
+            takes what its default adds to the tranche's loss, as a share of
+            that loss. Names defaulting on the same day take what their
+            defaults add averaged over their orders, as
+            detail::sameDayTrancheLosses says (#209).
         */
         std::vector<Real> splitVaRLevel(const Date& date, Real loss) const override;
         /*! Distributes the total VaR amount along the portfolio
-            counterparties.
+            counterparties, as splitVaRLevel does.
 
             Provides confidence interval for split so that portfolio
             optimization can be performed outside those limits.
@@ -244,12 +363,13 @@ namespace QuantLib
         calculate();
         Date today = Settings::instance().evaluationDate();
 
-        QL_REQUIRE(d > today, "Date for statistic must be in the future.");
-        // casted to natural to avoid warning, we have just checked the sign
-        Natural val = d.serialNumber() - today.serialNumber();
-
         if (n == 0)
             return 1.;
+        // the statistics read the paths' days as from today (#232): no default by it (#207)
+        if (d <= today)
+            return 0.;
+        // casted to natural to avoid warning, d being after today
+        Natural val = d.serialNumber() - today.serialNumber();
 
         Real counts = 0.;
         for (Size iSim = 0; iSim < nSims_; iSim++)
@@ -276,8 +396,10 @@ namespace QuantLib
         QL_REQUIRE(n > 0 && n <= basketSize, "Impossible number of defaults.");
         Date today = Settings::instance().evaluationDate();
 
-        QL_REQUIRE(d > today, "Date for statistic must be in the future.");
-        // casted to natural to avoid warning, we have just checked the sign
+        // the statistics read the paths' days as from today (#232): no default by it (#207)
+        if (d <= today)
+            return std::vector<Probability>(basketSize, 0.);
+        // casted to natural to avoid warning, d being after today
         Natural val = d.serialNumber() - today.serialNumber();
 
         std::vector<Probability> hitsByDate(basketSize, 0.);
@@ -661,6 +783,7 @@ namespace QuantLib
             livePosition[live[i]] = i;
 
         std::vector<Real> split(numLiveNames, 0.);
+        std::vector<Real> dayLosses, dayShares;
         std::vector<GeneralStatistics> splitStats(numLiveNames, GeneralStatistics());
         Date today = Settings::instance().evaluationDate();
         Date::serial_type val = date.serialNumber() - today.serialNumber();
@@ -692,29 +815,49 @@ namespace QuantLib
             Real ptflCumulLoss = 0.;
             if (portfSimLoss > loss)
             {
-                std::sort(splitEventsBuffer.begin(), splitEventsBuffer.end());
-                // NOW THIS:
+                // by day, and by name on a day, so that a path gives the same split whatever the sort
+                std::sort(
+                    splitEventsBuffer.begin(), splitEventsBuffer.end(),
+                    [](const simEvent<D<C, URNG>>& x, const simEvent<D<C, URNG>>& y)
+                    { return x.dayFromRef < y.dayFromRef || (x.dayFromRef == y.dayFromRef && x.nameIdx < y.nameIdx); });
                 split.assign(numLiveNames, 0.);
-                /*  if the name triggered a loss in the portf limits assign
-                this loss to that name..  */
-                for (Size i = 0; i < splitEventsBuffer.size(); i++)
+                /* each day's defaults share what they add to the tranche's
+                loss, as detail::sameDayTrancheLosses says (#209) */
+                for (Size first = 0; first < splitEventsBuffer.size();)
                 {
-                    Size iName = splitEventsBuffer[i].nameIdx;
-                    Real lossName =
-                        // allows amortizing (others should be like this)
-                        // basket_->remainingNotionals(Date(simsBuffer_[i].dayFromRef +
-                        //      today.serialNumber()))[iName] *
-                        basket_->exposure(basket_->names()[iName],
-                                          Date(splitEventsBuffer[i].dayFromRef + today.serialNumber())) *
-                        (1. - getEventRecovery(splitEventsBuffer[i]));
-
-                    Real tranchedLossBefore =
-                        std::min(std::max(ptflCumulLoss - attachAmount, 0.), detachAmount - attachAmount);
-                    ptflCumulLoss += lossName;
-                    Real tranchedLossAfter =
-                        std::min(std::max(ptflCumulLoss - attachAmount, 0.), detachAmount - attachAmount);
-                    // assign new losses:
-                    split[livePosition[iName]] += tranchedLossAfter - tranchedLossBefore;
+                    Size last = first + 1;
+                    while (last < splitEventsBuffer.size() &&
+                           splitEventsBuffer[last].dayFromRef == splitEventsBuffer[first].dayFromRef)
+                        ++last;
+                    dayLosses.clear();
+                    for (Size i = first; i < last; i++)
+                        dayLosses.push_back(
+                            // allows amortizing (others should be like this)
+                            // basket_->remainingNotionals(Date(simsBuffer_[i].dayFromRef +
+                            //      today.serialNumber()))[iName] *
+                            basket_->exposure(basket_->names()[splitEventsBuffer[i].nameIdx],
+                                              Date(splitEventsBuffer[i].dayFromRef + today.serialNumber())) *
+                            (1. - getEventRecovery(splitEventsBuffer[i])));
+                    if (last - first == 1)
+                    {
+                        // alone on its day, as most are, a default adds what it does
+                        Real tranchedLossBefore =
+                            std::min(std::max(ptflCumulLoss - attachAmount, 0.), detachAmount - attachAmount);
+                        ptflCumulLoss += dayLosses[0];
+                        Real tranchedLossAfter =
+                            std::min(std::max(ptflCumulLoss - attachAmount, 0.), detachAmount - attachAmount);
+                        split[livePosition[splitEventsBuffer[first].nameIdx]] += tranchedLossAfter - tranchedLossBefore;
+                    }
+                    else
+                    {
+                        detail::sameDayTrancheLosses(ptflCumulLoss, dayLosses, attachAmount, detachAmount, dayShares);
+                        for (Size i = first; i < last; i++)
+                        {
+                            ptflCumulLoss += dayLosses[i - first];
+                            split[livePosition[splitEventsBuffer[i].nameIdx]] += dayShares[i - first];
+                        }
+                    }
+                    first = last;
                 }
                 for (Size iName = 0; iName < numLiveNames; iName++)
                 {

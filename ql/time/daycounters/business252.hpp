@@ -34,7 +34,23 @@ namespace QuantLib
 {
 
     //! Business/252 day count convention
-    /*! \ingroup daycounters */
+    /*! A count across months adds up figures for the whole months and
+        years in it, kept per thread for each calendar, and for at most
+        eight calendars at a time.  Copies of a calendar share its
+        figures; another calendar has its own, even under the same name.
+        So a calendar built for each instrument, such as a JointCalendar,
+        fills its own on first use, and more than eight of them in turn
+        fill theirs again each time, at about the cost of counting the
+        days one by one.  The figures are dropped whenever any calendar's
+        holidays or weekend change through addHoliday, removeHoliday,
+        resetAddedAndRemovedHolidays or BespokeCalendar::addWeekend.
+
+        \warning A calendar implementation whose business days change in
+                 any other way leaves the figures stale, unless it calls
+                 detail::recordCalendarChange().
+
+        \ingroup daycounters
+    */
     class Business252 : public DayCounter
     {
       private:

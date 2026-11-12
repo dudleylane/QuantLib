@@ -30,6 +30,21 @@ namespace QuantLib
 {
 
     //! IborIndex calculated as proxy of some other IborIndex
+    /*! Its forecast for a fixing date is the gearing times the proxied
+        index's fixing for that date times the spread:
+
+            gearing * iborIndex->fixing(fixingDate) * spread
+
+        So, despite its name, the spread is a factor: 1 for none, and a
+        spread of 0 gives a rate of 0.  That is the formula the class came
+        in with (5c75b3a88, 2010), and it is kept (#127).
+
+        As for any index, a fixing stored under this index's own name
+        comes first, and a past fixing date needs one: the formula isn't
+        applied to the proxied index's history.  Where the formula
+        applies, the proxied index's fixing is its stored one if it has
+        one, today's included.
+    */
     class ProxyIbor : public IborIndex
     {
       public:

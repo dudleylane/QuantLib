@@ -1661,6 +1661,95 @@ BOOST_AUTO_TEST_CASE(testCdoAfterADefault)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testUpfront)
+{
+    BOOST_TEST_MESSAGE("Testing a CDO tranche's upfront...");
+
+    // The engines take the upfront as paid on the first coupon's accrual start, on the tranche's
+    // remaining notional, and count it until that coupon is paid, unless it falls before the
+    // discount curve's reference date. Before #206, inside the first coupon on a discount curve
+    // as of today, they discounted the upfront from before the curve's reference date, and
+    // threw. They still throw there on default curves as of today (#228).
+    const Date accrualStart(1, September, 2006);
+    const Date insideTheFirstCoupon(1, November, 2006);
+    const Date afterTheFirstPayment(4, December, 2006);
+    const Rate upfront = 0.02;
+    const NamesAroundADefault names(true, false, NamesAroundADefault::noName);
+
+    const Schedule schedule = MakeSchedule()
+                                  .from(accrualStart)
+                                  .to(names.horizon)
+                                  .withFrequency(Quarterly)
+                                  .withCalendar(TARGET())
+                                  .withConvention(Following)
+                                  .withRule(DateGeneration::Backward);
+    const auto curveFrom = [](const Date& referenceDate)
+    { return Handle<YieldTermStructure>(ext::make_shared<FlatForward>(referenceDate, 0.05, Actual360(), Continuous)); };
+    const auto price = [&](Rate upfrontRate, const Handle<YieldTermStructure>& discountCurve, bool midPoint)
+    {
+        const auto basket = names.basket(0.0, 0.1);
+        basket->setLossModel(names.lhpModel());
+        auto tranche = ext::make_shared<SyntheticCDO>(basket, Protection::Seller, schedule, upfrontRate, 0.05,
+                                                      Actual360(), Following);
+        if (midPoint)
+            tranche->setPricingEngine(ext::make_shared<MidPointCDOEngine>(discountCurve));
+        else
+            tranche->setPricingEngine(ext::make_shared<IntegralCDOEngine>(discountCurve));
+        return tranche;
+    };
+
+    struct Valuation
+    {
+        Date today, curveDate;
+        bool upfrontCounts;
+    };
+    // Inside the first coupon, on a curve from inception, the upfront still counts though it has
+    // been paid: #206 changed only what threw (#227).
+    const Valuation valuations[] = {
+        {names.inception, names.inception, true},       {accrualStart, accrualStart, true},
+        {insideTheFirstCoupon, names.inception, true},  {insideTheFirstCoupon, insideTheFirstCoupon, false},
+        {afterTheFirstPayment, names.inception, false}, {afterTheFirstPayment, afterTheFirstPayment, false}};
+    for (const auto& valuation : valuations)
+    {
+        for (bool midPoint : {true, false})
+        {
+            BOOST_TEST_CONTEXT("today " << valuation.today << ", curve from " << valuation.curveDate
+                                        << (midPoint ? ", mid-point" : ", integral") << " engine")
+            {
+                Settings::instance().evaluationDate() = valuation.today;
+                const auto curve = curveFrom(valuation.curveDate);
+                const auto with = price(upfront, curve, midPoint);
+                const auto without = price(0.0, curve, midPoint);
+                if (valuation.upfrontCounts)
+                    BOOST_CHECK_CLOSE_FRACTION(with->NPV() - without->NPV(),
+                                               200.0 * upfront * curve->discount(accrualStart), 1.0e-12);
+                else
+                    BOOST_CHECK_EQUAL(with->NPV(), without->NPV());
+            }
+        }
+    }
+
+    // Inside the first coupon, the premium on a discount curve as of today is the one on a curve
+    // from inception, carried forward to today, and so is all of the integral engine's value, which
+    // takes the same dates on either curve; the mid-point engine takes its first period's
+    // losses as of the middle of what's left of it after the curve's reference date.
+    Settings::instance().evaluationDate() = insideTheFirstCoupon;
+    const auto fromInception = curveFrom(names.inception);
+    const auto asOfToday = curveFrom(insideTheFirstCoupon);
+    for (bool midPoint : {true, false})
+    {
+        BOOST_TEST_CONTEXT((midPoint ? "mid-point" : "integral") << " engine")
+        {
+            const auto today = price(upfront, asOfToday, midPoint);
+            const auto reference = price(0.0, fromInception, midPoint);
+            const DiscountFactor carry = fromInception->discount(insideTheFirstCoupon);
+            BOOST_CHECK_CLOSE_FRACTION(today->premiumValue(), reference->premiumValue() / carry, 1.0e-12);
+            if (!midPoint)
+                BOOST_CHECK_CLOSE_FRACTION(today->NPV(), reference->NPV() / carry, 1.0e-12);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testTopTrancheAfterADefault)
 {
     BOOST_TEST_MESSAGE("Testing a tranche reaching beyond what's left of the basket after a default...");
@@ -1951,6 +2040,165 @@ BOOST_AUTO_TEST_CASE(testRandomModelsNthDefaultOnTheSameDay)
                                   1.0e-12);
             }
         }
+    }
+}
+
+// Names of 100 at the given hazard rates and recoveries, with a random default model at a correlation
+// so close to 1 that, on its paths up to Sep 1, 2011, names with the same hazard rate default on the
+// same day or not at all.
+ext::shared_ptr<Basket> basketDefaultingTogether(const std::vector<Real>& hazards,
+                                                 const std::vector<Real>& recoveries,
+                                                 Real attachment,
+                                                 Real detachment)
+{
+    const Date today = Settings::instance().evaluationDate();
+    const NorthAmericaCorpDefaultKey key(EURCurrency(), SeniorSec, Period(), 1.);
+    auto pool = ext::make_shared<Pool>();
+    std::vector<std::string> names;
+    for (Real hazard : hazards)
+    {
+        names.push_back("name-" + std::to_string(names.size()));
+        std::vector<std::pair<DefaultProbKey, Handle<DefaultProbabilityTermStructure>>> curves;
+        curves.emplace_back(key, Handle<DefaultProbabilityTermStructure>(ext::make_shared<FlatHazardRate>(
+                                     today, makeQuoteHandle(hazard), ActualActual(ActualActual::ISDA))));
+        pool->add(names.back(), Issuer(curves, DefaultEventSet()), key);
+    }
+    const Real notional = 100.0 * Real(hazards.size());
+    auto basket = ext::make_shared<Basket>(today, names, std::vector<Real>(hazards.size(), 100.0), pool,
+                                           attachment / notional, detachment / notional);
+    basket->setLossModel(ext::make_shared<RandomDefaultLM<GaussianCopulaPolicy>>(
+        ext::make_shared<GaussianConstantLossLM>(makeQuoteHandle(1.0 - 1.0e-15), recoveries,
+                                                 LatentModelIntegrationType::GaussianQuadrature, hazards.size(),
+                                                 GaussianCopulaPolicy::initTraits()),
+        2000));
+    return basket;
+}
+
+BOOST_AUTO_TEST_CASE(testRandomDefaultModelSplitOnTheSameDay)
+{
+    BOOST_TEST_MESSAGE("Testing the random default model's split of a tranche's loss among names defaulting on the "
+                       "same day...");
+
+    // Before #209 a path's defaults were sorted by the day alone, and whichever of a day's names
+    // std::sort put first took the loss up to the detachment, or from the attachment. Each now takes
+    // what it adds to the tranche's loss averaged over the orders of the day's defaults. Names of 100
+    // at recoveries of 20 %, 40 % and 60 % lose 80, 60 and 40. Up to a detachment of 100, in the
+    // order 80, 60, 40 the first two take 80 and 20; over the six orders, 43 1/3, 33 1/3 and 23 1/3.
+    // Every path whose tranche loss is over the level has all three default on one day, so the split
+    // of the level is that, in proportion.
+    Settings::instance().evaluationDate() = Date(1, November, 2006);
+    const Date horizon(1, September, 2011);
+    const Real level = 50.0;
+    const Real tolerance = 1.0e-10;
+    const std::vector<Real> recoveries = {0.2, 0.4, 0.6};
+
+    struct Case
+    {
+        std::string what;
+        Real attachment, detachment;
+        std::vector<Real> shares;
+    };
+    const std::vector<Case> cases = {{"the detachment among their losses", 0.0, 100.0, {130.0, 100.0, 70.0}},
+                                     {"the attachment among their losses", 100.0, 200.0, {110.0, 80.0, 50.0}},
+                                     {"both among their losses", 50.0, 150.0, {155.0, 95.0, 50.0}}};
+    for (const Case& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.what)
+        {
+            const auto basket =
+                basketDefaultingTogether(std::vector<Real>(3, 0.05), recoveries, c.attachment, c.detachment);
+            const std::vector<Real> split = basket->splitVaRLevel(horizon, level);
+            const Real total = std::accumulate(c.shares.begin(), c.shares.end(), Real(0.0));
+            BOOST_REQUIRE_EQUAL(split.size(), c.shares.size());
+            for (Size i = 0; i < split.size(); ++i)
+                BOOST_CHECK_SMALL(split[i] - level * c.shares[i] / total, tolerance);
+        }
+    }
+
+    // At hazard rates of 30 %, 10 % and 3 % each name defaults on a day of its own, in that order, and
+    // takes what it adds: losing 50, 80 and 60 up to a detachment of 100, the first two take 50 each
+    // on every path whose tranche loss is over the level.
+    BOOST_TEST_CONTEXT("names alone on their days")
+    {
+        const auto basket = basketDefaultingTogether({0.3, 0.1, 0.03}, {0.5, 0.2, 0.4}, 0.0, 100.0);
+        const std::vector<Real> split = basket->splitVaRLevel(horizon, level);
+        const std::vector<Real> expected = {level / 2.0, level / 2.0, 0.0};
+        BOOST_REQUIRE_EQUAL(split.size(), expected.size());
+        for (Size i = 0; i < split.size(); ++i)
+            BOOST_CHECK_SMALL(split[i] - expected[i], tolerance);
+    }
+
+    // Two names at 30 % lose 50 each on a day before the three, so the three's day starts from the
+    // attachment of 100. The two take nothing, and the three the same as from 0 to a detachment of 100.
+    BOOST_TEST_CONTEXT("the three defaulting after two others")
+    {
+        const auto basket =
+            basketDefaultingTogether({0.3, 0.3, 0.03, 0.03, 0.03}, {0.5, 0.5, 0.2, 0.4, 0.6}, 100.0, 200.0);
+        const std::vector<Real> split = basket->splitVaRLevel(horizon, level);
+        const std::vector<Real> expected = {0.0, 0.0, level * 130.0 / 300.0, level * 100.0 / 300.0,
+                                            level * 70.0 / 300.0};
+        BOOST_REQUIRE_EQUAL(split.size(), expected.size());
+        for (Size i = 0; i < split.size(); ++i)
+            BOOST_CHECK_SMALL(split[i] - expected[i], tolerance);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testSameDayTrancheLosses)
+{
+    BOOST_TEST_MESSAGE("Testing the shares of a tranche's loss among names defaulting on the same day...");
+
+    const Real tolerance = 1.0e-12;
+    std::vector<Real> shares;
+
+    // Up to detachment 30, below every loss, the first name in each order takes all 30. Each is first
+    // in as many orders, so they share equally, though one loses 80 and the others 60, up to
+    // detail::maxSameDayNamesToAverage names. Past that the names share in proportion to their losses.
+    for (Size names : {detail::maxSameDayNamesToAverage, detail::maxSameDayNamesToAverage + 1})
+    {
+        BOOST_TEST_CONTEXT(names << " names")
+        {
+            std::vector<Real> losses(names, 60.0);
+            losses[0] = 80.0;
+            detail::sameDayTrancheLosses(0.0, losses, 0.0, 30.0, shares);
+            const Real total = 80.0 + 60.0 * Real(names - 1);
+            for (Size i = 0; i < names; ++i)
+            {
+                const Real expected =
+                    names <= detail::maxSameDayNamesToAverage ? 30.0 / Real(names) : 30.0 * losses[i] / total;
+                BOOST_CHECK_SMALL(shares[i] - expected, tolerance);
+            }
+        }
+    }
+
+    // A name with no loss takes nothing, and leaves the others theirs: 80, 60 and 40 from 0 to 100,
+    // as in testRandomDefaultModelSplitOnTheSameDay. Nor does it count among the names.
+    BOOST_TEST_CONTEXT("a name with no loss")
+    {
+        detail::sameDayTrancheLosses(0.0, {80.0, 0.0, 60.0, 40.0}, 0.0, 100.0, shares);
+        const std::vector<Real> expected = {130.0 / 3.0, 0.0, 100.0 / 3.0, 70.0 / 3.0};
+        for (Size i = 0; i < expected.size(); ++i)
+            BOOST_CHECK_SMALL(shares[i] - expected[i], tolerance);
+
+        std::vector<Real> losses(detail::maxSameDayNamesToAverage, 60.0);
+        losses[0] = 80.0;
+        losses.push_back(0.0);
+        detail::sameDayTrancheLosses(0.0, losses, 0.0, 30.0, shares);
+        for (Size i = 0; i < detail::maxSameDayNamesToAverage; ++i)
+            BOOST_CHECK_SMALL(shares[i] - 30.0 / Real(detail::maxSameDayNamesToAverage), tolerance);
+        BOOST_CHECK_EQUAL(shares.back(), 0.0);
+    }
+
+    // Where the day's losses cross neither the attachment nor the detachment, each name's loss is in
+    // full in the tranche, or none of it is.
+    BOOST_TEST_CONTEXT("within the tranche")
+    {
+        detail::sameDayTrancheLosses(120.0, {80.0, 60.0, 40.0}, 100.0, 400.0, shares);
+        const std::vector<Real> expected = {80.0, 60.0, 40.0};
+        for (Size i = 0; i < expected.size(); ++i)
+            BOOST_CHECK_SMALL(shares[i] - expected[i], tolerance);
+        detail::sameDayTrancheLosses(400.0, {80.0, 60.0, 40.0}, 100.0, 400.0, shares);
+        for (Real share : shares)
+            BOOST_CHECK_EQUAL(share, 0.0);
     }
 }
 

@@ -52,6 +52,14 @@ namespace QuantLib
         void setupArguments(PricingEngine::arguments*) const override;
         /*! \warning see VanillaOption for notes on implied-volatility
                      calculation.
+
+            \warning the value inverted is AnalyticDoubleBarrierEngine's,
+                     which includes the rebate.  It need not be monotone in
+                     the volatility: a knock-out's often isn't, and a rebate
+                     can make a knock-in's fall before it rises.  Where it
+                     isn't, the solver may find no root bracketed between
+                     \p minVol and \p maxVol and throw, or return one of
+                     several.
         */
         Volatility impliedVolatility(Real price,
                                      const ext::shared_ptr<GeneralizedBlackScholesProcess>& process,

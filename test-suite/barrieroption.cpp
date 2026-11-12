@@ -2021,6 +2021,124 @@ BOOST_AUTO_TEST_CASE(testRebateWithNegativeRates)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testVannaVolgaLowVolatility)
+{
+    BOOST_TEST_MESSAGE("Testing Vanna/Volga barrier engine at low volatility...");
+
+    // The engine weights its smile adjustment by lambda, the probability at the ATM volatility that
+    // the barrier isn't touched, which has a term (B/S)^(2 mu / vol^2) N(y).  At low volatility,
+    // with the drift toward the barrier, the power overflows while N(y) underflows, though their
+    // product is finite.
+
+    const DayCounter dc = Actual365Fixed();
+    const Date today(10, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const auto exercise = ext::make_shared<EuropeanExercise>(today + 365);
+
+    const auto spot = ext::make_shared<SimpleQuote>(100.0);
+    const auto r = ext::make_shared<SimpleQuote>();
+    const auto q = ext::make_shared<SimpleQuote>();
+    const auto vol = ext::make_shared<SimpleQuote>();
+    const Handle<YieldTermStructure> rTS(flatRate(today, r, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, q, dc));
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot), qTS, rTS, Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+    // A flat smile: the three quotes share the volatility.
+    const Handle<DeltaVolQuote> atm(
+        ext::make_shared<DeltaVolQuote>(Handle<Quote>(vol), DeltaVolQuote::Fwd, 1.0, DeltaVolQuote::AtmDeltaNeutral));
+    const Handle<DeltaVolQuote> put25(
+        ext::make_shared<DeltaVolQuote>(-0.25, Handle<Quote>(vol), 1.0, DeltaVolQuote::Fwd));
+    const Handle<DeltaVolQuote> call25(
+        ext::make_shared<DeltaVolQuote>(0.25, Handle<Quote>(vol), 1.0, DeltaVolQuote::Fwd));
+
+    // On a flat smile the adjustment is 0, so a knock-out is AnalyticBarrierEngine's value, floored
+    // at 0 and capped at the vanilla, and a knock-in is the vanilla less that.  The forward is 105.13
+    // for r 5 % and 95.12 for q 5 %, so it crosses the barriers at 102 and 98.
+    const struct
+    {
+        Barrier::Type type;
+        Option::Type optionType;
+        Real barrier;
+        Rate r, q;
+        Volatility vol;
+    } cases[] = {
+        {Barrier::UpOut, Option::Call, 120.0, 0.05, 0.0, 0.006},
+        {Barrier::UpOut, Option::Call, 120.0, 0.05, 0.0, 0.005},
+        {Barrier::UpOut, Option::Call, 102.0, 0.05, 0.0, 0.003},
+        {Barrier::UpOut, Option::Call, 102.0, 0.05, 0.0, 0.001},
+        {Barrier::DownOut, Option::Put, 98.0, 0.0, 0.05, 0.001},
+        {Barrier::UpIn, Option::Call, 102.0, 0.05, 0.0, 0.001},
+        {Barrier::UpOut, Option::Call, 102.0, 0.05, 0.0, 0.0001},
+        {Barrier::DownIn, Option::Put, 98.0, 0.0, 0.05, 0.0001},
+    };
+
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.type << " " << c.optionType << " at 100, barrier " << c.barrier << ", r " << c.r << ", q "
+                                  << c.q << ", volatility " << c.vol)
+        {
+            r->setValue(c.r);
+            q->setValue(c.q);
+            vol->setValue(c.vol);
+            const auto payoff = ext::make_shared<PlainVanillaPayoff>(c.optionType, 100.0);
+            VanillaOption vanilla(payoff, exercise);
+            vanilla.setPricingEngine(ext::make_shared<AnalyticEuropeanEngine>(process));
+            const bool up = c.type == Barrier::UpOut || c.type == Barrier::UpIn;
+            BarrierOption knockOut(up ? Barrier::UpOut : Barrier::DownOut, c.barrier, 0.0, payoff, exercise);
+            knockOut.setPricingEngine(ext::make_shared<AnalyticBarrierEngine>(process));
+            const Real out = std::max(0.0, std::min(vanilla.NPV(), knockOut.NPV()));
+            const Real expected = c.type == Barrier::UpOut || c.type == Barrier::DownOut ? out : vanilla.NPV() - out;
+
+            for (bool adaptVanDelta : {false, true})
+            {
+                BarrierOption option(c.type, c.barrier, 0.0, payoff, exercise);
+                option.setPricingEngine(ext::make_shared<VannaVolgaBarrierEngine>(
+                    atm, put25, call25, Handle<Quote>(spot), rTS, qTS, adaptVanDelta, vanilla.NPV()));
+                BOOST_CHECK_SMALL(option.NPV() - expected, 1.0e-12);
+                const Real lambda = option.result<Real>("lambda");
+                BOOST_CHECK_MESSAGE(lambda >= 0.0 && lambda <= 1.0, "lambda " << lambda << " outside [0, 1]");
+            }
+        }
+    }
+
+    // lambda itself, against the engine's formula in 60-digit arithmetic on the same inputs: an up
+    // barrier with the drift up and a down barrier with the drift down, each at the forward, where
+    // lambda tends to 1/2.  At 0.27 % the product is of normal numbers; at 0.268 % N(y) comes out
+    // as 0 while the power is finite; below that the power overflows.  Through logarithms, the
+    // exponent 2 mu ln(B/S) / vol^2, 5,000 at 0.1 %, cancels against ln N(y), so lambda's rounding
+    // error scales with epsilon times the exponent, 1.1e-12 at 0.1 %.
+    const struct
+    {
+        bool up;
+        Volatility vol;
+        Real expected;
+    } lambdas[] = {
+        {true, 0.005, 0.48109732597574618},   {true, 0.0027, 0.48977458364508357},
+        {true, 0.00268, 0.48985021851101041}, {true, 0.0025, 0.49053103921877357},
+        {true, 0.001, 0.49621042770794782},   {false, 0.005, 0.47910756647333016},
+        {false, 0.0027, 0.48869822334144685}, {false, 0.00268, 0.48878181978734687},
+        {false, 0.0025, 0.48953430595915891}, {false, 0.001, 0.49581152532636219},
+    };
+    for (const auto& c : lambdas)
+    {
+        BOOST_TEST_CONTEXT((c.up ? "up" : "down") << "-and-out at the forward, volatility " << c.vol)
+        {
+            r->setValue(c.up ? 0.05 : 0.0);
+            q->setValue(c.up ? 0.0 : 0.05);
+            vol->setValue(c.vol);
+            // 100 exp(0.05) and 100 exp(-0.05), as doubles
+            const Real barrier = c.up ? 105.12710963760242 : 95.1229424500714;
+            BarrierOption option(c.up ? Barrier::UpOut : Barrier::DownOut, barrier, 0.0,
+                                 ext::make_shared<PlainVanillaPayoff>(c.up ? Option::Call : Option::Put, 100.0),
+                                 exercise);
+            option.setPricingEngine(
+                ext::make_shared<VannaVolgaBarrierEngine>(atm, put25, call25, Handle<Quote>(spot), rTS, qTS));
+            option.NPV();
+            BOOST_CHECK_SMALL(option.result<Real>("lambda") - c.expected, 1.0e-11);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
