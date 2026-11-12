@@ -513,6 +513,152 @@ BOOST_AUTO_TEST_CASE(testKnockedInDoubleKnockIn)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testRebate)
+{
+    BOOST_TEST_MESSAGE("Testing the rebate of cash-or-nothing double barrier options...");
+
+    // The engine never read the rebate, so it dropped out of the value (#220).  It's paid where
+    // BinomialDoubleBarrierEngine pays it: a knock-out's at the first touch of either barrier, a knock-in's at expiry
+    // if neither barrier is touched, a KIKO's at a touch of the upper barrier before the lower and a KOKI's at a touch
+    // of the lower barrier before the upper, or either's at expiry if neither is touched.
+    const Date today(12, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Date expiry = today + 365;
+    const Real cash = 10.0, rebate = 5.0;
+
+    const auto spot = ext::make_shared<SimpleQuote>(100.0);
+    const auto r = ext::make_shared<SimpleQuote>(0.05), q = ext::make_shared<SimpleQuote>(0.0),
+               vol = ext::make_shared<SimpleQuote>(0.2);
+    const auto engine = ext::make_shared<AnalyticDoubleBarrierBinaryEngine>(ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot), Handle<YieldTermStructure>(flatRate(today, q, dc)),
+        Handle<YieldTermStructure>(flatRate(today, r, dc)), Handle<BlackVolTermStructure>(flatVol(today, vol, dc))));
+    const auto payoff = ext::make_shared<CashOrNothingPayoff>(Option::Call, 0.0, cash);
+    const ext::shared_ptr<Exercise> european = ext::make_shared<EuropeanExercise>(expiry);
+    const ext::shared_ptr<Exercise> american = ext::make_shared<AmericanExercise>(today, expiry);
+    const auto price = [&](DoubleBarrier::Type type, Real lo, Real hi, Real optionRebate)
+    {
+        const bool atHit = type == DoubleBarrier::KIKO || type == DoubleBarrier::KOKI;
+        DoubleBarrierOption option(type, lo, hi, optionRebate, payoff, atHit ? american : european);
+        option.setPricingEngine(engine);
+        return option.NPV();
+    };
+    const auto rebatePart = [&](DoubleBarrier::Type type, Real lo, Real hi)
+    { return price(type, lo, hi, rebate) - price(type, lo, hi, 0.0); };
+
+    // The rebate's part of the value against a Crank-Nicolson solution of each option's boundary problem, with 4,000
+    // and 8,000 points and steps, extrapolated; the engine's parts agree with it to 1e-8.  The lattice can't check them
+    // as closely: at 2,000 steps its parts are 7e-4 off for knock-outs and knock-ins with Derman and Kani's adjustment,
+    // which doesn't take KIKO and KOKI options, and 3e-3 to 3e-2 off for those without it.
+    struct Case
+    {
+        DoubleBarrier::Type type;
+        Real lo, hi;
+        Rate r, q;
+        Volatility v;
+        Real expected;
+    };
+    const Case cases[] = {// the issue's market
+                          {DoubleBarrier::KnockOut, 80.0, 120.0, 0.05, 0.0, 0.2, 3.0721899075},
+                          {DoubleBarrier::KnockIn, 80.0, 120.0, 0.05, 0.0, 0.2, 1.7577594184},
+                          {DoubleBarrier::KIKO, 80.0, 120.0, 0.05, 0.0, 0.2, 3.7619813980},
+                          {DoubleBarrier::KOKI, 80.0, 120.0, 0.05, 0.0, 0.2, 2.8257273464},
+                          {DoubleBarrier::KnockOut, 90.0, 125.0, 0.05, 0.0, 0.2, 4.0253509788},
+                          {DoubleBarrier::KnockIn, 90.0, 125.0, 0.05, 0.0, 0.2, 0.8505895315},
+                          {DoubleBarrier::KIKO, 90.0, 125.0, 0.05, 0.0, 0.2, 2.1921648438},
+                          {DoubleBarrier::KOKI, 90.0, 125.0, 0.05, 0.0, 0.2, 3.5343651980},
+                          // Hui's series
+                          {DoubleBarrier::KnockOut, 80.0, 120.0, 0.05, 0.0, 0.6, 4.9716737190},
+                          {DoubleBarrier::KnockIn, 80.0, 120.0, 0.05, 0.0, 0.6, 0.0001193850},
+                          {DoubleBarrier::KIKO, 80.0, 120.0, 0.05, 0.0, 0.6, 2.5564791745},
+                          {DoubleBarrier::KOKI, 80.0, 120.0, 0.05, 0.0, 0.6, 2.4154333144},
+                          // rho^2 = mu^2 + 2 r vol^2 < 0
+                          {DoubleBarrier::KnockOut, 80.0, 120.0, -0.03, -0.03, 0.2, 3.1459525905},
+                          {DoubleBarrier::KnockIn, 80.0, 120.0, -0.03, -0.03, 0.2, 1.9610894192},
+                          {DoubleBarrier::KIKO, 80.0, 120.0, -0.03, -0.03, 0.2, 3.6260903188},
+                          {DoubleBarrier::KOKI, 80.0, 120.0, -0.03, -0.03, 0.2, 3.4420411102},
+                          // low volatility, by images
+                          {DoubleBarrier::KnockOut, 80.0, 120.0, 0.08, 0.04, 0.05, 0.0160242925},
+                          {DoubleBarrier::KnockIn, 80.0, 120.0, 0.08, 0.04, 0.05, 4.5997052512},
+                          {DoubleBarrier::KIKO, 80.0, 120.0, 0.08, 0.04, 0.05, 4.6157286460},
+                          {DoubleBarrier::KOKI, 80.0, 120.0, 0.08, 0.04, 0.05, 4.5997061489}};
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.type << " between " << c.lo << " and " << c.hi << ", r " << c.r << ", q " << c.q
+                                  << ", volatility " << c.v)
+        {
+            r->setValue(c.r);
+            q->setValue(c.q);
+            vol->setValue(c.v);
+            BOOST_CHECK_SMALL(rebatePart(c.type, c.lo, c.hi) - c.expected, 1.0e-7);
+        }
+    }
+
+    // At r = 0 nothing is discounted, and either a barrier is touched by expiry or neither is, so a knock-out's rebate
+    // and a knock-in's add up to the rebate.
+    r->setValue(0.0);
+    for (Rate dividend : {-0.02, 0.0, 0.04})
+    {
+        for (Volatility v : {0.05, 0.3, 0.6})
+        {
+            BOOST_TEST_CONTEXT("r 0, q " << dividend << ", volatility " << v)
+            {
+                q->setValue(dividend);
+                vol->setValue(v);
+                BOOST_CHECK_SMALL(rebatePart(DoubleBarrier::KnockOut, 80.0, 120.0) +
+                                      rebatePart(DoubleBarrier::KnockIn, 80.0, 120.0) - rebate,
+                                  1.0e-13);
+            }
+        }
+    }
+
+    // With the spot at or past a barrier, an option knocked out there is worth its rebate, paid at once, and one
+    // knocked in has none: a knock-in pays its cash at expiry, a KIKO or a KOKI at once.
+    r->setValue(0.05);
+    q->setValue(0.0);
+    vol->setValue(0.2);
+    const Real discountedCash = cash * std::exp(-0.05);
+    for (Real s : {75.0, 80.0, 120.0, 125.0})
+    {
+        BOOST_TEST_CONTEXT("spot " << s)
+        {
+            spot->setValue(s);
+            const bool below = s <= 80.0;
+            BOOST_CHECK_SMALL(price(DoubleBarrier::KnockOut, 80.0, 120.0, rebate) - rebate, 1.0e-14);
+            BOOST_CHECK_SMALL(price(DoubleBarrier::KnockIn, 80.0, 120.0, rebate) - discountedCash, 1.0e-14);
+            BOOST_CHECK_SMALL(price(DoubleBarrier::KIKO, 80.0, 120.0, rebate) - (below ? cash : rebate), 1.0e-14);
+            BOOST_CHECK_SMALL(price(DoubleBarrier::KOKI, 80.0, 120.0, rebate) - (below ? rebate : cash), 1.0e-14);
+        }
+    }
+
+    // At zero volatility the underlying follows its forward.  With q at 0 it stays inside, so a knock-out's rebate
+    // isn't paid and the others' are paid at expiry.  With q at 30% it reaches the lower barrier at
+    // t = ln(100 / 80) / 0.25, where a knock-out and a KOKI are paid theirs, and a knock-in and a KIKO, knocked in
+    // there, have none.
+    spot->setValue(100.0);
+    vol->setValue(0.0);
+    const Real atExpiry = rebate * std::exp(-0.05), atTouch = rebate * std::exp(-0.05 * std::log(1.25) / 0.25);
+    struct ZeroVolatilityCase
+    {
+        Rate q;
+        DoubleBarrier::Type type;
+        Real expected;
+    };
+    const ZeroVolatilityCase zeroVolatility[] = {
+        {0.0, DoubleBarrier::KnockOut, 0.0},     {0.0, DoubleBarrier::KnockIn, atExpiry},
+        {0.0, DoubleBarrier::KIKO, atExpiry},    {0.0, DoubleBarrier::KOKI, atExpiry},
+        {0.3, DoubleBarrier::KnockOut, atTouch}, {0.3, DoubleBarrier::KnockIn, 0.0},
+        {0.3, DoubleBarrier::KIKO, 0.0},         {0.3, DoubleBarrier::KOKI, atTouch}};
+    for (const auto& c : zeroVolatility)
+    {
+        BOOST_TEST_CONTEXT(c.type << " at zero volatility, q " << c.q)
+        {
+            q->setValue(c.q);
+            BOOST_CHECK_SMALL(rebatePart(c.type, 80.0, 120.0) - c.expected, 1.0e-13);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
