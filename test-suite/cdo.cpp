@@ -37,6 +37,7 @@
 #include <ql/experimental/credit/recursivelossmodel.hpp>
 #include <ql/experimental/credit/saddlepointlossmodel.hpp>
 #include <ql/experimental/credit/spotlosslatentmodel.hpp>
+#include <ql/math/integrals/gaussianquadratures.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/termstructures/credit/flathazardrate.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
@@ -2548,6 +2549,57 @@ BOOST_AUTO_TEST_CASE(testSpotRecoveryAtADate)
                 const Probability p = names.curves[i]->defaultProbability(today + 1, true);
                 BOOST_CHECK_EQUAL(spot->conditionalRecovery(y, i, today + 1),
                                   spot->conditionalRecoveryAtDefault(y, i, spot->inverseCumulativeY(p, i)));
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testSpotRecoveryMeanGivenADefault)
+{
+    BOOST_TEST_MESSAGE("Testing the spot recovery model's mean recovery given a default...");
+
+    // Li's spot recovery (eq. 42) keeps a name's mean recovery given a default at its expected recovery Rbar,
+    // whatever the default's latent value x, on the Gaussian copula: given X = x, the recovery variable Y is normal
+    // with mean rho x and variance 1 - rho^2, rho being the correlation of X and Y, the sum over the factors of the
+    // two loadings' products. That keeps the single-name loss p (1 - Rbar) on RandomLossLM's paths. Before #253 the
+    // model took sqrt(sum_k bd_k^2 bl_k^2) for rho, the correlation only with one factor whose loadings have one
+    // sign: given a default at x = -3, the mean came out at 0.357 on two factors at 0.15 each, 0.449 on the loadings
+    // that differ, and 0.600 on loadings of opposite signs. InverseCumulativeNormal is good to about 1e-9, which sets
+    // the tolerance; the rule's own error is below 1e-15 here.
+    struct Case
+    {
+        const char* description;
+        std::vector<Real> defaultLoadings, recoveryLoadings;
+    };
+    const std::vector<Case> cases = {
+        {"one factor", {std::sqrt(0.3)}, {std::sqrt(0.3)}},
+        {"two factors", {std::sqrt(0.15), std::sqrt(0.15)}, {std::sqrt(0.15), std::sqrt(0.15)}},
+        {"two factors, loadings that differ", {0.5, 0.2}, {0.3, -0.4}},
+        {"one factor, loadings of opposite signs", {0.5}, {-0.4}}};
+    const Real recovery = 0.4;
+    const GaussHermiteIntegration hermite(64);
+    for (const auto& c : cases)
+    {
+        const GaussianSpotLossLM model({c.defaultLoadings, c.recoveryLoadings}, {recovery}, 2.2,
+                                       LatentModelIntegrationType::GaussianQuadrature,
+                                       GaussianCopulaPolicy::initTraits());
+        const Real rho = std::inner_product(c.defaultLoadings.begin(), c.defaultLoadings.end(),
+                                            c.recoveryLoadings.begin(), Real(0.0));
+        for (Real x : {-3.0, -1.5, 0.0, 1.0})
+        {
+            BOOST_TEST_CONTEXT(c.description << ", a default at a latent value of " << x)
+            {
+                // the recovery's mean over Y = rho x + sqrt(1 - rho^2) Z, Z standard normal, Z = sqrt(2) t; the
+                // rule integrates f over the line, from nodes and weights for exp(-t^2)
+                const Real mean = hermite(
+                                      [&](Real t)
+                                      {
+                                          return model.conditionalRecoveryAtDefault(
+                                                     rho * x + std::sqrt(1.0 - rho * rho) * M_SQRT2 * t, 0, x) *
+                                                 std::exp(-t * t);
+                                      }) /
+                                  M_SQRTPI;
+                BOOST_CHECK_SMALL(mean - recovery, 1.0e-9);
             }
         }
     }

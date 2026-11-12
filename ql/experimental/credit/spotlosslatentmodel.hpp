@@ -53,7 +53,8 @@ namespace QuantLib
       private:
         const std::vector<Real> recoveries_;
         const Real modelA_;
-        // products of default and recoveries factors, see refs ('covariances')
+        // the correlation of each name's default and recovery variables,
+        // sum_k beta^d_ik beta^l_ik, Li's rho_d rho_l (#253)
         std::vector<Real> crossIdiosyncFctrs_;
         mutable Size numNames_;
         mutable ext::shared_ptr<Basket> basket_;
@@ -227,10 +228,10 @@ namespace QuantLib
         const Real sumMs = std::inner_product(fctrs_[iName].begin(), fctrs_[iName].end(), mktFactors.begin(), Real(0.));
         const Real sumBetaLoss = std::inner_product(fctrs_[iName + numNames_].begin(), fctrs_[iName + numNames_].end(),
                                                     fctrs_[iName + numNames_].begin(), Real(0.));
-        return this->cumulativeZ(
-            (sumMs + std::sqrt(1. - crossIdiosyncFctrs_[iName]) * std::sqrt(1. + modelA_ * modelA_) * invUncondRR -
-             std::sqrt(crossIdiosyncFctrs_[iName]) * invUncondDefP) /
-            std::sqrt(1. - sumBetaLoss + modelA_ * modelA_ * (1. - crossIdiosyncFctrs_[iName])));
+        const Real rho = crossIdiosyncFctrs_[iName];
+        return this->cumulativeZ((sumMs + std::sqrt(1. - rho * rho) * std::sqrt(1. + modelA_ * modelA_) * invUncondRR -
+                                  rho * invUncondDefP) /
+                                 std::sqrt(1. - sumBetaLoss + modelA_ * modelA_ * (1. - rho * rho)));
     }
 
     template <class CP>
@@ -255,8 +256,8 @@ namespace QuantLib
                                                                    Real latentDefaultVarSample) const
     {
         Size iRecovery = iName + numNames_; // should be live pool
-        return cumulativeY((latentVarSample - std::sqrt(crossIdiosyncFctrs_[iName]) * latentDefaultVarSample) /
-                                   (modelA_ * std::sqrt(1. - crossIdiosyncFctrs_[iName]))
+        const Real rho = crossIdiosyncFctrs_[iName];
+        return cumulativeY((latentVarSample - rho * latentDefaultVarSample) / (modelA_ * std::sqrt(1. - rho * rho))
                                // cache the sqrts
                                // cache this factor.
                                + std::sqrt(1. + 1. / (modelA_ * modelA_)) *
@@ -328,16 +329,21 @@ namespace QuantLib
 
         // reminder: first betas are default, last ones are recovery
         for (Size iName = 0; iName < numNames_; iName++) /// USE STL
-        /* Corresponds to: (k denotes factor, i denotes modelled
-            variable -default and recoveries))
-            \sum_k a^2_{i,k} a^2_{N+i,k}
+        /* The correlation of the default and recovery variables (k denotes
+            factor, i denotes modelled variable -default and recoveries):
+            \sum_k a_{i,k} a_{N+i,k}
+            Given a default at X = x, (Y - rho x) / sqrt(1 - rho^2) is then
+            standard normal on the Gaussian copula, which keeps the mean
+            recovery given a default at the name's. Until #253 this was
+            \sum_k a^2_{i,k} a^2_{N+i,k}, whose root the formulas took: the
+            correlation with one factor whose loadings have one sign, but
+            less with several factors, and positive where it's negative.
         */
         {
             Real cumul = Real(0.);
             for (Size iB = 0; iB < factorWeights[iName].size(); iB++)
                 // actually this size is unique
-                cumul += factorWeights[iName][iB] * factorWeights[iName][iB] * factorWeights[iName + numNames_][iB] *
-                         factorWeights[iName + numNames_][iB];
+                cumul += factorWeights[iName][iB] * factorWeights[iName + numNames_][iB];
             crossIdiosyncFctrs_.push_back(cumul);
         }
     }
