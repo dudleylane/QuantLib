@@ -794,9 +794,11 @@ BOOST_AUTO_TEST_CASE(testRandomDefaultModelUpToToday)
     // far and 0 above, and each name's of being the nth is 0. On older curves the paths have
     // defaults before today, and since #232 the statistics count them. Before #207 the model threw
     // at any of these dates ("Date for statistic must be in the future.") and gave these values
-    // only from the day after today. A rank above the basket's eight names still throws. The
-    // probabilities of being the nth come one per name in the pool, the defaulted one's included;
-    // before #233, once the defaults so far reached n, they came one per name left, seven here.
+    // only from the day after today. The probabilities of being the nth come one per name in the
+    // pool, the defaulted one's included; before #233, once the defaults so far reached n, they
+    // came one per name left, seven here. At a rank above the eight names they're 0, here and at a
+    // date the paths have defaults by, as the probability of at least that many defaults is;
+    // before #251 that rank threw where no name had defaulted, and gave 0s after one default.
     const Date today(1, November, 2006);
     Settings::instance().evaluationDate() = today;
     for (OneName oneName : {OneName::alive, OneName::defaulted})
@@ -817,8 +819,17 @@ BOOST_AUTO_TEST_CASE(testRandomDefaultModelUpToToday)
                         BOOST_CHECK_EQUAL(p, 0.0);
                 }
             }
-            if (soFar == 0)
-                BOOST_CHECK_THROW(basket->probsBeingNthEvent(9, d), Error);
+        }
+        for (const Date& d : {today, Date(1, September, 2011)})
+        {
+            BOOST_TEST_CONTEXT(soFar << " defaults so far, at " << d << ", n = 9")
+            {
+                BOOST_CHECK_EQUAL(basket->probAtLeastNEvents(9, d), 0.0);
+                const std::vector<Probability> nth = basket->probsBeingNthEvent(9, d);
+                BOOST_CHECK_EQUAL(nth.size(), 8U);
+                for (Probability p : nth)
+                    BOOST_CHECK_EQUAL(p, 0.0);
+            }
         }
     }
 }

@@ -305,7 +305,8 @@ namespace QuantLib
         names defaulting on the same day, each takes an equal share of the
         path, and the entries add up to probAtLeastNEvents(n, d), so they're
         all 0 on or before the earliest reference date of the default curves
-        of the names left.
+        of the names left, and for n above the names left. Before #251 a
+        rank above the pool's names threw where none had defaulted.
         Notice that this statistic suffers from heavy dispersion. To see
         techniques to improve it (not implemented here) see:
         Joshi, M., D. Kainth. 2004. Rapid and accurate development of prices
@@ -465,14 +466,12 @@ namespace QuantLib
     template <template <class, class> class D, class C, class URNG>
     std::vector<Probability> RandomLM<D, C, URNG>::probsBeingNthEvent(Size n, const Date& d) const
     {
+        QL_REQUIRE(n >= 1, "the rank of a default has to be at least 1");
         calculate();
-        Size basketSize = basket_->size();
-
-        QL_REQUIRE(n > 0 && n <= basketSize, "Impossible number of defaults.");
-
-        // the paths' days count from origin_ (#232): no default on or before it (#207)
-        if (d <= origin_)
-            return std::vector<Probability>(basketSize, 0.);
+        // no nth default among fewer names left (#251), and the paths' days count from origin_ (#232): no default
+        // on or before it (#207)
+        if (n > basket_->liveList().size() || d <= origin_)
+            return std::vector<Probability>(basket_->size(), 0.);
         // casted to natural to avoid warning, d being after origin_
         return nthEventShares(n, 0, d.serialNumber() - origin_.serialNumber());
         // \todo Provide confidence interval
