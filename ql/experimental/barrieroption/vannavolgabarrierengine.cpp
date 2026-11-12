@@ -166,6 +166,7 @@ namespace QuantLib
             // set up BS barrier option pricing
             // only calculate out barrier option price
             //  in barrier price = vanilla - out barrier
+            // The rebate is left out here, so that this parity and the caps below hold, and added at the end.
             Barrier::Type barrierType;
             if (arguments_.barrierType == Barrier::UpOut)
                 barrierType = arguments_.barrierType;
@@ -176,7 +177,7 @@ namespace QuantLib
             else
                 barrierType = Barrier::DownOut;
 
-            BarrierOption barrierOption(barrierType, arguments_.barrier, arguments_.rebate,
+            BarrierOption barrierOption(barrierType, arguments_.barrier, 0.0,
                                         ext::dynamic_pointer_cast<StrikedTypePayoff>(arguments_.payoff),
                                         arguments_.exercise);
 
@@ -184,6 +185,20 @@ namespace QuantLib
 
             // BS price with atm vol
             Real priceBS = barrierOption.NPV();
+
+            // The rebate, at the ATM volatility to the exercise date, as AnalyticBarrierEngine values it: paid at the
+            // touch for a knock-out, and at expiry if the barrier isn't touched for a knock-in.  It's the option's own
+            // type priced with the rebate less without, taken here while the quotes are still the ATM ones.
+            Real rebate = 0.0;
+            if (arguments_.rebate != 0.0)
+            {
+                BarrierOption with(arguments_.barrierType, arguments_.barrier, arguments_.rebate, payoff,
+                                   arguments_.exercise);
+                BarrierOption without(arguments_.barrierType, arguments_.barrier, 0.0, payoff, arguments_.exercise);
+                with.setPricingEngine(engineBS);
+                without.setPricingEngine(engineBS);
+                rebate = with.NPV() - without.NPV();
+            }
             Real price25CallBS = blackFormula(Option::Call, call25Strike, forward, atmVol_->value() * sqrt(T_),
                                               domesticTS_->discount(T_));
             Real price25PutBS =
@@ -359,9 +374,12 @@ namespace QuantLib
                 results_.value = outPrice;
             else
                 results_.value = inPrice;
+            if (rebate != 0.0)
+                results_.value += rebate;
             results_.additionalResults["VanillaPrice"] = vanillaOption;
             results_.additionalResults["BarrierInPrice"] = inPrice;
             results_.additionalResults["BarrierOutPrice"] = outPrice;
+            results_.additionalResults["RebatePrice"] = rebate;
             results_.additionalResults["lambda"] = lambda;
         }
     }

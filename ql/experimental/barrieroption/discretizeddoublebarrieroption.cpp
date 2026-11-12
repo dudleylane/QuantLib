@@ -193,6 +193,9 @@ namespace QuantLib
         Real barrier_lo = unenhanced_.arguments().barrier_lo;
         Real barrier_hi = unenhanced_.arguments().barrier_hi;
         Real rebate = unenhanced_.arguments().rebate;
+        // The value next to the barrier is interpolated between the value on it, the rebate for a knock-out and the
+        // vanilla for a knock-in, and the value the plain lattice gives there.  It isn't floored at 0, so that a
+        // negative rebate is paid (#241).
         switch (unenhanced_.arguments().barrierType)
         {
             case DoubleBarrier::KnockIn:
@@ -207,7 +210,7 @@ namespace QuantLib
                         Real htol = (grid[j + 1] - grid[j]);
                         Real u1 = unenhanced_.values()[j + 1];
                         Real t1 = unenhanced_.vanilla()[j + 1];
-                        optvalues[j + 1] = std::max(0.0, (ltob * t1 + htob * u1) / htol); // derman std
+                        optvalues[j + 1] = (ltob * t1 + htob * u1) / htol; // derman std
                     }
                     else if (grid[j] < barrier_hi && grid[j + 1] >= barrier_hi)
                     {
@@ -218,7 +221,7 @@ namespace QuantLib
                         Real htol = (grid[j + 1] - grid[j]);
                         Real u = unenhanced_.values()[j];
                         Real t = unenhanced_.vanilla()[j];
-                        optvalues[j] = std::max(0.0, (ltob * u + htob * t) / htol); // derman std
+                        optvalues[j] = (ltob * u + htob * t) / htol; // derman std
                     }
                 }
                 break;
@@ -232,7 +235,7 @@ namespace QuantLib
                         Real a = (barrier_lo - grid[j]) * rebate;
                         Real b = (grid[j + 1] - barrier_lo) * unenhanced_.values()[j + 1];
                         Real c = (grid[j + 1] - grid[j]);
-                        optvalues[j + 1] = std::max(0.0, (a + b) / c);
+                        optvalues[j + 1] = (a + b) / c;
                     }
                     else if (grid[j] < barrier_hi && grid[j + 1] >= barrier_hi)
                     {
@@ -241,7 +244,7 @@ namespace QuantLib
                         Real a = (barrier_hi - grid[j]) * unenhanced_.values()[j];
                         Real b = (grid[j + 1] - barrier_hi) * rebate;
                         Real c = (grid[j + 1] - grid[j]);
-                        optvalues[j] = std::max(0.0, (a + b) / c);
+                        optvalues[j] = (a + b) / c;
                     }
                 }
                 break;

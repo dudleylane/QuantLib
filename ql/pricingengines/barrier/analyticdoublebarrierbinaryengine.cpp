@@ -357,8 +357,8 @@ namespace QuantLib
             case DoubleBarrier::KnockOut:
                 if (spot <= barrier_lo || spot >= barrier_hi)
                 {
-                    // knocked out, no value
-                    results_.value = 0;
+                    // knocked out, pays the rebate at once
+                    results_.value = arguments_.rebate;
                     results_.delta = 0;
                     results_.gamma = 0;
                     results_.vega = 0;
@@ -384,8 +384,8 @@ namespace QuantLib
             case DoubleBarrier::KIKO:
                 if (spot >= barrier_hi)
                 {
-                    // knocked out, no value
-                    results_.value = 0;
+                    // knocked out, pays the rebate at once
+                    results_.value = arguments_.rebate;
                     results_.delta = 0;
                     results_.gamma = 0;
                     results_.vega = 0;
@@ -407,8 +407,8 @@ namespace QuantLib
             case DoubleBarrier::KOKI:
                 if (spot <= barrier_lo)
                 {
-                    // knocked out, no value
-                    results_.value = 0;
+                    // knocked out, pays the rebate at once
+                    results_.value = arguments_.rebate;
                     results_.delta = 0;
                     results_.gamma = 0;
                     results_.vega = 0;
@@ -451,6 +451,12 @@ namespace QuantLib
                 // accuracy.  With the spot at 100, barriers at 80 and 120, r at 5% and 2% volatility a year from
                 // expiry, the knock-in is worth about 2.6e-11 of the cash.
                 results_.value = cash * discount * (barrierType == DoubleBarrier::KnockOut ? noTouch : 1.0 - noTouch);
+                // The rebate: a knock-out's at the first touch of either barrier, a knock-in's at expiry if neither
+                // barrier is touched.
+                if (arguments_.rebate != 0.0)
+                    results_.value +=
+                        detail::doubleBarrierRebate(barrierType, arguments_.rebate, spot, barrier_lo, barrier_hi, r,
+                                                    r - q, residualTime, variance, discount);
                 break;
             }
 
@@ -471,6 +477,21 @@ namespace QuantLib
                 {
                     results_.value = std::max(
                         cash * binaryLowerHit(distance, Z, reflected ? -mu : mu, r, residualTime, variance), 0.0);
+                }
+                // The rebate, paid at a touch of the knock-out barrier before the knock-in one, which is what the
+                // mirror option pays at a hit, or at expiry if neither barrier is touched.
+                if (arguments_.rebate != 0.0)
+                {
+                    const Real outDistance = reflected ? x : std::log(barrier_hi / spot);
+                    const Real atTouch =
+                        variance < QL_EPSILON ?
+                            binaryLowerHitAtZeroVariance(outDistance, reflected ? r - q : q - r, r, residualTime) :
+                            std::max(binaryLowerHit(outDistance, Z, reflected ? mu : -mu, r, residualTime, variance),
+                                     0.0);
+                    const DiscountFactor discount = process_->riskFreeRate()->discount(arguments_.exercise->lastDate());
+                    const Real noTouch = detail::doubleBarrierNoTouchProbability(spot, barrier_lo, barrier_hi, r - q,
+                                                                                 residualTime, variance);
+                    results_.value += arguments_.rebate * atTouch + arguments_.rebate * discount * noTouch;
                 }
                 break;
             }

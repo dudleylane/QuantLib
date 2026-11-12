@@ -130,6 +130,10 @@ no longer checks them, and no CI job builds any of them.
 | #225 | `ql/experimental/forward/analytichestonforwardeuropeanengine.cpp` | The analytic Heston forward-start engine integrates P1 and P2 out to where they decay, where it cut them at phi = 100 and priced resets near expiry up to 43 % low; at rho = -1 or 1 it throws at the forward and on one side of it, where the integrand doesn't decay (#238) |
 | #224 | `ql/experimental/forward/analytichestonforwardeuropeanengine.cpp` | The analytic Heston forward-start engine integrates the variance's density where the Feller condition fails, where it was up to 14.8 % off |
 | #223, #237 | `ql/experimental/forward/analytichestonforwardeuropeanengine.cpp` | The analytic Heston forward-start engine prices at v0 = 0, at kappa - rho sigma = 0, at a vol of vol at or below 0.1, at long resets where the density's Bessel function underflowed, and resets within hours through its integral, where it returned NaN or 0, threw, or priced a vanilla option; it refuses the band of resets where the density still underflows (#237) |
+| #221 | `ql/experimental/barrieroption/vannavolgabarrierengine.cpp` | The Vanna-Volga barrier engine adds the rebate at the ATM volatility outside its smile adjustment, where a knock-in lost it and the cap clipped a knock-out's |
+| #220 | `ql/pricingengines/barrier/analyticdoublebarrierbinaryengine.cpp` | The double-barrier binary engine pays the rebate, where it left it out, for all four barrier types |
+| #222 | `ql/experimental/barrieroption/vannavolgainterpolation.hpp` | The Vanna-Volga interpolation's update() no longer keeps the old quotes' premia, and it says why it can't interpolate rather than returning NaN |
+| #241 | `ql/pricingengines/barrier/analyticbarrierengine.cpp`, `ql/pricingengines/barrier/discretizedbarrieroption.cpp`, `ql/experimental/barrieroption/discretizeddoublebarrieroption.cpp` | The analytic barrier engine and the Derman-Kani lattices pay a negative rebate, where the one dropped it and the other floored it at 0 |
 
 ### New in this fork
 

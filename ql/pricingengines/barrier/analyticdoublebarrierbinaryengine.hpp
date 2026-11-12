@@ -41,6 +41,15 @@ namespace QuantLib
         This engine thus requires European esercise for Double Knock options,
         and American exercise for KIKO/KOKI.
 
+        A rebate is paid where BinomialDoubleBarrierEngine pays it: a Double
+        Knock Out's at the first touch of either barrier, a Double Knock In's
+        at expiry if neither barrier is touched, a KIKO's at a touch of the
+        upper barrier before the lower, and a KOKI's at a touch of the lower
+        barrier before the upper, or either's at expiry if neither barrier is
+        touched.  With the spot already at or past a barrier, an option
+        knocked out there is worth its rebate, paid at once, and one knocked
+        in has none.
+
         Hui's series converge ever more slowly as the volatility falls, and
         their terms grow while the value doesn't. So where the volatility to
         expiry, vol sqrt(T), is at most half of ln(U/L) for Double Knock
