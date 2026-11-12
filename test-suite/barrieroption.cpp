@@ -25,6 +25,7 @@
 #include "utilities.hpp"
 #include <ql/experimental/barrieroption/perturbativebarrieroptionengine.hpp>
 #include <ql/experimental/barrieroption/vannavolgabarrierengine.hpp>
+#include <ql/experimental/barrieroption/vannavolgainterpolation.hpp>
 #include <ql/instruments/barrieroption.hpp>
 #include <ql/instruments/europeanoption.hpp>
 #include <ql/math/interpolations/bicubicsplineinterpolation.hpp>
@@ -2236,6 +2237,65 @@ BOOST_AUTO_TEST_CASE(testVannaVolgaRebate)
             }
         }
     }
+}
+
+
+BOOST_AUTO_TEST_CASE(testVannaVolgaInterpolation)
+{
+    BOOST_TEST_MESSAGE("Testing the Vanna/Volga interpolation's update and preconditions...");
+
+    // update() appended the premia and vegas at the quotes without clearing them, and value() read the first three,
+    // so after a second update() it paired the new ATM volatility with the first update's premia and vegas (#222).
+    // Both engines build a new interpolation for each price, so they weren't affected.
+    const Real spot = 100.0;
+    const Time T = 1.0;
+    const VannaVolga vannaVolga(spot, std::exp(-0.05), 1.0, T);
+    const std::vector<Real> strikes = {90.0, 105.0, 120.0};
+    std::vector<Real> vols = {0.25, 0.20, 0.22};
+    Interpolation updated = vannaVolga.interpolate(strikes.begin(), strikes.end(), vols.begin());
+    vols[0] = 0.35;
+    vols[1] = 0.30;
+    vols[2] = 0.32;
+    updated.update();
+    const Interpolation fresh = vannaVolga.interpolate(strikes.begin(), strikes.end(), vols.begin());
+    for (Real k : {100.0, 110.0})
+    {
+        BOOST_TEST_CONTEXT("strike " << k)
+        {
+            BOOST_CHECK_EQUAL(updated(k), fresh(k));
+        }
+    }
+
+    // value() weights each quote by the vega at the ATM volatility, and divides by the logs of the strikes' ratios.
+    // At a zero ATM volatility, with two equal strikes, or with a strike so far from the forward that the vega there
+    // underflows, it divided 0 by 0, and the implied volatility threw "option price (nan) must be non-negative".  The
+    // interpolation now says why, when it's built.
+    const VannaVolga atForward(spot, 1.0, 1.0, T);
+    const auto valueAt100 = [&](const std::vector<Real>& k, const std::vector<Real>& v)
+    { return atForward.interpolate(k.begin(), k.end(), v.begin())(100.0); };
+    const auto saying = [](const std::string& text)
+    { return [text](const Error& e) { return std::string(e.what()).find(text) != std::string::npos; }; };
+    BOOST_CHECK_EXCEPTION(valueAt100({95.0, 100.0, 105.0}, {0.2, 0.0, 0.2}), Error, saying("positive ATM volatility"));
+    BOOST_CHECK_EXCEPTION(valueAt100({95.0, 95.0, 105.0}, {0.2, 0.2, 0.2}), Error, saying("three distinct strikes"));
+    // 99.5 is 50 ATM standard deviations from the forward
+    BOOST_CHECK_EXCEPTION(valueAt100({99.5, 100.0, 100.5}, {0.0101, 0.0001, 0.0101}), Error,
+                          saying("ATM standard deviations"));
+
+    // Through the engine, at a zero ATM volatility on a flat smile.
+    const Date today(10, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<Quote> zero(ext::make_shared<SimpleQuote>(0.0));
+    const Handle<DeltaVolQuote> atm(
+        ext::make_shared<DeltaVolQuote>(zero, DeltaVolQuote::Fwd, 1.0, DeltaVolQuote::AtmDeltaNeutral));
+    const Handle<DeltaVolQuote> put25(ext::make_shared<DeltaVolQuote>(-0.25, zero, 1.0, DeltaVolQuote::Fwd));
+    const Handle<DeltaVolQuote> call25(ext::make_shared<DeltaVolQuote>(0.25, zero, 1.0, DeltaVolQuote::Fwd));
+    BarrierOption option(Barrier::UpOut, 120.0, 0.0, ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0),
+                         ext::make_shared<EuropeanExercise>(today + 365));
+    option.setPricingEngine(ext::make_shared<VannaVolgaBarrierEngine>(
+        atm, put25, call25, Handle<Quote>(ext::make_shared<SimpleQuote>(spot)),
+        Handle<YieldTermStructure>(flatRate(today, 0.05, dc)), Handle<YieldTermStructure>(flatRate(today, 0.0, dc))));
+    BOOST_CHECK_EXCEPTION(option.NPV(), Error, saying("positive ATM volatility"));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

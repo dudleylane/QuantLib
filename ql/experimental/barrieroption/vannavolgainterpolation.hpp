@@ -42,7 +42,13 @@ namespace QuantLib
     class VannaVolgaInterpolation : public Interpolation
     {
       public:
-        /*! \pre the \f$ x \f$ values must be sorted. */
+        /*! \pre the three \f$ x \f$ values must be distinct, and the
+                 second is the ATM strike, whose volatility must be
+                 positive.  Each quote is weighted by the vega at the ATM
+                 volatility, which must not vanish at any of the three
+                 strikes: it underflows at about 38 ATM standard
+                 deviations from the forward.
+        */
         template <class I1, class I2>
         VannaVolgaInterpolation(const I1& xBegin,
                                 const I1& xEnd,
@@ -105,6 +111,16 @@ namespace QuantLib
                 // atmVol should be the second vol
                 atmVol_ = this->yBegin_[1];
                 fwd_ = spot_ * fDiscount_ / dDiscount_;
+                // value() weights each quote by the vega at k over the vega at its strike, at the ATM volatility, and
+                // divides by the logs of the strikes' ratios.
+                QL_REQUIRE(atmVol_ > 0.0, "Vanna/Volga interpolation needs a positive ATM volatility, not " << atmVol_);
+                QL_REQUIRE(this->xBegin_[0] != this->xBegin_[1] && this->xBegin_[0] != this->xBegin_[2] &&
+                               this->xBegin_[1] != this->xBegin_[2],
+                           "Vanna/Volga interpolation needs three distinct strikes, not "
+                               << this->xBegin_[0] << ", " << this->xBegin_[1] << " and " << this->xBegin_[2]);
+                premiaBS.clear();
+                premiaMKT.clear();
+                vegas.clear();
                 for (Size i = 0; i < 3; i++)
                 {
                     premiaBS.push_back(
@@ -112,6 +128,12 @@ namespace QuantLib
                     premiaMKT.push_back(blackFormula(Option::Call, this->xBegin_[i], fwd_,
                                                      this->yBegin_[i] * std::sqrt(T_), dDiscount_));
                     vegas.push_back(vega(this->xBegin_[i]));
+                    QL_REQUIRE(vegas.back() > 0.0,
+                               "Vanna/Volga interpolation: the vega at the strike "
+                                   << this->xBegin_[i] << " is 0 at the ATM volatility " << atmVol_
+                                   << ", as the strike lies "
+                                   << std::fabs(std::log(fwd_ / this->xBegin_[i])) / (atmVol_ * std::sqrt(T_))
+                                   << " ATM standard deviations from the forward " << fwd_);
                 }
             }
             Real value(Real k) const override
