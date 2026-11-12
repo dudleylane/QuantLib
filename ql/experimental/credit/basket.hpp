@@ -256,14 +256,13 @@ namespace QuantLib
         std::map<Real, Probability> lossDistribution(const Date&) const;
         Real densityTrancheLoss(const Date& d, Real lossFraction) const;
         Real defaultCorrelation(const Date& d, Size iName, Size jName) const;
-        /*! Probability vector that each of the remaining live names (at eval
-          date) is the n-th default by date d.
-
-          The n parameter is the internal index to the name; it should
-          be alive at the evaluation date.
-
-        ---------TO DO: Implement with a string passed----------------------
-        ---------TO DO: Perform check the name is alive---------------------
+        /*! The probability of each name being the nth default, the defaults
+          before the evaluation date counted, and defaulting by d. One per
+          name, in the pool's order: 0 for the names that defaulted before
+          the evaluation date, and for all of them once those defaults reach
+          n. Their sum is probAtLeastNEvents(n, d) where n is above those
+          defaults. Before #233 it gave one 0 per name left once they
+          reached n.
         */
         std::vector<Probability> probsBeingNthEvent(Size n, const Date& d) const;
         /*! The probability of each name being the nth default, the defaults

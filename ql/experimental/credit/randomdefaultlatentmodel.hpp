@@ -299,8 +299,8 @@ namespace QuantLib
         earliest of those dates among the names left (#207).
         */
         Probability probAtLeastNEvents(Size n, const Date& d) const override;
-        /*! Order of results refers to the simulated (super)pool not the
-        basket's pool.
+        /*! One per name, in the pool's order, and 0 for the names that
+        defaulted before the evaluation date.
         Defaults are simulated to the day: where the nth default falls among
         names defaulting on the same day, each takes an equal share of the
         path, and the entries add up to probAtLeastNEvents(n, d), so they're

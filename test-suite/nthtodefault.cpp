@@ -792,7 +792,9 @@ BOOST_AUTO_TEST_CASE(testRandomDefaultModelUpToToday)
     // far and 0 above, and each name's of being the nth is 0. On older curves the paths have
     // defaults before today, and since #232 the statistics count them. Before #207 the model threw
     // at any of these dates ("Date for statistic must be in the future.") and gave these values
-    // only from the day after today. A rank above the basket's eight names still throws.
+    // only from the day after today. A rank above the basket's eight names still throws. The
+    // probabilities of being the nth come one per name in the pool, the defaulted one's included;
+    // before #233, once the defaults so far reached n, they came one per name left, seven here.
     const Date today(1, November, 2006);
     Settings::instance().evaluationDate() = today;
     for (OneName oneName : {OneName::alive, OneName::defaulted})
@@ -807,9 +809,8 @@ BOOST_AUTO_TEST_CASE(testRandomDefaultModelUpToToday)
                 {
                     BOOST_CHECK_EQUAL(basket->probAtLeastNEvents(n, d), n <= soFar ? 1.0 : 0.0);
                     const std::vector<Probability> nth = basket->probsBeingNthEvent(n, d);
-                    // after a default its length depends on n (#233)
-                    if (soFar == 0)
-                        BOOST_CHECK_EQUAL(nth.size(), 8U);
+                    // one per name in the pool, the defaulted one too (#233)
+                    BOOST_CHECK_EQUAL(nth.size(), 8U);
                     for (Probability p : nth)
                         BOOST_CHECK_EQUAL(p, 0.0);
                 }
