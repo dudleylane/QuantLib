@@ -26,6 +26,7 @@
 #include <ql/experimental/credit/binomiallossmodel.hpp>
 #include <ql/experimental/credit/cdo.hpp>
 #include <ql/experimental/credit/defaultevent.hpp>
+#include <ql/experimental/credit/defaultprobabilitylatentmodel.hpp>
 #include <ql/experimental/credit/gaussianlhplossmodel.hpp>
 #include <ql/experimental/credit/homogeneouspooldef.hpp>
 #include <ql/experimental/credit/inhomogeneouspooldef.hpp>
@@ -37,6 +38,7 @@
 #include <ql/experimental/credit/recursivelossmodel.hpp>
 #include <ql/experimental/credit/saddlepointlossmodel.hpp>
 #include <ql/experimental/credit/spotlosslatentmodel.hpp>
+#include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/math/integrals/gaussianquadratures.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/termstructures/credit/flathazardrate.hpp>
@@ -50,6 +52,7 @@
 #include <iomanip>
 #include <iostream>
 #include <numeric>
+#include <tuple>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -3197,6 +3200,154 @@ BOOST_AUTO_TEST_CASE(testExpectedShortfallOfALossDistribution)
                             mean += lossAt(level + (i + 0.5) * (1.0 - level) / steps);
                         mean /= steps;
                         BOOST_CHECK_SMALL(basket->expectedShortfall(horizon, level) - mean, 1.0e-5);
+                    }
+                }
+            }
+        }
+    }
+}
+
+// A t copula for names alike (#230): the orders of its factors and of the idiosyncratic variable, and the factors'
+// loadings.
+struct TCopulaCase
+{
+    const char* description;
+    std::vector<Integer> orders;
+    std::vector<Real> loadings;
+};
+
+TCopulaPolicy::initTraits tTraitsOf(const TCopulaCase& c)
+{
+    TCopulaPolicy::initTraits traits;
+    traits.tOrders = c.orders;
+    return traits;
+}
+
+BOOST_AUTO_TEST_CASE(testTFactorsIntegrateOverTheirTails)
+{
+    BOOST_TEST_MESSAGE("Testing that a t copula's factors integrate over their tails...");
+
+    /* A t factor's density falls off as a power of the factor, and Gauss-Hermite's 25 nodes, which stop at 6.2, left
+       its tails out: 1.4e-3 of a t3 factor's mass, so that at correlation 0.3 a name's integrated default probability
+       of 0.0488 came out 1.4 % low (#230). Each t factor now takes the trapezoid rule in its normal quantile, from
+       -6.5 to 6.5: the factors' mass is 1 but for 8.3e-11 a factor, and a name's integrated probability is its
+       curve's to 3e-7. The vector form, which the loss models use, gives what the scalar one does, name by name. */
+    const Date today(31, August, 2006);
+    Settings::instance().evaluationDate() = today;
+    const NamesOnCurves names(std::vector<Date>(4, today), 0.01);
+    const std::vector<TCopulaCase> cases = {{"one t3 factor at correlation 0.3", {3, 3}, {std::sqrt(0.3)}},
+                                            {"one t3 factor at correlation 0.6", {3, 3}, {std::sqrt(0.6)}},
+                                            {"t3 and t7 factors", {3, 7, 5}, {0.5, 0.4}}};
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.description)
+        {
+            const auto model =
+                ext::make_shared<TDefProbLM>(std::vector<std::vector<Real>>(names.names.size(), c.loadings),
+                                             LatentModelIntegrationType::GaussianQuadrature, tTraitsOf(c));
+            const Real mass = model->integratedExpectedValue([](const std::vector<Real>&) { return 1.0; });
+            BOOST_CHECK_SMALL(mass - 1.0, c.loadings.size() * 1.0e-10);
+
+            model->resetBasket(names.basket(today));
+            for (const Period& tenor : {Period(1, Years), Period(5, Years)})
+            {
+                const Date d = today + tenor;
+                const Probability p = names.curves[0]->defaultProbability(d);
+                std::vector<Real> inverses;
+                for (Size i = 0; i < names.names.size(); ++i)
+                    inverses.push_back(model->inverseCumulativeY(p, i));
+                const std::vector<Real> asVector = model->integratedExpectedValueV(
+                    [&](const std::vector<Real>& m)
+                    {
+                        std::vector<Real> q;
+                        for (Size i = 0; i < inverses.size(); ++i)
+                            q.push_back(model->conditionalDefaultProbabilityInvP(inverses[i], i, m));
+                        return q;
+                    });
+                for (Size i = 0; i < names.names.size(); ++i)
+                {
+                    BOOST_TEST_CONTEXT("name " << i << " by " << d)
+                    {
+                        const Real integrated = model->integratedExpectedValue(
+                            [&](const std::vector<Real>& m)
+                            { return model->conditionalDefaultProbabilityInvP(inverses[i], i, m); });
+                        BOOST_CHECK_SMALL(integrated / p - 1.0, 1.0e-6);
+                        BOOST_CHECK_EQUAL(asVector[i], integrated);
+                        // the model's own probability of default integrates the same function
+                        BOOST_CHECK_SMALL(model->probOfDefault(i, d) / p - 1.0, 1.0e-6);
+                    }
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testTCopulaProbabilitiesOfNDefaults)
+{
+    BOOST_TEST_MESSAGE("Testing a t copula's probabilities of n defaults...");
+
+    /* Given the factor, the defaults of names alike are binomial, so the probability of at least n of them is the
+       binomial tail at the conditional probability q(m), integrated over the factor. The reference integrates it by
+       the trapezoid rule in the factor's normal quantile s too, but at a step of 0.005 on [-8.5, 8.5]. Before #230 the
+       model left out the factor's tails, and with the lower one most of the paths where every name defaults: on t3
+       factors at correlation 0.3, the probabilities of at least one to eight defaults by a year were each short by
+       7.0e-4, and that of ten by 79 %. What the rule leaves is largest by a year on t3 factors, where the step of a
+       name's conditional default probability lies far in the factor's tail: 6e-5 at correlation 0.3, 4.4e-4 at 0.6.
+     */
+    const Date today(31, August, 2006);
+    Settings::instance().evaluationDate() = today;
+    const NamesOnCurves names(std::vector<Date>(10, today), 0.01);
+    const Size n = names.names.size();
+    const CumulativeNormalDistribution Phi;
+    const NormalDistribution phi;
+    // with the relative tolerances by one year and by five
+    const std::vector<std::tuple<TCopulaCase, Real, Real>> cases = {
+        {{"one t3 factor at correlation 0.3", {3, 3}, {std::sqrt(0.3)}}, 1.0e-4, 1.0e-6},
+        {{"one t3 factor at correlation 0.6", {3, 3}, {std::sqrt(0.6)}}, 1.0e-3, 1.0e-6},
+        {{"one t5 factor at correlation 0.3", {5, 5}, {std::sqrt(0.3)}}, 1.0e-6, 1.0e-6}};
+    for (const auto& [c, byOneYear, byFiveYears] : cases)
+    {
+        BOOST_TEST_CONTEXT(c.description)
+        {
+            const auto model = ext::make_shared<ConstantLossModel<TCopulaPolicy>>(
+                std::vector<std::vector<Real>>(n, c.loadings), std::vector<Real>(n, 0.4),
+                LatentModelIntegrationType::GaussianQuadrature, tTraitsOf(c));
+            const auto basket = names.basket(today, model);
+            for (const Period& tenor : {Period(1, Years), Period(5, Years)})
+            {
+                const Date d = today + tenor;
+                const Real inverse = model->inverseCumulativeY(names.curves[0]->defaultProbability(d), 0);
+                // the reference: atLeast[k] is the probability of at least k defaults
+                std::vector<Real> atLeast(n + 1, 0.0);
+                const Real h = 0.005;
+                for (Integer j = -1700; j <= 1700; ++j)
+                {
+                    const Real s = h * j;
+                    const Real lower = model->inverseCumulativeDensity(Phi(-std::fabs(s)), 0);
+                    const Real q = model->conditionalDefaultProbabilityInvP(
+                        inverse, 0, std::vector<Real>(1, s <= 0.0 ? lower : -lower));
+                    std::vector<Real> pmf(n + 1, 0.0);
+                    pmf[0] = 1.0;
+                    for (Size name = 0; name < n; ++name)
+                    {
+                        for (Size k = name + 1; k > 0; --k)
+                            pmf[k] = pmf[k] * (1.0 - q) + pmf[k - 1] * q;
+                        pmf[0] *= 1.0 - q;
+                    }
+                    Real tail = 0.0;
+                    const Real w = (std::abs(j) == 1700 ? 0.5 : 1.0) * h * phi(s);
+                    for (Size k = n; k >= 1; --k)
+                    {
+                        tail += pmf[k];
+                        atLeast[k] += w * tail;
+                    }
+                }
+                for (Size k = 1; k <= n; ++k)
+                {
+                    BOOST_TEST_CONTEXT("at least " << k << " by " << d)
+                    {
+                        BOOST_CHECK_SMALL(basket->probAtLeastNEvents(k, d) / atLeast[k] - 1.0,
+                                          tenor == Period(1, Years) ? byOneYear : byFiveYears);
                     }
                 }
             }

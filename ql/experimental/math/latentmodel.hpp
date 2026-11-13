@@ -27,10 +27,14 @@
 #include <ql/experimental/math/polarstudenttrng.hpp>
 #include <ql/experimental/math/tcopulapolicy.hpp>
 #include <ql/handle.hpp>
+#include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/math/integrals/trapezoidintegral.hpp>
 #include <ql/math/randomnumbers/boxmullergaussianrng.hpp>
 #include <ql/math/randomnumbers/randomsequencegenerator.hpp>
 #include <ql/quote.hpp>
+#include <cmath>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 /*! \file latentmodel.hpp
@@ -86,6 +90,87 @@ namespace QuantLib
         virtual ~LMIntegration() = default;
     };
 
+    namespace detail
+    {
+        /* A tensor product of one-dimensional rules, one for each factor: the
+           integral of f is the sum, over every combination of one node per
+           factor, of f at those nodes times the product of their weights.
+           The scalar and vector forms visit the nodes in the same order and
+           add each node's term by a fused multiply-add, so for the same
+           values of f they give the same sums to the bit. It holds no state
+           between calls. */
+        class TensorProductLMIntegration : public LMIntegration
+        {
+          public:
+            TensorProductLMIntegration(std::vector<std::vector<Real>> nodes, std::vector<std::vector<Real>> weights)
+            : nodes_(std::move(nodes)), weights_(std::move(weights))
+            {
+                QL_REQUIRE(!nodes_.empty(), "no factors to integrate");
+                QL_REQUIRE(nodes_.size() == weights_.size(), "one set of weights per factor required");
+                for (Size k = 0; k < nodes_.size(); ++k)
+                    QL_REQUIRE(!nodes_[k].empty() && nodes_[k].size() == weights_[k].size(),
+                               "factor " << k << " needs as many weights as nodes, and at least one");
+            }
+            Real integrate(const std::function<Real(const std::vector<Real>& arg)>& f) const override
+            {
+                Real sum = 0.0;
+                forEachNode([&](const std::vector<Real>& x, Real w) { sum = std::fma(w, f(x), sum); });
+                return sum;
+            }
+            std::vector<Real>
+            integrateV(const std::function<std::vector<Real>(const std::vector<Real>& arg)>& f) const override
+            {
+                std::vector<Real> sum;
+                bool first = true;
+                forEachNode(
+                    [&](const std::vector<Real>& x, Real w)
+                    {
+                        const std::vector<Real> term = f(x);
+                        if (first)
+                        {
+                            sum.assign(term.size(), 0.0);
+                            first = false;
+                        }
+                        QL_REQUIRE(term.size() == sum.size(), "integrand size changed between nodes");
+                        for (Size j = 0; j < term.size(); ++j)
+                            sum[j] = std::fma(w, term[j], sum[j]);
+                    });
+                return sum;
+            }
+
+          private:
+            // calls visit(x, w) for every node x of the grid with its weight
+            // w, the first factor's index running fastest
+            template <class F>
+            void forEachNode(const F& visit) const
+            {
+                const Size d = nodes_.size();
+                std::vector<Size> index(d, 0);
+                std::vector<Real> x(d);
+                for (Size k = 0; k < d; ++k)
+                    x[k] = nodes_[k][0];
+                for (;;)
+                {
+                    Real w = 1.0;
+                    for (Size k = 0; k < d; ++k)
+                        w *= weights_[k][index[k]];
+                    visit(x, w);
+                    Size k = 0;
+                    while (k < d && ++index[k] == nodes_[k].size())
+                    {
+                        index[k] = 0;
+                        x[k] = nodes_[k][0];
+                        ++k;
+                    }
+                    if (k == d)
+                        return;
+                    x[k] = nodes_[k][index[k]];
+                }
+            }
+            std::vector<std::vector<Real>> nodes_, weights_;
+        };
+    }
+
     // CRTP-ish for joining the integrations, class above to have the factory
     // clang-format off
     template <class I_T>
@@ -101,6 +186,39 @@ namespace QuantLib
     // gcc reports value collision with heston engine (?!) thats why the name
     namespace LatentModelIntegrationType
     {
+        /*! How an integrable latent model integrates over its systemic
+            factors.
+
+            GaussianQuadrature, the default, is the only type with a vector
+            form, which the loss models' distributions use. On Gaussian
+            factors it is Gauss-Hermite of order 25 in each factor, which
+            leaves Hull-White's tranche spreads of a homogeneous pool 2.4 % off
+            at correlation 0.6 and 12.5 % at 0.9 (#258). On
+            TCopulaPolicy factors the library's models get the trapezoid rule
+            in each factor's normal quantile \f$ s \f$ instead, with nodes at
+            \f$ m = F^{-1}(\Phi(s)) \f$ for \f$ s \f$ from -6.5 to 6.5 in
+            steps of 0.1: 131 per factor, so \f$ 131^d \f$ integrand calls on
+            \f$ d \f$ factors where Gauss-Hermite makes \f$ 25^d \f$ (#230).
+            Gauss-Hermite in a t factor itself has no node beyond 6.2, and
+            drops the factor's tails: on one factor at correlation 0.3, it
+            gave a name's default probability of 0.0488 1.4 % low on t3
+            factors and 0.36 % low on t5 ones, and one of 0.0025 20 % and
+            6 % low.
+
+            What the trapezoid rule leaves is the conditional default
+            probability's step, which lies deep in the factor's tail at small
+            probabilities and high correlations (#257). Measured on one
+            factor for probabilities from 1e-4 to 0.5, a name's integrated
+            default probability is within 5.2e-3 of its curve's, relatively,
+            on t3 factors at correlation 0.3 and within 8.0e-2 at correlation
+            0.9, within 6.7e-3 on t5 factors and within 1.4e-6 on t9 ones. On
+            a homogeneous pool of 100 names, Hull-White's tranche spreads are
+            within 1.8e-4 of their exact values, relatively, for correlations
+            up to 0.9, and within 6.5e-6 up to 0.5.
+
+            Trapezoid integrates each factor on [-35, 35], adaptively to
+            1e-4, and has no vector form.
+        */
         typedef enum LatentModelIntegrationType
         {
 #ifndef QL_PATCH_SOLARIS
@@ -448,6 +566,12 @@ namespace QuantLib
         class IntegrationFactory
         {
           public:
+            /*! The integration of the given type, whatever the factors'
+                distribution: GaussianQuadrature is Gauss-Hermite of order 25
+                in each factor itself, which drops the tails of t factors
+                (#230). The library's models give their copula to the overload
+                below instead.
+            */
             static ext::shared_ptr<LMIntegration>
             createLMIntegration(Size dimension,
                                 LatentModelIntegrationType::LatentModelIntegrationType type =
@@ -485,9 +609,70 @@ namespace QuantLib
                         QL_FAIL("Unknown latent model integration type.");
                 }
             }
+            /*! The integration of the given type for a model on the given
+                copula. On TCopulaPolicy factors, GaussianQuadrature is the
+                trapezoid rule in each factor's normal quantile (see
+                LatentModelIntegrationType, #230); everything else is what the
+                overload above gives. The nodes depend only on the copula's
+                degrees of freedom, not on the factor weights, so they stay
+                valid when a model's correlation quote changes.
+            */
+            static ext::shared_ptr<LMIntegration> createLMIntegration(
+                Size dimension, LatentModelIntegrationType::LatentModelIntegrationType type, const copulaType& copula)
+            {
+#ifndef QL_PATCH_SOLARIS
+                if constexpr (std::is_same_v<copulaType, TCopulaPolicy>)
+                {
+                    if (type == LatentModelIntegrationType::GaussianQuadrature)
+                        return normalQuantileTrapezoid(dimension, copula);
+                }
+#endif
+                return createLMIntegration(dimension, type);
+            }
 
           private:
             IntegrationFactory() = default;
+            /* The trapezoid rule in each factor's normal quantile s: nodes
+               m = F^{-1}(Phi(s)) at s = i h for |i| <= n, with weights
+               h phi(s), halved at both ends, over the factor's density f(m).
+               The models' integrands carry the copula's density, the product
+               of the factors' ones, so the weights divide by it: with
+               D(m e_k) = f_k(m) prod_{j != k} f_j(0), the product over the
+               factors of D(0) / D(m_k e_k), divided once by D(0), is
+               1 / D(m). */
+            static ext::shared_ptr<LMIntegration> normalQuantileTrapezoid(Size dimension, const copulaType& copula)
+            {
+                const Real h = 0.1;
+                const Integer n = 65;
+                QL_REQUIRE(dimension + 1 == copula.varianceFactors().size(),
+                           "integration over " << dimension << " factors on a copula of "
+                                               << copula.varianceFactors().size() - 1 << " systemic factors");
+                CumulativeNormalDistribution Phi;
+                NormalDistribution phi;
+                std::vector<Real> point(dimension, 0.0);
+                const Real densityAtZero = copula.density(point);
+                std::vector<std::vector<Real>> nodes(dimension), weights(dimension);
+                for (Size k = 0; k < dimension; ++k)
+                {
+                    nodes[k].reserve(2 * n + 1);
+                    weights[k].reserve(2 * n + 1);
+                    for (Integer i = -n; i <= n; ++i)
+                    {
+                        const Real s = h * i;
+                        // from the lower tail, where it is accurate; t factors are symmetric
+                        const Real lower = copula.inverseCumulativeDensity(Phi(-std::fabs(s)), k);
+                        const Real m = s <= 0.0 ? lower : Real(-lower);
+                        point[k] = m;
+                        Real w = (i == -n || i == n ? 0.5 : 1.0) * h * phi(s) / copula.density(point);
+                        point[k] = 0.0;
+                        if (k > 0)
+                            w *= densityAtZero;
+                        nodes[k].push_back(m);
+                        weights[k].push_back(w);
+                    }
+                }
+                return ext::make_shared<detail::TensorProductLMIntegration>(std::move(nodes), std::move(weights));
+            }
         };
         //@}
 
