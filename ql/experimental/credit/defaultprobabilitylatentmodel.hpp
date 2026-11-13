@@ -78,8 +78,8 @@ namespace QuantLib
                            LatentModelIntegrationType::LatentModelIntegrationType integralType,
                            const initTraits& ini = initTraits())
         : LatentModel<copulaPolicy>(factorWeights, ini),
-          integration_(
-              LatentModel<copulaPolicy>::IntegrationFactory::createLMIntegration(factorWeights[0].size(), integralType))
+          integration_(LatentModel<copulaPolicy>::IntegrationFactory::createLMIntegration(
+              factorWeights[0].size(), integralType, this->copula()))
         {
         }
         DefaultLatentModel(const Handle<Quote>& mktCorrel,
@@ -87,7 +87,8 @@ namespace QuantLib
                            LatentModelIntegrationType::LatentModelIntegrationType integralType,
                            const initTraits& ini = initTraits())
         : LatentModel<copulaPolicy>(mktCorrel, nVariables, ini),
-          integration_(LatentModel<copulaPolicy>::IntegrationFactory::createLMIntegration(1, integralType))
+          integration_(
+              LatentModel<copulaPolicy>::IntegrationFactory::createLMIntegration(1, integralType, this->copula()))
         {
         }
         /* \todo
