@@ -5670,8 +5670,8 @@ BOOST_AUTO_TEST_CASE(testPoolModelsIntegrateTFactorsOverTheirTails)
        3.2e-3 of a t3 factor's mass and 1.3e-3 of a t5 one's, and the loss distribution counted what it left out as a
        loss beyond every bucket. On the default rule, ten names' expected loss by a year came out 41 % high on t3
        factors and 18 % on t5 ones, where 60 p is exact (#259). The rule's bounds and steps are now in the factor's
-       normal quantile, and [-5, 5] leaves out 5.7e-7 of any factor's mass. At 12,000 buckets what is left is the
-       buckets', 1.3 % as on a Gaussian factor (#260). */
+       normal quantile, and [-5, 5] leaves out 5.7e-7 of any factor's mass. What is left is the rule's, 4e-5 of p on t3
+       factors, now that the buckets are out of the tranche's loss (#260). */
     const Date today(31, August, 2006);
     Settings::instance().evaluationDate() = today;
     const Date d = today + 1 * Years;
@@ -5685,7 +5685,7 @@ BOOST_AUTO_TEST_CASE(testPoolModelsIntegrateTFactorsOverTheirTails)
                                << (homogeneous ? " factor, homogeneous model" : " factor, inhomogeneous model"))
             {
                 const auto basket = names.basket(today, poolModel(tOrder, homogeneous, 10, 12000));
-                BOOST_CHECK_SMALL(basket->expectedTrancheLoss(d) / exact - 1.0, 0.02);
+                BOOST_CHECK_SMALL(basket->expectedTrancheLoss(d) / exact - 1.0, 1.0e-4);
             }
         }
     }
@@ -5698,9 +5698,8 @@ BOOST_AUTO_TEST_CASE(testPoolModelsTakeTheirBoundsInTheNormalQuantile)
     /* On t factors the bounds and steps of the pool models' rule are in the factor's normal quantile u (#259). Past
        |u| of about 37.5, Phi(-|u|) underflows and the factor's quantile overflows, so the nodes there, whose weights
        are below 1e-305, are skipped. [-40, 40] in 800 steps has [-8.5, 8.5]'s 170 nodes inside it, and its other
-       ones hold 1.9e-17 of the mass; in the factor itself, the two rules differed by the factor's tails. A tranche's
-       expected loss still comes from excess probabilities, 1 less the cumulative (#260), so the two rules'
-       cumulatives, a few ulps apart, move the senior tranche's by up to 1e-12 of itself. */
+       ones hold 1.9e-17 of the mass; in the factor itself, the two rules differed by the factor's tails. Now that a
+       tranche's expected loss is integrated node by node (#260), the two rules agree to about 1e-14. */
     const Date today(31, August, 2006);
     Settings::instance().evaluationDate() = today;
     const Date d = today + 1 * Years;
@@ -5720,8 +5719,143 @@ BOOST_AUTO_TEST_CASE(testPoolModelsTakeTheirBoundsInTheNormalQuantile)
                     const Real narrow =
                         names.basket(today, poolModel(tOrder, homogeneous, 100, 200, 8.5, -8.5, 170), a, b)
                             ->expectedTrancheLoss(d);
-                    BOOST_CHECK_SMALL(wide / narrow - 1.0, 1.0e-11);
+                    BOOST_CHECK_SMALL(wide / narrow - 1.0, 1.0e-12);
                 }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testPoolModelsTrancheLossOnTheirRule)
+{
+    BOOST_TEST_MESSAGE("Testing the pool models' expected tranche losses on their own factor rule...");
+
+    /* The pool models took a tranche's expected loss from the excess probabilities of their integrated loss
+       distribution, a sum that counts each loss as reaching the top of its bucket. On Hull-White's pool at 200
+       buckets the senior tranche's came out 16 % high by five years, and the others up to 0.39 % (#260). They now
+       integrate, node by node, the tranche's expected loss given the factor: the homogeneous model from the
+       probability of each number of defaults, the inhomogeneous one at each bucket's average loss, which on names of
+       equal losses and buckets narrower than one loss is that loss. Both are then the binomial loss integrated by the
+       same rule, [-5, 5] in 15 steps of a Gaussian factor. */
+    const Date today(31, August, 2006);
+    Settings::instance().evaluationDate() = today;
+    const Date d = today + 5 * Years;
+    const Size n = 100;
+    const Real rho = 0.3, recovery = 0.4;
+    const NamesAtOnePercent names(today, std::vector<Real>(n, 1.0), 0.01);
+    const Probability p = FlatHazardRate(today, makeQuoteHandle(0.01), Actual365Fixed()).defaultProbability(d);
+    const Real threshold = InverseCumulativeNormal::standard_value(p);
+    const CumulativeNormalDistribution Phi;
+    const NormalDistribution phi;
+    const std::vector<std::pair<Real, Real>> tranches = {{0.0, 0.03}, {0.03, 0.06}, {0.06, 0.10}, {0.10, 1.0}};
+    std::vector<Real> reference(tranches.size(), 0.0);
+    const Size steps = 15;
+    const Real h = 10.0 / steps;
+    for (Size i = 0; i < steps; ++i)
+    {
+        const Real m = -5.0 + (i + 0.5) * h;
+        const Real q = Phi((threshold - std::sqrt(rho) * m) / std::sqrt(1.0 - rho));
+        std::vector<Real> defaults(n + 1, 0.0);
+        defaults[0] = 1.0;
+        for (Size name = 0; name < n; ++name)
+        {
+            for (Size k = name + 1; k > 0; --k)
+                defaults[k] = defaults[k] * (1.0 - q) + defaults[k - 1] * q;
+            defaults[0] *= 1.0 - q;
+        }
+        for (Size t = 0; t < tranches.size(); ++t)
+        {
+            const Real attachment = tranches[t].first * n, width = (tranches[t].second - tranches[t].first) * n;
+            Real loss = 0.0;
+            for (Size k = 0; k <= n; ++k)
+                loss += defaults[k] * std::min(std::max(k * (1.0 - recovery) - attachment, 0.0), width);
+            reference[t] += h * phi(m) * loss;
+        }
+    }
+    const auto latent = ext::make_shared<GaussianConstantLossLM>(
+        std::vector<std::vector<Real>>(n, std::vector<Real>(1, std::sqrt(rho))), std::vector<Real>(n, recovery),
+        LatentModelIntegrationType::GaussianQuadrature, GaussianCopulaPolicy::initTraits());
+    for (bool homogeneous : {true, false})
+    {
+        for (Size t = 0; t < tranches.size(); ++t)
+        {
+            BOOST_TEST_CONTEXT((homogeneous ? "homogeneous" : "inhomogeneous")
+                               << " model, tranche [" << tranches[t].first << ", " << tranches[t].second << "]")
+            {
+                ext::shared_ptr<DefaultLossModel> model;
+                if (homogeneous)
+                    model = ext::make_shared<HomogGaussPoolLossModel>(latent, 200, 5.0, -5.0, steps);
+                else
+                    model = ext::make_shared<IHGaussPoolLossModel>(latent, 200, 5.0, -5.0, steps);
+                const auto basket = names.basket(today, model, tranches[t].first, tranches[t].second);
+                BOOST_CHECK_SMALL(basket->expectedTrancheLoss(d) / reference[t] - 1.0, 1.0e-12);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testInhomogeneousPoolModelOnUnequalLosses)
+{
+    BOOST_TEST_MESSAGE("Testing the inhomogeneous pool model's expected tranche losses on names of unequal losses...");
+
+    /* Where a bucket holds several losses, the inhomogeneous model takes them at their average, and its bucketing
+       moves them together. So where a tranche's attachment falls inside such a bucket, or the bucketing carries some
+       of them across the detachment, the tranche's expected loss given the rule is off (#260). On twelve names of
+       unequal losses, against the 4,096 sets of defaults counted on the model's rule, it is off by up to 2.8e-5 at 200
+       buckets, where the excess probabilities it used before gave up to 10 %. */
+    const Date today(31, August, 2006);
+    Settings::instance().evaluationDate() = today;
+    const Size n = 12;
+    const Real rho = 0.3, recovery = 0.4;
+    std::vector<Real> notionals;
+    for (Size i = 0; i < n; ++i)
+        notionals.push_back(1.0 + 0.37 * i);
+    const Real total = std::accumulate(notionals.begin(), notionals.end(), 0.0);
+    const NamesAtOnePercent names(today, notionals, 0.01);
+    const auto latent = ext::make_shared<GaussianConstantLossLM>(
+        std::vector<std::vector<Real>>(n, std::vector<Real>(1, std::sqrt(rho))), std::vector<Real>(n, recovery),
+        LatentModelIntegrationType::GaussianQuadrature, GaussianCopulaPolicy::initTraits());
+    const CumulativeNormalDistribution Phi;
+    const NormalDistribution phi;
+    // attachments inside a bucket at 200 buckets over each detachment
+    const std::vector<std::pair<Real, Real>> tranches = {{0.0, 0.12}, {0.05, 0.17}, {0.113, 0.31}, {0.2, 0.5}};
+    for (Integer years : {1, 5})
+    {
+        const Date d = today + years * Years;
+        const Probability p = FlatHazardRate(today, makeQuoteHandle(0.01), Actual365Fixed()).defaultProbability(d);
+        const Real threshold = InverseCumulativeNormal::standard_value(p);
+        for (const auto& [a, b] : tranches)
+        {
+            BOOST_TEST_CONTEXT("tranche [" << a << ", " << b << "] by " << years << (years == 1 ? " year" : " years"))
+            {
+                // the rule the model is given, [-5, 5] in 50 steps, its default
+                Real reference = 0.0;
+                const Real h = 0.2;
+                for (Size i = 0; i < 50; ++i)
+                {
+                    const Real m = -5.0 + (i + 0.5) * h;
+                    const Real q = Phi((threshold - std::sqrt(rho) * m) / std::sqrt(1.0 - rho));
+                    Real loss = 0.0;
+                    for (unsigned long set = 0; set < (1UL << n); ++set)
+                    {
+                        Real probability = 1.0, amount = 0.0;
+                        for (Size name = 0; name < n; ++name)
+                        {
+                            if ((set & (1UL << name)) != 0U)
+                            {
+                                probability *= q;
+                                amount += notionals[name] * (1.0 - recovery);
+                            }
+                            else
+                                probability *= 1.0 - q;
+                        }
+                        loss += probability * std::min(std::max(amount - a * total, 0.0), (b - a) * total);
+                    }
+                    reference += h * phi(m) * loss;
+                }
+                const auto basket =
+                    names.basket(today, ext::make_shared<IHGaussPoolLossModel>(latent, 200, 5.0, -5.0, 50), a, b);
+                BOOST_CHECK_SMALL(basket->expectedTrancheLoss(d) / reference - 1.0, 5.0e-5);
             }
         }
     }
