@@ -137,6 +137,26 @@ namespace QuantLib
             QL_FAIL("probsBeingNthEventBetween, the probability of each name being the nth default in a "
                     "period, is not implemented for this model.");
         }
+        /*! The mean recovery of each name given that it's the nth default
+        among the names left at the evaluation date, after d0 and by d, as
+        probsBeingNthEventBetween counts it. One per name, in the pool's
+        order, and 0 for the names that defaulted before the evaluation date.
+        It means something only where that name's probability of being the
+        nth default in the period is positive. With those probabilities it
+        prices a payment on the nth default that is linear in the recovery,
+        as the library's claims are (#250).
+
+        By default it's each name's expectedRecovery at d, which is the mean
+        given any default only where the recovery is fixed by name. A model
+        that draws recoveries has to override it, as RandomLossLM does.
+        */
+        virtual std::vector<Real> recoveriesBeingNthEventBetween(Size n, const Date& d0, const Date& d) const
+        {
+            std::vector<Real> recoveries(basket_->size(), 0.);
+            for (Size iName : basket_->liveList())
+                recoveries[iName] = expectedRecovery(d, iName, basket_->defaultKeys()[iName]);
+            return recoveries;
+        }
         //! Pearsons' default probability correlation.
         virtual Real defaultCorrelation(const Date& d, Size iName, Size jName) const
         {

@@ -387,6 +387,17 @@ namespace QuantLib
         counted from origin_, with from <= k < to, the names defaulting on
         that day sharing it equally; in the pool's order. */
         std::vector<Probability> nthEventShares(Size n, Natural from, Natural to) const;
+        /* Each name's mean recovery on the paths nthEventShares counts it on,
+        weighted by its share of each, from the recovery its default drew
+        there; 0 where it has no share. In the pool's order. */
+        std::vector<Real> nthEventRecoveries(Size n, Natural from, Natural to) const;
+        /* Calls f(name, share, event) for each name's share of each path
+        nthEventShares counts, with the event of that name's default. */
+        template <class F>
+        void forEachNthEventShare(Size n, Natural from, Natural to, F f) const;
+        /* nthEventRecoveries over a period, with probsBeingNthEventBetween's
+        checks and its zeros, for a model whose recoveries are drawn (#250). */
+        std::vector<Real> pathRecoveriesBeingNthEventBetween(Size n, const Date& d0, const Date& d) const;
 
         // Maximum time inversion horizon
         static const Size maxHorizon_ = 4050; // over 11 years
@@ -426,12 +437,11 @@ namespace QuantLib
     }
 
     template <template <class, class> class D, class C, class URNG>
-    std::vector<Probability> RandomLM<D, C, URNG>::nthEventShares(Size n, Natural from, Natural to) const
+    template <class F>
+    void RandomLM<D, C, URNG>::forEachNthEventShare(Size n, Natural from, Natural to, F f) const
     {
-        Size basketSize = basket_->size();
-        std::vector<Probability> hitsByDate(basketSize, 0.);
-        // (day, name) of each default within the time horizon
-        std::vector<std::pair<Size, Size>> namesDefaulting;
+        // (day, name, place on the path) of each default within the time horizon
+        std::vector<std::tuple<Size, Size, Size>> namesDefaulting;
         for (Size iSim = 0; iSim < nSims_; iSim++)
         {
             const std::vector<simEvent<D<C, URNG>>>& events = getSim(iSim);
@@ -439,28 +449,54 @@ namespace QuantLib
             for (Size iEvt = 0; iEvt < events.size(); iEvt++)
             {
                 if (to > events[iEvt].dayFromRef)
-                    namesDefaulting.emplace_back(Size(events[iEvt].dayFromRef), Size(events[iEvt].nameIdx));
+                    namesDefaulting.emplace_back(Size(events[iEvt].dayFromRef), Size(events[iEvt].nameIdx), iEvt);
             }
             if (namesDefaulting.size() >= n)
             {
+                // a name defaults once on a path at most, so they sort by day and name
                 std::sort(namesDefaulting.begin(), namesDefaulting.end());
                 /* The defaults are simulated to the day, so nothing orders
                 names defaulting on the same day: where the nth default falls
                 among them, each is the nth in an equal share of the orders. */
-                const Size day = namesDefaulting[n - 1].first;
+                const Size day = std::get<0>(namesDefaulting[n - 1]);
                 if (day < from)
                     continue;
                 Size first = n - 1, last = n;
-                while (first > 0 && namesDefaulting[first - 1].first == day)
+                while (first > 0 && std::get<0>(namesDefaulting[first - 1]) == day)
                     --first;
-                while (last < namesDefaulting.size() && namesDefaulting[last].first == day)
+                while (last < namesDefaulting.size() && std::get<0>(namesDefaulting[last]) == day)
                     ++last;
                 for (Size i = first; i < last; i++)
-                    hitsByDate[namesDefaulting[i].second] += 1. / Real(last - first);
+                    f(std::get<1>(namesDefaulting[i]), 1. / Real(last - first),
+                      events[std::get<2>(namesDefaulting[i])]);
             }
         }
+    }
+
+    template <template <class, class> class D, class C, class URNG>
+    std::vector<Probability> RandomLM<D, C, URNG>::nthEventShares(Size n, Natural from, Natural to) const
+    {
+        std::vector<Probability> hitsByDate(basket_->size(), 0.);
+        forEachNthEventShare(n, from, to,
+                             [&](Size iName, Real share, const simEvent<D<C, URNG>>&) { hitsByDate[iName] += share; });
         std::transform(hitsByDate.begin(), hitsByDate.end(), hitsByDate.begin(), [this](Real x) { return x / nSims_; });
         return hitsByDate;
+    }
+
+    template <template <class, class> class D, class C, class URNG>
+    std::vector<Real> RandomLM<D, C, URNG>::nthEventRecoveries(Size n, Natural from, Natural to) const
+    {
+        std::vector<Real> shares(basket_->size(), 0.), recoveries(basket_->size(), 0.);
+        forEachNthEventShare(n, from, to,
+                             [&](Size iName, Real share, const simEvent<D<C, URNG>>& event)
+                             {
+                                 shares[iName] += share;
+                                 recoveries[iName] += share * getEventRecovery(event);
+                             });
+        for (Size i = 0; i < recoveries.size(); i++)
+            if (shares[i] > 0.)
+                recoveries[i] /= shares[i];
+        return recoveries;
     }
 
     template <template <class, class> class D, class C, class URNG>
@@ -490,6 +526,20 @@ namespace QuantLib
             return std::vector<Probability>(basket_->size(), 0.);
         const Natural from = d0 <= origin_ ? 0 : d0.serialNumber() - origin_.serialNumber();
         return nthEventShares(n, from, d.serialNumber() - origin_.serialNumber());
+    }
+
+    template <template <class, class> class D, class C, class URNG>
+    std::vector<Real>
+    RandomLM<D, C, URNG>::pathRecoveriesBeingNthEventBetween(Size n, const Date& d0, const Date& d) const
+    {
+        QL_REQUIRE(n >= 1, "the rank of a default has to be at least 1");
+        QL_REQUIRE(d0 <= d, "the period's start, " << d0 << ", is after its end, " << d);
+        calculate();
+        // as probsBeingNthEventBetween
+        if (n > basket_->liveList().size() || d <= origin_)
+            return std::vector<Real>(basket_->size(), 0.);
+        const Natural from = d0 <= origin_ ? 0 : d0.serialNumber() - origin_.serialNumber();
+        return nthEventRecoveries(n, from, d.serialNumber() - origin_.serialNumber());
     }
 
 

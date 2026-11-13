@@ -42,15 +42,20 @@ namespace QuantLib
         (#206).
 
         The protection pays the claim on the name that is the nth to default,
-        at the loss model's expected recovery for that name. Where the names
-        left have different recoveries, that takes the model's probability of
-        each name being the nth to default in each step,
+        at the loss model's mean recovery for that name given that it's the
+        nth default in each step, DefaultLossModel::recoveriesBeingNthEventBetween:
+        its expected recovery on a model whose recoveries are fixed by name,
+        and on RandomLossLM, which draws them, the mean of the recoveries
+        drawn by the defaults that trigger (#250). Where the names left have
+        different recoveries, that takes the model's probability of each
+        name being the nth to default in each step,
         DefaultLossModel::probsBeingNthEventBetween. ConstantLossModel gives
         it where its integration integrates vectors, as GaussianQuadrature
-        does and Trapezoid doesn't (#208), and RandomDefaultLM from its paths
-        (#231). The other models don't, so the engine throws on them there.
-        RandomLossLM gives no expected recovery, since it draws one with each
-        default, so the engine throws on it whatever the recoveries (#234).
+        does and Trapezoid doesn't (#208), and the random models from their
+        paths (#231). The other models don't, so the engine throws on them
+        there. A claim linear in the recovery, as the library's are, is then
+        priced at its mean; one that isn't would be priced at the mean
+        recovery. Before #250 the engine threw on RandomLossLM.
     */
     class IntegralNtdEngine : public NthToDefault::engine
     {

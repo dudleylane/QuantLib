@@ -82,9 +82,12 @@ namespace QuantLib
         unchecked: a basket of 2049 to 4096 names fitted then, and a day past
         4095 wrapped round to an early one.
 
-        It gives no expected recovery, since it draws one with each default,
-        so IntegralNtdEngine, which pays a trigger at its name's expected
-        recovery, throws on it (#234).
+        It gives no expected recovery, since it draws one with each default
+        (#234). For an nth to default it gives each name's mean recovery on
+        the paths where that name is the nth default in a period, from the
+        recoveries those defaults drew, so IntegralNtdEngine pays each
+        trigger at the mean of the recoveries triggers drew (#250). Before
+        #250 the engine threw on it.
     */
     template <class copulaPolicy, class USNG = SobolRsg>
     class RandomLossLM : public RandomLM<RandomLossLM, copulaPolicy, USNG>
@@ -158,6 +161,13 @@ namespace QuantLib
         {
             QL_FAIL("RandomLossLM gives no expected recovery: it draws a recovery with each default, and a payment "
                     "on a default takes the recovery that default drew");
+        }
+        /* The recovery a trigger pays at: each name's mean, over the paths
+        where it's the nth default in the period, of the recovery its default
+        drew there (#250). */
+        std::vector<Real> recoveriesBeingNthEventBetween(Size n, const Date& d0, const Date& d) const override
+        {
+            return this->pathRecoveriesBeingNthEventBetween(n, d0, d);
         }
 
         Real latentVarValue(const std::vector<Real>& factorsSample, Size iVar) const

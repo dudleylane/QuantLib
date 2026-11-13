@@ -96,19 +96,22 @@ namespace QuantLib
                     Probability dcfdd = defProb1 - defProb0;
 
                     /* The protection pays the claim on whichever name is the
-                    nth to default, at that name's expected recovery (#208).
-                    Where the names left share theirs, it's the claim at that
-                    recovery on the probability of the nth default in the
-                    step; otherwise it takes each name's probability of being
-                    the one. On a loss model whose recoveries are stochastic,
-                    the expected recovery given the default isn't the one
-                    given the trigger.
+                    nth to default (#208), at the model's mean recovery for
+                    that name given that it's the nth default in the step:
+                    its expected recovery where the recoveries are fixed by
+                    name, and the mean of the ones its triggers drew where
+                    they're drawn (#250). Where the names left share it, it's
+                    the claim at that recovery on the probability of the nth
+                    default in the step; otherwise it takes each name's
+                    probability of being the one. For a claim linear in the
+                    recovery, as the library's are, that's its mean.
                     */
                     if (!alive.empty())
                     {
-                        const Real recovery = basket->recoveryRate(d, alive[0]);
+                        const std::vector<Real> recoveries = basket->recoveriesBeingNthEventBetween(n, d0, d);
+                        const Real recovery = recoveries[alive[0]];
                         if (std::all_of(alive.begin() + 1, alive.end(),
-                                        [&](Size iName) { return basket->recoveryRate(d, iName) == recovery; }))
+                                        [&](Size iName) { return recoveries[iName] == recovery; }))
                         {
                             claimValue -= dcfdd * basket->claim()->amount(d, arguments_.notional, recovery) * disc;
                         }
@@ -117,10 +120,8 @@ namespace QuantLib
                             const std::vector<Probability> probsTriggering =
                                 basket->probsBeingNthEventBetween(n, d0, d);
                             for (Size iName : alive)
-                                claimValue -=
-                                    probsTriggering[iName] *
-                                    basket->claim()->amount(d, arguments_.notional, basket->recoveryRate(d, iName)) *
-                                    disc;
+                                claimValue -= probsTriggering[iName] *
+                                              basket->claim()->amount(d, arguments_.notional, recoveries[iName]) * disc;
                         }
                     }
 
