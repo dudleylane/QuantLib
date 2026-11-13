@@ -36,6 +36,14 @@ namespace QuantLib
     The model is adpated here for a multifactor set up and a generic copula so
     it can be used for pricing in single factor mode or for risk metrics in its
     multifactor version.\par
+    Only on the Gaussian copula does the recovery keep the name's expected
+    loss. There eq. 42 keeps the mean recovery given a default at the name's
+    expected recovery, since given the default variable at x,
+    (Y - rho x) / sqrt(1 - rho^2) is distributed as the recovery variable Y.
+    On the T copula it isn't, and the recovery given a default averages above
+    the expected recovery, more so where defaults are rarer. So the model
+    doesn't keep the single-name loss there, and expectedLoss and
+    conditionalExpLossRR throw (#255).\par
     \todo Rewrite this model: the distribution of the spot recovery given
     default could be given as a functional of rr_i with the market factors and
     the rest of methods depend on this. That would offer a family of models.

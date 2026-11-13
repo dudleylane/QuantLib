@@ -217,6 +217,9 @@ namespace QuantLib
             distributions since that might simplify the integrations, most
             importantly if this is to be used in calibration of observations for
             factor coefficients as it is expensive to integrate directly.
+
+            A name whose probability of defaulting by d is 0 or 1 has none, and
+            the method throws for it.
         */
         Real defaultCorrelation(const Date& d, Size iNamei, Size iNamej) const;
 
@@ -257,6 +260,11 @@ namespace QuantLib
             pool->get(pool->names()[iNamei]).defaultProbability(basket_->defaultKeys()[iNamei])->defaultProbability(d);
         Probability pj =
             pool->get(pool->names()[iNamej]).defaultProbability(basket_->defaultKeys()[iNamej])->defaultProbability(d);
+        // a default indicator that can't vary has no correlation; the formula below would give 0/0
+        QL_REQUIRE(pi > 0. && pi < 1., "no default correlation by " << d << ": " << pool->names()[iNamei]
+                                                                    << "'s default probability is " << pi);
+        QL_REQUIRE(pj > 0. && pj < 1., "no default correlation by " << d << ": " << pool->names()[iNamej]
+                                                                    << "'s default probability is " << pj);
         Real pipj = pi * pj;
         Real invPi = inverseCumulativeY(pi, iNamei);
         Real invPj = inverseCumulativeY(pj, iNamej);

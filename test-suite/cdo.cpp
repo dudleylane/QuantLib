@@ -48,6 +48,7 @@
 #include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/time/daycounters/actualactual.hpp>
 #include <boost/mpl/vector.hpp>
+#include <cmath>
 #include <functional>
 #include <iomanip>
 #include <iostream>
@@ -3353,6 +3354,392 @@ BOOST_AUTO_TEST_CASE(testTCopulaProbabilitiesOfNDefaults)
             }
         }
     }
+}
+
+// Ten names of 10 at hazards of 0.2 % + 0.4 % i from today, but for name 5's, recovery 0.4, on the [3 %, 12 %] tranche.
+struct TenNamesFromToday
+{
+    std::vector<std::string> names;
+    ext::shared_ptr<Pool> pool = ext::make_shared<Pool>();
+
+    TenNamesFromToday(const Date& today, Real fifthHazard)
+    {
+        const NorthAmericaCorpDefaultKey key(EURCurrency(), SeniorSec, Period(), 1.);
+        for (Size i = 0; i < 10; ++i)
+        {
+            names.push_back("issuer-" + std::to_string(i));
+            const Real hazard = i == 5 ? fifthHazard : 0.002 + 0.004 * Real(i);
+            const Handle<DefaultProbabilityTermStructure> curve(
+                ext::make_shared<FlatHazardRate>(today, makeQuoteHandle(hazard), Actual365Fixed()));
+            pool->add(names.back(), Issuer(std::vector<Issuer::key_curve_pair>(1, std::make_pair(key, curve))), key);
+        }
+    }
+
+    ext::shared_ptr<Basket> basket(const Date& today, const ext::shared_ptr<DefaultLossModel>& model) const
+    {
+        auto basket = ext::make_shared<Basket>(today, names, std::vector<Real>(10, 10.0), pool, 0.03, 0.12);
+        basket->setLossModel(model);
+        return basket;
+    }
+};
+
+struct TFactorLossModel
+{
+    const char* name;
+    std::function<ext::shared_ptr<DefaultLossModel>()> make;
+    // whether its distribution leaves no mass at a loss no name can make (the pool models' doesn't, #259)
+    bool exact;
+};
+
+// The loss models on one t5 factor at correlation 0.3, each on a latent model of its own.
+std::vector<TFactorLossModel> tFactorLossModels()
+{
+    const auto latent = []
+    {
+        TCopulaPolicy::initTraits traits;
+        traits.tOrders = std::vector<Integer>(2, 5);
+        return ext::make_shared<TConstantLossLM>(
+            std::vector<std::vector<Real>>(10, std::vector<Real>(1, std::sqrt(0.3))), std::vector<Real>(10, 0.4),
+            LatentModelIntegrationType::GaussianQuadrature, traits);
+    };
+    return {
+        {"recursive", [=] { return ext::make_shared<RecursiveLossModel<TCopulaPolicy>>(latent(), 1); }, true},
+        {"binomial", [=] { return ext::make_shared<TBinomialLossModel>(latent()); }, true},
+        {"saddle point", [=] { return ext::make_shared<SaddlePointLossModel<TCopulaPolicy>>(latent()); }, true},
+        {"homogeneous pool", [=] { return ext::make_shared<HomogTPoolLossModel>(latent(), 101, 5., -5., 15); }, false},
+        {"inhomogeneous pool", [=] { return ext::make_shared<IHStudentPoolLossModel>(latent(), 101, 5., -5., 15); },
+         false}};
+}
+
+BOOST_AUTO_TEST_CASE(testTFactorsInvertTheEndsOfTheirRange)
+{
+    BOOST_TEST_MESSAGE("Testing that a t copula inverts probabilities at the ends of their range...");
+
+    /* A latent variable's quantile on t factors is solved by Brent on a bracket that starts from the normal quantile
+       of the probability on its upper side. Where that probability rounds to 1, at 0 and 1 and up to 2^-54, the
+       bracket started at QL_MAX_REAL, past its end, and the inverse threw (#269). It gives -QL_MAX_REAL and
+       QL_MAX_REAL there now, as InverseCumulativeNormal does at 0 and 1, and the cumulative, which gave NaN at
+       those, takes them back to 0 and 1. */
+    const std::vector<TCopulaCase> cases = {{"one t3 factor at correlation 0.3", {3, 3}, {std::sqrt(0.3)}},
+                                            {"one t5 factor at correlation 0.8", {5, 5}, {std::sqrt(0.8)}}};
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.description)
+        {
+            const TCopulaPolicy policy(std::vector<std::vector<Real>>(1, c.loadings), tTraitsOf(c));
+            BOOST_CHECK_EQUAL(policy.inverseCumulativeY(0.0, 0), -QL_MAX_REAL);
+            BOOST_CHECK_EQUAL(policy.inverseCumulativeY(std::ldexp(1.0, -60), 0), -QL_MAX_REAL);
+            BOOST_CHECK_EQUAL(policy.inverseCumulativeY(1.0, 0), QL_MAX_REAL);
+            BOOST_CHECK_EQUAL(policy.cumulativeY(-QL_MAX_REAL, 0), 0.0);
+            BOOST_CHECK_EQUAL(policy.cumulativeY(QL_MAX_REAL, 0), 1.0);
+            BOOST_CHECK_THROW(policy.inverseCumulativeY(-0.1, 0), Error);
+            BOOST_CHECK_THROW(policy.inverseCumulativeY(1.1, 0), Error);
+            // from 2^-53, whose complement is the double below 1, the quantile is finite, and beyond 1e-15's
+            const Real first = policy.inverseCumulativeY(std::ldexp(1.0, -53), 0);
+            BOOST_CHECK(first > -QL_MAX_REAL && first < policy.inverseCumulativeY(1.0e-15, 0));
+            BOOST_CHECK_EQUAL(policy.inverseCumulativeY(1.0 - std::ldexp(1.0, -53), 0), -first);
+            /* Within the range the inverse is what it was. The cumulative resolves probabilities near 0 and 1 to about
+               1e-16, 1e-6 of the 1e-10 below, and the solver works to 1e-6 in the variable. */
+            for (Probability q : {1.0e-10, 0.25, 1.0 - 1.0e-10})
+            {
+                BOOST_TEST_CONTEXT("at " << q)
+                {
+                    const Probability back = policy.cumulativeY(policy.inverseCumulativeY(q, 0), 0);
+                    BOOST_CHECK_SMALL(q < 0.5 ? back / q - 1.0 : (1.0 - back) / (1.0 - q) - 1.0, 1.0e-5);
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testTFactorLossModelsAtTheEvaluationDate)
+{
+    BOOST_TEST_MESSAGE("Testing loss models on t factors at the evaluation date...");
+
+    /* No name can default by today, on default curves as of today. On t factors every loss model below inverted each
+       name's probability of 0 and threw, and so did both CDO engines on a tranche whose first coupon starts today,
+       from the expected tranche loss on that date (#269). */
+    const Date today(31, August, 2006);
+    Settings::instance().evaluationDate() = today;
+    const TenNamesFromToday names(today, 0.022);
+    const Handle<YieldTermStructure> discountCurve(ext::make_shared<FlatForward>(today, 0.03, Actual365Fixed()));
+    const Schedule schedule = MakeSchedule()
+                                  .from(today)
+                                  .to(today + 5 * Years)
+                                  .withFrequency(Quarterly)
+                                  .withCalendar(TARGET())
+                                  .withConvention(Following)
+                                  .withRule(DateGeneration::Forward);
+    for (const auto& model : tFactorLossModels())
+    {
+        BOOST_TEST_CONTEXT(model.name)
+        {
+            const auto basket = names.basket(today, model.make());
+            const Real expectedLoss = basket->expectedTrancheLoss(today);
+            if (model.exact)
+            {
+                BOOST_CHECK_EQUAL(expectedLoss, 0.0);
+                BOOST_CHECK_EQUAL(basket->percentile(today, 0.99), 0.0);
+                BOOST_CHECK_EQUAL(basket->expectedShortfall(today, 0.95), 0.0);
+            }
+            for (bool integral : {false, true})
+            {
+                BOOST_TEST_CONTEXT((integral ? "integral engine" : "midpoint engine"))
+                {
+                    SyntheticCDO tranche(basket, Protection::Seller, schedule, 0.0, 0.05, Actual365Fixed(), Following);
+                    if (integral)
+                        tranche.setPricingEngine(ext::make_shared<IntegralCDOEngine>(discountCurve));
+                    else
+                        tranche.setPricingEngine(ext::make_shared<MidPointCDOEngine>(discountCurve));
+                    BOOST_CHECK(std::isfinite(tranche.NPV()));
+                    BOOST_CHECK_EQUAL(tranche.expectedTrancheLoss().front(), expectedLoss);
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testTFactorLossModelsOnANameThatCantDefault)
+{
+    BOOST_TEST_MESSAGE("Testing loss models on t factors with a name that can't default...");
+
+    /* Name 5 at hazard 0 has probability 0 of defaulting, and so 0 given the factor: the models give what they give
+       with it at hazard 1e-14, whose probability inverts as it is. On t factors each of them threw (#269). */
+    const Date today(31, August, 2006);
+    Settings::instance().evaluationDate() = today;
+    const Date d = today + 1 * Years;
+    const TenNamesFromToday atZero(today, 0.0), almostZero(today, 1.0e-14);
+    for (const auto& model : tFactorLossModels())
+    {
+        BOOST_TEST_CONTEXT(model.name)
+        {
+            const auto basket = atZero.basket(today, model.make());
+            const auto reference = almostZero.basket(today, model.make());
+            BOOST_CHECK_SMALL(basket->expectedTrancheLoss(d) - reference->expectedTrancheLoss(d), 1.0e-10);
+            BOOST_CHECK_SMALL(basket->percentile(d, 0.99) - reference->percentile(d, 0.99), 1.0e-10);
+            BOOST_CHECK_SMALL(basket->expectedShortfall(d, 0.95) - reference->expectedShortfall(d, 0.95), 1.0e-10);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testDefaultCorrelationOfANameThatCantDefault)
+{
+    BOOST_TEST_MESSAGE("Testing the default correlation of a name that can't default...");
+
+    /* A name that can't default by the date has no default correlation with another: it was NaN on Gaussian factors
+       (#270), and on t factors the inverse threw (#269). The model says so now. */
+    const Date today(31, August, 2006);
+    Settings::instance().evaluationDate() = today;
+    const Date d = today + 1 * Years;
+    const TenNamesFromToday names(today, 0.0);
+    const std::vector<std::vector<Real>> loadings(10, std::vector<Real>(1, std::sqrt(0.3)));
+    TCopulaPolicy::initTraits t5;
+    t5.tOrders = std::vector<Integer>(2, 5);
+    const std::vector<std::pair<const char*, ext::shared_ptr<DefaultLossModel>>> models = {
+        {"Gaussian factor", ext::make_shared<ConstantLossModel<GaussianCopulaPolicy>>(
+                                loadings, std::vector<Real>(10, 0.4), LatentModelIntegrationType::GaussianQuadrature,
+                                GaussianCopulaPolicy::initTraits())},
+        {"t5 factor", ext::make_shared<ConstantLossModel<TCopulaPolicy>>(
+                          loadings, std::vector<Real>(10, 0.4), LatentModelIntegrationType::GaussianQuadrature, t5)}};
+    for (const auto& [description, model] : models)
+    {
+        BOOST_TEST_CONTEXT(description)
+        {
+            const auto basket = names.basket(today, model);
+            BOOST_CHECK_THROW(basket->defaultCorrelation(d, 0, 5), Error);
+            BOOST_CHECK_THROW(basket->defaultCorrelation(d, 5, 0), Error);
+            BOOST_CHECK_THROW(basket->defaultCorrelation(d, 5, 5), Error);
+            BOOST_CHECK_THROW(basket->defaultCorrelation(today, 0, 1), Error);
+            const Real correlation = basket->defaultCorrelation(d, 0, 1);
+            BOOST_CHECK(correlation > 0.0 && correlation < 1.0);
+            BOOST_CHECK_CLOSE_FRACTION(basket->defaultCorrelation(d, 1, 1), 1.0, 1.0e-12);
+        }
+    }
+}
+
+// Ten names of the given notionals at hazard 1 % from today but for the last one's, recovery 0.4.
+struct NamesAtOnePercent
+{
+    std::vector<std::string> names;
+    std::vector<Real> notionals;
+    ext::shared_ptr<Pool> pool = ext::make_shared<Pool>();
+
+    NamesAtOnePercent(const Date& today, std::vector<Real> notionals, Real lastHazard) : notionals(std::move(notionals))
+    {
+        const NorthAmericaCorpDefaultKey key(EURCurrency(), SeniorSec, Period(), 1.);
+        for (Size i = 0; i < this->notionals.size(); ++i)
+        {
+            names.push_back("issuer-" + std::to_string(i));
+            const Real hazard = i + 1 == this->notionals.size() ? lastHazard : 0.01;
+            const Handle<DefaultProbabilityTermStructure> curve(
+                ext::make_shared<FlatHazardRate>(today, makeQuoteHandle(hazard), Actual365Fixed()));
+            pool->add(names.back(), Issuer(std::vector<Issuer::key_curve_pair>(1, std::make_pair(key, curve))), key);
+        }
+    }
+
+    ext::shared_ptr<Basket> basket(const Date& today,
+                                   const ext::shared_ptr<DefaultLossModel>& model,
+                                   Real attachment = 0.0,
+                                   Real detachment = 1.0) const
+    {
+        auto basket = ext::make_shared<Basket>(today, names, notionals, pool, attachment, detachment);
+        basket->setLossModel(model);
+        return basket;
+    }
+};
+
+// A recursive model on one factor at correlation 0.3, Gaussian or t5, and its latent model's count of defaults.
+struct RecursiveOnOneFactor
+{
+    ext::shared_ptr<DefaultLossModel> model;
+    std::function<Probability(Size, const Date&)> probAtLeastNEvents;
+
+    RecursiveOnOneFactor(bool t5, Size buckets)
+    {
+        const std::vector<std::vector<Real>> loadings(10, std::vector<Real>(1, std::sqrt(0.3)));
+        const std::vector<Real> recoveries(10, 0.4);
+        if (t5)
+        {
+            TCopulaPolicy::initTraits traits;
+            traits.tOrders = std::vector<Integer>(2, 5);
+            const auto latent = ext::make_shared<TConstantLossLM>(
+                loadings, recoveries, LatentModelIntegrationType::GaussianQuadrature, traits);
+            model = ext::make_shared<RecursiveLossModel<TCopulaPolicy>>(latent, buckets);
+            probAtLeastNEvents = [latent](Size n, const Date& d) { return latent->probAtLeastNEvents(n, d); };
+        }
+        else
+        {
+            const auto latent = ext::make_shared<GaussianConstantLossLM>(loadings, recoveries,
+                                                                         LatentModelIntegrationType::GaussianQuadrature,
+                                                                         GaussianCopulaPolicy::initTraits());
+            model = ext::make_shared<RecursiveLossModel<GaussianCopulaPolicy>>(latent, buckets);
+            probAtLeastNEvents = [latent](Size n, const Date& d) { return latent->probAtLeastNEvents(n, d); };
+        }
+    }
+};
+
+BOOST_AUTO_TEST_CASE(testRecursiveLossDistributionOnItsAttainableLosses)
+{
+    BOOST_TEST_MESSAGE("Testing that the recursive model's loss distribution is on its attainable losses...");
+
+    /* The recursive model's attainable losses are the sums of the names' losses in loss units, the smallest loss
+       given default over the buckets. With more than one bucket, or with losses that aren't multiples of the
+       smallest, they aren't every count of units, but the loss distribution put the i-th of them at i units. With
+       four buckets on names alike every loss, percentile and shortfall from it came out a quarter of its size, and on
+       one name of 1 and nine of 10 the largest loss was 11.4 of 54.6 (#261). */
+    const Date today(31, August, 2006);
+    Settings::instance().evaluationDate() = today;
+    const Date d = today + 5 * Years;
+
+    // the attainable losses: b times a name of 10's loss of 6, and a times a name of 1's 0.6
+    std::vector<Real> alike, mixed;
+    for (Size b = 0; b <= 10; ++b)
+        alike.push_back(6.0 * Real(b));
+    for (Size b = 0; b < 10; ++b)
+        for (Size a = 0; a < 2; ++a)
+            mixed.push_back(6.0 * Real(b) + 0.6 * Real(a));
+    std::vector<Real> oneSmall(10, 10.0);
+    oneSmall[0] = 1.0;
+    struct PoolCase
+    {
+        const char* description;
+        std::vector<Real> notionals;
+        Real lastHazard;
+        const std::vector<Real>& losses;
+    };
+    const std::vector<PoolCase> pools = {
+        {"ten names of 10", std::vector<Real>(10, 10.0), 0.01, alike},
+        {"a name of 1 and nine of 10", oneSmall, 0.01, mixed},
+        {"ten names of 10, the last at hazard 0", std::vector<Real>(10, 10.0), 0.0, alike}};
+    for (const auto& pool : pools)
+    {
+        const NamesAtOnePercent names(today, pool.notionals, pool.lastHazard);
+        for (bool t5 : {false, true})
+        {
+            BOOST_TEST_CONTEXT(pool.description << (t5 ? ", one t5 factor" : ", one Gaussian factor"))
+            {
+                std::map<Real, Probability> oneBucket;
+                for (Size buckets : {Size(1), Size(4)})
+                {
+                    BOOST_TEST_CONTEXT(buckets << " bucket(s)")
+                    {
+                        const RecursiveOnOneFactor recursive(t5, buckets);
+                        // the latent model counts defaults on the basket it was last given
+                        const auto basket = names.basket(today, recursive.model);
+                        const auto distribution = basket->lossDistribution(d);
+                        BOOST_REQUIRE_EQUAL(distribution.size(), pool.losses.size());
+                        auto expected = pool.losses.begin();
+                        for (const auto& point : distribution)
+                            BOOST_CHECK_SMALL(point.first - *expected++, 1.0e-12);
+                        // short of 1 by the mass the factor's integration rule leaves out: 8.2e-13 Gaussian, 8.3e-11 t5
+                        BOOST_CHECK_SMALL(distribution.rbegin()->second - 1.0, 1.0e-10);
+                        if (buckets == 1)
+                        {
+                            oneBucket = distribution;
+                        }
+                        else
+                        {
+                            // the same distribution as one bucket's, whose loss unit is the losses' own
+                            auto other = oneBucket.begin();
+                            for (const auto& point : distribution)
+                            {
+                                BOOST_CHECK_SMALL(point.first - other->first, 1.0e-12);
+                                BOOST_CHECK_SMALL(point.second - other->second, 1.0e-14);
+                                ++other;
+                            }
+                        }
+                        if (&pool.losses == &alike)
+                        {
+                            /* At the loss of k defaults, the probability of at most k: with that of k + 1 or more it
+                               makes the total, which the factor's integration rule leaves short of 1 */
+                            Size k = 0;
+                            for (const auto& point : distribution)
+                            {
+                                if (k < 10)
+                                    BOOST_CHECK_SMALL(point.second + recursive.probAtLeastNEvents(k + 1, d) -
+                                                          distribution.rbegin()->second,
+                                                      1.0e-14);
+                                ++k;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // on the [3 %, 12 %] tranche, losses of 0, 3 and 9: at 99 %, the loss of two defaults or more
+    const NamesAtOnePercent names(today, std::vector<Real>(10, 10.0), 0.01);
+    const auto one = names.basket(today, RecursiveOnOneFactor(false, 1).model, 0.03, 0.12);
+    const auto four = names.basket(today, RecursiveOnOneFactor(false, 4).model, 0.03, 0.12);
+    BOOST_CHECK_CLOSE(four->percentile(d, 0.99), 9.0, 1.0e-10);
+    BOOST_CHECK_CLOSE(four->expectedShortfall(d, 0.95), one->expectedShortfall(d, 0.95), 1.0e-10);
+}
+
+BOOST_AUTO_TEST_CASE(testConstantLossModelDefaultsItsCopulaTraits)
+{
+    BOOST_TEST_MESSAGE("Testing that a constant loss model's copula traits can be left out...");
+
+    /* Both constructors default the copula's traits, but the default had no typename, so a call that left them out
+       didn't compile (#272). It compiles now, and gives what the explicit default gives. */
+    const Date today(31, August, 2006);
+    Settings::instance().evaluationDate() = today;
+    const Date d = today + 5 * Years;
+    const NamesAtOnePercent names(today, std::vector<Real>(10, 10.0), 0.01);
+    const std::vector<std::vector<Real>> loadings(10, std::vector<Real>(1, std::sqrt(0.3)));
+    const std::vector<Real> recoveries(10, 0.4);
+    const auto integration = LatentModelIntegrationType::GaussianQuadrature;
+    using Model = ConstantLossModel<GaussianCopulaPolicy>;
+    const auto left = names.basket(today, ext::make_shared<Model>(loadings, recoveries, integration));
+    const auto given = names.basket(
+        today, ext::make_shared<Model>(loadings, recoveries, integration, GaussianCopulaPolicy::initTraits()));
+    BOOST_CHECK_EQUAL(left->probAtLeastNEvents(2, d), given->probAtLeastNEvents(2, d));
+    const auto leftFromAQuote =
+        names.basket(today, ext::make_shared<Model>(makeQuoteHandle(0.3), recoveries, integration, Size(10)));
+    const auto givenFromAQuote =
+        names.basket(today, ext::make_shared<Model>(makeQuoteHandle(0.3), recoveries, integration, Size(10),
+                                                    GaussianCopulaPolicy::initTraits()));
+    BOOST_CHECK_EQUAL(leftFromAQuote->probAtLeastNEvents(2, d), givenFromAQuote->probAtLeastNEvents(2, d));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

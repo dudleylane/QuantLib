@@ -24,6 +24,7 @@
 #include <ql/math/functional.hpp>
 #include <ql/math/solvers1d/brent.hpp>
 #include <boost/math/distributions/students_t.hpp>
+#include <cmath>
 
 namespace QuantLib
 {
@@ -126,6 +127,11 @@ namespace QuantLib
         // 1st & 0th terms with the table integration
         Real integral = polyConvolved_[0] * std::atan(x / a_);
         Real squared = a2_ + x * x;
+        // x * x overflows past about 1.3e154 in size, where the terms below
+        // can give inf / inf. The probability is 0 or 1 there to working
+        // precision, as at the inverse's -QL_MAX_REAL and QL_MAX_REAL.
+        if (std::isinf(squared))
+            return x < 0. ? 0. : 1.;
         Real rootsqr = std::sqrt(squared);
         Real atan2xa = std::atan2(-x, a_);
         if (polyConvolved_.size() > 1)
@@ -164,6 +170,7 @@ namespace QuantLib
 
     Real InverseCumulativeBehrensFisher::operator()(const Probability q) const
     {
+        QL_REQUIRE(q >= 0. && q <= 1., "probability (" << q << ") outside [0, 1]");
         Probability effectiveq;
         Real sign;
         // since the distrib is symmetric solve only on the right side:
@@ -181,6 +188,12 @@ namespace QuantLib
             sign = 1.;
             effectiveq = q;
         }
+        // effectiveq is 1 at q = 0 or 1, and where 1 - q rounds to 1, up to
+        // 2^-54. The quantile is infinite at 0 and 1, and up to 2^-54 this side
+        // can't resolve it; the solver's bracket would start past its end.
+        // Give the largest value, as InverseCumulativeNormal does at 0 and 1.
+        if (effectiveq == 1.)
+            return sign * QL_MAX_REAL;
         Real xMin = InverseCumulativeNormal::standard_value(effectiveq) * normSqr_;
         // inversion will fail at the Brent's bounds-check if this is not enough
         // (q is very close to 1.), in a bad combination fails around 1.-1.e-7
