@@ -111,7 +111,7 @@ namespace QuantLib
         ConstantLossModel(const std::vector<std::vector<Real>>& factorWeights,
                           const std::vector<Real>& recoveries,
                           LatentModelIntegrationType::LatentModelIntegrationType integralType,
-                          const typename copulaPolicy::initTraits& ini = copulaPolicy::initTraits())
+                          const typename copulaPolicy::initTraits& ini = typename copulaPolicy::initTraits())
         : ConstantLossLatentmodel<copulaPolicy>(factorWeights, recoveries, integralType, ini)
         {
         }
@@ -120,7 +120,7 @@ namespace QuantLib
                           const std::vector<Real>& recoveries,
                           LatentModelIntegrationType::LatentModelIntegrationType integralType,
                           Size nVariables,
-                          const typename copulaPolicy::initTraits& ini = copulaPolicy::initTraits())
+                          const typename copulaPolicy::initTraits& ini = typename copulaPolicy::initTraits())
         : ConstantLossLatentmodel<copulaPolicy>(mktCorrel, recoveries, integralType, nVariables, ini)
         {
         }

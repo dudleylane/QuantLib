@@ -3716,6 +3716,32 @@ BOOST_AUTO_TEST_CASE(testRecursiveLossDistributionOnItsAttainableLosses)
     BOOST_CHECK_CLOSE(four->expectedShortfall(d, 0.95), one->expectedShortfall(d, 0.95), 1.0e-10);
 }
 
+BOOST_AUTO_TEST_CASE(testConstantLossModelDefaultsItsCopulaTraits)
+{
+    BOOST_TEST_MESSAGE("Testing that a constant loss model's copula traits can be left out...");
+
+    /* Both constructors default the copula's traits, but the default had no typename, so a call that left them out
+       didn't compile (#272). It compiles now, and gives what the explicit default gives. */
+    const Date today(31, August, 2006);
+    Settings::instance().evaluationDate() = today;
+    const Date d = today + 5 * Years;
+    const NamesAtOnePercent names(today, std::vector<Real>(10, 10.0), 0.01);
+    const std::vector<std::vector<Real>> loadings(10, std::vector<Real>(1, std::sqrt(0.3)));
+    const std::vector<Real> recoveries(10, 0.4);
+    const auto integration = LatentModelIntegrationType::GaussianQuadrature;
+    using Model = ConstantLossModel<GaussianCopulaPolicy>;
+    const auto left = names.basket(today, ext::make_shared<Model>(loadings, recoveries, integration));
+    const auto given = names.basket(
+        today, ext::make_shared<Model>(loadings, recoveries, integration, GaussianCopulaPolicy::initTraits()));
+    BOOST_CHECK_EQUAL(left->probAtLeastNEvents(2, d), given->probAtLeastNEvents(2, d));
+    const auto leftFromAQuote =
+        names.basket(today, ext::make_shared<Model>(makeQuoteHandle(0.3), recoveries, integration, Size(10)));
+    const auto givenFromAQuote =
+        names.basket(today, ext::make_shared<Model>(makeQuoteHandle(0.3), recoveries, integration, Size(10),
+                                                    GaussianCopulaPolicy::initTraits()));
+    BOOST_CHECK_EQUAL(leftFromAQuote->probAtLeastNEvents(2, d), givenFromAQuote->probAtLeastNEvents(2, d));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
