@@ -245,17 +245,19 @@ void testHullWhiteValues(const int dataSet)
         ext::shared_ptr<TConstantLossLM> TKtLossLM(
             new TConstantLossLM(hCorrelation, std::vector<Real>(poolSize, recovery),
                                 LatentModelIntegrationType::GaussianQuadrature, poolSize, initTG));
+        /* On t factors the pool models take their steps in the factor's normal quantile (#259), here and below. At
+           15 steps set 3's 6-10 % tranche comes out 1.7 % under its value at 170, and fails; 50 is their default. */
         // 1.-inhomogeneous studentT
         modelNames.emplace_back("Inhomogeneous student");
         basketModels.push_back(
-            ext::shared_ptr<DefaultLossModel>(new IHStudentPoolLossModel(TKtLossLM, nBuckets, 5., -5., 15)));
+            ext::shared_ptr<DefaultLossModel>(new IHStudentPoolLossModel(TKtLossLM, nBuckets, 5., -5., 50)));
         absoluteTolerance.push_back(1.);
         relativeToleranceMidp.push_back(0.04);
         relativeTolerancePeriod.push_back(0.04);
         // 2.-homogeneous student T
         modelNames.emplace_back("Homogeneous student");
         basketModels.push_back(
-            ext::shared_ptr<DefaultLossModel>(new HomogTPoolLossModel(TKtLossLM, nBuckets, 5., -5., 15)));
+            ext::shared_ptr<DefaultLossModel>(new HomogTPoolLossModel(TKtLossLM, nBuckets, 5., -5., 50)));
         absoluteTolerance.push_back(1.);
         relativeToleranceMidp.push_back(0.04);
         relativeTolerancePeriod.push_back(0.04);
@@ -286,14 +288,14 @@ void testHullWhiteValues(const int dataSet)
         // 1.-inhomogeneous
         modelNames.emplace_back("Inhomogeneous student-gaussian");
         basketModels.push_back(
-            ext::shared_ptr<DefaultLossModel>(new IHStudentPoolLossModel(TKtLossLM, nBuckets, 5., -5., 15)));
+            ext::shared_ptr<DefaultLossModel>(new IHStudentPoolLossModel(TKtLossLM, nBuckets, 5., -5., 50)));
         absoluteTolerance.push_back(1.);
         relativeToleranceMidp.push_back(0.04);
         relativeTolerancePeriod.push_back(0.04);
         // 2.-homogeneous
         modelNames.emplace_back("Homogeneous student-gaussian");
         basketModels.push_back(
-            ext::shared_ptr<DefaultLossModel>(new HomogTPoolLossModel(TKtLossLM, nBuckets, 5., -5., 15)));
+            ext::shared_ptr<DefaultLossModel>(new HomogTPoolLossModel(TKtLossLM, nBuckets, 5., -5., 50)));
         absoluteTolerance.push_back(1.);
         relativeToleranceMidp.push_back(0.04);
         relativeTolerancePeriod.push_back(0.04);
@@ -320,14 +322,14 @@ void testHullWhiteValues(const int dataSet)
         // 1.-inhomogeneous gaussian
         modelNames.emplace_back("Inhomogeneous gaussian-student");
         basketModels.push_back(
-            ext::shared_ptr<DefaultLossModel>(new IHStudentPoolLossModel(TKtLossLM, nBuckets, 5., -5., 15)));
+            ext::shared_ptr<DefaultLossModel>(new IHStudentPoolLossModel(TKtLossLM, nBuckets, 5., -5., 50)));
         absoluteTolerance.push_back(1.);
         relativeToleranceMidp.push_back(0.04);
         relativeTolerancePeriod.push_back(0.04);
         // 2.-homogeneous gaussian
         modelNames.emplace_back("Homogeneous gaussian-student");
         basketModels.push_back(
-            ext::shared_ptr<DefaultLossModel>(new HomogTPoolLossModel(TKtLossLM, nBuckets, 5., -5., 15)));
+            ext::shared_ptr<DefaultLossModel>(new HomogTPoolLossModel(TKtLossLM, nBuckets, 5., -5., 50)));
         absoluteTolerance.push_back(1.);
         relativeToleranceMidp.push_back(0.04);
         relativeTolerancePeriod.push_back(0.04);
@@ -5627,6 +5629,98 @@ BOOST_AUTO_TEST_CASE(testTrancheInsideACoupon)
                     BOOST_CHECK_CLOSE_FRACTION(inside->premiumLegNPV(), fresh->premiumLegNPV(), 1.0e-12);
                     BOOST_CHECK_CLOSE_FRACTION(inside->protectionLegNPV(), fresh->protectionLegNPV(), 1.0e-12);
                     BOOST_CHECK_CLOSE_FRACTION(inside->fairPremium(), fresh->fairPremium(), 1.0e-12);
+                }
+            }
+        }
+    }
+}
+
+namespace
+{
+    // The pool models on one factor at correlation 0.3: Gaussian, or t of the given order for both variables.
+    ext::shared_ptr<DefaultLossModel> poolModel(
+        Integer tOrder, bool homogeneous, Size names, Size buckets, Real max = 5.0, Real min = -5.0, Size steps = 50)
+    {
+        const std::vector<std::vector<Real>> loadings(names, std::vector<Real>(1, std::sqrt(0.3)));
+        const std::vector<Real> recoveries(names, 0.4);
+        if (tOrder == 0)
+        {
+            const auto latent = ext::make_shared<GaussianConstantLossLM>(loadings, recoveries,
+                                                                         LatentModelIntegrationType::GaussianQuadrature,
+                                                                         GaussianCopulaPolicy::initTraits());
+            if (homogeneous)
+                return ext::make_shared<HomogGaussPoolLossModel>(latent, buckets, max, min, steps);
+            return ext::make_shared<IHGaussPoolLossModel>(latent, buckets, max, min, steps);
+        }
+        TCopulaPolicy::initTraits traits;
+        traits.tOrders = std::vector<Integer>(2, tOrder);
+        const auto latent = ext::make_shared<TConstantLossLM>(loadings, recoveries,
+                                                              LatentModelIntegrationType::GaussianQuadrature, traits);
+        if (homogeneous)
+            return ext::make_shared<HomogTPoolLossModel>(latent, buckets, max, min, steps);
+        return ext::make_shared<IHStudentPoolLossModel>(latent, buckets, max, min, steps);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testPoolModelsIntegrateTFactorsOverTheirTails)
+{
+    BOOST_TEST_MESSAGE("Testing that the pool models integrate t factors over their tails...");
+
+    /* The pool models integrated their factor by the midpoint rule on [-5, 5] in the factor itself. That leaves out
+       3.2e-3 of a t3 factor's mass and 1.3e-3 of a t5 one's, and the loss distribution counted what it left out as a
+       loss beyond every bucket. On the default rule, ten names' expected loss by a year came out 41 % high on t3
+       factors and 18 % on t5 ones, where 60 p is exact (#259). The rule's bounds and steps are now in the factor's
+       normal quantile, and [-5, 5] leaves out 5.7e-7 of any factor's mass. At 12,000 buckets what is left is the
+       buckets', 1.3 % as on a Gaussian factor (#260). */
+    const Date today(31, August, 2006);
+    Settings::instance().evaluationDate() = today;
+    const Date d = today + 1 * Years;
+    const NamesAtOnePercent names(today, std::vector<Real>(10, 10.0), 0.01);
+    const Real exact = 60.0 * FlatHazardRate(today, makeQuoteHandle(0.01), Actual365Fixed()).defaultProbability(d);
+    for (Integer tOrder : {0, 3, 5})
+    {
+        for (bool homogeneous : {true, false})
+        {
+            BOOST_TEST_CONTEXT((tOrder == 0 ? std::string("Gaussian") : "t" + std::to_string(tOrder))
+                               << (homogeneous ? " factor, homogeneous model" : " factor, inhomogeneous model"))
+            {
+                const auto basket = names.basket(today, poolModel(tOrder, homogeneous, 10, 12000));
+                BOOST_CHECK_SMALL(basket->expectedTrancheLoss(d) / exact - 1.0, 0.02);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testPoolModelsTakeTheirBoundsInTheNormalQuantile)
+{
+    BOOST_TEST_MESSAGE("Testing that the pool models take their bounds in the factor's normal quantile...");
+
+    /* On t factors the bounds and steps of the pool models' rule are in the factor's normal quantile u (#259). Past
+       |u| of about 37.5, Phi(-|u|) underflows and the factor's quantile overflows, so the nodes there, whose weights
+       are below 1e-305, are skipped. [-40, 40] in 800 steps has [-8.5, 8.5]'s 170 nodes inside it, and its other
+       ones hold 1.9e-17 of the mass; in the factor itself, the two rules differed by the factor's tails. A tranche's
+       expected loss still comes from excess probabilities, 1 less the cumulative (#260), so the two rules'
+       cumulatives, a few ulps apart, move the senior tranche's by up to 1e-12 of itself. */
+    const Date today(31, August, 2006);
+    Settings::instance().evaluationDate() = today;
+    const Date d = today + 1 * Years;
+    const NamesAtOnePercent names(today, std::vector<Real>(100, 1.0), 0.01);
+    for (Integer tOrder : {3, 5})
+    {
+        for (bool homogeneous : {true, false})
+        {
+            for (const auto& [a, b] : std::vector<std::pair<Real, Real>>{{0.03, 0.06}, {0.06, 0.10}, {0.10, 1.0}})
+            {
+                BOOST_TEST_CONTEXT("t" << tOrder << (homogeneous ? ", homogeneous" : ", inhomogeneous")
+                                       << " model, tranche [" << a << ", " << b << "]")
+                {
+                    const Real wide =
+                        names.basket(today, poolModel(tOrder, homogeneous, 100, 200, 40.0, -40.0, 800), a, b)
+                            ->expectedTrancheLoss(d);
+                    const Real narrow =
+                        names.basket(today, poolModel(tOrder, homogeneous, 100, 200, 8.5, -8.5, 170), a, b)
+                            ->expectedTrancheLoss(d);
+                    BOOST_CHECK_SMALL(wide / narrow - 1.0, 1.0e-11);
                 }
             }
         }
