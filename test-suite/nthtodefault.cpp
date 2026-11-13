@@ -85,7 +85,7 @@ hwDatumDist hwDataDist[] = {{1, {440, 419, 474, 455}}, {2, {139, 127, 127, 116}}
                             {10, {0, 1, 0, 1}}};
 
 
-BOOST_AUTO_TEST_CASE(testGauss, *precondition(if_speed(Slow)))
+BOOST_AUTO_TEST_CASE(testGauss)
 {
     BOOST_TEST_MESSAGE("Testing nth-to-default against Hull-White values "
                        "with Gaussian copula...");
