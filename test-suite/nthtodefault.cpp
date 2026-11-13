@@ -433,10 +433,11 @@ ext::shared_ptr<NthToDefault> nthToDefault(const ext::shared_ptr<Basket>& basket
                                            Rate upfront,
                                            Real nominal,
                                            const Handle<YieldTermStructure>& discountCurve,
-                                           const Period& step = 3 * Months)
+                                           const Period& step = 3 * Months,
+                                           const Date& start = Date(1, September, 2006))
 {
     const Schedule schedule = MakeSchedule()
-                                  .from(Date(1, September, 2006))
+                                  .from(start)
                                   .to(Date(1, September, 2011))
                                   .withFrequency(Quarterly)
                                   .withCalendar(TARGET())
@@ -508,12 +509,12 @@ BOOST_AUTO_TEST_CASE(testUpfront)
 {
     BOOST_TEST_MESSAGE("Testing an nth to default's upfront...");
 
-    // The upfront is taken as paid on the first coupon's accrual start, and counts until that
-    // coupon is paid, unless it falls before the discount curve's reference date. Before #206 the
-    // engine took it on the basket's remaining notional, 800 here, where the premium and the
-    // protection are on the contract's: an upfront of 1 % came to 7.9989 on a contract of 100,
-    // and on one of 1,000 alike. And inside the first coupon, on a discount curve as of today,
-    // it discounted the upfront from before the curve's reference date, and threw.
+    // The upfront is taken as paid on the first coupon's accrual start, and counts only if that's
+    // on or after today and the discount curve's reference date. Before #206 the engine took it on
+    // the basket's remaining notional, 800 here, where the premium and the protection are on the
+    // contract's: an upfront of 1 % came to 7.9989 on a contract of 100, and on one of 1,000 alike.
+    // And inside the first coupon, on a discount curve as of today, it discounted the upfront from
+    // before the curve's reference date, and threw.
     const Date accrualStart(1, September, 2006);
     const Date insideTheFirstCoupon(1, November, 2006);
     const Date afterTheFirstPayment(4, December, 2006);
@@ -527,12 +528,12 @@ BOOST_AUTO_TEST_CASE(testUpfront)
         bool upfrontCounts;
     };
     // The upfront doesn't depend on the rank, so these take a first to default. Inside the first
-    // coupon, on a curve from inception, it still counts though it has been paid: #206 changed
-    // only what threw (#227).
+    // coupon it has been paid, so it doesn't count on either curve. Until #227's fix it still
+    // counted on a curve from inception, until the first coupon was paid.
     const Valuation valuations[] = {
         {inception(), inception(), 100.0, true},           {inception(), inception(), 1000.0, true},
         {accrualStart, accrualStart, 100.0, true},         {accrualStart, accrualStart, 1000.0, true},
-        {insideTheFirstCoupon, inception(), 100.0, true},  {insideTheFirstCoupon, insideTheFirstCoupon, 100.0, false},
+        {insideTheFirstCoupon, inception(), 100.0, false}, {insideTheFirstCoupon, insideTheFirstCoupon, 100.0, false},
         {afterTheFirstPayment, inception(), 100.0, false}, {afterTheFirstPayment, afterTheFirstPayment, 100.0, false},
     };
     for (const auto& valuation : valuations)
@@ -1167,6 +1168,47 @@ BOOST_AUTO_TEST_CASE(testAtLeastNDefaultsOnManyNames)
 }
 
 #endif
+
+BOOST_AUTO_TEST_CASE(testInsideACoupon)
+{
+    BOOST_TEST_MESSAGE("Testing an nth to default inside a coupon against one starting today...");
+
+    /* The engine values both legs from today (#228). So inside a coupon an nth to default is worth what one whose
+       first coupon starts today is, on the same dates from then on: its premium leg holds the coupon less what has
+       accrued, and its accrual on a default and its protection run from today. Before, it counted the coupons paid
+       after the discount curve's reference date in full, with the accrual on a default from the coupon's start and
+       protection from the curve's reference date: on a curve as of today the fair premium dipped until the coupon
+       was paid, and on one from inception the premium for the part of the coupon that had passed, and its protection,
+       still counted, as did the coupons already paid. */
+    // inside the first coupon, and inside the second, once the first is paid
+    for (const Date& today : {Date(1, November, 2006), Date(15, January, 2007)})
+    {
+        Settings::instance().evaluationDate() = today;
+        for (const Date& curveDate : {inception(), today})
+        {
+            const auto curve = flatCurveFrom(curveDate);
+            for (OneName oneName : {OneName::alive, OneName::defaulted})
+            {
+                const auto basket = eightNames({.oneName = oneName, .curveDate = curveDate});
+                for (Size rank : {1, 2, 3})
+                {
+                    BOOST_TEST_CONTEXT("today " << today << ", curves from " << curveDate
+                                                << (oneName == OneName::defaulted ? ", the fourth name defaulted" : "")
+                                                << ", rank " << rank)
+                    {
+                        const auto inside = nthToDefault(basket, rank, 0.0, 100.0, curve);
+                        const auto fresh = nthToDefault(basket, rank, 0.0, 100.0, curve, 3 * Months, today);
+                        BOOST_CHECK_CLOSE_FRACTION(inside->premiumLegNPV(), fresh->premiumLegNPV(), 1.0e-12);
+                        BOOST_CHECK_CLOSE_FRACTION(inside->protectionLegNPV(), fresh->protectionLegNPV(), 1.0e-12);
+                        BOOST_CHECK_CLOSE_FRACTION(inside->NPV(), fresh->NPV(), 1.0e-12);
+                        if (inside->premiumLegNPV() != 0.0)
+                            BOOST_CHECK_CLOSE_FRACTION(inside->fairPremium(), fresh->fairPremium(), 1.0e-12);
+                    }
+                }
+            }
+        }
+    }
+}
 
 BOOST_AUTO_TEST_SUITE_END()
 

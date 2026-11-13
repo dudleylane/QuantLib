@@ -30,12 +30,16 @@ namespace QuantLib
 
     // Varying recoveries allowed, allow now for heterogeneous notionals
     //! Nth to default engine integrating the trigger probability over each coupon
-    /*! Coupons paid after the discount curve's reference date count in
-        full, with protection from the later of their accrual start and that
-        date. The upfront is taken as paid on the first coupon's accrual
-        start, on the contract's notional. It counts until the first coupon
-        is paid, and not at all if it falls before the curve's reference
-        date (#206).
+    /*! The engine values both legs from today (#228). Coupons not paid by
+        the evaluation date count less the premium accrued before it, with
+        protection from the later of their accrual start and today, and the
+        premium accrued on a default counts from today too. On a discount
+        curve dated after today, coupons paid on or before its reference
+        date don't count, and protection starts on it. The upfront is taken
+        as paid on the first coupon's accrual start, on the contract's
+        notional. It counts only if that's on or after today (#227), and not
+        at all if it falls before the discount curve's reference date
+        (#206).
 
         The protection pays the claim on the name that is the nth to default,
         at the loss model's expected recovery for that name. Where the names
@@ -47,15 +51,6 @@ namespace QuantLib
         (#231). The other models don't, so the engine throws on them there.
         RandomLossLM gives no expected recovery, since it draws one with each
         default, so the engine throws on it whatever the recoveries (#234).
-
-        \warning Inside a coupon, on a discount curve as of today, the
-            premium for the part of the coupon that has passed is in the
-            premium leg, but its protection isn't, so the fair premium dips
-            until the coupon is paid (#228).
-        \warning On a discount curve dated on or before the first coupon's
-            accrual start, the upfront still counts after that date, until
-            the first coupon is paid, and then drops out with nothing paid
-            (#227).
     */
     class IntegralNtdEngine : public NthToDefault::engine
     {

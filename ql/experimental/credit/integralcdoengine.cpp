@@ -24,6 +24,7 @@
 
 #    include <ql/cashflows/fixedratecoupon.hpp>
 #    include <ql/termstructures/yieldtermstructure.hpp>
+#    include <algorithm>
 
 namespace QuantLib
 {
@@ -42,14 +43,26 @@ namespace QuantLib
         results_.remainingNotional = arguments_.basket->remainingTrancheNotional();
         const Real inceptionTrancheNotional = arguments_.basket->trancheNotional();
 
-        // compute expected loss at the beginning of first relevant period;
-        // what's lost already is in every later one, and is no flow to come
+        // Both legs run from today (#228). The protection starts from the
+        //   expected tranche loss on the latest of today, the first unpaid
+        //   coupon's accrual start and the reference dates of the default
+        //   curves of the names left: what's lost already is in every later
+        //   expected loss, and is no flow to come, and the curves don't
+        //   reach back before their reference dates.
         Real e1 = inceptionTrancheNotional - results_.remainingNotional;
         // todo add includeSettlement date flows variable to engine.
-        if (!arguments_.normalizedLeg[0]->hasOccurred(today))
-            // cast to fixed rate coupon?
-            e1 = arguments_.basket->expectedTrancheLoss(
-                ext::dynamic_pointer_cast<Coupon>(arguments_.normalizedLeg[0])->accrualStartDate());
+        const auto firstUnpaid =
+            std::find_if(arguments_.normalizedLeg.begin(), arguments_.normalizedLeg.end(),
+                         [&](const ext::shared_ptr<CashFlow>& cf) { return !cf->hasOccurred(today); });
+        if (firstUnpaid != arguments_.normalizedLeg.end())
+        {
+            Date start = std::max(ext::dynamic_pointer_cast<Coupon>(*firstUnpaid)->accrualStartDate(), today);
+            const ext::shared_ptr<Pool>& pool = arguments_.basket->pool();
+            for (Size i : arguments_.basket->liveList())
+                start = std::max(
+                    start, pool->get(pool->names()[i]).defaultProbability(pool->defaultKeys()[i])->referenceDate());
+            e1 = arguments_.basket->expectedTrancheLoss(start);
+        }
         results_.expectedTrancheLoss.push_back(e1);
 
         for (auto& i : arguments_.normalizedLeg)
@@ -63,14 +76,17 @@ namespace QuantLib
 
             const ext::shared_ptr<Coupon> coupon = ext::dynamic_pointer_cast<Coupon>(i);
 
-            Date d1 = coupon->accrualStartDate();
+            // what's left of the coupon from today: the premium accrued
+            //   before today is out of the premium leg, as the losses before
+            //   it are out of the protection
+            Date d1 = std::max(coupon->accrualStartDate(), today);
             Date d2 = coupon->date();
 
             Date d, d0 = d1;
             Real e2;
             do
             {
-                d = NullCalendar().advance(d0 > today ? d0 : today, stepSize_);
+                d = NullCalendar().advance(d0, stepSize_);
                 if (d > d2)
                     d = d2;
 
@@ -94,11 +110,11 @@ namespace QuantLib
 
         // add includeSettlement date flows variable to engine.
         // The upfront is taken as paid on the first coupon's accrual start. It
-        //   counts until the first coupon is paid, and not at all if it falls
-        //   before the discount curve's reference date, where CDO doesn't
-        //   count it either (#206).
+        //   counts only if that's on or after today, as the legs run from
+        //   today (#227), and not at all if it falls before the discount
+        //   curve's reference date, where CDO doesn't count it either (#206).
         const Date upfrontDate = ext::dynamic_pointer_cast<Coupon>(arguments_.normalizedLeg[0])->accrualStartDate();
-        if (!arguments_.normalizedLeg[0]->hasOccurred(today) && upfrontDate >= discountCurve_->referenceDate())
+        if (upfrontDate >= today && upfrontDate >= discountCurve_->referenceDate())
             results_.upfrontPremiumValue =
                 results_.remainingNotional * arguments_.upfrontRate * discountCurve_->discount(upfrontDate);
 
