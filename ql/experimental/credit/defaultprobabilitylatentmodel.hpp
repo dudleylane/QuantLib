@@ -201,16 +201,16 @@ namespace QuantLib
         {
             QL_REQUIRE(basket_, "No portfolio basket set.");
             const ext::shared_ptr<Pool>& pool = basket_->pool();
-            // avoid repeating this in the integration:
+            // avoid repeating this, or its inverse below, in the integration:
             Probability pUncond = pool->get(pool->names()[iName])
                                       .defaultProbability(basket_->defaultKeys()[iName])
                                       ->defaultProbability(d);
             if (pUncond < 1.e-10)
                 return 0.;
+            const Real inverse = inverseCumulativeY(pUncond, iName);
 
-            return integratedExpectedValue(
-                [&](const std::vector<Real>& v1)
-                { return conditionalDefaultProbabilityInvP(inverseCumulativeY(pUncond, iName), iName, v1); });
+            return integratedExpectedValue([&](const std::vector<Real>& v1)
+                                           { return conditionalDefaultProbabilityInvP(inverse, iName, v1); });
         }
         /*! Pearsons' default probability correlation.
             Users should consider specialization on the copula type for specific
@@ -226,11 +226,7 @@ namespace QuantLib
         The defaults are counted among the names left at the evaluation
         date; Basket::probAtLeastNEvents adds those before it.
         */
-        Probability probAtLeastNEvents(Size n, const Date& date) const
-        {
-            return integratedExpectedValue([&](const std::vector<Real>& v1)
-                                           { return conditionalProbAtLeastNEvents(n, date, v1); });
-        }
+        Probability probAtLeastNEvents(Size n, const Date& date) const;
         /*! The probability of each name being the nth default among the names
         left at the evaluation date, and defaulting after d0 and by d. One per
         name, in the pool's order, and 0 for the names that defaulted before
@@ -279,6 +275,66 @@ namespace QuantLib
     }
 
 
+    namespace detail
+    {
+        /* For names defaulting independently, each with the given probability:
+        the probability of n defaults or more among them.
+        */
+        inline Probability conditionalProbAtLeastNEvents(Size n, const std::vector<Probability>& pDefCond)
+        {
+            /* \todo
+            This algorithm traverses all permutations starting form the
+            lowest one. This is inneficient, there shouldnt be any need to
+            go through the invalid ones. Use combinations of n elements.
+
+            See integration in O'Kane for homogeneous ntds.
+            */
+            // first position with as many defaults as desired:
+            Size liveSize = pDefCond.size();
+
+            auto limit = static_cast<BigNatural>(std::pow(2., (int)(liveSize)));
+
+            Probability probNEventsOrMore = 0.;
+            // cheap permutations
+            // dynamic_bitset (std::vector) memory manipulations moved out of the hot loop
+            auto mask = static_cast<BigNatural>((1 << (int)(n)) - 1);
+            boost::dynamic_bitset<> bsetMask(liveSize, mask);
+            auto bits_set = bsetMask.count();
+            auto increaseMask = [&]()
+            {
+                for (Size i = 0; i < bsetMask.size(); i++)
+                {
+                    // NOLINTBEGIN(modernize-use-bool-literals)
+                    if (bsetMask[i])
+                    {
+                        bsetMask[i] = 0;
+                        bits_set--;
+                    }
+                    else
+                    {
+                        bsetMask[i] = 1;
+                        bits_set++;
+                        break;
+                    }
+                    // NOLINTEND(modernize-use-bool-literals)
+                }
+            };
+            for (; mask < limit; mask++)
+            {
+                if (bits_set >= n)
+                {
+                    Probability pConfig = 1;
+                    for (Size i = 0; i < bsetMask.size(); i++)
+                        pConfig *= (bsetMask[i] ? pDefCond[i] : (1. - pDefCond[i]));
+                    probNEventsOrMore += pConfig;
+                }
+                increaseMask();
+            }
+            return probNEventsOrMore;
+        }
+    }
+
+
     template <class CP>
     Real DefaultLatentModel<CP>::conditionalProbAtLeastNEvents(Size n,
                                                                const Date& date,
@@ -286,65 +342,49 @@ namespace QuantLib
     {
         QL_REQUIRE(basket_, "No portfolio basket set.");
 
-        /* \todo
-        This algorithm traverses all permutations starting form the
-        lowest one. This is inneficient, there shouldnt be any need to
-        go through the invalid ones. Use combinations of n elements.
-
-        See integration in O'Kane for homogeneous ntds.
-        */
-        // first position with as many defaults as desired:
         const std::vector<Size>& alive = basket_->liveList();
-        Size liveSize = alive.size();
         const ext::shared_ptr<Pool>& pool = basket_->pool();
-
-        auto limit = static_cast<BigNatural>(std::pow(2., (int)(liveSize)));
 
         // Precalc conditional probabilities, each name's by its place in the pool
         std::vector<Probability> pDefCond;
-        pDefCond.reserve(liveSize);
+        pDefCond.reserve(alive.size());
         for (Size i : alive)
             pDefCond.push_back(conditionalDefaultProbability(
                 pool->get(pool->names()[i]).defaultProbability(basket_->defaultKeys()[i])->defaultProbability(date), i,
                 mktFactors));
 
-        Probability probNEventsOrMore = 0.;
-        // cheap permutations
-        // dynamic_bitset (std::vector) memory manipulations moved out of the hot loop
-        auto mask = static_cast<BigNatural>((1 << (int)(n)) - 1);
-        boost::dynamic_bitset<> bsetMask(liveSize, mask);
-        auto bits_set = bsetMask.count();
-        auto increaseMask = [&]()
+        return detail::conditionalProbAtLeastNEvents(n, pDefCond);
+    }
+
+
+    template <class CP>
+    Probability DefaultLatentModel<CP>::probAtLeastNEvents(Size n, const Date& date) const
+    {
+        QL_REQUIRE(basket_, "No portfolio basket set.");
+        const std::vector<Size>& alive = basket_->liveList();
+        const Size liveSize = alive.size();
+        const ext::shared_ptr<Pool>& pool = basket_->pool();
+        /* Each name's probability, inverted here once rather than at each
+        point of the integration. Below 1.e-10 the conditional probability
+        is 0, as in conditionalDefaultProbability.
+        */
+        std::vector<Probability> p(liveSize);
+        std::vector<Real> inverse(liveSize, 0.);
+        for (Size k = 0; k < liveSize; ++k)
         {
-            for (Size i = 0; i < bsetMask.size(); i++)
-            {
-                // NOLINTBEGIN(modernize-use-bool-literals)
-                if (bsetMask[i])
-                {
-                    bsetMask[i] = 0;
-                    bits_set--;
-                }
-                else
-                {
-                    bsetMask[i] = 1;
-                    bits_set++;
-                    break;
-                }
-                // NOLINTEND(modernize-use-bool-literals)
-            }
-        };
-        for (; mask < limit; mask++)
-        {
-            if (bits_set >= n)
-            {
-                Probability pConfig = 1;
-                for (Size i = 0; i < bsetMask.size(); i++)
-                    pConfig *= (bsetMask[i] ? pDefCond[i] : (1. - pDefCond[i]));
-                probNEventsOrMore += pConfig;
-            }
-            increaseMask();
+            const Size i = alive[k];
+            p[k] = pool->get(pool->names()[i]).defaultProbability(basket_->defaultKeys()[i])->defaultProbability(date);
+            if (p[k] >= 1.e-10)
+                inverse[k] = inverseCumulativeY(p[k], i);
         }
-        return probNEventsOrMore;
+        return integratedExpectedValue(
+            [&](const std::vector<Real>& m)
+            {
+                std::vector<Probability> pDefCond(liveSize);
+                for (Size k = 0; k < liveSize; ++k)
+                    pDefCond[k] = p[k] < 1.e-10 ? 0. : conditionalDefaultProbabilityInvP(inverse[k], alive[k], m);
+                return detail::conditionalProbAtLeastNEvents(n, pDefCond);
+            });
     }
 
 
