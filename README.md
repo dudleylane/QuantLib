@@ -146,6 +146,10 @@ no longer checks them, and no CI job builds any of them.
 | #253 | `ql/experimental/credit/spotlosslatentmodel.hpp` | The spot recovery model takes the correlation of a name's default and recovery variables on several factors and on loadings of opposite signs, so the random loss model keeps the single-name loss there, where it lost up to 12.5 % more |
 | #254 | `ql/experimental/credit/spotlosslatentmodel.hpp` | The spot recovery model's expected recovery given the factors takes the recovery's loadings, where it took the default's |
 | #248 | `ql/experimental/credit/spotlosslatentmodel.hpp` | The spot recovery model's expected loss compiles, and gives the single-name loss on the Gaussian copula; it refuses the T copula (#255) |
+| #265 | `ql/experimental/credit/defaultprobabilitylatentmodel.hpp` | The default latent model inverts each name's probability once a call and counts the defaults one name at a time, where it repeated both at every node |
+| #264 | `ql/experimental/credit/defaultprobabilitylatentmodel.hpp` | The probability of at least n defaults counts on 64 names or more, where it gave 0, so an nth to default there had no protection value |
+| #266 | `ql/experimental/credit/saddlepointlossmodel.hpp` | The saddle-point loss model takes each name's probability and loss once a node in its search, where it took them at every step |
+| #230 | `ql/experimental/math/latentmodel.hpp` | Latent models on t factors integrate over the factors' tails, where Gauss-Hermite of order 25 left them out: a name's default probability came out 1.4 % low on t3 factors at correlation 0.3 |
 
 ### New in this fork
 
