@@ -369,10 +369,10 @@ namespace QuantLib
 
     std::vector<Probability> Basket::probsBeingNthEvent(Size n, const Date& d) const
     {
-
+        // the defaults so far count, and the model counts among the names left
         Size alreadyDefaulted = pool_->size() - remainingNames().size();
         if (alreadyDefaulted >= n)
-            return std::vector<Probability>(remainingNames().size(), 0.);
+            return std::vector<Probability>(pool_->size(), 0.);
 
         calculate();
         return lossModel_->probsBeingNthEvent(n - alreadyDefaulted, d);

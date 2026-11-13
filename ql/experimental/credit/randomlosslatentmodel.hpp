@@ -81,6 +81,10 @@ namespace QuantLib
         today (#244). Before #244 the name took 12 bits and the day 12,
         unchecked: a basket of 2049 to 4096 names fitted then, and a day past
         4095 wrapped round to an early one.
+
+        It gives no expected recovery, since it draws one with each default,
+        so IntegralNtdEngine, which pays a trigger at its name's expected
+        recovery, throws on it (#234).
     */
     template <class copulaPolicy, class USNG = SobolRsg>
     class RandomLossLM : public RandomLM<RandomLossLM, copulaPolicy, USNG>
@@ -146,6 +150,15 @@ namespace QuantLib
                                                 ->defaultProbability(maxHorizonDate, true));
         }
         Real getEventRecovery(const defaultSimEvent& evt) const { return evt.recovery(); }
+        /* The model draws a recovery with each default, and a payment on a
+        default takes the one that default drew. The expected recovery given
+        a name's default isn't the one given that it triggers a payment, as an
+        nth to default's, so it gives none (#234). */
+        Real expectedRecovery(const Date&, Size, const DefaultProbKey&) const override
+        {
+            QL_FAIL("RandomLossLM gives no expected recovery: it draws a recovery with each default, and a payment "
+                    "on a default takes the recovery that default drew");
+        }
 
         Real latentVarValue(const std::vector<Real>& factorsSample, Size iVar) const
         {

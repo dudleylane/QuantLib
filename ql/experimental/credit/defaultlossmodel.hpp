@@ -115,12 +115,11 @@ namespace QuantLib
         {
             QL_FAIL("densityTrancheLoss Not implemented for this model.");
         }
-        /*! Probabilities for each of the (remaining) basket elements in the
-        pool to have defaulted by time d and at the same time be the Nth
-        defaulting name to default in the basket. This method is oriented to
-        default order dependent portfolio pricing (e.g. NTDs)
-            The the probabilities ordering in the vector coincides with the
-            pool order.
+        /*! The probability of each name being the nth default among the
+        names left at the evaluation date, and defaulting by d. One per name,
+        in the pool's order, and 0 for the names that defaulted before the
+        evaluation date. Their sum is probAtLeastNEvents(n, d). For pricing
+        that depends on the order of the defaults (e.g. NTDs).
         */
         virtual std::vector<Probability> probsBeingNthEvent(Size n, const Date& d) const
         {

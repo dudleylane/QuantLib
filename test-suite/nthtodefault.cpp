@@ -26,6 +26,8 @@
 #include <ql/experimental/credit/nthtodefault.hpp>
 #include <ql/experimental/credit/pool.hpp>
 #include <ql/experimental/credit/randomdefaultlatentmodel.hpp>
+#include <ql/experimental/credit/randomlosslatentmodel.hpp>
+#include <ql/experimental/credit/spotlosslatentmodel.hpp>
 #include <ql/instruments/creditdefaultswap.hpp>
 #include <ql/pricingengines/credit/integralcdsengine.hpp>
 #include <ql/quotes/simplequote.hpp>
@@ -792,7 +794,9 @@ BOOST_AUTO_TEST_CASE(testRandomDefaultModelUpToToday)
     // far and 0 above, and each name's of being the nth is 0. On older curves the paths have
     // defaults before today, and since #232 the statistics count them. Before #207 the model threw
     // at any of these dates ("Date for statistic must be in the future.") and gave these values
-    // only from the day after today. A rank above the basket's eight names still throws.
+    // only from the day after today. A rank above the basket's eight names still throws. The
+    // probabilities of being the nth come one per name in the pool, the defaulted one's included;
+    // before #233, once the defaults so far reached n, they came one per name left, seven here.
     const Date today(1, November, 2006);
     Settings::instance().evaluationDate() = today;
     for (OneName oneName : {OneName::alive, OneName::defaulted})
@@ -807,9 +811,8 @@ BOOST_AUTO_TEST_CASE(testRandomDefaultModelUpToToday)
                 {
                     BOOST_CHECK_EQUAL(basket->probAtLeastNEvents(n, d), n <= soFar ? 1.0 : 0.0);
                     const std::vector<Probability> nth = basket->probsBeingNthEvent(n, d);
-                    // after a default its length depends on n (#233)
-                    if (soFar == 0)
-                        BOOST_CHECK_EQUAL(nth.size(), 8U);
+                    // one per name in the pool, the defaulted one too (#233)
+                    BOOST_CHECK_EQUAL(nth.size(), 8U);
                     for (Probability p : nth)
                         BOOST_CHECK_EQUAL(p, 0.0);
                 }
@@ -852,6 +855,176 @@ BOOST_AUTO_TEST_CASE(testRandomDefaultModelInsideACoupon)
                               3.0 * 60.0 / (2.0 * std::sqrt(Real(paths))));
             BOOST_CHECK_SMALL(priced->premiumLegNPV() - reference->premiumLegNPV(),
                               3.0 * coupons / (2.0 * std::sqrt(Real(paths))));
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testRandomDefaultModelOnRecoveriesThatDiffer)
+{
+    BOOST_TEST_MESSAGE("Testing an nth to default on the random default model, on recoveries that differ...");
+
+    // Where the names' recoveries differ, the engine takes each name's probability of being the
+    // nth default in each step, which the random default model gives from its paths since #231;
+    // before, the engine threw on it. Its protection is ConstantLossModel's within their Monte
+    // Carlo error, before the first coupon, and inside it after a default, where the first to
+    // default has been triggered and both give 0. Each path's protection lies between -80, at the
+    // lowest recovery of 20 %, and 0, so on 10,000 paths its standard error is at most 0.4; the
+    // checks allow three of them, and the largest gap is 0.394. The premium doesn't depend on the
+    // recoveries.
+    const Size paths = 10000;
+    struct Case
+    {
+        const char* description;
+        Date today;
+        OneName oneName;
+    };
+    const Case cases[] = {
+        {"before the first coupon", inception(), OneName::alive},
+        {"inside the first coupon, the fourth name defaulted", Date(1, November, 2006), OneName::defaulted}};
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.description)
+        {
+            Settings::instance().evaluationDate() = c.today;
+            const auto curve = flatCurveFrom(c.today);
+            const auto random = eightNames({.oneName = c.oneName, .recoveries = risingRecoveries(), .paths = paths});
+            const auto latent = eightNames({.oneName = c.oneName, .recoveries = risingRecoveries()});
+            for (Size rank = 1; rank <= 3; ++rank)
+            {
+                BOOST_TEST_CONTEXT("rank " << rank)
+                {
+                    BOOST_CHECK_SMALL(nthToDefault(random, rank, 0.0, 100.0, curve)->protectionLegNPV() -
+                                          nthToDefault(latent, rank, 0.0, 100.0, curve)->protectionLegNPV(),
+                                      3.0 * 80.0 / (2.0 * std::sqrt(Real(paths))));
+                }
+            }
+        }
+    }
+}
+
+// The random loss model CdoTests' randomLossModel builds, on eight names: GaussianSpotLossLM with
+// recoveries of 40 % as the means, a correlation of 0.3 on its 16 variables and its parameter 2.2.
+ext::shared_ptr<DefaultLossModel> randomLossModel(Size paths)
+{
+    const std::vector<std::vector<Real>> factors(16, std::vector<Real>(1, std::sqrt(0.3)));
+    return ext::make_shared<RandomLossLM<GaussianCopulaPolicy>>(
+        ext::make_shared<GaussianSpotLossLM>(factors, std::vector<Real>(8, 0.4), 2.2,
+                                             LatentModelIntegrationType::GaussianQuadrature,
+                                             GaussianCopulaPolicy::initTraits()),
+        paths);
+}
+
+BOOST_AUTO_TEST_CASE(testRandomModelsNthEventsInAPeriod)
+{
+    BOOST_TEST_MESSAGE("Testing the random models' probabilities of being the nth default in a period...");
+
+    // The random default and loss models take each name's probability of being the nth default
+    // in a period from the paths that give its probability of being the nth by a date, so name by
+    // name it's their difference at the period's ends, but for rounding, and the names' sum is
+    // the difference of the probability of at least n defaults. They give one per name in the
+    // pool, 0 for the defaulted name, as ConstantLossModel does; it gives no probability of being
+    // the nth by a date to compare with. A period starting before the default curves' date, the
+    // basket's inception, counts from it on the random models, as their paths do;
+    // ConstantLossModel reads its curves there, and they refuse a date before theirs. As on
+    // ConstantLossModel, a rank above the names gives 0 for each, as does a period of no length,
+    // and a period that ends before it starts throws. Before #231 the random models threw on all
+    // of it.
+    const Date today(1, November, 2006);
+    Settings::instance().evaluationDate() = today;
+    const std::vector<std::pair<Date, Date>> periods = {{inception() - 10 * Days, Date(1, December, 2006)},
+                                                        {inception(), Date(1, March, 2007)},
+                                                        {today, Date(1, February, 2007)},
+                                                        {Date(1, March, 2007), Date(1, September, 2011)},
+                                                        {Date(1, March, 2007), Date(1, March, 2007)}};
+    for (OneName oneName : {OneName::alive, OneName::defaulted})
+    {
+        const Size soFar = oneName == OneName::defaulted ? 1 : 0;
+        const auto randomLoss = eightNames({.oneName = oneName});
+        randomLoss->setLossModel(randomLossModel(2000));
+        struct Model
+        {
+            const char* name;
+            ext::shared_ptr<Basket> basket;
+            bool random;
+        };
+        const Model models[] = {
+            {"RandomDefaultLM", eightNames({.oneName = oneName, .recoveries = risingRecoveries(), .paths = 2000}),
+             true},
+            {"RandomLossLM", randomLoss, true},
+            {"ConstantLossModel", eightNames({.oneName = oneName, .recoveries = risingRecoveries()}), false}};
+        for (const auto& [name, basket, random] : models)
+        {
+            for (Size n = 1; n <= 8; ++n)
+            {
+                for (const auto& [d0, d] : periods)
+                {
+                    if (!random && d0 < inception())
+                        continue;
+                    BOOST_TEST_CONTEXT(name << ", " << soFar << " defaults so far, n = " << n << ", from " << d0
+                                            << " to " << d)
+                    {
+                        const std::vector<Probability> between = basket->probsBeingNthEventBetween(n, d0, d);
+                        BOOST_REQUIRE_EQUAL(between.size(), 8U);
+                        if (soFar == 1)
+                            BOOST_CHECK_EQUAL(between[3], 0.0);
+                        if (d0 == d)
+                            for (Probability p : between)
+                                BOOST_CHECK_EQUAL(p, 0.0);
+                        if (random)
+                        {
+                            const std::vector<Probability> byEnd = basket->probsBeingNthEvent(n, d);
+                            const std::vector<Probability> byStart = basket->probsBeingNthEvent(n, d0);
+                            Real sum = 0.0;
+                            for (Size i = 0; i < 8; ++i)
+                            {
+                                BOOST_CHECK_SMALL(between[i] - (byEnd[i] - byStart[i]), 1.0e-15);
+                                sum += between[i];
+                            }
+                            BOOST_CHECK_SMALL(
+                                sum - (basket->probAtLeastNEvents(n, d) - basket->probAtLeastNEvents(n, d0)), 1.0e-15);
+                        }
+                    }
+                }
+            }
+            BOOST_TEST_CONTEXT(name << ", " << soFar << " defaults so far")
+            {
+                // the checks above aren't on zeros only: in four and a half years each name left can be the next
+                const std::vector<Probability> next =
+                    basket->probsBeingNthEventBetween(soFar + 1, Date(1, March, 2007), Date(1, September, 2011));
+                for (Size i = 0; i < 8; ++i)
+                    if (soFar == 0 || i != 3)
+                        BOOST_CHECK_GT(next[i], 0.0);
+                const std::vector<Probability> aboveTheNames =
+                    basket->probsBeingNthEventBetween(9, today, today + 1 * Years);
+                BOOST_CHECK_EQUAL(aboveTheNames.size(), 8U);
+                for (Probability p : aboveTheNames)
+                    BOOST_CHECK_EQUAL(p, 0.0);
+                BOOST_CHECK_THROW(basket->probsBeingNthEventBetween(2, today + 1 * Years, today), Error);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testRandomLossModelGivesNoExpectedRecovery)
+{
+    BOOST_TEST_MESSAGE("Testing an nth to default on the random loss model...");
+
+    // The engine pays a trigger at the loss model's expected recovery for its name. The random
+    // loss model draws a recovery with each default, and a trigger pays at the one its default
+    // drew; the expected recovery given a name's default isn't the one given that it's the
+    // trigger. So since #234 the model gives none, with a message that says why, and the engine
+    // throws it. Before, both threw DefaultLossModel's "expected recovery Not implemented for this
+    // model.", before the first coupon and inside it alike.
+    const ExpectedErrorMessage why("draws a recovery with each default");
+    for (const Date& today : {inception(), Date(1, November, 2006)})
+    {
+        BOOST_TEST_CONTEXT("today " << today)
+        {
+            Settings::instance().evaluationDate() = today;
+            const auto basket = eightNames();
+            basket->setLossModel(randomLossModel(2000));
+            BOOST_CHECK_EXCEPTION(nthToDefault(basket, 1, 0.0, 100.0, flatCurveFrom(today))->NPV(), Error, why);
+            BOOST_CHECK_EXCEPTION(basket->recoveryRate(today + 1 * Years, 0), Error, why);
         }
     }
 }
