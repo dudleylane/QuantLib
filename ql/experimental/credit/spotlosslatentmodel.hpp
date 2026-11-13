@@ -21,6 +21,8 @@
 #define quantlib_spotlosslatentmodel_hpp
 
 #include <ql/experimental/credit/defaultprobabilitylatentmodel.hpp>
+#include <ql/math/distributions/bivariatenormaldistribution.hpp>
+#include <type_traits>
 
 namespace QuantLib
 {
@@ -53,7 +55,8 @@ namespace QuantLib
       private:
         const std::vector<Real> recoveries_;
         const Real modelA_;
-        // products of default and recoveries factors, see refs ('covariances')
+        // the correlation of each name's default and recovery variables,
+        // sum_k beta^d_ik beta^l_ik, Li's rho_d rho_l (#253)
         std::vector<Real> crossIdiosyncFctrs_;
         mutable Size numNames_;
         mutable ext::shared_ptr<Basket> basket_;
@@ -123,13 +126,32 @@ namespace QuantLib
         \todo Write vector version for all names' RRs
         */
         Real latentRRVarValue(const std::vector<Real>& allFactors, Size iName) const;
+        /*! Expected loss, per unit of notional, of the name's defaults by
+        \c d, given the factors: each default at the latent value x by then
+        loses 1 - E[R | X = x, m], the recovery of expCondRecoveryInvPinvRR at
+        its own x. 0 at a date by which the curve has no default.
+        */
         Real conditionalExpLossRR(const Date& d, Size iName, const std::vector<Real>& mktFactors) const;
+        /*! As conditionalExpLossRR, from the latent value \c invP of the
+        probability of default by the date and the latent value \c invRR of
+        the expected recovery. On the Gaussian copula it's the integral over
+        x <= invP of 1 - E[R | X = x, m] against the density of X given m, a
+        bivariate normal probability. On the T copula it throws: the spot
+        recovery given a default doesn't average the name's expected recovery
+        there (#255), and this has no closed form. Before #248 these members
+        and expectedLoss didn't compile, and they took every default by the
+        date at the recovery of a default on it.
+        */
         Real conditionalExpLossRRInv(Real invP, Real invRR, Size iName, const std::vector<Real>& mktFactors) const;
         /*! Single name expected loss.\par
-        The main reason of this method is for the testing of this model. The
-        model is coherent in that it preserves the single name expected loss
+        The main reason of this method is for the testing of this model. On
+        the Gaussian copula the model preserves the single name expected loss
         and thus is coherent with the single name CDS market when used in the
-        pricing context. i.e. it should match: \f$pdef_i(d) \times RR_i \f$
+        pricing context, i.e. it should match:
+        \f$pdef_i(d) \times (1 - RR_i) \f$
+        It integrates conditionalExpLossRRInv over the factors, so it throws
+        on the T copula, where the model doesn't preserve the single name
+        loss (#255). It's 0 at a date by which the curve has no default.
         */
         Real expectedLoss(const Date& d, Size iName) const;
     };
@@ -224,13 +246,16 @@ namespace QuantLib
     {
         const std::vector<std::vector<Real>>& fctrs_ = factorWeights();
         // Size iRR = iName + basket_->size();// should be live pool
-        const Real sumMs = std::inner_product(fctrs_[iName].begin(), fctrs_[iName].end(), mktFactors.begin(), Real(0.));
+        // given the factors, the recovery variable's mean, from its own loadings, where it took the default
+        // variable's until #254
+        const Real sumMs = std::inner_product(fctrs_[iName + numNames_].begin(), fctrs_[iName + numNames_].end(),
+                                              mktFactors.begin(), Real(0.));
         const Real sumBetaLoss = std::inner_product(fctrs_[iName + numNames_].begin(), fctrs_[iName + numNames_].end(),
                                                     fctrs_[iName + numNames_].begin(), Real(0.));
-        return this->cumulativeZ(
-            (sumMs + std::sqrt(1. - crossIdiosyncFctrs_[iName]) * std::sqrt(1. + modelA_ * modelA_) * invUncondRR -
-             std::sqrt(crossIdiosyncFctrs_[iName]) * invUncondDefP) /
-            std::sqrt(1. - sumBetaLoss + modelA_ * modelA_ * (1. - crossIdiosyncFctrs_[iName])));
+        const Real rho = crossIdiosyncFctrs_[iName];
+        return this->cumulativeZ((sumMs + std::sqrt(1. - rho * rho) * std::sqrt(1. + modelA_ * modelA_) * invUncondRR -
+                                  rho * invUncondDefP) /
+                                 std::sqrt(1. - sumBetaLoss + modelA_ * modelA_ * (1. - rho * rho)));
     }
 
     template <class CP>
@@ -255,8 +280,8 @@ namespace QuantLib
                                                                    Real latentDefaultVarSample) const
     {
         Size iRecovery = iName + numNames_; // should be live pool
-        return cumulativeY((latentVarSample - std::sqrt(crossIdiosyncFctrs_[iName]) * latentDefaultVarSample) /
-                                   (modelA_ * std::sqrt(1. - crossIdiosyncFctrs_[iName]))
+        const Real rho = crossIdiosyncFctrs_[iName];
+        return cumulativeY((latentVarSample - rho * latentDefaultVarSample) / (modelA_ * std::sqrt(1. - rho * rho))
                                // cache the sqrts
                                // cache this factor.
                                + std::sqrt(1. + 1. / (modelA_ * modelA_)) *
@@ -280,6 +305,10 @@ namespace QuantLib
         Probability pDefUncond =
             pool->get(pool->names()[iName]).defaultProbability(basket_->defaultKeys()[iName])->defaultProbability(d);
 
+        // no default by d, so no loss (#248)
+        if (pDefUncond <= 0.)
+            return 0.;
+
         Real invP = inverseCumulativeY(pDefUncond, iName);
         Real invRR = inverseCumulativeY(recoveries_[iName], iName + numNames_);
 
@@ -292,8 +321,37 @@ namespace QuantLib
                                                                      Size iName,
                                                                      const std::vector<Real>& mktFactors) const
     {
-        return conditionalDefaultProbabilityInvP(invP, iName, mktFactors) *
-               (1. - this->conditionalRecoveryInvPinvRR(invP, invRR, iName, mktFactors));
+        if constexpr (std::is_same_v<CP, GaussianCopulaPolicy>)
+        {
+            /* Each default by the date, X <= invP, loses at the recovery of
+            its own latent value x (#248): 1 - E[R | X = x, m] =
+            Phi((rho x - A) / B), with A and B as in expCondRecoveryInvPinvRR,
+            is P(B U - rho X <= -A | X = x) for U standard normal independent
+            of X. Given m, X is normal with mean bd . m and standard deviation
+            s, so the loss is the bivariate normal probability
+            P(B U - rho X <= -A, X <= invP | m). */
+            const std::vector<std::vector<Real>>& fctrs_ = factorWeights();
+            const std::vector<Real>& betaDefault = fctrs_[iName];
+            const std::vector<Real>& betaLoss = fctrs_[iName + numNames_];
+            const Real defaultMean =
+                std::inner_product(betaDefault.begin(), betaDefault.end(), mktFactors.begin(), Real(0.));
+            const Real recoveryMean =
+                std::inner_product(betaLoss.begin(), betaLoss.end(), mktFactors.begin(), Real(0.));
+            const Real sumBetaLoss = std::inner_product(betaLoss.begin(), betaLoss.end(), betaLoss.begin(), Real(0.));
+            const Real rho = crossIdiosyncFctrs_[iName];
+            const Real s = this->idiosyncFctrs_[iName];
+            const Real A = recoveryMean + std::sqrt(1. - rho * rho) * std::sqrt(1. + modelA_ * modelA_) * invRR;
+            const Real B2 = 1. - sumBetaLoss + modelA_ * modelA_ * (1. - rho * rho);
+            // s > 0: the copula policy requires each name's loadings to have a norm below 1
+            const Real w = std::sqrt(B2 + rho * rho * s * s);
+            return BivariateCumulativeNormalDistribution(-rho * s / w)((rho * defaultMean - A) / w,
+                                                                       (invP - defaultMean) / s);
+        }
+        else
+        {
+            QL_FAIL("SpotRecoveryLatentModel gives an expected loss on the Gaussian copula only: on the T copula "
+                    "its spot recovery given a default doesn't average the name's expected recovery");
+        }
     }
 
     template <class CP>
@@ -302,6 +360,10 @@ namespace QuantLib
         const ext::shared_ptr<Pool>& pool = basket_->pool();
         Probability pDefUncond =
             pool->get(pool->names()[iName]).defaultProbability(basket_->defaultKeys()[iName])->defaultProbability(d);
+
+        // no default by d, so no loss (#248)
+        if (pDefUncond <= 0.)
+            return 0.;
 
         Real invP = inverseCumulativeY(pDefUncond, iName);
         Real invRR = inverseCumulativeY(recoveries_[iName], iName + numNames_);
@@ -328,16 +390,21 @@ namespace QuantLib
 
         // reminder: first betas are default, last ones are recovery
         for (Size iName = 0; iName < numNames_; iName++) /// USE STL
-        /* Corresponds to: (k denotes factor, i denotes modelled
-            variable -default and recoveries))
-            \sum_k a^2_{i,k} a^2_{N+i,k}
+        /* The correlation of the default and recovery variables (k denotes
+            factor, i denotes modelled variable -default and recoveries):
+            \sum_k a_{i,k} a_{N+i,k}
+            Given a default at X = x, (Y - rho x) / sqrt(1 - rho^2) is then
+            standard normal on the Gaussian copula, which keeps the mean
+            recovery given a default at the name's. Until #253 this was
+            \sum_k a^2_{i,k} a^2_{N+i,k}, whose root the formulas took: the
+            correlation with one factor whose loadings have one sign, but
+            less with several factors, and positive where it's negative.
         */
         {
             Real cumul = Real(0.);
             for (Size iB = 0; iB < factorWeights[iName].size(); iB++)
                 // actually this size is unique
-                cumul += factorWeights[iName][iB] * factorWeights[iName][iB] * factorWeights[iName + numNames_][iB] *
-                         factorWeights[iName + numNames_][iB];
+                cumul += factorWeights[iName][iB] * factorWeights[iName + numNames_][iB];
             crossIdiosyncFctrs_.push_back(cumul);
         }
     }
