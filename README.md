@@ -142,6 +142,10 @@ no longer checks them, and no CI job builds any of them.
 | #233 | `ql/experimental/credit/basket.cpp` | `Basket::probsBeingNthEvent` gives one probability per name in the pool once the defaults so far reach n, where it gave one per name left |
 | #231 | `ql/experimental/credit/randomdefaultlatentmodel.hpp` | An nth to default on the random default model prices where the names' recoveries differ, where the engine threw; the random models give each name's probability of being the nth default in a period |
 | #234 | `ql/experimental/credit/randomlosslatentmodel.hpp` | The random loss model says why it gives no expected recovery, so why an nth to default can't be priced on it; the full fix is #250 |
+| #251 | `ql/experimental/credit/randomdefaultlatentmodel.hpp` | The random models give 0s for each name's probability of being the nth default at a rank above the names left, where a rank above the pool threw while no name had defaulted |
+| #253 | `ql/experimental/credit/spotlosslatentmodel.hpp` | The spot recovery model takes the correlation of a name's default and recovery variables on several factors and on loadings of opposite signs, so the random loss model keeps the single-name loss there, where it lost up to 12.5 % more |
+| #254 | `ql/experimental/credit/spotlosslatentmodel.hpp` | The spot recovery model's expected recovery given the factors takes the recovery's loadings, where it took the default's |
+| #248 | `ql/experimental/credit/spotlosslatentmodel.hpp` | The spot recovery model's expected loss compiles, and gives the single-name loss on the Gaussian copula; it refuses the T copula (#255) |
 
 ### New in this fork
 
