@@ -23,7 +23,6 @@
 #include <ql/experimental/credit/basket.hpp>
 #include <ql/experimental/math/gaussiancopulapolicy.hpp>
 #include <ql/experimental/math/latentmodel.hpp>
-#include <boost/dynamic_bitset.hpp>
 
 namespace QuantLib
 {
@@ -277,60 +276,34 @@ namespace QuantLib
 
     namespace detail
     {
+        /* Adds a name, defaulting with probability p independently of the
+        others, to the number of defaults among the names before it: at [j]
+        the probability of j defaults for j up to n - 1, and of n or more at
+        [n]. last and next may be the same. n has to be at least 1.
+        */
+        inline void addNameToDefaultCounts(const Probability* last, Probability* next, Size n, Probability p)
+        {
+            next[n] = last[n] + last[n - 1] * p;
+            for (Size j = n - 1; j > 0; --j)
+                next[j] = last[j] * (1. - p) + last[j - 1] * p;
+            next[0] = last[0] * (1. - p);
+        }
+
         /* For names defaulting independently, each with the given probability:
-        the probability of n defaults or more among them.
+        the probability of n defaults or more among them. The count is built
+        one name at a time, in L n steps for L names.
         */
         inline Probability conditionalProbAtLeastNEvents(Size n, const std::vector<Probability>& pDefCond)
         {
-            /* \todo
-            This algorithm traverses all permutations starting form the
-            lowest one. This is inneficient, there shouldnt be any need to
-            go through the invalid ones. Use combinations of n elements.
-
-            See integration in O'Kane for homogeneous ntds.
-            */
-            // first position with as many defaults as desired:
-            Size liveSize = pDefCond.size();
-
-            auto limit = static_cast<BigNatural>(std::pow(2., (int)(liveSize)));
-
-            Probability probNEventsOrMore = 0.;
-            // cheap permutations
-            // dynamic_bitset (std::vector) memory manipulations moved out of the hot loop
-            auto mask = static_cast<BigNatural>((1 << (int)(n)) - 1);
-            boost::dynamic_bitset<> bsetMask(liveSize, mask);
-            auto bits_set = bsetMask.count();
-            auto increaseMask = [&]()
-            {
-                for (Size i = 0; i < bsetMask.size(); i++)
-                {
-                    // NOLINTBEGIN(modernize-use-bool-literals)
-                    if (bsetMask[i])
-                    {
-                        bsetMask[i] = 0;
-                        bits_set--;
-                    }
-                    else
-                    {
-                        bsetMask[i] = 1;
-                        bits_set++;
-                        break;
-                    }
-                    // NOLINTEND(modernize-use-bool-literals)
-                }
-            };
-            for (; mask < limit; mask++)
-            {
-                if (bits_set >= n)
-                {
-                    Probability pConfig = 1;
-                    for (Size i = 0; i < bsetMask.size(); i++)
-                        pConfig *= (bsetMask[i] ? pDefCond[i] : (1. - pDefCond[i]));
-                    probNEventsOrMore += pConfig;
-                }
-                increaseMask();
-            }
-            return probNEventsOrMore;
+            if (n == 0)
+                return 1.;
+            if (n > pDefCond.size())
+                return 0.;
+            std::vector<Probability> counts(n + 1, 0.);
+            counts[0] = 1.;
+            for (Probability p : pDefCond)
+                addNameToDefaultCounts(counts.data(), counts.data(), n, p);
+            return counts[n];
         }
     }
 
@@ -417,14 +390,7 @@ namespace QuantLib
                 std::vector<Probability> counts((size + 1) * width, 0.);
                 counts[0] = 1.;
                 for (Size k = 0; k < size; ++k)
-                {
-                    const Probability* last = &counts[k * width];
-                    Probability* next = &counts[(k + 1) * width];
-                    next[n] = last[n] + last[n - 1] * p[k];
-                    for (Size j = n - 1; j > 0; --j)
-                        next[j] = last[j] * (1. - p[k]) + last[j - 1] * p[k];
-                    next[0] = last[0] * (1. - p[k]);
-                }
+                    addNameToDefaultCounts(&counts[k * width], &counts[(k + 1) * width], n, p[k]);
                 return counts;
             };
             // The number among the kth and the names after it, up to n - 1.

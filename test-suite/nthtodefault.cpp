@@ -36,6 +36,7 @@
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
 #include <ql/time/daycounters/actualactual.hpp>
+#include <bit>
 #include <cmath>
 #include <iostream>
 #include <string>
@@ -1036,6 +1037,131 @@ BOOST_AUTO_TEST_CASE(testRandomLossModelGivesNoExpectedRecovery)
             basket->setLossModel(randomLossModel(2000));
             BOOST_CHECK_EXCEPTION(nthToDefault(basket, 1, 0.0, 100.0, flatCurveFrom(today))->NPV(), Error, why);
             BOOST_CHECK_EXCEPTION(basket->recoveryRate(today + 1 * Years, 0), Error, why);
+        }
+    }
+}
+
+// Names on flat hazard rates from 31 August 2006, each with its own correlation to one Gaussian
+// factor, and the default latent model on them.
+struct LatentNames
+{
+    Date today{31, August, 2006};
+    NorthAmericaCorpDefaultKey key{EURCurrency(), SeniorSec, Period(), 1.};
+    ext::shared_ptr<Pool> pool = ext::make_shared<Pool>();
+    std::vector<std::string> names;
+    ext::shared_ptr<GaussianDefProbLM> model;
+
+    LatentNames(const std::vector<Real>& hazards, const std::vector<Real>& correlations)
+    {
+        std::vector<std::vector<Real>> loadings;
+        for (Size i = 0; i < hazards.size(); ++i)
+        {
+            names.push_back("issuer-" + std::to_string(i));
+            Handle<DefaultProbabilityTermStructure> curve(
+                ext::make_shared<FlatHazardRate>(today, makeQuoteHandle(hazards[i]), ActualActual(ActualActual::ISDA)));
+            pool->add(names.back(), Issuer(std::vector<Issuer::key_curve_pair>(1, std::make_pair(key, curve))), key);
+            loadings.emplace_back(1, std::sqrt(correlations[i]));
+        }
+        model = ext::make_shared<GaussianDefProbLM>(loadings, LatentModelIntegrationType::GaussianQuadrature);
+        model->resetBasket(
+            ext::make_shared<Basket>(today, names, std::vector<Real>(names.size(), 100.0), pool, 0.0, 1.0));
+    }
+
+    Probability probability(Size i, const Date& d) const
+    {
+        return pool->get(names[i]).defaultProbability(key)->defaultProbability(d);
+    }
+};
+
+BOOST_AUTO_TEST_CASE(testAtLeastNDefaultsAgainstEveryCombination)
+{
+    BOOST_TEST_MESSAGE("Testing the latent model's probability of n defaults or more against every combination...");
+
+    /* Given the factor the names default independently, so the probability of n defaults or more
+       is the sum, over every set of n names or more, of the probability that exactly they default.
+       Until #264 the model summed so at each node, over all 2^L sets of its L names; it now builds
+       the count one name at a time. This holds the count to the sum, which the old code passed
+       too. The two agreed within 5.1e-16 relative with GCC 15 at -O3; the tolerance leaves room for
+       other compilers' rounding. Name 4 can't default, and above the names' number the
+       probability is 0. */
+    std::vector<Real> hazards, correlations;
+    for (Size i = 0; i < 10; ++i)
+    {
+        hazards.push_back(i == 4 ? 0.0 : 0.005 + 0.004 * i);
+        correlations.push_back(0.05 + 0.06 * i);
+    }
+    const LatentNames names(hazards, correlations);
+    Settings::instance().evaluationDate() = names.today;
+    const auto& model = names.model;
+    const Size size = hazards.size();
+    for (const Period& tenor : {Period(1, Years), Period(5, Years)})
+    {
+        const Date d = names.today + tenor;
+        std::vector<Probability> p(size);
+        std::vector<Real> inverses(size, 0.0);
+        for (Size i = 0; i < size; ++i)
+        {
+            p[i] = names.probability(i, d);
+            if (p[i] >= 1.0e-10)
+                inverses[i] = model->inverseCumulativeY(p[i], i);
+        }
+        for (Size n = 0; n <= size + 1; ++n)
+        {
+            const Real everySet = model->integratedExpectedValue(
+                [&](const std::vector<Real>& m)
+                {
+                    std::vector<Probability> q(size);
+                    for (Size i = 0; i < size; ++i)
+                        q[i] = p[i] < 1.0e-10 ? 0.0 : model->conditionalDefaultProbabilityInvP(inverses[i], i, m);
+                    Real sum = 0.0;
+                    for (Size set = 0; set < (Size(1) << size); ++set)
+                    {
+                        if (Size(std::popcount(set)) < n)
+                            continue;
+                        Real product = 1.0;
+                        for (Size i = 0; i < size; ++i)
+                            product *= ((set >> i) & 1) != 0U ? q[i] : 1.0 - q[i];
+                        sum += product;
+                    }
+                    return sum;
+                });
+            BOOST_TEST_CONTEXT("at least " << n << " by " << d)
+            {
+                BOOST_CHECK_CLOSE_FRACTION(model->probAtLeastNEvents(n, d), everySet, 1.0e-13);
+            }
+        }
+        // Above the names' number the count is 0 at each node.
+        BOOST_CHECK_EQUAL(model->probAtLeastNEvents(size + 1, d), 0.0);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testAtLeastNDefaultsOnManyNames)
+{
+    BOOST_TEST_MESSAGE("Testing the latent model's probability of n defaults or more on 64 names and more...");
+
+    /* Given the factor, the defaults among L names alike are binomial at their conditional
+       probability q: at least one with probability 1 - (1 - q)^L, at least two with that less
+       L q (1 - q)^(L - 1). Until #264 the model enumerated the 2^L sets of names in a 64-bit
+       count, where 2^L is out of range from 64 names on, and gave 0 there. The count built one
+       name at a time agreed with these within 1.7e-16 with GCC 15 at -O3. */
+    for (Size size : {Size(64), Size(100)})
+    {
+        BOOST_TEST_CONTEXT(size << " names")
+        {
+            const LatentNames names(std::vector<Real>(size, 0.01), std::vector<Real>(size, 0.3));
+            Settings::instance().evaluationDate() = names.today;
+            const auto& model = names.model;
+            const Date d = names.today + 5 * Years;
+            const Real inverse = model->inverseCumulativeY(names.probability(0, d), 0);
+            const auto q = [&](const std::vector<Real>& m)
+            { return model->conditionalDefaultProbabilityInvP(inverse, 0, m); };
+            const Real none = model->integratedExpectedValue([&](const std::vector<Real>& m)
+                                                             { return std::pow(1.0 - q(m), Real(size)); });
+            const Real one = model->integratedExpectedValue(
+                [&](const std::vector<Real>& m) { return size * q(m) * std::pow(1.0 - q(m), Real(size - 1)); });
+            const Real mass = model->integratedExpectedValue([](const std::vector<Real>&) { return 1.0; });
+            BOOST_CHECK_SMALL(model->probAtLeastNEvents(1, d) - (mass - none), 1.0e-13);
+            BOOST_CHECK_SMALL(model->probAtLeastNEvents(2, d) - (mass - none - one), 1.0e-13);
         }
     }
 }
