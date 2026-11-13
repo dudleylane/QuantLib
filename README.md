@@ -150,6 +150,11 @@ no longer checks them, and no CI job builds any of them.
 | #264 | `ql/experimental/credit/defaultprobabilitylatentmodel.hpp` | The probability of at least n defaults counts on 64 names or more, where it gave 0, so an nth to default there had no protection value |
 | #266 | `ql/experimental/credit/saddlepointlossmodel.hpp` | The saddle-point loss model takes each name's probability and loss once a node in its search, where it took them at every step |
 | #230 | `ql/experimental/math/latentmodel.hpp` | Latent models on t factors integrate over the factors' tails, where Gauss-Hermite of order 25 left them out: a name's default probability came out 1.4 % low on t3 factors at correlation 0.3 |
+| #261 | `ql/experimental/credit/recursivelossmodel.hpp` | The recursive loss model's loss distribution, percentiles and expected shortfall put each probability at its loss, where they put the i-th attainable loss at i units: with four buckets every loss came out a quarter of its size |
+| #269 | `ql/experimental/math/convolvedstudentt.cpp` | Loss models on t factors take a default probability of 0, at the evaluation date, on curves as of today or at hazard 0, where they and both CDO engines threw |
+| #270 | `ql/experimental/credit/defaultprobabilitylatentmodel.hpp` | The default correlation refuses a name whose default probability is 0 or 1, where it gave NaN |
+| #272 | `ql/experimental/credit/constantlosslatentmodel.hpp` | The constant loss model builds without its copula traits, where leaving them out didn't compile |
+| #255 | `ql/experimental/credit/spotlosslatentmodel.hpp` | The spot recovery model's class doc says it keeps the single-name loss only on the Gaussian copula |
 
 ### New in this fork
 
