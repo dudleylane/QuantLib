@@ -182,12 +182,16 @@ namespace QuantLib
         Real CumGen4thDerivative(const Date& date, Real s) const;
 
         // -------- Saddle point search functions ---------------------------
+        /* K'(s) less the target, as CumGen1stDerivativeCond gives it. Each
+        name's default probability given the factors, and its loss on default,
+        don't depend on s, so they're taken once here rather than at each step
+        of the search.
+        */
         class SaddleObjectiveFunction
         {
-            const SaddlePointLossModel& me_;
             Real targetValue_;
-            const std::vector<Real>& mktFactor_;
-            const std::vector<Real>& invUncondProbs_;
+            std::vector<Probability> pDef_;
+            std::vector<Real> lossInDef_;
 
           public:
             //! The passed target is in fractional loss units
@@ -195,14 +199,32 @@ namespace QuantLib
                                     const Real target,
                                     const std::vector<Real>& invUncondProbs,
                                     const std::vector<Real>& mktFactor)
-            : me_(me), targetValue_(target), mktFactor_(mktFactor), invUncondProbs_(invUncondProbs)
+            : targetValue_(target)
             {
+                const Size nNames = me.remainingNotionals_.size();
+                pDef_.reserve(nNames);
+                lossInDef_.reserve(nNames);
+                for (Size iName = 0; iName < nNames; iName++)
+                {
+                    pDef_.push_back(me.copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName],
+                                                                                  me.liveNames_[iName], mktFactor));
+                    // loss in fractional units
+                    lossInDef_.push_back(me.remainingNotionals_[iName] *
+                                         (1. - me.copula_->conditionalRecoveryInvP(invUncondProbs[iName],
+                                                                                   me.liveNames_[iName], mktFactor)) /
+                                         me.remainingNotional_);
+                }
             }
             Real operator()(const Real x) const
             {
-                return me_.CumGen1stDerivativeCond(invUncondProbs_, x, mktFactor_) - targetValue_;
+                Real sum = 0.;
+                for (Size iName = 0; iName < pDef_.size(); iName++)
+                {
+                    Real midFactor = pDef_[iName] * std::exp(lossInDef_[iName] * x);
+                    sum += lossInDef_[iName] * midFactor / (1. - pDef_[iName] + midFactor);
+                }
+                return sum - targetValue_;
             }
-            Real derivative(Real x) const { return me_.CumGen2ndDerivativeCond(invUncondProbs_, x, mktFactor_); }
         };
 
         //! Where the loss distribution is known without a saddle point
@@ -755,8 +777,6 @@ namespace QuantLib
                                               Real accuracy,
                                               Natural maxEvaluations) const
     {
-        SaddleObjectiveFunction f(*this, lossLevel, invUncondPs, mktFactor);
-
         // K'(s) rises with s, and K'(0) is the expected loss, so a bracket
         //   widened from s = 0 until K' crosses the level holds the saddle
         //   point. Past |s| = 700 over the largest loss of a name the
@@ -772,6 +792,7 @@ namespace QuantLib
                              remainingNotional_);
         if (largestLoss == 0.)
             return QL_MAX_REAL;
+        SaddleObjectiveFunction f(*this, lossLevel, invUncondPs, mktFactor);
         const Real widest = 700. / largestLoss;
         Real lower = 0., upper = 0., step = 1.;
         if (f(0.) < 0.)
