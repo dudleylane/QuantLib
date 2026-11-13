@@ -103,8 +103,17 @@ namespace QuantLib
             Remember that for this call to make sense the sample used must be
             one leading to a default. Theres no check on this. This member
             typically to be used within a simulation.
+
+            It reads the default's probability from the curve at \c d, and
+            refuses a date by which the curve has no default (#246).
         */
         Real conditionalRecovery(Real latentVarSample, Size iName, const Date& d) const;
+        /*! Equation 42 at the default's own probability: that of the default
+            latent variable's sample \c latentDefaultVarSample, which a
+            simulation knows, where conditionalRecovery reads the curve at a
+            date (#246).
+        */
+        Real conditionalRecoveryAtDefault(Real latentVarSample, Size iName, Real latentDefaultVarSample) const;
         /*! Due to the way the latent model is splitted in two parts, we call
         the base class for the default sample and the LM owned here for the RR
         model sample. This sample only makes sense if it led to a default.
@@ -233,12 +242,20 @@ namespace QuantLib
         const Handle<DefaultProbabilityTermStructure>& dfts =
             pool->get(basket_->names()[iName]).defaultProbability(basket_->defaultKeys()[iName]);
         const Probability pdef = dfts->defaultProbability(d, true);
-        // before asking for -\infty
-        if (pdef < 1.e-10)
-            return Real(0.);
+        /* No sample leads to a default by d. This used to return a recovery
+        of 0 there, which isn't the formula's limit (#246). */
+        QL_REQUIRE(pdef > 0.0, "no default by " << d << " on " << basket_->names()[iName]
+                                                << "'s default curve, so no recovery from one");
+        return conditionalRecoveryAtDefault(latentVarSample, iName, inverseCumulativeY(pdef, iName));
+    }
 
+    template <class CP>
+    Real SpotRecoveryLatentModel<CP>::conditionalRecoveryAtDefault(Real latentVarSample,
+                                                                   Size iName,
+                                                                   Real latentDefaultVarSample) const
+    {
         Size iRecovery = iName + numNames_; // should be live pool
-        return cumulativeY((latentVarSample - std::sqrt(crossIdiosyncFctrs_[iName]) * inverseCumulativeY(pdef, iName)) /
+        return cumulativeY((latentVarSample - std::sqrt(crossIdiosyncFctrs_[iName]) * latentDefaultVarSample) /
                                    (modelA_ * std::sqrt(1. - crossIdiosyncFctrs_[iName]))
                                // cache the sqrts
                                // cache this factor.

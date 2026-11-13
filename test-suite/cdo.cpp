@@ -2202,6 +2202,357 @@ BOOST_AUTO_TEST_CASE(testSameDayTrancheLosses)
     }
 }
 
+// Names of 100 on flat hazard rates from their own curves' dates, at recoveries of 40 %, for the random models' days
+// and records (#232, #244-#247). Each name's default, and its recovery under RandomLossLM, takes one factor of
+// sqrt(0.05 + 0.04 (i % 8)), as NamesAroundADefault's do, and ConstantLossModel on the same factors gives the
+// probabilities the random models' paths should show.
+struct NamesOnCurves
+{
+    ext::shared_ptr<Pool> pool = ext::make_shared<Pool>();
+    std::vector<std::string> names;
+    std::vector<Handle<DefaultProbabilityTermStructure>> curves;
+    std::vector<std::vector<Real>> factors;
+
+    NamesOnCurves(const std::vector<Date>& curveDates, Real hazard)
+    {
+        const NorthAmericaCorpDefaultKey curveKey(EURCurrency(), SeniorSec, Period(0, Weeks), 10.);
+        const NorthAmericaCorpDefaultKey poolKey(EURCurrency(), SeniorSec, Period(), 1.);
+        for (const Date& curveDate : curveDates)
+        {
+            const Size i = names.size();
+            names.push_back("issuer-" + std::to_string(i));
+            factors.emplace_back(1, std::sqrt(0.05 + 0.04 * Real(i % 8)));
+            curves.emplace_back(
+                ext::make_shared<FlatHazardRate>(curveDate, makeQuoteHandle(hazard), ActualActual(ActualActual::ISDA)));
+            std::vector<std::pair<DefaultProbKey, Handle<DefaultProbabilityTermStructure>>> probabilities;
+            probabilities.emplace_back(curveKey, curves.back());
+            pool->add(names.back(), Issuer(probabilities, DefaultEventSet()), poolKey);
+        }
+    }
+
+    ext::shared_ptr<Basket> basket(const Date& inception,
+                                   const ext::shared_ptr<DefaultLossModel>& model = nullptr) const
+    {
+        auto basket =
+            ext::make_shared<Basket>(inception, names, std::vector<Real>(names.size(), 100.0), pool, 0.0, 1.0);
+        if (model)
+            basket->setLossModel(model);
+        return basket;
+    }
+
+    ext::shared_ptr<ConstantLossModel<GaussianCopulaPolicy>> latentModel() const
+    {
+        return ext::make_shared<ConstantLossModel<GaussianCopulaPolicy>>(factors, std::vector<Real>(names.size(), 0.4),
+                                                                         LatentModelIntegrationType::GaussianQuadrature,
+                                                                         GaussianCopulaPolicy::initTraits());
+    }
+
+    ext::shared_ptr<DefaultLossModel> randomDefaultModel(Size paths) const
+    {
+        return ext::make_shared<RandomDefaultLM<GaussianCopulaPolicy>>(latentModel(), paths);
+    }
+
+    ext::shared_ptr<GaussianSpotLossLM> spotLossModel(Real recovery = 0.4) const
+    {
+        std::vector<std::vector<Real>> doubled(factors);
+        doubled.insert(doubled.end(), factors.begin(), factors.end());
+        return ext::make_shared<GaussianSpotLossLM>(doubled, std::vector<Real>(names.size(), recovery), 2.2,
+                                                    LatentModelIntegrationType::GaussianQuadrature,
+                                                    GaussianCopulaPolicy::initTraits());
+    }
+
+    ext::shared_ptr<DefaultLossModel> randomLossModel(Size paths, Real recovery = 0.4) const
+    {
+        return ext::make_shared<RandomLossLM<GaussianCopulaPolicy>>(spotLossModel(recovery), paths);
+    }
+
+    // RandomDefaultLM's and RandomLossLM's baskets, both on that many paths
+    std::vector<std::pair<std::string, ext::shared_ptr<Basket>>> randomModels(const Date& inception, Size paths) const
+    {
+        return {{"random default", basket(inception, randomDefaultModel(paths))},
+                {"random loss", basket(inception, randomLossModel(paths))}};
+    }
+};
+
+// A probability on the paths, within three binomial standard errors of the expected one.
+void checkOnPaths(Probability onPaths, Probability expected, Size paths)
+{
+    BOOST_CHECK_SMALL(onPaths - expected, 3.0 * std::sqrt(expected * (1.0 - expected) / Real(paths)));
+}
+
+BOOST_AUTO_TEST_CASE(testRandomModelsOnTheirFirstDays)
+{
+    BOOST_TEST_MESSAGE("Testing the random models' defaults over their first days...");
+
+    // A path's default falls on the day k after its curve's date with P(k) <= p < P(k + 1), where P(k) is the
+    // probability of a default within k days and p the path's draw. Before #247 Brent's solver looked for P(t) = p
+    // on P read at whole days, a step function, and recorded about half of each day's defaults on the next: at a
+    // hazard rate of 1 on 20,000 paths, both models gave a probability of 0.0107 of a default within a day, against
+    // ConstantLossModel's 0.0210, 10.2 standard errors low, and within two days 6.4 low. They now find k itself.
+    const Date today(31, August, 2006);
+    Settings::instance().evaluationDate() = today;
+    const Size paths = 20000;
+    const NamesOnCurves names(std::vector<Date>(8, today), 1.0);
+    const auto latent = names.basket(today, names.latentModel());
+    for (const auto& [model, random] : names.randomModels(today, paths))
+    {
+        for (Integer days : {1, 2, 7, 30})
+        {
+            BOOST_TEST_CONTEXT(model << ", " << days << " days on")
+            {
+                checkOnPaths(random->probAtLeastNEvents(1, today + days), latent->probAtLeastNEvents(1, today + days),
+                             paths);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testRandomModelsOnCurvesOfTwoDates)
+{
+    BOOST_TEST_MESSAGE("Testing the random models on default curves of two dates...");
+
+    // The paths count each default's day from its curve's date, and ConstantLossModel counts the probability of a
+    // default by a date from it too. Before #232 the statistics read the paths' days as from today: on curves of
+    // September 30th and October 15th, with today November 1st, they gave no default by today, where
+    // ConstantLossModel gives 0.0954, and 0.114 by December 1st against 0.192. They now read them from the earliest
+    // curve date, with each name's offset from it; without the offsets they'd be 6.4 to 11.9 standard errors high.
+    const Date today(1, November, 2006);
+    Settings::instance().evaluationDate() = today;
+    const Size paths = 20000;
+    std::vector<Date> curveDates(4, Date(30, September, 2006));
+    curveDates.insert(curveDates.end(), 4, Date(15, October, 2006));
+    const NamesOnCurves names(curveDates, 0.2);
+    const auto latent = names.basket(curveDates.front(), names.latentModel());
+    for (const auto& [model, random] : names.randomModels(curveDates.front(), paths))
+    {
+        for (const Date& d : {today, today + 30})
+        {
+            for (Size n : {1, 2})
+            {
+                BOOST_TEST_CONTEXT(model << ", at " << d << ", n = " << n)
+                {
+                    checkOnPaths(random->probAtLeastNEvents(n, d), latent->probAtLeastNEvents(n, d), paths);
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testRandomModelsAsTodayMoves)
+{
+    BOOST_TEST_MESSAGE("Testing the random models' statistics as today moves...");
+
+    // With no default between, moving today on from the curves' date leaves what the names can lose by a later date
+    // as it was, and so every statistic there, on the same paths. Before #232 the statistics read the paths' days,
+    // counted from the curves' date, as from today: a month on, 31 of RandomDefaultLM's 42 values here moved, by up
+    // to 60, and 33 of RandomLossLM's.
+    // RandomLossLM's paths reach 4050 days after today, so 4112 days after the curves' date two months on: before
+    // #244 a default after its 4095th day there wrapped round to an early one, and 28 of its values moved.
+    const Date curveDate(31, August, 2006);
+    const NamesOnCurves names(std::vector<Date>(8, curveDate), 0.05);
+    const std::vector<Date> dates = {Date(1, December, 2006), Date(1, March, 2007), Date(1, September, 2011)};
+    for (Integer daysOn : {31, 62})
+    {
+        for (bool loss : {false, true})
+        {
+            BOOST_TEST_CONTEXT((loss ? "random loss" : "random default") << ", today " << daysOn << " days on")
+            {
+                std::vector<Real> values[2];
+                for (Integer k : {0, 1})
+                {
+                    Settings::instance().evaluationDate() = curveDate + k * daysOn;
+                    const auto basket =
+                        names.basket(curveDate, loss ? names.randomLossModel(2000) : names.randomDefaultModel(2000));
+                    for (const Date& d : dates)
+                    {
+                        values[k].push_back(basket->probAtLeastNEvents(1, d));
+                        values[k].push_back(basket->probAtLeastNEvents(3, d));
+                        values[k].push_back(basket->expectedTrancheLoss(d));
+                        values[k].push_back(basket->percentile(d, 0.99));
+                        values[k].push_back(basket->expectedShortfall(d, 0.99));
+                        const std::vector<Probability> second = basket->probsBeingNthEvent(2, d);
+                        values[k].insert(values[k].end(), second.begin(), second.end());
+                        values[k].push_back(basket->defaultCorrelation(d, 0, 7));
+                    }
+                }
+                BOOST_REQUIRE_EQUAL(values[0].size(), values[1].size());
+                for (Size i = 0; i < values[0].size(); ++i)
+                    BOOST_CHECK_EQUAL(values[0][i], values[1][i]);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testRandomModelsOnCurvesFromAfterToday)
+{
+    BOOST_TEST_MESSAGE("Testing the random models on default curves starting after today...");
+
+    // On curves from two days after today, no name defaults on or before then. Before #232 the statistics read the
+    // paths' days as from today, so the curves' first day's defaults came by tomorrow: RandomDefaultLM gave a
+    // probability of 0.0038 of a default by then, and 0.0083 by the curves' date. Both models now give none by
+    // that date, and ConstantLossModel's probabilities after it.
+    const Date today(31, August, 2006), curveDate = today + 2;
+    Settings::instance().evaluationDate() = today;
+    const Size paths = 20000;
+    const NamesOnCurves names(std::vector<Date>(8, curveDate), 0.2);
+    const auto latent = names.basket(today, names.latentModel());
+    for (const auto& [model, random] : names.randomModels(today, paths))
+    {
+        for (const Date& d : {today + 1, curveDate})
+        {
+            BOOST_TEST_CONTEXT(model << ", at " << d)
+            {
+                BOOST_CHECK_EQUAL(random->probAtLeastNEvents(1, d), 0.0);
+                BOOST_CHECK_EQUAL(random->expectedTrancheLoss(d), 0.0);
+            }
+        }
+        BOOST_TEST_CONTEXT(model << ", a week after the curves' date")
+        {
+            checkOnPaths(random->probAtLeastNEvents(1, curveDate + 7), latent->probAtLeastNEvents(1, curveDate + 7),
+                         paths);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testRandomModelsRefuseWhatTheirRecordsCannotHold)
+{
+    BOOST_TEST_MESSAGE("Testing that the random models refuse what their records of a default can't hold...");
+
+    // RandomLossLM records a default's name in 11 bits and its day in 13, counted from the earliest reference date of
+    // the default curves of the names left, and its paths reach 4050 days after today. RandomDefaultLM takes 16
+    // bits for each. Before #244 RandomLossLM took 12 for each, unchecked, so a day past the 4095th wrapped round to
+    // an early one. Each model now refuses, as it simulates, a basket whose names or days it can't record.
+    const Date today(1, November, 2006);
+    Settings::instance().evaluationDate() = today;
+    for (Size n : {2048, 2049})
+    {
+        BOOST_TEST_CONTEXT(n << " names")
+        {
+            const NamesOnCurves names(std::vector<Date>(n, today), 0.01);
+            const auto basket = names.basket(today, names.randomLossModel(10));
+            if (n == 2048)
+                BOOST_CHECK_NO_THROW(basket->expectedTrancheLoss(today + 365));
+            else
+                BOOST_CHECK_EXCEPTION(basket->expectedTrancheLoss(today + 365), Error,
+                                      ExpectedErrorMessage("RandomLossLM records up to 2048 names, not 2049"));
+        }
+    }
+    for (Integer age : {4141, 4142})
+    {
+        BOOST_TEST_CONTEXT("curves " << age << " days before today")
+        {
+            const NamesOnCurves names(std::vector<Date>(8, today - age), 0.01);
+            BOOST_CHECK_NO_THROW(
+                names.basket(today - age, names.randomDefaultModel(10))->expectedTrancheLoss(today + 365));
+            const auto basket = names.basket(today - age, names.randomLossModel(10));
+            if (age == 4141)
+                BOOST_CHECK_NO_THROW(basket->expectedTrancheLoss(today + 365));
+            else
+                BOOST_CHECK_EXCEPTION(basket->expectedTrancheLoss(today + 365), Error,
+                                      ExpectedErrorMessage("RandomLossLM records a default's day in 13 bits"));
+        }
+    }
+    // RandomDefaultLM's days reach 65535 days after the earliest curve date, so curves up to 61485 days old.
+    const Date farOff(1, January, 2180);
+    Settings::instance().evaluationDate() = farOff;
+    for (Integer age : {61485, 61486})
+    {
+        BOOST_TEST_CONTEXT("today " << farOff << ", curves " << age << " days before")
+        {
+            const NamesOnCurves names(std::vector<Date>(8, farOff - age), 0.01);
+            const auto basket = names.basket(farOff - age, names.randomDefaultModel(10));
+            if (age == 61485)
+                BOOST_CHECK_NO_THROW(basket->expectedTrancheLoss(farOff + 365));
+            else
+                BOOST_CHECK_EXCEPTION(basket->expectedTrancheLoss(farOff + 365), Error,
+                                      ExpectedErrorMessage("RandomDefaultLM records a default's day in 16 bits"));
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testRandomLossModelRecordOfADefault)
+{
+    BOOST_TEST_MESSAGE("Testing the random loss model's record of a default...");
+
+    // A default's name, day and recovery share 32 bits, 11, 13 and 8 of them. Before #244 the day took 12, and the
+    // 8191st day came back as the 4095th. The recovery is kept to the nearest 1/256, at most 255/256: before #245 one
+    // above 255.5/256 overflowed its 8 bits and came back as 0, a total loss.
+    using Event = simEvent<RandomLossLM<GaussianCopulaPolicy>>;
+    BOOST_CHECK_EQUAL(sizeof(Event), 4U);
+    const Event last(2047, 8191, 0.5);
+    BOOST_CHECK_EQUAL(unsigned(last.nameIdx), 2047U);
+    BOOST_CHECK_EQUAL(unsigned(last.dayFromRef), 8191U);
+    BOOST_CHECK_EQUAL(last.recovery(), 0.5);
+    for (Real recovery : {0.4, 0.998, 0.999, 1.0})
+    {
+        BOOST_TEST_CONTEXT("recovery " << recovery)
+        {
+            BOOST_CHECK_EQUAL(Event(0, 0, recovery).recovery(), std::min(std::round(256.0 * recovery), 255.0) / 256.0);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testRandomLossModelRecoveriesAtTheirDefaults)
+{
+    BOOST_TEST_MESSAGE("Testing the random loss model's recoveries at their defaults...");
+
+    // A default's recovery is the spot recovery model's at the default's own probability, which the path draws.
+    // Before #246 the model read that probability on the curve at the default's day, at its start, so a default on
+    // the curve's first day had none, and a recovery of 0. At a hazard rate of 3 on 20,000 paths the first day's
+    // defaults lost 6.555, 67 % more than the 3.929 their probabilities give at recoveries of 40 %. At recoveries of
+    // 98 % such a default lost 50 times its share, and a year's defaults at hazard rates of 20 % lost 14 % more than
+    // their probabilities give.
+    const Date today(31, August, 2006);
+    Settings::instance().evaluationDate() = today;
+    const Size paths = 20000;
+    struct Case
+    {
+        Real hazard, recovery;
+        Date d;
+    };
+    for (const Case& c : {Case{3.0, 0.4, today + 1}, Case{0.2, 0.98, today + 365}})
+    {
+        BOOST_TEST_CONTEXT("hazard rate " << c.hazard << ", recoveries " << c.recovery << ", at " << c.d)
+        {
+            const NamesOnCurves names(std::vector<Date>(8, today), c.hazard);
+            const auto random = names.basket(today, names.randomLossModel(paths, c.recovery));
+            Real expected = 0.0;
+            for (const auto& curve : names.curves)
+                expected += 100.0 * curve->defaultProbability(c.d, true) * (1.0 - c.recovery);
+            BOOST_CHECK_SMALL(random->expectedTrancheLoss(c.d) / expected - 1.0, 0.05);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testSpotRecoveryAtADate)
+{
+    BOOST_TEST_MESSAGE("Testing the spot recovery model's recovery at a date...");
+
+    // conditionalRecovery reads a default's probability on its curve at a date. At the curve's own date no default
+    // has one, and before #246 it returned a recovery of 0 there, which isn't the formula's limit; it now refuses
+    // the date. After it, it's conditionalRecoveryAtDefault at the latent value of that probability, as RandomLossLM
+    // takes it from its path.
+    const Date today(31, August, 2006);
+    Settings::instance().evaluationDate() = today;
+    const NamesOnCurves names(std::vector<Date>(8, today), 0.2);
+    const auto spot = names.spotLossModel();
+    spot->resetBasket(names.basket(today));
+    for (Size i : {0, 7})
+    {
+        for (Real y : {-1.0, 0.0, 1.0})
+        {
+            BOOST_TEST_CONTEXT("name " << i << ", latent value " << y)
+            {
+                BOOST_CHECK_EXCEPTION(spot->conditionalRecovery(y, i, today), Error,
+                                      ExpectedErrorMessage("so no recovery from one"));
+                const Probability p = names.curves[i]->defaultProbability(today + 1, true);
+                BOOST_CHECK_EQUAL(spot->conditionalRecovery(y, i, today + 1),
+                                  spot->conditionalRecoveryAtDefault(y, i, spot->inverseCumulativeY(p, i)));
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testBaseCorrelationAfterADefault)
 {
     BOOST_TEST_MESSAGE("Testing base correlation models on what a default leaves of a tranche...");
