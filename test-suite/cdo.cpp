@@ -3557,6 +3557,165 @@ BOOST_AUTO_TEST_CASE(testDefaultCorrelationOfANameThatCantDefault)
     }
 }
 
+// Ten names of the given notionals at hazard 1 % from today but for the last one's, recovery 0.4.
+struct NamesAtOnePercent
+{
+    std::vector<std::string> names;
+    std::vector<Real> notionals;
+    ext::shared_ptr<Pool> pool = ext::make_shared<Pool>();
+
+    NamesAtOnePercent(const Date& today, std::vector<Real> notionals, Real lastHazard) : notionals(std::move(notionals))
+    {
+        const NorthAmericaCorpDefaultKey key(EURCurrency(), SeniorSec, Period(), 1.);
+        for (Size i = 0; i < this->notionals.size(); ++i)
+        {
+            names.push_back("issuer-" + std::to_string(i));
+            const Real hazard = i + 1 == this->notionals.size() ? lastHazard : 0.01;
+            const Handle<DefaultProbabilityTermStructure> curve(
+                ext::make_shared<FlatHazardRate>(today, makeQuoteHandle(hazard), Actual365Fixed()));
+            pool->add(names.back(), Issuer(std::vector<Issuer::key_curve_pair>(1, std::make_pair(key, curve))), key);
+        }
+    }
+
+    ext::shared_ptr<Basket> basket(const Date& today,
+                                   const ext::shared_ptr<DefaultLossModel>& model,
+                                   Real attachment = 0.0,
+                                   Real detachment = 1.0) const
+    {
+        auto basket = ext::make_shared<Basket>(today, names, notionals, pool, attachment, detachment);
+        basket->setLossModel(model);
+        return basket;
+    }
+};
+
+// A recursive model on one factor at correlation 0.3, Gaussian or t5, and its latent model's count of defaults.
+struct RecursiveOnOneFactor
+{
+    ext::shared_ptr<DefaultLossModel> model;
+    std::function<Probability(Size, const Date&)> probAtLeastNEvents;
+
+    RecursiveOnOneFactor(bool t5, Size buckets)
+    {
+        const std::vector<std::vector<Real>> loadings(10, std::vector<Real>(1, std::sqrt(0.3)));
+        const std::vector<Real> recoveries(10, 0.4);
+        if (t5)
+        {
+            TCopulaPolicy::initTraits traits;
+            traits.tOrders = std::vector<Integer>(2, 5);
+            const auto latent = ext::make_shared<TConstantLossLM>(
+                loadings, recoveries, LatentModelIntegrationType::GaussianQuadrature, traits);
+            model = ext::make_shared<RecursiveLossModel<TCopulaPolicy>>(latent, buckets);
+            probAtLeastNEvents = [latent](Size n, const Date& d) { return latent->probAtLeastNEvents(n, d); };
+        }
+        else
+        {
+            const auto latent = ext::make_shared<GaussianConstantLossLM>(loadings, recoveries,
+                                                                         LatentModelIntegrationType::GaussianQuadrature,
+                                                                         GaussianCopulaPolicy::initTraits());
+            model = ext::make_shared<RecursiveLossModel<GaussianCopulaPolicy>>(latent, buckets);
+            probAtLeastNEvents = [latent](Size n, const Date& d) { return latent->probAtLeastNEvents(n, d); };
+        }
+    }
+};
+
+BOOST_AUTO_TEST_CASE(testRecursiveLossDistributionOnItsAttainableLosses)
+{
+    BOOST_TEST_MESSAGE("Testing that the recursive model's loss distribution is on its attainable losses...");
+
+    /* The recursive model's attainable losses are the sums of the names' losses in loss units, the smallest loss
+       given default over the buckets. With more than one bucket, or with losses that aren't multiples of the
+       smallest, they aren't every count of units, but the loss distribution put the i-th of them at i units. With
+       four buckets on names alike every loss, percentile and shortfall from it came out a quarter of its size, and on
+       one name of 1 and nine of 10 the largest loss was 11.4 of 54.6 (#261). */
+    const Date today(31, August, 2006);
+    Settings::instance().evaluationDate() = today;
+    const Date d = today + 5 * Years;
+
+    // the attainable losses: b times a name of 10's loss of 6, and a times a name of 1's 0.6
+    std::vector<Real> alike, mixed;
+    for (Size b = 0; b <= 10; ++b)
+        alike.push_back(6.0 * Real(b));
+    for (Size b = 0; b < 10; ++b)
+        for (Size a = 0; a < 2; ++a)
+            mixed.push_back(6.0 * Real(b) + 0.6 * Real(a));
+    std::vector<Real> oneSmall(10, 10.0);
+    oneSmall[0] = 1.0;
+    struct PoolCase
+    {
+        const char* description;
+        std::vector<Real> notionals;
+        Real lastHazard;
+        const std::vector<Real>& losses;
+    };
+    const std::vector<PoolCase> pools = {
+        {"ten names of 10", std::vector<Real>(10, 10.0), 0.01, alike},
+        {"a name of 1 and nine of 10", oneSmall, 0.01, mixed},
+        {"ten names of 10, the last at hazard 0", std::vector<Real>(10, 10.0), 0.0, alike}};
+    for (const auto& pool : pools)
+    {
+        const NamesAtOnePercent names(today, pool.notionals, pool.lastHazard);
+        for (bool t5 : {false, true})
+        {
+            BOOST_TEST_CONTEXT(pool.description << (t5 ? ", one t5 factor" : ", one Gaussian factor"))
+            {
+                std::map<Real, Probability> oneBucket;
+                for (Size buckets : {Size(1), Size(4)})
+                {
+                    BOOST_TEST_CONTEXT(buckets << " bucket(s)")
+                    {
+                        const RecursiveOnOneFactor recursive(t5, buckets);
+                        // the latent model counts defaults on the basket it was last given
+                        const auto basket = names.basket(today, recursive.model);
+                        const auto distribution = basket->lossDistribution(d);
+                        BOOST_REQUIRE_EQUAL(distribution.size(), pool.losses.size());
+                        auto expected = pool.losses.begin();
+                        for (const auto& point : distribution)
+                            BOOST_CHECK_SMALL(point.first - *expected++, 1.0e-12);
+                        // short of 1 by the mass the factor's integration rule leaves out: 8.2e-13 Gaussian, 8.3e-11 t5
+                        BOOST_CHECK_SMALL(distribution.rbegin()->second - 1.0, 1.0e-10);
+                        if (buckets == 1)
+                        {
+                            oneBucket = distribution;
+                        }
+                        else
+                        {
+                            // the same distribution as one bucket's, whose loss unit is the losses' own
+                            auto other = oneBucket.begin();
+                            for (const auto& point : distribution)
+                            {
+                                BOOST_CHECK_SMALL(point.first - other->first, 1.0e-12);
+                                BOOST_CHECK_SMALL(point.second - other->second, 1.0e-14);
+                                ++other;
+                            }
+                        }
+                        if (&pool.losses == &alike)
+                        {
+                            /* At the loss of k defaults, the probability of at most k: with that of k + 1 or more it
+                               makes the total, which the factor's integration rule leaves short of 1 */
+                            Size k = 0;
+                            for (const auto& point : distribution)
+                            {
+                                if (k < 10)
+                                    BOOST_CHECK_SMALL(point.second + recursive.probAtLeastNEvents(k + 1, d) -
+                                                          distribution.rbegin()->second,
+                                                      1.0e-14);
+                                ++k;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // on the [3 %, 12 %] tranche, losses of 0, 3 and 9: at 99 %, the loss of two defaults or more
+    const NamesAtOnePercent names(today, std::vector<Real>(10, 10.0), 0.01);
+    const auto one = names.basket(today, RecursiveOnOneFactor(false, 1).model, 0.03, 0.12);
+    const auto four = names.basket(today, RecursiveOnOneFactor(false, 4).model, 0.03, 0.12);
+    BOOST_CHECK_CLOSE(four->percentile(d, 0.99), 9.0, 1.0e-10);
+    BOOST_CHECK_CLOSE(four->expectedShortfall(d, 0.95), one->expectedShortfall(d, 0.95), 1.0e-10);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

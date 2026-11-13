@@ -222,12 +222,23 @@ namespace QuantLib
     template <class CP>
     std::map<Real, Probability> RecursiveLossModel<CP>::lossDistribution(const Date& d) const
     {
-        std::map<Real, Probability> distrib;
         std::vector<Real> values = lossProbability(d);
+        /* Those are the probabilities of the attainable losses, in order. A
+        loss distribution given the factors has one key for each, whatever its
+        probability, so they're its keys where no name defaults. The i-th isn't
+        i loss units unless every count of units up to the largest can be lost,
+        which more than one bucket, or names of other losses, rule out (#261).
+        */
+        const std::map<Real, Probability> attainable =
+            conditionalLossDistrib(std::vector<Probability>(remainingBsktSize_, 0.));
+        QL_REQUIRE(attainable.size() == values.size(),
+                   attainable.size() << " attainable losses for " << values.size() << " probabilities");
+        std::map<Real, Probability> distrib;
         Real sum = 0.;
-        for (Size i = 0; i < values.size(); ++i)
+        auto loss = attainable.begin();
+        for (Size i = 0; i < values.size(); ++i, ++loss)
         {
-            distrib.insert(std::make_pair<Real, Probability>(i * lossUnit_, sum + values[i]));
+            distrib.insert(std::make_pair(loss->first * lossUnit_, sum + values[i]));
             sum += values[i];
         }
         return distrib;
