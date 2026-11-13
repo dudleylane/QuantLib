@@ -3742,6 +3742,75 @@ BOOST_AUTO_TEST_CASE(testConstantLossModelDefaultsItsCopulaTraits)
     BOOST_CHECK_EQUAL(leftFromAQuote->probAtLeastNEvents(2, d), givenFromAQuote->probAtLeastNEvents(2, d));
 }
 
+BOOST_AUTO_TEST_CASE(testGaussianFactorIntegratesTheTranchesOfNamesAlike)
+{
+    BOOST_TEST_MESSAGE("Testing that a Gaussian factor integrates the tranches of names alike...");
+
+    /* Gauss-Hermite of order 25 left Hull-White's tranche spreads of a homogeneous pool 2.4 % off at correlation 0.6
+       and 12.5 % at 0.9 (#258). A Gaussian factor now takes the trapezoid rule at step 0.1 on [-8.5, 8.5], whose ends
+       leave out 1.9e-17 of its mass. Given the factor, the recursive model's loss distribution on names alike is the
+       binomial one, so its expected tranche losses differ from the binomial ones integrated at step 0.005 on
+       [-10, 10] only by its rule: by 5e-15 at correlations 0.3 and 0.6, where Gauss-Hermite was up to 2.6e-4 and
+       2.7e-2 off and the same rule on [-6.5, 6.5] 6e-9, and by 1.6e-5 at 0.9, where the factor's step is narrow next
+       to the rule's. */
+    const Date today(31, August, 2006);
+    Settings::instance().evaluationDate() = today;
+    const Date d = today + 5 * Years;
+    const Size n = 100;
+    const Real notional = 100.0, recovery = 0.4;
+    const NamesAtOnePercent names(today, std::vector<Real>(n, notional), 0.01);
+    const Probability p = FlatHazardRate(today, makeQuoteHandle(0.01), Actual365Fixed()).defaultProbability(d);
+    const Real threshold = InverseCumulativeNormal::standard_value(p);
+    const CumulativeNormalDistribution Phi;
+    const NormalDistribution phi;
+    const std::vector<std::pair<Real, Real>> tranches = {{0.0, 0.03}, {0.03, 0.06}, {0.06, 0.10}, {0.10, 1.0}};
+    const std::vector<std::pair<Real, Real>> correlations = {{0.3, 1.0e-12}, {0.6, 1.0e-12}, {0.9, 5.0e-5}};
+    for (const auto& [rho, tolerance] : correlations)
+    {
+        std::vector<Real> reference(tranches.size(), 0.0);
+        const Real h = 0.005;
+        const Integer last = 2000;
+        for (Integer j = -last; j <= last; ++j)
+        {
+            const Real m = h * j;
+            const Real q = Phi((threshold - std::sqrt(rho) * m) / std::sqrt(1.0 - rho));
+            std::vector<Real> defaults(n + 1, 0.0);
+            defaults[0] = 1.0;
+            for (Size name = 0; name < n; ++name)
+            {
+                for (Size k = name + 1; k > 0; --k)
+                    defaults[k] = defaults[k] * (1.0 - q) + defaults[k - 1] * q;
+                defaults[0] *= 1.0 - q;
+            }
+            const Real w = (j == -last || j == last ? 0.5 : 1.0) * h * phi(m);
+            for (Size t = 0; t < tranches.size(); ++t)
+            {
+                const Real attachment = tranches[t].first * n * notional;
+                const Real width = (tranches[t].second - tranches[t].first) * n * notional;
+                Real loss = 0.0;
+                for (Size k = 0; k <= n; ++k)
+                    loss += defaults[k] * std::min(std::max(k * notional * (1.0 - recovery) - attachment, 0.0), width);
+                reference[t] += w * loss;
+            }
+        }
+        for (Size t = 0; t < tranches.size(); ++t)
+        {
+            BOOST_TEST_CONTEXT("correlation " << rho << ", tranche [" << tranches[t].first << ", " << tranches[t].second
+                                              << "]")
+            {
+                const auto latent = ext::make_shared<GaussianConstantLossLM>(
+                    std::vector<std::vector<Real>>(n, std::vector<Real>(1, std::sqrt(rho))),
+                    std::vector<Real>(n, recovery), LatentModelIntegrationType::GaussianQuadrature,
+                    GaussianCopulaPolicy::initTraits());
+                const auto basket =
+                    names.basket(today, ext::make_shared<RecursiveLossModel<GaussianCopulaPolicy>>(latent),
+                                 tranches[t].first, tranches[t].second);
+                BOOST_CHECK_SMALL(basket->expectedTrancheLoss(d) / reference[t] - 1.0, tolerance);
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
