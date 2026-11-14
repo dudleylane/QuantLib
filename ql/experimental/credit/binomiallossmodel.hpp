@@ -210,19 +210,23 @@ namespace QuantLib
         }
         else
         {
-            /* FIX ME: With high default probabilities one only gets tiny values
-            at the end and the sum of probabilities in the
-            conditional distribution does not add up to one. It might be due to
-            the fact that recursion should be done in the other direction as
-            pointed out in the book. This is numerical.
-            */
-            Probability probsRatio = avgProb / (1. - avgProb);
-            lossProbDensity[0] = std::pow(1. - avgProb, static_cast<Real>(bsktSize));
-            for (Size i = 1; i < bsktSize + 1; i++) // recursive to avoid factorial
-                lossProbDensity[i] = lossProbDensity[i - 1] * probsRatio * (bsktSize - i + 1.) / i;
-            // redistribute probability:
+            /* The binomial distribution from its mode outwards, each term the next or the last one's times their
+               ratio, and then divided by its sum. A forward recursion from (1 - p)^n underflowed where a default was
+               nearly certain, on 100 names once 1 - p was below 5.8e-4, and left the distribution all zeros (#273).
+               From the mode only terms below the smallest double underflow. */
+            const Real n = static_cast<Real>(bsktSize);
+            const Size mode = std::min(bsktSize, static_cast<Size>(std::floor((n + 1.) * avgProb)));
+            const Real up = avgProb / (1. - avgProb);
+            const Real down = (1. - avgProb) / avgProb;
+            lossProbDensity[mode] = 1.;
+            for (Size i = mode + 1; i < bsktSize + 1; i++) // recursive to avoid factorial
+                lossProbDensity[i] = lossProbDensity[i - 1] * up * (n - i + 1.) / i;
+            for (Size i = mode; i > 0; i--)
+                lossProbDensity[i - 1] = lossProbDensity[i] * down * i / (n - i + 1.);
+            // normalize and redistribute probability:
+            const Real scale = alpha / std::accumulate(lossProbDensity.begin(), lossProbDensity.end(), Real(0.));
             for (Size i = 0; i < bsktSize + 1; i++)
-                lossProbDensity[i] *= alpha;
+                lossProbDensity[i] *= scale;
             // adjust average
             Real epsilon = (1. - alpha) * (ceilAveProb - m);
             Real epsilonPlus = 1. - alpha - epsilon;

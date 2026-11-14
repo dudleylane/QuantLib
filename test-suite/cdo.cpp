@@ -3811,6 +3811,105 @@ BOOST_AUTO_TEST_CASE(testGaussianFactorIntegratesTheTranchesOfNamesAlike)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testBinomialModelWhereDefaultIsNearlyCertain)
+{
+    BOOST_TEST_MESSAGE("Testing the binomial model where a default given the factor is nearly certain...");
+
+    /* The binomial model built its distribution given the factor by a forward recursion from (1 - p)^n, which
+       underflowed where a default was nearly certain, on 100 names once 1 - p was below 5.8e-4, and left the
+       distribution there all zeros (#273). On 100 names alike the tranche losses came out 1.5 % to 5.9 % low at
+       correlation 0.9, and up to 0.19 % low on t5 factors at 0.3. The distribution now starts from its mode. */
+    const Date today(31, August, 2006);
+    Settings::instance().evaluationDate() = today;
+    const Date d = today + 5 * Years;
+    const auto latentModel = [](Size n, Real rho, const std::vector<Real>& recoveries)
+    {
+        return ext::make_shared<GaussianConstantLossLM>(
+            std::vector<std::vector<Real>>(n, std::vector<Real>(1, std::sqrt(rho))), recoveries,
+            LatentModelIntegrationType::GaussianQuadrature, GaussianCopulaPolicy::initTraits());
+    };
+
+    /* names alike: given the factor the distribution is the binomial one, as the recursive model's is. On t5 factors,
+       whose heavier tails reach a nearly certain default at 0.3 already, the binomial model's losses are scaled by the
+       weight the factor's rule integrates, short of 1 by 8.3e-11, and the recursive model's aren't. */
+    const Size n = 100;
+    const NamesAtOnePercent alike(today, std::vector<Real>(n, 100.0), 0.01);
+    const std::vector<Real> recoveries(n, 0.4);
+    const std::vector<std::pair<Real, Real>> tranches = {{0.0, 0.03}, {0.03, 0.06}, {0.06, 0.10}, {0.10, 1.0}};
+    struct AlikeCase
+    {
+        bool t5;
+        Real rho, tolerance;
+    };
+    for (const auto& [t5, rho, tolerance] : {AlikeCase{false, 0.3, 1.0e-12}, AlikeCase{false, 0.6, 1.0e-12},
+                                             AlikeCase{false, 0.9, 1.0e-12}, AlikeCase{true, 0.3, 1.0e-9}})
+    {
+        for (const auto& [attachment, detachment] : tranches)
+        {
+            BOOST_TEST_CONTEXT("names alike, " << (t5 ? "t5" : "Gaussian") << " factor, correlation " << rho
+                                               << ", tranche [" << attachment << ", " << detachment << "]")
+            {
+                ext::shared_ptr<DefaultLossModel> binomialModel, recursiveModel;
+                if (t5)
+                {
+                    TCopulaPolicy::initTraits traits;
+                    traits.tOrders = std::vector<Integer>(2, 5);
+                    const auto tLatentModel = [&]
+                    {
+                        return ext::make_shared<TConstantLossLM>(
+                            std::vector<std::vector<Real>>(n, std::vector<Real>(1, std::sqrt(rho))), recoveries,
+                            LatentModelIntegrationType::GaussianQuadrature, traits);
+                    };
+                    binomialModel = ext::make_shared<TBinomialLossModel>(tLatentModel());
+                    recursiveModel = ext::make_shared<RecursiveLossModel<TCopulaPolicy>>(tLatentModel());
+                }
+                else
+                {
+                    binomialModel = ext::make_shared<GaussianBinomialLossModel>(latentModel(n, rho, recoveries));
+                    recursiveModel =
+                        ext::make_shared<RecursiveLossModel<GaussianCopulaPolicy>>(latentModel(n, rho, recoveries));
+                }
+                const auto binomial = alike.basket(today, binomialModel, attachment, detachment);
+                const auto recursive = alike.basket(today, recursiveModel, attachment, detachment);
+                BOOST_CHECK_SMALL(binomial->expectedTrancheLoss(d) / recursive->expectedTrancheLoss(d) - 1.0,
+                                  tolerance);
+            }
+        }
+    }
+
+    /* names that differ in hazard, notional and recovery: the adjusted binomial keeps the expected loss given the
+       factor, so the whole basket's is the sum of the names' but for the factor rule's error in their probabilities,
+       8.2e-8 at most, and the loss distribution sums to 1. On 1,000 names a default given the factor underflowed once
+       it was more likely than about 0.52. */
+    for (const auto& [size, rho] : {std::pair<Size, Real>(100, 0.9), std::pair<Size, Real>(1000, 0.3)})
+    {
+        BOOST_TEST_CONTEXT(size << " names that differ, correlation " << rho)
+        {
+            const NorthAmericaCorpDefaultKey key(EURCurrency(), SeniorSec, Period(), 1.);
+            auto pool = ext::make_shared<Pool>();
+            std::vector<std::string> names;
+            std::vector<Real> notionals, recoveries;
+            Real expectedLoss = 0.0;
+            for (Size i = 0; i < size; ++i)
+            {
+                names.push_back("issuer-" + std::to_string(i));
+                const Real hazard = 0.005 + 0.015 * Real(i) / Real(size - 1);
+                notionals.push_back(50.0 + 100.0 * Real((37 * i) % size) / Real(size));
+                recoveries.push_back(0.2 + 0.4 * Real((61 * i) % size) / Real(size));
+                const Handle<DefaultProbabilityTermStructure> curve(
+                    ext::make_shared<FlatHazardRate>(today, makeQuoteHandle(hazard), Actual365Fixed()));
+                pool->add(names.back(), Issuer(std::vector<Issuer::key_curve_pair>(1, std::make_pair(key, curve))),
+                          key);
+                expectedLoss += notionals.back() * (1.0 - recoveries.back()) * curve->defaultProbability(d);
+            }
+            auto basket = ext::make_shared<Basket>(today, names, notionals, pool, 0.0, 1.0);
+            basket->setLossModel(ext::make_shared<GaussianBinomialLossModel>(latentModel(size, rho, recoveries)));
+            BOOST_CHECK_SMALL(basket->expectedTrancheLoss(d) / expectedLoss - 1.0, 1.0e-7);
+            BOOST_CHECK_SMALL(basket->lossDistribution(d).rbegin()->second - 1.0, 1.0e-12);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
