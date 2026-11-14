@@ -273,6 +273,15 @@ namespace QuantLib
           probAtLeastNEvents(n, d0).
         */
         std::vector<Probability> probsBeingNthEventBetween(Size n, const Date& d0, const Date& d) const;
+        /*! The mean recovery of each name given that it's the nth default,
+          the defaults before the evaluation date counted, after d0 and by d
+          (#250). One per name, in the pool's order: 0 for the names that
+          defaulted before the evaluation date, and for all of them once
+          those defaults reach n. It means something only where that name's
+          probsBeingNthEventBetween is positive. See
+          DefaultLossModel::recoveriesBeingNthEventBetween.
+        */
+        std::vector<Real> recoveriesBeingNthEventBetween(Size n, const Date& d0, const Date& d) const;
         /*! Returns the probaility of having a given or larger number of
         defaults in the basket portfolio at a given time.
 

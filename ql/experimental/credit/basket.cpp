@@ -388,6 +388,16 @@ namespace QuantLib
         return lossModel_->probsBeingNthEventBetween(n - alreadyDefaulted, d0, d);
     }
 
+    std::vector<Real> Basket::recoveriesBeingNthEventBetween(Size n, const Date& d0, const Date& d) const
+    {
+        calculate();
+        // the defaults so far count, and the model counts among the names left
+        Size alreadyDefaulted = pool_->size() - remainingNames().size();
+        if (alreadyDefaulted >= n)
+            return std::vector<Real>(pool_->size(), 0.);
+        return lossModel_->recoveriesBeingNthEventBetween(n - alreadyDefaulted, d0, d);
+    }
+
     Real Basket::defaultCorrelation(const Date& d, Size iName, Size jName) const
     {
         calculate();

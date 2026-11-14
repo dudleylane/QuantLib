@@ -36,10 +36,12 @@
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
 #include <ql/time/daycounters/actualactual.hpp>
+#include <algorithm>
 #include <bit>
 #include <cmath>
 #include <iostream>
 #include <string>
+#include <tuple>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -1018,27 +1020,210 @@ BOOST_AUTO_TEST_CASE(testRandomModelsNthEventsInAPeriod)
     }
 }
 
-BOOST_AUTO_TEST_CASE(testRandomLossModelGivesNoExpectedRecovery)
+// RandomLossLM with its paths open, to count from them what its statistics should give.
+class PathsLossLM : public RandomLossLM<GaussianCopulaPolicy>
+{
+  public:
+    using RandomLossLM<GaussianCopulaPolicy>::RandomLossLM;
+    Size paths() const { return nSims_; }
+    const auto& path(Size i) const { return getSim(i); }
+    Date origin() const { return origin_; }
+};
+
+// randomLossModel's model, with its paths open.
+ext::shared_ptr<PathsLossLM> pathsLossModel(Size paths)
+{
+    const std::vector<std::vector<Real>> factors(16, std::vector<Real>(1, std::sqrt(0.3)));
+    return ext::make_shared<PathsLossLM>(
+        ext::make_shared<GaussianSpotLossLM>(factors, std::vector<Real>(8, 0.4), 2.2,
+                                             LatentModelIntegrationType::GaussianQuadrature,
+                                             GaussianCopulaPolicy::initTraits()),
+        paths);
+}
+
+// The nth defaults on a path, counted from the model's origin, falling on a day k with from <= k < to: each name's
+// share of the path, the names defaulting on the nth default's day sharing it equally, with the recovery its default
+// drew.
+struct NthDefault
+{
+    Size name;
+    Real share;
+    Real recovery;
+    long day;
+};
+
+std::vector<NthDefault> nthDefaults(const PathsLossLM& model, Size iPath, Size n, long from, long to)
+{
+    std::vector<std::tuple<long, Size, Real>> defaults;
+    for (const auto& event : model.path(iPath))
+        if (long(event.dayFromRef) < to)
+            defaults.emplace_back(long(event.dayFromRef), Size(event.nameIdx), event.recovery());
+    if (defaults.size() < n)
+        return {};
+    std::sort(defaults.begin(), defaults.end());
+    const long day = std::get<0>(defaults[n - 1]);
+    if (day < from)
+        return {};
+    Size first = n - 1, last = n;
+    while (first > 0 && std::get<0>(defaults[first - 1]) == day)
+        --first;
+    while (last < defaults.size() && std::get<0>(defaults[last]) == day)
+        ++last;
+    std::vector<NthDefault> result;
+    for (Size i = first; i < last; ++i)
+        result.push_back({std::get<1>(defaults[i]), 1.0 / Real(last - first), std::get<2>(defaults[i]), day});
+    return result;
+}
+
+BOOST_AUTO_TEST_CASE(testRandomLossModelNthDefaultRecoveries)
+{
+    BOOST_TEST_MESSAGE("Testing the random loss model's recoveries given the nth default in a period...");
+
+    // RandomLossLM draws a recovery with each default, so the recovery an nth to default pays at
+    // is the one the trigger drew. Name by name, rank by rank and period by period, the model's
+    // probability of each name being the nth default is its share of the paths, and its mean
+    // recovery given that is the mean of the recoveries its default drew on them, names
+    // defaulting on the nth default's day sharing a path equally, counted here from the paths.
+    // A defaulted name gets 0, as do all of them once the defaults so far reach n, and the rank
+    // the model is asked for is above them. On hazards of 50 % some of those paths have names
+    // defaulting on the same day. Over every rank, the probabilities times the losses at those
+    // recoveries add up to the expected loss in the period. Before #250 the model gave no such
+    // recovery.
+    const std::vector<std::pair<Date, Date>> periods = {{inception() - 10 * Days, Date(1, December, 2006)},
+                                                        {Date(1, March, 2007), Date(1, September, 2007)},
+                                                        {Date(1, November, 2006), Date(1, September, 2011)}};
+    for (OneName oneName : {OneName::alive, OneName::defaulted})
+    {
+        const Date today = oneName == OneName::alive ? inception() : Date(1, November, 2006);
+        Settings::instance().evaluationDate() = today;
+        const Size soFar = oneName == OneName::defaulted ? 1 : 0;
+        const auto basket = eightNames({.oneName = oneName, .hazards = std::vector<Real>(8, 0.5)});
+        const auto model = pathsLossModel(2000);
+        basket->setLossModel(model);
+        Size tiedPaths = 0;
+        bool recoveriesDiffer = false;
+        for (const auto& [d0, d] : periods)
+        {
+            Real expectedLoss = 0.0;
+            for (Size n = 1; n <= 8; ++n)
+            {
+                BOOST_TEST_CONTEXT(soFar << " defaults so far, n = " << n << ", from " << d0 << " to " << d)
+                {
+                    const std::vector<Probability> probabilities = basket->probsBeingNthEventBetween(n, d0, d);
+                    const std::vector<Real> recoveries = basket->recoveriesBeingNthEventBetween(n, d0, d);
+                    BOOST_REQUIRE_EQUAL(recoveries.size(), 8U);
+                    std::vector<Real> shares(8, 0.0), drawn(8, 0.0);
+                    if (n > soFar)
+                    {
+                        for (Size iPath = 0; iPath < model->paths(); ++iPath)
+                        {
+                            const std::vector<NthDefault> nth = nthDefaults(
+                                *model, iPath, n - soFar, std::max<long>(d0 - model->origin(), 0), d - model->origin());
+                            if (nth.size() > 1)
+                                ++tiedPaths;
+                            for (const NthDefault& one : nth)
+                            {
+                                shares[one.name] += one.share;
+                                drawn[one.name] += one.share * one.recovery;
+                            }
+                        }
+                    }
+                    for (Size i = 0; i < 8; ++i)
+                    {
+                        BOOST_TEST_CONTEXT("name " << i)
+                        {
+                            BOOST_CHECK_SMALL(probabilities[i] - shares[i] / model->paths(), 1.0e-15);
+                            if (shares[i] > 0.0)
+                            {
+                                BOOST_CHECK_SMALL(recoveries[i] - drawn[i] / shares[i], 1.0e-14);
+                                recoveriesDiffer = recoveriesDiffer || std::fabs(recoveries[i] - 0.4) > 0.01;
+                            }
+                            else
+                            {
+                                BOOST_CHECK_EQUAL(recoveries[i], 0.0);
+                            }
+                            expectedLoss += probabilities[i] * 100.0 * (1.0 - recoveries[i]);
+                        }
+                    }
+                    if (soFar == 1)
+                        BOOST_CHECK_EQUAL(recoveries[3], 0.0);
+                }
+            }
+            if (soFar == 0)
+            {
+                BOOST_TEST_CONTEXT("from " << d0 << " to " << d)
+                {
+                    const Real lossInThePeriod =
+                        basket->expectedTrancheLoss(d) - basket->expectedTrancheLoss(std::max(d0, today));
+                    BOOST_CHECK_GT(lossInThePeriod, 0.0);
+                    BOOST_CHECK_SMALL(expectedLoss - lossInThePeriod, 1.0e-12 * lossInThePeriod);
+                }
+            }
+        }
+        BOOST_TEST_CONTEXT(soFar << " defaults so far")
+        {
+            // the checks reach names sharing the nth default's day, and recoveries other than the means'
+            BOOST_CHECK_GT(tiedPaths, 0U);
+            BOOST_CHECK(recoveriesDiffer);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testNthToDefaultOnTheRandomLossModel)
 {
     BOOST_TEST_MESSAGE("Testing an nth to default on the random loss model...");
 
-    // The engine pays a trigger at the loss model's expected recovery for its name. The random
-    // loss model draws a recovery with each default, and a trigger pays at the one its default
-    // drew; the expected recovery given a name's default isn't the one given that it's the
-    // trigger. So since #234 the model gives none, with a message that says why, and the engine
-    // throws it. Before, both threw DefaultLossModel's "expected recovery Not implemented for this
-    // model.", before the first coupon and inside it alike.
+    // The engine pays each trigger at the model's mean recovery for its name given that it's
+    // the nth default in the step, and on the random loss model that's the mean of the
+    // recoveries the triggers drew. So on daily steps its protection is that of the paths, each
+    // trigger paying at the recovery it drew, discounted on the day after it, as the engine
+    // discounts a step on its end. That holds from the first coupon's accrual start and from
+    // inside it, and after a default, where a first to default has nothing left to pay. The model
+    // still gives no expected recovery, as since #234: it isn't the one a trigger pays at. Before
+    // #250 the engine threw on it, with the message that says so.
     const ExpectedErrorMessage why("draws a recovery with each default");
-    for (const Date& today : {inception(), Date(1, November, 2006)})
+    const Date maturity(1, September, 2011);
+    for (const auto& [today, oneName] :
+         {std::pair{inception(), OneName::alive}, std::pair{Date(1, November, 2006), OneName::alive},
+          std::pair{Date(1, November, 2006), OneName::defaulted}})
     {
-        BOOST_TEST_CONTEXT("today " << today)
+        Settings::instance().evaluationDate() = today;
+        const Size soFar = oneName == OneName::defaulted ? 1 : 0;
+        const auto basket = eightNames({.oneName = oneName});
+        const auto model = pathsLossModel(2000);
+        basket->setLossModel(model);
+        const Handle<YieldTermStructure> curve = flatCurveFrom(today);
+        const Date start = std::max(today, Date(1, September, 2006));
+        for (Size rank = 1; rank <= 3; ++rank)
         {
-            Settings::instance().evaluationDate() = today;
-            const auto basket = eightNames();
-            basket->setLossModel(randomLossModel(2000));
-            BOOST_CHECK_EXCEPTION(nthToDefault(basket, 1, 0.0, 100.0, flatCurveFrom(today))->NPV(), Error, why);
-            BOOST_CHECK_EXCEPTION(basket->recoveryRate(today + 1 * Years, 0), Error, why);
+            BOOST_TEST_CONTEXT("today " << today << ", " << soFar << " defaults so far, rank " << rank)
+            {
+                const auto contract = nthToDefault(basket, rank, 0.0, 100.0, curve, 1 * Days);
+                // pricing simulates the paths, which the protection below reads
+                const Real engineProtection = contract->protectionLegNPV();
+                Real protection = 0.0;
+                if (rank > soFar)
+                {
+                    for (Size iPath = 0; iPath < model->paths(); ++iPath)
+                        for (const NthDefault& one : nthDefaults(*model, iPath, rank - soFar, start - model->origin(),
+                                                                 maturity - model->origin()))
+                            protection -= one.share * 100.0 * (1.0 - one.recovery) *
+                                          curve->discount(model->origin() + one.day + 1);
+                    protection /= model->paths();
+                    BOOST_CHECK_LT(protection, 0.0);
+                }
+                if (rank > soFar)
+                {
+                    BOOST_CHECK_SMALL(engineProtection - protection, 1.0e-12 * std::fabs(protection));
+                }
+                else
+                {
+                    BOOST_CHECK_EQUAL(engineProtection, 0.0);
+                    BOOST_CHECK_EQUAL(contract->NPV(), 0.0);
+                }
+            }
         }
+        BOOST_CHECK_EXCEPTION(basket->recoveryRate(today + 1 * Years, 0), Error, why);
     }
 }
 
