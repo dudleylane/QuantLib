@@ -55,6 +55,9 @@ namespace QuantLib
         QL_REQUIRE((x >= x_.front() || close(x, x_.front())) &&
                        (x <= x_.back() + dx_.back() || close(x, x_.back() + dx_.back())),
                    "coordinate " << x << " out of range [" << x_.front() << "; " << x_.back() + dx_.back() << "]");
+        // a value within rounding below the first edge belongs to the first bucket
+        if (x < x_.front())
+            return 0;
         for (Size i = 0; i < x_.size(); i++)
         {
             if (x_[i] > x)
@@ -233,11 +236,16 @@ namespace QuantLib
         Real tiny = dx_.back() * 1e-3;
         QL_REQUIRE(x > 0, "x must be positive");
         normalize();
+        // no probability below the first bucket's lower edge, from which the first bucket's grows
+        if (x <= x_.front())
+            return 0.0;
         for (int i = 0; i < size_; i++)
         {
             if (x_[i] + dx_[i] + tiny >= x)
-                return ((x - x_[i]) * cumulativeDensity_[i] + (x_[i] + dx_[i] - x) * cumulativeDensity_[i - 1]) /
-                       dx_[i];
+            {
+                const Real below = i == 0 ? 0.0 : cumulativeDensity_[i - 1];
+                return ((x - x_[i]) * cumulativeDensity_[i] + (x_[i] + dx_[i] - x) * below) / dx_[i];
+            }
         }
         QL_FAIL("x = " << x << " beyond distribution cutoff " << x_.back() + dx_.back());
     }
@@ -281,18 +289,19 @@ namespace QuantLib
             i = std::min(std::max(i - attachmentPoint, 0.), detachmentPoint - attachmentPoint);
         }
 
+        // each bucket's density, excess probability and cumulative excess
+        // probability from the cumulative probabilities, as normalize() has them
         density_.clear();
         excessProbability_.clear();
-        cumulativeExcessProbability_.clear(); //? reuse?
-        density_.push_back((cumulativeDensity_[0] - 0.) / dx_[0]);
-        excessProbability_.push_back(1.);
-        for (Integer i = 1; i < size_ - 1; i++)
+        cumulativeExcessProbability_.clear();
+        for (Integer i = 0; i < size_; i++)
         {
-            excessProbability_.push_back(1. - cumulativeDensity_[i - 1]);
-            density_.push_back((cumulativeDensity_[i] - cumulativeDensity_[i - 1]) / dx_[i]);
+            const Real below = i == 0 ? 0. : cumulativeDensity_[i - 1];
+            density_.push_back((cumulativeDensity_[i] - below) / dx_[i]);
+            excessProbability_.push_back(1. - below);
+            cumulativeExcessProbability_.push_back(
+                i == 0 ? 0. : excessProbability_[i - 1] * dx_[i - 1] + cumulativeExcessProbability_[i - 1]);
         }
-        excessProbability_.push_back(1. - cumulativeDensity_.back());
-        density_.push_back((1. - cumulativeDensity_.back()) / dx_.back());
     }
 
     //-------------------------------------------------------------------------
@@ -336,21 +345,57 @@ namespace QuantLib
     }
 
 
+    namespace
+    {
+        // The mean of f(confidenceLevel(q)) over the levels q above p.  confidenceLevel(q) is the
+        // upper edge of the first bucket whose cumulative probability is above q, so bucket i's
+        // edge holds from the largest cumulative probability before it up to its own, and the
+        // last bucket's edge from the largest of them all up to 1.
+        template <class F>
+        Real distributionMeanAboveLevel(const std::vector<Real>& x,
+                                        const std::vector<Real>& dx,
+                                        const std::vector<Real>& cumulative,
+                                        Real p,
+                                        const F& f)
+        {
+            Real sum = 0.0, below = 0.0;
+            for (Size i = 0; i < x.size(); i++)
+            {
+                const Real from = std::max(below, p), to = std::min(cumulative[i], 1.0);
+                if (to > from)
+                    sum += (to - from) * f(x[i] + dx[i]);
+                below = std::max(below, cumulative[i]);
+            }
+            const Real from = std::max(below, p);
+            if (from < 1.0)
+                sum += (1.0 - from) * f(x.back() + dx.back());
+            return sum / (1.0 - p);
+        }
+    }
+
     //-------------------------------------------------------------------------
     Real Distribution::expectedShortfall(Real percValue)
     {
         //-------------------------------------------------------------------------
         QL_REQUIRE(percValue >= 0. && percValue <= 1., "Incorrect percentile");
         normalize();
-        Real expected = 0;
-        Integer iVal = locate(confidenceLevel(percValue));
+        if (percValue == 1.0)
+            return confidenceLevel(percValue);
+        return distributionMeanAboveLevel(x_, dx_, cumulativeDensity_, percValue, [](Real u) { return u; });
+    }
 
-        if (iVal == size_ - 1)
-            return x_.back();
-
-        for (int i = iVal; i < size_; i++)
-            expected += x_[i] * (cumulativeDensity_[i] - cumulativeDensity_[i - 1]);
-        return expected / (1. - cumulativeDensity_.at(iVal));
+    //-------------------------------------------------------------------------
+    Real Distribution::trancheExpectedShortfall(Real percValue, Real attachmentPoint, Real detachmentPoint)
+    {
+        //-------------------------------------------------------------------------
+        QL_REQUIRE(percValue >= 0. && percValue <= 1., "Incorrect percentile");
+        QL_REQUIRE(attachmentPoint < detachmentPoint, "attachment >= detachment point");
+        normalize();
+        const auto trancheLoss = [=](Real u)
+        { return std::min(std::max(u - attachmentPoint, 0.), detachmentPoint - attachmentPoint); };
+        if (percValue == 1.0)
+            return trancheLoss(confidenceLevel(percValue));
+        return distributionMeanAboveLevel(x_, dx_, cumulativeDensity_, percValue, trancheLoss);
     }
 
 }

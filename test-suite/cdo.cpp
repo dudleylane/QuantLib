@@ -3360,14 +3360,19 @@ BOOST_AUTO_TEST_CASE(testExpectedShortfallBetweenPercentileAndTranche)
     // Before #160 the saddle point's percentile didn't solve below about 0.26 on an equity
     // tranche. Its shortfall still falls a little where the level crosses the loss of one
     // default, by 0.22 between 0.6 and 0.605 on 0 to 10 % (#205), which the rise to 0.8 covers.
+    // Before #203 the pool models' shortfall was a bucket below the percentile at the top, 396
+    // on a tranche of 400.
     SharedModelVars vars(0.3);
     Settings::instance().evaluationDate() = vars.today;
     const Date horizon = vars.schedule.endDate();
 
     using Factory = ext::shared_ptr<DefaultLossModel> (SharedModelVars::*)() const;
-    const std::vector<std::pair<std::string, Factory>> models = {{"binomial", &SharedModelVars::binomialModel},
-                                                                 {"recursive", &SharedModelVars::recursiveModel},
-                                                                 {"saddle point", &SharedModelVars::saddlePointModel}};
+    const std::vector<std::pair<std::string, Factory>> models = {
+        {"homogeneous", &SharedModelVars::homogeneousModel},
+        {"inhomogeneous", &SharedModelVars::inhomogeneousModel},
+        {"binomial", &SharedModelVars::binomialModel},
+        {"recursive", &SharedModelVars::recursiveModel},
+        {"saddle point", &SharedModelVars::saddlePointModel}};
     const std::vector<std::pair<Real, Real>> tranches = {{0.0, 0.03}, {0.0, 0.1}, {0.05, 0.1}, {0.0, 0.2},
                                                          {0.1, 0.3},  {0.3, 0.6}, {0.5, 1.0}};
     const std::vector<Real> levels = {0.05, 0.1, 0.2, 0.3, 0.5, 0.6, 0.8, 0.9, 0.95, 0.975, 0.99, 0.999, 1.0};
@@ -3393,10 +3398,14 @@ BOOST_AUTO_TEST_CASE(testExpectedShortfallBetweenPercentileAndTranche)
                     previous = shortfall;
                 }
             }
-            // nothing more is lost by today
-            BOOST_TEST_CONTEXT(model.first << ", tranche " << tranche.first << " to " << tranche.second)
+            // Nothing more is lost by today. The pool models are left out: their percentile there
+            // isn't 0 at every level (#288, #259).
+            if (model.first != "homogeneous" && model.first != "inhomogeneous")
             {
-                BOOST_CHECK_EQUAL(basket->expectedShortfall(vars.today, 0.95), 0.0);
+                BOOST_TEST_CONTEXT(model.first << ", tranche " << tranche.first << " to " << tranche.second)
+                {
+                    BOOST_CHECK_EQUAL(basket->expectedShortfall(vars.today, 0.95), 0.0);
+                }
             }
         }
     }
@@ -3464,6 +3473,198 @@ BOOST_AUTO_TEST_CASE(testExpectedShortfallOfALossDistribution)
                             mean += lossAt(level + (i + 0.5) * (1.0 - level) / steps);
                         mean /= steps;
                         BOOST_CHECK_SMALL(basket->expectedShortfall(horizon, level) - mean, 1.0e-5);
+                    }
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testDistributionExpectedShortfallAtLevelsWithinBuckets)
+{
+    BOOST_TEST_MESSAGE("Testing a distribution's expected shortfall at levels within its buckets...");
+
+    // Four buckets of width 1 holding 0.1, 0.2, 0.3 and 0.4: confidenceLevel() is 1 below 0.1,
+    // then 2, 3 and 4. The shortfall is its mean over the levels above (#203). It used to sum
+    // from the bucket after the level's, wherever the level fell in its bucket, weighting each
+    // bucket by its lower edge, and divide by less than the probability it summed: 2.857 at
+    // levels 0 and 0.05, 4.5 at 0.2, and 3 from 0.6 up.
+    Distribution dist(4, 0.0, 4.0);
+    for (Size i = 0; i < 4; ++i)
+        dist.addDensity(i, 0.1 * (i + 1));
+    const Real tolerance = 1.0e-12;
+    const std::vector<std::pair<Real, Real>> shortfalls = {{0.0, 3.0},
+                                                           {0.05, (0.05 * 1 + 0.2 * 2 + 0.3 * 3 + 0.4 * 4) / 0.95},
+                                                           {0.2, (0.1 * 2 + 0.3 * 3 + 0.4 * 4) / 0.8},
+                                                           {0.6, 4.0},
+                                                           {0.9, 4.0},
+                                                           {1.0, 4.0}};
+    for (const auto& s : shortfalls)
+    {
+        BOOST_TEST_CONTEXT("level " << s.first)
+        {
+            BOOST_CHECK_SMALL(dist.expectedShortfall(s.first) - s.second, tolerance);
+        }
+    }
+
+    // The tranche from 1.5 to 3.5 loses 0, 0.5, 1.5 and 2 at those levels, and taking the tranche
+    // leaves the distribution as it is.
+    const std::vector<std::pair<Real, Real>> trancheShortfalls = {{0.0, 0.2 * 0.5 + 0.3 * 1.5 + 0.4 * 2},
+                                                                  {0.05, (0.2 * 0.5 + 0.3 * 1.5 + 0.4 * 2) / 0.95},
+                                                                  {0.2, (0.1 * 0.5 + 0.3 * 1.5 + 0.4 * 2) / 0.8},
+                                                                  {0.6, 2.0},
+                                                                  {1.0, 2.0}};
+    for (const auto& s : trancheShortfalls)
+    {
+        BOOST_TEST_CONTEXT("level " << s.first)
+        {
+            BOOST_CHECK_SMALL(dist.trancheExpectedShortfall(s.first, 1.5, 3.5) - s.second, tolerance);
+        }
+    }
+    BOOST_CHECK_SMALL(dist.trancheExpectedShortfall(0.2, 0.0, 4.0) - dist.expectedShortfall(0.2), tolerance);
+    BOOST_CHECK_SMALL(dist.expectedShortfall(0.05) - shortfalls[1].second, tolerance);
+}
+
+BOOST_AUTO_TEST_CASE(testDistributionCumulativeDensityInItsFirstBucket)
+{
+    BOOST_TEST_MESSAGE("Testing a distribution's cumulative density in its first bucket...");
+
+    // It grows from 0 at the first bucket's lower edge, as within the other buckets from the
+    // probability below them.
+    Distribution dist(4, 0.0, 4.0);
+    for (Size i = 0; i < 4; ++i)
+        dist.addDensity(i, 0.1 * (i + 1));
+    const Real tolerance = 1.0e-12;
+    BOOST_CHECK_SMALL(dist.cumulativeDensity(0.25) - 0.025, tolerance);
+    BOOST_CHECK_SMALL(dist.cumulativeDensity(0.5) - 0.05, tolerance);
+    BOOST_CHECK_SMALL(dist.cumulativeDensity(1.0) - 0.1, tolerance);
+    BOOST_CHECK_SMALL(dist.cumulativeDensity(1.5) - 0.2, tolerance);
+
+    // and is 0 below the first bucket
+    Distribution shifted(4, 1.0, 5.0);
+    for (Size i = 0; i < 4; ++i)
+        shifted.addDensity(i, 0.1 * (i + 1));
+    BOOST_CHECK_EQUAL(shifted.cumulativeDensity(0.5), 0.0);
+    BOOST_CHECK_SMALL(shifted.cumulativeDensity(1.5) - 0.05, tolerance);
+}
+
+BOOST_AUTO_TEST_CASE(testDistributionLocatesValuesAtItsEdges)
+{
+    BOOST_TEST_MESSAGE("Testing which bucket a distribution puts values at its edges in...");
+
+    // A value within rounding below the first edge, which locate() accepts, belongs to the first
+    // bucket.
+    Distribution dist(4, 1.0, 5.0);
+    BOOST_CHECK_EQUAL(dist.locate(std::nextafter(1.0, 0.0)), 0);
+    BOOST_CHECK_EQUAL(dist.locate(1.0), 0);
+    BOOST_CHECK_EQUAL(dist.locate(2.5), 1);
+    BOOST_CHECK_EQUAL(dist.locate(5.0), 3);
+    BOOST_CHECK_THROW(dist.locate(0.5), Error);
+}
+
+BOOST_AUTO_TEST_CASE(testDistributionTrancheKeepsEachBucketsFigures)
+{
+    BOOST_TEST_MESSAGE("Testing the figures of each bucket a tranche of a distribution keeps...");
+
+    // Buckets of width 1 holding 0.1, 0.2, 0.3 and 0.4, tranched from 1 to 3: the first bucket
+    // kept holds what's below the attachment too, 0.3, and the last, at the tranche's top, the
+    // 0.4 past the detachment. Each bucket's density, excess probability and cumulative excess
+    // probability come from the cumulative probabilities, as normalize() has them. The last
+    // bucket's density and excess probability were 0, and the cumulative excess probabilities
+    // weren't kept.
+    Distribution dist(4, 0.0, 4.0);
+    for (Size i = 0; i < 4; ++i)
+        dist.addDensity(i, 0.1 * (i + 1));
+    dist.tranche(1.0, 3.0);
+    const Real tolerance = 1.0e-12;
+    BOOST_REQUIRE_EQUAL(dist.size(), Size(3));
+    const std::vector<Real> x = {0.0, 1.0, 2.0}, probabilities = {0.3, 0.3, 0.4}, excess = {1.0, 0.7, 0.4},
+                            cumulativeExcess = {0.0, 1.0, 1.7};
+    Real total = 0.0;
+    for (Size i = 0; i < 3; ++i)
+    {
+        BOOST_TEST_CONTEXT("bucket " << i)
+        {
+            BOOST_CHECK_SMALL(dist.x(i) - x[i], tolerance);
+            BOOST_CHECK_SMALL(dist.density(i) * dist.dx(i) - probabilities[i], tolerance);
+            BOOST_CHECK_SMALL(dist.excess(i) - excess[i], tolerance);
+            BOOST_CHECK_SMALL(dist.cumulativeExcess(i) - cumulativeExcess[i], tolerance);
+            total += dist.density(i) * dist.dx(i);
+        }
+    }
+    BOOST_CHECK_SMALL(total - 1.0, tolerance);
+}
+
+// A pool model that hands a test its loss distribution.
+template <class Model>
+class PoolModelWithDistribution : public Model
+{
+  public:
+    using Model::Model;
+    Distribution distribution(const Date& d) const { return this->lossDistrib(d); }
+};
+
+BOOST_AUTO_TEST_CASE(testPoolModelsExpectedShortfallIsTheMeanOfTheirPercentile)
+{
+    BOOST_TEST_MESSAGE("Testing the pool models' expected shortfall against the mean of their percentile...");
+
+    // The homogeneous and inhomogeneous pool models take a tranche's percentile at a level from
+    // the upper edge of the bucket of their loss distribution that holds it (#288). Their
+    // shortfall is the mean of that over the levels above, taken here on a fine grid, by today
+    // and by the horizon (#203). It came from the tranched distribution, a step function of the
+    // level a bucket below the percentile at the top: 396 on a tranche of 400.
+    SharedModelVars vars(0.3);
+    Settings::instance().evaluationDate() = vars.today;
+    const Date horizon = vars.schedule.endDate();
+
+    using Homogeneous = PoolModelWithDistribution<HomogGaussPoolLossModel>;
+    using Inhomogeneous = PoolModelWithDistribution<IHGaussPoolLossModel>;
+    const std::vector<std::pair<Real, Real>> tranches = {{0.0, 0.1}, {0.05, 0.1}, {0.0, 0.2}, {0.03, 0.12}};
+    for (Size m = 0; m < 2; ++m)
+    {
+        for (const auto& tranche : tranches)
+        {
+            const auto basket = vars.basket(tranche.first, tranche.second);
+            const ext::shared_ptr<DefaultLossModel> model =
+                m == 0 ? ext::shared_ptr<DefaultLossModel>(
+                             ext::make_shared<Homogeneous>(vars.latentModel(), 100, 5., -5., 15)) :
+                         ext::shared_ptr<DefaultLossModel>(
+                             ext::make_shared<Inhomogeneous>(vars.latentModel(), 100, 5., -5., 15));
+            basket->setLossModel(model);
+            const Real attachment = basket->remainingAttachmentAmount();
+            const Real detachment = basket->remainingDetachmentAmount();
+            for (const Date& d : {vars.today, horizon})
+            {
+                BOOST_TEST_CONTEXT((m == 0 ? "homogeneous" : "inhomogeneous")
+                                   << ", tranche " << tranche.first << " to " << tranche.second << ", by " << d)
+                {
+                    const Real top = basket->percentile(d, 1.0);
+                    Distribution dist = m == 0 ? ext::dynamic_pointer_cast<Homogeneous>(model)->distribution(d) :
+                                                 ext::dynamic_pointer_cast<Inhomogeneous>(model)->distribution(d);
+                    auto lossAt = [&](Probability level)
+                    {
+                        return std::min(std::max(dist.confidenceLevel(level) - attachment, 0.0),
+                                        detachment - attachment);
+                    };
+
+                    BOOST_CHECK_EQUAL(top, lossAt(1.0));
+                    BOOST_CHECK_EQUAL(basket->expectedShortfall(d, 1.0), top);
+                    for (Real level : {0.0, 0.3, 0.5, 0.9, 0.95, 0.99})
+                    {
+                        BOOST_TEST_CONTEXT("level " << level)
+                        {
+                            BOOST_CHECK_EQUAL(basket->percentile(d, level), lossAt(level));
+
+                            // the percentile rises by at most the tranche over the levels above,
+                            // so the midpoints' mean is within the tranche over the number of steps
+                            const Size steps = 200000;
+                            Real mean = 0.0;
+                            for (Size i = 0; i < steps; ++i)
+                                mean += lossAt(level + (i + 0.5) * (1.0 - level) / steps);
+                            mean /= steps;
+                            BOOST_CHECK_SMALL(basket->expectedShortfall(d, level) - mean,
+                                              (detachment - attachment) / steps);
+                        }
                     }
                 }
             }

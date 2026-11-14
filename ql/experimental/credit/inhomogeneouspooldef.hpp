@@ -89,9 +89,7 @@ namespace QuantLib
         }
         Real expectedShortfall(const Date& d, Probability percentile) const override
         {
-            Distribution dist = lossDistrib(d);
-            dist.tranche(attachAmount_, detachAmount_);
-            return dist.expectedShortfall(percentile);
+            return lossDistrib(d).trancheExpectedShortfall(percentile, attachAmount_, detachAmount_);
         }
 
       protected:
