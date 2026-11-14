@@ -141,7 +141,7 @@ no longer checks them, and no CI job builds any of them.
 | #246 | `ql/experimental/credit/randomlosslatentmodel.hpp`, `spotlosslatentmodel.hpp` | The random loss model takes each default's recovery at its own probability, where a default on a curve's first day recovered nothing |
 | #233 | `ql/experimental/credit/basket.cpp` | `Basket::probsBeingNthEvent` gives one probability per name in the pool once the defaults so far reach n, where it gave one per name left |
 | #231 | `ql/experimental/credit/randomdefaultlatentmodel.hpp` | An nth to default on the random default model prices where the names' recoveries differ, where the engine threw; the random models give each name's probability of being the nth default in a period |
-| #234 | `ql/experimental/credit/randomlosslatentmodel.hpp` | The random loss model says why it gives no expected recovery, so why an nth to default can't be priced on it; the full fix is #250 |
+| #234 | `ql/experimental/credit/randomlosslatentmodel.hpp` | The random loss model says why it gives no expected recovery |
 | #251 | `ql/experimental/credit/randomdefaultlatentmodel.hpp` | The random models give 0s for each name's probability of being the nth default at a rank above the names left, where a rank above the pool threw while no name had defaulted |
 | #253 | `ql/experimental/credit/spotlosslatentmodel.hpp` | The spot recovery model takes the correlation of a name's default and recovery variables on several factors and on loadings of opposite signs, so the random loss model keeps the single-name loss there, where it lost up to 12.5 % more |
 | #254 | `ql/experimental/credit/spotlosslatentmodel.hpp` | The spot recovery model's expected recovery given the factors takes the recovery's loadings, where it took the default's |
@@ -159,6 +159,9 @@ no longer checks them, and no CI job builds any of them.
 | #273 | `ql/experimental/credit/binomiallossmodel.hpp` | The binomial loss model's distribution given the factor no longer underflows to zeros where a default is nearly certain, which left tranche losses up to 83 % low on 1,000 names |
 | #227 | `ql/experimental/credit/{integralntdengine,integralcdoengine,midpointcdoengine}.cpp` | The nth-to-default and CDO engines count an upfront only if it's paid on or after today, where they counted one paid on the first coupon's accrual start until that coupon was paid |
 | #228 | `ql/experimental/credit/{integralntdengine,integralcdoengine,midpointcdoengine}.cpp` | Inside a coupon the nth-to-default and CDO engines count both legs from today, where the CDO engines threw inside the first coupon on default curves as of today and an nth to default's fair premium dipped until the coupon was paid |
+| #250 | `ql/experimental/credit/{defaultlossmodel.hpp,basket.cpp,randomlosslatentmodel.hpp,integralntdengine.cpp}` | An nth to default prices on the random loss model, each trigger paying at the mean of the recoveries its defaults drew, where the engine threw; `DefaultLossModel::recoveriesBeingNthEventBetween` is new |
+| #280 | `ql/experimental/credit/saddlepointlossmodel.hpp` | Where a factor makes names certain to default, the saddle-point model counts their loss as certain, so within rounding of it its tail probabilities and densities are no longer NaN and its percentile and shortfall no longer throw |
+| #283 | `ql/experimental/credit/saddlepointlossmodel.hpp` | A name that loses nothing no longer takes the saddle-point model's exact regions away from the whole pool |
 
 ### New in this fork
 
