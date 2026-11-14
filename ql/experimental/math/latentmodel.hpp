@@ -190,24 +190,36 @@ namespace QuantLib
             factors.
 
             GaussianQuadrature, the default, is the only type with a vector
-            form, which the loss models' distributions use. On Gaussian
-            factors it is Gauss-Hermite of order 25 in each factor, which
-            leaves Hull-White's tranche spreads of a homogeneous pool 2.4 % off
-            at correlation 0.6 and 12.5 % at 0.9 (#258). On
-            TCopulaPolicy factors the library's models get the trapezoid rule
-            in each factor's normal quantile \f$ s \f$ instead, with nodes at
-            \f$ m = F^{-1}(\Phi(s)) \f$ for \f$ s \f$ from -6.5 to 6.5 in
-            steps of 0.1: 131 per factor, so \f$ 131^d \f$ integrand calls on
-            \f$ d \f$ factors where Gauss-Hermite makes \f$ 25^d \f$ (#230).
-            Gauss-Hermite in a t factor itself has no node beyond 6.2, and
-            drops the factor's tails: on one factor at correlation 0.3, it
-            gave a name's default probability of 0.0488 1.4 % low on t3
-            factors and 0.36 % low on t5 ones, and one of 0.0025 20 % and
-            6 % low.
+            form, which the loss models' distributions use. The library's
+            models get the trapezoid rule in each factor's normal quantile
+            \f$ s \f$, in steps of 0.1. On GaussianCopulaPolicy factors the
+            nodes are \f$ m = s \f$ for \f$ s \f$ from -8.5 to 8.5, 171 per
+            factor (#258), and on TCopulaPolicy factors they are
+            \f$ m = F^{-1}(\Phi(s)) \f$ for \f$ s \f$ from -6.5 to 6.5, 131
+            per factor (#230): \f$ 171^d \f$ or \f$ 131^d \f$ integrand calls
+            on \f$ d \f$ factors. Other copulas get Gauss-Hermite of order 25
+            in each factor itself, which makes \f$ 25^d \f$ but is coarse on
+            these two. On Gaussian factors it leaves Hull-White's tranche
+            spreads of a homogeneous pool 2.4 % off at correlation 0.6 and
+            12.5 % at 0.9. It has no node beyond 6.2, so it drops a t factor's
+            tails: on one factor at correlation 0.3, it gives a name's default
+            probability of 0.0488 1.4 % low on t3 factors and 0.36 % low on t5
+            ones, and one of 0.0025 20 % and 6 % low.
 
-            What the trapezoid rule leaves is the conditional default
-            probability's step, which lies deep in the factor's tail at small
-            probabilities and high correlations (#257). Measured on one
+            On Gaussian factors the rule's ends leave out 1.9e-17 of a
+            factor's mass, which doesn't register next to 1. On one factor a
+            name's integrated default probability is within 8.2e-8 of its
+            curve's, relatively, for probabilities from 1e-10 to 0.3 and
+            correlations up to 0.99. On a homogeneous pool of 100 names at a
+            hazard of 1 %, the tranches' expected losses by five years are
+            within 5e-15 of their exact values, relatively, at correlations
+            0.3 and 0.6, and within 1.6e-5 at 0.9, where the conditional
+            default probability's step is narrow next to the rule's.
+
+            On t factors what the rule leaves is that step, which lies deep
+            in the factor's tail at small probabilities and high
+            correlations (#257), and the mass beyond its ends, which costs a
+            name's default probability up to 4.2e-11 (#271). Measured on one
             factor for probabilities from 1e-4 to 0.5, a name's integrated
             default probability is within 5.2e-3 of its curve's, relatively,
             on t3 factors at correlation 0.3 and within 8.0e-2 at correlation
@@ -569,7 +581,8 @@ namespace QuantLib
             /*! The integration of the given type, whatever the factors'
                 distribution: GaussianQuadrature is Gauss-Hermite of order 25
                 in each factor itself, which drops the tails of t factors
-                (#230). The library's models give their copula to the overload
+                (#230) and is coarse on Gaussian ones at high correlations
+                (#258). The library's models give their copula to the overload
                 below instead.
             */
             static ext::shared_ptr<LMIntegration>
@@ -610,18 +623,20 @@ namespace QuantLib
                 }
             }
             /*! The integration of the given type for a model on the given
-                copula. On TCopulaPolicy factors, GaussianQuadrature is the
-                trapezoid rule in each factor's normal quantile (see
-                LatentModelIntegrationType, #230); everything else is what the
-                overload above gives. The nodes depend only on the copula's
-                degrees of freedom, not on the factor weights, so they stay
-                valid when a model's correlation quote changes.
+                copula. On GaussianCopulaPolicy and TCopulaPolicy factors,
+                GaussianQuadrature is the trapezoid rule in each factor's
+                normal quantile (see LatentModelIntegrationType; #258, #230);
+                everything else is what the overload above gives. The nodes
+                depend only on the copula's degrees of freedom, not on the
+                factor weights, so they stay valid when a model's correlation
+                quote changes.
             */
             static ext::shared_ptr<LMIntegration> createLMIntegration(
                 Size dimension, LatentModelIntegrationType::LatentModelIntegrationType type, const copulaType& copula)
             {
 #ifndef QL_PATCH_SOLARIS
-                if constexpr (std::is_same_v<copulaType, TCopulaPolicy>)
+                if constexpr (std::is_same_v<copulaType, TCopulaPolicy> ||
+                              std::is_same_v<copulaType, GaussianCopulaPolicy>)
                 {
                     if (type == LatentModelIntegrationType::GaussianQuadrature)
                         return normalQuantileTrapezoid(dimension, copula);
@@ -633,8 +648,11 @@ namespace QuantLib
           private:
             IntegrationFactory() = default;
             /* The trapezoid rule in each factor's normal quantile s: nodes
-               m = F^{-1}(Phi(s)) at s = i h for |i| <= n, with weights
-               h phi(s), halved at both ends, over the factor's density f(m).
+               m = F^{-1}(Phi(s)), which is s on Gaussian factors, at s = i h
+               for |i| <= n, with weights h phi(s), halved at both ends, over
+               the factor's density f(m). On Gaussian factors n h = 8.5, so
+               that the mass beyond the ends, 2 Phi(-8.5) = 1.9e-17, doesn't
+               register next to 1 (#258); t factors keep n h = 6.5 (#271).
                The models' integrands carry the copula's density, the product
                of the factors' ones, so the weights divide by it: with
                D(m e_k) = f_k(m) prod_{j != k} f_j(0), the product over the
@@ -643,10 +661,11 @@ namespace QuantLib
             static ext::shared_ptr<LMIntegration> normalQuantileTrapezoid(Size dimension, const copulaType& copula)
             {
                 const Real h = 0.1;
-                const Integer n = 65;
-                QL_REQUIRE(dimension + 1 == copula.varianceFactors().size(),
-                           "integration over " << dimension << " factors on a copula of "
-                                               << copula.varianceFactors().size() - 1 << " systemic factors");
+                const Integer n = std::is_same_v<copulaType, GaussianCopulaPolicy> ? 85 : 65;
+                if constexpr (!std::is_same_v<copulaType, GaussianCopulaPolicy>)
+                    QL_REQUIRE(dimension + 1 == copula.varianceFactors().size(),
+                               "integration over " << dimension << " factors on a copula of "
+                                                   << copula.varianceFactors().size() - 1 << " systemic factors");
                 CumulativeNormalDistribution Phi;
                 NormalDistribution phi;
                 std::vector<Real> point(dimension, 0.0);
@@ -659,9 +678,13 @@ namespace QuantLib
                     for (Integer i = -n; i <= n; ++i)
                     {
                         const Real s = h * i;
-                        // from the lower tail, where it is accurate; t factors are symmetric
-                        const Real lower = copula.inverseCumulativeDensity(Phi(-std::fabs(s)), k);
-                        const Real m = s <= 0.0 ? lower : Real(-lower);
+                        Real m = s;
+                        if constexpr (!std::is_same_v<copulaType, GaussianCopulaPolicy>)
+                        {
+                            // from the lower tail, where it is accurate; t factors are symmetric
+                            const Real lower = copula.inverseCumulativeDensity(Phi(-std::fabs(s)), k);
+                            m = s <= 0.0 ? lower : Real(-lower);
+                        }
                         point[k] = m;
                         Real w = (i == -n || i == n ? 0.5 : 1.0) * h * phi(s) / copula.density(point);
                         point[k] = 0.0;
