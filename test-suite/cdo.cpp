@@ -1571,6 +1571,240 @@ BOOST_AUTO_TEST_CASE(testSaddlePointProbabilityOverALossOnNamesThatDiffer)
     BOOST_CHECK_EQUAL(basket->percentile(left.horizon, 0.3), 0.0);
 }
 
+// Four names of notional 100 with the hazards given and recoveries of 0.4 unless given, on one factor at correlation
+// 0.3, Gaussian copula; a saddle-point model on the whole pool, and the exact probability of a loss of at least y.
+struct FourNames
+{
+    Date today{31, August, 2006};
+    Date horizon{1, September, 2011};
+    std::vector<std::string> names;
+    std::vector<Real> notionals = std::vector<Real>(4, 100.0);
+    std::vector<Real> recoveries;
+    ext::shared_ptr<Pool> pool = ext::make_shared<Pool>();
+    ext::shared_ptr<GaussianConstantLossLM> latent;
+    ext::shared_ptr<SaddlePointLossModel<GaussianCopulaPolicy>> model;
+    ext::shared_ptr<Basket> basket;
+    Real trancheNotional;
+
+    FourNames(const std::vector<Real>& hazards, std::vector<Real> recoveries = std::vector<Real>(4, 0.4))
+    : recoveries(std::move(recoveries))
+    {
+        Settings::instance().evaluationDate() = today;
+        const NorthAmericaCorpDefaultKey key(EURCurrency(), SeniorSec, Period(), 1.);
+        for (Size i = 0; i < hazards.size(); ++i)
+        {
+            names.push_back("issuer-" + std::to_string(i));
+            const Handle<DefaultProbabilityTermStructure> curve(
+                ext::make_shared<FlatHazardRate>(today, makeQuoteHandle(hazards[i]), ActualActual(ActualActual::ISDA)));
+            pool->add(names.back(), Issuer(std::vector<Issuer::key_curve_pair>(1, std::make_pair(key, curve))), key);
+        }
+        const auto latentModel = [&]
+        {
+            return ext::make_shared<GaussianConstantLossLM>(
+                std::vector<std::vector<Real>>(4, std::vector<Real>(1, std::sqrt(0.3))), this->recoveries,
+                LatentModelIntegrationType::GaussianQuadrature, GaussianCopulaPolicy::initTraits());
+        };
+        latent = latentModel();
+        model = ext::make_shared<SaddlePointLossModel<GaussianCopulaPolicy>>(latentModel());
+        basket = ext::make_shared<Basket>(today, names, notionals, pool, 0.0, 1.0);
+        basket->setLossModel(model);
+        // the basket hands itself to the model as it first calculates, which the model's own statistics need
+        trancheNotional = basket->remainingTrancheNotional();
+    }
+
+    // P(L >= y) at the horizon, exact: over the 16 sets of defaults given the factor, integrated on the latent
+    // model's own rule
+    Probability exactOver(Real y) const
+    {
+        std::vector<Real> inverse = basket->remainingProbabilities(horizon);
+        for (Size i = 0; i < inverse.size(); ++i)
+            inverse[i] = latent->inverseCumulativeY(inverse[i], i);
+        return latent->integratedExpectedValue(
+            [&](const std::vector<Real>& factor)
+            {
+                Probability over = 0.0;
+                for (unsigned set = 0; set < 16; ++set)
+                {
+                    Probability p = 1.0;
+                    Real loss = 0.0;
+                    for (Size i = 0; i < 4; ++i)
+                    {
+                        const Probability pi = latent->conditionalDefaultProbabilityInvP(inverse[i], i, factor);
+                        if (set & (1U << i))
+                        {
+                            p *= pi;
+                            loss += notionals[i] * (1.0 - recoveries[i]);
+                        }
+                        else
+                            p *= 1.0 - pi;
+                    }
+                    if (loss >= y)
+                        over += p;
+                }
+                return over;
+            });
+    }
+};
+
+BOOST_AUTO_TEST_CASE(testSaddlePointWhereTheFactorMakesNamesCertain)
+{
+    BOOST_TEST_MESSAGE("Testing the saddle point where the factor makes names certain to default...");
+
+    /* At a factor node where names default with a probability of 1.0 in double, the loss they make is certain, and a
+       level within rounding of it reached the saddle-point search, though K' is flat there. The tail probability and
+       the density came out NaN, and the percentile and shortfall threw (#280). The certain names are now a fixed
+       loss, the exact regions apply to the others, and the regions are tested in amounts summed with compensation,
+       not in fractions of the notional, so that a level that is a sum of the names' losses falls on the right side
+       of it. */
+
+    // the issue's pool: 20 names that each lose 60, before any default
+    {
+        const NamesAroundADefault all(true, false, NamesAroundADefault::noName);
+        Settings::instance().evaluationDate() = all.inception;
+        for (const auto& [attachment, detachment] :
+             {std::pair<Real, Real>(0.0, 0.06), std::pair<Real, Real>(0.03, 0.06), std::pair<Real, Real>(0.06, 0.09),
+              std::pair<Real, Real>(0.0, 1.0)})
+        {
+            BOOST_TEST_CONTEXT("names alike, tranche [" << attachment << ", " << detachment << "]")
+            {
+                const auto basket = all.basket(attachment, detachment);
+                basket->setLossModel(all.saddlePointModel());
+                const Probability atDetachment = basket->probOverLoss(all.horizon, 1.0);
+                BOOST_CHECK_GE(atDetachment, 0.0); // false for NaN
+                BOOST_CHECK_LE(atDetachment, basket->probOverLoss(all.horizon, 0.5));
+                Real percentile = -1.0, shortfall = -1.0;
+                BOOST_CHECK_NO_THROW(percentile = basket->percentile(all.horizon, 0.95));
+                BOOST_CHECK_NO_THROW(shortfall = basket->expectedShortfall(all.horizon, 0.95));
+                BOOST_CHECK_GE(percentile, 0.0);
+                BOOST_CHECK_LE(percentile, basket->remainingTrancheNotional());
+                BOOST_CHECK_GE(shortfall, percentile);
+            }
+        }
+        const auto model = ext::make_shared<SaddlePointLossModel<GaussianCopulaPolicy>>(all.latentModel());
+        const auto basket = all.basket(0.0, 1.0);
+        basket->setLossModel(model);
+        // the basket hands itself to the model as it first calculates, which the model's own statistics need
+        BOOST_REQUIRE_EQUAL(basket->remainingTrancheNotional(), 2000.0);
+        // a step of one double in the level moves the tail probability by less than its rounding, which can put it
+        // an ulp above the previous level's, so the order is checked to 1e-12
+        Probability previous = 1.0;
+        for (Real defaults : {1.0, 2.0, 3.0, 4.0})
+        {
+            for (Real y :
+                 {std::nextafter(60.0 * defaults, 0.0), 60.0 * defaults, std::nextafter(60.0 * defaults, QL_MAX_REAL)})
+            {
+                BOOST_TEST_CONTEXT("names alike, a loss of " << std::setprecision(17) << y)
+                {
+                    const Probability p = model->probOverPortfLoss(all.horizon, y);
+                    BOOST_CHECK_GE(p, 0.0);
+                    BOOST_CHECK_LE(p, previous + 1.0e-12);
+                    BOOST_CHECK(std::isfinite(model->probDensity(all.horizon, y)));
+                    previous = p;
+                }
+            }
+        }
+    }
+
+    // the same names that differ, losing 80 to 99: within rounding of the loss of the names with the largest
+    // loadings, which the lowest nodes make certain
+    {
+        const NamesAroundADefault differ(false, false, NamesAroundADefault::noName);
+        Settings::instance().evaluationDate() = differ.inception;
+        const auto model = ext::make_shared<SaddlePointLossModel<GaussianCopulaPolicy>>(differ.latentModel());
+        const auto basket = differ.basket(0.0, 1.0);
+        basket->setLossModel(model);
+        BOOST_REQUIRE_EQUAL(basket->remainingTrancheNotional(), 3520.0);
+        Real certain = 0.0;
+        for (Size i = NamesAroundADefault::poolSize; i-- > NamesAroundADefault::poolSize - 3;)
+        {
+            certain += differ.notionals[i] * (1.0 - differ.recoveries[i]);
+            Real y = certain;
+            for (int k = 0; k < 2; ++k)
+                y = std::nextafter(y, 0.0);
+            Probability previous = 1.0;
+            for (int k = 0; k < 5; ++k, y = std::nextafter(y, QL_MAX_REAL))
+            {
+                BOOST_TEST_CONTEXT("names that differ, a loss of " << std::setprecision(17) << y)
+                {
+                    const Probability p = model->probOverPortfLoss(differ.horizon, y);
+                    BOOST_CHECK_GE(p, 0.0);
+                    BOOST_CHECK_LE(p, previous + 1.0e-12);
+                    BOOST_CHECK(std::isfinite(model->probDensity(differ.horizon, y)));
+                    previous = p;
+                }
+            }
+        }
+        // every loss but the smallest, and every loss, summed in the names' order: 1767.0000000000005 and
+        // 1847.0000000000005, where their real sums are 1,767 and 1,847 less 0.375 of an ulp. Only all 20 defaults
+        // reach the first, and nothing reaches the second
+        {
+            Real total = 0.0, smallest = QL_MAX_REAL;
+            for (Size i = 0; i < NamesAroundADefault::poolSize; ++i)
+            {
+                const Real loss = differ.notionals[i] * (1.0 - differ.recoveries[i]);
+                total += loss;
+                smallest = std::min(smallest, loss);
+            }
+            const auto latent = differ.latentModel();
+            std::vector<Real> inverse = basket->remainingProbabilities(differ.horizon);
+            for (Size i = 0; i < inverse.size(); ++i)
+                inverse[i] = latent->inverseCumulativeY(inverse[i], i);
+            const Probability all = latent->integratedExpectedValue(
+                [&](const std::vector<Real>& factor)
+                {
+                    Probability p = 1.0;
+                    for (Size i = 0; i < inverse.size(); ++i)
+                        p *= latent->conditionalDefaultProbabilityInvP(inverse[i], i, factor);
+                    return p;
+                });
+            BOOST_TEST_CONTEXT("names that differ, a loss of " << std::setprecision(17) << total - smallest)
+            {
+                BOOST_CHECK_CLOSE_FRACTION(model->probOverPortfLoss(differ.horizon, total - smallest), all, 1.0e-12);
+                BOOST_CHECK_EQUAL(model->probDensity(differ.horizon, total - smallest), 0.0);
+            }
+            BOOST_TEST_CONTEXT("names that differ, a loss of " << std::setprecision(17) << total)
+            {
+                BOOST_CHECK_EQUAL(model->probOverPortfLoss(differ.horizon, total), 0.0);
+                BOOST_CHECK_EQUAL(model->probDensity(differ.horizon, total), 0.0);
+            }
+        }
+    }
+
+    // two names certain at every node (a hazard of 10), two not: every level is in an exact region once the certain
+    // loss, 120, is taken out
+    {
+        const FourNames four({10.0, 0.01, 10.0, 0.02});
+        for (Real y : {60.0, std::nextafter(120.0, 0.0), 120.0, std::nextafter(120.0, QL_MAX_REAL), 150.0, 180.0, 210.0,
+                       240.0, 241.0})
+        {
+            BOOST_TEST_CONTEXT("two names certain, a loss of " << std::setprecision(17) << y)
+            {
+                BOOST_CHECK_SMALL(four.model->probOverPortfLoss(four.horizon, y) - four.exactOver(y), 1.0e-12);
+            }
+        }
+        // no loss falls strictly between the certain 120 and the next default
+        for (Real y : {120.0, 150.0})
+            BOOST_CHECK_EQUAL(four.model->probDensity(four.horizon, y), 0.0);
+        // Brent's accuracy is 1e-4 of the tranche
+        const Real accuracy = 1.0e-4 * four.trancheNotional;
+        BOOST_CHECK_SMALL(four.basket->percentile(four.horizon, 0.5) - 120.0, accuracy);
+        BOOST_CHECK_SMALL(four.basket->percentile(four.horizon, 0.97) - 180.0, accuracy);
+    }
+
+    // three names certain: in fractions of the notional, three losses of 0.15 sum to 0.44999999999999996, below
+    // 180 / 400 = 0.45, so a loss of 180 looked beyond any three names, and only all four defaults reached it
+    {
+        const FourNames four({10.0, 10.0, 10.0, 0.01});
+        for (Real y : {std::nextafter(180.0, 0.0), 180.0, std::nextafter(180.0, QL_MAX_REAL), 240.0, 241.0})
+        {
+            BOOST_TEST_CONTEXT("three names certain, a loss of " << std::setprecision(17) << y)
+            {
+                BOOST_CHECK_SMALL(four.model->probOverPortfLoss(four.horizon, y) - four.exactOver(y), 1.0e-12);
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testCdoAfterADefault)
 {
     BOOST_TEST_MESSAGE("Testing a CDO tranche after a default...");

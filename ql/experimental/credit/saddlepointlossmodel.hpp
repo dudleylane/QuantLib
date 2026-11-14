@@ -80,11 +80,12 @@ namespace QuantLib
         to 100% of the basket.
     \warning Given the factor, the loss distribution is exact up to the
         smallest loss one default causes and above the total loss less
-        that, and comes from the expansions in between. The two don't meet
-        at the smallest loss, so the expected shortfall can fall a little as
-        the level crosses it: on 19 names that lose 80 to 99 each, by 3% of
-        the tranche under a Gaussian copula and 4% under a T copula of
-        order 3.
+        that, both on top of the loss of the names the factor makes certain
+        to default, and comes from the expansions in between. The two don't
+        meet at the smallest loss, so the expected shortfall can fall a
+        little as the level crosses it: on 19 names that lose 80 to 99 each,
+        by 3% of the tranche under a Gaussian copula and 4% under a T copula
+        of order 3.
     */
 
     /* The treatment of recovery wont work with random recoveries, they should
@@ -227,31 +228,52 @@ namespace QuantLib
             }
         };
 
-        //! Where the loss distribution is known without a saddle point
+        /*! Where the loss distribution is known without a saddle point. Given the factor, the names that default with
+            probability 1 lose a fixed amount, and the loss is that amount plus what the other names, the uncertain
+            ones, lose.
+        */
         struct LossLimits
         {
-            Real smallest;    //!< the least loss one default causes, as a fraction of the remaining notional
-            Real total;       //!< the loss if every name defaults, as a fraction of the remaining notional
-            Probability none; //!< the probability that no name defaults
-            Probability all;  //!< the probability that every name defaults
+            Real certain;     //!< the loss of the names certain to default, an amount
+            Real smallest;    //!< the least loss one default of an uncertain name causes, an amount
+            Real total;       //!< the loss if every uncertain name defaults, an amount
+            Probability none; //!< the probability that no uncertain name defaults
+            Probability all;  //!< the probability that every uncertain name defaults
         };
         //! Conditional on the market factor
         LossLimits lossLimitsCond(const std::vector<Real>& invUncondProbs, const std::vector<Real>& mktFactor) const
         {
-            LossLimits limits = {QL_MAX_REAL, 0., 1., 1.};
+            LossLimits limits = {0., QL_MAX_REAL, 0., 1., 1.};
+            // The sums are compensated (Neumaier's): a plain sum of losses that aren't exact in double can come out
+            //   doubles away from the real one, and move the limits by as much.
+            Real certainCompensation = 0., totalCompensation = 0.;
+            auto add = [](Real& sum, Real& compensation, Real loss)
+            {
+                const Real next = sum + loss;
+                compensation += std::abs(sum) >= std::abs(loss) ? (sum - next) + loss : (loss - next) + sum;
+                sum = next;
+            };
             for (Size iName = 0; iName < remainingNotionals_.size(); iName++)
             {
                 Real loss =
                     remainingNotionals_[iName] *
-                    (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor)) /
-                    remainingNotional_;
+                    (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor));
                 Probability p =
                     copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], liveNames_[iName], mktFactor);
-                limits.smallest = std::min(limits.smallest, loss);
-                limits.total += loss;
-                limits.none *= 1. - p;
-                limits.all *= p;
+                if (p == 1.)
+                {
+                    add(limits.certain, certainCompensation, loss);
+                }
+                else
+                {
+                    limits.smallest = std::min(limits.smallest, loss);
+                    add(limits.total, totalCompensation, loss);
+                    limits.none *= 1. - p;
+                    limits.all *= p;
+                }
             }
+            limits.certain += certainCompensation;
+            limits.total += totalCompensation;
             return limits;
         }
 
@@ -913,16 +935,23 @@ namespace QuantLib
             return 1.;
 
         Real relativeLoss = loss / remainingNotional_;
-        // Every set of defaults short of all of them loses at most the total
-        //   less the smallest loss of a name, and any default at least that
-        //   smallest loss. So above the first the level is reached only if
-        //   every name defaults, and up to the second if any name does.
+        // The names certain to default reach their loss for sure, and the
+        //   uncertain names must make up the rest. Every set of defaults of
+        //   theirs short of all of them loses at most their total less the
+        //   smallest loss of one, and any default at least that smallest
+        //   loss. So above the first the rest is reached only if every
+        //   uncertain name defaults, and up to the second if any does. A
+        //   level within rounding of the certain loss is then never searched
+        //   for: K' only tends to it, and the saddle point is at -infinity.
         LossLimits limits = lossLimitsCond(invUncondProbs, mktFactor);
-        if (relativeLoss > limits.total)
+        Real rest = loss - limits.certain;
+        if (rest <= 0.)
+            return 1.;
+        if (rest > limits.total)
             return 0.;
-        if (relativeLoss > limits.total - limits.smallest)
+        if (rest > limits.total - limits.smallest)
             return limits.all;
-        if (relativeLoss <= limits.smallest)
+        if (rest <= limits.smallest)
             return 1. - limits.none;
 
         Real saddlePt = findSaddle(invUncondProbs, relativeLoss, mktFactor);
@@ -1079,11 +1108,13 @@ namespace QuantLib
             return 0.;
 
         Real relativeLoss = loss / remainingNotional_;
-        // No set of defaults loses more than nothing but less than the
-        //   smallest loss of a name, nor more than the total less that loss
-        //   but less than the total.
+        // No set of defaults of the uncertain names loses more than nothing
+        //   but less than the smallest loss of one, nor more than their total
+        //   less that loss but less than their total; the names certain to
+        //   default add their loss to all of them.
         LossLimits limits = lossLimitsCond(invUncondPs, mktFactor);
-        if (relativeLoss < limits.smallest || relativeLoss > limits.total - limits.smallest)
+        Real rest = loss - limits.certain;
+        if (rest < limits.smallest || rest > limits.total - limits.smallest)
             return 0.;
         Real saddlePt = findSaddle(invUncondPs, relativeLoss, mktFactor);
         if (std::abs(saddlePt) == QL_MAX_REAL)
@@ -1259,14 +1290,19 @@ namespace QuantLib
             elCond += pBuffer * remainingNotionals_[iName] *
                       (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor));
         }
-        // where the probability of reaching the level is exact, so is this
+        // where the probability of reaching the level is exact, so is this:
+        //   below the first uncertain default, every loss but the certain
+        //   one alone reaches it
         LossLimits limits = lossLimitsCond(invUncondProbs, mktFactor);
-        if (lossPercRatio > limits.total)
-            return 0.;
-        if (lossPercRatio > limits.total - limits.smallest)
-            return limits.total * remainingNotional_ * limits.all;
-        if (lossPercRatio <= limits.smallest)
+        Real rest = lossPerc - limits.certain;
+        if (rest <= 0.)
             return elCond;
+        if (rest > limits.total)
+            return 0.;
+        if (rest > limits.total - limits.smallest)
+            return (limits.certain + limits.total) * limits.all;
+        if (rest <= limits.smallest)
+            return elCond - limits.certain * limits.none;
         Real saddlePt = findSaddle(invUncondProbs, lossPercRatio, mktFactor);
         if (saddlePt == QL_MAX_REAL)
             return 0.;
