@@ -68,6 +68,7 @@ namespace QuantLib
             std::string name() const override;
             bool isWeekend(Weekday) const override;
             bool isBusinessDay(const Date&) const override;
+            void appendBusinessDaysKey(std::vector<std::uintptr_t>& key) const override;
 
           private:
             JointCalendarRule rule_;

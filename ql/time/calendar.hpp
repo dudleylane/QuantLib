@@ -32,6 +32,7 @@
 #include <ql/shared_ptr.hpp>
 #include <ql/time/businessdayconvention.hpp>
 #include <ql/time/date.hpp>
+#include <cstdint>
 #include <set>
 #include <string>
 #include <vector>
@@ -40,6 +41,12 @@ namespace QuantLib
 {
 
     class Period;
+    class Calendar;
+
+    namespace detail
+    {
+        void appendBusinessDaysKey(const Calendar&, std::vector<std::uintptr_t>&);
+    }
 
     //! %calendar class
     /*! This class provides methods for determining whether a date is a
@@ -70,9 +77,44 @@ namespace QuantLib
             virtual std::string name() const = 0;
             virtual bool isBusinessDay(const Date&) const = 0;
             virtual bool isWeekend(Weekday) const = 0;
+            //! appends what this implementation's business days depend on to a key
+            /*! Caches of business days, such as Business252's, give two
+                calendars the same figures when their keys are equal (see
+                detail::appendBusinessDaysKey), and after a change to any
+                calendar's holidays or weekend they keep a calendar's
+                figures only if its key is still the one they were made
+                for.  So equal keys must mean the same business days,
+                before added and removed holidays, whatever changes are
+                made to calendars' holidays and weekends.
+
+                The default appends 0 and the implementation's address, so a
+                calendar shares figures only with those on the same
+                implementation: its copies, and for most markets the
+                calendars built alike, which share one.  That holds for an
+                implementation whose business days depend only on the date
+                and on its own added and removed holidays.  One whose
+                business days also depend on another calendar must append
+                that calendar's key with detail::appendBusinessDaysKey, as
+                JointCalendar does, or its figures stay those of the other
+                calendar's earlier holidays.  One whose business days change
+                in a way its key doesn't show must call
+                detail::recordCalendarChange().
+
+                JointCalendar, NullCalendar and BespokeCalendar, which build
+                an implementation for each calendar, append 1, 2 and 3, and
+                then what their business days depend on, so that calendars
+                built alike share figures.  An override elsewhere should
+                start with a tag no other implementation uses, such as the
+                address of a static object of its own, and what follows
+                should show where it ends, as a count before a list does,
+                since a joint calendar's key runs its calendars' keys
+                together.
+            */
+            virtual void appendBusinessDaysKey(std::vector<std::uintptr_t>& key) const;
             std::set<Date> addedHolidays, removedHolidays;
         };
         ext::shared_ptr<Impl> impl_;
+        friend void detail::appendBusinessDaysKey(const Calendar&, std::vector<std::uintptr_t>&);
 
       public:
         /*! The default constructor returns a calendar with a null
@@ -208,18 +250,43 @@ namespace QuantLib
         //! the number of changes made so far to any calendar's holidays or weekend
         /*! Calendar::addHoliday, Calendar::removeHoliday,
             Calendar::resetAddedAndRemovedHolidays and
-            BespokeCalendar::addWeekend record one each.  Caches of business
-            days, such as Business252's, compare it with the number they
-            were filled under.
+            BespokeCalendar::addWeekend record one each, through
+            recordKeyedCalendarChange, and recordCalendarChange records one
+            too.  Caches of business days, such as Business252's, check a
+            calendar's key again (see appendBusinessDaysKey) when it differs
+            from the number under which they last did.
         */
         unsigned long long calendarChangeCount();
 
-        //! records a change to a calendar's holidays or weekend
+        //! the number of changes recorded so far by recordCalendarChange
+        /*! Caches of business days drop all their figures when it differs
+            from the number they were made under.
+        */
+        unsigned long long unkeyedCalendarChangeCount();
+
+        //! records a change to a calendar's business days that its key shows
+        /*! such as to its added or removed holidays, or to a
+            BespokeCalendar's weekend.  Caches of business days check the
+            keys of the calendars they count on again, and keep the figures
+            of those whose keys are unchanged.
+        */
+        void recordKeyedCalendarChange();
+
+        //! records a change to a calendar's business days that keys don't show
         /*! A calendar implementation whose business days change other than
-            through the methods above should call it, so that such caches
-            are dropped.
+            through the methods above, and other than as its key shows (see
+            Calendar::Impl::appendBusinessDaysKey), should call it, so that
+            such caches are dropped.
         */
         void recordCalendarChange();
+
+        //! appends what the calendar's business days depend on to a key
+        /*! The implementation's part (see Calendar::Impl::appendBusinessDaysKey),
+            then the number of added holidays and their serial numbers, and
+            the number of removed holidays and theirs.  Two calendars with
+            equal keys have the same business days.
+        */
+        void appendBusinessDaysKey(const Calendar& calendar, std::vector<std::uintptr_t>& key);
 
     }
 

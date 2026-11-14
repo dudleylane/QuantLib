@@ -35,19 +35,29 @@ namespace QuantLib
 
     //! Business/252 day count convention
     /*! A count across months adds up figures for the whole months and
-        years in it, kept per thread for each calendar, and for at most
-        eight calendars at a time.  Copies of a calendar share its
-        figures; another calendar has its own, even under the same name.
-        So a calendar built for each instrument, such as a JointCalendar,
-        fills its own on first use, and more than eight of them in turn
-        fill theirs again each time, at about the cost of counting the
-        days one by one.  The figures are dropped whenever any calendar's
-        holidays or weekend change through addHoliday, removeHoliday,
-        resetAddedAndRemovedHolidays or BespokeCalendar::addWeekend.
+        years in it, kept per thread for at most eight calendars at a
+        time.  Calendars known to have the same business days share
+        figures: copies of a calendar, a market's calendars built alike,
+        which for most markets share an implementation, and joint, null
+        and bespoke calendars built alike (the same calendars joined by
+        the same rule, or the same weekend) with the same added and
+        removed holidays.  Other calendars have their own, even under the
+        same name, so more than eight of them in turn fill theirs again
+        each time, at about the cost of counting the days one by one.
+        When a calendar's holidays or weekend change through addHoliday,
+        removeHoliday, resetAddedAndRemovedHolidays or
+        BespokeCalendar::addWeekend, it uses figures for its new business
+        days from then on, and so does any joint calendar it is part of;
+        other calendars keep theirs.
 
         \warning A calendar implementation whose business days change in
                  any other way leaves the figures stale, unless it calls
-                 detail::recordCalendarChange().
+                 detail::recordCalendarChange(), which drops every
+                 thread's figures.  One whose business days depend on
+                 another calendar leaves them stale when that calendar's
+                 holidays change, unless it appends that calendar's key
+                 in Calendar::Impl::appendBusinessDaysKey, as
+                 JointCalendar's implementation does.
 
         \ingroup daycounters
     */
