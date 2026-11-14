@@ -156,6 +156,7 @@ no longer checks them, and no CI job builds any of them.
 | #272 | `ql/experimental/credit/constantlosslatentmodel.hpp` | The constant loss model builds without its copula traits, where leaving them out didn't compile |
 | #255 | `ql/experimental/credit/spotlosslatentmodel.hpp` | The spot recovery model's class doc says it keeps the single-name loss only on the Gaussian copula |
 | #258 | `ql/experimental/math/latentmodel.hpp` | Latent models on Gaussian factors integrate by the trapezoid rule on [−8.5, 8.5], where Gauss-Hermite of order 25 left Hull-White's tranche spreads 12.5 % off at correlation 0.9 |
+| #273 | `ql/experimental/credit/binomiallossmodel.hpp` | The binomial loss model's distribution given the factor no longer underflows to zeros where a default is nearly certain, which left tranche losses up to 83 % low on 1,000 names |
 
 ### New in this fork
 
