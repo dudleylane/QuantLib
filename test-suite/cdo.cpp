@@ -1635,8 +1635,13 @@ BOOST_AUTO_TEST_CASE(testCdoAfterADefault)
                             BOOST_CHECK_SMALL(cdo->remainingNotional() -
                                                   (tranche.remainingDetachment - tranche.remainingAttachment),
                                               tolerance);
-                            if (today == firstCouponPaid)
-                                BOOST_CHECK_SMALL(cdo->expectedTrancheLoss().front() - tranche.realized, tolerance);
+                            // The protection starts from the expected tranche loss today (#228). On these default
+                            // curves from inception that's what has been lost and what the names left were
+                            // expected to lose by today. Until #228's fix it started from what had been lost once
+                            // the first coupon was paid, so the losses expected before today were protection
+                            // still to come, and from the expected tranche loss on its accrual start before that.
+                            BOOST_CHECK_SMALL(cdo->expectedTrancheLoss().front() - basket->expectedTrancheLoss(today),
+                                              tolerance);
 
                             const auto reference = whatIsLeftOf(tranche, left);
                             if (reference == nullptr)
@@ -1671,10 +1676,9 @@ BOOST_AUTO_TEST_CASE(testUpfront)
     BOOST_TEST_MESSAGE("Testing a CDO tranche's upfront...");
 
     // The engines take the upfront as paid on the first coupon's accrual start, on the tranche's
-    // remaining notional, and count it until that coupon is paid, unless it falls before the
-    // discount curve's reference date. Before #206, inside the first coupon on a discount curve
-    // as of today, they discounted the upfront from before the curve's reference date, and
-    // threw. They still throw there on default curves as of today (#228).
+    // remaining notional, and count it only if that's on or after today and the discount curve's
+    // reference date. Before #206, inside the first coupon on a discount curve as of today, they
+    // discounted the upfront from before the curve's reference date, and threw.
     const Date accrualStart(1, September, 2006);
     const Date insideTheFirstCoupon(1, November, 2006);
     const Date afterTheFirstPayment(4, December, 2006);
@@ -1708,11 +1712,11 @@ BOOST_AUTO_TEST_CASE(testUpfront)
         Date today, curveDate;
         bool upfrontCounts;
     };
-    // Inside the first coupon, on a curve from inception, the upfront still counts though it has
-    // been paid: #206 changed only what threw (#227).
+    // Inside the first coupon the upfront has been paid, so it doesn't count on either curve. Until
+    // #227's fix it still counted on a curve from inception, until the first coupon was paid.
     const Valuation valuations[] = {
         {names.inception, names.inception, true},       {accrualStart, accrualStart, true},
-        {insideTheFirstCoupon, names.inception, true},  {insideTheFirstCoupon, insideTheFirstCoupon, false},
+        {insideTheFirstCoupon, names.inception, false}, {insideTheFirstCoupon, insideTheFirstCoupon, false},
         {afterTheFirstPayment, names.inception, false}, {afterTheFirstPayment, afterTheFirstPayment, false}};
     for (const auto& valuation : valuations)
     {
@@ -1734,10 +1738,10 @@ BOOST_AUTO_TEST_CASE(testUpfront)
         }
     }
 
-    // Inside the first coupon, the premium on a discount curve as of today is the one on a curve
-    // from inception, carried forward to today, and so is all of the integral engine's value, which
-    // takes the same dates on either curve; the mid-point engine takes its first period's
-    // losses as of the middle of what's left of it after the curve's reference date.
+    // Inside the first coupon, the value on a discount curve as of today is the one on a curve from
+    // inception, carried forward to today, as both engines take the same dates on either curve.
+    // Until #228's fix the mid-point engine took its first period's losses as of the middle of
+    // what was left of it after the curve's reference date.
     Settings::instance().evaluationDate() = insideTheFirstCoupon;
     const auto fromInception = curveFrom(names.inception);
     const auto asOfToday = curveFrom(insideTheFirstCoupon);
@@ -1749,8 +1753,7 @@ BOOST_AUTO_TEST_CASE(testUpfront)
             const auto reference = price(0.0, fromInception, midPoint);
             const DiscountFactor carry = fromInception->discount(insideTheFirstCoupon);
             BOOST_CHECK_CLOSE_FRACTION(today->premiumValue(), reference->premiumValue() / carry, 1.0e-12);
-            if (!midPoint)
-                BOOST_CHECK_CLOSE_FRACTION(today->NPV(), reference->NPV() / carry, 1.0e-12);
+            BOOST_CHECK_CLOSE_FRACTION(today->NPV(), reference->NPV() / carry, 1.0e-12);
         }
     }
 }
@@ -1892,12 +1895,14 @@ BOOST_AUTO_TEST_CASE(testTrancheWithNoNamesLeft)
                     BOOST_CHECK_EQUAL(basket->probOverLoss(all.horizon, fraction), level <= settledLoss ? 1.0 : 0.0);
                 }
 
+                // The legs run from today (#228), so the first coupon counts from today, and the upfront,
+                // paid on its accrual start before today, doesn't count (#227).
                 Real annuity = 0.0;
                 for (Size i = 1; i < schedule.size(); ++i)
                     if (schedule[i] > today)
-                        annuity += Actual360().yearFraction(schedule[i - 1], schedule[i]) *
+                        annuity += Actual360().yearFraction(std::max(schedule[i - 1], today), schedule[i]) *
                                    discountCurve->discount(schedule[i]);
-                const Real upfront = tranche.remaining * 0.02 * discountCurve->discount(schedule[0]);
+                const Real upfront = 0.0;
 
                 for (bool midPoint : {true, false})
                 {
@@ -3906,6 +3911,76 @@ BOOST_AUTO_TEST_CASE(testBinomialModelWhereDefaultIsNearlyCertain)
             basket->setLossModel(ext::make_shared<GaussianBinomialLossModel>(latentModel(size, rho, recoveries)));
             BOOST_CHECK_SMALL(basket->expectedTrancheLoss(d) / expectedLoss - 1.0, 1.0e-7);
             BOOST_CHECK_SMALL(basket->lossDistribution(d).rbegin()->second - 1.0, 1.0e-12);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testTrancheInsideACoupon)
+{
+    BOOST_TEST_MESSAGE("Testing a CDO tranche inside a coupon against one starting today...");
+
+    /* Both engines value both legs from today (#228). So inside a coupon a tranche is worth what one whose first
+       coupon starts today is, on the same dates from then on: its premium leg holds the coupon less what has accrued,
+       and its protection runs from the expected tranche loss today, or on the default curves' reference date if
+       that's later. Before, inside the first coupon the protection ran from the expected tranche loss on its accrual
+       start, which threw on default curves as of today, and on curves from before it counted the part of the coupon
+       that had passed, as the premium leg counted the whole coupon. Once the first coupon was paid, the protection
+       ran from the losses realised so far, so on default curves from before today the losses expected before today
+       were protection still to come. And on default curves dated after today, while the first coupon was unpaid,
+       the expected tranche loss on its accrual start threw if that was before their reference date. */
+    const Date inception(31, August, 2006), accrualStart(1, September, 2006);
+    const auto scheduleFrom = [](const Date& start) -> Schedule
+    {
+        return MakeSchedule()
+            .from(start)
+            .to(Date(1, September, 2011))
+            .withFrequency(Quarterly)
+            .withCalendar(TARGET())
+            .withConvention(Following)
+            .withRule(DateGeneration::Backward);
+    };
+    // inside the first coupon, and inside the second, once the first is paid
+    for (const Date& today : {Date(1, November, 2006), Date(15, January, 2007)})
+    {
+        Settings::instance().evaluationDate() = today;
+        // default curves from inception, as of today, and from two days after today, as with settlement days; the
+        // discount curve from inception with the first, and as of today otherwise
+        for (const Date& curveDate : {inception, today, today + 2})
+        {
+            const TenNamesFromToday names(curveDate, 0.022);
+            const Handle<YieldTermStructure> discountCurve(
+                ext::make_shared<FlatForward>(std::min(curveDate, today), 0.05, Actual360()));
+            for (bool midPoint : {true, false})
+            {
+                BOOST_TEST_CONTEXT("today " << today << ", default curves from " << curveDate
+                                            << (midPoint ? ", mid-point" : ", integral") << " engine")
+                {
+                    const auto tranche = [&](const Date& start)
+                    {
+                        const auto latent = ext::make_shared<GaussianConstantLossLM>(
+                            std::vector<std::vector<Real>>(10, std::vector<Real>(1, std::sqrt(0.3))),
+                            std::vector<Real>(10, 0.4), LatentModelIntegrationType::GaussianQuadrature,
+                            GaussianCopulaPolicy::initTraits());
+                        auto cdo = ext::make_shared<SyntheticCDO>(
+                            names.basket(inception,
+                                         ext::make_shared<RecursiveLossModel<GaussianCopulaPolicy>>(latent, 1)),
+                            Protection::Seller, scheduleFrom(start), 0.0, 0.05, Actual360(), Following);
+                        if (midPoint)
+                            cdo->setPricingEngine(ext::make_shared<MidPointCDOEngine>(discountCurve));
+                        else
+                            cdo->setPricingEngine(ext::make_shared<IntegralCDOEngine>(discountCurve));
+                        return cdo;
+                    };
+                    const auto inside = tranche(accrualStart);
+                    const auto fresh = tranche(today);
+                    BOOST_CHECK_SMALL(inside->expectedTrancheLoss().front() -
+                                          inside->basket()->expectedTrancheLoss(std::max(curveDate, today)),
+                                      1.0e-12);
+                    BOOST_CHECK_CLOSE_FRACTION(inside->premiumLegNPV(), fresh->premiumLegNPV(), 1.0e-12);
+                    BOOST_CHECK_CLOSE_FRACTION(inside->protectionLegNPV(), fresh->protectionLegNPV(), 1.0e-12);
+                    BOOST_CHECK_CLOSE_FRACTION(inside->fairPremium(), fresh->fairPremium(), 1.0e-12);
+                }
+            }
         }
     }
 }

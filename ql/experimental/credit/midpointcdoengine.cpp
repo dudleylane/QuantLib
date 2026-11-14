@@ -24,6 +24,7 @@
 
 #    include <ql/cashflows/fixedratecoupon.hpp>
 #    include <ql/termstructures/yieldtermstructure.hpp>
+#    include <algorithm>
 
 namespace QuantLib
 {
@@ -42,17 +43,26 @@ namespace QuantLib
         results_.remainingNotional = arguments_.basket->remainingTrancheNotional();
         const Real inceptionTrancheNotional = arguments_.basket->trancheNotional();
 
-        // compute expected loss at the beginning of first relevant period;
-        // what's lost already is in every later one, and is no flow to come
+        // Both legs run from today (#228). The protection starts from the
+        //   expected tranche loss on the latest of today, the first unpaid
+        //   coupon's accrual start and the reference dates of the default
+        //   curves of the names left: what's lost already is in every later
+        //   expected loss, and is no flow to come, and the curves don't
+        //   reach back before their reference dates.
         Real e1 = inceptionTrancheNotional - results_.remainingNotional;
         // todo add includeSettlement date flows variable to engine.
-        if (!arguments_.normalizedLeg[0]->hasOccurred(today))
-            // Notice that since there might be a gap between the end of
-            // acrrual and payment dates and today be in between
-            // the tranche loss on that date might not be contingent but
-            // realized:
-            e1 = arguments_.basket->expectedTrancheLoss(
-                ext::dynamic_pointer_cast<Coupon>(arguments_.normalizedLeg[0])->accrualStartDate());
+        const auto firstUnpaid =
+            std::find_if(arguments_.normalizedLeg.begin(), arguments_.normalizedLeg.end(),
+                         [&](const ext::shared_ptr<CashFlow>& cf) { return !cf->hasOccurred(today); });
+        if (firstUnpaid != arguments_.normalizedLeg.end())
+        {
+            Date start = std::max(ext::dynamic_pointer_cast<Coupon>(*firstUnpaid)->accrualStartDate(), today);
+            const ext::shared_ptr<Pool>& pool = arguments_.basket->pool();
+            for (Size i : arguments_.basket->liveList())
+                start = std::max(
+                    start, pool->get(pool->names()[i]).defaultProbability(pool->defaultKeys()[i])->referenceDate());
+            e1 = arguments_.basket->expectedTrancheLoss(start);
+        }
         results_.expectedTrancheLoss.push_back(e1);
         for (auto& i : arguments_.normalizedLeg)
         {
@@ -63,14 +73,18 @@ namespace QuantLib
             }
             ext::shared_ptr<Coupon> coupon = ext::dynamic_pointer_cast<Coupon>(i);
             Date paymentDate = coupon->date();
-            Date startDate = std::max(coupon->accrualStartDate(), discountCurve_->referenceDate());
-            Date endDate = coupon->accrualEndDate();
+            // what's left of the coupon from today: its losses from then on,
+            //   and its premium less what has accrued before today. A coupon
+            //   whose accrual ended before today, paid after it, has none.
+            Date startDate = std::max({coupon->accrualStartDate(), today, discountCurve_->referenceDate()});
+            Date endDate = std::max(coupon->accrualEndDate(), startDate);
             // we assume the loss within the period took place on this date:
             Date defaultDate = startDate + (endDate - startDate) / 2;
 
             Real e2 = arguments_.basket->expectedTrancheLoss(endDate);
             results_.expectedTrancheLoss.push_back(e2);
-            results_.premiumValue += ((inceptionTrancheNotional - e2) / inceptionTrancheNotional) * coupon->amount() *
+            results_.premiumValue += ((inceptionTrancheNotional - e2) / inceptionTrancheNotional) *
+                                     (coupon->amount() - coupon->accruedAmount(today)) *
                                      discountCurve_->discount(paymentDate);
             // default flows:
             const Real discount = discountCurve_->discount(defaultDate);
@@ -90,11 +104,11 @@ namespace QuantLib
         //\todo treat upfron tnow as in the new CDS (see March 2014)
         // add includeSettlement date flows variable to engine ?
         // The upfront is taken as paid on the first coupon's accrual start. It
-        //   counts until the first coupon is paid, and not at all if it falls
-        //   before the discount curve's reference date, where CDO doesn't
-        //   count it either (#206).
+        //   counts only if that's on or after today, as the legs run from
+        //   today (#227), and not at all if it falls before the discount
+        //   curve's reference date, where CDO doesn't count it either (#206).
         const Date upfrontDate = ext::dynamic_pointer_cast<Coupon>(arguments_.normalizedLeg[0])->accrualStartDate();
-        if (!arguments_.normalizedLeg[0]->hasOccurred(today) && upfrontDate >= discountCurve_->referenceDate())
+        if (upfrontDate >= today && upfrontDate >= discountCurve_->referenceDate())
             results_.upfrontPremiumValue =
                 results_.remainingNotional * arguments_.upfrontRate * discountCurve_->discount(upfrontDate);
         /* use it in a future version for coherence with the integral engine

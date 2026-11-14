@@ -34,23 +34,24 @@ namespace QuantLib
     class YieldTermStructure;
 
     //! CDO base engine taking schedule steps
-    /*! Coupons not paid by the evaluation date count in full, and each
-        coupon's losses are discounted from the middle of what's left of it
-        after the discount curve's reference date. The protection starts
-        from the expected tranche loss on the first coupon's accrual start
-        while that coupon is unpaid, and from the losses realised so far
-        once it's paid. The upfront is taken as paid on the first coupon's
-        accrual start, on the tranche's remaining notional. It counts until
-        the first coupon is paid, and not at all if it falls before the
-        discount curve's reference date (#206).
+    /*! The engine values both legs from today (#228). Coupons not paid by
+        the evaluation date count less the premium accrued before it, and
+        each coupon's losses are discounted from the middle of what's left
+        of it after today, or after the discount curve's reference date if
+        that's later. The protection starts from the expected tranche
+        loss on the latest of today, the first unpaid coupon's accrual
+        start and the reference dates of the default curves of the names
+        left. So where those curves start on different dates, no protection
+        counts before the latest of them. The upfront is taken as paid on
+        the first coupon's accrual start, on the tranche's remaining
+        notional. It counts only if that's on or after today (#227), and not
+        at all if it falls before the discount curve's reference date
+        (#206).
 
-        \warning Inside the first coupon, the protection over the part of it
-            that has passed still counts, and on default curves dated after
-            the coupon's accrual start the engine throws (#228).
-        \warning On a discount curve dated on or before the first coupon's
-            accrual start, the upfront still counts after that date, until
-            the first coupon is paid, and then drops out with nothing paid
-            (#227).
+        \warning On default curves dated after today, the engine asks for
+            the expected tranche loss at each coupon's accrual end, and so
+            throws where a coupon still to be paid ends before the curves'
+            reference date (#275).
     */
 
     /* The engine obtains the cdo reference basket from its arguments and it

@@ -44,8 +44,16 @@ namespace QuantLib
         {
             ext::shared_ptr<FixedRateCoupon> coupon = ext::dynamic_pointer_cast<FixedRateCoupon>(i);
             Date d = i->date();
-            if (d > discountCurve_->referenceDate())
+            /* Both legs run from today (#228): each coupon not paid by today
+               counts less the premium accrued before today, and so does the
+               premium accrued on a default, with protection from the latest
+               of the coupon's accrual start, today and the discount curve's
+               reference date. As before, a coupon paid on or before that
+               reference date doesn't count, which leaves out only those paid
+               before a discount curve dated after today. */
+            if (!i->hasOccurred(today) && d > discountCurve_->referenceDate())
             {
+                const Real accruedBeforeToday = coupon->accruedAmount(today);
                 /*
                 std::vector<Probability> probsTriggering =
                     arguments_.basket->probsBeingNthEvent(arguments_.ntdOrder,
@@ -59,13 +67,11 @@ namespace QuantLib
                 // prob of contract not having been triggered by date of payment
                 Probability probNonTriggered = 1. - basket->probAtLeastNEvents(n, d);
 
-                results_.premiumValue += i->amount() * discountCurve_->discount(d) * probNonTriggered;
+                results_.premiumValue +=
+                    (i->amount() - accruedBeforeToday) * discountCurve_->discount(d) * probNonTriggered;
                 ////   * (1.0 - defaultProb);
 
-                if (coupon->accrualStartDate() >= discountCurve_->referenceDate())
-                    d = coupon->accrualStartDate();
-                else
-                    d = discountCurve_->referenceDate();
+                d = std::max({coupon->accrualStartDate(), today, discountCurve_->referenceDate()});
 
                 // do steps of specified size
                 d0 = d;
@@ -121,7 +127,7 @@ namespace QuantLib
                     defProb0 = defProb1;
 
                     if (arguments_.settlePremiumAccrual)
-                        accrualValue += coupon->accruedAmount(d) * disc * dcfdd;
+                        accrualValue += (coupon->accruedAmount(d) - accruedBeforeToday) * disc * dcfdd;
 
                     d0 = d;
                     d = d0 + stepSize;
@@ -137,12 +143,12 @@ namespace QuantLib
 
         // The upfront is taken as paid on the first coupon's accrual start, on
         //   the contract's notional, as the premium and the protection are. It
-        //   counts until the first coupon is paid, and not at all if it falls
-        //   before the discount curve's reference date, where CDO doesn't
-        //   count it either (#206).
+        //   counts only if that's on or after today, as the legs run from
+        //   today (#227), and not at all if it falls before the discount
+        //   curve's reference date, where CDO doesn't count it either (#206).
         const Date upfrontDate =
             ext::dynamic_pointer_cast<FixedRateCoupon>(arguments_.premiumLeg[0])->accrualStartDate();
-        if (!arguments_.premiumLeg[0]->hasOccurred(today) && upfrontDate >= discountCurve_->referenceDate())
+        if (upfrontDate >= today && upfrontDate >= discountCurve_->referenceDate())
             results_.upfrontPremiumValue =
                 arguments_.notional * arguments_.upfrontRate * discountCurve_->discount(upfrontDate);
         if (arguments_.side == Protection::Buyer)
