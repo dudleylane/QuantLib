@@ -155,6 +155,7 @@ no longer checks them, and no CI job builds any of them.
 | #270 | `ql/experimental/credit/defaultprobabilitylatentmodel.hpp` | The default correlation refuses a name whose default probability is 0 or 1, where it gave NaN |
 | #272 | `ql/experimental/credit/constantlosslatentmodel.hpp` | The constant loss model builds without its copula traits, where leaving them out didn't compile |
 | #255 | `ql/experimental/credit/spotlosslatentmodel.hpp` | The spot recovery model's class doc says it keeps the single-name loss only on the Gaussian copula |
+| #258 | `ql/experimental/math/latentmodel.hpp` | Latent models on Gaussian factors integrate by the trapezoid rule on [−8.5, 8.5], where Gauss-Hermite of order 25 left Hull-White's tranche spreads 12.5 % off at correlation 0.9 |
 
 ### New in this fork
 
