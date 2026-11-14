@@ -1805,6 +1805,30 @@ BOOST_AUTO_TEST_CASE(testSaddlePointWhereTheFactorMakesNamesCertain)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testSaddlePointWithANameThatLosesNothing)
+{
+    BOOST_TEST_MESSAGE("Testing the saddle point on a pool with a name that loses nothing...");
+
+    /* A name with a recovery of 1 loses nothing on default, and it set the smallest loss of a name, which bounds the
+       regions where the distribution given the factor is exact, to 0. Neither region was left, and the expansion ran
+       from no loss to the total, across a distribution of four atoms (#283). The name is now left out of the
+       limits: it adds nothing to any loss. */
+    const FourNames four({0.01, 0.02, 0.03, 0.05}, {0.4, 0.4, 0.4, 1.0});
+    for (Real y : {30.0, 60.0, 150.0, std::nextafter(180.0, 0.0), 180.0, std::nextafter(180.0, QL_MAX_REAL)})
+    {
+        BOOST_TEST_CONTEXT("a loss of " << std::setprecision(17) << y)
+        {
+            BOOST_CHECK_SMALL(four.model->probOverPortfLoss(four.horizon, y) - four.exactOver(y), 1.0e-12);
+        }
+    }
+    // the losses are 0, 60, 120 and 180, and the levels here are outside the region searched, from 60 to 120
+    for (Real y : {30.0, 150.0, 179.9})
+        BOOST_CHECK_EQUAL(four.model->probDensity(four.horizon, y), 0.0);
+    BOOST_CHECK_EQUAL(four.basket->percentile(four.horizon, 0.5), 0.0);
+    // Brent's accuracy is 1e-4 of the tranche
+    BOOST_CHECK_SMALL(four.basket->percentile(four.horizon, 0.99) - 120.0, 1.0e-4 * four.trancheNotional);
+}
+
 BOOST_AUTO_TEST_CASE(testCdoAfterADefault)
 {
     BOOST_TEST_MESSAGE("Testing a CDO tranche after a default...");

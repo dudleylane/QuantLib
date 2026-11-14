@@ -230,7 +230,7 @@ namespace QuantLib
 
         /*! Where the loss distribution is known without a saddle point. Given the factor, the names that default with
             probability 1 lose a fixed amount, and the loss is that amount plus what the other names, the uncertain
-            ones, lose.
+            ones, lose. A name that loses nothing is never an uncertain one: none of its defaults changes the loss.
         */
         struct LossLimits
         {
@@ -264,7 +264,7 @@ namespace QuantLib
                 {
                     add(limits.certain, certainCompensation, loss);
                 }
-                else
+                else if (loss > 0.)
                 {
                     limits.smallest = std::min(limits.smallest, loss);
                     add(limits.total, totalCompensation, loss);
