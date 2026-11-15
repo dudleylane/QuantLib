@@ -163,6 +163,7 @@ no longer checks them, and no CI job builds any of them.
 | #280 | `ql/experimental/credit/saddlepointlossmodel.hpp` | Where a factor makes names certain to default, the saddle-point model counts their loss as certain, so within rounding of it its tail probabilities and densities are no longer NaN and its percentile and shortfall no longer throw |
 | #283 | `ql/experimental/credit/saddlepointlossmodel.hpp` | A name that loses nothing no longer takes the saddle-point model's exact regions away from the whole pool |
 | #226 | `ql/time/daycounters/business252.cpp`, `ql/time/calendar.cpp`, `ql/time/calendars/{jointcalendar,bespokecalendar}.cpp` | Business/252 counts share figures between joint, null and bespoke calendars built alike, so calendars built for each instrument no longer count by walking, and keep them when other calendars change; a calendar implementation that depends on another calendar must append its key (`Calendar::Impl::appendBusinessDaysKey`) |
+| #203 | `ql/experimental/credit/distribution.cpp`, `ql/experimental/credit/{homogeneouspooldef,inhomogeneouspooldef}.hpp` | `Distribution::expectedShortfall` is the mean of the percentile over the levels above, and so the homogeneous and inhomogeneous pool models' tranche shortfall is the mean of their percentile, where it was a step function of the level and, at the top, a bucket below the percentile; `cumulativeDensity` grows from 0 in the first bucket, and `tranche` keeps each bucket's figures |
 
 ### New in this fork
 
