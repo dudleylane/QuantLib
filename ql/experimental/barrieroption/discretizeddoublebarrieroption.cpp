@@ -46,6 +46,14 @@ namespace QuantLib
     {
         vanilla_.initialize(method(), time());
         values_ = Array(size, 0.0);
+        // As DiscretizedVanillaOption does, and so its knock-in leg: a European option starts from its payoff at
+        // expiry, which checkBarrier() then keeps whatever its sign (#243).
+        if (arguments_.exercise->type() == Exercise::European && isOnTime(stoppingTimes_[0]))
+        {
+            const Array grid = method()->grid(time());
+            for (Size j = 0; j < size; ++j)
+                values_[j] = (*arguments_.payoff)(grid[j]);
+        }
         adjustValues();
     }
 
@@ -175,7 +183,8 @@ namespace QuantLib
     void DiscretizedDermanKaniDoubleBarrierOption::reset(Size size)
     {
         unenhanced_.initialize(method(), time());
-        values_ = Array(size, 0.0);
+        // It starts from its unenhanced option's values, and so from a European payoff whatever its sign (#243).
+        values_ = unenhanced_.values();
         adjustValues();
     }
 

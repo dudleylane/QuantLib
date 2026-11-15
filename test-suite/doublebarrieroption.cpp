@@ -1486,6 +1486,87 @@ BOOST_AUTO_TEST_CASE(testVannaVolgaSmileForward)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testBinomialEuropeanKeepsANegativePayoff)
+{
+    BOOST_TEST_MESSAGE("Testing that the binomial double barrier engine keeps a European payoff's negative part...");
+
+    // As in BarrierOptionTests' case of the same name, a gap call paying S - K2 above its trigger, 100, here knocked
+    // out at 80 or 120.  The lattices floored the payoff at 0 at expiry, and gave 0.15 and 0 where these knock-outs
+    // are worth -0.48 and -6.84 (#243).  The expected values come the same way from AnalyticDoubleBarrierEngine's
+    // calls.  At 1,001 steps the trigger lies midway between two nodes at expiry.  The plain lattice's barriers fall
+    // between its nodes, which puts it 0.11 off paying S - 150, as the payoff is -30 at the upper barrier, and up to
+    // 0.49 off at the odd numbers of steps between 950 and 1,050; the Derman-Kani lattice interpolates at the barriers,
+    // and is within 0.015 there.  The sums are within 0.002.
+    const Date today(12, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.0, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.05, dc)), Handle<BlackVolTermStructure>(flatVol(today, 0.20, dc)));
+    const auto european = ext::make_shared<EuropeanExercise>(today + 365);
+    const auto american = ext::make_shared<AmericanExercise>(today, today + 365);
+    const auto plain =
+        ext::make_shared<BinomialDoubleBarrierEngine<CoxRossRubinstein, DiscretizedDoubleBarrierOption>>(process, 1001);
+    const auto dermanKani =
+        ext::make_shared<BinomialDoubleBarrierEngine<CoxRossRubinstein, DiscretizedDermanKaniDoubleBarrierOption>>(
+            process, 1001);
+
+    const struct
+    {
+        Real secondStrike, expected, vanilla, plainTolerance;
+    } cases[] = {{110.0, -0.476583, 5.127335, 0.02}, {150.0, -6.841644, -16.165657, 0.5}};
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT("paying S - " << c.secondStrike)
+        {
+            const auto payoff = ext::make_shared<GapPayoff>(Option::Call, 100.0, c.secondStrike);
+            DoubleBarrierOption knockOut(DoubleBarrier::KnockOut, 80.0, 120.0, 0.0, payoff, european);
+            DoubleBarrierOption knockIn(DoubleBarrier::KnockIn, 80.0, 120.0, 0.0, payoff, european);
+            knockOut.setPricingEngine(plain);
+            knockIn.setPricingEngine(plain);
+            BOOST_CHECK_SMALL(knockOut.NPV() - c.expected, c.plainTolerance);
+            BOOST_CHECK_SMALL(knockOut.NPV() + knockIn.NPV() - c.vanilla, 0.005);
+            knockOut.setPricingEngine(dermanKani);
+            knockIn.setPricingEngine(dermanKani);
+            BOOST_CHECK_SMALL(knockOut.NPV() - c.expected, 0.02);
+            BOOST_CHECK_SMALL(knockOut.NPV() + knockIn.NPV() - c.vanilla, 0.005);
+        }
+    }
+
+    // A cash-or-nothing call paying -10 is worth minus one paying 10.  The parent's were worth 0.
+    const auto pays = ext::make_shared<CashOrNothingPayoff>(Option::Call, 100.0, 10.0);
+    const auto owes = ext::make_shared<CashOrNothingPayoff>(Option::Call, 100.0, -10.0);
+    for (const auto type : {DoubleBarrier::KnockIn, DoubleBarrier::KnockOut, DoubleBarrier::KIKO, DoubleBarrier::KOKI})
+    {
+        BOOST_TEST_CONTEXT(type << ", cash or nothing")
+        {
+            DoubleBarrierOption paying(type, 80.0, 120.0, 0.0, pays, european);
+            DoubleBarrierOption owing(type, 80.0, 120.0, 0.0, owes, european);
+            paying.setPricingEngine(plain);
+            owing.setPricingEngine(plain);
+            BOOST_CHECK_GT(paying.NPV(), 0.0);
+            BOOST_CHECK_SMALL(owing.NPV() + paying.NPV(), 1.0e-12);
+            // the Derman-Kani class takes knock-ins and knock-outs only
+            if (type == DoubleBarrier::KnockIn || type == DoubleBarrier::KnockOut)
+            {
+                paying.setPricingEngine(dermanKani);
+                owing.setPricingEngine(dermanKani);
+                BOOST_CHECK_GT(paying.NPV(), 0.0);
+                BOOST_CHECK_SMALL(owing.NPV() + paying.NPV(), 1.0e-12);
+            }
+        }
+    }
+
+    // With American exercise the holder declines a negative payoff: knocked out at 120, a gap call paying S - 150 is
+    // never worth exercising.
+    DoubleBarrierOption option(DoubleBarrier::KnockOut, 80.0, 120.0, 0.0,
+                               ext::make_shared<GapPayoff>(Option::Call, 100.0, 150.0), american);
+    option.setPricingEngine(plain);
+    BOOST_CHECK_EQUAL(option.NPV(), 0.0);
+    option.setPricingEngine(dermanKani);
+    BOOST_CHECK_EQUAL(option.NPV(), 0.0);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

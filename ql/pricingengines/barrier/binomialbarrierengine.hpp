@@ -44,6 +44,10 @@ namespace QuantLib
               See Journal of Derivatives, 1/1994,
               "Bumping up against the barrier with the binomial method"
 
+        \note A European payoff is paid whatever its sign, as its holder can't decline it, so a gap payoff's
+              negative part counts; with American or Bermudan exercise the holder exercises only where the payoff
+              is worth more than holding on (#243).
+
         \test the correctness of the returned values is tested by
               checking it against analytic european results.
     */

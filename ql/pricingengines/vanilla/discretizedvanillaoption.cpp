@@ -49,6 +49,15 @@ namespace QuantLib
     void DiscretizedVanillaOption::reset(Size size)
     {
         values_ = Array(size, 0.0);
+        // A European option pays its payoff at expiry whatever its sign, as the holder can't decline it, so the
+        // lattice starts from the payoff there, and the exercise condition, the larger of the two, leaves it as it is.
+        // Early exercise is the holder's choice: there the lattice starts at 0 (#243).
+        if (arguments_.exercise->type() == Exercise::European && isOnTime(stoppingTimes_[0]))
+        {
+            const Array grid = method()->grid(time());
+            for (Size j = 0; j < size; ++j)
+                values_[j] = (*arguments_.payoff)(grid[j]);
+        }
         adjustValues();
     }
 
