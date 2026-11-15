@@ -27,6 +27,7 @@
 #include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/math/interpolation.hpp>
 #include <ql/pricingengines/blackformula.hpp>
+#include <algorithm>
 #include <vector>
 
 namespace QuantLib
@@ -39,6 +40,43 @@ namespace QuantLib
     }
 
     //! %Vanna Volga interpolation between discrete points
+    /*! The method is an approximation for smiles that are neither too
+        steep nor too skewed.  Measured from three months to ten years,
+        at ATM volatilities from 1 % to 40 %, on smiles quoted at the
+        25-delta put and call (forward delta) and the delta-neutral ATM
+        strike, with the higher outer volatility at most twice the ATM
+        one and its total volatility (the volatility times the square
+        root of the time) below 1:
+
+        - with both outer volatilities at least the ATM one, the values
+          between the quotes stay within 3.2 % above the highest quote
+          and 15.3 % below the lowest; past them the method didn't throw
+          within 15 ATM standard deviations, and within 2 its values
+          stayed above 0.71 times the nearer quote;
+        - with one below the ATM one, the values past it keep falling,
+          and the method fails there, from within 2.3 ATM standard
+          deviations of it, unless the other lies far enough above the
+          ATM volatility (#291): it held with the higher at 1.05, 1.1,
+          1.25, 1.5, 1.75 or 2 times the ATM one and the lower at least
+          0.97, 0.94, 0.89, 0.83, 0.78 or 0.75 times it, and failed in
+          most markets with the lower 0.03 below that.  With the higher
+          at most 1.25 times the ATM one, most of the markets that fail
+          past the lower quote fail past the higher one too, from 0.4 to
+          14.7 ATM standard deviations out.  Where it held, the values
+          between the quotes stayed within 5.1 % above the highest quote
+          and 12.1 % below the lowest, and past the lower quote they fell
+          to 0.51 times it within 2 ATM standard deviations.
+
+        Steeper smiles leave that range with no warning: with the
+        higher outer volatility 2.5 times the ATM one and its total
+        volatility still below 1, the values between the quotes reach
+        1.41 times the highest quote, and beyond that 3.2 times it or
+        0.16 times the lowest, and the method fails between the quotes
+        in some markets.  With a higher outer total volatility above
+        about 1.25, the method fails in most markets.  Where the
+        method's call price leaves the bounds a call can take, value()
+        throws, and says so.
+    */
     class VannaVolgaInterpolation : public Interpolation
     {
       public:
@@ -151,8 +189,29 @@ namespace QuantLib
                 Real cBS = blackFormula(Option::Call, k, fwd_, atmVol_ * std::sqrt(T_), dDiscount_);
                 Real c = cBS + x1 * (premiaMKT[0] - premiaBS[0]) + x2 * (premiaMKT[1] - premiaBS[1]) +
                          x3 * (premiaMKT[2] - premiaBS[2]);
-                Real std = blackFormulaImpliedStdDev(Option::Call, k, fwd_, c, dDiscount_);
-                return std / sqrt(T_);
+                try
+                {
+                    Real std = blackFormulaImpliedStdDev(Option::Call, k, fwd_, c, dDiscount_);
+                    return std / sqrt(T_);
+                }
+                catch (const std::exception&)
+                {
+                    // Where the method doesn't hold, its price can leave the bounds a call can take, and the
+                    // inversion then blamed the price (#242).  Say why instead; any other failure keeps its message.
+                    const Real lower = dDiscount_ * std::max(fwd_ - k, Real(0.0)), upper = dDiscount_ * fwd_;
+                    if (c >= lower && c <= upper)
+                        throw;
+                    const Real atmStdDev = atmVol_ * std::sqrt(T_);
+                    QL_FAIL("Vanna/Volga interpolation can't price the strike "
+                            << k << ": the method's call price " << c << " lies outside [" << lower << ", " << upper
+                            << "], the bounds of a call, as the method doesn't hold for this smile: its quotes at "
+                            << this->xBegin_[0] << " and " << this->xBegin_[2] << " lie "
+                            << std::fabs(std::log(this->xBegin_[0] / this->xBegin_[1])) / atmStdDev << " and "
+                            << std::fabs(std::log(this->xBegin_[2] / this->xBegin_[1])) / atmStdDev
+                            << " ATM standard deviations from the ATM strike " << this->xBegin_[1]
+                            << ", with volatilities " << this->yBegin_[0] / atmVol_ << " and "
+                            << this->yBegin_[2] / atmVol_ << " times the ATM one");
+                }
             }
             Real primitive(Real) const override { QL_FAIL("Vanna Volga primitive not implemented"); }
             Real derivative(Real) const override { QL_FAIL("Vanna Volga derivative not implemented"); }

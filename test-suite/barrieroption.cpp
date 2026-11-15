@@ -35,6 +35,7 @@
 #include <ql/pricingengines/barrier/fdblackscholesbarrierengine.hpp>
 #include <ql/pricingengines/barrier/fdhestonbarrierengine.hpp>
 #include <ql/pricingengines/barrier/mcbarrierengine.hpp>
+#include <ql/pricingengines/blackdeltacalculator.hpp>
 #include <ql/pricingengines/blackformula.hpp>
 #include <ql/pricingengines/vanilla/analyticdigitalamericanengine.hpp>
 #include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
@@ -2430,6 +2431,54 @@ BOOST_AUTO_TEST_CASE(testVannaVolgaInterpolation)
         atm, put25, call25, Handle<Quote>(ext::make_shared<SimpleQuote>(spot)),
         Handle<YieldTermStructure>(flatRate(today, 0.05, dc)), Handle<YieldTermStructure>(flatRate(today, 0.0, dc))));
     BOOST_CHECK_EXCEPTION(option.NPV(), Error, saying("positive ATM volatility"));
+}
+
+BOOST_AUTO_TEST_CASE(testVannaVolgaInterpolationSaysWhereItsMethodFails)
+{
+    BOOST_TEST_MESSAGE("Testing that the Vanna/Volga interpolation says why it can't price where its method fails...");
+
+    // On a smile too steep or too skewed for the method, its call price leaves the bounds a call can take, and the
+    // implied volatility threw with a message about the price: negative, below the intrinsic value ("negative Put price
+    // ... implied by put-call parity") or above the discounted forward ("root not bracketed").  It now says that the
+    // method doesn't hold, and where the quotes lie (#242).  Spot 100, r 5 %, q 0, a year, and the strikes of the
+    // 25-delta put and call (forward delta) and the delta-neutral ATM strike.
+    const Real spot = 100.0;
+    const Time T = 1.0;
+    const DiscountFactor dDiscount = std::exp(-0.05), fDiscount = 1.0;
+    const auto valueOn = [&](Real atmVol, Real putVol, Real callVol, const auto& strikeFrom)
+    {
+        const BlackDeltaCalculator atm(Option::Call, DeltaVolQuote::Fwd, spot, dDiscount, fDiscount,
+                                       atmVol * std::sqrt(T));
+        const BlackDeltaCalculator put(Option::Put, DeltaVolQuote::Fwd, spot, dDiscount, fDiscount,
+                                       putVol * std::sqrt(T));
+        const BlackDeltaCalculator call(Option::Call, DeltaVolQuote::Fwd, spot, dDiscount, fDiscount,
+                                        callVol * std::sqrt(T));
+        const std::vector<Real> strikes = {put.strikeFromDelta(-0.25), atm.atmStrike(DeltaVolQuote::AtmDeltaNeutral),
+                                           call.strikeFromDelta(0.25)};
+        const std::vector<Real> vols = {putVol, atmVol, callVol};
+        Interpolation smile =
+            VannaVolga(spot, dDiscount, fDiscount, T).interpolate(strikes.begin(), strikes.end(), vols.begin());
+        smile.enableExtrapolation();
+        return smile(strikeFrom(strikes));
+    };
+    const auto midwayFromPutToAtm = [](const std::vector<Real>& k) { return 0.5 * (k[0] + k[1]); };
+    const auto saying = [](const std::string& text)
+    { return [text](const Error& e) { return std::string(e.what()).find(text) != std::string::npos; }; };
+
+    // #242's table: ATM 0.05 % and 0.1 %, the wings 1 % above, midway between the put's strike and the ATM one.
+    // The method's prices there are -5.95e+31 and 9.1e+06, against a discounted forward of 100.
+    BOOST_CHECK_EXCEPTION(valueOn(0.0005, 0.0105, 0.0105, midwayFromPutToAtm), Error,
+                          saying("doesn't hold for this smile"));
+    BOOST_CHECK_EXCEPTION(valueOn(0.001, 0.011, 0.011, midwayFromPutToAtm), Error,
+                          saying("doesn't hold for this smile"));
+    // ATM 5 %, the wings at 20 %, at 99: the method's price is 4.16, below the intrinsic value, 5.83.
+    BOOST_CHECK_EXCEPTION(valueOn(0.05, 0.20, 0.20, [](const std::vector<Real>&) { return 99.0; }), Error,
+                          saying("doesn't hold for this smile"));
+    // An ordinary skewed smile, ATM 10 %, the 25-delta put at 12.5 % and the call at 8.7 % (a risk reversal of
+    // -3.8 % and a butterfly of 0.6 %): past the call's quote the method's volatility keeps falling, and at 125 its
+    // call price is -0.037 (#291).
+    BOOST_CHECK_EXCEPTION(valueOn(0.10, 0.125, 0.087, [](const std::vector<Real>&) { return 125.0; }), Error,
+                          saying("doesn't hold for this smile"));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -54,6 +54,14 @@ namespace QuantLib
         Real rho() const;
         Real dividendRho() const;
         Real strikeSensitivity() const;
+        /*! Risk-neutral probability, in the bond martingale measure, that
+            the option ends in the money: under Black-Scholes, N(d2) for a
+            call and N(-d2) for a put.  AnalyticEuropeanEngine provides it,
+            as do BaroneAdesiWhaleyApproximationEngine and
+            JuQuadraticApproximationEngine where early exercise is never
+            optimal; until #235 they gave a put the call's.  It throws
+            for an engine that doesn't provide it.
+        */
         Real itmCashProbability() const;
         //@}
         void fetchResults(const PricingEngine::results*) const override;

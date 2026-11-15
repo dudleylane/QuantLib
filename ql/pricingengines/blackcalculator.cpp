@@ -142,6 +142,8 @@ namespace QuantLib
         // A vanilla option pays nothing at the strike.
         jump_ = 0.0;
 
+        optionType_ = p->optionType();
+
         // this part is always executed.
         // in case of plain-vanilla payoffs, it is also the only part
         // which is executed.
@@ -417,6 +419,23 @@ namespace QuantLib
         Real temp = DalphaDq * forward_ - alpha_ * forward_ + DbetaDq * x_;
 
         return maturity * discount_ * temp;
+    }
+
+    // A put's probabilities come from -d2 and -d1 themselves rather than as 1 - N(d2) and 1 - N(d1), which would lose a
+    // small one to cancellation. In the limiting cases d1 and d2 are 0 or +-QL_MAX_REAL, where the distribution gives
+    // 0.5, 1 and 0 exactly, as initialize() sets for a call.
+    Real BlackCalculator::itmCashProbability() const
+    {
+        if (optionType_ == Option::Call)
+            return cum_d2_;
+        return CumulativeNormalDistribution()(-d2_);
+    }
+
+    Real BlackCalculator::itmAssetProbability() const
+    {
+        if (optionType_ == Option::Call)
+            return cum_d1_;
+        return CumulativeNormalDistribution()(-d1_);
     }
 
     Real BlackCalculator::strikeSensitivity() const

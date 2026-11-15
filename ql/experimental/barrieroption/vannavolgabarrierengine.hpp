@@ -39,6 +39,9 @@ namespace QuantLib
         result "RebatePrice" is its part of the value.  Where the spot is already at or beyond the
         barrier, a knock-out is worth 0 and a knock-in the vanilla, with no rebate.
 
+        The volatility at the strike comes from VannaVolgaInterpolation, whose documentation says
+        where the method holds.
+
         \ingroup barrierengines
     */
     class VannaVolgaBarrierEngine : public BarrierOption::engine

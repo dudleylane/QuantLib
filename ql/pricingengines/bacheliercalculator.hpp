@@ -95,12 +95,12 @@ namespace QuantLib
         /*! The asset-or-nothing option's value over the discounted
             forward, E[F_T 1{in the money}] / F: N(d) + s n(d) / F for a
             call and N(-d) - s n(d) / F for a put, s being the standard
-            deviation.  For a call, that is what BlackCalculator's gives,
-            where it is the probability of being in the money in the asset
-            martingale measure; BlackCalculator's gives a put the call's
-            (#235).  A normal forward can be negative, so there is no such
-            measure here, and this isn't a probability: it can lie outside
-            [0, 1].  The forward can't be 0 (#195).
+            deviation.  That is what BlackCalculator's gives, where it is
+            the probability of being in the money in the asset martingale
+            measure, for a put as for a call since #235.  A normal forward
+            can be negative, so there is no such measure here, and this
+            isn't a probability: it can lie outside [0, 1].  The forward
+            can't be 0 (#195).
         */
         Real itmAssetProbability() const;
 
