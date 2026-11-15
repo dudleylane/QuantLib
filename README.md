@@ -166,6 +166,7 @@ no longer checks them, and no CI job builds any of them.
 | #203 | `ql/experimental/credit/distribution.cpp`, `ql/experimental/credit/{homogeneouspooldef,inhomogeneouspooldef}.hpp` | `Distribution::expectedShortfall` is the mean of the percentile over the levels above, and so the homogeneous and inhomogeneous pool models' tranche shortfall is the mean of their percentile, where it was a step function of the level and, at the top, a bucket below the percentile; `cumulativeDensity` grows from 0 in the first bucket, and `tranche` keeps each bucket's figures |
 | #235 | `ql/pricingengines/blackcalculator.cpp` | `BlackCalculator` gives a put its own in-the-money probabilities, N(-d2) and N(-d1), where it gave the call's, and so do `AnalyticEuropeanEngine` and, where early exercise is never optimal, the Barone-Adesi-Whaley and Ju engines |
 | #242 | `ql/experimental/barrieroption/vannavolgainterpolation.hpp` | `VannaVolgaInterpolation`'s doc says where the Vanna/Volga method holds, and where its call price leaves a call's bounds the interpolation says the method doesn't hold for the smile, where the implied volatility's message blamed the price |
+| #243 | `ql/pricingengines/barrier/discretizedbarrieroption.cpp`, `ql/experimental/barrieroption/discretizeddoublebarrieroption.cpp`, `ql/pricingengines/vanilla/discretizedvanillaoption.cpp` | The binomial barrier engines keep a European payoff's negative part, a gap payoff's or a negative cash-or-nothing's, where their lattices floored it at 0 at expiry |
 
 ### New in this fork
 
