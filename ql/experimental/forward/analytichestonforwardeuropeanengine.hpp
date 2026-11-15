@@ -79,10 +79,15 @@ namespace QuantLib
           chi-squared.  It's summed from its power series, which has
           no Bessel function to underflow, except where the series'
           terms grow at first; there it's taken from its Bessel
-          function.  Where R is in the hundreds or more, that
-          function underflows over a band of resets, and the engine
-          throws rather than integrate a density that misses 1 by
-          more than 1e-8 over the range.
+          function, and where that underflows, as it does over a band
+          of resets where R is in the hundreds or more, from its
+          Poisson-weighted sum of central chi-squared densities,
+          summed from the largest term.  A density that misses 1 by
+          more than 1e-8 over the range is refused.  Accuracy falls
+          with R: against independent references, prices were within
+          1e-12 for R up to 12,800, 8.4e-10 up to R 1.28 million and
+          3.4e-9 up to R 32 million, where the shortest resets tried
+          were refused.
         - A reset within 1e-11 years of today is priced as a vanilla
           option from v0, which must then be positive.
         - At rho = -1 or 1 the characteristic function doesn't decay

@@ -1080,24 +1080,15 @@ BOOST_AUTO_TEST_CASE(testHestonAnalyticVarianceDensity)
         {0.1, 5.0, 0.1, 0.12, -0.7, 1825, 2190, 0.8, Option::Call, 18.9098184144192},
         {0.25, 10.0, 0.25, 0.11, -0.7, 170, 535, 1.0, Option::Call, 17.8958818909176},
         {0.25, 10.0, 0.25, 0.11, -0.7, 260, 625, 1.0, Option::Call, 17.7639303437161},
+        // At R 826, between the two rows above, I_nu also underflows over the density's bulk, for resets from 184 to
+        // 227 days, where nu is 412 and the noncentrality a few units.  The engine priced up to 100 % low there, then
+        // threw: at 200 days the density was 0 at the variance's mean, and at 220 it didn't integrate to 1.  It sums
+        // the density there instead (#237).
+        {0.25, 10.0, 0.25, 0.11, -0.7, 200, 565, 1.0, Option::Call, 17.8517726960193},
+        {0.25, 10.0, 0.25, 0.11, -0.7, 220, 585, 1.0, Option::Call, 17.8224393584629},
     };
     for (const auto& c : cases)
         checkForwardHestonCase(c);
-
-    // At R 826, between the last two rows, I_nu also underflows over the density's bulk, for resets from 184 to 227
-    // days, where nu is 412 and the noncentrality a few units.  The engine priced up to 100 % low there (#237).  It
-    // now throws: at 200 days the density is 0 at the variance's mean, and at 220 it doesn't integrate to 1.
-    const Date today(15, May, 2026);
-    Settings::instance().evaluationDate() = today;
-    for (Integer reset : {200, 220})
-    {
-        BOOST_TEST_CONTEXT("reset in " << reset << " days")
-        {
-            BOOST_CHECK_THROW(forwardHestonNpv(today, Actual365Fixed(), 0.25, 10.0, 0.25, 0.11, -0.7, today + reset,
-                                               today + reset + 365, 1.0, Option::Call),
-                              Error);
-        }
-    }
 }
 
 BOOST_AUTO_TEST_CASE(testHestonAnalyticSmallSigma)
@@ -1113,21 +1104,17 @@ BOOST_AUTO_TEST_CASE(testHestonAnalyticSmallSigma)
         {0.04, 2.0, 0.04, 0.02, -0.7, 182, 365, 1.0, Option::Call, 4.90538183376543},
         {0.04, 2.0, 0.04, 0.01, -0.7, 30, 365, 1.0, Option::Call, 6.410802504424},
         {0.04, 2.0, 0.04, 0.01, -0.7, 182, 365, 1.0, Option::Call, 4.91405131898079},
+        // At longer resets, as R grows, the density's Bessel function underflows, and the engine threw: at sigma
+        // 0.01 a year away, where the density was 0 at the variance's mean, and at sigma 0.02 three years away, where
+        // it didn't integrate to 1.  It sums the density there instead (#237).
+        {0.04, 2.0, 0.04, 0.01, -0.7, 365, 730, 1.0, Option::Call, 6.45000906170507},
+        {0.04, 2.0, 0.04, 0.02, -0.7, 1095, 1460, 1.0, Option::Call, 6.0594682915795},
+        // At R 1.28 million, where the Bessel function would take of order R operations at each node, so it isn't
+        // evaluated where it would underflow (#237).
+        {0.04, 2.0, 0.04, 0.0005, -0.7, 365, 730, 1.0, Option::Call, 6.46300197550829},
     };
     for (const auto& c : cases)
         checkForwardHestonCase(c);
-
-    // At longer resets, as R grows, the density's Bessel function underflows (#237), and the engine throws: at
-    // sigma 0.01 a year away, where the density is 0 at the variance's mean, and at sigma 0.02 three years away,
-    // where it doesn't integrate to 1.
-    const Date today(15, May, 2026);
-    Settings::instance().evaluationDate() = today;
-    BOOST_CHECK_THROW(forwardHestonNpv(today, Actual365Fixed(), 0.04, 2.0, 0.04, 0.01, -0.7, today + 365, today + 730,
-                                       1.0, Option::Call),
-                      Error);
-    BOOST_CHECK_THROW(forwardHestonNpv(today, Actual365Fixed(), 0.04, 2.0, 0.04, 0.02, -0.7, today + 1095, today + 1460,
-                                       1.0, Option::Call),
-                      Error);
 }
 
 BOOST_AUTO_TEST_CASE(testHestonAnalyticResetsNearToday)
