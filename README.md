@@ -162,6 +162,7 @@ no longer checks them, and no CI job builds any of them.
 | #250 | `ql/experimental/credit/{defaultlossmodel.hpp,basket.cpp,randomlosslatentmodel.hpp,integralntdengine.cpp}` | An nth to default prices on the random loss model, each trigger paying at the mean of the recoveries its defaults drew, where the engine threw; `DefaultLossModel::recoveriesBeingNthEventBetween` is new |
 | #280 | `ql/experimental/credit/saddlepointlossmodel.hpp` | Where a factor makes names certain to default, the saddle-point model counts their loss as certain, so within rounding of it its tail probabilities and densities are no longer NaN and its percentile and shortfall no longer throw |
 | #283 | `ql/experimental/credit/saddlepointlossmodel.hpp` | A name that loses nothing no longer takes the saddle-point model's exact regions away from the whole pool |
+| #226 | `ql/time/daycounters/business252.cpp`, `ql/time/calendar.cpp`, `ql/time/calendars/{jointcalendar,bespokecalendar}.cpp` | Business/252 counts share figures between joint, null and bespoke calendars built alike, so calendars built for each instrument no longer count by walking, and keep them when other calendars change; a calendar implementation that depends on another calendar must append its key (`Calendar::Impl::appendBusinessDaysKey`) |
 
 ### New in this fork
 
