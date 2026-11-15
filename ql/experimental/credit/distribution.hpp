@@ -103,6 +103,13 @@ namespace QuantLib
           1) shift the distribution to the left by A, then
           2) cut off at D-A, Pr(L_T > D-A) = 0
           3) ensure Pr(L_T >= 0) = 1, i.e. a density spike at L_T = 0
+
+          Each bucket kept keeps its width, so the buckets need not cover
+          [0, D-A]: the first starts at its lower edge less A, which is
+          above 0 unless A is an edge, and the last can end past D-A.  For
+          the tranche loss's expected shortfall, use
+          trancheExpectedShortfall() on the untransformed distribution
+          instead.
          */
         void tranche(Real attachmentPoint, Real detachmentPoint);
 
@@ -111,9 +118,18 @@ namespace QuantLib
         */
         int locate(Real x);
 
-        /* Returns the average value conditional on values above
-        the passed percentile probability */
+        /*! The expected shortfall at the given level: the mean of
+            confidenceLevel() over the levels above it, or confidenceLevel()
+            itself at a level of 1.
+        */
         Real expectedShortfall(Real percValue);
+
+        /*! The expected shortfall of the tranche loss min(max(L - A, 0), D - A)
+            at the given level: the mean, over the levels above it, of the
+            tranche loss at confidenceLevel().  It leaves the distribution as
+            it is.
+        */
+        Real trancheExpectedShortfall(Real percValue, Real attachmentPoint, Real detachmentPoint);
 
       private:
         int size_;
