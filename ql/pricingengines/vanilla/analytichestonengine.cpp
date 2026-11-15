@@ -138,6 +138,116 @@ namespace QuantLib
             const Real v0T2_, logEpsilon_;
             mutable Size evaluations_ = 0;
         };
+
+        // The u at which the Gaussian control variate, e^{-v0 t u^2 / 2} / u, has fallen to epsilon, as the
+        // Andersen-Piterbarg limit has always taken it, or Null<Real>() where that search fails.
+        Real hestonGaussianLimit(Real v0, Real t, Real epsilon)
+        {
+            try
+            {
+                const Real uHatMaxGuess = std::sqrt(-std::log(epsilon) / (0.5 * v0 * t));
+                return Brent().solve(uHat_Max(0.5 * v0 * t, epsilon), QL_EPSILON * uHatMaxGuess, uHatMaxGuess,
+                                     0.001 * uHatMaxGuess);
+            }
+            catch (const Error&)
+            {
+                return Null<Real>();
+            }
+        }
+
+        /* At rho = -1 or 1 the angled contour takes its angle from r = rho - sigma freq / w alone (#239):
+           tan(phi) = -sign(r) tan(pi / 12), and 0 at r = 0, with freq = log(F / K) and w = v0 + kappa theta t. On
+           the line u (1 + i tan(phi)) - i / 2 the integrand decays as e^{-(w / sigma) (sqrt(1 - rho^2) - r tan(phi)) u}
+           (the AsymptoticChF expansion). Where |rho| < 1 the angle tan(pi / 12) sign(freq) where r freq < 0, and 0
+           elsewhere, keeps that rate at least sqrt(1 - rho^2) w / sigma. At rho = -1 or 1 it would leave none where
+           r freq >= 0, the money included: there the integrand decays only as e^{-a sqrt(u)} while it turns at the
+           rate |r| w / sigma, and an adaptive rule converged falsely on it. With the angle by r alone the rate is
+           (w / sigma) |r| tan(pi / 12) on either side of the money. That the line can be tilted that far, crossing
+           no singularity, was measured: the integral along it agrees with the real line's within 2.2e-12 at 182
+           strikes of 13 models, and with those along an eighth and a half of that slope and along tan(pi / 6)
+           within 1.3e-12 at 2,999 strikes of 600 random models. */
+        // past e^G the growth below cancels digits
+        constexpr Real hestonUnitCorrelationGrowth = 2.0;
+
+        /* Where that line tilts against freq (r and freq of one sign, the strike between F and F e^{-rho w / sigma}),
+           the factor e^{-u tan(phi) freq} in the integrand grows, and the characteristic function and its control
+           variate with it, by up to e^{(tan(phi) freq)^2 / (2 vT (1 - tan(phi)^2))} before they decay, vT = vAvg t:
+           by e^57 a day from expiry at v0 = theta = 0.04 and sigma 0.05, struck halfway to F e^{-rho w / sigma}, where
+           the integral, a difference of the two, made the price 1.8e12 against 33.11. So there the slope is no
+           steeper than keeps that growth to e^G: tan(phi)^2 = 2 G vT / (freq^2 + 2 G vT), which binds beyond
+           about sqrt(26 G) standard deviations from the money. */
+        Real unitCorrelationTanPhi(Real r, Real freq, Real vT)
+        {
+            if (r == 0.0)
+                return 0.0;
+            const Real sign = r > 0.0 ? -1.0 : 1.0, tanPhi = std::tan(M_PI / 12);
+            if (sign * freq >= 0.0)
+                return sign * tanPhi;
+            const Real x = 2.0 * hestonUnitCorrelationGrowth * vT;
+            return sign * std::min(tanPhi, std::sqrt(x / (freq * freq + x)));
+        }
+
+        // past this the integration wasn't checked against a reference, and such limits are refused (#239)
+        constexpr Real hestonMaxIntegrationLimit = 5.0e8;
+
+        /* The integration limit where c_inf is 0, rho -1 or 1, for the angled contour with its control variate or
+           none (#239). On the real line the characteristic function decays there at least as e^{P - a sqrt(u)},
+           times a power of u that only speeds it up, with
+               a = w sqrt(|kappa'| / sigma^3),   P = (w max(kappa', 0) + 2 kappa theta log 2) / sigma^2,
+               w = v0 + kappa theta t,   kappa' = kappa - rho sigma / 2,
+           and on the line of slope tan(phi), unitCorrelationTanPhi(r), at least as that with a times
+           sqrt(2) (1 + tan(phi)^2)^{1/4} cos(pi / 4 + |phi| / 2), and as e^{-c u} with c = (w / sigma) |r tan(phi)|.
+           The limit is the nearer of the two u where each bound, over u^2, falls to epsilon, with L = P - log(epsilon):
+           x^2 for the root x of a x + 2 log(x) = L, and the root of c u + 2 log(u) = L; and it is at least where the
+           Gaussian control variates have fallen to epsilon. Where a and c are both 0 (rho = 1, kappa = sigma / 2 and
+           the strike at F e^{-w / sigma}) the decay is at most a power of u and no limit cuts it off, so u stays at
+           QL_MAX_REAL; near there the limit is past hestonMaxIntegrationLimit. So it is where v0 t or vAvg t is tiny,
+           minutes from expiry or with v0 near 0, from the Gaussian limits: there Gauss-Lobatto missed where the
+           integrand lives and returned the control variate's value, 7.98e-5 for a call worth 5.47e-5. The cap refuses
+           all three. */
+        Real hestonUnitCorrelationLimit(
+            Real rho, Real v0, Real kappa, Real theta, Real sigma, Real t, Real epsilon, Real freq)
+        {
+            QL_REQUIRE(epsilon > 0.0 && epsilon < 1.0, "epsilon (" << epsilon << ") must lie between 0 and 1");
+            const Real w = v0 + kappa * theta * t, kappaPrime = kappa - 0.5 * rho * sigma;
+            const Real r = rho - sigma * freq / w;
+            const Real vT = (theta + (v0 - theta) * detail::decayRatio(kappa * t)) * t;
+            const Real tanPhi = unitCorrelationTanPhi(r, freq, vT);
+            const Real a = w * std::sqrt(std::fabs(kappaPrime) / (sigma * sigma * sigma)) * M_SQRT2 *
+                           std::pow(1.0 + tanPhi * tanPhi, 0.25) *
+                           std::cos(M_PI_4 + 0.5 * std::fabs(std::atan(tanPhi)));
+            const Real c = w / sigma * std::fabs(r * tanPhi);
+            const Real P = (w * std::max(kappaPrime, Real(0.0)) + 2.0 * kappa * theta * M_LN2) / (sigma * sigma);
+            const Real L = P - std::log(epsilon);
+            Real u = QL_MAX_REAL;
+            if (a > 0.0)
+            {
+                const auto f = [a, L](Real x) { return a * x + 2.0 * std::log(x) - L; };
+                const Real lo = std::min(1.0, 0.5 * L / a), hi = std::max(L / a, 1.0);
+                const Real x = Brent().solve(f, QL_EPSILON * hi, 0.5 * (lo + hi), lo, hi);
+                u = x * x;
+            }
+            if (c > 0.0)
+            {
+                const auto f = [c, L](Real x) { return c * x + 2.0 * std::log(x) - L; };
+                const Real lo = std::min(1.0, 0.5 * L / c), hi = std::max(L / c, 1.0);
+                u = std::min(u, Brent().solve(f, QL_EPSILON * hi, 0.5 * (lo + hi), lo, hi));
+            }
+            // the control variate along the line, e^{-A u^2 / 2 + B u}, has fallen to epsilon at the root of
+            // A u^2 / 2 - B u = -log(epsilon), with A = vT (1 - tan(phi)^2) and B = max(-tan(phi) freq, 0)
+            const Real A = vT * (1.0 - tanPhi * tanPhi), B = std::max(-tanPhi * freq, Real(0.0));
+            if (A > 0.0)
+                u = std::max(u, (B + std::sqrt(B * B - 2.0 * A * std::log(epsilon))) / A);
+            const Real uHat = hestonGaussianLimit(v0, t, epsilon);
+            if (uHat != Null<Real>())
+                u = std::max(u, uHat);
+            QL_REQUIRE(u <= hestonMaxIntegrationLimit,
+                       "with rho = " << rho << ", kappa - rho sigma / 2 = " << kappaPrime << ", log(F / K) = " << freq
+                                     << ", v0 t = " << v0 * t << " and vAvg t = " << vT
+                                     << " the integrand decays too slowly for an integration limit: it would be " << u
+                                     << ", past the " << hestonMaxIntegrationLimit << " this engine takes");
+            return u;
+        }
     }
 
     // helper class for integration
@@ -481,15 +591,35 @@ namespace QuantLib
         const Real sigma = enginePtr->model_->sigma();
         const Real rho = enginePtr->model_->rho();
 
+        // where chF takes its value from lnChF
+        useLnChF_ = sigma > 1e-6 || kappa < 1e-8;
+        /* Where the angled contour takes its angle from r alone, and the one exponential below (#239): at rho = -1
+           or 1, where the engine's own rule is Gauss-Lobatto, the one rule that takes a limit there. Gauss-Laguerre
+           and exp-sinh, which priced rho = -1 and 1 before, keep the contour and control variates they had. On this
+           one, at 1 to 30 days, the default 144 nodes' prices moved by up to 6.8e-8, more of them more than 1e-6
+           off; exp-sinh priced the rows where it had thrown, but with OptimalCV at 1e-8 it came out 3.6e-2 off a
+           call worth 1e-15 that it had priced within 4.2e-5. The rule is enginePtr's, so a rule given separately,
+           as to doCalculation, changes neither. */
+        unitCorrelation_ = enginePtr->integration_->takesUnitCorrelationPath(rho);
+
         switch (cpxLog_)
         {
             case AndersenPiterbarg:
-                vAvg_ = (1 - std::exp(-kappa * term)) * (v0 - theta) / (kappa * term) + theta;
+                // (1 - e^{-kappa term}) / (kappa term) through expm1, which keeps its precision where kappa term is
+                // small, and is 1 where it is 0 (#239)
+                vAvg_ = theta + (v0 - theta) * detail::decayRatio(kappa * term);
                 break;
             case AndersenPiterbargOptCV:
                 vAvg_ = -8.0 * std::log(enginePtr->chF(std::complex<Real>(0, alpha_), term).real()) / term;
                 break;
             case AsymptoticChF:
+                /* Its expansion takes log(1 - rho^2) and divides by sqrt(1 - rho^2), so at rho = -1 or 1 psi_ is
+                   -inf and the control variate vanishes; Gauss-Laguerre and exp-sinh price with it as before.
+                   Gauss-Lobatto takes its limit there from the angled contour's decay, worked out for AngledContour
+                   and AngledContourNoCV (#239). */
+                QL_REQUIRE(!unitCorrelation_, "with Gauss-Lobatto the AsymptoticChF control variate needs rho"
+                                              " strictly between -1 and 1, given "
+                                                  << rho << "; AngledContour and OptimalCV take rho = -1 and 1 there");
                 phi_ = -(v0 + term * kappa * theta) / sigma * std::complex<Real>(std::sqrt(1 - rho * rho), rho);
 
                 psi_ = std::complex<Real>((kappa - 0.5 * rho * sigma) * (v0 + term * kappa * theta) +
@@ -500,12 +630,15 @@ namespace QuantLib
                        (sigma * sigma);
                 [[fallthrough]];
             case AngledContour:
-                vAvg_ = (1 - std::exp(-kappa * term)) * (v0 - theta) / (kappa * term) + theta;
+                vAvg_ = theta + (v0 - theta) * detail::decayRatio(kappa * term);
                 [[fallthrough]];
             case AngledContourNoCV:
             {
                 const Real r = rho - sigma * freq_ / (v0 + kappa * theta * term);
-                tanPhi_ = std::tan((r * freq_ < 0.0) ? M_PI / 12 * boost::math::sign(freq_) : 0.0);
+                tanPhi_ = unitCorrelation_ ?
+                              unitCorrelationTanPhi(r, freq_,
+                                                    (theta + (v0 - theta) * detail::decayRatio(kappa * term)) * term) :
+                              std::tan((r * freq_ < 0.0) ? M_PI / 12 * boost::math::sign(freq_) : 0.0);
             }
             break;
             default:
@@ -525,6 +658,24 @@ namespace QuantLib
         {
             const std::complex<Real> h_u(u, u * tanPhi_ - alpha_);
             const std::complex<Real> hPrime(h_u - i);
+
+            if (unitCorrelation_)
+            {
+                /* The characteristic function and its control variate each times e^{-u tanPhi freq} e^{i u freq},
+                   taken as one exponential: at rho = -1 or 1 the line can tilt against freq, and that factor then
+                   grows, past the largest double before the integrand has decayed, while the characteristic
+                   function underflows (#239). */
+                const std::complex<Real> shift(-u * tanPhi_ * freq_, u * freq_);
+                std::complex<Real> phiBS(0.0);
+                if (cpxLog_ == AngledContour)
+                    phiBS = std::exp(-0.5 * vAvg_ * term_ *
+                                         (hPrime * hPrime + std::complex<Real>(-hPrime.imag(), hPrime.real())) +
+                                     shift);
+                const std::complex<Real> lnPhi =
+                    useLnChF_ ? enginePtr_->lnChF(hPrime, term_) : std::log(enginePtr_->chF(hPrime, term_));
+                return (std::complex<Real>(1, tanPhi_) * (phiBS - std::exp(lnPhi + shift)) / (h_u * hPrime)).real() *
+                       s_alpha_;
+            }
 
             std::complex<Real> phiBS(0.0);
             if (cpxLog_ == AngledContour)
@@ -804,24 +955,58 @@ namespace QuantLib
 
                 const Real epsilon = andersenPiterbargEpsilon_ * M_PI / (std::sqrt(strike * fwd) * dr);
 
-                const std::function<Real()> uM = [&]()
-                { return Integration::andersenPiterbargIntegrationLimit(c_inf, epsilon, v0, maturity); };
+                /* At rho = -1 or 1, past 0.15 years, OptimalCV takes AsymptoticChF, whose control variate vanishes
+                   there. Gauss-Lobatto, which threw there before, takes AngledContour instead, the control variate
+                   its limit is worked out for (#239); the other rules keep what they took. */
+                ComplexLogFormula finalLog = cpxLog_;
+                if (cpxLog_ == OptimalCV)
+                    finalLog = integration_->takesUnitCorrelationPath(rho) ?
+                                   AngledContour :
+                                   optimalControlVariate(maturity, v0, kappa, theta, sigma, rho);
 
-                const ComplexLogFormula finalLog =
-                    (cpxLog_ == OptimalCV) ? optimalControlVariate(maturity, v0, kappa, theta, sigma, rho) : cpxLog_;
+                /* Where rho is -1 or 1, c_inf is 0, and the limit comes from the decay that's left along the angled
+                   contour (#239). The Andersen-Piterbarg control variates integrate along the real line, where at
+                   rho = -1 or 1 the integrand decays only as e^{-a sqrt(u)} while it turns at the rate
+                   |rho - sigma log(F / K) / w| w / sigma, and an adaptive rule converges falsely on it. */
+                const std::function<Real()> uM = [&]()
+                {
+                    if (c_inf != 0.0)
+                        return Integration::andersenPiterbargIntegrationLimit(c_inf, epsilon, v0, maturity);
+                    QL_REQUIRE(finalLog == AngledContour || finalLog == AngledContourNoCV,
+                               "at rho = " << rho
+                                           << " the Andersen-Piterbarg control variates' integrand doesn't decay"
+                                              " fast enough for an integration limit; AngledContour and OptimalCV"
+                                              " take one there");
+                    return hestonUnitCorrelationLimit(rho, v0, kappa, theta, sigma, maturity, epsilon,
+                                                      std::log(fwd / strike));
+                };
 
                 const AP_Helper cvHelper(maturity, fwd, strike, finalLog, this, alpha_);
 
                 const Real cvValue = cvHelper.controlVariateValue();
 
-                const Real vAvg = (1 - std::exp(-kappa * maturity)) * (v0 - theta) / (kappa * maturity) + theta;
+                const Real vAvg = theta + (v0 - theta) * detail::decayRatio(kappa * maturity);
 
                 const Real scalingFactor =
                     (cpxLog_ != OptimalCV && cpxLog_ != AsymptoticChF) ?
                         std::max(0.25, std::min(1000.0, 0.25 / std::sqrt(0.5 * vAvg * maturity))) :
                         Real(1.0);
 
-                const Real h_cv = fwd / M_PI * integration_->calculate(c_inf, cvHelper, uM, scalingFactor);
+                Real h_cv;
+                if (c_inf != 0.0)
+                    h_cv = fwd / M_PI * integration_->calculate(c_inf, cvHelper, uM, scalingFactor);
+                else
+                {
+                    try
+                    {
+                        h_cv = fwd / M_PI * integration_->calculate(c_inf, cvHelper, uM, scalingFactor);
+                    }
+                    catch (const Error& e)
+                    {
+                        QL_FAIL("at rho = " << rho
+                                            << ", where the characteristic function decays more slowly: " << e.what());
+                    }
+                }
 
                 evaluations_ += integration_->numberOfEvaluations();
 
@@ -942,7 +1127,7 @@ namespace QuantLib
     {
         if (integrator_ != nullptr)
         {
-            return integrator_->numberOfEvaluations();
+            return headEvaluations_ + integrator_->numberOfEvaluations();
         }
         else if (gaussianQuadrature_ != nullptr)
         {
@@ -952,6 +1137,11 @@ namespace QuantLib
         {
             QL_FAIL("neither Integrator nor GaussianQuadrature given");
         }
+    }
+
+    bool AnalyticHestonEngine::Integration::takesUnitCorrelationPath(Real rho) const
+    {
+        return rho * rho >= 1.0 && intAlgo_ == GaussLobatto;
     }
 
     bool AnalyticHestonEngine::Integration::isAdaptiveIntegration() const
@@ -967,6 +1157,7 @@ namespace QuantLib
     {
 
         Real retVal;
+        headEvaluations_ = 0;
 
         switch (intAlgo_)
         {
@@ -976,6 +1167,12 @@ namespace QuantLib
             case GaussLegendre:
             case GaussChebyshev:
             case GaussChebyshev2nd:
+                /* The change of variable takes every node to infinity where c_inf is 0, and the integral came out 0:
+                   the price was the control variate's alone, 2 % off with the PTD engine at the money (#239). */
+                QL_REQUIRE(c_inf > 0.0, "this integration maps its nodes to u through the decay rate c_inf, given "
+                                            << c_inf
+                                            << ": where it is 0, as at rho = -1 or 1, every node lands at infinity"
+                                               " and the price would be the control variate's alone");
                 retVal = (*gaussianQuadrature_)(integrand1(c_inf, f));
                 break;
             case ExpSinh:
@@ -986,13 +1183,33 @@ namespace QuantLib
             case Trapezoid:
             case GaussLobatto:
             case GaussKronrod:
-                if (maxBound && maxBound() != Null<Real>())
+                if (maxBound && c_inf == 0.0)
+                {
+                    /* Where c_inf is 0, rho -1 or 1, only Gauss-Lobatto is taken (#239). Gauss-Kronrod's first 15
+                       nodes land past where the integrand lives, and it stopped after 15 evaluations 0.2 to 0.87
+                       off. Simpson and trapezoid, which threw there before, weren't measured against their
+                       accuracy where c_inf is positive. */
+                    QL_REQUIRE(intAlgo_ == GaussLobatto, "this integration needs a positive decay rate c_inf, given "
+                                                             << c_inf << "; it is zero where rho is -1 or 1");
+                    const Real U = maxBound();
+                    QL_REQUIRE(U != Null<Real>(), "an integration limit is needed where c_inf is 0");
+                    retVal = unitCorrelationIntegral(f, U);
+                }
+                else if (maxBound && maxBound() != Null<Real>())
                     retVal = (*integrator_)(f, 0.0, maxBound());
                 else
+                {
+                    QL_REQUIRE(c_inf > 0.0, "this integration needs a positive decay rate c_inf, given " << c_inf);
                     retVal = (*integrator_)(integrand2(c_inf, f), 0.0, 1.0);
+                }
                 break;
             case DiscreteTrapezoid:
             case DiscreteSimpson:
+                // at c_inf = 0 their fixed nodes were 1e-6 to 1e4 off, on [0, U] and as unitCorrelationIntegral splits
+                // it
+                QL_REQUIRE(c_inf > 0.0, "the discrete Simpson and trapezoid rules need a positive decay rate c_inf,"
+                                        " given "
+                                            << c_inf << "; it is zero where rho is -1 or 1");
                 if (maxBound && maxBound() != Null<Real>())
                     retVal = (*integrator_)(f, 0.0, maxBound());
                 else
@@ -1005,6 +1222,32 @@ namespace QuantLib
         return retVal;
     }
 
+    /* Where c_inf is 0, rho -1 or 1, the integrand can decay as slowly as e^{-a sqrt(u)} and the limit U is far out
+       (#239). Gauss-Lobatto sizes its tolerance from 13 points across [0, U], whose endpoint term grows with U, while
+       the integrand lives near 0: on [0, U] its error was about U / 100 times its tolerance at the money. So [0, 1]
+       is integrated in u, which keeps the integrand's value at 0, and [1, U] in x = sqrt(u), as 2 x f(x^2), where
+       that decay is e^{-a x}. Each part sizes its tolerance from its own integral; where [0, 1]'s is small against
+       the whole's, as near the money at a few days, that tolerance falls below the integrand's rounding and [0, 1]
+       doesn't converge. There [0, U] is integrated whole instead. Each integration may take the integrator's
+       maxEvaluations, so up to about twice that may be taken in all, and numberOfEvaluations() counts every one. */
+    Real AnalyticHestonEngine::Integration::unitCorrelationIntegral(const std::function<Real(Real)>& f, Real U) const
+    {
+        if (U <= 1.0)
+            return (*integrator_)(f, 0.0, U);
+        Real head;
+        try
+        {
+            head = (*integrator_)(f, 0.0, 1.0);
+        }
+        catch (const Error&)
+        {
+            headEvaluations_ = integrator_->numberOfEvaluations();
+            return (*integrator_)(f, 0.0, U);
+        }
+        headEvaluations_ = integrator_->numberOfEvaluations();
+        return head + (*integrator_)([&f](Real x) { return 2.0 * x * f(x * x); }, 1.0, std::sqrt(U));
+    }
+
     Real
     AnalyticHestonEngine::Integration::calculate(Real c_inf, const std::function<Real(Real)>& f, Real maxBound) const
     {
@@ -1014,24 +1257,17 @@ namespace QuantLib
 
     Real AnalyticHestonEngine::Integration::andersenPiterbargIntegrationLimit(Real c_inf, Real epsilon, Real v0, Real t)
     {
+        QL_REQUIRE(c_inf > 0.0, "the Andersen-Piterbarg integration limit needs a positive decay rate c_inf, given "
+                                    << c_inf << "; it is zero where rho is -1 or 1");
+        QL_REQUIRE(epsilon > 0.0 && epsilon < 1.0, "epsilon (" << epsilon << ") must lie between 0 and 1");
 
         const Real uMaxGuess = -std::log(epsilon) / c_inf;
         const Real uMaxStep = 0.1 * uMaxGuess;
 
         const Real uMax = Brent().solve(u_Max(c_inf, epsilon), QL_EPSILON * uMaxGuess, uMaxGuess, uMaxStep);
+        const Real uHatMax = hestonGaussianLimit(v0, t, epsilon);
 
-        try
-        {
-            const Real uHatMaxGuess = std::sqrt(-std::log(epsilon) / (0.5 * v0 * t));
-            const Real uHatMax = Brent().solve(uHat_Max(0.5 * v0 * t, epsilon), QL_EPSILON * uHatMaxGuess, uHatMaxGuess,
-                                               0.001 * uHatMaxGuess);
-
-            return std::max(uMax, uHatMax);
-        }
-        catch (const Error&)
-        {
-            return uMax;
-        }
+        return uHatMax != Null<Real>() ? std::max(uMax, uHatMax) : uMax;
     }
 
 

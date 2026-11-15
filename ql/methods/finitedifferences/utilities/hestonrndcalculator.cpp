@@ -18,6 +18,7 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/math/expm1.hpp>
 #include <ql/math/functional.hpp>
 #include <ql/math/integrals/gausslobattointegral.hpp>
 #include <ql/methods/finitedifferences/utilities/bsmrndcalculator.hpp>
@@ -153,7 +154,8 @@ namespace QuantLib
         const Real kappa = hestonProcess_->kappa();
         const Real theta = hestonProcess_->theta();
 
-        const Volatility expVol = std::sqrt(theta + (v0 - theta) * (1 - std::exp(-kappa * t)) / (t * kappa));
+        // through expm1, which keeps its precision where kappa t is small, and is 1 where it is 0
+        const Volatility expVol = std::sqrt(theta + (v0 - theta) * detail::decayRatio(kappa * t));
 
         const ext::shared_ptr<BlackScholesMertonProcess> bsmProcess(ext::make_shared<BlackScholesMertonProcess>(
             hestonProcess_->s0(), hestonProcess_->dividendYield(), hestonProcess_->riskFreeRate(),

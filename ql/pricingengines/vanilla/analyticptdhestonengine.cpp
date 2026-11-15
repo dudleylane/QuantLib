@@ -22,6 +22,7 @@
 */
 
 #include <ql/instruments/payoffs.hpp>
+#include <ql/math/expm1.hpp>
 #include <ql/math/functional.hpp>
 #include <ql/pricingengines/blackcalculator.hpp>
 #include <ql/pricingengines/vanilla/analyticptdhestonengine.hpp>
@@ -348,7 +349,8 @@ namespace QuantLib
                 const std::function<Real()> uM = [=]()
                 { return Integration::andersenPiterbargIntegrationLimit(c_inf, epsilon, v0, term); };
 
-                const Real vAvg = (1 - std::exp(-kappaAvg * term)) * (v0 - thetaAvg) / (kappaAvg * term) + thetaAvg;
+                // through expm1, which keeps its precision where kappaAvg term is small, and is 1 where it is 0
+                const Real vAvg = thetaAvg + (v0 - thetaAvg) * detail::decayRatio(kappaAvg * term);
 
                 const Real bsPrice =
                     BlackCalculator(Option::Call, strike, fwdPrice, std::sqrt(vAvg * term), riskFreeDiscount).value();
