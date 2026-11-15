@@ -36,6 +36,10 @@ namespace QuantLib
     /*! This class is used with the BinomialDoubleBarrierEngine to
         implement a standard binomial algorithm for double barrier
         options
+
+        As DiscretizedVanillaOption does, and so its knock-in leg, it starts a European option from the payoff at the
+        exercise time, whatever its sign, and has to be initialized at that time, as BinomialDoubleBarrierEngine does
+        (#243).
     */
     class DiscretizedDoubleBarrierOption : public DiscretizedAsset
     {
@@ -71,6 +75,9 @@ namespace QuantLib
 
         \note This algorithm is only suitable if the payoff can be approximated
         linearly, e.g. is not usable for cash-or-nothing payoffs.
+
+        It starts from the values of its unenhanced DiscretizedDoubleBarrierOption, and so from a European payoff
+        whatever its sign (#243).
     */
     class DiscretizedDermanKaniDoubleBarrierOption : public DiscretizedAsset
     {

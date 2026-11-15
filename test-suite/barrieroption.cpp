@@ -2481,6 +2481,91 @@ BOOST_AUTO_TEST_CASE(testVannaVolgaInterpolationSaysWhereItsMethodFails)
                           saying("doesn't hold for this smile"));
 }
 
+BOOST_AUTO_TEST_CASE(testBinomialEuropeanKeepsANegativePayoff)
+{
+    BOOST_TEST_MESSAGE("Testing that the binomial barrier engines keep a European payoff's negative part...");
+
+    // A gap call pays S - K2 above its trigger, 100, so it's negative between the two, and a European holder can't
+    // decline it.  The lattices floored the payoff at 0 at expiry, and gave 0 to 5.87 where these knock-outs are
+    // worth -14.05 to 5.15 (#243).  The expected values are the call struck at the trigger less K2 - 100 barrier
+    // digitals there, each digital from AnalyticBarrierEngine's calls by central differences at 0.02 and 0.01,
+    // extrapolated; a knock-in and a knock-out add up to the vanilla gap call, AnalyticEuropeanEngine's.  Asked for
+    // 1,000 steps, the engine takes 1,011 for the barrier at 120 and 1,023 for the one at 85.  At an odd number of
+    // steps the trigger, at the spot, lies midway between two nodes at expiry: at the odd numbers of steps the engine
+    // takes between 389 and 2,671, the knock-outs were within 0.013 and the sums within 0.005.  At an even number a
+    // node lies on the trigger, where the payoff jumps, and at 1,082 steps they were 0.46 and 0.57 off (#292).
+    const Date today(12, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(ext::make_shared<SimpleQuote>(100.0)), Handle<YieldTermStructure>(flatRate(today, 0.0, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.05, dc)), Handle<BlackVolTermStructure>(flatVol(today, 0.20, dc)));
+    const auto european = ext::make_shared<EuropeanExercise>(today + 365);
+    const auto american = ext::make_shared<AmericanExercise>(today, today + 365);
+    const std::vector<std::pair<std::string, ext::shared_ptr<PricingEngine>>> engines = {
+        {"plain", ext::make_shared<BinomialBarrierEngine<CoxRossRubinstein, DiscretizedBarrierOption>>(process, 1000)},
+        {"Derman-Kani", ext::make_shared<BinomialBarrierEngine<CoxRossRubinstein, DiscretizedDermanKaniBarrierOption>>(
+                            process, 1000)}};
+
+    const struct
+    {
+        Barrier::Type knockOut, knockIn;
+        Real barrier, secondStrike, expected, vanilla;
+    } cases[] = {
+        {Barrier::UpOut, Barrier::UpIn, 120.0, 110.0, -0.524392, 5.127335},
+        {Barrier::DownOut, Barrier::DownIn, 85.0, 110.0, 5.148434, 5.127335},
+        {Barrier::UpOut, Barrier::UpIn, 120.0, 150.0, -7.326220, -16.165657},
+        {Barrier::DownOut, Barrier::DownIn, 85.0, 150.0, -14.054912, -16.165657},
+    };
+    for (const auto& [name, engine] : engines)
+    {
+        for (const auto& c : cases)
+        {
+            BOOST_TEST_CONTEXT(name << " lattice, " << c.knockOut << " at " << c.barrier << ", paying S - "
+                                    << c.secondStrike)
+            {
+                const auto payoff = ext::make_shared<GapPayoff>(Option::Call, 100.0, c.secondStrike);
+                BarrierOption knockOut(c.knockOut, c.barrier, 0.0, payoff, european);
+                BarrierOption knockIn(c.knockIn, c.barrier, 0.0, payoff, european);
+                knockOut.setPricingEngine(engine);
+                knockIn.setPricingEngine(engine);
+                BOOST_CHECK_SMALL(knockOut.NPV() - c.expected, 0.02);
+                BOOST_CHECK_SMALL(knockOut.NPV() + knockIn.NPV() - c.vanilla, 0.005);
+            }
+        }
+
+        // A cash-or-nothing call paying -10 is worth minus one paying 10: exactly on the plain lattice, while the
+        // Derman-Kani one keeps, at expiry, the larger of its interpolated value and the payoff next to the barrier,
+        // 3.6e-5 off here for the up-and-out.  The parent's were worth 0.
+        const auto pays = ext::make_shared<CashOrNothingPayoff>(Option::Call, 100.0, 10.0);
+        const auto owes = ext::make_shared<CashOrNothingPayoff>(Option::Call, 100.0, -10.0);
+        for (const auto& [type, barrier] :
+             {std::make_pair(Barrier::DownOut, 85.0), std::make_pair(Barrier::DownIn, 85.0),
+              std::make_pair(Barrier::UpOut, 120.0), std::make_pair(Barrier::UpIn, 120.0)})
+        {
+            BOOST_TEST_CONTEXT(name << " lattice, " << type << " at " << barrier << ", cash or nothing")
+            {
+                BarrierOption paying(type, barrier, 0.0, pays, european);
+                BarrierOption owing(type, barrier, 0.0, owes, european);
+                paying.setPricingEngine(engine);
+                owing.setPricingEngine(engine);
+                BOOST_CHECK_GT(paying.NPV(), 0.5);
+                BOOST_CHECK_SMALL(owing.NPV() + paying.NPV(), name == "plain" ? 1.0e-12 : 1.0e-4);
+            }
+        }
+
+        // With American exercise the holder declines a negative payoff: up and out at 120, a gap call paying S - 150
+        // is never worth exercising.
+        BOOST_TEST_CONTEXT(name << " lattice, American")
+        {
+            BarrierOption option(Barrier::UpOut, 120.0, 0.0, ext::make_shared<GapPayoff>(Option::Call, 100.0, 150.0),
+                                 american);
+            option.setPricingEngine(engine);
+            BOOST_CHECK_EQUAL(option.NPV(), 0.0);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

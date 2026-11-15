@@ -32,6 +32,10 @@
 namespace QuantLib
 {
 
+    //! Discretized barrier option
+    /*! As DiscretizedVanillaOption does, and so its knock-in leg, it starts a European option from the payoff at the
+        exercise time, whatever its sign, and has to be initialized at that time, as BinomialBarrierEngine does (#243).
+    */
     class DiscretizedBarrierOption : public DiscretizedAsset
     {
       public:
@@ -58,6 +62,10 @@ namespace QuantLib
         DiscretizedVanillaOption vanilla_;
     };
 
+    //! Derman-Kani discretized barrier option
+    /*! It starts from the values of its unenhanced DiscretizedBarrierOption, and so from a European payoff whatever its
+        sign (#243).
+    */
     class DiscretizedDermanKaniBarrierOption : public DiscretizedAsset
     {
       public:

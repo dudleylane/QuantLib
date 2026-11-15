@@ -32,6 +32,12 @@
 namespace QuantLib
 {
 
+    //! Discretized vanilla option
+    /*! For European exercise it starts from the payoff at the exercise time, whatever the payoff's sign, as the
+        holder can't decline it, and so it has to be initialized at that time, as the binomial engines do; initialized
+        later, it would floor the payoff at 0 there.  With American or Bermudan exercise it starts at 0 and takes the
+        larger of the payoff and the value at each exercise time (#243).
+    */
     class DiscretizedVanillaOption : public DiscretizedAsset
     {
       public:
