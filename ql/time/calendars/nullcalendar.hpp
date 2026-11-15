@@ -45,6 +45,9 @@ namespace QuantLib
             std::string name() const override { return "Null"; }
             bool isWeekend(Weekday) const override { return false; }
             bool isBusinessDay(const Date&) const override { return true; }
+            // every date is a business day, so null calendars share
+            // Business252's figures (#226)
+            void appendBusinessDaysKey(std::vector<std::uintptr_t>& key) const override { key.push_back(2); }
         };
 
       public:

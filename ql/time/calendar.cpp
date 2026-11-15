@@ -32,7 +32,9 @@ namespace QuantLib
     namespace
     {
 
-        std::atomic<unsigned long long> calendarChanges(0);
+        // Every change to a calendar's business days, and those keys don't
+        // show (see detail::recordCalendarChange).
+        std::atomic<unsigned long long> calendarChanges(0), unkeyedCalendarChanges(0);
 
         // Requires: from < to.
         Date::serial_type
@@ -56,11 +58,43 @@ namespace QuantLib
             return calendarChanges.load();
         }
 
-        void recordCalendarChange()
+        unsigned long long unkeyedCalendarChangeCount()
+        {
+            return unkeyedCalendarChanges.load();
+        }
+
+        void recordKeyedCalendarChange()
         {
             ++calendarChanges;
         }
 
+        void recordCalendarChange()
+        {
+            // This one first, so that a cache that reads the count of all
+            // changes, and then this one, sees this change in both or in
+            // this one only, and drops its figures before using them again.
+            ++unkeyedCalendarChanges;
+            ++calendarChanges;
+        }
+
+        void appendBusinessDaysKey(const Calendar& calendar, std::vector<std::uintptr_t>& key)
+        {
+            QL_REQUIRE(calendar.impl_, "no calendar implementation provided");
+            calendar.impl_->appendBusinessDaysKey(key);
+            for (const std::set<Date>* holidays : {&calendar.impl_->addedHolidays, &calendar.impl_->removedHolidays})
+            {
+                key.push_back(holidays->size());
+                for (const Date& d : *holidays)
+                    key.push_back(static_cast<std::uintptr_t>(d.serialNumber()));
+            }
+        }
+
+    }
+
+    void Calendar::Impl::appendBusinessDaysKey(std::vector<std::uintptr_t>& key) const
+    {
+        key.push_back(0);
+        key.push_back(reinterpret_cast<std::uintptr_t>(this));
     }
 
     void Calendar::addHoliday(const Date& d)
@@ -79,7 +113,7 @@ namespace QuantLib
         // Otherwise, add it.
         if (impl_->isBusinessDay(_d))
             impl_->addedHolidays.insert(_d);
-        detail::recordCalendarChange();
+        detail::recordKeyedCalendarChange();
     }
 
     void Calendar::removeHoliday(const Date& d)
@@ -98,14 +132,14 @@ namespace QuantLib
         // Otherwise, add it.
         if (!impl_->isBusinessDay(_d))
             impl_->removedHolidays.insert(_d);
-        detail::recordCalendarChange();
+        detail::recordKeyedCalendarChange();
     }
 
     void Calendar::resetAddedAndRemovedHolidays()
     {
         impl_->addedHolidays.clear();
         impl_->removedHolidays.clear();
-        detail::recordCalendarChange();
+        detail::recordKeyedCalendarChange();
     }
 
     Date Calendar::adjust(const Date& d, BusinessDayConvention c) const

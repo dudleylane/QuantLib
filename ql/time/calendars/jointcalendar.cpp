@@ -100,6 +100,17 @@ namespace QuantLib
         }
     }
 
+    // The rule and the calendars joined, each with its own holidays, so
+    // joint calendars built alike share Business252's figures (#226).
+    void JointCalendar::Impl::appendBusinessDaysKey(std::vector<std::uintptr_t>& key) const
+    {
+        key.push_back(1);
+        key.push_back(static_cast<std::uintptr_t>(rule_));
+        key.push_back(calendars_.size());
+        for (const Calendar& c : calendars_)
+            detail::appendBusinessDaysKey(c, key);
+    }
+
     bool JointCalendar::Impl::isBusinessDay(const Date& date) const
     {
         std::vector<Calendar>::const_iterator i;

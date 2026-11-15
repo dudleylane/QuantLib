@@ -41,6 +41,14 @@ namespace QuantLib
         return !isWeekend(date.weekday());
     }
 
+    // Its weekend; its name doesn't change its business days.  So bespoke
+    // calendars built alike share Business252's figures (#226).
+    void BespokeCalendar::Impl::appendBusinessDaysKey(std::vector<std::uintptr_t>& key) const
+    {
+        key.push_back(3);
+        key.push_back(weekend_mask_);
+    }
+
     void BespokeCalendar::Impl::addWeekend(Weekday w)
     {
         weekend_mask_ |= (1 << w);
@@ -56,7 +64,7 @@ namespace QuantLib
     void BespokeCalendar::addWeekend(Weekday w)
     {
         bespokeImpl_->addWeekend(w);
-        detail::recordCalendarChange();
+        detail::recordKeyedCalendarChange();
     }
 
 }

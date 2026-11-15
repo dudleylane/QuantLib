@@ -852,6 +852,202 @@ BOOST_AUTO_TEST_CASE(testBusiness252WithShortLivedCalendars)
     }
 }
 
+// A five-day week whose implementation counts the dates it's asked about,
+// and which can take Fridays off: a change its key doesn't show, so it
+// records it through detail::recordCalendarChange.
+class Business252CountingCalendar : public Calendar
+{
+    class Impl final : public Calendar::WesternImpl
+    {
+      public:
+        mutable Size asked = 0;
+        bool fridaysOff = false;
+        std::string name() const override { return "Business252 counting"; }
+        bool isBusinessDay(const Date& d) const override
+        {
+            ++asked;
+            return !isWeekend(d.weekday()) && !(fridaysOff && d.weekday() == Friday);
+        }
+    };
+    ext::shared_ptr<Impl> counting_;
+
+  public:
+    Business252CountingCalendar() : counting_(ext::make_shared<Impl>()) { impl_ = counting_; }
+    Size asked() const { return counting_->asked; }
+    void takeFridaysOff()
+    {
+        counting_->fridaysOff = true;
+        QuantLib::detail::recordCalendarChange();
+    }
+};
+
+BOOST_AUTO_TEST_CASE(testBusiness252WithCalendarsBuiltAlike)
+{
+    BOOST_TEST_MESSAGE("Testing business/252 day counter with joint calendars built alike...");
+
+    // A joint calendar built for each count, as for each instrument, on the
+    // same calendars: their business days are the same, so after the first
+    // count they share its figures for whole months and years, and a count
+    // asks only about the 17 days from 15 to 31 January 2030 and the 14 from
+    // 1 to 14 June 2032 (#226).  Before, each filled its own figures, asking
+    // about every day of the span.  The passes outnumber the calendars kept
+    // per thread.
+    const Business252CountingCalendar counting;
+    const Date d1(15, January, 2030), d2(15, June, 2032);
+    for (Size i = 0; i < 12; ++i)
+    {
+        const JointCalendar joint(counting, UnitedStates(UnitedStates::Settlement));
+        const Size before = counting.asked();
+        const Date::serial_type counted = Business252(joint).dayCount(d1, d2);
+        const Size asked = counting.asked() - before;
+        const Date::serial_type walked = joint.businessDaysBetween(d1, d2);
+        BOOST_CHECK_MESSAGE(counted == walked, "pass " << i << ": Business252 counts " << counted
+                                                       << " business days, the calendar " << walked);
+        if (i > 0)
+            BOOST_CHECK_MESSAGE(asked == 31, "pass " << i << ": Business252 asked about " << asked
+                                                     << " days, where the shared figures leave 31");
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBusiness252WithEqualCalendarsOneOfWhichChanges)
+{
+    BOOST_TEST_MESSAGE("Testing business/252 day counter with equal calendars, one of which changes...");
+
+    // Calendars with the same business days share figures (#226) until one
+    // of them changes; from then on each counts its own.  After each change,
+    // the unchanged calendar fills figures first, which the changed one must
+    // not take.  15 March 2030 and 14 March 2031 are in whole months of the
+    // spans, and 2031 in a whole year.  detail::recordCalendarChange() drops
+    // this thread's figures first, so that the first calendar of each pair
+    // makes the entry the other shares, and not a calendar an earlier case
+    // left with the same key.
+    QuantLib::detail::recordCalendarChange();
+    BespokeCalendar first("Business252 equal, first"), second("Business252 equal, second");
+    for (BespokeCalendar* c : {&first, &second})
+    {
+        c->addWeekend(Saturday);
+        c->addWeekend(Sunday);
+    }
+    checkBusiness252AgainstCalendar(first, "first bespoke, before any change");
+    checkBusiness252AgainstCalendar(second, "second bespoke, before any change");
+    second.addHoliday(Date(15, March, 2030));
+    checkBusiness252AgainstCalendar(first, "first bespoke, after a holiday on the second");
+    checkBusiness252AgainstCalendar(second, "second bespoke, after a holiday on it");
+    second.removeHoliday(Date(15, March, 2030));
+    first.addWeekend(Friday);
+    checkBusiness252AgainstCalendar(second, "second bespoke, after a weekend day on the first");
+    checkBusiness252AgainstCalendar(first, "first bespoke, after a weekend day on it");
+
+    NullCalendar firstNull, secondNull;
+    checkBusiness252AgainstCalendar(firstNull, "first null, before any change");
+    checkBusiness252AgainstCalendar(secondNull, "second null, before any change");
+    secondNull.addHoliday(Date(14, March, 2031));
+    checkBusiness252AgainstCalendar(firstNull, "first null, after a holiday on the second");
+    checkBusiness252AgainstCalendar(secondNull, "second null, after a holiday on it");
+    firstNull.addHoliday(Date(15, March, 2030));
+    checkBusiness252AgainstCalendar(secondNull, "second null, after a holiday on each, on other dates");
+    checkBusiness252AgainstCalendar(firstNull, "first null, after a holiday on each, on other dates");
+
+    const UnitedStates settlement(UnitedStates::Settlement);
+    JointCalendar firstJoint(settlement, NullCalendar()), secondJoint(settlement, NullCalendar());
+    checkBusiness252AgainstCalendar(firstJoint, "first joint, before any change");
+    checkBusiness252AgainstCalendar(secondJoint, "second joint, before any change");
+    secondJoint.addHoliday(Date(15, March, 2030));
+    checkBusiness252AgainstCalendar(firstJoint, "first joint, after a holiday on the second");
+    checkBusiness252AgainstCalendar(secondJoint, "second joint, after a holiday on it");
+}
+
+BOOST_AUTO_TEST_CASE(testBusiness252AfterChangesToOtherCalendars)
+{
+    BOOST_TEST_MESSAGE("Testing business/252 day counter after changes to other calendars...");
+
+    // A change to a calendar's holidays or weekend leaves in use the
+    // figures of the calendars it doesn't change (#226): building a bespoke
+    // calendar, which sets its weekend, and adding a holiday to another
+    // calendar leave a count asking only about the 31 days of the span's
+    // part-months.  A change keys don't show, recorded through
+    // detail::recordCalendarChange, drops the figures, and the next count
+    // asks about all 882 days of the span again.
+    Business252CountingCalendar counting;
+    const DayCounter dayCounter = Business252(counting);
+    const Date d1(15, January, 2030), d2(15, June, 2032);
+    auto check = [&](const std::string& when, Size expected)
+    {
+        const Size before = counting.asked();
+        const Date::serial_type counted = dayCounter.dayCount(d1, d2);
+        const Size asked = counting.asked() - before;
+        const Date::serial_type walked = counting.businessDaysBetween(d1, d2);
+        BOOST_CHECK_MESSAGE(counted == walked,
+                            when << ": Business252 counts " << counted << " business days, the calendar " << walked);
+        BOOST_CHECK_MESSAGE(asked == expected, when << ": Business252 asked about " << asked << " days, where "
+                                                    << expected << " were due");
+    };
+    check("first count", 882);
+    check("second count", 31);
+    BespokeCalendar other("Business252 other");
+    other.addWeekend(Sunday);
+    check("after building a bespoke calendar", 31);
+    NullCalendar another;
+    another.addHoliday(Date(14, March, 2031));
+    check("after a holiday on another calendar", 31);
+    counting.takeFridaysOff();
+    check("after a change keys don't show", 882);
+    check("a count after that", 31);
+}
+
+// A calendar on another, with Wednesdays off too.  Its business days depend
+// on the other calendar, so its implementation appends that calendar's key,
+// as Calendar::Impl::appendBusinessDaysKey asks.
+class Business252WednesdaysOffCalendar : public Calendar
+{
+    class Impl final : public Calendar::Impl
+    {
+        Calendar underlying_;
+
+      public:
+        explicit Impl(Calendar underlying) : underlying_(std::move(underlying)) {}
+        std::string name() const override { return underlying_.name() + " with Wednesdays off"; }
+        bool isWeekend(Weekday w) const override { return underlying_.isWeekend(w); }
+        bool isBusinessDay(const Date& d) const override
+        {
+            return d.weekday() != Wednesday && underlying_.isBusinessDay(d);
+        }
+        void appendBusinessDaysKey(std::vector<std::uintptr_t>& key) const override
+        {
+            static const char tag = 0;
+            key.push_back(reinterpret_cast<std::uintptr_t>(&tag));
+            QuantLib::detail::appendBusinessDaysKey(underlying_, key);
+        }
+    };
+
+  public:
+    explicit Business252WednesdaysOffCalendar(Calendar underlying)
+    {
+        impl_ = ext::make_shared<Impl>(std::move(underlying));
+    }
+};
+
+BOOST_AUTO_TEST_CASE(testBusiness252WithCalendarsOnAnotherThatChanges)
+{
+    BOOST_TEST_MESSAGE("Testing business/252 day counter with calendars on another that changes...");
+
+    // Two calendars built alike on a third, whose implementations append
+    // its key (#226), share figures, and follow the third calendar's
+    // changes.  14 March 2031 is a Friday in a whole year of a span.
+    BespokeCalendar underlying("Business252 underlying");
+    underlying.addWeekend(Saturday);
+    underlying.addWeekend(Sunday);
+    const Business252WednesdaysOffCalendar first(underlying), second(underlying);
+    checkBusiness252AgainstCalendar(first, "first, before any change");
+    checkBusiness252AgainstCalendar(second, "second, before any change");
+    underlying.addHoliday(Date(14, March, 2031));
+    checkBusiness252AgainstCalendar(first, "first, after a holiday on the calendar it's on");
+    checkBusiness252AgainstCalendar(second, "second, after a holiday on the calendar it's on");
+    underlying.addWeekend(Friday);
+    checkBusiness252AgainstCalendar(second, "second, after a weekend day on the calendar it's on");
+    checkBusiness252AgainstCalendar(first, "first, after a weekend day on the calendar it's on");
+}
+
 BOOST_AUTO_TEST_CASE(testThirty365)
 {
 

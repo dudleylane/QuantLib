@@ -20,6 +20,7 @@
 
 #include <ql/time/daycounters/business252.hpp>
 #include <algorithm>
+#include <cstdint>
 #include <map>
 #include <vector>
 
@@ -32,16 +33,22 @@ namespace QuantLib
         typedef std::map<Year, std::map<Month, Date::serial_type>> Cache;
         typedef std::map<Year, Date::serial_type> OuterCache;
 
-        // One calendar's business days in whole months and in whole years.
-        // Calendars are told apart by their implementation, since two can
-        // share a name (#122).  The copy of the calendar keeps that
-        // implementation alive, so that no other calendar can be given its
-        // address while the figures are kept.
+        // The business days in whole months and in whole years of calendars
+        // with a given key (detail::appendBusinessDaysKey).  Calendars with
+        // the same key share them, such as joint calendars built alike for
+        // each instrument (#226); others don't, even under the same name
+        // (#122).  The key is the one the calendar kept had when the entry
+        // was made, and the copy keeps its implementation, and the ones in
+        // the key, alive, so that no other calendar can be given their
+        // addresses while the figures are kept.
         struct CalendarFigures
         {
-            const void* implementation;
+            const void* implementation; // the calendar kept's
             Calendar calendar;
-            unsigned long long changes; // detail::calendarChangeCount() when filled
+            std::vector<std::uintptr_t> key;
+            // detail::calendarChangeCount() when the calendar kept was last
+            // found to have the key; only a lookup of that calendar sets it.
+            unsigned long long checked;
             Cache monthly;
             OuterCache yearly;
         };
@@ -55,36 +62,55 @@ namespace QuantLib
 
         // Per thread, because a day count across months writes to these even
         // when each thread has its own day counter (#87).  Most recently used
-        // first, for at most this many calendars.
+        // first, for at most this many calendars, all made under one count of
+        // the changes that keys don't show.
         constexpr std::size_t maxCalendarFigures = 8;
         thread_local std::vector<CalendarFigures> calendarFigures_;
+        thread_local unsigned long long calendarFiguresUnkeyedChanges_ = 0;
 
         CalendarFigures& figuresFor(const Calendar& calendar)
         {
-            const void* implementation = implementationOf(calendar);
+            // In this order: see detail::recordCalendarChange.
             const unsigned long long changes = detail::calendarChangeCount();
+            const unsigned long long unkeyedChanges = detail::unkeyedCalendarChangeCount();
+            if (unkeyedChanges != calendarFiguresUnkeyedChanges_)
+            {
+                // some calendar's business days changed in a way keys don't
+                // show, so none of the figures can be trusted.
+                calendarFigures_.clear();
+                calendarFiguresUnkeyedChanges_ = unkeyedChanges;
+            }
+            const void* implementation = implementationOf(calendar);
             auto i =
                 std::find_if(calendarFigures_.begin(), calendarFigures_.end(),
                              [implementation](const CalendarFigures& f) { return f.implementation == implementation; });
-            if (i == calendarFigures_.end())
+            if (i == calendarFigures_.end() || i->checked != changes)
             {
-                if (calendarFigures_.size() == maxCalendarFigures)
-                    calendarFigures_.pop_back();
-                calendarFigures_.insert(calendarFigures_.begin(),
-                                        CalendarFigures{implementation, calendar, changes, {}, {}});
-                return calendarFigures_.front();
+                // A calendar not kept, or one whose holidays or weekend may
+                // have changed since, or those of a calendar it's joined with.
+                // Only the calendar counted on is read, not the ones kept,
+                // which other threads may be changing.
+                std::vector<std::uintptr_t> key;
+                detail::appendBusinessDaysKey(calendar, key);
+                i = std::find_if(calendarFigures_.begin(), calendarFigures_.end(),
+                                 [&key](const CalendarFigures& f) { return f.key == key; });
+                if (i == calendarFigures_.end())
+                {
+                    if (calendarFigures_.size() == maxCalendarFigures)
+                        calendarFigures_.pop_back();
+                    calendarFigures_.insert(calendarFigures_.begin(),
+                                            CalendarFigures{implementation, calendar, std::move(key), changes, {}, {}});
+                    return calendarFigures_.front();
+                }
+                // Figures are those of their key, whoever has it now; but
+                // only the calendar kept can show it still has it.  A
+                // calendar that changed leaves its figures to its old key,
+                // which it may have again.
+                if (i->implementation == implementation)
+                    i->checked = changes;
             }
             std::rotate(calendarFigures_.begin(), i, i + 1);
-            CalendarFigures& figures = calendarFigures_.front();
-            if (figures.changes != changes)
-            {
-                // some calendar's holidays or weekend changed since these were
-                // filled, possibly a calendar this one is joined with.
-                figures.monthly.clear();
-                figures.yearly.clear();
-                figures.changes = changes;
-            }
-            return figures;
+            return calendarFigures_.front();
         }
 
         bool sameYear(const Date& d1, const Date& d2)
