@@ -53,6 +53,9 @@ namespace QuantLib
         expiry if neither is touched for a knock-in, as AnalyticDoubleBarrierEngine values it.  The
         additional result "RebatePrice" is its part of the value.
 
+        The volatility at the strike comes from VannaVolgaInterpolation, whose documentation says
+        where the method holds.
+
         \ingroup barrierengines
     */
     template <class DoubleBarrierEngine>
