@@ -81,13 +81,16 @@ namespace QuantLib
         Real dividendRho(Time maturity) const;
 
         /*! Probability of being in the money in the bond martingale
-            measure, i.e. N(d2).
+            measure: N(d2) for a call and N(-d2) for a put, whose
+            exercise region is below the strike.  Until #235 a put got
+            the call's.
             It is a risk-neutral probability, not the real world one.
         */
         Real itmCashProbability() const;
 
         /*! Probability of being in the money in the asset martingale
-            measure, i.e. N(d1).
+            measure: N(d1) for a call and N(-d1) for a put.  Until #235
+            a put got the call's.
             It is a risk-neutral probability, not the real world one.
         */
         Real itmAssetProbability() const;
@@ -118,22 +121,14 @@ namespace QuantLib
         // The payoff's jump as the asset rises through the strike, so that F alpha' + x beta' = jump_ n(d2): zero for a
         // vanilla option.
         Real jump_;
+        // The payoff's type, which sets the side of the strike the in-the-money probabilities are taken on.
+        Option::Type optionType_;
     };
 
     // inline
     inline Real BlackCalculator::thetaPerDay(Real spot, Time maturity) const
     {
         return theta(spot, maturity) / 365.0;
-    }
-
-    inline Real BlackCalculator::itmCashProbability() const
-    {
-        return cum_d2_;
-    }
-
-    inline Real BlackCalculator::itmAssetProbability() const
-    {
-        return cum_d1_;
     }
 
     inline Real BlackCalculator::alpha() const

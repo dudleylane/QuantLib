@@ -23,8 +23,11 @@
 #include <ql/instruments/vanillaoption.hpp>
 #include <ql/math/comparison.hpp>
 #include <ql/pricingengines/blackcalculator.hpp>
+#include <ql/pricingengines/blackformula.hpp>
 #include <ql/pricingengines/blackscholescalculator.hpp>
 #include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
+#include <ql/pricingengines/vanilla/baroneadesiwhaleyengine.hpp>
+#include <ql/pricingengines/vanilla/juquadraticengine.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
@@ -703,6 +706,157 @@ BOOST_AUTO_TEST_CASE(testBlackCalculatorGreeksAtAZeroStrike)
     BOOST_CHECK_SMALL(option.vega(), 1.0e-12);
     BOOST_CHECK_SMALL(option.theta() - q * asset, 1.0e-12);
     BOOST_CHECK_SMALL(option.strikeSensitivity() + discount, 1.0e-12);
+}
+
+BOOST_AUTO_TEST_CASE(testBlackCalculatorInTheMoneyProbabilitiesOfEachType)
+{
+    BOOST_TEST_MESSAGE("Testing BlackCalculator in-the-money probabilities of each type...");
+
+    // #235: itmCashProbability() and itmAssetProbability() gave a put the call's, N(d2) and N(d1). A put is in the
+    // money below the strike, so its are N(-d2) and N(-d1), as blackFormulaCashItmProbability and
+    // blackFormulaAssetItmProbability give, and for every payoff, whose type sets the side of the strike. The two
+    // compute d2 differently, so they agree to rounding.
+    const Real forward = 100.0, discount = 0.95;
+    const auto payoff = [](int kind, Option::Type type, Real strike) -> ext::shared_ptr<StrikedTypePayoff>
+    {
+        switch (kind)
+        {
+            case 0:
+                return ext::make_shared<PlainVanillaPayoff>(type, strike);
+            case 1:
+                return ext::make_shared<CashOrNothingPayoff>(type, strike, 10.0);
+            case 2:
+                return ext::make_shared<AssetOrNothingPayoff>(type, strike);
+            default:
+                return ext::make_shared<GapPayoff>(type, strike, 95.0);
+        }
+    };
+
+    std::vector<std::pair<Real, Real>> strikesAndStdDevs;
+    for (Real strike : {60.0, 95.0, 100.0, 105.0, 160.0})
+        for (Real stdDev : {0.05, 0.2, 1.0, 3.0})
+            strikesAndStdDevs.emplace_back(strike, stdDev);
+    // Far from the money, where a put's or a call's probabilities are about 1e-16 to 1e-15, and 1 - N(d) would lose
+    // most of their digits.
+    strikesAndStdDevs.emplace_back(20.0, 0.2);
+    strikesAndStdDevs.emplace_back(500.0, 0.2);
+
+    for (const auto& [strike, stdDev] : strikesAndStdDevs)
+    {
+        for (Option::Type type : {Option::Call, Option::Put})
+        {
+            const Real cash = blackFormulaCashItmProbability(type, strike, forward, stdDev);
+            const Real asset = blackFormulaAssetItmProbability(type, strike, forward, stdDev);
+            for (int kind = 0; kind < 4; ++kind)
+            {
+                const BlackCalculator calc(payoff(kind, type, strike), forward, stdDev, discount);
+                BOOST_TEST_CONTEXT(payoff(kind, type, strike)->description() << ", stdDev " << stdDev)
+                {
+                    BOOST_CHECK_CLOSE_FRACTION(calc.itmCashProbability(), cash, 1.0e-12);
+                    BOOST_CHECK_CLOSE_FRACTION(calc.itmAssetProbability(), asset, 1.0e-12);
+                }
+            }
+            // A cash-or-nothing option's value is the discounted cash times the first, and an asset-or-nothing
+            // option's the discounted forward times the second.
+            const BlackCalculator vanilla(type, strike, forward, stdDev, discount);
+            const BlackCalculator cashOrNothing(ext::make_shared<CashOrNothingPayoff>(type, strike, 1.0), forward,
+                                                stdDev, discount);
+            const BlackCalculator assetOrNothing(ext::make_shared<AssetOrNothingPayoff>(type, strike), forward, stdDev,
+                                                 discount);
+            BOOST_TEST_CONTEXT((type == Option::Call ? "call" : "put")
+                               << ", strike " << strike << ", stdDev " << stdDev)
+            {
+                BOOST_CHECK_SMALL(cashOrNothing.value() / discount - vanilla.itmCashProbability(), 1.0e-14);
+                BOOST_CHECK_SMALL(assetOrNothing.value() / (discount * forward) - vanilla.itmAssetProbability(),
+                                  1.0e-14);
+            }
+        }
+        // A call's and a put's add up to 1.
+        const BlackCalculator call(Option::Call, strike, forward, stdDev, discount);
+        const BlackCalculator put(Option::Put, strike, forward, stdDev, discount);
+        BOOST_TEST_CONTEXT("strike " << strike << ", stdDev " << stdDev)
+        {
+            BOOST_CHECK_SMALL(call.itmCashProbability() + put.itmCashProbability() - 1.0, 1.0e-15);
+            BOOST_CHECK_SMALL(call.itmAssetProbability() + put.itmAssetProbability() - 1.0, 1.0e-15);
+        }
+    }
+
+    // Where initialize() takes d1 and d2 as infinite: a zero strike, which no put ends below, and no volatility
+    // away from the money. (With no volatility at the money, d1 and d2 are 0, and both types get 1/2.)
+    struct Limit
+    {
+        Real strike, stdDev, call;
+    };
+    for (const Limit& limit : {Limit{0.0, 0.2, 1.0}, Limit{90.0, 0.0, 1.0}, Limit{110.0, 0.0, 0.0}})
+    {
+        for (Option::Type type : {Option::Call, Option::Put})
+        {
+            const Real expected = type == Option::Call ? limit.call : 1.0 - limit.call;
+            const BlackCalculator calc(type, limit.strike, forward, limit.stdDev, discount);
+            BOOST_TEST_CONTEXT((type == Option::Call ? "call" : "put")
+                               << ", strike " << limit.strike << ", stdDev " << limit.stdDev)
+            {
+                BOOST_CHECK_EQUAL(calc.itmCashProbability(), expected);
+                BOOST_CHECK_EQUAL(calc.itmAssetProbability(), expected);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testEnginesReportAPutsOwnInTheMoneyProbability)
+{
+    BOOST_TEST_MESSAGE("Testing that engines report a put's own in-the-money probability...");
+
+    // #235: AnalyticEuropeanEngine, and Barone-Adesi-Whaley and Ju where early exercise is never optimal, report
+    // BlackCalculator's itmCashProbability() as the option's, so a put's was the call's. #235's market: the spot at
+    // 100, a strike of 105, a volatility of 20 % and a year on Actual/365 (Fixed), with r 3 % and q 0, where an
+    // American call is never exercised early, and with r 0 and q 1 %, where an American put isn't.
+    const Real spot = 100.0, strike = 105.0, vol = 0.20;
+    const Date today(15, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dayCounter = Actual365Fixed();
+    const Date maturity = today + 365;
+    const Time t = dayCounter.yearFraction(today, maturity);
+
+    struct Market
+    {
+        Rate r, q;
+        Option::Type european;
+    };
+    for (const Market& market : {Market{0.03, 0.0, Option::Call}, Market{0.0, 0.01, Option::Put}})
+    {
+        const auto process = ext::make_shared<BlackScholesMertonProcess>(
+            Handle<Quote>(ext::make_shared<SimpleQuote>(spot)),
+            Handle<YieldTermStructure>(flatRate(today, market.q, dayCounter)),
+            Handle<YieldTermStructure>(flatRate(today, market.r, dayCounter)),
+            Handle<BlackVolTermStructure>(flatVol(today, vol, dayCounter)));
+        const Real forward = spot * std::exp((market.r - market.q) * t);
+        const Real stdDev = vol * std::sqrt(t);
+
+        Real sum = 0.0;
+        for (Option::Type type : {Option::Call, Option::Put})
+        {
+            const Real expected = blackFormulaCashItmProbability(type, strike, forward, stdDev);
+            const auto payoff = ext::make_shared<PlainVanillaPayoff>(type, strike);
+            BOOST_TEST_CONTEXT((type == Option::Call ? "call" : "put") << ", r " << market.r << ", q " << market.q)
+            {
+                VanillaOption european(payoff, ext::make_shared<EuropeanExercise>(maturity));
+                european.setPricingEngine(ext::make_shared<AnalyticEuropeanEngine>(process));
+                BOOST_CHECK_CLOSE_FRACTION(european.itmCashProbability(), expected, 1.0e-12);
+                sum += european.itmCashProbability();
+
+                if (type == market.european)
+                {
+                    VanillaOption american(payoff, ext::make_shared<AmericanExercise>(today, maturity));
+                    american.setPricingEngine(ext::make_shared<BaroneAdesiWhaleyApproximationEngine>(process));
+                    BOOST_CHECK_CLOSE_FRACTION(american.itmCashProbability(), expected, 1.0e-12);
+                    american.setPricingEngine(ext::make_shared<JuQuadraticApproximationEngine>(process));
+                    BOOST_CHECK_CLOSE_FRACTION(american.itmCashProbability(), expected, 1.0e-12);
+                }
+            }
+        }
+        BOOST_CHECK_SMALL(sum - 1.0, 1.0e-15);
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
