@@ -135,20 +135,25 @@ namespace QuantLib
         100, with a correlation of 0.3, the shortfall on 50% to 100% of the
         basket is 9% below the exact value at five years and 12% at one
         (#309); until #204 it was 42% and 63% below.
-    \warning Given the factor, the loss distribution is exact up to the
-        smallest loss one default causes, and above the total loss less the
-        two smallest, where a loss needs every name but one to default, both
-        on top of the loss of the names the factor makes certain to default;
-        it comes from the approximation in between. The parts don't meet
-        (#205), so the expected shortfall steps as the level crosses from one
-        to another. At the smallest loss, on 19 names that lose 80 to 99 each
-        it rises, by 0.5% of a tranche of 3% of the basket under a Gaussian
-        copula and 0.8% under a T copula of order 3, where the exact value
-        rises by 0.1%, and its largest error around the step is 1.4% and 2.1%
-        of the tranche; until #204 it fell, by 3% and 4%, and its largest
-        error was 4.1% and 2.5%. On 20 names that each lose 60 it rises by
-        1.8% of a tranche of 10%, where the exact value rises by 0.4%, and
-        lies up to 2.9% above the exact value from there (#309).
+    \warning Given the factor, the loss distribution is exact up to the two
+        smallest losses one default causes, taken together, where a loss
+        short of the level has at most one default, and above the total loss
+        less those two, where a loss needs every name but one to default,
+        both on top of the loss of the names the factor makes certain to
+        default; it comes from the approximation in between. There the
+        expected excess over a level is held between bounds that the exact
+        parts give, so that it meets them; the probability isn't, and steps
+        where the parts meet (#309). On 19 names that lose 80 to 99 each,
+        under a Gaussian copula and a T copula of order 3, the error in the
+        expected shortfall at levels up to 0.99 is at most 0.0002% of a
+        tranche of 3% of the basket, and 0.6% and 0.9% of a tranche of 10%;
+        until #205 the exact part below ended at the smallest loss, the parts
+        didn't meet, and those errors were 1.4% and 2.1%, and 0.8% and 1.2%.
+        On 20 names that each lose 60, the shortfall on a tranche of 10% is
+        within 0.03% of the exact value from the 55th percentile to the 81st,
+        and from there between 0.2% below it and 2.0% above, where the
+        percentile comes from the approximation, which has no atoms (#309);
+        until #205 it was up to 2.9% above.
     */
 
     /* The treatment of recovery wont work with random recoveries, they should
@@ -308,14 +313,29 @@ namespace QuantLib
         /*! The tail of the loss at a level, given the market factor: the probability that the loss reaches it, and
             the expected excess of the loss over it, E[(L - y)^+], an amount. Exact in the regions the loss limits
             give, and from the first-order saddle-point forms elsewhere, which take both from the same tilted
-            normal approximation.
+            normal approximation; there the excess is held between bounds that the exact regions on either side
+            give.
         */
         struct Tail
         {
             Probability over; //!< P(L >= y)
             Real excess;      //!< E[(L - y)^+], an amount
         };
-        Tail tailCond(const std::vector<Real>& invUncondProbs, Real loss, const std::vector<Real>& mktFactor) const;
+        /*! With withExcess false, only the probability is wanted: the excess between the exact regions is then
+            the approximation's own, not held to their bounds, which saves computing them.
+        */
+        Tail tailCond(const std::vector<Real>& invUncondProbs,
+                      Real loss,
+                      const std::vector<Real>& mktFactor,
+                      bool withExcess = true) const;
+        /*! The tail where a loss short of the level has at most one uncertain default, up to the two smallest
+            losses of one together: there any two defaults reach the level, and so does one name that loses
+            enough on its own, and every term of the distribution is known.
+        */
+        Tail oneDefaultTailCond(const std::vector<Real>& invUncondProbs,
+                                Real loss,
+                                const std::vector<Real>& mktFactor,
+                                const LossLimits& limits) const;
         /*! The tail where a loss reaches the level only if at most one uncertain name survives, above their total
             less the two smallest losses of one: there the loss is the total less what the survivor would have
             lost, and every term of the distribution is known.
@@ -1014,13 +1034,14 @@ namespace QuantLib
                                                                 Real loss,
                                                                 const std::vector<Real>& mktFactor) const
     {
-        return tailCond(invUncondProbs, loss, mktFactor).over;
+        return tailCond(invUncondProbs, loss, mktFactor, false).over;
     }
 
     template <class CP>
     typename SaddlePointLossModel<CP>::Tail SaddlePointLossModel<CP>::tailCond(const std::vector<Real>& invUncondProbs,
                                                                                Real loss,
-                                                                               const std::vector<Real>& mktFactor) const
+                                                                               const std::vector<Real>& mktFactor,
+                                                                               bool withExcess) const
     {
         Real expected = conditionalExpectedLoss(invUncondProbs, mktFactor);
         if (loss <= QL_EPSILON)
@@ -1051,12 +1072,43 @@ namespace QuantLib
         //   rest is reached only if at most one name survives (#282).
         if (rest > limits.total - limits.smallest - limits.second)
             return oneSurvivorTailCond(invUncondProbs, loss, mktFactor, limits);
+        // Up to the two smallest losses together, a loss short of the level
+        //   has at most one uncertain default (#205).
+        if (rest <= limits.smallest + limits.second)
+            return oneDefaultTailCond(invUncondProbs, loss, mktFactor, limits);
+
+        /* In between, the tail comes from the approximation. From the level
+           where the lower exact region ends to the one where the upper starts,
+           the exact excess falls at P(L > t), which lies between the
+           probabilities the two regions give there; so it lies between the
+           lines through their excesses with those two slopes. The
+           approximation's excess is held between those lines, so that it
+           meets both regions: until #205 it stepped where it met them, and
+           the expected shortfall stepped with it. The upper region counts at
+           most one survivor, so its probability there is at most
+           P(L >= level), which still bounds P(L > t) below it. A call for the
+           probability alone skips the bounds. */
+        Real lowest = -QL_MAX_REAL, highest = QL_MAX_REAL;
+        if (withExcess)
+        {
+            Real lowJoin = limits.certain + limits.smallest + limits.second;
+            Real highJoin = limits.certain + limits.total - limits.smallest - limits.second;
+            Tail low = oneDefaultTailCond(invUncondProbs, lowJoin, mktFactor, limits);
+            Tail high = oneSurvivorTailCond(invUncondProbs, highJoin, mktFactor, limits);
+            lowest = std::max(low.excess - (loss - lowJoin) * low.over, high.excess + (highJoin - loss) * high.over);
+            highest = std::min(low.excess - (loss - lowJoin) * high.over, high.excess + (highJoin - loss) * low.over);
+        }
+        auto held = [lowest, highest](Tail t)
+        {
+            t.excess = std::min(std::max(t.excess, lowest), highest);
+            return t;
+        };
 
         Real saddlePt = findSaddle(invUncondProbs, loss / remainingNotional_, mktFactor);
         if (saddlePt == QL_MAX_REAL)
-            return {0., 0.};
+            return held({0., 0.});
         if (saddlePt == -QL_MAX_REAL)
-            return {1., expected - loss};
+            return held({1., expected - loss});
 
         /* Above the expected loss, the probability is the first-order form
            the documentation of probOverLossPortfCond cites, and the excess
@@ -1080,8 +1132,64 @@ namespace QuantLib
         detail::saddlePointTailIntegrals(std::abs(saddlePt) * deviation, tail, excess);
         Real beyond = scale * deviation * excess * remainingNotional_;
         if (saddlePt >= 0.)
-            return {scale * tail, beyond};
-        return {1. - scale * tail, expected - loss + beyond};
+            return held({scale * tail, beyond});
+        return held({1. - scale * tail, expected - loss + beyond});
+    }
+
+    template <class CP>
+    typename SaddlePointLossModel<CP>::Tail
+    SaddlePointLossModel<CP>::oneDefaultTailCond(const std::vector<Real>& invUncondProbs,
+                                                 Real loss,
+                                                 const std::vector<Real>& mktFactor,
+                                                 const LossLimits& limits) const
+    {
+        // the uncertain names, as lossLimitsCond takes them
+        std::vector<Probability> pDef;
+        std::vector<Real> lossInDef;
+        for (Size iName = 0; iName < remainingNotionals_.size(); iName++)
+        {
+            Real nameLoss =
+                remainingNotionals_[iName] *
+                (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor));
+            Probability p =
+                copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], liveNames_[iName], mktFactor);
+            if (p != 1. && nameLoss > 0.)
+            {
+                pDef.push_back(p);
+                lossInDef.push_back(nameLoss);
+            }
+        }
+        /* With N the number of uncertain defaults and rest the level less the
+           certain loss, any two defaults reach the rest, and one alone if its
+           loss does:
+             P(L >= y) = P(N >= 2) + sum over l_i >= rest of P(only i),
+             E[(L - y)^+] = E[(L - certain) 1{N >= 2}] - rest P(N >= 2)
+                            + sum over l_i > rest of (l_i - rest) P(only i).
+           Each "some other name defaults" comes from expm1 of the sums of
+           log-survivals before and after the name, so that it keeps its
+           digits where the names' probabilities are small (#306). The excess
+           is a difference, and where three defaults are far rarer than two it
+           keeps no digits of its own: at the two smallest losses together its
+           error was below 8e-15 of the smallest loss times the probability
+           that any name defaults, and it can come out below 0 by as much (#311). */
+        const Size nNames = pDef.size();
+        std::vector<Real> logAfter(nNames + 1, 0.);
+        for (Size i = nNames; i-- > 0;)
+            logAfter[i] = logAfter[i + 1] + std::log1p(-pDef[i]);
+        Real rest = loss - limits.certain;
+        Real logBefore = 0., twoOrMore = 0., lossTwoOrMore = 0., single = 0., singleExcess = 0.;
+        for (Size i = 0; i < nNames; i++)
+        {
+            Probability onlyThis = pDef[i] * std::exp(logBefore + logAfter[i + 1]);
+            twoOrMore += std::exp(logBefore) * pDef[i] * -std::expm1(logAfter[i + 1]);
+            lossTwoOrMore += lossInDef[i] * pDef[i] * -std::expm1(logBefore + logAfter[i + 1]);
+            if (lossInDef[i] >= rest)
+                single += onlyThis;
+            if (lossInDef[i] > rest)
+                singleExcess += (lossInDef[i] - rest) * onlyThis;
+            logBefore += std::log1p(-pDef[i]);
+        }
+        return {twoOrMore + single, lossTwoOrMore - rest * twoOrMore + singleExcess};
     }
 
     template <class CP>
@@ -1140,7 +1248,7 @@ namespace QuantLib
     {
         // The first-order form is the one probOverLossPortfCond takes. This kept a copy of its own, which cut the
         //   probability to 0 wherever its exponent passed 700 (#281).
-        return tailCond(invUncondPs, loss, mktFactor).over;
+        return tailCond(invUncondPs, loss, mktFactor, false).over;
     }
 
 
@@ -1316,9 +1424,11 @@ namespace QuantLib
         //   room above the level. With both ends in one region the difference
         //   keeps to that but for rounding. With the level in an exact region
         //   and the detachment in the approximation, the approximation's
-        //   error at the detachment can take it outside, by up to 2.1 on a
-        //   plateau of the distribution given the factor (#308), so it is
-        //   kept to that range.
+        //   error at the detachment took it outside, by up to 2.1 on a
+        //   plateau of the distribution given the factor (#308), until its
+        //   excess was held between bounds the exact regions give (#205);
+        //   since then by at most 5.2e-13 where measured, and it is still kept
+        //   to that range.
         Real detachAmount = detachRatio_ * remainingNotional_;
         Real excess = tailCond(invUncondProbs, lossLevel, mktFactor).excess -
                       tailCond(invUncondProbs, detachAmount, mktFactor).excess;
