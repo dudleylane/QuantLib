@@ -48,6 +48,27 @@ namespace QuantLib
         needs some sort of "branch correction" to work properly.
         Gatheral's version does also work with adaptive integration
         routines and should be preferred over the original Heston version.
+
+        At rho = -1 or 1 the decay rate c_inf is 0, and the integrand can
+        decay as slowly as e^{-a sqrt(u)} (#239). There Gauss-Lobatto, and so
+        the (model, relTolerance, maxEvaluations) constructor, takes its
+        limit from that decay along the angled contour, with AngledContour,
+        AngledContourNoCV or OptimalCV, which takes AngledContour there. It
+        integrates [0, 1] and the rest apart, or the whole where [0, 1]
+        doesn't converge, so it may take up to about twice its
+        maxEvaluations. With Gauss-Lobatto the Andersen-Piterbarg and
+        AsymptoticChF control variates refuse rho = -1 and 1. The other rules
+        that take a limit refuse it with any control variate, as do
+        Gauss-Legendre and the Gauss-Chebyshev rules, which map their nodes
+        through c_inf. Gauss-Laguerre and exp-sinh take no limit and price as
+        before: there AsymptoticChF's control variate, which OptimalCV takes
+        past 0.15 years, vanishes, and Gauss-Laguerre can be far off at short
+        maturities (#300). A limit past 5e8 is refused, as near
+        kappa = sigma / 2 at rho = 1 with the strike near F e^{-w / sigma},
+        w = v0 + kappa theta t, and minutes from expiry or with v0 near 0.
+        This path is taken at rho = -1 and 1 exactly: just inside them the
+        engine takes the path it takes wherever |rho| < 1, whose limit grows
+        as 1 / c_inf, and it can be far less accurate there (#296).
     */
 
     /*! References:
@@ -222,10 +243,18 @@ namespace QuantLib
 
         Real calculate(Real c_inf, const std::function<Real(Real)>& f, Real maxBound) const;
 
+        // where c_inf is 0, Gauss-Lobatto's two integrations together: up to about twice maxEvaluations (#239)
         Size numberOfEvaluations() const;
         bool isAdaptiveIntegration() const;
 
       private:
+        // which contour and control variate it takes at rho = -1 or 1 depends on the engine's rule (#239)
+        friend class AnalyticHestonEngine;
+        friend class AnalyticHestonEngine::AP_Helper;
+
+        // at rho = -1 or 1, where c_inf is 0, Gauss-Lobatto takes #239's contour, limit and control variate
+        bool takesUnitCorrelationPath(Real rho) const;
+
         enum Algorithm
         {
             GaussLobatto,
@@ -245,9 +274,13 @@ namespace QuantLib
 
         Integration(Algorithm intAlgo, ext::shared_ptr<Integrator> integrator);
 
+        Real unitCorrelationIntegral(const std::function<Real(Real)>& f, Real maxBound) const;
+
         const Algorithm intAlgo_;
         const ext::shared_ptr<Integrator> integrator_;
         const ext::shared_ptr<GaussianQuadrature> gaussianQuadrature_;
+        // the evaluations unitCorrelationIntegral spent on [0, 1] before its second integration (#239)
+        mutable Size headEvaluations_ = 0;
     };
 
     class AnalyticHestonEngine::AP_Helper
@@ -271,6 +304,7 @@ namespace QuantLib
         const Real alpha_, s_alpha_;
         Real vAvg_, tanPhi_;
         std::complex<Real> phi_, psi_;
+        bool useLnChF_, unitCorrelation_;
     };
 
 

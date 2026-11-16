@@ -2946,6 +2946,309 @@ BOOST_AUTO_TEST_CASE(testNonCentralChiSquareVarianceOverShortSteps)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testUnitCorrelationWithGaussLobatto)
+{
+    BOOST_TEST_MESSAGE("Testing the analytic Heston engine's Gauss-Lobatto integration at rho = -1 and 1...");
+
+    // #239: at rho = -1 or 1 the decay rate c_inf is 0, and Gauss-Lobatto's integration limit, taken from it, threw
+    // "unable to bracket root". HestonModel's rho constraint is closed, so a calibration can return either.
+    const Date today(15, May, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.005, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.03, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+
+    const auto model = [&](Real v0, Real kappa, Real theta, Real sigma, Real rho)
+    {
+        return ext::make_shared<HestonModel>(
+            ext::make_shared<HestonProcess>(rTS, qTS, s0, v0, kappa, theta, sigma, rho));
+    };
+    const auto forward = [&](Time t) { return s0->value() * qTS->discount(t) / rTS->discount(t); };
+    // At rho = 1, log S_t = log F + (v_t - w) / sigma + (kappa / sigma - 1/2) int_0^t v ds with w = v0 + kappa theta t,
+    // so where kappa >= sigma / 2, S_t >= F e^{-w / sigma}: a call struck at or below that edge never pays less than
+    // zero, and is worth D (F - K).
+    const auto edgeCall = [&](Time t, Real strike) { return rTS->discount(t) * (forward(t) - strike); };
+
+    const auto check = [&](const std::string& name, const ext::shared_ptr<AnalyticHestonEngine>& engine, Time t,
+                           Real strike, Real expected, Real tolerance)
+    {
+        BOOST_TEST_CONTEXT(name)
+        {
+            try
+            {
+                const Real calculated =
+                    engine->priceVanillaPayoff(ext::make_shared<PlainVanillaPayoff>(Option::Call, strike), t);
+                if (std::fabs(calculated - expected) > tolerance)
+                    BOOST_ERROR("failed to price a call at rho = -1 or 1" << "\n    calculated: " << calculated
+                                                                          << "\n    expected:   " << expected
+                                                                          << "\n    tolerance:  " << tolerance);
+            }
+            catch (const std::exception& e)
+            {
+                BOOST_ERROR("failed to price a call at rho = -1 or 1: " << e.what());
+            }
+        }
+    };
+    using Integration = AnalyticHestonEngine::Integration;
+
+    // #239's item 1, through the (model, relTolerance, maxEvaluations) constructor, OptimalCV with Gauss-Lobatto.
+    // Expected: exp-sinh with OptimalCV at 1e-13, which priced rho = -1 and 1 before #239 and after.
+    {
+        const Time t = 0.5;
+        const Real strike = 0.8 * forward(t);
+        const Real expected[] = {20.277039580528548, 19.753416071649774};
+        const Real rhos[] = {-1.0, 1.0};
+        const char* names[] = {"item 1 at rho -1", "item 1 at rho 1"};
+        for (Size i = 0; i < 2; ++i)
+            check(names[i], ext::make_shared<AnalyticHestonEngine>(model(0.04, 2.0, 0.04, 0.2, rhos[i]), 1e-8, 1000), t,
+                  strike, expected[i], 10 * 1e-8 * expected[i]);
+    }
+
+    // A day, a standard deviation in the money, at rho = -1: [0, 1] doesn't converge within the 1,000 evaluations,
+    // and the integration takes [0, U] whole, in 350 of them. Expected: exp-sinh with AngledContour at 1e-13.
+    {
+        const Time t = 1.0 / 365;
+        const Real v0 = 0.01, kappa = 2.0, theta = 0.04;
+        const Real vAvg = theta - (v0 - theta) * std::expm1(-kappa * t) / (kappa * t);
+        const Real strike = forward(t) * std::exp(-std::sqrt(vAvg * t));
+        const Real expected = 0.56862933150413819;
+        check("a day at rho -1",
+              ext::make_shared<AnalyticHestonEngine>(model(v0, kappa, theta, 0.05, -1.0), 1e-8, 1000), t, strike,
+              expected, 10 * 1e-8 * expected);
+    }
+
+    // kappa just above sigma / 2 at rho = 1, where the integrand decays as slowly as e^{-a sqrt(u)} with a small a.
+    // Gauss-Lobatto over [0, U] whole stopped 1.2e-7 off, so the integration takes [0, 1] and the rest apart; and on
+    // the tilted line the characteristic function and its control variate are taken as one exponential, without which
+    // the rule ran out of machine numbers. The strike is below the edge.
+    {
+        const Real v0 = 0.09, theta = 0.09, sigma = 1.0, kappa = 0.5 * sigma + 1e-8;
+        const Time t = 2.0;
+        const Real strike = forward(t) * std::exp(-1.001 * (v0 + kappa * theta * t) / sigma);
+        const Real expected = edgeCall(t, strike);
+        check("kappa near sigma / 2 at rho 1",
+              ext::make_shared<AnalyticHestonEngine>(model(v0, kappa, theta, sigma, 1.0),
+                                                     AnalyticHestonEngine::AngledContour,
+                                                     Integration::gaussLobatto(1e-10, Null<Real>(), 1000000)),
+              t, strike, expected, 10 * 1e-10 * expected);
+    }
+
+    // A day at rho = 1 and sigma 0.05, the strike halfway from the forward to the edge. There the line tilts against
+    // log(F / K), and its factor e^{-u tan(phi) log(F / K)} grows before the integrand decays; with no bound on that
+    // growth the price came out 1.8e12. The strike is above the edge, so the call could pay less than zero, but only
+    // where the variance falls from 0.04 to below 0.0201 within the day, about 38 of its standard deviations: D (F - K)
+    // is the price to rounding.
+    {
+        const Real v0 = 0.04, kappa = 2.0, theta = 0.04, sigma = 0.05;
+        const Time t = 1.0 / 365;
+        const Real strike = forward(t) * std::exp(-0.5 * (v0 + kappa * theta * t) / sigma);
+        const Real expected = edgeCall(t, strike);
+        check("a day at rho 1, halfway to the edge",
+              ext::make_shared<AnalyticHestonEngine>(model(v0, kappa, theta, sigma, 1.0),
+                                                     AnalyticHestonEngine::AngledContour,
+                                                     Integration::gaussLobatto(1e-8, Null<Real>(), 1000000)),
+              t, strike, expected, 10 * 1e-8 * expected);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testUnitCorrelationRefusals)
+{
+    BOOST_TEST_MESSAGE("Testing the analytic Heston engine's refusals at rho = -1 and 1...");
+
+    // Where rho is -1 or 1 and an integration can't price, it must refuse rather than return a value. Gauss-Legendre
+    // and the Gauss-Chebyshev rules map their nodes to u through c_inf, and at c_inf = 0 they returned 98.51 at
+    // #239's item 1, whose price is 20.28 at rho = -1 and 19.75 at 1. At rho = 1 with kappa = sigma / 2, no integration
+    // limit cuts the integrand off at the edge F e^{-w / sigma}, and near it the limit is past the 5e8 the engine
+    // takes. With no bound there, Gauss-Lobatto's result depended on the strike's last bits, from a refusal to -296.25
+    // for a call worth 9.89, and a billionth of w / sigma below the edge it was 9.7e-6 off. Each may price one day, but
+    // only near its price.
+    const Date today(15, May, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.005, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.03, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+
+    const auto model = [&](Real v0, Real kappa, Real theta, Real sigma, Real rho)
+    {
+        return ext::make_shared<HestonModel>(
+            ext::make_shared<HestonProcess>(rTS, qTS, s0, v0, kappa, theta, sigma, rho));
+    };
+    const auto forward = [&](Time t) { return s0->value() * qTS->discount(t) / rTS->discount(t); };
+
+    const auto refusesOrPrices = [&](const std::string& name, const ext::shared_ptr<AnalyticHestonEngine>& engine,
+                                     Time t, Real strike, Real expected, Real tolerance)
+    {
+        BOOST_TEST_CONTEXT(name)
+        {
+            Real calculated = Null<Real>();
+            try
+            {
+                calculated = engine->priceVanillaPayoff(ext::make_shared<PlainVanillaPayoff>(Option::Call, strike), t);
+            }
+            catch (const QuantLib::Error&)
+            {
+                return;
+            }
+            if (std::fabs(calculated - expected) > tolerance)
+                BOOST_ERROR("neither refused nor priced a call at rho = -1 or 1" << "\n    calculated: " << calculated
+                                                                                 << "\n    expected:   " << expected
+                                                                                 << "\n    tolerance:  " << tolerance);
+        }
+    };
+    using Integration = AnalyticHestonEngine::Integration;
+
+    // #239's item 1; its prices from exp-sinh with OptimalCV at 1e-13
+    {
+        const Time t = 0.5;
+        const Real strike = 0.8 * forward(t);
+        const Real expected[] = {20.277039580528548, 19.753416071649774};
+        const Real rhos[] = {-1.0, 1.0};
+        for (Size i = 0; i < 2; ++i)
+        {
+            const auto m = model(0.04, 2.0, 0.04, 0.2, rhos[i]);
+            const std::string at = rhos[i] < 0.0 ? " at rho -1" : " at rho 1";
+            refusesOrPrices("Gauss-Legendre" + at,
+                            ext::make_shared<AnalyticHestonEngine>(m, AnalyticHestonEngine::OptimalCV,
+                                                                   Integration::gaussLegendre(128)),
+                            t, strike, expected[i], 1e-6 * expected[i]);
+            refusesOrPrices("Gauss-Chebyshev" + at,
+                            ext::make_shared<AnalyticHestonEngine>(m, AnalyticHestonEngine::OptimalCV,
+                                                                   Integration::gaussChebyshev(128)),
+                            t, strike, expected[i], 1e-6 * expected[i]);
+            refusesOrPrices("Gauss-Chebyshev of the second kind" + at,
+                            ext::make_shared<AnalyticHestonEngine>(m, AnalyticHestonEngine::OptimalCV,
+                                                                   Integration::gaussChebyshev2nd(128)),
+                            t, strike, expected[i], 1e-6 * expected[i]);
+        }
+    }
+
+    // kappa = sigma / 2 at rho = 1, the strike at the edge and a billionth of w / sigma below it, where the call is
+    // worth D (F - K) (see testUnitCorrelationWithGaussLobatto); held, if it prices, to ten times its tolerance
+    {
+        const Real v0 = 0.04, kappa = 0.2, theta = 0.04, sigma = 0.4;
+        const Time t = 0.25;
+        const auto engine = ext::make_shared<AnalyticHestonEngine>(
+            model(v0, kappa, theta, sigma, 1.0), AnalyticHestonEngine::AngledContour,
+            Integration::gaussLobatto(1e-8, Null<Real>(), 10000));
+        const Real below[] = {0.0, 1e-9};
+        const char* names[] = {"kappa = sigma / 2 at rho 1, at the edge", "kappa = sigma / 2 at rho 1, below the edge"};
+        for (Size i = 0; i < 2; ++i)
+        {
+            const Real strike = forward(t) * std::exp(-(1.0 + below[i]) * (v0 + kappa * theta * t) / sigma);
+            const Real expected = rTS->discount(t) * (forward(t) - strike);
+            refusesOrPrices(names[i], engine, t, strike, expected, 10 * 1e-8 * expected);
+        }
+    }
+
+    // Five minutes from expiry at the money, v0 1e-12 at rho = 1, through the simple constructor: the Gaussian limit
+    // from v0 t is 3.8e9, past the 5e8 too, and there Gauss-Lobatto returned the control variate's value, 7.98e-5 for
+    // a call worth 5.47e-5. Expected: the integrand along the tilted line, integrated piece by piece over
+    // [2^k, 2^{k+1}] (exp-sinh agrees within 3e-10 on that line, and is 6e-5 and 2.2e-4 off on the real line); held,
+    // if it prices, to ten times its tolerance.
+    {
+        const Time t = 1e-5;
+        const Real expected = 5.4685277433047485e-05;
+        refusesOrPrices("five minutes at rho 1",
+                        ext::make_shared<AnalyticHestonEngine>(model(1e-12, 2.0, 0.04, 1.0, 1.0), 1e-8, 1000), t,
+                        forward(t), expected, 10 * 1e-8 * expected);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testUnitCorrelationWithRulesTakingNoLimit)
+{
+    BOOST_TEST_MESSAGE("Testing the analytic Heston engine's rules that take no limit at rho = -1 and 1...");
+
+    // #239 changed Gauss-Lobatto's integration where c_inf is 0. Gauss-Laguerre, the default, and exp-sinh take no
+    // limit and priced rho = -1 and 1 before, and keep their values there.
+    const Date today(15, May, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.005, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.03, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+
+    const auto model = [&](Real v0, Real kappa, Real theta, Real sigma, Real rho)
+    {
+        return ext::make_shared<HestonModel>(
+            ext::make_shared<HestonProcess>(rTS, qTS, s0, v0, kappa, theta, sigma, rho));
+    };
+    const auto forward = [&](Time t) { return s0->value() * qTS->discount(t) / rTS->discount(t); };
+    const auto price = [&](const ext::shared_ptr<AnalyticHestonEngine>& engine, Time t, Real strike)
+    { return engine->priceVanillaPayoff(ext::make_shared<PlainVanillaPayoff>(Option::Call, strike), t); };
+
+    // The default engine at #239's item 1, pinned as it priced before #239: these carry Gauss-Laguerre's own error,
+    // 1.1e-8 relative (exp-sinh prices 20.277039580528548 and 19.753416071649774). #239's path at rho = -1 or 1, its
+    // contour and control variate, taken for Gauss-Laguerre too, moved them by up to 2.3e-7.
+    {
+        const Time t = 0.5;
+        const Real strike = 0.8 * forward(t);
+        const Real expected[] = {20.277039806025588, 19.753416060295287};
+        const Real rhos[] = {-1.0, 1.0};
+        for (Size i = 0; i < 2; ++i)
+            BOOST_TEST_CONTEXT("the default engine at rho " << rhos[i])
+            {
+                QL_CHECK_CLOSE(
+                    price(ext::make_shared<AnalyticHestonEngine>(model(0.04, 2.0, 0.04, 0.2, rhos[i])), t, strike),
+                    expected[i], 1e-8); // percent: 1e-10 relative
+            }
+    }
+
+    // exp-sinh with OptimalCV at rho = 1, the strike below the edge F e^{-w / sigma}, where the call is worth
+    // D (F - K) (see testUnitCorrelationWithGaussLobatto). Taking #239's path for exp-sinh too made it throw here.
+    {
+        const Real v0 = 0.01, kappa = 2.0, theta = 0.04, sigma = 0.05;
+        const Time t = 91 / 365.0;
+        const Real strike = forward(t) * std::exp(-1.03 * (v0 + kappa * theta * t) / sigma);
+        const Real expected = rTS->discount(t) * (forward(t) - strike);
+        BOOST_TEST_CONTEXT("exp-sinh at rho 1")
+        {
+            const Real calculated = price(ext::make_shared<AnalyticHestonEngine>(
+                                              model(v0, kappa, theta, sigma, 1.0), AnalyticHestonEngine::OptimalCV,
+                                              AnalyticHestonEngine::Integration::expSinh(1e-8)),
+                                          t, strike);
+            BOOST_CHECK_SMALL(calculated - expected, 10 * 1e-8 * expected);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testAverageVarianceAtSmallKappaT)
+{
+    BOOST_TEST_MESSAGE("Testing the analytic Heston engine's control variate at small kappa t...");
+
+    // #239's item 3: the control variate's average variance, theta + (v0 - theta) (1 - e^{-kappa t}) / (kappa t),
+    // lost its precision in 1 - e^{-kappa t}. At v0 1e-16 and kappa t of 1e-10 or 1e-11 it came out negative, and
+    // every rule threw "stdDev (-nan) must be non-negative". Gauss-Lobatto and exp-sinh must price there, and agree.
+    // Gauss-Laguerre, the default, is far off at maturities of seconds (#297), and isn't tested here.
+    const Date today(15, May, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.005, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.03, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+
+    const Time t = 1e-6;
+    const auto atTheMoney =
+        ext::make_shared<PlainVanillaPayoff>(Option::Call, s0->value() * qTS->discount(t) / rTS->discount(t));
+    for (Real kappa : {1e-4, 1e-5})
+    {
+        BOOST_TEST_CONTEXT("kappa " << kappa)
+        {
+            const auto model = ext::make_shared<HestonModel>(
+                ext::make_shared<HestonProcess>(rTS, qTS, s0, 1e-16, kappa, 0.04, 1.0, -0.7));
+            const Real gaussLobatto =
+                AnalyticHestonEngine(model, AnalyticHestonEngine::AngledContour,
+                                     AnalyticHestonEngine::Integration::gaussLobatto(1e-10, Null<Real>(), 1000000))
+                    .priceVanillaPayoff(atTheMoney, t);
+            const Real expSinh = AnalyticHestonEngine(model, AnalyticHestonEngine::AngledContour,
+                                                      AnalyticHestonEngine::Integration::expSinh(1e-13))
+                                     .priceVanillaPayoff(atTheMoney, t);
+            QL_CHECK_CLOSE(gaussLobatto, expSinh, 1e-5); // percent: 1e-7 relative
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE(HestonModelExperimentalTest)

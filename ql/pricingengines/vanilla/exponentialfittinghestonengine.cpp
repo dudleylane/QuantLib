@@ -20,6 +20,7 @@
 /*! \file exponentialfittinghestonengine.cpp
  */
 
+#include <ql/math/expm1.hpp>
 #include <ql/math/integrals/gaussianquadratures.hpp>
 #include <ql/math/integrals/gausslobattointegral.hpp>
 #include <ql/math/interpolations/lagrangeinterpolation.hpp>
@@ -11023,7 +11024,8 @@ namespace QuantLib
 
         const AnalyticHestonEngine::AP_Helper helper(t, fwd, strike, analyticCV, analyticEngine_.get(), alpha_);
 
-        const Real vAvg = (1 - std::exp(-kappa * t)) * (v0 - theta) / (kappa * t) + theta;
+        // through expm1, which keeps its precision where kappa t is small, and is 1 where it is 0
+        const Real vAvg = theta + (v0 - theta) * detail::decayRatio(kappa * t);
 
         const Real scalingFactor = (scaling_ == Null<Real>()) ?
                                        (analyticCV != AnalyticHestonEngine::AsymptoticChF) ?
