@@ -238,15 +238,19 @@ namespace QuantLib
             Real smallest;    //!< the least loss one default of an uncertain name causes, an amount
             Real total;       //!< the loss if every uncertain name defaults, an amount
             Probability none; //!< the probability that no uncertain name defaults
+            Probability any;  //!< the probability that some uncertain name defaults
             Probability all;  //!< the probability that every uncertain name defaults
         };
         //! Conditional on the market factor
         LossLimits lossLimitsCond(const std::vector<Real>& invUncondProbs, const std::vector<Real>& mktFactor) const
         {
-            LossLimits limits = {0., QL_MAX_REAL, 0., 1., 1.};
+            LossLimits limits = {0., QL_MAX_REAL, 0., 1., 0., 1.};
             // The sums are compensated (Neumaier's): a plain sum of losses that aren't exact in double can come out
             //   doubles away from the real one, and move the limits by as much.
             Real certainCompensation = 0., totalCompensation = 0.;
+            // 1 - none loses its digits where the names' probabilities are small, below 1e-16 all of them (#306), so
+            //   the probability of some default is taken from the logarithm of none's.
+            Real logNone = 0.;
             auto add = [](Real& sum, Real& compensation, Real loss)
             {
                 const Real next = sum + loss;
@@ -269,11 +273,13 @@ namespace QuantLib
                     limits.smallest = std::min(limits.smallest, loss);
                     add(limits.total, totalCompensation, loss);
                     limits.none *= 1. - p;
+                    logNone += std::log1p(-p);
                     limits.all *= p;
                 }
             }
             limits.certain += certainCompensation;
             limits.total += totalCompensation;
+            limits.any = -std::expm1(logNone);
             return limits;
         }
 
@@ -952,7 +958,7 @@ namespace QuantLib
         if (rest > limits.total - limits.smallest)
             return limits.all;
         if (rest <= limits.smallest)
-            return 1. - limits.none;
+            return limits.any;
 
         Real saddlePt = findSaddle(invUncondProbs, relativeLoss, mktFactor);
         if (saddlePt == QL_MAX_REAL)

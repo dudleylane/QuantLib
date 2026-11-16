@@ -1829,6 +1829,25 @@ BOOST_AUTO_TEST_CASE(testSaddlePointWithANameThatLosesNothing)
     BOOST_CHECK_SMALL(four.basket->percentile(four.horizon, 0.99) - 120.0, 1.0e-4 * four.trancheNotional);
 }
 
+BOOST_AUTO_TEST_CASE(testSaddlePointWhereNoNameIsLikelyToDefault)
+{
+    BOOST_TEST_MESSAGE("Testing the saddle point's probability of a loss where no name is likely to default...");
+
+    /* Below the smallest loss of a name, a loss reaches the level if any name defaults. That probability was taken as
+       1 - prod(1 - p), which keeps only the digits of the product above the rounding of 1: with hazards of 1e-12 it
+       was 1.2e-6 below the exact one, relative, and with 1e-16 by 1e-3 (#306). It's now taken from the logarithm of
+       the product. */
+    for (Real hazard : {1.0e-12, 1.0e-16})
+    {
+        const FourNames four(std::vector<Real>(4, hazard));
+        BOOST_TEST_CONTEXT("hazards of " << hazard)
+        {
+            BOOST_CHECK_CLOSE_FRACTION(four.model->probOverPortfLoss(four.horizon, 30.0), four.exactOver(30.0),
+                                       1.0e-12);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testCdoAfterADefault)
 {
     BOOST_TEST_MESSAGE("Testing a CDO tranche after a default...");
