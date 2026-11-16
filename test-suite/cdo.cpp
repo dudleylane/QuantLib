@@ -1572,8 +1572,9 @@ BOOST_AUTO_TEST_CASE(testSaddlePointProbabilityOverALossOnNamesThatDiffer)
     BOOST_CHECK_EQUAL(basket->percentile(left.horizon, 0.3), 0.0);
 }
 
-// Four names of notional 100 with the hazards given and recoveries of 0.4 unless given, on one factor at correlation
-// 0.3, Gaussian copula; a saddle-point model on the whole pool, and the exact probability of a loss of at least y.
+// Four names of notional 100 with the hazards given, and recoveries of 0.4 and loadings of sqrt(0.3) unless given, on
+// one factor, Gaussian copula; a saddle-point model on the whole pool, and the exact probability of a loss of at least
+// y.
 struct FourNames
 {
     Date today{31, August, 2006};
@@ -1587,7 +1588,9 @@ struct FourNames
     ext::shared_ptr<Basket> basket;
     Real trancheNotional;
 
-    FourNames(const std::vector<Real>& hazards, std::vector<Real> recoveries = std::vector<Real>(4, 0.4))
+    FourNames(const std::vector<Real>& hazards,
+              std::vector<Real> recoveries = std::vector<Real>(4, 0.4),
+              const std::vector<Real>& loadings = std::vector<Real>(4, std::sqrt(0.3)))
     : recoveries(std::move(recoveries))
     {
         Settings::instance().evaluationDate() = today;
@@ -1599,11 +1602,14 @@ struct FourNames
                 ext::make_shared<FlatHazardRate>(today, makeQuoteHandle(hazards[i]), ActualActual(ActualActual::ISDA)));
             pool->add(names.back(), Issuer(std::vector<Issuer::key_curve_pair>(1, std::make_pair(key, curve))), key);
         }
+        std::vector<std::vector<Real>> factors;
+        for (Real loading : loadings)
+            factors.emplace_back(1, loading);
         const auto latentModel = [&]
         {
-            return ext::make_shared<GaussianConstantLossLM>(
-                std::vector<std::vector<Real>>(4, std::vector<Real>(1, std::sqrt(0.3))), this->recoveries,
-                LatentModelIntegrationType::GaussianQuadrature, GaussianCopulaPolicy::initTraits());
+            return ext::make_shared<GaussianConstantLossLM>(factors, this->recoveries,
+                                                            LatentModelIntegrationType::GaussianQuadrature,
+                                                            GaussianCopulaPolicy::initTraits());
         };
         latent = latentModel();
         model = ext::make_shared<SaddlePointLossModel<GaussianCopulaPolicy>>(latentModel());
@@ -1978,6 +1984,137 @@ BOOST_AUTO_TEST_CASE(testSaddlePointTailWhereEveryNameIsAlmostCertainToDefault)
             {
                 BOOST_CHECK_SMALL(1.0 - model->probOverLossPortfCond(inverse, y, std::vector<Real>(1, factors[k])),
                                   1.0e-12);
+            }
+        }
+    }
+}
+
+// Integrated over the factor: the probability that every name defaults, then that each name alone survives.
+template <class LatentModel>
+std::vector<Probability> atMostOneSurvivor(const ext::shared_ptr<LatentModel>& latent,
+                                           std::vector<Probability> probabilities)
+{
+    for (Size i = 0; i < probabilities.size(); ++i)
+        probabilities[i] = latent->inverseCumulativeY(probabilities[i], i);
+    return latent->integratedExpectedValueV(
+        [&](const std::vector<Real>& factor)
+        {
+            const Size n = probabilities.size();
+            std::vector<Probability> p(n), result(n + 1, 1.0);
+            for (Size i = 0; i < n; ++i)
+            {
+                p[i] = latent->conditionalDefaultProbabilityInvP(probabilities[i], i, factor);
+                result[0] *= p[i];
+            }
+            for (Size i = 0; i < n; ++i)
+            {
+                result[i + 1] = 1.0 - p[i];
+                for (Size j = 0; j < n; ++j)
+                {
+                    if (j != i)
+                        result[i + 1] *= p[j];
+                }
+            }
+            return result;
+        });
+}
+
+BOOST_AUTO_TEST_CASE(testSaddlePointWhereAtMostOneNameSurvives)
+{
+    BOOST_TEST_MESSAGE("Testing the saddle point where a loss needs every name but one to default...");
+
+    /* Every set of defaults that leaves out two names or more loses at most the total less the two smallest losses,
+       so above that a level is reached only if at most one name survives, and the distribution given the factor is a
+       few atoms. The model searched there, where K'(s) = y needs every name but one to default under the tilt; its
+       cumulants overflowed or cancelled, and on the issue's three rows the density came out NaN, and on two of them
+       the tail probability too (#282). With the tail from its first-order form the density was still NaN, and the
+       tail probability on or just below an atom 0.28 to 0.58 of the exact one. The distribution there is now exact,
+       and the density 0. */
+
+    // 20 names alike, each losing 60: up to 1,140 a loss needs 19 defaults, and above it all 20
+    {
+        const NamesAroundADefault alike(true, false, NamesAroundADefault::noName);
+        Settings::instance().evaluationDate() = alike.inception;
+        const auto latent = alike.latentModel();
+        const auto model = ext::make_shared<SaddlePointLossModel<GaussianCopulaPolicy>>(latent);
+        const auto basket = alike.basket(0.0, 1.0);
+        basket->setLossModel(model);
+        BOOST_REQUIRE_EQUAL(basket->remainingTrancheNotional(), 2000.0);
+        for (const Date& d : {Date(31, August, 2007), Date(31, August, 2008)})
+        {
+            const std::vector<Probability> exact = atMostOneSurvivor(latent, basket->remainingProbabilities(d));
+            const Probability nineteen = std::accumulate(exact.begin(), exact.end(), Real(0.0));
+            Real y = 1140.0;
+            for (int k = 0; k < 4; ++k)
+                y = std::nextafter(y, 0.0);
+            for (int k = 0; k < 7; ++k, y = std::nextafter(y, QL_MAX_REAL))
+            {
+                BOOST_TEST_CONTEXT("names alike, " << d << ", a loss of " << std::setprecision(17) << y)
+                {
+                    BOOST_CHECK_CLOSE_FRACTION(model->probOverPortfLoss(d, y), y <= 1140.0 ? nineteen : exact[0],
+                                               1.0e-12);
+                    BOOST_CHECK_EQUAL(model->probDensity(d, y), 0.0);
+                }
+            }
+        }
+    }
+
+    /* 20 names that differ, losing 80 to 99: below 1,767 every name but the one losing 80 reaches a level. The real
+       sum of their losses is 0.375 of an ulp below 1,767 (testSaddlePointWhereTheFactorMakesNamesCertain), so 1,767
+       itself is within rounding of it, and the probability there lies between the two values. So does a tranche's
+       from 0 to 1,767 at its detachment, where the model takes 1,767. */
+    {
+        const NamesAroundADefault differ(false, false, NamesAroundADefault::noName);
+        Settings::instance().evaluationDate() = differ.inception;
+        const auto latent = differ.latentModel();
+        const auto model = ext::make_shared<SaddlePointLossModel<GaussianCopulaPolicy>>(latent);
+        const auto basket = differ.basket(0.0, 1.0);
+        basket->setLossModel(model);
+        BOOST_REQUIRE_EQUAL(basket->remainingTrancheNotional(), 3520.0);
+        const auto tranche = differ.basket(0.0, 1767.0 / 3520.0);
+        tranche->setLossModel(differ.saddlePointModel());
+        for (const Date& d : {Date(31, August, 2007), Date(31, August, 2009), differ.horizon})
+        {
+            const std::vector<Probability> exact = atMostOneSurvivor(latent, basket->remainingProbabilities(d));
+            const Probability withTheAtom = exact[0] + exact[1];
+            Real y = 1767.0;
+            for (int k = 0; k < 4; ++k)
+            {
+                y = std::nextafter(y, 0.0);
+                BOOST_TEST_CONTEXT("names that differ, " << d << ", a loss of " << std::setprecision(17) << y)
+                {
+                    BOOST_CHECK_CLOSE_FRACTION(model->probOverPortfLoss(d, y), withTheAtom, 1.0e-12);
+                    BOOST_CHECK_EQUAL(model->probDensity(d, y), 0.0);
+                }
+            }
+            BOOST_TEST_CONTEXT("names that differ, " << d << ", a loss of 1,767")
+            {
+                for (Probability p : {model->probOverPortfLoss(d, 1767.0), tranche->probOverLoss(d, 1.0)})
+                {
+                    BOOST_CHECK_GE(p, exact[0] * (1.0 - 1.0e-12));
+                    BOOST_CHECK_LE(p, withTheAtom * (1.0 + 1.0e-12));
+                }
+                BOOST_CHECK_EQUAL(model->probDensity(d, 1767.0), 0.0);
+            }
+            y = std::nextafter(1767.0, QL_MAX_REAL);
+            BOOST_TEST_CONTEXT("names that differ, " << d << ", a loss of " << std::setprecision(17) << y)
+            {
+                BOOST_CHECK_CLOSE_FRACTION(model->probOverPortfLoss(d, y), exact[0], 1.0e-12);
+            }
+        }
+    }
+
+    // four names losing 60, the fourth at a loading of sqrt(0.999): at the factors where its default probability is
+    // tiny, the three others saturate under the tilt, and K' stays within rounding of 180, three defaults
+    {
+        const Real low = std::sqrt(0.3);
+        const FourNames four({0.01, 0.02, 0.03, 0.05}, std::vector<Real>(4, 0.4), {low, low, low, std::sqrt(0.999)});
+        for (Real y : {std::nextafter(180.0, 0.0), 180.0, std::nextafter(180.0, QL_MAX_REAL)})
+        {
+            BOOST_TEST_CONTEXT("four names, a loss of " << std::setprecision(17) << y)
+            {
+                BOOST_CHECK_CLOSE_FRACTION(four.model->probOverPortfLoss(four.horizon, y), four.exactOver(y), 1.0e-12);
+                BOOST_CHECK_EQUAL(four.model->probDensity(four.horizon, y), 0.0);
             }
         }
     }

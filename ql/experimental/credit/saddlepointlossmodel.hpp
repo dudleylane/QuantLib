@@ -120,7 +120,10 @@ namespace QuantLib
     For the more general context mathematical theory see: <b>Saddlepoint
     approximations with applications</b> by R.W. Butler, Cambridge series in
     statistical and probabilistic mathematics. 2007 \par
-    \todo Some portfolios show instabilities in the high order expansion terms.
+    \todo The density's higher-order terms can make it negative in the
+        tails of the distribution given the factor and next to its atoms,
+        and NaN on a plateau, where the names' tilted probabilities saturate
+        below the total less the two smallest losses (#308).
     \todo Methods here are calling and integrating using the unconditional
         probabilities without inverting them first; quite a lot of calls to
         the copula inversion can be avoided; this should improve performance.
@@ -133,18 +136,19 @@ namespace QuantLib
         basket is 9% below the exact value at five years and 12% at one
         (#309); until #204 it was 42% and 63% below.
     \warning Given the factor, the loss distribution is exact up to the
-        smallest loss one default causes and above the total loss less
-        that, both on top of the loss of the names the factor makes certain
-        to default, and comes from the approximation in between. The two don't
-        meet at the smallest loss (#205), so the expected shortfall steps as
-        the level crosses it. On 19 names that lose 80 to 99 each it rises, by
-        0.5% of a tranche of 3% of the basket under a Gaussian copula and 0.8%
-        under a T copula of order 3, where the exact value rises by 0.1%, and
-        its largest error around the step is 1.4% and 2.1% of the tranche;
-        until #204 it fell, by 3% and 4%, and its largest error was 4.1% and
-        2.5%. On 20 names that each lose 60 it rises by 1.8% of a tranche of
-        10%, where the exact value rises by 0.4%, and lies up to 2.9% above
-        the exact value from there (#309).
+        smallest loss one default causes, and above the total loss less the
+        two smallest, where a loss needs every name but one to default, both
+        on top of the loss of the names the factor makes certain to default;
+        it comes from the approximation in between. The parts don't meet
+        (#205), so the expected shortfall steps as the level crosses from one
+        to another. At the smallest loss, on 19 names that lose 80 to 99 each
+        it rises, by 0.5% of a tranche of 3% of the basket under a Gaussian
+        copula and 0.8% under a T copula of order 3, where the exact value
+        rises by 0.1%, and its largest error around the step is 1.4% and 2.1%
+        of the tranche; until #204 it fell, by 3% and 4%, and its largest
+        error was 4.1% and 2.5%. On 20 names that each lose 60 it rises by
+        1.8% of a tranche of 10%, where the exact value rises by 0.4%, and
+        lies up to 2.9% above the exact value from there (#309).
     */
 
     /* The treatment of recovery wont work with random recoveries, they should
@@ -295,6 +299,7 @@ namespace QuantLib
         {
             Real certain;     //!< the loss of the names certain to default, an amount
             Real smallest;    //!< the least loss one default of an uncertain name causes, an amount
+            Real second;      //!< the next least, an amount; the same as the least if two names cause it
             Real total;       //!< the loss if every uncertain name defaults, an amount
             Probability none; //!< the probability that no uncertain name defaults
             Probability any;  //!< the probability that some uncertain name defaults
@@ -311,11 +316,19 @@ namespace QuantLib
             Real excess;      //!< E[(L - y)^+], an amount
         };
         Tail tailCond(const std::vector<Real>& invUncondProbs, Real loss, const std::vector<Real>& mktFactor) const;
+        /*! The tail where a loss reaches the level only if at most one uncertain name survives, above their total
+            less the two smallest losses of one: there the loss is the total less what the survivor would have
+            lost, and every term of the distribution is known.
+        */
+        Tail oneSurvivorTailCond(const std::vector<Real>& invUncondProbs,
+                                 Real loss,
+                                 const std::vector<Real>& mktFactor,
+                                 const LossLimits& limits) const;
 
         //! Conditional on the market factor
         LossLimits lossLimitsCond(const std::vector<Real>& invUncondProbs, const std::vector<Real>& mktFactor) const
         {
-            LossLimits limits = {0., QL_MAX_REAL, 0., 1., 0., 1.};
+            LossLimits limits = {0., QL_MAX_REAL, QL_MAX_REAL, 0., 1., 0., 1.};
             // The sums are compensated (Neumaier's): a plain sum of losses that aren't exact in double can come out
             //   doubles away from the real one, and move the limits by as much.
             Real certainCompensation = 0., totalCompensation = 0.;
@@ -341,7 +354,13 @@ namespace QuantLib
                 }
                 else if (loss > 0.)
                 {
-                    limits.smallest = std::min(limits.smallest, loss);
+                    if (loss < limits.smallest)
+                    {
+                        limits.second = limits.smallest;
+                        limits.smallest = loss;
+                    }
+                    else if (loss < limits.second)
+                        limits.second = loss;
                     add(limits.total, totalCompensation, loss);
                     limits.none *= 1. - p;
                     logNone += std::log1p(-p);
@@ -1027,6 +1046,11 @@ namespace QuantLib
         //   alone reaches the level
         if (rest <= limits.smallest)
             return {limits.any, expected - limits.certain * limits.none - loss * limits.any};
+        // Every set of defaults that leaves out two names or more loses at
+        //   most the total less the two smallest losses, so above that the
+        //   rest is reached only if at most one name survives (#282).
+        if (rest > limits.total - limits.smallest - limits.second)
+            return oneSurvivorTailCond(invUncondProbs, loss, mktFactor, limits);
 
         Real saddlePt = findSaddle(invUncondProbs, loss / remainingNotional_, mktFactor);
         if (saddlePt == QL_MAX_REAL)
@@ -1058,6 +1082,55 @@ namespace QuantLib
         if (saddlePt >= 0.)
             return {scale * tail, beyond};
         return {1. - scale * tail, expected - loss + beyond};
+    }
+
+    template <class CP>
+    typename SaddlePointLossModel<CP>::Tail
+    SaddlePointLossModel<CP>::oneSurvivorTailCond(const std::vector<Real>& invUncondProbs,
+                                                  Real loss,
+                                                  const std::vector<Real>& mktFactor,
+                                                  const LossLimits& limits) const
+    {
+        // the uncertain names, as lossLimitsCond takes them
+        std::vector<Probability> pDef;
+        std::vector<Real> lossInDef;
+        for (Size iName = 0; iName < remainingNotionals_.size(); iName++)
+        {
+            Real nameLoss =
+                remainingNotionals_[iName] *
+                (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor));
+            Probability p =
+                copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], liveNames_[iName], mktFactor);
+            if (p != 1. && nameLoss > 0.)
+            {
+                pDef.push_back(p);
+                lossInDef.push_back(nameLoss);
+            }
+        }
+        // Only name i surviving loses the total less its loss, which reaches
+        //   the level if that loss is at most the total less the rest. Its
+        //   probability takes the product of the other names' before and
+        //   after it, rather than the whole product over p_i, so that names
+        //   whose probabilities are 0 don't take the others' terms with them.
+        const Size nNames = pDef.size();
+        std::vector<Probability> after(nNames + 1, 1.);
+        for (Size i = nNames; i-- > 0;)
+            after[i] = after[i + 1] * pDef[i];
+        Real top = limits.certain + limits.total;
+        Real room = limits.total - (loss - limits.certain);
+        Tail tail = {limits.all, (top - loss) * limits.all};
+        Probability before = 1.;
+        for (Size i = 0; i < nNames; i++)
+        {
+            if (lossInDef[i] <= room)
+            {
+                Probability onlyThisSurvives = (1. - pDef[i]) * before * after[i + 1];
+                tail.over += onlyThisSurvives;
+                tail.excess += (top - lossInDef[i] - loss) * onlyThisSurvives;
+            }
+            before *= pDef[i];
+        }
+        return tail;
     }
 
     template <class CP>
@@ -1093,6 +1166,11 @@ namespace QuantLib
         LossLimits limits = lossLimitsCond(invUncondPs, mktFactor);
         Real rest = loss - limits.certain;
         if (rest < limits.smallest || rest > limits.total - limits.smallest)
+            return 0.;
+        // Above their total less the two smallest losses, the loss is their
+        //   total, or the total less the loss of the one name that survives:
+        //   atoms, with nothing between them.
+        if (rest > limits.total - limits.smallest - limits.second)
             return 0.;
         Real saddlePt = findSaddle(invUncondPs, relativeLoss, mktFactor);
         if (std::abs(saddlePt) == QL_MAX_REAL)
