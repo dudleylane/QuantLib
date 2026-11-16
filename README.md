@@ -170,6 +170,9 @@ no longer checks them, and no CI job builds any of them.
 | #239 | `ql/pricingengines/vanilla/analytichestonengine.cpp` | `AnalyticHestonEngine`'s Gauss-Lobatto prices rho = -1 and 1, where every rule that takes an integration limit threw, and the rules that map their nodes through c_inf refuse there instead of returning a wrong price; the control variate's average variance keeps its precision at small kappa t |
 | #237 | `ql/experimental/forward/analytichestonforwardeuropeanengine.cpp` | The analytic Heston forward-start engine prices the band of resets where, at R in the hundreds and more, the density's Bessel function underflows over its bulk, from the density's Poisson sum, where it refused |
 | #238 | `ql/experimental/forward/analytichestonforwardeuropeanengine.cpp` | The analytic Heston forward-start engine prices rho = -1 and 1 on either side of the forward, where it threw at the forward and on one side of it; at -1 and 1 next to the atom it can still refuse (#304), and just inside them where its line isn't tilted (#303) |
+| #306 | `ql/experimental/credit/saddlepointlossmodel.hpp` | Below one default's loss the saddle-point model's probability of some default keeps its digits where every name's default probability given the factor is tiny, where it came out 0 |
+| #281 | `ql/experimental/credit/saddlepointlossmodel.hpp` | The saddle-point model takes its tail probability and expected excess given the factor from one first-order approximation, so its shortfall on senior tranches is no longer half the exact one (#204, still open at one year), and its probability below a factor's expected loss isn't 0 where it's near 1 |
+| #282 | `ql/experimental/credit/saddlepointlossmodel.hpp` | Where at most one name survives, the saddle-point model takes its loss distribution given the factor exactly, where its density was NaN and its tail probability split the atom |
 
 ### New in this fork
 
