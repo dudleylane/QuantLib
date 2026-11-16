@@ -155,6 +155,13 @@ namespace QuantLib
             }
         }
 
+        // past e^G the growth below cancels digits
+        constexpr Real hestonUnitCorrelationGrowth = 2.0;
+    }
+
+    namespace detail
+    {
+
         /* At rho = -1 or 1 the angled contour takes its angle from r = rho - sigma freq / w alone (#239):
            tan(phi) = -sign(r) tan(pi / 12), and 0 at r = 0, with freq = log(F / K) and w = v0 + kappa theta t. On
            the line u (1 + i tan(phi)) - i / 2 the integrand decays as e^{-(w / sigma) (sqrt(1 - rho^2) - r tan(phi)) u}
@@ -166,9 +173,6 @@ namespace QuantLib
            no singularity, was measured: the integral along it agrees with the real line's within 2.2e-12 at 182
            strikes of 13 models, and with those along an eighth and a half of that slope and along tan(pi / 6)
            within 1.3e-12 at 2,999 strikes of 600 random models. */
-        // past e^G the growth below cancels digits
-        constexpr Real hestonUnitCorrelationGrowth = 2.0;
-
         /* Where that line tilts against freq (r and freq of one sign, the strike between F and F e^{-rho w / sigma}),
            the factor e^{-u tan(phi) freq} in the integrand grows, and the characteristic function and its control
            variate with it, by up to e^{(tan(phi) freq)^2 / (2 vT (1 - tan(phi)^2))} before they decay, vT = vAvg t:
@@ -176,7 +180,7 @@ namespace QuantLib
            the integral, a difference of the two, made the price 1.8e12 against 33.11. So there the slope is no
            steeper than keeps that growth to e^G: tan(phi)^2 = 2 G vT / (freq^2 + 2 G vT), which binds beyond
            about sqrt(26 G) standard deviations from the money. */
-        Real unitCorrelationTanPhi(Real r, Real freq, Real vT)
+        Real hestonUnitCorrelationTanPhi(Real r, Real freq, Real vT)
         {
             if (r == 0.0)
                 return 0.0;
@@ -187,6 +191,23 @@ namespace QuantLib
             return sign * std::min(tanPhi, std::sqrt(x / (freq * freq + x)));
         }
 
+        // a and P as hestonUnitCorrelationLimit's comment, below, gives them
+        HestonUnitCorrelationBound
+        hestonUnitCorrelationBound(Real rho, Real kappa, Real theta, Real sigma, Real w, Real tanPhi)
+        {
+            const Real kappaPrime = kappa - 0.5 * rho * sigma;
+            const Real a = w * std::sqrt(std::fabs(kappaPrime) / (sigma * sigma * sigma)) * M_SQRT2 *
+                           std::pow(1.0 + tanPhi * tanPhi, 0.25) *
+                           std::cos(M_PI_4 + 0.5 * std::fabs(std::atan(tanPhi)));
+            const Real P = (w * std::max(kappaPrime, Real(0.0)) + 2.0 * kappa * theta * M_LN2) / (sigma * sigma);
+            return {a, P};
+        }
+
+    }
+
+    namespace
+    {
+
         // past this the integration wasn't checked against a reference, and such limits are refused (#239)
         constexpr Real hestonMaxIntegrationLimit = 5.0e8;
 
@@ -195,7 +216,7 @@ namespace QuantLib
            times a power of u that only speeds it up, with
                a = w sqrt(|kappa'| / sigma^3),   P = (w max(kappa', 0) + 2 kappa theta log 2) / sigma^2,
                w = v0 + kappa theta t,   kappa' = kappa - rho sigma / 2,
-           and on the line of slope tan(phi), unitCorrelationTanPhi(r), at least as that with a times
+           and on the line of slope tan(phi), hestonUnitCorrelationTanPhi(r), at least as that with a times
            sqrt(2) (1 + tan(phi)^2)^{1/4} cos(pi / 4 + |phi| / 2), and as e^{-c u} with c = (w / sigma) |r tan(phi)|.
            The limit is the nearer of the two u where each bound, over u^2, falls to epsilon, with L = P - log(epsilon):
            x^2 for the root x of a x + 2 log(x) = L, and the root of c u + 2 log(u) = L; and it is at least where the
@@ -212,12 +233,11 @@ namespace QuantLib
             const Real w = v0 + kappa * theta * t, kappaPrime = kappa - 0.5 * rho * sigma;
             const Real r = rho - sigma * freq / w;
             const Real vT = (theta + (v0 - theta) * detail::decayRatio(kappa * t)) * t;
-            const Real tanPhi = unitCorrelationTanPhi(r, freq, vT);
-            const Real a = w * std::sqrt(std::fabs(kappaPrime) / (sigma * sigma * sigma)) * M_SQRT2 *
-                           std::pow(1.0 + tanPhi * tanPhi, 0.25) *
-                           std::cos(M_PI_4 + 0.5 * std::fabs(std::atan(tanPhi)));
+            const Real tanPhi = detail::hestonUnitCorrelationTanPhi(r, freq, vT);
+            const detail::HestonUnitCorrelationBound bound =
+                detail::hestonUnitCorrelationBound(rho, kappa, theta, sigma, w, tanPhi);
+            const Real a = bound.a, P = bound.P;
             const Real c = w / sigma * std::fabs(r * tanPhi);
-            const Real P = (w * std::max(kappaPrime, Real(0.0)) + 2.0 * kappa * theta * M_LN2) / (sigma * sigma);
             const Real L = P - std::log(epsilon);
             Real u = QL_MAX_REAL;
             if (a > 0.0)
@@ -636,8 +656,8 @@ namespace QuantLib
             {
                 const Real r = rho - sigma * freq_ / (v0 + kappa * theta * term);
                 tanPhi_ = unitCorrelation_ ?
-                              unitCorrelationTanPhi(r, freq_,
-                                                    (theta + (v0 - theta) * detail::decayRatio(kappa * term)) * term) :
+                              detail::hestonUnitCorrelationTanPhi(
+                                  r, freq_, (theta + (v0 - theta) * detail::decayRatio(kappa * term)) * term) :
                               std::tan((r * freq_ < 0.0) ? M_PI / 12 * boost::math::sign(freq_) : 0.0);
             }
             break;

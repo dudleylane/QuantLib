@@ -988,19 +988,69 @@ BOOST_AUTO_TEST_CASE(testHestonAnalyticCorrelationNearOne)
     for (const auto& c : cases)
         checkForwardHestonCase(c);
 
-    // On the other side of the forward, at rho = -1 and 1, the line isn't tilted and the integrand doesn't decay
-    // along it, and the engine throws (#238), where it priced with its fixed rule.  At rho = -0.99999999 the
-    // integrand turns 40,000 times before it decays, which would take more panels than the engine takes.
+    // At rho = -1 and 1 the integrand doesn't decay along an untilted line, and the engine threw where it took one:
+    // at the forward, and above it at rho = -1, below it at rho = 1 (#238).  There it takes AnalyticHestonEngine's
+    // line at rho = -1 and 1, from r = rho - sigma log(F / K) / (v + kappa theta tau) alone, on either side of the
+    // forward.  The references take h by Gil-Pelaez as above, on the real line or on lines tilted by -sign(r) pi / 8,
+    // pi / 16 or pi / 32 as the tenor shortens, out to twice where e^{P - a sqrt(u)}, the bound on the
+    // characteristic function that remains at rho = -1 and 1, has fallen to 1e-22; on each row they agree to 1e-14.
+    // The first four rows are #238's.  A reset today is priced as a vanilla option from v0.  The last row's strike
+    // is just below F e^{(v0 + kappa theta tau) / sigma}, above which the spot can't end at rho = -1, so the put is
+    // worth its intrinsic value and 1.2e-7, and r is near 0: there the turns of e^{-iuk} and of the characteristic
+    // function, which cancel, would take more panels than the engine takes, and the engine counts them again.  Its
+    // references are on lines tilted by pi / 16, pi / 32 and pi / 64.
+    const ForwardHestonCase unitCases[] = {
+        {0.04, 2.0, 0.04, 0.2, -1.0, 182, 365, 1.0, Option::Call, 4.58683396287417},
+        {0.04, 2.0, 0.04, 0.2, -1.0, 182, 365, 1.2, Option::Call, 0.182351254366135},
+        {0.04, 2.0, 0.04, 0.2, -1.0, 364, 365, 1.0, Option::Call, 0.373510826524128},
+        {0.04, 2.0, 0.04, 0.2, -1.0, 364, 365, 1.01, Option::Call, 0.079253451945598},
+        {0.04, 2.0, 0.04, 0.2, 1.0, 182, 365, 0.8, Option::Call, 18.581366656325},
+        {0.04, 2.0, 0.04, 0.2, 1.0, 364, 365, 0.99, Option::Call, 1.0637929525436},
+        {0.04, 2.0, 0.04, 0.2, -1.0, 1, 2, 1.01, Option::Call, 0.091588420997995},
+        {0.04, 2.0, 0.04, 0.2, -1.0, 0, 30, 1.0, Option::Call, 2.16715907101182},
+        {0.04, 2.0, 0.04, 0.2, 1.0, 0, 30, 0.95, Option::Call, 5.30262200511919},
+        {0.03, 0.1, 0.02, 1.5, -1.0, 0, 1, 1.0201, Option::Put, 2.01682157092457},
+    };
+    for (const auto& c : unitCases)
+        checkForwardHestonCase(c);
+
+    // At rho = -1, and at rho = 1 where kappa >= sigma / 2, the spot can't end beyond F e^{-rho w / sigma}, with
+    // w = v + kappa theta tau and v the variance at the reset.  So where w is at most -rho sigma log(K / F), a call's
+    // probabilities are exactly 0 (rho = -1) or 1 (rho = 1), and they aren't analytic at the variance v* where that
+    // starts to hold.  A rule across v* can't follow them: on the first two rows, where v* is 0.049 and 0.040, the
+    // range's rule across it was 6.0e-8 low and 3.0e-5 high, and the engine now integrates above v* apart.  The first
+    // row's three references take h as the rows above do, on the real line and on a line tilted by pi / 16, and
+    // integrate it by tanh-sinh, once split at v*; they agree to 15 digits.  At kappa = sigma / 2 and rho = 1 the log
+    // spot at expiry is log F + (v_T - w) / sigma, so the second row's reference takes P1 and P2 as noncentral
+    // chi-squared tail probabilities of v_T, and integrates them split at v*, by tanh-sinh and by Gauss-Kronrod, which
+    // agree to 15 digits.  At rho = 1 where kappa < sigma / 2 the spot can end on either side of the strike from every
+    // variance, so the probabilities are exact nowhere, but they still aren't analytic at v*: on the third row, where
+    // v* is 0.021, the range's rule across it was 2.8e-4 low, and the engine now integrates the two sides of v* apart.
+    // Its reference takes h as the first row's do, on the line tilted by pi / 16, and integrates it by tanh-sinh over
+    // the whole range, unsplit, to 56,311 nodes; it agrees with the engine to 5e-12.  The last row is struck 1e-6 below
+    // F e^{-kappa theta tau / sigma} in log terms, so that v* is 2e-7, at R = 4 kappa theta / sigma^2 = 0.2.  Above v*
+    // the probabilities, which don't go to 0 there, are integrated against the density, which goes as v^(R/2 - 1)
+    // toward 0, a distance v* below.  Taken in sqrt(v), with the engine's 128 nodes, that side was 1.0e-4 (1.4e-5
+    // relative) low, and the engine takes it in v^(R/2), in which that factor of the density is constant.  Its expected
+    // value is the same rule's with 512 outer nodes rather than 128, which the rule in sqrt(v) with 1,024 matches
+    // within 1.0e-12.
+    const ForwardHestonCase kinkCases[] = {
+        {0.02, 1.5, 0.05, 0.6, -1.0, 1825, 2190, 1.2, Option::Put, 19.4230175945522},
+        {0.04, 0.1, 0.04, 0.2, 1.0, 182, 365, 0.8, Option::Call, 18.6775337520858},
+        {0.04, 0.08, 0.04, 0.2, 1.0, 1825, 2190, 0.864, Option::Call, 13.3347834953905},
+        {0.04, 0.05, 0.04, 0.2, 1.0, 1825, 2190, 0.965604450652633, Option::Call, 7.43819447974572},
+    };
+    for (const auto& c : kinkCases)
+        checkForwardHestonCase(c);
+
+    // Just inside -1 and 1 the engine keeps its line for abs(rho) < 1, which isn't tilted there: at
+    // rho = -0.99999999 the integrand turns 40,000 times before it decays, which would take more panels than the
+    // engine takes (#303).
     const Date today(15, May, 2026);
     Settings::instance().evaluationDate() = today;
-    const auto npv = [&](Real rho, Real moneyness)
-    {
-        return forwardHestonNpv(today, Actual365Fixed(), 0.04, 2.0, 0.04, 0.2, rho, today + 182, today + 365, moneyness,
-                                Option::Call);
-    };
-    BOOST_CHECK_THROW(npv(-1.0, 1.2), Error);
-    BOOST_CHECK_THROW(npv(1.0, 0.8), Error);
-    BOOST_CHECK_THROW(npv(-0.99999999, 1.0), Error);
+    BOOST_CHECK_THROW(forwardHestonNpv(today, Actual365Fixed(), 0.04, 2.0, 0.04, 0.2, -0.99999999, today + 182,
+                                       today + 365, 1.0, Option::Call),
+                      Error);
 }
 
 BOOST_AUTO_TEST_CASE(testHestonAnalyticFellerConditionViolated)

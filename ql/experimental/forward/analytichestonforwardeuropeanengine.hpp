@@ -91,10 +91,39 @@ namespace QuantLib
         - A reset within 1e-11 years of today is priced as a vanilla
           option from v0, which must then be positive.
         - At rho = -1 or 1 the characteristic function doesn't decay
-          along an untilted line, and the engine throws where it
-          would need one: at the forward, and on one side of it,
-          above it at rho = -1 and below it at rho = 1, except far
-          from it.
+          along an untilted line.  There the line takes the angle
+          AnalyticHestonEngine takes there, from
+          r = rho - sigma log(F / K) / (v + kappa theta tau) alone,
+          on either side of the forward, and a range past 5e8 is
+          refused.  Where r is near 0, the integrand's turns from the
+          strike and from the characteristic function cancel; where
+          the count above would take more than 192 panels, the turns
+          are counted again, net of that.
+        - At rho = -1 the spot can't end above the strike from a
+          variance at the reset below
+          v* = -rho sigma log(K / F) - kappa theta tau, nor, at
+          rho = 1 where kappa >= sigma / 2, below it, so P1 and P2
+          are exactly 0 or 1 there, and not analytic at v*.  Where v*
+          lies inside the range, the range up to it takes that value
+          and the rest is integrated apart, with 128 Gauss-Legendre
+          nodes, in the variance's square root where the range's
+          nodes are Gauss-Jacobi.  At rho = 1 where
+          kappa < sigma / 2, P1 and P2 are exact nowhere but still
+          not analytic at v*, and the two sides of it are integrated
+          apart, the side above v* in v^(R/2) where R < 1.  Against
+          independent references, prices were within 6e-13 for R 8
+          and 0.83, and within 1.7e-8 of the closed form at
+          kappa = sigma / 2 with R = 0.4; for R 0.0036 there was none
+          with a reset after today.  A variance node next to v*,
+          where r is near 0, can take the range past 5e8, and the
+          engine throws: where v* is near the range's low end and the
+          tenor is short, and at rho = 1 where kappa < sigma / 2 for
+          strikes within about 1e-3 below
+          F e^{-kappa theta tau / sigma} in log terms (#304).
+        - Just inside -1 and 1 the engine keeps its line for
+          abs(rho) < 1, and throws within about 1e-7 of them where
+          that line isn't tilted: at the forward, above it near -1
+          and below it near 1 (#303).
 
         The integration order is used only by forwardChF(); the
         engine's own integrations don't depend on it.

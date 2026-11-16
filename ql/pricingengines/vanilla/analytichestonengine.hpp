@@ -37,6 +37,29 @@
 namespace QuantLib
 {
 
+    namespace detail
+    {
+
+        // At rho = -1 or 1, the slope tan(phi) of the line u (1 + i tan(phi)) - i / 2 along which the
+        // characteristic function is integrated, from r = rho - sigma freq / w alone, freq = log(F / K) and
+        // w = v + kappa theta t for the variance v and the term t, held where the line tilts against freq;
+        // vT is the variance expected over the term (#239).  AnalyticHestonEngine and
+        // AnalyticHestonForwardEuropeanEngine both take it, so it is declared here.  The derivation is at its
+        // definition, in analytichestonengine.cpp.
+        Real hestonUnitCorrelationTanPhi(Real r, Real freq, Real vT);
+
+        // At rho = -1 or 1, the bound e^{P - a sqrt(u)} on the characteristic function along that line, from
+        // w = v + kappa theta t and its slope tanPhi (#239).
+        struct HestonUnitCorrelationBound
+        {
+            Real a, P;
+        };
+
+        HestonUnitCorrelationBound
+        hestonUnitCorrelationBound(Real rho, Real kappa, Real theta, Real sigma, Real w, Real tanPhi);
+
+    }
+
     //! analytic Heston-model engine based on Fourier transform
 
     /*! Integration detail:
