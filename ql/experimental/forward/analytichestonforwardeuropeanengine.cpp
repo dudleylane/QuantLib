@@ -21,8 +21,10 @@
 #include <ql/math/distributions/gammadistribution.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/math/solvers1d/brent.hpp>
+#include <algorithm>
 #include <complex>
 #include <utility>
+#include <vector>
 
 namespace QuantLib
 {
@@ -51,6 +53,9 @@ namespace QuantLib
 
         // The inner range ends where the integrand, and what it has left beyond, have decayed to this.
         constexpr Real forwardHestonInnerEps = 1e-17;
+
+        // At rho = -1 or 1, an inner range that would end beyond this is refused, as AnalyticHestonEngine's is there.
+        constexpr Real forwardHestonMaxUnitCorrelationLimit = 5.0e8;
 
         // The outer range ends where the variance density has less than this of its mass beyond it.
         constexpr Real forwardHestonTailMass = 1e-14;
@@ -158,6 +163,39 @@ namespace QuantLib
             return Brent().solve(f, QL_EPSILON * hi, 0.5 * (lo + hi), lo, hi);
         }
 
+        /* For psi e^{-izk} at most e^{P - a sqrt(u)}, a > 0, the u beyond which both the integrand's bound
+           e^{P - a sqrt(u)} / u and what it leaves beyond, at most 2 e^{P - a x} / (a x) with x = sqrt(u), are below
+           forwardHestonInnerEps: x = y / a for the root y of y + min(log(y / 2), 2 log(y / a)) = L with
+           L = P - log(forwardHestonInnerEps), at least 39.  The left side is increasing, and below L at half of
+           L - log(L / 2). */
+        Real forwardHestonSqrtDecayLimit(Real a, Real P)
+        {
+            const Real L = P - std::log(forwardHestonInnerEps);
+            const auto f = [&](Real y) { return y + std::min(std::log(0.5 * y), 2.0 * std::log(y / a)) - L; };
+            const Real lo = 0.5 * (L - std::log(0.5 * L));
+            Real hi = 2.0 * L;
+            while (f(hi) <= 0.0)
+                hi *= 2.0;
+            const Real x = Brent().solve(f, QL_EPSILON * hi, 0.5 * (lo + hi), lo, hi) / a;
+            return x * x;
+        }
+
+        /* The u at which e^{B u - A u^2 / 2} / u has fallen to forwardHestonInnerEps, for A > 0 and B >= 0: the root
+           of A u^2 / 2 - B u + log(u) = L, L = -log(forwardHestonInnerEps).  The left side is below L up to 2 B / A,
+           where B u - A u^2 / 2 is positive, and increasing beyond B / A, so the root is the only one. */
+        Real forwardHestonTiltedGaussLimit(Real A, Real B)
+        {
+            const Real L = -std::log(forwardHestonInnerEps);
+            const auto f = [&](Real u) { return 0.5 * A * u * u - B * u + std::log(u) - L; };
+            Real lo = std::max(2.0 * B / A, std::sqrt(L / (0.5 * A + 1.0))),
+                 hi = 2.0 * B / A + std::max(std::sqrt(2.0 * L / A), 1.0);
+            while (f(hi) <= 0.0)
+                hi *= 2.0;
+            if (f(lo) >= 0.0)
+                lo = std::min(lo, 1e-300);
+            return Brent().solve(f, QL_EPSILON * hi, 0.5 * (lo + hi), lo, hi);
+        }
+
         // log psi(z), from what AnalyticHestonEngine::chF takes psi from: lnChF, except where sigma is at most 1e-6
         // and kappa at least 1e-8, where chF takes an expansion in sigma instead.
         std::complex<Real> forwardHestonLogChF(
@@ -195,6 +233,21 @@ namespace QuantLib
            - Where sigma^2 tau is large against the variance, psi first changes on the scale 1 / (sigma tau), up to
              sqrt(8 / R) times finer than 1/s, so the first panel is at most forwardHestonFirstPanelVolOfVol /
              (sigma tau) wide.
+           - At rho = -1 or 1, where sqrt(1 - rho^2) is 0, psi doesn't decay along an untilted line.  There the angle
+             is AnalyticHestonEngine's at rho = -1 or 1 (detail::hestonUnitCorrelationTanPhi, #238): from r alone,
+             on either side of the money, and held where the line tilts against freq.  Along that line psi e^{-izk}
+             decays at the rate c |r tan(phi)|, which is 0 where r is, and at least as e^{P - a sqrt(u)}
+             (detail::hestonUnitCorrelationBound).  Either bound holds alone, so its limit is the nearer of the two,
+             and a limit beyond forwardHestonMaxUnitCorrelationLimit is refused, before psi is taken there: where a
+             and r are both 0 (rho = 1, kappa = sigma / 2 and K at F e^{-w / sigma}) psi decays at most as a power of
+             u.  Where the line tilts against freq the control variate's term grows before it decays, as
+             e^{B u - A u^2 / 2} with A = s^2 (1 - tan(phi)^2) and B = -tan(phi) freq.
+           - There, where r is near 0, |k| U and psi's phase at U count turns that cancel: psi e^{-izk} turns at the
+             net rate c |r|, and only the control variate's term turns as e^{-iuk}, until its Gaussian has decayed
+             at uCv.  So where that count takes more than forwardHestonMaxPanels panels, [0, U] is split at
+             min(U, uCv) and the turns counted again: over the head as |k| u, the control variate's s^2 |tan(phi)| u^2
+             and psi e^{-izk}'s phase, over the tail as that phase alone, each phase by its variation over 8 points a
+             doubling from a panel's first width / 8, and each part's panels held to forwardHestonPanelTurns turns.
            One evaluation of psi serves both integrals. */
         std::pair<Real, Real> forwardHestonP1P2(const AnalyticHestonEngine& engine,
                                                 Real v,
@@ -220,27 +273,98 @@ namespace QuantLib
             const Real freq = -k;
             const Real c = (v + kappa * theta * tau) / sigma;
             const Real r = rho - freq / c;
-            const Real tanPhi = std::tan(r * freq < 0.0 ? M_PI / 12 * (freq > 0.0 ? 1.0 : -1.0) : 0.0);
-            const Real cEff = c * (std::sqrt(1.0 - rho * rho) - tanPhi * r);
-            QL_REQUIRE(cEff > 0.0, "the characteristic function doesn't decay along the integration line (rho "
-                                       << rho << ", log(K / F) " << k
-                                       << "), as at rho = -1 or 1 where the line isn't tilted: at the forward, and"
-                                          " above it at rho = -1, below it at rho = 1");
-            Real U = std::max(forwardHestonDecayLimit(cEff, QL_MAX_REAL), forwardHestonGaussLimit(0.5 * s2));
-            if (tanPhi != 0.0)
-                U = std::max(forwardHestonDecayLimit(cEff, U), forwardHestonDecayLimit(std::fabs(k * tanPhi), U));
+            Real tanPhi, U;
+            if (rho * rho != 1.0)
+            {
+                tanPhi = std::tan(r * freq < 0.0 ? M_PI / 12 * (freq > 0.0 ? 1.0 : -1.0) : 0.0);
+                const Real cEff = c * (std::sqrt(1.0 - rho * rho) - tanPhi * r);
+                QL_REQUIRE(cEff > 0.0, "the characteristic function doesn't decay along the integration line (rho "
+                                           << rho << ", log(K / F) " << k << ", the variance " << v << ")");
+                U = std::max(forwardHestonDecayLimit(cEff, QL_MAX_REAL), forwardHestonGaussLimit(0.5 * s2));
+                if (tanPhi != 0.0)
+                    U = std::max(forwardHestonDecayLimit(cEff, U), forwardHestonDecayLimit(std::fabs(k * tanPhi), U));
+            }
+            else
+            {
+                tanPhi = detail::hestonUnitCorrelationTanPhi(r, freq, s2);
+                const Real cEff = c * (std::sqrt(1.0 - rho * rho) - tanPhi * r);
+                const detail::HestonUnitCorrelationBound bound =
+                    detail::hestonUnitCorrelationBound(rho, kappa, theta, sigma, v + kappa * theta * tau, tanPhi);
+                const Real uSqrt = bound.a > 0.0 ? forwardHestonSqrtDecayLimit(bound.a, bound.P) : QL_MAX_REAL;
+                // psi e^{-izk}'s limit, or uMax where that lies beyond uMax
+                const auto psiLimit = [&](Real uMax)
+                { return std::min(cEff > 0.0 ? forwardHestonDecayLimit(cEff, uMax) : uMax, uSqrt); };
+                const Real uPsi = psiLimit(QL_MAX_REAL);
+                QL_REQUIRE(uPsi <= forwardHestonMaxUnitCorrelationLimit,
+                           "at rho = " << rho << ", the variance " << v << ", log(K / F) " << k << " and a tenor of "
+                                       << tau << " the integrand decays too slowly for an integration limit: it would"
+                                       << " be " << uPsi << ", past the " << forwardHestonMaxUnitCorrelationLimit
+                                       << " this engine takes");
+                if (tanPhi * freq >= 0.0)
+                {
+                    U = std::max(uPsi, forwardHestonGaussLimit(0.5 * s2));
+                    if (tanPhi != 0.0)
+                        U = std::max(psiLimit(U), forwardHestonDecayLimit(std::fabs(k * tanPhi), U));
+                }
+                else
+                    U = std::max(uPsi, forwardHestonTiltedGaussLimit(s2 * (1.0 - tanPhi * tanPhi), -tanPhi * freq));
+            }
 
             const Real phase = std::fabs(
                 std::imag(forwardHestonLogChF(engine, std::complex<Real>(U, U * tanPhi - 0.5), tau, kappa, sigma)));
-            const Real turns = (std::fabs(k) * U + phase) / (2.0 * M_PI);
+            Real turns = (std::fabs(k) * U + phase) / (2.0 * M_PI);
             const Real firstWidth =
                 std::min(forwardHestonFirstPanel / s, forwardHestonFirstPanelVolOfVol / (sigma * tau));
-            const Real maxWidth = turns > forwardHestonPanelTurns ? U * forwardHestonPanelTurns / turns : U;
-            Size panels = 0;
-            for (Real a = 0.0, width = firstWidth; a < U && panels <= forwardHestonMaxPanels; width *= 2.0)
+            Real maxWidth = turns > forwardHestonPanelTurns ? U * forwardHestonPanelTurns / turns : U;
+            // one region, [0, U], unless the turns are counted again below: then a panel ends at uHead, beyond which
+            // the panels are at most maxWidthTail wide
+            Real uHead = U, maxWidthTail = maxWidth;
+            const auto panelEnd = [&](Real a, Real width)
             {
-                a += std::min(width, maxWidth);
-                ++panels;
+                const Real b = std::min(U, a + std::min(width, a < uHead ? maxWidth : maxWidthTail));
+                return a < uHead && b > uHead ? uHead : b;
+            };
+            const auto countPanels = [&]()
+            {
+                Size n = 0;
+                for (Real a = 0.0, width = firstWidth; a < U && n <= forwardHestonMaxPanels; width *= 2.0)
+                {
+                    a = panelEnd(a, width);
+                    ++n;
+                }
+                return n;
+            };
+            Size panels = countPanels();
+            if (panels > forwardHestonMaxPanels && rho * rho == 1.0)
+            {
+                const Real t2 = 1.0 - tanPhi * tanPhi;
+                const Real uCv = tanPhi * freq >= 0.0 ? forwardHestonGaussLimit(0.5 * s2 * t2) :
+                                                        forwardHestonTiltedGaussLimit(s2 * t2, -tanPhi * freq);
+                uHead = std::min(U, uCv);
+                std::vector<Real> points{0.0, uHead, U};
+                for (Real u = 0.125 * firstWidth; u < U; u *= std::pow(2.0, 0.125))
+                    points.push_back(u);
+                std::sort(points.begin(), points.end());
+                points.erase(std::unique(points.begin(), points.end()), points.end());
+                Real variationHead = 0.0, variationTail = 0.0, previous = 0.0;
+                for (Size j = 0; j < points.size(); ++j)
+                {
+                    const Real u = points[j];
+                    const Real angle = std::imag(forwardHestonLogChF(engine, std::complex<Real>(u, u * tanPhi - 0.5),
+                                                                     tau, kappa, sigma)) -
+                                       k * u;
+                    if (j > 0)
+                        (u <= uHead ? variationHead : variationTail) += std::fabs(angle - previous);
+                    previous = angle;
+                }
+                const Real turnsHead =
+                    (std::fabs(k) * uHead + s2 * std::fabs(tanPhi) * uHead * uHead + variationHead) / (2.0 * M_PI);
+                const Real turnsTail = variationTail / (2.0 * M_PI);
+                maxWidth = turnsHead > forwardHestonPanelTurns ? uHead * forwardHestonPanelTurns / turnsHead : uHead;
+                maxWidthTail =
+                    turnsTail > forwardHestonPanelTurns ? (U - uHead) * forwardHestonPanelTurns / turnsTail : U - uHead;
+                turns = turnsHead + turnsTail;
+                panels = countPanels();
             }
             QL_REQUIRE(panels <= forwardHestonMaxPanels,
                        "the inner integral at the variance "
@@ -253,7 +377,7 @@ namespace QuantLib
             Real i1 = 0.0, i2 = 0.0;
             for (Real a = 0.0, width = firstWidth; a < U; width *= 2.0)
             {
-                const Real b = std::min(U, a + std::min(width, maxWidth)), half = 0.5 * (b - a);
+                const Real b = panelEnd(a, width), half = 0.5 * (b - a);
                 Real p1 = 0.0, p2 = 0.0;
                 for (Size j = 0; j < x.size(); ++j)
                 {
@@ -462,6 +586,131 @@ namespace QuantLib
             mass += weight[j];
         }
         forwardHestonCheckMass(scale * mass, nuLeftLimit, nuRightLimit, R_);
+
+        // At rho = -1, and at rho = 1 where kappa >= sigma / 2, the log spot at expiry is log F - rho w / sigma, with
+        // w = v + kappa theta tau, plus terms in the variance at expiry and in its integral that have rho's sign.  So
+        // at the variances up to vStar, where w = -rho sigma log(K / F), the spot can't end above the strike at
+        // rho = -1, nor below it at rho = 1, and P1 = P2 = 0 or 1 exactly.  They aren't analytic at vStar, and a rule
+        // across it can't follow them.  Where vStar lies inside the range, the whole range's mass, checked above, is
+        // taken at that value, and above vStar the rule integrates what P1 and P2 differ from it by, which goes to 0
+        // at vStar: with Gauss-Legendre nodes, in sqrt(v) where the density's nodes are Gauss-Jacobi, and left out
+        // where the density has at most forwardHestonTailMass of its mass there.
+        if (rho_ * rho_ == 1.0 && (rho_ < 0.0 || kappa_ >= 0.5 * sigma_))
+        {
+            const Real vStar = -rho_ * sigma_ * logMoneyness - kappa_ * theta_ * tenor;
+            if (vStar > nuLeftLimit)
+            {
+                const Real pExact = rho_ < 0.0 ? 0.0 : 1.0;
+                const Real totalMass = scale * mass;
+                if (vStar >= nuRightLimit)
+                    return {pExact * totalMass, pExact * totalMass};
+
+                const Real leftScale = sqrtV ? 0.5 * std::sqrt(vStar) : 0.5 * (vStar - nuLeftLimit);
+                Real leftMass = 0.0;
+                for (Size j = 0; j < x.size(); ++j)
+                {
+                    if (sqrtV)
+                    {
+                        const Real y = leftScale * (1.0 + x[j]);
+                        leftMass += w[j] * 2.0 * y * propagator(resetTime, y * y);
+                    }
+                    else
+                        leftMass += w[j] * propagator(resetTime, nuLeftLimit + leftScale * (1.0 + x[j]));
+                }
+                if (totalMass - leftScale * leftMass <= forwardHestonTailMass)
+                    return {pExact * totalMass, pExact * totalMass};
+
+                const bool rightSqrtV = !jacobiX_.empty();
+                const Real lo = rightSqrtV ? std::sqrt(vStar) : vStar;
+                const Real hi = rightSqrtV ? std::sqrt(nuRightLimit) : nuRightLimit;
+                const Real rightScale = 0.5 * (hi - lo);
+                Real p1 = 0.0, p2 = 0.0;
+                for (Size j = 0; j < outerX_.size(); ++j)
+                {
+                    const Real t = lo + rightScale * (1.0 + outerX_[j]);
+                    const Real vj = rightSqrtV ? t * t : t;
+                    const Real wj = outerW_[j] * (rightSqrtV ? 2.0 * t : 1.0) * propagator(resetTime, vj);
+                    const std::pair<Real, Real> p = forwardHestonP1P2(*nodeEngine(vj), vj, logMoneyness, tenor, kappa_,
+                                                                      theta_, sigma_, rho_, innerX_, innerW_);
+                    p1 += wj * (p.first - pExact);
+                    p2 += wj * (p.second - pExact);
+                }
+                return {pExact * totalMass + rightScale * p1, pExact * totalMass + rightScale * p2};
+            }
+        }
+
+        // At rho = 1 where kappa < sigma / 2 the spot can end on either side of the strike from every variance, so P1
+        // and P2 are exact nowhere, but they still aren't analytic at vStar, where r = rho - sigma log(F / K) / w is
+        // 0, and a rule across it converges only as a power of its order.  Where vStar lies inside the range, the
+        // range below it is integrated with the density's nodes and the range above it with the nodes taken above
+        // vStar in the block above, apart, but for one thing.  Above vStar the rule integrates P1 and P2 themselves,
+        // which don't go to 0 there as P1 - pExact does in the block above, and the density goes as v^(R/2 - 1) at 0,
+        // so as t^(R - 1) in t = sqrt(v): for R < 1 that is unbounded a distance sqrt(vStar) below the range, and
+        // where vStar is small, at strikes just below F e^{-kappa theta tau / sigma}, the rule in t converges slowly
+        // (with 128 nodes it priced a call reset in 5 years at R 0.2 8.2e-3 low where vStar was 2e-9).  So where
+        // R < 1 the range above vStar is taken in s = v^(R/2), in which the density times dv/ds is bounded and its
+        // nearest singularity, at s = 0, lies vStar^(R/2) below the range rather than sqrt(vStar).  With
+        // q = (nuRightLimit / vStar)^(R/2) - 1 and y = (1 + x) / 2, a node maps to v = vStar (1 + q y)^(2/R), through
+        // expm1 and log1p so that it keeps its precision where R is small, with dv/dx = q v / (R (1 + q y)); at R = 1
+        // that is t.  In the block above, the same nodes would crowd vStar, where the inner integral's limit grows
+        // without bound, and refuse rows that the rule in t prices.
+        if (rho_ == 1.0 && kappa_ < 0.5 * sigma_)
+        {
+            const Real vStar = -rho_ * sigma_ * logMoneyness - kappa_ * theta_ * tenor;
+            if (vStar > nuLeftLimit && vStar < nuRightLimit)
+            {
+                const Real leftScale = sqrtV ? 0.5 * std::sqrt(vStar) : 0.5 * (vStar - nuLeftLimit);
+                Real l1 = 0.0, l2 = 0.0;
+                for (Size j = 0; j < x.size(); ++j)
+                {
+                    Real vj, wj;
+                    if (sqrtV)
+                    {
+                        const Real y = leftScale * (1.0 + x[j]);
+                        vj = y * y;
+                        wj = w[j] * 2.0 * y * propagator(resetTime, vj);
+                    }
+                    else
+                    {
+                        vj = nuLeftLimit + leftScale * (1.0 + x[j]);
+                        wj = w[j] * propagator(resetTime, vj);
+                    }
+                    const std::pair<Real, Real> p = forwardHestonP1P2(*nodeEngine(vj), vj, logMoneyness, tenor, kappa_,
+                                                                      theta_, sigma_, rho_, innerX_, innerW_);
+                    l1 += wj * p.first;
+                    l2 += wj * p.second;
+                }
+                const bool rightSqrtV = !jacobiX_.empty();
+                const bool rightMap = rightSqrtV && R_ < 1.0;
+                const Real lo = rightSqrtV ? std::sqrt(vStar) : vStar;
+                const Real hi = rightSqrtV ? std::sqrt(nuRightLimit) : nuRightLimit;
+                const Real rMap = rightMap ? std::expm1(0.5 * R_ * std::log(nuRightLimit / vStar)) : 0.0;
+                const Real rightScale = rightMap ? rMap / R_ : 0.5 * (hi - lo);
+                Real r1 = 0.0, r2 = 0.0;
+                for (Size j = 0; j < outerX_.size(); ++j)
+                {
+                    Real vj, dvdx;
+                    if (rightMap)
+                    {
+                        const Real ry = 0.5 * rMap * (1.0 + outerX_[j]);
+                        vj = vStar * std::exp(std::log1p(ry) / (0.5 * R_));
+                        dvdx = vj / (1.0 + ry);
+                    }
+                    else
+                    {
+                        const Real t = lo + rightScale * (1.0 + outerX_[j]);
+                        vj = rightSqrtV ? t * t : t;
+                        dvdx = rightSqrtV ? 2.0 * t : 1.0;
+                    }
+                    const Real wj = outerW_[j] * dvdx * propagator(resetTime, vj);
+                    const std::pair<Real, Real> p = forwardHestonP1P2(*nodeEngine(vj), vj, logMoneyness, tenor, kappa_,
+                                                                      theta_, sigma_, rho_, innerX_, innerW_);
+                    r1 += wj * p.first;
+                    r2 += wj * p.second;
+                }
+                return {leftScale * l1 + rightScale * r1, leftScale * l2 + rightScale * r2};
+            }
+        }
 
         Real p1Hat = 0.0, p2Hat = 0.0;
         for (Size j = 0; j < x.size(); ++j)
