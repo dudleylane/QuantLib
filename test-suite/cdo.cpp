@@ -2190,7 +2190,8 @@ BOOST_AUTO_TEST_CASE(testSaddlePointWhereAnyTwoDefaultsReachTheLevel)
        loss does, so given the factor the distribution there is known from the probabilities that no name and that
        only one name defaults. The model took it exactly only up to the smallest loss, and from its approximation
        above that: on #159's pool, 20 names that each lose 60, P(L >= 61) was 0.044 at one year where it is 0.038,
-       and 0.247 at five where it is 0.226 (#205). It's now exact up to 120. */
+       and 0.247 at five where it is 0.226 (#205). It's now exact up to 120, and the density, which was the
+       approximation's there too, is 0 between the atoms. */
 
     // 20 names alike, each losing 60: from 60 to 120 a level needs two defaults
     {
@@ -2212,6 +2213,15 @@ BOOST_AUTO_TEST_CASE(testSaddlePointWhereAnyTwoDefaultsReachTheLevel)
                 BOOST_TEST_CONTEXT("names alike, " << d << ", a loss of " << levels[j])
                 {
                     BOOST_CHECK_CLOSE_FRACTION(model->probOverPortfLoss(d, levels[j]), exact[j], 1.0e-12);
+                }
+            }
+            // given the factor, these levels lie on or between the atoms at nothing, one name's 60 and two names'
+            // 120, so the density, which leaves the atoms out, is 0 at them
+            for (Real y : {60.0, 61.0, 90.0, 119.0, 120.0})
+            {
+                BOOST_TEST_CONTEXT("names alike, " << d << ", the density at " << y)
+                {
+                    BOOST_CHECK_EQUAL(model->probDensity(d, y), 0.0);
                 }
             }
         }
@@ -2240,6 +2250,9 @@ BOOST_AUTO_TEST_CASE(testSaddlePointWhereAnyTwoDefaultsReachTheLevel)
                 BOOST_TEST_CONTEXT("names that differ, " << d << ", a loss of " << levels[j])
                 {
                     BOOST_CHECK_CLOSE_FRACTION(model->probOverPortfLoss(d, levels[j]), exact[j], 1.0e-12);
+                    // below the two smallest losses together, 161.9, the loss given the factor is nothing or one
+                    // name's, 80 to 99: atoms, with nothing between them
+                    BOOST_CHECK_EQUAL(model->probDensity(d, levels[j]), 0.0);
                 }
             }
         }

@@ -1280,6 +1280,11 @@ namespace QuantLib
         //   atoms, with nothing between them.
         if (rest > limits.total - limits.smallest - limits.second)
             return 0.;
+        // Up to the two smallest losses together, the loss is nothing, the
+        //   loss of one name, or those two together (#205): atoms again,
+        //   the smallest loss itself among them.
+        if (rest <= limits.smallest + limits.second)
+            return 0.;
         Real saddlePt = findSaddle(invUncondPs, relativeLoss, mktFactor);
         if (std::abs(saddlePt) == QL_MAX_REAL)
             return 0.;
