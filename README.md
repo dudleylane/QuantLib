@@ -167,6 +167,7 @@ no longer checks them, and no CI job builds any of them.
 | #235 | `ql/pricingengines/blackcalculator.cpp` | `BlackCalculator` gives a put its own in-the-money probabilities, N(-d2) and N(-d1), where it gave the call's, and so do `AnalyticEuropeanEngine` and, where early exercise is never optimal, the Barone-Adesi-Whaley and Ju engines |
 | #242 | `ql/experimental/barrieroption/vannavolgainterpolation.hpp` | `VannaVolgaInterpolation`'s doc says where the Vanna/Volga method holds, and where its call price leaves a call's bounds the interpolation says the method doesn't hold for the smile, where the implied volatility's message blamed the price |
 | #243 | `ql/pricingengines/barrier/discretizedbarrieroption.cpp`, `ql/experimental/barrieroption/discretizeddoublebarrieroption.cpp`, `ql/pricingengines/vanilla/discretizedvanillaoption.cpp` | The binomial barrier engines keep a European payoff's negative part, a gap payoff's or a negative cash-or-nothing's, where their lattices floored it at 0 at expiry |
+| #239 | `ql/pricingengines/vanilla/analytichestonengine.cpp` | `AnalyticHestonEngine`'s Gauss-Lobatto prices rho = -1 and 1, where every rule that takes an integration limit threw, and the rules that map their nodes through c_inf refuse there instead of returning a wrong price; the control variate's average variance keeps its precision at small kappa t |
 
 ### New in this fork
 
