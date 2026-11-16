@@ -48,6 +48,7 @@
 #include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/time/daycounters/actualactual.hpp>
 #include <boost/mpl/vector.hpp>
+#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <iomanip>
@@ -1571,8 +1572,9 @@ BOOST_AUTO_TEST_CASE(testSaddlePointProbabilityOverALossOnNamesThatDiffer)
     BOOST_CHECK_EQUAL(basket->percentile(left.horizon, 0.3), 0.0);
 }
 
-// Four names of notional 100 with the hazards given and recoveries of 0.4 unless given, on one factor at correlation
-// 0.3, Gaussian copula; a saddle-point model on the whole pool, and the exact probability of a loss of at least y.
+// Four names of notional 100 with the hazards given, and recoveries of 0.4 and loadings of sqrt(0.3) unless given, on
+// one factor, Gaussian copula; a saddle-point model on the whole pool, and the exact probability of a loss of at least
+// y.
 struct FourNames
 {
     Date today{31, August, 2006};
@@ -1586,7 +1588,9 @@ struct FourNames
     ext::shared_ptr<Basket> basket;
     Real trancheNotional;
 
-    FourNames(const std::vector<Real>& hazards, std::vector<Real> recoveries = std::vector<Real>(4, 0.4))
+    FourNames(const std::vector<Real>& hazards,
+              std::vector<Real> recoveries = std::vector<Real>(4, 0.4),
+              const std::vector<Real>& loadings = std::vector<Real>(4, std::sqrt(0.3)))
     : recoveries(std::move(recoveries))
     {
         Settings::instance().evaluationDate() = today;
@@ -1598,11 +1602,14 @@ struct FourNames
                 ext::make_shared<FlatHazardRate>(today, makeQuoteHandle(hazards[i]), ActualActual(ActualActual::ISDA)));
             pool->add(names.back(), Issuer(std::vector<Issuer::key_curve_pair>(1, std::make_pair(key, curve))), key);
         }
+        std::vector<std::vector<Real>> factors;
+        for (Real loading : loadings)
+            factors.emplace_back(1, loading);
         const auto latentModel = [&]
         {
-            return ext::make_shared<GaussianConstantLossLM>(
-                std::vector<std::vector<Real>>(4, std::vector<Real>(1, std::sqrt(0.3))), this->recoveries,
-                LatentModelIntegrationType::GaussianQuadrature, GaussianCopulaPolicy::initTraits());
+            return ext::make_shared<GaussianConstantLossLM>(factors, this->recoveries,
+                                                            LatentModelIntegrationType::GaussianQuadrature,
+                                                            GaussianCopulaPolicy::initTraits());
         };
         latent = latentModel();
         model = ext::make_shared<SaddlePointLossModel<GaussianCopulaPolicy>>(latentModel());
@@ -1827,6 +1834,290 @@ BOOST_AUTO_TEST_CASE(testSaddlePointWithANameThatLosesNothing)
     BOOST_CHECK_EQUAL(four.basket->percentile(four.horizon, 0.5), 0.0);
     // Brent's accuracy is 1e-4 of the tranche
     BOOST_CHECK_SMALL(four.basket->percentile(four.horizon, 0.99) - 120.0, 1.0e-4 * four.trancheNotional);
+}
+
+BOOST_AUTO_TEST_CASE(testSaddlePointWhereNoNameIsLikelyToDefault)
+{
+    BOOST_TEST_MESSAGE("Testing the saddle point's probability of a loss where no name is likely to default...");
+
+    /* Below the smallest loss of a name, a loss reaches the level if any name defaults. That probability was taken as
+       1 - prod(1 - p), which keeps only the digits of the product above the rounding of 1: with hazards of 1e-12 it
+       was 1.2e-6 below the exact one, relative, and with 1e-16 by 1e-3 (#306). It's now taken from the logarithm of
+       the product. */
+    for (Real hazard : {1.0e-12, 1.0e-16})
+    {
+        const FourNames four(std::vector<Real>(4, hazard));
+        BOOST_TEST_CONTEXT("hazards of " << hazard)
+        {
+            BOOST_CHECK_CLOSE_FRACTION(four.model->probOverPortfLoss(four.horizon, 30.0), four.exactOver(30.0),
+                                       1.0e-12);
+        }
+    }
+}
+
+// The saddle point's tail given the market factor, which the model keeps to itself: P(L >= y | M) and
+// E[L 1{L >= y} | M] on the whole pool.
+template <class CP>
+class SaddlePointTailGivenTheFactor : public SaddlePointLossModel<CP>
+{
+  public:
+    using SaddlePointLossModel<CP>::SaddlePointLossModel;
+    using SaddlePointLossModel<CP>::probOverLossPortfCond;
+    using SaddlePointLossModel<CP>::expectedShortfallFullPortfolioCond;
+};
+
+BOOST_AUTO_TEST_CASE(testSaddlePointTailFarAboveTheLikelyLosses)
+{
+    BOOST_TEST_MESSAGE("Testing the saddle point's tail far above the losses the factor makes likely...");
+
+    /* Given the factor, the tail probability was the first-order saddle-point form times a series in the saddle
+       point, and E[L 1{L >= y}] Martin's formula on it and on the density. Far above the losses the factor made
+       likely the series grew without bound: on #159's pool, 20 names that each lose 60, at a loss of 1,000 and a
+       factor of 0 it multiplied the probability by about 1,140, and E[L 1{L >= y}] came out at 0.03 of y P(L >= y),
+       which no distribution allows. A tranche's expected loss beyond a level came out negative there, and was floored
+       at 0, so the shortfall on 50 to 100 % was 42 % low at five years and 63 % at one (#204). Both now come from one
+       tilted normal approximation, which keeps E[L 1{L >= y}] at least y P(L >= y). */
+    SharedModelVars vars(0.3);
+    Settings::instance().evaluationDate() = vars.today;
+    const auto latent = vars.latentModel();
+    const auto model = ext::make_shared<SaddlePointTailGivenTheFactor<GaussianCopulaPolicy>>(latent);
+    const auto basket = vars.basket(0.0, 1.0);
+    basket->setLossModel(model);
+    // the basket hands itself to the model as it first calculates, which the model's tail given the factor needs
+    BOOST_REQUIRE_EQUAL(basket->remainingTrancheNotional(), 2000.0);
+    const Date fiveYears = vars.schedule.endDate();
+    const auto inverted = [&](const Date& d)
+    {
+        std::vector<Real> inverse = basket->remainingProbabilities(d);
+        for (Size i = 0; i < inverse.size(); ++i)
+            inverse[i] = latent->inverseCumulativeY(inverse[i], i);
+        return inverse;
+    };
+
+    // 960 is 16 defaults, and 1,000 lies between 16 and 17
+    const std::vector<Real> inverse = inverted(fiveYears);
+    for (Real factor : {-4.0, -3.0, -2.0, -1.0, 0.0})
+    {
+        for (Real y : {960.0, 1000.0})
+        {
+            BOOST_TEST_CONTEXT("a factor of " << factor << ", a loss of " << y)
+            {
+                const std::vector<Real> m(1, factor);
+                const Probability over = model->probOverLossPortfCond(inverse, y, m);
+                BOOST_CHECK_GT(over, 0.0);
+                BOOST_CHECK_GE(model->expectedShortfallFullPortfolioCond(inverse, y, m), y * over);
+            }
+        }
+    }
+
+    /* The 50 to 100 % tranche's shortfall against the exact one, from the number of defaults given the factor. A loss
+       reaches the tranche with a probability of 3.2e-5 at five years, so its percentile at 0.99 is 0, and the
+       shortfall is its expected loss over 0.01. The model's is still 9.4 % low at five years and 12.1 % at one, the
+       error of a smooth approximation far in the tail of a lattice of 20 losses (#309). */
+    const auto tranche = vars.basket(0.5, 1.0);
+    tranche->setLossModel(vars.saddlePointModel());
+    for (const auto& [d, tolerance] :
+         {std::pair<Date, Real>(Date(31, August, 2007), 0.15), std::pair<Date, Real>(fiveYears, 0.1)})
+    {
+        const std::vector<Real> inverseAtD = inverted(d);
+        const Real expectedLoss = latent->integratedExpectedValue(
+            [&](const std::vector<Real>& m)
+            {
+                std::vector<Probability> defaults(1, 1.0);
+                for (Size i = 0; i < inverseAtD.size(); ++i)
+                {
+                    const Probability p = latent->conditionalDefaultProbabilityInvP(inverseAtD[i], i, m);
+                    defaults.push_back(defaults.back() * p);
+                    for (Size k = defaults.size() - 2; k > 0; --k)
+                        defaults[k] = defaults[k] * (1.0 - p) + defaults[k - 1] * p;
+                    defaults[0] *= 1.0 - p;
+                }
+                Real loss = 0.0;
+                for (Size k = 0; k < defaults.size(); ++k)
+                    loss += defaults[k] * std::max(60.0 * k - 1000.0, 0.0);
+                return loss;
+            });
+        BOOST_TEST_CONTEXT("50 to 100 %, " << d)
+        {
+            BOOST_REQUIRE_EQUAL(tranche->percentile(d, 0.99), 0.0);
+            BOOST_CHECK_SMALL(tranche->expectedShortfall(d, 0.99) / (expectedLoss / 0.01) - 1.0, tolerance);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testSaddlePointTailWhereEveryNameIsAlmostCertainToDefault)
+{
+    BOOST_TEST_MESSAGE("Testing the saddle point's tail where every name is almost certain to default...");
+
+    /* Below a factor's expected loss the tail probability was 1 less e^x Phi(-u) times the series, with
+       x = K - s y + u^2/2, and it returned 0 wherever x passed 700. Below the expected loss K - s y is at most 0, so
+       x passes 700 only through u^2/2, and there the term taken from 1 is tiny. Under a T copula of order 3 the
+       quadrature's two deepest factors make each of the 20 names that differ almost certain to default, and given
+       them the probability of a loss of 1,100 to 1,320 was 0, where it is 1 to 16 digits (#281). The term is now
+       e^{K - s y} times e^{u^2/2} Phi(-u), and neither is more than 1. */
+    const NamesAroundADefault differ(false, false, NamesAroundADefault::noName);
+    Settings::instance().evaluationDate() = differ.inception;
+    const auto latent = differ.tLatentModel();
+    const auto model = ext::make_shared<SaddlePointTailGivenTheFactor<TCopulaPolicy>>(latent);
+    const auto basket = differ.basket(0.0, 1.0);
+    basket->setLossModel(model);
+    // the basket hands itself to the model as it first calculates, which the model's tail given the factor needs
+    BOOST_REQUIRE_EQUAL(basket->remainingTrancheNotional(), 3520.0);
+
+    std::vector<Real> factors;
+    latent->integratedExpectedValue(
+        [&](const std::vector<Real>& m)
+        {
+            factors.push_back(m[0]);
+            return 0.0;
+        });
+    std::sort(factors.begin(), factors.end());
+    BOOST_REQUIRE_LT(factors[1], -1000.0);
+    std::vector<Real> inverse = basket->remainingProbabilities(differ.horizon);
+    for (Size i = 0; i < inverse.size(); ++i)
+        inverse[i] = latent->inverseCumulativeY(inverse[i], i);
+    for (Size k = 0; k < 2; ++k)
+    {
+        for (Real y : {1100.0, 1212.0, 1320.0})
+        {
+            BOOST_TEST_CONTEXT("a factor of " << factors[k] << ", a loss of " << y)
+            {
+                BOOST_CHECK_SMALL(1.0 - model->probOverLossPortfCond(inverse, y, std::vector<Real>(1, factors[k])),
+                                  1.0e-12);
+            }
+        }
+    }
+}
+
+// Integrated over the factor: the probability that every name defaults, then that each name alone survives.
+template <class LatentModel>
+std::vector<Probability> atMostOneSurvivor(const ext::shared_ptr<LatentModel>& latent,
+                                           std::vector<Probability> probabilities)
+{
+    for (Size i = 0; i < probabilities.size(); ++i)
+        probabilities[i] = latent->inverseCumulativeY(probabilities[i], i);
+    return latent->integratedExpectedValueV(
+        [&](const std::vector<Real>& factor)
+        {
+            const Size n = probabilities.size();
+            std::vector<Probability> p(n), result(n + 1, 1.0);
+            for (Size i = 0; i < n; ++i)
+            {
+                p[i] = latent->conditionalDefaultProbabilityInvP(probabilities[i], i, factor);
+                result[0] *= p[i];
+            }
+            for (Size i = 0; i < n; ++i)
+            {
+                result[i + 1] = 1.0 - p[i];
+                for (Size j = 0; j < n; ++j)
+                {
+                    if (j != i)
+                        result[i + 1] *= p[j];
+                }
+            }
+            return result;
+        });
+}
+
+BOOST_AUTO_TEST_CASE(testSaddlePointWhereAtMostOneNameSurvives)
+{
+    BOOST_TEST_MESSAGE("Testing the saddle point where a loss needs every name but one to default...");
+
+    /* Every set of defaults that leaves out two names or more loses at most the total less the two smallest losses,
+       so above that a level is reached only if at most one name survives, and the distribution given the factor is a
+       few atoms. The model searched there, where K'(s) = y needs every name but one to default under the tilt; its
+       cumulants overflowed or cancelled, and on the issue's three rows the density came out NaN, and on two of them
+       the tail probability too (#282). With the tail from its first-order form the density was still NaN, and the
+       tail probability on or just below an atom 0.28 to 0.58 of the exact one. The distribution there is now exact,
+       and the density 0. */
+
+    // 20 names alike, each losing 60: up to 1,140 a loss needs 19 defaults, and above it all 20
+    {
+        const NamesAroundADefault alike(true, false, NamesAroundADefault::noName);
+        Settings::instance().evaluationDate() = alike.inception;
+        const auto latent = alike.latentModel();
+        const auto model = ext::make_shared<SaddlePointLossModel<GaussianCopulaPolicy>>(latent);
+        const auto basket = alike.basket(0.0, 1.0);
+        basket->setLossModel(model);
+        BOOST_REQUIRE_EQUAL(basket->remainingTrancheNotional(), 2000.0);
+        for (const Date& d : {Date(31, August, 2007), Date(31, August, 2008)})
+        {
+            const std::vector<Probability> exact = atMostOneSurvivor(latent, basket->remainingProbabilities(d));
+            const Probability nineteen = std::accumulate(exact.begin(), exact.end(), Real(0.0));
+            Real y = 1140.0;
+            for (int k = 0; k < 4; ++k)
+                y = std::nextafter(y, 0.0);
+            for (int k = 0; k < 7; ++k, y = std::nextafter(y, QL_MAX_REAL))
+            {
+                BOOST_TEST_CONTEXT("names alike, " << d << ", a loss of " << std::setprecision(17) << y)
+                {
+                    BOOST_CHECK_CLOSE_FRACTION(model->probOverPortfLoss(d, y), y <= 1140.0 ? nineteen : exact[0],
+                                               1.0e-12);
+                    BOOST_CHECK_EQUAL(model->probDensity(d, y), 0.0);
+                }
+            }
+        }
+    }
+
+    /* 20 names that differ, losing 80 to 99: below 1,767 every name but the one losing 80 reaches a level. The real
+       sum of their losses is 0.375 of an ulp below 1,767 (testSaddlePointWhereTheFactorMakesNamesCertain), so 1,767
+       itself is within rounding of it, and the probability there lies between the two values. So does a tranche's
+       from 0 to 1,767 at its detachment, where the model takes 1,767. */
+    {
+        const NamesAroundADefault differ(false, false, NamesAroundADefault::noName);
+        Settings::instance().evaluationDate() = differ.inception;
+        const auto latent = differ.latentModel();
+        const auto model = ext::make_shared<SaddlePointLossModel<GaussianCopulaPolicy>>(latent);
+        const auto basket = differ.basket(0.0, 1.0);
+        basket->setLossModel(model);
+        BOOST_REQUIRE_EQUAL(basket->remainingTrancheNotional(), 3520.0);
+        const auto tranche = differ.basket(0.0, 1767.0 / 3520.0);
+        tranche->setLossModel(differ.saddlePointModel());
+        for (const Date& d : {Date(31, August, 2007), Date(31, August, 2009), differ.horizon})
+        {
+            const std::vector<Probability> exact = atMostOneSurvivor(latent, basket->remainingProbabilities(d));
+            const Probability withTheAtom = exact[0] + exact[1];
+            Real y = 1767.0;
+            for (int k = 0; k < 4; ++k)
+            {
+                y = std::nextafter(y, 0.0);
+                BOOST_TEST_CONTEXT("names that differ, " << d << ", a loss of " << std::setprecision(17) << y)
+                {
+                    BOOST_CHECK_CLOSE_FRACTION(model->probOverPortfLoss(d, y), withTheAtom, 1.0e-12);
+                    BOOST_CHECK_EQUAL(model->probDensity(d, y), 0.0);
+                }
+            }
+            BOOST_TEST_CONTEXT("names that differ, " << d << ", a loss of 1,767")
+            {
+                for (Probability p : {model->probOverPortfLoss(d, 1767.0), tranche->probOverLoss(d, 1.0)})
+                {
+                    BOOST_CHECK_GE(p, exact[0] * (1.0 - 1.0e-12));
+                    BOOST_CHECK_LE(p, withTheAtom * (1.0 + 1.0e-12));
+                }
+                BOOST_CHECK_EQUAL(model->probDensity(d, 1767.0), 0.0);
+            }
+            y = std::nextafter(1767.0, QL_MAX_REAL);
+            BOOST_TEST_CONTEXT("names that differ, " << d << ", a loss of " << std::setprecision(17) << y)
+            {
+                BOOST_CHECK_CLOSE_FRACTION(model->probOverPortfLoss(d, y), exact[0], 1.0e-12);
+            }
+        }
+    }
+
+    // four names losing 60, the fourth at a loading of sqrt(0.999): at the factors where its default probability is
+    // tiny, the three others saturate under the tilt, and K' stays within rounding of 180, three defaults
+    {
+        const Real low = std::sqrt(0.3);
+        const FourNames four({0.01, 0.02, 0.03, 0.05}, std::vector<Real>(4, 0.4), {low, low, low, std::sqrt(0.999)});
+        for (Real y : {std::nextafter(180.0, 0.0), 180.0, std::nextafter(180.0, QL_MAX_REAL)})
+        {
+            BOOST_TEST_CONTEXT("four names, a loss of " << std::setprecision(17) << y)
+            {
+                BOOST_CHECK_CLOSE_FRACTION(four.model->probOverPortfLoss(four.horizon, y), four.exactOver(y), 1.0e-12);
+                BOOST_CHECK_EQUAL(four.model->probDensity(four.horizon, y), 0.0);
+            }
+        }
+    }
 }
 
 BOOST_AUTO_TEST_CASE(testCdoAfterADefault)
@@ -3358,10 +3649,11 @@ BOOST_AUTO_TEST_CASE(testExpectedShortfallBetweenPercentileAndTranche)
     // percentile of 400 and 117 on a tranche of 100, and the binomial and recursive models read
     // before their first point below the probability of no loss, 3307 on a tranche of 400.
     // Before #160 the saddle point's percentile didn't solve below about 0.26 on an equity
-    // tranche. Its shortfall still falls a little where the level crosses the loss of one
-    // default, by 0.22 between 0.6 and 0.605 on 0 to 10 % (#205), which the rise to 0.8 covers.
-    // Before #203 the pool models' shortfall was a bucket below the percentile at the top, 396
-    // on a tranche of 400.
+    // tranche. Until #204 its shortfall fell a little where the level crosses the loss of one
+    // default, by 0.20 between 0.6 and 0.605 on 0 to 10 %. The two parts of its distribution
+    // still don't meet there (#205), and it now rises, by 3.58 between 0.605 and 0.61, where the
+    // exact one rises by 0.74. Before #203 the pool models' shortfall was a bucket below the
+    // percentile at the top, 396 on a tranche of 400.
     SharedModelVars vars(0.3);
     Settings::instance().evaluationDate() = vars.today;
     const Date horizon = vars.schedule.endDate();
