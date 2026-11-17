@@ -25,6 +25,7 @@
 #include <ql/experimental/credit/defaultlossmodel.hpp>
 #include <ql/math/solvers1d/brent.hpp>
 #include <ql/math/solvers1d/newton.hpp>
+#include <algorithm>
 #include <cmath>
 #include <tuple>
 
@@ -154,6 +155,17 @@ namespace QuantLib
         and from there between 0.2% below it and 2.0% above, where the
         percentile comes from the approximation, which has no atoms (#309);
         until #205 it was up to 2.9% above.
+    \warning The percentile is the level at which the tail probability
+        crosses 1 less the probability asked for, solved to 1e-4 of the
+        tranche. Where the tail jumps across it at a loss of the exact
+        parts, it is that loss: of the names that can default by the date,
+        each one's loss up to the two smallest together, those two, the
+        total less each of these, and the total (#307). Where names are
+        certain to default given the factor, or can't default given it
+        though they can by the date, those jumps move, and there the
+        percentile is still solved to 1e-4 of the tranche (#317). Neither
+        it nor the shortfall is above the most the tranche can lose, what
+        the names that can default by the date lose less its attachment.
     */
 
     /* The treatment of recovery wont work with random recoveries, they should
@@ -187,6 +199,8 @@ namespace QuantLib
         void update() override { notifyObservers(); }
 
       protected:
+        struct NamesCond;
+
         // ----------- Cumulants and derivatives auxiliary functions ---------
 
         /*! Returns the cumulant generating function (zero-th order
@@ -237,6 +251,8 @@ namespace QuantLib
         std::tuple<Real, Real> CumGen02DerivCond(const std::vector<Real>& invUncondProbs,
                                                  Real saddle,
                                                  const std::vector<Real>& mktFactor) const;
+        std::tuple<Real, Real, Real, Real> CumGen0234DerivCond(const NamesCond& names, Real saddle) const;
+        std::tuple<Real, Real> CumGen02DerivCond(const NamesCond& names, Real saddle) const;
 
         /* Unconditional cumulants. Because this class integrates the various
           statistics it provides in indirect mode they are never used.
@@ -253,8 +269,8 @@ namespace QuantLib
         // -------- Saddle point search functions ---------------------------
         /* K'(s) less the target, as CumGen1stDerivativeCond gives it. Each
         name's default probability given the factors, and its loss on default,
-        don't depend on s, so they're taken once here rather than at each step
-        of the search.
+        don't depend on s, so they're taken once, from the node's names, rather
+        than at each step of the search.
         */
         class SaddleObjectiveFunction
         {
@@ -268,21 +284,17 @@ namespace QuantLib
                                     const Real target,
                                     const std::vector<Real>& invUncondProbs,
                                     const std::vector<Real>& mktFactor)
-            : targetValue_(target)
+            : SaddleObjectiveFunction(me, target, me.namesCond(invUncondProbs, mktFactor))
+            {
+            }
+            SaddleObjectiveFunction(const SaddlePointLossModel& me, const Real target, const NamesCond& names)
+            : targetValue_(target), pDef_(names.pDef)
             {
                 const Size nNames = me.remainingNotionals_.size();
-                pDef_.reserve(nNames);
                 lossInDef_.reserve(nNames);
+                // loss in fractional units
                 for (Size iName = 0; iName < nNames; iName++)
-                {
-                    pDef_.push_back(me.copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName],
-                                                                                  me.liveNames_[iName], mktFactor));
-                    // loss in fractional units
-                    lossInDef_.push_back(me.remainingNotionals_[iName] *
-                                         (1. - me.copula_->conditionalRecoveryInvP(invUncondProbs[iName],
-                                                                                   me.liveNames_[iName], mktFactor)) /
-                                         me.remainingNotional_);
-                }
+                    lossInDef_.push_back(me.remainingNotionals_[iName] * names.lgd[iName] / me.remainingNotional_);
             }
             Real operator()(const Real x) const
             {
@@ -298,7 +310,8 @@ namespace QuantLib
 
         /*! Where the loss distribution is known without a saddle point. Given the factor, the names that default with
             probability 1 lose a fixed amount, and the loss is that amount plus what the other names, the uncertain
-            ones, lose. A name that loses nothing is never an uncertain one: none of its defaults changes the loss.
+            ones, lose. A name that loses nothing is never an uncertain one: none of its defaults changes the loss. Nor
+            is a name whose default probability given the factor is 0: none of its defaults happens there (#318).
         */
         struct LossLimits
         {
@@ -312,6 +325,8 @@ namespace QuantLib
             Real mean;        //!< what the uncertain names lose on average, E[U], an amount
             Real beyond;      //!< what they lose beyond the smallest loss of one on average, E[(U - smallest)^+]
         };
+        //! Whether a name is an uncertain one, given its default probability given the factor and its loss
+        static bool uncertainName(Probability p, Real loss) { return p != 1. && p != 0. && loss > 0.; }
         /*! The tail of the loss at a level, given the market factor: the probability that the loss reaches it, and
             the expected excess of the loss over it, E[(L - y)^+], an amount. Exact in the regions the loss limits
             give, and from the first-order saddle-point forms elsewhere, which take both from the same tilted
@@ -323,6 +338,43 @@ namespace QuantLib
             Probability over; //!< P(L >= y)
             Real excess;      //!< E[(L - y)^+], an amount
         };
+        /*! Each name's default probability given the market factor, and its loss given default as a fraction of its
+            notional, 1 less its recovery; the limits on the loss they make; and the exact tails where the exact
+            regions end. None of them depends on the loss level, so the statistics at a node take them once and share
+            them (#267): the names through the copula, the rest the first time a level needs them.
+        */
+        struct NamesCond
+        {
+            std::vector<Probability> pDef; //!< the default probabilities given the factor
+            std::vector<Real> lgd;         //!< 1 less the recoveries given the factor
+            mutable bool limited = false, joined = false;
+            mutable LossLimits limits;
+            mutable Tail low, high;
+        };
+        NamesCond namesCond(const std::vector<Real>& invUncondProbs, const std::vector<Real>& mktFactor) const
+        {
+            const Size nNames = remainingNotionals_.size();
+            NamesCond names;
+            names.pDef.reserve(nNames);
+            names.lgd.reserve(nNames);
+            for (Size iName = 0; iName < nNames; iName++)
+            {
+                names.pDef.push_back(
+                    copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], liveNames_[iName], mktFactor));
+                names.lgd.push_back(
+                    1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor));
+            }
+            return names;
+        }
+        const LossLimits& limitsOf(const NamesCond& names) const
+        {
+            if (!names.limited)
+            {
+                names.limits = lossLimitsCond(names);
+                names.limited = true;
+            }
+            return names.limits;
+        }
         /*! With withExcess false, only the probability is wanted: the excess between the exact regions is then
             the approximation's own, not held to their bounds, which saves computing them.
         */
@@ -330,25 +382,24 @@ namespace QuantLib
                       Real loss,
                       const std::vector<Real>& mktFactor,
                       bool withExcess = true) const;
+        Tail tailCond(const NamesCond& names, Real loss, bool withExcess = true) const;
         /*! The tail where a loss short of the level has at most one uncertain default, up to the two smallest
             losses of one together: there any two defaults reach the level, and so does one name that loses
             enough on its own, and every term of the distribution is known.
         */
-        Tail oneDefaultTailCond(const std::vector<Real>& invUncondProbs,
-                                Real loss,
-                                const std::vector<Real>& mktFactor,
-                                const LossLimits& limits) const;
+        Tail oneDefaultTailCond(const NamesCond& names, Real loss, const LossLimits& limits) const;
         /*! The tail where a loss reaches the level only if at most one uncertain name survives, above their total
             less the two smallest losses of one: there the loss is the total less what the survivor would have
             lost, and every term of the distribution is known.
         */
-        Tail oneSurvivorTailCond(const std::vector<Real>& invUncondProbs,
-                                 Real loss,
-                                 const std::vector<Real>& mktFactor,
-                                 const LossLimits& limits) const;
+        Tail oneSurvivorTailCond(const NamesCond& names, Real loss, const LossLimits& limits) const;
 
         //! Conditional on the market factor
         LossLimits lossLimitsCond(const std::vector<Real>& invUncondProbs, const std::vector<Real>& mktFactor) const
+        {
+            return lossLimitsCond(namesCond(invUncondProbs, mktFactor));
+        }
+        LossLimits lossLimitsCond(const NamesCond& names) const
         {
             LossLimits limits = {0., QL_MAX_REAL, QL_MAX_REAL, 0., 1., 0., 1., 0., 0.};
             // The sums are compensated (Neumaier's): a plain sum of losses that aren't exact in double can come out
@@ -367,16 +418,13 @@ namespace QuantLib
             };
             for (Size iName = 0; iName < remainingNotionals_.size(); iName++)
             {
-                Real loss =
-                    remainingNotionals_[iName] *
-                    (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor));
-                Probability p =
-                    copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], liveNames_[iName], mktFactor);
+                Real loss = remainingNotionals_[iName] * names.lgd[iName];
+                Probability p = names.pDef[iName];
                 if (p == 1.)
                 {
                     add(limits.certain, certainCompensation, loss);
                 }
-                else if (loss > 0.)
+                else if (uncertainName(p, loss))
                 {
                     // What the names so far lose beyond the smallest loss among them: the first of them to default
                     //   loses its loss less the smallest, and every later one its whole loss. Where a smaller loss
@@ -424,6 +472,8 @@ namespace QuantLib
                         const std::vector<Real>& mktFactor,
                         Real accuracy = 1.0e-3, // 1.e-4
                         Natural maxEvaluations = 50) const;
+        Real
+        findSaddle(const NamesCond& names, Real lossLevel, Real accuracy = 1.0e-3, Natural maxEvaluations = 50) const;
 
         class SaddlePercObjFunction
         {
@@ -534,7 +584,12 @@ namespace QuantLib
         Real expectedShortfall(const Date& d, Probability percentile) const override;
 
       protected:
+        // The most the tranche can lose by the date, given each live name's
+        //   probability of defaulting by then: what the names that can default
+        //   lose, less its attachment (#307).
+        Real mostTrancheLoss(const std::vector<Probability>& uncondProbs) const;
         Real conditionalExpectedLoss(const std::vector<Real>& invUncondProbs, const std::vector<Real>& mktFactor) const;
+        Real conditionalExpectedLoss(const NamesCond& names) const;
         Real conditionalExpectedTrancheLoss(const std::vector<Real>& invUncondProbs,
                                             const std::vector<Real>& mktFactor) const;
 
@@ -646,10 +701,9 @@ namespace QuantLib
     template <class CP>
     inline Probability SaddlePointLossModel<CP>::probOverLoss(const Date& d, Real trancheLossFract) const
     {
-        // avoid computation:
-        if (trancheLossFract >=
-            // time dependent soon:
-            basket_->detachmentAmount())
+        // the fraction is of the tranche, which can't lose more than all of
+        //   it; at 1 this is the probability that it loses all of it
+        if (trancheLossFract > 1.)
             return 0.;
 
         std::vector<Real> invUncondProbs = basket_->remainingProbabilities(d);
@@ -850,18 +904,21 @@ namespace QuantLib
     std::tuple<Real, Real, Real, Real> SaddlePointLossModel<CP>::CumGen0234DerivCond(
         const std::vector<Real>& invUncondProbs, Real saddle, const std::vector<Real>& mktFactor) const
     {
+        return CumGen0234DerivCond(namesCond(invUncondProbs, mktFactor), saddle);
+    }
+
+    template <class CP>
+    std::tuple<Real, Real, Real, Real> SaddlePointLossModel<CP>::CumGen0234DerivCond(const NamesCond& names,
+                                                                                     Real saddle) const
+    {
         const Size nNames = remainingNotionals_.size();
         Real deriv0 = 0.,
              // deriv1 = 0.,
             deriv2 = 0., deriv3 = 0., deriv4 = 0.;
         for (Size iName = 0; iName < nNames; iName++)
         {
-            Probability pBuffer =
-                copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], liveNames_[iName], mktFactor);
-            Real lossInDef =
-                remainingNotionals_[iName] *
-                (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor)) /
-                remainingNotional_;
+            Probability pBuffer = names.pDef[iName];
+            Real lossInDef = remainingNotionals_[iName] * names.lgd[iName] / remainingNotional_;
 
             Real midFactor = pBuffer * std::exp(lossInDef * saddle);
             Real denominator = 1. - pBuffer + midFactor;
@@ -890,6 +947,12 @@ namespace QuantLib
                                                                        Real saddle,
                                                                        const std::vector<Real>& mktFactor) const
     {
+        return CumGen02DerivCond(namesCond(invUncondProbs, mktFactor), saddle);
+    }
+
+    template <class CP>
+    std::tuple<Real, Real> SaddlePointLossModel<CP>::CumGen02DerivCond(const NamesCond& names, Real saddle) const
+    {
         // Each name's terms are a Bernoulli variable's under the tilted measure (detail::tiltedName): l^2 q t
         //   in K''. The sums of powers of p e^{l s} they replace grow beyond any double far above the expected
         //   loss, and l^2 q less (l q)^2 loses q t to cancellation where q is close to 1, to below 0 at times.
@@ -897,12 +960,8 @@ namespace QuantLib
         Real deriv0 = 0., deriv2 = 0.;
         for (Size iName = 0; iName < nNames; iName++)
         {
-            Probability pBuffer =
-                copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], liveNames_[iName], mktFactor);
-            Real lossInDef =
-                remainingNotionals_[iName] *
-                (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor)) /
-                remainingNotional_;
+            Probability pBuffer = names.pDef[iName];
+            Real lossInDef = remainingNotionals_[iName] * names.lgd[iName] / remainingNotional_;
             Real logTerm, tiltedDefault, tiltedSurvival;
             detail::tiltedName(pBuffer, lossInDef * saddle, logTerm, tiltedDefault, tiltedSurvival);
             deriv0 += logTerm;
@@ -920,6 +979,15 @@ namespace QuantLib
                                               Real accuracy,
                                               Natural maxEvaluations) const
     {
+        return findSaddle(namesCond(invUncondPs, mktFactor), lossLevel, accuracy, maxEvaluations);
+    }
+
+    template <class CP>
+    Real SaddlePointLossModel<CP>::findSaddle(const NamesCond& names,
+                                              Real lossLevel, // in total portfolio loss fractional unit
+                                              Real accuracy,
+                                              Natural maxEvaluations) const
+    {
         // K'(s) rises with s, and K'(0) is the expected loss, so a bracket
         //   widened from s = 0 until K' crosses the level holds the saddle
         //   point. Past |s| = 700 over the largest loss of a name the
@@ -928,14 +996,10 @@ namespace QuantLib
         //   returned, or below the losses it makes certain, and -QL_MAX_REAL.
         Real largestLoss = 0.;
         for (Size iName = 0; iName < remainingNotionals_.size(); iName++)
-            largestLoss =
-                std::max(largestLoss,
-                         remainingNotionals_[iName] *
-                             (1. - copula_->conditionalRecoveryInvP(invUncondPs[iName], liveNames_[iName], mktFactor)) /
-                             remainingNotional_);
+            largestLoss = std::max(largestLoss, remainingNotionals_[iName] * names.lgd[iName] / remainingNotional_);
         if (largestLoss == 0.)
             return QL_MAX_REAL;
-        SaddleObjectiveFunction f(*this, lossLevel, invUncondPs, mktFactor);
+        SaddleObjectiveFunction f(*this, lossLevel, names);
         const Real widest = 700. / largestLoss;
         Real lower = 0., upper = 0., step = 1.;
         if (f(0.) < 0.)
@@ -971,6 +1035,26 @@ namespace QuantLib
 
 
     template <class CP>
+    Real SaddlePointLossModel<CP>::mostTrancheLoss(const std::vector<Probability>& uncondProbs) const
+    {
+        // the losses added and the attachment subtracted as percentile's
+        //   atoms are, each a rounded product first, so that at the top this
+        //   is the atom less the attachment to the bit
+        const std::vector<Real>& recoveries = copula_->recoveries();
+        Real total = 0.;
+        for (Size i = 0; i < uncondProbs.size(); i++)
+        {
+            Real loss = remainingNotionals_[i] * (1. - recoveries[liveNames_[i]]);
+            if (loss > 0. && uncondProbs[i] > 0.)
+                total += loss;
+        }
+        Real attachAmount = attachRatio_ * remainingNotional_;
+        if (total <= attachAmount)
+            return 0.;
+        return std::min(total - attachAmount, (detachRatio_ - attachRatio_) * remainingNotional_);
+    }
+
+    template <class CP>
     Real SaddlePointLossModel<CP>::percentile(const Date& d, Probability percentile) const
     {
         // this test should be in the calling basket...?
@@ -990,7 +1074,46 @@ namespace QuantLib
         // the fraction solved for is of the tranche between the remaining
         //   ratios, whose detachment is no more than the remaining notional
         Real trancheAmount = (detachRatio_ - attachRatio_) * remainingNotional_;
-        if (percentile >= 1. - probOverLoss(d, 1.))
+        Real attachAmount = attachRatio_ * remainingNotional_;
+        // Each name's loss on default: the exact regions of the distribution
+        //   put its atoms at them, at the total less them, and where those
+        //   regions end (#307).
+        std::vector<Real> losses;
+        Real total = 0.;
+        const std::vector<Real>& recoveries = copula_->recoveries();
+        // a name that can't default by the date puts no atom anywhere, and
+        //   adds nothing to the most the pool can lose
+        const std::vector<Probability> uncondProbs = basket_->remainingProbabilities(d);
+        for (Size i = 0; i < remainingNotionals_.size(); i++)
+        {
+            Real loss = remainingNotionals_[i] * (1. - recoveries[liveNames_[i]]);
+            if (loss > 0. && uncondProbs[i] > 0.)
+            {
+                losses.push_back(loss);
+                total += loss;
+            }
+        }
+        std::sort(losses.begin(), losses.end());
+        // Where the pool can't lose the tranche's detachment, the most the
+        //   tranche loses is the total less its attachment, reached only if
+        //   every name that can default does: at a probability of 1 that is
+        //   the percentile, and below it P(L >= y) for any y above the total
+        //   less the smallest loss is the probability of reaching it, where
+        //   y lies in the exact region at every node. No percentile is above
+        //   it.
+        Real most = mostTrancheLoss(uncondProbs);
+        if (most < trancheAmount)
+        {
+            if (percentile >= 1.)
+                return most;
+            if (!losses.empty())
+            {
+                Real top = total - losses.front() / 2.;
+                if (percentile >= 1. - probOverPortfLoss(d, top))
+                    return most;
+            }
+        }
+        else if (percentile >= 1. || percentile >= 1. - probOverLoss(d, 1.))
             return trancheAmount;
 
         SaddlePercObjFunction f(*this, percentile, d);
@@ -1002,7 +1125,41 @@ namespace QuantLib
         Real guess = 0.5;
 
         Real solut = solver.solve(f, 1.e-4, guess, minVal, maxVal);
-        return trancheAmount * solut;
+
+        // Where P jumps across 1 - p, at an atom, the solver stops on either
+        //   side of it within its accuracy. The atom is the percentile if the
+        //   probability of reaching just below it is above 1 - p, and of
+        //   reaching just above it no more (#307). The total isn't tried:
+        //   where 1 - p lies in its jump, the checks above have returned.
+        Real level = attachAmount + trancheAmount * solut;
+        Real reach = 2.e-4 * trancheAmount;
+        Real step = 1.e-10 * remainingNotional_;
+        std::vector<Real> atoms;
+        auto near = [&](Real z)
+        {
+            if (std::fabs(z - level) <= reach && z >= attachAmount && z <= attachAmount + trancheAmount &&
+                std::find(atoms.begin(), atoms.end(), z) == atoms.end())
+                atoms.push_back(z);
+        };
+        if (losses.size() > 1)
+        {
+            Real e2 = losses[0] + losses[1];
+            for (Real loss : losses)
+            {
+                if (loss > e2)
+                    break;
+                near(loss);
+                near(total - loss);
+            }
+            near(e2);
+            near(total - e2);
+        }
+        std::sort(atoms.begin(), atoms.end(),
+                  [level](Real x, Real y) { return std::fabs(x - level) < std::fabs(y - level); });
+        for (Real z : atoms)
+            if (probOverPortfLoss(d, z - step) > 1. - percentile && probOverPortfLoss(d, z + step) <= 1. - percentile)
+                return std::min(z - attachAmount, most);
+        return std::min(trancheAmount * solut, most);
     }
 
     template <class CP>
@@ -1055,11 +1212,18 @@ namespace QuantLib
                                                                                const std::vector<Real>& mktFactor,
                                                                                bool withExcess) const
     {
-        // The expected loss given the factor is a pass over the names through
-        //   the copula, and only this return and the approximation's two below
-        //   it use it, so it is computed there alone (#314).
+        return tailCond(namesCond(invUncondProbs, mktFactor), loss, withExcess);
+    }
+
+    template <class CP>
+    typename SaddlePointLossModel<CP>::Tail
+    SaddlePointLossModel<CP>::tailCond(const NamesCond& names, Real loss, bool withExcess) const
+    {
+        // The expected loss given the factor is a pass over the names, and
+        //   only this return and the approximation's two below it use it, so
+        //   it is computed there alone (#314).
         if (loss <= QL_EPSILON)
-            return {1., conditionalExpectedLoss(invUncondProbs, mktFactor) - loss};
+            return {1., conditionalExpectedLoss(names) - loss};
 
         // The names certain to default reach their loss for sure, and the
         //   uncertain names must make up the rest. Every set of defaults of
@@ -1069,7 +1233,7 @@ namespace QuantLib
         //   uncertain name defaults, and up to the second if any does. A
         //   level within rounding of the certain loss is then never searched
         //   for: K' only tends to it, and the saddle point is at -infinity.
-        LossLimits limits = lossLimitsCond(invUncondProbs, mktFactor);
+        const LossLimits& limits = limitsOf(names);
         Real rest = loss - limits.certain;
         // at or below the certain loss every loss reaches the level, by what
         //   the uncertain names lose and the certain loss less the level
@@ -1090,11 +1254,11 @@ namespace QuantLib
         //   most the total less the two smallest losses, so above that the
         //   rest is reached only if at most one name survives (#282).
         if (rest > limits.total - limits.smallest - limits.second)
-            return oneSurvivorTailCond(invUncondProbs, loss, mktFactor, limits);
+            return oneSurvivorTailCond(names, loss, limits);
         // Up to the two smallest losses together, a loss short of the level
         //   has at most one uncertain default (#205).
         if (rest <= limits.smallest + limits.second)
-            return oneDefaultTailCond(invUncondProbs, loss, mktFactor, limits);
+            return oneDefaultTailCond(names, loss, limits);
 
         /* In between, the tail comes from the approximation. From the level
            where the lower exact region ends to the one where the upper starts,
@@ -1112,8 +1276,14 @@ namespace QuantLib
         {
             Real lowJoin = limits.certain + limits.smallest + limits.second;
             Real highJoin = limits.certain + limits.total - limits.smallest - limits.second;
-            Tail low = oneDefaultTailCond(invUncondProbs, lowJoin, mktFactor, limits);
-            Tail high = oneSurvivorTailCond(invUncondProbs, highJoin, mktFactor, limits);
+            if (!names.joined)
+            {
+                names.low = oneDefaultTailCond(names, lowJoin, limits);
+                names.high = oneSurvivorTailCond(names, highJoin, limits);
+                names.joined = true;
+            }
+            const Tail& low = names.low;
+            const Tail& high = names.high;
             lowest = std::max(low.excess - (loss - lowJoin) * low.over, high.excess + (highJoin - loss) * high.over);
             highest = std::min(low.excess - (loss - lowJoin) * high.over, high.excess + (highJoin - loss) * low.over);
         }
@@ -1123,11 +1293,11 @@ namespace QuantLib
             return t;
         };
 
-        Real saddlePt = findSaddle(invUncondProbs, loss / remainingNotional_, mktFactor);
+        Real saddlePt = findSaddle(names, loss / remainingNotional_);
         if (saddlePt == QL_MAX_REAL)
             return held({0., 0.});
         if (saddlePt == -QL_MAX_REAL)
-            return held({1., conditionalExpectedLoss(invUncondProbs, mktFactor) - loss});
+            return held({1., conditionalExpectedLoss(names) - loss});
 
         /* Above the expected loss, the probability is the first-order form
            the documentation of probOverLossPortfCond cites, and the excess
@@ -1144,7 +1314,7 @@ namespace QuantLib
            (expected - level)^+, both are continuous through the expected
            loss, where they are 1/2 and sqrt(K''/(2 pi)), and e^{K - s y} is
            at most 1. */
-        std::tuple<Real, Real> cumulants = CumGen02DerivCond(invUncondProbs, saddlePt, mktFactor);
+        std::tuple<Real, Real> cumulants = CumGen02DerivCond(names, saddlePt);
         Real scale = std::exp(std::get<0>(cumulants) - saddlePt * loss / remainingNotional_);
         Real deviation = std::sqrt(std::get<1>(cumulants));
         Real tail, excess;
@@ -1152,27 +1322,21 @@ namespace QuantLib
         Real beyond = scale * deviation * excess * remainingNotional_;
         if (saddlePt >= 0.)
             return held({scale * tail, beyond});
-        return held({1. - scale * tail, conditionalExpectedLoss(invUncondProbs, mktFactor) - loss + beyond});
+        return held({1. - scale * tail, conditionalExpectedLoss(names) - loss + beyond});
     }
 
     template <class CP>
     typename SaddlePointLossModel<CP>::Tail
-    SaddlePointLossModel<CP>::oneDefaultTailCond(const std::vector<Real>& invUncondProbs,
-                                                 Real loss,
-                                                 const std::vector<Real>& mktFactor,
-                                                 const LossLimits& limits) const
+    SaddlePointLossModel<CP>::oneDefaultTailCond(const NamesCond& names, Real loss, const LossLimits& limits) const
     {
         // the uncertain names, as lossLimitsCond takes them
         std::vector<Probability> pDef;
         std::vector<Real> lossInDef;
         for (Size iName = 0; iName < remainingNotionals_.size(); iName++)
         {
-            Real nameLoss =
-                remainingNotionals_[iName] *
-                (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor));
-            Probability p =
-                copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], liveNames_[iName], mktFactor);
-            if (p != 1. && nameLoss > 0.)
+            Real nameLoss = remainingNotionals_[iName] * names.lgd[iName];
+            Probability p = names.pDef[iName];
+            if (uncertainName(p, nameLoss))
             {
                 pDef.push_back(p);
                 lossInDef.push_back(nameLoss);
@@ -1262,22 +1426,16 @@ namespace QuantLib
 
     template <class CP>
     typename SaddlePointLossModel<CP>::Tail
-    SaddlePointLossModel<CP>::oneSurvivorTailCond(const std::vector<Real>& invUncondProbs,
-                                                  Real loss,
-                                                  const std::vector<Real>& mktFactor,
-                                                  const LossLimits& limits) const
+    SaddlePointLossModel<CP>::oneSurvivorTailCond(const NamesCond& names, Real loss, const LossLimits& limits) const
     {
         // the uncertain names, as lossLimitsCond takes them
         std::vector<Probability> pDef;
         std::vector<Real> lossInDef;
         for (Size iName = 0; iName < remainingNotionals_.size(); iName++)
         {
-            Real nameLoss =
-                remainingNotionals_[iName] *
-                (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor));
-            Probability p =
-                copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], liveNames_[iName], mktFactor);
-            if (p != 1. && nameLoss > 0.)
+            Real nameLoss = remainingNotionals_[iName] * names.lgd[iName];
+            Probability p = names.pDef[iName];
+            if (uncertainName(p, nameLoss))
             {
                 pDef.push_back(p);
                 lossInDef.push_back(nameLoss);
@@ -1334,12 +1492,13 @@ namespace QuantLib
         if (loss <= QL_EPSILON)
             return 0.;
 
+        NamesCond names = namesCond(invUncondPs, mktFactor);
         Real relativeLoss = loss / remainingNotional_;
         // No set of defaults of the uncertain names loses more than nothing
         //   but less than the smallest loss of one, nor more than their total
         //   less that loss but less than their total; the names certain to
         //   default add their loss to all of them.
-        LossLimits limits = lossLimitsCond(invUncondPs, mktFactor);
+        const LossLimits& limits = limitsOf(names);
         Real rest = loss - limits.certain;
         if (rest < limits.smallest || rest > limits.total - limits.smallest)
             return 0.;
@@ -1353,11 +1512,11 @@ namespace QuantLib
         //   the smallest loss itself among them.
         if (rest <= limits.smallest + limits.second)
             return 0.;
-        Real saddlePt = findSaddle(invUncondPs, relativeLoss, mktFactor);
+        Real saddlePt = findSaddle(names, relativeLoss);
         if (std::abs(saddlePt) == QL_MAX_REAL)
             return 0.;
 
-        std::tuple<Real, Real, Real, Real> cumulants = CumGen0234DerivCond(invUncondPs, saddlePt, mktFactor);
+        std::tuple<Real, Real, Real, Real> cumulants = CumGen0234DerivCond(names, saddlePt);
         /// access them directly rather than through this copy
         Real K0Saddle = std::get<0>(cumulants);
         Real K2Saddle = std::get<1>(cumulants);
@@ -1392,15 +1551,13 @@ namespace QuantLib
         if (loss <= QL_EPSILON)
             return condContrib;
 
-        Real saddlePt = findSaddle(invUncondProbs, loss / remainingNotional_, mktFactor);
+        NamesCond names = namesCond(invUncondProbs, mktFactor);
+        Real saddlePt = findSaddle(names, loss / remainingNotional_);
 
         for (Size iName = 0; iName < nNames; iName++)
         {
-            Probability pBuffer =
-                copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], liveNames_[iName], mktFactor);
-            Real lossInDef =
-                remainingNotionals_[iName] *
-                (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor));
+            Probability pBuffer = names.pDef[iName];
+            Real lossInDef = remainingNotionals_[iName] * names.lgd[iName];
             // At a level above every loss the factor makes possible, each
             //   name that can default does; below the losses it makes
             //   certain, only the names certain to.
@@ -1421,16 +1578,16 @@ namespace QuantLib
     Real SaddlePointLossModel<CP>::conditionalExpectedLoss(const std::vector<Real>& invUncondProbs,
                                                            const std::vector<Real>& mktFactor) const
     {
+        return conditionalExpectedLoss(namesCond(invUncondProbs, mktFactor));
+    }
+
+    template <class CP>
+    Real SaddlePointLossModel<CP>::conditionalExpectedLoss(const NamesCond& names) const
+    {
         const Size nNames = remainingNotionals_.size();
         Real eloss = 0.;
-        /// USE STL.....-------------------
         for (Size iName = 0; iName < nNames; iName++)
-        {
-            Probability pBuffer =
-                copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], liveNames_[iName], mktFactor);
-            eloss += pBuffer * remainingNotionals_[iName] *
-                     (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor));
-        }
+            eloss += names.pDef[iName] * remainingNotionals_[iName] * names.lgd[iName];
         return eloss;
     }
 
@@ -1503,8 +1660,8 @@ namespace QuantLib
         //   since then by at most 5.2e-13 where measured, and it is still kept
         //   to that range.
         Real detachAmount = detachRatio_ * remainingNotional_;
-        Real excess = tailCond(invUncondProbs, lossLevel, mktFactor).excess -
-                      tailCond(invUncondProbs, detachAmount, mktFactor).excess;
+        NamesCond names = namesCond(invUncondProbs, mktFactor);
+        Real excess = tailCond(names, lossLevel).excess - tailCond(names, detachAmount).excess;
         return std::min(std::max(excess, 0.), std::max(detachAmount - lossLevel, 0.));
     }
 
@@ -1537,7 +1694,13 @@ namespace QuantLib
         Real trancheAmount = (detachRatio_ - attachRatio_) * remainingNotional_;
         if (lossPerc >= trancheAmount)
             return trancheAmount;
+        // at a probability of 1 the percentile is the most the tranche can
+        //   lose, and nothing is lost beyond it
+        if (percProb >= 1.)
+            return lossPerc;
         std::vector<Real> invUncondProbs = basket_->remainingProbabilities(d);
+        // the most the tranche can lose, as the percentile takes it
+        Real most = mostTrancheLoss(invUncondProbs);
         for (Size i = 0; i < invUncondProbs.size(); i++)
             invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], liveNames_[i]);
 
@@ -1546,7 +1709,7 @@ namespace QuantLib
         Real lossLevel = attachRatio_ * remainingNotional_ + lossPerc;
         Real excess = copula_->integratedExpectedValue(
             [&](const std::vector<Real>& v1) { return expectedShortfallTrancheCond(invUncondProbs, lossLevel, v1); });
-        return std::min(lossPerc + excess / (1. - percProb), trancheAmount);
+        return std::min(lossPerc + excess / (1. - percProb), most);
 
         /* test:?
             return std::inner_product(integrESFPartition.begin(),
