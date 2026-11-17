@@ -173,6 +173,7 @@ no longer checks them, and no CI job builds any of them.
 | #306 | `ql/experimental/credit/saddlepointlossmodel.hpp` | Below one default's loss the saddle-point model's probability of some default keeps its digits where every name's default probability given the factor is tiny, where it came out 0 |
 | #281 | `ql/experimental/credit/saddlepointlossmodel.hpp` | The saddle-point model takes its tail probability and expected excess given the factor from one first-order approximation, so its shortfall on senior tranches is no longer half the exact one (#204, still open at one year), and its probability below a factor's expected loss isn't 0 where it's near 1 |
 | #282 | `ql/experimental/credit/saddlepointlossmodel.hpp` | Where at most one name survives, the saddle-point model takes its loss distribution given the factor exactly, where its density was NaN and its tail probability split the atom |
+| #205 | `ql/experimental/credit/saddlepointlossmodel.hpp` | The saddle-point model takes its loss distribution given the factor exactly up to the two smallest losses together and holds its expected excess between the exact regions beyond, so the excess, and the shortfall with it, no longer steps where the level crosses one default's loss |
 
 ### New in this fork
 
