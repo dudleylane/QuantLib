@@ -5637,7 +5637,8 @@ BOOST_AUTO_TEST_CASE(testTrancheInsideACoupon)
 
 namespace
 {
-    // The pool models on one factor at correlation 0.3: Gaussian, or t of the given order for both variables.
+    // The pool models on one factor at correlation 0.3: Gaussian, or t of the given order for both variables. The
+    // rule defaults to [-5, 5] in 50 steps here, the models' own default until #278.
     ext::shared_ptr<DefaultLossModel> poolModel(
         Integer tOrder, bool homogeneous, Size names, Size buckets, Real max = 5.0, Real min = -5.0, Size steps = 50)
     {
@@ -5668,7 +5669,7 @@ BOOST_AUTO_TEST_CASE(testPoolModelsIntegrateTFactorsOverTheirTails)
 
     /* The pool models integrated their factor by the midpoint rule on [-5, 5] in the factor itself. That leaves out
        3.2e-3 of a t3 factor's mass and 1.3e-3 of a t5 one's, and the loss distribution counted what it left out as a
-       loss beyond every bucket. On the default rule, ten names' expected loss by a year came out 41 % high on t3
+       loss beyond every bucket. On [-5, 5] in 50 steps, ten names' expected loss by a year came out 41 % high on t3
        factors and 18 % on t5 ones, where 60 p is exact (#259). The rule's bounds and steps are now in the factor's
        normal quantile, and [-5, 5] leaves out 5.7e-7 of any factor's mass. What is left is the rule's, 4e-5 of p on t3
        factors, now that the buckets are out of the tranche's loss (#260). */
@@ -5828,7 +5829,7 @@ BOOST_AUTO_TEST_CASE(testInhomogeneousPoolModelOnUnequalLosses)
         {
             BOOST_TEST_CONTEXT("tranche [" << a << ", " << b << "] by " << years << (years == 1 ? " year" : " years"))
             {
-                // the rule the model is given, [-5, 5] in 50 steps, its default
+                // the rule the model is given, [-5, 5] in 50 steps
                 Real reference = 0.0;
                 const Real h = 0.2;
                 for (Size i = 0; i < 50; ++i)
@@ -5856,6 +5857,117 @@ BOOST_AUTO_TEST_CASE(testInhomogeneousPoolModelOnUnequalLosses)
                 const auto basket =
                     names.basket(today, ext::make_shared<IHGaussPoolLossModel>(latent, 200, 5.0, -5.0, 50), a, b);
                 BOOST_CHECK_SMALL(basket->expectedTrancheLoss(d) / reference - 1.0, 5.0e-5);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testPoolModelsOnTheirDefaultRule)
+{
+    BOOST_TEST_MESSAGE("Testing the pool models' expected tranche losses on their default factor rule...");
+
+    /* The pool models' rule defaulted to [-5, 5] in 50 steps of the factor's normal quantile u. At a low correlation a
+       senior tranche takes its losses at short horizons beyond u = -5: on a Gaussian factor at 0.1, 100 names at
+       hazard 1 %, the 10-100 % tranche's expected loss by a year came out 4.0 % low, and the 6-10 % tranche's 0.12 %
+       low. On t3 factors at 0.3 a step of 0.2 put the 6-10 % tranche's 1.8 % high and the 10-100 % tranche's 0.31 %
+       low. The default is now [-8.5, 8.5] in 170 steps (#278), within 3.3e-10 of the references on the Gaussian factor
+       and 3.0e-4 on the t3 ones. The references take each tranche's expected loss given the factor from the binomial
+       probability of each number of defaults, and integrate it on [-12, 12] in 2400 steps of the Gaussian factor, and
+       by the midpoint rule in the t3 factor's probability in 20,000 steps, which shares nothing with the models' rule
+       in u. */
+    const Date today(31, August, 2006);
+    Settings::instance().evaluationDate() = today;
+    const Date d = today + 1 * Years;
+    const Size n = 100;
+    const Real recovery = 0.4;
+    const NamesAtOnePercent names(today, std::vector<Real>(n, 1.0), 0.01);
+    const Probability p = FlatHazardRate(today, makeQuoteHandle(0.01), Actual365Fixed()).defaultProbability(d);
+    const std::vector<std::pair<Real, Real>> tranches = {{0.06, 0.10}, {0.10, 1.0}};
+    // each tranche's expected loss given the factor, at the probability q of each name's default given it
+    const auto lossesGiven = [&](Real q)
+    {
+        std::vector<Real> defaults(n + 1, 0.0);
+        defaults[0] = 1.0;
+        for (Size name = 0; name < n; ++name)
+        {
+            for (Size k = name + 1; k > 0; --k)
+                defaults[k] = defaults[k] * (1.0 - q) + defaults[k - 1] * q;
+            defaults[0] *= 1.0 - q;
+        }
+        std::vector<Real> losses(tranches.size(), 0.0);
+        for (Size t = 0; t < tranches.size(); ++t)
+        {
+            const Real attachment = tranches[t].first * n, width = (tranches[t].second - tranches[t].first) * n;
+            for (Size k = 0; k <= n; ++k)
+                losses[t] += defaults[k] * std::min(std::max(k * (1.0 - recovery) - attachment, 0.0), width);
+        }
+        return losses;
+    };
+    for (Integer tOrder : {0, 3})
+    {
+        const Real rho = tOrder == 0 ? 0.1 : 0.3;
+        const std::vector<std::vector<Real>> loadings(n, std::vector<Real>(1, std::sqrt(rho)));
+        std::vector<Real> reference(tranches.size(), 0.0);
+        // a model on the default rule, one for each basket
+        std::function<ext::shared_ptr<DefaultLossModel>(bool)> model;
+        if (tOrder == 0)
+        {
+            const auto latent = ext::make_shared<GaussianConstantLossLM>(loadings, std::vector<Real>(n, recovery),
+                                                                         LatentModelIntegrationType::GaussianQuadrature,
+                                                                         GaussianCopulaPolicy::initTraits());
+            const Real threshold = InverseCumulativeNormal::standard_value(p);
+            const CumulativeNormalDistribution Phi;
+            const NormalDistribution phi;
+            const Size steps = 2400;
+            const Real h = 24.0 / steps;
+            for (Size i = 0; i < steps; ++i)
+            {
+                const Real m = -12.0 + (i + 0.5) * h;
+                const auto losses = lossesGiven(Phi((threshold - std::sqrt(rho) * m) / std::sqrt(1.0 - rho)));
+                for (Size t = 0; t < tranches.size(); ++t)
+                    reference[t] += h * phi(m) * losses[t];
+            }
+            model = [latent](bool homogeneous) -> ext::shared_ptr<DefaultLossModel>
+            {
+                if (homogeneous)
+                    return ext::make_shared<HomogGaussPoolLossModel>(latent, 200);
+                return ext::make_shared<IHGaussPoolLossModel>(latent, 200);
+            };
+        }
+        else
+        {
+            TCopulaPolicy::initTraits traits;
+            traits.tOrders = std::vector<Integer>(2, tOrder);
+            const auto latent = ext::make_shared<TConstantLossLM>(
+                loadings, std::vector<Real>(n, recovery), LatentModelIntegrationType::GaussianQuadrature, traits);
+            const Real inverse = latent->inverseCumulativeY(p, 0);
+            const Size steps = 20000;
+            for (Size j = 0; j < steps; ++j)
+            {
+                const std::vector<Real> m(1, latent->inverseCumulativeDensity((j + 0.5) / steps, 0));
+                const auto losses = lossesGiven(latent->conditionalDefaultProbabilityInvP(inverse, 0, m));
+                for (Size t = 0; t < tranches.size(); ++t)
+                    reference[t] += losses[t] / steps;
+            }
+            model = [latent](bool homogeneous) -> ext::shared_ptr<DefaultLossModel>
+            {
+                if (homogeneous)
+                    return ext::make_shared<HomogTPoolLossModel>(latent, 200);
+                return ext::make_shared<IHStudentPoolLossModel>(latent, 200);
+            };
+        }
+        for (Size t = 0; t < tranches.size(); ++t)
+        {
+            for (bool homogeneous : {true, false})
+            {
+                BOOST_TEST_CONTEXT((tOrder == 0 ? "Gaussian factor" : "t3 factors")
+                                   << (homogeneous ? ", homogeneous" : ", inhomogeneous") << " model, tranche ["
+                                   << tranches[t].first << ", " << tranches[t].second << "]")
+                {
+                    const auto basket = names.basket(today, model(homogeneous), tranches[t].first, tranches[t].second);
+                    BOOST_CHECK_SMALL(basket->expectedTrancheLoss(d) / reference[t] - 1.0,
+                                      tOrder == 0 ? 1.0e-8 : 1.0e-3);
+                }
             }
         }
     }

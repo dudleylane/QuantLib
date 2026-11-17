@@ -64,16 +64,20 @@ namespace QuantLib
     counts each loss as reaching the top of its bucket: at 200 buckets,
     Hull-White's senior tranche's came out 16 % high by five years.
 
-    On t factors of 3 degrees of freedom at correlation 0.3, 100 names at
-    hazard 1 %, the 6-10 % tranche's expected loss by a year at the default
-    50 steps is 1.8 % above its value at 170 steps, where the rule in the
-    factor and the sum used before gave 34 %. At 15 steps it is 54 % above,
-    where they gave -3.3 %, by cancelling the rule's truncation against its
-    coarseness. By five years 50 steps are within 1.2e-4. The default
-    bounds leave out a Gaussian factor's tails beyond 5, where a senior
-    tranche at low correlation takes its losses at short horizons: at
-    correlation 0.1 the 10-100 % tranche's expected loss by a year comes out
-    4 % low.
+    The rule defaults to [-8.5, 8.5] in 170 steps, the latent models' range
+    and step on Gaussian factors (#258); it was [-5, 5] in 50 (#278). Its
+    ends leave out 1.9e-17 of a factor's mass. On 100 names at hazard 1 %,
+    against the same integrals taken on [-12, 12] in 4800 steps, the
+    default's expected losses of the 0-3, 3-6, 6-10 and 10-100 % tranches by
+    one and five years are within 3.3e-10, relatively, on a Gaussian factor
+    at correlations 0.1 and 0.3, and within 1.9e-7 on t5 factors at 0.3. On
+    t3 factors at 0.3 the 6-10 % tranche's by a year is 3.0e-4 low, the most
+    of any, and every tranche's by five years is within 3.3e-9. On [-5, 5] in
+    50 steps the 10-100 % tranche's by a year came out 4.0 % low on the
+    Gaussian factor at 0.1, which takes its losses beyond u = -5, and the
+    6-10 % tranche's 1.8 % high on the t3 factors, where the rule in the
+    factor and the sum used before gave 34 %; at 15 steps that one is 54 %
+    high.
     \todo Extend to the multifactor case for a generic LM
     */
     template <class copulaPolicy>
@@ -87,9 +91,9 @@ namespace QuantLib
       public:
         HomogeneousPoolLossModel(const ext::shared_ptr<ConstantLossLatentmodel<copulaPolicy>>& copula,
                                  Size nBuckets,
-                                 Real max = 5.,
-                                 Real min = -5.,
-                                 Size nSteps = 50)
+                                 Real max = 8.5,
+                                 Real min = -8.5,
+                                 Size nSteps = 170)
         : copula_(copula), nBuckets_(nBuckets), max_(max), min_(min), nSteps_(nSteps), delta_((max - min) / nSteps)
         {
             QL_REQUIRE(copula->numFactors() == 1, "Inhomogeneous model not implemented for multifactor");
