@@ -2120,6 +2120,304 @@ BOOST_AUTO_TEST_CASE(testSaddlePointWhereAtMostOneNameSurvives)
     }
 }
 
+// Given the factor: the probability that k names default, for every k, and that each name alone defaults.
+struct DefaultsGivenTheFactor
+{
+    std::vector<Probability> count, alone;
+
+    explicit DefaultsGivenTheFactor(const std::vector<Probability>& p) : count(1, 1.0), alone(p)
+    {
+        for (Probability pi : p)
+        {
+            count.push_back(count.back() * pi);
+            for (Size k = count.size() - 2; k > 0; --k)
+                count[k] = count[k] * (1.0 - pi) + count[k - 1] * pi;
+            count[0] *= 1.0 - pi;
+        }
+        for (Size i = 0; i < p.size(); ++i)
+        {
+            for (Size j = 0; j < p.size(); ++j)
+            {
+                if (j != i)
+                    alone[i] *= 1.0 - p[j];
+            }
+        }
+    }
+
+    // P(L >= y) for a level up to the two smallest losses together: any two defaults reach it, and one alone if its
+    // loss does
+    Probability over(const std::vector<Real>& losses, Real y) const
+    {
+        Probability result = std::accumulate(count.begin() + 2, count.end(), Real(0.0));
+        for (Size i = 0; i < losses.size(); ++i)
+        {
+            if (losses[i] >= y)
+                result += alone[i];
+        }
+        return result;
+    }
+};
+
+// Integrated over the factor on the latent model's own rule: P(L >= y) at each level, every one of them up to the two
+// smallest losses together.
+template <class LatentModel>
+std::vector<Probability> overWhereAnyTwoDefaultsReach(const ext::shared_ptr<LatentModel>& latent,
+                                                      std::vector<Probability> probabilities,
+                                                      const std::vector<Real>& losses,
+                                                      const std::vector<Real>& levels)
+{
+    for (Size i = 0; i < probabilities.size(); ++i)
+        probabilities[i] = latent->inverseCumulativeY(probabilities[i], i);
+    return latent->integratedExpectedValueV(
+        [&](const std::vector<Real>& factor)
+        {
+            std::vector<Probability> p;
+            for (Size i = 0; i < probabilities.size(); ++i)
+                p.push_back(latent->conditionalDefaultProbabilityInvP(probabilities[i], i, factor));
+            const DefaultsGivenTheFactor defaults(p);
+            std::vector<Probability> result;
+            for (Real y : levels)
+                result.push_back(defaults.over(losses, y));
+            return result;
+        });
+}
+
+BOOST_AUTO_TEST_CASE(testSaddlePointWhereAnyTwoDefaultsReachTheLevel)
+{
+    BOOST_TEST_MESSAGE("Testing the saddle point where any two defaults reach the level...");
+
+    /* Up to the two smallest losses of one default together, any two defaults reach a level, and one alone if its
+       loss does, so given the factor the distribution there is known from the probabilities that no name and that
+       only one name defaults. The model took it exactly only up to the smallest loss, and from its approximation
+       above that: on #159's pool, 20 names that each lose 60, P(L >= 61) was 0.044 at one year where it is 0.038,
+       and 0.247 at five where it is 0.226 (#205). It's now exact up to 120, and the density, which was the
+       approximation's there too, is 0 between the atoms. */
+
+    // 20 names alike, each losing 60: from 60 to 120 a level needs two defaults
+    {
+        SharedModelVars vars(0.3);
+        Settings::instance().evaluationDate() = vars.today;
+        const auto latent = vars.latentModel();
+        const auto model = ext::make_shared<SaddlePointLossModel<GaussianCopulaPolicy>>(latent);
+        const auto basket = vars.basket(0.0, 1.0);
+        basket->setLossModel(model);
+        // the basket hands itself to the model as it first calculates, which the model's own statistics need
+        BOOST_REQUIRE_EQUAL(basket->remainingTrancheNotional(), 2000.0);
+        const std::vector<Real> losses(SharedModelVars::poolSize, 60.0), levels = {61.0, 90.0, 119.0, 120.0};
+        for (const Date& d : {Date(31, August, 2007), vars.schedule.endDate()})
+        {
+            const std::vector<Probability> exact =
+                overWhereAnyTwoDefaultsReach(latent, basket->remainingProbabilities(d), losses, levels);
+            for (Size j = 0; j < levels.size(); ++j)
+            {
+                BOOST_TEST_CONTEXT("names alike, " << d << ", a loss of " << levels[j])
+                {
+                    BOOST_CHECK_CLOSE_FRACTION(model->probOverPortfLoss(d, levels[j]), exact[j], 1.0e-12);
+                }
+            }
+            // given the factor, these levels lie on or between the atoms at nothing, one name's 60 and two names'
+            // 120, so the density, which leaves the atoms out, is 0 at them
+            for (Real y : {60.0, 61.0, 90.0, 119.0, 120.0})
+            {
+                BOOST_TEST_CONTEXT("names alike, " << d << ", the density at " << y)
+                {
+                    BOOST_CHECK_EQUAL(model->probDensity(d, y), 0.0);
+                }
+            }
+        }
+    }
+
+    // 20 names that differ, losing 80 to 99: from 80 to 161.9, the two smallest losses together, a level needs two
+    // defaults, or one of a name that loses at least as much
+    {
+        const NamesAroundADefault differ(false, false, NamesAroundADefault::noName);
+        Settings::instance().evaluationDate() = differ.inception;
+        const auto latent = differ.latentModel();
+        const auto model = ext::make_shared<SaddlePointTailGivenTheFactor<GaussianCopulaPolicy>>(latent);
+        const auto basket = differ.basket(0.0, 1.0);
+        basket->setLossModel(model);
+        BOOST_REQUIRE_EQUAL(basket->remainingTrancheNotional(), 3520.0);
+        std::vector<Real> losses;
+        for (Size i = 0; i < differ.notionals.size(); ++i)
+            losses.push_back(differ.notionals[i] * (1.0 - differ.recoveries[i]));
+        const std::vector<Real> levels = {80.5, 85.0, 90.0, 95.0, 99.5, 120.0, 161.0};
+        for (const Date& d : {Date(31, August, 2007), differ.horizon})
+        {
+            const std::vector<Probability> exact =
+                overWhereAnyTwoDefaultsReach(latent, basket->remainingProbabilities(d), losses, levels);
+            for (Size j = 0; j < levels.size(); ++j)
+            {
+                BOOST_TEST_CONTEXT("names that differ, " << d << ", a loss of " << levels[j])
+                {
+                    BOOST_CHECK_CLOSE_FRACTION(model->probOverPortfLoss(d, levels[j]), exact[j], 1.0e-12);
+                    // below the two smallest losses together, 161.9, the loss given the factor is nothing or one
+                    // name's, 80 to 99: atoms, with nothing between them
+                    BOOST_CHECK_EQUAL(model->probDensity(d, levels[j]), 0.0);
+                }
+            }
+        }
+
+        // and E[L 1{L >= y}] given the factor: the expected loss, less what a default alone short of y loses
+        std::vector<Real> inverse = basket->remainingProbabilities(differ.horizon);
+        for (Size i = 0; i < inverse.size(); ++i)
+            inverse[i] = latent->inverseCumulativeY(inverse[i], i);
+        for (Real factor : {-2.0, -1.0, 0.0, 1.0, 2.0})
+        {
+            const std::vector<Real> m(1, factor);
+            std::vector<Probability> p;
+            for (Size i = 0; i < inverse.size(); ++i)
+                p.push_back(latent->conditionalDefaultProbabilityInvP(inverse[i], i, m));
+            const DefaultsGivenTheFactor defaults(p);
+            for (Real y : levels)
+            {
+                Real exact = 0.0;
+                for (Size i = 0; i < p.size(); ++i)
+                    exact += losses[i] * (p[i] - (losses[i] < y ? defaults.alone[i] : 0.0));
+                BOOST_TEST_CONTEXT("names that differ, a factor of " << factor << ", a loss of " << y)
+                {
+                    BOOST_CHECK_CLOSE_FRACTION(model->expectedShortfallFullPortfolioCond(inverse, y, m), exact, 1.0e-9);
+                }
+            }
+        }
+    }
+}
+
+// The step in the saddle point's E[(L - y)^+] given the factor from the smallest loss and from each join of its regions
+// to a level a little above it, on the 20 names that differ, at every node of the latent model's rule where no name is
+// certain to default or to survive. The exact excess falls at P(L > y) <= P(L >= join) there.
+template <class CP, class LatentModel>
+void checkTheExcessAcrossTheJoins(const NamesAroundADefault& differ,
+                                  const ext::shared_ptr<LatentModel>& latent,
+                                  const std::string& copula)
+{
+    const auto model = ext::make_shared<SaddlePointTailGivenTheFactor<CP>>(latent);
+    const auto basket = differ.basket(0.0, 1.0);
+    basket->setLossModel(model);
+    BOOST_REQUIRE_EQUAL(basket->remainingTrancheNotional(), 3520.0);
+
+    std::vector<Real> losses;
+    for (Size i = 0; i < differ.notionals.size(); ++i)
+        losses.push_back(differ.notionals[i] * (1.0 - differ.recoveries[i]));
+    std::vector<Real> sorted = losses;
+    std::sort(sorted.begin(), sorted.end());
+    const Real total = std::accumulate(losses.begin(), losses.end(), Real(0.0));
+    // the smallest loss, the two smallest together, and the total less the two smallest
+    const std::vector<Real> joins = {sorted[0], sorted[0] + sorted[1], total - sorted[0] - sorted[1]};
+    const Real step = 1.0e-6 * sorted[0], tolerance = 1.0e-9;
+
+    std::vector<std::vector<Real>> factors;
+    latent->integratedExpectedValue(
+        [&](const std::vector<Real>& m)
+        {
+            factors.push_back(m);
+            return 0.0;
+        });
+    const auto excess = [&](const std::vector<Real>& inverse, Real y, const std::vector<Real>& m)
+    {
+        return model->expectedShortfallFullPortfolioCond(inverse, y, m) -
+               y * model->probOverLossPortfCond(inverse, y, m);
+    };
+    for (const Date& d : {Date(31, August, 2007), differ.horizon})
+    {
+        std::vector<Real> inverse = basket->remainingProbabilities(d);
+        for (Size i = 0; i < inverse.size(); ++i)
+            inverse[i] = latent->inverseCumulativeY(inverse[i], i);
+        Size nodes = 0;
+        for (const std::vector<Real>& m : factors)
+        {
+            bool uncertain = true;
+            for (Size i = 0; i < inverse.size(); ++i)
+            {
+                const Probability p = latent->conditionalDefaultProbabilityInvP(inverse[i], i, m);
+                uncertain = uncertain && p > 0.0 && p < 1.0;
+            }
+            if (!uncertain)
+                continue;
+            ++nodes;
+            for (Real join : joins)
+            {
+                const Probability over = model->probOverLossPortfCond(inverse, join, m);
+                const Real atTheJoin = excess(inverse, join, m), aboveIt = excess(inverse, join + step, m);
+                BOOST_TEST_CONTEXT(copula << ", " << d << ", a factor of " << m[0] << ", from " << join << " to "
+                                          << join + step)
+                {
+                    BOOST_CHECK_LE(aboveIt - atTheJoin, tolerance);
+                    BOOST_CHECK_LE(atTheJoin - aboveIt, step * over + tolerance);
+                }
+            }
+        }
+        BOOST_CHECK_GT(nodes, Size(10));
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testSaddlePointExcessWhereItsRegionsMeet)
+{
+    BOOST_TEST_MESSAGE("Testing the saddle point's expected excess where its regions meet...");
+
+    /* Given the factor the expected excess over a level, E[(L - y)^+], falls as the level rises, at P(L > y). The model
+       takes it exactly up to the two smallest losses together and above the total less the two smallest, and in between
+       from its approximation, held between the lines through the exact excesses at the two joins whose slopes are the
+       joins' own probabilities. Until #205 the regions didn't meet: the exact part ended at the smallest loss, 80 here,
+       and across it the excess rose at 33 to 59 of the factors for each copula and date, by up to 2.1, and fell faster
+       than P(L >= y) at 42 to 63, by up to 1.5 more. Across the smallest loss and both joins it now neither rises nor
+       falls faster than P(L >= y). With the probability that any name defaults as the lower line's slope, it would fall
+       faster than that just above the two smallest losses together, where that line holds it. */
+    const NamesAroundADefault differ(false, false, NamesAroundADefault::noName);
+    Settings::instance().evaluationDate() = differ.inception;
+    checkTheExcessAcrossTheJoins<GaussianCopulaPolicy>(differ, differ.latentModel(), "Gaussian");
+    checkTheExcessAcrossTheJoins<TCopulaPolicy>(differ, differ.tLatentModel(), "T");
+
+    /* Through the public statistics: the expected shortfall on 0 to 10 % of #159's pool, 20 names that each lose 60,
+       at five years, against the exact one from the number of defaults. From 0.80 to 0.815 the exact percentile is
+       two defaults' loss, 120, where the regions meet, and the model's is within 0.01 of it. The shortfall was 1.2 to
+       1.8 % above the exact one, and without the lines it would be 1.8 to 1.9 % above; it's now within 0.03 %. From
+       0.82 the model's percentile leaves 120 before the exact one does, since its probability above 120 comes from
+       the approximation, and the shortfall is up to 2 % above the exact one (#309). */
+    SharedModelVars vars(0.3);
+    Settings::instance().evaluationDate() = vars.today;
+    const auto latent = vars.latentModel();
+    const auto tranche = vars.basket(0.0, 0.1);
+    tranche->setLossModel(ext::make_shared<SaddlePointLossModel<GaussianCopulaPolicy>>(latent));
+    BOOST_REQUIRE_EQUAL(tranche->remainingTrancheNotional(), 200.0);
+    const Date fiveYears = vars.schedule.endDate();
+    std::vector<Real> inverse = tranche->remainingProbabilities(fiveYears);
+    for (Size i = 0; i < inverse.size(); ++i)
+        inverse[i] = latent->inverseCumulativeY(inverse[i], i);
+    const std::vector<Probability> count = latent->integratedExpectedValueV(
+        [&](const std::vector<Real>& m)
+        {
+            std::vector<Probability> p;
+            for (Size i = 0; i < inverse.size(); ++i)
+                p.push_back(latent->conditionalDefaultProbabilityInvP(inverse[i], i, m));
+            return DefaultsGivenTheFactor(p).count;
+        });
+    const Real mass = std::accumulate(count.begin(), count.end(), Real(0.0));
+    const auto trancheLoss = [](Size k) { return std::min(60.0 * k, 200.0); };
+    for (Real p : {0.8, 0.805, 0.81, 0.815})
+    {
+        // the exact percentile: the least tranche loss whose distribution reaches p
+        Real cumulative = 0.0, percentile = 200.0;
+        for (Size k = 0; k < count.size(); ++k)
+        {
+            cumulative += count[k];
+            if (cumulative >= p * mass)
+            {
+                percentile = trancheLoss(k);
+                break;
+            }
+        }
+        Real excess = 0.0;
+        for (Size k = 0; k < count.size(); ++k)
+            excess += count[k] * std::max(trancheLoss(k) - percentile, 0.0);
+        BOOST_TEST_CONTEXT("0 to 10 %, " << fiveYears << ", at " << p)
+        {
+            BOOST_REQUIRE_EQUAL(percentile, 120.0);
+            BOOST_CHECK_CLOSE_FRACTION(tranche->expectedShortfall(fiveYears, p), percentile + excess / mass / (1.0 - p),
+                                       1.0e-3);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testCdoAfterADefault)
 {
     BOOST_TEST_MESSAGE("Testing a CDO tranche after a default...");
@@ -3650,10 +3948,10 @@ BOOST_AUTO_TEST_CASE(testExpectedShortfallBetweenPercentileAndTranche)
     // before their first point below the probability of no loss, 3307 on a tranche of 400.
     // Before #160 the saddle point's percentile didn't solve below about 0.26 on an equity
     // tranche. Until #204 its shortfall fell a little where the level crosses the loss of one
-    // default, by 0.20 between 0.6 and 0.605 on 0 to 10 %. The two parts of its distribution
-    // still don't meet there (#205), and it now rises, by 3.58 between 0.605 and 0.61, where the
-    // exact one rises by 0.74. Before #203 the pool models' shortfall was a bucket below the
-    // percentile at the top, 396 on a tranche of 400.
+    // default, by 0.20 between 0.6 and 0.605 on 0 to 10 %, and until #205, where the two parts of
+    // its distribution didn't meet there, it rose by 3.58 between 0.605 and 0.61, where the exact
+    // one rises by 0.74; it now rises by 0.74 too. Before #203 the pool models' shortfall was a
+    // bucket below the percentile at the top, 396 on a tranche of 400.
     SharedModelVars vars(0.3);
     Settings::instance().evaluationDate() = vars.today;
     const Date horizon = vars.schedule.endDate();
