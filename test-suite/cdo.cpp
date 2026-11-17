@@ -2562,6 +2562,37 @@ BOOST_AUTO_TEST_CASE(testSaddlePointExcessWhereItsRegionsMeet)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testSaddlePointTrancheFractionOnABasketOfSmallNotionals)
+{
+    BOOST_TEST_MESSAGE("Testing the saddle point's tranche statistics on a basket whose notionals add up to 1...");
+
+    /* NamesAroundADefault's 19 names left after its default, alike, under T of order 3, on 0 to 10 %, once with their
+       notionals, 100 each, and once scaled to add up to 1. Each statistic below is of a fraction of the tranche, so
+       the two baskets give the same. The model returned a probability of 0 for any fraction at or above the tranche's
+       detachment amount, in the basket's notional, so on the small basket for every fraction from 0.1: probOverLoss
+       at 0.2 was 0 against 0.62, and the percentile at 0.9 a tenth of the tranche against all of it (#316). */
+    const NamesAroundADefault left(true, true);
+    Settings::instance().evaluationDate() = left.afterTheDefault;
+    std::vector<Real> scaled;
+    for (Real x : left.notionals)
+        scaled.push_back(x / 1900.0);
+    const auto big = ext::make_shared<Basket>(left.inception, left.names, left.notionals, left.pool, 0.0, 0.1);
+    const auto small = ext::make_shared<Basket>(left.inception, left.names, scaled, left.pool, 0.0, 0.1);
+    big->setLossModel(left.tSaddlePointModel());
+    small->setLossModel(left.tSaddlePointModel());
+    BOOST_REQUIRE_LT(small->detachmentAmount(), 1.0);
+    for (Real f : {0.2, 1.0})
+    {
+        BOOST_TEST_CONTEXT("probOverLoss at " << f)
+        {
+            BOOST_CHECK_SMALL(small->probOverLoss(left.horizon, f) - big->probOverLoss(left.horizon, f), 1.0e-12);
+        }
+    }
+    const Real smallWidth = small->remainingTrancheNotional(), bigWidth = big->remainingTrancheNotional();
+    BOOST_CHECK_SMALL(small->percentile(left.horizon, 0.9) / smallWidth - big->percentile(left.horizon, 0.9) / bigWidth,
+                      1.0e-12);
+}
+
 BOOST_AUTO_TEST_CASE(testCdoAfterADefault)
 {
     BOOST_TEST_MESSAGE("Testing a CDO tranche after a default...");

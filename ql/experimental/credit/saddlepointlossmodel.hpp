@@ -682,10 +682,9 @@ namespace QuantLib
     template <class CP>
     inline Probability SaddlePointLossModel<CP>::probOverLoss(const Date& d, Real trancheLossFract) const
     {
-        // avoid computation:
-        if (trancheLossFract >=
-            // time dependent soon:
-            basket_->detachmentAmount())
+        // the fraction is of the tranche, which can't lose more than all of
+        //   it; at 1 this is the probability that it loses all of it
+        if (trancheLossFract > 1.)
             return 0.;
 
         std::vector<Real> invUncondProbs = basket_->remainingProbabilities(d);
