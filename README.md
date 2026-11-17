@@ -177,6 +177,10 @@ no longer checks them, and no CI job builds any of them.
 | #311 | `ql/experimental/credit/saddlepointlossmodel.hpp` | From one default's loss to the two smallest together, the saddle-point model takes its expected excess given the factor from terms that can't be negative, where it was a difference that kept no digits of its own and could come out below 0 |
 | #313 | `ql/experimental/credit/saddlepointlossmodel.hpp` | The same up to one default's smallest loss and at or below the loss of the names certain to default |
 | #314 | `ql/experimental/credit/saddlepointlossmodel.hpp` | The saddle-point model computes its expected loss given the factor only where its tail uses it, where it computed it on every call |
+| #267 | `ql/experimental/credit/saddlepointlossmodel.hpp` | The saddle-point model takes each name's default probability and recovery given the factor once a node, for every function it computes there, with its loss limits and the exact tails at its joins (#267 stays open for the percentile's calls) |
+| #316 | `ql/experimental/credit/saddlepointlossmodel.hpp` | The saddle-point model compares its tranche fraction with 1, so on a basket whose notionals add up to 1 its probability over a loss isn't 0 above the detachment amount, and its percentile reaches the whole tranche |
+| #307 | `ql/experimental/credit/saddlepointlossmodel.hpp` | Where 1 - p lies inside a jump of the saddle-point model's exact regions, its percentile is the loss the jump is at, and neither it nor the shortfall is above the most the tranche can lose |
+| #318 | `ql/experimental/credit/saddlepointlossmodel.hpp` | A name that can't default given the factor no longer moves the saddle-point model's exact regions off the losses the other names make |
 
 ### New in this fork
 
