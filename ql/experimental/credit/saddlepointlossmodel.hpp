@@ -309,6 +309,8 @@ namespace QuantLib
             Probability none; //!< the probability that no uncertain name defaults
             Probability any;  //!< the probability that some uncertain name defaults
             Probability all;  //!< the probability that every uncertain name defaults
+            Real mean;        //!< what the uncertain names lose on average, E[U], an amount
+            Real beyond;      //!< what they lose beyond the smallest loss of one on average, E[(U - smallest)^+]
         };
         /*! The tail of the loss at a level, given the market factor: the probability that the loss reaches it, and
             the expected excess of the loss over it, E[(L - y)^+], an amount. Exact in the regions the loss limits
@@ -348,13 +350,15 @@ namespace QuantLib
         //! Conditional on the market factor
         LossLimits lossLimitsCond(const std::vector<Real>& invUncondProbs, const std::vector<Real>& mktFactor) const
         {
-            LossLimits limits = {0., QL_MAX_REAL, QL_MAX_REAL, 0., 1., 0., 1.};
+            LossLimits limits = {0., QL_MAX_REAL, QL_MAX_REAL, 0., 1., 0., 1., 0., 0.};
             // The sums are compensated (Neumaier's): a plain sum of losses that aren't exact in double can come out
             //   doubles away from the real one, and move the limits by as much.
             Real certainCompensation = 0., totalCompensation = 0.;
             // 1 - none loses its digits where the names' probabilities are small, below 1e-16 all of them (#306), so
             //   the probability of some default is taken from the logarithm of none's.
             Real logNone = 0.;
+            // the probability that some uncertain name among those so far defaults
+            Probability some = 0.;
             auto add = [](Real& sum, Real& compensation, Real loss)
             {
                 const Real next = sum + loss;
@@ -374,13 +378,21 @@ namespace QuantLib
                 }
                 else if (loss > 0.)
                 {
+                    // What the names so far lose beyond the smallest loss among them: the first of them to default
+                    //   loses its loss less the smallest, and every later one its whole loss. Where a smaller loss
+                    //   comes, every set of the names before with a default goes beyond it by that much more. No
+                    //   term can be negative (#313).
                     if (loss < limits.smallest)
                     {
+                        limits.beyond += (limits.smallest - loss) * some;
                         limits.second = limits.smallest;
                         limits.smallest = loss;
                     }
                     else if (loss < limits.second)
                         limits.second = loss;
+                    limits.beyond += p * (loss * some + (loss - limits.smallest) * limits.none);
+                    limits.mean += p * loss;
+                    some += p * limits.none;
                     add(limits.total, totalCompensation, loss);
                     limits.none *= 1. - p;
                     logNone += std::log1p(-p);
@@ -1057,16 +1069,21 @@ namespace QuantLib
         //   for: K' only tends to it, and the saddle point is at -infinity.
         LossLimits limits = lossLimitsCond(invUncondProbs, mktFactor);
         Real rest = loss - limits.certain;
+        // at or below the certain loss every loss reaches the level, by what
+        //   the uncertain names lose and the certain loss less the level
         if (rest <= 0.)
-            return {1., expected - loss};
+            return {1., limits.mean - rest};
         if (rest > limits.total)
             return {0., 0.};
         if (rest > limits.total - limits.smallest)
             return {limits.all, (limits.certain + limits.total - loss) * limits.all};
-        // below the first uncertain default, every loss but the certain one
-        //   alone reaches the level
+        // Below the first uncertain default, every loss but the certain one
+        //   alone reaches the level, by what the defaults lose beyond the
+        //   smallest loss and the smallest less the rest: parts that can't be
+        //   negative, where E[U] - rest P(any default) kept no digits of its
+        //   own near the smallest loss (#313).
         if (rest <= limits.smallest)
-            return {limits.any, expected - limits.certain * limits.none - loss * limits.any};
+            return {limits.any, limits.beyond + (limits.smallest - rest) * limits.any};
         // Every set of defaults that leaves out two names or more loses at
         //   most the total less the two smallest losses, so above that the
         //   rest is reached only if at most one name survives (#282).

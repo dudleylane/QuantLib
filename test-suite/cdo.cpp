@@ -2367,6 +2367,65 @@ BOOST_AUTO_TEST_CASE(testSaddlePointExcessAtTheTwoSmallestLossesTogether)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testSaddlePointExcessUpToTheSmallestLoss)
+{
+    BOOST_TEST_MESSAGE("Testing the saddle point's excess up to the smallest loss and at the certain one...");
+
+    /* Up to the smallest loss of one default, and at or below the loss of the names certain to default, the model
+       takes the tail given the factor exactly. With N the number of the other names' defaults, U what they lose and r
+       the level less the certain loss, the excess up to the smallest loss was E[U] - r P(N >= 1), and at or below the
+       certain loss E[U] - r, both from totals that held the certain loss. Near the smallest loss, where two defaults
+       are far rarer than one, the first kept no digits of its own: on #159's pool, 20 names that each lose 60, the
+       excess at 60 given the factor one year out was off by 0.11 of itself at a factor of 8 and by 0.70 at 8.5, and
+       on four names, two of them certain to default, the excess at 180 five years out was below 0 at 8. Both kept the
+       rounding of the certain loss too: 6e-8 below it the excess was off by 2e-7 of itself (#313). They now come from
+       parts that can't be negative. */
+    {
+        SharedModelVars vars(0.3);
+        Settings::instance().evaluationDate() = vars.today;
+        const auto latent = vars.latentModel();
+        const auto model = ext::make_shared<SaddlePointTailGivenTheFactor<GaussianCopulaPolicy>>(latent);
+        const auto basket = vars.basket(0.0, 1.0);
+        basket->setLossModel(model);
+        BOOST_REQUIRE_EQUAL(basket->remainingTrancheNotional(), 2000.0);
+        // at 60, the smallest loss, and at 1e-9 of it below
+        for (const Date& d : {Date(31, August, 2007), vars.schedule.endDate()})
+            checkTheExcessOnNamesThatLose60(model, latent, basket, d, {60.0, 60.0 - 6.0e-8});
+
+        // and at factors from 8.5 to 60, past the end of the model's rule, where two defaults become far rarer than
+        // one and then underflow: of these 5,151 factors, the excess at 60 was below 0 at 1,932 one year out and at
+        // 1,941 five years out
+        for (const Date& d : {Date(31, August, 2007), vars.schedule.endDate()})
+        {
+            std::vector<Real> inverse = basket->remainingProbabilities(d);
+            for (Size i = 0; i < inverse.size(); ++i)
+                inverse[i] = latent->inverseCumulativeY(inverse[i], i);
+            Size below = 0;
+            for (int step = 0; step <= 5150; ++step)
+            {
+                if (model->tailCond(inverse, 60.0, std::vector<Real>(1, 8.5 + 0.01 * step)).excess < 0.0)
+                    ++below;
+            }
+            BOOST_TEST_CONTEXT(d << ", factors from 8.5 to 60")
+            {
+                BOOST_CHECK_EQUAL(below, 0U);
+            }
+        }
+    }
+
+    // four names that lose 60, two of them certain to default five years out: at their loss and 1e-9 of a loss below,
+    // and from there up to the smallest loss above it
+    {
+        const FourNames four({10.0, 0.01, 10.0, 0.02});
+        const auto model = ext::make_shared<SaddlePointTailGivenTheFactor<GaussianCopulaPolicy>>(four.latent);
+        const auto basket = ext::make_shared<Basket>(four.today, four.names, four.notionals, four.pool, 0.0, 1.0);
+        basket->setLossModel(model);
+        BOOST_REQUIRE_EQUAL(basket->remainingTrancheNotional(), 400.0);
+        checkTheExcessOnNamesThatLose60(model, four.latent, basket, four.horizon,
+                                        {120.0 - 6.0e-8, 120.0, 121.0, 150.0, 180.0 - 6.0e-8, 180.0});
+    }
+}
+
 // The step in the saddle point's E[(L - y)^+] given the factor from the smallest loss and from each join of its regions
 // to a level a little above it, on the 20 names that differ, at every node of the latent model's rule where no name is
 // certain to default or to survive. The exact excess falls at P(L > y) <= P(L >= join) there.
