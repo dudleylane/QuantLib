@@ -158,14 +158,15 @@ namespace QuantLib
     \warning The percentile is the level at which the tail probability
         crosses 1 less the probability asked for, solved to 1e-4 of the
         tranche. Where the tail jumps across it at a loss of the exact
-        parts, it is that loss: of the names that can default by the date,
-        each one's loss up to the two smallest together, those two, the
-        total less each of these, and the total (#307). Where names are
-        certain to default given the factor, or can't default given it
-        though they can by the date, those jumps move, and there the
-        percentile is still solved to 1e-4 of the tranche (#317). Neither
-        it nor the shortfall is above the most the tranche can lose, what
-        the names that can default by the date lose less its attachment.
+        parts, it is that loss: at a node of the factor, what the names
+        certain to default there lose, alone and plus each loss of the
+        names that might default there up to their two smallest together,
+        plus those two together, plus their total less each of these, and
+        plus their total (#307, #317). On the Trapezoid integration type,
+        whose nodes depend on what it integrates, it can still be solved to
+        1e-4 of the tranche at such a loss (#320). Neither it nor the
+        shortfall is above the most the tranche can lose, what the names
+        that can default by the date lose less its attachment.
     */
 
     /* The treatment of recovery wont work with random recoveries, they should
@@ -1075,25 +1076,21 @@ namespace QuantLib
         //   ratios, whose detachment is no more than the remaining notional
         Real trancheAmount = (detachRatio_ - attachRatio_) * remainingNotional_;
         Real attachAmount = attachRatio_ * remainingNotional_;
-        // Each name's loss on default: the exact regions of the distribution
-        //   put its atoms at them, at the total less them, and where those
-        //   regions end (#307).
-        std::vector<Real> losses;
-        Real total = 0.;
+        // What the names that can default by the date lose, in all and the
+        //   least of them; a name that can't adds nothing to the most the
+        //   pool can lose
+        Real total = 0., smallest = QL_MAX_REAL;
         const std::vector<Real>& recoveries = copula_->recoveries();
-        // a name that can't default by the date puts no atom anywhere, and
-        //   adds nothing to the most the pool can lose
         const std::vector<Probability> uncondProbs = basket_->remainingProbabilities(d);
         for (Size i = 0; i < remainingNotionals_.size(); i++)
         {
             Real loss = remainingNotionals_[i] * (1. - recoveries[liveNames_[i]]);
             if (loss > 0. && uncondProbs[i] > 0.)
             {
-                losses.push_back(loss);
                 total += loss;
+                smallest = std::min(smallest, loss);
             }
         }
-        std::sort(losses.begin(), losses.end());
         // Where the pool can't lose the tranche's detachment, the most the
         //   tranche loses is the total less its attachment, reached only if
         //   every name that can default does: at a probability of 1 that is
@@ -1106,9 +1103,9 @@ namespace QuantLib
         {
             if (percentile >= 1.)
                 return most;
-            if (!losses.empty())
+            if (smallest < QL_MAX_REAL)
             {
-                Real top = total - losses.front() / 2.;
+                Real top = total - smallest / 2.;
                 if (percentile >= 1. - probOverPortfLoss(d, top))
                     return most;
             }
@@ -1129,31 +1126,110 @@ namespace QuantLib
         // Where P jumps across 1 - p, at an atom, the solver stops on either
         //   side of it within its accuracy. The atom is the percentile if the
         //   probability of reaching just below it is above 1 - p, and of
-        //   reaching just above it no more (#307). The total isn't tried:
-        //   where 1 - p lies in its jump, the checks above have returned.
+        //   reaching just above it no more (#307). At a node of the factor
+        //   the exact regions put atoms at what the names certain to default
+        //   there lose, c, at c plus the total T of the uncertain names, and
+        //   with two of those or more at c plus each of their losses up to
+        //   their two smallest together, plus those two, and plus T less each
+        //   of these (#317). One pass over the nodes takes the atoms within
+        //   the solver's reach, an atom within `step` of one taken counting
+        //   as it, but not one to which every node that puts it there gives a
+        //   probability below QL_EPSILON (1 - p) over the number of names:
+        //   its jump in P is then within P's rounding at 1 - p, so the check
+        //   could pass at it only where P's continuous part crosses 1 - p
+        //   within `step` of it, and there the solver's level is as good as
+        //   at any other. On many names nodes far out can put tens of such
+        //   atoms within reach, each costing P up to twice to check. The
+        //   probabilities and that floor are taken as logarithms, the former
+        //   from the names'; the two smallest losses together, and the total
+        //   less them, which pairs of names that lose alike can share, count
+        //   at every node. The pass integrates 0, so it visits every node of
+        //   the fixed rules, on which P is integrated too, but of the
+        //   Trapezoid type's only the 65 a factor where it first stops
+        //   (#320). Where every name that can default by the date might or
+        //   must at the node, c + T is the total, which isn't tried: where
+        //   1 - p lies in its jump, the checks above have returned.
         Real level = attachAmount + trancheAmount * solut;
         Real reach = 2.e-4 * trancheAmount;
         Real step = 1.e-10 * remainingNotional_;
         std::vector<Real> atoms;
-        auto near = [&](Real z)
-        {
-            if (std::fabs(z - level) <= reach && z >= attachAmount && z <= attachAmount + trancheAmount &&
-                std::find(atoms.begin(), atoms.end(), z) == atoms.end())
-                atoms.push_back(z);
-        };
-        if (losses.size() > 1)
-        {
-            Real e2 = losses[0] + losses[1];
-            for (Real loss : losses)
+        // the least probability, as a logarithm, at which an atom is tried
+        Real logFloor = std::log(QL_EPSILON * (1. - percentile)) - std::log(Real(remainingNotionals_.size()));
+        std::vector<Real> invUncondProbs(uncondProbs);
+        for (Size i = 0; i < invUncondProbs.size(); i++)
+            invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], liveNames_[i]);
+        copula_->integratedExpectedValue(
+            [&](const std::vector<Real>& v1)
             {
-                if (loss > e2)
-                    break;
-                near(loss);
-                near(total - loss);
-            }
-            near(e2);
-            near(total - e2);
-        }
+                const NamesCond names = namesCond(invUncondProbs, v1);
+                const LossLimits& limits = limitsOf(names);
+                // the logarithms of the probabilities that no uncertain name
+                //   defaults and that every one does, taken once an atom
+                //   within reach needs them
+                Real logNone = 0., logAll = 0.;
+                bool logged = false;
+                auto logs = [&]()
+                {
+                    if (!logged)
+                    {
+                        for (Size i = 0; i < names.pDef.size(); i++)
+                            if (uncertainName(names.pDef[i], remainingNotionals_[i] * names.lgd[i]))
+                            {
+                                logNone += std::log1p(-names.pDef[i]);
+                                logAll += std::log(names.pDef[i]);
+                            }
+                        logged = true;
+                    }
+                };
+                auto take = [&](Real z, const auto& logMass)
+                {
+                    if (std::fabs(z - level) <= reach && z >= attachAmount && z <= attachAmount + trancheAmount &&
+                        std::fabs(z - total) > step &&
+                        std::none_of(atoms.begin(), atoms.end(), [&](Real a) { return std::fabs(a - z) <= step; }) &&
+                        logMass() >= logFloor)
+                        atoms.push_back(z);
+                };
+                take(limits.certain,
+                     [&]()
+                     {
+                         logs();
+                         return logNone;
+                     });
+                take(limits.certain + limits.total,
+                     [&]()
+                     {
+                         logs();
+                         return logAll;
+                     });
+                if (limits.second < QL_MAX_REAL)
+                {
+                    Real e2 = limits.smallest + limits.second;
+                    for (Size i = 0; i < names.pDef.size(); i++)
+                    {
+                        Real loss = remainingNotionals_[i] * names.lgd[i];
+                        Probability p = names.pDef[i];
+                        if (uncertainName(p, loss) && loss <= e2)
+                        {
+                            // only this name defaults, and all but this one
+                            take(limits.certain + loss,
+                                 [&]()
+                                 {
+                                     logs();
+                                     return std::log(p) + logNone - std::log1p(-p);
+                                 });
+                            take(limits.certain + limits.total - loss,
+                                 [&]()
+                                 {
+                                     logs();
+                                     return std::log1p(-p) + logAll - std::log(p);
+                                 });
+                        }
+                    }
+                    take(limits.certain + e2, []() { return 0.; });
+                    take(limits.certain + limits.total - e2, []() { return 0.; });
+                }
+                return 0.;
+            });
         std::sort(atoms.begin(), atoms.end(),
                   [level](Real x, Real y) { return std::fabs(x - level) < std::fabs(y - level); });
         for (Real z : atoms)
