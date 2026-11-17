@@ -1055,9 +1055,11 @@ namespace QuantLib
                                                                                const std::vector<Real>& mktFactor,
                                                                                bool withExcess) const
     {
-        Real expected = conditionalExpectedLoss(invUncondProbs, mktFactor);
+        // The expected loss given the factor is a pass over the names through
+        //   the copula, and only this return and the approximation's two below
+        //   it use it, so it is computed there alone (#314).
         if (loss <= QL_EPSILON)
-            return {1., expected - loss};
+            return {1., conditionalExpectedLoss(invUncondProbs, mktFactor) - loss};
 
         // The names certain to default reach their loss for sure, and the
         //   uncertain names must make up the rest. Every set of defaults of
@@ -1125,7 +1127,7 @@ namespace QuantLib
         if (saddlePt == QL_MAX_REAL)
             return held({0., 0.});
         if (saddlePt == -QL_MAX_REAL)
-            return held({1., expected - loss});
+            return held({1., conditionalExpectedLoss(invUncondProbs, mktFactor) - loss});
 
         /* Above the expected loss, the probability is the first-order form
            the documentation of probOverLossPortfCond cites, and the excess
@@ -1150,7 +1152,7 @@ namespace QuantLib
         Real beyond = scale * deviation * excess * remainingNotional_;
         if (saddlePt >= 0.)
             return held({scale * tail, beyond});
-        return held({1. - scale * tail, expected - loss + beyond});
+        return held({1. - scale * tail, conditionalExpectedLoss(invUncondProbs, mktFactor) - loss + beyond});
     }
 
     template <class CP>
