@@ -309,6 +309,8 @@ namespace QuantLib
             Probability none; //!< the probability that no uncertain name defaults
             Probability any;  //!< the probability that some uncertain name defaults
             Probability all;  //!< the probability that every uncertain name defaults
+            Real mean;        //!< what the uncertain names lose on average, E[U], an amount
+            Real beyond;      //!< what they lose beyond the smallest loss of one on average, E[(U - smallest)^+]
         };
         /*! The tail of the loss at a level, given the market factor: the probability that the loss reaches it, and
             the expected excess of the loss over it, E[(L - y)^+], an amount. Exact in the regions the loss limits
@@ -348,13 +350,15 @@ namespace QuantLib
         //! Conditional on the market factor
         LossLimits lossLimitsCond(const std::vector<Real>& invUncondProbs, const std::vector<Real>& mktFactor) const
         {
-            LossLimits limits = {0., QL_MAX_REAL, QL_MAX_REAL, 0., 1., 0., 1.};
+            LossLimits limits = {0., QL_MAX_REAL, QL_MAX_REAL, 0., 1., 0., 1., 0., 0.};
             // The sums are compensated (Neumaier's): a plain sum of losses that aren't exact in double can come out
             //   doubles away from the real one, and move the limits by as much.
             Real certainCompensation = 0., totalCompensation = 0.;
             // 1 - none loses its digits where the names' probabilities are small, below 1e-16 all of them (#306), so
             //   the probability of some default is taken from the logarithm of none's.
             Real logNone = 0.;
+            // the probability that some uncertain name among those so far defaults
+            Probability some = 0.;
             auto add = [](Real& sum, Real& compensation, Real loss)
             {
                 const Real next = sum + loss;
@@ -374,13 +378,21 @@ namespace QuantLib
                 }
                 else if (loss > 0.)
                 {
+                    // What the names so far lose beyond the smallest loss among them: the first of them to default
+                    //   loses its loss less the smallest, and every later one its whole loss. Where a smaller loss
+                    //   comes, every set of the names before with a default goes beyond it by that much more. No
+                    //   term can be negative (#313).
                     if (loss < limits.smallest)
                     {
+                        limits.beyond += (limits.smallest - loss) * some;
                         limits.second = limits.smallest;
                         limits.smallest = loss;
                     }
                     else if (loss < limits.second)
                         limits.second = loss;
+                    limits.beyond += p * (loss * some + (loss - limits.smallest) * limits.none);
+                    limits.mean += p * loss;
+                    some += p * limits.none;
                     add(limits.total, totalCompensation, loss);
                     limits.none *= 1. - p;
                     logNone += std::log1p(-p);
@@ -1043,9 +1055,11 @@ namespace QuantLib
                                                                                const std::vector<Real>& mktFactor,
                                                                                bool withExcess) const
     {
-        Real expected = conditionalExpectedLoss(invUncondProbs, mktFactor);
+        // The expected loss given the factor is a pass over the names through
+        //   the copula, and only this return and the approximation's two below
+        //   it use it, so it is computed there alone (#314).
         if (loss <= QL_EPSILON)
-            return {1., expected - loss};
+            return {1., conditionalExpectedLoss(invUncondProbs, mktFactor) - loss};
 
         // The names certain to default reach their loss for sure, and the
         //   uncertain names must make up the rest. Every set of defaults of
@@ -1057,16 +1071,21 @@ namespace QuantLib
         //   for: K' only tends to it, and the saddle point is at -infinity.
         LossLimits limits = lossLimitsCond(invUncondProbs, mktFactor);
         Real rest = loss - limits.certain;
+        // at or below the certain loss every loss reaches the level, by what
+        //   the uncertain names lose and the certain loss less the level
         if (rest <= 0.)
-            return {1., expected - loss};
+            return {1., limits.mean - rest};
         if (rest > limits.total)
             return {0., 0.};
         if (rest > limits.total - limits.smallest)
             return {limits.all, (limits.certain + limits.total - loss) * limits.all};
-        // below the first uncertain default, every loss but the certain one
-        //   alone reaches the level
+        // Below the first uncertain default, every loss but the certain one
+        //   alone reaches the level, by what the defaults lose beyond the
+        //   smallest loss and the smallest less the rest: parts that can't be
+        //   negative, where E[U] - rest P(any default) kept no digits of its
+        //   own near the smallest loss (#313).
         if (rest <= limits.smallest)
-            return {limits.any, expected - limits.certain * limits.none - loss * limits.any};
+            return {limits.any, limits.beyond + (limits.smallest - rest) * limits.any};
         // Every set of defaults that leaves out two names or more loses at
         //   most the total less the two smallest losses, so above that the
         //   rest is reached only if at most one name survives (#282).
@@ -1108,7 +1127,7 @@ namespace QuantLib
         if (saddlePt == QL_MAX_REAL)
             return held({0., 0.});
         if (saddlePt == -QL_MAX_REAL)
-            return held({1., expected - loss});
+            return held({1., conditionalExpectedLoss(invUncondProbs, mktFactor) - loss});
 
         /* Above the expected loss, the probability is the first-order form
            the documentation of probOverLossPortfCond cites, and the excess
@@ -1133,7 +1152,7 @@ namespace QuantLib
         Real beyond = scale * deviation * excess * remainingNotional_;
         if (saddlePt >= 0.)
             return held({scale * tail, beyond});
-        return held({1. - scale * tail, expected - loss + beyond});
+        return held({1. - scale * tail, conditionalExpectedLoss(invUncondProbs, mktFactor) - loss + beyond});
     }
 
     template <class CP>
@@ -1163,33 +1182,82 @@ namespace QuantLib
            certain loss, any two defaults reach the rest, and one alone if its
            loss does:
              P(L >= y) = P(N >= 2) + sum over l_i >= rest of P(only i),
-             E[(L - y)^+] = E[(L - certain) 1{N >= 2}] - rest P(N >= 2)
-                            + sum over l_i > rest of (l_i - rest) P(only i).
-           Each "some other name defaults" comes from expm1 of the sums of
-           log-survivals before and after the name, so that it keeps its
-           digits where the names' probabilities are small (#306). The excess
-           is a difference, and where three defaults are far rarer than two it
-           keeps no digits of its own: at the two smallest losses together its
-           error was below 8e-15 of the smallest loss times the probability
-           that any name defaults, and it can come out below 0 by as much (#311). */
+             E[(L - y)^+] = E[(U - rest) 1{N >= 2}]
+                            + sum over l_i > rest of (l_i - rest) P(only i),
+           with U what the uncertain names lose. Each "some other name
+           defaults" comes from expm1 of the sums of log-survivals before and
+           after the name, so that it keeps its digits where the names'
+           probabilities are small (#306). Until #311 the first term of the
+           excess was E[U 1{N >= 2}] - rest P(N >= 2), a difference that kept no
+           digits of its own where three defaults are far rarer than two and
+           most pairs lose about the rest, and could come out below 0. With s1
+           and s2 the two smallest losses, it is now
+             E[(U - s1 - s2) 1{N >= 2}] + (s1 + s2 - rest) P(N >= 2),
+           and neither term can be negative. The first comes from one pass
+           over the names, which takes s1 and s2 off the losses of the first
+           two defaults, one each, and adds every later default's whole loss:
+           the name that loses s1 takes s1 where it is one of the two, so that
+           neither difference is below 0. In the second, s1 + s2 - rest is
+           formed as (s2 - rest) + s1, exact wherever it is at most s1 / 2.
+           Where rounding puts the rest above s1 + s2 it is held at 0, which
+           is exact for the pair that loses s1 and s2, as it then falls short
+           of the rest, and off by no more than that rounding for any other
+           set of defaults. */
         const Size nNames = pDef.size();
         std::vector<Real> logAfter(nNames + 1, 0.);
         for (Size i = nNames; i-- > 0;)
             logAfter[i] = logAfter[i + 1] + std::log1p(-pDef[i]);
+        Size cheapest = 0;
+        Real s1 = QL_MAX_REAL, s2 = QL_MAX_REAL;
+        for (Size i = 0; i < nNames; i++)
+        {
+            if (lossInDef[i] < s1)
+            {
+                s2 = s1;
+                s1 = lossInDef[i];
+                cheapest = i;
+            }
+            else if (lossInDef[i] < s2)
+                s2 = lossInDef[i];
+        }
         Real rest = loss - limits.certain;
-        Real logBefore = 0., twoOrMore = 0., lossTwoOrMore = 0., single = 0., singleExcess = 0.;
+        Real logBefore = 0., twoOrMore = 0., single = 0., singleExcess = 0.;
         for (Size i = 0; i < nNames; i++)
         {
             Probability onlyThis = pDef[i] * std::exp(logBefore + logAfter[i + 1]);
             twoOrMore += std::exp(logBefore) * pDef[i] * -std::expm1(logAfter[i + 1]);
-            lossTwoOrMore += lossInDef[i] * pDef[i] * -std::expm1(logBefore + logAfter[i + 1]);
             if (lossInDef[i] >= rest)
                 single += onlyThis;
             if (lossInDef[i] > rest)
                 singleExcess += (lossInDef[i] - rest) * onlyThis;
             logBefore += std::log1p(-pDef[i]);
         }
-        return {twoOrMore + single, lossTwoOrMore - rest * twoOrMore + singleExcess};
+        // among the names before i: the probabilities that none, one, two,
+        //   and three or more default, E[(U - s1 - s2) 1{N = 2}] and
+        //   E[(U - s1 - s2) 1{N >= 3}], and to build them E[(l - s1) 1{N = 1}]
+        //   and, before the name that loses s1, E[(l - s2) 1{N = 1}]
+        Real none = 1., one = 0., two = 0., three = 0.;
+        Real oneBeyond1 = 0., oneBeyond2 = 0., twoBeyond = 0., threeBeyond = 0.;
+        for (Size i = 0; i < nNames; i++)
+        {
+            const Probability p = pDef[i], q = 1. - p;
+            const Real l = lossInDef[i];
+            threeBeyond += p * (twoBeyond + l * (two + three));
+            three += p * two;
+            twoBeyond = q * twoBeyond + p * (i == cheapest ? oneBeyond2 : oneBeyond1 + (l - s2) * one);
+            two = q * two + p * one;
+            oneBeyond1 = q * oneBeyond1 + p * (l - s1) * none;
+            if (i < cheapest)
+                oneBeyond2 = q * oneBeyond2 + p * (l - s2) * none;
+            one = q * one + p * none;
+            none *= q;
+        }
+        Real twoOrMoreExcess = twoBeyond + threeBeyond;
+        // skipped where no two names default: with no uncertain name s1 and
+        //   s2 would still be QL_MAX_REAL, and the gap infinite
+        if (two + three > 0.)
+            twoOrMoreExcess += std::max((s2 - rest) + s1, 0.) * (two + three);
+        return {twoOrMore + single, twoOrMoreExcess + singleExcess};
     }
 
     template <class CP>
