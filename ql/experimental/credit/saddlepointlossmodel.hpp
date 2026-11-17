@@ -1163,33 +1163,82 @@ namespace QuantLib
            certain loss, any two defaults reach the rest, and one alone if its
            loss does:
              P(L >= y) = P(N >= 2) + sum over l_i >= rest of P(only i),
-             E[(L - y)^+] = E[(L - certain) 1{N >= 2}] - rest P(N >= 2)
-                            + sum over l_i > rest of (l_i - rest) P(only i).
-           Each "some other name defaults" comes from expm1 of the sums of
-           log-survivals before and after the name, so that it keeps its
-           digits where the names' probabilities are small (#306). The excess
-           is a difference, and where three defaults are far rarer than two it
-           keeps no digits of its own: at the two smallest losses together its
-           error was below 8e-15 of the smallest loss times the probability
-           that any name defaults, and it can come out below 0 by as much (#311). */
+             E[(L - y)^+] = E[(U - rest) 1{N >= 2}]
+                            + sum over l_i > rest of (l_i - rest) P(only i),
+           with U what the uncertain names lose. Each "some other name
+           defaults" comes from expm1 of the sums of log-survivals before and
+           after the name, so that it keeps its digits where the names'
+           probabilities are small (#306). Until #311 the first term of the
+           excess was E[U 1{N >= 2}] - rest P(N >= 2), a difference that kept no
+           digits of its own where three defaults are far rarer than two and
+           most pairs lose about the rest, and could come out below 0. With s1
+           and s2 the two smallest losses, it is now
+             E[(U - s1 - s2) 1{N >= 2}] + (s1 + s2 - rest) P(N >= 2),
+           and neither term can be negative. The first comes from one pass
+           over the names, which takes s1 and s2 off the losses of the first
+           two defaults, one each, and adds every later default's whole loss:
+           the name that loses s1 takes s1 where it is one of the two, so that
+           neither difference is below 0. In the second, s1 + s2 - rest is
+           formed as (s2 - rest) + s1, exact wherever it is at most s1 / 2.
+           Where rounding puts the rest above s1 + s2 it is held at 0, which
+           is exact for the pair that loses s1 and s2, as it then falls short
+           of the rest, and off by no more than that rounding for any other
+           set of defaults. */
         const Size nNames = pDef.size();
         std::vector<Real> logAfter(nNames + 1, 0.);
         for (Size i = nNames; i-- > 0;)
             logAfter[i] = logAfter[i + 1] + std::log1p(-pDef[i]);
+        Size cheapest = 0;
+        Real s1 = QL_MAX_REAL, s2 = QL_MAX_REAL;
+        for (Size i = 0; i < nNames; i++)
+        {
+            if (lossInDef[i] < s1)
+            {
+                s2 = s1;
+                s1 = lossInDef[i];
+                cheapest = i;
+            }
+            else if (lossInDef[i] < s2)
+                s2 = lossInDef[i];
+        }
         Real rest = loss - limits.certain;
-        Real logBefore = 0., twoOrMore = 0., lossTwoOrMore = 0., single = 0., singleExcess = 0.;
+        Real logBefore = 0., twoOrMore = 0., single = 0., singleExcess = 0.;
         for (Size i = 0; i < nNames; i++)
         {
             Probability onlyThis = pDef[i] * std::exp(logBefore + logAfter[i + 1]);
             twoOrMore += std::exp(logBefore) * pDef[i] * -std::expm1(logAfter[i + 1]);
-            lossTwoOrMore += lossInDef[i] * pDef[i] * -std::expm1(logBefore + logAfter[i + 1]);
             if (lossInDef[i] >= rest)
                 single += onlyThis;
             if (lossInDef[i] > rest)
                 singleExcess += (lossInDef[i] - rest) * onlyThis;
             logBefore += std::log1p(-pDef[i]);
         }
-        return {twoOrMore + single, lossTwoOrMore - rest * twoOrMore + singleExcess};
+        // among the names before i: the probabilities that none, one, two,
+        //   and three or more default, E[(U - s1 - s2) 1{N = 2}] and
+        //   E[(U - s1 - s2) 1{N >= 3}], and to build them E[(l - s1) 1{N = 1}]
+        //   and, before the name that loses s1, E[(l - s2) 1{N = 1}]
+        Real none = 1., one = 0., two = 0., three = 0.;
+        Real oneBeyond1 = 0., oneBeyond2 = 0., twoBeyond = 0., threeBeyond = 0.;
+        for (Size i = 0; i < nNames; i++)
+        {
+            const Probability p = pDef[i], q = 1. - p;
+            const Real l = lossInDef[i];
+            threeBeyond += p * (twoBeyond + l * (two + three));
+            three += p * two;
+            twoBeyond = q * twoBeyond + p * (i == cheapest ? oneBeyond2 : oneBeyond1 + (l - s2) * one);
+            two = q * two + p * one;
+            oneBeyond1 = q * oneBeyond1 + p * (l - s1) * none;
+            if (i < cheapest)
+                oneBeyond2 = q * oneBeyond2 + p * (l - s2) * none;
+            one = q * one + p * none;
+            none *= q;
+        }
+        Real twoOrMoreExcess = twoBeyond + threeBeyond;
+        // skipped where no two names default: with no uncertain name s1 and
+        //   s2 would still be QL_MAX_REAL, and the gap infinite
+        if (two + three > 0.)
+            twoOrMoreExcess += std::max((s2 - rest) + s1, 0.) * (two + three);
+        return {twoOrMore + single, twoOrMoreExcess + singleExcess};
     }
 
     template <class CP>

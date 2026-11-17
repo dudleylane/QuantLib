@@ -1856,7 +1856,7 @@ BOOST_AUTO_TEST_CASE(testSaddlePointWhereNoNameIsLikelyToDefault)
 }
 
 // The saddle point's tail given the market factor, which the model keeps to itself: P(L >= y | M) and
-// E[L 1{L >= y} | M] on the whole pool.
+// E[L 1{L >= y} | M] on the whole pool, and the tail itself, P(L >= y | M) and E[(L - y)^+ | M].
 template <class CP>
 class SaddlePointTailGivenTheFactor : public SaddlePointLossModel<CP>
 {
@@ -1864,6 +1864,7 @@ class SaddlePointTailGivenTheFactor : public SaddlePointLossModel<CP>
     using SaddlePointLossModel<CP>::SaddlePointLossModel;
     using SaddlePointLossModel<CP>::probOverLossPortfCond;
     using SaddlePointLossModel<CP>::expectedShortfallFullPortfolioCond;
+    using SaddlePointLossModel<CP>::tailCond;
 };
 
 BOOST_AUTO_TEST_CASE(testSaddlePointTailFarAboveTheLikelyLosses)
@@ -2277,6 +2278,90 @@ BOOST_AUTO_TEST_CASE(testSaddlePointWhereAnyTwoDefaultsReachTheLevel)
                 {
                     BOOST_CHECK_CLOSE_FRACTION(model->expectedShortfallFullPortfolioCond(inverse, y, m), exact, 1.0e-9);
                 }
+            }
+        }
+    }
+}
+
+// Given the factor, on names that each lose 60: the saddle point's excess at each level against the exact one, from the
+// probabilities that k names default, at factors from -2 to 8.5, the last node of the model's rule for a Gaussian
+// factor.
+void checkTheExcessOnNamesThatLose60(const ext::shared_ptr<SaddlePointTailGivenTheFactor<GaussianCopulaPolicy>>& model,
+                                     const ext::shared_ptr<GaussianConstantLossLM>& latent,
+                                     const ext::shared_ptr<Basket>& basket,
+                                     const Date& d,
+                                     const std::vector<Real>& levels)
+{
+    std::vector<Real> inverse = basket->remainingProbabilities(d);
+    for (Size i = 0; i < inverse.size(); ++i)
+        inverse[i] = latent->inverseCumulativeY(inverse[i], i);
+    for (int step = -4; step <= 17; ++step)
+    {
+        const std::vector<Real> m(1, 0.5 * step);
+        std::vector<Probability> p;
+        for (Size i = 0; i < inverse.size(); ++i)
+            p.push_back(latent->conditionalDefaultProbabilityInvP(inverse[i], i, m));
+        const DefaultsGivenTheFactor defaults(p);
+        for (Real y : levels)
+        {
+            // a recursion that only adds
+            Real exact = 0.0;
+            for (Size k = 0; k < defaults.count.size(); ++k)
+                exact += defaults.count[k] * std::max(60.0 * k - y, 0.0);
+            BOOST_TEST_CONTEXT(d << ", a factor of " << m[0] << ", a loss of " << std::setprecision(17) << y)
+            {
+                BOOST_CHECK_CLOSE_FRACTION(model->tailCond(inverse, y, m).excess, exact, 1.0e-13);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testSaddlePointExcessAtTheTwoSmallestLossesTogether)
+{
+    BOOST_TEST_MESSAGE("Testing the saddle point's excess at the two smallest losses together...");
+
+    /* Up to the two smallest losses together, the model takes the tail given the factor exactly (#205). With N the
+       number of defaults, U what they lose and r the level, the excess there was E[U 1{N >= 2}] - r P(N >= 2), plus
+       what single defaults add. Where three defaults are far rarer than two and most pairs lose about r, that
+       difference kept no digits of its own: on #159's pool, 20 names that each lose 60, the excess at 120 given the
+       factor one year out was off by 1.3e-13 of itself at a factor of 0.5 and by 5.3e-9 at 4, and at 8.5 it came out
+       below 0 (#311). It now comes from parts that can't be negative. */
+    SharedModelVars vars(0.3);
+    Settings::instance().evaluationDate() = vars.today;
+    const auto latent = vars.latentModel();
+    const auto model = ext::make_shared<SaddlePointTailGivenTheFactor<GaussianCopulaPolicy>>(latent);
+    const auto basket = vars.basket(0.0, 1.0);
+    basket->setLossModel(model);
+    // the basket hands itself to the model as it first calculates, which the model's tail given the factor needs
+    BOOST_REQUIRE_EQUAL(basket->remainingTrancheNotional(), 2000.0);
+    // at 120, which any two defaults reach with nothing to spare, and at 1e-9 of a loss below it, from factors where
+    // three defaults or more are likely to those where no name is
+    for (const Date& d : {Date(31, August, 2007), vars.schedule.endDate()})
+        checkTheExcessOnNamesThatLose60(model, latent, basket, d, {120.0, 120.0 - 6.0e-8});
+
+    // and four names that each lose 60, at factors from 25 to 35: there the probability that three default falls from
+    // 4e-231 one year out, and 4e-208 five years out, through the subnormal numbers to 0, while that of two stays
+    // above 1e-280. At 120 the excess is 60 times the first, and it came out below 0 at nearly half of these factors
+    {
+        const FourNames four({0.01, 0.02, 0.03, 0.05});
+        const auto fourModel = ext::make_shared<SaddlePointTailGivenTheFactor<GaussianCopulaPolicy>>(four.latent);
+        const auto fourBasket = ext::make_shared<Basket>(four.today, four.names, four.notionals, four.pool, 0.0, 1.0);
+        fourBasket->setLossModel(fourModel);
+        BOOST_REQUIRE_EQUAL(fourBasket->remainingTrancheNotional(), 400.0);
+        for (const Date& d : {Date(31, August, 2007), four.horizon})
+        {
+            std::vector<Real> inverse = fourBasket->remainingProbabilities(d);
+            for (Size i = 0; i < inverse.size(); ++i)
+                inverse[i] = four.latent->inverseCumulativeY(inverse[i], i);
+            Size below = 0;
+            for (int step = 0; step <= 10000; ++step)
+            {
+                if (fourModel->tailCond(inverse, 120.0, std::vector<Real>(1, 25.0 + 0.001 * step)).excess < 0.0)
+                    ++below;
+            }
+            BOOST_TEST_CONTEXT("four names, " << d << ", factors from 25 to 35")
+            {
+                BOOST_CHECK_EQUAL(below, 0U);
             }
         }
     }
