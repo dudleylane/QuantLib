@@ -25,6 +25,7 @@
 #include <ql/experimental/credit/defaultlossmodel.hpp>
 #include <ql/math/solvers1d/brent.hpp>
 #include <ql/math/solvers1d/newton.hpp>
+#include <algorithm>
 #include <cmath>
 #include <tuple>
 
@@ -154,6 +155,18 @@ namespace QuantLib
         and from there between 0.2% below it and 2.0% above, where the
         percentile comes from the approximation, which has no atoms (#309);
         until #205 it was up to 2.9% above.
+    \warning The percentile is the level at which the tail probability
+        crosses 1 less the probability asked for, solved to 1e-4 of the
+        tranche. Where the tail jumps across it at a loss of the exact
+        parts, it is that loss: of the names that can default by the date,
+        each one's loss up to the two smallest together, those two, the
+        total less each of these, and the total (#307). Where names are
+        certain to default given the factor, their loss moves the lower of
+        those jumps (#317), and where a name can't default by the date, the
+        exact parts can miss the others' jumps (#318); there the
+        percentile is still solved to 1e-4 of the tranche. Neither the
+        percentile nor the shortfall is above the most the tranche can
+        lose, what those names lose less its attachment.
     */
 
     /* The treatment of recovery wont work with random recoveries, they should
@@ -569,6 +582,10 @@ namespace QuantLib
         Real expectedShortfall(const Date& d, Probability percentile) const override;
 
       protected:
+        // The most the tranche can lose by the date, given each live name's
+        //   probability of defaulting by then: what the names that can default
+        //   lose, less its attachment (#307).
+        Real mostTrancheLoss(const std::vector<Probability>& uncondProbs) const;
         Real conditionalExpectedLoss(const std::vector<Real>& invUncondProbs, const std::vector<Real>& mktFactor) const;
         Real conditionalExpectedLoss(const NamesCond& names) const;
         Real conditionalExpectedTrancheLoss(const std::vector<Real>& invUncondProbs,
@@ -1016,6 +1033,26 @@ namespace QuantLib
 
 
     template <class CP>
+    Real SaddlePointLossModel<CP>::mostTrancheLoss(const std::vector<Probability>& uncondProbs) const
+    {
+        // the losses added and the attachment subtracted as percentile's
+        //   atoms are, each a rounded product first, so that at the top this
+        //   is the atom less the attachment to the bit
+        const std::vector<Real>& recoveries = copula_->recoveries();
+        Real total = 0.;
+        for (Size i = 0; i < uncondProbs.size(); i++)
+        {
+            Real loss = remainingNotionals_[i] * (1. - recoveries[liveNames_[i]]);
+            if (loss > 0. && uncondProbs[i] > 0.)
+                total += loss;
+        }
+        Real attachAmount = attachRatio_ * remainingNotional_;
+        if (total <= attachAmount)
+            return 0.;
+        return std::min(total - attachAmount, (detachRatio_ - attachRatio_) * remainingNotional_);
+    }
+
+    template <class CP>
     Real SaddlePointLossModel<CP>::percentile(const Date& d, Probability percentile) const
     {
         // this test should be in the calling basket...?
@@ -1035,7 +1072,61 @@ namespace QuantLib
         // the fraction solved for is of the tranche between the remaining
         //   ratios, whose detachment is no more than the remaining notional
         Real trancheAmount = (detachRatio_ - attachRatio_) * remainingNotional_;
-        if (percentile >= 1. - probOverLoss(d, 1.))
+        Real attachAmount = attachRatio_ * remainingNotional_;
+        // Each name's loss on default: the exact regions of the distribution
+        //   put its atoms at them, at the total less them, and where those
+        //   regions end (#307).
+        std::vector<Real> losses;
+        Real total = 0.;
+        // the total and the two smallest losses of every name that has one,
+        //   which bound the model's exact regions at every node: it counts a
+        //   name that can't default as uncertain
+        Real totalAll = 0., smallestAll = QL_MAX_REAL, secondAll = QL_MAX_REAL;
+        const std::vector<Real>& recoveries = copula_->recoveries();
+        // a name that can't default by the date puts no atom anywhere, and
+        //   adds nothing to the most the pool can lose
+        const std::vector<Probability> uncondProbs = basket_->remainingProbabilities(d);
+        for (Size i = 0; i < remainingNotionals_.size(); i++)
+        {
+            Real loss = remainingNotionals_[i] * (1. - recoveries[liveNames_[i]]);
+            if (loss > 0.)
+            {
+                totalAll += loss;
+                if (loss < smallestAll)
+                {
+                    secondAll = smallestAll;
+                    smallestAll = loss;
+                }
+                else if (loss < secondAll)
+                    secondAll = loss;
+                if (uncondProbs[i] > 0.)
+                {
+                    losses.push_back(loss);
+                    total += loss;
+                }
+            }
+        }
+        std::sort(losses.begin(), losses.end());
+        // Where the pool can't lose the tranche's detachment, the most the
+        //   tranche loses is the total less its attachment, reached only if
+        //   every name that can default does: at a probability of 1 that is
+        //   the percentile, and below it P(L >= y) for any y above the total
+        //   less the smallest loss is the probability of reaching it, where
+        //   y lies in the exact region at every node. No percentile is above
+        //   it.
+        Real most = mostTrancheLoss(uncondProbs);
+        if (most < trancheAmount)
+        {
+            if (percentile >= 1.)
+                return most;
+            if (!losses.empty())
+            {
+                Real top = total - losses.front() / 2.;
+                if (top > totalAll - (smallestAll + secondAll) && percentile >= 1. - probOverPortfLoss(d, top))
+                    return most;
+            }
+        }
+        else if (percentile >= 1. || percentile >= 1. - probOverLoss(d, 1.))
             return trancheAmount;
 
         SaddlePercObjFunction f(*this, percentile, d);
@@ -1047,7 +1138,42 @@ namespace QuantLib
         Real guess = 0.5;
 
         Real solut = solver.solve(f, 1.e-4, guess, minVal, maxVal);
-        return trancheAmount * solut;
+
+        // Where P jumps across 1 - p, at an atom, the solver stops on either
+        //   side of it within its accuracy. The atom is the percentile if the
+        //   probability of reaching just below it is above 1 - p, and of
+        //   reaching just above it no more (#307).
+        Real level = attachAmount + trancheAmount * solut;
+        Real reach = 2.e-4 * trancheAmount;
+        Real step = 1.e-10 * remainingNotional_;
+        std::vector<Real> atoms;
+        auto near = [&](Real z)
+        {
+            if (std::fabs(z - level) <= reach && z >= attachAmount && z <= attachAmount + trancheAmount &&
+                std::find(atoms.begin(), atoms.end(), z) == atoms.end())
+                atoms.push_back(z);
+        };
+        if (losses.size() > 1)
+        {
+            Real e2 = losses[0] + losses[1];
+            for (Real loss : losses)
+            {
+                if (loss > e2)
+                    break;
+                near(loss);
+                near(total - loss);
+            }
+            near(e2);
+            near(total - e2);
+        }
+        if (!losses.empty())
+            near(total);
+        std::sort(atoms.begin(), atoms.end(),
+                  [level](Real x, Real y) { return std::fabs(x - level) < std::fabs(y - level); });
+        for (Real z : atoms)
+            if (probOverPortfLoss(d, z - step) > 1. - percentile && probOverPortfLoss(d, z + step) <= 1. - percentile)
+                return std::min(z - attachAmount, most);
+        return std::min(trancheAmount * solut, most);
     }
 
     template <class CP>
@@ -1582,7 +1708,13 @@ namespace QuantLib
         Real trancheAmount = (detachRatio_ - attachRatio_) * remainingNotional_;
         if (lossPerc >= trancheAmount)
             return trancheAmount;
+        // at a probability of 1 the percentile is the most the tranche can
+        //   lose, and nothing is lost beyond it
+        if (percProb >= 1.)
+            return lossPerc;
         std::vector<Real> invUncondProbs = basket_->remainingProbabilities(d);
+        // the most the tranche can lose, as the percentile takes it
+        Real most = mostTrancheLoss(invUncondProbs);
         for (Size i = 0; i < invUncondProbs.size(); i++)
             invUncondProbs[i] = copula_->inverseCumulativeY(invUncondProbs[i], liveNames_[i]);
 
@@ -1591,7 +1723,7 @@ namespace QuantLib
         Real lossLevel = attachRatio_ * remainingNotional_ + lossPerc;
         Real excess = copula_->integratedExpectedValue(
             [&](const std::vector<Real>& v1) { return expectedShortfallTrancheCond(invUncondProbs, lossLevel, v1); });
-        return std::min(lossPerc + excess / (1. - percProb), trancheAmount);
+        return std::min(lossPerc + excess / (1. - percProb), most);
 
         /* test:?
             return std::inner_product(integrESFPartition.begin(),

@@ -1792,10 +1792,9 @@ BOOST_AUTO_TEST_CASE(testSaddlePointWhereTheFactorMakesNamesCertain)
         // no loss falls strictly between the certain 120 and the next default
         for (Real y : {120.0, 150.0})
             BOOST_CHECK_EQUAL(four.model->probDensity(four.horizon, y), 0.0);
-        // Brent's accuracy is 1e-4 of the tranche
-        const Real accuracy = 1.0e-4 * four.trancheNotional;
-        BOOST_CHECK_SMALL(four.basket->percentile(four.horizon, 0.5) - 120.0, accuracy);
-        BOOST_CHECK_SMALL(four.basket->percentile(four.horizon, 0.97) - 180.0, accuracy);
+        // P jumps across 1 - p at the certain loss, 120, and at 180, and the percentile is the atom (#307)
+        BOOST_CHECK_SMALL(four.basket->percentile(four.horizon, 0.5) - 120.0, 1.0e-9);
+        BOOST_CHECK_SMALL(four.basket->percentile(four.horizon, 0.97) - 180.0, 1.0e-9);
     }
 
     // three names certain: in fractions of the notional, three losses of 0.15 sum to 0.44999999999999996, below
@@ -1832,8 +1831,8 @@ BOOST_AUTO_TEST_CASE(testSaddlePointWithANameThatLosesNothing)
     for (Real y : {30.0, 150.0, 179.9})
         BOOST_CHECK_EQUAL(four.model->probDensity(four.horizon, y), 0.0);
     BOOST_CHECK_EQUAL(four.basket->percentile(four.horizon, 0.5), 0.0);
-    // Brent's accuracy is 1e-4 of the tranche
-    BOOST_CHECK_SMALL(four.basket->percentile(four.horizon, 0.99) - 120.0, 1.0e-4 * four.trancheNotional);
+    // P jumps across 1 - p at 120, and the percentile is the atom (#307)
+    BOOST_CHECK_SMALL(four.basket->percentile(four.horizon, 0.99) - 120.0, 1.0e-9);
 }
 
 BOOST_AUTO_TEST_CASE(testSaddlePointWhereNoNameIsLikelyToDefault)
@@ -2591,6 +2590,121 @@ BOOST_AUTO_TEST_CASE(testSaddlePointTrancheFractionOnABasketOfSmallNotionals)
     const Real smallWidth = small->remainingTrancheNotional(), bigWidth = big->remainingTrancheNotional();
     BOOST_CHECK_SMALL(small->percentile(left.horizon, 0.9) / smallWidth - big->percentile(left.horizon, 0.9) / bigWidth,
                       1.0e-12);
+}
+
+BOOST_AUTO_TEST_CASE(testSaddlePointPercentileAtAJumpOfItsDistribution)
+{
+    BOOST_TEST_MESSAGE("Testing the saddle point's percentile and shortfall at a jump of its loss distribution...");
+
+    /* NamesAroundADefault's 19 names left after its default, alike, under T of order 3: each loses 60, so the pool
+       loses 1,140 at most. Given the factor the model takes its distribution exactly up to the two smallest losses
+       together, 120, and from the total less those two, 1,020, so P(L >= y) jumps at the atoms 60, 120, 1,020, 1,080
+       and 1,140. Where 1 - p lies inside a jump, the percentile is the atom, and the shortfall the atom plus the
+       tranche's expected loss beyond it over 1 - p, which the recursive model gives exactly given the factor. The
+       percentile was solved across the jump to 1e-4 of the tranche, and came out on either side of the atom, by up to
+       0.09 here; at the top it was above the most the tranche can lose, and at a probability of 1 it was the whole
+       tranche, 1,900 on 0 to 100 % (#307). */
+    const NamesAroundADefault left(true, true);
+    Settings::instance().evaluationDate() = left.afterTheDefault;
+    const Date& d = left.horizon;
+    const auto model = ext::make_shared<SaddlePointLossModel<TCopulaPolicy>>(left.tLatentModel());
+    const auto whole = left.basket(0.0, 1.0);
+    whole->setLossModel(model);
+    BOOST_REQUIRE_EQUAL(whole->remainingNotional(), 1900.0);
+    whole->expectedTrancheLoss(d); // the basket links its model when it calculates
+    const Real total = 1140.0;
+    for (Real a : {0.0, 0.5})
+    {
+        const auto tranche = left.basket(a, 1.0);
+        tranche->setLossModel(left.tSaddlePointModel());
+        const Real attachment = 1900.0 * a;
+        for (Real z : {60.0, 120.0, 1020.0, 1080.0, total})
+        {
+            if (z <= attachment)
+                continue;
+            // the model sums the losses its own way, so its jump is read a little either side of the atom
+            const Probability over = model->probOverPortfLoss(d, z + 1.0e-6),
+                              atOrOver = model->probOverPortfLoss(d, z - 1.0e-6);
+            BOOST_REQUIRE_GT(atOrOver - over, 1.0e-6);
+            const Probability p = 1.0 - (over + atOrOver) / 2.0;
+            // the excess beyond the atom, exact given the factor on losses of 60
+            const auto beyond = left.basket(z / 1900.0, 1.0);
+            beyond->setLossModel(ext::make_shared<RecursiveLossModel<TCopulaPolicy>>(left.tLatentModel(), 1));
+            BOOST_TEST_CONTEXT(a * 100 << " to 100 %, at the atom " << z << ", at " << std::setprecision(12) << p)
+            {
+                BOOST_CHECK_SMALL(tranche->percentile(d, p) - (z - attachment), 1.0e-9);
+                BOOST_CHECK_SMALL(tranche->expectedShortfall(d, p) -
+                                      (z - attachment + beyond->expectedTrancheLoss(d) / (1.0 - p)),
+                                  1.0e-9);
+            }
+        }
+        BOOST_TEST_CONTEXT(a * 100 << " to 100 %, at a probability of 1")
+        {
+            BOOST_CHECK_SMALL(tranche->percentile(d, 1.0) - (total - attachment), 1.0e-9);
+            BOOST_CHECK_SMALL(tranche->expectedShortfall(d, 1.0) - (total - attachment), 1.0e-9);
+        }
+    }
+
+    /* A name that can't default by the date, at a hazard rate of 0, puts no atom anywhere: of four names that lose 60
+       each, the pool can lose at most what the other three lose, 180, and at a probability of 1 that is the
+       percentile and the shortfall. Until #307 both were the whole tranche, 400; with the name counted they would be
+       240. */
+    const FourNames four({0.05, 0.04, 0.03, 0.0});
+    BOOST_TEST_CONTEXT("a name that can't default, at a probability of 1")
+    {
+        BOOST_CHECK_SMALL(four.basket->percentile(four.horizon, 1.0) - 180.0, 1.0e-9);
+        BOOST_CHECK_SMALL(four.basket->expectedShortfall(four.horizon, 1.0) - 180.0, 1.0e-9);
+    }
+
+    /* The model counts such a name as one that might default (#318), so its region at the top starts at what every
+       name with a loss loses less the two smallest of them. Where the others lose 60, 70 and 80 and that name 100, it
+       starts at 180: P(L >= y) jumps at the others' top, 210, but the check at the top, at half the smallest loss
+       below it, 180, isn't inside the region, so the percentile is solved, and taken at the jump after. It came out
+       within the solver's accuracy of 210, on either side: 209.985 halfway across the jump and 210.008 at 0.999, the
+       shortfall 210.015 and 210.008. */
+    const FourNames apart({0.05, 0.04, 0.03, 0.0}, {0.4, 0.3, 0.2, 0.0});
+    const Probability over = apart.model->probOverPortfLoss(apart.horizon, 210.0 + 1.0e-6),
+                      atOrOver = apart.model->probOverPortfLoss(apart.horizon, 210.0 - 1.0e-6);
+    BOOST_REQUIRE_GT(atOrOver - over, 1.0e-6);
+    for (Probability p : {1.0 - (over + atOrOver) / 2.0, 0.999})
+    {
+        BOOST_TEST_CONTEXT("names that lose 60, 70 and 80 beside one that can't default, at " << std::setprecision(12)
+                                                                                              << p)
+        {
+            BOOST_CHECK_SMALL(apart.basket->percentile(apart.horizon, p) - 210.0, 1.0e-9);
+            BOOST_CHECK_SMALL(apart.basket->expectedShortfall(apart.horizon, p) - 210.0, 1.0e-9);
+        }
+    }
+
+    /* Where the others lose 20, 30 and 40, 90 in all, the region starts at 190 less 50, 140, and below 90 the model's
+       tail comes from its expansion, in which the name counts. At 0.99 the percentile is solved there, at 86.1, where
+       the exact one is 90 (#318), and the shortfall, which adds the expansion's excess beyond it, came out at 91.38,
+       above the most the tranche can lose, 90: it is held to 90. At 0.995 and 0.999 the percentile came out above 90,
+       at 90.024 and 90.010, and the shortfall with it; both are now 90. */
+    const FourNames small({0.05, 0.04, 0.03, 0.0}, {0.8, 0.7, 0.6, 0.0});
+    BOOST_TEST_CONTEXT("names that lose 20, 30 and 40 beside one that can't default, at 0.99")
+    {
+        BOOST_CHECK_LE(small.basket->percentile(small.horizon, 0.99), 90.0 + 1.0e-9);
+        BOOST_CHECK_SMALL(small.basket->expectedShortfall(small.horizon, 0.99) - 90.0, 1.0e-9);
+    }
+    for (Probability p : {0.995, 0.999})
+    {
+        BOOST_TEST_CONTEXT("names that lose 20, 30 and 40 beside one that can't default, at " << p)
+        {
+            BOOST_CHECK_SMALL(small.basket->percentile(small.horizon, p) - 90.0, 1.0e-9);
+            BOOST_CHECK_SMALL(small.basket->expectedShortfall(small.horizon, p) - 90.0, 1.0e-9);
+        }
+    }
+
+    /* With the name that loses 60 rare, the exact percentile at 0.99 is 150. The check at the top would read the
+       model's P(L >= 180), 0.0103 against an exact 0.0041, and take the percentile to the top, 210; but 180 is where
+       the region starts, not inside it. The check doesn't run, and the percentile is solved, below the top though
+       still off the exact one (#318). */
+    const FourNames rare({0.001, 0.2, 0.2, 0.0}, {0.4, 0.3, 0.2, 0.0});
+    BOOST_TEST_CONTEXT("a rare name beside one that can't default, at 0.99")
+    {
+        BOOST_CHECK_LT(rare.basket->percentile(rare.horizon, 0.99), 210.0 - 1.0e-4 * rare.trancheNotional);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(testCdoAfterADefault)
