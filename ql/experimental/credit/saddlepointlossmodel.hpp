@@ -161,12 +161,11 @@ namespace QuantLib
         parts, it is that loss: of the names that can default by the date,
         each one's loss up to the two smallest together, those two, the
         total less each of these, and the total (#307). Where names are
-        certain to default given the factor, their loss moves the lower of
-        those jumps (#317), and where a name can't default by the date, the
-        exact parts can miss the others' jumps (#318); there the
-        percentile is still solved to 1e-4 of the tranche. Neither the
-        percentile nor the shortfall is above the most the tranche can
-        lose, what those names lose less its attachment.
+        certain to default given the factor, or can't default given it
+        though they can by the date, those jumps move, and there the
+        percentile is still solved to 1e-4 of the tranche (#317). Neither
+        it nor the shortfall is above the most the tranche can lose, what
+        the names that can default by the date lose less its attachment.
     */
 
     /* The treatment of recovery wont work with random recoveries, they should
@@ -311,7 +310,8 @@ namespace QuantLib
 
         /*! Where the loss distribution is known without a saddle point. Given the factor, the names that default with
             probability 1 lose a fixed amount, and the loss is that amount plus what the other names, the uncertain
-            ones, lose. A name that loses nothing is never an uncertain one: none of its defaults changes the loss.
+            ones, lose. A name that loses nothing is never an uncertain one: none of its defaults changes the loss. Nor
+            is a name whose default probability given the factor is 0: none of its defaults happens there (#318).
         */
         struct LossLimits
         {
@@ -325,6 +325,8 @@ namespace QuantLib
             Real mean;        //!< what the uncertain names lose on average, E[U], an amount
             Real beyond;      //!< what they lose beyond the smallest loss of one on average, E[(U - smallest)^+]
         };
+        //! Whether a name is an uncertain one, given its default probability given the factor and its loss
+        static bool uncertainName(Probability p, Real loss) { return p != 1. && p != 0. && loss > 0.; }
         /*! The tail of the loss at a level, given the market factor: the probability that the loss reaches it, and
             the expected excess of the loss over it, E[(L - y)^+], an amount. Exact in the regions the loss limits
             give, and from the first-order saddle-point forms elsewhere, which take both from the same tilted
@@ -422,7 +424,7 @@ namespace QuantLib
                 {
                     add(limits.certain, certainCompensation, loss);
                 }
-                else if (loss > 0.)
+                else if (uncertainName(p, loss))
                 {
                     // What the names so far lose beyond the smallest loss among them: the first of them to default
                     //   loses its loss less the smallest, and every later one its whole loss. Where a smaller loss
@@ -1078,10 +1080,6 @@ namespace QuantLib
         //   regions end (#307).
         std::vector<Real> losses;
         Real total = 0.;
-        // the total and the two smallest losses of every name that has one,
-        //   which bound the model's exact regions at every node: it counts a
-        //   name that can't default as uncertain
-        Real totalAll = 0., smallestAll = QL_MAX_REAL, secondAll = QL_MAX_REAL;
         const std::vector<Real>& recoveries = copula_->recoveries();
         // a name that can't default by the date puts no atom anywhere, and
         //   adds nothing to the most the pool can lose
@@ -1089,21 +1087,10 @@ namespace QuantLib
         for (Size i = 0; i < remainingNotionals_.size(); i++)
         {
             Real loss = remainingNotionals_[i] * (1. - recoveries[liveNames_[i]]);
-            if (loss > 0.)
+            if (loss > 0. && uncondProbs[i] > 0.)
             {
-                totalAll += loss;
-                if (loss < smallestAll)
-                {
-                    secondAll = smallestAll;
-                    smallestAll = loss;
-                }
-                else if (loss < secondAll)
-                    secondAll = loss;
-                if (uncondProbs[i] > 0.)
-                {
-                    losses.push_back(loss);
-                    total += loss;
-                }
+                losses.push_back(loss);
+                total += loss;
             }
         }
         std::sort(losses.begin(), losses.end());
@@ -1122,7 +1109,7 @@ namespace QuantLib
             if (!losses.empty())
             {
                 Real top = total - losses.front() / 2.;
-                if (top > totalAll - (smallestAll + secondAll) && percentile >= 1. - probOverPortfLoss(d, top))
+                if (percentile >= 1. - probOverPortfLoss(d, top))
                     return most;
             }
         }
@@ -1142,7 +1129,8 @@ namespace QuantLib
         // Where P jumps across 1 - p, at an atom, the solver stops on either
         //   side of it within its accuracy. The atom is the percentile if the
         //   probability of reaching just below it is above 1 - p, and of
-        //   reaching just above it no more (#307).
+        //   reaching just above it no more (#307). The total isn't tried:
+        //   where 1 - p lies in its jump, the checks above have returned.
         Real level = attachAmount + trancheAmount * solut;
         Real reach = 2.e-4 * trancheAmount;
         Real step = 1.e-10 * remainingNotional_;
@@ -1166,8 +1154,6 @@ namespace QuantLib
             near(e2);
             near(total - e2);
         }
-        if (!losses.empty())
-            near(total);
         std::sort(atoms.begin(), atoms.end(),
                   [level](Real x, Real y) { return std::fabs(x - level) < std::fabs(y - level); });
         for (Real z : atoms)
@@ -1350,7 +1336,7 @@ namespace QuantLib
         {
             Real nameLoss = remainingNotionals_[iName] * names.lgd[iName];
             Probability p = names.pDef[iName];
-            if (p != 1. && nameLoss > 0.)
+            if (uncertainName(p, nameLoss))
             {
                 pDef.push_back(p);
                 lossInDef.push_back(nameLoss);
@@ -1449,7 +1435,7 @@ namespace QuantLib
         {
             Real nameLoss = remainingNotionals_[iName] * names.lgd[iName];
             Probability p = names.pDef[iName];
-            if (p != 1. && nameLoss > 0.)
+            if (uncertainName(p, nameLoss))
             {
                 pDef.push_back(p);
                 lossInDef.push_back(nameLoss);

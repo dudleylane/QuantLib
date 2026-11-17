@@ -2656,12 +2656,13 @@ BOOST_AUTO_TEST_CASE(testSaddlePointPercentileAtAJumpOfItsDistribution)
         BOOST_CHECK_SMALL(four.basket->expectedShortfall(four.horizon, 1.0) - 180.0, 1.0e-9);
     }
 
-    /* The model counts such a name as one that might default (#318), so its region at the top starts at what every
-       name with a loss loses less the two smallest of them. Where the others lose 60, 70 and 80 and that name 100, it
-       starts at 180: P(L >= y) jumps at the others' top, 210, but the check at the top, at half the smallest loss
-       below it, 180, isn't inside the region, so the percentile is solved, and taken at the jump after. It came out
-       within the solver's accuracy of 210, on either side: 209.985 halfway across the jump and 210.008 at 0.999, the
-       shortfall 210.015 and 210.008. */
+    /* Where the others lose 60, 70 and 80 and that name 100, P(L >= y) jumps at the others' top, 210, and the check
+       at the top reads it at half the smallest loss below it, 180, inside the region at the top, which starts at 210
+       less the two smallest losses, 80: the percentile and the shortfall are 210. Until #318 the model counted the
+       name as one that might default, the region started at 310 less 130, 180, and the check, at a level not inside
+       it, was skipped. The percentile was solved, and came out within the solver's accuracy of 210, on either side:
+       209.985 halfway across the jump and 210.008 at 0.999, the shortfall 210.015 and 210.008; #307 takes it at the
+       jump. */
     const FourNames apart({0.05, 0.04, 0.03, 0.0}, {0.4, 0.3, 0.2, 0.0});
     const Probability over = apart.model->probOverPortfLoss(apart.horizon, 210.0 + 1.0e-6),
                       atOrOver = apart.model->probOverPortfLoss(apart.horizon, 210.0 - 1.0e-6);
@@ -2676,18 +2677,14 @@ BOOST_AUTO_TEST_CASE(testSaddlePointPercentileAtAJumpOfItsDistribution)
         }
     }
 
-    /* Where the others lose 20, 30 and 40, 90 in all, the region starts at 190 less 50, 140, and below 90 the model's
-       tail comes from its expansion, in which the name counts. At 0.99 the percentile is solved there, at 86.1, where
-       the exact one is 90 (#318), and the shortfall, which adds the expansion's excess beyond it, came out at 91.38,
-       above the most the tranche can lose, 90: it is held to 90. At 0.995 and 0.999 the percentile came out above 90,
-       at 90.024 and 90.010, and the shortfall with it; both are now 90. */
+    /* Where the others lose 20, 30 and 40, 90 in all, the region at the top starts at 90 less 50, 40, and the check at
+       the top reads P(L >= 80) inside it, 0.022: from 0.978 on, the percentile and the shortfall are 90, the most the
+       tranche can lose. Until #318 the region started at 190 less 50, 140, and below 90 the model's tail came from
+       its expansion, in which the name counted. At 0.99 the percentile was solved there, at 86.1, and the shortfall,
+       which adds the expansion's excess beyond it, came out at 91.38; at 0.995 and 0.999 the percentile came out at
+       90.024 and 90.010, and the shortfall with it. #307 holds those above 90 to 90. */
     const FourNames small({0.05, 0.04, 0.03, 0.0}, {0.8, 0.7, 0.6, 0.0});
-    BOOST_TEST_CONTEXT("names that lose 20, 30 and 40 beside one that can't default, at 0.99")
-    {
-        BOOST_CHECK_LE(small.basket->percentile(small.horizon, 0.99), 90.0 + 1.0e-9);
-        BOOST_CHECK_SMALL(small.basket->expectedShortfall(small.horizon, 0.99) - 90.0, 1.0e-9);
-    }
-    for (Probability p : {0.995, 0.999})
+    for (Probability p : {0.99, 0.995, 0.999})
     {
         BOOST_TEST_CONTEXT("names that lose 20, 30 and 40 beside one that can't default, at " << p)
         {
@@ -2696,14 +2693,138 @@ BOOST_AUTO_TEST_CASE(testSaddlePointPercentileAtAJumpOfItsDistribution)
         }
     }
 
-    /* With the name that loses 60 rare, the exact percentile at 0.99 is 150. The check at the top would read the
-       model's P(L >= 180), 0.0103 against an exact 0.0041, and take the percentile to the top, 210; but 180 is where
-       the region starts, not inside it. The check doesn't run, and the percentile is solved, below the top though
-       still off the exact one (#318). */
+    /* With the name that loses 60 rare, the exact percentile at 0.99 is 150, and above it the pool loses only 210.
+       The check at the top reads P(L >= 180) inside the region at the top, 0.0041, and leaves the percentile to be
+       solved, on a distribution exact at every level, and taken at the jump at 150 (#307). Until #318 the region
+       started at 180, where the model's P(L >= 180) was 0.0103: had the check read it, it would have taken the
+       percentile to 210. It was skipped, and the percentile was solved, at 179.99, the shortfall 192.36 against an
+       exact 174.31. */
     const FourNames rare({0.001, 0.2, 0.2, 0.0}, {0.4, 0.3, 0.2, 0.0});
+    // 150, and what the pool loses beyond it on average, 60 at 210, over 0.01
+    const Real shortfall = 150.0 + 60.0 * rare.exactOver(151.0) / 0.01;
     BOOST_TEST_CONTEXT("a rare name beside one that can't default, at 0.99")
     {
-        BOOST_CHECK_LT(rare.basket->percentile(rare.horizon, 0.99), 210.0 - 1.0e-4 * rare.trancheNotional);
+        BOOST_CHECK_SMALL(rare.basket->percentile(rare.horizon, 0.99) - 150.0, 1.0e-9);
+        BOOST_CHECK_SMALL(rare.basket->expectedShortfall(rare.horizon, 0.99) - shortfall, 1.0e-9);
+    }
+}
+
+// P(L = z) at the date for every loss z four names can make, exact: over the 16 sets of their defaults given the
+// factor, integrated on the latent model's own rule
+template <class LatentModel>
+std::map<Real, Probability> exactLossesOfFourNames(const LatentModel& latent,
+                                                   const std::vector<Probability>& probabilities,
+                                                   const std::vector<Real>& losses)
+{
+    std::vector<Real> inverse(4);
+    for (Size i = 0; i < 4; ++i)
+        inverse[i] = latent.inverseCumulativeY(probabilities[i], i);
+    std::map<Real, Probability> distribution;
+    for (unsigned set = 0; set < 16; ++set)
+    {
+        Real loss = 0.0;
+        for (Size i = 0; i < 4; ++i)
+            if ((set & (1U << i)) != 0U)
+                loss += losses[i];
+        distribution[loss] += latent.integratedExpectedValue(
+            [&](const std::vector<Real>& factor)
+            {
+                Probability p = 1.0;
+                for (Size i = 0; i < 4; ++i)
+                {
+                    const Probability pi = latent.conditionalDefaultProbabilityInvP(inverse[i], i, factor);
+                    p *= (set & (1U << i)) != 0U ? pi : 1.0 - pi;
+                }
+                return p;
+            });
+    }
+    return distribution;
+}
+
+BOOST_AUTO_TEST_CASE(testSaddlePointBesideANameThatCantDefault)
+{
+    BOOST_TEST_MESSAGE("Testing the saddle-point model beside a name that can't default...");
+
+    /* Given the factor, the model takes its distribution exactly below the two smallest losses of the names that might
+       default, taken together, and above their total less those two. It counted a name that can't default among them,
+       so its regions ended and started off the losses the others make (#318). Beside names that lose 60, 70 and 80,
+       such a name losing 100 started the region at the top at 310 less 130, 180, rather than at 210 less 130, 80, and
+       between 130 and 180 the model's tail came from its expansion: P(L >= 151) was 0.0443 against an exact 0.0222,
+       with a density between the atoms, where there is none. One losing 10 ended the region below at 10 and 60
+       together, 70, rather than at 130, and started the one at the top at 150: P(L >= 81) was 0.2018 against 0.1205.
+       The percentile and the shortfall followed: at 0.95, 146.25 and 177.64 against 140 and 175.71 beside the one
+       losing 100. Now the model leaves such a name out; with three names left every level lies in an exact region, on
+       Gaussian factors and on t factors alike. */
+    TCopulaPolicy::initTraits t5;
+    t5.tOrders = std::vector<Integer>(2, 5);
+    for (Real recovery : {0.0, 0.9})
+    {
+        const FourNames four({0.05, 0.04, 0.03, 0.0}, {0.4, 0.3, 0.2, recovery});
+        std::vector<Real> losses(4);
+        for (Size i = 0; i < 4; ++i)
+            losses[i] = four.notionals[i] * (1.0 - four.recoveries[i]);
+        const std::vector<Probability> probabilities = four.basket->remainingProbabilities(four.horizon);
+        const auto tLatent = [&]
+        {
+            return ext::make_shared<TConstantLossLM>(
+                std::vector<std::vector<Real>>(4, std::vector<Real>(1, std::sqrt(0.3))), four.recoveries,
+                LatentModelIntegrationType::GaussianQuadrature, t5);
+        };
+        const auto tModel = ext::make_shared<SaddlePointLossModel<TCopulaPolicy>>(tLatent());
+        const auto tBasket = ext::make_shared<Basket>(four.today, four.names, four.notionals, four.pool, 0.0, 1.0);
+        tBasket->setLossModel(tModel);
+        // the basket hands itself to the model as it first calculates, which the model's own statistics need
+        BOOST_REQUIRE_EQUAL(tBasket->remainingTrancheNotional(), 400.0);
+        const auto tExact = tLatent();
+        const auto check = [&](const char* factors, const auto& model, const ext::shared_ptr<Basket>& basket,
+                               const std::map<Real, Probability>& exact)
+        {
+            BOOST_TEST_CONTEXT("one that can't default losing " << std::setprecision(12) << losses[3]
+                                                                << " beside 60, 70 and 80, on " << factors)
+            {
+                for (Real y : {61.0, 71.0, 81.0, 131.0, 141.0, 151.0, 171.0, 209.0})
+                {
+                    Probability over = 0.0;
+                    for (const auto& [z, q] : exact)
+                        if (z >= y)
+                            over += q;
+                    BOOST_TEST_CONTEXT("at " << y)
+                    {
+                        BOOST_CHECK_SMALL(model->probOverPortfLoss(four.horizon, y) - over, 1.0e-12);
+                        BOOST_CHECK_SMALL(model->probDensity(four.horizon, y), 1.0e-12);
+                    }
+                }
+                for (Probability p : {0.85, 0.9, 0.95, 0.97})
+                {
+                    // the least loss z with P(L > z) <= 1 - p, and the shortfall as the model takes it: z and what
+                    //   the pool loses beyond it on average, over 1 - p
+                    Probability above = 0.0;
+                    for (const auto& [z, q] : exact)
+                        above += q;
+                    Real percentile = 0.0;
+                    for (const auto& [z, q] : exact)
+                    {
+                        above -= q;
+                        if (above <= 1.0 - p)
+                        {
+                            percentile = z;
+                            break;
+                        }
+                    }
+                    Real beyond = 0.0;
+                    for (const auto& [z, q] : exact)
+                        beyond += std::max(z - percentile, 0.0) * q;
+                    const Real shortfall = percentile + beyond / (1.0 - p);
+                    BOOST_TEST_CONTEXT("at " << std::setprecision(12) << p)
+                    {
+                        BOOST_CHECK_SMALL(basket->percentile(four.horizon, p) - percentile, 1.0e-9);
+                        BOOST_CHECK_SMALL(basket->expectedShortfall(four.horizon, p) - shortfall, 1.0e-9);
+                    }
+                }
+            }
+        };
+        check("Gaussian factors", four.model, four.basket, exactLossesOfFourNames(*four.latent, probabilities, losses));
+        check("t factors of order 5", tModel, tBasket, exactLossesOfFourNames(*tExact, probabilities, losses));
     }
 }
 
