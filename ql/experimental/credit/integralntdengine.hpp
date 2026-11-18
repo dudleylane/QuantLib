@@ -48,6 +48,12 @@ namespace QuantLib
         at all if it falls before the discount curve's reference date
         (#206).
 
+        Each coupon's protection, and the premium accrued on a default, are
+        integrated in steps of the given size from where they start, the last
+        step ending on the coupon's accrual end (#330). Before #330 a step
+        that went past the accrual end turned the rest of the coupon into
+        steps of a day.
+
         The protection pays the claim on the name that is the nth to default,
         at the loss model's mean recovery for that name given that it's the
         nth default in each step, DefaultLossModel::recoveriesBeingNthEventBetween:
@@ -63,6 +69,12 @@ namespace QuantLib
         there. A claim linear in the recovery, as the library's are, is then
         priced at its mean; one that isn't would be priced at the mean
         recovery. Before #250 the engine threw on RandomLossLM.
+
+        \warning Each step's claim is discounted from the step's end, and the
+            premium accrued on a default is counted to it. So the protection
+            is low by about half a step's discounting, and the premium accrued
+            on a default high by about half a step's accrual; both shrink with
+            the step (#335).
     */
     class IntegralNtdEngine : public NthToDefault::engine
     {

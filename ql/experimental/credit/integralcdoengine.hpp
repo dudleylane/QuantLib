@@ -63,6 +63,13 @@ namespace QuantLib
         Each step's losses are discounted from the step's end, or from the
         discount curve's reference date if that's later, as in
         MidPointCDOEngine.
+
+        \warning Each step's defaults count as at its end: its losses are
+            discounted from there, and its premium is paid on the notional
+            left there. So the protection is low by about half a step's
+            discounting, and the premium leaves out what the notional lost in
+            the step accrues before its default. Both shrink with the step, so
+            the value moves with it (#335).
     */
     class IntegralCDOEngine : public SyntheticCDO::engine
     {

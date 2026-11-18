@@ -57,6 +57,11 @@ namespace QuantLib
         the tranche's remaining notional. It counts only if that's on or after
         today (#227), and not at all if it falls before the discount curve's
         reference date (#206): it's the one flow in that window left out.
+
+        \warning Each coupon's premium is paid on the notional left at its
+            end, so it leaves out what the notional lost in the coupon accrues
+            before its default: upstream left that term out until an argument
+            for it is implemented (#335).
     */
 
     /* The engine obtains the cdo reference basket from its arguments and it

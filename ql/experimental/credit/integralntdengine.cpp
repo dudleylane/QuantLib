@@ -81,7 +81,6 @@ namespace QuantLib
 
                 // do steps of specified size
                 d0 = d;
-                Period stepSize = integrationStepSize_;
                 /*
                                 probsTriggering =
                                     arguments_.basket->probsBeingNthEvent(arguments_.ntdOrder,
@@ -139,15 +138,10 @@ namespace QuantLib
                     if (arguments_.settlePremiumAccrual)
                         accrualValue += (coupon->accruedAmount(d) - accruedBeforeToday) * disc * dcfdd;
 
+                    // the last step ends on the coupon's accrual end (#330)
                     d0 = d;
-                    d = d0 + stepSize;
-                    // reduce step size ?
-                    if (stepSize != 1 * Days && d > coupon->accrualEndDate())
-                    {
-                        stepSize = 1 * Days;
-                        d = d0 + stepSize;
-                    }
-                } while (d <= coupon->accrualEndDate());
+                    d = std::min(d0 + integrationStepSize_, coupon->accrualEndDate());
+                } while (d0 < coupon->accrualEndDate());
             }
         }
 
