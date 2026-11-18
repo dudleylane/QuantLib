@@ -182,6 +182,9 @@ no longer checks them, and no CI job builds any of them.
 | #307 | `ql/experimental/credit/saddlepointlossmodel.hpp` | Where 1 - p lies inside a jump of the saddle-point model's exact regions, its percentile is the loss the jump is at, and neither it nor the shortfall is above the most the tranche can lose |
 | #318 | `ql/experimental/credit/saddlepointlossmodel.hpp` | A name that can't default given the factor no longer moves the saddle-point model's exact regions off the losses the other names make |
 | #317 | `ql/experimental/credit/saddlepointlossmodel.hpp` | The saddle-point model's percentile takes the losses its exact regions jump at from each node of the factor, so it is the loss a jump is at also where names certain to default at a node, or unable to, move the jumps off the losses of the names that can default by the date (#320 stays open for the Trapezoid integration type) |
+| #259 | `ql/experimental/credit/{homogeneouspooldef,inhomogeneouspooldef}.hpp` | The pool models take their factor rule in the factor's normal quantile, so on t factors they integrate the tails, which the expected tranche loss counted as a loss beyond every bucket: the whole pool's by a year came out 41 % high on t3 factors |
+| #260 | `ql/experimental/credit/{homogeneouspooldef,inhomogeneouspooldef}.hpp` | The pool models integrate the tranche's expected loss given the factor node by node, where a sum over their integrated distribution counted each loss up to the top of its bucket: a senior tranche came out 16 % high at 200 buckets. On names of unequal losses the inhomogeneous model's is reduced, not removed (#323) |
+| #278 | `ql/experimental/credit/{homogeneouspooldef,inhomogeneouspooldef}.hpp` | The pool models' factor rule defaults to [−8.5, 8.5] in 170 steps, where [−5, 5] in 50 put a senior tranche's expected loss by a year 4 % low on a Gaussian factor, and base correlation's expected losses below 0 |
 
 ### New in this fork
 
