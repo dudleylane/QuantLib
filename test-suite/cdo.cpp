@@ -1857,7 +1857,7 @@ BOOST_AUTO_TEST_CASE(testSaddlePointWhereNoNameIsLikelyToDefault)
 }
 
 // The saddle point's tail given the market factor, which the model keeps to itself: P(L >= y | M) and
-// E[L 1{L >= y} | M] on the whole pool, and the tail itself, P(L >= y | M) and E[(L - y)^+ | M].
+// E[L 1{L >= y} | M] on the whole pool, the tail itself, P(L >= y | M) and E[(L - y)^+ | M], and the density.
 template <class CP>
 class SaddlePointTailGivenTheFactor : public SaddlePointLossModel<CP>
 {
@@ -1866,6 +1866,7 @@ class SaddlePointTailGivenTheFactor : public SaddlePointLossModel<CP>
     using SaddlePointLossModel<CP>::probOverLossPortfCond;
     using SaddlePointLossModel<CP>::expectedShortfallFullPortfolioCond;
     using SaddlePointLossModel<CP>::tailCond;
+    using SaddlePointLossModel<CP>::probDensityCond;
 };
 
 BOOST_AUTO_TEST_CASE(testSaddlePointTailFarAboveTheLikelyLosses)
@@ -3016,6 +3017,135 @@ BOOST_AUTO_TEST_CASE(testSaddlePointPercentileAtJumpsOfTheFactorsNodes)
         for (Real z : jumps)
             check(pool, four.model, four.basket, four.horizon, exact, z,
                   z == 120.0 ? std::vector<Real>{0.5, 0.9} : everywhere, false);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testSaddlePointDensityIsFiniteAndNotNegative)
+{
+    BOOST_TEST_MESSAGE("Testing that the saddle point's density is finite and not negative...");
+
+    /* Given the factor, between the two smallest losses of the names that might default, taken together, and their
+       total less those two, the density was the expansion's second-order form, its terms sums of powers of p e^{l s}
+       over 1 - p + p e^{l s}, name by name, at the saddle point s (#308). Beside two names that lose 40 and 50 on a
+       loading of sqrt(0.3), two that lose 60 and 80 on a loading of sqrt(0.999) can all but never default at the
+       factor's nodes from -1.4 to -0.8 a year out, and from -0.5 to 0 by the horizon, with probabilities from 1.9e-16
+       down to 1.3e-259. There a loss of 95 needs one of them, and s runs from 167.5 to 1,845. At the furthest node the
+       powers overflowed and the density was -inf; at the others the second-order factor was negative, as it is where
+       one name decides the level and defaults under the tilt with a probability of 1/16, and so was the density.
+       Integrated, it was -inf at every level from 91 to 139 off the losses the names make. Each name's terms are now
+       a Bernoulli variable's under the tilt, as the tail's are, and where the second-order factor's correction is
+       larger than the leading term the density is that term alone. */
+    const FourNames four({0.01, 0.02, 0.03, 0.05}, {0.6, 0.5, 0.4, 0.2},
+                         {std::sqrt(0.3), std::sqrt(0.3), std::sqrt(0.999), std::sqrt(0.999)});
+    const auto model = ext::make_shared<SaddlePointTailGivenTheFactor<GaussianCopulaPolicy>>(four.latent);
+    const auto basket = ext::make_shared<Basket>(four.today, four.names, four.notionals, four.pool, 0.0, 1.0);
+    basket->setLossModel(model);
+    // the basket hands itself to the model as it first calculates, which the model's density given the factor needs
+    BOOST_REQUIRE_EQUAL(basket->remainingTrancheNotional(), 400.0);
+    std::vector<Real> factors;
+    four.latent->integratedExpectedValue(
+        [&](const std::vector<Real>& m)
+        {
+            factors.push_back(m[0]);
+            return 0.0;
+        });
+    for (const Date& d : {Date(31, August, 2007), four.horizon})
+    {
+        std::vector<Real> inverse = basket->remainingProbabilities(d);
+        for (Size i = 0; i < inverse.size(); ++i)
+            inverse[i] = four.latent->inverseCumulativeY(inverse[i], i);
+        for (Real y = 91.0; y < 140.0; y += 1.0)
+        {
+            if (std::fmod(y, 10.0) == 0.0)
+                continue;
+            Size failing = 0;
+            for (Real m : factors)
+            {
+                const Real density = model->probDensityCond(inverse, y, std::vector<Real>(1, m));
+                if (!std::isfinite(density) || density < 0.0)
+                    ++failing;
+            }
+            const Real density = model->probDensity(d, y);
+            BOOST_TEST_CONTEXT(d << ", a loss of " << y)
+            {
+                BOOST_CHECK_EQUAL(failing, 0U);
+                BOOST_CHECK(std::isfinite(density));
+                BOOST_CHECK_GE(density, 0.0);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testSaddlePointDensityNextToAnAtom)
+{
+    BOOST_TEST_MESSAGE("Testing the saddle point's density next to an atom of the loss...");
+
+    /* Five names that each lose 60, the last two on a loading of sqrt(0.999), make an atom at 180, three defaults, of
+       0.0126 a year out and 0.0771 by the horizon. At nodes of the factor where, under the saddle point's tilt, three
+       names are all but certain to default and two to survive, the tilted distribution closes on the atom as the
+       level nears it, and its variance K2 falls with the distance. The density there was negative from 0.1 below the
+       atom, and not a number at it a year out (#308). With its terms taken name by name, the expansion's second-order
+       factor, 1 + K4/(8 K2^2) - 5 K3^2/(24 K2^3), grows like 1/K2 there, to 3e12, and kept wherever it isn't negative
+       it put 21 times the atom's mass a year out, and 54 times by the horizon, between 1e-13 and 0.1 below it. It is
+       kept only where its correction is no larger than the leading term, and within 0.1 below the atom the density
+       now holds 6.5e-6 and 2.85e-5 of probability, though it still rises toward the atom (#324). */
+    const Date today(31, August, 2006);
+    Settings::instance().evaluationDate() = today;
+    const NorthAmericaCorpDefaultKey key(EURCurrency(), SeniorSec, Period(), 1.);
+    const std::vector<Real> hazards = {0.01, 0.02, 0.03, 0.05, 0.04};
+    auto pool = ext::make_shared<Pool>();
+    std::vector<std::string> names;
+    std::vector<std::vector<Real>> factors;
+    for (Size i = 0; i < hazards.size(); ++i)
+    {
+        names.push_back("issuer-" + std::to_string(i));
+        const Handle<DefaultProbabilityTermStructure> curve(
+            ext::make_shared<FlatHazardRate>(today, makeQuoteHandle(hazards[i]), ActualActual(ActualActual::ISDA)));
+        pool->add(names.back(), Issuer(std::vector<Issuer::key_curve_pair>(1, std::make_pair(key, curve))), key);
+        factors.emplace_back(1, i < 3 ? std::sqrt(0.3) : std::sqrt(0.999));
+    }
+    const auto latent = ext::make_shared<GaussianConstantLossLM>(factors, std::vector<Real>(5, 0.4),
+                                                                 LatentModelIntegrationType::GaussianQuadrature,
+                                                                 GaussianCopulaPolicy::initTraits());
+    const auto model = ext::make_shared<SaddlePointLossModel<GaussianCopulaPolicy>>(latent);
+    const auto basket = ext::make_shared<Basket>(today, names, std::vector<Real>(5, 100.0), pool, 0.0, 1.0);
+    basket->setLossModel(model);
+    // the basket hands itself to the model as it first calculates, which the model's own statistics need
+    BOOST_REQUIRE_EQUAL(basket->remainingTrancheNotional(), 500.0);
+    for (const Date& d : {Date(31, August, 2007), Date(1, September, 2011)})
+    {
+        // P(L = 180), exact: three defaults given the factor, integrated on the latent model's own rule
+        std::vector<Real> inverse = basket->remainingProbabilities(d);
+        for (Size i = 0; i < inverse.size(); ++i)
+            inverse[i] = latent->inverseCumulativeY(inverse[i], i);
+        const Probability atom = latent->integratedExpectedValue(
+            [&](const std::vector<Real>& factor)
+            {
+                std::vector<Probability> p;
+                for (Size i = 0; i < inverse.size(); ++i)
+                    p.push_back(latent->conditionalDefaultProbabilityInvP(inverse[i], i, factor));
+                return DefaultsGivenTheFactor(p).count[3];
+            });
+        // the density is of the loss as a fraction of the notional: over the loss, within 0.1 below the atom and from
+        // 1e-13 below it, by the trapezoid rule on 40 points a decade, its integral over the notional is a probability
+        Probability mass = 0.0;
+        Real previousDistance = 0.0, previousDensity = 0.0;
+        Size failing = 0;
+        for (int k = 480; k >= 0; --k)
+        {
+            const Real distance = 0.1 * std::pow(10.0, -k / 40.0), density = model->probDensity(d, 180.0 - distance);
+            if (!std::isfinite(density) || density < 0.0)
+                ++failing;
+            if (k < 480)
+                mass += 0.5 * (density + previousDensity) * (distance - previousDistance) / 500.0;
+            previousDistance = distance;
+            previousDensity = density;
+        }
+        BOOST_TEST_CONTEXT(d)
+        {
+            BOOST_CHECK_EQUAL(failing, 0U);
+            BOOST_CHECK_LT(mass, atom);
+        }
     }
 }
 

@@ -111,8 +111,11 @@ namespace QuantLib
     The tail probability and the expected excess of the loss over a level
     take the first-order forms, both from one tilted normal approximation,
     and the percentile and the expected shortfall come from them (#204). The
-    density keeps a higher-order expansion; see the paper by Antonov et al
-    for the terms retained.\par
+    density keeps the second-order expansion, see the paper by Antonov et al
+    for the terms retained, where its correction is no larger than its
+    leading term, and is that term alone elsewhere (#308); so given the
+    factor it steps where the correction reaches the leading term, to that
+    term from 0 or from twice it.\par
     For a discussion of an alternative to fix the error at low loss levels
     (more relevant to pricing than risk metrics) see: \par
     <b>The hybrid saddlepoint method for credit portfolios</b> by A.Owen,
@@ -121,10 +124,14 @@ namespace QuantLib
     For the more general context mathematical theory see: <b>Saddlepoint
     approximations with applications</b> by R.W. Butler, Cambridge series in
     statistical and probabilistic mathematics. 2007 \par
-    \todo The density's higher-order terms can make it negative in the
-        tails of the distribution given the factor and next to its atoms,
-        and NaN on a plateau, where the names' tilted probabilities saturate
-        below the total less the two smallest losses (#308).
+    \warning Next to an atom of the distribution given the factor that,
+        under the saddle point's tilt, names all but certain to default or
+        to survive make, the density rises like the inverse square root of
+        the distance to it, and is large at the atom itself (#324): on five
+        names that each lose 60, two of them on a loading of sqrt(0.999), it
+        is 747 one double below three defaults a year out, and 2.1e7 at
+        them, but within 0.1 below them it holds 6.5e-6 of probability,
+        against the atom's 0.0126.
     \todo Methods here are calling and integrating using the unconditional
         probabilities without inverting them first; quite a lot of calls to
         the copula inversion can be avoided; this should improve performance.
@@ -912,33 +919,22 @@ namespace QuantLib
     std::tuple<Real, Real, Real, Real> SaddlePointLossModel<CP>::CumGen0234DerivCond(const NamesCond& names,
                                                                                      Real saddle) const
     {
+        // Each name's terms are a Bernoulli variable's under the tilted measure (detail::tiltedName), as for the
+        //   tail: l^2 q t, l^3 q t (t - q) and l^4 q t (1 - 6 q t). Taken from powers of p e^{l s} over
+        //   1 - p + p e^{l s} they overflowed far out in the tilt, and lost their digits where a name's tilted
+        //   probability is near 1 (#308).
         const Size nNames = remainingNotionals_.size();
-        Real deriv0 = 0.,
-             // deriv1 = 0.,
-            deriv2 = 0., deriv3 = 0., deriv4 = 0.;
+        Real deriv0 = 0., deriv2 = 0., deriv3 = 0., deriv4 = 0.;
         for (Size iName = 0; iName < nNames; iName++)
         {
-            Probability pBuffer = names.pDef[iName];
             Real lossInDef = remainingNotionals_[iName] * names.lgd[iName] / remainingNotional_;
-
-            Real midFactor = pBuffer * std::exp(lossInDef * saddle);
-            Real denominator = 1. - pBuffer + midFactor;
-
-            const Real& suma0 = denominator;
-            const Real suma1 = lossInDef * midFactor;
-            const Real suma2 = lossInDef * suma1;
-            const Real suma3 = lossInDef * suma2;
-            const Real suma4 = lossInDef * suma3;
-
-            // To do: optimize these:
-            deriv0 += std::log(suma0);
-            // deriv1 += suma1 / suma0;
-            deriv2 += suma2 / suma0 - std::pow(suma1 / suma0, 2.);
-            deriv3 += (suma3 + (2. * std::pow(suma1, 3.) / suma0 - 3. * suma1 * suma2) / suma0) / suma0;
-            deriv4 += (suma4 + (-4. * suma1 * suma3 - 3. * suma2 * suma2 +
-                                (12. * suma1 * suma1 * suma2 - 6. * std::pow(suma1, 4.) / suma0) / suma0) /
-                                   suma0) /
-                      suma0;
+            Real logTerm, tiltedDefault, tiltedSurvival;
+            detail::tiltedName(names.pDef[iName], lossInDef * saddle, logTerm, tiltedDefault, tiltedSurvival);
+            const Real qt = tiltedDefault * tiltedSurvival, l2 = lossInDef * lossInDef;
+            deriv0 += logTerm;
+            deriv2 += l2 * qt;
+            deriv3 += l2 * lossInDef * qt * (tiltedSurvival - tiltedDefault);
+            deriv4 += l2 * l2 * qt * (1. - 6. * qt);
         }
         return {deriv0, deriv2, deriv3, deriv4};
     }
@@ -1600,10 +1596,14 @@ namespace QuantLib
         Real K4Saddle = std::get<3>(cumulants);
         /* see, for instance R.Martin "he saddle point method and portfolio
         optionalities." in Risk December 2006 p.93 */
-        //\todo the exponentials below are dangerous and agressive, tame them.
-        return (1. + K4Saddle / (8. * std::pow(K2Saddle, 2.)) -
-                5. * std::pow(K3Saddle, 2.) / (24. * std::pow(K2Saddle, 3.))) *
-               std::exp(K0Saddle - saddlePt * relativeLoss) / (std::sqrt(2. * M_PI * K2Saddle));
+        Real leading = std::exp(K0Saddle - saddlePt * relativeLoss) / (std::sqrt(2. * M_PI * K2Saddle));
+        Real factor = 1. + K4Saddle / (8. * K2Saddle * K2Saddle) -
+                      5. * K3Saddle * K3Saddle / (24. * K2Saddle * K2Saddle * K2Saddle);
+        // The second-order factor only where its correction is no larger
+        //   than the leading term, else the leading term alone (#308): where
+        //   one name decides the level the factor is negative, and where the
+        //   tilted distribution closes on an atom it grows like 1/K2.
+        return std::abs(factor - 1.) <= 1. ? factor * leading : leading;
     }
 
     /*    NOTICE THIS IS ON THE TOTAL PORTFOLIO ---- UNTRANCHED..
