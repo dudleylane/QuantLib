@@ -6239,6 +6239,38 @@ BOOST_AUTO_TEST_CASE(testEnginesBetweenAPaymentAndALaterAccrualEnd)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testTrancheBetweenItsLastPaymentAndItsMaturity)
+{
+    BOOST_TEST_MESSAGE("Testing a CDO tranche between its last payment and its maturity...");
+
+    /* The last coupon accrues to Saturday 2007-09-01, the tranche's maturity, and under Preceding payments it's paid on
+       Friday 08-31. Its protection runs to its accrual end (#329), so the tranche lives until its maturity under both
+       conventions, and its protection is the same under both, on the day of the early payment too (#334). On its
+       maturity it has expired under both. Until #334's fix it expired on its last payment, so on 08-31 under Preceding
+       payments it was worth nothing. */
+    const NamesAroundADefault names(true, false);
+    const Schedule toSeptember = unadjustedQuarterly(Date(1, September, 2006), Date(1, September, 2007));
+    for (const Date& today : {Date(30, August, 2007), Date(31, August, 2007), Date(1, September, 2007)})
+    {
+        Settings::instance().evaluationDate() = today;
+        const Handle<YieldTermStructure> discountCurve(ext::make_shared<FlatForward>(today, 0.05, Actual360()));
+        const bool expired = today == Date(1, September, 2007);
+        for (Size engine = 0; engine < 3; ++engine)
+        {
+            BOOST_TEST_CONTEXT("today " << today << ", " << lhpTrancheEngines[engine])
+            {
+                const auto preceding = lhpTranche(names, toSeptember, Preceding, discountCurve, engine);
+                const auto unadjusted = lhpTranche(names, toSeptember, Unadjusted, discountCurve, engine);
+                BOOST_CHECK_EQUAL(preceding->isExpired(), expired);
+                BOOST_CHECK_EQUAL(unadjusted->isExpired(), expired);
+                BOOST_CHECK_EQUAL(preceding->protectionValue(), unadjusted->protectionValue());
+                if (!expired)
+                    BOOST_CHECK_GT(preceding->protectionValue(), 0.0);
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testPoolModelsIntegrateTFactorsOverTheirTails)
 {
     BOOST_TEST_MESSAGE("Testing that the pool models integrate t factors over their tails...");

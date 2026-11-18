@@ -28,6 +28,7 @@
 #    include <ql/math/solvers1d/brent.hpp>
 #    include <ql/optional.hpp>
 #    include <ql/termstructures/yieldtermstructure.hpp>
+#    include <algorithm>
 
 using namespace std;
 
@@ -145,7 +146,9 @@ namespace QuantLib
     {
         // FIXME: it could have also expired (knocked out) because theres
         //   no remaining tranche notional.
-        return detail::simple_event(normalizedLeg_.back()->date()).hasOccurred();
+        // The last coupon can be paid before its accrual end, the maturity,
+        //   and its protection runs to that end (#334).
+        return detail::simple_event(std::max(normalizedLeg_.back()->date(), maturity())).hasOccurred();
     }
 
     Real SyntheticCDO::remainingNotional() const
