@@ -52,6 +52,13 @@ namespace QuantLib
             the expected tranche loss at each coupon's accrual end, and so
             throws where a coupon still to be paid ends before the curves'
             reference date (#275).
+        \warning The engine throws on a coupon paid after today but before
+            the discount curve's reference date (#328).
+        \warning The engine counts no protection for the days left to a
+            coupon's accrual end when it's valued between the coupon's
+            payment and that later accrual end, as under Preceding
+            payments: the coupon has been paid, and the next one accrues
+            from its end (#329).
     */
 
     /* The engine obtains the cdo reference basket from its arguments and it

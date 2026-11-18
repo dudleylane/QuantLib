@@ -46,10 +46,25 @@ namespace QuantLib
         if that's on or after today (#227), and not at all if it falls
         before the discount curve's reference date (#206).
 
+        Each coupon accrues to its accrual end and is paid on its payment
+        date (#276). So a coupon's last integration step ends at its
+        accrual end, and each step's premium is discounted from the
+        coupon's payment date. Each step's losses are discounted from the
+        step's end, or from the discount curve's reference date if that's
+        later, as in MidPointCDOEngine.
+
         \warning On default curves dated after today, the engine asks for
             the expected tranche loss at the end of each integration step,
-            and so throws where a coupon is paid, or a step ends, before
-            the curves' reference date (#275).
+            and so throws where a step ends before the curves' reference
+            date (#275).
+        \warning Like MidPointCDOEngine, the engine throws on a coupon paid
+            after today but before the discount curve's reference date
+            (#328).
+        \warning Like MidPointCDOEngine, the engine counts no protection
+            for the days left to a coupon's accrual end when it's valued
+            between the coupon's payment and that later accrual end, as
+            under Preceding payments: the coupon has been paid, and the
+            next one accrues from its end (#329).
     */
     class IntegralCDOEngine : public SyntheticCDO::engine
     {

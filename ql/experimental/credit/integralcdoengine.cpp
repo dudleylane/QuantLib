@@ -78,9 +78,14 @@ namespace QuantLib
 
             // what's left of the coupon from today: the premium accrued
             //   before today is out of the premium leg, as the losses before
-            //   it are out of the protection
+            //   it are out of the protection. The coupon accrues to its
+            //   accrual end and is paid on its payment date (#276), so its
+            //   steps end at the accrual end, and each one's premium is
+            //   discounted from the payment date. A coupon whose accrual
+            //   ended before today, paid after it, has none left: its one
+            //   step is empty.
             Date d1 = std::max(coupon->accrualStartDate(), today);
-            Date d2 = coupon->date();
+            Date d2 = std::max(coupon->accrualEndDate(), d1);
 
             Date d, d0 = d1;
             Real e2;
@@ -93,14 +98,18 @@ namespace QuantLib
                 e2 = arguments_.basket->expectedTrancheLoss(d);
 
                 results_.premiumValue += (inceptionTrancheNotional - e2) * arguments_.runningRate *
-                                         arguments_.dayCounter.yearFraction(d0, d) * discountCurve_->discount(d);
+                                         arguments_.dayCounter.yearFraction(d0, d) *
+                                         discountCurve_->discount(coupon->date());
 
                 // TO DO: Addd default coupon accrual value here-----
 
                 if (e2 < e1)
                     results_.error++;
 
-                results_.protectionValue += (e2 - e1) * discountCurve_->discount(d);
+                // a loss before the discount curve's reference date is paid
+                //   as at that date, as in MidPointCDOEngine
+                results_.protectionValue +=
+                    (e2 - e1) * discountCurve_->discount(std::max(d, discountCurve_->referenceDate()));
 
                 d0 = d;
                 e1 = e2;
