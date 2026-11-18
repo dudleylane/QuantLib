@@ -48,22 +48,21 @@ namespace QuantLib
         them, and the defaults until then of the names whose curves start
         earlier count as before the protection starts (#331). A coupon paid
         before its accrual end, as under Preceding payments, has no premium
-        left but still counts its protection to that end (#329). The upfront
-        is taken as paid on the first coupon's accrual start, on the tranche's
-        remaining notional. It counts only if that's on or after today (#227),
-        and not at all if it falls before the discount curve's reference date
-        (#206).
+        left but still counts its protection to that end (#329). A premium
+        paid after today but before the discount curve's reference date counts
+        as paid on that date, as the protection over those days does (#328).
+        The upfront is taken as paid on the first coupon's accrual start, on
+        the tranche's remaining notional. It counts only if that's on or after
+        today (#227), and not at all if it falls before the discount curve's
+        reference date (#206): it's the one flow in that window left out.
 
-        Each coupon accrues to its accrual end and is paid on its payment
-        date (#276). So a coupon's last integration step ends at its
-        accrual end, and each step's premium is discounted from the
-        coupon's payment date. Each step's losses are discounted from the
-        step's end, or from the discount curve's reference date if that's
-        later, as in MidPointCDOEngine.
-
-        \warning Like MidPointCDOEngine, the engine throws on a coupon paid
-            after today but before the discount curve's reference date
-            (#328).
+        Each coupon accrues to its accrual end and is paid on its payment date
+        (#276). So a coupon's last integration step ends at its accrual end,
+        and each step's premium is discounted from the coupon's payment date,
+        or from the discount curve's reference date if that's later (#328).
+        Each step's losses are discounted from the step's end, or from the
+        discount curve's reference date if that's later, as in
+        MidPointCDOEngine.
     */
     class IntegralCDOEngine : public SyntheticCDO::engine
     {

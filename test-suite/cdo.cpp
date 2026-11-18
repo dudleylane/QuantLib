@@ -6283,12 +6283,16 @@ BOOST_AUTO_TEST_CASE(testEnginesOnADiscountCurveDatedAfterToday)
        payments and on Friday 08-31 under Preceding ones; on the shorter schedule it's the last. Until #333's fix
        MidPointCDOEngine ran its periods from the curve's date too: a coupon whose accrual ended before that date took
        its losses up to it, after the contract's end on the shorter schedule, and the period across it took its losses
-       as of the middle of what was left after it. */
+       as of the middle of what was left after it. On 05-31 under both conventions, on 08-30 under Preceding payments
+       and from 08-31 on under Following ones, a coupon is paid after today but before the curve's date: both engines
+       count its premium as paid on that date (#328), and until #328's fix they threw. */
     const NamesAroundADefault names(true, false);
-    const std::pair<BusinessDayConvention, Date> valuations[] = {{Following, Date(30, August, 2007)},
-                                                                 {Preceding, Date(31, August, 2007)},
-                                                                 {Preceding, Date(1, September, 2007)},
-                                                                 {Preceding, Date(2, September, 2007)}};
+    const std::pair<BusinessDayConvention, Date> valuations[] = {
+        {Following, Date(31, May, 2007)},      {Preceding, Date(31, May, 2007)},
+        {Following, Date(30, August, 2007)},   {Preceding, Date(30, August, 2007)},
+        {Following, Date(31, August, 2007)},   {Preceding, Date(31, August, 2007)},
+        {Following, Date(1, September, 2007)}, {Preceding, Date(1, September, 2007)},
+        {Following, Date(2, September, 2007)}, {Preceding, Date(2, September, 2007)}};
     const Schedule schedules[] = {weekendAccrualEnds(),
                                   unadjustedQuarterly(Date(1, September, 2006), Date(1, September, 2007))};
     for (const auto& [payments, today] : valuations)
@@ -6318,6 +6322,36 @@ BOOST_AUTO_TEST_CASE(testEnginesOnADiscountCurveDatedAfterToday)
                         BOOST_CHECK_CLOSE_FRACTION(values[k], expected[k], 1.0e-12);
                 }
             }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testEnginesOnAPaymentBeforeTheDiscountCurveDate)
+{
+    BOOST_TEST_MESSAGE("Testing the CDO engines on a payment before the discount curve's reference date...");
+
+    /* On Thursday 2007-08-30 the discount curve is dated two TARGET business days later, on Monday 09-03. The last
+       coupon accrues to Saturday 09-01 and is paid on 09-03 under Following payments, and on Friday 08-31, before the
+       curve's date, under Preceding ones. Both engines count a premium paid before that date as paid on it, as they
+       count the protection over those days (#328), so the tranche is worth the same under both conventions, to the
+       bit. Until #328's fix both engines threw under Preceding payments, as the curve doesn't discount before its
+       date. */
+    const NamesAroundADefault names(true, false);
+    Settings::instance().evaluationDate() = Date(30, August, 2007);
+    const Handle<YieldTermStructure> discountCurve(
+        ext::make_shared<FlatForward>(Date(3, September, 2007), 0.05, Actual360()));
+    const Schedule toSeptember = unadjustedQuarterly(Date(1, September, 2006), Date(1, September, 2007));
+    for (Size engine = 0; engine < 3; ++engine)
+    {
+        BOOST_TEST_CONTEXT(lhpTrancheEngines[engine])
+        {
+            const auto following = lhpTranche(names, toSeptember, Following, discountCurve, engine);
+            const auto preceding = lhpTranche(names, toSeptember, Preceding, discountCurve, engine);
+            Real premium = Null<Real>(), protection = Null<Real>();
+            BOOST_CHECK_NO_THROW(premium = preceding->premiumValue());
+            BOOST_CHECK_NO_THROW(protection = preceding->protectionValue());
+            BOOST_CHECK_EQUAL(premium, following->premiumValue());
+            BOOST_CHECK_EQUAL(protection, following->protectionValue());
         }
     }
 }

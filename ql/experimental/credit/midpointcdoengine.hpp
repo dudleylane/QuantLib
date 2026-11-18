@@ -50,14 +50,13 @@ namespace QuantLib
         them, and the defaults until then of the names whose curves start
         earlier count as before the protection starts (#331). A coupon paid
         before its accrual end, as under Preceding payments, has no premium
-        left but still counts its protection to that end (#329). The upfront
-        is taken as paid on the first coupon's accrual start, on the tranche's
-        remaining notional. It counts only if that's on or after today (#227),
-        and not at all if it falls before the discount curve's reference date
-        (#206).
-
-        \warning The engine throws on a coupon paid after today but before
-            the discount curve's reference date (#328).
+        left but still counts its protection to that end (#329). A premium
+        paid after today but before the discount curve's reference date counts
+        as paid on that date, as the protection over those days does (#328).
+        The upfront is taken as paid on the first coupon's accrual start, on
+        the tranche's remaining notional. It counts only if that's on or after
+        today (#227), and not at all if it falls before the discount curve's
+        reference date (#206): it's the one flow in that window left out.
     */
 
     /* The engine obtains the cdo reference basket from its arguments and it

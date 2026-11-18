@@ -101,10 +101,13 @@ namespace QuantLib
 
                 e2 = arguments_.basket->expectedTrancheLoss(std::max(d, curvesDate));
 
+                // a premium paid before the discount curve's reference date
+                //   counts as paid on it, as the protection does (#328)
                 if (!paid)
-                    results_.premiumValue += (inceptionTrancheNotional - e2) * arguments_.runningRate *
-                                             arguments_.dayCounter.yearFraction(d0, d) *
-                                             discountCurve_->discount(coupon->date());
+                    results_.premiumValue +=
+                        (inceptionTrancheNotional - e2) * arguments_.runningRate *
+                        arguments_.dayCounter.yearFraction(d0, d) *
+                        discountCurve_->discount(std::max(coupon->date(), discountCurve_->referenceDate()));
 
                 // TO DO: Addd default coupon accrual value here-----
 

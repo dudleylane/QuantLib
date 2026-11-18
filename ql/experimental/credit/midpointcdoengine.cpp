@@ -89,10 +89,13 @@ namespace QuantLib
 
             Real e2 = arguments_.basket->expectedTrancheLoss(std::max(endDate, curvesDate));
             results_.expectedTrancheLoss.push_back(e2);
+            // a premium paid before the discount curve's reference date counts
+            //   as paid on it, as the protection does (#328)
             if (!paid)
-                results_.premiumValue += ((inceptionTrancheNotional - e2) / inceptionTrancheNotional) *
-                                         (coupon->amount() - coupon->accruedAmount(today)) *
-                                         discountCurve_->discount(paymentDate);
+                results_.premiumValue +=
+                    ((inceptionTrancheNotional - e2) / inceptionTrancheNotional) *
+                    (coupon->amount() - coupon->accruedAmount(today)) *
+                    discountCurve_->discount(std::max(paymentDate, discountCurve_->referenceDate()));
             // default flows, discounted no earlier than the discount curve's
             //   reference date (#333):
             const Real discount = discountCurve_->discount(std::max(defaultDate, discountCurve_->referenceDate()));
