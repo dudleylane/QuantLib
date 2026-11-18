@@ -43,26 +43,25 @@ namespace QuantLib
         results_.remainingNotional = arguments_.basket->remainingTrancheNotional();
         const Real inceptionTrancheNotional = arguments_.basket->trancheNotional();
 
+        // The default curves of the names left don't reach back before their
+        //   reference dates, so each expected tranche loss is taken on the
+        //   later of its date and the latest of those (#275): defaults before
+        //   it, of names whose curves start earlier, count as before the
+        //   protection starts (#331). The integration steps stay where they were.
+        const Date curvesDate = detail::latestDefaultCurveDate(*arguments_.basket);
+
         // Both legs run from today (#228). The protection starts from the
         //   expected tranche loss on the latest of today, the first unpaid
-        //   coupon's accrual start and the reference dates of the default
-        //   curves of the names left: what's lost already is in every later
-        //   expected loss, and is no flow to come, and the curves don't
-        //   reach back before their reference dates.
+        //   coupon's accrual start and the curves' date: what's lost already
+        //   is in every later expected loss, and is no flow to come.
         Real e1 = inceptionTrancheNotional - results_.remainingNotional;
         // todo add includeSettlement date flows variable to engine.
         const auto firstUnpaid =
             std::find_if(arguments_.normalizedLeg.begin(), arguments_.normalizedLeg.end(),
                          [&](const ext::shared_ptr<CashFlow>& cf) { return !cf->hasOccurred(today); });
         if (firstUnpaid != arguments_.normalizedLeg.end())
-        {
-            Date start = std::max(ext::dynamic_pointer_cast<Coupon>(*firstUnpaid)->accrualStartDate(), today);
-            const ext::shared_ptr<Pool>& pool = arguments_.basket->pool();
-            for (Size i : arguments_.basket->liveList())
-                start = std::max(
-                    start, pool->get(pool->names()[i]).defaultProbability(pool->defaultKeys()[i])->referenceDate());
-            e1 = arguments_.basket->expectedTrancheLoss(start);
-        }
+            e1 = arguments_.basket->expectedTrancheLoss(
+                std::max({ext::dynamic_pointer_cast<Coupon>(*firstUnpaid)->accrualStartDate(), today, curvesDate}));
         results_.expectedTrancheLoss.push_back(e1);
 
         for (auto& i : arguments_.normalizedLeg)
@@ -78,9 +77,14 @@ namespace QuantLib
 
             // what's left of the coupon from today: the premium accrued
             //   before today is out of the premium leg, as the losses before
-            //   it are out of the protection
+            //   it are out of the protection. The coupon accrues to its
+            //   accrual end and is paid on its payment date (#276), so its
+            //   steps end at the accrual end, and each one's premium is
+            //   discounted from the payment date. A coupon whose accrual
+            //   ended before today, paid after it, has none left: its one
+            //   step is empty.
             Date d1 = std::max(coupon->accrualStartDate(), today);
-            Date d2 = coupon->date();
+            Date d2 = std::max(coupon->accrualEndDate(), d1);
 
             Date d, d0 = d1;
             Real e2;
@@ -90,17 +94,21 @@ namespace QuantLib
                 if (d > d2)
                     d = d2;
 
-                e2 = arguments_.basket->expectedTrancheLoss(d);
+                e2 = arguments_.basket->expectedTrancheLoss(std::max(d, curvesDate));
 
                 results_.premiumValue += (inceptionTrancheNotional - e2) * arguments_.runningRate *
-                                         arguments_.dayCounter.yearFraction(d0, d) * discountCurve_->discount(d);
+                                         arguments_.dayCounter.yearFraction(d0, d) *
+                                         discountCurve_->discount(coupon->date());
 
                 // TO DO: Addd default coupon accrual value here-----
 
                 if (e2 < e1)
                     results_.error++;
 
-                results_.protectionValue += (e2 - e1) * discountCurve_->discount(d);
+                // a loss before the discount curve's reference date is paid
+                //   as at that date, as in MidPointCDOEngine
+                results_.protectionValue +=
+                    (e2 - e1) * discountCurve_->discount(std::max(d, discountCurve_->referenceDate()));
 
                 d0 = d;
                 e1 = e2;

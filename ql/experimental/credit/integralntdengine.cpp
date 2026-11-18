@@ -39,6 +39,12 @@ namespace QuantLib
         Date d0;
         const ext::shared_ptr<Basket>& basket = arguments_.basket;
         const Size n = arguments_.ntdOrder;
+        // The default curves of the names left don't reach back before their
+        //   reference dates, so each probability is taken on the later of its
+        //   date and the latest of those (#275): defaults before it, of names
+        //   whose curves start earlier, count as before the protection starts
+        //   (#331). The integration steps stay where they were.
+        const Date curvesDate = detail::latestDefaultCurveDate(*basket);
 
         for (auto& i : arguments_.premiumLeg)
         {
@@ -47,10 +53,10 @@ namespace QuantLib
             /* Both legs run from today (#228): each coupon not paid by today
                counts less the premium accrued before today, and so does the
                premium accrued on a default, with protection from the latest
-               of the coupon's accrual start, today and the discount curve's
-               reference date. As before, a coupon paid on or before that
-               reference date doesn't count, which leaves out only those paid
-               before a discount curve dated after today. */
+               of the coupon's accrual start, today, the discount curve's
+               reference date and the curves' date (#275). A coupon paid on or
+               before the discount curve's reference date doesn't count, which
+               leaves out only those paid before one dated after today. */
             if (!i->hasOccurred(today) && d > discountCurve_->referenceDate())
             {
                 const Real accruedBeforeToday = coupon->accruedAmount(today);
@@ -65,7 +71,7 @@ namespace QuantLib
 
 */
                 // prob of contract not having been triggered by date of payment
-                Probability probNonTriggered = 1. - basket->probAtLeastNEvents(n, d);
+                Probability probNonTriggered = 1. - basket->probAtLeastNEvents(n, std::max(d, curvesDate));
 
                 results_.premiumValue +=
                     (i->amount() - accruedBeforeToday) * discountCurve_->discount(d) * probNonTriggered;
@@ -85,14 +91,14 @@ namespace QuantLib
                                 ///OVERKILL????
                                     probsTriggering.end(), Real(0.));
                 */
-                Probability defProb0 = basket->probAtLeastNEvents(n, d0);
+                Probability defProb0 = basket->probAtLeastNEvents(n, std::max(d0, curvesDate));
                 // the names left at the evaluation date, by their place in the pool
                 const std::vector<Size> alive = basket->liveList();
                 do
                 {
                     DiscountFactor disc = discountCurve_->discount(d);
 
-                    Probability defProb1 = basket->probAtLeastNEvents(n, d);
+                    Probability defProb1 = basket->probAtLeastNEvents(n, std::max(d, curvesDate));
                     Probability dcfdd = defProb1 - defProb0;
 
                     /* The protection pays the claim on whichever name is the
@@ -106,9 +112,12 @@ namespace QuantLib
                     probability of being the one. For a claim linear in the
                     recovery, as the library's are, that's its mean.
                     */
-                    if (!alive.empty())
+                    // A step that ends before the curves' date counts no
+                    //   default, and one across it counts from it.
+                    if (!alive.empty() && d >= curvesDate)
                     {
-                        const std::vector<Real> recoveries = basket->recoveriesBeingNthEventBetween(n, d0, d);
+                        const Date from = std::max(d0, curvesDate);
+                        const std::vector<Real> recoveries = basket->recoveriesBeingNthEventBetween(n, from, d);
                         const Real recovery = recoveries[alive[0]];
                         if (std::all_of(alive.begin() + 1, alive.end(),
                                         [&](Size iName) { return recoveries[iName] == recovery; }))
@@ -118,7 +127,7 @@ namespace QuantLib
                         else
                         {
                             const std::vector<Probability> probsTriggering =
-                                basket->probsBeingNthEventBetween(n, d0, d);
+                                basket->probsBeingNthEventBetween(n, from, d);
                             for (Size iName : alive)
                                 claimValue -= probsTriggering[iName] *
                                               basket->claim()->amount(d, arguments_.notional, recoveries[iName]) * disc;

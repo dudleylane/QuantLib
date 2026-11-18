@@ -29,9 +29,12 @@
 #include <ql/experimental/credit/randomlosslatentmodel.hpp>
 #include <ql/experimental/credit/spotlosslatentmodel.hpp>
 #include <ql/instruments/creditdefaultswap.hpp>
+#include <ql/math/interpolations/backwardflatinterpolation.hpp>
+#include <ql/patterns/observable.hpp>
 #include <ql/pricingengines/credit/integralcdsengine.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/termstructures/credit/flathazardrate.hpp>
+#include <ql/termstructures/credit/interpolatedhazardratecurve.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
@@ -391,6 +394,10 @@ struct EightNames
     Date curveDate = inception();
     // on that many paths of RandomDefaultLM over the latent model, or on ConstantLossModel if none
     Size paths = 0;
+    // if given, the curves have no hazard from curveDate up to that date, and their hazards after it
+    Date noHazardUntil = Date();
+    // if given, the date the curve of that one name starts on, rather than curveDate
+    Date whichCurveDate = Date();
 };
 
 ext::shared_ptr<Basket> eightNames(const EightNames& spec = {})
@@ -406,10 +413,17 @@ ext::shared_ptr<Basket> eightNames(const EightNames& spec = {})
             continue;
         names.push_back("issuer-" + std::to_string(i));
         recoveries.push_back(spec.recoveries[i]);
+        const Date curveDate = i == spec.which && spec.whichCurveDate != Date() ? spec.whichCurveDate : spec.curveDate;
+        ext::shared_ptr<DefaultProbabilityTermStructure> curve;
+        if (spec.noHazardUntil == Date())
+            curve = ext::make_shared<FlatHazardRate>(curveDate, makeQuoteHandle(spec.hazards[i]),
+                                                     ActualActual(ActualActual::ISDA));
+        else
+            curve = ext::make_shared<InterpolatedHazardRateCurve<BackwardFlat>>(
+                std::vector<Date>{curveDate, spec.noHazardUntil, Date(1, September, 2012)},
+                std::vector<Rate>{0.0, 0.0, spec.hazards[i]}, ActualActual(ActualActual::ISDA));
         std::vector<std::pair<DefaultProbKey, Handle<DefaultProbabilityTermStructure>>> probabilities;
-        probabilities.emplace_back(
-            curveKey, Handle<DefaultProbabilityTermStructure>(ext::make_shared<FlatHazardRate>(
-                          spec.curveDate, makeQuoteHandle(spec.hazards[i]), ActualActual(ActualActual::ISDA))));
+        probabilities.emplace_back(curveKey, Handle<DefaultProbabilityTermStructure>(curve));
         DefaultEventSet events;
         if (i == spec.which && spec.oneName == OneName::defaulted)
             events.insert(ext::make_shared<FailureToPayEvent>(Date(15, September, 2006), EURCurrency(), SeniorSec, 10.0,
@@ -1391,6 +1405,112 @@ BOOST_AUTO_TEST_CASE(testInsideACoupon)
                     }
                 }
             }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testOnDefaultCurvesDatedAfterToday)
+{
+    BOOST_TEST_MESSAGE("Testing an nth to default on default curves dated after today...");
+
+    /* Default curves dated after today, as ones built with settlement days, don't reach back before their reference
+       dates, so the loss model can't take a probability there. The engine takes every probability on the later of its
+       date and the latest of those curves' dates, and a step's statistics only from that date (#275), on the steps it
+       took before. So an nth to default on them is worth what it is on curves from today with no hazard up to that
+       date and the same hazards after it. The names' recoveries differ here, so the engine takes each name's
+       probability of being the nth default in a step as well as its recovery. On Thursday 2006-11-30, the day before
+       a coupon's end, on curves dated two days later, that coupon is paid before the curves' date, its steps end
+       before it, and the next coupon's first step of three months runs across it. On Friday 12-01, the next coupon's
+       accrual start, on curves dated two days later, its first step runs across it too. Starting the protection on
+       the curves' date instead would move the steps, and take the rest of the coupon in steps of a day (#330). Until
+       #275's fix the engine took each probability at its own date, and threw. */
+    const std::pair<Date, Date> valuations[] = {{Date(30, November, 2006), Date(2, December, 2006)},
+                                                {Date(1, December, 2006), Date(3, December, 2006)}};
+    for (const auto& [today, curvesDate] : valuations)
+    {
+        Settings::instance().evaluationDate() = today;
+        const auto discountCurve = flatCurveFrom(today);
+        const auto onTheCurves = eightNames({.recoveries = risingRecoveries(), .curveDate = curvesDate});
+        const auto fromToday =
+            eightNames({.recoveries = risingRecoveries(), .curveDate = today, .noHazardUntil = curvesDate});
+        for (Size rank : {1, 2, 3})
+        {
+            BOOST_TEST_CONTEXT("today " << today << ", default curves from " << curvesDate << ", rank " << rank)
+            {
+                const auto figures = [&](const ext::shared_ptr<Basket>& basket)
+                {
+                    const auto contract = nthToDefault(basket, rank, 0.0, 100.0, discountCurve);
+                    return std::vector<Real>{contract->premiumLegNPV(), contract->protectionLegNPV(), contract->NPV(),
+                                             contract->fairPremium()};
+                };
+                std::vector<Real> values;
+                BOOST_CHECK_NO_THROW(values = figures(onTheCurves));
+                const std::vector<Real> expected = figures(fromToday);
+                for (Size k = 0; k < values.size(); ++k)
+                    BOOST_CHECK_CLOSE_FRACTION(values[k], expected[k], 1.0e-12);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testOnDefaultCurvesDatedAfterTodayWithNotificationsDeferred)
+{
+    BOOST_TEST_MESSAGE("Testing an nth to default on default curves dated after today with notifications deferred...");
+
+    /* The engine takes the curves' date from the names the basket has left once it's brought up to date, as those are
+       the names whose curves its model reads (#275). They can differ from the names left on the evaluation date only
+       while notifications are deferred. Here the fourth name failed to pay on 2006-09-15, its curve starts on Tuesday
+       12-05 and the others' on Saturday 12-02, and the evaluation date moves from 09-08 to Thursday 11-30 with
+       notifications deferred. A basket built on 09-08 and never calculated is brought up to date by the engine, so it's
+       worth what it is on curves from today with no hazard up to 12-02; taking the names it had left as it was built
+       would date the curves 12-05. A basket last calculated on 09-08 still has the fourth name left, and its model
+       reads that name's curve, so the curves are dated 12-05 and the basket is worth what the eight names are without
+       the default; taking the names left on 11-30 would date them 12-02, and the model would throw. */
+    struct NotificationsRestored
+    {
+        NotificationsRestored() = default;
+        NotificationsRestored(const NotificationsRestored&) = delete;
+        NotificationsRestored& operator=(const NotificationsRestored&) = delete;
+        ~NotificationsRestored() { ObservableSettings::instance().enableUpdates(); }
+    };
+    const Date before(8, September, 2006), today(30, November, 2006);
+    const Date curvesDate(2, December, 2006), defaultedCurveDate(5, December, 2006);
+    const auto figures = [&](const ext::shared_ptr<Basket>& basket)
+    {
+        const auto contract = nthToDefault(basket, 2, 0.0, 100.0, flatCurveFrom(today));
+        return std::vector<Real>{contract->premiumLegNPV(), contract->protectionLegNPV(), contract->NPV(),
+                                 contract->fairPremium()};
+    };
+    const auto compare = [](const std::vector<Real>& values, const std::vector<Real>& expected)
+    {
+        for (Size k = 0; k < std::min(values.size(), expected.size()); ++k)
+            BOOST_CHECK_CLOSE_FRACTION(values[k], expected[k], 1.0e-12);
+    };
+
+    for (bool calculated : {false, true})
+    {
+        BOOST_TEST_CONTEXT("basket " << (calculated ? "last calculated" : "built") << " on " << before)
+        {
+            Settings::instance().evaluationDate() = before;
+            const auto basket = eightNames(
+                {.oneName = OneName::defaulted, .curveDate = curvesDate, .whichCurveDate = defaultedCurveDate});
+            if (calculated)
+                basket->remainingTrancheNotional();
+            std::vector<Real> values;
+            {
+                NotificationsRestored restored;
+                ObservableSettings::instance().disableUpdates(true);
+                Settings::instance().evaluationDate() = today;
+                BOOST_CHECK_NO_THROW(values = figures(basket));
+            }
+            std::vector<Real> expected;
+            if (calculated)
+                BOOST_CHECK_NO_THROW(
+                    expected = figures(eightNames({.curveDate = curvesDate, .whichCurveDate = defaultedCurveDate})));
+            else
+                expected = figures(
+                    eightNames({.oneName = OneName::defaulted, .curveDate = today, .noHazardUntil = curvesDate}));
+            compare(values, expected);
         }
     }
 }
