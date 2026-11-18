@@ -402,6 +402,20 @@ namespace QuantLib
         return evalDateLiveKeys_;
     }
 
+    namespace detail
+    {
+
+        // The latest reference date of the default curves of the names the
+        // basket has left once brought up to date, whose curves its loss
+        // model reads, or a null date if it has none left. The loss models
+        // can't read those curves before their reference dates, so the CDO
+        // and nth-to-default engines take no statistic at an earlier date
+        // (#228, #275). All three engines use it, so it is declared here;
+        // file-local copies would clash in a unity build.
+        Date latestDefaultCurveDate(const Basket& basket);
+
+    }
+
 }
 
 

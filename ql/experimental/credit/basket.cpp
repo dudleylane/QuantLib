@@ -423,4 +423,24 @@ namespace QuantLib
         return lossModel_->expectedRecovery(d, iName, pool_->defaultKeys()[iName]);
     }
 
+    namespace detail
+    {
+
+        Date latestDefaultCurveDate(const Basket& basket)
+        {
+            // Called for the calculation it makes, not for its value: the
+            // loss model reads the curves of the names the basket had left
+            // when it was last calculated, so those are the curves to cover,
+            // even while notifications are deferred.
+            basket.remainingTrancheNotional();
+            const ext::shared_ptr<Pool>& pool = basket.pool();
+            Date latest;
+            for (Size i : basket.liveList())
+                latest = std::max(
+                    latest, pool->get(pool->names()[i]).defaultProbability(pool->defaultKeys()[i])->referenceDate());
+            return latest;
+        }
+
+    }
+
 }

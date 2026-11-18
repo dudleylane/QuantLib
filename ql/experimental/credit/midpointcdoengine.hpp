@@ -41,17 +41,18 @@ namespace QuantLib
         that's later. The protection starts from the expected tranche
         loss on the latest of today, the first unpaid coupon's accrual
         start and the reference dates of the default curves of the names
-        left. So where those curves start on different dates, no protection
-        counts before the latest of them. The upfront is taken as paid on
-        the first coupon's accrual start, on the tranche's remaining
-        notional. It counts only if that's on or after today (#227), and not
-        at all if it falls before the discount curve's reference date
-        (#206).
+        left. Those curves don't reach back before their reference dates, so
+        every expected tranche loss is taken on the later of its date and
+        the latest of them (#275). Where they all start on the same date,
+        that's the value on curves from today with no hazard until then.
+        Where they start on different dates, no protection counts before the
+        latest of them, and the defaults until then of the names whose
+        curves start earlier count as before the protection starts (#331).
+        The upfront is taken as paid on the first coupon's accrual start, on
+        the tranche's remaining notional. It counts only if that's on or
+        after today (#227), and not at all if it falls before the discount
+        curve's reference date (#206).
 
-        \warning On default curves dated after today, the engine asks for
-            the expected tranche loss at each coupon's accrual end, and so
-            throws where a coupon still to be paid ends before the curves'
-            reference date (#275).
         \warning The engine throws on a coupon paid after today but before
             the discount curve's reference date (#328).
         \warning The engine counts no protection for the days left to a

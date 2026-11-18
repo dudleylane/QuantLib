@@ -43,26 +43,25 @@ namespace QuantLib
         results_.remainingNotional = arguments_.basket->remainingTrancheNotional();
         const Real inceptionTrancheNotional = arguments_.basket->trancheNotional();
 
+        // The default curves of the names left don't reach back before their
+        //   reference dates, so each expected tranche loss is taken on the
+        //   later of its date and the latest of those (#275): defaults before
+        //   it, of names whose curves start earlier, count as before the
+        //   protection starts (#331). The integration steps stay where they were.
+        const Date curvesDate = detail::latestDefaultCurveDate(*arguments_.basket);
+
         // Both legs run from today (#228). The protection starts from the
         //   expected tranche loss on the latest of today, the first unpaid
-        //   coupon's accrual start and the reference dates of the default
-        //   curves of the names left: what's lost already is in every later
-        //   expected loss, and is no flow to come, and the curves don't
-        //   reach back before their reference dates.
+        //   coupon's accrual start and the curves' date: what's lost already
+        //   is in every later expected loss, and is no flow to come.
         Real e1 = inceptionTrancheNotional - results_.remainingNotional;
         // todo add includeSettlement date flows variable to engine.
         const auto firstUnpaid =
             std::find_if(arguments_.normalizedLeg.begin(), arguments_.normalizedLeg.end(),
                          [&](const ext::shared_ptr<CashFlow>& cf) { return !cf->hasOccurred(today); });
         if (firstUnpaid != arguments_.normalizedLeg.end())
-        {
-            Date start = std::max(ext::dynamic_pointer_cast<Coupon>(*firstUnpaid)->accrualStartDate(), today);
-            const ext::shared_ptr<Pool>& pool = arguments_.basket->pool();
-            for (Size i : arguments_.basket->liveList())
-                start = std::max(
-                    start, pool->get(pool->names()[i]).defaultProbability(pool->defaultKeys()[i])->referenceDate());
-            e1 = arguments_.basket->expectedTrancheLoss(start);
-        }
+            e1 = arguments_.basket->expectedTrancheLoss(
+                std::max({ext::dynamic_pointer_cast<Coupon>(*firstUnpaid)->accrualStartDate(), today, curvesDate}));
         results_.expectedTrancheLoss.push_back(e1);
 
         for (auto& i : arguments_.normalizedLeg)
@@ -95,7 +94,7 @@ namespace QuantLib
                 if (d > d2)
                     d = d2;
 
-                e2 = arguments_.basket->expectedTrancheLoss(d);
+                e2 = arguments_.basket->expectedTrancheLoss(std::max(d, curvesDate));
 
                 results_.premiumValue += (inceptionTrancheNotional - e2) * arguments_.runningRate *
                                          arguments_.dayCounter.yearFraction(d0, d) *

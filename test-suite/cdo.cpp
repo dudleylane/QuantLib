@@ -42,8 +42,10 @@
 #include <ql/experimental/credit/spotlosslatentmodel.hpp>
 #include <ql/math/distributions/normaldistribution.hpp>
 #include <ql/math/integrals/gaussianquadratures.hpp>
+#include <ql/math/interpolations/backwardflatinterpolation.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/termstructures/credit/flathazardrate.hpp>
+#include <ql/termstructures/credit/interpolatedhazardratecurve.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/termstructures/yield/forwardcurve.hpp>
 #include <ql/time/calendars/target.hpp>
@@ -57,6 +59,7 @@
 #include <iomanip>
 #include <iostream>
 #include <numeric>
+#include <sstream>
 #include <tuple>
 
 using namespace QuantLib;
@@ -6026,6 +6029,116 @@ BOOST_AUTO_TEST_CASE(testIntegralEnginePremiumOnATrancheThatCantLose)
                 SyntheticCDO cdo(basket, Protection::Seller, schedule, 0.0, 0.05, Actual360(), payments);
                 cdo.setPricingEngine(ext::make_shared<IntegralCDOEngine>(discountCurve, step));
                 BOOST_CHECK_CLOSE_FRACTION(cdo.premiumValue(), value, 1.0e-12);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testEnginesOnDefaultCurvesDatedAfterToday)
+{
+    BOOST_TEST_MESSAGE("Testing the CDO engines on default curves dated after today...");
+
+    /* Default curves dated after today, as ones built with settlement days, don't reach back before their reference
+       dates, so no loss model can take an expected loss there. Both engines take every expected tranche loss on the
+       later of its date and the latest of those curves' dates (#275). So a tranche on them is worth what it is on
+       curves from today with no hazard up to that date and the same hazards after it, and reports the same losses.
+       Here the coupon from 2007-06-01 accrues to Saturday 09-01 and is paid on Monday 09-03. On Thursday 08-30 the
+       default curves are dated two business days later, on Monday; on Friday, two days later, on Sunday; and on
+       Saturday, the accrual end itself, two days later, on Monday. Each time the coupon's accrual ends before the
+       curves' date, and the next coupon's first integration step, of three months, a month or a week, runs across
+       it; steps of a day end before it, on it and after it. Until #275's fix MidPointCDOEngine took the coupon's loss
+       at its accrual end and threw, and IntegralCDOEngine took each step's at the step's end. That threw at steps of
+       a day; at longer steps the coupon's last step ended at its payment, until #276's fix ended it at the accrual
+       end. */
+    const Date inception(31, August, 2006);
+    std::vector<std::string> names;
+    for (Size i = 0; i < 10; ++i)
+        names.push_back("issuer-" + std::to_string(i));
+    // ten names on default curves from the given date, or from today with no hazard up to it
+    const auto pool = [&](const Date& today, const Date& curvesDate, bool fromToday)
+    {
+        const NorthAmericaCorpDefaultKey key(EURCurrency(), SeniorSec, Period(), 1.);
+        auto pool = ext::make_shared<Pool>();
+        for (Size i = 0; i < 10; ++i)
+        {
+            const Real hazard = 0.01 + 0.004 * Real(i);
+            ext::shared_ptr<DefaultProbabilityTermStructure> curve;
+            if (fromToday)
+                curve = ext::make_shared<InterpolatedHazardRateCurve<BackwardFlat>>(
+                    std::vector<Date>{today, curvesDate, Date(1, September, 2012)}, std::vector<Rate>{0.0, 0.0, hazard},
+                    Actual365Fixed());
+            else
+                curve = ext::make_shared<FlatHazardRate>(curvesDate, makeQuoteHandle(hazard), Actual365Fixed());
+            pool->add(names[i],
+                      Issuer(std::vector<Issuer::key_curve_pair>(
+                          1, std::make_pair(key, Handle<DefaultProbabilityTermStructure>(curve)))),
+                      key);
+        }
+        return pool;
+    };
+    // the loss models on one factor at correlation 0.3
+    const char* const modelNames[] = {"large homogeneous pool", "binomial", "recursive"};
+    const auto lossModel = [](Size which) -> ext::shared_ptr<DefaultLossModel>
+    {
+        if (which == 0)
+            return ext::make_shared<GaussianLHPLossModel>(0.3, std::vector<Real>(10, 0.4));
+        const auto latent = ext::make_shared<GaussianConstantLossLM>(
+            std::vector<std::vector<Real>>(10, std::vector<Real>(1, std::sqrt(0.3))), std::vector<Real>(10, 0.4),
+            LatentModelIntegrationType::GaussianQuadrature, GaussianCopulaPolicy::initTraits());
+        if (which == 1)
+            return ext::make_shared<GaussianBinomialLossModel>(latent);
+        return ext::make_shared<RecursiveLossModel<GaussianCopulaPolicy>>(latent, 1);
+    };
+
+    const std::pair<Date, Date> valuations[] = {{Date(30, August, 2007), Date(3, September, 2007)},
+                                                {Date(31, August, 2007), Date(2, September, 2007)},
+                                                {Date(1, September, 2007), Date(3, September, 2007)}};
+    for (const auto& [today, curvesDate] : valuations)
+    {
+        Settings::instance().evaluationDate() = today;
+        const Handle<YieldTermStructure> discountCurve(ext::make_shared<FlatForward>(today, 0.05, Actual360()));
+        for (Size model = 0; model < 3; ++model)
+        {
+            // the premium, protection, NPV and fair premium, then the expected tranche losses reported
+            const auto check =
+                [&](const std::string& engine, const std::function<ext::shared_ptr<PricingEngine>()>& makeEngine)
+            {
+                const auto figures = [&](bool fromToday)
+                {
+                    const auto basket = ext::make_shared<Basket>(inception, names, std::vector<Real>(10, 10.0),
+                                                                 pool(today, curvesDate, fromToday), 0.0, 0.1);
+                    basket->setLossModel(lossModel(model));
+                    SyntheticCDO cdo(basket, Protection::Seller, weekendAccrualEnds(), 0.0, 0.05, Actual360(),
+                                     Following);
+                    cdo.setPricingEngine(makeEngine());
+                    std::vector<Real> values = {cdo.premiumValue(), cdo.protectionValue(), cdo.NPV(),
+                                                cdo.fairPremium()};
+                    const std::vector<Real>& losses = cdo.expectedTrancheLoss();
+                    values.insert(values.end(), losses.begin(), losses.end());
+                    return values;
+                };
+                BOOST_TEST_CONTEXT("today " << today << ", default curves from " << curvesDate << ", "
+                                            << modelNames[model] << " model, " << engine)
+                {
+                    std::vector<Real> onTheCurves;
+                    BOOST_CHECK_NO_THROW(onTheCurves = figures(false));
+                    const std::vector<Real> fromToday = figures(true);
+                    for (Size k = 0; k < onTheCurves.size(); ++k)
+                        BOOST_CHECK_SMALL(onTheCurves[k] - fromToday[k],
+                                          1.0e-12 * std::max(std::fabs(fromToday[k]), 1.0));
+                }
+            };
+            check("mid-point engine", [&] { return ext::make_shared<MidPointCDOEngine>(discountCurve); });
+            // Where the engine takes a loss doesn't depend on the model, so the shorter steps are taken on the large
+            // homogeneous pool model alone, the cheapest.
+            const std::vector<Period> steps = model == 0 ?
+                                                  std::vector<Period>{3 * Months, 1 * Months, 1 * Weeks, 1 * Days} :
+                                                  std::vector<Period>{3 * Months};
+            for (const Period& step : steps)
+            {
+                std::ostringstream engine;
+                engine << "integral engine at steps of " << step;
+                check(engine.str(), [&] { return ext::make_shared<IntegralCDOEngine>(discountCurve, step); });
             }
         }
     }
