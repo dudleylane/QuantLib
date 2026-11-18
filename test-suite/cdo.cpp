@@ -6228,6 +6228,68 @@ BOOST_AUTO_TEST_CASE(testPoolModelsOnTheirDefaultRule)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testSaddlePointExpectedTrancheLossFromItsTail)
+{
+    BOOST_TEST_MESSAGE("Testing the saddle point's expected tranche loss from its tail...");
+
+    /* Given the factor, the saddle-point model took a tranche's loss as the expected loss tranched,
+       min((E[L] - a)^+, d - a), where it is the tranche's expected loss, E[min((L - a)^+, d - a)] (#262). It now takes
+       it as E[(L - a)^+] - E[(L - d)^+], from its tail. On ten names alike that each lose 6 % of the pool, the tail is
+       exact up to two defaults' loss (#205), so on tranches below 12 % the model's expected loss is the recursive
+       model's, which is exact given the factor on names alike, but for rounding. Tranched, the expected loss was off
+       by 6.3 % to 105 % there. On 100 names alike that each lose 0.6 %, a tranche from 3 % to 6 % lies where the tail
+       comes from the approximation: the model is 1.1 % above the recursive model there, where it was 15 % below. */
+    const Date today(31, August, 2006);
+    Settings::instance().evaluationDate() = today;
+    const auto latentModels = [](Size n)
+    {
+        const std::vector<std::vector<Real>> loadings(n, std::vector<Real>(1, std::sqrt(0.3)));
+        const std::vector<Real> recoveries(n, 0.4);
+        TCopulaPolicy::initTraits t3;
+        t3.tOrders = std::vector<Integer>(2, 3);
+        return std::make_pair(ext::make_shared<GaussianConstantLossLM>(loadings, recoveries,
+                                                                       LatentModelIntegrationType::GaussianQuadrature,
+                                                                       GaussianCopulaPolicy::initTraits()),
+                              ext::make_shared<TConstantLossLM>(loadings, recoveries,
+                                                                LatentModelIntegrationType::GaussianQuadrature, t3));
+    };
+    const auto check = [&](const NamesAtOnePercent& names, const std::string& copula,
+                           const ext::shared_ptr<DefaultLossModel>& saddlePoint,
+                           const ext::shared_ptr<DefaultLossModel>& recursive, const Date& d, Real attachment,
+                           Real detachment, Real tolerance)
+    {
+        BOOST_TEST_CONTEXT(names.names.size() << " names, " << copula << ", " << d << ", tranche [" << attachment
+                                              << ", " << detachment << "]")
+        {
+            const Real saddle = names.basket(today, saddlePoint, attachment, detachment)->expectedTrancheLoss(d);
+            const Real exact = names.basket(today, recursive, attachment, detachment)->expectedTrancheLoss(d);
+            BOOST_CHECK_CLOSE_FRACTION(saddle, exact, tolerance);
+        }
+    };
+
+    const NamesAtOnePercent ten(today, std::vector<Real>(10, 10.0), 0.01);
+    const auto [gaussian, t] = latentModels(10);
+    const std::vector<std::pair<Real, Real>> tranches = {{0.0, 0.03}, {0.03, 0.06}, {0.06, 0.09}, {0.09, 0.12}};
+    for (const auto& horizon : {Period(1, Years), Period(5, Years)})
+    {
+        for (const auto& [attachment, detachment] : tranches)
+        {
+            check(ten, "Gaussian", ext::make_shared<SaddlePointLossModel<GaussianCopulaPolicy>>(gaussian),
+                  ext::make_shared<RecursiveLossModel<GaussianCopulaPolicy>>(gaussian, 1), today + horizon, attachment,
+                  detachment, 1.0e-12);
+            check(ten, "t3", ext::make_shared<SaddlePointLossModel<TCopulaPolicy>>(t),
+                  ext::make_shared<RecursiveLossModel<TCopulaPolicy>>(t, 1), today + horizon, attachment, detachment,
+                  1.0e-12);
+        }
+    }
+
+    const NamesAtOnePercent hundred(today, std::vector<Real>(100, 10.0), 0.01);
+    const auto gaussian100 = latentModels(100).first;
+    check(hundred, "Gaussian", ext::make_shared<SaddlePointLossModel<GaussianCopulaPolicy>>(gaussian100),
+          ext::make_shared<RecursiveLossModel<GaussianCopulaPolicy>>(gaussian100, 1), today + 1 * Years, 0.03, 0.06,
+          0.02);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
