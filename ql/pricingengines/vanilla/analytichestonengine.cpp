@@ -1277,14 +1277,27 @@ namespace QuantLib
 
     Real AnalyticHestonEngine::Integration::andersenPiterbargIntegrationLimit(Real c_inf, Real epsilon, Real v0, Real t)
     {
-        QL_REQUIRE(c_inf > 0.0, "the Andersen-Piterbarg integration limit needs a positive decay rate c_inf, given "
-                                    << c_inf << "; it is zero where rho is -1 or 1");
+        QL_REQUIRE(c_inf > 0.0 && std::isfinite(c_inf),
+                   "the Andersen-Piterbarg integration limit needs a positive, finite decay rate c_inf, given "
+                       << c_inf << "; it is zero where rho is -1 or 1");
         QL_REQUIRE(epsilon > 0.0 && epsilon < 1.0, "epsilon (" << epsilon << ") must lie between 0 and 1");
 
-        const Real uMaxGuess = -std::log(epsilon) / c_inf;
-        const Real uMaxStep = 0.1 * uMaxGuess;
-
-        const Real uMax = Brent().solve(u_Max(c_inf, epsilon), QL_EPSILON * uMaxGuess, uMaxGuess, uMaxStep);
+        /* uMax solves c_inf u + log(u) = L, L = -log(epsilon). The left side increases with u; it's below L at
+           L / (1 + c_inf), where it's L - x + log(x) with x = L / (1 + c_inf), and at least L at
+           (L + max(0, log(c_inf / L))) / c_inf and at 1 / epsilon, where log(u) alone is L. Brent searches between
+           them. Until #299 it stepped down from L / c_inf in growing steps, which went below 0 and threw where
+           log(u) is more than about two thirds of L, as at epsilon 1e-17 from c_inf 4e-11 down. */
+        const Real L = -std::log(epsilon);
+        const Real uMaxLow = L / (1.0 + c_inf);
+        const Real uMaxHigh = std::min((L + std::max(0.0, std::log(c_inf / L))) / c_inf, 1.0 / epsilon);
+        QL_REQUIRE(uMaxHigh < QL_MAX_REAL,
+                   "the Andersen-Piterbarg integration limit for c_inf = " << c_inf << " and epsilon = " << epsilon
+                                                                           << " lies past the largest double");
+        const u_Max f(c_inf, epsilon);
+        // where rounding leaves f at most 0 at the top, the root is the top to rounding
+        const Real uMax = f(uMaxHigh) <= 0.0 ?
+                              uMaxHigh :
+                              Brent().solve(f, QL_EPSILON * uMaxLow, 0.5 * (uMaxLow + uMaxHigh), uMaxLow, uMaxHigh);
         const Real uHatMax = hestonGaussianLimit(v0, t, epsilon);
 
         return uHatMax != Null<Real>() ? std::max(uMax, uHatMax) : uMax;

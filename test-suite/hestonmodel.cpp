@@ -2145,6 +2145,70 @@ BOOST_AUTO_TEST_CASE(testAndersenPiterbargConvergence)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testAndersenPiterbargLimitAtSmallDecayRate)
+{
+    BOOST_TEST_MESSAGE("Testing the Andersen-Piterbarg integration limit where log(u) takes most of it...");
+
+    // #299: the limit u solves c_inf u + log(u) = L, L = -log(epsilon). Its search stepped down from L / c_inf in
+    // growing steps; where log(u) is more than about two thirds of L, as at epsilon 1e-17 from c_inf 4e-11 down, it
+    // went below 0 and threw "unable to bracket root". It now searches between bounds below and above the root. Each
+    // limit here is the root to a relative 1e-12, those the old search found included.
+    using Integration = AnalyticHestonEngine::Integration;
+    const auto checkRoot = [](Real cInf, Real epsilon, Real v0, Time t)
+    {
+        BOOST_TEST_CONTEXT("c_inf " << cInf << ", epsilon " << epsilon)
+        {
+            try
+            {
+                const Real u = Integration::andersenPiterbargIntegrationLimit(cInf, epsilon, v0, t);
+                const auto f = [cInf, epsilon](Real x) { return cInf * x + std::log(x) + std::log(epsilon); };
+                BOOST_CHECK_LT(f(u * (1.0 - 1e-12)), 0.0);
+                BOOST_CHECK_GT(f(u * (1.0 + 1e-12)), 0.0);
+            }
+            catch (const Error& e)
+            {
+                BOOST_ERROR("threw " << e.what());
+            }
+        }
+    };
+    for (Real epsilon : {1e-17, 1e-25, 3e-42})
+        for (Real cInf : {1e-6, 1e-8, 1e-10, 4e-11, 3e-11, 1e-11, 1e-14})
+            checkRoot(cInf, epsilon, 0.04, 0.5);
+    // Where rounding leaves the left side at most L at the bracket's top, the top is the root to rounding, and Brent
+    // would refuse the bracket: 1 / epsilon at a tiny c_inf, and 1 next to c_inf = L, where v0 t is large enough
+    // that the Gaussian part's root lies below it.
+    checkRoot(1e-300, 0.7, 0.04, 0.5);
+    checkRoot(std::nextafter(-std::log(0.1), 3.0), 0.1, 1.0, 10.0);
+
+    // Through the engine: andersenPiterbargEpsilon 1e-4 at rho = -0.5, v0 = theta = 1e-4, sigma 0.5 and two years
+    // gives c_inf 5.2e-4 and epsilon 3.3e-6, where the root, about 7,200, has log(u) at 70 % of L.
+    const Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(0.01, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+    const auto model =
+        ext::make_shared<HestonModel>(ext::make_shared<HestonProcess>(rTS, qTS, s0, 1e-4, 1.0, 1e-4, 0.5, -0.5));
+    VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0),
+                         ext::make_shared<EuropeanExercise>(today + Period(730, Days)));
+    // exp-sinh takes no limit
+    option.setPricingEngine(
+        ext::make_shared<AnalyticHestonEngine>(model, AnalyticHestonEngine::OptimalCV, Integration::expSinh(1e-12)));
+    const Real expected = option.NPV();
+    option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(model, AnalyticHestonEngine::AndersenPiterbarg,
+                                                                   Integration::simpson(1e-8), 1e-4));
+    try
+    {
+        BOOST_CHECK_SMALL(option.NPV() - expected, 1e-5);
+    }
+    catch (const Error& e)
+    {
+        BOOST_ERROR("Simpson's rule with the Andersen-Piterbarg limit at andersenPiterbargEpsilon 1e-4 threw "
+                    << e.what());
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testPiecewiseTimeDependentChFvsHestonChF)
 {
     BOOST_TEST_MESSAGE("Testing piecewise time dependent "
