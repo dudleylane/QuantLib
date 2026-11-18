@@ -251,8 +251,16 @@ namespace QuantLib
 
         // usually these routines have a poor convergence behavior.
         static Integration gaussKronrod(Real absTolerance, Size maxEvaluations = 1000);
-        static Integration simpson(Real absTolerance, Size maxEvaluations = 1000);
-        static Integration trapezoid(Real absTolerance, Size maxEvaluations = 1000);
+        // Simpson's and the trapezoid rule halve their intervals until two estimates in a row agree to
+        // absTolerance, and stop no earlier than the 7th estimate. maxIterations bounds the estimates, and the n-th
+        // rests on 2^(n-1) + 1 evaluations: the default allows 8,388,609 an integral before "max number of
+        // iterations reached" is thrown, and each step up doubles that. Calls can need more within about 1e-8 of
+        // rho = -1 or 1, with Gatheral's formula from about |rho| = 0.99, and with Gatheral's formula and the
+        // trapezoid rule at a tolerance of 1e-12 a month or less from expiry: pass a larger bound there. Until #294
+        // the bound was named maxEvaluations, counted the same way and defaulted to 1000, so a call whose
+        // estimates never agreed didn't return.
+        static Integration simpson(Real absTolerance, Size maxIterations = 24);
+        static Integration trapezoid(Real absTolerance, Size maxIterations = 24);
         static Integration discreteSimpson(Size evaluation = 1000);
         static Integration discreteTrapezoid(Size evaluation = 1000);
         static Integration expSinh(Real relTolerance = 1e-8);

@@ -59,6 +59,8 @@
 #include <ql/time/period.hpp>
 #include <algorithm>
 #include <cmath>
+#include <functional>
+#include <limits>
 #include <utility>
 
 using namespace QuantLib;
@@ -1585,6 +1587,85 @@ BOOST_AUTO_TEST_CASE(testAllIntegrationMethods)
                                   AnalyticHestonEngine::AngledContour, true, expected, 1e-8, Null<Size>(),
                                   "exp-sinh integration with angled contour shift integral");
 #endif
+}
+
+BOOST_AUTO_TEST_CASE(testSimpsonAndTrapezoidStopAtTheirBound)
+{
+    BOOST_TEST_MESSAGE("Testing that Heston's Simpson and trapezoid integrations stop at their bound...");
+
+    // #294: simpson() and trapezoid() pass their bound to rules that count estimates, each on twice the intervals
+    // of the one before, so the n-th estimate rests on 2^(n-1) + 1 evaluations. Their default was 1000, and a call
+    // whose estimates never agreed didn't return. An integrand returning NaN fails every comparison, so at the
+    // default of 24 each rule now throws after 2^23 + 1 evaluations, given an upper bound or not. Past that count
+    // the integrand throws its own type, so that a rule that runs on fails here rather than hanging the suite.
+    using Integration = AnalyticHestonEngine::Integration;
+    struct RanOn
+    {
+    };
+    static constexpr Size allowed = (Size(1) << 23) + 1;
+    const auto stops = [](const std::string& name, const Integration& integration, bool withUpperBound)
+    {
+        BOOST_TEST_CONTEXT(name << (withUpperBound ? " on [0, 10]" : " on [0, infinity)"))
+        {
+            Size calls = 0;
+            const std::function<Real(Real)> nan = [&calls](Real) -> Real
+            {
+                if (++calls > allowed)
+                    throw RanOn();
+                return std::numeric_limits<Real>::quiet_NaN();
+            };
+            try
+            {
+                const Real result =
+                    withUpperBound ? integration.calculate(1.0, nan, 10.0) : integration.calculate(1.0, nan);
+                BOOST_ERROR("returned " << result);
+            }
+            catch (const Error& e)
+            {
+                BOOST_CHECK(ExpectedErrorMessage("max number of iterations reached")(e));
+                BOOST_CHECK_EQUAL(integration.numberOfEvaluations(), allowed);
+            }
+            catch (const RanOn&)
+            {
+                BOOST_ERROR("ran on past " << allowed << " evaluations");
+            }
+        }
+    };
+    for (bool withUpperBound : {true, false})
+    {
+        stops("Simpson", Integration::simpson(1e-8), withUpperBound);
+        stops("trapezoid", Integration::trapezoid(1e-8), withUpperBound);
+    }
+
+    // An explicit bound still counts estimates. On testAllIntegrationMethods' market with the Andersen-Piterbarg
+    // control variate, both rules return at a bound of 7, the first that lets an estimate stop (the 7th, on 65
+    // evaluations), and throw at 6, as before #294. Counting evaluations instead would throw at 7.
+    const Date today(7, February, 2017);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(0.05, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(0.075, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+    const auto model =
+        ext::make_shared<HestonModel>(ext::make_shared<HestonProcess>(rTS, qTS, s0, 0.1, 4.0, 0.05, 0.4, -0.75));
+    VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Put, 100.0),
+                         ext::make_shared<EuropeanExercise>(today + Period(1, Years)));
+    const Real expected = 10.147041515497;
+    for (bool simpson : {true, false})
+    {
+        BOOST_TEST_CONTEXT((simpson ? "Simpson" : "trapezoid"))
+        {
+            const auto rule = simpson ? &Integration::simpson : &Integration::trapezoid;
+            const auto engine = ext::make_shared<AnalyticHestonEngine>(model, AnalyticHestonEngine::AndersenPiterbarg,
+                                                                       rule(1e-8, 7), 1e-9);
+            option.setPricingEngine(engine);
+            BOOST_CHECK_SMALL(option.NPV() - expected, 1e-8);
+            BOOST_CHECK_EQUAL(engine->numberOfEvaluations(), Size(65));
+            option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(
+                model, AnalyticHestonEngine::AndersenPiterbarg, rule(1e-8, 6), 1e-9));
+            BOOST_CHECK_EXCEPTION(option.NPV(), Error, ExpectedErrorMessage("max number of iterations reached"));
+        }
+    }
 }
 
 BOOST_AUTO_TEST_CASE(testCosHestonCumulants)

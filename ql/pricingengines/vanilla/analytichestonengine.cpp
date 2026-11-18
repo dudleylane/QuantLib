@@ -1092,16 +1092,16 @@ namespace QuantLib
                            ext::shared_ptr<Integrator>(new GaussKronrodAdaptive(absTolerance, maxEvaluations)));
     }
 
-    AnalyticHestonEngine::Integration AnalyticHestonEngine::Integration::simpson(Real absTolerance, Size maxEvaluations)
+    AnalyticHestonEngine::Integration AnalyticHestonEngine::Integration::simpson(Real absTolerance, Size maxIterations)
     {
-        return Integration(Simpson, ext::shared_ptr<Integrator>(new SimpsonIntegral(absTolerance, maxEvaluations)));
+        return Integration(Simpson, ext::shared_ptr<Integrator>(new SimpsonIntegral(absTolerance, maxIterations)));
     }
 
     AnalyticHestonEngine::Integration AnalyticHestonEngine::Integration::trapezoid(Real absTolerance,
-                                                                                   Size maxEvaluations)
+                                                                                   Size maxIterations)
     {
         return Integration(Trapezoid,
-                           ext::shared_ptr<Integrator>(new TrapezoidIntegral<Default>(absTolerance, maxEvaluations)));
+                           ext::shared_ptr<Integrator>(new TrapezoidIntegral<Default>(absTolerance, maxIterations)));
     }
 
     AnalyticHestonEngine::Integration AnalyticHestonEngine::Integration::gaussLaguerre(Size intOrder)
