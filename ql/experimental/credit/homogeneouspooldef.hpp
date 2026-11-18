@@ -25,6 +25,10 @@
 #include <ql/experimental/credit/constantlosslatentmodel.hpp>
 #include <ql/experimental/credit/defaultlossmodel.hpp>
 #include <ql/experimental/credit/lossdistribution.hpp>
+#include <ql/experimental/math/tcopulapolicy.hpp>
+#include <ql/math/distributions/normaldistribution.hpp>
+#include <cmath>
+#include <type_traits>
 
 // Intended to replace HomogeneousPoolCDOEngine in syntheticcdoengines.hpp
 
@@ -38,6 +42,42 @@ namespace QuantLib
     the underlying basket. This is in view of a stochastic loss given default
     but in a constant LGD situation this is a waste and it is more efficient to
     go up to the attainable losses.
+
+    The factor is integrated by the midpoint rule on [min, max] in nSteps
+    steps of its normal quantile u (#259): the node at u is the factor's
+    value F^{-1}(Phi(u)), and its weight the step times phi(u). On a Gaussian
+    factor that is u itself, weighted by its density, as before. On a t
+    factor the rule was in the factor itself, and [-5, 5] left out 3.2e-3 of
+    a t3 factor's mass and 1.3e-3 of a t5 one's, which the loss distribution
+    then counted as a loss beyond every bucket; in u it leaves out 5.7e-7 of
+    any factor's. Nodes past |u| of about 37.5, where Phi(-|u|) underflows,
+    are skipped: their weights are below 1e-305. A step in u spans more of a
+    t factor in its tails than in its middle, and a thin tranche at a short
+    horizon takes its losses from the tails. So on t factors such tranches
+    need more steps than on Gaussian ones, and few steps resolve them worse
+    than the rule in the factor itself did.
+
+    The expected tranche loss integrates over the same nodes the tranche's
+    expected loss given the factor (#260). Given the factor, the probability
+    of each number of defaults is exact, and so is that loss. It came from
+    the integrated distribution's excess probabilities before, a sum that
+    counts each loss as reaching the top of its bucket: at 200 buckets,
+    Hull-White's senior tranche's came out 16 % high by five years.
+
+    The rule defaults to [-8.5, 8.5] in 170 steps, the latent models' range
+    and step on Gaussian factors (#258); it was [-5, 5] in 50 (#278). Its
+    ends leave out 1.9e-17 of a factor's mass. On 100 names at hazard 1 %,
+    against the same integrals taken on [-12, 12] in 4800 steps, the
+    default's expected losses of the 0-3, 3-6, 6-10 and 10-100 % tranches by
+    one and five years are within 3.3e-10, relatively, on a Gaussian factor
+    at correlations 0.1 and 0.3, and within 1.9e-7 on t5 factors at 0.3. On
+    t3 factors at 0.3 the 6-10 % tranche's by a year is 3.0e-4 low, the most
+    of any, and every tranche's by five years is within 3.3e-9. On [-5, 5] in
+    50 steps the 10-100 % tranche's by a year came out 4.0 % low on the
+    Gaussian factor at 0.1, which takes its losses beyond u = -5, and the
+    6-10 % tranche's 1.8 % high on the t3 factors, where the rule in the
+    factor and the sum used before gave 34 %; at 15 steps that one is 54 %
+    high.
     \todo Extend to the multifactor case for a generic LM
     */
     template <class copulaPolicy>
@@ -51,9 +91,9 @@ namespace QuantLib
       public:
         HomogeneousPoolLossModel(const ext::shared_ptr<ConstantLossLatentmodel<copulaPolicy>>& copula,
                                  Size nBuckets,
-                                 Real max = 5.,
-                                 Real min = -5.,
-                                 Size nSteps = 50)
+                                 Real max = 8.5,
+                                 Real min = -8.5,
+                                 Size nSteps = 170)
         : copula_(copula), nBuckets_(nBuckets), max_(max), min_(min), nSteps_(nSteps), delta_((max - min) / nSteps)
         {
             QL_REQUIRE(copula->numFactors() == 1, "Inhomogeneous model not implemented for multifactor");
@@ -62,11 +102,18 @@ namespace QuantLib
 
       protected:
         Distribution lossDistrib(const Date& d) const;
+        /* The node at u of the midpoint rule in the factor's normal quantile
+           (#259): the factor's value F^{-1}(Phi(u)) and the weight delta
+           phi(u); on a Gaussian factor u itself and its density. False where
+           Phi(-|u|) underflows, beyond |u| of about 37.5: the quantile
+           overflows there, and the weight is below 1e-305. */
+        bool factorNode(Real u, std::vector<Real>& m, Real& weight) const;
+        Real expectedTrancheLossByNodes(const Date& d) const;
 
       public:
         Real expectedTrancheLoss(const Date& d) const override
         {
-            return lossDistrib(d).cumulativeExcessProbability(attachAmount_, detachAmount_);
+            return expectedTrancheLossByNodes(d);
             // This one if the distribution is over the whole loss structure:
             // but it becomes very expensive
             /*
@@ -139,24 +186,81 @@ namespace QuantLib
         // use explicitly a 1D latent model object?
         Distribution dist(nBuckets_, 0.0, detachAmount_);
         // notional_);
-        std::vector<Real> mkft(1, min_ + delta_ / 2.);
-        for (Size i = 0; i < nSteps_; i++)
+        std::vector<Real> mkft(1);
+        Real u = min_ + delta_ / 2.;
+        for (Size i = 0; i < nSteps_; i++, u += delta_)
         {
+            Real densitydm;
+            if (!factorNode(u, mkft, densitydm))
+                continue;
             std::vector<Real> conditionalProbs;
             conditionalProbs.reserve(notionals_.size());
             for (Size iName = 0; iName < notionals_.size(); iName++)
                 conditionalProbs.push_back(copula_->conditionalDefaultProbabilityInvP(prob[iName], live[iName], mkft));
             Distribution bld = bucktLDistBuff(lgd, conditionalProbs);
-            Real densitydm = delta_ * copula_->density(mkft);
             // also, instead of calling the static method it could be wrapped
             // through an inlined call in the latent model
             for (Size j = 0; j < nBuckets_; j++)
                 dist.addDensity(j, bld.density(j) * densitydm);
-            mkft[0] += delta_;
         }
         return dist;
     }
 
+    template <class CP>
+    Real HomogeneousPoolLossModel<CP>::expectedTrancheLossByNodes(const Date& d) const
+    {
+        LossDistHomogeneous bucktLDistBuff(nBuckets_, detachAmount_);
+        const std::vector<Size>& live = basket_->liveList();
+        std::vector<Real> lgd;
+        lgd.reserve(live.size());
+        for (Size iName = 0; iName < live.size(); iName++)
+            lgd.push_back(notionals_[iName] * (1.0 - copula_->recoveries()[live[iName]]));
+        std::vector<Real> prob = basket_->remainingProbabilities(d);
+        for (Size iName = 0; iName < prob.size(); iName++)
+            prob[iName] = copula_->inverseCumulativeY(prob[iName], live[iName]);
+        Real result = 0.0;
+        std::vector<Real> mkft(1);
+        Real u = min_ + delta_ / 2.;
+        for (Size i = 0; i < nSteps_; i++, u += delta_)
+        {
+            Real densitydm;
+            if (!factorNode(u, mkft, densitydm))
+                continue;
+            std::vector<Real> conditionalProbs;
+            conditionalProbs.reserve(notionals_.size());
+            for (Size iName = 0; iName < notionals_.size(); iName++)
+                conditionalProbs.push_back(copula_->conditionalDefaultProbabilityInvP(prob[iName], live[iName], mkft));
+            bucktLDistBuff(lgd, conditionalProbs);
+            const std::vector<Real> pk = bucktLDistBuff.probability();
+            const Real v = bucktLDistBuff.volume();
+            Real e = 0.0;
+            for (Size k = 1; k < pk.size(); ++k)
+                e += pk[k] * std::min(std::max(Real(k) * v - attachAmount_, Real(0.)), detachAmount_ - attachAmount_);
+            result += densitydm * e;
+        }
+        return result;
+    }
+
+    template <class CP>
+    bool HomogeneousPoolLossModel<CP>::factorNode(Real u, std::vector<Real>& m, Real& weight) const
+    {
+        if constexpr (std::is_same_v<CP, TCopulaPolicy>)
+        {
+            // from the lower tail, where it is accurate; t factors are symmetric
+            const Real tail = CumulativeNormalDistribution()(-std::fabs(u));
+            if (tail < QL_MIN_POSITIVE_REAL)
+                return false;
+            const Real lower = copula_->inverseCumulativeDensity(tail, 0);
+            m[0] = u <= 0.0 ? lower : Real(-lower);
+            weight = delta_ * NormalDistribution()(u);
+        }
+        else
+        {
+            m[0] = u;
+            weight = delta_ * copula_->density(m);
+        }
+        return true;
+    }
 
 }
 
