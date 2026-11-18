@@ -6271,6 +6271,57 @@ BOOST_AUTO_TEST_CASE(testTrancheBetweenItsLastPaymentAndItsMaturity)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testEnginesOnADiscountCurveDatedAfterToday)
+{
+    BOOST_TEST_MESSAGE("Testing the CDO engines on a discount curve dated after today...");
+
+    /* A discount curve dated after today, as one built with settlement days, doesn't discount before its reference
+       date. Both engines run each coupon's period from the later of its accrual start and today, and discount the
+       losses in it no earlier than that date (#333). So they price on such a curve as on one from today that doesn't
+       discount up to that date and discounts as it does after. Here the curve is dated two TARGET business days after
+       today. The coupon from 2007-06-01 accrues to Saturday 09-01, and it's paid on Monday 09-03 under Following
+       payments and on Friday 08-31 under Preceding ones; on the shorter schedule it's the last. Until #333's fix
+       MidPointCDOEngine ran its periods from the curve's date too: a coupon whose accrual ended before that date took
+       its losses up to it, after the contract's end on the shorter schedule, and the period across it took its losses
+       as of the middle of what was left after it. */
+    const NamesAroundADefault names(true, false);
+    const std::pair<BusinessDayConvention, Date> valuations[] = {{Following, Date(30, August, 2007)},
+                                                                 {Preceding, Date(31, August, 2007)},
+                                                                 {Preceding, Date(1, September, 2007)},
+                                                                 {Preceding, Date(2, September, 2007)}};
+    const Schedule schedules[] = {weekendAccrualEnds(),
+                                  unadjustedQuarterly(Date(1, September, 2006), Date(1, September, 2007))};
+    for (const auto& [payments, today] : valuations)
+    {
+        Settings::instance().evaluationDate() = today;
+        const Date curveDate = TARGET().advance(today, 2, Days);
+        const Handle<YieldTermStructure> onTheCurve(ext::make_shared<FlatForward>(curveDate, 0.05, Actual360()));
+        const Handle<YieldTermStructure> fromToday(
+            ext::make_shared<ForwardCurve>(std::vector<Date>{today, curveDate, Date(1, September, 2012)},
+                                           std::vector<Rate>{0.0, 0.0, 0.05}, Actual360()));
+        for (const Schedule& schedule : schedules)
+        {
+            for (Size engine = 0; engine < 3; ++engine)
+            {
+                BOOST_TEST_CONTEXT("payments " << payments << ", today " << today << ", schedule to "
+                                               << schedule.endDate() << ", " << lhpTrancheEngines[engine])
+                {
+                    const auto figures = [&](const Handle<YieldTermStructure>& discountCurve)
+                    {
+                        const auto tranche = lhpTranche(names, schedule, payments, discountCurve, engine);
+                        return std::vector<Real>{tranche->premiumValue(), tranche->protectionValue(), tranche->NPV()};
+                    };
+                    std::vector<Real> values;
+                    BOOST_CHECK_NO_THROW(values = figures(onTheCurve));
+                    const std::vector<Real> expected = figures(fromToday);
+                    for (Size k = 0; k < values.size(); ++k)
+                        BOOST_CHECK_CLOSE_FRACTION(values[k], expected[k], 1.0e-12);
+                }
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testPoolModelsIntegrateTFactorsOverTheirTails)
 {
     BOOST_TEST_MESSAGE("Testing that the pool models integrate t factors over their tails...");

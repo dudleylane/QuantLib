@@ -82,7 +82,7 @@ namespace QuantLib
             // what's left of the coupon from today: its losses from then on,
             //   and its premium less what has accrued before today. A coupon
             //   whose accrual ended before today, paid after it, has none.
-            Date startDate = std::max({coupon->accrualStartDate(), today, discountCurve_->referenceDate()});
+            Date startDate = std::max(coupon->accrualStartDate(), today);
             Date endDate = std::max(coupon->accrualEndDate(), startDate);
             // we assume the loss within the period took place on this date:
             Date defaultDate = startDate + (endDate - startDate) / 2;
@@ -93,8 +93,9 @@ namespace QuantLib
                 results_.premiumValue += ((inceptionTrancheNotional - e2) / inceptionTrancheNotional) *
                                          (coupon->amount() - coupon->accruedAmount(today)) *
                                          discountCurve_->discount(paymentDate);
-            // default flows:
-            const Real discount = discountCurve_->discount(defaultDate);
+            // default flows, discounted no earlier than the discount curve's
+            //   reference date (#333):
+            const Real discount = discountCurve_->discount(std::max(defaultDate, discountCurve_->referenceDate()));
 
             /* Accrual removed till the argument flag is implemented
             // pays accrued on defaults' date
