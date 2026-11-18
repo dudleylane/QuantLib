@@ -34,19 +34,23 @@ namespace QuantLib
         the evaluation date count less the premium accrued before it, with
         protection from the later of their accrual start and today, and the
         premium accrued on a default counts from today too. On a discount
-        curve dated after today, coupons paid on or before its reference
-        date don't count, and protection starts on it. The default curves of
-        the names left don't reach back before their reference dates, so
-        every probability is taken on the later of its date and the latest
-        of them (#275). Where they all start on the same date, that's the
-        value on curves from today with no hazard until then. Where they
-        start on different dates, no protection counts before the latest of
-        them, and the defaults until then of the names whose curves start
-        earlier count as before the protection starts (#331). The upfront is
-        taken as paid on the first coupon's accrual start, on the contract's
-        notional. It counts only if that's on or after today (#227), and not
-        at all if it falls before the discount curve's reference date
-        (#206).
+        curve dated after today, nothing is discounted from before its
+        reference date: a coupon paid after today and by then counts as paid
+        on it, and so do the claims and the premium accrued on a default in
+        the steps that end by then (#336). So the engine prices on such a
+        curve as on one from today that doesn't discount up to that date and
+        discounts as it does after. The default curves of the names left don't
+        reach back before their reference dates, so every probability is taken
+        on the later of its date and the latest of them (#275). Where they all
+        start on the same date, that's the value on curves from today with no
+        hazard until then. Where they start on different dates, no protection
+        counts before the latest of them, and the defaults until then of the
+        names whose curves start earlier count as before the protection starts
+        (#331). The upfront is taken as paid on the first coupon's accrual
+        start, on the contract's notional. It counts only if that's on or
+        after today (#227), and not at all if it falls before the discount
+        curve's reference date (#206): it's the one flow in that window left
+        out.
 
         Each coupon's protection, and the premium accrued on a default, are
         integrated in steps of the given size from where they start, the last

@@ -53,11 +53,12 @@ namespace QuantLib
             /* Both legs run from today (#228): each coupon not paid by today
                counts less the premium accrued before today, and so does the
                premium accrued on a default, with protection from the latest
-               of the coupon's accrual start, today, the discount curve's
-               reference date and the curves' date (#275). A coupon paid on or
-               before the discount curve's reference date doesn't count, which
-               leaves out only those paid before one dated after today. */
-            if (!i->hasOccurred(today) && d > discountCurve_->referenceDate())
+               of the coupon's accrual start, today and the curves' date
+               (#275). Nothing is discounted from before the discount curve's
+               reference date: a premium paid after today and by then, and the
+               claims and the premium accrued on a default in a step that ends
+               by then, count as paid on it (#336). */
+            if (!i->hasOccurred(today))
             {
                 const Real accruedBeforeToday = coupon->accruedAmount(today);
                 /*
@@ -73,11 +74,12 @@ namespace QuantLib
                 // prob of contract not having been triggered by date of payment
                 Probability probNonTriggered = 1. - basket->probAtLeastNEvents(n, std::max(d, curvesDate));
 
-                results_.premiumValue +=
-                    (i->amount() - accruedBeforeToday) * discountCurve_->discount(d) * probNonTriggered;
+                results_.premiumValue += (i->amount() - accruedBeforeToday) *
+                                         discountCurve_->discount(std::max(d, discountCurve_->referenceDate())) *
+                                         probNonTriggered;
                 ////   * (1.0 - defaultProb);
 
-                d = std::max({coupon->accrualStartDate(), today, discountCurve_->referenceDate()});
+                d = std::max(coupon->accrualStartDate(), today);
 
                 // do steps of specified size
                 d0 = d;
@@ -95,7 +97,7 @@ namespace QuantLib
                 const std::vector<Size> alive = basket->liveList();
                 do
                 {
-                    DiscountFactor disc = discountCurve_->discount(d);
+                    DiscountFactor disc = discountCurve_->discount(std::max(d, discountCurve_->referenceDate()));
 
                     Probability defProb1 = basket->probAtLeastNEvents(n, std::max(d, curvesDate));
                     Probability dcfdd = defProb1 - defProb0;
