@@ -26,6 +26,7 @@
 #include <ql/math/solvers1d/brent.hpp>
 #include <ql/math/solvers1d/newton.hpp>
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <tuple>
 
@@ -111,8 +112,11 @@ namespace QuantLib
     The tail probability and the expected excess of the loss over a level
     take the first-order forms, both from one tilted normal approximation,
     and the percentile and the expected shortfall come from them (#204). The
-    density keeps a higher-order expansion; see the paper by Antonov et al
-    for the terms retained.\par
+    density keeps the second-order expansion, see the paper by Antonov et al
+    for the terms retained, where its correction is no larger than its
+    leading term, and is that term alone elsewhere (#308); so given the
+    factor it steps where the correction reaches the leading term, to that
+    term from 0 or from twice it.\par
     For a discussion of an alternative to fix the error at low loss levels
     (more relevant to pricing than risk metrics) see: \par
     <b>The hybrid saddlepoint method for credit portfolios</b> by A.Owen,
@@ -121,10 +125,14 @@ namespace QuantLib
     For the more general context mathematical theory see: <b>Saddlepoint
     approximations with applications</b> by R.W. Butler, Cambridge series in
     statistical and probabilistic mathematics. 2007 \par
-    \todo The density's higher-order terms can make it negative in the
-        tails of the distribution given the factor and next to its atoms,
-        and NaN on a plateau, where the names' tilted probabilities saturate
-        below the total less the two smallest losses (#308).
+    \warning Next to an atom of the distribution given the factor that,
+        under the saddle point's tilt, names all but certain to default or
+        to survive make, the density rises like the inverse square root of
+        the distance to it, and is large at the atom itself (#324): on five
+        names that each lose 60, two of them on a loading of sqrt(0.999), it
+        is 747 one double below three defaults a year out, and 2.1e7 at
+        them, but within 0.1 below them it holds 6.5e-6 of probability,
+        against the atom's 0.0126.
     \todo Methods here are calling and integrating using the unconditional
         probabilities without inverting them first; quite a lot of calls to
         the copula inversion can be avoided; this should improve performance.
@@ -141,20 +149,25 @@ namespace QuantLib
         short of the level has at most one default, and above the total loss
         less those two, where a loss needs every name but one to default,
         both on top of the loss of the names the factor makes certain to
-        default; it comes from the approximation in between. There the
-        expected excess over a level is held between bounds that the exact
-        parts give, so that it meets them; the probability isn't, and steps
-        where the parts meet (#309). On 19 names that lose 80 to 99 each,
-        under a Gaussian copula and a T copula of order 3, the error in the
-        expected shortfall at levels up to 0.99 is at most 0.0002% of a
-        tranche of 3% of the basket, and 0.6% and 0.9% of a tranche of 10%;
-        until #205 the exact part below ended at the smallest loss, the parts
-        didn't meet, and those errors were 1.4% and 2.1%, and 0.8% and 1.2%.
-        On 20 names that each lose 60, the shortfall on a tranche of 10% is
-        within 0.03% of the exact value from the 55th percentile to the 81st,
-        and from there between 0.2% below it and 2.0% above, where the
-        percentile comes from the approximation, which has no atoms (#309);
-        until #205 it was up to 2.9% above.
+        default; it comes from the approximation in between. A name that
+        might default and loses more than those two together has its own
+        loss and the total less it in between, so where at most four do,
+        the model takes the others' distribution given each outcome of those
+        names, all defaulting or not, each with its own exact parts (#308);
+        where more do, the approximation, which smears their atoms (#325).
+        In between, the expected excess over a level is held between bounds
+        that the exact parts give, so that it meets them; the probability
+        isn't, and steps where the parts meet (#309). On 19 names that lose 80
+        to 99 each, under a Gaussian copula and a T copula of order 3, the
+        error in the expected shortfall at levels up to 0.99 is at most
+        0.0002% of a tranche of 3% of the basket, and 0.6% and 0.9% of a
+        tranche of 10%; until #205 the exact part below ended at the smallest
+        loss, the parts didn't meet, and those errors were 1.4% and 2.1%, and
+        0.8% and 1.2%. On 20 names that each lose 60, the shortfall on a
+        tranche of 10% is within 0.03% of the exact value from the 55th
+        percentile to the 81st, and from there between 0.2% below it and 2.0%
+        above, where the percentile comes from the approximation, which has no
+        atoms (#309); until #205 it was up to 2.9% above.
     \warning The percentile is the level at which the tail probability
         crosses 1 less the probability asked for, solved to 1e-4 of the
         tranche. Where the tail jumps across it at a loss of the exact
@@ -162,11 +175,13 @@ namespace QuantLib
         certain to default there lose, alone and plus each loss of the
         names that might default there up to their two smallest together,
         plus those two together, plus their total less each of these, and
-        plus their total (#307, #317). On the Trapezoid integration type,
-        whose nodes depend on what it integrates, it can still be solved to
-        1e-4 of the tranche at such a loss (#320). Neither it nor the
-        shortfall is above the most the tranche can lose, what the names
-        that can default by the date lose less its attachment.
+        plus their total (#307, #317), and the same for the others given
+        each outcome of the names that lose more than the two smallest
+        together, where the model takes them so (#308). On the Trapezoid
+        integration type, whose nodes depend on what it integrates, it can
+        still be solved to 1e-4 of the tranche at such a loss (#320). Neither
+        it nor the shortfall is above the most the tranche can lose, what the
+        names that can default by the date lose less its attachment.
     */
 
     /* The treatment of recovery wont work with random recoveries, they should
@@ -325,6 +340,7 @@ namespace QuantLib
             Probability all;  //!< the probability that every uncertain name defaults
             Real mean;        //!< what the uncertain names lose on average, E[U], an amount
             Real beyond;      //!< what they lose beyond the smallest loss of one on average, E[(U - smallest)^+]
+            Real largest;     //!< the greatest loss one default of an uncertain name causes, an amount
         };
         //! Whether a name is an uncertain one, given its default probability given the factor and its loss
         static bool uncertainName(Probability p, Real loss) { return p != 1. && p != 0. && loss > 0.; }
@@ -376,6 +392,62 @@ namespace QuantLib
             }
             return names.limits;
         }
+        //! the most big names a node is conditioned on, 2^maxBig tails a level
+        static constexpr Size maxBig = 4;
+        /*! Calls f(rest, w) for each outcome of the big names, the uncertain names that lose more than the two
+            smallest losses together, with rest the names with theirs set to 1 or 0 and w its probability; returns
+            false, calling nothing, where there are none or more than maxBig (#308). With more, the node keeps the
+            approximation (#325): conditioning on some of them leaves the others' atoms in the rests' bands, and
+            puts steps in the tail where the approximation has none.
+        */
+        template <class F>
+        bool forBigOutcomes(const NamesCond& names, F&& f) const
+        {
+            const LossLimits& limits = limitsOf(names);
+            if (limits.second == QL_MAX_REAL || !(limits.largest > limits.smallest + limits.second))
+                return false;
+            const Real e2 = limits.smallest + limits.second;
+            std::array<Size, maxBig> big;
+            Size nBig = 0;
+            for (Size i = 0; i < names.pDef.size(); i++)
+            {
+                Real loss = remainingNotionals_[i] * names.lgd[i];
+                if (uncertainName(names.pDef[i], loss) && loss > e2)
+                {
+                    if (nBig == maxBig)
+                        return false;
+                    big[nBig++] = i;
+                }
+            }
+            NamesCond rest;
+            rest.lgd = names.lgd;
+            for (Size mask = 0; mask < (Size(1) << nBig); mask++)
+            {
+                rest.pDef = names.pDef;
+                rest.limited = rest.joined = false;
+                Real w = 1.;
+                for (Size j = 0; j < nBig; j++)
+                {
+                    const Size i = big[j];
+                    const bool defaults = ((mask >> j) & 1) != 0;
+                    w *= defaults ? names.pDef[i] : 1. - names.pDef[i];
+                    rest.pDef[i] = defaults ? 1. : 0.;
+                }
+                if (w > 0.)
+                    f(static_cast<const NamesCond&>(rest), w);
+            }
+            return true;
+        }
+        //! whether a level lies between the exact regions of the names given the factor
+        bool inBand(const NamesCond& names, Real loss) const
+        {
+            const LossLimits& limits = limitsOf(names);
+            const Real rest = loss - limits.certain;
+            return loss > QL_EPSILON && limits.second < QL_MAX_REAL && rest > limits.smallest + limits.second &&
+                   rest <= limits.total - limits.smallest - limits.second;
+        }
+        Tail restTailCond(const NamesCond& names, Real loss, bool withExcess) const;
+        Probability restDensityCond(const NamesCond& names, Real loss) const;
         /*! With withExcess false, only the probability is wanted: the excess between the exact regions is then
             the approximation's own, not held to their bounds, which saves computing them.
         */
@@ -402,7 +474,7 @@ namespace QuantLib
         }
         LossLimits lossLimitsCond(const NamesCond& names) const
         {
-            LossLimits limits = {0., QL_MAX_REAL, QL_MAX_REAL, 0., 1., 0., 1., 0., 0.};
+            LossLimits limits = {0., QL_MAX_REAL, QL_MAX_REAL, 0., 1., 0., 1., 0., 0., 0.};
             // The sums are compensated (Neumaier's): a plain sum of losses that aren't exact in double can come out
             //   doubles away from the real one, and move the limits by as much.
             Real certainCompensation = 0., totalCompensation = 0.;
@@ -439,6 +511,7 @@ namespace QuantLib
                     }
                     else if (loss < limits.second)
                         limits.second = loss;
+                    limits.largest = std::max(limits.largest, loss);
                     limits.beyond += p * (loss * some + (loss - limits.smallest) * limits.none);
                     limits.mean += p * loss;
                     some += p * limits.none;
@@ -912,33 +985,22 @@ namespace QuantLib
     std::tuple<Real, Real, Real, Real> SaddlePointLossModel<CP>::CumGen0234DerivCond(const NamesCond& names,
                                                                                      Real saddle) const
     {
+        // Each name's terms are a Bernoulli variable's under the tilted measure (detail::tiltedName), as for the
+        //   tail: l^2 q t, l^3 q t (t - q) and l^4 q t (1 - 6 q t). Taken from powers of p e^{l s} over
+        //   1 - p + p e^{l s} they overflowed far out in the tilt, and lost their digits where a name's tilted
+        //   probability is near 1 (#308).
         const Size nNames = remainingNotionals_.size();
-        Real deriv0 = 0.,
-             // deriv1 = 0.,
-            deriv2 = 0., deriv3 = 0., deriv4 = 0.;
+        Real deriv0 = 0., deriv2 = 0., deriv3 = 0., deriv4 = 0.;
         for (Size iName = 0; iName < nNames; iName++)
         {
-            Probability pBuffer = names.pDef[iName];
             Real lossInDef = remainingNotionals_[iName] * names.lgd[iName] / remainingNotional_;
-
-            Real midFactor = pBuffer * std::exp(lossInDef * saddle);
-            Real denominator = 1. - pBuffer + midFactor;
-
-            const Real& suma0 = denominator;
-            const Real suma1 = lossInDef * midFactor;
-            const Real suma2 = lossInDef * suma1;
-            const Real suma3 = lossInDef * suma2;
-            const Real suma4 = lossInDef * suma3;
-
-            // To do: optimize these:
-            deriv0 += std::log(suma0);
-            // deriv1 += suma1 / suma0;
-            deriv2 += suma2 / suma0 - std::pow(suma1 / suma0, 2.);
-            deriv3 += (suma3 + (2. * std::pow(suma1, 3.) / suma0 - 3. * suma1 * suma2) / suma0) / suma0;
-            deriv4 += (suma4 + (-4. * suma1 * suma3 - 3. * suma2 * suma2 +
-                                (12. * suma1 * suma1 * suma2 - 6. * std::pow(suma1, 4.) / suma0) / suma0) /
-                                   suma0) /
-                      suma0;
+            Real logTerm, tiltedDefault, tiltedSurvival;
+            detail::tiltedName(names.pDef[iName], lossInDef * saddle, logTerm, tiltedDefault, tiltedSurvival);
+            const Real qt = tiltedDefault * tiltedSurvival, l2 = lossInDef * lossInDef;
+            deriv0 += logTerm;
+            deriv2 += l2 * qt;
+            deriv3 += l2 * lossInDef * qt * (tiltedSurvival - tiltedDefault);
+            deriv4 += l2 * l2 * qt * (1. - 6. * qt);
         }
         return {deriv0, deriv2, deriv3, deriv4};
     }
@@ -1148,7 +1210,10 @@ namespace QuantLib
         //   Trapezoid type's only the 65 a factor where it first stops
         //   (#320). Where every name that can default by the date might or
         //   must at the node, c + T is the total, which isn't tried: where
-        //   1 - p lies in its jump, the checks above have returned.
+        //   1 - p lies in its jump, the checks above have returned. Where the
+        //   tail at a node is taken given the outcomes of the names that lose
+        //   more than the two smallest together, so are its atoms, each
+        //   outcome's probability with its own (#308).
         Real level = attachAmount + trancheAmount * solut;
         Real reach = 2.e-4 * trancheAmount;
         Real step = 1.e-10 * remainingNotional_;
@@ -1161,73 +1226,81 @@ namespace QuantLib
         copula_->integratedExpectedValue(
             [&](const std::vector<Real>& v1)
             {
-                const NamesCond names = namesCond(invUncondProbs, v1);
-                const LossLimits& limits = limitsOf(names);
-                // the logarithms of the probabilities that no uncertain name
-                //   defaults and that every one does, taken once an atom
-                //   within reach needs them
-                Real logNone = 0., logAll = 0.;
-                bool logged = false;
-                auto logs = [&]()
+                const NamesCond node = namesCond(invUncondProbs, v1);
+                auto collect = [&](const NamesCond& names, Real logWeight)
                 {
-                    if (!logged)
+                    const LossLimits& limits = limitsOf(names);
+                    // the logarithms of the probabilities that no uncertain name
+                    //   defaults and that every one does, taken once an atom
+                    //   within reach needs them
+                    Real logNone = 0., logAll = 0.;
+                    bool logged = false;
+                    auto logs = [&]()
                     {
-                        for (Size i = 0; i < names.pDef.size(); i++)
-                            if (uncertainName(names.pDef[i], remainingNotionals_[i] * names.lgd[i]))
-                            {
-                                logNone += std::log1p(-names.pDef[i]);
-                                logAll += std::log(names.pDef[i]);
-                            }
-                        logged = true;
-                    }
-                };
-                auto take = [&](Real z, const auto& logMass)
-                {
-                    if (std::fabs(z - level) <= reach && z >= attachAmount && z <= attachAmount + trancheAmount &&
-                        std::fabs(z - total) > step &&
-                        std::none_of(atoms.begin(), atoms.end(), [&](Real a) { return std::fabs(a - z) <= step; }) &&
-                        logMass() >= logFloor)
-                        atoms.push_back(z);
-                };
-                take(limits.certain,
-                     [&]()
-                     {
-                         logs();
-                         return logNone;
-                     });
-                take(limits.certain + limits.total,
-                     [&]()
-                     {
-                         logs();
-                         return logAll;
-                     });
-                if (limits.second < QL_MAX_REAL)
-                {
-                    Real e2 = limits.smallest + limits.second;
-                    for (Size i = 0; i < names.pDef.size(); i++)
-                    {
-                        Real loss = remainingNotionals_[i] * names.lgd[i];
-                        Probability p = names.pDef[i];
-                        if (uncertainName(p, loss) && loss <= e2)
+                        if (!logged)
                         {
-                            // only this name defaults, and all but this one
-                            take(limits.certain + loss,
-                                 [&]()
-                                 {
-                                     logs();
-                                     return std::log(p) + logNone - std::log1p(-p);
-                                 });
-                            take(limits.certain + limits.total - loss,
-                                 [&]()
-                                 {
-                                     logs();
-                                     return std::log1p(-p) + logAll - std::log(p);
-                                 });
+                            for (Size i = 0; i < names.pDef.size(); i++)
+                                if (uncertainName(names.pDef[i], remainingNotionals_[i] * names.lgd[i]))
+                                {
+                                    logNone += std::log1p(-names.pDef[i]);
+                                    logAll += std::log(names.pDef[i]);
+                                }
+                            logNone += logWeight;
+                            logAll += logWeight;
+                            logged = true;
                         }
+                    };
+                    auto take = [&](Real z, const auto& logMass)
+                    {
+                        if (std::fabs(z - level) <= reach && z >= attachAmount && z <= attachAmount + trancheAmount &&
+                            std::fabs(z - total) > step &&
+                            std::none_of(atoms.begin(), atoms.end(),
+                                         [&](Real a) { return std::fabs(a - z) <= step; }) &&
+                            logMass() >= logFloor)
+                            atoms.push_back(z);
+                    };
+                    take(limits.certain,
+                         [&]()
+                         {
+                             logs();
+                             return logNone;
+                         });
+                    take(limits.certain + limits.total,
+                         [&]()
+                         {
+                             logs();
+                             return logAll;
+                         });
+                    if (limits.second < QL_MAX_REAL)
+                    {
+                        Real e2 = limits.smallest + limits.second;
+                        for (Size i = 0; i < names.pDef.size(); i++)
+                        {
+                            Real loss = remainingNotionals_[i] * names.lgd[i];
+                            Probability p = names.pDef[i];
+                            if (uncertainName(p, loss) && loss <= e2)
+                            {
+                                // only this name defaults, and all but this one
+                                take(limits.certain + loss,
+                                     [&]()
+                                     {
+                                         logs();
+                                         return std::log(p) + logNone - std::log1p(-p);
+                                     });
+                                take(limits.certain + limits.total - loss,
+                                     [&]()
+                                     {
+                                         logs();
+                                         return std::log1p(-p) + logAll - std::log(p);
+                                     });
+                            }
+                        }
+                        take(limits.certain + e2, [&]() { return logWeight; });
+                        take(limits.certain + limits.total - e2, [&]() { return logWeight; });
                     }
-                    take(limits.certain + e2, []() { return 0.; });
-                    take(limits.certain + limits.total - e2, []() { return 0.; });
-                }
+                };
+                if (!forBigOutcomes(node, [&](const NamesCond& rest, Real w) { collect(rest, std::log(w)); }))
+                    collect(node, 0.);
                 return 0.;
             });
         std::sort(atoms.begin(), atoms.end(),
@@ -1294,6 +1367,26 @@ namespace QuantLib
     template <class CP>
     typename SaddlePointLossModel<CP>::Tail
     SaddlePointLossModel<CP>::tailCond(const NamesCond& names, Real loss, bool withExcess) const
+    {
+        // Between the exact regions a name that loses more than the two
+        //   smallest together has atoms, its loss and the total less it;
+        //   given each outcome of such names the others' distribution has
+        //   exact regions of its own (#308).
+        Tail sum = {0., 0.};
+        if (inBand(names, loss) && forBigOutcomes(names,
+                                                  [&](const NamesCond& rest, Real w)
+                                                  {
+                                                      const Tail t = restTailCond(rest, loss, withExcess);
+                                                      sum.over += w * t.over;
+                                                      sum.excess += w * t.excess;
+                                                  }))
+            return sum;
+        return restTailCond(names, loss, withExcess);
+    }
+
+    template <class CP>
+    typename SaddlePointLossModel<CP>::Tail
+    SaddlePointLossModel<CP>::restTailCond(const NamesCond& names, Real loss, bool withExcess) const
     {
         // The expected loss given the factor is a pass over the names, and
         //   only this return and the approximation's two below it use it, so
@@ -1569,6 +1662,16 @@ namespace QuantLib
             return 0.;
 
         NamesCond names = namesCond(invUncondPs, mktFactor);
+        Probability sum = 0.;
+        if (inBand(names, loss) &&
+            forBigOutcomes(names, [&](const NamesCond& rest, Real w) { sum += w * restDensityCond(rest, loss); }))
+            return sum;
+        return restDensityCond(names, loss);
+    }
+
+    template <class CP>
+    Probability SaddlePointLossModel<CP>::restDensityCond(const NamesCond& names, Real loss) const
+    {
         Real relativeLoss = loss / remainingNotional_;
         // No set of defaults of the uncertain names loses more than nothing
         //   but less than the smallest loss of one, nor more than their total
@@ -1600,10 +1703,14 @@ namespace QuantLib
         Real K4Saddle = std::get<3>(cumulants);
         /* see, for instance R.Martin "he saddle point method and portfolio
         optionalities." in Risk December 2006 p.93 */
-        //\todo the exponentials below are dangerous and agressive, tame them.
-        return (1. + K4Saddle / (8. * std::pow(K2Saddle, 2.)) -
-                5. * std::pow(K3Saddle, 2.) / (24. * std::pow(K2Saddle, 3.))) *
-               std::exp(K0Saddle - saddlePt * relativeLoss) / (std::sqrt(2. * M_PI * K2Saddle));
+        Real leading = std::exp(K0Saddle - saddlePt * relativeLoss) / (std::sqrt(2. * M_PI * K2Saddle));
+        Real factor = 1. + K4Saddle / (8. * K2Saddle * K2Saddle) -
+                      5. * K3Saddle * K3Saddle / (24. * K2Saddle * K2Saddle * K2Saddle);
+        // The second-order factor only where its correction is no larger
+        //   than the leading term, else the leading term alone (#308): where
+        //   one name decides the level the factor is negative, and where the
+        //   tilted distribution closes on an atom it grows like 1/K2.
+        return std::abs(factor - 1.) <= 1. ? factor * leading : leading;
     }
 
     /*    NOTICE THIS IS ON THE TOTAL PORTFOLIO ---- UNTRANCHED..

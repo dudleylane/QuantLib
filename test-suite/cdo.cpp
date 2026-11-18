@@ -1574,15 +1574,15 @@ BOOST_AUTO_TEST_CASE(testSaddlePointProbabilityOverALossOnNamesThatDiffer)
     BOOST_CHECK_EQUAL(basket->percentile(left.horizon, 0.3), 0.0);
 }
 
-// Four names of notional 100 with the hazards given, and recoveries of 0.4 and loadings of sqrt(0.3) unless given, on
-// one factor, Gaussian copula; a saddle-point model on the whole pool, and the exact probability of a loss of at least
-// y.
+// Four names with the hazards given, and recoveries of 0.4, loadings of sqrt(0.3) and notionals of 100 unless given,
+// on one factor, Gaussian copula; a saddle-point model on the whole pool, and the exact probability of a loss of at
+// least y.
 struct FourNames
 {
     Date today{31, August, 2006};
     Date horizon{1, September, 2011};
     std::vector<std::string> names;
-    std::vector<Real> notionals = std::vector<Real>(4, 100.0);
+    std::vector<Real> notionals;
     std::vector<Real> recoveries;
     ext::shared_ptr<Pool> pool = ext::make_shared<Pool>();
     ext::shared_ptr<GaussianConstantLossLM> latent;
@@ -1592,8 +1592,9 @@ struct FourNames
 
     FourNames(const std::vector<Real>& hazards,
               std::vector<Real> recoveries = std::vector<Real>(4, 0.4),
-              const std::vector<Real>& loadings = std::vector<Real>(4, std::sqrt(0.3)))
-    : recoveries(std::move(recoveries))
+              const std::vector<Real>& loadings = std::vector<Real>(4, std::sqrt(0.3)),
+              std::vector<Real> notionals = std::vector<Real>(4, 100.0))
+    : notionals(std::move(notionals)), recoveries(std::move(recoveries))
     {
         Settings::instance().evaluationDate() = today;
         const NorthAmericaCorpDefaultKey key(EURCurrency(), SeniorSec, Period(), 1.);
@@ -1615,7 +1616,7 @@ struct FourNames
         };
         latent = latentModel();
         model = ext::make_shared<SaddlePointLossModel<GaussianCopulaPolicy>>(latentModel());
-        basket = ext::make_shared<Basket>(today, names, notionals, pool, 0.0, 1.0);
+        basket = ext::make_shared<Basket>(today, names, this->notionals, pool, 0.0, 1.0);
         basket->setLossModel(model);
         // the basket hands itself to the model as it first calculates, which the model's own statistics need
         trancheNotional = basket->remainingTrancheNotional();
@@ -1857,7 +1858,7 @@ BOOST_AUTO_TEST_CASE(testSaddlePointWhereNoNameIsLikelyToDefault)
 }
 
 // The saddle point's tail given the market factor, which the model keeps to itself: P(L >= y | M) and
-// E[L 1{L >= y} | M] on the whole pool, and the tail itself, P(L >= y | M) and E[(L - y)^+ | M].
+// E[L 1{L >= y} | M] on the whole pool, the tail itself, P(L >= y | M) and E[(L - y)^+ | M], and the density.
 template <class CP>
 class SaddlePointTailGivenTheFactor : public SaddlePointLossModel<CP>
 {
@@ -1866,6 +1867,7 @@ class SaddlePointTailGivenTheFactor : public SaddlePointLossModel<CP>
     using SaddlePointLossModel<CP>::probOverLossPortfCond;
     using SaddlePointLossModel<CP>::expectedShortfallFullPortfolioCond;
     using SaddlePointLossModel<CP>::tailCond;
+    using SaddlePointLossModel<CP>::probDensityCond;
 };
 
 BOOST_AUTO_TEST_CASE(testSaddlePointTailFarAboveTheLikelyLosses)
@@ -2897,11 +2899,12 @@ BOOST_AUTO_TEST_CASE(testSaddlePointPercentileAtJumpsOfTheFactorsNodes)
 
     /* A name at a hazard rate of 10 defaults by the date with a probability that rounds to 1, so it is certain to
        default at every node, under Gaussian factors and t factors of order 5 alike, and with three names left the
-       regions cover every level but those between the regions on 10 beside 20, 40 and 70, 70 and 80. The jumps off
-       the list: on 100 certain beside 10, 20 and 30, at 100, c alone, and 110 and 120, c plus a loss; on 10 certain
-       beside 20, 40 and 70, at 50, c plus a loss, 70, c plus the two smallest, 80, c plus the total less those two,
-       and 100, c plus the total less 40; on #317's 60 certain beside 70, 80 and 90, at 140, c plus 80, and 150. The
-       second pool, with a jump of four of those kinds, is checked under t factors of order 5 too. */
+       regions cover every level, on 10 beside 20, 40 and 70 since the model takes the others given the outcome of 70,
+       which loses more than 20 and 40 together (#308); until then the levels between 70 and 80 came from its expansion.
+       The jumps off the list: on 100 certain beside 10, 20 and 30, at 100, c alone, and 110 and 120, c plus a loss; on
+       10 certain beside 20, 40 and 70, at 50, c plus a loss, 70, c plus the two smallest, 80, c plus the total less
+       those two, and 100, c plus the total less 40; on #317's 60 certain beside 70, 80 and 90, at 140, c plus 80, and
+       150. The second pool, with a jump of four of those kinds, is checked under t factors of order 5 too. */
     struct Certain
     {
         std::string pool;
@@ -2992,19 +2995,20 @@ BOOST_AUTO_TEST_CASE(testSaddlePointPercentileAtJumpsOfTheFactorsNodes)
        on a loading of 0.5, the regions there jump at 80 and 90, the others' total less 40 and 30, at 100, c alone, at
        120, the others' total, and at 130 and 140, c plus a loss; beside 60, 70 and 80 at 140 and 150, the others'
        total less 70 and 60, and at 160 and 170, c plus a loss. At the 14 nodes between, the fourth name's probability
-       given the factor is neither 0 nor 1, and the model's distribution comes from its expansion, so only the
-       percentile is checked. Just below 120, from 119.8, P(L >= y) rises toward the jump, from the nodes where that
-       probability is 2.2e-25 to 2.3e-278 (#308), so a tenth of the way down the jump the percentile is where P falls
-       across 1 - p before it, 118.903, and it is checked half and nine tenths of the way down. Half way down 1 - p is
-       below the least P before the jump by 8.8e-6, 8 % of the jump. */
-    for (const auto& [pool, recoveries, jumps] :
-         std::vector<std::tuple<std::string, std::vector<Real>, std::vector<Real>>>{
+       given the factor is neither 0 nor 1. Beside 60, 70 and 80 the model's distribution there comes from its
+       expansion, so only the percentile is checked. Beside 30, 40 and 50 the fourth name loses more than the two
+       smallest together, and the model takes the others' distribution given its default and given its survival
+       (#308), which is exact: so the percentile is checked all the way down each jump, and the shortfall too. */
+    for (const auto& [pool, recoveries, jumps, exactThere] :
+         std::vector<std::tuple<std::string, std::vector<Real>, std::vector<Real>, bool>>{
              {"100 on a loading of sqrt(0.999) beside 30, 40 and 50",
               {0.7, 0.6, 0.5, 0.0},
-              {80.0, 90.0, 100.0, 120.0, 130.0, 140.0}},
+              {80.0, 90.0, 100.0, 120.0, 130.0, 140.0},
+              true},
              {"100 on a loading of sqrt(0.999) beside 60, 70 and 80",
               {0.4, 0.3, 0.2, 0.0},
-              {140.0, 150.0, 160.0, 170.0}}})
+              {140.0, 150.0, 160.0, 170.0},
+              false}})
     {
         const FourNames four({fivePercent, fivePercent, fivePercent, onePercent}, recoveries,
                              {0.5, 0.5, 0.5, std::sqrt(0.999)});
@@ -3014,8 +3018,259 @@ BOOST_AUTO_TEST_CASE(testSaddlePointPercentileAtJumpsOfTheFactorsNodes)
         const std::map<Real, Probability> exact =
             exactLossesOfFourNames(*four.latent, four.basket->remainingProbabilities(four.horizon), losses);
         for (Real z : jumps)
-            check(pool, four.model, four.basket, four.horizon, exact, z,
-                  z == 120.0 ? std::vector<Real>{0.5, 0.9} : everywhere, false);
+            check(pool, four.model, four.basket, four.horizon, exact, z, everywhere, exactThere);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testSaddlePointBesideANameThatLosesMoreThanTheTwoSmallestTogether)
+{
+    BOOST_TEST_MESSAGE("Testing the saddle point beside a name that loses more than the two smallest together...");
+
+    /* Given the factor, between the two smallest losses of the names that might default, taken together, and their
+       total less those two, the model's distribution comes from its expansion. A name that loses more than the two
+       smallest together has two atoms there, its own loss and the total less it, and the expansion smeared them
+       (#308): beside three names that lose 60 on a loading of sqrt(0.3), a name that loses 150 on a loading of
+       sqrt(0.999) gave P(L >= 180) by the horizon as 0.12869 against an exact 0.124836, put the percentile up to 24
+       off the jumps at 150 and 180, and given the factor its P(L >= y) rose with y. Where at most four names might
+       default and lose that much, the model now takes the others' distribution given each of their outcomes, all of
+       them defaulting or not. Here that is exact, as three names alike have no levels between their regions, and so
+       are P(L >= y), the percentile and the shortfall. */
+    const FourNames four({0.01, 0.02, 0.03, 0.05}, std::vector<Real>(4, 0.4),
+                         {std::sqrt(0.3), std::sqrt(0.3), std::sqrt(0.3), std::sqrt(0.999)},
+                         {100.0, 100.0, 100.0, 250.0});
+    const std::vector<Real> losses = {60.0, 60.0, 60.0, 150.0};
+    for (const Date& d : {Date(31, August, 2007), four.horizon})
+    {
+        const std::map<Real, Probability> exact =
+            exactLossesOfFourNames(*four.latent, four.basket->remainingProbabilities(d), losses);
+        for (Real y : {121.0, 135.0, 149.0, 151.0, 165.0, 179.0, 181.0, 195.0, 209.0})
+        {
+            BOOST_TEST_CONTEXT(d << ", a loss of " << y)
+            {
+                BOOST_CHECK_SMALL(four.model->probOverPortfLoss(d, y) - probabilityAtOrOver(exact, y), 1.0e-12);
+            }
+        }
+        // 1 - p a tenth, half and nine tenths of the way down each jump between the two smallest losses together and
+        // the total less those two
+        for (const auto& [z, next] : std::vector<std::pair<Real, Real>>{{120.0, 150.0}, {150.0, 180.0}, {180.0, 210.0}})
+        {
+            const Probability atOrOver = probabilityAtOrOver(exact, z), over = probabilityAtOrOver(exact, next);
+            for (Real down : {0.1, 0.5, 0.9})
+            {
+                const Probability p = 1.0 - (atOrOver - down * (atOrOver - over));
+                BOOST_TEST_CONTEXT(d << ", at the jump at " << z << ", " << down << " of the way down")
+                {
+                    BOOST_CHECK_SMALL(four.basket->percentile(d, p) - z, 1.0e-9);
+                    BOOST_CHECK_SMALL(four.basket->expectedShortfall(d, p) -
+                                          trancheShortfall(exact, 0.0, four.basket->detachmentAmount(), z, p),
+                                      1.0e-9);
+                }
+            }
+        }
+    }
+
+    /* Given the factor the density is 0 between the atoms of a distribution with no levels between its exact regions.
+       The model conditions on the name that loses 150, and given each of its outcomes the three names that lose 60
+       have none: so at every node, at the levels above, the density is 0, where the expansion put mass between the
+       atoms. */
+    {
+        const auto model = ext::make_shared<SaddlePointTailGivenTheFactor<GaussianCopulaPolicy>>(four.latent);
+        const auto basket = ext::make_shared<Basket>(four.today, four.names, four.notionals, four.pool, 0.0, 1.0);
+        basket->setLossModel(model);
+        // the basket hands itself to the model as it first calculates, which the model's density given the factor needs
+        BOOST_REQUIRE_EQUAL(basket->remainingTrancheNotional(), 550.0);
+        std::vector<Real> factors;
+        four.latent->integratedExpectedValue(
+            [&](const std::vector<Real>& m)
+            {
+                factors.push_back(m[0]);
+                return 0.0;
+            });
+        for (const Date& d : {Date(31, August, 2007), four.horizon})
+        {
+            std::vector<Real> inverse = basket->remainingProbabilities(d);
+            for (Size i = 0; i < inverse.size(); ++i)
+                inverse[i] = four.latent->inverseCumulativeY(inverse[i], i);
+            for (Real y : {121.0, 135.0, 149.0, 151.0, 165.0, 179.0, 181.0, 195.0, 209.0})
+            {
+                Size notZero = 0;
+                for (Real m : factors)
+                {
+                    if (model->probDensityCond(inverse, y, std::vector<Real>(1, m)) != 0.0)
+                        ++notZero;
+                }
+                BOOST_TEST_CONTEXT("the density, " << d << ", at a loss of " << y)
+                {
+                    BOOST_CHECK_EQUAL(notZero, 0U);
+                    BOOST_CHECK_EQUAL(model->probDensity(d, y), 0.0);
+                }
+            }
+        }
+    }
+
+    /* Beside two names that lose 30, the names that lose 100 and 150 both lose more than the two together, and the
+       model takes the two that lose 30 given each of the four outcomes of the others, which leaves them no levels
+       between their regions either. */
+    const FourNames two({0.01, 0.02, 0.03, 0.05}, {0.7, 0.7, 0.0, 0.4}, std::vector<Real>(4, std::sqrt(0.3)),
+                        {100.0, 100.0, 100.0, 250.0});
+    const std::vector<Real> twoLosses = {30.0, 30.0, 100.0, 150.0};
+    for (const Date& d : {Date(31, August, 2007), two.horizon})
+    {
+        const std::map<Real, Probability> exact =
+            exactLossesOfFourNames(*two.latent, two.basket->remainingProbabilities(d), twoLosses);
+        for (Real y : {61.0, 99.0, 101.0, 129.0, 131.0, 149.0, 151.0, 159.0, 161.0, 179.0, 181.0, 209.0, 211.0, 249.0})
+        {
+            BOOST_TEST_CONTEXT("beside two names that lose 30, " << d << ", a loss of " << y)
+            {
+                BOOST_CHECK_SMALL(two.model->probOverPortfLoss(d, y) - probabilityAtOrOver(exact, y), 1.0e-12);
+            }
+        }
+        for (const auto& [z, next] : std::vector<std::pair<Real, Real>>{
+                 {100.0, 130.0}, {130.0, 150.0}, {150.0, 160.0}, {160.0, 180.0}, {180.0, 210.0}, {210.0, 250.0}})
+        {
+            const Probability atOrOver = probabilityAtOrOver(exact, z), over = probabilityAtOrOver(exact, next);
+            for (Real down : {0.1, 0.5, 0.9})
+            {
+                const Probability p = 1.0 - (atOrOver - down * (atOrOver - over));
+                BOOST_TEST_CONTEXT("beside two names that lose 30, " << d << ", at the jump at " << z << ", " << down
+                                                                     << " of the way down")
+                {
+                    BOOST_CHECK_SMALL(two.basket->percentile(d, p) - z, 1.0e-9);
+                    BOOST_CHECK_SMALL(two.basket->expectedShortfall(d, p) -
+                                          trancheShortfall(exact, 0.0, two.basket->detachmentAmount(), z, p),
+                                      1.0e-9);
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testSaddlePointDensityIsFiniteAndNotNegative)
+{
+    BOOST_TEST_MESSAGE("Testing that the saddle point's density is finite and not negative...");
+
+    /* Given the factor, between the two smallest losses of the names that might default, taken together, and their
+       total less those two, the density was the expansion's second-order form, its terms sums of powers of p e^{l s}
+       over 1 - p + p e^{l s}, name by name, at the saddle point s (#308). Beside two names that lose 40 and 50 on a
+       loading of sqrt(0.3), two that lose 60 and 80 on a loading of sqrt(0.999) can all but never default at the
+       factor's nodes from -1.4 to -0.8 a year out, and from -0.5 to 0 by the horizon, with probabilities from 1.9e-16
+       down to 1.3e-259. There a loss of 95 needs one of them, and s runs from 167.5 to 1,845. At the furthest node the
+       powers overflowed and the density was -inf; at the others the second-order factor was negative, as it is where
+       one name decides the level and defaults under the tilt with a probability of 1/16, and so was the density.
+       Integrated, it was -inf at every level from 91 to 139 off the losses the names make. Each name's terms are now
+       a Bernoulli variable's under the tilt, as the tail's are, and where the second-order factor's correction is
+       larger than the leading term the density is that term alone. */
+    const FourNames four({0.01, 0.02, 0.03, 0.05}, {0.6, 0.5, 0.4, 0.2},
+                         {std::sqrt(0.3), std::sqrt(0.3), std::sqrt(0.999), std::sqrt(0.999)});
+    const auto model = ext::make_shared<SaddlePointTailGivenTheFactor<GaussianCopulaPolicy>>(four.latent);
+    const auto basket = ext::make_shared<Basket>(four.today, four.names, four.notionals, four.pool, 0.0, 1.0);
+    basket->setLossModel(model);
+    // the basket hands itself to the model as it first calculates, which the model's density given the factor needs
+    BOOST_REQUIRE_EQUAL(basket->remainingTrancheNotional(), 400.0);
+    std::vector<Real> factors;
+    four.latent->integratedExpectedValue(
+        [&](const std::vector<Real>& m)
+        {
+            factors.push_back(m[0]);
+            return 0.0;
+        });
+    for (const Date& d : {Date(31, August, 2007), four.horizon})
+    {
+        std::vector<Real> inverse = basket->remainingProbabilities(d);
+        for (Size i = 0; i < inverse.size(); ++i)
+            inverse[i] = four.latent->inverseCumulativeY(inverse[i], i);
+        for (Real y = 91.0; y < 140.0; y += 1.0)
+        {
+            if (std::fmod(y, 10.0) == 0.0)
+                continue;
+            Size failing = 0;
+            for (Real m : factors)
+            {
+                const Real density = model->probDensityCond(inverse, y, std::vector<Real>(1, m));
+                if (!std::isfinite(density) || density < 0.0)
+                    ++failing;
+            }
+            const Real density = model->probDensity(d, y);
+            BOOST_TEST_CONTEXT(d << ", a loss of " << y)
+            {
+                BOOST_CHECK_EQUAL(failing, 0U);
+                BOOST_CHECK(std::isfinite(density));
+                BOOST_CHECK_GE(density, 0.0);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testSaddlePointDensityNextToAnAtom)
+{
+    BOOST_TEST_MESSAGE("Testing the saddle point's density next to an atom of the loss...");
+
+    /* Five names that each lose 60, the last two on a loading of sqrt(0.999), make an atom at 180, three defaults, of
+       0.0126 a year out and 0.0771 by the horizon. At nodes of the factor where, under the saddle point's tilt, three
+       names are all but certain to default and two to survive, the tilted distribution closes on the atom as the
+       level nears it, and its variance K2 falls with the distance. The density there was negative from 0.1 below the
+       atom, and not a number at it a year out (#308). With its terms taken name by name, the expansion's second-order
+       factor, 1 + K4/(8 K2^2) - 5 K3^2/(24 K2^3), grows like 1/K2 there, to 3e12, and kept wherever it isn't negative
+       it put 21 times the atom's mass a year out, and 54 times by the horizon, between 1e-13 and 0.1 below it. It is
+       kept only where its correction is no larger than the leading term, and within 0.1 below the atom the density
+       now holds 6.5e-6 and 2.85e-5 of probability, though it still rises toward the atom (#324). */
+    const Date today(31, August, 2006);
+    Settings::instance().evaluationDate() = today;
+    const NorthAmericaCorpDefaultKey key(EURCurrency(), SeniorSec, Period(), 1.);
+    const std::vector<Real> hazards = {0.01, 0.02, 0.03, 0.05, 0.04};
+    auto pool = ext::make_shared<Pool>();
+    std::vector<std::string> names;
+    std::vector<std::vector<Real>> factors;
+    for (Size i = 0; i < hazards.size(); ++i)
+    {
+        names.push_back("issuer-" + std::to_string(i));
+        const Handle<DefaultProbabilityTermStructure> curve(
+            ext::make_shared<FlatHazardRate>(today, makeQuoteHandle(hazards[i]), ActualActual(ActualActual::ISDA)));
+        pool->add(names.back(), Issuer(std::vector<Issuer::key_curve_pair>(1, std::make_pair(key, curve))), key);
+        factors.emplace_back(1, i < 3 ? std::sqrt(0.3) : std::sqrt(0.999));
+    }
+    const auto latent = ext::make_shared<GaussianConstantLossLM>(factors, std::vector<Real>(5, 0.4),
+                                                                 LatentModelIntegrationType::GaussianQuadrature,
+                                                                 GaussianCopulaPolicy::initTraits());
+    const auto model = ext::make_shared<SaddlePointLossModel<GaussianCopulaPolicy>>(latent);
+    const auto basket = ext::make_shared<Basket>(today, names, std::vector<Real>(5, 100.0), pool, 0.0, 1.0);
+    basket->setLossModel(model);
+    // the basket hands itself to the model as it first calculates, which the model's own statistics need
+    BOOST_REQUIRE_EQUAL(basket->remainingTrancheNotional(), 500.0);
+    for (const Date& d : {Date(31, August, 2007), Date(1, September, 2011)})
+    {
+        // P(L = 180), exact: three defaults given the factor, integrated on the latent model's own rule
+        std::vector<Real> inverse = basket->remainingProbabilities(d);
+        for (Size i = 0; i < inverse.size(); ++i)
+            inverse[i] = latent->inverseCumulativeY(inverse[i], i);
+        const Probability atom = latent->integratedExpectedValue(
+            [&](const std::vector<Real>& factor)
+            {
+                std::vector<Probability> p;
+                for (Size i = 0; i < inverse.size(); ++i)
+                    p.push_back(latent->conditionalDefaultProbabilityInvP(inverse[i], i, factor));
+                return DefaultsGivenTheFactor(p).count[3];
+            });
+        // the density is of the loss as a fraction of the notional: over the loss, within 0.1 below the atom and from
+        // 1e-13 below it, by the trapezoid rule on 40 points a decade, its integral over the notional is a probability
+        Probability mass = 0.0;
+        Real previousDistance = 0.0, previousDensity = 0.0;
+        Size failing = 0;
+        for (int k = 480; k >= 0; --k)
+        {
+            const Real distance = 0.1 * std::pow(10.0, -k / 40.0), density = model->probDensity(d, 180.0 - distance);
+            if (!std::isfinite(density) || density < 0.0)
+                ++failing;
+            if (k < 480)
+                mass += 0.5 * (density + previousDensity) * (distance - previousDistance) / 500.0;
+            previousDistance = distance;
+            previousDensity = density;
+        }
+        BOOST_TEST_CONTEXT(d)
+        {
+            BOOST_CHECK_EQUAL(failing, 0U);
+            BOOST_CHECK_LT(mass, atom);
+        }
     }
 }
 
