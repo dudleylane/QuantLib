@@ -137,13 +137,22 @@ namespace QuantLib
         probabilities without inverting them first; quite a lot of calls to
         the copula inversion can be avoided; this should improve performance.
     \warning The expected shortfall is the percentile plus the expected
-        excess of the tranche's loss over it. Given the factor, both come
-        from a smooth approximation, and where names lose alike the
-        distribution is a lattice: far in its tail, and just above its
-        atoms, the approximation is off. On 20 names that each lose 60 of
-        100, with a correlation of 0.3, the shortfall on 50% to 100% of the
-        basket is 9% below the exact value at five years and 12% at one
-        (#309); until #204 it was 42% and 63% below.
+        excess of the tranche's loss over it, and the expected tranche loss
+        is the shortfall at 0: given the factor, the expected excess of the
+        loss over the attachment less that over the detachment (#262).
+        Given the factor, these come from a smooth approximation, and where
+        names lose alike the distribution is a lattice: far in its tail, and
+        just above its atoms, the approximation is off (#309), as it is
+        beside more than four names that might default and lose more than
+        the two smallest together, whose atoms it smears (#325). On 20 names
+        that each lose 60 of 100, with a correlation of 0.3, the shortfall
+        on 50% to 100% of the basket is 9% below the exact value at five
+        years and 12% at one; until #204 it was 42% and 63% below. On the
+        same names the expected losses of the tranches from 6% to 9%, 9% to
+        12% and 12% to 22% are each off by up to 10% at one year and 5.9% at
+        five, under a Gaussian copula or a T copula of order 3; until #262
+        they were the expected loss given the factor, tranched, and were off
+        by up to 61% and 40%.
     \warning Given the factor, the loss distribution is exact up to the two
         smallest losses one default causes, taken together, where a loss
         short of the level has at most one default, and above the total loss
@@ -1778,18 +1787,9 @@ namespace QuantLib
     Real SaddlePointLossModel<CP>::conditionalExpectedTrancheLoss(const std::vector<Real>& invUncondProbs,
                                                                   const std::vector<Real>& mktFactor) const
     {
-        const Size nNames = remainingNotionals_.size();
-        Real eloss = 0.;
-        /// USE STL.....-------------------
-        for (Size iName = 0; iName < nNames; iName++)
-        {
-            Probability pBuffer =
-                copula_->conditionalDefaultProbabilityInvP(invUncondProbs[iName], liveNames_[iName], mktFactor);
-            eloss += pBuffer * remainingNotionals_[iName] *
-                     (1. - copula_->conditionalRecoveryInvP(invUncondProbs[iName], liveNames_[iName], mktFactor));
-        }
-        return std::min(std::max(eloss - attachRatio_ * remainingNotional_, 0.),
-                        (detachRatio_ - attachRatio_) * remainingNotional_);
+        // What the tranche loses given the factor, E[min((L - a)^+, d - a)], is E[(L - a)^+] - E[(L - d)^+], each
+        //   from the tail, where it was the expected loss tranched, min((E[L] - a)^+, d - a) (#262).
+        return expectedShortfallTrancheCond(invUncondProbs, attachRatio_ * remainingNotional_, mktFactor);
     }
 
     template <class CP>
