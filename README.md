@@ -181,6 +181,7 @@ no longer checks them, and no CI job builds any of them.
 | #316 | `ql/experimental/credit/saddlepointlossmodel.hpp` | The saddle-point model compares its tranche fraction with 1, so on a basket whose notionals add up to 1 its probability over a loss isn't 0 above the detachment amount, and its percentile reaches the whole tranche |
 | #307 | `ql/experimental/credit/saddlepointlossmodel.hpp` | Where 1 - p lies inside a jump of the saddle-point model's exact regions, its percentile is the loss the jump is at, and neither it nor the shortfall is above the most the tranche can lose |
 | #318 | `ql/experimental/credit/saddlepointlossmodel.hpp` | A name that can't default given the factor no longer moves the saddle-point model's exact regions off the losses the other names make |
+| #317 | `ql/experimental/credit/saddlepointlossmodel.hpp` | The saddle-point model's percentile takes the losses its exact regions jump at from each node of the factor, so it is the loss a jump is at also where names certain to default at a node, or unable to, move the jumps off the losses of the names that can default by the date (#320 stays open for the Trapezoid integration type) |
 
 ### New in this fork
 
