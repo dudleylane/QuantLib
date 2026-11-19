@@ -265,7 +265,13 @@ namespace QuantLib
         static Integration discreteTrapezoid(Size evaluation = 1000);
         static Integration expSinh(Real relTolerance = 1e-8);
 
-        static Real andersenPiterbargIntegrationLimit(Real c_inf, Real epsilon, Real v0, Real t);
+        /* The larger of the roots where e^{-c_inf u} / u and the Gaussian e^{-v t u^2 / 2} / u fall to epsilon.
+           AnalyticHestonEngine passes the average variance theta + (v0 - theta) (1 - e^{-kappa t}) / (kappa t) as v,
+           the variance the characteristic function decays at as a Gaussian below u of about 1 / (sigma t); it passed
+           v0 until #339. AnalyticPTDHestonEngine still passes v0 (#344): on piecewise parameters an average of them
+           needn't give the variance the integrand decays at, and its c_inf, the decay rate as u goes to infinity,
+           can overstate the decay over the range the integral needs. */
+        static Real andersenPiterbargIntegrationLimit(Real c_inf, Real epsilon, Real v, Real t);
 
         Real calculate(Real c_inf,
                        const std::function<Real(Real)>& f,
