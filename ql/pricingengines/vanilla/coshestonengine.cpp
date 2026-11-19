@@ -19,6 +19,7 @@
 */
 
 #include <ql/math/functional.hpp>
+#include <ql/pricingengines/vanilla/analytichestonengine.hpp>
 #include <ql/pricingengines/vanilla/coshestonengine.hpp>
 
 namespace QuantLib
@@ -126,18 +127,10 @@ namespace QuantLib
 
     std::complex<Real> COSHestonEngine::chF(Real u, Real t) const
     {
-        const Real sigma2 = sigma_ * sigma_;
-
-        const std::complex<Real> D =
-            std::sqrt(squared(std::complex<Real>(kappa_, -rho_ * sigma_ * u)) + std::complex<Real>(u * u, u) * sigma2);
-
-        const std::complex<Real> g(kappa_, -rho_ * sigma_ * u);
-
-        const std::complex<Real> G = (g - D) / (g + D);
-
-        return std::exp(v0_ / (sigma2) * (1.0 - std::exp(-D * t)) / (1.0 - G * std::exp(-D * t)) * (g - D) +
-                        kappa_ * theta_ / sigma2 *
-                            ((g - D) * t - 2.0 * std::log((1.0 - G * std::exp(-D * t)) / (1.0 - G))));
+        // The characteristic function in Andersen and Lake's form, as AnalyticHestonEngine::lnChF takes it.
+        // Gatheral's form, as written here before, took g - D as a difference, which cancels where sigma u is small
+        // against kappa, and 1 / sigma^2 carried its rounding into the exponent (#350).
+        return std::exp(detail::hestonLnChF(kappa_, theta_, sigma_, rho_, v0_, std::complex<Real>(u, 0.0), t));
     }
 
     /*

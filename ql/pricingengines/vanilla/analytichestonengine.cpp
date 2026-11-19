@@ -325,18 +325,13 @@ namespace QuantLib
       private:
         const Size j_;
         //     const VanillaOption::arguments& arg_;
-        const Real kappa_, theta_, sigma_, v0_;
+        const Real kappa_, theta_, sigma_, v0_, rho_;
         const ComplexLogFormula cpxLog_;
 
         // helper variables
         const Time term_;
         const Real x_, sx_, dd_;
-        const Real sigma2_, rsigma_;
-        const Real t0_;
-
-        // log branch counter
-        mutable int b_ = 0;      // log branch counter
-        mutable Real g_km1_ = 0; // imag part of last log value
+        const Real rsigma_;
 
         const AnalyticHestonEngine* const engine_;
     };
@@ -353,9 +348,8 @@ namespace QuantLib
                                                Real strike,
                                                Real ratio,
                                                Size j)
-    : j_(j), kappa_(kappa), theta_(theta), sigma_(sigma), v0_(v0), cpxLog_(cpxLog), term_(term), x_(std::log(s0)),
-      sx_(std::log(strike)), dd_(x_ - std::log(ratio)), sigma2_(sigma_ * sigma_), rsigma_(rho * sigma_),
-      t0_(kappa - ((j == 1) ? rho * sigma : Real(0))),
+    : j_(j), kappa_(kappa), theta_(theta), sigma_(sigma), v0_(v0), rho_(rho), cpxLog_(cpxLog), term_(term),
+      x_(std::log(s0)), sx_(std::log(strike)), dd_(x_ - std::log(ratio)), rsigma_(rho * sigma_),
 
       engine_(engine)
     {
@@ -363,44 +357,30 @@ namespace QuantLib
 
     Real AnalyticHestonEngine::Fj_Helper::operator()(Real phi) const
     {
-        const Real rpsig(rsigma_ * phi);
-
-        const std::complex<Real> t1 = t0_ + std::complex<Real>(0, -rpsig);
-        const std::complex<Real> d = std::sqrt(t1 * t1 - sigma2_ * phi * std::complex<Real>(-phi, (j_ == 1) ? 1 : -1));
-        const std::complex<Real> ex = std::exp(-d * term_);
         const std::complex<Real> addOnTerm = engine_ != nullptr ? engine_->addOnTerm(phi, term_, j_) : Real(0.0);
 
-        if (cpxLog_ == Gatheral)
+        if (cpxLog_ == Gatheral || cpxLog_ == BranchCorrection)
         {
             if (phi != 0.0)
             {
-                if (sigma_ > 1e-5)
-                {
-                    const std::complex<Real> p = (t1 - d) / (t1 + d);
-                    const std::complex<Real> g = std::log((1.0 - p * ex) / (1.0 - p));
-
-                    return std::exp(v0_ * (t1 - d) * (1.0 - ex) / (sigma2_ * (1.0 - ex * p)) +
-                                    (kappa_ * theta_) / sigma2_ * ((t1 - d) * term_ - 2.0 * g) +
-                                    std::complex<Real>(0.0, phi * (dd_ - sx_)) + addOnTerm)
-                               .imag() /
-                           phi;
-                }
-                else
-                {
-                    const std::complex<Real> td = phi / (2.0 * t1) * std::complex<Real>(-phi, (j_ == 1) ? 1 : -1);
-                    const std::complex<Real> p = td * sigma2_ / (t1 + d);
-                    const std::complex<Real> g = p * (1.0 - ex);
-
-                    return std::exp(v0_ * td * (1.0 - ex) / (1.0 - p * ex) +
-                                    (kappa_ * theta_) * (td * term_ - 2.0 * g / sigma2_) +
-                                    std::complex<Real>(0.0, phi * (dd_ - sx_)) + addOnTerm)
-                               .imag() /
-                           phi;
-                }
+                // P_j's characteristic function is psi's at phi - i for P1 and at phi for P2, so both forms take
+                // detail::hestonLnChF. Gatheral's form took (t1 - d) / sigma^2 as written, with a branch at sigma
+                // <= 1e-5 that held only where sigma phi is small against kappa (#349), and Heston's original form,
+                // which BranchCorrection took, cancels (t1 + d) t against twice its logarithm (#350). Taken without
+                // cancelling, the original form's logarithm is d t plus the form's below, and that one doesn't cross
+                // the principal branch's cut, so no branch counter is needed.
+                const std::complex<Real> z(phi, (j_ == 1) ? -1.0 : 0.0);
+                return std::exp(detail::hestonLnChF(kappa_, theta_, sigma_, rho_, v0_, z, term_) +
+                                std::complex<Real>(0.0, phi * (dd_ - sx_)) + addOnTerm)
+                           .imag() /
+                       phi;
             }
             else
             {
-                // use l'Hospital's rule to get lim_{phi->0}
+                // use l'Hospital's rule to get lim_{phi->0}. Both forms take it: the discrete Simpson and trapezoid
+                // rules take phi = 0 as a node, where BranchCorrection, with no case for it, gave NaN (#361). It
+                // leaves out the add-on term's part (#362), and its closed forms difference exponentials near
+                // kappa = rho sigma and at small kappa (#363).
                 if (j_ == 1)
                 {
                     const Real kmr = rsigma_ - kappa_;
@@ -423,60 +403,6 @@ namespace QuantLib
                            v0_ * (1.0 - std::exp(-kappa_ * term_)) / (2 * kappa_);
                 }
             }
-        }
-        else if (cpxLog_ == BranchCorrection)
-        {
-            const std::complex<Real> p = (t1 + d) / (t1 - d);
-
-            // next term: g = std::log((1.0 - p*std::exp(d*term_))/(1.0 - p))
-            std::complex<Real> g;
-
-            // the exp of the following expression is needed.
-            const std::complex<Real> e = std::log(p) + d * term_;
-
-            // does it fit to the machine precision?
-            if (std::exp(-e.real()) > QL_EPSILON)
-            {
-                g = std::log((1.0 - p / ex) / (1.0 - p));
-            }
-            else
-            {
-                // use a "big phi" approximation
-                g = d * term_ + std::log(p / (p - 1.0));
-
-                if (g.imag() > M_PI || g.imag() <= -M_PI)
-                {
-                    // get back to principal branch of the complex logarithm
-                    Real im = std::fmod(g.imag(), 2 * M_PI);
-                    if (im > M_PI)
-                        im -= 2 * M_PI;
-                    else if (im <= -M_PI)
-                        im += 2 * M_PI;
-
-                    g = std::complex<Real>(g.real(), im);
-                }
-            }
-
-            // be careful here as we have to use a log branch correction
-            // to deal with the discontinuities of the complex logarithm.
-            // the principal branch is not always the correct one.
-            // (s. A. Sepp, chapter 4)
-            // remark: there is still the change that we miss a branch
-            // if the order of the integration is not high enough.
-            const Real tmp = g.imag() - g_km1_;
-            if (tmp <= -M_PI)
-                ++b_;
-            else if (tmp > M_PI)
-                --b_;
-
-            g_km1_ = g.imag();
-            g += std::complex<Real>(0, 2 * b_ * M_PI);
-
-            return std::exp(v0_ * (t1 + d) * (ex - 1.0) / (sigma2_ * (ex - p)) +
-                            (kappa_ * theta_) / sigma2_ * ((t1 + d) * term_ - 2.0 * g) +
-                            std::complex<Real>(0, phi * (dd_ - sx_)) + addOnTerm)
-                       .imag() /
-                   phi;
         }
         else
         {
@@ -794,12 +720,13 @@ namespace QuantLib
 
     std::complex<Real> AnalyticHestonEngine::lnChF(const std::complex<Real>& z, Time t) const
     {
+        return detail::hestonLnChF(model_->kappa(), model_->theta(), model_->sigma(), model_->rho(), model_->v0(), z,
+                                   t);
+    }
 
-        const Real kappa = model_->kappa();
-        const Real sigma = model_->sigma();
-        const Real theta = model_->theta();
-        const Real rho = model_->rho();
-        const Real v0 = model_->v0();
+    std::complex<Real>
+    detail::hestonLnChF(Real kappa, Real theta, Real sigma, Real rho, Real v0, const std::complex<Real>& z, Time t)
+    {
 
         /* sigma = 0's limit, within O(sigma) of log psi: the variance follows its mean, and log psi is a normal's
            with the integrated variance. The form below multiplies kappa theta / sigma^2 by a factor of order
@@ -864,9 +791,10 @@ namespace QuantLib
       cpxLog_(cpxLog), integration_(new Integration(integration)), andersenPiterbargEpsilon_(andersenPiterbargEpsilon),
       alpha_(alpha)
     {
+        // The form tracked its branch from one phi to the next, in increasing order, so the adaptive rules were
+        // refused with it. Since #350 it is the Gatheral form, which they take.
         QL_REQUIRE(cpxLog_ != BranchCorrection || !integration.isAdaptiveIntegration(),
-                   "Branch correction does not work in conjunction "
-                   "with adaptive integration methods");
+                   "BranchCorrection is not accepted with adaptive integration methods; Gatheral, the same form, is");
     }
 
     AnalyticHestonEngine::ComplexLogFormula

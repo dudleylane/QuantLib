@@ -467,6 +467,37 @@ BOOST_AUTO_TEST_CASE(testDAXCalibration)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testSmallVolOfVolAndKappa)
+{
+    BOOST_TEST_MESSAGE("Testing the Bates engine at a small vol of vol and a small kappa...");
+
+    // BatesEngine takes AnalyticHestonEngine's Gatheral form, which at sigma <= 1e-5 took a small-sigma branch that
+    // holds only where sigma phi is small against kappa. At kappa 1e-7 and v0 < theta / 2 its integrand grew instead
+    // of decaying: the one-month call below came back at 6.2e106, and the one-year call at NaN (#349). With jumps at an
+    // intensity of 1e-12 the model is Heston's to well within the tolerance, and the expected values are Heston's
+    // calls, priced from psi in Albrecher et al.'s form on Lewis's integral in 40-digit arithmetic.
+    const Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.01, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+    const auto engine = ext::make_shared<BatesEngine>(ext::make_shared<BatesModel>(
+        ext::make_shared<BatesProcess>(rTS, qTS, s0, 0.01, 1e-7, 0.04, 1e-5, 0.0, 1e-12, 0.0, 1e-6)));
+
+    for (const auto& [tenor, expected] :
+         {std::pair{Period(1, Months), 20.11485926350989613}, {Period(1, Years), 21.391004252763103911}})
+    {
+        BOOST_TEST_CONTEXT(tenor)
+        {
+            VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, 80.0),
+                                 ext::make_shared<EuropeanExercise>(today + tenor));
+            option.setPricingEngine(engine);
+            BOOST_CHECK_SMALL(option.NPV() - expected, 1e-12);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
