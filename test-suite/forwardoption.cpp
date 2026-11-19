@@ -1167,6 +1167,47 @@ BOOST_AUTO_TEST_CASE(testHestonAnalyticSmallSigma)
         checkForwardHestonCase(c);
 }
 
+BOOST_AUTO_TEST_CASE(testHestonAnalyticSmallSigmaAtSmallKappa)
+{
+    BOOST_TEST_MESSAGE("Testing the analytic Heston forward-start engine at a small vol of vol and a small kappa...");
+
+    // Where sigma <= 1e-6 and kappa >= 1e-8 the engine read log psi off AnalyticHestonEngine::chF, which took psi
+    // there from an expansion in sigma that lost its digits as kappa fell.  Resetting today, these were 1.7e-2, 3.1e-4
+    // and 4.2e-6 off (#348).  A forward-start option resetting today at a moneyness of 1 is the vanilla struck at the
+    // spot, and the expected values are its prices in 40-digit arithmetic, as in HestonModelTests.
+    const Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<Quote> spot(ext::make_shared<SimpleQuote>(100.0));
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.01, dc));
+    const auto process = ext::make_shared<HestonProcess>(rTS, qTS, spot, 0.01, 1e-7, 0.04, 1e-6, -0.9);
+    for (const auto& [tenor, expected] : {std::pair{Period(1, Months), 1.225747832190659172},
+                                          {Period(1, Years), 4.9670623942747426555},
+                                          {Period(10, Years), 20.524881264016906766}})
+    {
+        BOOST_TEST_CONTEXT(tenor)
+        {
+            ForwardVanillaOption option(1.0, today, ext::make_shared<PlainVanillaPayoff>(Option::Call, 0.0),
+                                        ext::make_shared<EuropeanExercise>(today + tenor));
+            option.setPricingEngine(ext::make_shared<AnalyticHestonForwardEuropeanEngine>(process));
+            BOOST_CHECK_SMALL(option.NPV() - expected, 1e-12);
+        }
+    }
+
+    // Resetting halfway to a one-month expiry, the engine integrates over the variance at the reset, which is all but
+    // certain here.  The expected value is e^{-q t1} [V(mu) + V''(mu) Var / 2] in 40 digits, with V the call over the
+    // rest of the expiry from the variance v, and mu and Var the variance's mean and variance at the reset under the
+    // share measure; the next term is 1e-24.  This was 1.6e-2 off, relatively.  The engine accepts a density for the
+    // variance whose mass misses 1 by up to 1e-8, and its price is then off by about that fraction (#356).
+    const Date maturity = today + Period(1, Months);
+    ForwardVanillaOption later(1.0, today + (maturity - today) / 2,
+                               ext::make_shared<PlainVanillaPayoff>(Option::Call, 0.0),
+                               ext::make_shared<EuropeanExercise>(maturity));
+    later.setPricingEngine(ext::make_shared<AnalyticHestonForwardEuropeanEngine>(process));
+    BOOST_CHECK_CLOSE_FRACTION(later.NPV(), 0.84943944079896595102, 1e-8);
+}
+
 BOOST_AUTO_TEST_CASE(testHestonAnalyticResetsNearToday)
 {
     BOOST_TEST_MESSAGE("Testing the analytic Heston forward-start engine at resets within hours...");
