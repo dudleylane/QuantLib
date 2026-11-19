@@ -35,38 +35,41 @@ namespace QuantLib
     class YieldTermStructure;
 
     //! CDO engine integrating the expected tranche loss over each coupon
-    /*! The engine values both legs from today (#228). Coupons not paid by
-        the evaluation date count less the premium accrued before it, and
-        the protection starts from the expected tranche loss on the latest
-        of today, the first unpaid coupon's accrual start and the reference
-        dates of the default curves of the names left. Those curves don't
-        reach back before their reference dates, so every expected tranche
-        loss is taken on the later of its date and the latest of them
-        (#275). Where they all start on the same date, that's the value on
-        curves from today with no hazard until then. Where they start on
-        different dates, no protection counts before the latest of them, and
-        the defaults until then of the names whose curves start earlier
-        count as before the protection starts (#331). The upfront is taken
-        as paid on the first coupon's accrual start, on the tranche's
-        remaining notional. It counts only if that's on or after today
-        (#227), and not at all if it falls before the discount curve's
-        reference date (#206).
+    /*! The engine values both legs from today (#228). Coupons not paid by the
+        evaluation date count less the premium accrued before it, and the
+        protection starts from the expected tranche loss on the latest of
+        today, the accrual start of the first coupon not yet paid or still
+        accruing, and the reference dates of the default curves of the names
+        left. Those curves don't reach back before their reference dates, so
+        every expected tranche loss is taken on the later of its date and the
+        latest of them (#275). Where they all start on the same date, that's
+        the value on curves from today with no hazard until then. Where they
+        start on different dates, no protection counts before the latest of
+        them, and the defaults until then of the names whose curves start
+        earlier count as before the protection starts (#331). A coupon paid
+        before its accrual end, as under Preceding payments, has no premium
+        left but still counts its protection to that end (#329). A premium
+        paid after today but before the discount curve's reference date counts
+        as paid on that date, as the protection over those days does (#328).
+        The upfront is taken as paid on the first coupon's accrual start, on
+        the tranche's remaining notional. It counts only if that's on or after
+        today (#227), and not at all if it falls before the discount curve's
+        reference date (#206): it's the one flow in that window left out.
 
-        Each coupon accrues to its accrual end and is paid on its payment
-        date (#276). So a coupon's last integration step ends at its
-        accrual end, and each step's premium is discounted from the
-        coupon's payment date. Each step's losses are discounted from the
-        step's end, or from the discount curve's reference date if that's
-        later, as in MidPointCDOEngine.
+        Each coupon accrues to its accrual end and is paid on its payment date
+        (#276). So a coupon's last integration step ends at its accrual end,
+        and each step's premium is discounted from the coupon's payment date,
+        or from the discount curve's reference date if that's later (#328).
+        Each step's losses are discounted from the step's end, or from the
+        discount curve's reference date if that's later, as in
+        MidPointCDOEngine.
 
-        \warning Like MidPointCDOEngine, the engine throws on a coupon paid
-            after today but before the discount curve's reference date
-            (#328).
-        \warning Like MidPointCDOEngine, the engine counts no protection
-            for the days left to a coupon's accrual end when it's valued
-            between the coupon's payment and that later accrual end, as
-            under Preceding payments: the coupon has been paid, and the
-            next one accrues from its end (#329).
+        \warning Each step's defaults count as at its end: its losses are
+            discounted from there, and its premium is paid on the notional
+            left there. So the protection is low by about half a step's
+            discounting, and the premium leaves out what the notional lost in
+            the step accrues before its default. Both shrink with the step, so
+            the value moves with it (#335).
     */
     class IntegralCDOEngine : public SyntheticCDO::engine
     {

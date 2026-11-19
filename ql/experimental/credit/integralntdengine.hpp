@@ -34,19 +34,29 @@ namespace QuantLib
         the evaluation date count less the premium accrued before it, with
         protection from the later of their accrual start and today, and the
         premium accrued on a default counts from today too. On a discount
-        curve dated after today, coupons paid on or before its reference
-        date don't count, and protection starts on it. The default curves of
-        the names left don't reach back before their reference dates, so
-        every probability is taken on the later of its date and the latest
-        of them (#275). Where they all start on the same date, that's the
-        value on curves from today with no hazard until then. Where they
-        start on different dates, no protection counts before the latest of
-        them, and the defaults until then of the names whose curves start
-        earlier count as before the protection starts (#331). The upfront is
-        taken as paid on the first coupon's accrual start, on the contract's
-        notional. It counts only if that's on or after today (#227), and not
-        at all if it falls before the discount curve's reference date
-        (#206).
+        curve dated after today, nothing is discounted from before its
+        reference date: a coupon paid after today and by then counts as paid
+        on it, and so do the claims and the premium accrued on a default in
+        the steps that end by then (#336). So the engine prices on such a
+        curve as on one from today that doesn't discount up to that date and
+        discounts as it does after. The default curves of the names left don't
+        reach back before their reference dates, so every probability is taken
+        on the later of its date and the latest of them (#275). Where they all
+        start on the same date, that's the value on curves from today with no
+        hazard until then. Where they start on different dates, no protection
+        counts before the latest of them, and the defaults until then of the
+        names whose curves start earlier count as before the protection starts
+        (#331). The upfront is taken as paid on the first coupon's accrual
+        start, on the contract's notional. It counts only if that's on or
+        after today (#227), and not at all if it falls before the discount
+        curve's reference date (#206): it's the one flow in that window left
+        out.
+
+        Each coupon's protection, and the premium accrued on a default, are
+        integrated in steps of the given size from where they start, the last
+        step ending on the coupon's accrual end (#330). Before #330 a step
+        that went past the accrual end turned the rest of the coupon into
+        steps of a day.
 
         The protection pays the claim on the name that is the nth to default,
         at the loss model's mean recovery for that name given that it's the
@@ -63,6 +73,12 @@ namespace QuantLib
         there. A claim linear in the recovery, as the library's are, is then
         priced at its mean; one that isn't would be priced at the mean
         recovery. Before #250 the engine threw on RandomLossLM.
+
+        \warning Each step's claim is discounted from the step's end, and the
+            premium accrued on a default is counted to it. So the protection
+            is low by about half a step's discounting, and the premium accrued
+            on a default high by about half a step's accrual; both shrink with
+            the step (#335).
     */
     class IntegralNtdEngine : public NthToDefault::engine
     {

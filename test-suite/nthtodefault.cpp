@@ -36,6 +36,7 @@
 #include <ql/termstructures/credit/flathazardrate.hpp>
 #include <ql/termstructures/credit/interpolatedhazardratecurve.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
+#include <ql/termstructures/yield/forwardcurve.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
 #include <ql/time/daycounters/actualactual.hpp>
@@ -443,21 +444,23 @@ ext::shared_ptr<Basket> eightNames(const EightNames& spec = {})
 }
 
 // Protection sold on the nth default, for 2 % a year paid quarterly from 1 September 2006 to 1 September 2011, and
-// valued on a flat 5 % curve, integrated in steps of three months unless given.
+// valued on a flat 5 % curve, integrated in steps of three months unless given, on dates moved to the following TARGET
+// business day unless another convention is given.
 ext::shared_ptr<NthToDefault> nthToDefault(const ext::shared_ptr<Basket>& basket,
                                            Size rank,
                                            Rate upfront,
                                            Real nominal,
                                            const Handle<YieldTermStructure>& discountCurve,
                                            const Period& step = 3 * Months,
-                                           const Date& start = Date(1, September, 2006))
+                                           const Date& start = Date(1, September, 2006),
+                                           BusinessDayConvention convention = Following)
 {
     const Schedule schedule = MakeSchedule()
                                   .from(start)
                                   .to(Date(1, September, 2011))
                                   .withFrequency(Quarterly)
                                   .withCalendar(TARGET())
-                                  .withConvention(Following)
+                                  .withConvention(convention)
                                   .withRule(DateGeneration::Backward);
     auto contract = ext::make_shared<NthToDefault>(basket, rank, Protection::Seller, schedule, upfront, 0.02,
                                                    Actual360(), nominal, true);
@@ -856,14 +859,13 @@ BOOST_AUTO_TEST_CASE(testRandomDefaultModelInsideACoupon)
 {
     BOOST_TEST_MESSAGE("Testing an nth to default on the random default model inside a coupon...");
 
-    // Inside a coupon the engine asks for the probability of the nth default at the coupon's start
-    // or at the discount curve's reference date, whichever is later: today, on a curve as of
-    // today. Before #207 the random default model threw there, so an nth to default priced on it
-    // only on a coupon's first day. The default curves here start at the basket's inception, two
-    // months before today. The model's paths count each default's day from its curve's date, as
-    // ConstantLossModel's probabilities do, and since #232 so do its statistics, so it gives
-    // ConstantLossModel's values within its Monte Carlo error. Before #232 they counted from
-    // today, and its first-to-default protection leg came out at -28.06 against
+    // Inside a coupon the engine asks for the probability of the nth default at the later of the
+    // coupon's start and today: today. Before #207 the random default model threw there, so an nth
+    // to default priced on it only on a coupon's first day. The default curves here start at the
+    // basket's inception, two months before today. The model's paths count each default's day from
+    // its curve's date, as ConstantLossModel's probabilities do, and since #232 so do its
+    // statistics, so it gives ConstantLossModel's values within its Monte Carlo error. Before #232
+    // they counted from today, and its first-to-default protection leg came out at -28.06 against
     // ConstantLossModel's -26.88. Each path's protection lies between -60 and 0, and its premium
     // between 0 and the coupons' sum, 10.14, so on 20,000 paths their standard errors are at most
     // 0.212 and 0.036; the checks allow three of them.
@@ -1409,6 +1411,98 @@ BOOST_AUTO_TEST_CASE(testInsideACoupon)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testStepsEndOnTheAccrualEnd)
+{
+    BOOST_TEST_MESSAGE("Testing that the nth to default engine's steps end on each coupon's accrual end...");
+
+    /* The engine integrates each coupon in steps of the given size from where its protection starts, the last step
+       ending on the coupon's accrual end (#330). On an Unadjusted schedule every coupon is three months long, so steps
+       of three months, six months and a year all take each coupon in one step, from its accrual start or from today,
+       and the contract is worth the same on all three, to the bit. Until #330's fix a step that went past the accrual
+       end turned the rest of the coupon into steps of a day: at six months and a year every coupon was taken in days,
+       and at three months the one the contract was valued inside. */
+    for (const Date& today :
+         {Date(1, September, 2007), Date(2, September, 2007), Date(15, October, 2007), Date(30, November, 2007)})
+    {
+        Settings::instance().evaluationDate() = today;
+        const auto discountCurve = flatCurveFrom(today);
+        const auto basket = eightNames();
+        for (Size rank : {1, 2})
+        {
+            BOOST_TEST_CONTEXT("today " << today << ", rank " << rank)
+            {
+                std::vector<ext::shared_ptr<NthToDefault>> contracts;
+                for (const Period& step : {3 * Months, 6 * Months, 1 * Years})
+                    contracts.push_back(nthToDefault(basket, rank, 0.0, 100.0, discountCurve, step,
+                                                     Date(1, September, 2006), Unadjusted));
+                for (Size k = 1; k < contracts.size(); ++k)
+                {
+                    BOOST_CHECK_EQUAL(contracts[k]->protectionLegNPV(), contracts[0]->protectionLegNPV());
+                    BOOST_CHECK_EQUAL(contracts[k]->NPV(), contracts[0]->NPV());
+                    BOOST_CHECK_EQUAL(contracts[k]->fairPremium(), contracts[0]->fairPremium());
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testOnADiscountCurveDatedAfterToday)
+{
+    BOOST_TEST_MESSAGE("Testing an nth to default on a discount curve dated after today...");
+
+    /* A discount curve dated after today, as one built with settlement days, doesn't discount before its reference
+       date. The engine runs both legs from today and discounts nothing from before that date (#336): a premium paid
+       after today and by then counts as paid on it, and so do the claims and the premium accrued on a default in the
+       steps that end by then. So an nth to default is worth on such a curve what it's worth on one from today that
+       doesn't discount up to that date and discounts as it does after. Here the curve is dated two TARGET business
+       days after today. The coupon from 2007-06-01 accrues to Saturday 09-01 and is paid then on the Unadjusted
+       schedule; on the Following one it accrues to Monday 09-03 and is paid then. So on Thursday 08-30 and Friday
+       08-31 it's paid after today and by the curve's date on both schedules, on Saturday 09-01 on the Following one,
+       and on 10-15 no coupon is. Steps of a day take the days before the curve's date one at a time; they cost far
+       more, so they're taken only on 08-30 at rank 1, where a coupon is paid by the curve's date on both schedules.
+       Until #336's fix the engine started the protection, and the premium accrued on a default, on the curve's date
+       while it counted the premium from today, and it left out a coupon paid after today and by that date, in both
+       legs. */
+    for (const Date& today :
+         {Date(30, August, 2007), Date(31, August, 2007), Date(1, September, 2007), Date(15, October, 2007)})
+    {
+        Settings::instance().evaluationDate() = today;
+        const Date curveDate = TARGET().advance(today, 2, Days);
+        const Handle<YieldTermStructure> onTheCurve(ext::make_shared<FlatForward>(curveDate, 0.05, Actual360()));
+        const Handle<YieldTermStructure> fromToday(
+            ext::make_shared<ForwardCurve>(std::vector<Date>{today, curveDate, Date(1, September, 2012)},
+                                           std::vector<Rate>{0.0, 0.0, 0.05}, Actual360()));
+        const auto basket = eightNames();
+        for (BusinessDayConvention convention : {Following, Unadjusted})
+        {
+            for (Size rank : {1, 2})
+            {
+                for (const Period& step : {3 * Months, 1 * Days})
+                {
+                    if (step == 1 * Days && (today != Date(30, August, 2007) || rank != 1))
+                        continue;
+                    BOOST_TEST_CONTEXT("today " << today << ", " << convention << " schedule, rank " << rank
+                                                << ", steps of " << step)
+                    {
+                        const auto figures = [&](const Handle<YieldTermStructure>& discountCurve)
+                        {
+                            const auto contract = nthToDefault(basket, rank, 0.0, 100.0, discountCurve, step,
+                                                               Date(1, September, 2006), convention);
+                            return std::vector<Real>{contract->premiumLegNPV(), contract->protectionLegNPV(),
+                                                     contract->NPV(), contract->fairPremium()};
+                        };
+                        std::vector<Real> values;
+                        BOOST_CHECK_NO_THROW(values = figures(onTheCurve));
+                        const std::vector<Real> expected = figures(fromToday);
+                        for (Size k = 0; k < values.size(); ++k)
+                            BOOST_CHECK_CLOSE_FRACTION(values[k], expected[k], 1.0e-12);
+                    }
+                }
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testOnDefaultCurvesDatedAfterToday)
 {
     BOOST_TEST_MESSAGE("Testing an nth to default on default curves dated after today...");
@@ -1422,8 +1516,8 @@ BOOST_AUTO_TEST_CASE(testOnDefaultCurvesDatedAfterToday)
        a coupon's end, on curves dated two days later, that coupon is paid before the curves' date, its steps end
        before it, and the next coupon's first step of three months runs across it. On Friday 12-01, the next coupon's
        accrual start, on curves dated two days later, its first step runs across it too. Starting the protection on
-       the curves' date instead would move the steps, and take the rest of the coupon in steps of a day (#330). Until
-       #275's fix the engine took each probability at its own date, and threw. */
+       the curves' date instead would move the steps. Until #275's fix the engine took each probability at its own
+       date, and threw. */
     const std::pair<Date, Date> valuations[] = {{Date(30, November, 2006), Date(2, December, 2006)},
                                                 {Date(1, December, 2006), Date(3, December, 2006)}};
     for (const auto& [today, curvesDate] : valuations)

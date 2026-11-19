@@ -5897,18 +5897,24 @@ BOOST_AUTO_TEST_CASE(testTrancheInsideACoupon)
     }
 }
 
-// An Unadjusted quarterly schedule from 2006-09-01 to 2011-09-01. Its coupon from 2007-06-01 accrues to Saturday 09-01
-// and is paid on Monday 09-03 under Following, and on Friday 08-31 under Preceding.
-Schedule weekendAccrualEnds()
+// An Unadjusted quarterly schedule on TARGET, generated backward from its end.
+Schedule unadjustedQuarterly(const Date& from, const Date& to)
 {
     return MakeSchedule()
-        .from(Date(1, September, 2006))
-        .to(Date(1, September, 2011))
+        .from(from)
+        .to(to)
         .withFrequency(Quarterly)
         .withCalendar(TARGET())
         .withConvention(Unadjusted)
         .withTerminationDateConvention(Unadjusted)
         .withRule(DateGeneration::Backward);
+}
+
+// An Unadjusted quarterly schedule from 2006-09-01 to 2011-09-01. Its coupon from 2007-06-01 accrues to Saturday 09-01
+// and is paid on Monday 09-03 under Following, and on Friday 08-31 under Preceding.
+Schedule weekendAccrualEnds()
+{
+    return unadjustedQuarterly(Date(1, September, 2006), Date(1, September, 2011));
 }
 
 BOOST_AUTO_TEST_CASE(testIntegralEngineCouponsOnTheirAccrualDates)
@@ -6169,6 +6175,184 @@ namespace
         if (homogeneous)
             return ext::make_shared<HomogTPoolLossModel>(latent, buckets, max, min, steps);
         return ext::make_shared<IHStudentPoolLossModel>(latent, buckets, max, min, steps);
+    }
+}
+
+// The fixture's 0-10 % tranche on its LHP model, protection sold at a running 5 % on Actual/360, valued by
+// IntegralCDOEngine at steps of three months (engine 0) or of a day (1), or by MidPointCDOEngine (2).
+ext::shared_ptr<SyntheticCDO> lhpTranche(const NamesAroundADefault& names,
+                                         const Schedule& schedule,
+                                         BusinessDayConvention payments,
+                                         const Handle<YieldTermStructure>& discountCurve,
+                                         Size engine)
+{
+    const auto basket = names.basket(0.0, 0.1);
+    basket->setLossModel(names.lhpModel());
+    auto cdo = ext::make_shared<SyntheticCDO>(basket, Protection::Seller, schedule, 0.0, 0.05, Actual360(), payments);
+    if (engine == 2)
+        cdo->setPricingEngine(ext::make_shared<MidPointCDOEngine>(discountCurve));
+    else
+        cdo->setPricingEngine(ext::make_shared<IntegralCDOEngine>(discountCurve, engine == 0 ? 3 * Months : 1 * Days));
+    return cdo;
+}
+
+const char* const lhpTrancheEngines[] = {"integral engine at steps of 3M", "integral engine at steps of a day",
+                                         "mid-point engine"};
+
+BOOST_AUTO_TEST_CASE(testEnginesBetweenAPaymentAndALaterAccrualEnd)
+{
+    BOOST_TEST_MESSAGE("Testing the CDO engines between a coupon's payment and its later accrual end...");
+
+    /* Under Preceding payments the coupon from 2007-06-01, which accrues to Saturday 09-01, is paid on Friday 08-31;
+       under Unadjusted ones it's paid on its accrual end. The protection runs to the accrual end whenever the coupon
+       is paid (#276), so the protection and the expected tranche losses the engines report are the same under both,
+       on the day of the early payment too (#329). That day the coupon has been paid and has no premium left, so the
+       premium is the one of the coupons from 09-01. The fourth name defaulted in 2006, so every expected loss includes
+       what the basket has lost already. Until #329's fix both engines left the coupon out once it was paid: on 08-31
+       under Preceding payments the protection, and the losses reported, started on 09-01. */
+    const NamesAroundADefault names(true, false);
+    for (const Date& today : {Date(30, August, 2007), Date(31, August, 2007), Date(1, September, 2007)})
+    {
+        Settings::instance().evaluationDate() = today;
+        const Handle<YieldTermStructure> discountCurve(ext::make_shared<FlatForward>(today, 0.05, Actual360()));
+        for (Size engine = 0; engine < 3; ++engine)
+        {
+            BOOST_TEST_CONTEXT("today " << today << ", " << lhpTrancheEngines[engine])
+            {
+                const auto preceding = lhpTranche(names, weekendAccrualEnds(), Preceding, discountCurve, engine);
+                const auto unadjusted = lhpTranche(names, weekendAccrualEnds(), Unadjusted, discountCurve, engine);
+                BOOST_CHECK_EQUAL(preceding->protectionValue(), unadjusted->protectionValue());
+                const std::vector<Real>& losses = preceding->expectedTrancheLoss();
+                const std::vector<Real>& unadjustedLosses = unadjusted->expectedTrancheLoss();
+                BOOST_CHECK_EQUAL_COLLECTIONS(losses.begin(), losses.end(), unadjustedLosses.begin(),
+                                              unadjustedLosses.end());
+                if (today == Date(31, August, 2007))
+                {
+                    const Schedule fromSeptember =
+                        unadjustedQuarterly(Date(1, September, 2007), Date(1, September, 2011));
+                    BOOST_CHECK_EQUAL(
+                        preceding->premiumValue(),
+                        lhpTranche(names, fromSeptember, Preceding, discountCurve, engine)->premiumValue());
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testTrancheBetweenItsLastPaymentAndItsMaturity)
+{
+    BOOST_TEST_MESSAGE("Testing a CDO tranche between its last payment and its maturity...");
+
+    /* The last coupon accrues to Saturday 2007-09-01, the tranche's maturity, and under Preceding payments it's paid on
+       Friday 08-31. Its protection runs to its accrual end (#329), so the tranche lives until its maturity under both
+       conventions, and its protection is the same under both, on the day of the early payment too (#334). On its
+       maturity it has expired under both. Until #334's fix it expired on its last payment, so on 08-31 under Preceding
+       payments it was worth nothing. */
+    const NamesAroundADefault names(true, false);
+    const Schedule toSeptember = unadjustedQuarterly(Date(1, September, 2006), Date(1, September, 2007));
+    for (const Date& today : {Date(30, August, 2007), Date(31, August, 2007), Date(1, September, 2007)})
+    {
+        Settings::instance().evaluationDate() = today;
+        const Handle<YieldTermStructure> discountCurve(ext::make_shared<FlatForward>(today, 0.05, Actual360()));
+        const bool expired = today == Date(1, September, 2007);
+        for (Size engine = 0; engine < 3; ++engine)
+        {
+            BOOST_TEST_CONTEXT("today " << today << ", " << lhpTrancheEngines[engine])
+            {
+                const auto preceding = lhpTranche(names, toSeptember, Preceding, discountCurve, engine);
+                const auto unadjusted = lhpTranche(names, toSeptember, Unadjusted, discountCurve, engine);
+                BOOST_CHECK_EQUAL(preceding->isExpired(), expired);
+                BOOST_CHECK_EQUAL(unadjusted->isExpired(), expired);
+                BOOST_CHECK_EQUAL(preceding->protectionValue(), unadjusted->protectionValue());
+                if (!expired)
+                    BOOST_CHECK_GT(preceding->protectionValue(), 0.0);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testEnginesOnADiscountCurveDatedAfterToday)
+{
+    BOOST_TEST_MESSAGE("Testing the CDO engines on a discount curve dated after today...");
+
+    /* A discount curve dated after today, as one built with settlement days, doesn't discount before its reference
+       date. Both engines run each coupon's period from the later of its accrual start and today, and discount the
+       losses in it no earlier than that date (#333). So they price on such a curve as on one from today that doesn't
+       discount up to that date and discounts as it does after. Here the curve is dated two TARGET business days after
+       today. The coupon from 2007-06-01 accrues to Saturday 09-01, and it's paid on Monday 09-03 under Following
+       payments and on Friday 08-31 under Preceding ones; on the shorter schedule it's the last. Until #333's fix
+       MidPointCDOEngine ran its periods from the curve's date too: a coupon whose accrual ended before that date took
+       its losses up to it, after the contract's end on the shorter schedule, and the period across it took its losses
+       as of the middle of what was left after it. On 05-31 under both conventions, on 08-30 under Preceding payments
+       and from 08-31 on under Following ones, a coupon is paid after today but before the curve's date: both engines
+       count its premium as paid on that date (#328), and until #328's fix they threw. */
+    const NamesAroundADefault names(true, false);
+    const std::pair<BusinessDayConvention, Date> valuations[] = {
+        {Following, Date(31, May, 2007)},      {Preceding, Date(31, May, 2007)},
+        {Following, Date(30, August, 2007)},   {Preceding, Date(30, August, 2007)},
+        {Following, Date(31, August, 2007)},   {Preceding, Date(31, August, 2007)},
+        {Following, Date(1, September, 2007)}, {Preceding, Date(1, September, 2007)},
+        {Following, Date(2, September, 2007)}, {Preceding, Date(2, September, 2007)}};
+    const Schedule schedules[] = {weekendAccrualEnds(),
+                                  unadjustedQuarterly(Date(1, September, 2006), Date(1, September, 2007))};
+    for (const auto& [payments, today] : valuations)
+    {
+        Settings::instance().evaluationDate() = today;
+        const Date curveDate = TARGET().advance(today, 2, Days);
+        const Handle<YieldTermStructure> onTheCurve(ext::make_shared<FlatForward>(curveDate, 0.05, Actual360()));
+        const Handle<YieldTermStructure> fromToday(
+            ext::make_shared<ForwardCurve>(std::vector<Date>{today, curveDate, Date(1, September, 2012)},
+                                           std::vector<Rate>{0.0, 0.0, 0.05}, Actual360()));
+        for (const Schedule& schedule : schedules)
+        {
+            for (Size engine = 0; engine < 3; ++engine)
+            {
+                BOOST_TEST_CONTEXT("payments " << payments << ", today " << today << ", schedule to "
+                                               << schedule.endDate() << ", " << lhpTrancheEngines[engine])
+                {
+                    const auto figures = [&](const Handle<YieldTermStructure>& discountCurve)
+                    {
+                        const auto tranche = lhpTranche(names, schedule, payments, discountCurve, engine);
+                        return std::vector<Real>{tranche->premiumValue(), tranche->protectionValue(), tranche->NPV()};
+                    };
+                    std::vector<Real> values;
+                    BOOST_CHECK_NO_THROW(values = figures(onTheCurve));
+                    const std::vector<Real> expected = figures(fromToday);
+                    for (Size k = 0; k < values.size(); ++k)
+                        BOOST_CHECK_CLOSE_FRACTION(values[k], expected[k], 1.0e-12);
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testEnginesOnAPaymentBeforeTheDiscountCurveDate)
+{
+    BOOST_TEST_MESSAGE("Testing the CDO engines on a payment before the discount curve's reference date...");
+
+    /* On Thursday 2007-08-30 the discount curve is dated two TARGET business days later, on Monday 09-03. The last
+       coupon accrues to Saturday 09-01 and is paid on 09-03 under Following payments, and on Friday 08-31, before the
+       curve's date, under Preceding ones. Both engines count a premium paid before that date as paid on it, as they
+       count the protection over those days (#328), so the tranche is worth the same under both conventions, to the
+       bit. Until #328's fix both engines threw under Preceding payments, as the curve doesn't discount before its
+       date. */
+    const NamesAroundADefault names(true, false);
+    Settings::instance().evaluationDate() = Date(30, August, 2007);
+    const Handle<YieldTermStructure> discountCurve(
+        ext::make_shared<FlatForward>(Date(3, September, 2007), 0.05, Actual360()));
+    const Schedule toSeptember = unadjustedQuarterly(Date(1, September, 2006), Date(1, September, 2007));
+    for (Size engine = 0; engine < 3; ++engine)
+    {
+        BOOST_TEST_CONTEXT(lhpTrancheEngines[engine])
+        {
+            const auto following = lhpTranche(names, toSeptember, Following, discountCurve, engine);
+            const auto preceding = lhpTranche(names, toSeptember, Preceding, discountCurve, engine);
+            Real premium = Null<Real>(), protection = Null<Real>();
+            BOOST_CHECK_NO_THROW(premium = preceding->premiumValue());
+            BOOST_CHECK_NO_THROW(protection = preceding->protectionValue());
+            BOOST_CHECK_EQUAL(premium, following->premiumValue());
+            BOOST_CHECK_EQUAL(protection, following->protectionValue());
+        }
     }
 }
 

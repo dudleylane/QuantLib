@@ -52,42 +52,53 @@ namespace QuantLib
         const Date curvesDate = detail::latestDefaultCurveDate(*arguments_.basket);
 
         // Both legs run from today (#228). The protection starts from the
-        //   expected tranche loss on the latest of today, the first unpaid
-        //   coupon's accrual start and the curves' date: what's lost already
-        //   is in every later expected loss, and is no flow to come.
+        //   expected tranche loss on the latest of today, the curves' date and
+        //   the accrual start of the first coupon not yet paid or still
+        //   accruing: what's lost already is in every later expected loss,
+        //   and is no flow to come. A coupon paid before its accrual end, as
+        //   under Preceding payments, has no premium left but still owes
+        //   protection to that end (#329).
         Real e1 = inceptionTrancheNotional - results_.remainingNotional;
         // todo add includeSettlement date flows variable to engine.
-        const auto firstUnpaid =
-            std::find_if(arguments_.normalizedLeg.begin(), arguments_.normalizedLeg.end(),
-                         [&](const ext::shared_ptr<CashFlow>& cf) { return !cf->hasOccurred(today); });
-        if (firstUnpaid != arguments_.normalizedLeg.end())
+        const auto firstLeft = std::find_if(
+            arguments_.normalizedLeg.begin(), arguments_.normalizedLeg.end(), [&](const ext::shared_ptr<CashFlow>& cf)
+            { return !cf->hasOccurred(today) || ext::dynamic_pointer_cast<Coupon>(cf)->accrualEndDate() > today; });
+        if (firstLeft != arguments_.normalizedLeg.end())
             e1 = arguments_.basket->expectedTrancheLoss(
-                std::max({ext::dynamic_pointer_cast<Coupon>(*firstUnpaid)->accrualStartDate(), today, curvesDate}));
+                std::max({ext::dynamic_pointer_cast<Coupon>(*firstLeft)->accrualStartDate(), today, curvesDate}));
         results_.expectedTrancheLoss.push_back(e1);
         for (auto& i : arguments_.normalizedLeg)
         {
-            if (i->hasOccurred(today))
+            ext::shared_ptr<Coupon> coupon = ext::dynamic_pointer_cast<Coupon>(i);
+            // a coupon paid by today has no premium left, and nothing at all
+            //   once its accrual has ended too (#329)
+            const bool paid = i->hasOccurred(today);
+            if (paid && coupon->accrualEndDate() <= today)
             {
                 results_.expectedTrancheLoss.push_back(0.);
                 continue;
             }
-            ext::shared_ptr<Coupon> coupon = ext::dynamic_pointer_cast<Coupon>(i);
             Date paymentDate = coupon->date();
             // what's left of the coupon from today: its losses from then on,
             //   and its premium less what has accrued before today. A coupon
             //   whose accrual ended before today, paid after it, has none.
-            Date startDate = std::max({coupon->accrualStartDate(), today, discountCurve_->referenceDate()});
+            Date startDate = std::max(coupon->accrualStartDate(), today);
             Date endDate = std::max(coupon->accrualEndDate(), startDate);
             // we assume the loss within the period took place on this date:
             Date defaultDate = startDate + (endDate - startDate) / 2;
 
             Real e2 = arguments_.basket->expectedTrancheLoss(std::max(endDate, curvesDate));
             results_.expectedTrancheLoss.push_back(e2);
-            results_.premiumValue += ((inceptionTrancheNotional - e2) / inceptionTrancheNotional) *
-                                     (coupon->amount() - coupon->accruedAmount(today)) *
-                                     discountCurve_->discount(paymentDate);
-            // default flows:
-            const Real discount = discountCurve_->discount(defaultDate);
+            // a premium paid before the discount curve's reference date counts
+            //   as paid on it, as the protection does (#328)
+            if (!paid)
+                results_.premiumValue +=
+                    ((inceptionTrancheNotional - e2) / inceptionTrancheNotional) *
+                    (coupon->amount() - coupon->accruedAmount(today)) *
+                    discountCurve_->discount(std::max(paymentDate, discountCurve_->referenceDate()));
+            // default flows, discounted no earlier than the discount curve's
+            //   reference date (#333):
+            const Real discount = discountCurve_->discount(std::max(defaultDate, discountCurve_->referenceDate()));
 
             /* Accrual removed till the argument flag is implemented
             // pays accrued on defaults' date

@@ -127,6 +127,7 @@ namespace QuantLib
 
         const ext::shared_ptr<Basket>& basket() const { return basket_; }
 
+        //! Expired once both its last payment and its maturity have occurred (#334).
         bool isExpired() const override;
         Rate fairPremium() const;
         Rate fairUpfrontPremium() const;
