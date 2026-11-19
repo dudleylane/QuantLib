@@ -346,11 +346,19 @@ namespace QuantLib
 
                 const Real c_inf = -(C_u_inf + D_u_inf * v0).real();
 
-                const std::function<Real()> uM = [=]()
-                { return Integration::andersenPiterbargIntegrationLimit(c_inf, epsilon, v0, term); };
-
                 // through expm1, which keeps its precision where kappaAvg term is small, and is 1 where it is 0
                 const Real vAvg = thetaAvg + (v0 - thetaAvg) * detail::decayRatio(kappaAvg * term);
+
+                /* The integrand is (phiBS - phi) / (u^2 + 1/4), phiBS the control variate's Gaussian at vAvg. So the
+                   closed form's Gaussian part takes vAvg, where phiBS falls to epsilon, and the limit is then read off
+                   phi(u - i / 2), as AnalyticHestonEngine's is (#340), where the criterion there is still above
+                   epsilon: on piecewise parameters c_inf and any one variance can misstate how far phi needs (#344). */
+                const std::function<Real()> uM = [=, this]()
+                {
+                    return detail::andersenPiterbargLimitFromChF(
+                        Integration::andersenPiterbargIntegrationLimit(c_inf, epsilon, vAvg, term), epsilon,
+                        [&](Real u) { return lnChF(std::complex<Real>(u, -0.5), term).real(); });
+                };
 
                 const Real bsPrice =
                     BlackCalculator(Option::Call, strike, fwdPrice, std::sqrt(vAvg * term), riskFreeDiscount).value();

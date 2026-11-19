@@ -1637,9 +1637,13 @@ BOOST_AUTO_TEST_CASE(testSimpsonAndTrapezoidStopAtTheirBound)
         stops("trapezoid", Integration::trapezoid(1e-8), withUpperBound);
     }
 
-    // An explicit bound still counts estimates. On testAllIntegrationMethods' market with the Andersen-Piterbarg
-    // control variate, both rules return at a bound of 7, the first that lets an estimate stop (the 7th, on 65
-    // evaluations), and throw at 6, as before #294. Counting evaluations instead would throw at 7.
+    // An explicit bound still counts estimates, as before #294: a rule returns at a bound equal to the estimate it
+    // stops at, and throws at one less, where counting evaluations would throw at both. On testAllIntegrationMethods'
+    // market with the Andersen-Piterbarg control variate at andersenPiterbargEpsilon 1e-9, the trapezoid rule stops at
+    // its 7th estimate, on 65 evaluations, the first at which a rule may stop, and Simpson's rule at its 8th, on 129.
+    // Both stopped at their 7th until #340 read the limit off the characteristic function, which put it at 52.26
+    // where the closed form gave 41.13: Simpson's 7th estimate now differs from its 6th by 20 times the tolerance,
+    // and its 8th from its 7th by 2.6e-6 times.
     const Date today(7, February, 2017);
     Settings::instance().evaluationDate() = today;
     const DayCounter dc = Actual365Fixed();
@@ -1656,13 +1660,14 @@ BOOST_AUTO_TEST_CASE(testSimpsonAndTrapezoidStopAtTheirBound)
         BOOST_TEST_CONTEXT((simpson ? "Simpson" : "trapezoid"))
         {
             const auto rule = simpson ? &Integration::simpson : &Integration::trapezoid;
+            const Size stopsAt = simpson ? 8 : 7;
             const auto engine = ext::make_shared<AnalyticHestonEngine>(model, AnalyticHestonEngine::AndersenPiterbarg,
-                                                                       rule(1e-8, 7), 1e-9);
+                                                                       rule(1e-8, stopsAt), 1e-9);
             option.setPricingEngine(engine);
             BOOST_CHECK_SMALL(option.NPV() - expected, 1e-8);
-            BOOST_CHECK_EQUAL(engine->numberOfEvaluations(), Size(65));
+            BOOST_CHECK_EQUAL(engine->numberOfEvaluations(), (Size(1) << (stopsAt - 1)) + 1);
             option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(
-                model, AnalyticHestonEngine::AndersenPiterbarg, rule(1e-8, 6), 1e-9));
+                model, AnalyticHestonEngine::AndersenPiterbarg, rule(1e-8, stopsAt - 1), 1e-9));
             BOOST_CHECK_EXCEPTION(option.NPV(), Error, ExpectedErrorMessage("max number of iterations reached"));
         }
     }
@@ -2376,6 +2381,145 @@ BOOST_AUTO_TEST_CASE(testDoCalculationAwayFromTheForward)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testAndersenPiterbargLimitWhereTheIntegrandFallsToEpsilon)
+{
+    BOOST_TEST_MESSAGE("Testing the Andersen-Piterbarg integration limit where the integrand falls to epsilon...");
+
+    /* #340 and #347: the limit was the larger of two roots, each where an asymptotic of the integrand's modulus
+       |phi(u - i (alpha + 1))| / u falls to epsilon. The exponential e^{-c_inf u} left out the asymptotic's constant
+       e^{Re psi} (#340), and between the Gaussian regime and the exponential one phi follows neither (#347). Where the
+       limit stopped short, the integrand there was above epsilon, and the truncation cost more than the
+       andersenPiterbargEpsilon the caller set. By Gauss-Kronrod at 1e-8 against exp-sinh, which takes no limit, these
+       were 1.7 to 35 times epsilon off at kappa 5 and 10 years, where Re psi is 10.9; 2.7 to 2.9 times where the
+       Gaussian root is the larger even of the exponential root with its constant, Re psi being 0.28; and 1.04 to 1.06
+       times where Re psi is -0.05. */
+    using Integration = AnalyticHestonEngine::Integration;
+    const Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(0.01, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+
+    // theta 0.04
+    struct Case
+    {
+        Real v0, kappa, sigma, rho;
+        Period maturity;
+        Real strike, andersenPiterbargEpsilon;
+    };
+    const Case cases[] = {{0.04, 5.0, 1.0, -0.5, Period(10, Years), 100.0, 1e-6},
+                          {0.64, 0.1, 0.5, 0.0, Period(91, Days), 100.0, 1e-8},
+                          {0.64, 0.1, 0.5, 0.5, Period(91, Days), 80.0, 1e-8}};
+    const std::pair<AnalyticHestonEngine::ComplexLogFormula, std::string> formulas[] = {
+        {AnalyticHestonEngine::AndersenPiterbarg, "AndersenPiterbarg"},
+        {AnalyticHestonEngine::AndersenPiterbargOptCV, "AndersenPiterbargOptCV"},
+        {AnalyticHestonEngine::AngledContour, "AngledContour"},
+        {AnalyticHestonEngine::AngledContourNoCV, "AngledContourNoCV"},
+        {AnalyticHestonEngine::OptimalCV, "OptimalCV"},
+        {AnalyticHestonEngine::AsymptoticChF, "AsymptoticChF"}};
+    for (const Case& c : cases)
+    {
+        const auto model = ext::make_shared<HestonModel>(
+            ext::make_shared<HestonProcess>(rTS, qTS, s0, c.v0, c.kappa, 0.04, c.sigma, c.rho));
+        const Date maturity = today + c.maturity;
+        const PlainVanillaPayoff payoff(Option::Call, c.strike);
+        VanillaOption option(ext::make_shared<PlainVanillaPayoff>(payoff),
+                             ext::make_shared<EuropeanExercise>(maturity));
+        option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(model, AnalyticHestonEngine::OptimalCV,
+                                                                       Integration::expSinh(1e-12)));
+        const Real expected = option.NPV();
+        for (const auto& [cpxLog, name] : formulas)
+        {
+            // AsymptoticChF at kappa 5, where its control variate carries e^{Re psi}, is #342's
+            if (cpxLog == AnalyticHestonEngine::AsymptoticChF && c.kappa > 1.0)
+                continue;
+            BOOST_TEST_CONTEXT(name << ", v0 " << c.v0 << ", kappa " << c.kappa << ", rho " << c.rho)
+            {
+                try
+                {
+                    option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(
+                        model, cpxLog, Integration::gaussKronrod(1e-8), c.andersenPiterbargEpsilon));
+                    BOOST_CHECK_SMALL(option.NPV() - expected, c.andersenPiterbargEpsilon);
+                }
+                catch (const Error& e)
+                {
+                    BOOST_ERROR("threw " << e.what());
+                }
+            }
+        }
+
+        // the deprecated doCalculation, which reads its limit off phi(u - i / 2)
+        for (const auto cpxLog : {AnalyticHestonEngine::AndersenPiterbarg, AnalyticHestonEngine::OptimalCV})
+            BOOST_TEST_CONTEXT("doCalculation, "
+                               << (cpxLog == AnalyticHestonEngine::OptimalCV ? "OptimalCV" : "AndersenPiterbarg")
+                               << ", v0 " << c.v0 << ", kappa " << c.kappa << ", rho " << c.rho)
+            {
+                const AnalyticHestonEngine engine(model, cpxLog, Integration::gaussKronrod(1e-8),
+                                                  c.andersenPiterbargEpsilon);
+                Real value = 0.0;
+                Size evaluations = 0;
+                try
+                {
+                    QL_DEPRECATED_DISABLE_WARNING
+                    AnalyticHestonEngine::doCalculation(rTS->discount(maturity), qTS->discount(maturity), s0->value(),
+                                                        c.strike, dc.yearFraction(today, maturity), c.kappa, 0.04,
+                                                        c.sigma, c.v0, c.rho, payoff, Integration::gaussKronrod(1e-8),
+                                                        cpxLog, &engine, value, evaluations);
+                    QL_DEPRECATED_ENABLE_WARNING
+                    BOOST_CHECK_SMALL(value - expected, c.andersenPiterbargEpsilon);
+                }
+                catch (const Error& e)
+                {
+                    BOOST_ERROR("threw " << e.what());
+                }
+            }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testIntegrationTakesItsLimitOnce)
+{
+    BOOST_TEST_MESSAGE("Testing that AnalyticHestonEngine::Integration takes its integration limit once...");
+
+    /* #352: where c_inf is positive and the limit isn't Null<Real>(), Integration::calculate asked maxBound for it to
+       see whether there was one, and again for the bound it integrates to, so each price on these rules worked out
+       its limit twice, and since #340 that reads the characteristic function. Where the limit is Null<Real>(), the
+       rule maps [0, infinity) onto [0, 1] through c_inf instead, and that took one call before as well. e^{-2u}
+       integrates to (1 - e^{-2}) / 2 on [0, 1] and to 1 / 2 on [0, infinity). */
+    using Integration = AnalyticHestonEngine::Integration;
+    const auto f = [](Real u) -> Real { return std::exp(-2.0 * u); };
+    const std::vector<std::pair<std::string, Integration>> rules = {
+        {"Gauss-Kronrod", Integration::gaussKronrod(1e-12)},
+        {"Gauss-Lobatto", Integration::gaussLobatto(1e-12, 1e-12)},
+        {"Simpson's rule", Integration::simpson(1e-10)},
+        {"the trapezoid rule", Integration::trapezoid(1e-10)},
+        {"the discrete Simpson rule", Integration::discreteSimpson()},
+        {"the discrete trapezoid rule", Integration::discreteTrapezoid()}};
+    for (const auto& [name, integration] : rules)
+        BOOST_TEST_CONTEXT(name)
+        {
+            Size calls = 0;
+            const Real bounded = integration.calculate(1.0, f,
+                                                       [&calls]() -> Real
+                                                       {
+                                                           ++calls;
+                                                           return 1.0;
+                                                       });
+            BOOST_CHECK_EQUAL(calls, Size(1));
+            BOOST_CHECK_SMALL(bounded - 0.5 * (1.0 - std::exp(-2.0)), 1e-6);
+
+            calls = 0;
+            const Real unbounded = integration.calculate(1.0, f,
+                                                         [&calls]() -> Real
+                                                         {
+                                                             ++calls;
+                                                             return Null<Real>();
+                                                         });
+            BOOST_CHECK_EQUAL(calls, Size(1));
+            BOOST_CHECK_SMALL(unbounded - 0.5, 1e-6);
+        }
+}
+
 BOOST_AUTO_TEST_CASE(testPiecewiseTimeDependentChFvsHestonChF)
 {
     BOOST_TEST_MESSAGE("Testing piecewise time dependent "
@@ -2666,6 +2810,95 @@ BOOST_AUTO_TEST_CASE(testPiecewiseTimeDependentChFAsymtotic)
                     << "\n  expeceted : " << expectedNPV << "\n  calclated : " << calculatedNPV
                     << "\n  diff      : " << diffNPV << "\n  tolerance : " << 1e-9);
     }
+}
+
+BOOST_AUTO_TEST_CASE(testPiecewiseTimeDependentAndersenPiterbargLimit)
+{
+    BOOST_TEST_MESSAGE("Testing AnalyticPTDHestonEngine's Andersen-Piterbarg integration limit...");
+
+    /* #344: the limit was the closed form's root, with its Gaussian part at v0 and c_inf's v0 term at the first
+       interval's sigma and rho. On piecewise parameters that can misstate where the characteristic function has
+       decayed, and on constant ones v0 well above theta does, as it did in AnalyticHestonEngine before #339. By
+       Gauss-Kronrod at 1e-8, against exp-sinh, which takes no limit, the three models below were 0.0385, 7.5e-6 and
+       0.067 off at andersenPiterbargEpsilon 1e-8, and 0.084, 4.3e-5 and 0.088 at 1e-6. The limit now takes its
+       Gaussian part at the control variate's variance and is then read off the characteristic function, as
+       AnalyticHestonEngine's is (#340). The first model needs the read: with the root at that variance alone it was
+       4.7e-4 and 2.0e-3 off. The second needs the root there: read on from the root at v0 it was 1.6e-6 and 1.6e-5
+       off, where the characteristic function had decayed and the control variate's Gaussian, at a variance below v0,
+       hadn't. */
+    using Integration = AnalyticHestonEngine::Integration;
+    const Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(0.01, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+
+    const auto test = [&](const std::string& what, const ext::shared_ptr<PiecewiseTimeDependentHestonModel>& model,
+                          const Date& maturity, Real strike)
+    {
+        VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, strike),
+                             ext::make_shared<EuropeanExercise>(maturity));
+        option.setPricingEngine(ext::make_shared<AnalyticPTDHestonEngine>(
+            model, AnalyticPTDHestonEngine::AndersenPiterbarg, Integration::expSinh(1e-12)));
+        const Real expected = option.NPV();
+        for (const Real epsilon : {1e-8, 1e-6})
+        {
+            option.setPricingEngine(ext::make_shared<AnalyticPTDHestonEngine>(
+                model, AnalyticPTDHestonEngine::AndersenPiterbarg, Integration::gaussKronrod(1e-8), epsilon));
+            BOOST_TEST_CONTEXT(what << ", andersenPiterbargEpsilon " << epsilon)
+            {
+                try
+                {
+                    BOOST_CHECK_SMALL(option.NPV() - expected, std::max(1e-7, epsilon));
+                }
+                catch (const Error& e)
+                {
+                    BOOST_ERROR("threw " << e.what());
+                }
+            }
+        }
+    };
+
+    // sigma, theta, kappa and rho on [0, t1), [t1, t2) and from t2, with the grid {t1, t2, 3}
+    struct Piecewise
+    {
+        Time t1, t2;
+        Real sigma[3], theta[3], kappa[3], rho[3], v0;
+        Integer days;
+        Real strike;
+    };
+    const Piecewise needsTheRead = {
+        0.01, 1.0, {0.1, 0.3, 0.6}, {0.04, 0.01, 0.04}, {0.3, 4.0, 0.3}, {-0.5, -0.5, 0.0}, 0.4, 730, 125.0};
+    const Piecewise needsTheRootAtTheControlVariatesVariance = {
+        0.01, 1.0, {0.1, 0.01, 0.1}, {0.01, 0.09, 0.16}, {4.0, 0.3, 4.0}, {-0.5, -0.9, -0.9}, 0.4, 396, 125.0};
+    for (const auto& [c, what] : {std::make_pair(needsTheRead, "the read"),
+                                  std::make_pair(needsTheRootAtTheControlVariatesVariance, "the root")})
+    {
+        const std::vector<Time> pTimes = {c.t1, c.t2}, gridTimes = {c.t1, c.t2, 3.0};
+        PiecewiseConstantParameter sigma(pTimes, PositiveConstraint()), theta(pTimes, PositiveConstraint()),
+            kappa(pTimes, PositiveConstraint()), rho(pTimes, BoundaryConstraint(-1.0, 1.0));
+        for (Size i = 0; i < 3; ++i)
+        {
+            sigma.setParam(i, c.sigma[i]);
+            theta.setParam(i, c.theta[i]);
+            kappa.setParam(i, c.kappa[i]);
+            rho.setParam(i, c.rho[i]);
+        }
+        test(std::string("piecewise, needing ") + what,
+             ext::make_shared<PiecewiseTimeDependentHestonModel>(rTS, qTS, s0, c.v0, theta, kappa, sigma, rho,
+                                                                 TimeGrid(gridTimes.begin(), gridTimes.end())),
+             today + Period(c.days, Days), c.strike);
+    }
+
+    // constant parameters, v0 well above theta: testAndersenPiterbargLimitAtAverageVariance's first case (#339)
+    const Date maturity = today + Period(10, Years);
+    test("constant",
+         ext::make_shared<PiecewiseTimeDependentHestonModel>(
+             rTS, qTS, s0, 2.56, ConstantParameter(0.04, PositiveConstraint()),
+             ConstantParameter(10.0, PositiveConstraint()), ConstantParameter(0.5, PositiveConstraint()),
+             ConstantParameter(0.5, BoundaryConstraint(-1.0, 1.0)), TimeGrid(dc.yearFraction(today, maturity), 10)),
+         maturity, 80.0);
 }
 
 BOOST_AUTO_TEST_CASE(testSmallSigmaExpansion)
