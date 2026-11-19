@@ -197,6 +197,8 @@ no longer checks them, and no CI job builds any of them.
 | #336 | `ql/experimental/credit/integralntdengine.cpp` | `IntegralNtdEngine` values both legs from today on a discount curve dated after today, as the CDO engines do, where it started the protection on the curve's date and left out a coupon paid by then |
 | #294 | `ql/pricingengines/vanilla/analytichestonengine.{hpp,cpp}` | `AnalyticHestonEngine::Integration::simpson` and `trapezoid` stop by default, after 24 estimates (8,388,609 evaluations an integral), where their default bound of 1000 estimates bounded nothing and a call that never converged didn't return; the bound is renamed `maxIterations` |
 | #299 | `ql/pricingengines/vanilla/analytichestonengine.cpp` | `AnalyticHestonEngine`'s Andersen-Piterbarg integration limit searches its root between bounds on either side of it, where it threw "unable to bracket root" wherever log(u) at the root was more than 68 % of -log(epsilon), as at a loosened `andersenPiterbargEpsilon` |
+| #339 | `ql/pricingengines/vanilla/analytichestonengine.{hpp,cpp}` | `AnalyticHestonEngine`'s Andersen-Piterbarg integration limit takes its Gaussian part at the average variance, where it took v0 and lay orders of magnitude past the integrand's decay below theta (Gauss-Kronrod came back up to 97.9 off) and short of it above |
+| #343 | `ql/pricingengines/vanilla/analytichestonengine.cpp` | The deprecated `AnalyticHestonEngine::doCalculation` scales its Andersen-Piterbarg correction by F / pi, as `calculate()` does, where it took sqrt(K F) / pi and came back off away from the forward, up to 3,539 with AsymptoticChF |
 
 ### New in this fork
 
