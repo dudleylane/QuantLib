@@ -155,6 +155,40 @@ namespace QuantLib
             }
         }
 
+        /* Andersen and Piterbarg's limit is where |phi(u - i (alpha + 1))| / u has fallen to epsilon, and
+           Integration::andersenPiterbargIntegrationLimit solves that on two asymptotics of phi: e^{-c_inf u}, which
+           leaves out the asymptotic's constant e^{Re psi} (#340), and the Gaussian at the average variance, which phi
+           doesn't follow between the two regimes (#347). So u0, the larger of their roots, can stop short. Where
+           |phi(u0 - i (alpha + 1))| / u0 is still above epsilon, and above QL_EPSILON, this reads the criterion off
+           phi itself: it doubles past u0 until |phi| / u is below epsilon, and solves between the last two points.
+           logModulus(u) is log |phi(u - i (alpha + 1))|. Where that isn't finite at a doubling point, or |phi| / u
+           hasn't fallen below epsilon by 2^64 u0, the limit stays u0. AndersenPiterbarg and AndersenPiterbargOptCV
+           take phi on that line. Where AngledContour, AngledContourNoCV and AsymptoticChF tilt it, and for
+           AsymptoticChF, which integrates phi less its asymptotic, the read stands in for their integrand's decay, as
+           the closed form did. */
+        template <class LogModulus>
+        Real andersenPiterbargLimitFromChF(Real u0, Real epsilon, const LogModulus& logModulus)
+        {
+            const Real logEpsilon = std::log(epsilon);
+            // log(|phi| / u) less log(epsilon), positive where |phi| / u is above epsilon
+            const auto excess = [&](Real u) { return logModulus(u) - std::log(u) - logEpsilon; };
+            const Real e0 = excess(u0);
+            if (!(std::isfinite(e0) && e0 > 0.0 && e0 + logEpsilon > std::log(QL_EPSILON)))
+                return u0;
+            Real lo = u0, hi = 2.0 * u0;
+            for (Size doublings = 0; doublings < 64; ++doublings)
+            {
+                const Real e = excess(hi);
+                if (!std::isfinite(e))
+                    return u0;
+                if (e < 0.0)
+                    return Brent().solve(excess, 1e-6 * hi, 0.5 * (lo + hi), lo, hi);
+                lo = hi;
+                hi *= 2.0;
+            }
+            return u0;
+        }
+
         // past e^G the growth below cancels digits
         constexpr Real hestonUnitCorrelationGrowth = 2.0;
     }
@@ -997,7 +1031,9 @@ namespace QuantLib
                 const std::function<Real()> uM = [&]()
                 {
                     if (c_inf != 0.0)
-                        return Integration::andersenPiterbargIntegrationLimit(c_inf, epsilon, vAvg, maturity);
+                        return andersenPiterbargLimitFromChF(
+                            Integration::andersenPiterbargIntegrationLimit(c_inf, epsilon, vAvg, maturity), epsilon,
+                            [&](Real u) { return lnChF(std::complex<Real>(u, -alpha_ - 1.0), maturity).real(); });
                     QL_REQUIRE(finalLog == AngledContour || finalLog == AngledContourNoCV,
                                "at rho = " << rho
                                            << " the Andersen-Piterbarg control variates' integrand doesn't decay"
@@ -1378,8 +1414,13 @@ namespace QuantLib
                 // the limit's Gaussian part at the average variance, as in calculate() (#339)
                 const Real vAvg = theta + (v0 - theta) * detail::decayRatio(kappa * term);
 
+                // read off phi(u - i / 2), the point AP_Helper takes at its alpha of -0.5, as in calculate() (#340)
                 const std::function<Real()> uM = [&]()
-                { return Integration::andersenPiterbargIntegrationLimit(c_inf, epsilon, vAvg, term); };
+                {
+                    return andersenPiterbargLimitFromChF(
+                        Integration::andersenPiterbargIntegrationLimit(c_inf, epsilon, vAvg, term), epsilon,
+                        [&](Real u) { return enginePtr->lnChF(std::complex<Real>(u, -0.5), term).real(); });
+                };
 
                 AP_Helper cvHelper(term, fwdPrice, strikePrice,
                                    (cpxLog == OptimalCV) ? optimalControlVariate(term, v0, kappa, theta, sigma, rho) :
