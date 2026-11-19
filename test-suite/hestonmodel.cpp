@@ -3794,6 +3794,116 @@ BOOST_AUTO_TEST_CASE(testAverageVarianceAtSmallKappaT)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testSmallSigmaAtSmallKappa)
+{
+    BOOST_TEST_MESSAGE("Testing the analytic Heston engine at a small vol of vol and a small kappa...");
+
+    // Where sigma <= 1e-6 and kappa >= 1e-8, chF took an expansion to second order in sigma whose coefficients cancel
+    // as kappa t falls and are then divided by kappa up to its fourth power. At kappa 1e-7 it was 4 % off psi at a
+    // month, and off by 305 times psi's modulus at a day; the default engine's one-month call was 1.9e-2 off at the
+    // money, and 1.8e-3 off at 120, where it is worth 7.0e-11 (#348). The expected values are psi, in Albrecher et
+    // al.'s form, and the calls priced from it on Lewis's integral, both in 40-digit arithmetic.
+    const Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.01, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+    const auto model =
+        ext::make_shared<HestonModel>(ext::make_shared<HestonProcess>(rTS, qTS, s0, 0.01, 1e-7, 0.04, 1e-6, -0.9));
+
+    const struct
+    {
+        Time t;
+        std::complex<Real> z, expected;
+    } chFs[] = {
+        {1.0 / 12, {50.0, -0.5}, {0.352829328787733984, 6.89188681364005115e-7}},
+        {1.0 / 365, {500.0, 0.0}, {0.0325596664469323407, -0.000222946161945409635}},
+    };
+    const AnalyticHestonEngine engine(model);
+    for (const auto& c : chFs)
+    {
+        BOOST_TEST_CONTEXT("t " << c.t << ", z " << c.z)
+        {
+            BOOST_CHECK_SMALL(std::abs(engine.chF(c.z, c.t) - c.expected) / std::abs(c.expected), 1e-12);
+        }
+    }
+
+    const struct
+    {
+        Period tenor;
+        Real strike, expected;
+    } calls[] = {
+        {Period(1, Months), 100.0, 1.225747832190659172},
+        {Period(1, Months), 120.0, 6.9706496744708271501e-11},
+        {Period(1, Years), 100.0, 4.9670623942747426555},
+        {Period(10, Years), 100.0, 20.524881264016906766},
+    };
+    for (const auto& c : calls)
+    {
+        BOOST_TEST_CONTEXT(c.tenor << ", strike " << c.strike)
+        {
+            VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, c.strike),
+                                 ext::make_shared<EuropeanExercise>(today + c.tenor));
+            option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(model));
+            BOOST_CHECK_SMALL(option.NPV() - c.expected, 1e-12);
+        }
+    }
+
+    // At rho = -1 and 1 Gauss-Lobatto takes AP_Helper's unit-correlation path, which read log psi off chF where chF
+    // took the expansion, and threw (#348).
+    for (const auto& [rho, expected] : {std::pair{-1.0, 1.2257478040848120745}, {1.0, 1.225747797058272924}})
+    {
+        BOOST_TEST_CONTEXT("rho " << rho)
+        {
+            VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0),
+                                 ext::make_shared<EuropeanExercise>(today + Period(1, Months)));
+            option.setPricingEngine(
+                ext::make_shared<AnalyticHestonEngine>(ext::make_shared<HestonModel>(ext::make_shared<HestonProcess>(
+                                                           rTS, qTS, s0, 0.01, 1e-7, 0.04, 1e-7, rho)),
+                                                       1e-8, 10000));
+            BOOST_CHECK_SMALL(option.NPV() - expected, 1e-12);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testVolOfVolWhoseSquareUnderflows)
+{
+    BOOST_TEST_MESSAGE("Testing the analytic Heston engine where sigma^2 underflows...");
+
+    // At sigma 1e-300 sigma^2 is 0, and lnChF's general form, which multiplies kappa theta / sigma^2 by a factor of
+    // order sigma^2, is NaN: the default engine priced at NaN where kappa < 1e-8 (#355), and above that chF's
+    // expansion in sigma lost digits as kappa fell (#348). There the variance follows its mean, so a call is worth
+    // Black's price at the integrated variance.
+    const Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.01, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+    const Date maturity = today + Period(1, Years);
+    const Time t = dc.yearFraction(today, maturity);
+    const Real v0 = 0.01, theta = 0.04;
+    for (Real kappa : {1e-9, 1e-7, 0.5})
+    {
+        BOOST_TEST_CONTEXT("kappa " << kappa)
+        {
+            const auto model = ext::make_shared<HestonModel>(
+                ext::make_shared<HestonProcess>(rTS, qTS, s0, v0, kappa, theta, 1e-300, -0.9));
+            const Real variance = (theta + (v0 - theta) * -std::expm1(-kappa * t) / (kappa * t)) * t;
+            const Real expected = blackFormula(Option::Call, 100.0, s0->value() * qTS->discount(t) / rTS->discount(t),
+                                               std::sqrt(variance), rTS->discount(t));
+            VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0),
+                                 ext::make_shared<EuropeanExercise>(maturity));
+            option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(model));
+            BOOST_CHECK_SMALL(option.NPV() - expected, 1e-12);
+            option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(
+                model, AnalyticHestonEngine::AngledContour, AnalyticHestonEngine::Integration::expSinh(1e-12)));
+            BOOST_CHECK_SMALL(option.NPV() - expected, 1e-12);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE(HestonModelExperimentalTest)

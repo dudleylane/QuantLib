@@ -361,7 +361,7 @@ namespace QuantLib
         const Real alpha_, s_alpha_;
         Real vAvg_, tanPhi_;
         std::complex<Real> phi_, psi_;
-        bool useLnChF_, unitCorrelation_;
+        bool unitCorrelation_;
     };
 
 

@@ -644,8 +644,6 @@ namespace QuantLib
         const Real sigma = enginePtr->model_->sigma();
         const Real rho = enginePtr->model_->rho();
 
-        // where chF takes its value from lnChF
-        useLnChF_ = sigma > 1e-6 || kappa < 1e-8;
         /* Where the angled contour takes its angle from r alone, and the one exponential below (#239): at rho = -1
            or 1, where the engine's own rule is Gauss-Lobatto, the one rule that takes a limit there. Gauss-Laguerre
            and exp-sinh, which priced rho = -1 and 1 before, keep the contour and control variates they had. On this
@@ -724,8 +722,7 @@ namespace QuantLib
                     phiBS = std::exp(-0.5 * vAvg_ * term_ *
                                          (hPrime * hPrime + std::complex<Real>(-hPrime.imag(), hPrime.real())) +
                                      shift);
-                const std::complex<Real> lnPhi =
-                    useLnChF_ ? enginePtr_->lnChF(hPrime, term_) : std::log(enginePtr_->chF(hPrime, term_));
+                const std::complex<Real> lnPhi = enginePtr_->lnChF(hPrime, term_);
                 return (std::complex<Real>(1, tanPhi_) * (phiBS - std::exp(lnPhi + shift)) / (h_u * hPrime)).real() *
                        s_alpha_;
             }
@@ -788,46 +785,11 @@ namespace QuantLib
 
     std::complex<Real> AnalyticHestonEngine::chF(const std::complex<Real>& z, Time t) const
     {
-        if (model_->sigma() > 1e-6 || model_->kappa() < 1e-8)
-        {
-            return std::exp(lnChF(z, t));
-        }
-        else
-        {
-            const Real kappa = model_->kappa();
-            const Real sigma = model_->sigma();
-            const Real theta = model_->theta();
-            const Real rho = model_->rho();
-            const Real v0 = model_->v0();
-
-            const Real sigma2 = sigma * sigma;
-
-            const Real kt = kappa * t;
-            const Real ekt = std::exp(kt);
-            const Real e2kt = std::exp(2 * kt);
-            const Real rho2 = rho * rho;
-            const std::complex<Real> zpi = z + std::complex<Real>(0.0, 1.0);
-
-            return std::exp(-(((theta - v0 + ekt * ((-1 + kt) * theta + v0)) * z * zpi) / ekt) / (2. * kappa))
-
-                   + (std::exp(-(kt) - ((theta - v0 + ekt * ((-1 + kt) * theta + v0)) * z * zpi) / (2. * ekt * kappa)) *
-                      rho * (2 * theta + kt * theta - v0 - kt * v0 + ekt * ((-2 + kt) * theta + v0)) *
-                      (1.0 - std::complex<Real>(-z.imag(), z.real())) * z * z) /
-                         (2. * kappa * kappa) * sigma
-
-                   +
-                   (std::exp(-2 * kt - ((theta - v0 + ekt * ((-1 + kt) * theta + v0)) * z * zpi) / (2. * ekt * kappa)) *
-                    z * z * zpi *
-                    (-2 * rho2 * squared(2 * theta + kt * theta - v0 - kt * v0 + ekt * ((-2 + kt) * theta + v0)) * z *
-                         z * zpi +
-                     2 * kappa * v0 *
-                         (-zpi + e2kt * (zpi + 4 * rho2 * z) -
-                          2 * ekt * (2 * rho2 * z + kt * (zpi + rho2 * (2 + kt) * z))) +
-                     kappa * theta *
-                         (zpi + e2kt * (-5.0 * zpi - 24 * rho2 * z + 2 * kt * (zpi + 4 * rho2 * z)) +
-                          4 * ekt * (zpi + 6 * rho2 * z + kt * (zpi + rho2 * (4 + kt) * z))))) /
-                       (16. * squared(squared(kappa))) * sigma2;
-        }
+        /* From lnChF throughout. Where sigma <= 1e-6 and kappa >= 1e-8 this took an expansion to second order in
+           sigma, whose coefficients cancel as kappa t falls and are then divided by kappa up to its fourth power. At
+           sigma 1e-6, kappa 1e-7 and a month it was 4 % off psi at z = 50 - i/2, and the default engine's
+           at-the-money call came out 1.6 % low (#348). */
+        return std::exp(lnChF(z, t));
     }
 
     std::complex<Real> AnalyticHestonEngine::lnChF(const std::complex<Real>& z, Time t) const
@@ -838,6 +800,16 @@ namespace QuantLib
         const Real theta = model_->theta();
         const Real rho = model_->rho();
         const Real v0 = model_->v0();
+
+        /* sigma = 0's limit, within O(sigma) of log psi: the variance follows its mean, and log psi is a normal's
+           with the integrated variance. The form below multiplies kappa theta / sigma^2 by a factor of order
+           sigma^2, so it needs sigma^2 normal, as it is above about 1.5e-154; where sigma^2 is 0, below about
+           2.2e-162, it is NaN (#348, #355). */
+        if (sigma <= 1e-100)
+        {
+            const Real vInt = (theta + (v0 - theta) * detail::decayRatio(kappa * t)) * t;
+            return -0.5 * vInt * z * std::complex<Real>(z.real(), z.imag() + 1);
+        }
 
         const Real sigma2 = sigma * sigma;
 
