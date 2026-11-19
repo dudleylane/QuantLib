@@ -984,6 +984,12 @@ namespace QuantLib
                                    AngledContour :
                                    optimalControlVariate(maturity, v0, kappa, theta, sigma, rho);
 
+                /* Below u of about 1 / (sigma t) the characteristic function decays as a Gaussian at the average
+                   variance, as the Andersen-Piterbarg control variates' Gaussian part does, so the limit's Gaussian
+                   part takes it too (#339). Until then it took v0: short of where the integrand had decayed where v0
+                   is above theta, and further out than it needed where v0 is below. */
+                const Real vAvg = theta + (v0 - theta) * detail::decayRatio(kappa * maturity);
+
                 /* Where rho is -1 or 1, c_inf is 0, and the limit comes from the decay that's left along the angled
                    contour (#239). The Andersen-Piterbarg control variates integrate along the real line, where at
                    rho = -1 or 1 the integrand decays only as e^{-a sqrt(u)} while it turns at the rate
@@ -991,7 +997,7 @@ namespace QuantLib
                 const std::function<Real()> uM = [&]()
                 {
                     if (c_inf != 0.0)
-                        return Integration::andersenPiterbargIntegrationLimit(c_inf, epsilon, v0, maturity);
+                        return Integration::andersenPiterbargIntegrationLimit(c_inf, epsilon, vAvg, maturity);
                     QL_REQUIRE(finalLog == AngledContour || finalLog == AngledContourNoCV,
                                "at rho = " << rho
                                            << " the Andersen-Piterbarg control variates' integrand doesn't decay"
@@ -1004,8 +1010,6 @@ namespace QuantLib
                 const AP_Helper cvHelper(maturity, fwd, strike, finalLog, this, alpha_);
 
                 const Real cvValue = cvHelper.controlVariateValue();
-
-                const Real vAvg = theta + (v0 - theta) * detail::decayRatio(kappa * maturity);
 
                 const Real scalingFactor =
                     (cpxLog_ != OptimalCV && cpxLog_ != AsymptoticChF) ?
@@ -1275,7 +1279,7 @@ namespace QuantLib
         return AnalyticHestonEngine::Integration::calculate(c_inf, f, [=]() { return maxBound; });
     }
 
-    Real AnalyticHestonEngine::Integration::andersenPiterbargIntegrationLimit(Real c_inf, Real epsilon, Real v0, Real t)
+    Real AnalyticHestonEngine::Integration::andersenPiterbargIntegrationLimit(Real c_inf, Real epsilon, Real v, Real t)
     {
         QL_REQUIRE(c_inf > 0.0 && std::isfinite(c_inf),
                    "the Andersen-Piterbarg integration limit needs a positive, finite decay rate c_inf, given "
@@ -1298,7 +1302,7 @@ namespace QuantLib
         const Real uMax = f(uMaxHigh) <= 0.0 ?
                               uMaxHigh :
                               Brent().solve(f, QL_EPSILON * uMaxLow, 0.5 * (uMaxLow + uMaxHigh), uMaxLow, uMaxHigh);
-        const Real uHatMax = hestonGaussianLimit(v0, t, epsilon);
+        const Real uHatMax = hestonGaussianLimit(v, t, epsilon);
 
         return uHatMax != Null<Real>() ? std::max(uMax, uHatMax) : uMax;
     }
@@ -1371,8 +1375,11 @@ namespace QuantLib
                 const Real epsilon = enginePtr->andersenPiterbargEpsilon_ * M_PI /
                                      (std::sqrt(strikePrice * fwdPrice) * riskFreeDiscount);
 
+                // the limit's Gaussian part at the average variance, as in calculate() (#339)
+                const Real vAvg = theta + (v0 - theta) * detail::decayRatio(kappa * term);
+
                 const std::function<Real()> uM = [&]()
-                { return Integration::andersenPiterbargIntegrationLimit(c_inf, epsilon, v0, term); };
+                { return Integration::andersenPiterbargIntegrationLimit(c_inf, epsilon, vAvg, term); };
 
                 AP_Helper cvHelper(term, fwdPrice, strikePrice,
                                    (cpxLog == OptimalCV) ? optimalControlVariate(term, v0, kappa, theta, sigma, rho) :
@@ -1381,7 +1388,8 @@ namespace QuantLib
 
                 const Real cvValue = cvHelper.controlVariateValue();
 
-                const Real h_cv = integration.calculate(c_inf, cvHelper, uM) * std::sqrt(strikePrice * fwdPrice) / M_PI;
+                // F / pi, as calculate() takes, since AP_Helper's integrand carries (F / K)^alpha (#343)
+                const Real h_cv = fwdPrice / M_PI * integration.calculate(c_inf, cvHelper, uM);
                 evaluations += integration.numberOfEvaluations();
 
                 switch (type.optionType())
