@@ -1255,8 +1255,8 @@ namespace QuantLib
                     QL_REQUIRE(U != Null<Real>(), "an integration limit is needed where c_inf is 0");
                     retVal = unitCorrelationIntegral(f, U);
                 }
-                else if (maxBound && maxBound() != Null<Real>())
-                    retVal = (*integrator_)(f, 0.0, maxBound());
+                else if (const Real U = maxBound ? maxBound() : Null<Real>(); U != Null<Real>())
+                    retVal = (*integrator_)(f, 0.0, U);
                 else
                 {
                     QL_REQUIRE(c_inf > 0.0, "this integration needs a positive decay rate c_inf, given " << c_inf);
@@ -1270,8 +1270,8 @@ namespace QuantLib
                 QL_REQUIRE(c_inf > 0.0, "the discrete Simpson and trapezoid rules need a positive decay rate c_inf,"
                                         " given "
                                             << c_inf << "; it is zero where rho is -1 or 1");
-                if (maxBound && maxBound() != Null<Real>())
-                    retVal = (*integrator_)(f, 0.0, maxBound());
+                if (const Real U = maxBound ? maxBound() : Null<Real>(); U != Null<Real>())
+                    retVal = (*integrator_)(f, 0.0, U);
                 else
                     retVal = (*integrator_)(integrand3(c_inf, f), 0.0, 1.0);
                 break;

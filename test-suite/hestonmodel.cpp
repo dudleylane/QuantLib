@@ -2477,6 +2477,49 @@ BOOST_AUTO_TEST_CASE(testAndersenPiterbargLimitWhereTheIntegrandFallsToEpsilon)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testIntegrationTakesItsLimitOnce)
+{
+    BOOST_TEST_MESSAGE("Testing that AnalyticHestonEngine::Integration takes its integration limit once...");
+
+    /* #352: where c_inf is positive and the limit isn't Null<Real>(), Integration::calculate asked maxBound for it to
+       see whether there was one, and again for the bound it integrates to, so each price on these rules worked out
+       its limit twice, and since #340 that reads the characteristic function. Where the limit is Null<Real>(), the
+       rule maps [0, infinity) onto [0, 1] through c_inf instead, and that took one call before as well. e^{-2u}
+       integrates to (1 - e^{-2}) / 2 on [0, 1] and to 1 / 2 on [0, infinity). */
+    using Integration = AnalyticHestonEngine::Integration;
+    const auto f = [](Real u) -> Real { return std::exp(-2.0 * u); };
+    const std::vector<std::pair<std::string, Integration>> rules = {
+        {"Gauss-Kronrod", Integration::gaussKronrod(1e-12)},
+        {"Gauss-Lobatto", Integration::gaussLobatto(1e-12, 1e-12)},
+        {"Simpson's rule", Integration::simpson(1e-10)},
+        {"the trapezoid rule", Integration::trapezoid(1e-10)},
+        {"the discrete Simpson rule", Integration::discreteSimpson()},
+        {"the discrete trapezoid rule", Integration::discreteTrapezoid()}};
+    for (const auto& [name, integration] : rules)
+        BOOST_TEST_CONTEXT(name)
+        {
+            Size calls = 0;
+            const Real bounded = integration.calculate(1.0, f,
+                                                       [&calls]() -> Real
+                                                       {
+                                                           ++calls;
+                                                           return 1.0;
+                                                       });
+            BOOST_CHECK_EQUAL(calls, Size(1));
+            BOOST_CHECK_SMALL(bounded - 0.5 * (1.0 - std::exp(-2.0)), 1e-6);
+
+            calls = 0;
+            const Real unbounded = integration.calculate(1.0, f,
+                                                         [&calls]() -> Real
+                                                         {
+                                                             ++calls;
+                                                             return Null<Real>();
+                                                         });
+            BOOST_CHECK_EQUAL(calls, Size(1));
+            BOOST_CHECK_SMALL(unbounded - 0.5, 1e-6);
+        }
+}
+
 BOOST_AUTO_TEST_CASE(testPiecewiseTimeDependentChFvsHestonChF)
 {
     BOOST_TEST_MESSAGE("Testing piecewise time dependent "
