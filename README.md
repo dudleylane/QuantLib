@@ -202,6 +202,7 @@ no longer checks them, and no CI job builds any of them.
 | #340, #347 | `ql/pricingengines/vanilla/analytichestonengine.{hpp,cpp}` | `AnalyticHestonEngine`'s Andersen-Piterbarg integration limit is read off the characteristic function where the closed form's root leaves the integrand above the caller's `andersenPiterbargEpsilon`, where it stopped short and prices came back up to 35 times that epsilon off; at the default epsilon nothing moves |
 | #352 | `ql/pricingengines/vanilla/analytichestonengine.cpp` | `AnalyticHestonEngine::Integration::calculate` works out its integration limit once a price, where it worked it out twice |
 | #344 | `ql/pricingengines/vanilla/analyticptdhestonengine.cpp` | `AnalyticPTDHestonEngine`'s Andersen-Piterbarg integration limit takes its Gaussian part at the control variate's variance and is then read off the characteristic function, as `AnalyticHestonEngine`'s is, where it stopped short and prices on piecewise parameters came back up to 0.084 off |
+| #348, #355 | `ql/pricingengines/vanilla/analytichestonengine.{hpp,cpp}`, `ql/experimental/forward/analytichestonforwardeuropeanengine.cpp` | `AnalyticHestonEngine::chF` takes `lnChF`'s form at small sigma, where an expansion's rounding put the default engine's prices up to 0.019 off at small kappa, and `lnChF` takes sigma = 0's limit at and below sigma 1e-100, where its general form was NaN; the forward engine reads `lnChF` too |
 
 ### New in this fork
 
