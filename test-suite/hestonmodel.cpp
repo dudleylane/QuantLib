@@ -2812,6 +2812,95 @@ BOOST_AUTO_TEST_CASE(testPiecewiseTimeDependentChFAsymtotic)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testPiecewiseTimeDependentAndersenPiterbargLimit)
+{
+    BOOST_TEST_MESSAGE("Testing AnalyticPTDHestonEngine's Andersen-Piterbarg integration limit...");
+
+    /* #344: the limit was the closed form's root, with its Gaussian part at v0 and c_inf's v0 term at the first
+       interval's sigma and rho. On piecewise parameters that can misstate where the characteristic function has
+       decayed, and on constant ones v0 well above theta does, as it did in AnalyticHestonEngine before #339. By
+       Gauss-Kronrod at 1e-8, against exp-sinh, which takes no limit, the three models below were 0.0385, 7.5e-6 and
+       0.067 off at andersenPiterbargEpsilon 1e-8, and 0.084, 4.3e-5 and 0.088 at 1e-6. The limit now takes its
+       Gaussian part at the control variate's variance and is then read off the characteristic function, as
+       AnalyticHestonEngine's is (#340). The first model needs the read: with the root at that variance alone it was
+       4.7e-4 and 2.0e-3 off. The second needs the root there: read on from the root at v0 it was 1.6e-6 and 1.6e-5
+       off, where the characteristic function had decayed and the control variate's Gaussian, at a variance below v0,
+       hadn't. */
+    using Integration = AnalyticHestonEngine::Integration;
+    const Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(0.01, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+
+    const auto test = [&](const std::string& what, const ext::shared_ptr<PiecewiseTimeDependentHestonModel>& model,
+                          const Date& maturity, Real strike)
+    {
+        VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, strike),
+                             ext::make_shared<EuropeanExercise>(maturity));
+        option.setPricingEngine(ext::make_shared<AnalyticPTDHestonEngine>(
+            model, AnalyticPTDHestonEngine::AndersenPiterbarg, Integration::expSinh(1e-12)));
+        const Real expected = option.NPV();
+        for (const Real epsilon : {1e-8, 1e-6})
+        {
+            option.setPricingEngine(ext::make_shared<AnalyticPTDHestonEngine>(
+                model, AnalyticPTDHestonEngine::AndersenPiterbarg, Integration::gaussKronrod(1e-8), epsilon));
+            BOOST_TEST_CONTEXT(what << ", andersenPiterbargEpsilon " << epsilon)
+            {
+                try
+                {
+                    BOOST_CHECK_SMALL(option.NPV() - expected, std::max(1e-7, epsilon));
+                }
+                catch (const Error& e)
+                {
+                    BOOST_ERROR("threw " << e.what());
+                }
+            }
+        }
+    };
+
+    // sigma, theta, kappa and rho on [0, t1), [t1, t2) and from t2, with the grid {t1, t2, 3}
+    struct Piecewise
+    {
+        Time t1, t2;
+        Real sigma[3], theta[3], kappa[3], rho[3], v0;
+        Integer days;
+        Real strike;
+    };
+    const Piecewise needsTheRead = {
+        0.01, 1.0, {0.1, 0.3, 0.6}, {0.04, 0.01, 0.04}, {0.3, 4.0, 0.3}, {-0.5, -0.5, 0.0}, 0.4, 730, 125.0};
+    const Piecewise needsTheRootAtTheControlVariatesVariance = {
+        0.01, 1.0, {0.1, 0.01, 0.1}, {0.01, 0.09, 0.16}, {4.0, 0.3, 4.0}, {-0.5, -0.9, -0.9}, 0.4, 396, 125.0};
+    for (const auto& [c, what] : {std::make_pair(needsTheRead, "the read"),
+                                  std::make_pair(needsTheRootAtTheControlVariatesVariance, "the root")})
+    {
+        const std::vector<Time> pTimes = {c.t1, c.t2}, gridTimes = {c.t1, c.t2, 3.0};
+        PiecewiseConstantParameter sigma(pTimes, PositiveConstraint()), theta(pTimes, PositiveConstraint()),
+            kappa(pTimes, PositiveConstraint()), rho(pTimes, BoundaryConstraint(-1.0, 1.0));
+        for (Size i = 0; i < 3; ++i)
+        {
+            sigma.setParam(i, c.sigma[i]);
+            theta.setParam(i, c.theta[i]);
+            kappa.setParam(i, c.kappa[i]);
+            rho.setParam(i, c.rho[i]);
+        }
+        test(std::string("piecewise, needing ") + what,
+             ext::make_shared<PiecewiseTimeDependentHestonModel>(rTS, qTS, s0, c.v0, theta, kappa, sigma, rho,
+                                                                 TimeGrid(gridTimes.begin(), gridTimes.end())),
+             today + Period(c.days, Days), c.strike);
+    }
+
+    // constant parameters, v0 well above theta: testAndersenPiterbargLimitAtAverageVariance's first case (#339)
+    const Date maturity = today + Period(10, Years);
+    test("constant",
+         ext::make_shared<PiecewiseTimeDependentHestonModel>(
+             rTS, qTS, s0, 2.56, ConstantParameter(0.04, PositiveConstraint()),
+             ConstantParameter(10.0, PositiveConstraint()), ConstantParameter(0.5, PositiveConstraint()),
+             ConstantParameter(0.5, BoundaryConstraint(-1.0, 1.0)), TimeGrid(dc.yearFraction(today, maturity), 10)),
+         maturity, 80.0);
+}
+
 BOOST_AUTO_TEST_CASE(testSmallSigmaExpansion)
 {
     BOOST_TEST_MESSAGE("Testing small sigma expansion of "

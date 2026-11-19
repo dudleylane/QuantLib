@@ -155,6 +155,13 @@ namespace QuantLib
             }
         }
 
+        // past e^G the growth below cancels digits
+        constexpr Real hestonUnitCorrelationGrowth = 2.0;
+    }
+
+    namespace detail
+    {
+
         /* Andersen and Piterbarg's limit is where |phi(u - i (alpha + 1))| / u has fallen to epsilon, and
            Integration::andersenPiterbargIntegrationLimit solves that on two asymptotics of phi: e^{-c_inf u}, which
            leaves out the asymptotic's constant e^{Re psi} (#340), and the Gaussian at the average variance, which phi
@@ -166,8 +173,7 @@ namespace QuantLib
            take phi on that line. Where AngledContour, AngledContourNoCV and AsymptoticChF tilt it, and for
            AsymptoticChF, which integrates phi less its asymptotic, the read stands in for their integrand's decay, as
            the closed form did. */
-        template <class LogModulus>
-        Real andersenPiterbargLimitFromChF(Real u0, Real epsilon, const LogModulus& logModulus)
+        Real andersenPiterbargLimitFromChF(Real u0, Real epsilon, const std::function<Real(Real)>& logModulus)
         {
             const Real logEpsilon = std::log(epsilon);
             // log(|phi| / u) less log(epsilon), positive where |phi| / u is above epsilon
@@ -188,13 +194,6 @@ namespace QuantLib
             }
             return u0;
         }
-
-        // past e^G the growth below cancels digits
-        constexpr Real hestonUnitCorrelationGrowth = 2.0;
-    }
-
-    namespace detail
-    {
 
         /* At rho = -1 or 1 the angled contour takes its angle from r = rho - sigma freq / w alone (#239):
            tan(phi) = -sign(r) tan(pi / 12), and 0 at r = 0, with freq = log(F / K) and w = v0 + kappa theta t. On
@@ -1031,7 +1030,7 @@ namespace QuantLib
                 const std::function<Real()> uM = [&]()
                 {
                     if (c_inf != 0.0)
-                        return andersenPiterbargLimitFromChF(
+                        return detail::andersenPiterbargLimitFromChF(
                             Integration::andersenPiterbargIntegrationLimit(c_inf, epsilon, vAvg, maturity), epsilon,
                             [&](Real u) { return lnChF(std::complex<Real>(u, -alpha_ - 1.0), maturity).real(); });
                     QL_REQUIRE(finalLog == AngledContour || finalLog == AngledContourNoCV,
@@ -1417,7 +1416,7 @@ namespace QuantLib
                 // read off phi(u - i / 2), the point AP_Helper takes at its alpha of -0.5, as in calculate() (#340)
                 const std::function<Real()> uM = [&]()
                 {
-                    return andersenPiterbargLimitFromChF(
+                    return detail::andersenPiterbargLimitFromChF(
                         Integration::andersenPiterbargIntegrationLimit(c_inf, epsilon, vAvg, term), epsilon,
                         [&](Real u) { return enginePtr->lnChF(std::complex<Real>(u, -0.5), term).real(); });
                 };

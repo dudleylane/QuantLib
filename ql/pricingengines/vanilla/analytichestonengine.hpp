@@ -58,6 +58,12 @@ namespace QuantLib
         HestonUnitCorrelationBound
         hestonUnitCorrelationBound(Real rho, Real kappa, Real theta, Real sigma, Real w, Real tanPhi);
 
+        // Andersen and Piterbarg's limit read off the characteristic function past u0, the closed form's root, where
+        // the criterion there is still above epsilon (#340); logModulus(u) is log |phi(u - i (alpha + 1))|.
+        // AnalyticHestonEngine and AnalyticPTDHestonEngine both take it (#344), so it is declared here. The criterion
+        // and what the read does where it can't go on are at its definition, in analytichestonengine.cpp.
+        Real andersenPiterbargLimitFromChF(Real u0, Real epsilon, const std::function<Real(Real)>& logModulus);
+
     }
 
     //! analytic Heston-model engine based on Fourier transform
@@ -267,21 +273,24 @@ namespace QuantLib
 
         /* The larger of the roots where e^{-c_inf u} / u and the Gaussian e^{-v t u^2 / 2} / u fall to epsilon.
            AnalyticHestonEngine passes the average variance theta + (v0 - theta) (1 - e^{-kappa t}) / (kappa t) as v,
-           the variance the characteristic function decays at as a Gaussian below u of about 1 / (sigma t); it passed
-           v0 until #339. AnalyticPTDHestonEngine still passes v0 (#344): on piecewise parameters an average of them
-           needn't give the variance the integrand decays at, and its c_inf, the decay rate as u goes to infinity,
-           can overstate the decay over the range the integral needs.
-           Both are asymptotics of Andersen and Piterbarg's criterion |phi(u - i (alpha + 1))| / u, so the root can
-           stop short of where that falls to epsilon: e^{-c_inf u} leaves out the asymptotic's constant e^{Re psi}
-           (#340), and between the Gaussian and the exponential regimes phi follows neither (#347).
-           AnalyticHestonEngine therefore reads the limit off phi where the criterion at the root is still above
-           epsilon, and above QL_EPSILON: it doubles past the root until the criterion is below epsilon, and solves
-           between the last two points. It keeps the root where log |phi| isn't finite at a doubling point, or where
-           the criterion hasn't fallen below epsilon by 2^64 times the root. The criterion takes phi on the line
-           AndersenPiterbarg and AndersenPiterbargOptCV integrate along; for the forms that tilt that line, and for
-           AsymptoticChF, which integrates phi less its asymptotic, it stands in for their integrand's decay, as the
-           root did. At the default andersenPiterbargEpsilon of 1e-25 the criterion at the root was below QL_EPSILON
-           wherever #340 measured, so the limit there is as before. */
+           the variance the characteristic function decays at as a Gaussian below u of about 1 / (sigma t); it passed v0
+           until #339. AnalyticPTDHestonEngine passes its control variate's variance, the same expression on the plain
+           means of kappa and theta over its grid, so that the root covers the control variate's decay; it passed v0
+           until #344. On piecewise parameters that average needn't be the variance the characteristic function decays
+           at, and c_inf, the decay rate as u goes to infinity, can overstate the decay over the range the integral
+           needs.
+           Both are asymptotics of Andersen and Piterbarg's criterion |phi(u - i (alpha + 1))| / u, so the root can stop
+           short of where that falls to epsilon: e^{-c_inf u} leaves out the asymptotic's constant e^{Re psi} (#340),
+           and between the Gaussian and the exponential regimes phi follows neither (#347).
+           Both engines therefore read the limit off phi where the criterion at the root is still above epsilon, and
+           above QL_EPSILON (#340, and #344 for AnalyticPTDHestonEngine): the read doubles past the root until the
+           criterion is below epsilon, and solves between the last two points. It keeps the root where log |phi| isn't
+           finite at a doubling point, or where the criterion hasn't fallen below epsilon by 2^64 times the root. The
+           criterion takes phi on the line AndersenPiterbarg and AndersenPiterbargOptCV integrate along; for the forms
+           that tilt that line, and for AsymptoticChF, which integrates phi less its asymptotic, it stands in for their
+           integrand's decay, as the root did. At AnalyticHestonEngine's default andersenPiterbargEpsilon of 1e-25 the
+           criterion at the root was below QL_EPSILON wherever #340 measured, so the limit there is as before;
+           AnalyticPTDHestonEngine's default is 1e-8. */
         static Real andersenPiterbargIntegrationLimit(Real c_inf, Real epsilon, Real v, Real t);
 
         Real calculate(Real c_inf,
