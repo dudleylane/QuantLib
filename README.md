@@ -195,6 +195,8 @@ no longer checks them, and no CI job builds any of them.
 | #328 | `ql/experimental/credit/{integralcdoengine,midpointcdoengine}.cpp` | The CDO engines count a premium paid before the discount curve's date as paid on that date, where they threw "negative time" |
 | #330 | `ql/experimental/credit/integralntdengine.cpp` | `IntegralNtdEngine` ends a coupon's last step on its accrual end, where it took the rest of the coupon a day at a time, so its value followed the valuation day's place in its coupon |
 | #336 | `ql/experimental/credit/integralntdengine.cpp` | `IntegralNtdEngine` values both legs from today on a discount curve dated after today, as the CDO engines do, where it started the protection on the curve's date and left out a coupon paid by then |
+| #294 | `ql/pricingengines/vanilla/analytichestonengine.{hpp,cpp}` | `AnalyticHestonEngine::Integration::simpson` and `trapezoid` stop by default, after 24 estimates (8,388,609 evaluations an integral), where their default bound of 1000 estimates bounded nothing and a call that never converged didn't return; the bound is renamed `maxIterations` |
+| #299 | `ql/pricingengines/vanilla/analytichestonengine.cpp` | `AnalyticHestonEngine`'s Andersen-Piterbarg integration limit searches its root between bounds on either side of it, where it threw "unable to bracket root" wherever log(u) at the root was more than 68 % of -log(epsilon), as at a loosened `andersenPiterbargEpsilon` |
 
 ### New in this fork
 
