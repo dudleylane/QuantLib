@@ -2310,6 +2310,72 @@ BOOST_AUTO_TEST_CASE(testAndersenPiterbargLimitAtAverageVariance)
                  });
 }
 
+BOOST_AUTO_TEST_CASE(testDoCalculationAwayFromTheForward)
+{
+    BOOST_TEST_MESSAGE("Testing the deprecated AnalyticHestonEngine::doCalculation away from the forward...");
+
+    /* #343: doCalculation scaled its control variate's correction by sqrt(K F) / pi where calculate() takes F / pi, so
+       away from the forward the correction was sqrt(K / F) times what it should be. By Gauss-Kronrod at 1e-8 against
+       exp-sinh, which calculate() met to 5e-12, these were 0.023 to 0.188 off with AndersenPiterbarg and OptimalCV
+       (AngledContour here), 0.040 to 0.133 with AndersenPiterbargOptCV, and 4.7 to 3,539 with AsymptoticChF, whose
+       control variate is worth up to 23,746 here. */
+    using Integration = AnalyticHestonEngine::Integration;
+    const Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(0.01, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+    const Real v0 = 0.04, kappa = 1.0, theta = 0.04, rho = -0.5;
+
+    const std::pair<AnalyticHestonEngine::ComplexLogFormula, std::string> formulas[] = {
+        {AnalyticHestonEngine::AndersenPiterbarg, "AndersenPiterbarg"},
+        {AnalyticHestonEngine::AndersenPiterbargOptCV, "AndersenPiterbargOptCV"},
+        {AnalyticHestonEngine::AsymptoticChF, "AsymptoticChF"},
+        {AnalyticHestonEngine::OptimalCV, "OptimalCV"}};
+    for (Real sigma : {0.2, 0.5})
+    {
+        const auto model =
+            ext::make_shared<HestonModel>(ext::make_shared<HestonProcess>(rTS, qTS, s0, v0, kappa, theta, sigma, rho));
+        for (Integer years : {1, 5})
+        {
+            const Date maturity = today + Period(years, Years);
+            for (Real strike : {80.0, 125.0})
+                for (Option::Type type : {Option::Call, Option::Put})
+                {
+                    const PlainVanillaPayoff payoff(type, strike);
+                    VanillaOption option(ext::make_shared<PlainVanillaPayoff>(payoff),
+                                         ext::make_shared<EuropeanExercise>(maturity));
+                    option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(
+                        model, AnalyticHestonEngine::OptimalCV, Integration::expSinh(1e-12)));
+                    const Real expected = option.NPV();
+                    for (const auto& [cpxLog, name] : formulas)
+                        BOOST_TEST_CONTEXT(name << ", sigma " << sigma << ", " << years << " years, " << type
+                                                << " struck at " << strike)
+                        {
+                            const AnalyticHestonEngine engine(model, cpxLog, Integration::gaussKronrod(1e-8));
+                            Real value = 0.0;
+                            Size evaluations = 0;
+                            try
+                            {
+                                QL_DEPRECATED_DISABLE_WARNING
+                                AnalyticHestonEngine::doCalculation(
+                                    rTS->discount(maturity), qTS->discount(maturity), s0->value(), strike,
+                                    dc.yearFraction(today, maturity), kappa, theta, sigma, v0, rho, payoff,
+                                    Integration::gaussKronrod(1e-8), cpxLog, &engine, value, evaluations);
+                                QL_DEPRECATED_ENABLE_WARNING
+                                BOOST_CHECK_SMALL(value - expected, 1e-7);
+                            }
+                            catch (const Error& e)
+                            {
+                                BOOST_ERROR("threw " << e.what());
+                            }
+                        }
+                }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testPiecewiseTimeDependentChFvsHestonChF)
 {
     BOOST_TEST_MESSAGE("Testing piecewise time dependent "

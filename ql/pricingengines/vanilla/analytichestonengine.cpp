@@ -1388,7 +1388,8 @@ namespace QuantLib
 
                 const Real cvValue = cvHelper.controlVariateValue();
 
-                const Real h_cv = integration.calculate(c_inf, cvHelper, uM) * std::sqrt(strikePrice * fwdPrice) / M_PI;
+                // F / pi, as calculate() takes, since AP_Helper's integrand carries (F / K)^alpha (#343)
+                const Real h_cv = fwdPrice / M_PI * integration.calculate(c_inf, cvHelper, uM);
                 evaluations += integration.numberOfEvaluations();
 
                 switch (type.optionType())
