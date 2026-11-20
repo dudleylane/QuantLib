@@ -4,15 +4,16 @@ name: CI
 #
 # This was thirteen separate workflow files.  That layout is right for
 # GitHub-hosted runners, where thirteen workflows mean thirteen machines
-# working in parallel.  This fork runs on a single self-hosted runner, on a
-# machine shared with other repositories' runners, so they never ran in
+# working in parallel.  This fork then ran on a single self-hosted runner, on
+# a machine shared with other repositories' runners, so they never ran in
 # parallel -- they only
 # produced thirteen runs, thirteen concurrency groups and thirteen pending
 # entries per commit.  Merging #9 left 33 runs queued across three commits for
 # exactly that reason.
 #
-# Consolidating does not make a green push faster.  The same jobs still
-# execute one at a time on one runner.  What it buys is:
+# Consolidating did not make a green push faster: the same jobs still ran one
+# at a time on the one runner.  (Four runners share the jobs since 2026-11-11,
+# #73.)  What it buys is:
 #
 #   * one run and one concurrency group per commit instead of thirteen, so the
 #     per-SHA keying from #9 preserves one pending run per commit rather than
@@ -72,8 +73,8 @@ concurrency:
   #
   # Pull requests and workflow_dispatch keep ref-keying, so a new push to a
   # branch supersedes its previous run instead of queueing behind it.  The dev
-  # host has one quantlib-dev runner, beside other repositories' runners, and
-  # GitHub cancels runs that sit queued for 24 hours.
+  # host has four quantlib-dev runners (#73), beside other repositories'
+  # runners, and GitHub cancels runs that sit queued for 24 hours.
   group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.sha || github.ref }}
   cancel-in-progress: ${{ github.event_name != 'push' }}
 
@@ -96,8 +97,9 @@ jobs:
   # keyed by ref.  GitHub evicts entries unused for 7 days and a pull request's
   # entries are invisible to every other ref, so in both of #29's runs every
   # cached job except linux / Default started cold, at 0-0.5 % hits: 33-58
-  # minutes per linux cell against 12-18 warm.  The runner is one persistent
-  # machine, so the cache now stays on it (#31): one directory for every job,
+  # minutes per linux cell against 12-18 warm.  The runners are on one
+  # persistent machine, so the cache now stays on it (#31): one directory for
+  # every job of every runner,
   # capped at 10 GB, with ccache's own locking and LRU cleanup.  The action also
   # ran `ccache --set-config` without CCACHE_DIR, which rewrote the account's
   # ~/.config/ccache/ccache.conf on every run.  With CCACHE_DIR set, ccache does
@@ -150,7 +152,7 @@ jobs:
       # image is OrderProcessor's (#174) and carries shellcheck: pinned by
       # digest, reading the workflow on stdin, so nothing is mounted, with no
       # network.  Only this runner's own label is ignored, so a mistyped one
-      # still fails.  A hung pull would hold the only runner, hence the limit.
+      # still fails.  A hung pull would hold a runner, hence the limit.
       - name: Lint the workflow
         shell: bash
         timeout-minutes: 10

@@ -15,7 +15,7 @@ Report these privately:
   `JsonQuoteLoader`, and pricing, curve or model inputs that an application passes through from its own
   users.
 - Anything that would let a pull request, or any other outside party, run code on this project's
-  self-hosted CI runner.
+  self-hosted CI runners.
 
 If you're not sure whether something qualifies, report it privately anyway.
 
