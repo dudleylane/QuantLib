@@ -959,8 +959,30 @@ nothing ordered the three stores that published the cache.
     reads wall-clock under more load, so it fails more often. A flag
     from a parallel run is no reason by itself to re-tier a case: the
     flagged cases' instruction counts against `master`'s say whether
-    load explains it. The tracked hook's header gives runner 1's
-    install commands only.
+    load explains it. The tracked hook's header gave runner 1's install
+    commands only, until [PR #364](https://github.com/dudleylane/QuantLib/pull/364)'s
+    `a2d4c5b34` named all four and made `ci.yml`'s comments and
+    `SECURITY.md` say four runners where they still said one. Its merge
+    closed #73.
+- The Unity build's test suite in five parts (2026-11-20, for
+  [#358](https://github.com/dudleylane/QuantLib/issues/358)). With
+  `--enable-unity-build`, `test-suite/Makefile.am` wrote one `unity.cpp`
+  of all 188 test sources, whose compile peaked at 11,591 MiB resident
+  with the Unity cells' flags. On four runners it met other jobs' builds:
+  the memory watch stopped runners five times, in four events, during
+  three of the 33 pull-request runs on four runners, and every event met a
+  Unity cell's test-suite compile. The build now writes `unity_1.cpp` to
+  `unity_5.cpp`, by the sources' first letters (a and b; c; d to h; i to
+  o; the rest), and `.NOTPARALLEL` makes `test-suite`'s make compile them
+  one at a time. The parts peak at 2,933 to 3,746 MiB and take about
+  eight minutes more CPU between them. A file-local name in a test file
+  now has to be unique only within its part, and CONTRIBUTING says so.
+  - **Merged** in [PR #364](https://github.com/dudleylane/QuantLib/pull/364)
+    as `96b6e4161`, after its own green run (44644302746: 31 jobs, 4 h
+    19 min on four runners). Its two Unity cells' runners peaked at 5.0
+    and 4.8 GiB on the memory watch's readings, against a line of 6.3 GiB
+    set before the push; the 66 Unity jobs of the 33 earlier runs on four
+    runners peaked at 11.0 to 13.0 GiB.
 
 ## Sibling repositories
 
