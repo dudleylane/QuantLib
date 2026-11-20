@@ -1409,6 +1409,63 @@ BOOST_AUTO_TEST_CASE(testH1HWEngineAtSmallMeanReversionAndAtTheFitsRate)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testH1HWEngineAtSmallVarianceMeanReversion)
+{
+    BOOST_TEST_MESSAGE(
+        "Testing the H1-HW engine at a small variance mean reversion and where its variance fit's series overflows...");
+
+    // Where 8 kappa theta / sigma^2 is at most 1, the engine fits E[sqrt(v(t))] through sqrt(v0) and the noncentral
+    // chi-square's series at t = 1 / kappa. The series stopped once a term was below float epsilon, and where
+    // d = 4 kappa theta / sigma^2 is below about 1.35e-7 its first term is, so the fit was NaN (#368).
+    const Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.01, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+    const auto hullWhiteModel = ext::make_shared<HullWhite>(rTS, 0.03, 0.01);
+
+    const auto callPrice = [&](Real v0, Real kappa, Real theta, Real sigma, const Period& maturity)
+    {
+        VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0),
+                             ext::make_shared<EuropeanExercise>(today + maturity));
+        option.setPricingEngine(ext::make_shared<AnalyticH1HWEngine>(
+            ext::make_shared<HestonModel>(ext::make_shared<HestonProcess>(rTS, qTS, s0, v0, kappa, theta, sigma, -0.5)),
+            hullWhiteModel, 0.3, 192));
+        return option.NPV();
+    };
+
+    // v0 = theta 0.04 and sigma 0.3. At kappa 7.6e-8 the first term is just above float epsilon, and the old stop took
+    // two terms; below, it took one. The expected values agree within 7.11e-15 with the engine taking I4 from the
+    // bracket #369 replaced, in 113-bit arithmetic, and the fit's code gives Lambda(1 / kappa) and c within a relative
+    // 2.3e-15 of 40 digits.
+    const Period maturities[] = {Period(1, Months), Period(1, Years), Period(10, Years)};
+    const Real kappas[] = {7.6e-8, 7.5e-8, 1e-10, 1e-12};
+    const Real expected[std::size(maturities)][std::size(kappas)] = {
+        {2.3513309018100315, 2.3513309018095421, 2.3513309017743249, 2.3513309017742903},
+        {8.2327910578222312, 8.2327910575702408, 8.2327910395059973, 8.2327910394891521},
+        {25.597279057273134, 25.597279096987393, 25.597282292913047, 25.597282299060204}};
+    const Real tol = 1e-11;
+    for (Size i = 0; i < std::size(maturities); ++i)
+    {
+        for (Size k = 0; k < std::size(kappas); ++k)
+        {
+            const Real calculated = callPrice(0.04, kappas[k], 0.04, 0.3, maturities[i]);
+            if (!(std::fabs(calculated - expected[i][k]) <= tol))
+                BOOST_ERROR("Failed to price at a small variance mean reversion"
+                            << "\n   maturity       : " << maturities[i] << "\n   kappa          : " << kappas[k]
+                            << "\n   calculated     : " << calculated << "\n   expected       : " << expected[i][k]
+                            << "\n   difference     : " << calculated - expected[i][k]
+                            << "\n   tol            : " << tol);
+        }
+    }
+
+    // The series' sum grows like e^{lambda/2} sqrt(lambda/2), lambda being 4 kappa v0 e^{-1} / (sigma^2 (1 - e^{-1}))
+    // at t = 1 / kappa, and where lambda is above about 1413 it overflows (#372). The engine refuses there, rather than
+    // return NaN: at kappa 0.1125, theta 0.01, sigma 0.3 and v0 1000, lambda is about 2,910.
+    BOOST_CHECK_THROW(callPrice(1000.0, 0.1125, 0.01, 0.3, Period(1, Months)), Error);
+}
+
 BOOST_AUTO_TEST_CASE(testEvolveForSmallMeanReversion)
 {
     BOOST_TEST_MESSAGE("Testing the hybrid Heston Hull-White process with mean reversion close to zero...");

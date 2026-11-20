@@ -97,9 +97,14 @@ namespace QuantLib
             s = std::exp(k * std::log(0.5 * lambdaT) + g.logValue(0.5 * (1 + d_) + k) - g.logValue(k + 1) -
                          g.logValue(0.5 * d_ + k));
             retVal += s;
-        } while (s > std::numeric_limits<float>::epsilon() && ++i < maxIter);
+            // The terms rise to their largest and then fall, so the sum is done once a term is below QL_EPSILON
+            // times it. A stop at float epsilon ended it after its first term where d is below about 1.35e-7, and
+            // the fit was NaN (#368).
+        } while (s > QL_EPSILON * retVal && ++i < maxIter);
 
-        QL_REQUIRE(i < maxIter, "can not calculate Lambda");
+        // The sum grows like e^{lambda/2} sqrt(lambda/2): where lambda is above about 1413 it overflows, at first
+        // while its terms are still finite, and the stop ends at once, so a sum that isn't finite is refused (#372).
+        QL_REQUIRE(i < maxIter && std::isfinite(retVal), "can not calculate Lambda");
 
         retVal *= std::sqrt(2 * c(t)) * std::exp(-0.5 * lambdaT);
         return retVal;
