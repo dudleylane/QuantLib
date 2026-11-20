@@ -45,10 +45,12 @@ Before pushing a change to code, build files, workflows or scripts:
    `echo ./ql/<dir>/<file>.hpp | python3 tools/check_header.py`.
 5. **File-local names stay unique in their directory.**  CI's Unity
    cells compile each `ql/` directory as one file, and the test suite
-   as another, so a name in a `.cpp` file's anonymous namespace, or a
-   `static` one, can't also appear in another file there.  A CMake
-   build doesn't show a clash: its unity build batches eight sources at
-   a time.  To check a directory, in a tree where autotools may write:
+   as five, split by the first letters of its sources' names, so a name
+   in a `.cpp` file's anonymous namespace, or a `static` one, can't
+   also appear in another file of the same directory, or of the same
+   part of the test suite.  A CMake build doesn't show a clash: its
+   unity build batches eight sources at a time.  To check a directory,
+   in a tree where autotools may write:
 
    ```bash
    ./autogen.sh && ./configure --disable-static --enable-unity-build && make -C ql/<dir>
