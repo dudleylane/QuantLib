@@ -181,10 +181,12 @@ namespace QuantLib
         };
 
         // Simple to use constructor: Using adaptive
-        // Gauss-Lobatto integration and Gatheral's version of complex log.
+        // Gauss-Lobatto integration and the OptimalCV form, with an
+        // Andersen-Piterbarg epsilon of 1e-40.
         // Be aware: using a too large number for maxEvaluations might result
         // in a stack overflow as the Lobatto integration is a recursive
-        // algorithm.
+        // algorithm. It takes Integration::gaussLobatto's minimum depth of 2,
+        // so maxEvaluations must be above 225 (#341).
         AnalyticHestonEngine(const ext::shared_ptr<HestonModel>& model, Real relTolerance, Size maxEvaluations);
 
         // Constructor using Laguerre integration
@@ -270,10 +272,15 @@ namespace QuantLib
         // algorithm .Be aware: using a too large number for maxEvaluations might
         // result in a stack overflow as the these integrations are based on
         // recursive algorithms.
+        // The whole range is split minimumDepth levels deep before any panel is accepted, as a wide panel whose two
+        // estimates agreed while both were off was taken for the integral there (#341). At 2, the default, an
+        // integral takes at least 230 evaluations, and maxEvaluations must be above 225; at 0 the rule is
+        // GaussLobattoIntegral's default.
         static Integration gaussLobatto(Real relTolerance,
                                         Real absTolerance,
                                         Size maxEvaluations = 1000,
-                                        bool useConvergenceEstimate = false);
+                                        bool useConvergenceEstimate = false,
+                                        Size minimumDepth = 2);
 
         // usually these routines have a poor convergence behavior.
         static Integration gaussKronrod(Real absTolerance, Size maxEvaluations = 1000);

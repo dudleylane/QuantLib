@@ -1025,13 +1025,12 @@ namespace QuantLib
     {
     }
 
-    AnalyticHestonEngine::Integration AnalyticHestonEngine::Integration::gaussLobatto(Real relTolerance,
-                                                                                      Real absTolerance,
-                                                                                      Size maxEvaluations,
-                                                                                      bool useConvergenceEstimate)
+    AnalyticHestonEngine::Integration AnalyticHestonEngine::Integration::gaussLobatto(
+        Real relTolerance, Real absTolerance, Size maxEvaluations, bool useConvergenceEstimate, Size minimumDepth)
     {
-        return Integration(GaussLobatto, ext::shared_ptr<Integrator>(new GaussLobattoIntegral(
-                                             maxEvaluations, absTolerance, relTolerance, useConvergenceEstimate)));
+        return Integration(GaussLobatto,
+                           ext::shared_ptr<Integrator>(new GaussLobattoIntegral(
+                               maxEvaluations, absTolerance, relTolerance, useConvergenceEstimate, minimumDepth)));
     }
 
     AnalyticHestonEngine::Integration AnalyticHestonEngine::Integration::gaussKronrod(Real absTolerance,

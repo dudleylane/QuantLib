@@ -201,6 +201,26 @@ BOOST_AUTO_TEST_CASE(testGaussLobattoKeepsTheAbsoluteToleranceOnANegativeIntegra
     BOOST_CHECK_EQUAL(negativeEvaluations, positiveEvaluations);
 }
 
+BOOST_AUTO_TEST_CASE(testGaussLobattoMinimumDepth)
+{
+    BOOST_TEST_MESSAGE("Testing Gauss-Lobatto's minimum depth...");
+
+    // The rule takes 13 + 2 evaluations, then 5 for each panel it tries, and throws where a panel would start with
+    // maxIterations or more evaluations done. A cubic passes the test on any panel. At the default depth of 0 the whole
+    // range is accepted, after 20 evaluations. At a minimum depth of 2 the panels accepted are the 36 two splits below
+    // it, so 1 + 6 + 36 = 43 are tried, 15 + 5 x 43 = 230 evaluations; the last starts after 225, so a budget of 225
+    // throws (#341).
+    const auto cubic = [](Real x) { return x * x * x; };
+    const GaussLobattoIntegral shallow(1000, 1e-12, Null<Real>(), false);
+    BOOST_CHECK_SMALL(shallow(cubic, 0.0, 2.0) - 4.0, 1e-13);
+    BOOST_CHECK_EQUAL(shallow.numberOfEvaluations(), 20U);
+    const GaussLobattoIntegral deep(226, 1e-12, Null<Real>(), false, 2);
+    BOOST_CHECK_SMALL(deep(cubic, 0.0, 2.0) - 4.0, 1e-13);
+    BOOST_CHECK_EQUAL(deep.numberOfEvaluations(), 230U);
+    const GaussLobattoIntegral tooFew(225, 1e-12, Null<Real>(), false, 2);
+    BOOST_CHECK_THROW(tooFew(cubic, 0.0, 2.0), Error);
+}
+
 #ifdef QL_BOOST_HAS_TANH_SINH
 BOOST_AUTO_TEST_CASE(testTanhSinh)
 {

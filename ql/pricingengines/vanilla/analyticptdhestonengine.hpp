@@ -65,7 +65,8 @@ namespace QuantLib
         // Gauss-Lobatto integration and Gatheral's version of complex log.
         // Be aware: using a too large number for maxEvaluations might result
         // in a stack overflow as the Lobatto integration is a recursive
-        // algorithm.
+        // algorithm. It takes Integration::gaussLobatto's minimum depth of 2,
+        // so maxEvaluations must be above 225 (#341).
         AnalyticPTDHestonEngine(const ext::shared_ptr<PiecewiseTimeDependentHestonModel>& model,
                                 Real relTolerance,
                                 Size maxEvaluations);
