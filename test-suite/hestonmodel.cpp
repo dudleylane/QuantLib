@@ -3904,6 +3904,161 @@ BOOST_AUTO_TEST_CASE(testVolOfVolWhoseSquareUnderflows)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testCharacteristicFunctionFormsAtSmallSigma)
+{
+    BOOST_TEST_MESSAGE("Testing the Heston engines' forms of the characteristic function at a small vol of vol...");
+
+    // At sigma <= 1e-5 the Gatheral form took a small-sigma branch that holds only where sigma phi is small against
+    // kappa. At kappa 1e-7 its integrand grew instead of decaying, and the first call below came back at 1.21 (#349).
+    // Its full formula, the BranchCorrection form and COSHestonEngine's chF took g - D as written, which cancels where
+    // sigma phi is small against kappa, and multiplied its rounding by 1 / sigma^2: at sigma 1e-7 and kappa 1 the
+    // second call came back 0.075 off on COSHestonEngine, and the third 0.20 off on the BranchCorrection form (#350).
+    // Just past the branch, at sigma 1.0001e-5 and kappa 1, Gauss-Lobatto couldn't converge on the fourth. The
+    // expected values are the calls priced from psi, in Albrecher et al.'s form, on Lewis's integral in 40-digit
+    // arithmetic.
+    const Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.01, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+    const auto model = [&](Real kappa, Real sigma, Real rho)
+    {
+        return ext::make_shared<HestonModel>(
+            ext::make_shared<HestonProcess>(rTS, qTS, s0, 0.04, kappa, 0.04, sigma, rho));
+    };
+    using Integration = AnalyticHestonEngine::Integration;
+
+    const struct
+    {
+        std::string name;
+        ext::shared_ptr<PricingEngine> engine;
+        Real strike, expected, tolerance;
+    } calls[] = {
+        {"Gatheral form on Gauss-Lobatto",
+         ext::make_shared<AnalyticHestonEngine>(model(1e-7, 1e-5, 0.9), AnalyticHestonEngine::Gatheral,
+                                                Integration::gaussLobatto(1e-12, 1e-12, 200000)),
+         100.0, 29.607660814395950492, 1e-10},
+        {"COSHestonEngine", ext::make_shared<COSHestonEngine>(model(1.0, 1e-7, 0.0)), 100.0, 29.60766082993939809,
+         1e-12},
+        {"BranchCorrection form on Gauss-Laguerre",
+         ext::make_shared<AnalyticHestonEngine>(model(1.0, 1e-7, -0.9), AnalyticHestonEngine::BranchCorrection,
+                                                Integration::gaussLaguerre(192)),
+         80.0, 38.007384315908049838, 1e-12},
+        {"Gatheral form on Gauss-Lobatto past the small-sigma branch",
+         ext::make_shared<AnalyticHestonEngine>(model(1.0, 1.0001e-5, -0.9), AnalyticHestonEngine::Gatheral,
+                                                Integration::gaussLobatto(1e-12, 1e-12, 200000)),
+         100.0, 29.60766082907875836, 1e-10},
+    };
+    for (const auto& c : calls)
+    {
+        BOOST_TEST_CONTEXT(c.name)
+        {
+            VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, c.strike),
+                                 ext::make_shared<EuropeanExercise>(today + Period(10, Years)));
+            option.setPricingEngine(c.engine);
+            BOOST_CHECK_SMALL(option.NPV() - c.expected, c.tolerance);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBranchCorrectionFormOnDiscreteRules)
+{
+    BOOST_TEST_MESSAGE("Testing the BranchCorrection form on the discrete Simpson and trapezoid rules...");
+
+    // The discrete rules take phi = 0 as a node. The BranchCorrection form had no case for phi = 0, and divided by phi
+    // there, so on these rules, which the constructor accepts with it, it returned NaN (#361). It now takes the
+    // Gatheral form's characteristic function, limit included, and so its prices.
+    const Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.01, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+    const auto model =
+        ext::make_shared<HestonModel>(ext::make_shared<HestonProcess>(rTS, qTS, s0, 0.09, 1.5, 0.06, 0.3, -0.8));
+    using Integration = AnalyticHestonEngine::Integration;
+
+    VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0),
+                         ext::make_shared<EuropeanExercise>(today + Period(1, Years)));
+    const struct
+    {
+        std::string name;
+        Integration integration;
+    } rules[] = {{"discrete Simpson", Integration::discreteSimpson(1000)},
+                 {"discrete trapezoid", Integration::discreteTrapezoid(1000)}};
+    for (const auto& rule : rules)
+    {
+        BOOST_TEST_CONTEXT(rule.name)
+        {
+            option.setPricingEngine(
+                ext::make_shared<AnalyticHestonEngine>(model, AnalyticHestonEngine::Gatheral, rule.integration));
+            const Real gatheral = option.NPV();
+            option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(
+                model, AnalyticHestonEngine::BranchCorrection, rule.integration));
+            BOOST_CHECK_SMALL(option.NPV() - gatheral, 1e-12);
+        }
+    }
+}
+
+// A user's add-on term: an independent Gaussian factor of volatility s in the log-price, beside the Heston model's,
+// t s^2 / 2 (g^2 - g) with g = 1 + i phi for P1 and i phi for P2.
+class GaussianAddOnHestonEngine : public AnalyticHestonEngine
+{
+  public:
+    GaussianAddOnHestonEngine(const ext::shared_ptr<HestonModel>& model, Real s, const Integration& integration)
+    : AnalyticHestonEngine(model, Gatheral, integration), s_(s)
+    {
+    }
+
+  protected:
+    std::complex<Real> addOnTerm(Real phi, Time t, Size j) const override
+    {
+        const std::complex<Real> g((j == 1) ? 1.0 : 0.0, phi);
+        return 0.5 * s_ * s_ * t * (g * g - g);
+    }
+
+  private:
+    Real s_;
+};
+
+BOOST_AUTO_TEST_CASE(testAddOnTermAtZeroOnDiscreteRules)
+{
+    BOOST_TEST_MESSAGE("Testing an add-on term's part of the integrand's limit at phi = 0...");
+
+    // The discrete Simpson rule takes phi = 0 as a node, where the Gatheral form takes the integrand's limit. The
+    // limit left out the add-on term's part, the slope of its imaginary part at 0, so an engine with an add-on term
+    // took a wrong value at that node: here, with a user's add-on term, prices came out 1.0e-2 to 2.0e-2 off at 1,000
+    // nodes, where the rule itself is within 1e-9 (#362). Gauss-Laguerre's nodes never reach phi = 0.
+    const Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.01, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+    const auto model =
+        ext::make_shared<HestonModel>(ext::make_shared<HestonProcess>(rTS, qTS, s0, 0.09, 1.5, 0.06, 0.3, -0.8));
+    using Integration = AnalyticHestonEngine::Integration;
+
+    for (const Period& tenor : {Period(1, Years), Period(5, Years)})
+    {
+        for (Real strike : {80.0, 100.0, 120.0})
+        {
+            BOOST_TEST_CONTEXT("tenor " << tenor << ", strike " << strike)
+            {
+                VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, strike),
+                                     ext::make_shared<EuropeanExercise>(today + tenor));
+                option.setPricingEngine(
+                    ext::make_shared<GaussianAddOnHestonEngine>(model, 0.2, Integration::gaussLaguerre(192)));
+                const Real expected = option.NPV();
+                option.setPricingEngine(
+                    ext::make_shared<GaussianAddOnHestonEngine>(model, 0.2, Integration::discreteSimpson(1000)));
+                BOOST_CHECK_SMALL(option.NPV() - expected, 1e-8);
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE(HestonModelExperimentalTest)

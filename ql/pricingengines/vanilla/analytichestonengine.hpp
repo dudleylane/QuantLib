@@ -64,6 +64,13 @@ namespace QuantLib
         // and what the read does where it can't go on are at its definition, in analytichestonengine.cpp.
         Real andersenPiterbargLimitFromChF(Real u0, Real epsilon, const std::function<Real(Real)>& logModulus);
 
+        // log psi(z), psi the Heston characteristic function of log(S_t / F), in Andersen and Lake's form, where g - D
+        // isn't taken as a difference where it cancels; at sigma <= 1e-100, sigma = 0's limit (#348, #355).
+        // AnalyticHestonEngine::lnChF, its Gatheral and BranchCorrection forms, and COSHestonEngine::chF take it
+        // (#349, #350).
+        std::complex<Real>
+        hestonLnChF(Real kappa, Real theta, Real sigma, Real rho, Real v0, const std::complex<Real>& z, Time t);
+
     }
 
     //! analytic Heston-model engine based on Fourier transform
@@ -75,8 +82,13 @@ namespace QuantLib
         Simons and Tistaert[2004]) version does not cause
         discoutinuities whereas the original version (e.g. Heston [1993])
         needs some sort of "branch correction" to work properly.
-        Gatheral's version does also work with adaptive integration
-        routines and should be preferred over the original Heston version.
+        Both Gatheral and BranchCorrection now take the characteristic
+        function in Andersen and Lake's form, as lnChF does, which
+        neither cancels at small sigma nor crosses the branch cut, so
+        the two give the same prices (#349, #350). The constructor still
+        refuses BranchCorrection with the adaptive rules, as it did when
+        the form tracked its branch from one node to the next; Gatheral
+        takes them.
 
         At rho = -1 or 1 the decay rate c_inf is 0, and the integrand can
         decay as slowly as e^{-a sqrt(u)} (#239). There Gauss-Lobatto, and so
@@ -151,7 +163,7 @@ namespace QuantLib
         {
             // Gatheral form of characteristic function w/o control variate
             Gatheral,
-            // old branch correction form of the characteristic function w/o control variate
+            // Heston's original form with a branch correction until #350, now the Gatheral form; w/o control variate
             BranchCorrection,
             // Gatheral form with Andersen-Piterbarg control variate
             AndersenPiterbarg,
@@ -222,6 +234,14 @@ namespace QuantLib
       protected:
         // call back for extended stochastic volatility
         // plus jump diffusion engines like bates model
+        //
+        // Where a rule takes phi = 0 as a node (Gauss-Lobatto, Simpson's and the
+        // trapezoid rule, and the discrete Simpson and trapezoid rules), the Gatheral
+        // and BranchCorrection forms take the integrand's limit there. Its part from
+        // this term is the slope of the term's imaginary part at 0, taken by a central
+        // difference at phi = 1e-8 and -1e-8 (#362), so the term is also called with a
+        // negative phi; its imaginary part should be odd in phi, as a characteristic
+        // function's logarithm's is.
         virtual std::complex<Real> addOnTerm(Real phi, Time t, Size j) const;
 
       private:
