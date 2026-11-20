@@ -6,7 +6,7 @@
 # (1367db4), plus the Dependabot clause of its #168 (179161f, not merged there as of
 # 2026-10-14). The decision logic of both is unchanged.
 #
-# This repository's CI runs on a self-hosted runner on the maintainer's machine, and its jobs
+# This repository's CI runs on self-hosted runners on the maintainer's machine, and its jobs
 # run as the maintainer's user. The repository is public, so anyone can open a pull request
 # from a fork, and GitHub runs it once a maintainer approves the run (the approval policy is
 # all_external_contributors). A pull_request run uses the workflow files from the pull
@@ -29,13 +29,18 @@
 # change on a branch of your own, as #13 did for Dependabot's #3. That pull request's events
 # are yours, so its jobs run, and it merges on green like any other.
 #
-# This copy is the reference; the runner runs its own copy, which a pull request can't reach.
-# Install it in the runner's directory, outside _work, and restart the runner when it is
-# idle, since the runner reads .env when it starts:
+# This copy is the reference; each runner runs its own copy, which a pull request can't reach.
+# There are four runners (#73): ~/actions-runner-quantlib, whose unit is
+# quantlib-runner.service, and ~/actions-runner-quantlib-N, whose unit is
+# quantlib-N-runner.service, for N from 2 to 4. Install the hook in each runner's directory,
+# outside _work, since a copy refuses a payload outside its own runner's _work, and restart
+# each runner when it is idle, since a runner reads .env when it starts. For the first:
 #   install -m 755 .github/runner/job-started.sh ~/actions-runner-quantlib/job-started.sh
 #   echo "ACTIONS_RUNNER_HOOK_JOB_STARTED=$HOME/actions-runner-quantlib/job-started.sh" \
 #     >> ~/actions-runner-quantlib/.env
 #   systemctl --user restart quantlib-runner.service
+# and for runner N the same with ~/actions-runner-quantlib-N and quantlib-N-runner.service.
+# A copy that changes only needs installing again: a runner runs its hook afresh for each job.
 # Every job's log then shows this hook's verdict before the job's first step. To roll back,
 # delete the .env line and restart the runner.
 #
