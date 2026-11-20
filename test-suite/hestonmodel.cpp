@@ -4123,6 +4123,52 @@ BOOST_AUTO_TEST_CASE(testGaussLobattoSplitsBeforeAccepting)
     BOOST_CHECK_SMALL(gatheralPrice - expectedGatheral, 1e-8);
 }
 
+BOOST_AUTO_TEST_CASE(testHestonPartOfTheLimitAtZero)
+{
+    BOOST_TEST_MESSAGE("Testing the Heston part of the integrand's limit at phi = 0 near kappa = rho sigma and at "
+                       "small kappa...");
+
+    // The discrete Simpson rule takes phi = 0 as a node, where the Gatheral form takes the integrand's limit. Its
+    // Heston part, half the variance integrated under each probability's measure, was taken as differences of
+    // exponentials divided by (rho sigma - kappa)^2 for P1 and kappa^2 for P2, so it lost digits where
+    // (rho sigma - kappa) t or kappa t is small (#363). Here, with kappa 1.1e-7 on either side of rho sigma and at
+    // 1e-12, prices on 4,000 nodes came out 6.3e-7 to 4.8e-6 off, where the rule itself is within 6.4e-11.
+    // Gauss-Laguerre's nodes never reach phi = 0.
+    const Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.01, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+    using Integration = AnalyticHestonEngine::Integration;
+
+    // kappa and theta; v0 0.04, sigma 0.1 and rho 0.5 throughout, so rho sigma = 0.05.
+    const std::pair<Real, Real> parameters[] = {{0.05 - 1.1e-7, 0.04}, {0.05 + 1.1e-7, 0.04}, {1e-12, 0.2}};
+    for (const auto& [kappa, theta] : parameters)
+    {
+        const auto model =
+            ext::make_shared<HestonModel>(ext::make_shared<HestonProcess>(rTS, qTS, s0, 0.04, kappa, theta, 0.1, 0.5));
+        for (const Period& tenor : {Period(1, Months), Period(1, Years)})
+        {
+            for (Real strike : {80.0, 100.0, 120.0})
+            {
+                BOOST_TEST_CONTEXT("kappa " << std::setprecision(10) << kappa << ", theta " << theta << ", tenor "
+                                            << tenor << ", strike " << strike)
+                {
+                    VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, strike),
+                                         ext::make_shared<EuropeanExercise>(today + tenor));
+                    option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(
+                        model, AnalyticHestonEngine::Gatheral, Integration::gaussLaguerre(192)));
+                    const Real expected = option.NPV();
+                    option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(
+                        model, AnalyticHestonEngine::Gatheral, Integration::discreteSimpson(4000)));
+                    BOOST_CHECK_SMALL(option.NPV() - expected, 1e-9);
+                }
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE(HestonModelExperimentalTest)
