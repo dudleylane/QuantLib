@@ -498,6 +498,67 @@ BOOST_AUTO_TEST_CASE(testSmallVolOfVolAndKappa)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testDetJumpEnginesAtTheAverageIntensity)
+{
+    BOOST_TEST_MESSAGE("Testing the deterministic-intensity Bates engines at the average intensity...");
+
+    // The DetJump models' jump intensity starts at lambda and tends to thetaLambda at the rate kappaLambda. The add-on
+    // term is linear in the intensity, so each DetJump engine's call equals its constant-intensity engine's at the
+    // intensity's average over the option's life, thetaLambda + (lambda - thetaLambda) (1 - e^{-y}) / y with
+    // y = kappaLambda T. The engines took that average from (y - 1 + e^{-y}) / y and (1 - e^{-y}) / y, differences of
+    // exponentials divided by y, so at small kappaLambda the calls came back up to 1.4e-4 off, at kappaLambda 1e-12
+    // over a month, where thetaLambda = lambda leaves the intensity at lambda (#367). At thetaLambda = lambda the
+    // average is lambda whatever the decay, so the rows at thetaLambda 0.25 and kappaLambda 1 check that the engines
+    // take the average.
+    const Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.01, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+    const auto hestonProcess = ext::make_shared<HestonProcess>(rTS, qTS, s0, 0.04, 1.5, 0.04, 0.3, -0.5);
+    const auto batesProcess = [&](Real intensity)
+    { return ext::make_shared<BatesProcess>(rTS, qTS, s0, 0.04, 1.5, 0.04, 0.3, -0.5, intensity, -0.1, 0.1); };
+    const Real lambda = 1.0;
+
+    for (const auto& [thetaLambda, kappaLambda] :
+         {std::pair{1.0, 1e-12}, {1.0, 1e-10}, {1.0, 1e-8}, {0.25, 1e-12}, {0.25, 1.0}})
+    {
+        for (const Period& tenor : {Period(1, Months), Period(1, Years)})
+        {
+            const Date maturity = today + tenor;
+            const Real y = kappaLambda * hestonProcess->time(maturity);
+            const Real average = thetaLambda + (lambda - thetaLambda) * (-std::expm1(-y) / y);
+            const auto bates = ext::make_shared<BatesEngine>(ext::make_shared<BatesModel>(batesProcess(average)), 192);
+            const auto batesDetJump = ext::make_shared<BatesDetJumpEngine>(
+                ext::make_shared<BatesDetJumpModel>(batesProcess(lambda), kappaLambda, thetaLambda), 192);
+            const auto doubleExp = ext::make_shared<BatesDoubleExpEngine>(
+                ext::make_shared<BatesDoubleExpModel>(hestonProcess, average, 0.1, 0.1, 0.5), 192);
+            const auto doubleExpDetJump = ext::make_shared<BatesDoubleExpDetJumpEngine>(
+                ext::make_shared<BatesDoubleExpDetJumpModel>(hestonProcess, lambda, 0.1, 0.1, 0.5, kappaLambda,
+                                                             thetaLambda),
+                192);
+            for (Real strike : {80.0, 100.0, 120.0})
+            {
+                BOOST_TEST_CONTEXT("thetaLambda " << thetaLambda << ", kappaLambda " << kappaLambda << ", " << tenor
+                                                  << ", strike " << strike)
+                {
+                    VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, strike),
+                                         ext::make_shared<EuropeanExercise>(maturity));
+                    option.setPricingEngine(bates);
+                    const Real expected = option.NPV();
+                    option.setPricingEngine(batesDetJump);
+                    BOOST_CHECK_SMALL(option.NPV() - expected, 1e-12);
+                    option.setPricingEngine(doubleExp);
+                    const Real expectedDoubleExp = option.NPV();
+                    option.setPricingEngine(doubleExpDetJump);
+                    BOOST_CHECK_SMALL(option.NPV() - expectedDoubleExp, 1e-12);
+                }
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
