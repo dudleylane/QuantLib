@@ -99,8 +99,10 @@ namespace QuantLib
                 r = 1.0;
         }
 
+        // Given both tolerances, the smaller: the absolute one, or the relative one times the estimate's magnitude.
+        // Until #365 a negative estimate made acc * relTol negative, and the min took it whatever the absolute one.
         if (relAccuracy_ != Null<Real>())
-            return std::min(absoluteAccuracy(), acc * relTol) / (r * QL_EPSILON);
+            return std::min(absoluteAccuracy(), std::fabs(acc) * relTol) / (r * QL_EPSILON);
         else
         {
             return absoluteAccuracy() / (r * QL_EPSILON);

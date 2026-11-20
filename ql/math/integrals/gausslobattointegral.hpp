@@ -36,6 +36,10 @@ namespace QuantLib
     /*! Given a target accuracy \f$ \epsilon \f$, the integral of
         a function \f$ f \f$ between \f$ a \f$ and \f$ b \f$ is
         calculated by means of the Gauss-Lobatto formula
+
+        Given a relative accuracy, the target is that accuracy times the magnitude of a 13-point estimate of the
+        integral over the whole range; given both, it is the smaller of that and the absolute accuracy. Until #365 the
+        absolute accuracy was ignored where that estimate was negative.
     */
 
     /*! References:

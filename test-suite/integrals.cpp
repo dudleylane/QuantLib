@@ -179,6 +179,28 @@ BOOST_AUTO_TEST_CASE(testGaussLobatto)
     // which is also ok, but not tested here
 }
 
+BOOST_AUTO_TEST_CASE(testGaussLobattoKeepsTheAbsoluteToleranceOnANegativeIntegral)
+{
+    BOOST_TEST_MESSAGE("Testing that Gauss-Lobatto given both tolerances keeps the absolute one on a negative "
+                       "integral...");
+
+    // Given both tolerances the integral is taken to the smaller of the two whatever its sign, and every step is
+    // symmetric under negation, so the integral of -f is minus that of f, after as many evaluations. Where the
+    // 13-point estimate was negative the absolute tolerance was dropped (#365): -e^x on [0, 10] was taken to about
+    // 2.2e-4, the estimate times 1e-8, and came back 3.0e-8 off after 110 evaluations, where e^x was exact after 260.
+    GaussLobattoIntegral integrator(100000, 1e-8, 1e-8);
+    const Real exact = std::expm1(10.0);
+    const Real positive = integrator([](Real x) { return std::exp(x); }, 0.0, 10.0);
+    const Size positiveEvaluations = integrator.numberOfEvaluations();
+    const Real negative = integrator([](Real x) { return -std::exp(x); }, 0.0, 10.0);
+    const Size negativeEvaluations = integrator.numberOfEvaluations();
+
+    BOOST_CHECK_SMALL(positive - exact, 1e-8);
+    BOOST_CHECK_SMALL(negative + exact, 1e-8);
+    BOOST_CHECK_EQUAL(negative, -positive);
+    BOOST_CHECK_EQUAL(negativeEvaluations, positiveEvaluations);
+}
+
 #ifdef QL_BOOST_HAS_TANH_SINH
 BOOST_AUTO_TEST_CASE(testTanhSinh)
 {
