@@ -234,6 +234,14 @@ namespace QuantLib
       protected:
         // call back for extended stochastic volatility
         // plus jump diffusion engines like bates model
+        //
+        // Where a rule takes phi = 0 as a node (Gauss-Lobatto, Simpson's and the
+        // trapezoid rule, and the discrete Simpson and trapezoid rules), the Gatheral
+        // and BranchCorrection forms take the integrand's limit there. Its part from
+        // this term is the slope of the term's imaginary part at 0, taken by a central
+        // difference at phi = 1e-8 and -1e-8 (#362), so the term is also called with a
+        // negative phi; its imaginary part should be odd in phi, as a characteristic
+        // function's logarithm's is.
         virtual std::complex<Real> addOnTerm(Real phi, Time t, Size j) const;
 
       private:

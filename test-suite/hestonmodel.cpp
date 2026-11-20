@@ -4001,6 +4001,64 @@ BOOST_AUTO_TEST_CASE(testBranchCorrectionFormOnDiscreteRules)
     }
 }
 
+// A user's add-on term: an independent Gaussian factor of volatility s in the log-price, beside the Heston model's,
+// t s^2 / 2 (g^2 - g) with g = 1 + i phi for P1 and i phi for P2.
+class GaussianAddOnHestonEngine : public AnalyticHestonEngine
+{
+  public:
+    GaussianAddOnHestonEngine(const ext::shared_ptr<HestonModel>& model, Real s, const Integration& integration)
+    : AnalyticHestonEngine(model, Gatheral, integration), s_(s)
+    {
+    }
+
+  protected:
+    std::complex<Real> addOnTerm(Real phi, Time t, Size j) const override
+    {
+        const std::complex<Real> g((j == 1) ? 1.0 : 0.0, phi);
+        return 0.5 * s_ * s_ * t * (g * g - g);
+    }
+
+  private:
+    Real s_;
+};
+
+BOOST_AUTO_TEST_CASE(testAddOnTermAtZeroOnDiscreteRules)
+{
+    BOOST_TEST_MESSAGE("Testing an add-on term's part of the integrand's limit at phi = 0...");
+
+    // The discrete Simpson rule takes phi = 0 as a node, where the Gatheral form takes the integrand's limit. The
+    // limit left out the add-on term's part, the slope of its imaginary part at 0, so an engine with an add-on term
+    // took a wrong value at that node: here, with a user's add-on term, prices came out 1.0e-2 to 2.0e-2 off at 1,000
+    // nodes, where the rule itself is within 1e-9 (#362). Gauss-Laguerre's nodes never reach phi = 0.
+    const Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.01, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+    const auto model =
+        ext::make_shared<HestonModel>(ext::make_shared<HestonProcess>(rTS, qTS, s0, 0.09, 1.5, 0.06, 0.3, -0.8));
+    using Integration = AnalyticHestonEngine::Integration;
+
+    for (const Period& tenor : {Period(1, Years), Period(5, Years)})
+    {
+        for (Real strike : {80.0, 100.0, 120.0})
+        {
+            BOOST_TEST_CONTEXT("tenor " << tenor << ", strike " << strike)
+            {
+                VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, strike),
+                                     ext::make_shared<EuropeanExercise>(today + tenor));
+                option.setPricingEngine(
+                    ext::make_shared<GaussianAddOnHestonEngine>(model, 0.2, Integration::gaussLaguerre(192)));
+                const Real expected = option.NPV();
+                option.setPricingEngine(
+                    ext::make_shared<GaussianAddOnHestonEngine>(model, 0.2, Integration::discreteSimpson(1000)));
+                BOOST_CHECK_SMALL(option.NPV() - expected, 1e-8);
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE(HestonModelExperimentalTest)

@@ -378,26 +378,36 @@ namespace QuantLib
             else
             {
                 // use l'Hospital's rule to get lim_{phi->0}. Both forms take it: the discrete Simpson and trapezoid
-                // rules take phi = 0 as a node, where BranchCorrection, with no case for it, gave NaN (#361). It
-                // leaves out the add-on term's part (#362), and its closed forms difference exponentials near
-                // kappa = rho sigma and at small kappa (#363).
+                // rules take phi = 0 as a node, where BranchCorrection, with no case for it, gave NaN (#361). Its
+                // closed forms difference exponentials near kappa = rho sigma and at small kappa (#363).
+                //
+                // The add-on term's part is the slope of its imaginary part at 0, which the limit left out (#362).
+                // The term is the logarithm of a characteristic function's factor, so its imaginary part is odd in
+                // phi, and the library's engines compute it near 0 without cancelling; so a central difference at
+                // 1e-8 loses nothing to rounding, and agrees with their closed forms to 1e-10 of the term's size or
+                // better. That calls addOnTerm with a negative phi.
+                const Real h = 1e-8;
+                const Real addOnSlope =
+                    engine_ != nullptr ?
+                        (engine_->addOnTerm(h, term_, j_) - engine_->addOnTerm(-h, term_, j_)).imag() / (2 * h) :
+                        0.0;
                 if (j_ == 1)
                 {
                     const Real kmr = rsigma_ - kappa_;
                     if (std::fabs(kmr) > 1e-7)
                     {
-                        return dd_ - sx_ +
+                        return addOnSlope + dd_ - sx_ +
                                (std::exp(kmr * term_) * kappa_ * theta_ - kappa_ * theta_ * (kmr * term_ + 1.0)) /
                                    (2 * kmr * kmr) -
                                v0_ * (1.0 - std::exp(kmr * term_)) / (2.0 * kmr);
                     }
                     else
                         // \kappa = \rho * \sigma
-                        return dd_ - sx_ + 0.25 * kappa_ * theta_ * term_ * term_ + 0.5 * v0_ * term_;
+                        return addOnSlope + dd_ - sx_ + 0.25 * kappa_ * theta_ * term_ * term_ + 0.5 * v0_ * term_;
                 }
                 else
                 {
-                    return dd_ - sx_ -
+                    return addOnSlope + dd_ - sx_ -
                            (std::exp(-kappa_ * term_) * kappa_ * theta_ + kappa_ * theta_ * (kappa_ * term_ - 1.0)) /
                                (2 * kappa_ * kappa_) -
                            v0_ * (1.0 - std::exp(-kappa_ * term_)) / (2 * kappa_);
