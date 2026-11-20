@@ -19,6 +19,7 @@
 */
 
 #include <ql/instruments/payoffs.hpp>
+#include <ql/math/expm1.hpp>
 #include <ql/pricingengines/vanilla/batesengine.hpp>
 
 namespace QuantLib
@@ -76,8 +77,10 @@ namespace QuantLib
         const Real kappaLambda = batesDetJumpModel->kappaLambda();
         const Real thetaLambda = batesDetJumpModel->thetaLambda();
 
-        return (kappaLambda * t - 1.0 + std::exp(-kappaLambda * t)) * thetaLambda * l / (kappaLambda * t * lambda) +
-               (1.0 - std::exp(-kappaLambda * t)) * l / (kappaLambda * t);
+        // The intensity runs from lambda to thetaLambda at the rate kappaLambda, and the add-on term is linear in it:
+        // this is l at the intensity's average over [0, t], thetaLambda + (lambda - thetaLambda) D(kappaLambda t) with
+        // D(y) = (1 - e^{-y}) / y, which decayRatio takes without cancelling at small y (#367).
+        return l * (thetaLambda / lambda + (1.0 - thetaLambda / lambda) * detail::decayRatio(kappaLambda * t));
     }
 
 
@@ -138,8 +141,10 @@ namespace QuantLib
         const Real kappaLambda = doubleExpDetJumpModel->kappaLambda();
         const Real thetaLambda = doubleExpDetJumpModel->thetaLambda();
 
-        return (kappaLambda * t - 1.0 + std::exp(-kappaLambda * t)) * thetaLambda * l / (kappaLambda * t * lambda) +
-               (1.0 - std::exp(-kappaLambda * t)) * l / (kappaLambda * t);
+        // The intensity runs from lambda to thetaLambda at the rate kappaLambda, and the add-on term is linear in it:
+        // this is l at the intensity's average over [0, t], thetaLambda + (lambda - thetaLambda) D(kappaLambda t) with
+        // D(y) = (1 - e^{-y}) / y, which decayRatio takes without cancelling at small y (#367).
+        return l * (thetaLambda / lambda + (1.0 - thetaLambda / lambda) * detail::decayRatio(kappaLambda * t));
     }
 
 }

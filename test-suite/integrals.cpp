@@ -179,6 +179,48 @@ BOOST_AUTO_TEST_CASE(testGaussLobatto)
     // which is also ok, but not tested here
 }
 
+BOOST_AUTO_TEST_CASE(testGaussLobattoKeepsTheAbsoluteToleranceOnANegativeIntegral)
+{
+    BOOST_TEST_MESSAGE("Testing that Gauss-Lobatto given both tolerances keeps the absolute one on a negative "
+                       "integral...");
+
+    // Given both tolerances the integral is taken to the smaller of the two whatever its sign, and every step is
+    // symmetric under negation, so the integral of -f is minus that of f, after as many evaluations. Where the
+    // 13-point estimate was negative the absolute tolerance was dropped (#365): -e^x on [0, 10] was taken to about
+    // 2.2e-4, the estimate times 1e-8, and came back 3.0e-8 off after 110 evaluations, where e^x was exact after 260.
+    GaussLobattoIntegral integrator(100000, 1e-8, 1e-8);
+    const Real exact = std::expm1(10.0);
+    const Real positive = integrator([](Real x) { return std::exp(x); }, 0.0, 10.0);
+    const Size positiveEvaluations = integrator.numberOfEvaluations();
+    const Real negative = integrator([](Real x) { return -std::exp(x); }, 0.0, 10.0);
+    const Size negativeEvaluations = integrator.numberOfEvaluations();
+
+    BOOST_CHECK_SMALL(positive - exact, 1e-8);
+    BOOST_CHECK_SMALL(negative + exact, 1e-8);
+    BOOST_CHECK_EQUAL(negative, -positive);
+    BOOST_CHECK_EQUAL(negativeEvaluations, positiveEvaluations);
+}
+
+BOOST_AUTO_TEST_CASE(testGaussLobattoMinimumDepth)
+{
+    BOOST_TEST_MESSAGE("Testing Gauss-Lobatto's minimum depth...");
+
+    // The rule takes 13 + 2 evaluations, then 5 for each panel it tries, and throws where a panel would start with
+    // maxIterations or more evaluations done. A cubic passes the test on any panel. At the default depth of 0 the whole
+    // range is accepted, after 20 evaluations. At a minimum depth of 2 the panels accepted are the 36 two splits below
+    // it, so 1 + 6 + 36 = 43 are tried, 15 + 5 x 43 = 230 evaluations; the last starts after 225, so a budget of 225
+    // throws (#341).
+    const auto cubic = [](Real x) { return x * x * x; };
+    const GaussLobattoIntegral shallow(1000, 1e-12, Null<Real>(), false);
+    BOOST_CHECK_SMALL(shallow(cubic, 0.0, 2.0) - 4.0, 1e-13);
+    BOOST_CHECK_EQUAL(shallow.numberOfEvaluations(), 20U);
+    const GaussLobattoIntegral deep(226, 1e-12, Null<Real>(), false, 2);
+    BOOST_CHECK_SMALL(deep(cubic, 0.0, 2.0) - 4.0, 1e-13);
+    BOOST_CHECK_EQUAL(deep.numberOfEvaluations(), 230U);
+    const GaussLobattoIntegral tooFew(225, 1e-12, Null<Real>(), false, 2);
+    BOOST_CHECK_THROW(tooFew(cubic, 0.0, 2.0), Error);
+}
+
 #ifdef QL_BOOST_HAS_TANH_SINH
 BOOST_AUTO_TEST_CASE(testTanhSinh)
 {

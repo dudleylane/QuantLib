@@ -22,6 +22,7 @@
 */
 
 #include <ql/math/distributions/gammadistribution.hpp>
+#include <ql/math/expm1.hpp>
 #include <ql/pricingengines/vanilla/analytich1hwengine.hpp>
 
 namespace QuantLib
@@ -96,9 +97,14 @@ namespace QuantLib
             s = std::exp(k * std::log(0.5 * lambdaT) + g.logValue(0.5 * (1 + d_) + k) - g.logValue(k + 1) -
                          g.logValue(0.5 * d_ + k));
             retVal += s;
-        } while (s > std::numeric_limits<float>::epsilon() && ++i < maxIter);
+            // The terms rise to their largest and then fall, so the sum is done once a term is below QL_EPSILON
+            // times it. A stop at float epsilon ended it after its first term where d is below about 1.35e-7, and
+            // the fit was NaN (#368).
+        } while (s > QL_EPSILON * retVal && ++i < maxIter);
 
-        QL_REQUIRE(i < maxIter, "can not calculate Lambda");
+        // The sum grows like e^{lambda/2} sqrt(lambda/2): where lambda is above about 1413 it overflows, at first
+        // while its terms are still finite, and the stop ends at once, so a sum that isn't finite is refused (#372).
+        QL_REQUIRE(i < maxIter && std::isfinite(retVal), "can not calculate Lambda");
 
         retVal *= std::sqrt(2 * c(t)) * std::exp(-0.5 * lambdaT);
         return retVal;
@@ -131,10 +137,14 @@ namespace QuantLib
             b = std::exp(c * t1) * (Lambda_t1 - a);
         }
 
-        const std::complex<Real> I4 =
-            -1.0 / lambda_ * std::complex<Real>(u * u, ((j_ == 1U) ? -u : u)) *
-            (b / c * (1.0 - std::exp(-c * term_)) + a * term_ + a / lambda_ * (std::exp(-lambda_ * term_) - 1.0) +
-             b / (c - lambda_) * std::exp(-c * term_) * (1.0 - std::exp(-term_ * (lambda_ - c))));
+        // I4 integrates the fit a + b e^{-ct} against 1 - e^{-lambda (T - t)} over [0, T], lambda being the
+        // Hull-White a: that is lambda T^2 [a phi(lambda T) + b R(cT, (lambda - c) T)], with
+        // phi(x) = (e^{-x} - 1 + x) / x^2, R(u, v) = (D(u) - D(u + v)) / v and D(x) = (1 - e^{-x}) / x. Taken so,
+        // it divides by neither lambda, c nor c - lambda, which the differences of exponentials did (#369).
+        Real phi, h;
+        detail::decayPhiAndH(lambda_ * term_, phi, h);
+        const std::complex<Real> I4 = -std::complex<Real>(u * u, ((j_ == 1U) ? -u : u)) * term_ * term_ *
+                                      (a * phi + b * detail::decayRatioDifference(c * term_, (lambda_ - c) * term_));
 
         return eta_ * rhoSr_ * I4;
     }

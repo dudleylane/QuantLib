@@ -3566,7 +3566,9 @@ BOOST_AUTO_TEST_CASE(testUnitCorrelationWithGaussLobatto)
     // kappa just above sigma / 2 at rho = 1, where the integrand decays as slowly as e^{-a sqrt(u)} with a small a.
     // Gauss-Lobatto over [0, U] whole stopped 1.2e-7 off, so the integration takes [0, 1] and the rest apart; and on
     // the tilted line the characteristic function and its control variate are taken as one exponential, without which
-    // the rule ran out of machine numbers. The strike is below the edge.
+    // the rule ran out of machine numbers. The strike is below the edge. Integration::gaussLobatto splits the range
+    // twice before accepting a panel (#341), and at that depth [0, U] whole priced it within the tolerance too, so it
+    // is priced again at a minimum depth of 0, the rule before, where the split shows.
     {
         const Real v0 = 0.09, theta = 0.09, sigma = 1.0, kappa = 0.5 * sigma + 1e-8;
         const Time t = 2.0;
@@ -3576,6 +3578,11 @@ BOOST_AUTO_TEST_CASE(testUnitCorrelationWithGaussLobatto)
               ext::make_shared<AnalyticHestonEngine>(model(v0, kappa, theta, sigma, 1.0),
                                                      AnalyticHestonEngine::AngledContour,
                                                      Integration::gaussLobatto(1e-10, Null<Real>(), 1000000)),
+              t, strike, expected, 10 * 1e-10 * expected);
+        check("kappa near sigma / 2 at rho 1, at a minimum depth of 0",
+              ext::make_shared<AnalyticHestonEngine>(model(v0, kappa, theta, sigma, 1.0),
+                                                     AnalyticHestonEngine::AngledContour,
+                                                     Integration::gaussLobatto(1e-10, Null<Real>(), 1000000, false, 0)),
               t, strike, expected, 10 * 1e-10 * expected);
     }
 
@@ -3670,13 +3677,18 @@ BOOST_AUTO_TEST_CASE(testUnitCorrelationRefusals)
     }
 
     // kappa = sigma / 2 at rho = 1, the strike at the edge and a billionth of w / sigma below it, where the call is
-    // worth D (F - K) (see testUnitCorrelationWithGaussLobatto); held, if it prices, to ten times its tolerance
+    // worth D (F - K) (see testUnitCorrelationWithGaussLobatto); held, if it prices, to ten times its tolerance. Each
+    // is priced again at a minimum depth of 0, the rule before #341, where the bound shows: without it, at the default
+    // depth Gauss-Lobatto ran out of machine numbers, which counts as a refusal here.
     {
         const Real v0 = 0.04, kappa = 0.2, theta = 0.04, sigma = 0.4;
         const Time t = 0.25;
         const auto engine = ext::make_shared<AnalyticHestonEngine>(
             model(v0, kappa, theta, sigma, 1.0), AnalyticHestonEngine::AngledContour,
             Integration::gaussLobatto(1e-8, Null<Real>(), 10000));
+        const auto engineAtDepth0 = ext::make_shared<AnalyticHestonEngine>(
+            model(v0, kappa, theta, sigma, 1.0), AnalyticHestonEngine::AngledContour,
+            Integration::gaussLobatto(1e-8, Null<Real>(), 10000, false, 0));
         const Real below[] = {0.0, 1e-9};
         const char* names[] = {"kappa = sigma / 2 at rho 1, at the edge", "kappa = sigma / 2 at rho 1, below the edge"};
         for (Size i = 0; i < 2; ++i)
@@ -3684,6 +3696,8 @@ BOOST_AUTO_TEST_CASE(testUnitCorrelationRefusals)
             const Real strike = forward(t) * std::exp(-(1.0 + below[i]) * (v0 + kappa * theta * t) / sigma);
             const Real expected = rTS->discount(t) * (forward(t) - strike);
             refusesOrPrices(names[i], engine, t, strike, expected, 10 * 1e-8 * expected);
+            refusesOrPrices(std::string(names[i]) + ", at a minimum depth of 0", engineAtDepth0, t, strike, expected,
+                            10 * 1e-8 * expected);
         }
     }
 
@@ -3691,13 +3705,21 @@ BOOST_AUTO_TEST_CASE(testUnitCorrelationRefusals)
     // from v0 t is 3.8e9, past the 5e8 too, and there Gauss-Lobatto returned the control variate's value, 7.98e-5 for
     // a call worth 5.47e-5. Expected: the integrand along the tilted line, integrated piece by piece over
     // [2^k, 2^{k+1}] (exp-sinh agrees within 3e-10 on that line, and is 6e-5 and 2.2e-4 off on the real line); held,
-    // if it prices, to ten times its tolerance.
+    // if it prices, to ten times its tolerance. It is priced again at a minimum depth of 0, the rule before #341, with
+    // what the simple constructor takes otherwise (OptimalCV, Gauss-Lobatto at 1e-8 with 1,000 evaluations, and an
+    // Andersen-Piterbarg epsilon of 1e-40), where the bound shows: without it, at the default depth Gauss-Lobatto ran
+    // out of evaluations, which counts as a refusal here.
     {
         const Time t = 1e-5;
         const Real expected = 5.4685277433047485e-05;
         refusesOrPrices("five minutes at rho 1",
                         ext::make_shared<AnalyticHestonEngine>(model(1e-12, 2.0, 0.04, 1.0, 1.0), 1e-8, 1000), t,
                         forward(t), expected, 10 * 1e-8 * expected);
+        refusesOrPrices("five minutes at rho 1, at a minimum depth of 0",
+                        ext::make_shared<AnalyticHestonEngine>(
+                            model(1e-12, 2.0, 0.04, 1.0, 1.0), AnalyticHestonEngine::OptimalCV,
+                            Integration::gaussLobatto(1e-8, Null<Real>(), 1000, false, 0), 1e-40),
+                        t, forward(t), expected, 10 * 1e-8 * expected);
     }
 }
 
@@ -4054,6 +4076,94 @@ BOOST_AUTO_TEST_CASE(testAddOnTermAtZeroOnDiscreteRules)
                 option.setPricingEngine(
                     ext::make_shared<GaussianAddOnHestonEngine>(model, 0.2, Integration::discreteSimpson(1000)));
                 BOOST_CHECK_SMALL(option.NPV() - expected, 1e-8);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testGaussLobattoSplitsBeforeAccepting)
+{
+    BOOST_TEST_MESSAGE("Testing that Gauss-Lobatto's Heston prices split every panel twice before accepting one...");
+
+    // Gauss-Lobatto accepts a panel once its 4-point and 7-point estimates agree to the tolerance, and they can agree
+    // on a panel whose nodes miss the integrand's shape. At a relative tolerance of 1e-8 the AngledContourNoCV price
+    // below came back 6.9e-4 off after 200 evaluations, and the Gatheral one 5.0e-6 off after 1,780 (#341).
+    // Integration::gaussLobatto now splits every panel twice before accepting one.
+    const Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.01, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+    using Integration = AnalyticHestonEngine::Integration;
+
+    VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0),
+                         ext::make_shared<EuropeanExercise>(today + Period(10, Years)));
+    const auto price = [&](const ext::shared_ptr<PricingEngine>& engine)
+    {
+        option.setPricingEngine(engine);
+        return option.NPV();
+    };
+
+    // v0, kappa, theta, sigma, rho
+    const auto angled =
+        ext::make_shared<HestonModel>(ext::make_shared<HestonProcess>(rTS, qTS, s0, 2.56, 5.0, 0.04, 0.5, 0.5));
+    const Real expectedAngled = price(
+        ext::make_shared<AnalyticHestonEngine>(angled, AnalyticHestonEngine::OptimalCV, Integration::expSinh(1e-12)));
+    const Real angledPrice = price(ext::make_shared<AnalyticHestonEngine>(
+        angled, AnalyticHestonEngine::AngledContourNoCV, Integration::gaussLobatto(1e-8, Null<Real>(), 10000)));
+    BOOST_CHECK_SMALL(angledPrice - expectedAngled, 1e-8);
+
+    const auto gatheral =
+        ext::make_shared<HestonModel>(ext::make_shared<HestonProcess>(rTS, qTS, s0, 1e-5, 0.1, 0.04, 1.0, 0.0));
+    const Real expectedGatheral = price(
+        ext::make_shared<AnalyticHestonEngine>(gatheral, AnalyticHestonEngine::OptimalCV, Integration::expSinh(1e-12)));
+    const Real gatheralPrice = price(ext::make_shared<AnalyticHestonEngine>(
+        gatheral, AnalyticHestonEngine::Gatheral, Integration::gaussLobatto(1e-8, Null<Real>(), 10000)));
+    BOOST_CHECK_SMALL(gatheralPrice - expectedGatheral, 1e-8);
+}
+
+BOOST_AUTO_TEST_CASE(testHestonPartOfTheLimitAtZero)
+{
+    BOOST_TEST_MESSAGE("Testing the Heston part of the integrand's limit at phi = 0 near kappa = rho sigma and at "
+                       "small kappa...");
+
+    // The discrete Simpson rule takes phi = 0 as a node, where the Gatheral form takes the integrand's limit. Its
+    // Heston part, half the variance integrated under each probability's measure, was taken as differences of
+    // exponentials divided by (rho sigma - kappa)^2 for P1 and kappa^2 for P2, so it lost digits where
+    // (rho sigma - kappa) t or kappa t is small (#363). Here, with kappa 1.1e-7 on either side of rho sigma and at
+    // 1e-12, prices on 4,000 nodes came out 6.3e-7 to 4.8e-6 off, where the rule itself is within 6.4e-11.
+    // Gauss-Laguerre's nodes never reach phi = 0.
+    const Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.01, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+    using Integration = AnalyticHestonEngine::Integration;
+
+    // kappa and theta; v0 0.04, sigma 0.1 and rho 0.5 throughout, so rho sigma = 0.05.
+    const std::pair<Real, Real> parameters[] = {{0.05 - 1.1e-7, 0.04}, {0.05 + 1.1e-7, 0.04}, {1e-12, 0.2}};
+    for (const auto& [kappa, theta] : parameters)
+    {
+        const auto model =
+            ext::make_shared<HestonModel>(ext::make_shared<HestonProcess>(rTS, qTS, s0, 0.04, kappa, theta, 0.1, 0.5));
+        for (const Period& tenor : {Period(1, Months), Period(1, Years)})
+        {
+            for (Real strike : {80.0, 100.0, 120.0})
+            {
+                BOOST_TEST_CONTEXT("kappa " << std::setprecision(10) << kappa << ", theta " << theta << ", tenor "
+                                            << tenor << ", strike " << strike)
+                {
+                    VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, strike),
+                                         ext::make_shared<EuropeanExercise>(today + tenor));
+                    option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(
+                        model, AnalyticHestonEngine::Gatheral, Integration::gaussLaguerre(192)));
+                    const Real expected = option.NPV();
+                    option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(
+                        model, AnalyticHestonEngine::Gatheral, Integration::discreteSimpson(4000)));
+                    BOOST_CHECK_SMALL(option.NPV() - expected, 1e-9);
+                }
             }
         }
     }

@@ -34,11 +34,10 @@ namespace QuantLib
     const Real GaussLobattoIntegral::x2_ = 0.64185334234578130578;
     const Real GaussLobattoIntegral::x3_ = 0.23638319966214988028;
 
-    GaussLobattoIntegral::GaussLobattoIntegral(Size maxIterations,
-                                               Real absAccuracy,
-                                               Real relAccuracy,
-                                               bool useConvergenceEstimate)
-    : Integrator(absAccuracy, maxIterations), relAccuracy_(relAccuracy), useConvergenceEstimate_(useConvergenceEstimate)
+    GaussLobattoIntegral::GaussLobattoIntegral(
+        Size maxIterations, Real absAccuracy, Real relAccuracy, bool useConvergenceEstimate, Size minimumDepth)
+    : Integrator(absAccuracy, maxIterations), relAccuracy_(relAccuracy),
+      useConvergenceEstimate_(useConvergenceEstimate), minimumDepth_(minimumDepth)
     {
     }
 
@@ -49,7 +48,7 @@ namespace QuantLib
         const Real calcAbsTolerance = calculateAbsTolerance(f, a, b);
 
         increaseNumberOfEvaluations(2);
-        return adaptivGaussLobattoStep(f, a, b, f(a), f(b), calcAbsTolerance);
+        return adaptivGaussLobattoStep(f, a, b, f(a), f(b), calcAbsTolerance, 0);
     }
 
     Real GaussLobattoIntegral::calculateAbsTolerance(const std::function<Real(Real)>& f, Real a, Real b) const
@@ -99,8 +98,10 @@ namespace QuantLib
                 r = 1.0;
         }
 
+        // Given both tolerances, the smaller: the absolute one, or the relative one times the estimate's magnitude.
+        // Until #365 a negative estimate made acc * relTol negative, and the min took it whatever the absolute one.
         if (relAccuracy_ != Null<Real>())
-            return std::min(absoluteAccuracy(), acc * relTol) / (r * QL_EPSILON);
+            return std::min(absoluteAccuracy(), std::fabs(acc) * relTol) / (r * QL_EPSILON);
         else
         {
             return absoluteAccuracy() / (r * QL_EPSILON);
@@ -108,7 +109,7 @@ namespace QuantLib
     }
 
     Real GaussLobattoIntegral::adaptivGaussLobattoStep(
-        const std::function<Real(Real)>& f, Real a, Real b, Real fa, Real fb, Real acc) const
+        const std::function<Real(Real)>& f, Real a, Real b, Real fa, Real fb, Real acc, Size depth) const
     {
         QL_REQUIRE(numberOfEvaluations() < maxEvaluations(), "max number of iterations reached");
 
@@ -132,18 +133,21 @@ namespace QuantLib
 
         // avoid 80 bit logic on x86 cpu
         const Real dist = acc + (integral1 - integral2);
-        if (dist == acc || mll <= a || b <= mrr)
+        // A panel fewer than minimumDepth_ splits below the whole range is split however well its two estimates
+        // agree (#341).
+        if ((dist == acc && depth >= minimumDepth_) || mll <= a || b <= mrr)
         {
             QL_REQUIRE(m > a && b > m, "Interval contains no more machine number");
             return integral1;
         }
         else
         {
-            return adaptivGaussLobattoStep(f, a, mll, fa, fmll, acc) +
-                   adaptivGaussLobattoStep(f, mll, ml, fmll, fml, acc) +
-                   adaptivGaussLobattoStep(f, ml, m, fml, fm, acc) + adaptivGaussLobattoStep(f, m, mr, fm, fmr, acc) +
-                   adaptivGaussLobattoStep(f, mr, mrr, fmr, fmrr, acc) +
-                   adaptivGaussLobattoStep(f, mrr, b, fmrr, fb, acc);
+            return adaptivGaussLobattoStep(f, a, mll, fa, fmll, acc, depth + 1) +
+                   adaptivGaussLobattoStep(f, mll, ml, fmll, fml, acc, depth + 1) +
+                   adaptivGaussLobattoStep(f, ml, m, fml, fm, acc, depth + 1) +
+                   adaptivGaussLobattoStep(f, m, mr, fm, fmr, acc, depth + 1) +
+                   adaptivGaussLobattoStep(f, mr, mrr, fmr, fmrr, acc, depth + 1) +
+                   adaptivGaussLobattoStep(f, mrr, b, fmrr, fb, acc, depth + 1);
         }
     }
 }
