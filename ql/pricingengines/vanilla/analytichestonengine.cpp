@@ -1060,11 +1060,11 @@ namespace QuantLib
                                maxEvaluations, absTolerance, relTolerance, useConvergenceEstimate, minimumDepth)));
     }
 
-    AnalyticHestonEngine::Integration AnalyticHestonEngine::Integration::gaussKronrod(Real absTolerance,
-                                                                                      Size maxEvaluations)
+    AnalyticHestonEngine::Integration
+    AnalyticHestonEngine::Integration::gaussKronrod(Real absTolerance, Size maxEvaluations, Size minimumDepth)
     {
-        return Integration(GaussKronrod,
-                           ext::shared_ptr<Integrator>(new GaussKronrodAdaptive(absTolerance, maxEvaluations)));
+        return Integration(GaussKronrod, ext::shared_ptr<Integrator>(
+                                             new GaussKronrodAdaptive(absTolerance, maxEvaluations, minimumDepth)));
     }
 
     AnalyticHestonEngine::Integration AnalyticHestonEngine::Integration::simpson(Real absTolerance, Size maxIterations)

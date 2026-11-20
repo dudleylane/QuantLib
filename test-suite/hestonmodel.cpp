@@ -2324,6 +2324,39 @@ BOOST_AUTO_TEST_CASE(testAndersenPiterbargLimitAtAverageVariance)
                      QL_DEPRECATED_ENABLE_WARNING
                      return value;
                  });
+
+    /* Integration::gaussKronrod splits the range three times before accepting an interval (#346), and at that depth the
+       rows below theta priced within 1e-7 with the limit's Gaussian part at v0 too. So they are priced again at a
+       minimum depth of 0, the rule before #346, where the limit's position shows. */
+    for (const auto& [cpxLog, name] : formulas)
+        test(below, name + ", at a minimum depth of 0",
+             [&below, cpxLog](const ext::shared_ptr<HestonModel>& model, VanillaOption& option, Real)
+             {
+                 option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(
+                     model, cpxLog, Integration::gaussKronrod(1e-8, 1000, 0), below.andersenPiterbargEpsilon));
+                 return option.NPV();
+             });
+    for (const auto cpxLog : {AnalyticHestonEngine::AndersenPiterbarg, AnalyticHestonEngine::OptimalCV})
+        test(belowAtForward,
+             cpxLog == AnalyticHestonEngine::OptimalCV ? "doCalculation, OptimalCV, at a minimum depth of 0" :
+                                                         "doCalculation, at a minimum depth of 0",
+             [&, cpxLog](const ext::shared_ptr<HestonModel>& model, VanillaOption&, Real strike)
+             {
+                 const Case& c = belowAtForward;
+                 const Date maturity = today + c.maturity;
+                 const AnalyticHestonEngine engine(model, cpxLog, Integration::gaussKronrod(1e-8, 1000, 0),
+                                                   c.andersenPiterbargEpsilon);
+                 Real value = 0.0;
+                 Size evaluations = 0;
+                 QL_DEPRECATED_DISABLE_WARNING
+                 AnalyticHestonEngine::doCalculation(rTS->discount(maturity), qTS->discount(maturity), s0->value(),
+                                                     strike, dc.yearFraction(today, maturity), c.kappa, 0.04, c.sigma,
+                                                     c.v0, c.rho, PlainVanillaPayoff(Option::Call, strike),
+                                                     Integration::gaussKronrod(1e-8, 1000, 0), cpxLog, &engine, value,
+                                                     evaluations);
+                 QL_DEPRECATED_ENABLE_WARNING
+                 return value;
+             });
 }
 
 BOOST_AUTO_TEST_CASE(testDoCalculationAwayFromTheForward)
@@ -4325,6 +4358,85 @@ BOOST_AUTO_TEST_CASE(testGaussLobattoSplitsBeforeAccepting)
     const Real gatheralPrice = price(ext::make_shared<AnalyticHestonEngine>(
         gatheral, AnalyticHestonEngine::Gatheral, Integration::gaussLobatto(1e-8, Null<Real>(), 10000)));
     BOOST_CHECK_SMALL(gatheralPrice - expectedGatheral, 1e-8);
+}
+
+BOOST_AUTO_TEST_CASE(testGaussKronrodSplitsBeforeAccepting)
+{
+    BOOST_TEST_MESSAGE("Testing that Gauss-Kronrod's Heston prices split the range three times before accepting an "
+                       "interval...");
+
+    // Gauss-Kronrod accepts an interval once its 7-point and 15-point estimates agree to its share of the tolerance,
+    // and they can agree on an interval the integrand isn't resolved on while both are off. At an absolute tolerance
+    // of 1e-8 the AngledContour price three days from expiry below came back 1.1e-5 off after 15 evaluations, the
+    // whole range accepted on its first estimate; the Andersen-Piterbarg price two years out 5.6e-6 off after 525;
+    // and the AnalyticPTDHestonEngine price 3.6e-5 off after 435 (#346). Integration::gaussKronrod now splits the
+    // range three times before accepting an interval.
+    const Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.01, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+    using Integration = AnalyticHestonEngine::Integration;
+
+    // theta 0.04, rho 0, calls struck at 80
+    struct Case
+    {
+        std::string what;
+        Real v0, kappa, sigma;
+        Period maturity;
+        AnalyticHestonEngine::ComplexLogFormula form;
+        Real andersenPiterbargEpsilon;
+    };
+    const Case cases[] = {
+        {"AngledContour, three days", 0.01, 0.5, 0.5, Period(3, Days), AnalyticHestonEngine::AngledContour, 8.3138e-6},
+        {"AndersenPiterbarg, two years", 1e-5, 0.1, 0.5, Period(2, Years), AnalyticHestonEngine::AndersenPiterbarg,
+         9.0134e-8}};
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.what)
+        {
+            const auto model = ext::make_shared<HestonModel>(
+                ext::make_shared<HestonProcess>(rTS, qTS, s0, c.v0, c.kappa, 0.04, c.sigma, 0.0));
+            VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, 80.0),
+                                 ext::make_shared<EuropeanExercise>(today + c.maturity));
+            option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(model, AnalyticHestonEngine::OptimalCV,
+                                                                           Integration::expSinh(1e-12)));
+            const Real expected = option.NPV();
+            const auto engine = ext::make_shared<AnalyticHestonEngine>(model, c.form, Integration::gaussKronrod(1e-8),
+                                                                       c.andersenPiterbargEpsilon);
+            option.setPricingEngine(engine);
+            BOOST_CHECK_SMALL(option.NPV() - expected, 1e-8);
+            BOOST_CHECK_GE(engine->numberOfEvaluations(), Size(120));
+        }
+    }
+
+    // sigma, theta, kappa and rho on [0, 0.25), [0.25, 0.5) and from 0.5, with the grid {0.25, 0.5, 3}; v0 1e-4
+    const std::vector<Time> pTimes = {0.25, 0.5}, gridTimes = {0.25, 0.5, 3.0};
+    PiecewiseConstantParameter sigma(pTimes, PositiveConstraint()), theta(pTimes, PositiveConstraint()),
+        kappa(pTimes, PositiveConstraint()), rho(pTimes, BoundaryConstraint(-1.0, 1.0));
+    const Real sigmas[] = {0.01, 0.01, 0.01}, thetas[] = {0.36, 0.04, 0.16}, kappas[] = {4.0, 0.3, 0.3},
+               rhos[] = {0.0, 0.0, -0.9};
+    for (Size i = 0; i < 3; ++i)
+    {
+        sigma.setParam(i, sigmas[i]);
+        theta.setParam(i, thetas[i]);
+        kappa.setParam(i, kappas[i]);
+        rho.setParam(i, rhos[i]);
+    }
+    const auto piecewise = ext::make_shared<PiecewiseTimeDependentHestonModel>(
+        rTS, qTS, s0, 1e-4, theta, kappa, sigma, rho, TimeGrid(gridTimes.begin(), gridTimes.end()));
+    VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, 80.0),
+                         ext::make_shared<EuropeanExercise>(today + Period(7, Days)));
+    option.setPricingEngine(ext::make_shared<AnalyticPTDHestonEngine>(
+        piecewise, AnalyticPTDHestonEngine::AndersenPiterbarg, Integration::expSinh(1e-12), 1e-8));
+    const Real expected = option.NPV();
+    option.setPricingEngine(ext::make_shared<AnalyticPTDHestonEngine>(
+        piecewise, AnalyticPTDHestonEngine::AndersenPiterbarg, Integration::gaussKronrod(1e-8), 1e-8));
+    BOOST_TEST_CONTEXT("AnalyticPTDHestonEngine, seven days")
+    {
+        BOOST_CHECK_SMALL(option.NPV() - expected, 1e-8);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(testHestonPartOfTheLimitAtZero)

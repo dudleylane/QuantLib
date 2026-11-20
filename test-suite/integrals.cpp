@@ -221,6 +221,31 @@ BOOST_AUTO_TEST_CASE(testGaussLobattoMinimumDepth)
     BOOST_CHECK_THROW(tooFew(cubic, 0.0, 2.0), Error);
 }
 
+BOOST_AUTO_TEST_CASE(testGaussKronrodAdaptiveMinimumDepth)
+{
+    BOOST_TEST_MESSAGE("Testing adaptive Gauss-Kronrod's minimum depth...");
+
+    // The rule takes 15 evaluations an interval, and throws before an interval that would take it past
+    // maxEvaluations. Both its estimates are exact on a cubic, so a cubic passes the test on any interval. At the
+    // default depth of 0 the whole range is accepted, after 15 evaluations. At a minimum depth of 3 the range is split
+    // into 8 intervals before any is evaluated, 120 evaluations, so a budget of 119 throws (#346).
+    const auto cubic = [](Real x) { return x * x * x; };
+    const GaussKronrodAdaptive shallow(1e-12, 1000);
+    BOOST_CHECK_SMALL(shallow(cubic, 0.0, 2.0) - 4.0, 1e-13);
+    BOOST_CHECK_EQUAL(shallow.numberOfEvaluations(), 15U);
+    const GaussKronrodAdaptive deep(1e-12, 120, 3);
+    BOOST_CHECK_SMALL(deep(cubic, 0.0, 2.0) - 4.0, 1e-13);
+    BOOST_CHECK_EQUAL(deep.numberOfEvaluations(), 120U);
+    const GaussKronrodAdaptive tooFew(1e-12, 119, 3);
+    BOOST_CHECK_THROW(tooFew(cubic, 0.0, 2.0), Error);
+
+    // A range too narrow to split is evaluated whole, as at depth 0.
+    const Real narrowEnd = 1.0 + QL_EPSILON;
+    const Real narrowShallow = shallow(cubic, 1.0, narrowEnd);
+    BOOST_CHECK_EQUAL(deep(cubic, 1.0, narrowEnd), narrowShallow);
+    BOOST_CHECK_EQUAL(deep.numberOfEvaluations(), 15U);
+}
+
 #ifdef QL_BOOST_HAS_TANH_SINH
 BOOST_AUTO_TEST_CASE(testTanhSinh)
 {

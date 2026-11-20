@@ -264,7 +264,7 @@ namespace QuantLib
 
     Real GaussKronrodAdaptive::integrate(const std::function<Real(Real)>& f, Real a, Real b) const
     {
-        return integrateRecursively(f, a, b, absoluteAccuracy());
+        return integrateRecursively(f, a, b, absoluteAccuracy(), 0);
     }
 
     // weights for 7-point Gauss-Legendre integration
@@ -283,9 +283,19 @@ namespace QuantLib
                                 0.741531185599394439863864773280788, 0.864864423359769072789712788640926,
                                 0.949107912342758524526189684047851, 0.991455371120812639206854697526329};
 
-    Real
-    GaussKronrodAdaptive::integrateRecursively(const std::function<Real(Real)>& f, Real a, Real b, Real tolerance) const
+    Real GaussKronrodAdaptive::integrateRecursively(
+        const std::function<Real(Real)>& f, Real a, Real b, Real tolerance, Size depth) const
     {
+        // Above the minimum depth an interval is split without being evaluated, as its estimates would be
+        // discarded whatever they were; one too narrow to split is evaluated instead (#346).
+        if (depth < minimumDepth_)
+        {
+            const Real center = (a + b) / 2;
+            if (a < center && center < b)
+                return integrateRecursively(f, a, center, tolerance / 2, depth + 1) +
+                       integrateRecursively(f, center, b, tolerance / 2, depth + 1);
+        }
+
         QL_REQUIRE(numberOfEvaluations() + 15 <= maxEvaluations(), "maximum number of function evaluations exceeded");
 
         Real halflength = (b - a) / 2;
@@ -347,14 +357,14 @@ namespace QuantLib
             // also bounds the recursion.
             QL_REQUIRE(a < center && center < b, "cannot reach the required accuracy: the interval at x = "
                                                      << center << " can't be split further");
-            return integrateRecursively(f, a, center, tolerance / 2) +
-                   integrateRecursively(f, center, b, tolerance / 2);
+            return integrateRecursively(f, a, center, tolerance / 2, depth + 1) +
+                   integrateRecursively(f, center, b, tolerance / 2, depth + 1);
         }
     }
 
 
-    GaussKronrodAdaptive::GaussKronrodAdaptive(Real absoluteAccuracy, Size maxEvaluations)
-    : Integrator(absoluteAccuracy, maxEvaluations)
+    GaussKronrodAdaptive::GaussKronrodAdaptive(Real absoluteAccuracy, Size maxEvaluations, Size minimumDepth)
+    : Integrator(absoluteAccuracy, maxEvaluations), minimumDepth_(minimumDepth)
     {
         QL_REQUIRE(maxEvaluations >= 15,
                    "required maxEvaluations (" << maxEvaluations << ") not allowed. It must be >= 15");

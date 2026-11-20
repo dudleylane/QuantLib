@@ -308,7 +308,15 @@ namespace QuantLib
                                         Size minimumDepth = 2);
 
         // usually these routines have a poor convergence behavior.
-        static Integration gaussKronrod(Real absTolerance, Size maxEvaluations = 1000);
+        // An interval is accepted where its 7- and 15-point estimates agree to its share of absTolerance, and on
+        // these oscillating integrands the two can agree on an interval the integrand isn't resolved on while both
+        // are off: three days from expiry the whole range was accepted on its first 15 evaluations, 1.1e-5 off in
+        // price at 1e-8 (#346). So the range is split minimumDepth levels deep before any interval is accepted. At
+        // 3, the default, an integral takes at least 120 evaluations (Gatheral's form takes two integrals), and
+        // throws on a maxEvaluations below 120; at 0 the rule is GaussKronrodAdaptive's default. That makes such an
+        // acceptance rarer, not impossible: a day to a month from expiry, with the strike far from the forward,
+        // prices were still measured up to 227 times absTolerance off in the integral (#346).
+        static Integration gaussKronrod(Real absTolerance, Size maxEvaluations = 1000, Size minimumDepth = 3);
         // Simpson's and the trapezoid rule halve their intervals until two estimates in a row agree to
         // absTolerance, and stop no earlier than the 7th estimate. maxIterations bounds the estimates, and the n-th
         // rests on 2^(n-1) + 1 evaluations: the default allows 8,388,609 an integral before "max number of
