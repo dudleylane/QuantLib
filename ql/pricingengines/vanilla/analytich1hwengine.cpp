@@ -22,6 +22,7 @@
 */
 
 #include <ql/math/distributions/gammadistribution.hpp>
+#include <ql/math/expm1.hpp>
 #include <ql/pricingengines/vanilla/analytich1hwengine.hpp>
 
 namespace QuantLib
@@ -131,10 +132,14 @@ namespace QuantLib
             b = std::exp(c * t1) * (Lambda_t1 - a);
         }
 
-        const std::complex<Real> I4 =
-            -1.0 / lambda_ * std::complex<Real>(u * u, ((j_ == 1U) ? -u : u)) *
-            (b / c * (1.0 - std::exp(-c * term_)) + a * term_ + a / lambda_ * (std::exp(-lambda_ * term_) - 1.0) +
-             b / (c - lambda_) * std::exp(-c * term_) * (1.0 - std::exp(-term_ * (lambda_ - c))));
+        // I4 integrates the fit a + b e^{-ct} against 1 - e^{-lambda (T - t)} over [0, T], lambda being the
+        // Hull-White a: that is lambda T^2 [a phi(lambda T) + b R(cT, (lambda - c) T)], with
+        // phi(x) = (e^{-x} - 1 + x) / x^2, R(u, v) = (D(u) - D(u + v)) / v and D(x) = (1 - e^{-x}) / x. Taken so,
+        // it divides by neither lambda, c nor c - lambda, which the differences of exponentials did (#369).
+        Real phi, h;
+        detail::decayPhiAndH(lambda_ * term_, phi, h);
+        const std::complex<Real> I4 = -std::complex<Real>(u * u, ((j_ == 1U) ? -u : u)) * term_ * term_ *
+                                      (a * phi + b * detail::decayRatioDifference(c * term_, (lambda_ - c) * term_));
 
         return eta_ * rhoSr_ * I4;
     }

@@ -1331,6 +1331,84 @@ BOOST_AUTO_TEST_CASE(testH1HWPricingEngine)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testH1HWEngineAtSmallMeanReversionAndAtTheFitsRate)
+{
+    BOOST_TEST_MESSAGE(
+        "Testing the H1-HW engine at a small Hull-White mean reversion and at its variance fit's rate...");
+
+    // The term the stock's correlation with the Hull-White rate adds integrates the engine's fit a + b e^{-ct} of
+    // E[sqrt(v(t))] against 1 - e^{-lambda (T - t)}, lambda being the Hull-White a. It was taken as differences of
+    // exponentials divided by lambda, one of them by lambda twice, and one by c - lambda (#369): the calls were NaN at
+    // lambda = c, and 0.19 off at lambda 1e-8 and a month.
+    const Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.01, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+
+    // 8 kappa theta / sigma^2 > 1, so the engine fits through sqrt(v0) and its closed-form approximation at t = 1
+    const Real v0 = 0.04, kappa = 1.5, theta = 0.04, sigma = 0.3;
+    const auto hestonModel =
+        ext::make_shared<HestonModel>(ext::make_shared<HestonProcess>(rTS, qTS, s0, v0, kappa, theta, sigma, -0.5));
+
+    // the fit's rate c, as the engine computes it
+    const Real gamma2 = sigma * sigma, d = 4.0 * kappa * theta / gamma2;
+    const Real c1 = gamma2 / (4 * kappa) * (1.0 - std::exp(-kappa));
+    const Real l1 = 4.0 * kappa * v0 * std::exp(-kappa) / (gamma2 * (1.0 - std::exp(-kappa)));
+    const Real fitAtOne = std::sqrt(c1 * (l1 - 1.0) + c1 * d * (1.0 + 1.0 / (2.0 * (d + l1))));
+    const Real a = std::sqrt(theta - gamma2 / (8.0 * kappa));
+    const Real fitRate = -std::log((fitAtOne - a) / (std::sqrt(v0) - a));
+
+    const auto callPrice = [&](Real meanReversion, const Period& maturity)
+    {
+        VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0),
+                             ext::make_shared<EuropeanExercise>(today + maturity));
+        option.setPricingEngine(ext::make_shared<AnalyticH1HWEngine>(
+            hestonModel, ext::make_shared<HullWhite>(rTS, meanReversion, 0.01), 0.3, 192));
+        return option.NPV();
+    };
+
+    const Period maturities[] = {Period(1, Months), Period(1, Years), Period(10, Years)};
+    const Real tol = 1e-11;
+
+    // at the fit's rate, against the average of its neighbours a relative 1e-6 away, which the price's curvature puts
+    // within 8e-14 of it
+    for (const Period& maturity : maturities)
+    {
+        const Real calculated = callPrice(fitRate, maturity);
+        const Real neighbours =
+            0.5 * (callPrice(fitRate * (1.0 - 1e-6), maturity) + callPrice(fitRate * (1.0 + 1e-6), maturity));
+        if (!(std::fabs(calculated - neighbours) <= tol))
+            BOOST_ERROR("Failed to price at the Hull-White a equal to the variance fit's rate"
+                        << "\n   maturity       : " << maturity << "\n   fit's rate     : " << fitRate
+                        << "\n   calculated     : " << calculated << "\n   neighbours     : " << neighbours
+                        << "\n   difference     : " << calculated - neighbours << "\n   tol            : " << tol);
+    }
+
+    // at small Hull-White a; the expected values take the term without the divisions, as the engine now does. At 1e-8
+    // and 1e-10 they agree with a 113-bit evaluation of the old form within 4e-15. At 1e-12 that evaluation is a
+    // relative 2.5e-10 off at a month, and the term agrees with a 50-digit evaluation within a relative 2e-17
+    const Real meanReversions[] = {1e-8, 1e-10, 1e-12};
+    const Real expected[std::size(maturities)][std::size(meanReversions)] = {
+        {2.3526158462355227, 2.3526158462359086, 2.3526158462359117},
+        {8.6202658781569728, 8.6202658783708461, 8.6202658783729902},
+        {31.286897963362314, 31.286898053204261, 31.286898054102686}};
+    for (Size i = 0; i < std::size(maturities); ++i)
+    {
+        for (Size k = 0; k < std::size(meanReversions); ++k)
+        {
+            const Real calculated = callPrice(meanReversions[k], maturities[i]);
+            if (!(std::fabs(calculated - expected[i][k]) <= tol))
+                BOOST_ERROR("Failed to price at a small Hull-White a"
+                            << "\n   maturity       : " << maturities[i]
+                            << "\n   Hull-White a   : " << meanReversions[k] << "\n   calculated     : " << calculated
+                            << "\n   expected       : " << expected[i][k] << "\n   difference     : "
+                            << calculated - expected[i][k] << "\n   tol            : " << tol);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testEvolveForSmallMeanReversion)
 {
     BOOST_TEST_MESSAGE("Testing the hybrid Heston Hull-White process with mean reversion close to zero...");
