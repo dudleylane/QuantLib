@@ -3965,7 +3965,8 @@ BOOST_AUTO_TEST_CASE(testUnitCorrelationWithRulesTakingNoLimit)
     BOOST_TEST_MESSAGE("Testing the analytic Heston engine's rules that take no limit at rho = -1 and 1...");
 
     // #239 changed Gauss-Lobatto's integration where c_inf is 0. Gauss-Laguerre, the default, and exp-sinh take no
-    // limit and priced rho = -1 and 1 before, and keep their values there.
+    // limit and priced rho = -1 and 1 before; #239 kept their values there, and #300 has OptimalCV take
+    // AngledContour there with them too (see testOptimalCVAtUnitCorrelation).
     const Date today(15, May, 2026);
     Settings::instance().evaluationDate() = today;
     const DayCounter dc = Actual365Fixed();
@@ -3982,13 +3983,16 @@ BOOST_AUTO_TEST_CASE(testUnitCorrelationWithRulesTakingNoLimit)
     const auto price = [&](const ext::shared_ptr<AnalyticHestonEngine>& engine, Time t, Real strike)
     { return engine->priceVanillaPayoff(ext::make_shared<PlainVanillaPayoff>(Option::Call, strike), t); };
 
-    // The default engine at #239's item 1, pinned as it priced before #239: these carry Gauss-Laguerre's own error,
-    // 1.1e-8 relative (exp-sinh prices 20.277039580528548 and 19.753416071649774). #239's path at rho = -1 or 1, its
-    // contour and control variate, taken for Gauss-Laguerre too, moved them by up to 2.3e-7.
+    // The default engine at #239's item 1. Until #300 OptimalCV took AsymptoticChF here, whose control variate
+    // vanishes at rho = -1 and 1, and Gauss-Laguerre's 144 nodes priced 20.277039806025588 and 19.753416060295287,
+    // 1.1e-8 and 5.7e-10 off, relative. On AngledContour, which OptimalCV takes there now, they are within 3.6e-16 of
+    // the expected prices, AngledContour's on exp-sinh at 1e-13 and on Gauss-Lobatto at 1e-12, which agree to the
+    // bit. #239's path at rho = -1 or 1, its contour as well as its control variate, taken for Gauss-Laguerre too,
+    // moved them by up to 2.3e-7.
     {
         const Time t = 0.5;
         const Real strike = 0.8 * forward(t);
-        const Real expected[] = {20.277039806025588, 19.753416060295287};
+        const Real expected[] = {20.277039580528609, 19.753416071649774};
         const Real rhos[] = {-1.0, 1.0};
         for (Size i = 0; i < 2; ++i)
             BOOST_TEST_CONTEXT("the default engine at rho " << rhos[i])
@@ -3999,8 +4003,9 @@ BOOST_AUTO_TEST_CASE(testUnitCorrelationWithRulesTakingNoLimit)
             }
     }
 
-    // exp-sinh with OptimalCV at rho = 1, the strike below the edge F e^{-w / sigma}, where the call is worth
-    // D (F - K) (see testUnitCorrelationWithGaussLobatto). Taking #239's path for exp-sinh too made it throw here.
+    // exp-sinh with OptimalCV at rho = 1, which takes AngledContour there since #300, the strike below the edge
+    // F e^{-w / sigma}, where the call is worth D (F - K) (see testUnitCorrelationWithGaussLobatto). Taking #239's
+    // path for exp-sinh too made it throw here.
     {
         const Real v0 = 0.01, kappa = 2.0, theta = 0.04, sigma = 0.05;
         const Time t = 91 / 365.0;
@@ -4480,6 +4485,318 @@ BOOST_AUTO_TEST_CASE(testHestonPartOfTheLimitAtZero)
                         model, AnalyticHestonEngine::Gatheral, Integration::discreteSimpson(4000)));
                     BOOST_CHECK_SMALL(option.NPV() - expected, 1e-9);
                 }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testOptimalCVScaledOnExpSinh)
+{
+    BOOST_TEST_MESSAGE("Testing the analytic Heston engine's exp-sinh scaling with OptimalCV...");
+
+    // OptimalCV takes AngledContour at 0.15 years and less, and exp-sinh integrates AngledContour over u = s x with
+    // s = 0.25 / sqrt(vAvg t / 2), held between 0.25 and 1,000. OptimalCV went unscaled (#380): at the money at v0
+    // 1e-4, 1e-5 and 1e-6 years from expiry, where s is at its cap, it came out 0.41 % and 0.37 % off at tolerances
+    // from 1e-8 to 1e-13. The expected prices agree within 2.4e-11 with integrals along two other contours and the
+    // real line.
+    const Date today(15, May, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.005, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.03, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+
+    struct Row
+    {
+        Real sigma, rho;
+        Time t;
+        Real expected;
+    };
+    const Row rows[] = {{1.0, -0.3, 1e-5, 0.00125641908755557}, {3.0, 0.3, 1e-6, 0.000397477580467564}};
+    for (const Row& row : rows)
+    {
+        BOOST_TEST_CONTEXT("sigma " << row.sigma << ", rho " << row.rho << ", t " << row.t)
+        {
+            const auto model = ext::make_shared<HestonModel>(
+                ext::make_shared<HestonProcess>(rTS, qTS, s0, 1e-4, 0.001, 0.04, row.sigma, row.rho));
+            const auto atTheMoney = ext::make_shared<PlainVanillaPayoff>(
+                Option::Call, s0->value() * qTS->discount(row.t) / rTS->discount(row.t));
+            const Real calculated = AnalyticHestonEngine(model, AnalyticHestonEngine::OptimalCV,
+                                                         AnalyticHestonEngine::Integration::expSinh(1e-8))
+                                        .priceVanillaPayoff(atTheMoney, row.t);
+            BOOST_CHECK_SMALL(calculated - row.expected, 10 * 1e-8 * row.expected);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testDoCalculationScaledOnExpSinh)
+{
+    BOOST_TEST_MESSAGE("Testing the deprecated AnalyticHestonEngine::doCalculation's exp-sinh scaling...");
+
+    // calculate() integrates the Andersen-Piterbarg forms on exp-sinh over u = s x, with s = 0.25 / sqrt(vAvg t / 2)
+    // held between 0.25 and 1,000, by the form it prices with (#380). The deprecated doCalculation took s = 1 for
+    // every form (#382): at testOptimalCVScaledOnExpSinh's rows, where s is at its cap, AndersenPiterbarg,
+    // AndersenPiterbargOptCV and OptimalCV came out 0.41 % and 0.37 % off at tolerances from 1e-8 to 1e-13.
+    const Date today(15, May, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.005, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.03, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+
+    struct Row
+    {
+        Real sigma, rho;
+        Time t;
+        Real expected;
+    };
+    const Row rows[] = {{1.0, -0.3, 1e-5, 0.00125641908755557}, {3.0, 0.3, 1e-6, 0.000397477580467564}};
+    const std::pair<AnalyticHestonEngine::ComplexLogFormula, std::string> formulas[] = {
+        {AnalyticHestonEngine::AndersenPiterbarg, "AndersenPiterbarg"},
+        {AnalyticHestonEngine::AndersenPiterbargOptCV, "AndersenPiterbargOptCV"},
+        {AnalyticHestonEngine::OptimalCV, "OptimalCV"}};
+    for (const Row& row : rows)
+        for (const auto& [cpxLog, name] : formulas)
+        {
+            BOOST_TEST_CONTEXT(name << ", sigma " << row.sigma << ", rho " << row.rho << ", t " << row.t)
+            {
+                const auto model = ext::make_shared<HestonModel>(
+                    ext::make_shared<HestonProcess>(rTS, qTS, s0, 1e-4, 0.001, 0.04, row.sigma, row.rho));
+                const Real forward = s0->value() * qTS->discount(row.t) / rTS->discount(row.t);
+                const auto integration = AnalyticHestonEngine::Integration::expSinh(1e-8);
+                const AnalyticHestonEngine engine(model, cpxLog, integration);
+                Real value = 0.0;
+                Size evaluations = 0;
+                QL_DEPRECATED_DISABLE_WARNING
+                AnalyticHestonEngine::doCalculation(rTS->discount(row.t), qTS->discount(row.t), s0->value(), forward,
+                                                    row.t, 0.001, 0.04, row.sigma, 1e-4, row.rho,
+                                                    PlainVanillaPayoff(Option::Call, forward), integration, cpxLog,
+                                                    &engine, value, evaluations);
+                QL_DEPRECATED_ENABLE_WARNING
+                BOOST_CHECK_SMALL(value - row.expected, 10 * 1e-8 * row.expected);
+            }
+        }
+}
+
+BOOST_AUTO_TEST_CASE(testPiecewiseTimeDependentScaledOnExpSinh)
+{
+    BOOST_TEST_MESSAGE("Testing AnalyticPTDHestonEngine's exp-sinh scaling...");
+
+    // AnalyticHestonEngine integrates its Andersen-Piterbarg forms on exp-sinh over u = s x, with s = 0.25 / sqrt(vAvg
+    // t / 2) held between 0.25 and 1,000. AnalyticPTDHestonEngine took s = 1 (#382). A day from expiry at v0 1e-2,
+    // where s is 67.5, a call 10 % in the money, about 20 standard deviations and so worth D (F - K) to far past
+    // rounding, came back 8.0e-10 off on constant parameters, at tolerances of 1e-8 and 1e-13 alike. Scaled, it is
+    // within 1.9e-14, and within 1.5e-15 of AnalyticHestonEngine's AndersenPiterbarg on the same rule. Scaled or not,
+    // exp-sinh stops at its refinement cap here (#383).
+    const Date today(15, May, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.005, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.03, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+    const Real v0 = 0.01, kappa = 0.001, theta = 0.04, sigma = 3.0, rho = 0.3;
+
+    const Date maturity = today + Period(1, Days);
+    const Real forward = s0->value() * qTS->discount(maturity) / rTS->discount(maturity);
+    const Real strike = 0.9 * forward;
+    const Real expected = rTS->discount(maturity) * (forward - strike);
+    VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, strike),
+                         ext::make_shared<EuropeanExercise>(maturity));
+
+    const auto integration = AnalyticHestonEngine::Integration::expSinh(1e-8);
+    option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(
+        ext::make_shared<HestonModel>(ext::make_shared<HestonProcess>(rTS, qTS, s0, v0, kappa, theta, sigma, rho)),
+        AnalyticHestonEngine::AndersenPiterbarg, integration));
+    const Real constantParameters = option.NPV();
+
+    // one interval, so constant parameters
+    PiecewiseConstantParameter thetaP({}, PositiveConstraint()), kappaP({}, PositiveConstraint()),
+        sigmaP({}, PositiveConstraint()), rhoP({}, BoundaryConstraint(-1.0, 1.0));
+    thetaP.setParam(0, theta);
+    kappaP.setParam(0, kappa);
+    sigmaP.setParam(0, sigma);
+    rhoP.setParam(0, rho);
+    option.setPricingEngine(
+        ext::make_shared<AnalyticPTDHestonEngine>(ext::make_shared<PiecewiseTimeDependentHestonModel>(
+                                                      rTS, qTS, s0, v0, thetaP, kappaP, sigmaP, rhoP, TimeGrid(1.0, 1)),
+                                                  AnalyticPTDHestonEngine::AndersenPiterbarg, integration, 1e-8));
+    const Real calculated = option.NPV();
+
+    BOOST_CHECK_SMALL(calculated - expected, 1e-11 * expected);
+    BOOST_CHECK_SMALL(calculated - constantParameters, 1e-13 * expected);
+}
+
+BOOST_AUTO_TEST_CASE(testOptimalCVAtUnitCorrelation)
+{
+    BOOST_TEST_MESSAGE("Testing the Heston engines' OptimalCV at rho = -1 and 1...");
+
+    // AsymptoticChF's control variate vanishes at rho = -1 and 1, and until #300 OptimalCV took it there past 0.15
+    // years with the default rule, ExponentialFittingHestonEngine's default and exp-sinh. On these calls struck at 150
+    // it left the first two up to 1.2e-6 and 1.0e-3 off, and at sigma 1e-5 its value was NaN from w / sigma of about
+    // 720, w = v0 + kappa theta t, and Ci and Si threw from about 1,420. OptimalCV takes AngledContour there now. The
+    // expected prices agree within 7e-15 with an integral along a second contour (struck at 150) or are computed to
+    // 40 digits (sigma 1e-5).
+    const Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.01, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+    const auto exercise = ext::make_shared<EuropeanExercise>(today + Period(1, Years));
+
+    struct Row
+    {
+        Real v0, kappa, theta, sigma, rho, strike, expected;
+    };
+    const Row rows[] = {{0.01, 1.5, 0.06, 0.3, 1.0, 150.0, 0.80138894927136872},
+                        {0.01, 1.5, 0.06, 0.05, 1.0, 150.0, 0.23783854307565822},
+                        {0.04, 1.0, 0.04, 1e-5, 1.0, 100.0, 8.8273212249247123},
+                        {0.04, 1.0, 0.04, 1e-5, -1.0, 100.0, 8.8273212249247134},
+                        {0.01, 0.001, 0.04, 1e-5, 1.0, 100.0, 4.9699156511466484}};
+    for (const Row& row : rows)
+    {
+        const auto model = ext::make_shared<HestonModel>(
+            ext::make_shared<HestonProcess>(rTS, qTS, s0, row.v0, row.kappa, row.theta, row.sigma, row.rho));
+        // exp-sinh at 1e-8 is checked as testUnitCorrelationWithRulesTakingNoLimit's exp-sinh row is, and the fixed
+        // nodes to 1e-10 relative
+        struct Engine
+        {
+            std::string name;
+            ext::shared_ptr<PricingEngine> engine;
+            Real tolerance;
+        };
+        const Engine engines[] = {
+            {"the default engine", ext::make_shared<AnalyticHestonEngine>(model), 1e-10},
+            {"exponential fitting", ext::make_shared<ExponentialFittingHestonEngine>(model), 1e-10},
+            {"exp-sinh",
+             ext::make_shared<AnalyticHestonEngine>(model, AnalyticHestonEngine::OptimalCV,
+                                                    AnalyticHestonEngine::Integration::expSinh(1e-8)),
+             10 * 1e-8}};
+        for (const Engine& e : engines)
+        {
+            BOOST_TEST_CONTEXT(e.name << ", v0 " << row.v0 << ", kappa " << row.kappa << ", theta " << row.theta
+                                      << ", sigma " << row.sigma << ", rho " << row.rho << ", strike " << row.strike)
+            {
+                VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, row.strike), exercise);
+                option.setPricingEngine(e.engine);
+                // a throw is reported here, and leaves calculated null, so the check below fails too
+                Real calculated = Null<Real>();
+                BOOST_CHECK_NO_THROW(calculated = option.NPV());
+                BOOST_CHECK_SMALL(calculated - row.expected, e.tolerance * row.expected);
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testPiecewiseTimeDependentAtSmallSigma)
+{
+    BOOST_TEST_MESSAGE("Testing AnalyticPTDHestonEngine at small sigma...");
+
+    // AnalyticPTDHestonEngine solved each interval's Riccati equation in Gatheral's form, which divides t1 - d by
+    // sigma^2. Where sigma phi is small against kappa, t1 - d cancels and the division carries the loss into the
+    // exponent: at sigma 1e-7 and kappa 1, ten-year calls came back up to 0.089 (Gatheral) and 0.12
+    // (AndersenPiterbarg) off, and where sigma^2 underflows to 0 the price was NaN (#360). Each interval now takes its
+    // solution around the root nu / (t1 + d), as AnalyticHestonEngine's lnChF does, and divides by sigma^2 only where
+    // t1 - d doesn't cancel.
+    const Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.01, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+    const std::vector<Time> gridTimes = {0.25, 1.5, 4.0, 10.5};
+    const TimeGrid grid(gridTimes.begin(), gridTimes.end());
+    const std::vector<Time> pTimes(gridTimes.begin(), gridTimes.end() - 1);
+
+    const auto piecewise = [&](Real v0, const std::vector<Real>& kappas, const std::vector<Real>& thetas,
+                               const std::vector<Real>& sigmas, const std::vector<Real>& rhos)
+    {
+        PiecewiseConstantParameter kappa(pTimes, PositiveConstraint()), theta(pTimes, PositiveConstraint()),
+            sigma(pTimes, PositiveConstraint()), rho(pTimes, BoundaryConstraint(-1.0, 1.0));
+        for (Size i = 0; i < gridTimes.size(); ++i)
+        {
+            kappa.setParam(i, kappas[i]);
+            theta.setParam(i, thetas[i]);
+            sigma.setParam(i, sigmas[i]);
+            rho.setParam(i, rhos[i]);
+        }
+        return ext::make_shared<PiecewiseTimeDependentHestonModel>(rTS, qTS, s0, v0, theta, kappa, sigma, rho, grid);
+    };
+    const std::vector<Real> kappas = {1.0, 2.0, 0.5, 1.0}, thetas = {0.04, 0.06, 0.03, 0.05},
+                            rhos = {-0.5, 0.3, -0.9, 0.0};
+
+    struct Row
+    {
+        std::string name;
+        ext::shared_ptr<PiecewiseTimeDependentHestonModel> model;
+        Date maturity;
+        Real strike, expected;
+    };
+    std::vector<Row> rows;
+
+    // constant parameters on four intervals, against AnalyticHestonEngine; at kappa 1e-7 the smaller root is about
+    // nu / (2 kappa), and D taken as that root plus its decaying part would cancel to 3.5e-9 of the price
+    struct Constant
+    {
+        const char* name;
+        Real kappa, rho, strike;
+    };
+    for (const Constant& c : {Constant{"constant parameters, kappa 1, rho 0.9, sigma 1e-7", 1.0, 0.9, 100.0},
+                              Constant{"constant parameters, kappa 1, rho 0.9, sigma 1e-7", 1.0, 0.9, 120.0},
+                              Constant{"constant parameters, kappa 1e-7, rho -0.9, sigma 1e-7", 1e-7, -0.9, 120.0}})
+    {
+        const auto model = ext::make_shared<PiecewiseTimeDependentHestonModel>(
+            rTS, qTS, s0, 0.01, ConstantParameter(0.04, PositiveConstraint()),
+            ConstantParameter(c.kappa, PositiveConstraint()), ConstantParameter(1e-7, PositiveConstraint()),
+            ConstantParameter(c.rho, BoundaryConstraint(-1.0, 1.0)), grid);
+        const Date maturity = today + Period(1, Years);
+        VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, c.strike),
+                             ext::make_shared<EuropeanExercise>(maturity));
+        option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(ext::make_shared<HestonModel>(
+            ext::make_shared<HestonProcess>(rTS, qTS, s0, 0.01, c.kappa, 0.04, 1e-7, c.rho))));
+        rows.push_back({c.name, model, maturity, c.strike, option.NPV()});
+    }
+
+    // sigma^2 underflows to 0 on every interval: Black's price at the integrated variance
+    {
+        const Date maturity = today + Period(1, Years);
+        const Time t = dc.yearFraction(today, maturity);
+        Real v = 0.04, variance = 0.0, start = 0.0;
+        for (Size i = 0; start < t; start = gridTimes[i++])
+        {
+            const Time tau = std::min(t, gridTimes[i]) - start;
+            const Real decay = std::exp(-kappas[i] * tau);
+            variance += thetas[i] * tau + (v - thetas[i]) * (1.0 - decay) / kappas[i];
+            v = thetas[i] + (v - thetas[i]) * decay;
+        }
+        const Real forward = s0->value() * qTS->discount(maturity) / rTS->discount(maturity);
+        rows.push_back({"sigma 1e-200", piecewise(0.04, kappas, thetas, {1e-200, 1e-200, 1e-200, 1e-200}, rhos),
+                        maturity, 100.0,
+                        blackFormula(Option::Call, 100.0, forward, std::sqrt(variance), rTS->discount(maturity))});
+    }
+
+    // sigma small on two intervals of four, against Lewis's integral of the intervals' Riccati solutions in 40 digits
+    rows.push_back({"sigma 0.3, 1e-7, 0.5 and 1e-6", piecewise(0.04, kappas, thetas, {0.3, 1e-7, 0.5, 1e-6}, rhos),
+                    today + Period(10, Years), 100.0, 30.378191718426549770});
+
+    for (const Row& row : rows)
+    {
+        VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, row.strike),
+                             ext::make_shared<EuropeanExercise>(row.maturity));
+        const std::pair<std::string, ext::shared_ptr<PricingEngine>> engines[] = {
+            {"Gatheral", ext::make_shared<AnalyticPTDHestonEngine>(row.model)},
+            {"AndersenPiterbarg",
+             ext::make_shared<AnalyticPTDHestonEngine>(row.model, AnalyticPTDHestonEngine::AndersenPiterbarg,
+                                                       AnalyticPTDHestonEngine::Integration::gaussLaguerre(144))}};
+        for (const auto& engine : engines)
+        {
+            BOOST_TEST_CONTEXT(row.name << ", strike " << row.strike << ", " << engine.first)
+            {
+                option.setPricingEngine(engine.second);
+                // a throw is reported here, and leaves calculated null, so the check below fails too
+                Real calculated = Null<Real>();
+                BOOST_CHECK_NO_THROW(calculated = option.NPV());
+                BOOST_CHECK_SMALL(calculated - row.expected, 1e-11 * row.expected);
             }
         }
     }

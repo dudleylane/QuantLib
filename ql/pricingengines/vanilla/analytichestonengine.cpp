@@ -599,11 +599,11 @@ namespace QuantLib
 
         /* Where the angled contour takes its angle from r alone, and the one exponential below (#239): at rho = -1
            or 1, where the engine's own rule is Gauss-Lobatto, the one rule that takes a limit there. Gauss-Laguerre
-           and exp-sinh, which priced rho = -1 and 1 before, keep the contour and control variates they had. On this
-           one, at 1 to 30 days, the default 144 nodes' prices moved by up to 6.8e-8, more of them more than 1e-6
-           off; exp-sinh priced the rows where it had thrown, but with OptimalCV at 1e-8 it came out 3.6e-2 off a
-           call worth 1e-15 that it had priced within 4.2e-5. The rule is enginePtr's, so a rule given separately,
-           as to doCalculation, changes neither. */
+           and exp-sinh, which priced rho = -1 and 1 before, keep the contour and control variates they had, though
+           OptimalCV takes AngledContour there with them too since #300. On this one, at 1 to 30 days, the default 144
+           nodes' prices moved by up to 6.8e-8, more of them more than 1e-6 off; exp-sinh priced the rows where it had
+           thrown, but with OptimalCV at 1e-8 it came out 3.6e-2 off a call worth 1e-15 that it had priced
+           within 4.2e-5. The rule is enginePtr's, so a rule given separately, as to doCalculation, changes neither. */
         unitCorrelation_ = enginePtr->integration_->takesUnitCorrelationPath(rho);
 
         switch (cpxLog_)
@@ -619,9 +619,11 @@ namespace QuantLib
             case AsymptoticChF:
             {
                 /* Its expansion takes log(1 - rho^2) and divides by sqrt(1 - rho^2), so at rho = -1 or 1 psi_ is
-                   -inf and the control variate vanishes; Gauss-Laguerre and exp-sinh price with it as before.
-                   Gauss-Lobatto takes its limit there from the angled contour's decay, worked out for AngledContour
-                   and AngledContourNoCV (#239). */
+                   -inf and the control variate vanishes. OptimalCV doesn't take it there (#300); taken explicitly,
+                   Gauss-Laguerre and exp-sinh price with it vanished as before, NaN from w / sigma of about 720,
+                   w = v0 + kappa theta t, where its value is 0 times an overflowed term, and throwing from about
+                   1,420, where Ci and Si do (#300). Gauss-Lobatto takes its limit there from the angled contour's
+                   decay, worked out for AngledContour and AngledContourNoCV (#239). */
                 QL_REQUIRE(!unitCorrelation_, "with Gauss-Lobatto the AsymptoticChF control variate needs rho"
                                               " strictly between -1 and 1, given "
                                                   << rho << "; AngledContour and OptimalCV take rho = -1 and 1 there");
@@ -840,7 +842,8 @@ namespace QuantLib
     AnalyticHestonEngine::optimalControlVariate(Time t, Real v0, Real kappa, Real theta, Real sigma, Real rho)
     {
 
-        if (t > 0.15 && (v0 + t * kappa * theta) / sigma * std::sqrt(1 - rho * rho) < 0.15 &&
+        // At rho = -1 or 1 AsymptoticChF's control variate vanishes, and with it the reason to take it (#300)
+        if (rho * rho < 1.0 && t > 0.15 && (v0 + t * kappa * theta) / sigma * std::sqrt(1 - rho * rho) < 0.15 &&
             asymptoticChFRePsi(t, v0, kappa, theta, sigma, rho) < maxAsymptoticChFRePsi)
         {
             return AsymptoticChF;
@@ -945,14 +948,11 @@ namespace QuantLib
 
                 const Real epsilon = andersenPiterbargEpsilon_ * M_PI / (std::sqrt(strike * fwd) * dr);
 
-                /* At rho = -1 or 1, past 0.15 years, OptimalCV takes AsymptoticChF, whose control variate vanishes
-                   there. Gauss-Lobatto, which threw there before, takes AngledContour instead, the control variate
-                   its limit is worked out for (#239); the other rules keep what they took. */
-                ComplexLogFormula finalLog = cpxLog_;
-                if (cpxLog_ == OptimalCV)
-                    finalLog = integration_->takesUnitCorrelationPath(rho) ?
-                                   AngledContour :
-                                   optimalControlVariate(maturity, v0, kappa, theta, sigma, rho);
+                /* At rho = -1 or 1 OptimalCV takes AngledContour with every rule (#300), the control variate
+                   Gauss-Lobatto's limit is worked out for there (#239). Until #300 only Gauss-Lobatto did, and the
+                   other rules took AsymptoticChF past 0.15 years, whose control variate vanishes there. */
+                const ComplexLogFormula finalLog =
+                    (cpxLog_ == OptimalCV) ? optimalControlVariate(maturity, v0, kappa, theta, sigma, rho) : cpxLog_;
 
                 /* Below u of about 1 / (sigma t) the characteristic function decays as a Gaussian at the average
                    variance, as the Andersen-Piterbarg control variates' Gaussian part does, so the limit's Gaussian
@@ -983,8 +983,15 @@ namespace QuantLib
 
                 const Real cvValue = cvHelper.controlVariateValue();
 
+                /* Exp-sinh, the one rule that takes it, integrates over u = s x with s = 0.25 / sqrt(vAvg t / 2),
+                   held between 0.25 and 1,000, which spreads its nodes over u of about 1 / sqrt(vAvg t), where the
+                   integrand decays as a Gaussian. s goes by the form the engine prices with, and is 1 for
+                   AsymptoticChF: OptimalCV is scaled where it takes AngledContour, as AngledContour is (#380). Until
+                   then OptimalCV was never scaled, and at the money at v0 1e-4, 1e-6 and 1e-5 years from expiry,
+                   where s is at its cap, it came out up to 0.41 % off at tolerances from 1e-8 to 1e-13. The
+                   deprecated doCalculation takes the same s (#382). */
                 const Real scalingFactor =
-                    (cpxLog_ != OptimalCV && cpxLog_ != AsymptoticChF) ?
+                    (finalLog != AsymptoticChF) ?
                         std::max(0.25, std::min(1000.0, 0.25 / std::sqrt(0.5 * vAvg * maturity))) :
                         Real(1.0);
 
@@ -1357,15 +1364,20 @@ namespace QuantLib
                         [&](Real u) { return enginePtr->lnChF(std::complex<Real>(u, -0.5), term).real(); });
                 };
 
-                AP_Helper cvHelper(term, fwdPrice, strikePrice,
-                                   (cpxLog == OptimalCV) ? optimalControlVariate(term, v0, kappa, theta, sigma, rho) :
-                                                           cpxLog,
-                                   enginePtr);
+                const ComplexLogFormula finalLog =
+                    (cpxLog == OptimalCV) ? optimalControlVariate(term, v0, kappa, theta, sigma, rho) : cpxLog;
+
+                AP_Helper cvHelper(term, fwdPrice, strikePrice, finalLog, enginePtr);
 
                 const Real cvValue = cvHelper.controlVariateValue();
 
+                // exp-sinh's scaling, by the form it prices with, as calculate() takes it (#380, #382)
+                const Real scalingFactor = (finalLog != AsymptoticChF) ?
+                                               std::max(0.25, std::min(1000.0, 0.25 / std::sqrt(0.5 * vAvg * term))) :
+                                               Real(1.0);
+
                 // F / pi, as calculate() takes, since AP_Helper's integrand carries (F / K)^alpha (#343)
-                const Real h_cv = fwdPrice / M_PI * integration.calculate(c_inf, cvHelper, uM);
+                const Real h_cv = fwdPrice / M_PI * integration.calculate(c_inf, cvHelper, uM, scalingFactor);
                 evaluations += integration.numberOfEvaluations();
 
                 switch (type.optionType())

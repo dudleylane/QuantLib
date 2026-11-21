@@ -101,15 +101,30 @@ namespace QuantLib
         AsymptoticChF control variates refuse rho = -1 and 1. The other rules
         that take a limit refuse it with any control variate, as do
         Gauss-Legendre and the Gauss-Chebyshev rules, which map their nodes
-        through c_inf. Gauss-Laguerre and exp-sinh take no limit and price as
-        before: there AsymptoticChF's control variate, which OptimalCV takes
-        past 0.15 years, vanishes, and Gauss-Laguerre can be far off at short
-        maturities (#300). A limit past 5e8 is refused, as near
-        kappa = sigma / 2 at rho = 1 with the strike near F e^{-w / sigma},
+        through c_inf. A limit past 5e8 is refused, as near kappa = sigma / 2
+        at rho = 1 with the strike near F e^{-w / sigma},
         w = v0 + kappa theta t, and minutes from expiry or with v0 near 0.
-        This path is taken at rho = -1 and 1 exactly: just inside them the
-        engine takes the path it takes wherever |rho| < 1, whose limit grows
-        as 1 / c_inf, and it can be far less accurate there (#296).
+
+        Gauss-Laguerre and exp-sinh take no limit, and price rho = -1 and 1
+        on the contour they take elsewhere. AsymptoticChF's control variate
+        vanishes there, so OptimalCV takes AngledContour there with every
+        rule, in ExponentialFittingHestonEngine too (#300); until then it
+        took AsymptoticChF there past 0.15 years with every rule but
+        Gauss-Lobatto. With these two rules an explicit AsymptoticChF still
+        prices with its control variate vanished, which is NaN from
+        w / sigma of about 720 and throws from about 1,420 (#300), and
+        Gauss-Laguerre can still be far off at short maturities, where the
+        integrand decays slowly (#300).
+
+        These paths are taken at rho = -1 and 1 exactly. Just inside them
+        the engine takes the path it takes wherever |rho| < 1, and it can be
+        far less accurate there (#296): Gauss-Lobatto's limit grows as
+        1 / c_inf, and OptimalCV can still take AsymptoticChF, whose
+        expansion holds there only far out in u. At the double next to -1
+        and 1 the default rule and ExponentialFittingHestonEngine came out
+        up to 1.2 % off on calls of a year and five years, and where
+        w / sigma passes about 720 they can be NaN or throw within 2.2e-8 of
+        -1 and 1.
 
         AsymptoticChF integrates phi less its asymptotic at large u and
         adds back the asymptotic's closed form, which carries e^{psi} with
@@ -117,10 +132,11 @@ namespace QuantLib
                       + kappa theta log(4 (1 - rho^2))] / sigma^2,
         so a rule's error on what is left is multiplied by about
         e^{Re psi}. OptimalCV takes AsymptoticChF only where Re psi is
-        below 0.1, past 0.15 years and with c_inf below 0.15, and an
-        explicit AsymptoticChF is refused where Re psi is 0.1 or more, in
-        calculate(), priceVanillaPayoff(), the deprecated doCalculation()
-        and ExponentialFittingHestonEngine alike (#342). There calls on a
+        below 0.1, past 0.15 years, with c_inf below 0.15 and with rho
+        strictly between -1 and 1 (#300), and an explicit AsymptoticChF is
+        refused where Re psi is 0.1 or more, in calculate(),
+        priceVanillaPayoff(), the deprecated doCalculation() and
+        ExponentialFittingHestonEngine alike (#342). There calls on a
         spot of 100, three months and longer, came out off by up to 2.1e-6
         below Re psi 1 and 0.012 below 10 with Gauss-Laguerre at 128
         nodes, and by up to 4.4 below 10 with
@@ -254,8 +270,9 @@ namespace QuantLib
 
         Real priceVanillaPayoff(const ext::shared_ptr<PlainVanillaPayoff>& payoff, Time maturity) const;
 
-        // AsymptoticChF past 0.15 years where c_inf is below 0.15 and Re psi below 0.1, the bound at which an explicit
-        // AsymptoticChF is refused (#342); AngledContour elsewhere
+        // AsymptoticChF past 0.15 years where rho is strictly between -1 and 1, at which its control variate vanishes
+        // (#300), c_inf is below 0.15 and Re psi below 0.1, the bound at which an explicit AsymptoticChF is refused
+        // (#342); AngledContour elsewhere
         static ComplexLogFormula optimalControlVariate(Time t, Real v0, Real kappa, Real theta, Real sigma, Real rho);
 
       protected:
