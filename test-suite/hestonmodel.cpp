@@ -4529,6 +4529,55 @@ BOOST_AUTO_TEST_CASE(testOptimalCVScaledOnExpSinh)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testDoCalculationScaledOnExpSinh)
+{
+    BOOST_TEST_MESSAGE("Testing the deprecated AnalyticHestonEngine::doCalculation's exp-sinh scaling...");
+
+    // calculate() integrates the Andersen-Piterbarg forms on exp-sinh over u = s x, with s = 0.25 / sqrt(vAvg t / 2)
+    // held between 0.25 and 1,000, by the form it prices with (#380). The deprecated doCalculation took s = 1 for
+    // every form (#382): at testOptimalCVScaledOnExpSinh's rows, where s is at its cap, AndersenPiterbarg,
+    // AndersenPiterbargOptCV and OptimalCV came out 0.41 % and 0.37 % off at tolerances from 1e-8 to 1e-13.
+    const Date today(15, May, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.005, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.03, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+
+    struct Row
+    {
+        Real sigma, rho;
+        Time t;
+        Real expected;
+    };
+    const Row rows[] = {{1.0, -0.3, 1e-5, 0.00125641908755557}, {3.0, 0.3, 1e-6, 0.000397477580467564}};
+    const std::pair<AnalyticHestonEngine::ComplexLogFormula, std::string> formulas[] = {
+        {AnalyticHestonEngine::AndersenPiterbarg, "AndersenPiterbarg"},
+        {AnalyticHestonEngine::AndersenPiterbargOptCV, "AndersenPiterbargOptCV"},
+        {AnalyticHestonEngine::OptimalCV, "OptimalCV"}};
+    for (const Row& row : rows)
+        for (const auto& [cpxLog, name] : formulas)
+        {
+            BOOST_TEST_CONTEXT(name << ", sigma " << row.sigma << ", rho " << row.rho << ", t " << row.t)
+            {
+                const auto model = ext::make_shared<HestonModel>(
+                    ext::make_shared<HestonProcess>(rTS, qTS, s0, 1e-4, 0.001, 0.04, row.sigma, row.rho));
+                const Real forward = s0->value() * qTS->discount(row.t) / rTS->discount(row.t);
+                const auto integration = AnalyticHestonEngine::Integration::expSinh(1e-8);
+                const AnalyticHestonEngine engine(model, cpxLog, integration);
+                Real value = 0.0;
+                Size evaluations = 0;
+                QL_DEPRECATED_DISABLE_WARNING
+                AnalyticHestonEngine::doCalculation(rTS->discount(row.t), qTS->discount(row.t), s0->value(), forward,
+                                                    row.t, 0.001, 0.04, row.sigma, 1e-4, row.rho,
+                                                    PlainVanillaPayoff(Option::Call, forward), integration, cpxLog,
+                                                    &engine, value, evaluations);
+                QL_DEPRECATED_ENABLE_WARNING
+                BOOST_CHECK_SMALL(value - row.expected, 10 * 1e-8 * row.expected);
+            }
+        }
+}
+
 BOOST_AUTO_TEST_CASE(testOptimalCVAtUnitCorrelation)
 {
     BOOST_TEST_MESSAGE("Testing the Heston engines' OptimalCV at rho = -1 and 1...");

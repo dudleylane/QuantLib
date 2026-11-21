@@ -988,8 +988,8 @@ namespace QuantLib
                    integrand decays as a Gaussian. s goes by the form the engine prices with, and is 1 for
                    AsymptoticChF: OptimalCV is scaled where it takes AngledContour, as AngledContour is (#380). Until
                    then OptimalCV was never scaled, and at the money at v0 1e-4, 1e-6 and 1e-5 years from expiry,
-                   where s is at its cap, it came out up to 0.41 % off at tolerances from 1e-8 to 1e-13.
-                   doCalculation scales nothing. */
+                   where s is at its cap, it came out up to 0.41 % off at tolerances from 1e-8 to 1e-13. The
+                   deprecated doCalculation takes the same s (#382). */
                 const Real scalingFactor =
                     (finalLog != AsymptoticChF) ?
                         std::max(0.25, std::min(1000.0, 0.25 / std::sqrt(0.5 * vAvg * maturity))) :
@@ -1364,15 +1364,20 @@ namespace QuantLib
                         [&](Real u) { return enginePtr->lnChF(std::complex<Real>(u, -0.5), term).real(); });
                 };
 
-                AP_Helper cvHelper(term, fwdPrice, strikePrice,
-                                   (cpxLog == OptimalCV) ? optimalControlVariate(term, v0, kappa, theta, sigma, rho) :
-                                                           cpxLog,
-                                   enginePtr);
+                const ComplexLogFormula finalLog =
+                    (cpxLog == OptimalCV) ? optimalControlVariate(term, v0, kappa, theta, sigma, rho) : cpxLog;
+
+                AP_Helper cvHelper(term, fwdPrice, strikePrice, finalLog, enginePtr);
 
                 const Real cvValue = cvHelper.controlVariateValue();
 
+                // exp-sinh's scaling, by the form it prices with, as calculate() takes it (#380, #382)
+                const Real scalingFactor = (finalLog != AsymptoticChF) ?
+                                               std::max(0.25, std::min(1000.0, 0.25 / std::sqrt(0.5 * vAvg * term))) :
+                                               Real(1.0);
+
                 // F / pi, as calculate() takes, since AP_Helper's integrand carries (F / K)^alpha (#343)
-                const Real h_cv = fwdPrice / M_PI * integration.calculate(c_inf, cvHelper, uM);
+                const Real h_cv = fwdPrice / M_PI * integration.calculate(c_inf, cvHelper, uM, scalingFactor);
                 evaluations += integration.numberOfEvaluations();
 
                 switch (type.optionType())
