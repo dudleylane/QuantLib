@@ -1,0 +1,80 @@
+name: Format Check
+
+# Since 2026-11-21 (the owner's ruling) QuantLib's CI is laid out by purpose: Format Check, Build &
+# Test and Sanitizers run on every push to master and every pull request, Coverage on pushes to
+# master, and Benchmark by hand.  There are no change tiers and no ordering between workflows,
+# every job has a time limit, and a skipped test case fails its job.  Until then it was one ci.yml
+# of 14 job definitions in three tiers; FORK_CHANGES.md has the history.
+
+on:
+  # Markdown can't change what CI verifies: nothing in the build reads it (build-test.yml says
+  # why), so a markdown-only commit starts no run.  Docs/** is not ignored: `make docs` reads it.
+  push:
+    branches: [master]
+    paths-ignore: ['**.md']
+  pull_request:
+    branches: [master]
+    paths-ignore: ['**.md']
+
+# A pull request's older runs are cancelled when a newer push arrives.  The group is the pull
+# request's number for pull_request events and the commit's sha otherwise, so a run on master
+# shares its group with nothing: it is never cancelled and never waits.  (Keying master's runs by
+# ref let a newer push evict a pending run, so a commit went unverified; #8 and #9 saw it.)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  clang-format:
+    name: clang-format dry-run
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
+    # The longest of this job's runs from 2026-11-11 to 11-21 took 2.9 min.  10 bounds a hang
+    # with room for a checkout and the image on a loaded box.  GitHub's clock starts when a
+    # runner picks the job up, not when it is queued.
+    timeout-minutes: 10
+    steps:
+      # TMPDIR into the runner's temporary directory, as in every job (build-test.yml says why);
+      # podman reads it too.
+      - name: Set temporary and cache directories
+        shell: bash
+        run: |
+          {
+            echo "TMPDIR=${RUNNER_TEMP:?}"
+            echo "CCACHE_DIR=${HOME:?}/.cache/ccache-quantlib-ci"
+            echo "CCACHE_MAXSIZE=10G"
+            echo "CCACHE_STATSLOG=$RUNNER_TEMP/ccache-stats.log"
+          } >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v7
+
+      # The binary is called by its versioned name because this job sets no PATH and inherits the
+      # runner's: an unversioned clang-format earlier on it (pip installs 23.x into ~/.local/bin)
+      # would win, and 23.1.0 reports 187 violations on a tree that 22.x passes.  Stream 10 ships
+      # clang-tools-extra at LLVM 22.x.
+      - name: Check formatting
+        shell: bash
+        run: |
+          mapfile -d '' files < <(find ql test-suite Examples fuzz-test-suite \
+              -type f \( -name '*.hpp' -o -name '*.cpp' \) -print0)
+          clang-format-22 --dry-run -Werror "${files[@]}"
+
+      # Duplicate keys and unclosed expressions reached master before and were found only when
+      # Actions refused the file (2d9bc6e3c, 1e4617f7d); a YAML parser accepted both.  The image
+      # carries shellcheck: pinned by digest, reading each workflow on stdin, so nothing is
+      # mounted, with no network.  Only this runner's own label is ignored, so a mistyped one
+      # still fails.  A hung pull would hold a runner, hence the limit.  Shellcheck flags a path
+      # that is both -stdin-filename's argument and the redirect (SC2094), hence the two names.
+      - name: Lint the workflows
+        shell: bash
+        timeout-minutes: 10
+        run: |
+          status=0
+          for f in .github/workflows/*.yml; do
+            name=$(basename "$f")
+            echo "actionlint: $name"
+            podman run --rm -i --network=none \
+              docker.io/rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
+              -ignore 'label "quantlib-dev" is unknown' \
+              -stdin-filename "$name" - < "$f" || status=1
+          done
+          exit "$status"

@@ -1,0 +1,87 @@
+name: Coverage
+
+# Line coverage for Coveralls, on pushes to master only: Coveralls keeps master's history only
+# from runs on master (the owner's ruling of 2026-10-17, which kept coverage on master when the
+# rest of a merge's run was cut back).  The build is the default configuration, static, at -O1.
+# Format Check's header says how this CI is laid out, and
+# build-test.yml says why markdown is ignored, what the first step does and how the time limits
+# were sized.
+
+on:
+  push:
+    branches: [master]
+    paths-ignore: ['**.md']
+
+# Keyed by sha, so each push to master keeps its own run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  coverage:
+    name: Coverage (Coveralls)
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
+    # The longest run from 2026-11-11 to 11-21 took 85.0 min (median 49.3).
+    timeout-minutes: 170
+    env:
+      PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
+      CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+      CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
+    steps:
+      - name: Set temporary and cache directories
+        shell: bash
+        run: |
+          {
+            echo "TMPDIR=${RUNNER_TEMP:?}"
+            echo "CCACHE_DIR=${HOME:?}/.cache/ccache-quantlib-ci"
+            echo "CCACHE_MAXSIZE=10G"
+            echo "CCACHE_STATSLOG=$RUNNER_TEMP/ccache-stats.log"
+          } >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v7
+
+      # The compiler line doesn't name ccache: coverage was left out of the compile cache until it
+      # is checked separately (#31).
+      - name: Compile
+        shell: bash
+        run: |
+          ./autogen.sh
+          ./configure --disable-shared CXXFLAGS='-O1 -fprofile-arcs -ftest-coverage' LDFLAGS='-lgcov'
+          make -j"$(nproc)"
+
+      - name: Capture baseline
+        shell: bash
+        run: |
+          mkdir -p coverage tmp
+          lcov --no-external --capture --initial --ignore-errors mismatch --directory . --output-file ./tmp/lcov_base.info
+
+      - name: Run tests
+        shell: bash
+        run: |
+          ./test-suite/quantlib-test-suite --logger=JUNIT,error,"$RUNNER_TEMP/junit.xml":HRF,message
+
+      - name: No test skipped
+        shell: bash
+        run: |
+          python3 tools/check_no_skipped_tests.py "$RUNNER_TEMP/junit.xml" --config-header ql/config.hpp
+
+      - name: Run examples
+        shell: bash
+        run: |
+          make -C Examples check-examples
+
+      - name: Capture coverage
+        shell: bash
+        run: |
+          lcov --no-external --capture --ignore-errors mismatch --directory . --output-file ./tmp/lcov_run.info
+          lcov --add-tracefile ./tmp/lcov_base.info --add-tracefile ./tmp/lcov_run.info --output-file ./tmp/lcov_total.info
+          lcov --remove ./tmp/lcov_total.info "$PWD/Examples/*" "$PWD/test-suite/*" --output-file ./coverage/lcov.info
+
+      # If this step alone fails, look at the upload first: on 2026-11-08 GitHub's release
+      # downloads returned 504 for the reporter's checksums, and a re-run of the failed job passed.
+      - name: Upload coverage to Coveralls
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./coverage/lcov.info

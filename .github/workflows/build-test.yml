@@ -1,0 +1,400 @@
+name: Build & Test
+
+# The documented build and its tests, plus what QuantLib needs beyond one configuration: its
+# QL_* flags swap implementations (Date, coupon fixings, ext::shared_ptr, any and optional), so no
+# one build covers both sides of them, and it ships two build systems whose file lists only the
+# file-list check keeps in step.  Four jobs, independent of each other and of the other workflows.
+# Format Check's header says how this CI is laid out.
+
+on:
+  # Markdown can't change what CI verifies.  Nothing in the build reads it: doxygen's
+  # FILE_PATTERNS is `*.docs` over Docs/pages, not `*.md`; the .md files in Makefile.am are
+  # EXTRA_DIST entries, which only `make dist` reads, and check_filelists.sh doesn't look at them.
+  # Docs/** is deliberately not ignored: `make docs` reads it.  This is safe while master's
+  # protection requires no status check (since 2026-10-14, #26); a required check that never
+  # reports would block a pull request for good, so revisit this if one is added.
+  push:
+    branches: [master]
+    paths-ignore: ['**.md']
+  pull_request:
+    branches: [master]
+    paths-ignore: ['**.md']
+
+# As in format.yml: a pull request's newer push cancels its older run; a run on master is never
+# cancelled and never waits.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Every job's first step points TMPDIR at the runner's temporary directory and ccache at a
+# persistent directory of QuantLib's own.  It writes them to $GITHUB_ENV because job-level env can
+# read neither the runner context nor $HOME.
+#
+# TMPDIR: gcc writes its intermediate files to $TMPDIR, else /tmp, which on the dev host is on the
+# root filesystem; other work there had filled it to 847 MB free on 2026-10-17.  RUNNER_TEMP is on
+# /home, and the runner empties it at the start and end of every job.
+#
+# ccache: the runners are on one persistent machine, so the cache stays on it (#31): one directory
+# for every job of every runner, capped at 10 GB, with ccache's own locking and LRU cleanup.  A
+# compiler line that doesn't name ccache ignores the variables.  Each job that compiles through it
+# prints its own hits from CCACHE_STATSLOG, which lives in RUNNER_TEMP.  Trust: a pull request's
+# jobs write objects that master's jobs read.  That stays one trust domain only because the
+# job-started hook (.github/runner/job-started.sh) refuses forks' and Dependabot's jobs, so revisit
+# this if the hook ever admits them.  To empty the cache:
+#   CCACHE_DIR=~/.cache/ccache-quantlib-ci ccache -C
+#
+# Time limits: each job's is about twice the longest successful run, from 2026-11-11 (four
+# runners) to 11-21, of the jobs it replaces.  GitHub's clock starts when a runner picks the job
+# up, not when it is queued.  If a healthy run hits one, measure and raise it; don't re-run until
+# green.
+#
+# No test skipped: Boost.Test counts a case its precondition turned off neither as a failure nor
+# as an error, so "No errors detected" says nothing about a case that never ran.  Each job that
+# runs the suite writes a JUnit log and tools/check_no_skipped_tests.py fails the job on a skip,
+# except the cases the build's own config header says can't hold (indexed coupons).
+
+jobs:
+  release:
+    name: Release build + tests (CMake)
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
+    # Replaces cmake-linux, whose longest run took 53.9 min (median 24.8).
+    timeout-minutes: 110
+    env:
+      PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
+      CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+      CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
+    steps:
+      - name: Set temporary and cache directories
+        shell: bash
+        run: |
+          {
+            echo "TMPDIR=${RUNNER_TEMP:?}"
+            echo "CCACHE_DIR=${HOME:?}/.cache/ccache-quantlib-ci"
+            echo "CCACHE_MAXSIZE=10G"
+            echo "CCACHE_STATSLOG=$RUNNER_TEMP/ccache-stats.log"
+          } >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v7
+
+      # README's recipe, the preset, plus warnings as errors, the compile cache and an install
+      # prefix in the workspace, which the runner's user can write (/usr/local is root's).
+      - name: Configure
+        shell: bash
+        run: |
+          cmake --preset linux-gcc-ninja-release \
+            -DQL_COMPILE_WARNING_AS_ERROR=ON \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install" -L
+          cat build/linux-gcc-ninja-release/ql/config.hpp
+
+      - name: Build
+        shell: bash
+        run: |
+          cmake --build build/linux-gcc-ninja-release --verbose
+          cmake --install build/linux-gcc-ninja-release
+
+      - name: Show compile cache statistics
+        if: always()
+        shell: bash
+        run: |
+          stats=$(ccache --show-log-stats)
+          printf '%s\n' "$stats"
+          printf '### ccache\n\n~~~\n%s\n~~~\n' "$stats" >> "$GITHUB_STEP_SUMMARY"
+          if [ -d "$CCACHE_DIR" ]; then du -sh "$CCACHE_DIR"; fi
+
+      # The installed binary, so the test also covers what `cmake --install` put in place.
+      - name: Test
+        shell: bash
+        run: |
+          export PATH="$GITHUB_WORKSPACE/install/bin:$PATH"
+          export LD_LIBRARY_PATH="$GITHUB_WORKSPACE/install/lib64:$GITHUB_WORKSPACE/install/lib:${LD_LIBRARY_PATH:-}"
+          quantlib-test-suite --logger=JUNIT,error,"$RUNNER_TEMP/junit.xml":HRF,message
+
+      - name: No test skipped
+        shell: bash
+        run: |
+          python3 tools/check_no_skipped_tests.py "$RUNNER_TEMP/junit.xml" \
+            --config-header build/linux-gcc-ninja-release/ql/config.hpp
+
+      # find_package(QuantLib) from the installed prefix, as a consumer sees it: the export set,
+      # the installed headers (<ql/quantlib.hpp>) and the library.
+      - name: Install smoke
+        shell: bash
+        run: |
+          smoke="$RUNNER_TEMP/install-smoke"
+          mkdir -p "$smoke"
+          cat > "$smoke/CMakeLists.txt" <<'EOF'
+          cmake_minimum_required(VERSION 3.22)
+          project(QuantLibInstallSmoke CXX)
+          set(CMAKE_CXX_STANDARD 23)
+          set(CMAKE_CXX_STANDARD_REQUIRED ON)
+          find_package(QuantLib CONFIG REQUIRED)
+          add_executable(smoke main.cpp)
+          target_link_libraries(smoke PRIVATE QuantLib::QuantLib)
+          EOF
+          cat > "$smoke/main.cpp" <<'EOF'
+          #include <ql/quantlib.hpp>
+          #include <iostream>
+          int main() {
+              QuantLib::Date d(21, QuantLib::November, 2026);
+              std::cout << "QuantLib " << QL_VERSION << ": " << d << std::endl;
+              return d.year() == 2026 ? 0 : 1;
+          }
+          EOF
+          cmake -S "$smoke" -B "$smoke/build" -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/install"
+          cmake --build "$smoke/build"
+          LD_LIBRARY_PATH="$GITHUB_WORKSPACE/install/lib64:$GITHUB_WORKSPACE/install/lib:${LD_LIBRARY_PATH:-}" \
+            "$smoke/build/smoke"
+
+      - name: Run benchmark
+        shell: bash
+        run: |
+          export PATH="$GITHUB_WORKSPACE/install/bin:$PATH"
+          export LD_LIBRARY_PATH="$GITHUB_WORKSPACE/install/lib64:$GITHUB_WORKSPACE/install/lib:${LD_LIBRARY_PATH:-}"
+          quantlib-benchmark --size=1
+
+  # The non-default library flags in one configure: the stack that linux-nondefault built, with
+  # the std-classes flips (std::shared_ptr, boost::any, boost::optional) and OpenMP, which it built
+  # as separate variants.  With the release job's defaults, both sides of each of these switches
+  # are built and tested, and --enable-tracing, --enable-extra-safety-checks, --enable-error-lines
+  # and --enable-error-functions are built nowhere else.  Left out: --disable-json-marketdata,
+  # which the Benchmark workflow builds by hand; --enable-std-classes (all three std flips at
+  # once), --enable-parallel-unit-test-runner and C++26 mode, which CI no longer builds; and
+  # --enable-aad, which it never has.  Under --enable-indexed-coupons four cases can't hold and
+  # skip (tools/check_no_skipped_tests.py lists them).
+  nondefault:
+    name: Non-default configuration (autotools)
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
+    # Replaces the five linux-nondefault cells, whose longest run took 98.6 min.
+    timeout-minutes: 200
+    env:
+      PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
+      CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+      CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
+    steps:
+      - name: Set temporary and cache directories
+        shell: bash
+        run: |
+          {
+            echo "TMPDIR=${RUNNER_TEMP:?}"
+            echo "CCACHE_DIR=${HOME:?}/.cache/ccache-quantlib-ci"
+            echo "CCACHE_MAXSIZE=10G"
+            echo "CCACHE_STATSLOG=$RUNNER_TEMP/ccache-stats.log"
+          } >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v7
+
+      - name: Compiler version
+        shell: bash
+        run: |
+          gcc --version
+
+      - name: Build
+        shell: bash
+        run: |
+          ./autogen.sh
+          # --prefix into the workspace so "Check global header" can `make install` without root.
+          ./configure --prefix="$GITHUB_WORKSPACE/install" --disable-static \
+            --enable-error-lines --enable-error-functions --enable-tracing \
+            --enable-indexed-coupons --enable-extra-safety-checks \
+            --enable-sessions --enable-thread-safe-observer-pattern \
+            --enable-intraday --disable-faster-lazy-objects \
+            --enable-throwing-in-cycles --enable-null-as-functions \
+            --enable-std-pointers --disable-std-any --disable-std-optional \
+            --enable-openmp \
+            CC="ccache gcc" CXX="ccache g++" \
+            CPPFLAGS="-Wall -Wno-unknown-pragmas -Wno-array-bounds -Werror" \
+            CXXFLAGS="-O2 -g0"
+          cat ql/config.hpp
+          make -j"$(nproc)"
+
+      - name: Show compile cache statistics
+        if: always()
+        shell: bash
+        run: |
+          stats=$(ccache --show-log-stats)
+          printf '%s\n' "$stats"
+          printf '### ccache\n\n~~~\n%s\n~~~\n' "$stats" >> "$GITHUB_STEP_SUMMARY"
+          if [ -d "$CCACHE_DIR" ]; then du -sh "$CCACHE_DIR"; fi
+
+      - name: Run tests
+        shell: bash
+        run: |
+          ./test-suite/quantlib-test-suite --logger=JUNIT,error,"$RUNNER_TEMP/junit.xml":HRF,message
+
+      - name: No test skipped
+        shell: bash
+        run: |
+          python3 tools/check_no_skipped_tests.py "$RUNNER_TEMP/junit.xml" --config-header ql/config.hpp
+
+      - name: Run examples
+        shell: bash
+        run: |
+          make check-examples
+
+      - name: Check global header
+        shell: bash
+        run: |
+          echo "#include <ql/quantlib.hpp>" > test1.cpp
+          echo "int main() { return 0; }" >> test1.cpp
+          echo "#include <ql/quantlib.hpp>" > test2.cpp
+          make install
+          export PATH="$GITHUB_WORKSPACE/install/bin:$PATH"
+          # Unquoted on purpose: quantlib-config prints several words.
+          # shellcheck disable=SC2046
+          g++ -O2 -g0 -Wall -Wno-unknown-pragmas -Werror \
+            $(quantlib-config --cflags) test1.cpp test2.cpp $(quantlib-config --libs)
+
+  # The default configuration through autotools, compiled a directory at a time (the test suite in
+  # five parts since #358).  It is the only check of the rule that a file-local name be unique
+  # across its directory, and the only CI failure from code since 2026-08 was that rule (#39's
+  # first push, run 39899945305).  It also runs the examples in the default configuration, which
+  # the CMake build compiles but doesn't run.
+  unity:
+    name: Unity build (autotools)
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
+    # Replaces linux / Unity build enabled, whose longest run took 78.0 min.
+    timeout-minutes: 160
+    env:
+      PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
+      CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+      CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
+    steps:
+      - name: Set temporary and cache directories
+        shell: bash
+        run: |
+          {
+            echo "TMPDIR=${RUNNER_TEMP:?}"
+            echo "CCACHE_DIR=${HOME:?}/.cache/ccache-quantlib-ci"
+            echo "CCACHE_MAXSIZE=10G"
+            echo "CCACHE_STATSLOG=$RUNNER_TEMP/ccache-stats.log"
+          } >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v7
+
+      - name: Compiler version
+        shell: bash
+        run: |
+          gcc --version
+
+      - name: Build
+        shell: bash
+        run: |
+          ./autogen.sh
+          # --prefix into the workspace so "Check global header" can `make install` without root.
+          ./configure --prefix="$GITHUB_WORKSPACE/install" --disable-static --enable-unity-build \
+            CC="ccache gcc" CXX="ccache g++" \
+            CXXFLAGS="-O2 -g0 -Wall -Wno-unknown-pragmas -Werror"
+          cat ql/config.hpp
+          make -j"$(nproc)"
+
+      - name: Show compile cache statistics
+        if: always()
+        shell: bash
+        run: |
+          stats=$(ccache --show-log-stats)
+          printf '%s\n' "$stats"
+          printf '### ccache\n\n~~~\n%s\n~~~\n' "$stats" >> "$GITHUB_STEP_SUMMARY"
+          if [ -d "$CCACHE_DIR" ]; then du -sh "$CCACHE_DIR"; fi
+
+      - name: Run tests
+        shell: bash
+        run: |
+          ./test-suite/quantlib-test-suite --logger=JUNIT,error,"$RUNNER_TEMP/junit.xml":HRF,message
+
+      - name: No test skipped
+        shell: bash
+        run: |
+          python3 tools/check_no_skipped_tests.py "$RUNNER_TEMP/junit.xml" --config-header ql/config.hpp
+
+      - name: Run examples
+        shell: bash
+        run: |
+          make check-examples
+
+      - name: Check global header
+        shell: bash
+        run: |
+          echo "#include <ql/quantlib.hpp>" > test1.cpp
+          echo "int main() { return 0; }" >> test1.cpp
+          echo "#include <ql/quantlib.hpp>" > test2.cpp
+          make install
+          export PATH="$GITHUB_WORKSPACE/install/bin:$PATH"
+          # Unquoted on purpose: quantlib-config prints several words.
+          # shellcheck disable=SC2046
+          g++ -O2 -g0 -Wall -Wno-unknown-pragmas -Werror \
+            $(quantlib-config --cflags) test1.cpp test2.cpp $(quantlib-config --libs)
+
+  # The checks that read the tree rather than run it, each in the order and the tree state its
+  # own job had: header docs and standalone headers on the bare checkout, then file lists and
+  # doxygen after `./configure --disable-json-marketdata`.  check_filelists.sh diffs both build
+  # systems' lists against the tree and against `make dist`, and removes its scratch files.
+  files:
+    name: File lists, headers and docs
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
+    # Replaces filelists, headers, header-docs and docs, whose longest runs took 3.1, 10.4, 0.2 and
+    # 12.0 min.
+    timeout-minutes: 60
+    env:
+      PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
+      CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+      CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
+    steps:
+      - name: Set temporary and cache directories
+        shell: bash
+        run: |
+          {
+            echo "TMPDIR=${RUNNER_TEMP:?}"
+            echo "CCACHE_DIR=${HOME:?}/.cache/ccache-quantlib-ci"
+            echo "CCACHE_MAXSIZE=10G"
+            echo "CCACHE_STATSLOG=$RUNNER_TEMP/ccache-stats.log"
+          } >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v7
+
+      - name: Check header docs
+        shell: bash
+        run: |
+          ./tools/check_all_header_docs.sh
+
+      - name: Check standalone headers
+        shell: bash
+        env:
+          CXX: ccache g++
+        run: |
+          ./tools/check_all_headers.sh
+
+      - name: Show compile cache statistics
+        if: always()
+        shell: bash
+        run: |
+          stats=$(ccache --show-log-stats)
+          printf '%s\n' "$stats"
+          printf '### ccache\n\n~~~\n%s\n~~~\n' "$stats" >> "$GITHUB_STEP_SUMMARY"
+          if [ -d "$CCACHE_DIR" ]; then du -sh "$CCACHE_DIR"; fi
+
+      - name: Configure
+        shell: bash
+        run: |
+          ./autogen.sh
+          ./configure --disable-json-marketdata
+
+      - name: Check file lists
+        shell: bash
+        run: |
+          ./tools/check_filelists.sh
+
+      - name: Doxygen version
+        shell: bash
+        run: |
+          doxygen --version
+
+      - name: Build docs
+        shell: bash
+        run: |
+          make docs

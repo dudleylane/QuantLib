@@ -1,0 +1,102 @@
+name: Benchmark
+
+# By hand only: `gh workflow run benchmark.yml --ref <branch>`.  tools/check_test_times.py
+# compares each case's absolute wall-clock time with fixed limits (3 s for Faster cases, 8 s for
+# Fast, 30 s for any case), and the runners share their machine with each other and with other
+# projects' runners, so a reading means something only when the machine is quiet.  Same commit,
+# two runs on 2026-08-12:
+#
+#   testBarraquandThreeValues   8.42 s -> 47.57 s   (ceiling 30 s)
+#   testAllMultiStepProducts   16.96 s -> 31.71 s   (ceiling 30 s)
+#   testPathwiseVegas           5.34 s -> 11.12 s   (Fast limit 8 s)
+#
+# 5.6x on identical code.  As an advisory job on every pull request it failed 44 of the 62 times it
+# ran to the end from 2026-08-11 to 11-21, 40 of the 47 in November, and each failure meant
+# showing that the change didn't reach the flagged cases.  So it runs here, when someone
+# dispatches it on a quiet machine (#55), with quantlib-benchmark's throughput beside it.  Format
+# Check's header says how this CI is laid out, and build-test.yml what the first step does.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    name: Test times and benchmark
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
+    # check-test-times' longest run from 2026-11-11 to 11-21 took 66.0 min, and the benchmark step
+    # of cmake-linux 11.1; 160 is about twice their sum.
+    timeout-minutes: 160
+    env:
+      PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      LD_LIBRARY_PATH: /opt/rh/gcc-toolset-15/root/usr/lib64
+      CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+      CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
+    steps:
+      - name: Set temporary and cache directories
+        shell: bash
+        run: |
+          {
+            echo "TMPDIR=${RUNNER_TEMP:?}"
+            echo "CCACHE_DIR=${HOME:?}/.cache/ccache-quantlib-ci"
+            echo "CCACHE_MAXSIZE=10G"
+            echo "CCACHE_STATSLOG=$RUNNER_TEMP/ccache-stats.log"
+          } >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v7
+
+      - name: Load on the machine
+        shell: bash
+        run: |
+          uptime
+          pgrep -c -x Runner.Worker || true
+
+      - name: Build
+        shell: bash
+        run: |
+          ./autogen.sh
+          ./configure --disable-static --disable-json-marketdata \
+            CC="ccache gcc" CXX="ccache g++" CXXFLAGS="-O2 -g0"
+          make -j"$(nproc)"
+
+      - name: Show compile cache statistics
+        if: always()
+        shell: bash
+        run: |
+          stats=$(ccache --show-log-stats)
+          printf '%s\n' "$stats"
+          printf '### ccache\n\n~~~\n%s\n~~~\n' "$stats" >> "$GITHUB_STEP_SUMMARY"
+          if [ -d "$CCACHE_DIR" ]; then du -sh "$CCACHE_DIR"; fi
+
+      - name: Run faster tests
+        shell: bash
+        run: |
+          ./test-suite/quantlib-test-suite --logger=JUNIT,warning,faster.xml:HRF,message -- --faster
+
+      - name: Run fast tests
+        shell: bash
+        run: |
+          ./test-suite/quantlib-test-suite --logger=JUNIT,warning,fast.xml:HRF,message -- --fast
+
+      - name: Run all tests
+        shell: bash
+        run: |
+          ./test-suite/quantlib-test-suite --logger=JUNIT,warning,all.xml:HRF,message
+
+      - name: Run benchmark
+        shell: bash
+        run: |
+          ./test-suite/quantlib-benchmark --size=1 --nProc=1 | tee benchmark.txt
+
+      - name: Save test times and benchmark
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: |
+            ./*.xml
+            ./benchmark.txt
+
+      - name: Check test times
+        shell: bash
+        run: |
+          python3 ./tools/check_test_times.py

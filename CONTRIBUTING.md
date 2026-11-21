@@ -35,16 +35,17 @@ Before pushing a change to code, build files, workflows or scripts:
    *and* in the directory's `Makefile.am`.  A header also goes in that
    directory's tracked `all.hpp`, which the autotools build regenerates
    from `Makefile.am`; that file is how `<ql/quantlib.hpp>` reaches the
-   header.  This runs the same check as CI's `filelists` gate:
+   header.  This runs the same check as CI (the file-list step of the
+   Build & Test workflow):
 
    ```bash
    ./autogen.sh && ./configure --disable-json-marketdata && ./tools/check_filelists.sh
    ```
 
-4. **Headers compile on their own**, as CI's `headers` job checks:
+4. **Headers compile on their own**, as CI checks in the same job:
    `echo ./ql/<dir>/<file>.hpp | python3 tools/check_header.py`.
 5. **File-local names stay unique in their directory.**  CI's Unity
-   cells compile each `ql/` directory as one file, and the test suite
+   build compiles each `ql/` directory as one file, and the test suite
    as five, split by the first letters of its sources' names, so a name
    in a `.cpp` file's anonymous namespace, or a `static` one, can't
    also appear in another file of the same directory, or of the same
@@ -72,10 +73,10 @@ and the evidence that it works.
 ## Formatting
 
 Project style is BSD/Allman braces, 120-column limit, 4-space indent
-(see `.clang-format`).  CI enforces it on every push and PR.  The
-`clang-format` job in `.github/workflows/ci.yml` runs
-`clang-format-22 --dry-run -Werror`, so a PR with formatting drift
-fails before review.
+(see `.clang-format`).  CI enforces it on every push to master and
+every PR: the Format Check workflow (`.github/workflows/format.yml`)
+runs `clang-format-22 --dry-run -Werror`, so a PR with formatting
+drift fails before review.
 
 - **Pinned to clang-format 22.x.**  CentOS Stream 10 ships
   `clang-tools-extra` at LLVM 22.x natively, so `dnf install -y
