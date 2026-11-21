@@ -2863,6 +2863,109 @@ BOOST_AUTO_TEST_CASE(testDiscreteGeometricAveragePriceHestonPastFixings)
 }
 
 
+BOOST_AUTO_TEST_CASE(testAnalyticDiscreteGeometricAveragePriceHestonSmallTemp)
+{
+    BOOST_TEST_MESSAGE("Testing analytic discrete geometric Asians under Heston where F's temp is small...");
+
+    // The engine's F(z1, z2, tau) is cosh(tau temp / 2) + (kappa - z2 sigma^2) sinh(tau temp / 2) / temp, with
+    // temp = sqrt(kappa^2 - 2 z1 sigma^2). Its special case for temp -> 0 was taken wherever kappa^2 was within 1e-8
+    // of 2 sigma^2, whatever z1, and dropped tau; and where temp is 0 the quotient was 0 / 0 (#385).
+
+    DayCounter dc = Actual365Fixed();
+    Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    Handle<Quote> spot(ext::make_shared<SimpleQuote>(100.0));
+    Handle<YieldTermStructure> rTS(flatRate(today, 0.03, dc));
+    Handle<YieldTermStructure> qTS(flatRate(today, 0.01, dc));
+    const Real v0 = 0.04, theta = 0.04;
+
+    std::vector<Date> monthly;
+    for (Integer i = 1; i <= 12; ++i)
+        monthly.push_back(today + i * Months);
+    const std::vector<Date> single = {today + 6 * Months};
+
+    auto heston = [&](Real kappa, Real sigma, Real rho)
+    { return ext::make_shared<HestonProcess>(rTS, qTS, spot, v0, kappa, theta, sigma, rho); };
+    auto geometric = [&](const std::vector<Date>& fixings, Real kappa, Real sigma, Real rho)
+    {
+        DiscreteAveragingAsianOption option(Average::Geometric, 1.0, 0, fixings,
+                                            ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0),
+                                            ext::make_shared<EuropeanExercise>(fixings.back()));
+        option.setPricingEngine(
+            ext::make_shared<AnalyticDiscreteGeometricAveragePriceAsianHestonEngine>(heston(kappa, sigma, rho)));
+        return option.NPV();
+    };
+
+    // On the line kappa^2 = 2 sigma^2 the price is smooth: it is the average of its neighbours'.
+    for (Real kappa : {1.0, 2.0})
+    {
+        const Real sigma = kappa * std::sqrt(0.5);
+        const Real onLine = geometric(monthly, kappa, sigma, -0.5);
+        const Real around = 0.5 * (geometric(monthly, kappa, sigma * (1.0 - 1e-6), -0.5) +
+                                   geometric(monthly, kappa, sigma * (1.0 + 1e-6), -0.5));
+        if (!(std::fabs(onLine - around) < 1e-9))
+            BOOST_ERROR("price on kappa^2 = 2 sigma^2 is not its neighbours' average"
+                        << "\n    kappa:      " << kappa << "\n    price:      " << onLine
+                        << "\n    neighbours: " << around << "\n    difference: " << onLine - around);
+    }
+
+    // Next to the Black-Scholes limit the price is the Black-Scholes price at sqrt(theta), up to three parts here: the
+    // integral's lower limit, 1e-8 xiRightLimit (#392), takes about 4.7e-7 off; the Heston price's own first-order term
+    // in rho sigma adds about 2.4e-7; and the closed form's terms in 1/sigma^2 (#384) amplify rounding about as
+    // kappa / sigma^2 grows. Nudging kappa or sigma by 1e-8 of itself swings that last part by up to 5.4e-7 at kappa
+    // 1e-4 and up to 6.7e-6 at kappa 1e-3, so the rows stop at 1e-4, where the tolerance is 18 times the swing. Builds
+    // with and without fused multiply-adds differ by less.
+    DiscreteAveragingAsianOption blackScholesOption(Average::Geometric, 1.0, 0, monthly,
+                                                    ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0),
+                                                    ext::make_shared<EuropeanExercise>(monthly.back()));
+    blackScholesOption.setPricingEngine(
+        ext::make_shared<AnalyticDiscreteGeometricAveragePriceAsianEngine>(ext::make_shared<BlackScholesMertonProcess>(
+            spot, qTS, rTS, Handle<BlackVolTermStructure>(flatVol(today, std::sqrt(theta), dc)))));
+    const Real blackScholes = blackScholesOption.NPV();
+    for (Real kappa : {1e-6, 1e-5, 1e-4})
+    {
+        const Real price = geometric(monthly, kappa, 1e-6, -0.5);
+        if (!(std::fabs(price - blackScholes) < 1e-5))
+            BOOST_ERROR("price next to the Black-Scholes limit is not the Black-Scholes price"
+                        << "\n    kappa:         " << kappa << "\n    sigma:         1e-6"
+                        << "\n    price:         " << price << "\n    Black-Scholes: " << blackScholes
+                        << "\n    difference:    " << price - blackScholes);
+    }
+
+    // MCDiscreteArithmeticAPHestonEngine takes this engine's price as its control variate's value, so its price is
+    // smooth across the line too.
+    DiscreteAveragingAsianOption arithmetic(Average::Arithmetic, 0.0, 0, monthly,
+                                            ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0),
+                                            ext::make_shared<EuropeanExercise>(monthly.back()));
+    Real controlled[2];
+    for (Size i = 0; i < 2; ++i)
+    {
+        arithmetic.setPricingEngine(
+            MakeMCDiscreteArithmeticAPHestonEngine<LowDiscrepancy>(heston(1.0, std::sqrt(0.5) * (1.0 + i * 1e-8), -0.5))
+                .withSeed(42)
+                .withSamples(4095)
+                .withControlVariate(true));
+        controlled[i] = arithmetic.NPV();
+    }
+    if (!(std::fabs(controlled[0] - controlled[1]) < 1e-6))
+        BOOST_ERROR("control-variate price on kappa^2 = 2 sigma^2 differs from its neighbour's"
+                    << "\n    on the line:   " << controlled[0] << "\n    next to it:    " << controlled[1]
+                    << "\n    difference:    " << controlled[0] - controlled[1]);
+
+    // At kappa = 0, temp is 0 on the step from the last fixing to expiry. HestonModel refuses kappa = 0;
+    // HestonProcess, which the engine takes, doesn't.
+    for (const auto& fixings : {single, monthly})
+    {
+        const Real atZero = geometric(fixings, 0.0, 0.3, -0.5);
+        const Real near = geometric(fixings, 1e-12, 0.3, -0.5);
+        if (!(std::fabs(atZero - near) < 1e-10))
+            BOOST_ERROR("price at kappa = 0 is not the limit of kappa -> 0" << "\n    fixings:      " << fixings.size()
+                                                                            << "\n    kappa = 0:     " << atZero
+                                                                            << "\n    kappa = 1e-12: " << near);
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testChoiAsianEngineVsMC)
 {
     BOOST_TEST_MESSAGE("Testing ChoiAsianEngine against Monte-Carlo pricer...");

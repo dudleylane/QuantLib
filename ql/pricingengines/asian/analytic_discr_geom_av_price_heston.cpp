@@ -83,14 +83,14 @@ namespace QuantLib
                                                                                  Time tau) const
     {
         std::complex<Real> temp = std::sqrt(kappa_ * kappa_ - 2.0 * z1 * sigma_ * sigma_);
-        if (std::abs(kappa_ * kappa_ - 2.0 * sigma_ * sigma_) < 1e-8)
+        std::complex<Real> x = 0.5 * tau * temp;
+        // Where |x| < 1e-4, sinh(x) / temp = (tau / 2) sinh(x) / x comes from its series, whose first term left out,
+        // x^4 / 120, is below 8.4e-19 there. That covers temp = 0, where the quotient is 0 / 0 (#385).
+        if (std::norm(x) < 1e-8)
         {
-            return 1.0 + 0.5 * (kappa_ - z2 * sigma_ * sigma_);
+            return cosh(x) + (kappa_ - z2 * sigma_ * sigma_) * (0.5 * tau) * (1.0 + x * x / 6.0);
         }
-        else
-        {
-            return cosh(0.5 * tau * temp) + (kappa_ - z2 * sigma_ * sigma_) * sinh(0.5 * tau * temp) / temp;
-        }
+        return cosh(x) + (kappa_ - z2 * sigma_ * sigma_) * sinh(x) / temp;
     }
 
     std::complex<Real> AnalyticDiscreteGeometricAveragePriceAsianHestonEngine::F_tilde(const std::complex<Real>& z1,
