@@ -4688,6 +4688,120 @@ BOOST_AUTO_TEST_CASE(testOptimalCVAtUnitCorrelation)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testPiecewiseTimeDependentAtSmallSigma)
+{
+    BOOST_TEST_MESSAGE("Testing AnalyticPTDHestonEngine at small sigma...");
+
+    // AnalyticPTDHestonEngine solved each interval's Riccati equation in Gatheral's form, which divides t1 - d by
+    // sigma^2. Where sigma phi is small against kappa, t1 - d cancels and the division carries the loss into the
+    // exponent: at sigma 1e-7 and kappa 1, ten-year calls came back up to 0.089 (Gatheral) and 0.12
+    // (AndersenPiterbarg) off, and where sigma^2 underflows to 0 the price was NaN (#360). Each interval now takes its
+    // solution around the root nu / (t1 + d), as AnalyticHestonEngine's lnChF does, and divides by sigma^2 only where
+    // t1 - d doesn't cancel.
+    const Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.01, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+    const std::vector<Time> gridTimes = {0.25, 1.5, 4.0, 10.5};
+    const TimeGrid grid(gridTimes.begin(), gridTimes.end());
+    const std::vector<Time> pTimes(gridTimes.begin(), gridTimes.end() - 1);
+
+    const auto piecewise = [&](Real v0, const std::vector<Real>& kappas, const std::vector<Real>& thetas,
+                               const std::vector<Real>& sigmas, const std::vector<Real>& rhos)
+    {
+        PiecewiseConstantParameter kappa(pTimes, PositiveConstraint()), theta(pTimes, PositiveConstraint()),
+            sigma(pTimes, PositiveConstraint()), rho(pTimes, BoundaryConstraint(-1.0, 1.0));
+        for (Size i = 0; i < gridTimes.size(); ++i)
+        {
+            kappa.setParam(i, kappas[i]);
+            theta.setParam(i, thetas[i]);
+            sigma.setParam(i, sigmas[i]);
+            rho.setParam(i, rhos[i]);
+        }
+        return ext::make_shared<PiecewiseTimeDependentHestonModel>(rTS, qTS, s0, v0, theta, kappa, sigma, rho, grid);
+    };
+    const std::vector<Real> kappas = {1.0, 2.0, 0.5, 1.0}, thetas = {0.04, 0.06, 0.03, 0.05},
+                            rhos = {-0.5, 0.3, -0.9, 0.0};
+
+    struct Row
+    {
+        std::string name;
+        ext::shared_ptr<PiecewiseTimeDependentHestonModel> model;
+        Date maturity;
+        Real strike, expected;
+    };
+    std::vector<Row> rows;
+
+    // constant parameters on four intervals, against AnalyticHestonEngine; at kappa 1e-7 the smaller root is about
+    // nu / (2 kappa), and D taken as that root plus its decaying part would cancel to 3.5e-9 of the price
+    struct Constant
+    {
+        const char* name;
+        Real kappa, rho, strike;
+    };
+    for (const Constant& c : {Constant{"constant parameters, kappa 1, rho 0.9, sigma 1e-7", 1.0, 0.9, 100.0},
+                              Constant{"constant parameters, kappa 1, rho 0.9, sigma 1e-7", 1.0, 0.9, 120.0},
+                              Constant{"constant parameters, kappa 1e-7, rho -0.9, sigma 1e-7", 1e-7, -0.9, 120.0}})
+    {
+        const auto model = ext::make_shared<PiecewiseTimeDependentHestonModel>(
+            rTS, qTS, s0, 0.01, ConstantParameter(0.04, PositiveConstraint()),
+            ConstantParameter(c.kappa, PositiveConstraint()), ConstantParameter(1e-7, PositiveConstraint()),
+            ConstantParameter(c.rho, BoundaryConstraint(-1.0, 1.0)), grid);
+        const Date maturity = today + Period(1, Years);
+        VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, c.strike),
+                             ext::make_shared<EuropeanExercise>(maturity));
+        option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(ext::make_shared<HestonModel>(
+            ext::make_shared<HestonProcess>(rTS, qTS, s0, 0.01, c.kappa, 0.04, 1e-7, c.rho))));
+        rows.push_back({c.name, model, maturity, c.strike, option.NPV()});
+    }
+
+    // sigma^2 underflows to 0 on every interval: Black's price at the integrated variance
+    {
+        const Date maturity = today + Period(1, Years);
+        const Time t = dc.yearFraction(today, maturity);
+        Real v = 0.04, variance = 0.0, start = 0.0;
+        for (Size i = 0; start < t; start = gridTimes[i++])
+        {
+            const Time tau = std::min(t, gridTimes[i]) - start;
+            const Real decay = std::exp(-kappas[i] * tau);
+            variance += thetas[i] * tau + (v - thetas[i]) * (1.0 - decay) / kappas[i];
+            v = thetas[i] + (v - thetas[i]) * decay;
+        }
+        const Real forward = s0->value() * qTS->discount(maturity) / rTS->discount(maturity);
+        rows.push_back({"sigma 1e-200", piecewise(0.04, kappas, thetas, {1e-200, 1e-200, 1e-200, 1e-200}, rhos),
+                        maturity, 100.0,
+                        blackFormula(Option::Call, 100.0, forward, std::sqrt(variance), rTS->discount(maturity))});
+    }
+
+    // sigma small on two intervals of four, against Lewis's integral of the intervals' Riccati solutions in 40 digits
+    rows.push_back({"sigma 0.3, 1e-7, 0.5 and 1e-6", piecewise(0.04, kappas, thetas, {0.3, 1e-7, 0.5, 1e-6}, rhos),
+                    today + Period(10, Years), 100.0, 30.378191718426549770});
+
+    for (const Row& row : rows)
+    {
+        VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, row.strike),
+                             ext::make_shared<EuropeanExercise>(row.maturity));
+        const std::pair<std::string, ext::shared_ptr<PricingEngine>> engines[] = {
+            {"Gatheral", ext::make_shared<AnalyticPTDHestonEngine>(row.model)},
+            {"AndersenPiterbarg",
+             ext::make_shared<AnalyticPTDHestonEngine>(row.model, AnalyticPTDHestonEngine::AndersenPiterbarg,
+                                                       AnalyticPTDHestonEngine::Integration::gaussLaguerre(144))}};
+        for (const auto& engine : engines)
+        {
+            BOOST_TEST_CONTEXT(row.name << ", strike " << row.strike << ", " << engine.first)
+            {
+                option.setPricingEngine(engine.second);
+                // a throw is reported here, and leaves calculated null, so the check below fails too
+                Real calculated = Null<Real>();
+                BOOST_CHECK_NO_THROW(calculated = option.NPV());
+                BOOST_CHECK_SMALL(calculated - row.expected, 1e-11 * row.expected);
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE(HestonModelExperimentalTest)

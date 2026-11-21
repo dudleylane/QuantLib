@@ -100,15 +100,28 @@ namespace QuantLib
                 const std::complex<Real> t1 = t0 + std::complex<Real>(0, -rpsig);
                 const std::complex<Real> d =
                     std::sqrt(t1 * t1 - sigma2 * phi * std::complex<Real>(-phi, (j_ == 1) ? 1 : -1));
-                const std::complex<Real> g = (t1 - d) / (t1 + d);
-                const std::complex<Real> gt = (t1 - d - D * sigma2) / (t1 + d - D * sigma2);
-
-                D = (t1 + d) / sigma2 * (g - gt * std::exp(-d * tau)) / (1.0 - gt * std::exp(-d * tau));
-
-                const std::complex<Real> lng = std::log((1.0 - gt * std::exp(-d * tau)) / (1.0 - gt));
-
-                C = (kappa * theta) / sigma2 * ((t1 - d) * tau - 2.0 * lng) +
-                    std::complex<Real>(0.0, phi * (r_[i - 1] - q_[i - 1]) * tau) + C;
+                /* Over the interval D solves D' = nu / 2 - t1 D + sigma^2 D^2 / 2 from the later interval's D. A root
+                   of the right-hand side, D_- = (t1 - d) / sigma^2, is also nu / (t1 + d), which doesn't cancel where
+                   Re(t1 conj(d)) > 0, as in AnalyticHestonEngine's lnChF. With y = (1 - e^{-d tau}) / (2 d) and
+                   x = -sigma^2 (D - D_-) y, D becomes (D (1 - (t1 + d) y) + nu y) / (1 + x), and C gains
+                   kappa theta (D_- tau + 2 (D - D_-) y log1p(x) / x). Only D_-'s first form divides by sigma^2, and
+                   only where t1 - d doesn't cancel; where sigma^2 is 0, below about 2.2e-162, that leaves NaN wherever
+                   Re t1 isn't positive, which needs kappa below |rho| sigma too. Gatheral's form divided t1 - d by
+                   sigma^2: at sigma 1e-7 calls were up to 0.12 off, and where sigma^2 is 0 NaN (#360). 1 + x is the
+                   argument of its logarithm, (1 - gt e^{-d tau}) / (1 - gt), so the branch taken is the same. */
+                const std::complex<Real> nu = phi * std::complex<Real>(-phi, (j_ == 1) ? 1 : -1);
+                const std::complex<Real> Dm =
+                    (t1.real() * d.real() + t1.imag() * d.imag() > 0.0) ? nu / (t1 + d) : (t1 - d) / sigma2;
+                const std::complex<Real> y = (d.real() != 0.0 || d.imag() != 0.0) ?
+                                                 std::complex<Real>(-expm1(-d * tau) / (2.0 * d)) :
+                                                 std::complex<Real>(0.5 * tau, 0.0);
+                const std::complex<Real> u0 = D - Dm;
+                const std::complex<Real> x = -sigma2 * u0 * y;
+                const std::complex<Real> L =
+                    (x == 0.0) ? std::complex<Real>(1.0, 0.0) : std::complex<Real>(log1p(x) / x);
+                C += kappa * theta * (Dm * tau + 2.0 * u0 * y * L) +
+                     std::complex<Real>(0.0, phi * (r_[i - 1] - q_[i - 1]) * tau);
+                D = (D * (1.0 - (t1 + d) * y) + nu * y) / (1.0 + x);
             }
         }
         return std::exp(v0_ * D + C + std::complex<Real>(0.0, phi * (x_ - sx_))).imag() / phi;
@@ -185,14 +198,18 @@ namespace QuantLib
 
             const std::complex<Real> d = std::sqrt(k * k + (z * z + std::complex<Real>(-z.imag(), z.real())) * sigma2);
 
-            const std::complex<Real> g = (k - d) / (k + d);
-
-            const std::complex<Real> gt = (k - d - D * sigma2) / (k + d - D * sigma2);
-
-            C +=
-                kappa * theta / sigma2 * ((k - d) * tau - 2.0 * std::log((1.0 - gt * std::exp(-d * tau)) / (1.0 - gt)));
-
-            D = (k + d) / sigma2 * (g - gt * std::exp(-d * tau)) / (1.0 - gt * std::exp(-d * tau));
+            // as in Fj_Helper (#360), with nu = -z (z + i)
+            const std::complex<Real> nu = -z * std::complex<Real>(z.real(), z.imag() + 1);
+            const std::complex<Real> Dm =
+                (k.real() * d.real() + k.imag() * d.imag() > 0.0) ? nu / (k + d) : (k - d) / sigma2;
+            const std::complex<Real> y = (d.real() != 0.0 || d.imag() != 0.0) ?
+                                             std::complex<Real>(-expm1(-d * tau) / (2.0 * d)) :
+                                             std::complex<Real>(0.5 * tau, 0.0);
+            const std::complex<Real> u0 = D - Dm;
+            const std::complex<Real> x = -sigma2 * u0 * y;
+            const std::complex<Real> L = (x == 0.0) ? std::complex<Real>(1.0, 0.0) : std::complex<Real>(log1p(x) / x);
+            C += kappa * theta * (Dm * tau + 2.0 * u0 * y * L);
+            D = (D * (1.0 - (k + d) * y) + nu * y) / (1.0 + x);
         }
 
         return D * v0 + C;
