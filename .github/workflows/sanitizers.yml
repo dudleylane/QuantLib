@@ -1,0 +1,144 @@
+name: Sanitizers
+
+# ASan, TSan and UBSan, each its own job for clear attribution, all gating.  Format Check's header
+# says how this CI is laid out, and build-test.yml says why markdown is ignored, what the first
+# step does, how the time limits were sized and why a skipped test fails the job.
+
+on:
+  push:
+    branches: [master]
+    paths-ignore: ['**.md']
+  pull_request:
+    branches: [master]
+    paths-ignore: ['**.md']
+
+# As in format.yml: a pull request's newer push cancels its older run; a run on master is never
+# cancelled and never waits.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  sanitizer:
+    name: ${{ matrix.sanitizer }}
+    runs-on: [self-hosted, Linux, X64, quantlib-dev]
+    # Each sanitizer's own limit, about twice its longest run from 2026-11-11 to 11-21: asan
+    # 129.5 min, tsan 273.5, ubsan 112.7.  The builds are -O2 -g0, as before: the whole suite at
+    # -O0 under a sanitizer would take many hours.
+    timeout-minutes: ${{ matrix.timeout }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ASan + leak detection.  gcc-toolset-15.
+          - sanitizer: asan
+            timeout: 260
+            cc: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+            cxx: /opt/rh/gcc-toolset-15/root/usr/bin/g++
+            extra_path: /opt/rh/gcc-toolset-15/root/usr/bin
+            extra_ld: /opt/rh/gcc-toolset-15/root/usr/lib64
+            extra_cxxflags: ""
+            sanitizer_cxxflags: "-fsanitize=address -fno-sanitize-recover=all -fno-omit-frame-pointer"
+            configureflags: ""
+          # TSan.  Routed through Clang because GCC's TSan refuses to compile
+          # std::atomic_thread_fence (gcc bug 93922), and pinned to system GCC 14's libstdc++ with
+          # --gcc-install-dir so that Clang doesn't pick up gcc-toolset-15's libstdc++-15
+          # (constexpr/template-instantiation skew).  Sessions and the thread-safe observer are on:
+          # they are the configurations whose threads share state.
+          - sanitizer: tsan
+            timeout: 550
+            cc: /usr/bin/clang
+            cxx: /usr/bin/clang++
+            extra_path: ""
+            extra_ld: ""
+            # -Wno-deprecated-declarations: Boost 1.83's ublas iterator headers use the deprecated
+            # std::iterator base class, which Clang 22 turns into an error under -Werror.  Boost
+            # 1.84 removes the use, so the flag can go once EL10 ships a newer Boost.
+            extra_cxxflags: "--gcc-install-dir=/usr/lib/gcc/x86_64-redhat-linux/14 -Wno-deprecated-declarations"
+            sanitizer_cxxflags: "-fsanitize=thread -fno-sanitize-recover=all"
+            configureflags: "--enable-sessions --enable-thread-safe-observer-pattern"
+          # UBSan.  Umbrella -fsanitize=undefined; gcc-toolset-15.
+          - sanitizer: ubsan
+            timeout: 230
+            cc: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
+            cxx: /opt/rh/gcc-toolset-15/root/usr/bin/g++
+            extra_path: /opt/rh/gcc-toolset-15/root/usr/bin
+            extra_ld: /opt/rh/gcc-toolset-15/root/usr/lib64
+            extra_cxxflags: ""
+            sanitizer_cxxflags: "-fsanitize=undefined -fno-sanitize-recover=all -fno-omit-frame-pointer"
+            configureflags: ""
+    steps:
+      - name: Set temporary and cache directories
+        shell: bash
+        run: |
+          {
+            echo "TMPDIR=${RUNNER_TEMP:?}"
+            echo "CCACHE_DIR=${HOME:?}/.cache/ccache-quantlib-ci"
+            echo "CCACHE_MAXSIZE=10G"
+            echo "CCACHE_STATSLOG=$RUNNER_TEMP/ccache-stats.log"
+          } >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v7
+
+      - name: Compiler version
+        shell: bash
+        env:
+          CXX: ${{ matrix.cxx }}
+        run: |
+          if [ -n "${{ matrix.extra_path }}" ]; then
+            export PATH="${{ matrix.extra_path }}:$PATH"
+          fi
+          $CXX --version
+
+      - name: Build
+        shell: bash
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+        run: |
+          if [ -n "${{ matrix.extra_path }}" ]; then
+            export PATH="${{ matrix.extra_path }}:$PATH"
+          fi
+          if [ -n "${{ matrix.extra_ld }}" ]; then
+            export LD_LIBRARY_PATH="${{ matrix.extra_ld }}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          fi
+          ./autogen.sh
+          ./configure --disable-static ${{ matrix.configureflags }} \
+            CC="ccache $CC" CXX="ccache $CXX" \
+            CXXFLAGS="-O2 -g0 ${{ matrix.sanitizer_cxxflags }} ${{ matrix.extra_cxxflags }} -Wall -Wno-unknown-pragmas -Werror"
+          make -j"$(nproc)"
+
+      - name: Show compile cache statistics
+        if: always()
+        shell: bash
+        run: |
+          stats=$(ccache --show-log-stats)
+          printf '%s\n' "$stats"
+          printf '### ccache\n\n~~~\n%s\n~~~\n' "$stats" >> "$GITHUB_STEP_SUMMARY"
+          if [ -d "$CCACHE_DIR" ]; then du -sh "$CCACHE_DIR"; fi
+
+      - name: Run tests
+        shell: bash
+        env:
+          ASAN_OPTIONS: "abort_on_error=1:halt_on_error=1:detect_leaks=1"
+          TSAN_OPTIONS: "halt_on_error=1:second_deadlock_stack=1"
+          UBSAN_OPTIONS: "halt_on_error=1:print_stacktrace=1"
+          LSAN_OPTIONS: "suppressions=.lsan.txt"
+        run: |
+          if [ -n "${{ matrix.extra_ld }}" ]; then
+            export LD_LIBRARY_PATH="${{ matrix.extra_ld }}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          fi
+          ./test-suite/quantlib-test-suite --logger=JUNIT,error,"$RUNNER_TEMP/junit.xml":HRF,message
+
+      - name: No test skipped
+        shell: bash
+        run: |
+          python3 tools/check_no_skipped_tests.py "$RUNNER_TEMP/junit.xml" --config-header ql/config.hpp
+
+      - name: Run examples
+        shell: bash
+        run: |
+          if [ -n "${{ matrix.extra_ld }}" ]; then
+            export LD_LIBRARY_PATH="${{ matrix.extra_ld }}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          fi
+          make check-examples
