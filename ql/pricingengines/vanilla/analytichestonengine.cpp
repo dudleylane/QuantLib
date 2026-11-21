@@ -983,8 +983,15 @@ namespace QuantLib
 
                 const Real cvValue = cvHelper.controlVariateValue();
 
+                /* Exp-sinh, the one rule that takes it, integrates over u = s x with s = 0.25 / sqrt(vAvg t / 2),
+                   held between 0.25 and 1,000, which spreads its nodes over u of about 1 / sqrt(vAvg t), where the
+                   integrand decays as a Gaussian. s goes by the form the engine prices with, and is 1 for
+                   AsymptoticChF: OptimalCV is scaled where it takes AngledContour, as AngledContour is (#380). Until
+                   then OptimalCV was never scaled, and at the money at v0 1e-4, 1e-6 and 1e-5 years from expiry,
+                   where s is at its cap, it came out up to 0.41 % off at tolerances from 1e-8 to 1e-13.
+                   doCalculation scales nothing. */
                 const Real scalingFactor =
-                    (cpxLog_ != OptimalCV && cpxLog_ != AsymptoticChF) ?
+                    (finalLog != AsymptoticChF) ?
                         std::max(0.25, std::min(1000.0, 0.25 / std::sqrt(0.5 * vAvg * maturity))) :
                         Real(1.0);
 

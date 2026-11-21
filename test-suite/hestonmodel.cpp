@@ -4485,6 +4485,45 @@ BOOST_AUTO_TEST_CASE(testHestonPartOfTheLimitAtZero)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testOptimalCVScaledOnExpSinh)
+{
+    BOOST_TEST_MESSAGE("Testing the analytic Heston engine's exp-sinh scaling with OptimalCV...");
+
+    // OptimalCV takes AngledContour at 0.15 years and less, and exp-sinh integrates AngledContour over u = s x with
+    // s = 0.25 / sqrt(vAvg t / 2), held between 0.25 and 1,000. OptimalCV went unscaled (#380): at the money at v0
+    // 1e-4, 1e-5 and 1e-6 years from expiry, where s is at its cap, it came out 0.41 % and 0.37 % off at tolerances
+    // from 1e-8 to 1e-13. The expected prices agree within 2.4e-11 with integrals along two other contours and the
+    // real line.
+    const Date today(15, May, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.005, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.03, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+
+    struct Row
+    {
+        Real sigma, rho;
+        Time t;
+        Real expected;
+    };
+    const Row rows[] = {{1.0, -0.3, 1e-5, 0.00125641908755557}, {3.0, 0.3, 1e-6, 0.000397477580467564}};
+    for (const Row& row : rows)
+    {
+        BOOST_TEST_CONTEXT("sigma " << row.sigma << ", rho " << row.rho << ", t " << row.t)
+        {
+            const auto model = ext::make_shared<HestonModel>(
+                ext::make_shared<HestonProcess>(rTS, qTS, s0, 1e-4, 0.001, 0.04, row.sigma, row.rho));
+            const auto atTheMoney = ext::make_shared<PlainVanillaPayoff>(
+                Option::Call, s0->value() * qTS->discount(row.t) / rTS->discount(row.t));
+            const Real calculated = AnalyticHestonEngine(model, AnalyticHestonEngine::OptimalCV,
+                                                         AnalyticHestonEngine::Integration::expSinh(1e-8))
+                                        .priceVanillaPayoff(atTheMoney, row.t);
+            BOOST_CHECK_SMALL(calculated - row.expected, 10 * 1e-8 * row.expected);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE(HestonModelExperimentalTest)
