@@ -3965,7 +3965,8 @@ BOOST_AUTO_TEST_CASE(testUnitCorrelationWithRulesTakingNoLimit)
     BOOST_TEST_MESSAGE("Testing the analytic Heston engine's rules that take no limit at rho = -1 and 1...");
 
     // #239 changed Gauss-Lobatto's integration where c_inf is 0. Gauss-Laguerre, the default, and exp-sinh take no
-    // limit and priced rho = -1 and 1 before, and keep their values there.
+    // limit and priced rho = -1 and 1 before; #239 kept their values there, and #300 has OptimalCV take
+    // AngledContour there with them too (see testOptimalCVAtUnitCorrelation).
     const Date today(15, May, 2026);
     Settings::instance().evaluationDate() = today;
     const DayCounter dc = Actual365Fixed();
@@ -3982,13 +3983,16 @@ BOOST_AUTO_TEST_CASE(testUnitCorrelationWithRulesTakingNoLimit)
     const auto price = [&](const ext::shared_ptr<AnalyticHestonEngine>& engine, Time t, Real strike)
     { return engine->priceVanillaPayoff(ext::make_shared<PlainVanillaPayoff>(Option::Call, strike), t); };
 
-    // The default engine at #239's item 1, pinned as it priced before #239: these carry Gauss-Laguerre's own error,
-    // 1.1e-8 relative (exp-sinh prices 20.277039580528548 and 19.753416071649774). #239's path at rho = -1 or 1, its
-    // contour and control variate, taken for Gauss-Laguerre too, moved them by up to 2.3e-7.
+    // The default engine at #239's item 1. Until #300 OptimalCV took AsymptoticChF here, whose control variate
+    // vanishes at rho = -1 and 1, and Gauss-Laguerre's 144 nodes priced 20.277039806025588 and 19.753416060295287,
+    // 1.1e-8 and 5.7e-10 off, relative. On AngledContour, which OptimalCV takes there now, they are within 3.6e-16 of
+    // the expected prices, AngledContour's on exp-sinh at 1e-13 and on Gauss-Lobatto at 1e-12, which agree to the
+    // bit. #239's path at rho = -1 or 1, its contour as well as its control variate, taken for Gauss-Laguerre too,
+    // moved them by up to 2.3e-7.
     {
         const Time t = 0.5;
         const Real strike = 0.8 * forward(t);
-        const Real expected[] = {20.277039806025588, 19.753416060295287};
+        const Real expected[] = {20.277039580528609, 19.753416071649774};
         const Real rhos[] = {-1.0, 1.0};
         for (Size i = 0; i < 2; ++i)
             BOOST_TEST_CONTEXT("the default engine at rho " << rhos[i])
@@ -3999,8 +4003,9 @@ BOOST_AUTO_TEST_CASE(testUnitCorrelationWithRulesTakingNoLimit)
             }
     }
 
-    // exp-sinh with OptimalCV at rho = 1, the strike below the edge F e^{-w / sigma}, where the call is worth
-    // D (F - K) (see testUnitCorrelationWithGaussLobatto). Taking #239's path for exp-sinh too made it throw here.
+    // exp-sinh with OptimalCV at rho = 1, which takes AngledContour there since #300, the strike below the edge
+    // F e^{-w / sigma}, where the call is worth D (F - K) (see testUnitCorrelationWithGaussLobatto). Taking #239's
+    // path for exp-sinh too made it throw here.
     {
         const Real v0 = 0.01, kappa = 2.0, theta = 0.04, sigma = 0.05;
         const Time t = 91 / 365.0;
@@ -4520,6 +4525,68 @@ BOOST_AUTO_TEST_CASE(testOptimalCVScaledOnExpSinh)
                                                          AnalyticHestonEngine::Integration::expSinh(1e-8))
                                         .priceVanillaPayoff(atTheMoney, row.t);
             BOOST_CHECK_SMALL(calculated - row.expected, 10 * 1e-8 * row.expected);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testOptimalCVAtUnitCorrelation)
+{
+    BOOST_TEST_MESSAGE("Testing the Heston engines' OptimalCV at rho = -1 and 1...");
+
+    // AsymptoticChF's control variate vanishes at rho = -1 and 1, and until #300 OptimalCV took it there past 0.15
+    // years with the default rule, ExponentialFittingHestonEngine's default and exp-sinh. On these calls struck at 150
+    // it left the first two up to 1.2e-6 and 1.0e-3 off, and at sigma 1e-5 its value was NaN from w / sigma of about
+    // 720, w = v0 + kappa theta t, and Ci and Si threw from about 1,420. OptimalCV takes AngledContour there now. The
+    // expected prices agree within 7e-15 with an integral along a second contour (struck at 150) or are computed to
+    // 40 digits (sigma 1e-5).
+    const Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.01, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+    const auto exercise = ext::make_shared<EuropeanExercise>(today + Period(1, Years));
+
+    struct Row
+    {
+        Real v0, kappa, theta, sigma, rho, strike, expected;
+    };
+    const Row rows[] = {{0.01, 1.5, 0.06, 0.3, 1.0, 150.0, 0.80138894927136872},
+                        {0.01, 1.5, 0.06, 0.05, 1.0, 150.0, 0.23783854307565822},
+                        {0.04, 1.0, 0.04, 1e-5, 1.0, 100.0, 8.8273212249247123},
+                        {0.04, 1.0, 0.04, 1e-5, -1.0, 100.0, 8.8273212249247134},
+                        {0.01, 0.001, 0.04, 1e-5, 1.0, 100.0, 4.9699156511466484}};
+    for (const Row& row : rows)
+    {
+        const auto model = ext::make_shared<HestonModel>(
+            ext::make_shared<HestonProcess>(rTS, qTS, s0, row.v0, row.kappa, row.theta, row.sigma, row.rho));
+        // exp-sinh at 1e-8 is checked as testUnitCorrelationWithRulesTakingNoLimit's exp-sinh row is, and the fixed
+        // nodes to 1e-10 relative
+        struct Engine
+        {
+            std::string name;
+            ext::shared_ptr<PricingEngine> engine;
+            Real tolerance;
+        };
+        const Engine engines[] = {
+            {"the default engine", ext::make_shared<AnalyticHestonEngine>(model), 1e-10},
+            {"exponential fitting", ext::make_shared<ExponentialFittingHestonEngine>(model), 1e-10},
+            {"exp-sinh",
+             ext::make_shared<AnalyticHestonEngine>(model, AnalyticHestonEngine::OptimalCV,
+                                                    AnalyticHestonEngine::Integration::expSinh(1e-8)),
+             10 * 1e-8}};
+        for (const Engine& e : engines)
+        {
+            BOOST_TEST_CONTEXT(e.name << ", v0 " << row.v0 << ", kappa " << row.kappa << ", theta " << row.theta
+                                      << ", sigma " << row.sigma << ", rho " << row.rho << ", strike " << row.strike)
+            {
+                VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, row.strike), exercise);
+                option.setPricingEngine(e.engine);
+                // a throw is reported here, and leaves calculated null, so the check below fails too
+                Real calculated = Null<Real>();
+                BOOST_CHECK_NO_THROW(calculated = option.NPV());
+                BOOST_CHECK_SMALL(calculated - row.expected, e.tolerance * row.expected);
+            }
         }
     }
 }
