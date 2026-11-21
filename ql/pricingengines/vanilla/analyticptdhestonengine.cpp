@@ -363,9 +363,13 @@ namespace QuantLib
                 const Real bsPrice =
                     BlackCalculator(Option::Call, strike, fwdPrice, std::sqrt(vAvg * term), riskFreeDiscount).value();
 
-                const Real h_cv = integration_->calculate(
-                                      c_inf, AP_Helper(term, spotPrice, strike, ratio, std::sqrt(vAvg), this), uM) *
-                                  std::sqrt(strike * fwdPrice) * riskFreeDiscount / M_PI;
+                // exp-sinh's scaling, s = 0.25 / sqrt(vAvg t / 2) held between 0.25 and 1,000, as AnalyticHestonEngine
+                // takes it for its Andersen-Piterbarg forms; until #382 this engine took s = 1
+                const Real scalingFactor = std::max(0.25, std::min(1000.0, 0.25 / std::sqrt(0.5 * vAvg * term)));
+                const Real h_cv =
+                    integration_->calculate(c_inf, AP_Helper(term, spotPrice, strike, ratio, std::sqrt(vAvg), this), uM,
+                                            scalingFactor) *
+                    std::sqrt(strike * fwdPrice) * riskFreeDiscount / M_PI;
                 evaluations_ += integration_->numberOfEvaluations();
 
                 switch (payoff->optionType())
