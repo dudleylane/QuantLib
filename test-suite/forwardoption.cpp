@@ -17,7 +17,6 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
-#include "preconditions.hpp"
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
 #include <ql/experimental/forward/analytichestonforwardeuropeanengine.hpp>
@@ -713,7 +712,7 @@ BOOST_AUTO_TEST_CASE(testHestonMCPrices)
     }
 }
 
-BOOST_AUTO_TEST_CASE(testHestonAnalyticalVsMCPrices, *precondition(if_speed(Fast)))
+BOOST_AUTO_TEST_CASE(testHestonAnalyticalVsMCPrices)
 {
     BOOST_TEST_MESSAGE("Testing Heston analytic vs MC prices...");
 
