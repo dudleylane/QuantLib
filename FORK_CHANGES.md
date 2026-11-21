@@ -680,7 +680,8 @@ nothing ordered the three stores that published the cache.
   `check-test-times` is advisory: it compares absolute wall-clock against
   fixed thresholds, and on this shared host the same commit measured 8.42 s
   and 47.57 s for `BasketOptionTests.testBarraquandThreeValues` against a
-  30 s ceiling — it measures contention as much as test cost.
+  30 s ceiling — it measures contention as much as test cost. (#381 moved
+  the check to the Benchmark workflow, run by hand; below.)
 - `.claude/` is gitignored (2026-08-15). It had been tracked, and served an
   invoice and a receipt PDF publicly from master between 6f933450c and
   fb4bb64a5. Untracked, not deleted; the blobs remain reachable by SHA in
@@ -745,7 +746,8 @@ nothing ordered the three stores that published the cache.
   repeats the run's misclassification, and the new one calls the same
   merge tier 1. No live run has yet tested the case it fixes. #27's
   later run used the new step, but rebasing #27 had moved its base to
-  `master`'s tip, where the two versions agree.
+  `master`'s tip, where the two versions agree. #381 removed the step
+  with the tiers (below), so no run will.
 - Full verification moved before the merge (2026-10-17,
   [#30](https://github.com/dudleylane/QuantLib/pull/30), `fd1914290`).
   This is quickfix's model, at the owner's choice. A merged code change
@@ -758,6 +760,8 @@ nothing ordered the three stores that published the cache.
   `linux / Sessions enabled` was cancelled unstarted exactly 24 hours
   after it was queued. It had passed on #29's pull request on the same
   tree, so it was not re-run.
+  - **Superseded** on 2026-11-21 by #381 (below): there are no tiers
+    any more, and a merge's push runs everything a pull request runs.
   - **Pull requests that change code run all 32 jobs** (31 since #42,
     below), the non-default cells included, so that configuration is
     tested before it merges.
@@ -897,7 +901,7 @@ nothing ordered the three stores that published the cache.
   - **What stops.** Static analysis of the C++, on pull requests and on
     `master`; it was CI's only static security analysis. The sanitizers
     still run the whole suite on every pull request that changes code,
-    and clang-tidy still runs, report-only.
+    and clang-tidy still runs, report-only (until #381, below).
   - **Code scanning.** No analysis of `master` will run again to close
     the six alerts, so they were dismissed on 2026-10-25, at the owner's
     choice: the five in `test-suite/timegrid.cpp` as false positives,
@@ -1000,6 +1004,92 @@ nothing ordered the three stores that published the cache.
     set before the push; the 66 Unity jobs of the 33 earlier runs on four
     runners peaked at 11.0 to 13.0 GiB.
 
+- CI laid out by purpose (2026-11-21,
+  [PR #381](https://github.com/dudleylane/QuantLib/pull/381), `b5b7d0541`).
+  The owner ruled on 2026-11-21 that QuantLib's CI follow the layout of
+  another of their projects. `ci.yml`, with its 14 job definitions and
+  three tiers, became five workflows:
+  - **Format Check** (`format.yml`): clang-format-22, and actionlint over
+    every workflow file.
+  - **Build & Test** (`build-test.yml`), four jobs:
+    - the CMake release build from README's preset, with its installed
+      suite, an install smoke test and `quantlib-benchmark --size=1`;
+    - one autotools build with the non-default library flags stacked,
+      in place of the five `linux-nondefault` cells;
+    - the autotools Unity build;
+    - header docs, standalone headers, file lists and doxygen, in one
+      job.
+  - **Sanitizers** (`sanitizers.yml`): asan, tsan and ubsan, as before.
+  - **Coverage** (`coverage.yml`): on pushes to `master` only.
+  - **Benchmark** (`benchmark.yml`): by hand only. It runs the three
+    test-time passes, `check_test_times.py`, which fails the job on a
+    case over its limit, and `quantlib-benchmark --size=1 --nProc=1`.
+    It gates nothing.
+
+  The first three run on every pull request and every push to `master`:
+  8 jobs, where a code pull request ran 31 and its merge 5. No workflow
+  waits on another. Every job has a time limit, about twice the longest
+  successful run since 2026-11-11 of the jobs it replaces. A skipped test
+  case fails its job (`tools/check_no_skipped_tests.py`, reading the
+  suite's JUnit log). The one exception is the four cases that can't hold
+  under indexed coupons, in a build whose `ql/config.hpp` defines
+  `QL_USE_INDEXED_COUPON`. A markdown-only commit still runs nothing.
+  - **Why.** The ruling. Also, in the 147 runs from 2026-08-11 to 11-21:
+    - one failure came from code, #39's redefinition in the Unity build,
+      which stays;
+    - the advisory `check-test-times` failed 44 of the 62 times it ran to
+      the end, 40 of the 47 in November;
+    - every other failure was the infrastructure.
+
+    On four runners a code pull request's run took 3 h 6 min to 5 h
+    34 min and 731 to 1,295 job-minutes, except where header edits
+    defeated the compile cache: #236's took 8 h 19 min and #287's first
+    attempt 8 h 56 min, about 1,940 job-minutes each. #381's commit
+    message gives 3 to 5.5 hours and 730 to 1,300 job-minutes, leaving
+    those two out. No job had a time limit, so a hung one could hold a
+    runner for GitHub's 360 minutes.
+  - **What stops being checked.**
+    - C++26 mode, `--enable-std-classes` and the parallel unit-test
+      runner.
+    - Seven options built one at a time. They stay checked together, in
+      the stacked build.
+    - The `linux-nondefault` flags with the default `shared_ptr`, `any`
+      and `optional`, in C++26 mode and as a Unity build.
+    - `cmake-linux-with-options`: CMake builds only the default
+      configuration, and a static library is built only by Coverage.
+    - clang-tidy (report-only) and CMake's Debug and unity build
+      (`check`).
+    - Coverage on pull requests.
+    - Test times and a build with JSON market data off, except when
+      Benchmark is dispatched.
+  - **The rules.** This supersedes the tier model of #30 (above).
+    - A merge's push runs everything.
+    - "A pull request's own green run" means its head's Format Check,
+      Build & Test and Sanitizers runs, all green.
+    - Coverage keeps its place on `master`'s pushes: that part of the
+      2026-10-17 ruling stays.
+    - [#74](https://github.com/dudleylane/QuantLib/issues/74) closed with
+      the merge. An interaction with a `master` that moved during review
+      is now caught by the run after the merge.
+  - **First run.** The pull request's, on `fb78c2e07`: Format Check
+    44906361523, Build & Test 44906361540 and Sanitizers 44906361606, 8
+    jobs on four runners in 2 h 24 min and 426 job-minutes (tsan 141,
+    the non-default build 80, the release build 59). Every job that runs
+    the suite passed the skipped-test check, and the non-default build
+    skipped only the four indexed-coupon cases.
+  - **The merge's push.** On `b5b7d0541`: Format Check 44919418057, Build
+    & Test 44919418096, Sanitizers 44919418110 and Coverage 44919418033,
+    9 jobs on four runners in 2 h 42 min and about 494 job-minutes (tsan
+    160, coverage 70, asan 69, the non-default build 68, the release
+    build 56), all green. Coveralls took job `#44919418033.1`, and every
+    job that runs the suite passed the skipped-test check. The release
+    build compiled cold in both runs, 1 of 1,176 from the cache, on
+    runners 1 and 4, though both built the same tree: ccache hashes
+    CMake's absolute paths, which differ by runner, and the preset's
+    build directory was new to each
+    ([#388](https://github.com/dudleylane/QuantLib/issues/388)). The
+    autotools builds hit all their compiles on runners 1 to 4.
+
 ## Sibling repositories
 
 - **dudleylane/QuantLib-SWIG — deleted 2026-08-15.** It was a real GitHub
@@ -1093,9 +1183,13 @@ inline; the remaining bullets are still-pending work.
   fork currently has no language bindings, and reviving them means
   starting a new repository or bringing the interface files in here.
 - CI wiring (GitHub Actions matrix across GCC / Clang / C++23 /
-  nonstandard-options): **addressed** — see the CI entry under
-  *Infrastructure*. The matrix runs twelve configuration cells plus five
-  non-default cells, three sanitizers, both build systems and clang-tidy
-  on every pull request that changes code. Since #30, master runs only
-  the gates, the default build and coverage after a merge, and CodeQL
-  until #42 dropped it.
+  nonstandard-options): **addressed** — see the CI entries under
+  *Infrastructure*. Since #381, every pull request and every push to
+  master runs Format Check, Build & Test (a CMake release build, the
+  non-default flags stacked in one autotools build, the autotools Unity
+  build, and file lists, headers and docs) and the three sanitizers;
+  coverage runs on master's pushes and test times by hand. From #30 to
+  #381 a code pull request ran twelve configuration cells plus five
+  non-default cells, three sanitizers, both build systems and clang-tidy,
+  and master ran only the gates, the default build and coverage after a
+  merge, and CodeQL until #42 dropped it.
