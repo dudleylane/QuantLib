@@ -110,6 +110,28 @@ namespace QuantLib
         This path is taken at rho = -1 and 1 exactly: just inside them the
         engine takes the path it takes wherever |rho| < 1, whose limit grows
         as 1 / c_inf, and it can be far less accurate there (#296).
+
+        AsymptoticChF integrates phi less its asymptotic at large u and
+        adds back the asymptotic's closed form, which carries e^{psi} with
+            Re psi = [(kappa - rho sigma / 2)(v0 + kappa theta t)
+                      + kappa theta log(4 (1 - rho^2))] / sigma^2,
+        so a rule's error on what is left is multiplied by about
+        e^{Re psi}. OptimalCV takes AsymptoticChF only where Re psi is
+        below 0.1, past 0.15 years and with c_inf below 0.15, and an
+        explicit AsymptoticChF is refused where Re psi is 0.1 or more, in
+        calculate(), priceVanillaPayoff(), the deprecated doCalculation()
+        and ExponentialFittingHestonEngine alike (#342). There calls on a
+        spot of 100, three months and longer, came out off by up to 2.1e-6
+        below Re psi 1 and 0.012 below 10 with Gauss-Laguerre at 128
+        nodes, and by up to 4.4 below 10 with
+        ExponentialFittingHestonEngine, which is off below the bound too
+        (#373); far more beyond, with nothing to say so. Gauss-Kronrod and
+        exp-sinh at 1e-8 held to Re psi of about 10 and 2, and
+        Gauss-Lobatto ran out of evaluations rather than come out off, but
+        no higher bound holds for every rule, so they are refused with the
+        rest. Re psi is 0.1 or more on most parameters: 95 % of a grid of
+        kappa 0.5 to 3, 3 months to 2 years, v0 0.01 to 0.16, sigma 0.3 to
+        0.8 and rho -0.7 to 0.3. OptimalCV takes AngledContour there.
     */
 
     /*! References:
@@ -171,6 +193,7 @@ namespace QuantLib
             AndersenPiterbargOptCV,
             // Gatheral form with asymptotic expansion of the characteristic function as control variate
             // https://hpcquantlib.wordpress.com/2020/08/30/a-novel-control-variate-for-the-heston-model
+            // Refused where Re psi, whose exponential the control variate carries, is 0.1 or more (#342)
             AsymptoticChF,
             // angled contour shift integral with control variate
             AngledContour,
@@ -231,6 +254,8 @@ namespace QuantLib
 
         Real priceVanillaPayoff(const ext::shared_ptr<PlainVanillaPayoff>& payoff, Time maturity) const;
 
+        // AsymptoticChF past 0.15 years where c_inf is below 0.15 and Re psi below 0.1, the bound at which an explicit
+        // AsymptoticChF is refused (#342); AngledContour elsewhere
         static ComplexLogFormula optimalControlVariate(Time t, Real v0, Real kappa, Real theta, Real sigma, Real rho);
 
       protected:
@@ -283,7 +308,15 @@ namespace QuantLib
                                         Size minimumDepth = 2);
 
         // usually these routines have a poor convergence behavior.
-        static Integration gaussKronrod(Real absTolerance, Size maxEvaluations = 1000);
+        // An interval is accepted where its 7- and 15-point estimates agree to its share of absTolerance, and on
+        // these oscillating integrands the two can agree on an interval the integrand isn't resolved on while both
+        // are off: three days from expiry the whole range was accepted on its first 15 evaluations, 1.1e-5 off in
+        // price at 1e-8 (#346). So the range is split minimumDepth levels deep before any interval is accepted. At
+        // 3, the default, an integral takes at least 120 evaluations (Gatheral's form takes two integrals), and
+        // throws on a maxEvaluations below 120; at 0 the rule is GaussKronrodAdaptive's default. That makes such an
+        // acceptance rarer, not impossible: a day to a month from expiry, with the strike far from the forward,
+        // prices were still measured up to 227 times absTolerance off in the integral (#346).
+        static Integration gaussKronrod(Real absTolerance, Size maxEvaluations = 1000, Size minimumDepth = 3);
         // Simpson's and the trapezoid rule halve their intervals until two estimates in a row agree to
         // absTolerance, and stop no earlier than the 7th estimate. maxIterations bounds the estimates, and the n-th
         // rests on 2^(n-1) + 1 evaluations: the default allows 8,388,609 an integral before "max number of

@@ -83,6 +83,19 @@ namespace QuantLib
         take up to about two billion of them, so give one if it could
         be costly or very rough.
 
+        An interval is accepted once its 7-point Gauss and 15-point
+        Kronrod estimates agree to its share of the tolerance, so the
+        tolerance is met interval by interval rather than on the
+        result, and the two estimates can agree on an interval whose
+        nodes miss the integrand's shape while both are off.  With a
+        minimum depth d, an interval fewer than d halvings below the
+        whole range is split without being evaluated, so that none
+        wider than 1/2^d of the range is accepted; one too narrow to
+        split is evaluated as at depth 0.  At 0, the default, the whole
+        range can be accepted on its first 15 evaluations.  At d an
+        integral over a range that can be split takes at least
+        15 * 2^d evaluations, and throws on a smaller maximum (#346).
+
         References:
 
         Gauss-Kronrod Integration
@@ -97,13 +110,16 @@ namespace QuantLib
     class GaussKronrodAdaptive : public Integrator
     {
       public:
-        explicit GaussKronrodAdaptive(Real tolerance, Size maxFunctionEvaluations = Null<Size>());
+        explicit GaussKronrodAdaptive(Real tolerance,
+                                      Size maxFunctionEvaluations = Null<Size>(),
+                                      Size minimumDepth = 0);
 
       protected:
         Real integrate(const std::function<Real(Real)>& f, Real a, Real b) const override;
 
       private:
-        Real integrateRecursively(const std::function<Real(Real)>& f, Real a, Real b, Real tolerance) const;
+        Real integrateRecursively(const std::function<Real(Real)>& f, Real a, Real b, Real tolerance, Size depth) const;
+        Size minimumDepth_;
     };
 }
 

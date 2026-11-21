@@ -244,6 +244,22 @@ namespace QuantLib
         // past this the integration wasn't checked against a reference, and such limits are refused (#239)
         constexpr Real hestonMaxIntegrationLimit = 5.0e8;
 
+        /* AsymptoticChF's control variate carries e^{psi}, so near u = 0, where |phi| <= 1, it is e^{Re psi} times the
+           function it stands in for, and a rule's error on the difference reaches the price multiplied by e^{Re psi}.
+           OptimalCV takes it only where Re psi is below this bound, and an explicit AsymptoticChF is refused at or
+           above it (#342). */
+        constexpr Real maxAsymptoticChFRePsi = 0.1;
+
+        /* Re psi of AsymptoticChF's control variate. optimalControlVariate and AP_Helper both compare it with
+           maxAsymptoticChFRePsi, so it is computed out of line: two inlined copies can be contracted differently,
+           and within an ulp of the bound OptimalCV could take a control variate that AP_Helper then refused (#342). */
+        BOOST_NOINLINE Real asymptoticChFRePsi(Time t, Real v0, Real kappa, Real theta, Real sigma, Real rho)
+        {
+            return ((kappa - 0.5 * rho * sigma) * (v0 + t * kappa * theta) +
+                    kappa * theta * std::log(4 * (1 - rho * rho))) /
+                   (sigma * sigma);
+        }
+
         /* The integration limit where c_inf is 0, rho -1 or 1, for the angled contour with its control variate or
            none (#239). On the real line the characteristic function decays there at least as e^{P - a sqrt(u)},
            times a power of u that only speeds it up, with
@@ -601,6 +617,7 @@ namespace QuantLib
                 vAvg_ = -8.0 * std::log(enginePtr->chF(std::complex<Real>(0, alpha_), term).real()) / term;
                 break;
             case AsymptoticChF:
+            {
                 /* Its expansion takes log(1 - rho^2) and divides by sqrt(1 - rho^2), so at rho = -1 or 1 psi_ is
                    -inf and the control variate vanishes; Gauss-Laguerre and exp-sinh price with it as before.
                    Gauss-Lobatto takes its limit there from the angled contour's decay, worked out for AngledContour
@@ -608,6 +625,16 @@ namespace QuantLib
                 QL_REQUIRE(!unitCorrelation_, "with Gauss-Lobatto the AsymptoticChF control variate needs rho"
                                               " strictly between -1 and 1, given "
                                                   << rho << "; AngledContour and OptimalCV take rho = -1 and 1 there");
+                /* At or above the bound the integrand the control variate leaves is about e^{Re psi} times the price's
+                   scale. Gauss-Laguerre at 128 nodes and ExponentialFittingHestonEngine came out off from just
+                   above it, and far off further up, with nothing to say so; the adaptive rules held further, but no
+                   higher bound holds for every rule (#342). OptimalCV takes AngledContour there, and a NaN Re psi is
+                   refused too. */
+                const Real rePsi = asymptoticChFRePsi(term, v0, kappa, theta, sigma, rho);
+                QL_REQUIRE(rePsi < maxAsymptoticChFRePsi, "the AsymptoticChF control variate carries e^{Re psi} and"
+                                                          " needs Re psi below "
+                                                              << maxAsymptoticChFRePsi << ", given " << rePsi
+                                                              << "; OptimalCV takes AngledContour there");
                 phi_ = -(v0 + term * kappa * theta) / sigma * std::complex<Real>(std::sqrt(1 - rho * rho), rho);
 
                 psi_ = std::complex<Real>((kappa - 0.5 * rho * sigma) * (v0 + term * kappa * theta) +
@@ -616,6 +643,7 @@ namespace QuantLib
                                                 (v0 + kappa * theta * term) -
                                             2 * kappa * theta * std::atan(rho / std::sqrt(1 - rho * rho)))) /
                        (sigma * sigma);
+            }
                 [[fallthrough]];
             case AngledContour:
                 vAvg_ = theta + (v0 - theta) * detail::decayRatio(kappa * term);
@@ -813,9 +841,7 @@ namespace QuantLib
     {
 
         if (t > 0.15 && (v0 + t * kappa * theta) / sigma * std::sqrt(1 - rho * rho) < 0.15 &&
-            ((kappa - 0.5 * rho * sigma) * (v0 + t * kappa * theta) + kappa * theta * std::log(4 * (1 - rho * rho))) /
-                    (sigma * sigma) <
-                0.1)
+            asymptoticChFRePsi(t, v0, kappa, theta, sigma, rho) < maxAsymptoticChFRePsi)
         {
             return AsymptoticChF;
         }
@@ -1034,11 +1060,11 @@ namespace QuantLib
                                maxEvaluations, absTolerance, relTolerance, useConvergenceEstimate, minimumDepth)));
     }
 
-    AnalyticHestonEngine::Integration AnalyticHestonEngine::Integration::gaussKronrod(Real absTolerance,
-                                                                                      Size maxEvaluations)
+    AnalyticHestonEngine::Integration
+    AnalyticHestonEngine::Integration::gaussKronrod(Real absTolerance, Size maxEvaluations, Size minimumDepth)
     {
-        return Integration(GaussKronrod,
-                           ext::shared_ptr<Integrator>(new GaussKronrodAdaptive(absTolerance, maxEvaluations)));
+        return Integration(GaussKronrod, ext::shared_ptr<Integrator>(
+                                             new GaussKronrodAdaptive(absTolerance, maxEvaluations, minimumDepth)));
     }
 
     AnalyticHestonEngine::Integration AnalyticHestonEngine::Integration::simpson(Real absTolerance, Size maxIterations)

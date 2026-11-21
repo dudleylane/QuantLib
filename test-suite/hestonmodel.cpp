@@ -2269,19 +2269,15 @@ BOOST_AUTO_TEST_CASE(testAndersenPiterbargLimitAtAverageVariance)
         }
     };
 
-    // AsymptoticChF above theta, where its control variate carries e^{Re psi} with Re psi 261 and 1,644, is #342's
     const std::pair<AnalyticHestonEngine::ComplexLogFormula, std::string> formulas[] = {
         {AnalyticHestonEngine::AndersenPiterbarg, "AndersenPiterbarg"},
         {AnalyticHestonEngine::AndersenPiterbargOptCV, "AndersenPiterbargOptCV"},
         {AnalyticHestonEngine::AngledContour, "AngledContour"},
         {AnalyticHestonEngine::AngledContourNoCV, "AngledContourNoCV"},
-        {AnalyticHestonEngine::OptimalCV, "OptimalCV"},
-        {AnalyticHestonEngine::AsymptoticChF, "AsymptoticChF"}};
+        {AnalyticHestonEngine::OptimalCV, "OptimalCV"}};
     for (const Case& c : {aboveAt1e8, aboveAtDefault, below})
+    {
         for (const auto& [cpxLog, name] : formulas)
-        {
-            if (cpxLog == AnalyticHestonEngine::AsymptoticChF && c.v0 > 0.04)
-                continue;
             test(c, name,
                  [&c, cpxLog](const ext::shared_ptr<HestonModel>& model, VanillaOption& option, Real)
                  {
@@ -2289,7 +2285,22 @@ BOOST_AUTO_TEST_CASE(testAndersenPiterbargLimitAtAverageVariance)
                          model, cpxLog, Integration::gaussKronrod(1e-8), c.andersenPiterbargEpsilon));
                      return option.NPV();
                  });
+
+        // AsymptoticChF's control variate carries e^{Re psi}, and it is refused where Re psi is 0.1 or more (#342):
+        // 261, 1,644 and 0.36 here. Before, Gauss-Kronrod threw at the first two, where e^{Re psi} is 2e113 and
+        // overflows, so they were skipped; the last priced within 1e-7.
+        BOOST_TEST_CONTEXT("AsymptoticChF, v0 " << c.v0)
+        {
+            const auto model = ext::make_shared<HestonModel>(
+                ext::make_shared<HestonProcess>(rTS, qTS, s0, c.v0, c.kappa, 0.04, c.sigma, c.rho));
+            VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, c.strike),
+                                 ext::make_shared<EuropeanExercise>(today + c.maturity));
+            option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(model, AnalyticHestonEngine::AsymptoticChF,
+                                                                           Integration::gaussKronrod(1e-8),
+                                                                           c.andersenPiterbargEpsilon));
+            BOOST_CHECK_EXCEPTION(option.NPV(), Error, ExpectedErrorMessage("needs Re psi below 0.1"));
         }
+    }
 
     // the deprecated doCalculation at the forward, where its scale (#343) doesn't enter
     Case belowAtForward = below, aboveAtForward = aboveAt1e8;
@@ -2313,6 +2324,39 @@ BOOST_AUTO_TEST_CASE(testAndersenPiterbargLimitAtAverageVariance)
                      QL_DEPRECATED_ENABLE_WARNING
                      return value;
                  });
+
+    /* Integration::gaussKronrod splits the range three times before accepting an interval (#346), and at that depth the
+       rows below theta priced within 1e-7 with the limit's Gaussian part at v0 too. So they are priced again at a
+       minimum depth of 0, the rule before #346, where the limit's position shows. */
+    for (const auto& [cpxLog, name] : formulas)
+        test(below, name + ", at a minimum depth of 0",
+             [&below, cpxLog](const ext::shared_ptr<HestonModel>& model, VanillaOption& option, Real)
+             {
+                 option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(
+                     model, cpxLog, Integration::gaussKronrod(1e-8, 1000, 0), below.andersenPiterbargEpsilon));
+                 return option.NPV();
+             });
+    for (const auto cpxLog : {AnalyticHestonEngine::AndersenPiterbarg, AnalyticHestonEngine::OptimalCV})
+        test(belowAtForward,
+             cpxLog == AnalyticHestonEngine::OptimalCV ? "doCalculation, OptimalCV, at a minimum depth of 0" :
+                                                         "doCalculation, at a minimum depth of 0",
+             [&, cpxLog](const ext::shared_ptr<HestonModel>& model, VanillaOption&, Real strike)
+             {
+                 const Case& c = belowAtForward;
+                 const Date maturity = today + c.maturity;
+                 const AnalyticHestonEngine engine(model, cpxLog, Integration::gaussKronrod(1e-8, 1000, 0),
+                                                   c.andersenPiterbargEpsilon);
+                 Real value = 0.0;
+                 Size evaluations = 0;
+                 QL_DEPRECATED_DISABLE_WARNING
+                 AnalyticHestonEngine::doCalculation(rTS->discount(maturity), qTS->discount(maturity), s0->value(),
+                                                     strike, dc.yearFraction(today, maturity), c.kappa, 0.04, c.sigma,
+                                                     c.v0, c.rho, PlainVanillaPayoff(Option::Call, strike),
+                                                     Integration::gaussKronrod(1e-8, 1000, 0), cpxLog, &engine, value,
+                                                     evaluations);
+                 QL_DEPRECATED_ENABLE_WARNING
+                 return value;
+             });
 }
 
 BOOST_AUTO_TEST_CASE(testDoCalculationAwayFromTheForward)
@@ -2323,7 +2367,9 @@ BOOST_AUTO_TEST_CASE(testDoCalculationAwayFromTheForward)
        away from the forward the correction was sqrt(K / F) times what it should be. By Gauss-Kronrod at 1e-8 against
        exp-sinh, which calculate() met to 5e-12, these were 0.023 to 0.188 off with AndersenPiterbarg and OptimalCV
        (AngledContour here), 0.040 to 0.133 with AndersenPiterbargOptCV, and 4.7 to 3,539 with AsymptoticChF, whose
-       control variate is worth up to 23,746 here. */
+       control variate is worth up to 23,746 here. Since #342 AsymptoticChF is refused at kappa 1, where Re psi is 0.54
+       to 7.40, so its correction is checked at kappa 0.1 and sigma 0.5, where Re psi is 0.057 and 0.072 and OptimalCV
+       takes AsymptoticChF too; with #343's scaling it was 0.21 to 0.62 off there. */
     using Integration = AnalyticHestonEngine::Integration;
     const Date today(18, November, 2026);
     Settings::instance().evaluationDate() = today;
@@ -2331,17 +2377,22 @@ BOOST_AUTO_TEST_CASE(testDoCalculationAwayFromTheForward)
     const Handle<YieldTermStructure> rTS(flatRate(0.03, dc));
     const Handle<YieldTermStructure> qTS(flatRate(0.01, dc));
     const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
-    const Real v0 = 0.04, kappa = 1.0, theta = 0.04, rho = -0.5;
+    const Real v0 = 0.04, theta = 0.04, rho = -0.5;
 
+    struct Parameters
+    {
+        Real kappa, sigma;
+        bool asymptoticChFRefused;
+    };
     const std::pair<AnalyticHestonEngine::ComplexLogFormula, std::string> formulas[] = {
         {AnalyticHestonEngine::AndersenPiterbarg, "AndersenPiterbarg"},
         {AnalyticHestonEngine::AndersenPiterbargOptCV, "AndersenPiterbargOptCV"},
         {AnalyticHestonEngine::AsymptoticChF, "AsymptoticChF"},
         {AnalyticHestonEngine::OptimalCV, "OptimalCV"}};
-    for (Real sigma : {0.2, 0.5})
+    for (const Parameters& p : {Parameters{1.0, 0.2, true}, Parameters{1.0, 0.5, true}, Parameters{0.1, 0.5, false}})
     {
-        const auto model =
-            ext::make_shared<HestonModel>(ext::make_shared<HestonProcess>(rTS, qTS, s0, v0, kappa, theta, sigma, rho));
+        const auto model = ext::make_shared<HestonModel>(
+            ext::make_shared<HestonProcess>(rTS, qTS, s0, v0, p.kappa, theta, p.sigma, rho));
         for (Integer years : {1, 5})
         {
             const Date maturity = today + Period(years, Years);
@@ -2351,29 +2402,41 @@ BOOST_AUTO_TEST_CASE(testDoCalculationAwayFromTheForward)
                     const PlainVanillaPayoff payoff(type, strike);
                     VanillaOption option(ext::make_shared<PlainVanillaPayoff>(payoff),
                                          ext::make_shared<EuropeanExercise>(maturity));
+                    // AngledContour, which OptimalCV takes at kappa 1; at kappa 0.1 OptimalCV takes AsymptoticChF
                     option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(
-                        model, AnalyticHestonEngine::OptimalCV, Integration::expSinh(1e-12)));
+                        model, AnalyticHestonEngine::AngledContour, Integration::expSinh(1e-12)));
                     const Real expected = option.NPV();
                     for (const auto& [cpxLog, name] : formulas)
-                        BOOST_TEST_CONTEXT(name << ", sigma " << sigma << ", " << years << " years, " << type
-                                                << " struck at " << strike)
+                        BOOST_TEST_CONTEXT(name << ", kappa " << p.kappa << ", sigma " << p.sigma << ", " << years
+                                                << " years, " << type << " struck at " << strike)
                         {
                             const AnalyticHestonEngine engine(model, cpxLog, Integration::gaussKronrod(1e-8));
                             Real value = 0.0;
                             Size evaluations = 0;
-                            try
+                            const auto price = [&]()
                             {
                                 QL_DEPRECATED_DISABLE_WARNING
                                 AnalyticHestonEngine::doCalculation(
                                     rTS->discount(maturity), qTS->discount(maturity), s0->value(), strike,
-                                    dc.yearFraction(today, maturity), kappa, theta, sigma, v0, rho, payoff,
+                                    dc.yearFraction(today, maturity), p.kappa, theta, p.sigma, v0, rho, payoff,
                                     Integration::gaussKronrod(1e-8), cpxLog, &engine, value, evaluations);
                                 QL_DEPRECATED_ENABLE_WARNING
-                                BOOST_CHECK_SMALL(value - expected, 1e-7);
-                            }
-                            catch (const Error& e)
+                            };
+                            if (cpxLog == AnalyticHestonEngine::AsymptoticChF && p.asymptoticChFRefused)
                             {
-                                BOOST_ERROR("threw " << e.what());
+                                BOOST_CHECK_EXCEPTION(price(), Error, ExpectedErrorMessage("needs Re psi below 0.1"));
+                            }
+                            else
+                            {
+                                try
+                                {
+                                    price();
+                                    BOOST_CHECK_SMALL(value - expected, 1e-7);
+                                }
+                                catch (const Error& e)
+                                {
+                                    BOOST_ERROR("threw " << e.what());
+                                }
                             }
                         }
                 }
@@ -2392,7 +2455,8 @@ BOOST_AUTO_TEST_CASE(testAndersenPiterbargLimitWhereTheIntegrandFallsToEpsilon)
        andersenPiterbargEpsilon the caller set. By Gauss-Kronrod at 1e-8 against exp-sinh, which takes no limit, these
        were 1.7 to 35 times epsilon off at kappa 5 and 10 years, where Re psi is 10.9; 2.7 to 2.9 times where the
        Gaussian root is the larger even of the exponential root with its constant, Re psi being 0.28; and 1.04 to 1.06
-       times where Re psi is -0.05. */
+       times where Re psi is -0.05. AsymptoticChF is refused at the first two since #342, where Re psi is 0.1 or more.
+     */
     using Integration = AnalyticHestonEngine::Integration;
     const Date today(18, November, 2026);
     Settings::instance().evaluationDate() = today;
@@ -2407,10 +2471,11 @@ BOOST_AUTO_TEST_CASE(testAndersenPiterbargLimitWhereTheIntegrandFallsToEpsilon)
         Real v0, kappa, sigma, rho;
         Period maturity;
         Real strike, andersenPiterbargEpsilon;
+        bool asymptoticChFRefused;
     };
-    const Case cases[] = {{0.04, 5.0, 1.0, -0.5, Period(10, Years), 100.0, 1e-6},
-                          {0.64, 0.1, 0.5, 0.0, Period(91, Days), 100.0, 1e-8},
-                          {0.64, 0.1, 0.5, 0.5, Period(91, Days), 80.0, 1e-8}};
+    const Case cases[] = {{0.04, 5.0, 1.0, -0.5, Period(10, Years), 100.0, 1e-6, true},
+                          {0.64, 0.1, 0.5, 0.0, Period(91, Days), 100.0, 1e-8, true},
+                          {0.64, 0.1, 0.5, 0.5, Period(91, Days), 80.0, 1e-8, false}};
     const std::pair<AnalyticHestonEngine::ComplexLogFormula, std::string> formulas[] = {
         {AnalyticHestonEngine::AndersenPiterbarg, "AndersenPiterbarg"},
         {AnalyticHestonEngine::AndersenPiterbargOptCV, "AndersenPiterbargOptCV"},
@@ -2431,11 +2496,15 @@ BOOST_AUTO_TEST_CASE(testAndersenPiterbargLimitWhereTheIntegrandFallsToEpsilon)
         const Real expected = option.NPV();
         for (const auto& [cpxLog, name] : formulas)
         {
-            // AsymptoticChF at kappa 5, where its control variate carries e^{Re psi}, is #342's
-            if (cpxLog == AnalyticHestonEngine::AsymptoticChF && c.kappa > 1.0)
-                continue;
             BOOST_TEST_CONTEXT(name << ", v0 " << c.v0 << ", kappa " << c.kappa << ", rho " << c.rho)
             {
+                if (cpxLog == AnalyticHestonEngine::AsymptoticChF && c.asymptoticChFRefused)
+                {
+                    option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(
+                        model, cpxLog, Integration::gaussKronrod(1e-8), c.andersenPiterbargEpsilon));
+                    BOOST_CHECK_EXCEPTION(option.NPV(), Error, ExpectedErrorMessage("needs Re psi below 0.1"));
+                    continue;
+                }
                 try
                 {
                     option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(
@@ -2474,6 +2543,174 @@ BOOST_AUTO_TEST_CASE(testAndersenPiterbargLimitWhereTheIntegrandFallsToEpsilon)
                     BOOST_ERROR("threw " << e.what());
                 }
             }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testAsymptoticChFRefusedWhereRePsiIsLarge)
+{
+    BOOST_TEST_MESSAGE("Testing that the AsymptoticChF control variate is refused where Re psi is large...");
+
+    /* #342: AsymptoticChF's control variate carries e^{psi}, so near u = 0 the integrand it leaves is about e^{Re psi}
+       times the price's scale, and a rule's error on it is multiplied by that. Where Re psi is 0.1 or more, the bound
+       below which OptimalCV takes it, it is refused, through calculate(), the deprecated doCalculation and
+       ExponentialFittingHestonEngine alike. Before, at kappa 3, two years, sigma 0.3, v0 0.01 and rho 0.3, where
+       Re psi is 9.94, a call struck at 110 came out 1.2e-2 off on Gauss-Laguerre with 128 nodes, through calculate()
+       and doCalculation; and ExponentialFittingHestonEngine's AsymptoticChF at kappa 1, one year, sigma 0.3, v0 0.16
+       and rho 0, where Re psi is 2.84, came out 3.8e-3 off an at-the-money call. AngledContour, which OptimalCV takes
+       there, prices both. */
+    using Integration = AnalyticHestonEngine::Integration;
+    const Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(0.01, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+    const Real theta = 0.04;
+    const auto hestonModel = [&](Real v0, Real kappa, Real sigma, Real rho)
+    {
+        return ext::make_shared<HestonModel>(
+            ext::make_shared<HestonProcess>(rTS, qTS, s0, v0, kappa, theta, sigma, rho));
+    };
+    const ExpectedErrorMessage refusal("needs Re psi below 0.1");
+
+    {
+        const Real v0 = 0.01, kappa = 3.0, sigma = 0.3, rho = 0.3, strike = 110.0;
+        const auto model = hestonModel(v0, kappa, sigma, rho);
+        const Date maturity = today + Period(2, Years);
+        const PlainVanillaPayoff payoff(Option::Call, strike);
+        VanillaOption option(ext::make_shared<PlainVanillaPayoff>(payoff),
+                             ext::make_shared<EuropeanExercise>(maturity));
+        option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(model, AnalyticHestonEngine::AngledContour,
+                                                                       Integration::expSinh(1e-12)));
+        const Real expected = option.NPV();
+        const Integration laguerre = Integration::gaussLaguerre(128);
+
+        BOOST_TEST_CONTEXT("calculate()")
+        {
+            option.setPricingEngine(
+                ext::make_shared<AnalyticHestonEngine>(model, AnalyticHestonEngine::AsymptoticChF, laguerre));
+            BOOST_CHECK_EXCEPTION(option.NPV(), Error, refusal);
+            for (const auto cpxLog : {AnalyticHestonEngine::AngledContour, AnalyticHestonEngine::OptimalCV})
+            {
+                option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(model, cpxLog, laguerre));
+                BOOST_CHECK_SMALL(option.NPV() - expected, 1e-8);
+            }
+        }
+
+        // doCalculation takes OptimalCV, which takes AngledContour here, but not AngledContour itself
+        BOOST_TEST_CONTEXT("doCalculation")
+        {
+            for (const auto cpxLog : {AnalyticHestonEngine::AsymptoticChF, AnalyticHestonEngine::OptimalCV})
+            {
+                const AnalyticHestonEngine engine(model, cpxLog, laguerre);
+                Real value = 0.0;
+                Size evaluations = 0;
+                const auto price = [&]()
+                {
+                    QL_DEPRECATED_DISABLE_WARNING
+                    AnalyticHestonEngine::doCalculation(rTS->discount(maturity), qTS->discount(maturity), s0->value(),
+                                                        strike, dc.yearFraction(today, maturity), kappa, theta, sigma,
+                                                        v0, rho, payoff, laguerre, cpxLog, &engine, value, evaluations);
+                    QL_DEPRECATED_ENABLE_WARNING
+                };
+                if (cpxLog == AnalyticHestonEngine::AsymptoticChF)
+                {
+                    BOOST_CHECK_EXCEPTION(price(), Error, refusal);
+                }
+                else
+                {
+                    BOOST_CHECK_NO_THROW(price());
+                    BOOST_CHECK_SMALL(value - expected, 1e-8);
+                }
+            }
+        }
+    }
+
+    BOOST_TEST_CONTEXT("ExponentialFittingHestonEngine")
+    {
+        const auto model = hestonModel(0.16, 1.0, 0.3, 0.0);
+        VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0),
+                             ext::make_shared<EuropeanExercise>(today + Period(365, Days)));
+        option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(model, AnalyticHestonEngine::AngledContour,
+                                                                       Integration::expSinh(1e-12)));
+        const Real expected = option.NPV();
+        option.setPricingEngine(
+            ext::make_shared<ExponentialFittingHestonEngine>(model, AnalyticHestonEngine::AsymptoticChF));
+        BOOST_CHECK_EXCEPTION(option.NPV(), Error, refusal);
+        for (const auto cv : {AnalyticHestonEngine::AngledContour, AnalyticHestonEngine::OptimalCV})
+        {
+            option.setPricingEngine(ext::make_shared<ExponentialFittingHestonEngine>(model, cv));
+            BOOST_CHECK_SMALL(option.NPV() - expected, 1e-8);
+        }
+    }
+
+    /* Below the bound it prices, at kappa 0.5, three months, sigma 0.5, v0 0.01 and rho -0.7, where Re psi is 0.098,
+       and ExponentialFittingHestonEngine's default, OptimalCV, takes it there. Both come out 3.5e-5 off, which is
+       #373's, not this bound's. */
+    BOOST_TEST_CONTEXT("ExponentialFittingHestonEngine below the bound")
+    {
+        const auto model = hestonModel(0.01, 0.5, 0.5, -0.7);
+        VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0),
+                             ext::make_shared<EuropeanExercise>(today + Period(3, Months)));
+        option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(model, AnalyticHestonEngine::AngledContour,
+                                                                       Integration::expSinh(1e-12)));
+        const Real expected = option.NPV();
+        option.setPricingEngine(
+            ext::make_shared<ExponentialFittingHestonEngine>(model, AnalyticHestonEngine::AsymptoticChF));
+        Real asymptotic = 0.0;
+        BOOST_CHECK_NO_THROW(asymptotic = option.NPV());
+        BOOST_CHECK_SMALL(asymptotic - expected, 1e-4);
+        option.setPricingEngine(ext::make_shared<ExponentialFittingHestonEngine>(model));
+        BOOST_CHECK_EQUAL(option.NPV(), asymptotic);
+    }
+
+    /* The bound's two uses agree to the last bit, as optimalControlVariate and the refusal take Re psi from one
+       function. With rho stepped an ulp at a time where Re psi crosses 0.1, OptimalCV prices on every step, and an
+       explicit AsymptoticChF is refused on exactly the steps where OptimalCV takes AngledContour, and gives OptimalCV's
+       price on the others. This is a guard: before #342 it fails only because nothing was refused, and it passes with
+       optimalControlVariate keeping its own copy of the expression too (GCC 15 at -O2). At one year c_inf is at most
+       0.054 on [0.5, 0.8], so OptimalCV's choice goes by Re psi alone: 0.131 at rho 0.5 and 0.076 at 0.8. */
+    {
+        const Real v0 = 0.01, kappa = 1.0, sigma = 0.8;
+        const Date maturity = today + Period(365, Days);
+        const Time t = dc.yearFraction(today, maturity);
+        const auto takes = [&](Real rho)
+        { return AnalyticHestonEngine::optimalControlVariate(t, v0, kappa, theta, sigma, rho); };
+        Real lo = 0.5, hi = 0.8;
+        BOOST_REQUIRE(takes(lo) == AnalyticHestonEngine::AngledContour &&
+                      takes(hi) == AnalyticHestonEngine::AsymptoticChF);
+        for (Real mid = lo + (hi - lo) / 2; mid > lo && mid < hi; mid = lo + (hi - lo) / 2)
+            (takes(mid) == AnalyticHestonEngine::AngledContour ? lo : hi) = mid;
+
+        VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0),
+                             ext::make_shared<EuropeanExercise>(maturity));
+        const Integration laguerre = Integration::gaussLaguerre(128);
+        Real rho = lo;
+        for (Size i = 0; i < 4; ++i)
+            rho = std::nextafter(rho, 0.0);
+        Size refused = 0, priced = 0;
+        for (Size i = 0; i < 10; ++i, rho = std::nextafter(rho, 1.0))
+            BOOST_TEST_CONTEXT("rho " << std::setprecision(17) << rho)
+            {
+                const auto model = hestonModel(v0, kappa, sigma, rho);
+                option.setPricingEngine(
+                    ext::make_shared<AnalyticHestonEngine>(model, AnalyticHestonEngine::OptimalCV, laguerre));
+                Real optimal = 0.0;
+                BOOST_CHECK_NO_THROW(optimal = option.NPV());
+                option.setPricingEngine(
+                    ext::make_shared<AnalyticHestonEngine>(model, AnalyticHestonEngine::AsymptoticChF, laguerre));
+                if (takes(rho) == AnalyticHestonEngine::AngledContour)
+                {
+                    BOOST_CHECK_EXCEPTION(option.NPV(), Error, refusal);
+                    ++refused;
+                }
+                else
+                {
+                    BOOST_CHECK_EQUAL(option.NPV(), optimal);
+                    ++priced;
+                }
+            }
+        BOOST_CHECK(refused > 0 && priced > 0);
     }
 }
 
@@ -4121,6 +4358,85 @@ BOOST_AUTO_TEST_CASE(testGaussLobattoSplitsBeforeAccepting)
     const Real gatheralPrice = price(ext::make_shared<AnalyticHestonEngine>(
         gatheral, AnalyticHestonEngine::Gatheral, Integration::gaussLobatto(1e-8, Null<Real>(), 10000)));
     BOOST_CHECK_SMALL(gatheralPrice - expectedGatheral, 1e-8);
+}
+
+BOOST_AUTO_TEST_CASE(testGaussKronrodSplitsBeforeAccepting)
+{
+    BOOST_TEST_MESSAGE("Testing that Gauss-Kronrod's Heston prices split the range three times before accepting an "
+                       "interval...");
+
+    // Gauss-Kronrod accepts an interval once its 7-point and 15-point estimates agree to its share of the tolerance,
+    // and they can agree on an interval the integrand isn't resolved on while both are off. At an absolute tolerance
+    // of 1e-8 the AngledContour price three days from expiry below came back 1.1e-5 off after 15 evaluations, the
+    // whole range accepted on its first estimate; the Andersen-Piterbarg price two years out 5.6e-6 off after 525;
+    // and the AnalyticPTDHestonEngine price 3.6e-5 off after 435 (#346). Integration::gaussKronrod now splits the
+    // range three times before accepting an interval.
+    const Date today(18, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Handle<YieldTermStructure> rTS(flatRate(today, 0.03, dc));
+    const Handle<YieldTermStructure> qTS(flatRate(today, 0.01, dc));
+    const Handle<Quote> s0(ext::make_shared<SimpleQuote>(100.0));
+    using Integration = AnalyticHestonEngine::Integration;
+
+    // theta 0.04, rho 0, calls struck at 80
+    struct Case
+    {
+        std::string what;
+        Real v0, kappa, sigma;
+        Period maturity;
+        AnalyticHestonEngine::ComplexLogFormula form;
+        Real andersenPiterbargEpsilon;
+    };
+    const Case cases[] = {
+        {"AngledContour, three days", 0.01, 0.5, 0.5, Period(3, Days), AnalyticHestonEngine::AngledContour, 8.3138e-6},
+        {"AndersenPiterbarg, two years", 1e-5, 0.1, 0.5, Period(2, Years), AnalyticHestonEngine::AndersenPiterbarg,
+         9.0134e-8}};
+    for (const auto& c : cases)
+    {
+        BOOST_TEST_CONTEXT(c.what)
+        {
+            const auto model = ext::make_shared<HestonModel>(
+                ext::make_shared<HestonProcess>(rTS, qTS, s0, c.v0, c.kappa, 0.04, c.sigma, 0.0));
+            VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, 80.0),
+                                 ext::make_shared<EuropeanExercise>(today + c.maturity));
+            option.setPricingEngine(ext::make_shared<AnalyticHestonEngine>(model, AnalyticHestonEngine::OptimalCV,
+                                                                           Integration::expSinh(1e-12)));
+            const Real expected = option.NPV();
+            const auto engine = ext::make_shared<AnalyticHestonEngine>(model, c.form, Integration::gaussKronrod(1e-8),
+                                                                       c.andersenPiterbargEpsilon);
+            option.setPricingEngine(engine);
+            BOOST_CHECK_SMALL(option.NPV() - expected, 1e-8);
+            BOOST_CHECK_GE(engine->numberOfEvaluations(), Size(120));
+        }
+    }
+
+    // sigma, theta, kappa and rho on [0, 0.25), [0.25, 0.5) and from 0.5, with the grid {0.25, 0.5, 3}; v0 1e-4
+    const std::vector<Time> pTimes = {0.25, 0.5}, gridTimes = {0.25, 0.5, 3.0};
+    PiecewiseConstantParameter sigma(pTimes, PositiveConstraint()), theta(pTimes, PositiveConstraint()),
+        kappa(pTimes, PositiveConstraint()), rho(pTimes, BoundaryConstraint(-1.0, 1.0));
+    const Real sigmas[] = {0.01, 0.01, 0.01}, thetas[] = {0.36, 0.04, 0.16}, kappas[] = {4.0, 0.3, 0.3},
+               rhos[] = {0.0, 0.0, -0.9};
+    for (Size i = 0; i < 3; ++i)
+    {
+        sigma.setParam(i, sigmas[i]);
+        theta.setParam(i, thetas[i]);
+        kappa.setParam(i, kappas[i]);
+        rho.setParam(i, rhos[i]);
+    }
+    const auto piecewise = ext::make_shared<PiecewiseTimeDependentHestonModel>(
+        rTS, qTS, s0, 1e-4, theta, kappa, sigma, rho, TimeGrid(gridTimes.begin(), gridTimes.end()));
+    VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, 80.0),
+                         ext::make_shared<EuropeanExercise>(today + Period(7, Days)));
+    option.setPricingEngine(ext::make_shared<AnalyticPTDHestonEngine>(
+        piecewise, AnalyticPTDHestonEngine::AndersenPiterbarg, Integration::expSinh(1e-12), 1e-8));
+    const Real expected = option.NPV();
+    option.setPricingEngine(ext::make_shared<AnalyticPTDHestonEngine>(
+        piecewise, AnalyticPTDHestonEngine::AndersenPiterbarg, Integration::gaussKronrod(1e-8), 1e-8));
+    BOOST_TEST_CONTEXT("AnalyticPTDHestonEngine, seven days")
+    {
+        BOOST_CHECK_SMALL(option.NPV() - expected, 1e-8);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(testHestonPartOfTheLimitAtZero)
