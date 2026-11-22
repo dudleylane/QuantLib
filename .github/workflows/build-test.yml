@@ -43,6 +43,14 @@ concurrency:
 # this if the hook ever admits them.  To empty the cache:
 #   CCACHE_DIR=~/.cache/ccache-quantlib-ci ccache -C
 #
+# The release job's first step also sets CCACHE_BASEDIR to the workspace (#388).  CMake puts
+# absolute paths, under each runner's own workspace, on every compile line, so without it ccache
+# hashed the runner's path and the release build reused only what its own runner had compiled.
+# ccache now rewrites the paths under the workspace relative to the compile's directory, in its
+# hash and on the compiler's line, so dependency files and __FILE__ hold relative paths too.  The
+# autotools jobs compile with relative paths and already share across runners, so their first
+# steps leave it out; a CMake job added later wants it.
+#
 # Time limits: each job's is about twice the longest successful run, from 2026-11-11 (four
 # runners) to 11-21, of the jobs it replaces.  GitHub's clock starts when a runner picks the job
 # up, not when it is queued.  If a healthy run hits one, measure and raise it; don't re-run until
@@ -65,6 +73,7 @@ jobs:
       CC: /opt/rh/gcc-toolset-15/root/usr/bin/gcc
       CXX: /opt/rh/gcc-toolset-15/root/usr/bin/g++
     steps:
+      # As every job's first step, plus CCACHE_BASEDIR (the header says why only here).
       - name: Set temporary and cache directories
         shell: bash
         run: |
@@ -73,6 +82,7 @@ jobs:
             echo "CCACHE_DIR=${HOME:?}/.cache/ccache-quantlib-ci"
             echo "CCACHE_MAXSIZE=10G"
             echo "CCACHE_STATSLOG=$RUNNER_TEMP/ccache-stats.log"
+            echo "CCACHE_BASEDIR=${GITHUB_WORKSPACE:?}"
           } >> "$GITHUB_ENV"
 
       - uses: actions/checkout@v7
