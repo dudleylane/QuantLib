@@ -1096,6 +1096,38 @@ nothing ordered the three stores that published the cache.
     ([#388](https://github.com/dudleylane/QuantLib/issues/388)). The
     autotools builds hit all their compiles on runners 1 to 4.
 
+- The release build's compile cache, and a stale speed tier (2026-11-22,
+  [PR #393](https://github.com/dudleylane/QuantLib/pull/393), `7c58e6544`),
+  two findings of #381's first runs.
+  - **The cache**
+    ([#388](https://github.com/dudleylane/QuantLib/issues/388)). The
+    release job's first step also sets `CCACHE_BASEDIR` to the
+    workspace, so ccache hashes the absolute paths CMake puts on every
+    compile line relative to the build directory, and the release build
+    can reuse what the other runners compiled. The autotools jobs
+    compile with relative paths and already shared across runners, so
+    they are left as they were. Two copies of the tree at different
+    paths, building 14 objects into one empty cache, hit none of them
+    in the second copy without the base directory and all 14 with it.
+    The pull request's run built the release preset on runner 4 with
+    the base directory set, the first build to have it, and hit 0 of
+    1,176. The merge's push, of the same tree, built it on runner 2,
+    which had not built it with the base directory before, and hit
+    1,176 of 1,176, in an 18 s Build step, against 33 and 36 min in
+    #381's runs.
+  - **The tier**
+    ([#389](https://github.com/dudleylane/QuantLib/issues/389)).
+    `ForwardOptionTests/testHestonAnalyticalVsMCPrices` loses the
+    `if_speed(Fast)` precondition that went stale with #240, and runs
+    at every level. Benchmark's first run, 44937712890, failed on it
+    alone: it took 0.968 s and 0.999999 s, under the 1 s below which
+    the checker suggests the Faster tier. A
+    dispatch on the branch, 44959095845, ran it in all three passes in
+    0.93 to 0.96 s, and no line named it; that run failed on two
+    `MarketModelTests/CallableSwapAnderson` slices that came in under
+    3 s, which the branch doesn't reach
+    ([#55](https://github.com/dudleylane/QuantLib/issues/55#issuecomment-7070934694)).
+
 ## Sibling repositories
 
 - **dudleylane/QuantLib-SWIG — deleted 2026-08-15.** It was a real GitHub
