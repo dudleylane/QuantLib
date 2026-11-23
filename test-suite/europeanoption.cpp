@@ -2292,6 +2292,209 @@ BOOST_AUTO_TEST_CASE(testBlackVasicekEngineWithFallingVariance)
     BOOST_CHECK_SMALL(option.NPV() - blackFormula(Option::Call, 100.0, s0 / zcb, std::sqrt(variance), zcb), 1e-12);
 }
 
+// Additional results, checked against the expected ones key by key: the same keys, and the same values to the bit
+void checkAdditionalResults(const std::map<std::string, ext::any>& calculated,
+                            const std::map<std::string, ext::any>& expected,
+                            const std::string& step)
+{
+    for (const auto& entry : calculated)
+    {
+        if (expected.count(entry.first) == 0)
+            BOOST_ERROR(step << ": unexpected additional result \"" << entry.first << "\"");
+    }
+    for (const auto& [key, value] : expected)
+    {
+        auto entry = calculated.find(key);
+        if (entry == calculated.end())
+        {
+            BOOST_ERROR(step << ": additional result \"" << key << "\" missing");
+        }
+        else if (const auto* x = ext::any_cast<Real>(&value))
+        {
+            const auto* y = ext::any_cast<Real>(&entry->second);
+            if (y == nullptr)
+                BOOST_ERROR(step << ": additional result \"" << key << "\" isn't a Real");
+            else if (*y != *x)
+                BOOST_ERROR(step << ": additional result \"" << key << "\" is " << std::setprecision(17) << *y
+                                 << ", expected " << *x);
+        }
+        else
+        {
+            const auto* expectedString = ext::any_cast<std::string>(&value);
+            const auto* calculatedString = ext::any_cast<std::string>(&entry->second);
+            if (expectedString == nullptr || calculatedString == nullptr || *calculatedString != *expectedString)
+                BOOST_ERROR(step << ": additional result \"" << key << "\" isn't the expected string");
+        }
+    }
+}
+
+// The additional results a fresh engine gives an option on the payoff and exercise
+std::map<std::string, ext::any> freshAdditionalResults(const ext::shared_ptr<StrikedTypePayoff>& payoff,
+                                                       const ext::shared_ptr<Exercise>& exercise,
+                                                       const ext::shared_ptr<PricingEngine>& engine)
+{
+    VanillaOption option(payoff, exercise);
+    option.setPricingEngine(engine);
+    option.NPV();
+    return option.additionalResults();
+}
+
+BOOST_AUTO_TEST_CASE(testAnalyticEngineAdditionalResultsMatchAFreshEngine)
+{
+    BOOST_TEST_MESSAGE("Testing that the analytic European engine's additional results match a fresh engine's...");
+
+    // The engine keeps its last additional results across reset() and writes the next calculation's values into
+    // them (#88). Whatever it calculated before, the results must be what a fresh engine gives.
+    DayCounter dc = Actual365Fixed();
+    Date today(20, October, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    auto spot = ext::make_shared<SimpleQuote>(100.0);
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot), Handle<YieldTermStructure>(flatRate(today, 0.01, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.03, dc)), Handle<BlackVolTermStructure>(flatVol(today, 0.20, dc)));
+    Handle<YieldTermStructure> discountCurve(flatRate(today, 0.04, dc));
+    auto call = ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0);
+    auto put = ext::make_shared<PlainVanillaPayoff>(Option::Put, 90.0);
+    auto inOneYear = ext::make_shared<EuropeanExercise>(today + 1 * Years);
+    auto inSixMonths = ext::make_shared<EuropeanExercise>(today + 6 * Months);
+    auto fresh = [&process](const ext::shared_ptr<StrikedTypePayoff>& payoff, const ext::shared_ptr<Exercise>& exercise)
+    { return freshAdditionalResults(payoff, exercise, ext::make_shared<AnalyticEuropeanEngine>(process)); };
+
+    auto engine = ext::make_shared<AnalyticEuropeanEngine>(process);
+    VanillaOption option(call, inOneYear);
+    option.setPricingEngine(engine);
+
+    // recalculations as the spot moves
+    for (Real s : {100.0, 101.0, 99.5, 100.25})
+    {
+        spot->setValue(s);
+        option.NPV();
+        checkAdditionalResults(option.additionalResults(), fresh(call, inOneYear),
+                               "recalculation at spot " + std::to_string(s));
+        BOOST_CHECK_EQUAL(ext::any_cast<Real>(option.additionalResults().at("spot")), s);
+    }
+
+    // a calculation without a reset, which writes over the last results
+    engine->calculate();
+    checkAdditionalResults(dynamic_cast<const Instrument::results&>(*engine->getResults()).additionalResults,
+                           fresh(call, inOneYear), "calculation without a reset");
+
+    // a calculation that fails before it writes its additional results, then one that doesn't
+    spot->setValue(0.0);
+    BOOST_CHECK_THROW(option.NPV(), Error);
+    spot->setValue(100.5);
+    option.NPV();
+    checkAdditionalResults(option.additionalResults(), fresh(call, inOneYear), "after a failed calculation");
+
+    // past the option's expiry, where the engine isn't called, and back
+    Settings::instance().evaluationDate() = today + 2 * Years;
+    spot->setValue(101.5);
+    BOOST_CHECK_EQUAL(option.NPV(), 0.0);
+    BOOST_CHECK(option.additionalResults().empty());
+    Settings::instance().evaluationDate() = today;
+    spot->setValue(98.5);
+    option.NPV();
+    checkAdditionalResults(option.additionalResults(), fresh(call, inOneYear), "after expiry");
+
+    // two options priced in turn by one engine
+    VanillaOption other(put, inSixMonths);
+    other.setPricingEngine(engine);
+    for (Real s : {102.0, 97.0, 103.0})
+    {
+        spot->setValue(s);
+        option.NPV();
+        other.NPV();
+        checkAdditionalResults(option.additionalResults(), fresh(call, inOneYear),
+                               "the call, sharing its engine, at spot " + std::to_string(s));
+        checkAdditionalResults(other.additionalResults(), fresh(put, inSixMonths),
+                               "the put, sharing its engine, at spot " + std::to_string(s));
+    }
+
+    // an engine that discounts on a curve of its own
+    option.setPricingEngine(ext::make_shared<AnalyticEuropeanEngine>(process, discountCurve));
+    for (Real s : {104.0, 96.0, 105.0})
+    {
+        spot->setValue(s);
+        option.NPV();
+        checkAdditionalResults(
+            option.additionalResults(),
+            freshAdditionalResults(call, inOneYear, ext::make_shared<AnalyticEuropeanEngine>(process, discountCurve)),
+            "discounting on its own curve at spot " + std::to_string(s));
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testAnalyticEngineAdditionalResultsUnderADerivedEngine)
+{
+    BOOST_TEST_MESSAGE("Testing the analytic European engine's additional results under a derived engine "
+                       "that changes them...");
+
+    // A derived engine can add, rename or replace additional results around the base class's calculate(). The base
+    // class writes into its last results only while they hold its own keys and nothing else (#88); otherwise it
+    // inserts its results as a fresh engine does. Either way, a change shows only in the calculation that made it.
+    class ChangingEngine : public AnalyticEuropeanEngine
+    {
+      public:
+        using AnalyticEuropeanEngine::AnalyticEuropeanEngine;
+        int change = 0;
+        void calculate() const override
+        {
+            if (change == 1)
+                results_.additionalResults["added before"] = 1.0;
+            AnalyticEuropeanEngine::calculate();
+            changeAfter(results_.additionalResults, change);
+        }
+        // what the engine changes after the base class's calculate()
+        static void changeAfter(std::map<std::string, ext::any>& results, int change)
+        {
+            switch (change)
+            {
+                case 2: // a key after all of the base class's
+                    results["zz added after"] = 2.0;
+                    break;
+                case 3: // a key renamed, in the same place
+                    results["vol"] = results.at("volatility");
+                    results.erase("volatility");
+                    break;
+                case 4: // a value that isn't a Real
+                    results["spot"] = std::string("replaced");
+                    break;
+                default:
+                    break;
+            }
+        }
+    };
+
+    DayCounter dc = Actual365Fixed();
+    Date today(20, October, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    auto spot = ext::make_shared<SimpleQuote>(100.0);
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot), Handle<YieldTermStructure>(flatRate(today, 0.01, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.03, dc)), Handle<BlackVolTermStructure>(flatVol(today, 0.20, dc)));
+    auto payoff = ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0);
+    auto exercise = ext::make_shared<EuropeanExercise>(today + 1 * Years);
+    auto engine = ext::make_shared<ChangingEngine>(process);
+    VanillaOption option(payoff, exercise);
+    option.setPricingEngine(engine);
+
+    // each change, followed by a calculation without one
+    const int changes[] = {0, 1, 0, 2, 0, 3, 0, 4, 0, 0};
+    for (Size i = 0; i < std::size(changes); ++i)
+    {
+        engine->change = changes[i];
+        spot->setValue(100.0 + 0.5 * (i + 1));
+        option.NPV();
+        auto expected = freshAdditionalResults(payoff, exercise, ext::make_shared<AnalyticEuropeanEngine>(process));
+        if (changes[i] == 1)
+            expected["added before"] = 1.0;
+        ChangingEngine::changeAfter(expected, changes[i]);
+        checkAdditionalResults(option.additionalResults(), expected,
+                               "calculation " + std::to_string(i) + ", change " + std::to_string(changes[i]));
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
