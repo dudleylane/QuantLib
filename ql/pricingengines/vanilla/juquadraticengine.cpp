@@ -119,8 +119,7 @@ namespace QuantLib
             NormalDistribution normalDist;
 
             Real tolerance = 1e-6;
-            Real Sk = BaroneAdesiWhaleyApproximationEngine::criticalPrice(payoff, riskFreeDiscount, dividendDiscount,
-                                                                          variance, tolerance);
+            Real Sk = criticalPriceCache_(payoff, riskFreeDiscount, dividendDiscount, variance, tolerance);
 
             Real forwardSk = Sk * dividendDiscount / riskFreeDiscount;
 

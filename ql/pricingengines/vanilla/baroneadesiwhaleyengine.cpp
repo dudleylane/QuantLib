@@ -25,6 +25,7 @@
 #include <ql/pricingengines/blackformula.hpp>
 #include <ql/pricingengines/vanilla/baroneadesiwhaleyengine.hpp>
 #include <cmath>
+#include <cstring>
 #include <utility>
 
 namespace QuantLib
@@ -77,6 +78,30 @@ namespace QuantLib
                 }
             }
             return results;
+        }
+
+        Real CriticalPriceCache::operator()(const ext::shared_ptr<StrikedTypePayoff>& payoff,
+                                            DiscountFactor riskFreeDiscount,
+                                            DiscountFactor dividendDiscount,
+                                            Real variance,
+                                            Real tolerance)
+        {
+            auto same = [](Real a, Real b) { return std::memcmp(&a, &b, sizeof(Real)) == 0; };
+            if (valid_ && payoff->optionType() == type_ && same(payoff->strike(), strike_) &&
+                same(riskFreeDiscount, riskFreeDiscount_) && same(dividendDiscount, dividendDiscount_) &&
+                same(variance, variance_) && same(tolerance, tolerance_))
+                return criticalPrice_;
+            Real criticalPrice = BaroneAdesiWhaleyApproximationEngine::criticalPrice(
+                payoff, riskFreeDiscount, dividendDiscount, variance, tolerance);
+            valid_ = true;
+            type_ = payoff->optionType();
+            strike_ = payoff->strike();
+            riskFreeDiscount_ = riskFreeDiscount;
+            dividendDiscount_ = dividendDiscount;
+            variance_ = variance;
+            tolerance_ = tolerance;
+            criticalPrice_ = criticalPrice;
+            return criticalPrice;
         }
 
     }
@@ -286,7 +311,7 @@ namespace QuantLib
             // early exercise can be optimal
             CumulativeNormalDistribution cumNormalDist;
             Real tolerance = 1e-6;
-            Real Sk = criticalPrice(payoff, riskFreeDiscount, dividendDiscount, variance, tolerance);
+            Real Sk = criticalPriceCache_(payoff, riskFreeDiscount, dividendDiscount, variance, tolerance);
             Real forwardSk = Sk * dividendDiscount / riskFreeDiscount;
             Real d1 = (std::log(forwardSk / payoff->strike()) + 0.5 * variance) / std::sqrt(variance);
             Real n = 2.0 * std::log(dividendDiscount / riskFreeDiscount) / variance;
