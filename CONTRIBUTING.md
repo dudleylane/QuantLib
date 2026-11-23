@@ -64,6 +64,24 @@ Before pushing a change to code, build files, workflows or scripts:
    the fork's other new files use (for example
    `ql/risk/curvebucketer.hpp`).  Upstream files keep their BSD-3-Clause
    headers untouched.  Record a fork-visible change in `FORK_CHANGES.md`.
+8. **Threads.**  A test case that starts a thread carries
+   `*boost::unit_test::label("threads")` in its declaration.  CI's TSan
+   job runs only those cases, and `tools/check_thread_labels.py` fails it
+   if a case that starts a thread isn't labelled, or if a thread starts
+   anywhere else: in a test-suite helper, in an example, or in the
+   library other than through OpenMP.  So CI no longer runs the whole
+   suite under ThreadSanitizer, and a change to locking, or to state that
+   threads share, runs it before its pull request, as the TSan job once
+   did:
+
+   ```bash
+   ./autogen.sh
+   ./configure --disable-static --enable-sessions --enable-thread-safe-observer-pattern \
+     CC=/usr/bin/clang CXX=/usr/bin/clang++ \
+     CXXFLAGS="-O2 -g0 -fsanitize=thread -fno-sanitize-recover=all --gcc-install-dir=/usr/lib/gcc/x86_64-redhat-linux/14 -Wno-deprecated-declarations -Wall -Wno-unknown-pragmas -Werror"
+   make -j4
+   TSAN_OPTIONS="halt_on_error=1:second_deadlock_stack=1" ./test-suite/quantlib-test-suite
+   ```
 
 Commit subjects follow the conventional-commit style of the log (`fix:`,
 `test:`, `ci:`, `docs(README):` …).  The body says what was wrong and

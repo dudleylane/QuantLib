@@ -17,6 +17,7 @@
 """Fail when a test-suite run skipped a test case.
 
 Usage: check_no_skipped_tests.py <JUnit file> [--config-header <ql/config.hpp of the build>]
+                                 [--filtered <file of the cases the filter selects>]
 
 CI runs quantlib-test-suite with --logger=JUNIT,error,<file>:HRF,message.  Boost.Test writes a
 case that a precondition or a decorator turned off as <testcase ...><skipped/>, with the reason in
@@ -32,6 +33,16 @@ by design.  Such a skip passes only when all three hold: its name is listed belo
 failed precondition, and the build's config header (--config-header) defines
 QL_USE_INDEXED_COUPON.  It is still listed, as a notice.  Any other skip fails, and a new
 configuration-dependent precondition joins the list by name; nothing passes by its reason alone.
+
+--filtered is for a run that selects some cases with --run_test, as the tsan job selects the cases
+labelled "threads" (--run_test=@threads).  Boost.Test reports every case the filter leaves out as
+skipped, with the reason 'disabled'.  The file names the cases the filter is meant to select, one
+full name (QuantLibTests/<Suite>/<case>) per line, as tools/check_thread_labels.py --write writes
+them.  The run then passes only when every listed case is in the log and ran (or is an
+indexed-coupon skip, as above), no other case ran, and every other case was left out by the
+filter.  A listed case missing from the log fails the run too: the build doesn't compile it, as
+when the tsan job's build loses the thread-safe observer that two of the cases need.  It exits 2
+when no case ran.
 """
 
 import re
@@ -49,6 +60,7 @@ INDEXED_COUPON_SKIPS = {
 }
 
 PRECONDITION_TOKEN = "reason: 'precondition failed"
+FILTERED_TOKEN = "reason: 'disabled'"
 
 
 def uses_indexed_coupons(path):
@@ -65,15 +77,38 @@ def reason_of(output):
     return output.strip().splitlines()[0][:300] if output.strip() else "no reason given"
 
 
+def case_name(case):
+    """A JUnit test case's full name as Boost.Test writes it on its command line."""
+    return case.get("classname", "").replace(".", "/") + "/" + case.get("name", "")
+
+
 def main(argv):
     args = argv[1:]
-    config_header = None
-    if len(args) == 3 and args[1] == "--config-header":
-        config_header = args[2]
-    elif len(args) != 1:
-        print("usage: check_no_skipped_tests.py <JUnit file> [--config-header <ql/config.hpp>]",
-              file=sys.stderr)
+    options = {"--config-header": None, "--filtered": None}
+    usage = ("usage: check_no_skipped_tests.py <JUnit file> [--config-header <ql/config.hpp>] "
+             "[--filtered <selected cases>]")
+    if not args or args[0].startswith("--"):
+        print(usage, file=sys.stderr)
         return 2
+    rest = args[1:]
+    while rest:
+        if len(rest) < 2 or rest[0] not in options or options[rest[0]] is not None:
+            print(usage, file=sys.stderr)
+            return 2
+        options[rest[0]] = rest[1]
+        rest = rest[2:]
+    config_header = options["--config-header"]
+    selected = None
+    if options["--filtered"] is not None:
+        try:
+            with open(options["--filtered"], encoding="utf-8") as f:
+                selected = {line.strip() for line in f if line.strip() and not line.startswith("#")}
+        except OSError as e:
+            print(f"::error::cannot read the list of selected cases {options['--filtered']}: {e}")
+            return 2
+        if not selected:
+            print(f"::error::the list of selected cases {options['--filtered']} is empty")
+            return 2
     try:
         root = ET.parse(args[0]).getroot()
     except (OSError, ET.ParseError) as e:
@@ -90,11 +125,13 @@ def main(argv):
     if not cases:
         print(f"::error::{args[0]} lists no test case at all")
         return 2
+    if selected is not None:
+        return check_filtered(args[0], cases, selected, indexed)
     gaps, allowed = [], []
     for case in cases:
         if case.find("skipped") is None:
             continue
-        name = case.get("classname", "").replace(".", "/") + "/" + case.get("name", "")
+        name = case_name(case)
         output = case.findtext("system-out") or ""
         if indexed and name in INDEXED_COUPON_SKIPS and PRECONDITION_TOKEN in output:
             allowed.append(name)
@@ -112,6 +149,58 @@ def main(argv):
         print(f"no gap: {ran} of {len(cases)} test cases ran, {len(allowed)} skipped under indexed coupons (listed above)")
     else:
         print(f"no test case was skipped ({len(cases)} ran)")
+    return 0
+
+
+def check_filtered(path, cases, selected, indexed):
+    """--filtered: the listed cases ran, nothing else did, and everything else was filtered out."""
+    gaps, unexpected, allowed, ran = [], [], [], []
+    filtered_out = 0
+    present = set()
+    for case in cases:
+        name = case_name(case)
+        output = case.findtext("system-out") or ""
+        skipped = case.find("skipped") is not None
+        if name in selected:
+            present.add(name)
+            if not skipped:
+                ran.append(name)
+            elif indexed and name in INDEXED_COUPON_SKIPS and PRECONDITION_TOKEN in output:
+                allowed.append(name)
+            else:
+                gaps.append((name, reason_of(output)))
+        elif not skipped:
+            unexpected.append(name)
+        elif FILTERED_TOKEN in output:
+            filtered_out += 1
+        else:
+            gaps.append((name, reason_of(output)))
+    absent = sorted(selected - present)
+    for name in allowed:
+        print(f"::notice::{name} was skipped: it can't hold under indexed coupons, which this build uses")
+    if not ran:
+        print(f"::error::{path}: no test case ran, so the filter selected nothing")
+        return 2
+    if gaps or unexpected or absent:
+        if absent:
+            print(f"::error::{len(absent)} listed test cases are not in the log, so this build doesn't compile "
+                  f"them")
+            for name in absent:
+                print(f"  {name}")
+        if gaps:
+            print(f"::error::{len(gaps)} test cases were skipped other than by the filter; in CI a skip is a gap")
+            for name, why in gaps:
+                print(f"  {name}  ({why})")
+        if unexpected:
+            print(f"::error::{len(unexpected)} test cases ran that the list doesn't name; the filter and the "
+                  f"list disagree")
+            for name in unexpected:
+                print(f"  {name}")
+        return 1
+    print(f"no gap: {len(ran)} of the {len(selected)} listed test cases ran, and the filter left out the "
+          f"other {filtered_out}:")
+    for name in sorted(ran):
+        print(f"  {name}")
     return 0
 
 

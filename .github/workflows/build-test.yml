@@ -59,7 +59,9 @@ concurrency:
 # No test skipped: Boost.Test counts a case its precondition turned off neither as a failure nor
 # as an error, so "No errors detected" says nothing about a case that never ran.  Each job that
 # runs the suite writes a JUnit log and tools/check_no_skipped_tests.py fails the job on a skip,
-# except the cases the build's own config header says can't hold (indexed coupons).
+# except the cases the build's own config header says can't hold (indexed coupons).  Sanitizers'
+# tsan job runs only the cases labelled "threads", and there the check fails unless exactly those
+# ran (sanitizers.yml says why).
 
 jobs:
   release:
@@ -261,12 +263,19 @@ jobs:
   # The default configuration through autotools, compiled a directory at a time (the test suite in
   # five parts since #358).  It is the only check of the rule that a file-local name be unique
   # across its directory, and the only CI failure from code since 2026-08 was that rule (#39's
-  # first push, run 39899945305).  It also runs the examples in the default configuration, which
-  # the CMake build compiles but doesn't run.
+  # first push, run 39899945305).  By the owner's decision of 2026-11-22, it compiles the
+  # library, the test suite and the examples and checks the global header, but runs neither the
+  # suite nor the examples: the release job runs the suite in the default configuration, and
+  # Sanitizers' asan and ubsan jobs run both, instrumented.  What that stopped checking: merging a
+  # directory's files into one translation unit can change overload resolution, the macros in
+  # effect and the order of static initialisation without a compile error, and only a run of the
+  # Unity build itself would show it.
   unity:
     name: Unity build (autotools)
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
-    # Replaces linux / Unity build enabled, whose longest run took 78.0 min.
+    # Replaced linux / Unity build enabled, whose longest run took 78.0 min; the longest Build step
+    # of either Unity job from 2026-11-11 to 11-21 took 57.9 min.  The limit stays until this job
+    # has a history without the runs.
     timeout-minutes: 160
     env:
       PATH: /opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -310,21 +319,6 @@ jobs:
           printf '%s\n' "$stats"
           printf '### ccache\n\n~~~\n%s\n~~~\n' "$stats" >> "$GITHUB_STEP_SUMMARY"
           if [ -d "$CCACHE_DIR" ]; then du -sh "$CCACHE_DIR"; fi
-
-      - name: Run tests
-        shell: bash
-        run: |
-          ./test-suite/quantlib-test-suite --logger=JUNIT,error,"$RUNNER_TEMP/junit.xml":HRF,message
-
-      - name: No test skipped
-        shell: bash
-        run: |
-          python3 tools/check_no_skipped_tests.py "$RUNNER_TEMP/junit.xml" --config-header ql/config.hpp
-
-      - name: Run examples
-        shell: bash
-        run: |
-          make check-examples
 
       - name: Check global header
         shell: bash

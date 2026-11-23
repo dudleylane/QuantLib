@@ -545,7 +545,7 @@ BOOST_AUTO_TEST_CASE(todaysDate)
                                                        << expected);
 }
 
-BOOST_AUTO_TEST_CASE(todaysDateFromSeveralThreads)
+BOOST_AUTO_TEST_CASE(todaysDateFromSeveralThreads, *boost::unit_test::label("threads"))
 {
     BOOST_TEST_MESSAGE("Testing today's date from several threads...");
 
@@ -582,7 +582,7 @@ BOOST_AUTO_TEST_CASE(todaysDateFromSeveralThreads)
                                       << before << " to " << after);
 }
 
-BOOST_AUTO_TEST_CASE(inspectorsFromSeveralThreads)
+BOOST_AUTO_TEST_CASE(inspectorsFromSeveralThreads, *boost::unit_test::label("threads"))
 {
     BOOST_TEST_MESSAGE("Testing date inspectors from several threads...");
 

@@ -4,7 +4,10 @@ name: Format Check
 # Test and Sanitizers run on every push to master and every pull request, Coverage on pushes to
 # master, and Benchmark by hand.  There are no change tiers and no ordering between workflows,
 # every job has a time limit, and a skipped test case fails its job.  Until then it was one ci.yml
-# of 14 job definitions in three tiers; FORK_CHANGES.md has the history.
+# of 14 job definitions in three tiers; FORK_CHANGES.md has the history.  By the owner's decision
+# of 2026-11-22, Sanitizers runs TSan only on the test cases that start threads, and the Unity
+# build compiles without running the suite or the examples (sanitizers.yml and build-test.yml say
+# what that stopped checking).
 
 on:
   # Markdown can't change what CI verifies: nothing in the build reads it (build-test.yml says

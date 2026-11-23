@@ -198,7 +198,7 @@ BOOST_AUTO_TEST_CASE(testObservableSettings)
 
 #ifdef QL_ENABLE_THREAD_SAFE_OBSERVER_PATTERN
 
-BOOST_AUTO_TEST_CASE(testAsyncGarbagCollector)
+BOOST_AUTO_TEST_CASE(testAsyncGarbagCollector, *boost::unit_test::label("threads"))
 {
 
     BOOST_TEST_MESSAGE("Testing observer pattern with an asynchronous "
@@ -232,7 +232,7 @@ BOOST_AUTO_TEST_CASE(testAsyncGarbagCollector)
     }
 }
 
-BOOST_AUTO_TEST_CASE(testMultiThreadingGlobalSettings)
+BOOST_AUTO_TEST_CASE(testMultiThreadingGlobalSettings, *boost::unit_test::label("threads"))
 {
     BOOST_TEST_MESSAGE("Testing observer global settings in a "
                        "multithreading environment...");

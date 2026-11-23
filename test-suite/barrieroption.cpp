@@ -1716,7 +1716,7 @@ BOOST_AUTO_TEST_CASE(testTrivariateNormalInPerturbativeEngine)
     }
 }
 
-BOOST_AUTO_TEST_CASE(testPerturbativeEngineFromSeveralThreads)
+BOOST_AUTO_TEST_CASE(testPerturbativeEngineFromSeveralThreads, *boost::unit_test::label("threads"))
 {
     BOOST_TEST_MESSAGE("Testing the perturbative engine from several threads...");
 
