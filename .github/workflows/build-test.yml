@@ -37,10 +37,12 @@ concurrency:
 # ccache: the runners are on one persistent machine, so the cache stays on it (#31): one directory
 # for every job of every runner, capped at 10 GB, with ccache's own locking and LRU cleanup.  A
 # compiler line that doesn't name ccache ignores the variables.  Each job that compiles through it
-# prints its own hits from CCACHE_STATSLOG, which lives in RUNNER_TEMP.  Trust: a pull request's
-# jobs write objects that master's jobs read.  That stays one trust domain only because the
-# job-started hook (.github/runner/job-started.sh) refuses forks' and Dependabot's jobs, so revisit
-# this if the hook ever admits them.  To empty the cache:
+# prints its own hits from CCACHE_STATSLOG, which lives in RUNNER_TEMP, and the directory's size
+# from du.  du's status doesn't decide the step: another job's ccache can remove a file while du
+# walks the directory, and du then exits 1 (#401).  Trust: a pull request's jobs write objects that
+# master's jobs read.  That stays one trust domain only because the job-started hook
+# (.github/runner/job-started.sh) refuses forks' and Dependabot's jobs, so revisit this if the hook
+# ever admits them.  To empty the cache:
 #   CCACHE_DIR=~/.cache/ccache-quantlib-ci ccache -C
 #
 # The release job's first step also sets CCACHE_BASEDIR to the workspace (#388).  CMake puts
@@ -113,7 +115,7 @@ jobs:
           stats=$(ccache --show-log-stats)
           printf '%s\n' "$stats"
           printf '### ccache\n\n~~~\n%s\n~~~\n' "$stats" >> "$GITHUB_STEP_SUMMARY"
-          if [ -d "$CCACHE_DIR" ]; then du -sh "$CCACHE_DIR"; fi
+          if [ -d "$CCACHE_DIR" ]; then du -sh "$CCACHE_DIR" || echo "du exited $? (#401)"; fi
 
       # The installed binary, so the test also covers what `cmake --install` put in place.
       - name: Test
@@ -230,7 +232,7 @@ jobs:
           stats=$(ccache --show-log-stats)
           printf '%s\n' "$stats"
           printf '### ccache\n\n~~~\n%s\n~~~\n' "$stats" >> "$GITHUB_STEP_SUMMARY"
-          if [ -d "$CCACHE_DIR" ]; then du -sh "$CCACHE_DIR"; fi
+          if [ -d "$CCACHE_DIR" ]; then du -sh "$CCACHE_DIR" || echo "du exited $? (#401)"; fi
 
       - name: Run tests
         shell: bash
@@ -318,7 +320,7 @@ jobs:
           stats=$(ccache --show-log-stats)
           printf '%s\n' "$stats"
           printf '### ccache\n\n~~~\n%s\n~~~\n' "$stats" >> "$GITHUB_STEP_SUMMARY"
-          if [ -d "$CCACHE_DIR" ]; then du -sh "$CCACHE_DIR"; fi
+          if [ -d "$CCACHE_DIR" ]; then du -sh "$CCACHE_DIR" || echo "du exited $? (#401)"; fi
 
       - name: Check global header
         shell: bash
@@ -380,7 +382,7 @@ jobs:
           stats=$(ccache --show-log-stats)
           printf '%s\n' "$stats"
           printf '### ccache\n\n~~~\n%s\n~~~\n' "$stats" >> "$GITHUB_STEP_SUMMARY"
-          if [ -d "$CCACHE_DIR" ]; then du -sh "$CCACHE_DIR"; fi
+          if [ -d "$CCACHE_DIR" ]; then du -sh "$CCACHE_DIR" || echo "du exited $? (#401)"; fi
 
       - name: Configure
         shell: bash
