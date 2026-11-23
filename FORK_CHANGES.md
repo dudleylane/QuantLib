@@ -1131,6 +1131,58 @@ nothing ordered the three stores that published the cache.
     3 s, which the branch doesn't reach
     ([#55](https://github.com/dudleylane/QuantLib/issues/55#issuecomment-7070934694)).
 
+- Fewer suite and example runs (2026-11-23,
+  [PR #395](https://github.com/dudleylane/QuantLib/pull/395), `06efb6dcb`).
+  Every pull request ran the test suite six times and the examples five,
+  and every push to `master` ran each once more, in Coverage; the tsan
+  job's runs set each run's length. The owner asked on 2026-11-22
+  whether that could be reduced, and approved three cuts; two were made.
+  - **TSan runs only the cases that start threads.** ThreadSanitizer
+    reports a data race only where two threads touch the same memory.
+    The seven cases that start threads carry
+    `*boost::unit_test::label("threads")`, and the tsan job runs
+    `--run_test=@threads` and no examples. `tools/check_thread_labels.py`
+    fails the job if a case starts a thread without the label, or if a
+    test-suite file outside a case, an example, or the library other than
+    through OpenMP starts one; after the build, if OpenMP or the parallel
+    test runner is on. It writes the labelled names, and
+    `tools/check_no_skipped_tests.py --filtered` fails the job unless
+    exactly those ran. That is the one new exception to the rule that a
+    skipped case fails its job.
+  - **ASan and UBSan stay two jobs.** The third cut, one job built with
+    both, was measured before the push and dropped: the sanitizers' costs
+    add, so it saved little and lengthened the longest job. Scaled to
+    CI's minutes by asan's own steps, the merged suite would take 84.5
+    minutes against asan's 59.3 and, on the same scale, ubsan's 30.0, and
+    its examples 23.7 against 11.3 and 13.3: 9.7 job-minutes saved a warm
+    run against 37.6 added to the asan job, where the rule set beforehand
+    needed at least twice the addition and at least 11.6.
+  - **The Unity build compiles without running** the suite or the
+    examples. It is there for #39's kind of failure, a compile error.
+  - **What stops being checked.**
+    - Running the suite and the examples built with Clang. The tsan job
+      still compiles them all, CI's only Clang build.
+    - Running the suite with sessions and the thread-safe observer on
+      beside otherwise default flags. The non-default job runs it with
+      them on beside every other non-default flag.
+    - TSan's reports from one thread, such as a lock-order inversion, in
+      the cases that start no thread. CONTRIBUTING's item 8 asks for a
+      whole-suite TSan run before a change to locking or to state that
+      threads share.
+    - Running the Unity build: merging a directory into one translation
+      unit can change overload resolution, the macros in effect and the
+      order of static initialisation without a compile error.
+  - **Time limits.** tsan 550 to 120 minutes; asan, ubsan and Unity keep
+    260, 230 and 160.
+  - **First run.** The pull request's, on `77081558b`: Format Check
+    45106024173, Build & Test 45106024264 and Sanitizers 45106024183, 8
+    jobs on four runners in 57 min and 161 job-minutes (asan 57, ubsan 38,
+    the non-default build 30, the release build 16, Unity 12, tsan 3). In
+    the tsan job the guard passed before and after its build, exactly the
+    seven labelled cases ran and the filtered skip check passed, in 3
+    minutes against 142 on #394's pull-request run; the Unity job built and
+    checked the global header with no runs.
+
 ## Sibling repositories
 
 - **dudleylane/QuantLib-SWIG — deleted 2026-08-15.** It was a real GitHub
@@ -1228,9 +1280,10 @@ inline; the remaining bullets are still-pending work.
   *Infrastructure*. Since #381, every pull request and every push to
   master runs Format Check, Build & Test (a CMake release build, the
   non-default flags stacked in one autotools build, the autotools Unity
-  build, and file lists, headers and docs) and the three sanitizers;
-  coverage runs on master's pushes and test times by hand. From #30 to
-  #381 a code pull request ran twelve configuration cells plus five
-  non-default cells, three sanitizers, both build systems and clang-tidy,
-  and master ran only the gates, the default build and coverage after a
-  merge, and CodeQL until #42 dropped it.
+  build, compiled but not run since #395, and file lists, headers and
+  docs) and the three sanitizers, TSan on the test cases that start
+  threads; coverage runs on master's pushes and test times by hand. From
+  #30 to #381 a code pull request ran twelve configuration cells plus
+  five non-default cells, three sanitizers, both build systems and
+  clang-tidy, and master ran only the gates, the default build and
+  coverage after a merge, and CodeQL until #42 dropped it.

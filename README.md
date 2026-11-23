@@ -307,10 +307,10 @@ cut.
 
 ### Verified on this fork
 
-The three case counts are from CI's full run 41806352468 on 2026-11-04, with no failures, and the names in parentheses are that run's jobs. They grow as tests are added, so CI's latest run has the current figures for the first two, in its CMake release job and its `tsan` job. CI no longer builds the third preset (since 2026-11-21); its non-default job stacks the same flags through autotools.
+The three case counts are from CI's full run 41806352468 on 2026-11-04, with no failures, and the names in parentheses are that run's jobs. They grow as tests are added, so CI's latest run has the current figure for the first, in its CMake release job. Since 2026-11-23 the `tsan` job runs only the test cases that start threads, so no CI job runs the whole suite built with Clang. CI no longer builds the third preset (since 2026-11-21); its non-default job stacks the same flags through autotools.
 
 - **GCC 15.2.1 + C++23 + Boost 1.83** (`linux / Default`): 1,331 cases
-- **Clang 22.1.8 + C++23 + Boost 1.83** (the `tsan` job, CI's only Clang build, with sessions and the thread-safe observer on): 1,333 cases
+- **Clang 22.1.8 + C++23 + Boost 1.83** (the `tsan` job, CI's only Clang build, with sessions and the thread-safe observer on; it ran the whole suite until 2026-11-23): 1,333 cases
 - **`linux-ci-build-with-nonstandard-options` preset** (`cmake-linux-with-options`: sessions on, thread-safe observer on, `QL_FASTER_LAZY_OBJECTS=OFF`, `QL_THROW_IN_CYCLES=ON`, high-res date on, indexed coupons, warnings-as-errors): 1,337 cases
 - **`QL_ENABLE_AAD=ON`** (GCC 15.2.1, CoDi-Pack v2.2.0 auto-fetched): `AadTests/*` pass end-to-end. That run used v2.2.0. The pin moved to v3.1.0 in `d742765be`, and no build with AAD on has been verified since; no CI job builds one.
 
@@ -320,15 +320,16 @@ runs three workflows, eight jobs in all, each with a time limit:
 *Format Check* (clang-format and actionlint); *Build & Test* (the CMake
 release build with its tests, an install smoke test and the benchmark;
 one autotools build with the non-default `QL_*` flags stacked; the
-autotools Unity build; and the file-list, standalone-header and doxygen
-checks); and *Sanitizers* (ASan, TSan and UBSan). A test case that
-skips fails its job, except the four that can't hold under indexed
-coupons. *Coverage* runs on pushes to master, for Coveralls, and
-markdown-only commits run nothing. Test times and the benchmark's
-throughput are checked only by hand (`gh workflow run benchmark.yml
---ref <branch>`): they compare absolute wall-clock time against fixed
-limits, and the runners share the machine with each other and with
-other repositories' runners.
+autotools Unity build, compiled but not run; and the file-list,
+standalone-header and doxygen checks); and *Sanitizers* (ASan, UBSan,
+and TSan on the test cases that start threads). A test case that skips
+fails its job, except the four that can't hold under indexed coupons
+and, in the TSan job, the cases its filter leaves out. *Coverage* runs
+on pushes to master, for Coveralls, and markdown-only commits run
+nothing. Test times and the benchmark's throughput are checked only by
+hand (`gh workflow run benchmark.yml --ref <branch>`): they compare
+absolute wall-clock time against fixed limits, and the runners share
+the machine with each other and with other repositories' runners.
 
 ### Language bindings
 
