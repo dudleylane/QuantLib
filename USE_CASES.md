@@ -308,6 +308,9 @@ reserves no cores, so a run on an isolated core would have to settle it.
 Since that commit, #46 has added 3.6 % in instructions to a
 Barone-Adesi-Whaley price, and #128 12–18 % to a Bjerksund-Stensland one
 where its search doesn't run and 3.9 times where it does.
+#93 then took the critical price's solve out of a Barone-Adesi-Whaley
+price whose option has an engine of its own and whose spot alone moved:
+0.68 of the instructions at the median over 288 inputs.
 
 **What works today:**
 - End-of-day batch pricing of book-sized portfolios is fine on modern
@@ -343,7 +346,8 @@ where its search doesn't run and 3.9 times where it does.
 **What an application can do now, with no library change:**
 - Price hot vanillas with `blackFormula`, or with `BlackCalculator` on a
   stored payoff.
-- Cache Barone-Adesi-Whaley's critical price between vol and rate ticks.
+- Give each hot Barone-Adesi-Whaley or Ju option an engine of its own,
+  which then keeps its critical price between vol and rate ticks (#93).
 - Bootstrap off the tick thread and publish an immutable curve.
 - Set or anchor the evaluation date.
 - Keep one object graph per thread, and leave the thread-safe observer
