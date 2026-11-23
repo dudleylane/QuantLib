@@ -26,6 +26,7 @@
 #define quantlib_ju_quadratic_engine_hpp
 
 #include <ql/instruments/vanillaoption.hpp>
+#include <ql/pricingengines/vanilla/baroneadesiwhaleyengine.hpp>
 #include <ql/processes/blackscholesprocess.hpp>
 
 namespace QuantLib
@@ -44,6 +45,10 @@ namespace QuantLib
                  price, e.g. Newton method. He just gives the
                  solution.  The method of BAW gives answers to the
                  same accuracy as in Ju (1999).
+
+        Like BaroneAdesiWhaleyApproximationEngine, the engine keeps the
+        last critical price it solved for, and reuses it when only the
+        spot has moved; see there.
 
         \warning This engine departs from the published formula in two
                  ways. The formula's correction divides by 1 - chi, and
@@ -81,6 +86,7 @@ namespace QuantLib
 
       private:
         ext::shared_ptr<GeneralizedBlackScholesProcess> process_;
+        mutable detail::CriticalPriceCache criticalPriceCache_;
     };
 
 }

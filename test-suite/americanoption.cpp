@@ -43,6 +43,7 @@
 #include <ql/pricingengines/vanilla/qdplusamericanengine.hpp>
 #include <ql/termstructures/volatility/equityfx/blackconstantvol.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
+#include <ql/time/calendars/target.hpp>
 #include <ql/time/daycounters/actual360.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/time/daycounters/thirty360.hpp>
@@ -3726,6 +3727,193 @@ BOOST_AUTO_TEST_CASE(testBaroneAdesiWhaleyNegativeRates)
     itmCall.setPricingEngine(bs);
     BOOST_CHECK_MESSAGE(itmCall.NPV() >= 20.0 - 1.0e-8,
                         "BS American call NPV " << itmCall.NPV() << " below intrinsic 20.0");
+}
+
+BOOST_AUTO_TEST_CASE(testBaroneAdesiWhaleyAndJuMatchFreshEnginesAfterPricing)
+{
+
+    BOOST_TEST_MESSAGE("Testing Barone-Adesi-Whaley and Ju engines that have priced against fresh ones...");
+
+    // Since #93 each engine keeps the last critical price it solved for, with
+    // the option type, strike, discount factors, variance and tolerance it
+    // solved it for, and reuses it when they match; the spot isn't one of
+    // them. Each price below follows a new spot, so the option recalculates,
+    // and consecutive prices on one engine differ in the spot alone or also in
+    // some of those inputs. Every result must equal, to the bit, that of an
+    // engine that has never priced: one that reused a critical price for
+    // inputs that had changed would differ. A solve that throws must throw
+    // again, and the entry it found must still serve the inputs it was solved for.
+
+    Date today(23, October, 2026);
+    Settings::instance().evaluationDate() = today;
+    DayCounter dc = Actual365Fixed();
+
+    auto spot = ext::make_shared<SimpleQuote>(100.0);
+    auto qRate = ext::make_shared<SimpleQuote>(0.01);
+    auto rRate = ext::make_shared<SimpleQuote>(0.03);
+    auto vol = ext::make_shared<SimpleQuote>(0.20);
+    // Curves that move with the evaluation date, so that a new date changes
+    // the discount factors and the variance together.
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot),
+        Handle<YieldTermStructure>(ext::make_shared<FlatForward>(0, TARGET(), Handle<Quote>(qRate), dc)),
+        Handle<YieldTermStructure>(ext::make_shared<FlatForward>(0, TARGET(), Handle<Quote>(rRate), dc)),
+        Handle<BlackVolTermStructure>(ext::make_shared<BlackConstantVol>(0, TARGET(), Handle<Quote>(vol), dc)));
+
+    auto exercise = ext::make_shared<AmericanExercise>(today, today + Period(1, Years));
+    const std::vector<ext::shared_ptr<StrikedTypePayoff>> payoffs = {
+        ext::make_shared<PlainVanillaPayoff>(Option::Put, 100.0),
+        ext::make_shared<PlainVanillaPayoff>(Option::Put, 110.0),
+        ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0)};
+    const Size put100 = 0, put110 = 1, call100 = 2;
+
+    const auto run = [&](const std::string& name, const auto& makeEngine, bool withGreeks)
+    {
+        Settings::instance().evaluationDate() = today;
+        qRate->setValue(0.01);
+        rRate->setValue(0.03);
+        vol->setValue(0.20);
+        const ext::shared_ptr<PricingEngine> engine = makeEngine();
+        std::vector<ext::shared_ptr<VanillaOption>> options;
+        for (const auto& payoff : payoffs)
+        {
+            options.push_back(ext::make_shared<VanillaOption>(payoff, exercise));
+            options.back()->setPricingEngine(engine);
+        }
+
+        Size tick = 0;
+        const auto results = [withGreeks](VanillaOption& option)
+        {
+            std::vector<Real> values = {option.NPV()};
+            if (withGreeks)
+            {
+                values.push_back(option.delta());
+                values.push_back(option.gamma());
+            }
+            return values;
+        };
+        const auto price = [&](const std::string& step, Size which)
+        {
+            spot->setValue(100.0 + 0.01 * Real(++tick));
+            VanillaOption fresh(payoffs[which], exercise);
+            fresh.setPricingEngine(makeEngine());
+            const std::vector<Real> found = results(*options[which]), expected = results(fresh);
+            BOOST_TEST_CONTEXT(name << ", " << step)
+            {
+                for (Size i = 0; i < found.size(); ++i)
+                    BOOST_CHECK_EQUAL(found[i], expected[i]);
+            }
+        };
+        const auto refuses = [&](const std::string& step, Size which)
+        {
+            spot->setValue(100.0 + 0.01 * Real(++tick));
+            BOOST_TEST_CONTEXT(name << ", " << step)
+            {
+                BOOST_CHECK_EXCEPTION(options[which]->NPV(), Error, ExpectedErrorMessage("BjerksundStensland"));
+            }
+        };
+
+        price("first price", put100);
+        price("new spot", put100);
+        price("new strike", put110);
+        price("new type and strike", call100);
+        price("new type", put100);
+        rRate->setValue(0.035);
+        price("new risk-free rate", put100);
+        price("new spot after the new rate", put100);
+        qRate->setValue(0.015);
+        price("new dividend yield", put100);
+        vol->setValue(0.25);
+        price("new volatility", put100);
+        Settings::instance().evaluationDate() = today + 1;
+        price("new evaluation date", put100);
+        price("new spot after the new date", put100);
+        Settings::instance().evaluationDate() = today;
+        price("evaluation date moved back", put100);
+        // A call at r < 0 and q > 0 can be exercised early, and criticalPrice()
+        // refuses a risk-free discount factor above 1.
+        rRate->setValue(-0.01);
+        qRate->setValue(0.02);
+        refuses("a solve that throws", call100);
+        refuses("the same solve again", call100);
+        rRate->setValue(0.035);
+        qRate->setValue(0.015);
+        price("the inputs before the throw", put100);
+        price("new spot after them", put100);
+    };
+
+    const auto baw = [&]() { return ext::make_shared<BaroneAdesiWhaleyApproximationEngine>(process); };
+    const auto ju = [&]() { return ext::make_shared<JuQuadraticApproximationEngine>(process); };
+    run("Barone-Adesi-Whaley", baw, false);
+    run("Ju", ju, true);
+}
+
+BOOST_AUTO_TEST_CASE(testCriticalPriceCacheReturnsWhatTheSolveReturns)
+{
+
+    BOOST_TEST_MESSAGE("Testing that the critical-price cache returns what the solve returns...");
+
+    // detail::CriticalPriceCache, which both engines hold since #93, against
+    // BaroneAdesiWhaleyApproximationEngine::criticalPrice() itself. Each call
+    // differs from the one before it in one input, and each of those inputs
+    // moves the critical price, so a cache that ignored one would return the
+    // wrong one. The tolerance is checked only here, since both engines
+    // always pass the same one. A solve that throws must leave the entry as
+    // it was: the same inputs throw again, and the inputs before them still
+    // get their own critical price.
+
+    struct Inputs
+    {
+        ext::shared_ptr<StrikedTypePayoff> payoff;
+        DiscountFactor riskFreeDiscount, dividendDiscount;
+        Real variance, tolerance;
+    };
+    const Inputs base = {ext::make_shared<PlainVanillaPayoff>(Option::Put, 100.0), std::exp(-0.03), std::exp(-0.01),
+                         0.04, 1.0e-6};
+    const auto solve = [](const Inputs& x)
+    {
+        return BaroneAdesiWhaleyApproximationEngine::criticalPrice(x.payoff, x.riskFreeDiscount, x.dividendDiscount,
+                                                                   x.variance, x.tolerance);
+    };
+    detail::CriticalPriceCache cache;
+    const auto fromCache = [&cache](const Inputs& x)
+    { return cache(x.payoff, x.riskFreeDiscount, x.dividendDiscount, x.variance, x.tolerance); };
+
+    BOOST_CHECK_EQUAL(fromCache(base), solve(base));
+    const auto change = [&](const std::string& input, const Inputs& x)
+    {
+        BOOST_TEST_CONTEXT("new " << input)
+        {
+            // An input that didn't move the critical price would prove nothing.
+            BOOST_REQUIRE_NE(solve(x), solve(base));
+            BOOST_CHECK_EQUAL(fromCache(x), solve(x));
+            BOOST_CHECK_EQUAL(fromCache(base), solve(base));
+        }
+    };
+    Inputs x = base;
+    x.payoff = ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0);
+    change("option type", x);
+    x = base;
+    x.payoff = ext::make_shared<PlainVanillaPayoff>(Option::Put, 110.0);
+    change("strike", x);
+    x = base;
+    x.riskFreeDiscount = std::exp(-0.035);
+    change("risk-free discount", x);
+    x = base;
+    x.dividendDiscount = std::exp(-0.015);
+    change("dividend discount", x);
+    x = base;
+    x.variance = 0.0625;
+    change("variance", x);
+    x = base;
+    x.tolerance = 1.0e-3;
+    change("tolerance", x);
+
+    x = base;
+    x.riskFreeDiscount = std::exp(0.01);
+    BOOST_CHECK_EXCEPTION(fromCache(x), Error, ExpectedErrorMessage("BjerksundStensland"));
+    BOOST_CHECK_EXCEPTION(fromCache(x), Error, ExpectedErrorMessage("BjerksundStensland"));
+    BOOST_CHECK_EQUAL(fromCache(base), solve(base));
 }
 
 BOOST_AUTO_TEST_CASE(testBinomialExerciseAtMaturity)
