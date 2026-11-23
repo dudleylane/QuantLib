@@ -178,7 +178,7 @@ BOOST_AUTO_TEST_CASE(testFixingLookupsStoreNothing)
     BOOST_CHECK_EQUAL(index->timeSeries().lastDate(), lastFixing);
 }
 
-BOOST_AUTO_TEST_CASE(testNotifiersFromSeveralThreads)
+BOOST_AUTO_TEST_CASE(testNotifiersFromSeveralThreads, *boost::unit_test::label("threads"))
 {
     BOOST_TEST_MESSAGE("Testing index notifiers asked for from several threads...");
 

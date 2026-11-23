@@ -706,7 +706,7 @@ BOOST_AUTO_TEST_CASE(testBusiness252)
     }
 }
 
-BOOST_AUTO_TEST_CASE(testBusiness252FromSeveralThreads)
+BOOST_AUTO_TEST_CASE(testBusiness252FromSeveralThreads, *boost::unit_test::label("threads"))
 {
     BOOST_TEST_MESSAGE("Testing business/252 day counter from several threads...");
 

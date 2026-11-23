@@ -3,6 +3,31 @@ name: Sanitizers
 # ASan, TSan and UBSan, each its own job for clear attribution, all gating.  Format Check's header
 # says how this CI is laid out, and build-test.yml says why markdown is ignored, what the first
 # step does, how the time limits were sized and why a skipped test fails the job.
+#
+# asan and ubsan: AddressSanitizer, with leak detection, and UndefinedBehaviorSanitizer, each in
+# its own gcc-toolset-15 build, which runs the whole suite and the examples.  One job with both
+# was approved on 2026-11-22 with the TSan cut, then measured and dropped: the sanitizers' costs
+# add, so it would save about 10 job-minutes a warm run and make the asan job, the longest once
+# tsan is cut, about 38 minutes longer.
+#
+# tsan: ThreadSanitizer, built with Clang, with sessions and the thread-safe observer on.  It
+# reports a data race only where two threads touch the same memory, so it runs only the test
+# cases that start threads, labelled "threads" and picked with --run_test=@threads, and not the
+# examples.  tools/check_thread_labels.py keeps that sound.  Before the build it fails the job if
+# a test case starts a thread without the label, or if a test-suite file outside a case, an
+# example, or the library other than through OpenMP starts one; after the build, if the build has
+# OpenMP or the parallel test runner on.  It writes the labelled cases' names, and the skip check
+# then fails the job unless exactly those ran and the filter left out every other case.
+#
+# What the tsan job stopped checking when it stopped running the whole suite and the examples.
+# It still compiles both with Clang, CI's only Clang build; it no longer runs:
+# - the suite and the examples built with Clang;
+# - the suite with sessions and the thread-safe observer on and the other flags at their defaults
+#   (Build & Test's nondefault job runs it with them on only beside every other non-default flag);
+# - what TSan reports from one thread, such as a lock-order inversion or a mutex destroyed while
+#   locked, in the cases that start no thread.
+# So a change to locking, or to state that threads share, runs the whole suite under TSan before
+# its pull request; CONTRIBUTING's checklist has the commands.
 
 on:
   push:
@@ -22,9 +47,11 @@ jobs:
   sanitizer:
     name: ${{ matrix.sanitizer }}
     runs-on: [self-hosted, Linux, X64, quantlib-dev]
-    # Each sanitizer's own limit, about twice its longest run from 2026-11-11 to 11-21: asan
-    # 129.5 min, tsan 273.5, ubsan 112.7.  The builds are -O2 -g0, as before: the whole suite at
-    # -O0 under a sanitizer would take many hours.
+    # Each sanitizer's own limit.  asan and ubsan: about twice its longest run from 2026-11-11 to
+    # 11-21, 129.5 and 112.7 min.  tsan: its longest Build step in that time took 33.7 min, and the
+    # labelled cases run in seconds (about 6 s in the job's log of 2026-11-21); 120 is high until
+    # the job has its own history.  The builds are -O2 -g0, as before: the whole suite at -O0 under
+    # a sanitizer would take many hours.
     timeout-minutes: ${{ matrix.timeout }}
     strategy:
       fail-fast: false
@@ -40,13 +67,15 @@ jobs:
             extra_cxxflags: ""
             sanitizer_cxxflags: "-fsanitize=address -fno-sanitize-recover=all -fno-omit-frame-pointer"
             configureflags: ""
+            threads_only: false
           # TSan.  Routed through Clang because GCC's TSan refuses to compile
           # std::atomic_thread_fence (gcc bug 93922), and pinned to system GCC 14's libstdc++ with
           # --gcc-install-dir so that Clang doesn't pick up gcc-toolset-15's libstdc++-15
           # (constexpr/template-instantiation skew).  Sessions and the thread-safe observer are on:
-          # they are the configurations whose threads share state.
+          # they are the configurations whose threads share state.  Only the labelled cases run
+          # (the header says why).
           - sanitizer: tsan
-            timeout: 550
+            timeout: 120
             cc: /usr/bin/clang
             cxx: /usr/bin/clang++
             extra_path: ""
@@ -57,6 +86,7 @@ jobs:
             extra_cxxflags: "--gcc-install-dir=/usr/lib/gcc/x86_64-redhat-linux/14 -Wno-deprecated-declarations"
             sanitizer_cxxflags: "-fsanitize=thread -fno-sanitize-recover=all"
             configureflags: "--enable-sessions --enable-thread-safe-observer-pattern"
+            threads_only: true
           # UBSan.  Umbrella -fsanitize=undefined; gcc-toolset-15.
           - sanitizer: ubsan
             timeout: 230
@@ -67,6 +97,7 @@ jobs:
             extra_cxxflags: ""
             sanitizer_cxxflags: "-fsanitize=undefined -fno-sanitize-recover=all -fno-omit-frame-pointer"
             configureflags: ""
+            threads_only: false
     steps:
       - name: Set temporary and cache directories
         shell: bash
@@ -79,6 +110,14 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - uses: actions/checkout@v7
+
+      # Before the build, so that a missing label fails the job in seconds.  The labelled cases'
+      # names go to the skip check.
+      - name: Check that only labelled test cases start threads
+        if: matrix.threads_only
+        shell: bash
+        run: |
+          python3 tools/check_thread_labels.py --write "$RUNNER_TEMP/threads.txt"
 
       - name: Compiler version
         shell: bash
@@ -108,6 +147,12 @@ jobs:
             CXXFLAGS="-O2 -g0 ${{ matrix.sanitizer_cxxflags }} ${{ matrix.extra_cxxflags }} -Wall -Wno-unknown-pragmas -Werror"
           make -j"$(nproc)"
 
+      - name: Check that the build starts no other threads
+        if: matrix.threads_only
+        shell: bash
+        run: |
+          python3 tools/check_thread_labels.py --configured .
+
       - name: Show compile cache statistics
         if: always()
         shell: bash
@@ -128,14 +173,23 @@ jobs:
           if [ -n "${{ matrix.extra_ld }}" ]; then
             export LD_LIBRARY_PATH="${{ matrix.extra_ld }}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
           fi
-          ./test-suite/quantlib-test-suite --logger=JUNIT,error,"$RUNNER_TEMP/junit.xml":HRF,message
+          filter=()
+          if [ "${{ matrix.threads_only }}" = true ]; then
+            filter=(--run_test=@threads)
+          fi
+          ./test-suite/quantlib-test-suite "${filter[@]}" --logger=JUNIT,error,"$RUNNER_TEMP/junit.xml":HRF,message
 
       - name: No test skipped
         shell: bash
         run: |
-          python3 tools/check_no_skipped_tests.py "$RUNNER_TEMP/junit.xml" --config-header ql/config.hpp
+          filtered=()
+          if [ "${{ matrix.threads_only }}" = true ]; then
+            filtered=(--filtered "$RUNNER_TEMP/threads.txt")
+          fi
+          python3 tools/check_no_skipped_tests.py "$RUNNER_TEMP/junit.xml" --config-header ql/config.hpp "${filtered[@]}"
 
       - name: Run examples
+        if: ${{ !matrix.threads_only }}
         shell: bash
         run: |
           if [ -n "${{ matrix.extra_ld }}" ]; then
