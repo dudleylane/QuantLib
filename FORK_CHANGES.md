@@ -1182,6 +1182,17 @@ nothing ordered the three stores that published the cache.
     seven labelled cases ran and the filtered skip check passed, in 3
     minutes against 142 on #394's pull-request run; the Unity job built and
     checked the global header with no runs.
+  - **The merge's push.** On `06efb6dcb`: Format Check 45119734238, Build
+    & Test 45119734226, Sanitizers 45119734217 and Coverage 45119734193,
+    9 jobs on four runners in 1 h 16 min and 256 job-minutes (asan 72,
+    coverage 54, ubsan 54, the non-default build 50, the release build 14,
+    Unity 4, tsan 4), all green, against 2 h 21 min and 375 job-minutes
+    for #394's merge's push, whose tsan job took 141. Coveralls took job
+    `#45119734193.1`. The tsan job ran exactly the seven labelled cases;
+    the release, asan, ubsan and coverage jobs ran all 1,853 cases, and
+    the non-default build 1,855 of its 1,859, skipping the four
+    indexed-coupon cases. Every job that uses the compile cache hit all
+    its compiles.
 
 ## Sibling repositories
 
