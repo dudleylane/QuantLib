@@ -311,6 +311,9 @@ where its search doesn't run and 3.9 times where it does.
 #93 then took the critical price's solve out of a Barone-Adesi-Whaley
 price whose option has an engine of its own and whose spot alone moved:
 0.68 of the instructions at the median over 288 inputs.
+#88 took the European path from 11 allocations a tick to 2, the
+instrument's copy of two keys longer than 15 characters, at 0.73 of the
+instructions at the median over 288 inputs.
 
 **What works today:**
 - End-of-day batch pricing of book-sized portfolios is fine on modern
