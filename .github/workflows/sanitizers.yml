@@ -160,7 +160,7 @@ jobs:
           stats=$(ccache --show-log-stats)
           printf '%s\n' "$stats"
           printf '### ccache\n\n~~~\n%s\n~~~\n' "$stats" >> "$GITHUB_STEP_SUMMARY"
-          if [ -d "$CCACHE_DIR" ]; then du -sh "$CCACHE_DIR"; fi
+          if [ -d "$CCACHE_DIR" ]; then du -sh "$CCACHE_DIR" || echo "du exited $? (#401)"; fi
 
       - name: Run tests
         shell: bash

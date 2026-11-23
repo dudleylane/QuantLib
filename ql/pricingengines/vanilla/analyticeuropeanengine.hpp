@@ -35,6 +35,12 @@ namespace QuantLib
     //! Pricing engine for European vanilla options using analytical formulae
     /*! \ingroup vanillaengines
 
+        The engine keeps the entries of its last calculation's
+        additional results across reset() and writes the next
+        calculation's values into them, so recalculating doesn't
+        allocate them again. An instrument still copies them when it
+        fetches the results.
+
         \test
         - the correctness of the returned value is tested by
           reproducing results available in literature.
@@ -76,10 +82,13 @@ namespace QuantLib
         AnalyticEuropeanEngine(ext::shared_ptr<GeneralizedBlackScholesProcess> process,
                                Handle<YieldTermStructure> discountCurve);
         void calculate() const override;
+        void reset() override;
 
       private:
         ext::shared_ptr<GeneralizedBlackScholesProcess> process_;
         Handle<YieldTermStructure> discountCurve_;
+        // the last calculation's additional results, which reset() keeps for calculate() to refill (#88)
+        mutable std::map<std::string, ext::any> previousAdditionalResults_;
     };
 
 }

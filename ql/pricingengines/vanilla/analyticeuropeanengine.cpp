@@ -21,6 +21,7 @@
 #include <ql/exercise.hpp>
 #include <ql/pricingengines/blackcalculator.hpp>
 #include <ql/pricingengines/vanilla/analyticeuropeanengine.hpp>
+#include <iterator>
 #include <utility>
 
 namespace QuantLib
@@ -38,6 +39,15 @@ namespace QuantLib
     {
         registerWith(process_);
         registerWith(discountCurve_);
+    }
+
+    void AnalyticEuropeanEngine::reset()
+    {
+        // Keep the last calculation's additional results for calculate() to refill. The base class then empties the
+        // results, additional ones included, as before (#88).
+        if (!results_.additionalResults.empty())
+            results_.additionalResults.swap(previousAdditionalResults_);
+        VanillaOption::engine::reset();
     }
 
     void AnalyticEuropeanEngine::calculate() const
@@ -97,13 +107,40 @@ namespace QuantLib
         results_.itmCashProbability = black.itmCashProbability();
 
         Real tte = process_->blackVolatility()->timeFromReference(arguments_.exercise->lastDate());
-        results_.additionalResults["spot"] = spot;
-        results_.additionalResults["dividendDiscount"] = dividendDiscount;
-        results_.additionalResults["riskFreeDiscount"] = riskFreeDiscountForFwdEstimation;
-        results_.additionalResults["forward"] = forwardPrice;
-        results_.additionalResults["strike"] = payoff->strike();
-        results_.additionalResults["volatility"] = Real(std::sqrt(variance / tte));
-        results_.additionalResults["timeToExpiry"] = tte;
+        // The additional results, in the order of the map's keys. Where reset() kept the last calculation's entries
+        // and they have these keys, which the walk below checks in this order, write the values into them and hand
+        // them back, which allocates nothing; otherwise insert them, as before (#88). Out of order, the walk would
+        // never match: the values would still be right, but every calculation would insert them again.
+        const std::pair<const char*, Real> additionalResults[] = {
+            {"dividendDiscount", dividendDiscount},
+            {"forward", forwardPrice},
+            {"riskFreeDiscount", riskFreeDiscountForFwdEstimation},
+            {"spot", spot},
+            {"strike", payoff->strike()},
+            {"timeToExpiry", tte},
+            {"volatility", Real(std::sqrt(variance / tte))}};
+        bool sameKeys =
+            results_.additionalResults.empty() && previousAdditionalResults_.size() == std::size(additionalResults);
+        auto entry = previousAdditionalResults_.begin();
+        for (auto result = std::begin(additionalResults); sameKeys && result != std::end(additionalResults);
+             ++result, ++entry)
+        {
+            if (entry->first != result->first)
+                sameKeys = false;
+            else if (auto* value = ext::any_cast<Real>(&entry->second))
+                *value = result->second;
+            else
+                entry->second = result->second;
+        }
+        if (sameKeys)
+        {
+            results_.additionalResults.swap(previousAdditionalResults_);
+        }
+        else
+        {
+            for (const auto& [key, value] : additionalResults)
+                results_.additionalResults[key] = value;
+        }
     }
 
 }
