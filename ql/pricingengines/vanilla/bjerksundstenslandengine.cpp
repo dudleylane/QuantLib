@@ -683,7 +683,6 @@ namespace QuantLib
             // use put-call symmetry
             std::swap(spot, strike);
             std::swap(riskFreeDiscount, dividendDiscount);
-            payoff = ext::make_shared<PlainVanillaPayoff>(Option::Call, strike);
         }
 
         if (variance < QL_EPSILON)
