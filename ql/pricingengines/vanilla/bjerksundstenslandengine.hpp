@@ -45,6 +45,12 @@ namespace QuantLib
                  side or the other of a kink.  A put with r = 0 and
                  q = -sigma^2/2 is the same, with rho and dividend rho swapped.
 
+        The engine keeps the entries of its last calculation's
+        additional results across reset() and writes the next
+        calculation's values into them, so recalculating doesn't
+        allocate them again. An instrument still copies them when it
+        fetches the results.
+
         \ingroup vanillaengines
 
         \test the correctness of the returned value is tested by
@@ -55,15 +61,28 @@ namespace QuantLib
       public:
         BjerksundStenslandApproximationEngine(ext::shared_ptr<GeneralizedBlackScholesProcess>);
         void calculate() const override;
+        void reset() override;
 
       private:
-        OneAssetOption::results americanCallApproximation(Real S, Real X, Real rfD, Real dD, Real variance) const;
-        OneAssetOption::results europeanCallResults(Real S, Real X, Real rfD, Real dD, Real variance) const;
-        OneAssetOption::results immediateExercise(Real S, Real X) const;
-        OneAssetOption::results zeroVarianceCallResults(Real S, Real X, Real rfD, Real dD, Real variance) const;
+        // what the helpers work out besides the results they return, for calculate() to write into the additional
+        // results once (#91)
+        struct ExtraResults
+        {
+            Real strikeGamma = Null<Real>();
+            const char* exerciseType = "";
+        };
+        OneAssetOption::results
+        americanCallApproximation(Real S, Real X, Real rfD, Real dD, Real variance, ExtraResults& extra) const;
+        OneAssetOption::results
+        europeanCallResults(Real S, Real X, Real rfD, Real dD, Real variance, ExtraResults& extra) const;
+        OneAssetOption::results immediateExercise(Real S, Real X, ExtraResults& extra) const;
+        OneAssetOption::results
+        zeroVarianceCallResults(Real S, Real X, Real rfD, Real dD, Real variance, ExtraResults& extra) const;
 
 
         ext::shared_ptr<GeneralizedBlackScholesProcess> process_;
+        // the last calculation's additional results, which reset() keeps for calculate() to refill (#91)
+        mutable std::map<std::string, ext::any> previousAdditionalResults_;
     };
 
 }

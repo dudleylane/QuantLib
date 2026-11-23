@@ -29,6 +29,7 @@
 #include <ql/pricingengines/vanilla/bjerksundstenslandengine.hpp>
 #include <algorithm>
 #include <cmath>
+#include <iterator>
 #include <utility>
 
 namespace QuantLib
@@ -322,8 +323,17 @@ namespace QuantLib
         registerWith(process_);
     }
 
-    OneAssetOption::results
-    BjerksundStenslandApproximationEngine::europeanCallResults(Real S, Real X, Real rfD, Real dD, Real variance) const
+    void BjerksundStenslandApproximationEngine::reset()
+    {
+        // Keep the last calculation's additional results for calculate() to refill. The base class then empties the
+        // results, additional ones included, as before (#91).
+        if (!results_.additionalResults.empty())
+            results_.additionalResults.swap(previousAdditionalResults_);
+        VanillaOption::engine::reset();
+    }
+
+    OneAssetOption::results BjerksundStenslandApproximationEngine::europeanCallResults(
+        Real S, Real X, Real rfD, Real dD, Real variance, ExtraResults& extra) const
     {
 
         OneAssetOption::results results;
@@ -350,13 +360,14 @@ namespace QuantLib
         results.thetaPerDay = black.thetaPerDay(S, t);
 
         results.strikeSensitivity = black.strikeSensitivity();
-        results.additionalResults["strikeGamma"] = Real(results.gamma * squared(S / X));
-        results.additionalResults["exerciseType"] = std::string("European");
+        extra.strikeGamma = results.gamma * squared(S / X);
+        extra.exerciseType = "European";
 
         return results;
     }
 
-    OneAssetOption::results BjerksundStenslandApproximationEngine::immediateExercise(Real S, Real X) const
+    OneAssetOption::results
+    BjerksundStenslandApproximationEngine::immediateExercise(Real S, Real X, ExtraResults& extra) const
     {
         OneAssetOption::results results;
         results.value = std::max(0.0, S - X);
@@ -369,23 +380,23 @@ namespace QuantLib
         results.thetaPerDay = 0.0;
 
         results.strikeSensitivity = -results.delta;
-        results.additionalResults["strikeGamma"] = Real(0.0);
-        results.additionalResults["exerciseType"] = std::string("Immediate");
+        extra.strikeGamma = 0.0;
+        extra.exerciseType = "Immediate";
 
         return results;
     }
 
     OneAssetOption::results BjerksundStenslandApproximationEngine::zeroVarianceCallResults(
-        Real S, Real X, Real rfD, Real dD, Real variance) const
+        Real S, Real X, Real rfD, Real dD, Real variance, ExtraResults& extra) const
     {
         const PlainVanillaPayoff payoff(Option::Call, X);
         const BlackCalculator black(Option::Call, X, S * dD / rfD, std::sqrt(variance), rfD);
         const detail::FixedExerciseResults best = detail::bestFixedExercise(payoff, S, dD, rfD, black);
 
         if (best.exerciseFraction == 1.0)
-            return europeanCallResults(S, X, rfD, dD, variance);
+            return europeanCallResults(S, X, rfD, dD, variance, extra);
         if (best.exerciseFraction == 0.0)
-            return immediateExercise(S, X);
+            return immediateExercise(S, X, extra);
 
         // Exercise at a known time before expiry, which moves with the spot
         // and the strike but not with the volatility or the expiry.
@@ -405,17 +416,18 @@ namespace QuantLib
         results.theta = 0.0;
         results.thetaPerDay = 0.0;
         results.strikeSensitivity = -std::pow(rfD, s);
-        results.additionalResults["strikeGamma"] = Real(results.gamma * squared(S / X));
-        results.additionalResults["exerciseType"] = std::string("American");
+        extra.strikeGamma = results.gamma * squared(S / X);
+        extra.exerciseType = "American";
 
         return results;
     }
 
     OneAssetOption::results BjerksundStenslandApproximationEngine::americanCallApproximation(
-        Real S, Real X, Real rfD, Real dD, Real variance) const
+        Real S, Real X, Real rfD, Real dD, Real variance, ExtraResults& extra) const
     {
 
-        const OneAssetOption::results europeanResults = europeanCallResults(S, X, rfD, dD, variance);
+        ExtraResults europeanExtra;
+        const OneAssetOption::results europeanResults = europeanCallResults(S, X, rfD, dD, variance, europeanExtra);
 
         OneAssetOption::results results;
 
@@ -470,13 +482,14 @@ namespace QuantLib
 
         if (S >= I)
         {
-            results = immediateExercise(S, X);
+            results = immediateExercise(S, X, extra);
         }
         else if (q > 12.5)
         {
             // We have a run away exercise boundary. It is numerically
             // more accurate to use the Greeks of the European engine.
             results = europeanResults;
+            extra = europeanExtra;
         }
         else
         {
@@ -644,15 +657,15 @@ namespace QuantLib
             results.theta = 365 * results.thetaPerDay;
 
             results.strikeSensitivity = results.value / X - S / X * results.delta;
-            results.additionalResults["strikeGamma"] = Real(results.gamma * squared(S / X));
-
-            results.additionalResults["exerciseType"] = std::string("American");
+            extra.strikeGamma = results.gamma * squared(S / X);
+            extra.exerciseType = "American";
         }
 
         // check if European engine gives higher NPV
         if (results.value < europeanResults.value)
         {
             results = europeanResults;
+            extra = europeanExtra;
         }
 
         return results;
@@ -685,9 +698,10 @@ namespace QuantLib
             std::swap(riskFreeDiscount, dividendDiscount);
         }
 
+        ExtraResults extra;
         if (variance < QL_EPSILON)
         {
-            results_ = zeroVarianceCallResults(spot, strike, riskFreeDiscount, dividendDiscount, variance);
+            results_ = zeroVarianceCallResults(spot, strike, riskFreeDiscount, dividendDiscount, variance, extra);
         }
         else if (dividendDiscount > 1.0 && riskFreeDiscount > dividendDiscount)
         {
@@ -695,29 +709,25 @@ namespace QuantLib
         }
         else if (dividendDiscount >= 1.0 && dividendDiscount >= riskFreeDiscount)
         {
-            results_ = europeanCallResults(spot, strike, riskFreeDiscount, dividendDiscount, variance);
+            results_ = europeanCallResults(spot, strike, riskFreeDiscount, dividendDiscount, variance, extra);
         }
         else
         {
             // early exercise can be optimal - use approximation
-            results_ = americanCallApproximation(spot, strike, riskFreeDiscount, dividendDiscount, variance);
+            results_ = americanCallApproximation(spot, strike, riskFreeDiscount, dividendDiscount, variance, extra);
         }
 
         // check if immediate exercise gives higher NPV
         if (results_.value < (spot - strike) * (1 + 10 * QL_EPSILON))
         {
-            results_ = immediateExercise(spot, strike);
+            results_ = immediateExercise(spot, strike, extra);
         }
 
         if (ext::dynamic_pointer_cast<PlainVanillaPayoff>(arguments_.payoff)->optionType() == Option::Put)
         {
 
             std::swap(results_.delta, results_.strikeSensitivity);
-
-            Real tmp = results_.gamma;
-            results_.gamma = ext::any_cast<Real>(results_.additionalResults["strikeGamma"]);
-            results_.additionalResults["strikeGamma"] = tmp;
-
+            std::swap(results_.gamma, extra.strikeGamma);
             std::swap(results_.rho, results_.dividendRho);
 
             Time tr = process_->riskFreeRate()->dayCounter().yearFraction(process_->riskFreeRate()->referenceDate(),
@@ -727,6 +737,34 @@ namespace QuantLib
 
             results_.rho *= tr / tq;
             results_.dividendRho *= tq / tr;
+        }
+
+        // The two additional results. Where reset() kept the last calculation's entries and they have these keys,
+        // which come in this order in the map, write the values into them and hand them back, which allocates
+        // nothing; otherwise insert them, as before (#91).
+        bool sameKeys = results_.additionalResults.empty() && previousAdditionalResults_.size() == 2;
+        if (sameKeys)
+        {
+            const auto exerciseType = previousAdditionalResults_.begin();
+            const auto strikeGamma = std::next(exerciseType);
+            sameKeys = exerciseType->first == "exerciseType" && strikeGamma->first == "strikeGamma";
+            if (sameKeys)
+            {
+                if (auto* value = ext::any_cast<std::string>(&exerciseType->second))
+                    value->assign(extra.exerciseType);
+                else
+                    exerciseType->second = std::string(extra.exerciseType);
+                if (auto* value = ext::any_cast<Real>(&strikeGamma->second))
+                    *value = extra.strikeGamma;
+                else
+                    strikeGamma->second = extra.strikeGamma;
+                results_.additionalResults.swap(previousAdditionalResults_);
+            }
+        }
+        if (!sameKeys)
+        {
+            results_.additionalResults["strikeGamma"] = extra.strikeGamma;
+            results_.additionalResults["exerciseType"] = std::string(extra.exerciseType);
         }
     }
 }
