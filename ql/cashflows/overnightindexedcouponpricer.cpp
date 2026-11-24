@@ -54,22 +54,16 @@ namespace QuantLib
 
     void OvernightIndexedCouponPricer::initialize(const FloatingRateCoupon& coupon)
     {
-        if (const auto* cfCoupon = dynamic_cast<const CappedFlooredOvernightIndexedCoupon*>(&coupon))
+        const OvernightIndexedCoupon* onCoupon = coupon.overnightIndexedCoupon();
+        if (onCoupon == nullptr)
         {
-            auto* underlying = cfCoupon->underlying().get();
+            // a capped or floored overnight coupon gives null only when it has no underlying coupon
             QL_REQUIRE(
-                underlying,
+                dynamic_cast<const CappedFlooredOvernightIndexedCoupon*>(&coupon) == nullptr,
                 "OvernightIndexedCouponPricer: CappedFlooredOvernightIndexedCoupon underlying coupon not defined");
-            coupon_ = cfCoupon->underlying().get();
-        }
-        else if (const auto* onCoupon = dynamic_cast<const OvernightIndexedCoupon*>(&coupon))
-        {
-            coupon_ = onCoupon;
-        }
-        else
-        {
             QL_FAIL("OvernightIndexedCouponPricer: unsupported coupon type");
         }
+        coupon_ = onCoupon;
     }
 
     bool OvernightIndexedCouponPricer::effectiveVolatilityInput() const
@@ -126,7 +120,7 @@ namespace QuantLib
     {
         const Date today = Settings::instance().evaluationDate();
 
-        const ext::shared_ptr<OvernightIndex> index = ext::dynamic_pointer_cast<OvernightIndex>(coupon_->index());
+        const ext::shared_ptr<OvernightIndex>& index = coupon_->overnightIndex();
 
         const auto& fixingDates = coupon_->fixingDates();
         const auto& valueDates = coupon_->valueDates();
@@ -307,7 +301,8 @@ namespace QuantLib
     Rate ArithmeticAveragedOvernightIndexedCouponPricer::averageRate(const Date& date) const
     {
 
-        ext::shared_ptr<OvernightIndex> index = ext::dynamic_pointer_cast<OvernightIndex>(coupon_->index());
+        // a raw pointer, so that the forecast loop below doesn't reload it from the coupon for each fixing
+        const OvernightIndex* index = coupon_->overnightIndex().get();
 
         const auto& fixingDates = coupon_->fixingDates();
         const auto& interestDates = coupon_->interestDates();

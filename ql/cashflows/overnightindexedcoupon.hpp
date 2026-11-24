@@ -76,6 +76,8 @@ namespace QuantLib
                                const Date& rateComputationEndDate = Date());
         //! \name Inspectors
         //@{
+        //! overnight index, the object index() gives
+        const ext::shared_ptr<OvernightIndex>& overnightIndex() const { return overnightIndex_; }
         //! fixing dates for the rates to be compounded
         const std::vector<Date>& fixingDates() const { return fixingDates_; }
         //! accrual (compounding) periods
@@ -111,6 +113,7 @@ namespace QuantLib
         //! the date when the coupon is fully determined
         Date fixingDate() const override { return fixingDates_.back(); }
         Real accruedAmount(const Date&) const override;
+        const OvernightIndexedCoupon* overnightIndexedCoupon() const final { return this; }
         //@}
         //! \name Visitability
         //@{
@@ -128,6 +131,7 @@ namespace QuantLib
         }
         //@}
       private:
+        ext::shared_ptr<OvernightIndex> overnightIndex_;
         std::vector<Date> valueDates_, interestDates_, fixingDates_;
         mutable std::vector<Rate> fixings_;
         Size n_;
@@ -170,6 +174,7 @@ namespace QuantLib
         //! \name FloatingRateCoupon interface
         //@{
         Date fixingDate() const override { return underlying_->fixingDate(); }
+        const OvernightIndexedCoupon* overnightIndexedCoupon() const final { return underlying_.get(); }
         //@}
         //! cap
         Rate cap() const;

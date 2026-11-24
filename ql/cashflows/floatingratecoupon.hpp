@@ -42,6 +42,7 @@ namespace QuantLib
     class InterestRateIndex;
     class YieldTermStructure;
     class FloatingRateCouponPricer;
+    class OvernightIndexedCoupon;
 
     //! base floating-rate coupon class
     class FloatingRateCoupon : public Coupon
@@ -101,6 +102,10 @@ namespace QuantLib
         bool isInArrears() const { return isInArrears_; }
         //! business day convention used for fixing date calculation
         BusinessDayConvention fixingConvention() const { return fixingConvention_; }
+        //! the overnight coupon an overnight pricer prices for this coupon, or null
+        /*! An OvernightIndexedCoupon gives itself, and a CappedFlooredOvernightIndexedCoupon its underlying
+            coupon. */
+        virtual const OvernightIndexedCoupon* overnightIndexedCoupon() const { return nullptr; }
         //@}
 
         //! \name Visitability

@@ -142,7 +142,7 @@ namespace QuantLib
         // this, but as a first step it seems safer to add the full modified code explicitly here and leave the original
         // code alone.
 
-        ext::shared_ptr<OvernightIndex> index = ext::dynamic_pointer_cast<OvernightIndex>(coupon_->index());
+        const ext::shared_ptr<OvernightIndex>& index = coupon_->overnightIndex();
 
         const std::vector<Date>& fixingDates = coupon_->fixingDates();
         const std::vector<Time>& dt = coupon_->dt();
@@ -422,7 +422,7 @@ namespace QuantLib
         // this, but as a first step it seems safer to add the full modified code explicitly here and leave the original
         // code alone.
 
-        ext::shared_ptr<OvernightIndex> index = ext::dynamic_pointer_cast<OvernightIndex>(coupon_->index());
+        const ext::shared_ptr<OvernightIndex>& index = coupon_->overnightIndex();
 
         const std::vector<Date>& fixingDates = coupon_->fixingDates();
         const std::vector<Time>& dt = coupon_->dt();
