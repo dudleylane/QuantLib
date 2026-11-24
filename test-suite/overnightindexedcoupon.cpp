@@ -375,6 +375,38 @@ BOOST_AUTO_TEST_CASE(testCurrentCouponRate)
     CHECK_OIS_COUPON_RESULT("coupon amount", currentCoupon->amount(), expectedAmount, 1e-8);
 }
 
+BOOST_AUTO_TEST_CASE(testCouponStartingTodayRate)
+{
+    BOOST_TEST_MESSAGE("Testing rate for overnight-indexed coupon starting today...");
+
+    CommonVars vars;
+
+    // A curve at zero forecasts every fixing at zero, so the rate tells whether
+    // today's fixing was read.  It is the coupon's first, so the pricers read
+    // the index's history although no earlier fixing is due (#89).
+    vars.forecastCurve.linkTo(flatRate(0.0, Actual360()));
+    const Date end(23, December, 2021);
+    const auto averagings = {RateAveraging::Compound, RateAveraging::Simple};
+
+    for (auto averaging : averagings)
+    {
+        auto coupon = vars.makeCoupon(vars.today, end, Null<Natural>(), 0, false, false, averaging);
+        CHECK_OIS_COUPON_RESULT("coupon rate", coupon->rate(), 0.0, 1e-12);
+    }
+
+    const Rate todaysFixing = 0.0007;
+    vars.sofr->addFixing(vars.today, todaysFixing);
+
+    for (auto averaging : averagings)
+    {
+        auto coupon = vars.makeCoupon(vars.today, end, Null<Natural>(), 0, false, false, averaging);
+        const auto& valueDates = coupon->valueDates();
+        Rate expectedRate =
+            todaysFixing * vars.sofr->dayCounter().yearFraction(valueDates[0], valueDates[1]) / coupon->accrualPeriod();
+        CHECK_OIS_COUPON_RESULT("coupon rate", coupon->rate(), expectedRate, 1e-12);
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testFutureCouponRate)
 {
     BOOST_TEST_MESSAGE("Testing rate for future overnight-indexed coupon...");
