@@ -46,6 +46,7 @@
 #include <ql/time/schedule.hpp>
 #include <cmath>
 #include <iomanip>
+#include <stdexcept>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -1438,6 +1439,241 @@ BOOST_AUTO_TEST_CASE(testActualActualOutOfScheduleRange)
     }
 
     Settings::instance().evaluationDate() = temp;
+}
+
+// A year fraction, or the message of what it throws.
+struct YearFractionOutcome
+{
+    bool threw = false;
+    Real value = 0.0;
+    std::string message;
+};
+
+YearFractionOutcome yearFractionOutcome(const DayCounter& dayCounter, const Date& d1, const Date& d2)
+{
+    YearFractionOutcome outcome;
+    try
+    {
+        outcome.value = dayCounter.yearFraction(d1, d2);
+    }
+    catch (const Error& e)
+    {
+        outcome.threw = true;
+        outcome.message = e.what();
+    }
+    return outcome;
+}
+
+std::ostream& operator<<(std::ostream& out, const YearFractionOutcome& outcome)
+{
+    if (outcome.threw)
+        return out << "threw \"" << outcome.message << "\"";
+    return out << std::setprecision(17) << outcome.value;
+}
+
+BOOST_AUTO_TEST_CASE(testActualActualWithScheduleAfterItsCalendarChanges)
+{
+    BOOST_TEST_MESSAGE("Testing actual/actual (ISMA) with a schedule after its calendar's holidays change...");
+
+    // The short first period's notional start is taken on the schedule's
+    // calendar: 15 September 2026, a Tuesday, which a holiday moves to the
+    // 16th, and the reference period from 181 days to 180.  A day counter
+    // built before a change gives what one built after it gives (#102).
+    BespokeCalendar calendar("actual/actual (ISMA) after holiday changes");
+    calendar.addWeekend(Saturday);
+    calendar.addWeekend(Sunday);
+    const Date issue(1, October, 2026), firstCoupon(15, March, 2027), secondCoupon(15, September, 2027);
+    const Date holiday(15, September, 2026);
+    const Schedule schedule(issue, Date(15, September, 2031), Period(6, Months), calendar, Following, Following,
+                            DateGeneration::Backward, false);
+    const DayCounter builtFirst = ActualActual(ActualActual::ISMA, schedule);
+
+    const auto check = [&](const DayCounter& dayCounter, const std::string& built, Real days, const std::string& when)
+    {
+        const Real expected[] = {165.0 / days, 165.0 / days + 0.5};
+        const Date ends[] = {firstCoupon, secondCoupon};
+        for (Size i = 0; i < 2; ++i)
+        {
+            const Real calculated = dayCounter.yearFraction(issue, ends[i]);
+            if (calculated != expected[i])
+                BOOST_ERROR("year fraction from " << issue << " to " << ends[i] << " " << when << ", day counter built "
+                                                  << built << ":" << std::setprecision(17) << "\n    calculated: "
+                                                  << calculated << "\n    expected:   " << expected[i]);
+        }
+    };
+
+    check(builtFirst, "first", 362.0, "before any change");
+
+    calendar.addHoliday(holiday);
+    const DayCounter builtWithTheHoliday = ActualActual(ActualActual::ISMA, schedule);
+    check(builtFirst, "first", 360.0, "with the holiday");
+    check(builtWithTheHoliday, "with the holiday", 360.0, "with the holiday");
+    // From 15 September, which is out of the schedule's range for both
+    // while the holiday stands.
+    Size values = 0, throws = 0;
+    for (Date d1 = holiday; d1 < secondCoupon; d1 += 3)
+    {
+        for (Date d2 = d1 + 1; d2 <= secondCoupon; d2 += 5)
+        {
+            const YearFractionOutcome fromFirst = yearFractionOutcome(builtFirst, d1, d2);
+            const YearFractionOutcome fromLater = yearFractionOutcome(builtWithTheHoliday, d1, d2);
+            ++(fromFirst.threw ? throws : values);
+            if (fromFirst.threw != fromLater.threw || fromFirst.value != fromLater.value ||
+                fromFirst.message != fromLater.message)
+                BOOST_ERROR("year fraction from " << d1 << " to " << d2 << " with the holiday:"
+                                                  << "\n    day counter built first:            " << fromFirst
+                                                  << "\n    day counter built with the holiday: " << fromLater);
+        }
+    }
+    BOOST_CHECK_MESSAGE(values > 3000 && throws > 50, values << " values and " << throws << " throws compared");
+
+    calendar.removeHoliday(holiday);
+    const DayCounter builtLast = ActualActual(ActualActual::ISMA, schedule);
+    check(builtFirst, "first", 362.0, "after the holiday is removed");
+    check(builtWithTheHoliday, "with the holiday", 362.0, "after the holiday is removed");
+    check(builtLast, "last", 362.0, "after the holiday is removed");
+}
+
+BOOST_AUTO_TEST_CASE(testActualActualWithScheduleBeforeAndAfterACalendarChange)
+{
+    BOOST_TEST_MESSAGE("Testing actual/actual (ISMA) with a schedule built before and after a calendar change...");
+
+    // A day counter built before a recorded calendar change computes the
+    // schedule's dates on each call; one built after it keeps those it
+    // computed and, where they are in order, skips the periods before d1
+    // and from d2 on.  Both give the same year fractions, and throw the
+    // same, on schedules of each shape, and on one whose dates aren't in
+    // order (#102).
+    const Calendar calendar = UnitedStates(UnitedStates::GovernmentBond);
+    const Period tenor(6, Months);
+    const auto build = [&](const Date& start, const Date& end, DateGeneration::Rule rule, const Date& firstDate,
+                           const Date& nextToLastDate)
+    { return Schedule(start, end, tenor, calendar, Following, Following, rule, false, firstDate, nextToLastDate); };
+    const std::vector<std::pair<std::string, Schedule>> schedules = {
+        {"regular",
+         build(Date(15, September, 2026), Date(15, September, 2029), DateGeneration::Backward, Date(), Date())},
+        {"short first",
+         build(Date(1, October, 2026), Date(15, September, 2029), DateGeneration::Backward, Date(), Date())},
+        {"long first", build(Date(1, August, 2026), Date(15, September, 2029), DateGeneration::Backward,
+                             Date(15, March, 2027), Date())},
+        {"short last", build(Date(15, September, 2026), Date(1, July, 2029), DateGeneration::Forward, Date(), Date())},
+        {"long last", build(Date(15, September, 2026), Date(1, July, 2029), DateGeneration::Forward, Date(),
+                            Date(15, September, 2028))},
+        {"out of order", Schedule({Date(15, September, 2026), Date(15, September, 2027), Date(15, March, 2027),
+                                   Date(15, March, 2028), Date(15, September, 2028)},
+                                  calendar, Unadjusted, Unadjusted, tenor, DateGeneration::Backward, false,
+                                  std::vector<bool>(4, true))}};
+
+    for (const auto& [shape, schedule] : schedules)
+    {
+        const DayCounter builtBefore = ActualActual(ActualActual::ISMA, schedule);
+        QuantLib::detail::recordCalendarChange();
+        const DayCounter builtAfter = ActualActual(ActualActual::ISMA, schedule);
+
+        Size values = 0, throws = 0, mismatches = 0;
+        // a month either side of the schedule's dates, so that some calls throw
+        const Date first = schedule.dates().front() - 31, last = schedule.dates().back() + 31;
+        for (Date d1 = first; d1 <= last; ++d1)
+        {
+            for (Integer length : {1, 13, 92, 183, 366, 1000})
+            {
+                const Date d2 = d1 + length;
+                if (d2 > last)
+                    break;
+                const YearFractionOutcome before = yearFractionOutcome(builtBefore, d1, d2);
+                const YearFractionOutcome after = yearFractionOutcome(builtAfter, d1, d2);
+                ++(before.threw ? throws : values);
+                if (before.threw != after.threw || before.value != after.value || before.message != after.message)
+                {
+                    if (++mismatches <= 5)
+                        BOOST_ERROR(shape << " schedule, year fraction from " << d1 << " to " << d2
+                                          << ":\n    built before the change: " << before
+                                          << "\n    built after it:          " << after);
+                }
+            }
+        }
+        if (mismatches > 5)
+            BOOST_ERROR(shape << " schedule: " << mismatches << " year fractions differ in all");
+        // the grid reaches past both ends of the schedule's dates, and inside them
+        BOOST_CHECK_MESSAGE(values > 1000 && throws > 100,
+                            shape << " schedule: " << values << " values and " << throws << " throws compared");
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testActualActualWithScheduleAfterACalendarChangeReordersItsDates)
+{
+    BOOST_TEST_MESSAGE("Testing actual/actual (ISMA) with a schedule whose dates a calendar change reorders...");
+
+    // The notional start of a weekly schedule's short first period is
+    // taken a week before its first coupon and rolled forward.  Once every
+    // day from then to two days after the coupon is a holiday, it rolls
+    // past the coupon, and the dates are no longer in order.  A day counter
+    // built before the holidays, while the dates were in order, gives what
+    // one built after them gives (#102).
+    BespokeCalendar calendar("actual/actual (ISMA) with reordered dates");
+    calendar.addWeekend(Saturday);
+    calendar.addWeekend(Sunday);
+    const Schedule schedule(Date(5, March, 2027), Date(2, June, 2027), Period(1, Weeks), calendar, Following, Following,
+                            DateGeneration::Backward, false);
+    const DayCounter builtBefore = ActualActual(ActualActual::ISMA, schedule);
+    const Date firstCoupon = schedule.date(1);
+    for (Date d = firstCoupon - 7; d <= firstCoupon + 2; ++d)
+        calendar.addHoliday(d);
+    const DayCounter builtAfter = ActualActual(ActualActual::ISMA, schedule);
+
+    Size values = 0, throws = 0, mismatches = 0;
+    for (Date d1 = schedule.date(0) - 7; d1 <= schedule.date(0) + 35; ++d1)
+    {
+        for (Integer length : {1, 3, 7, 10, 21})
+        {
+            const Date d2 = d1 + length;
+            const YearFractionOutcome before = yearFractionOutcome(builtBefore, d1, d2);
+            const YearFractionOutcome after = yearFractionOutcome(builtAfter, d1, d2);
+            ++(before.threw ? throws : values);
+            if (before.threw != after.threw || before.value != after.value || before.message != after.message)
+            {
+                if (++mismatches <= 5)
+                    BOOST_ERROR("year fraction from " << d1 << " to " << d2 << ":\n    built before the holidays: "
+                                                      << before << "\n    built after them:          " << after);
+            }
+        }
+    }
+    if (mismatches > 5)
+        BOOST_ERROR(mismatches << " year fractions differ in all");
+    BOOST_CHECK_MESSAGE(values > 100 && throws > 20, values << " values and " << throws << " throws compared");
+}
+
+BOOST_AUTO_TEST_CASE(testActualActualWithScheduleWithoutTenor)
+{
+    BOOST_TEST_MESSAGE("Testing actual/actual (ISMA) with schedules without a tenor...");
+
+    // Neither schedule can give the notional dates of its first and last
+    // periods: one has no tenor, and the other has a single date.  The day
+    // counter is still built on each, and its year fractions throw, as they
+    // did when it computed the dates on each call (#102).
+    const Schedule schedule({Date(15, March, 2027), Date(15, September, 2027), Date(15, March, 2028)});
+    try
+    {
+        const DayCounter dayCounter = ActualActual(ActualActual::ISMA, schedule);
+        BOOST_CHECK_EXCEPTION(dayCounter.yearFraction(Date(15, March, 2027), Date(15, September, 2027)), Error,
+                              [](const Error& e)
+                              { return std::string(e.what()).find("full interface") != std::string::npos; });
+    }
+    catch (const std::exception& e)
+    {
+        BOOST_ERROR("building the day counter threw: " << e.what());
+    }
+
+    const Schedule oneDate({Date(15, March, 2027)});
+    try
+    {
+        const DayCounter dayCounter = ActualActual(ActualActual::ISMA, oneDate);
+        BOOST_CHECK_THROW(dayCounter.yearFraction(Date(15, March, 2027), Date(15, April, 2027)), std::out_of_range);
+    }
+    catch (const std::exception& e)
+    {
+        BOOST_ERROR("building the day counter on a schedule of one date threw: " << e.what());
+    }
 }
 
 BOOST_AUTO_TEST_CASE(testAct366)
