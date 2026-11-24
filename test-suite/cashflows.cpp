@@ -22,9 +22,11 @@
 #include "utilities.hpp"
 #include <ql/cashflows/cashflows.hpp>
 #include <ql/cashflows/couponpricer.hpp>
+#include <ql/cashflows/dividend.hpp>
 #include <ql/cashflows/fixedratecoupon.hpp>
 #include <ql/cashflows/floatingratecoupon.hpp>
 #include <ql/cashflows/iborcoupon.hpp>
+#include <ql/cashflows/indexedcashflow.hpp>
 #include <ql/cashflows/overnightindexedcoupon.hpp>
 #include <ql/cashflows/simplecashflow.hpp>
 #include <ql/indexes/ibor/euribor.hpp>
@@ -863,6 +865,101 @@ BOOST_AUTO_TEST_CASE(testIborCouponKnowsWhenitHasFixed)
     {
         IborCoupon coupon = iborCouponForFixingDate(index, calendar.advance(today, 1, Days));
         BOOST_CHECK_EQUAL(coupon.hasFixed(), false);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testCashFlowAsCoupon)
+{
+    BOOST_TEST_MESSAGE("Testing that a cash flow gives itself as a coupon exactly when a cast does...");
+
+    Date today(13, May, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    Handle<YieldTermStructure> curve(flatRate(today, 0.03, Actual365Fixed()));
+    auto euribor = ext::make_shared<Euribor6M>(curve);
+    auto sofr = ext::make_shared<Sofr>(curve);
+    Schedule schedule = MakeSchedule()
+                            .from(today)
+                            .to(today + 1 * Years)
+                            .withFrequency(Semiannual)
+                            .withCalendar(TARGET())
+                            .withConvention(Following);
+
+    Leg leg = FixedRateLeg(schedule).withNotionals(100.0).withCouponRates(0.03, Actual360());
+    for (const Leg& other : {Leg(IborLeg(schedule, euribor).withNotionals(100.0)),
+                             Leg(IborLeg(schedule, euribor).withNotionals(100.0).withCaps(0.04).withFloors(0.02)),
+                             Leg(OvernightLeg(schedule, sofr).withNotionals(100.0))})
+        leg.insert(leg.end(), other.begin(), other.end());
+    leg.push_back(ext::make_shared<SimpleCashFlow>(1.0, today + 1 * Years));
+    leg.push_back(ext::make_shared<Redemption>(100.0, today + 1 * Years));
+    leg.push_back(ext::make_shared<AmortizingPayment>(10.0, today + 6 * Months));
+    leg.push_back(ext::make_shared<IndexedCashFlow>(100.0, euribor, today, today + 6 * Months, today + 1 * Years));
+    leg.push_back(ext::make_shared<FixedDividend>(1.0, today + 3 * Months));
+
+    Size coupons = 0;
+    for (const auto& cf : leg)
+    {
+        const auto* expected = dynamic_cast<const Coupon*>(cf.get());
+        if (cf->asCoupon() != expected)
+            BOOST_ERROR("cash flow paid on " << cf->date() << " is " << (expected != nullptr ? "" : "not ")
+                                             << "a coupon, but asCoupon() says otherwise");
+        if (expected != nullptr)
+            ++coupons;
+    }
+    BOOST_CHECK_EQUAL(coupons, 8U);
+    BOOST_CHECK_EQUAL(leg.size(), 13U);
+}
+
+BOOST_AUTO_TEST_CASE(testCouponInspectorsAmongOtherCashFlows)
+{
+    BOOST_TEST_MESSAGE("Testing that CashFlows' coupon inspectors find a coupon among other cash flows...");
+
+    Date today(13, May, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    Schedule schedule = MakeSchedule()
+                            .from(today)
+                            .to(today + 1 * Years)
+                            .withFrequency(Semiannual)
+                            .withCalendar(TARGET())
+                            .withConvention(Following);
+    Leg coupons =
+        FixedRateLeg(schedule).withNotionals(std::vector<Real>{100.0, 90.0}).withCouponRates(0.03, Actual360());
+    BOOST_REQUIRE_EQUAL(coupons.size(), 2U);
+
+    // a dividend paid alone, then each coupon paid after another cash flow paid on its date
+    Leg leg = {ext::make_shared<FixedDividend>(1.0, today + 3 * Months),
+               ext::make_shared<AmortizingPayment>(10.0, coupons[0]->date()), coupons[0],
+               ext::make_shared<Redemption>(90.0, coupons[1]->date()), coupons[1]};
+
+    // the next cash flow is the dividend, which isn't a coupon
+    Date settlement = today + 1 * Months;
+    BOOST_CHECK_EQUAL(CashFlows::nominal(leg, false, settlement), 0.0);
+    BOOST_CHECK_EQUAL(CashFlows::accrualStartDate(leg, false, settlement), Date());
+    BOOST_CHECK_EQUAL(CashFlows::accrualEndDate(leg, false, settlement), Date());
+    BOOST_CHECK_EQUAL(CashFlows::referencePeriodStart(leg, false, settlement), Date());
+    BOOST_CHECK_EQUAL(CashFlows::referencePeriodEnd(leg, false, settlement), Date());
+    BOOST_CHECK_EQUAL(CashFlows::accrualPeriod(leg, false, settlement), 0.0);
+    BOOST_CHECK_EQUAL(CashFlows::accrualDays(leg, false, settlement), 0);
+    BOOST_CHECK_EQUAL(CashFlows::accruedPeriod(leg, false, settlement), 0.0);
+    BOOST_CHECK_EQUAL(CashFlows::accruedDays(leg, false, settlement), 0);
+    BOOST_CHECK_EQUAL(CashFlows::accruedAmount(leg, false, settlement), 0.0);
+
+    for (Size i = 0; i < coupons.size(); ++i)
+    {
+        auto coupon = ext::dynamic_pointer_cast<Coupon>(coupons[i]);
+        BOOST_REQUIRE(coupon);
+        settlement = i == 0 ? today + 4 * Months : coupons[0]->date() + 1 * Months;
+        BOOST_CHECK_EQUAL(CashFlows::nominal(leg, false, settlement), coupon->nominal());
+        BOOST_CHECK_EQUAL(CashFlows::accrualStartDate(leg, false, settlement), coupon->accrualStartDate());
+        BOOST_CHECK_EQUAL(CashFlows::accrualEndDate(leg, false, settlement), coupon->accrualEndDate());
+        BOOST_CHECK_EQUAL(CashFlows::referencePeriodStart(leg, false, settlement), coupon->referencePeriodStart());
+        BOOST_CHECK_EQUAL(CashFlows::referencePeriodEnd(leg, false, settlement), coupon->referencePeriodEnd());
+        BOOST_CHECK_EQUAL(CashFlows::accrualPeriod(leg, false, settlement), coupon->accrualPeriod());
+        BOOST_CHECK_EQUAL(CashFlows::accrualDays(leg, false, settlement), coupon->accrualDays());
+        BOOST_CHECK_EQUAL(CashFlows::accruedPeriod(leg, false, settlement), coupon->accruedPeriod(settlement));
+        BOOST_CHECK_EQUAL(CashFlows::accruedDays(leg, false, settlement), coupon->accruedDays(settlement));
+        BOOST_CHECK_EQUAL(CashFlows::accruedAmount(leg, false, settlement), coupon->accruedAmount(settlement));
     }
 }
 
