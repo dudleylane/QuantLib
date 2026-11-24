@@ -101,7 +101,9 @@ namespace QuantLib
 
         initializeCachedData(*coupon_);
 
-        index_ = coupon_->iborIndex();
+        // a coupon priced again, or the next coupon on the same index, finds the index already held (#97)
+        if (index_ != coupon_->iborIndex())
+            index_ = coupon_->iborIndex();
         gearing_ = coupon_->gearing();
         spread_ = coupon_->spread();
         accrualPeriod_ = coupon_->accrualPeriod();

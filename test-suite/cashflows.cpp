@@ -739,6 +739,46 @@ BOOST_AUTO_TEST_CASE(testBlackIborCouponPricerPrices)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testBlackIborCouponPricerSharedByTwoIndexes)
+{
+    BOOST_TEST_MESSAGE("Testing a Black ibor pricer shared by coupons on two indexes...");
+
+    Date today(13, May, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    Calendar calendar = TARGET();
+    Handle<YieldTermStructure> curve3M(flatRate(today, 0.02, Actual365Fixed()));
+    Handle<YieldTermStructure> curve6M(flatRate(today, 0.04, Actual365Fixed()));
+    Handle<OptionletVolatilityStructure> volatility(
+        ext::make_shared<ConstantOptionletVolatility>(0, calendar, Following, 0.20, Actual365Fixed()));
+    const std::vector<ext::shared_ptr<IborIndex>> indexes = {ext::make_shared<Euribor3M>(curve3M),
+                                                             ext::make_shared<Euribor6M>(curve6M)};
+    auto pricer = ext::make_shared<BlackIborCouponPricer>(volatility);
+
+    // each coupon is priced on its own index's curve, whichever coupon the pricer worked on before
+    for (Size pass = 0; pass < 2; ++pass)
+    {
+        for (const auto& index : indexes)
+        {
+            Date fixingDate = calendar.advance(today, 1, Years);
+            Date startDate = index->valueDate(fixingDate);
+            Date endDate = index->maturityDate(startDate);
+            Date paymentDate = calendar.advance(endDate, 5, Days);
+            IborCoupon coupon(paymentDate, 100.0, startDate, endDate, index->fixingDays(), index);
+            coupon.setPricer(pricer);
+            pricer->initialize(coupon);
+
+            const Real expected = pricer->swapletRate() * coupon.accrualPeriod() *
+                                  index->forwardingTermStructure()->discount(paymentDate);
+            const Real calculated = pricer->swapletPrice();
+            if (std::fabs(calculated - expected) > 1e-14 * std::fabs(expected))
+                BOOST_ERROR(index->name()
+                            << " swaplet price, pass " << pass + 1 << ", mismatch:" << std::setprecision(17)
+                            << "\n    calculated: " << calculated << "\n    expected:   " << expected);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testIborCouponDatesWorkedOutByAnotherPricer)
 {
     BOOST_TEST_MESSAGE("Testing an ibor coupon without a pricer whose dates another pricer has worked out...");
