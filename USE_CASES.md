@@ -332,6 +332,11 @@ discount factor on a curve of 9 OIS helpers make no allocation where
 they made 432. #102 keeps an Act/Act ISMA day counter's schedule dates
 from its construction, so a 30-year semiannual bond's yield from a
 clean price makes no allocation where it made 917 on average.
+#97 and #412 took four per-coupon costs and a cast for every cash flow off
+an Ibor swap's reprice, and the cast off an OIS's: a quote tick and a
+discount factor on a curve of 3 deposits and 6 swaps run 49 % fewer
+instructions, and on a curve of 9 OIS helpers 37 % fewer. The overnight
+pricer's own casts remain (#414).
 
 **What works today:**
 - End-of-day batch pricing of book-sized portfolios is fine on modern
