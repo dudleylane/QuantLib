@@ -221,7 +221,7 @@ namespace QuantLib
 
             // default accruals
 
-            if (!detail::simple_event(coupon->accrualEndDate()).hasOccurred(effectiveProtectionStart, false))
+            if (!detail::hasOccurred(coupon->accrualEndDate(), effectiveProtectionStart, false))
             {
                 Date start = std::max<Date>(coupon->accrualStartDate(), effectiveProtectionStart) - 1;
                 Date end = coupon->date() - 1;

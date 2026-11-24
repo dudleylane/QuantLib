@@ -75,7 +75,7 @@ namespace QuantLib
 
     bool ForwardRateAgreement::isExpired() const
     {
-        return detail::simple_event(valueDate_).hasOccurred();
+        return detail::hasOccurred(valueDate_);
     }
 
     Real ForwardRateAgreement::amount() const

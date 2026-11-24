@@ -56,7 +56,7 @@ namespace QuantLib
     bool NonstandardSwaption::isExpired() const
     {
 
-        return detail::simple_event(exercise_->dates().back()).hasOccurred();
+        return detail::hasOccurred(exercise_->dates().back());
     }
 
     void NonstandardSwaption::setupArguments(PricingEngine::arguments* args) const

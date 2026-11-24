@@ -80,7 +80,7 @@ namespace QuantLib
 
     bool CdsOption::isExpired() const
     {
-        return detail::simple_event(exercise_->dates().back()).hasOccurred();
+        return detail::hasOccurred(exercise_->dates().back());
     }
 
     void CdsOption::setupExpired() const

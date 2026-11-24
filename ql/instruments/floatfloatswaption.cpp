@@ -45,7 +45,7 @@ namespace QuantLib
 
     bool FloatFloatSwaption::isExpired() const
     {
-        return detail::simple_event(exercise_->dates().back()).hasOccurred();
+        return detail::hasOccurred(exercise_->dates().back());
     }
 
     void FloatFloatSwaption::setupArguments(PricingEngine::arguments* args) const

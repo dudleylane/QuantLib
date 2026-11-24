@@ -51,7 +51,7 @@ namespace QuantLib
 
     bool EnergyVanillaSwap::isExpired() const
     {
-        return detail::simple_event(pricingPeriods_.back()->endDate()).hasOccurred();
+        return detail::hasOccurred(pricingPeriods_.back()->endDate());
     }
 
     void EnergyVanillaSwap::performCalculations() const

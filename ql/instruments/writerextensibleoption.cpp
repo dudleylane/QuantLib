@@ -45,7 +45,7 @@ namespace QuantLib
 
     bool WriterExtensibleOption::isExpired() const
     {
-        return detail::simple_event(exercise2_->lastDate()).hasOccurred();
+        return detail::hasOccurred(exercise2_->lastDate());
     }
 
     void WriterExtensibleOption::arguments::validate() const
