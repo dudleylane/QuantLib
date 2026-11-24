@@ -55,14 +55,25 @@ namespace QuantLib
       private:
         struct CaseInsensitiveCompare
         {
+            // Orders as comparing the upper-cased characters lexicographically does, but upper-cases
+            // only characters that differ: equal characters stay equal, and a lookup compares the name
+            // with its own key along its whole length.
             bool operator()(const std::string& s1, const std::string& s2) const
             {
-                return std::lexicographical_compare(s1.begin(), s1.end(), s2.begin(), s2.end(),
-                                                    [](const auto& c1, const auto& c2)
-                                                    {
-                                                        return std::toupper(static_cast<unsigned char>(c1)) <
-                                                               std::toupper(static_cast<unsigned char>(c2));
-                                                    });
+                const std::size_t n = std::min(s1.size(), s2.size());
+                for (std::size_t i = 0; i < n; ++i)
+                {
+                    const auto c1 = static_cast<unsigned char>(s1[i]);
+                    const auto c2 = static_cast<unsigned char>(s2[i]);
+                    if (c1 != c2)
+                    {
+                        const int u1 = std::toupper(c1);
+                        const int u2 = std::toupper(c2);
+                        if (u1 != u2)
+                            return u1 < u2;
+                    }
+                }
+                return s1.size() < s2.size();
             }
         };
 
