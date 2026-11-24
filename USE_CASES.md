@@ -335,8 +335,11 @@ clean price makes no allocation where it made 917 on average.
 #97 and #412 took four per-coupon costs and a cast for every cash flow off
 an Ibor swap's reprice, and the cast off an OIS's: a quote tick and a
 discount factor on a curve of 3 deposits and 6 swaps run 49 % fewer
-instructions, and on a curve of 9 OIS helpers 37 % fewer. The overnight
-pricer's own casts remain (#414).
+instructions, and on a curve of 9 OIS helpers 37 % fewer. #414 then took
+the overnight pricers' own casts off: that OIS curve's tick runs 12 %
+fewer instructions again, and a compounded OIS's NPV 10 to 12 % fewer. An
+averaged or lookback OIS spends almost all of its instructions forecasting
+each day, and gains 0.1 to 0.2 % (#416).
 
 **What works today:**
 - End-of-day batch pricing of book-sized portfolios is fine on modern
