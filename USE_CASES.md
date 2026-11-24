@@ -317,6 +317,15 @@ instructions at the median over 288 inputs.
 #91 took the Bjerksund-Stensland path from 10 allocations a tick for a
 put, and 9 for a call, to 1, the instrument's copy of the exercise
 type's name, at 0.93 of the instructions for a put and 0.95 for a call.
+#98 keeps a process's local volatility across ticks when its Black
+volatility is a `BlackConstantVol` or a `BlackVarianceCurve`, so a tick
+no longer rebuilds it for the engines that read it: 9 allocations fewer,
+and the geometric Asian engine's NPV takes 6 where it took 15. #90 took
+a link to the curve for each helper, and the bootstrap's three vectors,
+off every rebuild of a bootstrapped curve: a quote tick and a discount
+factor on a curve of 3 deposits and 6 swaps make 30 allocations where
+they made 42, the rest being the coupons' copies of their index's name
+(#89).
 
 **What works today:**
 - End-of-day batch pricing of book-sized portfolios is fine on modern
