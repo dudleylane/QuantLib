@@ -326,6 +326,12 @@ off every rebuild of a bootstrapped curve: a quote tick and a discount
 factor on a curve of 3 deposits and 6 swaps make 30 allocations where
 they made 42, the rest being the coupons' copies of their index's name
 (#89).
+#89 took the overnight coupons' history lookups off an OIS curve's
+rebuild, where none of its coupons has a fixing due: a quote tick and a
+discount factor on a curve of 9 OIS helpers make no allocation where
+they made 432. #102 keeps an Act/Act ISMA day counter's schedule dates
+from its construction, so a 30-year semiannual bond's yield from a
+clean price makes no allocation where it made 917 on average.
 
 **What works today:**
 - End-of-day batch pricing of book-sized portfolios is fine on modern
