@@ -90,7 +90,9 @@ namespace QuantLib
         auto* arguments = dynamic_cast<Swap::arguments*>(args);
         QL_REQUIRE(arguments != nullptr, "wrong argument type");
 
-        arguments->legs = legs_;
+        // the legs are copied only when they differ from the arguments' (#97)
+        if (arguments->legs != legs_)
+            arguments->legs = legs_;
         arguments->payer = payer_;
     }
 

@@ -140,7 +140,8 @@ namespace QuantLib
 
         virtual Rate adjustedFixing(Rate fixing = Null<Rate>()) const;
 
-        Real discount_;
+        //! the forecast curve's discount factor at the payment date, or 1 if the coupon is paid by its reference date
+        Real discount() const;
 
       private:
         const TimingAdjustment timingAdjustment_;
@@ -205,8 +206,8 @@ namespace QuantLib
     inline Real BlackIborCouponPricer::swapletPrice() const
     {
         // past or future fixing is managed in InterestRateIndex::fixing()
-        QL_REQUIRE(discount_ != Null<Rate>(), "no forecast curve provided");
-        return swapletRate() * accrualPeriod_ * discount_;
+        const Real d = discount(); // first, so that a missing curve is the error reported
+        return swapletRate() * accrualPeriod_ * d;
     }
 
     inline Rate BlackIborCouponPricer::swapletRate() const
@@ -216,8 +217,8 @@ namespace QuantLib
 
     inline Real BlackIborCouponPricer::capletPrice(Rate effectiveCap) const
     {
-        QL_REQUIRE(discount_ != Null<Rate>(), "no forecast curve provided");
-        return capletRate(effectiveCap) * accrualPeriod_ * discount_;
+        const Real d = discount();
+        return capletRate(effectiveCap) * accrualPeriod_ * d;
     }
 
     inline Rate BlackIborCouponPricer::capletRate(Rate effectiveCap) const
@@ -227,8 +228,8 @@ namespace QuantLib
 
     inline Real BlackIborCouponPricer::floorletPrice(Rate effectiveFloor) const
     {
-        QL_REQUIRE(discount_ != Null<Rate>(), "no forecast curve provided");
-        return floorletRate(effectiveFloor) * accrualPeriod_ * discount_;
+        const Real d = discount();
+        return floorletRate(effectiveFloor) * accrualPeriod_ * d;
     }
 
     inline Rate BlackIborCouponPricer::floorletRate(Rate effectiveFloor) const
