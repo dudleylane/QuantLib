@@ -222,6 +222,31 @@ BOOST_AUTO_TEST_CASE(testTodaysFixingWithHolidayMaturity)
     BOOST_CHECK_SMALL(future.NPV() - 100.0 * (1.0 - rate), 1.0e-10);
 }
 
+BOOST_AUTO_TEST_CASE(testAveragedRateStartingToday)
+{
+    BOOST_TEST_MESSAGE("Testing an averaging future whose first fixing is today's...");
+
+    // A curve at zero forecasts every fixing at zero, so the price tells whether
+    // today's fixing was read.  It is the future's first, so the future reads
+    // the index's history although no earlier fixing is due (#89).
+    const Date today(3, June, 2024), tomorrow(4, June, 2024), maturity(5, June, 2024);
+    Settings::instance().evaluationDate() = today;
+
+    Handle<YieldTermStructure> curve(ext::make_shared<FlatForward>(today, 0.0, Actual360()));
+    auto sofr = ext::make_shared<Sofr>(curve);
+
+    const OvernightIndexFuture notFixed(sofr, today, maturity, Handle<Quote>(), RateAveraging::Simple);
+    BOOST_CHECK_SMALL(notFixed.NPV() - 100.0, 1.0e-10);
+
+    const Rate todays = 0.09;
+    sofr->addFixing(today, todays);
+
+    const OvernightIndexFuture fixed(sofr, today, maturity, Handle<Quote>(), RateAveraging::Simple);
+    const DayCounter dayCounter = sofr->dayCounter();
+    const Rate rate = todays * dayCounter.yearFraction(today, tomorrow) / dayCounter.yearFraction(today, maturity);
+    BOOST_CHECK_SMALL(fixed.NPV() - 100.0 * (1.0 - rate), 1.0e-10);
+}
+
 BOOST_AUTO_TEST_CASE(testHelperNotNotifiedByItsOwnBootstrap)
 {
     BOOST_TEST_MESSAGE("Testing that a future's rate helper isn't notified when it bootstraps a curve...");

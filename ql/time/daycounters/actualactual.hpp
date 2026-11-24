@@ -27,6 +27,7 @@
 #include <ql/time/daycounter.hpp>
 #include <ql/time/schedule.hpp>
 #include <utility>
+#include <vector>
 
 namespace QuantLib
 {
@@ -40,6 +41,13 @@ namespace QuantLib
         - the ISMA and US Treasury convention, also known as
           "Actual/Actual (Bond)";
         - the AFB convention, also known as "Actual/Actual (Euro)".
+
+        With the ISMA or Bond convention and a schedule, the day counter
+        computes the schedule's period dates once, when it is built, and
+        uses them while no calendar has changed since: a holiday added or
+        removed, or a weekend changed, on any calendar.  After such a
+        change it computes them again on every call, which costs several
+        times as much, so build it once the holidays are set (#410).
 
         For more details, refer to
         https://www.isda.org/a/pIJEE/The-Actual-Actual-Day-Count-Fraction-1999.pdf
@@ -67,7 +75,7 @@ namespace QuantLib
         class ISMA_Impl final : public DayCounter::Impl
         {
           public:
-            explicit ISMA_Impl(Schedule schedule) : schedule_(std::move(schedule)) {}
+            explicit ISMA_Impl(Schedule schedule);
 
             std::string name() const override { return std::string("Actual/Actual (ISMA)"); }
             Time yearFraction(const Date& d1,
@@ -77,6 +85,13 @@ namespace QuantLib
 
           private:
             Schedule schedule_;
+            // The schedule's dates, with the notional ones of its irregular
+            // periods, as computed when the day counter was built; used while
+            // no calendar's business days have changed since, which could move
+            // the notional ones (#102).
+            std::vector<Date> periodDates_;
+            unsigned long long calendarChanges_ = 0;
+            bool periodDatesKept_ = false, periodDatesSorted_ = false;
         };
         class Old_ISMA_Impl final : public DayCounter::Impl
         {

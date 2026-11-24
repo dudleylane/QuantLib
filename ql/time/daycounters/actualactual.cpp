@@ -17,6 +17,7 @@
  FOR A PARTICULAR PURPOSE.  See the license for more details.
 */
 
+#include <ql/time/calendar.hpp>
 #include <ql/time/daycounters/actualactual.hpp>
 #include <algorithm>
 #include <cmath>
@@ -142,6 +143,24 @@ namespace QuantLib
     }
 
 
+    ActualActual::ISMA_Impl::ISMA_Impl(Schedule schedule) : schedule_(std::move(schedule))
+    {
+        // The count first, so that a calendar changed while the dates are
+        // computed counts as changed after them.
+        calendarChanges_ = detail::calendarChangeCount();
+        try
+        {
+            periodDates_ = getListOfPeriodDatesIncludingQuasiPayments(schedule_);
+        }
+        catch (...)
+        {
+            // yearFraction computes them on each call, and throws as it would
+            return;
+        }
+        periodDatesSorted_ = std::is_sorted(periodDates_.begin(), periodDates_.end());
+        periodDatesKept_ = true;
+    }
+
     Time ActualActual::ISMA_Impl::yearFraction(const Date& d1, const Date& d2, const Date& d3, const Date& d4) const
     {
         if (d1 == d2)
@@ -153,20 +172,37 @@ namespace QuantLib
             return -yearFraction(d2, d1, d3, d4);
         }
 
-        std::vector<Date> couponDates = getListOfPeriodDatesIncludingQuasiPayments(schedule_);
+        // The dates kept when the day counter was built, unless a calendar
+        // has changed since; otherwise, those computed for this call.
+        const bool kept = periodDatesKept_ && detail::calendarChangeCount() == calendarChanges_;
+        std::vector<Date> computedDates;
+        if (!kept)
+            computedDates = getListOfPeriodDatesIncludingQuasiPayments(schedule_);
+        const std::vector<Date>& couponDates = kept ? periodDates_ : computedDates;
 
-        Date firstDate = *std::min_element(couponDates.begin(), couponDates.end());
-        Date lastDate = *std::max_element(couponDates.begin(), couponDates.end());
+        // Kept dates in order are first and last at their ends, and there
+        // the periods ending by d1, and those starting from d2 on, add
+        // nothing; the others are added in the same order.
+        const bool inOrder = kept && periodDatesSorted_;
+        Date firstDate = inOrder ? couponDates.front() : *std::min_element(couponDates.begin(), couponDates.end());
+        Date lastDate = inOrder ? couponDates.back() : *std::max_element(couponDates.begin(), couponDates.end());
 
         QL_REQUIRE(d1 >= firstDate && d2 <= lastDate,
                    "Dates out of range of schedule: " << "date 1: " << d1 << ", date 2: " << d2
                                                       << ", first date: " << firstDate << ", last date: " << lastDate);
 
+        const Date* dates = couponDates.data();
+        const Size periods = couponDates.size() - 1;
+        Size first = 0;
+        if (inOrder)
+            first = Size(std::upper_bound(dates + 1, dates + periods + 1, d1) - dates) - 1;
         Real yearFractionSum = 0.0;
-        for (Size i = 0; i < couponDates.size() - 1; i++)
+        for (Size i = first; i < periods; i++)
         {
-            Date startReferencePeriod = couponDates[i];
-            Date endReferencePeriod = couponDates[i + 1];
+            Date startReferencePeriod = dates[i];
+            Date endReferencePeriod = dates[i + 1];
+            if (inOrder && startReferencePeriod >= d2)
+                break;
             if (d1 < endReferencePeriod && d2 > startReferencePeriod)
             {
                 yearFractionSum += yearFractionWithReferenceDates(*this, std::max(d1, startReferencePeriod),

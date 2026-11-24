@@ -127,7 +127,6 @@ namespace QuantLib
         const Date today = Settings::instance().evaluationDate();
 
         const ext::shared_ptr<OvernightIndex> index = ext::dynamic_pointer_cast<OvernightIndex>(coupon_->index());
-        const auto& pastFixings = index->timeSeries();
 
         const auto& fixingDates = coupon_->fixingDates();
         const auto& valueDates = coupon_->valueDates();
@@ -139,13 +138,19 @@ namespace QuantLib
         Size i = 0;
         const Size n = determineNumberOfFixings(interestDates, date, applyObservationShift);
 
+        // The loops below read the index's history only at fixings due by today, starting from
+        // the first, so a coupon whose first fixing is after today doesn't look it up.
+        const TimeSeries<Real>* pastFixings = nullptr;
+        if (n > 0 && fixingDates[0] <= today)
+            pastFixings = &index->timeSeries();
+
         Real compoundFactor = 1.0, compoundFactorWithoutSpread = 1.0;
 
         // already fixed part
         while (i < n && fixingDates[i] < today)
         {
             // rate must have been fixed
-            Rate fixing = pastFixings[fixingDates[i]];
+            Rate fixing = (*pastFixings)[fixingDates[i]];
             QL_REQUIRE(fixing != Null<Real>(), "Missing " << index->name() << " fixing for " << fixingDates[i]);
             Time span =
                 (date >= interestDates[i + 1] ? dt[i] : index->dayCounter().yearFraction(interestDates[i], date));
@@ -164,7 +169,7 @@ namespace QuantLib
             // might have been fixed
             try
             {
-                Rate fixing = pastFixings[fixingDates[i]];
+                Rate fixing = (*pastFixings)[fixingDates[i]];
                 if (fixing != Null<Real>())
                 {
                     Time span =
@@ -314,14 +319,16 @@ namespace QuantLib
 
         Real accumulatedRate = 0.0;
 
-        const auto& pastFixings = index->timeSeries();
-
         // already fixed part
         Date today = Settings::instance().evaluationDate();
+        // As in compute(), the history is read only if the first fixing is due by today.
+        const TimeSeries<Real>* pastFixings = nullptr;
+        if (n > 0 && fixingDates[0] <= today)
+            pastFixings = &index->timeSeries();
         while (i < n && fixingDates[i] < today)
         {
             // rate must have been fixed
-            Rate pastFixing = pastFixings[fixingDates[i]];
+            Rate pastFixing = (*pastFixings)[fixingDates[i]];
             QL_REQUIRE(pastFixing != Null<Real>(), "Missing " << index->name() << " fixing for " << fixingDates[i]);
             Time span =
                 (date >= interestDates[i + 1] ? dt[i] : index->dayCounter().yearFraction(interestDates[i], date));
@@ -335,7 +342,7 @@ namespace QuantLib
             // might have been fixed
             try
             {
-                Rate pastFixing = pastFixings[fixingDates[i]];
+                Rate pastFixing = (*pastFixings)[fixingDates[i]];
                 if (pastFixing != Null<Real>())
                 {
                     Time span =

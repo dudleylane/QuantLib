@@ -51,20 +51,21 @@ namespace QuantLib
         Date d1 = valueDate_;
         // d1 could be a holiday
         Date fixingDate = calendar.adjust(d1, Preceding);
-        const auto& history = overnightIndex_->timeSeries();
+        // The fixing dates only increase, so the history is read only if the first is due by today.
+        const TimeSeries<Real>* history = fixingDate <= today ? &overnightIndex_->timeSeries() : nullptr;
         Real fwd;
         while (d1 < maturityDate_)
         {
             Date d2 = calendar.advance(d1, 1, Days);
             if (fixingDate < today)
             {
-                fwd = history[fixingDate];
+                fwd = (*history)[fixingDate];
                 QL_REQUIRE(fwd != Null<Real>(),
                            "missing rate on " << fixingDate << " for index " << overnightIndex_->name());
             }
             else if (fixingDate == today)
             {
-                fwd = history[fixingDate];
+                fwd = (*history)[fixingDate];
                 if (fwd == Null<Real>())
                     fwd = forwardCurve->forwardRate(fixingDate, d2, dayCounter, Simple).rate();
             }

@@ -252,6 +252,53 @@ BOOST_AUTO_TEST_CASE(testFixingsNotifyWhateverTheNamesCase)
     BOOST_CHECK(flag.isUp());
 }
 
+BOOST_AUTO_TEST_CASE(testFixingsSharedOnlyByNamesEqualButForCase)
+{
+    BOOST_TEST_MESSAGE("Testing that only names equal but for case share fixings...");
+
+    struct Named : Index
+    {
+        explicit Named(std::string name) : name_(std::move(name)) {}
+        std::string name() const override { return name_; }
+        Calendar fixingCalendar() const override { return TARGET(); }
+        bool isValidFixingDate(const Date&) const override { return true; }
+        Real fixing(const Date&, bool) const override { return Null<Real>(); }
+        std::string name_;
+    };
+
+    // The names differ in case, in one character, or in length, one being the
+    // other's start, and '_' falls between the upper-case letters and the
+    // lower-case ones, so comparing them unconverted orders them otherwise.
+    // Each name stores a fixing on a date of its own, all in one repository,
+    // and each name has to see the fixings of the names equal to it but for
+    // case, and only those. The repository keeps the first of the names equal
+    // but for case, and lists the names it keeps by their upper-case forms,
+    // compared character by character, a name before the longer ones it
+    // starts (#89).
+    const std::vector<std::string> names = {"probe", "PROBE", "Probe",  "probe_", "probeA", "probea",
+                                            "proba", "prob",  "probe ", "PROBF",  "_probe", "Aprobe"};
+    const Date first(1, June, 2026);
+    for (Size i = 0; i < names.size(); ++i)
+        Named(names[i]).addFixing(first + Integer(i), 0.01, true);
+
+    for (const auto& read : names)
+    {
+        const Named index(read);
+        for (Size i = 0; i < names.size(); ++i)
+        {
+            const bool shared = boost::algorithm::to_upper_copy(read) == boost::algorithm::to_upper_copy(names[i]);
+            BOOST_CHECK_MESSAGE(index.hasHistoricalFixing(first + Integer(i)) == shared,
+                                "\"" << read << "\" " << (shared ? "doesn't see" : "sees") << " the fixing stored as \""
+                                     << names[i] << "\"");
+        }
+    }
+
+    const std::vector<std::string> listed = {"Aprobe", "prob",   "proba", "probe", "probe ",
+                                             "probeA", "probe_", "PROBF", "_probe"};
+    const std::vector<std::string> histories = IndexManager::instance().histories();
+    BOOST_CHECK_EQUAL_COLLECTIONS(histories.begin(), histories.end(), listed.begin(), listed.end());
+}
+
 BOOST_AUTO_TEST_CASE(testObserverOfFixingsBuildingAnIndex)
 {
     BOOST_TEST_MESSAGE("Testing an observer of fixings that builds an index...");
