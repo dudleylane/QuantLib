@@ -150,7 +150,7 @@ namespace QuantLib
 
     bool OvernightIndexFuture::isExpired() const
     {
-        return detail::simple_event(maturityDate_).hasOccurred();
+        return detail::hasOccurred(maturityDate_);
     }
 
     Real OvernightIndexFuture::convexityAdjustment() const

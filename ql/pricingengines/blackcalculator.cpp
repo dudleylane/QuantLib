@@ -67,7 +67,10 @@ namespace QuantLib
     BlackCalculator::BlackCalculator(Option::Type optionType, Real strike, Real forward, Real stdDev, Real discount)
     : strike_(strike), forward_(forward), stdDev_(stdDev), discount_(discount), variance_(stdDev * stdDev)
     {
-        initialize(ext::shared_ptr<StrikedTypePayoff>(new PlainVanillaPayoff(optionType, strike)));
+        // initialize() reads the payoff and keeps nothing, so the payoff can live on the stack, behind a pointer
+        // that owns nothing; allocating it cost two allocations a construction (#91).
+        PlainVanillaPayoff payoff(optionType, strike);
+        initialize(ext::shared_ptr<StrikedTypePayoff>(ext::shared_ptr<StrikedTypePayoff>(), &payoff));
     }
 
     void BlackCalculator::initialize(const ext::shared_ptr<StrikedTypePayoff>& p)

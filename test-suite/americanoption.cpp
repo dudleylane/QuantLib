@@ -50,6 +50,7 @@
 #include <ql/timegrid.hpp>
 #include <ql/utilities/dataformatters.hpp>
 #include <map>
+#include <sstream>
 #include <vector>
 
 using namespace QuantLib;
@@ -4034,6 +4035,382 @@ BOOST_AUTO_TEST_CASE(testBinomialThetaAtImmediateExercise)
     deferred.setPricingEngine(ext::make_shared<BinomialVanillaEngine<CoxRossRubinstein>>(process, 2));
     BOOST_CHECK_SMALL(deferred.NPV() - 15.0, 1.0e-10);
     BOOST_CHECK_SMALL(deferred.theta() - 0.05 * 115.0, 1.0e-8);
+}
+
+// The results a Bjerksund-Stensland engine sets: its nine Greeks and value, and its additional results
+struct BjerksundStenslandOutput
+{
+    std::vector<std::pair<std::string, Real>> results;
+    std::map<std::string, ext::any> additionalResults;
+};
+
+BjerksundStenslandOutput bjerksundStenslandOutput(const VanillaOption& option)
+{
+    return {{{"NPV", option.NPV()},
+             {"delta", option.delta()},
+             {"gamma", option.gamma()},
+             {"rho", option.rho()},
+             {"dividendRho", option.dividendRho()},
+             {"vega", option.vega()},
+             {"theta", option.theta()},
+             {"thetaPerDay", option.thetaPerDay()},
+             {"strikeSensitivity", option.strikeSensitivity()}},
+            option.additionalResults()};
+}
+
+BjerksundStenslandOutput bjerksundStenslandOutput(const OneAssetOption::results& results)
+{
+    return {{{"NPV", results.value},
+             {"delta", results.delta},
+             {"gamma", results.gamma},
+             {"rho", results.rho},
+             {"dividendRho", results.dividendRho},
+             {"vega", results.vega},
+             {"theta", results.theta},
+             {"thetaPerDay", results.thetaPerDay},
+             {"strikeSensitivity", results.strikeSensitivity}},
+            results.additionalResults};
+}
+
+// What a fresh engine gives an option on the payoff and exercise
+BjerksundStenslandOutput freshBjerksundStenslandOutput(const ext::shared_ptr<StrikedTypePayoff>& payoff,
+                                                       const ext::shared_ptr<Exercise>& exercise,
+                                                       const ext::shared_ptr<PricingEngine>& engine)
+{
+    VanillaOption option(payoff, exercise);
+    option.setPricingEngine(engine);
+    option.NPV();
+    return bjerksundStenslandOutput(option);
+}
+
+// Results checked against the expected ones: each result equal, and the additional results key by key, the same keys
+// with equal values
+void checkBjerksundStenslandOutput(const BjerksundStenslandOutput& calculated,
+                                   const BjerksundStenslandOutput& expected,
+                                   const std::string& step)
+{
+    for (Size i = 0; i < expected.results.size(); ++i)
+    {
+        if (calculated.results[i].second != expected.results[i].second)
+            BOOST_ERROR(step << ": " << expected.results[i].first << " is " << std::setprecision(17)
+                             << calculated.results[i].second << ", expected " << expected.results[i].second);
+    }
+    for (const auto& entry : calculated.additionalResults)
+    {
+        if (expected.additionalResults.count(entry.first) == 0)
+            BOOST_ERROR(step << ": unexpected additional result \"" << entry.first << "\"");
+    }
+    for (const auto& [key, value] : expected.additionalResults)
+    {
+        auto entry = calculated.additionalResults.find(key);
+        if (entry == calculated.additionalResults.end())
+        {
+            BOOST_ERROR(step << ": additional result \"" << key << "\" missing");
+        }
+        else if (const auto* x = ext::any_cast<Real>(&value))
+        {
+            const auto* y = ext::any_cast<Real>(&entry->second);
+            if (y == nullptr)
+                BOOST_ERROR(step << ": additional result \"" << key << "\" isn't a Real");
+            else if (*y != *x)
+                BOOST_ERROR(step << ": additional result \"" << key << "\" is " << std::setprecision(17) << *y
+                                 << ", expected " << *x);
+        }
+        else
+        {
+            const auto* expectedString = ext::any_cast<std::string>(&value);
+            const auto* calculatedString = ext::any_cast<std::string>(&entry->second);
+            if (expectedString == nullptr || calculatedString == nullptr || *calculatedString != *expectedString)
+                BOOST_ERROR(step << ": additional result \"" << key << "\" isn't the expected string");
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBjerksundStenslandResultsMatchAFreshEngine)
+{
+    BOOST_TEST_MESSAGE("Testing that the Bjerksund-Stensland engine's results match a fresh engine's...");
+
+    // The engine keeps its last additional results across reset() and writes the next calculation's values into
+    // them (#91). Whatever it calculated before, on whichever branch, the results must be what a fresh engine gives.
+    const Date today(23, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+
+    const auto spot = ext::make_shared<SimpleQuote>(100.0);
+    const auto rRate = ext::make_shared<SimpleQuote>(0.03);
+    const auto qRate = ext::make_shared<SimpleQuote>(0.01);
+    const auto vol = ext::make_shared<SimpleQuote>(0.20);
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot), Handle<YieldTermStructure>(flatRate(qRate, dc)),
+        Handle<YieldTermStructure>(flatRate(rRate, dc)), Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+    const auto put = ext::make_shared<PlainVanillaPayoff>(Option::Put, 100.0);
+    const auto call = ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0);
+    const auto inOneYear = ext::make_shared<AmericanExercise>(today, today + 1 * Years);
+    const auto inSixMonths = ext::make_shared<AmericanExercise>(today, today + 6 * Months);
+    const auto fresh =
+        [&process](const ext::shared_ptr<StrikedTypePayoff>& payoff, const ext::shared_ptr<Exercise>& exercise)
+    {
+        return freshBjerksundStenslandOutput(payoff, exercise,
+                                             ext::make_shared<BjerksundStenslandApproximationEngine>(process));
+    };
+
+    const auto engine = ext::make_shared<BjerksundStenslandApproximationEngine>(process);
+    VanillaOption option(put, inOneYear);
+    option.setPricingEngine(engine);
+
+    // recalculations as the market moves the put from one branch to another, with the exercise type each reports
+    struct Market
+    {
+        Real s, r, q, v;
+        const char* exerciseType;
+    };
+    const Market markets[] = {
+        {100.0, 0.03, 0.01, 0.20, "American"}, // the American approximation
+        {50.0, 0.10, 0.0, 0.20, "Immediate"},  // past the exercise trigger
+        {90.0, 0.0, 0.01, 0.20, "European"},   // never worth exercising early
+        {110.0, 0.03, 0.01, 0.0, "European"},  // no variance, exercised at expiry
+        {100.0, 0.03, 0.01, 0.20, "American"}, // the American approximation
+        {200.0, 0.0, -0.02, 0.01, "European"}, // a trigger too far out for early exercise
+        {100.0, 0.0, -0.02, 0.01, "American"}, // the best flat trigger
+        {110.0, -0.02, 0.0, 0.20, "European"}, // never worth exercising early
+        {50.0, 0.03, 0.05, 0.20, "Immediate"}, // the approximation below the intrinsic value
+        {90.0, 0.0, 0.0, 0.01, "Immediate"},   // the European value at the intrinsic value
+        {90.0, 0.0, -0.02, 0.0, "Immediate"},  // no variance, exercised now
+        {90.0, 0.10, -0.02, 0.20, "American"}, // the best flat trigger
+    };
+    for (const auto& m : markets)
+    {
+        spot->setValue(m.s);
+        rRate->setValue(m.r);
+        qRate->setValue(m.q);
+        vol->setValue(m.v);
+        std::ostringstream step;
+        step << "the put at spot " << m.s << ", r " << m.r << ", q " << m.q << ", volatility " << m.v;
+        const auto calculated = bjerksundStenslandOutput(option);
+        checkBjerksundStenslandOutput(calculated, fresh(put, inOneYear), step.str());
+        BOOST_CHECK_EQUAL(ext::any_cast<std::string>(calculated.additionalResults.at("exerciseType")),
+                          std::string(m.exerciseType));
+    }
+
+    // calculate() again without a reset in between, twice, so that nothing is kept for it to write into
+    for (int i = 0; i < 2; ++i)
+    {
+        engine->calculate();
+        checkBjerksundStenslandOutput(
+            bjerksundStenslandOutput(dynamic_cast<const OneAssetOption::results&>(*engine->getResults())),
+            fresh(put, inOneYear), "calculation " + std::to_string(i + 1) + " without a reset");
+    }
+
+    // calculations that fail, a null spot and then the double-boundary case, each followed by one that doesn't; the
+    // volatility isn't null, as the engine checks for a null variance before the double-boundary case
+    vol->setValue(0.20);
+    spot->setValue(0.0);
+    BOOST_CHECK_THROW(option.NPV(), Error);
+    spot->setValue(100.5);
+    checkBjerksundStenslandOutput(bjerksundStenslandOutput(option), fresh(put, inOneYear), "after a null spot");
+    rRate->setValue(-0.01);
+    qRate->setValue(-0.03);
+    BOOST_CHECK_THROW(option.NPV(), Error);
+    rRate->setValue(0.03);
+    qRate->setValue(0.01);
+    checkBjerksundStenslandOutput(bjerksundStenslandOutput(option), fresh(put, inOneYear),
+                                  "after the double-boundary case");
+
+    // past the option's expiry, where the engine isn't called, and back
+    Settings::instance().evaluationDate() = today + 2 * Years;
+    spot->setValue(101.5);
+    BOOST_CHECK_EQUAL(option.NPV(), 0.0);
+    BOOST_CHECK(option.additionalResults().empty());
+    Settings::instance().evaluationDate() = today;
+    spot->setValue(98.5);
+    checkBjerksundStenslandOutput(bjerksundStenslandOutput(option), fresh(put, inOneYear), "after expiry");
+
+    // two options priced in turn by one engine, a put and a call on another expiry, on and off their branches
+    rRate->setValue(0.03);
+    qRate->setValue(0.01);
+    vol->setValue(0.20);
+    VanillaOption other(call, inSixMonths);
+    other.setPricingEngine(engine);
+    for (Real s : {102.0, 40.0, 97.0, 400.0, 103.0})
+    {
+        spot->setValue(s);
+        const auto calculatedPut = bjerksundStenslandOutput(option);
+        const auto calculatedCall = bjerksundStenslandOutput(other);
+        checkBjerksundStenslandOutput(calculatedPut, fresh(put, inOneYear),
+                                      "the put, sharing its engine, at spot " + std::to_string(s));
+        checkBjerksundStenslandOutput(calculatedCall, fresh(call, inSixMonths),
+                                      "the call, sharing its engine, at spot " + std::to_string(s));
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBjerksundStenslandResultsUnderADerivedEngine)
+{
+    BOOST_TEST_MESSAGE("Testing the Bjerksund-Stensland engine's additional results under a derived engine "
+                       "that changes them...");
+
+    // A derived engine can add, rename or replace additional results around the base class's calculate(). The base
+    // class writes into its last results only while they hold its own two keys and nothing else (#91); otherwise it
+    // inserts its results as a fresh engine does. Either way, a change shows only in the calculation that made it.
+    class ChangingBjerksundStenslandEngine : public BjerksundStenslandApproximationEngine
+    {
+      public:
+        using BjerksundStenslandApproximationEngine::BjerksundStenslandApproximationEngine;
+        int change = 0;
+        void calculate() const override
+        {
+            // the base class replaces its results whole, so a key added before it doesn't survive
+            if (change == 1)
+                results_.additionalResults["added before"] = 1.0;
+            BjerksundStenslandApproximationEngine::calculate();
+            changeAfter(results_.additionalResults, change);
+        }
+        // what the engine changes after the base class's calculate()
+        static void changeAfter(std::map<std::string, ext::any>& results, int change)
+        {
+            switch (change)
+            {
+                case 2: // a key after both of the base class's
+                    results["zz added after"] = 2.0;
+                    break;
+                case 3: // a key renamed, in the same place
+                    results["sg"] = results.at("strikeGamma");
+                    results.erase("strikeGamma");
+                    break;
+                case 4: // a Real made a string
+                    results["strikeGamma"] = std::string("replaced");
+                    break;
+                case 5: // a string made a Real
+                    results["exerciseType"] = 5.0;
+                    break;
+                case 6: // a key removed
+                    results.erase("exerciseType");
+                    break;
+                default:
+                    break;
+            }
+        }
+    };
+
+    const Date today(23, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+
+    const auto spot = ext::make_shared<SimpleQuote>(100.0);
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot), Handle<YieldTermStructure>(flatRate(today, 0.01, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.03, dc)), Handle<BlackVolTermStructure>(flatVol(today, 0.20, dc)));
+    const auto payoff = ext::make_shared<PlainVanillaPayoff>(Option::Put, 100.0);
+    const auto exercise = ext::make_shared<AmericanExercise>(today, today + 1 * Years);
+    const auto engine = ext::make_shared<ChangingBjerksundStenslandEngine>(process);
+    VanillaOption option(payoff, exercise);
+    option.setPricingEngine(engine);
+
+    // each change, followed by a calculation without one
+    const int changes[] = {0, 1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 0};
+    Size i = 0;
+    for (int change : changes)
+    {
+        engine->change = change;
+        spot->setValue(100.0 + 0.5 * Real(++i));
+        auto expected = freshBjerksundStenslandOutput(payoff, exercise,
+                                                      ext::make_shared<BjerksundStenslandApproximationEngine>(process));
+        ChangingBjerksundStenslandEngine::changeAfter(expected.additionalResults, change);
+        checkBjerksundStenslandOutput(bjerksundStenslandOutput(option), expected,
+                                      "calculation " + std::to_string(i) + ", change " + std::to_string(change));
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBjerksundStenslandStrikeGammaOnEveryBranch)
+{
+    BOOST_TEST_MESSAGE("Testing the Bjerksund-Stensland engine's exercise type and strike gamma on each branch...");
+
+    // The engine prices a put as the call it is symmetric to and swaps the call's gamma and strike gamma, so
+    // strikeGamma is gamma (S/K)^2 for a call, and gamma is strikeGamma (K/S)^2 for a put, exactly, on each of the
+    // branches that work them out (#91). One engine prices every row, as a quoting loop would, and each row is also
+    // checked against a fresh engine. Where the American approximation and the European value are equal to rounding,
+    // the engine reports whichever is higher, so either exercise type may come out there.
+    const Date today(23, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const DayCounter dc = Actual365Fixed();
+    const Real strike = 100.0;
+
+    const auto spot = ext::make_shared<SimpleQuote>(100.0);
+    const auto rRate = ext::make_shared<SimpleQuote>(0.0);
+    const auto qRate = ext::make_shared<SimpleQuote>(0.0);
+    const auto vol = ext::make_shared<SimpleQuote>(0.0);
+    const auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot), Handle<YieldTermStructure>(flatRate(qRate, dc)),
+        Handle<YieldTermStructure>(flatRate(rRate, dc)), Handle<BlackVolTermStructure>(flatVol(today, vol, dc)));
+    const auto engine = ext::make_shared<BjerksundStenslandApproximationEngine>(process);
+
+    struct Row
+    {
+        Option::Type type;
+        Period expiry;
+        Real s, r, q, v;
+        const char* exerciseType; // nullptr: "American" or "European", whichever rounding decides
+        const char* branch;
+    };
+    const Row rows[] = {
+        {Option::Call, 1 * Years, 200.0, 0.03, 0.05, 0.20, "Immediate", "at or above the exercise trigger"},
+        {Option::Call, 1 * Years, 110.0, 0.03, 0.05, 0.20, "American", "the American approximation"},
+        {Option::Call, 1 * Years, 110.0, 0.0, 0.01, 0.50, "American", "the American approximation, best flat trigger"},
+        {Option::Call, 1 * Years, 110.0, 0.03, 0.01, 0.05, "European", "a trigger too far out for early exercise"},
+        {Option::Call, 1 * Years, 110.0, 0.10, 0.01, 0.20, nullptr, "the approximation equal to the European value"},
+        {Option::Call, 1 * Years, 110.0, 0.03, 0.0, 0.20, "European", "never worth exercising early"},
+        {Option::Call, 1 * Years, 200.0, 0.0, 0.0, 0.05, "Immediate", "the European value at the intrinsic value"},
+        {Option::Call, 30 * Years, 110.0, 0.10, 0.01, 0.0, "American", "no variance, exercised before expiry"},
+        {Option::Call, 1 * Years, 110.0, 0.03, 0.01, 0.0, "European", "no variance, exercised at expiry"},
+        {Option::Call, 1 * Years, 110.0, 0.0, 0.0, 0.0, "Immediate", "no variance, at the intrinsic value"},
+        {Option::Call, 1 * Years, 110.0, 0.03, 0.05, 0.0, "Immediate", "no variance, exercised now"},
+        {Option::Put, 1 * Years, 50.0, 0.10, 0.0, 0.20, "Immediate", "at or below the exercise trigger"},
+        {Option::Put, 1 * Years, 90.0, 0.03, 0.01, 0.20, "American", "the American approximation"},
+        {Option::Put, 1 * Years, 90.0, 0.10, -0.02, 0.20, "American", "the American approximation, best flat trigger"},
+        {Option::Put, 1 * Years, 50.0, 0.03, 0.05, 0.20, "Immediate", "the approximation below the intrinsic value"},
+        {Option::Put, 1 * Years, 110.0, 0.03, 0.05, 0.05, "European", "a trigger too far out for early exercise"},
+        {Option::Put, 1 * Years, 110.0, 0.03, 0.01, 0.01, nullptr, "the approximation equal to the European value"},
+        {Option::Put, 1 * Years, 110.0, 0.0, 0.01, 0.20, "European", "never worth exercising early"},
+        {Option::Put, 1 * Years, 50.0, 0.0, 0.0, 0.05, "Immediate", "the European value at the intrinsic value"},
+        {Option::Put, 30 * Years, 90.0, 0.03, 0.05, 0.0, "American", "no variance, exercised before expiry"},
+        {Option::Put, 1 * Years, 110.0, 0.03, 0.01, 0.0, "European", "no variance, exercised at expiry"},
+        {Option::Put, 1 * Years, 90.0, 0.0, 0.0, 0.0, "Immediate", "no variance, at the intrinsic value"},
+        {Option::Put, 1 * Years, 90.0, 0.03, 0.0, 0.0, "Immediate", "no variance, exercised now"},
+    };
+    for (const auto& row : rows)
+    {
+        spot->setValue(row.s);
+        rRate->setValue(row.r);
+        qRate->setValue(row.q);
+        vol->setValue(row.v);
+        const auto payoff = ext::make_shared<PlainVanillaPayoff>(row.type, strike);
+        const auto exercise = ext::make_shared<AmericanExercise>(today, today + row.expiry);
+        VanillaOption option(payoff, exercise);
+        option.setPricingEngine(engine);
+        std::ostringstream step;
+        step << (row.type == Option::Call ? "call" : "put") << " " << row.expiry << " at spot " << row.s << ", r "
+             << row.r << ", q " << row.q << ", volatility " << row.v << " (" << row.branch << ")";
+
+        const auto calculated = bjerksundStenslandOutput(option);
+        checkBjerksundStenslandOutput(
+            calculated,
+            freshBjerksundStenslandOutput(payoff, exercise,
+                                          ext::make_shared<BjerksundStenslandApproximationEngine>(process)),
+            step.str());
+        const auto exerciseType = ext::any_cast<std::string>(calculated.additionalResults.at("exerciseType"));
+        const bool typeHolds = row.exerciseType != nullptr ? exerciseType == row.exerciseType :
+                                                             exerciseType == "American" || exerciseType == "European";
+        if (!typeHolds)
+            BOOST_ERROR(step.str() << ": exercise type \"" << exerciseType << "\", expected "
+                                   << (row.exerciseType != nullptr ? "\"" + std::string(row.exerciseType) + "\"" :
+                                                                     std::string("\"American\" or \"European\"")));
+        const Real gamma = option.gamma();
+        const Real strikeGamma = ext::any_cast<Real>(calculated.additionalResults.at("strikeGamma"));
+        const bool holds = row.type == Option::Call ? strikeGamma == gamma * squared(row.s / strike) :
+                                                      gamma == strikeGamma * squared(strike / row.s);
+        if (!holds)
+            BOOST_ERROR(step.str() << ": gamma " << std::setprecision(17) << gamma << " and strike gamma "
+                                   << strikeGamma << " don't match");
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

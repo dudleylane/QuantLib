@@ -148,7 +148,7 @@ namespace QuantLib
         //   no remaining tranche notional.
         // The last coupon can be paid before its accrual end, the maturity,
         //   and its protection runs to that end (#334).
-        return detail::simple_event(std::max(normalizedLeg_.back()->date(), maturity())).hasOccurred();
+        return detail::hasOccurred(std::max(normalizedLeg_.back()->date(), maturity()));
     }
 
     Real SyntheticCDO::remainingNotional() const

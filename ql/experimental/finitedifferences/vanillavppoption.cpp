@@ -90,6 +90,6 @@ namespace QuantLib
 
     bool VanillaVPPOption::isExpired() const
     {
-        return detail::simple_event(exercise_->lastDate()).hasOccurred();
+        return detail::hasOccurred(exercise_->lastDate());
     }
 }

@@ -111,7 +111,7 @@ namespace QuantLib
 
     bool IrregularSwaption::isExpired() const
     {
-        return detail::simple_event(exercise_->dates().back()).hasOccurred();
+        return detail::hasOccurred(exercise_->dates().back());
     }
 
     void IrregularSwaption::setupArguments(PricingEngine::arguments* args) const

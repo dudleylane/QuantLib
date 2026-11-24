@@ -65,6 +65,15 @@ namespace QuantLib
     namespace detail
     {
 
+        //! whether an event on the given date has occurred, by Event::hasOccurred's rule
+        /*! It returns what simple_event(eventDate).hasOccurred(refDate, includeRefDate) returns, without building
+            the event.  Instruments ask it on every recalculation; the event's Observable base allocates under the
+            thread-safe observer pattern.
+        */
+        bool hasOccurred(const Date& eventDate,
+                         const Date& refDate = Date(),
+                         ext::optional<bool> includeRefDate = ext::nullopt);
+
         // used to create an Event instance.
         // to be replaced with specific events as soon as we find out which.
         class simple_event : public Event

@@ -167,7 +167,7 @@ namespace QuantLib
 
     bool Swaption::isExpired() const
     {
-        return detail::simple_event(exercise_->dates().back()).hasOccurred();
+        return detail::hasOccurred(exercise_->dates().back());
     }
 
     void Swaption::setupArguments(PricingEngine::arguments* args) const

@@ -43,7 +43,7 @@ namespace QuantLib
 
     bool TwoAssetBarrierOption::isExpired() const
     {
-        return detail::simple_event(exercise_->lastDate()).hasOccurred();
+        return detail::hasOccurred(exercise_->lastDate());
     }
 
     TwoAssetBarrierOption::arguments::arguments() : barrierType(Barrier::Type(-1)), barrier(Null<Real>()) {}
