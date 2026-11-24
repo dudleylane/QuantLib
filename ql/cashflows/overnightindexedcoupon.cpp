@@ -79,9 +79,9 @@ namespace QuantLib
                          refPeriodEnd,
                          dayCounter,
                          false),
-      averagingMethod_(averagingMethod), lockoutDays_(lockoutDays), applyObservationShift_(applyObservationShift),
-      compoundSpreadDaily_(compoundSpreadDaily), rateComputationStartDate_(rateComputationStartDate),
-      rateComputationEndDate_(rateComputationEndDate)
+      overnightIndex_(overnightIndex), averagingMethod_(averagingMethod), lockoutDays_(lockoutDays),
+      applyObservationShift_(applyObservationShift), compoundSpreadDaily_(compoundSpreadDaily),
+      rateComputationStartDate_(rateComputationStartDate), rateComputationEndDate_(rateComputationEndDate)
     {
 
         // ctor guard prevents construction of an object with illogically ordered dates.

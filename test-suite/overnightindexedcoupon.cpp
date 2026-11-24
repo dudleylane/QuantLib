@@ -20,10 +20,15 @@
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
 #include <ql/cashflows/blackovernightindexedcouponpricer.hpp>
+#include <ql/cashflows/capflooredcoupon.hpp>
+#include <ql/cashflows/digitalcoupon.hpp>
+#include <ql/cashflows/digitaliborcoupon.hpp>
 #include <ql/cashflows/iborcoupon.hpp>
 #include <ql/cashflows/overnightindexedcoupon.hpp>
 #include <ql/cashflows/overnightindexedcouponpricer.hpp>
+#include <ql/currencies/america.hpp>
 #include <ql/indexes/ibor/estr.hpp>
+#include <ql/indexes/ibor/euribor.hpp>
 #include <ql/indexes/ibor/sofr.hpp>
 #include <ql/math/interpolations/cubicinterpolation.hpp>
 #include <ql/settings.hpp>
@@ -1211,6 +1216,226 @@ BOOST_AUTO_TEST_CASE(testArithmeticAveragedConvexityForSmallMeanReversion)
             // to 2e-9 of the adjustment in rounding.
             BOOST_CHECK_SMALL((rate(c.meanReversion, 0.01, false) - exact) / c.exact - 1.0, 1.0e-8);
         }
+    }
+}
+
+namespace
+{
+    // a capped and floored overnight coupon whose underlying coupon a derived class has dropped
+    class CouponWithoutUnderlying : public CappedFlooredOvernightIndexedCoupon
+    {
+      public:
+        using CappedFlooredOvernightIndexedCoupon::CappedFlooredOvernightIndexedCoupon;
+        void dropUnderlying() { underlying_.reset(); }
+    };
+
+    class DerivedOvernightIndexedCoupon : public OvernightIndexedCoupon
+    {
+      public:
+        using OvernightIndexedCoupon::OvernightIndexedCoupon;
+    };
+
+    // the coupon an overnight pricer prices for a given coupon, found as the pricer found it before it asked the
+    // coupon
+    const OvernightIndexedCoupon* overnightCouponByCasts(const FloatingRateCoupon& coupon)
+    {
+        if (const auto* c = dynamic_cast<const CappedFlooredOvernightIndexedCoupon*>(&coupon))
+            return c->underlying().get();
+        return dynamic_cast<const OvernightIndexedCoupon*>(&coupon);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testDailyCapsAndFloorsOnStoredFixings)
+{
+    BOOST_TEST_MESSAGE("Testing daily caps and floors on an overnight coupon's stored fixings...");
+
+    CommonVars vars;
+    // the coupon's fixings are all stored, so the pricers read no volatility
+    Handle<OptionletVolatilityStructure> vol(ext::make_shared<ConstantOptionletVolatility>(
+        vars.today, UnitedStates(UnitedStates::GovernmentBond), Following, 0.2, Actual360()));
+
+    // its fixings run from 2.36 % to 2.59 %
+    const Rate cap = 0.0245, floor = 0.0241;
+    for (auto averaging : {RateAveraging::Compound, RateAveraging::Simple})
+    {
+        ext::shared_ptr<OvernightIndexedCouponPricer> pricer;
+        if (averaging == RateAveraging::Compound)
+            pricer = ext::make_shared<BlackCompoundingOvernightIndexedCouponPricer>(vol);
+        else
+            pricer = ext::make_shared<BlackAveragingOvernightIndexedCouponPricer>(vol);
+        for (bool capped : {true, false})
+        {
+            auto underlying =
+                vars.makeCoupon(Date(1, July, 2019), Date(31, July, 2019), Null<Natural>(), 0, false, false, averaging);
+            auto coupon = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(
+                underlying, capped ? cap : Null<Rate>(), capped ? Null<Rate>() : floor, false, true);
+            coupon->setPricer(pricer);
+
+            const std::vector<Date>& fixingDates = underlying->fixingDates();
+            const std::vector<Time>& dt = underlying->dt();
+            Real sum = averaging == RateAveraging::Compound ? 1.0 : 0.0;
+            Size bound = 0;
+            for (Size i = 0; i < dt.size(); ++i)
+            {
+                Rate f = vars.sofr->fixing(fixingDates[i]);
+                Rate r = capped ? std::min(f, cap) : std::max(f, floor);
+                if (r != f)
+                    ++bound;
+                if (averaging == RateAveraging::Compound)
+                    sum *= 1.0 + r * dt[i];
+                else
+                    sum += r * dt[i];
+            }
+            Rate expected = (averaging == RateAveraging::Compound ? sum - 1.0 : sum) / underlying->accrualPeriod();
+
+            const std::string what = std::string(averaging == RateAveraging::Compound ? "compounded" : "averaged") +
+                                     (capped ? " coupon capped daily" : " coupon floored daily");
+            // the cap or floor binds on some days, so the test can tell it from the plain coupon
+            BOOST_REQUIRE(bound > 0 && bound < dt.size());
+            if (std::fabs(coupon->rate() - expected) > 1e-12)
+                BOOST_ERROR("failed to reproduce the rate of a past "
+                            << what << std::setprecision(16) << ":\n    calculated: " << coupon->rate()
+                            << "\n    expected:   " << expected << "\n    difference: " << coupon->rate() - expected
+                            << "\n    plain rate: " << underlying->rate());
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testDailyCapsAndFloorsOnForecastsAtZeroVolatility)
+{
+    BOOST_TEST_MESSAGE("Testing daily caps and floors on an overnight coupon's forecasts at zero volatility...");
+
+    BlackONPricerVars vars;
+    vars.vol.linkTo(ext::make_shared<ConstantOptionletVolatility>(vars.today, TARGET(), Following, 0.0, vars.dc));
+    // the curve is flat at 4 % continuously compounded; at zero volatility the pricers cap or floor that rate over the
+    // coupon's future days, and compound it daily or add it up
+    const Rate forward = 0.04;
+
+    for (auto averaging : {RateAveraging::Compound, RateAveraging::Simple})
+    {
+        ext::shared_ptr<OvernightIndexedCouponPricer> pricer;
+        if (averaging == RateAveraging::Compound)
+            pricer = ext::make_shared<BlackCompoundingOvernightIndexedCouponPricer>(vars.vol);
+        else
+            pricer = ext::make_shared<BlackAveragingOvernightIndexedCouponPricer>(vars.vol);
+        // a cap and a floor that bind, and a cap and a floor that don't
+        for (auto [isCap, strike] : {std::pair<bool, Rate>{true, 0.035}, {false, 0.045}, {true, 0.045}, {false, 0.035}})
+        {
+            auto underlying = vars.makeBaseCoupon(Date(2, July, 2035), Date(2, October, 2035), averaging);
+            auto coupon = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(
+                underlying, isCap ? strike : Null<Rate>(), isCap ? Null<Rate>() : strike, false, true);
+            coupon->setPricer(pricer);
+
+            const std::vector<Date>& dates = underlying->valueDates();
+            const Real days = dates.back() - dates.front();
+            const Time span = vars.dc.yearFraction(dates.front(), dates.back());
+            const Real dailyTau = span / days;
+            const Rate bounded = isCap ? std::min(forward, strike) : std::max(forward, strike);
+            Rate expected;
+            if (averaging == RateAveraging::Compound)
+                expected = (std::pow(1.0 + dailyTau * bounded, days) - std::pow(1.0 + dailyTau * forward, days)) /
+                           underlying->accrualPeriod();
+            else
+                expected = (bounded - forward) * span / underlying->accrualPeriod();
+
+            const Rate difference = coupon->rate() - underlying->rate();
+            const std::string what = std::string(averaging == RateAveraging::Compound ? "compounded" : "averaged") +
+                                     (isCap ? " coupon capped daily at " : " coupon floored daily at ") +
+                                     std::to_string(strike);
+            if (std::fabs(difference - expected) > 1e-12)
+                BOOST_ERROR("failed to reproduce the option part of a future "
+                            << what << std::setprecision(16) << ":\n    calculated: " << difference
+                            << "\n    expected:   " << expected << "\n    difference: " << difference - expected);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testOvernightIndexedCouponOfEachCouponType)
+{
+    BOOST_TEST_MESSAGE("Testing the overnight coupon each type of floating coupon gives its pricer...");
+
+    BlackONPricerVars vars;
+    const Date start(2, July, 2035), end(2, October, 2035);
+    auto overnight = vars.makeBaseCoupon(start, end);
+    auto euribor = ext::make_shared<Euribor6M>(vars.forecastCurve);
+    auto ibor = ext::make_shared<IborCoupon>(end, vars.notional, start, end, 2, euribor);
+    auto derived = ext::make_shared<DerivedOvernightIndexedCoupon>(end, vars.notional, start, end, vars.sofr);
+    auto withoutUnderlying = ext::make_shared<CouponWithoutUnderlying>(overnight, 0.045, 0.035);
+    withoutUnderlying->dropUnderlying();
+
+    const std::vector<std::pair<std::string, ext::shared_ptr<FloatingRateCoupon>>> coupons = {
+        {"OvernightIndexedCoupon", overnight},
+        {"CappedFlooredOvernightIndexedCoupon",
+         ext::make_shared<CappedFlooredOvernightIndexedCoupon>(overnight, 0.045)},
+        {"CappedFlooredOvernightIndexedCoupon capped daily",
+         ext::make_shared<CappedFlooredOvernightIndexedCoupon>(overnight, 0.045, Null<Rate>(), false, true)},
+        {"a class derived from OvernightIndexedCoupon", derived},
+        {"CappedFlooredOvernightIndexedCoupon on a derived coupon",
+         ext::make_shared<CappedFlooredOvernightIndexedCoupon>(derived, Null<Rate>(), 0.035)},
+        {"a class derived from CappedFlooredOvernightIndexedCoupon, without its underlying coupon", withoutUnderlying},
+        {"IborCoupon", ibor},
+        {"CappedFlooredIborCoupon",
+         ext::make_shared<CappedFlooredIborCoupon>(end, vars.notional, start, end, 2, euribor, 1.0, 0.0, 0.045, 0.035)},
+        {"DigitalIborCoupon", ext::make_shared<DigitalIborCoupon>(ibor, 0.04)},
+        {"CappedFlooredCoupon on an overnight coupon", ext::make_shared<CappedFlooredCoupon>(overnight, 0.045)},
+        {"DigitalCoupon on an overnight coupon", ext::make_shared<DigitalCoupon>(overnight, 0.04)}};
+
+    for (const auto& [name, coupon] : coupons)
+    {
+        const OvernightIndexedCoupon* expected = overnightCouponByCasts(*coupon);
+        if (coupon->overnightIndexedCoupon() != expected)
+            BOOST_ERROR(name << " gives " << (coupon->overnightIndexedCoupon() == nullptr ? "no" : "another")
+                             << " overnight coupon where the casts find " << (expected == nullptr ? "none" : "one"));
+    }
+    // and the casts find one where they should
+    BOOST_CHECK(overnightCouponByCasts(*overnight) == overnight.get());
+    BOOST_CHECK(overnightCouponByCasts(*derived) == derived.get());
+    BOOST_CHECK(overnightCouponByCasts(*ibor) == nullptr);
+}
+
+BOOST_AUTO_TEST_CASE(testOvernightIndexOfCoupon)
+{
+    BOOST_TEST_MESSAGE("Testing that an overnight coupon's overnight index is its index...");
+
+    BlackONPricerVars vars;
+    const Date start(2, July, 2035), end(2, October, 2035);
+    auto plain = ext::make_shared<OvernightIndex>("Plain", 0, USDCurrency(), UnitedStates(UnitedStates::SOFR),
+                                                  Actual360(), vars.forecastCurve);
+    for (const auto& index : {vars.sofr, plain})
+    {
+        auto coupon = ext::make_shared<OvernightIndexedCoupon>(end, vars.notional, start, end, index);
+        BOOST_CHECK(coupon->overnightIndex().get() == index.get());
+        BOOST_CHECK(coupon->index().get() == index.get());
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testOvernightPricersRefuseOtherCoupons)
+{
+    BOOST_TEST_MESSAGE("Testing that the overnight pricers refuse coupons they can't price...");
+
+    BlackONPricerVars vars;
+    const Date start(2, July, 2035), end(2, October, 2035);
+    auto euribor = ext::make_shared<Euribor6M>(vars.forecastCurve);
+    auto ibor = ext::make_shared<IborCoupon>(end, vars.notional, start, end, 2, euribor);
+    auto withoutUnderlying = ext::make_shared<CouponWithoutUnderlying>(vars.makeBaseCoupon(start, end), 0.045, 0.035);
+    withoutUnderlying->dropUnderlying();
+
+    const std::vector<std::pair<std::string, ext::shared_ptr<FloatingRateCouponPricer>>> pricers = {
+        {"CompoundingOvernightIndexedCouponPricer", ext::make_shared<CompoundingOvernightIndexedCouponPricer>()},
+        {"ArithmeticAveragedOvernightIndexedCouponPricer",
+         ext::make_shared<ArithmeticAveragedOvernightIndexedCouponPricer>()},
+        {"BlackCompoundingOvernightIndexedCouponPricer",
+         ext::make_shared<BlackCompoundingOvernightIndexedCouponPricer>(vars.vol)},
+        {"BlackAveragingOvernightIndexedCouponPricer",
+         ext::make_shared<BlackAveragingOvernightIndexedCouponPricer>(vars.vol)}};
+
+    for (const auto& [name, pricer] : pricers)
+    {
+        BOOST_CHECK_EXCEPTION(pricer->initialize(*ibor), Error,
+                              ExpectedErrorMessage("OvernightIndexedCouponPricer: unsupported coupon type"));
+        BOOST_CHECK_EXCEPTION(pricer->initialize(*withoutUnderlying), Error,
+                              ExpectedErrorMessage("OvernightIndexedCouponPricer: CappedFlooredOvernightIndexedCoupon "
+                                                   "underlying coupon not defined"));
     }
 }
 
