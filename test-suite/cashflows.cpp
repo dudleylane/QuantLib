@@ -22,21 +22,30 @@
 #include "utilities.hpp"
 #include <ql/cashflows/cashflows.hpp>
 #include <ql/cashflows/couponpricer.hpp>
+#include <ql/cashflows/dividend.hpp>
 #include <ql/cashflows/fixedratecoupon.hpp>
 #include <ql/cashflows/floatingratecoupon.hpp>
 #include <ql/cashflows/iborcoupon.hpp>
+#include <ql/cashflows/indexedcashflow.hpp>
 #include <ql/cashflows/overnightindexedcoupon.hpp>
 #include <ql/cashflows/simplecashflow.hpp>
 #include <ql/indexes/ibor/euribor.hpp>
 #include <ql/indexes/ibor/sofr.hpp>
 #include <ql/indexes/ibor/usdlibor.hpp>
+#include <ql/math/interpolations/loginterpolation.hpp>
 #include <ql/optional.hpp>
 #include <ql/quotes/simplequote.hpp>
 #include <ql/settings.hpp>
 #include <ql/termstructures/volatility/optionlet/constantoptionletvol.hpp>
+#include <ql/termstructures/yield/discountcurve.hpp>
+#include <ql/termstructures/yield/piecewiseyieldcurve.hpp>
+#include <ql/termstructures/yield/ratehelpers.hpp>
 #include <ql/time/calendars/target.hpp>
+#include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/time/daycounters/actualactual.hpp>
 #include <ql/time/schedule.hpp>
+#include <iomanip>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -549,6 +558,259 @@ BOOST_AUTO_TEST_CASE(testFixedIborCouponWithoutForecastCurve)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testFixedIborCouponOnShortForecastCurve)
+{
+    BOOST_TEST_MESSAGE("Testing past ibor coupon on a forecast curve that ends before its payment...");
+
+    Date today(13, May, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    Handle<YieldTermStructure> forecastCurve(ext::make_shared<DiscountCurve>(
+        std::vector<Date>{today, today + 3 * Months}, std::vector<DiscountFactor>{1.0, 0.99}, Actual365Fixed()));
+    auto index = ext::make_shared<Euribor6M>(forecastCurve);
+
+    Date fixingDate = index->fixingCalendar().advance(today, -2, Months);
+    Rate pastFixing = 0.0287;
+    index->addFixing(fixingDate, pastFixing);
+    Date startDate = index->valueDate(fixingDate);
+    Date endDate = index->maturityDate(startDate);
+    BOOST_REQUIRE(endDate > forecastCurve->maxDate());
+
+    IborCoupon coupon(endDate, 100.0, startDate, endDate, index->fixingDays(), index);
+    auto pricer = ext::make_shared<BlackIborCouponPricer>();
+    coupon.setPricer(pricer);
+
+    // the rate is the stored fixing, and needs nothing from the curve
+    BOOST_CHECK_NO_THROW(coupon.rate());
+    BOOST_CHECK_EQUAL(coupon.rate(), pastFixing);
+    Real expected = pastFixing * coupon.nominal() * coupon.accrualPeriod();
+    if (std::fabs(coupon.amount() - expected) > 1e-12)
+        BOOST_ERROR("amount mismatch:" << "\n    calculated: " << coupon.amount() << "\n    expected: " << expected);
+
+    // a price discounts to the payment date on the curve, which doesn't reach it
+    pricer->initialize(coupon);
+    BOOST_CHECK_THROW(pricer->swapletPrice(), Error);
+}
+
+BOOST_AUTO_TEST_CASE(testFixedIborCouponNotificationsFromForecastCurve)
+{
+    BOOST_TEST_MESSAGE("Testing which forecast-curve notifications a past ibor coupon passes on...");
+
+    Date today(13, May, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    Calendar calendar = TARGET();
+    for (bool forwardAll : {false, true})
+    {
+        std::vector<ext::shared_ptr<SimpleQuote>> quotes;
+        std::vector<ext::shared_ptr<RateHelper>> helpers;
+        for (Integer m : {3, 6, 12})
+        {
+            quotes.push_back(ext::make_shared<SimpleQuote>(0.028 + 0.001 * (m / 3)));
+            helpers.push_back(ext::make_shared<DepositRateHelper>(Handle<Quote>(quotes.back()), m * Months, 2, calendar,
+                                                                  ModifiedFollowing, false, Actual360()));
+        }
+        auto curve = ext::make_shared<PiecewiseYieldCurve<Discount, LogLinear>>(today, helpers, Actual365Fixed());
+        Handle<YieldTermStructure> forecastCurve(curve);
+        auto index = ext::make_shared<Euribor6M>(forecastCurve);
+
+        Date fixingDate = index->fixingCalendar().advance(today, -2, Months);
+        index->addFixing(fixingDate, 0.0287, true);
+        Date startDate = index->valueDate(fixingDate);
+        Date endDate = index->maturityDate(startDate);
+        auto coupon = ext::make_shared<IborCoupon>(endDate, 100.0, startDate, endDate, index->fixingDays(), index);
+        coupon->setPricer(ext::make_shared<BlackIborCouponPricer>());
+
+        // the curve and the coupon are the chain's lazy objects
+        if (forwardAll)
+        {
+            curve->alwaysForwardNotifications();
+            coupon->alwaysForwardNotifications();
+        }
+        else
+        {
+            curve->forwardFirstNotificationOnly();
+            coupon->forwardFirstNotificationOnly();
+        }
+
+        Flag flag;
+        flag.registerWith(coupon);
+        const std::string mode = forwardAll ? "forwarding all notifications" : "forwarding the first only";
+
+        // the coupon's rate is its stored fixing, so reading it doesn't calculate the curve; a curve that forwards
+        // only its first notification passes nothing on until something calculates it
+        coupon->rate();
+        quotes[1]->setValue(0.0301);
+        if (flag.isUp() != forwardAll)
+            BOOST_ERROR(mode << ": a quote's change after the coupon's rate was read "
+                             << (flag.isUp() ? "was" : "wasn't") << " passed on by the coupon");
+        flag.lower();
+
+        coupon->rate();
+        forecastCurve->discount(1.0);
+        quotes[1]->setValue(0.0302);
+        if (!flag.isUp())
+            BOOST_ERROR(mode << ": a quote's change after the curve was read wasn't passed on by the coupon");
+        flag.lower();
+
+        quotes[1]->setValue(0.0303);
+        if (flag.isUp() != forwardAll)
+            BOOST_ERROR(mode << ": a second quote's change with nothing read between "
+                             << (flag.isUp() ? "was" : "wasn't") << " passed on by the coupon");
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBlackIborCouponPricerPrices)
+{
+    BOOST_TEST_MESSAGE("Testing the Black ibor pricer's swaplet, caplet and floorlet prices...");
+
+    Date today(13, May, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    Calendar calendar = TARGET();
+    Handle<YieldTermStructure> forecastCurve(flatRate(today, 0.03, Actual365Fixed()));
+    Handle<OptionletVolatilityStructure> volatility(
+        ext::make_shared<ConstantOptionletVolatility>(0, calendar, Following, 0.20, Actual365Fixed()));
+    auto index = ext::make_shared<Euribor6M>(forecastCurve);
+    const std::vector<Rate> strikes = {0.02, 0.03, 0.04};
+
+    auto check = [](const std::string& what, Real calculated, Real expected)
+    {
+        if (std::fabs(calculated - expected) > 1e-14 * std::fabs(expected))
+            BOOST_ERROR(what << " mismatch:" << std::setprecision(17) << "\n    calculated: " << calculated
+                             << "\n    expected:   " << expected);
+    };
+
+    {
+        // fixing in a year and paid five days after its accrual ends: the prices discount to the payment date
+        Date fixingDate = calendar.advance(today, 1, Years);
+        Date startDate = index->valueDate(fixingDate);
+        Date endDate = index->maturityDate(startDate);
+        Date paymentDate = calendar.advance(endDate, 5, Days);
+        IborCoupon coupon(paymentDate, 100.0, startDate, endDate, index->fixingDays(), index);
+        auto pricer = ext::make_shared<BlackIborCouponPricer>(volatility);
+        coupon.setPricer(pricer);
+        pricer->initialize(coupon);
+
+        const Real factor = coupon.accrualPeriod() * forecastCurve->discount(paymentDate);
+        check("future swaplet price", pricer->swapletPrice(), pricer->swapletRate() * factor);
+        for (Rate strike : strikes)
+        {
+            check("future caplet price", pricer->capletPrice(strike), pricer->capletRate(strike) * factor);
+            check("future floorlet price", pricer->floorletPrice(strike), pricer->floorletRate(strike) * factor);
+        }
+    }
+
+    {
+        // paid before the curve's reference date, from a stored fixing: no discount
+        Date fixingDate = calendar.advance(today, -8, Months);
+        index->addFixing(fixingDate, 0.0291);
+        Date startDate = index->valueDate(fixingDate);
+        Date endDate = index->maturityDate(startDate);
+        BOOST_REQUIRE(endDate < forecastCurve->referenceDate());
+        IborCoupon coupon(endDate, 100.0, startDate, endDate, index->fixingDays(), index);
+        auto pricer = ext::make_shared<BlackIborCouponPricer>(volatility);
+        coupon.setPricer(pricer);
+        pricer->initialize(coupon);
+
+        const Real factor = coupon.accrualPeriod();
+        check("paid swaplet price", pricer->swapletPrice(), pricer->swapletRate() * factor);
+        for (Rate strike : strikes)
+        {
+            check("paid caplet price", pricer->capletPrice(strike), pricer->capletRate(strike) * factor);
+            check("paid floorlet price", pricer->floorletPrice(strike), pricer->floorletRate(strike) * factor);
+        }
+    }
+
+    {
+        // no forecast curve: the rate comes from the stored fixing, and the prices can't be discounted
+        auto noCurveIndex = ext::make_shared<Euribor6M>();
+        Date fixingDate = calendar.advance(today, -2, Months);
+        noCurveIndex->addFixing(fixingDate, 0.0287);
+        Date startDate = noCurveIndex->valueDate(fixingDate);
+        Date endDate = noCurveIndex->maturityDate(startDate);
+        IborCoupon coupon(endDate, 100.0, startDate, endDate, noCurveIndex->fixingDays(), noCurveIndex);
+        auto pricer = ext::make_shared<BlackIborCouponPricer>(volatility);
+        coupon.setPricer(pricer);
+        pricer->initialize(coupon);
+
+        BOOST_CHECK_EQUAL(pricer->swapletRate(), 0.0287);
+        BOOST_CHECK_EXCEPTION(pricer->swapletPrice(), Error, ExpectedErrorMessage("no forecast curve provided"));
+        BOOST_CHECK_EXCEPTION(pricer->capletPrice(0.03), Error, ExpectedErrorMessage("no forecast curve provided"));
+        BOOST_CHECK_EXCEPTION(pricer->floorletPrice(0.03), Error, ExpectedErrorMessage("no forecast curve provided"));
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testBlackIborCouponPricerSharedByTwoIndexes)
+{
+    BOOST_TEST_MESSAGE("Testing a Black ibor pricer shared by coupons on two indexes...");
+
+    Date today(13, May, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    Calendar calendar = TARGET();
+    Handle<YieldTermStructure> curve3M(flatRate(today, 0.02, Actual365Fixed()));
+    Handle<YieldTermStructure> curve6M(flatRate(today, 0.04, Actual365Fixed()));
+    Handle<OptionletVolatilityStructure> volatility(
+        ext::make_shared<ConstantOptionletVolatility>(0, calendar, Following, 0.20, Actual365Fixed()));
+    const std::vector<ext::shared_ptr<IborIndex>> indexes = {ext::make_shared<Euribor3M>(curve3M),
+                                                             ext::make_shared<Euribor6M>(curve6M)};
+    auto pricer = ext::make_shared<BlackIborCouponPricer>(volatility);
+
+    // each coupon is priced on its own index's curve, whichever coupon the pricer worked on before
+    for (Size pass = 0; pass < 2; ++pass)
+    {
+        for (const auto& index : indexes)
+        {
+            Date fixingDate = calendar.advance(today, 1, Years);
+            Date startDate = index->valueDate(fixingDate);
+            Date endDate = index->maturityDate(startDate);
+            Date paymentDate = calendar.advance(endDate, 5, Days);
+            IborCoupon coupon(paymentDate, 100.0, startDate, endDate, index->fixingDays(), index);
+            coupon.setPricer(pricer);
+            pricer->initialize(coupon);
+
+            const Real expected = pricer->swapletRate() * coupon.accrualPeriod() *
+                                  index->forwardingTermStructure()->discount(paymentDate);
+            const Real calculated = pricer->swapletPrice();
+            if (std::fabs(calculated - expected) > 1e-14 * std::fabs(expected))
+                BOOST_ERROR(index->name()
+                            << " swaplet price, pass " << pass + 1 << ", mismatch:" << std::setprecision(17)
+                            << "\n    calculated: " << calculated << "\n    expected:   " << expected);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testIborCouponDatesWorkedOutByAnotherPricer)
+{
+    BOOST_TEST_MESSAGE("Testing an ibor coupon without a pricer whose dates another pricer has worked out...");
+
+    Date today(13, May, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    Handle<YieldTermStructure> forecastCurve(flatRate(today, 0.03, Actual365Fixed()));
+    auto index = ext::make_shared<Euribor6M>(forecastCurve);
+    Date fixingDate = index->fixingCalendar().advance(today, 1, Years);
+    Date startDate = index->valueDate(fixingDate);
+    Date endDate = index->maturityDate(startDate);
+
+    IborCoupon priced(endDate, 100.0, startDate, endDate, index->fixingDays(), index);
+    priced.setPricer(ext::make_shared<BlackIborCouponPricer>());
+
+    // without a pricer of its own, the coupon can't work its dates out
+    IborCoupon coupon(endDate, 100.0, startDate, endDate, index->fixingDays(), index);
+    BOOST_CHECK_EXCEPTION(coupon.fixingEndDate(), Error, ExpectedErrorMessage("pricer not set"));
+
+    // once a pricer has worked them out for it, it gives them, as it would with that pricer as its own
+    ext::make_shared<BlackIborCouponPricer>()->initialize(coupon);
+    BOOST_CHECK_EQUAL(coupon.fixingValueDate(), priced.fixingValueDate());
+    BOOST_CHECK_EQUAL(coupon.fixingMaturityDate(), priced.fixingMaturityDate());
+    BOOST_CHECK_EQUAL(coupon.fixingEndDate(), priced.fixingEndDate());
+    BOOST_CHECK_EQUAL(coupon.spanningTime(), priced.spanningTime());
+    BOOST_CHECK_EQUAL(coupon.spanningTimeIndexMaturity(), priced.spanningTimeIndexMaturity());
+    BOOST_CHECK_EQUAL(coupon.indexFixing(), priced.indexFixing());
+}
+
 IborCoupon iborCouponForFixingDate(const ext::shared_ptr<IborIndex>& index, Date fixingDate)
 {
     Date startDate = index->valueDate(fixingDate);
@@ -603,6 +865,101 @@ BOOST_AUTO_TEST_CASE(testIborCouponKnowsWhenitHasFixed)
     {
         IborCoupon coupon = iborCouponForFixingDate(index, calendar.advance(today, 1, Days));
         BOOST_CHECK_EQUAL(coupon.hasFixed(), false);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testCashFlowAsCoupon)
+{
+    BOOST_TEST_MESSAGE("Testing that a cash flow gives itself as a coupon exactly when a cast does...");
+
+    Date today(13, May, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    Handle<YieldTermStructure> curve(flatRate(today, 0.03, Actual365Fixed()));
+    auto euribor = ext::make_shared<Euribor6M>(curve);
+    auto sofr = ext::make_shared<Sofr>(curve);
+    Schedule schedule = MakeSchedule()
+                            .from(today)
+                            .to(today + 1 * Years)
+                            .withFrequency(Semiannual)
+                            .withCalendar(TARGET())
+                            .withConvention(Following);
+
+    Leg leg = FixedRateLeg(schedule).withNotionals(100.0).withCouponRates(0.03, Actual360());
+    for (const Leg& other : {Leg(IborLeg(schedule, euribor).withNotionals(100.0)),
+                             Leg(IborLeg(schedule, euribor).withNotionals(100.0).withCaps(0.04).withFloors(0.02)),
+                             Leg(OvernightLeg(schedule, sofr).withNotionals(100.0))})
+        leg.insert(leg.end(), other.begin(), other.end());
+    leg.push_back(ext::make_shared<SimpleCashFlow>(1.0, today + 1 * Years));
+    leg.push_back(ext::make_shared<Redemption>(100.0, today + 1 * Years));
+    leg.push_back(ext::make_shared<AmortizingPayment>(10.0, today + 6 * Months));
+    leg.push_back(ext::make_shared<IndexedCashFlow>(100.0, euribor, today, today + 6 * Months, today + 1 * Years));
+    leg.push_back(ext::make_shared<FixedDividend>(1.0, today + 3 * Months));
+
+    Size coupons = 0;
+    for (const auto& cf : leg)
+    {
+        const auto* expected = dynamic_cast<const Coupon*>(cf.get());
+        if (cf->asCoupon() != expected)
+            BOOST_ERROR("cash flow paid on " << cf->date() << " is " << (expected != nullptr ? "" : "not ")
+                                             << "a coupon, but asCoupon() says otherwise");
+        if (expected != nullptr)
+            ++coupons;
+    }
+    BOOST_CHECK_EQUAL(coupons, 8U);
+    BOOST_CHECK_EQUAL(leg.size(), 13U);
+}
+
+BOOST_AUTO_TEST_CASE(testCouponInspectorsAmongOtherCashFlows)
+{
+    BOOST_TEST_MESSAGE("Testing that CashFlows' coupon inspectors find a coupon among other cash flows...");
+
+    Date today(13, May, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    Schedule schedule = MakeSchedule()
+                            .from(today)
+                            .to(today + 1 * Years)
+                            .withFrequency(Semiannual)
+                            .withCalendar(TARGET())
+                            .withConvention(Following);
+    Leg coupons =
+        FixedRateLeg(schedule).withNotionals(std::vector<Real>{100.0, 90.0}).withCouponRates(0.03, Actual360());
+    BOOST_REQUIRE_EQUAL(coupons.size(), 2U);
+
+    // a dividend paid alone, then each coupon paid after another cash flow paid on its date
+    Leg leg = {ext::make_shared<FixedDividend>(1.0, today + 3 * Months),
+               ext::make_shared<AmortizingPayment>(10.0, coupons[0]->date()), coupons[0],
+               ext::make_shared<Redemption>(90.0, coupons[1]->date()), coupons[1]};
+
+    // the next cash flow is the dividend, which isn't a coupon
+    Date settlement = today + 1 * Months;
+    BOOST_CHECK_EQUAL(CashFlows::nominal(leg, false, settlement), 0.0);
+    BOOST_CHECK_EQUAL(CashFlows::accrualStartDate(leg, false, settlement), Date());
+    BOOST_CHECK_EQUAL(CashFlows::accrualEndDate(leg, false, settlement), Date());
+    BOOST_CHECK_EQUAL(CashFlows::referencePeriodStart(leg, false, settlement), Date());
+    BOOST_CHECK_EQUAL(CashFlows::referencePeriodEnd(leg, false, settlement), Date());
+    BOOST_CHECK_EQUAL(CashFlows::accrualPeriod(leg, false, settlement), 0.0);
+    BOOST_CHECK_EQUAL(CashFlows::accrualDays(leg, false, settlement), 0);
+    BOOST_CHECK_EQUAL(CashFlows::accruedPeriod(leg, false, settlement), 0.0);
+    BOOST_CHECK_EQUAL(CashFlows::accruedDays(leg, false, settlement), 0);
+    BOOST_CHECK_EQUAL(CashFlows::accruedAmount(leg, false, settlement), 0.0);
+
+    for (Size i = 0; i < coupons.size(); ++i)
+    {
+        auto coupon = ext::dynamic_pointer_cast<Coupon>(coupons[i]);
+        BOOST_REQUIRE(coupon);
+        settlement = i == 0 ? today + 4 * Months : coupons[0]->date() + 1 * Months;
+        BOOST_CHECK_EQUAL(CashFlows::nominal(leg, false, settlement), coupon->nominal());
+        BOOST_CHECK_EQUAL(CashFlows::accrualStartDate(leg, false, settlement), coupon->accrualStartDate());
+        BOOST_CHECK_EQUAL(CashFlows::accrualEndDate(leg, false, settlement), coupon->accrualEndDate());
+        BOOST_CHECK_EQUAL(CashFlows::referencePeriodStart(leg, false, settlement), coupon->referencePeriodStart());
+        BOOST_CHECK_EQUAL(CashFlows::referencePeriodEnd(leg, false, settlement), coupon->referencePeriodEnd());
+        BOOST_CHECK_EQUAL(CashFlows::accrualPeriod(leg, false, settlement), coupon->accrualPeriod());
+        BOOST_CHECK_EQUAL(CashFlows::accrualDays(leg, false, settlement), coupon->accrualDays());
+        BOOST_CHECK_EQUAL(CashFlows::accruedPeriod(leg, false, settlement), coupon->accruedPeriod(settlement));
+        BOOST_CHECK_EQUAL(CashFlows::accruedDays(leg, false, settlement), coupon->accruedDays(settlement));
+        BOOST_CHECK_EQUAL(CashFlows::accruedAmount(leg, false, settlement), coupon->accruedAmount(settlement));
     }
 }
 

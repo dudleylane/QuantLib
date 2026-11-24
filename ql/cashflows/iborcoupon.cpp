@@ -68,6 +68,9 @@ namespace QuantLib
 
     void IborCoupon::initializeCachedData() const
     {
+        // dates a pricer has worked out stand, whichever pricer it was, so the flag is checked before the cast (#97)
+        if (cachedDataIsInitialized_)
+            return;
         auto p = ext::dynamic_pointer_cast<IborCouponPricer>(pricer_);
         QL_REQUIRE(p, "IborCoupon: pricer not set or not derived from IborCouponPricer");
         p->initializeCachedData(*this);

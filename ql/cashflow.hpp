@@ -34,6 +34,8 @@
 namespace QuantLib
 {
 
+    class Coupon;
+
     //! Base class for cash flows
     /*! This class is purely virtual and acts as a base class for the
         actual cash flow implementations.
@@ -68,7 +70,9 @@ namespace QuantLib
         virtual Date exCouponDate() const { return {}; };
         //! returns true if the cashflow is trading ex-coupon on the refDate
         bool tradingExCoupon(const Date& refDate = Date()) const;
-
+        //! returns the cash flow as a coupon, or null if it isn't one
+        /*! It gives what a cast to Coupon gives, without the cast. */
+        virtual const Coupon* asCoupon() const { return nullptr; }
         //@}
         //! \name Visitability
         //@{

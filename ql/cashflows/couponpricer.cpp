@@ -101,7 +101,9 @@ namespace QuantLib
 
         initializeCachedData(*coupon_);
 
-        index_ = coupon_->iborIndex();
+        // a coupon priced again, or the next coupon on the same index, finds the index already held (#97)
+        if (index_ != coupon_->iborIndex())
+            index_ = coupon_->iborIndex();
         gearing_ = coupon_->gearing();
         spread_ = coupon_->spread();
         accrualPeriod_ = coupon_->accrualPeriod();
@@ -121,23 +123,16 @@ namespace QuantLib
 
     void BlackIborCouponPricer::initialize(const FloatingRateCoupon& coupon)
     {
-
+        // the discount factor is read only by a price, not by a rate (#97)
         IborCouponPricer::initialize(coupon);
+    }
 
+    Real BlackIborCouponPricer::discount() const
+    {
         const Handle<YieldTermStructure>& rateCurve = index_->forwardingTermStructure();
-
-        if (rateCurve.empty())
-        {
-            discount_ = Null<Real>(); // might not be needed, will be checked later
-        }
-        else
-        {
-            Date paymentDate = coupon_->date();
-            if (paymentDate > rateCurve->referenceDate())
-                discount_ = rateCurve->discount(paymentDate);
-            else
-                discount_ = 1.0;
-        }
+        QL_REQUIRE(!rateCurve.empty(), "no forecast curve provided");
+        const Date paymentDate = coupon_->date();
+        return paymentDate > rateCurve->referenceDate() ? rateCurve->discount(paymentDate) : 1.0;
     }
 
     Real BlackIborCouponPricer::optionletRate(Option::Type optionType, Real effStrike) const
@@ -173,8 +168,8 @@ namespace QuantLib
 
     Real BlackIborCouponPricer::optionletPrice(Option::Type optionType, Real effStrike) const
     {
-        QL_REQUIRE(discount_ != Null<Rate>(), "no forecast curve provided");
-        return optionletRate(optionType, effStrike) * accrualPeriod_ * discount_;
+        const Real d = discount();
+        return optionletRate(optionType, effStrike) * accrualPeriod_ * d;
     }
 
     Rate BlackIborCouponPricer::adjustedFixing(Rate fixing) const
