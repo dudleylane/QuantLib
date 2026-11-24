@@ -33,6 +33,7 @@
 #include <ql/quotes/simplequote.hpp>
 #include <ql/settings.hpp>
 #include <ql/time/date.hpp>
+#include <ql/utilities/null_deleter.hpp>
 #include <utility>
 
 namespace QuantLib
@@ -262,6 +263,38 @@ namespace QuantLib
                 return (h1->pillarDate() < h2->pillarDate());
             }
         };
+
+        //! links a helper's handle to the structure being bootstrapped, neither owning nor observing it
+        /*! A bootstrap passes its structure to each helper's setTermStructure() every time it is
+            rebuilt.  Relinking a handle to the object it links already, not observing it, does
+            nothing, so the shared pointer to the structure, whose control block is allocated, is
+            built only for a handle that links another object or none (#90).
+
+            \p link is that pointer, empty until it is built: a helper that links more than one
+            handle to the structure passes the same \p link to each, so that they share it.
+
+            A handle that links the structure already and observes it, which no helper in the
+            library makes, isn't relinked, so it goes on observing it; a relink would have stopped
+            that.
+        */
+        template <class TS>
+        void linkToBootstrapped(RelinkableHandle<TS>& handle, TS* structure, ext::shared_ptr<TS>& link)
+        {
+            if (handle.empty() || handle.currentLink().get() != structure)
+            {
+                if (link.use_count() == 0)
+                    link = ext::shared_ptr<TS>(structure, null_deleter());
+                handle.linkTo(link, false);
+            }
+        }
+
+        //! links a helper's only handle to the structure being bootstrapped
+        template <class TS>
+        void linkToBootstrapped(RelinkableHandle<TS>& handle, TS* structure)
+        {
+            ext::shared_ptr<TS> link;
+            linkToBootstrapped(handle, structure, link);
+        }
 
     }
 

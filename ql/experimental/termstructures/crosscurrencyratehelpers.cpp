@@ -242,10 +242,7 @@ namespace QuantLib
     {
         // do not set the relinkable handle as an observer -
         // force recalculation when needed
-        bool observer = false;
-
-        ext::shared_ptr<YieldTermStructure> temp(t, null_deleter());
-        termStructureHandle_.linkTo(temp, observer);
+        detail::linkToBootstrapped(termStructureHandle_, t);
 
         RelativeDateRateHelper::setTermStructure(t);
     }

@@ -231,10 +231,7 @@ namespace QuantLib
     {
         // do not set the relinkable handle as an observer -
         // force recalculation when needed
-        bool observer = false;
-
-        ext::shared_ptr<ZeroInflationTermStructure> temp(z, null_deleter());
-        termStructureHandle_.linkTo(std::move(temp), observer);
+        detail::linkToBootstrapped(termStructureHandle_, z);
 
         RelativeDateBootstrapHelper<ZeroInflationTermStructure>::setTermStructure(z);
     }
@@ -386,10 +383,7 @@ namespace QuantLib
     {
         // do not set the relinkable handle as an observer -
         // force recalculation when needed
-        bool observer = false;
-
-        ext::shared_ptr<YoYInflationTermStructure> temp(y, null_deleter());
-        termStructureHandle_.linkTo(std::move(temp), observer);
+        detail::linkToBootstrapped(termStructureHandle_, y);
 
         RelativeDateBootstrapHelper<YoYInflationTermStructure>::setTermStructure(y);
     }
