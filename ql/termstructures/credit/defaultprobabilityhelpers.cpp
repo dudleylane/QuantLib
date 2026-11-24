@@ -64,7 +64,7 @@ namespace QuantLib
     {
         RelativeDateDefaultProbabilityHelper::setTermStructure(ts);
 
-        probability_.linkTo(ext::shared_ptr<DefaultProbabilityTermStructure>(ts, null_deleter()), false);
+        detail::linkToBootstrapped(probability_, ts);
 
         resetEngine();
     }

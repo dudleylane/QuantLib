@@ -230,10 +230,7 @@ namespace QuantLib
     {
         // do not set the relinkable handle as an observer -
         // force recalculation when needed---the index is not lazy
-        bool observer = false;
-
-        ext::shared_ptr<YieldTermStructure> temp(t, null_deleter());
-        termStructureHandle_.linkTo(temp, observer);
+        detail::linkToBootstrapped(termStructureHandle_, t);
 
         RelativeDateRateHelper::setTermStructure(t);
     }
@@ -400,10 +397,7 @@ namespace QuantLib
     {
         // do not set the relinkable handle as an observer -
         // force recalculation when needed---the index is not lazy
-        bool observer = false;
-
-        ext::shared_ptr<YieldTermStructure> temp(t, null_deleter());
-        termStructureHandle_.linkTo(temp, observer);
+        detail::linkToBootstrapped(termStructureHandle_, t);
 
         RelativeDateRateHelper::setTermStructure(t);
     }
@@ -664,11 +658,11 @@ namespace QuantLib
         // force recalculation when needed
         bool observer = false;
 
-        ext::shared_ptr<YieldTermStructure> temp(t, null_deleter());
-        termStructureHandle_.linkTo(temp, observer);
+        ext::shared_ptr<YieldTermStructure> link;
+        detail::linkToBootstrapped(termStructureHandle_, t, link);
 
         if (discountHandle_.empty())
-            discountRelinkableHandle_.linkTo(temp, observer);
+            detail::linkToBootstrapped(discountRelinkableHandle_, t, link);
         else
             discountRelinkableHandle_.linkTo(*discountHandle_, observer);
 
@@ -766,10 +760,7 @@ namespace QuantLib
     {
         // do not set the relinkable handle as an observer -
         // force recalculation when needed
-        bool observer = false;
-
-        ext::shared_ptr<YieldTermStructure> temp(t, null_deleter());
-        termStructureHandle_.linkTo(temp, observer);
+        detail::linkToBootstrapped(termStructureHandle_, t);
 
         RelativeDateRateHelper::setTermStructure(t);
     }
@@ -881,8 +872,7 @@ namespace QuantLib
         // force recalculation when needed
         bool observer = false;
 
-        ext::shared_ptr<YieldTermStructure> temp(t, null_deleter());
-        termStructureHandle_.linkTo(temp, observer);
+        detail::linkToBootstrapped(termStructureHandle_, t);
 
         collRelinkableHandle_.linkTo(*collHandle_, observer);
 

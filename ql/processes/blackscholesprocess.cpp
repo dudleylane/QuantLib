@@ -27,6 +27,7 @@
 #include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/time/calendars/nullcalendar.hpp>
 #include <ql/time/daycounters/actual365fixed.hpp>
+#include <cstring>
 #include <utility>
 
 
@@ -192,14 +193,40 @@ namespace QuantLib
         {
             isStrikeIndependent_ = true;
 
+            // The local volatility linked for a BlackConstantVol or a BlackVarianceCurve is kept while it is
+            // what a rebuild would link: built from the same Black volatility object (and, for a constant one,
+            // from the same reference date and value), still the handle's current link (copies of a process
+            // share the link, so another copy may have relinked it), and without extrapolation enabled on it.
+            const auto unchanged = [this](const auto& source)
+            {
+                if (localVolatility_.empty())
+                    return false;
+                const ext::shared_ptr<LocalVolTermStructure>& current = localVolatility_.currentLink();
+                return !current->allowsExtrapolation() && localVolLinked_.lock() == current &&
+                       localVolSource_.lock() == source;
+            };
+            const auto relink = [this](const auto& source, const ext::shared_ptr<LocalVolTermStructure>& localVol)
+            {
+                localVolatility_.linkTo(localVol);
+                localVolSource_ = source;
+                localVolLinked_ = localVol;
+            };
+
             // constant Black vol?
             ext::shared_ptr<BlackConstantVol> constVol =
                 ext::dynamic_pointer_cast<BlackConstantVol>(*blackVolatility());
             if (constVol != nullptr)
             {
                 // ok, the local vol is constant too.
-                localVolatility_.linkTo(ext::make_shared<LocalConstantVol>(
-                    constVol->referenceDate(), constVol->blackVol(0.0, x0_->value()), constVol->dayCounter()));
+                const Date referenceDate = constVol->referenceDate();
+                const Volatility vol = constVol->blackVol(0.0, x0_->value());
+                if (!unchanged(constVol) || referenceDate != localVolDate_ ||
+                    std::memcmp(&vol, &localVolValue_, sizeof(Volatility)) != 0)
+                {
+                    relink(constVol, ext::make_shared<LocalConstantVol>(referenceDate, vol, constVol->dayCounter()));
+                    localVolDate_ = referenceDate;
+                    localVolValue_ = vol;
+                }
                 updated_ = true;
                 return localVolatility_;
             }
@@ -209,8 +236,9 @@ namespace QuantLib
                 ext::dynamic_pointer_cast<BlackVarianceCurve>(*blackVolatility());
             if (volCurve != nullptr)
             {
-                // ok, we can use the optimized algorithm
-                localVolatility_.linkTo(ext::make_shared<LocalVolCurve>(Handle<BlackVarianceCurve>(volCurve)));
+                // ok, we can use the optimized algorithm; LocalVolCurve reads the curve as it goes.
+                if (!unchanged(volCurve))
+                    relink(volCurve, ext::make_shared<LocalVolCurve>(Handle<BlackVarianceCurve>(volCurve)));
                 updated_ = true;
                 return localVolatility_;
             }

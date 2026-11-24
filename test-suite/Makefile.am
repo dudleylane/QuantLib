@@ -21,6 +21,7 @@ QL_TEST_SRCS = \
 	blackdeltacalculator.cpp \
 	blackformula.cpp \
 	blackformulatemplate.cpp \
+	blackscholesprocess.cpp \
 	blackvolsurfacedelta.cpp \
 	bondforward.cpp \
 	bonds.cpp \

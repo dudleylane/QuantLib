@@ -209,11 +209,11 @@ namespace QuantLib
         // force recalculation when needed
         bool observer = false;
 
-        ext::shared_ptr<YieldTermStructure> temp(t, null_deleter());
-        termStructureHandle_.linkTo(temp, observer);
+        ext::shared_ptr<YieldTermStructure> link;
+        detail::linkToBootstrapped(termStructureHandle_, t, link);
 
         if (discountHandle_.empty())
-            discountRelinkableHandle_.linkTo(temp, observer);
+            detail::linkToBootstrapped(discountRelinkableHandle_, t, link);
         else
             discountRelinkableHandle_.linkTo(*discountHandle_, observer);
 

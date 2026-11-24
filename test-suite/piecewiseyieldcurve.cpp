@@ -2096,6 +2096,131 @@ BOOST_AUTO_TEST_CASE(testHelpersAfterTheirFixingDate)
     index->clearFixings();
 }
 
+// prices vars' deposits and swaps on the curve alone, through instruments of their own, and checks that they
+// reproduce the quotes as they stand
+void checkDepositsAndSwapsReprice(const CommonVars& vars,
+                                  const ext::shared_ptr<YieldTermStructure>& curve,
+                                  const std::string& curveName,
+                                  Real tolerance = 1.0e-9)
+{
+    Handle<YieldTermStructure> curveHandle(curve);
+
+    for (Size i = 0; i < vars.deposits; i++)
+    {
+        Euribor index(depositData[i].n * depositData[i].units, curveHandle);
+        Rate expectedRate = vars.rates[i]->value(), estimatedRate = index.fixing(vars.today);
+        if (std::fabs(expectedRate - estimatedRate) > tolerance)
+        {
+            BOOST_ERROR(curveName << ", " << depositData[i].n << " "
+                                  << (depositData[i].units == Weeks ? "week(s)" : "month(s)") << " deposit:"
+                                  << std::setprecision(8) << "\n    estimated rate: " << io::rate(estimatedRate)
+                                  << "\n    expected rate:  " << io::rate(expectedRate));
+        }
+    }
+
+    auto euribor6m = ext::make_shared<Euribor6M>(curveHandle);
+    for (Size i = 0; i < vars.swaps; i++)
+    {
+        VanillaSwap swap = MakeVanillaSwap(swapData[i].n * swapData[i].units, euribor6m, 0.0)
+                               .withEffectiveDate(vars.settlement)
+                               .withFixedLegDayCount(vars.fixedLegDayCounter)
+                               .withFixedLegTenor(Period(vars.fixedLegFrequency))
+                               .withFixedLegConvention(vars.fixedLegConvention)
+                               .withFixedLegTerminationDateConvention(vars.fixedLegConvention);
+
+        Rate expectedRate = vars.rates[vars.deposits + i]->value(), estimatedRate = swap.fairRate();
+        if (std::fabs(expectedRate - estimatedRate) > tolerance)
+        {
+            BOOST_ERROR(curveName << ", " << swapData[i].n << " year(s) swap:" << std::setprecision(8)
+                                  << "\n    estimated rate: " << io::rate(estimatedRate)
+                                  << "\n    expected rate:  " << io::rate(expectedRate));
+        }
+    }
+}
+
+// from the second step on, moves one of vars' quotes by a basis point: up on the first pass over them, and back
+// down on the second
+void moveOneQuote(const CommonVars& vars, Size step)
+{
+    if (step == 0)
+        return;
+    const auto& quote = vars.rates[(step - 1) % vars.rates.size()];
+    quote->setValue(quote->value() + (step <= vars.rates.size() ? 1.0e-4 : -1.0e-4));
+}
+
+BOOST_AUTO_TEST_CASE(testCurvesSharingTheirHelpers)
+{
+    BOOST_TEST_MESSAGE("Testing two live curves bootstrapped on the same helpers...");
+
+    CommonVars vars(Date(23, October, 2026));
+
+    // A bootstrap links the helpers to the curve it builds, so that they serve whichever of the two curves was
+    // built last, and each curve links them again when it's rebuilt. Each has to reprice its deposits and its
+    // swaps on its own, forecasting and discounting alike.
+    const std::vector<std::pair<std::string, ext::shared_ptr<YieldTermStructure>>> curves = {
+        {"log-linear discount curve",
+         ext::make_shared<PiecewiseYieldCurve<Discount, LogLinear>>(vars.settlement, vars.instruments, Actual360())},
+        {"linear zero curve",
+         ext::make_shared<PiecewiseYieldCurve<ZeroYield, Linear>>(vars.settlement, vars.instruments, Actual360())}};
+
+    for (Size step = 0; step <= 2 * vars.rates.size(); ++step)
+    {
+        moveOneQuote(vars, step);
+        for (const auto& [name, curve] : curves)
+            checkDepositsAndSwapsReprice(vars, curve, name);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testRebuildsNeedingRetries)
+{
+    BOOST_TEST_MESSAGE("Testing rebuilds of a curve whose bootstrap needs a second attempt...");
+
+    CommonVars vars(Date(23, October, 2026));
+
+    // The explicit maximum of 0.99 is below the discount factors at the first pillars, so the first attempt at
+    // each of them fails and the second, with the maximum doubled, succeeds. On a rebuild the solver fails on the
+    // previous curve, and the bootstrap starts again with the maximum and the attempts it was given.
+    typedef PiecewiseYieldCurve<Discount, LogLinear> Curve;
+    auto curve = ext::make_shared<Curve>(vars.settlement, vars.instruments, Actual360(),
+                                         Curve::bootstrap_type(Null<Real>(), Null<Real>(), 0.99, 2));
+
+    for (Size step = 0; step <= 2 * vars.rates.size(); ++step)
+    {
+        moveOneQuote(vars, step);
+        checkDepositsAndSwapsReprice(vars, curve, "curve with retries");
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testGlobalInterpolationRebuilds)
+{
+    BOOST_TEST_MESSAGE("Testing rebuilds of curves with global interpolations...");
+
+    // With a global interpolation each node moves the whole curve, so the bootstrap goes over the pillars again
+    // until a pass moves no node by more than its accuracy, and each rebuild starts from the previous curve.
+    {
+        CommonVars vars(Date(23, October, 2026));
+        auto curve = ext::make_shared<PiecewiseYieldCurve<ZeroYield, Cubic>>(
+            vars.settlement, vars.instruments, Actual360(),
+            Cubic(CubicInterpolation::Spline, true, CubicInterpolation::SecondDerivative, 0.0,
+                  CubicInterpolation::SecondDerivative, 0.0));
+        for (Size step = 0; step <= 2 * vars.rates.size(); ++step)
+        {
+            moveOneQuote(vars, step);
+            checkDepositsAndSwapsReprice(vars, curve, "cubic zero curve");
+        }
+    }
+    {
+        CommonVars vars(Date(23, October, 2026));
+        auto curve = ext::make_shared<PiecewiseYieldCurve<ForwardRate, ConvexMonotone>>(vars.settlement,
+                                                                                        vars.instruments, Actual360());
+        for (Size step = 0; step <= 2 * vars.rates.size(); ++step)
+        {
+            moveOneQuote(vars, step);
+            checkDepositsAndSwapsReprice(vars, curve, "convex monotone forward curve");
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

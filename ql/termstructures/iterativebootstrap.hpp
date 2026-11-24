@@ -124,6 +124,10 @@ namespace QuantLib
         FiniteDifferenceNewtonSafe solver_;
         mutable bool initialized_ = false, validCurve_ = false, loopRequired_;
         mutable Size firstAliveHelper_ = 0, alive_ = 0;
+        // each pass's bounds and attempts at each pillar, and the data before it where the bootstrap
+        // loops, kept from one rebuild to the next so that a rebuild reuses their storage (#90)
+        mutable std::vector<Real> minValues_, maxValues_, previousData_;
+        mutable std::vector<Size> attempts_;
     };
 
 
@@ -262,24 +266,23 @@ namespace QuantLib
 
         // there might be a valid curve state to use as guess
         bool validData = validCurve_;
-        std::vector<Real> previousData;
 
         for (Size iteration = 0;; ++iteration)
         {
             if (loopRequired_ && validData)
-                previousData = ts_->data_;
+                previousData_ = ts_->data_;
 
             // Store min value and max value at each pillar so that we can expand search if necessary.
-            std::vector<Real> minValues(alive_ + 1, Null<Real>());
-            std::vector<Real> maxValues(alive_ + 1, Null<Real>());
-            std::vector<Size> attempts(alive_ + 1, 1);
+            minValues_.assign(alive_ + 1, Null<Real>());
+            maxValues_.assign(alive_ + 1, Null<Real>());
+            attempts_.assign(alive_ + 1, 1);
 
             for (Size i = 1, j = firstAliveHelper_; j < n_; ++i, ++j)
             { // pillar loop
 
                 // shorter aliases for readability and to avoid duplication
-                Real& min = minValues[i];
-                Real& max = maxValues[i];
+                Real& min = minValues_[i];
+                Real& max = maxValues_[i];
 
                 // bracket root and calculate guess
                 if (min == Null<Real>())
@@ -359,9 +362,9 @@ namespace QuantLib
 
                     // If we have more attempts left on this iteration, try again. Note that the max and min
                     // bounds will be widened on the retry.
-                    if (attempts[i] < maxAttempts_)
+                    if (attempts_[i] < maxAttempts_)
                     {
-                        attempts[i]++;
+                        attempts_[i]++;
                         i--;
                         j--;
                         continue;
@@ -398,7 +401,7 @@ namespace QuantLib
             if (validData)
             {
                 for (Size i = 1; i <= alive_; ++i)
-                    change = std::max(change, std::fabs(data[i] - previousData[i]));
+                    change = std::max(change, std::fabs(data[i] - previousData_[i]));
                 if (change <= accuracy) // convergence reached
                     break;
             }

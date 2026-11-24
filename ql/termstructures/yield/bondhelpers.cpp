@@ -46,7 +46,7 @@ namespace QuantLib
     {
         // do not set the relinkable handle as an observer -
         // force recalculation when needed
-        termStructureHandle_.linkTo(ext::shared_ptr<YieldTermStructure>(t, null_deleter()), false);
+        detail::linkToBootstrapped(termStructureHandle_, t);
 
         BootstrapHelper<YieldTermStructure>::setTermStructure(t);
     }
