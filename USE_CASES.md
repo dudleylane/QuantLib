@@ -314,6 +314,9 @@ price whose option has an engine of its own and whose spot alone moved:
 #88 took the European path from 11 allocations a tick to 2, the
 instrument's copy of two keys longer than 15 characters, at 0.73 of the
 instructions at the median over 288 inputs.
+#91 took the Bjerksund-Stensland path from 10 allocations a tick for a
+put, and 9 for a call, to 1, the instrument's copy of the exercise
+type's name, at 0.93 of the instructions for a put and 0.95 for a call.
 
 **What works today:**
 - End-of-day batch pricing of book-sized portfolios is fine on modern
@@ -340,8 +343,9 @@ instructions at the median over 288 inputs.
   helper and per expiry check. Set it, or call `anchorEvaluationDate()`.
 - **`QL_ENABLE_THREAD_SAFE_OBSERVER_PATTERN`** (off by default). Every
   notification hop takes a `std::recursive_mutex` and then Boost.Signals2's
-  own lock. Every `Observable` constructed also allocates its signal,
-  including the `Event` that each `isExpired()` builds (#96).
+  own lock. Every `Observable` constructed also allocates its signal.
+  Since #96's first part, no instrument builds an `Event` to check its
+  expiry.
 - **`QL_ENABLE_SESSIONS`** (off by default). Every singleton `instance()`
   is a `thread_local` lookup, and under `-fPIC` that's a call to
   `__tls_get_addr` per access.
