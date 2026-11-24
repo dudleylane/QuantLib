@@ -97,6 +97,13 @@ namespace QuantLib
         const Handle<YieldTermStructure>& dividendYield() const;
         const Handle<YieldTermStructure>& riskFreeRate() const;
         const Handle<BlackVolTermStructure>& blackVolatility() const;
+        /*! The local volatility passed to the constructor, if any, or one derived from the Black volatility.
+            A derived one is rebuilt at most once after each notification of this process, at the first call.
+            Derived from a BlackConstantVol or a BlackVarianceCurve, it is rebuilt, and the handle relinked and
+            its observers notified, only if the Black volatility object, or a BlackConstantVol's reference date
+            or value, differs from the one it was built from, if a copy of this process, which shares the handle,
+            has relinked it since, or if extrapolation has been enabled on it.
+        */
         const Handle<LocalVolTermStructure>& localVolatility() const;
         //@}
       private:
@@ -108,6 +115,13 @@ namespace QuantLib
         bool hasExternalLocalVol_;
         mutable RelinkableHandle<LocalVolTermStructure> localVolatility_;
         mutable bool updated_, isStrikeIndependent_;
+        // What the local volatility linked above was built from: the BlackConstantVol or BlackVarianceCurve,
+        // the object this process linked, and a BlackConstantVol's reference date and value. Weak pointers,
+        // so that neither keeps an object alive nor matches a later object at the same address.
+        mutable ext::weak_ptr<BlackVolTermStructure> localVolSource_;
+        mutable ext::weak_ptr<LocalVolTermStructure> localVolLinked_;
+        mutable Date localVolDate_;
+        mutable Volatility localVolValue_ = 0.0;
     };
 
     //! Black-Scholes (1973) stochastic process

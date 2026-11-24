@@ -20,6 +20,7 @@ set(QL_TEST_SOURCES
 	blackcalculator.cpp
     blackformula.cpp
     blackformulatemplate.cpp
+    blackscholesprocess.cpp
     blackvolsurfacedelta.cpp
     bondforward.cpp
     bonds.cpp
