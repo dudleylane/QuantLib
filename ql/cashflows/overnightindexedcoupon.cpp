@@ -32,6 +32,7 @@
 #include <ql/utilities/vectors.hpp>
 #include <algorithm>
 #include <type_traits>
+#include <typeinfo>
 #include <utility>
 
 using std::vector;
@@ -46,6 +47,19 @@ namespace QuantLib
                                  Natural lookbackDays)
         {
             return index->fixingCalendar().advance(valueDate, -static_cast<Integer>(lookbackDays), Days);
+        }
+
+        // The overnight pricer a capped or floored coupon prices with: a Black pricer, the pricers that price caps
+        // and floors, is told by its exact type, and any other pricer by a cast.
+        OvernightIndexedCouponPricer* overnightPricerOf(FloatingRateCouponPricer* pricer)
+        {
+            if (pricer == nullptr)
+                return nullptr;
+            const std::type_info& type = typeid(*pricer);
+            if (type == typeid(BlackCompoundingOvernightIndexedCouponPricer) ||
+                type == typeid(BlackAveragingOvernightIndexedCouponPricer))
+                return static_cast<OvernightIndexedCouponPricer*>(pricer);
+            return dynamic_cast<OvernightIndexedCouponPricer*>(pricer);
         }
     }
 
@@ -365,7 +379,7 @@ namespace QuantLib
     {
         QL_REQUIRE(underlying_->pricer(), "underlying coupon pricer not set");
         Rate swapletRate = nakedOption_ ? 0.0 : underlying_->rate();
-        auto cfONPricer = ext::dynamic_pointer_cast<OvernightIndexedCouponPricer>(pricer());
+        OvernightIndexedCouponPricer* cfONPricer = overnightPricerOf(pricer_.get());
         QL_REQUIRE(cfONPricer, "coupon pricer not an instance of OvernightIndexedCouponPricer");
 
         if (floor_ != Null<Real>() || cap_ != Null<Real>())

@@ -21,6 +21,7 @@
 #include "utilities.hpp"
 #include <ql/cashflows/blackovernightindexedcouponpricer.hpp>
 #include <ql/cashflows/capflooredcoupon.hpp>
+#include <ql/cashflows/couponpricer.hpp>
 #include <ql/cashflows/digitalcoupon.hpp>
 #include <ql/cashflows/digitaliborcoupon.hpp>
 #include <ql/cashflows/iborcoupon.hpp>
@@ -1574,6 +1575,55 @@ BOOST_AUTO_TEST_CASE(testOvernightPricersRefuseOtherCoupons)
         BOOST_CHECK_EXCEPTION(pricer->initialize(*withoutUnderlying), Error,
                               ExpectedErrorMessage("OvernightIndexedCouponPricer: CappedFlooredOvernightIndexedCoupon "
                                                    "underlying coupon not defined"));
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testCappedFlooredOvernightCouponPricerErrors)
+{
+    BOOST_TEST_MESSAGE("Testing the errors of a capped or floored overnight coupon without a pricer it can use...");
+
+    BlackONPricerVars vars;
+    const Date start(2, July, 2035), end(2, October, 2035);
+    for (auto averaging : {RateAveraging::Compound, RateAveraging::Simple})
+    {
+        const bool compound = averaging == RateAveraging::Compound;
+        ext::shared_ptr<FloatingRateCouponPricer> black;
+        if (compound)
+            black = ext::make_shared<BlackCompoundingOvernightIndexedCouponPricer>(vars.vol);
+        else
+            black = ext::make_shared<BlackAveragingOvernightIndexedCouponPricer>(vars.vol);
+
+        auto withoutPricer = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(
+            vars.makeBaseCoupon(start, end, averaging), 0.045, 0.035);
+        BOOST_CHECK_EXCEPTION(withoutPricer->rate(), Error,
+                              ExpectedErrorMessage("coupon pricer not an instance of OvernightIndexedCouponPricer"));
+
+        // an Ibor pricer, which the coupon's own setPricer refuses
+        auto withIborPricer = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(
+            vars.makeBaseCoupon(start, end, averaging), 0.045, 0.035);
+        withIborPricer->FloatingRateCoupon::setPricer(ext::make_shared<BlackIborCouponPricer>());
+        BOOST_CHECK_EXCEPTION(withIborPricer->rate(), Error,
+                              ExpectedErrorMessage("coupon pricer not an instance of OvernightIndexedCouponPricer"));
+
+        // an overnight pricer that doesn't price caps and floors
+        auto withPlainPricer = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(
+            vars.makeBaseCoupon(start, end, averaging), 0.045, 0.035);
+        if (compound)
+            withPlainPricer->setPricer(ext::make_shared<CompoundingOvernightIndexedCouponPricer>());
+        else
+            withPlainPricer->setPricer(ext::make_shared<ArithmeticAveragedOvernightIndexedCouponPricer>());
+        BOOST_CHECK_EXCEPTION(
+            withPlainPricer->rate(), Error,
+            ExpectedErrorMessage(std::string(compound ? "CompoundingOvernightIndexedCouponPricer" :
+                                                        "ArithmeticAveragedOvernightIndexedCouponPricer") +
+                                 "::floorletRate(Rate, bool) not implemented"));
+
+        auto underlying = vars.makeBaseCoupon(start, end, averaging);
+        underlying->setPricer(ext::shared_ptr<FloatingRateCouponPricer>());
+        auto withoutUnderlyingPricer = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(underlying, 0.045, 0.035);
+        withoutUnderlyingPricer->setPricer(black);
+        BOOST_CHECK_EXCEPTION(withoutUnderlyingPricer->rate(), Error,
+                              ExpectedErrorMessage("underlying coupon pricer not set"));
     }
 }
 
