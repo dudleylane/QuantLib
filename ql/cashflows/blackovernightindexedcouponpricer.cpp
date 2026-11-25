@@ -66,7 +66,7 @@ namespace QuantLib
             // not yet determined, use Black model
             QL_REQUIRE(!capletVolatility().empty(),
                        "BlackCompoundingOvernightIndexedCouponPricer: missing optionlet volatility");
-            std::vector<Date> fixingDates = coupon_->fixingDates();
+            const std::vector<Date>& fixingDates = coupon_->fixingDates();
             QL_REQUIRE(!fixingDates.empty(), "BlackCompoundingOvernightIndexedCouponPricer: empty fixing dates");
             bool shiftedLn = capletVolatility()->volatilityType() == ShiftedLognormal;
             Real shift = capletVolatility()->displacement();
@@ -362,7 +362,7 @@ namespace QuantLib
             // not yet determined, use Black model
             QL_REQUIRE(!capletVolatility().empty(),
                        "BlackAveragingOvernightIndexedCouponPricer: missing optionlet volatility");
-            std::vector<Date> fixingDates = coupon_->fixingDates();
+            const std::vector<Date>& fixingDates = coupon_->fixingDates();
             QL_REQUIRE(!fixingDates.empty(), "BlackAveragingOvernightIndexedCouponPricer: empty fixing dates");
             bool shiftedLn = capletVolatility()->volatilityType() == ShiftedLognormal;
             Real shift = capletVolatility()->displacement();
