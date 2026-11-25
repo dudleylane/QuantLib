@@ -344,6 +344,11 @@ each day, and gains 0.1 to 0.2 % (#416).
 Black pricers, its NPV takes 31 % fewer instructions with the cap and
 floor on a compounded coupon's rate, 69 % fewer on each day's rate, and
 half on an averaged leg.
+#419 made an overnight coupon that compounds a nonzero spread daily
+forecast each day still to fix, where the telescopic formula dropped the
+spread over those days: such a coupon now costs what a lookback coupon
+does, 220,461 instructions a tick on 65 fixings where it took 2,033
+(#416).
 
 **What works today:**
 - End-of-day batch pricing of book-sized portfolios is fine on modern
