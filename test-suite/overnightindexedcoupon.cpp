@@ -1165,6 +1165,102 @@ BOOST_AUTO_TEST_CASE(testSpreadCompoundedDailyOnForecastDays)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testLockoutOnTelescopicValueDates)
+{
+    BOOST_TEST_MESSAGE("Testing a lockout on telescopic value dates...");
+
+    const Real tolerance = 1.0e-14;
+    const auto checkSameDates =
+        [](const std::string& name, const std::vector<Date>& calculated, const std::vector<Date>& expected)
+    {
+        BOOST_TEST_CONTEXT(name)
+        {
+            BOOST_CHECK_EQUAL_COLLECTIONS(calculated.begin(), calculated.end(), expected.begin(), expected.end());
+        }
+    };
+    // the first and the last dates of a vector
+    const auto firstAndLast = [](const std::vector<Date>& dates, Size first, Size last)
+    {
+        std::vector<Date> result(dates.begin(), dates.begin() + first);
+        result.insert(result.end(), dates.end() - last, dates.end());
+        return result;
+    };
+
+    struct Convention
+    {
+        Natural lookbackDays, lockoutDays;
+        bool applyObservationShift;
+    };
+    const std::vector<Convention> conventions = {{Null<Natural>(), 0, false}, {Null<Natural>(), 1, false},
+                                                 {Null<Natural>(), 2, false}, {Null<Natural>(), 3, false},
+                                                 {Null<Natural>(), 5, false}, {2, 2, true}};
+
+    // the leg's coupons, from July 2025 to July 2026, forward-starting, and on 15 July 2025 with SOFR's fixings
+    // stored before it
+    for (const Date& today : {Date(1, June, 2025), Date(15, July, 2025)})
+    {
+        CommonVarsONLeg vars(today);
+        vars.setupForecastCurve();
+        const Handle<OptionletVolatilityStructure> volatility(vars.returnRateVolTS());
+        const auto capped = [&](const ext::shared_ptr<OvernightIndexedCoupon>& underlying, bool dailyCapFloor)
+        {
+            auto c = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(underlying, 0.036, Null<Rate>(), false,
+                                                                           dailyCapFloor);
+            c->setPricer(ext::make_shared<BlackCompoundingOvernightIndexedCouponPricer>(volatility));
+            return c;
+        };
+
+        for (const auto& convention : conventions)
+        {
+            const Natural lockoutDays = convention.lockoutDays;
+            const Leg telescopicLeg = vars.makeLeg(convention.lookbackDays, lockoutDays,
+                                                   convention.applyObservationShift, true, RateAveraging::Compound);
+            const Leg fullLeg = vars.makeLeg(convention.lookbackDays, lockoutDays, convention.applyObservationShift,
+                                             false, RateAveraging::Compound);
+            BOOST_REQUIRE_EQUAL(telescopicLeg.size(), fullLeg.size());
+            for (Size k = 0; k < fullLeg.size(); ++k)
+            {
+                const auto telescopic = ext::dynamic_pointer_cast<OvernightIndexedCoupon>(telescopicLeg[k]);
+                const auto full = ext::dynamic_pointer_cast<OvernightIndexedCoupon>(fullLeg[k]);
+                BOOST_REQUIRE(telescopic && full);
+                BOOST_TEST_CONTEXT("today " << today << ", lockout of " << lockoutDays << " days"
+                                            << (convention.lookbackDays == Null<Natural>() ?
+                                                    "" :
+                                                    ", 2-day lookback with the observation shift")
+                                            << ", coupon " << k)
+                {
+                    // the telescopic coupon keeps the other's first value dates and its last lockoutDays + 2, and
+                    // so the fixing date its lockout repeats
+                    const std::vector<Date>& telescopicDates = telescopic->valueDates();
+                    const std::vector<Date>& fullDates = full->valueDates();
+                    BOOST_CHECK_LT(telescopicDates.size(), fullDates.size());
+                    if (telescopicDates.size() >= lockoutDays + 2 && telescopicDates.size() <= fullDates.size())
+                        checkSameDates(
+                            "value dates", telescopicDates,
+                            firstAndLast(fullDates, telescopicDates.size() - lockoutDays - 2, lockoutDays + 2));
+                    const std::vector<Date>& telescopicFixings = telescopic->fixingDates();
+                    const std::vector<Date>& fullFixings = full->fixingDates();
+                    if (telescopicFixings.size() >= lockoutDays + 1 && telescopicFixings.size() <= fullFixings.size())
+                        checkSameDates(
+                            "fixing dates", telescopicFixings,
+                            firstAndLast(fullFixings, telescopicFixings.size() - lockoutDays - 1, lockoutDays + 1));
+
+                    // the two coupons have the same rate, and so the same rate capped at 3.6 % on the Black
+                    // compounding pricer, on the coupon's rate and on each day's
+                    CHECK_OIS_COUPON_RESULT("rate", telescopic->rate(), full->rate(), tolerance);
+                    if (lockoutDays == 3 && convention.lookbackDays == Null<Natural>())
+                    {
+                        CHECK_OIS_COUPON_RESULT("rate capped on the coupon's rate", capped(telescopic, false)->rate(),
+                                                capped(full, false)->rate(), tolerance);
+                        CHECK_OIS_COUPON_RESULT("rate capped on each day's rate", capped(telescopic, true)->rate(),
+                                                capped(full, true)->rate(), tolerance);
+                    }
+                }
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testBlackOvernightIndexedCouponPricerCapletFloorlet)
 {
     BOOST_TEST_MESSAGE("Testing Black compounding overnight-indexed coupon pricer...");
@@ -1442,19 +1538,26 @@ BOOST_AUTO_TEST_CASE(testOvernightLegNPV)
     CommonVarsONLeg vars;
     vars.setupForecastCurve();
 
-    Leg leg = vars.makeLeg(Null<Natural>(), 3, false, true, RateAveraging::Compound);
-
     Handle<YieldTermStructure> discountCurve(flatRate(0.0015, Actual360()));
 
-    // Calculate NPV
-    Real expectedNpv = 34883.949669756257;
-    Real npv = 0.0;
-    for (const auto& cf : leg)
+    // the leg with a lockout of 3 days, with telescopic value dates and without
+    Real expectedNpv = 34638.786842593545;
+    for (bool telescopicValueDates : {true, false})
     {
-        npv += cf->amount() * discountCurve->discount(cf->date());
-    }
+        Leg leg = vars.makeLeg(Null<Natural>(), 3, false, telescopicValueDates, RateAveraging::Compound);
 
-    CHECK_OIS_COUPON_RESULT("OvernightLeg NPV", npv, expectedNpv, 1e-8);
+        // Calculate NPV
+        Real npv = 0.0;
+        for (const auto& cf : leg)
+        {
+            npv += cf->amount() * discountCurve->discount(cf->date());
+        }
+
+        BOOST_TEST_CONTEXT("telescopic value dates: " << std::boolalpha << telescopicValueDates)
+        {
+            CHECK_OIS_COUPON_RESULT("OvernightLeg NPV", npv, expectedNpv, 1e-8);
+        }
+    }
 }
 
 BOOST_AUTO_TEST_CASE(testOvernightLegWithCapsAndFloors)
