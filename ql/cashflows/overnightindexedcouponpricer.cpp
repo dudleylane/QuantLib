@@ -157,9 +157,10 @@ namespace QuantLib
             ++i;
         }
 
-        // today is a border case: a fixing stored for today is taken, and a missing one is forecast below unless
-        // Settings::enforcesTodaysHistoricFixings() requires it, as InterestRateIndex::fixing does
-        if (i < n && fixingDates[i] == today)
+        // today is a border case: a fixing stored for today is taken at each fixing date that is today, as a
+        // lockout repeats it, and a missing one is forecast below unless Settings::enforcesTodaysHistoricFixings()
+        // requires it, as InterestRateIndex::fixing does
+        while (i < n && fixingDates[i] == today)
         {
             Rate fixing = (*pastFixings)[fixingDates[i]];
             if (fixing != Null<Real>())
@@ -178,6 +179,7 @@ namespace QuantLib
             {
                 QL_REQUIRE(!Settings::instance().enforcesTodaysHistoricFixings(),
                            "Missing " << index->name() << " fixing for " << fixingDates[i]);
+                break;
             }
         }
 

@@ -897,6 +897,70 @@ BOOST_AUTO_TEST_CASE(testTodaysFixingRequiredWhenEnforced)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testLockoutFixedTodayWithoutForwardingCurve)
+{
+    BOOST_TEST_MESSAGE("Testing a lockout coupon on the day its lockout fixes, without a forwarding curve...");
+
+    const Date today(10, November, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    const WeekendsOnly calendar;
+    const Actual360 dayCounter;
+    // an index with no forwarding curve
+    const auto index = ext::make_shared<OvernightIndex>("T421", 0, USDCurrency(), calendar, dayCounter);
+    index->addFixing(Date(9, November, 2026), 0.02);
+    index->addFixing(today, 0.03);
+    const Handle<OptionletVolatilityStructure> volatility(
+        ext::make_shared<ConstantOptionletVolatility>(today, calendar, Following, 0.05, dayCounter));
+
+    // from Monday 9 to Friday 13 November with a lockout of 2 days, so with fixing dates 9, 10, 10 and 10 November,
+    // every one of them stored
+    const Date start(9, November, 2026), end(13, November, 2026);
+    const Rate fixedRate =
+        ((1.0 + 0.02 / 360) * (1.0 + 0.03 / 360) * (1.0 + 0.03 / 360) * (1.0 + 0.03 / 360) - 1.0) / (4.0 / 360);
+    const Real tolerance = 1.0e-13;
+
+    struct Row
+    {
+        std::string name;
+        ext::shared_ptr<FloatingRateCoupon> coupon;
+        Rate expected;
+    };
+    for (bool telescopicValueDates : {false, true})
+    {
+        const auto coupon = [&]
+        {
+            return ext::make_shared<OvernightIndexedCoupon>(end, 100.0, start, end, index, 1.0, 0.0, Date(), Date(),
+                                                            DayCounter(), telescopicValueDates, RateAveraging::Compound,
+                                                            Null<Natural>(), 2);
+        };
+        // capped or floored on the coupon's rate, on the Black compounding pricer
+        const auto capped = [&](Rate cap, Rate floor)
+        {
+            auto c = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(coupon(), cap, floor);
+            c->setPricer(ext::make_shared<BlackCompoundingOvernightIndexedCouponPricer>(volatility));
+            return c;
+        };
+        const std::vector<Row> rows = {
+            {"compounded", coupon(), fixedRate},
+            {"capped at 2.7 %", capped(0.027, Null<Rate>()), 0.027},
+            {"floored at 2.8 %", capped(Null<Rate>(), 0.028), 0.028},
+        };
+        for (const auto& [name, c, expected] : rows)
+        {
+            BOOST_TEST_CONTEXT(name << (telescopicValueDates ? ", telescopic value dates" : ""))
+            {
+                Rate calculated = Null<Rate>();
+                BOOST_CHECK_NO_THROW(calculated = c->rate());
+                if (calculated != Null<Rate>())
+                {
+                    CHECK_OIS_COUPON_RESULT("rate", calculated, expected, tolerance);
+                }
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testBlackOvernightIndexedCouponPricerCapletFloorlet)
 {
     BOOST_TEST_MESSAGE("Testing Black compounding overnight-indexed coupon pricer...");
