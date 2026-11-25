@@ -340,6 +340,10 @@ the overnight pricers' own casts off: that OIS curve's tick runs 12 %
 fewer instructions again, and a compounded OIS's NPV 10 to 12 % fewer. An
 averaged or lookback OIS spends almost all of its instructions forecasting
 each day, and gains 0.1 to 0.2 % (#416).
+#417 took a capped and floored overnight leg's repeated work off: on the
+Black pricers, its NPV takes 31 % fewer instructions with the cap and
+floor on a compounded coupon's rate, 69 % fewer on each day's rate, and
+half on an averaged leg.
 
 **What works today:**
 - End-of-day batch pricing of book-sized portfolios is fine on modern
