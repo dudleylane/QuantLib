@@ -33,6 +33,9 @@ namespace QuantLib
 
     void BlackCompoundingOvernightIndexedCouponPricer::initialize(const FloatingRateCoupon& coupon)
     {
+        // What this sets depends on the coupon only through overnightIndexedCoupon() and gearing(), which a
+        // CappedFlooredOvernightIndexedCoupon takes from its underlying coupon; the capped coupon's performCalculations
+        // relies on that when it takes the pricer to hold what initializing it on the capped coupon would give.
         OvernightIndexedCouponPricer::initialize(coupon);
 
         gearing_ = coupon.gearing();
@@ -333,6 +336,9 @@ namespace QuantLib
 
     void BlackAveragingOvernightIndexedCouponPricer::initialize(const FloatingRateCoupon& coupon)
     {
+        // What this sets depends on the coupon only through overnightIndexedCoupon() and gearing(), which a
+        // CappedFlooredOvernightIndexedCoupon takes from its underlying coupon; the capped coupon's performCalculations
+        // relies on that when it takes the pricer to hold what initializing it on the capped coupon would give.
         OvernightIndexedCouponPricer::initialize(coupon);
 
         if (coupon_->averagingMethod() == RateAveraging::Compound)

@@ -53,6 +53,7 @@ namespace QuantLib
     {
         using FloatingRateCouponPricer::capletRate;
         using FloatingRateCouponPricer::floorletRate;
+        friend class CappedFlooredOvernightIndexedCoupon;
 
       public:
         explicit OvernightIndexedCouponPricer(
