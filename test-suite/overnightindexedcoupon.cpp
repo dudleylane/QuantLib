@@ -40,6 +40,7 @@
 #include <ql/time/calendars/weekendsonly.hpp>
 #include <ql/time/daycounters/actual360.hpp>
 #include <iomanip>
+#include <map>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -1346,6 +1347,143 @@ BOOST_AUTO_TEST_CASE(testDailyCapsAndFloorsOnForecastsAtZeroVolatility)
                 BOOST_ERROR("failed to reproduce the option part of a future "
                             << what << std::setprecision(16) << ":\n    calculated: " << difference
                             << "\n    expected:   " << expected << "\n    difference: " << difference - expected);
+        }
+    }
+}
+
+namespace
+{
+    // an overnight index under SOFR's name, so it shares SOFR's fixings, whose pastFixing gives twice what it stores
+    class IndexDoublingItsPastFixings : public OvernightIndex
+    {
+      public:
+        explicit IndexDoublingItsPastFixings(const Handle<YieldTermStructure>& h)
+        : OvernightIndex("SOFR", 0, USDCurrency(), UnitedStates(UnitedStates::SOFR), Actual360(), h)
+        {
+        }
+        Real pastFixing(const Date& fixingDate) const override
+        {
+            const Real fixing = OvernightIndex::pastFixing(fixingDate);
+            return fixing == Null<Real>() ? fixing : 2.0 * fixing;
+        }
+    };
+}
+
+BOOST_AUTO_TEST_CASE(testDailyCapsAndFloorsOnFixingsUpToToday)
+{
+    BOOST_TEST_MESSAGE("Testing daily caps and floors on an overnight coupon's fixings up to today...");
+
+    BlackONPricerVars vars;
+    vars.vol.linkTo(ext::make_shared<ConstantOptionletVolatility>(vars.today, TARGET(), Following, 0.0, vars.dc));
+    // at zero volatility the pricers cap or floor the curve's flat 4 % over the days still to fix
+    const Rate forward = 0.04;
+
+    // June's fixings run from 3.40 % to 3.60 %, and today's would be 3.52 %
+    std::map<Date, Rate> fixings;
+    Size k = 0;
+    for (Date d(2, June, 2025); d < vars.today; ++d)
+        if (vars.sofr->isValidFixingDate(d))
+            fixings[d] = 0.034 + 0.0005 * static_cast<Real>(k++ % 5);
+    const Rate todaysFixing = 0.0352;
+    const Rate cap = 0.035, floor = 0.0355;
+
+    // the caplets and floorlets read the fixings the index stores, as the swaplet does, also on an index whose
+    // pastFixing gives other rates
+    const std::vector<ext::shared_ptr<OvernightIndex>> indexes = {
+        vars.sofr, ext::make_shared<IndexDoublingItsPastFixings>(vars.forecastCurve)};
+    for (Size j = 0; j < indexes.size(); ++j)
+    {
+        vars.sofr = indexes[j];
+        for (bool todayStored : {false, true})
+        {
+            vars.sofr->clearFixings();
+            for (const auto& [d, f] : fixings)
+                vars.sofr->addFixing(d, f);
+            if (todayStored)
+                vars.sofr->addFixing(vars.today, todaysFixing);
+
+            for (auto averaging : {RateAveraging::Compound, RateAveraging::Simple})
+            {
+                const bool compound = averaging == RateAveraging::Compound;
+                ext::shared_ptr<OvernightIndexedCouponPricer> pricer;
+                if (compound)
+                    pricer = ext::make_shared<BlackCompoundingOvernightIndexedCouponPricer>(vars.vol);
+                else
+                    pricer = ext::make_shared<BlackAveragingOvernightIndexedCouponPricer>(vars.vol);
+                // a coupon accruing since June, and one whose first fixing is today
+                for (const Date& start : {Date(2, June, 2025), vars.today})
+                {
+                    for (bool capped : {true, false})
+                    {
+                        auto underlying = vars.makeBaseCoupon(start, start + 3 * Months, averaging);
+                        auto coupon = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(
+                            underlying, capped ? cap : Null<Rate>(), capped ? Null<Rate>() : floor, false, true);
+                        coupon->setPricer(pricer);
+
+                        auto bounded = [&](Rate r) { return capped ? std::min(r, cap) : std::max(r, floor); };
+                        const std::vector<Date>& fixingDates = underlying->fixingDates();
+                        const std::vector<Date>& dates = underlying->valueDates();
+                        const std::vector<Time>& dt = underlying->dt();
+                        // the fixed days, each capped or floored
+                        Real sum = compound ? 1.0 : 0.0, rawSum = sum;
+                        Size i = 0, fixed = 0, bound = 0;
+                        for (; i < dt.size(); ++i)
+                        {
+                            Rate f;
+                            if (fixingDates[i] < vars.today)
+                                f = fixings.at(fixingDates[i]);
+                            else if (fixingDates[i] == vars.today && todayStored)
+                                f = todaysFixing;
+                            else
+                                break;
+                            ++fixed;
+                            if (bounded(f) != f)
+                                ++bound;
+                            if (compound)
+                            {
+                                sum *= 1.0 + bounded(f) * dt[i];
+                                rawSum *= 1.0 + f * dt[i];
+                            }
+                            else
+                            {
+                                sum += bounded(f) * dt[i];
+                                rawSum += f * dt[i];
+                            }
+                        }
+                        // the days still to fix, at the forward rate
+                        const Real days = dates.back() - dates[i];
+                        const Time span = vars.dc.yearFraction(dates[i], dates.back());
+                        if (compound)
+                        {
+                            sum *= std::pow(1.0 + span / days * bounded(forward), days);
+                            rawSum *= std::pow(1.0 + span / days * forward, days);
+                        }
+                        else
+                        {
+                            sum += bounded(forward) * span;
+                            rawSum += forward * span;
+                        }
+                        const Rate expected = (sum - rawSum) / underlying->accrualPeriod();
+
+                        const std::string what = std::string(compound ? "compounded" : "averaged") +
+                                                 (start < vars.today ? " coupon accruing" : " coupon starting today") +
+                                                 (capped ? ", capped daily," : ", floored daily,") +
+                                                 (todayStored ? " with" : " without") + " today's fixing" +
+                                                 (j == 1 ? ", on an index whose pastFixing doubles its fixings" : "");
+                        // the cap or floor binds on some of the accruing coupon's fixed days and not on others
+                        if (start < vars.today)
+                            BOOST_REQUIRE(bound > 0 && bound < fixed);
+                        else
+                            BOOST_REQUIRE(fixed == (todayStored ? 1U : 0U));
+                        const Rate difference = coupon->rate() - underlying->rate();
+                        if (std::fabs(difference - expected) > 1e-12)
+                            BOOST_ERROR("failed to reproduce the option part of a "
+                                        << what << std::setprecision(16) << ":\n    calculated: " << difference
+                                        << "\n    expected:   " << expected
+                                        << "\n    difference: " << difference - expected);
+                    }
+                }
+            }
         }
     }
 }

@@ -158,10 +158,16 @@ namespace QuantLib
 
         // already fixed part
         Date today = Settings::instance().evaluationDate();
+        // As the plain pricers do for the coupon's swaplet, the loops below read the index's stored history, and only
+        // at fixings due by today, starting from the first, so a coupon whose first fixing is after today doesn't
+        // look it up.
+        const TimeSeries<Real>* pastFixings = nullptr;
+        if (n > 0 && fixingDates[0] <= today)
+            pastFixings = &index->timeSeries();
         while (i < n && fixingDates[std::min(i, nCutoff)] < today)
         {
             // rate must have been fixed
-            Rate pastFixing = index->pastFixing(fixingDates[std::min(i, nCutoff)]);
+            Rate pastFixing = (*pastFixings)[fixingDates[std::min(i, nCutoff)]];
             QL_REQUIRE(pastFixing != Null<Real>(),
                        "Missing " << index->name() << " fixing for " << fixingDates[std::min(i, nCutoff)]);
             if (coupon_->compoundSpreadDaily())
@@ -179,7 +185,7 @@ namespace QuantLib
             // might have been fixed
             try
             {
-                Rate pastFixing = index->pastFixing(today);
+                Rate pastFixing = (*pastFixings)[today];
                 if (pastFixing != Null<Real>())
                 {
                     if (coupon_->compoundSpreadDaily())
@@ -438,10 +444,16 @@ namespace QuantLib
 
         // already fixed part
         Date today = Settings::instance().evaluationDate();
+        // As the plain pricers do for the coupon's swaplet, the loops below read the index's stored history, and only
+        // at fixings due by today, starting from the first, so a coupon whose first fixing is after today doesn't
+        // look it up.
+        const TimeSeries<Real>* pastFixings = nullptr;
+        if (n > 0 && fixingDates[0] <= today)
+            pastFixings = &index->timeSeries();
         while (i < n && fixingDates[std::min(i, nCutoff)] < today)
         {
             // rate must have been fixed
-            Rate pastFixing = index->pastFixing(fixingDates[std::min(i, nCutoff)]);
+            Rate pastFixing = (*pastFixings)[fixingDates[std::min(i, nCutoff)]];
             QL_REQUIRE(pastFixing != Null<Real>(),
                        "Missing " << index->name() << " fixing for " << fixingDates[std::min(i, nCutoff)]);
             if (coupon_->compoundSpreadDaily())
@@ -459,7 +471,7 @@ namespace QuantLib
             // might have been fixed
             try
             {
-                Rate pastFixing = index->pastFixing(today);
+                Rate pastFixing = (*pastFixings)[today];
                 if (pastFixing != Null<Real>())
                 {
                     if (coupon_->compoundSpreadDaily())
