@@ -157,34 +157,29 @@ namespace QuantLib
             ++i;
         }
 
-        // today is a border case
-        if (i < n && fixingDates[i] == today)
+        // today is a border case: a fixing stored for today is taken at each fixing date that is today, as a
+        // lockout repeats it, and a missing one is forecast below unless Settings::enforcesTodaysHistoricFixings()
+        // requires it, as InterestRateIndex::fixing does
+        while (i < n && fixingDates[i] == today)
         {
-            // might have been fixed
-            try
+            Rate fixing = (*pastFixings)[fixingDates[i]];
+            if (fixing != Null<Real>())
             {
-                Rate fixing = (*pastFixings)[fixingDates[i]];
-                if (fixing != Null<Real>())
+                Time span =
+                    (date >= interestDates[i + 1] ? dt[i] : index->dayCounter().yearFraction(interestDates[i], date));
+                if (coupon_->compoundSpreadDaily())
                 {
-                    Time span =
-                        (date >= interestDates[i + 1] ? dt[i] :
-                                                        index->dayCounter().yearFraction(interestDates[i], date));
-                    if (coupon_->compoundSpreadDaily())
-                    {
-                        compoundFactorWithoutSpread *= (1.0 + fixing * span);
-                        fixing += coupon_->spread();
-                    }
-                    compoundFactor *= (1.0 + fixing * span);
-                    ++i;
+                    compoundFactorWithoutSpread *= (1.0 + fixing * span);
+                    fixing += coupon_->spread();
                 }
-                else
-                {
-                    ; // fall through and forecast
-                }
+                compoundFactor *= (1.0 + fixing * span);
+                ++i;
             }
-            catch (Error&)
+            else
             {
-                ; // fall through and forecast
+                QL_REQUIRE(!Settings::instance().enforcesTodaysHistoricFixings(),
+                           "Missing " << index->name() << " fixing for " << fixingDates[i]);
+                break;
             }
         }
 
@@ -207,10 +202,13 @@ namespace QuantLib
                 return span * (fixing + spreadToAdd);
             };
 
-            if (!coupon_->canApplyTelescopicFormula())
+            if (!coupon_->canApplyTelescopicFormula() || (coupon_->compoundSpreadDaily() && couponSpread != 0.0))
             {
                 // With lookback applied, the telescopic formula cannot be used,
                 // we need to project each fixing in the coupon.
+                // Nor can it with a nonzero spread compounded daily: the spread
+                // compounds with each day's fixing, and the ratio of discount
+                // factors gives the product of the fixings' factors alone.
                 // Only in one particular case when observation shift is used and
                 // no intrinsic index fixing delay is applied, the telescopic formula
                 // holds, because regardless of the fixing delay in the coupon,
@@ -331,29 +329,22 @@ namespace QuantLib
             ++i;
         }
 
-        // today is a border case
+        // today is a border case: a fixing stored for today is taken, and a missing one is forecast below unless
+        // Settings::enforcesTodaysHistoricFixings() requires it, as InterestRateIndex::fixing does
         if (i < n && fixingDates[i] == today)
         {
-            // might have been fixed
-            try
+            Rate pastFixing = (*pastFixings)[fixingDates[i]];
+            if (pastFixing != Null<Real>())
             {
-                Rate pastFixing = (*pastFixings)[fixingDates[i]];
-                if (pastFixing != Null<Real>())
-                {
-                    Time span =
-                        (date >= interestDates[i + 1] ? dt[i] :
-                                                        index->dayCounter().yearFraction(interestDates[i], date));
-                    accumulatedRate += pastFixing * span;
-                    ++i;
-                }
-                else
-                {
-                    ; // fall through and forecast
-                }
+                Time span =
+                    (date >= interestDates[i + 1] ? dt[i] : index->dayCounter().yearFraction(interestDates[i], date));
+                accumulatedRate += pastFixing * span;
+                ++i;
             }
-            catch (Error&)
+            else
             {
-                ; // fall through and forecast
+                QL_REQUIRE(!Settings::instance().enforcesTodaysHistoricFixings(),
+                           "Missing " << index->name() << " fixing for " << fixingDates[i]);
             }
         }
 

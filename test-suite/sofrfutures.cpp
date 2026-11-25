@@ -27,6 +27,7 @@
 #include <ql/termstructures/yield/overnightindexfutureratehelper.hpp>
 #include <ql/termstructures/yield/piecewiseyieldcurve.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <algorithm>
 #include <iomanip>
 
 using namespace QuantLib;
@@ -245,6 +246,264 @@ BOOST_AUTO_TEST_CASE(testAveragedRateStartingToday)
     const DayCounter dayCounter = sofr->dayCounter();
     const Rate rate = todays * dayCounter.yearFraction(today, tomorrow) / dayCounter.yearFraction(today, maturity);
     BOOST_CHECK_SMALL(fixed.NPV() - 100.0 * (1.0 - rate), 1.0e-10);
+}
+
+BOOST_AUTO_TEST_CASE(testCompoundedRateWithNextBusinessDayAfterMaturity)
+{
+    BOOST_TEST_MESSAGE("Testing a compounded future priced where the next business day is after its maturity...");
+
+    // Every fixing is stored, so the rate is the fixings compounded up to the maturity; the curve's forward differs
+    // from them, so a ratio of its discount factors other than 1 would show (#435).
+    struct Row
+    {
+        Date valueDate, maturity, today;
+        bool includeReferenceDateEvents;
+    };
+    const Row rows[] = {
+        // SOFR's quarterly contract maturing on Juneteenth 2024, priced on its maturity
+        {Date(20, March, 2024), Date(19, June, 2024), Date(19, June, 2024), true},
+        // a future maturing on a Sunday, priced on the Saturday before
+        {Date(3, August, 2026), Date(16, August, 2026), Date(15, August, 2026), false},
+    };
+    for (const Row& row : rows)
+    {
+        Settings::instance().evaluationDate() = row.today;
+        Settings::instance().includeReferenceDateEvents() = row.includeReferenceDateEvents;
+
+        Handle<YieldTermStructure> curve(ext::make_shared<FlatForward>(row.today, 0.05, Actual360()));
+        auto sofr = ext::make_shared<Sofr>(curve);
+        const Calendar calendar = sofr->fixingCalendar();
+        const DayCounter dayCounter = sofr->dayCounter();
+        const Rate fixing = 0.02;
+        Real growth = 1.0;
+        for (Date d1 = row.valueDate; d1 < row.maturity;)
+        {
+            const Date d2 = calendar.advance(d1, 1, Days);
+            sofr->addFixing(d1, fixing);
+            growth *= 1.0 + fixing * dayCounter.yearFraction(d1, std::min(d2, row.maturity));
+            d1 = d2;
+        }
+        const Rate rate = (growth - 1.0) / dayCounter.yearFraction(row.valueDate, row.maturity);
+
+        const OvernightIndexFuture future(sofr, row.valueDate, row.maturity);
+        BOOST_CHECK_SMALL(future.NPV() - 100.0 * (1.0 - rate), 1.0e-10);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testTodaysFixingWhereEnforced)
+{
+    BOOST_TEST_MESSAGE("Testing a future's fixing for today where today's fixings are enforced...");
+
+    // A missing fixing for today is forecast unless today's fixings are enforced, as InterestRateIndex::fixing has
+    // it; priced on a Saturday, the future forecasts Monday's fixing, which isn't due yet, either way (#427).
+    const Date valueDate(2, March, 2026), maturity(1, April, 2026);
+    const Rate fixing = 0.02;
+    struct Row
+    {
+        Date today;
+        bool enforced, todaysFixingStored;
+        Date firstForecast; // the future throws where there's none
+    };
+    const Row rows[] = {
+        {Date(10, March, 2026), false, false, Date(10, March, 2026)},
+        {Date(10, March, 2026), true, false, Date()},
+        {Date(10, March, 2026), true, true, Date(11, March, 2026)},
+        {Date(7, March, 2026), true, false, Date(9, March, 2026)},
+    };
+    for (const Row& row : rows)
+    {
+        Settings::instance().evaluationDate() = row.today;
+        Settings::instance().enforcesTodaysHistoricFixings() = row.enforced;
+        IndexManager::instance().clearHistories();
+
+        Handle<YieldTermStructure> curve(ext::make_shared<FlatForward>(row.today, 0.05, Actual360()));
+        auto sofr = ext::make_shared<Sofr>(curve);
+        const Calendar calendar = sofr->fixingCalendar();
+        const DayCounter dayCounter = sofr->dayCounter();
+        for (Date d = valueDate; d < row.today || (row.todaysFixingStored && d == row.today);
+             d = calendar.advance(d, 1, Days))
+            sofr->addFixing(d, fixing);
+
+        const OvernightIndexFuture averaging(sofr, valueDate, maturity, Handle<Quote>(), RateAveraging::Simple);
+        const OvernightIndexFuture compounding(sofr, valueDate, maturity);
+        if (row.firstForecast == Date())
+        {
+            const std::string missing = "Missing SOFRON Actual/360 fixing for March 10th, 2026";
+            BOOST_CHECK_EXCEPTION(averaging.NPV(), Error, ExpectedErrorMessage(missing));
+            BOOST_CHECK_EXCEPTION(compounding.NPV(), Error, ExpectedErrorMessage(missing));
+            continue;
+        }
+
+        // the stored fixings up to the first forecast, and the curve's forecasts from it
+        Real sum = 0.0, growth = 1.0;
+        for (Date d1 = valueDate; d1 < maturity;)
+        {
+            const Date d2 = calendar.advance(d1, 1, Days);
+            const Time tau = dayCounter.yearFraction(d1, std::min(d2, maturity));
+            if (d1 < row.firstForecast)
+            {
+                sum += fixing * tau;
+                growth *= 1.0 + fixing * tau;
+            }
+            else
+            {
+                sum += curve->forwardRate(d1, d2, dayCounter, Simple).rate() * tau;
+            }
+            d1 = d2;
+        }
+        const Time span = dayCounter.yearFraction(valueDate, maturity);
+        const Rate averaged = sum / span;
+        const Rate compounded = (growth * curve->discount(row.firstForecast) / curve->discount(maturity) - 1.0) / span;
+        BOOST_CHECK_SMALL(averaging.NPV() - 100.0 * (1.0 - averaged), 1.0e-10);
+        BOOST_CHECK_SMALL(compounding.NPV() - 100.0 * (1.0 - compounded), 1.0e-10);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testCompoundedRateOnItsValueDate)
+{
+    BOOST_TEST_MESSAGE("Testing a compounded future priced on its value date...");
+
+    // On its value date the future's first fixing is due, and is taken where it's stored, as the averaged rate takes
+    // it (#427); on the Saturday before, the fixing isn't due, and the future is priced off the curve alone.
+    const Date valueDate(9, March, 2026), maturity(16, March, 2026);
+    const Rate fixing = 0.02;
+    for (const Date& today : {Date(9, March, 2026), Date(7, March, 2026)})
+    {
+        Settings::instance().evaluationDate() = today;
+        IndexManager::instance().clearHistories();
+
+        Handle<YieldTermStructure> curve(ext::make_shared<FlatForward>(today, 0.05, Actual360()));
+        auto sofr = ext::make_shared<Sofr>(curve);
+        sofr->addFixing(valueDate, fixing);
+        const DayCounter dayCounter = sofr->dayCounter();
+        const Date next = sofr->fixingCalendar().advance(valueDate, 1, Days);
+        const Real growth = today == valueDate ? (1.0 + fixing * dayCounter.yearFraction(valueDate, next)) *
+                                                     curve->discount(next) / curve->discount(maturity) :
+                                                 curve->discount(valueDate) / curve->discount(maturity);
+        const Rate rate = (growth - 1.0) / dayCounter.yearFraction(valueDate, maturity);
+
+        const OvernightIndexFuture future(sofr, valueDate, maturity);
+        BOOST_CHECK_SMALL(future.NPV() - 100.0 * (1.0 - rate), 1.0e-10);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testCompoundedRateFromHolidayValueDate)
+{
+    BOOST_TEST_MESSAGE("Testing a compounded future whose value date is a holiday...");
+
+    // SOFR's quarterly contract from Juneteenth 2030 takes Tuesday's fixing for its first day; that fixing is due on
+    // Tuesday, and from then on the compounded rate reads it, as the averaged rate does (#427).
+    const Date fixingDate(18, June, 2030), valueDate(19, June, 2030), next(20, June, 2030),
+        maturity(18, September, 2030);
+    const Rate fixing = 0.04;
+    for (const Date& today : {fixingDate, valueDate})
+    {
+        Settings::instance().evaluationDate() = today;
+        Settings::instance().enforcesTodaysHistoricFixings() = false;
+        IndexManager::instance().clearHistories();
+
+        Handle<YieldTermStructure> curve(ext::make_shared<FlatForward>(today, 0.045, Actual360()));
+        auto sofr = ext::make_shared<Sofr>(curve);
+        const DayCounter dayCounter = sofr->dayCounter();
+        const Time span = dayCounter.yearFraction(valueDate, maturity);
+
+        // stored, it applies from the value date to the next business day, and the curve from there
+        sofr->addFixing(fixingDate, fixing);
+        const Rate rate = ((1.0 + fixing * dayCounter.yearFraction(valueDate, next)) * curve->discount(next) /
+                               curve->discount(maturity) -
+                           1.0) /
+                          span;
+        BOOST_CHECK_SMALL(OvernightIndexFuture(sofr, valueDate, maturity).NPV() - 100.0 * (1.0 - rate), 1.0e-10);
+
+        IndexManager::instance().clearHistories();
+        if (today == fixingDate)
+        {
+            // missing on the day it's due, it's forecast, unless today's fixings are enforced
+            const Rate forecast = (curve->discount(valueDate) / curve->discount(maturity) - 1.0) / span;
+            BOOST_CHECK_SMALL(OvernightIndexFuture(sofr, valueDate, maturity).NPV() - 100.0 * (1.0 - forecast),
+                              1.0e-10);
+            Settings::instance().enforcesTodaysHistoricFixings() = true;
+            const std::string missing = "Missing SOFRON Actual/360 fixing for June 18th, 2030";
+            BOOST_CHECK_EXCEPTION(OvernightIndexFuture(sofr, valueDate, maturity).NPV(), Error,
+                                  ExpectedErrorMessage(missing));
+            BOOST_CHECK_EXCEPTION(
+                OvernightIndexFuture(sofr, valueDate, maturity, Handle<Quote>(), RateAveraging::Simple).NPV(), Error,
+                ExpectedErrorMessage(missing));
+        }
+        else
+        {
+            // missing after the day it was due, it's refused
+            BOOST_CHECK_EXCEPTION(OvernightIndexFuture(sofr, valueDate, maturity).NPV(), Error,
+                                  ExpectedErrorMessage("missing rate on June 18th, 2030 for index SOFRON Actual/360"));
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testCompoundedRateWithoutForwardingCurve)
+{
+    BOOST_TEST_MESSAGE("Testing a compounded future whose fixings are all stored, without a forwarding curve...");
+
+    // Every fixing up to the maturity is stored, so there's nothing to forecast (#427).
+    const Date today(6, March, 2026), valueDate(2, March, 2026), maturity(9, March, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    auto sofr = ext::make_shared<Sofr>();
+    const Calendar calendar = sofr->fixingCalendar();
+    const DayCounter dayCounter = sofr->dayCounter();
+    const Rate fixing = 0.02;
+    Real growth = 1.0;
+    for (Date d1 = valueDate; d1 < maturity;)
+    {
+        const Date d2 = calendar.advance(d1, 1, Days);
+        sofr->addFixing(d1, fixing);
+        growth *= 1.0 + fixing * dayCounter.yearFraction(d1, d2);
+        d1 = d2;
+    }
+    const Rate rate = (growth - 1.0) / dayCounter.yearFraction(valueDate, maturity);
+
+    const OvernightIndexFuture averaging(sofr, valueDate, maturity, Handle<Quote>(), RateAveraging::Simple);
+    const OvernightIndexFuture compounding(sofr, valueDate, maturity);
+    BOOST_CHECK_SMALL(averaging.NPV() - 100.0 * (1.0 - fixing), 1.0e-10);
+    BOOST_CHECK_SMALL(compounding.NPV() - 100.0 * (1.0 - rate), 1.0e-10);
+}
+
+BOOST_AUTO_TEST_CASE(testForecastWithoutUsableForwardingCurve)
+{
+    BOOST_TEST_MESSAGE("Testing a future that has to forecast without a curve that can...");
+
+    // Both rates say which index can't be forecast from which day, and why (#427).
+    const Date today(10, March, 2026), valueDate(9, March, 2026), maturity(9, April, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    struct Row
+    {
+        bool withCurve, todaysFixingStored;
+        std::string error;
+    };
+    const Row rows[] = {
+        {false, false, "can't forecast SOFRON Actual/360 from March 10th, 2026: it has no forwarding curve"},
+        {true, false,
+         "can't forecast SOFRON Actual/360 from March 10th, 2026: its forwarding curve starts on March 12th, 2026"},
+        {true, true,
+         "can't forecast SOFRON Actual/360 from March 11th, 2026: its forwarding curve starts on March 12th, 2026"},
+    };
+    for (const Row& row : rows)
+    {
+        IndexManager::instance().clearHistories();
+        Handle<YieldTermStructure> curve;
+        if (row.withCurve)
+            curve = Handle<YieldTermStructure>(ext::make_shared<FlatForward>(Date(12, March, 2026), 0.05, Actual360()));
+        auto sofr = ext::make_shared<Sofr>(curve);
+        sofr->addFixing(valueDate, 0.02);
+        if (row.todaysFixingStored)
+            sofr->addFixing(today, 0.02);
+
+        BOOST_CHECK_EXCEPTION(OvernightIndexFuture(sofr, valueDate, maturity).NPV(), Error,
+                              ExpectedErrorMessage(row.error));
+        BOOST_CHECK_EXCEPTION(
+            OvernightIndexFuture(sofr, valueDate, maturity, Handle<Quote>(), RateAveraging::Simple).NPV(), Error,
+            ExpectedErrorMessage(row.error));
+    }
 }
 
 BOOST_AUTO_TEST_CASE(testHelperNotNotifiedByItsOwnBootstrap)

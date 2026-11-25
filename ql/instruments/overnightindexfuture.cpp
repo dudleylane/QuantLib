@@ -27,6 +27,26 @@
 namespace QuantLib
 {
 
+    namespace
+    {
+
+        // The index's forwarding curve, checked once for forecasts from d, since later ones start later; and d's time
+        // on it.
+        std::pair<ext::shared_ptr<YieldTermStructure>, Time> overnightFutureForecastCurve(const OvernightIndex& index,
+                                                                                          const Date& d)
+        {
+            const Handle<YieldTermStructure> curve = index.forwardingTermStructure();
+            QL_REQUIRE(!curve.empty(),
+                       "can't forecast " << index.name() << " from " << d << ": it has no forwarding curve");
+            const Time t = curve->timeFromReference(d);
+            // the curve's own condition on a time it is asked for
+            QL_REQUIRE(t >= 0.0, "can't forecast " << index.name() << " from " << d
+                                                   << ": its forwarding curve starts on " << curve->referenceDate());
+            return {curve.currentLink(), t};
+        }
+
+    }
+
     OvernightIndexFuture::OvernightIndexFuture(ext::shared_ptr<OvernightIndex> overnightIndex,
                                                const Date& valueDate,
                                                const Date& maturityDate,
@@ -46,37 +66,44 @@ namespace QuantLib
         Date today = Settings::instance().evaluationDate();
         Calendar calendar = overnightIndex_->fixingCalendar();
         DayCounter dayCounter = overnightIndex_->dayCounter();
-        Handle<YieldTermStructure> forwardCurve = overnightIndex_->forwardingTermStructure();
         Real avg = 0;
         Date d1 = valueDate_;
         // d1 could be a holiday
         Date fixingDate = calendar.adjust(d1, Preceding);
         // The fixing dates only increase, so the history is read only if the first is due by today.
-        const TimeSeries<Real>* history = fixingDate <= today ? &overnightIndex_->timeSeries() : nullptr;
-        Real fwd;
-        while (d1 < maturityDate_)
+        if (fixingDate <= today)
         {
-            Date d2 = calendar.advance(d1, 1, Days);
-            if (fixingDate < today)
+            const auto& history = overnightIndex_->timeSeries();
+            while (d1 < maturityDate_ && fixingDate <= today)
             {
-                fwd = (*history)[fixingDate];
-                QL_REQUIRE(fwd != Null<Real>(),
-                           "missing rate on " << fixingDate << " for index " << overnightIndex_->name());
-            }
-            else if (fixingDate == today)
-            {
-                fwd = (*history)[fixingDate];
+                Real fwd = history[fixingDate];
                 if (fwd == Null<Real>())
-                    fwd = forwardCurve->forwardRate(fixingDate, d2, dayCounter, Simple).rate();
+                {
+                    QL_REQUIRE(fixingDate == today,
+                               "missing rate on " << fixingDate << " for index " << overnightIndex_->name());
+                    // today's fixing is forecast below, as InterestRateIndex::fixing does, unless it has to be stored
+                    QL_REQUIRE(!Settings::instance().enforcesTodaysHistoricFixings(),
+                               "Missing " << overnightIndex_->name() << " fixing for " << fixingDate);
+                    break;
+                }
+                Date d2 = calendar.advance(d1, 1, Days);
+                // The rate is accrued starting from d1 even when the fixing date is earlier.
+                // d2 might be beyond the maturity date if the latter is a holiday.
+                avg += fwd * dayCounter.yearFraction(d1, std::min(d2, maturityDate_));
+                fixingDate = d1 = d2;
             }
-            else
+        }
+        if (d1 < maturityDate_)
+        {
+            const ext::shared_ptr<YieldTermStructure> forwardCurve =
+                overnightFutureForecastCurve(*overnightIndex_, fixingDate).first;
+            do
             {
-                fwd = forwardCurve->forwardRate(fixingDate, d2, dayCounter, Simple).rate();
-            }
-            // The rate is accrued starting from d1 even when the fixing date is earlier.
-            // d2 might be beyond the maturity date if the latter is a holiday.
-            avg += fwd * dayCounter.yearFraction(d1, std::min(d2, maturityDate_));
-            fixingDate = d1 = d2;
+                Date d2 = calendar.advance(d1, 1, Days);
+                Real fwd = forwardCurve->forwardRate(fixingDate, d2, dayCounter, Simple).rate();
+                avg += fwd * dayCounter.yearFraction(d1, std::min(d2, maturityDate_));
+                fixingDate = d1 = d2;
+            } while (d1 < maturityDate_);
         }
 
         return avg / dayCounter.yearFraction(valueDate_, maturityDate_);
@@ -84,54 +111,50 @@ namespace QuantLib
 
     Real OvernightIndexFuture::compoundedRate() const
     {
-        Date today = Settings::instance().evaluationDate();
+        const Date evaluationDate = Settings::instance().evaluationDate();
         Calendar calendar = overnightIndex_->fixingCalendar();
         DayCounter dayCounter = overnightIndex_->dayCounter();
-        Handle<YieldTermStructure> forwardCurve = overnightIndex_->forwardingTermStructure();
         Real prod = 1;
-        Date forwardDiscountStart = valueDate_;
-        if (today > valueDate_)
+        Date d1 = valueDate_;
+        // d1 could be a holiday
+        Date fixingDate = calendar.adjust(d1, Preceding);
+        // The fixing dates only increase, so the history is read only if the first is due by today.
+        if (fixingDate <= evaluationDate)
         {
             // can't value on a weekend inside reference period because we
             // won't know the reset rate until start of next business day.
             // user can supply an estimate if they really want to do this
-            today = calendar.adjust(today);
-            forwardDiscountStart = today;
+            const Date today = calendar.adjust(evaluationDate);
             // for valuations inside the reference period, index quotes
             // must have been populated in the history
             const auto& history = overnightIndex_->timeSeries();
-            Date d1 = valueDate_;
-            // d1 could be a holiday
-            Date fixingDate = calendar.adjust(d1, Preceding);
-            while (d1 < today)
+            while (d1 < maturityDate_ && fixingDate <= today)
             {
                 Real r = history[fixingDate];
-                QL_REQUIRE(r != Null<Real>(),
-                           "missing rate on " << fixingDate << " for index " << overnightIndex_->name());
-                Date d2 = calendar.advance(d1, 1, Days);
-                // The rate is accrued starting from d1 even when the fixing date is earlier.
-                // We can't get to the maturity date inside this loop,
-                // so we don't need to cap d2 like we do in averagedRate above.
+                if (r == Null<Real>())
+                {
+                    QL_REQUIRE(fixingDate == today,
+                               "missing rate on " << fixingDate << " for index " << overnightIndex_->name());
+                    // today's fixing is forecast below, as InterestRateIndex::fixing does, unless it has to be
+                    // stored; where today was moved to the next business day, that day's fixing isn't due yet
+                    QL_REQUIRE(fixingDate != evaluationDate || !Settings::instance().enforcesTodaysHistoricFixings(),
+                               "Missing " << overnightIndex_->name() << " fixing for " << fixingDate);
+                    break;
+                }
+                // The rate is accrued starting from d1 even when the fixing date is earlier,
+                // and only up to the maturity, which today can be past.
+                Date d2 = std::min(calendar.advance(d1, 1, Days), maturityDate_);
                 prod *= 1 + r * dayCounter.yearFraction(d1, d2);
                 fixingDate = d1 = d2;
             }
-            // here d1 == today, and we might have today's fixing already
-            if (today < maturityDate_)
-            {
-                Real r = history[today];
-                if (r != Null<Real>())
-                {
-                    Date tomorrow = calendar.advance(today, 1, Days);
-                    Date accrualEnd = std::min(tomorrow, maturityDate_);
-                    prod *= 1 + r * dayCounter.yearFraction(today, accrualEnd);
-                    forwardDiscountStart = accrualEnd;
-                }
-            }
         }
         // the telescopic part goes from the end of the last known fixing to the maturity
-        DiscountFactor forwardDiscount =
-            forwardCurve->discount(maturityDate_) / forwardCurve->discount(forwardDiscountStart);
-        prod /= forwardDiscount;
+        if (d1 < maturityDate_)
+        {
+            const auto [forwardCurve, startTime] = overnightFutureForecastCurve(*overnightIndex_, d1);
+            DiscountFactor forwardDiscount = forwardCurve->discount(maturityDate_) / forwardCurve->discount(startTime);
+            prod /= forwardDiscount;
+        }
 
         return (prod - 1) / dayCounter.yearFraction(valueDate_, maturityDate_);
     }

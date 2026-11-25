@@ -130,7 +130,12 @@ namespace QuantLib
         QL_REQUIRE(canApplyTelescopicFormula() || !telescopicValueDates,
                    "Telescopic formula cannot be applied for a coupon with lookback.");
 
-        if (telescopicValueDates)
+        // A nonzero spread compounded daily compounds with each day's fixing, so
+        // such a compounded coupon is priced day by day and needs all its value dates.
+        const bool telescopic = telescopicValueDates &&
+                                !(averagingMethod == RateAveraging::Compound && compoundSpreadDaily && spread != 0.0);
+
+        if (telescopic)
         {
             // build optimised value dates schedule: front stub goes
             // from start date to max(evalDate,startDate) + 7bd
@@ -148,13 +153,13 @@ namespace QuantLib
                            .backwards();
         valueDates_ = sch.dates();
 
-        if (telescopicValueDates)
+        if (telescopic)
         {
-            // if lockout days are defined, we need to ensure that
-            // the lockout period is covered by the value dates
+            // the back stub covers the lockout period and the business day
+            // before it, whose fixing the lockout repeats
             tmpEndDate = overnightIndex->fixingCalendar().adjust(endDate, overnightIndex->businessDayConvention());
-            Date tmpLockoutDate =
-                overnightIndex->fixingCalendar().advance(endDate, -std::max<Integer>(lockoutDays_, 1), Days, Preceding);
+            Date tmpLockoutDate = overnightIndex->fixingCalendar().advance(
+                endDate, -static_cast<Integer>(lockoutDays_) - 1, Days, Preceding);
             while (tmpLockoutDate <= tmpEndDate)
             {
                 if (tmpLockoutDate > valueDates_.back())
@@ -295,7 +300,7 @@ namespace QuantLib
             return spread();
 
         auto p = ext::dynamic_pointer_cast<CompoundingOvernightIndexedCouponPricer>(pricer());
-        QL_REQUIRE(p, "OvernightIndexedCoupon::effectiveSpread(): expected OvernightIndexedCouponPricer");
+        QL_REQUIRE(p, "OvernightIndexedCoupon::effectiveSpread() needs a CompoundingOvernightIndexedCouponPricer");
         p->initialize(*this);
         return p->effectiveSpread();
     }
@@ -305,9 +310,10 @@ namespace QuantLib
         auto p = ext::dynamic_pointer_cast<CompoundingOvernightIndexedCouponPricer>(pricer());
 
         if (averagingMethod_ == RateAveraging::Simple)
-            QL_FAIL("Average OIS Coupon does not have an effectiveIndexFixing"); // FIXME: better error message
+            QL_FAIL("OvernightIndexedCoupon::effectiveIndexFixing(): only a compounded coupon has an effective index "
+                    "fixing");
 
-        QL_REQUIRE(p, "OvernightIndexedCoupon::effectiveSpread(): expected OvernightIndexedCouponPricer");
+        QL_REQUIRE(p, "OvernightIndexedCoupon::effectiveIndexFixing() needs a CompoundingOvernightIndexedCouponPricer");
         p->initialize(*this);
         return p->effectiveIndexFixing();
     }
