@@ -295,7 +295,7 @@ namespace QuantLib
             return spread();
 
         auto p = ext::dynamic_pointer_cast<CompoundingOvernightIndexedCouponPricer>(pricer());
-        QL_REQUIRE(p, "OvernightIndexedCoupon::effectiveSpread(): expected OvernightIndexedCouponPricer");
+        QL_REQUIRE(p, "OvernightIndexedCoupon::effectiveSpread() needs a CompoundingOvernightIndexedCouponPricer");
         p->initialize(*this);
         return p->effectiveSpread();
     }
@@ -305,9 +305,10 @@ namespace QuantLib
         auto p = ext::dynamic_pointer_cast<CompoundingOvernightIndexedCouponPricer>(pricer());
 
         if (averagingMethod_ == RateAveraging::Simple)
-            QL_FAIL("Average OIS Coupon does not have an effectiveIndexFixing"); // FIXME: better error message
+            QL_FAIL("OvernightIndexedCoupon::effectiveIndexFixing(): only a compounded coupon has an effective index "
+                    "fixing");
 
-        QL_REQUIRE(p, "OvernightIndexedCoupon::effectiveSpread(): expected OvernightIndexedCouponPricer");
+        QL_REQUIRE(p, "OvernightIndexedCoupon::effectiveIndexFixing() needs a CompoundingOvernightIndexedCouponPricer");
         p->initialize(*this);
         return p->effectiveIndexFixing();
     }

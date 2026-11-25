@@ -781,6 +781,29 @@ BOOST_AUTO_TEST_CASE(testErrorWhenLookbackOrLockoutAppliedForSimpleAveraging)
                       Error);
 }
 
+BOOST_AUTO_TEST_CASE(testEffectiveSpreadAndIndexFixingErrors)
+{
+    BOOST_TEST_MESSAGE("Testing the errors of an overnight coupon's effective spread and index fixing...");
+
+    CommonVars vars;
+
+    auto averaged = vars.makeCoupon(Date(1, July, 2019), Date(31, July, 2019), Null<Natural>(), 0, false, false,
+                                    RateAveraging::Simple);
+    BOOST_CHECK_EXCEPTION(averaged->effectiveIndexFixing(), Error,
+                          ExpectedErrorMessage("OvernightIndexedCoupon::effectiveIndexFixing(): only a compounded "
+                                               "coupon has an effective index fixing"));
+
+    // a compounded coupon, its spread compounded daily, on the averaging pricer
+    auto compounded = vars.makeSpreadedCoupon(Date(1, July, 2019), Date(31, July, 2019));
+    compounded->setPricer(ext::make_shared<ArithmeticAveragedOvernightIndexedCouponPricer>());
+    BOOST_CHECK_EXCEPTION(compounded->effectiveIndexFixing(), Error,
+                          ExpectedErrorMessage("OvernightIndexedCoupon::effectiveIndexFixing() needs a "
+                                               "CompoundingOvernightIndexedCouponPricer"));
+    BOOST_CHECK_EXCEPTION(compounded->effectiveSpread(), Error,
+                          ExpectedErrorMessage("OvernightIndexedCoupon::effectiveSpread() needs a "
+                                               "CompoundingOvernightIndexedCouponPricer"));
+}
+
 BOOST_AUTO_TEST_CASE(testBlackOvernightIndexedCouponPricerCapletFloorlet)
 {
     BOOST_TEST_MESSAGE("Testing Black compounding overnight-indexed coupon pricer...");
