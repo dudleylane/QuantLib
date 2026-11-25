@@ -33,6 +33,9 @@ namespace QuantLib
 
     void BlackCompoundingOvernightIndexedCouponPricer::initialize(const FloatingRateCoupon& coupon)
     {
+        // What this sets depends on the coupon only through overnightIndexedCoupon() and gearing(), which a
+        // CappedFlooredOvernightIndexedCoupon takes from its underlying coupon; the capped coupon's performCalculations
+        // relies on that when it takes the pricer to hold what initializing it on the capped coupon would give.
         OvernightIndexedCouponPricer::initialize(coupon);
 
         gearing_ = coupon.gearing();
@@ -66,7 +69,7 @@ namespace QuantLib
             // not yet determined, use Black model
             QL_REQUIRE(!capletVolatility().empty(),
                        "BlackCompoundingOvernightIndexedCouponPricer: missing optionlet volatility");
-            std::vector<Date> fixingDates = coupon_->fixingDates();
+            const std::vector<Date>& fixingDates = coupon_->fixingDates();
             QL_REQUIRE(!fixingDates.empty(), "BlackCompoundingOvernightIndexedCouponPricer: empty fixing dates");
             bool shiftedLn = capletVolatility()->volatilityType() == ShiftedLognormal;
             Real shift = capletVolatility()->displacement();
@@ -158,10 +161,16 @@ namespace QuantLib
 
         // already fixed part
         Date today = Settings::instance().evaluationDate();
+        // As the plain pricers do for the coupon's swaplet, the loops below read the index's stored history, and only
+        // at fixings due by today, starting from the first, so a coupon whose first fixing is after today doesn't
+        // look it up.
+        const TimeSeries<Real>* pastFixings = nullptr;
+        if (n > 0 && fixingDates[0] <= today)
+            pastFixings = &index->timeSeries();
         while (i < n && fixingDates[std::min(i, nCutoff)] < today)
         {
             // rate must have been fixed
-            Rate pastFixing = index->pastFixing(fixingDates[std::min(i, nCutoff)]);
+            Rate pastFixing = (*pastFixings)[fixingDates[std::min(i, nCutoff)]];
             QL_REQUIRE(pastFixing != Null<Real>(),
                        "Missing " << index->name() << " fixing for " << fixingDates[std::min(i, nCutoff)]);
             if (coupon_->compoundSpreadDaily())
@@ -179,7 +188,7 @@ namespace QuantLib
             // might have been fixed
             try
             {
-                Rate pastFixing = index->pastFixing(today);
+                Rate pastFixing = (*pastFixings)[today];
                 if (pastFixing != Null<Real>())
                 {
                     if (coupon_->compoundSpreadDaily())
@@ -327,6 +336,9 @@ namespace QuantLib
 
     void BlackAveragingOvernightIndexedCouponPricer::initialize(const FloatingRateCoupon& coupon)
     {
+        // What this sets depends on the coupon only through overnightIndexedCoupon() and gearing(), which a
+        // CappedFlooredOvernightIndexedCoupon takes from its underlying coupon; the capped coupon's performCalculations
+        // relies on that when it takes the pricer to hold what initializing it on the capped coupon would give.
         OvernightIndexedCouponPricer::initialize(coupon);
 
         if (coupon_->averagingMethod() == RateAveraging::Compound)
@@ -362,7 +374,7 @@ namespace QuantLib
             // not yet determined, use Black model
             QL_REQUIRE(!capletVolatility().empty(),
                        "BlackAveragingOvernightIndexedCouponPricer: missing optionlet volatility");
-            std::vector<Date> fixingDates = coupon_->fixingDates();
+            const std::vector<Date>& fixingDates = coupon_->fixingDates();
             QL_REQUIRE(!fixingDates.empty(), "BlackAveragingOvernightIndexedCouponPricer: empty fixing dates");
             bool shiftedLn = capletVolatility()->volatilityType() == ShiftedLognormal;
             Real shift = capletVolatility()->displacement();
@@ -438,10 +450,16 @@ namespace QuantLib
 
         // already fixed part
         Date today = Settings::instance().evaluationDate();
+        // As the plain pricers do for the coupon's swaplet, the loops below read the index's stored history, and only
+        // at fixings due by today, starting from the first, so a coupon whose first fixing is after today doesn't
+        // look it up.
+        const TimeSeries<Real>* pastFixings = nullptr;
+        if (n > 0 && fixingDates[0] <= today)
+            pastFixings = &index->timeSeries();
         while (i < n && fixingDates[std::min(i, nCutoff)] < today)
         {
             // rate must have been fixed
-            Rate pastFixing = index->pastFixing(fixingDates[std::min(i, nCutoff)]);
+            Rate pastFixing = (*pastFixings)[fixingDates[std::min(i, nCutoff)]];
             QL_REQUIRE(pastFixing != Null<Real>(),
                        "Missing " << index->name() << " fixing for " << fixingDates[std::min(i, nCutoff)]);
             if (coupon_->compoundSpreadDaily())
@@ -459,7 +477,7 @@ namespace QuantLib
             // might have been fixed
             try
             {
-                Rate pastFixing = index->pastFixing(today);
+                Rate pastFixing = (*pastFixings)[today];
                 if (pastFixing != Null<Real>())
                 {
                     if (coupon_->compoundSpreadDaily())

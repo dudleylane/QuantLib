@@ -32,6 +32,7 @@
 #include <ql/utilities/vectors.hpp>
 #include <algorithm>
 #include <type_traits>
+#include <typeinfo>
 #include <utility>
 
 using std::vector;
@@ -46,6 +47,23 @@ namespace QuantLib
                                  Natural lookbackDays)
         {
             return index->fixingCalendar().advance(valueDate, -static_cast<Integer>(lookbackDays), Days);
+        }
+
+        // The overnight pricer a capped or floored coupon prices with: a Black pricer, the pricers that price caps
+        // and floors, is told by its exact type, and any other pricer by a cast. black says which it was.
+        OvernightIndexedCouponPricer* overnightPricerOf(FloatingRateCouponPricer* pricer, bool& black)
+        {
+            black = false;
+            if (pricer == nullptr)
+                return nullptr;
+            const std::type_info& type = typeid(*pricer);
+            if (type == typeid(BlackCompoundingOvernightIndexedCouponPricer) ||
+                type == typeid(BlackAveragingOvernightIndexedCouponPricer))
+            {
+                black = true;
+                return static_cast<OvernightIndexedCouponPricer*>(pricer);
+            }
+            return dynamic_cast<OvernightIndexedCouponPricer*>(pricer);
         }
     }
 
@@ -363,13 +381,28 @@ namespace QuantLib
 
     void CappedFlooredOvernightIndexedCoupon::performCalculations() const
     {
-        QL_REQUIRE(underlying_->pricer(), "underlying coupon pricer not set");
+        const ext::shared_ptr<FloatingRateCouponPricer> underlyingPricer = underlying_->pricer();
+        QL_REQUIRE(underlyingPricer, "underlying coupon pricer not set");
+        const bool underlyingWasCalculated = underlying_->isCalculated();
         Rate swapletRate = nakedOption_ ? 0.0 : underlying_->rate();
-        auto cfONPricer = ext::dynamic_pointer_cast<OvernightIndexedCouponPricer>(pricer());
+        bool blackPricer = false;
+        OvernightIndexedCouponPricer* cfONPricer = overnightPricerOf(pricer_.get(), blackPricer);
         QL_REQUIRE(cfONPricer, "coupon pricer not an instance of OvernightIndexedCouponPricer");
 
         if (floor_ != Null<Real>() || cap_ != Null<Real>())
-            cfONPricer->initialize(*this);
+        {
+            // The pricer holds what initializing it on this coupon would give where it is a Black pricer, the
+            // underlying shares it and was calculated just now, the pricer's coupon is the underlying, and neither
+            // coupon is of a derived class.
+            const OvernightIndexedCoupon& underlyingCoupon = *underlying_;
+            const bool initialized = blackPricer && !underlyingWasCalculated && underlyingCoupon.isCalculated() &&
+                                     underlyingPricer.get() == pricer_.get() &&
+                                     cfONPricer->coupon_ == &underlyingCoupon &&
+                                     typeid(underlyingCoupon) == typeid(OvernightIndexedCoupon) &&
+                                     typeid(*this) == typeid(CappedFlooredOvernightIndexedCoupon);
+            if (!initialized)
+                cfONPricer->initialize(*this);
+        }
         Rate floorletRate = 0.;
         if (floor_ != Null<Real>())
             floorletRate = cfONPricer->floorletRate(effectiveFloor(), dailyCapFloor());

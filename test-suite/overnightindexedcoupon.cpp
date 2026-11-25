@@ -21,6 +21,7 @@
 #include "utilities.hpp"
 #include <ql/cashflows/blackovernightindexedcouponpricer.hpp>
 #include <ql/cashflows/capflooredcoupon.hpp>
+#include <ql/cashflows/couponpricer.hpp>
 #include <ql/cashflows/digitalcoupon.hpp>
 #include <ql/cashflows/digitaliborcoupon.hpp>
 #include <ql/cashflows/iborcoupon.hpp>
@@ -40,6 +41,7 @@
 #include <ql/time/calendars/weekendsonly.hpp>
 #include <ql/time/daycounters/actual360.hpp>
 #include <iomanip>
+#include <map>
 
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
@@ -1350,6 +1352,143 @@ BOOST_AUTO_TEST_CASE(testDailyCapsAndFloorsOnForecastsAtZeroVolatility)
     }
 }
 
+namespace
+{
+    // an overnight index under SOFR's name, so it shares SOFR's fixings, whose pastFixing gives twice what it stores
+    class IndexDoublingItsPastFixings : public OvernightIndex
+    {
+      public:
+        explicit IndexDoublingItsPastFixings(const Handle<YieldTermStructure>& h)
+        : OvernightIndex("SOFR", 0, USDCurrency(), UnitedStates(UnitedStates::SOFR), Actual360(), h)
+        {
+        }
+        Real pastFixing(const Date& fixingDate) const override
+        {
+            const Real fixing = OvernightIndex::pastFixing(fixingDate);
+            return fixing == Null<Real>() ? fixing : 2.0 * fixing;
+        }
+    };
+}
+
+BOOST_AUTO_TEST_CASE(testDailyCapsAndFloorsOnFixingsUpToToday)
+{
+    BOOST_TEST_MESSAGE("Testing daily caps and floors on an overnight coupon's fixings up to today...");
+
+    BlackONPricerVars vars;
+    vars.vol.linkTo(ext::make_shared<ConstantOptionletVolatility>(vars.today, TARGET(), Following, 0.0, vars.dc));
+    // at zero volatility the pricers cap or floor the curve's flat 4 % over the days still to fix
+    const Rate forward = 0.04;
+
+    // June's fixings run from 3.40 % to 3.60 %, and today's would be 3.52 %
+    std::map<Date, Rate> fixings;
+    Size k = 0;
+    for (Date d(2, June, 2025); d < vars.today; ++d)
+        if (vars.sofr->isValidFixingDate(d))
+            fixings[d] = 0.034 + 0.0005 * static_cast<Real>(k++ % 5);
+    const Rate todaysFixing = 0.0352;
+    const Rate cap = 0.035, floor = 0.0355;
+
+    // the caplets and floorlets read the fixings the index stores, as the swaplet does, also on an index whose
+    // pastFixing gives other rates
+    const std::vector<ext::shared_ptr<OvernightIndex>> indexes = {
+        vars.sofr, ext::make_shared<IndexDoublingItsPastFixings>(vars.forecastCurve)};
+    for (Size j = 0; j < indexes.size(); ++j)
+    {
+        vars.sofr = indexes[j];
+        for (bool todayStored : {false, true})
+        {
+            vars.sofr->clearFixings();
+            for (const auto& [d, f] : fixings)
+                vars.sofr->addFixing(d, f);
+            if (todayStored)
+                vars.sofr->addFixing(vars.today, todaysFixing);
+
+            for (auto averaging : {RateAveraging::Compound, RateAveraging::Simple})
+            {
+                const bool compound = averaging == RateAveraging::Compound;
+                ext::shared_ptr<OvernightIndexedCouponPricer> pricer;
+                if (compound)
+                    pricer = ext::make_shared<BlackCompoundingOvernightIndexedCouponPricer>(vars.vol);
+                else
+                    pricer = ext::make_shared<BlackAveragingOvernightIndexedCouponPricer>(vars.vol);
+                // a coupon accruing since June, and one whose first fixing is today
+                for (const Date& start : {Date(2, June, 2025), vars.today})
+                {
+                    for (bool capped : {true, false})
+                    {
+                        auto underlying = vars.makeBaseCoupon(start, start + 3 * Months, averaging);
+                        auto coupon = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(
+                            underlying, capped ? cap : Null<Rate>(), capped ? Null<Rate>() : floor, false, true);
+                        coupon->setPricer(pricer);
+
+                        auto bounded = [&](Rate r) { return capped ? std::min(r, cap) : std::max(r, floor); };
+                        const std::vector<Date>& fixingDates = underlying->fixingDates();
+                        const std::vector<Date>& dates = underlying->valueDates();
+                        const std::vector<Time>& dt = underlying->dt();
+                        // the fixed days, each capped or floored
+                        Real sum = compound ? 1.0 : 0.0, rawSum = sum;
+                        Size i = 0, fixed = 0, bound = 0;
+                        for (; i < dt.size(); ++i)
+                        {
+                            Rate f;
+                            if (fixingDates[i] < vars.today)
+                                f = fixings.at(fixingDates[i]);
+                            else if (fixingDates[i] == vars.today && todayStored)
+                                f = todaysFixing;
+                            else
+                                break;
+                            ++fixed;
+                            if (bounded(f) != f)
+                                ++bound;
+                            if (compound)
+                            {
+                                sum *= 1.0 + bounded(f) * dt[i];
+                                rawSum *= 1.0 + f * dt[i];
+                            }
+                            else
+                            {
+                                sum += bounded(f) * dt[i];
+                                rawSum += f * dt[i];
+                            }
+                        }
+                        // the days still to fix, at the forward rate
+                        const Real days = dates.back() - dates[i];
+                        const Time span = vars.dc.yearFraction(dates[i], dates.back());
+                        if (compound)
+                        {
+                            sum *= std::pow(1.0 + span / days * bounded(forward), days);
+                            rawSum *= std::pow(1.0 + span / days * forward, days);
+                        }
+                        else
+                        {
+                            sum += bounded(forward) * span;
+                            rawSum += forward * span;
+                        }
+                        const Rate expected = (sum - rawSum) / underlying->accrualPeriod();
+
+                        const std::string what = std::string(compound ? "compounded" : "averaged") +
+                                                 (start < vars.today ? " coupon accruing" : " coupon starting today") +
+                                                 (capped ? ", capped daily," : ", floored daily,") +
+                                                 (todayStored ? " with" : " without") + " today's fixing" +
+                                                 (j == 1 ? ", on an index whose pastFixing doubles its fixings" : "");
+                        // the cap or floor binds on some of the accruing coupon's fixed days and not on others
+                        if (start < vars.today)
+                            BOOST_REQUIRE(bound > 0 && bound < fixed);
+                        else
+                            BOOST_REQUIRE(fixed == (todayStored ? 1U : 0U));
+                        const Rate difference = coupon->rate() - underlying->rate();
+                        if (std::fabs(difference - expected) > 1e-12)
+                            BOOST_ERROR("failed to reproduce the option part of a "
+                                        << what << std::setprecision(16) << ":\n    calculated: " << difference
+                                        << "\n    expected:   " << expected
+                                        << "\n    difference: " << difference - expected);
+                    }
+                }
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testOvernightIndexedCouponOfEachCouponType)
 {
     BOOST_TEST_MESSAGE("Testing the overnight coupon each type of floating coupon gives its pricer...");
@@ -1437,6 +1576,393 @@ BOOST_AUTO_TEST_CASE(testOvernightPricersRefuseOtherCoupons)
                               ExpectedErrorMessage("OvernightIndexedCouponPricer: CappedFlooredOvernightIndexedCoupon "
                                                    "underlying coupon not defined"));
     }
+}
+
+BOOST_AUTO_TEST_CASE(testCappedFlooredOvernightCouponPricerErrors)
+{
+    BOOST_TEST_MESSAGE("Testing the errors of a capped or floored overnight coupon without a pricer it can use...");
+
+    BlackONPricerVars vars;
+    const Date start(2, July, 2035), end(2, October, 2035);
+    for (auto averaging : {RateAveraging::Compound, RateAveraging::Simple})
+    {
+        const bool compound = averaging == RateAveraging::Compound;
+        ext::shared_ptr<FloatingRateCouponPricer> black;
+        if (compound)
+            black = ext::make_shared<BlackCompoundingOvernightIndexedCouponPricer>(vars.vol);
+        else
+            black = ext::make_shared<BlackAveragingOvernightIndexedCouponPricer>(vars.vol);
+
+        auto withoutPricer = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(
+            vars.makeBaseCoupon(start, end, averaging), 0.045, 0.035);
+        BOOST_CHECK_EXCEPTION(withoutPricer->rate(), Error,
+                              ExpectedErrorMessage("coupon pricer not an instance of OvernightIndexedCouponPricer"));
+
+        // an Ibor pricer, which the coupon's own setPricer refuses
+        auto withIborPricer = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(
+            vars.makeBaseCoupon(start, end, averaging), 0.045, 0.035);
+        withIborPricer->FloatingRateCoupon::setPricer(ext::make_shared<BlackIborCouponPricer>());
+        BOOST_CHECK_EXCEPTION(withIborPricer->rate(), Error,
+                              ExpectedErrorMessage("coupon pricer not an instance of OvernightIndexedCouponPricer"));
+
+        // an overnight pricer that doesn't price caps and floors
+        auto withPlainPricer = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(
+            vars.makeBaseCoupon(start, end, averaging), 0.045, 0.035);
+        if (compound)
+            withPlainPricer->setPricer(ext::make_shared<CompoundingOvernightIndexedCouponPricer>());
+        else
+            withPlainPricer->setPricer(ext::make_shared<ArithmeticAveragedOvernightIndexedCouponPricer>());
+        BOOST_CHECK_EXCEPTION(
+            withPlainPricer->rate(), Error,
+            ExpectedErrorMessage(std::string(compound ? "CompoundingOvernightIndexedCouponPricer" :
+                                                        "ArithmeticAveragedOvernightIndexedCouponPricer") +
+                                 "::floorletRate(Rate, bool) not implemented"));
+
+        auto underlying = vars.makeBaseCoupon(start, end, averaging);
+        underlying->setPricer(ext::shared_ptr<FloatingRateCouponPricer>());
+        auto withoutUnderlyingPricer = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(underlying, 0.045, 0.035);
+        withoutUnderlyingPricer->setPricer(black);
+        BOOST_CHECK_EXCEPTION(withoutUnderlyingPricer->rate(), Error,
+                              ExpectedErrorMessage("underlying coupon pricer not set"));
+    }
+}
+
+namespace
+{
+    ext::shared_ptr<OvernightIndexedCouponPricer>
+    makeBlackOvernightPricer(RateAveraging::Type averaging, const Handle<OptionletVolatilityStructure>& vol)
+    {
+        if (averaging == RateAveraging::Compound)
+            return ext::make_shared<BlackCompoundingOvernightIndexedCouponPricer>(vol);
+        return ext::make_shared<BlackAveragingOvernightIndexedCouponPricer>(vol);
+    }
+
+    // the coupon's rate and effective volatilities equal, to the bit, those of the same coupon built alone with
+    // pricers of its own
+    void checkAsAlone(const CappedFlooredOvernightIndexedCoupon& coupon,
+                      const CappedFlooredOvernightIndexedCoupon& alone,
+                      const std::string& what)
+    {
+        const Real rate = coupon.rate(), aloneRate = alone.rate();
+        if (rate != aloneRate)
+            BOOST_ERROR(what << ": rate " << std::setprecision(17) << rate << ", alone " << aloneRate);
+        const Real capletVol = coupon.effectiveCapletVolatility(), aloneCapletVol = alone.effectiveCapletVolatility();
+        if (capletVol != aloneCapletVol)
+            BOOST_ERROR(what << ": effective caplet volatility " << std::setprecision(17) << capletVol << ", alone "
+                             << aloneCapletVol);
+        const Real floorletVol = coupon.effectiveFloorletVolatility(),
+                   aloneFloorletVol = alone.effectiveFloorletVolatility();
+        if (floorletVol != aloneFloorletVol)
+            BOOST_ERROR(what << ": effective floorlet volatility " << std::setprecision(17) << floorletVol << ", alone "
+                             << aloneFloorletVol);
+    }
+
+    std::string describe(RateAveraging::Type averaging, bool dailyCapFloor)
+    {
+        return std::string(averaging == RateAveraging::Compound ? "compounded" : "averaged") +
+               (dailyCapFloor ? " coupon, daily caps and floors" : " coupon");
+    }
+
+    // an overnight coupon whose rate is set rather than worked out by its pricer
+    class PresetRateOvernightCoupon : public OvernightIndexedCoupon
+    {
+      public:
+        PresetRateOvernightCoupon(const Date& start,
+                                  const Date& end,
+                                  const ext::shared_ptr<OvernightIndex>& index,
+                                  RateAveraging::Type averaging,
+                                  Rate presetRate)
+        : OvernightIndexedCoupon(end, 1.0, start, end, index, 1.0, 0.0, Date(), Date(), Actual360(), false, averaging),
+          presetRate_(presetRate)
+        {
+        }
+        void performCalculations() const override { rate_ = presetRate_; }
+
+      private:
+        Rate presetRate_;
+    };
+
+    // a Black pricer that records the coupons it is initialized on
+    template <class BlackPricer>
+    class CouponTrackingPricer : public BlackPricer
+    {
+      public:
+        using BlackPricer::BlackPricer;
+        void initialize(const FloatingRateCoupon& coupon) override
+        {
+            coupons.push_back(&coupon);
+            BlackPricer::initialize(coupon);
+        }
+        std::vector<const FloatingRateCoupon*> coupons;
+    };
+
+    // a capped and floored overnight coupon whose gearing is twice its underlying's
+    class CappedCouponWithOwnGearing : public CappedFlooredOvernightIndexedCoupon
+    {
+      public:
+        CappedCouponWithOwnGearing(const ext::shared_ptr<OvernightIndexedCoupon>& underlying,
+                                   Rate cap,
+                                   Rate floor,
+                                   bool dailyCapFloor)
+        : CappedFlooredOvernightIndexedCoupon(underlying, cap, floor, false, dailyCapFloor)
+        {
+            gearing_ *= 2.0;
+        }
+    };
+
+    template <class BlackPricer>
+    void checkCouponTrackingPricer(BlackONPricerVars& vars, RateAveraging::Type averaging, bool dailyCapFloor)
+    {
+        const Date start(2, October, 2025), end(2, January, 2026);
+        vars.forecastCurve.linkTo(flatRate(vars.today, 0.04, vars.dc));
+        auto pricer = ext::make_shared<CouponTrackingPricer<BlackPricer>>(vars.vol);
+        auto underlying = vars.makeBaseCoupon(start, end, averaging);
+        underlying->setPricer(pricer);
+        auto coupon =
+            ext::make_shared<CappedFlooredOvernightIndexedCoupon>(underlying, 0.045, 0.035, false, dailyCapFloor);
+        coupon->setPricer(pricer);
+        coupon->rate();
+        vars.forecastCurve.linkTo(flatRate(vars.today, 0.042, vars.dc));
+        coupon->rate();
+
+        // the pricer is initialized on the capped coupon at each of its calculations
+        Size onCoupon = 0;
+        for (const FloatingRateCoupon* c : pricer->coupons)
+            if (c == coupon.get())
+                ++onCoupon;
+        if (onCoupon != 2)
+            BOOST_ERROR(describe(averaging, dailyCapFloor)
+                        << ": the pricer was initialized " << onCoupon << " times on the capped coupon, not 2");
+
+        auto aloneUnderlying = vars.makeBaseCoupon(start, end, averaging);
+        aloneUnderlying->setPricer(makeBlackOvernightPricer(averaging, vars.vol));
+        CappedFlooredOvernightIndexedCoupon alone(aloneUnderlying, 0.045, 0.035, false, dailyCapFloor);
+        alone.setPricer(makeBlackOvernightPricer(averaging, vars.vol));
+        checkAsAlone(*coupon, alone, describe(averaging, dailyCapFloor));
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testCappedFlooredOvernightLegOnOneBlackPricer)
+{
+    BOOST_TEST_MESSAGE("Testing a capped and floored overnight leg on one Black pricer...");
+
+    BlackONPricerVars vars;
+    const Schedule schedule = MakeSchedule()
+                                  .from(Date(2, October, 2025))
+                                  .to(Date(2, October, 2026))
+                                  .withTenor(3 * Months)
+                                  .withCalendar(TARGET())
+                                  .withConvention(ModifiedFollowing);
+    for (auto averaging : {RateAveraging::Compound, RateAveraging::Simple})
+        for (bool daily : {false, true})
+        {
+            auto makeLeg = [&](const ext::shared_ptr<OvernightIndexedCouponPricer>& pricer)
+            {
+                OvernightLeg leg(schedule, vars.sofr);
+                leg.withNotionals(vars.notional)
+                    .withAveragingMethod(averaging)
+                    .withCaps(0.045)
+                    .withFloors(0.035)
+                    .withDailyCapFloor(daily);
+                if (pricer)
+                    leg.withCouponPricer(pricer);
+                std::vector<ext::shared_ptr<CappedFlooredOvernightIndexedCoupon>> coupons;
+                for (const auto& cf : Leg(leg))
+                    coupons.push_back(ext::dynamic_pointer_cast<CappedFlooredOvernightIndexedCoupon>(cf));
+                return coupons;
+            };
+            // the leg's coupons priced in the leg's order (0), in reverse (1), after every underlying's rate (2), and
+            // in the leg's order once more after the curve moves (3)
+            for (int order = 0; order < 4; ++order)
+            {
+                vars.forecastCurve.linkTo(flatRate(vars.today, 0.04, vars.dc));
+                const auto coupons = makeLeg(makeBlackOvernightPricer(averaging, vars.vol));
+                const Size n = coupons.size();
+                BOOST_REQUIRE(n == 4);
+                if (order == 2)
+                    for (const auto& c : coupons)
+                        c->underlying()->rate();
+                for (Size k = 0; k < n; ++k)
+                    coupons[order == 1 ? n - 1 - k : k]->rate();
+                if (order == 3)
+                {
+                    vars.forecastCurve.linkTo(flatRate(vars.today, 0.042, vars.dc));
+                    for (const auto& c : coupons)
+                        c->rate();
+                }
+
+                const auto alone = makeLeg(nullptr);
+                for (Size i = 0; i < n; ++i)
+                {
+                    alone[i]->underlying()->setPricer(makeBlackOvernightPricer(averaging, vars.vol));
+                    alone[i]->setPricer(makeBlackOvernightPricer(averaging, vars.vol));
+                    checkAsAlone(*coupons[i], *alone[i],
+                                 describe(averaging, daily) + " " + std::to_string(i) + ", order " +
+                                     std::to_string(order));
+                }
+            }
+        }
+}
+
+BOOST_AUTO_TEST_CASE(testCappedFlooredOvernightCouponOnAnotherPricer)
+{
+    BOOST_TEST_MESSAGE("Testing a capped and floored overnight coupon on a pricer other than its underlying's...");
+
+    BlackONPricerVars vars;
+    const Date start(2, October, 2025), end(2, January, 2026);
+    for (auto averaging : {RateAveraging::Compound, RateAveraging::Simple})
+        for (bool daily : {false, true})
+        {
+            vars.forecastCurve.linkTo(flatRate(vars.today, 0.04, vars.dc));
+            auto underlying = vars.makeBaseCoupon(start, end, averaging);
+            underlying->setPricer(makeBlackOvernightPricer(averaging, vars.vol));
+            auto coupon = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(underlying, 0.045, 0.035, false, daily);
+            coupon->setPricer(makeBlackOvernightPricer(averaging, vars.vol));
+            coupon->rate();
+            // priced again after the curve moves
+            vars.forecastCurve.linkTo(flatRate(vars.today, 0.042, vars.dc));
+
+            auto aloneUnderlying = vars.makeBaseCoupon(start, end, averaging);
+            aloneUnderlying->setPricer(makeBlackOvernightPricer(averaging, vars.vol));
+            CappedFlooredOvernightIndexedCoupon alone(aloneUnderlying, 0.045, 0.035, false, daily);
+            alone.setPricer(makeBlackOvernightPricer(averaging, vars.vol));
+            checkAsAlone(*coupon, alone, describe(averaging, daily));
+        }
+}
+
+BOOST_AUTO_TEST_CASE(testCappedFlooredOvernightCouponOnDerivedUnderlying)
+{
+    BOOST_TEST_MESSAGE("Testing a capped and floored overnight coupon on an underlying of a derived class...");
+
+    BlackONPricerVars vars;
+    const Date start(2, October, 2025), end(2, January, 2026);
+    for (auto averaging : {RateAveraging::Compound, RateAveraging::Simple})
+        for (bool daily : {false, true})
+        {
+            vars.forecastCurve.linkTo(flatRate(vars.today, 0.04, vars.dc));
+            auto pricer = makeBlackOvernightPricer(averaging, vars.vol);
+            auto underlying = ext::make_shared<PresetRateOvernightCoupon>(start, end, vars.sofr, averaging, 0.041);
+            underlying->setPricer(pricer);
+            auto coupon = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(underlying, 0.045, 0.035, false, daily);
+            coupon->setPricer(pricer);
+            coupon->rate();
+            // priced again after the curve moves
+            vars.forecastCurve.linkTo(flatRate(vars.today, 0.042, vars.dc));
+
+            auto aloneUnderlying = ext::make_shared<PresetRateOvernightCoupon>(start, end, vars.sofr, averaging, 0.041);
+            aloneUnderlying->setPricer(makeBlackOvernightPricer(averaging, vars.vol));
+            CappedFlooredOvernightIndexedCoupon alone(aloneUnderlying, 0.045, 0.035, false, daily);
+            alone.setPricer(makeBlackOvernightPricer(averaging, vars.vol));
+            checkAsAlone(*coupon, alone, describe(averaging, daily));
+        }
+}
+
+BOOST_AUTO_TEST_CASE(testCappedFlooredOvernightCouponOnDerivedPricer)
+{
+    BOOST_TEST_MESSAGE("Testing a capped and floored overnight coupon on a pricer of a derived class...");
+
+    BlackONPricerVars vars;
+    for (bool daily : {false, true})
+    {
+        checkCouponTrackingPricer<BlackCompoundingOvernightIndexedCouponPricer>(vars, RateAveraging::Compound, daily);
+        checkCouponTrackingPricer<BlackAveragingOvernightIndexedCouponPricer>(vars, RateAveraging::Simple, daily);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testDerivedCappedFlooredOvernightCoupon)
+{
+    BOOST_TEST_MESSAGE("Testing a capped and floored overnight coupon of a derived class...");
+
+    BlackONPricerVars vars;
+    const Date start(2, October, 2025), end(2, January, 2026);
+    for (auto averaging : {RateAveraging::Compound, RateAveraging::Simple})
+        for (bool daily : {false, true})
+        {
+            auto pricer = makeBlackOvernightPricer(averaging, vars.vol);
+            auto underlying = vars.makeBaseCoupon(start, end, averaging);
+            underlying->setPricer(pricer);
+            CappedCouponWithOwnGearing coupon(underlying, 0.045, 0.035, daily);
+            coupon.setPricer(pricer);
+
+            auto aloneUnderlying = vars.makeBaseCoupon(start, end, averaging);
+            aloneUnderlying->setPricer(makeBlackOvernightPricer(averaging, vars.vol));
+            CappedCouponWithOwnGearing alone(aloneUnderlying, 0.045, 0.035, daily);
+            alone.setPricer(makeBlackOvernightPricer(averaging, vars.vol));
+            checkAsAlone(coupon, alone, describe(averaging, daily));
+        }
+}
+
+BOOST_AUTO_TEST_CASE(testCappedAndFlooredOvernightCouponsOnOneUnderlying)
+{
+    BOOST_TEST_MESSAGE("Testing a capped and a floored overnight coupon on one underlying and one Black pricer...");
+
+    BlackONPricerVars vars;
+    const Date start(2, October, 2025), end(2, January, 2026);
+    for (auto averaging : {RateAveraging::Compound, RateAveraging::Simple})
+        for (bool daily : {false, true})
+            for (bool cappedFirst : {true, false})
+            {
+                auto pricer = makeBlackOvernightPricer(averaging, vars.vol);
+                auto underlying = vars.makeBaseCoupon(start, end, averaging);
+                underlying->setPricer(pricer);
+                CappedFlooredOvernightIndexedCoupon capped(underlying, 0.045, Null<Rate>(), false, daily);
+                capped.setPricer(pricer);
+                CappedFlooredOvernightIndexedCoupon floored(underlying, Null<Rate>(), 0.035, false, daily);
+                floored.setPricer(pricer);
+                if (cappedFirst)
+                    capped.rate();
+                floored.rate();
+                capped.rate();
+
+                auto alone = [&](Rate cap, Rate floor)
+                {
+                    auto aloneUnderlying = vars.makeBaseCoupon(start, end, averaging);
+                    aloneUnderlying->setPricer(makeBlackOvernightPricer(averaging, vars.vol));
+                    auto c = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(aloneUnderlying, cap, floor, false,
+                                                                                   daily);
+                    c->setPricer(makeBlackOvernightPricer(averaging, vars.vol));
+                    return c;
+                };
+                const std::string what =
+                    describe(averaging, daily) + (cappedFirst ? ", capped first" : ", floored first");
+                checkAsAlone(capped, *alone(0.045, Null<Rate>()), what + ": capped");
+                checkAsAlone(floored, *alone(Null<Rate>(), 0.035), what + ": floored");
+            }
+}
+
+BOOST_AUTO_TEST_CASE(testCappedFlooredOvernightCouponOnFrozenUnderlying)
+{
+    BOOST_TEST_MESSAGE("Testing a capped and floored overnight coupon on a frozen underlying...");
+
+    BlackONPricerVars vars;
+    const Date start(2, October, 2025), end(2, January, 2026);
+    for (auto averaging : {RateAveraging::Compound, RateAveraging::Simple})
+        for (bool daily : {false, true})
+        {
+            vars.forecastCurve.linkTo(flatRate(vars.today, 0.04, vars.dc));
+            auto pricer = makeBlackOvernightPricer(averaging, vars.vol);
+            auto underlying = vars.makeBaseCoupon(start, end, averaging);
+            underlying->setPricer(pricer);
+            CappedFlooredOvernightIndexedCoupon coupon(underlying, 0.045, 0.035, false, daily);
+            coupon.setPricer(pricer);
+
+            auto aloneUnderlying = vars.makeBaseCoupon(start, end, averaging);
+            aloneUnderlying->setPricer(makeBlackOvernightPricer(averaging, vars.vol));
+            CappedFlooredOvernightIndexedCoupon alone(aloneUnderlying, 0.045, 0.035, false, daily);
+            alone.setPricer(makeBlackOvernightPricer(averaging, vars.vol));
+
+            coupon.rate();
+            alone.rate();
+            // both underlyings frozen, then the curve moved
+            underlying->freeze();
+            aloneUnderlying->freeze();
+            vars.forecastCurve.linkTo(flatRate(vars.today, 0.042, vars.dc));
+            checkAsAlone(coupon, alone, describe(averaging, daily) + ", frozen");
+            // and both thawed
+            underlying->unfreeze();
+            aloneUnderlying->unfreeze();
+            checkAsAlone(coupon, alone, describe(averaging, daily) + ", thawed");
+        }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
