@@ -182,31 +182,25 @@ namespace QuantLib
             ++i;
         }
 
-        // today is a border case
+        // today is a border case: a fixing stored for today is taken, and a missing one is forecast below unless
+        // Settings::enforcesTodaysHistoricFixings() requires it, as InterestRateIndex::fixing does
         if (i < n && fixingDates[std::min(i, nCutoff)] == today)
         {
-            // might have been fixed
-            try
+            Rate pastFixing = (*pastFixings)[today];
+            if (pastFixing != Null<Real>())
             {
-                Rate pastFixing = (*pastFixings)[today];
-                if (pastFixing != Null<Real>())
+                if (coupon_->compoundSpreadDaily())
                 {
-                    if (coupon_->compoundSpreadDaily())
-                    {
-                        pastFixing += coupon_->spread();
-                    }
-                    compoundFactor *= 1.0 + cappedFlooredRate(pastFixing, optionType, absStrike) * dt[i];
-                    compoundFactorRaw *= 1.0 + pastFixing * dt[i];
-                    ++i;
+                    pastFixing += coupon_->spread();
                 }
-                else
-                {
-                    ; // fall through and forecast
-                }
+                compoundFactor *= 1.0 + cappedFlooredRate(pastFixing, optionType, absStrike) * dt[i];
+                compoundFactorRaw *= 1.0 + pastFixing * dt[i];
+                ++i;
             }
-            catch (Error&)
+            else
             {
-                ; // fall through and forecast
+                QL_REQUIRE(!Settings::instance().enforcesTodaysHistoricFixings(),
+                           "Missing " << index->name() << " fixing for " << today);
             }
         }
 
@@ -471,31 +465,25 @@ namespace QuantLib
             ++i;
         }
 
-        // today is a border case
+        // today is a border case: a fixing stored for today is taken, and a missing one is forecast below unless
+        // Settings::enforcesTodaysHistoricFixings() requires it, as InterestRateIndex::fixing does
         if (i < n && fixingDates[std::min(i, nCutoff)] == today)
         {
-            // might have been fixed
-            try
+            Rate pastFixing = (*pastFixings)[today];
+            if (pastFixing != Null<Real>())
             {
-                Rate pastFixing = (*pastFixings)[today];
-                if (pastFixing != Null<Real>())
+                if (coupon_->compoundSpreadDaily())
                 {
-                    if (coupon_->compoundSpreadDaily())
-                    {
-                        pastFixing += coupon_->spread();
-                    }
-                    accumulatedRate += cappedFlooredRate(pastFixing, optionType, absStrike) * dt[i];
-                    accumulatedRateRaw += pastFixing * dt[i];
-                    ++i;
+                    pastFixing += coupon_->spread();
                 }
-                else
-                {
-                    ; // fall through and forecast
-                }
+                accumulatedRate += cappedFlooredRate(pastFixing, optionType, absStrike) * dt[i];
+                accumulatedRateRaw += pastFixing * dt[i];
+                ++i;
             }
-            catch (Error&)
+            else
             {
-                ; // fall through and forecast
+                QL_REQUIRE(!Settings::instance().enforcesTodaysHistoricFixings(),
+                           "Missing " << index->name() << " fixing for " << today);
             }
         }
 

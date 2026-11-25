@@ -40,6 +40,7 @@
 #include <ql/time/calendars/unitedstates.hpp>
 #include <ql/time/calendars/weekendsonly.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <functional>
 #include <iomanip>
 #include <map>
 
@@ -802,6 +803,98 @@ BOOST_AUTO_TEST_CASE(testEffectiveSpreadAndIndexFixingErrors)
     BOOST_CHECK_EXCEPTION(compounded->effectiveSpread(), Error,
                           ExpectedErrorMessage("OvernightIndexedCoupon::effectiveSpread() needs a "
                                                "CompoundingOvernightIndexedCouponPricer"));
+}
+
+BOOST_AUTO_TEST_CASE(testTodaysFixingRequiredWhenEnforced)
+{
+    BOOST_TEST_MESSAGE("Testing that overnight coupons need today's fixing where it is enforced...");
+
+    const Date today(10, November, 2026);
+    Settings::instance().evaluationDate() = today;
+
+    const WeekendsOnly calendar;
+    const Actual360 dayCounter;
+    const Handle<YieldTermStructure> curve(ext::make_shared<FlatForward>(today, 0.025, dayCounter));
+    const auto index = ext::make_shared<OvernightIndex>("T420", 0, USDCurrency(), calendar, dayCounter, curve);
+    const Handle<OptionletVolatilityStructure> volatility(
+        ext::make_shared<ConstantOptionletVolatility>(today, calendar, Following, 0.05, dayCounter));
+
+    // a coupon of 25 business days whose first fixing is today
+    const auto coupon = [&](RateAveraging::Type averaging, Natural lookbackDays)
+    {
+        const Date start = calendar.advance(today, lookbackDays, Days);
+        const Date end = calendar.advance(start, 25, Days);
+        return ext::make_shared<OvernightIndexedCoupon>(end, 100.0, start, end, index, 1.0, 0.0, Date(), Date(),
+                                                        DayCounter(), false, averaging,
+                                                        lookbackDays == 0 ? Null<Natural>() : lookbackDays);
+    };
+    const auto priced = [&](RateAveraging::Type averaging, Natural lookbackDays,
+                            const ext::shared_ptr<FloatingRateCouponPricer>& pricer)
+    {
+        ext::shared_ptr<FloatingRateCoupon> c = coupon(averaging, lookbackDays);
+        c->setPricer(pricer);
+        return c;
+    };
+    // capped at 3 %, or a naked cap at 3 %, on a Black pricer
+    const auto capped = [&](RateAveraging::Type averaging, bool naked, bool daily)
+    {
+        ext::shared_ptr<FloatingRateCoupon> c = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(
+            coupon(averaging, 0), 0.03, Null<Rate>(), naked, daily);
+        if (averaging == RateAveraging::Compound)
+            c->setPricer(ext::make_shared<BlackCompoundingOvernightIndexedCouponPricer>(volatility));
+        else
+            c->setPricer(ext::make_shared<BlackAveragingOvernightIndexedCouponPricer>(volatility));
+        return c;
+    };
+
+    // each row builds a new coupon, so that its rate is worked out under the setting in force
+    const std::vector<std::pair<std::string, std::function<ext::shared_ptr<FloatingRateCoupon>()>>> rows = {
+        {"compounded", [&]
+         { return priced(RateAveraging::Compound, 0, ext::make_shared<CompoundingOvernightIndexedCouponPricer>()); }},
+        {"averaged by approximation",
+         [&]
+         {
+             return priced(RateAveraging::Simple, 0,
+                           ext::make_shared<ArithmeticAveragedOvernightIndexedCouponPricer>(true));
+         }},
+        {"compounded, capped at 3 %", [&] { return capped(RateAveraging::Compound, false, false); }},
+        {"compounded, naked daily cap at 3 %", [&] { return capped(RateAveraging::Compound, true, true); }},
+        {"compounded with a lookback of 2 days", [&]
+         { return priced(RateAveraging::Compound, 2, ext::make_shared<CompoundingOvernightIndexedCouponPricer>()); }},
+        {"averaged exactly",
+         [&]
+         {
+             return priced(RateAveraging::Simple, 0,
+                           ext::make_shared<ArithmeticAveragedOvernightIndexedCouponPricer>(false));
+         }},
+        {"averaged, naked daily cap at 3 %", [&] { return capped(RateAveraging::Simple, true, true); }},
+    };
+
+    // today's fixing missing: each row forecasts it with the setting off, and refuses with it on
+    const std::string missing = "Missing T420ON Actual/360 fixing for November 10th, 2026";
+    for (const auto& [name, make] : rows)
+    {
+        BOOST_TEST_CONTEXT(name)
+        {
+            Settings::instance().enforcesTodaysHistoricFixings() = false;
+            BOOST_CHECK_NO_THROW(make()->rate());
+            Settings::instance().enforcesTodaysHistoricFixings() = true;
+            BOOST_CHECK_EXCEPTION(make()->rate(), Error, ExpectedErrorMessage(missing));
+        }
+    }
+
+    // today's fixing stored: each row takes it, with the setting on as with it off
+    index->addFixing(today, 0.021);
+    for (const auto& [name, make] : rows)
+    {
+        BOOST_TEST_CONTEXT(name)
+        {
+            Settings::instance().enforcesTodaysHistoricFixings() = false;
+            const Rate off = make()->rate();
+            Settings::instance().enforcesTodaysHistoricFixings() = true;
+            BOOST_CHECK_EQUAL(make()->rate(), off);
+        }
+    }
 }
 
 BOOST_AUTO_TEST_CASE(testBlackOvernightIndexedCouponPricerCapletFloorlet)
