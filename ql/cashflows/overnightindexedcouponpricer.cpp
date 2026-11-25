@@ -202,10 +202,13 @@ namespace QuantLib
                 return span * (fixing + spreadToAdd);
             };
 
-            if (!coupon_->canApplyTelescopicFormula())
+            if (!coupon_->canApplyTelescopicFormula() || (coupon_->compoundSpreadDaily() && couponSpread != 0.0))
             {
                 // With lookback applied, the telescopic formula cannot be used,
                 // we need to project each fixing in the coupon.
+                // Nor can it with a nonzero spread compounded daily: the spread
+                // compounds with each day's fixing, and the ratio of discount
+                // factors gives the product of the fixings' factors alone.
                 // Only in one particular case when observation shift is used and
                 // no intrinsic index fixing delay is applied, the telescopic formula
                 // holds, because regardless of the fixing delay in the coupon,

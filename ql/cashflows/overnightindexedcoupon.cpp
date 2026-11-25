@@ -130,7 +130,12 @@ namespace QuantLib
         QL_REQUIRE(canApplyTelescopicFormula() || !telescopicValueDates,
                    "Telescopic formula cannot be applied for a coupon with lookback.");
 
-        if (telescopicValueDates)
+        // A nonzero spread compounded daily compounds with each day's fixing, so
+        // such a compounded coupon is priced day by day and needs all its value dates.
+        const bool telescopic = telescopicValueDates &&
+                                !(averagingMethod == RateAveraging::Compound && compoundSpreadDaily && spread != 0.0);
+
+        if (telescopic)
         {
             // build optimised value dates schedule: front stub goes
             // from start date to max(evalDate,startDate) + 7bd
@@ -148,7 +153,7 @@ namespace QuantLib
                            .backwards();
         valueDates_ = sch.dates();
 
-        if (telescopicValueDates)
+        if (telescopic)
         {
             // if lockout days are defined, we need to ensure that
             // the lockout period is covered by the value dates

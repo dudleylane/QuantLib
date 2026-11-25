@@ -51,7 +51,9 @@ namespace QuantLib
         a grace period of 7 days. It is therefore recommended not to set this flag
         to true unless you know exactly what you are doing. The intended use is
         rather by the OISRateHelper which is safe, since it reinitialises the
-        instrument each time the evaluation date changes.
+        instrument each time the evaluation date changes. A compounded coupon
+        with a nonzero spread compounded daily is priced day by day, so it
+        builds all its value dates whatever telescopicValueDates says.
     */
     class OvernightIndexedCoupon : public FloatingRateCoupon
     {
