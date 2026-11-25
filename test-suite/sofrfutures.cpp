@@ -27,6 +27,7 @@
 #include <ql/termstructures/yield/overnightindexfutureratehelper.hpp>
 #include <ql/termstructures/yield/piecewiseyieldcurve.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <algorithm>
 #include <iomanip>
 
 using namespace QuantLib;
@@ -245,6 +246,48 @@ BOOST_AUTO_TEST_CASE(testAveragedRateStartingToday)
     const DayCounter dayCounter = sofr->dayCounter();
     const Rate rate = todays * dayCounter.yearFraction(today, tomorrow) / dayCounter.yearFraction(today, maturity);
     BOOST_CHECK_SMALL(fixed.NPV() - 100.0 * (1.0 - rate), 1.0e-10);
+}
+
+BOOST_AUTO_TEST_CASE(testCompoundedRateWithNextBusinessDayAfterMaturity)
+{
+    BOOST_TEST_MESSAGE("Testing a compounded future priced where the next business day is after its maturity...");
+
+    // Every fixing is stored, so the rate is the fixings compounded up to the maturity; the curve's forward differs
+    // from them, so a ratio of its discount factors other than 1 would show (#435).
+    struct Row
+    {
+        Date valueDate, maturity, today;
+        bool includeReferenceDateEvents;
+    };
+    const Row rows[] = {
+        // SOFR's quarterly contract maturing on Juneteenth 2024, priced on its maturity
+        {Date(20, March, 2024), Date(19, June, 2024), Date(19, June, 2024), true},
+        // a future maturing on a Sunday, priced on the Saturday before
+        {Date(3, August, 2026), Date(16, August, 2026), Date(15, August, 2026), false},
+    };
+    for (const Row& row : rows)
+    {
+        Settings::instance().evaluationDate() = row.today;
+        Settings::instance().includeReferenceDateEvents() = row.includeReferenceDateEvents;
+
+        Handle<YieldTermStructure> curve(ext::make_shared<FlatForward>(row.today, 0.05, Actual360()));
+        auto sofr = ext::make_shared<Sofr>(curve);
+        const Calendar calendar = sofr->fixingCalendar();
+        const DayCounter dayCounter = sofr->dayCounter();
+        const Rate fixing = 0.02;
+        Real growth = 1.0;
+        for (Date d1 = row.valueDate; d1 < row.maturity;)
+        {
+            const Date d2 = calendar.advance(d1, 1, Days);
+            sofr->addFixing(d1, fixing);
+            growth *= 1.0 + fixing * dayCounter.yearFraction(d1, std::min(d2, row.maturity));
+            d1 = d2;
+        }
+        const Rate rate = (growth - 1.0) / dayCounter.yearFraction(row.valueDate, row.maturity);
+
+        const OvernightIndexFuture future(sofr, row.valueDate, row.maturity);
+        BOOST_CHECK_SMALL(future.NPV() - 100.0 * (1.0 - rate), 1.0e-10);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(testHelperNotNotifiedByItsOwnBootstrap)

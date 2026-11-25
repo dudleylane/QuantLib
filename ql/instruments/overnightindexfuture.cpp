@@ -96,26 +96,26 @@ namespace QuantLib
             // won't know the reset rate until start of next business day.
             // user can supply an estimate if they really want to do this
             today = calendar.adjust(today);
-            forwardDiscountStart = today;
+            // that can take today past a maturity that isn't a business day either
+            forwardDiscountStart = std::min(today, maturityDate_);
             // for valuations inside the reference period, index quotes
             // must have been populated in the history
             const auto& history = overnightIndex_->timeSeries();
             Date d1 = valueDate_;
             // d1 could be a holiday
             Date fixingDate = calendar.adjust(d1, Preceding);
-            while (d1 < today)
+            while (d1 < today && d1 < maturityDate_)
             {
                 Real r = history[fixingDate];
                 QL_REQUIRE(r != Null<Real>(),
                            "missing rate on " << fixingDate << " for index " << overnightIndex_->name());
-                Date d2 = calendar.advance(d1, 1, Days);
-                // The rate is accrued starting from d1 even when the fixing date is earlier.
-                // We can't get to the maturity date inside this loop,
-                // so we don't need to cap d2 like we do in averagedRate above.
+                // The rate is accrued starting from d1 even when the fixing date is earlier,
+                // and only up to the maturity, which today can be past.
+                Date d2 = std::min(calendar.advance(d1, 1, Days), maturityDate_);
                 prod *= 1 + r * dayCounter.yearFraction(d1, d2);
                 fixingDate = d1 = d2;
             }
-            // here d1 == today, and we might have today's fixing already
+            // here d1 == today unless the maturity came first, and we might have today's fixing already
             if (today < maturityDate_)
             {
                 Real r = history[today];
