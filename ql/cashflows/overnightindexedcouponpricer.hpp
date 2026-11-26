@@ -110,7 +110,7 @@ namespace QuantLib
             bool effectiveVolatilityInput = false);
         //! \name FloatingRateCoupon interface
         //@{
-        // void initialize(const FloatingRateCoupon& coupon) override;
+        void initialize(const FloatingRateCoupon& coupon) override;
         Rate swapletRate() const override;
         Real swapletPrice() const override { QL_FAIL("swapletPrice not available"); }
         Real capletPrice(Rate) const override { QL_FAIL("capletPrice not available"); }
@@ -159,7 +159,7 @@ namespace QuantLib
         {
         }
 
-        // void initialize(const FloatingRateCoupon& coupon) override;
+        void initialize(const FloatingRateCoupon& coupon) override;
         Rate swapletRate() const override;
         Real swapletPrice() const override { QL_FAIL("swapletPrice not available"); }
         Real capletPrice(Rate) const override { QL_FAIL("capletPrice not available"); }
