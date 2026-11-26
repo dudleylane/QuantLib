@@ -121,23 +121,20 @@ namespace QuantLib
         // The fixing dates only increase, so the history is read only if the first is due by today.
         if (fixingDate <= evaluationDate)
         {
-            // can't value on a weekend inside reference period because we
-            // won't know the reset rate until start of next business day.
-            // user can supply an estimate if they really want to do this
-            const Date today = calendar.adjust(evaluationDate);
             // for valuations inside the reference period, index quotes
             // must have been populated in the history
             const auto& history = overnightIndex_->timeSeries();
-            while (d1 < maturityDate_ && fixingDate <= today)
+            // A fixing after today isn't due yet, the next business day's included where today isn't one, and is
+            // forecast below, as InterestRateIndex::fixing has it.
+            while (d1 < maturityDate_ && fixingDate <= evaluationDate)
             {
                 Real r = history[fixingDate];
                 if (r == Null<Real>())
                 {
-                    QL_REQUIRE(fixingDate == today,
+                    QL_REQUIRE(fixingDate == evaluationDate,
                                "missing rate on " << fixingDate << " for index " << overnightIndex_->name());
-                    // today's fixing is forecast below, as InterestRateIndex::fixing does, unless it has to be
-                    // stored; where today was moved to the next business day, that day's fixing isn't due yet
-                    QL_REQUIRE(fixingDate != evaluationDate || !Settings::instance().enforcesTodaysHistoricFixings(),
+                    // today's fixing is forecast below, as InterestRateIndex::fixing does, unless it has to be stored
+                    QL_REQUIRE(!Settings::instance().enforcesTodaysHistoricFixings(),
                                "Missing " << overnightIndex_->name() << " fixing for " << fixingDate);
                     break;
                 }

@@ -387,6 +387,69 @@ BOOST_AUTO_TEST_CASE(testCompoundedRateOnItsValueDate)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testRatesOnADayThatIsNotABusinessDay)
+{
+    BOOST_TEST_MESSAGE("Testing a future priced on a day that isn't a business day...");
+
+    // The next business day's fixing isn't due until that day, so both rates forecast it from the curve, whether it's
+    // stored or not (#436).
+    struct Row
+    {
+        Date valueDate, maturity, today, next;
+    };
+    const Row rows[] = {
+        // a Saturday
+        {Date(2, March, 2026), Date(1, April, 2026), Date(7, March, 2026), Date(9, March, 2026)},
+        // Juneteenth, a Friday
+        {Date(1, June, 2026), Date(1, July, 2026), Date(19, June, 2026), Date(22, June, 2026)},
+    };
+    const Rate fixing = 0.02, nextFixing = 0.03;
+    for (const Row& row : rows)
+    {
+        for (bool nextStored : {false, true})
+        {
+            Settings::instance().evaluationDate() = row.today;
+            IndexManager::instance().clearHistories();
+
+            Handle<YieldTermStructure> curve(ext::make_shared<FlatForward>(row.today, 0.05, Actual360()));
+            auto sofr = ext::make_shared<Sofr>(curve);
+            const Calendar calendar = sofr->fixingCalendar();
+            const DayCounter dayCounter = sofr->dayCounter();
+            for (Date d = row.valueDate; d < row.today; d = calendar.advance(d, 1, Days))
+                sofr->addFixing(d, fixing);
+            if (nextStored)
+                sofr->addFixing(row.next, nextFixing);
+
+            // the stored fixings up to today, and the curve's forecasts from the next business day
+            Real sum = 0.0, growth = 1.0;
+            for (Date d1 = row.valueDate; d1 < row.maturity;)
+            {
+                const Date d2 = calendar.advance(d1, 1, Days);
+                const Time tau = dayCounter.yearFraction(d1, std::min(d2, row.maturity));
+                if (d1 < row.next)
+                {
+                    sum += fixing * tau;
+                    growth *= 1.0 + fixing * tau;
+                }
+                else
+                {
+                    sum += curve->forwardRate(d1, d2, dayCounter, Simple).rate() * tau;
+                }
+                d1 = d2;
+            }
+            const Time span = dayCounter.yearFraction(row.valueDate, row.maturity);
+            const Rate averaged = sum / span;
+            const Rate compounded = (growth * curve->discount(row.next) / curve->discount(row.maturity) - 1.0) / span;
+
+            const OvernightIndexFuture averaging(sofr, row.valueDate, row.maturity, Handle<Quote>(),
+                                                 RateAveraging::Simple);
+            const OvernightIndexFuture compounding(sofr, row.valueDate, row.maturity);
+            BOOST_CHECK_SMALL(averaging.NPV() - 100.0 * (1.0 - averaged), 1.0e-10);
+            BOOST_CHECK_SMALL(compounding.NPV() - 100.0 * (1.0 - compounded), 1.0e-10);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_CASE(testCompoundedRateFromHolidayValueDate)
 {
     BOOST_TEST_MESSAGE("Testing a compounded future whose value date is a holiday...");
