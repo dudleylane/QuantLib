@@ -35,6 +35,17 @@ namespace QuantLib
         details see chapter 8, paragraph 2 of "Monte Carlo Methods in
         Finance", by Peter Jäckel
 
+        The seed is used only when randomStart or randomShift is
+        true: each dimension's starting index is then drawn if
+        randomStart is true, and its shift if randomShift is, from a
+        RandomSequenceGenerator<MersenneTwisterUniformRng> built with
+        the seed. A seed of 0 means a seed from the clock, as it does
+        for MersenneTwisterUniformRng, so a HaltonRsg built with its
+        defaults (seed 0, randomStart true) starts each dimension at
+        a different index each time it is built; a nonzero seed, or
+        randomStart and randomShift both false, gives a sequence that
+        repeats.
+
         \test
         - the correctness of the returned values is tested by
           reproducing known good values.
