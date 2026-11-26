@@ -59,6 +59,10 @@ namespace QuantLib
             QL_REQUIRE(dimensionality > 0, "dimensionality must be greater than 0");
         }
 
+        /*! The seed is passed unchanged to the constructor of RNG; with
+            MersenneTwisterUniformRng, a seed of 0 means a seed from the
+            clock, so the sequence differs each time the generator is
+            built. */
         explicit RandomSequenceGenerator(Size dimensionality, BigNatural seed = 0)
         : dimensionality_(dimensionality), rng_(seed), sequence_(std::vector<Real>(dimensionality), 1.0),
           int32Sequence_(dimensionality)
