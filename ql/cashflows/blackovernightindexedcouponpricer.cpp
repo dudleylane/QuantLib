@@ -36,6 +36,9 @@ namespace QuantLib
         // What this sets depends on the coupon only through overnightIndexedCoupon() and gearing(), which a
         // CappedFlooredOvernightIndexedCoupon takes from its underlying coupon; the capped coupon's performCalculations
         // relies on that when it takes the pricer to hold what initializing it on the capped coupon would give.
+        const OvernightIndexedCoupon* onCoupon = coupon.overnightIndexedCoupon();
+        QL_REQUIRE(onCoupon == nullptr || onCoupon->averagingMethod() == RateAveraging::Compound,
+                   "Averaging method required to be compound for BlackCompoundingOvernightIndexedCouponPricer");
         OvernightIndexedCouponPricer::initialize(coupon);
 
         gearing_ = coupon.gearing();
@@ -335,10 +338,10 @@ namespace QuantLib
         // What this sets depends on the coupon only through overnightIndexedCoupon() and gearing(), which a
         // CappedFlooredOvernightIndexedCoupon takes from its underlying coupon; the capped coupon's performCalculations
         // relies on that when it takes the pricer to hold what initializing it on the capped coupon would give.
+        const OvernightIndexedCoupon* onCoupon = coupon.overnightIndexedCoupon();
+        QL_REQUIRE(onCoupon == nullptr || onCoupon->averagingMethod() == RateAveraging::Simple,
+                   "Averaging method required to be simple for BlackAveragingOvernightIndexedCouponPricer");
         OvernightIndexedCouponPricer::initialize(coupon);
-
-        if (coupon_->averagingMethod() == RateAveraging::Compound)
-            QL_FAIL("Averaging method required to be simple for BlackAveragingOvernightIndexedCouponPricer");
 
         gearing_ = coupon.gearing();
         swapletRate_ = ArithmeticAveragedOvernightIndexedCouponPricer::swapletRate();

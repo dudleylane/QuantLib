@@ -87,6 +87,14 @@ namespace QuantLib
     {
     }
 
+    void CompoundingOvernightIndexedCouponPricer::initialize(const FloatingRateCoupon& coupon)
+    {
+        const OvernightIndexedCoupon* onCoupon = coupon.overnightIndexedCoupon();
+        QL_REQUIRE(onCoupon == nullptr || onCoupon->averagingMethod() == RateAveraging::Compound,
+                   "Averaging method required to be compound for CompoundingOvernightIndexedCouponPricer");
+        OvernightIndexedCouponPricer::initialize(coupon);
+    }
+
     Rate CompoundingOvernightIndexedCouponPricer::swapletRate() const
     {
         auto [swapletRate, effectiveSpread, effectiveIndexFixing] = compute(coupon_->accrualEndDate());
@@ -289,6 +297,14 @@ namespace QuantLib
         }
 
         return std::make_tuple(swapletRate, effectiveSpread, effectiveIndexFixing);
+    }
+
+    void ArithmeticAveragedOvernightIndexedCouponPricer::initialize(const FloatingRateCoupon& coupon)
+    {
+        const OvernightIndexedCoupon* onCoupon = coupon.overnightIndexedCoupon();
+        QL_REQUIRE(onCoupon == nullptr || onCoupon->averagingMethod() == RateAveraging::Simple,
+                   "Averaging method required to be simple for ArithmeticAveragedOvernightIndexedCouponPricer");
+        OvernightIndexedCouponPricer::initialize(coupon);
     }
 
     Rate ArithmeticAveragedOvernightIndexedCouponPricer::swapletRate() const

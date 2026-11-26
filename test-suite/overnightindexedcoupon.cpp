@@ -2452,6 +2452,92 @@ BOOST_AUTO_TEST_CASE(testCappedFlooredOvernightCouponOnFrozenUnderlying)
         }
 }
 
+BOOST_AUTO_TEST_CASE(testOvernightPricersRefuseTheOtherAveragingMethod)
+{
+    BOOST_TEST_MESSAGE("Testing that the overnight pricers refuse a coupon of the other averaging method...");
+
+    const Date today(9, November, 2026);
+    Settings::instance().evaluationDate() = today;
+    const WeekendsOnly calendar;
+    const Actual360 dayCounter;
+    const Handle<YieldTermStructure> curve(ext::make_shared<FlatForward>(today, 0.025, dayCounter, Continuous));
+    const auto index = ext::make_shared<OvernightIndex>("T432", 0, USDCurrency(), calendar, dayCounter, curve);
+    index->addFixing(today, 0.02);
+    const Handle<OptionletVolatilityStructure> volatility(
+        ext::make_shared<ConstantOptionletVolatility>(today, calendar, Following, 0.05, dayCounter));
+    // a coupon from 9 to 13 November, fixing on the day it applies
+    const auto coupon = [&](RateAveraging::Type averaging, Natural lockoutDays)
+    {
+        const Date end(13, November, 2026);
+        return ext::make_shared<OvernightIndexedCoupon>(end, 100.0, today, end, index, 1.0, 0.0, Date(), Date(),
+                                                        DayCounter(), false, averaging, Null<Natural>(), lockoutDays);
+    };
+    struct Row
+    {
+        std::string pricer;
+        RateAveraging::Type averaging;
+        bool black;
+        std::function<ext::shared_ptr<OvernightIndexedCouponPricer>()> make;
+    };
+    const std::vector<Row> rows = {
+        {"CompoundingOvernightIndexedCouponPricer", RateAveraging::Compound, false,
+         [] { return ext::make_shared<CompoundingOvernightIndexedCouponPricer>(); }},
+        {"BlackCompoundingOvernightIndexedCouponPricer", RateAveraging::Compound, true,
+         [&] { return ext::make_shared<BlackCompoundingOvernightIndexedCouponPricer>(volatility); }},
+        {"ArithmeticAveragedOvernightIndexedCouponPricer", RateAveraging::Simple, false,
+         [] { return ext::make_shared<ArithmeticAveragedOvernightIndexedCouponPricer>(false); }},
+        {"ArithmeticAveragedOvernightIndexedCouponPricer", RateAveraging::Simple, false,
+         [] { return ext::make_shared<ArithmeticAveragedOvernightIndexedCouponPricer>(true); }},
+        {"BlackAveragingOvernightIndexedCouponPricer", RateAveraging::Simple, true,
+         [&] { return ext::make_shared<BlackAveragingOvernightIndexedCouponPricer>(volatility); }},
+    };
+    for (const auto& row : rows)
+    {
+        const bool compound = row.averaging == RateAveraging::Compound;
+        const RateAveraging::Type other = compound ? RateAveraging::Simple : RateAveraging::Compound;
+        const std::string message =
+            std::string("Averaging method required to be ") + (compound ? "compound" : "simple") + " for " + row.pricer;
+        BOOST_TEST_CONTEXT(row.pricer)
+        {
+            // a coupon of the pricer's own method is priced
+            auto own = coupon(row.averaging, 0);
+            own->setPricer(row.make());
+            BOOST_CHECK_NO_THROW(own->rate());
+
+            // one of the other method is refused, for its rate and for its accrued amount
+            auto mismatched = coupon(other, 0);
+            mismatched->setPricer(row.make());
+            BOOST_CHECK_EXCEPTION(mismatched->rate(), Error, ExpectedErrorMessage(message));
+            BOOST_CHECK_EXCEPTION(mismatched->accruedAmount(Date(11, November, 2026)), Error,
+                                  ExpectedErrorMessage(message));
+
+            // a compounded coupon with a lockout, which an averaged coupon can't have
+            if (!compound)
+            {
+                auto lockout = coupon(RateAveraging::Compound, 2);
+                lockout->setPricer(row.make());
+                BOOST_CHECK_EXCEPTION(lockout->rate(), Error, ExpectedErrorMessage(message));
+            }
+
+            // a cap on the coupon's rate, and on each day's, set with the capped coupon's own setPricer
+            if (row.black)
+            {
+                for (bool daily : {false, true})
+                {
+                    auto ownCapped = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(
+                        coupon(row.averaging, 0), 0.03, Null<Rate>(), false, daily);
+                    ownCapped->setPricer(row.make());
+                    BOOST_CHECK_NO_THROW(ownCapped->rate());
+                    auto capped = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(coupon(other, 0), 0.03,
+                                                                                        Null<Rate>(), false, daily);
+                    capped->setPricer(row.make());
+                    BOOST_CHECK_EXCEPTION(capped->rate(), Error, ExpectedErrorMessage(message));
+                }
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
