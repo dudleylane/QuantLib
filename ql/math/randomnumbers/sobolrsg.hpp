@@ -132,6 +132,11 @@ namespace QuantLib
             underlying SobolRsg not using the Gray code on the other hand due to its specific way of constructing the
             integer sequence.
 
+            The seed is used only for the direction integers beyond those tabulated for the given set, which are
+            drawn from a MersenneTwisterUniformRng seeded with it; a dimensionality within the table gives the same
+            sequence whatever the seed. A seed of 0 draws them from the seed array {0}, not from the clock as a seed
+            of 0 means for MersenneTwisterUniformRng itself, so it gives the same sequence every time too.
+
             \pre dimensionality must be <= PPMT_MAX_DIM
          */
         explicit SobolRsg(Size dimensionality,

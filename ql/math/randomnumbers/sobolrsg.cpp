@@ -72104,10 +72104,13 @@ namespace QuantLib
                 break;
         }
 
-        // random initialization for higher dimensions
+        // random initialization for higher dimensions; MersenneTwisterUniformRng takes a seed of 0 to mean one from
+        // the clock, so a seed of 0 goes in as the seed array {0}, which draws the same direction integers every time
         if (dimensionality_ > maxTabulated)
         {
-            MersenneTwisterUniformRng uniformRng(seed);
+            MersenneTwisterUniformRng uniformRng = seed != 0 ?
+                                                       MersenneTwisterUniformRng(seed) :
+                                                       MersenneTwisterUniformRng(std::vector<unsigned long>(1, 0UL));
             for (k = maxTabulated; k < dimensionality_; k++)
             {
                 for (Size l = 1; l <= degree[k]; l++)

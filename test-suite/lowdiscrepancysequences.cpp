@@ -21,6 +21,8 @@
 #include "preconditions.hpp"
 #include "toplevelfixture.hpp"
 #include "utilities.hpp"
+#include <ql/exercise.hpp>
+#include <ql/instruments/vanillaoption.hpp>
 #include <ql/math/randomnumbers/burley2020sobolrsg.hpp>
 #include <ql/math/randomnumbers/faurersg.hpp>
 #include <ql/math/randomnumbers/haltonrsg.hpp>
@@ -34,6 +36,11 @@
 #include <ql/math/randomnumbers/sobolrsg.hpp>
 #include <ql/math/statistics/discrepancystatistics.hpp>
 #include <ql/math/statistics/sequencestatistics.hpp>
+#include <ql/models/marketmodels/browniangenerators/sobolbrowniangenerator.hpp>
+#include <ql/pricingengines/vanilla/mceuropeanengine.hpp>
+#include <ql/processes/blackscholesprocess.hpp>
+#include <ql/quotes/simplequote.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
 #include <ql/utilities/dataformatters.hpp>
 
 // #define PRINT_ONLY
@@ -1002,6 +1009,100 @@ BOOST_AUTO_TEST_CASE(testSobolBurleySkipping)
             }
         }
     }
+}
+
+BOOST_AUTO_TEST_CASE(testSobolAtSeedZeroRepeats)
+{
+    BOOST_TEST_MESSAGE("Testing that Sobol sequences at seed 0 repeat beyond their tabulated dimensions...");
+
+    // Jaeckel's direction integers are tabulated for 32 dimensions; those of the next 8 are drawn using the seed
+    const Size dimension = 40;
+    SobolRsg first(dimension), second(dimension), seeded(dimension, 42);
+    std::vector<Real> x, y, z;
+    bool reported = false;
+    for (Size i = 1; i <= 101; ++i)
+    {
+        x = first.nextSequence().value;
+        y = second.nextSequence().value;
+        z = seeded.nextSequence().value;
+        if (!reported && x != y)
+        {
+            Size k = 0;
+            while (x[k] == y[k])
+                ++k;
+            BOOST_ERROR("two SobolRsg of " << dimension << " dimensions at seed 0 differ at point " << i
+                                           << ", dimension " << k + 1 << ": " << x[k] << " and " << y[k]);
+            reported = true;
+        }
+    }
+    // at the 101st point, dimensions 31 and 32 don't depend on the seed, and 33 and 34 do
+    const Real expected[2][4] = {{0.2578125, 0.3046875, 0.6953125, 0.8046875},
+                                 {0.2578125, 0.3046875, 0.5390625, 0.8671875}};
+    for (Size k = 0; k < 4; ++k)
+    {
+        if (x[30 + k] != expected[0][k])
+            BOOST_ERROR("SobolRsg at seed 0, 101st point, dimension "
+                        << 31 + k << ":\n    calculated: " << std::setprecision(12) << x[30 + k]
+                        << "\n    expected:   " << expected[0][k]);
+        if (z[30 + k] != expected[1][k])
+            BOOST_ERROR("SobolRsg at seed 42, 101st point, dimension "
+                        << 31 + k << ":\n    calculated: " << std::setprecision(12) << z[30 + k]
+                        << "\n    expected:   " << expected[1][k]);
+    }
+
+    // so do the Brownian generators and scrambled sequences built on them at seed 0
+    SobolBrownianGeneratorFactory factory(SobolBrownianGenerator::Diagonal);
+    ext::shared_ptr<BrownianGenerator> g1 = factory.create(2, 20), g2 = factory.create(2, 20);
+    std::vector<Real> b1(2), b2(2);
+    reported = false;
+    for (Size p = 1; p <= 101 && !reported; ++p)
+    {
+        g1->nextPath();
+        g2->nextPath();
+        for (Size s = 1; s <= 20 && !reported; ++s)
+        {
+            g1->nextStep(b1);
+            g2->nextStep(b2);
+            if (b1 != b2)
+            {
+                BOOST_ERROR("two SobolBrownianGenerators of 2 factors over 20 steps at seed 0 differ at path "
+                            << p << ", step " << s);
+                reported = true;
+            }
+        }
+    }
+    Burley2020SobolRsg scrambled1(33, 0), scrambled2(33, 0);
+    for (Size i = 1; i <= 10; ++i)
+    {
+        x = scrambled1.nextSequence().value;
+        y = scrambled2.nextSequence().value;
+        if (x != y)
+        {
+            BOOST_ERROR("two Burley2020SobolRsg of 33 dimensions at seed 0 differ at point " << i);
+            break;
+        }
+    }
+
+    // and so does a price from a quasi-Monte Carlo engine at its default seed, which draws a sequence of 40 dimensions
+    // here on each calculation
+    Date today(15, May, 2026);
+    Settings::instance().evaluationDate() = today;
+    DayCounter dc = Actual365Fixed();
+    auto spot = ext::make_shared<SimpleQuote>(100.0);
+    auto process = ext::make_shared<BlackScholesMertonProcess>(
+        Handle<Quote>(spot), Handle<YieldTermStructure>(flatRate(today, 0.0, dc)),
+        Handle<YieldTermStructure>(flatRate(today, 0.03, dc)), Handle<BlackVolTermStructure>(flatVol(today, 0.20, dc)));
+    VanillaOption option(ext::make_shared<PlainVanillaPayoff>(Option::Call, 100.0),
+                         ext::make_shared<EuropeanExercise>(today + Period(1, Years)));
+    option.setPricingEngine(MakeMCEuropeanEngine<LowDiscrepancy>(process).withSteps(40).withSamples(1023));
+    const Real before = option.NPV();
+    spot->setValue(100.5);
+    option.NPV();
+    spot->setValue(100.0);
+    const Real after = option.NPV();
+    if (before != after)
+        BOOST_ERROR("a call priced on MakeMCEuropeanEngine<LowDiscrepancy> with 40 steps and no seed moved from "
+                    << std::setprecision(12) << before << " to " << after << " once its spot had moved and come back");
 }
 
 BOOST_AUTO_TEST_CASE(testHighDimensionalIntegrals, *precondition(if_speed(Slow)))
