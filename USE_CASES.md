@@ -349,6 +349,10 @@ forecast each day still to fix, where the telescopic formula dropped the
 spread over those days: such a coupon now costs what a lookback coupon
 does, 220,461 instructions a tick on 65 fixings where it took 2,033
 (#416).
+#432 made every overnight pricer check a coupon's averaging method each
+time it is initialized: a five-year compounded OIS's NPV takes 150
+instructions a tick more, 0.65 %, and a quote tick and a discount
+factor on the curve of 9 OIS helpers 0.96 % more.
 
 **What works today:**
 - End-of-day batch pricing of book-sized portfolios is fine on modern
