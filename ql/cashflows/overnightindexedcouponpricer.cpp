@@ -392,12 +392,19 @@ namespace QuantLib
             QL_REQUIRE(!curve.empty(), "null term structure set to this instance of " << index->name());
 
             const auto& dates = coupon_->valueDates();
+            // The forecast runs up to the date, as the known fixings do: it's telescoped up to the last fixing day
+            // on or before the date, and where the date isn't a fixing day, that day's forecast is accrued from it
+            // up to the date. At an interest date, that's up to dates[n].
+            const Date last = date < interestDates[n] ? index->fixingCalendar().adjust(date, Preceding) : dates[n];
             DiscountFactor startDiscount = curve->discount(dates[i]);
-            DiscountFactor endDiscount = curve->discount(dates[n]);
+            DiscountFactor endDiscount = curve->discount(last);
 
             accumulatedRate += log(startDiscount / endDiscount) -
-                               convAdj1(curve->timeFromReference(dates[i]), curve->timeFromReference(dates[n])) -
-                               convAdj2(curve->timeFromReference(dates[i]), curve->timeFromReference(dates[n]));
+                               convAdj1(curve->timeFromReference(dates[i]), curve->timeFromReference(last)) -
+                               convAdj2(curve->timeFromReference(dates[i]), curve->timeFromReference(last));
+            if (last < date)
+                accumulatedRate +=
+                    index->fixing(index->fixingDate(last)) * index->dayCounter().yearFraction(last, date);
         }
         // otherwise
         else if (i < n)
@@ -420,7 +427,11 @@ namespace QuantLib
                 Real convAdj = std::exp(-vol_ * vol_ * detail::decayIntegral(2.0 * mrs_, ti1) *
                                         detail::decayIntegral(mrs_, te - ti2) * detail::decayIntegral(mrs_, ti2 - ti1) *
                                         std::exp(-mrs_ * (ti2 - ti1)));
-                accumulatedRate += convAdj * (1 + forecastFixing * dt[i]) - 1;
+                Real accrued = convAdj * (1 + forecastFixing * dt[i]) - 1;
+                // the period that contains the date accrues only up to it, as a known fixing does
+                if (date < interestDates[i + 1])
+                    accrued *= index->dayCounter().yearFraction(interestDates[i], date) / dt[i];
+                accumulatedRate += accrued;
                 ++i;
             }
         }

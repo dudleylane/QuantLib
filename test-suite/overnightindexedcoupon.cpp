@@ -35,6 +35,7 @@
 #include <ql/settings.hpp>
 #include <ql/termstructures/volatility/optionlet/constantoptionletvol.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
+#include <ql/termstructures/yield/forwardcurve.hpp>
 #include <ql/termstructures/yield/zerocurve.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/calendars/unitedstates.hpp>
@@ -2908,6 +2909,74 @@ BOOST_AUTO_TEST_CASE(testRateOverTheObservationPeriodUnderObservationShift)
 
         // with telescopic value dates
         BOOST_CHECK_EQUAL(shifted(0, 0.0, true)->rate(), coupon->rate());
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testAveragedForecastUpToTheDate)
+{
+    BOOST_TEST_MESSAGE("Testing that an averaged overnight coupon accrues its forecast fixings only up to the date...");
+
+    const WeekendsOnly calendar;
+    const Actual360 dayCounter;
+    RelinkableHandle<YieldTermStructure> curve;
+    const Date start(1, October, 2026), end(20, November, 2026), sunday(1, November, 2026);
+    const Real nominal = 10000.0;
+
+    // on an index fixing on the day its rate is for, and on one fixing 2 days before it
+    for (const Natural fixingDays : {0U, 2U})
+    {
+        const auto index = ext::make_shared<OvernightIndex>(fixingDays == 0 ? "T434" : "T434F", fixingDays,
+                                                            USDCurrency(), calendar, dayCounter, curve);
+
+        // each fixing, stored or forecast, over its period up to the date
+        const auto accrued = [&](const Date& date)
+        {
+            Real sum = 0.0;
+            for (Date d = start; d < date; d = calendar.advance(d, 1, Days))
+                sum += index->fixing(index->fixingDate(d)) *
+                       dayCounter.yearFraction(d, std::min(calendar.advance(d, 1, Days), date));
+            return nominal * sum;
+        };
+
+        // no fixing stored; the fixings from Thursday 24 September up to Thursday 15 October stored at 2.1 %; and up to
+        // Thursday 29 October
+        for (const Date& today : {Date(1, September, 2026), Date(16, October, 2026), Date(30, October, 2026)})
+        {
+            Settings::instance().evaluationDate() = today;
+            // a forward of 2 % up to Monday 2 November and 3 % after it
+            curve.linkTo(ext::make_shared<ForwardCurve>(
+                std::vector<Date>{today, Date(2, November, 2026), Date(1, January, 2027)},
+                std::vector<Rate>{0.02, 0.02, 0.03}, dayCounter));
+            index->clearFixings();
+            for (Date d = calendar.advance(start, -5, Days); d < today; d = calendar.advance(d, 1, Days))
+                index->addFixing(d, 0.021);
+            for (bool telescopicValueDates : {false, true})
+            {
+                BOOST_TEST_CONTEXT("fixing " << (fixingDays == 0 ? "on the day" : "2 days before") << ", today "
+                                             << today << (telescopicValueDates ? ", telescopic" : ", dense")
+                                             << " value dates")
+                {
+                    // Telescopic value dates take the forecast from the log of a ratio of discount factors, which
+                    // falls short of the forecasts over their periods by up to 2.0e-3 on these coupons.
+                    const Real tolerance = telescopicValueDates ? 1e-2 : 1e-9;
+                    const OvernightIndexedCoupon coupon(end, nominal, start, end, index, 1.0, 0.0, Date(), Date(),
+                                                        dayCounter, telescopicValueDates, RateAveraging::Simple);
+                    for (Date d = start + 1; d <= end; ++d)
+                    {
+                        BOOST_TEST_CONTEXT("accrued to " << d)
+                        {
+                            CHECK_OIS_COUPON_RESULT("accrued amount", coupon.accruedAmount(d), accrued(d), tolerance);
+                        }
+                    }
+
+                    // a coupon ending on Sunday 1 November
+                    const OvernightIndexedCoupon toSunday(sunday, nominal, start, sunday, index, 1.0, 0.0, Date(),
+                                                          Date(), dayCounter, telescopicValueDates,
+                                                          RateAveraging::Simple);
+                    CHECK_OIS_COUPON_RESULT("amount to a Sunday", toSunday.amount(), accrued(sunday), tolerance);
+                }
+            }
+        }
     }
 }
 
