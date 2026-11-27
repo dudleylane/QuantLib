@@ -3533,6 +3533,86 @@ BOOST_AUTO_TEST_CASE(testDailyCapsAndFloorsOverTheRateComputationPeriod)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testAccruedAmountWithLockoutBeforeItStarts)
+{
+    BOOST_TEST_MESSAGE("Testing a compounded overnight coupon's accrued amount with a lockout before it starts...");
+
+    const WeekendsOnly calendar;
+    const Actual360 dayCounter;
+    RelinkableHandle<YieldTermStructure> curve;
+    const auto index = ext::make_shared<OvernightIndex>("T426", 0, USDCurrency(), calendar, dayCounter, curve);
+    const Real nominal = 10000.0;
+    const Natural lockoutDays = 4;
+
+    struct Scenario
+    {
+        Date today, start, end;
+    };
+    // today Tuesday 10 November 2026, a coupon from Monday 2 to Monday 30 November 2026 whose first fixings are stored;
+    // and today Monday 2 November 2026, a coupon from Wednesday 4 November to Friday 4 December 2026, still to fix
+    for (const auto& [today, start, end] :
+         {Scenario{Date(10, November, 2026), Date(2, November, 2026), Date(30, November, 2026)},
+          Scenario{Date(2, November, 2026), Date(4, November, 2026), Date(4, December, 2026)}})
+    {
+        Settings::instance().evaluationDate() = today;
+        // a flat forward of 3 % from today, where a forwarding curve usually starts, and fixings of 2 % stored before
+        // today
+        curve.linkTo(ext::make_shared<FlatForward>(today, 0.03, dayCounter, Continuous));
+        index->clearFixings();
+        for (Date d(20, October, 2026); d < today; d = calendar.advance(d, 1, Days))
+            index->addFixing(d, 0.02);
+
+        // each day's fixing, stored or forecast, compounded over its period up to the date; the lockout's days take the
+        // fixing of the business day before them
+        const Date lockoutStart = calendar.advance(end, -static_cast<Integer>(lockoutDays), Days);
+        const Date lastFixing = calendar.advance(lockoutStart, -1, Days);
+        const auto expected = [&](const Date& date)
+        {
+            Real growth = 1.0;
+            for (Date d = start; d < date; d = calendar.advance(d, 1, Days))
+                growth *= 1.0 + index->fixing(std::min(d, lastFixing)) *
+                                    dayCounter.yearFraction(d, std::min(calendar.advance(d, 1, Days), date));
+            return nominal * (growth - 1.0);
+        };
+
+        for (bool telescopicValueDates : {false, true})
+        {
+            // telescopic value dates are the dense ones in their front stub, up to 7 business days after today
+            const Date last = telescopicValueDates ? calendar.advance(today, 7, Days) : end;
+            // without a lookback, and under the observation shift with a lookback of 2 days
+            for (bool observationShift : {false, true})
+            {
+                const Natural lookbackDays = observationShift ? 2 : Null<Natural>();
+                const OvernightIndexedCoupon coupon(end, nominal, start, end, index, 1.0, 0.0, Date(), Date(),
+                                                    dayCounter, telescopicValueDates, RateAveraging::Compound,
+                                                    lookbackDays, lockoutDays, observationShift);
+                const OvernightIndexedCoupon withoutLockout(end, nominal, start, end, index, 1.0, 0.0, Date(), Date(),
+                                                            dayCounter, telescopicValueDates, RateAveraging::Compound,
+                                                            lookbackDays, 0, observationShift);
+                for (Date d = start + 1; d <= last; ++d)
+                {
+                    BOOST_TEST_CONTEXT("today " << today << (telescopicValueDates ? ", telescopic" : ", dense")
+                                                << " value dates" << (observationShift ? ", observation shift" : "")
+                                                << ", accrued to " << d)
+                    {
+                        Real accrued = Null<Real>();
+                        BOOST_CHECK_NO_THROW(accrued = coupon.accruedAmount(d));
+                        if (accrued != Null<Real>())
+                        {
+                            if (!observationShift)
+                                CHECK_OIS_COUPON_RESULT("accrued amount", accrued, expected(d), 1e-9);
+                            // until its lockout starts, the coupon accrues as it would without one
+                            if (d <= lockoutStart)
+                                CHECK_OIS_COUPON_RESULT("accrued amount without a lockout", accrued,
+                                                        withoutLockout.accruedAmount(d), 0.0);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

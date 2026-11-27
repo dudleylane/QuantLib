@@ -258,30 +258,25 @@ namespace QuantLib
                 }
                 if (i < n)
                 {
-                    const Size nLockout = n - coupon_->lockoutDays();
-                    const bool isLockoutApplied = coupon_->lockoutDays() > 0;
-
-                    // Lockout could already start at or before i.
-                    // In such case the ratio of discount factors will be equal to 1.
-                    const DiscountFactor startDiscount = curve->discount(valueDates[std::min<Size>(nLockout, i)]);
-                    // The formula runs to the end of the last fixing's period where the date is at or after it, as
-                    // long as the period ends at its value date: with observation shift, the end of its observation
-                    // period; otherwise, unless it ends at a rate computation end that isn't a fixing day.
-                    if ((interestDates[n] <= date && (shiftsObservation || valueDates[n] == interestDates[n])) ||
-                        isLockoutApplied)
+                    // A lockout takes the fixing before it for the coupon's last lockoutDays fixings, whatever the
+                    // date asked for, so it starts at the same fixing for the coupon's rate and for an accrued amount.
+                    const Size lockoutStart = valueDates.size() - 1 - coupon_->lockoutDays();
+                    if (lockoutStart < n)
                     {
-                        // telescopic formula up to potential lockout dates.
-                        const DiscountFactor endDiscount = curve->discount(valueDates[std::min<Size>(nLockout, n)]);
-                        compoundFactor *= startDiscount / endDiscount;
-                        compoundFactorWithoutSpread *= startDiscount / endDiscount;
-                        // For the lockout periods the telescopic formula does not apply.
-                        // The value dates (at which the projection is calculated) correspond
-                        // to the locked-out fixing, while the interest dates (at which the
-                        // interest over that fixing is accrued) are not fixed at lockout,
-                        // hence they do not cancel out.
-                        i = std::max(nLockout, i);
-
-                        // With no lockout, the loop is skipped because i = n.
+                        // Some locked-out fixings are due by the date: the telescopic formula runs from the first
+                        // fixing still to forecast up to the lockout's start, where that is still to come, and the
+                        // locked-out fixings are compounded one by one, the last up to the date. Their value dates
+                        // (at which the projection is calculated) correspond to the locked-out fixing, while the
+                        // interest dates (at which the interest over that fixing is accrued) are not fixed at
+                        // lockout, hence they do not cancel out.
+                        if (i < lockoutStart)
+                        {
+                            const DiscountFactor startDiscount = curve->discount(valueDates[i]);
+                            const DiscountFactor endDiscount = curve->discount(valueDates[lockoutStart]);
+                            compoundFactor *= startDiscount / endDiscount;
+                            compoundFactorWithoutSpread *= startDiscount / endDiscount;
+                            i = lockoutStart;
+                        }
                         while (i < n)
                         {
                             compoundFactorWithoutSpread *= (1.0 + effectiveRate(i, false));
@@ -289,8 +284,20 @@ namespace QuantLib
                             ++i;
                         }
                     }
+                    // No locked-out fixing is due by the date. The formula runs to the end of the last fixing's period
+                    // where the date is at or after it, as long as the period ends at its value date: with observation
+                    // shift, the end of its observation period; otherwise, unless it ends at a rate computation end
+                    // that isn't a fixing day.
+                    else if (interestDates[n] <= date && (shiftsObservation || valueDates[n] == interestDates[n]))
+                    {
+                        const DiscountFactor startDiscount = curve->discount(valueDates[i]);
+                        const DiscountFactor endDiscount = curve->discount(valueDates[n]);
+                        compoundFactor *= startDiscount / endDiscount;
+                        compoundFactorWithoutSpread *= startDiscount / endDiscount;
+                    }
                     else
                     {
+                        const DiscountFactor startDiscount = curve->discount(valueDates[i]);
                         // No lockout, and the last fixing is not used up to its value date: the date is inside its
                         // period, or the period ends at a rate computation end that isn't a fixing day. We can use the
                         // telescopic formula until the previous date, then we'll add the missing bit.
