@@ -93,7 +93,8 @@ namespace QuantLib
         const std::vector<Rate>& indexFixings() const;
         //! value dates for the rates to be compounded
         const std::vector<Date>& valueDates() const { return valueDates_; }
-        //! interest dates for the rates to be compounded, the accrual period's with or without observation shift
+        /*! interest dates for the rates to be compounded, the rate computation period's with or without observation
+            shift */
         const std::vector<Date>& interestDates() const { return interestDates_; }
         //! averaging method
         RateAveraging::Type averagingMethod() const { return averagingMethod_; }
@@ -110,9 +111,9 @@ namespace QuantLib
               - effectiveSpread = spread() if compoundSpreadDaily = false */
         Real effectiveSpread() const;
         Real effectiveIndexFixing() const;
-        //! rate computation start date
+        //! rate computation start date, from which the rate is computed; a null date stands for the accrual start
         const Date& rateComputationStartDate() const { return rateComputationStartDate_; }
-        //! rate computation end date
+        //! rate computation end date, up to which the rate is computed; a null date stands for the accrual end
         const Date& rateComputationEndDate() const { return rateComputationEndDate_; }
         //@}
         //! \name FloatingRateCoupon interface
