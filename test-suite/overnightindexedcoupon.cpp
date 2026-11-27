@@ -3533,6 +3533,166 @@ BOOST_AUTO_TEST_CASE(testDailyCapsAndFloorsOverTheRateComputationPeriod)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testAccruedAmountWithLockoutBeforeItStarts)
+{
+    BOOST_TEST_MESSAGE("Testing a compounded overnight coupon's accrued amount with a lockout before it starts...");
+
+    const WeekendsOnly calendar;
+    const Actual360 dayCounter;
+    RelinkableHandle<YieldTermStructure> curve;
+    const auto index = ext::make_shared<OvernightIndex>("T426", 0, USDCurrency(), calendar, dayCounter, curve);
+    const Real nominal = 10000.0;
+    const Natural lockoutDays = 4;
+
+    struct Scenario
+    {
+        Date today, start, end;
+    };
+    // today Tuesday 10 November 2026, a coupon from Monday 2 to Monday 30 November 2026 whose first fixings are stored;
+    // and today Monday 2 November 2026, a coupon from Wednesday 4 November to Friday 4 December 2026, still to fix
+    for (const auto& [today, start, end] :
+         {Scenario{Date(10, November, 2026), Date(2, November, 2026), Date(30, November, 2026)},
+          Scenario{Date(2, November, 2026), Date(4, November, 2026), Date(4, December, 2026)}})
+    {
+        Settings::instance().evaluationDate() = today;
+        // a flat forward of 3 % from today, where a forwarding curve usually starts, and fixings of 2 % stored before
+        // today
+        curve.linkTo(ext::make_shared<FlatForward>(today, 0.03, dayCounter, Continuous));
+        index->clearFixings();
+        for (Date d(20, October, 2026); d < today; d = calendar.advance(d, 1, Days))
+            index->addFixing(d, 0.02);
+
+        // each day's fixing, stored or forecast, compounded over its period up to the date; the lockout's days take the
+        // fixing of the business day before them
+        const Date lockoutStart = calendar.advance(end, -static_cast<Integer>(lockoutDays), Days);
+        const Date lastFixing = calendar.advance(lockoutStart, -1, Days);
+        const auto expected = [&](const Date& date)
+        {
+            Real growth = 1.0;
+            for (Date d = start; d < date; d = calendar.advance(d, 1, Days))
+                growth *= 1.0 + index->fixing(std::min(d, lastFixing)) *
+                                    dayCounter.yearFraction(d, std::min(calendar.advance(d, 1, Days), date));
+            return nominal * (growth - 1.0);
+        };
+
+        for (bool telescopicValueDates : {false, true})
+        {
+            // telescopic value dates are the dense ones in their front stub, up to 7 business days after today
+            const Date last = telescopicValueDates ? calendar.advance(today, 7, Days) : end;
+            // without a lookback, and under the observation shift with a lookback of 2 days
+            for (bool observationShift : {false, true})
+            {
+                const Natural lookbackDays = observationShift ? 2 : Null<Natural>();
+                const OvernightIndexedCoupon coupon(end, nominal, start, end, index, 1.0, 0.0, Date(), Date(),
+                                                    dayCounter, telescopicValueDates, RateAveraging::Compound,
+                                                    lookbackDays, lockoutDays, observationShift);
+                const OvernightIndexedCoupon withoutLockout(end, nominal, start, end, index, 1.0, 0.0, Date(), Date(),
+                                                            dayCounter, telescopicValueDates, RateAveraging::Compound,
+                                                            lookbackDays, 0, observationShift);
+                for (Date d = start + 1; d <= last; ++d)
+                {
+                    BOOST_TEST_CONTEXT("today " << today << (telescopicValueDates ? ", telescopic" : ", dense")
+                                                << " value dates" << (observationShift ? ", observation shift" : "")
+                                                << ", accrued to " << d)
+                    {
+                        Real accrued = Null<Real>();
+                        BOOST_CHECK_NO_THROW(accrued = coupon.accruedAmount(d));
+                        if (accrued != Null<Real>())
+                        {
+                            if (!observationShift)
+                                CHECK_OIS_COUPON_RESULT("accrued amount", accrued, expected(d), 1e-9);
+                            // until its lockout starts, the coupon accrues as it would without one
+                            if (d <= lockoutStart)
+                                CHECK_OIS_COUPON_RESULT("accrued amount without a lockout", accrued,
+                                                        withoutLockout.accruedAmount(d), 0.0);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testAccruedAmountBetweenTelescopicValueDates)
+{
+    BOOST_TEST_MESSAGE("Testing a compounded overnight coupon's accrued amount between its telescopic value dates...");
+
+    const WeekendsOnly calendar;
+    const Actual360 dayCounter;
+    RelinkableHandle<YieldTermStructure> curve;
+    // an index fixing on the day its rate is for, and one fixing 2 days before it
+    const auto index = ext::make_shared<OvernightIndex>("T433", 0, USDCurrency(), calendar, dayCounter, curve);
+    const auto index2 = ext::make_shared<OvernightIndex>("T433F", 2, USDCurrency(), calendar, dayCounter, curve);
+    const Real nominal = 10000.0;
+
+    // A coupon with telescopic value dates accrues, to each calendar day, what the same coupon with dense ones does.
+    const auto check = [&](const ext::shared_ptr<OvernightIndex>& on, const Date& start, const Date& end,
+                           Natural lookbackDays, Natural lockoutDays, bool observationShift)
+    {
+        const OvernightIndexedCoupon dense(end, nominal, start, end, on, 1.0, 0.0, Date(), Date(), dayCounter, false,
+                                           RateAveraging::Compound, lookbackDays, lockoutDays, observationShift);
+        const OvernightIndexedCoupon telescopic(end, nominal, start, end, on, 1.0, 0.0, Date(), Date(), dayCounter,
+                                                true, RateAveraging::Compound, lookbackDays, lockoutDays,
+                                                observationShift);
+        for (Date d = start + 1; d <= end; ++d)
+        {
+            BOOST_TEST_CONTEXT(on->name() << ", today " << Settings::instance().evaluationDate() << ", coupon from "
+                                          << start << " to " << end << ", lookback "
+                                          << (lookbackDays == Null<Natural>() ? on->fixingDays() : lookbackDays)
+                                          << ", lockout " << lockoutDays
+                                          << (observationShift ? ", observation shift" : "") << ", accrued to " << d)
+            {
+                CHECK_OIS_COUPON_RESULT("accrued amount", telescopic.accruedAmount(d), dense.accruedAmount(d), 1e-9);
+            }
+        }
+    };
+
+    // today Tuesday 1 September 2026, coupons from Thursday 1 October to Friday 20 November 2026, forecast from a flat
+    // forward of 3 %
+    Settings::instance().evaluationDate() = Date(1, September, 2026);
+    curve.linkTo(ext::make_shared<FlatForward>(Date(1, September, 2026), 0.03, dayCounter, Continuous));
+    const Date start(1, October, 2026), end(20, November, 2026);
+    for (bool observationShift : {false, true})
+    {
+        const Natural lookbackDays = observationShift ? 2 : Null<Natural>();
+        check(index, start, end, lookbackDays, 0, observationShift);
+        check(index, start, end, lookbackDays, 2, observationShift);
+        // from Saturday 3 October
+        check(index, Date(3, October, 2026), end, lookbackDays, 0, observationShift);
+        // on the index fixing 2 days before, whose fixing days the coupon takes
+        check(index2, start, end, Null<Natural>(), 0, observationShift);
+    }
+    // to Sunday 22 November
+    check(index, start, Date(22, November, 2026), Null<Natural>(), 0, false);
+
+    // today Wednesday 1 April 2026, a coupon from Monday 1 June 2026 to Tuesday 1 June 2027, forecast from a forward
+    // of 2 % up to 1 October 2026, 3 % up to 1 April 2027 and 4 % after
+    Settings::instance().evaluationDate() = Date(1, April, 2026);
+    curve.linkTo(ext::make_shared<ForwardCurve>(
+        std::vector<Date>{Date(1, April, 2026), Date(1, October, 2026), Date(1, April, 2027), Date(1, April, 2028)},
+        std::vector<Rate>{0.01, 0.02, 0.03, 0.04}, dayCounter));
+    const Date yearStart(1, June, 2026), yearEnd(1, June, 2027);
+    check(index, yearStart, yearEnd, Null<Natural>(), 0, false);
+    check(index, yearStart, yearEnd, 2, 0, true);
+    // the same, today Thursday 4 June 2026 with the fixings before it stored at 1.5 %
+    Settings::instance().evaluationDate() = Date(4, June, 2026);
+    index->clearFixings();
+    for (Date d(27, May, 2026); d < Date(4, June, 2026); d = calendar.advance(d, 1, Days))
+        index->addFixing(d, 0.015);
+    check(index, yearStart, yearEnd, Null<Natural>(), 0, false);
+    check(index, yearStart, yearEnd, 2, 0, true);
+
+    // today Tuesday 10 November 2026, a coupon from Monday 2 to Monday 30 November 2026 whose first fixings are stored
+    // at 2 %, forecast from a flat forward of 3 %
+    Settings::instance().evaluationDate() = Date(10, November, 2026);
+    curve.linkTo(ext::make_shared<FlatForward>(Date(10, November, 2026), 0.03, dayCounter, Continuous));
+    index->clearFixings();
+    for (Date d(20, October, 2026); d < Date(10, November, 2026); d = calendar.advance(d, 1, Days))
+        index->addFixing(d, 0.02);
+    check(index, Date(2, November, 2026), Date(30, November, 2026), Null<Natural>(), 0, false);
+    check(index, Date(2, November, 2026), Date(30, November, 2026), 2, 0, true);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
