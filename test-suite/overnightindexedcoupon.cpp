@@ -2980,6 +2980,118 @@ BOOST_AUTO_TEST_CASE(testAveragedForecastUpToTheDate)
     }
 }
 
+BOOST_AUTO_TEST_CASE(testDailyCapsAndFloorsOverTheCouponsDays)
+{
+    BOOST_TEST_MESSAGE("Testing daily caps and floors on an overnight coupon over the days it accrues its fixings...");
+
+    const Actual360 dayCounter;
+    RelinkableHandle<YieldTermStructure> curve;
+    const WeekendsOnly weekends;
+    const auto estr = ext::make_shared<Estr>(curve);
+    // on a weekends-only calendar, Actual/360, fixing on the day it applies and a day before it
+    const auto sameDay = ext::make_shared<OvernightIndex>("T438", 0, USDCurrency(), weekends, dayCounter, curve);
+    const auto dayBefore = ext::make_shared<OvernightIndex>("T438D", 1, USDCurrency(), weekends, dayCounter, curve);
+
+    // Every fixing, stored at 3 % or forecast from a flat curve of 3 %, is above the cap and below the floor, so at
+    // zero volatility a coupon capped or floored on each day's rate has the rate of the same coupon with every fixing
+    // at the cap or floor: that coupon's, on an index with the same calendar and fixing days storing them, priced
+    // after its end.
+    const Rate fixing = 0.03, cap = 0.025, floor = 0.035;
+
+    struct Row
+    {
+        std::string name;
+        ext::shared_ptr<OvernightIndex> index;
+        Date start, end;
+        RateAveraging::Type averaging;
+        Natural lookbackDays, lockoutDays;
+        bool applyObservationShift;
+    };
+    const Natural none = Null<Natural>();
+    const auto compound = RateAveraging::Compound, simple = RateAveraging::Simple;
+    const Date october(1, October, 2026), sunday(1, November, 2026), monday(2, November, 2026),
+        saturday(31, October, 2026), december(1, December, 2026), christmas(25, December, 2026);
+    const std::vector<Row> rows = {
+        // on ESTR, to a TARGET holiday, to a Sunday and to a fixing day
+        {"compounded to Friday 25 December", estr, december, christmas, compound, none, 0, false},
+        {"averaged to Friday 25 December", estr, december, christmas, simple, none, 0, false},
+        {"compounded to Sunday 1 November", estr, october, sunday, compound, none, 0, false},
+        {"averaged to Sunday 1 November", estr, october, sunday, simple, none, 0, false},
+        {"compounded to Monday 2 November", estr, october, monday, compound, none, 0, false},
+        {"averaged to Monday 2 November", estr, october, monday, simple, none, 0, false},
+        // with a lookback of 2 days, without and with the observation shift
+        {"lookback", sameDay, october, monday, compound, 2, 0, false},
+        {"lookback to Sunday 1 November", sameDay, october, sunday, compound, 2, 0, false},
+        {"lookback and lockout", sameDay, october, monday, compound, 2, 2, false},
+        {"lookback and shift", sameDay, october, monday, compound, 2, 0, true},
+        {"lookback and shift to Sunday 1 November", sameDay, october, sunday, compound, 2, 0, true},
+        // from a Saturday
+        {"lockout from Saturday 31 October", sameDay, saturday, december, compound, none, 2, false},
+        {"averaged from Saturday 31 October, fixing a day before", dayBefore, saturday, december, simple, none, 0,
+         false}};
+
+    const auto coupon = [&](const Row& r, const ext::shared_ptr<OvernightIndex>& index)
+    {
+        return ext::make_shared<OvernightIndexedCoupon>(r.end, 10000.0, r.start, r.end, index, 1.0, 0.0, Date(), Date(),
+                                                        dayCounter, false, r.averaging, r.lookbackDays, r.lockoutDays,
+                                                        r.applyObservationShift);
+    };
+    const auto store = [](const ext::shared_ptr<OvernightIndex>& index, const Date& until, Rate rate)
+    {
+        index->clearFixings();
+        for (Date d(1, September, 2026); d <= until; ++d)
+            if (index->isValidFixingDate(d))
+                index->addFixing(d, rate);
+    };
+
+    for (const auto& r : rows)
+    {
+        const auto twin =
+            ext::make_shared<OvernightIndex>(r.index->familyName() + "B", r.index->fixingDays(), r.index->currency(),
+                                             r.index->fixingCalendar(), r.index->dayCounter());
+        Settings::instance().evaluationDate() = Date(1, March, 2027);
+        store(twin, r.end, cap);
+        const Rate capped = coupon(r, twin)->rate();
+        store(twin, r.end, floor);
+        const Rate floored = coupon(r, twin)->rate();
+
+        // today 1 September, no fixing stored: the pricers take the fixings to come as one average rate, compounded or
+        // added up daily; the day of the last fixing, with it to come and stored; and after the end
+        struct Pricing
+        {
+            Date today, storedUntil;
+            Real tolerance;
+        };
+        const Date last = coupon(r, r.index)->fixingDates().back();
+        const Date after = r.index->fixingCalendar().advance(r.end, 2, Days);
+        for (const auto& [today, storedUntil, tolerance] :
+             {Pricing{Date(1, September, 2026), Date(31, August, 2026), 1.0e-5}, Pricing{last, last - 1, 1.0e-6},
+              Pricing{last, last, 1.0e-12}, Pricing{after, after, 1.0e-12}})
+        {
+            Settings::instance().evaluationDate() = today;
+            curve.linkTo(ext::make_shared<FlatForward>(today, fixing, dayCounter, Continuous));
+            store(r.index, storedUntil, fixing);
+            const Handle<OptionletVolatilityStructure> volatility(
+                ext::make_shared<ConstantOptionletVolatility>(today, weekends, Following, 0.0, dayCounter));
+            for (bool isCap : {true, false})
+            {
+                BOOST_TEST_CONTEXT(r.name << (isCap ? ", capped" : ", floored") << " daily, today " << today
+                                          << ", fixings stored up to " << storedUntil)
+                {
+                    auto c = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(
+                        coupon(r, r.index), isCap ? cap : Null<Rate>(), isCap ? Null<Rate>() : floor, false, true);
+                    if (r.averaging == compound)
+                        c->setPricer(ext::make_shared<BlackCompoundingOvernightIndexedCouponPricer>(volatility));
+                    else
+                        c->setPricer(ext::make_shared<BlackAveragingOvernightIndexedCouponPricer>(volatility));
+                    const Rate expected = isCap ? capped : floored;
+                    CHECK_OIS_COUPON_RESULT("coupon rate", c->rate(), expected, tolerance);
+                }
+            }
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

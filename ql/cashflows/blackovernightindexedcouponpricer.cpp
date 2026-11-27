@@ -152,6 +152,18 @@ namespace QuantLib
 
         const std::vector<Date>& fixingDates = coupon_->fixingDates();
         const std::vector<Time>& dt = coupon_->dt();
+        const std::vector<Date>& interestDates = coupon_->interestDates();
+        const Date& accrualEnd = coupon_->accrualEndDate();
+        // Each fixing is applied as the coupon's own rate applies it: with observation shift and a lookback, over its
+        // period between value dates; otherwise over its interest days, the last only up to the accrual end, which its
+        // period runs past where the end isn't a fixing day.
+        const bool shiftsObservation = coupon_->applyObservationShift() && coupon_->fixingDays() > 0;
+        const auto span = [&](Size j)
+        {
+            return shiftsObservation || accrualEnd >= interestDates[j + 1] ?
+                       dt[j] :
+                       index->dayCounter().yearFraction(interestDates[j], accrualEnd);
+        };
 
         Size n = dt.size();
         Size i = 0;
@@ -180,8 +192,9 @@ namespace QuantLib
             {
                 pastFixing += coupon_->spread();
             }
-            compoundFactor *= 1.0 + cappedFlooredRate(pastFixing, optionType, absStrike) * dt[i];
-            compoundFactorRaw *= 1.0 + pastFixing * dt[i];
+            const Time t = span(i);
+            compoundFactor *= 1.0 + cappedFlooredRate(pastFixing, optionType, absStrike) * t;
+            compoundFactorRaw *= 1.0 + pastFixing * t;
             ++i;
         }
 
@@ -197,8 +210,9 @@ namespace QuantLib
                 {
                     pastFixing += coupon_->spread();
                 }
-                compoundFactor *= 1.0 + cappedFlooredRate(pastFixing, optionType, absStrike) * dt[i];
-                compoundFactorRaw *= 1.0 + pastFixing * dt[i];
+                const Time t = span(i);
+                compoundFactor *= 1.0 + cappedFlooredRate(pastFixing, optionType, absStrike) * t;
+                compoundFactorRaw *= 1.0 + pastFixing * t;
                 ++i;
             }
             else
@@ -261,19 +275,22 @@ namespace QuantLib
             averageRate += optionType == Option::Call ? (-cfValue) : cfValue;
 
             // now assume the averageRate is the effective rate over the future period and update the compoundFactor
+            // over the days the coupon applies those fixings for, as above: with observation shift and a lookback, from
+            // the first one's value date to the last value date; otherwise from its interest date to the accrual end
             // this is an approximation, see "Ester / Daily Spread Curve Setup in ORE": set tau to avg value
-            Real dailyTau = index->dayCounter().yearFraction(dates[i], dates.back()) / (dates.back() - dates[i]);
+            const Date from = shiftsObservation ? dates[i] : interestDates[i];
+            const Date to = shiftsObservation ? dates.back() : accrualEnd;
+            Real dailyTau = index->dayCounter().yearFraction(from, to) / (to - from);
             // now use formula (4) from the paper
-            compoundFactor *= std::pow(1.0 + dailyTau * averageRate, static_cast<int>(dates.back() - dates[i]));
-            compoundFactorRaw *= std::pow(1.0 + dailyTau * averageRateRaw, static_cast<int>(dates.back() - dates[i]));
+            compoundFactor *= std::pow(1.0 + dailyTau * averageRate, static_cast<int>(to - from));
+            compoundFactorRaw *= std::pow(1.0 + dailyTau * averageRateRaw, static_cast<int>(to - from));
         }
 
-        // the rates are on the index's basis; the coupon's day counter scales its amount. With observation shift and a
-        // lookback the fixings compound over the observation period, between the value dates, and so annualise over it
-        const bool shiftsObservation = coupon_->applyObservationShift() && coupon_->fixingDays() > 0;
-        Real tau = coupon_->lockoutDays() == 0 && !shiftsObservation ?
-                       index->dayCounter().yearFraction(coupon_->accrualStartDate(), coupon_->accrualEndDate()) :
-                       index->dayCounter().yearFraction(dates.front(), dates.back());
+        // the rates are on the index's basis; the coupon's day counter scales its amount. They annualise over the
+        // period the coupon's own rate does: with observation shift and a lookback the fixings compound over the
+        // observation period, between the value dates, and so annualise over it; otherwise over the accrual period
+        Real tau = shiftsObservation ? index->dayCounter().yearFraction(dates.front(), dates.back()) :
+                                       index->dayCounter().yearFraction(coupon_->accrualStartDate(), accrualEnd);
         Rate rate = (compoundFactor - 1.0) / tau;
         Rate rawRate = (compoundFactorRaw - 1.0) / tau;
 
@@ -442,6 +459,13 @@ namespace QuantLib
 
         const std::vector<Date>& fixingDates = coupon_->fixingDates();
         const std::vector<Time>& dt = coupon_->dt();
+        const std::vector<Date>& dates = coupon_->valueDates();
+        const Date& accrualEnd = coupon_->accrualEndDate();
+        // Each fixing is applied as the coupon's own rate applies it, over its period between value dates, which are an
+        // averaged coupon's interest dates, the last only up to the accrual end, which its period runs past where the
+        // end isn't a fixing day.
+        const auto span = [&](Size j)
+        { return accrualEnd >= dates[j + 1] ? dt[j] : index->dayCounter().yearFraction(dates[j], accrualEnd); };
 
         Size n = dt.size();
         Size i = 0;
@@ -470,8 +494,9 @@ namespace QuantLib
             {
                 pastFixing += coupon_->spread();
             }
-            accumulatedRate += cappedFlooredRate(pastFixing, optionType, absStrike) * dt[i];
-            accumulatedRateRaw += pastFixing * dt[i];
+            const Time t = span(i);
+            accumulatedRate += cappedFlooredRate(pastFixing, optionType, absStrike) * t;
+            accumulatedRateRaw += pastFixing * t;
             ++i;
         }
 
@@ -486,8 +511,9 @@ namespace QuantLib
                 {
                     pastFixing += coupon_->spread();
                 }
-                accumulatedRate += cappedFlooredRate(pastFixing, optionType, absStrike) * dt[i];
-                accumulatedRateRaw += pastFixing * dt[i];
+                const Time t = span(i);
+                accumulatedRate += cappedFlooredRate(pastFixing, optionType, absStrike) * t;
+                accumulatedRateRaw += pastFixing * t;
                 ++i;
             }
             else
@@ -498,7 +524,6 @@ namespace QuantLib
         }
 
         // forward part, approximation by pricing a cap / floor in the middle of the future period
-        const std::vector<Date>& dates = coupon_->valueDates();
         if (i < n)
         {
             Handle<YieldTermStructure> curve = index->forwardingTermStructure();
@@ -550,16 +575,17 @@ namespace QuantLib
             averageRate += optionType == Option::Call ? (-cfValue) : cfValue;
 
             // now assume the averageRate is the effective rate over the future period and update the average rate
+            // over the days the coupon applies those fixings for, as above, from the first one's value date to the
+            // accrual end
             // this is an approximation, see "Ester / Daily Spread Curve Setup in ORE": set tau to avg value
-            Real dailyTau = index->dayCounter().yearFraction(dates[i], dates.back()) / (dates.back() - dates[i]);
-            accumulatedRate += dailyTau * averageRate * static_cast<Real>(dates.back() - dates[i]);
-            accumulatedRateRaw += dailyTau * averageRateRaw * static_cast<Real>(dates.back() - dates[i]);
+            Real dailyTau = index->dayCounter().yearFraction(dates[i], accrualEnd) / (accrualEnd - dates[i]);
+            accumulatedRate += dailyTau * averageRate * static_cast<Real>(accrualEnd - dates[i]);
+            accumulatedRateRaw += dailyTau * averageRateRaw * static_cast<Real>(accrualEnd - dates[i]);
         }
 
-        // the rates are on the index's basis; the coupon's day counter scales its amount
-        Rate tau = coupon_->fixingDays() == 0 ?
-                       index->dayCounter().yearFraction(coupon_->accrualStartDate(), coupon_->accrualEndDate()) :
-                       index->dayCounter().yearFraction(dates.front(), dates.back());
+        // the rates are on the index's basis; the coupon's day counter scales its amount. They annualise over the
+        // accrual period, as the coupon's own rate does
+        Rate tau = index->dayCounter().yearFraction(coupon_->accrualStartDate(), accrualEnd);
         Rate rate = accumulatedRate / tau;
         Rate rawRate = accumulatedRateRaw / tau;
 
