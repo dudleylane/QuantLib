@@ -40,6 +40,7 @@
 #include <ql/time/calendars/unitedstates.hpp>
 #include <ql/time/calendars/weekendsonly.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
 #include <functional>
 #include <iomanip>
 #include <map>
@@ -2536,6 +2537,146 @@ BOOST_AUTO_TEST_CASE(testOvernightPricersRefuseTheOtherAveragingMethod)
             }
         }
     }
+}
+
+BOOST_AUTO_TEST_CASE(testRateOnItsIndexDayCounter)
+{
+    BOOST_TEST_MESSAGE("Testing an overnight coupon's rate on its index's day counter, whatever its own...");
+
+    const WeekendsOnly calendar;
+    const Actual360 indexDayCounter;
+    const Actual365Fixed couponDayCounter;
+    RelinkableHandle<YieldTermStructure> curve;
+    const auto index = ext::make_shared<OvernightIndex>("T425", 0, USDCurrency(), calendar, indexDayCounter, curve);
+    const Date start(1, October, 2026), end(2, November, 2026), middle(16, October, 2026);
+    const Real nominal = 10000.0;
+    const Time period = indexDayCounter.yearFraction(start, end),
+               toMiddle = indexDayCounter.yearFraction(start, middle);
+
+    const auto makeCoupon = [&](const ext::shared_ptr<OvernightIndex>& overnightIndex, const DayCounter& dayCounter,
+                                RateAveraging::Type averaging, Natural lockoutDays = 0, Spread spread = 0.0)
+    {
+        const auto coupon = ext::make_shared<OvernightIndexedCoupon>(
+            end, nominal, start, end, overnightIndex, 1.0, spread, Date(), Date(), dayCounter, false, averaging,
+            Null<Natural>(), lockoutDays, false, spread != 0.0);
+        if (averaging == RateAveraging::Compound)
+            coupon->setPricer(ext::make_shared<CompoundingOvernightIndexedCouponPricer>());
+        else
+            coupon->setPricer(ext::make_shared<ArithmeticAveragedOvernightIndexedCouponPricer>());
+        return coupon;
+    };
+    // a coupon's first n fixings, each at the given rate, compounded or added up over their periods
+    const auto accrued = [](const OvernightIndexedCoupon& coupon, Size n, Rate fixing)
+    {
+        Real compounded = 1.0, added = 0.0;
+        for (Size i = 0; i < n; ++i)
+        {
+            compounded *= 1.0 + fixing * coupon.dt()[i];
+            added += fixing * coupon.dt()[i];
+        }
+        return coupon.averagingMethod() == RateAveraging::Compound ? compounded - 1.0 : added;
+    };
+
+    // every fixing stored at 3 %: rates on the index's day counter, amounts on the coupon's
+    const Date afterEnd(1, December, 2026);
+    Settings::instance().evaluationDate() = afterEnd;
+    for (Date d = start; d < end; d = calendar.advance(d, 1, Days))
+        index->addFixing(d, 0.03);
+    const Handle<OptionletVolatilityStructure> volatility(
+        ext::make_shared<ConstantOptionletVolatility>(afterEnd, calendar, Following, 0.2, indexDayCounter));
+    for (const DayCounter& dayCounter : std::vector<DayCounter>{couponDayCounter, indexDayCounter})
+    {
+        BOOST_TEST_CONTEXT("coupon day counter " << dayCounter.name())
+        {
+            for (auto averaging : {RateAveraging::Compound, RateAveraging::Simple})
+            {
+                BOOST_TEST_CONTEXT((averaging == RateAveraging::Compound ? "compounded" : "averaged"))
+                {
+                    const auto coupon = makeCoupon(index, dayCounter, averaging);
+                    const Size n = coupon->dt().size();
+                    BOOST_REQUIRE(n == 22 && coupon->valueDates()[11] == middle);
+                    const Rate rate = accrued(*coupon, n, 0.03) / period;
+                    CHECK_OIS_COUPON_RESULT("rate", coupon->rate(), rate, 1e-12);
+                    CHECK_OIS_COUPON_RESULT("amount", coupon->amount(),
+                                            nominal * rate * dayCounter.yearFraction(start, end), 1e-9);
+                    CHECK_OIS_COUPON_RESULT(
+                        "accrued amount", coupon->accruedAmount(middle),
+                        nominal * accrued(*coupon, 11, 0.03) / toMiddle * dayCounter.yearFraction(start, middle), 1e-9);
+
+                    // capped daily at 2.9 %, and floored daily at 3.1 %, on the Black pricer
+                    for (const Rate bound : {0.029, 0.031})
+                    {
+                        const bool isCap = bound < 0.03;
+                        BOOST_TEST_CONTEXT((isCap ? "capped daily at " : "floored daily at ") << bound)
+                        {
+                            const auto underlying = makeCoupon(index, dayCounter, averaging);
+                            CappedFlooredOvernightIndexedCoupon bounded(underlying, isCap ? bound : Null<Rate>(),
+                                                                        isCap ? Null<Rate>() : bound, false, true);
+                            bounded.setPricer(makeBlackOvernightPricer(averaging, volatility));
+                            CHECK_OIS_COUPON_RESULT("rate", bounded.rate(), accrued(*underlying, n, bound) / period,
+                                                    1e-12);
+                        }
+                    }
+                }
+            }
+
+            // a spread of 50 bp compounded daily, and the rate's split
+            const auto withSpread = makeCoupon(index, dayCounter, RateAveraging::Compound, 0, 0.005);
+            const Real compounded = accrued(*withSpread, 22, 0.03 + 0.005),
+                       withoutSpread = accrued(*withSpread, 22, 0.03);
+            CHECK_OIS_COUPON_RESULT("rate with a spread compounded daily", withSpread->rate(), compounded / period,
+                                    1e-12);
+            CHECK_OIS_COUPON_RESULT("effective spread", withSpread->effectiveSpread(),
+                                    (compounded - withoutSpread) / period, 1e-12);
+            CHECK_OIS_COUPON_RESULT("effective index fixing", withSpread->effectiveIndexFixing(),
+                                    withoutSpread / period, 1e-12);
+        }
+    }
+
+    // every fixing forecast: each rate, capped or floored daily or on the period or not at all, is its twin's on the
+    // index's day counter
+    const Date today(1, September, 2026);
+    Settings::instance().evaluationDate() = today;
+    index->clearFixings();
+    curve.linkTo(ext::make_shared<FlatForward>(today, 0.03, indexDayCounter));
+    const Handle<OptionletVolatilityStructure> forwardVolatility(
+        ext::make_shared<ConstantOptionletVolatility>(today, calendar, Following, 0.2, indexDayCounter));
+    const auto fixingADayBefore =
+        ext::make_shared<OvernightIndex>("T425F", 1, USDCurrency(), calendar, indexDayCounter, curve);
+    struct Row
+    {
+        std::string name;
+        ext::shared_ptr<OvernightIndex> index;
+        RateAveraging::Type averaging;
+        Natural lockoutDays;
+    };
+    const std::vector<Row> rows = {
+        {"compounded", index, RateAveraging::Compound, 0},
+        {"compounded, lockout of 2 days", index, RateAveraging::Compound, 2},
+        {"averaged", index, RateAveraging::Simple, 0},
+        {"averaged, fixing a day before", fixingADayBefore, RateAveraging::Simple, 0},
+    };
+    for (const auto& row : rows)
+        for (const Rate bound : {0.029, 0.031})
+            for (bool daily : {true, false})
+            {
+                const bool isCap = bound < 0.03;
+                BOOST_TEST_CONTEXT(row.name << (isCap ? ", cap " : ", floor ") << bound
+                                            << (daily ? " daily" : " on the period"))
+                {
+                    const auto make = [&](const DayCounter& dayCounter)
+                    {
+                        const auto underlying = makeCoupon(row.index, dayCounter, row.averaging, row.lockoutDays);
+                        const auto bounded = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(
+                            underlying, isCap ? bound : Null<Rate>(), isCap ? Null<Rate>() : bound, false, daily);
+                        bounded->setPricer(makeBlackOvernightPricer(row.averaging, forwardVolatility));
+                        return bounded;
+                    };
+                    const auto coupon = make(couponDayCounter), twin = make(indexDayCounter);
+                    BOOST_CHECK_EQUAL(coupon->underlying()->rate(), twin->underlying()->rate());
+                    BOOST_CHECK_EQUAL(coupon->rate(), twin->rate());
+                }
+            }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

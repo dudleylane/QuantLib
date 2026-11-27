@@ -46,6 +46,10 @@ namespace QuantLib
     /*! %Coupon paying the interest, depending on the averaging convention,
         due to daily overnight fixings.
 
+        Its rate is compounded or averaged, and annualised, on its index's
+        day counter, as the fixings are; its own day counter, the index's
+        unless another is given, scales its amounts.
+
         \warning telescopicValueDates optimizes the schedule for calculation speed,
         but might fail to produce correct results if the coupon ages by more than
         a grace period of 7 days. It is therefore recommended not to set this flag

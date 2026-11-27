@@ -43,6 +43,14 @@ namespace QuantLib
             // always one less than the number of interest dates.
             return n == interestDates.size() && applyObservationShift ? n - 1 : n;
         }
+
+        // The time a coupon has accrued by a date, in its index's day counter. The coupon's rate is on its index's
+        // basis, as the index's fixings are, and the coupon's own day counter scales its amount.
+        Time accruedOnIndexBasis(const OvernightIndexedCoupon& coupon, const Date& date)
+        {
+            return coupon.overnightIndex()->dayCounter().yearFraction(coupon.accrualStartDate(),
+                                                                      std::min(date, coupon.accrualEndDate()));
+        }
     }
 
     OvernightIndexedCouponPricer::OvernightIndexedCouponPricer(Handle<OptionletVolatilityStructure> v,
@@ -279,7 +287,7 @@ namespace QuantLib
         }
 
         const Rate tau = index->dayCounter().yearFraction(valueDates.front(), valueDates.back());
-        const Rate rate = (compoundFactor - 1.0) / coupon_->accruedPeriod(date);
+        const Rate rate = (compoundFactor - 1.0) / accruedOnIndexBasis(*coupon_, date);
         Rate swapletRate = coupon_->gearing() * rate;
         Spread effectiveSpread;
         Rate effectiveIndexFixing;
@@ -406,7 +414,7 @@ namespace QuantLib
             }
         }
 
-        Rate rate = accumulatedRate / coupon_->accruedPeriod(date);
+        Rate rate = accumulatedRate / accruedOnIndexBasis(*coupon_, date);
         return coupon_->gearing() * rate + coupon_->spread();
     }
 

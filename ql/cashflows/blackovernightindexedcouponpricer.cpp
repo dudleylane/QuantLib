@@ -131,8 +131,8 @@ namespace QuantLib
             "BlackAverageONIndexedCouponPricer::optionletRateLocal() does not support effective volatility input.");
 
         // We compute a rate and a rawRate such that
-        // rate * tau * nominal is the amount of the coupon with daily capped / floored rates
-        // rawRate * tau * nominal is the amount of the coupon without capping / flooring the rate
+        // rate * the coupon's accrual period * nominal is its amount with daily capped / floored rates
+        // rawRate * the coupon's accrual period * nominal is its amount without capping / flooring the rate
         // We will then return the difference between rate and rawRate (with the correct sign, see below)
         // as the option component of the coupon.
 
@@ -229,8 +229,9 @@ namespace QuantLib
                 endDiscount *= std::pow(discountCutoffDate, dates[n] - dates[nCutoff]);
             }
 
-            // estimate the average daily rate over the future period (approximate the continuously compounded rate)
-            Real tau = coupon_->dayCounter().yearFraction(dates[i], dates.back());
+            // estimate the average daily rate over the future period (approximate the continuously compounded rate),
+            // on the index's basis, as the fixings and the strike are
+            Real tau = index->dayCounter().yearFraction(dates[i], dates.back());
             Real averageRate = -std::log(endDiscount / startDiscount) / tau;
 
             // compute the value of a cap or floor with fixing in the middle of the future period
@@ -261,14 +262,16 @@ namespace QuantLib
 
             // now assume the averageRate is the effective rate over the future period and update the compoundFactor
             // this is an approximation, see "Ester / Daily Spread Curve Setup in ORE": set tau to avg value
-            Real dailyTau = coupon_->dayCounter().yearFraction(dates[i], dates.back()) / (dates.back() - dates[i]);
+            Real dailyTau = index->dayCounter().yearFraction(dates[i], dates.back()) / (dates.back() - dates[i]);
             // now use formula (4) from the paper
             compoundFactor *= std::pow(1.0 + dailyTau * averageRate, static_cast<int>(dates.back() - dates[i]));
             compoundFactorRaw *= std::pow(1.0 + dailyTau * averageRateRaw, static_cast<int>(dates.back() - dates[i]));
         }
 
-        Real tau = coupon_->lockoutDays() == 0 ? coupon_->accrualPeriod() :
-                                                 coupon_->dayCounter().yearFraction(dates.front(), dates.back());
+        // the rates are on the index's basis; the coupon's day counter scales its amount
+        Real tau = coupon_->lockoutDays() == 0 ?
+                       index->dayCounter().yearFraction(coupon_->accrualStartDate(), coupon_->accrualEndDate()) :
+                       index->dayCounter().yearFraction(dates.front(), dates.back());
         Rate rate = (compoundFactor - 1.0) / tau;
         Rate rawRate = (compoundFactorRaw - 1.0) / tau;
 
@@ -416,8 +419,8 @@ namespace QuantLib
                                                 "not support effective volatility input.");
 
         // We compute a rate and a rawRate such that
-        // rate * tau * nominal is the amount of the coupon with daily capped / floored rates
-        // rawRate * tau * nominal is the amount of the coupon without capping / flooring the rate
+        // rate * the coupon's accrual period * nominal is its amount with daily capped / floored rates
+        // rawRate * the coupon's accrual period * nominal is its amount without capping / flooring the rate
         // We will then return the difference between rate and rawRate (with the correct sign, see below)
         // as the option component of the coupon.
 
@@ -512,8 +515,9 @@ namespace QuantLib
                 endDiscount *= std::pow(discountCutoffDate, dates[n] - dates[nCutoff]);
             }
 
-            // estimate the average daily rate over the future period (approximate the continuously compounded rate)
-            Real tau = coupon_->dayCounter().yearFraction(dates[i], dates.back());
+            // estimate the average daily rate over the future period (approximate the continuously compounded rate),
+            // on the index's basis, as the fixings and the strike are
+            Real tau = index->dayCounter().yearFraction(dates[i], dates.back());
             Real averageRate = -std::log(endDiscount / startDiscount) / tau;
 
             // compute the value of a cap or floor with fixing in the middle of the future period
@@ -545,13 +549,15 @@ namespace QuantLib
 
             // now assume the averageRate is the effective rate over the future period and update the average rate
             // this is an approximation, see "Ester / Daily Spread Curve Setup in ORE": set tau to avg value
-            Real dailyTau = coupon_->dayCounter().yearFraction(dates[i], dates.back()) / (dates.back() - dates[i]);
+            Real dailyTau = index->dayCounter().yearFraction(dates[i], dates.back()) / (dates.back() - dates[i]);
             accumulatedRate += dailyTau * averageRate * static_cast<Real>(dates.back() - dates[i]);
             accumulatedRateRaw += dailyTau * averageRateRaw * static_cast<Real>(dates.back() - dates[i]);
         }
 
-        Rate tau = coupon_->fixingDays() == 0 ? coupon_->accrualPeriod() :
-                                                coupon_->dayCounter().yearFraction(dates.front(), dates.back());
+        // the rates are on the index's basis; the coupon's day counter scales its amount
+        Rate tau = coupon_->fixingDays() == 0 ?
+                       index->dayCounter().yearFraction(coupon_->accrualStartDate(), coupon_->accrualEndDate()) :
+                       index->dayCounter().yearFraction(dates.front(), dates.back());
         Rate rate = accumulatedRate / tau;
         Rate rawRate = accumulatedRateRaw / tau;
 
