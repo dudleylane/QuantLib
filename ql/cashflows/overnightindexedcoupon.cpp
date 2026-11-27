@@ -180,25 +180,19 @@ namespace QuantLib
         }
         else
         {
-            // Lookback (fixing days) without observation shift:
+            // Lookback (fixing days):
             // The date that the fixing rate is pulled  from (the observation date) is k
-            // business days before the date that interest is applied (the interest date)
-            // and is applied for the number of calendar days until the next business
-            // day following the interest date.
+            // business days before the date that interest is applied (the interest date).
+            // Without observation shift it is applied for the number of calendar days
+            // until the next business day following the interest date; with it, for the
+            // days from its value date to the next observation date's (see the accrual
+            // periods below). The interest dates are the accrual period's either way.
             fixingDates_.resize(n_);
             for (Size i = 0; i <= n_; ++i)
             {
                 Date tmp = applyLookbackPeriod(overnightIndex, valueDates_[i], fixingDays_);
                 if (i < n_)
                     fixingDates_[i] = tmp;
-                if (applyObservationShift_)
-                    // Lookback (fixing days) with observation shift:
-                    // The date that the fixing rate is pulled from (the observation date)
-                    // is k business days before the date that interest is applied
-                    // (the interest date) and is applied for the number of calendar
-                    // days until the next business day following the observation date.
-                    // This means that the fixing dates periods align with value dates.
-                    interestDates_[i] = tmp;
                 if (fixingDays_ != overnightIndex->fixingDays())
                     // If fixing dates of the coupon deviate from fixing days in the index
                     // we need to correct the value dates such that they reflect dates
@@ -220,11 +214,14 @@ namespace QuantLib
                 fixingDates_[i] = lockoutDate;
         }
 
-        // accrual (compounding) periods
+        // accrual (compounding) periods: between interest dates or, with observation shift
+        // and a lookback, between value dates, the days the observed fixings are for, so
+        // that the fixings compound over the observation period
+        const vector<Date>& periodDates = applyObservationShift_ && fixingDays_ > 0 ? valueDates_ : interestDates_;
         dt_.resize(n_);
         const DayCounter& dc = overnightIndex->dayCounter();
         for (Size i = 0; i < n_; ++i)
-            dt_[i] = dc.yearFraction(interestDates_[i], interestDates_[i + 1]);
+            dt_[i] = dc.yearFraction(periodDates[i], periodDates[i + 1]);
 
         switch (averagingMethod)
         {

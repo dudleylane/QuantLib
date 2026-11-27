@@ -268,8 +268,10 @@ namespace QuantLib
             compoundFactorRaw *= std::pow(1.0 + dailyTau * averageRateRaw, static_cast<int>(dates.back() - dates[i]));
         }
 
-        // the rates are on the index's basis; the coupon's day counter scales its amount
-        Real tau = coupon_->lockoutDays() == 0 ?
+        // the rates are on the index's basis; the coupon's day counter scales its amount. With observation shift and a
+        // lookback the fixings compound over the observation period, between the value dates, and so annualise over it
+        const bool shiftsObservation = coupon_->applyObservationShift() && coupon_->fixingDays() > 0;
+        Real tau = coupon_->lockoutDays() == 0 && !shiftsObservation ?
                        index->dayCounter().yearFraction(coupon_->accrualStartDate(), coupon_->accrualEndDate()) :
                        index->dayCounter().yearFraction(dates.front(), dates.back());
         Rate rate = (compoundFactor - 1.0) / tau;

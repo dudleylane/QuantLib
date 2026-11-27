@@ -662,11 +662,12 @@ BOOST_AUTO_TEST_CASE(testFutureCouponRateWithLookbackAndObservationShift)
 
     auto futureCoupon = vars.makeCoupon(Date(1, July, 2019), Date(8, July, 2019), 5, 0, true);
 
-    // The discrepancies between the results with and without observation shift,
-    // especially in the short term horizon, show that interest-period weighted
-    // overnight cumulative compounded annualized rates are considered as an
-    // alternative.
-    Rate expectedRate = 0.0142876985964208;
+    // With observation shift the fixings compound over the observation period, from 24 to 28 June, 4 days, and the
+    // rate is annualised over it, though the coupon accrues for 7 days, from 1 to 8 July.
+    Rate expectedRate =
+        (vars.forecastCurve->discount(Date(24, June, 2019)) / vars.forecastCurve->discount(Date(28, June, 2019)) -
+         1.0) *
+        360.0 / 4;
 
     CHECK_OIS_COUPON_RESULT("coupon rate", futureCoupon->rate(), expectedRate, 1e-12);
 }
@@ -2677,6 +2678,237 @@ BOOST_AUTO_TEST_CASE(testRateOnItsIndexDayCounter)
                     BOOST_CHECK_EQUAL(coupon->rate(), twin->rate());
                 }
             }
+}
+
+BOOST_AUTO_TEST_CASE(testRateOverTheObservationPeriodUnderObservationShift)
+{
+    BOOST_TEST_MESSAGE("Testing an overnight coupon's rate over its observation period under observation shift...");
+
+    const WeekendsOnly calendar;
+    const Actual360 dayCounter;
+    RelinkableHandle<YieldTermStructure> curve;
+    const auto index = ext::make_shared<OvernightIndex>("T424", 0, USDCurrency(), calendar, dayCounter, curve);
+    const auto fixingTwoDaysBefore =
+        ext::make_shared<OvernightIndex>("T424F", 2, USDCurrency(), calendar, dayCounter, curve);
+    // accruing from 1 October to 2 November 2026 with a lookback of 2 days, a coupon observes the fixings from
+    // 29 September to 29 October
+    const Date start(1, October, 2026), end(2, November, 2026);
+    const Date observationStart(29, September, 2026), observationEnd(29, October, 2026);
+    const Real nominal = 10000.0;
+
+    const auto makeCoupon = [&](const ext::shared_ptr<OvernightIndex>& overnightIndex, const Date& from, const Date& to,
+                                Natural lookbackDays, bool shift, Natural lockoutDays = 0, Spread spread = 0.0,
+                                bool telescopicValueDates = false)
+    {
+        const auto coupon = ext::make_shared<OvernightIndexedCoupon>(
+            to, nominal, from, to, overnightIndex, 1.0, spread, Date(), Date(), dayCounter, telescopicValueDates,
+            RateAveraging::Compound, lookbackDays, lockoutDays, shift, spread != 0.0);
+        coupon->setPricer(ext::make_shared<CompoundingOvernightIndexedCouponPricer>());
+        return coupon;
+    };
+    // the coupon with a lookback of 2 days and observation shift
+    const auto shifted = [&](Natural lockoutDays = 0, Spread spread = 0.0, bool telescopicValueDates = false)
+    { return makeCoupon(index, start, end, 2, true, lockoutDays, spread, telescopicValueDates); };
+    // the coupon from 29 September to o without a lookback; to 29 October, the shifted coupon's twin
+    const auto observing = [&](const Date& o, Natural lockoutDays = 0, Spread spread = 0.0)
+    { return makeCoupon(index, observationStart, o, Null<Natural>(), false, lockoutDays, spread); };
+    // the observation date of the first accrual day on or after d
+    const auto observed = [&](const Date& d) { return calendar.advance(calendar.adjust(d), -2, Days); };
+    // every fixing at the given rate, compounded over the observation period's days and annualised over them
+    const auto compoundedRate = [&](Rate fixing)
+    {
+        Real compounded = 1.0;
+        for (Date d = observationStart; d < observationEnd; d = calendar.advance(d, 1, Days))
+            compounded *= 1.0 + fixing * dayCounter.yearFraction(d, calendar.advance(d, 1, Days));
+        return (compounded - 1.0) / dayCounter.yearFraction(observationStart, observationEnd);
+    };
+    // capped at a bound below 3 %, or floored at one above, on the Black pricer
+    const auto bounded = [](const ext::shared_ptr<OvernightIndexedCoupon>& underlying, Rate bound, bool daily,
+                            const Handle<OptionletVolatilityStructure>& volatility)
+    {
+        const bool isCap = bound < 0.03;
+        const auto coupon = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(
+            underlying, isCap ? bound : Null<Rate>(), isCap ? Null<Rate>() : bound, false, daily);
+        coupon->setPricer(makeBlackOvernightPricer(RateAveraging::Compound, volatility));
+        return coupon;
+    };
+
+    // every fixing stored at 3 %
+    const Date afterEnd(1, December, 2026);
+    Settings::instance().evaluationDate() = afterEnd;
+    for (Date d(28, September, 2026); d < end; d = calendar.advance(d, 1, Days))
+    {
+        index->addFixing(d, 0.03);
+        fixingTwoDaysBefore->addFixing(d, 0.03);
+    }
+    const Handle<OptionletVolatilityStructure> volatility(
+        ext::make_shared<ConstantOptionletVolatility>(afterEnd, calendar, Following, 0.2, dayCounter));
+    BOOST_TEST_CONTEXT("every fixing stored")
+    {
+        // the shifted coupon has its twin's rate, and accrues to each day what the coupon over the observation
+        // period to that day's observation date pays
+        const auto coupon = shifted();
+        BOOST_CHECK_EQUAL(coupon->rate(), observing(observationEnd)->rate());
+        CHECK_OIS_COUPON_RESULT("rate", coupon->rate(), compoundedRate(0.03), 1e-12);
+        CHECK_OIS_COUPON_RESULT("amount", coupon->amount(),
+                                nominal * compoundedRate(0.03) * dayCounter.yearFraction(start, end), 1e-9);
+        for (Date d(2, October, 2026); d <= end; ++d)
+        {
+            BOOST_TEST_CONTEXT("accrued to " << d)
+            {
+                BOOST_CHECK_EQUAL(coupon->accruedAmount(d),
+                                  nominal * observing(observed(d))->rate() * coupon->accruedPeriod(d));
+            }
+        }
+
+        // a spread of 50 bp compounded daily, and the rate's split
+        const auto withSpread = shifted(0, 0.005), twinWithSpread = observing(observationEnd, 0, 0.005);
+        BOOST_CHECK_EQUAL(withSpread->rate(), twinWithSpread->rate());
+        BOOST_CHECK_EQUAL(withSpread->effectiveSpread(), twinWithSpread->effectiveSpread());
+        BOOST_CHECK_EQUAL(withSpread->effectiveIndexFixing(), twinWithSpread->effectiveIndexFixing());
+        CHECK_OIS_COUPON_RESULT("rate with a spread compounded daily", withSpread->rate(), compoundedRate(0.03 + 0.005),
+                                1e-12);
+        CHECK_OIS_COUPON_RESULT("effective spread", withSpread->effectiveSpread(),
+                                (compoundedRate(0.03 + 0.005) - compoundedRate(0.03)), 1e-12);
+
+        // capped daily at 2.9 %, and floored daily at 3.1 %
+        for (const Rate bound : {0.029, 0.031})
+        {
+            BOOST_TEST_CONTEXT((bound < 0.03 ? "capped daily at " : "floored daily at ") << bound)
+            {
+                const auto boundedCoupon = bounded(shifted(), bound, true, volatility);
+                BOOST_CHECK_EQUAL(boundedCoupon->rate(),
+                                  bounded(observing(observationEnd), bound, true, volatility)->rate());
+                CHECK_OIS_COUPON_RESULT("rate", boundedCoupon->rate(), compoundedRate(bound), 1e-12);
+            }
+        }
+
+        // with a lockout of 2 days
+        BOOST_CHECK_EQUAL(shifted(2)->rate(), observing(observationEnd, 2)->rate());
+
+        // on an index fixing two days before the day its rate is for, a lookback of 2 days and the shift leave the
+        // coupon as it is without the shift on the days its fixings are for
+        const auto withShift = makeCoupon(fixingTwoDaysBefore, start, end, 2, true),
+                   withoutShift = makeCoupon(fixingTwoDaysBefore, start, end, 2, false);
+        BOOST_CHECK_EQUAL(withShift->rate(), withoutShift->rate());
+        for (Date d(2, October, 2026); d <= end; d = calendar.advance(d, 1, Days))
+        {
+            BOOST_TEST_CONTEXT("index fixing two days before, accrued to " << d)
+            {
+                BOOST_CHECK_EQUAL(withShift->accruedAmount(d), withoutShift->accruedAmount(d));
+            }
+        }
+
+        // without a lookback, or with a lookback of 0 days on an index fixing two days before, the shift leaves the
+        // coupon as it is without it
+        struct Row
+        {
+            std::string name;
+            ext::shared_ptr<OvernightIndex> index;
+            Natural lookbackDays;
+        };
+        const std::vector<Row> rows = {
+            {"no lookback", index, Null<Natural>()},
+            {"index fixing two days before, lookback of 0 days", fixingTwoDaysBefore, 0},
+        };
+        for (const auto& row : rows)
+        {
+            BOOST_TEST_CONTEXT(row.name)
+            {
+                const auto withShift = makeCoupon(row.index, start, end, row.lookbackDays, true),
+                           withoutShift = makeCoupon(row.index, start, end, row.lookbackDays, false);
+                BOOST_CHECK_EQUAL(withShift->rate(), withoutShift->rate());
+                for (Date d(2, October, 2026); d <= end; ++d)
+                {
+                    BOOST_TEST_CONTEXT("accrued to " << d)
+                    {
+                        BOOST_CHECK_EQUAL(withShift->accruedAmount(d), withoutShift->accruedAmount(d));
+                    }
+                }
+                for (const Rate bound : {0.029, 0.031})
+                {
+                    BOOST_TEST_CONTEXT((bound < 0.03 ? "capped daily at " : "floored daily at ") << bound)
+                    {
+                        BOOST_CHECK_EQUAL(bounded(withShift, bound, true, volatility)->rate(),
+                                          bounded(withoutShift, bound, true, volatility)->rate());
+                    }
+                }
+            }
+        }
+
+        // starting on a Saturday, its accrued amount to the Sunday is finite
+        const auto fromSaturday = makeCoupon(index, Date(3, October, 2026), end, 2, true);
+        BOOST_CHECK(std::isfinite(fromSaturday->accruedAmount(Date(4, October, 2026))));
+    }
+
+    // today 30 September, its fixing and the one before stored
+    BOOST_TEST_CONTEXT("today 30 September")
+    {
+        const Date today(30, September, 2026), sunday(4, October, 2026);
+        Settings::instance().evaluationDate() = today;
+        index->clearFixings();
+        index->addFixing(Date(29, September, 2026), 0.03);
+        index->addFixing(today, 0.03);
+        curve.linkTo(ext::make_shared<FlatForward>(today, 0.03, dayCounter));
+        const auto coupon = shifted();
+        BOOST_CHECK_EQUAL(coupon->accruedAmount(sunday),
+                          nominal * observing(observed(sunday))->rate() * coupon->accruedPeriod(sunday));
+    }
+
+    // every fixing forecast from a flat curve
+    const Date today(1, September, 2026);
+    Settings::instance().evaluationDate() = today;
+    index->clearFixings();
+    curve.linkTo(ext::make_shared<FlatForward>(today, 0.03, dayCounter));
+    const Handle<OptionletVolatilityStructure> forwardVolatility(
+        ext::make_shared<ConstantOptionletVolatility>(today, calendar, Following, 0.2, dayCounter));
+    BOOST_TEST_CONTEXT("every fixing forecast")
+    {
+        const auto coupon = shifted(), twin = observing(observationEnd);
+        BOOST_CHECK_EQUAL(coupon->rate(), twin->rate());
+        CHECK_OIS_COUPON_RESULT(
+            "rate", coupon->rate(),
+            (curve->discount(observationStart) / curve->discount(observationEnd) - 1.0) * 360.0 / 30, 1e-12);
+        for (const Date& d : {Date(2, October, 2026), Date(5, October, 2026), Date(9, October, 2026),
+                              Date(16, October, 2026), Date(30, October, 2026), end})
+        {
+            BOOST_TEST_CONTEXT("accrued to " << d)
+            {
+                const Date o = observed(d);
+                BOOST_CHECK_EQUAL(coupon->accruedAmount(d), nominal * observing(o)->rate() * coupon->accruedPeriod(d));
+                CHECK_OIS_COUPON_RESULT("accrued amount", coupon->accruedAmount(d),
+                                        nominal * (curve->discount(observationStart) / curve->discount(o) - 1.0) /
+                                            dayCounter.yearFraction(observationStart, o) *
+                                            dayCounter.yearFraction(start, d),
+                                        1e-12);
+            }
+        }
+        // to a Sunday, within rounding of what the coupon over the observation period to 1 October pays
+        const Date sunday(4, October, 2026);
+        CHECK_OIS_COUPON_RESULT("accrued amount to a Sunday", coupon->accruedAmount(sunday),
+                                nominal * observing(observed(sunday))->rate() * coupon->accruedPeriod(sunday), 1e-12);
+
+        // capped at 2.9 %, and floored at 3.1 %, on each day's rate and on the period's
+        for (const Rate bound : {0.029, 0.031})
+            for (bool daily : {true, false})
+            {
+                BOOST_TEST_CONTEXT((bound < 0.03 ? "cap " : "floor ") << bound << (daily ? " daily" : " on the period"))
+                {
+                    BOOST_CHECK_EQUAL(bounded(coupon, bound, daily, forwardVolatility)->rate(),
+                                      bounded(twin, bound, daily, forwardVolatility)->rate());
+                }
+            }
+
+        // with a lockout of 2 days: the rate, and the accrued amount to the Sunday before the end
+        const auto lockedOut = shifted(2), lockedOutTwin = observing(observationEnd, 2);
+        const Date lastSunday(1, November, 2026);
+        BOOST_CHECK_EQUAL(lockedOut->rate(), lockedOutTwin->rate());
+        BOOST_CHECK_EQUAL(lockedOut->accruedAmount(lastSunday),
+                          nominal * lockedOutTwin->rate() * lockedOut->accruedPeriod(lastSunday));
+
+        // with telescopic value dates
+        BOOST_CHECK_EQUAL(shifted(0, 0.0, true)->rate(), coupon->rate());
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -143,6 +143,9 @@ namespace QuantLib
         const auto& interestDates = coupon_->interestDates();
         const auto& dt = coupon_->dt();
         const bool applyObservationShift = coupon_->applyObservationShift();
+        // with observation shift and a lookback, each fixing counted is applied for its whole period, over the
+        // observation period, and the rate is annualised over the span of the periods counted
+        const bool shiftsObservation = applyObservationShift && coupon_->fixingDays() > 0;
         Real couponSpread = coupon_->spread();
 
         Size i = 0;
@@ -162,8 +165,9 @@ namespace QuantLib
             // rate must have been fixed
             Rate fixing = (*pastFixings)[fixingDates[i]];
             QL_REQUIRE(fixing != Null<Real>(), "Missing " << index->name() << " fixing for " << fixingDates[i]);
-            Time span =
-                (date >= interestDates[i + 1] ? dt[i] : index->dayCounter().yearFraction(interestDates[i], date));
+            Time span = (shiftsObservation || date >= interestDates[i + 1] ?
+                             dt[i] :
+                             index->dayCounter().yearFraction(interestDates[i], date));
             if (coupon_->compoundSpreadDaily())
             {
                 compoundFactorWithoutSpread *= (1.0 + fixing * span);
@@ -181,8 +185,9 @@ namespace QuantLib
             Rate fixing = (*pastFixings)[fixingDates[i]];
             if (fixing != Null<Real>())
             {
-                Time span =
-                    (date >= interestDates[i + 1] ? dt[i] : index->dayCounter().yearFraction(interestDates[i], date));
+                Time span = (shiftsObservation || date >= interestDates[i + 1] ?
+                                 dt[i] :
+                                 index->dayCounter().yearFraction(interestDates[i], date));
                 if (coupon_->compoundSpreadDaily())
                 {
                     compoundFactorWithoutSpread *= (1.0 + fixing * span);
@@ -207,11 +212,11 @@ namespace QuantLib
             const Handle<YieldTermStructure> curve = index->forwardingTermStructure();
             QL_REQUIRE(!curve.empty(), "null term structure set to this instance of " << index->name());
 
-            const auto effectiveRate = [&index, &fixingDates, &date, &interestDates, &dt,
-                                        &couponSpread](Size position, bool compoundSpreadDaily)
+            const auto effectiveRate = [&index, &fixingDates, &date, &interestDates, &dt, &couponSpread,
+                                        shiftsObservation](Size position, bool compoundSpreadDaily)
             {
                 Rate fixing = index->fixing(fixingDates[position]);
-                Time span = (date >= interestDates[position + 1] ?
+                Time span = (shiftsObservation || date >= interestDates[position + 1] ?
                                  dt[position] :
                                  index->dayCounter().yearFraction(interestDates[position], date));
                 Spread spreadToAdd = compoundSpreadDaily ? couponSpread : 0.0;
@@ -228,7 +233,8 @@ namespace QuantLib
                 // Only in one particular case when observation shift is used and
                 // no intrinsic index fixing delay is applied, the telescopic formula
                 // holds, because regardless of the fixing delay in the coupon,
-                // in such configuration value dates will be equal to interest dates.
+                // in such configuration the fixings compound over the periods
+                // between value dates, which are their observation dates.
                 // A potential lockout, which may occur in tandem with a lookback
                 // setting, will be handled automatically based on fixing dates.
                 // Same applies to a case when accrual calculation date does or
@@ -275,8 +281,8 @@ namespace QuantLib
                 {
                     // No lockout and date is different than last interest date.
                     // The last fixing is not used for its full period (the date is between
-                    // its start and end date).  We can use the telescopic formula until the
-                    // previous date, then we'll add the missing bit.
+                    // its start and end date), unless with observation shift.  We can use the
+                    // telescopic formula until the previous date, then we'll add the missing bit.
                     const DiscountFactor endDiscount = curve->discount(valueDates[n - 1]);
                     compoundFactor *= startDiscount / endDiscount;
                     compoundFactorWithoutSpread *= startDiscount / endDiscount;
@@ -287,7 +293,12 @@ namespace QuantLib
         }
 
         const Rate tau = index->dayCounter().yearFraction(valueDates.front(), valueDates.back());
-        const Rate rate = (compoundFactor - 1.0) / accruedOnIndexBasis(*coupon_, date);
+        // the period the rate is over: with observation shift and a lookback, the part of the observation period the
+        // fixings counted span (where none is counted yet, the accrued period, as without it); else the accrued period
+        const Time ratePeriod = shiftsObservation && n > 0 ?
+                                    index->dayCounter().yearFraction(valueDates.front(), valueDates[n]) :
+                                    accruedOnIndexBasis(*coupon_, date);
+        const Rate rate = (compoundFactor - 1.0) / ratePeriod;
         Rate swapletRate = coupon_->gearing() * rate;
         Spread effectiveSpread;
         Rate effectiveIndexFixing;

@@ -86,13 +86,14 @@ namespace QuantLib
         const ext::shared_ptr<OvernightIndex>& overnightIndex() const { return overnightIndex_; }
         //! fixing dates for the rates to be compounded
         const std::vector<Date>& fixingDates() const { return fixingDates_; }
-        //! accrual (compounding) periods
+        /*! accrual (compounding) periods: between the interest dates or, with observation shift and a lookback,
+            between the value dates, the days the observed fixings are for */
         const std::vector<Time>& dt() const { return dt_; }
         //! fixings to be compounded
         const std::vector<Rate>& indexFixings() const;
         //! value dates for the rates to be compounded
         const std::vector<Date>& valueDates() const { return valueDates_; }
-        //! interest dates for the rates to be compounded
+        //! interest dates for the rates to be compounded, the accrual period's with or without observation shift
         const std::vector<Date>& interestDates() const { return interestDates_; }
         //! averaging method
         RateAveraging::Type averagingMethod() const { return averagingMethod_; }
