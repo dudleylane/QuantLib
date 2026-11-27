@@ -155,6 +155,8 @@ namespace QuantLib
             pastFixings = &index->timeSeries();
 
         Real compoundFactor = 1.0, compoundFactorWithoutSpread = 1.0;
+        // with observation shift and a lookback, the end of the observation period the fixings counted span
+        Date observationEnd = valueDates[n];
 
         // already fixed part
         while (i < n && fixingDates[i] < today)
@@ -298,14 +300,49 @@ namespace QuantLib
                     else
                     {
                         const DiscountFactor startDiscount = curve->discount(valueDates[i]);
-                        // No lockout, and the last fixing is not used up to its value date: the date is inside its
-                        // period, or the period ends at a rate computation end that isn't a fixing day. We can use the
-                        // telescopic formula until the previous date, then we'll add the missing bit.
-                        const DiscountFactor endDiscount = curve->discount(valueDates[n - 1]);
-                        compoundFactor *= startDiscount / endDiscount;
-                        compoundFactorWithoutSpread *= startDiscount / endDiscount;
-                        compoundFactor *= (1.0 + effectiveRate(n - 1, coupon_->compoundSpreadDaily()));
-                        compoundFactorWithoutSpread *= (1.0 + effectiveRate(n - 1, false));
+                        const Calendar& calendar = index->fixingCalendar();
+                        // Between telescopic value dates, the last fixing's period spans fixing days of its own, and
+                        // at a date inside it the formula runs as far as it would on dense value dates. With
+                        // observation shift, each fixing counted applies over its whole period, so it runs to the
+                        // value date of the first fixing day on or after the date; otherwise to the last fixing day
+                        // on or before the date, whose fixing, taken at its fixing date, is added up to the date.
+                        const Natural fixingDays = coupon_->fixingDays();
+                        const bool spansFixingDays = calendar.advance(interestDates[n - 1], 1, Days) < interestDates[n];
+                        if (spansFixingDays && shiftsObservation)
+                        {
+                            const Date day = calendar.adjust(date, Following);
+                            observationEnd =
+                                index->valueDate(calendar.advance(day, -static_cast<Integer>(fixingDays), Days));
+                            const DiscountFactor endDiscount = curve->discount(observationEnd);
+                            compoundFactor *= startDiscount / endDiscount;
+                            compoundFactorWithoutSpread *= startDiscount / endDiscount;
+                        }
+                        else if (spansFixingDays)
+                        {
+                            const Date day = calendar.adjust(date, Preceding);
+                            const DiscountFactor endDiscount = curve->discount(day);
+                            compoundFactor *= startDiscount / endDiscount;
+                            compoundFactorWithoutSpread *= startDiscount / endDiscount;
+                            if (day < date)
+                            {
+                                const Rate fixing =
+                                    index->fixing(calendar.advance(day, -static_cast<Integer>(fixingDays), Days));
+                                const Time span = index->dayCounter().yearFraction(day, date);
+                                compoundFactor *= (1.0 + fixing * span);
+                                compoundFactorWithoutSpread *= (1.0 + fixing * span);
+                            }
+                        }
+                        else
+                        {
+                            // No lockout, and the last fixing is not used up to its value date: the date is inside
+                            // its period, or the period ends at a rate computation end that isn't a fixing day. We
+                            // can use the telescopic formula until the previous date, then we'll add the missing bit.
+                            const DiscountFactor endDiscount = curve->discount(valueDates[n - 1]);
+                            compoundFactor *= startDiscount / endDiscount;
+                            compoundFactorWithoutSpread *= startDiscount / endDiscount;
+                            compoundFactor *= (1.0 + effectiveRate(n - 1, coupon_->compoundSpreadDaily()));
+                            compoundFactorWithoutSpread *= (1.0 + effectiveRate(n - 1, false));
+                        }
                     }
                 }
             }
@@ -317,7 +354,7 @@ namespace QuantLib
         // fixing is due by a date at or before the rate computation start, as early in the accrual period of a coupon
         // whose rate is taken over a last recent period, and the index has added nothing by it.
         const Time ratePeriod = shiftsObservation && n > 0 ?
-                                    index->dayCounter().yearFraction(valueDates.front(), valueDates[n]) :
+                                    index->dayCounter().yearFraction(valueDates.front(), observationEnd) :
                                     ratePeriodOnIndexBasis(*coupon_, date);
         const Rate rate = n > 0 ? (compoundFactor - 1.0) / ratePeriod : 0.0;
         Rate swapletRate = coupon_->gearing() * rate;
