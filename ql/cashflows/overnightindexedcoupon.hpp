@@ -46,6 +46,10 @@ namespace QuantLib
     /*! %Coupon paying the interest, depending on the averaging convention,
         due to daily overnight fixings.
 
+        Its rate is compounded or averaged, and annualised, on its index's
+        day counter, as the fixings are; its own day counter, the index's
+        unless another is given, scales its amounts.
+
         \warning telescopicValueDates optimizes the schedule for calculation speed,
         but might fail to produce correct results if the coupon ages by more than
         a grace period of 7 days. It is therefore recommended not to set this flag
@@ -82,13 +86,15 @@ namespace QuantLib
         const ext::shared_ptr<OvernightIndex>& overnightIndex() const { return overnightIndex_; }
         //! fixing dates for the rates to be compounded
         const std::vector<Date>& fixingDates() const { return fixingDates_; }
-        //! accrual (compounding) periods
+        /*! accrual (compounding) periods: between the interest dates or, with observation shift and a lookback,
+            between the value dates, the days the observed fixings are for */
         const std::vector<Time>& dt() const { return dt_; }
         //! fixings to be compounded
         const std::vector<Rate>& indexFixings() const;
         //! value dates for the rates to be compounded
         const std::vector<Date>& valueDates() const { return valueDates_; }
-        //! interest dates for the rates to be compounded
+        /*! interest dates for the rates to be compounded, the rate computation period's with or without observation
+            shift */
         const std::vector<Date>& interestDates() const { return interestDates_; }
         //! averaging method
         RateAveraging::Type averagingMethod() const { return averagingMethod_; }
@@ -105,9 +111,9 @@ namespace QuantLib
               - effectiveSpread = spread() if compoundSpreadDaily = false */
         Real effectiveSpread() const;
         Real effectiveIndexFixing() const;
-        //! rate computation start date
+        //! rate computation start date, from which the rate is computed; a null date stands for the accrual start
         const Date& rateComputationStartDate() const { return rateComputationStartDate_; }
-        //! rate computation end date
+        //! rate computation end date, up to which the rate is computed; a null date stands for the accrual end
         const Date& rateComputationEndDate() const { return rateComputationEndDate_; }
         //@}
         //! \name FloatingRateCoupon interface

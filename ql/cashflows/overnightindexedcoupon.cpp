@@ -105,19 +105,19 @@ namespace QuantLib
         // ctor guard prevents construction of an object with illogically ordered dates.
         QL_REQUIRE(paymentDate >= endDate, "Payment date cannot be earlier than accrual end date");
 
-        Date valueStart = rateComputationStartDate_ == Null<Date>() ? startDate : rateComputationStartDate_;
-        Date valueEnd = rateComputationEndDate_ == Null<Date>() ? endDate : rateComputationEndDate_;
-        if (lookbackDays != Null<Natural>())
-        {
-            BusinessDayConvention bdc = lookbackDays > 0 ? Preceding : Following;
-            valueStart =
-                overnightIndex->fixingCalendar().advance(valueStart, -static_cast<Integer>(lookbackDays), Days, bdc);
-            valueEnd =
-                overnightIndex->fixingCalendar().advance(valueEnd, -static_cast<Integer>(lookbackDays), Days, bdc);
-        }
+        // The rate is worked out over the rate computation period: the accrual period, unless the coupon is given
+        // another, as OvernightLeg gives a coupon fixed in advance (the previous period) or one whose rate is taken
+        // over a last recent period.
+        const Date rateStart = rateComputationStartDate_ == Null<Date>() ? startDate : rateComputationStartDate_;
+        const Date rateEnd = rateComputationEndDate_ == Null<Date>() ? endDate : rateComputationEndDate_;
+        QL_REQUIRE(rateStart < rateEnd, "rate computation start date ("
+                                            << rateStart << ") must be earlier than its end date (" << rateEnd << ")");
+        QL_REQUIRE(rateEnd <= endDate, "rate computation end date ("
+                                           << rateEnd << ") must not be later than the accrual end date (" << endDate
+                                           << ")");
 
         // value dates
-        Date tmpEndDate = endDate;
+        Date tmpEndDate = rateEnd;
 
         /* For the coupon's valuation only the first and last future valuation
            dates matter, therefore we can avoid to construct the whole series
@@ -138,13 +138,18 @@ namespace QuantLib
         if (telescopic)
         {
             // build optimised value dates schedule: front stub goes
-            // from start date to max(evalDate,startDate) + 7bd
+            // from rateStart to max(evalDate, rateStart) + 7bd
             Date evalDate = Settings::instance().evaluationDate();
-            tmpEndDate = overnightIndex->fixingCalendar().advance(std::max(startDate, evalDate), 7, Days, Following);
-            tmpEndDate = std::min(tmpEndDate, endDate);
+            tmpEndDate = overnightIndex->fixingCalendar().advance(std::max(rateStart, evalDate), 7, Days, Following);
+            tmpEndDate = std::min(tmpEndDate, rateEnd);
         }
+        // A start that isn't a fixing day takes the fixing of the business day before it, which applies from the
+        // start to the next business day; with observation shift and a lookback, the observation period starts the
+        // lookback's business days before the first business day on or after the start.
+        const Date firstValueDate = overnightIndex->fixingCalendar().adjust(
+            rateStart, applyObservationShift_ && fixingDays_ > 0 ? Following : Preceding);
         Schedule sch = MakeSchedule()
-                           .from(startDate)
+                           .from(firstValueDate)
                            // .to(endDate)
                            .to(tmpEndDate)
                            .withTenor(1 * Days)
@@ -157,9 +162,9 @@ namespace QuantLib
         {
             // the back stub covers the lockout period and the business day
             // before it, whose fixing the lockout repeats
-            tmpEndDate = overnightIndex->fixingCalendar().adjust(endDate, overnightIndex->businessDayConvention());
+            tmpEndDate = overnightIndex->fixingCalendar().adjust(rateEnd, overnightIndex->businessDayConvention());
             Date tmpLockoutDate = overnightIndex->fixingCalendar().advance(
-                endDate, -static_cast<Integer>(lockoutDays_) - 1, Days, Preceding);
+                rateEnd, -static_cast<Integer>(lockoutDays_) - 1, Days, Preceding);
             while (tmpLockoutDate <= tmpEndDate)
             {
                 if (tmpLockoutDate > valueDates_.back())
@@ -172,7 +177,14 @@ namespace QuantLib
 
         n_ = valueDates_.size() - 1;
 
-        interestDates_ = vector<Date>(valueDates_.begin(), valueDates_.end());
+        // the interest dates are the value dates but the last, the rate computation end, up to which the last fixing
+        // applies, and the first, the rate computation start, from which the first fixing applies; with observation
+        // shift and a lookback, the first is the first business day on or after the start, the day the first fixing is
+        // observed for
+        interestDates_ = valueDates_;
+        if (!(applyObservationShift_ && fixingDays_ > 0))
+            interestDates_.front() = rateStart;
+        interestDates_.back() = rateEnd;
 
         if (fixingDays_ == overnightIndex->fixingDays() && fixingDays_ == 0)
         {
@@ -180,25 +192,19 @@ namespace QuantLib
         }
         else
         {
-            // Lookback (fixing days) without observation shift:
+            // Lookback (fixing days):
             // The date that the fixing rate is pulled  from (the observation date) is k
-            // business days before the date that interest is applied (the interest date)
-            // and is applied for the number of calendar days until the next business
-            // day following the interest date.
+            // business days before the date that interest is applied (the interest date).
+            // Without observation shift it is applied for the number of calendar days
+            // until the next business day following the interest date; with it, for the
+            // days from its value date to the next observation date's (see the accrual
+            // periods below). The interest dates are the rate computation period's either way.
             fixingDates_.resize(n_);
             for (Size i = 0; i <= n_; ++i)
             {
                 Date tmp = applyLookbackPeriod(overnightIndex, valueDates_[i], fixingDays_);
                 if (i < n_)
                     fixingDates_[i] = tmp;
-                if (applyObservationShift_)
-                    // Lookback (fixing days) with observation shift:
-                    // The date that the fixing rate is pulled from (the observation date)
-                    // is k business days before the date that interest is applied
-                    // (the interest date) and is applied for the number of calendar
-                    // days until the next business day following the observation date.
-                    // This means that the fixing dates periods align with value dates.
-                    interestDates_[i] = tmp;
                 if (fixingDays_ != overnightIndex->fixingDays())
                     // If fixing dates of the coupon deviate from fixing days in the index
                     // we need to correct the value dates such that they reflect dates
@@ -220,11 +226,14 @@ namespace QuantLib
                 fixingDates_[i] = lockoutDate;
         }
 
-        // accrual (compounding) periods
+        // accrual (compounding) periods: between interest dates or, with observation shift
+        // and a lookback, between value dates, the days the observed fixings are for, so
+        // that the fixings compound over the observation period
+        const vector<Date>& periodDates = applyObservationShift_ && fixingDays_ > 0 ? valueDates_ : interestDates_;
         dt_.resize(n_);
         const DayCounter& dc = overnightIndex->dayCounter();
         for (Size i = 0; i < n_; ++i)
-            dt_[i] = dc.yearFraction(interestDates_[i], interestDates_[i + 1]);
+            dt_[i] = dc.yearFraction(periodDates[i], periodDates[i + 1]);
 
         switch (averagingMethod)
         {

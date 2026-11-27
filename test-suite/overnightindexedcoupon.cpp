@@ -35,11 +35,13 @@
 #include <ql/settings.hpp>
 #include <ql/termstructures/volatility/optionlet/constantoptionletvol.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
+#include <ql/termstructures/yield/forwardcurve.hpp>
 #include <ql/termstructures/yield/zerocurve.hpp>
 #include <ql/time/calendars/target.hpp>
 #include <ql/time/calendars/unitedstates.hpp>
 #include <ql/time/calendars/weekendsonly.hpp>
 #include <ql/time/daycounters/actual360.hpp>
+#include <ql/time/daycounters/actual365fixed.hpp>
 #include <functional>
 #include <iomanip>
 #include <map>
@@ -661,11 +663,12 @@ BOOST_AUTO_TEST_CASE(testFutureCouponRateWithLookbackAndObservationShift)
 
     auto futureCoupon = vars.makeCoupon(Date(1, July, 2019), Date(8, July, 2019), 5, 0, true);
 
-    // The discrepancies between the results with and without observation shift,
-    // especially in the short term horizon, show that interest-period weighted
-    // overnight cumulative compounded annualized rates are considered as an
-    // alternative.
-    Rate expectedRate = 0.0142876985964208;
+    // With observation shift the fixings compound over the observation period, from 24 to 28 June, 4 days, and the
+    // rate is annualised over it, though the coupon accrues for 7 days, from 1 to 8 July.
+    Rate expectedRate =
+        (vars.forecastCurve->discount(Date(24, June, 2019)) / vars.forecastCurve->discount(Date(28, June, 2019)) -
+         1.0) *
+        360.0 / 4;
 
     CHECK_OIS_COUPON_RESULT("coupon rate", futureCoupon->rate(), expectedRate, 1e-12);
 }
@@ -1285,7 +1288,7 @@ BOOST_AUTO_TEST_CASE(testBlackOvernightIndexedCouponPricerCapletFloorlet)
     cappedCoupon->setPricer(pricer);
 
     rate = cappedCoupon->rate();
-    expectedRate = 0.036604717;
+    expectedRate = 0.036862168;
     BOOST_CHECK(rate <= cap + 1e-8); // Should not exceed cap
     CHECK_OIS_COUPON_RESULT("Capped Rate", rate, expectedRate, 1e-8);
 
@@ -1296,7 +1299,7 @@ BOOST_AUTO_TEST_CASE(testBlackOvernightIndexedCouponPricerCapletFloorlet)
     BOOST_CHECK(!flooredCoupon->isCalculated());
 
     rate = flooredCoupon->rate();
-    expectedRate = 0.042502070;
+    expectedRate = 0.042816203;
     BOOST_CHECK(rate >= floor - 1e-8); // Should not be below floor
     CHECK_OIS_COUPON_RESULT("Floored Rate", rate, expectedRate, 1e-8);
 
@@ -1305,7 +1308,7 @@ BOOST_AUTO_TEST_CASE(testBlackOvernightIndexedCouponPricerCapletFloorlet)
     cappedFlooredCoupon->setPricer(pricer);
 
     rate = cappedFlooredCoupon->rate();
-    expectedRate = 0.039340869;
+    expectedRate = 0.039473179;
     BOOST_CHECK(rate <= cap + 1e-8 && rate >= floor - 1e-8);
     CHECK_OIS_COUPON_RESULT("Capped and Floored Rate", rate, expectedRate, 1e-8);
 }
@@ -1334,7 +1337,7 @@ BOOST_AUTO_TEST_CASE(testBlackAverageONIndexedCouponPricerCapletFloorlet)
     cappedCoupon->setPricer(pricer);
 
     rate = cappedCoupon->rate();
-    expectedRate = 0.036488300;
+    expectedRate = 0.036745802;
     BOOST_CHECK(rate <= cap + 1e-8);
     CHECK_OIS_COUPON_RESULT("Capped Rate", rate, expectedRate, 1e-8);
 
@@ -1344,7 +1347,7 @@ BOOST_AUTO_TEST_CASE(testBlackAverageONIndexedCouponPricerCapletFloorlet)
     flooredCoupon->setPricer(pricer);
 
     rate = flooredCoupon->rate();
-    expectedRate = 0.042362746;
+    expectedRate = 0.042671405;
     BOOST_CHECK(rate >= floor - 1e-8);
     CHECK_OIS_COUPON_RESULT("Capped Rate", rate, expectedRate, 1e-8);
 
@@ -1353,7 +1356,7 @@ BOOST_AUTO_TEST_CASE(testBlackAverageONIndexedCouponPricerCapletFloorlet)
     cappedFlooredCoupon->setPricer(pricer);
 
     rate = cappedFlooredCoupon->rate();
-    expectedRate = 0.039281553;
+    expectedRate = 0.039412858;
     BOOST_CHECK(rate <= cap + 1e-8 && rate >= floor - 1e-8);
     CHECK_OIS_COUPON_RESULT("Capped and Floored Rate", rate, expectedRate, 1e-8);
 }
@@ -2535,6 +2538,998 @@ BOOST_AUTO_TEST_CASE(testOvernightPricersRefuseTheOtherAveragingMethod)
                 }
             }
         }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testRateOnItsIndexDayCounter)
+{
+    BOOST_TEST_MESSAGE("Testing an overnight coupon's rate on its index's day counter, whatever its own...");
+
+    const WeekendsOnly calendar;
+    const Actual360 indexDayCounter;
+    const Actual365Fixed couponDayCounter;
+    RelinkableHandle<YieldTermStructure> curve;
+    const auto index = ext::make_shared<OvernightIndex>("T425", 0, USDCurrency(), calendar, indexDayCounter, curve);
+    const Date start(1, October, 2026), end(2, November, 2026), middle(16, October, 2026);
+    const Real nominal = 10000.0;
+    const Time period = indexDayCounter.yearFraction(start, end),
+               toMiddle = indexDayCounter.yearFraction(start, middle);
+
+    const auto makeCoupon = [&](const ext::shared_ptr<OvernightIndex>& overnightIndex, const DayCounter& dayCounter,
+                                RateAveraging::Type averaging, Natural lockoutDays = 0, Spread spread = 0.0)
+    {
+        const auto coupon = ext::make_shared<OvernightIndexedCoupon>(
+            end, nominal, start, end, overnightIndex, 1.0, spread, Date(), Date(), dayCounter, false, averaging,
+            Null<Natural>(), lockoutDays, false, spread != 0.0);
+        if (averaging == RateAveraging::Compound)
+            coupon->setPricer(ext::make_shared<CompoundingOvernightIndexedCouponPricer>());
+        else
+            coupon->setPricer(ext::make_shared<ArithmeticAveragedOvernightIndexedCouponPricer>());
+        return coupon;
+    };
+    // a coupon's first n fixings, each at the given rate, compounded or added up over their periods
+    const auto accrued = [](const OvernightIndexedCoupon& coupon, Size n, Rate fixing)
+    {
+        Real compounded = 1.0, added = 0.0;
+        for (Size i = 0; i < n; ++i)
+        {
+            compounded *= 1.0 + fixing * coupon.dt()[i];
+            added += fixing * coupon.dt()[i];
+        }
+        return coupon.averagingMethod() == RateAveraging::Compound ? compounded - 1.0 : added;
+    };
+
+    // every fixing stored at 3 %: rates on the index's day counter, amounts on the coupon's
+    const Date afterEnd(1, December, 2026);
+    Settings::instance().evaluationDate() = afterEnd;
+    for (Date d = start; d < end; d = calendar.advance(d, 1, Days))
+        index->addFixing(d, 0.03);
+    const Handle<OptionletVolatilityStructure> volatility(
+        ext::make_shared<ConstantOptionletVolatility>(afterEnd, calendar, Following, 0.2, indexDayCounter));
+    for (const DayCounter& dayCounter : std::vector<DayCounter>{couponDayCounter, indexDayCounter})
+    {
+        BOOST_TEST_CONTEXT("coupon day counter " << dayCounter.name())
+        {
+            for (auto averaging : {RateAveraging::Compound, RateAveraging::Simple})
+            {
+                BOOST_TEST_CONTEXT((averaging == RateAveraging::Compound ? "compounded" : "averaged"))
+                {
+                    const auto coupon = makeCoupon(index, dayCounter, averaging);
+                    const Size n = coupon->dt().size();
+                    BOOST_REQUIRE(n == 22 && coupon->valueDates()[11] == middle);
+                    const Rate rate = accrued(*coupon, n, 0.03) / period;
+                    CHECK_OIS_COUPON_RESULT("rate", coupon->rate(), rate, 1e-12);
+                    CHECK_OIS_COUPON_RESULT("amount", coupon->amount(),
+                                            nominal * rate * dayCounter.yearFraction(start, end), 1e-9);
+                    CHECK_OIS_COUPON_RESULT(
+                        "accrued amount", coupon->accruedAmount(middle),
+                        nominal * accrued(*coupon, 11, 0.03) / toMiddle * dayCounter.yearFraction(start, middle), 1e-9);
+
+                    // capped daily at 2.9 %, and floored daily at 3.1 %, on the Black pricer
+                    for (const Rate bound : {0.029, 0.031})
+                    {
+                        const bool isCap = bound < 0.03;
+                        BOOST_TEST_CONTEXT((isCap ? "capped daily at " : "floored daily at ") << bound)
+                        {
+                            const auto underlying = makeCoupon(index, dayCounter, averaging);
+                            CappedFlooredOvernightIndexedCoupon bounded(underlying, isCap ? bound : Null<Rate>(),
+                                                                        isCap ? Null<Rate>() : bound, false, true);
+                            bounded.setPricer(makeBlackOvernightPricer(averaging, volatility));
+                            CHECK_OIS_COUPON_RESULT("rate", bounded.rate(), accrued(*underlying, n, bound) / period,
+                                                    1e-12);
+                        }
+                    }
+                }
+            }
+
+            // a spread of 50 bp compounded daily, and the rate's split
+            const auto withSpread = makeCoupon(index, dayCounter, RateAveraging::Compound, 0, 0.005);
+            const Real compounded = accrued(*withSpread, 22, 0.03 + 0.005),
+                       withoutSpread = accrued(*withSpread, 22, 0.03);
+            CHECK_OIS_COUPON_RESULT("rate with a spread compounded daily", withSpread->rate(), compounded / period,
+                                    1e-12);
+            CHECK_OIS_COUPON_RESULT("effective spread", withSpread->effectiveSpread(),
+                                    (compounded - withoutSpread) / period, 1e-12);
+            CHECK_OIS_COUPON_RESULT("effective index fixing", withSpread->effectiveIndexFixing(),
+                                    withoutSpread / period, 1e-12);
+        }
+    }
+
+    // every fixing forecast: each rate, capped or floored daily or on the period or not at all, is its twin's on the
+    // index's day counter
+    const Date today(1, September, 2026);
+    Settings::instance().evaluationDate() = today;
+    index->clearFixings();
+    curve.linkTo(ext::make_shared<FlatForward>(today, 0.03, indexDayCounter));
+    const Handle<OptionletVolatilityStructure> forwardVolatility(
+        ext::make_shared<ConstantOptionletVolatility>(today, calendar, Following, 0.2, indexDayCounter));
+    const auto fixingADayBefore =
+        ext::make_shared<OvernightIndex>("T425F", 1, USDCurrency(), calendar, indexDayCounter, curve);
+    struct Row
+    {
+        std::string name;
+        ext::shared_ptr<OvernightIndex> index;
+        RateAveraging::Type averaging;
+        Natural lockoutDays;
+    };
+    const std::vector<Row> rows = {
+        {"compounded", index, RateAveraging::Compound, 0},
+        {"compounded, lockout of 2 days", index, RateAveraging::Compound, 2},
+        {"averaged", index, RateAveraging::Simple, 0},
+        {"averaged, fixing a day before", fixingADayBefore, RateAveraging::Simple, 0},
+    };
+    for (const auto& row : rows)
+        for (const Rate bound : {0.029, 0.031})
+            for (bool daily : {true, false})
+            {
+                const bool isCap = bound < 0.03;
+                BOOST_TEST_CONTEXT(row.name << (isCap ? ", cap " : ", floor ") << bound
+                                            << (daily ? " daily" : " on the period"))
+                {
+                    const auto make = [&](const DayCounter& dayCounter)
+                    {
+                        const auto underlying = makeCoupon(row.index, dayCounter, row.averaging, row.lockoutDays);
+                        const auto bounded = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(
+                            underlying, isCap ? bound : Null<Rate>(), isCap ? Null<Rate>() : bound, false, daily);
+                        bounded->setPricer(makeBlackOvernightPricer(row.averaging, forwardVolatility));
+                        return bounded;
+                    };
+                    const auto coupon = make(couponDayCounter), twin = make(indexDayCounter);
+                    BOOST_CHECK_EQUAL(coupon->underlying()->rate(), twin->underlying()->rate());
+                    BOOST_CHECK_EQUAL(coupon->rate(), twin->rate());
+                }
+            }
+}
+
+BOOST_AUTO_TEST_CASE(testRateOverTheObservationPeriodUnderObservationShift)
+{
+    BOOST_TEST_MESSAGE("Testing an overnight coupon's rate over its observation period under observation shift...");
+
+    const WeekendsOnly calendar;
+    const Actual360 dayCounter;
+    RelinkableHandle<YieldTermStructure> curve;
+    const auto index = ext::make_shared<OvernightIndex>("T424", 0, USDCurrency(), calendar, dayCounter, curve);
+    const auto fixingTwoDaysBefore =
+        ext::make_shared<OvernightIndex>("T424F", 2, USDCurrency(), calendar, dayCounter, curve);
+    // accruing from 1 October to 2 November 2026 with a lookback of 2 days, a coupon observes the fixings from
+    // 29 September to 29 October
+    const Date start(1, October, 2026), end(2, November, 2026);
+    const Date observationStart(29, September, 2026), observationEnd(29, October, 2026);
+    const Real nominal = 10000.0;
+
+    const auto makeCoupon = [&](const ext::shared_ptr<OvernightIndex>& overnightIndex, const Date& from, const Date& to,
+                                Natural lookbackDays, bool shift, Natural lockoutDays = 0, Spread spread = 0.0,
+                                bool telescopicValueDates = false)
+    {
+        const auto coupon = ext::make_shared<OvernightIndexedCoupon>(
+            to, nominal, from, to, overnightIndex, 1.0, spread, Date(), Date(), dayCounter, telescopicValueDates,
+            RateAveraging::Compound, lookbackDays, lockoutDays, shift, spread != 0.0);
+        coupon->setPricer(ext::make_shared<CompoundingOvernightIndexedCouponPricer>());
+        return coupon;
+    };
+    // the coupon with a lookback of 2 days and observation shift
+    const auto shifted = [&](Natural lockoutDays = 0, Spread spread = 0.0, bool telescopicValueDates = false)
+    { return makeCoupon(index, start, end, 2, true, lockoutDays, spread, telescopicValueDates); };
+    // the coupon from 29 September to o without a lookback; to 29 October, the shifted coupon's twin
+    const auto observing = [&](const Date& o, Natural lockoutDays = 0, Spread spread = 0.0)
+    { return makeCoupon(index, observationStart, o, Null<Natural>(), false, lockoutDays, spread); };
+    // the observation date of the first accrual day on or after d
+    const auto observed = [&](const Date& d) { return calendar.advance(calendar.adjust(d), -2, Days); };
+    // every fixing at the given rate, compounded over the observation period's days and annualised over them
+    const auto compoundedRate = [&](Rate fixing)
+    {
+        Real compounded = 1.0;
+        for (Date d = observationStart; d < observationEnd; d = calendar.advance(d, 1, Days))
+            compounded *= 1.0 + fixing * dayCounter.yearFraction(d, calendar.advance(d, 1, Days));
+        return (compounded - 1.0) / dayCounter.yearFraction(observationStart, observationEnd);
+    };
+    // capped at a bound below 3 %, or floored at one above, on the Black pricer
+    const auto bounded = [](const ext::shared_ptr<OvernightIndexedCoupon>& underlying, Rate bound, bool daily,
+                            const Handle<OptionletVolatilityStructure>& volatility)
+    {
+        const bool isCap = bound < 0.03;
+        const auto coupon = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(
+            underlying, isCap ? bound : Null<Rate>(), isCap ? Null<Rate>() : bound, false, daily);
+        coupon->setPricer(makeBlackOvernightPricer(RateAveraging::Compound, volatility));
+        return coupon;
+    };
+
+    // every fixing stored at 3 %
+    const Date afterEnd(1, December, 2026);
+    Settings::instance().evaluationDate() = afterEnd;
+    for (Date d(28, September, 2026); d < end; d = calendar.advance(d, 1, Days))
+    {
+        index->addFixing(d, 0.03);
+        fixingTwoDaysBefore->addFixing(d, 0.03);
+    }
+    const Handle<OptionletVolatilityStructure> volatility(
+        ext::make_shared<ConstantOptionletVolatility>(afterEnd, calendar, Following, 0.2, dayCounter));
+    BOOST_TEST_CONTEXT("every fixing stored")
+    {
+        // the shifted coupon has its twin's rate, and accrues to each day what the coupon over the observation
+        // period to that day's observation date pays
+        const auto coupon = shifted();
+        BOOST_CHECK_EQUAL(coupon->rate(), observing(observationEnd)->rate());
+        CHECK_OIS_COUPON_RESULT("rate", coupon->rate(), compoundedRate(0.03), 1e-12);
+        CHECK_OIS_COUPON_RESULT("amount", coupon->amount(),
+                                nominal * compoundedRate(0.03) * dayCounter.yearFraction(start, end), 1e-9);
+        for (Date d(2, October, 2026); d <= end; ++d)
+        {
+            BOOST_TEST_CONTEXT("accrued to " << d)
+            {
+                BOOST_CHECK_EQUAL(coupon->accruedAmount(d),
+                                  nominal * observing(observed(d))->rate() * coupon->accruedPeriod(d));
+            }
+        }
+
+        // a spread of 50 bp compounded daily, and the rate's split
+        const auto withSpread = shifted(0, 0.005), twinWithSpread = observing(observationEnd, 0, 0.005);
+        BOOST_CHECK_EQUAL(withSpread->rate(), twinWithSpread->rate());
+        BOOST_CHECK_EQUAL(withSpread->effectiveSpread(), twinWithSpread->effectiveSpread());
+        BOOST_CHECK_EQUAL(withSpread->effectiveIndexFixing(), twinWithSpread->effectiveIndexFixing());
+        CHECK_OIS_COUPON_RESULT("rate with a spread compounded daily", withSpread->rate(), compoundedRate(0.03 + 0.005),
+                                1e-12);
+        CHECK_OIS_COUPON_RESULT("effective spread", withSpread->effectiveSpread(),
+                                (compoundedRate(0.03 + 0.005) - compoundedRate(0.03)), 1e-12);
+
+        // capped daily at 2.9 %, and floored daily at 3.1 %
+        for (const Rate bound : {0.029, 0.031})
+        {
+            BOOST_TEST_CONTEXT((bound < 0.03 ? "capped daily at " : "floored daily at ") << bound)
+            {
+                const auto boundedCoupon = bounded(shifted(), bound, true, volatility);
+                BOOST_CHECK_EQUAL(boundedCoupon->rate(),
+                                  bounded(observing(observationEnd), bound, true, volatility)->rate());
+                CHECK_OIS_COUPON_RESULT("rate", boundedCoupon->rate(), compoundedRate(bound), 1e-12);
+            }
+        }
+
+        // with a lockout of 2 days
+        BOOST_CHECK_EQUAL(shifted(2)->rate(), observing(observationEnd, 2)->rate());
+
+        // on an index fixing two days before the day its rate is for, a lookback of 2 days and the shift leave the
+        // coupon as it is without the shift on the days its fixings are for
+        const auto withShift = makeCoupon(fixingTwoDaysBefore, start, end, 2, true),
+                   withoutShift = makeCoupon(fixingTwoDaysBefore, start, end, 2, false);
+        BOOST_CHECK_EQUAL(withShift->rate(), withoutShift->rate());
+        for (Date d(2, October, 2026); d <= end; d = calendar.advance(d, 1, Days))
+        {
+            BOOST_TEST_CONTEXT("index fixing two days before, accrued to " << d)
+            {
+                BOOST_CHECK_EQUAL(withShift->accruedAmount(d), withoutShift->accruedAmount(d));
+            }
+        }
+
+        // without a lookback, or with a lookback of 0 days on an index fixing two days before, the shift leaves the
+        // coupon as it is without it
+        struct Row
+        {
+            std::string name;
+            ext::shared_ptr<OvernightIndex> index;
+            Natural lookbackDays;
+        };
+        const std::vector<Row> rows = {
+            {"no lookback", index, Null<Natural>()},
+            {"index fixing two days before, lookback of 0 days", fixingTwoDaysBefore, 0},
+        };
+        for (const auto& row : rows)
+        {
+            BOOST_TEST_CONTEXT(row.name)
+            {
+                const auto withShift = makeCoupon(row.index, start, end, row.lookbackDays, true),
+                           withoutShift = makeCoupon(row.index, start, end, row.lookbackDays, false);
+                BOOST_CHECK_EQUAL(withShift->rate(), withoutShift->rate());
+                for (Date d(2, October, 2026); d <= end; ++d)
+                {
+                    BOOST_TEST_CONTEXT("accrued to " << d)
+                    {
+                        BOOST_CHECK_EQUAL(withShift->accruedAmount(d), withoutShift->accruedAmount(d));
+                    }
+                }
+                for (const Rate bound : {0.029, 0.031})
+                {
+                    BOOST_TEST_CONTEXT((bound < 0.03 ? "capped daily at " : "floored daily at ") << bound)
+                    {
+                        BOOST_CHECK_EQUAL(bounded(withShift, bound, true, volatility)->rate(),
+                                          bounded(withoutShift, bound, true, volatility)->rate());
+                    }
+                }
+            }
+        }
+
+        // starting on a Saturday, its accrued amount to the Sunday is finite
+        const auto fromSaturday = makeCoupon(index, Date(3, October, 2026), end, 2, true);
+        BOOST_CHECK(std::isfinite(fromSaturday->accruedAmount(Date(4, October, 2026))));
+    }
+
+    // today 30 September, its fixing and the one before stored
+    BOOST_TEST_CONTEXT("today 30 September")
+    {
+        const Date today(30, September, 2026), sunday(4, October, 2026);
+        Settings::instance().evaluationDate() = today;
+        index->clearFixings();
+        index->addFixing(Date(29, September, 2026), 0.03);
+        index->addFixing(today, 0.03);
+        curve.linkTo(ext::make_shared<FlatForward>(today, 0.03, dayCounter));
+        const auto coupon = shifted();
+        BOOST_CHECK_EQUAL(coupon->accruedAmount(sunday),
+                          nominal * observing(observed(sunday))->rate() * coupon->accruedPeriod(sunday));
+    }
+
+    // every fixing forecast from a flat curve
+    const Date today(1, September, 2026);
+    Settings::instance().evaluationDate() = today;
+    index->clearFixings();
+    curve.linkTo(ext::make_shared<FlatForward>(today, 0.03, dayCounter));
+    const Handle<OptionletVolatilityStructure> forwardVolatility(
+        ext::make_shared<ConstantOptionletVolatility>(today, calendar, Following, 0.2, dayCounter));
+    BOOST_TEST_CONTEXT("every fixing forecast")
+    {
+        const auto coupon = shifted(), twin = observing(observationEnd);
+        BOOST_CHECK_EQUAL(coupon->rate(), twin->rate());
+        CHECK_OIS_COUPON_RESULT(
+            "rate", coupon->rate(),
+            (curve->discount(observationStart) / curve->discount(observationEnd) - 1.0) * 360.0 / 30, 1e-12);
+        for (const Date& d : {Date(2, October, 2026), Date(5, October, 2026), Date(9, October, 2026),
+                              Date(16, October, 2026), Date(30, October, 2026), end})
+        {
+            BOOST_TEST_CONTEXT("accrued to " << d)
+            {
+                const Date o = observed(d);
+                BOOST_CHECK_EQUAL(coupon->accruedAmount(d), nominal * observing(o)->rate() * coupon->accruedPeriod(d));
+                CHECK_OIS_COUPON_RESULT("accrued amount", coupon->accruedAmount(d),
+                                        nominal * (curve->discount(observationStart) / curve->discount(o) - 1.0) /
+                                            dayCounter.yearFraction(observationStart, o) *
+                                            dayCounter.yearFraction(start, d),
+                                        1e-12);
+            }
+        }
+        // to a Sunday, within rounding of what the coupon over the observation period to 1 October pays
+        const Date sunday(4, October, 2026);
+        CHECK_OIS_COUPON_RESULT("accrued amount to a Sunday", coupon->accruedAmount(sunday),
+                                nominal * observing(observed(sunday))->rate() * coupon->accruedPeriod(sunday), 1e-12);
+
+        // capped at 2.9 %, and floored at 3.1 %, on each day's rate and on the period's
+        for (const Rate bound : {0.029, 0.031})
+            for (bool daily : {true, false})
+            {
+                BOOST_TEST_CONTEXT((bound < 0.03 ? "cap " : "floor ") << bound << (daily ? " daily" : " on the period"))
+                {
+                    BOOST_CHECK_EQUAL(bounded(coupon, bound, daily, forwardVolatility)->rate(),
+                                      bounded(twin, bound, daily, forwardVolatility)->rate());
+                }
+            }
+
+        // with a lockout of 2 days: the rate, and the accrued amount to the Sunday before the end
+        const auto lockedOut = shifted(2), lockedOutTwin = observing(observationEnd, 2);
+        const Date lastSunday(1, November, 2026);
+        BOOST_CHECK_EQUAL(lockedOut->rate(), lockedOutTwin->rate());
+        BOOST_CHECK_EQUAL(lockedOut->accruedAmount(lastSunday),
+                          nominal * lockedOutTwin->rate() * lockedOut->accruedPeriod(lastSunday));
+
+        // with telescopic value dates
+        BOOST_CHECK_EQUAL(shifted(0, 0.0, true)->rate(), coupon->rate());
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testAveragedForecastUpToTheDate)
+{
+    BOOST_TEST_MESSAGE("Testing that an averaged overnight coupon accrues its forecast fixings only up to the date...");
+
+    const WeekendsOnly calendar;
+    const Actual360 dayCounter;
+    RelinkableHandle<YieldTermStructure> curve;
+    const Date start(1, October, 2026), end(20, November, 2026), sunday(1, November, 2026);
+    const Real nominal = 10000.0;
+
+    // on an index fixing on the day its rate is for, and on one fixing 2 days before it
+    for (const Natural fixingDays : {0U, 2U})
+    {
+        const auto index = ext::make_shared<OvernightIndex>(fixingDays == 0 ? "T434" : "T434F", fixingDays,
+                                                            USDCurrency(), calendar, dayCounter, curve);
+
+        // each fixing, stored or forecast, over its period up to the date
+        const auto accrued = [&](const Date& date)
+        {
+            Real sum = 0.0;
+            for (Date d = start; d < date; d = calendar.advance(d, 1, Days))
+                sum += index->fixing(index->fixingDate(d)) *
+                       dayCounter.yearFraction(d, std::min(calendar.advance(d, 1, Days), date));
+            return nominal * sum;
+        };
+
+        // no fixing stored; the fixings from Thursday 24 September up to Thursday 15 October stored at 2.1 %; and up to
+        // Thursday 29 October
+        for (const Date& today : {Date(1, September, 2026), Date(16, October, 2026), Date(30, October, 2026)})
+        {
+            Settings::instance().evaluationDate() = today;
+            // a forward of 2 % up to Monday 2 November and 3 % after it
+            curve.linkTo(ext::make_shared<ForwardCurve>(
+                std::vector<Date>{today, Date(2, November, 2026), Date(1, January, 2027)},
+                std::vector<Rate>{0.02, 0.02, 0.03}, dayCounter));
+            index->clearFixings();
+            for (Date d = calendar.advance(start, -5, Days); d < today; d = calendar.advance(d, 1, Days))
+                index->addFixing(d, 0.021);
+            for (bool telescopicValueDates : {false, true})
+            {
+                BOOST_TEST_CONTEXT("fixing " << (fixingDays == 0 ? "on the day" : "2 days before") << ", today "
+                                             << today << (telescopicValueDates ? ", telescopic" : ", dense")
+                                             << " value dates")
+                {
+                    // Telescopic value dates take the forecast from the log of a ratio of discount factors, which
+                    // falls short of the forecasts over their periods by up to 2.0e-3 on these coupons.
+                    const Real tolerance = telescopicValueDates ? 1e-2 : 1e-9;
+                    const OvernightIndexedCoupon coupon(end, nominal, start, end, index, 1.0, 0.0, Date(), Date(),
+                                                        dayCounter, telescopicValueDates, RateAveraging::Simple);
+                    for (Date d = start + 1; d <= end; ++d)
+                    {
+                        BOOST_TEST_CONTEXT("accrued to " << d)
+                        {
+                            CHECK_OIS_COUPON_RESULT("accrued amount", coupon.accruedAmount(d), accrued(d), tolerance);
+                        }
+                    }
+
+                    // a coupon ending on Sunday 1 November
+                    const OvernightIndexedCoupon toSunday(sunday, nominal, start, sunday, index, 1.0, 0.0, Date(),
+                                                          Date(), dayCounter, telescopicValueDates,
+                                                          RateAveraging::Simple);
+                    CHECK_OIS_COUPON_RESULT("amount to a Sunday", toSunday.amount(), accrued(sunday), tolerance);
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testDailyCapsAndFloorsOverTheCouponsDays)
+{
+    BOOST_TEST_MESSAGE("Testing daily caps and floors on an overnight coupon over the days it accrues its fixings...");
+
+    const Actual360 dayCounter;
+    RelinkableHandle<YieldTermStructure> curve;
+    const WeekendsOnly weekends;
+    const auto estr = ext::make_shared<Estr>(curve);
+    // on a weekends-only calendar, Actual/360, fixing on the day it applies and a day before it
+    const auto sameDay = ext::make_shared<OvernightIndex>("T438", 0, USDCurrency(), weekends, dayCounter, curve);
+    const auto dayBefore = ext::make_shared<OvernightIndex>("T438D", 1, USDCurrency(), weekends, dayCounter, curve);
+
+    // Every fixing, stored at 3 % or forecast from a flat curve of 3 %, is above the cap and below the floor, so at
+    // zero volatility a coupon capped or floored on each day's rate has the rate of the same coupon with every fixing
+    // at the cap or floor: that coupon's, on an index with the same calendar and fixing days storing them, priced
+    // after its end.
+    const Rate fixing = 0.03, cap = 0.025, floor = 0.035;
+
+    struct Row
+    {
+        std::string name;
+        ext::shared_ptr<OvernightIndex> index;
+        Date start, end;
+        RateAveraging::Type averaging;
+        Natural lookbackDays, lockoutDays;
+        bool applyObservationShift;
+    };
+    const Natural none = Null<Natural>();
+    const auto compound = RateAveraging::Compound, simple = RateAveraging::Simple;
+    const Date october(1, October, 2026), sunday(1, November, 2026), monday(2, November, 2026),
+        saturday(31, October, 2026), december(1, December, 2026), christmas(25, December, 2026);
+    const std::vector<Row> rows = {
+        // on ESTR, to a TARGET holiday, to a Sunday and to a fixing day
+        {"compounded to Friday 25 December", estr, december, christmas, compound, none, 0, false},
+        {"averaged to Friday 25 December", estr, december, christmas, simple, none, 0, false},
+        {"compounded to Sunday 1 November", estr, october, sunday, compound, none, 0, false},
+        {"averaged to Sunday 1 November", estr, october, sunday, simple, none, 0, false},
+        {"compounded to Monday 2 November", estr, october, monday, compound, none, 0, false},
+        {"averaged to Monday 2 November", estr, october, monday, simple, none, 0, false},
+        // with a lookback of 2 days, without and with the observation shift
+        {"lookback", sameDay, october, monday, compound, 2, 0, false},
+        {"lookback to Sunday 1 November", sameDay, october, sunday, compound, 2, 0, false},
+        {"lookback and lockout", sameDay, october, monday, compound, 2, 2, false},
+        {"lookback and shift", sameDay, october, monday, compound, 2, 0, true},
+        {"lookback and shift to Sunday 1 November", sameDay, october, sunday, compound, 2, 0, true},
+        // from a Saturday
+        {"lockout from Saturday 31 October", sameDay, saturday, december, compound, none, 2, false},
+        {"averaged from Saturday 31 October, fixing a day before", dayBefore, saturday, december, simple, none, 0,
+         false}};
+
+    const auto coupon = [&](const Row& r, const ext::shared_ptr<OvernightIndex>& index)
+    {
+        return ext::make_shared<OvernightIndexedCoupon>(r.end, 10000.0, r.start, r.end, index, 1.0, 0.0, Date(), Date(),
+                                                        dayCounter, false, r.averaging, r.lookbackDays, r.lockoutDays,
+                                                        r.applyObservationShift);
+    };
+    const auto store = [](const ext::shared_ptr<OvernightIndex>& index, const Date& until, Rate rate)
+    {
+        index->clearFixings();
+        for (Date d(1, September, 2026); d <= until; ++d)
+            if (index->isValidFixingDate(d))
+                index->addFixing(d, rate);
+    };
+
+    for (const auto& r : rows)
+    {
+        const auto twin =
+            ext::make_shared<OvernightIndex>(r.index->familyName() + "B", r.index->fixingDays(), r.index->currency(),
+                                             r.index->fixingCalendar(), r.index->dayCounter());
+        Settings::instance().evaluationDate() = Date(1, March, 2027);
+        store(twin, r.end, cap);
+        const Rate capped = coupon(r, twin)->rate();
+        store(twin, r.end, floor);
+        const Rate floored = coupon(r, twin)->rate();
+
+        // today 1 September, no fixing stored: the pricers take the fixings to come as one average rate, compounded or
+        // added up daily; the day of the last fixing, with it to come and stored; and after the end
+        struct Pricing
+        {
+            Date today, storedUntil;
+            Real tolerance;
+        };
+        const Date last = coupon(r, r.index)->fixingDates().back();
+        const Date after = r.index->fixingCalendar().advance(r.end, 2, Days);
+        for (const auto& [today, storedUntil, tolerance] :
+             {Pricing{Date(1, September, 2026), Date(31, August, 2026), 1.0e-5}, Pricing{last, last - 1, 1.0e-6},
+              Pricing{last, last, 1.0e-12}, Pricing{after, after, 1.0e-12}})
+        {
+            Settings::instance().evaluationDate() = today;
+            curve.linkTo(ext::make_shared<FlatForward>(today, fixing, dayCounter, Continuous));
+            store(r.index, storedUntil, fixing);
+            const Handle<OptionletVolatilityStructure> volatility(
+                ext::make_shared<ConstantOptionletVolatility>(today, weekends, Following, 0.0, dayCounter));
+            for (bool isCap : {true, false})
+            {
+                BOOST_TEST_CONTEXT(r.name << (isCap ? ", capped" : ", floored") << " daily, today " << today
+                                          << ", fixings stored up to " << storedUntil)
+                {
+                    auto c = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(
+                        coupon(r, r.index), isCap ? cap : Null<Rate>(), isCap ? Null<Rate>() : floor, false, true);
+                    if (r.averaging == compound)
+                        c->setPricer(ext::make_shared<BlackCompoundingOvernightIndexedCouponPricer>(volatility));
+                    else
+                        c->setPricer(ext::make_shared<BlackAveragingOvernightIndexedCouponPricer>(volatility));
+                    const Rate expected = isCap ? capped : floored;
+                    CHECK_OIS_COUPON_RESULT("coupon rate", c->rate(), expected, tolerance);
+                }
+            }
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testRateFromAStartThatIsNotAFixingDay)
+{
+    BOOST_TEST_MESSAGE("Testing overnight coupons starting on a day that isn't a fixing day...");
+
+    const TARGET calendar;
+    const Actual360 dayCounter;
+    RelinkableHandle<YieldTermStructure> curve;
+    const auto index = ext::make_shared<Estr>(curve);
+    const Real nominal = 10000.0;
+
+    // each fixing, from the one on the fixing day before the start, accrues from its day or the start, whichever is
+    // later, to the next fixing day or the date, whichever is earlier
+    const auto accrue = [&](const Date& start, const Date& date, bool compound)
+    {
+        Real factor = 1.0, sum = 0.0;
+        for (Date d = calendar.adjust(start, Preceding); d < date; d = calendar.advance(d, 1, Days))
+        {
+            const Time t = dayCounter.yearFraction(std::max(d, start), std::min(calendar.advance(d, 1, Days), date));
+            factor *= 1.0 + index->fixing(d) * t;
+            sum += index->fixing(d) * t;
+        }
+        return (compound ? factor - 1.0 : sum) / dayCounter.yearFraction(start, date);
+    };
+    const auto makeCoupon = [&](const Date& start, const Date& end, RateAveraging::Type averaging, bool telescopic,
+                                Natural lookbackDays = Null<Natural>(), bool applyObservationShift = false)
+    {
+        return ext::make_shared<OvernightIndexedCoupon>(end, nominal, start, end, index, 1.0, 0.0, Date(), Date(),
+                                                        dayCounter, telescopic, averaging, lookbackDays, 0,
+                                                        applyObservationShift);
+    };
+    const auto check = [](const std::string& what, Real calculated, Real expected, Real tolerance)
+    {
+        if (!(std::fabs(calculated - expected) <= tolerance))
+            BOOST_ERROR("Failed to reproduce " << what << ":\n    expected:   " << std::setprecision(15) << expected
+                                               << "\n    calculated: " << calculated
+                                               << "\n    error:      " << std::fabs(calculated - expected));
+    };
+
+    // Friday 1 May 2026 and Good Friday, 3 April, aren't TARGET business days
+    const Date may(1, May, 2026), june(1, June, 2026), goodFriday(3, April, 2026), mayMonday(4, May, 2026);
+    for (const Date& today : {Date(1, April, 2026), Date(15, May, 2026)})
+    {
+        Settings::instance().evaluationDate() = today;
+        curve.linkTo(ext::make_shared<FlatForward>(today, 0.03, dayCounter));
+        index->clearFixings();
+        for (Date d(1, April, 2026); d < today; d = calendar.advance(d, 1, Days))
+            index->addFixing(d, 0.029);
+
+        for (const auto& [startDate, endDate] : {std::pair(may, june), std::pair(goodFriday, mayMonday)})
+        {
+            std::ostringstream label;
+            label << "the coupon from " << startDate << " to " << endDate << " on " << today;
+            const auto dense = makeCoupon(startDate, endDate, RateAveraging::Compound, false);
+            const auto telescopic = makeCoupon(startDate, endDate, RateAveraging::Compound, true);
+            const auto averaged = makeCoupon(startDate, endDate, RateAveraging::Simple, false);
+            const auto approximated = makeCoupon(startDate, endDate, RateAveraging::Simple, true);
+            const Rate compounded = accrue(startDate, endDate, true), simple = accrue(startDate, endDate, false);
+            check(label.str() + ", its rate", dense->rate(), compounded, 1e-12);
+            check(label.str() + " on telescopic value dates, its rate", telescopic->rate(), compounded, 1e-12);
+            check(label.str() + " averaged, its rate", averaged->rate(), simple, 1e-12);
+            check(label.str() + " averaged by approximation, its rate", approximated->rate(), simple, 1e-5);
+            for (Date d = startDate + 1; d <= endDate; ++d)
+            {
+                std::ostringstream at;
+                at << " at " << d;
+                const Time period = dayCounter.yearFraction(startDate, d);
+                const Real compoundedAmount = nominal * accrue(startDate, d, true) * period,
+                           simpleAmount = nominal * accrue(startDate, d, false) * period;
+                check(label.str() + ", its accrued amount" + at.str(), dense->accruedAmount(d), compoundedAmount, 1e-9);
+                check(label.str() + " averaged, its accrued amount" + at.str(), averaged->accruedAmount(d),
+                      simpleAmount, 1e-9);
+                if (d <= dense->interestDates()[1])
+                {
+                    check(label.str() + " on telescopic value dates, its accrued amount" + at.str(),
+                          telescopic->accruedAmount(d), compoundedAmount, 1e-9);
+                    check(label.str() + " averaged by approximation, its accrued amount" + at.str(),
+                          approximated->accruedAmount(d), simpleAmount, 1e-9);
+                }
+            }
+        }
+    }
+
+    // with a lookback of 2 days and the observation shift, the coupon from 1 May has the rate of its observation
+    // period, from Wednesday 29 April to Thursday 28 May, and accrues nothing up to its first business day
+    const Date today(1, April, 2026);
+    Settings::instance().evaluationDate() = today;
+    curve.linkTo(ext::make_shared<FlatForward>(today, 0.03, dayCounter));
+    index->clearFixings();
+    const auto shifted = makeCoupon(may, june, RateAveraging::Compound, false, 2, true);
+    const Date observationStart(29, April, 2026), observationEnd(28, May, 2026);
+    BOOST_CHECK_EQUAL(shifted->rate(),
+                      makeCoupon(observationStart, observationEnd, RateAveraging::Compound, false)->rate());
+    for (Date d = may + 1; d <= june; ++d)
+    {
+        const Date observed = calendar.advance(calendar.adjust(d), -2, Days);
+        const Real expected = observed == observationStart ?
+                                  0.0 :
+                                  nominal *
+                                      makeCoupon(observationStart, observed, RateAveraging::Compound, false)->rate() *
+                                      shifted->accruedPeriod(d);
+        std::ostringstream at;
+        at << "the shifted coupon's accrued amount at " << d;
+        check(at.str(), shifted->accruedAmount(d), expected, 1e-9);
+    }
+
+    // from Saturday 2 May to Monday 4 May a coupon holds no fixing day: it takes the fixing of Thursday 30 April, the
+    // fixing day before its start, and with a lookback of 2 days the fixing of Tuesday 28 April
+    const Date saturday(2, May, 2026), sunday(3, May, 2026);
+    struct Kind
+    {
+        std::string name;
+        RateAveraging::Type averaging;
+        bool telescopic;
+        Natural lookbackDays;
+        Date fixingDate;
+    };
+    const std::vector<Kind> kinds = {
+        {"", RateAveraging::Compound, false, Null<Natural>(), Date(30, April, 2026)},
+        {" on telescopic value dates", RateAveraging::Compound, true, Null<Natural>(), Date(30, April, 2026)},
+        {" averaged", RateAveraging::Simple, false, Null<Natural>(), Date(30, April, 2026)},
+        {" averaged by approximation", RateAveraging::Simple, true, Null<Natural>(), Date(30, April, 2026)},
+        {" with a lookback of 2 days", RateAveraging::Compound, false, 2, Date(28, April, 2026)}};
+    for (const Date& evaluationDate : {Date(1, April, 2026), Date(15, May, 2026)})
+    {
+        Settings::instance().evaluationDate() = evaluationDate;
+        curve.linkTo(ext::make_shared<FlatForward>(evaluationDate, 0.03, dayCounter));
+        index->clearFixings();
+        for (Date d(1, April, 2026); d < evaluationDate; d = calendar.advance(d, 1, Days))
+            index->addFixing(d, 0.029);
+        for (const auto& k : kinds)
+        {
+            std::ostringstream label;
+            label << "the coupon from " << saturday << " to " << mayMonday << k.name << " on " << evaluationDate;
+            ext::shared_ptr<OvernightIndexedCoupon> coupon;
+            BOOST_CHECK_NO_THROW(coupon = makeCoupon(saturday, mayMonday, k.averaging, k.telescopic, k.lookbackDays));
+            if (!coupon)
+                continue;
+            const Rate fixing = index->fixing(k.fixingDate);
+            check(label.str() + ", its rate", coupon->rate(), fixing, 1e-12);
+            for (const Date& d : {sunday, mayMonday})
+            {
+                std::ostringstream at;
+                at << ", its accrued amount at " << d;
+                check(label.str() + at.str(), coupon->accruedAmount(d),
+                      nominal * fixing * dayCounter.yearFraction(saturday, d), 1e-9);
+            }
+        }
+    }
+
+    // the coupon from Friday 1 May takes the fixing of Thursday 30 April for its first three days: priced on 15 May
+    // with the fixings stored from Monday 4 May only, it misses that fixing
+    const Date fifteenth(15, May, 2026);
+    Settings::instance().evaluationDate() = fifteenth;
+    curve.linkTo(ext::make_shared<FlatForward>(fifteenth, 0.03, dayCounter));
+    index->clearFixings();
+    for (Date d = mayMonday; d < fifteenth; d = calendar.advance(d, 1, Days))
+        index->addFixing(d, 0.029);
+    for (auto averaging : {RateAveraging::Compound, RateAveraging::Simple})
+        for (bool telescopic : {false, true})
+            BOOST_CHECK_EXCEPTION(makeCoupon(may, june, averaging, telescopic)->rate(), Error,
+                                  ExpectedErrorMessage("fixing for April 30th, 2026"));
+}
+
+BOOST_AUTO_TEST_CASE(testRateOverTheRateComputationPeriod)
+{
+    BOOST_TEST_MESSAGE("Testing overnight coupons over a rate computation period other than their accrual period...");
+
+    const TARGET calendar;
+    const Actual360 dayCounter;
+    // 2 % up to 1 October 2026, then 3 %
+    const Handle<YieldTermStructure> curve(ext::make_shared<ForwardCurve>(
+        std::vector<Date>{Date(1, April, 2026), Date(1, October, 2026), Date(1, April, 2027), Date(1, April, 2028)},
+        std::vector<Rate>{0.02, 0.02, 0.03, 0.04}, dayCounter));
+    const auto index = ext::make_shared<Estr>(curve);
+    const Real nominal = 10000.0;
+    const Schedule schedule = MakeSchedule()
+                                  .from(Date(4, May, 2026))
+                                  .to(Date(4, May, 2027))
+                                  .withTenor(3 * Months)
+                                  .withCalendar(calendar)
+                                  .withConvention(Following);
+    const auto overThePeriod = [&](const Date& start, const Date& end, RateAveraging::Type averaging, bool telescopic)
+    {
+        return ext::make_shared<OvernightIndexedCoupon>(end, nominal, start, end, index, 1.0, 0.0, Date(), Date(),
+                                                        dayCounter, telescopic, averaging);
+    };
+    const auto accrue = [&](const Date& start, const Date& date, bool compound)
+    {
+        Real factor = 1.0, sum = 0.0;
+        for (Date d = start; d < date; d = calendar.advance(d, 1, Days))
+        {
+            const Time t = dayCounter.yearFraction(d, std::min(calendar.advance(d, 1, Days), date));
+            factor *= 1.0 + index->fixing(d) * t;
+            sum += index->fixing(d) * t;
+        }
+        return (compound ? factor - 1.0 : sum) / dayCounter.yearFraction(start, date);
+    };
+    const auto check = [](const std::string& what, Real calculated, Real expected, Real tolerance)
+    {
+        if (!(std::fabs(calculated - expected) <= tolerance))
+            BOOST_ERROR("Failed to reproduce " << what << ":\n    expected:   " << std::setprecision(15) << expected
+                                               << "\n    calculated: " << calculated
+                                               << "\n    error:      " << std::fabs(calculated - expected));
+    };
+
+    // the second coupon, from 4 August to 4 November 2026
+    struct Row
+    {
+        std::string name;
+        bool inArrears;
+        ext::optional<Period> lastRecentPeriod;
+        Date rateStart, rateEnd;
+    };
+    const std::vector<Row> rows = {
+        {"fixed in advance", false, ext::nullopt, Date(4, May, 2026), Date(4, August, 2026)},
+        {"over a last recent period of one month", true, 1 * Months, Date(5, October, 2026), Date(4, November, 2026)}};
+    for (const Date& today : {Date(1, April, 2026), Date(1, July, 2026)})
+    {
+        Settings::instance().evaluationDate() = today;
+        index->clearFixings();
+        for (Date d(4, May, 2026); d < today; d = calendar.advance(d, 1, Days))
+            index->addFixing(d, 0.021);
+        for (const auto& r : rows)
+            for (auto averaging : {RateAveraging::Compound, RateAveraging::Simple})
+                for (bool telescopic : {false, true})
+                {
+                    const Leg leg = OvernightLeg(schedule, index)
+                                        .withNotionals(nominal)
+                                        .withPaymentDayCounter(dayCounter)
+                                        .withAveragingMethod(averaging)
+                                        .withTelescopicValueDates(telescopic)
+                                        .inArrears(r.inArrears)
+                                        .withLastRecentPeriod(r.lastRecentPeriod);
+                    const auto coupon = ext::dynamic_pointer_cast<OvernightIndexedCoupon>(leg[1]);
+                    BOOST_REQUIRE(coupon);
+                    std::ostringstream label;
+                    label << "the coupon " << r.name << (telescopic ? " on telescopic value dates" : "")
+                          << (averaging == RateAveraging::Compound ? ", compounded," : ", averaged,") << " on "
+                          << today;
+                    BOOST_CHECK_EQUAL(coupon->rateComputationStartDate(), r.rateStart);
+                    BOOST_CHECK_EQUAL(coupon->rateComputationEndDate(), r.rateEnd);
+                    const Rate expected = overThePeriod(r.rateStart, r.rateEnd, averaging, telescopic)->rate();
+                    if (coupon->rate() != expected)
+                        BOOST_ERROR("Failed to reproduce " << label.str()
+                                                           << ", its rate:\n    expected:   " << std::setprecision(17)
+                                                           << expected << "\n    calculated: " << coupon->rate());
+                    // on telescopic value dates, an averaged rate is approximated
+                    const Real tolerance = telescopic && averaging == RateAveraging::Simple ? 1e-5 : 1e-12;
+                    check(label.str() + ", its rate from its fixings", coupon->rate(),
+                          accrue(r.rateStart, r.rateEnd, averaging == RateAveraging::Compound), tolerance);
+                    for (Date d = coupon->accrualStartDate() + 1; d <= coupon->accrualEndDate(); ++d)
+                    {
+                        // on telescopic value dates, at the dates outside the rate computation period
+                        if (telescopic && d > r.rateStart && d < r.rateEnd)
+                            continue;
+                        std::ostringstream at;
+                        at << ", its accrued amount at " << d;
+                        const Real amount =
+                            d <= r.rateStart ?
+                                0.0 :
+                                nominal *
+                                    overThePeriod(r.rateStart, std::min(d, r.rateEnd), averaging, telescopic)->rate() *
+                                    coupon->accruedPeriod(d);
+                        check(label.str() + at.str(), coupon->accruedAmount(d), amount, 1e-9);
+                    }
+                }
+    }
+
+    // on telescopic value dates, a coupon whose rate computation period ends on Sunday 1 November 2026, before its
+    // accrual end, has from then on the rate of a coupon over that period
+    Settings::instance().evaluationDate() = Date(1, April, 2026);
+    index->clearFixings();
+    const Date october(1, October, 2026), sunday(1, November, 2026);
+    for (auto averaging : {RateAveraging::Compound, RateAveraging::Simple})
+    {
+        const auto coupon = ext::make_shared<OvernightIndexedCoupon>(
+            Date(4, November, 2026), nominal, Date(4, August, 2026), Date(4, November, 2026), index, 1.0, 0.0, Date(),
+            Date(), dayCounter, true, averaging, Null<Natural>(), 0, false, false, october, sunday);
+        std::ostringstream label;
+        label << "the coupon over a rate computation period to " << sunday
+              << (averaging == RateAveraging::Compound ? ", compounded" : ", averaged");
+        const Rate expected = overThePeriod(october, sunday, averaging, true)->rate();
+        if (coupon->rate() != expected)
+            BOOST_ERROR("Failed to reproduce " << label.str()
+                                               << ", its rate:\n    expected:   " << std::setprecision(17) << expected
+                                               << "\n    calculated: " << coupon->rate());
+        for (Date d = sunday + 1; d <= coupon->accrualEndDate(); ++d)
+        {
+            std::ostringstream at;
+            at << ", its accrued amount at " << d;
+            check(label.str() + at.str(), coupon->accruedAmount(d), nominal * expected * coupon->accruedPeriod(d),
+                  1e-9);
+        }
+    }
+
+    // a rate computation period that ends where it starts
+    BOOST_CHECK_EXCEPTION(ext::make_shared<OvernightIndexedCoupon>(
+                              Date(4, November, 2026), nominal, Date(4, August, 2026), Date(4, November, 2026), index,
+                              1.0, 0.0, Date(), Date(), dayCounter, false, RateAveraging::Compound, Null<Natural>(), 0,
+                              false, false, Date(4, August, 2026), Date(4, August, 2026)),
+                          Error, ExpectedErrorMessage("must be earlier than its end date"));
+
+    // and one that ends after the accrual end
+    BOOST_CHECK_EXCEPTION(ext::make_shared<OvernightIndexedCoupon>(
+                              Date(4, November, 2026), nominal, Date(4, August, 2026), Date(4, November, 2026), index,
+                              1.0, 0.0, Date(), Date(), dayCounter, false, RateAveraging::Compound, Null<Natural>(), 0,
+                              false, false, Date(4, September, 2026), Date(4, December, 2026)),
+                          Error, ExpectedErrorMessage("must not be later than the accrual end date"));
+}
+
+BOOST_AUTO_TEST_CASE(testDailyCapsAndFloorsOverTheRateComputationPeriod)
+{
+    BOOST_TEST_MESSAGE("Testing daily caps and floors on overnight coupons over their rate computation period...");
+
+    const TARGET calendar;
+    const Actual360 dayCounter;
+    // 2 % up to 1 October 2026, then 3 %
+    const Handle<YieldTermStructure> curve(ext::make_shared<ForwardCurve>(
+        std::vector<Date>{Date(1, April, 2026), Date(1, October, 2026), Date(1, April, 2027), Date(1, April, 2028)},
+        std::vector<Rate>{0.02, 0.02, 0.03, 0.04}, dayCounter));
+    const auto index = ext::make_shared<Estr>(curve);
+    const Real nominal = 10000.0;
+    const Schedule schedule = MakeSchedule()
+                                  .from(Date(4, May, 2026))
+                                  .to(Date(4, May, 2027))
+                                  .withTenor(3 * Months)
+                                  .withCalendar(calendar)
+                                  .withConvention(Following);
+    const Handle<OptionletVolatilityStructure> volatility(
+        ext::make_shared<ConstantOptionletVolatility>(0, calendar, Following, 0.0, dayCounter));
+    const auto check = [](const std::string& what, Real calculated, Real expected, Real tolerance)
+    {
+        if (!(std::fabs(calculated - expected) <= tolerance))
+            BOOST_ERROR("Failed to reproduce " << what << ":\n    expected:   " << std::setprecision(15) << expected
+                                               << "\n    calculated: " << calculated
+                                               << "\n    error:      " << std::fabs(calculated - expected));
+    };
+
+    // the second coupon, from 4 August to 4 November 2026; no fixing over its rate computation period, at 2 % in
+    // advance and at 3 % over the last month, reaches its cap or floor
+    struct Row
+    {
+        std::string name;
+        bool inArrears;
+        ext::optional<Period> lastRecentPeriod;
+        Rate cap, floor;
+    };
+    const std::vector<Row> rows = {{"fixed in advance", false, ext::nullopt, 0.021, 0.015},
+                                   {"over a last recent period of one month", true, 1 * Months, 0.035, 0.025}};
+    for (const Date& today : {Date(1, April, 2026), Date(1, September, 2026)})
+    {
+        Settings::instance().evaluationDate() = today;
+        index->clearFixings();
+        for (Date d(4, May, 2026); d < today; d = calendar.advance(d, 1, Days))
+            index->addFixing(d, 0.02);
+        for (const auto& r : rows)
+            for (auto averaging : {RateAveraging::Compound, RateAveraging::Simple})
+                for (bool isCap : {true, false})
+                {
+                    const Leg leg = OvernightLeg(schedule, index)
+                                        .withNotionals(nominal)
+                                        .withPaymentDayCounter(dayCounter)
+                                        .withAveragingMethod(averaging)
+                                        .inArrears(r.inArrears)
+                                        .withLastRecentPeriod(r.lastRecentPeriod);
+                    const auto coupon = ext::dynamic_pointer_cast<OvernightIndexedCoupon>(leg[1]);
+                    BOOST_REQUIRE(coupon);
+                    const auto capped = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(
+                        coupon, isCap ? r.cap : Null<Rate>(), isCap ? Null<Rate>() : r.floor, false, true);
+                    capped->setPricer(makeBlackOvernightPricer(averaging, volatility));
+                    std::ostringstream label;
+                    label << "the coupon " << r.name
+                          << (averaging == RateAveraging::Compound ? ", compounded" : ", averaged")
+                          << (isCap ? ", capped" : ", floored") << " each day, on " << today << ", its rate";
+                    // forecast, it differs by the Black pricer's approximation
+                    const Real tolerance = coupon->rateComputationEndDate() <= today ? 1e-12 : 1e-5;
+                    check(label.str(), capped->rate(), coupon->rate(), tolerance);
+                }
+    }
+
+    // capped below or floored above each of its fixings, at 2 % in advance and at 3 % over the last month, forecast on
+    // 1 April and 1 September and known on 5 November: the rate of the cap or floor held over its rate computation
+    // period
+    const auto held = [&](Rate level, const Date& start, const Date& end, bool compound)
+    {
+        Real factor = 1.0, sum = 0.0;
+        for (Date d = start; d < end; d = calendar.advance(d, 1, Days))
+        {
+            const Time t = dayCounter.yearFraction(d, std::min(calendar.advance(d, 1, Days), end));
+            factor *= 1.0 + level * t;
+            sum += level * t;
+        }
+        return (compound ? factor - 1.0 : sum) / dayCounter.yearFraction(start, end);
+    };
+    struct Held
+    {
+        std::string name;
+        bool inArrears;
+        ext::optional<Period> lastRecentPeriod;
+        Rate cap, floor;
+        Date start, end;
+    };
+    const std::vector<Held> heldRows = {
+        {"fixed in advance", false, ext::nullopt, 0.019, 0.021, Date(4, May, 2026), Date(4, August, 2026)},
+        {"over a last recent period of one month", true, 1 * Months, 0.029, 0.031, Date(5, October, 2026),
+         Date(4, November, 2026)}};
+    for (const Date& today : {Date(1, April, 2026), Date(1, September, 2026), Date(5, November, 2026)})
+    {
+        Settings::instance().evaluationDate() = today;
+        index->clearFixings();
+        for (Date d(4, May, 2026); d < today; d = calendar.advance(d, 1, Days))
+            index->addFixing(d, d < Date(1, October, 2026) ? 0.02 : 0.03);
+        for (const auto& r : heldRows)
+            for (auto averaging : {RateAveraging::Compound, RateAveraging::Simple})
+                for (bool isCap : {true, false})
+                {
+                    const Rate strike = isCap ? r.cap : r.floor;
+                    const Leg leg = OvernightLeg(schedule, index)
+                                        .withNotionals(nominal)
+                                        .withPaymentDayCounter(dayCounter)
+                                        .withAveragingMethod(averaging)
+                                        .inArrears(r.inArrears)
+                                        .withLastRecentPeriod(r.lastRecentPeriod);
+                    const auto coupon = ext::dynamic_pointer_cast<OvernightIndexedCoupon>(leg[1]);
+                    BOOST_REQUIRE(coupon);
+                    const auto capped = ext::make_shared<CappedFlooredOvernightIndexedCoupon>(
+                        coupon, isCap ? strike : Null<Rate>(), isCap ? Null<Rate>() : strike, false, true);
+                    capped->setPricer(makeBlackOvernightPricer(averaging, volatility));
+                    std::ostringstream label;
+                    label << "the coupon " << r.name
+                          << (averaging == RateAveraging::Compound ? ", compounded" : ", averaged")
+                          << (isCap ? ", capped" : ", floored") << " each day at " << strike << ", on " << today
+                          << ", its rate";
+                    // forecast, it differs by the Black pricer's approximation
+                    const Real tolerance = r.end <= today ? 1e-12 : 1e-5;
+                    check(label.str(), capped->rate(),
+                          held(strike, r.start, r.end, averaging == RateAveraging::Compound), tolerance);
+                }
     }
 }
 
