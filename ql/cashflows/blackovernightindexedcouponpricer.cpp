@@ -245,16 +245,21 @@ namespace QuantLib
             Time midPoint = (capletVolatility()->timeFromReference(dates[i]) +
                              capletVolatility()->timeFromReference(dates[nCutoff])) /
                             2.0;
-            Real stdDev = capletVolatility()->volatility(midPoint, effStrike) * std::sqrt(midPoint);
+            Volatility vol = capletVolatility()->volatility(midPoint, effStrike);
+            Real stdDev = vol * std::sqrt(midPoint);
             Real shift = capletVolatility()->displacement();
             bool shiftedLn = capletVolatility()->volatilityType() == ShiftedLognormal;
             Rate cfValue = shiftedLn ? blackFormula(optionType, effStrike, averageRate, stdDev, 1.0, shift) :
                                        bachelierBlackFormula(optionType, effStrike, averageRate, stdDev, 1.0);
+            // the effective volatility is the standard deviation over the square root of the time from the volatility's
+            // reference date to the coupon's last fixing date or, where that time isn't positive, the volatility the
+            // standard deviation was taken at
             Real effectiveTime = capletVolatility()->timeFromReference(fixingDates.back());
+            Volatility effectiveVolatility = effectiveTime > 0.0 ? stdDev / std::sqrt(effectiveTime) : vol;
             if (optionType == Option::Type::Call)
-                effectiveCapletVolatility_ = stdDev / std::sqrt(effectiveTime);
+                effectiveCapletVolatility_ = effectiveVolatility;
             else
-                effectiveFloorletVolatility_ = stdDev / std::sqrt(effectiveTime);
+                effectiveFloorletVolatility_ = effectiveVolatility;
 
             // add spread to average rate
             if (coupon_->compoundSpreadDaily())
@@ -542,17 +547,22 @@ namespace QuantLib
             Time midPoint = (capletVolatility()->timeFromReference(dates[i]) +
                              capletVolatility()->timeFromReference(dates[nCutoff])) /
                             2.0;
-            Real stdDev = capletVolatility()->volatility(midPoint, effStrike) * std::sqrt(midPoint);
+            Volatility vol = capletVolatility()->volatility(midPoint, effStrike);
+            Real stdDev = vol * std::sqrt(midPoint);
             Real shift = capletVolatility()->displacement();
             bool shiftedLn = capletVolatility()->volatilityType() == ShiftedLognormal;
             Rate cfValue = shiftedLn ? blackFormula(optionType, effStrike, averageRate, stdDev, 1.0, shift) :
                                        bachelierBlackFormula(optionType, effStrike, averageRate, stdDev, 1.0);
 
+            // the effective volatility is the standard deviation over the square root of the time from the volatility's
+            // reference date to the coupon's last fixing date or, where that time isn't positive, the volatility the
+            // standard deviation was taken at
             Real effectiveTime = capletVolatility()->timeFromReference(fixingDates.back());
+            Volatility effectiveVolatility = effectiveTime > 0.0 ? stdDev / std::sqrt(effectiveTime) : vol;
             if (optionType == Option::Type::Call)
-                effectiveCapletVolatility_ = stdDev / std::sqrt(effectiveTime);
+                effectiveCapletVolatility_ = effectiveVolatility;
             else
-                effectiveFloorletVolatility_ = stdDev / std::sqrt(effectiveTime);
+                effectiveFloorletVolatility_ = effectiveVolatility;
 
             // add spread to average rate
             if (coupon_->compoundSpreadDaily())
