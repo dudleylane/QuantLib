@@ -33,6 +33,7 @@
 #include <ql/indexes/ibor/sofr.hpp>
 #include <ql/math/interpolations/cubicinterpolation.hpp>
 #include <ql/settings.hpp>
+#include <ql/termstructures/volatility/flatsmilesection.hpp>
 #include <ql/termstructures/volatility/optionlet/constantoptionletvol.hpp>
 #include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/termstructures/yield/forwardcurve.hpp>
@@ -1068,6 +1069,363 @@ BOOST_AUTO_TEST_CASE(testLockoutFixedTodayDailyCapsAndFloors)
             if (calculated != Null<Rate>())
             {
                 CHECK_OIS_COUPON_RESULT("rate", calculated, underlying->rate(), tolerance);
+            }
+        }
+    }
+}
+
+namespace
+{
+    // an optionlet volatility linear in time, v0 + slope t, so that the time a volatility is taken at shows in it
+    class LinearOptionletVolatility : public OptionletVolatilityStructure
+    {
+      public:
+        LinearOptionletVolatility(
+            Natural settlementDays, const Calendar& calendar, Volatility v0, Real slope, const DayCounter& dayCounter)
+        : OptionletVolatilityStructure(settlementDays, calendar, Following, dayCounter), v0_(v0), slope_(slope)
+        {
+        }
+        LinearOptionletVolatility(const Date& referenceDate,
+                                  const Calendar& calendar,
+                                  Volatility v0,
+                                  Real slope,
+                                  const DayCounter& dayCounter)
+        : OptionletVolatilityStructure(referenceDate, calendar, Following, dayCounter), v0_(v0), slope_(slope)
+        {
+        }
+        Date maxDate() const override { return Date::maxDate(); }
+        Rate minStrike() const override { return QL_MIN_REAL; }
+        Rate maxStrike() const override { return QL_MAX_REAL; }
+
+      protected:
+        ext::shared_ptr<SmileSection> smileSectionImpl(Time t) const override
+        {
+            return ext::make_shared<FlatSmileSection>(t, volatilityImpl(t, 0.0), dayCounter());
+        }
+        Volatility volatilityImpl(Time t, Rate) const override { return v0_ + slope_ * t; }
+
+      private:
+        Volatility v0_;
+        Real slope_;
+    };
+}
+
+BOOST_AUTO_TEST_CASE(testDailyCapsAndFloorsFiniteEffectiveVolatilities)
+{
+    BOOST_TEST_MESSAGE("Testing daily caps' and floors' effective volatilities where the volatility's reference date "
+                       "is on or after the coupon's last fixing date...");
+
+    const WeekendsOnly calendar;
+    const Actual360 dayCounter;
+    const Handle<YieldTermStructure> curve(ext::make_shared<FlatForward>(0, calendar, 0.025, dayCounter));
+    const auto index = ext::make_shared<OvernightIndex>("T431", 0, USDCurrency(), calendar, dayCounter, curve);
+    const Rate cap = 0.028, floor = 0.032;
+    const auto linear = [&](Natural settlementDays)
+    { return ext::make_shared<LinearOptionletVolatility>(settlementDays, calendar, 0.05, 2.0, dayCounter); };
+
+    // coupons from Monday 9 November 2026, with fixings of 2 % for 9 November and 3 % for each later day before the
+    // evaluation date; coupon A ends on Friday 13 November, so its last fixing date is 12 November, and coupon B on
+    // Monday 16 November, so its last fixing date is 13 November
+    const Date start(9, November, 2026), endA(13, November, 2026), endB(16, November, 2026);
+    struct Coupons
+    {
+        ext::shared_ptr<CappedFlooredOvernightIndexedCoupon> capped, floored;
+    };
+    const auto coupons = [&](const Date& today, const Date& end, Natural lockoutDays, RateAveraging::Type averaging,
+                             const ext::shared_ptr<OptionletVolatilityStructure>& volatility)
+    {
+        Settings::instance().evaluationDate() = today;
+        index->clearFixings();
+        for (Date d = start; d < today; ++d)
+        {
+            if (calendar.isBusinessDay(d))
+                index->addFixing(d, d == start ? 0.02 : 0.03);
+        }
+        const Handle<OptionletVolatilityStructure> handle(volatility);
+        ext::shared_ptr<FloatingRateCouponPricer> pricer;
+        if (averaging == RateAveraging::Compound)
+            pricer = ext::make_shared<BlackCompoundingOvernightIndexedCouponPricer>(handle);
+        else
+            pricer = ext::make_shared<BlackAveragingOvernightIndexedCouponPricer>(handle);
+        // the pricer set on each coupon, as OvernightLeg does
+        const auto underlying =
+            ext::make_shared<OvernightIndexedCoupon>(end, 100.0, start, end, index, 1.0, 0.0, Date(), Date(),
+                                                     DayCounter(), false, averaging, Null<Natural>(), lockoutDays);
+        underlying->setPricer(pricer);
+        Coupons result = {
+            ext::make_shared<CappedFlooredOvernightIndexedCoupon>(underlying, cap, Null<Rate>(), false, true),
+            ext::make_shared<CappedFlooredOvernightIndexedCoupon>(underlying, Null<Rate>(), floor, false, true)};
+        result.capped->setPricer(pricer);
+        result.floored->setPricer(pricer);
+        return result;
+    };
+    const auto method = [](RateAveraging::Type averaging)
+    { return averaging == RateAveraging::Compound ? ", compounding" : ", averaging"; };
+
+    // Where the time from the volatility's reference date to the coupon's last fixing date isn't positive, the
+    // effective volatility is the volatility at the time halfway through the days still to fix, up to any lockout, at
+    // which the pricer takes their standard deviation.
+    struct Row
+    {
+        std::string name;
+        Date today, end;
+        Natural lockoutDays;
+        ext::shared_ptr<OptionletVolatilityStructure> volatility;
+        // the first value date of the days still to fix and the value date they run to, up to any lockout
+        Date from, to;
+    };
+    const std::vector<Row> rows = {
+        {"coupon A on its last fixing date, not fixed", Date(12, November, 2026), endA, 0, linear(0),
+         Date(12, November, 2026), endA},
+        // fixing dates 9, 10, 10 and 10 November
+        {"coupon A with a lockout of 2 days on 10 November, not fixed", Date(10, November, 2026), endA, 2, linear(0),
+         Date(10, November, 2026), Date(11, November, 2026)},
+        {"coupon B on 12 November, the volatility's reference date on its last fixing date", Date(12, November, 2026),
+         endB, 0, linear(1), Date(12, November, 2026), endB},
+        // halfway through the days still to fix is the volatility's reference date too
+        {"coupon A on 11 November, the volatility's reference date on its last fixing date", Date(11, November, 2026),
+         endA, 0, linear(1), Date(11, November, 2026), endA},
+        {"coupon B on 13 November, the volatility's reference date after its last fixing date",
+         Date(13, November, 2026), endB, 0,
+         ext::make_shared<LinearOptionletVolatility>(Date(14, November, 2026), calendar, 0.05, 2.0, dayCounter),
+         Date(13, November, 2026), endB},
+    };
+    for (const auto& [name, today, end, lockoutDays, volatility, from, to] : rows)
+    {
+        for (RateAveraging::Type averaging : {RateAveraging::Compound, RateAveraging::Simple})
+        {
+            // the coupon's constructor refuses a lockout with simple averaging
+            if (lockoutDays > 0 && averaging == RateAveraging::Simple)
+                continue;
+            BOOST_TEST_CONTEXT(name << method(averaging))
+            {
+                const auto [capped, floored] = coupons(today, end, lockoutDays, averaging, volatility);
+                const Time midPoint = (volatility->timeFromReference(from) + volatility->timeFromReference(to)) / 2.0;
+                Real caplet = Null<Real>(), floorlet = Null<Real>();
+                BOOST_CHECK_NO_THROW(caplet = capped->effectiveCapletVolatility());
+                BOOST_CHECK_NO_THROW(floorlet = floored->effectiveFloorletVolatility());
+                BOOST_CHECK_EQUAL(caplet, volatility->volatility(midPoint, cap));
+                BOOST_CHECK_EQUAL(floorlet, volatility->volatility(midPoint, floor));
+            }
+        }
+    }
+
+    // Where that time is positive, the effective volatility is the standard deviation over its square root. On 10
+    // November, with that day's fixing not stored, the days still to fix run from 10 to 13 November and the last fixing
+    // date is 12 November.
+    for (RateAveraging::Type averaging : {RateAveraging::Compound, RateAveraging::Simple})
+    {
+        BOOST_TEST_CONTEXT("coupon A on 10 November, not fixed" << method(averaging))
+        {
+            const auto volatility = linear(0);
+            const auto [capped, floored] = coupons(Date(10, November, 2026), endA, 0, averaging, volatility);
+            const Time midPoint =
+                (volatility->timeFromReference(Date(10, November, 2026)) + volatility->timeFromReference(endA)) / 2.0;
+            const Time timeToLastFixing = volatility->timeFromReference(Date(12, November, 2026));
+            Real caplet = Null<Real>(), floorlet = Null<Real>();
+            BOOST_CHECK_NO_THROW(caplet = capped->effectiveCapletVolatility());
+            BOOST_CHECK_NO_THROW(floorlet = floored->effectiveFloorletVolatility());
+            BOOST_CHECK_EQUAL(caplet, volatility->volatility(midPoint, cap) * std::sqrt(midPoint) /
+                                          std::sqrt(timeToLastFixing));
+            BOOST_CHECK_EQUAL(floorlet, volatility->volatility(midPoint, floor) * std::sqrt(midPoint) /
+                                            std::sqrt(timeToLastFixing));
+        }
+    }
+
+    // On 9 November, nothing fixed, the volatility's reference date, two business days on, is 11 November, halfway
+    // through the days still to fix, from 9 to 13 November: the standard deviation is 0, and so is the effective
+    // volatility.
+    for (RateAveraging::Type averaging : {RateAveraging::Compound, RateAveraging::Simple})
+    {
+        BOOST_TEST_CONTEXT("coupon A on 9 November, the volatility's reference date on 11 November"
+                           << method(averaging))
+        {
+            const auto [capped, floored] = coupons(start, endA, 0, averaging, linear(2));
+            Real caplet = Null<Real>(), floorlet = Null<Real>();
+            BOOST_CHECK_NO_THROW(caplet = capped->effectiveCapletVolatility());
+            BOOST_CHECK_NO_THROW(floorlet = floored->effectiveFloorletVolatility());
+            BOOST_CHECK_EQUAL(caplet, 0.0);
+            BOOST_CHECK_EQUAL(floorlet, 0.0);
+        }
+    }
+}
+
+BOOST_AUTO_TEST_CASE(testCapsAndFloorsOnTheRateWithLateVolatilityReferenceDates)
+{
+    BOOST_TEST_MESSAGE("Testing caps and floors on an overnight coupon's rate where the volatility's reference date is "
+                       "on or after the coupon's last fixing date...");
+
+    const WeekendsOnly calendar;
+    const Actual360 dayCounter;
+    const Handle<YieldTermStructure> curve(ext::make_shared<FlatForward>(0, calendar, 0.025, dayCounter));
+    const auto index = ext::make_shared<OvernightIndex>("T449", 0, USDCurrency(), calendar, dayCounter, curve);
+    const Rate cap = 0.028, floor = 0.032;
+    const auto linear = [&](Natural settlementDays)
+    { return ext::make_shared<LinearOptionletVolatility>(settlementDays, calendar, 0.05, 2.0, dayCounter); };
+    const auto fixedOn = [&](const Date& referenceDate)
+    { return ext::make_shared<LinearOptionletVolatility>(referenceDate, calendar, 0.05, 2.0, dayCounter); };
+
+    // coupons from Monday 9 November 2026, with fixings of 2 % for 9 November and 3 % for each later day before the
+    // evaluation date; coupon A ends on Friday 13 November, so its last fixing date is 12 November, and coupon B on
+    // Monday 16 November, so its last fixing date is 13 November
+    const Date start(9, November, 2026), endA(13, November, 2026), endB(16, November, 2026);
+    struct Coupons
+    {
+        ext::shared_ptr<CappedFlooredOvernightIndexedCoupon> capped, floored;
+    };
+    const auto coupons = [&](const Date& today, const Date& end, Natural lockoutDays, RateAveraging::Type averaging,
+                             bool effectiveVolatilityInput,
+                             const ext::shared_ptr<OptionletVolatilityStructure>& volatility)
+    {
+        Settings::instance().evaluationDate() = today;
+        index->clearFixings();
+        for (Date d = start; d < today; ++d)
+        {
+            if (calendar.isBusinessDay(d))
+                index->addFixing(d, d == start ? 0.02 : 0.03);
+        }
+        const Handle<OptionletVolatilityStructure> handle(volatility);
+        ext::shared_ptr<FloatingRateCouponPricer> pricer;
+        if (averaging == RateAveraging::Compound)
+            pricer = ext::make_shared<BlackCompoundingOvernightIndexedCouponPricer>(handle, effectiveVolatilityInput);
+        else
+            pricer = ext::make_shared<BlackAveragingOvernightIndexedCouponPricer>(handle, effectiveVolatilityInput);
+        // the pricer set on each coupon, as OvernightLeg does
+        const auto underlying =
+            ext::make_shared<OvernightIndexedCoupon>(end, 100.0, start, end, index, 1.0, 0.0, Date(), Date(),
+                                                     DayCounter(), false, averaging, Null<Natural>(), lockoutDays);
+        underlying->setPricer(pricer);
+        Coupons result = {ext::make_shared<CappedFlooredOvernightIndexedCoupon>(underlying, cap, Null<Rate>()),
+                          ext::make_shared<CappedFlooredOvernightIndexedCoupon>(underlying, Null<Rate>(), floor)};
+        result.capped->setPricer(pricer);
+        result.floored->setPricer(pricer);
+        return result;
+    };
+    const auto method = [](RateAveraging::Type averaging, bool effectiveVolatilityInput)
+    {
+        return std::string(averaging == RateAveraging::Compound ? ", compounding" : ", averaging") +
+               (effectiveVolatilityInput ? ", effective volatility input" : "");
+    };
+
+    struct Row
+    {
+        std::string name;
+        Date today, end;
+        Natural lockoutDays;
+        ext::shared_ptr<OptionletVolatilityStructure> volatility;
+        Date lastFixingDate;
+    };
+
+    // Where the volatility's reference date is the coupon's last fixing date, the time from one to the other is 0, and
+    // the effective volatility is the volatility the standard deviation was taken at: with an effective volatility
+    // input, the volatility at the last fixing date, and without one, the volatility at the later of the coupon's first
+    // fixing date and the day after the volatility's reference date.
+    const std::vector<Row> onTheLastFixingDate = {
+        {"coupon A on 11 November, the volatility's reference date, one business day on, on 12 November",
+         Date(11, November, 2026), endA, 0, linear(1), Date(12, November, 2026)},
+        {"coupon A on 10 November, the volatility's reference date, two business days on, on 12 November",
+         Date(10, November, 2026), endA, 0, linear(2), Date(12, November, 2026)},
+        {"coupon A on 10 November, the volatility's reference date fixed on 12 November", Date(10, November, 2026),
+         endA, 0, fixedOn(Date(12, November, 2026)), Date(12, November, 2026)},
+        {"coupon B on 12 November, the volatility's reference date, one business day on, on 13 November",
+         Date(12, November, 2026), endB, 0, linear(1), Date(13, November, 2026)},
+        {"coupon B on 11 November, the volatility's reference date, two business days on, on 13 November",
+         Date(11, November, 2026), endB, 0, linear(2), Date(13, November, 2026)},
+        // fixing dates 9, 10, 10 and 10 November
+        {"coupon A with a lockout of 2 days on 9 November, the volatility's reference date, one business day on, on 10 "
+         "November",
+         start, endA, 2, linear(1), Date(10, November, 2026)},
+    };
+    for (const auto& [name, today, end, lockoutDays, volatility, lastFixingDate] : onTheLastFixingDate)
+    {
+        for (RateAveraging::Type averaging : {RateAveraging::Compound, RateAveraging::Simple})
+        {
+            // the coupon's constructor refuses a lockout with simple averaging
+            if (lockoutDays > 0 && averaging == RateAveraging::Simple)
+                continue;
+            for (bool effectiveVolatilityInput : {false, true})
+            {
+                BOOST_TEST_CONTEXT(name << method(averaging, effectiveVolatilityInput))
+                {
+                    const auto [capped, floored] =
+                        coupons(today, end, lockoutDays, averaging, effectiveVolatilityInput, volatility);
+                    const Date volatilityDate =
+                        effectiveVolatilityInput ? lastFixingDate : std::max(start, volatility->referenceDate() + 1);
+                    Real caplet = Null<Real>(), floorlet = Null<Real>();
+                    BOOST_CHECK_NO_THROW(caplet = capped->effectiveCapletVolatility());
+                    BOOST_CHECK_NO_THROW(floorlet = floored->effectiveFloorletVolatility());
+                    BOOST_CHECK_EQUAL(caplet, volatility->volatility(volatilityDate, cap));
+                    BOOST_CHECK_EQUAL(floorlet, volatility->volatility(volatilityDate, floor));
+                }
+            }
+        }
+    }
+
+    // Where the volatility's reference date is after the coupon's last fixing date, the pricers refuse it, with and
+    // without an effective volatility input, naming both dates.
+    const std::vector<Row> afterTheLastFixingDate = {
+        {"coupon A on 11 November, the volatility's reference date, two business days on, on 13 November",
+         Date(11, November, 2026), endA, 0, linear(2), Date(12, November, 2026)},
+        {"coupon A on 10 November, the volatility's reference date fixed on 13 November", Date(10, November, 2026),
+         endA, 0, fixedOn(Date(13, November, 2026)), Date(12, November, 2026)},
+        {"coupon B on 12 November, the volatility's reference date, two business days on, on 16 November",
+         Date(12, November, 2026), endB, 0, linear(2), Date(13, November, 2026)},
+    };
+    for (const auto& [name, today, end, lockoutDays, volatility, lastFixingDate] : afterTheLastFixingDate)
+    {
+        for (RateAveraging::Type averaging : {RateAveraging::Compound, RateAveraging::Simple})
+        {
+            for (bool effectiveVolatilityInput : {false, true})
+            {
+                BOOST_TEST_CONTEXT(name << method(averaging, effectiveVolatilityInput))
+                {
+                    const auto [capped, floored] =
+                        coupons(today, end, lockoutDays, averaging, effectiveVolatilityInput, volatility);
+                    std::ostringstream message;
+                    message << (averaging == RateAveraging::Compound ? "BlackCompoundingOvernightIndexedCouponPricer" :
+                                                                       "BlackAveragingOvernightIndexedCouponPricer")
+                            << ": the coupon's last fixing date (" << lastFixingDate
+                            << ") is before the optionlet volatility's reference date (" << volatility->referenceDate()
+                            << ")";
+                    BOOST_CHECK_EXCEPTION(capped->rate(), Error, ExpectedErrorMessage(message.str()));
+                    BOOST_CHECK_EXCEPTION(floored->rate(), Error, ExpectedErrorMessage(message.str()));
+                }
+            }
+        }
+    }
+
+    // Where that time is positive, the effective volatility is the standard deviation over its square root. On 10
+    // November, with the volatility's reference date the evaluation date, coupon A's fixing dates run from 9 to 12
+    // November; without an effective volatility input, the pricer takes the volatility at 11 November, the day after
+    // the reference date, and the standard deviation over a time that starts at the reference date and is extended
+    // towards the last fixing date.
+    for (RateAveraging::Type averaging : {RateAveraging::Compound, RateAveraging::Simple})
+    {
+        for (bool effectiveVolatilityInput : {false, true})
+        {
+            BOOST_TEST_CONTEXT("coupon A on 10 November, the volatility's reference date today"
+                               << method(averaging, effectiveVolatilityInput))
+            {
+                const auto volatility = linear(0);
+                const auto [capped, floored] =
+                    coupons(Date(10, November, 2026), endA, 0, averaging, effectiveVolatilityInput, volatility);
+                const Time firstFixingTime = volatility->timeFromReference(start);
+                const Time lastFixingTime = volatility->timeFromReference(Date(12, November, 2026));
+                const auto expected = [&](Rate strike)
+                {
+                    if (effectiveVolatilityInput)
+                        return volatility->volatility(Date(12, November, 2026), strike) * std::sqrt(lastFixingTime) /
+                               std::sqrt(lastFixingTime);
+                    Time t = std::max(firstFixingTime, 0.0);
+                    t += std::pow(lastFixingTime - t, 3.0) / std::pow(lastFixingTime - firstFixingTime, 2.0) / 3.0;
+                    return volatility->volatility(Date(11, November, 2026), strike) * std::sqrt(t) /
+                           std::sqrt(lastFixingTime);
+                };
+                Real caplet = Null<Real>(), floorlet = Null<Real>();
+                BOOST_CHECK_NO_THROW(caplet = capped->effectiveCapletVolatility());
+                BOOST_CHECK_NO_THROW(floorlet = floored->effectiveFloorletVolatility());
+                BOOST_CHECK_EQUAL(caplet, expected(cap));
+                BOOST_CHECK_EQUAL(floorlet, expected(floor));
             }
         }
     }
